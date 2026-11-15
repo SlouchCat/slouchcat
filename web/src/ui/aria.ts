@@ -87,7 +87,7 @@ export {
   type PlayerChromeStep,
   type PlayerChromeTab,
 } from './PlayerChrome';
-export { PlayerPanel } from './PlayerPanel';
+export { PlayerPanel, PlayerPanelAnchor, pressClosedPanel } from './PlayerPanel';
 export {
   SeekBar,
   type SeekBarChapter,

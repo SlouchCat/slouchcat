@@ -1,5 +1,6 @@
-import { useEffect, useRef, type PointerEvent } from 'react';
+import { useEffect, useRef, type MouseEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { pressClosedPanel } from '@/ui/aria';
 import { SEEK_STEP_S } from './keymap';
 
 /** Two taps on the same half of the picture within this time seek (V-13, phone). */
@@ -32,6 +33,10 @@ interface PictureTapOptions {
  * step 5). A finger or a pen in the phone layout (V-13): a tap shows the controls, or hides them
  * while the video plays; two taps on the same half within DOUBLE_TAP_MS seek 10 s back (left) or
  * on (right). The tap waits that long to tell one from two. The handlers go on the video element.
+ *
+ * A press that closed a panel (concept 23 P-2, pressClosedPanel) only closes it: no play or pause,
+ * no tap, and the double click it starts does not go full screen. Its mousedown keeps the focus
+ * where the closing panel gave it back (the button that opened it) instead of on the body.
  */
 export function usePhoneTap({
   phone,
@@ -49,6 +54,9 @@ export function usePhoneTap({
   const lastPointer = useRef<string>('mouse');
   const lastTap = useRef<{ at: number; side: 'left' | 'right' } | null>(null);
   const tapTimer = useRef<number | undefined>(undefined);
+  // This press closed a panel; and the first press of the click series (a double click) did.
+  const closing = useRef(false);
+  const seriesClosed = useRef(false);
   useEffect(() => () => window.clearTimeout(tapTimer.current), []);
 
   const onTap = (event: PointerEvent<HTMLVideoElement>) => {
@@ -86,16 +94,24 @@ export function usePhoneTap({
     onPointerDown: (event: PointerEvent<HTMLVideoElement>) => {
       hiddenAtTap.current = hidden;
       lastPointer.current = event.pointerType;
+      closing.current = pressClosedPanel(event.nativeEvent);
+    },
+    onMouseDown: (event: MouseEvent<HTMLVideoElement>) => {
+      // The second click of a double click whose first one closed a panel only closes, too.
+      if (event.detail <= 1) seriesClosed.current = closing.current;
+      else if (seriesClosed.current) closing.current = true;
+      if (closing.current) event.preventDefault();
     },
     onPointerUp: (event: PointerEvent<HTMLVideoElement>) => {
       if (event.button !== 0) return;
       lastPointer.current = event.pointerType;
+      if (closing.current) return;
       if (touch()) onTap(event);
       else if (!disabled) togglePlay();
     },
     onDoubleClick: () => {
       // Two taps of a finger seek; a double click of the mouse goes full screen.
-      if (!touch()) toggleFullscreen();
+      if (!touch() && !seriesClosed.current) toggleFullscreen();
     },
   };
 }

@@ -57,6 +57,8 @@ export interface PlayerChromePanelButton {
   expanded: boolean;
   /** The id of the panel (PlayerPanel `id`), for `aria-controls` while it is open. */
   controls?: string;
+  /** The button itself: its panel opens above it (concept 23 P-2, PlayerPanelAnchor). */
+  ref?: Ref<HTMLButtonElement>;
   onPress: () => void;
   isDisabled?: boolean;
 }
@@ -402,6 +404,9 @@ interface PlayerChromeProps {
   helpOpen?: boolean;
   /** The shortcut help; not on a phone. */
   onToggleHelp?: () => void;
+  /** The help button, which its panel opens above, and the panel's id for `aria-controls`. */
+  helpRef?: Ref<HTMLButtonElement>;
+  helpControls?: string;
   /** The tabs under the bar (not on a phone): ↓ from the buttons goes there, ↑ comes back. */
   tabs?: readonly PlayerChromeTab[];
   /** The open tab, or null. */
@@ -470,6 +475,8 @@ export function PlayerChrome({
   settings,
   helpOpen = false,
   onToggleHelp,
+  helpRef,
+  helpControls,
   tabs = [],
   openTab = null,
   onOpenTab,
@@ -526,6 +533,7 @@ export function PlayerChrome({
             disabled: config.isDisabled ?? false,
             render: (excluded: boolean) => (
               <AriaButton
+                ref={config.ref}
                 variant="ghost"
                 icon={icon}
                 // On a phone the buttons at the top right are icons only.
@@ -648,12 +656,14 @@ export function PlayerChrome({
             disabled: false,
             render: (excluded) => (
               <AriaButton
+                ref={helpRef}
                 variant="ghost"
                 icon="help"
                 iconOnly
                 aria-label={t('player.chrome.help')}
                 aria-expanded={helpOpen}
                 aria-haspopup="dialog"
+                aria-controls={helpOpen ? helpControls : undefined}
                 onPress={onToggleHelp}
                 excludeFromTabOrder={excluded}
               />

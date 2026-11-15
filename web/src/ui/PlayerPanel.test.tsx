@@ -1,9 +1,9 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OptionList, OptionRow } from './OptionRow';
-import { PlayerPanel } from './PlayerPanel';
+import { PlayerPanel, PlayerPanelAnchor, pressClosedPanel } from './PlayerPanel';
 
 /** A player with a button that opens the panel and a control after it. */
 function Player({ children }: { children?: ReactNode }) {
@@ -162,13 +162,27 @@ describe('PlayerPanel (concept 13, 11.2)', () => {
   it('traps nothing: Tab leaves the panel for the next control', async () => {
     const { user } = await openPanel();
     await waitFor(() => expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus());
-    // The list is one Tab stop; the next one is the control after the panel.
+    // The list is one Tab stop, the hidden close button the last one; then the control after the
+    // panel. Leaving by Tab does not close it (a remote would lose the menu).
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Schliessen' })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Danach' })).toHaveFocus();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.tab({ shift: true });
-    await user.tab({ shift: true });
     expect(screen.getByRole('button', { name: 'Schliessen' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus();
+  });
+
+  it('has no visible close button in its head, a hidden one last in the panel (P-2)', async () => {
+    const { panel } = await openPanel();
+    const buttons = within(panel).getAllByRole('button');
+    // One close button, after the body: the grab handle of the sheet on a phone.
+    expect(within(panel).getAllByRole('button', { name: 'Schliessen' })).toHaveLength(1);
+    expect(buttons.at(-1)).toHaveAccessibleName('Schliessen');
+    expect(panel.querySelector('header button')).toBeNull();
+    expect(panel.lastElementChild).toBe(buttons.at(-1));
   });
 
   it('keeps the arrow keys in the panel, also at the end of the list', async () => {
@@ -327,6 +341,131 @@ describe('PlayerPanel (concept 13, 11.2)', () => {
     // Escape closes the whole panel, from any level.
     await user.keyboard('{Enter}');
     await waitFor(() => expect(screen.getByRole('option', { name: '1080p' })).toHaveFocus());
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+});
+
+/**
+ * A player like the video player (concept 23 P-2): the bar button the panel belongs to is its
+ * anchor and toggles it; another button of the bar, and the picture, which keeps its focus away.
+ */
+function AnchoredPlayer({ onPicture, onOther }: { onPicture: () => void; onOther: () => void }) {
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLButtonElement>(null);
+  const [toggles, setToggles] = useState(0);
+  return (
+    <div>
+      {/* The picture of the player: a mouse plays and pauses, it takes no focus. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div
+        data-testid="picture"
+        onPointerDown={(event) => {
+          if (!pressClosedPanel(event.nativeEvent)) onPicture();
+        }}
+        onMouseDown={(event) => event.preventDefault()}
+      />
+      <button
+        ref={anchor}
+        type="button"
+        data-toggles={toggles}
+        onClick={() => {
+          setToggles((count) => count + 1);
+          setOpen((current) => !current);
+        }}
+      >
+        Ton öffnen
+      </button>
+      <button type="button" onClick={onOther}>
+        Vollbild
+      </button>
+      <PlayerPanelAnchor value={anchor}>
+        {open && (
+          <PlayerPanel title="Ton" onClose={() => setOpen(false)}>
+            <OptionList label="Ton" selectedId="en" onSelect={() => undefined}>
+              <OptionRow id="de" label="Deutsch" />
+              <OptionRow id="en" label="Englisch" />
+            </OptionList>
+          </PlayerPanel>
+        )}
+      </PlayerPanelAnchor>
+    </div>
+  );
+}
+
+async function openAnchored() {
+  const user = userEvent.setup();
+  const onPicture = vi.fn();
+  const onOther = vi.fn();
+  render(<AnchoredPlayer onPicture={onPicture} onOther={onOther} />);
+  const opener = screen.getByRole('button', { name: 'Ton öffnen' });
+  await user.click(opener);
+  await waitFor(() => expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus());
+  return { user, opener, onPicture, onOther };
+}
+
+describe('PlayerPanel as a menu (concept 23 P-2)', () => {
+  it('a press on the picture only closes it; the focus goes back to the opener', async () => {
+    const { user, opener, onPicture } = await openAnchored();
+    await user.click(screen.getByTestId('picture'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The picture saw the press, but as one that closed the panel: no play or pause.
+    expect(onPicture).not.toHaveBeenCalled();
+    expect(opener).toHaveFocus();
+    // The next press on the picture is an ordinary one.
+    await user.click(screen.getByTestId('picture'));
+    expect(onPicture).toHaveBeenCalledOnce();
+  });
+
+  it('a press on another control closes it, and the control gets its click and the focus', async () => {
+    const { user, onOther } = await openAnchored();
+    const other = screen.getByRole('button', { name: 'Vollbild' });
+    await user.click(other);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onOther).toHaveBeenCalledOnce();
+    expect(other).toHaveFocus();
+  });
+
+  it('a press on its own button is no press outside: the button closes it, once', async () => {
+    const { user, opener } = await openAnchored();
+    await user.click(opener);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(opener).toHaveFocus();
+    // Opened and closed by two clicks: nothing closed it in between and opened it again.
+    expect(opener).toHaveAttribute('data-toggles', '2');
+  });
+
+  it('a press inside it keeps it open', async () => {
+    const { user } = await openAnchored();
+    await user.click(screen.getByRole('option', { name: 'Deutsch' }));
+    expect(screen.getByRole('dialog', { name: 'Ton' })).toBeInTheDocument();
+  });
+
+  it('marks only the pointerdown that closed it', async () => {
+    await openAnchored();
+    const picture = screen.getByTestId('picture');
+    const first = new PointerEvent('pointerdown', { bubbles: true });
+    act(() => {
+      fireEvent(picture, first);
+    });
+    expect(pressClosedPanel(first)).toBe(true);
+    const second = new PointerEvent('pointerdown', { bubbles: true });
+    fireEvent(picture, second);
+    expect(pressClosedPanel(second)).toBe(false);
+  });
+
+  it('the hidden close button closes it and gives the focus back to the opener', async () => {
+    const { user, opener } = await openAnchored();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Schliessen' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+
+  it('Escape closes it with the focus back on the opener, as before', async () => {
+    const { user, opener } = await openAnchored();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(opener).toHaveFocus();

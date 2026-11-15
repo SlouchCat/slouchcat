@@ -21,7 +21,13 @@ import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
-import { AriaButton, focusOnMount, PlayerChrome, type SeekBarTrickplay } from '@/ui/aria';
+import {
+  AriaButton,
+  focusOnMount,
+  PlayerChrome,
+  PlayerPanelAnchor,
+  type SeekBarTrickplay,
+} from '@/ui/aria';
 import styles from '@/features/player/Player.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -122,6 +128,8 @@ export function OfflineVideo({
     setSettingsView,
     openSettings,
     panelButton,
+    anchors,
+    anchor,
   } = usePlayerPanels();
   // The chapter tab is open; C counts `focusChapter` up, so the chapter playing takes the focus.
   const [tab, setTab] = useState<{ focusChapter?: number } | null>(null);
@@ -452,6 +460,7 @@ export function OfflineVideo({
           label: t('player.settings.title'),
           expanded: panel === 'settings',
           controls: PANEL_IDS.settings,
+          ref: anchors.settings,
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: limitReached,
         }}
@@ -460,58 +469,62 @@ export function OfflineVideo({
         onOpenTab={(id) => setTab(id === null ? null : {})}
         helpOpen={panel === 'help'}
         onToggleHelp={() => togglePanel('help')}
+        helpRef={anchors.help}
+        helpControls={PANEL_IDS.help}
       />
-      {panel === 'help' && (
-        // Escape leaves for the downloads or the offline library, not a detail page (review step 6).
-        <ShortcutHelp
-          onClose={closePanel}
-          rows={helpRows}
-          backAction={
-            backTo === 'downloads'
-              ? t('player.help.rows.back.actionOfflineDownloads')
-              : t('player.help.rows.back.actionOfflineLibrary')
-          }
-        />
-      )}
-      {panel === 'settings' && (
-        <SettingsPanel
-          page={settingsView.page}
-          direct={settingsView.direct}
-          onPage={(page) => setSettingsView({ page, direct: false })}
-          onClose={closePanel}
-          chapters={phone && hasChapters ? chapterChoice : undefined}
-          rate={rate}
-          onRate={setRate}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
-        />
-      )}
-      {panel === 'audio' && audioTrack && (
-        <AudioPanel
-          tracks={[audioTrack]}
-          profileLanguage={profileLanguage}
-          selectedIndex={audioTrack.index}
-          converts={() => false}
-          // The download has this one track: choosing it changes nothing.
-          onSelect={closePanel}
-          onClose={closePanel}
-        />
-      )}
-      {panel === 'subtitle' && (
-        <SubtitlePanel
-          tracks={subtitles.map((entry) => entry.track)}
-          profileLanguage={profileLanguage}
-          selectedId={subtitle?.track.id}
-          // Local: the stored files, no new session (rule 12: the server chose them at download).
-          // The panel closes with the choice, as online, where a choice starts a new session.
-          onSelect={(id) => {
-            setPicked(id);
-            closePanel();
-          }}
-          onClose={closePanel}
-          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
-        />
-      )}
+      <PlayerPanelAnchor value={anchor}>
+        {panel === 'help' && (
+          // Escape leaves for the downloads or the offline library, not a detail page (review step 6).
+          <ShortcutHelp
+            onClose={closePanel}
+            rows={helpRows}
+            backAction={
+              backTo === 'downloads'
+                ? t('player.help.rows.back.actionOfflineDownloads')
+                : t('player.help.rows.back.actionOfflineLibrary')
+            }
+          />
+        )}
+        {panel === 'settings' && (
+          <SettingsPanel
+            page={settingsView.page}
+            direct={settingsView.direct}
+            onPage={(page) => setSettingsView({ page, direct: false })}
+            onClose={closePanel}
+            chapters={phone && hasChapters ? chapterChoice : undefined}
+            rate={rate}
+            onRate={setRate}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+            nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
+          />
+        )}
+        {panel === 'audio' && audioTrack && (
+          <AudioPanel
+            tracks={[audioTrack]}
+            profileLanguage={profileLanguage}
+            selectedIndex={audioTrack.index}
+            converts={() => false}
+            // The download has this one track: choosing it changes nothing.
+            onSelect={closePanel}
+            onClose={closePanel}
+          />
+        )}
+        {panel === 'subtitle' && (
+          <SubtitlePanel
+            tracks={subtitles.map((entry) => entry.track)}
+            profileLanguage={profileLanguage}
+            selectedId={subtitle?.track.id}
+            // Local: the stored files, no new session (rule 12: the server chose them at download).
+            // The panel closes with the choice, as online, where a choice starts a new session.
+            onSelect={(id) => {
+              setPicked(id);
+              closePanel();
+            }}
+            onClose={closePanel}
+            subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          />
+        )}
+      </PlayerPanelAnchor>
     </main>
   );
 }
