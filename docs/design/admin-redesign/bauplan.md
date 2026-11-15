@@ -85,9 +85,10 @@ Bedienung unverändert: ein Tab-Stopp, Pfeiltasten zwischen den Einträgen, Pos1
 
 ### 2.3 Handy (unter 768 px)
 
-Der Knopf «Verwaltung · Seite» über jeder Seite bleibt und öffnet das Blatt mit denselben sechs
-Einträgen; unter dem aktuellen Bereich stehen dessen Seiten eingerückt, damit jede Seite mit einem
-Tippen erreichbar bleibt. Die Bereichsreiter stehen auch auf dem Handy über der Seite und brechen um.
+Der Knopf «Verwaltung · Seite» über jeder Seite bleibt und öffnet das Blatt: «Zurück zur App»,
+«Übersicht» und die fünf Bereiche mit allen ihren Seiten (wie heute die vier Gruppen), damit jede
+Seite ein Tippen entfernt bleibt. Die Bereichsreiter stehen auch auf dem Handy über der Seite und
+brechen um.
 
 ### 2.4 Suchpalette
 
@@ -210,6 +211,45 @@ meldet er es dem Koordinator.
 | Demo-Punkt, Stern-Knopf | in der Kopfzeile | entfallen | keine Entsprechung im Produkt |
 | Seitentitel | teils andere Namen | Namen des Produkts | entschieden, auch auf Zuschauerseite |
 | Beispielwerte, Beispielaktionen | Formulare im Mockup | nur, was der Bestand kann | Übergabepaket: nicht als Anforderung lesen |
+
+### 7.1 Widersprüche zwischen Mockup und Bestand (aus dem Inventar): es gilt der Bestand
+
+| Mockup | Bestand, der bleibt |
+|---|---|
+| D002 «Keyframe-Vorschau aktivieren» als Schalter; Freigabestufe für jede Bibliothek | «Vorschau beim Spulen» mit vier Modi je Filme und Serien, «Speichern», «Umfang»; Freigabestufe nur bei Hörbüchern und Podcasts |
+| D004 «Dateien auf Datenträger ebenfalls löschen» beim Löschen einer Bibliothek | Bibliothek löschen entfernt nie Dateien; nur das Löschen eines Titels kennt «Auch die Dateien löschen» |
+| D005 Hörbuch-Quellen unter Bibliotheken | eigene Seite `/admin/metadata/audiobooks`, als Bereichsreiter unter Medien, Verweis aus «Metadaten» bleibt |
+| D023 Schalter «Heruntergeladene Dateien löschen» | Dateien entfernt der nächste Abgleich; kein Schalter |
+| D029 Einladung mit E-Mail, Rolle und wählbarer Ablaufzeit | Einladung erzeugt ein Konto ohne Verwaltung, gilt sieben Tage, Link wird einmal gezeigt |
+| D030 Rolle als Feld | Rolle als Menüpunkt mit Bestätigung, nur für den Eigentümer |
+| D031 Profile fremder Konten bearbeiten | nur die Profile des eigenen Kontos («Meine Profile») |
+| D039 Spotlight-Quelle «Automatisch/Manuell» | Quelle ist immer eine Trakt-Liste (sieben Arten) |
+| D049 veröffentlichte Mitteilung bearbeiten | veröffentlichte Ankündigung ist nicht mehr änderbar |
+| D065 «Mit Passwort verschlüsseln» als Schalter | Sicherung mit Schlüsseln ist immer verschlüsselt, ohne Schlüssel nie |
+| D067 «Dateiwächter Grenze» als Eingabe, «Diagnose kopieren» | Anzeige und sysctl-Befehl zum Kopieren; das Limit setzt der Host |
+| Speicher als eine Zahl («nicht doppelt zählen») | immer beide Pfade, Konfiguration und Cache (Entscheid Konzept 11, F-4) |
+| D069 «Aktivität ansehen» als längere Liste | die API liefert höchstens sechs Einträge; die werden gezeigt |
+
+Beispiele des Mockups ohne Basis im Code (je Seite im Inventar, Abschnitt «Abgleich mit dem
+Mockup») werden nicht gebaut. Ausnahmen, weil sie nur Verweise oder ein erneutes Laden sind und
+keine Funktion erfinden: die Suchpalette, die Schnellzugriffe der Übersicht, «Aktualisieren» im
+Kopf der Übersicht.
+
+### 7.2 Festlegungen zu offenen Punkten des Inventars
+
+- **Grafikchip-Wahl, öffentliche Adresse, Update-Prüfung** bleiben auf «Integrationen» (Band
+  «Server», im Mockup die Kachel «Server & Updates»). Die Seite «Server» verweist dorthin. Texte,
+  die «Übersicht › Neu starten» nennen, nennen neu «System › Server».
+- **Zustand der Integrationen und Webhooks** (acht Schlüssel mit vier Zuständen und Grund, «x von
+  y», Meldungen der letzten 24 Stunden, stille Webhooks): Fehler und stille Webhooks stehen auf der
+  Übersicht unter «Was benötigt Aufmerksamkeit?»; die ganze Liste steht neu auf «Integrationen» an
+  den Kacheln der Dienste (gleiche Abfrage `getDashboard`, keine neue Datenquelle).
+- **Fehlerprotokoll** und seine Ansage «N neue Fehler» stehen auf «Server» (Abfrage alle 5 s wie
+  heute, A-3); die Übersicht nennt die Zahl mit Verweis.
+- **Laufende Update-Installation**: Ablauf und Anschluss auf «Server»; die Übersicht zeigt sie im
+  Hinweisband mit Verweis.
+- **Titel der Übersicht**: «Alles im Blick» (Mockup), Zeile darüber «Übersicht». Alle anderen Seiten
+  behalten ihren Titel.
 
 ## 8. Rückweg
 
