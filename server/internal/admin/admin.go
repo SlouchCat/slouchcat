@@ -386,9 +386,11 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 		}
 		libraryID = lib.ID
 	} else if err := s.storeWizard(ctx, openWizard()); err != nil {
-		// The account exists; without the record the wizard counts as finished and the owner
-		// sets up the rest in the administration.
+		// Without the record the wizard would count as finished and the owner would never be led
+		// into it: the request fails, like a failed first library. The account exists all the
+		// same; the owner then signs in and sets up the rest in the administration.
 		s.log.ErrorContext(ctx, "setup: record the guided wizard", "account_id", account.ID, "err", err)
+		return model.Session{}, "", fmt.Errorf("record the guided wizard: %w", err)
 	}
 	session, token, err := s.auth.StartSession(ctx, account, profile, userAgent)
 	if err != nil {
