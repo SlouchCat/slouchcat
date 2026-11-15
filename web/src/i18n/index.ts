@@ -82,9 +82,15 @@ export async function ensureLanguage(
   if (now.length < chain.length) afterFirstPaint(() => void loadBundle(fallbackLanguage));
 }
 
-/** Switches the UI language, loading its texts first. */
+// Counts the switches: two quick ones may finish loading in the other order, and only the latest
+// may change the language.
+let latestSwitch = 0;
+
+/** Switches the UI language, loading its texts first; a newer switch wins over an older one. */
 async function switchTo(language: string): Promise<void> {
+  const request = ++latestSwitch;
   await ensureLanguage(language, { englishLater: true });
+  if (request !== latestSwitch) return;
   if (i18n.language !== language) await i18n.changeLanguage(language);
 }
 
