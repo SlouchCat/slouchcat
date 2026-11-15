@@ -102,7 +102,8 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
     in `MetadataBase` der Oberflächensprache, auch wenn das Profil eine eigene Metadaten-Sprache hat.
   - `profiles.settings.ratingAboveAccount` nennt fest «FSK»; das ändert Stufe 3.
   - Die festen Texte der Schrittweite im Player («−0,1», «0,1 s früher») schreiben ein Komma, während
-    `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). Gehört zur Durchsicht der Texte.
+    `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). *Erledigt in Stufe 2:* `de` schreibt
+    «−0.1», «0.1 s früher» und «0.5× bis 2×», die Überlagerung `de-DE` behält das Komma.
 - **Fallen beim Bauen:** Der Dateicache von Vitest (`node_modules/.vitest-cache`) übersieht eine neue Datei
   in einem `import.meta.glob`; nach dem Anlegen einer Sprachdatei lokal den Ordner löschen. Node schreibt
   in `de-CH` den Tausender-Apostroph `'`, Browser `’`; Tests rechnen die Zahl darum mit

@@ -182,9 +182,9 @@ test('the subtitle style by keyboard: size and colour on the layer, the offset s
 
   // The offset: ten times «später» moves every cue a second later, so the cue on screen at this
   // position is no longer the one that started half a second ago.
-  await arrowTo(page, style.getByRole('button', { name: '0,1 s früher' }), 'ArrowDown', 16);
+  await arrowTo(page, style.getByRole('button', { name: '0.1 s früher' }), 'ArrowDown', 16);
   await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, style.getByRole('button', { name: '0,1 s später' }));
+  await expectFocusOn(page, style.getByRole('button', { name: '0.1 s später' }));
   for (let presses = 0; presses < 10; presses += 1) await page.keyboard.press('Enter');
   await expect(style.getByText('+1.0 s')).toBeVisible();
   await expect

@@ -215,10 +215,10 @@ test('the subtitle panel and its style page by the arrows alone: a remote has no
   // ↓ through the four lists down to the offset; → to «später»; Enter moves the cues by 0.1 s.
   const style = page.getByRole('dialog', { name: 'Untertitel-Stil' });
   await expectFocusOn(page, style.getByRole('option', { name: 'M', exact: true }));
-  await arrowTo(page, style.getByRole('button', { name: '0,1 s früher' }), 'ArrowDown', 16);
+  await arrowTo(page, style.getByRole('button', { name: '0.1 s früher' }), 'ArrowDown', 16);
   await expectVisibleFocus(page);
   await page.keyboard.press('ArrowRight');
-  const later = style.getByRole('button', { name: '0,1 s später' });
+  const later = style.getByRole('button', { name: '0.1 s später' });
   await expectFocusOn(page, later);
   await page.keyboard.press('Enter');
   await expect(style.getByText('+0.1 s')).toBeVisible();

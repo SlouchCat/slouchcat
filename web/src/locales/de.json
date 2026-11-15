@@ -1036,8 +1036,8 @@
       "speedButton": "Geschwindigkeit: {{rate}}",
       "slower": "Langsamer",
       "faster": "Schneller",
-      "minus": "−0,1",
-      "plus": "+0,1",
+      "minus": "−0.1",
+      "plus": "+0.1",
       "sleep": {
         "button": "Sleep-Timer",
         "buttonActive": "Sleep-Timer: noch {{left}}",
@@ -1079,8 +1079,8 @@
       "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
       "offset": {
         "title": "Versatz",
-        "earlier": "0,1 s früher",
-        "later": "0,1 s später",
+        "earlier": "0.1 s früher",
+        "later": "0.1 s später",
         "value": "{{seconds}} s",
         "reset": "Zurücksetzen"
       }
@@ -1170,7 +1170,7 @@
         },
         "speed": {
           "keys": "[ ]",
-          "action": "Langsamer oder schneller (0,5× bis 2×)"
+          "action": "Langsamer oder schneller (0.5× bis 2×)"
         },
         "tracks": {
           "keys": "T",
