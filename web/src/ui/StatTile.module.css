@@ -69,3 +69,27 @@
 .compact .note {
   font-size: var(--sc-font-size-xs);
 }
+
+/* A tile that is a link (build plan 3): the whole tile is the target; global.css draws the ring. */
+.link {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: var(--sc-stat-radius, var(--sc-radius-md));
+  color: inherit;
+  text-decoration: none;
+}
+
+.link .tile {
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.link:focus-visible .tile {
+  background-color: var(--sc-color-surface-2);
+}
+
+@media (hover: hover) {
+  .link:hover .tile {
+    background-color: var(--sc-color-surface-2);
+  }
+}
