@@ -131,7 +131,8 @@ type DetectOptions struct {
 	TonemapPref string
 	// FallbackAuto replaces a forced hardware backend that fails its probe by the automatic
 	// choice instead of software (a choice stored in the settings, concept 22 F-10: a driver
-	// change must not leave the server on the CPU when another backend works).
+	// change must not leave the server on the CPU when another backend works). It also keeps the
+	// probes of a stored software choice; software forced otherwise probes nothing.
 	FallbackAuto bool
 }
 
@@ -180,7 +181,12 @@ func DetectWith(ctx context.Context, r Runner, opts DetectOptions, log *slog.Log
 		return "", caps, errors.New("ffmpeg has no libx264 encoder")
 	}
 
-	caps.Candidates = probeBackends(ctx, r, encoders, log)
+	// Software forced by --hw or SLOUCHCAT_HW needs no probe, and a hanging device would cost up to
+	// testEncodeTimeout per backend; the choice cannot be changed in the UI then anyway. A software
+	// choice stored in the administration (FallbackAuto) probes, so the UI can offer the others.
+	if override != string(BackendSoftware) || opts.FallbackAuto {
+		caps.Candidates = probeBackends(ctx, r, encoders, log)
+	}
 	caps.Backend = chooseBackend(caps.Candidates, override)
 	if forced := Backend(override); caps.Backend == BackendSoftware && slices.Contains(hardwareBackends, forced) {
 		if opts.FallbackAuto {

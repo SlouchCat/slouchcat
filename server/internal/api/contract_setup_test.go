@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -69,6 +70,51 @@ func TestGuidedSetupOverHTTP(t *testing.T) {
 	decode(t, rec, &after)
 	if after.SetupPending == nil || *after.SetupPending {
 		t.Errorf("session after the finish: setupPending %v, want false", after.SetupPending)
+	}
+}
+
+// setupPending belongs to the owner's primary profile (review of stage 2): a sign-in without a
+// chosen profile and another profile of the owner do not carry it, the primary profile does.
+func TestSetupPendingOnlyWithThePrimaryProfile(t *testing.T) {
+	t.Parallel()
+	e := newAuthEnv(t)
+	body := setupBody()
+	delete(body, "library")
+	rec := e.call(t, http.MethodPost, "/api/v1/setup", body, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	var started gen.SessionInfo
+	decode(t, rec, &started)
+	owner := sessionCookie(t, rec)
+	rec = e.call(t, http.MethodPost, "/api/v1/profiles", map[string]any{"name": "Kind", "maxRating": 6}, owner)
+	wantStatus(t, rec, http.StatusCreated)
+	var kid gen.Profile
+	decode(t, rec, &kid)
+
+	rec = e.call(t, http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "marco@example.ch", "password": authTestPassword}, nil)
+	wantStatus(t, rec, http.StatusOK)
+	var picker gen.SessionInfo
+	decode(t, rec, &picker)
+	if picker.Profile != nil || picker.SetupPending != nil {
+		t.Errorf("sign-in with two profiles: profile %v, setupPending %v; want neither", picker.Profile, picker.SetupPending)
+	}
+	cookie := sessionCookie(t, rec)
+	for _, c := range []struct {
+		id   int64
+		want *bool
+	}{{kid.Id, nil}, {started.Profile.Id, new(true)}} {
+		rec = e.call(t, http.MethodPost, fmt.Sprintf("/api/v1/auth/profiles/%d/select", c.id), nil, cookie)
+		wantStatus(t, rec, http.StatusOK)
+		var info gen.SessionInfo
+		decode(t, rec, &info)
+		if (info.SetupPending == nil) != (c.want == nil) || (c.want != nil && *info.SetupPending != *c.want) {
+			t.Errorf("profile %d selected: setupPending %v, want %v", c.id, info.SetupPending, c.want)
+		}
+		rec = e.call(t, http.MethodGet, "/api/v1/auth/session", nil, cookie)
+		var again gen.SessionInfo
+		decode(t, rec, &again)
+		if (again.SetupPending == nil) != (c.want == nil) {
+			t.Errorf("profile %d, getSession: setupPending %v, want %v", c.id, again.SetupPending, c.want)
+		}
 	}
 }
 

@@ -118,7 +118,7 @@ const owner = (extra: Routes = {}, states: Parameters<typeof progress>[0] = {}):
 });
 
 beforeEach(async () => {
-  sessionStorage.clear();
+  localStorage.removeItem('slouchcat.setupLater');
   await setLanguage('de');
 });
 
@@ -215,6 +215,38 @@ describe('the owner of an unfinished wizard', () => {
       'href',
       '/setup/services',
     );
+  });
+
+  it('«Später fortsetzen» outlives a new tab or a reopened app until the next sign-in', async () => {
+    localStorage.setItem('slouchcat.setupLater', String(session.account.id));
+    mockApi(owner());
+    const { router } = renderApp('/admin');
+    expect(await screen.findByText('Einrichtung nicht abgeschlossen')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+  });
+
+  it('is not led into the wizard before choosing the primary profile (review of stage 2)', async () => {
+    const other = { ...session.profile, id: 2, name: 'Kind', isPrimary: false };
+    const { calls } = mockApi(
+      owner({
+        'GET /auth/session': () => json({ account: pending.account, setupPending: true }),
+        'GET /auth/profiles': () => json([session.profile, other]),
+      }),
+    );
+    const { router } = renderApp('/');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/profiles'));
+    expect(await screen.findByRole('button', { name: /^Kind/ })).toBeVisible();
+    expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
+  });
+
+  it('the overview asks for the wizard only for the owner (review of stage 2)', async () => {
+    const admin = { ...pending, account: { ...pending.account, isOwner: false } };
+    localStorage.removeItem('slouchcat.setupLater');
+    const { calls } = mockApi(owner({ 'GET /auth/session': () => json(admin) }));
+    renderApp('/admin');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(screen.queryByText('Einrichtung nicht abgeschlossen')).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/setup')).toBe(false);
   });
 
   it('stores the region: rating country, languages, the country in the radio without stations', async () => {

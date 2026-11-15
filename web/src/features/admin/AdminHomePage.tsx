@@ -1512,7 +1512,12 @@ function Cards({
  */
 function SetupBand() {
   const { t } = useTranslation();
-  const progress = useQuery(setupProgressQuery).data;
+  const session = useActiveSession();
+  // The wizard's state is the owner's primary profile's (x-visibility owner).
+  const progress = useQuery({
+    ...setupProgressQuery,
+    enabled: session.account.isOwner && session.profile.isPrimary,
+  }).data;
   if (!progress || progress.finished) return null;
   return (
     <Notice

@@ -63,6 +63,9 @@ func TestSetupStatusOverHTTP(t *testing.T) {
 			t.Errorf("%s still answers: %d %s", path, rec.Code, rec.Body.String())
 		}
 	}
+	if rec = e.call(t, http.MethodGet, "/api/v1/setup/roots", nil, nil); rec.Code != http.StatusNotFound {
+		t.Errorf("GET /setup/roots still answers: %d %s", rec.Code, rec.Body.String())
+	}
 
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	rec = e.call(t, http.MethodGet, "/api/v1/setup", nil, nil)

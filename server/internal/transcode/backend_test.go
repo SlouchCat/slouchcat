@@ -80,11 +80,19 @@ func TestDetectProbesEveryBackend(t *testing.T) {
 		{Backend: BackendQSV, OK: true},
 		{Backend: BackendVAAPI, Reason: CandidateNotInBuild},
 	}
-	for _, override := range []string{"auto", "software", "nvenc"} {
+	for _, override := range []string{"auto", "nvenc"} {
 		_, caps, err := Detect(ctx, r, override, nil)
 		if err != nil || !slices.Equal(caps.Candidates, want) {
 			t.Errorf("%s: candidates %+v, %v; want %+v", override, caps.Candidates, err, want)
 		}
+	}
+	// Software forced by --hw or SLOUCHCAT_HW probes nothing; a stored software choice does.
+	if _, caps, err := Detect(ctx, r, "software", nil); err != nil || caps.Candidates != nil {
+		t.Errorf("forced software: candidates %+v, %v; want none", caps.Candidates, err)
+	}
+	if _, caps, err := DetectWith(ctx, r, DetectOptions{Override: "software", FallbackAuto: true}, nil); err != nil ||
+		!slices.Equal(caps.Candidates, want) {
+		t.Errorf("stored software: candidates %+v, %v; want %+v", caps.Candidates, err, want)
 	}
 	if err := os.WriteFile(filepath.Join(devDir, "nvidia0"), nil, 0o600); err != nil {
 		t.Fatal(err)

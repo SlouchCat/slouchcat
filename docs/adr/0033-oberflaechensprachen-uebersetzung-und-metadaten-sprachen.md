@@ -104,7 +104,8 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
     Schlüssel heisst jetzt `profiles.settings.ratingAboveCeiling` und nennt die Stufen des Freigabelands
     (ADR 0034).
   - Die festen Texte der Schrittweite im Player («−0,1», «0,1 s früher») schreiben ein Komma, während
-    `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). Gehört zur Durchsicht der Texte.
+    `intlLocale` in `de` jetzt einen Punkt formatiert («1.25×»). *Erledigt in Stufe 2:* `de` schreibt
+    «−0.1», «0.1 s früher» und «0.5× bis 2×», die Überlagerung `de-DE` behält das Komma.
 - **Fallen beim Bauen:** Der Dateicache von Vitest (`node_modules/.vitest-cache`) übersieht eine neue Datei
   in einem `import.meta.glob`; nach dem Anlegen einer Sprachdatei lokal den Ordner löschen. Node schreibt
   in `de-CH` den Tausender-Apostroph `'`, Browser `’`; Tests rechnen die Zahl darum mit
@@ -117,6 +118,10 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   jetzt «Deutsch (Schweiz)». Die Erkennung brauchte keine Änderung: blosses `de`, `de-AT`, `de-LU` und
   `de-BE` landen jetzt von selbst bei `de-DE`; die Ersatzregel aus Stufe 1 ist entfernt.
 - Die Profilliste zeigt den Sprachnamen aus `languages.ts` statt eines Texts `language.<code>`.
+- Grafikchip (Teil A, F-10, im selben Release): Der Server probiert beim Start alle drei Hardware-Backends,
+  ausser wenn `--hw software` oder `SLOUCHCAT_HW=software` den Prozessor erzwingt. Dann ist die Wahl in
+  der Oberfläche ohnehin gesperrt, und ein hängendes Gerät kostete bis zu 3 × 5 s Startzeit. Eine in der
+  Verwaltung gespeicherte Wahl «Nur Prozessor» probiert weiter, damit die übrigen wählbar bleiben.
 - `server/internal/notify/locales/de-DE.json` ist leer (`{}`): Kein Server-Text enthält ein ss-Wort mit
   langem Vokal oder «Guillemets». `TestServerTexts` prüft die Überlagerung wie die Web-App (nur
   vorhandene Schlüssel, jeder anders als `de`).
