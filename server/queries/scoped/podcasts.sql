@@ -22,6 +22,33 @@ WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.published_a
 ORDER BY i.published_at DESC, i.id DESC
 LIMIT @limit_count;
 
+-- The nearest newer visible episode of the same podcast as a visible episode (the next episode of
+-- the player, concept 23 F-5; heard or not). Newer is the reverse of the order of
+-- ListVisiblePodcastEpisodes: by publication date, episodes without a date before the dated ones,
+-- then by creation (the order of the feed), then by id.
+-- name: GetNewerVisiblePodcastEpisode :one
+SELECT i.* FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+JOIN items AS c ON c.id = @item_id AND c.kind = 'podcast_episode'
+JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
+WHERE i.parent_id = c.parent_id AND i.kind = 'podcast_episode' AND i.id <> c.id
+  AND (i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id)
+    > (c.published_at IS NOT NULL, COALESCE(c.published_at, 0), c.created_at, c.id)
+ORDER BY i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id
+LIMIT 1;
+
+-- The nearest older visible episode of the same podcast, the mirror of GetNewerVisiblePodcastEpisode.
+-- name: GetOlderVisiblePodcastEpisode :one
+SELECT i.* FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+JOIN items AS c ON c.id = @item_id AND c.kind = 'podcast_episode'
+JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
+WHERE i.parent_id = c.parent_id AND i.kind = 'podcast_episode' AND i.id <> c.id
+  AND (i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id)
+    < (c.published_at IS NOT NULL, COALESCE(c.published_at, 0), c.created_at, c.id)
+ORDER BY i.published_at IS NOT NULL DESC, COALESCE(i.published_at, 0) DESC, i.created_at DESC, i.id DESC
+LIMIT 1;
+
 -- The enclosure of a visible episode (stream proxy and download source) with the feed URL and
 -- origin of its podcast, which decide whether the enclosure may live in the local network (package
 -- netguard: never for a feed read from a file, ADR 0015).

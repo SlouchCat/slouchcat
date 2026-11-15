@@ -12089,7 +12089,10 @@ components:
                 $ref: "#/components/schemas/ItemRef"
             nextEpisode:
               $ref: "#/components/schemas/ItemRef"
-              description: The next visible episode of the same series after this episode.
+              description: |
+                The next visible episode of the same series after this episode, or for a podcast
+                episode the next newer visible episode of the same podcast (since contract 1.38.0,
+                concept 23 F-5).
             nextUp:
               $ref: "#/components/schemas/NextUp"
               description: |
@@ -12865,14 +12868,18 @@ components:
           $ref: "#/components/schemas/Segments"
         nextEpisode:
           $ref: "#/components/schemas/ItemRef"
-          description: The next visible episode of the same series (auto-next, W-9).
+          description: |
+            The next visible episode of the same series (auto-next, W-9), or for a podcast episode
+            the next newer visible episode of the same podcast, heard or not (since contract 1.38.0,
+            concept 23 F-5; also when it plays from its enclosure).
         previousEpisode:
           $ref: "#/components/schemas/ItemRef"
           description: |
             The previous visible episode of the same series (since contract 1.38.0, concept 23
             section 3.2a), the mirror of `nextEpisode`: a lower number in the same season, else the
-            last episode of the nearest earlier season; specials only precede a special. Absent for
-            the first episode and for other kinds.
+            last episode of the nearest earlier season; specials only precede a special. For a
+            podcast episode the next older visible episode of the same podcast, heard or not (F-5).
+            Absent for the first episode and for other kinds.
         trickplay:
           $ref: "#/components/schemas/Trickplay"
           description: |

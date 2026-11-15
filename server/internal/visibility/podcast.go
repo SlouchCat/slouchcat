@@ -50,7 +50,35 @@ func (r *Reader) podcastEpisodeDetail(ctx context.Context, s Scope, pid int64, i
 	if len(parents) == 1 && parents[0].Kind == "podcast" {
 		d.Podcast = &parents[0]
 	}
-	return nil
+	d.NextEpisode, err = r.adjacentPodcastEpisode(ctx, s, pid, it.ID, false)
+	return err
+}
+
+// adjacentPodcastEpisode returns the nearest newer visible episode of the podcast of a visible
+// episode, or with previous the nearest older one (concept 23 F-5: back is older, forward is
+// newer, whether heard or not); nil when there is none. The order is the one of the episode list
+// reversed (GetNewerVisiblePodcastEpisode).
+func (r *Reader) adjacentPodcastEpisode(ctx context.Context, s Scope, pid int64, itemID string, previous bool) (*model.ItemSummary, error) {
+	var adj scopedq.Item
+	var err error
+	what := "newer podcast episode"
+	if previous {
+		what = "older podcast episode"
+		adj, err = r.q.GetOlderVisiblePodcastEpisode(ctx, scopedq.GetOlderVisiblePodcastEpisodeParams{ProfileID: pid, ItemID: itemID})
+	} else {
+		adj, err = r.q.GetNewerVisiblePodcastEpisode(ctx, scopedq.GetNewerVisiblePodcastEpisodeParams{ProfileID: pid, ItemID: itemID})
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", what, err)
+	}
+	sum, err := r.summaries(ctx, s, pid, []scopedq.Item{adj})
+	if err != nil {
+		return nil, err
+	}
+	return &sum[0], nil
 }
 
 // PodcastEpisodes returns one page of the visible episodes of a visible podcast, newest first, and

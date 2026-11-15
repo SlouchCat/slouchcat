@@ -29,6 +29,211 @@ func (q *Queries) CountVisiblePodcastEpisodes(ctx context.Context, arg CountVisi
 	return count, err
 }
 
+const getNewerVisiblePodcastEpisode = `-- name: GetNewerVisiblePodcastEpisode :one
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN items AS c ON c.id = ?2 AND c.kind = 'podcast_episode'
+JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+WHERE i.parent_id = c.parent_id AND i.kind = 'podcast_episode' AND i.id <> c.id
+  AND (i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id)
+    > (c.published_at IS NOT NULL, COALESCE(c.published_at, 0), c.created_at, c.id)
+ORDER BY i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id
+LIMIT 1
+`
+
+type GetNewerVisiblePodcastEpisodeParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// The nearest newer visible episode of the same podcast as a visible episode (the next episode of
+// the player, concept 23 F-5; heard or not). Newer is the reverse of the order of
+// ListVisiblePodcastEpisodes: by publication date, episodes without a date before the dated ones,
+// then by creation (the order of the feed), then by id.
+func (q *Queries) GetNewerVisiblePodcastEpisode(ctx context.Context, arg GetNewerVisiblePodcastEpisodeParams) (Item, error) {
+	row := q.db.QueryRowContext(ctx, getNewerVisiblePodcastEpisode, arg.ProfileID, arg.ItemID)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.Title,
+		&i.SortTitle,
+		&i.OriginalTitle,
+		&i.Year,
+		&i.ReleaseDate,
+		&i.RuntimeMinutes,
+		&i.Genres,
+		&i.TmdbID,
+		&i.ImdbID,
+		&i.Available,
+		&i.RatingSource,
+		&i.EnclosureUrl,
+		&i.LockedFields,
+		&i.MetadataState,
+		&i.MetadataError,
+		&i.MatchedAt,
+		&i.AddedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SeasonNumber,
+		&i.EpisodeNumber,
+		&i.EpisodeEnd,
+		&i.TvdbID,
+		&i.ExtraKind,
+		&i.TmdbPosterPath,
+		&i.TmdbBackdropPath,
+		&i.TrailerState,
+		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+		&i.FilledProviders,
+		&i.VoteAverage,
+		&i.OriginalLanguage,
+		&i.Publisher,
+		&i.Isbn,
+		&i.Asin,
+		&i.AudioSeriesID,
+		&i.AuthorDisplay,
+		&i.BookMatchState,
+		&i.BookMatchProvider,
+		&i.BookMatchID,
+		&i.BookMatchRegion,
+		&i.BookMatchedAt,
+		&i.BookMatchScore,
+		&i.BookMatchError,
+		&i.BookMatchManual,
+		&i.RemovedAt,
+		&i.OwnRating,
+		&i.EffectiveRating,
+		&i.MinChildRating,
+	)
+	return i, err
+}
+
+const getOlderVisiblePodcastEpisode = `-- name: GetOlderVisiblePodcastEpisode :one
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN items AS c ON c.id = ?2 AND c.kind = 'podcast_episode'
+JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+WHERE i.parent_id = c.parent_id AND i.kind = 'podcast_episode' AND i.id <> c.id
+  AND (i.published_at IS NOT NULL, COALESCE(i.published_at, 0), i.created_at, i.id)
+    < (c.published_at IS NOT NULL, COALESCE(c.published_at, 0), c.created_at, c.id)
+ORDER BY i.published_at IS NOT NULL DESC, COALESCE(i.published_at, 0) DESC, i.created_at DESC, i.id DESC
+LIMIT 1
+`
+
+type GetOlderVisiblePodcastEpisodeParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// The nearest older visible episode of the same podcast, the mirror of GetNewerVisiblePodcastEpisode.
+func (q *Queries) GetOlderVisiblePodcastEpisode(ctx context.Context, arg GetOlderVisiblePodcastEpisodeParams) (Item, error) {
+	row := q.db.QueryRowContext(ctx, getOlderVisiblePodcastEpisode, arg.ProfileID, arg.ItemID)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.Title,
+		&i.SortTitle,
+		&i.OriginalTitle,
+		&i.Year,
+		&i.ReleaseDate,
+		&i.RuntimeMinutes,
+		&i.Genres,
+		&i.TmdbID,
+		&i.ImdbID,
+		&i.Available,
+		&i.RatingSource,
+		&i.EnclosureUrl,
+		&i.LockedFields,
+		&i.MetadataState,
+		&i.MetadataError,
+		&i.MatchedAt,
+		&i.AddedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SeasonNumber,
+		&i.EpisodeNumber,
+		&i.EpisodeEnd,
+		&i.TvdbID,
+		&i.ExtraKind,
+		&i.TmdbPosterPath,
+		&i.TmdbBackdropPath,
+		&i.TrailerState,
+		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+		&i.FilledProviders,
+		&i.VoteAverage,
+		&i.OriginalLanguage,
+		&i.Publisher,
+		&i.Isbn,
+		&i.Asin,
+		&i.AudioSeriesID,
+		&i.AuthorDisplay,
+		&i.BookMatchState,
+		&i.BookMatchProvider,
+		&i.BookMatchID,
+		&i.BookMatchRegion,
+		&i.BookMatchedAt,
+		&i.BookMatchScore,
+		&i.BookMatchError,
+		&i.BookMatchManual,
+		&i.RemovedAt,
+		&i.OwnRating,
+		&i.EffectiveRating,
+		&i.MinChildRating,
+	)
+	return i, err
+}
+
 const getPodcastFallbackImage = `-- name: GetPodcastFallbackImage :one
 SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1

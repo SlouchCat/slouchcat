@@ -6737,7 +6737,9 @@ type ItemDetail struct {
 	// Narrator Narrator of an audiobook.
 	Narrator *string `json:"narrator,omitempty"`
 
-	// NextEpisode The next visible episode of the same series after this episode.
+	// NextEpisode The next visible episode of the same series after this episode, or for a podcast
+	// episode the next newer visible episode of the same podcast (since contract 1.38.0,
+	// concept 23 F-5).
 	NextEpisode *ItemRef `json:"nextEpisode,omitempty"`
 
 	// NextUp The episode the big button of a series plays (since contract 1.20.0, concept 17
@@ -8579,7 +8581,9 @@ type PlaybackInfo struct {
 	// Mode `direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode).
 	Mode PlaybackInfoMode `json:"mode"`
 
-	// NextEpisode The next visible episode of the same series (auto-next, W-9).
+	// NextEpisode The next visible episode of the same series (auto-next, W-9), or for a podcast episode
+	// the next newer visible episode of the same podcast, heard or not (since contract 1.38.0,
+	// concept 23 F-5; also when it plays from its enclosure).
 	NextEpisode *ItemRef `json:"nextEpisode,omitempty"`
 
 	// Parts Parts of a multi-part audiobook on the single playback timeline (information only).
@@ -8590,8 +8594,9 @@ type PlaybackInfo struct {
 
 	// PreviousEpisode The previous visible episode of the same series (since contract 1.38.0, concept 23
 	// section 3.2a), the mirror of `nextEpisode`: a lower number in the same season, else the
-	// last episode of the nearest earlier season; specials only precede a special. Absent for
-	// the first episode and for other kinds.
+	// last episode of the nearest earlier season; specials only precede a special. For a
+	// podcast episode the next older visible episode of the same podcast, heard or not (F-5).
+	// Absent for the first episode and for other kinds.
 	PreviousEpisode *ItemRef `json:"previousEpisode,omitempty"`
 
 	// Qualities The quality rungs of this playback, highest first (W-8 manual choice).

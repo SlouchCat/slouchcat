@@ -161,10 +161,10 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 }
 
 // neighbours sets the next and the previous episode of the title of a download with its Item
-// (concept 23 section 3.3). The server decides them (rule 12); the offline player only looks up
+// (concept 23 section 3.3; for a podcast episode the newer and the older one, F-5). The server decides them (rule 12); the offline player only looks up
 // whether such a title lies on the device. A title hidden since the summary has none.
 func (s *Service) neighbours(ctx context.Context, scope visibility.Scope, st *model.DownloadState) error {
-	if st.Item.Kind != "episode" {
+	if st.Item.Kind != "episode" && st.Item.Kind != "podcast_episode" {
 		return nil
 	}
 	next, err := s.vis.NextEpisode(ctx, scope, st.Item.ID)
