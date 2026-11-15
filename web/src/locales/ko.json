@@ -1105,6 +1105,16 @@
       "rate": "속도 {{rate}}×",
       "muted": "음소거됨",
       "previousEpisode": "이전 회차",
+      "noChapters": "챕터 없음",
+      "lastChapter": "마지막 챕터",
+      "noNextEpisode": "다음 회차 없음",
+      "noPreviousEpisode": "이전 회차 없음",
+      "nextEpisodeNamed": "다음 회차: {{name}}",
+      "previousEpisodeNamed": "이전 회차: {{name}}",
+      "nextEpisodeCard": "다음 회차",
+      "previousEpisodeCard": "이전 회차",
+      "cardSeason": "시즌 {{season}} · {{name}}",
+      "notOnDevice": "이 기기에 없어요",
       "forward10": "10초 앞으로",
       "options": "옵션",
       "view": "시간 및 보기",
@@ -1193,6 +1203,10 @@
         "next": {
           "keys": "N",
           "action": "다음 회차"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "이전 회차"
         },
         "help": {
           "keys": "?",

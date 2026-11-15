@@ -1201,6 +1201,16 @@
       "rate": "Rychlost {{rate}}×",
       "muted": "Ztlumeno",
       "previousEpisode": "Předchozí díl",
+      "noChapters": "Žádné kapitoly",
+      "lastChapter": "Poslední kapitola",
+      "noNextEpisode": "Žádný další díl",
+      "noPreviousEpisode": "Žádný předchozí díl",
+      "nextEpisodeNamed": "Další díl: {{name}}",
+      "previousEpisodeNamed": "Předchozí díl: {{name}}",
+      "nextEpisodeCard": "Další díl",
+      "previousEpisodeCard": "Předchozí díl",
+      "cardSeason": "Řada {{season}} · {{name}}",
+      "notOnDevice": "Není v tomto zařízení",
       "forward10": "Vpřed o 10 sekund",
       "options": "Možnosti",
       "view": "Čas a zobrazení",
@@ -1289,6 +1299,10 @@
         "next": {
           "keys": "N",
           "action": "Další díl"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Předchozí díl"
         },
         "help": {
           "keys": "?",

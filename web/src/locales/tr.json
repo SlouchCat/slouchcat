@@ -1137,6 +1137,16 @@
       "rate": "Hız {{rate}}×",
       "muted": "Ses kapalı",
       "previousEpisode": "Önceki bölüm",
+      "noChapters": "Kısım yok",
+      "lastChapter": "Son kısım",
+      "noNextEpisode": "Sonraki bölüm yok",
+      "noPreviousEpisode": "Önceki bölüm yok",
+      "nextEpisodeNamed": "Sonraki bölüm: {{name}}",
+      "previousEpisodeNamed": "Önceki bölüm: {{name}}",
+      "nextEpisodeCard": "Sonraki bölüm",
+      "previousEpisodeCard": "Önceki bölüm",
+      "cardSeason": "{{season}}. Sezon · {{name}}",
+      "notOnDevice": "Bu cihazda yok",
       "forward10": "10 saniye ileri",
       "options": "Seçenekler",
       "view": "Süre ve görünüm",
@@ -1225,6 +1235,10 @@
         "next": {
           "keys": "N",
           "action": "Sonraki bölüm"
+        },
+        "previous": {
+          "keys": "P",
+          "action": "Önceki bölüm"
         },
         "help": {
           "keys": "?",
