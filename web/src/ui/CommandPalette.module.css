@@ -33,33 +33,36 @@
 }
 
 .field {
+  position: relative;
   display: flex;
   flex: none;
-  gap: var(--sc-space-3);
   align-items: center;
-  padding: 0 var(--sc-space-4);
-  border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-2);
   color: var(--sc-color-text-muted);
 }
 
-/* The dialog traps the focus on the field; the field's box shows where it is. */
-.field:focus-within {
-  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
-  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+.field > svg {
+  position: absolute;
+  inset-inline-start: var(--sc-space-4);
+  pointer-events: none;
 }
 
 .input {
   flex: 1;
   min-width: 0;
   height: var(--sc-size-control-height);
-  padding: 0;
+  padding-block: 0;
+  padding-inline: var(--sc-space-12) var(--sc-space-4);
   border: 0;
-  background: transparent;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
   color: var(--sc-color-text-primary);
   font: inherit;
   font-size: var(--sc-font-size-md);
-  outline: none;
+}
+
+/* The dialog keeps the focus on the field: the ring inside its box shows where it is. */
+.input:focus-visible {
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
 }
 
 .input::placeholder {
