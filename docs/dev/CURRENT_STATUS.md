@@ -34,9 +34,15 @@ verloren. Nur Web-Oberfläche: Vertrag unverändert, keine Migration, kein neuer
   `abweichungen.md` (13 Widersprüche Mockup gegen Bestand: es gilt der Bestand).
 - **Übersetzt:** 75 neue oder geänderte Texte in allen 23 Sprachen, zweitgelesen
   (`check.ts --all --strict` 0 Fehler, 0 fehlend).
-- **Geprüft:** je Schritt `task check:fast` und die e2e-Specs der Seiten; auf dem zusammengeführten
-  Stand Vitest 2150 bestanden, e2e der geänderten Specs grün, Storybook 550 bestanden; neue Specs
-  `e2e/admin-shell.spec.ts` (Rahmen, Tastatur) und `e2e/admin-server.spec.ts` (Regel 8).
+- **Geprüft:** je Schritt `task check:fast` und die e2e-Specs der Seiten; `task ci` grün auf
+  `39d1039e` (43 Go-Pakete, 2160 Vitest-Tests, Storybook 551, e2e 723; drei rote Läufe davor mit
+  Ursachen in `docs/design/admin-redesign/abnahme.md`); neue Specs `e2e/admin-shell.spec.ts`
+  (Rahmen, Tastatur) und `e2e/admin-server.spec.ts` (Regel 8).
+- **Tastaturweg:** Vom Seitenanfang zur Hauptaktion einer Seite sind es 11 Tab-Stopps statt 9 (zwei
+  Brotkrumen und die Bereichsreiter dazu, der Hilfe-Knopf weg); der Sprunglink «Zum Inhalt
+  springen» bleibt.
+- **Nebenbefund, nicht Teil des Umbaus:** Während des Löschjobs einer Bibliothek führt «Meine
+  Medien» ihren Eintrag noch, obwohl die Bibliotheksliste sie schon nicht mehr zeigt.
 - **Bilder:** 55 Bildschirmfotos der gebauten Seiten in `docs/design/admin-redesign/screenshots/`.
 - **Rückweg:** keine Migration; ein Image vor dem Umbau läuft mit derselben Datenbank. Auf CT 190
   als eigenes Image mit den Skripten `design-alt.sh` und `design-neu.sh`.
