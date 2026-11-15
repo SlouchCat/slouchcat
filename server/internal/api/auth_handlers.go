@@ -238,10 +238,11 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 }
 
 // setupPending is SessionInfo.setupPending (concept 22, F-11): true while the guided wizard is
-// open, only in the owner's sessions; nil otherwise, without an admin service and when the
-// setting cannot be read (the app then simply does not lead into the wizard).
+// open, only in the owner's sessions with the primary profile active (the wizard's operations are
+// x-visibility owner); nil otherwise, without an admin service and when the setting cannot be read
+// (the app then simply does not lead into the wizard).
 func (s *server) setupPending(ctx context.Context, session model.Session) *bool {
-	if !session.IsOwner() || s.opts.Admin == nil {
+	if !session.IsOwner() || !session.IsPrimary() || s.opts.Admin == nil {
 		return nil
 	}
 	pending, err := s.opts.Admin.SetupPending(ctx)

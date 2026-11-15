@@ -5734,7 +5734,7 @@ export interface components {
             availableMetadataLanguages?: components["schemas"]["MetadataLanguage"][];
             /**
              * @description Since contract 1.35.0 (concept 22, F-11): the guided wizard is not finished yet; only in the
-             *     owner's sessions. The web app leads the owner to the first open step at every sign-in until
+             *     owner's sessions with the primary profile active. The web app leads the owner to the first open step at every sign-in until
              *     `finishSetup` ran.
              */
             setupPending?: boolean;
