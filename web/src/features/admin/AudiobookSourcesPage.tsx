@@ -216,7 +216,7 @@ function Folders({
 
   return (
     <BandPanel title={t('admin.audiobookSources.folders.title')}>
-      <Text tone="secondary">{t('admin.audiobookSources.folders.intro')}</Text>
+      <p className={styles.intro}>{t('admin.audiobookSources.folders.intro')}</p>
       {sources.folders.length === 0 ? (
         <Text tone="secondary">{t('admin.audiobookSources.folders.empty')}</Text>
       ) : (
@@ -474,7 +474,7 @@ function State({ sources }: { sources: AudiobookSources }) {
           {t('admin.audiobookSources.stats.running')}
         </Text>
       )}
-      <div className={styles.inline}>
+      <div className={`${styles.inline} ${styles.shrink}`}>
         <AriaButton
           variant="primary"
           icon="refresh"
@@ -619,7 +619,7 @@ function Review({
 
   return (
     <BandPanel title={t('admin.audiobookSources.review.title')}>
-      <Text tone="secondary">{t('admin.audiobookSources.review.intro')}</Text>
+      <p className={styles.intro}>{t('admin.audiobookSources.review.intro')}</p>
       {review.isPending && <Skeleton shape="block" />}
       {review.isError && (
         <Notice
