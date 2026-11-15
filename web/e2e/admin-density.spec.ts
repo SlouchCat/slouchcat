@@ -172,7 +172,8 @@ test.describe('with a mouse from 768 px', () => {
   });
 
   test('the question before leaving with unsaved input is compact', async ({ page }) => {
-    await page.goto('/admin/integrations');
+    // The view of the provider keys (`?item=`, admin redesign).
+    await page.goto('/admin/integrations?item=keys');
     await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
     // The provider cards start folded (concept 20, P-12).
     const youtube = page.getByRole('region', { name: 'YouTube', exact: true });

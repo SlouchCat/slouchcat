@@ -3703,6 +3703,16 @@
       "cleared": "{{name}} deleted.",
       "unsaved": "unsaved",
       "notificationsLink": "Go to the notification channels",
+      "services": {
+        "label": "Services",
+        "back": "All integrations",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt and Google Books.",
+        "webhooks": "Radarr and Sonarr report new and changed files.",
+        "email": "Server for notifications, invitations and announcements by e-mail.",
+        "telegram": "Bot for notifications by Telegram.",
+        "push": "Notifications in the browser and in the installed app.",
+        "server": "Update check, public address and graphics chip."
+      },
       "keys": {
         "title": "Provider keys",
         "intro": "Slouchcat fetches texts, images and trailers with them. Without a key the provider stays off.",

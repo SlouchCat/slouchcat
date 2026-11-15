@@ -77,7 +77,8 @@ async function eventsOf(api: APIRequestContext, id: number): Promise<EventData[]
 }
 
 async function openIntegrations(page: Page) {
-  await page.goto('/admin/integrations');
+  // The view of the webhooks (`?item=`, admin redesign).
+  await page.goto('/admin/integrations?item=webhooks');
   await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
   await expect(region(page, 'Webhooks von Radarr und Sonarr')).toBeVisible();
 }
@@ -383,13 +384,51 @@ test('the overview counts the reports of the last 24 hours in the server summary
     await manage.focus();
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/admin\/integrations$/);
+    // The link opens the webhooks' own view of the integrations page.
+    await expect(page).toHaveURL(/\/admin\/integrations\?item=webhooks$/);
     await expect(region(page, 'Webhooks von Radarr und Sonarr')).toBeVisible();
 
     // Browser back returns to the overview the summary sits on.
     await page.goBack();
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
+  } finally {
+    await removeIntegrations(owner, name);
+  }
+});
+
+test('the tile of the webhooks counts the reports of the last 24 hours', async ({
+  page,
+  owner,
+  request,
+}) => {
+  const name = 'E2E Kachel';
+  try {
+    const created = await createIntegration(owner, name, 'radarr');
+    const hook = await request.post(created.url, { data: { eventType: 'Test' } });
+    expect(hook.status(), await hook.text()).toBe(200);
+
+    // The whole state of the webhooks stands at their tile on the integrations page (build
+    // plan 7.2; before on the overview's card «Webhooks»).
+    await page.goto('/admin/integrations');
+    await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+    const link = page
+      .getByRole('list', { name: 'Dienste' })
+      .getByRole('link', { name: 'Webhooks von Radarr und Sonarr' });
+    const tile = page.getByRole('listitem').filter({
+      has: page.getByRole('link', { name: 'Webhooks von Radarr und Sonarr' }),
+    });
+    // One webhook arrived above, so the tile counts it; other specs may add integrations.
+    await expect(tile).toContainText(
+      /1 Meldung im Protokoll der letzten 24 Stunden, von \d+ Integration/,
+    );
+    await link.focus();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/integrations\?item=webhooks$/);
+    const webhooks = region(page, 'Webhooks von Radarr und Sonarr');
+    await expect(webhooks).toContainText('1 Meldung im Protokoll der letzten 24 Stunden');
+    await expect(integrationRow(page, name)).toBeVisible();
   } finally {
     await removeIntegrations(owner, name);
   }

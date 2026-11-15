@@ -16,7 +16,7 @@ export {
 export { ActiveFilters, type ActiveFilter } from './ActiveFilters';
 export { Avatar } from './Avatar';
 export { Backdrop } from './Backdrop';
-export { LinkRouterProvider } from './AppLink';
+export { AppLink, LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
 export { CandidateCard } from './CandidateCard';
 export { CastCard } from './CastCard';

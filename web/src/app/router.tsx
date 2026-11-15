@@ -389,6 +389,7 @@ const adminHomeRoute = createRoute({
 const integrationsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/integrations',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/IntegrationsPage'),
     'IntegrationsPage',
