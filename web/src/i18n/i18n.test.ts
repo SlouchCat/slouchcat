@@ -13,16 +13,20 @@ import { pseudoText, setPseudoLanguage } from './pseudo';
 import { clearUnlistedLanguage } from './index';
 
 describe('languages', () => {
-  it('ships German and English, named in their own language', () => {
-    expect(supportedLanguages).toEqual(['de', 'en']);
-    expect(languages.map((l) => l.name)).toEqual(['Deutsch', 'English']);
+  it('ships German in two variants and English, named in their own language', () => {
+    expect(supportedLanguages).toEqual(['de', 'de-DE', 'en']);
+    expect(languages.map((l) => l.name)).toEqual([
+      'Deutsch (Schweiz)',
+      'Deutsch (Deutschland)',
+      'English',
+    ]);
     expect(isLanguage('de')).toBe(true);
-    expect(isLanguage('de-DE')).toBe(false);
+    expect(isLanguage('de-DE')).toBe(true);
     expect(isLanguage('fr')).toBe(false);
     expect(isLanguage(undefined)).toBe(false);
   });
 
-  it('has a language file for every shipped language, and de-DE before it is shipped', () => {
+  it('has a language file for every shipped language', () => {
     expect(bundledLanguages()).toEqual(['de', 'de-DE', 'en']);
   });
 
@@ -42,10 +46,12 @@ describe('detectLanguage (concept 22 section 4.2)', () => {
   it.each([
     [['de-CH'], 'de'],
     [['de-LI'], 'de'],
-    // German of Germany is not shipped yet: the Swiss German stands in for it.
-    [['de'], 'de'],
-    [['de-AT'], 'de'],
-    [['de-DE'], 'de'],
+    // A bare de mostly comes from Germany or Austria (O-6); Swiss browsers send de-CH.
+    [['de'], 'de-DE'],
+    [['de-AT'], 'de-DE'],
+    [['de-LU'], 'de-DE'],
+    [['de-BE'], 'de-DE'],
+    [['de-DE'], 'de-DE'],
     [['en-GB'], 'en'],
     [['EN_us'], 'en'],
     // Unknown languages go to the next preference, and to English at the end (O-2).
@@ -111,12 +117,12 @@ describe('loading', () => {
     expect(currentLanguage()).toBe('de');
   });
 
-  it('stands in de for de-DE and English for any other code without a pack', async () => {
-    expect(shippedLanguageFor('de-DE')).toBe('de');
+  it('keeps a shipped code and stands in English for any other code without a pack', async () => {
+    expect(shippedLanguageFor('de-DE')).toBe('de-DE');
     expect(shippedLanguageFor('fr')).toBe('en');
     expect(shippedLanguageFor('de')).toBe('de');
     await setLanguage('de-DE');
-    expect(i18n.language).toBe('de');
+    expect(i18n.language).toBe('de-DE');
   });
 
   it('shows English for a code it ships no pack for, and never throws', async () => {

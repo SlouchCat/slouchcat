@@ -71,6 +71,7 @@ type SystemInfo struct {
 	Inotify   InotifyInfo
 	ConfigFS  string // file system type of the config directory; "unknown" when undetected
 	CacheFS   string
+	TimeZone  string // IANA name of the server's zone (admin.ResolveZone)
 }
 
 // GPUInfo is the transcode backend found at start and the GPU devices visible in the container.
@@ -83,7 +84,62 @@ type GPUInfo struct {
 	ComposeOverride string // nvidia, intel, amd; empty = no GPU device visible
 	DeviceDRI       bool   // a render node /dev/dri/renderD* exists
 	DeviceNvidia    bool   // /dev/nvidia0 exists
+	// Candidates are the start-up probes of nvenc, qsv and vaapi (concept 22, F-10).
+	Candidates []TranscodeCandidate
+	// FallbackFrom is the stored choice that failed its probe; the automatic choice runs instead.
+	FallbackFrom string
 }
+
+// TranscodeCandidate is the probe of one hardware backend at start.
+type TranscodeCandidate struct {
+	Backend string // nvenc, qsv, vaapi
+	OK      bool
+	Reason  string // not_in_build, no_device, test_failed; "" when OK
+}
+
+// SetupProgress is the guided wizard of concept 22 (setting setup_wizard).
+type SetupProgress struct {
+	Steps            []SetupStepState // every step of SetupSteps, in its order
+	TrickplayDefault bool
+	Finished         bool      // finishSetup ran, or no wizard was recorded (installations before 1.35.0)
+	FinishedAt       time.Time // when finishSetup ran; zero otherwise
+}
+
+// SetupStepState is one step of the wizard with its state (SetupOpen, SetupDone, SetupSkipped).
+type SetupStepState struct {
+	Step  string
+	State string
+}
+
+// SetupProgressUpdate sets the state of one step and/or the trickplay default; nil keeps it.
+type SetupProgressUpdate struct {
+	Step             *string
+	State            *string
+	TrickplayDefault *bool
+}
+
+// Steps of the guided wizard in their order (concept 22, 3.2) and their states.
+const (
+	SetupOpen    = "open"
+	SetupDone    = "done"
+	SetupSkipped = "skipped"
+)
+
+// SetupSteps are the steps of the guided wizard in their order.
+var SetupSteps = []string{"language", "account", "region", "services", "playback", "libraries", "household", "access", "summary"}
+
+// SetupFinished is the answer of finishSetup: whether the server restarts (SetupRestart*).
+type SetupFinished struct {
+	Restart   string
+	RestartAt time.Time
+}
+
+// Restarts of SetupFinished.
+const (
+	SetupRestartNone      = "none"
+	SetupRestartScheduled = "scheduled"
+	SetupRestartBusy      = "busy"
+)
 
 // InotifyInfo is the inotify watch limit and its use by the library watcher.
 type InotifyInfo struct {
@@ -91,21 +147,6 @@ type InotifyInfo struct {
 	WatchedDirs    int64
 	UsagePercent   float64
 	Warn           bool // limit below 65536 or more than 80 % used
-}
-
-// PathCheck describes a library path for the wizard; a bad path is no error but a Problem.
-type PathCheck struct {
-	OK        bool
-	FSType    string // empty with a problem
-	WatchMode string // inotify, poll, inotify_poll; empty with a problem
-	Warning   string // network_share, fuse_unknown or empty
-	Problem   string // not_absolute, missing, not_directory, not_readable; set exactly when !OK
-}
-
-// TMDBCheck is the result of a TMDB key check in the wizard.
-type TMDBCheck struct {
-	OK      bool
-	Problem string // invalid, unreachable; set exactly when !OK
 }
 
 // Dashboard is the admin overview (A-3).
@@ -492,6 +533,12 @@ type AdminSettings struct {
 	Email              EmailSettings
 	Telegram           TelegramSettings
 	Push               PushSettings
+	// TranscodeHW is the transcode choice (auto, nvenc, qsv, vaapi, software) with its source
+	// (env for --hw and SLOUCHCAT_HW, stored, none); TranscodeHWRestart: it differs from what the
+	// running server uses (concept 22, F-10).
+	TranscodeHW        string
+	TranscodeHWSource  string
+	TranscodeHWRestart bool
 }
 
 // AdminKeys are the states of the provider keys.
@@ -569,6 +616,7 @@ type AdminSettingsUpdate struct {
 	Keys               AdminKeysUpdate
 	Email              *EmailSettingsUpdate
 	Telegram           *TelegramSettingsUpdate
+	TranscodeHW        *string  // auto, nvenc, qsv, vaapi, software
 	Clear              []string // Clear* constants
 }
 

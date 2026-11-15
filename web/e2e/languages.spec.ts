@@ -16,8 +16,8 @@ test.use({ storageState: { cookies: [], origins: [] } });
 type Texts = { [key: string]: string | Texts };
 const files = new Map<string, Texts>();
 
-/** The text `key` of `code` straight from web/src/locales/<code>.json. */
-function text(code: string, key: string): string {
+/** The text `key` of `code` straight from web/src/locales/<code>.json, without its chain. */
+function own(code: string, key: string): string | undefined {
   let file = files.get(code);
   if (!file) {
     file = JSON.parse(
@@ -27,7 +27,13 @@ function text(code: string, key: string): string {
   }
   let value: string | Texts | undefined = file;
   for (const part of key.split('.')) value = typeof value === 'object' ? value[part] : undefined;
-  if (typeof value !== 'string') throw new Error(`${code}.json has no text ${key}`);
+  return typeof value === 'string' ? value : undefined;
+}
+
+/** The text `key` of `code` along its chain: de-DE overlays de (concept 22 section 4.2). */
+function text(code: string, key: string): string {
+  const value = own(code, key) ?? (code === 'de-DE' ? own('de', key) : undefined);
+  if (value === undefined) throw new Error(`${code}.json has no text ${key}`);
   return value;
 }
 
@@ -93,13 +99,13 @@ test('the language button of the login page: Tab, Enter, arrows, Enter; no focus
 }) => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { level: 1, name: 'Anmelden' })).toBeVisible();
-  const button = page.getByRole('button', { name: 'Sprache: Deutsch' });
+  const button = page.getByRole('button', { name: 'Sprache: Deutsch (Schweiz)' });
   await tabTo(page, button);
   await expectFocusOn(page, button);
   await page.keyboard.press('Enter');
   const menu = page.getByRole('menu');
   await expect(menu.getByRole('menuitemradio')).toHaveText(languages.map(({ name }) => name));
-  await expect(menu.getByRole('menuitemradio', { name: 'Deutsch' })).toBeChecked();
+  await expect(menu.getByRole('menuitemradio', { name: 'Deutsch (Schweiz)' })).toBeChecked();
   // Escape closes without a change and gives the focus back.
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
@@ -108,11 +114,56 @@ test('the language button of the login page: Tab, Enter, arrows, Enter; no focus
   await page.keyboard.press('Enter');
   await expect(menu).toBeVisible();
   await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, menu.getByRole('menuitemradio', { name: 'Deutsch (Deutschland)' }));
+  await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, menu.getByRole('menuitemradio', { name: 'English' }));
   await page.keyboard.press('Enter');
   await expect(menu).toBeHidden();
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expectFocusOn(page, page.getByRole('button', { name: 'Language: English' }));
+  await expectNoFocusTrap(page);
+});
+
+// Concept 22 step 1: the wizard's language step switches the interface at once, German
+// (Germany) formats like Germany and German (Switzerland) like Switzerland; arrows choose, Tab
+// leaves the group. The run's server has an account, so the answers before one are mocked.
+test('the language step of the wizard: arrows switch the interface and the formats @keyboard', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/auth/session', (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: 'application/problem+json',
+      json: { type: 'about:blank', title: 'unauthenticated', status: 401, code: 'unauthenticated' },
+    }),
+  );
+  await page.route('**/api/v1/setup', (route) => route.fulfill({ json: { setupRequired: true } }));
+  await page.goto('/setup/language');
+  const heading = page.getByRole('heading', {
+    level: 1,
+    name: text('de', 'setup.steps.language.title'),
+  });
+  await expectFocusOn(page, heading);
+  const swiss = page.getByRole('radio', { name: /^Deutsch \(Schweiz\)/ });
+  await tabTo(page, swiss);
+  await expect(swiss).toBeChecked();
+  await expect(page.getByText(new Intl.NumberFormat('de-CH').format(1234567.5))).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('radio', { name: /^Deutsch \(Deutschland\)/ }));
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
+  await expect(page.getByText('1.234.567,5')).toBeVisible();
+  // de-DE overlays de: a text with ß comes from its own file, the rest from de.json.
+  await expect(
+    page.getByRole('button', { name: text('de-DE', 'setup.actions.next') }),
+  ).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(
+    page.getByRole('heading', { level: 1, name: text('en', 'setup.steps.language.title') }),
+  ).toBeVisible();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expectNoFocusTrap(page);
 });

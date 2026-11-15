@@ -1,4 +1,4 @@
-import type { AdminSettings, AdminSettingsUpdate } from '@slouchcat/api-client';
+import type { AdminSettings, AdminSettingsUpdate, SystemInfo } from '@slouchcat/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import { formErrors } from '@/api/errors';
 import { sessionQuery } from '@/app/session';
 import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from './Integrations.module.css';
+import { HardwareChoice } from '../../shared/HardwareChoice';
 import { updateSettings } from '../queries';
 import {
   Actions,
@@ -138,18 +139,35 @@ function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: D
   );
 }
 
-/** The server's own settings: the update check and the public address, one row each. */
+/**
+ * The server's own settings: the update check, the public address and, with the system state, the
+ * transcode backend (concept 22, O-19), one row each.
+ */
 export function ServerBlock({
   settings,
   fields,
+  system,
 }: {
   settings: AdminSettings;
   fields: Drafts<string>;
+  /** Shows the transcode choice (Verwaltung › Integrationen; the wizard has a step of its own). */
+  system?: SystemInfo;
 }) {
+  const { t } = useTranslation();
   return (
     <div>
       <UpdateRow enabled={settings.updateCheckEnabled} />
       <PublicUrlRow settings={settings} fields={fields} />
+      {system && (
+        <SettingRow label={t('system.gpu.choice.label')} help={t('system.gpu.choice.hint')}>
+          <HardwareChoice
+            system={system}
+            settings={settings}
+            restartHint={t('system.gpu.choice.restartAdmin')}
+            hideLabel
+          />
+        </SettingRow>
+      )}
     </div>
   );
 }

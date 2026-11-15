@@ -363,6 +363,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusGone, "invitation_gone", "The invitation link was used, has expired or was revoked.")
 	case errors.Is(err, model.ErrSetupDone):
 		p.write(w, r, http.StatusConflict, "setup_done", "The setup wizard already ran.")
+	case errors.Is(err, model.ErrLibraryRequired):
+		p.write(w, r, http.StatusUnprocessableEntity, "library_required", "The setup needs at least one library.")
 	case errors.Is(err, model.ErrLibraryPathInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "library_path_invalid", "The library path must be an absolute, readable directory on the server.")
 	case errors.Is(err, model.ErrScanRunning):

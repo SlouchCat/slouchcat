@@ -63,6 +63,24 @@
       "version": "Version {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Grafikchip für das Umwandeln",
+        "hint": "Gilt nach einem Neustart des Servers.",
+        "auto": "Automatisch (empfohlen)",
+        "software": "Nur Prozessor",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "nicht in diesem ffmpeg",
+          "no_device": "Gerät fehlt im Container",
+          "test_failed": "Probe beim Start gescheitert"
+        },
+        "saved": "Gespeichert: {{name}}",
+        "restartAdmin": "Gilt nach einem Neustart des Servers (Übersicht › Neu starten)."
+      },
+      "fallback": {
+        "title": "Gewählter Grafikchip geht nicht",
+        "body": "{{name}} hat die Probe beim Start nicht bestanden. Slouchcat wandelt bis auf Weiteres mit der automatischen Wahl um."
+      },
       "encoder": "Videokodierung",
       "tonemap": "HDR zu SDR",
       "ffmpeg": "ffmpeg",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Willkommen bei Slouchcat",
-    "intro": "Vier kurze Schritte, dann scannt Slouchcat deine erste Bibliothek.",
-    "step": "Schritt {{step}}",
+    "documentTitle": "Einrichtung: {{step}}",
+    "position": "Schritt {{position}} von {{count}}",
+    "nav": {
+      "label": "Einrichtung",
+      "group": "Schritte",
+      "menu": "Einrichtung, Schritte",
+      "close": "Schritte schliessen",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, erledigt",
+        "skipped": "{{position}}. {{name}}, übersprungen"
+      }
+    },
+    "actions": {
+      "back": "Zurück",
+      "skip": "Überspringen",
+      "next": "Weiter",
+      "finish": "Einrichtung abschliessen",
+      "finishing": "Wird abgeschlossen …",
+      "later": "Später fortsetzen"
+    },
+    "steps": {
+      "language": {
+        "nav": "Sprache",
+        "title": "Sprache wählen",
+        "intro": "In welcher Sprache soll Slouchcat mit dir sprechen? Die Wahl gilt sofort und lässt sich jederzeit ändern."
+      },
+      "account": {
+        "nav": "Konto",
+        "title": "Konto anlegen",
+        "intro": "Mit diesem Konto verwaltest du Slouchcat. Dazu gehört dein erstes Profil."
+      },
+      "region": {
+        "nav": "Region",
+        "title": "Region und Metadaten",
+        "intro": "Land, Altersfreigaben und die Sprachen, in denen Slouchcat Titel und Beschreibungen lädt."
+      },
+      "services": {
+        "nav": "Dienste",
+        "title": "Dienste verbinden",
+        "intro": "Schlüssel für Metadaten und Wege für Meldungen. Empfohlen sind TMDB und E-Mail, alles Übrige kannst du später unter Verwaltung › Integrationen ergänzen."
+      },
+      "playback": {
+        "nav": "Wiedergabe",
+        "title": "Wiedergabe",
+        "intro": "Was Slouchcat im Container vorfindet und womit es Videos umwandelt."
+      },
+      "libraries": {
+        "nav": "Bibliotheken",
+        "title": "Bibliotheken",
+        "intro": "Mindestens eine Bibliothek ist nötig. Slouchcat liest sie gleich nach dem Anlegen ein."
+      },
+      "household": {
+        "nav": "Haushalt",
+        "title": "Haushalt",
+        "intro": "Weitere Profile für den Haushalt, jedes mit eigener Altersstufe, Farbe und auf Wunsch einer PIN."
+      },
+      "access": {
+        "nav": "Zugriff",
+        "title": "Zugriff",
+        "intro": "Unter welcher Adresse Slouchcat erreichbar ist und ob es nach neuen Versionen sucht."
+      },
+      "summary": {
+        "nav": "Zusammenfassung",
+        "title": "Zusammenfassung",
+        "intro": "Prüfe deine Angaben. Was du übersprungen hast, gilt mit der Empfehlung."
+      }
+    },
+    "language": {
+      "search": "Sprache suchen",
+      "choice": "Sprache",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Keine Sprache passt zur Suche.",
+      "preview": "Vorschau",
+      "previewDate": "Datum",
+      "previewNumber": "Zahl"
+    },
     "account": {
-      "title": "Administratorkonto",
-      "description": "Mit diesem Konto verwaltest du Slouchcat.",
       "email": "E-Mail-Adresse",
       "password": "Passwort",
       "passwordHint": "Mindestens 10 Zeichen.",
-      "passwordRepeat": "Passwort wiederholen"
+      "passwordRepeat": "Passwort wiederholen",
+      "profileName": "Name des Profils",
+      "profileHint": "So heisst dein Profil in der Profilwahl.",
+      "taken": {
+        "title": "Slouchcat ist schon eingerichtet",
+        "body": "Jemand hat das Konto gerade eben angelegt. Melde dich mit diesem Konto an.",
+        "action": "Zur Anmeldung"
+      }
+    },
+    "region": {
+      "country": "Land",
+      "ratingCountry": "Altersfreigaben nach",
+      "ratingSteps": "Altersstufen der Profile: {{steps}}",
+      "languages": "Sprachen der Metadaten",
+      "languagesIntro": "Slouchcat lädt Texte und Bilder in dieser Reihenfolge. Keine Sprache ist Pflicht.",
+      "timeZone": "Zeitzone des Servers",
+      "serverZone": "Zeitzone",
+      "zoneDiffers": {
+        "title": "Dein Browser nutzt eine andere Zeitzone",
+        "body": "Der Browser meldet {{browser}}. Die Zeitzone des Servers stellst du in deploy/.env ein; sie gilt nach einem Neustart des Containers.",
+        "command": "Zeile für deploy/.env"
+      },
+      "radio": "Webradio",
+      "radioToggle": "{{country}} ins Radio-Angebot aufnehmen",
+      "radioHint": "Das Land kommt ohne Sender ins Angebot. Die Sender markierst du später unter Verwaltung › Radio."
+    },
+    "services": {
+      "recommended": "Empfohlen",
+      "optional": "Optional",
+      "recommendedTitle": "Empfohlen",
+      "optionalTitle": "Optional",
+      "email": {
+        "purpose": "Für Einladungen und «Passwort vergessen»."
+      },
+      "push": {
+        "name": "Web-Push",
+        "purpose": "Meldungen auf diesem Gerät, auch wenn Slouchcat nicht offen ist.",
+        "insecure": "Push braucht eine sichere Verbindung (HTTPS oder localhost). Richte Push später über die öffentliche HTTPS-Adresse ein."
+      },
+      "telegram": {
+        "purpose": "Meldungen über einen Telegram-Bot. Dein Konto verbindest du danach unter Einstellungen › Benachrichtigungen."
+      },
+      "rejected": {
+        "title": "Ungültigen Schlüssel entfernen und weiter?",
+        "body": "Der Dienst hat diesen Schlüssel abgelehnt: {{names}}. Slouchcat entfernt ihn, damit kein falscher Schlüssel gespeichert bleibt.",
+        "confirm": "Entfernen und weiter"
+      }
+    },
+    "playback": {
+      "restart": "Gilt nach einem Neustart. Slouchcat startet beim Abschliessen einmal neu.",
+      "trickplay": "Vorschau beim Spulen für neue Video-Bibliotheken",
+      "trickplayHint": "Belegt die Einstellung jeder neuen Video-Bibliothek im nächsten Schritt vor. Die Vorschaubilder brauchen Platz und Rechenzeit."
+    },
+    "libraries": {
+      "add": "Bibliothek hinzufügen",
+      "addMore": "Weitere Bibliothek",
+      "none": "Noch keine Bibliothek. Lege mindestens eine an, damit Slouchcat etwas zeigen kann.",
+      "folder": "Ordner {{position}}"
+    },
+    "household": {
+      "accounts": "Gäste mit eigenem Konto lädst du später unter Verwaltung › Konten ein."
+    },
+    "access": {
+      "here": "Du greifst gerade über {{url}} zu.",
+      "useHere": "Diese Adresse übernehmen",
+      "noUsageData": "Slouchcat sendet keine Nutzungsdaten."
+    },
+    "summary": {
+      "done": "Eingerichtet",
+      "recommended": "Empfehlung",
+      "change": "{{step}} ändern",
+      "region": "Freigaben nach {{country}}, Sprachen {{languages}}",
+      "services_one": "{{count}} Dienst eingerichtet",
+      "services_other": "{{count}} Dienste eingerichtet",
+      "playback": "{{hw}}, Vorschau beim Spulen {{trickplay}}",
+      "on": "ein",
+      "off": "aus",
+      "noAddress": "keine öffentliche Adresse",
+      "profiles_one": "{{count}} Profil",
+      "profiles_other": "{{count}} Profile"
+    },
+    "finish": {
+      "title": "Slouchcat ist eingerichtet",
+      "restartTitle": "Slouchcat startet neu …",
+      "restartBody": "Die Wahl des Grafikchips gilt nach dem Neustart. Die ersten Scans laufen danach weiter.",
+      "busy": "Slouchcat konnte nicht neu starten, weil gerade eine Sicherung oder ein Update läuft. Die Wahl des Grafikchips gilt nach dem nächsten Neustart (Verwaltung › Übersicht).",
+      "scanProgress": "{{state}}: {{seen}} von {{total}} Dateien",
+      "home": "Zur Startseite"
     },
     "library": {
-      "title": "Erste Bibliothek",
-      "description": "Weitere Bibliotheken kannst du später hinzufügen.",
       "name": "Name",
-      "defaultName": "Filme",
       "kind": "Inhalt",
       "path": "Ordner",
       "pathPlaceholder": "/media/Filme",
-      "roots": "Freigegebene Ordner:",
-      "check": "Ordner prüfen",
-      "checking": "Wird geprüft …",
       "warning": {
         "network_share": {
           "title": "Netzfreigabe erkannt",
@@ -271,30 +442,7 @@
           "title": "Unbekanntes Dateisystem",
           "body": "Ein FUSE-Dateisystem (zum Beispiel mergerfs oder Unraid) meldet nicht jede Änderung. Slouchcat beobachtet den Ordner und gleicht ihn zusätzlich regelmässig ab."
         }
-      },
-      "content": "Inhalt",
-      "providers": "Metadatenquellen"
-    },
-    "tmdb": {
-      "title": "Metadaten von TMDB (optional)",
-      "description": "Mit einem Lesezugriffs-Token von themoviedb.org lädt Slouchcat Beschreibungen, Poster und Altersfreigaben. Ohne Schlüssel stammen die Titel aus den Dateinamen.",
-      "link": "Token auf themoviedb.org erstellen",
-      "label": "API-Lesezugriffs-Token",
-      "hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
-      "check": "Schlüssel prüfen",
-      "checking": "Wird geprüft …",
-      "result": {
-        "valid": "Gültig: TMDB hat den Schlüssel angenommen.",
-        "invalid": "Ungültig: TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.",
-        "unreachable": "Nicht erreichbar: TMDB antwortet gerade nicht. Versuche es erneut oder lass das Feld leer."
       }
-    },
-    "submit": "Einrichtung abschliessen",
-    "submitting": "Wird eingerichtet …",
-    "system": {
-      "title": "Grafikchip und Dateisystem",
-      "description": "Was Slouchcat im Container vorfindet. Hier gibt es nichts einzugeben, die Hinweise gelten für den Host.",
-      "missing": "Der Server hat keine Angaben zur Hardware geliefert."
     }
   },
   "login": {
@@ -888,8 +1036,8 @@
       "speedButton": "Geschwindigkeit: {{rate}}",
       "slower": "Langsamer",
       "faster": "Schneller",
-      "minus": "−0,1",
-      "plus": "+0,1",
+      "minus": "−0.1",
+      "plus": "+0.1",
       "sleep": {
         "button": "Sleep-Timer",
         "buttonActive": "Sleep-Timer: noch {{left}}",
@@ -931,8 +1079,8 @@
       "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
       "offset": {
         "title": "Versatz",
-        "earlier": "0,1 s früher",
-        "later": "0,1 s später",
+        "earlier": "0.1 s früher",
+        "later": "0.1 s später",
         "value": "{{seconds}} s",
         "reset": "Zurücksetzen"
       }
@@ -1022,7 +1170,7 @@
         },
         "speed": {
           "keys": "[ ]",
-          "action": "Langsamer oder schneller (0,5× bis 2×)"
+          "action": "Langsamer oder schneller (0.5× bis 2×)"
         },
         "tracks": {
           "keys": "T",
@@ -3225,6 +3373,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Einrichtung nicht abgeschlossen",
+        "body": "Ein paar Schritte der Einrichtung sind noch offen.",
+        "noLibrary": "Es gibt noch keine Bibliothek, darum bleibt die Startseite leer.",
+        "action": "Einrichtung fortsetzen"
+      },
       "title": "Verwaltung",
       "live": "Live, alle 5 Sekunden",
       "liveFailed": "Keine Antwort, neuer Versuch alle 5 Sekunden",

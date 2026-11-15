@@ -98,6 +98,9 @@ tasks:
     cmds:
       - pnpm exec playwright test --project=chromium --retries=0 --max-failures=1 {{.CLI_ARGS}}
 
+  # Ports of a run on E2E_PORT: the app on it, its mocks on the ten below (one stays free), the
+  # fresh server of setup.spec.ts five above (e2e/fresh-server.ts). Shards are 20 apart, so each
+  # keeps to its own range.
   e2e:parallel:
     desc: E2E_SHARDS (3) shards side by side from port E2E_PORT (8097) in steps of 20, one merged report
     deps: [tokens]

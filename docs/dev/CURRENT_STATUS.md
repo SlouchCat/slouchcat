@@ -1,6 +1,28 @@
 # Aktueller Stand
 
-## Release 1.34.0: Konzept 22 Stufe 1 «Sprachgerüst» (15. November 2026)
+## Release 1.35.0: Konzept 22 Stufe 2 «Assistent» (15. November 2026)
+
+Stufe 2 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil A, Abschnitt 3) auf dem Zweig
+`claude/k22-stufe2`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.35.0**
+(brechend, F-14), keine Migration.
+
+- **Geführter Assistent** in neun Schritten unter `/setup/<schritt>`: Sprache, Konto (mit Name und Farbe
+  des ersten Profils), Region, Dienste (TMDB und E-Mail empfohlen, TheTVDB, Fanart.tv, YouTube, Google
+  Books, Trakt, Web-Push, Telegram optional, je mit Link zum Beantragen), Wiedergabe (Grafikchip-Wahl,
+  Trickplay-Vorgabe), Bibliotheken, Haushalt (weitere Profile mit optionaler PIN), Zugriff, Zusammenfassung
+  mit Abschlussseite.
+- **Zwei Phasen:** Nur Sprache und Konto sind öffentlich; ab Schritt 3 arbeitet der Eigentümer mit den
+  Endpunkten der Verwaltung. Die öffentlichen Prüf-Endpunkte `checkSetupPath`, `checkSetupTmdbKey` und
+  `listSetupRoots` sind entfernt (F-14).
+- **Abbruch:** Der Fortschritt liegt im Setting `setup_wizard`. Bis zum Abschluss führt jede Anmeldung des
+  Eigentümers (Hauptprofil) zurück in den Assistenten (F-11). Fehlt `setup_wizard`, gilt die Einrichtung
+  als abgeschlossen; bestehende Installationen sehen den Assistenten nie.
+- **Grafikchip:** Der Server probiert beim Start alle drei Hardware-Backends (rund 58 ms,
+  `docs/perf/22-assistent.md`). Die Wahl gilt nach einem Neustart und steht auch unter Verwaltung ›
+  Integrationen › Server. Vorrang: `--hw`, dann `SLOUCHCAT_HW`, dann die gespeicherte Wahl, dann `auto`.
+- **Deutsch (Deutschland)** ist wählbar; Deutsch heisst in der Auswahl jetzt «Deutsch (Schweiz)».
+
+## Release 1.34.0: Konzept 22 Stufe 1 «Sprachgerüst» (15. November 2026, veröffentlicht: PR #162 `a3be15b6`, Tag `v1.34.0`, Lauf 43664635767)
 
 Stufe 1 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Abschnitte 4.2 bis 4.5, 4.9) auf dem Zweig
 `claude/k22-stufe1`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.34.0** (F-9 aus

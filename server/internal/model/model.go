@@ -16,9 +16,12 @@ import (
 
 // Sentinel errors that the api package maps to problem responses.
 var (
-	ErrNotFound           = errors.New("not found")            // 404 not_found (also for invisible items)
-	ErrInvalidCredentials = errors.New("invalid credentials")  // 401 invalid_credentials
-	ErrSetupDone          = errors.New("setup already done")   // 409 setup_done
+	ErrNotFound           = errors.New("not found")           // 404 not_found (also for invisible items)
+	ErrInvalidCredentials = errors.New("invalid credentials") // 401 invalid_credentials
+	ErrSetupDone          = errors.New("setup already done")  // 409 setup_done
+	// ErrLibraryRequired: the guided wizard finishes only with a library (422 library_required,
+	// concept 22, 3.5).
+	ErrLibraryRequired    = errors.New("library required")
 	ErrLibraryPathInvalid = errors.New("library path invalid") // 422 library_path_invalid
 	// ErrScanRunning: a library root cannot be removed while a scan of that library runs, because
 	// the scan loads the roots once and writes media_files with their ids afterwards (409
@@ -1698,9 +1701,15 @@ type LibraryUpdate struct {
 type SetupRequest struct {
 	Email    string
 	Password string
-	Language string // de, en; empty = de
+	Language string // one of UILanguages; empty = DefaultUILanguage
 	TMDBKey  string
-	Library  LibraryRequest
+	// Library is the first library; nil starts the guided wizard (concept 22 part A): the owner
+	// goes on behind the login and no library is created here.
+	Library *LibraryRequest
+	// ProfileName and Accent of the first profile; empty = the part of the e-mail before the @
+	// and no accent.
+	ProfileName string
+	Accent      string
 }
 
 // LibraryRoot is one directory of a library.

@@ -7,7 +7,7 @@ import "slices"
 // the one place the server checks a profile language against; TestUILanguagesMatchContract keeps
 // it equal to the contract. A new code is added together with its language pack, one release
 // after the web app learnt to fall back to English for an unknown code.
-var UILanguages = []string{"de", "en"}
+var UILanguages = []string{"de", "de-DE", "en"}
 
 // DefaultUILanguage is the language of a new profile when the request names none.
 const DefaultUILanguage = "de"

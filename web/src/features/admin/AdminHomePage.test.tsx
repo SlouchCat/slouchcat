@@ -145,9 +145,11 @@ const system: SystemInfo = {
     hwTonemap: true,
     composeOverride: 'intel',
     devices: { dri: true, nvidia: false },
+    candidates: [],
   },
   inotify: { maxUserWatches: 65536, watchedDirs: 58982, usagePercent: 90, warn: true },
   configFs: 'ext4',
+  timeZone: 'Europe/Zurich',
   cacheFs: 'ext4',
 };
 

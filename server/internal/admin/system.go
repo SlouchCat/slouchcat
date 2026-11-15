@@ -28,6 +28,13 @@ type SystemSource struct {
 	// Caps are the capabilities of transcode.Detect; a zero value means the detection failed
 	// (software encoding, CPU tonemapping).
 	Caps transcode.Capabilities
+	// HWChoice is the transcode choice the start applied (auto, nvenc, qsv, vaapi, software; ""
+	// = auto); HWExplicit: it came from --hw or SLOUCHCAT_HW, which win over the stored choice
+	// (concept 22, F-10).
+	HWChoice   string
+	HWExplicit bool
+	// TimeZone is the IANA name of the server's zone (ResolveZone).
+	TimeZone string
 	// WatchedDirs counts the directories of the library watchers (library.Service.WatchedDirs);
 	// nil counts 0, as in the wizard.
 	WatchedDirs func() int64
@@ -70,7 +77,7 @@ func (s *Service) SystemInfo(context.Context) (model.SystemInfo, error) {
 	src := s.ops.system
 	return model.SystemInfo{
 		Version: s.version(), StartedAt: src.StartedAt, GPU: gpuInfo(src), Inotify: inotifyInfo(src),
-		ConfigFS: fsName(src.ConfigDir), CacheFS: fsName(src.CacheDir),
+		ConfigFS: fsName(src.ConfigDir), CacheFS: fsName(src.CacheDir), TimeZone: orDefault(src.TimeZone, "UTC"),
 	}, nil
 }
 
@@ -79,7 +86,10 @@ func gpuInfo(src SystemSource) model.GPUInfo {
 	c := src.Caps
 	g := model.GPUInfo{
 		Backend: string(c.Backend), HardwareEncode: c.HardwareEncode, Tonemapper: c.Tonemapper, HWTonemap: c.HWTonemap,
-		FFmpegVersion: c.Version,
+		FFmpegVersion: c.Version, FallbackFrom: string(c.FallbackFrom),
+	}
+	for _, cand := range c.Candidates {
+		g.Candidates = append(g.Candidates, model.TranscodeCandidate{Backend: string(cand.Backend), OK: cand.OK, Reason: cand.Reason})
 	}
 	if g.Backend == "" {
 		g.Backend = string(transcode.BackendSoftware)

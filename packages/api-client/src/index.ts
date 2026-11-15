@@ -208,15 +208,20 @@ export type SetupStatus = components['schemas']['SetupStatus'];
 export type SystemInfo = components['schemas']['SystemInfo'];
 export type GPUInfo = components['schemas']['GPUInfo'];
 export type InotifyInfo = components['schemas']['InotifyInfo'];
-export type PathCheckRequest = components['schemas']['PathCheckRequest'];
-export type PathCheck = components['schemas']['PathCheck'];
-export type TMDBCheckRequest = components['schemas']['TMDBCheckRequest'];
+// The guided wizard and the transcode choice (concept 22 part A, contract 1.35.0).
+export type TranscodeBackend = components['schemas']['TranscodeBackend'];
+export type TranscodeCandidate = components['schemas']['TranscodeCandidate'];
+export type TranscodeChoice = components['schemas']['TranscodeChoice'];
+export type SetupStep = components['schemas']['SetupStep'];
+export type SetupStepState = components['schemas']['SetupStepState'];
+export type SetupProgress = components['schemas']['SetupProgress'];
+export type SetupProgressUpdate = components['schemas']['SetupProgressUpdate'];
+export type SetupFinished = components['schemas']['SetupFinished'];
 // The folder browser of the library form (idea 02).
 export type BrowseRequest = components['schemas']['BrowseRequest'];
 export type BrowseRoot = components['schemas']['BrowseRoot'];
 export type DirectoryListing = components['schemas']['DirectoryListing'];
 export type DirectoryEntry = components['schemas']['DirectoryEntry'];
-export type TMDBCheck = components['schemas']['TMDBCheck'];
 export type Dashboard = components['schemas']['Dashboard'];
 export type JobCounts = components['schemas']['JobCounts'];
 export type JobSummary = components['schemas']['JobSummary'];

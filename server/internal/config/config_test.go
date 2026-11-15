@@ -34,6 +34,25 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
+// Concept 22, F-10: only --hw or a non-empty SLOUCHCAT_HW wins over the stored choice.
+func TestHWExplicit(t *testing.T) {
+	for name, c := range map[string]struct {
+		args []string
+		env  map[string]string
+		want bool
+	}{
+		"default":   {want: false},
+		"empty env": {env: map[string]string{"SLOUCHCAT_HW": ""}, want: false},
+		"env":       {env: map[string]string{"SLOUCHCAT_HW": "auto"}, want: true},
+		"flag":      {args: []string{"--hw", "auto"}, want: true},
+	} {
+		cfg, err := Load(c.args, envMap(c.env))
+		if err != nil || cfg.HWExplicit != c.want || cfg.HW != "auto" {
+			t.Errorf("%s: HW %q explicit %v, %v; want explicit %v", name, cfg.HW, cfg.HWExplicit, err, c.want)
+		}
+	}
+}
+
 func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	env := envMap(map[string]string{
 		"SLOUCHCAT_LISTEN":              "127.0.0.1:9000",
@@ -75,7 +94,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, RadioDir: "/dev/shm/radio", LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
+		Workers: 6, HW: "software", HWExplicit: true, HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental",
 		TraktClientID: "trakt-id", TraktBaseURL: "http://127.0.0.1:9/trakt",
 		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",

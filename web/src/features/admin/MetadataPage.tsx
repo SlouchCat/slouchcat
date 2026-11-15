@@ -178,7 +178,7 @@ function useLanguageName(): (code: string) => string {
  * swaps the two. «Weitere Sprache» appends a place, «×» removes one, except the last one; a chain
  * offers "" (no text). No list has to hold German or English (concept 22 F-7, ADR 0033).
  */
-function LanguageRanks({
+export function LanguageRanks({
   value,
   onChange,
   known,

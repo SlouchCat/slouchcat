@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -245,6 +246,7 @@ type Service struct {
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
 	counts        countsCache   // the counts of the admin sidebar (concept 11, dashboard.go)
+	setupMu       sync.Mutex    // serialises the read-modify-write of the guided wizard (setup_wizard.go)
 }
 
 // New returns the service. getenv is normally os.Getenv.
@@ -324,8 +326,9 @@ func (s *Service) WithMetadata(m Metadata) *Service {
 // field, the library path and the TMDB key without side effects; create the owner (which re-checks
 // "no account" inside its transaction, so a concurrent second wizard gets model.ErrSetupDone
 // before it changed anything); store the key encrypted; create the library (queues the first
-// scan); start the session. Every call counts against the client's attempt limit. Password and
-// key never appear in logs or errors.
+// scan) or, without one, record the open guided wizard (concept 22, 3.4); start the session.
+// Every call counts against the client's attempt limit. Password and key never appear in logs or
+// errors.
 func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgent string) (model.Session, string, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if err := s.auth.AllowAttempt(ctx); err != nil {
@@ -343,7 +346,9 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	if req.Language != "" && !model.IsUILanguage(req.Language) {
 		verr = verr.Add("language", "invalid_value")
 	}
-	verr = validateLibrary(verr, "library.", req.Library)
+	if req.Library != nil {
+		verr = validateLibrary(verr, "library.", *req.Library)
+	}
 	key := strings.TrimSpace(req.TMDBKey)
 	if len(key) > maxTMDBKeyLen {
 		verr = verr.Add("tmdbApiKey", "too_long")
@@ -351,8 +356,10 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	if err := s.libraries.ValidateRoots(ctx, req.Library.Kind, req.Library.Roots, "library.roots"); err != nil {
-		return model.Session{}, "", err
+	if req.Library != nil {
+		if err := s.libraries.ValidateRoots(ctx, req.Library.Kind, req.Library.Roots, "library.roots"); err != nil {
+			return model.Session{}, "", err
+		}
 	}
 	if key != "" {
 		if err := s.tmdb.CheckKey(ctx, key); err != nil {
@@ -360,7 +367,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 		}
 	}
 
-	account, profile, err := s.auth.CreateOwner(ctx, req.Email, req.Password, req.Language)
+	account, profile, err := s.auth.CreateOwnerProfile(ctx, req.Email, req.Password, req.Language, req.ProfileName, req.Accent)
 	if err != nil {
 		return model.Session{}, "", err
 	}
@@ -369,17 +376,28 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 			return model.Session{}, "", err
 		}
 	}
-	lib, err := s.libraries.Create(ctx, req.Library)
-	if err != nil {
-		// The account exists now; the owner can add the library on the libraries page.
-		s.log.ErrorContext(ctx, "setup: create first library", "account_id", account.ID, "err", err)
-		return model.Session{}, "", fmt.Errorf("create first library: %w", err)
+	var libraryID int64
+	if req.Library != nil {
+		lib, err := s.libraries.Create(ctx, *req.Library)
+		if err != nil {
+			// The account exists now; the owner can add the library on the libraries page.
+			s.log.ErrorContext(ctx, "setup: create first library", "account_id", account.ID, "err", err)
+			return model.Session{}, "", fmt.Errorf("create first library: %w", err)
+		}
+		libraryID = lib.ID
+	} else if err := s.storeWizard(ctx, openWizard()); err != nil {
+		// Without the record the wizard would count as finished and the owner would never be led
+		// into it: the request fails, like a failed first library. The account exists all the
+		// same; the owner then signs in and sets up the rest in the administration.
+		s.log.ErrorContext(ctx, "setup: record the guided wizard", "account_id", account.ID, "err", err)
+		return model.Session{}, "", fmt.Errorf("record the guided wizard: %w", err)
 	}
 	session, token, err := s.auth.StartSession(ctx, account, profile, userAgent)
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	s.log.InfoContext(ctx, "setup completed", "account_id", account.ID, "library_id", lib.ID, "tmdb_key_stored", key != "")
+	s.log.InfoContext(ctx, "setup completed", "account_id", account.ID, "library_id", libraryID, "tmdb_key_stored", key != "",
+		"guided", req.Library == nil)
 	return session, token, nil
 }
 

@@ -16,7 +16,23 @@
         }
       }
     },
-    "submit": "Einrichtung abschließen"
+    "nav": {
+      "close": "Schritte schließen"
+    },
+    "actions": {
+      "finish": "Einrichtung abschließen"
+    },
+    "account": {
+      "profileHint": "So heißt dein Profil in der Profilwahl."
+    },
+    "playback": {
+      "restart": "Gilt nach einem Neustart. Slouchcat startet beim Abschließen einmal neu."
+    },
+    "services": {
+      "email": {
+        "purpose": "Für Einladungen und „Passwort vergessen“."
+      }
+    }
   },
   "library": {
     "browse": {
@@ -35,6 +51,10 @@
       },
       "color": {
         "white": "Weiß"
+      },
+      "offset": {
+        "earlier": "0,1 s früher",
+        "later": "0,1 s später"
       }
     },
     "help": {
@@ -43,8 +63,15 @@
           "action": "Schließt Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite",
           "actionOfflineDownloads": "Schließt Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zu den Downloads",
           "actionOfflineLibrary": "Schließt Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zur Offline-Bibliothek"
+        },
+        "speed": {
+          "action": "Langsamer oder schneller (0,5× bis 2×)"
         }
       }
+    },
+    "audio": {
+      "minus": "−0,1",
+      "plus": "+0,1"
     }
   },
   "admin": {
@@ -549,9 +576,6 @@
         "close": "Filter schließen",
         "search": "„{{q}}“"
       }
-    },
-    "region": {
-      "CH-AR": "Appenzell Außerrhoden"
     },
     "player": {
       "close": "Jetzt läuft schließen"

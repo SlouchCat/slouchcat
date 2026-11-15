@@ -63,6 +63,24 @@
       "version": "Version {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Graphics chip for converting",
+        "hint": "Applies after the server restarts.",
+        "auto": "Automatic (recommended)",
+        "software": "Processor only",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "not in this ffmpeg",
+          "no_device": "device missing in the container",
+          "test_failed": "probe failed at start"
+        },
+        "saved": "Saved: {{name}}",
+        "restartAdmin": "Applies after the server restarts (Overview › Restart)."
+      },
+      "fallback": {
+        "title": "The chosen graphics chip does not work",
+        "body": "{{name}} failed its probe at start. Slouchcat converts with the automatic choice for now."
+      },
       "encoder": "Video encoding",
       "tonemap": "HDR to SDR",
       "ffmpeg": "ffmpeg",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Welcome to Slouchcat",
-    "intro": "Four short steps, then Slouchcat scans your first library.",
-    "step": "Step {{step}}",
+    "documentTitle": "Setup: {{step}}",
+    "position": "Step {{position}} of {{count}}",
+    "nav": {
+      "label": "Setup",
+      "group": "Steps",
+      "menu": "Setup, steps",
+      "close": "Close steps",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, done",
+        "skipped": "{{position}}. {{name}}, skipped"
+      }
+    },
+    "actions": {
+      "back": "Back",
+      "skip": "Skip",
+      "next": "Next",
+      "finish": "Finish setup",
+      "finishing": "Finishing …",
+      "later": "Continue later"
+    },
+    "steps": {
+      "language": {
+        "nav": "Language",
+        "title": "Choose a language",
+        "intro": "Which language should Slouchcat speak? The choice applies at once and can be changed at any time."
+      },
+      "account": {
+        "nav": "Account",
+        "title": "Create your account",
+        "intro": "You run Slouchcat with this account. Your first profile comes with it."
+      },
+      "region": {
+        "nav": "Region",
+        "title": "Region and metadata",
+        "intro": "Country, age ratings and the languages Slouchcat loads titles and descriptions in."
+      },
+      "services": {
+        "nav": "Services",
+        "title": "Connect services",
+        "intro": "Keys for metadata and ways to send notifications. TMDB and e-mail are recommended; you can add the rest later under Administration › Integrations."
+      },
+      "playback": {
+        "nav": "Playback",
+        "title": "Playback",
+        "intro": "What Slouchcat finds in the container and what it converts videos with."
+      },
+      "libraries": {
+        "nav": "Libraries",
+        "title": "Libraries",
+        "intro": "At least one library is needed. Slouchcat reads it right after you add it."
+      },
+      "household": {
+        "nav": "Household",
+        "title": "Household",
+        "intro": "More profiles for the household, each with its own age rating, colour and, if you like, a PIN."
+      },
+      "access": {
+        "nav": "Access",
+        "title": "Access",
+        "intro": "Which address Slouchcat is reached at and whether it looks for new versions."
+      },
+      "summary": {
+        "nav": "Summary",
+        "title": "Summary",
+        "intro": "Check your choices. Whatever you skipped takes the recommendation."
+      }
+    },
+    "language": {
+      "search": "Search languages",
+      "choice": "Language",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "No language matches the search.",
+      "preview": "Preview",
+      "previewDate": "Date",
+      "previewNumber": "Number"
+    },
     "account": {
-      "title": "Administrator account",
-      "description": "You manage Slouchcat with this account.",
-      "email": "E-mail address",
+      "email": "Email address",
       "password": "Password",
       "passwordHint": "At least 10 characters.",
-      "passwordRepeat": "Repeat password"
+      "passwordRepeat": "Repeat password",
+      "profileName": "Profile name",
+      "profileHint": "Your profile goes by this name in the profile picker.",
+      "taken": {
+        "title": "Slouchcat is already set up",
+        "body": "Somebody created the account just now. Sign in with that account.",
+        "action": "Go to sign-in"
+      }
+    },
+    "region": {
+      "country": "Country",
+      "ratingCountry": "Age ratings of",
+      "ratingSteps": "Age ratings of the profiles: {{steps}}",
+      "languages": "Metadata languages",
+      "languagesIntro": "Slouchcat loads texts and images in this order. No language is required.",
+      "timeZone": "Server time zone",
+      "serverZone": "Time zone",
+      "zoneDiffers": {
+        "title": "Your browser uses another time zone",
+        "body": "The browser reports {{browser}}. You set the server's time zone in deploy/.env; it applies after the container restarts.",
+        "command": "Line for deploy/.env"
+      },
+      "radio": "Web radio",
+      "radioToggle": "Add {{country}} to the radio offer",
+      "radioHint": "The country joins the offer without stations. You pick the stations later under Administration › Radio."
+    },
+    "services": {
+      "recommended": "Recommended",
+      "optional": "Optional",
+      "recommendedTitle": "Recommended",
+      "optionalTitle": "Optional",
+      "email": {
+        "purpose": "For invitations and “Forgot password”."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Notifications on this device, even when Slouchcat is not open.",
+        "insecure": "Push needs a secure connection (HTTPS or localhost). Set push up later through the public HTTPS address."
+      },
+      "telegram": {
+        "purpose": "Notifications through a Telegram bot. You connect your account afterwards under Settings › Notifications."
+      },
+      "rejected": {
+        "title": "Remove the invalid key and continue?",
+        "body": "The service refused this key: {{names}}. Slouchcat removes it so no wrong key stays stored.",
+        "confirm": "Remove and continue"
+      }
+    },
+    "playback": {
+      "restart": "Applies after a restart. Slouchcat restarts once when you finish.",
+      "trickplay": "Seek preview for new video libraries",
+      "trickplayHint": "Fills in the setting of every new video library in the next step. The preview images take space and computing time."
+    },
+    "libraries": {
+      "add": "Add library",
+      "addMore": "Another library",
+      "none": "No library yet. Add at least one so Slouchcat has something to show.",
+      "folder": "Folder {{position}}"
+    },
+    "household": {
+      "accounts": "You invite guests with an account of their own later under Administration › Accounts."
+    },
+    "access": {
+      "here": "You are using {{url}} right now.",
+      "useHere": "Use this address",
+      "noUsageData": "Slouchcat sends no usage data."
+    },
+    "summary": {
+      "done": "Set up",
+      "recommended": "Recommendation",
+      "change": "Change {{step}}",
+      "region": "Ratings of {{country}}, languages {{languages}}",
+      "services_one": "{{count}} service set up",
+      "services_other": "{{count}} services set up",
+      "playback": "{{hw}}, seek preview {{trickplay}}",
+      "on": "on",
+      "off": "off",
+      "noAddress": "no public address",
+      "profiles_one": "{{count}} profile",
+      "profiles_other": "{{count}} profiles"
+    },
+    "finish": {
+      "title": "Slouchcat is set up",
+      "restartTitle": "Slouchcat is restarting …",
+      "restartBody": "The graphics chip choice applies after the restart. The first scans go on afterwards.",
+      "busy": "Slouchcat could not restart because a backup or an update is running. The graphics chip choice applies after the next restart (Administration › Overview).",
+      "scanProgress": "{{state}}: {{seen}} of {{total}} files",
+      "home": "Go to the start page"
     },
     "library": {
-      "title": "First library",
-      "description": "You can add more libraries later.",
       "name": "Name",
-      "defaultName": "Films",
       "kind": "Content",
       "path": "Folder",
       "pathPlaceholder": "/media/Movies",
-      "roots": "Released folders:",
-      "check": "Check folder",
-      "checking": "Checking …",
       "warning": {
         "network_share": {
           "title": "Network share detected",
@@ -271,30 +442,7 @@
           "title": "Unknown file system",
           "body": "A FUSE file system (for example mergerfs or Unraid) does not report every change. Slouchcat watches the folder and also syncs it regularly."
         }
-      },
-      "content": "Content",
-      "providers": "Metadata sources"
-    },
-    "tmdb": {
-      "title": "Metadata from TMDB (optional)",
-      "description": "With a read access token from themoviedb.org Slouchcat fetches overviews, posters and age ratings. Without a key, titles come from the file names.",
-      "link": "Create a token on themoviedb.org",
-      "label": "API read access token",
-      "hint": "Stored encrypted and never shown again.",
-      "check": "Check key",
-      "checking": "Checking …",
-      "result": {
-        "valid": "Valid: TMDB accepted the key.",
-        "invalid": "Invalid: TMDB rejected the key. Check the read access token.",
-        "unreachable": "Unreachable: TMDB does not answer right now. Try again or leave the field empty."
       }
-    },
-    "submit": "Finish setup",
-    "submitting": "Setting up …",
-    "system": {
-      "title": "Graphics chip and file system",
-      "description": "What Slouchcat finds inside the container. There is nothing to enter here; the hints are for the host.",
-      "missing": "The server sent no details about the hardware."
     }
   },
   "login": {
@@ -3225,6 +3373,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Setup not finished",
+        "body": "A few steps of the setup are still open.",
+        "noLibrary": "There is no library yet, so the start page stays empty.",
+        "action": "Continue setup"
+      },
       "title": "Administration",
       "live": "Live, every 5 seconds",
       "liveFailed": "No answer, trying again every 5 seconds",

@@ -1170,6 +1170,19 @@ Bau-Reihenfolge nummeriert.
 - **Stufe 1 gebaut (15. November 2026, Vertrag 1.34.0, Migration 00061):** Die Befunde von Schritt 0 und
   die Abweichungen (blosses `de` → `de`, solange `de-DE` nicht wählbar ist; Name «Deutsch» bis Stufe 2)
   stehen in ADR 0033, Abschnitte «Schritt 0 der Stufe 1» und «Abweichungen vom Konzept in Stufe 1».
+- **Stufe 2 gebaut (15. November 2026, Vertrag 1.35.0, keine Migration):** Schritt 0 hat die Angaben aus
+  2.1 und 2.2 am Code bestätigt, mit zwei Abweichungen, die den Bau geändert haben:
+  - `applyRadioOffer` nimmt `[chooseCountry, demarkAll]` auch bei leerem Katalog an (das Land wird an der
+    festen Kontinenttabelle geprüft, nicht am Katalog; `TestOfferCountryBeforeTheFirstSync`). Der Assistent
+    wendet den Wunsch darum sofort an; einen aufgeschobenen Radio-Wunsch in `setup_wizard` und den
+    Hinweis in der Verwaltung gibt es nicht.
+  - Eine eigene Systemseite der Verwaltung gibt es nicht. Die Wahl des Grafikchips (O-19) steht unter
+    Verwaltung › Integrationen › Server; neu gestartet wird über Übersicht › Neu starten.
+  - Weitere kleine Entscheide: `SLOUCHCAT_HW` gilt als gesetzt, wenn es nicht leer ist (`compose.yaml`
+    reicht es leer durch, `os.LookupEnv` würde dann immer greifen). Die Schrittleiste ist die Leiste der
+    Verwaltung (`AdminSideNavContent`, auf dem Handy dasselbe Blatt) statt einer waagrechten Leiste.
+    Schritt 6 nutzt den Dialog «Bibliothek hinzufügen» der Verwaltung mit dem Ordner-Browser. Ein Neustart
+    ist fällig, wenn die Wahl weder der beim Start angewandten noch dem laufenden Backend entspricht.
 
 ---
 

@@ -10,6 +10,8 @@ export interface ShippedLanguage {
    * (CLAUDE.md rule 9 names this file as an exception). Intl.DisplayNames gives no usable names.
    */
   name: string;
+  /** The English name, which the wizard's language step shows below and searches too (data). */
+  englishName: string;
   /** The locale every Intl call formats with (de formats Swiss: 1’234’567.5). */
   intlLocale: string;
 }
@@ -17,13 +19,24 @@ export interface ShippedLanguage {
 /**
  * The languages the web app ships, in the order of the language choice. The list grows with the
  * language packs and the contract's enum Language together (concept 22 section 4.3); a code
- * enters one release after the app learnt to fall back to English for an unknown one.
- * `web/src/locales/de-DE.json` exists already (stage 1) but is not shipped yet.
+ * enters one release after the app learnt to fall back to English for an unknown one. German
+ * (Germany) is an overlay of German (Switzerland): `web/src/locales/de-DE.json` holds only the
+ * texts that read differently in Germany (stage 2).
  */
 export const languages = [
-  // «Deutsch (Schweiz)» once German (Germany) is selectable too (stage 2); one German is «Deutsch».
-  { code: 'de', name: 'Deutsch', intlLocale: 'de-CH' },
-  { code: 'en', name: 'English', intlLocale: 'en' },
+  {
+    code: 'de',
+    name: 'Deutsch (Schweiz)',
+    englishName: 'German (Switzerland)',
+    intlLocale: 'de-CH',
+  },
+  {
+    code: 'de-DE',
+    name: 'Deutsch (Deutschland)',
+    englishName: 'German (Germany)',
+    intlLocale: 'de-DE',
+  },
+  { code: 'en', name: 'English', englishName: 'English', intlLocale: 'en' },
 ] as const satisfies readonly ShippedLanguage[];
 
 type ShippedCode = (typeof languages)[number]['code'];
@@ -36,6 +49,7 @@ void everyContractLanguageShipped;
 /** The codes of the shipped languages. */
 export const supportedLanguages: readonly Language[] = languages.map((language) => language.code);
 
+/** The name of a language in the language itself; an unknown code stands for itself. */
 /** The language of an unknown code and of a browser that asks for none we ship (concept 22, O-2). */
 export const fallbackLanguage: Language = 'en';
 
@@ -89,15 +103,10 @@ const aliases: Record<string, string> = {
   nn: 'nb',
 };
 
-/**
- * The shipped language of a candidate code, compared without case: the code itself, or, as long
- * as German (Germany) is not shipped (stage 1), German (Switzerland) for it. Undefined otherwise.
- */
+/** The shipped language of a candidate code, compared without case; undefined otherwise. */
 function shipped(code: string): Language | undefined {
   const lower = code.toLowerCase();
-  const found = supportedLanguages.find((entry) => entry.toLowerCase() === lower);
-  if (found) return found;
-  return lower === 'de-de' ? shipped('de') : undefined;
+  return supportedLanguages.find((entry) => entry.toLowerCase() === lower);
 }
 
 /**

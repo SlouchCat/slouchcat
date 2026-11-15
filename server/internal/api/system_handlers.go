@@ -8,14 +8,10 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// M8 wizard checks, system state, dashboard, job administration and update check (plan M8, A-1,
-// A-3, A-5; design section 1). The admin service does the work; these handlers map between the
+// System state, dashboard, job administration and update check (plan M8, A-1, A-3, A-5; design
+// section 1). The admin service does the work; these handlers map between the
 // contract and the model.
 
-func (e serviceProblem) VisitCheckSetupPathResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitCheckSetupTmdbKeyResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
 func (e serviceProblem) VisitGetSystemInfoResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitGetDashboardResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitRetryJobResponse(w http.ResponseWriter) error       { return e.visit(w) }
@@ -25,40 +21,6 @@ func (e serviceProblem) VisitCheckForUpdateResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitInstallUpdateResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitGetUpdateInstallStatusResponse(w http.ResponseWriter) error {
 	return e.visit(w)
-}
-
-func (s *server) CheckSetupPath(ctx context.Context, req gen.CheckSetupPathRequestObject) (gen.CheckSetupPathResponseObject, error) {
-	c, err := s.opts.Admin.CheckSetupPath(model.WithClientIP(ctx, s.clientAddr(ctx)), deref(req.Body).Path)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	out := gen.CheckSetupPath200JSONResponse{Ok: c.OK, FsType: optString(c.FSType)}
-	if c.WatchMode != "" {
-		m := gen.PathCheckWatchMode(c.WatchMode)
-		out.WatchMode = &m
-	}
-	if c.Warning != "" {
-		w := gen.PathCheckWarning(c.Warning)
-		out.Warning = &w
-	}
-	if c.Problem != "" {
-		p := gen.PathCheckProblem(c.Problem)
-		out.Problem = &p
-	}
-	return out, nil
-}
-
-func (s *server) CheckSetupTmdbKey(ctx context.Context, req gen.CheckSetupTmdbKeyRequestObject) (gen.CheckSetupTmdbKeyResponseObject, error) {
-	c, err := s.opts.Admin.CheckSetupTMDBKey(model.WithClientIP(ctx, s.clientAddr(ctx)), deref(deref(req.Body).TmdbApiKey))
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	out := gen.CheckSetupTmdbKey200JSONResponse{Ok: c.OK}
-	if c.Problem != "" {
-		p := gen.TMDBCheckProblem(c.Problem)
-		out.Problem = &p
-	}
-	return out, nil
 }
 
 func (s *server) GetSystemInfo(ctx context.Context, _ gen.GetSystemInfoRequestObject) (gen.GetSystemInfoResponseObject, error) {
@@ -216,10 +178,10 @@ func (s *server) GetUpdateInstallStatus(ctx context.Context, _ gen.GetUpdateInst
 func toSystemInfo(info model.SystemInfo) gen.SystemInfo {
 	g := info.GPU
 	out := gen.SystemInfo{
-		Version: info.Version, StartedAt: info.StartedAt.UTC(), ConfigFs: info.ConfigFS, CacheFs: info.CacheFS,
+		Version: info.Version, StartedAt: info.StartedAt.UTC(), ConfigFs: info.ConfigFS, CacheFs: info.CacheFS, TimeZone: info.TimeZone,
 		Gpu: gen.GPUInfo{
-			Backend: gen.GPUInfoBackend(g.Backend), HardwareEncode: g.HardwareEncode, Tonemapper: gen.GPUInfoTonemapper(g.Tonemapper),
-			HwTonemap: g.HWTonemap, FfmpegVersion: optString(g.FFmpegVersion),
+			Backend: gen.TranscodeBackend(g.Backend), HardwareEncode: g.HardwareEncode, Tonemapper: gen.GPUInfoTonemapper(g.Tonemapper),
+			HwTonemap: g.HWTonemap, FfmpegVersion: optString(g.FFmpegVersion), Candidates: make([]gen.TranscodeCandidate, 0, len(g.Candidates)),
 		},
 		Inotify: gen.InotifyInfo{
 			MaxUserWatches: info.Inotify.MaxUserWatches, WatchedDirs: info.Inotify.WatchedDirs,
@@ -227,6 +189,18 @@ func toSystemInfo(info model.SystemInfo) gen.SystemInfo {
 		},
 	}
 	out.Gpu.Devices.Dri, out.Gpu.Devices.Nvidia = g.DeviceDRI, g.DeviceNvidia
+	for _, c := range g.Candidates {
+		cand := gen.TranscodeCandidate{Backend: gen.TranscodeCandidateBackend(c.Backend), Ok: c.OK}
+		if c.Reason != "" {
+			r := gen.TranscodeCandidateReason(c.Reason)
+			cand.Reason = &r
+		}
+		out.Gpu.Candidates = append(out.Gpu.Candidates, cand)
+	}
+	if g.FallbackFrom != "" {
+		f := gen.TranscodeBackend(g.FallbackFrom)
+		out.Gpu.FallbackFrom = &f
+	}
 	if g.ComposeOverride != "" {
 		o := gen.GPUInfoComposeOverride(g.ComposeOverride)
 		out.Gpu.ComposeOverride = &o

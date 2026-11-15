@@ -37,88 +37,17 @@ export interface paths {
         put?: never;
         /**
          * Run the first-start wizard
-         * @description Creates the main account with its default profile, the first library and optionally stores the
-         *     TMDB key (encrypted at rest). The key is checked against TMDB before it is stored. On success the
-         *     caller is logged in (session cookie). Allowed only while no account exists.
+         * @description Creates the main account with its default profile and optionally stores the TMDB key (encrypted
+         *     at rest; checked against TMDB before it is stored). On success the caller is logged in (session
+         *     cookie). Allowed only while no account exists.
+         *
+         *     Since contract 1.35.0 (concept 22 part A) `library` is optional. Without it the request is the
+         *     public half of the guided wizard: the server records an open wizard (`getSetupProgress`), and
+         *     the owner goes on with the steps behind the login; `SessionInfo.setupPending` stays true until
+         *     `finishSetup`. With `library` the first library is created as before and no wizard is
+         *     recorded: the setup counts as finished (older callers, scripts).
          */
         post: operations["runSetup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/setup/path-check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Describe a library path for the wizard (A-1)
-         * @description Checks a path on the server before the wizard creates the library: whether it is usable, its file
-         *     system, the watch mode the scanner would use (inotify, poll or both) and a warning for network
-         *     shares and unknown FUSE file systems (plan 3.4). A bad path is no error: the answer names the
-         *     problem (`problem`), so the wizard can show it next to the field. Allowed only while no account
-         *     exists; every call counts against the attempt limit of the client.
-         */
-        post: operations["checkSetupPath"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/setup/tmdb-check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Check a TMDB key for the wizard (A-1)
-         * @description Asks TMDB whether the key is valid before the wizard stores it. An invalid key or an unreachable
-         *     TMDB is no error: the answer names the problem (`invalid`, `unreachable`). The key is neither
-         *     stored nor logged. Allowed only while no account exists; every call counts against the attempt
-         *     limit of the client.
-         */
-        post: operations["checkSetupTmdbKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/setup/roots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The configured media roots, for the wizard (A-1)
-         * @description The roots the wizard offers below the folder field (`SLOUCHCAT_BROWSE_ROOTS`), so the operator
-         *     need not guess how the mount is named inside the container. It takes no parameter and lists
-         *     nothing below a root: before an account exists, a listing with a path parameter would be an
-         *     enumeration primitive, and the attempt limit is per client address, which a misconfigured
-         *     `SLOUCHCAT_TRUSTED_PROXIES` lets the caller choose. The answer is the same for every caller and
-         *     never changes while the server runs, so it does not count against the attempt limit either --
-         *     that limit is shared with signing in, and the wizard fetches this list on every load. It has a
-         *     limit of its own instead, and it answers from a list filled at start-up, so the one
-         *     unauthenticated operation that touches the file system does not touch it per request. The file
-         *     system type is left out here: before an account exists, nobody learns which mount is a network
-         *     share. Allowed only while no account exists.
-         */
-        get: operations["listSetupRoots"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4236,6 +4165,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The state of the guided wizard (concept 22 part A)
+         * @description Every step of the wizard with its state, the default of «Vorschau beim Spulen» for new video
+         *     libraries and whether the wizard is finished. Without a recorded wizard (an installation set
+         *     up before contract 1.35.0, or `runSetup` with a library) every step is `done` and `finished`
+         *     is true.
+         */
+        get: operations["getSetupProgress"];
+        /**
+         * Record a step of the guided wizard
+         * @description Sets the state of one step and/or the trickplay default. Fields left out keep their value.
+         *     A finished wizard answers 409 `setup_done`: it is never opened again.
+         */
+        put: operations["updateSetupProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/setup/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish the guided wizard
+         * @description Needs at least one library (422 `library_required`). Marks the wizard finished, so
+         *     `SessionInfo.setupPending` is false from now on, and restarts the server when the stored
+         *     transcode choice differs from what it runs (`AdminSettings.transcodeHwRestart`), through the
+         *     same restart as `restartServer`. While a backup, a restore, an update or another restart keeps
+         *     it from restarting, the answer says `busy` and the restart is left to the administration.
+         *     Finishing twice changes nothing.
+         */
+        post: operations["finishSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/update": {
         parameters: {
             query?: never;
@@ -5670,8 +5652,8 @@ export interface components {
             /** @description True until the wizard created the main account. */
             setupRequired: boolean;
             /**
-             * @description Transcode hardware, inotify limit and file systems for the wizard (A-1); only while
-             *     `setupRequired` is true.
+             * @description Transcode hardware, inotify limit, file systems and time zone for the wizard (A-1); only
+             *     while `setupRequired` is true. The probes of `gpu.candidates` carry no `reason` here.
              */
             system?: components["schemas"]["SystemInfo"];
         };
@@ -5680,16 +5662,60 @@ export interface components {
             email: string;
             /** Format: password */
             password: string;
-            library: components["schemas"]["LibraryRequest"];
+            /**
+             * @description The first library; optional since contract 1.35.0. Absent, the guided wizard goes on after
+             *     the login (`getSetupProgress`).
+             */
+            library?: components["schemas"]["LibraryRequest"];
             /** @description TMDB v4 read access token; optional. Stored encrypted, never returned. */
             tmdbApiKey?: string;
             language?: components["schemas"]["Language"];
+            /** @description Name of the first profile; absent, the part of the e-mail before the @. */
+            profileName?: string;
+            /** @description Accent colour of the first profile; absent, none. */
+            accent?: components["schemas"]["Accent"];
         };
         LoginRequest: {
             /** Format: email */
             email: string;
             /** Format: password */
             password: string;
+        };
+        /**
+         * @description A step of the guided wizard, in its order (concept 22, 3.2).
+         * @enum {string}
+         */
+        SetupStep: "language" | "account" | "region" | "services" | "playback" | "libraries" | "household" | "access" | "summary";
+        /** @enum {string} */
+        SetupStepState: "open" | "done" | "skipped";
+        SetupStepEntry: {
+            step: components["schemas"]["SetupStep"];
+            state: components["schemas"]["SetupStepState"];
+        };
+        SetupProgress: {
+            /** @description Every step, in the order of the wizard. */
+            steps: components["schemas"]["SetupStepEntry"][];
+            /** @description «Vorschau beim Spulen» starts switched on for every new video library of the wizard. */
+            trickplayDefault: boolean;
+            finished: boolean;
+            /** Format: date-time */
+            finishedAt?: string;
+        };
+        SetupProgressUpdate: {
+            step?: components["schemas"]["SetupStep"];
+            state?: components["schemas"]["SetupStepState"];
+            trickplayDefault?: boolean;
+        };
+        SetupFinished: {
+            /**
+             * @description `none`: no restart needed. `scheduled`: the server restarts now (as `restartServer`; poll
+             *     `getHealth` from `restartAt` on). `busy`: a backup, restore, update or restart keeps it from
+             *     restarting; the new transcode choice applies after the next restart.
+             * @enum {string}
+             */
+            restart: "none" | "scheduled" | "busy";
+            /** Format: date-time */
+            restartAt?: string;
         };
         SessionInfo: {
             account: components["schemas"]["Account"];
@@ -5706,6 +5732,12 @@ export interface components {
              *     answers of older servers (then `de` and `en`).
              */
             availableMetadataLanguages?: components["schemas"]["MetadataLanguage"][];
+            /**
+             * @description Since contract 1.35.0 (concept 22, F-11): the guided wizard is not finished yet; only in the
+             *     owner's sessions with the primary profile active. The web app leads the owner to the first open step at every sign-in until
+             *     `finishSetup` ran.
+             */
+            setupPending?: boolean;
         };
         Account: {
             /** Format: int64 */
@@ -6029,10 +6061,11 @@ export interface components {
             ratingSource?: string;
         };
         /**
-         * @description An interface language; the two language packs of the web app.
+         * @description An interface language; exactly the language packs the web app ships (concept 22, ADR 0033):
+         *     `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English.
          * @enum {string}
          */
-        Language: "de" | "en";
+        Language: "de" | "de-DE" | "en";
         /** @description A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018). */
         MetadataLanguage: string;
         /**
@@ -9539,6 +9572,12 @@ export interface components {
         SystemInfo: {
             /** @example 0.9.0+abc1234 */
             version: string;
+            /**
+             * @description Since contract 1.35.0: the server's time zone by its IANA name, from `TZ` (else the system's
+             *     zone file; `UTC` when neither names one). Only `deploy/.env` changes it.
+             * @example Europe/Zurich
+             */
+            timeZone: string;
             /** Format: date-time */
             startedAt: string;
             gpu: components["schemas"]["GPUInfo"];
@@ -9569,8 +9608,18 @@ export interface components {
          *     }
          */
         GPUInfo: {
-            /** @enum {string} */
-            backend: "nvenc" | "qsv" | "vaapi" | "software";
+            backend: components["schemas"]["TranscodeBackend"];
+            /**
+             * @description Since contract 1.35.0 (concept 22, F-10): every hardware backend probed once at start
+             *     (`nvenc`, `qsv`, `vaapi`, in this order) with a one-frame test encode, whatever was chosen.
+             */
+            candidates: components["schemas"]["TranscodeCandidate"][];
+            /**
+             * @description Since contract 1.35.0: the backend stored as the choice (`AdminSettings.transcodeHw`) that
+             *     failed its test encode at start; the server runs the automatic choice instead and the
+             *     dashboard says so. Absent when the choice runs or comes from the environment.
+             */
+            fallbackFrom?: components["schemas"]["TranscodeBackend"];
             /** @description The backend encodes on the GPU (every backend but software). */
             hardwareEncode: boolean;
             /**
@@ -9597,6 +9646,30 @@ export interface components {
                 nvidia: boolean;
             };
         };
+        /**
+         * @description A video encoder family (M1b).
+         * @enum {string}
+         */
+        TranscodeBackend: "nvenc" | "qsv" | "vaapi" | "software";
+        TranscodeCandidate: {
+            /** @enum {string} */
+            backend: "nvenc" | "qsv" | "vaapi";
+            /** @description The backend passed its test encode at start. */
+            ok: boolean;
+            /**
+             * @description Why the probe failed: the ffmpeg build lacks the encoder, the device (`/dev/nvidia0`,
+             *     `/dev/dri/renderD128`) is missing, or the test encode failed. Only in `getSystemInfo`;
+             *     the wizard's public `SetupStatus.system` carries no reason.
+             * @enum {string}
+             */
+            reason?: "not_in_build" | "no_device" | "test_failed";
+        };
+        /**
+         * @description The transcode backend to use: `auto` takes the first of `nvenc`, `qsv`, `vaapi` that passes its
+         *     test encode, `software` encodes on the CPU.
+         * @enum {string}
+         */
+        TranscodeChoice: "auto" | "nvenc" | "qsv" | "vaapi" | "software";
         InotifyInfo: {
             /**
              * Format: int64
@@ -9660,9 +9733,8 @@ export interface components {
              * @enum {string}
              */
             source: "configured" | "library";
-            /** @description Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`), as in `LibraryRoot`; omitted by `listSetupRoots`. */
+            /** @description Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`), as in `LibraryRoot`. */
             fsType?: string;
-            /** @description Omitted by `listSetupRoots`, which answers before any account exists. */
             warning?: components["schemas"]["BrowseWarning"];
             /**
              * Format: int64
@@ -9716,46 +9788,6 @@ export interface components {
              */
             libraryId?: number;
             libraryName?: string;
-        };
-        PathCheckRequest: {
-            /** @example /media/movies */
-            path: string;
-        };
-        /** @description A library path as the wizard shows it (plan 3.4). */
-        PathCheck: {
-            /** @description The path is an absolute, readable directory. */
-            ok: boolean;
-            /** @description File system type, for example `ext4`, `nfs4`, `cifs`, `fuse.mergerfs`; absent with a problem. */
-            fsType?: string;
-            /**
-             * @description How the scanner would follow changes; absent with a problem.
-             * @enum {string}
-             */
-            watchMode?: "inotify" | "poll" | "inotify_poll";
-            /**
-             * @description A hint, not an error; the library works with polling.
-             * @enum {string}
-             */
-            warning?: "network_share" | "fuse_unknown";
-            /**
-             * @description Why the path is not usable; set exactly when `ok` is false. `not_browsable`: the path lies
-             *     below none of the browsable roots (`SLOUCHCAT_BROWSE_ROOTS`). The path is then not described
-             *     further, so the answer tells nothing about the file system outside those roots.
-             * @enum {string}
-             */
-            problem?: "not_absolute" | "missing" | "not_directory" | "not_readable" | "not_browsable";
-        };
-        TMDBCheckRequest: {
-            /** @description TMDB v4 read access token; neither stored nor logged. */
-            tmdbApiKey: string;
-        };
-        TMDBCheck: {
-            ok: boolean;
-            /**
-             * @description TMDB rejected the key (`invalid`) or did not answer (`unreachable`); set exactly when `ok` is false.
-             * @enum {string}
-             */
-            problem?: "invalid" | "unreachable";
         };
         /** @description The admin overview (A-3); no `ItemRef`. */
         Dashboard: {
@@ -10338,6 +10370,15 @@ export interface components {
             publicUrl?: string;
             publicUrlSource: components["schemas"]["SettingSource"];
             updateCheckEnabled: boolean;
+            /**
+             * @description Since contract 1.35.0 (concept 22, F-10): the transcode backend chosen. Precedence at start:
+             *     the option `--hw` and `SLOUCHCAT_HW` (source `env`), then the stored choice (`stored`), then
+             *     `auto` (`none`). It applies after a restart.
+             */
+            transcodeHw: components["schemas"]["TranscodeChoice"];
+            transcodeHwSource: components["schemas"]["SettingSource"];
+            /** @description The choice differs from what the running server uses; it applies after a restart. */
+            transcodeHwRestart: boolean;
             keys: components["schemas"]["AdminSettingsKeys"];
             email: components["schemas"]["AdminSettingsEmail"];
             telegram: components["schemas"]["AdminSettingsTelegram"];
@@ -10403,6 +10444,8 @@ export interface components {
              */
             publicUrl?: string;
             updateCheckEnabled?: boolean;
+            /** @description Since contract 1.35.0; refused with `env_wins` while `--hw` or `SLOUCHCAT_HW` sets it. */
+            transcodeHw?: components["schemas"]["TranscodeChoice"];
             keys?: components["schemas"]["AdminSettingsKeysUpdate"];
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
@@ -11891,167 +11934,6 @@ export interface operations {
                 };
             };
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
-            429: {
-                headers: {
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    checkSetupPath: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PathCheckRequest"];
-            };
-        };
-        responses: {
-            /** @description The path, described. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PathCheck"];
-                };
-            };
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Setup already completed (`setup_done`). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation failed (`validation_failed`; `path` empty or longer than 4096 bytes). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
-            429: {
-                headers: {
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    checkSetupTmdbKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TMDBCheckRequest"];
-            };
-        };
-        responses: {
-            /** @description The result of the check. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TMDBCheck"];
-                };
-            };
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Setup already completed (`setup_done`). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation failed (`validation_failed`; `tmdbApiKey` empty or longer than 1024 bytes). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
-            429: {
-                headers: {
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    listSetupRoots: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The configured roots. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BrowseRoot"][];
-                };
-            };
-            /** @description Setup already completed (`setup_done`). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Too many requests from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
                     "Retry-After"?: number;
@@ -19527,6 +19409,103 @@ export interface operations {
              *     `update_running` while an install of an update is running.
              */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSetupProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wizard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupProgress"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["OwnerOnly"];
+        };
+    };
+    updateSetupProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupProgressUpdate"];
+            };
+        };
+        responses: {
+            /** @description The wizard after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupProgress"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["OwnerOnly"];
+            /** @description The wizard is finished (`setup_done`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `step` and `state` come together, `language` and `account` stay `done`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    finishSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Finished. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupFinished"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["OwnerOnly"];
+            /** @description No library yet (`library_required`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

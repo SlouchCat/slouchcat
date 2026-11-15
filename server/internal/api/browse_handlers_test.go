@@ -208,38 +208,6 @@ func (f blockingFS) FSTypeAt(paths.Root, string) (paths.FSType, error) {
 	return paths.FSUnknown, nil
 }
 
-// E5: the wizard's root list does not count against the attempt limit, which it shares with the
-// setup itself -- ten loads of the setup page must not lock the operator out.
-func TestSetupRootsDoesNotSpendSetupAttempts(t *testing.T) {
-	t.Parallel()
-	e, dir := browseEnv(t)
-	for i := range 10 {
-		rec := e.call(t, http.MethodGet, "/api/v1/setup/roots", nil, nil)
-		wantStatus(t, rec, http.StatusOK)
-		if i == 0 {
-			wantNoStore(t, rec)
-			var roots []gen.BrowseRoot
-			if err := json.Unmarshal(rec.Body.Bytes(), &roots); err != nil {
-				t.Fatal(err)
-			}
-			if len(roots) != 1 || roots[0].Path != dir {
-				t.Fatalf("roots = %+v, want the configured one", roots)
-			}
-			// Before an account exists nobody learns which mount is a network share.
-			if roots[0].FsType != nil || roots[0].Warning != nil {
-				t.Errorf("the wizard's list describes the file system: %+v", roots[0])
-			}
-		}
-	}
-	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
-	// Once the wizard ran the list ends with it.
-	rec := e.call(t, http.MethodGet, "/api/v1/setup/roots", nil, nil)
-	wantStatus(t, rec, http.StatusConflict)
-	if code := problemCode(t, rec); code != "setup_done" {
-		t.Errorf("after the wizard: code %s, want setup_done", code)
-	}
-}
-
 // firstRootID returns the id of the configured root with this path.
 func firstRootID(t *testing.T, e *authEnv, owner *http.Cookie, dir string) string {
 	t.Helper()
