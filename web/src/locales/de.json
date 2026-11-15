@@ -424,7 +424,7 @@
       "title": "Slouchcat ist eingerichtet",
       "restartTitle": "Slouchcat startet neu …",
       "restartBody": "Die Wahl des Grafikchips gilt nach dem Neustart. Die ersten Scans laufen danach weiter.",
-      "busy": "Slouchcat konnte nicht neu starten, weil gerade eine Sicherung oder ein Update läuft. Die Wahl des Grafikchips gilt nach dem nächsten Neustart (Verwaltung › Übersicht).",
+      "busy": "Slouchcat konnte nicht neu starten, weil gerade eine Sicherung oder ein Update läuft. Die Wahl des Grafikchips gilt nach dem nächsten Neustart (Verwaltung › System › Server).",
       "scanProgress": "{{state}}: {{seen}} von {{total}} Dateien",
       "home": "Zur Startseite"
     },
@@ -3644,6 +3644,7 @@
         "keyRejected": "{{name}}-Schlüssel abgewiesen",
         "keyRejectedBody": "Der Anbieter weist den Schlüssel ab. Bis ein neuer Schlüssel gilt, holt Slouchcat bei ihm keine Metadaten.",
         "toKeys": "Zu den Schlüsseln",
+        "toGpu": "Zur Grafikchip-Wahl",
         "ratingsReread": "Freigaben werden neu gelesen",
         "ratingsRereadBody": "Bis der Job fertig ist, gelten die bisherigen Freigaben, strenger oder lockerer.",
         "minimumAge": "Freigaben sind jetzt Mindestalter",

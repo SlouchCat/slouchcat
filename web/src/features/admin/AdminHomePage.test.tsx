@@ -472,6 +472,29 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     );
   });
 
+  it('a chosen graphics chip that failed its probe leads to the chip choice', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () => json(quiet()),
+        'GET /admin/system': () =>
+          json({
+            ...system,
+            inotify: { ...system.inotify, warn: false },
+            gpu: { ...system.gpu, fallbackFrom: 'qsv' },
+          }),
+      }),
+    );
+    renderApp('/admin');
+    const hints = await attentionCard();
+    await waitFor(() => expect(hintTitles(hints)).toContain('Gewählter Grafikchip geht nicht'));
+    // The chip is chosen in the server's view of the integrations page, not among the keys.
+    expect(within(hints).getByRole('link', { name: 'Zur Grafikchip-Wahl' })).toHaveAttribute(
+      'href',
+      '/admin/integrations?item=server',
+    );
+    expect(within(hints).queryByRole('link', { name: 'Zu den Schlüsseln' })).toBeNull();
+  });
+
   it('names a development build as a hint instead of offering an update for it', async () => {
     mockApi(
       routes({

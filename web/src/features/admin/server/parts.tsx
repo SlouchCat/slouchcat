@@ -408,7 +408,7 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
             : t(`system.gpu.backend.${backend}`),
       }),
       // The graphics chip is chosen in the server's view of the integrations page.
-      action: <TextLink href={serviceHref('server')}>{t('admin.home.hints.toKeys')}</TextLink>,
+      action: <TextLink href={serviceHref('server')}>{t('admin.home.hints.toGpu')}</TextLink>,
     });
   }
   if (system?.inotify.warn) {

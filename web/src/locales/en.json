@@ -424,7 +424,7 @@
       "title": "Slouchcat is set up",
       "restartTitle": "Slouchcat is restarting …",
       "restartBody": "The graphics chip choice applies after the restart. The first scans go on afterwards.",
-      "busy": "Slouchcat could not restart because a backup or an update is running. The graphics chip choice applies after the next restart (Administration › Overview).",
+      "busy": "Slouchcat could not restart because a backup or an update is running. The graphics chip choice applies after the next restart (Administration › System › Server).",
       "scanProgress": "{{state}}: {{seen}} of {{total}} files",
       "home": "Go to the start page"
     },
@@ -3644,6 +3644,7 @@
         "keyRejected": "{{name}} key rejected",
         "keyRejectedBody": "The provider rejects the key. Until a new key holds, Slouchcat fetches no metadata from it.",
         "toKeys": "To the keys",
+        "toGpu": "To the graphics chip choice",
         "ratingsReread": "Ratings are being read again",
         "ratingsRereadBody": "Until the job is done, the previous ratings apply, stricter or looser.",
         "minimumAge": "Ratings are minimum ages now",
