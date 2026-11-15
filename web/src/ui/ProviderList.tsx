@@ -128,11 +128,17 @@ export function ProviderList({
 }: ProviderListProps) {
   const { t, i18n } = useTranslation();
   const rankHint = useId();
-  // The text languages any provider delivers out of the server's list, in its order; a provider
-  // that lacks some says which (concept 22 F-7: the list need not hold German).
-  const offered = [...new Set((infos ?? []).flatMap((info) => info.languages))];
+  const providers = allowedProviders(content, value, infos);
+  // The text languages the providers of this content deliver out of the server's list; a text
+  // provider that lacks some says which (concept 22 F-7: the list need not hold German). A
+  // provider without text languages (the local reader, the book sources) says nothing.
+  const textInfos = (infos ?? []).filter(
+    (info) => providers.includes(info.id) && info.languages.length > 0,
+  );
+  const offered = [...new Set(textInfos.flatMap((info) => info.languages))];
   const locale = intlLocale(i18n.language);
   const missingLanguages = (info: MetadataProviderInfo) => {
+    if (info.languages.length === 0) return undefined;
     const missing = offered.filter((code) => !info.languages.includes(code));
     if (missing.length === 0) return undefined;
     const names = new Intl.DisplayNames([locale], { type: 'language' });
@@ -141,7 +147,6 @@ export function ProviderList({
       languages: list.format(missing.map((code) => names.of(code) ?? code)),
     });
   };
-  const providers = allowedProviders(content, value, infos);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const pending = useRef<{ id: MetadataProvider; delta: -1 | 1 } | null>(null);
   const order = providers.join();

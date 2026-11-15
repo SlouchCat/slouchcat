@@ -98,6 +98,11 @@ export default defineConfig([
   {
     // Intl formats with intlLocale(i18n.language) (concept 22 section 4.4): de formats Swiss
     // (de-CH), and the code alone would format German of Germany.
+    // Known limit: the selectors see `i18n.language` written directly into the call. They miss
+    // it through a variable (`const language = i18n.language; new Intl.NumberFormat(language)`),
+    // through a helper's parameter (`formatBytes(value, i18n.language)`), under another name than
+    // `i18n` and as `i18n.resolvedLanguage`. Review catches those; the codemod of stage 1 left
+    // none behind.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/i18n/**'],
     rules: {

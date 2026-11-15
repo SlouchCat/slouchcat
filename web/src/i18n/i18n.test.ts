@@ -6,6 +6,7 @@ import i18n, {
   isLanguage,
   languageChain,
   setLanguage,
+  shippedLanguageFor,
 } from './index';
 import { detectLanguage, intlLocale, languages, supportedLanguages } from './languages';
 import { pseudoText, setPseudoLanguage } from './pseudo';
@@ -96,6 +97,16 @@ describe('loading', () => {
     await vi.waitFor(() => expect(i18n.hasResourceBundle('en', 'translation')).toBe(true));
   });
 
+  it('two quick switches end on the latest, whatever loads first', async () => {
+    await setLanguage('de');
+    i18n.removeResourceBundle('en', 'translation');
+    // en has to load, de is there: without the counter the older switch to en would end last.
+    const toEnglish = setLanguage('en');
+    const toGerman = setLanguage('de');
+    await Promise.all([toEnglish, toGerman]);
+    expect(i18n.language).toBe('de');
+  });
+
   it('switches between the shipped languages', async () => {
     await setLanguage('en');
     expect(i18n.t('home.rows.recent')).toBe('Recently added');
@@ -104,6 +115,14 @@ describe('loading', () => {
     await setLanguage('de');
     expect(i18n.t('home.rows.recent')).toBe('Neu hinzugefügt');
     expect(currentLanguage()).toBe('de');
+  });
+
+  it('stands in de for de-DE and English for any other code without a pack', async () => {
+    expect(shippedLanguageFor('de-DE')).toBe('de');
+    expect(shippedLanguageFor('fr')).toBe('en');
+    expect(shippedLanguageFor('de')).toBe('de');
+    await setLanguage('de-DE');
+    expect(i18n.language).toBe('de');
   });
 
   it('shows English for a code it ships no pack for, and never throws', async () => {

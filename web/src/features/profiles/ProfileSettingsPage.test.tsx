@@ -187,7 +187,8 @@ describe('profile settings page', () => {
     expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
       metadataLanguage: 'ja',
     });
-    expect(await within(lena).findByText('Sprache der Beschreibungen: Japanese')).toBeVisible();
+    // Named in the UI language (German here), not in the profile's own language.
+    expect(await within(lena).findByText('Sprache der Beschreibungen: Japanisch')).toBeVisible();
   });
 
   it('hides the metadata language while the server offers only the interface languages', async () => {

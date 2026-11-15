@@ -50,9 +50,6 @@ void everyContractLanguageShipped;
 export const supportedLanguages: readonly Language[] = languages.map((language) => language.code);
 
 /** The name of a language in the language itself; an unknown code stands for itself. */
-export const languageName = (code: string): string =>
-  languages.find((language) => language.code === code)?.name ?? code;
-
 /** The language of an unknown code and of a browser that asks for none we ship (concept 22, O-2). */
 export const fallbackLanguage: Language = 'en';
 
@@ -67,6 +64,20 @@ export const isLanguage = (value: string | undefined): value is Language =>
  */
 export function intlLocale(language: string): string {
   return languages.find((entry) => entry.code === language)?.intlLocale ?? language;
+}
+
+/**
+ * The name of an interface language for a profile: the own name of a shipped language, else the
+ * name Intl gives in the UI language (a code a newer server knows), else the code itself.
+ */
+export function languageName(code: string, uiLanguage: string): string {
+  const shippedName = languages.find((entry) => entry.code === code)?.name;
+  if (shippedName) return shippedName;
+  try {
+    return new Intl.DisplayNames([intlLocale(uiLanguage)], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code; // not a well-formed language code
+  }
 }
 
 /**

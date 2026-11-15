@@ -82,9 +82,15 @@ export async function ensureLanguage(
   if (now.length < chain.length) afterFirstPaint(() => void loadBundle(fallbackLanguage));
 }
 
-/** Switches the UI language, loading its texts first. */
+// Counts the switches: two quick ones may finish loading in the other order, and only the latest
+// may change the language.
+let latestSwitch = 0;
+
+/** Switches the UI language, loading its texts first; a newer switch wins over an older one. */
 async function switchTo(language: string): Promise<void> {
+  const request = ++latestSwitch;
   await ensureLanguage(language, { englishLater: true });
+  if (request !== latestSwitch) return;
   if (i18n.language !== language) await i18n.changeLanguage(language);
 }
 
@@ -92,11 +98,19 @@ async function switchTo(language: string): Promise<void> {
 let pinned: string | undefined;
 
 /**
+ * The shipped language that stands in for `code`: the first shipped entry of its chain (de for
+ * de-DE, as the server falls back), English for any other code (concept 22 section 4.3).
+ */
+export function shippedLanguageFor(code: string): Language {
+  return languageChain(code).find(isLanguage) ?? fallbackLanguage;
+}
+
+/**
  * Switches the UI to a shipped language. Any other code (a language a newer server knows, before
- * this app ships its pack) shows English instead of failing (concept 22 section 4.3).
+ * this app ships its pack) shows the first shipped language of its chain instead of failing.
  */
 export async function setLanguage(language: string): Promise<void> {
-  await switchTo(pinned ?? (isLanguage(language) ? language : fallbackLanguage));
+  await switchTo(pinned ?? shippedLanguageFor(language));
 }
 
 /**
