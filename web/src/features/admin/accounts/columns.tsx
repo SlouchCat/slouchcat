@@ -45,9 +45,7 @@ export function accountColumns(
     {
       key: 'rating',
       header: t('admin.accounts.columns.rating'),
-      cell: (account) => (
-        <span className={styles.nowrap}>{ratingLabel(t, account.maxRating)}</span>
-      ),
+      cell: (account) => <span className={styles.nowrap}>{ratingLabel(t, account.maxRating)}</span>,
     },
     {
       key: 'libraries',
