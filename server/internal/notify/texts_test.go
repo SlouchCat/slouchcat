@@ -44,12 +44,20 @@ func TestServerTexts(t *testing.T) {
 		t.Fatal("no English server texts")
 	}
 	for _, lang := range texts.Languages() {
-		if keys := texts.Keys(lang); !slices.Equal(keys, reference) {
+		// de-DE is an overlay (ADR 0033): only the texts that read differently in Germany (ß,
+		// „…“), each one different from de; the rest comes from de along the chain.
+		if keys := texts.Keys(lang); lang != "de-DE" && !slices.Equal(keys, reference) {
 			t.Errorf("%s: keys %v, want those of en %v", lang, keys, reference)
 		}
 		for _, key := range texts.Keys(lang) {
 			text, _ := texts.Raw(lang, key)
-			en, _ := texts.Raw(i18n.Fallback, key)
+			en, ok := texts.Raw(i18n.Fallback, key)
+			if !ok {
+				t.Errorf("%s %s: a key English does not have", lang, key)
+			}
+			if de, _ := texts.Raw("de", key); lang == "de-DE" && text == de {
+				t.Errorf("de-DE %s: the same as de; the overlay holds only texts that differ", key)
+			}
 			if strings.TrimSpace(text) == "" {
 				t.Errorf("%s %s: empty", lang, key)
 			}

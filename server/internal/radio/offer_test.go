@@ -191,6 +191,25 @@ func fieldCodeOf(err error, field string) string {
 // and a new Swiss station of the next sync stays out; with «Alle» it comes in, and so does the next
 // new one. A demarked station that changes its country stays out, a marked one stays in (the
 // exception hangs at the station, B4.1).
+// Concept 22, F-8: the wizard puts a country into the offer with «Nur markierte» and no station
+// in the first minutes after a new installation, before the catalog was ever synced. The steps
+// need no catalog station, and the first sync keeps the country marked without offering any.
+func TestOfferCountryBeforeTheFirstSync(t *testing.T) {
+	e := newCatEnv(t)
+	e.emptyOffer()
+	e.apply(choose("CH"), model.RadioOfferStep{Op: model.RadioOfferDemarkAll, Country: "CH"})
+	if ch := e.offerCountry("CH"); ch.Mode != model.RadioOfferMarked || ch.Offered != 0 || ch.Total != 0 {
+		t.Fatalf("CH on the empty catalog = %+v", ch)
+	}
+	e.sync()
+	if ch := e.offerCountry("CH"); ch.Mode != model.RadioOfferMarked || ch.Offered != 0 || ch.Total < 20 {
+		t.Errorf("CH after the first sync = %+v, want marked without a station", ch)
+	}
+	if e.reachable("SRF 3") {
+		t.Error("the first sync offers a station of a country with «Nur markierte»")
+	}
+}
+
 func TestOfferSyncFollowsTheModes(t *testing.T) {
 	e := newCatEnv(t)
 	e.emptyOffer()

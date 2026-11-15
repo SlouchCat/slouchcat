@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.34.0
+  version: 1.35.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -215,9 +215,15 @@ paths:
       operationId: runSetup
       summary: Run the first-start wizard
       description: |
-        Creates the main account with its default profile, the first library and optionally stores the
-        TMDB key (encrypted at rest). The key is checked against TMDB before it is stored. On success the
-        caller is logged in (session cookie). Allowed only while no account exists.
+        Creates the main account with its default profile and optionally stores the TMDB key (encrypted
+        at rest; checked against TMDB before it is stored). On success the caller is logged in (session
+        cookie). Allowed only while no account exists.
+
+        Since contract 1.35.0 (concept 22 part A) `library` is optional. Without it the request is the
+        public half of the guided wizard: the server records an open wizard (`getSetupProgress`), and
+        the owner goes on with the steps behind the login; `SessionInfo.setupPending` stays true until
+        `finishSetup`. With `library` the first library is created as before and no wizard is
+        recorded: the setup counts as finished (older callers, scripts).
       tags: [setup]
       x-visibility: public
       security: []
@@ -266,160 +272,6 @@ paths:
             Validation failed. Codes: `validation_failed` (see `errors`), `library_path_invalid`
             (not absolute, missing, not a directory or not readable), `tmdb_key_invalid` (TMDB answered 401),
             `tmdb_unreachable` (TMDB did not answer; retry or leave the key empty).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /setup/path-check:
-    post:
-      operationId: checkSetupPath
-      summary: Describe a library path for the wizard (A-1)
-      description: |
-        Checks a path on the server before the wizard creates the library: whether it is usable, its file
-        system, the watch mode the scanner would use (inotify, poll or both) and a warning for network
-        shares and unknown FUSE file systems (plan 3.4). A bad path is no error: the answer names the
-        problem (`problem`), so the wizard can show it next to the field. Allowed only while no account
-        exists; every call counts against the attempt limit of the client.
-      tags: [setup]
-      x-visibility: public
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PathCheckRequest"
-      responses:
-        "200":
-          description: The path, described.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PathCheck"
-        "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: Setup already completed (`setup_done`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: Validation failed (`validation_failed`; `path` empty or longer than 4096 bytes).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "429":
-          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
-          headers:
-            Retry-After:
-              schema:
-                type: integer
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /setup/tmdb-check:
-    post:
-      operationId: checkSetupTmdbKey
-      summary: Check a TMDB key for the wizard (A-1)
-      description: |
-        Asks TMDB whether the key is valid before the wizard stores it. An invalid key or an unreachable
-        TMDB is no error: the answer names the problem (`invalid`, `unreachable`). The key is neither
-        stored nor logged. Allowed only while no account exists; every call counts against the attempt
-        limit of the client.
-      tags: [setup]
-      x-visibility: public
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/TMDBCheckRequest"
-      responses:
-        "200":
-          description: The result of the check.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TMDBCheck"
-        "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: Setup already completed (`setup_done`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: Validation failed (`validation_failed`; `tmdbApiKey` empty or longer than 1024 bytes).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "429":
-          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
-          headers:
-            Retry-After:
-              schema:
-                type: integer
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /setup/roots:
-    get:
-      operationId: listSetupRoots
-      summary: The configured media roots, for the wizard (A-1)
-      description: |
-        The roots the wizard offers below the folder field (`SLOUCHCAT_BROWSE_ROOTS`), so the operator
-        need not guess how the mount is named inside the container. It takes no parameter and lists
-        nothing below a root: before an account exists, a listing with a path parameter would be an
-        enumeration primitive, and the attempt limit is per client address, which a misconfigured
-        `SLOUCHCAT_TRUSTED_PROXIES` lets the caller choose. The answer is the same for every caller and
-        never changes while the server runs, so it does not count against the attempt limit either --
-        that limit is shared with signing in, and the wizard fetches this list on every load. It has a
-        limit of its own instead, and it answers from a list filled at start-up, so the one
-        unauthenticated operation that touches the file system does not touch it per request. The file
-        system type is left out here: before an account exists, nobody learns which mount is a network
-        share. Allowed only while no account exists.
-      tags: [setup]
-      x-visibility: public
-      security: []
-      responses:
-        "200":
-          description: The configured roots.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BrowseRoot"
-        "409":
-          description: Setup already completed (`setup_done`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "429":
-          description: Too many requests from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
-          headers:
-            Retry-After:
-              schema:
-                type: integer
           content:
             application/problem+json:
               schema:
@@ -8015,6 +7867,97 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/setup:
+    get:
+      operationId: getSetupProgress
+      summary: The state of the guided wizard (concept 22 part A)
+      description: |
+        Every step of the wizard with its state, the default of «Vorschau beim Spulen» for new video
+        libraries and whether the wizard is finished. Without a recorded wizard (an installation set
+        up before contract 1.35.0, or `runSetup` with a library) every step is `done` and `finished`
+        is true.
+      tags: [admin]
+      x-visibility: owner
+      responses:
+        "200":
+          description: The wizard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupProgress"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/OwnerOnly"
+    put:
+      operationId: updateSetupProgress
+      summary: Record a step of the guided wizard
+      description: |
+        Sets the state of one step and/or the trickplay default. Fields left out keep their value.
+        A finished wizard answers 409 `setup_done`: it is never opened again.
+      tags: [admin]
+      x-visibility: owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupProgressUpdate"
+      responses:
+        "200":
+          description: The wizard after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupProgress"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/OwnerOnly"
+        "409":
+          description: The wizard is finished (`setup_done`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `step` and `state` come together, `language` and `account` stay `done`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/setup/finish:
+    post:
+      operationId: finishSetup
+      summary: Finish the guided wizard
+      description: |
+        Needs at least one library (422 `library_required`). Marks the wizard finished, so
+        `SessionInfo.setupPending` is false from now on, and restarts the server when the stored
+        transcode choice differs from what it runs (`AdminSettings.transcodeHwRestart`), through the
+        same restart as `restartServer`. While a backup, a restore, an update or another restart keeps
+        it from restarting, the answer says `busy` and the restart is left to the administration.
+        Finishing twice changes nothing.
+      tags: [admin]
+      x-visibility: owner
+      responses:
+        "200":
+          description: Finished.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupFinished"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/OwnerOnly"
+        "422":
+          description: No library yet (`library_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/update:
     get:
       operationId: getUpdateState
@@ -10933,12 +10876,12 @@ components:
         system:
           $ref: "#/components/schemas/SystemInfo"
           description: |
-            Transcode hardware, inotify limit and file systems for the wizard (A-1); only while
-            `setupRequired` is true.
+            Transcode hardware, inotify limit, file systems and time zone for the wizard (A-1); only
+            while `setupRequired` is true. The probes of `gpu.candidates` carry no `reason` here.
 
     SetupRequest:
       type: object
-      required: [email, password, library]
+      required: [email, password]
       properties:
         email:
           type: string
@@ -10952,12 +10895,23 @@ components:
           writeOnly: true
         library:
           $ref: "#/components/schemas/LibraryRequest"
+          description: |
+            The first library; optional since contract 1.35.0. Absent, the guided wizard goes on after
+            the login (`getSetupProgress`).
         tmdbApiKey:
           type: string
           writeOnly: true
           description: TMDB v4 read access token; optional. Stored encrypted, never returned.
         language:
           $ref: "#/components/schemas/Language"
+        profileName:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Name of the first profile; absent, the part of the e-mail before the @.
+        accent:
+          $ref: "#/components/schemas/Accent"
+          description: Accent colour of the first profile; absent, none.
 
     LoginRequest:
       type: object
@@ -10972,6 +10926,68 @@ components:
           format: password
           maxLength: 256
           writeOnly: true
+
+    SetupStep:
+      type: string
+      enum: [language, account, region, services, playback, libraries, household, access, summary]
+      description: A step of the guided wizard, in its order (concept 22, 3.2).
+
+    SetupStepState:
+      type: string
+      enum: [open, done, skipped]
+      x-enum-varnames: [SetupStepOpen, SetupStepDone, SetupStepSkipped]
+
+    SetupStepEntry:
+      type: object
+      required: [step, state]
+      properties:
+        step:
+          $ref: "#/components/schemas/SetupStep"
+        state:
+          $ref: "#/components/schemas/SetupStepState"
+
+    SetupProgress:
+      type: object
+      required: [steps, trickplayDefault, finished]
+      properties:
+        steps:
+          type: array
+          description: Every step, in the order of the wizard.
+          items:
+            $ref: "#/components/schemas/SetupStepEntry"
+        trickplayDefault:
+          type: boolean
+          description: «Vorschau beim Spulen» starts switched on for every new video library of the wizard.
+        finished:
+          type: boolean
+        finishedAt:
+          type: string
+          format: date-time
+
+    SetupProgressUpdate:
+      type: object
+      properties:
+        step:
+          $ref: "#/components/schemas/SetupStep"
+        state:
+          $ref: "#/components/schemas/SetupStepState"
+        trickplayDefault:
+          type: boolean
+
+    SetupFinished:
+      type: object
+      required: [restart]
+      properties:
+        restart:
+          type: string
+          enum: [none, scheduled, busy]
+          description: |
+            `none`: no restart needed. `scheduled`: the server restarts now (as `restartServer`; poll
+            `getHealth` from `restartAt` on). `busy`: a backup, restore, update or restart keeps it from
+            restarting; the new transcode choice applies after the next restart.
+        restartAt:
+          type: string
+          format: date-time
 
     SessionInfo:
       type: object
@@ -10995,6 +11011,12 @@ components:
             answers of older servers (then `de` and `en`).
           items:
             $ref: "#/components/schemas/MetadataLanguage"
+        setupPending:
+          type: boolean
+          description: |
+            Since contract 1.35.0 (concept 22, F-11): the guided wizard is not finished yet; only in the
+            owner's sessions. The web app leads the owner to the first open step at every sign-in until
+            `finishSetup` ran.
 
     Account:
       type: object
@@ -11560,8 +11582,10 @@ components:
 
     Language:
       type: string
-      enum: [de, en]
-      description: An interface language; the two language packs of the web app.
+      enum: [de, de-DE, en]
+      description: |
+        An interface language; exactly the language packs the web app ships (concept 22, ADR 0033):
+        `de` German (Switzerland), `de-DE` German (Germany, since contract 1.35.0), `en` English.
 
     MetadataLanguage:
       type: string
@@ -17132,11 +17156,17 @@ components:
       description: |
         The server's state for the wizard (A-1) and the dashboard (A-3). Carries no secret, so the wizard
         shows it before an account exists.
-      required: [version, startedAt, gpu, inotify, configFs, cacheFs]
+      required: [version, startedAt, gpu, inotify, configFs, cacheFs, timeZone]
       properties:
         version:
           type: string
           examples: ["0.9.0+abc1234"]
+        timeZone:
+          type: string
+          description: |
+            Since contract 1.35.0: the server's time zone by its IANA name, from `TZ` (else the system's
+            zone file; `UTC` when neither names one). Only `deploy/.env` changes it.
+          examples: ["Europe/Zurich"]
         startedAt:
           type: string
           format: date-time
@@ -17156,11 +17186,23 @@ components:
     GPUInfo:
       type: object
       description: The transcode backend found at start (M1b, M4) and the GPU devices visible in the container.
-      required: [backend, hardwareEncode, tonemapper, hwTonemap, devices]
+      required: [backend, hardwareEncode, tonemapper, hwTonemap, devices, candidates]
       properties:
         backend:
-          type: string
-          enum: [nvenc, qsv, vaapi, software]
+          $ref: "#/components/schemas/TranscodeBackend"
+        candidates:
+          type: array
+          description: |
+            Since contract 1.35.0 (concept 22, F-10): every hardware backend probed once at start
+            (`nvenc`, `qsv`, `vaapi`, in this order) with a one-frame test encode, whatever was chosen.
+          items:
+            $ref: "#/components/schemas/TranscodeCandidate"
+        fallbackFrom:
+          $ref: "#/components/schemas/TranscodeBackend"
+          description: |
+            Since contract 1.35.0: the backend stored as the choice (`AdminSettings.transcodeHw`) that
+            failed its test encode at start; the server runs the automatic choice instead and the
+            dashboard says so. Absent when the choice runs or comes from the environment.
         hardwareEncode:
           type: boolean
           description: The backend encodes on the GPU (every backend but software).
@@ -17199,6 +17241,36 @@ components:
           hwTonemap: false
           composeOverride: nvidia
           devices: {dri: false, nvidia: true}
+
+    TranscodeBackend:
+      type: string
+      enum: [nvenc, qsv, vaapi, software]
+      description: A video encoder family (M1b).
+
+    TranscodeCandidate:
+      type: object
+      required: [backend, ok]
+      properties:
+        backend:
+          type: string
+          enum: [nvenc, qsv, vaapi]
+        ok:
+          type: boolean
+          description: The backend passed its test encode at start.
+        reason:
+          type: string
+          enum: [not_in_build, no_device, test_failed]
+          description: |
+            Why the probe failed: the ffmpeg build lacks the encoder, the device (`/dev/nvidia0`,
+            `/dev/dri/renderD128`) is missing, or the test encode failed. Only in `getSystemInfo`;
+            the wizard's public `SetupStatus.system` carries no reason.
+
+    TranscodeChoice:
+      type: string
+      enum: [auto, nvenc, qsv, vaapi, software]
+      description: |
+        The transcode backend to use: `auto` takes the first of `nvenc`, `qsv`, `vaapi` that passes its
+        test encode, `software` encodes on the CPU.
 
     InotifyInfo:
       type: object
@@ -17287,10 +17359,9 @@ components:
           description: "`configured`: from `SLOUCHCAT_BROWSE_ROOTS`; `library`: a root of an existing library."
         fsType:
           type: string
-          description: Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`), as in `LibraryRoot`; omitted by `listSetupRoots`.
+          description: Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`), as in `LibraryRoot`.
         warning:
           $ref: "#/components/schemas/BrowseWarning"
-          description: Omitted by `listSetupRoots`, which answers before any account exists.
         libraryId:
           type: integer
           format: int64
@@ -17366,66 +17437,6 @@ components:
           description: The library this directory already belongs to; absent otherwise. A new library may not overlap it.
         libraryName:
           type: string
-
-    PathCheckRequest:
-      type: object
-      required: [path]
-      properties:
-        path:
-          type: string
-          minLength: 1
-          maxLength: 4096
-          examples: ["/media/movies"]
-
-    PathCheck:
-      type: object
-      description: A library path as the wizard shows it (plan 3.4).
-      required: [ok]
-      properties:
-        ok:
-          type: boolean
-          description: The path is an absolute, readable directory.
-        fsType:
-          type: string
-          description: File system type, for example `ext4`, `nfs4`, `cifs`, `fuse.mergerfs`; absent with a problem.
-        watchMode:
-          type: string
-          enum: [inotify, poll, inotify_poll]
-          x-enum-varnames: [PathWatchInotify, PathWatchPoll, PathWatchInotifyPoll]
-          description: How the scanner would follow changes; absent with a problem.
-        warning:
-          type: string
-          enum: [network_share, fuse_unknown]
-          description: A hint, not an error; the library works with polling.
-        problem:
-          type: string
-          enum: [not_absolute, missing, not_directory, not_readable, not_browsable]
-          description: |
-            Why the path is not usable; set exactly when `ok` is false. `not_browsable`: the path lies
-            below none of the browsable roots (`SLOUCHCAT_BROWSE_ROOTS`). The path is then not described
-            further, so the answer tells nothing about the file system outside those roots.
-
-    TMDBCheckRequest:
-      type: object
-      required: [tmdbApiKey]
-      properties:
-        tmdbApiKey:
-          type: string
-          minLength: 1
-          maxLength: 1024
-          writeOnly: true
-          description: TMDB v4 read access token; neither stored nor logged.
-
-    TMDBCheck:
-      type: object
-      required: [ok]
-      properties:
-        ok:
-          type: boolean
-        problem:
-          type: string
-          enum: [invalid, unreachable]
-          description: TMDB rejected the key (`invalid`) or did not answer (`unreachable`); set exactly when `ok` is false.
 
     Dashboard:
       type: object
@@ -18320,7 +18331,8 @@ components:
 
     AdminSettings:
       type: object
-      required: [publicUrlSource, updateCheckEnabled, keys, email, telegram, push]
+      required: [publicUrlSource, updateCheckEnabled, keys, email, telegram, push, transcodeHw, transcodeHwSource,
+                 transcodeHwRestart]
       properties:
         publicUrl:
           type: string
@@ -18330,6 +18342,17 @@ components:
           $ref: "#/components/schemas/SettingSource"
         updateCheckEnabled:
           type: boolean
+        transcodeHw:
+          $ref: "#/components/schemas/TranscodeChoice"
+          description: |
+            Since contract 1.35.0 (concept 22, F-10): the transcode backend chosen. Precedence at start:
+            the option `--hw` and `SLOUCHCAT_HW` (source `env`), then the stored choice (`stored`), then
+            `auto` (`none`). It applies after a restart.
+        transcodeHwSource:
+          $ref: "#/components/schemas/SettingSource"
+        transcodeHwRestart:
+          type: boolean
+          description: The choice differs from what the running server uses; it applies after a restart.
         keys:
           $ref: "#/components/schemas/AdminSettingsKeys"
         email:
@@ -18438,6 +18461,9 @@ components:
           description: http or https URL without query; set or cleared (`clear`), never through an empty string.
         updateCheckEnabled:
           type: boolean
+        transcodeHw:
+          $ref: "#/components/schemas/TranscodeChoice"
+          description: Since contract 1.35.0; refused with `env_wins` while `--hw` or `SLOUCHCAT_HW` sets it.
         keys:
           $ref: "#/components/schemas/AdminSettingsKeysUpdate"
         email:

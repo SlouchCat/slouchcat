@@ -178,6 +178,11 @@ var ownerRegistry = map[string]ownerCall{
 	// is stopped by the middleware before the service ever sees the id.
 	"setAccountRole": {contract: "PUT /admin/accounts/{id}/role", path: "/admin/accounts/9999/role",
 		body: `{"role":"admin"}`, ownerStatus: http.StatusNotFound},
+	// The guided wizard (concept 22, 3.5): the fixture was set up without one, so it counts as
+	// finished; recording a step then is 409 setup_done and finishing again changes nothing.
+	"getSetupProgress":    {contract: "GET /admin/setup", path: "/admin/setup", ownerStatus: http.StatusOK},
+	"updateSetupProgress": {contract: "PUT /admin/setup", path: "/admin/setup", body: `{"trickplayDefault":true}`, ownerStatus: http.StatusConflict},
+	"finishSetup":         {contract: "POST /admin/setup/finish", path: "/admin/setup/finish", ownerStatus: http.StatusOK},
 }
 
 // restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
@@ -486,11 +491,6 @@ var publicRegistry = map[string]publicCall{
 	// M9: an unknown webhook token is 401, whatever the body says (I-8).
 	"receiveWebhook": {contract: "POST /webhooks/{token}", path: "/webhooks/" + unknownWebhookToken,
 		body: `{"eventType":"Test"}`, status: http.StatusUnauthorized},
-	// M8 wizard checks: 409 setup_done, the fixture has an account.
-	"checkSetupPath": {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
-	// Idea 02: the wizard's root list ends with the wizard, like the two checks above.
-	"listSetupRoots":    {contract: "GET /setup/roots", path: "/setup/roots", status: http.StatusConflict},
-	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},
 }
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the

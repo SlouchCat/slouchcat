@@ -285,17 +285,17 @@ type AdminService interface {
 	SetSpotlightEntryOverride(ctx context.Context, media string, tmdbID int64, in model.SpotlightOverrideUpdate) (model.SpotlightEntry, error)
 	RefreshSpotlight(ctx context.Context) error
 
-	// M8 (design sections 1 and 3). Wizard checks (A-1): only while no account exists
-	// (model.ErrSetupDone), counted against the attempt limit of model.ClientIP of ctx
-	// (model.ErrTooManyAttempts); a bad path or key is described in the result, not an error.
-	CheckSetupPath(ctx context.Context, path string) (model.PathCheck, error)
-	CheckSetupTMDBKey(ctx context.Context, key string) (model.TMDBCheck, error)
-	// The folder browser of the library form (idea 02, A-2). SetupRoots answers the wizard from
-	// the list filled at start-up, with its own limit for model.ClientIP of ctx
-	// (model.ErrTooManyAttempts) and only while no account exists (model.ErrSetupDone).
+	// M8 (design sections 1 and 3). The folder browser of the library form (idea 02, A-2).
 	// BrowsePaths: *model.ValidationError, model.ErrPathNotBrowsable, model.ErrPathUnreachable,
 	// model.ErrBrowseBusy.
-	SetupRoots(ctx context.Context) ([]model.BrowseRoot, error)
+	// The guided wizard of concept 22 part A (setup_wizard.go). SetupPending: the wizard is open.
+	// UpdateSetupProgress: *model.ValidationError, model.ErrSetupDone (finished, never reopened).
+	// FinishSetup: model.ErrLibraryRequired; the restart for a new transcode choice runs through
+	// RestartServer with accountID.
+	SetupPending(ctx context.Context) (bool, error)
+	SetupProgress(ctx context.Context) (model.SetupProgress, error)
+	UpdateSetupProgress(ctx context.Context, upd model.SetupProgressUpdate) (model.SetupProgress, error)
+	FinishSetup(ctx context.Context, accountID int64) (model.SetupFinished, error)
 	BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error)
 	BrowsePaths(ctx context.Context, req model.BrowseRequest) (model.DirectoryListing, error)
 	// SystemInfo returns version, transcode hardware, inotify limit and file systems; no secrets.

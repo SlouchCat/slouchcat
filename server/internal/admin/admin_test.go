@@ -237,7 +237,7 @@ func newFixture(t *testing.T) *fixture {
 func setupRequest() model.SetupRequest {
 	return model.SetupRequest{
 		Email: "marco@example.ch", Password: fakePassword, Language: "de", TMDBKey: " " + fakeKey + " ",
-		Library: model.LibraryRequest{Name: "Filme", Kind: model.LibraryVideo, Roots: movieRoots("/media/Filme")},
+		Library: &model.LibraryRequest{Name: "Filme", Kind: model.LibraryVideo, Roots: movieRoots("/media/Filme")},
 	}
 }
 
@@ -281,7 +281,7 @@ func TestRunSetupHappyPath(t *testing.T) {
 	if err != nil || resolved.ID != sess.ID {
 		t.Fatalf("resolve setup token: %+v, %v", resolved, err)
 	}
-	if len(f.libs.created) != 1 || !reflect.DeepEqual(f.libs.created[0], setupRequest().Library) {
+	if len(f.libs.created) != 1 || !reflect.DeepEqual(f.libs.created[0], *setupRequest().Library) {
 		t.Fatalf("libraries created = %+v", f.libs.created)
 	}
 	if !slices.Equal(f.tmdb.checks, []string{fakeKey}) {
@@ -374,7 +374,7 @@ func TestRunSetupValidationListsEveryField(t *testing.T) {
 	f := newFixture(t)
 	req := model.SetupRequest{
 		Email: "not-an-email", Password: "short", Language: "fr", TMDBKey: strings.Repeat("k", 2000),
-		Library: model.LibraryRequest{Name: " ", Kind: "music"},
+		Library: &model.LibraryRequest{Name: " ", Kind: "music"},
 	}
 	_, _, err := f.svc.RunSetup(context.Background(), req, "")
 	var verr *model.ValidationError

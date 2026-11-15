@@ -172,6 +172,9 @@ func (s *Service) Settings(ctx context.Context) (model.AdminSettings, error) {
 		return model.AdminSettings{}, err
 	}
 	st.Push = model.PushSettings{Configured: pub != "", PublicKey: pub}
+	if st.TranscodeHW, st.TranscodeHWSource, st.TranscodeHWRestart, err = s.transcodeChoice(ctx); err != nil {
+		return model.AdminSettings{}, err
+	}
 	return st, nil
 }
 
@@ -443,6 +446,9 @@ func validateSettings(upd model.AdminSettingsUpdate) (settingsChange, *model.Val
 		}
 		c.botToken = token
 	}
+	if hw := upd.TranscodeHW; hw != nil && !slices.Contains(TranscodeChoices, *hw) {
+		verr = verr.Add("transcodeHw", "invalid_value")
+	}
 	return c, verr
 }
 
@@ -521,6 +527,9 @@ func (s *Service) checkEnvWins(c settingsChange) error {
 	if (c.botToken != "" || c.cleared[model.ClearTelegram]) && s.ops.env.TelegramBotToken != "" {
 		return &model.EnvWinsError{Field: "telegram"}
 	}
+	if c.upd.TranscodeHW != nil && s.ops.system.HWExplicit {
+		return &model.EnvWinsError{Field: "transcodeHw"}
+	}
 	return nil
 }
 
@@ -548,6 +557,10 @@ func (s *Service) storeSettings(ctx context.Context, c settingsChange, botName s
 			w.del(SettingUpdateState) // switched off: no job, no notice, no old state
 		}
 		changed = append(changed, "updateCheckEnabled")
+	}
+	if hw := c.upd.TranscodeHW; hw != nil {
+		w.set(SettingTranscodeHW, *hw)
+		changed = append(changed, "transcodeHw")
 	}
 	for _, k := range providerKeys {
 		if key, ok := c.keys[k.field]; ok {

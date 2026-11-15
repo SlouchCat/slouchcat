@@ -27,7 +27,7 @@ func TestFallbackLanguageAndMetadataBase(t *testing.T) {
 
 func TestIsUILanguage(t *testing.T) {
 	t.Parallel()
-	for code, want := range map[string]bool{"de": true, "en": true, "de-DE": false, "fr": false, "": false, "DE": false} {
+	for code, want := range map[string]bool{"de": true, "en": true, "de-DE": true, "de-de": false, "fr": false, "": false, "DE": false} {
 		if got := IsUILanguage(code); got != want {
 			t.Errorf("IsUILanguage(%q) = %v, want %v", code, got, want)
 		}

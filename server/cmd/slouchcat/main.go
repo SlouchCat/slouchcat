@@ -267,7 +267,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	keys := &lazyKeys{cfg: cfg}
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
-	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	hw := startHW(ctx, cfg, db, log)
+	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, hw, db, runner, keyring, log)
 	// The titles a delete works on: playback refuses to start one (concept 20, ADR 0032).
 	deleting := model.NewDeletingSet()
 	playbackSvc.WithDeleting(deleting)
@@ -364,11 +365,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.WithTrickplay(libSvc).WithPodcastStorage(libSvc).WithImageRemoval(metaSvc.RemoveItemImages)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithTitleDeletion(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).WithBooks(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
-		// The browsable roots are classified once, here: the wizard's root list answers before
-		// any account exists and must make no system call per request (idea 02, E5).
+		// The browsable roots are classified once, here, not per request (idea 02, E5).
 		WithBrowse(cfg.BrowseRoots, browse.ClassifyRoots(cfg.BrowseRoots, log),
 			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
-	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
+	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, hw, zoneName, started)
 	keys.admin = adminSvc
 	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
 	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
@@ -618,13 +618,13 @@ func shutdown(srv *http.Server, timeout time.Duration, restarting bool, log *slo
 // collaborators of package notify (bot token check, test mail, VAPID rotation, channel state:
 // WithTelegram, WithEmailTester, WithPushRotator, WithChannels) are wired where notify builds them.
 func wireAdmin(a *admin.Service, cfg config.Config, queue *jobs.Queue, errRing *logging.ErrorRing, lib *library.Service,
-	caps transcode.Capabilities, started time.Time,
+	caps transcode.Capabilities, hw hwStart, zoneName string, started time.Time,
 ) {
 	a.WithJobs(queue).WithErrors(errRing).WithUpdateCheck(cfg.ManifestURL(), nil).
 		WithSpotlightRefreshGap(cfg.SpotlightRefreshGap()). // 0 outside --dev: the minute holds
 		WithSystem(admin.SystemSource{
 			Version: version, StartedAt: started, ConfigDir: cfg.ConfigDir, CacheDir: cfg.CacheDir, Caps: caps,
-			WatchedDirs: lib.WatchedDirs,
+			HWChoice: hw.choice, HWExplicit: cfg.HWExplicit, TimeZone: zoneName, WatchedDirs: lib.WatchedDirs,
 		}).
 		WithNotifyEnv(admin.NotifyEnv{
 			SMTP: model.SMTPConfig{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Password: cfg.SMTPPassword,
@@ -678,23 +678,48 @@ func (k *lazyKeys) GoogleBooksKey(ctx context.Context) (string, error) {
 	return k.admin.GoogleBooksKey(ctx)
 }
 
-// newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
+// hwStart is the transcode choice the start applies (concept 22, F-10).
+type hwStart struct {
+	choice string // auto, nvenc, qsv, vaapi or software
+	stored bool   // from the administration's setting: a failing backend falls back to auto
+}
+
+// startHW picks the transcode choice: --hw and a non-empty SLOUCHCAT_HW win, then the choice
+// stored in the administration (admin.SettingTranscodeHW), then auto. A setting that cannot be
+// read leaves auto; the server starts all the same.
+func startHW(ctx context.Context, cfg config.Config, db *store.DB, log *slog.Logger) hwStart {
+	if cfg.HWExplicit {
+		return hwStart{choice: cfg.HW}
+	}
+	stored, err := admin.StoredTranscodeHW(ctx, db)
+	if err != nil {
+		log.Warn("read the stored transcode choice; using auto", "err", err)
+	}
+	if stored == "" {
+		return hwStart{choice: cfg.HW}
+	}
+	return hwStart{choice: stored, stored: true}
+}
+
+// newPlayback detects the transcode backend (startHW), starts the transcode manager on
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
 // (plan 5.4) and the subtitle cache below <cache>/subtitles. Without a usable ffmpeg the server
 // still runs: titles then play directly only. Without a subtitle converter
 // (playback.WithSubtitleConverter) text subtitles answer 404. It also returns the manager (nil
 // without a backend) and the capabilities of the backend, which the download encodes share. The
 // returned function stops every transcode on shutdown.
-func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, *transcode.Manager, transcode.Capabilities, func()) {
+func newPlayback(ctx context.Context, cfg config.Config, hw hwStart, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, *transcode.Manager, transcode.Capabilities, func()) {
 	opts := []playback.Option{
 		playback.WithTokenKey(keyring.Derive("stream-token")), playback.WithCacheDir(cfg.CacheDir),
 		// WebVTT conversion of text subtitles (W-4) runs through ffmpeg even when no transcode
 		// backend is usable: the converter only needs the binary.
 		playback.WithSubtitleConverter(runner.Subtitles, runner.SubtitlesFile),
 	}
-	backend, caps, err := transcode.DetectTonemap(ctx, runner, cfg.HW, cfg.HDRTonemap, log)
+	detectStart := time.Now()
+	backend, caps, err := transcode.DetectWith(ctx, runner,
+		transcode.DetectOptions{Override: hw.choice, TonemapPref: cfg.HDRTonemap, FallbackAuto: hw.stored}, log)
 	if err != nil {
-		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
+		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", hw.choice, "err", err)
 		return playback.New(db, log, opts...), nil, transcode.Capabilities{Backend: transcode.BackendSoftware}, func() {}
 	}
 	mgr, err := transcode.NewManager(transcode.ManagerOptions{
@@ -706,8 +731,8 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 		return playback.New(db, log, opts...), nil, caps, func() {}
 	}
 	stats := mgr.Stats()
-	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
-		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
+	log.Info("transcode ready", "backend", string(backend), "choice", hw.choice, "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
+		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version, "detect_ms", time.Since(detectStart).Milliseconds())
 	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr)))
 	return playback.New(db, log, opts...), mgr, caps, mgr.Close
 }

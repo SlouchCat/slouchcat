@@ -65,12 +65,13 @@ type sessionStarted struct {
 	session model.Session
 	token   string
 	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
+	pending *bool             // SessionInfo.setupPending (setupPending)
 }
 
 func (s sessionStarted) visit(w http.ResponseWriter) error {
 	var buf bytes.Buffer
 	info := toSessionInfo(s.session)
-	info.UpdateAvailable = s.update
+	info.UpdateAvailable, info.SetupPending = s.update, s.pending
 	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
@@ -94,12 +95,13 @@ func (s sessionStarted) VisitAcceptInvitationResponse(w http.ResponseWriter) err
 type sessionSwitched struct {
 	session model.Session
 	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
+	pending *bool             // SessionInfo.setupPending (setupPending)
 }
 
 func (s sessionSwitched) VisitSelectProfileResponse(w http.ResponseWriter) error {
 	var buf bytes.Buffer
 	info := toSessionInfo(s.session)
-	info.UpdateAvailable = s.update
+	info.UpdateAvailable, info.SetupPending = s.update, s.pending
 	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
@@ -144,13 +146,17 @@ func (s *server) GetSetupStatus(ctx context.Context, _ gen.GetSetupStatusRequest
 	}
 	out := gen.GetSetupStatus200JSONResponse{SetupRequired: required}
 	// The wizard shows the transcode hardware and the inotify limit (A-1); once an account exists,
-	// the state is the admin's (getSystemInfo).
+	// the state is the admin's (getSystemInfo). Why a probe failed is the owner's to learn
+	// (concept 22, 3.5).
 	if required && s.opts.Admin != nil {
 		info, err := s.opts.Admin.SystemInfo(ctx)
 		if err != nil {
 			return s.problem(ctx, err), nil
 		}
 		sys := toSystemInfo(info)
+		for i := range sys.Gpu.Candidates {
+			sys.Gpu.Candidates[i].Reason = nil
+		}
 		out.System = &sys
 	}
 	return out, nil
@@ -159,18 +165,23 @@ func (s *server) GetSetupStatus(ctx context.Context, _ gen.GetSetupStatusRequest
 func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (gen.RunSetupResponseObject, error) {
 	body := deref(req.Body)
 	in := model.SetupRequest{
-		Email:    string(body.Email),
-		Password: deref(body.Password),
-		Language: string(deref(body.Language)),
-		TMDBKey:  deref(body.TmdbApiKey),
-		Library:  libraryRequest(body.Library),
+		Email:       string(body.Email),
+		Password:    deref(body.Password),
+		Language:    string(deref(body.Language)),
+		TMDBKey:     deref(body.TmdbApiKey),
+		ProfileName: deref(body.ProfileName),
+		Accent:      string(deref(body.Accent)),
+	}
+	if body.Library != nil {
+		lib := libraryRequest(*body.Library)
+		in.Library = &lib
 	}
 	session, token, err := s.opts.Admin.RunSetup(model.WithClientIP(ctx, s.clientAddr(ctx)), in, userAgent(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return sessionStarted{status: http.StatusCreated, r: requestFrom(ctx), session: session, token: token,
-		update: s.updateNotice(ctx, session)}, nil
+		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session)}, nil
 }
 
 func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.LoginResponseObject, error) {
@@ -180,7 +191,7 @@ func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 		return s.problem(ctx, err), nil
 	}
 	return sessionStarted{status: http.StatusOK, r: requestFrom(ctx), session: session, token: token,
-		update: s.updateNotice(ctx, session)}, nil
+		update: s.updateNotice(ctx, session), pending: s.setupPending(ctx, session)}, nil
 }
 
 func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
@@ -213,6 +224,7 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 	}
 	info := toSessionInfo(session)
 	info.UpdateAvailable = s.updateNotice(ctx, session)
+	info.SetupPending = s.setupPending(ctx, session)
 	if s.opts.Profiles != nil {
 		// The metadata languages a profile may choose (ADR 0018), for the profile page of every
 		// account (the page is an account operation, so the list rides on the session).
@@ -223,6 +235,21 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 		info.AvailableMetadataLanguages = &langs
 	}
 	return gen.GetSession200JSONResponse(info), nil
+}
+
+// setupPending is SessionInfo.setupPending (concept 22, F-11): true while the guided wizard is
+// open, only in the owner's sessions; nil otherwise, without an admin service and when the
+// setting cannot be read (the app then simply does not lead into the wizard).
+func (s *server) setupPending(ctx context.Context, session model.Session) *bool {
+	if !session.IsOwner() || s.opts.Admin == nil {
+		return nil
+	}
+	pending, err := s.opts.Admin.SetupPending(ctx)
+	if err != nil {
+		s.p.log.WarnContext(ctx, "read the setup wizard", "err", err)
+		return nil
+	}
+	return &pending
 }
 
 // updateNotice is SessionInfo.updateAvailable (A-5): a newer published version, only for

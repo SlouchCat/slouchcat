@@ -7,22 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/browse"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // The folder browser of the library form (idea 02, A-2). Package browse does the reading; the
-// policy is here: which roots a caller may see, which limit the wizard's list has and that the
-// configured roots are classified once at start-up and never per request.
-
-// setupRootsPerMin is the wizard's own limit for listSetupRoots, per client address. It is not
-// the shared attempt limit of login, setup, PIN and invitations: the setup page fetches this
-// list on every load, and ten reloads would have locked the operator out of their own setup
-// (E5). The answer is parameterless and the same for everyone, so it is no oracle; the limit is
-// only there so an open port cannot be hammered.
-const setupRootsPerMin = 60
+// policy is here: which roots a caller may see and that the configured roots are classified once
+// at start-up and never per request.
 
 // browseState is what the service needs for the folder browser; zero means not configured, and
 // then the browser answers as if nothing were browsable.
@@ -35,40 +27,14 @@ type browseState struct {
 	// that exist, with their file system class. They are what the dialog offers.
 	configured []model.BrowseRoot
 	lister     *browse.Lister
-	limit      *auth.Limiter
 }
 
 // WithBrowse wires the folder browser: the configured roots as they stand in the configuration,
 // the same roots classified once at start-up, and the lister that reads directories. Returns the
 // receiver.
 func (s *Service) WithBrowse(dirs []string, configured []model.BrowseRoot, lister *browse.Lister) *Service {
-	s.browse = browseState{dirs: dirs, configured: configured, lister: lister,
-		limit: auth.NewLimiter(setupRootsPerMin, setupRootsPerMin)}
+	s.browse = browseState{dirs: dirs, configured: configured, lister: lister}
 	return s
-}
-
-// SetupRoots returns the configured roots for the wizard: no file system class, because before
-// an account exists nobody learns which mount is a network share, and nothing below them. It
-// answers from the list filled at start-up, so it makes no system call, and it has a limit of
-// its own instead of the shared attempt limit (E5).
-func (s *Service) SetupRoots(ctx context.Context) ([]model.BrowseRoot, error) {
-	if s.browse.limit != nil {
-		if err := s.browse.limit.Allow(model.ClientIP(ctx), s.now()); err != nil {
-			return nil, err
-		}
-	}
-	required, err := s.auth.SetupRequired(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !required {
-		return nil, model.ErrSetupDone
-	}
-	out := make([]model.BrowseRoot, 0, len(s.browse.configured))
-	for _, r := range s.browse.configured {
-		out = append(out, model.BrowseRoot{ID: r.ID, Path: r.Path, Browsable: r.Browsable, Source: r.Source})
-	}
-	return out, nil
 }
 
 // BrowseRoots returns the configured roots together with the roots of the libraries that exist,

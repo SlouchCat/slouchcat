@@ -3,7 +3,9 @@ package transcode
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -60,6 +62,47 @@ func TestDetectFake(t *testing.T) {
 	noX264 := fakeBinary(t, `case "$*" in "-version") echo v;; *) printf ' ------\n V....D h264_nvenc NVENC\n';; esac`)
 	if _, _, err := Detect(ctx, Runner{FFmpegPath: noX264}, "auto", nil); err == nil {
 		t.Error("want error without libx264")
+	}
+}
+
+// Concept 22, F-10: every hardware backend is probed once, whatever was chosen, with the reason
+// of a failure; a forced backend that fails takes software, or the automatic choice when the
+// choice is a stored one (FallbackAuto).
+func TestDetectProbesEveryBackend(t *testing.T) {
+	old := devDir
+	devDir = t.TempDir() // no /dev/nvidia0: the failing nvenc probe names the device
+	t.Cleanup(func() { devDir = old })
+	bin := fakeBinary(t, fakeDetect)
+	r := Runner{FFmpegPath: bin}
+	ctx := context.Background()
+	want := []Candidate{
+		{Backend: BackendNVENC, Reason: CandidateNoDevice},
+		{Backend: BackendQSV, OK: true},
+		{Backend: BackendVAAPI, Reason: CandidateNotInBuild},
+	}
+	for _, override := range []string{"auto", "software", "nvenc"} {
+		_, caps, err := Detect(ctx, r, override, nil)
+		if err != nil || !slices.Equal(caps.Candidates, want) {
+			t.Errorf("%s: candidates %+v, %v; want %+v", override, caps.Candidates, err, want)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(devDir, "nvidia0"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, caps, _ := Detect(ctx, r, "auto", nil); caps.Candidates[0].Reason != CandidateTestFailed {
+		t.Errorf("nvenc with its device: %+v, want test_failed", caps.Candidates[0])
+	}
+
+	b, caps, err := DetectWith(ctx, r, DetectOptions{Override: "nvenc", FallbackAuto: true}, nil)
+	if err != nil || b != BackendQSV || caps.FallbackFrom != BackendNVENC {
+		t.Errorf("stored nvenc that fails: %s, fallback %q, %v; want qsv from nvenc", b, caps.FallbackFrom, err)
+	}
+	b, caps, err = DetectWith(ctx, r, DetectOptions{Override: "qsv", FallbackAuto: true}, nil)
+	if err != nil || b != BackendQSV || caps.FallbackFrom != "" {
+		t.Errorf("stored qsv that works: %s, fallback %q, %v", b, caps.FallbackFrom, err)
+	}
+	if b, caps, _ := Detect(ctx, r, "nvenc", nil); b != BackendSoftware || caps.FallbackFrom != "" {
+		t.Errorf("--hw nvenc that fails: %s, fallback %q; want software as before", b, caps.FallbackFrom)
 	}
 }
 

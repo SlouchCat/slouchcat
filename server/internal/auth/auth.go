@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -184,12 +185,29 @@ func validEmail(email string) bool {
 // account comes from an invitation, and further administrators only from an appointment by the
 // owner (ADR 0014).
 func (s *Service) CreateOwner(ctx context.Context, email, password, language string) (model.Account, model.Profile, error) {
+	return s.CreateOwnerProfile(ctx, email, password, language, "", "")
+}
+
+// CreateOwnerProfile is CreateOwner with the name and the accent of the first profile (the guided
+// wizard, concept 22 step 2): an empty name takes the part of the e-mail before the @, an empty
+// accent none. *model.ValidationError also for profileName (required, too_long) and accent.
+func (s *Service) CreateOwnerProfile(ctx context.Context, email, password, language, name, accent string) (model.Account, model.Profile, error) {
 	email, verr := ValidateOwner(email, password)
 	if language == "" {
 		language = model.DefaultUILanguage
 	}
 	if !model.IsUILanguage(language) {
 		verr = verr.Add("language", "invalid_value")
+	}
+	name = strings.TrimSpace(name)
+	if utf8.RuneCountInString(name) > maxProfileName {
+		verr = verr.Add("profileName", "too_long")
+	}
+	if accent != "" && !slices.Contains(Accents, accent) {
+		verr = verr.Add("accent", "invalid_value")
+	}
+	if name == "" {
+		name = profileName(email)
 	}
 	if verr != nil {
 		return model.Account{}, model.Profile{}, verr
@@ -226,8 +244,8 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 	}
 	audio, mode, subs := prefColumns(initialPrefs(language))
 	prof, err := q.InsertProfile(ctx, appq.InsertProfileParams{
-		AccountID: acc.ID, Name: profileName(email), MaxRating: defaultMaxRating, Language: language,
-		AllLibraries: 1, IsDefault: 1, AudioLanguages: audio, SubtitleMode: mode, SubtitleLanguages: subs, Now: now,
+		AccountID: acc.ID, Name: name, MaxRating: defaultMaxRating, Language: language,
+		Accent: sql.NullString{String: accent, Valid: accent != ""}, AllLibraries: 1, IsDefault: 1, AudioLanguages: audio, SubtitleMode: mode, SubtitleLanguages: subs, Now: now,
 	})
 	if err != nil {
 		return model.Account{}, model.Profile{}, fmt.Errorf("insert profile: %w", err)

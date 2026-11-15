@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -27,6 +29,33 @@ const (
 // vaapiDevice is the DRM render node used by the QSV and VAAPI backends.
 const vaapiDevice = "/dev/dri/renderD128"
 
+// hardwareBackends are the backends Detect probes, in the order auto prefers them.
+var hardwareBackends = []Backend{BackendNVENC, BackendQSV, BackendVAAPI}
+
+// devDir is where a failed probe looks for its device; a variable for the tests.
+var devDir = "/dev"
+
+// backendDevice is the device a hardware backend needs, below devDir.
+var backendDevice = map[Backend]string{
+	BackendNVENC: "nvidia0", BackendQSV: "dri/renderD128", BackendVAAPI: "dri/renderD128",
+}
+
+// Why the probe of a hardware backend failed (Candidate.Reason, contract TranscodeCandidate).
+const (
+	CandidateNotInBuild = "not_in_build"
+	CandidateNoDevice   = "no_device"
+	CandidateTestFailed = "test_failed"
+)
+
+// Candidate is the probe of one hardware backend at start (concept 22, F-10): Detect test-encodes
+// every hardware backend once, whatever was chosen, so the wizard and the administration can
+// offer the ones that work.
+type Candidate struct {
+	Backend Backend
+	OK      bool
+	Reason  string // one of the Candidate* constants; "" when OK
+}
+
 // Detect runs before the server listens, so it is bounded: detectDeadline for all of it,
 // testEncodeTimeout for each hardware test encode (a missing or hanging device must not block).
 // They are variables for the tests.
@@ -45,6 +74,11 @@ type Capabilities struct {
 	Tonemapper string
 	HWTonemap  bool   // the tonemapper runs on the GPU (every tonemapper but cpu)
 	Version    string // first line of `ffmpeg -version`
+	// Candidates are the probes of nvenc, qsv and vaapi, in this order.
+	Candidates []Candidate
+	// FallbackFrom is the forced backend that failed its probe and was replaced by the automatic
+	// choice (DetectOptions.FallbackAuto); "" otherwise.
+	FallbackFrom Backend
 }
 
 // backendEncoder is the H.264 encoder of each backend.
@@ -60,10 +94,11 @@ var gpuTonemappers = map[Backend][]struct{ name, filter string }{
 	BackendVAAPI: {{TonemapVAAPI, "tonemap_vaapi"}},
 }
 
-// Detect probes ffmpeg once (encoder and filter lists plus a one-frame test encode per hardware
-// backend) and returns the best available backend: nvenc, qsv, vaapi, then software. override is
-// "auto" (or empty) or one backend name; a forced hardware backend that fails its test encode is
-// logged and replaced by software. Detect fails when ffmpeg does not run or has no libx264.
+// Detect probes ffmpeg once (encoder and filter lists plus a one-frame test encode of every
+// hardware backend, Capabilities.Candidates) and returns the best available backend: nvenc, qsv,
+// vaapi, then software. override is "auto" (or empty) or one backend name; a forced hardware
+// backend that fails its test encode is logged and replaced by software. Detect fails when ffmpeg
+// does not run or has no libx264.
 //
 // The tonemapper is the first GPU filter of the chosen backend that the build offers and that
 // passes a one-frame test encode of its HDR chain on a PQ source (each bounded by
@@ -85,6 +120,24 @@ const (
 
 // DetectTonemap is Detect with a tonemap preference (see the TonemapPref* constants).
 func DetectTonemap(ctx context.Context, r Runner, override, tonemapPref string, log *slog.Logger) (Backend, Capabilities, error) {
+	return DetectWith(ctx, r, DetectOptions{Override: override, TonemapPref: tonemapPref}, log)
+}
+
+// DetectOptions are the choices of DetectWith.
+type DetectOptions struct {
+	// Override is "auto" (or empty) or one backend name.
+	Override string
+	// TonemapPref is one of the TonemapPref* constants; empty is auto.
+	TonemapPref string
+	// FallbackAuto replaces a forced hardware backend that fails its probe by the automatic
+	// choice instead of software (a choice stored in the settings, concept 22 F-10: a driver
+	// change must not leave the server on the CPU when another backend works).
+	FallbackAuto bool
+}
+
+// DetectWith is Detect with every option.
+func DetectWith(ctx context.Context, r Runner, opts DetectOptions, log *slog.Logger) (Backend, Capabilities, error) {
+	override, tonemapPref := opts.Override, opts.TonemapPref
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
@@ -97,13 +150,8 @@ func DetectTonemap(ctx context.Context, r Runner, override, tonemapPref string, 
 		return "", Capabilities{}, fmt.Errorf("unknown tonemap preference %q (want auto, gpu or cpu)", tonemapPref)
 	}
 	override = strings.ToLower(strings.TrimSpace(override))
-	candidates := []Backend{BackendNVENC, BackendQSV, BackendVAAPI}
 	switch override {
-	case "", "auto":
-	case string(BackendSoftware):
-		candidates = nil
-	case string(BackendNVENC), string(BackendQSV), string(BackendVAAPI):
-		candidates = []Backend{Backend(override)}
+	case "", "auto", string(BackendSoftware), string(BackendNVENC), string(BackendQSV), string(BackendVAAPI):
 	default:
 		return "", Capabilities{}, fmt.Errorf("unknown hardware backend %q (want auto, nvenc, qsv, vaapi or software)", override)
 	}
@@ -132,22 +180,13 @@ func DetectTonemap(ctx context.Context, r Runner, override, tonemapPref string, 
 		return "", caps, errors.New("ffmpeg has no libx264 encoder")
 	}
 
-	caps.Backend = BackendSoftware
-	for _, b := range candidates {
-		if !slices.Contains(encoders, backendEncoder[b]) {
-			log.Info("transcode backend not in this ffmpeg build", "backend", b)
-			continue
+	caps.Candidates = probeBackends(ctx, r, encoders, log)
+	caps.Backend = chooseBackend(caps.Candidates, override)
+	if forced := Backend(override); caps.Backend == BackendSoftware && slices.Contains(hardwareBackends, forced) {
+		if opts.FallbackAuto {
+			caps.Backend, caps.FallbackFrom = chooseBackend(caps.Candidates, "auto"), forced
 		}
-		if _, err := r.detectOutput(ctx, testEncodeTimeout, testEncodeArgs(b)...); err != nil {
-			level := slog.LevelInfo
-			if override != "" && override != "auto" {
-				level = slog.LevelWarn
-			}
-			log.Log(ctx, level, "transcode backend failed its test encode", "backend", b, "err", err)
-			continue
-		}
-		caps.Backend = b
-		break
+		log.Warn("the chosen transcode backend failed its test encode", "backend", forced, "instead", caps.Backend)
 	}
 	caps.HardwareEncode = caps.Backend != BackendSoftware
 	caps.Tonemapper = TonemapCPU
@@ -175,6 +214,41 @@ func DetectTonemap(ctx context.Context, r Runner, override, tonemapPref string, 
 	caps.HWTonemap = caps.Tonemapper != TonemapCPU
 	log.Info("transcode backend detected", "backend", caps.Backend, "tonemapper", caps.Tonemapper, "version", caps.Version)
 	return caps.Backend, caps, nil
+}
+
+// probeBackends test-encodes every hardware backend of the build once (concept 22, F-10); a
+// backend without its encoder is not run. A failed test encode names the missing device when there
+// is none, so the wizard can say «Gerät fehlt» instead of a bare failure.
+func probeBackends(ctx context.Context, r Runner, encoders []string, log *slog.Logger) []Candidate {
+	out := make([]Candidate, 0, len(hardwareBackends))
+	for _, b := range hardwareBackends {
+		c := Candidate{Backend: b}
+		if !slices.Contains(encoders, backendEncoder[b]) {
+			c.Reason = CandidateNotInBuild
+			log.Info("transcode backend not in this ffmpeg build", "backend", b)
+		} else if _, err := r.detectOutput(ctx, testEncodeTimeout, testEncodeArgs(b)...); err != nil {
+			c.Reason = CandidateTestFailed
+			if _, statErr := os.Stat(filepath.Join(devDir, backendDevice[b])); statErr != nil {
+				c.Reason = CandidateNoDevice
+			}
+			log.Info("transcode backend failed its test encode", "backend", b, "reason", c.Reason, "err", err)
+		} else {
+			c.OK = true
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// chooseBackend picks from the probes: the first that passed for auto, the forced one when it
+// passed, else software.
+func chooseBackend(candidates []Candidate, override string) Backend {
+	for _, c := range candidates {
+		if c.OK && (override == "" || override == "auto" || override == string(c.Backend)) {
+			return c.Backend
+		}
+	}
+	return BackendSoftware
 }
 
 // hdrTestArgs tonemaps one 10-bit PQ frame with the HDR chain of a GPU tonemapper (the same
