@@ -36,6 +36,10 @@ func (s *server) GetAdminSettings(ctx context.Context, _ gen.GetAdminSettingsReq
 func (s *server) UpdateAdminSettings(ctx context.Context, req gen.UpdateAdminSettingsRequestObject) (gen.UpdateAdminSettingsResponseObject, error) {
 	b := deref(req.Body)
 	upd := model.AdminSettingsUpdate{PublicURL: b.PublicUrl, UpdateCheckEnabled: b.UpdateCheckEnabled}
+	if hw := b.TranscodeHw; hw != nil {
+		v := string(*hw)
+		upd.TranscodeHW = &v
+	}
 	if k := b.Keys; k != nil {
 		upd.Keys = model.AdminKeysUpdate{TMDB: k.Tmdb, TVDB: k.Tvdb, TVDBPin: k.TvdbPin, YouTube: k.Youtube, Trakt: k.Trakt,
 			Fanart: k.Fanart, FanartClient: k.FanartClient, GoogleBooks: k.GoogleBooks}
@@ -95,6 +99,8 @@ func toAdminSettings(st model.AdminSettings) gen.AdminSettings {
 	out := gen.AdminSettings{
 		PublicUrl: optString(st.PublicURL), PublicUrlSource: settingSource(st.PublicURLSource),
 		UpdateCheckEnabled: st.UpdateCheckEnabled,
+		TranscodeHw:        gen.TranscodeChoice(st.TranscodeHW), TranscodeHwSource: settingSource(st.TranscodeHWSource),
+		TranscodeHwRestart: st.TranscodeHWRestart,
 		Keys: gen.AdminSettingsKeys{
 			Tmdb: toKeyState(st.Keys.TMDB), Tvdb: toKeyState(st.Keys.TVDB), TvdbPin: toKeyState(st.Keys.TVDBPin),
 			Youtube: toKeyState(st.Keys.YouTube), Trakt: toKeyState(st.Keys.Trakt),

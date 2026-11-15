@@ -36,3 +36,14 @@ sql:
         package: appq
         out: internal/store/appq
         emit_empty_slices: true
+
+  # Certificates per title, provider and rating country (package store/certq, concept 22 section
+  # 4.11). Importing it is allowed only in package metadata (depguard rule "certq").
+  - engine: sqlite
+    schema: migrations
+    queries: queries/certifications
+    gen:
+      go:
+        package: certq
+        out: internal/store/certq
+        emit_empty_slices: true

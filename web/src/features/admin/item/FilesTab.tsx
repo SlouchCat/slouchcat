@@ -5,6 +5,7 @@ import { Chip, Notice, Text, VisuallyHidden } from '@/ui';
 import { DataTable, type DataColumn } from '@/ui/aria';
 import { fullPath } from '../maintenance/shared';
 import styles from './AdminItem.module.css';
+import { intlLocale } from '@/i18n';
 
 type MediaFile = AdminItem['mediaFiles'][number];
 
@@ -66,7 +67,9 @@ export function FilesTab({
       header: t('admin.item.files.columns.size'),
       align: 'end',
       cell: (file) => (
-        <span className={styles.numbers}>{formatBytes(file.sizeBytes, i18n.language)}</span>
+        <span className={styles.numbers}>
+          {formatBytes(file.sizeBytes, intlLocale(i18n.language))}
+        </span>
       ),
     },
     {
@@ -107,7 +110,7 @@ export function FilesTab({
                 {file.probedAt && (
                   <span className={styles.muted}>
                     {t('admin.item.files.probedAt', {
-                      date: formatDateTime(file.probedAt, i18n.language),
+                      date: formatDateTime(file.probedAt, intlLocale(i18n.language)),
                     })}
                   </span>
                 )}

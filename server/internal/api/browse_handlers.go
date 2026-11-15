@@ -17,7 +17,6 @@ func (e serviceProblem) VisitBrowseServerPathsResponse(w http.ResponseWriter) er
 	return e.visit(w)
 }
 func (e serviceProblem) VisitListBrowseRootsResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitListSetupRootsResponse(w http.ResponseWriter) error  { return e.visit(w) }
 
 // noStoreJSON writes a 200 with Cache-Control: no-store. The problem writer sets that header for
 // problem responses only, and a directory listing names folders of the media tree: no proxy and
@@ -38,7 +37,6 @@ func (n noStoreJSON) visit(w http.ResponseWriter) error {
 
 func (n noStoreJSON) VisitBrowseServerPathsResponse(w http.ResponseWriter) error { return n.visit(w) }
 func (n noStoreJSON) VisitListBrowseRootsResponse(w http.ResponseWriter) error   { return n.visit(w) }
-func (n noStoreJSON) VisitListSetupRootsResponse(w http.ResponseWriter) error    { return n.visit(w) }
 
 func (s *server) BrowseServerPaths(ctx context.Context, req gen.BrowseServerPathsRequestObject) (gen.BrowseServerPathsResponseObject, error) {
 	body := deref(req.Body)
@@ -53,14 +51,6 @@ func (s *server) BrowseServerPaths(ctx context.Context, req gen.BrowseServerPath
 
 func (s *server) ListBrowseRoots(ctx context.Context, _ gen.ListBrowseRootsRequestObject) (gen.ListBrowseRootsResponseObject, error) {
 	roots, err := s.opts.Admin.BrowseRoots(ctx)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return noStoreJSON{body: toBrowseRoots(roots)}, nil
-}
-
-func (s *server) ListSetupRoots(ctx context.Context, _ gen.ListSetupRootsRequestObject) (gen.ListSetupRootsResponseObject, error) {
-	roots, err := s.opts.Admin.SetupRoots(model.WithClientIP(ctx, s.clientAddr(ctx)))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

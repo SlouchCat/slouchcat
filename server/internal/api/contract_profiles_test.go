@@ -281,7 +281,7 @@ func checkSearch(t *testing.T, f *vistest.Fixture, h http.Handler, token string,
 	for body, want := range map[string]string{
 		`{"maxRating":-5}`:                            "maxRating invalid_value",
 		`{"maxRating":99}`:                            "maxRating invalid_value",
-		`{"query":"Fi","maxRating":7}`:                "maxRating invalid_value",
+		`{"query":"Fi","maxRating":19}`:               "maxRating invalid_value", // 7 is an age since 1.36.0
 		`{"yearFrom":0}`:                              "yearFrom invalid_value",
 		`{"yearFrom":1869}`:                           "yearFrom invalid_value",
 		`{"yearTo":2101}`:                             "yearTo invalid_value",

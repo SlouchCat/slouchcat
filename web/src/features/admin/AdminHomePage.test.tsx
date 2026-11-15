@@ -8,6 +8,9 @@ import { dashboardFixture, renderAdminPage } from '@/test/admin';
 import { activitySentence } from './AdminHomePage';
 import { reloadPage } from './restart';
 
+// Swiss numbers as the app formats German (de-CH; concept 22 section 4.4).
+const swiss = (value: number) => new Intl.NumberFormat('de-CH').format(value);
+
 // A restart that went through reloads the page; the test only notes it.
 vi.mock('./restart', async (original) => ({
   ...(await original<typeof import('./restart')>()),
@@ -142,9 +145,11 @@ const system: SystemInfo = {
     hwTonemap: true,
     composeOverride: 'intel',
     devices: { dri: true, nvidia: false },
+    candidates: [],
   },
   inotify: { maxUserWatches: 65536, watchedDirs: 58982, usagePercent: 90, warn: true },
   configFs: 'ext4',
+  timeZone: 'Europe/Zurich',
   cacheFs: 'ext4',
 };
 
@@ -192,7 +197,7 @@ describe('admin overview (concept 11, A-3)', () => {
 
     expect(await within(server).findByText('0.9.0+abc1234')).toBeVisible();
     expect(within(server).getByText('Intel Quick Sync (QSV)')).toBeVisible();
-    expect(within(server).getByText('58.982 von 65.536 (90 %)')).toBeVisible();
+    expect(within(server).getByText(`${swiss(58982)} von ${swiss(65536)} (90 %)`)).toBeVisible();
     expect(within(server).getByText('Version 0.9.1 verfügbar')).toBeVisible();
     expect(within(server).getByRole('button', { name: 'Nach Updates suchen' })).toBeVisible();
     expect(within(server).getByRole('button', { name: 'Neu starten' })).toBeVisible();
@@ -286,6 +291,42 @@ describe('admin overview (concept 11, A-3)', () => {
     expect(
       screen.queryByRole('region', { name: 'Alle Verwaltungsseiten' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('says once that ratings are minimum ages now and closes the hint on «Verstanden» (concept 22)', async () => {
+    let notice = true;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboard({
+              attention: {
+                abortedScans: [],
+                rejectedKeys: [],
+                ...(notice ? { minimumAgeNotice: true } : {}),
+                ratingsRereading: true,
+              },
+            }),
+          ),
+        'DELETE /admin/dashboard/minimum-age-notice': () => {
+          notice = false;
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderApp('/admin');
+    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    expect(await within(hints).findByText('Freigaben sind jetzt Mindestalter')).toBeVisible();
+    expect(within(hints).getByText(/PG-13 ist «ab 13» statt FSK 12/)).toBeVisible();
+    expect(within(hints).getByText('Freigaben werden neu gelesen')).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(within(hints).getByRole('button', { name: 'Verstanden' }));
+    await waitFor(() =>
+      expect(within(hints).queryByText('Freigaben sind jetzt Mindestalter')).toBeNull(),
+    );
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
+    // The reading goes on: its hint stays until the job is done.
+    expect(within(hints).getByText('Freigaben werden neu gelesen')).toBeVisible();
   });
 
   it('lists what needs doing, most urgent first, and announces only their number', async () => {
@@ -1532,8 +1573,8 @@ describe('admin sidebar (A-2, concept 11)', () => {
     }
     // F-7: few muted counts, coloured pills for what needs a look, each with a spoken name.
     expect(
-      await within(nav).findByRole('link', { name: 'Bibliotheken, 1.200 Titel' }),
-    ).toHaveTextContent('1.200');
+      await within(nav).findByRole('link', { name: `Bibliotheken, ${swiss(1200)} Titel` }),
+    ).toHaveTextContent(swiss(1200));
     expect(
       within(nav).getByRole('link', { name: 'Pflege, 4 Titel brauchen Pflege' }),
     ).toBeVisible();

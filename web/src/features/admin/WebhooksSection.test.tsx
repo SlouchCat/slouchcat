@@ -12,6 +12,9 @@ import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test
 const settings: AdminSettings = {
   publicUrlSource: 'none',
   updateCheckEnabled: true,
+  transcodeHw: 'auto',
+  transcodeHwSource: 'none',
+  transcodeHwRestart: false,
   keys: {
     tmdb: { source: 'none' },
     tvdb: { source: 'none' },

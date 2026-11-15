@@ -13,6 +13,7 @@ import { qualityLabel } from './labels';
 import { downloadOptionsQuery } from './queries';
 import type { DownloadQuality, DownloadRequest, DownloadState } from './types';
 import styles from './OfflinePages.module.css';
+import { intlLocale } from '@/i18n';
 
 const DEFAULT_QUALITY: DownloadQuality = 'medium';
 
@@ -73,7 +74,7 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
   const audioTracks = season ? [] : (data?.audioTracks ?? []);
   const defaultAudio = audioTracks.find((track) => track.default) ?? audioTracks[0];
   const chosenAudio = audio ?? (defaultAudio ? String(defaultAudio.index) : null);
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -428,7 +428,7 @@ func newFakeTVDB(t *testing.T) *fakeTVDB {
 			"firstAired": "2015-02-03", "year": "2015", "averageRuntime": 25, "originalLanguage": "deu",
 			"overview":       "Originalbeschreibung",
 			"genres":         []any{map[string]any{"id": 4, "name": "Comedy", "slug": "comedy"}},
-			"contentRatings": []any{map[string]any{"id": 1, "name": "TV-PG", "country": "usa", "contentType": ""}, map[string]any{"id": 2, "name": "12", "country": "deu", "contentType": ""}},
+			"contentRatings": []any{map[string]any{"id": 1, "name": "TV-PG", "country": "usa", "contentType": ""}, map[string]any{"id": 2, "name": "12", "country": "deu", "contentType": ""}, map[string]any{"id": 3, "name": "-10", "country": "fra", "contentType": ""}},
 			"remoteIds":      []any{map[string]any{"id": "tt4242", "type": 2, "sourceName": "IMDB"}, map[string]any{"id": "999", "type": 12, "sourceName": "TheMovieDB.com"}},
 			"artworks": []any{
 				map[string]any{"id": 1, "image": art("/banners/posters/424242-2.jpg"), "type": 2, "score": 100000, "language": "deu"},
@@ -737,6 +737,10 @@ func TestMatchSeriesTVDBFallback(t *testing.T) {
 	}
 	if s.Rating.Int64 != 12 || s.Source.String != "tvdb:DE" {
 		t.Fatalf("rating %v %v, want 12 tvdb:DE", s.Rating, s.Source)
+	}
+	// TVDB knows every rating country of the table now (concept 22 section 4.11), not five.
+	if got := e.certRows(t, idSeries); got["tvdb:FR"] != "-10" || got["tvdb:DE"] != "12" || got["tvdb:US"] != "TV-PG" {
+		t.Errorf("stored TVDB certificates = %v, want FR -10, DE 12, US TV-PG", got)
 	}
 	art := e.tvdb.srv.URL + "/art/banners/"
 	if s.Poster.String != art+"posters/424242-2.jpg" || s.Backdrop.String != art+"fanart/424242-1.jpg" {

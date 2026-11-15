@@ -632,7 +632,7 @@ describe('admin item page', () => {
     const tiles = within(grid).getAllByRole('option');
     expect(tiles).toHaveLength(2);
     expect(tiles[0]).toHaveAccessibleName('Ohne Text, 600 × 900 · Lokale Datei wählen');
-    expect(tiles[1]).toHaveAccessibleName('Englisch, 2000 × 3000 · TMDB · Bewertung 5,4 wählen');
+    expect(tiles[1]).toHaveAccessibleName('Englisch, 2000 × 3000 · TMDB · Bewertung 5.4 wählen');
     expect(within(tiles[1]!).getByText('aktuell')).toBeVisible();
     await user.click(tiles[0]!);
     await waitFor(() => expect(dialog).not.toBeInTheDocument());

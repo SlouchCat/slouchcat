@@ -13,6 +13,9 @@ import { fill } from '@/test/fill';
 const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
   publicUrlSource: 'none',
   updateCheckEnabled: true,
+  transcodeHw: 'auto',
+  transcodeHwSource: 'none',
+  transcodeHwRestart: false,
   keys: {
     tmdb: { source: 'stored', hint: 'a1b2' },
     tvdb: { source: 'none' },

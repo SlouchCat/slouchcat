@@ -118,7 +118,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.33.0`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.36.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -172,6 +172,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_RADIO_DIR` | `/run/slouchcat/radio` | Puffer des Webradios, ein tmpfs |
 | `SLOUCHCAT_LOG_FORMAT` | `json` | `json` oder `text` |
 | `SLOUCHCAT_LOG_LEVEL` | `info` | Log-Stufe |
+| `SLOUCHCAT_HW` | leer | Grafikchip fürs Umwandeln: `auto`, `nvenc`, `qsv`, `vaapi` oder `software`. Leer = die Wahl aus dem Einrichtungsassistenten oder der Verwaltung (Integrationen › Server), sonst `auto`. Ein Wert hier hat Vorrang |
 | `SLOUCHCAT_TRUSTED_PROXIES` | leer | Welche Proxys `X-Forwarded-For` setzen dürfen: leer = niemand, `private` = RFC-1918-Netze, Loopback und `fc00::/7`, sonst eine kommagetrennte CIDR-Liste. Siehe «HTTPS mit Caddy» |
 | `SLOUCHCAT_DEPLOY_DIR`, `SLOUCHCAT_UPDATER_VERSION` | (nur Compose, `.env`) | Absoluter Host-Pfad von `deploy/` und Tag des Updater-Images; nur mit `compose.updater.yaml`, siehe «Updater-Begleiter» |
 | `SLOUCHCAT_DOMAIN`, `ACME_EMAIL` | (nur Compose, `.env`) | Host-Name und ACME-Adresse für das Profil `https`; sie lesen Caddy, nicht der Server |

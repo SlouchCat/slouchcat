@@ -39,25 +39,23 @@ var ErrUnscoped = errors.New("visibility: a profile scope is required")
 // rejected.
 type Scope struct {
 	profileID int64
-	language  string // the interface language (de, en)
-	metaLang  string // the metadata language (ADR 0018); the interface language when unset
+	language  string // the fallback language of the text chain (de, en; model.FallbackLanguage)
+	metaLang  string // the metadata language (ADR 0018); model.MetadataBase of the interface language when unset
 	system    bool
 	reason    string
 }
 
 // Profile returns the scope of a viewing profile: its id selects the rows of visible_items, its
-// languages select the texts (metadata language first, then the interface language, then the
-// rank of the server's list; concept 10 section 4.2).
+// languages select the texts (metadata language first, then the fallback language, then the
+// rank of the server's list; concept 10 section 4.2, concept 22 section 4.3). The fallback
+// language is German for de and de-DE and English for every other interface language; without a
+// metadata language of its own the profile reads model.MetadataBase of its interface language.
 func Profile(p model.Profile) Scope {
-	lang := p.Language
-	if lang != "de" && lang != "en" {
-		lang = "de"
-	}
 	meta := p.MetadataLanguage
 	if meta == "" {
-		meta = lang
+		meta = model.MetadataBase(p.Language)
 	}
-	return Scope{profileID: p.ID, language: lang, metaLang: meta}
+	return Scope{profileID: p.ID, language: model.FallbackLanguage(p.Language), metaLang: meta}
 }
 
 // langs returns the language preference of the scope for the text chain.

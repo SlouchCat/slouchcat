@@ -21,6 +21,15 @@ import { validateWatchedParams } from '@/features/discover/watchedParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
+import {
+  firstOpenStep,
+  isSetupPath,
+  PUBLIC_STEPS,
+  setupDeferred,
+  setupPath,
+  setupProgressQuery,
+  setupStepOf,
+} from '@/features/setup/setupState';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
@@ -127,8 +136,11 @@ async function sessionWithin(queryClient: QueryClient): Promise<SessionInfo | nu
   }
 }
 
-// Guard: the session first. A session exists only after the wizard ran, so `/setup` is asked only
-// when there is none (401). On the start page its data is requested in parallel with the session
+// Guard: the session first. A session exists only after the wizard's account step ran, so `/setup`
+// is asked only when there is none (401). Without an account only the public steps of the wizard
+// are reachable (language, account; concept 22, 3.6); the owner of an unfinished wizard goes to its
+// first open step at every sign-in until it is finished, unless «Später fortsetzen» was chosen in
+// this browser since the last sign-in (F-11); a finished wizard is gone. On the start page its data is requested in parallel with the session
 // instead of after the guard (P-10: two round trips less before the hero image). The prefetch is
 // not awaited, so the page renders its skeleton as soon as the session is known.
 // Offline start (C-1): where the browser can keep downloads, an app whose session request fails
@@ -156,18 +168,55 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
     }
     const setupRequired =
       !session && (await queryClient.ensureQueryData(setupStatusQuery)).setupRequired;
-    const onSetup = location.pathname === paths.setup;
-    if (setupRequired && !onSetup) throw redirect({ to: '/setup' });
-    if (!setupRequired && onSetup) throw redirect({ to: '/' });
+    const { pathname } = location;
+    const onSetup = isSetupPath(pathname);
+    if (setupRequired) {
+      const step = setupStepOf(pathname.slice('/setup/'.length));
+      if (!step || !PUBLIC_STEPS.includes(step)) throw redirect({ to: setupPath('language') });
+      return;
+    }
+    // Only the owner's primary profile runs the wizard (its endpoints are x-visibility owner):
+    // without a chosen profile the picker comes first, another profile never sees it.
+    const leads =
+      session?.setupPending === true &&
+      session.account.isOwner &&
+      session.profile?.isPrimary === true;
+    if (
+      leads &&
+      session &&
+      !setupDeferred(session) &&
+      pathname !== paths.profiles &&
+      (!onSetup || pathname === paths.setup)
+    ) {
+      const progress = await queryClient.ensureQueryData(setupProgressQuery);
+      throw redirect({ to: setupPath(firstOpenStep(progress)) });
+    }
+    if (onSetup && !leads) throw redirect({ to: '/' });
   },
   component: RootLayout,
   errorComponent: RootError,
 });
 
-const setupRoute = createRoute({
+/**
+ * The wizard's public steps (concept 22 part A): the language and the account, reachable before an
+ * account exists; the owner of an unfinished wizard comes back to the language step to change the
+ * profile's language. `/setup` alone leads to the first step the guard picks.
+ */
+const setupLanguageRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/setup',
-  component: lazyRouteComponent(() => import('@/features/setup/SetupPage'), 'SetupPage'),
+  path: '/setup/language',
+  component: lazyRouteComponent(() => import('@/features/setup/LanguageStep'), 'LanguageStep'),
+});
+
+const setupAccountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/setup/account',
+  beforeLoad: async ({ context: { queryClient } }) => {
+    // The account exists: the step is done for good.
+    const session = await queryClient.ensureQueryData(sessionQuery);
+    if (session) throw redirect({ to: setupPath('region') });
+  },
+  component: lazyRouteComponent(() => import('@/features/setup/AccountStep'), 'AccountStep'),
 });
 
 const loginRoute = createRoute({
@@ -260,6 +309,20 @@ const profilesRoute = createRoute({
     () => import('@/features/profiles/ProfilePickerPage'),
     'ProfilePickerPage',
   ),
+});
+
+/**
+ * The owner's steps of the wizard (concept 22, 3.3, steps 3 to 9): behind the login with the
+ * primary profile, without the app header. An unknown step leads to the region.
+ */
+const setupStepRoute = createRoute({
+  getParentRoute: () => activeRoute,
+  path: '/setup/$step',
+  beforeLoad: ({ params }) => {
+    const step = setupStepOf(params.step);
+    if (!step || PUBLIC_STEPS.includes(step)) throw redirect({ to: setupPath('region') });
+  },
+  component: lazyRouteComponent(() => import('@/features/setup/SetupStepPage'), 'SetupStepPage'),
 });
 
 /** Everything that needs a chosen profile; without one the picker comes first. */
@@ -685,7 +748,8 @@ const playRoute = createRoute({
 // Home and detail are in the main bundle (LCP, P-10); the form pages (setup, login, admin) and the
 // player load on demand, and with them react-aria.
 export const routeTree = rootRoute.addChildren([
-  setupRoute,
+  setupLanguageRoute,
+  setupAccountRoute,
   loginRoute,
   inviteRoute,
   offlineRoute,
@@ -747,6 +811,7 @@ export const routeTree = rootRoute.addChildren([
         radioRoute,
       ]),
       playRoute,
+      setupStepRoute,
     ]),
   ]),
 ]);

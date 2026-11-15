@@ -18,6 +18,7 @@ import {
 import { issuesSource } from '../queries';
 import { issueKey, libraryKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
+import { intlLocale } from '@/i18n';
 
 /** What the page does for a tab: its actions, held by the page so a dialog outlives the rows. */
 export interface IssueHandlers {
@@ -114,7 +115,7 @@ export function IssueTab({
   handlers,
 }: IssueTabProps) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   // The issues from the first on, a page more whenever the end of the tab comes within half a
   // screen (concept 18 C-3): only what is loaded is grouped, selected and counted.
   const [wanted, setWanted] = useState(PAGED_LIST_PAGE);

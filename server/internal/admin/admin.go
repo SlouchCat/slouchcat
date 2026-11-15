@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -245,6 +246,7 @@ type Service struct {
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
 	counts        countsCache   // the counts of the admin sidebar (concept 11, dashboard.go)
+	setupMu       sync.Mutex    // serialises the read-modify-write of the guided wizard (setup_wizard.go)
 }
 
 // New returns the service. getenv is normally os.Getenv.
@@ -324,8 +326,9 @@ func (s *Service) WithMetadata(m Metadata) *Service {
 // field, the library path and the TMDB key without side effects; create the owner (which re-checks
 // "no account" inside its transaction, so a concurrent second wizard gets model.ErrSetupDone
 // before it changed anything); store the key encrypted; create the library (queues the first
-// scan); start the session. Every call counts against the client's attempt limit. Password and
-// key never appear in logs or errors.
+// scan) or, without one, record the open guided wizard (concept 22, 3.4); start the session.
+// Every call counts against the client's attempt limit. Password and key never appear in logs or
+// errors.
 func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgent string) (model.Session, string, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if err := s.auth.AllowAttempt(ctx); err != nil {
@@ -340,10 +343,16 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	}
 
 	_, verr := auth.ValidateOwner(req.Email, req.Password)
-	if req.Language != "" && req.Language != "de" && req.Language != "en" {
+	if req.Language != "" && !model.IsUILanguage(req.Language) {
 		verr = verr.Add("language", "invalid_value")
 	}
-	verr = validateLibrary(verr, "library.", req.Library)
+	if req.Library != nil {
+		rs, err := s.auth.RatingSystem(ctx)
+		if err != nil {
+			return model.Session{}, "", err
+		}
+		verr = validateLibrary(verr, rs, "library.", *req.Library)
+	}
 	key := strings.TrimSpace(req.TMDBKey)
 	if len(key) > maxTMDBKeyLen {
 		verr = verr.Add("tmdbApiKey", "too_long")
@@ -351,8 +360,10 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	if err := s.libraries.ValidateRoots(ctx, req.Library.Kind, req.Library.Roots, "library.roots"); err != nil {
-		return model.Session{}, "", err
+	if req.Library != nil {
+		if err := s.libraries.ValidateRoots(ctx, req.Library.Kind, req.Library.Roots, "library.roots"); err != nil {
+			return model.Session{}, "", err
+		}
 	}
 	if key != "" {
 		if err := s.tmdb.CheckKey(ctx, key); err != nil {
@@ -360,7 +371,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 		}
 	}
 
-	account, profile, err := s.auth.CreateOwner(ctx, req.Email, req.Password, req.Language)
+	account, profile, err := s.auth.CreateOwnerProfile(ctx, req.Email, req.Password, req.Language, req.ProfileName, req.Accent)
 	if err != nil {
 		return model.Session{}, "", err
 	}
@@ -369,24 +380,35 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 			return model.Session{}, "", err
 		}
 	}
-	lib, err := s.libraries.Create(ctx, req.Library)
-	if err != nil {
-		// The account exists now; the owner can add the library on the libraries page.
-		s.log.ErrorContext(ctx, "setup: create first library", "account_id", account.ID, "err", err)
-		return model.Session{}, "", fmt.Errorf("create first library: %w", err)
+	var libraryID int64
+	if req.Library != nil {
+		lib, err := s.libraries.Create(ctx, *req.Library)
+		if err != nil {
+			// The account exists now; the owner can add the library on the libraries page.
+			s.log.ErrorContext(ctx, "setup: create first library", "account_id", account.ID, "err", err)
+			return model.Session{}, "", fmt.Errorf("create first library: %w", err)
+		}
+		libraryID = lib.ID
+	} else if err := s.storeWizard(ctx, openWizard()); err != nil {
+		// Without the record the wizard would count as finished and the owner would never be led
+		// into it: the request fails, like a failed first library. The account exists all the
+		// same; the owner then signs in and sets up the rest in the administration.
+		s.log.ErrorContext(ctx, "setup: record the guided wizard", "account_id", account.ID, "err", err)
+		return model.Session{}, "", fmt.Errorf("record the guided wizard: %w", err)
 	}
 	session, token, err := s.auth.StartSession(ctx, account, profile, userAgent)
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	s.log.InfoContext(ctx, "setup completed", "account_id", account.ID, "library_id", lib.ID, "tmdb_key_stored", key != "")
+	s.log.InfoContext(ctx, "setup completed", "account_id", account.ID, "library_id", libraryID, "tmdb_key_stored", key != "",
+		"guided", req.Library == nil)
 	return session, token, nil
 }
 
 // validateLibrary checks name, kind and the shape of the folder list; prefix names the fields
 // ("library."). The folder rules themselves (family, provider list, path, overlap) are applied
 // by package library, which answers with the index of the folder that broke one.
-func validateLibrary(verr *model.ValidationError, prefix string, req model.LibraryRequest) *model.ValidationError {
+func validateLibrary(verr *model.ValidationError, rs model.RatingSystem, prefix string, req model.LibraryRequest) *model.ValidationError {
 	name := strings.TrimSpace(req.Name)
 	switch {
 	case name == "":
@@ -408,7 +430,7 @@ func validateLibrary(verr *model.ValidationError, prefix string, req model.Libra
 		switch {
 		case req.Kind != "" && !model.AudioLibraryKind(req.Kind):
 			verr = verr.Add(prefix+"defaultRating", "not_allowed")
-		case !validRating(req.DefaultRating):
+		case !validRating(rs, req.DefaultRating):
 			verr = verr.Add(prefix+"defaultRating", "invalid_value")
 		}
 	}
@@ -610,7 +632,11 @@ func (s *Service) withKeyframeIndex(ctx context.Context) func(model.Library, err
 // CreateLibrary validates the request and creates the library, which queues its first scan.
 func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	if verr := validateLibrary(nil, "", req); verr != nil {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return model.Library{}, err
+	}
+	if verr := validateLibrary(nil, rs, "", req); verr != nil {
 		return model.Library{}, verr
 	}
 	return s.withKeyframeIndex(ctx)(s.libraries.Create(ctx, req))
@@ -800,7 +826,15 @@ const ratingLockField = "own_rating"
 // rating. The result is the unfiltered administration view. model.ErrNotFound for an unknown title.
 func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	if !validRating(rating) {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return model.ItemRating{}, err
+	}
+	var keep []int
+	if item, err := s.sys.GetItemSystem(ctx, itemID); err == nil && item.OwnRating.Valid {
+		keep = append(keep, int(item.OwnRating.Int64)) // the stored age stays possible
+	}
+	if !validRating(rs, rating, keep...) {
 		return model.ItemRating{}, (&model.ValidationError{}).Add("rating", "invalid_value")
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -844,7 +878,11 @@ func (s *Service) SetItemsRating(ctx context.Context, itemIDs []string, rating *
 	case len(itemIDs) > maxRatingItems:
 		verr = verr.Add("itemIds", "too_long")
 	}
-	if !validRating(rating) {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if !validRating(rs, rating) {
 		verr = verr.Add("rating", "invalid_value")
 	}
 	if verr != nil {
@@ -909,8 +947,10 @@ func (s *Service) rateBatch(ctx context.Context, ids []string, rating *int) (don
 	return done, refresh, nil
 }
 
-func validRating(rating *int) bool {
-	return rating == nil || slices.Contains([]int{0, 6, 12, 16, 18}, *rating)
+// validRating reports whether a rating may be stored: none, a step of the rating country rs, or
+// a value the row already has (keep; concept 22 section 4.11, «Prüfung»).
+func validRating(rs model.RatingSystem, rating *int, keep ...int) bool {
+	return rating == nil || rs.Allows(*rating, keep...)
 }
 
 // applyRating writes the override (or its removal) of one title inside the caller's transaction;
@@ -972,4 +1012,24 @@ func explicitSource(kind string) string {
 		return "tags"
 	}
 	return "feed"
+}
+
+// keptRating is the stored value a rating may keep: none for NULL (a library without a default
+// would otherwise keep 0, which is no step in Portugal).
+func keptRating(v sql.NullInt64) []int {
+	if !v.Valid {
+		return nil
+	}
+	return []int{int(v.Int64)}
+}
+
+// ratingSystem is the rating system of the server's rating country; DE when the setting cannot
+// be read (the check then offers the German steps, as before concept 22 stage 3).
+func (s *Service) ratingSystem(ctx context.Context) model.RatingSystem {
+	rs, err := s.auth.RatingSystem(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "read the rating country", "err", err)
+		return model.RatingSystemOf(model.DefaultRatingCountry)
+	}
+	return rs
 }

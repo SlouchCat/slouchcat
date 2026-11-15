@@ -16,9 +16,12 @@ import (
 
 // Sentinel errors that the api package maps to problem responses.
 var (
-	ErrNotFound           = errors.New("not found")            // 404 not_found (also for invisible items)
-	ErrInvalidCredentials = errors.New("invalid credentials")  // 401 invalid_credentials
-	ErrSetupDone          = errors.New("setup already done")   // 409 setup_done
+	ErrNotFound           = errors.New("not found")           // 404 not_found (also for invisible items)
+	ErrInvalidCredentials = errors.New("invalid credentials") // 401 invalid_credentials
+	ErrSetupDone          = errors.New("setup already done")  // 409 setup_done
+	// ErrLibraryRequired: the guided wizard finishes only with a library (422 library_required,
+	// concept 22, 3.5).
+	ErrLibraryRequired    = errors.New("library required")
 	ErrLibraryPathInvalid = errors.New("library path invalid") // 422 library_path_invalid
 	// ErrScanRunning: a library root cannot be removed while a scan of that library runs, because
 	// the scan loads the roots once and writes media_files with their ids afterwards (409
@@ -188,7 +191,7 @@ type Profile struct {
 	ID        int64
 	AccountID int64
 	Name      string
-	MaxRating int    // 0, 6, 12, 16, 18
+	MaxRating int    // minimum age 0 to 18, a step of the rating country (concept 22 section 4.11)
 	Language  string // de, en: the interface language
 	// MetadataLanguage is the language of the metadata the profile reads (ADR 0018), one of the
 	// server's available metadata languages; empty = like Language.
@@ -1606,6 +1609,7 @@ type MetadataSettings struct {
 	TMDBIncludeAdult bool
 	FanartEnabled    bool
 	KnownLanguages   []string
+	RatingSystems    []RatingSystem // every rating country with its steps (concept 22 section 4.11)
 	AffectedTitles   int
 	LocalImageTitles int
 }
@@ -1698,9 +1702,15 @@ type LibraryUpdate struct {
 type SetupRequest struct {
 	Email    string
 	Password string
-	Language string // de, en; empty = de
+	Language string // one of UILanguages; empty = DefaultUILanguage
 	TMDBKey  string
-	Library  LibraryRequest
+	// Library is the first library; nil starts the guided wizard (concept 22 part A): the owner
+	// goes on behind the login and no library is created here.
+	Library *LibraryRequest
+	// ProfileName and Accent of the first profile; empty = the part of the e-mail before the @
+	// and no accent.
+	ProfileName string
+	Accent      string
 }
 
 // LibraryRoot is one directory of a library.

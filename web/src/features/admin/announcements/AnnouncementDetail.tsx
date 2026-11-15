@@ -7,6 +7,7 @@ import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, ProgressBar } from '@/ui';
 import { AriaButton, BandPanel, CheckboxGroup, Form, TextField } from '@/ui/aria';
 import styles from './Announcements.module.css';
+import { intlLocale } from '@/i18n';
 
 /** Longest title and text the server takes (AnnouncementRequest). */
 export const MAX_TITLE = 120;
@@ -59,7 +60,7 @@ function Facts({ announcement }: { announcement: Announcement }) {
         <dt>{t('admin.announcements.facts.created')}</dt>
         <dd>
           <time dateTime={announcement.createdAt}>
-            {formatDateTime(announcement.createdAt, i18n.language)}
+            {formatDateTime(announcement.createdAt, intlLocale(i18n.language))}
           </time>
         </dd>
       </div>
@@ -67,7 +68,9 @@ function Facts({ announcement }: { announcement: Announcement }) {
         <div>
           <dt>{t('admin.announcements.facts.published')}</dt>
           <dd>
-            <time dateTime={publishedAt}>{formatDateTime(publishedAt, i18n.language)}</time>
+            <time dateTime={publishedAt}>
+              {formatDateTime(publishedAt, intlLocale(i18n.language))}
+            </time>
           </dd>
         </div>
       )}

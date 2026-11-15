@@ -211,7 +211,7 @@ func TestContractLibraryItemsChildProfile(t *testing.T) {
 		"content=series":                      "content invalid_value",
 		"yearFrom=1869":                       "yearFrom invalid_value",
 		"yearTo=2101":                         "yearTo invalid_value",
-		"maxRating=7":                         "maxRating invalid_value",
+		"maxRating=19":                        "maxRating invalid_value", // 7 is an age since 1.36.0
 		"genre=" + strings.Repeat("g", 81):    "genre too_long",
 		"sort=bogus":                          "sort invalid_value",
 		"order=up":                            "order invalid_value",

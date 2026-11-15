@@ -41,14 +41,17 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    `VACUUM INTO` (letzte 5 behalten). Ab M1a: eingefrorene DB-Stände in `testdata/db/`.
 6. **Streaming-Endpunkte als `http.Handler`** (Range, HLS, Bilder) mit Beschreibung in `api/openapi.yaml`;
    alle JSON-Endpunkte über den generierten strict server.
-7. **Jede OpenAPI-Operation trägt `x-visibility`** (`public`, `account`, `scoped`, `system`, `admin`; `account`
-   = gültige Sitzung ohne gewähltes Profil, ADR 0005). Antworten mit `ItemRef` sind `scoped`. Der Schema-Test
+7. **Jede OpenAPI-Operation trägt `x-visibility`** (`public`, `account`, `scoped`, `system`, `admin`, `owner`;
+   `account` = gültige Sitzung ohne gewähltes Profil, ADR 0005; `owner` = nur der Eigentümer mit Hauptprofil,
+   ADR 0014). Antworten mit `ItemRef` sind `scoped`. Der Schema-Test
    schlägt sonst fehl; jede Operation braucht einen Eintrag im Vertragstest (`TestContractCoversEveryOperation`).
 8. **Jede neue Seite hat einen Playwright-Tastaturtest** (Pfeiltasten, Tab, Enter, Zurück, sichtbarer
    Fokus, keine Fokusfalle). Gilt ab M1a.
 9. **Keine Farbe und kein Text hart im Code.** Farben nur aus Tokens (`stylelint`: `color-no-hex`,
-   `declaration-strict-value`), Texte nur aus `web/src/locales/{de,en}.json` (`eslint-plugin-i18next`).
-   Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
+   `declaration-strict-value`), Texte nur aus `web/src/locales/*.json` (`eslint-plugin-i18next`;
+   neue Texte in `de` und `en`, `de-DE` bei ss-Wörtern und «Guillemets», ADR 0033). Benannte Ausnahme:
+   die Sprachnamen in `web/src/i18n/languages.ts` und die Freigabebezeichnungen in
+   `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test.
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,

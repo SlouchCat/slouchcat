@@ -42,13 +42,12 @@ func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
 	if err != nil || !slices.Equal(avail, []string{"de", "en", "ja"}) {
 		t.Errorf("available = %v, %v", avail, err)
 	}
-	// A library without de and en is refused (E-9); an unknown kind too.
-	bad := []string{"ja"}
-	err = e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &bad})
-	var verr *model.ValidationError
-	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "textLangs", "ui_lang_required") {
+	// A library reading Japanese only is fine (concept 22 F-7); an unknown kind is refused.
+	jaOnly := []string{"ja"}
+	if err := e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &jaOnly}); err != nil {
 		t.Errorf("ja only: %v", err)
 	}
+	var verr *model.ValidationError
 	err = e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{Images: &LibraryImages{Kinds: []string{"thumb"}}})
 	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "images.kinds", "invalid_value") {
 		t.Errorf("thumb: %v", err)
@@ -80,10 +79,13 @@ func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
 	if err != nil || !slices.Equal(st.TextLangs, []string{"de", "en", "es"}) || st.RatingCountry != "CH" || st.ImageMinWidth["poster"] != 1000 || !st.FanartEnabled {
 		t.Errorf("stored settings: %+v %v", st, err)
 	}
-	m.TextLangs = []string{"en", "es"}
-	_, err = e.svc.UpdateMetadataSettings(ctx, m)
-	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "textLangs", "ui_lang_required") {
+	// The server's list needs no German any more (concept 22 F-7): French and English only.
+	m.TextLangs = []string{"fr", "en"}
+	if _, err := e.svc.UpdateMetadataSettings(ctx, m); err != nil {
 		t.Errorf("server list without de: %v", err)
+	}
+	if st, err := e.svc.Settings(ctx); err != nil || !slices.Equal(st.TextLangs, []string{"fr", "en"}) {
+		t.Errorf("stored list without de: %+v %v", st.TextLangs, err)
 	}
 }
 
@@ -185,31 +187,42 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	}
 }
 
-// The rating country (F-7, 6.6): a new title gets the step of the country read first; with CH
-// first "12 (CH)" where DE says 16. A stored rating is never lowered (K-3): the same film matched
-// again with CH first keeps its 16 from DE.
+// The rating country (F-7, 6.6; concept 22 F-12, F-16, F-17): a new title gets the age of the
+// country read first, then DE → AT → CH → GB → US; with CH first "12 (CH)" where DE says 16, with
+// FR first the French "-10", and a title without a French certificate the German one. The same
+// film matched again from another country takes that country's age, lower or higher: a change
+// of the rating country reads every rating anew (F-16, the test of concept 10 6.6 turned round).
 func TestRatingCountryReadFirst(t *testing.T) {
 	t.Parallel()
-	certs := map[string]string{"DE": "16", "CH": "12", "US": "R"}
-	if r, c := FSKFromCertifications(certs); r == nil || *r != 16 || c != "DE" {
+	certs := map[string]string{"DE": "16", "CH": "12", "US": "R", "FR": "10"}
+	if r, c := ageFromCertifications(certs, "DE"); r == nil || *r != 16 || c != "DE" {
 		t.Fatalf("default order: %v %s", r, c)
 	}
-	if r, c := fskFromCertificationsFirst(certs, "CH"); r == nil || *r != 12 || c != "CH" {
+	if r, c := ageFromCertifications(certs, "CH"); r == nil || *r != 12 || c != "CH" {
 		t.Fatalf("CH first: %v %s", r, c)
 	}
-	if r, c := fskFromCertificationsFirst(map[string]string{"DE": "16"}, "CH"); r == nil || *r != 16 || c != "DE" {
+	if r, c := ageFromCertifications(certs, "FR"); r == nil || *r != 10 || c != "FR" {
+		t.Fatalf("FR first: %v %s", r, c)
+	}
+	if r, c := ageFromCertifications(map[string]string{"DE": "16", "US": "R"}, "FR"); r == nil || *r != 16 || c != "DE" {
+		t.Fatalf("FR first without a French value falls back to DE (F-12): %v %s", r, c)
+	}
+	if r, c := ageFromCertifications(map[string]string{"DE": "16"}, "CH"); r == nil || *r != 16 || c != "DE" {
 		t.Fatalf("CH first without CH value falls back to DE: %v %s", r, c)
 	}
 	if got := ratingOrder("US"); !slices.Equal(got, []string{"US", "DE", "AT", "CH", "GB"}) {
 		t.Errorf("order US = %v", got)
 	}
-	if got := ratingOrder("XX"); !slices.Equal(got, ratingCountries) {
+	if got := ratingOrder("JP"); !slices.Equal(got, []string{"JP", "DE", "AT", "CH", "GB", "US"}) {
+		t.Errorf("order JP = %v", got)
+	}
+	if got := ratingOrder("XX"); !slices.Equal(got, ratingFallback) {
 		t.Errorf("unknown country = %v", got)
 	}
 
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
-	// Film 550 of the fixture: DE 12 next to US R. Default: 12 from DE. With US first: 16 (R).
+	// Film 550 of the fixture: DE 12 next to US R. Default: 12 from DE. With US first: 17 (R).
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
 	if err := e.svc.match(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
@@ -222,22 +235,22 @@ func TestRatingCountryReadFirst(t *testing.T) {
 	if _, err := e.svc.UpdateMetadataSettings(ctx, m); err != nil {
 		t.Fatal(err)
 	}
-	// A new title with US first: the US step (16).
+	// A new title with US first: the US age (PG-13 = 13, F-17).
 	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2001})
 	if err := e.svc.match(ctx, idBySearch); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.item(t, idBySearch); r.Rating.Int64 != 12 || r.Source.String != "tmdb:US" {
-		t.Fatalf("new title with US first: %v %v (fixture 601 is PG-13 = 12 in the US)", r.Rating, r.Source)
+	if r := e.item(t, idBySearch); r.Rating.Int64 != 13 || r.Source.String != "tmdb:US" {
+		t.Fatalf("new title with US first: %v %v (fixture 601 is PG-13 = 13 in the US)", r.Rating, r.Source)
 	}
-	// The stored 12 from DE of film 550 matched again with US first (R = 16): raised, because a
-	// match may raise; then DE first again: never lowered (K-3).
+	// The stored 12 from DE of film 550 matched again with US first (R = 17): raised; then DE
+	// first again: lowered to the German 12 (F-16).
 	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'pending' WHERE id = ?`, idByTMDB)
 	if err := e.svc.match(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.item(t, idByTMDB); r.Rating.Int64 != 16 || r.Source.String != "tmdb:US" {
-		t.Fatalf("US first on the stored film: %v %v, want raised to 16", r.Rating, r.Source)
+	if r := e.item(t, idByTMDB); r.Rating.Int64 != 17 || r.Source.String != "tmdb:US" {
+		t.Fatalf("US first on the stored film: %v %v, want 17", r.Rating, r.Source)
 	}
 	m.RatingCountry = "DE"
 	if _, err := e.svc.UpdateMetadataSettings(ctx, m); err != nil {
@@ -247,8 +260,8 @@ func TestRatingCountryReadFirst(t *testing.T) {
 	if err := e.svc.match(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.item(t, idByTMDB); r.Rating.Int64 != 16 {
-		t.Fatalf("DE first again lowered the stored rating to %v (K-3)", r.Rating)
+	if r := e.item(t, idByTMDB); r.Rating.Int64 != 12 || r.Source.String != "tmdb:DE" {
+		t.Fatalf("DE first again: %v %v, want lowered to 12 from DE (F-16)", r.Rating, r.Source)
 	}
 }
 

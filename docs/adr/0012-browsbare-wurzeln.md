@@ -1,6 +1,7 @@
 # ADR 0012: Browsbare Wurzeln – der Ordner-Browser listet nur unterhalb freigegebener Ordner
 
-- Status: angenommen (25. Oktober 2026)
+- Status: angenommen (25. Oktober 2026); geändert durch Konzept 22 (15. November 2026, Vertrag 1.35.0):
+  die Wurzelliste und die Pfadprüfung vor dem ersten Konto sind entfernt (F-14)
 - Quelle: Konzept `docs/ideas/02-ordner-browser.md` (Entscheide E1 bis E15, Abschnitte 6 und 7),
   Eintrag vom 25. Oktober 2026 in `docs/planning/04-entscheidungen.md`, Issue #33;
   `docs/planning/03-plan-v1.md` Abschnitte 2.1, 3.4 und 3.8 Punkt 6
@@ -36,7 +37,7 @@ bleibt sie eine Grenze, und was passiert, wenn das Dateisystem nicht mehr antwor
 | Bestandsschutz | Pfadgleichheit mit einer bestehenden `library_roots`-Zeile, nie ein Präfix. Ein Update darf eine laufende Installation nicht anhalten; ein Präfix wäre toter Code, weil `Create` überlappende Pfade schon heute ablehnt. Bei **leerer** Wurzelliste lässt die Regel jeden gültigen Pfad durch: sonst könnte eine Installation mit Medien unter `/data` die Erstinstallation nicht mehr abschliessen |
 | Fehlerform | Unbekanntes `rootId` **und** `rel`, das nichts bezeichnet: **identische 404** `path_not_browsable`. Ein eigener Code für «existiert, aber ausserhalb» wäre ein Existenzorakel über den ganzen Container. Die Wurzelprüfung läuft lexikalisch und **vor** jedem Dateisystemzugriff, sonst trennte schon die Antwortzeit die beiden Fälle. Nicht lesbar oder kein Verzeichnis **innerhalb** einer Wurzel: 200 mit `problem` (harte Regel 2: nicht sichtbar heisst 404, nie 403) |
 | Methode | `browseServerPaths` ist ein **POST**, obwohl es liest. `requestLog` schreibt den Query-String als eigenes Attribut, und nur `path` läuft durch die Redaktion: Medienpfade mit Ordner- und Benutzernamen stünden sonst im Fehlerring des Dashboards, in der Browser-Historie und im `Referer`. Dazu greift bei POST die CSRF-Prüfung, bei GET nicht. Die beiden Wurzellisten bleiben GET: sie tragen keinen Pfad im Query-String |
-| Assistent | **Kein Blättern vor dem ersten Konto.** `listSetupRoots` liefert die konfigurierten Wurzeln, parameterlos, nichts darunter, ohne Dateisystemklasse. Eine Auflistung mit Pfadparameter wäre ein Aufzählungsprimitiv, und die Versuchsgrenze zählt je Client-Adresse, die ein falsch gesetztes `SLOUCHCAT_TRUSTED_PROXIES` den Aufrufer selbst wählen lässt. Die Operation zählt **nicht** gegen `AllowAttempt` — dieser Topf ist mit Anmeldung, Kontoanlage, PIN und Einladungen geteilt, und der Assistent holt die Liste bei jedem Laden; sie hat einen eigenen Topf von 60 Anfragen je Minute und Adresse. Und sie antwortet aus einer beim Start gefüllten Liste: die einzige unauthentifizierte Operation, die das Dateisystem berührt, soll es nicht je Anfrage tun |
+| Assistent | **Kein Blättern vor dem ersten Konto.** Seit Vertrag 1.35.0 (Konzept 22, F-14) gibt es vor dem Konto weder Wurzelliste noch Pfadprüfung: `listSetupRoots` und `checkSetupPath` sind entfernt, mit ihnen der eigene Topf von 60 Anfragen je Minute. Der geführte Assistent legt die Bibliotheken erst nach Schritt 2 als Eigentümer an und zeigt die Wurzeln über den Ordner-Browser (`listBrowseRoots`, `browseServerPaths`) wie die Verwaltung. *Bis 1.34:* `listSetupRoots` lieferte die konfigurierten Wurzeln parameterlos, mit eigenem Topf und aus einer beim Start gefüllten Liste |
 | Keine Zahlen | Mediendateien werden **nicht** gezählt, auch nicht später. Zählen heisst Gehen, und SMB und NFS sind in dieser Installation der Hauptfall, nicht die Ausnahme: Die Zahl wäre dort immer `–`, das Risiko bliebe. Die Rückmeldung liefern Dateisystem, Überwachungsart und die Marke «gehört zu Bibliothek X» |
 | Dateisystemklasse | Sie steht am **aufgelisteten Verzeichnis**, nicht an jeder Zeile, und wird über `paths.FSTypeAt` am Deskriptor des `*os.Root` geholt (`fstatfs`). `paths.DetectFS` ist pfadbasiert, folgt Symlinks und läuft am `*os.Root` vorbei; je Zeile wären das bis zu 500 blockierbare Aufrufe pro Anfrage, bei einer Symlink-Zeile einer auf ein Ziel **ausserhalb** der Wurzel |
 | Symlinks | **Anzeigen mit Vermerk, nicht betretbar, und zwar vom Server aus.** Ein `*os.Root` verweigert nur Symlinks, die die Wurzel verlassen, und folgt einem, der innerhalb bleibt; der Lister prüft darum die letzte Komponente des Pfads mit `Lstat` über den Deskriptor und antwortet 404. Im Dialog allein stünde der Entscheid im Client (harte Regel 12). Weglassen wäre ruhiger, aber wer den Ordner im Terminal sieht und im Dialog nicht findet, sucht den Fehler bei Slouchcat. Der Scanner folgt ihnen ebenfalls nicht, die Anzeige deckt sich also mit dem, was später in der Bibliothek landet |
@@ -63,10 +64,10 @@ genau nicht das Modell, das harte Regel 8 für eine lange Ordnerliste verlangt.
 - Wer eine Installation mit Medien ausserhalb von `/media` betreibt, muss
   `SLOUCHCAT_BROWSE_ROOTS` setzen, bevor er eine Bibliothek dort anlegen kann. Vorhandene
   Bibliotheken laufen unverändert weiter.
-- `checkSetupPath` hat einen eigenen Zweig `not_browsable`, der **vor** jedem `os.Stat` greift.
-  Ohne ihn verriete der Assistent einem Aufrufer ohne Konto, ob ein Pfad existiert und ob er eine
-  Datei ist.
-- **Der Einrichtungsassistent gilt mit** (von Marco am 25. Oktober 2026 so bestätigt). `RunSetup` und `checkSetupPath` prüfen dieselbe Regel,
+- Bis Vertrag 1.34 hatte `checkSetupPath` einen eigenen Zweig `not_browsable`, der **vor** jedem
+  `os.Stat` griff. Seit 1.35.0 ist die Prüfung vor dem Konto entfernt (Konzept 22, F-14); der
+  Eigentümer prüft Ordner im Assistenten mit dem Ordner-Browser.
+- **Der Einrichtungsassistent gilt mit** (von Marco am 25. Oktober 2026 so bestätigt). `RunSetup` (mit Bibliothek) und `createLibrary` prüfen dieselbe Regel,
   und die Vorgabeliste ist nicht leer (`/media`). Eine Installation mit Medien unter `/data` und
   ungesetzter Variable kann die Einrichtung darum **nicht** abschliessen; sie bekommt
   `not_browsable` mit dem Hinweis auf `SLOUCHCAT_BROWSE_ROOTS`. Die Begründung zu E14 im Konzept

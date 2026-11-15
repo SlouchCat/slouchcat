@@ -482,7 +482,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // time window of its own) fetches the person and collection images; people.images_backfill is
 // its schedule type without a handler, off by default (people_images.go, ADR 0026).
 // people.details (an event type with a time window of its own) fetches the facts of the person
-// page from TMDB (people_details.go, concept 21 P-8).
+// page from TMDB (people_details.go, concept 21 P-8). metadata.ratings_reread (an event type,
+// ratings_reread.go, concept 22 section 4.11) reads the ratings anew once after the update and
+// after every change of the rating country.
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -495,6 +497,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Seed:  jobs.SeedOff,
 	})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
+	r.Register(jobs.Type{Name: JobRatingsReread, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleRatingsReread})
 	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})
 	r.Register(jobs.Type{Name: JobTrailerFind, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: trailerPriority, Handler: s.handleTrailerFind})
 	r.Register(jobs.Type{Name: JobPodcastFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: podcastFetchPriority, Handler: s.handlePodcastFetch})

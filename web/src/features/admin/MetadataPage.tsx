@@ -65,7 +65,9 @@ import {
   updateLibraryMetadata,
   updateMetadataSettings,
 } from './queries';
+import { ratingCountryOptions, ratingStepsText } from '../shared/choices';
 import styles from './metadata/Metadata.module.css';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/metadata');
 
@@ -82,8 +84,6 @@ type Switchable = (typeof SWITCHABLE)[number];
 
 const POSTER_WIDTHS = [0, 500, 1000, 1500, 2000] as const;
 const BACKDROP_WIDTHS = [0, 1280, 1920, 3840] as const;
-const COUNTRIES = ['DE', 'AT', 'CH', 'GB', 'US'] as const;
-type Country = (typeof COUNTRIES)[number];
 
 /** The YouTube quota: 10'000 units a day, a search costs 100 (ADR 0006). */
 const YOUTUBE_SEARCHES_PER_DAY = 100;
@@ -165,38 +165,29 @@ const SERVER_FIELDS: Record<Exclude<Area, 'apply'>, (keyof ServerValues)[]> = {
 function useLanguageName(): (code: string) => string {
   const { i18n } = useTranslation();
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   return (code: string) => (code ? (names.of(code) ?? code) : '');
 }
 
 /**
- * The rule of a text language list (MET-2, as the server checks it in
- * `metadata/settings.go`): the default needs German, a library German or English.
- */
-const satisfiesDefault = (list: readonly string[]) => list.includes('de');
-const satisfiesLibrary = (list: readonly string[]) => list.includes('de') || list.includes('en');
-
-/**
  * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
  * Sprache» … each with a select of every known language; picking one that sits on another place
- * swaps the two. «Weitere Sprache» appends a place, «×» removes one. `satisfies` is the rule of
- * the list: choices and removals that would break it are off; a chain offers "" (no text).
+ * swaps the two. «Weitere Sprache» appends a place, «×» removes one, except the last one; a chain
+ * offers "" (no text). No list has to hold German or English (concept 22 F-7, ADR 0033).
  */
-function LanguageRanks({
+export function LanguageRanks({
   value,
   onChange,
   known,
   allowNoText,
-  satisfies,
   disabled,
 }: {
   value: string[];
   onChange: (value: string[]) => void;
   known: readonly string[];
   allowNoText?: boolean;
-  satisfies?: (list: readonly string[]) => boolean;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -214,7 +205,6 @@ function LanguageRanks({
       onChange={onChange}
       rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
       addLabel={t('admin.metadata.languages.more')}
-      isAllowed={satisfies}
       isDisabled={disabled}
     />
   );
@@ -354,7 +344,7 @@ function ApplySection({
             ? t('admin.metadata.apply.lastRun', {
                 when: formatDateTime(
                   lastRun.finishedAt ?? lastRun.startedAt ?? lastRun.updatedAt,
-                  i18n.language,
+                  intlLocale(i18n.language),
                 ),
                 state: t(`admin.jobs.runs.tab.${lastRun.state}`),
               })
@@ -451,12 +441,14 @@ export function MetadataPage() {
   /** The changed scopes in save order: the default first, then the libraries in list order. */
   const dirtyScopes = scopeIds.filter((id) => drafts.isDirty(id));
   const listOf = (names: string[]) =>
-    new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names);
+    new Intl.ListFormat(intlLocale(i18n.language), { type: 'conjunction' }).format(names);
 
   const [saving, setSaving] = useState(false);
   const [savedMessages, setSavedMessages] = useState<{ scope: string; text: string }[]>([]);
   const [failure, setFailure] = useState<{ scope: string; error: unknown } | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // A new rating country reads every rating anew (concept 22 F-16): ask first when there are titles.
+  const [countryConfirmOpen, setCountryConfirmOpen] = useState(false);
   // The last deviating lists of a library whose «abweichend» was switched off, so switching it on
   // again brings them back (S-13).
   const [parked, setParked] = useState<
@@ -540,6 +532,10 @@ export function MetadataPage() {
   const serverDraft = drafts.valueOf(SERVER) as ServerValues | undefined;
   const libraryDraft = inLibrary ? (drafts.valueOf(scope) as LibraryValues | undefined) : undefined;
   const known = settings.data?.knownLanguages ?? [];
+  const ratingCountries = useMemo(
+    () => ratingCountryOptions(t, intlLocale(i18n.language), settings.data?.ratingSystems ?? []),
+    [t, i18n.language, settings.data?.ratingSystems],
+  );
 
   const setServer = (change: (values: ServerValues) => ServerValues) =>
     drafts.set(SERVER, (values) => change(values as ServerValues));
@@ -651,7 +647,9 @@ export function MetadataPage() {
       summary = on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
     }
     if (id === 'rating' && serverDraft)
-      summary = t(`admin.metadata.rating.countries.${serverDraft.ratingCountry as Country}`);
+      summary =
+        ratingCountries.find((option) => option.value === serverDraft.ratingCountry)?.label ??
+        serverDraft.ratingCountry;
     if (summary !== undefined && inLibrary) {
       const deviates = id === 'languages' ? textsEditable : imagesEditable;
       summary = t('admin.metadata.areas.scoped', {
@@ -737,7 +735,6 @@ export function MetadataPage() {
             value={textLangs}
             onChange={setTextLangs}
             known={known}
-            satisfies={inLibrary ? satisfiesLibrary : satisfiesDefault}
             disabled={!textsEditable}
           />
         </SettingRow>
@@ -923,18 +920,25 @@ export function MetadataPage() {
       </AreaPanel>
     );
   } else if (area === 'rating' && serverDraft) {
+    const chosen = settings.data?.ratingSystems.find(
+      (rs) => rs.country === serverDraft.ratingCountry,
+    );
     detail = (
       <AreaPanel title={t('admin.metadata.rating.title')} intro={t('admin.metadata.rating.intro')}>
-        <RadioGroup
-          name="ratingCountry"
-          label={t('admin.metadata.rating.country')}
-          value={serverDraft.ratingCountry}
-          onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
-          options={COUNTRIES.map((country: Country) => ({
-            value: country,
-            label: t(`admin.metadata.rating.countries.${country}`),
-          }))}
-        />
+        <SettingRow label={t('admin.metadata.rating.country')}>
+          <SelectField
+            label={t('admin.metadata.rating.country')}
+            hideLabel
+            value={serverDraft.ratingCountry}
+            onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
+            options={ratingCountries}
+          />
+        </SettingRow>
+        {chosen && (
+          <Text tone="secondary">
+            {t('admin.metadata.rating.steps', { steps: ratingStepsText(t, chosen) })}
+          </Text>
+        )}
         {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
         <Text tone="secondary" variant="caption">
           {t('admin.metadata.rating.hint')}
@@ -1032,7 +1036,17 @@ export function MetadataPage() {
           <SaveBar
             dirty={drafts.dirty}
             saving={saving}
-            onSave={() => void onSave()}
+            onSave={() => {
+              const country = drafts.valueOf(SERVER) as ServerValues | undefined;
+              if (
+                settings.data &&
+                settings.data.affectedTitles > 0 &&
+                country &&
+                country.ratingCountry !== settings.data.ratingCountry
+              )
+                setCountryConfirmOpen(true);
+              else void onSave();
+            }}
             onDiscard={() => setDiscardOpen(true)}
           />
           {failure && errors ? (
@@ -1060,6 +1074,16 @@ export function MetadataPage() {
             tone="danger"
             defaultFocus="cancel"
             onConfirm={onDiscard}
+          />
+          <ConfirmDialog
+            isOpen={countryConfirmOpen}
+            onOpenChange={setCountryConfirmOpen}
+            title={t('admin.metadata.rating.confirm.title')}
+            body={t('admin.metadata.rating.confirm.body')}
+            confirmLabel={t('admin.metadata.rating.confirm.confirm')}
+            cancelLabel={t('common.cancel')}
+            defaultFocus="cancel"
+            onConfirm={() => void onSave()}
           />
           <ConfirmDialog {...unsaved.dialog} />
         </>

@@ -79,6 +79,12 @@ func (s *Service) deliver(ctx context.Context, j *jobs.Job) error {
 		return err
 	}
 	m := message{Subject: d.Subject, Body: d.Body, Link: d.Link.String}
+	if d.Channel == model.ChannelEmail {
+		// Best effort: a mail without lang is still a mail.
+		if lang, err := s.write.DeliveryLanguage(ctx, d.ID); err == nil {
+			m.Lang = lang
+		}
+	}
 	if row.Enabled != 1 {
 		err = errChannelOff
 	} else {
@@ -233,7 +239,7 @@ func (s *Service) TestChannel(ctx context.Context, session model.Session, channe
 		}
 		lang = acc.Language
 	}
-	m := message{Subject: text(lang, "test_subject"), Body: text(lang, "test_body", text(lang, "channel_"+channel)), Link: "/"}
+	m := message{Subject: text(lang, "test_subject"), Body: text(lang, "test_body", vars{"channel": text(lang, "channel_"+channel)}), Link: "/", Lang: lang}
 	err = s.sendOn(ctx, session.Account.ID, row, m, pushTestTTL)
 	switch {
 	case err == nil:
@@ -270,7 +276,7 @@ func (s *Service) SendTestEmail(ctx context.Context, to string) error {
 	if to == "" {
 		return &model.SendError{Err: model.ErrEmailSendFailed, Detail: "no recipient"}
 	}
-	m := message{Subject: text(lang, "test_subject"), Body: text(lang, "test_body", text(lang, "channel_email")), Link: "/"}
+	m := message{Subject: text(lang, "test_subject"), Body: text(lang, "test_body", vars{"channel": text(lang, "channel_email")}), Link: "/", Lang: lang}
 	plain, html := emailBodies(m, srv.publicURL)
 	if err := s.mailer.Mail(ctx, srv.smtp, to, m.Subject, plain, html); err != nil {
 		if ctx.Err() != nil {

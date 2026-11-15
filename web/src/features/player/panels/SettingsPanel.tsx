@@ -5,6 +5,7 @@ import type { SubtitleStyle } from '../useSubtitleStyle';
 import styles from './SettingsPanel.module.css';
 import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
+import { intlLocale } from '@/i18n';
 
 /** The pages of the gear panel (11.2). */
 export type SettingsPage =
@@ -85,7 +86,9 @@ export function SettingsPanel({
   const { t, i18n } = useTranslation();
   const rateText = (value: number) =>
     t('player.settings.rateValue', {
-      rate: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value),
+      rate: new Intl.NumberFormat(intlLocale(i18n.language), { maximumFractionDigits: 2 }).format(
+        value,
+      ),
     });
   const labelOf = (choice: SettingsChoice | undefined) =>
     choice?.options.find((option) => option.id === choice.selectedId)?.label;

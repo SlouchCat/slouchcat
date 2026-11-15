@@ -10,6 +10,7 @@ import { AriaButton, ImageTile, RankHint, RankSelect, rankTo } from '@/ui/aria';
 import { TitleSearch } from '../CurationParts';
 import { adminCollectionQuery, setCollectionItems } from '../queries';
 import styles from './Collections.module.css';
+import { intlLocale } from '@/i18n';
 
 /** A member as the fold-out shows it: from the stored list, or a hit picked from the search. */
 export type Member = Pick<AdminCollectionItem, 'itemId' | 'kind' | 'title' | 'year' | 'posterUrl'>;
@@ -91,7 +92,7 @@ export function ManualMembers({
   onRemove: (collection: AdminCollection) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const headingId = useId();
   const hintId = useId();
   const searchRef = useRef<HTMLDivElement>(null);

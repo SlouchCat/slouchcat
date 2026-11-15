@@ -87,7 +87,7 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 		switch {
 		case !model.AudioLibraryKind(lib.Kind):
 			verr = verr.Add("defaultRating", "not_allowed")
-		case !validRating(upd.DefaultRating):
+		case !validRating(s.ratingSystem(ctx), upd.DefaultRating, keptRating(lib.DefaultRating)...):
 			verr = verr.Add("defaultRating", "invalid_value")
 		default:
 			rating = sql.NullInt64{Int64: int64(*upd.DefaultRating), Valid: true}

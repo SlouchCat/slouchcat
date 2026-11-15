@@ -25,6 +25,7 @@ import {
 import { picksQuery, picksSettingsQuery, removeUserPick, updatePicksSettings } from '../queries';
 import { pickColumns } from './columns';
 import styles from './Picks.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * «User-Empfehlungen» (concept 18 part B, 14.7, ADR 0028): how long a title stays after its newest
@@ -116,7 +117,7 @@ function PicksContent() {
   };
 
   const columns = useMemo(
-    () => pickColumns(t, i18n.language, onRemove),
+    () => pickColumns(t, intlLocale(i18n.language), onRemove),
     [t, i18n.language, onRemove],
   );
   const list = picks.data ?? [];
@@ -159,7 +160,7 @@ function PicksContent() {
           picks.data
             ? t('admin.picks.count', {
                 count: list.length,
-                number: new Intl.NumberFormat(i18n.language).format(list.length),
+                number: new Intl.NumberFormat(intlLocale(i18n.language)).format(list.length),
               })
             : undefined
         }

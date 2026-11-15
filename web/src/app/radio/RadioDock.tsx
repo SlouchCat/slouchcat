@@ -20,6 +20,7 @@ import {
   type RadioNowEntry,
 } from './queries';
 import { useRadio, useRadioOffset } from './useRadio';
+import { intlLocale } from '@/i18n';
 
 // The radio's controls in the app shell (AppLayout): the mini player while a station is chosen
 // and, opened from it, «Jetzt läuft». The dialog and the volume build on react-aria and load on
@@ -178,7 +179,10 @@ export function RadioDock() {
   const longPause = radio.longPause
     ? t('radio.player.longPause', { minutes: windowMinutes })
     : undefined;
-  const time = new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' });
+  const time = new Intl.DateTimeFormat(intlLocale(i18n.language), {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   const titleLine = entry
     ? entry.artist && entry.title
       ? t('radio.player.artistTitle', { artist: entry.artist, title: entry.title })
@@ -252,7 +256,7 @@ export function RadioDock() {
             stationName={station.name}
             logoUrl={logo}
             coverUrl={coverOf(entry, 'w512')}
-            place={stationCaption(t, i18n.language, station)}
+            place={stationCaption(t, intlLocale(i18n.language), station)}
             title={entry ? (entry.title ?? entry.text) : t('radio.player.programme')}
             subtitle={entry ? (entry.title ? entry.artist : undefined) : t('radio.player.noTitles')}
             toggle={toggle}
@@ -293,7 +297,7 @@ export function RadioDock() {
                 : undefined
             }
             favorite={notice ? undefined : favoriteToggle}
-            facts={facts(t, i18n.language, station)}
+            facts={facts(t, intlLocale(i18n.language), station)}
             hint={t('radio.player.serverHint')}
             volume={volume}
           />

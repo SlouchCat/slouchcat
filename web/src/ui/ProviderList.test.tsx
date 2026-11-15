@@ -71,8 +71,29 @@ describe('ProviderList', () => {
     expect(screen.getByText('erkennt Titel')).toBeVisible();
     expect(screen.getByText('füllt auf')).toBeVisible();
     expect(screen.getByText(/kein Schlüssel hinterlegt/)).toBeVisible();
+    // AniList lacks German, the first language the other providers deliver (concept 22 F-7).
     expect(screen.getByText(/liefert kein Deutsch/)).toBeVisible();
     expect(screen.getByText(/nur Auffüller/)).toBeVisible();
+  });
+
+  it('names only the languages the providers of this content deliver (concept 22 F-7)', () => {
+    const french: MetadataProviderInfo[] = [
+      { ...infos[0]!, languages: ['fr', 'en'] },
+      { ...infos[1]!, languages: ['fr', 'en'] },
+      { ...infos[2]!, languages: ['en'] },
+      ...infos.slice(3),
+    ];
+    const { unmount } = render(
+      <ProviderList content="movie" value={['tmdb']} onChange={() => undefined} infos={french} />,
+    );
+    expect(screen.getByText(/liefert kein Französisch/)).toBeVisible();
+    expect(screen.queryByText(/liefert kein Deutsch/)).toBeNull();
+    unmount();
+    // A provider without text languages, and the others of another content, name nothing.
+    render(
+      <ProviderList content="audiobook" value={[]} onChange={() => undefined} infos={french} />,
+    );
+    expect(screen.queryByText(/liefert kein/)).toBeNull();
   });
 
   it('ticks keep the shown order, the buttons and arrow keys swap rows, the focus stays', async () => {

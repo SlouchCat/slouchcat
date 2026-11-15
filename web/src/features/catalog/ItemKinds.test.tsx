@@ -626,7 +626,7 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
       [`GET /items/${audioIds.book}`]: () => json({ ...audiobookDetail, seriesIndex: 2.5 }),
     });
     renderApp(`/items/${audioIds.book}`);
-    expect(await screen.findByText('Slouchcat Test Audio Series · Band 2,5')).toBeVisible();
+    expect(await screen.findByText('Slouchcat Test Audio Series · Band 2.5')).toBeVisible();
   });
 
   it('podcast: episodes newest first with date, duration and progress; the rest without «Mehr laden»; no play', async () => {

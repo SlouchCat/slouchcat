@@ -12,6 +12,7 @@ import {
 import { AriaButton } from '@/ui/aria';
 import { languageName } from '../labels';
 import styles from './SubtitleStyleOptions.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * «Als Standard für dieses Profil» below the sound panel's list (concept 13 11.4): puts the
@@ -39,7 +40,7 @@ export function AudioDefault({ language }: { language: string | undefined }) {
     onSuccess: ({ stored }) => adoptPlaybackPrefs(queryClient, stored),
   });
   if (!profile || !language || !PLAYBACK_LANGUAGES.includes(language)) return null;
-  const name = languageName(language, i18n.language) ?? language;
+  const name = languageName(language, intlLocale(i18n.language)) ?? language;
   const isFirst = profile.audioLanguages[0] === language;
   return (
     <div className={styles.footer}>

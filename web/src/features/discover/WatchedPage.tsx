@@ -26,6 +26,7 @@ import { PagedItemGrid } from './PagedItemGrid';
 import { watchedSource } from './queries';
 import { validateWatchedParams, WATCHED_CONTENTS, type WatchedParams } from './watchedParams';
 import styles from './Discover.module.css';
+import { intlLocale } from '@/i18n';
 
 const GRID_KEY = 'watched-item';
 const BACK_KEY = 'watched-back';
@@ -88,7 +89,7 @@ export function WatchedPage() {
   const describe = (item: ItemRef): CardFacts => {
     const entry = entries.get(item.id);
     if (!entry) return {};
-    const date = formatDayMonth(entry.lastWatchedAt, i18n.language);
+    const date = formatDayMonth(entry.lastWatchedAt, intlLocale(i18n.language));
     if (entry.episodeCount === undefined) {
       return {
         caption: t(item.kind === 'audiobook' ? 'watched.page.heardOn' : 'watched.page.watchedOn', {

@@ -35,6 +35,7 @@ import {
   podcastQuery,
   type PodcastEpisodeFilter,
 } from './queries';
+import { intlLocale } from '@/i18n';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/podcasts/$podcastId');
 
@@ -157,7 +158,7 @@ export function episodeMeta(
 function PodcastView({ podcastId }: { podcastId: string }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const shownRef = useRef<HTMLParagraphElement>(null);
   const [message, say] = useStatusMessage();
@@ -288,7 +289,7 @@ function PodcastView({ podcastId }: { podcastId: string }) {
       cell: (e) =>
         e.publishedAt ? (
           <time className={styles.nowrap} dateTime={e.publishedAt}>
-            {formatDate(e.publishedAt, i18n.language)}
+            {formatDate(e.publishedAt, intlLocale(i18n.language))}
           </time>
         ) : (
           t('admin.podcasts.noError')
@@ -300,7 +301,7 @@ function PodcastView({ podcastId }: { podcastId: string }) {
       rowHeader: true,
       cell: (e) => {
         const share = downloadShare(e.progressBytes, e.totalBytes);
-        const meta = episodeMeta(t, i18n.language, e, paused);
+        const meta = episodeMeta(t, intlLocale(i18n.language), e, paused);
         return (
           <span className={styles.stack}>
             <span>{e.title}</span>
@@ -371,13 +372,13 @@ function PodcastView({ podcastId }: { podcastId: string }) {
         {
           key: 'bytes',
           label: t('admin.podcasts.page.bytes'),
-          value: formatBytes(p.storedBytes, i18n.language),
+          value: formatBytes(p.storedBytes, intlLocale(i18n.language)),
         },
         {
           key: 'newest',
           label: t('admin.podcasts.page.newest'),
           value: p.latestEpisodeAt
-            ? formatDate(p.latestEpisodeAt, i18n.language)
+            ? formatDate(p.latestEpisodeAt, intlLocale(i18n.language))
             : t('admin.podcasts.noError'),
         },
       ]}
@@ -485,7 +486,7 @@ function PodcastView({ podcastId }: { podcastId: string }) {
                         <dt>{t('admin.podcasts.columns.lastFetch')}</dt>
                         <dd>
                           {p.lastCheckedAt
-                            ? formatDateTime(p.lastCheckedAt, i18n.language)
+                            ? formatDateTime(p.lastCheckedAt, intlLocale(i18n.language))
                             : t('admin.podcasts.never')}
                         </dd>
                       </div>

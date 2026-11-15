@@ -11,13 +11,13 @@ import { api, isApiError, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { adoptSession } from '@/app/session';
-import { currentLanguage, isLanguage, type Language } from '@/i18n';
+import { currentLanguage, intlLocale, isLanguage, type Language } from '@/i18n';
 import { formatDateTime } from '@/lib/format';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, Logo, Notice, Page, Panel, Skeleton, Stack, Text } from '@/ui';
 import { AriaButton, Form, RadioGroup, TextField } from '@/ui/aria';
-import { languageOptions } from '../shared/choices';
+import { languageOptions, ratingLabel } from '../shared/choices';
 import styles from './InvitePage.module.css';
 
 const route = getRouteApi('/invite/$token');
@@ -51,7 +51,9 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
         <div className={styles.fact}>
           <dt>{t('invite.rating')}</dt>
           <dd>
-            <Chip tone="outline">{t('rating.fsk', { age: invitation.maxRating })}</Chip>
+            <Chip tone="outline">
+              {ratingLabel(t, invitation.maxRating, invitation.ratingSystem)}
+            </Chip>
           </dd>
         </div>
         <div className={styles.fact}>
@@ -70,7 +72,9 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
         </div>
       </dl>
       <Text tone="muted" variant="caption">
-        {t('invite.expires', { date: formatDateTime(invitation.expiresAt, i18n.language) })}
+        {t('invite.expires', {
+          date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),
+        })}
       </Text>
     </Panel>
   );
@@ -146,7 +150,7 @@ function AcceptForm({ token, onGone }: { token: string; onGone: () => void }) {
           label={t('invite.form.language')}
           value={language}
           onChange={(value) => isLanguage(value) && setLanguage(value)}
-          options={languageOptions(t)}
+          options={languageOptions()}
         />
         <AriaButton type="submit" variant="primary" size="lg" block isPending={accept.isPending}>
           {accept.isPending ? t('invite.form.submitting') : t('invite.form.submit')}

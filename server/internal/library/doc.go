@@ -153,8 +153,8 @@
 // Package browse (idea 02) shows the administrator the directories a library folder could be,
 // and it must show what a scan would see. It therefore takes four rules from here and keeps none
 // of its own: Ignored (hidden entries, NAS metadata folders, disc structures), WatchMode (the
-// change detection and the warning of a file system class), PathProblem and ProblemFromError
-// (why a folder is not usable), and ValidateNewRoot with ErrNotBrowsable (a new library folder
+// change detection and the warning of a file system class), ProblemFromError (why a folder is
+// not usable), and ValidateNewRoot with ErrNotBrowsable (a new library folder
 // lies below a browsable root, E14). A second copy of any of them would let the dialog promise
 // something the scan then does differently. Those four, package paths, package model and the
 // standard library are all that browse may import; server/.golangci.yml holds it to that list.

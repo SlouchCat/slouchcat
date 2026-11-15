@@ -49,6 +49,7 @@ import {
   relinkQuery,
   removedQuery,
 } from './queries';
+import { intlLocale } from '@/i18n';
 
 /** The dialog of the page besides its confirmation: assignment or rating of the selection. */
 type ActionDialog = { type: 'match'; issue: Issue } | { type: 'rating'; itemIds: string[] } | null;
@@ -82,7 +83,7 @@ function MaintenanceContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
 
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, issueKinds[0], { normalise: true });

@@ -4,7 +4,8 @@ import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
+import { intlLocale, languageName } from '@/i18n';
 import { Chip, Notice, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
 import {
   ActionMenu,
@@ -21,6 +22,7 @@ import { ProfileForm } from './ProfileForm';
 import { manageProfilesQuery } from './queries';
 import { WatchReport } from './WatchReport';
 import styles from './ProfileList.module.css';
+import { ratingLabel } from '../shared/choices';
 
 type Editing = Profile | 'new' | null;
 
@@ -69,7 +71,8 @@ export function ProfileList({
   onChanged,
   children,
 }: ProfileListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const session = useActiveSession();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing>(null);
@@ -216,20 +219,20 @@ export function ProfileList({
                       )}
                       <Chip tone="outline">
                         {profile.maxRating > session.account.maxRating
-                          ? t('profiles.settings.ratingAboveAccount', {
-                              age: profile.maxRating,
-                              max: session.account.maxRating,
+                          ? t('profiles.settings.ratingAboveCeiling', {
+                              rating: ratingLabel(t, profile.maxRating, ratingSystem),
+                              max: ratingLabel(t, session.account.maxRating, ratingSystem),
                             })
-                          : t('rating.fsk', { age: profile.maxRating })}
+                          : ratingLabel(t, profile.maxRating, ratingSystem)}
                       </Chip>
-                      <Chip tone="info">{t(`language.${profile.language}`)}</Chip>
+                      <Chip tone="info">{languageName(profile.language, i18n.language)}</Chip>
                       {profile.metadataLanguage && (
                         <Chip tone="outline">
                           {t('profiles.settings.metadataLanguageChip', {
                             language:
-                              new Intl.DisplayNames([profile.language], { type: 'language' }).of(
-                                profile.metadataLanguage,
-                              ) ?? profile.metadataLanguage,
+                              new Intl.DisplayNames([intlLocale(i18n.language)], {
+                                type: 'language',
+                              }).of(profile.metadataLanguage) ?? profile.metadataLanguage,
                           })}
                         </Chip>
                       )}

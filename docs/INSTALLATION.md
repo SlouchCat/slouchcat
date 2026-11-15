@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -49,7 +49,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.33.0
+SLOUCHCAT_VERSION=1.36.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -121,7 +121,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -144,7 +144,7 @@ sein. Alle anderen Medien bleiben nur lesbar. Dafür gibt es eine Zusatzdatei, d
 für den Grafikchip dazunimmst:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/compose.podcasts.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/compose.podcasts.yaml
 ```
 
 In `.env` trägst du drei Zeilen ein (mit Grafikchip kommt `compose.podcasts.yaml` hinten an deine
@@ -251,24 +251,60 @@ auch nicht in einem schreibbaren Ordner.
 
 ## 5. Einrichten
 
-Beim ersten Aufruf führt dich ein Assistent durch vier Schritte:
+Beim ersten Aufruf führt dich ein Assistent durch neun Schritte. Links stehen alle Schritte in einer
+Leiste (auf dem Handy hinter dem Knopf «Einrichtung»), ein Haken zeigt, was erledigt ist. Pflicht sind
+nur Sprache, Konto und mindestens eine Bibliothek; alles Übrige kannst du **überspringen**, dann gilt
+die Empfehlung.
 
-1. **Konto** — deine E-Mail-Adresse und ein Passwort. Dieses Konto ist der Hauptbenutzer und darf alles.
-2. **Bibliothek** — die Art (Video, Hörbücher, Podcasts) und ihre Ordner. Jeder Ordner trägt seinen
-   **Inhalt** (Filme oder Serien; eine Video-Bibliothek darf beide mischen) und seine
-   **Metadatenquellen** (TMDB, bei Serien auch TVDB, dazu AniList für Anime; die erste Quelle
-   erkennt den Titel, die weiteren füllen auf). Mit «Weiteren Ordner hinzufügen» legst du mehrere
-   Ordner in einem Zug an. Der Pfad ist der Pfad **im Container**, also `/media/Filme`, nicht
-   `/mnt/nas/medien/Filme`.
-3. **Metadaten von TMDB** — der Lesetoken. Der Assistent prüft ihn sofort. Du darfst ihn weglassen,
-   solltest es aber nicht: ohne bekannte Altersfreigabe ist jeder Titel für Profile unter 18 gesperrt.
-4. **Grafikchip und Dateisystem** — nur eine Anzeige dessen, was der Server vorgefunden hat.
+1. **Sprache** — Deutsch (Schweiz), Deutsch (Deutschland) oder Englisch. Die Oberfläche wechselt
+   sofort; die Vorschau zeigt ein Datum und eine Zahl in dieser Sprache.
+2. **Konto** — deine E-Mail-Adresse, ein Passwort (mindestens 10 Zeichen) sowie Name und Farbe
+   deines ersten Profils. Dieses Konto ist der Eigentümer und darf alles. Ab hier bist du angemeldet.
+3. **Region** — das Land, nach welchem Land die Altersfreigaben gelten (Deutschland, Österreich,
+   Schweiz, Grossbritannien, USA) und in welchen Sprachen Slouchcat Titel und Beschreibungen lädt.
+   Keine Sprache ist Pflicht. Der Schalter «… ins Radio-Angebot aufnehmen» nimmt das Land ohne Sender
+   ins Webradio auf; die Sender markierst du später unter Verwaltung › Radio. Die **Zeitzone** des
+   Servers siehst du hier nur: Sie steht als `TZ` in `.env` und ist der eine Wert, der nur dort
+   geht. Weicht sie von der deines Browsers ab, zeigt der Assistent die passende Zeile für `.env`;
+   sie gilt nach einem Neustart des Containers.
+4. **Dienste** — die Schlüssel für TMDB, TheTVDB, Fanart.tv, YouTube, Trakt und Google Books, die
+   E-Mail mit Testmail, Web-Push für dieses Gerät und der Telegram-Bot. Empfohlen sind TMDB und
+   E-Mail: Ohne TMDB zeigt Slouchcat nur Dateinamen, und ohne bekannte Altersfreigabe ist jeder Titel
+   für Profile unter 18 gesperrt. Bei jedem Dienst steht der Link, wo du den Schlüssel beantragst.
+   «Prüfen» fragt den Dienst; einen abgelehnten Schlüssel bietet «Weiter» zum Entfernen an. Werte aus
+   `.env` erscheinen mit «aus .env» und lassen sich hier nicht ändern.
+5. **Wiedergabe** — was der Server im Container vorfindet, und womit er Videos umwandelt:
+   «Automatisch (empfohlen)», jeder Grafikchip, der die Probe beim Start bestanden hat, oder «Nur
+   Prozessor». Ein Chip, dessen Probe scheiterte, steht ausgegraut mit dem Grund daneben. Die Wahl
+   gilt nach einem Neustart; Slouchcat startet beim Abschliessen einmal selbst neu, wenn sie vom
+   laufenden Chip abweicht. **`SLOUCHCAT_HW` in `.env` hat Vorrang** vor dieser Wahl (dann steht «aus
+   .env» da). Geht ein gewählter Chip später nicht mehr, etwa nach einem Treiberwechsel, nimmt
+   Slouchcat die automatische Wahl und meldet es auf der Übersicht. Dazu der Schalter «Vorschau beim
+   Spulen» für die neuen Video-Bibliotheken des nächsten Schritts.
+6. **Bibliotheken** — «Bibliothek hinzufügen» öffnet denselben Dialog wie unter Verwaltung ›
+   Bibliotheken: Art (Video, Hörbücher, Podcasts) und Ordner. Jeder Ordner trägt seinen **Inhalt**
+   (Filme oder Serien; eine Video-Bibliothek darf beide mischen) und seine **Metadatenquellen**. Den
+   Ordner wählst du mit «Durchsuchen …» unter den freigegebenen Wurzeln (`SLOUCHCAT_BROWSE_ROOTS`).
+   Der Pfad ist der Pfad **im Container**, also `/media/Filme`, nicht `/mnt/nas/medien/Filme`. Der
+   erste Scan beginnt sofort.
+7. **Haushalt** — weitere Profile mit Name, Altersstufe, Farbe und auf Wunsch einer PIN. Gäste mit
+   eigenem Konto lädst du später unter Verwaltung › Konten ein.
+8. **Zugriff** — die öffentliche Adresse (für Einladungen, E-Mails und Push; die Adresse, unter der
+   du gerade zugreifst, steht als Vorschlag da) und die tägliche Suche nach neuen Versionen.
+   Slouchcat sendet keine Nutzungsdaten.
+9. **Zusammenfassung** — je Schritt, was gilt, mit «Ändern». «Einrichtung abschliessen» zeigt danach
+   den ersten Scan jeder Bibliothek und den Weg zur Startseite.
 
-Danach beginnt der erste Durchlauf. Bei einer grossen Sammlung dauert er Stunden; die Übersicht zeigt
-den Fortschritt, und du kannst ihn jederzeit unterbrechen. Titel erscheinen, sobald sie eingelesen
-sind — du musst nicht auf das Ende warten.
+**Abbrechen und weitermachen.** Was ein Schritt gespeichert hat, bleibt. Bis die Einrichtung
+abgeschlossen ist, führt dich jede Anmeldung zum ersten offenen Schritt. «Später fortsetzen» in der
+Leiste bringt dich für diese Anmeldung zur Startseite; die Übersicht der Verwaltung zeigt dann ein Band
+«Einrichtung fortsetzen». Nur der Eigentümer sieht den Assistenten.
 
-Profile, Altersfreigaben, Gäste und Einladungen legst du danach in der Verwaltung an.
+Der erste Durchlauf dauert bei einer grossen Sammlung Stunden; die Übersicht zeigt den Fortschritt,
+und du kannst ihn jederzeit unterbrechen. Titel erscheinen, sobald sie eingelesen sind — du musst
+nicht auf das Ende warten.
+
+Eine Installation, die schon vor Version 1.35 eingerichtet war, sieht den Assistenten nicht.
 
 ## 6. Von aussen erreichbar machen (HTTPS)
 
@@ -280,8 +316,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:
@@ -384,7 +420,7 @@ Wer das nicht will, lässt den Begleiter weg; alles andere bleibt gleich.
 
 ```bash
 cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.33.0/deploy/compose.updater.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.36.0/deploy/compose.updater.yaml
 mkdir -p updater
 echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
 ```

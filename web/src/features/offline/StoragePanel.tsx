@@ -6,6 +6,7 @@ import { StorageMeter, type StoragePart } from '@/ui/aria';
 import { storageInfo, type StorageInfo } from './storage';
 import { isAppleStorage } from './support';
 import styles from './OfflinePages.module.css';
+import { intlLocale } from '@/i18n';
 
 interface StoragePanelProps {
   /** Bytes the downloads of this device take (all profiles: the storage is the device's). */
@@ -30,7 +31,7 @@ export function StoragePanel({ downloadBytes }: StoragePanelProps) {
     };
   }, [downloadBytes]);
 
-  const bytes = (value: number) => formatBytes(value, i18n.language);
+  const bytes = (value: number) => formatBytes(value, intlLocale(i18n.language));
   const usage = info?.usage ?? null;
   const quota = info?.quota ?? null;
   const parts: StoragePart[] = [

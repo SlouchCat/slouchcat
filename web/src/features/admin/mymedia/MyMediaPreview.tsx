@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
 import { contentOf, entryName, type MyMediaRow } from './entries';
 import styles from './MyMedia.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * The tab «Vorschau» (concept 21 P-11, O-21): both places with the draft, saved or not, each
@@ -11,7 +12,7 @@ import styles from './MyMedia.module.css';
  */
 export function MyMediaPreview({ rows }: { rows: readonly MyMediaRow[] }) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const sidebar = rows.filter((row) => !row.hideSidebar);
   const home = rows.filter((row) => !row.hideHome);
   return (

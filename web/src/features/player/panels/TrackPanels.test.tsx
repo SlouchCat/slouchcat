@@ -301,9 +301,9 @@ describe('SubtitlePanel (V-5)', () => {
     await waitFor(() => expect(within(page).getByRole('option', { name: 'M' })).toHaveFocus());
     await user.click(within(page).getByRole('option', { name: 'Gelb' }));
     expect(onChange).toHaveBeenLastCalledWith({ color: 'yellow' });
-    await user.click(within(page).getByRole('button', { name: '0,1 s später' }));
+    await user.click(within(page).getByRole('button', { name: '0.1 s später' }));
     expect(onChange).toHaveBeenLastCalledWith({ offsetMs: 100 });
-    expect(within(page).getByText('0,0 s')).toBeVisible();
+    expect(within(page).getByText('0.0 s')).toBeVisible();
     await user.keyboard('{Backspace}');
     expect(screen.getByRole('dialog', { name: 'Untertitel' })).toBeInTheDocument();
   });
@@ -348,21 +348,21 @@ describe('SubtitlePanel (V-5)', () => {
     await user.keyboard('{ArrowDown}{ArrowDown}');
     expect(within(page).getByRole('option', { name: 'Unten' })).toHaveFocus();
     await user.keyboard('{ArrowDown}{ArrowDown}');
-    const earlier = within(page).getByRole('button', { name: '0,1 s früher' });
+    const earlier = within(page).getByRole('button', { name: '0.1 s früher' });
     expect(earlier).toHaveFocus();
     // The offset group is one stop: ←/→ between its buttons.
     await user.keyboard('{ArrowRight}');
-    const later = within(page).getByRole('button', { name: '0,1 s später' });
+    const later = within(page).getByRole('button', { name: '0.1 s später' });
     expect(later).toHaveFocus();
     expect(earlier).toHaveAttribute('tabindex', '-1');
     await user.keyboard('{Enter}');
-    expect(within(page).getByText('+0,1 s')).toBeVisible();
+    expect(within(page).getByText('+0.1 s')).toBeVisible();
     // «Zurücksetzen» keeps the focus after it set the offset back to 0 (it never switches off).
     await user.keyboard('{ArrowRight}');
     const reset = within(page).getByRole('button', { name: 'Zurücksetzen' });
     expect(reset).toHaveFocus();
     await user.keyboard('{Enter}');
-    expect(within(page).getByText('0,0 s')).toBeVisible();
+    expect(within(page).getByText('0.0 s')).toBeVisible();
     expect(reset).toHaveFocus();
     await user.keyboard('{Enter}');
     expect(reset).toHaveFocus();

@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
@@ -29,7 +28,11 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 	var verr *model.ValidationError
 	maxRating, all := acc.MaxRating, acc.AllLibraries
 	if in.MaxRating != nil {
-		if !slices.Contains(ratingLevels, *in.MaxRating) {
+		rs, err := s.RatingSystem(ctx)
+		if err != nil {
+			return err
+		}
+		if !rs.Allows(*in.MaxRating, int(acc.MaxRating)) {
 			verr = verr.Add("maxRating", "invalid_value")
 		} else {
 			maxRating = int64(*in.MaxRating)

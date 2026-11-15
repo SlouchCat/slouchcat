@@ -51,7 +51,9 @@ test('Tab order: e-mail, password, profile name, language, submit; no focus trap
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByLabel(/^Profilname/));
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Deutsch' }));
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Deutsch (Schweiz)' }));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Deutsch (Deutschland)' }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'English' }));
   await expect(page.getByRole('radio', { name: 'English' })).toBeChecked();

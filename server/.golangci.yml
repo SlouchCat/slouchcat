@@ -41,6 +41,16 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/systemq
               desc: unfiltered queries are allowed only in visibility, admin, library, metadata, jobs, notify and offline (CLAUDE.md rule 2)
+        certq:
+          # item_certifications (concept 22 section 4.11): only the metadata enrichment reads and
+          # writes the certificates; the itemsaccess analyzer does not cover the table.
+          files:
+            - $all
+            - "!**/internal/metadata/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/certq
+              desc: item_certifications is read and written only by package metadata (concept 22 section 4.11)
         test-helpers:
           # storetest and vistest open template databases and seed fixtures for tests. Code that
           # ships must never reach them; vistest builds on storetest, so the two may import each

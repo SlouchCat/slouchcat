@@ -37,6 +37,7 @@ export { MiniPlayer, type MiniPlayerState } from './MiniPlayer';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page, PageNav } from './Page';
+export { MenuButton, type MenuOption } from './Menu';
 export { Panel } from './Panel';
 export { dismissPosterPrepaint, PosterCard } from './PosterCard';
 export { PosterFallback } from './PosterFallback';

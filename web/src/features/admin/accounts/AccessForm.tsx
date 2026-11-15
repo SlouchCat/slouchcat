@@ -4,6 +4,7 @@ import { useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { Notice, Text } from '@/ui';
 import { AriaButton, Form, RadioGroup } from '@/ui/aria';
 import { ratingOf, ratingOptions } from '../../shared/choices';
@@ -61,6 +62,7 @@ export function AccessForm({
   onSaved: (sent: AccessDraft) => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const saveButton = useRef<HTMLButtonElement>(null);
   const save = useMutation({
     mutationFn: ({ body }: { body: AccountAccessUpdate; sent: AccessDraft }) =>
@@ -105,7 +107,7 @@ export function AccessForm({
                 label={t('admin.accounts.access.rating')}
                 value={value.rating}
                 onChange={(rating) => set({ rating })}
-                options={ratingOptions(t)}
+                options={ratingOptions(t, ratingSystem, 18, account.maxRating)}
               />
               <LibraryChoice
                 label={t('admin.accounts.access.libraries')}

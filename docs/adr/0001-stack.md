@@ -47,7 +47,7 @@ Gewichtete Entscheidungstreiber (Plan 2.2):
 | Offline | OPFS für Downloads, IndexedDB (`idb`) für Metadaten (ab M1a/M5) |
 | Player | `<video>`/`<audio>` + `hls.js`, natives HLS in Safari (ab M1a) |
 | Design-Tokens | DTCG-Format in `packages/design-tokens`, Style Dictionary erzeugt CSS Custom Properties und TypeScript-Typen; CSS Modules; `stylelint` mit `color-no-hex` und `declaration-strict-value`; `eslint-plugin-i18next` gegen Literaltexte |
-| i18n | `i18next` + `react-i18next`, Sprachdateien `web/src/locales/{de,en}.json` |
+| i18n | `i18next` + `react-i18next`, Sprachdateien `web/src/locales/*.json` (seit ADR 0033) |
 | API-Client | `openapi-typescript` + `openapi-fetch` in `packages/api-client`, generiert aus `api/openapi.yaml` |
 | Tests | Go `testing` + `testify`; Vitest + Testing Library; Playwright (ab M1a) |
 

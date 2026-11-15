@@ -123,7 +123,7 @@ func TestAudioSeriesOverHTTP(t *testing.T) {
 	for query, want := range map[string]string{
 		"?yearFrom=1869":                    "yearFrom invalid_value",
 		"?yearTo=2101":                      "yearTo invalid_value",
-		"?maxRating=7":                      "maxRating invalid_value",
+		"?maxRating=19":                     "maxRating invalid_value", // 7 is an age since 1.36.0
 		"?genre=" + strings.Repeat("g", 81): "genre too_long",
 		"?status=nope":                      "status invalid_value",
 	} {

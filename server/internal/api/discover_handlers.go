@@ -61,7 +61,7 @@ func (s *server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.S
 		MaxRating: -1, DeviceID: session.DeviceID, Offset: max(deref(b.Offset), 0), Limit: deref(b.Limit),
 	}
 	if b.MaxRating != nil {
-		q.MaxRating = int(*b.MaxRating)
+		q.MaxRating = *b.MaxRating
 	}
 	for _, t := range deref(b.MediaTypes) {
 		q.MediaTypes = append(q.MediaTypes, string(t))
@@ -88,7 +88,7 @@ func (s *server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.S
 	if y := b.YearTo; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
 		verr = verr.Add("yearTo", "invalid_value")
 	}
-	if b.MaxRating != nil && !b.MaxRating.Valid() {
+	if b.MaxRating != nil && !validAge(*b.MaxRating) {
 		verr = verr.Add("maxRating", "invalid_value")
 	}
 	if verr != nil {

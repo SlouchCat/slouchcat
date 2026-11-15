@@ -38,7 +38,7 @@ describe('validateLibraryParams', () => {
         status: 'done',
         from: '19',
         to: 'soon',
-        rating: 7,
+        rating: 19,
       }),
     ).toEqual({});
   });

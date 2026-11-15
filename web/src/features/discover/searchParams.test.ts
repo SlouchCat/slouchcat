@@ -25,11 +25,14 @@ describe('validateSearchParams', () => {
     });
   });
 
-  it('an empty or null rating is no filter, not FSK 0', () => {
+  it('an empty or null rating is no filter, not age 0', () => {
     expect(validateSearchParams({ rating: '' })).toEqual({});
     expect(validateSearchParams({ rating: null })).toEqual({});
     expect(validateSearchParams({ rating: 'null' })).toEqual({});
-    expect(validateSearchParams({ rating: 7 })).toEqual({});
+    // Any minimum age from 0 to 18 (concept 22 stage 3: 7 is a step in Spain); nothing else.
+    expect(validateSearchParams({ rating: 7 })).toEqual({ rating: 7 });
+    expect(validateSearchParams({ rating: 19 })).toEqual({});
+    expect(validateSearchParams({ rating: 1.5 })).toEqual({});
     expect(validateSearchParams({ rating: 0 })).toEqual({ rating: 0 });
     expect(validateSearchParams({ rating: '0' })).toEqual({ rating: 0 });
   });

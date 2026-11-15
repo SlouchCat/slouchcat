@@ -3,12 +3,14 @@ import type { TFunction } from 'i18next';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { LANGUAGE_CODES, NO_LANGUAGE } from '@/features/player/labels';
 import { Chip, FactList, Notice, Panel, SelectField, Text } from '@/ui';
 import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
-import { ratingOptions } from '../../shared/choices';
+import { ratingLabel, ratingOptions } from '../../shared/choices';
 import { itemFacts, providerName, sourceFacts, sourceSummary } from './facts';
 import styles from './AdminItem.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The choice of «Eigene Freigabe setzen» that hands the rating back to the metadata. */
 export const FROM_METADATA = 'metadata';
@@ -115,9 +117,11 @@ export function MetadataTab({
   language,
 }: MetadataTabProps) {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const none = t('admin.item.facts.none');
-  const fsk = (age: number | undefined) => (age !== undefined ? t('rating.fsk', { age }) : none);
-  const number = new Intl.NumberFormat(i18n.language);
+  const fsk = (age: number | undefined) =>
+    age !== undefined ? ratingLabel(t, age, ratingSystem) : none;
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const sources = item.fieldSources.length;
   return (
     <div className={styles.tabBody}>
@@ -125,7 +129,7 @@ export function MetadataTab({
         <h2 id="admin-item-facts" className={styles.sectionTitle}>
           {t('admin.item.facts.metadata')}
         </h2>
-        <FactList facts={itemFacts(t, item, i18n.language)} />
+        <FactList facts={itemFacts(t, item, intlLocale(i18n.language))} />
       </Panel>
       {sources > 0 && (
         <DisclosureGroup
@@ -173,7 +177,7 @@ export function MetadataTab({
               onChange={onRatingChange}
               options={[
                 { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
-                ...ratingOptions(t),
+                ...ratingOptions(t, ratingSystem, 18, item.ownRating),
               ]}
             />
             <AriaButton variant="primary" isPending={ratingSaving} onPress={onRatingSave}>
@@ -213,7 +217,7 @@ function OriginalLanguage({
 }) {
   const { t, i18n } = useTranslation();
   const names = useMemo(
-    () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
+    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
     [i18n.language],
   );
   const nameOf = (code: string) => names.of(code) ?? code;
@@ -231,7 +235,7 @@ function OriginalLanguage({
       ? providerName(t, won)
       : t('admin.item.facts.none');
   const options = useMemo(
-    () => originalLanguageOptions(t, names, i18n.language, choice.known, choice.value),
+    () => originalLanguageOptions(t, names, intlLocale(i18n.language), choice.known, choice.value),
     [choice.known, choice.value, names, i18n.language, t],
   );
   return (

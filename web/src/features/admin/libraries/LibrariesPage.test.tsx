@@ -173,7 +173,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
 
     // The numbers as the page formats them (Intl of the language), every part named.
     const series = await openRow(user, 'Serien');
-    const formatted = new Intl.NumberFormat('de');
+    const formatted = new Intl.NumberFormat('de-CH');
     expect(
       within(series).getByText(
         `Keyframe-Index: ${formatted.format(2112)} von ${formatted.format(2419)} Videodateien · 307 ausstehend · 0 nicht möglich`,

@@ -352,3 +352,50 @@ func TestTriggersAllEpisodesAboveTheLevel(t *testing.T) {
 		}
 	})
 }
+
+// Minimum ages outside the FSK steps (concept 22 stage 3, F-17): the triggers derive 13, 14 and 17
+// like any other value, the container takes the lowest age of its available content, and
+// visible_items compares age ≤ ceiling: a PG-13 film (13) is hidden from a profile «ab 12» and
+// shown to «ab 13» and «ab 16»; the R episode (17) only from «ab 17» on.
+func TestTriggersMinimumAges(t *testing.T) {
+	t.Parallel()
+	db := openTestDB(t)
+	seedTree(t, db.Write)
+	for _, p := range []int{13, 16, 17} {
+		mustExec(t, db.Write, `INSERT INTO profiles (id, account_id, name, max_rating, created_at, updated_at) VALUES (?, 1, ?, ?, 0, 0)`, p, "P", p)
+	}
+	mustExec(t, db.Write, `UPDATE items SET own_rating = 13 WHERE id = ?`, idMovie)
+	mustExec(t, db.Write, `UPDATE items SET own_rating = 14 WHERE id = ?`, idSeries)
+	mustExec(t, db.Write, `UPDATE items SET own_rating = 17 WHERE id = ?`, idEp2)
+	addFile(t, db.Write, "01FILE0000000000000000000A", idMovie, "film.mkv")
+	addFile(t, db.Write, "01FILE0000000000000000000B", idEp1, "e1.mkv")
+	addFile(t, db.Write, "01FILE0000000000000000000C", idEp2, "e2.mkv")
+	for id, want := range map[string]sql.NullInt64{idMovie: val(13), idSeason: val(14), idEp1: val(14), idEp2: val(17)} {
+		if got := effective(t, db.Write, id); got != want {
+			t.Errorf("%s effective = %v, want %v", id, got, want)
+		}
+	}
+	if got := queryInt(t, db.Write, `SELECT min_child_rating FROM items WHERE id = ?`, idSeries); got != val(14) {
+		t.Errorf("series min_child_rating = %v, want 14", got)
+	}
+	for _, tc := range []struct {
+		profile int64
+		id      string
+		want    bool
+	}{
+		{12, idMovie, false}, {13, idMovie, true}, {16, idMovie, true},
+		{13, idSeries, false}, {16, idSeries, true}, {16, idEp2, false}, {17, idEp2, true},
+	} {
+		if got := visible(t, db.Write, tc.profile, tc.id); got != tc.want {
+			t.Errorf("profile %d sees %s = %v, want %v", tc.profile, tc.id, got, tc.want)
+		}
+	}
+	// Episode 1 leaves: the series' lowest available content is 17 now.
+	mustExec(t, db.Write, `UPDATE media_files SET missing_since = 1 WHERE item_id = ?`, idEp1)
+	if got := queryInt(t, db.Write, `SELECT min_child_rating FROM items WHERE id = ?`, idSeries); got != val(17) {
+		t.Errorf("series min_child_rating after episode 1 left = %v, want 17", got)
+	}
+	if visible(t, db.Write, 16, idSeries) {
+		t.Error("profile 16 still sees the series whose only content is 17")
+	}
+}

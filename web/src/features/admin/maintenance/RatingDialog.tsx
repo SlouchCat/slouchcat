@@ -4,9 +4,10 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
-import { ratingOptions, titleRatingOf } from '../../shared/choices';
+import { ratingLabel, ratingOptions, titleRatingOf } from '../../shared/choices';
 import type { Outcome } from './shared';
 import styles from './Maintenance.module.css';
 
@@ -21,6 +22,7 @@ export function RatingDialog({
   onDone: (outcome: Outcome) => void;
 }) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   // No preselection: an unrated title counts as FSK 18, and a wrong default (FSK 0) would open it
   // to every profile with two key presses.
   const [rating, setRating] = useState('');
@@ -53,14 +55,14 @@ export function RatingDialog({
           label={t('admin.maintenance.rating.label')}
           value={rating}
           onChange={setRating}
-          options={ratingOptions(t)}
+          options={ratingOptions(t, ratingSystem)}
           isRequired
         />
         <p className={styles.muted} aria-live="polite">
           {chosen !== undefined &&
             t('admin.maintenance.rating.summary', {
               count: itemIds.length,
-              rating: t('rating.fsk', { age: chosen }),
+              rating: ratingLabel(t, chosen, ratingSystem),
             })}
         </p>
         <div className={styles.dialogActions}>

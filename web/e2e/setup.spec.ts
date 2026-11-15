@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { MOVIES_DIR } from './env';
+import { startFreshServer, type FreshServer } from './fresh-server';
 import {
   expectFocusOn,
   expectNoFocusTrap,
@@ -7,280 +9,270 @@ import {
   tabTo,
 } from './keyboard';
 
-// The real wizard ran in global-setup.ts through the API. To test the page's keyboard behaviour
-// the setup state is answered as "required" and the submit is intercepted, so the run's account
-// stays untouched. The checks of folder and TMDB key answer 409 once the setup is done, so they
-// are answered here too (design 5, A-1: path warning and invalid key with mocked answers); the
-// state of the GPU and the inotify limit is a server without GPU in the container and a tight
-// limit, so both commands show.
-// The service worker is blocked so that page.route sees every request.
-test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+// The guided wizard of concept 22 part A, step by step with the keyboard (rule 8): the list of
+// steps first, then the step, then its foot; Enter on «Weiter»; the heading takes the focus on
+// every step; no focus trap. It sets up a server of its own (fresh-server.ts): the wizard creates
+// the owner and changes the settings, which the shared server of the run must keep. The steps
+// run in order on one page, as an owner would go through them.
 
-const system = {
-  version: '0.9.0',
-  startedAt: '2026-10-21T08:00:00Z',
-  gpu: {
-    backend: 'software',
-    hardwareEncode: false,
-    tonemapper: 'cpu',
-    hwTonemap: false,
-    composeOverride: 'nvidia',
-    devices: { dri: false, nvidia: true },
-  },
-  inotify: { maxUserWatches: 8192, watchedDirs: 0, usagePercent: 0, warn: true },
-  configFs: 'ext4',
-  cacheFs: 'ext4',
-};
+test.describe.configure({ mode: 'serial' });
+test.use({ storageState: { cookies: [], origins: [] } });
 
-/** Answers the folder check with `answer` and counts the requests. */
-async function answerPathCheck(page: Page, answer: object): Promise<{ count: number }> {
-  const seen = { count: 0 };
-  await page.route('**/api/v1/setup/path-check', async (route) => {
-    seen.count += 1;
-    await route.fulfill({ json: answer });
-  });
-  return seen;
-}
+const OWNER = { email: 'wizard@example.test', password: 'wizard-password-0815', profile: 'Marco' };
 
-async function answerKeyCheck(page: Page, answer: object): Promise<void> {
-  await page.route('**/api/v1/setup/tmdb-check', (route) => route.fulfill({ json: answer }));
-}
+let server: FreshServer;
+let page: Page;
 
-/**
- * The configured media roots the wizard offers under the folder field (idea 02, E5). The real
- * server answers 409 here, because the run's account exists; the suggestions are mocked so the
- * page can be tested at all.
- */
-const SETUP_ROOTS = [
-  { id: 'c0', path: '/media', browsable: true, source: 'configured' },
-  { id: 'c1', path: '/mnt/nas', browsable: true, source: 'configured' },
-];
-
-async function answerSetupRoots(page: Page): Promise<void> {
-  await page.route('**/api/v1/setup/roots', (route) => route.fulfill({ json: SETUP_ROOTS }));
-}
-
-const step = (page: Page, name: RegExp) => page.getByRole('region', { name });
-
-test.beforeEach(async ({ page }) => {
-  await answerPathCheck(page, { ok: true, fsType: 'ext4', watchMode: 'inotify' });
-  await answerKeyCheck(page, { ok: true });
-  await answerSetupRoots(page);
-  await page.route('**/api/v1/setup', async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({ json: { setupRequired: true, system } });
-      return;
-    }
-    await route.fulfill({
-      status: 422,
-      contentType: 'application/problem+json',
-      json: {
-        type: 'about:blank',
-        title: 'invalid',
-        status: 422,
-        code: 'validation_failed',
-        errors: [{ field: 'library.roots[0].path', code: 'library_path_invalid' }],
-      },
-    });
-  });
-  await page.goto('/setup');
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Willkommen bei Slouchcat' }),
-  ).toBeVisible();
+test.beforeAll(async ({ browser }) => {
+  server = await startFreshServer();
+  page = await browser.newPage({ locale: 'de-CH' });
 });
 
-test('Tab walks through the four steps in order with a visible focus ring', async ({ page }) => {
-  // The e-mail field has focus on arrival.
-  await expectFocusOn(page, page.getByLabel('E-Mail-Adresse'));
-  const gpu = step(page, /Grafikchip und Dateisystem/);
-  const order = [
-    page.getByLabel('Passwort', { exact: true }),
-    page.getByLabel('Passwort wiederholen'),
-    page.getByLabel('Name', { exact: true }),
-    page.getByRole('radio', { name: 'Video' }),
-    // The folder list (F-13): the one card of a new video library with its path, the configured
-    // roots between the field and the check button (idea 02, E5), «Inhalt» (films are chosen),
-    // the fixed default list as text, then the button for another card.
-    page.getByLabel('Ordner', { exact: true }),
-    page.getByRole('button', { name: '/media', exact: true }),
-    page.getByRole('button', { name: '/mnt/nas', exact: true }),
-    page.getByRole('button', { name: 'Ordner prüfen' }),
-    page.getByRole('radio', { name: 'Filme' }),
-    page.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }),
-    page.getByRole('link', { name: /Token auf themoviedb.org erstellen/ }),
-    page.getByLabel('API-Lesezugriffs-Token'),
-    page.getByRole('button', { name: 'Schlüssel prüfen' }),
-    gpu.getByRole('group', { name: 'Compose-Befehl für NVIDIA' }).getByRole('button'),
-    gpu.getByRole('group', { name: 'Befehl für das inotify-Limit' }).getByRole('button'),
-    // The step has no inputs: the submit button stays last.
-    page.getByRole('button', { name: 'Einrichtung abschliessen' }),
-  ];
-  for (const locator of order) {
-    await page.keyboard.press('Tab');
-    await expectFocusOn(page, locator);
+test.afterAll(async () => {
+  await page.close();
+  await server.stop();
+});
+
+const heading = (name: string) => page.getByRole('heading', { level: 1, name });
+const stepLink = (name: RegExp) =>
+  page.getByRole('navigation', { name: 'Einrichtung' }).getByRole('link', { name });
+
+/** Enter on «Weiter»: the next step's heading has the focus. */
+async function next(title: string) {
+  await tabTo(page, page.getByRole('button', { name: 'Weiter', exact: true }));
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, heading(title));
+}
+
+test('step 1, language: list, language button, search, the languages, then «Weiter» @keyboard', async () => {
+  await page.goto(`${server.url}/admin`);
+  // Every path leads to the first step while there is no account.
+  await expect(page).toHaveURL(/\/setup\/language$/);
+  await expectFocusOn(page, heading('Sprache wählen'));
+  await resetFocus(page);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, stepLink(/^1\. Sprache$/));
+  // The list is one Tab stop; the arrows move inside it.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, stepLink(/^2\. Konto$/));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: /^Sprache: / }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('searchbox', { name: 'Sprache suchen' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('radio', { name: /^Deutsch \(Schweiz\)/ }));
+  await expect(page.getByRole('button', { name: 'Überspringen' })).toHaveCount(0);
+  await expectNoFocusTrap(page);
+  await next('Konto anlegen');
+});
+
+test('step 2, account: the fields in order, Enter creates the owner @keyboard', async () => {
+  await expect(page).toHaveURL(/\/setup\/account$/);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByLabel(/^E-Mail-Adresse/));
+  await page.keyboard.type(OWNER.email);
+  await page.keyboard.press('Tab');
+  await page.keyboard.type(OWNER.password);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByLabel(/^Passwort wiederholen/));
+  await page.keyboard.type(OWNER.password);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByLabel(/^Name des Profils/));
+  await page.keyboard.type(OWNER.profile);
+  await page.keyboard.press('Tab');
+  // The colour: one Tab stop, the arrows choose.
+  await expect(page.getByRole('radiogroup', { name: 'Farbe' }).locator(':focus')).toHaveCount(1);
+  await page.keyboard.press('ArrowRight');
+  await expectNoFocusTrap(page);
+  await next('Region und Metadaten');
+  // Signed in now: the list ends with «Später fortsetzen», and the account cannot be gone back to.
+  await expect(page).toHaveURL(/\/setup\/region$/);
+  await expect(page.getByRole('button', { name: 'Später fortsetzen' })).toBeVisible();
+});
+
+test('step 3, region: country, rating country with its steps, languages, radio @keyboard', async () => {
+  await resetFocus(page);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, stepLink(/^3\. Region$/));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Später fortsetzen' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('combobox', { name: 'Land' }));
+  await expect(page.getByRole('combobox', { name: 'Land' })).toHaveValue('CH');
+  await page.keyboard.press('Tab');
+  // Every rating country of the server's table (concept 22 stage 3), Switzerland suggested; the
+  // steps of the choice stand below it, as the household step offers them.
+  const rating = page.getByRole('combobox', { name: 'Altersfreigaben nach' });
+  await expectFocusOn(page, rating);
+  await expect(rating).toHaveValue('CH');
+  await expect(rating.getByRole('option')).toHaveCount(25);
+  await expect(
+    page.getByText(/^Altersstufen der Profile: ab 0 · ab 6 · ab 7 · ab 8/),
+  ).toBeVisible();
+  await rating.selectOption('FR');
+  await expect(
+    page.getByText('Altersstufen der Profile: Tous publics · -10 · -12 · -16 · -18'),
+  ).toBeVisible();
+  await expectFocusOn(page, rating);
+  await expect(
+    page.getByRole('switch', { name: 'Schweiz ins Radio-Angebot aufnehmen' }),
+  ).toBeChecked();
+  await expectNoFocusTrap(page);
+  await next('Dienste verbinden');
+  await expect(stepLink(/^3\. Region, erledigt$/)).toBeVisible();
+});
+
+test('step 4, services: the cards with their links, «Überspringen» goes on @keyboard', async () => {
+  await expect(page.getByRole('heading', { level: 2, name: 'Empfohlen' })).toBeVisible();
+  const links = page.getByRole('link', { name: /^Schlüssel bei .* holen$/ });
+  await expect(links.first()).toBeVisible();
+  await tabTo(page, page.getByRole('button', { name: 'Überspringen' }));
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, heading('Wiedergabe'));
+  await expect(stepLink(/^4\. Dienste, übersprungen$/)).toBeVisible();
+});
+
+test('F-11: a new sign-in before the end leads to the first open step', async ({ browser }) => {
+  const other = await browser.newPage({ locale: 'de-CH' });
+  await other.goto(`${server.url}/login`);
+  await other.getByLabel(/^E-Mail-Adresse/).fill(OWNER.email);
+  await other.getByLabel(/^Passwort/).fill(OWNER.password);
+  await other.getByRole('button', { name: 'Anmelden' }).press('Enter');
+  await expect(other).toHaveURL(/\/setup\/playback$/);
+  await expect(other.getByRole('heading', { level: 1, name: 'Wiedergabe' })).toBeVisible();
+  // «Später fortsetzen» lets go for this sign-in; the overview says what is still open.
+  await other.getByRole('button', { name: 'Später fortsetzen' }).press('Enter');
+  await expect(other).toHaveURL(`${server.url}/`);
+  await other.goto(`${server.url}/admin`);
+  await expect(other.getByText('Einrichtung nicht abgeschlossen')).toBeVisible();
+  await expect(other.getByRole('link', { name: 'Einrichtung fortsetzen' })).toHaveAttribute(
+    'href',
+    '/setup/playback',
+  );
+  await other.close();
+});
+
+test('step 5, playback: the backends by arrows, the trickplay default @keyboard', async () => {
+  const group = page.getByRole('radiogroup', { name: 'Grafikchip für das Umwandeln' });
+  await expect(group.getByRole('radio', { name: 'Automatisch (empfohlen)' })).toBeChecked();
+  await tabTo(page, group.getByRole('radio', { name: 'Automatisch (empfohlen)' }));
+  await expectVisibleFocus(page);
+  // The arrows pass over a backend whose probe failed and store the choice at once.
+  const probed = await group.getByRole('radio', { disabled: false }).count();
+  if (probed === 2) {
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, group.getByRole('radio', { name: 'Nur Prozessor' }));
+    await expect(page.getByText('Gespeichert: Nur Prozessor')).toBeVisible();
+    await page.keyboard.press('ArrowUp');
+    await expect(page.getByText('Gespeichert: Automatisch (empfohlen)')).toBeVisible();
   }
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('switch', { name: /Vorschau beim Spulen/ }));
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('switch', { name: /Vorschau beim Spulen/ })).toBeChecked();
   await expectNoFocusTrap(page);
+  await next('Bibliotheken');
 });
 
-test('arrow keys switch the library kind', async ({ page }) => {
+test('step 6, libraries: none is refused, the dialog adds one @keyboard', async () => {
+  await expect(page.getByRole('button', { name: 'Überspringen' })).toHaveCount(0);
+  await tabTo(page, page.getByRole('button', { name: 'Weiter', exact: true }));
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Noch keine Bibliothek/)).toBeVisible();
+  await expectFocusOn(page, page.getByRole('button', { name: 'Weiter', exact: true }));
+
+  // «Weiter» is the last element; headless Firefox stays there on Tab, so start from the top.
   await resetFocus(page);
-  await tabTo(page, page.getByRole('radio', { name: 'Video' }));
-  await expect(page.getByRole('radio', { name: 'Video' })).toBeChecked();
-  // M6: audiobooks bring the default age rating; podcasts drop the folder.
-  const rating = page.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
-  await expect(rating).toHaveCount(0);
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
-  await expect(page.getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
-  await expect(rating).toBeVisible();
-  await expect(page.getByLabel('Ordner', { exact: true })).toBeVisible();
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
-  // Podcasts start without a card (F-13); the add button stays, the rating follows it.
-  await expect(page.getByLabel('Ordner', { exact: true })).toHaveCount(0);
-  await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Ordner hinzufügen', exact: true }));
-  await page.keyboard.press('Tab');
-  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
-  await expectVisibleFocus(page);
-  await expectNoFocusTrap(page);
-});
-
-test('Enter submits; errors appear inline and the form stays usable', async ({ page }) => {
-  await page.getByLabel('E-Mail-Adresse').fill('owner@example.test');
-  await page.getByLabel('Passwort', { exact: true }).fill('correct horse battery');
-  await page.getByLabel('Passwort wiederholen').fill('correct horse battery');
-  await page.getByLabel('Ordner', { exact: true }).fill('/does/not/exist');
-  await page.getByLabel('Ordner', { exact: true }).focus();
+  await tabTo(page, page.getByRole('button', { name: 'Bibliothek hinzufügen' }));
   await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Name', { exact: true }).fill('Filme');
+  await dialog.getByLabel('Ordner', { exact: true }).fill(MOVIES_DIR);
+  await dialog.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }).press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Filme' })).toBeVisible();
+  await next('Haushalt');
+});
 
-  const path = page.getByLabel('Ordner', { exact: true });
-  await expect(path).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByText(/Diesen Ordner gibt es auf dem Server nicht/)).toBeVisible();
-  await path.focus();
+test('step 7, household: the own profile, «Profil hinzufügen» with the French steps adds one @keyboard', async () => {
+  await expect(page.getByText(OWNER.profile).first()).toBeVisible();
+  await tabTo(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
   await expectVisibleFocus(page);
-});
-
-test('client validation catches a short password before anything is sent', async ({ page }) => {
-  let posted = false;
-  page.on('request', (request) => {
-    if (request.method() === 'POST' && request.url().endsWith('/api/v1/setup')) posted = true;
-  });
-  await page.getByLabel('Passwort', { exact: true }).fill('short');
-  await page.getByRole('button', { name: 'Einrichtung abschliessen' }).focus();
+  // The ages are those of the rating country of step 3 (France, F-12).
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Mindestens 10 Zeichen.').last()).toBeVisible();
-  expect(posted).toBe(false);
+  const dialog = page.getByRole('dialog', { name: 'Neues Profil' });
+  await expect(dialog).toBeVisible();
+  const ages = dialog.getByRole('radiogroup', { name: 'Altersfreigabe' });
+  await expect(ages.getByRole('radio')).toHaveCount(5);
+  await expect(ages.getByRole('radio', { name: '-12' })).toBeVisible();
+  await expect(ages.getByRole('radio', { name: 'Tous publics' })).toBeVisible();
+  await dialog.getByLabel('Name', { exact: true }).fill('Kind');
+  await dialog.getByRole('button', { name: 'Profil anlegen' }).press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Kind').first()).toBeVisible();
+  await next('Zugriff');
 });
 
-test('the folder is checked on leaving the field: file system and network share warning', async ({
-  page,
+// Review of stage 2: with two profiles a sign-in starts at the picker. Another profile never sees
+// the wizard (its endpoints are the owner's primary profile's); the primary one goes on with it.
+test('F-11 with two profiles: the picker first, the wizard only for the primary profile', async ({
+  browser,
 }) => {
-  await page.unroute('**/api/v1/setup/path-check');
-  const checks = await answerPathCheck(page, {
-    ok: true,
-    fsType: 'cifs',
-    watchMode: 'poll',
-    warning: 'network_share',
-  });
-  const library = step(page, /Erste Bibliothek/);
-  await tabTo(page, page.getByLabel('Ordner', { exact: true }));
-  await page.keyboard.type('/media/nas/Filme');
-  await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: '/media', exact: true }));
-  await tabTo(page, page.getByRole('button', { name: 'Ordner prüfen' }));
+  const signIn = async () => {
+    const other = await browser.newPage({ locale: 'de-CH' });
+    await other.goto(`${server.url}/login`);
+    await other.getByLabel(/^E-Mail-Adresse/).fill(OWNER.email);
+    await other.getByLabel(/^Passwort/).fill(OWNER.password);
+    await other.getByRole('button', { name: 'Anmelden' }).press('Enter');
+    await expect(other).toHaveURL(/\/profiles/);
+    return other;
+  };
+  const tile = (other: Page, name: string) =>
+    other
+      .getByRole('list', { name: 'Profile' })
+      .getByRole('button', { name: new RegExp(`^${name}`) });
+
+  const child = await signIn();
+  await tile(child, 'Kind').press('Enter');
+  await expect(child).toHaveURL(`${server.url}/`);
+  await expect(child.getByRole('heading', { level: 1, name: 'Zugriff' })).toHaveCount(0);
+  await child.goto(`${server.url}/setup/access`);
+  await expect(child).toHaveURL(`${server.url}/`);
+  await child.close();
+
+  const primary = await signIn();
+  await tile(primary, OWNER.profile).press('Enter');
+  await expect(primary).toHaveURL(/\/setup\/access$/);
+  await expect(primary.getByRole('heading', { level: 1, name: 'Zugriff' })).toBeVisible();
+  await primary.close();
+});
+
+test('step 8, access: the address of this browser as the suggestion, the update check @keyboard', async () => {
+  await expect(page.getByText(`Du greifst gerade über ${server.url} zu.`)).toBeVisible();
+  await tabTo(page, page.getByRole('button', { name: 'Diese Adresse übernehmen' }));
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('textbox', { name: /^Adresse/ })).toHaveValue(server.url);
   await expect(
-    library.getByText('Dateisystem cifs · Änderungen werden regelmässig abgefragt'),
-  ).toBeVisible();
-  await expect(library.getByText('Netzfreigabe erkannt')).toBeVisible();
-  await expect(library.getByText(/Webhooks aus Radarr und Sonarr/)).toBeVisible();
-  // Enter on the button asks again only for a changed folder.
-  await page.keyboard.press('Enter');
-  expect(checks.count).toBe(1);
+    page.getByRole('checkbox', { name: 'Täglich nach neuen Versionen suchen' }),
+  ).toBeChecked();
   await expectNoFocusTrap(page);
+  await next('Zusammenfassung');
 });
 
-// Idea 02, E5: the wizard offers the configured roots, no browsing. Enter on one of them fills
-// the folder field, and the field stays the equal way in.
-test('the configured roots are suggestions the keyboard can take', async ({ page }) => {
-  // Before an account exists the wizard never asks for a listing: no browse button, no request.
-  const listings: string[] = [];
-  page.on('request', (request) => {
-    if (request.url().includes('/api/v1/admin/fs/')) listings.push(request.url());
-  });
-  const path = page.getByLabel('Ordner', { exact: true });
-  await resetFocus(page);
-  await tabTo(page, page.getByRole('button', { name: '/mnt/nas', exact: true }));
+test('step 9, summary: «Ändern» per step, finish, the first scan, the start page @keyboard', async () => {
+  await expect(page.getByRole('link', { name: 'Region ändern' })).toBeVisible();
+  await tabTo(page, page.getByRole('button', { name: 'Einrichtung abschliessen' }));
   await page.keyboard.press('Enter');
-  await expect(path).toHaveValue('/mnt/nas');
-  // The field stays the equal way in: it can still be typed over.
-  await path.fill('/media/Filme');
-  await expect(path).toHaveValue('/media/Filme');
-  await expect(page.getByRole('button', { name: 'Durchsuchen …' })).toHaveCount(0);
-  expect(listings).toEqual([]);
-  await expectNoFocusTrap(page);
-});
-
-test('"Ordner prüfen" reports a missing folder at the field', async ({ page }) => {
-  await page.unroute('**/api/v1/setup/path-check');
-  await answerPathCheck(page, { ok: false, problem: 'missing' });
-  const path = page.getByLabel('Ordner', { exact: true });
-  await path.fill('/does/not/exist');
-  await page.getByRole('button', { name: 'Ordner prüfen' }).focus();
+  const done = page.getByRole('heading', { name: 'Slouchcat ist eingerichtet' });
+  await expectFocusOn(page, done);
+  await expect(page.getByText('Filme', { exact: true })).toBeVisible();
+  await tabTo(page, page.getByRole('button', { name: 'Zur Startseite' }));
   await page.keyboard.press('Enter');
-  await expect(path).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByText(/Diesen Ordner gibt es auf dem Server nicht/)).toBeVisible();
-  await expectVisibleFocus(page);
-});
-
-test('"Schlüssel prüfen" says clearly when TMDB rejects the key (A-1)', async ({ page }) => {
-  await page.unroute('**/api/v1/setup/tmdb-check');
-  await answerKeyCheck(page, { ok: false, problem: 'invalid' });
-  const key = page.getByLabel('API-Lesezugriffs-Token');
-  await tabTo(page, key);
-  await page.keyboard.type('not-a-token');
-  await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Schlüssel prüfen' }));
-  await page.keyboard.press('Enter');
-  await expect(key).toHaveAttribute('aria-invalid', 'true');
-  await expect(
-    page.getByText('Ungültig: TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.'),
-  ).toBeVisible();
-
-  // A valid key reads as such, and the field is no longer marked.
-  await page.unroute('**/api/v1/setup/tmdb-check');
-  await answerKeyCheck(page, { ok: true });
-  await key.fill('a-good-token');
-  await page.getByRole('button', { name: 'Schlüssel prüfen' }).press('Enter');
-  await expect(page.getByText('Gültig: TMDB hat den Schlüssel angenommen.')).toBeVisible();
-  await expect(key).not.toHaveAttribute('aria-invalid', 'true');
-});
-
-test('GPU step: the Compose command and the sysctl command can be copied by keyboard', async ({
-  page,
-}) => {
-  const gpu = step(page, /Grafikchip und Dateisystem/);
-  await expect(gpu.getByText('Kein Grafikchip erkannt')).toBeVisible();
-  await expect(gpu.getByText('Prozessor (Software)')).toBeVisible();
-  const compose = gpu.getByRole('group', { name: 'Compose-Befehl für NVIDIA' });
-  await expect(compose).toContainText(
-    'docker compose -f compose.yaml -f compose.nvidia.yaml up -d',
-  );
-  await expect(gpu.getByText('Das inotify-Limit ist knapp')).toBeVisible();
-  await expect(gpu.getByRole('group', { name: 'Befehl für das inotify-Limit' })).toContainText(
-    'sysctl fs.inotify.max_user_watches=524288',
-  );
-
-  await resetFocus(page);
-  const copy = compose.getByRole('button', { name: 'Kopieren' });
-  await tabTo(page, copy);
-  await page.keyboard.press('Enter');
-  // With a clipboard the command is copied; without one (the browser may refuse) it is selected.
-  await expect(compose.getByRole('status')).toHaveText(
-    /^(Befehl kopiert\.|Kopieren nicht möglich.*)$/,
-  );
-  await expectFocusOn(page, copy);
-  await expectNoFocusTrap(page);
+  await expect(page).toHaveURL(`${server.url}/`);
+  // Finished: the wizard is gone for good, also at the next visit.
+  await page.goto(`${server.url}/setup/region`);
+  await expect(page).toHaveURL(`${server.url}/`);
 });

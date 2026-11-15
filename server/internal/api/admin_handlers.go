@@ -179,7 +179,7 @@ func optRating(v *int) *gen.Rating {
 	if v == nil {
 		return nil
 	}
-	r := gen.Rating(*v)
+	r := *v
 	return &r
 }
 
@@ -266,7 +266,7 @@ func libraryTrickplay(t *gen.LibraryTrickplay) *model.LibraryTrickplay {
 func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
 	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Roots: rootRequests(body.Roots), Trickplay: libraryTrickplay(body.Trickplay)}
 	if body.DefaultRating != nil {
-		r := int(*body.DefaultRating)
+		r := *body.DefaultRating
 		req.DefaultRating = &r
 	}
 	return req
@@ -302,7 +302,7 @@ func toRating(r *int) *gen.Rating {
 	if r == nil {
 		return nil
 	}
-	v := gen.Rating(*r)
+	v := *r
 	return &v
 }
 

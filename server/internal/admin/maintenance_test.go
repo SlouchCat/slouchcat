@@ -859,3 +859,25 @@ func (m *fakeMetadata) CheckProviderKey(context.Context, string) (model.KeyCheck
 	return model.KeyCheck{OK: true}, nil
 }
 func (m *fakeMetadata) KeyRejected(context.Context, string) bool { return false }
+
+// VerifyRatings repeats the trigger rules (plan 3.x) with minimum ages outside the FSK steps
+// (concept 22 stage 3, F-17): 14 on the series, 17 on an episode and 13 on a film give no issue;
+// a derived value out of step with them does.
+func TestVerifyRatingsWithMinimumAges(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	m.exec(t, `UPDATE items SET own_rating = 14 WHERE id = ?`, f.Show.Series.ID)
+	m.exec(t, `UPDATE items SET own_rating = 17 WHERE id = ?`, f.Show.E1.ID)
+	m.exec(t, `UPDATE items SET own_rating = 13 WHERE id = ?`, f.Rated(12).ID)
+	if got, err := m.svc.VerifyRatings(m.ctx); err != nil || len(got) != 0 {
+		t.Fatalf("VerifyRatings with ages 13, 14 and 17 = %+v, %v; want none", got, err)
+	}
+	m.exec(t, `UPDATE items SET effective_rating = 15 WHERE id = ?`, f.Rated(12).ID)
+	got, err := m.svc.VerifyRatings(m.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := issueIDs(got); !slices.Equal(ids, []string{f.Rated(12).ID}) {
+		t.Errorf("VerifyRatings after a broken effective rating = %v, want the film", ids)
+	}
+}

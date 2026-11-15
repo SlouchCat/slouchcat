@@ -38,47 +38,34 @@ func contractManifest(t *testing.T) string {
 	return srv.URL + "/manifest.json"
 }
 
-// A-1: before the first account getSetupStatus carries the system state and both checks answer;
-// afterwards the state is gone and the checks answer 409 setup_done.
-func TestSetupChecksOverHTTP(t *testing.T) {
+// A-1: before the first account getSetupStatus carries the system state, with the time zone and
+// the probes of the hardware backends but without their reasons (concept 22, 3.5); afterwards the
+// state is gone. The checks of folder and TMDB key before an account are gone (F-14).
+func TestSetupStatusOverHTTP(t *testing.T) {
 	t.Parallel()
 	e := newAuthEnv(t)
 	rec := e.call(t, http.MethodGet, "/api/v1/setup", nil, nil)
 	wantStatus(t, rec, http.StatusOK)
 	var st gen.SetupStatus
 	decode(t, rec, &st)
-	if !st.SetupRequired || st.System == nil || st.System.Gpu.Backend != gen.GPUInfoBackendSoftware || st.System.Version == "" {
+	if !st.SetupRequired || st.System == nil || st.System.Gpu.Backend != gen.TranscodeBackendSoftware || st.System.Version == "" {
 		t.Fatalf("setup status = %s", rec.Body.String())
 	}
-
-	rec = e.call(t, http.MethodPost, "/api/v1/setup/path-check", map[string]any{"path": t.TempDir()}, nil)
-	wantStatus(t, rec, http.StatusOK)
-	var pc gen.PathCheck
-	decode(t, rec, &pc)
-	if !pc.Ok || pc.FsType == nil || pc.WatchMode == nil || pc.Problem != nil {
-		t.Errorf("path check of a directory = %s", rec.Body.String())
+	if st.System.TimeZone == "" {
+		t.Errorf("setup status without the time zone: %s", rec.Body.String())
 	}
-	rec = e.call(t, http.MethodPost, "/api/v1/setup/path-check", map[string]any{"path": "relative/path"}, nil)
-	wantStatus(t, rec, http.StatusOK)
-	decode(t, rec, &pc)
-	if pc.Ok || pc.Problem == nil || *pc.Problem != gen.PathCheckProblemNotAbsolute {
-		t.Errorf("path check of a relative path = %s", rec.Body.String())
+	if strings.Contains(rec.Body.String(), "reason") {
+		t.Errorf("the public setup status names why a probe failed: %s", rec.Body.String())
 	}
-	rec = e.call(t, http.MethodPost, "/api/v1/setup/path-check", map[string]any{"path": ""}, nil)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-
-	e.tmdb.err = model.ErrTMDBKeyInvalid
-	rec = e.call(t, http.MethodPost, "/api/v1/setup/tmdb-check", map[string]any{"tmdbApiKey": authTestKey}, nil)
-	wantStatus(t, rec, http.StatusOK)
-	var tc gen.TMDBCheck
-	decode(t, rec, &tc)
-	if tc.Ok || tc.Problem == nil || *tc.Problem != gen.TMDBCheckProblemInvalid {
-		t.Errorf("key check = %s", rec.Body.String())
+	for _, path := range []string{"/api/v1/setup/path-check", "/api/v1/setup/tmdb-check"} {
+		rec = e.call(t, http.MethodPost, path, map[string]any{"path": "/tmp", "tmdbApiKey": authTestKey}, nil)
+		if rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s still answers: %d %s", path, rec.Code, rec.Body.String())
+		}
 	}
-	if strings.Contains(e.logs.String(), authTestKey) {
-		t.Error("the checked key reached the log")
+	if rec = e.call(t, http.MethodGet, "/api/v1/setup/roots", nil, nil); rec.Code != http.StatusNotFound {
+		t.Errorf("GET /setup/roots still answers: %d %s", rec.Code, rec.Body.String())
 	}
-	e.tmdb.err = nil
 
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	rec = e.call(t, http.MethodGet, "/api/v1/setup", nil, nil)
@@ -86,12 +73,6 @@ func TestSetupChecksOverHTTP(t *testing.T) {
 	decode(t, rec, &after)
 	if after.SetupRequired || after.System != nil {
 		t.Errorf("setup status after the wizard = %s", rec.Body.String())
-	}
-	for _, path := range []string{"/api/v1/setup/path-check", "/api/v1/setup/tmdb-check"} {
-		rec = e.call(t, http.MethodPost, path, map[string]any{"path": "/tmp", "tmdbApiKey": authTestKey}, nil)
-		if rec.Code != http.StatusConflict || problemCode(t, rec) != "setup_done" {
-			t.Errorf("%s after the wizard: %d %s", path, rec.Code, rec.Body.String())
-		}
 	}
 }
 

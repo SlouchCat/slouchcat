@@ -1,5 +1,65 @@
 # Aktueller Stand
 
+## Release 1.36.0: Konzept 22 Stufe 3 «Freigabeländer» (15. November 2026)
+
+Stufe 3 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil C, Abschnitt 4.11) auf dem Zweig
+`claude/k22-stufe3`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.36.0**,
+Migrationen **00062** bis **00064**, eingefrorener Stand `testdata/db/freigabelaender.sql`, ADR **0034**,
+Entscheid 6 geändert.
+
+- **Echtes Mindestalter (F-17):** Gespeichert wird das Alter der Freigabe, nicht mehr die gerundete
+  FSK-Stufe: PG-13 = 13, R = 17, TV-MA = 17. Das ist strenger als bisher; Profile «ab 12» und «ab 16»
+  sehen weniger US-Titel. Die Übersicht sagt das einmal.
+- **25 Freigabeländer** mit ihren eigenen Stufen für Profile, Einladungen und Bezeichnungen (F-12). Fehlt
+  einem Titel die Freigabe des Landes, gilt die deutsche.
+- **Freigaben neu lesen (F-16):** Job `metadata.ratings_reread` einmal nach dem Update und bei jedem
+  Wechsel des Freigabelands; von Hand gesetzte, NFO- und gesperrte Freigaben bleiben. Gemessen: lokal
+  rund 4 s für 10 000 Titel, beim ersten Lauf mit TMDB rund 9 Minuten für 10 000 Filme und 1000 Serien
+  (`docs/perf/22-freigabelaender.md`).
+- **Assistent:** Schritt 3 bietet alle Länder mit ihren Stufen an, Schritt 7 die Stufen des gewählten
+  Landes.
+
+## Release 1.35.0: Konzept 22 Stufe 2 «Assistent» (15. November 2026, veröffentlicht: PR #163 `6ec1e755`, Tag `v1.35.0`, Lauf 43669536022)
+
+Stufe 2 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Teil A, Abschnitt 3) auf dem Zweig
+`claude/k22-stufe2`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.35.0**
+(brechend, F-14), keine Migration.
+
+- **Geführter Assistent** in neun Schritten unter `/setup/<schritt>`: Sprache, Konto (mit Name und Farbe
+  des ersten Profils), Region, Dienste (TMDB und E-Mail empfohlen, TheTVDB, Fanart.tv, YouTube, Google
+  Books, Trakt, Web-Push, Telegram optional, je mit Link zum Beantragen), Wiedergabe (Grafikchip-Wahl,
+  Trickplay-Vorgabe), Bibliotheken, Haushalt (weitere Profile mit optionaler PIN), Zugriff, Zusammenfassung
+  mit Abschlussseite.
+- **Zwei Phasen:** Nur Sprache und Konto sind öffentlich; ab Schritt 3 arbeitet der Eigentümer mit den
+  Endpunkten der Verwaltung. Die öffentlichen Prüf-Endpunkte `checkSetupPath`, `checkSetupTmdbKey` und
+  `listSetupRoots` sind entfernt (F-14).
+- **Abbruch:** Der Fortschritt liegt im Setting `setup_wizard`. Bis zum Abschluss führt jede Anmeldung des
+  Eigentümers (Hauptprofil) zurück in den Assistenten (F-11). Fehlt `setup_wizard`, gilt die Einrichtung
+  als abgeschlossen; bestehende Installationen sehen den Assistenten nie.
+- **Grafikchip:** Der Server probiert beim Start alle drei Hardware-Backends (rund 58 ms,
+  `docs/perf/22-assistent.md`). Die Wahl gilt nach einem Neustart und steht auch unter Verwaltung ›
+  Integrationen › Server. Vorrang: `--hw`, dann `SLOUCHCAT_HW`, dann die gespeicherte Wahl, dann `auto`.
+- **Deutsch (Deutschland)** ist wählbar; Deutsch heisst in der Auswahl jetzt «Deutsch (Schweiz)».
+
+## Release 1.34.0: Konzept 22 Stufe 1 «Sprachgerüst» (15. November 2026, veröffentlicht: PR #162 `a3be15b6`, Tag `v1.34.0`, Lauf 43664635767)
+
+Stufe 1 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Abschnitte 4.2 bis 4.5, 4.9) auf dem Zweig
+`claude/k22-stufe1`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.34.0** (F-9 aus
+ADR 0018 fällt: die Metadaten-Sprachliste muss kein Deutsch mehr enthalten), Migration **00061** (Neubau
+`profiles` ohne `CHECK` auf `language` und `max_rating`), eingefrorener Stand vor der Migration, ADR **0033**.
+
+- **Sprachgerüst:** `web/src/i18n/languages.ts` als einzige Liste der ausgelieferten Sprachen, Laden der
+  ganzen Kette (Sprache, bei `de-DE` zusätzlich `de`, immer `en`), Erkennung nach 4.2, Absicherung gegen
+  unbekannte Sprachcodes und Altersstufen, Sprachknopf auf `/login`, Pseudo-Sprache `en-XA` für Entwicklung
+  und Storybook, `<html dir="ltr">`, Schriftstapel je CJK-Sprache.
+- **Zahlen und Daten in Schweizer Format:** Jeder `Intl`-Aufruf nimmt `intlLocale()` (`de` → `de-CH`).
+- **Server:** `model.UILanguages` als einzige Prüfstelle, `model.MetadataBase` und Rückfallsprache in
+  `visibility.Profile`, Server-Texte als eingebettetes i18next-JSON (`internal/i18n`), Rückfall Englisch.
+- **Noch nicht wählbar:** Deutsch (Deutschland). `web/src/locales/de-DE.json` liegt bereit und kommt mit
+  Stufe 2 in die Liste.
+- **Befunde aus Schritt 0** (ADR 0033): TMDB führt Norwegisch unter `no`; die PWA lädt bei einer neuen
+  Serverversion nicht von selbst neu.
+
 ## Release 1.33.0: Konzept 21 Stufen 4 bis 6 (15. November 2026, veröffentlicht)
 
 Die Stufen 4 bis 6 von `docs/planning/21-sammlung.md` auf **einem** Zweig `claude/k21-stufen4-6`, **ein** PR

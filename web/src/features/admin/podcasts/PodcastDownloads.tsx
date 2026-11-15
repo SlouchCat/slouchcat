@@ -9,6 +9,7 @@ import { Notice, ProgressBar, Text } from '@/ui';
 import { AriaButton, BandPanel, DataTable, StatusRegion, useStatusMessage } from '@/ui/aria';
 import { PODCAST_DOWNLOAD_JOB, pauseJobType, resumeJobType } from '../queries';
 import styles from './Podcasts.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The share of a running download in per cent, when the provider named its size. */
 export function downloadShare(progress?: number, total?: number): number | undefined {
@@ -26,7 +27,7 @@ export function downloadShare(progress?: number, total?: number): number | undef
 export function PodcastDownloads({ queue }: { queue: PodcastDownloadPage }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const [message, say] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const pauseButton = useRef<HTMLButtonElement>(null);
@@ -76,7 +77,7 @@ export function PodcastDownloads({ queue }: { queue: PodcastDownloadPage }) {
     if (share !== undefined) return t('admin.podcasts.queue.state.runningShare', { share });
     return d.progressBytes !== undefined
       ? t('admin.podcasts.queue.state.runningBytes', {
-          size: formatBytes(d.progressBytes, i18n.language),
+          size: formatBytes(d.progressBytes, intlLocale(i18n.language)),
         })
       : t('admin.podcasts.queue.state.running');
   };
@@ -123,7 +124,7 @@ export function PodcastDownloads({ queue }: { queue: PodcastDownloadPage }) {
                       {d.sizeBytes !== undefined
                         ? t('admin.podcasts.queue.ofPodcastSize', {
                             podcast: d.podcastTitle,
-                            size: formatBytes(d.sizeBytes, i18n.language),
+                            size: formatBytes(d.sizeBytes, intlLocale(i18n.language)),
                           })
                         : d.podcastTitle}
                     </span>

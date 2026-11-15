@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
 import {
@@ -33,6 +33,8 @@ import { LibraryFoldersDialog } from './LibraryFoldersDialog';
 import { RenameLibraryDialog } from './RenameLibraryDialog';
 import { TrickplayDialog } from './TrickplayDialog';
 import styles from './Libraries.module.css';
+import { ratingLabel } from '../../shared/choices';
+import { intlLocale } from '@/i18n';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
@@ -88,9 +90,10 @@ export function LibrariesPage() {
 
 function LibrariesContent() {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
 
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -376,7 +379,7 @@ function LibrariesContent() {
     [scanMutate, cancelMutate, acceptLossMutate, ask, t],
   );
 
-  const columns = useMemo(() => libraryColumns(t, hold), [t, hold]);
+  const columns = useMemo(() => libraryColumns(t, hold, ratingSystem), [t, hold, ratingSystem]);
   const detail = (library: Library) => (
     <LibraryDetail
       library={library}
@@ -536,7 +539,7 @@ function LibrariesContent() {
               setMessage(
                 t('admin.libraries.changeRating.saved', {
                   name: updated.name,
-                  rating: t('rating.fsk', { age: updated.defaultRating }),
+                  rating: ratingLabel(t, updated.defaultRating, ratingSystem),
                 }),
               );
             }

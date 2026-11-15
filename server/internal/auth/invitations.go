@@ -50,8 +50,12 @@ func invitationState(inv appq.Invitation, now time.Time) string {
 // and returns it with the plain token (the only time it is available). Errors: *ValidationError
 // (maxRating, note, libraryIds unknown_library).
 func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, req model.InvitationRequest) (model.Invitation, error) {
+	rs, err := s.RatingSystem(ctx)
+	if err != nil {
+		return model.Invitation{}, err
+	}
 	var verr *model.ValidationError
-	if !slices.Contains(ratingLevels, req.MaxRating) {
+	if !rs.HasAge(req.MaxRating) {
 		verr = verr.Add("maxRating", "invalid_value")
 	}
 	note := strings.TrimSpace(req.Note)
@@ -260,9 +264,9 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	}
 	lang := in.Language
 	if lang == "" {
-		lang = "de"
+		lang = model.DefaultUILanguage
 	}
-	if lang != "de" && lang != "en" {
+	if !model.IsUILanguage(lang) {
 		verr = verr.Add("language", "invalid_value")
 	}
 	if verr != nil {

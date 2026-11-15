@@ -1,4 +1,5 @@
 import type { components, paths, Rating, RootContent } from '@slouchcat/api-client';
+import { isRatingAge } from '../discover/searchParams';
 
 // The library page keeps its state in the URL (concept 08, 7.3), like the search page: a view can
 // be shared, reloaded and reached again with the browser's back button. Kept apart from the page:
@@ -34,7 +35,6 @@ export const STATUSES = [
   'started',
   'watched',
 ] as const satisfies readonly LibraryItemStatus[];
-export const RATINGS = [0, 6, 12, 16, 18] as const satisfies readonly Rating[];
 /** The letter bar: digits and other characters (`#`) first, then A to Z. */
 export const LETTERS = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'] as const;
 
@@ -86,9 +86,7 @@ export function validateLibraryParams(search: Record<string, unknown>): LibraryP
     typeof search.rating === 'number' || (typeof search.rating === 'string' && search.rating !== '')
       ? Number(search.rating)
       : undefined;
-  if (rating !== undefined && (RATINGS as readonly number[]).includes(rating)) {
-    params.rating = rating as Rating;
-  }
+  if (rating !== undefined && isRatingAge(rating)) params.rating = rating;
   return params;
 }
 

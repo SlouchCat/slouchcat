@@ -18,6 +18,7 @@ import { useActiveSession } from '@/app/session';
 import { formatBytes, formatDateTime, formatPlayerTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
+  ButtonLink,
   FactList,
   Notice,
   Page,
@@ -43,6 +44,7 @@ import {
   type ActivityEntry,
   type ActivityTone,
 } from '@/ui/aria';
+import { firstOpenStep, setupPath, setupProgressQuery, stepState } from '../setup/setupState';
 import { composeCommand, SYSCTL_COMMAND } from '../shared/SystemState';
 import { useHealth } from '../system/useHealth';
 import { PROVIDERS } from './integrations/ProviderCard';
@@ -52,6 +54,7 @@ import { reloadPage, RESTART_POLL_MS, restartedSince } from './restart';
 import { RestartPanel } from './RestartPanel';
 import { streamMode } from './streams/format';
 import styles from './AdminHomePage.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The dot of an integration's state; the text next to it carries the meaning. */
 const integrationDot = {
@@ -197,6 +200,24 @@ function Command({ code, label }: { code: string; label: string }) {
   );
 }
 
+/**
+ * «Verstanden» under the one-time hint that ratings are minimum ages now (concept 22 section
+ * 4.11): the server forgets the hint, the next poll shows the overview without it.
+ */
+function DismissMinimumAge() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const dismiss = useMutation({
+    mutationFn: () => request(api.DELETE('/admin/dashboard/minimum-age-notice')),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+  });
+  return (
+    <AriaButton variant="secondary" onPress={() => dismiss.mutate()} isDisabled={dismiss.isPending}>
+      {t('admin.home.hints.minimumAgeDismiss')}
+    </AriaButton>
+  );
+}
+
 /** The tab «Fehlschläge» of the jobs page (concept 12, JOB-8, 11.5 point 11). */
 const jobsFailed = `${paths.adminJobs}?tab=failed`;
 
@@ -206,7 +227,7 @@ const jobsFailed = `${paths.adminJobs}?tab=failed`;
  */
 function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const hints: Hint[] = [];
   const toJobs = <TextLink href={paths.adminJobs}>{t('admin.home.hints.toJobs')}</TextLink>;
   if (data.jobs.failed > 0) {
@@ -226,6 +247,26 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
       tone: 'warning',
       title: t('admin.home.hints.paused', { count: data.jobs.paused ?? 0 }),
       action: toJobs,
+    });
+  }
+  // The ratings are read anew (concept 22 F-16, F-17): until the job is done the old ones apply.
+  if (data.attention.ratingsRereading) {
+    hints.push({
+      key: 'ratings-reread',
+      tone: 'active',
+      title: t('admin.home.hints.ratingsReread'),
+      body: t('admin.home.hints.ratingsRereadBody'),
+      action: toJobs,
+    });
+  }
+  // Once after the update to minimum ages: PG-13 is «ab 13» now, stricter than FSK 12 before.
+  if (data.attention.minimumAgeNotice) {
+    hints.push({
+      key: 'minimum-age',
+      tone: 'warning',
+      title: t('admin.home.hints.minimumAge'),
+      body: t('admin.home.hints.minimumAgeBody'),
+      action: <DismissMinimumAge />,
     });
   }
   // A provider that rejects its key (concept 21 P-2): one notice instead of a failed fill per title.
@@ -282,6 +323,22 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
       )),
     });
   }
+  // A stored graphics chip failed its probe at start: auto runs instead (concept 22, F-10).
+  if (system?.gpu.fallbackFrom) {
+    const backend = system.gpu.fallbackFrom;
+    hints.push({
+      key: 'gpu-fallback',
+      tone: 'warning',
+      title: t('system.gpu.fallback.title'),
+      body: t('system.gpu.fallback.body', {
+        name:
+          backend === 'software'
+            ? t('system.gpu.choice.software')
+            : t(`system.gpu.backend.${backend}`),
+      }),
+      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.hints.toKeys')}</TextLink>,
+    });
+  }
   if (system?.inotify.warn) {
     hints.push({
       key: 'inotify',
@@ -298,8 +355,8 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
         tone: 'warning',
         title: t('admin.home.hints.storage', { path: info.path, percent: STORAGE_FULL * 100 }),
         body: t('admin.home.storage.free', {
-          free: formatBytes(info.freeBytes, i18n.language),
-          total: formatBytes(info.totalBytes, i18n.language),
+          free: formatBytes(info.freeBytes, intlLocale(i18n.language)),
+          total: formatBytes(info.totalBytes, intlLocale(i18n.language)),
         }),
       });
     }
@@ -348,7 +405,7 @@ function HintsCard({ hints }: { hints: Hint[] }) {
     <DashCard
       icon="warning"
       title={t('admin.home.hints.title')}
-      count={new Intl.NumberFormat(i18n.language).format(hints.length)}
+      count={new Intl.NumberFormat(intlLocale(i18n.language)).format(hints.length)}
       countLabel={t('admin.home.hints.count', { count: hints.length })}
       countLive
     >
@@ -483,7 +540,7 @@ function InstallResult({ install }: { install: UpdateInstallStatus }) {
   const finished = install.finishedAt && (
     <Text as="span" tone="secondary" variant="caption">
       {t('admin.home.install.finished', {
-        date: formatDateTime(install.finishedAt, i18n.language),
+        date: formatDateTime(install.finishedAt, intlLocale(i18n.language)),
       })}
     </Text>
   );
@@ -901,7 +958,7 @@ function ServerCard({
       if (isApiError(error, 409) && error.code === 'restart_pending') onRestart();
     },
   });
-  const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
+  const number = (value: number) => new Intl.NumberFormat(intlLocale(i18n.language)).format(value);
   // The server's own uptime (getHealth), counted on with this browser's clock since it answered,
   // so a clock that differs from the server's does not shift it; the start time only without it.
   const health = useHealth();
@@ -992,7 +1049,7 @@ function ServerCard({
       {update.checkedAt && (
         <Text tone="secondary" variant="caption">
           {t('admin.home.server.checked', {
-            date: formatDateTime(update.checkedAt, i18n.language),
+            date: formatDateTime(update.checkedAt, intlLocale(i18n.language)),
           })}
         </Text>
       )}
@@ -1000,7 +1057,7 @@ function ServerCard({
       {update.error && update.lastSuccessAt && (
         <Text tone="secondary" variant="caption">
           {t('admin.home.server.lastSuccess', {
-            date: formatDateTime(update.lastSuccessAt, i18n.language),
+            date: formatDateTime(update.lastSuccessAt, intlLocale(i18n.language)),
           })}
         </Text>
       )}
@@ -1074,7 +1131,7 @@ function StreamsCard({ streams }: { streams: Dashboard['streams'] }) {
 
 function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   return (
     <DashCard
       icon="refresh"
@@ -1141,7 +1198,7 @@ function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
           {jobs.nextRun
             ? t('admin.home.jobs.next', {
                 type: typeName(t, jobs.nextRun.type),
-                date: formatDateTime(jobs.nextRun.at, i18n.language),
+                date: formatDateTime(jobs.nextRun.at, intlLocale(i18n.language)),
               })
             : t('admin.home.jobs.idle')}
         </Text>
@@ -1180,8 +1237,8 @@ function ActivityCard({ activity, now }: { activity: Dashboard['activity']; now:
       id: String(event.id),
       icon: look.icon,
       tone: look.tone,
-      text: activitySentence(t, event, i18n.language),
-      time: relativeTime(event.at, now, i18n.language),
+      text: activitySentence(t, event, intlLocale(i18n.language)),
+      time: relativeTime(event.at, now, intlLocale(i18n.language)),
       dateTime: event.at,
     };
   });
@@ -1200,7 +1257,7 @@ function ActivityCard({ activity, now }: { activity: Dashboard['activity']; now:
 
 function IntegrationsCard({ integrations }: { integrations: Dashboard['integrations'] }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const configured = integrations.filter((entry) => entry.state === 'configured').length;
   return (
     <DashCard
@@ -1277,7 +1334,7 @@ function WebhooksCard({ webhooks }: { webhooks: Dashboard['webhooks'] }) {
 
 function StorageCard({ storage }: { storage: Dashboard['storage'] }) {
   const { t, i18n } = useTranslation();
-  const bytes = (value: number) => formatBytes(value, i18n.language);
+  const bytes = (value: number) => formatBytes(value, intlLocale(i18n.language));
   const meter = (info: StorageInfo, label: string) => {
     const used = Math.max(0, info.totalBytes - info.freeBytes);
     return (
@@ -1375,7 +1432,9 @@ function ServerLog({ errors }: { errors: Dashboard['errors'] }) {
             {errors.map((entry, index) => (
               <li key={keys[index]} className={styles.error}>
                 <span className={styles.errorMeta}>
-                  <time dateTime={entry.at}>{formatDateTime(entry.at, i18n.language)}</time>
+                  <time dateTime={entry.at}>
+                    {formatDateTime(entry.at, intlLocale(i18n.language))}
+                  </time>
                   <span>{entry.source}</span>
                   {entry.jobId !== undefined && (
                     <span>
@@ -1448,6 +1507,37 @@ function Cards({
 }
 
 /**
+ * «Einrichtung fortsetzen» (concept 22, 3.4): while the owner's wizard is open, after «Später
+ * fortsetzen»; without a library it says why the start page is empty.
+ */
+function SetupBand() {
+  const { t } = useTranslation();
+  const session = useActiveSession();
+  // The wizard's state is the owner's primary profile's (x-visibility owner).
+  const progress = useQuery({
+    ...setupProgressQuery,
+    enabled: session.account.isOwner && session.profile.isPrimary,
+  }).data;
+  if (!progress || progress.finished) return null;
+  return (
+    <Notice
+      tone="warning"
+      live={false}
+      title={t('admin.home.setupBand.title')}
+      actions={
+        <ButtonLink href={setupPath(firstOpenStep(progress))} variant="secondary">
+          {t('admin.home.setupBand.action')}
+        </ButtonLink>
+      }
+    >
+      {stepState(progress, 'libraries') === 'done'
+        ? t('admin.home.setupBand.body')
+        : t('admin.home.setupBand.noLibrary')}
+    </Notice>
+  );
+}
+
+/**
  * The administration's overview (concept 11, 11.1; A-3): eight equal cards in two columns, asked
  * again every 5 s — server, running streams, background jobs, the activity log, integrations,
  * webhooks, storage and what needs doing — and the server log collapsed below. «Neu starten»
@@ -1489,6 +1579,7 @@ export function AdminHomePage() {
             </span>
           )}
         </div>
+        {allowed && session.setupPending && <SetupBand />}
         {!allowed ? (
           <Notice title={t('admin.access.notAllowed.title')}>
             {t('admin.access.notAllowed.body')}

@@ -29,7 +29,7 @@ const (
 	SettingImageMinPrefix   = "metadata.image_min_width."   // + poster|backdrop: number, 0 = any
 	SettingImageByVote      = "metadata.image_by_vote"      // "1"/"0"
 	SettingLocalImages      = "metadata.local_images"       // "1"/"0"
-	SettingRatingCountry    = "metadata.rating_country"     // DE, AT, CH, GB, US
+	SettingRatingCountry    = model.SettingRatingCountry    // a country of model.RatingCountries
 	SettingTMDBIncludeAdult = "metadata.tmdb_include_adult" // "1"/"0"
 	SettingFanartEnabled    = "metadata.fanart_enabled"     // "1"/"0"
 
@@ -169,7 +169,7 @@ func parseSettings(rows settingRows) (Settings, error) {
 	flag(SettingTMDBIncludeAdult, &s.TMDBIncludeAdult)
 	flag(SettingFanartEnabled, &s.FanartEnabled)
 	if raw, ok := rows[SettingRatingCountry]; ok {
-		if _, known := fskTables[raw]; known {
+		if model.IsRatingCountry(raw) {
 			s.RatingCountry = raw
 		} else {
 			errs = append(errs, fmt.Errorf("%s: unknown country %q", SettingRatingCountry, raw))
@@ -219,7 +219,7 @@ func (s Settings) rows() settingRows {
 // ValidateTextLangs), chains without duplicates, widths not negative, the country known.
 // Field names follow the contract (MetadataSettings).
 func (s Settings) Validate() *model.ValidationError {
-	verr := ValidateTextLangs("textLangs", s.TextLangs, true)
+	verr := ValidateTextLangs("textLangs", s.TextLangs)
 	for _, k := range ChainImageKinds {
 		verr = validateChain("imageLangs."+k, s.ImageLangs[k], verr)
 	}
@@ -234,16 +234,17 @@ func (s Settings) Validate() *model.ValidationError {
 			verr = verr.Add("imageMinWidth."+k, "invalid_value")
 		}
 	}
-	if _, ok := fskTables[s.RatingCountry]; !ok {
+	if !model.IsRatingCountry(s.RatingCountry) {
 		verr = verr.Add("ratingCountry", "country_unknown")
 	}
 	return verr
 }
 
-// ValidateTextLangs checks a text language list: not empty (langs_empty), every code known
-// (lang_unknown), no duplicates (chain_duplicate), and de in it when server is set, else de or
-// en (ui_lang_required; E-9, F-9).
-func ValidateTextLangs(field string, langs []string, server bool) *model.ValidationError {
+// ValidateTextLangs checks a text language list of the server or a library: not empty
+// (langs_empty), every code known (lang_unknown), no duplicates (chain_duplicate). Neither list
+// has to hold German or English any more (concept 22 F-7, ADR 0033 replaces F-9 of ADR 0018): a
+// French household reads French and English only.
+func ValidateTextLangs(field string, langs []string) *model.ValidationError {
 	var verr *model.ValidationError
 	if len(langs) == 0 {
 		return verr.Add(field, "langs_empty")
@@ -259,12 +260,6 @@ func ValidateTextLangs(field string, langs []string, server bool) *model.Validat
 			break
 		}
 		seen[l] = true
-	}
-	switch {
-	case server && !slices.Contains(langs, "de"):
-		verr = verr.Add(field, "ui_lang_required")
-	case !server && !slices.Contains(langs, "de") && !slices.Contains(langs, "en"):
-		verr = verr.Add(field, "ui_lang_required")
 	}
 	return verr
 }
@@ -353,7 +348,7 @@ func (d LibraryDeviation) apply(st Settings) Settings {
 func (d LibraryDeviation) Validate() *model.ValidationError {
 	var verr *model.ValidationError
 	if d.TextLangs != nil {
-		verr = ValidateTextLangs("textLangs", *d.TextLangs, false)
+		verr = ValidateTextLangs("textLangs", *d.TextLangs)
 	}
 	if d.Images != nil {
 		for _, k := range ChainImageKinds {

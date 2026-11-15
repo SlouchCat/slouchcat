@@ -217,5 +217,5 @@ func (s *Service) linkChat(ctx context.Context, token, code string, chatID int64
 	if err != nil {
 		return fmt.Errorf("account of the link: %w", err)
 	}
-	return s.telegram.SendMessage(ctx, token, chatID, text(acc.Language, "telegram_linked", acc.Email))
+	return s.telegram.SendMessage(ctx, token, chatID, text(acc.Language, "telegram_linked", vars{"account": acc.Email}))
 }

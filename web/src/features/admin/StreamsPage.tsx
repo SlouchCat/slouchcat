@@ -44,6 +44,7 @@ import {
   type StreamLoad,
 } from './streams/format';
 import styles from './streams/Streams.module.css';
+import { intlLocale } from '@/i18n';
 
 type RadioRelay = RadioRelays['relays'][number];
 type RadioListener = RadioRelay['listeners'][number];
@@ -143,7 +144,7 @@ export function StreamsPage() {
 function StreamsContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const listHeading = useId();
 
@@ -290,7 +291,7 @@ function StreamsContent() {
     t('radio.player.kbps', { count: Math.round(bitsPerSecond / 1000) });
   const since = (iso: string) => (
     <time dateTime={iso}>
-      {t('admin.streams.since', { time: formatDateTime(iso, i18n.language) })}
+      {t('admin.streams.since', { time: formatDateTime(iso, intlLocale(i18n.language)) })}
     </time>
   );
   const device = (named?: { name?: string }) => ({
@@ -345,7 +346,7 @@ function StreamsContent() {
           {
             key: 'quality',
             label: t('admin.streams.facts.quality'),
-            value: streamQuality(t, stream, i18n.language),
+            value: streamQuality(t, stream, intlLocale(i18n.language)),
             icon: 'film',
           },
           // Why it is not played directly, in the words of the player's stream info; none for
@@ -485,7 +486,9 @@ function StreamsContent() {
             {
               key: 'bandwidth',
               label: t('admin.streams.load.bandwidth.label'),
-              value: running ? formatBitrate(totalBitrate(running), i18n.language) : '–',
+              value: running
+                ? formatBitrate(totalBitrate(running), intlLocale(i18n.language))
+                : '–',
               // Direct play reports no bit rate: then the sum covers only the known ones.
               note:
                 running && !running.every((stream) => stream.bitrate !== undefined)

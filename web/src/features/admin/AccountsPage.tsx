@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { useActiveSession } from '@/app/session';
+import { useActiveSession, useRatingSystem } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
@@ -38,6 +38,7 @@ import {
 } from './accounts/OwnAccountForm';
 import { accountsQuery, invitationsQuery } from './queries';
 import styles from './accounts/Accounts.module.css';
+import { intlLocale } from '@/i18n';
 
 const TABS = ['accounts', 'invitations'];
 /** `?item=me`: the own account (the link to «Meine Profile» needs no account id). */
@@ -83,11 +84,12 @@ export function AccountsPage() {
 function AccountsContent() {
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
+  const ratingSystem = useRatingSystem();
   const ownId = String(session.account.id);
   const isOwner = session.account.isOwner;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const inviteButton = useRef<HTMLButtonElement>(null);
 
@@ -346,8 +348,8 @@ function AccountsContent() {
     [ownId, isOwner, t, askRole, askRemove],
   );
   const columns = useMemo(
-    () => accountColumns(t, i18n.language, actionsOf),
-    [t, i18n.language, actionsOf],
+    () => accountColumns(t, intlLocale(i18n.language), actionsOf, ratingSystem),
+    [t, i18n.language, actionsOf, ratingSystem],
   );
   const detail = (account: AdminAccount) => {
     const id = String(account.id);
@@ -454,7 +456,7 @@ function AccountsContent() {
           ...(nextExpiry
             ? {
                 note: t('admin.accounts.status.nextExpiry', {
-                  date: formatDateTime(nextExpiry, i18n.language),
+                  date: formatDateTime(nextExpiry, intlLocale(i18n.language)),
                 }),
               }
             : {}),

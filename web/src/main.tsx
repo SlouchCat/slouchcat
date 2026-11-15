@@ -13,6 +13,11 @@ import { registerServiceWorker } from '@/app/serviceWorker';
 import { sessionQuery } from '@/app/session';
 import { dismissHeroPrepaint, dismissPosterPrepaint, loadSpatialNavigation } from '@/ui';
 
+// Development only: /?lng=en-XA shows the pseudo language (concept 22 section 4.4) until reload.
+if (import.meta.env.DEV && new URLSearchParams(location.search).get('lng') === 'en-XA') {
+  await import('@/i18n/pseudo').then(({ setPseudoLanguage }) => setPseudoLanguage());
+}
+
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element in index.html');
 

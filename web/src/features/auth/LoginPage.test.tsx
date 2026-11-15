@@ -1,6 +1,7 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setLanguage } from '@/i18n';
 import { homePage } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session } from '@/test/api';
 
@@ -63,5 +64,36 @@ describe('login page', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(await screen.findByRole('heading', { name: 'Continue watching' })).toBeVisible();
+  });
+
+  it('switches the page language with the language button, by keyboard (concept 22, 4.4)', async () => {
+    mockApi(signedOut);
+    renderApp('/login');
+    const user = userEvent.setup();
+    const button = await screen.findByRole('button', { name: 'Sprache: Deutsch (Schweiz)' });
+    button.focus();
+    await user.keyboard('{Enter}');
+    const menu = await screen.findByRole('menu', { name: 'Sprache: Deutsch (Schweiz)' });
+    // Every shipped language in its own language; the current one is checked.
+    const items = within(menu).getAllByRole('menuitemradio');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Deutsch (Schweiz)',
+      'Deutsch (Deutschland)',
+      'English',
+    ]);
+    expect(within(menu).getByRole('menuitemradio', { name: 'Deutsch (Schweiz)' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{ArrowDown}');
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
+    expect(document.documentElement.lang).toBe('en');
+    // The focus is back on the button, which names the new language.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Language: English' })).toHaveFocus(),
+    );
+    await setLanguage('de');
   });
 });

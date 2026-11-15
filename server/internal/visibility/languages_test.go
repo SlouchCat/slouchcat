@@ -133,3 +133,34 @@ func TestThirdLanguageThroughTheReader(t *testing.T) {
 		t.Errorf("discover genres fr (none) = %+v, want the German list", genres)
 	}
 }
+
+// Concept 22 section 4.3: the scope of a profile no longer turns every other interface language
+// into German. de and de-DE fall back to German, every other language to English; without a
+// metadata language of its own the profile reads model.MetadataBase of its interface language,
+// and a metadata language of its own always wins.
+func TestProfileScopeLanguages(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		ui, meta           string
+		wantMeta, wantBack string
+	}{
+		{ui: "de", wantMeta: "de", wantBack: "de"},
+		{ui: "en", wantMeta: "en", wantBack: "en"},
+		{ui: "de-DE", wantMeta: "de", wantBack: "de"},
+		{ui: "fr", wantMeta: "fr", wantBack: "en"},
+		{ui: "pt-BR", wantMeta: "pt-BR", wantBack: "en"},
+		{ui: "nb", wantMeta: "no", wantBack: "en"},
+		{ui: "fr", meta: "de", wantMeta: "de", wantBack: "en"},
+	} {
+		s := Profile(model.Profile{ID: 1, Language: tc.ui, MetadataLanguage: tc.meta})
+		if got := s.langs(); got.meta != tc.wantMeta || got.ui != tc.wantBack {
+			t.Errorf("Profile(%q, %q) langs = %+v, want meta %q, fallback %q", tc.ui, tc.meta, got, tc.wantMeta, tc.wantBack)
+		}
+	}
+	// A French profile on a server with de → en: the title has no French row, so the chain
+	// takes the fallback language English before the rank (German first in the server's list).
+	rows := []scopedq.ItemText{rankedText("de", "Chihiros Reise", "", 0), rankedText("en", "Spirited Away", "", 1)}
+	if got := pickTexts(rows, Profile(model.Profile{ID: 1, Language: "fr"}).langs(), "x"); got.title != "Spirited Away" {
+		t.Errorf("fr profile reads %q, want the English fallback", got.title)
+	}
+}

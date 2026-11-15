@@ -29,6 +29,7 @@ import {
 } from './collectionsParams';
 import { collectionsQuery } from './queries';
 import styles from './Discover.module.css';
+import { intlLocale } from '@/i18n';
 
 const GRID_KEY = 'collections-card';
 const BACK_KEY = 'collections-back';
@@ -81,7 +82,7 @@ export function CollectionsPage() {
   const list = useQuery(collectionsQuery);
   const all = useMemo(() => list.data ?? [], [list.data]);
   const collections = useMemo(
-    () => arrangeCollections(all, { q: typed, size, sort }, i18n.language),
+    () => arrangeCollections(all, { q: typed, size, sort }, intlLocale(i18n.language)),
     [all, typed, size, sort, i18n.language],
   );
   const filtered = typed !== '' || size !== 'all';

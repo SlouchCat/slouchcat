@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { accountLibraries, profiles } from '@/test/fixtures';
+import { accountLibraries, profiles, ratingSystemOf } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 
 const manage: Routes = {
@@ -125,6 +125,7 @@ describe('profile settings page', () => {
             libraryIds: [3],
           },
           profile: session.profile,
+          ratingSystem: session.ratingSystem,
         }),
       'GET /libraries': () => json([{ id: 3, name: 'Kinder', kind: 'video' }]),
     });
@@ -139,6 +140,27 @@ describe('profile settings page', () => {
     // A guest picks among the libraries of its own account.
     await user.click(within(dialog).getByRole('radio', { name: 'Auswahl' }));
     expect(within(dialog).getByRole('checkbox', { name: 'Kinder' })).toBeVisible();
+  });
+
+  it('starts a new profile at the guest ceiling even when it is no step of the country (concept 22)', async () => {
+    mockApi({
+      ...manage,
+      'GET /auth/session': () =>
+        json({
+          account: { ...session.account, role: 'user', isOwner: false, maxRating: 12 },
+          profile: session.profile,
+          ratingSystem: ratingSystemOf('US'),
+        }),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    // 12 is no US step: it is offered as «ab 12» and chosen; PG-13 lies above the ceiling.
+    expect(within(dialog).getByRole('radio', { name: 'ab 12' })).toBeChecked();
+    expect(within(dialog).getByRole('radio', { name: 'PG-13' })).toBeDisabled();
+    expect(within(dialog).getByRole('radio', { name: 'TV-Y7' })).toBeEnabled();
   });
 
   it('shows the server limit at the name field', async () => {
@@ -187,7 +209,8 @@ describe('profile settings page', () => {
     expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
       metadataLanguage: 'ja',
     });
-    expect(await within(lena).findByText('Sprache der Beschreibungen: Japanese')).toBeVisible();
+    // Named in the UI language (German here), not in the profile's own language.
+    expect(await within(lena).findByText('Sprache der Beschreibungen: Japanisch')).toBeVisible();
   });
 
   it('hides the metadata language while the server offers only the interface languages', async () => {
@@ -315,6 +338,7 @@ describe('profile settings page', () => {
             allLibraries: true,
           },
           profile: session.profile,
+          ratingSystem: session.ratingSystem,
         }),
       // The raw value (18) is above the guest ceiling (12): the server caps it in the view.
       'GET /profiles': () => json([profiles[0]]),

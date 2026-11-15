@@ -20,7 +20,7 @@ services:
     # update check only says that there is one. The optional updater companion
     # (compose.updater.yaml, ADR 0024) takes that step on a click in the administration.
     # `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.33.0}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.36.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -41,6 +41,9 @@ services:
     environment:
       TZ: ${TZ:-Europe/Zurich}
       SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}
+      # Transcode backend (auto, nvenc, qsv, vaapi, software). Empty = the choice of the setup
+      # wizard or the administration (concept 22); a value here wins over it.
+      SLOUCHCAT_HW: ${SLOUCHCAT_HW:-}
       # Optional: TMDB v4 read access token from .env; the wizard can store it encrypted instead.
       SLOUCHCAT_TMDB_API_KEY: ${SLOUCHCAT_TMDB_API_KEY:-}
       # Optional providers (README «Metadaten-Anbieter und Trailer»); empty = not used.

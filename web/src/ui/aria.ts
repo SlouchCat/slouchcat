@@ -14,6 +14,7 @@ export { ToggleToolbar, type ToggleToolbarOption } from './ToggleToolbar';
 export { TaskRow } from './TaskRow';
 export {
   AdminSideNav,
+  AdminSideNavContent,
   type AdminSideNavEntry,
   type AdminSideNavGroup,
   type AdminSideNavProps,

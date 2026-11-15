@@ -164,7 +164,7 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     fireEvent.keyDown(region, { key: 'ArrowUp' });
     expect(screen.getByRole('status')).toHaveTextContent('Lautstärke');
     fireEvent.keyDown(region, { key: ']' });
-    expect(screen.getByRole('status')).toHaveTextContent('1,25');
+    expect(screen.getByRole('status')).toHaveTextContent('1.25');
   });
 
   it('shows the chapters of the download as a tab, C on the chapter playing', async () => {

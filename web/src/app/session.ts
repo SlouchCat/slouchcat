@@ -1,4 +1,4 @@
-import type { components, Profile, SessionInfo } from '@slouchcat/api-client';
+import type { components, Profile, RatingSystem, SessionInfo } from '@slouchcat/api-client';
 import {
   queryOptions,
   useMutation,
@@ -10,7 +10,7 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { api, isApiError, request } from '@/api/client';
 import { leaveOfflineProfile } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
-import { detectLanguage, setLanguage } from '@/i18n';
+import { detectLanguage, setLanguage, shippedLanguageFor } from '@/i18n';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { isAccentName } from '@/ui/accent';
 
@@ -41,11 +41,13 @@ export type ActiveSession = SessionInfo & { profile: Profile };
 
 /**
  * Switches the UI to the language of the active profile (C-3). A session without a profile (the
- * picker is next) keeps the language the UI has.
+ * picker is next) keeps the language the UI has. A code this app ships no pack for (a newer
+ * server knows more languages than a cached old app; concept 22 section 4.3) shows the first
+ * shipped language of its chain (de for de-DE, else English) and never throws.
  */
 export async function applyProfileLanguage(session: SessionInfo | null): Promise<void> {
-  const language = session?.profile?.language;
-  if (language) await setLanguage(language);
+  const language: string | undefined = session?.profile?.language;
+  if (language) await setLanguage(shippedLanguageFor(language));
 }
 
 /**
@@ -134,6 +136,14 @@ export function useActiveSession(): ActiveSession {
   const { session: fromRoute } = activeRoute.useRouteContext();
   const live = useQuery(sessionQuery).data;
   return live?.profile ? { ...live, profile: live.profile } : fromRoute;
+}
+
+/**
+ * The rating country of the server with its age steps (`SessionInfo.ratingSystem`, concept 22
+ * section 4.11), undefined without a session or from an older server (labels then read «ab n»).
+ */
+export function useRatingSystem(): RatingSystem | undefined {
+  return useQuery(sessionQuery).data?.ratingSystem;
 }
 
 /** How long a logout waits for the push cleanup of this browser before it goes on. */

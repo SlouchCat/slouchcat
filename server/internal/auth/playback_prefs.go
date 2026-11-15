@@ -54,10 +54,13 @@ func prefColumns(prefs model.PlaybackPrefs) (audio, mode, subs string) {
 
 // initialPrefs are the preferences of a new profile (F-12, like migration 00032 for the existing
 // ones): its interface language in both lists, [] without one, and the subtitle rule forced (F-3).
+// The interface code goes through trackpick.Normalize first (concept 22 section 4.3): a track
+// language is a two-letter code, so de-DE stores de, pt-BR pt, zh-TW zh and nb no; a code the
+// track choice cannot compare is left out instead of failing the next save with invalid_value.
 func initialPrefs(lang string) model.PlaybackPrefs {
 	langs := []string{}
-	if lang != "" {
-		langs = []string{lang}
+	if code := trackpick.Normalize(lang); trackpick.Valid(code) {
+		langs = []string{code}
 	}
 	return model.PlaybackPrefs{AudioLanguages: langs, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: slices.Clone(langs)}
 }

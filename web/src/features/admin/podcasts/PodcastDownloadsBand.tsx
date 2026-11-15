@@ -24,6 +24,7 @@ import {
   useLoadConfirmation,
 } from './downloads';
 import styles from './Podcasts.module.css';
+import { intlLocale } from '@/i18n';
 
 type Mode = LibraryPodcastDownloads['mode'];
 type Scope = LibraryPodcastDownloads['scope'];
@@ -141,7 +142,11 @@ export function PodcastDownloadsBand({
       onExpandedChange={setExpanded}
     >
       <div className={styles.band}>
-        <FolderCheck folder={folder} pending={detail.isPending} language={i18n.language} />
+        <FolderCheck
+          folder={folder}
+          pending={detail.isPending}
+          language={intlLocale(i18n.language)}
+        />
         <RadioGroup
           label={t('admin.podcasts.downloads.mode.label')}
           value={value.mode}
@@ -191,9 +196,9 @@ export function PodcastDownloadsBand({
           <Notice
             title={t('admin.podcasts.downloads.confirm.text', {
               count: pending.episodes,
-              number: new Intl.NumberFormat(i18n.language).format(pending.episodes),
-              size: formatBytes(pending.bytes, i18n.language),
-              free: formatBytes(pending.freeBytes, i18n.language),
+              number: new Intl.NumberFormat(intlLocale(i18n.language)).format(pending.episodes),
+              size: formatBytes(pending.bytes, intlLocale(i18n.language)),
+              free: formatBytes(pending.freeBytes, intlLocale(i18n.language)),
             })}
             actions={
               <>

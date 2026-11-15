@@ -8,6 +8,7 @@ import { isAudioLibrary } from '../../shared/LibraryFields';
 import { canScan, isScanning } from '../queries';
 import { canAcceptLoss, errorText, hasScanError, watchKeys } from './libraryColumns';
 import styles from './Libraries.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * How long after «Erneut scannen» the same button ignores a press: it turns into «Scan abbrechen»
@@ -171,7 +172,7 @@ export const LibraryDetail = memo(function LibraryDetail({
  */
 function KeyframeCoverage({ coverage }: { coverage: LibraryKeyframeIndex }) {
   const { t, i18n } = useTranslation();
-  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   if (coverage.videoFiles === 0) return null;
   const complete = coverage.indexed === coverage.videoFiles;
   return (

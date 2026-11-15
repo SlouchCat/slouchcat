@@ -47,6 +47,10 @@ type Config struct {
 	Workers   int            // Number of job workers.
 	// HW selects the transcode backend: auto (detect), nvenc, qsv, vaapi or software (M1b).
 	HW string
+	// HWExplicit is true when --hw or a non-empty SLOUCHCAT_HW set HW. Only then it wins over the
+	// choice stored in the administration (concept 22, F-10); without it the default auto gives
+	// way. An empty SLOUCHCAT_HW counts as unset, as deploy/compose.yaml passes it empty.
+	HWExplicit bool
 	// HDRTonemap selects where HDR → SDR tonemapping runs: auto, gpu or cpu (M4, transcode.TonemapPref*).
 	HDRTonemap string
 	// TrustedProxies are the networks whose X-Forwarded-For header the server believes (reverse
@@ -282,6 +286,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("browse roots: %w", err)
 	}
 	cfg.HW, cfg.TranscodeBudget, cfg.DownloadBudgetGB = *hw, *budget, *downloadBudget
+	cfg.HWExplicit = getenv(EnvPrefix+"HW") != ""
+	fs.Visit(func(f *flag.Flag) { cfg.HWExplicit = cfg.HWExplicit || f.Name == "hw" })
 	cfg.HDRTonemap = strings.ToLower(strings.TrimSpace(*hdrTonemap))
 	cfg.TVDBAPIKey, cfg.TVDBPIN = strings.TrimSpace(env("TVDB_API_KEY", "")), strings.TrimSpace(env("TVDB_PIN", ""))
 	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))

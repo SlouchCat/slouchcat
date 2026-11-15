@@ -24,6 +24,7 @@ import type { StoredDownload, StoredProfile } from './types';
 import { useStoredDownloads, useStoredProfiles } from './useOfflineData';
 import { usePreparingPoll } from './usePreparingPoll';
 import styles from './OfflinePages.module.css';
+import { intlLocale } from '@/i18n';
 
 /**
  * Downloads of the active profile on this device (M5): state and progress of each, play and
@@ -92,7 +93,7 @@ function DownloadsContent() {
     stored !== undefined &&
     pinRequirement(stored) === 'unavailable';
   const network = networkKind();
-  const bytes = (value: number) => formatBytes(value, i18n.language);
+  const bytes = (value: number) => formatBytes(value, intlLocale(i18n.language));
 
   const columns: DataColumn<StoredDownload>[] = [
     {

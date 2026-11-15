@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
+import { useRatingSystem } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
@@ -18,7 +19,7 @@ import {
   TextField,
   type DataColumn,
 } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../../shared/choices';
+import { ratingLabel, ratingOf, ratingOptions } from '../../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../../shared/LibraryChoice';
 import {
   describeLibraries,
@@ -27,6 +28,7 @@ import {
 } from '../../shared/useLibraryOptions';
 import { invitationsQuery } from '../queries';
 import styles from './Accounts.module.css';
+import { intlLocale } from '@/i18n';
 
 const stateTone = {
   open: 'success',
@@ -99,6 +101,7 @@ function InvitationForm({
   onCreated: (created: InvitationCreated) => void;
 }) {
   const { t } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const queryClient = useQueryClient();
   const [rating, setRating] = useState('18');
   const [selection, setSelection] = useState<LibrarySelection>({ all: true, ids: [] });
@@ -142,7 +145,7 @@ function InvitationForm({
           label={t('admin.accounts.invitations.form.rating')}
           value={rating}
           onChange={setRating}
-          options={ratingOptions(t)}
+          options={ratingOptions(t, ratingSystem)}
         />
         <LibraryChoice
           label={t('admin.accounts.invitations.form.libraries')}
@@ -218,6 +221,7 @@ export function InvitationsTable({
   onRevoke: (invitation: Invitation) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const ratingSystem = useRatingSystem();
   const noteId = (invitation: Invitation) => `invitation-${invitation.id}`;
   const columns: DataColumn<Invitation>[] = [
     {
@@ -243,7 +247,7 @@ export function InvitationsTable({
       key: 'rating',
       header: t('admin.accounts.invitations.columns.rating'),
       cell: (invitation) => (
-        <span className={styles.nowrap}>{t('rating.fsk', { age: invitation.maxRating })}</span>
+        <span className={styles.nowrap}>{ratingLabel(t, invitation.maxRating, ratingSystem)}</span>
       ),
     },
     {
@@ -258,7 +262,7 @@ export function InvitationsTable({
         invitation.state === 'used' && invitation.usedByEmail
           ? t('admin.accounts.invitations.usedBy', { email: invitation.usedByEmail })
           : t('admin.accounts.invitations.expires', {
-              date: formatDateTime(invitation.expiresAt, i18n.language),
+              date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),
             }),
     },
     {

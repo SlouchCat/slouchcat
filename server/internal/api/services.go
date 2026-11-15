@@ -46,6 +46,9 @@ type ProfileService interface {
 	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
 	// AvailableMetadataLanguages are the metadata languages a profile may choose (ADR 0018).
 	AvailableMetadataLanguages(ctx context.Context) ([]string, error)
+	// RatingSystem is the server's rating country with its steps (SessionInfo.ratingSystem,
+	// concept 22 section 4.11).
+	RatingSystem(ctx context.Context) (model.RatingSystem, error)
 	// DeleteProfile deletes a non-primary profile; end runs after the checks, before the delete.
 	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
 	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error
@@ -285,17 +288,20 @@ type AdminService interface {
 	SetSpotlightEntryOverride(ctx context.Context, media string, tmdbID int64, in model.SpotlightOverrideUpdate) (model.SpotlightEntry, error)
 	RefreshSpotlight(ctx context.Context) error
 
-	// M8 (design sections 1 and 3). Wizard checks (A-1): only while no account exists
-	// (model.ErrSetupDone), counted against the attempt limit of model.ClientIP of ctx
-	// (model.ErrTooManyAttempts); a bad path or key is described in the result, not an error.
-	CheckSetupPath(ctx context.Context, path string) (model.PathCheck, error)
-	CheckSetupTMDBKey(ctx context.Context, key string) (model.TMDBCheck, error)
-	// The folder browser of the library form (idea 02, A-2). SetupRoots answers the wizard from
-	// the list filled at start-up, with its own limit for model.ClientIP of ctx
-	// (model.ErrTooManyAttempts) and only while no account exists (model.ErrSetupDone).
+	// M8 (design sections 1 and 3). The folder browser of the library form (idea 02, A-2).
 	// BrowsePaths: *model.ValidationError, model.ErrPathNotBrowsable, model.ErrPathUnreachable,
 	// model.ErrBrowseBusy.
-	SetupRoots(ctx context.Context) ([]model.BrowseRoot, error)
+	// The guided wizard of concept 22 part A (setup_wizard.go). SetupPending: the wizard is open.
+	// UpdateSetupProgress: *model.ValidationError, model.ErrSetupDone (finished, never reopened).
+	// FinishSetup: model.ErrLibraryRequired; the restart for a new transcode choice runs through
+	// RestartServer with accountID.
+	SetupPending(ctx context.Context) (bool, error)
+	// DismissMinimumAgeNotice closes the one-time hint that ratings are minimum ages now
+	// (concept 22 section 4.11).
+	DismissMinimumAgeNotice(ctx context.Context) error
+	SetupProgress(ctx context.Context) (model.SetupProgress, error)
+	UpdateSetupProgress(ctx context.Context, upd model.SetupProgressUpdate) (model.SetupProgress, error)
+	FinishSetup(ctx context.Context, accountID int64) (model.SetupFinished, error)
 	BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error)
 	BrowsePaths(ctx context.Context, req model.BrowseRequest) (model.DirectoryListing, error)
 	// SystemInfo returns version, transcode hardware, inotify limit and file systems; no secrets.

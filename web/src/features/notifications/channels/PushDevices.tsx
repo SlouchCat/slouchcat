@@ -11,6 +11,7 @@ import { PushError, pushSupported, subscribeThisDevice, unsubscribeThisDevice } 
 import { createPushSubscription, deletePushSubscription, vapidKey } from '../queries';
 import { useRefreshChannels } from './shared';
 import styles from './channels.module.css';
+import { intlLocale } from '@/i18n';
 
 function pushMessage(t: TFunction, error: unknown): string {
   return error instanceof PushError
@@ -94,7 +95,7 @@ export function PushDevices({
                 <span className={styles.deviceName}>{name(subscription)}</span>
                 <Text tone="muted" variant="caption">
                   {t('settings.notifications.push.created', {
-                    date: formatDate(subscription.createdAt, i18n.language),
+                    date: formatDate(subscription.createdAt, intlLocale(i18n.language)),
                   })}
                 </Text>
               </div>

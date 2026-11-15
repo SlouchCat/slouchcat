@@ -29,6 +29,7 @@ import {
 } from '../queries';
 import styles from './Radio.module.css';
 import { StationDetailsDialog } from './StationDetailsDialog';
+import { intlLocale } from '@/i18n';
 
 /** Typing waits this long before the list follows. */
 const DEBOUNCE_MS = 300;
@@ -65,7 +66,7 @@ const OFFER_SCOPE = { id: 'admin-radio-offer-now' };
  */
 export function StationsTab({ onEdit, titleRef }: StationsTabProps) {
   const { t, i18n } = useTranslation();
-  const language = i18n.language;
+  const language = intlLocale(i18n.language);
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
 

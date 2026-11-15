@@ -10,6 +10,7 @@ import { AriaButton, RadioGroup, StatusRegion, TextField, useStatusMessage } fro
 import { podcastsQuery } from '../queries';
 import { estimatePodcastDownloads, LAST_N_MAX, useLoadConfirmation } from './downloads';
 import styles from './Podcasts.module.css';
+import { intlLocale } from '@/i18n';
 
 /** The own setting of a podcast as `updatePodcast` takes it; `lastN` with an own scope. */
 interface OwnSetting {
@@ -34,7 +35,7 @@ const SCOPES = ['inherit', 'new', 'last_n', 'all'] as const;
 export function PodcastSetting({ podcast }: { podcast: AdminPodcast }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const [message, say] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const saved: OwnSetting = {
@@ -224,8 +225,8 @@ export function PodcastSetting({ podcast }: { podcast: AdminPodcast }) {
           title={t('admin.podcasts.downloads.confirm.text', {
             count: pending.episodes,
             number: number.format(pending.episodes),
-            size: formatBytes(pending.bytes, i18n.language),
-            free: formatBytes(pending.freeBytes, i18n.language),
+            size: formatBytes(pending.bytes, intlLocale(i18n.language)),
+            free: formatBytes(pending.freeBytes, intlLocale(i18n.language)),
           })}
           actions={
             <>
