@@ -1,5 +1,24 @@
 # Aktueller Stand
 
+## Release 1.34.0: Konzept 22 Stufe 1 «Sprachgerüst» (15. November 2026)
+
+Stufe 1 von `docs/planning/22-ersteinrichtung-und-sprachen.md` (Abschnitte 4.2 bis 4.5, 4.9) auf dem Zweig
+`claude/k22-stufe1`, gebaut autonom auf Marcos Auftrag vom 15. November 2026. Vertrag **1.34.0** (F-9 aus
+ADR 0018 fällt: die Metadaten-Sprachliste muss kein Deutsch mehr enthalten), Migration **00061** (Neubau
+`profiles` ohne `CHECK` auf `language` und `max_rating`), eingefrorener Stand vor der Migration, ADR **0033**.
+
+- **Sprachgerüst:** `web/src/i18n/languages.ts` als einzige Liste der ausgelieferten Sprachen, Laden der
+  ganzen Kette (Sprache, bei `de-DE` zusätzlich `de`, immer `en`), Erkennung nach 4.2, Absicherung gegen
+  unbekannte Sprachcodes und Altersstufen, Sprachknopf auf `/login`, Pseudo-Sprache `en-XA` für Entwicklung
+  und Storybook, `<html dir="ltr">`, Schriftstapel je CJK-Sprache.
+- **Zahlen und Daten in Schweizer Format:** Jeder `Intl`-Aufruf nimmt `intlLocale()` (`de` → `de-CH`).
+- **Server:** `model.UILanguages` als einzige Prüfstelle, `model.MetadataBase` und Rückfallsprache in
+  `visibility.Profile`, Server-Texte als eingebettetes i18next-JSON (`internal/i18n`), Rückfall Englisch.
+- **Noch nicht wählbar:** Deutsch (Deutschland). `web/src/locales/de-DE.json` liegt bereit und kommt mit
+  Stufe 2 in die Liste.
+- **Befunde aus Schritt 0** (ADR 0033): TMDB führt Norwegisch unter `no`; die PWA lädt bei einer neuen
+  Serverversion nicht von selbst neu.
+
 ## Release 1.33.0: Konzept 21 Stufen 4 bis 6 (15. November 2026, veröffentlicht)
 
 Die Stufen 4 bis 6 von `docs/planning/21-sammlung.md` auf **einem** Zweig `claude/k21-stufen4-6`, **ein** PR
