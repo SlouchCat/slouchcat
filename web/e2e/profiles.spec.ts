@@ -427,7 +427,9 @@ test.describe('profile management', () => {
 
     // Language, accent, libraries, PIN, then the two buttons.
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, form.getByRole('radio', { name: 'Deutsch' }));
+    await expectFocusOn(page, form.getByRole('radio', { name: 'Deutsch (Schweiz)' }));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, form.getByRole('radio', { name: 'Deutsch (Deutschland)' }));
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, form.getByRole('radio', { name: 'English' }));
     await page.keyboard.press('Tab');

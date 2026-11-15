@@ -18,6 +18,7 @@ import { useActiveSession } from '@/app/session';
 import { formatBytes, formatDateTime, formatPlayerTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
+  ButtonLink,
   FactList,
   Notice,
   Page,
@@ -43,6 +44,7 @@ import {
   type ActivityEntry,
   type ActivityTone,
 } from '@/ui/aria';
+import { firstOpenStep, setupPath, setupProgressQuery, stepState } from '../setup/setupState';
 import { composeCommand, SYSCTL_COMMAND } from '../shared/SystemState';
 import { useHealth } from '../system/useHealth';
 import { PROVIDERS } from './integrations/ProviderCard';
@@ -281,6 +283,22 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
           label={t('system.gpu.command', { vendor: t(`system.gpu.vendor.${override}`) })}
         />
       )),
+    });
+  }
+  // A stored graphics chip failed its probe at start: auto runs instead (concept 22, F-10).
+  if (system?.gpu.fallbackFrom) {
+    const backend = system.gpu.fallbackFrom;
+    hints.push({
+      key: 'gpu-fallback',
+      tone: 'warning',
+      title: t('system.gpu.fallback.title'),
+      body: t('system.gpu.fallback.body', {
+        name:
+          backend === 'software'
+            ? t('system.gpu.choice.software')
+            : t(`system.gpu.backend.${backend}`),
+      }),
+      action: <TextLink href={paths.adminIntegrations}>{t('admin.home.hints.toKeys')}</TextLink>,
     });
   }
   if (system?.inotify.warn) {
@@ -1451,6 +1469,32 @@ function Cards({
 }
 
 /**
+ * «Einrichtung fortsetzen» (concept 22, 3.4): while the owner's wizard is open, after «Später
+ * fortsetzen»; without a library it says why the start page is empty.
+ */
+function SetupBand() {
+  const { t } = useTranslation();
+  const progress = useQuery(setupProgressQuery).data;
+  if (!progress || progress.finished) return null;
+  return (
+    <Notice
+      tone="warning"
+      live={false}
+      title={t('admin.home.setupBand.title')}
+      actions={
+        <ButtonLink href={setupPath(firstOpenStep(progress))} variant="secondary">
+          {t('admin.home.setupBand.action')}
+        </ButtonLink>
+      }
+    >
+      {stepState(progress, 'libraries') === 'done'
+        ? t('admin.home.setupBand.body')
+        : t('admin.home.setupBand.noLibrary')}
+    </Notice>
+  );
+}
+
+/**
  * The administration's overview (concept 11, 11.1; A-3): eight equal cards in two columns, asked
  * again every 5 s — server, running streams, background jobs, the activity log, integrations,
  * webhooks, storage and what needs doing — and the server log collapsed below. «Neu starten»
@@ -1492,6 +1536,7 @@ export function AdminHomePage() {
             </span>
           )}
         </div>
+        {allowed && session.setupPending && <SetupBand />}
         {!allowed ? (
           <Notice title={t('admin.access.notAllowed.title')}>
             {t('admin.access.notAllowed.body')}

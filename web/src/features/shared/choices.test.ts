@@ -35,7 +35,8 @@ describe('ratings (concept 22 stage 1: an age outside the FSK steps)', () => {
 describe('languageOptions', () => {
   it('names every shipped language in its own language, whatever the UI language', () => {
     expect(languageOptions()).toEqual([
-      { value: 'de', label: 'Deutsch' },
+      { value: 'de', label: 'Deutsch (Schweiz)' },
+      { value: 'de-DE', label: 'Deutsch (Deutschland)' },
       { value: 'en', label: 'English' },
     ]);
   });

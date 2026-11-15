@@ -70,17 +70,22 @@ describe('login page', () => {
     mockApi(signedOut);
     renderApp('/login');
     const user = userEvent.setup();
-    const button = await screen.findByRole('button', { name: 'Sprache: Deutsch' });
+    const button = await screen.findByRole('button', { name: 'Sprache: Deutsch (Schweiz)' });
     button.focus();
     await user.keyboard('{Enter}');
-    const menu = await screen.findByRole('menu', { name: 'Sprache: Deutsch' });
+    const menu = await screen.findByRole('menu', { name: 'Sprache: Deutsch (Schweiz)' });
     // Every shipped language in its own language; the current one is checked.
     const items = within(menu).getAllByRole('menuitemradio');
-    expect(items.map((item) => item.textContent)).toEqual(['Deutsch', 'English']);
-    expect(within(menu).getByRole('menuitemradio', { name: 'Deutsch' })).toHaveAttribute(
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Deutsch (Schweiz)',
+      'Deutsch (Deutschland)',
+      'English',
+    ]);
+    expect(within(menu).getByRole('menuitemradio', { name: 'Deutsch (Schweiz)' })).toHaveAttribute(
       'aria-checked',
       'true',
     );
+    await user.keyboard('{ArrowDown}');
     await user.keyboard('{ArrowDown}');
     await user.keyboard('{Enter}');
     expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();

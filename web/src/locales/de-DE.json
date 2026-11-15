@@ -16,7 +16,23 @@
         }
       }
     },
-    "submit": "Einrichtung abschließen"
+    "nav": {
+      "close": "Schritte schließen"
+    },
+    "actions": {
+      "finish": "Einrichtung abschließen"
+    },
+    "account": {
+      "profileHint": "So heißt dein Profil in der Profilwahl."
+    },
+    "playback": {
+      "restart": "Gilt nach einem Neustart. Slouchcat startet beim Abschließen einmal neu."
+    },
+    "services": {
+      "email": {
+        "purpose": "Für Einladungen und „Passwort vergessen“."
+      }
+    }
   },
   "library": {
     "browse": {
@@ -549,9 +565,6 @@
         "close": "Filter schließen",
         "search": "„{{q}}“"
       }
-    },
-    "region": {
-      "CH-AR": "Appenzell Außerrhoden"
     },
     "player": {
       "close": "Jetzt läuft schließen"

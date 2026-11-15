@@ -12,6 +12,7 @@ export {
   fallbackLanguage,
   intlLocale,
   isLanguage,
+  languageName,
   languages,
   supportedLanguages,
 } from './languages';
@@ -27,7 +28,7 @@ const loaders: Record<string, () => Promise<Bundle>> = Object.fromEntries(
   ),
 );
 
-/** The codes there is a language file for (de-DE too, though it is not selectable yet). */
+/** The codes there is a language file for. */
 export const bundledLanguages = (): string[] => Object.keys(loaders).sort();
 
 /**

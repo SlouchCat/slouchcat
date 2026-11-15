@@ -8,19 +8,11 @@ import { api, request } from '@/api/client';
  */
 export const browseKey = ['fs', 'browse'] as const;
 
-/** The directories the dialog may start from; the wizard has its own, shorter list. */
+/** The directories the dialog may start from. */
 export const browseRootsQuery = queryOptions({
   queryKey: [...browseKey, 'roots'],
   queryFn: ({ signal }): Promise<BrowseRoot[]> => request(api.GET('/admin/fs/roots', { signal })),
   staleTime: 30_000,
-});
-
-/** The configured roots the setup wizard offers as suggestions; no account exists yet. */
-export const setupRootsQuery = queryOptions({
-  queryKey: [...browseKey, 'setupRoots'],
-  queryFn: ({ signal }): Promise<BrowseRoot[]> => request(api.GET('/setup/roots', { signal })),
-  staleTime: 30_000,
-  retry: false,
 });
 
 /** Folders per page: they load as the list scrolls (concept 18 C-3). */

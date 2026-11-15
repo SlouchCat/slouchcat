@@ -1,0 +1,149 @@
+/*
+ * The wizard's frame (concept 22, 3.6): the step list in a column as wide as the administration's,
+ * the step on the right in a form-wide column. Below 768 px the list is the sheet behind a button
+ * at the top.
+ */
+.page {
+  min-height: 100dvh;
+  background-color: var(--sc-color-bg-base);
+}
+
+.frame {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.rail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  width: var(--sc-size-sidenav-width);
+  height: 100dvh;
+  overflow: hidden auto;
+  padding: var(--sc-space-6) var(--sc-space-3);
+  border-inline-end: 1px solid var(--sc-color-border-subtle);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+.steps {
+  flex: 1;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+  width: 100%;
+  min-width: 0;
+  max-width: calc(var(--sc-size-form-max) * 1.6);
+  margin-inline: auto;
+  padding: var(--sc-space-8) var(--sc-space-4) var(--sc-space-12);
+}
+
+.top,
+.language {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.top {
+  justify-content: flex-start;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sc-font-size-2xl);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  color: var(--sc-color-text-secondary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding-top: var(--sc-space-4);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.laterNarrow {
+  display: flex;
+  justify-content: center;
+}
+
+/* Shared by the steps: a block with a heading, a grid of cards, a row of facts. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--sc-space-3);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* The country of step 3: a native select styled like SelectField's. */
+.select {
+  min-height: var(--sc-control-height);
+  max-width: 100%;
+  padding: 0 var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.select option {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+}

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
+import { languageName } from '@/i18n';
 import { Chip, Notice, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
 import {
   ActionMenu,
@@ -223,7 +224,7 @@ export function ProfileList({
                             })
                           : ratingLabel(t, profile.maxRating)}
                       </Chip>
-                      <Chip tone="info">{t(`language.${profile.language}`)}</Chip>
+                      <Chip tone="info">{languageName(profile.language)}</Chip>
                       {profile.metadataLanguage && (
                         <Chip tone="outline">
                           {t('profiles.settings.metadataLanguageChip', {

@@ -43,6 +43,8 @@ describe.each(supportedLanguages)('locales/%s.json', (code) => {
   const own = texts(code);
 
   it('has every text of de.json, apart from the plural forms of its language', () => {
+    // German (Germany) is an overlay: it holds only what reads differently (section 4.2).
+    if (code === 'de-DE') return;
     const bases = (t: Texts) => [...new Set(Object.keys(t).map(baseOf))].sort();
     expect(bases(own)).toEqual(bases(reference));
   });

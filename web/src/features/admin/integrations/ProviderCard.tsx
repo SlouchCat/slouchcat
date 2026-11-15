@@ -1,6 +1,6 @@
 import type { AdminSettings, AdminSettingsUpdate, SettingSource } from '@slouchcat/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { Chip, Text, TextLink, VisuallyHidden } from '@/ui';
@@ -69,10 +69,13 @@ export function ProviderCard({
   provider,
   keys,
   drafts,
+  extra,
 }: {
   provider: Provider;
   keys: AdminSettings['keys'];
   drafts: Drafts<string>;
+  /** Shown below the purpose while the card is folded too (the wizard's badge and link, F-6). */
+  extra?: ReactNode;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -165,6 +168,7 @@ export function ProviderCard({
             {name}
           </h3>
           <Text tone="secondary">{t(`admin.integrations.providers.${provider.id}.purpose`)}</Text>
+          {extra}
         </span>
         <span className={styles.actions}>
           {dirty && <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>}

@@ -33,7 +33,7 @@ import {
   type EmailValues,
 } from './integrations/shared';
 import { TelegramForm } from './integrations/TelegramForm';
-import { integrationsQuery, settingsQuery } from './queries';
+import { integrationsQuery, settingsQuery, systemQuery } from './queries';
 import { WebhooksSection, type PathMapDraft } from './WebhooksSection';
 import styles from './integrations/Integrations.module.css';
 
@@ -53,6 +53,7 @@ export function IntegrationsPage() {
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
   const integrations = useQuery({ ...integrationsQuery, enabled: allowed });
+  const system = useQuery({ ...systemQuery, enabled: allowed });
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   // The originals of the drafts: secrets are write-only, so their original is empty.
@@ -200,7 +201,7 @@ export function IntegrationsPage() {
                 title={t('admin.integrations.server.title')}
                 meta={<BandMeta unsaved={fields.isDirty(PUBLIC_URL_DRAFT)} />}
               >
-                <ServerBlock settings={data} fields={fields} />
+                <ServerBlock settings={data} fields={fields} system={system.data} />
               </BandPanel>
             </>
           )}

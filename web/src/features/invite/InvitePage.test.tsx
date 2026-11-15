@@ -41,7 +41,7 @@ describe('invitation page', () => {
     expect(screen.getByLabelText('E-Mail-Adresse')).toBeVisible();
     expect(screen.getByLabelText(/^Passwort/)).toBeVisible();
     expect(screen.getByLabelText(/^Profilname/)).toBeVisible();
-    expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Deutsch (Schweiz)' })).toBeChecked();
   });
 
   it('explains a used, expired or revoked link (410)', async () => {
