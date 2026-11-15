@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tokens } from '@slouchcat/design-tokens';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -176,4 +177,63 @@ describe('density.css (ADR 0020, concept 12 S-1)', () => {
     expect(rules).toEqual([":root[data-shell='admin'] :is(#content, [data-density='compact'])"]);
     expect(css).toContain('@media (width >= 48rem) and (pointer: fine)');
   });
+});
+
+describe('admin-look.css (build plan 2.7)', () => {
+  const css = readFileSync(join(import.meta.dirname, 'admin-look.css'), 'utf8');
+
+  it('applies only under the admin shell, at every width', () => {
+    const rules = [...css.matchAll(/^\s*([^@/*\s-][^{]*)\{/gm)].map((match) => match[1]?.trim());
+    expect(rules).toEqual([":root[data-shell='admin'] :is(#content, [data-density='compact'])"]);
+    expect(css).not.toContain('@media');
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+  });
+
+  it('sets only tokens that a building block reads, with today’s value as its fallback', () => {
+    const names = [...css.matchAll(/^\s*(--sc-[\w-]+):/gm)].map((match) => match[1]);
+    expect(names.length).toBeGreaterThan(0);
+    const modules = [
+      'Panel',
+      'DataTable',
+      'StatTile',
+      'Chip',
+      'Notice',
+      'Button',
+      'Field',
+      'SelectField',
+    ].map((name) => readFileSync(join(import.meta.dirname, `${name}.module.css`), 'utf8'));
+    for (const name of names) {
+      expect(
+        modules.some((module) => module.includes(`var(${name},`)),
+        `${name} is read with a fallback`,
+      ).toBe(true);
+    }
+  });
+
+  it.each(['warning', 'danger', 'success'] as const)(
+    'a %s badge reads its tone on its tint at 4.5:1',
+    (tone) => {
+      const percent = Number(
+        new RegExp(
+          `--sc-chip-${tone}-background: color-mix\\(\\s*in srgb,\\s*var\\(--sc-color-state-${tone}\\) (\\d+)%,\\s*var\\(--sc-color-bg-elevated\\)`,
+        ).exec(css)?.[1],
+      );
+      expect(percent).toBe(16);
+      const rgb = (hex: string) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+      const luminance = (channels: number[]) => {
+        const [r = 0, g = 0, b = 0] = channels.map((value) => {
+          const c = value / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      };
+      const text = rgb(tokens.color.state[tone]);
+      const ground = rgb(tokens.color.bg.elevated);
+      const tint = text.map(
+        (value, i) => (value * percent + (ground[i] ?? 0) * (100 - percent)) / 100,
+      );
+      const [light = 0, dark = 0] = [luminance(text), luminance(tint)].sort((a, b) => b - a);
+      expect((light + 0.05) / (dark + 0.05)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 });

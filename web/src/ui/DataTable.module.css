@@ -5,7 +5,9 @@
   overflow-x: auto;
   border: 1px solid var(--sc-color-border-subtle);
   border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
+
+  /* The card's ground in the administration's look (admin-look.css, build plan 2.7). */
+  background-color: var(--sc-table-background, var(--sc-color-surface-1));
 }
 
 .table {

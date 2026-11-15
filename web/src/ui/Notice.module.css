@@ -3,8 +3,21 @@
   gap: var(--sc-space-3);
   align-items: flex-start;
   padding: var(--sc-space-4);
+  border: var(--sc-notice-border, 0);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);
+}
+
+/* The administration's look tints a warning or a danger and frames every notice (admin-look.css,
+   build plan 2.7, the mockup's callout). */
+.warning {
+  border: var(--sc-notice-warning-border, var(--sc-notice-border, 0));
+  background-color: var(--sc-notice-warning-background, var(--sc-color-surface-1));
+}
+
+.danger {
+  border: var(--sc-notice-danger-border, var(--sc-notice-border, 0));
+  background-color: var(--sc-notice-danger-background, var(--sc-color-surface-1));
 }
 
 .icon {

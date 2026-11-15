@@ -1,0 +1,75 @@
+/*
+ * The look of the administration's building blocks (redesign, build plan 2.7, the mockup's
+ * .card, .table, .stat, .badge, .callout, .field and .btn): the component tokens of Panel,
+ * DataTable, StatTile, Chip, Notice, Button, TextField and SelectField take the values below.
+ * Each building block reads its token with today's value as the fallback, so nothing changes
+ * where this file does not apply.
+ *
+ * Only under the administration's shell (`data-shell="admin"` on <html>, as density.css): its
+ * content area `#content` and the portals of the dialogs and menus opened from an AdminPage
+ * (`data-density="compact"`, AdminDensityScope). Unlike the density it holds at every width and
+ * for every pointer: the look is the administration's, the size is the device's. /settings/* has
+ * no admin shell and keeps its look; the header and the sidebar style themselves.
+ *
+ * Colours only from tokens: tints are the state colours mixed like the pills of the sidebar
+ * (16 % behind text in the tone, here on bg-elevated: AdminSideNav.test.tsx checks warning and
+ * danger on that ground; success reads 6.9:1).
+ */
+:root[data-shell='admin'] :is(#content, [data-density='compact']) {
+  /* .card: a fine frame around a panel. */
+  --sc-panel-border: 1px solid var(--sc-color-border-subtle);
+
+  /* .table: the table on the card's ground. */
+  --sc-table-background: var(--sc-color-bg-elevated);
+
+  /* .stat: framed on the card's ground, the radius of a card. */
+  --sc-stat-background: var(--sc-color-bg-elevated);
+  --sc-stat-border: 1px solid var(--sc-color-border-subtle);
+  --sc-stat-radius: var(--sc-radius-lg);
+
+  /* .badge: the state's colour on its tint, opaque, so it reads on a cover as on a card. */
+  --sc-chip-warning-background: color-mix(
+    in srgb,
+    var(--sc-color-state-warning) 16%,
+    var(--sc-color-bg-elevated)
+  );
+  --sc-chip-warning-color: var(--sc-color-state-warning);
+  --sc-chip-danger-background: color-mix(
+    in srgb,
+    var(--sc-color-state-danger) 16%,
+    var(--sc-color-bg-elevated)
+  );
+  --sc-chip-danger-color: var(--sc-color-state-danger);
+  --sc-chip-success-background: color-mix(
+    in srgb,
+    var(--sc-color-state-success) 16%,
+    var(--sc-color-bg-elevated)
+  );
+  --sc-chip-success-color: var(--sc-color-state-success);
+
+  /* .callout: framed, a warning or a danger tinted. */
+  --sc-notice-border: 1px solid var(--sc-color-border-subtle);
+  --sc-notice-warning-background: color-mix(
+    in srgb,
+    var(--sc-color-state-warning) 6%,
+    var(--sc-color-surface-1)
+  );
+  --sc-notice-warning-border: 1px solid
+    color-mix(in srgb, var(--sc-color-state-warning) 25%, transparent);
+  --sc-notice-danger-background: color-mix(
+    in srgb,
+    var(--sc-color-state-danger) 6%,
+    var(--sc-color-surface-1)
+  );
+  --sc-notice-danger-border: 1px solid
+    color-mix(in srgb, var(--sc-color-state-danger) 25%, transparent);
+
+  /* .btn: rounded corners, the main action in the profile's accent. */
+  --sc-button-radius: var(--sc-radius-md);
+  --sc-button-primary-background: var(--sc-accent);
+  --sc-button-primary-color: var(--sc-on-accent);
+
+  /* .field: the accent marks the focused field; selects get a field's corners. */
+  --sc-field-focus-border: var(--sc-accent);
+  --sc-select-radius: var(--sc-radius-md);
+}

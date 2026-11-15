@@ -6,9 +6,13 @@
   min-width: 0;
   margin: 0;
   padding: var(--sc-space-3) var(--sc-space-4);
+
+  /* A frame, the radius and the ground of the administration's look (admin-look.css, build plan
+     2.7); the stroke on the left keeps the tile's tone everywhere. */
+  border: var(--sc-stat-border, 0);
   border-left: var(--sc-space-1) solid var(--sc-color-surface-3);
-  border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-1);
+  border-radius: var(--sc-stat-radius, var(--sc-radius-md));
+  background-color: var(--sc-stat-background, var(--sc-color-surface-1));
 }
 
 /* The number above its label: the term comes first for screen readers. */

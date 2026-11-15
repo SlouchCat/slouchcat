@@ -55,7 +55,8 @@
 }
 
 .input[data-focused] {
-  border-color: var(--sc-color-text-secondary);
+  /* The accent in the administration's look (admin-look.css, build plan 2.7). */
+  border-color: var(--sc-field-focus-border, var(--sc-color-text-secondary));
   background-color: var(--sc-color-surface-2);
 }
 
