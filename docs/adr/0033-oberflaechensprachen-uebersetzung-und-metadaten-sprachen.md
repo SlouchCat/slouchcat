@@ -97,6 +97,27 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   in `de-CH` den Tausender-Apostroph `'`, Browser `’`; Tests rechnen die Zahl darum mit
   `Intl.NumberFormat('de-CH')` aus.
 
+## Stufe 2: Deutsch (Deutschland) wählbar
+
+- Gebaut mit dem geführten Assistenten (Konzept 22 Teil A), Vertrag **1.35.0**: `de-DE` steht in
+  `languages.ts`, `model.UILanguages` und der Vertragsliste `Language` (`[de, de-DE, en]`). `de` heisst
+  jetzt «Deutsch (Schweiz)». Die Erkennung brauchte keine Änderung: blosses `de`, `de-AT`, `de-LU` und
+  `de-BE` landen jetzt von selbst bei `de-DE`; die Ersatzregel aus Stufe 1 ist entfernt.
+- Die Profilliste zeigt den Sprachnamen aus `languages.ts` statt eines Texts `language.<code>`.
+- `server/internal/notify/locales/de-DE.json` ist leer (`{}`): Kein Server-Text enthält ein ss-Wort mit
+  langem Vokal oder «Guillemets». `TestServerTexts` prüft die Überlagerung wie die Web-App (nur
+  vorhandene Schlüssel, jeder anders als `de`).
+- Durchsicht von `web/src/locales/de-DE.json`: «Appenzell Ausserrhoden» behält das ss (amtlicher Name
+  des Kantons); der Eintrag `radio.region.CH-AR` ist entfernt. Neu überlagert sind die fünf Texte des
+  Assistenten mit «schliessen», «heisst» und «Passwort vergessen».
+- `locales.test.ts` verlangt die Vollständigkeit nicht von `de-DE` (Überlagerung); Platzhalter und
+  Pluralformen prüft er weiter.
+- **Delta für die Übersetzung (Stufe 4):** neu `setup.*` (ganzer Block des Assistenten ausser
+  `setup.library.{name,kind,path,pathPlaceholder,warning}`), `system.gpu.choice.*`,
+  `system.gpu.fallback.*`, `admin.home.setupBand.*`; entfernt `setup.title`, `setup.intro`, `setup.step`,
+  `setup.account.{title,description}`, `setup.library.{title,description,defaultName,roots,check,
+  checking,content,providers}`, `setup.tmdb.*`, `setup.submit`, `setup.submitting`, `setup.system.*`.
+
 ## Was von ADR 0018 bleibt
 
 Die geordnete Metadaten-Sprachliste des Servers mit Abweichung je Bibliothek, die Kette Metadaten-Sprache →
@@ -106,8 +127,8 @@ Oberflächensprache `de` oder `en` ist.
 
 ## Folgen
 
-- Stufe 2 nimmt `de-DE` in `languages.ts`, `model.UILanguages` und die Vertragsliste auf und benennt `de` in
-  «Deutsch (Schweiz)» um. Die Erkennung braucht dafür keine Änderung.
+- Stufe 2 hat `de-DE` in `languages.ts`, `model.UILanguages` und die Vertragsliste aufgenommen und `de` in
+  «Deutsch (Schweiz)» umbenannt (Abschnitt «Stufe 2»).
 - Stufe 3 darf Mindestalter wie 13 oder 17 in `profiles.max_rating` schreiben, ohne die Tabelle neu zu bauen.
 - Stufe 4 legt je Sprache eine Datei in `web/src/locales/` und `server/internal/notify/locales/` an;
   `locales.test.ts`, `TestServerTexts` und `e2e/languages.spec.ts` nehmen sie von selbst auf.

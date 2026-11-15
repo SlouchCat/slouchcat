@@ -141,7 +141,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] C-5 Die API ist als OpenAPI-Dokument veröffentlicht und so vollständig, dass ein Fremd-Client alle Zuschauerfunktionen umsetzen kann.
 
 ### Server-Administration (A)
-- [ ] A-1 Beim ersten Start führt ein Einrichtungsassistent durch Hauptbenutzer-Konto, erste Bibliothek, GPU-Erkennung und Metadaten-Schlüssel.
+- [ ] A-1 Beim ersten Start führt ein Einrichtungsassistent durch Hauptbenutzer-Konto, erste Bibliothek, GPU-Erkennung und Metadaten-Schlüssel. *Seit Konzept 22 (Vertrag 1.35.0): neun Schritte, die GPU wird erkannt und ist wählbar (F-10).*
 - [ ] A-2 Bibliotheken, Konten, Profile, Gäste, Geräte, Integrationen und Top Picks werden an einem Ort verwaltet, mit derselben Design-Sorgfalt wie die Zuschauerseite.
 - [ ] A-3 Ein Dashboard zeigt laufende Streams, Hintergrundjobs, Speicherplatz, Integrationsstatus und Fehler.
 - [ ] A-4 Datenbank und Konfiguration lassen sich per Knopf sichern und aus einer Sicherung wiederherstellen; Medien sind nie Teil der Sicherung.
