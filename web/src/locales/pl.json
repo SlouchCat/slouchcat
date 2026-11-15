@@ -362,7 +362,7 @@
       "empty": "Ten folder nie ma podfolderów.",
       "emptyRoots": "Żaden folder nie jest udostępniony. Ustaw {{name}} na foldery mediów kontenera i uruchom serwer ponownie.",
       "truncated": "Ten folder zawiera bardzo wiele wpisów. Wyświetlono pierwsze 50 000; aby dotrzeć do reszty, wpisz ścieżkę.",
-      "symlink": "Dowiązanie symboliczne, nie jest skanowane",
+      "symlink": "Dowiązanie symboliczne, pomijane",
       "closedRoot": "Nieudostępniony, tylko podgląd",
       "notReadable": "Nie można odczytać tego folderu. Sprawdź uprawnienia w kontenerze.",
       "notDirectory": "To nie jest folder.",
@@ -640,7 +640,7 @@
     "notFound": {
       "title": "Nie znaleziono tytułu",
       "body": "Ten tytuł nie istnieje lub już nie istnieje.",
-      "action": "Przejdź do strony głównej"
+      "action": "Na stronę główną"
     },
     "file": {
       "title": "Plik",
@@ -959,7 +959,7 @@
         "end": "Koniec tytułu",
         "set": "Wyłącznik czasowy: {{label}}",
         "cancelled": "Wyłącznik czasowy wyłączony",
-        "done": "Wyłącznik czasowy zakończył odliczanie"
+        "done": "Wyłącznik czasowy zadziałał"
       }
     },
     "volumeControl": {
@@ -1073,7 +1073,7 @@
       "title": "Skróty klawiszowe",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Spacja, K, Enter",
           "action": "Odtwórz lub wstrzymaj"
         },
         "seek": {
@@ -1141,7 +1141,7 @@
           "action": "Ta pomoc"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Zamyka panel, pomoc i informacje o strumieniu (w kole zębatym: poziom wyżej), w przeciwnym razie wraca do strony szczegółów",
           "actionOfflineDownloads": "Zamyka panel, pomoc i kartę (w kole zębatym: poziom wyżej), w przeciwnym razie wraca do pobranych",
           "actionOfflineLibrary": "Zamyka panel, pomoc i kartę (w kole zębatym: poziom wyżej), w przeciwnym razie wraca do biblioteki offline"
@@ -1461,7 +1461,7 @@
         "hits_other": "{{count}} wyniku",
         "hitsCaption": "Znalezione kraje",
         "continents": {
-          "label": "Wszystkie kraje według kontynentów. Kontynent otwiera swoje kraje; ponowne naciśnięcie lub Escape je zamyka.",
+          "label": "Wszystkie kraje według kontynentów. Kontynent otwiera swoje kraje; ponowne naciśnięcie lub Esc je zamyka.",
           "heading": "Według kontynentu"
         },
         "continent": {
@@ -1597,7 +1597,7 @@
           "action": "Prześlij własny obraz",
           "hint": "JPEG, PNG lub WebP do 20 MB. Serwer sam wylicza rozmiary i nigdy nie pobiera przesłanego obrazu ponownie.",
           "done": "{{kind}}: własny obraz przesłany i zablokowany.",
-          "failed": "Przesyłanie nie powiodło się",
+          "failed": "Błąd przesyłania",
           "error": {
             "tooLarge": "Plik jest większy niż 20 MB.",
             "format": "To nie jest obraz JPEG, PNG ani WebP lub plik jest uszkodzony.",
@@ -1624,7 +1624,7 @@
         "noKinds": "Ten tytuł nie ma rodzajów obrazów."
       },
       "metadata": {
-        "intro": "Zmiana tutaj blokuje pole: „Odśwież” nie nadpisuje go już. Kłódka zdejmuje blokadę.",
+        "intro": "Każda zmiana tutaj blokuje pole: „Odśwież” już go nie nadpisze. Kłódka zdejmuje blokadę.",
         "lang": "Teksty dotyczą języka: {{language}}; pozostałe języki serwer nadal pobiera od dostawców.",
         "langBook": "Teksty dotyczą każdego wiersza językowego książki.",
         "field": {
@@ -1784,7 +1784,7 @@
         "queued": "Czeka na skanowanie",
         "running": "Skanowanie",
         "done": "Aktualne",
-        "failed": "Skanowanie nie powiodło się",
+        "failed": "Błąd skanowania",
         "aborted": "Skanowanie zatrzymane"
       },
       "counts": "Tytuły: {{items}} · Pliki: {{files}}",
@@ -2374,7 +2374,7 @@
           "pending": "Wyszukiwanie oczekuje",
           "found": "Znaleziono",
           "none": "Nie znaleziono",
-          "failed": "Wyszukiwanie nie powiodło się"
+          "failed": "Błąd wyszukiwania"
         },
         "empty": "Brak zwiastunów.",
         "official": "Oficjalny",
@@ -3631,7 +3631,7 @@
         "rolledBack": "Aktualizacja do {{to}} nie powiodła się, ponownie działa wersja {{from}}.",
         "rolledBackNoVersion": "Aktualizacja nie powiodła się, ponownie działa poprzednia wersja.",
         "failed": "Aktualizacja do {{version}} nie powiodła się",
-        "failedNoVersion": "Aktualizacja nie powiodła się",
+        "failedNoVersion": "Błąd aktualizacji",
         "migrated": "Migracja została wykonana; powrót tylko z kopią zapasową {{backup}}.",
         "migratedNoBackup": "Migracja została wykonana; powrót tylko z kopią zapasową sprzed migracji.",
         "failure": {
@@ -3851,7 +3851,7 @@
         "user": "Użytkownik",
         "userHint": "Nazwa logowania na serwerze poczty, jeśli jest potrzebna.",
         "password": "Hasło",
-        "passwordHint": "Zapisywane w postaci zaszyfrowanej i nigdy więcej niewyświetlane.",
+        "passwordHint": "Jest przechowywane w postaci zaszyfrowanej i nie będzie ponownie wyświetlane.",
         "passwordKeep": "Zostaw puste, aby zachować zapisane hasło.",
         "from": "Nadawca",
         "fromHint": "Na przykład Slouchcat <media@example.ch>.",
@@ -4937,7 +4937,7 @@
         "list": "Języki metadanych",
         "rank": "Język {{position}}",
         "more": "Kolejny język",
-        "fallback": "Kolejność = wybór zapasowy: gdy brakuje tekstu w języku profilu, Slouchcat pokazuje pierwszy dostępny z listy, a potem nazwę pliku. Język interfejsu od tego nie zależy.",
+        "fallback": "Kolejność = wybór zapasowy: gdy brakuje tekstu w języku profilu, Slouchcat pokazuje pierwszy dostępny z listy, a potem nazwę pliku. Żaden język nie jest wymagany.",
         "unknownAt": "{{provider}} nie zna: {{languages}}",
         "youtube": "Liczba języków: {{count}}; do {{titles}} tytułów dziennie przy wyszukiwaniu zwiastunów na YouTube (limit 10 000)."
       },
@@ -5045,7 +5045,7 @@
         "ui_lang_required": "Ustawienie domyślne wymaga niemieckiego; biblioteka niemieckiego lub angielskiego.",
         "chain_duplicate": "Każdy język tylko raz.",
         "country_unknown": "Nieznany kraj.",
-        "source_unknown": "To źródło obrazów nie jest kandydatem dla tytułu."
+        "source_unknown": "To źródło obrazów nie należy do propozycji dla tego tytułu."
       }
     },
     "activity": {

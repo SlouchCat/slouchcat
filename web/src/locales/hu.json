@@ -373,7 +373,7 @@
     },
     "providers": {
       "title": "Metaadatforrások",
-      "chain": "›",
+      "chain": " › ",
       "identifies": "azonosítja a címeket",
       "fills": "kiegészít",
       "cannotIdentifyChip": "nem tud azonosítani",
@@ -730,10 +730,10 @@
     "hd": "720p",
     "sd": "SD",
     "height": "{{height}}p",
-    "separator": "·",
+    "separator": " · ",
     "seconds": "{{seconds}} mp",
-    "or": "vagy",
-    "listSeparator": ",",
+    "or": " vagy ",
+    "listSeparator": ", ",
     "bookLength": "{{hours}} óra {{minutes}} perc"
   },
   "player": {
@@ -1013,7 +1013,7 @@
       "title": "Billentyűparancsok",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Szóköz, K, Enter",
           "action": "Lejátszás vagy szünet"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Ez a súgó"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Bezár egy panelt, a súgót és a streaminformációt (a fogaskerékben: egy szinttel feljebb), egyébként vissza a részletek oldalra",
           "actionOfflineDownloads": "Bezár egy panelt, a súgót és a fület (a fogaskerékben: egy szinttel feljebb), egyébként vissza a letöltésekhez",
           "actionOfflineLibrary": "Bezár egy panelt, a súgót és a fület (a fogaskerékben: egy szinttel feljebb), egyébként vissza az offline könyvtárhoz"
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} találat",
         "hitsCaption": "Talált országok",
         "continents": {
-          "label": "Minden ország kontinensek szerint. A kontinens megnyitja az országait; újbóli megnyomására vagy az Escape billentyűre bezárul.",
+          "label": "Minden ország kontinensek szerint. A kontinens megnyitja az országait; újbóli megnyomására vagy az Esc billentyűre bezárul.",
           "heading": "Kontinensek szerint"
         },
         "continent": {
@@ -1427,7 +1427,7 @@
           "modeMarked": "Csak a megjelölt adók vannak a kínálatban. Az ország új adói maguktól nem csatlakoznak.",
           "search": "Adók keresése",
           "markAll": "Összes megjelölése",
-          "demarkAll": "Összes jelölésének törlése",
+          "demarkAll": "Jelölések törlése",
           "markShown_one": "A látható megjelölése ({{count}})",
           "markShown_other": "A láthatók megjelölése ({{count}})",
           "demarkShown_one": "A látható jelölésének törlése ({{count}})",
@@ -1593,7 +1593,7 @@
         }
       },
       "bookMatch": {
-        "intro": "Keressen egy forrásban cím és szerző, vagy ASIN vagy ISBN alapján, és válasszon egy találatot. Mezőnként Ön dönti el, mi kerül átvételre.",
+        "intro": "Keressen egy forrásban cím és szerző, vagy ASIN vagy ISBN alapján, és válasszon egy találatot. Mezőnként eldöntheti, mit vesz át.",
         "noSources": "A könyv mappájához nincs beállított könyvforrás rendelve. A mappa forrásait a könyvtárában lehet kiválasztani.",
         "matched": "Társítva: {{source}}",
         "unmatched": "Nincs társítva: a részletek csak a fájlokból származnak",
@@ -3046,7 +3046,7 @@
         "listHint": "Nyilvános listák, Trakt-bejelentkezés nélkül.",
         "listHintLink": "Kulcs az Integrációk alatt",
         "listUrl": "A lista címe",
-        "listUrlHint": "Nyilvános lista a trakt.tv-n, például https://trakt.tv/users/name/lists/name-of-the-list. Saját listák nem lehetségesek.",
+        "listUrlHint": "Nyilvános lista a trakt.tv-n, például https://trakt.tv/users/name/lists/name-of-the-list. A Trakt-watchlistek nem használhatók.",
         "media": "Médiatípus",
         "mediaFixed": "Ez a lista határozza meg a médiatípust.",
         "mediaFilters": "A lista filmeket és sorozatokat vegyít: a médiatípus a lekérés után szűri a bejegyzéseit.",
@@ -3069,7 +3069,7 @@
         "hits": "{{hits}} / {{entries}} cím a könyvtárban",
         "keySet": "Kulcs beállítva",
         "noKey": "Nincs kulcs",
-        "separator": "·"
+        "separator": " · "
       },
       "missing": {
         "noKey": "Trakt-kulcs nélkül a sor hiányzik a kezdőlapról.",
@@ -3318,7 +3318,7 @@
         "updateAvailable": "Elérhető a(z) {{version}} verzió",
         "updateDevelopment": "Fejlesztői build",
         "updateFailed": "Az utolsó ellenőrzés sikertelen",
-        "updateOff": "Az ellenőrzés ki van kapcsolva",
+        "updateOff": "Ellenőrzés kikapcsolva",
         "updater": "Frissítő",
         "updaterUnknown": "Ismeretlen verzió",
         "updaterDown": "Nem válaszol",
@@ -3549,7 +3549,7 @@
           "result": "Eredmény"
         },
         "result": {
-          "scan_queued": "A könyvtár beolvasásra kerül",
+          "scan_queued": "A mappa beolvasásra kerül",
           "acknowledged": "Teszt nyugtázva",
           "ignored": "Nincs hatása",
           "outside_roots": "A könyvtárakon kívül",
@@ -3724,7 +3724,7 @@
       "libraries_one": "{{count}} könyvtár",
       "libraries_other": "{{count}} könyvtár",
       "primaryProfile": "{{name}} (fő profil)",
-      "listSeparator": ",",
+      "listSeparator": ", ",
       "neverSeen": "Soha",
       "noChannels": "Nincs",
       "channels": {
@@ -4563,7 +4563,7 @@
         "dismissAll": "Mind törlése…",
         "deleteLabel": "A(z) {{name}} {{id}}. futásának törlése"
       },
-      "separator": "·",
+      "separator": " · ",
       "none": "–",
       "livePaused": "A frissítés szünetel"
     },
@@ -4591,7 +4591,7 @@
           "tmdbAdult": "TMDB felnőtt tartalommal",
           "none": "Csak a mappák forrásai"
         },
-        "separator": "›"
+        "separator": " › "
       },
       "scope": {
         "label": "Érvényes erre",
@@ -4611,7 +4611,7 @@
         "list": "Metaadat-nyelvek",
         "rank": "{{position}}. nyelv",
         "more": "Másik nyelv",
-        "fallback": "Sorrend = tartalék: ha egy szöveg hiányzik a profil nyelvén, a Slouchcat a lista első nyelvén jeleníti meg, majd a fájlnevet. Az alapértelmezéshez a német kell; egy könyvtárhoz a német vagy az angol. A kezelőfelület nyelve ettől független.",
+        "fallback": "Sorrend = tartalék: ha egy szöveg hiányzik a profil nyelvén, a Slouchcat a lista első elérhető nyelvén jeleníti meg, végül a fájlnevet. Egyik nyelv sem kötelező.",
         "unknownAt": "A(z) {{provider}} nem ismeri: {{languages}}",
         "youtube": "{{count}} nyelv: naponta legfeljebb {{titles}} cím a YouTube-előzetes-keresésben (kvóta: 10 000)."
       },
@@ -4713,7 +4713,7 @@
         "ui_lang_required": "Az alapértelmezéshez a német kell; egy könyvtárhoz a német vagy az angol.",
         "chain_duplicate": "Minden nyelv egyszer.",
         "country_unknown": "Ismeretlen ország.",
-        "source_unknown": "Ez a képforrás nem jelölt a címhez."
+        "source_unknown": "Ez a képforrás nem szerepel a cím javaslatai között."
       }
     },
     "activity": {
@@ -5158,7 +5158,7 @@
       "range": "A kiszolgáló nem részletekben küldi a fájlt (ellenőrizze a proxyt)",
       "gone": "Már nem érhető el",
       "evicted": "Újra előkészítés alatt",
-      "wifi": "Wi-Fire vár",
+      "wifi": "Wi-Fi-re vár",
       "fetching": "Letöltés ({{percent}}%)",
       "preparing": "Előkészítés ({{percent}}%)",
       "budgetFull": "Helyre vár a kiszolgálón",

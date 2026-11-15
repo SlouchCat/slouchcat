@@ -980,7 +980,7 @@
       "exitPictureInPicture": "Pencere içinde pencereden çık",
       "help": "Klavye kısayolları",
       "timeElapsed": "{{elapsed}} / {{total}}",
-      "timeRemaining": "−{{remaining}} · saat {{end}}’de biter",
+      "timeRemaining": "−{{remaining}} · bitiş: {{end}}",
       "lineChapter": "{{title}} · {{chapter}}",
       "episodeLine": "{{code}} · {{title}}",
       "filmLine": "{{year}} · {{genres}}",
@@ -1013,7 +1013,7 @@
       "title": "Klavye kısayolları",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Boşluk, K, Enter",
           "action": "Oynat veya duraklat"
         },
         "seek": {
@@ -1081,7 +1081,7 @@
           "action": "Bu yardım"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Backspace",
           "action": "Bir paneli, yardımı ve yayın bilgisini kapatır (dişlide: bir seviye yukarı), aksi halde ayrıntı sayfasına döner",
           "actionOfflineDownloads": "Bir paneli, yardımı ve sekmeyi kapatır (dişlide: bir seviye yukarı), aksi halde indirilenlere döner",
           "actionOfflineLibrary": "Bir paneli, yardımı ve sekmeyi kapatır (dişlide: bir seviye yukarı), aksi halde çevrimdışı kitaplığa döner"
@@ -1381,7 +1381,7 @@
         "hits_other": "{{count}} sonuç",
         "hitsCaption": "Bulunan ülkeler",
         "continents": {
-          "label": "Tüm ülkeler kıtaya göre. Bir kıta ülkelerini açar; tekrar basmak ya da Escape onları kapatır.",
+          "label": "Tüm ülkeler kıtaya göre. Bir kıta ülkelerini açar; tekrar basmak ya da Esc onları kapatır.",
           "heading": "Kıtaya göre"
         },
         "continent": {
@@ -1581,7 +1581,7 @@
         "book": {
           "body": "Kilitli alanlar ve seçilen kapak, önce kilitleri açmazsanız kalır.",
           "unlockAll": "Tüm kilitleri de aç",
-          "unlockAllHint": "Önce bu kitabın tüm kilitlerini aç; “Eşleştir” altında bir kaynaktan aldığınız alanların kilitleri de dahil: ardından dosyaların ve sağlayıcının söyledikleri yeniden geçerli olur. Eşleşmenin kendisi ve kendi yaş sınırınız kalır.",
+          "unlockAllHint": "Önce bu kitabın tüm kilitlerini açar; “Eşleştir” altında bir kaynaktan aldığınız alanların kilitleri de dahil: ardından dosyaların ve sağlayıcının söyledikleri yeniden geçerli olur. Eşleşmenin kendisi ve kendi yaş sınırınız kalır.",
           "run": "Yeniden oku",
           "filesTitle": "Dosyalardan yeniden oku",
           "filesHint": "metadata.json dosyasını, etiketleri ve klasör adlarını bir kez daha okur.",
@@ -1918,7 +1918,7 @@
       "hint": {
         "unmatched": "Eşleşme olmadan açıklama, görsel ve yaş sınırı da olmaz. İçeriği eşleştirin ya da yenileyin.",
         "no_images": "Afişi olmayan eşleşmiş içerikler. Yenileme görselleri yeniden yükler.",
-        "unrated": "Yaş sınırı olmayan içerikleri yalnızca 18 sınırlı profiller görür. Açmak için bir yaş sınırı atayın.",
+        "unrated": "Yaş sınırı olmayan içerikleri yalnızca 18 sınırlı profiller görür. Görünür kılmak için bir yaş sınırı atayın.",
         "orphaned": "Dosyası olmayan ya da dosyaları eksik içerikler, boş sezonlar ve diziler.",
         "unplayable": "Okunamayan dosyalar. Yeniden denetleyin ya da kitaplıktan kaldırın.",
         "rating_mismatch": "Kayıtlı yaş sınırı hesaplananla uyuşmuyor. Bir yaş sınırı değişikliği ya da sonraki tarama bunu düzeltir. Burada seçilecek bir şey yok.",
@@ -3046,7 +3046,7 @@
         "listHint": "Herkese açık listeler, Trakt girişi yok.",
         "listHintLink": "Entegrasyonlar altındaki anahtar",
         "listUrl": "Listenin adresi",
-        "listUrlHint": "trakt.tv’de herkese açık bir liste, örneğin https://trakt.tv/users/name/lists/name-of-the-list. İzleme listeleri mümkün değil.",
+        "listUrlHint": "trakt.tv’de herkese açık bir liste, örneğin https://trakt.tv/users/name/lists/name-of-the-list. İzleme listeleri (watchlist) desteklenmez.",
         "media": "Ortam",
         "mediaFixed": "Bu liste ortamı belirler.",
         "mediaFilters": "Liste film ve dizileri karıştırıyor: ortam, getirmeden sonra kayıtlarını filtreler.",
@@ -3373,7 +3373,7 @@
         "rolledBack": "{{to}} güncellemesi başarısız oldu, {{from}} sürümü yeniden çalışıyor.",
         "rolledBackNoVersion": "Güncelleme başarısız oldu, önceki sürüm yeniden çalışıyor.",
         "failed": "{{version}} güncellemesi başarısız oldu",
-        "failedNoVersion": "Güncelleme başarısız oldu",
+        "failedNoVersion": "Güncelleme başarısız",
         "migrated": "Geçiş çalıştı; geri dönüş yalnızca {{backup}} yedeğiyle mümkün.",
         "migratedNoBackup": "Geçiş çalıştı; geri dönüş yalnızca geçişten önce alınan yedekle mümkün.",
         "failure": {
@@ -3413,10 +3413,10 @@
         "empty": "Henüz etkinlik yok."
       },
       "hints": {
-        "title": "Bildirimler",
-        "count_one": "{{count}} bildirim",
-        "count_other": "{{count}} bildirim",
-        "none": "Bildirim yok.",
+        "title": "Uyarılar",
+        "count_one": "{{count}} uyarı",
+        "count_other": "{{count}} uyarı",
+        "none": "Uyarı yok.",
         "failed_one": "{{formatted}} arka plan görevi başarısız oldu",
         "failed_other": "{{formatted}} arka plan görevi başarısız oldu",
         "paused_one": "{{count}} görev türü duraklatıldı",
@@ -3574,8 +3574,8 @@
         "title": "E-posta sunucusu",
         "intro": "E-posta ile bildirimler, davetler ve duyurular için.",
         "name": "E-posta sunucusu",
-        "hostPort": "Sunucu ve bağlantı noktası",
-        "port": "Bağlantı noktası",
+        "hostPort": "Sunucu ve port",
+        "port": "Port",
         "user": "Kullanıcı",
         "userHint": "E-posta sunucusundaki oturum açma adı, gerekiyorsa.",
         "password": "Şifre",
@@ -3584,7 +3584,7 @@
         "from": "Gönderen",
         "fromHint": "Örneğin Slouchcat <media@example.ch>.",
         "tls": "Şifreleme",
-        "tlsHint": "587 numaralı bağlantı noktası için STARTTLS, 465 için TLS.",
+        "tlsHint": "587 numaralı port için STARTTLS, 465 için TLS.",
         "tlsOptions": {
           "starttls": "STARTTLS",
           "tls": "TLS",
@@ -4607,11 +4607,11 @@
       },
       "languages": {
         "title": "Diller",
-        "intro": "Buradaki her dil her içerik için getirilir; profiller açıklamalarının dilini bunlardan seçer. Arayüz dili buna bağlı değildir. Her ek dil, içerik ve sezon başına bir istek maliyeti getirir.",
+        "intro": "Buradaki her dil her içerik için getirilir; profiller açıklamalarının dilini bunlardan seçer. Arayüz dili buna bağlı değildir. Her ek dil, içerik ve sezon başına bir istek daha demektir.",
         "list": "Meta veri dilleri",
         "rank": "{{position}}. dil",
         "more": "Başka bir dil",
-        "fallback": "Sıra = yedek sıra: bir metin profilin dilinde yoksa Slouchcat listedeki ilkini, sonra dosya adını gösterir. Arayüz dili buna bağlı değildir.",
+        "fallback": "Sıra = yedek sıra: bir metin profilin dilinde yoksa Slouchcat listedeki ilk mevcut dili, sonra dosya adını gösterir. Hiçbir dil zorunlu değildir.",
         "unknownAt": "{{provider}} bilmiyor: {{languages}}",
         "youtube": "{{count}} dil: YouTube fragman aramasıyla günde en fazla {{titles}} içerik (kota 10.000)."
       },
@@ -4713,7 +4713,7 @@
         "ui_lang_required": "Varsayılan için Almanca, bir kitaplık için Almanca veya İngilizce gerekir.",
         "chain_duplicate": "Her dil yalnızca bir kez.",
         "country_unknown": "Bilinmeyen ülke.",
-        "source_unknown": "Bu görsel kaynağı içeriğin adayı değil."
+        "source_unknown": "Bu görsel kaynağı, bu içerik için önerilen kaynaklar arasında değil."
       }
     },
     "activity": {
@@ -4919,11 +4919,11 @@
     "ember": "Kor",
     "coral": "Mercan",
     "amber": "Kehribar",
-    "lime": "Misket limonu",
-    "teal": "Çamurcun",
+    "lime": "Limon yeşili",
+    "teal": "Turkuaz",
     "sky": "Gök mavisi",
     "violet": "Menekşe",
-    "rose": "Gül"
+    "rose": "Pembe"
   },
   "libraries": {
     "all": "Tüm kitaplıklar",
@@ -5245,8 +5245,8 @@
       "noSubtitles": "Metin altyazısı yok.",
       "submit": "İndir",
       "submitting": "Başlatılıyor…",
-      "started_one": "İndirme başlatıldı. Durumu İndirilenler altında.",
-      "started_other": "{{count}} indirme başlatıldı. Durumları İndirilenler altında.",
+      "started_one": "İndirme başlatıldı. Durumunu İndirilenler bölümünden takip edebilirsiniz.",
+      "started_other": "{{count}} indirme başlatıldı. Durumlarını İndirilenler bölümünden takip edebilirsiniz.",
       "audioOption": "{{quality}} · {{kbps}} kbit/sn · yaklaşık {{size}}",
       "audioCopy": "{{quality}} · AAC kopyalanır · yaklaşık {{size}}"
     },

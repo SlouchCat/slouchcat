@@ -26,7 +26,7 @@
     "notifications": "Upozornění",
     "admin": "Správa",
     "update": "Aktualizace",
-    "adminUpdateLabel": "Správa, k dispozici aktualizace na verzi {{version}}",
+    "adminUpdateLabel": "Správa, k dispozici aktualizace na verzi {{version}}",
     "searchOpen": "Otevřít hledání",
     "menu": "Nabídka",
     "menuClose": "Zavřít nabídku",
@@ -65,7 +65,7 @@
   },
   "system": {
     "server": {
-      "checking": "Kontrola připojení k serveru…",
+      "checking": "Kontrola připojení k serveru…",
       "online": "Server je dostupný",
       "offline": "Server není dostupný",
       "version": "Verze {{version}}"
@@ -108,7 +108,7 @@
     "inotify": {
       "limit": "Limit inotify",
       "usage": "Sledované složky",
-      "usageValue": "{{used}} z {{limit}} ({{percent}} %)",
+      "usageValue": "{{used}} z {{limit}} ({{percent}} %)",
       "unknown": "neznámý",
       "warn": {
         "title": "Limit inotify je těsný",
@@ -131,7 +131,7 @@
     "code": {
       "invalid_credentials": "E-mailová adresa nebo heslo není správně.",
       "library_path_invalid": "Tato složka na serveru neexistuje nebo ji nelze přečíst. Zadejte absolutní cestu uvnitř kontejneru.",
-      "path_not_browsable": "Tato složka není povolena. Použít lze jen složky v povolených složkách s médii (SLOUCHCAT_BROWSE_ROOTS).",
+      "path_not_browsable": "Tato složka není povolena. Použít lze jen složky v povolených složkách s médii (SLOUCHCAT_BROWSE_ROOTS).",
       "path_unreachable": "Složka neodpovídá. Zkontrolujte, zda je síťové úložiště stále připojeno.",
       "browse_busy": "Prohlížeč složek je teď zaneprázdněn. Zkuste to za chvíli znovu.",
       "tmdb_key_invalid": "TMDB klíč odmítl. Zkontrolujte přístupový token pro čtení.",
@@ -140,7 +140,7 @@
       "not_found": "Nenalezeno.",
       "unauthenticated": "Vaše relace vypršela. Přihlaste se znovu.",
       "forbidden": "Tento účet to nesmí provést.",
-      "csrf_header_missing": "Požadavek byl z bezpečnostních důvodů odmítnut. Načtěte stránku znovu.",
+      "csrf_header_missing": "Požadavek byl z bezpečnostních důvodů odmítnut. Načtěte stránku znovu.",
       "validation_failed": "Zkontrolujte zvýrazněná pole.",
       "channel_unavailable": "Tento kanál není na serveru nastaven.",
       "channel_disabled": "Kanál je vypnutý nebo ještě není připojen.",
@@ -171,8 +171,8 @@
       "feed_exists": "Tato knihovna už tento kanál odebírá.",
       "rating_below_library_default": "Věkové omezení nesmí být nižší než výchozí hodnota knihovny.",
       "not_listable": "Řady a bonusy nelze přidat do seznamu.",
-      "not_editable": "Kolekce z TMDB nelze měnit.",
-      "env_wins": "Tato hodnota je nastavena v deploy/.env a lze ji změnit jen tam.",
+      "not_editable": "Kolekce z TMDB nelze měnit.",
+      "env_wins": "Tato hodnota je nastavena v deploy/.env a lze ji změnit jen tam.",
       "telegram_token_invalid": "Telegram token odmítl. Zkontrolujte token od @BotFather.",
       "telegram_unreachable": "Telegram je teď nedostupný. Zkuste to znovu.",
       "email_not_configured": "Není nastaven žádný e-mailový server.",
@@ -189,7 +189,7 @@
       "passphrase_too_short": "Heslová fráze je příliš krátká: nejméně 12 znaků.",
       "passphrase_wrong": "Heslová fráze není správná.",
       "backup_invalid": "Tento soubor není platná záloha Slouchcat, nebo je poškozený.",
-      "backup_newer_than_server": "Záloha pochází z novější verze Slouchcat. Nejdřív aktualizujte server.",
+      "backup_newer_than_server": "Záloha pochází z novější verze Slouchcat. Nejdřív aktualizujte server.",
       "restart_pending": "Server se brzy restartuje. Počkejte, až znovu odpoví.",
       "backup_busy": "Probíhá záloha nebo obnova. Zkuste to znovu po jejím dokončení.",
       "update_running": "Instaluje se aktualizace. Počkejte na její dokončení.",
@@ -209,8 +209,8 @@
       "offer_conflict": "Nabídka rádií se mezitím změnila. Použijte ji prosím znovu.",
       "root_not_writable": "Složka podcastů neprošla kontrolou složky, Slouchcat do ní nemůže ukládat díly.",
       "root_required": "Knihovna nemá složku podcastů, do které by Slouchcat mohl ukládat díly.",
-      "playing": "Někdo právě přehrává jeden z těchto titulů. Smazat ho lze po skončení přehrávání.",
-      "playing_named": "Jeden z těchto titulů právě přehrává {{names}}. Smazat ho lze po skončení přehrávání, nic nebylo smazáno.",
+      "playing": "Někdo právě přehrává jeden z těchto titulů. Smazat ho lze po skončení přehrávání.",
+      "playing_named": "Jeden z těchto titulů právě přehrává {{names}}. Smazat ho lze po skončení přehrávání, nic nebylo smazáno.",
       "files_not_deletable": "Soubor titulu nelze smazat. Nic nebylo smazáno.",
       "not_deletable": "Tento titul nelze smazat.",
       "deleting": "Právě se maže.",
@@ -234,14 +234,14 @@
       "invalid_url": "Zadejte adresu začínající http:// nebo https://.",
       "library_kind": "Vyberte knihovnu podcastů.",
       "unknown_item": "Tento titul neexistuje.",
-      "root_overlap": "Tato složka se překrývá s jinou složkou.",
+      "root_overlap": "Tato složka se překrývá s jinou složkou.",
       "path_with_content": "Novou cestu nelze kombinovat se změnou obsahu.",
       "root_files_missing": "Žádný soubor složky se nenachází pod novou cestou.",
       "content_not_allowed": "Tento obsah neodpovídá druhu knihovny.",
       "providers_not_allowed": "Tento seznam zdrojů metadat není pro tento obsah povolen.",
       "roots_required": "Je potřeba alespoň jedna složka.",
-      "provider_not_searchable": "V tomto zdroji zde nelze hledat.",
-      "local_address": "Tato adresa je v místní síti. Vlastní stanice musí být dostupné i z internetu.",
+      "provider_not_searchable": "V tomto zdroji zde nelze hledat.",
+      "local_address": "Tato adresa je v místní síti. Vlastní stanice musí být dostupné i z internetu.",
       "not_own": "To může změnit jen vlastní stanice.",
       "not_matched": "Tato audiokniha není přiřazena ke zdroji.",
       "not_found": "Zdroj takovou položku nemá."
@@ -273,7 +273,7 @@
       "warning": {
         "network_share": {
           "title": "Zjištěno síťové úložiště",
-          "body": "Slouchcat nevidí změny v této složce okamžitě, ale pravidelnou synchronizací. Aby se nové tituly objevily bez zpoždění, doporučují se webhooky z Radarru a Sonarru."
+          "body": "Slouchcat nevidí změny v této složce okamžitě, ale pravidelnou synchronizací. Aby se nové tituly objevily bez zpoždění, doporučují se webhooky z Radarru a Sonarru."
         },
         "fuse_unknown": {
           "title": "Neznámý souborový systém",
@@ -284,8 +284,8 @@
       "providers": "Zdroje metadat"
     },
     "tmdb": {
-      "title": "Metadata z TMDB (volitelné)",
-      "description": "S přístupovým tokenem pro čtení z themoviedb.org Slouchcat stahuje popisy, plakáty a věková omezení. Bez klíče se tituly berou z názvů souborů.",
+      "title": "Metadata z TMDB (volitelné)",
+      "description": "S přístupovým tokenem pro čtení z themoviedb.org Slouchcat stahuje popisy, plakáty a věková omezení. Bez klíče se tituly berou z názvů souborů.",
       "link": "Vytvořit token na themoviedb.org",
       "label": "Přístupový token API pro čtení",
       "hint": "Uloženo zašifrovaně a už se nezobrazí.",
@@ -302,7 +302,7 @@
     "system": {
       "title": "Grafický čip a souborový systém",
       "description": "Co Slouchcat uvnitř kontejneru nachází. Nic se tu nezadává, nápovědy jsou určeny pro hostitele.",
-      "missing": "Server neposlal žádné podrobnosti o hardwaru."
+      "missing": "Server neposlal žádné podrobnosti o hardwaru."
     }
   },
   "login": {
@@ -324,24 +324,24 @@
       "collections_few": "{{count}} kolekce",
       "collections_many": "{{count}} kolekce",
       "collections_other": "{{count}} kolekcí",
-      "volumes_one": "{{count}} kniha",
-      "volumes_few": "{{count}} knihy",
-      "volumes_many": "{{count}} knihy",
-      "volumes_other": "{{count}} knih",
-      "matchingVolumes_one": "{{matching}} z {{count}} knihy",
-      "matchingVolumes_few": "{{matching}} z {{count}} knih",
-      "matchingVolumes_many": "{{matching}} z {{count}} knihy",
-      "matchingVolumes_other": "{{matching}} z {{count}} knih",
+      "volumes_one": "{{count}} svazek",
+      "volumes_few": "{{count}} svazky",
+      "volumes_many": "{{count}} svazku",
+      "volumes_other": "{{count}} svazků",
+      "matchingVolumes_one": "{{matching}} z {{count}} knihy",
+      "matchingVolumes_few": "{{matching}} z {{count}} knih",
+      "matchingVolumes_many": "{{matching}} z {{count}} knihy",
+      "matchingVolumes_other": "{{matching}} z {{count}} knih",
       "books_one": "{{count}} audiokniha",
       "books_few": "{{count}} audioknihy",
       "books_many": "{{count}} audioknihy",
       "books_other": "{{count}} audioknih",
-      "matchingBooks_one": "{{matching}} z {{count}} audioknihy",
-      "matchingBooks_few": "{{matching}} z {{count}} audioknih",
-      "matchingBooks_many": "{{matching}} z {{count}} audioknihy",
-      "matchingBooks_other": "{{matching}} z {{count}} audioknih",
+      "matchingBooks_one": "{{matching}} z {{count}} audioknihy",
+      "matchingBooks_few": "{{matching}} z {{count}} audioknih",
+      "matchingBooks_many": "{{matching}} z {{count}} audioknihy",
+      "matchingBooks_other": "{{matching}} z {{count}} audioknih",
       "collection": "Kolekce",
-      "heard": "{{completed}} z {{count}} poslechnuto"
+      "heard": "{{completed}} z {{count}} poslechnuto"
     },
     "editMetadata": "{{title}}: upravit metadata",
     "kind": {
@@ -351,16 +351,16 @@
     },
     "defaultRating": "Výchozí věkové omezení",
     "defaultRatingHint": "Platí pro každý titul této knihovny. Jednotlivé tituly lze potom nastavit jen přísněji.",
-    "podcastsHint": "Složka je volitelná: kanály můžete odebírat i bez složky v sekci Podcasty.",
+    "podcastsHint": "Složka je volitelná: kanály můžete odebírat i bez složky v sekci Podcasty.",
     "browse": {
       "title": "Vyberte složku",
       "open": "Procházet…",
       "apply": "OK",
-      "list": "Složky v tomto adresáři",
-      "upOneLevel": "O úroveň výš",
+      "list": "Složky v tomto adresáři",
+      "upOneLevel": "O úroveň výš",
       "roots": "Povolené složky",
       "empty": "Tato složka nemá žádné podsložky.",
-      "emptyRoots": "Není povolena žádná složka. Nastavte {{name}} na složky s médii v kontejneru a restartujte server.",
+      "emptyRoots": "Není povolena žádná složka. Nastavte {{name}} na složky s médii v kontejneru a restartujte server.",
       "truncated": "Tato složka obsahuje velmi mnoho položek. Zobrazeno je prvních 50 000, zbytek najdete zadáním cesty.",
       "symlink": "Symbolický odkaz, neprohledává se",
       "closedRoot": "Není povolena, jen se zobrazuje",
@@ -369,7 +369,7 @@
       "inLibrary": "Patří do knihovny {{name}}",
       "folder": "Složka",
       "goTo": "Přejít",
-      "notUnderRoot": "Tato cesta neleží pod žádnou procházenou složkou, proto seznam zůstává, kde je. Tlačítko „OK“ ji přesto předá dál, o jejím přijetí rozhodne server při odeslání formuláře. {{name}} určuje, které složky lze procházet."
+      "notUnderRoot": "Tato cesta neleží pod žádnou procházenou složkou, proto seznam zůstává, kde je. Tlačítko „OK“ ji přesto předá dál, o jejím přijetí rozhodne server při odeslání formuláře. {{name}} určuje, které složky lze procházet."
     },
     "provider": {
       "tmdb": "TMDB",
@@ -407,7 +407,7 @@
       "required": "Zaškrtněte alespoň jeden zdroj.",
       "cannotIdentify": "{{provider}} neumí určit titul. Dejte na začátek {{identifiers}}.",
       "fixedHint": "Tento obsah má zatím jen tento zdroj.",
-      "defaultHint": "Výchozí nastavení; seznam lze po úvodním nastavení změnit v sekci Knihovny."
+      "defaultHint": "Výchozí nastavení; seznam lze po úvodním nastavení změnit v sekci Knihovny."
     },
     "roots": {
       "title": "Složky",
@@ -417,13 +417,13 @@
       "remove": "Odebrat",
       "removeLabel": "Odebrat složku {{number}}",
       "empty": "Zatím žádná složka.",
-      "emptyPodcasts": "Zatím žádná složka. Knihovna podcastů může zůstat bez složek, její tituly pak pocházejí z odebíraných kanálů.",
+      "emptyPodcasts": "Zatím žádná složka. Knihovna podcastů může zůstat bez složek, její tituly pak pocházejí z odebíraných kanálů.",
       "overlap": "Složka {{number}} se překrývá se složkou výše.",
       "providers": "Složka {{number}}: {{message}}",
-      "submit_one": "Přidat knihovnu s {{count}} složkou",
-      "submit_few": "Přidat knihovnu s {{count}} složkami",
-      "submit_many": "Přidat knihovnu s {{count}} složky",
-      "submit_other": "Přidat knihovnu s {{count}} složkami",
+      "submit_one": "Přidat knihovnu s {{count}} složkou",
+      "submit_few": "Přidat knihovnu s {{count}} složkami",
+      "submit_many": "Přidat knihovnu s {{count}} složky",
+      "submit_other": "Přidat knihovnu s {{count}} složkami",
       "submitNone": "Přidat knihovnu bez složek",
       "addSubmit_one": "Přidat 1 složku",
       "addSubmit_few": "Přidat {{count}} složky",
@@ -505,7 +505,7 @@
       "count_few": "{{count}} tituly",
       "count_many": "{{count}} titulu",
       "count_other": "{{count}} titulů",
-      "empty": "V tomto výběru není žádný titul.",
+      "empty": "V tomto výběru není žádný titul.",
       "notFound": {
         "title": "Seznam nenalezen",
         "body": "Tento seznam teď neexistuje, například proto, že je vypnutý Spotlight."
@@ -537,7 +537,7 @@
       "spotlight": "Spotlight",
       "released": "Nedávno vydané",
       "libraries": "Moje média",
-      "library": "Nově v knihovně {{library}}",
+      "library": "Nově v knihovně {{library}}",
       "radio": "Moje stanice"
     },
     "remaining": "zbývá {{time}}",
@@ -561,14 +561,14 @@
     "carousel": {
       "roledescription": "karusel",
       "slide": "snímek",
-      "position": "{{index}} z {{count}}"
+      "position": "{{index}} z {{count}}"
     },
     "row": {
       "previous": "Posunout zpět",
       "next": "Posunout vpřed"
     },
     "adminPage": {
-      "help": "Nápověda k této stránce",
+      "help": "Nápověda k této stránce",
       "live_one": "Živě, každou sekundu",
       "live_few": "Živě, každé {{count}} sekundy",
       "live_many": "Živě, každých {{count}} sekundy",
@@ -582,7 +582,7 @@
       "label": "Pozice položky {{name}}",
       "option": "Pozice {{position}}",
       "hintMove": "Ostatní položky se posunou.",
-      "hintSwap": "Položka na zvolené pozici se prohodí s touto."
+      "hintSwap": "Položka na zvolené pozici se prohodí s touto."
     },
     "rankedChoice": {
       "hint": "Výběrem položky, která už má jiné místo, se obě prohodí.",
@@ -597,7 +597,7 @@
       "discard": "Zahodit"
     },
     "unsaved": {
-      "title": "Opustit stránku s neuloženými změnami?",
+      "title": "Opustit stránku s neuloženými změnami?",
       "body": "Na této stránce máte změny, které ještě nejsou uloženy. Když stránku opustíte, ztratí se.",
       "leave": "Zahodit a odejít",
       "stay": "Zůstat na stránce"
@@ -623,7 +623,7 @@
       }
     },
     "heatGrid": {
-      "day": "Den v týdnu",
+      "day": "Den v týdnu",
       "hour": "{{hour}}:00",
       "less": "méně",
       "more": "více",
@@ -651,7 +651,7 @@
       "size": "Velikost",
       "version": "Verze",
       "unavailable": "nedostupný",
-      "none": "Pro tento titul teď není k dispozici žádný soubor."
+      "none": "Pro tento titul teď není k dispozici žádný soubor."
     },
     "manage": "Spravovat",
     "trailer": "Upoutávka",
@@ -696,7 +696,7 @@
       "bodyPodcastEpisode": "Tento díl jste už začali poslouchat.",
       "bodyMovie": "Tento film jste už začali sledovat.",
       "resume": "Pokračovat od {{time}}",
-      "resumeListening": "Pokračovat v poslechu od {{time}}",
+      "resumeListening": "Pokračovat v poslechu od {{time}}",
       "restart": "Přehrát od začátku"
     },
     "listened": "Poslechnuto: {{percent}} %",
@@ -715,7 +715,7 @@
     },
     "watchlist": {
       "add": "Přidat do seznamu",
-      "added": "V seznamu"
+      "added": "V seznamu"
     },
     "recommend": {
       "add": "Doporučit",
@@ -730,7 +730,7 @@
     "logoAlt": "{{title}}",
     "action": {
       "resume": "Pokračovat",
-      "resumeListening": "Pokračovat v poslechu",
+      "resumeListening": "Pokračovat v poslechu",
       "again": "Přehrát znovu",
       "againListening": "Poslechnout znovu",
       "resumeAt": "od {{time}} · zbývá {{left}}",
@@ -755,7 +755,7 @@
       "episodes_many": "{{count}} dílu",
       "episodes_other": "{{count}} dílů",
       "watched": "zhlédnuto: {{count}}",
-      "progress": "Zhlédnuto dílů: {{count}} z {{total}}"
+      "progress": "Zhlédnuto dílů: {{count}} z {{total}}"
     },
     "collection": {
       "showAll": "Zobrazit vše",
@@ -795,7 +795,7 @@
     "exitFullscreen": "Ukončit celou obrazovku",
     "back": "Zpět",
     "seek": "Poloha přehrávání",
-    "time": "{{elapsed}} z {{total}}",
+    "time": "{{elapsed}} z {{total}}",
     "volume": "Hlasitost {{percent}} %",
     "unsupported": {
       "title": "Formát nelze přehrát",
@@ -808,7 +808,7 @@
     },
     "switching": "Přepínání…",
     "streamInfo": {
-      "title": "Informace o streamu",
+      "title": "Informace o streamu",
       "mode": "Režim",
       "modeDirect": "Přímé přehrávání",
       "modeHls": "HLS",
@@ -866,7 +866,7 @@
       "makeDefault": "Nastavit jako výchozí pro tento profil",
       "isDefault": "{{language}} je pro tento profil výchozí.",
       "madeDefault": "{{language}} je nyní pro tento profil výchozí.",
-      "forcedBitmap": "K dispozici jsou vynucené titulky (vypálené do obrazu)"
+      "forcedBitmap": "K dispozici jsou vynucené titulky (vypálené do obrazu)"
     },
     "quality": {
       "auto": "Automaticky",
@@ -934,8 +934,8 @@
     },
     "audioRegion": "Přehrávač zvuku",
     "audio": {
-      "back15": "Zpět o 15 sekund",
-      "forward30": "Vpřed o 30 sekund",
+      "back15": "Zpět o 15 sekund",
+      "forward30": "Vpřed o 30 sekund",
       "previousChapter": "Předchozí kapitola",
       "nextChapter": "Další kapitola",
       "chapterLine": "{{title}} · {{position}} / {{length}}",
@@ -958,7 +958,7 @@
         "chapter": "Na konci kapitoly",
         "end": "Na konci titulu",
         "set": "Časovač vypnutí: {{label}}",
-        "cancelled": "Časovač vypnutí je vypnut",
+        "cancelled": "Časovač vypnut",
         "done": "Časovač vypnutí skončil"
       }
     },
@@ -1003,8 +1003,8 @@
       },
       "offset": {
         "title": "Posun",
-        "earlier": "O 0,1 s dříve",
-        "later": "O 0,1 s později",
+        "earlier": "O 0,1 s dříve",
+        "later": "O 0,1 s později",
         "value": "{{seconds}} s",
         "reset": "Obnovit"
       }
@@ -1020,7 +1020,7 @@
       "nightModeOn": "Noční režim zapnut",
       "nightModeHint": "Tiché pasáže hlasitěji, hlasité tišeji: pro pozdní večery.",
       "rateValue": "{{rate}}×",
-      "streamInfo": "Informace o streamu",
+      "streamInfo": "Informace o streamu",
       "chapters": "Kapitoly",
       "buttonWithQuality": "Nastavení · {{quality}}"
     },
@@ -1034,10 +1034,10 @@
       "previousChapter": "Předchozí kapitola",
       "nextChapter": "Další kapitola",
       "nextEpisode": "Další díl",
-      "back10": "Zpět o 10 sekund",
-      "forward30": "Vpřed o 30 sekund",
-      "pictureInPicture": "Obraz v obraze",
-      "exitPictureInPicture": "Ukončit obraz v obraze",
+      "back10": "Zpět o 10 sekund",
+      "forward30": "Vpřed o 30 sekund",
+      "pictureInPicture": "Obraz v obraze",
+      "exitPictureInPicture": "Ukončit obraz v obraze",
       "help": "Klávesové zkratky",
       "timeElapsed": "{{elapsed}} / {{total}}",
       "timeRemaining": "−{{remaining}} · konec v {{end}}",
@@ -1047,14 +1047,14 @@
       "rate": "Rychlost {{rate}}×",
       "muted": "Ztlumeno",
       "previousEpisode": "Předchozí díl",
-      "forward10": "Vpřed o 10 sekund",
+      "forward10": "Vpřed o 10 sekund",
       "options": "Možnosti",
       "view": "Čas a zobrazení",
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },
     "tabs": {
-      "label": "Více o titulu",
+      "label": "Více o titulu",
       "next": "Další na řadě",
       "info": "Informace"
     },
@@ -1073,12 +1073,12 @@
       "title": "Klávesové zkratky",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Mezerník, K, Enter",
           "action": "Přehrát nebo pozastavit"
         },
         "seek": {
           "keys": "← →",
-          "action": "O 10 sekund zpět nebo vpřed"
+          "action": "O 10 sekund zpět nebo vpřed"
         },
         "chapter": {
           "keys": "⇧← ⇧→",
@@ -1089,8 +1089,8 @@
           "action": "Hlasitěji nebo tišeji"
         },
         "zones": {
-          "keys": "↑ ↓ v liště",
-          "action": "Přesun mezi časovou osou, tlačítky a kartami; ← → přecházejí od tlačítka k tlačítku, od karty ke kartě a od náhledu k náhledu"
+          "keys": "↑ ↓ v liště",
+          "action": "Přesun mezi časovou osou, tlačítky a kartami; ← → přecházejí od tlačítka k tlačítku, od karty ke kartě a od náhledu k náhledu"
         },
         "mute": {
           "keys": "M",
@@ -1126,7 +1126,7 @@
         },
         "info": {
           "keys": "I",
-          "action": "Informace o streamu"
+          "action": "Informace o streamu"
         },
         "skip": {
           "keys": "S",
@@ -1141,10 +1141,10 @@
           "action": "Tato nápověda"
         },
         "back": {
-          "keys": "Escape, Backspace",
-          "action": "Zavře panel, nápovědu a informace o streamu (v ozubeném kole o úroveň výš), jinak zpět na stránku s podrobnostmi",
-          "actionOfflineDownloads": "Zavře panel, nápovědu a kartu (v ozubeném kole o úroveň výš), jinak zpět na stažené",
-          "actionOfflineLibrary": "Zavře panel, nápovědu a kartu (v ozubeném kole o úroveň výš), jinak zpět do offline knihovny"
+          "keys": "Esc, Backspace",
+          "action": "Zavře panel, nápovědu a informace o streamu (v ozubeném kole o úroveň výš), jinak zpět na stránku s podrobnostmi",
+          "actionOfflineDownloads": "Zavře panel, nápovědu a kartu (v ozubeném kole o úroveň výš), jinak zpět na stažené",
+          "actionOfflineLibrary": "Zavře panel, nápovědu a kartu (v ozubeném kole o úroveň výš), jinak zpět do offline knihovny"
         }
       }
     }
@@ -1152,26 +1152,26 @@
   "admin": {
     "radio": {
       "title": "Rádio",
-      "intro": "Katalog stanic, běžící přenosy a nastavení internetového rádia. Stanice vidí server Slouchcat, ne zařízení, proto rozhoduje poloha serveru. Slouchcat předává zvuk jen přihlášeným profilům této instalace; zda je to u dané stanice dovoleno, je na provozovateli instalace.",
+      "intro": "Katalog stanic, běžící přenosy a nastavení internetového rádia. Stanice vidí server Slouchcat, ne zařízení, proto rozhoduje poloha serveru. Slouchcat předává zvuk jen přihlášeným profilům této instalace; zda je to u dané stanice dovoleno, je na provozovateli instalace.",
       "strip": {
         "label": "Přehled",
-        "catalog": "V katalogu",
-        "catalogNote_one": "z {{count}} položky",
-        "catalogNote_few": "z {{count}} položek",
-        "catalogNote_many": "z {{count}} položky",
-        "catalogNote_other": "z {{count}} položek",
+        "catalog": "V katalogu",
+        "catalogNote_one": "z {{count}} položky",
+        "catalogNote_few": "z {{count}} položek",
+        "catalogNote_many": "z {{count}} položky",
+        "catalogNote_other": "z {{count}} položek",
         "reachable": "Dostupné",
-        "reachableNote": "z položek katalogu",
+        "reachableNote": "z položek katalogu",
         "live": "Právě živě",
         "liveValue": "{{relays}} · {{listeners}}",
         "liveNote": "stanice · posluchači",
-        "offer": "V nabídce",
+        "offer": "V nabídce",
         "offerValue": "{{stations}} · {{countries}}",
         "offerNote": "stanice · země"
       },
       "memory": {
-        "title": "Žádná vyrovnávací paměť v RAM",
-        "body": "Žádná vyrovnávací paměť v RAM: rádio hraje jen živě, bez časového posunu. Vyrovnávací paměť potřebuje tmpfs ze souboru Compose v kontejneru."
+        "title": "Žádná vyrovnávací paměť v RAM",
+        "body": "Žádná vyrovnávací paměť v RAM: rádio hraje jen živě, bez časového posunu. Vyrovnávací paměť potřebuje tmpfs ze souboru Compose v kontejneru."
       },
       "tabs": {
         "label": "Sekce",
@@ -1199,7 +1199,7 @@
         "running": "Synchronizace čeká ve frontě nebo běží.",
         "sync": "Synchronizovat teď",
         "syncQueued": "Synchronizace čeká ve frontě.",
-        "jobs": "K úlohám na pozadí"
+        "jobs": "K úlohám na pozadí"
       },
       "relays": {
         "title": "Živé přenosy",
@@ -1231,10 +1231,10 @@
       "load": {
         "title": "Zatížení serveru",
         "relays": "Stanice",
-        "relaysValue": "{{count}} z {{max}}",
+        "relaysValue": "{{count}} z {{max}}",
         "upload": "Odesílání",
         "buffer": "Vyrovnávací paměť",
-        "bufferValue": "{{used}} z {{budget}}"
+        "bufferValue": "{{used}} z {{budget}}"
       },
       "stations": {
         "caption": "Stanice",
@@ -1260,7 +1260,7 @@
         "stateText": {
           "ok": "Dostupná",
           "broken": "Nedostupná",
-          "missing": "Už není v katalogu"
+          "missing": "Už není v katalogu"
         },
         "locked_one": "{{count}} pole ručně",
         "locked_few": "{{count}} pole ručně",
@@ -1286,19 +1286,19 @@
         "removeUnreachable_few": "Odebrat nedostupné ({{n}})",
         "removeUnreachable_many": "Odebrat nedostupné ({{n}})",
         "removeUnreachable_other": "Odebrat nedostupné ({{n}})",
-        "removeUnreachableHelp": "Vyřadí z nabídky všechny stanice, které jsou nyní nedostupné, kromě oblíbených a vlastních stanic. Samy se nevrátí.",
+        "removeUnreachableHelp": "Vyřadí z nabídky všechny stanice, které jsou nyní nedostupné, kromě oblíbených a vlastních stanic. Samy se nevrátí.",
         "removedUnreachable_one": "{{count}} nedostupná stanice opustila nabídku.",
         "removedUnreachable_few": "{{count}} nedostupné stanice opustily nabídku.",
         "removedUnreachable_many": "{{count}} nedostupné stanice opustilo nabídku.",
         "removedUnreachable_other": "{{count}} nedostupných stanic opustilo nabídku.",
         "undo": "Zpět",
-        "undone": "Stanice jsou zpět v nabídce.",
-        "takeOut": "Vyřadit z nabídky",
-        "takeOutLabel": "Vyřadit {{name}} z nabídky",
+        "undone": "Stanice jsou zpět v nabídce.",
+        "takeOut": "Vyřadit z nabídky",
+        "takeOutLabel": "Vyřadit {{name}} z nabídky",
         "takeIn": "Zařadit do nabídky",
         "takeInLabel": "Zařadit {{name}} do nabídky",
-        "takenOut": "{{name}} už není v nabídce.",
-        "takenIn": "{{name}} je v nabídce.",
+        "takenOut": "{{name}} už není v nabídce.",
+        "takenIn": "{{name}} je v nabídce.",
         "streamsEmpty": "Žádné streamy.",
         "streamPreferred": "preferovaný",
         "streamUnreachable": "nedostupný",
@@ -1329,9 +1329,9 @@
             "website": "web stanice",
             "wikidata": "Wikidata"
           },
-          "logoPresent": "k dispozici",
+          "logoPresent": "k dispozici",
           "noWikidata": "Wikidata pro tuto stanici nezná jednoznačnou shodu: žádný vlastník, žádné datum založení.",
-          "wikidataOfferOnly": "Wikidata doplňuje podrobnosti jen stanicím v nabídce.",
+          "wikidataOfferOnly": "Wikidata doplňuje podrobnosti jen stanicím v nabídce.",
           "streams": "Streamy",
           "close": "Zavřít"
         }
@@ -1354,27 +1354,27 @@
         "maxRelaysHelp_other": "Při současném časovém posunu rozpočet umožňuje {{count}} stanic.",
         "grace": "Doběh bez posluchačů (sekundy)",
         "graceHelp": "Jak dlouho přenos běží dál po odchodu posledního posluchače.",
-        "rights": "Stanice vidí server Slouchcat, ne zařízení, proto rozhoduje poloha serveru. Slouchcat předává zvuk jen přihlášeným profilům této instalace; zda je to u dané stanice dovoleno, je na provozovateli instalace.",
+        "rights": "Stanice vidí server Slouchcat, ne zařízení, proto rozhoduje poloha serveru. Slouchcat předává zvuk jen přihlášeným profilům této instalace; zda je to u dané stanice dovoleno, je na provozovateli instalace.",
         "saved": "Nastavení jsou uložena.",
         "coverMusicbrainz": "Hledání obalů přes MusicBrainz",
-        "coverMusicbrainzHelp": "Hledá obal přehrávaného titulu v MusicBrainz a Cover Art Archive, jen když se změní titul běžící stanice, a nejvýše jednou za sekundu.",
+        "coverMusicbrainzHelp": "Hledá obal přehrávaného titulu v MusicBrainz a Cover Art Archive, jen když se změní titul běžící stanice, a nejvýše jednou za sekundu.",
         "coverItunes": "Hledání obalů přes iTunes",
         "coverItunesHelp": "Dotazuje vyhledávání iTunes, když MusicBrainz nic nenajde; nejvýše 20 dotazů za minutu. Obrázek, který stanice pošle sama, má vždy přednost.",
         "wikidata": "Používat Wikidata",
-        "wikidataHelp": "Jednou týdně doplní stanicím v nabídce vlastníka a datum založení z Wikidata; vlastník se stane poskytovatelem. Po vypnutí server tyto podrobnosti hned zapomene."
+        "wikidataHelp": "Jednou týdně doplní stanicím v nabídce vlastníka a datum založení z Wikidata; vlastník se stane poskytovatelem. Po vypnutí server tyto podrobnosti hned zapomene."
       },
       "editor": {
         "close": "Zavřít",
         "name": "Název",
         "logo": "Logo",
         "logoUpload": "Nahrát vlastní logo",
-        "logoReset": "Zpět k logu z katalogu nebo z webu",
+        "logoReset": "Zpět k logu z katalogu nebo z webu",
         "logoTooLarge": "Soubor je větší než 20 MB.",
         "logoState": {
           "none": "Ještě nehledáno",
           "queued": "Hledá se",
-          "catalog": "Z katalogu",
-          "website": "Z webu",
+          "catalog": "Z katalogu",
+          "website": "Z webu",
           "own": "Vlastní logo",
           "failed": "Logo nenalezeno, iniciály"
         },
@@ -1390,7 +1390,7 @@
         "probeTitle": "Aktuální skladba: {{title}}",
         "recommended": "Doporučeno",
         "recommendedHelp": "Je ve své zemi na prvním místě (řazení „Popularita“).",
-        "tags": "Štítky z katalogu",
+        "tags": "Štítky z katalogu",
         "lock": "Zamknout {{field}}",
         "locked": "zamčeno",
         "free": "volné",
@@ -1408,7 +1408,7 @@
         "delete": "Smazat",
         "deleteLabel": "Smazat {{name}}",
         "deleteTitle": "Smazat {{name}}?",
-        "deleteBody": "Stanice zmizí všem profilům, také z „Moje stanice“. Kdo ji právě poslouchá, bude odpojen.",
+        "deleteBody": "Stanice zmizí všem profilům, také z „Moje stanice“. Kdo ji právě poslouchá, bude odpojen.",
         "editorHelp": "Vlastní stanice: adresu streamu, web, zemi a jazyky lze změnit zde.",
         "columns": {
           "stream": "Adresa streamu"
@@ -1416,7 +1416,7 @@
         "fields": {
           "name": "Název",
           "streamUrl": "Adresa streamu",
-          "streamUrlHelp": "Přímá adresa nebo playlist (.pls, .m3u); server ji převede. Adresy v místní síti nejsou povoleny.",
+          "streamUrlHelp": "Přímá adresa nebo playlist (.pls, .m3u); server ji převede. Adresy v místní síti nejsou povoleny.",
           "homepage": "Web",
           "homepageHelp": "Volitelné; server odtud stáhne logo.",
           "country": "Země",
@@ -1432,25 +1432,25 @@
         }
       },
       "empty": {
-        "title": "V nabídce zatím nejsou žádné stanice",
+        "title": "V nabídce zatím nejsou žádné stanice",
         "body": "Stránka rádia nezobrazí žádnou stanici, dokud na kartě „Nabídka“ nevyberete a nepoužijete země.",
-        "action": "K nabídce"
+        "action": "K nabídce"
       },
       "offerFacts": {
         "title": "Nabídka",
         "open": "Upravit nabídku",
         "countries": "Vybrané země",
-        "stations": "Stanice v nabídce",
-        "unreachable": "Z toho nedostupné",
-        "withLogo": "S logem"
+        "stations": "Stanice v nabídce",
+        "unreachable": "Z toho nedostupné",
+        "withLogo": "S logem"
       },
       "offer": {
         "countries": {
           "title": "Země",
-          "note_one": "Vybráno: {{chosen}} z {{total}} zemí",
-          "note_few": "Vybráno: {{chosen}} z {{total}} zemí",
-          "note_many": "Vybráno: {{chosen}} z {{total}} zemí",
-          "note_other": "Vybráno: {{chosen}} z {{total}} zemí"
+          "note_one": "Vybráno: {{chosen}} z {{total}} zemí",
+          "note_few": "Vybráno: {{chosen}} z {{total}} zemí",
+          "note_many": "Vybráno: {{chosen}} z {{total}} zemí",
+          "note_other": "Vybráno: {{chosen}} z {{total}} zemí"
         },
         "search": "Hledat zemi",
         "searchHelp": "Název nebo kód země, například Švýcarsko nebo CH.",
@@ -1461,7 +1461,7 @@
         "hits_other": "{{count}} shod",
         "hitsCaption": "Nalezené země",
         "continents": {
-          "label": "Všechny země podle kontinentů. Kontinent otevře své země; opětovným stisknutím nebo klávesou Escape je zavřete.",
+          "label": "Všechny země podle kontinentů. Kontinent otevře své země; opětovným stisknutím nebo klávesou Esc je zavřete.",
           "heading": "Podle kontinentů"
         },
         "continent": {
@@ -1490,7 +1490,7 @@
         "chooseCountry": "Vybrat: {{country}}",
         "columns": {
           "choose": "Vybráno",
-          "tick": "V nabídce",
+          "tick": "V nabídce",
           "country": "Země",
           "stations": "Stanice",
           "actions": "Akce"
@@ -1498,7 +1498,7 @@
         "chosen": {
           "title": "Vybrané země",
           "empty": "Zatím není vybrána žádná země. Vyhledejte zemi výše nebo otevřete kontinent.",
-          "count": "{{offered}} z {{total}} stanic",
+          "count": "{{offered}} z {{total}} stanic",
           "open": "Vybrat stanice",
           "close": "Zavřít stanice",
           "openLabel": "Vybrat stanice: {{country}}",
@@ -1508,9 +1508,9 @@
         },
         "stations": {
           "title": "Stanice: {{country}}",
-          "count": "V nabídce: {{offered}} z {{total}}",
-          "modeAll": "Každá stanice této země je v nabídce kromě neoznačených. Nové stanice této země se přidají samy.",
-          "modeMarked": "V nabídce jsou jen označené stanice. Nové stanice této země se samy nepřidají.",
+          "count": "V nabídce: {{offered}} z {{total}}",
+          "modeAll": "Každá stanice této země je v nabídce kromě neoznačených. Nové stanice této země se přidají samy.",
+          "modeMarked": "V nabídce jsou jen označené stanice. Nové stanice této země se samy nepřidají.",
           "search": "Hledat stanice",
           "markAll": "Označit vše",
           "demarkAll": "Zrušit označení všech",
@@ -1522,18 +1522,18 @@
           "demarkShown_few": "Zrušit označení zobrazených ({{count}})",
           "demarkShown_many": "Zrušit označení zobrazených ({{count}})",
           "demarkShown_other": "Zrušit označení zobrazených ({{count}})",
-          "mark": "{{name}} v nabídce",
+          "mark": "{{name}} v nabídce",
           "broken": "nedostupná",
           "empty": "Nenalezena žádná stanice."
         },
         "summary": {
-          "title": "V nabídce",
-          "offered": "Stanice v nabídce",
-          "unreachable": "Z toho nedostupné",
+          "title": "V nabídce",
+          "offered": "Stanice v nabídce",
+          "unreachable": "Z toho nedostupné",
           "countries": "Vybrané země",
           "marked": "Označené stanice",
           "hideBroken": "Vynechat nedostupné stanice",
-          "hideBrokenHelp": "Nedostupné stanice se nezobrazují v seznamech v aplikaci. Vrátí se, jakmile zase odpoví; jako oblíbené zůstávají."
+          "hideBrokenHelp": "Nedostupné stanice se nezobrazují v seznamech v aplikaci. Vrátí se, jakmile zase odpoví; jako oblíbené zůstávají."
         },
         "bar": {
           "label": "Použít nabídku",
@@ -1565,7 +1565,7 @@
         "title": "Zahodit neuložené změny?",
         "body": "Vaše změny metadat ještě nejsou uloženy. Když editor zavřete, ztratí se.",
         "confirm": "Zahodit a zavřít",
-        "cancel": "Pokračovat v úpravách"
+        "cancel": "Pokračovat v úpravách"
       },
       "subtitle": "{{kind}} · {{library}}",
       "notFound": "Tento titul (už) neexistuje.",
@@ -1608,7 +1608,7 @@
         },
         "automatic": "Zpět na automatiku",
         "candidates": "Návrhy poskytovatelů",
-        "candidatesBook": "Obrázky ve složce a v souborech",
+        "candidatesBook": "Obrázky ve složce a v souborech",
         "filter": {
           "provider": "Poskytovatel",
           "lang": "Jazyk",
@@ -1619,8 +1619,8 @@
         "count_many": "{{count}} obrázku",
         "count_other": "{{count}} obrázků",
         "chooseHint": "Kliknutím obrázek vyberete: platí hned a zůstává zamčený, dokud ho nevrátíte na automatiku.",
-        "stillsOff": "Obrázky dílů jsou pro tuto knihovnu vypnuty. Zapnout je lze ve správě v sekci Metadata.",
-        "stillsOffLink": "K nastavení metadat",
+        "stillsOff": "Obrázky dílů jsou pro tuto knihovnu vypnuty. Zapnout je lze ve správě v sekci Metadata.",
+        "stillsOffLink": "K nastavení metadat",
         "noKinds": "Tento titul nemá žádné druhy obrázků."
       },
       "metadata": {
@@ -1673,24 +1673,24 @@
         "unlockAll": "Nejdřív zrušit všechny zámky tohoto titulu",
         "unlockAllHint": "Poté zase platí, co dodají poskytovatelé. Ruční přiřazení a vlastní věkové omezení zůstanou.",
         "run": "Obnovit teď",
-        "hint": "Běží jako úloha s vysokou prioritou; nové hodnoty se objeví po jejím dokončení.",
+        "hint": "Běží jako úloha s vysokou prioritou; nové hodnoty se objeví po jejím dokončení.",
         "book": {
           "body": "Zamčená pole a vybraný obal zůstanou, pokud nejdřív nezrušíte zámky.",
           "unlockAll": "Zrušit i všechny zámky",
-          "unlockAllHint": "Nejdřív zrušit všechny zámky této knihy, i zámky polí, která jste převzali ze zdroje v části „Přiřazení“: poté zase platí, co říkají soubory a poskytovatel. Samotné přiřazení a vlastní věkové omezení zůstanou.",
+          "unlockAllHint": "Nejdřív zrušit všechny zámky této knihy, i zámky polí, která jste převzali ze zdroje v části „Přiřazení“: poté zase platí, co říkají soubory a poskytovatel. Samotné přiřazení a vlastní věkové omezení zůstanou.",
           "run": "Načíst znovu",
           "filesTitle": "Znovu načíst soubory",
           "filesHint": "Znovu přečte metadata.json, značky a názvy složek.",
           "providerTitle": "Znovu stáhnout od poskytovatele",
           "providerHint": "Znovu stáhne podrobnosti ze zdroje {{source}}.",
-          "providerNone": "Nejdřív vyberte nalezený titul v části „Přiřazení“.",
+          "providerNone": "Nejdřív vyberte nalezený titul v části „Přiřazení“.",
           "providerRun": "Stáhnout znovu",
           "refetched": "Podrobnosti ze zdroje {{source}} jsou znovu staženy."
         }
       },
       "bookMatch": {
         "intro": "Vyhledejte ve zdroji podle názvu a autora nebo podle ASIN či ISBN a vyberte nalezený titul. Pole po poli rozhodujete, co se převezme.",
-        "noSources": "Složka této knihy neuvádí žádný nastavený zdroj knih. Zdroje složky se volí v její knihovně.",
+        "noSources": "Složka této knihy neuvádí žádný nastavený zdroj knih. Zdroje složky se volí v její knihovně.",
         "matched": "Přiřazeno: {{source}}",
         "unmatched": "Nepřiřazeno: podrobnosti jen ze souborů",
         "source": "Zdroj",
@@ -1729,7 +1729,7 @@
           "noValue": "Zdroj nemá žádnou hodnotu",
           "empty": "–",
           "cover": "Obal ze zdroje",
-          "coverToday": "k dispozici",
+          "coverToday": "k dispozici",
           "hint": "Převzatá pole se zamknou. Zamčená pole zůstanou. Přiřazení platí i pro pozdější „Znovu stáhnout od poskytovatele“.",
           "same": "Zdroj nedodává nic, co by se lišilo od dnešního stavu.",
           "apply_one": "Převzít {{count}} pole",
@@ -1788,10 +1788,10 @@
         "aborted": "Prohledání zastaveno"
       },
       "counts": "Tituly: {{items}} · Soubory: {{files}}",
-      "progress": "{{seen}} z {{total}} souborů",
+      "progress": "{{seen}} z {{total}} souborů",
       "finishedAt": "Poslední prohledání: {{date}}",
       "keyframes": {
-        "summary": "Index klíčových snímků: {{indexed}} z {{videoFiles}} videosouborů · {{pending}} čeká · {{unavailable}} nelze vytvořit",
+        "summary": "Index klíčových snímků: {{indexed}} z {{videoFiles}} videosouborů · {{pending}} čeká · {{unavailable}} nelze vytvořit",
         "complete": "Index klíčových snímků je úplný",
         "backfill": "Doplnění na stránce úloh na pozadí"
       },
@@ -1806,7 +1806,7 @@
       "acceptLoss": {
         "action": "Přijmout ztrátu",
         "title": "Odebrat chybějící soubory?",
-        "body": "Příští prohledání odebere chybějící tituly z knihovny; průběh sledování těchto titulů se ztratí. Udělejte to jen tehdy, když byly soubory smazány záměrně.",
+        "body": "Příští prohledání odebere chybějící tituly z knihovny; průběh sledování těchto titulů se ztratí. Udělejte to jen tehdy, když byly soubory smazány záměrně.",
         "confirm": "Odebrat a prohledat"
       },
       "add": {
@@ -1815,12 +1815,12 @@
         "created": "Knihovna {{name}} byla přidána.",
         "draft": {
           "band": "Koncept nové knihovny ještě nebyl uložen.",
-          "continue": "Pokračovat v úpravách",
+          "continue": "Pokračovat v úpravách",
           "discard": "Zahodit koncept",
           "discarded": "Koncept nové knihovny byl zahozen.",
           "question": {
             "title": "Ponechat, nebo zahodit koncept?",
-            "body": "Začali jste vytvářet novou knihovnu. Když koncept ponecháte, můžete v úpravách pokračovat z pruhu na stránce.",
+            "body": "Začali jste vytvářet novou knihovnu. Když koncept ponecháte, můžete v úpravách pokračovat z pruhu na stránce.",
             "keep": "Ponechat koncept",
             "discard": "Zahodit koncept"
           }
@@ -1832,12 +1832,12 @@
       "scanFailed": "Prohledávání knihovny {{name}} selhalo.",
       "scanAborted": "Prohledávání knihovny {{name}} bylo zastaveno.",
       "defaultRating": "Výchozí: {{rating}}",
-      "noRoots": "Žádná složka: tituly pocházejí z odebíraných kanálů.",
-      "feedsOnly": "Tituly z kanálů",
+      "noRoots": "Žádná složka: tituly pocházejí z odebíraných kanálů.",
+      "feedsOnly": "Tituly z kanálů",
       "changeRating": {
         "action": "Změnit výchozí věkové omezení",
         "title": "Výchozí věkové omezení knihovny {{name}}",
-        "description": "Každý titul, jehož věkové omezení pochází z knihovny, se okamžitě přizpůsobí. Ručně nastavená omezení zůstanou.",
+        "description": "Každý titul, jehož věkové omezení pochází z knihovny, se okamžitě přizpůsobí. Ručně nastavená omezení zůstanou.",
         "submit": "Uložit",
         "saved": "Výchozí věkové omezení knihovny {{name}} je nyní {{rating}}."
       },
@@ -1853,15 +1853,15 @@
           "inputLabel": "Pro potvrzení zadejte cestu",
           "mismatch": "Zadejte {{path}} přesně, pak se tlačítko aktivuje.",
           "confirm": "Odebrat složku",
-          "lead_one": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titul s ní zmizí ze všech seznamů. Co to znamená:",
-          "lead_few": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} tituly s ní zmizí ze všech seznamů. Co to znamená:",
-          "lead_many": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulu s ní zmizí ze všech seznamů. Co to znamená:",
-          "lead_other": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulů s ní zmizí ze všech seznamů. Co to znamená:",
-          "soft": "Tituly se jen označí jako smazané: zmizí ze všech seznamů, ale průběh sledování, položky seznamu a tipy zůstanou k nim připojeny. Titul se souborem v jiné složce této knihovny zůstane viditelný.",
-          "downloads": "Skutečně zmizí offline stažené položky: zařízení, která některý z těchto titulů mají, balíček při další synchronizaci smažou.",
-          "playback": "Přehrávání z této složky se uprostřed přeruší.",
-          "webhooks": "Mapa cest Radarru a Sonarru pak pro tuto cestu nikam neukazuje; hlášení o ní se odmítají.",
-          "relink": "Pokud se tituly později vrátí, i přes jinou složku, Slouchcat je najde podle ID z TMDB, TVDB nebo IMDb a vrátí průběh i seznamy. Pokud složku jen přesouváte, použijte místo „Odebrat“ volbu „Změnit cestu“.",
+          "lead_one": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titul s ní zmizí ze všech seznamů. Co to znamená:",
+          "lead_few": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} tituly s ní zmizí ze všech seznamů. Co to znamená:",
+          "lead_many": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulu s ní zmizí ze všech seznamů. Co to znamená:",
+          "lead_other": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulů s ní zmizí ze všech seznamů. Co to znamená:",
+          "soft": "Tituly se jen označí jako smazané: zmizí ze všech seznamů, ale průběh sledování, položky seznamu a tipy zůstanou k nim připojeny. Titul se souborem v jiné složce této knihovny zůstane viditelný.",
+          "downloads": "Skutečně zmizí offline stažené položky: zařízení, která některý z těchto titulů mají, balíček při další synchronizaci smažou.",
+          "playback": "Přehrávání z této složky se uprostřed přeruší.",
+          "webhooks": "Mapa cest Radarru a Sonarru pak pro tuto cestu nikam neukazuje; hlášení o ní se odmítají.",
+          "relink": "Pokud se tituly později vrátí, i přes jinou složku, Slouchcat je najde podle ID z TMDB, TVDB nebo IMDb a vrátí průběh i seznamy. Pokud složku jen přesouváte, použijte místo „Odebrat“ volbu „Změnit cestu“.",
           "oneWay": "Pokud složka leží mimo procházené složky (SLOUCHCAT_BROWSE_ROOTS), nelze ji bez změny konfigurace znovu přidat.",
           "last": "Je to poslední složka: {{name}} zůstane, ale potom nebude mít žádnou složku a nic se nebude prohledávat."
         },
@@ -1872,9 +1872,9 @@
           "title": "Změnit složku",
           "description": "Obsah a zdroje metadat složky {{path}}.",
           "submit": "Uložit",
-          "identifier": "Mění se určující zdroj: texty řad a dílů se přiřadí znovu podle poskytovatele {{provider}}. Samotné díly zůstanou, průběh sledování a seznam zůstanou k nim připojeny.",
+          "identifier": "Mění se určující zdroj: texty řad a dílů se přiřadí znovu podle poskytovatele {{provider}}. Samotné díly zůstanou, průběh sledování a seznam zůstanou k nim připojeny.",
           "fillers": "Mění se jen doplňující zdroje: tituly se doplní znovu, nic se nemaže.",
-          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů.",
+          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů.",
           "confirmTitle": "Opravdu změnit obsah?",
           "confirm": "Změnit obsah",
           "saved": "Složka {{path}} byla změněna."
@@ -1885,7 +1885,7 @@
           "title": "Změnit cestu?",
           "body": "Stará cesta: {{old}} · Nová cesta: {{new}}. Tituly a uživatelská data zůstanou, pokud tam soubory leží pod stejnými názvy. Složka se poté načte znovu.",
           "confirm": "Změnit",
-          "saved": "Složka nyní leží v {{path}} a je načtena znovu."
+          "saved": "Složka nyní leží v {{path}} a je načtena znovu."
         },
         "readOnly": "jen pro čtení",
         "writable": "zapisovatelná"
@@ -1896,7 +1896,7 @@
       "rootCount_few": "{{count}} složky",
       "rootCount_many": "{{count}} složky",
       "rootCount_other": "{{count}} složek",
-      "noFolder": "Žádná složka: dokud nějakou nepřidáte v části „Složky“, nic se neprohledává.",
+      "noFolder": "Žádná složka: dokud nějakou nepřidáte v části „Složky“, nic se neprohledává.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_few": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
@@ -1913,7 +1913,7 @@
         "action": "Náhledy při přetáčení",
         "actionLabel": "Náhledy při přetáčení pro {{name}}",
         "title": "Náhledy při přetáčení: {{name}}",
-        "description": "Malé obrázky nad časovou osou, jeden každých 10 sekund. Filmy a seriály se nastavují zvlášť, i v knihovně, která obsahuje obojí.",
+        "description": "Malé obrázky nad časovou osou, jeden každých 10 sekund. Filmy a seriály se nastavují zvlášť, i v knihovně, která obsahuje obojí.",
         "movies": "Filmy",
         "series": "Seriály",
         "mode": {
@@ -1923,7 +1923,7 @@
           "off": "Vypnuto"
         },
         "keep": "Ponechat",
-        "keepHint": "Od druhého spuštění je k dispozici okamžitě. Bez ponechání se náhled po přehrání smaže.",
+        "keepHint": "Od druhého spuštění je k dispozici okamžitě. Bez ponechání se náhled po přehrání smaže.",
         "scope": {
           "label": "Rozsah",
           "series": "Celý seriál",
@@ -1932,14 +1932,14 @@
         },
         "facts": {
           "ahead": {
-            "movie": "Nové filmy dostanou náhled při importu; zbytek doplní „Vytvořit teď“ nebo plán v části „Úlohy na pozadí“. Pokud při spuštění některý chybí, vytvoří se za 20 až 45 sekund a zůstane uložen.",
-            "episode": "Nové díly dostanou náhled při importu; zbytek doplní „Vytvořit teď“ nebo plán v části „Úlohy na pozadí“. Pokud při spuštění některý chybí, vytvoří se za 20 až 45 sekund a zůstane uložen."
+            "movie": "Nové filmy dostanou náhled při importu; zbytek doplní „Vytvořit teď“ nebo plán v části „Úlohy na pozadí“. Pokud při spuštění některý chybí, vytvoří se za 20 až 45 sekund a zůstane uložen.",
+            "episode": "Nové díly dostanou náhled při importu; zbytek doplní „Vytvořit teď“ nebo plán v části „Úlohy na pozadí“. Pokud při spuštění některý chybí, vytvoří se za 20 až 45 sekund a zůstane uložen."
           },
           "onStartKeep": "Při prvním spuštění trvá vytvoření náhledu 20 až 45 sekund, první dlaždice 5 až 10 sekund, a náhled zůstane uložen. Tituly, na které se nikdo nedívá, nezabírají místo.",
-          "onStart": "Při každém spuštění se náhled vytvoří znovu za 20 až 45 sekund; 10 minut po skončení se smaže. Každé spuštění stojí výpočetní čas a několik set MB z NAS.",
+          "onStart": "Při každém spuštění se náhled vytvoří znovu za 20 až 45 sekund; 10 minut po skončení se smaže. Každé spuštění stojí výpočetní čas a několik set MB z NAS.",
           "seriesStart": {
             "series": "Při spuštění dílu se jeho náhled vytvoří hned, pak na pozadí náhledy všech ostatních dílů seriálu. Vše zůstane uloženo.",
-            "season_rest": "Při spuštění dílu se jeho náhled vytvoří hned, pak na pozadí náhledy ostatních dílů řady (u posledního dílu náhledy další řady). Vše zůstane uloženo.",
+            "season_rest": "Při spuštění dílu se jeho náhled vytvoří hned, pak na pozadí náhledy ostatních dílů řady (u posledního dílu náhledy další řady). Vše zůstane uloženo.",
             "next_episode": "Při spuštění dílu se jeho náhled vytvoří hned, pak na pozadí náhled dalšího dílu. Vše zůstane uloženo."
           },
           "off": "Žádný náhled. Časová osa zobrazuje název a obrázek kapitoly jako dosud."
@@ -1963,10 +1963,10 @@
           "perEpisodePlaying": "Na díl, jen při přehrávání",
           "library": "Celá knihovna",
           "libraryAtMost": "Celá knihovna, nejvýše",
-          "basis": "Odhad místa vychází z délky titulů, asi 1,5 MB na hodinu videa.",
+          "basis": "Odhad místa vychází z délky titulů, asi 1,5 MB na hodinu videa.",
           "stored": "Dnes využito: filmy {{movies}} · seriály {{series}}",
-          "free": "Volné místo v mezipaměti: {{size}}",
-          "unavailable": "Odhad místa teď není k dispozici."
+          "free": "Volné místo v mezipaměti: {{size}}",
+          "unavailable": "Odhad místa teď není k dispozici."
         },
         "drop": {
           "movies": "Po uložení se uložené náhledy filmů smažou ({{size}}). Probíhající přehrávání si je ponechají do konce.",
@@ -1975,7 +1975,7 @@
         },
         "generate": {
           "action": "Vytvořit teď",
-          "hint": "Doplní chybějící náhledy každé knihovny v režimu „Předem“, stejně jako „Doplnit náhledy při přetáčení“ v části „Úlohy na pozadí“.",
+          "hint": "Doplní chybějící náhledy každé knihovny v režimu „Předem“, stejně jako „Doplnit náhledy při přetáčení“ v části „Úlohy na pozadí“.",
           "queued": "Doplňování náhledů čeká ve frontě."
         },
         "submit": "Uložit",
@@ -1986,10 +1986,10 @@
       "delete": {
         "action": "Smazat knihovnu…",
         "title": "Smazat knihovnu „{{name}}“?",
-        "lead_one": "Slouchcat opustí {{roots}} a {{formatted}} titul, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
-        "lead_few": "Slouchcat opustí {{roots}} a {{formatted}} tituly, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
-        "lead_many": "Slouchcat opustí {{roots}} a {{formatted}} titulu, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
-        "lead_other": "Slouchcat opustí {{roots}} a {{formatted}} titulů, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
+        "lead_one": "Slouchcat opustí {{roots}} a {{formatted}} titul, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
+        "lead_few": "Slouchcat opustí {{roots}} a {{formatted}} tituly, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
+        "lead_many": "Slouchcat opustí {{roots}} a {{formatted}} titulu, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
+        "lead_other": "Slouchcat opustí {{roots}} a {{formatted}} titulů, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
         "files": "Soubory na disku zůstanou nedotčeny. Pokud prohledávání této knihovny běží, Slouchcat ho nejdřív zruší.",
         "backup": "Předtím Slouchcat zálohuje databázi (Správa › Záloha). Obnovení této zálohy vrátí vše do stavu před smazáním, včetně průběhu sledování všech profilů od té doby.",
         "final": "Jinak to nelze vrátit zpět: nové prohledání stejných složek vytvoří tituly znovu, bez průběhu sledování.",
@@ -2030,30 +2030,30 @@
         "removed": "Odebrané tituly"
       },
       "hint": {
-        "unmatched": "Bez přiřazení není k dispozici popis, obrázky ani věkové omezení. Přiřaďte titul nebo ho obnovte.",
+        "unmatched": "Bez přiřazení není k dispozici popis, obrázky ani věkové omezení. Přiřaďte titul nebo ho obnovte.",
         "no_images": "Přiřazené tituly bez plakátu. Obnovení obrázky načte znovu.",
-        "unrated": "Tituly bez věkového omezení vidí jen profily s omezením 18. Přidělením omezení je zpřístupníte.",
-        "orphaned": "Tituly bez souboru nebo s chybějícími soubory, prázdné řady a seriály.",
-        "unplayable": "Soubory, které nelze přečíst. Zkontrolujte je znovu nebo je odeberte z knihovny.",
+        "unrated": "Tituly bez věkového omezení vidí jen profily s omezením 18. Přidělením omezení je zpřístupníte.",
+        "orphaned": "Tituly bez souboru nebo s chybějícími soubory, prázdné řady a seriály.",
+        "unplayable": "Soubory, které nelze přečíst. Zkontrolujte je znovu nebo je odeberte z knihovny.",
         "rating_mismatch": "Uložené věkové omezení se liší od vypočteného. Změna omezení nebo příští prohledání to opraví. Nic se tu nevybírá.",
         "duplicates": "Tituly, které existují dvakrát. Vyberte titul, který se má ponechat, a ostatní do něj sloučte.",
-        "relink": "Smazané tituly, které jsou v knihovně zpět jako nová kopie. Průběh sledování, historie a seznamy jsou stále připojeny ke smazanému titulu. „Znovu propojit“ sloučí kopii s ním; starý titul zůstane.",
-        "removed": "Tituly vyřazené ze Slouchcat; jejich soubory tam stále jsou. „Vrátit“ obnoví stejný titul i s jeho díly, průběhem sledování, značkami zhlédnutí a seznamem."
+        "relink": "Smazané tituly, které jsou v knihovně zpět jako nová kopie. Průběh sledování, historie a seznamy jsou stále připojeny ke smazanému titulu. „Znovu propojit“ sloučí kopii s ním; starý titul zůstane.",
+        "removed": "Tituly vyřazené ze Slouchcat; jejich soubory tam stále jsou. „Vrátit“ obnoví stejný titul i s jeho díly, průběhem sledování, značkami zhlédnutí a seznamem."
       },
       "empty": "Není co dělat.",
       "selection": "Výběr",
       "selectItem": "Vybrat {{title}}",
       "selected": "Vybráno: {{count}}",
-      "selectedOfLoaded": "Vybráno {{count}} z {{loaded}} načtených",
+      "selectedOfLoaded": "Vybráno {{count}} z {{loaded}} načtených",
       "selectAll": "Vybrat vše",
       "selectNone": "Zrušit výběr",
-      "shown": "{{shown}} z {{total}}",
+      "shown": "{{shown}} z {{total}}",
       "entries_one": "{{count}} položka",
       "entries_few": "{{count}} položky",
       "entries_many": "{{count}} položky",
       "entries_other": "{{count}} položek",
       "library": "Knihovna {{id}}",
-      "caption": "{{kind}} v knihovně {{library}}",
+      "caption": "{{kind}} v knihovně {{library}}",
       "columns": {
         "title": "Název",
         "kind": "Druh",
@@ -2083,10 +2083,10 @@
         "refresh_few": "Obnovují se {{count}} tituly.",
         "refresh_many": "Obnovuje se {{count}} titulu.",
         "refresh_other": "Obnovuje se {{count}} titulů.",
-        "refreshFailed_one": "Neobnoveno: {{failed}} z {{count}} titulu: {{error}}",
-        "refreshFailed_few": "Neobnoveno: {{failed}} z {{count}} titulů: {{error}}",
-        "refreshFailed_many": "Neobnoveno: {{failed}} z {{count}} titulu: {{error}}",
-        "refreshFailed_other": "Neobnoveno: {{failed}} z {{count}} titulů: {{error}}",
+        "refreshFailed_one": "Neobnoveno: {{failed}} z {{count}} titulu: {{error}}",
+        "refreshFailed_few": "Neobnoveno: {{failed}} z {{count}} titulů: {{error}}",
+        "refreshFailed_many": "Neobnoveno: {{failed}} z {{count}} titulu: {{error}}",
+        "refreshFailed_other": "Neobnoveno: {{failed}} z {{count}} titulů: {{error}}",
         "rating_one": "Věkové omezení nastaveno pro {{count}} titul.",
         "rating_few": "Věkové omezení nastaveno pro {{count}} tituly.",
         "rating_many": "Věkové omezení nastaveno pro {{count}} titulu.",
@@ -2106,18 +2106,18 @@
       },
       "cleanup": {
         "title": "Vyčistit tituly?",
-        "body_one": "Vybraný titul bude z knihovny odebrán. Soubory na disku zůstanou nedotčeny.",
-        "body_few": "Vybrané tituly ({{count}}) budou z knihovny odebrány. Soubory na disku zůstanou nedotčeny.",
-        "body_many": "Vybrané tituly ({{count}}) budou z knihovny odebrány. Soubory na disku zůstanou nedotčeny.",
-        "body_other": "Vybraných titulů ({{count}}) bude z knihovny odebráno. Soubory na disku zůstanou nedotčeny.",
+        "body_one": "Vybraný titul bude z knihovny odebrán. Soubory na disku zůstanou nedotčeny.",
+        "body_few": "Vybrané tituly ({{count}}) budou z knihovny odebrány. Soubory na disku zůstanou nedotčeny.",
+        "body_many": "Vybrané tituly ({{count}}) budou z knihovny odebrány. Soubory na disku zůstanou nedotčeny.",
+        "body_other": "Vybraných titulů ({{count}}) bude z knihovny odebráno. Soubory na disku zůstanou nedotčeny.",
         "confirm": "Vyčistit"
       },
       "remove": {
         "title": "Odebrat soubory?",
-        "body_one": "Vybraný soubor bude z knihovny odebrán a budoucí prohledávání ho přeskočí. Zůstane na disku.",
-        "body_few": "Vybrané soubory ({{count}}) budou z knihovny odebrány a budoucí prohledávání je přeskočí. Zůstanou na disku.",
-        "body_many": "Vybrané soubory ({{count}}) budou z knihovny odebrány a budoucí prohledávání je přeskočí. Zůstanou na disku.",
-        "body_other": "Vybraných souborů ({{count}}) bude z knihovny odebráno a budoucí prohledávání je přeskočí. Zůstanou na disku.",
+        "body_one": "Vybraný soubor bude z knihovny odebrán a budoucí prohledávání ho přeskočí. Zůstane na disku.",
+        "body_few": "Vybrané soubory ({{count}}) budou z knihovny odebrány a budoucí prohledávání je přeskočí. Zůstanou na disku.",
+        "body_many": "Vybrané soubory ({{count}}) budou z knihovny odebrány a budoucí prohledávání je přeskočí. Zůstanou na disku.",
+        "body_other": "Vybraných souborů ({{count}}) bude z knihovny odebráno a budoucí prohledávání je přeskočí. Zůstanou na disku.",
         "confirm": "Odebrat"
       },
       "rating": {
@@ -2161,7 +2161,7 @@
         "meta_other": "{{reason}} · {{title}} · {{count}} titulů",
         "keep": "zůstane",
         "noFiles": "Žádný soubor",
-        "containerPaths": "Cesty jsou ty v kontejneru (/media/…), ne na NAS; každá uvádí svou knihovnu.",
+        "containerPaths": "Cesty jsou ty v kontejneru (/media/…), ne na NAS; každá uvádí svou knihovnu.",
         "library": "Knihovna „{{name}}“",
         "folderFiles_one": "{{n}} soubor · {{size}}",
         "folderFiles_few": "{{n}} soubory · {{size}}",
@@ -2181,10 +2181,10 @@
         },
         "confirmTitle": "Znovu propojit uživatelská data?",
         "data": {
-          "progress_one": "{{count}} záznam o průběhu",
-          "progress_few": "{{count}} záznamy o průběhu",
-          "progress_many": "{{count}} záznamu o průběhu",
-          "progress_other": "{{count}} záznamů o průběhu",
+          "progress_one": "{{count}} záznam o průběhu",
+          "progress_few": "{{count}} záznamy o průběhu",
+          "progress_many": "{{count}} záznamu o průběhu",
+          "progress_other": "{{count}} záznamů o průběhu",
           "progressEvents_one": "{{count}} událost přehrávání",
           "progressEvents_few": "{{count}} události přehrávání",
           "progressEvents_many": "{{count}} události přehrávání",
@@ -2227,7 +2227,7 @@
         "copies_many": "{{count}} kopie",
         "copies_other": "{{count}} kopií",
         "selectPair": "Vybrat {{copy}} ({{library}}, smazáno dne {{date}})",
-        "selectPairOf": "Vybrat {{copy}} ({{library}}, smazáno dne {{date}}, kopie {{index}} z {{copies}})",
+        "selectPairOf": "Vybrat {{copy}} ({{library}}, smazáno dne {{date}}, kopie {{index}} z {{copies}})",
         "confirmMerge_one": "1 kopie se sloučí se svým smazaným titulem. Starý titul se vrátí a zachová si svou adresu.",
         "confirmMerge_few": "{{count}} kopie se sloučí se svými smazanými tituly. Staré tituly se vrátí a zachovají si své adresy.",
         "confirmMerge_many": "{{count}} kopie se sloučí se svými smazanými tituly. Staré tituly se vrátí a zachovají si své adresy.",
@@ -2241,10 +2241,10 @@
         "confirmRemoved_few": "Kopie budou trvale odstraněny.",
         "confirmRemoved_many": "Kopie budou trvale odstraněny.",
         "confirmRemoved_other": "Kopie budou trvale odstraněny.",
-        "confirmExtra_one": "Ještě jedna kopie téhož titulu se přeskočí a pak je uvedena v části „Duplicity“.",
-        "confirmExtra_few": "Další {{count}} kopie stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“.",
-        "confirmExtra_many": "Další {{count}} kopie stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“.",
-        "confirmExtra_other": "Dalších {{count}} kopií stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“."
+        "confirmExtra_one": "Ještě jedna kopie téhož titulu se přeskočí a pak je uvedena v části „Duplicity“.",
+        "confirmExtra_few": "Další {{count}} kopie stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“.",
+        "confirmExtra_many": "Další {{count}} kopie stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“.",
+        "confirmExtra_other": "Dalších {{count}} kopií stejných titulů se přeskočí a pak jsou uvedeny v části „Duplicity“."
       },
       "removed": {
         "empty": "Žádné odebrané tituly.",
@@ -2271,7 +2271,7 @@
         "body": "Tituly spravuje hlavní profil účtu správce."
       },
       "notFound": "Tento titul neexistuje nebo už neexistuje.",
-      "view": "Otevřít stránku s podrobnostmi",
+      "view": "Otevřít detail",
       "facts": {
         "kind": "Druh",
         "id": "ID",
@@ -2335,7 +2335,7 @@
         "effective": "Platné omezení",
         "source": "Zdroj",
         "label": "Nastavit vlastní omezení",
-        "fromMetadata": "Z metadat",
+        "fromMetadata": "Z metadat",
         "saved": "Věkové omezení uloženo.",
         "unsaved": "neuloženo",
         "summary": "Platné {{effective}} · Vlastní {{own}} · Zdroj {{source}}"
@@ -2345,14 +2345,14 @@
         "current": "Původní jazyk",
         "source": "Zdroj",
         "label": "Nastavit původní jazyk",
-        "fromMetadata": "Z metadat",
+        "fromMetadata": "Z metadat",
         "unknown": "Neznámý",
         "notLooked": "Zatím nezjištěno",
         "manual": "Ručně (zamčeno)",
         "saved": "Původní jazyk uložen.",
         "unsaved": "neuloženo",
         "summary": "{{language}} · Zdroj {{source}}",
-        "hint": "Zvolený jazyk nebo „Neznámý“ se zamkne. „Z metadat“ zámek zruší a při příštím přiřazení se zdroje zeptají znovu.",
+        "hint": "Zvolený jazyk nebo „Neznámý“ se zamkne. „Z metadat“ zámek zruší a při příštím přiřazení se zdroje zeptají znovu.",
         "knownFailed": "Seznam jazyků se nepodařilo načíst."
       },
       "files": {
@@ -2413,7 +2413,7 @@
       },
       "images": {
         "title": "Obrázky",
-        "intro": "U každého druhu zvolený obrázek se zdrojem a jazykem. Vlastní volba druh zamkne; „Použít“ a „Obnovit“ ji zachovají.",
+        "intro": "U každého druhu zvolený obrázek se zdrojem a jazykem. Vlastní volba druh zamkne; „Použít“ a „Obnovit“ ji zachovají.",
         "none": "Žádný obrázek",
         "chosen": "vybráno ručně",
         "locked": "zamčeno",
@@ -2470,7 +2470,7 @@
     },
     "match": {
       "title": "Přiřadit titul",
-      "description": "Vyhledejte titul v TMDB nebo TVDB a vyberte správnou položku.",
+      "description": "Vyhledejte titul v TMDB nebo TVDB a vyberte správnou položku.",
       "provider": "Poskytovatel",
       "kind": "Druh",
       "query": "Hledaný výraz",
@@ -2485,7 +2485,7 @@
     "titleYear": "{{title}} ({{year}})",
     "devices": {
       "title": "Zařízení",
-      "intro": "Prohlížeče a zařízení, která se přihlásila, s profilem schopností z posledního spuštění přehrávání.",
+      "intro": "Prohlížeče a zařízení, která se přihlásila, s profilem schopností z posledního spuštění přehrávání.",
       "list": "Zařízení",
       "tabs": {
         "label": "Zobrazení zařízení",
@@ -2494,17 +2494,17 @@
       },
       "hint": {
         "devices": "Seskupeno podle typu. Schopnosti jsou na vedlejší kartě.",
-        "capabilities": "Profil schopností z posledního spuštění přehrávání na každém zařízení."
+        "capabilities": "Profil schopností z posledního spuštění přehrávání na každém zařízení."
       },
       "caption": "{{view}}: {{type}}",
       "count_one": "{{number}} zařízení",
       "count_few": "{{number}} zařízení",
       "count_many": "{{number}} zařízení",
       "count_other": "{{number}} zařízení",
-      "profiled_one": "{{number}} zařízení s profilem schopností",
-      "profiled_few": "{{number}} zařízení s profilem schopností",
-      "profiled_many": "{{number}} zařízení s profilem schopností",
-      "profiled_other": "{{number}} zařízení s profilem schopností",
+      "profiled_one": "{{number}} zařízení s profilem schopností",
+      "profiled_few": "{{number}} zařízení s profilem schopností",
+      "profiled_many": "{{number}} zařízení s profilem schopností",
+      "profiled_other": "{{number}} zařízení s profilem schopností",
       "streamCount_one": "{{number}} stream",
       "streamCount_few": "{{number}} streamy",
       "streamCount_many": "{{number}} streamu",
@@ -2538,7 +2538,7 @@
         "action": "Zapomenout",
         "label": "Zapomenout {{name}}",
         "title": "Zapomenout zařízení „{{name}}“?",
-        "body": "Běžící streamy skončí a relace zařízení budou odhlášeny. Pokud jde o zařízení, které právě používáte, budete zde okamžitě odhlášeni.",
+        "body": "Běžící streamy skončí a relace zařízení budou odhlášeny. Pokud jde o zařízení, které právě používáte, budete zde okamžitě odhlášeni.",
         "confirm": "Zapomenout zařízení"
       },
       "forgotten": "Zařízení „{{name}}“ zapomenuto.",
@@ -2573,8 +2573,8 @@
         "radio": "Rádio"
       },
       "partial": {
-        "streams": "Přehrávání chybí v seznamu, dokud se požadavek znovu nepovede.",
-        "radio": "Posluchači rádia chybí v seznamu, dokud se požadavek znovu nepovede."
+        "streams": "Přehrávání chybí v seznamu, dokud se požadavek znovu nepovede.",
+        "radio": "Posluchači rádia chybí v seznamu, dokud se požadavek znovu nepovede."
       },
       "facts": {
         "device": "Zařízení",
@@ -2602,7 +2602,7 @@
       },
       "hw": "HW",
       "sw": "SW",
-      "position": "{{position}} z {{duration}}",
+      "position": "{{position}} z {{duration}}",
       "progress": "Průběh: {{title}}",
       "stop": {
         "action": "Zastavit",
@@ -2664,9 +2664,9 @@
       "title": "Podcasty",
       "intro": "Odebírané kanály a podcasty ze složek. Úloha na pozadí „Kontrola kanálů podcastů“ stahuje odběry, které jsou na řadě, a přidává nové díly.",
       "empty": "Zatím není odebírán žádný podcast.",
-      "emptyLibrary": "V této knihovně zatím není žádný podcast.",
+      "emptyLibrary": "V této knihovně zatím není žádný podcast.",
       "list": "Odebírané podcasty",
-      "listOf": "Odebírané podcasty v knihovně {{library}}",
+      "listOf": "Odebírané podcasty v knihovně {{library}}",
       "noLibrary": "Nejdřív přidejte knihovnu druhu Podcasty.",
       "librariesLink": "Přejít na knihovny",
       "never": "Nikdy",
@@ -2701,12 +2701,12 @@
         "noFeed": "Žádný kanál.",
         "noFeedFolder": "Žádný kanál, díly pocházejí ze složky.",
         "library": "Knihovna",
-        "folderNote": "Tento podcast obsahuje složka. Vrací se při každém prohledání; lze ho odebrat jen spolu se složkou v části Knihovny."
+        "folderNote": "Tento podcast obsahuje složka. Vrací se při každém prohledání; lze ho odebrat jen spolu se složkou v části Knihovny."
       },
       "subscribe": {
         "action": "Odebírat kanál",
         "title": "Odebírat kanál",
-        "description": "Slouchcat kanál hned stáhne a přidá podcast i s jeho díly.",
+        "description": "Slouchcat kanál hned stáhne a přidá podcast i s jeho díly.",
         "library": "Knihovna",
         "url": "Adresa kanálu",
         "urlHint": "Kanál RSS podcastu, například https://example.org/feed.xml.",
@@ -2714,13 +2714,13 @@
         "submitting": "Načítání kanálu…",
         "done": "{{title}} je odebírán.",
         "loads": {
-          "new": "Tato knihovna ukládá nové díly. Slouchcat z prvního načtení nestahuje nic, jen to, co se objeví po něm.",
+          "new": "Tato knihovna ukládá nové díly. Slouchcat z prvního načtení nestahuje nic, jen to, co se objeví po něm.",
           "last_n": "Tato knihovna ukládá: po zahájení odběru Slouchcat stáhne {{n}} nejnovějších dílů jako soubory.",
           "all": "Tato knihovna ukládá všechny díly: po zahájení odběru Slouchcat stáhne celý kanál jako soubory (nejvýše 2000 dílů)."
         },
         "load": {
           "label": "Stáhnout díly",
-          "hint": "„Jen odebírat“ z kanálu nestáhne nic; podcast pak ukládá jen díly, které se objeví později.",
+          "hint": "„Jen odebírat“ z kanálu nestáhne nic; podcast pak ukládá jen díly, které se objeví později.",
           "yes": "Odebírat a stáhnout",
           "no": "Jen odebírat",
           "required": "Vyberte prosím, zda má Slouchcat díly stáhnout."
@@ -2736,7 +2736,7 @@
         "action": "Zrušit odběr",
         "label": "Zrušit odběr: {{title}}",
         "title": "Zrušit odběr: {{title}}?",
-        "body": "Podcast a jeho díly zmizí z knihovny. Stažené díly se odstraní při další synchronizaci.",
+        "body": "Podcast a jeho díly zmizí z knihovny. Stažené díly se odstraní při další synchronizaci.",
         "confirm": "Zrušit odběr",
         "done": "Odběr zrušen: {{title}}."
       },
@@ -2768,9 +2768,9 @@
           "lastNOf": "Nové + posledních {{n}}"
         },
         "hint": {
-          "link": "Nové díly zůstávají odkazem a při přehrání se streamují z hostitele. Existující soubory zůstanou.",
+          "link": "Nové díly zůstávají odkazem a při přehrání se streamují z hostitele. Existující soubory zůstanou.",
           "new": "Stáhne se jen to, co se objeví od teď. Starší díly bez souboru zůstanou odkazy.",
-          "last_n": "Nové díly a u každého podcastu posledních {{n}} dílů kanálu, které chybí.",
+          "last_n": "Nové díly a u každého podcastu posledních {{n}} dílů kanálu, které chybí.",
           "all": "Celý kanál (nejvýše 2000 dílů na podcast) a každý nový díl. Může zabrat hodně místa."
         },
         "lastN": {
@@ -2792,9 +2792,9 @@
           "writable": "zapisovatelná · volných {{free}}",
           "writableUnknown": "zapisovatelná",
           "checking": "Kontrola složky…",
-          "none": "Knihovna nemá složku podcastů. Přidejte ji v části Knihovny, aby Slouchcat mohl ukládat díly.",
+          "none": "Knihovna nemá složku podcastů. Přidejte ji v části Knihovny, aby Slouchcat mohl ukládat díly.",
           "locked": "„Ukládat“ je zamčeno, dokud složka neprojde kontrolou.",
-          "guide": "Návod k instalaci: ukládání dílů podcastů",
+          "guide": "Návod k instalaci: ukládání dílů podcastů",
           "problem": {
             "read_only": "připojeno jen pro čtení",
             "not_mounted": "složka není připojena",
@@ -2846,7 +2846,7 @@
         "all": "vše uloženo",
         "some": "uloženo {{stored}} · jen odkaz {{missing}}",
         "someNoFeed": "uloženo {{stored}} · bez souboru {{missing}}",
-        "label": "Uloženo dílů: {{stored}} z {{total}}"
+        "label": "Uloženo dílů: {{stored}} z {{total}}"
       },
       "state": {
         "fetching": "Načítání",
@@ -2908,7 +2908,7 @@
         "cancelled": "Stahování {{title}} bylo zrušeno.",
         "cancel": "Zrušit: {{title}}",
         "ofPodcastSize": "{{podcast}} · {{size}}",
-        "more": "Zobrazeno {{shown}} z {{total}}.",
+        "more": "Zobrazeno {{shown}} z {{total}}.",
         "columns": {
           "episode": "Díl",
           "progress": "Průběh",
@@ -2938,8 +2938,8 @@
       "episodes": {
         "title": "Díly",
         "caption": "Díly podcastu {{title}}",
-        "empty": "V tomto zobrazení není žádný díl.",
-        "shown": "Zobrazeno dílů: {{shown}} z {{total}}.",
+        "empty": "V tomto zobrazení není žádný díl.",
+        "shown": "Zobrazeno dílů: {{shown}} z {{total}}.",
         "more": "Zobrazit více",
         "loadQueued": "{{title}} se stahuje.",
         "loadNone": "{{title}} se nestahuje: díl už soubor má.",
@@ -2997,7 +2997,7 @@
       "retention": {
         "title": "Platnost",
         "label": "Tipy zůstávají",
-        "unit": "dní v seznamu",
+        "unit": "dní v seznamu",
         "help": "7 až 365 dní, ve výchozím stavu 60. Každý nový tip stejného titulu spustí lhůtu znovu. Kratší lhůta platí okamžitě.",
         "saved_one": "Tipy nyní zůstávají {{count}} den.",
         "saved_few": "Tipy nyní zůstávají {{count}} dny.",
@@ -3011,7 +3011,7 @@
       "count_other": "{{number}} titulů",
       "empty": "Žádný profil teď nedoporučuje žádný titul. Bez tipů úvodní stránka nezobrazí řádek „Tipy uživatelů“.",
       "anonymous": "Správa vidí, kolik tipů titul má, nikdy však který profil ho doporučil.",
-      "homeRowsHint": "Kde řádek na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části <page>Úvodní stránka</page>.",
+      "homeRowsHint": "Kde řádek na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části <page>Úvodní stránka</page>.",
       "columns": {
         "title": "Název",
         "picked": "Naposledy doporučeno",
@@ -3030,15 +3030,15 @@
       "remove": {
         "action": "Odebrat",
         "label": "Odebrat {{title}}",
-        "title": "Odebrat {{title}} z tipů uživatelů?",
-        "body": "Všechny tipy na tento titul zmizí. Titul zůstane v knihovně.",
+        "title": "Odebrat {{title}} z tipů uživatelů?",
+        "body": "Všechny tipy na tento titul zmizí. Titul zůstane v knihovně.",
         "confirm": "Odebrat",
         "done": "{{title}} už není doporučen."
       }
     },
     "collections": {
       "title": "Kolekce",
-      "intro": "Kolekce z TMDB se objevují samy při přiřazování titulů a nelze je měnit. Vlastní kolekce si sestavte zde.",
+      "intro": "Kolekce z TMDB se objevují samy při přiřazování titulů a nelze je měnit. Vlastní kolekce si sestavte zde.",
       "list": "Kolekce",
       "empty": "Zatím žádné kolekce.",
       "columns": {
@@ -3070,14 +3070,14 @@
         "action": "Smazat",
         "label": "Smazat kolekci {{name}}",
         "title": "Smazat kolekci {{name}}?",
-        "body": "Tituly zůstanou v knihovně; zmizí jen kolekce.",
+        "body": "Tituly zůstanou v knihovně; zmizí jen kolekce.",
         "confirm": "Smazat kolekci",
         "done": "Kolekce {{name}} byla smazána."
       },
       "members": {
         "title": "Obsah kolekce {{name}}",
         "list": "Tituly kolekce",
-        "empty": "V této kolekci zatím nejsou žádné tituly.",
+        "empty": "V této kolekci zatím nejsou žádné tituly.",
         "add": "Přidat",
         "addLabel": "Přidat {{title}}",
         "remove": "Odebrat",
@@ -3107,10 +3107,10 @@
         "count_other": "{{number}} kolekcí"
       },
       "listManual": "Ruční kolekce",
-      "listTmdb": "Kolekce z TMDB",
+      "listTmdb": "Kolekce z TMDB",
       "emptyTab": "Na této kartě nejsou žádné kolekce.",
       "locked": "nelze upravit",
-      "lockedNote": "Tato kolekce pochází z TMDB: její obsah, název i smazání jsou zamčeny.",
+      "lockedNote": "Tato kolekce pochází z TMDB: její obsah, název i smazání jsou zamčeny.",
       "changed": "změněno"
     },
     "myMedia": {
@@ -3167,7 +3167,7 @@
         "hidden": "skryté"
       },
       "hide": "Skrýt",
-      "hideSidebarLabel": "Skrýt {{entry}} v boční navigaci",
+      "hideSidebarLabel": "Skrýt {{entry}} v boční navigaci",
       "hideHomeLabel": "Skrýt {{entry}} na úvodní stránce",
       "moved": "{{entry}} je nyní na pozici {{position}}. Uložením změnu použijete.",
       "saved": "„Moje média“ jsou uložena.",
@@ -3183,9 +3183,9 @@
         "sidebarLabel": "Náhled boční navigace",
         "homeLabel": "Náhled úvodní stránky",
         "empty": "Nic není viditelné: „Moje média“ zde chybí.",
-        "note": "V neuloženém pořadí, s čísly ze správy. Každý profil vidí jen knihovny, které smí vidět, a své vlastní stanice a tipy."
+        "note": "V neuloženém pořadí, s čísly ze správy. Každý profil vidí jen knihovny, které smí vidět, a své vlastní stanice a tipy."
       },
-      "homeRows": "Kde řádek „Moje média“ na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části „Úvodní stránka“.",
+      "homeRows": "Kde řádek „Moje média“ na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části „Úvodní stránka“.",
       "homeRowsLink": "Na stránku „Úvodní stránka“"
     },
     "homeRows": {
@@ -3221,13 +3221,13 @@
       "libraryTag": "Knihovna",
       "tooMany": "Už je viditelných {{count}} řádků. Nejdřív některý skryjte.",
       "rows": {
-        "spotlight": "Seznam z Trakt, zúžený na obsah knihovny. Zobrazuje se jako scéna s pozadím na svém místě; pod minimálním počtem shod se vynechá.",
-        "picks": "Tituly, které doporučují profily účtu vlastníka; nejnovější první, s platností.",
+        "spotlight": "Seznam z Trakt, zúžený na obsah knihovny. Zobrazuje se jako scéna s pozadím na svém místě; pod minimálním počtem shod se vynechá.",
+        "picks": "Tituly, které doporučují profily účtu vlastníka; nejnovější první, s platností.",
         "continue": "Tituly, které profil začal sledovat.",
         "recent": "Tituly, které se do knihovny dostaly naposledy.",
         "released": "Podle data vydání za posledních dvanáct měsíců; seriál podle nejnovějšího dílu.",
         "watchlist": "Seznam profilu.",
-        "collections": "Vlastní kolekce a kolekce z TMDB.",
+        "collections": "Vlastní kolekce a kolekce z TMDB.",
         "genres": "Žánry viditelných titulů.",
         "libraries": "Dlaždice knihoven, které profil vidí, rádia a, pokud se zobrazují, kolekcí a tipů uživatelů; jejich pořadí a skrytí nastavuje stránka „Moje média“.",
         "library": "Tituly, které se do této knihovny dostaly naposledy; „Zobrazit vše“ otevře knihovnu seřazenou podle „Nedávno přidané“.",
@@ -3245,14 +3245,14 @@
       "preview": {
         "label": "Náhled úvodní stránky",
         "row": "{{position}}. {{row}}",
-        "note": "Nákres se zástupnými prvky v neuloženém pořadí. Na skutečné úvodní stránce skryté řádky chybí a vynechají se i prázdné řádky (například prázdný seznam)."
+        "note": "Nákres se zástupnými prvky v neuloženém pořadí. Na skutečné úvodní stránce skryté řádky chybí a vynechají se i prázdné řádky (například prázdný seznam)."
       },
-      "spotlight": "Který seznam z Trakt Spotlight zobrazuje, kdy byl naposledy načten a zda je Trakt nastaven, najdete v části „Spotlight“.",
+      "spotlight": "Který seznam z Trakt Spotlight zobrazuje, kdy byl naposledy načten a zda je Trakt nastaven, najdete v části „Spotlight“.",
       "spotlightLink": "Přejít na „Spotlight“"
     },
     "spotlight": {
       "title": "Spotlight",
-      "intro": "Veřejný seznam z Trakt jako řádek úvodní stránky. Zobrazují se jen tituly z vaší vlastní knihovny; každý profil vidí jen to, co dovoluje jeho věkové omezení.",
+      "intro": "Veřejný seznam z Trakt jako řádek úvodní stránky. Zobrazují se jen tituly z vaší vlastní knihovny; každý profil vidí jen to, co dovoluje jeho věkové omezení.",
       "enabled": "Zobrazit na úvodní stránce",
       "enabledHint": "Projeví se po „Uložit“, společně se zdrojem.",
       "unsaved": "Neuložené změny",
@@ -3276,18 +3276,18 @@
       },
       "source": {
         "title": "Zdroj",
-        "list": "Seznam z Trakt",
-        "listHint": "Veřejné seznamy, bez přihlášení k Trakt.",
-        "listHintLink": "Klíč v části Integrace",
+        "list": "Seznam z Trakt",
+        "listHint": "Veřejné seznamy, bez přihlášení k Trakt.",
+        "listHintLink": "Klíč v části Integrace",
         "listUrl": "Adresa seznamu",
-        "listUrlHint": "Veřejný seznam na trakt.tv, například https://trakt.tv/users/name/lists/name-of-the-list. Seznamy k sledování (watchlist) nejsou možné.",
+        "listUrlHint": "Veřejný seznam na trakt.tv, například https://trakt.tv/users/name/lists/name-of-the-list. Seznamy ke zhlédnutí (watchlisty) nejsou podporovány.",
         "media": "Média",
         "mediaFixed": "Tento seznam určuje média.",
         "mediaFilters": "Seznam míchá filmy a seriály: média filtrují jeho položky po načtení.",
         "itemCount": "Nejvýše",
-        "itemCountHint": "titulů v řádku, na profil (5–20)",
+        "itemCountHint": "titulů v řádku, na profil (5–20)",
         "minHits": "Skrýt pod",
-        "minHitsHint": "shod v knihovně, na profil (0–10)",
+        "minHitsHint": "shod v knihovně, na profil (0–10)",
         "intervalHours": "Načítat každých … hodin",
         "intervalHoursHint": "6 až 48 hodin",
         "rotation": "Interval střídání Spotlightu",
@@ -3300,7 +3300,7 @@
         "fetched": "Naposledy načteno {{date}}",
         "never": "Nikdy nenačteno",
         "failed": "Poslední načtení selhalo: {{reason}}",
-        "hits": "{{hits}} z {{entries}} titulů v knihovně",
+        "hits": "{{hits}} z {{entries}} titulů v knihovně",
         "keySet": "Klíč nastaven",
         "noKey": "Žádný klíč",
         "separator": " · "
@@ -3310,11 +3310,11 @@
         "disabled": "Spotlight je vypnutý: řádek na úvodní stránce chybí.",
         "failed": "Řádek na úvodní stránce chybí, dokud se načtení nepovede.",
         "empty": "Seznam je prázdný: řádek na úvodní stránce chybí.",
-        "belowMinHits": "V knihovně jsou jen {{hits}} shody, méně než požadovaných {{min}}: řádek na úvodní stránce chybí. Profily, které vidí méně titulů, ho nemusí dostat ani jinak."
+        "belowMinHits": "V knihovně jsou jen {{hits}} shody, méně než požadovaných {{min}}: řádek na úvodní stránce chybí. Profily, které vidí méně titulů, ho nemusí dostat ani jinak."
       },
       "entries": {
         "title": "Položky seznamu",
-        "intro": "Pořadí z Trakt; vaše vlastní změny zůstanou i po dalším načtení.",
+        "intro": "Pořadí z Trakt; vaše vlastní změny zůstanou i po dalším načtení.",
         "empty": "Zatím žádné položky. Načtěte seznam, jakmile bude Trakt nastaven.",
         "columns": {
           "rank": "Pořadí",
@@ -3332,12 +3332,12 @@
         "state": {
           "visible": "Viditelné",
           "hidden": "Skryté",
-          "missing": "Není v knihovně"
+          "missing": "Není v knihovně"
         },
         "pinned": "Připnuto na místo {{rank}}",
         "quoted": "„{{note}}“",
         "none": "–",
-        "notInLibrary": "Není v knihovně, na úvodní stránce se nezobrazí",
+        "notInLibrary": "Není v knihovně, na úvodní stránce se nezobrazí",
         "hide": "Skrýt",
         "hideLabel": "Skrýt {{title}}",
         "show": "Zobrazit",
@@ -3353,8 +3353,8 @@
         "action": "Připnout",
         "label": "Připnout {{title}}",
         "title": "Připnout {{title}}",
-        "rank": "Místo v řádku",
-        "rankHint": "1 je první místo. Místo platí pro celý seznam; profil s méně shodami uvidí titul dříve.",
+        "rank": "Místo v řádku",
+        "rankHint": "1 je první místo. Místo platí pro celý seznam; profil s méně shodami uvidí titul dříve.",
         "done": "{{title}} je připnuto na místo {{rank}}.",
         "taken": "{{hint}} Obsazeno: {{places}}.",
         "takenPlace": "místo {{rank}} ({{title}})",
@@ -3367,16 +3367,16 @@
       },
       "note": {
         "action": "Poznámka",
-        "label": "Poznámka k titulu {{title}}",
-        "title": "Poznámka k titulu {{title}}",
+        "label": "Poznámka k titulu {{title}}",
+        "title": "Poznámka k titulu {{title}}",
         "field": "Poznámka",
         "hint": "Nejvýše {{max}} znaků. Prázdné poznámku odstraní.",
-        "saved": "Poznámka k titulu {{title}} je uložena.",
-        "removed": "Poznámka k titulu {{title}} je odstraněna."
+        "saved": "Poznámka k titulu {{title}} je uložena.",
+        "removed": "Poznámka k titulu {{title}} je odstraněna."
       },
       "orphans": {
         "title": "Osiřelé úpravy",
-        "intro": "Úpravy titulů, které už v seznamu nejsou. Znovu se uplatní, až se titul vrátí.",
+        "intro": "Úpravy titulů, které už v seznamu nejsou. Znovu se uplatní, až se titul vrátí.",
         "override": "Úprava",
         "remove": "Odebrat",
         "removeLabel": "Odebrat úpravu titulu {{title}}",
@@ -3386,7 +3386,7 @@
         "count_many": "{{count}} úpravy",
         "count_other": "{{count}} úprav"
       },
-      "rowSettings": "Kde řádek na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části „Úvodní stránka“.",
+      "rowSettings": "Kde řádek na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části „Úvodní stránka“.",
       "rowSettingsLink": "Přejít na „Úvodní stránka“"
     },
     "nav": {
@@ -3399,7 +3399,7 @@
         "system": "Systém"
       },
       "back": "Zpět do aplikace",
-      "updateLabel": "Přehled, k dispozici aktualizace na verzi {{version}}",
+      "updateLabel": "Přehled, k dispozici aktualizace na verzi {{version}}",
       "sheet": {
         "label": "Stránky správy",
         "close": "Zavřít stránky správy"
@@ -3433,7 +3433,7 @@
         "silent_few": "{{name}}, {{formatted}} webhooky mlčí",
         "silent_many": "{{name}}, {{formatted}} webhooku mlčí",
         "silent_other": "{{name}}, {{formatted}} webhooků mlčí",
-        "integrations": "{{name}}, nastaveno {{configured}} z {{total}}",
+        "integrations": "{{name}}, nastaveno {{configured}} z {{total}}",
         "ofTotal": "{{count}} / {{total}}"
       }
     },
@@ -3501,13 +3501,13 @@
       "live": "Živě, každých 5 sekund",
       "liveFailed": "Žádná odpověď, zkouším znovu každých 5 sekund",
       "update": {
-        "title": "K dispozici je verze {{version}}",
+        "title": "K dispozici je verze {{version}}",
         "body": "Používáte {{current}}. Slouchcat nic neinstaluje sám: nový image stáhněte pomocí docker compose pull a restartujte pomocí docker compose up -d.",
-        "notes": "Poznámky k vydání",
+        "notes": "Poznámky k vydání",
         "development": {
           "title": "Používáte vývojové sestavení",
-          "body": "{{current}} není vydaná verze, takže nelze porovnávat a není žádná nápověda k aktualizaci. Nejnovější vydání: {{latest}}.",
-          "bodyUnknown": "{{current}} není vydaná verze, takže nelze porovnávat a není žádná nápověda k aktualizaci."
+          "body": "{{current}} není vydaná verze, takže nelze porovnávat a není žádná nápověda k aktualizaci. Nejnovější vydání: {{latest}}.",
+          "bodyUnknown": "{{current}} není vydaná verze, takže nelze porovnávat a není žádná nápověda k aktualizaci."
         }
       },
       "streams": {
@@ -3533,15 +3533,15 @@
         "failedType_few": "{{type}}: selhalo {{count}}",
         "failedType_many": "{{type}}: selhalo {{count}}",
         "failedType_other": "{{type}}: selhalo {{count}}",
-        "attempts": "{{attempts}} z {{max}}"
+        "attempts": "{{attempts}} z {{max}}"
       },
       "storage": {
         "title": "Úložiště",
         "config": "Konfigurace ({{path}})",
         "cache": "Mezipaměť ({{path}})",
-        "used": "Využito {{used}} z {{total}}",
+        "used": "Využito {{used}} z {{total}}",
         "part": "Využito: {{size}}",
-        "free": "Volno: {{free}} z {{total}}"
+        "free": "Volno: {{free}} z {{total}}"
       },
       "integrations": {
         "title": "Integrace",
@@ -3553,15 +3553,15 @@
         },
         "entry": "{{name}}: {{state}}",
         "manage": "Nastavit integrace",
-        "count": "Nastaveno {{count}} z {{total}}"
+        "count": "Nastaveno {{count}} z {{total}}"
       },
       "webhooks": {
         "title": "Webhooky",
         "none": "Není nastaven žádný webhook.",
-        "count_one": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
-        "count_few": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
-        "count_many": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
-        "count_other": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
+        "count_one": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
+        "count_few": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
+        "count_many": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
+        "count_other": "{{count}} hlášení v logu za posledních 24 hodin, z {{total}} integrací.",
         "silent": "Sedm dní nic nehlásilo: {{names}}",
         "manage": "Spravovat webhooky"
       },
@@ -3571,7 +3571,7 @@
         "uptime": "Doba běhu",
         "update": "Aktualizace",
         "updateCurrent": "Aktuální",
-        "updateAvailable": "K dispozici je verze {{version}}",
+        "updateAvailable": "K dispozici je verze {{version}}",
         "updateDevelopment": "Vývojové sestavení",
         "updateFailed": "Poslední kontrola selhala",
         "updateOff": "Kontrola vypnuta",
@@ -3599,7 +3599,7 @@
         "action": "Nainstalovat aktualizaci na {{version}}",
         "title": "Nainstalovat aktualizaci na {{version}}?",
         "body": "Server se restartuje; probíhající přehrávání se zastaví. Před změnou databáze ji zazálohuje.",
-        "notes": "Poznámky k vydání",
+        "notes": "Poznámky k vydání",
         "confirm": "Nainstalovat",
         "running": "Probíhá aktualizace na {{version}}",
         "runningNoVersion": "Probíhá aktualizace",
@@ -3619,8 +3619,8 @@
           "backing_up": "Updater zálohuje .env a zapisuje novou verzi.",
           "pulling": "Updater stahuje nový image.",
           "verifying": "Updater kontroluje otisk image.",
-          "restarting": "Server se restartuje s novou verzí.",
-          "waiting": "Updater čeká, až bude nový server v pořádku (nejvýše 10 minut)."
+          "restarting": "Server se restartuje s novou verzí.",
+          "waiting": "Updater čeká, až bude nový server v pořádku (nejvýše 10 minut)."
         },
         "down": "Server teď neodpovídá. Čekání na něj…",
         "silent": {
@@ -3636,7 +3636,7 @@
         "migratedNoBackup": "Migrace proběhla; zpět lze jen se zálohou pořízenou před ní.",
         "failure": {
           "disk_full": "Na serveru není místo pro nový image. Uvolněte místo a zkuste to znovu.",
-          "deploy_files": "Soubory Compose z vydání se nepodařilo stáhnout nebo zapsat; aktualizace byla přerušena."
+          "deploy_files": "Soubory Compose z vydání se nepodařilo stáhnout nebo zapsat; aktualizace byla přerušena."
         },
         "finished": "Dokončeno: {{date}}",
         "refused": {
@@ -3647,15 +3647,15 @@
           "outside_deploy_dir": "Soubor Compose serveru leží mimo SLOUCHCAT_DEPLOY_DIR.",
           "manifest_invalid": "Manifest vydání je neplatný.",
           "manifest_unreachable": "Manifest vydání je nedostupný. Zkuste to později.",
-          "other": "Updater odmítl z důvodu, který tato aplikace nezná."
+          "other": "Updater odmítl z důvodu, který tato aplikace nezná."
         },
         "manual": {
           "unavailable": "Updater neodpovídá. Nainstalujte aktualizaci ručně.",
-          "intro": "Bez updateru nainstalujete aktualizaci na hostiteli, ve složce s compose.yaml a .env:",
-          "introByHand": "Ručně nainstalujete aktualizaci na hostiteli, ve složce s compose.yaml a .env:",
-          "env": "Řádek v .env",
+          "intro": "Bez updateru nainstalujete aktualizaci na hostiteli, ve složce s compose.yaml a .env:",
+          "introByHand": "Ručně nainstalujete aktualizaci na hostiteli, ve složce s compose.yaml a .env:",
+          "env": "Řádek v .env",
           "pull": "Stáhnout nový image",
-          "up": "Spustit s novou verzí",
+          "up": "Spustit s novou verzí",
           "files": "Použijte stejné soubory -f jako při spuštění (například docker compose -f compose.yaml -f compose.intel.yaml pull), jinak po aktualizaci chybí.",
           "docs": "Návod: aktualizace jedním kliknutím pomocí updateru"
         },
@@ -3671,12 +3671,12 @@
         "empty": "Zatím žádná aktivita."
       },
       "hints": {
-        "title": "Upozornění",
-        "count_one": "{{count}} upozornění",
-        "count_few": "{{count}} upozornění",
-        "count_many": "{{count}} upozornění",
-        "count_other": "{{count}} upozornění",
-        "none": "Žádná upozornění.",
+        "title": "Výstrahy",
+        "count_one": "{{count}} výstraha",
+        "count_few": "{{count}} výstrahy",
+        "count_many": "{{count}} výstrahy",
+        "count_other": "{{count}} výstrah",
+        "none": "Žádné výstrahy.",
         "failed_one": "{{formatted}} úloha na pozadí selhala",
         "failed_few": "{{formatted}} úlohy na pozadí selhaly",
         "failed_many": "{{formatted}} úlohy na pozadí selhalo",
@@ -3685,19 +3685,19 @@
         "paused_few": "{{count}} typy úloh pozastaveny",
         "paused_many": "{{count}} typu úloh pozastaveno",
         "paused_other": "{{count}} typů úloh pozastaveno",
-        "toJobs": "K úlohám na pozadí",
+        "toJobs": "K úlohám na pozadí",
         "scan": "Prohledávání knihovny „{{name}}“ přerušeno",
         "scanOther": "Ochrana před ztrátou dat prohledávání přerušila.",
         "toLibraries": "ke knihovnám",
         "keyRejected": "Klíč {{name}} odmítnut",
-        "keyRejectedBody": "Poskytovatel klíč odmítá. Dokud nebude platný nový klíč, Slouchcat z něj nestahuje žádná metadata.",
+        "keyRejectedBody": "Poskytovatel klíč odmítá. Dokud nebude platný nový klíč, Slouchcat z něj nestahuje žádná metadata.",
         "toKeys": "ke klíčům",
-        "storage": "{{path}} je zaplněno z více než {{percent}} %"
+        "storage": "{{path}} je zaplněno z více než {{percent}} %"
       },
       "errors": {
         "title": "Log serveru",
-        "intro": "Posledních 50 chyb z logu serveru, nejnovější první.",
-        "list": "Chyby z logu serveru",
+        "intro": "Posledních 50 chyb z logu serveru, nejnovější první.",
+        "list": "Chyby z logu serveru",
         "empty": "Od spuštění žádné chyby.",
         "job": "Úloha {{id}} ({{type}})",
         "new_one": "{{count}} nová chyba",
@@ -3712,10 +3712,10 @@
       },
       "browse": {
         "title": "Prohlížeč složek zablokován",
-        "hanging_one": "Připojení přestalo odpovídat: {{count}} výpis visí v jádře a nelze ho zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
-        "hanging_few": "Připojení přestalo odpovídat: {{count}} výpisy visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
-        "hanging_many": "Připojení přestalo odpovídat: {{count}} výpisu visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
-        "hanging_other": "Připojení přestalo odpovídat: {{count}} výpisů visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
+        "hanging_one": "Připojení přestalo odpovídat: {{count}} výpis visí v jádře a nelze ho zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
+        "hanging_few": "Připojení přestalo odpovídat: {{count}} výpisy visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
+        "hanging_many": "Připojení přestalo odpovídat: {{count}} výpisu visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
+        "hanging_other": "Připojení přestalo odpovídat: {{count}} výpisů visí v jádře a nelze je zrušit. Prohlížeč složek stále funguje, s méně sloty. Restart je uvolní.",
         "off": "Všechny sloty prohlížeče složek visí na připojení, které přestalo odpovídat. Dokud se server nerestartuje, nelze procházet žádnou složku; ruční zadání cesty stále funguje."
       }
     },
@@ -3733,12 +3733,12 @@
         "updateCheck": "Kontrola aktualizací"
       },
       "source": {
-        "env": "Nastaveno v deploy/.env",
+        "env": "Nastaveno v deploy/.env",
         "stored": "Uloženo",
         "storedHint": "Uloženo, končí na {{hint}}",
         "none": "Nenastaveno"
       },
-      "envHint": "Nastaveno v deploy/.env. Hodnotu lze změnit jen tam.",
+      "envHint": "Nastaveno v deploy/.env. Hodnotu lze změnit jen tam.",
       "save": "Uložit",
       "saveLabel": "Uložit {{name}}",
       "saving": "Ukládání…",
@@ -3756,12 +3756,12 @@
       "notificationsLink": "Přejít na kanály upozornění",
       "keys": {
         "title": "Klíče poskytovatelů",
-        "intro": "Slouchcat s nimi stahuje texty, obrázky a upoutávky. Bez klíče zůstává poskytovatel vypnutý.",
-        "count": "Nastaveno poskytovatelů: {{set}} z {{total}}",
+        "intro": "Slouchcat s nimi stahuje texty, obrázky a upoutávky. Bez klíče zůstává poskytovatel vypnutý.",
+        "count": "Nastaveno poskytovatelů: {{set}} z {{total}}",
         "newValue": "Nechte prázdné, aby zůstala uložená hodnota. Nová hodnota ji nahradí."
       },
       "webhooks": {
-        "title": "Webhooky z Radarru a Sonarru",
+        "title": "Webhooky z Radarru a Sonarru",
         "intro": "Radarr a Sonarr sem hlásí změněné soubory, takže se nové tituly objeví okamžitě. Slouchcat tyto služby sám nikdy nevolá.",
         "empty": "Zatím není nastavena žádná integrace.",
         "caption": "Integrace webhooků",
@@ -3785,7 +3785,7 @@
         "form": {
           "title": "Nová integrace",
           "name": "Název",
-          "nameHint": "Podle vaší volby; slouží jen k rozlišení položek tohoto seznamu.",
+          "nameHint": "Podle vaší volby; slouží jen k rozlišení položek tohoto seznamu.",
           "kind": "Služba",
           "submit": "Vytvořit integraci"
         },
@@ -3831,14 +3831,14 @@
           "action": "Obnovit token",
           "label": "Obnovit token: {{name}}",
           "title": "Obnovit token integrace „{{name}}“?",
-          "body": "Stávající adresa okamžitě přestane fungovat. Nová se zobrazí jen jednou a musí se znovu zadat v Radarru nebo Sonarru.",
+          "body": "Stávající adresa okamžitě přestane fungovat. Nová se zobrazí jen jednou a musí se znovu zadat v Radarru nebo Sonarru.",
           "confirm": "Obnovit"
         },
         "delete": {
           "action": "Smazat",
           "label": "Smazat {{name}}",
           "title": "Smazat „{{name}}“?",
-          "body": "Adresa okamžitě přestane fungovat a smaže se s ní i protokol hlášení.",
+          "body": "Adresa okamžitě přestane fungovat a smaže se s ní i protokol hlášení.",
           "confirm": "Smazat"
         }
       },
@@ -3874,21 +3874,21 @@
         "botHelp": "Slouchcat ho najde podle tokenu.",
         "token": "Token bota",
         "setPlaceholder": "Token nastaven",
-        "tokenHelp": "Pro upozornění přes Telegram. Token získáte od @BotFather; Slouchcat ho ověří u Telegramu.",
+        "tokenHelp": "Pro upozornění přes Telegram. Token získáte od @BotFather; Slouchcat ho ověří u Telegramu.",
         "tokenReplace": "Nový token nahradí uložený.",
         "bot": "Bot: @{{name}}",
         "noBot": "Není nastaven žádný bot."
       },
       "push": {
         "title": "Web Push",
-        "intro": "Upozornění v prohlížeči a v nainstalované aplikaci.",
+        "intro": "Upozornění v prohlížeči a v nainstalované aplikaci.",
         "configured": "Pár klíčů existuje.",
         "notConfigured": "Zatím žádný pár klíčů. Vytvoří se, jakmile některé zařízení zapne Web Push.",
         "publicKey": "Veřejný klíč",
         "rotate": {
           "action": "Vytvořit nové klíče",
           "title": "Vytvořit nové klíče Web Push?",
-          "body": "Každé zařízení ztratí své přihlášení k odběru a musí v nastavení znovu zapnout Web Push.",
+          "body": "Každé zařízení ztratí své přihlášení k odběru a musí v nastavení znovu zapnout Web Push.",
           "confirm": "Vytvořit nové klíče"
         },
         "rotated": "Nové klíče vytvořeny. Zařízení musí znovu zapnout Web Push."
@@ -3905,7 +3905,7 @@
       },
       "publicUrl": {
         "title": "Veřejná adresa",
-        "intro": "Odkazy v e-mailech a zprávách vedou na server na této adrese.",
+        "intro": "Odkazy v e-mailech a zprávách vedou na server na této adrese.",
         "name": "Veřejná adresa",
         "label": "Adresa",
         "hint": "Například https://media.example.ch"
@@ -3914,7 +3914,7 @@
         "fields": {
           "tmdb": "Přístupový token (v4)",
           "tvdb": "Klíč",
-          "tvdbPin": "PIN předplatitele (jen u klíčů s předplatným)",
+          "tvdbPin": "PIN předplatitele (jen u klíčů s předplatným)",
           "fanart": "Klíč projektu",
           "fanartClient": "Osobní klíč (volitelné)",
           "youtube": "Klíč",
@@ -3936,22 +3936,22 @@
         "tmdb": {
           "name": "TMDB",
           "purpose": "Texty, plakáty a upoutávky filmů a seriálů. Nutné pro video knihovny.",
-          "help": "Zdarma v účtu TMDB v části „API“: přístupový token pro čtení (v4)."
+          "help": "Zdarma v účtu TMDB v části „API“: přístupový token pro čtení (v4)."
         },
         "tvdb": {
           "name": "TVDB",
           "purpose": "Druhý zdroj pro seriály a anime: řady a názvy dílů.",
-          "help": "Klíč a PIN jsou v účtu TVDB. Bez předplatného zůstane PIN prázdný."
+          "help": "Klíč a PIN jsou v účtu TVDB. Bez předplatného zůstane PIN prázdný."
         },
         "fanart": {
           "name": "Fanart.tv",
-          "purpose": "Loga, pozadí a obrázky disků; zdroj se zapíná v části „Metadata“.",
-          "help": "S osobním klíčem se nové obrázky objeví po dvou dnech, jinak po sedmi."
+          "purpose": "Loga, pozadí a obrázky disků; zdroj se zapíná v části „Metadata“.",
+          "help": "S osobním klíčem se nové obrázky objeví po dvou dnech, jinak po sedmi."
         },
         "youtube": {
           "name": "YouTube",
           "purpose": "Najde upoutávky, které TMDB nezná.",
-          "help": "Klíč pro „YouTube Data API v3“ z Google Cloud Console."
+          "help": "Klíč pro „YouTube Data API v3“ z Google Cloud Console."
         },
         "trakt": {
           "name": "Trakt",
@@ -3960,15 +3960,15 @@
         },
         "googlebooks": {
           "name": "Google Books",
-          "purpose": "Údaje o knihách pro audioknihy; bez klíče se Slouchcat Google Books nikdy nedotazuje.",
-          "help": "Klíč pro „Books API“ z Google Cloud Console. Která složka zdroj používá, se nastavuje v části „Audioknihy: zdroje“."
+          "purpose": "Údaje o knihách pro audioknihy; bez klíče se Slouchcat Google Books nikdy nedotazuje.",
+          "help": "Klíč pro „Books API“ z Google Cloud Console. Která složka zdroj používá, se nastavuje v části „Audioknihy: zdroje“."
         },
         "close": "Sbalit",
         "toggleLabel": "{{action}}: {{name}}",
         "link": "Získat klíč od {{name}}",
         "stored": "Nastaveno; nechte prázdné, aby zůstalo",
         "storedHint": "Nastaveno, končí na {{hint}}; nechte prázdné, aby zůstalo",
-        "envNote": "Hodnota pochází z deploy/.env a lze ji změnit jen tam. „Zkontrolovat“ se poskytovatele přesto zeptá.",
+        "envNote": "Hodnota pochází z deploy/.env a lze ji změnit jen tam. „Zkontrolovat“ se poskytovatele přesto zeptá.",
         "checkAction": "Zkontrolovat",
         "checkLabel": "Zkontrolovat {{name}}",
         "rejected": "odmítnuto",
@@ -3977,7 +3977,7 @@
     },
     "accounts": {
       "title": "Účty",
-      "intro": "Každý účet s rolí, úrovní věkového omezení, knihovnami, profily a kanály, na kterých dostává upozornění. Nový účet začíná pozvánkou. Profily vlastního účtu spravujete zde; každý jiný účet spravuje své profily sám.",
+      "intro": "Každý účet s rolí, úrovní věkového omezení, knihovnami, profily a kanály, na kterých dostává upozornění. Nový účet začíná pozvánkou. Profily vlastního účtu spravujete zde; každý jiný účet spravuje své profily sám.",
       "list": "Účty",
       "columns": {
         "email": "E-mail",
@@ -4049,7 +4049,7 @@
       "remove": {
         "action": "Odebrat účet",
         "title": "Odebrat účet {{email}}?",
-        "body": "Účet, jeho profily a průběh sledování budou smazány. Běžící relace a přehrávání okamžitě skončí. Stažené položky na zařízeních účtu zmizí při příštím připojení k serveru. Zařízení, které se už nikdy nepřipojí, je si ponechá.",
+        "body": "Účet, jeho profily a průběh sledování budou smazány. Běžící relace a přehrávání okamžitě skončí. Stažené položky na zařízeních účtu zmizí při příštím připojení k serveru. Zařízení, které se už nikdy nepřipojí, je si ponechá.",
         "confirm": "Odebrat účet",
         "done": "Účet {{email}} odebrán."
       },
@@ -4104,10 +4104,10 @@
         "label": "Přehled",
         "accounts": "Účty",
         "admins": "Správci",
-        "owners_one": "z toho {{number}} vlastník",
-        "owners_few": "z toho {{number}} vlastníci",
-        "owners_many": "z toho {{number}} vlastníka",
-        "owners_other": "z toho {{number}} vlastníků",
+        "owners_one": "z toho {{number}} vlastník",
+        "owners_few": "z toho {{number}} vlastníci",
+        "owners_many": "z toho {{number}} vlastníka",
+        "owners_other": "z toho {{number}} vlastníků",
         "profiles": "Profily",
         "ownProfiles_one": "{{number}} váš vlastní",
         "ownProfiles_few": "{{number}} vaše vlastní",
@@ -4171,12 +4171,12 @@
       "created": "Záloha „{{name}}“ vytvořena.",
       "deleted": "Záloha „{{name}}“ smazána.",
       "create": {
-        "intro": "Záloha obsahuje databázi s účty, profily, průběhem sledování a nastavením. Média nikdy nejsou součástí.",
+        "intro": "Záloha obsahuje databázi s účty, profily, průběhem sledování a nastavením. Média nikdy nejsou součástí.",
         "scope": "Rozsah",
         "without": "Bez klíčů (doporučeno)",
-        "with": "S klíči",
-        "withoutHint": "Přihlašovací údaje jako klíče TMDB a Trakt, e-mailový server, bot Telegram a klíče Web Push se nezahrnou. Po obnově je zadáte znovu. Adresy soukromých podcastových kanálů zůstanou i s přístupovým kódem, aby odběry po obnově pokračovaly.",
-        "withHint": "Záloha obsahuje i klíč k přihlašovacím údajům. Proto je celý archiv zašifrován heslovou frází (alespoň {{min}} znaků). Bez heslové fráze ho nelze obnovit.",
+        "with": "S klíči",
+        "withoutHint": "Přihlašovací údaje jako klíče TMDB a Trakt, e-mailový server, bot Telegram a klíče Web Push se nezahrnou. Po obnově je zadáte znovu. Adresy soukromých podcastových kanálů zůstanou i s přístupovým kódem, aby odběry po obnově pokračovaly.",
+        "withHint": "Záloha obsahuje i klíč k přihlašovacím údajům. Proto je celý archiv zašifrován heslovou frází (alespoň {{min}} znaků). Bez heslové fráze ho nelze obnovit.",
         "passphrase": "Heslová fráze",
         "passphraseHint": "Alespoň {{min}} znaků. Uchovejte ji odděleně od zálohy.",
         "passphraseRepeat": "Zopakujte heslovou frázi",
@@ -4201,7 +4201,7 @@
         "titleNamed": "Obnovit „{{name}}“",
         "warning": "Obnova nahradí všechna data tohoto serveru stavem ze zálohy. Poté se server restartuje a všichni budou odhlášeni.",
         "file": "Soubor zálohy",
-        "fileHint": "Soubor slouchcat-backup-….tar.gz nebo, s klíči, ….tar.gz.age.",
+        "fileHint": "Soubor slouchcat-backup-….tar.gz nebo, s klíči, ….tar.gz.age.",
         "passphrase": "Heslová fráze",
         "passphraseHint": "Tato záloha je zašifrovaná.",
         "passphraseUploadHint": "Jen pro zašifrovanou zálohu (….tar.gz.age).",
@@ -4213,7 +4213,7 @@
       "restart": {
         "title": "Server se restartuje",
         "body": "Záloha (verze {{version}}) se zkontroluje a při startu se použije. Jakmile server znovu odpoví, otevře se přihlášení.",
-        "noSecrets": "Záloha neobsahuje přihlašovací údaje: klíče, e-mailový server a bot Telegram poté zadejte znovu v části Integrace."
+        "noSecrets": "Záloha neobsahuje přihlašovací údaje: klíče, e-mailový server a bot Telegram poté zadejte znovu v části Integrace."
       }
     },
     "restart": {
@@ -4241,7 +4241,7 @@
       "tooltip": "{{label}}: {{value}}",
       "top": {
         "title": "Nejsledovanější",
-        "empty": "V tomto období se nic nesledovalo.",
+        "empty": "V tomto období se nic nesledovalo.",
         "columns": {
           "title": "Název",
           "kind": "Druh",
@@ -4265,7 +4265,7 @@
         "title": "Doba sledování podle profilu",
         "chart": "Doba sledování podle profilu jako graf",
         "label": "{{profile}} ({{email}})",
-        "empty": "V tomto období nesledoval nic žádný profil.",
+        "empty": "V tomto období nesledoval nic žádný profil.",
         "columns": {
           "profile": "Profil"
         },
@@ -4285,12 +4285,12 @@
         "sessions_other": "{{count, number}} přehrání",
         "share": "{{share}} všech přehrání",
         "hardware": "Překódování na GPU",
-        "hardwareNote": "Podíl z překódování"
+        "hardwareNote": "Podíl z překódování"
       },
       "devices": {
         "title": "Zařízení",
         "chart": "Doba sledování podle typu zařízení jako graf",
-        "empty": "V tomto období nic nepřehrálo žádné zařízení.",
+        "empty": "V tomto období nic nepřehrálo žádné zařízení.",
         "unknown": "Neznámé",
         "columns": {
           "type": "Typ zařízení",
@@ -4308,19 +4308,19 @@
         "window_few": "Za poslední {{count, number}} týdny",
         "window_many": "Za posledních {{count, number}} týdne",
         "window_other": "Za posledních {{count, number}} týdnů",
-        "empty": "V těchto týdnech se nic nesledovalo.",
+        "empty": "V těchto týdnech se nic nesledovalo.",
         "byHour": "Podle denní doby",
-        "byWeekday": "Podle dne v týdnu",
+        "byWeekday": "Podle dne v týdnu",
         "columns": {
           "hour": "Hodina",
-          "day": "Den v týdnu"
+          "day": "Den v týdnu"
         },
         "hourSpan": "{{from}}:00–{{to}}:00",
         "topHour": "Nejvíce: {{hour}}",
         "topDay": "Nejvíce: {{day}}",
-        "zone": "Hodiny v časovém pásmu serveru ({{zone}}).",
+        "zone": "Hodiny v časovém pásmu serveru ({{zone}}).",
         "grid": "Týden a hodina",
-        "gridChart": "Doba sledování podle dne v týdnu a hodiny",
+        "gridChart": "Doba sledování podle dne v týdnu a hodiny",
         "peak": "Špička: {{day}}, {{hour}}"
       }
     },
@@ -4338,7 +4338,7 @@
         "new": "Neuloženo",
         "changed": "Neuložené změny",
         "created": "Vytvořeno {{date}}",
-        "read": "Přečteno: {{acknowledged}} z {{total}}"
+        "read": "Přečteno: {{acknowledged}} z {{total}}"
       },
       "facts": {
         "created": "Vytvořeno",
@@ -4347,7 +4347,7 @@
       },
       "draft": "Koncept",
       "notSent": "Zatím neodesláno",
-      "acknowledged": "{{acknowledged}} z {{total}} profilů",
+      "acknowledged": "{{acknowledged}} z {{total}} profilů",
       "published": "„{{title}}“ je zveřejněno.",
       "saved": "„{{title}}“ je uloženo jako koncept.",
       "deleted": "„{{title}}“ je smazáno.",
@@ -4388,7 +4388,7 @@
         "action": "Smazat",
         "label": "Smazat „{{title}}“",
         "title": "Smazat „{{title}}“?",
-        "body": "Oznámení a potvrzení o přečtení budou smazány. Již odeslané zprávy zůstanou u příjemců.",
+        "body": "Oznámení a potvrzení o přečtení budou smazány. Již odeslané zprávy zůstanou u příjemců.",
         "confirm": "Smazat oznámení"
       }
     },
@@ -4431,7 +4431,7 @@
         "since": "již {{duration}}",
         "overridesPause": "kvůli přehrávání, navzdory pozastavení",
         "overridesWindow": "kvůli přehrávání",
-        "progress": "{{done}} z {{total}}",
+        "progress": "{{done}} z {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Pozastavit spuštění",
         "pauseLabel": "Pozastavit {{name}} (zastaví toto i každé další běžící spuštění úlohy)",
@@ -4522,7 +4522,7 @@
         "confirm": "Zrušit",
         "keep": "Ponechat",
         "deleteRunTitle": "Smazat selhané spuštění úlohy {{name}}?",
-        "deleteRunBody": "Slouchcat toto spuštění už nezkouší. V části „Spuštění“ se pak zobrazí jako „zrušeno“, dokud ho později neodstraní úklid.",
+        "deleteRunBody": "Slouchcat toto spuštění už nezkouší. V části „Spuštění“ se pak zobrazí jako „zrušeno“, dokud ho později neodstraní úklid.",
         "deleteRunConfirm": "Smazat",
         "retryFailedTitle_one": "Zkusit znovu {{count}} selhané spuštění?",
         "retryFailedTitle_few": "Zkusit znovu všechna {{count}} selhaná spuštění?",
@@ -4532,7 +4532,7 @@
         "retryFailedTypeTitle_few": "Zkusit znovu všechna {{count}} selhaná spuštění úlohy {{name}}?",
         "retryFailedTypeTitle_many": "Zkusit znovu všech {{count}} selhaného spuštění úlohy {{name}}?",
         "retryFailedTypeTitle_other": "Zkusit znovu všech {{count}} selhaných spuštění úlohy {{name}}?",
-        "retryFailedBody": "Spuštění se vrátí do fronty s vynulovanými pokusy. Pokud stejná práce už čeká nebo běží, spuštění zůstane selhané; z duplicitních spuštění se vrátí jen nejnovější.",
+        "retryFailedBody": "Spuštění se vrátí do fronty s vynulovanými pokusy. Pokud stejná práce už čeká nebo běží, spuštění zůstane selhané; z duplicitních spuštění se vrátí jen nejnovější.",
         "retryFailedConfirm": "Zkusit znovu vše",
         "dismissFailedTitle_one": "Smazat {{count}} selhané spuštění?",
         "dismissFailedTitle_few": "Smazat všechna {{count}} selhaná spuštění?",
@@ -4542,7 +4542,7 @@
         "dismissFailedTypeTitle_few": "Smazat všechna {{count}} selhaná spuštění úlohy {{name}}?",
         "dismissFailedTypeTitle_many": "Smazat všech {{count}} selhaného spuštění úlohy {{name}}?",
         "dismissFailedTypeTitle_other": "Smazat všech {{count}} selhaných spuštění úlohy {{name}}?",
-        "dismissFailedBody": "Slouchcat je už nezkouší. V části „Spuštění“ se pak zobrazí jako „zrušeno“, dokud je později neodstraní úklid.",
+        "dismissFailedBody": "Slouchcat je už nezkouší. V části „Spuštění“ se pak zobrazí jako „zrušeno“, dokud je později neodstraní úklid.",
         "dismissFailedConfirm": "Smazat vše"
       },
       "messages": {
@@ -4593,7 +4593,7 @@
           "done": "Hotová",
           "cancelled": "Zrušená"
         },
-        "empty": "Žádná spuštění v tomto stavu.",
+        "empty": "Žádná spuštění v tomto stavu.",
         "total": "Celkem {{count}}, zobrazeno nejnovějších {{shown}}",
         "columns": {
           "subject": "Předmět",
@@ -4633,18 +4633,18 @@
           "h48": "každé 2 dny",
           "d7": "týdně"
         },
-        "window": "Jen v časovém okně",
+        "window": "Jen v časovém okně",
         "windowStart": "Od",
         "windowEnd": "Do",
         "windowHint": "Časové pásmo serveru: {{zone}}. Okno může přesahovat půlnoc.",
         "traktHint": "Interval a zapnutí/vypnutí jsou stejné nastavení jako na stránce Spotlight.",
-        "updateHint": "Zapnutí/vypnutí je stejné nastavení jako kontrola aktualizací v nastavení.",
+        "updateHint": "Zapnutí/vypnutí je stejné nastavení jako kontrola aktualizací v nastavení.",
         "save": "Uložit",
         "heading": "Plán",
-        "eventNote": "Bez plánu: běží samo, jakmile pro ni je práce, jak je popsáno v části „Spouští“.",
+        "eventNote": "Bez plánu: běží samo, jakmile pro ni je práce, jak je popsáno v části „Spouští“.",
         "discard": "Zahodit",
         "once": "Jednou dne",
-        "onceHint": "Časové pásmo serveru: {{zone}}. Datum se spustí jednou navíc k intervalu, i mimo časové okno.",
+        "onceHint": "Časové pásmo serveru: {{zone}}. Datum se spustí jednou navíc k intervalu, i mimo časové okno.",
         "clearOnce": "Odebrat datum",
         "onceRange": "Datum musí ležet mezi dneškem a jedním rokem od dneška.",
         "onceInvalid": "Neplatné datum.",
@@ -4662,44 +4662,44 @@
       "types": {
         "radio_catalog_sync": {
           "name": "Synchronizace katalogu rádií",
-          "description": "Stáhne katalog stanic z Radio Browser, sloučí položky do stanic a roztřídí je do filtrů.",
+          "description": "Stáhne katalog stanic z Radio Browser, sloučí položky do stanic a roztřídí je do filtrů.",
           "trigger": "denně od 04:30, „Synchronizovat teď“ na stránce Rádio, při prvním spuštění bez katalogu"
         },
         "radio_logo_fetch": {
           "name": "Stažení loga stanice",
-          "description": "Stáhne logo stanice z katalogu nebo z jejího webu a uloží ho jako čtverec.",
-          "trigger": "stanice bez loga v seznamu aplikace, obnovené logo"
+          "description": "Stáhne logo stanice z katalogu nebo z jejího webu a uloží ho jako čtverec.",
+          "trigger": "stanice bez loga v seznamu aplikace, obnovené logo"
         },
         "radio_wikidata_sync": {
-          "name": "Údaje o stanicích z Wikidata",
-          "description": "Přiřadí stanice v nabídce k Wikidata podle jejich webu a z jednoznačné shody převezme vlastníka a datum založení.",
-          "trigger": "týdně od 06:30, po „Použít“ s novými stanicemi (nejvýše jednou denně), když je zapnuto „Používat Wikidata“"
+          "name": "Údaje o stanicích z Wikidata",
+          "description": "Přiřadí stanice v nabídce k Wikidata podle jejich webu a z jednoznačné shody převezme vlastníka a datum založení.",
+          "trigger": "týdně od 06:30, po „Použít“ s novými stanicemi (nejvýše jednou denně), když je zapnuto „Používat Wikidata“"
         },
         "scan_library": {
           "name": "Prohledání knihovny",
-          "description": "Hledá nové, změněné a chybějící soubory v každé knihovně.",
+          "description": "Hledá nové, změněné a chybějící soubory v každé knihovně.",
           "trigger": "Plán každých 6 h a start serveru, „Prohledat“ na stránce knihoven, webhook, sledování souborů"
         },
         "scan_path": {
           "name": "Prohledání složky",
-          "description": "Znovu načte jednu složku, jakmile se v ní něco změní.",
+          "description": "Znovu načte jednu složku, jakmile se v ní něco změní.",
           "trigger": "Sledování souborů při změnách, webhook"
         },
         "probe_file": {
           "name": "Analýza souboru",
           "description": "Načte stopy, délku a formát nového nebo změněného souboru.",
-          "trigger": "Z prohledání pro každý nový soubor, „Analýza souboru“ v údržbě"
+          "trigger": "Z prohledání pro každý nový soubor, „Analýza souboru“ v údržbě"
         },
         "probe_keyframes": {
           "name": "Index klíčových snímků (načtení celého souboru)",
           "description": "Načte celý soubor, pokud mu chybí index pro přetáčení.",
-          "trigger": "Při importu jen bez indexu z kontejneru, z doplnění, před přehráváním (i při pozastavení) a pro offline stažení"
+          "trigger": "Při importu jen bez indexu z kontejneru, z doplnění, před přehráváním (i při pozastavení) a pro offline stažení"
         },
         "keyframes_backfill": {
           "name": "Doplnění indexu klíčových snímků",
           "description": "Zařadí do fronty každý soubor bez indexu klíčových snímků.",
-          "trigger": "Plán (ve výchozím stavu vypnutý, týdně) nebo jednorázové datum, „Spustit hned“: načte index z kontejneru každého videosouboru, který ho ještě nemá",
-          "progress": "Zkontrolováno souborů: {{done}} z {{total}}"
+          "trigger": "Plán (ve výchozím stavu vypnutý, týdně) nebo jednorázové datum, „Spustit hned“: načte index z kontejneru každého videosouboru, který ho ještě nemá",
+          "progress": "Zkontrolováno souborů: {{done}} z {{total}}"
         },
         "library_sweep": {
           "name": "Úklid chybějících titulů",
@@ -4707,24 +4707,24 @@
           "trigger": "Plán každou hodinu a start serveru"
         },
         "segments_detect": {
-          "name": "Rozpoznání úvodu a závěru",
-          "description": "Najde úvod a závěr dílů pro „Přeskočit úvod“.",
-          "trigger": "Z prohledání po řadách"
+          "name": "Rozpoznání úvodu a závěrečných titulků",
+          "description": "Najde úvod a závěrečné titulky dílů pro „Přeskočit úvod“.",
+          "trigger": "Z prohledání po řadách"
         },
         "chapters_images": {
           "name": "Vytvoření obrázků kapitol",
           "description": "Vytvoří náhledové obrázky kapitol souboru.",
-          "trigger": "U každého souboru 10 minut po skončení přehrávání, u nových souborů po úplném prohledání a po nové analýze"
+          "trigger": "U každého souboru 10 minut po skončení přehrávání, u nových souborů po úplném prohledání a po nové analýze"
         },
         "chapters_images_backfill": {
           "name": "Doplnění obrázků kapitol",
-          "description": "Zařadí k vytvoření každý soubor bez obrázků kapitol.",
+          "description": "Zařadí k vytvoření každý soubor bez obrázků kapitol.",
           "trigger": "Plán (ve výchozím stavu vypnutý, týdně) nebo jednorázové datum, „Spustit hned“: pro každý film a díl bez obrázků kapitol"
         },
         "trickplay_generate": {
           "name": "Vytvoření náhledů při přetáčení",
           "description": "Vytvoří náhledové obrázky pro posuvník souboru, dlaždici po dlaždici.",
-          "trigger": "při spuštění filmu nebo dílu, u nových souborů s „Předem“, doplněním, předvytvořením dílů seriálu a pro offline stažení"
+          "trigger": "při spuštění filmu nebo dílu, u nových souborů s „Předem“, doplněním, předvytvořením dílů seriálu a pro offline stažení"
         },
         "trickplay_series": {
           "name": "Náhledy ostatních dílů",
@@ -4733,9 +4733,9 @@
         },
         "trickplay_backfill": {
           "name": "Doplnění náhledů při přetáčení",
-          "description": "Zařadí k vytvoření každý film a díl bez úplného náhledu.",
+          "description": "Zařadí k vytvoření každý film a díl bez úplného náhledu.",
           "trigger": "Plán (ve výchozím stavu vypnutý, týdně) nebo jednorázové datum, „Spustit hned“: pro knihovny nastavené na „Předem“",
-          "progress": "Zkontrolováno souborů: {{done}} z {{total}}"
+          "progress": "Zkontrolováno souborů: {{done}} z {{total}}"
         },
         "library_relink": {
           "name": "Znovu propojit smazaný titul",
@@ -4745,7 +4745,7 @@
         "metadata_match": {
           "name": "Přiřazení titulu",
           "description": "Najde odpovídající položku TMDB nebo TVDB pro nový titul.",
-          "trigger": "Z prohledání, ruční přiřazení, změna složky"
+          "trigger": "Z prohledání, ruční přiřazení, změna složky"
         },
         "library_author_display": {
           "name": "Sjednocení jmen autorů",
@@ -4755,7 +4755,7 @@
         "metadata_fill": {
           "name": "Doplnění metadat",
           "description": "Stáhne texty, žánry, věkové omezení, obsazení a obrázky titulu.",
-          "trigger": "Po přiřazení, změna seznamu u složky"
+          "trigger": "Po přiřazení, změna seznamu u složky"
         },
         "metadata_vote_backfill": {
           "name": "Doplnění hlasů",
@@ -4775,20 +4775,20 @@
         "people_images": {
           "name": "Stažení obrázků osob a kolekcí",
           "description": "Stáhne portréty osob a plakáty kolekcí TMDB a vykreslí jejich velikosti.",
-          "trigger": "Po přiřazení titulu s obsazením nebo kolekcí a po úplném prohledání, které načte nahromaděné",
-          "progress": "Zkontrolováno obrázků: {{done}} z {{total}}"
+          "trigger": "Po přiřazení titulu s obsazením nebo kolekcí a po úplném prohledání, které načte nahromaděné",
+          "progress": "Zkontrolováno obrázků: {{done}} z {{total}}"
         },
         "people_details": {
-          "name": "Stažení údajů o osobách a kolekcích",
-          "description": "Stáhne z TMDB u každé osoby životopis, datum narození, místo narození, obor, ve kterém je známá, a počet titulů a u každé kolekce TMDB popis, anglický text, pokud hlavní jazyk žádný nemá.",
-          "trigger": "Po přiřazení titulu s obsazením nebo kolekcí, po úplném prohledání a jednou po aktualizaci",
-          "progress": "Zkontrolováno osob a kolekcí: {{done}} z {{total}}"
+          "name": "Stažení údajů o osobách a kolekcích",
+          "description": "Stáhne z TMDB u každé osoby životopis, datum narození, místo narození, obor, ve kterém je známá, a počet titulů a u každé kolekce TMDB popis, anglický text, pokud hlavní jazyk žádný nemá.",
+          "trigger": "Po přiřazení titulu s obsazením nebo kolekcí, po úplném prohledání a jednou po aktualizaci",
+          "progress": "Zkontrolováno osob a kolekcí: {{done}} z {{total}}"
         },
         "people_images_backfill": {
           "name": "Doplnění obrázků osob a kolekcí",
           "description": "Zkusí znovu každou osobu a kolekci, pro kterou TMDB neměl obrázek.",
           "trigger": "Plán (ve výchozím stavu vypnutý, týdně) nebo jednorázové datum, „Spustit hned“: zapomene selhání a zařadí spuštění",
-          "progress": "Zkontrolováno obrázků: {{done}} z {{total}}"
+          "progress": "Zkontrolováno obrázků: {{done}} z {{total}}"
         },
         "metadata_apply": {
           "name": "Použití metadat",
@@ -4803,7 +4803,7 @@
         "podcast_fetch": {
           "name": "Načtení kanálu podcastu",
           "description": "Načte jeden kanál podcastu a jeho nové díly.",
-          "trigger": "Z kontroly kanálů pro každý odběr na řadě, „Obnovit“ u podcastu, nový odběr"
+          "trigger": "Z kontroly kanálů pro každý odběr na řadě, „Obnovit“ u podcastu, nový odběr"
         },
         "podcast_poll": {
           "name": "Kontrola kanálů podcastů",
@@ -4813,7 +4813,7 @@
         "podcast_sync": {
           "name": "Plánování dílů podcastů",
           "description": "Vybere díly podcastu, které jeho nastavení stahuje jako soubory, a zruší stahování, která už nejsou žádoucí.",
-          "trigger": "Po načtení kanálu s novými díly, novém odběru a změněném nastavení"
+          "trigger": "Po načtení kanálu s novými díly, novém odběru a změněném nastavení"
         },
         "podcast_sync_all": {
           "name": "Dohnání dílů podcastů",
@@ -4823,18 +4823,18 @@
         "podcast_download": {
           "name": "Uložení dílu podcastu",
           "description": "Stáhne díl od jeho hostitele a uloží ho jako soubor do složky jeho podcastu.",
-          "trigger": "Z plánovače s „Ukládat“, „Stáhnout chybějící“ a „Stáhnout“ u dílu; vždy jeden na hostitele",
-          "progress": "Bajty: {{done}} z {{total}}"
+          "trigger": "Z plánovače s „Ukládat“, „Stáhnout chybějící“ a „Stáhnout“ u dílu; vždy jeden na hostitele",
+          "progress": "Bajty: {{done}} z {{total}}"
         },
         "trakt_refresh": {
           "name": "Načtení seznamu Spotlight",
-          "description": "Načte seznam z Trakt, ze kterého Spotlight bere tituly.",
-          "trigger": "Plán v intervalu ze stránky Spotlight, „Načíst teď“"
+          "description": "Načte seznam z Trakt, ze kterého Spotlight bere tituly.",
+          "trigger": "Plán v intervalu ze stránky Spotlight, „Načíst teď“"
         },
         "update_check": {
           "name": "Kontrola aktualizací",
           "description": "Zjistí, zda existuje novější verze Slouchcat.",
-          "trigger": "Plán denně, 60 s po startu, „Zkontrolovat teď“"
+          "trigger": "Plán denně, 60 s po startu, „Zkontrolovat teď“"
         },
         "download_prepare": {
           "name": "Příprava stažení",
@@ -4844,16 +4844,16 @@
         "notify_deliver": {
           "name": "Doručení upozornění",
           "description": "Odešle upozornění e-mailem, přes Telegram nebo Web Push.",
-          "trigger": "Každá událost s kanálem (e-mail, Web Push, Telegram)"
+          "trigger": "Každá událost s kanálem (e-mail, Web Push, Telegram)"
         },
         "jobs_prune": {
           "name": "Úklid historie",
-          "description": "Smaže stará spuštění a selhání z historie.",
+          "description": "Smaže stará spuštění a selhání z historie.",
           "trigger": "Plán denně: dokončená spuštění starší než 30 dní"
         },
         "library_delete": {
           "name": "Smazání knihovny",
-          "description": "Smaže knihovnu s jejími tituly a vším, co se k nim váže, nikdy soubor; předtím zazálohuje databázi.",
+          "description": "Smaže knihovnu s jejími tituly a vším, co se k nim váže, nikdy soubor; předtím zazálohuje databázi.",
           "trigger": "„Smazat knihovnu…“ ve správě; pokud spuštění selže, knihovna je zpět"
         }
       },
@@ -4865,7 +4865,7 @@
         "types_other": "{{count}} typů úloh",
         "caption": "Úlohy ve skupině {{group}}",
         "failed": "Selhání",
-        "empty": "V této skupině nejsou žádné úlohy."
+        "empty": "V této skupině nejsou žádné úlohy."
       },
       "columns": {
         "job": "Úloha",
@@ -4879,7 +4879,7 @@
         "count_many": "selhalo: {{count}}",
         "count_other": "selhalo: {{count}}",
         "empty": "Žádná selhání.",
-        "shown": "Načteno {{shown}} z {{total}}",
+        "shown": "Načteno {{shown}} z {{total}}",
         "columns": {
           "type": "Typ úlohy",
           "at": "Čas"
@@ -4895,11 +4895,11 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Které jazyky metadatové zdroje dodávají, které obrázky v jakém jazyce a kvalitě a která země rozhoduje o věkovém omezení jako první. Výchozí nastavení platí pro každou knihovnu; knihovna se může u jazyků a obrázků odchýlit.",
+      "intro": "Které jazyky metadatové zdroje dodávají, které obrázky v jakém jazyce a kvalitě a která země rozhoduje o věkovém omezení jako první. Výchozí nastavení platí pro každou knihovnu; knihovna se může u jazyků a obrázků odchýlit.",
       "links": {
-        "roots": "Pořadí zdrojů se nastavuje pro každou složku v části Knihovny.",
-        "jobs": "Plány jsou v části Úlohy na pozadí.",
-        "keys": "Klíče v části Integrace"
+        "roots": "Pořadí zdrojů se nastavuje pro každou složku v části Knihovny.",
+        "jobs": "Plány jsou v části Úlohy na pozadí.",
+        "keys": "Klíče v části Integrace"
       },
       "audiobooks": {
         "title": "Audioknihy: zdroje",
@@ -4914,7 +4914,7 @@
         "sources": {
           "local": "Místní soubory",
           "fanart": "Fanart.tv",
-          "tmdbAdult": "TMDB s obsahem pro dospělé",
+          "tmdbAdult": "TMDB s obsahem pro dospělé",
           "none": "Jen zdroje složek"
         },
         "separator": " › "
@@ -4933,17 +4933,17 @@
       },
       "languages": {
         "title": "Jazyky",
-        "intro": "Každý zdejší jazyk se stahuje pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní na tom nezávisí. Každý další jazyk stojí jeden požadavek na titul a řadu.",
+        "intro": "Každý zdejší jazyk se stahuje pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní na tom nezávisí. Každý další jazyk stojí jeden požadavek na titul a řadu.",
         "list": "Jazyky metadat",
         "rank": "Jazyk {{position}}",
         "more": "Další jazyk",
-        "fallback": "Pořadí = záložní postup: když text v jazyce profilu chybí, Slouchcat zobrazí první z tohoto seznamu, poté název souboru. Jazyk rozhraní na tom nezávisí.",
+        "fallback": "Pořadí = záložní postup: když text v jazyce profilu chybí, Slouchcat zobrazí první z tohoto seznamu, poté název souboru. Žádný jazyk není povinný.",
         "unknownAt": "{{provider}} nezná: {{languages}}",
         "youtube": "Jazyků: {{count}}; až {{titles}} titulů denně při hledání upoutávek na YouTube (kvóta 10 000)."
       },
       "images": {
         "title": "Obrázky",
-        "intro": "Které druhy obrázků se stahují a v jakém jazyce. Obrázkový soubor vedle filmu (poster.jpg, fanart.jpg, logo.png) vyhrává, pokud je dostatečně široký; potom zdroje složky, Fanart.tv jako poslední.",
+        "intro": "Které druhy obrázků se stahují a v jakém jazyce. Obrázkový soubor vedle filmu (poster.jpg, fanart.jpg, logo.png) vyhrává, pokud je dostatečně široký; potom zdroje složky, Fanart.tv jako poslední.",
         "kinds": "Druhy obrázků",
         "kind": {
           "poster": "Plakát",
@@ -4955,14 +4955,14 @@
         "kindHint": {
           "poster": "Filmy, seriály, audioknihy, podcasty",
           "backdrop": "Filmy, seriály",
-          "logo": "Logo titulu na stránce s podrobnostmi a ve Spotlightu místo textového názvu",
+          "logo": "Logo titulu na stránce s podrobnostmi a ve Spotlightu místo textového názvu",
           "season_poster": "Jinak plakát seriálu",
           "episode_still": "Obrázek na díl; asi 12 GB mezipaměti pro 40 000 dílů"
         },
         "always": "vždy",
         "notBuilt": "Art, banner a disk jsou záměrně vynechány: žádná stránka je nezobrazuje.",
         "chains": "Jazyk obrázků",
-        "chainsIntro": "Pořadí, v jakém se obrázek vybírá. „Bez textu“ je obrázek bez nápisů. V rámci jazyka vyhrává obrázek s nejvíce hlasy.",
+        "chainsIntro": "Pořadí, v jakém se obrázek vybírá. „Bez textu“ je obrázek bez nápisů. V rámci jazyka vyhrává obrázek s nejvíce hlasy.",
         "noText": "Bez textu",
         "chainOf": "Jazyk obrázků: {{kind}}"
       },
@@ -4974,12 +4974,12 @@
         "any": "libovolná",
         "px": "{{width}} px",
         "byVote": "Vybírat podle hlasů",
-        "byVoteHint": "Obrázek jazyka s nejvíce hlasy místo prvního nálezu.",
+        "byVoteHint": "Obrázek jazyka s nejvíce hlasy místo prvního nálezu.",
         "fallback": "Bez obrázku minimální šířky Slouchcat vezme nejlepší menší; druh nikdy nezůstane prázdný jen proto, že je laťka příliš vysoko."
       },
       "sources": {
         "title": "Zdroje",
-        "intro": "Pořadí metadatových zdrojů se nastavuje pro každou složku v části Knihovny; klíče v části Integrace. Zde jen to, co zdroj umí jinak.",
+        "intro": "Pořadí metadatových zdrojů se nastavuje pro každou složku v části Knihovny; klíče v části Integrace. Zde jen to, co zdroj umí jinak.",
         "tmdbAdult": "TMDB: obsah pro dospělé ve vyhledávání",
         "tmdbAdultHint": "Jinak se při přiřazování nikdy neobjeví.",
         "local": "Místní soubory jako zdroj",
@@ -4990,7 +4990,7 @@
         "localCount_other": "{{count}} titulů se soubory obrázků",
         "localSmall": "Příliš malé nebo vypnuté soubory zůstávají kandidáty při výběru obrázku podle titulu.",
         "fanart": "Fanart.tv jako zdroj obrázků",
-        "fanartHint": "Loga a plakáty ve vysoké kvalitě, po zdrojích složky. Potřebuje klíč v části Integrace; bez klíče se nikdy nedotazuje."
+        "fanartHint": "Loga a plakáty ve vysoké kvalitě, po zdrojích složky. Potřebuje klíč v části Integrace; bez klíče se nikdy nedotazuje."
       },
       "rating": {
         "title": "Věkové omezení",
@@ -5003,12 +5003,12 @@
           "GB": "Spojené království (GB)",
           "US": "USA (US)"
         },
-        "hint": "Nový titul dostane stupeň země čtené jako první. Uložený stupeň se nikdy nesníží, ani jinou zemí; snižuje se po titulech v údržbě."
+        "hint": "Nový titul dostane stupeň země čtené jako první. Uložený stupeň se nikdy nesníží, ani jinou zemí; snižuje se po titulech v údržbě."
       },
       "apply": {
         "title": "Použít na existující tituly",
         "short": "Použít",
-        "intro": "Nové tituly používají nastavení hned. Existující tituly zůstávají, dokud nespustíte běh; objeví se v části Úlohy na pozadí s průběhem, pozastavením a zrušením.",
+        "intro": "Nové tituly používají nastavení hned. Existující tituly zůstávají, dokud nespustíte běh; objeví se v části Úlohy na pozadí s průběhem, pozastavením a zrušením.",
         "what": "Co",
         "both": "Texty a obrázky",
         "texts": "Jen texty",
@@ -5021,9 +5021,9 @@
         "titles_other": "{{count}} titulů",
         "run": "Použít teď",
         "running": "Zařazování do fronty…",
-        "queued": "Spuštění {{id}} zařazeno do fronty: titulů {{count}}. Průběh v části Úlohy na pozadí.",
+        "queued": "Spuštění {{id}} zařazeno do fronty: titulů {{count}}. Průběh v části Úlohy na pozadí.",
         "waiting": "Stále čeká: přiřazení {{matches}}, obrázků {{images}}.",
-        "jobsLink": "K úlohám na pozadí",
+        "jobsLink": "K úlohám na pozadí",
         "lastRun": "Poslední spuštění: {{when}}, {{state}}.",
         "noRun": "Zatím žádné spuštění."
       },
@@ -5045,7 +5045,7 @@
         "ui_lang_required": "Výchozí nastavení vyžaduje němčinu, knihovna němčinu nebo angličtinu.",
         "chain_duplicate": "Každý jazyk jednou.",
         "country_unknown": "Neznámá země.",
-        "source_unknown": "Tento zdroj obrázků není kandidátem titulu."
+        "source_unknown": "Tento zdroj obrázků nepatří mezi návrhy pro tento titul."
       }
     },
     "activity": {
@@ -5081,18 +5081,18 @@
       "libraryDeleted_many": "Knihovnu „{{library}}“ smazal účet {{account}} ({{count}} titulu)",
       "libraryDeleted_other": "Knihovnu „{{library}}“ smazal účet {{account}} ({{count}} titulů)",
       "itemRemoved": "„{{title}}“ vyřadil ze Slouchcat účet {{account}}",
-      "itemFilesDeleted_one": "„{{title}}“ smazal účet {{account}} s {{count}} souborem ({{size}})",
-      "itemFilesDeleted_few": "„{{title}}“ smazal účet {{account}} s {{count}} soubory ({{size}})",
-      "itemFilesDeleted_many": "„{{title}}“ smazal účet {{account}} s {{count}} souboru ({{size}})",
-      "itemFilesDeleted_other": "„{{title}}“ smazal účet {{account}} s {{count}} soubory ({{size}})"
+      "itemFilesDeleted_one": "„{{title}}“ smazal účet {{account}} s {{count}} souborem ({{size}})",
+      "itemFilesDeleted_few": "„{{title}}“ smazal účet {{account}} s {{count}} soubory ({{size}})",
+      "itemFilesDeleted_many": "„{{title}}“ smazal účet {{account}} s {{count}} souboru ({{size}})",
+      "itemFilesDeleted_other": "„{{title}}“ smazal účet {{account}} s {{count}} soubory ({{size}})"
     },
     "audiobookSources": {
       "title": "Audioknihy: zdroje",
       "intro": "Odkud Slouchcat bere údaje a obaly audioknih. Soubory mají vždy přednost; poskytovatel doplní jen to, co chybí, a nikdy zamčené pole.",
       "folders": {
         "title": "Pořadí podle složky",
-        "intro": "Horní zdroj vyhrává u každého pole. Pořadí a to, které zdroje se účastní, měníte v dialogu složky.",
-        "empty": "Zatím není žádná složka s audioknihami.",
+        "intro": "Horní zdroj vyhrává u každého pole. Pořadí a to, které zdroje se účastní, měníte v dialogu složky.",
+        "empty": "Zatím není žádná složka s audioknihami.",
         "edit": "Změnit zdroje",
         "editLabel": "Změnit zdroje složky {{path}}",
         "library": "Knihovna {{name}}"
@@ -5103,7 +5103,7 @@
       },
       "region": {
         "label": "Region Audible",
-        "help": "Katalog Audible, který se prohledává jako první. Anglické knihy se hledají také v USA a ve Spojeném království.",
+        "help": "Katalog Audible, který se prohledává jako první. Anglické knihy se hledají také v USA a ve Spojeném království.",
         "de": "Německo (audible.de)",
         "com": "USA (audible.com)",
         "couk": "Spojené království (audible.co.uk)",
@@ -5117,27 +5117,27 @@
       },
       "audnexus": {
         "label": "Adresa Audnexus",
-        "help": "Audnexus dodává podrobnosti nalezeného titulu z Audible: popis, žánry, sérii, ISBN a obal. Vlastní instance v místní síti je povolena.",
-        "invalid": "Zadejte adresu s http:// nebo https://."
+        "help": "Audnexus dodává podrobnosti nalezeného titulu z Audible: popis, žánry, sérii, ISBN a obal. Vlastní instance v místní síti je povolena.",
+        "invalid": "Zadejte adresu s http:// nebo https://."
       },
       "googleBooks": {
         "name": "Klíč Google Books",
-        "description": "Klíč Google Books je nyní spolu s ostatními poskytovateli.",
-        "link": "Nastavte ho v části „Integrace“"
+        "description": "Klíč Google Books je nyní spolu s ostatními poskytovateli.",
+        "link": "Nastavte ho v části „Integrace“"
       },
       "auto": {
         "label": "Přiřazovat automaticky",
         "off": "Vypnuto",
         "offHint": "Jen ručně tužkou.",
         "new": "Nové audioknihy",
-        "newHint": "Při prohledání u audioknih bez přiřazení.",
+        "newHint": "Při prohledání u audioknih bez přiřazení.",
         "all": "Všechny bez přiřazení",
         "allHint": "Jednou pro celou knihovnu, poté jako „Nové audioknihy“."
       },
       "tolerance": {
         "label": "Délka se smí lišit o",
         "option": "{{count}} %",
-        "help": "Přiřadí se jen jednoznačná shoda: stejný autor, podobný název, odpovídající délka. Jinak si audiokniha ponechá údaje ze svých souborů a objeví se v části „Ke kontrole“. Povoleno je 1 až 10 %."
+        "help": "Přiřadí se jen jednoznačná shoda: stejný autor, podobný název, odpovídající délka. Jinak si audiokniha ponechá údaje ze svých souborů a objeví se v části „Ke kontrole“. Povoleno je 1 až 10 %."
       },
       "normalize": {
         "title": "Sjednocení",
@@ -5169,11 +5169,11 @@
         "queued_few": "{{count}} audioknihy zařazeny do fronty.",
         "queued_many": "{{count}} audioknihy zařazeno do fronty.",
         "queued_other": "{{count}} audioknih zařazeno do fronty.",
-        "jobs": "K úlohám na pozadí"
+        "jobs": "K úlohám na pozadí"
       },
       "review": {
         "title": "Ke kontrole",
-        "intro": "Audioknihy s více kandidáty, délkou mimo toleranci nebo selhaným zdrojem. Tužka otevře editor.",
+        "intro": "Audioknihy s více kandidáty, délkou mimo toleranci nebo selhaným zdrojem. Tužka otevře editor.",
         "empty": "Není co kontrolovat.",
         "caption": "Audioknihy ke kontrole",
         "column": {
@@ -5211,9 +5211,9 @@
         "library": "Jen vyřadit ze Slouchcat",
         "files": "Smazat i soubory"
       },
-      "libraryHint": "Soubory zůstanou na disku. Titul zůstane vyřazen, i když přijdou nové soubory; v části „Údržba › Odebrané tituly“ ho lze vrátit i s průběhem sledování, značkami zhlédnutí a seznamem.",
+      "libraryHint": "Soubory zůstanou na disku. Titul zůstane vyřazen, i když přijdou nové soubory; v části „Údržba › Odebrané tituly“ ho lze vrátit i s průběhem sledování, značkami zhlédnutí a seznamem.",
       "everywhere": "Titul zmizí ze všech seznamů všech profilů; stažené položky na zařízeních budou odstraněny.",
-      "arr": "Radarr a Sonarr se o tom nedozvědí.",
+      "arr": "Radarr a Sonarr se o tom nedozvědí.",
       "affected_one": "Dotčeno: {{count}} soubor · {{size}}",
       "affected_few": "Dotčeno: {{count}} soubory · {{size}}",
       "affected_many": "Dotčeno: {{count}} souboru · {{size}}",
@@ -5243,7 +5243,7 @@
         "left_many": "{{count}} souboru, který Slouchcat nezná, zůstává ve složce.",
         "left_other": "{{count}} souborů, které Slouchcat nezná, zůstává ve složce."
       },
-      "filesHint": "Soubory se smažou natrvalo; neexistuje koš. Když nezůstane žádný soubor, titul je navždy pryč i s průběhem sledování, značkami zhlédnutí a seznamem. Pokud ho Radarr nebo Sonarr později stáhne znovu, objeví se jako nový titul.",
+      "filesHint": "Soubory se smažou natrvalo; neexistuje koš. Když nezůstane žádný soubor, titul je navždy pryč i s průběhem sledování, značkami zhlédnutí a seznamem. Pokud ho Radarr nebo Sonarr později stáhne znovu, objeví se jako nový titul.",
       "notDeletable": "Není možné: {{reason}}",
       "leftover": "Zůstalo: {{path}} ({{reason}})",
       "reason": {
@@ -5311,10 +5311,10 @@
     },
     "settings": {
       "title": "Profily",
-      "intro": "Každý člen domácnosti dostane vlastní profil s věkovým omezením, jazykem, barvou a knihovnami.",
+      "intro": "Každý člen domácnosti dostane vlastní profil s věkovým omezením, jazykem, barvou a knihovnami.",
       "onlyPrimary": {
         "title": "Jen hlavní profil",
-        "body": "Profily spravujete v hlavním profilu tohoto účtu. Přepněte se na něj, abyste mohli profily přidávat nebo měnit.",
+        "body": "Profily spravujete v hlavním profilu tohoto účtu. Přepněte se na něj, abyste mohli profily přidávat nebo měnit.",
         "action": "Přepnout profil"
       },
       "add": "Přidat profil",
@@ -5348,7 +5348,7 @@
         "editTitle": "Upravit profil",
         "name": "Jméno",
         "rating": "Věkové omezení",
-        "ratingHint": "Tituly s vyšším omezením zůstanou pro tento profil neviditelné.",
+        "ratingHint": "Tituly s vyšším omezením zůstanou pro tento profil neviditelné.",
         "language": "Jazyk",
         "libraries": "Knihovny",
         "pin": "PIN (volitelné)",
@@ -5398,7 +5398,7 @@
     },
     "gone": {
       "title": "Odkaz už neplatí",
-      "body": "Tento odkaz už byl použit, vypršel nebo byl zrušen. Požádejte toho, kdo vás pozval, o nový odkaz.",
+      "body": "Tento odkaz už byl použit, vypršel nebo byl zrušen. Požádejte toho, kdo vás pozval, o nový odkaz.",
       "action": "Přejít na přihlášení"
     },
     "notFound": {
@@ -5418,9 +5418,9 @@
   },
   "extraKind": {
     "trailer": "Upoutávka",
-    "featurette": "Dokument o natáčení",
+    "featurette": "Dokument o natáčení",
     "deleted_scene": "Vystřižená scéna",
-    "behind_the_scenes": "Z natáčení",
+    "behind_the_scenes": "Z natáčení",
     "interview": "Rozhovor",
     "scene": "Scéna",
     "short": "Krátký film",
@@ -5430,7 +5430,7 @@
     "title": "Upoutávka: {{title}}",
     "language": "Jazyk",
     "frame": "Upoutávka: {{title}} (YouTube)",
-    "none": "Žádná upoutávka není k dispozici.",
+    "none": "Žádná upoutávka není k dispozici.",
     "privacy": "Upoutávku přehrává YouTube (youtube-nocookie.com)."
   },
   "person": {
@@ -5445,10 +5445,10 @@
       "died": "Úmrtí",
       "diedAge": "{{date}} (věk {{age}})",
       "library": "Ve vaší knihovně",
-      "libraryOf_one": "{{shown}} z {{count}} titulu",
-      "libraryOf_few": "{{shown}} z {{count}} titulů",
-      "libraryOf_many": "{{shown}} z {{count}} titulu",
-      "libraryOf_other": "{{shown}} z {{count}} titulů",
+      "libraryOf_one": "{{shown}} z {{count}} titulu",
+      "libraryOf_few": "{{shown}} z {{count}} titulů",
+      "libraryOf_many": "{{shown}} z {{count}} titulu",
+      "libraryOf_other": "{{shown}} z {{count}} titulů",
       "libraryOnly_one": "{{count}} titul",
       "libraryOnly_few": "{{count}} tituly",
       "libraryOnly_many": "{{count}} titulu",
@@ -5472,7 +5472,7 @@
     "biography": {
       "more": "Číst dále",
       "less": "Méně",
-      "fallback": "Životopis z TMDB, dostupný jen v angličtině"
+      "fallback": "Životopis z TMDB, dostupný jen v angličtině"
     },
     "notFound": {
       "title": "Osoba nenalezena",
@@ -5507,12 +5507,12 @@
     },
     "state": {
       "deleting": "Mazání",
-      "complete": "V tomto zařízení",
+      "complete": "V tomto zařízení",
       "quota": "Úložiště je plné",
       "storage": "Uložení selhalo",
       "network": "Stahování přerušeno, brzy se to zkusí znovu",
       "range": "Server neposílá soubor po částech (zkontrolujte proxy)",
-      "gone": "Už není k dispozici",
+      "gone": "Už není k dispozici",
       "evicted": "Znovu se připravuje",
       "wifi": "Čeká na Wi-Fi",
       "fetching": "Stahování ({{percent}} %)",
@@ -5529,8 +5529,8 @@
         "title": "Stahování zde není možné",
         "body": "Tento prohlížeč neumí ukládat tituly. Stahování vyžaduje zabezpečené připojení (HTTPS) a aktuální prohlížeč."
       },
-      "list": "V tomto zařízení",
-      "empty": "V tomto zařízení zatím nejsou žádné stažené položky. Filmy, díly i celé řady stáhnete na jejich stránce s podrobnostmi.",
+      "list": "V tomto zařízení",
+      "empty": "V tomto zařízení zatím nejsou žádné stažené položky. Filmy, díly i celé řady stáhnete na jejich stránce s podrobnostmi.",
       "columns": {
         "title": "Název",
         "state": "Stav",
@@ -5538,21 +5538,21 @@
         "actions": "Akce"
       },
       "auto": "Automaticky",
-      "sizeOf": "{{done}} z {{total}}",
+      "sizeOf": "{{done}} z {{total}}",
       "play": "Přehrát",
       "playLabel": "Přehrát {{title}}",
       "delete": {
         "action": "Smazat",
         "label": "Smazat {{title}}",
         "title": "Smazat staženou položku {{title}}?",
-        "body": "Soubor bude odstraněn z tohoto zařízení. Titul můžete později stáhnout znovu.",
+        "body": "Soubor bude odstraněn z tohoto zařízení. Titul můžete později stáhnout znovu.",
         "confirm": "Smazat stažení"
       },
       "removed": "{{title}} bylo smazáno.",
       "offline": "Žádné spojení se serverem. Uložené tituly se stále přehrávají; změny se na server dostanou při příštím kontaktu.",
       "pinHint": {
         "title": "PIN pro použití offline",
-        "body": "Aby se {{name}} otevřel i offline v tomto zařízení, zadejte zde jednou PIN profilu.",
+        "body": "Aby se {{name}} otevřel i offline v tomto zařízení, zadejte zde jednou PIN profilu.",
         "action": "Zadat PIN"
       }
     },
@@ -5561,8 +5561,8 @@
       "meter": "Využití úložiště",
       "downloads": "Stažené: {{size}}",
       "other": "Ostatní data: {{size}}",
-      "used": "Využito {{used}} z {{quota}}",
-      "free": "Volno: {{free}} z {{quota}}",
+      "used": "Využito {{used}} z {{quota}}",
+      "free": "Volno: {{free}} z {{quota}}",
       "unknown": "Stažené: {{size}}. Tento prohlížeč neuvádí dostupné úložiště.",
       "persisted": "Prohlížeč stažené položky uchovává trvale.",
       "notPersisted": "Prohlížeč může stažené položky smazat, když dochází úložiště.",
@@ -5575,7 +5575,7 @@
       "title": "Automatická stahování",
       "intro": "Do tohoto zařízení stáhne další díl každého seriálu, který {{name}} sledoval(a) za posledních 60 dní, a nové díly podcastů ze seznamu profilu {{name}}.",
       "options": "Nastavení",
-      "enabled": "Automatická stahování v tomto zařízení",
+      "enabled": "Automatická stahování v tomto zařízení",
       "nextEpisodes": "Další díl rozkoukaných seriálů",
       "wifiOnly": "Jen přes Wi-Fi",
       "wifiIos": "iPhone a iPad prohlížeči nesdělují, zda jsou na Wi-Fi. Automatická stahování tam probíhají, dokud je aplikace otevřená.",
@@ -5603,25 +5603,25 @@
       "noSubtitles": "Žádné textové titulky.",
       "submit": "Stáhnout",
       "submitting": "Spouštění…",
-      "started_one": "Stahování zahájeno. Jeho stav najdete v části Stažené.",
-      "started_few": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
-      "started_many": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
-      "started_other": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
+      "started_one": "Stahování zahájeno. Jeho stav najdete v části Stažené.",
+      "started_few": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
+      "started_many": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
+      "started_other": "Zahájeno stahování: {{count}}. Jejich stav najdete v části Stažené.",
       "audioOption": "{{quality}} · {{kbps}} kbit/s · asi {{size}}",
       "audioCopy": "{{quality}} · AAC beze změny · asi {{size}}"
     },
     "status": {
       "open": "Přejít na stažené",
-      "season": "{{done}} z {{total}} dílů v tomto zařízení"
+      "season": "{{done}} z {{total}} dílů v tomto zařízení"
     },
     "library": {
       "title": "Offline knihovna",
-      "intro": "Kdo se dívá? Tyto profily mají v tomto zařízení stažené položky.",
+      "intro": "Kdo se dívá? Tyto profily mají v tomto zařízení stažené položky.",
       "toApp": "Otevřít aplikaci",
       "offline": "Offline",
       "profiles": "Profily",
       "empty": {
-        "title": "V tomto zařízení nejsou žádné stažené položky",
+        "title": "V tomto zařízení nejsou žádné stažené položky",
         "body": "Bez spojení se serverem se přehrávají jen stažené tituly.",
         "hint": "Až budete online stahovat tituly, najdete je tu i bez sítě."
       },
@@ -5634,7 +5634,7 @@
       "list": "Stažené tituly",
       "video": "Filmy a seriály",
       "audio": "Audioknihy a podcasty",
-      "noneReady": "V tomto zařízení zatím není celý žádný titul.",
+      "noneReady": "V tomto zařízení zatím není celý žádný titul.",
       "pending": "Zatím nedokončeno"
     },
     "pin": {
@@ -5644,14 +5644,14 @@
       "offlineFormat": "Offline PIN má 6 až 12 číslic.",
       "unavailable": {
         "title": "Offline zamčeno",
-        "body": "Zadejte PIN tohoto profilu jednou online v tomto zařízení, poté se otevře i offline."
+        "body": "Zadejte PIN tohoto profilu jednou online v tomto zařízení, poté se otevře i offline."
       }
     },
     "player": {
       "failed": "Uložený soubor nelze přehrát.",
       "missing": {
-        "title": "Stažená položka není k dispozici",
-        "body": "Tato stažená položka v tomto zařízení není (nebo už není), ještě není dokončená nebo není pro tento profil povolena."
+        "title": "Stažená položka není k dispozici",
+        "body": "Tato stažená položka v tomto zařízení není (nebo už není), ještě není dokončená nebo není pro tento profil povolena."
       }
     }
   },
@@ -5679,7 +5679,7 @@
       "availability": "Dostupnost",
       "avail": {
         "local": "Na serveru",
-        "download": "V tomto zařízení"
+        "download": "V tomto zařízení"
       },
       "reset": "Zrušit filtry"
     },
@@ -5707,7 +5707,7 @@
     },
     "empty": {
       "title": "Váš seznam je prázdný",
-      "body": "Tituly si odložte na později pomocí „Přidat do seznamu“ na jejich stránce s podrobnostmi.",
+      "body": "Tituly si odložte na později pomocí „Přidat do seznamu“ na jejich stránce s podrobnostmi.",
       "action": "Přejít na hledání"
     }
   },
@@ -5718,10 +5718,10 @@
       "count_few": "{{count}} kolekce",
       "count_many": "{{count}} kolekce",
       "count_other": "{{count}} kolekcí",
-      "shown_one": "{{count}} z {{total}} kolekcí",
-      "shown_few": "{{count}} z {{total}} kolekcí",
-      "shown_many": "{{count}} z {{total}} kolekcí",
-      "shown_other": "{{count}} z {{total}} kolekcí",
+      "shown_one": "{{count}} z {{total}} kolekcí",
+      "shown_few": "{{count}} z {{total}} kolekcí",
+      "shown_many": "{{count}} z {{total}} kolekcí",
+      "shown_other": "{{count}} z {{total}} kolekcí",
       "empty": "Pro tento profil zatím není žádná kolekce.",
       "noMatch": "Hledání a filtru neodpovídá žádná kolekce.",
       "filters": "Filtry",
@@ -5750,10 +5750,10 @@
     "films_other": "{{count}} filmů",
     "years": "{{first}}–{{last}}",
     "together": "{{duration}} celkem",
-    "seen_one": "Zhlédnuto: {{count}} z {{total}}",
-    "seen_few": "Zhlédnuto: {{count}} z {{total}}",
-    "seen_many": "Zhlédnuto: {{count}} z {{total}}",
-    "seen_other": "Zhlédnuto: {{count}} z {{total}}",
+    "seen_one": "Zhlédnuto: {{count}} z {{total}}",
+    "seen_few": "Zhlédnuto: {{count}} z {{total}}",
+    "seen_many": "Zhlédnuto: {{count}} z {{total}}",
+    "seen_other": "Zhlédnuto: {{count}} z {{total}}",
     "members": "Tituly",
     "parts": "Podle pořadí",
     "part": "Část {{part}}: {{title}}",
@@ -5763,18 +5763,18 @@
     "rewatch": "Přehrát znovu · část {{part}}",
     "watchlist": {
       "add": "Přidat vše do seznamu",
-      "added": "Vše v seznamu"
+      "added": "Vše v seznamu"
     },
-    "overviewFallback": "Popis z TMDB, dostupný jen v angličtině",
+    "overviewFallback": "Popis z TMDB, dostupný jen v angličtině",
     "ask": {
       "removeBody_one": "{{count}} titul ztratí značku zhlédnutí. Nelze to vrátit zpět.",
       "removeBody_few": "{{count}} tituly ztratí značku zhlédnutí. Nelze to vrátit zpět.",
       "removeBody_many": "{{count}} titulu ztratí značku zhlédnutí. Nelze to vrátit zpět.",
       "removeBody_other": "{{count}} titulů ztratí značku zhlédnutí. Nelze to vrátit zpět.",
-      "halfBody_one": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
-      "halfBody_few": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
-      "halfBody_many": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
-      "halfBody_other": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
+      "halfBody_one": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
+      "halfBody_few": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
+      "halfBody_many": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
+      "halfBody_other": "Značku zhlédnutí má {{count}} z {{total}} titulů. Označit všechny tituly, nebo zrušit všechny značky? Zrušení nelze vrátit zpět.",
       "markAll": "Označit všechny tituly jako zhlédnuté"
     },
     "notFound": {
@@ -5800,17 +5800,17 @@
     "summary_other": "nepřečteno: {{count}}",
     "empty": {
       "title": "Žádná upozornění",
-      "body": "Přidejte seriály nebo podcasty do svého seznamu a zde se dozvíte o nových dílech."
+      "body": "Přidejte seriály nebo podcasty do svého seznamu a zde se dozvíte o nových dílech."
     }
   },
   "settings": {
     "playback": {
       "title": "Nastavení",
-      "intro": "Zvuk a titulky pro profil {{name}}, na každém zařízení. Co ručně zvolíte v přehrávači, má přednost.",
+      "intro": "Zvuk a titulky pro profil {{name}}, na každém zařízení. Co ručně zvolíte v přehrávači, má přednost.",
       "languages": "Jazyky a titulky",
       "audio": {
         "legend": "Jazyky zvuku",
-        "hint": "Titul se přehraje v prvním jazyce z tohoto seznamu, který má. Pokud nemá žádný z nich, přehraje se původní jazyk.",
+        "hint": "Titul se přehraje v prvním jazyce z tohoto seznamu, který má. Pokud nemá žádný z nich, přehraje se původní jazyk.",
         "rank": "{{position}}. jazyk zvuku",
         "more": "Další jazyk zvuku",
         "none": "Zatím žádný jazyk zvuku: přehraje se původní jazyk."
@@ -5821,10 +5821,10 @@
         "forced": "Jen vynucené (výchozí)",
         "foreign": "Při cizím jazyce",
         "always": "Vždy",
-        "offHint": "Žádné titulky, dokud je nezapnete v přehrávači.",
-        "forcedHint": "Jen části v jiném jazyce, například nápisy nebo cizojazyčné repliky, v jazyce zvuku.",
-        "foreignHint": "Jako „Jen vynucené“. Pokud zvuk není v žádném z vašich jazyků zvuku, úplné titulky v prvním jazyce titulků.",
-        "alwaysHint": "Vždy úplné titulky v prvním jazyce titulků; bez nich jako „Jen vynucené“."
+        "offHint": "Žádné titulky, dokud je nezapnete v přehrávači.",
+        "forcedHint": "Jen části v jiném jazyce, například nápisy nebo cizojazyčné repliky, v jazyce zvuku.",
+        "foreignHint": "Jako „Jen vynucené“. Pokud zvuk není v žádném z vašich jazyků zvuku, úplné titulky v prvním jazyce titulků.",
+        "alwaysHint": "Vždy úplné titulky v prvním jazyce titulků; bez nich jako „Jen vynucené“."
       },
       "subtitles": {
         "legend": "Jazyky titulků",
@@ -5837,7 +5837,7 @@
       "saved": "Uloženo.",
       "series": {
         "title": "Paměť seriálů",
-        "body": "Když u dílu ručně zvolíte zvuk nebo titulky, Slouchcat si jazyk zapamatuje pro celý seriál.",
+        "body": "Když u dílu ručně zvolíte zvuk nebo titulky, Slouchcat si jazyk zapamatuje pro celý seriál.",
         "reset": "Obnovit paměť seriálů",
         "confirmTitle": "Obnovit paměť seriálů?",
         "confirmBody": "Každý seriál se pak znovu přehrává podle vašich jazyků a titulků výše. Nelze to vrátit zpět.",
@@ -5852,13 +5852,13 @@
     },
     "notifications": {
       "title": "Kanály upozornění",
-      "intro": "Nové díly seriálů a podcastů ve vašem seznamu, pozvánky a oznámení sem chodí navíc k schránce v aplikaci. Nastavení platí pro celý účet se všemi profily; zpráva o profilu začíná jeho jménem.",
+      "intro": "Nové díly seriálů a podcastů ve vašem seznamu, pozvánky a oznámení sem chodí navíc k schránce v aplikaci. Nastavení platí pro celý účet se všemi profily; zpráva o profilu začíná jeho jménem.",
       "link": "Nastavit kanály",
       "serverChannels": "Nastavení kanálů serveru → Integrace",
       "list": "Kanály",
       "onlyPrimary": {
         "title": "Jen hlavní profil",
-        "body": "Kanály platí pro celý účet; mění se v hlavním profilu. Přepněte se na něj, abyste kanály zapnuli nebo vypnuli.",
+        "body": "Kanály platí pro celý účet; mění se v hlavním profilu. Přepněte se na něj, abyste kanály zapnuli nebo vypnuli.",
         "action": "Přepnout profil"
       },
       "channel": {
@@ -5882,7 +5882,7 @@
         "helpAdmin": "Pro které události se zpráva posílá. „Chyby“ jsou jen pro správce."
       },
       "unavailable": {
-        "body": "Hlavní uživatel tento kanál nastavuje ve správě v části Integrace.",
+        "body": "Hlavní uživatel tento kanál nastavuje ve správě v části Integrace.",
         "action": "Otevřít integrace"
       },
       "email": {
@@ -5891,19 +5891,19 @@
       },
       "telegram": {
         "linked": "Propojeno",
-        "linkedChat": "Propojeno s chatem {{chat}}",
+        "linkedChat": "Propojeno s chatem {{chat}}",
         "notLinked": "Nepropojeno",
         "instruction": "Pošlete botovi @{{bot}} zprávu /start {{code}}",
         "expires": "Kód platí do {{time}}.",
-        "open": "Otevřít v Telegramu",
+        "open": "Otevřít v Telegramu",
         "link": "Propojit",
         "renew": "Nový kód",
         "unlink": "Zrušit propojení",
         "unlinked": "Propojení bylo zrušeno.",
         "instructionNoBot": "Pošlete botovi Slouchcat zprávu /start {{code}}",
-        "noBot": "Chybí název bota: hlavní uživatel musí nejdřív zadat token bota v části Integrace.",
+        "noBot": "Chybí název bota: hlavní uživatel musí nejdřív zadat token bota v části Integrace.",
         "label": "Propojení",
-        "help": "Propojí účet s vaším chatem s botem.",
+        "help": "Propojí účet s vaším chatem s botem.",
         "codeOpen": "Kód je otevřen",
         "waiting_one": "Čekání na zprávu, kontrola každou sekundu.",
         "waiting_few": "Čekání na zprávu, kontrola každé {{count}} sekundy.",
@@ -5911,7 +5911,7 @@
         "waiting_other": "Čekání na zprávu, kontrola každých {{count}} sekund.",
         "paused": "Kontrola se pozastaví, dokud jsou neuložené změny nebo otevřená otázka.",
         "unlinkConfirm": {
-          "title": "Zrušit propojení s Telegramem?",
+          "title": "Zrušit propojení s Telegramem?",
           "body": "Zprávy Telegramu už nepůjdou do propojeného chatu. Kdykoli můžete propojit znovu pomocí nového kódu."
         },
         "discardConfirm": {
@@ -5932,10 +5932,10 @@
         "removeLabel": "Odebrat {{device}}",
         "removed": "Zařízení bylo odebráno.",
         "unsupported": "Tento prohlížeč zde nemůže přijímat zprávy push. Vyžaduje aktuální prohlížeč a spojení přes HTTPS.",
-        "ios": "Na iPhonu a iPadu funguje Web Push jen v nainstalované aplikaci: v nabídce sdílení zvolte „Přidat na plochu“ a Slouchcat odtud otevřete.",
-        "denied": "Upozornění jsou pro Slouchcat zablokována. Povolte je v nastavení prohlížeče.",
+        "ios": "Na iPhonu a iPadu funguje Web Push jen v nainstalované aplikaci: v nabídce sdílení zvolte „Přidat na plochu“ a Slouchcat odtud otevřete.",
+        "denied": "Upozornění jsou pro Slouchcat zablokována. Povolte je v nastavení prohlížeče.",
         "noWorker": "Service worker ještě neběží. Načtěte stránku znovu a zkuste to ještě jednou.",
-        "failed": "Prohlížeč se nepodařilo zaregistrovat u své služby push.",
+        "failed": "Prohlížeč se nepodařilo zaregistrovat u své služby push.",
         "count_one": "{{count}} zařízení",
         "count_few": "{{count}} zařízení",
         "count_many": "{{count}} zařízení",
@@ -5952,7 +5952,7 @@
   "announcements": {
     "kicker": "Oznámení",
     "published": "Zveřejněno {{date}}",
-    "counter": "{{index}} z {{count}}",
+    "counter": "{{index}} z {{count}}",
     "acknowledge": "Rozumím",
     "later": "Později"
   },
@@ -5969,7 +5969,7 @@
   "radio": {
     "page": {
       "title": "Rádio",
-      "intro": "Stanice z celého světa přes váš server Slouchcat",
+      "intro": "Stanice z celého světa přes váš server Slouchcat",
       "searchLabel": "Hledat stanice",
       "searchPlaceholder": "Stanice, místo nebo žánr",
       "quick": {
@@ -5988,10 +5988,10 @@
         "kind": "Druh programu",
         "mood": "Nálada",
         "quality": "Kvalita",
-        "titles": "Jen s názvy skladeb",
+        "titles": "Jen s názvy skladeb",
         "clear": "Zrušit výběr",
         "done": "Hotovo",
-        "none": "Žádné hodnoty k výběru",
+        "none": "Žádné hodnoty k výběru",
         "close": "Zavřít filtry",
         "show_one": "Zobrazit {{count}} stanici",
         "show_few": "Zobrazit {{count}} stanice",
@@ -6007,7 +6007,7 @@
         "popular": "Oblíbené",
         "name": "Název A–Z",
         "quality": "Kvalita",
-        "new": "Nové v katalogu"
+        "new": "Nové v katalogu"
       },
       "count_one": "{{count}} stanice",
       "count_few": "{{count}} stanice",
@@ -6041,12 +6041,12 @@
       "resume": "Pokračovat: {{name}}",
       "playing": "Hraje",
       "paused": "Pozastaveno",
-      "missing": "Už není v katalogu, odstraněno {{date}}",
+      "missing": "Už není v katalogu, odstraněno {{date}}",
       "broken": "Momentálně nefunguje",
       "order": {
         "toggle": "Změnit pořadí",
         "done": "Hotovo",
-        "label": "Pořadí v části Moje stanice"
+        "label": "Pořadí v části Moje stanice"
       },
       "offerEmpty": {
         "title": "Zatím nejsou vybrány žádné stanice",
@@ -6145,8 +6145,8 @@
       "artistTitle": "{{artist}} – {{title}}",
       "programme": "Živý program",
       "noTitles": "Stanice neposílá názvy skladeb",
-      "favorite": "{{name}} v Mých stanicích",
-      "serverHint": "Přes Slouchcat, z polohy serveru",
+      "favorite": "{{name}} v Mých stanicích",
+      "serverHint": "Přes Slouchcat, z polohy serveru",
       "shift": {
         "label": "Časový posun, až {{minutes}} minut zpět",
         "behind": "−{{time}}",
@@ -6166,7 +6166,7 @@
         "empty": "Stanice před touto skladbou zatím neoznámila žádné tituly."
       },
       "ended": "Přehrávání bylo ukončeno.",
-      "failed": "Tuto stanici nelze v tomto prohlížeči přehrát.",
+      "failed": "Tuto stanici nelze v tomto prohlížeči přehrát.",
       "kbps_one": "{{count}} kbit/s",
       "kbps_few": "{{count}} kbit/s",
       "kbps_many": "{{count}} kbit/s",
@@ -6201,7 +6201,7 @@
       "spelling_few": "„{{name}}“ ({{count}} knihy)",
       "spelling_many": "„{{name}}“ ({{count}} knihy)",
       "spelling_other": "„{{name}}“ ({{count}} knih)",
-      "duplicates": "Tato čísla se vyskytují vícekrát: {{volumes}}. Knihy se liší interpretem; špatné číslo opravte u knihy.",
+      "duplicates": "Tato čísla se vyskytují vícekrát: {{volumes}}. Knihy se liší interpretem; špatné číslo opravte u knihy.",
       "dismiss": "Rozumím"
     },
     "notFound": {
@@ -6258,11 +6258,11 @@
       },
       "watchedOn": "zhlédnuto {{date}}",
       "heardOn": "poslechnuto {{date}}",
-      "episodes_one": "Dílů {{count}} z {{total}} · naposledy {{date}}",
-      "episodes_few": "Dílů {{count}} z {{total}} · naposledy {{date}}",
-      "episodes_many": "Dílů {{count}} z {{total}} · naposledy {{date}}",
-      "episodes_other": "Dílů {{count}} z {{total}} · naposledy {{date}}",
-      "emptyKind": "Zatím nic zhlédnuto v kategorii „{{kind}}“.",
+      "episodes_one": "Dílů {{count}} z {{total}} · naposledy {{date}}",
+      "episodes_few": "Dílů {{count}} z {{total}} · naposledy {{date}}",
+      "episodes_many": "Dílů {{count}} z {{total}} · naposledy {{date}}",
+      "episodes_other": "Dílů {{count}} z {{total}} · naposledy {{date}}",
+      "emptyKind": "Zatím nic zhlédnuto v kategorii „{{kind}}“.",
       "empty": {
         "title": "Zatím nic zhlédnuto.",
         "body": "Co dosledujete nebo doposlechnete do konce, se zobrazí tady."

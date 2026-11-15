@@ -45,7 +45,7 @@
     "collectionsLabel_many": "{{name}}, {{count}} de coleções",
     "collectionsLabel_other": "{{name}}, {{count}} coleções",
     "librariesOffline": "Offline: bibliotecas indisponíveis",
-    "librariesOfflineLink": "Ir para as transferências",
+    "librariesOfflineLink": "Ver transferências",
     "hideSidebar": "Ocultar barra lateral",
     "showSidebar": "Mostrar barra lateral",
     "radio": "Rádio",
@@ -318,9 +318,9 @@
       "collections_one": "{{count}} coleção",
       "collections_many": "{{count}} de coleções",
       "collections_other": "{{count}} coleções",
-      "volumes_one": "{{count}} livro",
-      "volumes_many": "{{count}} de livros",
-      "volumes_other": "{{count}} livros",
+      "volumes_one": "{{count}} volume",
+      "volumes_many": "{{count}} de volumes",
+      "volumes_other": "{{count}} volumes",
       "matchingVolumes_one": "{{matching}} de {{count}} livro",
       "matchingVolumes_many": "{{matching}} de {{count}} de livros",
       "matchingVolumes_other": "{{matching}} de {{count}} livros",
@@ -1043,7 +1043,7 @@
       "title": "Atalhos de teclado",
       "rows": {
         "play": {
-          "keys": "Space, K, Enter",
+          "keys": "Espaço, K, Enter",
           "action": "Reproduzir ou pausar"
         },
         "seek": {
@@ -1111,7 +1111,7 @@
           "action": "Esta ajuda"
         },
         "back": {
-          "keys": "Escape, Backspace",
+          "keys": "Esc, Retrocesso",
           "action": "Fecha um painel, a ajuda e as informações da transmissão (na roda dentada: um nível acima); caso contrário, volta à página de detalhes",
           "actionOfflineDownloads": "Fecha um painel, a ajuda e o separador (na roda dentada: um nível acima); caso contrário, volta às transferências",
           "actionOfflineLibrary": "Fecha um painel, a ajuda e o separador (na roda dentada: um nível acima); caso contrário, volta à biblioteca offline"
@@ -1167,7 +1167,7 @@
         "running": "Há uma sincronização em fila ou em curso.",
         "sync": "Sincronizar agora",
         "syncQueued": "A sincronização está em fila.",
-        "jobs": "Ir para as tarefas em segundo plano"
+        "jobs": "Ver tarefas em segundo plano"
       },
       "relays": {
         "title": "Retransmissões em direto",
@@ -1338,7 +1338,7 @@
           "catalog": "Do catálogo",
           "website": "Do website",
           "own": "Logótipo próprio",
-          "failed": "Nenhum logótipo encontrado, iniciais"
+          "failed": "Sem logótipo, iniciais"
         },
         "region": "Região",
         "regionHelp": "Código ISO, por exemplo CH-ZH. Vazio: sem região.",
@@ -1421,7 +1421,7 @@
         "hits_other": "{{count}} resultados",
         "hitsCaption": "Países encontrados",
         "continents": {
-          "label": "Todos os países por continente. Um continente abre os seus países; premir novamente ou Escape fecha-os.",
+          "label": "Todos os países por continente. Um continente abre os seus países; premir novamente ou Esc fecha-os.",
           "heading": "Por continente"
         },
         "continent": {
@@ -1629,7 +1629,7 @@
         "book": {
           "body": "Os campos bloqueados e uma capa escolhida mantêm-se, a menos que desbloqueie primeiro.",
           "unlockAll": "Desbloquear também todos os bloqueios",
-          "unlockAllHint": "Desbloqueia primeiro todos os bloqueios deste livro, incluindo os dos campos que obteve de uma fonte em «Correspondência»: depois, volta a valer o que dizem os ficheiros e o fornecedor. A correspondência em si e uma classificação própria mantêm-se.",
+          "unlockAllHint": "Remove antes todos os bloqueios deste livro, incluindo os dos campos que obteve de uma fonte em «Correspondência»: depois, volta a valer o que dizem os ficheiros e o fornecedor. A correspondência em si e uma classificação própria mantêm-se.",
           "run": "Ler novamente",
           "filesTitle": "Ler novamente os ficheiros",
           "filesHint": "Volta a ler o metadata.json, as etiquetas e os nomes das pastas.",
@@ -1975,7 +1975,7 @@
       "hint": {
         "unmatched": "Sem correspondência, não há descrição, imagens nem classificação. Associe o título ou atualize-o.",
         "no_images": "Títulos associados sem cartaz. Uma atualização volta a carregar as imagens.",
-        "unrated": "Os títulos sem classificação só são vistos por perfis com classificação 18. Atribua uma classificação para os libertar.",
+        "unrated": "Os títulos sem classificação só são vistos por perfis com classificação 18. Atribua uma classificação para os disponibilizar.",
         "orphaned": "Títulos sem ficheiro ou com ficheiros em falta, temporadas e séries vazias.",
         "unplayable": "Ficheiros que não podem ser lidos. Verifique-os novamente ou remova-os da biblioteca.",
         "rating_mismatch": "A classificação guardada difere da calculada. Uma alteração da classificação ou a próxima análise corrige-a. Aqui não há nada para selecionar.",
@@ -3163,7 +3163,7 @@
         "listHint": "Listas públicas, sem início de sessão no Trakt.",
         "listHintLink": "Chave em Integrações",
         "listUrl": "Endereço da lista",
-        "listUrlHint": "Uma lista pública em trakt.tv, como https://trakt.tv/users/name/lists/name-of-the-list. As listas de títulos a ver não são possíveis.",
+        "listUrlHint": "Uma lista pública em trakt.tv, como https://trakt.tv/users/name/lists/name-of-the-list. As watchlists do Trakt não funcionam.",
         "media": "Conteúdo",
         "mediaFixed": "Esta lista define o conteúdo.",
         "mediaFilters": "A lista mistura filmes e séries: o conteúdo filtra as suas entradas após a obtenção.",
@@ -3542,11 +3542,11 @@
         "empty": "Ainda sem atividade."
       },
       "hints": {
-        "title": "Avisos",
-        "count_one": "{{count}} aviso",
-        "count_many": "{{count}} de avisos",
-        "count_other": "{{count}} avisos",
-        "none": "Sem avisos.",
+        "title": "Alertas",
+        "count_one": "{{count}} alerta",
+        "count_many": "{{count}} de alertas",
+        "count_other": "{{count}} alertas",
+        "none": "Sem alertas.",
         "failed_one": "{{formatted}} tarefa em segundo plano falhou",
         "failed_many": "{{formatted}} de tarefas em segundo plano falharam",
         "failed_other": "{{formatted}} tarefas em segundo plano falharam",
@@ -3560,7 +3560,7 @@
         "keyRejected": "Chave de {{name}} rejeitada",
         "keyRejectedBody": "O fornecedor rejeita a chave. Enquanto não houver uma chave nova válida, o Slouchcat não obtém metadados dele.",
         "toKeys": "Ir para as chaves",
-        "storage": "{{path}} está mais de {{percent}}% cheio"
+        "storage": "{{path}} está ocupado a mais de {{percent}}%"
       },
       "errors": {
         "title": "Registo do servidor",
@@ -3877,7 +3877,7 @@
         "newPasswordHint": "Deixe vazio para manter a palavra-passe. Caso contrário, no mínimo 10 caracteres.",
         "newPasswordRepeat": "Repetir nova palavra-passe",
         "currentPassword": "Palavra-passe atual",
-        "currentPasswordHint": "Confirma que é você.",
+        "currentPasswordHint": "Confirma a sua identidade.",
         "wrongPassword": "A palavra-passe atual está incorreta.",
         "unchanged": "Altere o endereço de e-mail ou introduza uma nova palavra-passe.",
         "saved": "A sua conta foi guardada."
@@ -4546,8 +4546,8 @@
           "trigger": "Agendamento de hora a hora e arranque do servidor"
         },
         "segments_detect": {
-          "name": "Detetar genérico de abertura e de fecho",
-          "description": "Encontra o genérico de abertura e de fecho dos episódios para «Saltar genérico».",
+          "name": "Detetar genérico e créditos",
+          "description": "Encontra o genérico e os créditos dos episódios para «Saltar genérico».",
           "trigger": "Da análise, por temporada"
         },
         "chapters_images": {
@@ -4774,7 +4774,7 @@
         "list": "Idiomas dos metadados",
         "rank": "Idioma {{position}}",
         "more": "Outro idioma",
-        "fallback": "Ordem = alternativa: quando falta um texto no idioma do perfil, o Slouchcat mostra o primeiro da lista e, por fim, o nome do ficheiro. A predefinição precisa de alemão; uma biblioteca precisa de alemão ou inglês.",
+        "fallback": "Ordem = alternativa: quando falta um texto no idioma do perfil, o Slouchcat mostra o primeiro da lista e, por fim, o nome do ficheiro. Nenhum idioma é obrigatório.",
         "unknownAt": "{{provider}} não conhece: {{languages}}",
         "youtube": "{{count}} idiomas: até {{titles}} títulos por dia com a pesquisa de trailers do YouTube (quota de 10 000)."
       },
@@ -4879,7 +4879,7 @@
         "ui_lang_required": "A predefinição precisa de alemão; uma biblioteca, de alemão ou inglês.",
         "chain_duplicate": "Cada idioma uma só vez.",
         "country_unknown": "País desconhecido.",
-        "source_unknown": "Esta fonte de imagens não é candidata do título."
+        "source_unknown": "Esta fonte de imagens não é uma opção para este título."
       }
     },
     "activity": {
@@ -5424,9 +5424,9 @@
       "noSubtitles": "Sem legendas em texto.",
       "submit": "Transferir",
       "submitting": "A iniciar…",
-      "started_one": "Transferência iniciada. O estado está em Transferências.",
-      "started_many": "{{count}} de transferências iniciadas. O estado está em Transferências.",
-      "started_other": "{{count}} transferências iniciadas. O estado está em Transferências.",
+      "started_one": "Transferência iniciada. Pode acompanhar o estado em Transferências.",
+      "started_many": "{{count}} de transferências iniciadas. Pode acompanhar o estado em Transferências.",
+      "started_other": "{{count}} transferências iniciadas. Pode acompanhar o estado em Transferências.",
       "audioOption": "{{quality}} · {{kbps}} kbit/s · cerca de {{size}}",
       "audioCopy": "{{quality}} · AAC copiado · cerca de {{size}}"
     },
