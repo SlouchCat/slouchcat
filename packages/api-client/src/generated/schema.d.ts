@@ -6989,6 +6989,13 @@ export interface components {
             /** @description The next visible episode of the same series (auto-next, W-9). */
             nextEpisode?: components["schemas"]["ItemRef"];
             /**
+             * @description The previous visible episode of the same series (since contract 1.38.0, concept 23
+             *     section 3.2a), the mirror of `nextEpisode`: a lower number in the same season, else the
+             *     last episode of the nearest earlier season; specials only precede a special. Absent for
+             *     the first episode and for other kinds.
+             */
+            previousEpisode?: components["schemas"]["ItemRef"];
+            /**
              * @description Preview tiles of the seek bar (since contract 1.23.0, concept 18 part A). Present for every
              *     film and episode with video whose library setting for its kind is not `off`; absent for
              *     audiobooks, podcast episodes, titles without video and the setting `off`. The first start

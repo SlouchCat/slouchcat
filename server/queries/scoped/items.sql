@@ -345,6 +345,21 @@ WHERE s.parent_id = @series_id AND i.kind = 'episode' AND i.id <> @item_id
 ORDER BY COALESCE(i.season_number, s.season_number), i.episode_number, i.id
 LIMIT 1;
 
+-- The previous visible episode of a series before (season_number, first_episode), the mirror of
+-- GetNextVisibleEpisode (concept 23 section 3.3): a lower number in the same season (before the
+-- first episode of a multi-episode file), else the last episode of the nearest earlier season.
+-- Specials (season 0) only precede a special.
+-- name: GetPreviousVisibleEpisode :one
+SELECT i.* FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
+JOIN items AS s ON s.id = i.parent_id AND s.kind = 'season'
+WHERE s.parent_id = @series_id AND i.kind = 'episode' AND i.id <> @item_id
+  AND ((COALESCE(i.season_number, s.season_number) = @season_number AND i.episode_number < @first_episode)
+       OR COALESCE(i.season_number, s.season_number) < @season_number)
+  AND (COALESCE(i.season_number, s.season_number) <> 0 OR @season_number = 0)
+ORDER BY COALESCE(i.season_number, s.season_number) DESC, i.episode_number DESC, i.id DESC
+LIMIT 1;
+
 -- Credits of a visible title with the people's names, in the provider's order.
 -- The portrait comes along (ADR 0026): at most one 'ok' JPEG row per person, so the LEFT JOIN
 -- keeps the number of rows.

@@ -300,6 +300,119 @@ func (q *Queries) GetOwnUserPick(ctx context.Context, arg GetOwnUserPickParams) 
 	return count, err
 }
 
+const getPreviousVisibleEpisode = `-- name: GetPreviousVisibleEpisode :one
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN items AS s ON s.id = i.parent_id AND s.kind = 'season'
+WHERE s.parent_id = ?2 AND i.kind = 'episode' AND i.id <> ?3
+  AND ((COALESCE(i.season_number, s.season_number) = ?4 AND i.episode_number < ?5)
+       OR COALESCE(i.season_number, s.season_number) < ?4)
+  AND (COALESCE(i.season_number, s.season_number) <> 0 OR ?4 = 0)
+ORDER BY COALESCE(i.season_number, s.season_number) DESC, i.episode_number DESC, i.id DESC
+LIMIT 1
+`
+
+type GetPreviousVisibleEpisodeParams struct {
+	ProfileID    int64
+	SeriesID     sql.NullString
+	ItemID       string
+	SeasonNumber sql.NullInt64
+	FirstEpisode sql.NullInt64
+}
+
+// The previous visible episode of a series before (season_number, first_episode), the mirror of
+// GetNextVisibleEpisode (concept 23 section 3.3): a lower number in the same season (before the
+// first episode of a multi-episode file), else the last episode of the nearest earlier season.
+// Specials (season 0) only precede a special.
+func (q *Queries) GetPreviousVisibleEpisode(ctx context.Context, arg GetPreviousVisibleEpisodeParams) (Item, error) {
+	row := q.db.QueryRowContext(ctx, getPreviousVisibleEpisode,
+		arg.ProfileID,
+		arg.SeriesID,
+		arg.ItemID,
+		arg.SeasonNumber,
+		arg.FirstEpisode,
+	)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.Title,
+		&i.SortTitle,
+		&i.OriginalTitle,
+		&i.Year,
+		&i.ReleaseDate,
+		&i.RuntimeMinutes,
+		&i.Genres,
+		&i.TmdbID,
+		&i.ImdbID,
+		&i.Available,
+		&i.RatingSource,
+		&i.EnclosureUrl,
+		&i.LockedFields,
+		&i.MetadataState,
+		&i.MetadataError,
+		&i.MatchedAt,
+		&i.AddedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SeasonNumber,
+		&i.EpisodeNumber,
+		&i.EpisodeEnd,
+		&i.TvdbID,
+		&i.ExtraKind,
+		&i.TmdbPosterPath,
+		&i.TmdbBackdropPath,
+		&i.TrailerState,
+		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+		&i.FilledProviders,
+		&i.VoteAverage,
+		&i.OriginalLanguage,
+		&i.Publisher,
+		&i.Isbn,
+		&i.Asin,
+		&i.AudioSeriesID,
+		&i.AuthorDisplay,
+		&i.BookMatchState,
+		&i.BookMatchProvider,
+		&i.BookMatchID,
+		&i.BookMatchRegion,
+		&i.BookMatchedAt,
+		&i.BookMatchScore,
+		&i.BookMatchError,
+		&i.BookMatchManual,
+		&i.RemovedAt,
+		&i.OwnRating,
+		&i.EffectiveRating,
+		&i.MinChildRating,
+	)
+	return i, err
+}
+
 const getVisibleItem = `-- name: GetVisibleItem :one
 
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating FROM items AS i

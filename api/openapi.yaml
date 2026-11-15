@@ -12866,6 +12866,13 @@ components:
         nextEpisode:
           $ref: "#/components/schemas/ItemRef"
           description: The next visible episode of the same series (auto-next, W-9).
+        previousEpisode:
+          $ref: "#/components/schemas/ItemRef"
+          description: |
+            The previous visible episode of the same series (since contract 1.38.0, concept 23
+            section 3.2a), the mirror of `nextEpisode`: a lower number in the same season, else the
+            last episode of the nearest earlier season; specials only precede a special. Absent for
+            the first episode and for other kinds.
         trickplay:
           $ref: "#/components/schemas/Trickplay"
           description: |

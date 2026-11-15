@@ -739,7 +739,8 @@ func TestStoppedBy(t *testing.T) {
 	}
 }
 
-// W-9: chapters, intro and outro and the next episode come with the playback.
+// W-9: chapters, intro and outro and the next episode come with the playback; since concept 23
+// the previous episode too.
 func TestStartSegmentsAndNextEpisode(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
@@ -758,6 +759,9 @@ func TestStartSegmentsAndNextEpisode(t *testing.T) {
 	if info.NextEpisode == nil || info.NextEpisode.ID != f.Show.E2.ID {
 		t.Errorf("next episode = %+v", info.NextEpisode)
 	}
+	if info.PreviousEpisode != nil {
+		t.Errorf("previous of the first episode = %+v", info.PreviousEpisode)
+	}
 	// P12 does not see E2 (rated 16): its next episode is E3.
 	info, err = s.Start(ctx, browserSession(t, f, f.P12), f.Show.E1.ID, model.PlaybackRequest{})
 	if err != nil {
@@ -766,8 +770,16 @@ func TestStartSegmentsAndNextEpisode(t *testing.T) {
 	if info.NextEpisode == nil || info.NextEpisode.ID != f.Show.E3.ID {
 		t.Errorf("next episode for P12 = %+v", info.NextEpisode)
 	}
+	// And the previous episode of E3 for P12 is E1.
+	info, err = s.Start(ctx, browserSession(t, f, f.P12), f.Show.E3.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.PreviousEpisode == nil || info.PreviousEpisode.ID != f.Show.E1.ID || info.NextEpisode != nil {
+		t.Errorf("E3 for P12: previous %+v, next %+v", info.PreviousEpisode, info.NextEpisode)
+	}
 	if info, err := s.Start(ctx, session, f.Rated(6).ID, model.PlaybackRequest{}); err != nil || info.NextEpisode != nil ||
-		info.Segments.Intro != nil || len(info.Chapters) != 0 {
-		t.Errorf("film = %+v %+v %v", info.NextEpisode, info.Segments, err)
+		info.PreviousEpisode != nil || info.Segments.Intro != nil || len(info.Chapters) != 0 {
+		t.Errorf("film = %+v %+v %+v %v", info.NextEpisode, info.PreviousEpisode, info.Segments, err)
 	}
 }
