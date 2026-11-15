@@ -169,14 +169,9 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
   Schritt «Übersetzungen nachziehen» steht bei den übrigen Release-Regeln in `docs/dev/HANDOVER.md`,
   Abschnitt 5, und in `docs/i18n/README.md`. Das README sagt auch offen, dass Claudes Texte in Weblate als
   fertig erscheinen, und bittet um Korrekturen; Weblate selbst bleibt Stufe 5.
-- **Offline-Grösse (Entscheid des Koordinators):** Der Service Worker legt nur die Sprachbündel `de`,
-  `de-DE` und `en` vorab ab (Ende jeder Kette). Die übrigen 20 heissen `assets/locale-<code>.<hash>.js`
-  und kommen über eine Regel «CacheFirst» (`slouchcat-locales`, höchstens 10 Einträge) in den Cache,
-  sobald ein Gerät sie lädt. Beim ersten Start lädt die Seite ihre Sprache, bevor der Worker sie
-  steuert; `cacheLoadedLocales` (`app/serviceWorker.ts`) holt die geladenen Bündel darum nach dem
-  `controllerchange` noch einmal durch den Worker. So startet ein französisches Gerät nach dem ersten
-  Online-Start auch offline auf Französisch. Vorab abgelegt werden 2,93 statt 7,52 MB (184 statt 204
-  Einträge).
+- **Offline (Entscheid Marco, 15. November 2026):** Der Service Worker legt **alle** Sprachbündel vorab
+  ab, damit jede Sprache von Anfang an auch offline geht. Die rund 5 MB mehr nimmt Marco in Kauf. Ein
+  Zwischenstand mit nur `de`, `de-DE` und `en` vorab (Patch 1.37.0) ist mit 1.37.1 zurückgenommen.
 - **Schriften:** Die `:lang()`-Stapel von Stufe 1 greifen mit den ausgelieferten Codes; das Ergebnis der
   Bildprüfung steht in `docs/perf/22-uebersetzungen.md`.
 
