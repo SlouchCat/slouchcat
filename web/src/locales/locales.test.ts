@@ -39,6 +39,15 @@ function oneCoversMore(code: string): boolean {
   return false;
 }
 
+/** The categories some whole number from 2 up hits, plus `other` (scripts/i18n/lib.ts). */
+function categoriesFromTwo(code: string): Set<string> {
+  const rules = new Intl.PluralRules(code);
+  const hit = new Set<string>(['other']);
+  for (let n = 2; n <= 1000; n++) hit.add(rules.select(n));
+  hit.add(rules.select(1_000_000));
+  return hit;
+}
+
 /** The {{placeholders}} and <tags> of a text, sorted, each once. */
 function markers(text: string): string[] {
   const found = [
@@ -85,7 +94,11 @@ describe.each(supportedLanguages)('locales/%s.json', (code) => {
       // de and en keep the singular under the bare key (admin.home.browse.hanging next to
       // hanging_other); i18next takes it where `_one` is missing, so it counts as `one`.
       if (own[base] !== undefined) found.add('one');
-      const want = [...categories];
+      // The rule of scripts/i18n/lib.ts (requiredForms): a text German has only as `_other` is
+      // never shown for 1, so the language needs just the categories numbers from 2 up reach.
+      const germanHasOne = reference[`${base}_one`] !== undefined || reference[base] !== undefined;
+      const fromTwo = categoriesFromTwo(code);
+      const want = germanHasOne ? [...categories] : categories.filter((c) => fromTwo.has(c));
       expect([...found].sort(), base).toEqual(want.sort());
     }
   });
