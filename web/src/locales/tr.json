@@ -63,6 +63,24 @@
       "version": "Sürüm {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Dönüştürme için grafik yongası",
+        "hint": "Sunucu yeniden başlatıldıktan sonra geçerli olur.",
+        "auto": "Otomatik (önerilen)",
+        "software": "Yalnızca işlemci",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "bu ffmpeg sürümünde yok",
+          "no_device": "cihaz kapsayıcıda yok",
+          "test_failed": "başlangıç testi başarısız"
+        },
+        "saved": "Kaydedildi: {{name}}",
+        "restartAdmin": "Sunucu yeniden başlatıldıktan sonra geçerli olur (Genel bakış › Yeniden başlat)."
+      },
+      "fallback": {
+        "title": "Seçilen grafik yongası çalışmıyor",
+        "body": "{{name}} başlangıç testini geçemedi. Slouchcat şimdilik otomatik seçimle dönüştürüyor."
+      },
       "encoder": "Video kodlama",
       "tonemap": "HDR’den SDR’ye",
       "ffmpeg": "ffmpeg",
@@ -191,7 +209,7 @@
       "owner_required": "Bunu yalnızca sahip yapabilir.",
       "owner_protected": "Sahibin hesabı ne kaldırılabilir ne de yetkisi düşürülebilir.",
       "last_admin": "Bu son yönetici. Önce ikinci bir yönetici atayın.",
-      "admin_limits_fixed": "Yönetici her zaman tüm kitaplıkları 18 yaş sınırına kadar görür. Önce rolü geri alın.",
+      "admin_limits_fixed": "Yönetici her zaman tüm kitaplıkları ve tüm içerikleri yaş sınırı olmadan görür. Önce yönetici rolünü kaldırın.",
       "job_type_not_runnable": "Bu görev elle çalıştırılamaz; çalışmaları olaylardan gelir.",
       "job_type_paused": "Görev duraklatıldı; önce sürdürün.",
       "job_type_not_scheduled": "Bu görevin zamanlaması yok.",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Slouchcat’e hoş geldiniz",
-    "intro": "Dört kısa adım, sonra Slouchcat ilk kitaplığınızı tarar.",
-    "step": "Adım {{step}}",
+    "documentTitle": "Kurulum: {{step}}",
+    "position": "Adım {{position}}/{{count}}",
+    "nav": {
+      "label": "Kurulum",
+      "group": "Adımlar",
+      "menu": "Kurulum, adımlar",
+      "close": "Adımları kapat",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, tamamlandı",
+        "skipped": "{{position}}. {{name}}, atlandı"
+      }
+    },
+    "actions": {
+      "back": "Geri",
+      "skip": "Atla",
+      "next": "İleri",
+      "finish": "Kurulumu bitir",
+      "finishing": "Bitiriliyor…",
+      "later": "Daha sonra devam et"
+    },
+    "steps": {
+      "language": {
+        "nav": "Dil",
+        "title": "Dil seçin",
+        "intro": "Slouchcat hangi dilde konuşsun? Seçim hemen geçerli olur ve istediğiniz zaman değiştirilebilir."
+      },
+      "account": {
+        "nav": "Hesap",
+        "title": "Hesabınızı oluşturun",
+        "intro": "Slouchcat’i bu hesapla yönetirsiniz. İlk profiliniz de bu hesaba bağlıdır."
+      },
+      "region": {
+        "nav": "Bölge",
+        "title": "Bölge ve meta veri",
+        "intro": "Ülke, yaş sınırları ve Slouchcat’in başlıkları ve açıklamaları yüklediği diller."
+      },
+      "services": {
+        "nav": "Hizmetler",
+        "title": "Hizmetleri bağlayın",
+        "intro": "Meta veri anahtarları ve bildirim yolları. TMDB ve e-posta önerilir; geri kalanını daha sonra Yönetim › Entegrasyonlar bölümünden ekleyebilirsiniz."
+      },
+      "playback": {
+        "nav": "Oynatma",
+        "title": "Oynatma",
+        "intro": "Slouchcat’in kapsayıcıda neleri bulduğu ve videoları neyle dönüştürdüğü."
+      },
+      "libraries": {
+        "nav": "Kitaplıklar",
+        "title": "Kitaplıklar",
+        "intro": "En az bir kitaplık gerekir. Slouchcat, kitaplığı eklemenizin hemen ardından tarar."
+      },
+      "household": {
+        "nav": "Hane",
+        "title": "Hane",
+        "intro": "Hane için başka profiller; her biri kendi yaş sınırı, rengi ve isterseniz bir PIN ile."
+      },
+      "access": {
+        "nav": "Erişim",
+        "title": "Erişim",
+        "intro": "Slouchcat’e hangi adresten erişildiği ve yeni sürümleri arayıp aramadığı."
+      },
+      "summary": {
+        "nav": "Özet",
+        "title": "Özet",
+        "intro": "Seçimlerinizi kontrol edin. Atladığınız adımlarda öneri geçerli olur."
+      }
+    },
+    "language": {
+      "search": "Dil ara",
+      "choice": "Dil",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Aramayla eşleşen dil yok.",
+      "preview": "Önizleme",
+      "previewDate": "Tarih",
+      "previewNumber": "Sayı"
+    },
     "account": {
-      "title": "Yönetici hesabı",
-      "description": "Slouchcat’i bu hesapla yönetirsiniz.",
       "email": "E-posta adresi",
       "password": "Şifre",
       "passwordHint": "En az 10 karakter.",
-      "passwordRepeat": "Şifreyi tekrarla"
+      "passwordRepeat": "Şifreyi tekrarla",
+      "profileName": "Profil adı",
+      "profileHint": "Profiliniz, profil seçiminde bu adla görünür.",
+      "taken": {
+        "title": "Slouchcat zaten kurulu",
+        "body": "Az önce başka biri hesabı oluşturdu. Bu hesapla giriş yapın.",
+        "action": "Girişe git"
+      }
+    },
+    "region": {
+      "country": "Ülke",
+      "ratingCountry": "Sınıflandırma ülkesi",
+      "ratingSteps": "Profillerin yaş sınırları: {{steps}}",
+      "languages": "Meta veri dilleri",
+      "languagesIntro": "Slouchcat metinleri ve görselleri bu sırayla yükler. Hiçbir dil zorunlu değildir.",
+      "timeZone": "Sunucu saat dilimi",
+      "serverZone": "Saat dilimi",
+      "zoneDiffers": {
+        "title": "Tarayıcınız başka bir saat dilimi kullanıyor",
+        "body": "Tarayıcının bildirdiği saat dilimi: {{browser}}. Sunucunun saat dilimini deploy/.env dosyasında ayarlarsınız; kapsayıcı yeniden başlatıldıktan sonra geçerli olur.",
+        "command": "deploy/.env için satır"
+      },
+      "radio": "İnternet radyosu",
+      "radioToggle": "Radyo seçkisine ekle: {{country}}",
+      "radioHint": "Ülke seçkiye istasyonsuz eklenir. İstasyonları daha sonra Yönetim › Radyo bölümünden işaretlersiniz."
+    },
+    "services": {
+      "recommended": "Önerilen",
+      "optional": "İsteğe bağlı",
+      "recommendedTitle": "Önerilen",
+      "optionalTitle": "İsteğe bağlı",
+      "email": {
+        "purpose": "Davetler ve “Şifremi unuttum” için."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Slouchcat açık değilken bile bu cihazda bildirimler.",
+        "insecure": "Push için güvenli bağlantı gerekir (HTTPS veya localhost). Push’u daha sonra herkese açık HTTPS adresi üzerinden kurun."
+      },
+      "telegram": {
+        "purpose": "Bir Telegram botu aracılığıyla bildirimler. Hesabınızı daha sonra Ayarlar › Bildirimler bölümünden bağlarsınız."
+      },
+      "rejected": {
+        "title": "Geçersiz anahtar kaldırılıp devam edilsin mi?",
+        "body": "Hizmet bu anahtarı reddetti: {{names}}. Yanlış bir anahtar kayıtlı kalmasın diye Slouchcat onu kaldırır.",
+        "confirm": "Kaldır ve devam et"
+      }
+    },
+    "playback": {
+      "restart": "Yeniden başlatmadan sonra geçerli olur. Slouchcat, kurulumu bitirdiğinizde bir kez yeniden başlar.",
+      "trickplay": "Yeni video kitaplıkları için önizleme küçük resimleri",
+      "trickplayHint": "Sonraki adımda her yeni video kitaplığının ayarını önceden doldurur. Önizleme görselleri yer kaplar ve işlem süresi gerektirir."
+    },
+    "libraries": {
+      "add": "Kitaplık ekle",
+      "addMore": "Başka bir kitaplık",
+      "none": "Henüz kitaplık yok. Slouchcat’in gösterecek bir şeyi olması için en az bir kitaplık ekleyin.",
+      "folder": "Klasör {{position}}"
+    },
+    "household": {
+      "accounts": "Kendi hesabı olan konukları daha sonra Yönetim › Hesaplar bölümünden davet edersiniz."
+    },
+    "access": {
+      "here": "Şu anda {{url}} adresini kullanıyorsunuz.",
+      "useHere": "Bu adresi kullan",
+      "noUsageData": "Slouchcat kullanım verisi göndermez."
+    },
+    "summary": {
+      "done": "Kuruldu",
+      "recommended": "Öneri",
+      "change": "Değiştir: {{step}}",
+      "region": "Yaş sınırları: {{country}}, diller: {{languages}}",
+      "services_one": "{{count}} hizmet kuruldu",
+      "services_other": "{{count}} hizmet kuruldu",
+      "playback": "{{hw}}, önizleme küçük resimleri: {{trickplay}}",
+      "on": "açık",
+      "off": "kapalı",
+      "noAddress": "herkese açık adres yok",
+      "profiles_one": "{{count}} profil",
+      "profiles_other": "{{count}} profil"
+    },
+    "finish": {
+      "title": "Slouchcat kuruldu",
+      "restartTitle": "Slouchcat yeniden başlıyor…",
+      "restartBody": "Grafik yongası seçimi yeniden başlatmadan sonra geçerli olur. İlk taramalar ardından devam eder.",
+      "busy": "Şu anda bir yedekleme veya güncelleme çalıştığı için Slouchcat yeniden başlatılamadı. Grafik yongası seçimi bir sonraki yeniden başlatmadan sonra geçerli olur (Yönetim › Genel bakış).",
+      "scanProgress": "{{state}}: {{seen}}/{{total}} dosya",
+      "home": "Ana sayfaya git"
     },
     "library": {
-      "title": "İlk kitaplık",
-      "description": "Daha fazla kitaplığı sonra ekleyebilirsiniz.",
       "name": "Ad",
-      "defaultName": "Filmler",
       "kind": "İçerik",
       "path": "Klasör",
       "pathPlaceholder": "/media/Filmler",
-      "roots": "İzin verilen klasörler:",
-      "check": "Klasörü denetle",
-      "checking": "Denetleniyor…",
       "warning": {
         "network_share": {
           "title": "Ağ paylaşımı algılandı",
@@ -271,30 +442,7 @@
           "title": "Bilinmeyen dosya sistemi",
           "body": "Bir FUSE dosya sistemi (örneğin mergerfs veya Unraid) her değişikliği bildirmez. Slouchcat klasörü izler ve ayrıca düzenli olarak eşitler."
         }
-      },
-      "content": "İçerik",
-      "providers": "Meta veri kaynakları"
-    },
-    "tmdb": {
-      "title": "TMDB’den meta veri (isteğe bağlı)",
-      "description": "themoviedb.org’dan alınan bir okuma erişim belirteciyle Slouchcat özetleri, afişleri ve yaş sınırlarını getirir. Anahtar yoksa başlıklar dosya adlarından alınır.",
-      "link": "themoviedb.org’da belirteç oluştur",
-      "label": "API okuma erişim belirteci",
-      "hint": "Şifrelenmiş olarak saklanır ve bir daha gösterilmez.",
-      "check": "Anahtarı denetle",
-      "checking": "Denetleniyor…",
-      "result": {
-        "valid": "Geçerli: TMDB anahtarı kabul etti.",
-        "invalid": "Geçersiz: TMDB anahtarı reddetti. Okuma erişim belirtecini denetleyin.",
-        "unreachable": "Ulaşılamıyor: TMDB şu an yanıt vermiyor. Tekrar deneyin ya da alanı boş bırakın."
       }
-    },
-    "submit": "Kurulumu bitir",
-    "submitting": "Kuruluyor…",
-    "system": {
-      "title": "Grafik yongası ve dosya sistemi",
-      "description": "Slouchcat’in kapsayıcıda bulduklarına dair bilgi. Burada girilecek bir şey yok; ipuçları ana makine içindir.",
-      "missing": "Sunucu donanım hakkında bilgi göndermedi."
     }
   },
   "login": {
@@ -303,7 +451,8 @@
     "email": "E-posta adresi",
     "password": "Şifre",
     "submit": "Giriş yap",
-    "submitting": "Giriş yapılıyor…"
+    "submitting": "Giriş yapılıyor…",
+    "language": "Dil: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +529,7 @@
       "moveUpLabel": "{{provider}} kaynağını yukarı taşı",
       "moveDownLabel": "{{provider}} kaynağını aşağı taşı",
       "noKey": "anahtar tanımlı değil",
-      "noGerman": "Almanca metin sunmaz",
+      "missingLanguages": "{{languages}} metin yok",
       "fillOnly": "yalnızca tamamlar",
       "hint": "İlk kayıt içeriği tanır, diğerleri yalnızca eksikleri doldurur. Sırayı oklarla ya da ok tuşlarıyla değiştirin.",
       "hintRank": "İlk kayıt içeriği tanır, diğerleri yalnızca eksikleri doldurur. Sırayı konum ile seçin.",
@@ -459,8 +608,7 @@
       "yearFrom": "Başlangıç yılı",
       "yearTo": "Bitiş yılı",
       "rating": "Yaş sınırı",
-      "anyRating": "Profil sınırı",
-      "upTo": "{{age}} dahil"
+      "anyRating": "Profil sınırı"
     },
     "notFound": {
       "title": "Kitaplık bulunamadı",
@@ -717,7 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "{{age}} yaş ve üzeri",
+    "upTo": "en fazla {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} sa",
@@ -1042,7 +1192,7 @@
         },
         "speed": {
           "keys": "[ ]",
-          "action": "Daha yavaş veya daha hızlı (0,5× ila 2×)"
+          "action": "Daha yavaş veya daha hızlı (0,5× ile 2× arası)"
         },
         "tracks": {
           "keys": "T",
@@ -1918,7 +2068,7 @@
       "hint": {
         "unmatched": "Eşleşme olmadan açıklama, görsel ve yaş sınırı da olmaz. İçeriği eşleştirin ya da yenileyin.",
         "no_images": "Afişi olmayan eşleşmiş içerikler. Yenileme görselleri yeniden yükler.",
-        "unrated": "Yaş sınırı olmayan içerikleri yalnızca 18 sınırlı profiller görür. Görünür kılmak için bir yaş sınırı atayın.",
+        "unrated": "Yaş sınırı olmayan içerikleri yalnızca “18 yaş ve üzeri” profiller görür. Bu içerikleri açmak için bir yaş sınırı atayın.",
         "orphaned": "Dosyası olmayan ya da dosyaları eksik içerikler, boş sezonlar ve diziler.",
         "unplayable": "Okunamayan dosyalar. Yeniden denetleyin ya da kitaplıktan kaldırın.",
         "rating_mismatch": "Kayıtlı yaş sınırı hesaplananla uyuşmuyor. Bir yaş sınırı değişikliği ya da sonraki tarama bunu düzeltir. Burada seçilecek bir şey yok.",
@@ -3245,6 +3395,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Kurulum tamamlanmadı",
+        "body": "Kurulumun birkaç adımı hâlâ açık.",
+        "noLibrary": "Henüz kitaplık yok, bu yüzden ana sayfa boş kalıyor.",
+        "action": "Kuruluma devam et"
+      },
       "title": "Yönetim",
       "live": "Canlı, her 5 saniyede bir",
       "liveFailed": "Yanıt yok, her 5 saniyede bir yeniden deneniyor",
@@ -3428,6 +3584,11 @@
         "keyRejected": "{{name}} anahtarı reddedildi",
         "keyRejectedBody": "Sağlayıcı anahtarı reddediyor. Yeni bir anahtar geçerli olana kadar Slouchcat ondan meta veri getirmez.",
         "toKeys": "Anahtarlara git",
+        "ratingsReread": "Yaş sınırları yeniden okunuyor",
+        "ratingsRereadBody": "Görev bitene kadar önceki yaş sınırları geçerlidir; bunlar daha katı ya da daha gevşek olabilir.",
+        "minimumAge": "Yaş sınırları artık en düşük yaşı gösteriyor",
+        "minimumAgeBody": "Slouchcat bu güncellemeden beri her yaş sınırının gerçek en düşük yaşını kaydediyor: PG-13, FSK 12 yerine “13 yaş ve üzeri”, R ise FSK 16 yerine “17 yaş ve üzeri” oluyor. Bu nedenle “12 yaş ve üzeri” ve “16 yaş ve üzeri” profiller daha az Amerikan içeriği görüyor. Bunu istemiyorsanız profili daha yüksek bir seviyeye ayarlayın.",
+        "minimumAgeDismiss": "Anladım",
         "storage": "{{path}} %{{percent}} üzerinde dolu"
       },
       "errors": {
@@ -3754,13 +3915,13 @@
         "heading": "Erişim",
         "save": "Erişimi kaydet",
         "saved": "{{email}} erişimi kaydedildi.",
-        "adminHint": "Bir yöneticinin yaş sınırı her zaman 18’dir ve tüm kitaplıkları görür; “Erişim” yalnızca yönetimi olmayan hesaplar için vardır."
+        "adminHint": "Yönetici her zaman “18 yaş ve üzeri” seviyesine ve tüm kitaplıklara sahiptir; “Erişim” yalnızca yönetim yetkisi olmayan hesaplarda bulunur."
       },
       "role": {
         "promote": {
           "action": "Yönetici yap",
           "title": "{{email}} yönetici yapılsın mı?",
-          "body": "Hesap sunucuyu, kitaplıkları ve ayarları yönetecek. Yaş sınırı 18’e ve tüm kitaplıklara yükselir; hesabın profilleri kendi seviyelerini korur.",
+          "body": "Hesap bundan sonra sunucuyu, kitaplıkları ve ayarları yönetir. Yaş sınırı “18 yaş ve üzeri” seviyesine yükselir ve tüm kitaplıklara erişir; hesabın profilleri kendi seviyelerini korur.",
           "confirm": "Ata",
           "done": "{{email}} artık yönetici."
         },
@@ -4440,6 +4601,12 @@
           "description": "Görsel seçimi için eksik oy sayılarını getirir.",
           "trigger": "Puan bekleyen içerikler olduğu sürece her tam taramadan sonra"
         },
+        "metadata_ratings_reread": {
+          "name": "Yaş sınırlarını yeniden oku",
+          "description": "Film ve dizilerin yaş sınırlarını sınıflandırma ülkesine göre yeniden okur; elle ayarlanan, NFO dosyalarından gelen ve kilitli yaş sınırları korunur.",
+          "trigger": "güncellemeden sonra bir kez ve sınıflandırma ülkesinin her değişiminde",
+          "progress": "Okunan içerikler: {{done}}/{{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Özgün dilleri tamamla",
           "description": "Ses seçimi için her içeriğe özgün dili ekler.",
@@ -4607,11 +4774,11 @@
       },
       "languages": {
         "title": "Diller",
-        "intro": "Buradaki her dil her içerik için getirilir; profiller açıklamalarının dilini bunlardan seçer. Arayüz dili buna bağlı değildir. Her ek dil, içerik ve sezon başına bir istek daha demektir.",
+        "intro": "Buradaki her dil her içerik için getirilir; profiller açıklamalarının dilini bunlar arasından seçer. Arayüz dilini her profil kendisi seçer. Her ek dil, içerik ve sezon başına bir istek daha demektir.",
         "list": "Meta veri dilleri",
         "rank": "{{position}}. dil",
         "more": "Başka bir dil",
-        "fallback": "Sıra = yedek sıra: bir metin profilin dilinde yoksa Slouchcat listedeki ilk mevcut dili, sonra dosya adını gösterir. Hiçbir dil zorunlu değildir.",
+        "fallback": "Sıra = yedek: Profilin dilinde bir metin eksikse Slouchcat listedeki ilk mevcut dili, ardından dosya adını gösterir. Listede en az bir dil olmalıdır.",
         "unknownAt": "{{provider}} bilmiyor: {{languages}}",
         "youtube": "{{count}} dil: YouTube fragman aramasıyla günde en fazla {{titles}} içerik (kota 10.000)."
       },
@@ -4666,16 +4833,15 @@
       },
       "rating": {
         "title": "Yaş sınırı",
-        "intro": "Önce hangi ülkenin okunacağı; sonra eskisi gibi DE, AT, CH, GB, US. Basamaklar FSK 0/6/12/16/18 olarak kalır.",
+        "intro": "Yaş sınırları geçerli olan ülke. Bir içeriğin orada yaş sınırı yoksa Alman sınırı (FSK), ardından AT, CH, GB ve US geçerli olur. Profiller bu ülkenin seviyeleri arasından seçer.",
         "country": "Ülke",
-        "countries": {
-          "DE": "Almanya (DE)",
-          "AT": "Avusturya (AT)",
-          "CH": "İsviçre (CH)",
-          "GB": "Birleşik Krallık (GB)",
-          "US": "ABD (US)"
-        },
-        "hint": "Yeni bir içerik, önce okunan ülkenin basamağını alır. Kayıtlı bir basamak asla düşürülmez, başka bir ülke tarafından bile; düşürme bakımda içerik başına yapılır."
+        "steps": "Profillerin seviyeleri: {{steps}}",
+        "hint": "Slouchcat yaş sınırının en düşük yaşını kaydeder; örneğin PG-13’ü “13 yaş ve üzeri” olarak. Ülke değiştikten sonra Slouchcat tüm içeriklerin yaş sınırlarını yeniden okur ve bu sırada düşürebilir ya da yükseltebilir; elle ayarlanan, NFO dosyalarından gelen ve kilitli yaş sınırları korunur.",
+        "confirm": {
+          "title": "Sınıflandırma ülkesi değiştirilsin mi?",
+          "body": "Slouchcat ardından tüm içeriklerin yaş sınırlarını yeniden okur. Profiller bu nedenle şimdiye kadar gizli olan içerikleri görebilir ya da tam tersi.",
+          "confirm": "Değiştir ve yeniden oku"
+        }
       },
       "apply": {
         "title": "Mevcut içeriklere uygula",
@@ -4710,7 +4876,6 @@
       "errors": {
         "langs_empty": "En az bir dil.",
         "lang_unknown": "Bilinmeyen dil kodu.",
-        "ui_lang_required": "Varsayılan için Almanca, bir kitaplık için Almanca veya İngilizce gerekir.",
         "chain_duplicate": "Her dil yalnızca bir kez.",
         "country_unknown": "Bilinmeyen ülke.",
         "source_unknown": "Bu görsel kaynağı, bu içerik için önerilen kaynaklar arasında değil."
@@ -4971,6 +5136,7 @@
       "list": "Bu hesabın profilleri",
       "edit": "Düzenle",
       "primary": "Ana profil",
+      "ratingAboveCeiling": "{{rating}} · Hesap: en fazla {{max}}",
       "hasPin": "PIN",
       "delete": {
         "action": "Sil",
@@ -5011,7 +5177,6 @@
         "likeUi": "Arayüz gibi",
         "playback": "Oynatma"
       },
-      "ratingAboveAccount": "FSK {{age}} · Hesap en fazla FSK {{max}}",
       "report": {
         "show": "İzleme süresini göster",
         "hide": "İzleme süresini gizle",

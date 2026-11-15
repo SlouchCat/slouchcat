@@ -71,6 +71,24 @@
       "version": "Verze {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Grafický čip pro převod",
+        "hint": "Platí po restartu serveru.",
+        "auto": "Automaticky (doporučeno)",
+        "software": "Jen procesor",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "není v tomto ffmpeg",
+          "no_device": "zařízení v kontejneru chybí",
+          "test_failed": "test při spuštění selhal"
+        },
+        "saved": "Uloženo: {{name}}",
+        "restartAdmin": "Platí po restartu serveru (Přehled › Restartovat)."
+      },
+      "fallback": {
+        "title": "Zvolený grafický čip nefunguje",
+        "body": "Test při spuštění selhal: {{name}}. Slouchcat zatím převádí videa s automatickou volbou."
+      },
       "encoder": "Kódování videa",
       "tonemap": "HDR na SDR",
       "ffmpeg": "ffmpeg",
@@ -199,7 +217,7 @@
       "owner_required": "To smí provést jen vlastník.",
       "owner_protected": "Účet vlastníka nelze odstranit ani mu odebrat oprávnění.",
       "last_admin": "Toto je poslední správce. Nejdřív jmenujte druhého.",
-      "admin_limits_fixed": "Správce vždy vidí všechny knihovny do věkového omezení 18. Nejdřív mu odeberte roli.",
+      "admin_limits_fixed": "Správce vždy vidí všechny knihovny a všechny tituly, bez věkového omezení. Nejprve mu odeberte roli správce.",
       "job_type_not_runnable": "Tuto úlohu nelze spustit ručně; její běhy vyvolávají události.",
       "job_type_paused": "Úloha je pozastavena, nejdřív ji obnovte.",
       "job_type_not_scheduled": "Tato úloha nemá plán.",
@@ -248,28 +266,185 @@
     }
   },
   "setup": {
-    "title": "Vítejte ve Slouchcat",
-    "intro": "Čtyři krátké kroky a Slouchcat prohledá vaši první knihovnu.",
-    "step": "Krok {{step}}",
+    "documentTitle": "Úvodní nastavení: {{step}}",
+    "position": "Krok {{position}} z {{count}}",
+    "nav": {
+      "label": "Úvodní nastavení",
+      "group": "Kroky",
+      "menu": "Úvodní nastavení, kroky",
+      "close": "Zavřít kroky",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, hotovo",
+        "skipped": "{{position}}. {{name}}, přeskočeno"
+      }
+    },
+    "actions": {
+      "back": "Zpět",
+      "skip": "Přeskočit",
+      "next": "Další",
+      "finish": "Dokončit nastavení",
+      "finishing": "Dokončování…",
+      "later": "Pokračovat později"
+    },
+    "steps": {
+      "language": {
+        "nav": "Jazyk",
+        "title": "Vyberte jazyk",
+        "intro": "Jakým jazykem má Slouchcat mluvit? Volba platí hned a můžete ji kdykoli změnit."
+      },
+      "account": {
+        "nav": "Účet",
+        "title": "Vytvořte účet",
+        "intro": "Tímto účtem budete Slouchcat spravovat. Patří k němu váš první profil."
+      },
+      "region": {
+        "nav": "Region",
+        "title": "Region a metadata",
+        "intro": "Země, věková omezení a jazyky, ve kterých Slouchcat načítá názvy a popisy."
+      },
+      "services": {
+        "nav": "Služby",
+        "title": "Připojte služby",
+        "intro": "Klíče pro metadata a cesty pro upozornění. Doporučeny jsou TMDB a e-mail; vše ostatní můžete doplnit později v sekci Správa › Integrace."
+      },
+      "playback": {
+        "nav": "Přehrávání",
+        "title": "Přehrávání",
+        "intro": "Co Slouchcat najde v kontejneru a čím převádí videa."
+      },
+      "libraries": {
+        "nav": "Knihovny",
+        "title": "Knihovny",
+        "intro": "Je potřeba alespoň jedna knihovna. Slouchcat ji načte hned po přidání."
+      },
+      "household": {
+        "nav": "Domácnost",
+        "title": "Domácnost",
+        "intro": "Další profily pro domácnost, každý s vlastním věkovým omezením, barvou a podle potřeby kódem PIN."
+      },
+      "access": {
+        "nav": "Přístup",
+        "title": "Přístup",
+        "intro": "Na jaké adrese je Slouchcat dostupný a zda hledá nové verze."
+      },
+      "summary": {
+        "nav": "Shrnutí",
+        "title": "Shrnutí",
+        "intro": "Zkontrolujte své volby. U přeskočených kroků platí doporučení."
+      }
+    },
+    "language": {
+      "search": "Hledat jazyk",
+      "choice": "Jazyk",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Hledání neodpovídá žádný jazyk.",
+      "preview": "Náhled",
+      "previewDate": "Datum",
+      "previewNumber": "Číslo"
+    },
     "account": {
-      "title": "Účet správce",
-      "description": "Tímto účtem spravujete Slouchcat.",
       "email": "E-mailová adresa",
       "password": "Heslo",
       "passwordHint": "Alespoň 10 znaků.",
-      "passwordRepeat": "Zopakujte heslo"
+      "passwordRepeat": "Zopakujte heslo",
+      "profileName": "Název profilu",
+      "profileHint": "Pod tímto názvem se váš profil zobrazí při výběru profilu.",
+      "taken": {
+        "title": "Slouchcat už je nastaven",
+        "body": "Někdo právě vytvořil účet. Přihlaste se tímto účtem.",
+        "action": "Přejít na přihlášení"
+      }
+    },
+    "region": {
+      "country": "Země",
+      "ratingCountry": "Země hodnocení",
+      "ratingSteps": "Věková omezení profilů: {{steps}}",
+      "languages": "Jazyky metadat",
+      "languagesIntro": "Slouchcat načítá texty a obrázky v tomto pořadí. Žádný jazyk není povinný.",
+      "timeZone": "Časové pásmo serveru",
+      "serverZone": "Časové pásmo",
+      "zoneDiffers": {
+        "title": "Váš prohlížeč používá jiné časové pásmo",
+        "body": "Prohlížeč hlásí {{browser}}. Časové pásmo serveru nastavíte v deploy/.env; platí po restartu kontejneru.",
+        "command": "Řádek pro deploy/.env"
+      },
+      "radio": "Internetové rádio",
+      "radioToggle": "Přidat zemi {{country}} do nabídky rádia",
+      "radioHint": "Země se do nabídky přidá bez stanic. Stanice označíte později v sekci Správa › Rádio."
+    },
+    "services": {
+      "recommended": "Doporučeno",
+      "optional": "Volitelné",
+      "recommendedTitle": "Doporučeno",
+      "optionalTitle": "Volitelné",
+      "email": {
+        "purpose": "Pro pozvánky a „Zapomenuté heslo“."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Upozornění na tomto zařízení, i když Slouchcat není otevřený.",
+        "insecure": "Push vyžaduje zabezpečené připojení (HTTPS nebo localhost). Push nastavte později přes veřejnou adresu HTTPS."
+      },
+      "telegram": {
+        "purpose": "Upozornění přes bota Telegram. Svůj účet propojíte potom v sekci Nastavení › Upozornění."
+      },
+      "rejected": {
+        "title": "Odebrat neplatný klíč a pokračovat?",
+        "body": "Služba tento klíč odmítla: {{names}}. Slouchcat ho odebere, aby nezůstal uložený chybný klíč.",
+        "confirm": "Odebrat a pokračovat"
+      }
+    },
+    "playback": {
+      "restart": "Platí po restartu. Slouchcat se po dokončení jednou restartuje.",
+      "trickplay": "Náhledy při přetáčení pro nové knihovny videí",
+      "trickplayHint": "Předvyplní nastavení každé nové knihovny videí v dalším kroku. Náhledové obrázky zabírají místo a výpočetní čas."
+    },
+    "libraries": {
+      "add": "Přidat knihovnu",
+      "addMore": "Další knihovna",
+      "none": "Zatím žádná knihovna. Přidejte alespoň jednu, aby měl Slouchcat co zobrazit.",
+      "folder": "Složka {{position}}"
+    },
+    "household": {
+      "accounts": "Hosty s vlastním účtem pozvete později v sekci Správa › Účty."
+    },
+    "access": {
+      "here": "Právě používáte adresu {{url}}.",
+      "useHere": "Použít tuto adresu",
+      "noUsageData": "Slouchcat neodesílá žádná data o používání."
+    },
+    "summary": {
+      "done": "Nastaveno",
+      "recommended": "Doporučení",
+      "change": "Změnit: {{step}}",
+      "region": "Věková omezení: {{country}}, jazyky: {{languages}}",
+      "services_one": "{{count}} služba nastavena",
+      "services_few": "{{count}} služby nastaveny",
+      "services_many": "{{count}} služby nastaveno",
+      "services_other": "{{count}} služeb nastaveno",
+      "playback": "{{hw}}, náhledy při přetáčení: {{trickplay}}",
+      "on": "zapnuto",
+      "off": "vypnuto",
+      "noAddress": "bez veřejné adresy",
+      "profiles_one": "{{count}} profil",
+      "profiles_few": "{{count}} profily",
+      "profiles_many": "{{count}} profilu",
+      "profiles_other": "{{count}} profilů"
+    },
+    "finish": {
+      "title": "Slouchcat je nastaven",
+      "restartTitle": "Slouchcat se restartuje…",
+      "restartBody": "Volba grafického čipu platí po restartu. První prohledávání pak budou pokračovat.",
+      "busy": "Slouchcat se nemohl restartovat, protože právě probíhá záloha nebo aktualizace. Volba grafického čipu začne platit po příštím restartu (Správa › Přehled).",
+      "scanProgress": "{{state}}: {{seen}} z {{total}} souborů",
+      "home": "Přejít na úvodní stránku"
     },
     "library": {
-      "title": "První knihovna",
-      "description": "Další knihovny můžete přidat později.",
       "name": "Název",
-      "defaultName": "Filmy",
       "kind": "Obsah",
       "path": "Složka",
       "pathPlaceholder": "/media/Movies",
-      "roots": "Povolené složky:",
-      "check": "Zkontrolovat složku",
-      "checking": "Kontrola…",
       "warning": {
         "network_share": {
           "title": "Zjištěno síťové úložiště",
@@ -279,30 +454,7 @@
           "title": "Neznámý souborový systém",
           "body": "Souborový systém FUSE (například mergerfs nebo Unraid) nehlásí každou změnu. Slouchcat složku sleduje a také ji pravidelně synchronizuje."
         }
-      },
-      "content": "Obsah",
-      "providers": "Zdroje metadat"
-    },
-    "tmdb": {
-      "title": "Metadata z TMDB (volitelné)",
-      "description": "S přístupovým tokenem pro čtení z themoviedb.org Slouchcat stahuje popisy, plakáty a věková omezení. Bez klíče se tituly berou z názvů souborů.",
-      "link": "Vytvořit token na themoviedb.org",
-      "label": "Přístupový token API pro čtení",
-      "hint": "Uloženo zašifrovaně a už se nezobrazí.",
-      "check": "Zkontrolovat klíč",
-      "checking": "Kontrola…",
-      "result": {
-        "valid": "Platný: TMDB klíč přijal.",
-        "invalid": "Neplatný: TMDB klíč odmítl. Zkontrolujte přístupový token pro čtení.",
-        "unreachable": "Nedostupný: TMDB teď neodpovídá. Zkuste to znovu nebo nechte pole prázdné."
       }
-    },
-    "submit": "Dokončit nastavení",
-    "submitting": "Nastavování…",
-    "system": {
-      "title": "Grafický čip a souborový systém",
-      "description": "Co Slouchcat uvnitř kontejneru nachází. Nic se tu nezadává, nápovědy jsou určeny pro hostitele.",
-      "missing": "Server neposlal žádné podrobnosti o hardwaru."
     }
   },
   "login": {
@@ -311,7 +463,8 @@
     "email": "E-mailová adresa",
     "password": "Heslo",
     "submit": "Přihlásit se",
-    "submitting": "Přihlašování…"
+    "submitting": "Přihlašování…",
+    "language": "Jazyk: {{name}}"
   },
   "library": {
     "groups": {
@@ -400,7 +553,7 @@
       "moveUpLabel": "Posunout {{provider}} nahoru",
       "moveDownLabel": "Posunout {{provider}} dolů",
       "noKey": "není nastaven klíč",
-      "noGerman": "bez německých textů",
+      "missingLanguages": "bez textů: {{languages}}",
       "fillOnly": "pouze doplňuje",
       "hint": "První položka určuje titul, ostatní jen doplňují. Pořadí změníte šipkami nebo klávesami se šipkami.",
       "hintRank": "První položka určuje titul, ostatní jen doplňují. Pořadí zvolte pomocí pozice.",
@@ -491,8 +644,7 @@
       "yearFrom": "Rok od",
       "yearTo": "Rok do",
       "rating": "Věkové omezení",
-      "anyRating": "Limit profilu",
-      "upTo": "do {{age}}"
+      "anyRating": "Limit profilu"
     },
     "notFound": {
       "title": "Knihovna nenalezena",
@@ -763,7 +915,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "Od {{age}} let",
+    "upTo": "do {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} h",
@@ -1003,8 +1157,8 @@
       },
       "offset": {
         "title": "Posun",
-        "earlier": "O 0,1 s dříve",
-        "later": "O 0,1 s později",
+        "earlier": "o 0,1 s dříve",
+        "later": "o 0,1 s později",
         "value": "{{seconds}} s",
         "reset": "Obnovit"
       }
@@ -2032,7 +2186,7 @@
       "hint": {
         "unmatched": "Bez přiřazení není k dispozici popis, obrázky ani věkové omezení. Přiřaďte titul nebo ho obnovte.",
         "no_images": "Přiřazené tituly bez plakátu. Obnovení obrázky načte znovu.",
-        "unrated": "Tituly bez věkového omezení vidí jen profily s omezením 18. Přidělením omezení je zpřístupníte.",
+        "unrated": "Tituly bez věkového omezení vidí jen profily „Od 18 let“. Přiřaďte jim věkové omezení, aby se zpřístupnily.",
         "orphaned": "Tituly bez souboru nebo s chybějícími soubory, prázdné řady a seriály.",
         "unplayable": "Soubory, které nelze přečíst. Zkontrolujte je znovu nebo je odeberte z knihovny.",
         "rating_mismatch": "Uložené věkové omezení se liší od vypočteného. Změna omezení nebo příští prohledání to opraví. Nic se tu nevybírá.",
@@ -3497,6 +3651,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Úvodní nastavení nedokončeno",
+        "body": "Několik kroků úvodního nastavení je ještě otevřených.",
+        "noLibrary": "Zatím neexistuje žádná knihovna, proto úvodní stránka zůstává prázdná.",
+        "action": "Pokračovat v nastavení"
+      },
       "title": "Správa",
       "live": "Živě, každých 5 sekund",
       "liveFailed": "Žádná odpověď, zkouším znovu každých 5 sekund",
@@ -3692,6 +3852,11 @@
         "keyRejected": "Klíč {{name}} odmítnut",
         "keyRejectedBody": "Poskytovatel klíč odmítá. Dokud nebude platný nový klíč, Slouchcat z něj nestahuje žádná metadata.",
         "toKeys": "ke klíčům",
+        "ratingsReread": "Věková omezení se znovu načítají",
+        "ratingsRereadBody": "Dokud úloha neskončí, platí dosavadní věková omezení, přísnější i volnější.",
+        "minimumAge": "Věková omezení jsou teď minimální věk",
+        "minimumAgeBody": "Od této aktualizace Slouchcat ukládá skutečný minimální věk každého hodnocení: PG-13 je „Od 13 let“ místo FSK 12, R je „Od 17 let“ místo FSK 16. Profily „Od 12 let“ a „Od 16 let“ proto uvidí méně amerických titulů. Pokud to nechcete, nastavte profilu vyšší úroveň.",
+        "minimumAgeDismiss": "Rozumím",
         "storage": "{{path}} je zaplněno z více než {{percent}} %"
       },
       "errors": {
@@ -4028,13 +4193,13 @@
         "heading": "Přístup",
         "save": "Uložit přístup",
         "saved": "Přístup účtu {{email}} uložen.",
-        "adminHint": "Správce má vždy věkové omezení 18 a všechny knihovny; „Přístup“ existuje jen pro účty bez správy."
+        "adminHint": "Správce má vždy omezení „Od 18 let“ a všechny knihovny; „Přístup“ existuje jen pro účty bez správcovských práv."
       },
       "role": {
         "promote": {
           "action": "Jmenovat správcem",
           "title": "Jmenovat {{email}} správcem?",
-          "body": "Účet bude spravovat server, knihovny a nastavení. Jeho věkové omezení stoupne na 18 a získá všechny knihovny; profily účtu si ponechají své úrovně.",
+          "body": "Účet bude spravovat server, knihovny a nastavení. Jeho věkové omezení se zvýší na „Od 18 let“ a získá všechny knihovny; profily účtu si ponechají své vlastní úrovně.",
           "confirm": "Jmenovat",
           "done": "{{email}} je nyní správce."
         },
@@ -4762,6 +4927,12 @@
           "description": "Stáhne chybějící počty hlasů pro výběr obrázků.",
           "trigger": "Po každém úplném prohledání, dokud tituly čekají na hlas"
         },
+        "metadata_ratings_reread": {
+          "name": "Nové načtení věkových omezení",
+          "description": "Znovu načte věková omezení filmů a seriálů pro zemi hodnocení; omezení nastavená ručně, ze souborů NFO a zamčená zůstávají.",
+          "trigger": "jednou po aktualizaci a při každé změně země hodnocení",
+          "progress": "Načteno titulů: {{done}} z {{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Doplnění původních jazyků",
           "description": "Doplní každému titulu původní jazyk pro výběr zvuku.",
@@ -4933,11 +5104,11 @@
       },
       "languages": {
         "title": "Jazyky",
-        "intro": "Každý zdejší jazyk se stahuje pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní na tom nezávisí. Každý další jazyk stojí jeden požadavek na titul a řadu.",
+        "intro": "Každý jazyk zde se načítá pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní si každý profil volí sám. Každý další jazyk stojí jeden požadavek na titul a řadu.",
         "list": "Jazyky metadat",
         "rank": "Jazyk {{position}}",
         "more": "Další jazyk",
-        "fallback": "Pořadí = záložní postup: když text v jazyce profilu chybí, Slouchcat zobrazí první z tohoto seznamu, poté název souboru. Žádný jazyk není povinný.",
+        "fallback": "Pořadí = náhrada: když text v jazyce profilu chybí, Slouchcat zobrazí první dostupný ze seznamu, potom název souboru. Seznam musí obsahovat alespoň jeden jazyk.",
         "unknownAt": "{{provider}} nezná: {{languages}}",
         "youtube": "Jazyků: {{count}}; až {{titles}} titulů denně při hledání upoutávek na YouTube (kvóta 10 000)."
       },
@@ -4994,16 +5165,15 @@
       },
       "rating": {
         "title": "Věkové omezení",
-        "intro": "Která země se čte jako první; potom jako dosud DE, AT, CH, GB, US. Stupně zůstávají FSK 0/6/12/16/18.",
+        "intro": "Země, jejíž věková omezení platí. Pokud titul žádné nemá, platí německé (FSK), potom AT, CH, GB a US. Profily vybírají z úrovní této země.",
         "country": "Země",
-        "countries": {
-          "DE": "Německo (DE)",
-          "AT": "Rakousko (AT)",
-          "CH": "Švýcarsko (CH)",
-          "GB": "Spojené království (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "Nový titul dostane stupeň země čtené jako první. Uložený stupeň se nikdy nesníží, ani jinou zemí; snižuje se po titulech v údržbě."
+        "steps": "Úrovně profilů: {{steps}}",
+        "hint": "Ukládá se minimální věk z hodnocení, například PG-13 jako „Od 13 let“. Po změně země Slouchcat znovu načte věková omezení všech titulů a může je přitom snížit nebo zvýšit; omezení nastavená ručně, ze souborů NFO a zamčená zůstávají.",
+        "confirm": {
+          "title": "Změnit zemi hodnocení?",
+          "body": "Slouchcat poté znovu načte věková omezení všech titulů. Profily tak mohou vidět tituly, které byly dosud skryté, nebo naopak.",
+          "confirm": "Změnit a znovu načíst"
+        }
       },
       "apply": {
         "title": "Použít na existující tituly",
@@ -5042,7 +5212,6 @@
       "errors": {
         "langs_empty": "Alespoň jeden jazyk.",
         "lang_unknown": "Neznámý kód jazyka.",
-        "ui_lang_required": "Výchozí nastavení vyžaduje němčinu, knihovna němčinu nebo angličtinu.",
         "chain_duplicate": "Každý jazyk jednou.",
         "country_unknown": "Neznámá země.",
         "source_unknown": "Tento zdroj obrázků nepatří mezi návrhy pro tento titul."
@@ -5321,6 +5490,7 @@
       "list": "Profily tohoto účtu",
       "edit": "Upravit",
       "primary": "Hlavní profil",
+      "ratingAboveCeiling": "{{rating}} · Účet nejvýše {{max}}",
       "hasPin": "PIN",
       "delete": {
         "action": "Smazat",
@@ -5361,7 +5531,6 @@
         "likeUi": "Jako rozhraní",
         "playback": "Přehrávání"
       },
-      "ratingAboveAccount": "FSK {{age}} · Účet nejvýše FSK {{max}}",
       "report": {
         "show": "Zobrazit dobu sledování",
         "hide": "Skrýt dobu sledování",

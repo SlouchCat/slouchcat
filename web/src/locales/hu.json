@@ -63,6 +63,24 @@
       "version": "Verzió: {{version}}"
     },
     "gpu": {
+      "choice": {
+        "label": "Grafikus chip az átalakításhoz",
+        "hint": "A kiszolgáló újraindítása után lép érvénybe.",
+        "auto": "Automatikus (ajánlott)",
+        "software": "Csak processzor",
+        "unavailable": "{{name}} – {{reason}}",
+        "reason": {
+          "not_in_build": "ez az ffmpeg nem tartalmazza",
+          "no_device": "az eszköz hiányzik a tárolóból",
+          "test_failed": "az indításkori teszt sikertelen"
+        },
+        "saved": "Mentve: {{name}}",
+        "restartAdmin": "A kiszolgáló újraindítása után lép érvénybe (Áttekintés › Újraindítás)."
+      },
+      "fallback": {
+        "title": "A kiválasztott grafikus chip nem működik",
+        "body": "Az indításkori teszt sikertelen: {{name}}. A Slouchcat egyelőre az automatikus választással alakít át."
+      },
       "encoder": "Videókódolás",
       "tonemap": "HDR-ből SDR-be",
       "ffmpeg": "ffmpeg",
@@ -191,7 +209,7 @@
       "owner_required": "Ezt csak a tulajdonos teheti meg.",
       "owner_protected": "A tulajdonos fiókja nem távolítható el, és nem fokozható le.",
       "last_admin": "Ő az utolsó rendszergazda. Először jelöljön ki egy másodikat.",
-      "admin_limits_fixed": "A rendszergazda mindig minden könyvtárat lát 18-as korhatárig. Először vegye el a szerepkört.",
+      "admin_limits_fixed": "A rendszergazda mindig minden könyvtárat és minden címet lát, korhatár nélkül. Előbb vonja meg tőle a rendszergazdai szerepkört.",
       "job_type_not_runnable": "Ez a feladat nem indítható kézzel, a futásait események váltják ki.",
       "job_type_paused": "A feladat szünetel, először folytassa.",
       "job_type_not_scheduled": "Ennek a feladatnak nincs ütemezése.",
@@ -240,28 +258,181 @@
     }
   },
   "setup": {
-    "title": "Üdvözli a Slouchcat",
-    "intro": "Négy rövid lépés, utána a Slouchcat beolvassa az első könyvtárát.",
-    "step": "{{step}}. lépés",
+    "documentTitle": "Első beállítás: {{step}}",
+    "position": "{{position}}. lépés / {{count}}",
+    "nav": {
+      "label": "Első beállítás",
+      "group": "Lépések",
+      "menu": "Első beállítás, lépések",
+      "close": "Lépések bezárása",
+      "state": {
+        "open": "{{position}}. {{name}}",
+        "done": "{{position}}. {{name}}, kész",
+        "skipped": "{{position}}. {{name}}, kihagyva"
+      }
+    },
+    "actions": {
+      "back": "Vissza",
+      "skip": "Kihagyás",
+      "next": "Tovább",
+      "finish": "Beállítás befejezése",
+      "finishing": "Befejezés…",
+      "later": "Folytatás később"
+    },
+    "steps": {
+      "language": {
+        "nav": "Nyelv",
+        "title": "Nyelv kiválasztása",
+        "intro": "Milyen nyelven beszéljen a Slouchcat? A választás azonnal érvényes, és bármikor módosítható."
+      },
+      "account": {
+        "nav": "Fiók",
+        "title": "Fiók létrehozása",
+        "intro": "Ezzel a fiókkal kezeli a Slouchcatet. Ehhez tartozik az első profilja is."
+      },
+      "region": {
+        "nav": "Régió",
+        "title": "Régió és metaadatok",
+        "intro": "Ország, korhatárok és azok a nyelvek, amelyeken a Slouchcat a címeket és a leírásokat letölti."
+      },
+      "services": {
+        "nav": "Szolgáltatások",
+        "title": "Szolgáltatások csatlakoztatása",
+        "intro": "Kulcsok a metaadatokhoz és csatornák az értesítésekhez. A TMDB és az e-mail ajánlott; a többit később is hozzáadhatja az Adminisztráció › Integrációk részben."
+      },
+      "playback": {
+        "nav": "Lejátszás",
+        "title": "Lejátszás",
+        "intro": "Mit talál a Slouchcat a tárolóban, és mivel alakítja át a videókat."
+      },
+      "libraries": {
+        "nav": "Könyvtárak",
+        "title": "Könyvtárak",
+        "intro": "Legalább egy könyvtárra szükség van. A Slouchcat a hozzáadás után azonnal beolvassa."
+      },
+      "household": {
+        "nav": "Háztartás",
+        "title": "Háztartás",
+        "intro": "További profilok a háztartás számára, mindegyik saját korhatárral, színnel és igény szerint PIN-kóddal."
+      },
+      "access": {
+        "nav": "Hozzáférés",
+        "title": "Hozzáférés",
+        "intro": "Milyen címen érhető el a Slouchcat, és keressen-e új verziókat."
+      },
+      "summary": {
+        "nav": "Összegzés",
+        "title": "Összegzés",
+        "intro": "Ellenőrizze a megadott adatokat. Ahol kihagyott egy lépést, ott az ajánlás érvényes."
+      }
+    },
+    "language": {
+      "search": "Nyelv keresése",
+      "choice": "Nyelv",
+      "option": "{{name}} · {{english}} · {{code}}",
+      "none": "Egy nyelv sem felel meg a keresésnek.",
+      "preview": "Előnézet",
+      "previewDate": "Dátum",
+      "previewNumber": "Szám"
+    },
     "account": {
-      "title": "Rendszergazdai fiók",
-      "description": "Ezzel a fiókkal kezeli a Slouchcatet.",
       "email": "E-mail-cím",
       "password": "Jelszó",
       "passwordHint": "Legalább 10 karakter.",
-      "passwordRepeat": "Jelszó megismétlése"
+      "passwordRepeat": "Jelszó megismétlése",
+      "profileName": "Profilnév",
+      "profileHint": "Ezen a néven jelenik meg a profilja a profilválasztóban.",
+      "taken": {
+        "title": "A Slouchcat már be van állítva",
+        "body": "Valaki épp most hozta létre a fiókot. Jelentkezzen be ezzel a fiókkal.",
+        "action": "Tovább a bejelentkezéshez"
+      }
+    },
+    "region": {
+      "country": "Ország",
+      "ratingCountry": "Korhatár országa",
+      "ratingSteps": "A profilok korhatárai: {{steps}}",
+      "languages": "Metaadatok nyelvei",
+      "languagesIntro": "A Slouchcat ebben a sorrendben tölti le a szövegeket és a képeket. Egyik nyelv sem kötelező.",
+      "timeZone": "A kiszolgáló időzónája",
+      "serverZone": "Időzóna",
+      "zoneDiffers": {
+        "title": "A böngészője másik időzónát használ",
+        "body": "A böngésző ezt jelzi: {{browser}}. A kiszolgáló időzónáját a deploy/.env fájlban állíthatja be; a tároló újraindítása után lép érvénybe.",
+        "command": "Sor a deploy/.env fájlba"
+      },
+      "radio": "Internetes rádió",
+      "radioToggle": "{{country}} felvétele a rádiókínálatba",
+      "radioHint": "Az ország adók nélkül kerül a kínálatba. Az adókat később jelölheti ki az Adminisztráció › Rádió részben."
+    },
+    "services": {
+      "recommended": "Ajánlott",
+      "optional": "Választható",
+      "recommendedTitle": "Ajánlott",
+      "optionalTitle": "Választható",
+      "email": {
+        "purpose": "Meghívókhoz és az „Elfelejtett jelszó” funkcióhoz."
+      },
+      "push": {
+        "name": "Web Push",
+        "purpose": "Értesítések ezen az eszközön, akkor is, ha a Slouchcat nincs megnyitva.",
+        "insecure": "A Push értesítésekhez biztonságos kapcsolat szükséges (HTTPS vagy localhost). A Push értesítéseket később, a nyilvános HTTPS-címen állítsa be."
+      },
+      "telegram": {
+        "purpose": "Értesítések Telegram-boton keresztül. A fiókját utána a Beállítások › Értesítések részben kapcsolhatja össze."
+      },
+      "rejected": {
+        "title": "Eltávolítja az érvénytelen kulcsot, és továbblép?",
+        "body": "A szolgáltatás elutasította ezt a kulcsot: {{names}}. A Slouchcat eltávolítja, hogy ne maradjon hibás kulcs tárolva.",
+        "confirm": "Eltávolítás és tovább"
+      }
+    },
+    "playback": {
+      "restart": "Újraindítás után lép érvénybe. A Slouchcat a befejezéskor egyszer újraindul.",
+      "trickplay": "Előnézeti képek az új videókönyvtárakhoz",
+      "trickplayHint": "Előre kitölti minden új videókönyvtár beállítását a következő lépésben. Az előnézeti képek helyet és számítási időt igényelnek."
+    },
+    "libraries": {
+      "add": "Könyvtár hozzáadása",
+      "addMore": "További könyvtár",
+      "none": "Még nincs könyvtár. Adjon hozzá legalább egyet, hogy a Slouchcat meg tudjon jeleníteni valamit.",
+      "folder": "{{position}}. mappa"
+    },
+    "household": {
+      "accounts": "Saját fiókkal rendelkező vendégeket később hívhat meg az Adminisztráció › Fiókok részben."
+    },
+    "access": {
+      "here": "Jelenleg ezen a címen éri el: {{url}}.",
+      "useHere": "Cím használata",
+      "noUsageData": "A Slouchcat nem küld használati adatokat."
+    },
+    "summary": {
+      "done": "Beállítva",
+      "recommended": "Ajánlás",
+      "change": "Módosítás: {{step}}",
+      "region": "Korhatárok: {{country}}, nyelvek: {{languages}}",
+      "services_one": "{{count}} szolgáltatás beállítva",
+      "services_other": "{{count}} szolgáltatás beállítva",
+      "playback": "{{hw}}, előnézeti képek: {{trickplay}}",
+      "on": "be",
+      "off": "ki",
+      "noAddress": "nincs nyilvános cím",
+      "profiles_one": "{{count}} profil",
+      "profiles_other": "{{count}} profil"
+    },
+    "finish": {
+      "title": "A Slouchcat be van állítva",
+      "restartTitle": "A Slouchcat újraindul…",
+      "restartBody": "A grafikus chip választása az újraindítás után lép érvénybe. Az első beolvasások utána folytatódnak.",
+      "busy": "A Slouchcat nem tudott újraindulni, mert éppen biztonsági mentés vagy frissítés fut. A grafikus chip választása a következő újraindítás után lép érvénybe (Adminisztráció › Áttekintés).",
+      "scanProgress": "{{state}}: {{seen}}/{{total}} fájl",
+      "home": "Tovább a kezdőlapra"
     },
     "library": {
-      "title": "Első könyvtár",
-      "description": "Később további könyvtárakat adhat hozzá.",
       "name": "Név",
-      "defaultName": "Filmek",
       "kind": "Tartalom",
       "path": "Mappa",
       "pathPlaceholder": "/media/Movies",
-      "roots": "Engedélyezett mappák:",
-      "check": "Mappa ellenőrzése",
-      "checking": "Ellenőrzés…",
       "warning": {
         "network_share": {
           "title": "Hálózati megosztás észlelve",
@@ -271,30 +442,7 @@
           "title": "Ismeretlen fájlrendszer",
           "body": "A FUSE-fájlrendszer (például mergerfs vagy Unraid) nem jelez minden változást. A Slouchcat figyeli a mappát, és rendszeresen szinkronizálja is."
         }
-      },
-      "content": "Tartalom",
-      "providers": "Metaadatforrások"
-    },
-    "tmdb": {
-      "title": "Metaadatok a TMDB-ből (választható)",
-      "description": "A themoviedb.org olvasási hozzáférési tokenjével a Slouchcat leírásokat, plakátokat és korhatárokat tölt le. Kulcs nélkül a címek a fájlnevekből származnak.",
-      "link": "Token létrehozása a themoviedb.org oldalon",
-      "label": "API olvasási hozzáférési token",
-      "hint": "Titkosítva tárolva, és soha többé nem jelenik meg.",
-      "check": "Kulcs ellenőrzése",
-      "checking": "Ellenőrzés…",
-      "result": {
-        "valid": "Érvényes: a TMDB elfogadta a kulcsot.",
-        "invalid": "Érvénytelen: a TMDB elutasította a kulcsot. Ellenőrizze az olvasási hozzáférési tokent.",
-        "unreachable": "Nem érhető el: a TMDB jelenleg nem válaszol. Próbálja újra, vagy hagyja üresen a mezőt."
       }
-    },
-    "submit": "Beállítás befejezése",
-    "submitting": "Beállítás…",
-    "system": {
-      "title": "Grafikus chip és fájlrendszer",
-      "description": "Amit a Slouchcat a tárolón belül talál. Itt nincs mit megadni, a tippek a gazdagépre vonatkoznak.",
-      "missing": "A kiszolgáló nem küldött adatot a hardverről."
     }
   },
   "login": {
@@ -303,7 +451,8 @@
     "email": "E-mail-cím",
     "password": "Jelszó",
     "submit": "Bejelentkezés",
-    "submitting": "Bejelentkezés…"
+    "submitting": "Bejelentkezés…",
+    "language": "Nyelv: {{name}}"
   },
   "library": {
     "groups": {
@@ -380,7 +529,7 @@
       "moveUpLabel": "{{provider}} feljebb",
       "moveDownLabel": "{{provider}} lejjebb",
       "noKey": "nincs beállított kulcs",
-      "noGerman": "nincs német szöveg",
+      "missingLanguages": "nincs {{languages}} nyelvű szöveg",
       "fillOnly": "csak kiegészít",
       "hint": "Az első bejegyzés azonosítja a címet, a többi csak kiegészít. A sorrendet a nyilakkal vagy a nyílbillentyűkkel változtathatja.",
       "hintRank": "Az első bejegyzés azonosítja a címet, a többi csak kiegészít. A sorrendet a pozícióval adhatja meg.",
@@ -459,8 +608,7 @@
       "yearFrom": "Év kezdete",
       "yearTo": "Év vége",
       "rating": "Korhatár",
-      "anyRating": "Profilkorlát",
-      "upTo": "legfeljebb {{age}}"
+      "anyRating": "Profilkorlát"
     },
     "notFound": {
       "title": "A könyvtár nem található",
@@ -717,7 +865,9 @@
     }
   },
   "rating": {
-    "fsk": "FSK {{age}}"
+    "age": "{{age}} éves kortól",
+    "upTo": "legfeljebb {{rating}}",
+    "system": "{{country}} ({{name}})"
   },
   "format": {
     "hours": "{{hours}} óra",
@@ -1042,7 +1192,7 @@
         },
         "speed": {
           "keys": "[ ]",
-          "action": "Lassabb vagy gyorsabb (0,5× és 2× között)"
+          "action": "Lassabban vagy gyorsabban (0,5× és 2× között)"
         },
         "tracks": {
           "keys": "T",
@@ -1918,7 +2068,7 @@
       "hint": {
         "unmatched": "Társítás nélkül nincs leírás, grafika és korhatár. Társítsa a címet, vagy frissítse.",
         "no_images": "Társított címek plakát nélkül. A frissítés újra betölti a grafikákat.",
-        "unrated": "A korhatár nélküli címeket csak a 18-as korhatárú profilok látják. Rendeljen hozzá korhatárt a feloldásukhoz.",
+        "unrated": "A korhatár nélküli címeket csak a „18 éves kortól” profilok látják. Rendeljen hozzájuk korhatárt, hogy elérhetővé váljanak.",
         "orphaned": "Fájl nélküli vagy hiányzó fájlú címek, üres évadok és sorozatok.",
         "unplayable": "Nem olvasható fájlok. Ellenőrizze őket újra, vagy távolítsa el a könyvtárból.",
         "rating_mismatch": "A tárolt korhatár eltér a számítottól. Korhatár-módosítás vagy a következő beolvasás kijavítja. Itt nincs mit kijelölni.",
@@ -3245,6 +3395,12 @@
       }
     },
     "home": {
+      "setupBand": {
+        "title": "Az első beállítás nincs befejezve",
+        "body": "Az első beállítás néhány lépése még hátravan.",
+        "noLibrary": "Még nincs könyvtár, ezért a kezdőlap üres marad.",
+        "action": "Beállítás folytatása"
+      },
       "title": "Adminisztráció",
       "live": "Élő, 5 másodpercenként",
       "liveFailed": "Nincs válasz, újrapróbálkozás 5 másodpercenként",
@@ -3428,6 +3584,11 @@
         "keyRejected": "A(z) {{name}} kulcsát elutasították",
         "keyRejectedBody": "A szolgáltató elutasítja a kulcsot. Amíg nincs új, érvényes kulcs, a Slouchcat nem tölt le róla metaadatokat.",
         "toKeys": "A kulcsokhoz",
+        "ratingsReread": "A korhatárok újraolvasása folyamatban",
+        "ratingsRereadBody": "Amíg a feladat be nem fejeződik, a korábbi korhatárok érvényesek, akár szigorúbbak, akár enyhébbek.",
+        "minimumAge": "A korhatár mostantól minimális életkor",
+        "minimumAgeBody": "A Slouchcat e frissítés óta minden korhatár valódi minimális életkorát tárolja: a PG-13 „13 éves kortól” az FSK 12 helyett, az R „17 éves kortól” az FSK 16 helyett. A „12 éves kortól” és a „16 éves kortól” profilok ezért kevesebb amerikai címet látnak. Ha ezt nem szeretné, állítsa magasabbra a profilt.",
+        "minimumAgeDismiss": "Értem",
         "storage": "A(z) {{path}} több mint {{percent}}%-ban megtelt"
       },
       "errors": {
@@ -3754,13 +3915,13 @@
         "heading": "Hozzáférés",
         "save": "Hozzáférés mentése",
         "saved": "A(z) {{email}} hozzáférése mentve.",
-        "adminHint": "A rendszergazdának mindig 18-as korhatára van és minden könyvtárat lát; a „Hozzáférés” csak a rendszergazdai jog nélküli fiókoknál létezik."
+        "adminHint": "A rendszergazdára mindig a „18 éves kortól” fokozat és az összes könyvtár vonatkozik; a „Hozzáférés” csak az adminisztrációs jog nélküli fiókoknál érhető el."
       },
       "role": {
         "promote": {
           "action": "Rendszergazdává tétel",
           "title": "Rendszergazdává teszi: {{email}}?",
-          "body": "A fiók kezelni fogja a kiszolgálót, a könyvtárakat és a beállításokat. A korhatára 18-ra emelkedik, és minden könyvtárat lát; a fiók profiljai megtartják a saját szintjüket.",
+          "body": "A fiók ezután kezeli a kiszolgálót, a könyvtárakat és a beállításokat. Korhatára a „18 éves kortól” fokozatra emelkedik, és minden könyvtárhoz hozzáfér; a fiók profiljai megtartják saját fokozatukat.",
           "confirm": "Kijelölés",
           "done": "{{email}} mostantól rendszergazda."
         },
@@ -4440,6 +4601,12 @@
           "description": "Lekéri a hiányzó szavazatszámokat a képek kiválasztásához.",
           "trigger": "Minden teljes beolvasás után, amíg címek szavazatra várnak"
         },
+        "metadata_ratings_reread": {
+          "name": "Korhatárok újraolvasása",
+          "description": "Újraolvassa a filmek és sorozatok korhatárait a korhatár országa szerint; a kézzel beállított, NFO-fájlokból származó és zárolt korhatárok megmaradnak.",
+          "trigger": "egyszer a frissítés után, és a korhatár országának minden módosításakor",
+          "progress": "Beolvasott címek: {{done}}/{{total}}"
+        },
         "metadata_original_language_backfill": {
           "name": "Eredeti nyelvek pótlása",
           "description": "Minden címhez hozzáadja az eredeti nyelvet a hangsáv kiválasztásához.",
@@ -4607,11 +4774,11 @@
       },
       "languages": {
         "title": "Nyelvek",
-        "intro": "Az itt megadott minden nyelvet lekéri minden címhez; a profilok ebből választják a leírásaik nyelvét. A kezelőfelület nyelve ettől független. Minden további nyelv címenként és évadonként egy kérést jelent.",
+        "intro": "Minden itt szereplő nyelvet minden címhez letölt a rendszer; a profilok ezek közül választják ki a leírásaik nyelvét. A felület nyelvét minden profil maga választja. Minden további nyelv címenként és évadonként egy további kérést jelent.",
         "list": "Metaadat-nyelvek",
         "rank": "{{position}}. nyelv",
         "more": "Másik nyelv",
-        "fallback": "Sorrend = tartalék: ha egy szöveg hiányzik a profil nyelvén, a Slouchcat a lista első elérhető nyelvén jeleníti meg, végül a fájlnevet. Egyik nyelv sem kötelező.",
+        "fallback": "Sorrend = tartalék: ha egy szöveg hiányzik a profil nyelvén, a Slouchcat a lista első elérhető nyelvét mutatja, utána a fájlnevet. A listában legalább egy nyelvnek szerepelnie kell.",
         "unknownAt": "A(z) {{provider}} nem ismeri: {{languages}}",
         "youtube": "{{count}} nyelv: naponta legfeljebb {{titles}} cím a YouTube-előzetes-keresésben (kvóta: 10 000)."
       },
@@ -4666,16 +4833,15 @@
       },
       "rating": {
         "title": "Korhatár",
-        "intro": "Melyik országot olvassa először; utána a korábbi sorrendben DE, AT, CH, GB, US. A fokozatok FSK 0/6/12/16/18 maradnak.",
+        "intro": "Az ország, amelynek korhatárai érvényesek. Ha egy címnek ott nincs korhatára, a német (FSK) érvényes, utána AT, CH, GB és US. A profilok ennek az országnak a fokozataiból választanak.",
         "country": "Ország",
-        "countries": {
-          "DE": "Németország (DE)",
-          "AT": "Ausztria (AT)",
-          "CH": "Svájc (CH)",
-          "GB": "Egyesült Királyság (GB)",
-          "US": "USA (US)"
-        },
-        "hint": "Az új cím az először olvasott ország fokozatát kapja. A tárolt fokozat soha nem csökken, más ország miatt sem; a csökkentés címenként a karbantartásban történik."
+        "steps": "A profilok fokozatai: {{steps}}",
+        "hint": "A Slouchcat a korhatár minimális életkorát tárolja, például a PG-13-at „13 éves kortól” formában. Az ország módosítása után a Slouchcat minden cím korhatárát újraolvassa, és közben csökkentheti vagy növelheti azokat; a kézzel beállított, NFO-fájlokból származó és zárolt korhatárok megmaradnak.",
+        "confirm": {
+          "title": "Módosítja a korhatár országát?",
+          "body": "A Slouchcat ezután minden cím korhatárát újraolvassa. Így a profilok láthatnak eddig rejtett címeket, vagy fordítva.",
+          "confirm": "Módosítás és újraolvasás"
+        }
       },
       "apply": {
         "title": "Alkalmazás a meglévő címekre",
@@ -4710,7 +4876,6 @@
       "errors": {
         "langs_empty": "Legalább egy nyelv kell.",
         "lang_unknown": "Ismeretlen nyelvkód.",
-        "ui_lang_required": "Az alapértelmezéshez a német kell; egy könyvtárhoz a német vagy az angol.",
         "chain_duplicate": "Minden nyelv egyszer.",
         "country_unknown": "Ismeretlen ország.",
         "source_unknown": "Ez a képforrás nem szerepel a cím javaslatai között."
@@ -4971,6 +5136,7 @@
       "list": "A fiók profiljai",
       "edit": "Szerkesztés",
       "primary": "Fő profil",
+      "ratingAboveCeiling": "{{rating}} · Fiók: legfeljebb {{max}}",
       "hasPin": "PIN-kód",
       "delete": {
         "action": "Törlés",
@@ -5011,7 +5177,6 @@
         "likeUi": "Mint a kezelőfelület",
         "playback": "Lejátszás"
       },
-      "ratingAboveAccount": "FSK {{age}} · A fiók legfeljebb FSK {{max}}",
       "report": {
         "show": "Nézési idő megjelenítése",
         "hide": "Nézési idő elrejtése",
