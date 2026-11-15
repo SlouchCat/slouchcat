@@ -41,8 +41,9 @@ weiteren Sprachen sind so entstanden (Konzept 22, Abschnitt 4.6; F-5):
 
 **Claudes Texte erscheinen in Weblate als fertig übersetzt.** Das Format i18next JSON kennt kein Merkmal
 «ungeprüft». Wer eine der zwanzig Sprachen als Muttersprache spricht, findet also Texte, die noch kein
-Mensch gelesen hat. **Korrekturen sind sehr willkommen.** Den Weg über Weblate richtet Stufe 5 von
-Konzept 22 ein; bis dahin nimmt das Projekt Korrekturen als Pull Request an.
+Mensch gelesen hat. **Korrekturen sind sehr willkommen.** Der Weg führt über Weblate
+(Einrichtung: `docs/i18n/weblate.md`). Bis das Projekt dort freigeschaltet ist, nimmt das Projekt
+Korrekturen als Pull Request an.
 
 ## Neue Texte im Alltag
 
