@@ -94,3 +94,18 @@ export const Expandable: Story = {
 };
 
 export const ExpandableCompact: Story = { ...Expandable, globals: { density: 'compact' } };
+
+/**
+ * `layout="fixed"` with a lower least width (--sc-table-fixed-min-width): the table stays at
+ * 36rem beside another panel instead of 48rem, and scrolls sideways only below that.
+ */
+export const FixedNarrow: Story = {
+  args: { layout: 'fixed' },
+  decorators: [
+    (Story) => (
+      <div style={{ width: '38rem', ['--sc-table-fixed-min-width' as string]: '36rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};

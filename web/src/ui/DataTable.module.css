@@ -33,10 +33,12 @@
 /* Columns from their definitions, not from their content (K12-9): the tables of a page's groups
    line up. Below the least width the table scrolls sideways in its frame instead of squeezing
    its columns; text wraps inside its column. On a phone the alignment across groups is worth
-   less than the room: there the table sizes its columns from their content as without `fixed`. */
+   less than the room: there the table sizes its columns from their content as without `fixed`.
+   A page that sets a narrower table beside another panel may lower the least width through
+   --sc-table-fixed-min-width (the start page's editor next to its preview). */
 @media (width >= 768px) {
   .fixed {
-    min-width: 48rem;
+    min-width: var(--sc-table-fixed-min-width, 48rem);
     table-layout: fixed;
   }
 
