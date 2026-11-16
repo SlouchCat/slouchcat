@@ -546,6 +546,72 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(field).toHaveValue('/media/Filme-2');
   });
 
+  it('409 root_unlisted fills the form anew like stale', async () => {
+    let current = library();
+    mockApi(
+      routes([], {
+        'GET /admin/libraries': () => json([current]),
+        'PUT /admin/libraries/1': () => {
+          current = library({ name: 'Kino', revision: 'rev-9' });
+          return problem(409, 'root_unlisted');
+        },
+      }),
+    );
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    let dialog = await openEdit(user);
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    await user.click(saveOf(dialog));
+    expect(await screen.findByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeVisible();
+    dialog = screen.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Kino');
+  });
+
+  it('a card edited and then marked for removal sends only the removal', async () => {
+    const { calls } = mockApi(
+      routes([withTwoFolders], { 'PUT /admin/libraries/1': saved(withTwoFolders) }),
+    );
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    const card = cardOf(dialog, 2);
+    await openCard(user, card);
+    const path = within(card).getByLabelText('Ordner');
+    await user.clear(path);
+    await user.type(path, '/media/Filme-neu');
+    await user.click(within(card).getByRole('button', { name: 'Ordner 2 entfernen' }));
+    await user.click(saveOf(dialog));
+    const confirm = await screen.findByRole('dialog', { name: 'Änderungen bestätigen' });
+    expect(within(confirm).getByText('Ordner entfernen: /media/Filme-2')).toBeVisible();
+    expect(within(confirm).queryByText(/^Pfad ändern/)).toBeNull();
+    await user.type(
+      within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen'),
+      '/media/Filme-2',
+    );
+    await user.click(within(confirm).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    const body = puts(calls)[0]?.body as LibrarySave;
+    expect(body.roots).toHaveLength(1);
+    expect(body).toMatchObject({
+      roots: [{ id: 1, path: '/media/Filme' }],
+      removeRoots: [{ id: 2, confirmPath: '/media/Filme-2' }],
+    });
+  });
+
+  it('a new card added and deleted before the save sends nothing', async () => {
+    const { calls } = mockApi(routes([library()]));
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+    await user.type(within(cardOf(dialog, 2)).getByLabelText('Ordner'), '/media/Serien');
+    await user.click(within(cardOf(dialog, 2)).getByRole('button', { name: 'Ordner 2 entfernen' }));
+    expect(within(dialog).queryByRole('listitem', { name: 'Ordner 2' })).toBeNull();
+    await user.click(saveOf(dialog));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(puts(calls)).toHaveLength(0);
+  });
+
   it('409 scan_running keeps the confirmation with every input and offers «Scan abbrechen»', async () => {
     const { calls } = mockApi(
       routes([withTwoFolders], {
