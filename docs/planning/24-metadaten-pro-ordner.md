@@ -1,9 +1,11 @@
 # Konzept: Metadaten pro Ordner – ein Formular je Bibliothek, Klappbares zu, mehr Kontrast
 
-- **Status: Entwurf, Fassung 2 (16. November 2026).** Marco hat das Mockup freigegeben und F-1 bis
-  F-3 beantwortet (Abschnitt 10). F-4 bis F-6 sind offen. Fassung 2 arbeitet das Kritiker-Review
-  ein (REVISE, 0 Blocker, 12 Major, 13 Minor; Abschnitt 12) und die Nachprüfung der Einarbeitung
-  (acht kleine Korrekturen). **Gebaut wird erst auf Marcos ausdrückliches Wort.**
+- **Status: Entwurf, Fassung 3 (16. November 2026). Alle Fragen sind beantwortet** (Abschnitt 10):
+  Marco hat das Mockup freigegeben, F-1 bis F-3 im Gespräch und F-4 bis F-6 über AskUserQuestion
+  beantwortet, alle wie empfohlen. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
+  0 Blocker, 12 Major, 13 Minor; Abschnitt 12) und die Nachprüfung der Einarbeitung (acht kleine
+  Korrekturen). Die Freigabe des Papiers steht aus. **Gebaut wird erst auf Marcos ausdrückliches
+  Wort.**
 - **Auslöser:** Marco am 16. November 2026: «Zur Zeit gibt es Bibliothek Metadaten Einstellungen
   sowie Ordner Metadaten Einstellungen. Ich möchte, dass es nur noch Metadaten Einstellungen pro
   Ordner gibt. Deshalb möchte ich auch gerne die Ansicht in der Verwaltung/Medien angepasst haben.
@@ -477,11 +479,13 @@ wieder zu. Gespeichert wird nichts, wie heute.
    geschlossenen Aufklapper, öffnet er sich. «Weitere Sprachen» im Ton- und Untertitelmenü des
    Players bleibt offen, wenn die gewählte Spur darin liegt oder es keine Spur in der Sprache des
    Profils gibt (`player/panels/TrackPanels.tsx`).
+4. **Das Aktuelle** (F-5, Marco: «Beide offen»): Die Gruppe «Laufend» auf «Jobs» und die Zeile der
+   nächsten Folge auf der Serienseite bleiben offen. Man öffnet die Seite ihretwegen.
 
 Keine Aufklapper im Sinn der Regel: Menüs, Dialoge, Reiter, «Liste und Detail» und die Panels des
 Players selbst (was in einem Panel aufklappt, schon).
 
-**Was sich ändert** (heute offen):
+**Was sich ändert** (acht der zehn heute offenen Stellen):
 
 | Nr. | Stelle | Datei | Heute |
 |---|---|---|---|
@@ -489,17 +493,15 @@ Players selbst (was in einem Panel aufklappt, schon).
 | 2 | Vorgabe von `BandPanel` (klappbar) | `ui/BandPanel.tsx` | `useState(true)` |
 | 3 | Gruppen je Gerätetyp | `admin/DevicesPage.tsx` | alle offen |
 | 4 | Gruppen je Sicherungsart | `admin/BackupPage.tsx` | alle offen |
-| 5 | Gruppe «Laufend» | `admin/JobsPage.tsx` | offen (F-5; Empfehlung: bleibt offen) |
-| 6 | Abschnitte je Bibliothek in der Pflege | `admin/maintenance/IssueTab.tsx` | alle offen |
-| 7 | Erste Duplikat-Gruppe | `admin/maintenance/DuplicatesTab.tsx` | erste offen |
-| 8 | Bänder «Quelle», «Einträge», «Verwaiste» | `admin/SpotlightPage.tsx` | offen |
-| 9 | Blöcke je Kanal | `notifications/ChannelSettingsPage.tsx` | alle offen |
-| 10 | Zeile der nächsten Folge auf der Serienseite | `catalog/SeasonShelf.tsx` | offen (F-5; Empfehlung: bleibt offen) |
+| 5 | Abschnitte je Bibliothek in der Pflege | `admin/maintenance/IssueTab.tsx` | alle offen |
+| 6 | Erste Duplikat-Gruppe | `admin/maintenance/DuplicatesTab.tsx` | erste offen |
+| 7 | Bänder «Quelle», «Einträge», «Verwaiste» | `admin/SpotlightPage.tsx` | offen |
+| 8 | Blöcke je Kanal | `notifications/ChannelSettingsPage.tsx` | alle offen |
 
-Zwei dieser Stellen zeigen beim Öffnen der Seite das, wofür man gekommen ist: die laufenden
-Aufträge und die Folge, die als nächste dran ist. Ob sie offen bleiben, entscheidet Marco (F-5).
-An der Gruppe «Laufend» hängt zudem die Messung «erste Arbeitszeile» (`e2e-perf/
-admin-height.spec.ts`); bleibt sie nicht offen, misst der Test künftig die Kopfzeile der Gruppe.
+Offen bleiben die Gruppe «Laufend» (`admin/JobsPage.tsx`) und die Zeile der nächsten Folge
+(`catalog/SeasonShelf.tsx`), Ausnahme 4. Die Messung «erste Arbeitszeile» an der Gruppe «Laufend»
+(`e2e-perf/admin-height.spec.ts`) bleibt damit, wie sie ist. Beide Bauteile setzen ihren Zustand
+künftig ausdrücklich, weil die Vorgabe von `DisclosureGroup` auf «zu» wechselt.
 
 Der Bau prüft je Stelle, ob die Kopfzeile schon eine Anzahl oder Zusammenfassung trägt, und
 ergänzt sie, wo sie fehlt (sicher bei den drei Spotlight-Bändern und den Kanalblöcken). Schon
@@ -634,7 +636,7 @@ kann die Stufen 2 und 3 auch in einem Release bestellen.
 | Konzept 12, BIB-3 und BIB-5: Spalte «Metadaten», Ordner-Dialog | entfallen; ein Formular (4) |
 | Konzept 12, S-6 und Konzept 18, 9: «Umbenennen», «Standardstufe», «Vorschau beim Spulen» als eigene Dialoge | Felder desselben Formulars |
 | Frage 31, ADR 0035: «Alle Adressen `/admin/...` samt Suchparametern bleiben» | es entfällt `?library=` auf `/admin/metadata`; alte Links landen auf dem Standard |
-| Mehrere Seiten: Gruppen ab Werk offen (Geräte, Sicherung, Pflege, Spotlight, Kanäle) | ab Werk zu (5); «Laufend» und die nächste Folge nach F-5 |
+| Mehrere Seiten: Gruppen ab Werk offen (Geräte, Sicherung, Pflege, Spotlight, Kanäle) | ab Werk zu (5); «Laufend» und die nächste Folge bleiben offen (F-5) |
 | ADR 0020: «Farben und Kontraste bleiben unverändert» | Farben und Konturen ändern sich für beide Oberflächen (6); die Dichte bleibt |
 | Spec, Design-Richtung: «wenig Rahmen und Linien» | gilt weiter für Bildflächen; Bedienelemente und Flächen der Verwaltung bekommen sichtbare Konturen (6.4) |
 | `packages/design-tokens/tokens/color.json`: ein Rahmen-Token, «used sparingly» | drei Rahmen-Tokens (6.2) |
@@ -648,12 +650,13 @@ Das kommt mit der Freigabe als Zeile unter **Frage 32** ins Entscheidungsprotoko
 | F-1 | Folgt ein Ordner einem gemeinsamen Standard, bis er Eigenes hat, oder trägt jeder Ordner alles selbst? | Standard behalten (heute weicht nichts ab; eine Änderung statt sechs) | **«Ja, Standard behalten»** (Marco, 16. November 2026) |
 | F-2 | Höherer Kontrast nur in der Verwaltung oder auch in der Zuschauer-App? | überall (dieselben Tokens) | **«Ja, überall»** (Marco, 16. November 2026) |
 | F-3 | Speichert «Bearbeiten» alles in einem Zug, mit getipptem Pfad für «Entfernen» und «anderer Inhalt» beim Speichern? | ja | **«Ja, in einem Zug»** (Marco, 16. November 2026) |
-| F-4 | Eine Serie liegt in zwei Ordnern: Welcher Ordner gilt? | der Ordner mit ihrer ältesten Datei (3.2); die Titelseite der Verwaltung nennt ihn | offen |
-| F-5 | Zwei Stellen zeigen heute beim Öffnen das Aktuelle: die Gruppe «Laufend» auf «Jobs» und die nächste Folge auf der Serienseite. Bleiben sie offen? | beide bleiben offen (sie sind der Grund, die Seite zu öffnen); alles andere ist zu | offen |
-| F-6 | Zuschauer-App: Konturen für Knöpfe, Felder und Trennlinien, aber keine Rahmen um Bilder? | ja (6.4) | offen |
+| F-4 | Eine Serie liegt in zwei Ordnern: Welcher Ordner gilt? | der Ordner mit ihrer ältesten Datei (3.2); die Titelseite der Verwaltung nennt ihn | **«Ordner der ältesten Datei»** (wie empfohlen) |
+| F-5 | Zwei Stellen zeigen heute beim Öffnen das Aktuelle: die Gruppe «Laufend» auf «Jobs» und die nächste Folge auf der Serienseite. Bleiben sie offen? | beide bleiben offen (sie sind der Grund, die Seite zu öffnen); alles andere ist zu | **«Beide offen»** (wie empfohlen) |
+| F-6 | Zuschauer-App: Konturen für Knöpfe, Felder und Trennlinien, aber keine Rahmen um Bilder? | ja (6.4) | **«Keine Rahmen um Bilder»** (wie empfohlen) |
 
-Die Klappabschnitte der Seite «Metadaten» und die Ordnerkarte hat Marco mit dem Mockup am
-16. November 2026 freigegeben («Ja, Konzept schreiben»).
+Antworten zu F-4 bis F-6 von Marco am 16. November 2026 über AskUserQuestion. Die Klappabschnitte
+der Seite «Metadaten» und die Ordnerkarte hat Marco mit dem Mockup am 16. November 2026
+freigegeben («Ja, Konzept schreiben»).
 
 ## 11. Prüfung beim Bau
 
@@ -663,7 +666,8 @@ Die Klappabschnitte der Seite «Metadaten» und die Ordnerkarte hat Marco mit de
   `DisclosureGroup.test.tsx`, `BandPanel.test.tsx` (Vorgabe zu), je geänderter Seite der
   Seitentest; e2e, die heute auf offene Gruppen bauen, klappen erst auf (`maintenance.spec.ts`,
   `admin-jobs.spec.ts` und die Specs der Seiten Geräte, Sicherung, Spotlight, Kanäle);
-  `e2e-perf/admin-height.spec.ts` je nach F-5. Tastatur (Regel 8): Aufklapper mit Enter und
+  `e2e-perf/admin-height.spec.ts` unverändert (Ausnahme 4), `JobsPage` und `SeasonShelf` mit
+  ausdrücklich offenem Zustand. Tastatur (Regel 8): Aufklapper mit Enter und
   Leertaste, Fokus bleibt auf der Kopfzeile.
 - **Stufe 2, Server:** Migration gegen den neuen eingefrorenen Stand (3.5); `Effective` je Titel
   (eigener Ordner, Standard, Titel ohne Heimatordner, Serie in zwei Ordnern); Heimatordner an
