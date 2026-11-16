@@ -3465,6 +3465,7 @@
       "update": {
         "title": "Version {{version}} is available",
         "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",
+        "bodyUpdater": "You are running {{current}}. The updater companion installs the update at the press of a button.",
         "notes": "Release notes",
         "development": {
           "title": "You are running a development build",
@@ -3846,7 +3847,7 @@
       },
       "update": {
         "title": "Update check",
-        "intro": "Once a day Slouchcat reads the public release manifest and shows a hint when there is a new version. Nothing is installed.",
+        "intro": "Once a day Slouchcat reads the public release manifest and shows a hint when there is a new version. The check itself installs nothing.",
         "toggle": "Look for new versions daily",
         "on": "Update check switched on.",
         "off": "Update check switched off."

@@ -3487,6 +3487,7 @@
       "update": {
         "title": "Elérhető a(z) {{version}} verzió",
         "body": "Jelenleg ez fut: {{current}}. A Slouchcat maga nem telepít semmit: az új image-et a docker compose pull paranccsal töltse le, és a docker compose up -d paranccsal indítsa újra.",
+        "bodyUpdater": "Jelenleg ez fut: {{current}}. A frissítő társalkalmazás egy gombnyomással telepíti a frissítést.",
         "notes": "Kiadási megjegyzések",
         "development": {
           "title": "Fejlesztői buildet futtat",
@@ -3868,7 +3869,7 @@
       },
       "update": {
         "title": "Frissítések keresése",
-        "intro": "A Slouchcat naponta egyszer beolvassa a nyilvános kiadási jegyzéket, és figyelmeztet, ha új verzió van. Nem telepít semmit.",
+        "intro": "A Slouchcat naponta egyszer beolvassa a nyilvános kiadási jegyzéket, és figyelmeztet, ha új verzió van. Maga a keresés nem telepít semmit.",
         "toggle": "Új verziók keresése naponta",
         "on": "A frissítések keresése bekapcsolva.",
         "off": "A frissítések keresése kikapcsolva."

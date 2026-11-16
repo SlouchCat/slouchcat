@@ -3616,6 +3616,7 @@
       "update": {
         "title": "A versão {{version}} está disponível",
         "body": "Você está usando a {{current}}. O Slouchcat não instala nada sozinho: baixe a nova imagem com docker compose pull e reinicie com docker compose up -d.",
+        "bodyUpdater": "Você está usando a {{current}}. O atualizador instala a atualização com um clique.",
         "notes": "Notas da versão",
         "development": {
           "title": "Você está usando uma versão de desenvolvimento",
@@ -4007,7 +4008,7 @@
       },
       "update": {
         "title": "Verificação de atualizações",
-        "intro": "Uma vez por dia, o Slouchcat lê o manifesto público de versões e exibe um aviso quando há uma versão nova. Nada é instalado.",
+        "intro": "Uma vez por dia, o Slouchcat lê o manifesto público de versões e exibe um aviso quando há uma versão nova. A verificação em si não instala nada.",
         "toggle": "Procurar novas versões diariamente",
         "on": "Verificação de atualizações ativada.",
         "off": "Verificação de atualizações desativada."

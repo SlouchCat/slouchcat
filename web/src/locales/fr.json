@@ -3616,6 +3616,7 @@
       "update": {
         "title": "La version {{version}} est disponible",
         "body": "Vous utilisez la version {{current}}. Slouchcat n’installe rien lui-même : récupérez la nouvelle image avec docker compose pull et redémarrez avec docker compose up -d.",
+        "bodyUpdater": "Vous utilisez la version {{current}}. L’Updater installe la mise à jour en un clic.",
         "notes": "Notes de version",
         "development": {
           "title": "Vous utilisez une version de développement",
@@ -4007,7 +4008,7 @@
       },
       "update": {
         "title": "Recherche de mises à jour",
-        "intro": "Une fois par jour, Slouchcat lit le manifeste de version public et affiche un avis lorsqu’une nouvelle version existe. Rien n’est installé.",
+        "intro": "Une fois par jour, Slouchcat lit le manifeste de version public et affiche un avis lorsqu’une nouvelle version existe. La recherche elle-même n’installe rien.",
         "toggle": "Rechercher chaque jour les nouvelles versions",
         "on": "Recherche de mises à jour activée.",
         "off": "Recherche de mises à jour désactivée."

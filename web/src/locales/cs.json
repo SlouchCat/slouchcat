@@ -3745,6 +3745,7 @@
       "update": {
         "title": "K dispozici je verze {{version}}",
         "body": "Používáte {{current}}. Slouchcat nic neinstaluje sám: nový image stáhněte pomocí docker compose pull a restartujte pomocí docker compose up -d.",
+        "bodyUpdater": "Používáte {{current}}. Updater nainstaluje aktualizaci jedním kliknutím.",
         "notes": "Poznámky k vydání",
         "development": {
           "title": "Používáte vývojové sestavení",
@@ -4146,7 +4147,7 @@
       },
       "update": {
         "title": "Kontrola aktualizací",
-        "intro": "Jednou denně Slouchcat přečte veřejný manifest vydání a při nové verzi zobrazí upozornění. Nic se neinstaluje.",
+        "intro": "Jednou denně Slouchcat přečte veřejný manifest vydání a při nové verzi zobrazí upozornění. Samotná kontrola nic neinstaluje.",
         "toggle": "Denně hledat nové verze",
         "on": "Kontrola aktualizací zapnuta.",
         "off": "Kontrola aktualizací vypnuta."

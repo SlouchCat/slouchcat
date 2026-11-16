@@ -3358,6 +3358,7 @@
       "update": {
         "title": "版本 {{version}} 现已推出",
         "body": "你当前运行的是 {{current}}。Slouchcat 不会自动安装：请用 docker compose pull 获取新镜像，然后用 docker compose up -d 重启。",
+        "bodyUpdater": "你当前运行的是 {{current}}。更新程序配套容器可一键安装更新。",
         "notes": "版本说明",
         "development": {
           "title": "你正在运行开发版本",
@@ -3729,7 +3730,7 @@
       },
       "update": {
         "title": "更新检查",
-        "intro": "Slouchcat 每天读取一次公开的发布清单，有新版本时会显示提示。不会安装任何内容。",
+        "intro": "Slouchcat 每天读取一次公开的发布清单，有新版本时会显示提示。检查本身不会安装任何内容。",
         "toggle": "每天检查新版本",
         "on": "更新检查已开启。",
         "off": "更新检查已关闭。"

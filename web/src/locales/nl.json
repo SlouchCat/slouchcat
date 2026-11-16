@@ -3487,6 +3487,7 @@
       "update": {
         "title": "Versie {{version}} is beschikbaar",
         "body": "Je gebruikt {{current}}. Slouchcat installeert zelf niets: haal het nieuwe image op met docker compose pull en start opnieuw met docker compose up -d.",
+        "bodyUpdater": "Je gebruikt {{current}}. De updater-companion installeert de update met één druk op de knop.",
         "notes": "Release notes",
         "development": {
           "title": "Je gebruikt een ontwikkelversie",
@@ -3868,7 +3869,7 @@
       },
       "update": {
         "title": "Updatecontrole",
-        "intro": "Eens per dag leest Slouchcat het openbare releasemanifest en toont een melding als er een nieuwe versie is. Er wordt niets geïnstalleerd.",
+        "intro": "Eens per dag leest Slouchcat het openbare releasemanifest en toont een melding als er een nieuwe versie is. De controle zelf installeert niets.",
         "toggle": "Dagelijks naar nieuwe versies zoeken",
         "on": "Updatecontrole ingeschakeld.",
         "off": "Updatecontrole uitgeschakeld."

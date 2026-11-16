@@ -3487,6 +3487,7 @@
       "update": {
         "title": "Versjon {{version}} er tilgjengelig",
         "body": "Du kjører {{current}}. Slouchcat installerer ingenting selv: hent det nye imaget med docker compose pull og start på nytt med docker compose up -d.",
+        "bodyUpdater": "Du kjører {{current}}. Oppdateringshjelperen installerer oppdateringen med et knappetrykk.",
         "notes": "Utgivelsesnotater",
         "development": {
           "title": "Du kjører en utviklingsversjon",
@@ -3868,7 +3869,7 @@
       },
       "update": {
         "title": "Oppdateringssjekk",
-        "intro": "Én gang i døgnet leser Slouchcat det offentlige utgivelsesmanifestet og viser et tips når det finnes en ny versjon. Ingenting installeres.",
+        "intro": "Én gang i døgnet leser Slouchcat det offentlige utgivelsesmanifestet og viser et tips når det finnes en ny versjon. Selve sjekken installerer ingenting.",
         "toggle": "Se etter nye versjoner daglig",
         "on": "Oppdateringssjekken er slått på.",
         "off": "Oppdateringssjekken er slått av."

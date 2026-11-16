@@ -3487,6 +3487,7 @@
       "update": {
         "title": "Versio {{version}} on saatavilla",
         "body": "Käytössäsi on {{current}}. Slouchcat ei asenna mitään itse: hae uusi image komennolla docker compose pull ja käynnistä uudelleen komennolla docker compose up -d.",
+        "bodyUpdater": "Käytössäsi on {{current}}. Päivittäjä asentaa päivityksen painikkeen painalluksella.",
         "notes": "Julkaisutiedot",
         "development": {
           "title": "Käytössäsi on kehitysversio",
@@ -3868,7 +3869,7 @@
       },
       "update": {
         "title": "Päivitysten tarkistus",
-        "intro": "Slouchcat lukee kerran päivässä julkisen julkaisumanifestin ja näyttää vihjeen, kun uusi versio on saatavilla. Mitään ei asenneta.",
+        "intro": "Slouchcat lukee kerran päivässä julkisen julkaisumanifestin ja näyttää vihjeen, kun uusi versio on saatavilla. Itse tarkistus ei asenna mitään.",
         "toggle": "Etsi uusia versioita päivittäin",
         "on": "Päivitysten tarkistus otettu käyttöön.",
         "off": "Päivitysten tarkistus poistettu käytöstä."
