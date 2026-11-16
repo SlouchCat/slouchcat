@@ -3,7 +3,7 @@ import type {
   MetadataSettings,
   MetadataSettingsUpdate,
 } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { library, ratingSystems } from '@/test/fixtures';
@@ -309,6 +309,31 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     await openArea(user, 'Bildqualität');
     expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'true');
     expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('the same ?item= link again reopens its section and brings its header into view once', async () => {
+    mockApi(routes());
+    const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { router } = renderApp('/admin/metadata?item=rating');
+    expect(await sectionOf('Altersfreigabe')).toBeVisible();
+    // The section's block, its header first (the side navigation scrolls its own entry too).
+    const block =
+      toggleOf('Altersfreigabe').closest('h2')!.parentElement!.parentElement!.parentElement!;
+    const scrollsOfBlock = () => scrolled.mock.contexts.filter((node) => node === block).length;
+    await waitFor(() => expect(scrollsOfBlock()).toBe(1));
+    expect(block).toContainElement(toggleOf('Altersfreigabe'));
+    expect(block.firstElementChild).toContainElement(toggleOf('Altersfreigabe'));
+    const user = userEvent.setup();
+    await user.click(toggleOf('Altersfreigabe'));
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
+    expect(scrollsOfBlock()).toBe(1);
+    // The same address again: no search value changes, the section opens and scrolls anew.
+    await act(() => router.navigate({ to: '/admin/metadata', search: { item: 'rating' } }));
+    await waitFor(() =>
+      expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'true'),
+    );
+    await waitFor(() => expect(scrollsOfBlock()).toBe(2));
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('?item=folders opens the folders: one row per video folder with languages, images and the way to its folders', async () => {

@@ -15,7 +15,7 @@ import {
   type RefObject,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, useRouter } from '@tanstack/react-router';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
@@ -393,15 +393,29 @@ export function MetadataPage() {
   }, [stale, navigate]);
 
   // Every section starts closed (concept 24 P-3) and stays as the reader leaves it; `?item=`
-  // opens its section once, adjusted while rendering so it is open in the first render.
+  // opens its section once per navigation, adjusted while rendering so it is open in the first
+  // render. Following the same link again changes no search value, so those navigations (same
+  // address as before) are counted: the same `?item=` reopens a section closed meanwhile.
+  const router = useRouter();
+  const [visits, setVisits] = useState(0);
+  useEffect(
+    () =>
+      router.subscribe('onResolved', (event) => {
+        if (event.fromLocation && !event.hrefChanged) setVisits((count) => count + 1);
+      }),
+    [router],
+  );
+  const askedKey = isSection(askedItem) ? `${visits}:${askedItem}` : undefined;
   const [expanded, setExpanded] = useState<ReadonlySet<Section>>(() => new Set());
-  const [openedItem, setOpenedItem] = useState<Section | undefined>(undefined);
-  if (isSection(askedItem) && openedItem !== askedItem) {
-    setOpenedItem(askedItem);
-    setExpanded((current) => new Set(current).add(askedItem));
-  } else if (!isSection(askedItem) && openedItem !== undefined) {
-    setOpenedItem(undefined);
+  const [openedKey, setOpenedKey] = useState<string | undefined>(undefined);
+  if (askedKey !== openedKey) {
+    setOpenedKey(askedKey);
+    if (isSection(askedItem)) setExpanded((current) => new Set(current).add(askedItem));
   }
+  // The opened section's header comes into view once per navigation; an instant scroll, so
+  // prefers-reduced-motion has nothing to calm (global.css keeps scroll-behavior auto).
+  const sectionRefs = useRef<Partial<Record<Section, HTMLDivElement | null>>>({});
+  const scrolledKey = useRef<string | undefined>(undefined);
   const toggle = (id: Section, open: boolean) =>
     setExpanded((current) => {
       const next = new Set(current);
@@ -838,6 +852,11 @@ export function MetadataPage() {
 
   const ready = allowed && settings.data && libraries.data;
   const loadError = settings.error ?? libraries.error;
+  useEffect(() => {
+    if (!ready || askedKey === undefined || scrolledKey.current === askedKey) return;
+    scrolledKey.current = askedKey;
+    if (isSection(askedItem)) sectionRefs.current[askedItem]?.scrollIntoView({ block: 'start' });
+  }, [ready, askedKey, askedItem]);
 
   return (
     <AdminPage
@@ -887,7 +906,13 @@ export function MetadataPage() {
           <Panel>
             <div className={styles.sections}>
               {SECTIONS.map((id) => (
-                <div key={id} className={styles.section}>
+                <div
+                  key={id}
+                  ref={(node) => {
+                    sectionRefs.current[id] = node;
+                  }}
+                  className={styles.section}
+                >
                   <DisclosureGroup
                     level={2}
                     title={titles[id]}
