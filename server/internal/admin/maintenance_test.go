@@ -950,3 +950,32 @@ func TestAdminMaintenanceMergeSpreadsTheHomeFolder(t *testing.T) {
 		}
 	}
 }
+
+// A merge of two episodes re-homes their series, not the target episode alone: the target's files
+// lie in another folder than the series' home folder, which keeps a present file of the series,
+// so the series, its seasons and all episodes stay in that home folder with its list (ADR 0036).
+func TestAdminMaintenanceMergeOfEpisodesKeepsTheSeriesHome(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	series, a := f.Show.Series.ID, f.RootID()
+	const homeList, otherList = `["tmdb"]`, `["tvdb"]`
+	tree := `id = ? OR parent_id = ? OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?)`
+	m.exec(t, `UPDATE library_roots SET providers = ? WHERE id = ?`, homeList, a)
+	m.exec(t, `UPDATE items SET root_id = ?, providers = ? WHERE `+tree, a, homeList, series, series, series)
+	m.exec(t, `INSERT INTO library_roots (id, library_id, path, fs_type, watch, created_at, content, providers)
+	           VALUES (900, ?, ?, 'local', 'poll', 0, 'series', ?)`, f.LibraryID(), t.TempDir(), otherList)
+	// Both episodes' files lie in folder 900; E3 and the special keep the series in folder a.
+	m.exec(t, `UPDATE media_files SET root_id = 900 WHERE id IN (?, ?)`, f.Show.E1.FileID, f.Show.E2.FileID)
+	if _, err := m.svc.MergeItems(m.ctx, f.Show.E2.ID, []string{f.Show.E1.ID}); err != nil {
+		t.Fatal(err)
+	}
+	var total, wrong int
+	if err := f.DB.Read.QueryRow(`SELECT count(*), count(*) FILTER (WHERE root_id IS NOT ? OR providers <> ?)
+	    FROM items WHERE `+tree, a, homeList, series, series, series).Scan(&total, &wrong); err != nil {
+		t.Fatal(err)
+	}
+	// Series, season 1, specials, E2, E3, the special and the extra (E1 was merged away).
+	if total != 7 || wrong != 0 {
+		t.Errorf("merged tree: %d rows, %d outside home folder %d or its list %s", total, wrong, a, homeList)
+	}
+}
