@@ -4977,6 +4977,8 @@
         "likeDefault": "Wie Standard",
         "own": "Eigene",
         "defaultIs": "Standard: {{value}}",
+        "imagesDefaultIs": "Standard: {{kinds}}. Sprache je Bildart: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
         "onlyHere": "Gilt nur für diesen Ordner.",
         "cost": "Jede weitere Sprache kostet beim Anwenden eine Anfrage je Titel und Staffel dieses Ordners.",
         "always": "Poster und Hintergrund holt Slouchcat immer."

@@ -1,8 +1,9 @@
 import type { MetadataProviderInfo, MetadataSettings } from '@slouchcat/api-client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { json, mockApi, type Routes } from '@/test/api';
+import { json, mockApi, problem, type Routes } from '@/test/api';
 import { ratingSystems } from '@/test/fixtures';
 import { FolderMetadataFields, type FolderMetadataDraft } from './FolderMetadataFields';
 
@@ -93,5 +94,42 @@ describe('FolderMetadataFields (concept 24 4.2)', () => {
         /^TMDB kennt nicht: Japanisch ANILIST kennt nicht: Deutsch und Japanisch Jede/,
       ),
     ).toBeVisible();
+  });
+
+  it('names the default beside «Wie Standard»: the languages, the image kinds and their languages', async () => {
+    mockApi({
+      'GET /admin/settings/metadata': () =>
+        json({ ...defaults, imageKinds: ['season_poster'] } satisfies MetadataSettings),
+    });
+    renderFields({ ownLangs: false, ownImages: false });
+    const langs = await screen.findByRole('radiogroup', { name: 'Sprachen' });
+    expect(langs).toHaveAccessibleDescription('Standard: Deutsch › Englisch');
+    // Without the logo, the default fetches no logo, so its language is not named.
+    expect(screen.getByRole('radiogroup', { name: 'Bilder' })).toHaveAccessibleDescription(
+      'Standard: Poster, Hintergrund und Staffelposter. Sprache je Bildart: ' +
+        'Poster: Deutsch › Englisch › Ohne Text und Hintergrund: Ohne Text › Deutsch › Englisch.',
+    );
+  });
+
+  it('shows a placeholder while the default loads', () => {
+    mockApi({ 'GET /admin/settings/metadata': () => new Promise<Response>(() => undefined) });
+    const { container } = renderFields({ ownLangs: false, ownImages: false });
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(container.querySelector('[class*="skeleton"]')).not.toBeNull();
+  });
+
+  it('says so when the default cannot be loaded and loads it again on «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi({
+      'GET /admin/settings/metadata': () =>
+        fail ? problem(500, 'internal') : json(defaults satisfies MetadataSettings),
+    });
+    renderFields({ ownLangs: false, ownImages: false });
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    fail = false;
+    await userEvent.setup().click(retry);
+    expect(await screen.findByRole('radiogroup', { name: 'Sprachen' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).toBeNull();
   });
 });

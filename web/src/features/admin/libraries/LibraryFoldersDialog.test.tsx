@@ -603,7 +603,7 @@ describe('library folders dialog', () => {
       expect(langs).toHaveAccessibleDescription('Standard: Deutsch › Englisch');
       const images = within(change).getByRole('radiogroup', { name: 'Bilder' });
       expect(images).toHaveAccessibleDescription(
-        'Standard: Poster, Hintergrund, Logo, Staffelposter und Folgenbild',
+        'Standard: Poster, Hintergrund, Logo, Staffelposter und Folgenbild. Sprache je Bildart: Poster: Deutsch › Englisch › Ohne Text, Hintergrund: Ohne Text › Deutsch › Englisch und Logo: Deutsch › Englisch.',
       );
       // Nothing of its own: no place list.
       expect(within(change).queryByRole('group', { name: 'Metadaten-Sprachen' })).toBeNull();

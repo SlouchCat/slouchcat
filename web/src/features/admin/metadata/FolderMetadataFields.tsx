@@ -7,8 +7,9 @@ import type {
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Notice, Text } from '@/ui';
-import { CheckboxGroup, RadioGroup, SettingRow } from '@/ui/aria';
+import { problemMessage } from '@/api/errors';
+import { Notice, Skeleton, Text } from '@/ui';
+import { AriaButton, CheckboxGroup, RadioGroup, SettingRow } from '@/ui/aria';
 import { metadataProvidersForQuery, metadataSettingsQuery } from '../queries';
 import {
   LanguageRanks,
@@ -156,7 +157,20 @@ export function FolderMetadataFields({
   });
   // The previous answer belongs to the previous list: no hint until this list's answer is there.
   const providersOfList = providers.isPlaceholderData ? undefined : providers.data;
-  if (!settings.data) return null;
+  // The rows start from the default and name it: without it there is nothing to choose yet.
+  if (settings.isPending) return <Skeleton shape="block" />;
+  if (!settings.data)
+    return (
+      <Notice
+        tone="danger"
+        title={problemMessage(t, settings.error)}
+        actions={
+          <AriaButton icon="refresh" onPress={() => void settings.refetch()}>
+            {t('common.retry')}
+          </AriaButton>
+        }
+      />
+    );
   const defaults = settings.data;
   const known = defaults.knownLanguages;
   const error = (field: string) => fieldErrors?.[`${fieldPrefix}${field}`];
@@ -166,11 +180,23 @@ export function FolderMetadataFields({
   const images = value.ownImages ? (value.images ?? defaultImages(defaults)) : undefined;
   const chainOf = (kind: ChainKind) => images?.langs[kind] ?? defaults.imageLangs[kind];
   const setImages = (next: RootImages) => onChange({ ...value, images: next });
-  const defaultKinds = listOf([
-    t('admin.metadata.images.kind.poster'),
-    t('admin.metadata.images.kind.backdrop'),
-    ...switchable(defaults.imageKinds).map((kind) => t(`admin.metadata.images.kind.${kind}`)),
-  ]);
+  const defaultKinds = switchable(defaults.imageKinds);
+  // «Wie Standard» names the default's kinds and the language of each kind it fetches (4.2).
+  const defaultImagesText = t('admin.metadata.folder.imagesDefaultIs', {
+    kinds: listOf([
+      t('admin.metadata.images.kind.poster'),
+      t('admin.metadata.images.kind.backdrop'),
+      ...defaultKinds.map((kind) => t(`admin.metadata.images.kind.${kind}`)),
+    ]),
+    chains: listOf(
+      CHAIN_KINDS.filter((kind) => kind !== 'logo' || defaultKinds.includes('logo')).map((kind) =>
+        t('admin.metadata.folder.imageChain', {
+          kind: t(`admin.metadata.images.kind.${kind}`),
+          chain: chainText(t, nameOf, defaults.imageLangs[kind]),
+        }),
+      ),
+    ),
+  });
   const choices = [
     { value: 'default', label: t('admin.metadata.folder.likeDefault') },
     { value: 'own', label: t('admin.metadata.folder.own') },
@@ -231,11 +257,7 @@ export function FolderMetadataFields({
       <RadioGroup
         name={`${name}.imagesMode`}
         label={t('admin.metadata.images.title')}
-        description={
-          value.ownImages
-            ? t('admin.metadata.folder.onlyHere')
-            : t('admin.metadata.folder.defaultIs', { value: defaultKinds })
-        }
+        description={value.ownImages ? t('admin.metadata.folder.onlyHere') : defaultImagesText}
         value={value.ownImages ? 'own' : 'default'}
         onChange={(mode) =>
           onChange({
