@@ -89,6 +89,8 @@ export function itemFacts(t: TFunction, item: AdminItem, language: string): [str
     [t('admin.item.facts.kind'), t(`kind.${item.kind}`)],
     [t('admin.item.facts.id'), item.id],
     [t('admin.item.facts.library'), String(item.libraryId)],
+    // The folder whose languages, images and sources the title follows (ADR 0036).
+    [t('admin.item.facts.homeRoot'), item.homeRoot?.path ?? t('admin.item.facts.homeRootNone')],
   ];
   if (item.seasonNumber !== undefined) {
     rows.push([t('admin.item.facts.season'), String(item.seasonNumber)]);

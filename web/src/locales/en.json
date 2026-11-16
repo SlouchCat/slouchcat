@@ -2274,7 +2274,9 @@
         "children": "Content",
         "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Home folder",
+        "homeRootNone": "None, the default applies"
       },
       "sources": {
         "title": "Source per field",

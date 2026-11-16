@@ -2274,7 +2274,9 @@
         "children": "Inhalt",
         "childCounts": "Staffeln: {{seasons}} · Folgen: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Heimatordner",
+        "homeRootNone": "Keiner, es gilt der Standard"
       },
       "sources": {
         "title": "Herkunft je Feld",
