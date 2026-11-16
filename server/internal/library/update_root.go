@@ -471,11 +471,18 @@ func (s *Service) changeRootContentTx(ctx context.Context, tx *sql.Tx, root appq
 	}); err != nil {
 		return 0, 0, fmt.Errorf("update library root %d: %w", root.ID, err)
 	}
-	// The titles that survive the content change still live here without a file: they move to
-	// the folder of their oldest present file with its provider list (ADR 0036).
+	// The titles that survive the content change still live here without a file: they lose the
+	// folder as their home, as a removal does through the foreign key, so a folder never holds a
+	// title of another content; those with a present file elsewhere move to the folder of their
+	// oldest one with its provider list (ADR 0036).
 	survivors, err := q.ListTitleIDsOfRoot(ctx, root.ID)
 	if err != nil {
 		return 0, 0, fmt.Errorf("list titles of root %d: %w", root.ID, err)
+	}
+	for _, id := range survivors {
+		if _, err := q.SetTitleHome(ctx, systemq.SetTitleHomeParams{Now: now, TitleID: id}); err != nil {
+			return 0, 0, fmt.Errorf("clear home folder of %s: %w", id, err)
+		}
 	}
 	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), survivors); err != nil {
 		return 0, 0, err

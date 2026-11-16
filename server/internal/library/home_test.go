@@ -350,3 +350,20 @@ func TestHomeFolderAfterDeletingTheEpisodeInIt(t *testing.T) {
 		t.Error("the move queued no match")
 	}
 }
+
+// A survivor of a content change without a present file elsewhere (its only other copy missing)
+// loses the folder as its home: a series folder holds no film's home, and the next list change of
+// the folder does not reach it.
+func TestHomeFolderOfASurvivorWithoutAPresentFile(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	lib, a, b, film, dirA, _ := e.twoMovieFolders(nil)
+	e.exec(`UPDATE media_files SET missing_since = 1 WHERE root_id = ?`, b)
+	series := model.RootSeries
+	if _, err := e.svc.UpdateRoot(e.ctx, lib.ID, a, model.LibraryRootUpdate{Content: &series, Providers: model.DefaultProviders(series), ConfirmPath: dirA}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.home(film); got != `0/["tmdb"]` {
+		t.Errorf("survivor after the content change = %s, want no home folder and its list", got)
+	}
+}
