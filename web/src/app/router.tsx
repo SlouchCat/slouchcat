@@ -532,8 +532,8 @@ const jobsRoute = createRoute({
 const metadataRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/metadata',
-  // `?library=<id>` opens the page on that library's deviation (the link on the library card);
-  // `?item=` is the selected settings area (concept 12, S-14).
+  // `?item=` opens the named fold section (concept 24 3.4). `?library=<id>` of the earlier
+  // per-library scope is still read, only so the page can drop it from the address.
   validateSearch: (search: Record<string, unknown>): AdminSearch & { library?: number } => ({
     ...adminSearch(search),
     ...(typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
