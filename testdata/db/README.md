@@ -452,3 +452,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   das Freigabeland CH (Stichtag 15. November 2026, 12:00 UTC). Dann `store.Dump`, kein neuer Pfad im Stand.
   `TestFrozenFreigabelaenderStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist; die
   Migrationstests der Stufe 3 prüfen den Umbau von diesem Stand aus.
+- `ordner-metadaten.sql`: Stand **vor** Migration 00065 (Konzept 24 Stufe 2, ADR 0036: Metadaten je
+  Ordner, Heimatordner `items.root_id`). Erzeugt am 16. November 2026 aus `freigabelaender.sql` nach
+  Migration 00064: Stand eingespielt und migriert, dann per SQL ein zweiter Serienordner
+  `/media/frozen/TV2` (Kennung 5) in der Bibliothek «Serien», darin eine Staffel 2 der «Slouchcat Test
+  Show» mit einer Folge, deren Datei älter ist als jede Datei der Staffel 1 (die Serie liegt damit in
+  beiden Ordnern, ihr Heimatordner ist 5), eine vermisste, noch ältere Datei der «Slouchcat Test Intro
+  Show» im zweiten Ordner (zählt nicht) und eine zweite Abweichung in `library_metadata` (Bibliothek
+  «Filme», nur Sprachen `fr`, `en`; die der «Serien» mit Sprachen und Bildern stammt aus den früheren
+  Ständen). Dann `store.Dump`, kein neuer Pfad ausser `/media/frozen/TV2`.
+  `TestFrozenOrdnerMetadatenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00065RootMetadata` prüft die Migration von diesem Stand aus.

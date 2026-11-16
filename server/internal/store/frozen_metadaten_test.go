@@ -37,7 +37,8 @@ func TestFrozenMetadatenStateCoversTheConcept(t *testing.T) {
 		"text row of the third language, rank 2": `SELECT count(*) FROM item_texts WHERE lang = 'es' AND rank = 2`,
 		"text rows with rank 0 and 1":            `SELECT count(*) FROM item_texts WHERE rank IN (0, 1)`,
 		"profile with its own metadata language": `SELECT count(*) FROM profiles WHERE metadata_language IS NOT NULL AND metadata_language <> ''`,
-		"library deviation with texts and images": `SELECT count(*) FROM library_metadata WHERE text_langs IS NOT NULL AND images IS NOT NULL
+		// The library deviation of the state lives on its folders since migration 00065 (ADR 0036).
+		"library deviation with texts and images": `SELECT count(*) FROM library_roots WHERE text_langs IS NOT NULL AND images IS NOT NULL
 			AND json_valid(images) AND json_extract(images, '$.kinds[0]') = 'logo'`,
 		"TMDB image sources carried over by 00029": `SELECT count(*) FROM item_images WHERE provider = 'tmdb' AND kind IN ('poster', 'backdrop') AND chosen = 0`,
 		"chosen local poster":                      `SELECT count(*) FROM item_images WHERE provider = 'local' AND chosen = 1 AND source LIKE 'file:%'`,

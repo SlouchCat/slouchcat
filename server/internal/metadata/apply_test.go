@@ -12,57 +12,13 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// Step 3 of concept 10 (ADR 0018): the settings with a library's deviation, the union of the
-// languages a profile may choose, the apply run that queues one child per title without doubling
+// Step 3 of concept 10 (ADR 0018): the server's settings, the apply run that queues one child per title without doubling
 // a waiting one, and the rating country (decision 6 as amended by decision 16).
 
-func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
+func TestServerMetadataSettingsStoredAtOnce(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
-	// Server: de, en (default). Library 2 (Serien) reads ja, en and textless posters first.
-	ja := []string{"ja", "en"}
-	if err := e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &ja, Images: &LibraryImages{Langs: map[string][]string{"poster": {"", "ja"}}, Kinds: []string{ImageKindLogo}}}); err != nil {
-		t.Fatal(err)
-	}
-	st, err := e.svc.Effective(ctx, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(st.TextLangs, ja) || !slices.Equal(st.ImageLangs["poster"], []string{"", "ja"}) ||
-		!slices.Equal(st.ImageLangs["backdrop"], DefaultSettings().ImageLangs["backdrop"]) || !slices.Equal(st.ImageKinds, []string{ImageKindLogo}) {
-		t.Errorf("effective of library 2: %+v", st)
-	}
-	one, err := e.svc.Effective(ctx, 1)
-	if err != nil || !slices.Equal(one.TextLangs, []string{"de", "en"}) {
-		t.Errorf("library 1 should read the server's list: %v %v", one.TextLangs, err)
-	}
-	// The union a profile may choose: the server's list first, then the libraries' extra languages.
-	avail, err := e.svc.AvailableMetadataLanguages(ctx)
-	if err != nil || !slices.Equal(avail, []string{"de", "en", "ja"}) {
-		t.Errorf("available = %v, %v", avail, err)
-	}
-	// A library reading Japanese only is fine (concept 22 F-7); an unknown kind is refused.
-	jaOnly := []string{"ja"}
-	if err := e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{TextLangs: &jaOnly}); err != nil {
-		t.Errorf("ja only: %v", err)
-	}
-	var verr *model.ValidationError
-	err = e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{Images: &LibraryImages{Kinds: []string{"thumb"}}})
-	if !errors.As(err, &verr) || !hasFieldError(verr.Fields, "images.kinds", "invalid_value") {
-		t.Errorf("thumb: %v", err)
-	}
-	// Everything nil removes the row; the server's list applies again.
-	if err := e.svc.UpdateLibraryDeviation(ctx, 2, LibraryDeviation{}); err != nil {
-		t.Fatal(err)
-	}
-	if lm, err := e.svc.LibraryMetadata(ctx, 2); err != nil || lm.TextLangs != nil || lm.Images != nil || !slices.Equal(lm.Effective.TextLangs, []string{"de", "en"}) {
-		t.Errorf("after the reset: %+v %v", lm, err)
-	}
-	if _, err := e.svc.LibraryMetadata(ctx, 777); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("unknown library: %v", err)
-	}
-
 	// The server's settings: stored all at once, read back with the counts; the server's list needs de.
 	m, err := e.svc.MetadataSettings(ctx)
 	if err != nil || m.RatingCountry != "DE" || m.AffectedTitles != 0 || len(m.KnownLanguages) < 150 {
@@ -75,7 +31,7 @@ func TestEffectiveSettingsWithLibraryDeviation(t *testing.T) {
 	if _, err := e.svc.UpdateMetadataSettings(ctx, m); err != nil {
 		t.Fatal(err)
 	}
-	st, err = e.svc.Settings(ctx)
+	st, err := e.svc.Settings(ctx)
 	if err != nil || !slices.Equal(st.TextLangs, []string{"de", "en", "es"}) || st.RatingCountry != "CH" || st.ImageMinWidth["poster"] != 1000 || !st.FanartEnabled {
 		t.Errorf("stored settings: %+v %v", st, err)
 	}

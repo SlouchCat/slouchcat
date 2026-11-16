@@ -345,7 +345,7 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 	var out []fetchedRecord
 	var skipped []string
 	anilistID := int64(-1)
-	settings, err := s.Effective(ctx, item.LibraryID)
+	settings, err := s.Effective(ctx, item)
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("metadata.fill: %w", err)
 	}
@@ -622,7 +622,7 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 	// Images (ADR 0018, 6.2): the choice over local files, the list and Fanart.tv writes
 	// item_images; the two path columns on items stay as they are (unused since step 2).
 	poster, backdrop := cur.TmdbPosterPath, cur.TmdbBackdropPath
-	settings, err := s.Effective(ctx, cur.LibraryID)
+	settings, err := s.Effective(ctx, cur)
 	if err != nil {
 		return out, fmt.Errorf("metadata.fill: %w", err)
 	}

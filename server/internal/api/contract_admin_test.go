@@ -29,7 +29,7 @@ func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID s
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
 
-func (contractMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+func (contractMetadata) ProviderLanguages(context.Context, []string) (map[string][]string, error) {
 	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
 }
 func (contractMetadata) DeleteTrailer(context.Context, string, int64) error { return model.ErrNotFound }

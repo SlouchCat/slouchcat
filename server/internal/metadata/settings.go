@@ -310,21 +310,9 @@ func (s *Service) Settings(ctx context.Context) (Settings, error) {
 	return out, nil
 }
 
-// LibraryDeviation is what a library overrides (concept 10 4.5): nil = like the server.
-type LibraryDeviation struct {
-	TextLangs *[]string
-	Images    *LibraryImages
-}
-
-// LibraryImages is the image part of a library's deviation: the chains per kind and the
-// switchable kinds that are on.
-type LibraryImages struct {
-	Langs map[string][]string `json:"langs"`
-	Kinds []string            `json:"kinds"`
-}
-
-// apply returns the server settings with the deviation applied.
-func (d LibraryDeviation) apply(st Settings) Settings {
+// applyRoot returns the default with a folder's own settings applied (concept 24 3.1): its text
+// languages replace the default's list, its images the chains it names and the switchable kinds.
+func applyRoot(st Settings, d model.RootMetadata) Settings {
 	out := st
 	if d.TextLangs != nil {
 		out.TextLangs = slices.Clone(*d.TextLangs)
@@ -343,9 +331,11 @@ func (d LibraryDeviation) apply(st Settings) Settings {
 	return out
 }
 
-// Validate checks a deviation: a library's list holds de or en (E-9), chains and kinds as the
-// server's (concept 9.5).
-func (d LibraryDeviation) Validate() *model.ValidationError {
+// ValidateRootMetadata checks a folder's own settings (concept 9.5 as for the default): the text
+// list as ValidateTextLangs, chains without unknown codes or duplicates, only the chain kinds and
+// switchable kinds. An image setting with no kind on is valid (no logo, no season poster, no
+// episode still). Field names follow the contract (LibraryRootUpdate).
+func ValidateRootMetadata(d model.RootMetadata) *model.ValidationError {
 	var verr *model.ValidationError
 	if d.TextLangs != nil {
 		verr = ValidateTextLangs("textLangs", *d.TextLangs)
@@ -372,67 +362,31 @@ func (d LibraryDeviation) Validate() *model.ValidationError {
 	return verr
 }
 
-// deviationOf decodes a library_metadata row.
-func deviationOf(row systemq.LibraryMetadatum) (LibraryDeviation, error) {
-	var d LibraryDeviation
-	if row.TextLangs.Valid {
-		var langs []string
-		if err := json.Unmarshal([]byte(row.TextLangs.String), &langs); err != nil {
-			return d, fmt.Errorf("library %d text_langs: %w", row.LibraryID, err)
-		}
-		d.TextLangs = &langs
-	}
-	if row.Images.Valid {
-		var imgs LibraryImages
-		if err := json.Unmarshal([]byte(row.Images.String), &imgs); err != nil {
-			return d, fmt.Errorf("library %d images: %w", row.LibraryID, err)
-		}
-		d.Images = &imgs
-	}
-	return d, nil
+// isVideoContent reports whether a folder content may carry own languages and images: audiobook
+// and podcast folders follow the default (concept 24 3.1).
+func isVideoContent(content string) bool {
+	return content == model.RootMovie || content == model.RootSeries
 }
 
-// LibraryDeviation reads the deviation of a library (empty when it has no row).
-func (s *Service) LibraryDeviation(ctx context.Context, libraryID int64) (LibraryDeviation, error) {
-	row, err := s.read.GetLibraryMetadata(ctx, libraryID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return LibraryDeviation{}, nil
-	}
+// rootSettings reads the own settings of a folder; a folder that is gone, not a video folder or
+// whose columns do not parse has none (the last case is logged).
+func (s *Service) rootSettings(ctx context.Context, rootID int64) model.RootMetadata {
+	row, err := s.read.GetRootMetadata(ctx, rootID)
 	if err != nil {
-		return LibraryDeviation{}, fmt.Errorf("library metadata %d: %w", libraryID, err)
-	}
-	return deviationOf(row)
-}
-
-// UpdateLibraryDeviation stores (or, when everything is nil, removes) the deviation of a library.
-func (s *Service) UpdateLibraryDeviation(ctx context.Context, libraryID int64, d LibraryDeviation) error {
-	if verr := d.Validate(); verr != nil {
-		return verr
-	}
-	if d.TextLangs == nil && d.Images == nil {
-		if err := s.write.DeleteLibraryMetadata(ctx, libraryID); err != nil {
-			return fmt.Errorf("delete library metadata %d: %w", libraryID, err)
+		if !errors.Is(err, sql.ErrNoRows) {
+			s.log.Warn("folder metadata ignored", "root_id", rootID, "err", err)
 		}
-		return nil
+		return model.RootMetadata{}
 	}
-	p := systemq.UpsertLibraryMetadataParams{LibraryID: libraryID, Now: s.now().UnixMilli()}
-	if d.TextLangs != nil {
-		raw, _ := json.Marshal(*d.TextLangs)
-		p.TextLangs = sql.NullString{String: string(raw), Valid: true}
+	if !isVideoContent(row.Content) {
+		return model.RootMetadata{}
 	}
-	if d.Images != nil {
-		imgs := *d.Images
-		imgs.Kinds = nonNil(imgs.Kinds)
-		if imgs.Langs == nil {
-			imgs.Langs = map[string][]string{}
-		}
-		raw, _ := json.Marshal(imgs)
-		p.Images = sql.NullString{String: string(raw), Valid: true}
+	d, err := model.ParseRootMetadata(row.TextLangs, row.Images)
+	if err != nil {
+		s.log.Warn("folder metadata ignored", "root_id", rootID, "err", err)
+		return model.RootMetadata{}
 	}
-	if err := s.write.UpsertLibraryMetadata(ctx, p); err != nil {
-		return fmt.Errorf("write library metadata %d: %w", libraryID, err)
-	}
-	return nil
+	return d
 }
 
 // UpdateSettings validates and stores the server's metadata settings (all twelve keys at once);
@@ -450,46 +404,63 @@ func (s *Service) UpdateSettings(ctx context.Context, st Settings) error {
 	return nil
 }
 
-// Effective resolves the settings a title of library libraryID is filled with: the server
-// default with the library's deviation (library_metadata, concept 10 4.5) applied. libraryID 0
-// (a title without library, as in some tests) is the server default.
-func (s *Service) Effective(ctx context.Context, libraryID int64) (Settings, error) {
+// Effective resolves the settings a title is filled with (concept 24 3.2, ADR 0036): the default
+// with the own languages and images of its home folder (items.root_id) applied, live, so a
+// changed folder rewrites no title. A title without home folder takes the default.
+func (s *Service) Effective(ctx context.Context, item systemq.Item) (Settings, error) {
 	st, err := s.Settings(ctx)
-	if err != nil || libraryID == 0 {
+	if err != nil || !item.RootID.Valid {
 		return st, err
 	}
-	d, err := s.LibraryDeviation(ctx, libraryID)
-	if err != nil {
-		s.log.Warn("library metadata ignored", "library_id", libraryID, "err", err)
-		return st, nil
-	}
-	return d.apply(st), nil
+	return applyRoot(st, s.rootSettings(ctx, item.RootID.Int64)), nil
 }
 
-// textLangsOf returns the effective text language list of an item (its library's).
+// textLangsOf returns the effective text language list of an item (its home folder's).
 func (s *Service) textLangsOf(ctx context.Context, item systemq.Item) ([]string, error) {
-	st, err := s.Effective(ctx, item.LibraryID)
+	st, err := s.Effective(ctx, item)
 	if err != nil {
 		return nil, err
 	}
 	return st.TextLangs, nil
 }
 
-// AvailableMetadataLanguages is the union of every effective text language list (the server's and
-// every library's), the server's first: the languages a profile may choose (4.3).
+// ownRootSettings returns the own settings of every video folder that has any, in id order.
+func (s *Service) ownRootSettings(ctx context.Context) ([]model.RootMetadata, error) {
+	rows, err := s.read.ListRootMetadata(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list folder metadata: %w", err)
+	}
+	var out []model.RootMetadata
+	for _, r := range rows {
+		if !isVideoContent(r.Content) {
+			continue
+		}
+		d, err := model.ParseRootMetadata(r.TextLangs, r.Images)
+		if err != nil {
+			s.log.Warn("folder metadata ignored", "root_id", r.ID, "err", err)
+			continue
+		}
+		if d.TextLangs != nil || d.Images != nil {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
+// AvailableMetadataLanguages is the union of every effective text language list (the default's and
+// the own lists of every folder), the default's first: the languages a profile may choose (4.3).
 func (s *Service) AvailableMetadataLanguages(ctx context.Context) ([]string, error) {
 	st, err := s.Settings(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := slices.Clone(st.TextLangs)
-	rows, err := s.read.ListLibraryMetadata(ctx)
+	roots, err := s.ownRootSettings(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list library metadata: %w", err)
+		return nil, err
 	}
-	for _, r := range rows {
-		d, err := deviationOf(r)
-		if err != nil || d.TextLangs == nil {
+	for _, d := range roots {
+		if d.TextLangs == nil {
 			continue
 		}
 		for _, l := range *d.TextLangs {
@@ -501,12 +472,42 @@ func (s *Service) AvailableMetadataLanguages(ctx context.Context) ([]string, err
 	return out, nil
 }
 
-// ProviderLanguages names, per provider, the languages of the server's list it delivers (for
-// listMetadataProviders; a language of the list missing at a provider is skipped there).
-func (s *Service) ProviderLanguages(ctx context.Context) (map[string][]string, error) {
+// imageLanguages is TMDB's include_image_language (concept 24 3.3): the union of the image chains
+// of the default and of every folder's own images, without "" and in first-seen order, so a
+// language only one folder's chain names is asked for too.
+func (s *Service) imageLanguages(ctx context.Context) ([]string, error) {
 	st, err := s.Settings(ctx)
 	if err != nil {
 		return nil, err
+	}
+	out := st.ImageLanguages()
+	roots, err := s.ownRootSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range roots {
+		if d.Images == nil {
+			continue
+		}
+		for _, l := range applyRoot(st, d).ImageLanguages() {
+			if !slices.Contains(out, l) {
+				out = append(out, l)
+			}
+		}
+	}
+	return out, nil
+}
+
+// ProviderLanguages names, per provider, the languages of a text language list it delivers (for
+// listMetadataProviders; a language of the list missing at a provider is skipped there). langs is
+// the list being edited, the default's or a folder's (concept 24 3.3); nil = the default's.
+func (s *Service) ProviderLanguages(ctx context.Context, langs []string) (map[string][]string, error) {
+	if langs == nil {
+		st, err := s.Settings(ctx)
+		if err != nil {
+			return nil, err
+		}
+		langs = st.TextLangs
 	}
 	out := map[string][]string{
 		model.ProviderTMDB:    {},
@@ -514,7 +515,7 @@ func (s *Service) ProviderLanguages(ctx context.Context) (map[string][]string, e
 		model.ProviderAniList: {},
 		model.ProviderLocal:   {},
 	}
-	for _, l := range st.TextLangs {
+	for _, l := range langs {
 		out[model.ProviderTMDB] = append(out[model.ProviderTMDB], l)
 		if _, ok := s.tvdb.langCode(ctx, l); ok {
 			out[model.ProviderTVDB] = append(out[model.ProviderTVDB], l)

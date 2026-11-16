@@ -84,7 +84,7 @@ func (m *fakeMetadata) AddManualTrailer(ctx context.Context, itemID, lang, youtu
 	return model.Trailer{ID: id, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
 
-func (m *fakeMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+func (m *fakeMetadata) ProviderLanguages(context.Context, []string) (map[string][]string, error) {
 	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
 }
 

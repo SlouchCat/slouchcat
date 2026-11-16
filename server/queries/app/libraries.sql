@@ -29,6 +29,11 @@ RETURNING *;
 UPDATE library_roots SET content = @content, providers = @providers WHERE id = @id AND library_id = @library_id
 RETURNING *;
 
+-- name: UpdateLibraryRootMetadata :exec
+-- The own text languages and images of a folder (concept 24, ADR 0036); NULL = like the default.
+-- The titles read them live through their home folder, so no title row changes.
+UPDATE library_roots SET text_langs = @text_langs, images = @images WHERE id = @id AND library_id = @library_id;
+
 -- name: UpdateLibraryRootPath :one
 -- A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
 -- facts of the new place; its media files stay and the next scan finds them again.

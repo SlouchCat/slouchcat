@@ -133,7 +133,7 @@ func (s *Service) switchedOn(ctx context.Context, item systemq.Item) (bool, erro
 	if item.Kind != "episode" {
 		return true, nil
 	}
-	st, err := s.Effective(ctx, item.LibraryID)
+	st, err := s.Effective(ctx, item)
 	if err != nil {
 		return false, fmt.Errorf("image kinds of %s: %w", item.ID, err)
 	}
@@ -222,7 +222,7 @@ func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind
 		return s.bookCoverCandidates(ctx, item)
 	}
 	out := model.ImageCandidateList{Candidates: []model.ImageCandidate{}, Unavailable: []string{}}
-	settings, err := s.Effective(ctx, item.LibraryID)
+	settings, err := s.Effective(ctx, item)
 	if err != nil {
 		return out, err
 	}

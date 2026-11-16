@@ -725,7 +725,7 @@ func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur system
 // a match knows; the fill adds the fillers, local files and Fanart.tv later) and writes
 // item_images and the provenance of the image fields.
 func (s *Service) matchImages(ctx context.Context, q *systemq.Queries, cur systemq.Item, provider string, images, fanart []ImageCandidate, locked map[string]bool, now int64) error {
-	settings, err := s.Effective(ctx, cur.LibraryID)
+	settings, err := s.Effective(ctx, cur)
 	if err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
@@ -902,7 +902,7 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	if err := pruneTexts(ctx, q, itemID, stored, langs, locked); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: %w", err)
 	}
-	settings, err := s.Effective(ctx, cur.LibraryID)
+	settings, err := s.Effective(ctx, cur)
 	if err != nil {
 		return snap, false, fmt.Errorf("metadata.match: %w", err)
 	}

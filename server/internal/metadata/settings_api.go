@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
 // The administration's view of the metadata settings (getMetadataSettings, updateMetadataSettings,
@@ -95,15 +96,24 @@ func (s *Service) UpdateMetadataSettings(ctx context.Context, m model.MetadataSe
 	return s.MetadataSettings(ctx)
 }
 
-// LibraryMetadata returns the deviation of a library with its effective values; model.ErrNotFound
-// for an unknown library.
+// LibraryMetadata returns what the video folders of a library set themselves, read from the first
+// of them (migration 00065 copied a library's deviation onto each; updateLibraryMetadata writes
+// all of them), with its effective values; model.ErrNotFound for an unknown library. The operation
+// leaves with contract 1.40.0 (concept 24 3.6).
 func (s *Service) LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error) {
 	if _, err := s.applyLibraries(ctx, []int64{libraryID}); err != nil {
 		return model.LibraryMetadata{}, err
 	}
-	d, err := s.LibraryDeviation(ctx, libraryID)
+	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, libraryID)
 	if err != nil {
-		return model.LibraryMetadata{}, err
+		return model.LibraryMetadata{}, fmt.Errorf("roots of library %d: %w", libraryID, err)
+	}
+	var d model.RootMetadata
+	for _, r := range roots {
+		if isVideoContent(r.Content) {
+			d = s.rootSettings(ctx, r.ID)
+			break
+		}
 	}
 	st, err := s.Settings(ctx)
 	if err != nil {
@@ -113,7 +123,7 @@ func (s *Service) LibraryMetadata(ctx context.Context, libraryID int64) (model.L
 	if d.Images != nil {
 		out.Images = &model.LibraryImages{Langs: d.Images.Langs, Kinds: nonNil(d.Images.Kinds)}
 	}
-	eff, err := s.withCounts(ctx, d.apply(st).toModel(), []int64{libraryID})
+	eff, err := s.withCounts(ctx, applyRoot(st, d).toModel(), []int64{libraryID})
 	if err != nil {
 		return model.LibraryMetadata{}, err
 	}
@@ -121,18 +131,31 @@ func (s *Service) LibraryMetadata(ctx context.Context, libraryID int64) (model.L
 	return out, nil
 }
 
-// UpdateLibraryMetadata stores the deviation of a library (model.ErrNotFound,
-// *model.ValidationError) and returns the view.
+// UpdateLibraryMetadata writes the same own settings onto every video folder of a library
+// (model.ErrNotFound, *model.ValidationError) and returns the view.
 func (s *Service) UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error) {
 	if _, err := s.applyLibraries(ctx, []int64{libraryID}); err != nil {
 		return model.LibraryMetadata{}, err
 	}
-	d := LibraryDeviation{TextLangs: textLangs}
+	d := model.RootMetadata{TextLangs: textLangs}
 	if images != nil {
-		d.Images = &LibraryImages{Langs: images.Langs, Kinds: images.Kinds}
+		d.Images = &model.RootImages{Langs: images.Langs, Kinds: images.Kinds}
 	}
-	if err := s.UpdateLibraryDeviation(ctx, libraryID, d); err != nil {
-		return model.LibraryMetadata{}, err
+	if verr := ValidateRootMetadata(d); verr != nil {
+		return model.LibraryMetadata{}, verr
+	}
+	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, libraryID)
+	if err != nil {
+		return model.LibraryMetadata{}, fmt.Errorf("roots of library %d: %w", libraryID, err)
+	}
+	tl, im := model.RootMetadataColumns(d)
+	for _, r := range roots {
+		if !isVideoContent(r.Content) {
+			continue
+		}
+		if err := appq.New(s.db.Write).UpdateLibraryRootMetadata(ctx, appq.UpdateLibraryRootMetadataParams{TextLangs: tl, Images: im, ID: r.ID, LibraryID: libraryID}); err != nil {
+			return model.LibraryMetadata{}, fmt.Errorf("write folder metadata %d: %w", r.ID, err)
+		}
 	}
 	return s.LibraryMetadata(ctx, libraryID)
 }

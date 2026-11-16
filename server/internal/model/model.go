@@ -6,6 +6,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1619,6 +1620,64 @@ type MetadataSettings struct {
 type LibraryImages struct {
 	Langs map[string][]string
 	Kinds []string
+}
+
+// RootMetadata is what a video folder sets itself (concept 24 section 3.1, ADR 0036): its text
+// languages and its images; nil = like the default. Stored in library_roots.text_langs and
+// .images; the titles whose home folder it is read it live (metadata.Effective).
+type RootMetadata struct {
+	TextLangs *[]string
+	Images    *RootImages
+}
+
+// RootImages is the image part of a folder's own settings: the chain per kind (a kind missing from
+// Langs follows the default's chain) and the switchable kinds that are on ([] = none).
+type RootImages struct {
+	Langs map[string][]string `json:"langs"`
+	Kinds []string            `json:"kinds"`
+}
+
+// RootMetadataColumns encodes a folder's own settings for library_roots (NULL = like the default).
+func RootMetadataColumns(m RootMetadata) (textLangs, images sql.NullString) {
+	if m.TextLangs != nil {
+		raw, _ := json.Marshal(*m.TextLangs)
+		textLangs = sql.NullString{String: string(raw), Valid: true}
+	}
+	if m.Images != nil {
+		imgs := RootImages{Langs: m.Images.Langs, Kinds: m.Images.Kinds}
+		if imgs.Langs == nil {
+			imgs.Langs = map[string][]string{}
+		}
+		if imgs.Kinds == nil {
+			imgs.Kinds = []string{}
+		}
+		raw, _ := json.Marshal(imgs)
+		images = sql.NullString{String: string(raw), Valid: true}
+	}
+	return textLangs, images
+}
+
+// ParseRootMetadata decodes the two columns of library_roots.
+func ParseRootMetadata(textLangs, images sql.NullString) (RootMetadata, error) {
+	var m RootMetadata
+	if textLangs.Valid {
+		var langs []string
+		if err := json.Unmarshal([]byte(textLangs.String), &langs); err != nil {
+			return m, fmt.Errorf("text_langs: %w", err)
+		}
+		m.TextLangs = &langs
+	}
+	if images.Valid {
+		var imgs RootImages
+		if err := json.Unmarshal([]byte(images.String), &imgs); err != nil {
+			return m, fmt.Errorf("images: %w", err)
+		}
+		if imgs.Kinds == nil {
+			imgs.Kinds = []string{}
+		}
+		m.Images = &imgs
+	}
+	return m, nil
 }
 
 // LibraryMetadata is the deviation of a library (nil = like the server) with the effective values.

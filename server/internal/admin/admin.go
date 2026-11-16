@@ -161,9 +161,9 @@ type Metadata interface {
 	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
 	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).
 	DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error
-	// ProviderLanguages names, per provider, the languages of the server's metadata language
-	// list it delivers (ADR 0018, listMetadataProviders).
-	ProviderLanguages(ctx context.Context) (map[string][]string, error)
+	// ProviderLanguages names, per provider, the languages of a text language list it delivers
+	// (ADR 0018, listMetadataProviders): the list being edited, nil = the default's (concept 24).
+	ProviderLanguages(ctx context.Context, langs []string) (map[string][]string, error)
 	// Metadata settings of concept 10 (ADR 0018): the server's settings, a library's deviation
 	// and the apply run (*model.ValidationError, model.ErrNotFound).
 	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
@@ -729,7 +729,7 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 	// missing at a provider is skipped there).
 	langs := map[string][]string{model.ProviderTMDB: {"de", "en"}, model.ProviderTVDB: {"de", "en"}, model.ProviderAniList: {"en"}}
 	if s.meta != nil {
-		pl, err := s.meta.ProviderLanguages(ctx)
+		pl, err := s.meta.ProviderLanguages(ctx, nil)
 		if err != nil {
 			return nil, err
 		}

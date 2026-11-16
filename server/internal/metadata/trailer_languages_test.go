@@ -5,6 +5,8 @@ import (
 	"maps"
 	"slices"
 	"testing"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Concept 21 P-4: the trailer languages of the library in include_video_language, the country of
@@ -69,17 +71,15 @@ func TestPickLanguagelessTrailer(t *testing.T) {
 	}
 }
 
-// A library with de, en and it: include_video_language names the three and null; TMDB 550 has de
+// A folder with de, en and it: include_video_language names the three and null; TMDB 550 has de
 // and en, YouTube finds nothing in Italian, so it takes the trailer without language.
 func TestTrailersLanguagelessAfterYouTube(t *testing.T) {
 	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	langs := []string{"de", "en", "it"}
-	if err := e.svc.UpdateLibraryDeviation(ctx, 1, LibraryDeviation{TextLangs: &langs}); err != nil {
-		t.Fatal(err)
-	}
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	ownFolder(t, e.db.Write, 1, 1, model.RootMovie, model.RootMetadata{TextLangs: &langs}, idByTMDB)
 	if err := e.svc.findTrailers(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
@@ -102,10 +102,8 @@ func TestTrailersLanguagelessAfterYouTube(t *testing.T) {
 
 	// The quota blocks the Italian search: it stays pending for YouTube, without the fallback.
 	e2 := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
-	if err := e2.svc.UpdateLibraryDeviation(ctx, 1, LibraryDeviation{TextLangs: &langs}); err != nil {
-		t.Fatal(err)
-	}
 	e2.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	ownFolder(t, e2.db.Write, 1, 1, model.RootMovie, model.RootMetadata{TextLangs: &langs}, idByTMDB)
 	if !e2.quota.Take(ctx, youtubeDailyUnits) {
 		t.Fatal("quota setup")
 	}
@@ -139,10 +137,8 @@ func TestTrailerRecheckLanguageless(t *testing.T) {
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	langs := []string{"de", "en", "it"}
-	if err := e.svc.UpdateLibraryDeviation(ctx, 1, LibraryDeviation{TextLangs: &langs}); err != nil {
-		t.Fatal(err)
-	}
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	ownFolder(t, e.db.Write, 1, 1, model.RootMovie, model.RootMetadata{TextLangs: &langs}, idByTMDB)
 	mustExec(t, e.db.Write, `UPDATE items SET trailer_state = 'found' WHERE id = ?`, idByTMDB)
 	mustExec(t, e.db.Write, `INSERT INTO trailers (item_id, lang, youtube_id, source, official, created_at) VALUES (?, 'de', 'deTrailer01', 'tmdb', 0, 1)`, idByTMDB)
 	if err := e.svc.recheckTrailers(ctx, idByTMDB); err != nil {

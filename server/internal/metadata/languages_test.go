@@ -238,7 +238,7 @@ func TestAvailableAndProviderLanguages(t *testing.T) {
 	if err != nil || !slices.Equal(got, []string{"de", "en", "rm"}) {
 		t.Fatalf("available = %v, %v", got, err)
 	}
-	pl, err := e.svc.ProviderLanguages(ctx)
+	pl, err := e.svc.ProviderLanguages(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

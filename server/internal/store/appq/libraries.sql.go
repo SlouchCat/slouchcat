@@ -109,7 +109,7 @@ func (q *Queries) GetLibraryForDeletion(ctx context.Context, id int64) (Library,
 }
 
 const getLibraryRoot = `-- name: GetLibraryRoot :one
-SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots WHERE id = ?1
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images FROM library_roots WHERE id = ?1
 `
 
 func (q *Queries) GetLibraryRoot(ctx context.Context, id int64) (LibraryRoot, error) {
@@ -124,6 +124,8 @@ func (q *Queries) GetLibraryRoot(ctx context.Context, id int64) (LibraryRoot, er
 		&i.CreatedAt,
 		&i.Content,
 		&i.Providers,
+		&i.TextLangs,
+		&i.Images,
 	)
 	return i, err
 }
@@ -184,7 +186,7 @@ func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (L
 const insertLibraryRoot = `-- name: InsertLibraryRoot :one
 INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images
 `
 
 type InsertLibraryRootParams struct {
@@ -218,12 +220,14 @@ func (q *Queries) InsertLibraryRoot(ctx context.Context, arg InsertLibraryRootPa
 		&i.CreatedAt,
 		&i.Content,
 		&i.Providers,
+		&i.TextLangs,
+		&i.Images,
 	)
 	return i, err
 }
 
 const listAllLibraryRoots = `-- name: ListAllLibraryRoots :many
-SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots ORDER BY library_id, id
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images FROM library_roots ORDER BY library_id, id
 `
 
 func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error) {
@@ -244,6 +248,8 @@ func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error
 			&i.CreatedAt,
 			&i.Content,
 			&i.Providers,
+			&i.TextLangs,
+			&i.Images,
 		); err != nil {
 			return nil, err
 		}
@@ -340,7 +346,7 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 }
 
 const listLibraryRoots = `-- name: ListLibraryRoots :many
-SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots WHERE library_id = ?1 ORDER BY id
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images FROM library_roots WHERE library_id = ?1 ORDER BY id
 `
 
 func (q *Queries) ListLibraryRoots(ctx context.Context, libraryID int64) ([]LibraryRoot, error) {
@@ -361,6 +367,8 @@ func (q *Queries) ListLibraryRoots(ctx context.Context, libraryID int64) ([]Libr
 			&i.CreatedAt,
 			&i.Content,
 			&i.Providers,
+			&i.TextLangs,
+			&i.Images,
 		); err != nil {
 			return nil, err
 		}
@@ -447,7 +455,7 @@ func (q *Queries) SetLibraryTrickplay(ctx context.Context, arg SetLibraryTrickpl
 
 const updateLibraryRoot = `-- name: UpdateLibraryRoot :one
 UPDATE library_roots SET content = ?1, providers = ?2 WHERE id = ?3 AND library_id = ?4
-RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images
 `
 
 type UpdateLibraryRootParams struct {
@@ -476,13 +484,38 @@ func (q *Queries) UpdateLibraryRoot(ctx context.Context, arg UpdateLibraryRootPa
 		&i.CreatedAt,
 		&i.Content,
 		&i.Providers,
+		&i.TextLangs,
+		&i.Images,
 	)
 	return i, err
 }
 
+const updateLibraryRootMetadata = `-- name: UpdateLibraryRootMetadata :exec
+UPDATE library_roots SET text_langs = ?1, images = ?2 WHERE id = ?3 AND library_id = ?4
+`
+
+type UpdateLibraryRootMetadataParams struct {
+	TextLangs sql.NullString
+	Images    sql.NullString
+	ID        int64
+	LibraryID int64
+}
+
+// The own text languages and images of a folder (concept 24, ADR 0036); NULL = like the default.
+// The titles read them live through their home folder, so no title row changes.
+func (q *Queries) UpdateLibraryRootMetadata(ctx context.Context, arg UpdateLibraryRootMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, updateLibraryRootMetadata,
+		arg.TextLangs,
+		arg.Images,
+		arg.ID,
+		arg.LibraryID,
+	)
+	return err
+}
+
 const updateLibraryRootPath = `-- name: UpdateLibraryRootPath :one
 UPDATE library_roots SET path = ?1, fs_type = ?2, watch = ?3 WHERE id = ?4 AND library_id = ?5
-RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images
 `
 
 type UpdateLibraryRootPathParams struct {
@@ -513,6 +546,8 @@ func (q *Queries) UpdateLibraryRootPath(ctx context.Context, arg UpdateLibraryRo
 		&i.CreatedAt,
 		&i.Content,
 		&i.Providers,
+		&i.TextLangs,
+		&i.Images,
 	)
 	return i, err
 }

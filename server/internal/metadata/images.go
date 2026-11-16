@@ -281,7 +281,7 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	for _, c := range chosen {
 		decided[c.Kind] = c
 	}
-	settings, err := s.Effective(ctx, item.LibraryID)
+	settings, err := s.Effective(ctx, item)
 	if err != nil {
 		return fmt.Errorf("image.fetch: %w", err)
 	}
