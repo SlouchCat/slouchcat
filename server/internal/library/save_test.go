@@ -499,3 +499,40 @@ func TestSaveLibraryRemovesTheLastFolder(t *testing.T) {
 		t.Fatalf("films left = %d, want 0", n)
 	}
 }
+
+// TestSaveLibraryRevisionInsideTheTransaction: a write that lands between the plan and the
+// transaction (another window saving meanwhile) makes the save stale inside the transaction, and
+// nothing is written.
+func TestSaveLibraryRevisionInsideTheTransaction(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	lib, first, _ := e.twoFolderLibrary()
+	req := e.form(lib.ID)
+	req.Roots[0].Providers = []string{model.ProviderTMDB}
+	rq := appq.New(e.svc.db.Read)
+	row, err := rq.GetLibrary(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := rq.ListLibraryRoots(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revision(row, stored) != req.Revision {
+		t.Fatal("the form does not carry the stored revision")
+	}
+	plan, err := e.svc.planSave(e.ctx, row, stored, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstID := rootIDOf(t, e, lib.ID, first)
+	if _, err := e.svc.UpdateRoot(e.ctx, lib.ID, firstID, model.LibraryRootUpdate{Providers: []string{model.ProviderTMDB, model.ProviderAniList}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.applySave(e.ctx, lib.ID, req.Revision, plan, renameTo(lib.ID, "Kino")); !errors.Is(err, model.ErrStale) {
+		t.Fatalf("save after a write between plan and transaction: err = %v, want ErrStale", err)
+	}
+	if e.libraryName(lib.ID) != "Dokus" || e.str(`SELECT providers FROM library_roots WHERE id = ?`, firstID) != `["tmdb","anilist"]` {
+		t.Fatal("a save that went stale inside the transaction wrote something")
+	}
+}
