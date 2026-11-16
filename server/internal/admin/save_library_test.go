@@ -91,3 +91,28 @@ func hasField(verr *model.ValidationError, field, code string) bool {
 	}
 	return false
 }
+
+// A step after the commit that fails (here the count of the keyframe index, whose INDEXED BY fails
+// without the index) is logged: the save answers with the saved library, not with an error the
+// form would retry with a revision that is gone.
+func TestSaveLibraryAnswersAfterAFailingCount(t *testing.T) {
+	a := newAudioFixture(t)
+	libs := a.svc.libraries.(*dbLibraries)
+	libs.saveDB = a.f.DB.Write
+	libs.saveKind = model.LibraryVideo
+	if _, err := a.f.DB.Write.Exec(`DROP INDEX media_files_keyframes`); err != nil {
+		t.Fatal(err)
+	}
+	video := a.f.LibraryID()
+	saved, err := a.svc.SaveLibrary(a.ctx, video, model.LibrarySave{Revision: "r", Name: "Kino"})
+	if err != nil {
+		t.Fatalf("save with a failing count: %v", err)
+	}
+	if saved.Library.ID != video || saved.Library.KeyframeIndex != nil {
+		t.Fatalf("answer = %+v, want the saved library without the count", saved.Library)
+	}
+	var name string
+	if err := a.f.DB.Read.QueryRow(`SELECT name FROM libraries WHERE id = ?`, video).Scan(&name); err != nil || name != "Kino" {
+		t.Fatalf("name = %q, %v", name, err)
+	}
+}

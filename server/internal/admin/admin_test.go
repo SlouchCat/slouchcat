@@ -51,6 +51,8 @@ type fakeLibraries struct {
 	saveDB  *sql.DB
 	saved   []model.LibrarySave
 	saveErr error
+	// saveKind is the kind of the library Save answers with (empty: none).
+	saveKind string
 }
 
 func (f *fakeLibraries) ValidatePath(_ context.Context, path string) error {
@@ -170,7 +172,7 @@ func (f *fakeLibraries) Save(ctx context.Context, libraryID int64, req model.Lib
 	} else if f.saveErr != nil {
 		return model.LibrarySaved{}, f.saveErr
 	}
-	return model.LibrarySaved{Library: model.Library{ID: libraryID}, MetadataChanged: []model.RootTitles{}}, nil
+	return model.LibrarySaved{Library: model.Library{ID: libraryID, Kind: f.saveKind}, MetadataChanged: []model.RootTitles{}}, nil
 }
 
 type fakeTMDB struct {

@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // Saving the form «Bibliothek bearbeiten» in one go (saveLibrary, concept 24 4.3). The folder
@@ -156,12 +158,7 @@ func (s *Service) Save(ctx context.Context, libraryID int64, req model.LibrarySa
 	}
 	s.afterSave(ctx, lib, plan, done)
 
-	var out model.Library
-	if plan.scans() {
-		out, err = s.QueueScan(ctx, libraryID)
-	} else {
-		out, err = s.Get(ctx, libraryID)
-	}
+	out, err := s.Get(ctx, libraryID)
 	if err != nil {
 		return model.LibrarySaved{}, err
 	}
@@ -454,10 +451,51 @@ func (s *Service) applySave(ctx context.Context, libraryID int64, rev string, pl
 	if verr != nil {
 		return saveDone{}, verr
 	}
+	if plan.scans() {
+		if err := queueScanTx(ctx, tx, libraryID, now); err != nil {
+			return saveDone{}, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return saveDone{}, fmt.Errorf("save library %d: %w", libraryID, err)
 	}
 	return done, nil
+}
+
+// queueScanTx is enqueueScan inside the save's transaction: the one full scan the save needs is
+// written with the folders, so nothing after the commit can fail the save. A scan that already
+// waits under the key is raised to prioScan; a library left without a folder queues none.
+func queueScanTx(ctx context.Context, tx *sql.Tx, libraryID, now int64) error {
+	roots, err := appq.New(tx).ListLibraryRoots(ctx, libraryID)
+	if err != nil {
+		return fmt.Errorf("list roots of library %d: %w", libraryID, err)
+	}
+	if len(roots) == 0 {
+		return nil
+	}
+	payload, err := json.Marshal(libraryPayload{LibraryID: libraryID, Trigger: model.ScanTriggerManual})
+	if err != nil {
+		return err
+	}
+	q := systemq.New(tx)
+	key := sql.NullString{String: scanKey(libraryID), Valid: true}
+	id, err := q.InsertJob(ctx, systemq.InsertJobParams{
+		Type: JobScanLibrary, Priority: prioScan, IdempotencyKey: key, Payload: string(payload),
+		RunAfter: now, MaxAttempts: jobs.DefaultMaxAttempts, Now: now,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		id, err = q.GetActiveJobIDByKey(ctx, key) // a scan waits or runs under the key
+	}
+	if err != nil {
+		return fmt.Errorf("enqueue %s: %w", JobScanLibrary, err)
+	}
+	if _, err := q.RaiseQueuedJobPriority(ctx, systemq.RaiseQueuedJobPriorityParams{Priority: prioScan, Now: now, ID: id}); err != nil {
+		return fmt.Errorf("raise priority of job %d: %w", id, err)
+	}
+	if err := appq.New(tx).MarkLibraryScanQueued(ctx, appq.MarkLibraryScanQueuedParams{Now: now, ID: libraryID}); err != nil {
+		return fmt.Errorf("mark scan queued: %w", err)
+	}
+	return nil
 }
 
 // afterSave does what lies outside the database, in the order of the transaction: watchers, the

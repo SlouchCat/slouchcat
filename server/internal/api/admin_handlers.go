@@ -93,8 +93,10 @@ func (s *server) SaveLibrary(ctx context.Context, req gen.SaveLibraryRequestObje
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	// The save is committed: a failing recheck is logged, the answer is the saved library (an
+	// error would make the form retry with a revision that is gone).
 	if err := s.recheckStreams(ctx); err != nil {
-		return s.problem(ctx, err), nil
+		s.p.log.WarnContext(ctx, "recheck streams after saving a library", "library_id", req.Id, "err", err)
 	}
 	out := gen.SaveLibrary200JSONResponse{Library: toLibrary(saved.Library), MetadataChanged: make([]gen.LibraryRootTitles, 0, len(saved.MetadataChanged))}
 	for _, m := range saved.MetadataChanged {

@@ -205,9 +205,13 @@ func (s *Service) SaveLibrary(ctx context.Context, id int64, req model.LibrarySa
 	}
 	s.log.InfoContext(ctx, "library settings saved", "library_id", id, "default_rating_changed", w.rating != lib.DefaultRating,
 		"titles_rerated", titles, "trickplay_changed", req.Trickplay != nil)
-	if saved.Library, err = s.withKeyframeIndex(ctx)(saved.Library, nil); err != nil {
-		return model.LibrarySaved{}, err
+	// Everything is written: a failing count of the keyframe index only leaves it out of the
+	// answer, so the form does not report an error and retry with a revision that is gone.
+	libs := []model.Library{saved.Library}
+	if err := s.fillKeyframeIndex(ctx, libs); err != nil {
+		s.log.WarnContext(ctx, "keyframe index of a saved library not counted", "library_id", id, "err", err)
 	}
+	saved.Library = libs[0]
 	return saved, nil
 }
 

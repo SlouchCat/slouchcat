@@ -1,12 +1,19 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -210,4 +217,42 @@ func TestSaveLibraryEndpoint(t *testing.T) {
 	}
 	rec = e.call(t, http.MethodPut, "/api/v1/admin/libraries/99", body, owner)
 	wantStatus(t, rec, http.StatusNotFound)
+}
+
+// failingRecheck is a playback service whose recheck of the open streams fails; nothing else of it
+// is called by saveLibrary.
+type failingRecheck struct{ PlaybackService }
+
+func (failingRecheck) RecheckVisibility(context.Context) error { return errors.New("recheck failed") }
+
+// The save is committed before the open streams are checked again: a failing recheck is logged
+// and the answer is the saved library, not an error the form would retry with a gone revision.
+func TestSaveLibraryAnswersAfterAFailingRecheck(t *testing.T) {
+	t.Parallel()
+	var adm *admin.Service
+	e := newAuthEnvAt(t, &stepClock{now: time.Now()}, func(a *admin.Service) { adm = a })
+	log, err := logging.New(e.logs, logging.FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.h = NewHandler(Options{
+		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(),
+		Auth: e.auth, Profiles: e.auth, Access: e.auth, Admin: adm, Playback: failingRecheck{},
+	})
+	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
+	wantStatus(t, rec, http.StatusCreated)
+	owner := sessionCookie(t, rec)
+	if _, err := e.db.Write.Exec(`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 1, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{"revision": "r1", "name": "Kino", "roots": []any{movieRoot("/media/Filme")}, "removeRoots": []any{}}
+	rec = e.call(t, http.MethodPut, "/api/v1/admin/libraries/1", body, owner)
+	wantStatus(t, rec, http.StatusOK)
+	var saved gen.LibrarySaved
+	if err := json.Unmarshal(rec.Body.Bytes(), &saved); err != nil || saved.Library.Id != 1 {
+		t.Fatalf("answer = %s, %v", rec.Body.String(), err)
+	}
+	if !strings.Contains(e.logs.String(), "recheck streams after saving a library") {
+		t.Error("the failing recheck was not logged")
+	}
 }
