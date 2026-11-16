@@ -567,6 +567,36 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Kino');
   });
 
+  it('409 stale for a library removed elsewhere keeps the form and says it is gone; it still closes', async () => {
+    let current: Library[] = [library()];
+    mockApi(
+      routes([], {
+        'GET /admin/libraries': () => json(current),
+        'PUT /admin/libraries/1': () => {
+          current = [];
+          return problem(409, 'stale');
+        },
+      }),
+    );
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    await user.click(saveOf(dialog));
+    expect(
+      await within(dialog).findByText(
+        'Diese Bibliothek gibt es nicht mehr. Es wurde nichts gespeichert.',
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme neu');
+    expect(within(dialog).queryByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeNull();
+    // The form is still the page's open dialog: closing it ends the edit.
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    const question = await screen.findByRole('alertdialog', { name: 'Änderungen verwerfen?' });
+    await user.click(within(question).getByRole('button', { name: 'Verwerfen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('a card edited and then marked for removal sends only the removal', async () => {
     const { calls } = mockApi(
       routes([withTwoFolders], { 'PUT /admin/libraries/1': saved(withTwoFolders) }),

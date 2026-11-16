@@ -179,8 +179,11 @@ interface EditProps {
   onOpenChange: (isOpen: boolean) => void;
   /** The answer of `saveLibrary` and what the form changed; the dialog is closed by then. */
   onSaved: (saved: LibrarySaved, summary: SaveSummary) => void;
-  /** 409 `stale` or `root_unlisted`: the page loads the library again and fills the form anew. */
-  onStale: () => void;
+  /**
+   * 409 `stale` or `root_unlisted`: the page loads the library again and fills the form anew
+   * (true); false when the library is no longer there, and the form stays as it is.
+   */
+  onStale: () => Promise<boolean>;
 }
 
 export type LibraryFormProps = AddProps | EditProps;
@@ -620,6 +623,8 @@ function EditLibraryForm({
   };
   const [asking, setAsking] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
+  // The reload after `stale` found the library removed elsewhere.
+  const [gone, setGone] = useState(false);
   // The cards whose path and content changed together, as the last «Speichern» found them.
   const [blocked, setBlocked] = useState<readonly string[]>([]);
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
@@ -679,12 +684,15 @@ function EditLibraryForm({
   const send = () => {
     const sent = saveRequest(library, state, marked, typed);
     setRefusal(null);
+    setGone(false);
     cancelScan.reset();
     save.mutate(sent.body, {
       onError: (error) => {
         if (isApiError(error) && (error.code === 'stale' || error.code === 'root_unlisted')) {
           endConfirming();
-          onStale();
+          void onStale().then((filled) => {
+            if (!filled) setGone(true);
+          });
           return;
         }
         setRefusal({ error, sent: { roots: sent.roots, removals: sent.removals } });
@@ -723,9 +731,11 @@ function EditLibraryForm({
     : {};
   const refused = refusal?.error;
   const scanRunning = isApiError(refused) && refused.code === 'scan_running';
-  // 404: the library was removed elsewhere while the form was open.
-  const formMessage =
-    refusal && !scanRunning && !confirming
+  // 404 or a reload that no longer finds it: the library was removed elsewhere while the form
+  // was open.
+  const formMessage = gone
+    ? t('admin.libraries.form.gone')
+    : refusal && !scanRunning && !confirming
       ? isApiError(refused, 404)
         ? t('admin.libraries.form.gone')
         : formErrors(t, refusal.error).form

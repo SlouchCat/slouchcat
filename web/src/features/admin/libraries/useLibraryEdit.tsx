@@ -22,7 +22,8 @@ interface Editing {
  * library's values; a stale form (409 `stale`) loads the libraries again and is filled anew with
  * the notice that it was. The form keeps the library it was filled with while the page's list
  * refetches; the list only feeds the facts of the folders and the notice that the library changed
- * elsewhere. A library removed elsewhere keeps the form open, its save answers 404.
+ * elsewhere. A library removed elsewhere keeps the form open, its save answers 404; so does a
+ * reload after `stale` that no longer finds it.
  */
 export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSummary) => void): {
   start: (id: number, rootId?: number) => void;
@@ -67,22 +68,27 @@ export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSumma
         isOpen={isOpen}
         onOpenChange={setOpen}
         onSaved={onSaved}
-        onStale={() =>
-          void queryClient
+        onStale={() => {
+          const { id } = editing;
+          return queryClient
             .fetchQuery({ ...librariesQuery, staleTime: 0 })
-            .finally(() =>
+            .catch(() => undefined)
+            .then(() => {
+              // Removed elsewhere: the form stays with what was typed and says so, as on 404.
+              const fresh = cached(id);
+              if (!fresh) return false;
               setEditing(
                 (current) =>
                   current && {
                     ...current,
                     session: current.session + 1,
                     reloaded: true,
-                    library: cached(current.id),
+                    library: fresh,
                   },
-              ),
-            )
-            .catch(() => undefined)
-        }
+              );
+              return true;
+            });
+        }}
       />
     ) : null;
   };
