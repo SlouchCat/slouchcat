@@ -127,6 +127,9 @@ function Controls({ surface }: { surface: Surface }) {
             <Switch defaultSelected>Ein</Switch>
             <Switch>Aus</Switch>
             <Switch isDisabled>Gesperrt</Switch>
+            <Switch isDisabled defaultSelected>
+              Gesperrt, an
+            </Switch>
           </div>
         </div>
         <div style={row}>

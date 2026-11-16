@@ -57,7 +57,8 @@
   transform: translateX(var(--sc-space-6));
 }
 
-/* Disabled (concept 24, Z-5): a dashed track without fill, the label muted, no paleness. */
+/* Disabled (concept 24, Z-5): a dashed track without fill, the label muted, no paleness. The
+   handle tells on from off by its shape as well as its place: a ring when off, a dot when on. */
 .switch[data-disabled] {
   color: var(--sc-color-text-muted);
   cursor: default;
@@ -69,5 +70,10 @@
 }
 
 .switch[data-disabled] .handle {
+  border: 2px solid var(--sc-color-text-muted);
+  background-color: transparent;
+}
+
+.switch[data-disabled][data-selected] .handle {
   background-color: var(--sc-color-text-muted);
 }
