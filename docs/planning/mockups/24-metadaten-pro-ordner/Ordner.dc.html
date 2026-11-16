@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Ein Ordner aufgeklappt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f7a988}a:hover{color:#ffc9b2}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f5f6f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;padding:16px 16px 48px}
+.wrap{max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#d9dce4;border:1px dashed #ffffff66;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #ffffff73;background:none;color:#f5f6f8;text-decoration:none;font-size:13px;font-weight:600}
+.pill:hover{background:#2e3445;color:#fff}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a40}
+.panel{background:#171a22;border:1px solid #ffffff57;border-radius:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #ffffff73;background:#20242f;color:#f5f6f8;font-size:14px;font-weight:600;text-decoration:none}
+.btn:hover{background:#2e3445;color:#fff}
+.btn.quiet{background:none;border-color:transparent;color:#d9dce4}
+.btn.red{background:none;border-color:#ff9a9a99;color:#ff9a9a}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid #ffffff73;color:#f5f6f8;white-space:nowrap}
+.chip.ok{border-color:#7be0a880;background:#5fcf8f2e;color:#7be0a8}
+.chip.info{border-color:#ffffff57;background:#2b3040;color:#d9dce4}
+.chip.std{border-style:dashed;color:#d9dce4;font-weight:600}
+.chip.own{border-color:#e8794a;background:#e8794a33;color:#ffc9b2}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;overflow-wrap:anywhere}
+.lbl{font-size:13px;font-weight:700;color:#f5f6f8}
+.hint{font-size:13px;color:#bcc1cd;margin:0}
+.inp{min-height:44px;box-sizing:border-box;border-radius:8px;border:1px solid #ffffff8c;background:#0b0c10;color:#f5f6f8;padding:0 12px;font-size:14px;width:100%}
+select.inp{width:auto;min-width:190px}
+.fold{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;width:100%;min-height:56px;padding:8px 14px;background:none;border:0;color:#f5f6f8;text-align:left;border-radius:12px}
+.fold:hover{background:#20242f}
+.row{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-start;padding:14px 0;border-top:1px solid #ffffff38}
+.row>.lbl{flex:0 0 150px;padding-top:11px}
+.row>.val{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.line{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.src{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:6px 10px;border:1px solid #ffffff38;border-radius:8px;background:#0b0c10}
+.chk{width:22px;height:22px;accent-color:#e8794a;margin:0}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Bibliotheken.dc.html">1 Bibliotheken</a>
+    <a class="pill" href="Main.dc.html">2 Bearbeiten</a>
+    <a class="pill" href="Ordner.dc.html" aria-current="page">3 Ordner offen</a>
+    <a class="pill" href="Metadaten.dc.html">4 Metadaten-Standard</a>
+    <a class="pill" href="Kontrast.dc.html">5 Kontrast</a>
+  </nav>
+
+  <p class="hint">Ausschnitt aus «Bibliothek bearbeiten»: der Ordner MangaSerien, aufgeklappt, mit eigenen Sprachen als Beispiel.</p>
+
+  <div class="panel" style="background: #0f1116">
+    <button class="fold" aria-expanded="{{ open }}" onClick="{{ toggle }}">
+      <sc-if value="{{ closed }}" hint-placeholder-val="{{ false }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+      </sc-if>
+      <sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
+      </sc-if>
+      <span class="mono" style="font-weight: 700; flex: 1 1 240px; min-width: 0">/media/nas/MangaSerien</span>
+      <span class="chip">{{ kind }}</span>
+      <span class="chip info">TVDB › TMDB</span>
+      <span class="{{ langChip }}">{{ langText }}</span>
+      <span class="{{ imgChip }}">{{ imgText }}</span>
+    </button>
+
+    <sc-if value="{{ open }}" hint-placeholder-val="{{ true }}">
+      <div style="padding: 0 16px 14px">
+
+        <div class="row">
+          <label class="lbl" for="path">Ordner</label>
+          <div class="val">
+            <div class="line">
+              <input id="path" class="inp mono" style="flex: 1 1 260px; width: auto" value="{{ path }}" onChange="{{ setPath }}">
+              <button class="btn">Durchsuchen …</button>
+            </div>
+            <p class="hint">3001 Titel · 3012 Dateien · Netzlaufwerk (nfs), nur lesbar</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="lbl">Inhalt</span>
+          <div class="val">
+            <div class="line">
+              <button class="pill" aria-pressed="{{ isMovie }}" onClick="{{ setMovie }}">Filme</button>
+              <button class="pill" aria-pressed="{{ isSeries }}" onClick="{{ setSeries }}">Serien</button>
+            </div>
+            <p class="hint">Filme als Einzeldateien, Serien in Staffelordnern. Ein anderer Inhalt liest den Ordner neu ein.</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="lbl">Metadatenquellen</span>
+          <div class="val">
+            <label class="src">
+              <input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}">
+              <span style="font-weight: 700">TVDB</span>
+              <span class="chip ok">erkennt Titel</span>
+              <span class="hint" style="margin-left: auto">Platz 1</span>
+            </label>
+            <label class="src">
+              <input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}">
+              <span style="font-weight: 700">TMDB</span>
+              <span class="chip info">füllt auf</span>
+              <span class="hint" style="margin-left: auto">Platz 2</span>
+            </label>
+            <label class="src">
+              <input class="chk" type="checkbox" checked="{{ false }}" onChange="{{ noop }}">
+              <span style="font-weight: 700">AniList</span>
+              <span class="chip info">nur Auffüller</span>
+              <span class="hint" style="margin-left: auto">liefert kein Deutsch</span>
+            </label>
+            <p class="hint">Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf.</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="lbl">Sprachen</span>
+          <div class="val">
+            <div class="line">
+              <button class="pill" aria-pressed="{{ langStd }}" onClick="{{ setLangStd }}">Wie Standard</button>
+              <button class="pill" aria-pressed="{{ langOwn }}" onClick="{{ setLangOwn }}">Eigene</button>
+              <span class="hint">{{ langHint }}</span>
+            </div>
+            <sc-if value="{{ langOwn }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{ langs }}" as="l" hint-placeholder-count="3">
+                  <div class="line">
+                    <label class="hint" style="flex: 0 0 88px" for="{{ l.id }}">{{ l.rank }}</label>
+                    <select id="{{ l.id }}" class="inp" value="{{ l.code }}" onChange="{{ l.set }}">
+                      <option value="de">Deutsch</option>
+                      <option value="en">Englisch</option>
+                      <option value="ja">Japanisch</option>
+                      <option value="fr">Französisch</option>
+                      <option value="it">Italienisch</option>
+                      <option value="es">Spanisch</option>
+                    </select>
+                    <sc-if value="{{ l.canDrop }}" hint-placeholder-val="{{ true }}">
+                      <button class="btn quiet" aria-label="{{ l.dropLabel }}" onClick="{{ l.drop }}">Entfernen</button>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <div class="line">
+                  <button class="btn" onClick="{{ addLang }}" disabled="{{ langFull }}">Weitere Sprache</button>
+                </div>
+                <p class="hint">Reihenfolge = Rückfall: Fehlt ein Text in der ersten Sprache, zeigt Slouchcat die nächste.</p>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="lbl">Bilder</span>
+          <div class="val">
+            <div class="line">
+              <button class="pill" aria-pressed="{{ imgStd }}" onClick="{{ setImgStd }}">Wie Standard</button>
+              <button class="pill" aria-pressed="{{ imgOwn }}" onClick="{{ setImgOwn }}">Eigene</button>
+              <span class="hint">{{ imgHint }}</span>
+            </div>
+            <sc-if value="{{ imgOwn }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="3">
+                  <label class="src">
+                    <input class="chk" type="checkbox" checked="{{ k.on }}" onChange="{{ k.flip }}">
+                    <span style="font-weight: 700">{{ k.name }}</span>
+                    <span class="hint">{{ k.hint }}</span>
+                  </label>
+                </sc-for>
+                <p class="hint">Poster und Hintergrund holt Slouchcat immer. Die Sprache je Bildart stellst du hier wie bei «Sprachen» ein.</p>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div class="row" style="justify-content: flex-end">
+          <button class="btn red">Ordner entfernen …</button>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":1420}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: true, path: '/media/nas/MangaSerien', kind: 'series', lang: 'own', img: 'std', langs: ['de', 'en', 'ja'], kinds: { logo: true, season: true, still: false } };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var NAMES = { de: 'Deutsch', en: 'Englisch', ja: 'Japanisch', fr: 'Französisch', it: 'Italienisch', es: 'Spanisch' };
+    var ORDER = ['de', 'en', 'ja', 'fr', 'it', 'es'];
+    var own = st.lang === 'own', imgOwn = st.img === 'own';
+    var KINDS = [['logo', 'Logo', 'Titelschriftzug statt Text-Titel'], ['season', 'Staffelposter', 'ein Poster je Staffel'], ['still', 'Folgenbild', 'ein Bild je Folge']];
+    var onKinds = KINDS.filter(function (k) { return st.kinds[k[0]]; }).map(function (k) { return k[1]; });
+    return {
+      noop: function () {},
+      open: st.open, closed: !st.open, toggle: function () { self.setState({ open: !st.open }); },
+      path: st.path, setPath: function (ev) { self.setState({ path: ev.target.value }); },
+      kind: st.kind === 'movie' ? 'Filme' : 'Serien', isMovie: st.kind === 'movie', isSeries: st.kind === 'series',
+      setMovie: function () { self.setState({ kind: 'movie' }); }, setSeries: function () { self.setState({ kind: 'series' }); },
+      langStd: !own, langOwn: own,
+      setLangStd: function () { self.setState({ lang: 'std' }); }, setLangOwn: function () { self.setState({ lang: 'own' }); },
+      langChip: own ? 'chip own' : 'chip std',
+      langText: own ? 'Sprachen: ' + st.langs.map(function (c) { return NAMES[c]; }).join(' › ') : 'Sprachen: Standard',
+      langHint: own ? 'Gilt nur für diesen Ordner.' : 'Standard: Deutsch › Englisch',
+      langFull: st.langs.length >= 4,
+      addLang: function () {
+        var next = ORDER.filter(function (c) { return st.langs.indexOf(c) < 0; })[0];
+        if (next) self.setState({ langs: st.langs.concat([next]) });
+      },
+      langs: st.langs.map(function (code, n) {
+        return {
+          id: 'lang' + n, rank: (n + 1) + '. Sprache', code: code, canDrop: st.langs.length > 1, dropLabel: NAMES[code] + ' entfernen',
+          set: function (ev) {
+            var v = ev.target.value, list = st.langs.slice(), at = list.indexOf(v);
+            if (at >= 0) list[at] = list[n];
+            list[n] = v; self.setState({ langs: list });
+          },
+          drop: function () { self.setState({ langs: st.langs.filter(function (_, m) { return m !== n; }) }); }
+        };
+      }),
+      imgStd: !imgOwn, imgOwn: imgOwn,
+      setImgStd: function () { self.setState({ img: 'std' }); }, setImgOwn: function () { self.setState({ img: 'own' }); },
+      imgChip: imgOwn ? 'chip own' : 'chip std',
+      imgText: imgOwn ? 'Bilder: eigene' : 'Bilder: Standard',
+      imgHint: imgOwn ? 'Poster, Hintergrund' + (onKinds.length ? ', ' + onKinds.join(', ') : '') : 'Standard: Poster, Hintergrund, Logo, Staffelposter, Folgenbild',
+      kinds: KINDS.map(function (k) {
+        return { name: k[1], hint: k[2], on: !!st.kinds[k[0]], flip: function () { var next = Object.assign({}, st.kinds); next[k[0]] = !next[k[0]]; self.setState({ kinds: next }); } };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

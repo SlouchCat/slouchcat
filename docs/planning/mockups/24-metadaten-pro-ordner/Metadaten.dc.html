@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Metadaten-Standard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f7a988}a:hover{color:#ffc9b2}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f5f6f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;padding:16px 16px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#d9dce4;border:1px dashed #ffffff66;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #ffffff73;background:none;color:#f5f6f8;text-decoration:none;font-size:13px;font-weight:600}
+.pill:hover{background:#2e3445;color:#fff}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a40}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border:1px solid #ffffff57;border-radius:12px;background:#171a22;align-self:flex-start}
+.tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;color:#d9dce4;font-size:13px;font-weight:600;text-decoration:none}
+.tab:hover{color:#fff}
+.tab[aria-current="page"]{background:#343a4d;color:#fff}
+.cnt{font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;background:#0b0c10;color:#d9dce4;border:1px solid #ffffff57}
+.eye{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f08e63}
+.h1{margin:0;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.03em}
+.sub{margin:0;color:#d9dce4;max-width:760px}
+.panel{background:#171a22;border:1px solid #ffffff57;border-radius:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #ffffff73;background:#20242f;color:#f5f6f8;font-size:14px;font-weight:600;text-decoration:none}
+.btn:hover{background:#2e3445;color:#fff}
+.btn.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.btn.pri:hover{background:#f39468;color:#1c0d06}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid #ffffff73;color:#f5f6f8}
+.chip.info{border-color:#ffffff57;background:#2b3040;color:#d9dce4}
+.chip.std{border-style:dashed;color:#d9dce4;font-weight:600}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;overflow-wrap:anywhere}
+.lbl{font-size:13px;font-weight:700;color:#f5f6f8}
+.hint{font-size:13px;color:#bcc1cd;margin:0}
+.inp{min-height:44px;box-sizing:border-box;border-radius:8px;border:1px solid #ffffff8c;background:#0b0c10;color:#f5f6f8;padding:0 12px;font-size:14px}
+select.inp{min-width:210px}
+.sec{border-top:1px solid #ffffff38}
+.sec:first-child{border-top:0}
+.fold{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;width:100%;min-height:60px;padding:8px 16px;background:none;border:0;color:#f5f6f8;text-align:left}
+.fold:hover{background:#20242f}
+.fold[aria-expanded="true"]>svg{transform:rotate(90deg)}
+.ttl{flex:0 0 190px;font-weight:700;font-size:15px}
+.sum{flex:1 1 300px;min-width:0;color:#d9dce4}
+.body{padding:4px 16px 18px 44px;display:flex;flex-direction:column;gap:10px}
+.line{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.src{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:6px 10px;border:1px solid #ffffff38;border-radius:8px;background:#0b0c10}
+.chk{width:22px;height:22px;accent-color:#e8794a;margin:0}
+.dir{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 0;border-top:1px solid #ffffff38}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Bibliotheken.dc.html">1 Bibliotheken</a>
+    <a class="pill" href="Main.dc.html">2 Bearbeiten</a>
+    <a class="pill" href="Ordner.dc.html">3 Ordner offen</a>
+    <a class="pill" href="Metadaten.dc.html" aria-current="page">4 Metadaten-Standard</a>
+    <a class="pill" href="Kontrast.dc.html">5 Kontrast</a>
+  </nav>
+
+  <nav class="tabs" aria-label="Bereich Medien">
+    <a class="tab" href="Bibliotheken.dc.html">Bibliotheken <span class="cnt">71'370</span></a>
+    <a class="tab" href="Metadaten.dc.html" aria-current="page">Metadaten</a>
+    <a class="tab" href="#">Pflege <span class="cnt">264</span></a>
+    <a class="tab" href="#">Podcasts</a>
+    <a class="tab" href="#">Radio</a>
+    <a class="tab" href="#">Hörbuch-Quellen</a>
+  </nav>
+
+  <header style="display: flex; flex-direction: column; gap: 6px">
+    <div class="eye">Medien / Metadaten</div>
+    <h1 class="h1">Metadaten</h1>
+    <p class="sub">Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Bearbeiten» ein.</p>
+  </header>
+
+  <section class="panel" aria-label="Standard">
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.lang }}" onClick="{{ t.lang }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Sprachen</span>
+        <span class="sum">Deutsch › Englisch</span>
+      </button>
+      <sc-if value="{{ o.lang }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <div class="line"><label class="hint" style="flex: 0 0 88px" for="l1">1. Sprache</label><select id="l1" class="inp"><option>Deutsch</option><option>Englisch</option><option>Japanisch</option><option>Französisch</option></select></div>
+          <div class="line"><label class="hint" style="flex: 0 0 88px" for="l2">2. Sprache</label><select id="l2" class="inp"><option>Englisch</option><option>Deutsch</option><option>Japanisch</option><option>Französisch</option></select></div>
+          <div class="line"><button class="btn">Weitere Sprache</button></div>
+          <p class="hint">Reihenfolge = Rückfall: Fehlt ein Text in der ersten Sprache, zeigt Slouchcat die nächste.</p>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.img }}" onClick="{{ t.img }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Bilder</span>
+        <span class="sum">Poster, Hintergrund, Logo, Staffelposter, Folgenbild</span>
+      </button>
+      <sc-if value="{{ o.img }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" disabled="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Poster</span><span class="hint">immer</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" disabled="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Hintergrund</span><span class="hint">immer</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Logo</span><span class="hint">Titelschriftzug statt Text-Titel</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Staffelposter</span><span class="hint">ein Poster je Staffel</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Folgenbild</span><span class="hint">ein Bild je Folge</span></label>
+          <p class="hint">Sprache je Bildart: Poster Deutsch › Englisch › ohne Text · Hintergrund ohne Text › Deutsch › Englisch · Logo Deutsch › Englisch</p>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.qual }}" onClick="{{ t.qual }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Bildqualität</span>
+        <span class="sum">Poster ab 1500 px, Hintergrund ab 1920 px</span>
+      </button>
+      <sc-if value="{{ o.qual }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <div class="line"><label class="hint" style="flex: 0 0 150px" for="q1">Poster mindestens</label><select id="q1" class="inp"><option>1500 px</option><option>beliebig</option><option>500 px</option><option>1000 px</option><option>2000 px</option></select></div>
+          <div class="line"><label class="hint" style="flex: 0 0 150px" for="q2">Hintergrund mindestens</label><select id="q2" class="inp"><option>1920 px</option><option>beliebig</option><option>1280 px</option><option>3840 px</option></select></div>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Nach Bewertung wählen</span><span class="hint">das am besten bewertete Bild gewinnt</span></label>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.src }}" onClick="{{ t.src }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Quellen</span>
+        <span class="sum">Lokale Dateien, Fanart.tv, TMDB mit Erwachseneninhalten</span>
+      </button>
+      <sc-if value="{{ o.src }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Lokale Bilddateien</span><span class="hint">poster.jpg, fanart.jpg, logo.png neben dem Film</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">Fanart.tv</span><span class="hint">zusätzliche Logos und Hintergründe</span></label>
+          <label class="src"><input class="chk" type="checkbox" checked="{{ true }}" onChange="{{ noop }}"><span style="font-weight: 700">TMDB: Erwachseneninhalte</span><span class="hint">in der Suche einschliessen</span></label>
+          <p class="hint">Welche Quelle einen Titel erkennt und in welcher Reihenfolge, steht je Ordner in seiner Bibliothek.</p>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.rate }}" onClick="{{ t.rate }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Altersfreigabe</span>
+        <span class="sum">Deutschland (FSK)</span>
+      </button>
+      <sc-if value="{{ o.rate }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <div class="line"><label class="hint" style="flex: 0 0 150px" for="r1">Land</label><select id="r1" class="inp"><option>Deutschland (FSK)</option><option>Schweiz</option><option>Österreich</option><option>USA (MPA)</option></select></div>
+          <p class="hint">Stufen: FSK 0, 6, 12, 16, 18. Ein anderes Land liest jede Freigabe neu.</p>
+        </div>
+      </sc-if>
+    </div>
+
+    <div class="sec">
+      <button class="fold" aria-expanded="{{ o.apply }}" onClick="{{ t.apply }}">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="ttl">Anwenden</span>
+        <span class="sum">Einstellungen auf vorhandene Titel übertragen</span>
+      </button>
+      <sc-if value="{{ o.apply }}" hint-placeholder-val="{{ false }}">
+        <div class="body">
+          <div class="line"><label class="hint" style="flex: 0 0 150px" for="a1">Was</label><select id="a1" class="inp"><option>Texte und Bilder</option><option>Nur Texte</option><option>Nur Bilder</option></select></div>
+          <div class="line"><label class="hint" style="flex: 0 0 150px" for="a2">Wo</label><select id="a2" class="inp"><option>Alle Ordner (2521 Titel)</option><option>/media/nas/Filme</option><option>/media/nas/Serien</option><option>/media/nas/MangaFilme</option><option>/media/nas/MangaSerien</option><option>/media/nas/Doku/Filme</option><option>/media/nas/Doku/Serien</option></select></div>
+          <div class="line"><button class="btn pri">Jetzt anwenden</button><a href="#">Zum Lauf unter Hintergrundjobs</a></div>
+        </div>
+      </sc-if>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Ordner">
+    <button class="fold" aria-expanded="{{ o.dirs }}" onClick="{{ t.dirs }}">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+      <span class="ttl">Ordner</span>
+      <span class="sum">6 Video-Ordner folgen dem Standard, 0 haben Eigenes</span>
+    </button>
+    <sc-if value="{{ o.dirs }}" hint-placeholder-val="{{ false }}">
+      <div class="body" style="gap: 0">
+        <sc-for list="{{ dirs }}" as="d" hint-placeholder-count="6">
+          <div class="dir">
+            <span class="mono" style="font-weight: 700; flex: 1 1 240px; min-width: 0">{{ d.path }}</span>
+            <span class="hint" style="flex: 0 0 90px">{{ d.lib }}</span>
+            <span class="chip std">Sprachen: Standard</span>
+            <span class="chip std">Bilder: Standard</span>
+            <a class="btn" href="Main.dc.html" aria-label="{{ d.editLabel }}">Bearbeiten</a>
+          </div>
+        </sc-for>
+        <p class="hint" style="padding-top: 10px">Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter «Hörbuch-Quellen».</p>
+      </div>
+    </sc-if>
+  </section>
+
+  <div class="panel line" style="padding: 10px 16px; justify-content: space-between">
+    <span class="sub">Gespeichert</span>
+    <button class="btn pri">Speichern</button>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: {} };
+  }
+  renderVals() {
+    var st = this.state, self = this, o = {}, t = {};
+    ['lang', 'img', 'qual', 'src', 'rate', 'apply', 'dirs'].forEach(function (k) {
+      o[k] = !!st.open[k];
+      t[k] = function () { var next = Object.assign({}, st.open); next[k] = !next[k]; self.setState({ open: next }); };
+    });
+    var D = [['/media/nas/Filme', 'Filme'], ['/media/nas/Serien', 'Serien'], ['/media/nas/MangaFilme', 'Anime'], ['/media/nas/MangaSerien', 'Anime'], ['/media/nas/Doku/Filme', 'Dokus'], ['/media/nas/Doku/Serien', 'Dokus']];
+    return {
+      o: o, t: t, noop: function () {},
+      dirs: D.map(function (d) { return { path: d[0], lib: d[1], editLabel: d[1] + ' bearbeiten: ' + d[0] }; })
+    };
+  }
+}
+</script>
+</body>
+</html>
