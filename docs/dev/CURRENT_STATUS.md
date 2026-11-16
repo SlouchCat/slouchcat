@@ -1,5 +1,32 @@
 # Aktueller Stand
 
+## Patch 1.39.1: vier Nebenbefunde aus der Prüfung des Verwaltungs-Redesigns (16. November 2026, Zweig `claude/patch-1.39.1`)
+
+Vier Fehler, die schon vor dem Redesign bestanden und bei der Aufnahme des Bestands auffielen
+(`docs/design/admin-redesign/funktionsabdeckung.md`, «Schon vor dem Umbau offen»). Marco hat die
+Behebung am 16. November 2026 freigegeben. Vertrag bleibt 1.38.0 (nur Beschreibungen von
+`getMyMedia` und `setMyMedia` nachgeführt), keine Migration.
+
+- **«Meine Medien» beim Löschen einer Bibliothek:** Die Verwaltung führte den Eintrag einer
+  Bibliothek, bis der Job `library.delete` fertig war, obwohl die Bibliotheksliste sie schon nicht
+  mehr zeigte. Neu lässt `admin.MyMedia` den Eintrag weg, sobald `deleting_at` gesetzt ist;
+  `SetMyMedia` gleicht weiter gegen alle gespeicherten Einträge ab (eine veraltete Liste bleibt
+  gültig, der Platz bleibt gespeichert, wird das Löschen aufgehoben, steht der Eintrag wieder dort).
+  Die Zuschauerseite war schon richtig (`visible_items`).
+- **Hinweis im Formular «Bibliothek hinzufügen»:** Bei der Art «Hörbücher» stand der Hinweis für
+  Video. Neu ein eigener Text (`library.audiobooksHint`): ein Ordner je Hörbuch, jede M4B-Datei ein
+  eigenes Buch.
+- **Toleranz der Hörbuch-Zuordnung:** «Länge darf abweichen um» bot 1, 3 und 5 %; neu jedes ganze
+  Prozent von 1 bis 10, wie der Hilfetext sagt und der Server annimmt.
+- **Update-Hinweis:** «Slouchcat installiert nichts selbst» steht nur noch ohne Updater-Begleiter.
+  Antwortet der Begleiter, sagt der Hinweis, dass er das Update auf Knopfdruck installiert
+  (`admin.home.update.bodyUpdater`). Die Einleitung der Update-Prüfung sagt «Die Prüfung selbst
+  installiert nichts.»
+- Texte in allen 23 Sprachen.
+- **Nicht in diesem Patch:** Verwaltung › Startseite führt die Reihe «Neu in …» einer Bibliothek
+  während ihres Löschjobs ebenfalls noch (`ListHomeRows`). Die Behebung braucht einen Entscheid, ob
+  eine solche Reihe zur Grenze der sichtbaren Reihen zählt.
+
 ## Release 1.39.0: Verwaltungs-Redesign: sechs Bereiche, Suchpalette, Seite «Server» (16. November 2026, PR #172, Tag `v1.39.0` auf dem Merge-Commit, abgenommen)
 
 Umbau der ganzen Verwaltung nach dem Mockup, das Marco am 15. November 2026 freigegeben hat
