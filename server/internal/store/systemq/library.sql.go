@@ -754,22 +754,24 @@ func (q *Queries) MoveDownloadsOffRoot(ctx context.Context, arg MoveDownloadsOff
 
 const setTitleHome = `-- name: SetTitleHome :execrows
 UPDATE items SET root_id = ?1,
-    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = ?1), items.providers),
-    updated_at = ?2
-WHERE items.id = ?3 OR items.parent_id = ?3
-   OR items.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?3)
+    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = ?1),
+                         (SELECT t.providers FROM items AS t WHERE t.id = ?2), items.providers),
+    updated_at = ?3
+WHERE items.id = ?2 OR items.parent_id = ?2
+   OR items.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?2)
 `
 
 type SetTitleHomeParams struct {
 	RootID  sql.NullInt64
-	Now     int64
 	TitleID string
+	Now     int64
 }
 
 // A new home folder for a top-level title, its seasons, episodes and extras, with the provider list
-// of that folder (concept 24 3.2: the list moves with the title).
+// of that folder (concept 24 3.2: the list moves with the title); without a folder they take the
+// title's list.
 func (q *Queries) SetTitleHome(ctx context.Context, arg SetTitleHomeParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, setTitleHome, arg.RootID, arg.Now, arg.TitleID)
+	result, err := q.db.ExecContext(ctx, setTitleHome, arg.RootID, arg.TitleID, arg.Now)
 	if err != nil {
 		return 0, err
 	}

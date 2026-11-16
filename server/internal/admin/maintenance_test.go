@@ -907,3 +907,46 @@ func TestVerifyRatingsWithMinimumAges(t *testing.T) {
 		t.Errorf("VerifyRatings after a broken effective rating = %v, want the film", ids)
 	}
 }
+
+// ADR 0036: a merge moves the source's seasons below the target; they take the target's home
+// folder with that folder's list, and a target without a present file of its own moves to the
+// folder of the source's files.
+func TestAdminMaintenanceMergeSpreadsTheHomeFolder(t *testing.T) {
+	for _, targetPresent := range []bool{true, false} {
+		m := newMaintFixture(t)
+		f := m.f
+		s1, a := f.Show.Series.ID, f.RootID()
+		tree := `id = ? OR parent_id = ? OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?)`
+		m.exec(t, `UPDATE items SET root_id = ?, providers = (SELECT providers FROM library_roots WHERE id = ?) WHERE `+tree, a, a, s1, s1, s1)
+		if !targetPresent {
+			m.exec(t, `UPDATE media_files SET missing_since = 1 WHERE item_id IN (SELECT id FROM items WHERE `+tree+`)`, s1, s1, s1)
+		}
+		m.exec(t, `INSERT INTO library_roots (id, library_id, path, fs_type, watch, created_at, content, providers)
+		           VALUES (900, ?, ?, 'local', 'poll', 0, 'series', '["tvdb","tmdb"]')`, f.LibraryID(), t.TempDir())
+		const s2, season, ep = "01J000000000000000000MRGS2", "01J000000000000000000MRGSE", "01J000000000000000000MRGEP"
+		for _, it := range [][3]string{{s2, "series", ""}, {season, "season", s2}, {ep, "episode", season}} {
+			m.exec(t, `INSERT INTO items (id, kind, parent_id, library_id, root_id, title, sort_title, providers, metadata_state, added_at, created_at, updated_at)
+			           VALUES (?, ?, nullif(?, ''), ?, 900, 'Show', 'show', '["tvdb","tmdb"]', 'matched', 0, 0, 0)`, it[0], it[1], it[2], f.LibraryID())
+		}
+		m.exec(t, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, created_at, updated_at)
+		           VALUES ('01J000000000000000000MRGMF', ?, 900, 'Show/Season 09/Show - S09E01.mp4', 1, 1, 'mp4', 0, 0)`, ep)
+		if _, err := m.svc.MergeItems(m.ctx, s1, []string{s2}); err != nil {
+			t.Fatal(err)
+		}
+		want := a
+		if !targetPresent {
+			want = 900
+		}
+		var wrong, moved int
+		if err := f.DB.Read.QueryRow(`SELECT count(*) FROM items WHERE (`+tree+`)
+		    AND (root_id IS NOT ? OR providers <> (SELECT providers FROM library_roots WHERE id = ?))`, s1, s1, s1, want, want).Scan(&wrong); err != nil {
+			t.Fatal(err)
+		}
+		if err := f.DB.Read.QueryRow(`SELECT count(*) FROM items WHERE id IN (?, ?) AND parent_id IS NOT NULL`, season, ep).Scan(&moved); err != nil {
+			t.Fatal(err)
+		}
+		if wrong != 0 || moved != 2 {
+			t.Errorf("target with a present file %v: %d rows of the merged tree outside home folder %d or its list, %d moved children", targetPresent, wrong, want, moved)
+		}
+	}
+}

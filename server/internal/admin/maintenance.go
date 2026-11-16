@@ -590,6 +590,12 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 			return fmt.Errorf("merge %s: %w", step.what, err)
 		}
 	}
+	// The moved children and files carry the source's home folder and list: the target is
+	// determined again (it may have no present file of its own) and spreads its home folder with
+	// that folder's list onto every child (ADR 0036).
+	if _, err := library.RehomeTx(ctx, q, time.UnixMilli(now), targetID, true); err != nil {
+		return fmt.Errorf("merge home folder: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}

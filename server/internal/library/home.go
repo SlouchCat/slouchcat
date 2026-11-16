@@ -31,7 +31,8 @@ import (
 // takes that folder's provider list, and a live title queues its match (the fill follows it) -- an
 // audiobook its book match by the rules of queueBookMatch. A title without any present file keeps
 // what it has. It reports whether the home folder changed. spread writes an unchanged home folder
-// and its provider list onto the children too (a relink moves children of another title below it).
+// and its provider list onto the children too (a relink or a merge moves children of another title
+// below it); without a home folder the children take none and the title's list.
 func rehome(ctx context.Context, q *systemq.Queries, now time.Time, id string, spread bool) (bool, error) {
 	item, err := q.GetItemSystem(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -45,7 +46,7 @@ func rehome(ctx context.Context, q *systemq.Queries, now time.Time, id string, s
 		return false, fmt.Errorf("home folder of %s: present files: %w", id, err)
 	}
 	if len(roots) == 0 || item.RootID.Valid && slices.Contains(roots, item.RootID.Int64) {
-		if spread && item.RootID.Valid {
+		if spread {
 			if _, err := q.SetTitleHome(ctx, systemq.SetTitleHomeParams{RootID: item.RootID, Now: now.UnixMilli(), TitleID: id}); err != nil {
 				return false, fmt.Errorf("spread home folder of %s: %w", id, err)
 			}

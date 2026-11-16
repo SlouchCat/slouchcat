@@ -151,9 +151,11 @@ ORDER BY m.created_at, r.path || '/' || m.rel_path;
 
 -- name: SetTitleHome :execrows
 -- A new home folder for a top-level title, its seasons, episodes and extras, with the provider list
--- of that folder (concept 24 3.2: the list moves with the title).
+-- of that folder (concept 24 3.2: the list moves with the title); without a folder they take the
+-- title's list.
 UPDATE items SET root_id = @root_id,
-    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = @root_id), items.providers),
+    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = @root_id),
+                         (SELECT t.providers FROM items AS t WHERE t.id = @title_id), items.providers),
     updated_at = @now
 WHERE items.id = @title_id OR items.parent_id = @title_id
    OR items.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = @title_id);
