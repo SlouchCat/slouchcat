@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Release 1.40.0: Konzept 24 «Metadaten pro Ordner», ein Formular je Bibliothek, Klappbares zu, mehr Kontrast (16. November 2026, Zweig `claude/k24-bau`)
+## Release 1.40.0: Konzept 24 «Metadaten pro Ordner», ein Formular je Bibliothek, Klappbares zu, mehr Kontrast (16. November 2026, veröffentlicht: PR #176 `d8125392`, Tag `v1.40.0`, Lauf 43950610784, abgenommen)
 
 Marco am 16. November 2026: «Baue alle Stufen selbständig und mache ein einziger Release daraus.»
 Grundlage: `docs/planning/24-metadaten-pro-ordner.md` (Frage 32), ADR 0036, Entscheide beim Bau im
@@ -98,23 +98,24 @@ Firefox; `task server:lint` ohne Befund).
 zu lange Zeilen; `check:fast` sieht nur `web/`), nach dem Formatieren grün auf `063d2d6c`: 43
 Go-Pakete mit `-race`, 2200 Vitest-Tests in 198 Dateien (dazu 12 der Tokens und 4 des API-Clients),
 Storybook 562, e2e 727 («3 shards in 891 s; all green»), 18 min 57 s. Danach folgten nur Doku und
-Versionsstellen.
+Versionsstellen. Die GitHub-CI des PR war grün (20 Prüfungen).
+
+**Veröffentlicht und abgenommen:** PR #176 gemergt (Merge-Commit `d8125392`), Tag `v1.40.0` auf dem
+Merge-Commit, Release-Lauf 43950610784 grün, `manifest.json` nennt 1.40.0. Marco hat das Release am
+16. November 2026 auf CT 190 abgenommen.
 
 **Offen:**
 
-1. **Abnahme auf CT 190** durch Marco (Update per Updater; Migration 00065 läuft beim ersten
-   Start, die Sicherung davor wie immer). Auf CT 190 weicht keine Bibliothek ab, die Migration
-   kopiert dort nichts.
-2. **Band nach dem Speichern, genau ein Titel:** In einigen der zwanzig weiteren Sprachen steht die
+1. **Band nach dem Speichern, genau ein Titel:** In einigen der zwanzig weiteren Sprachen steht die
    Mehrzahl («1 titres»), weil die Titelzahl im Satz keine eigene Pluralform hat. Deutsch und
    Englisch sind richtig.
-3. **Z-6 nicht gemessen:** die Personenseite (unscharfes Porträt als Hintergrund) und die Kachel
+2. **Z-6 nicht gemessen:** die Personenseite (unscharfes Porträt als Hintergrund) und die Kachel
    «Meine Medien» (behält ihre alte Prüfung mit zwei Tokens). Die Pausenansicht des Players ist an
    einer Testseite geprüft, nicht im laufenden Player.
-4. **Heimatordner:** Liegt in einem zweiten Ordner eine ältere Datei, bleibt der Heimatordner beim
+3. **Heimatordner:** Liegt in einem zweiten Ordner eine ältere Datei, bleibt der Heimatordner beim
    ersten, solange dort noch eine Datei liegt (ADR 0036, bewusst). Die Regel der Migration und die
    des Servers stimmen am eingefrorenen Stand überein.
-5. **Anwenden nach dem Speichern** geschieht nie von selbst (jede Sprache kostet Anfragen); das
+4. **Anwenden nach dem Speichern** geschieht nie von selbst (jede Sprache kostet Anfragen); das
    Band bietet es an.
 6. **Wackeltest unter Last:** `TestPoolIndexRunsOneJobAtATime` (`internal/jobs`) fiel in einem von
    fünf ganzen Läufen der Go-Suite unter `-race` beim Aufräumen des Testordners (`TempDir RemoveAll
