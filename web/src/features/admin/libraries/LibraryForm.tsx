@@ -312,6 +312,7 @@ function LibraryFormFields({
           library && marked && onMark && onUndo
             ? {
                 isStored: (folder) => storedRoot(library, folder.key) !== undefined,
+                stored: (folder) => storedRoot(library, folder.key),
                 marked,
                 onMark,
                 onUndo,

@@ -97,6 +97,11 @@ interface FolderMarking {
   marked: ReadonlySet<string>;
   onMark: (key: string) => void;
   onUndo: (key: string) => void;
+  /**
+   * The stored content and sources of a card's folder: switching the content back to the stored
+   * one brings back its stored sources instead of the defaults.
+   */
+  stored?: (entry: FolderEntry) => Pick<FolderEntry, 'content' | 'providers'> | undefined;
 }
 
 interface FolderListProps {
@@ -346,7 +351,12 @@ export function FolderList({
                       onChange={(value) => {
                         const content = contents.find((candidate) => candidate === value);
                         if (content && content !== entry.content) {
-                          update(entry.key, { content, providers: defaultProviders(content) });
+                          const saved = marking?.stored?.(entry);
+                          const providers =
+                            saved?.content === content
+                              ? [...saved.providers]
+                              : defaultProviders(content);
+                          update(entry.key, { content, providers });
                         }
                       }}
                       options={contents.map((value) => ({

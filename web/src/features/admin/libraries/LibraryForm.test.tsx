@@ -618,6 +618,28 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     ).toBeVisible();
   });
 
+  it('switching the content away and back brings back the stored sources, not the defaults', async () => {
+    const withAnilist = library({
+      roots: [{ ...library().roots[0]!, providers: ['tmdb', 'anilist'] }],
+    });
+    const { calls } = mockApi(routes([withAnilist]));
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    const card = cardOf(dialog, 1);
+    await openCard(user, card);
+    expect(await within(card).findByRole('checkbox', { name: 'AniList' })).toBeChecked();
+    await user.click(within(card).getByRole('radio', { name: 'Serien' }));
+    expect(within(card).getByRole('checkbox', { name: 'AniList' })).not.toBeChecked();
+    await user.click(within(card).getByRole('radio', { name: 'Filme' }));
+    expect(within(card).getByRole('checkbox', { name: 'AniList' })).toBeChecked();
+    expect(within(card).queryByText('geändert')).toBeNull();
+    // Nothing changed: «Speichern» sends nothing.
+    await user.click(saveOf(dialog));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(puts(calls)).toHaveLength(0);
+  });
+
   it('adds a folder in «Bearbeiten»: the new card is open and goes without id, its sources by position', async () => {
     const { calls } = mockApi(routes([library()], { 'PUT /admin/libraries/1': saved(library()) }));
     renderApp('/admin/libraries');
