@@ -798,7 +798,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     const update = await serverRow('Update-Prüfung');
-    expect(update).toHaveAccessibleDescription(/Installiert wird nichts/);
+    expect(update).toHaveAccessibleDescription(/Die Prüfung selbst installiert nichts\.$/);
     const toggle = within(update).getByRole('checkbox', {
       name: 'Täglich nach neuen Versionen suchen',
     });

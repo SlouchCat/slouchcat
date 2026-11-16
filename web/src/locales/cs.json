@@ -505,6 +505,7 @@
     "defaultRating": "Výchozí věkové omezení",
     "defaultRatingHint": "Platí pro každý titul této knihovny. Jednotlivé tituly lze potom nastavit jen přísněji.",
     "podcastsHint": "Složka je volitelná: kanály můžete odebírat i bez složky v sekci Podcasty.",
+    "audiobooksHint": "Jedna složka na audioknihu: zvukové soubory jedné složky tvoří jednu knihu, každý soubor M4B je samostatná kniha.",
     "browse": {
       "title": "Vyberte složku",
       "open": "Procházet…",
@@ -3744,6 +3745,7 @@
       "update": {
         "title": "K dispozici je verze {{version}}",
         "body": "Používáte {{current}}. Slouchcat nic neinstaluje sám: nový image stáhněte pomocí docker compose pull a restartujte pomocí docker compose up -d.",
+        "bodyUpdater": "Používáte {{current}}. Updater nainstaluje aktualizaci jedním kliknutím.",
         "notes": "Poznámky k vydání",
         "development": {
           "title": "Používáte vývojové sestavení",
@@ -4145,7 +4147,7 @@
       },
       "update": {
         "title": "Kontrola aktualizací",
-        "intro": "Jednou denně Slouchcat přečte veřejný manifest vydání a při nové verzi zobrazí upozornění. Nic se neinstaluje.",
+        "intro": "Jednou denně Slouchcat přečte veřejný manifest vydání a při nové verzi zobrazí upozornění. Samotná kontrola nic neinstaluje.",
         "toggle": "Denně hledat nové verze",
         "on": "Kontrola aktualizací zapnuta.",
         "off": "Kontrola aktualizací vypnuta."

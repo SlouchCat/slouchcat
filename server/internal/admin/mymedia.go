@@ -14,7 +14,9 @@ import (
 // navigation and on the start page (concept 21 P-11, O-21) and what it holds for every profile
 // alike: a library its top-level titles that are not deleted, collections those with a member that
 // is not an audiobook, picks the recommended titles within the retention. The count of radio (the
-// stations in the offer) is the radio service's; it stays 0 here.
+// stations in the offer) is the radio service's; it stays 0 here. An entry of a library that is
+// being deleted (deleting_at, library.delete) is left out, like ListLibraries leaves the library
+// out; it keeps its stored place and shows there again when the deletion is undone.
 func (s *Service) MyMedia(ctx context.Context) ([]model.MyMediaSetting, error) {
 	return s.myMedia(ctx, s.read, s.sys)
 }
@@ -22,9 +24,11 @@ func (s *Service) MyMedia(ctx context.Context) ([]model.MyMediaSetting, error) {
 // SetMyMedia stores the order and hiding of «Meine Medien» by id (concept 21 P-11). The slice
 // order is the display order; an empty slice, an unknown id, an id twice or a key that does not
 // match the stored entry is 422 rows invalid_value. A stored entry the slice leaves out (a library
-// added after the page was opened) keeps its place in the stored order and its flags. Positions
-// become 0..n-1 in one transaction. The side navigation and the start page read the order on every
-// request, so there is nothing to invalidate.
+// added after the page was opened, or one of a library that is being deleted) keeps its place in
+// the stored order and its flags. The merge covers every stored entry, the one of a library that is
+// being deleted too, so a slice that still names it is valid; the returned list leaves it out like
+// MyMedia. Positions become 0..n-1 over all stored entries in one transaction. The side navigation
+// and the start page read the order on every request, so there is nothing to invalidate.
 func (s *Service) SetMyMedia(ctx context.Context, entries []model.MyMediaSetting) ([]model.MyMediaSetting, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -32,7 +36,7 @@ func (s *Service) SetMyMedia(ctx context.Context, entries []model.MyMediaSetting
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := appq.New(tx)
-	stored, err := listMyMedia(ctx, q)
+	stored, _, err := listMyMedia(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +97,14 @@ func mergeMyMedia(stored, entries []model.MyMediaSetting) ([]model.MyMediaSettin
 	return order, nil
 }
 
+// myMedia returns the stored entries without those of a library that is being deleted, with their
+// counts.
 func (s *Service) myMedia(ctx context.Context, q *appq.Queries, sys *systemq.Queries) ([]model.MyMediaSetting, error) {
-	out, err := listMyMedia(ctx, q)
+	all, deleting, err := listMyMedia(ctx, q)
 	if err != nil {
 		return nil, err
 	}
+	out := slices.DeleteFunc(all, func(e model.MyMediaSetting) bool { return deleting[e.ID] })
 	titles, err := sys.AdminLibraryTitleCounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("library title counts: %w", err)
@@ -127,17 +134,23 @@ func (s *Service) myMedia(ctx context.Context, q *appq.Queries, sys *systemq.Que
 	return out, nil
 }
 
-func listMyMedia(ctx context.Context, q *appq.Queries) ([]model.MyMediaSetting, error) {
+// listMyMedia returns every stored entry in display order and the ids of the entries whose library
+// is being deleted.
+func listMyMedia(ctx context.Context, q *appq.Queries) ([]model.MyMediaSetting, map[string]bool, error) {
 	rows, err := q.ListMyMedia(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list my media: %w", err)
+		return nil, nil, fmt.Errorf("list my media: %w", err)
 	}
 	out := make([]model.MyMediaSetting, 0, len(rows))
+	deleting := map[string]bool{}
 	for _, r := range rows {
 		out = append(out, model.MyMediaSetting{ID: r.ID, Key: r.Key, LibraryID: r.LibraryID.Int64, LibraryName: r.LibraryName,
 			LibraryKind: r.LibraryKind, Position: int(r.Position), HideSidebar: r.HideSidebar == 1, HideHome: r.HideHome == 1})
+		if r.LibraryDeletingAt.Valid {
+			deleting[r.ID] = true
+		}
 	}
-	return out, nil
+	return out, deleting, nil
 }
 
 func flag(b bool) int64 {

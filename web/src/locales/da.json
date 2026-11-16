@@ -481,6 +481,7 @@
     "defaultRating": "Standardaldersgrænse",
     "defaultRatingHint": "Gælder for alle titler i dette bibliotek. Enkelte titler kan bagefter kun sættes strengere.",
     "podcastsHint": "Mappe er valgfri: Du kan også abonnere på feeds uden mappe under Podcasts.",
+    "audiobooksHint": "Én mappe pr. lydbog: Lydfilerne i en mappe udgør én bog, og hver M4B-fil er en bog for sig.",
     "browse": {
       "title": "Vælg en mappe",
       "open": "Gennemse…",
@@ -3486,6 +3487,7 @@
       "update": {
         "title": "Version {{version}} er tilgængelig",
         "body": "Du kører {{current}}. Slouchcat installerer ikke noget selv: Hent det nye image med docker compose pull, og genstart med docker compose up -d.",
+        "bodyUpdater": "Du kører {{current}}. Updateren installerer opdateringen med et tryk på en knap.",
         "notes": "Udgivelsesnoter",
         "development": {
           "title": "Du kører en udviklingsversion",
@@ -3867,7 +3869,7 @@
       },
       "update": {
         "title": "Opdateringskontrol",
-        "intro": "Én gang om dagen læser Slouchcat det offentlige udgivelsesmanifest og viser en henvisning, når der er en ny version. Der installeres intet.",
+        "intro": "Én gang om dagen læser Slouchcat det offentlige udgivelsesmanifest og viser en henvisning, når der er en ny version. Selve kontrollen installerer intet.",
         "toggle": "Søg dagligt efter nye versioner",
         "on": "Opdateringskontrol slået til.",
         "off": "Opdateringskontrol slået fra."

@@ -643,6 +643,30 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
     vi.mocked(reloadPage).mockClear();
   });
 
+  it.each([
+    [
+      'with a companion that answers names it',
+      {},
+      'Du verwendest 0.9.0. Der Updater-Begleiter installiert das Update auf Knopfdruck.',
+    ],
+    [
+      'without a companion names the commands',
+      { updaterConfigured: false, updaterAvailable: false },
+      'Du verwendest 0.9.0. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.',
+    ],
+    [
+      'with a companion that does not answer names the commands',
+      { updaterConfigured: true, updaterAvailable: false },
+      'Du verwendest 0.9.0. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.',
+    ],
+  ])('the hint «Version 0.9.1 ist verfügbar» %s', async (_, overrides, body) => {
+    mockApi(updateRoutes(installable(overrides)));
+    renderApp(SERVER);
+    const card = await serverCard();
+    expect(within(card).getByText('Version 0.9.1 ist verfügbar')).toBeVisible();
+    expect(within(card).getByText(body)).toBeVisible();
+  });
+
   it('offers nothing without a newer version', async () => {
     mockApi(updateRoutes(installable({ available: false, latestVersion: '0.9.0' })));
     renderApp(SERVER);

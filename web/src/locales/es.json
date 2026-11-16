@@ -493,6 +493,7 @@
     "defaultRating": "Clasificación por edades predeterminada",
     "defaultRatingHint": "Se aplica a todos los títulos de esta biblioteca. Después, cada título solo se puede clasificar con más restricción.",
     "podcastsHint": "Carpeta opcional: también puedes suscribirte a feeds sin carpeta en Pódcast.",
+    "audiobooksHint": "Una carpeta por audiolibro: los archivos de audio de una carpeta forman un libro, y cada archivo M4B es un libro independiente.",
     "browse": {
       "title": "Elegir una carpeta",
       "open": "Examinar…",
@@ -3615,6 +3616,7 @@
       "update": {
         "title": "La versión {{version}} está disponible",
         "body": "Estás usando la {{current}}. Slouchcat no instala nada por sí mismo: obtén la imagen nueva con docker compose pull y reinicia con docker compose up -d.",
+        "bodyUpdater": "Estás usando la {{current}}. El complemento actualizador instala la actualización con un botón.",
         "notes": "Notas de la versión",
         "development": {
           "title": "Estás usando una versión de desarrollo",
@@ -4006,7 +4008,7 @@
       },
       "update": {
         "title": "Comprobación de actualizaciones",
-        "intro": "Una vez al día, Slouchcat lee el manifiesto público de versiones y muestra un aviso si hay una versión nueva. No se instala nada.",
+        "intro": "Una vez al día, Slouchcat lee el manifiesto público de versiones y muestra un aviso si hay una versión nueva. La comprobación en sí no instala nada.",
         "toggle": "Buscar versiones nuevas cada día",
         "on": "Comprobación de actualizaciones activada.",
         "off": "Comprobación de actualizaciones desactivada."

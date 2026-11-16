@@ -77,8 +77,8 @@ const isAuto = (value: string): value is AudiobookAutoMatch => value in AUTO;
 
 /** Where a signed-in user creates a key for Google Books (an address, not a text). */
 
-/** The tolerances the page offers by name (mockup `Quellen`); the server allows 1 to 10. */
-const TOLERANCES = [1, 3, 5] as const;
+/** The tolerances the page offers: every whole percent the contract allows (1 to 10). */
+const TOLERANCES = Array.from({ length: 10 }, (_, index) => index + 1);
 
 /** The text of each reason of a failed run (`BookReviewEntry.error`, `<source>:<reason>`). */
 const REASONS = {
@@ -287,11 +287,6 @@ function Settings({
     },
   });
   const errors = save.error ? formErrors(t, save.error) : null;
-  const tolerances: number[] = [...TOLERANCES];
-  if (!tolerances.includes(draft.tolerancePercent)) {
-    tolerances.push(draft.tolerancePercent);
-    tolerances.sort((a, b) => a - b);
-  }
 
   return (
     <>
@@ -368,7 +363,7 @@ function Settings({
             hideLabel
             value={String(draft.tolerancePercent)}
             onChange={(value) => set('tolerancePercent', Number(value))}
-            options={tolerances.map((count) => ({
+            options={TOLERANCES.map((count) => ({
               value: String(count),
               label: t('admin.audiobookSources.tolerance.option', { count }),
             }))}

@@ -481,6 +481,7 @@
     "defaultRating": "Standard-Altersstufe",
     "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
     "podcastsHint": "Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.",
+    "audiobooksHint": "Ein Ordner je Hörbuch: Die Audiodateien eines Ordners bilden ein Buch, jede M4B-Datei ist ein eigenes Buch.",
     "browse": {
       "title": "Ordner auswählen",
       "open": "Durchsuchen …",
@@ -3464,6 +3465,7 @@
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
+        "bodyUpdater": "Du verwendest {{current}}. Der Updater-Begleiter installiert das Update auf Knopfdruck.",
         "notes": "Versionshinweise",
         "development": {
           "title": "Du verwendest einen Entwicklungsstand",
@@ -3845,7 +3847,7 @@
       },
       "update": {
         "title": "Update-Prüfung",
-        "intro": "Slouchcat liest einmal täglich das öffentliche Release-Manifest und zeigt einen Hinweis, wenn es eine neue Version gibt. Installiert wird nichts.",
+        "intro": "Slouchcat liest einmal täglich das öffentliche Release-Manifest und zeigt einen Hinweis, wenn es eine neue Version gibt. Die Prüfung selbst installiert nichts.",
         "toggle": "Täglich nach neuen Versionen suchen",
         "on": "Update-Prüfung eingeschaltet.",
         "off": "Update-Prüfung ausgeschaltet."

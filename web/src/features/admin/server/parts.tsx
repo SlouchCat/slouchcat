@@ -444,7 +444,10 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
       place: 'update',
       tone: 'active',
       title: t('admin.home.update.title', { version: update.latestVersion }),
-      body: t('admin.home.update.body', { current: update.currentVersion }),
+      // With a companion that answers the page offers the install button; otherwise the commands.
+      body: update.updaterAvailable
+        ? t('admin.home.update.bodyUpdater', { current: update.currentVersion })
+        : t('admin.home.update.body', { current: update.currentVersion }),
       action: update.url ? (
         <TextLink href={update.url} external>
           {t('admin.home.update.notes')}

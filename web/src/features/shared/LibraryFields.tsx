@@ -104,7 +104,11 @@ export function LibraryFields({
         options={KINDS.map((value) => ({ value, label: t(`library.kind.${value}`) }))}
       />
       <Text tone="secondary" variant="caption">
-        {kind === 'podcasts' ? t('library.podcastsHint') : t('library.videoHint')}
+        {kind === 'podcasts'
+          ? t('library.podcastsHint')
+          : kind === 'audiobooks'
+            ? t('library.audiobooksHint')
+            : t('library.videoHint')}
       </Text>
       <FolderList
         kind={kind}

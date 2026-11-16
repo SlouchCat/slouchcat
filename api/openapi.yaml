@@ -6647,12 +6647,14 @@ paths:
         `libraries`), separately (O-21). One order serves both places and every profile. A new library
         gets its entry at the end, visible in both places (O-20). `count` is what the entry holds,
         for every profile alike: the top-level titles of a library, the stations in the radio offer,
-        the collections with a member that is not an audiobook, the recommended titles.
+        the collections with a member that is not an audiobook, the recommended titles. A library that
+        is being deleted (job `library.delete`) has no entry here, like in the list of libraries; its
+        entry keeps its stored place, so `position` may leave a gap until the job has finished.
       tags: [admin]
       x-visibility: admin
       responses:
         "200":
-          description: All entries in display order.
+          description: All entries in display order, without those of a library that is being deleted.
           content:
             application/json:
               schema:
@@ -6670,7 +6672,9 @@ paths:
         Since contract 1.33.0. The entries by `id`: the array order is the display order, and
         `hideSidebar` and `hideHome` of each listed entry are stored; `position`, `count` and the
         library's name and kind are ignored. A stored entry the array leaves out (a library added
-        after the page was read) keeps its place in the stored order and its flags.
+        after the page was read, or one that is being deleted) keeps its place in the stored order
+        and its flags. The entry of a library that is being deleted may still be sent; the answer
+        leaves it out like `getMyMedia`.
       tags: [admin]
       x-visibility: admin
       requestBody:

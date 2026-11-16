@@ -481,6 +481,7 @@
     "defaultRating": "Varsayılan yaş sınırı",
     "defaultRatingHint": "Bu kitaplığın tüm içeriklerine uygulanır. Tek tek içerikler sonradan yalnızca daha sıkı derecelendirilebilir.",
     "podcastsHint": "Klasör isteğe bağlı: Podcast’ler altında klasörsüz de akışlara abone olabilirsiniz.",
+    "audiobooksHint": "Her sesli kitap için bir klasör: bir klasördeki ses dosyaları tek bir kitap oluşturur, her M4B dosyası ise ayrı bir kitaptır.",
     "browse": {
       "title": "Klasör seçin",
       "open": "Gözat…",
@@ -3486,6 +3487,7 @@
       "update": {
         "title": "{{version}} sürümü kullanılabilir",
         "body": "{{current}} sürümünü çalıştırıyorsunuz. Slouchcat kendi kendine bir şey kurmaz: yeni imajı docker compose pull ile alın ve docker compose up -d ile yeniden başlatın.",
+        "bodyUpdater": "{{current}} sürümünü çalıştırıyorsunuz. Güncelleyici yardımcısı güncellemeyi tek tuşla kurar.",
         "notes": "Sürüm notları",
         "development": {
           "title": "Bir geliştirme sürümü çalıştırıyorsunuz",
@@ -3867,7 +3869,7 @@
       },
       "update": {
         "title": "Güncelleme denetimi",
-        "intro": "Slouchcat günde bir kez herkese açık sürüm manifestosunu okur ve yeni bir sürüm olduğunda bir ipucu gösterir. Hiçbir şey kurulmaz.",
+        "intro": "Slouchcat günde bir kez herkese açık sürüm manifestosunu okur ve yeni bir sürüm olduğunda bir ipucu gösterir. Denetimin kendisi hiçbir şey kurmaz.",
         "toggle": "Yeni sürümleri her gün ara",
         "on": "Güncelleme denetimi açıldı.",
         "off": "Güncelleme denetimi kapatıldı."

@@ -469,6 +469,7 @@
     "defaultRating": "默认年龄分级",
     "defaultRatingHint": "适用于此媒体库中的所有作品。之后只能为单个作品设置更严格的分级。",
     "podcastsHint": "文件夹可选：也可以在“播客”中订阅不带文件夹的订阅源。",
+    "audiobooksHint": "每本有声书一个文件夹：一个文件夹中的音频文件组成一本书，每个 M4B 文件各自是一本书。",
     "browse": {
       "title": "选择文件夹",
       "open": "浏览…",
@@ -3357,6 +3358,7 @@
       "update": {
         "title": "版本 {{version}} 现已推出",
         "body": "你当前运行的是 {{current}}。Slouchcat 不会自动安装：请用 docker compose pull 获取新镜像，然后用 docker compose up -d 重启。",
+        "bodyUpdater": "你当前运行的是 {{current}}。更新程序配套容器可一键安装更新。",
         "notes": "版本说明",
         "development": {
           "title": "你正在运行开发版本",
@@ -3728,7 +3730,7 @@
       },
       "update": {
         "title": "更新检查",
-        "intro": "Slouchcat 每天读取一次公开的发布清单，有新版本时会显示提示。不会安装任何内容。",
+        "intro": "Slouchcat 每天读取一次公开的发布清单，有新版本时会显示提示。检查本身不会安装任何内容。",
         "toggle": "每天检查新版本",
         "on": "更新检查已开启。",
         "off": "更新检查已关闭。"
