@@ -249,6 +249,7 @@
       "root_overlap": "This folder overlaps another folder.",
       "path_with_content": "A new path cannot be combined with a content change.",
       "root_files_missing": "None of the folder's files lies under the new path.",
+      "confirm_mismatch": "The path does not match the folder's path. Nothing was changed.",
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",

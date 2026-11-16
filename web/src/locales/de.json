@@ -249,6 +249,7 @@
       "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
       "path_with_content": "Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden.",
       "root_files_missing": "Unter dem neuen Pfad liegt keine der bisherigen Dateien.",
+      "confirm_mismatch": "Der Pfad stimmt nicht mit dem Pfad des Ordners überein. Es wurde nichts geändert.",
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",

@@ -519,6 +519,33 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme neu');
   });
 
+  it('a typed path the server does not accept stays in the confirmation with its own message', async () => {
+    mockApi(
+      routes([withTwoFolders], {
+        'PUT /admin/libraries/1': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'removeRoots[0].confirmPath', code: 'confirm_mismatch' }],
+          }),
+      }),
+    );
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await openCard(user, cardOf(dialog, 2));
+    await user.click(within(cardOf(dialog, 2)).getByRole('button', { name: 'Ordner 2 entfernen' }));
+    await user.click(saveOf(dialog));
+    const confirm = await screen.findByRole('dialog', { name: 'Änderungen bestätigen' });
+    const field = within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen');
+    await user.type(field, '/media/Filme-2');
+    await user.click(within(confirm).getByRole('button', { name: 'Speichern' }));
+    expect(
+      await within(confirm).findByText(
+        'Der Pfad stimmt nicht mit dem Pfad des Ordners überein. Es wurde nichts geändert.',
+      ),
+    ).toBeVisible();
+    expect(field).toHaveValue('/media/Filme-2');
+  });
+
   it('409 scan_running keeps the confirmation with every input and offers «Scan abbrechen»', async () => {
     const { calls } = mockApi(
       routes([withTwoFolders], {

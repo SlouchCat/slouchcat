@@ -129,6 +129,8 @@ const fieldKeys = {
   root_overlap: 'errors.field.root_overlap',
   path_with_content: 'errors.field.path_with_content',
   root_files_missing: 'errors.field.root_files_missing',
+  // A typed path of «Änderungen bestätigen» (`removeRoots[j].confirmPath`, `roots[i].confirmPath`).
+  confirm_mismatch: 'errors.field.confirm_mismatch',
   content_not_allowed: 'errors.field.content_not_allowed',
   providers_not_allowed: 'errors.field.providers_not_allowed',
   roots_required: 'errors.field.roots_required',
