@@ -470,7 +470,7 @@ type UpdateLibraryRootParams struct {
 	LibraryID int64
 }
 
-// Content and provider list of a folder (updateLibraryRoot, ADR 0015); the titles follow through
+// Content and provider list of a folder (saveLibrary, ADR 0015); the titles follow through
 // the library package (UpdateItemsProvidersByRoot), never through this statement alone.
 func (q *Queries) UpdateLibraryRoot(ctx context.Context, arg UpdateLibraryRootParams) (LibraryRoot, error) {
 	row := q.db.QueryRowContext(ctx, updateLibraryRoot,
@@ -531,7 +531,7 @@ type UpdateLibraryRootPathParams struct {
 	LibraryID int64
 }
 
-// A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
+// A new path for a folder that moved (saveLibrary, ADR 0023 point 4) with the file system
 // facts of the new place; its media files stay and the next scan finds them again.
 func (q *Queries) UpdateLibraryRootPath(ctx context.Context, arg UpdateLibraryRootPathParams) (LibraryRoot, error) {
 	row := q.db.QueryRowContext(ctx, updateLibraryRootPath,

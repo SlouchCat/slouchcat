@@ -25,7 +25,7 @@ VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @text_langs,
 RETURNING *;
 
 -- name: UpdateLibraryRoot :one
--- Content and provider list of a folder (updateLibraryRoot, ADR 0015); the titles follow through
+-- Content and provider list of a folder (saveLibrary, ADR 0015); the titles follow through
 -- the library package (UpdateItemsProvidersByRoot), never through this statement alone.
 UPDATE library_roots SET content = @content, providers = @providers WHERE id = @id AND library_id = @library_id
 RETURNING *;
@@ -36,7 +36,7 @@ RETURNING *;
 UPDATE library_roots SET text_langs = @text_langs, images = @images WHERE id = @id AND library_id = @library_id;
 
 -- name: UpdateLibraryRootPath :one
--- A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
+-- A new path for a folder that moved (saveLibrary, ADR 0023 point 4) with the file system
 -- facts of the new place; its media files stay and the next scan finds them again.
 UPDATE library_roots SET path = @path, fs_type = @fs_type, watch = @watch WHERE id = @id AND library_id = @library_id
 RETURNING *;

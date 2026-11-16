@@ -57,7 +57,7 @@ async function arrowAndBack(page: Page, from: Locator, to: Locator) {
   await expectFocusOn(page, from);
 }
 
-test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt alle …», the pen of «Prüfen», Back @keyboard', async ({
+test('«Hörbücher: Quellen» by keyboard: library form, settings, «Jetzt alle …», the pen of «Prüfen», Back @keyboard', async ({
   page,
   owner,
 }) => {

@@ -1740,7 +1740,7 @@ type LibraryRootRequest struct {
 }
 
 // LibraryRootUpdate changes the content, the provider list or the path of a folder
-// (updateLibraryRoot). A content change empties the folder's titles like a removal would and
+// (one folder of saveLibrary). A content change empties the folder's titles like a removal would and
 // therefore repeats the path (ConfirmPath); a list change and a new path (ADR 0023 point 4) need no
 // confirmation.
 type LibraryRootUpdate struct {

@@ -103,7 +103,7 @@ WHERE downloads.media_file_id IN (SELECT m.id FROM media_files AS m WHERE m.root
 SELECT count(*) FROM media_files WHERE root_id = @root_id;
 
 -- name: ListMediaFileRelPathsOfRoot :many
--- The known files of a folder that gets a new path (updateLibraryRoot, ADR 0023): at least one of
+-- The known files of a folder that gets a new path (saveLibrary, ADR 0023): at least one of
 -- them must lie under the new path.
 SELECT rel_path FROM media_files WHERE root_id = @root_id ORDER BY rel_path;
 
@@ -121,7 +121,7 @@ SELECT count(*) AS files, count(DISTINCT item_id) AS items,
        (SELECT count(*) FROM items AS i WHERE i.root_id = CAST(@root_id AS INTEGER) AND i.parent_id IS NULL AND i.deleted_at IS NULL) AS home_titles
 FROM media_files WHERE root_id = CAST(@root_id AS INTEGER);
 
--- Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
+-- Content and provider list of a folder (saveLibrary, ADR 0015, concept 6.3).
 
 -- name: ListTitleIDsOfRoot :many
 -- The titles whose home folder the folder is (ADR 0036): the films, series, audiobooks and

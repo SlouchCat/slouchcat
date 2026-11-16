@@ -10,7 +10,7 @@ import (
 
 // The administration's view of the metadata settings (getMetadataSettings, updateMetadataSettings;
 // concept 10 5.1, ADR 0018), on top of Settings and ApplyMetadata. A folder's own languages and
-// images are part of the folder (updateLibraryRoot, concept 24, ADR 0036).
+// images are part of the folder (saveLibrary, concept 24, ADR 0036).
 
 // toModel maps Settings onto the administration's view (without the counts).
 func (s Settings) toModel() model.MetadataSettings {

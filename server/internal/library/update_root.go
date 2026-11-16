@@ -15,8 +15,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
-// UpdateRoot changes the content, the provider list or the path of a folder (updateLibraryRoot,
-// ADR 0015, concept 6.3, ADR 0023 point 4). The four effects differ in weight, and the weight
+// UpdateRoot changes the content, the provider list or the path of a folder (as one folder of
+// saveLibrary, ADR 0015, concept 6.3, ADR 0023 point 4). The four effects differ in weight, and the weight
 // decides what the request has to carry:
 //
 //   - A change of the list that keeps the identifier (["tmdb"] → ["tmdb","anilist"], or the

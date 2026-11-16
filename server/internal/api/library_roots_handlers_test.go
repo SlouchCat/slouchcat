@@ -18,7 +18,7 @@ import (
 )
 
 // Handler tests of ADR 0015: folders with content and provider list through the contract,
-// several folders in one request (F-13), updateLibraryRoot and listMetadataProviders. The rules
+// several folders in one request (F-13), saveLibrary and listMetadataProviders. The rules
 // themselves are tested in package library; here the statuses and codes of the contract are.
 
 func TestCreateLibraryWithSeveralFolders(t *testing.T) {

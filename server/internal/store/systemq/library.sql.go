@@ -516,7 +516,7 @@ const listMediaFileRelPathsOfRoot = `-- name: ListMediaFileRelPathsOfRoot :many
 SELECT rel_path FROM media_files WHERE root_id = ?1 ORDER BY rel_path
 `
 
-// The known files of a folder that gets a new path (updateLibraryRoot, ADR 0023): at least one of
+// The known files of a folder that gets a new path (saveLibrary, ADR 0023): at least one of
 // them must lie under the new path.
 func (q *Queries) ListMediaFileRelPathsOfRoot(ctx context.Context, rootID int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, listMediaFileRelPathsOfRoot, rootID)
@@ -546,7 +546,7 @@ const listTitleIDsOfRoot = `-- name: ListTitleIDsOfRoot :many
 SELECT id FROM items WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL ORDER BY id
 `
 
-// Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
+// Content and provider list of a folder (saveLibrary, ADR 0015, concept 6.3).
 // The titles whose home folder the folder is (ADR 0036): the films, series, audiobooks and
 // podcasts the fill and match jobs take, without their seasons, episodes and extras.
 func (q *Queries) ListTitleIDsOfRoot(ctx context.Context, rootID int64) ([]string, error) {

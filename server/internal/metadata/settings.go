@@ -334,7 +334,7 @@ func applyRoot(st Settings, d model.RootMetadata) Settings {
 // ValidateRootMetadata checks a folder's own settings (concept 9.5 as for the default): the text
 // list as ValidateTextLangs, chains without unknown codes or duplicates, only the chain kinds and
 // switchable kinds. An image setting with no kind on is valid (no logo, no season poster, no
-// episode still). Field names follow the contract (LibraryRootUpdate).
+// episode still). Field names follow the contract (LibrarySaveRoot).
 func ValidateRootMetadata(d model.RootMetadata) *model.ValidationError {
 	var verr *model.ValidationError
 	if d.TextLangs != nil {
