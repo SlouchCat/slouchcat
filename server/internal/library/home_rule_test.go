@@ -65,25 +65,28 @@ func TestHomeFolderOfTheMigrationAgreesWithTheRule(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	rows, err := db.Read.QueryContext(ctx, `SELECT id, coalesce(root_id, 0) FROM items WHERE parent_id IS NULL ORDER BY id`)
-	if err != nil {
-		t.Fatal(err)
-	}
 	type title struct {
 		id   string
 		root int64
 	}
 	var titles []title
-	for rows.Next() {
-		var x title
-		if err := rows.Scan(&x.id, &x.root); err != nil {
+	func() {
+		rows, err := db.Read.QueryContext(ctx, `SELECT id, coalesce(root_id, 0) FROM items WHERE parent_id IS NULL ORDER BY id`)
+		if err != nil {
 			t.Fatal(err)
 		}
-		titles = append(titles, x)
-	}
-	if err := rows.Close(); err != nil {
-		t.Fatal(err)
-	}
+		defer rows.Close()
+		for rows.Next() {
+			var x title
+			if err := rows.Scan(&x.id, &x.root); err != nil {
+				t.Fatal(err)
+			}
+			titles = append(titles, x)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	q := systemq.New(db.Read)
 	checked := 0
 	for _, x := range titles {
