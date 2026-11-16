@@ -50,6 +50,16 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	if it.OriginalLanguage.Valid {
 		out.OriginalLanguage = &it.OriginalLanguage.String
 	}
+	// The home folder (concept 24 3.2, ADR 0036): a season, episode or extra carries its title's.
+	if it.RootID.Valid {
+		root, err := s.read.GetLibraryRoot(ctx, it.RootID.Int64)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return model.AdminItem{}, fmt.Errorf("home folder of %s: %w", it.ID, err)
+		}
+		if err == nil {
+			out.HomeRoot = &model.AdminItemHomeRoot{ID: root.ID, Path: root.Path}
+		}
+	}
 	if it.Kind == "audiobook" {
 		out.DurationMs = nullInt64(it.DurationMs)
 		if it.BookMatchState.Valid {

@@ -4,6 +4,9 @@
   align-items: center;
   min-height: var(--sc-space-6);
   padding: 0 var(--sc-space-2);
+
+  /* Every tone has the same 1 px border, so they share one size (concept 24, 6.3). */
+  border: 1px solid transparent;
   border-radius: var(--sc-radius-sm);
   font-size: var(--sc-font-size-xs);
   font-weight: var(--sc-font-weight-semibold);
@@ -13,32 +16,37 @@
 }
 
 .neutral {
+  border-color: var(--sc-color-border-control);
   background-color: var(--sc-color-surface-3);
   color: var(--sc-color-text-primary);
 }
 
 .outline {
-  border: 1px solid var(--sc-color-text-secondary);
+  border-color: var(--sc-color-text-secondary);
   color: var(--sc-color-text-primary);
 }
 
 /* Solid tones; the administration's look tints them instead (admin-look.css, build plan 2.7). */
 .warning {
+  border-color: var(--sc-chip-warning-border, transparent);
   background-color: var(--sc-chip-warning-background, var(--sc-color-state-warning));
   color: var(--sc-chip-warning-color, var(--sc-color-bg-base));
 }
 
 .danger {
+  border-color: var(--sc-chip-danger-border, transparent);
   background-color: var(--sc-chip-danger-background, var(--sc-color-state-danger));
   color: var(--sc-chip-danger-color, var(--sc-color-bg-base));
 }
 
 .success {
+  border-color: var(--sc-chip-success-border, transparent);
   background-color: var(--sc-chip-success-background, var(--sc-color-state-success));
   color: var(--sc-chip-success-color, var(--sc-color-bg-base));
 }
 
 .info {
+  border-color: var(--sc-color-border-frame);
   background-color: var(--sc-color-surface-2);
   color: var(--sc-color-text-secondary);
 }

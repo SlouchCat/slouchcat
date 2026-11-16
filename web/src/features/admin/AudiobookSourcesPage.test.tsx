@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminShell, renderAdminPage } from '@/test/admin';
 import { json, mockApi, problem, signedIn, type Routes } from '@/test/api';
-import { audioIds, library } from '@/test/fixtures';
+import { audioIds, library, ratingSystems } from '@/test/fixtures';
 import type { AudiobookSources, BookReviewEntry } from './queries';
 
 // The page «Hörbücher: Quellen» (concept 19 D6.6, mockup Quellen): the source list of each
@@ -85,6 +85,9 @@ const audioLibrary = library({
       watch: 'inotify',
       itemCount: 2,
       fileCount: 3,
+      textLangs: null,
+      images: null,
+      homeTitleCount: 2,
     },
   ],
 });
@@ -295,7 +298,7 @@ describe('AudiobookSourcesPage', () => {
     expect(calls.some((call) => call.path === '/admin/metadata/audiobooks/match-all')).toBe(true);
   });
 
-  it('the pen opens the editor of the book; «Quellen ändern» the dialog of its folder', async () => {
+  it('the pen opens the editor of the book; «Quellen ändern» «Bearbeiten» with its folder open', async () => {
     mockApi(
       routes({
         [`GET /admin/items/${audioIds.book}`]: () => json(adminBook),
@@ -313,7 +316,16 @@ describe('AudiobookSourcesPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Quellen von /media/Hoerbuecher ändern' }));
-    expect(await screen.findByRole('dialog', { name: 'Ordner von Hörbücher' })).toBeVisible();
+    // «Bearbeiten» of the library with this folder's card open (concept 24 4.5, exception 1).
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    const card = within(dialog).getByRole('listitem', { name: 'Ordner 1' });
+    expect(within(card).getByRole('button', { name: /\/media\/Hoerbuecher/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await waitFor(() => expect(within(card).getByLabelText('Ordner')).toHaveFocus());
+    // Audiobook folders show path and sources, no languages and images (4.2).
+    expect(within(card).queryByRole('radiogroup', { name: 'Sprachen' })).toBeNull();
   });
 
   it('a book that left «Prüfen» hands the focus to the pen of the next row', async () => {
@@ -354,6 +366,7 @@ describe('AudiobookSourcesPage', () => {
             imageByVote: true,
             localImages: true,
             ratingCountry: 'DE',
+            ratingSystems,
             tmdbIncludeAdult: false,
             fanartEnabled: false,
             knownLanguages: ['de'],

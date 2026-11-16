@@ -224,7 +224,9 @@
       "files_not_deletable": "A cím egyik fájlja nem törölhető. Semmi sem lett törölve.",
       "not_deletable": "Ez a cím nem törölhető.",
       "deleting": "Törlés folyamatban.",
-      "changed": "Időközben valami megváltozott, ellenőrizze újra."
+      "changed": "Időközben valami megváltozott, ellenőrizze újra.",
+      "stale": "A könyvtár időközben máshol megváltozott. Töltse be újra, és mentsen még egyszer.",
+      "root_unlisted": "A kérésből hiányzik a könyvtár egyik mappája. Töltse be újra a könyvtárat; semmi sem lett eltávolítva."
     },
     "field": {
       "required": "Kötelező.",
@@ -247,6 +249,7 @@
       "root_overlap": "Ez a mappa átfedésben van egy másik mappával.",
       "path_with_content": "Új útvonal nem kombinálható tartalommódosítással.",
       "root_files_missing": "A mappa egyetlen fájlja sem található az új útvonal alatt.",
+      "confirm_mismatch": "Az útvonal nem egyezik a mappa útvonalával. Semmi sem változott.",
       "content_not_allowed": "Ez a tartalom nem illik a könyvtár típusához.",
       "providers_not_allowed": "A metaadatforrások ezen listája nem engedélyezett ehhez a tartalomhoz.",
       "roots_required": "Legalább egy mappa szükséges.",
@@ -553,8 +556,10 @@
       "submit_one": "Könyvtár hozzáadása {{count}} mappával",
       "submit_other": "Könyvtár hozzáadása {{count}} mappával",
       "submitNone": "Könyvtár hozzáadása mappa nélkül",
-      "addSubmit_one": "1 mappa hozzáadása",
-      "addSubmit_other": "{{count}} mappa hozzáadása"
+      "marked": "Mentéskor eltávolításra kerül. Ezt ekkor az útvonallal erősíti meg.",
+      "undo": "Visszavonás",
+      "undoLabel": "{{number}}. mappa eltávolításának visszavonása",
+      "removeStored": "Mappa eltávolítása…"
     },
     "videoHint": "A könyvtár mappái filmeket vagy sorozatokat is tartalmazhatnak, akár vegyesen.",
     "page": {
@@ -614,7 +619,8 @@
     "notFound": {
       "title": "A könyvtár nem található",
       "body": "Ez a könyvtár nem létezik, vagy nincs hozzá cím ennél a profilnál."
-    }
+    },
+    "kindFixed": "A típus a könyvtár létrehozása után már nem módosítható."
   },
   "home": {
     "list": {
@@ -1831,11 +1837,8 @@
         "kind": "Típus",
         "state": "Állapot",
         "counts": "Címek · fájlok",
-        "folders": "Mappák",
-        "metadata": "Metaadatok"
+        "folders": "Mappák"
       },
-      "none": "–",
-      "noMetadata": "Nincs metaadat-hatókör",
       "roots": "Mappák",
       "fsType": "Fájlrendszer: {{type}}",
       "watch": {
@@ -1901,25 +1904,11 @@
       "defaultRating": "Alapértelmezett: {{rating}}",
       "noRoots": "Nincs mappa: a címek a feliratkozott hírcsatornákból származnak.",
       "feedsOnly": "Címek hírcsatornákból",
-      "changeRating": {
-        "action": "Alapértelmezett korhatár módosítása",
-        "title": "Alapértelmezett korhatár: {{name}}",
-        "description": "Minden cím, amelynek korhatára a könyvtárból származik, azonnal követi. A kézzel beállított korhatárok megmaradnak.",
-        "submit": "Mentés",
-        "saved": "A(z) {{name}} alapértelmezett korhatára mostantól {{rating}}."
-      },
       "folders": {
-        "title": "Mappák: {{name}}",
-        "description": "Egy könyvtár több mappát is tartalmazhat. A beolvasás és a figyelő az újat azonnal felveszi.",
-        "none": "Ennek a könyvtárnak nincs mappája. Amíg nem ad hozzá egyet, semmi sem kerül beolvasásra.",
         "content": "Címek: {{items}} · fájlok: {{files}}",
         "remove": {
-          "action": "Eltávolítás",
-          "label": "Mappa eltávolítása: {{path}}",
-          "title": "Biztosan eltávolítja ezt a mappát?",
           "inputLabel": "A megerősítéshez írja be az útvonalat",
           "mismatch": "Pontosan ezt írja be: {{path}}, utána a gomb aktívvá válik.",
-          "confirm": "Mappa eltávolítása",
           "lead_one": "Eltávolítja ezt: <path>{{path}}</path> a(z) {{name}} könyvtárból. Vele együtt legfeljebb {{count}} cím tűnik el minden listáról. Ez a következőt jelenti:",
           "lead_other": "Eltávolítja ezt: <path>{{path}}</path> a(z) {{name}} könyvtárból. Vele együtt legfeljebb {{count}} cím tűnik el minden listáról. Ez a következőt jelenti:",
           "soft": "A címek puha törléssel kerülnek ki: minden listáról eltűnnek, de az előrehaladás, a saját listás bejegyzések és az ajánlások megmaradnak hozzájuk. Az a cím, amelynek fájlja a könyvtár egy másik mappájában is van, látható marad.",
@@ -1930,50 +1919,26 @@
           "oneWay": "Ha a mappa a tallózható mappákon (SLOUCHCAT_BROWSE_ROOTS) kívül van, a konfiguráció módosítása nélkül nem adható hozzá újra.",
           "last": "Ez az utolsó mappa: a(z) {{name}} megmarad, de ezután nem lesz mappája, és semmit sem olvas be."
         },
-        "new": "Új mappák",
         "change": {
-          "action": "Módosítás",
-          "label": "Mappa módosítása: {{path}}",
-          "title": "Mappa módosítása",
-          "description": "Tartalom és metaadatforrások: {{path}}.",
-          "submit": "Mentés",
           "identifier": "Az azonosító változik: az évad- és epizódszövegek újra hozzárendelődnek ennek alapján: {{provider}}. Maguk az epizódok megmaradnak, az előrehaladás és a saját lista hozzájuk kötve marad.",
           "fillers": "Csak a kiegészítők változnak: a címek újra kiegészülnek, semmi sem törlődik.",
-          "content": "A tartalom változik: ez ugyanaz, mintha eltávolítaná a mappát, és újra hozzáadná. A mappa címei puha törléssel kikerülnek és újra létrejönnek, az offline csomagok megszűnnek, az előrehaladás és a saját lista a régi címekhez kötve marad.",
-          "confirmTitle": "Biztosan módosítja a tartalmat?",
-          "confirm": "Tartalom módosítása",
-          "saved": "A mappa módosítva: {{path}}."
+          "content": "A tartalom változik: ez ugyanaz, mintha eltávolítaná a mappát, és újra hozzáadná. A mappa címei puha törléssel kikerülnek és újra létrejönnek, az offline csomagok megszűnnek, az előrehaladás és a saját lista a régi címekhez kötve marad."
         },
         "move": {
-          "action": "Útvonal módosítása",
-          "label": "Útvonal módosítása: {{path}}",
-          "title": "Módosítja az útvonalat?",
-          "body": "Régi útvonal: {{old}} · Új útvonal: {{new}}. A címek és a felhasználói adatok megmaradnak, ha a fájlok ugyanazokkal a nevekkel ott találhatók. A mappa ezután újra beolvasásra kerül.",
-          "confirm": "Módosítás",
-          "saved": "A mappa mostantól itt van: {{path}}, és újra beolvasásra kerül."
+          "body": "Régi útvonal: {{old}} · Új útvonal: {{new}}. A címek és a felhasználói adatok megmaradnak, ha a fájlok ugyanazokkal a nevekkel ott találhatók. A mappa ezután újra beolvasásra kerül."
         },
         "readOnly": "csak olvasható",
         "writable": "írható"
       },
-      "openFolders": "Mappák",
-      "openFoldersLabel": "Mappák szerkesztése: {{name}}",
       "rootCount_one": "{{count}} mappa",
       "rootCount_other": "{{count}} mappa",
-      "noFolder": "Nincs mappa: amíg nem ad hozzá egyet a „Mappák” alatt, semmi sem kerül beolvasásra.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "mint a kiszolgálón",
-        "texts": "a nyelvek eltérnek",
-        "images": "a képek eltérnek",
-        "both": "a nyelvek és a képek eltérnek",
-        "link": "A könyvtár metaadatai",
         "audiobooksLink": "Hangoskönyv-források"
       },
       "trickplay": {
         "action": "Előnézeti képek",
-        "actionLabel": "Előnézeti képek: {{name}}",
-        "title": "Előnézeti képek: {{name}}",
         "description": "Kis képek az idővonal fölött, 10 másodpercenként egy. A filmeket és a sorozatokat külön kell beállítani, vegyes könyvtárban is.",
         "movies": "Filmek",
         "series": "Sorozatok",
@@ -2033,12 +1998,12 @@
         "generate": {
           "action": "Létrehozás most",
           "hint": "Pótolja a hiányzó előnézeteket minden „Előre” beállítású könyvtárnál, ahogy az „Előnézeti képek pótlása” a „Háttérfeladatok” között.",
-          "queued": "Az előnézetek pótlása sorba állt."
+          "queued": "Az előnézetek pótlása sorba állt.",
+          "unsaved": "Csak mentés után: a létrehozás a mentett beállítást használja."
         },
-        "submit": "Mentés",
-        "saved": "A(z) {{name}} előnézeti képei mentve.",
         "summary": "Előnézeti képek: filmek {{movies}} · sorozatok {{series}}",
-        "summaryNoKeep": "Induláskor, nem megtartva"
+        "summaryNoKeep": "Induláskor, nem megtartva",
+        "header": "Filmek: {{movies}} · sorozatok: {{series}}"
       },
       "delete": {
         "action": "Könyvtár törlése…",
@@ -2056,11 +2021,52 @@
         "done": "A(z) „{{name}}” könyvtár törölve.",
         "notDone": "A(z) „{{name}}” könyvtár nem lett törölve. A feladat megmondja, miért."
       },
-      "rename": {
-        "action": "Átnevezés…",
-        "title": "Könyvtár átnevezése: „{{name}}”",
-        "label": "Név",
-        "saved": "A könyvtár új neve: „{{name}}”."
+      "form": {
+        "editTitle": "Könyvtár szerkesztése",
+        "changed": "módosítva",
+        "pathAndContent": "A mappa útvonala és tartalma nem módosítható egy lépésben. Először az egyiket mentse, aztán a másikat.",
+        "pathHint": "Az új útvonal mentés után lép érvénybe. A címek és a felhasználói adatok megmaradnak, ha a fájlok ott ugyanazon a néven vannak.",
+        "reloaded": "A könyvtár időközben máshol megváltozott. Az űrlap most az új állapotot mutatja; a módosításai nem lettek mentve.",
+        "changedElsewhere": "A könyvtár időközben máshol megváltozott. Mentéskor az űrlap betölti az új állapotot; a módosításai ilyenkor nem kerülnek mentésre.",
+        "gone": "Ez a könyvtár már nem létezik. Semmi sem lett mentve.",
+        "scanRunning": "Mappa eltávolítása, illetve tartalmának vagy útvonalának módosítása csak a beolvasás befejezése után lehetséges. A megadott adatok megmaradnak.",
+        "scanCancelled": "A beolvasás megszakadt. Mentsen most újra.",
+        "discard": {
+          "title": "Elveti a módosításokat?",
+          "body": "Könyvtár: {{name}}. A nem mentett módosítások elvesznek.",
+          "confirm": "Elvetés",
+          "keep": "Szerkesztés folytatása"
+        },
+        "confirm": {
+          "title": "Módosítások megerősítése",
+          "intro": "Ezek a módosítások csak akkor lépnek érvénybe, ha itt ment.",
+          "remove": "Mappa eltávolítása: {{path}}",
+          "content": "Tartalom módosítása: {{path}}",
+          "path": "Útvonal módosítása: {{path}}",
+          "typeAll": "A mentés akkor lehetséges, ha minden útvonalat pontosan beírt.",
+          "submit": "Mentés"
+        }
+      },
+      "edit": "Szerkesztés",
+      "editLabel": "Szerkesztés: {{name}}",
+      "noFolderEdit": "Nincs mappa: semmi sem kerül beolvasásra, amíg nem ad hozzá egyet a „Szerkesztés” alatt.",
+      "saved": {
+        "title": "Könyvtár mentve: {{name}}.",
+        "name": "Új név: {{name}}",
+        "rating": "Alapértelmezett fokozat: {{rating}}",
+        "added_one": "{{count}} mappa hozzáadva; a beolvasás sorban áll.",
+        "added_other": "{{count}} mappa hozzáadva; a beolvasás sorban áll.",
+        "removed_one": "{{count}} mappa eltávolítva.",
+        "removed_other": "{{count}} mappa eltávolítva.",
+        "content_one": "{{count}} mappa más tartalma újra beolvasásra kerül.",
+        "content_other": "{{count}} mappa más tartalma újra beolvasásra kerül.",
+        "moved_one": "{{count}} mappa új útvonallal újra beolvasásra kerül.",
+        "moved_other": "{{count}} mappa új útvonallal újra beolvasásra kerül.",
+        "providers_one": "Új források {{count}} mappánál: a címek újra párosításra vagy kiegészítésre kerülnek.",
+        "providers_other": "Új források {{count}} mappánál: a címek újra párosításra vagy kiegészítésre kerülnek.",
+        "metadata_one": "Módosított nyelvek vagy képek {{count}} mappánál. Érintett címek: {{titles}}, amint alkalmazza őket.",
+        "metadata_other": "Módosított nyelvek vagy képek {{count}} mappánál. Érintett címek: {{titles}}, amint alkalmazza őket.",
+        "dismiss": "Elrejtés"
       }
     },
     "access": {
@@ -2304,7 +2310,9 @@
         "children": "Tartalom",
         "childCounts": "Évadok: {{seasons}} · Epizódok: {{episodes}} · Extrák: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Könyvtári mappa",
+        "homeRootNone": "Nincs, az alapértelmezett érvényes"
       },
       "sources": {
         "title": "Forrás mezőnként",
@@ -4853,7 +4861,6 @@
     },
     "metadata": {
       "title": "Metaadatok",
-      "intro": "Mely nyelveken szállítják a metaadatforrások az adatokat, mely képek milyen nyelven és minőségben, és melyik ország határozza meg elsőként a korhatárt. Az alapértelmezés minden könyvtárra érvényes; egy könyvtár a nyelveknél és a képeknél eltérhet.",
       "links": {
         "roots": "A források sorrendje mappánként állítható a Könyvtárak alatt.",
         "jobs": "Az ütemezések a Háttérfeladatok alatt találhatók.",
@@ -4865,9 +4872,6 @@
         "open": "Források megnyitása"
       },
       "areas": {
-        "label": "Területek",
-        "changed": "Módosítva · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakát {{poster}}, háttérkép {{backdrop}}",
         "sources": {
           "local": "Helyi fájlok",
@@ -4875,20 +4879,15 @@
           "tmdbAdult": "TMDB felnőtt tartalommal",
           "none": "Csak a mappák forrásai"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "Videómappák alapértelmezett beállítással: {{count}}",
+        "foldersFollow_other": "Videómappák alapértelmezett beállítással: {{count}}",
+        "foldersOwn_one": "saját beállítással: {{count}}",
+        "foldersOwn_other": "saját beállítással: {{count}}"
       },
-      "scope": {
-        "label": "Érvényes erre",
-        "server": "Alapértelmezés",
-        "serverHint": "Minden saját eltérés nélküli könyvtárra érvényes.",
-        "libraryHint": "A(z) {{name}} az alapértelmezést használja. Kapcsolja be az „eltér” beállítást, hogy csak ennél a könyvtárnál módosítsa a nyelveket vagy a képeket.",
-        "deviates": "eltér",
-        "textsDeviate": "A nyelvek eltérnek",
-        "imagesDeviate": "A képek eltérnek",
-        "likeServer": "mint a kiszolgálón",
-        "changed": "{{name}} (módosítva)",
-        "serverDirty": "Az alapértelmezésnek nem mentett módosításai vannak; ez a mentett állapotot mutatja."
-      },
+      "default": "Alapértelmezés",
       "languages": {
         "title": "Nyelvek",
         "intro": "Minden itt szereplő nyelvet minden címhez letölt a rendszer; a profilok ezek közül választják ki a leírásaik nyelvét. A felület nyelvét minden profil maga választja. Minden további nyelv címenként és évadonként egy további kérést jelent.",
@@ -4961,7 +4960,6 @@
         }
       },
       "apply": {
-        "title": "Alkalmazás a meglévő címekre",
         "short": "Alkalmazás",
         "intro": "Az új címek azonnal az új beállításokat használják. A meglévő címek változatlanok maradnak, amíg el nem indítja a futást; az a Háttérfeladatok alatt jelenik meg előrehaladással, szünettel és megszakítással.",
         "what": "Mit",
@@ -4969,7 +4967,8 @@
         "texts": "Csak szövegek",
         "images": "Csak képek",
         "where": "Hol",
-        "all": "Minden könyvtár",
+        "all": "Minden mappa",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} cím",
         "titles_other": "{{count}} cím",
         "run": "Alkalmazás most",
@@ -4996,6 +4995,29 @@
         "chain_duplicate": "Minden nyelv egyszer.",
         "country_unknown": "Ismeretlen ország.",
         "source_unknown": "Ez a képforrás nem szerepel a cím javaslatai között."
+      },
+      "introDefault": "Minden olyan mappára érvényes, amelynek nincs saját beállítása. A mappa saját nyelveit és képeit a könyvtára „Szerkesztés” gombjával állíthatja be.",
+      "changed": "módosítva",
+      "folders": {
+        "title": "Mappák",
+        "intro": "Minden videómappa az alapértelmezést követi, amíg nincsenek saját nyelvei vagy képei. Ezeket a könyvtára „Szerkesztés” gombjával állíthatja be.",
+        "empty": "Még nincs videómappa.",
+        "audio": "A hangoskönyv- és podcastmappáknak nincsenek saját nyelveik és képeik. A hangoskönyvek forrásai a „Hangoskönyvek: források” alatt találhatók.",
+        "openLabel": "Szerkesztés: {{name}}, mappa: {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Nyelvek: alapértelmezett",
+        "langsOwn": "Nyelvek: {{chain}}",
+        "imagesDefault": "Képek: alapértelmezett",
+        "imagesOwn": "Képek: saját",
+        "likeDefault": "Mint az alapértelmezés",
+        "own": "Saját",
+        "defaultIs": "Alapértelmezett: {{value}}",
+        "imagesDefaultIs": "Alapértelmezett: {{kinds}}. Nyelv képtípusonként: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Csak erre a mappára érvényes.",
+        "cost": "Minden további nyelv alkalmazáskor egy kérést jelent a mappa minden címére és évadára.",
+        "always": "A plakátot és a háttérképet a Slouchcat mindig lekéri."
       }
     },
     "activity": {
@@ -5033,7 +5055,7 @@
       "intro": "Honnan szerzi a Slouchcat a hangoskönyvek részleteit és borítóit. A fájlok mindig az első helyen állnak; a szolgáltató csak azt egészíti ki, ami hiányzik, és soha nem zárolt mezőt.",
       "folders": {
         "title": "Sorrend mappánként",
-        "intro": "A felső forrás nyer mezőnként. A sorrendet és azt, hogy mely források vesznek részt, a mappa párbeszédablakában módosíthatja.",
+        "intro": "Mezőnként a felső forrás nyer. A sorrendet és a részt vevő forrásokat a könyvtár „Szerkesztés” gombjával módosíthatja.",
         "empty": "Még nincs hangoskönyv-mappa.",
         "edit": "Források módosítása",
         "editLabel": "{{path}} forrásainak módosítása",

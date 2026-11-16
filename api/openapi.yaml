@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.38.0
+  version: 1.40.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -18,7 +18,7 @@ info:
     (`LibraryRoot`) carries a content (`movie`, `series`, `audiobook`, `podcast`) and an ordered list
     of metadata providers, whose first entry identifies the title and whose further entries fill
     field by field. A library takes several folders in one request (`LibraryRequest.roots`,
-    `addLibraryRoot`), all of them or none.
+    `saveLibrary`), all of them or none.
 
     Levels (ADR 0014): an administrator (`role: admin`) runs the server and its libraries, an
     account (`role: user`) manages only its own profiles, a profile watches. The owner
@@ -3013,6 +3013,88 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+    put:
+      operationId: saveLibrary
+      summary: Save the whole form «Bibliothek bearbeiten» in one go (concept 24, 4.3)
+      description: |
+        Since contract 1.40.0. Takes name, default rating, «Vorschau beim Spulen» and every folder of
+        the library as the form shows them, plus an explicit list of the folders to remove, and saves
+        all of it in one transaction: nothing is written when any part fails. The kind cannot change.
+
+        - **Every stored folder is named**: either in `roots` (with its `id`) or in `removeRoots`. A
+          stored folder in neither is not removed; the request is refused with 409 `root_unlisted`.
+          A folder without `id` is new.
+        - **Stale form**: `revision` repeats `Library.revision` of the library the form loaded. When
+          the library or one of its folders changed since (another window, another administrator),
+          the answer is 409 `stale` and nothing is written; the form loads the library again.
+        - **Order**: remove, other content, other path, new folders. A new folder may therefore take
+          the path of a folder removed in the same request.
+        - **Typed confirmation**: removing a folder and changing its content repeat the folder's
+          stored path in `confirmPath` (`required` when missing, `confirm_mismatch` when it does not
+          repeat the path). A new path needs none. Path and content of one folder cannot change
+          together (`path_with_content`).
+        - **Running scan**: a removal, a new content or a new path take the scan lock of the library;
+          while a scan runs the whole request is refused with 409 `scan_running` and nothing is
+          written. Name, rating, trickplay, providers, languages, images and new folders go through
+          during a scan.
+        - **At most one scan** is queued, and only when a folder is new or has another path or
+          content. A new provider list queues matching or filling of the folder's titles, no scan; a
+          new name queues nothing. The last folder may be removed.
+        - **Languages and images** are only stored; `metadataChanged` names every kept folder whose
+          `textLangs` or `images` changed with the number of titles whose home folder it is, so the
+          form can offer «Jetzt anwenden» (`applyMetadata`). The server never applies by itself.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibrarySave"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibrarySaved"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            `stale` (the library changed since the form loaded it), `root_unlisted` (a stored folder
+            is neither in `roots` nor in `removeRoots`) or `scan_running` (a removal, content or path
+            change while a scan of the library runs). Nothing is written.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `validation_failed`; nothing is written. Library fields as in `updateLibrary` (`name`
+            `required` or `too_long`, `defaultRating` `invalid_value` or `not_allowed`, `trickplay`
+            `not_allowed`). Folders by their index in the request, like `createLibrary`:
+            `roots[1].id` `unknown_root` or `duplicate`, `roots[1].path` `library_path_invalid`,
+            `root_overlap`, `root_files_missing` or `path_with_content`, `roots[1].content`
+            `content_not_allowed`, `roots[1].providers` `providers_not_allowed`,
+            `roots[1].textLangs` and `roots[1].images` `not_allowed` or the codes of
+            `updateMetadataSettings`, `roots[1].confirmPath` `required` or `confirm_mismatch`
+            (content change); `removeRoots[0].id` `unknown_root` or `duplicate`,
+            `removeRoots[0].confirmPath` `required` or `confirm_mismatch`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /admin/libraries/{id}/podcast-downloads/estimate:
     post:
@@ -3159,199 +3241,6 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: Unknown library (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /admin/libraries/{id}/roots:
-    post:
-      operationId: addLibraryRoot
-      summary: Add folders to a library (B-1, F-13)
-      description: |
-        Adds one or more directories to a library in one request; the scan and the watchers pick
-        them up at once. Every folder brings its content and its ordered provider list (ADR 0015).
-        Each path must lie below a browsable root (idea 02, E14) and must overlap neither a root of
-        this or another library nor another folder of the request; the content must fit the family
-        of the library (a podcast library takes `podcast` folders, a video library `movie` and
-        `series`). All folders are inserted in one transaction: a request whose third folder fails
-        leaves none behind, and the answer names the folder by its index. The answer is the library
-        with its new folders; one scan is queued for it.
-      tags: [admin]
-      x-visibility: admin
-      parameters:
-        - $ref: "#/components/parameters/LibraryID"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryRootsRequest"
-      responses:
-        "201":
-          description: The library with its new folders.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown library (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: |
-            `validation_failed` with the index of the folder that broke a rule: `roots[2].path`
-            with `library_path_invalid` or `root_overlap`, `roots[2].content` with
-            `content_not_allowed`, `roots[2].providers` with `providers_not_allowed`; or an empty
-            list.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /admin/libraries/{id}/roots/{rootId}:
-    patch:
-      operationId: updateLibraryRoot
-      summary: Change the content, the metadata sources or the path of a folder (F-4, ADR 0023)
-      description: |
-        Changes what a folder holds, who describes it (ADR 0015) or where it lies (ADR 0023). The
-        four effects differ in weight, and the weight decides what the request has to carry:
-
-        - A new provider list with the same first entry writes the list on every title of the
-          folder and queues one metadata job per title. Nothing is deleted, no confirmation.
-        - A new first entry (`["tmdb","tvdb"]` → `["tvdb","tmdb"]` on a series folder) does the
-          same; the job identifies the titles anew and describes seasons and episodes by the new
-          provider's numbering. The episode items stay, so progress and watchlist stay attached.
-          No confirmation either.
-        - A new content (`movie` ↔ `series`) is, in effect, "remove the folder and add it again":
-          the titles that live only there are soft-deleted, their offline downloads dropped, the
-          folder's files forgotten and read afresh by a queued scan. It therefore needs the typed
-          path in `confirmPath`, exactly like `removeLibraryRoot` (`confirm_mismatch`), and a
-          running scan refuses it (`scan_running`).
-        - A new `path` (the folder moved, ADR 0023 point 4) is checked like a new folder:
-          absolute, readable, below a browsable root (`library_path_invalid`), overlapping no
-          other folder (`root_overlap`). A folder with known files must hold at least one of them
-          at its relative path under the new path (`root_files_missing`), so a wrong folder cannot
-          let the scan lose them all. The folder keeps its titles and files; the server takes the
-          new path and a new `providers` list in one transaction under the scan lock (a running
-          scan refuses it, `scan_running`), restarts the folder's watcher and queues a scan, which
-          finds the files again by name, inode or partial hash. Files it does not find count
-          towards the loss threshold of the scan. No `confirmPath`; the same path is no change. It
-          cannot be combined with `content` (`path_with_content`), but with `providers`.
-      tags: [admin]
-      x-visibility: admin
-      parameters:
-        - $ref: "#/components/parameters/LibraryID"
-        - $ref: "#/components/parameters/LibraryRootID"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryRootUpdate"
-      responses:
-        "200":
-          description: The library with the changed folder.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: No such library, or the folder is not one of its roots (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: A scan of this library is running (`scan_running`); only a content or path change is refused by it.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: |
-            `validation_failed` (`content` `content_not_allowed`, `providers`
-            `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap`,
-            `root_files_missing` or `path_with_content`, or none of the fields given), or a
-            content change whose `confirmPath` does not repeat the folder's path
-            (`confirm_mismatch`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /admin/libraries/{id}/roots/{rootId}/removal:
-    post:
-      operationId: removeLibraryRoot
-      summary: Remove a folder from a library and delete its titles (B-1)
-      description: |
-        Removes the directory from the library. The titles that live only there leave the library:
-        they are soft-deleted, so they vanish from every list, and their offline downloads are
-        dropped on the devices that hold them. Their progress, watchlist entries and picks stay
-        attached to the soft-deleted title, as they do for a detached disk; a title that carries a
-        provider id comes back with all of it when the same folder is added again within 30 days,
-        a title without one comes back as a new title. A title with a file under another folder of
-        the library stays, and keeps its download. A podcast with a feed that was read from the
-        folder stays as a subscription made by hand (`feedOrigin` `admin`); a podcast without feed
-        goes with its episodes. `confirmPath` must repeat the folder's path
-        exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
-        stored row, never against anything else the request carries. It guards against a slip and
-        against a stale list, not against a caller that means it: whatever can send this request
-        can send the confirmation with it, and no server can tell whether a human typed it. The
-        library may lose its last
-        folder and then holds none at all; its settings stay. A POST and not a DELETE, because the
-        confirmation travels in the body and a DELETE body is dropped by some proxies and HTTP
-        clients.
-      tags: [admin]
-      x-visibility: admin
-      parameters:
-        - $ref: "#/components/parameters/LibraryID"
-        - $ref: "#/components/parameters/LibraryRootID"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryRootRemoval"
-      responses:
-        "200":
-          description: The library without the folder.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: No such library, or the folder is not one of its roots (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: |
-            A scan of this library is running (`scan_running`); it holds the roots it started with,
-            so the folder is removed after it finished or was cancelled.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: |
-            `confirmPath` does not repeat the folder's path (`confirm_mismatch`), or it is missing
-            (`validation_failed`).
           content:
             application/problem+json:
               schema:
@@ -4885,79 +4774,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
-  /admin/libraries/{id}/metadata:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-    get:
-      operationId: getLibraryMetadata
-      summary: The metadata deviation of a library (concept 10, ADR 0018)
-      description: |
-        The deviation of the library from the server (`textLangs`, `images`; `null` = like the
-        server) and the effective values the jobs use for its titles. 404 for an unknown library.
-      tags: [admin]
-      x-visibility: admin
-      responses:
-        "200":
-          description: Deviation and effective values.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LibraryMetadata"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown library.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    put:
-      operationId: updateLibraryMetadata
-      summary: Change the metadata deviation of a library
-      description: |
-        `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
-        "like the server". A library's language list need not hold `de` or `en` (contract 1.34.0,
-        ADR 0033; `ui_lang_required` is gone).
-        Nothing is queued (F-8); the answer names the affected titles of the library.
-      tags: [admin]
-      x-visibility: admin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryMetadataUpdate"
-      responses:
-        "200":
-          description: Deviation and effective values.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LibraryMetadata"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown library.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: "`validation_failed` (see `errors`)."
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
   /admin/metadata/apply:
     post:
       operationId: applyMetadata
@@ -5007,8 +4823,22 @@ paths:
         list, `fill`: may follow), the root contents the provider may stand in the list of, and the
         text languages it delivers (the hint "delivers no German" for AniList). The interface offers
         nothing this list does not allow; the server checks the same rules again on every write.
+        Since contract 1.40.0 (concept 24 section 3.3) `textLangs` names the text language list being
+        edited (the default's or a folder's); without it `languages` refers to the default's list.
       tags: [admin]
       x-visibility: admin
+      parameters:
+        - name: textLangs
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: The text language list the `languages` of each provider refer to, in its order.
+          schema:
+            type: array
+            maxItems: 50
+            items:
+              $ref: "#/components/schemas/MetadataLanguage"
       responses:
         "200":
           description: The providers in the order the interface shows them.
@@ -5031,7 +4861,7 @@ paths:
         Since contract 1.26.0 (concept 19 D6). The server-wide settings of the book sources (Audible
         region, Audnexus address, Google Books key, automatic match with tolerance, unifying of
         author and series names), the ordered list of every audiobook folder (shown only; it is
-        changed in the dialog of the folder, `updateLibraryRoot`), the state of each source
+        changed in the form of its library, `saveLibrary`), the state of each source
         (`configured`, `pausedUntil` while a source rests after repeated refusals), the numbers of the
         books per match state and whether a match run is queued or running.
       tags: [admin]
@@ -10582,15 +10412,6 @@ components:
         type: integer
         format: int64
         minimum: 1
-    LibraryRootID:
-      name: rootId
-      in: path
-      required: true
-      description: The id of the folder inside the library (`Library.roots[].id`).
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
     JobID:
       name: id
       in: path
@@ -13711,65 +13532,48 @@ components:
         fanartEnabled:
           type: boolean
 
-    LibraryImages:
+    RootImages:
       type: object
-      description: "The image deviation of a library: chains and switchable kinds."
+      description: |
+        The own images of a video folder (concept 24 section 3.1, ADR 0036): the language chain per
+        image kind and the switchable kinds that are on. A kind left out of `langs` follows the
+        default's chain; `kinds` is complete, `[]` means no logo, season poster and episode still.
       required: [langs, kinds]
       properties:
         langs:
-          $ref: "#/components/schemas/ImageLangs"
+          type: object
+          description: Chains per kind (`poster`, `backdrop`, `logo`); `""` = without text.
+          properties:
+            poster:
+              type: array
+              items:
+                type: string
+            backdrop:
+              type: array
+              items:
+                type: string
+            logo:
+              type: array
+              items:
+                type: string
         kinds:
           type: array
           items:
             type: string
             enum: [logo, season_poster, episode_still]
 
-    LibraryMetadata:
-      type: object
-      description: The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5).
-      required: [libraryId, effective, affectedTitles]
-      properties:
-        libraryId:
-          type: integer
-          format: int64
-        textLangs:
-          type: array
-          nullable: true
-          description: The library's own text language list, or `null` for the server's.
-          items:
-            $ref: "#/components/schemas/MetadataLanguage"
-        images:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/LibraryImages"
-          description: The library's own image chains and kinds, or `null` for the server's.
-        effective:
-          $ref: "#/components/schemas/MetadataSettings"
-        affectedTitles:
-          type: integer
-          description: Matched films and series of the library an `applyMetadata` would queue.
-
-    LibraryMetadataUpdate:
-      type: object
-      description: Replaces the deviation; a field left out or `null` means "like the server".
-      properties:
-        textLangs:
-          type: array
-          nullable: true
-          items:
-            type: string
-        images:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/LibraryImages"
-
     ApplyMetadataRequest:
       type: object
       required: [what]
       properties:
-        libraryIds:
+        rootIds:
           type: array
-          description: The libraries to apply to; left out = every library.
+          description: |
+            Since contract 1.40.0 (replaces `libraryIds`, concept 24 section 3.3): the folders to apply
+            to; left out or empty = every folder. A folder means the titles whose home folder it is
+            (ADR 0036); an unknown folder is `rootIds` `unknown_root`.
+          maxItems: 200
+          uniqueItems: true
           items:
             type: integer
             format: int64
@@ -13792,7 +13596,7 @@ components:
           description: The queued `metadata.apply` run (the parent; the children show on the jobs page).
         titles:
           type: integer
-          description: Matched films and series the run will queue.
+          description: Matched films and series the run will queue (whose home folder is one of the folders).
 
     MetadataProviderInfo:
       type: object
@@ -13817,9 +13621,10 @@ components:
         languages:
           type: array
           description: |
-            Text languages the provider delivers out of the server's metadata language list (ADR 0018):
-            the languages of the list it knows, in the list's order; empty for the local reader. A
-            language of the list that is missing here is skipped at that provider.
+            Text languages the provider delivers out of a metadata language list (ADR 0018): the
+            default's, or since contract 1.40.0 the list named by `textLangs`; the languages of the
+            list it knows, in the list's order; empty for the local reader. A language of the list
+            that is missing here is skipped at that provider.
           items:
             type: string
 
@@ -14236,6 +14041,17 @@ components:
           type: string
           description: Last ffprobe failure; set means unplayable (B-9).
 
+    AdminItemHomeRoot:
+      type: object
+      required: [id, path]
+      description: The home folder of a title (since contract 1.40.0).
+      properties:
+        id:
+          type: integer
+          format: int64
+        path:
+          type: string
+
     AdminItem:
       type: object
       description: Administration view of a title; not an `ItemRef` (unfiltered, admin only).
@@ -14253,6 +14069,13 @@ components:
         libraryId:
           type: integer
           format: int64
+        homeRoot:
+          $ref: "#/components/schemas/AdminItemHomeRoot"
+          description: |
+            Since contract 1.40.0 (concept 24 section 3.2, ADR 0036): the title's home folder, whose
+            languages, images and provider list it follows; a season, episode or extra names its
+            title's. Absent without one (a podcast only from its feed, a title whose files are all
+            missing since its folder went).
         parentId:
           $ref: "#/components/schemas/ItemID"
         seasonNumber:
@@ -15007,33 +14830,69 @@ components:
           uniqueItems: true
           items:
             $ref: "#/components/schemas/MetadataProvider"
-
-    LibraryRootsRequest:
-      type: object
-      required: [roots]
-      description: The folders `addLibraryRoot` adds in one go (F-13).
-      properties:
-        roots:
+        textLangs:
           type: array
-          minItems: 1
+          nullable: true
+          description: |
+            Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages in order;
+            left out or `null` = like the default. Video folders only (`not_allowed` otherwise).
           maxItems: 50
           items:
-            $ref: "#/components/schemas/LibraryRootRequest"
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          description: |
+            Since contract 1.40.0: the folder's own images; left out or `null` = like the default.
+            Video folders only (`not_allowed` otherwise).
+          allOf:
+            - $ref: "#/components/schemas/RootImages"
 
-    LibraryRootUpdate:
+    LibrarySave:
       type: object
-      description: |
-        A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers` and
-        `path`. A content change empties the folder's titles like a removal and therefore repeats
-        the path; a new path keeps them and cannot be combined with a content change.
+      required: [revision, name, roots, removeRoots]
+      description: The form «Bibliothek bearbeiten» as a whole (`saveLibrary`, concept 24, 4.3).
       properties:
+        revision:
+          type: string
+          description: "`Library.revision` of the library the form loaded."
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        defaultRating:
+          $ref: "#/components/schemas/Rating"
+          description: Default age rating of an audio library; left out = unchanged, `not_allowed` for video.
+        trickplay:
+          $ref: "#/components/schemas/LibraryTrickplay"
+          description: «Vorschau beim Spulen» of a video library; left out = unchanged, `not_allowed` for audio.
+        roots:
+          type: array
+          description: Every folder the library keeps or gets, stored ones with `id`, new ones without.
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/LibrarySaveRoot"
+        removeRoots:
+          type: array
+          description: The stored folders to remove, each with its typed path.
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/LibrarySaveRemoval"
+
+    LibrarySaveRoot:
+      type: object
+      required: [path, content, providers]
+      description: |
+        One folder of `saveLibrary` as the form shows it. All fields are its new state: `textLangs`
+        and `images` left out or `null` mean like the default, as in `LibraryRootRequest`.
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The stored folder; left out for a new folder.
         path:
           type: string
-          description: |
-            The new absolute directory of the folder (it moved, ADR 0023 point 4), below a
-            browsable root, for example `/media/Filme-neu`, holding at least one of the folder's
-            known files (`root_files_missing`). Its titles, files and user data stay when the scan
-            finds the files there under the same names.
           minLength: 1
           maxLength: 4096
         content:
@@ -15045,24 +14904,58 @@ components:
           uniqueItems: true
           items:
             $ref: "#/components/schemas/MetadataProvider"
+        textLangs:
+          type: array
+          nullable: true
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/RootImages"
         confirmPath:
           type: string
-          description: The folder's path, repeated by the administrator; required for a content change.
-          minLength: 1
+          description: The folder's stored path, typed by the administrator; required for a content change.
           maxLength: 4096
 
-    LibraryRootRemoval:
+    LibrarySaveRemoval:
       type: object
-      required: [confirmPath]
-      description: |
-        The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
-        compared against the stored row, so a mis-aimed click cannot delete the titles of a folder.
+      required: [id, confirmPath]
+      description: A stored folder `saveLibrary` removes, with its stored path typed by the administrator.
       properties:
+        id:
+          type: integer
+          format: int64
         confirmPath:
           type: string
-          description: The folder's path, repeated by the administrator.
-          minLength: 1
           maxLength: 4096
+
+    LibrarySaved:
+      type: object
+      required: [library, metadataChanged]
+      description: The answer of `saveLibrary`.
+      properties:
+        library:
+          $ref: "#/components/schemas/Library"
+        metadataChanged:
+          type: array
+          description: |
+            The kept folders whose `textLangs` or `images` changed, with the number of titles whose
+            home folder they are (ADR 0036): what «Jetzt anwenden» would reach. Empty when none changed;
+            new folders are never in it.
+          items:
+            $ref: "#/components/schemas/LibraryRootTitles"
+
+    LibraryRootTitles:
+      type: object
+      required: [rootId, homeTitleCount]
+      properties:
+        rootId:
+          type: integer
+          format: int64
+        homeTitleCount:
+          type: integer
 
     LibraryDeletionRequest:
       type: object
@@ -15342,7 +15235,7 @@ components:
 
     Library:
       type: object
-      required: [id, name, kind, roots, scan, createdAt]
+      required: [id, name, kind, revision, roots, scan, createdAt]
       properties:
         id:
           type: integer
@@ -15351,6 +15244,13 @@ components:
           type: string
         kind:
           $ref: "#/components/schemas/LibraryKind"
+        revision:
+          type: string
+          description: |
+            Since contract 1.40.0 (concept 24, 4.3): the state of the library and its folders as the
+            form edits them (name, default rating, trickplay, and per folder path, content, providers,
+            languages, images). It changes with every change to one of them and not with a scan; the
+            form sends it back in `saveLibrary`. Opaque; the server always sends it.
         defaultRating:
           $ref: "#/components/schemas/Rating"
           description: Default age rating of an audio library (AN-2); absent for video libraries.
@@ -15591,7 +15491,7 @@ components:
 
     LibraryRoot:
       type: object
-      required: [id, path, fsType, watch, content, providers, itemCount, fileCount]
+      required: [id, path, fsType, watch, content, providers, itemCount, fileCount, textLangs, images, homeTitleCount]
       properties:
         id:
           type: integer
@@ -15619,11 +15519,32 @@ components:
           type: integer
           description: |
             Titles with at least one file in this folder. It is the upper bound of what
-            `removeLibraryRoot` takes out of the library: a title that also has a file in another
+            removing the folder (`saveLibrary`) takes out of the library: a title that also has a file in another
             folder of the library stays. The confirmation dialog names this number (idea 02, E12).
         fileCount:
           type: integer
           description: Media files registered in this folder; they all go with the folder.
+        textLangs:
+          type: array
+          nullable: true
+          description: |
+            Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages, or `null`
+            when it follows the default (always `null` for audiobook and podcast folders).
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          # A pointer, so the Go server writes null for a folder that follows the default.
+          x-go-type: "*RootImages"
+          description: "Since contract 1.40.0: the folder's own images, or `null` when it follows the default."
+          allOf:
+            - $ref: "#/components/schemas/RootImages"
+        homeTitleCount:
+          type: integer
+          description: |
+            Since contract 1.40.0: the films, series, audiobooks and podcasts whose home folder this
+            folder is (the folder of their oldest present file, ADR 0036); its settings and its
+            provider list apply to them.
         readOnly:
           type: boolean
           description: |

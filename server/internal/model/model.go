@@ -6,6 +6,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,9 +31,15 @@ var (
 	// ErrConfirmMismatch: the typed confirmation does not repeat what is about to be removed
 	// (422 confirm_mismatch, idea 02, E12).
 	ErrConfirmMismatch = errors.New("confirmation does not match") // 422 confirm_mismatch
-	ErrTMDBKeyInvalid  = errors.New("tmdb key invalid")            // 422 tmdb_key_invalid
-	ErrTMDBUnreachable = errors.New("tmdb unreachable")            // 422 tmdb_unreachable
-	ErrTooManyAttempts = errors.New("too many attempts")           // 429 too_many_attempts
+	// ErrStale: the library or one of its folders changed since the form loaded it (409 stale,
+	// saveLibrary, concept 24 4.3).
+	ErrStale = errors.New("library changed since it was loaded")
+	// ErrRootUnlisted: a stored folder is neither kept nor removed by a saveLibrary request (409
+	// root_unlisted, concept 24 4.3); it is not removed.
+	ErrRootUnlisted    = errors.New("stored folder missing from the request")
+	ErrTMDBKeyInvalid  = errors.New("tmdb key invalid")  // 422 tmdb_key_invalid
+	ErrTMDBUnreachable = errors.New("tmdb unreachable")  // 422 tmdb_unreachable
+	ErrTooManyAttempts = errors.New("too many attempts") // 429 too_many_attempts
 	// ErrProviderNotConfigured: a metadata provider without key was asked (422 provider_not_configured).
 	ErrProviderNotConfigured = errors.New("provider not configured")
 )
@@ -426,6 +433,14 @@ type AdminItem struct {
 	// sources, nil for a book never tried (contract 1.26.0, concept 19 D6.3).
 	DurationMs *int64
 	BookMatch  *AdminBookMatch
+	// HomeRoot is the title's home folder (concept 24 3.2, ADR 0036), nil without one.
+	HomeRoot *AdminItemHomeRoot
+}
+
+// AdminItemHomeRoot names the home folder of a title.
+type AdminItemHomeRoot struct {
+	ID   int64
+	Path string
 }
 
 // AdminBookMatch is the match of an audiobook (items.book_match_*).
@@ -1615,25 +1630,68 @@ type MetadataSettings struct {
 	LocalImageTitles int
 }
 
-// LibraryImages is the image deviation of a library (concept 10 4.5).
-type LibraryImages struct {
-	Langs map[string][]string
-	Kinds []string
+// RootMetadata is what a video folder sets itself (concept 24 section 3.1, ADR 0036): its text
+// languages and its images; nil = like the default. Stored in library_roots.text_langs and
+// .images; the titles whose home folder it is read it live (metadata.Effective).
+type RootMetadata struct {
+	TextLangs *[]string
+	Images    *RootImages
 }
 
-// LibraryMetadata is the deviation of a library (nil = like the server) with the effective values.
-type LibraryMetadata struct {
-	LibraryID      int64
-	TextLangs      *[]string
-	Images         *LibraryImages
-	Effective      MetadataSettings
-	AffectedTitles int
+// RootImages is the image part of a folder's own settings: the chain per kind (a kind missing from
+// Langs follows the default's chain) and the switchable kinds that are on ([] = none).
+type RootImages struct {
+	Langs map[string][]string `json:"langs"`
+	Kinds []string            `json:"kinds"`
+}
+
+// RootMetadataColumns encodes a folder's own settings for library_roots (NULL = like the default).
+func RootMetadataColumns(m RootMetadata) (textLangs, images sql.NullString) {
+	if m.TextLangs != nil {
+		raw, _ := json.Marshal(*m.TextLangs)
+		textLangs = sql.NullString{String: string(raw), Valid: true}
+	}
+	if m.Images != nil {
+		imgs := RootImages{Langs: m.Images.Langs, Kinds: m.Images.Kinds}
+		if imgs.Langs == nil {
+			imgs.Langs = map[string][]string{}
+		}
+		if imgs.Kinds == nil {
+			imgs.Kinds = []string{}
+		}
+		raw, _ := json.Marshal(imgs)
+		images = sql.NullString{String: string(raw), Valid: true}
+	}
+	return textLangs, images
+}
+
+// ParseRootMetadata decodes the two columns of library_roots.
+func ParseRootMetadata(textLangs, images sql.NullString) (RootMetadata, error) {
+	var m RootMetadata
+	if textLangs.Valid {
+		var langs []string
+		if err := json.Unmarshal([]byte(textLangs.String), &langs); err != nil {
+			return m, fmt.Errorf("text_langs: %w", err)
+		}
+		m.TextLangs = &langs
+	}
+	if images.Valid {
+		var imgs RootImages
+		if err := json.Unmarshal([]byte(images.String), &imgs); err != nil {
+			return m, fmt.Errorf("images: %w", err)
+		}
+		if imgs.Kinds == nil {
+			imgs.Kinds = []string{}
+		}
+		m.Images = &imgs
+	}
+	return m, nil
 }
 
 // ApplyMetadataRequest queues metadata.apply (concept 10 6.5).
 type ApplyMetadataRequest struct {
-	LibraryIDs []int64  // empty = every library
-	What       []string // texts, images
+	RootIDs []int64  // the folders (their home titles, ADR 0036); empty = every folder
+	What    []string // texts, images
 }
 
 // ApplyMetadataResult is the queued run and the number of titles it covers.
@@ -1676,10 +1734,13 @@ type LibraryRootRequest struct {
 	Path      string
 	Content   string   // movie, series, audiobook, podcast
 	Providers []string // ordered; the first identifies, the others fill
+	// Metadata is the folder's own text languages and images (concept 24 3.1); nil fields = like
+	// the default. Video folders only.
+	Metadata RootMetadata
 }
 
 // LibraryRootUpdate changes the content, the provider list or the path of a folder
-// (updateLibraryRoot). A content change empties the folder's titles like a removal would and
+// (one folder of saveLibrary). A content change empties the folder's titles like a removal would and
 // therefore repeats the path (ConfirmPath); a list change and a new path (ADR 0023 point 4) need no
 // confirmation.
 type LibraryRootUpdate struct {
@@ -1687,6 +1748,12 @@ type LibraryRootUpdate struct {
 	Providers   []string // nil = unchanged
 	Path        *string  // nil = unchanged
 	ConfirmPath string
+	// SetTextLangs and SetImages change the folder's own metadata (concept 24 3.6): false =
+	// unchanged; true with a nil value = like the default, with a value = the folder's own.
+	SetTextLangs bool
+	TextLangs    *[]string
+	SetImages    bool
+	Images       *RootImages
 }
 
 // LibraryUpdate changes the name or the default rating of a library (updateLibrary).
@@ -1697,6 +1764,44 @@ type LibraryUpdate struct {
 	// PodcastDownloads is the setting of stored episodes, podcast libraries only (concept 19 part
 	// A, 5.1).
 	PodcastDownloads *PodcastDownloads
+}
+
+// LibrarySave is the form «Bibliothek bearbeiten» as a whole (saveLibrary, concept 24 4.3): the
+// library's settings, every folder it keeps or gets and the folders it removes.
+type LibrarySave struct {
+	Revision      string // Library.Revision of the library the form loaded
+	Name          string
+	DefaultRating *int              // audio libraries only; nil = unchanged
+	Trickplay     *LibraryTrickplay // video libraries only; nil = unchanged
+	Roots         []LibrarySaveRoot
+	Remove        []LibrarySaveRemoval
+}
+
+// LibrarySaveRoot is one folder of a LibrarySave in its new state; ID 0 is a new folder.
+// ConfirmPath repeats the stored path for a content change.
+type LibrarySaveRoot struct {
+	ID int64
+	LibraryRootRequest
+	ConfirmPath string
+}
+
+// LibrarySaveRemoval is a stored folder a LibrarySave removes, with its typed path.
+type LibrarySaveRemoval struct {
+	ID          int64
+	ConfirmPath string
+}
+
+// LibrarySaved is the answer of saveLibrary: the saved library and the kept folders whose own
+// languages or images changed, with the number of titles whose home folder they are.
+type LibrarySaved struct {
+	Library         Library
+	MetadataChanged []RootTitles
+}
+
+// RootTitles is a folder and the number of titles whose home folder it is (ADR 0036).
+type RootTitles struct {
+	RootID         int64
+	HomeTitleCount int
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -1731,6 +1836,10 @@ type LibraryRoot struct {
 	// ReadOnly: the folder's file system is mounted read-only (ADR 0032); nil when the check did
 	// not answer in time.
 	ReadOnly *bool
+	// Metadata is the folder's own text languages and images (nil fields = like the default) and
+	// HomeTitleCount the titles whose home folder it is (concept 24, ADR 0036).
+	Metadata       RootMetadata
+	HomeTitleCount int
 }
 
 // LibraryScan is the state of the running or last scan.
@@ -1748,9 +1857,12 @@ type LibraryScan struct {
 
 // Library with its roots and scan state.
 type Library struct {
-	ID            int64
-	Name          string
-	Kind          string
+	ID   int64
+	Name string
+	Kind string
+	// Revision is the state the form «Bibliothek bearbeiten» edits, derived from the stored rows
+	// (concept 24 4.3); saveLibrary refuses a request that names another one (ErrStale).
+	Revision      string
 	DefaultRating *int // audio libraries only (AN-2)
 	Roots         []LibraryRoot
 	Scan          LibraryScan

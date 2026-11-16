@@ -22,7 +22,7 @@
   margin: 0;
   padding: var(--sc-space-1) var(--sc-space-3) var(--sc-space-1) 0;
   overflow: visible;
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-bg-elevated);
   color: inherit;
@@ -73,11 +73,6 @@
 /* The ring lies inside the slider's hit area: the popover's edge is close around it. */
 .slider:focus-visible {
   outline-offset: calc(-1 * var(--sc-focus-ring-width));
-}
-
-.slider[aria-disabled] {
-  cursor: default;
-  opacity: 0.5;
 }
 
 .track {
@@ -141,4 +136,19 @@
 .percent[data-boosted] {
   color: var(--sc-color-state-warning);
   font-weight: var(--sc-font-weight-semibold);
+}
+
+/* Disabled (concept 24, Z-5): a dashed track, fill and thumb muted, no paleness. */
+.slider[aria-disabled] {
+  cursor: default;
+}
+
+.slider[aria-disabled] .track {
+  outline: 1px dashed var(--sc-color-border-control);
+  outline-offset: 1px;
+  background-color: transparent;
+}
+
+.slider[aria-disabled] :is(.fill, .boost, .thumb) {
+  background-color: var(--sc-color-text-muted);
 }

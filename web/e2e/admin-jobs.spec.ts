@@ -150,7 +150,8 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   await expectVisibleFocus(page);
 
-  // «Läuft gerade» is a group that folds away; it is open.
+  // «Läuft gerade» is a group that folds away; it is open, what the page is opened for (concept
+  // 24, exception 4), while every other collapsible starts closed.
   await expect(page.getByRole('button', { name: /^Läuft gerade/ })).toHaveAttribute(
     'aria-expanded',
     'true',

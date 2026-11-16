@@ -224,7 +224,9 @@
       "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
       "not_deletable": "This title cannot be deleted.",
       "deleting": "This is being deleted right now.",
-      "changed": "Something changed meanwhile, please check again."
+      "changed": "Something changed meanwhile, please check again.",
+      "stale": "The library was changed elsewhere in the meantime. Load it again and save once more.",
+      "root_unlisted": "A folder of the library is missing from the request. Load the library again; nothing was removed."
     },
     "field": {
       "required": "Required.",
@@ -247,6 +249,7 @@
       "root_overlap": "This folder overlaps another folder.",
       "path_with_content": "A new path cannot be combined with a content change.",
       "root_files_missing": "None of the folder's files lies under the new path.",
+      "confirm_mismatch": "The path does not match the folder's path. Nothing was changed.",
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",
@@ -553,8 +556,10 @@
       "submit_one": "Add library with {{count}} folder",
       "submit_other": "Add library with {{count}} folders",
       "submitNone": "Add library without folders",
-      "addSubmit_one": "Add 1 folder",
-      "addSubmit_other": "Add {{count}} folders"
+      "marked": "Will be removed when you save. You then confirm it with the path.",
+      "undo": "Undo",
+      "undoLabel": "Undo removing folder {{number}}",
+      "removeStored": "Remove folder …"
     },
     "videoHint": "The folders of this library may hold films or series, mixed as well.",
     "page": {
@@ -614,7 +619,8 @@
     "notFound": {
       "title": "Library not found",
       "body": "This library does not exist or has no titles for this profile."
-    }
+    },
+    "kindFixed": "The kind is fixed once the library has been created."
   },
   "home": {
     "list": {
@@ -1809,11 +1815,8 @@
         "kind": "Kind",
         "state": "State",
         "counts": "Titles · files",
-        "folders": "Folders",
-        "metadata": "Metadata"
+        "folders": "Folders"
       },
-      "none": "–",
-      "noMetadata": "No metadata scope",
       "roots": "Folders",
       "fsType": "File system {{type}}",
       "watch": {
@@ -1879,25 +1882,11 @@
       "defaultRating": "Default: {{rating}}",
       "noRoots": "No folder: the titles come from subscribed feeds.",
       "feedsOnly": "Titles from feeds",
-      "changeRating": {
-        "action": "Change default rating",
-        "title": "Default rating of {{name}}",
-        "description": "Every title whose rating comes from the library follows at once. Ratings set by hand stay.",
-        "submit": "Save",
-        "saved": "The default rating of {{name}} is now {{rating}}."
-      },
       "folders": {
-        "title": "Folders of {{name}}",
-        "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
-        "none": "This library has no folder. Nothing is scanned until you add one.",
         "content": "Titles: {{items}} · files: {{files}}",
         "remove": {
-          "action": "Remove",
-          "label": "Remove the folder {{path}}",
-          "title": "Really remove this folder?",
           "inputLabel": "Type the path to confirm",
           "mismatch": "Type {{path}} exactly, then the button becomes active.",
-          "confirm": "Remove the folder",
           "lead_one": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} title leaves every list with it. What that means:",
           "lead_other": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} titles leave every list with it. What that means:",
           "soft": "The titles are soft-deleted: they vanish from every list, but progress, watchlist entries and picks stay attached to them. A title with a file in another folder of this library stays visible.",
@@ -1908,50 +1897,26 @@
           "oneWay": "If the folder lies outside the browsable folders (SLOUCHCAT_BROWSE_ROOTS), it cannot be added again without a change to the configuration.",
           "last": "It is the last folder: {{name}} stays, but holds no folder afterwards and scans nothing."
         },
-        "new": "New folders",
         "change": {
-          "action": "Change",
-          "label": "Change folder {{path}}",
-          "title": "Change folder",
-          "description": "Content and metadata sources of {{path}}.",
-          "submit": "Save",
           "identifier": "The identifier changes: season and episode texts are assigned anew after {{provider}}. The episodes themselves stay, progress and watchlist stay attached to them.",
           "fillers": "Only the fillers change: the titles are filled in again, nothing is deleted.",
-          "content": "The content changes: that works like removing the folder and adding it again. The titles of this folder are soft-deleted and created anew, offline packages are gone, progress and watchlist stay with the old titles.",
-          "confirmTitle": "Really change the content?",
-          "confirm": "Change content",
-          "saved": "The folder {{path}} is changed."
+          "content": "The content changes: that works like removing the folder and adding it again. The titles of this folder are soft-deleted and created anew, offline packages are gone, progress and watchlist stay with the old titles."
         },
         "move": {
-          "action": "Change path",
-          "label": "Change the path of {{path}}",
-          "title": "Change path?",
-          "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards.",
-          "confirm": "Change",
-          "saved": "The folder now lies at {{path}} and is read anew."
+          "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards."
         },
         "readOnly": "read-only",
         "writable": "writable"
       },
-      "openFolders": "Folders",
-      "openFoldersLabel": "Edit the folders of {{name}}",
       "rootCount_one": "{{count}} folder",
       "rootCount_other": "{{count}} folders",
-      "noFolder": "No folder: nothing is scanned until you add one under “Folders”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "like the server",
-        "texts": "languages deviate",
-        "images": "images deviate",
-        "both": "languages and images deviate",
-        "link": "Metadata of the library",
         "audiobooksLink": "Sources for audiobooks"
       },
       "trickplay": {
         "action": "Seek preview",
-        "actionLabel": "Seek preview of {{name}}",
-        "title": "Seek preview: {{name}}",
         "description": "Small pictures above the timeline, one every 10 seconds. Films and series are set separately, also in a library that holds both.",
         "movies": "Films",
         "series": "Series",
@@ -2011,12 +1976,12 @@
         "generate": {
           "action": "Generate now",
           "hint": "Catches up on the missing previews of every library «In advance», like «Backfill seek previews» on «Background jobs».",
-          "queued": "Catching up on the previews is queued."
+          "queued": "Catching up on the previews is queued.",
+          "unsaved": "Only after saving: generating uses the saved setting."
         },
-        "submit": "Save",
-        "saved": "The seek preview of {{name}} is saved.",
         "summary": "Seek preview: films {{movies}} · series {{series}}",
-        "summaryNoKeep": "At start, not kept"
+        "summaryNoKeep": "At start, not kept",
+        "header": "Films: {{movies}} · series: {{series}}"
       },
       "delete": {
         "action": "Delete library …",
@@ -2034,11 +1999,52 @@
         "done": "Library “{{name}}” deleted.",
         "notDone": "Library “{{name}}” was not deleted. The job says why."
       },
-      "rename": {
-        "action": "Rename …",
-        "title": "Rename library “{{name}}”",
-        "label": "Name",
-        "saved": "The library is now called “{{name}}”."
+      "form": {
+        "editTitle": "Edit library",
+        "changed": "changed",
+        "pathAndContent": "The path and the content of this folder cannot change in one step. Save one first, then the other.",
+        "pathHint": "The new path applies once you save. Titles and user data stay when the files lie there under the same names.",
+        "reloaded": "The library was changed elsewhere in the meantime. The form now shows its new state; your changes were not saved.",
+        "changedElsewhere": "The library was changed elsewhere in the meantime. Saving loads its new state into the form; your changes are not saved then.",
+        "gone": "This library no longer exists. Nothing was saved.",
+        "scanRunning": "Removing a folder, changing its content or changing its path has to wait until the scan is done. Your input stays.",
+        "scanCancelled": "The scan is cancelled. Save again now.",
+        "discard": {
+          "title": "Discard changes?",
+          "body": "The unsaved changes to {{name}} will be lost.",
+          "confirm": "Discard",
+          "keep": "Keep editing"
+        },
+        "confirm": {
+          "title": "Confirm changes",
+          "intro": "These changes take effect only when you save here.",
+          "remove": "Remove folder: {{path}}",
+          "content": "Change content: {{path}}",
+          "path": "Change path: {{path}}",
+          "typeAll": "You can save once every path is typed exactly.",
+          "submit": "Save"
+        }
+      },
+      "edit": "Edit",
+      "editLabel": "Edit {{name}}",
+      "noFolderEdit": "No folder: nothing is scanned until you add one under “Edit”.",
+      "saved": {
+        "title": "The library {{name}} is saved.",
+        "name": "New name: {{name}}",
+        "rating": "Default rating: {{rating}}",
+        "added_one": "{{count}} folder added; the scan is queued.",
+        "added_other": "{{count}} folders added; the scan is queued.",
+        "removed_one": "{{count}} folder removed.",
+        "removed_other": "{{count}} folders removed.",
+        "content_one": "{{count}} folder with changed content is read in again.",
+        "content_other": "{{count}} folders with changed content are read in again.",
+        "moved_one": "{{count}} folder with a new path is read in again.",
+        "moved_other": "{{count}} folders with a new path are read in again.",
+        "providers_one": "New sources for {{count}} folder: its titles are matched or filled again.",
+        "providers_other": "New sources for {{count}} folders: their titles are matched or filled again.",
+        "metadata_one": "Languages or images changed for {{count}} folder. Titles affected once you apply the change: {{titles}}.",
+        "metadata_other": "Languages or images changed for {{count}} folders. Titles affected once you apply the change: {{titles}}.",
+        "dismiss": "Dismiss"
       }
     },
     "access": {
@@ -2282,7 +2288,9 @@
         "children": "Content",
         "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Home folder",
+        "homeRootNone": "None, the default settings apply"
       },
       "sources": {
         "title": "Source per field",
@@ -4831,7 +4839,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Which languages the metadata sources deliver, which images in which language and quality, and which country decides the age rating first. The default applies to every library; a library may deviate for languages and images.",
       "links": {
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
@@ -4843,9 +4850,6 @@
         "open": "Open sources"
       },
       "areas": {
-        "label": "Areas",
-        "changed": "Changed · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Poster {{poster}}, backdrop {{backdrop}}",
         "sources": {
           "local": "Local files",
@@ -4853,20 +4857,15 @@
           "tmdbAdult": "TMDB with adult content",
           "none": "Only the folders' sources"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} video folder follows the default",
+        "foldersFollow_other": "{{count}} video folders follow the default",
+        "foldersOwn_one": "{{count}} has its own",
+        "foldersOwn_other": "{{count}} have their own"
       },
-      "scope": {
-        "label": "Applies to",
-        "server": "Default",
-        "serverHint": "Applies to every library without a deviation of its own.",
-        "libraryHint": "{{name}} uses the default. Switch «deviates» on to change languages or images for this library only.",
-        "deviates": "deviates",
-        "textsDeviate": "Languages deviate",
-        "imagesDeviate": "Images deviate",
-        "likeServer": "like the server",
-        "changed": "{{name}} (changed)",
-        "serverDirty": "The default has unsaved changes; this shows what is saved."
-      },
+      "default": "Default",
       "languages": {
         "title": "Languages",
         "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. Each profile chooses its own interface language. Every further language costs one request per title and season.",
@@ -4939,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Apply to existing titles",
         "short": "Apply",
         "intro": "New titles use the settings at once. Existing titles stay until you start the run; it appears under Background jobs with progress, pause and cancel.",
         "what": "What",
@@ -4947,7 +4945,8 @@
         "texts": "Texts only",
         "images": "Images only",
         "where": "Where",
-        "all": "Every library",
+        "all": "Every folder",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} title",
         "titles_other": "{{count}} titles",
         "run": "Apply now",
@@ -4974,6 +4973,29 @@
         "chain_duplicate": "Every language once.",
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."
+      },
+      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images in its library, under “Edit”.",
+      "changed": "changed",
+      "folders": {
+        "title": "Folders",
+        "intro": "Every video folder follows the default until it has languages or images of its own. You set them in its library, under “Edit”.",
+        "empty": "No video folder yet.",
+        "audio": "Audiobook and podcast folders have no languages and images of their own. The sources for audiobooks are under “Audiobooks: sources”.",
+        "openLabel": "Edit {{name}}, folder {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Languages: default",
+        "langsOwn": "Languages: {{chain}}",
+        "imagesDefault": "Images: default",
+        "imagesOwn": "Images: own",
+        "likeDefault": "Like the default",
+        "own": "Own",
+        "defaultIs": "Default: {{value}}",
+        "imagesDefaultIs": "Default: {{kinds}}. Language per image kind: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Applies to this folder only.",
+        "cost": "Each further language costs one request per title and season of this folder when applied.",
+        "always": "Slouchcat always fetches poster and backdrop."
       }
     },
     "activity": {
@@ -5011,7 +5033,7 @@
       "intro": "Where Slouchcat gets details and covers for audiobooks. The files always come first; a provider fills only what is missing, and never a locked field.",
       "folders": {
         "title": "Order per folder",
-        "intro": "The upper source wins per field. You change the order and which sources take part in the dialog of the folder.",
+        "intro": "The upper source wins per field. You change the order and which sources take part in the library, under “Edit”.",
         "empty": "There is no audiobook folder yet.",
         "edit": "Change sources",
         "editLabel": "Change the sources of {{path}}",

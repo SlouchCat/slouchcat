@@ -47,10 +47,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** One section per library, each with its own table; open at first. */
+/** One section per library, each with its own table; closed at first (concept 24, P-3). */
 export const Default: Story = {};
 
-/** Folded with the keyboard: Tab to the first heading, Enter. */
-export const Collapsed: Story = { tags: ['press:Tab+Enter'] };
+/** Opened with the keyboard: Tab to the first heading, Enter. */
+export const Expanded: Story = { tags: ['press:Tab+Enter'] };
 
 export const Compact: Story = { globals: { density: 'compact' } };

@@ -29,7 +29,7 @@ func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID s
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
 
-func (contractMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+func (contractMetadata) ProviderLanguages(context.Context, []string) (map[string][]string, error) {
 	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
 }
 func (contractMetadata) DeleteTrailer(context.Context, string, int64) error { return model.ErrNotFound }
@@ -220,18 +220,6 @@ func (contractMetadata) MetadataSettings(context.Context) (model.MetadataSetting
 
 func (m contractMetadata) UpdateMetadataSettings(ctx context.Context, _ model.MetadataSettings) (model.MetadataSettings, error) {
 	return m.MetadataSettings(ctx)
-}
-
-func (m contractMetadata) LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error) {
-	if libraryID > 100 {
-		return model.LibraryMetadata{}, model.ErrNotFound
-	}
-	eff, _ := m.MetadataSettings(ctx)
-	return model.LibraryMetadata{LibraryID: libraryID, Effective: eff}, nil
-}
-
-func (m contractMetadata) UpdateLibraryMetadata(ctx context.Context, libraryID int64, _ *[]string, _ *model.LibraryImages) (model.LibraryMetadata, error) {
-	return m.LibraryMetadata(ctx, libraryID)
 }
 
 func (contractMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {

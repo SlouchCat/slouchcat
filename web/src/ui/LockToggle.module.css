@@ -4,7 +4,7 @@
   align-items: center;
   min-height: var(--sc-space-8);
   padding: 0 var(--sc-space-2);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-sm);
   background-color: transparent;
   color: var(--sc-color-text-secondary);
@@ -18,9 +18,11 @@
   color: var(--sc-color-text-primary);
 }
 
+/* Disabled (concept 24, Z-5): dashed, the label muted, no paleness. */
 .toggle[data-disabled] {
+  border-style: dashed;
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.6;
 }
 
 .toggle[data-focus-visible] {

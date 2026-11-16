@@ -220,7 +220,9 @@
       "files_not_deletable": "這部作品有檔案無法刪除。未刪除任何內容。",
       "not_deletable": "這部作品無法刪除。",
       "deleting": "正在刪除中。",
-      "changed": "內容在此期間已變更，請重新檢查。"
+      "changed": "內容在此期間已變更，請重新檢查。",
+      "stale": "媒體庫在此期間已在其他地方變更。請重新載入後再儲存一次。",
+      "root_unlisted": "要求中缺少媒體庫的一個資料夾。請重新載入媒體庫；未移除任何內容。"
     },
     "field": {
       "required": "必填。",
@@ -243,6 +245,7 @@
       "root_overlap": "這個資料夾與其他資料夾重疊。",
       "path_with_content": "變更路徑時無法同時變更內容類型。",
       "root_files_missing": "新路徑下找不到原有的任何檔案。",
+      "confirm_mismatch": "路徑與資料夾的路徑不符。未變更任何內容。",
       "content_not_allowed": "這個內容不符合媒體庫的類型。",
       "providers_not_allowed": "這份中繼資料來源清單不適用於此內容。",
       "roots_required": "至少需要一個資料夾。",
@@ -540,7 +543,10 @@
       "providers": "資料夾 {{number}}：{{message}}",
       "submit_other": "新增含 {{count}} 個資料夾的媒體庫",
       "submitNone": "新增不含資料夾的媒體庫",
-      "addSubmit_other": "新增 {{count}} 個資料夾"
+      "marked": "儲存時將移除。屆時需輸入路徑確認。",
+      "undo": "復原",
+      "undoLabel": "復原移除資料夾 {{number}}",
+      "removeStored": "移除資料夾…"
     },
     "videoHint": "這個媒體庫的資料夾可以包含電影或影集，也可以混合存放。",
     "page": {
@@ -596,7 +602,8 @@
     "notFound": {
       "title": "找不到媒體庫",
       "body": "這個媒體庫不存在，或對此個人資料沒有任何作品。"
-    }
+    },
+    "kindFixed": "媒體庫建立後，類型就無法再變更。"
   },
   "home": {
     "list": {
@@ -1778,11 +1785,8 @@
         "kind": "類型",
         "state": "狀態",
         "counts": "作品 · 檔案",
-        "folders": "資料夾",
-        "metadata": "中繼資料"
+        "folders": "資料夾"
       },
-      "none": "–",
-      "noMetadata": "沒有中繼資料範圍",
       "roots": "資料夾",
       "fsType": "檔案系統 {{type}}",
       "watch": {
@@ -1848,25 +1852,11 @@
       "defaultRating": "預設：{{rating}}",
       "noRoots": "沒有資料夾：作品來自訂閱的訂閱源。",
       "feedsOnly": "來自訂閱源的作品",
-      "changeRating": {
-        "action": "變更預設分級",
-        "title": "{{name}} 的預設分級",
-        "description": "所有分級來自媒體庫的作品都會立即跟著變更。手動設定的分級會保留。",
-        "submit": "儲存",
-        "saved": "{{name}} 的預設分級現在是 {{rating}}。"
-      },
       "folders": {
-        "title": "{{name}} 的資料夾",
-        "description": "一個媒體庫可以包含多個資料夾。掃描和監看會立即納入新資料夾。",
-        "none": "這個媒體庫沒有資料夾。新增資料夾之前不會掃描任何內容。",
         "content": "作品：{{items}} · 檔案：{{files}}",
         "remove": {
-          "action": "移除",
-          "label": "移除資料夾 {{path}}",
-          "title": "確定要移除這個資料夾嗎？",
           "inputLabel": "輸入路徑以確認",
           "mismatch": "請完整輸入 {{path}}，按鈕才會啟用。",
-          "confirm": "移除資料夾",
           "lead_other": "你即將從媒體庫 {{name}} 移除 <path>{{path}}</path>。最多 {{count}} 部作品會因此從所有清單中消失。這代表：",
           "soft": "這些作品會被軟刪除：它們會從所有清單中消失，但進度、我的片單項目和推薦仍會保留。如果作品在此媒體庫的其他資料夾中還有檔案，就會繼續顯示。",
           "downloads": "離線下載會真正刪除：已下載其中任何作品的裝置，會在下次同步時刪除該下載包。",
@@ -1876,48 +1866,24 @@
           "oneWay": "如果資料夾位於可瀏覽的資料夾（SLOUCHCAT_BROWSE_ROOTS）之外，不變更設定就無法再次新增。",
           "last": "這是最後一個資料夾：{{name}} 會保留，但之後沒有任何資料夾，也不會掃描任何內容。"
         },
-        "new": "新資料夾",
         "change": {
-          "action": "變更",
-          "label": "變更資料夾 {{path}}",
-          "title": "變更資料夾",
-          "description": "{{path}} 的內容和中繼資料來源。",
-          "submit": "儲存",
           "identifier": "辨識來源將變更：季和單集的文字會依 {{provider}} 重新對應。單集本身會保留，進度和我的片單也仍與它們相連。",
           "fillers": "只有補充來源會變更：作品會重新補充資料，不會刪除任何內容。",
-          "content": "內容類型將變更：效果等同於移除資料夾後再重新新增。此資料夾的作品會被軟刪除並重新建立，離線下載包會消失，進度和我的片單則留在舊作品上。",
-          "confirmTitle": "確定要變更內容類型嗎？",
-          "confirm": "變更內容類型",
-          "saved": "已變更資料夾 {{path}}。"
+          "content": "內容類型將變更：效果等同於移除資料夾後再重新新增。此資料夾的作品會被軟刪除並重新建立，離線下載包會消失，進度和我的片單則留在舊作品上。"
         },
         "move": {
-          "action": "變更路徑",
-          "label": "變更 {{path}} 的路徑",
-          "title": "要變更路徑嗎？",
-          "body": "舊路徑：{{old}} · 新路徑：{{new}}。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。之後會重新讀取資料夾。",
-          "confirm": "變更",
-          "saved": "資料夾現在位於 {{path}}，正在重新讀取。"
+          "body": "舊路徑：{{old}} · 新路徑：{{new}}。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。之後會重新讀取資料夾。"
         },
         "readOnly": "唯讀",
         "writable": "可寫入"
       },
-      "openFolders": "資料夾",
-      "openFoldersLabel": "編輯 {{name}} 的資料夾",
       "rootCount_other": "{{count}} 個資料夾",
-      "noFolder": "沒有資料夾：在「資料夾」中新增資料夾之前，不會掃描任何內容。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
-        "like": "與伺服器相同",
-        "texts": "語言不同",
-        "images": "圖片不同",
-        "both": "語言和圖片不同",
-        "link": "媒體庫的中繼資料",
         "audiobooksLink": "有聲書的來源"
       },
       "trickplay": {
         "action": "拖曳預覽",
-        "actionLabel": "{{name}} 的拖曳預覽",
-        "title": "拖曳預覽：{{name}}",
         "description": "時間軸上方的小圖，每 10 秒一張。電影和影集分開設定，即使在同時包含兩者的媒體庫中也是如此。",
         "movies": "電影",
         "series": "影集",
@@ -1975,12 +1941,12 @@
         "generate": {
           "action": "立即產生",
           "hint": "為所有設為「預先產生」的媒體庫補建缺少的預覽，與「背景工作」中的「補建拖曳預覽」相同。",
-          "queued": "預覽補建已排入佇列。"
+          "queued": "預覽補建已排入佇列。",
+          "unsaved": "需先儲存：產生時會使用已儲存的設定。"
         },
-        "submit": "儲存",
-        "saved": "已儲存 {{name}} 的拖曳預覽。",
         "summary": "拖曳預覽：電影 {{movies}} · 影集 {{series}}",
-        "summaryNoKeep": "開始時，不保留"
+        "summaryNoKeep": "開始時，不保留",
+        "header": "電影：{{movies}} · 影集：{{series}}"
       },
       "delete": {
         "action": "刪除媒體庫…",
@@ -1997,11 +1963,46 @@
         "done": "已刪除媒體庫「{{name}}」。",
         "notDone": "媒體庫「{{name}}」未刪除。原因請參閱工作。"
       },
-      "rename": {
-        "action": "重新命名…",
-        "title": "重新命名媒體庫「{{name}}」",
-        "label": "名稱",
-        "saved": "媒體庫現在名為「{{name}}」。"
+      "form": {
+        "editTitle": "編輯媒體庫",
+        "changed": "已變更",
+        "pathAndContent": "此資料夾的路徑和內容類型無法一次變更。請先儲存其中一項，再變更另一項。",
+        "pathHint": "新路徑在儲存後生效。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。",
+        "reloaded": "媒體庫在此期間已在其他地方變更。表單現在顯示最新狀態；你的變更未儲存。",
+        "changedElsewhere": "媒體庫在此期間已在其他地方變更。儲存時表單會載入最新狀態，你的變更將不會儲存。",
+        "gone": "此媒體庫已不存在。未儲存任何內容。",
+        "scanRunning": "移除、變更內容類型和新路徑會等到掃描完成後才進行。你的輸入會保留。",
+        "scanCancelled": "掃描已取消。請現在重新儲存。",
+        "discard": {
+          "title": "要捨棄變更嗎？",
+          "body": "對 {{name}} 未儲存的變更將會遺失。",
+          "confirm": "捨棄",
+          "keep": "繼續編輯"
+        },
+        "confirm": {
+          "title": "確認變更",
+          "intro": "這些變更要在這裡儲存後才會生效。",
+          "remove": "移除資料夾：{{path}}",
+          "content": "變更內容類型：{{path}}",
+          "path": "變更路徑：{{path}}",
+          "typeAll": "正確輸入每個路徑後即可儲存。",
+          "submit": "儲存"
+        }
+      },
+      "edit": "編輯",
+      "editLabel": "編輯 {{name}}",
+      "noFolderEdit": "沒有資料夾：在「編輯」中新增資料夾之前，不會掃描任何內容。",
+      "saved": {
+        "title": "媒體庫 {{name}} 已儲存。",
+        "name": "新名稱：{{name}}",
+        "rating": "預設級別：{{rating}}",
+        "added_other": "已新增 {{count}} 個資料夾；掃描已排入佇列。",
+        "removed_other": "已移除 {{count}} 個資料夾。",
+        "content_other": "{{count}} 個資料夾的內容類型已變更，將重新讀取。",
+        "moved_other": "{{count}} 個資料夾的路徑已變更，將重新讀取。",
+        "providers_other": "{{count}} 個資料夾有新的來源：其作品將重新比對或補齊。",
+        "metadata_other": "{{count}} 個資料夾的語言或圖片已變更。套用後將作用於 {{titles}} 部作品。",
+        "dismiss": "隱藏"
       }
     },
     "access": {
@@ -2213,7 +2214,9 @@
         "children": "內容",
         "childCounts": "季：{{seasons}} · 單集：{{episodes}} · 花絮：{{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "所屬資料夾",
+        "homeRootNone": "無，使用預設設定"
       },
       "sources": {
         "title": "各欄位的來源",
@@ -4687,7 +4690,6 @@
     },
     "metadata": {
       "title": "中繼資料",
-      "intro": "中繼資料來源提供哪些語言、哪些圖片使用哪種語言和畫質，以及由哪個國家優先決定年齡分級。預設值適用於所有媒體庫；媒體庫可以在語言和圖片方面另行設定。",
       "links": {
         "roots": "來源的順序可在「媒體庫」中依資料夾設定。",
         "jobs": "排程位於「背景工作」中。",
@@ -4699,9 +4701,6 @@
         "open": "開啟來源"
       },
       "areas": {
-        "label": "區域",
-        "changed": "已變更 · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "海報 {{poster}}，背景圖 {{backdrop}}",
         "sources": {
           "local": "本機檔案",
@@ -4709,20 +4708,13 @@
           "tmdbAdult": "TMDB 含成人內容",
           "none": "僅限資料夾的來源"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}，{{own}}",
+        "foldersFollow_other": "{{count}} 個影片資料夾沿用預設",
+        "foldersOwn_other": "{{count}} 個自訂"
       },
-      "scope": {
-        "label": "適用於",
-        "server": "預設",
-        "serverHint": "適用於所有沒有另行設定的媒體庫。",
-        "libraryHint": "{{name}} 使用預設值。開啟「另行設定」即可只為這個媒體庫變更語言或圖片。",
-        "deviates": "另行設定",
-        "textsDeviate": "語言另行設定",
-        "imagesDeviate": "圖片另行設定",
-        "likeServer": "與伺服器相同",
-        "changed": "{{name}}（已變更）",
-        "serverDirty": "預設值有未儲存的變更；這裡顯示的是已儲存的狀態。"
-      },
+      "default": "預設",
       "languages": {
         "title": "語言",
         "intro": "這裡的每種語言都會為每部作品擷取；個人資料可從中選擇簡介語言。介面語言由每個個人資料各自選擇。每多一種語言，每部作品和每一季就會多一次請求。",
@@ -4794,7 +4786,6 @@
         }
       },
       "apply": {
-        "title": "套用到現有作品",
         "short": "套用",
         "intro": "新作品會立即使用這些設定。現有作品會維持不變，直到你開始執行；執行會出現在「背景工作」中，並可查看進度、暫停和取消。",
         "what": "內容",
@@ -4802,7 +4793,8 @@
         "texts": "僅文字",
         "images": "僅圖片",
         "where": "範圍",
-        "all": "所有媒體庫",
+        "all": "所有資料夾",
+        "folder": "{{library}}：{{path}}",
         "titles_other": "{{count}} 部作品",
         "run": "立即套用",
         "running": "正在排入佇列…",
@@ -4827,6 +4819,29 @@
         "chain_duplicate": "每種語言只能出現一次。",
         "country_unknown": "未知的國家。",
         "source_unknown": "這個圖片來源不是此作品的候選項目。"
+      },
+      "introDefault": "適用於所有沒有個別設定的資料夾。資料夾自己的語言和圖片，請在其媒體庫的「編輯」中設定。",
+      "changed": "已變更",
+      "folders": {
+        "title": "資料夾",
+        "intro": "每個影片資料夾都會沿用預設，直到它有自己的語言或圖片。請在其媒體庫的「編輯」中設定。",
+        "empty": "還沒有影片資料夾。",
+        "audio": "有聲書和 Podcast 資料夾沒有個別的語言和圖片設定。有聲書的來源位於「有聲書：來源」。",
+        "openLabel": "編輯 {{name}}，資料夾 {{path}}"
+      },
+      "folder": {
+        "langsDefault": "語言：預設",
+        "langsOwn": "語言：{{chain}}",
+        "imagesDefault": "圖片：預設",
+        "imagesOwn": "圖片：自訂",
+        "likeDefault": "與預設相同",
+        "own": "自訂",
+        "defaultIs": "預設：{{value}}",
+        "imagesDefaultIs": "預設：{{kinds}}。各圖片類型的語言：{{chains}}。",
+        "imageChain": "{{kind}}：{{chain}}",
+        "onlyHere": "僅適用於此資料夾。",
+        "cost": "套用時，每多一種語言，此資料夾的每部作品和每一季就會多一次請求。",
+        "always": "Slouchcat 一律會擷取海報和背景圖。"
       }
     },
     "activity": {
@@ -4860,7 +4875,7 @@
       "intro": "Slouchcat 從哪裡取得有聲書的資料和封面。檔案一律優先；提供者只會補充缺少的資料，且絕不會補充已鎖定的欄位。",
       "folders": {
         "title": "各資料夾的順序",
-        "intro": "每個欄位以較上方的來源為準。順序和要使用哪些來源，可在資料夾的對話框中變更。",
+        "intro": "每個欄位以上方的來源為準。來源的順序與要使用哪些來源，請在媒體庫的「編輯」中變更。",
         "empty": "還沒有有聲書資料夾。",
         "edit": "變更來源",
         "editLabel": "變更 {{path}} 的來源",

@@ -103,7 +103,7 @@ WHERE downloads.media_file_id IN (SELECT m.id FROM media_files AS m WHERE m.root
 SELECT count(*) FROM media_files WHERE root_id = @root_id;
 
 -- name: ListMediaFileRelPathsOfRoot :many
--- The known files of a folder that gets a new path (updateLibraryRoot, ADR 0023): at least one of
+-- The known files of a folder that gets a new path (saveLibrary, ADR 0023): at least one of
 -- them must lie under the new path.
 SELECT rel_path FROM media_files WHERE root_id = @root_id ORDER BY rel_path;
 
@@ -115,43 +115,53 @@ DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;
 -- What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
 -- the titles that have at least one file in it. The second number is the upper bound of what the
 -- removal takes out -- a title with a file in another folder of the library stays -- and one pass
--- over the root_id index answers both.
-SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = @root_id;
+-- over the root_id index answers both. home_titles are the films, series, audiobooks and podcasts
+-- whose home folder it is (ADR 0036; the items_root index).
+SELECT count(*) AS files, count(DISTINCT item_id) AS items,
+       (SELECT count(*) FROM items AS i WHERE i.root_id = CAST(@root_id AS INTEGER) AND i.parent_id IS NULL AND i.deleted_at IS NULL) AS home_titles
+FROM media_files WHERE root_id = CAST(@root_id AS INTEGER);
 
--- Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
+-- Content and provider list of a folder (saveLibrary, ADR 0015, concept 6.3).
 
 -- name: ListTitleIDsOfRoot :many
--- The titles with a file in the folder, as the fill and match jobs need them: a movie, audiobook
--- or podcast is its own title, an episode stands for its series (the parent of its season, or its
--- direct parent for an episode without season folder), an extra for the title above it.
-SELECT DISTINCT COALESCE(
-        CASE WHEN g.kind = 'series' THEN g.id END,
-        CASE WHEN p.kind IN ('series', 'movie', 'podcast') THEN p.id END,
-        i.id) AS id
-FROM media_files AS m
-JOIN items AS i ON i.id = m.item_id
-LEFT JOIN items AS p ON p.id = i.parent_id
-LEFT JOIN items AS g ON g.id = p.parent_id
-WHERE m.root_id = @root_id AND i.deleted_at IS NULL
-ORDER BY id;
+-- The titles whose home folder the folder is (ADR 0036): the films, series, audiobooks and
+-- podcasts the fill and match jobs take, without their seasons, episodes and extras.
+SELECT id FROM items WHERE root_id = CAST(@root_id AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL ORDER BY id;
 
 -- name: UpdateItemsProvidersByRoot :execrows
--- The new list of a folder on every title with a file in it, its ancestors and the descendants of
--- those ancestors: a series with all its seasons and episodes, a movie with its extras. The tree
--- is three levels deep at most (series, season, episode), so the ancestors are the parent and the
--- grandparent, the descendants the children and the grandchildren of what those name.
+-- The new list of a folder on every title whose home folder it is, with its seasons, episodes and
+-- extras, which carry the home folder of their title (ADR 0036). A title that also has files in
+-- another folder keeps the list of its home folder.
 UPDATE items SET providers = @providers, updated_at = @now
-WHERE deleted_at IS NULL AND (
-    id IN (SELECT m.item_id FROM media_files AS m WHERE m.root_id = @root_id)
-    OR id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = @root_id)
-    OR id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-              JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)
-    OR parent_id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = @root_id)
-    OR parent_id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-                     JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)
-    OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id IN (
-                         SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-                         JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)));
+WHERE root_id = CAST(@root_id AS INTEGER) AND deleted_at IS NULL;
+
+-- Home folder of a title (concept 24 section 3.2, ADR 0036).
+
+-- name: ListTitlePresentRoots :many
+-- The folders of the present files of a top-level title in the order of the home-folder rule:
+-- oldest media_files.created_at first, ties by path. A film or audiobook counts its own files, a
+-- series or podcast those of its episodes (below a season or directly); extras never count.
+SELECT m.root_id FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+JOIN items AS e ON e.id = m.item_id
+WHERE m.missing_since IS NULL
+  AND (e.id = @title_id OR (e.kind IN ('episode', 'podcast_episode')
+       AND (e.parent_id = @title_id OR e.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = @title_id))))
+ORDER BY m.created_at, r.path || '/' || m.rel_path;
+
+-- name: SetTitleHome :execrows
+-- A new home folder for a top-level title, its seasons, episodes and extras, with the provider list
+-- of that folder (concept 24 3.2: the list moves with the title); without a folder they take the
+-- title's list.
+UPDATE items SET root_id = @root_id,
+    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = @root_id),
+                         (SELECT t.providers FROM items AS t WHERE t.id = @title_id), items.providers),
+    updated_at = @now
+WHERE items.id = @title_id OR items.parent_id = @title_id
+   OR items.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = @title_id);
+
+-- name: GetLibraryRootProviders :one
+SELECT providers FROM library_roots WHERE id = @id;
 
 -- name: DeleteMediaFilesOfRoot :execrows
 -- A content change reads the folder afresh (concept 6.3): the cascade takes the downloads of the

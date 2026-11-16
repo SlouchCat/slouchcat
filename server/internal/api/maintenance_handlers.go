@@ -437,6 +437,9 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		DurationMs:       it.DurationMs,
 		BookMatch:        toAdminBookMatch(it.BookMatch),
 	}
+	if it.HomeRoot != nil {
+		out.HomeRoot = &gen.AdminItemHomeRoot{Id: it.HomeRoot.ID, Path: it.HomeRoot.Path}
+	}
 	for _, f := range it.FieldSources {
 		out.FieldSources = append(out.FieldSources, gen.FieldSource{Field: f.Field, Lang: f.Lang, Provider: f.Provider})
 	}

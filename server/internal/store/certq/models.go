@@ -353,6 +353,7 @@ type Item struct {
 	OwnRating         sql.NullInt64
 	EffectiveRating   sql.NullInt64
 	MinChildRating    sql.NullInt64
+	RootID            sql.NullInt64
 }
 
 type ItemCertification struct {
@@ -481,13 +482,6 @@ type Library struct {
 	DefaultRating        sql.NullInt64
 }
 
-type LibraryMetadatum struct {
-	LibraryID int64
-	TextLangs sql.NullString
-	Images    sql.NullString
-	UpdatedAt int64
-}
-
 type LibraryRoot struct {
 	ID        int64
 	LibraryID int64
@@ -497,6 +491,8 @@ type LibraryRoot struct {
 	CreatedAt int64
 	Content   string
 	Providers string
+	TextLangs sql.NullString
+	Images    sql.NullString
 }
 
 type MediaFile struct {

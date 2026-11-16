@@ -1,5 +1,5 @@
 import type { LibraryRequest, MetadataProviderInfo } from '@slouchcat/api-client';
-import type { ReactNode, RefObject } from 'react';
+import type { ComponentProps, ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRatingSystem } from '@/app/session';
 import { Text } from '@/ui';
@@ -27,13 +27,15 @@ export function initialFolders(kind: LibraryKind): FolderEntry[] {
 
 /**
  * Body of createLibrary (and the library of the setup wizard): every card of the folder list as
- * one root with its content and provider list; only an audio library sends its default rating.
+ * one root with its content and provider list, plus what `extra` adds per card (the languages
+ * and images of a video folder, concept 24); only an audio library sends its default rating.
  */
 export function libraryRequest(
   name: string,
   kind: LibraryKind,
   folders: readonly FolderEntry[],
   rating: string,
+  extra?: (folder: FolderEntry) => Partial<LibraryRequest['roots'][number]>,
 ): LibraryRequest {
   const defaultRating = isAudioLibrary(kind) ? titleRatingOf(rating) : undefined;
   return {
@@ -43,6 +45,7 @@ export function libraryRequest(
       path: folder.path.trim(),
       content: folder.content,
       providers: folder.providers,
+      ...extra?.(folder),
     })),
     ...(defaultRating !== undefined ? { defaultRating } : {}),
   };
@@ -65,14 +68,24 @@ interface LibraryFieldsProps {
   /** Rendered below the path field of a card (the wizard's check). */
   pathAddon?: (folder: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
   onPathBlur?: (folder: FolderEntry) => void;
+  /** Rendered at the end of a card (the languages and images of a video folder, concept 24). */
+  cardAddon?: (folder: FolderEntry, name: string) => ReactNode;
   /** The server's field messages by input name, for the parts of a card without an input. */
   fieldErrors?: Readonly<Record<string, string>>;
-  /** How the sources of a card are ordered: arrows (setup wizard) or by position (admin, S-16). */
+  /** How the sources of a card are ordered: arrows or by position (admin, S-16). */
   ordering?: 'arrows' | 'rank';
+  /** «Bearbeiten»: the kind is set and locked (concept 24 4.1), a stored library may lose its last folder. */
+  isEdit?: boolean;
+  /** The open cards, the closed line and the marking of stored folders (concept 24 4.2). */
+  expandedKeys?: ComponentProps<typeof FolderList>['expandedKeys'];
+  onExpandedChange?: ComponentProps<typeof FolderList>['onExpandedChange'];
+  summary?: ComponentProps<typeof FolderList>['summary'];
+  marking?: ComponentProps<typeof FolderList>['marking'];
 }
 
 /**
- * Kind, folders and default age rating of a new library (admin page and setup wizard, ADR 0015):
+ * Kind, folders and default age rating of a library (the form «Bibliothek hinzufügen» and
+ * «Bearbeiten», also in the setup wizard, ADR 0015; concept 24 4.1):
  * the three families «Video», «Hörbücher», «Podcasts»; the folder list with content and
  * metadata sources per card, which a podcast library may leave empty (its titles come from
  * feeds); the default rating (FSK 0 … 18) for audiobooks and podcasts only.
@@ -89,8 +102,14 @@ export function LibraryFields({
   pathButton,
   pathAddon,
   onPathBlur,
+  cardAddon,
   fieldErrors,
   ordering,
+  isEdit = false,
+  expandedKeys,
+  onExpandedChange,
+  summary,
+  marking,
 }: LibraryFieldsProps) {
   const { t } = useTranslation();
   const ratingSystem = useRatingSystem();
@@ -100,6 +119,8 @@ export function LibraryFields({
         name={`${prefix}kind`}
         label={t('setup.library.kind')}
         value={kind}
+        isDisabled={isEdit}
+        description={isEdit ? t('library.kindFixed') : undefined}
         onChange={(value) => onKindChange(libraryKindOf(value))}
         options={KINDS.map((value) => ({ value, label: t(`library.kind.${value}`) }))}
       />
@@ -115,13 +136,18 @@ export function LibraryFields({
         entries={folders}
         onChange={onFoldersChange}
         infos={providerInfos}
-        min={minFolders(kind)}
+        min={isEdit ? 0 : minFolders(kind)}
         namePrefix={`${prefix}roots`}
         pathButton={pathButton}
         pathAddon={pathAddon}
         onPathBlur={onPathBlur}
+        cardAddon={cardAddon}
         fieldErrors={fieldErrors}
         ordering={ordering}
+        expandedKeys={expandedKeys}
+        onExpandedChange={onExpandedChange}
+        summary={summary}
+        marking={marking}
       />
       {isAudioLibrary(kind) && (
         <RadioGroup

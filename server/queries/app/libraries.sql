@@ -19,18 +19,24 @@ WHERE id = @id;
 
 -- name: InsertLibraryRoot :one
 -- content and providers come from the request; the column defaults only serve migration 00023.
-INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
-VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @now)
+-- text_langs and images are the folder's own settings (NULL = like the default, ADR 0036).
+INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, text_langs, images, created_at)
+VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @text_langs, @images, @now)
 RETURNING *;
 
 -- name: UpdateLibraryRoot :one
--- Content and provider list of a folder (updateLibraryRoot, ADR 0015); the titles follow through
+-- Content and provider list of a folder (saveLibrary, ADR 0015); the titles follow through
 -- the library package (UpdateItemsProvidersByRoot), never through this statement alone.
 UPDATE library_roots SET content = @content, providers = @providers WHERE id = @id AND library_id = @library_id
 RETURNING *;
 
+-- name: UpdateLibraryRootMetadata :exec
+-- The own text languages and images of a folder (concept 24, ADR 0036); NULL = like the default.
+-- The titles read them live through their home folder, so no title row changes.
+UPDATE library_roots SET text_langs = @text_langs, images = @images WHERE id = @id AND library_id = @library_id;
+
 -- name: UpdateLibraryRootPath :one
--- A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
+-- A new path for a folder that moved (saveLibrary, ADR 0023 point 4) with the file system
 -- facts of the new place; its media files stay and the next scan finds them again.
 UPDATE library_roots SET path = @path, fs_type = @fs_type, watch = @watch WHERE id = @id AND library_id = @library_id
 RETURNING *;

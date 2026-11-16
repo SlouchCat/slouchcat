@@ -75,13 +75,15 @@ SELECT id, guid, title, sort_title, own_rating, rating_source, locked_fields, de
 WHERE parent_id = @podcast_id AND kind = 'podcast_episode' AND guid IS NOT NULL;
 
 -- name: PodcastInsertEpisode :exec
--- An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026).
+-- An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026). It
+-- takes the home folder of its podcast (ADR 0036; none for a podcast only from its feed).
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
                    enclosure_url, enclosure_type, enclosure_length, explicit, season_number, episode_number,
-                   own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @guid, @published_at, @duration_ms,
         @enclosure_url, @enclosure_type, @enclosure_length, @explicit, @season_number, @episode_number,
-        @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now);
+        @own_rating, @rating_source, '["local"]', (SELECT p.root_id FROM items AS p WHERE p.id = @parent_id),
+        'matched', @now, @now, @now, @now);
 
 -- name: PodcastUpdateEpisode :exec
 -- An episode the feed still lists (a soft-deleted one stays deleted).
@@ -102,21 +104,22 @@ WHERE deleted_at IS NULL AND ((id = @id AND kind = 'podcast') OR (parent_id = @i
 
 -- name: PodcastInsertFromFolder :one
 -- A podcast read from a folder: metadata.json (title, author, description, genres, explicit,
--- feedURL) and the folder image. feed_url is NULL without feedURL; with one, feed_origin is 'file'
+-- feedURL) and the folder image, with the folder as its home folder (ADR 0036). feed_url is NULL without feedURL; with one, feed_origin is 'file'
 -- and the fetch runs like for any subscription. A feed_error names a feedURL the scanner refused.
 INSERT INTO items (id, kind, library_id, title, sort_title, author, genres, explicit, cover_path, feed_url, feed_origin,
-                   feed_error, own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   feed_error, own_rating, rating_source, providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast', @library_id, @title, @sort_title, @author, @genres, @explicit, @cover_path, @feed_url, @feed_origin,
-        @feed_error, @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now)
+        @feed_error, @own_rating, @rating_source, '["local"]', @root_id, 'matched', @now, @now, @now, @now)
 RETURNING *;
 
 -- name: PodcastInsertFolderEpisode :exec
 -- An episode read from a file: named after the file until its probe reads the tags, dated by the
--- file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file.
+-- file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file;
+-- its home folder is its podcast's (ADR 0036).
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, published_at, own_rating, rating_source,
-                   providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @published_at, @own_rating, @rating_source,
-        '["local"]', 'matched', @now, @now, @now, @now);
+        '["local"]', (SELECT p.root_id FROM items AS p WHERE p.id = @parent_id), 'matched', @now, @now, @now, @now);
 
 -- name: PodcastSetFolderMeta :exec
 -- The metadata.json of a folder podcast that has no feed (with a feed the fetch writes the channel).

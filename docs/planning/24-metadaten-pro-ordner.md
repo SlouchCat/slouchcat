@@ -5,8 +5,11 @@
   Marco hat das Mockup freigegeben, F-1 bis F-3 im Gespräch und F-4 bis F-6 über AskUserQuestion
   beantwortet, alle wie empfohlen. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
   0 Blocker, 12 Major, 13 Minor; Abschnitt 12) und die Nachprüfung der Einarbeitung (acht kleine
-  Korrekturen). Marco hat das Papier am selben Tag freigegeben («Freigeben, mergen»). **Gebaut
-  wird erst auf Marcos ausdrückliches Wort.**
+  Korrekturen). Marco hat das Papier am selben Tag freigegeben («Freigeben, mergen»).
+- **Gebaut am 16. November 2026 als Release 1.40.0**, alle drei Stufen in einem Zug, auf Marcos
+  Wort «Baue alle Stufen selbständig und mache ein einziger Release daraus». Was der Bau anders
+  entschieden hat als dieses Papier, steht im Entscheidungsprotokoll (Nachtrag zu Frage 32) und in
+  `docs/dev/CURRENT_STATUS.md`; die ADR ist `docs/adr/0036-metadaten-je-ordner-heimatordner.md`.
 - **Auslöser:** Marco am 16. November 2026: «Zur Zeit gibt es Bibliothek Metadaten Einstellungen
   sowie Ordner Metadaten Einstellungen. Ich möchte, dass es nur noch Metadaten Einstellungen pro
   Ordner gibt. Deshalb möchte ich auch gerne die Ansicht in der Verwaltung/Medien angepasst haben.

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Button, Disclosure, DisclosurePanel, Heading } from 'react-aria-components';
 import styles from './DisclosureGroup.module.css';
 import { Icon } from './Icon';
@@ -13,10 +13,18 @@ interface DisclosureGroupProps {
   count?: string;
   /** Spoken form of the number ("12 Titel"). */
   countLabel?: string;
-  /** Small state at the end of the heading line, outside the button. */
+  /**
+   * Small state at the end of the heading line, outside the button; the button names it as its
+   * description (`aria-describedby`), so a summary or «geändert» is heard with the title.
+   */
   meta?: ReactNode;
-  /** Open state when the page holds it; uncontrolled (open at first) without. */
+  /** Open state when the page holds it; uncontrolled without. */
   isExpanded?: boolean;
+  /**
+   * Open at first when uncontrolled. Every collapsible starts closed (concept 24, P-3); only what
+   * the page is opened for (the group «Laufend» on «Jobs», exception 4) sets it.
+   */
+  defaultExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   /** The group's own content, usually a DataTable. */
   children: ReactNode;
@@ -35,19 +43,25 @@ export function DisclosureGroup({
   countLabel,
   meta,
   isExpanded,
+  defaultExpanded = false,
   onExpandedChange,
   children,
 }: DisclosureGroupProps) {
+  const metaId = useId();
   return (
     <Disclosure
       className={styles.group}
-      defaultExpanded
+      defaultExpanded={defaultExpanded}
       isExpanded={isExpanded}
       onExpandedChange={onExpandedChange}
     >
       <div className={styles.head}>
         <Heading level={level} className={styles.heading}>
-          <Button slot="trigger" className={styles.trigger}>
+          <Button
+            slot="trigger"
+            className={styles.trigger}
+            aria-describedby={meta ? metaId : undefined}
+          >
             <span className={styles.chevron}>
               <Icon name="chevronRight" size="sm" />
             </span>
@@ -61,7 +75,11 @@ export function DisclosureGroup({
             )}
           </Button>
         </Heading>
-        {meta && <div className={styles.meta}>{meta}</div>}
+        {meta && (
+          <div id={metaId} className={styles.meta}>
+            {meta}
+          </div>
+        )}
       </div>
       <DisclosurePanel className={styles.panel}>{children}</DisclosurePanel>
     </Disclosure>

@@ -1,6 +1,5 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { APIRequestContext } from '@playwright/test';
 import {
   episodeTitle,
   feedKey,
@@ -10,6 +9,7 @@ import {
   subscribeFeed,
   unsubscribe,
 } from './audio';
+import { addRoot, removeRoot } from './librarySave';
 import { CSRF } from './catalog';
 import { MEDIA_DIR } from './env';
 import { expect, test } from './fixtures';
@@ -31,27 +31,6 @@ import {
 
 const JOB = '/api/v1/admin/job-types/podcast.download';
 
-/** Removes a folder of a library; a scan that still runs refuses it for a moment (409). */
-async function removeRoot(
-  owner: APIRequestContext,
-  libraryId: number,
-  rootId: number,
-  path: string,
-) {
-  await expect
-    .poll(
-      async () =>
-        (
-          await owner.post(`/api/v1/admin/libraries/${libraryId}/roots/${rootId}/removal`, {
-            headers: CSRF,
-            data: { confirmPath: path },
-          })
-        ).status(),
-      { timeout: 30_000 },
-    )
-    .toBe(200);
-}
-
 test('podcast page and downloads by keyboard: views, «Laden», «Abbrechen», back @keyboard', async ({
   page,
   owner,
@@ -62,14 +41,11 @@ test('podcast page and downloads by keyboard: views, «Laden», «Abbrechen», b
   mkdirSync(dir, { recursive: true });
   const libraryId = await podcastLibraryId(owner);
   const podcast = await subscribeFeed(owner, key);
-  const added = await owner.post(`/api/v1/admin/libraries/${libraryId}/roots`, {
-    headers: CSRF,
-    data: { roots: [{ path: dir, content: 'podcast', providers: ['local'] }] },
+  const root = await addRoot(owner, libraryId, {
+    path: dir,
+    content: 'podcast',
+    providers: ['local'],
   });
-  expect(added.status(), await added.text()).toBe(201);
-  const root = ((await added.json()) as { roots: { id: number; path: string }[] }).roots.find(
-    (entry) => entry.path === dir,
-  );
   expect((await owner.post(`${JOB}/pause`, { headers: CSRF })).status()).toBe(200);
   try {
     // Both pages must have rendered before going back (Firefox, see admin-libraries.spec).
@@ -176,7 +152,7 @@ test('podcast page and downloads by keyboard: views, «Laden», «Abbrechen», b
       data: { mode: 'link' },
     });
     await unsubscribe(owner, podcast.id);
-    if (root) await removeRoot(owner, libraryId, root.id, dir);
+    await removeRoot(owner, libraryId, root.id, dir);
     rmSync(dir, { recursive: true, force: true });
   }
 });

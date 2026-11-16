@@ -1,6 +1,6 @@
 import type { ChannelSetting, ChannelSettings } from '@slouchcat/api-client';
 import type { QueryClient } from '@tanstack/react-query';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
@@ -62,8 +62,15 @@ const page: Routes = {
   'GET /me/channels': () => json(settings(email, push, telegram)),
 };
 
-/** A channel's block: a region named by its band. */
-const block = (name: string) => screen.findByRole('region', { name });
+/** A channel's block, still as the page shows it: a region named by its band. */
+const closedBlock = (name: string) => screen.findByRole('region', { name });
+/** A channel's block, opened by its band: every block starts closed (concept 24, P-3). */
+const block = async (name: string) => {
+  const region = await closedBlock(name);
+  const toggle = within(region).getByRole('button', { name });
+  if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
+  return region;
+};
 
 const guestSession = () =>
   json({
@@ -100,6 +107,14 @@ describe('notification channels page', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
     ).toBeVisible();
+    // Every block starts closed; its band says what it holds (concept 24, P-3).
+    const closed = await closedBlock('E-Mail');
+    expect(within(closed).getByRole('button', { name: 'E-Mail' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(within(closed).getByText('owner@example.test')).toBeVisible();
+    expect(within(closed).queryByRole('switch')).toBeNull();
     const mail = await block('E-Mail');
     expect(within(mail).getByRole('switch', { name: 'Aktiv' })).not.toBeChecked();
     expect(within(mail).getByText('Gilt für das ganze Konto mit allen Profilen.')).toBeVisible();
@@ -125,6 +140,10 @@ describe('notification channels page', () => {
     expect(within(mail).getByRole('button', { name: 'E-Mail' })).toHaveAttribute(
       'aria-expanded',
       'true',
+    );
+    expect(within(list).getByRole('button', { name: 'Telegram' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
     );
   });
 
@@ -325,6 +344,35 @@ describe('notification channels page', () => {
     await user.type(address, 'familie@example');
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     expect(await within(mail).findByText('Bitte prüfe die markierten Felder.')).toBeVisible();
+    expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('a field error opens the block folded while the save ran (concept 24, exception 3)', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockApi({
+      ...page,
+      'PUT /me/channels/email': async () => {
+        await answered;
+        return problem(422, 'validation_failed', {
+          errors: [{ field: 'email.address', code: 'invalid_email' }],
+        });
+      },
+    });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const user = userEvent.setup();
+    const address = within(mail).getByLabelText('E-Mail-Adresse');
+    await user.clear(address);
+    await user.type(address, 'familie@example');
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
+    const band = within(mail).getByRole('button', { name: 'E-Mail' });
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(band).toHaveAttribute('aria-expanded', 'true'));
     expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveAttribute('aria-invalid', 'true');
   });
 
@@ -631,11 +679,9 @@ describe('notification channels page', () => {
     expect(within(mail).getByText('Ungespeicherte Änderungen')).toBeVisible();
     // The summary is the address as typed: what «Speichern» would store.
     expect(within(mail).getByText('neu@example.test')).toBeVisible();
-    const bot = await block('Telegram');
-    await user.click(within(bot).getByRole('button', { name: 'Telegram' }));
+    const bot = await closedBlock('Telegram');
     expect(within(bot).getByText('Verknüpft')).toBeVisible();
-    const web = await block('Web-Push');
-    await user.click(within(web).getByRole('button', { name: 'Web-Push' }));
+    const web = await closedBlock('Web-Push');
     expect(within(web).getByText('1 Gerät')).toBeVisible();
 
     await user.click(band);

@@ -29,6 +29,8 @@ interface ChannelPanelProps {
   /** The values differ from what the server holds. */
   dirty: boolean;
   onChange: (next: ChannelDraft) => void;
+  /** The server rejected a field: the block around the form opens to show it (concept 24, P-3). */
+  onInvalid?: () => void;
   /** `sent` is stored as `saved`: the page drops the draft if it still says what was sent. */
   onSaved: (sent: ChannelDraft, saved: ChannelSetting) => void;
   ask: Ask;
@@ -50,6 +52,7 @@ export function ChannelPanel({
   values,
   dirty,
   onChange,
+  onInvalid,
   onSaved,
   ask,
   polling,
@@ -74,6 +77,10 @@ export function ChannelPanel({
       store(saved);
       onSaved(sent, saved);
       say(t('settings.notifications.saved'));
+    },
+    onError: (error) => {
+      const { fields } = formErrors(t, error);
+      if (Object.keys(fields).length > 0) onInvalid?.();
     },
   });
   const test = useMutation({

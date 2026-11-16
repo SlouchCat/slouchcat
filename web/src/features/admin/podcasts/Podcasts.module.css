@@ -195,7 +195,7 @@
 
   /* The mockup's filter bar over the list: a framed strip on the card's ground (plan 2.7, 5). */
   padding: var(--sc-space-3) var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-elevated);
 }

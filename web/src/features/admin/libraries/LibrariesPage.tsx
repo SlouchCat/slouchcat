@@ -25,15 +25,12 @@ import {
   useUnsavedChanges,
 } from '@/ui/aria';
 import { jobRunsKey, jobRunsQuery, librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
-import { AddLibraryDialog, useLibraryDraft } from './AddLibraryDialog';
-import { DefaultRatingDialog } from './DefaultRatingDialog';
+import { LibraryForm, useLibraryDraft } from './LibraryForm';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
-import { LibraryFoldersDialog } from './LibraryFoldersDialog';
-import { RenameLibraryDialog } from './RenameLibraryDialog';
-import { TrickplayDialog } from './TrickplayDialog';
+import { SavedBand, type SavedLibrary } from './SavedBand';
+import { useLibraryEdit } from './useLibraryEdit';
 import styles from './Libraries.module.css';
-import { ratingLabel } from '../../shared/choices';
 import { intlLocale } from '@/i18n';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
@@ -100,36 +97,28 @@ function LibrariesContent() {
   // The library «Bibliothek löschen …» asks about (concept 20 P-8).
   const [deleting, setDeleting] = useState<Library | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [foldersId, setFoldersId] = useState<number | null>(null);
-  const [foldersOpen, setFoldersOpen] = useState(false);
-  const [ratingId, setRatingId] = useState<number | null>(null);
-  const [ratingOpen, setRatingOpen] = useState(false);
-  // Each opening of the rating dialog mounts it afresh, so it starts at the library's value.
-  const [ratingSession, setRatingSession] = useState(0);
-  // The same for «Umbenennen …».
-  const [renameId, setRenameId] = useState<number | null>(null);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameSession, setRenameSession] = useState(0);
-  // The same for «Vorschau beim Spulen» (concept 18, 9).
-  const [trickplayId, setTrickplayId] = useState<number | null>(null);
-  const [trickplayOpen, setTrickplayOpen] = useState(false);
-  const [trickplaySession, setTrickplaySession] = useState(0);
+  // The one band after «Speichern» of «Bearbeiten» (concept 24 4.3).
+  const [saved, setSaved] = useState<SavedLibrary | null>(null);
   const draft = useLibraryDraft();
   const unsaved = useUnsavedChanges(draft.dirty);
   const continueRef = useRef<HTMLButtonElement>(null);
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
-  const hold =
-    confirmOpen ||
-    addOpen ||
-    foldersOpen ||
-    ratingOpen ||
-    renameOpen ||
-    trickplayOpen ||
-    deleting !== null;
-
   // An unknown `?tab=` shows the first tab; the address says so too.
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
 
+  const [message, setMessage] = useStatusMessage();
+  const [failure, setFailure] = useState<unknown>(null);
+  const edit = useLibraryEdit((result, summary) => {
+    setFailure(null);
+    setMessage(null);
+    setSaved({ saved: result, summary });
+    queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
+      list?.map((entry) => (entry.id === result.library.id ? result.library : entry)),
+    );
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  });
+  const { start: startEdit } = edit;
+  const hold = confirmOpen || addOpen || edit.isOpen || deleting !== null;
   const libraries = useQuery({
     ...librariesQuery,
     refetchInterval: (query) =>
@@ -150,8 +139,6 @@ function LibrariesContent() {
       }),
     [],
   );
-  const [message, setMessage] = useStatusMessage();
-  const [failure, setFailure] = useState<unknown>(null);
 
   // A scan that ends with an error while the page watches says so in the status region; a scan
   // cancelled here has its own message already. The page follows the list in the query cache.
@@ -348,24 +335,9 @@ function LibrariesContent() {
     () => ({
       onScan: (id) => scanMutate(id),
       onCancelScan: (id) => cancelMutate(id),
-      onFolders: (id) => {
-        setFoldersId(id);
-        setFoldersOpen(true);
-      },
-      onRename: (id) => {
-        setRenameId(id);
-        setRenameSession((session) => session + 1);
-        setRenameOpen(true);
-      },
-      onRating: (id) => {
-        setRatingId(id);
-        setRatingSession((session) => session + 1);
-        setRatingOpen(true);
-      },
-      onTrickplay: (id) => {
-        setTrickplayId(id);
-        setTrickplaySession((session) => session + 1);
-        setTrickplayOpen(true);
+      onEdit: (id) => {
+        setSaved(null);
+        startEdit(id);
       },
       onAcceptLoss: (library) =>
         ask({
@@ -376,10 +348,10 @@ function LibrariesContent() {
         }),
       onDelete: (library) => setDeleting(library),
     }),
-    [scanMutate, cancelMutate, acceptLossMutate, ask, t],
+    [scanMutate, cancelMutate, acceptLossMutate, ask, startEdit, t],
   );
 
-  const columns = useMemo(() => libraryColumns(t, hold, ratingSystem), [t, hold, ratingSystem]);
+  const columns = useMemo(() => libraryColumns(t, ratingSystem), [t, ratingSystem]);
   const detail = (library: Library) => (
     <LibraryDetail
       library={library}
@@ -388,10 +360,6 @@ function LibrariesContent() {
       handlers={handlers}
     />
   );
-  const foldersLibrary = data?.find((library) => library.id === foldersId);
-  const ratingLibrary = data?.find((library) => library.id === ratingId);
-  const renameLibrary = data?.find((library) => library.id === renameId);
-  const trickplayLibrary = data?.find((library) => library.id === trickplayId);
 
   // The band is gone while the dialog is open, so a dialog opened from it hands the focus back to
   // the band's button once it shows again; with the draft discarded, to the h1.
@@ -456,6 +424,15 @@ function LibrariesContent() {
           }
         />
       )}
+      {saved && (
+        <SavedBand
+          value={saved}
+          onDismiss={() => {
+            setSaved(null);
+            void afterRender().then(() => focusTitleIfLost(titleRef));
+          }}
+        />
+      )}
       <StatusRegion message={failure === null ? message : null} />
       {data?.length === 0 && <Notice>{t('admin.libraries.empty')}</Notice>}
       {data && data.length > 0 && (
@@ -492,7 +469,8 @@ function LibrariesContent() {
         />
       )}
 
-      <AddLibraryDialog
+      <LibraryForm
+        mode="add"
         draft={draft}
         isOpen={addOpen}
         onOpenChange={onAddOpenChange}
@@ -501,65 +479,7 @@ function LibrariesContent() {
           setMessage(t('admin.libraries.add.created', { name: library.name }));
         }}
       />
-      {foldersLibrary && (
-        <LibraryFoldersDialog
-          key={foldersLibrary.id}
-          library={foldersLibrary}
-          isOpen={foldersOpen}
-          onOpenChange={setFoldersOpen}
-          onChanged={(updated) => void refresh(updated)}
-        />
-      )}
-      {renameLibrary && (
-        <RenameLibraryDialog
-          key={renameSession}
-          library={renameLibrary}
-          isOpen={renameOpen}
-          onOpenChange={setRenameOpen}
-          onSaved={(updated) => {
-            setFailure(null);
-            setMessage(t('admin.libraries.rename.saved', { name: updated.name }));
-            // The name shows in the side navigation and the header of the library page
-            // (['libraries', …]), in the rows «Neu in …» of the start page and their lists.
-            for (const queryKey of [['libraries'], ['home'], ['homeList'], ['library']])
-              void queryClient.invalidateQueries({ queryKey });
-            void refresh(updated);
-          }}
-        />
-      )}
-      {ratingLibrary && (
-        <DefaultRatingDialog
-          key={ratingSession}
-          library={ratingLibrary}
-          isOpen={ratingOpen}
-          onOpenChange={setRatingOpen}
-          onSaved={(updated) => {
-            setFailure(null);
-            if (updated.defaultRating !== undefined) {
-              setMessage(
-                t('admin.libraries.changeRating.saved', {
-                  name: updated.name,
-                  rating: ratingLabel(t, updated.defaultRating, ratingSystem),
-                }),
-              );
-            }
-            void refresh(updated);
-          }}
-        />
-      )}
-      {trickplayLibrary && (
-        <TrickplayDialog
-          key={trickplaySession}
-          library={trickplayLibrary}
-          isOpen={trickplayOpen}
-          onOpenChange={setTrickplayOpen}
-          onSaved={(updated) => {
-            setFailure(null);
-            setMessage(t('admin.libraries.trickplay.saved', { name: updated.name }));
-            void refresh(updated);
-          }}
-        />
-      )}
+      {edit.render(data)}
       {confirmation && (
         <ConfirmDialog
           isOpen={confirmOpen}

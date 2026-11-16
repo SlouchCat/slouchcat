@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { FactList, Notice, Skeleton } from '@/ui';
 import { AriaButton } from '@/ui/aria';
-import { AddLibraryDialog, useLibraryDraft } from '../admin/libraries/AddLibraryDialog';
+import { LibraryForm, useLibraryDraft } from '../admin/libraries/LibraryForm';
 import { librariesQuery } from '../admin/queries';
 import { setupPath, setupProgressQuery, updateSetupProgress } from './setupState';
 import { SetupLayout } from './SetupLayout';
@@ -96,7 +96,8 @@ export function LibrariesStep() {
           {list.length === 0 ? t('setup.libraries.add') : t('setup.libraries.addMore')}
         </AriaButton>
       </div>
-      <AddLibraryDialog
+      <LibraryForm
+        mode="add"
         draft={draft}
         isOpen={open}
         onOpenChange={setOpen}

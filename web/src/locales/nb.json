@@ -224,7 +224,9 @@
       "files_not_deletable": "En fil som hører til tittelen, kan ikke slettes. Ingenting ble slettet.",
       "not_deletable": "Denne tittelen kan ikke slettes.",
       "deleting": "Dette slettes akkurat nå.",
-      "changed": "Noe ble endret i mellomtiden. Sjekk på nytt."
+      "changed": "Noe ble endret i mellomtiden. Sjekk på nytt.",
+      "stale": "Biblioteket er endret et annet sted i mellomtiden. Last det inn på nytt og lagre en gang til.",
+      "root_unlisted": "En mappe i biblioteket mangler i forespørselen. Last biblioteket inn på nytt; ingenting ble fjernet."
     },
     "field": {
       "required": "Påkrevd.",
@@ -247,6 +249,7 @@
       "root_overlap": "Denne mappen overlapper med en annen mappe.",
       "path_with_content": "En ny sti kan ikke kombineres med en innholdsendring.",
       "root_files_missing": "Ingen av filene i mappen ligger under den nye stien.",
+      "confirm_mismatch": "Stien stemmer ikke med stien til mappen. Ingenting ble endret.",
       "content_not_allowed": "Dette innholdet passer ikke til bibliotekets type.",
       "providers_not_allowed": "Denne listen over metadatakilder er ikke tillatt for dette innholdet.",
       "roots_required": "Minst én mappe er påkrevd.",
@@ -553,8 +556,10 @@
       "submit_one": "Legg til bibliotek med {{count}} mappe",
       "submit_other": "Legg til bibliotek med {{count}} mapper",
       "submitNone": "Legg til bibliotek uten mapper",
-      "addSubmit_one": "Legg til 1 mappe",
-      "addSubmit_other": "Legg til {{count}} mapper"
+      "marked": "Fjernes når du lagrer. Du bekrefter det da med stien.",
+      "undo": "Angre",
+      "undoLabel": "Angre fjerningen av mappe {{number}}",
+      "removeStored": "Fjern mappe …"
     },
     "videoHint": "Mappene i dette biblioteket kan inneholde filmer eller serier, også blandet.",
     "page": {
@@ -614,7 +619,8 @@
     "notFound": {
       "title": "Biblioteket ble ikke funnet",
       "body": "Dette biblioteket finnes ikke, eller det har ingen titler for denne profilen."
-    }
+    },
+    "kindFixed": "Typen ligger fast når biblioteket er opprettet."
   },
   "home": {
     "list": {
@@ -1831,11 +1837,8 @@
         "kind": "Type",
         "state": "Tilstand",
         "counts": "Titler · filer",
-        "folders": "Mapper",
-        "metadata": "Metadata"
+        "folders": "Mapper"
       },
-      "none": "–",
-      "noMetadata": "Ingen metadataomfang",
       "roots": "Mapper",
       "fsType": "Filsystem {{type}}",
       "watch": {
@@ -1901,25 +1904,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Ingen mappe: titlene kommer fra abonnerte feeder.",
       "feedsOnly": "Titler fra feeder",
-      "changeRating": {
-        "action": "Endre standard aldersgrense",
-        "title": "Standard aldersgrense for {{name}}",
-        "description": "Alle titler som får aldersgrensen fra biblioteket, følger med med en gang. Aldersgrenser satt manuelt blir stående.",
-        "submit": "Lagre",
-        "saved": "Standard aldersgrense for {{name}} er nå {{rating}}."
-      },
       "folders": {
-        "title": "Mapper i {{name}}",
-        "description": "Et bibliotek kan ha flere mapper. Skanningen og overvåkeren fanger opp en ny mappe med en gang.",
-        "none": "Dette biblioteket har ingen mappe. Ingenting skannes før du legger til en.",
         "content": "Titler: {{items}} · filer: {{files}}",
         "remove": {
-          "action": "Fjern",
-          "label": "Fjern mappen {{path}}",
-          "title": "Fjerne denne mappen?",
           "inputLabel": "Skriv inn stien for å bekrefte",
           "mismatch": "Skriv {{path}} nøyaktig, så blir knappen aktiv.",
-          "confirm": "Fjern mappen",
           "lead_one": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Opptil {{count}} tittel forsvinner fra alle lister med den. Dette betyr det:",
           "lead_other": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Opptil {{count}} titler forsvinner fra alle lister med den. Dette betyr det:",
           "soft": "Titlene slettes midlertidig: de forsvinner fra alle lister, men fremdrift, oppføringer i Min liste og anbefalinger forblir knyttet til dem. En tittel med en fil i en annen mappe i dette biblioteket forblir synlig.",
@@ -1930,50 +1919,26 @@
           "oneWay": "Hvis mappen ligger utenfor mappene det kan bla gjennom (SLOUCHCAT_BROWSE_ROOTS), kan den ikke legges til igjen uten en endring i konfigurasjonen.",
           "last": "Dette er den siste mappen: {{name}} blir værende, men har ingen mappe etterpå og skanner ingenting."
         },
-        "new": "Nye mapper",
         "change": {
-          "action": "Endre",
-          "label": "Endre mappen {{path}}",
-          "title": "Endre mappe",
-          "description": "Innhold og metadatakilder for {{path}}.",
-          "submit": "Lagre",
           "identifier": "Identifikatoren endres: tekstene for sesonger og episoder tilordnes på nytt etter {{provider}}. Selve episodene blir værende, fremdrift og Min liste forblir knyttet til dem.",
           "fillers": "Bare utfyllerne endres: titlene fylles ut på nytt, ingenting slettes.",
-          "content": "Innholdet endres: det fungerer som å fjerne mappen og legge den til igjen. Titlene i denne mappen slettes midlertidig og opprettes på nytt, frakoblede pakker forsvinner, fremdrift og Min liste blir værende hos de gamle titlene.",
-          "confirmTitle": "Endre innholdet?",
-          "confirm": "Endre innhold",
-          "saved": "Mappen {{path}} er endret."
+          "content": "Innholdet endres: det fungerer som å fjerne mappen og legge den til igjen. Titlene i denne mappen slettes midlertidig og opprettes på nytt, frakoblede pakker forsvinner, fremdrift og Min liste blir værende hos de gamle titlene."
         },
         "move": {
-          "action": "Endre sti",
-          "label": "Endre stien til {{path}}",
-          "title": "Endre sti?",
-          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brukerdata blir værende når filene ligger der under samme navn. Mappen leses inn på nytt etterpå.",
-          "confirm": "Endre",
-          "saved": "Mappen ligger nå på {{path}} og leses inn på nytt."
+          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brukerdata blir værende når filene ligger der under samme navn. Mappen leses inn på nytt etterpå."
         },
         "readOnly": "skrivebeskyttet",
         "writable": "skrivbar"
       },
-      "openFolders": "Mapper",
-      "openFoldersLabel": "Rediger mappene til {{name}}",
       "rootCount_one": "{{count}} mappe",
       "rootCount_other": "{{count}} mapper",
-      "noFolder": "Ingen mappe: ingenting skannes før du legger til en under «Mapper».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "som serveren",
-        "texts": "språk avviker",
-        "images": "bilder avviker",
-        "both": "språk og bilder avviker",
-        "link": "Metadata for biblioteket",
         "audiobooksLink": "Kilder for lydbøker"
       },
       "trickplay": {
         "action": "Forhåndsvisninger",
-        "actionLabel": "Forhåndsvisninger for {{name}}",
-        "title": "Forhåndsvisninger: {{name}}",
         "description": "Små bilder over tidslinjen, ett hvert 10. sekund. Filmer og serier stilles inn hver for seg, også i et bibliotek som har begge deler.",
         "movies": "Filmer",
         "series": "Serier",
@@ -2033,12 +1998,12 @@
         "generate": {
           "action": "Generer nå",
           "hint": "Tar igjen de manglende forhåndsvisningene for alle bibliotek med «På forhånd», som «Etterfyll forhåndsvisninger» under «Bakgrunnsjobber».",
-          "queued": "Innhentingen av forhåndsvisningene står i kø."
+          "queued": "Innhentingen av forhåndsvisningene står i kø.",
+          "unsaved": "Først etter lagring: Genereringen bruker den lagrede innstillingen."
         },
-        "submit": "Lagre",
-        "saved": "Forhåndsvisningene for {{name}} er lagret.",
         "summary": "Forhåndsvisninger: filmer {{movies}} · serier {{series}}",
-        "summaryNoKeep": "Ved start, ikke beholdt"
+        "summaryNoKeep": "Ved start, ikke beholdt",
+        "header": "Filmer: {{movies}} · serier: {{series}}"
       },
       "delete": {
         "action": "Slett bibliotek…",
@@ -2056,11 +2021,52 @@
         "done": "Biblioteket «{{name}}» er slettet.",
         "notDone": "Biblioteket «{{name}}» ble ikke slettet. Jobben forteller hvorfor."
       },
-      "rename": {
-        "action": "Gi nytt navn…",
-        "title": "Gi biblioteket «{{name}}» nytt navn",
-        "label": "Navn",
-        "saved": "Biblioteket heter nå «{{name}}»."
+      "form": {
+        "editTitle": "Rediger bibliotek",
+        "changed": "endret",
+        "pathAndContent": "Sti og innhold for denne mappen kan ikke endres i ett trinn. Lagre det ene først, så det andre.",
+        "pathHint": "Den nye stien gjelder etter lagring. Titler og brukerdata beholdes hvis filene ligger der under de samme navnene.",
+        "reloaded": "Biblioteket er endret et annet sted i mellomtiden. Skjemaet viser nå den nye tilstanden; endringene dine er ikke lagret.",
+        "changedElsewhere": "Biblioteket er endret et annet sted i mellomtiden. Ved lagring laster skjemaet inn den nye tilstanden; endringene dine blir da ikke lagret.",
+        "gone": "Dette biblioteket finnes ikke lenger. Ingenting ble lagret.",
+        "scanRunning": "Å fjerne en mappe eller endre innholdet eller stien må vente til skanningen er ferdig. Det du har skrevet inn, blir stående.",
+        "scanCancelled": "Skanningen er avbrutt. Lagre på nytt nå.",
+        "discard": {
+          "title": "Forkaste endringer?",
+          "body": "De ulagrede endringene i {{name}} går tapt.",
+          "confirm": "Forkast",
+          "keep": "Rediger videre"
+        },
+        "confirm": {
+          "title": "Bekreft endringer",
+          "intro": "Disse endringene trer først i kraft når du lagrer her.",
+          "remove": "Fjern mappe: {{path}}",
+          "content": "Endre innhold: {{path}}",
+          "path": "Endre sti: {{path}}",
+          "typeAll": "Du kan lagre når hver sti er skrevet nøyaktig.",
+          "submit": "Lagre"
+        }
+      },
+      "edit": "Rediger",
+      "editLabel": "Rediger {{name}}",
+      "noFolderEdit": "Ingen mappe: Ingenting skannes før du legger til en under «Rediger».",
+      "saved": {
+        "title": "Biblioteket {{name}} er lagret.",
+        "name": "Nytt navn: {{name}}",
+        "rating": "Standard aldersgrense: {{rating}}",
+        "added_one": "{{count}} mappe er lagt til; skanningen står i kø.",
+        "added_other": "{{count}} mapper er lagt til; skanningen står i kø.",
+        "removed_one": "{{count}} mappe er fjernet.",
+        "removed_other": "{{count}} mapper er fjernet.",
+        "content_one": "{{count}} mappe med annet innhold leses inn på nytt.",
+        "content_other": "{{count}} mapper med annet innhold leses inn på nytt.",
+        "moved_one": "{{count}} mappe med ny sti leses inn på nytt.",
+        "moved_other": "{{count}} mapper med ny sti leses inn på nytt.",
+        "providers_one": "Nye kilder for {{count}} mappe: Titlene tilordnes på nytt eller fylles ut.",
+        "providers_other": "Nye kilder for {{count}} mapper: Titlene tilordnes på nytt eller fylles ut.",
+        "metadata_one": "Språk eller bilder er endret for {{count}} mappe. De gjelder for {{titles}} titler når du tar dem i bruk.",
+        "metadata_other": "Språk eller bilder er endret for {{count}} mapper. De gjelder for {{titles}} titler når du tar dem i bruk.",
+        "dismiss": "Skjul"
       }
     },
     "access": {
@@ -2304,7 +2310,9 @@
         "children": "Innhold",
         "childCounts": "Sesonger: {{seasons}} · Episoder: {{episodes}} · Ekstramateriale: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Bibliotekmappe",
+        "homeRootNone": "Ingen, standarden gjelder"
       },
       "sources": {
         "title": "Kilde per felt",
@@ -4853,7 +4861,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Hvilke språk metadatakildene leverer, hvilke bilder på hvilket språk og i hvilken kvalitet, og hvilket land som først avgjør aldersgrensen. Standarden gjelder alle bibliotek; et bibliotek kan avvike for språk og bilder.",
       "links": {
         "roots": "Rekkefølgen på kildene settes per mappe under Bibliotek.",
         "jobs": "Tidsplanene finnes under Bakgrunnsjobber.",
@@ -4865,9 +4872,6 @@
         "open": "Åpne kilder"
       },
       "areas": {
-        "label": "Områder",
-        "changed": "Endret · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakat {{poster}}, bakgrunn {{backdrop}}",
         "sources": {
           "local": "Lokale filer",
@@ -4875,20 +4879,15 @@
           "tmdbAdult": "TMDB med innhold for voksne",
           "none": "Bare kildene til mappene"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} videomappe følger standarden",
+        "foldersFollow_other": "{{count}} videomapper følger standarden",
+        "foldersOwn_one": "{{count}} har egne innstillinger",
+        "foldersOwn_other": "{{count}} har egne innstillinger"
       },
-      "scope": {
-        "label": "Gjelder for",
-        "server": "Standard",
-        "serverHint": "Gjelder alle bibliotek uten et eget avvik.",
-        "libraryHint": "{{name}} bruker standarden. Slå på «avviker» for å endre språk eller bilder bare for dette biblioteket.",
-        "deviates": "avviker",
-        "textsDeviate": "Språk avviker",
-        "imagesDeviate": "Bilder avviker",
-        "likeServer": "som serveren",
-        "changed": "{{name}} (endret)",
-        "serverDirty": "Standarden har ulagrede endringer; dette viser det som er lagret."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Språk",
         "intro": "Hvert språk her hentes for hver tittel; profilene velger språket for beskrivelsene sine blant dem. Språket i grensesnittet velger hver profil selv. Hvert ekstra språk koster én forespørsel per tittel og sesong.",
@@ -4961,7 +4960,6 @@
         }
       },
       "apply": {
-        "title": "Ta i bruk for eksisterende titler",
         "short": "Ta i bruk",
         "intro": "Nye titler bruker innstillingene med en gang. Eksisterende titler blir som de er til du starter kjøringen; den vises under Bakgrunnsjobber med fremdrift, pause og avbryt.",
         "what": "Hva",
@@ -4969,7 +4967,8 @@
         "texts": "Bare tekster",
         "images": "Bare bilder",
         "where": "Hvor",
-        "all": "Alle bibliotek",
+        "all": "Alle mapper",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} tittel",
         "titles_other": "{{count}} titler",
         "run": "Ta i bruk nå",
@@ -4996,6 +4995,29 @@
         "chain_duplicate": "Hvert språk én gang.",
         "country_unknown": "Ukjent land.",
         "source_unknown": "Denne bildekilden er ikke en kandidat for tittelen."
+      },
+      "introDefault": "Gjelder for hver mappe uten egne innstillinger. Egne språk og bilder for en mappe stiller du inn under «Rediger» på biblioteket den hører til.",
+      "changed": "endret",
+      "folders": {
+        "title": "Mapper",
+        "intro": "Hver videomappe følger standarden til den har egne språk eller bilder. Dem stiller du inn under «Rediger» på biblioteket mappen hører til.",
+        "empty": "Ingen videomappe ennå.",
+        "audio": "Mapper for lydbøker og podkaster har ingen egne språk og bilder. Kildene for lydbøker finner du under «Lydbøker: kilder».",
+        "openLabel": "Rediger {{name}}, mappe {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Språk: standard",
+        "langsOwn": "Språk: {{chain}}",
+        "imagesDefault": "Bilder: standard",
+        "imagesOwn": "Bilder: egne",
+        "likeDefault": "Som standard",
+        "own": "Egne",
+        "defaultIs": "Standard: {{value}}",
+        "imagesDefaultIs": "Standard: {{kinds}}. Språk per bildetype: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Gjelder bare for denne mappen.",
+        "cost": "Hvert ekstra språk koster én forespørsel per tittel og sesong i denne mappen når det tas i bruk.",
+        "always": "Slouchcat henter alltid plakat og bakgrunn."
       }
     },
     "activity": {
@@ -5033,7 +5055,7 @@
       "intro": "Hvor Slouchcat henter detaljer og omslag for lydbøker. Filene kommer alltid først; en leverandør fyller bare ut det som mangler, og aldri et låst felt.",
       "folders": {
         "title": "Rekkefølge per mappe",
-        "intro": "Den øverste kilden vinner per felt. Du endrer rekkefølgen og hvilke kilder som er med i dialogen for mappen.",
+        "intro": "Den øverste kilden vinner per felt. Rekkefølgen og hvilke kilder som er med, endrer du under «Rediger» på biblioteket.",
         "empty": "Det finnes ingen lydbokmappe ennå.",
         "edit": "Endre kilder",
         "editLabel": "Endre kildene til {{path}}",

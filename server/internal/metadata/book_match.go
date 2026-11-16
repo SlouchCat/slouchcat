@@ -165,17 +165,16 @@ type bookMatchResult struct {
 	failure    string       // "<source>:<reason>" of the first source that failed
 }
 
-// bookSourcesOf returns the configured sources of the folder of a book's first present part, in
-// the folder's order, without local.
+// bookSourcesOf returns the configured sources of a book's home folder (ADR 0036), in the folder's
+// order, without local; none for a book without home folder.
 func (s *Service) bookSourcesOf(ctx context.Context, item systemq.Item) ([]BookProvider, error) {
-	parts, err := s.read.ListAudiobookParts(ctx, item.ID)
-	if err != nil {
-		return nil, fmt.Errorf("book sources of %s: parts: %w", item.ID, err)
-	}
-	if len(parts) == 0 {
+	if !item.RootID.Valid {
 		return nil, nil
 	}
-	root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, parts[0].RootID)
+	root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, item.RootID.Int64)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("book sources of %s: root: %w", item.ID, err)
 	}

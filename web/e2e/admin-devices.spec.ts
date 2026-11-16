@@ -1,5 +1,6 @@
 import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwright/test';
 import { loginOwner } from './accounts';
+import { openGroups } from './admin';
 import { CSRF } from './catalog';
 import { OWNER, OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
@@ -108,6 +109,9 @@ test('after a playback the device rows show owner, last contact and the reported
   // The tab «Geräte»: owner and last contact.
   await page.goto('/admin/devices');
   await expect(page.getByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
+  // Every type section starts closed (concept 24, P-3).
+  const typeSection = page.getByRole('heading', { level: 3 }).getByRole('button').first();
+  await openGroups(page, typeSection);
   const row = deviceRow(page, deviceId!);
   await expect(row.getByRole('rowheader')).toHaveText(device!.name ?? 'Unbekanntes Gerät');
   await expect(row).toContainText(`${OWNER.email} · ${OWNER_PROFILE}`);
@@ -119,6 +123,7 @@ test('after a playback the device rows show owner, last contact and the reported
   await expect(tabList(page).getByRole('tab', { selected: true })).toHaveAccessibleName(
     /^Fähigkeiten \d+ Geräte? mit Fähigkeitsprofil$/,
   );
+  await openGroups(page, typeSection);
   await expect(row.getByRole('rowheader')).toHaveText(device!.name ?? 'Unbekanntes Gerät');
   await expect(row).toContainText(upper(reported.containers));
   await expect(row).toContainText(upper(reported.video));
@@ -152,7 +157,14 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
     await page.goto('/admin/devices');
     const heading = page.getByRole('heading', { level: 1, name: 'Geräte' });
     await expect(heading).toBeVisible();
-    // Devices of type `other` are in the section «Anderes».
+    // Devices of type `other` are in the section «Anderes»; it starts closed and opens by Enter
+    // on its heading, the focus stays there (concept 24, P-3).
+    const section = page.getByRole('button', { name: /^Anderes \d+ Geräte$/ });
+    await expect(section).toHaveAttribute('aria-expanded', 'false');
+    await tabTo(page, section, 60);
+    await page.keyboard.press('Enter');
+    await expect(section).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, section);
     const others = page.getByRole('table', { name: 'Geräte: Anderes' });
     const row = others.locator(`tr[data-row-key="${throwawayId}"]`);
     await expect(row.getByRole('rowheader')).toHaveText(name);
@@ -177,13 +189,13 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
     await expectFocusOn(page, list);
     await expect(page).toHaveURL(/\/admin\/devices$/);
 
-    // The section «Anderes» folds away and opens again by Enter on its heading.
-    const section = page.getByRole('button', { name: /^Anderes \d+ Geräte$/ });
+    // The section «Anderes» folds away by Space and opens again by Enter on its heading.
     await tabTo(page, section, 60);
-    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
     await expect(section).toHaveAttribute('aria-expanded', 'false');
     await expect(others).toBeHidden();
     await expectVisibleFocus(page);
+    await expectFocusOn(page, section);
     await page.keyboard.press('Enter');
     await expect(section).toHaveAttribute('aria-expanded', 'true');
     await expect(others).toBeVisible();
@@ -254,6 +266,7 @@ test('the columns of the type sections line up in both tabs (K12-9)', async ({
       ['/admin/devices?tab=capabilities', 'Fähigkeiten'],
     ] as const) {
       await page.goto(path);
+      await openGroups(page, page.getByRole('button', { name: /^Tablet \d+ Geräte?$/ }));
       await expect(page.getByRole('table', { name: `${view}: Tablet` })).toBeVisible();
       await expect(page.getByRole('table', { name: `${view}: Anderes` })).toBeVisible();
       const tablets = await headerLefts(page, `${view}: Tablet`);

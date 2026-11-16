@@ -208,26 +208,19 @@ var adminRegistry = map[string]adminCall{
 	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},
 	"browseServerPaths": {contract: "POST /admin/fs/browse", path: "/admin/fs/browse",
 		body: `{"rootId":"does-not-exist"}`, ownerStatus: http.StatusNotFound},
-	"getLibrary":        {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
-	"scanLibrary":       {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
-	"acceptLibraryLoss": {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
-	// Idea 02, E8 and E12, ADR 0015: the fixture has no library 777 or 9999, so all three answer
-	// 404 for the owner.
-	"addLibraryRoot": {contract: "POST /admin/libraries/{id}/roots", path: "/admin/libraries/777/roots",
-		body: `{"roots":[{"path":"/media/does-not-exist","content":"movie","providers":["tmdb"]}]}`, ownerStatus: http.StatusNotFound},
-	"updateLibraryRoot": {contract: "PATCH /admin/libraries/{id}/roots/{rootId}", path: "/admin/libraries/9999/roots/9999",
-		body: `{"providers":["tmdb"]}`, ownerStatus: http.StatusNotFound},
+	"getLibrary": {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
+	// Concept 24 4.3: the fixture has no library 777.
+	"saveLibrary": {contract: "PUT /admin/libraries/{id}", path: "/admin/libraries/777",
+		body: `{"revision":"0","name":"X","roots":[],"removeRoots":[]}`, ownerStatus: http.StatusNotFound},
+	"scanLibrary":           {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
+	"acceptLibraryLoss":     {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
 	"listMetadataProviders": {contract: "GET /admin/metadata/providers", path: "/admin/metadata/providers", ownerStatus: http.StatusOK},
-	// Concept 10 (ADR 0018): the metadata settings, a library's deviation (the fixture library 1
-	// exists, 777 does not) and the apply run; the fake metadata service records nothing.
+	// Concept 10 (ADR 0018): the metadata settings and the apply run per folder (concept 24); the
+	// fake metadata service records nothing.
 	"getMetadataSettings": {contract: "GET /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK},
 	"updateMetadataSettings": {contract: "PUT /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK,
 		body: `{"textLangs":["de","en"],"imageLangs":{"poster":["de","en",""],"backdrop":["","de","en"],"logo":["de","en"]},"imageKinds":["logo"],"imageMinWidth":{"poster":500,"backdrop":1280},"imageByVote":true,"localImages":true,"ratingCountry":"DE","tmdbIncludeAdult":false,"fanartEnabled":false}`},
-	"getLibraryMetadata":    {contract: "GET /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", ownerStatus: http.StatusNotFound},
-	"updateLibraryMetadata": {contract: "PUT /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", body: `{"textLangs":["ja","en"]}`, ownerStatus: http.StatusNotFound},
-	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
-	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
-		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
+	"applyMetadata": {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	// Concept 20 P-9: unknown titles; the removed list of the fixture is empty.
 	"getItemDeletion": {contract: "GET /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion", ownerStatus: http.StatusNotFound},
 	"deleteItem": {contract: "POST /admin/items/{id}/deletion", path: "/admin/items/" + unknownItemID + "/deletion",

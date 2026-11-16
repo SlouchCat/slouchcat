@@ -5,7 +5,9 @@
   justify-content: center;
   min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-5);
-  border: 0;
+
+  /* Every variant has the same 1 px border, so they share one size; only secondary draws it. */
+  border: 1px solid transparent;
 
   /* A pill; the administration's look rounds it less (admin-look.css, build plan 2.7). */
   border-radius: var(--sc-button-radius, var(--sc-radius-full));
@@ -21,14 +23,23 @@
   /* Focus moves fill and text colour (focus-visible styles below): focus duration, <= 200 ms. */
   transition:
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Disabled (concept 24, Z-5): recognisable by its shape, not by paleness. A dashed outline, no
+ * fill, the label in the muted text colour (at least 7:1). The overlay variant keeps its dark
+ * ground over the picture (its rule below outranks this one).
+ */
 .button:disabled {
+  border-style: dashed;
+  border-color: var(--sc-color-border-control);
+  background-color: transparent;
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.45;
 }
 
 /* Native states, so plain buttons and links (browsing pages) and react-aria buttons (forms) look the
@@ -76,14 +87,23 @@
   color: var(--sc-on-accent);
 }
 
+/* Outlined at 3:1 against any surface (concept 24, Z-3); lighter on hover and focus. */
 .secondary {
+  --sc-button-secondary-lift: color-mix(
+    in srgb,
+    var(--sc-color-text-primary) 10%,
+    var(--sc-color-surface-3)
+  );
+
+  border-color: var(--sc-color-border-control);
   background-color: var(--sc-color-surface-3);
   color: var(--sc-color-text-primary);
 }
 
 .secondary:focus-visible,
 .secondary[data-focus-visible] {
-  background-color: var(--sc-color-surface-2);
+  border-color: var(--sc-color-text-secondary);
+  background-color: var(--sc-button-secondary-lift);
 }
 
 .ghost {
@@ -104,7 +124,8 @@
   }
 
   .secondary:hover:not(:disabled) {
-    background-color: var(--sc-color-surface-2);
+    border-color: var(--sc-color-text-secondary);
+    background-color: var(--sc-button-secondary-lift);
   }
 
   .ghost:hover:not(:disabled) {
@@ -177,6 +198,7 @@
  */
 .secondary.overlay[aria-pressed='true'],
 .secondary.overlay[aria-pressed='true']:focus-visible {
+  border-color: var(--sc-accent);
   background-color: var(--sc-accent);
   color: var(--sc-on-accent);
 }

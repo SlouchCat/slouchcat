@@ -63,8 +63,13 @@
   color: var(--sc-color-text-primary);
 }
 
+/* Ringed in the accent, at least 3:1 against the list (concept 24, Z-3). */
 .item[data-selected] {
   background-color: var(--sc-color-surface-3);
+
+  --sc-selected-ring: inset 0 0 0 1px var(--sc-accent);
+
+  box-shadow: var(--sc-selected-ring);
   color: var(--sc-color-text-primary);
   font-weight: var(--sc-font-weight-semibold);
 }

@@ -91,7 +91,7 @@ function BackupContent() {
   // The scope of «Neue Sicherung» is the page's: it stays when the tab changes (S-17). The
   // passphrases are not; they live in the tab only.
   const [mode, setMode] = useState<CreateMode>('without');
-  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set());
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
   // The backup this page just made, marked «neu» in its row.
   const [fresh, setFresh] = useState<string | null>(null);
   // Each message gets its own key, so the same text twice in a row is announced again.
@@ -236,11 +236,8 @@ function BackupContent() {
   const created = async (backup: Backup) => {
     said(t('admin.backup.created', { name: backup.name }));
     setFresh(backup.name);
-    setFolded((current) => {
-      const next = new Set(current);
-      next.delete(backup.kind);
-      return next;
-    });
+    // What was just made shows: its group opens (concept 24, exception 2).
+    setOpened((current) => new Set(current).add(backup.kind));
     await invalidate();
     // The new backup is a row of «Sicherungen»: that tab shows, and the h1 takes the focus the
     // form's button had.
@@ -295,12 +292,12 @@ function BackupContent() {
             count={number.format(rows.length)}
             countLabel={countOf(rows.length)}
             meta={<span className={styles.muted}>{meta}</span>}
-            isExpanded={!folded.has(kind)}
+            isExpanded={opened.has(kind)}
             onExpandedChange={(open) =>
-              setFolded((current) => {
+              setOpened((current) => {
                 const next = new Set(current);
-                if (open) next.delete(kind);
-                else next.add(kind);
+                if (open) next.add(kind);
+                else next.delete(kind);
                 return next;
               })
             }

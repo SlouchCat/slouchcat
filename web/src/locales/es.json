@@ -228,7 +228,9 @@
       "files_not_deletable": "No se puede eliminar un archivo del título. No se ha eliminado nada.",
       "not_deletable": "Este título no se puede eliminar.",
       "deleting": "Se está eliminando ahora mismo.",
-      "changed": "Algo ha cambiado mientras tanto. Vuelve a comprobarlo."
+      "changed": "Algo ha cambiado mientras tanto. Vuelve a comprobarlo.",
+      "stale": "La biblioteca se ha modificado mientras tanto en otro sitio. Vuelve a cargarla y guarda de nuevo.",
+      "root_unlisted": "Falta una carpeta de la biblioteca en la solicitud. Vuelve a cargar la biblioteca; no se ha quitado nada."
     },
     "field": {
       "required": "Obligatorio.",
@@ -251,6 +253,7 @@
       "root_overlap": "Esta carpeta se solapa con otra carpeta.",
       "path_with_content": "Una ruta nueva no se puede combinar con un cambio de contenido.",
       "root_files_missing": "Ninguno de los archivos de la carpeta está en la nueva ruta.",
+      "confirm_mismatch": "La ruta no coincide con la de la carpeta. No se ha cambiado nada.",
       "content_not_allowed": "Este contenido no encaja con el tipo de biblioteca.",
       "providers_not_allowed": "Esta lista de fuentes de metadatos no está permitida para este contenido.",
       "roots_required": "Hace falta al menos una carpeta.",
@@ -566,9 +569,10 @@
       "submit_many": "Añadir biblioteca con {{count}} de carpetas",
       "submit_other": "Añadir biblioteca con {{count}} carpetas",
       "submitNone": "Añadir biblioteca sin carpetas",
-      "addSubmit_one": "Añadir 1 carpeta",
-      "addSubmit_many": "Añadir {{count}} de carpetas",
-      "addSubmit_other": "Añadir {{count}} carpetas"
+      "marked": "Se quitará al guardar. Después lo confirmarás con la ruta.",
+      "undo": "Deshacer",
+      "undoLabel": "Deshacer la retirada de la carpeta {{number}}",
+      "removeStored": "Quitar carpeta…"
     },
     "videoHint": "Las carpetas de esta biblioteca pueden contener películas o series, incluso mezcladas.",
     "page": {
@@ -632,7 +636,8 @@
     "notFound": {
       "title": "Biblioteca no encontrada",
       "body": "Esta biblioteca no existe o no tiene títulos para este perfil."
-    }
+    },
+    "kindFixed": "El tipo queda fijado una vez creada la biblioteca."
   },
   "home": {
     "list": {
@@ -1884,11 +1889,8 @@
         "kind": "Tipo",
         "state": "Estado",
         "counts": "Títulos · archivos",
-        "folders": "Carpetas",
-        "metadata": "Metadatos"
+        "folders": "Carpetas"
       },
-      "none": "–",
-      "noMetadata": "Sin ámbito de metadatos",
       "roots": "Carpetas",
       "fsType": "Sistema de archivos {{type}}",
       "watch": {
@@ -1954,25 +1956,11 @@
       "defaultRating": "Predeterminada: {{rating}}",
       "noRoots": "Sin carpeta: los títulos proceden de feeds suscritos.",
       "feedsOnly": "Títulos de feeds",
-      "changeRating": {
-        "action": "Cambiar la clasificación predeterminada",
-        "title": "Clasificación predeterminada de {{name}}",
-        "description": "Todos los títulos cuya clasificación procede de la biblioteca la adoptan al instante. Las clasificaciones asignadas a mano se mantienen.",
-        "submit": "Guardar",
-        "saved": "La clasificación predeterminada de {{name}} es ahora {{rating}}."
-      },
       "folders": {
-        "title": "Carpetas de {{name}}",
-        "description": "Una biblioteca puede tener varias carpetas. El escaneo y la vigilancia incorporan una carpeta nueva al instante.",
-        "none": "Esta biblioteca no tiene ninguna carpeta. No se escaneará nada hasta que añadas una.",
         "content": "Títulos: {{items}} · archivos: {{files}}",
         "remove": {
-          "action": "Quitar",
-          "label": "Quitar la carpeta {{path}}",
-          "title": "¿Seguro que quieres quitar esta carpeta?",
           "inputLabel": "Escribe la ruta para confirmar",
           "mismatch": "Escribe {{path}} exactamente así y el botón se activará.",
-          "confirm": "Quitar la carpeta",
           "lead_one": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} título desaparecerá de todas las listas. Qué implica:",
           "lead_many": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} de títulos desaparecerán de todas las listas. Qué implica:",
           "lead_other": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} títulos desaparecerán de todas las listas. Qué implica:",
@@ -1984,52 +1972,28 @@
           "oneWay": "Si la carpeta queda fuera de las carpetas explorables (SLOUCHCAT_BROWSE_ROOTS), no se puede volver a añadir sin cambiar la configuración.",
           "last": "Es la última carpeta: {{name}} sigue existiendo, pero después no tendrá ninguna carpeta y no escaneará nada."
         },
-        "new": "Carpetas nuevas",
         "change": {
-          "action": "Cambiar",
-          "label": "Cambiar la carpeta {{path}}",
-          "title": "Cambiar carpeta",
-          "description": "Contenido y fuentes de metadatos de {{path}}.",
-          "submit": "Guardar",
           "identifier": "Cambia el identificador: los textos de temporadas y episodios se vuelven a asociar con {{provider}}. Los episodios se mantienen, y el progreso y Mi lista siguen asociados a ellos.",
           "fillers": "Solo cambian las fuentes que completan datos: los títulos se vuelven a completar, no se elimina nada.",
-          "content": "Cambia el contenido: equivale a quitar la carpeta y volver a añadirla. Los títulos de esta carpeta se eliminan de forma lógica y se crean de nuevo, los paquetes sin conexión desaparecen, y el progreso y Mi lista siguen asociados a los títulos antiguos.",
-          "confirmTitle": "¿Seguro que quieres cambiar el contenido?",
-          "confirm": "Cambiar contenido",
-          "saved": "Se ha cambiado la carpeta {{path}}."
+          "content": "Cambia el contenido: equivale a quitar la carpeta y volver a añadirla. Los títulos de esta carpeta se eliminan de forma lógica y se crean de nuevo, los paquetes sin conexión desaparecen, y el progreso y Mi lista siguen asociados a los títulos antiguos."
         },
         "move": {
-          "action": "Cambiar ruta",
-          "label": "Cambiar la ruta de {{path}}",
-          "title": "¿Cambiar la ruta?",
-          "body": "Ruta anterior: {{old}} · Ruta nueva: {{new}}. Los títulos y los datos de usuario se conservan si los archivos están allí con los mismos nombres. Después se vuelve a leer la carpeta.",
-          "confirm": "Cambiar",
-          "saved": "La carpeta está ahora en {{path}} y se vuelve a leer."
+          "body": "Ruta anterior: {{old}} · Ruta nueva: {{new}}. Los títulos y los datos de usuario se conservan si los archivos están allí con los mismos nombres. Después se vuelve a leer la carpeta."
         },
         "readOnly": "solo lectura",
         "writable": "con escritura"
       },
-      "openFolders": "Carpetas",
-      "openFoldersLabel": "Editar las carpetas de {{name}}",
       "rootCount_one": "{{count}} carpeta",
       "rootCount_many": "{{count}} de carpetas",
       "rootCount_other": "{{count}} carpetas",
-      "noFolder": "Sin carpeta: no se escaneará nada hasta que añadas una en «Carpetas».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} de {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "como el servidor",
-        "texts": "idiomas distintos",
-        "images": "imágenes distintas",
-        "both": "idiomas e imágenes distintos",
-        "link": "Metadatos de la biblioteca",
         "audiobooksLink": "Fuentes de audiolibros"
       },
       "trickplay": {
         "action": "Miniaturas de vista previa",
-        "actionLabel": "Miniaturas de vista previa de {{name}}",
-        "title": "Miniaturas de vista previa: {{name}}",
         "description": "Imágenes pequeñas sobre la línea de tiempo, una cada 10 segundos. Las películas y las series se ajustan por separado, también en una biblioteca mixta.",
         "movies": "Películas",
         "series": "Series",
@@ -2091,12 +2055,12 @@
         "generate": {
           "action": "Generar ahora",
           "hint": "Completa las vistas previas que faltan de todas las bibliotecas con «Por adelantado», igual que «Completar miniaturas de vista previa» en «Tareas en segundo plano».",
-          "queued": "Se ha puesto en cola la creación de las vistas previas que faltan."
+          "queued": "Se ha puesto en cola la creación de las vistas previas que faltan.",
+          "unsaved": "Solo tras guardar: la generación usa el ajuste guardado."
         },
-        "submit": "Guardar",
-        "saved": "Se han guardado las miniaturas de vista previa de {{name}}.",
         "summary": "Miniaturas de vista previa: películas {{movies}} · series {{series}}",
-        "summaryNoKeep": "Al iniciar, sin conservar"
+        "summaryNoKeep": "Al iniciar, sin conservar",
+        "header": "Películas: {{movies}} · series: {{series}}"
       },
       "delete": {
         "action": "Eliminar biblioteca…",
@@ -2115,11 +2079,58 @@
         "done": "Biblioteca «{{name}}» eliminada.",
         "notDone": "La biblioteca «{{name}}» no se ha eliminado. La tarea indica el motivo."
       },
-      "rename": {
-        "action": "Cambiar nombre…",
-        "title": "Cambiar el nombre de la biblioteca «{{name}}»",
-        "label": "Nombre",
-        "saved": "La biblioteca ahora se llama «{{name}}»."
+      "form": {
+        "editTitle": "Editar biblioteca",
+        "changed": "modificado",
+        "pathAndContent": "La ruta y el contenido de esta carpeta no se pueden cambiar a la vez. Guarda primero uno y después el otro.",
+        "pathHint": "La nueva ruta se aplica al guardar. Los títulos y los datos de los perfiles se conservan si los archivos están allí con los mismos nombres.",
+        "reloaded": "La biblioteca se ha modificado mientras tanto en otro sitio. El formulario muestra ahora su nuevo estado; tus cambios no se han guardado.",
+        "changedElsewhere": "La biblioteca se ha modificado mientras tanto en otro sitio. Al guardar, el formulario carga su nuevo estado; tus cambios no se guardan.",
+        "gone": "Esta biblioteca ya no existe. No se ha guardado nada.",
+        "scanRunning": "Quitar una carpeta o cambiar su contenido o su ruta tiene que esperar a que termine el escaneo. Lo que has escrito se conserva.",
+        "scanCancelled": "Se ha cancelado el escaneo. Guarda de nuevo.",
+        "discard": {
+          "title": "¿Descartar los cambios?",
+          "body": "Los cambios sin guardar de la biblioteca {{name}} se perderán.",
+          "confirm": "Descartar",
+          "keep": "Seguir editando"
+        },
+        "confirm": {
+          "title": "Confirmar cambios",
+          "intro": "Estos cambios solo surten efecto cuando guardas aquí.",
+          "remove": "Quitar carpeta: {{path}}",
+          "content": "Cambiar contenido: {{path}}",
+          "path": "Cambiar ruta: {{path}}",
+          "typeAll": "Podrás guardar cuando todas las rutas estén escritas exactamente.",
+          "submit": "Guardar"
+        }
+      },
+      "edit": "Editar",
+      "editLabel": "Editar {{name}}",
+      "noFolderEdit": "Sin carpeta: no se escanea nada hasta que añadas una en «Editar».",
+      "saved": {
+        "title": "La biblioteca {{name}} se ha guardado.",
+        "name": "Nombre nuevo: {{name}}",
+        "rating": "Clasificación predeterminada: {{rating}}",
+        "added_one": "{{count}} carpeta añadida; el escaneo está en cola.",
+        "added_many": "{{count}} de carpetas añadidas; el escaneo está en cola.",
+        "added_other": "{{count}} carpetas añadidas; el escaneo está en cola.",
+        "removed_one": "{{count}} carpeta quitada.",
+        "removed_many": "{{count}} de carpetas quitadas.",
+        "removed_other": "{{count}} carpetas quitadas.",
+        "content_one": "{{count}} carpeta con otro contenido se vuelve a leer.",
+        "content_many": "{{count}} de carpetas con otro contenido se vuelven a leer.",
+        "content_other": "{{count}} carpetas con otro contenido se vuelven a leer.",
+        "moved_one": "{{count}} carpeta con una nueva ruta se vuelve a leer.",
+        "moved_many": "{{count}} de carpetas con una nueva ruta se vuelven a leer.",
+        "moved_other": "{{count}} carpetas con una nueva ruta se vuelven a leer.",
+        "providers_one": "Fuentes nuevas para {{count}} carpeta: sus títulos se vuelven a asociar o a completar.",
+        "providers_many": "Fuentes nuevas para {{count}} de carpetas: sus títulos se vuelven a asociar o a completar.",
+        "providers_other": "Fuentes nuevas para {{count}} carpetas: sus títulos se vuelven a asociar o a completar.",
+        "metadata_one": "Idiomas o imágenes cambiados en {{count}} carpeta. Afectan a {{titles}} títulos en cuanto los apliques.",
+        "metadata_many": "Idiomas o imágenes cambiados en {{count}} de carpetas. Afectan a {{titles}} títulos en cuanto los apliques.",
+        "metadata_other": "Idiomas o imágenes cambiados en {{count}} carpetas. Afectan a {{titles}} títulos en cuanto los apliques.",
+        "dismiss": "Ocultar"
       }
     },
     "access": {
@@ -2395,7 +2406,9 @@
         "children": "Contenido",
         "childCounts": "Temporadas: {{seasons}} · Episodios: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Carpeta de origen",
+        "homeRootNone": "Ninguna, se aplican los ajustes predeterminados"
       },
       "sources": {
         "title": "Origen por campo",
@@ -5019,7 +5032,6 @@
     },
     "metadata": {
       "title": "Metadatos",
-      "intro": "Qué idiomas entregan las fuentes de metadatos, qué imágenes en qué idioma y con qué calidad, y qué país decide primero la clasificación por edades. El valor predeterminado se aplica a todas las bibliotecas; una biblioteca puede diferir en idiomas e imágenes.",
       "links": {
         "roots": "El orden de las fuentes se define por carpeta en Bibliotecas.",
         "jobs": "Las programaciones están en Tareas en segundo plano.",
@@ -5031,9 +5043,6 @@
         "open": "Abrir fuentes"
       },
       "areas": {
-        "label": "Secciones",
-        "changed": "Modificado · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Póster {{poster}}, fondo {{backdrop}}",
         "sources": {
           "local": "Archivos locales",
@@ -5041,20 +5050,17 @@
           "tmdbAdult": "TMDB con contenido para adultos",
           "none": "Solo las fuentes de las carpetas"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} carpeta de vídeo sigue lo predeterminado",
+        "foldersFollow_many": "{{count}} de carpetas de vídeo siguen lo predeterminado",
+        "foldersFollow_other": "{{count}} carpetas de vídeo siguen lo predeterminado",
+        "foldersOwn_one": "{{count}} con ajustes propios",
+        "foldersOwn_many": "{{count}} con ajustes propios",
+        "foldersOwn_other": "{{count}} con ajustes propios"
       },
-      "scope": {
-        "label": "Ámbito",
-        "server": "Predeterminado",
-        "serverHint": "Se aplica a todas las bibliotecas sin una diferencia propia.",
-        "libraryHint": "{{name}} usa el valor predeterminado. Activa «distinto» para cambiar los idiomas o las imágenes solo en esta biblioteca.",
-        "deviates": "distinto",
-        "textsDeviate": "Idiomas distintos",
-        "imagesDeviate": "Imágenes distintas",
-        "likeServer": "como el servidor",
-        "changed": "{{name}} (modificado)",
-        "serverDirty": "El valor predeterminado tiene cambios sin guardar; aquí se muestra lo guardado."
-      },
+      "default": "Predeterminado",
       "languages": {
         "title": "Idiomas",
         "intro": "Cada idioma de esta lista se obtiene para cada título; los perfiles eligen entre ellos el idioma de sus descripciones. El idioma de la interfaz lo elige cada perfil por su cuenta. Cada idioma adicional cuesta una solicitud por título y temporada.",
@@ -5128,7 +5134,6 @@
         }
       },
       "apply": {
-        "title": "Aplicar a los títulos existentes",
         "short": "Aplicar",
         "intro": "Los títulos nuevos usan los ajustes al instante. Los existentes se quedan como están hasta que inicies la ejecución; aparece en Tareas en segundo plano con progreso, pausa y cancelación.",
         "what": "Qué",
@@ -5136,7 +5141,8 @@
         "texts": "Solo textos",
         "images": "Solo imágenes",
         "where": "Dónde",
-        "all": "Todas las bibliotecas",
+        "all": "Todas las carpetas",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} título",
         "titles_many": "{{count}} de títulos",
         "titles_other": "{{count}} títulos",
@@ -5165,6 +5171,29 @@
         "chain_duplicate": "Cada idioma una sola vez.",
         "country_unknown": "País desconocido.",
         "source_unknown": "Esta fuente de imágenes no es candidata del título."
+      },
+      "introDefault": "Se aplica a cada carpeta sin ajustes propios. Los idiomas y las imágenes propios de una carpeta se ajustan en su biblioteca, en «Editar».",
+      "changed": "modificado",
+      "folders": {
+        "title": "Carpetas",
+        "intro": "Cada carpeta de vídeo sigue lo predeterminado hasta que tiene idiomas o imágenes propios. Los ajustas en su biblioteca, en «Editar».",
+        "empty": "Aún no hay ninguna carpeta de vídeo.",
+        "audio": "Las carpetas de audiolibros y de podcasts no tienen idiomas ni imágenes propios. Las fuentes de los audiolibros están en «Audiolibros: fuentes».",
+        "openLabel": "Editar {{name}}, carpeta {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Idiomas: predeterminados",
+        "langsOwn": "Idiomas: {{chain}}",
+        "imagesDefault": "Imágenes: predeterminadas",
+        "imagesOwn": "Imágenes: propias",
+        "likeDefault": "Predeterminado",
+        "own": "Personalizado",
+        "defaultIs": "Predeterminado: {{value}}",
+        "imagesDefaultIs": "Predeterminado: {{kinds}}. Idioma por tipo de imagen: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Se aplica solo a esta carpeta.",
+        "cost": "Cada idioma adicional cuesta una solicitud por título y temporada de esta carpeta al aplicarlo.",
+        "always": "Slouchcat siempre obtiene el póster y el fondo."
       }
     },
     "activity": {
@@ -5206,7 +5235,7 @@
       "intro": "De dónde obtiene Slouchcat los datos y las portadas de los audiolibros. Los archivos van siempre primero; un proveedor solo completa lo que falta y nunca un campo con candado.",
       "folders": {
         "title": "Orden por carpeta",
-        "intro": "La fuente de arriba gana en cada campo. El orden y qué fuentes participan se cambian en el cuadro de diálogo de la carpeta.",
+        "intro": "La fuente de arriba gana en cada campo. El orden y las fuentes que participan se cambian en la biblioteca, en «Editar».",
         "empty": "Todavía no hay ninguna carpeta de audiolibros.",
         "edit": "Cambiar fuentes",
         "editLabel": "Cambiar las fuentes de {{path}}",

@@ -159,7 +159,6 @@
           "oneWay": "Liegt der Ordner außerhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen."
         }
       },
-      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter „Ordner“ einen hinzufügst.",
       "trickplay": {
         "facts": {
           "ahead": {
@@ -179,10 +178,7 @@
         "done": "Bibliothek „{{name}}“ gelöscht.",
         "notDone": "Bibliothek „{{name}}“ wurde nicht gelöscht. Warum, steht beim Job."
       },
-      "rename": {
-        "title": "Bibliothek „{{name}}“ umbenennen",
-        "saved": "Die Bibliothek heißt jetzt „{{name}}“."
-      }
+      "noFolderEdit": "Kein Ordner: Es wird nichts gescannt, bis du unter „Bearbeiten“ einen hinzufügst."
     },
     "maintenance": {
       "hint": {
@@ -460,9 +456,6 @@
       "audiobooks": {
         "body": "Woher Slouchcat Angaben, Länge und Cover für Hörbücher holt, automatisches Zuordnen und die Liste „Prüfen“."
       },
-      "scope": {
-        "libraryHint": "{{name}} übernimmt den Standard. Schalte „abweichend“ ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern."
-      },
       "images": {
         "chainsIntro": "Reihenfolge, in der ein Bild gewählt wird. „Ohne Text“ ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.",
         "kindHint": {
@@ -480,6 +473,11 @@
       },
       "languages": {
         "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10.000)."
+      },
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter „Bearbeiten“ ein.",
+      "folders": {
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in seiner Bibliothek unter „Bearbeiten“ ein.",
+        "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter „Hörbücher: Quellen“."
       }
     },
     "activity": {
@@ -519,6 +517,9 @@
       },
       "review": {
         "intro": "Hörbücher mit mehreren Kandidaten, einer Länge außerhalb der Toleranz oder einer gestörten Quelle. Der Bleistift öffnet den Editor."
+      },
+      "folders": {
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du in der Bibliothek unter „Bearbeiten“."
       }
     },
     "itemDelete": {

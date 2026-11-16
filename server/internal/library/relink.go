@@ -396,6 +396,11 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string, grace sq
 	if err != nil {
 		return RelinkResult{}, err
 	}
+	// The twin returns: its home folder is determined again from the files it now holds, and the
+	// children that moved in take it with its provider list (ADR 0036).
+	if _, err := rehome(ctx, q, now, deletedID, true); err != nil {
+		return RelinkResult{}, err
+	}
 	if err := enqueueTx(ctx, q, now, matchJob(deletedID)); err != nil {
 		return RelinkResult{}, err
 	}

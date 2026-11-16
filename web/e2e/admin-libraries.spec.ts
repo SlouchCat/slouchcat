@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { CSRF } from './catalog';
 import {
   expectFocusOn,
@@ -39,6 +39,13 @@ async function openRow(page: Page, name: string): Promise<void> {
   await expect(button).toHaveAttribute('aria-expanded', 'true');
   await expect(foldOut(page, name)).toBeVisible();
 }
+
+/** The head of a folder card: the button that folds it (concept 24 4.2). */
+const cardHead = (form: Locator, number: number) =>
+  form
+    .getByRole('listitem', { name: `Ordner ${number}` })
+    .getByRole('button')
+    .first();
 
 /** Opens «Bibliothek hinzufügen» from the head with the keyboard; the name field has the focus. */
 async function openAdd(page: Page): Promise<void> {
@@ -176,6 +183,10 @@ test('Tab reaches header, the add dialog and its fields in order; no focus trap 
   await expectFocusOn(page, dialog.getByRole('radio', { name: 'Video' }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, dialog.getByRole('radio', { name: 'Hörbücher' }));
+  // The card of the new library is open; its head comes first, then its path (concept 24 4.2).
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, cardHead(dialog, 1));
+  await expect(cardHead(dialog, 1)).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, dialog.getByLabel('Ordner', { exact: true }));
   // The folder browser of idea 02 sits right after the field, as the wizard's check does.
@@ -216,6 +227,8 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await page.keyboard.type('E2E Anime');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, form.getByRole('radio', { name: 'Video' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, cardHead(form, 1));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, form.getByLabel('Ordner', { exact: true }));
   await page.keyboard.type('/does/not/exist/slouchcat-e2e-anime');
@@ -267,16 +280,24 @@ test('content and metadata sources by keyboard: Space ticks, the position orders
   await expect(
     form.getByRole('button', { name: 'Bibliothek mit 2 Ordnern hinzufügen' }),
   ).toBeVisible();
-  // «Entfernen» stands in the card's head, right before the path field.
+  // The head of the card stands right before its path; «Entfernen» at the card's end.
   await page.keyboard.press('Shift+Tab');
-  await expectFocusOn(page, second.getByRole('button', { name: 'Ordner 2 entfernen' }));
+  await expectFocusOn(page, cardHead(form, 2));
+  await tabTo(page, second.getByRole('button', { name: 'Ordner 2 entfernen' }), 20);
   await page.keyboard.press('Enter');
   await expect(second).toHaveCount(0);
   await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
 
-  // «Vorschau beim Spulen» of the new video library (concept 18, 9): «Aus» comes first and is
-  // chosen (1.23.1); the group of the films takes the focus on it, ↓ picks «Im Voraus», ↓ again
-  // «Beim Start», which brings «Speichern», Space unticks it.
+  // «Vorschau beim Spulen» of the new video library (concept 18, 9): a closed section (concept
+  // 24 4.1) that Enter opens; «Aus» comes first and is chosen (1.23.1); the group of the films
+  // takes the focus on it, ↓ picks «Im Voraus», ↓ again «Beim Start», which brings «Speichern»,
+  // Space unticks it.
+  const section = form.getByRole('button', { name: 'Vorschau beim Spulen' });
+  await expect(section).toHaveAttribute('aria-expanded', 'false');
+  await tabTo(page, section, 10);
+  await page.keyboard.press('Enter');
+  await expect(section).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, section);
   const films = form.getByRole('radiogroup', { name: 'Filme' });
   await expect(films.getByRole('radio').first()).toHaveAccessibleName('Aus');
   await expect(films.getByRole('radio', { name: 'Aus', exact: true })).toBeChecked();
@@ -317,7 +338,9 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await expectFocusOn(page, form.getByRole('radio', { name: 'Hörbücher' }));
   await expect(form.getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
   await expect(rating).toBeVisible();
-  // Tab: folder, then the rating (FSK 0 by default); the arrows choose FSK 6.
+  // Tab: the card's head, the folder, then the rating (FSK 0 by default); the arrows choose FSK 6.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, cardHead(form, 1));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, folder);
   await page.keyboard.type('/does/not/exist/slouchcat-e2e-audio');
@@ -348,6 +371,8 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await expect(folder).toHaveAttribute('aria-invalid', 'true');
   // Podcasts: the card goes, the hint says why; the add button and the rating stay (F-13).
   await expectFocusOn(page, folder);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, cardHead(form, 1));
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, form.getByRole('radio', { name: 'Hörbücher' }));
   await page.keyboard.press('ArrowRight');
@@ -383,6 +408,7 @@ test('an invalid path is reported at the field; Enter submits from the field', a
   const form = addDialog(page);
   await page.keyboard.type('Fehlt');
   await page.keyboard.press('Tab'); // Video
+  await page.keyboard.press('Tab'); // the card's head
   await page.keyboard.press('Tab');
   await expectFocusOn(page, form.getByLabel('Ordner', { exact: true }));
   await page.keyboard.type('/does/not/exist/slouchcat-e2e');
@@ -395,7 +421,7 @@ test('an invalid path is reported at the field; Enter submits from the field', a
   );
 });
 
-test('the audio libraries show kind and default rating; the menu opens the rating dialog', async ({
+test('the audio libraries show kind and default rating; «Bearbeiten» holds the rating', async ({
   page,
 }) => {
   const books = rowOf(page, 'Hörbücher');
@@ -403,40 +429,36 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
   await expect(books.getByText('Standard: FSK 0')).toBeVisible();
   await expect(rowOf(page, 'Podcasts').getByText('Standard: FSK 0')).toBeVisible();
 
-  // «Weitere Aktionen» of the audiobooks: Enter opens it, the arrows move, Escape closes it.
+  // «Weitere Aktionen» of the audiobooks: Enter opens it, Escape closes it. Rename, rating and
+  // trickplay are fields of «Bearbeiten» now (concept 24 4.5).
   await openRow(page, 'Hörbücher');
   const more = foldOut(page, 'Hörbücher').getByRole('button', {
     name: 'Weitere Aktionen für Hörbücher',
   });
   await tabTo(page, more, 10);
   await page.keyboard.press('Enter');
-  const rename = page.getByRole('menuitem', { name: 'Umbenennen …' });
-  const item = page.getByRole('menuitem', { name: 'Standardstufe ändern' });
-  await expectFocusOn(page, rename);
-  // ↓ reaches «Standardstufe ändern», then «Bibliothek löschen …» below «Gefahr» (concept 20
-  // P-8); ↑ goes back.
-  await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, item);
-  await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, page.getByRole('menuitem', { name: 'Bibliothek löschen …' }));
-  await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, item);
+  const remove = page.getByRole('menuitem', { name: 'Bibliothek löschen …' });
+  await expectFocusOn(page, remove);
+  await expect(page.getByRole('menuitem', { name: 'Umbenennen …' })).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(item).toHaveCount(0);
+  await expect(remove).toHaveCount(0);
   await expectFocusOn(page, more);
 
-  // "Standardstufe ändern" opens the dialog with the current rating; Escape leaves it unchanged.
+  // «Bearbeiten» stands before the menu; the form has the rating with the current value, the
+  // kind is locked, and Escape without a change leaves everything as it was.
+  const edit = foldOut(page, 'Hörbücher').getByRole('button', { name: 'Hörbücher bearbeiten' });
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, edit);
   await page.keyboard.press('Enter');
-  await expectFocusOn(page, rename);
-  await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, item);
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Standardstufe von Hörbücher' });
-  await expect(dialog.getByRole('radio', { name: 'FSK 0' })).toBeChecked();
+  const dialog = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+  await expect(dialog.getByRole('radio', { name: 'Hörbücher' })).toBeDisabled();
+  const rating = dialog.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
+  await expect(rating.getByRole('radio', { name: 'FSK 0' })).toBeChecked();
+  await tabTo(page, rating.getByRole('radio', { name: 'FSK 0' }), 30);
   await expectVisibleFocus(page);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expectFocusOn(page, more);
+  await expectFocusOn(page, edit);
 
   // The podcasts come after the audiobooks: their fold-out says where the titles come from.
   await openRow(page, 'Podcasts');
@@ -446,7 +468,7 @@ test('the audio libraries show kind and default rating; the menu opens the ratin
   await expectNoFocusTrap(page);
 });
 
-test('«Umbenennen …» renames a library by keyboard, one request per submit @keyboard', async ({
+test('«Bearbeiten» renames a library by keyboard, one request per save @keyboard', async ({
   page,
 }) => {
   // A podcast library of the test's own: it needs no folder, and no other spec knows its name.
@@ -463,43 +485,36 @@ test('«Umbenennen …» renames a library by keyboard, one request per submit @
     await expect(toggle(page, before)).toBeVisible();
     await resetFocus(page);
     await openRow(page, before);
-    const more = (name: string) =>
-      page.getByRole('button', { name: `Weitere Aktionen für ${name}` });
-    await tabTo(page, more(before), 10);
+    const edit = (name: string) => page.getByRole('button', { name: `${name} bearbeiten` });
+    await tabTo(page, edit(before), 10);
     await page.keyboard.press('Enter');
-    await expectFocusOn(page, page.getByRole('menuitem', { name: 'Umbenennen …' }));
-    await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog', { name: `Bibliothek «${before}» umbenennen` });
+    const dialog = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
     const field = dialog.getByLabel('Name', { exact: true });
-    // The field holds the name, selected: typing replaces it.
     await expectFocusOn(page, field);
     await expectVisibleFocus(page);
     await expect(field).toHaveValue(before);
-    expect(
-      await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd]),
-    ).toEqual([0, before.length]);
 
-    // Escape leaves the name as it was and hands the focus back to the menu button.
+    // Escape without a change hands the focus back to «Bearbeiten».
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expectFocusOn(page, more(before));
+    await expectFocusOn(page, edit(before));
 
     // Now for real: Enter in the field saves, with one request.
     const sent: string[] = [];
     page.on('request', (request) => {
-      if (request.method() === 'PATCH' && request.url().endsWith(`/admin/libraries/${id}`))
+      if (request.method() === 'PUT' && request.url().endsWith(`/admin/libraries/${id}`))
         sent.push(request.url());
     });
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Enter');
     await expectFocusOn(page, field);
+    await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.type(after);
     await page.keyboard.press('Enter');
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByText(`Die Bibliothek heisst jetzt «${after}».`)).toBeVisible();
+    await expect(page.getByText(`Neuer Name: ${after}`)).toBeVisible();
     await expect(toggle(page, after)).toBeVisible();
     await expect(toggle(page, before)).toHaveCount(0);
-    await expectFocusOn(page, more(after));
+    await expectFocusOn(page, edit(after));
     await expectVisibleFocus(page);
     expect(sent).toHaveLength(1);
     await expectNoFocusTrap(page);
@@ -534,14 +549,21 @@ test('«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope
     await expect(
       foldOut(page, 'Filme').getByText('Vorschau beim Spulen: Filme Im Voraus · Serien Im Voraus'),
     ).toBeVisible();
-    const open = foldOut(page, 'Filme').getByRole('button', {
-      name: 'Vorschau beim Spulen von Filme',
-    });
+    const open = foldOut(page, 'Filme').getByRole('button', { name: 'Filme bearbeiten' });
     await tabTo(page, open, 20);
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog', { name: 'Vorschau beim Spulen: Filme' });
+    const dialog = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
     await expect(dialog).toBeVisible();
+    // The section is closed and names the setting; Enter opens it (concept 24 4.1).
+    const section = dialog.getByRole('button', { name: 'Vorschau beim Spulen' });
+    await expect(dialog.getByText('Filme: Im Voraus · Serien: Im Voraus')).toBeVisible();
+    const openSection = async () => {
+      await tabTo(page, section, 20);
+      await page.keyboard.press('Enter');
+      await expect(section).toHaveAttribute('aria-expanded', 'true');
+    };
+    await openSection();
     const movies = dialog.getByRole('radiogroup', { name: 'Filme' });
     const series = dialog.getByRole('radiogroup', { name: 'Serien' });
     // The estimate of getLibrary.
@@ -559,11 +581,19 @@ test('«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope
     await expect(keep).not.toBeChecked();
     await expect(dialog.getByText('Pro Film, nur während der Wiedergabe')).toBeVisible();
 
-    // Escape drops the change: nothing was saved, the focus is back on the button.
+    // «Jetzt erzeugen» works on the saved setting: disabled now, the reason beside it (Z-5).
+    await expect(dialog.getByRole('button', { name: 'Jetzt erzeugen' })).toBeDisabled();
+    await expect(dialog.getByText(/^Erst nach dem Speichern/)).toBeVisible();
+    // Escape asks before dropping the change; «Verwerfen» saves nothing, the focus is back.
     await page.keyboard.press('Escape');
+    const question = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' });
+    await expectFocusOn(page, question.getByRole('button', { name: 'Weiter bearbeiten' }));
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
     await expect(dialog).toBeHidden();
     await expectFocusOn(page, open);
     await page.keyboard.press('Enter');
+    await openSection();
     await expect(movies.getByRole('radio', { name: 'Im Voraus' })).toBeChecked();
 
     // Series: ↓↓ to «Beim Start alle Folgen», Tab to the scope, ↓↓ to «Nächste Folge», save.
@@ -582,9 +612,10 @@ test('«Vorschau beim Spulen» by keyboard: groups with arrows, Speichern, scope
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');
     await expect(dialog).toBeHidden();
+    // One band says what changed (concept 24 4.3).
     await expect(
-      page.getByText('Die Vorschau beim Spulen von Filme ist gespeichert.'),
-    ).toBeVisible();
+      page.getByText('Vorschau beim Spulen: Filme Im Voraus · Serien Beim Start alle Folgen'),
+    ).toHaveCount(2);
     await expect(
       foldOut(page, 'Filme').getByText(
         'Vorschau beim Spulen: Filme Im Voraus · Serien Beim Start alle Folgen',

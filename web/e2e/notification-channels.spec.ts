@@ -29,7 +29,7 @@ import {
 import { INTRO_SHOW_TITLE, itemIdByTitle } from './playback';
 import { SMTP_FROM } from './smtp-server.mjs';
 import { BOT_USERNAME, CHAT_ID } from './telegram-server.mjs';
-import { areaTab } from './admin';
+import { areaTab, openGroups } from './admin';
 
 // Notification channels (A-6, E-8 channel part) against the server and the mocks of
 // start-server.mjs: e-mail through the SMTP mock, Telegram through the bot API mock, Web Push
@@ -49,9 +49,11 @@ const card = (page: Page, name: 'E-Mail' | 'Web-Push' | 'Telegram') =>
 const pageTitle = (page: Page) =>
   page.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' });
 
+/** The page with every block opened: they start closed (concept 24, P-3). */
 async function openSettings(page: Page): Promise<void> {
   await page.goto('/settings/notifications');
   await expect(pageTitle(page)).toBeVisible();
+  await openGroups(page, card(page, 'E-Mail').getByRole('button', { name: 'E-Mail' }));
 }
 
 /** Switches the channel of `name` on and stores it with its events as they are. */
@@ -258,10 +260,21 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, f
   // Every account has this page: no administration shell, so it keeps today's density (S-1).
   expect(await page.evaluate(() => document.documentElement.dataset.shell ?? null)).toBeNull();
 
-  // E-mail block: Space switches, Tab reaches the address, the events and "Speichern".
+  // Every block starts closed and its band says what it holds (concept 24, P-3); Space on the
+  // band opens the e-mail block, the focus stays on the band.
   const mail = card(page, 'E-Mail');
+  const mailBand = mail.getByRole('button', { name: 'E-Mail' });
   const toggle = mail.getByRole('switch', { name: 'Aktiv' });
+  await expect(mailBand).toHaveAttribute('aria-expanded', 'false');
+  await expect(mail.getByText(OWNER.email)).toBeVisible();
+  await expect(toggle).toBeHidden();
   await resetFocus(page);
+  await tabTo(page, mailBand);
+  await page.keyboard.press('Space');
+  await expect(mailBand).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, mailBand);
+
+  // E-mail block: Space switches, Tab reaches the address, the events and "Speichern".
   await tabTo(page, toggle);
   await page.keyboard.press('Space');
   await expect(toggle).toBeChecked();
@@ -319,7 +332,11 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, f
   await expect(announcements).toBeChecked();
   await expect(mail.getByText('Ungespeicherte Änderungen')).toHaveCount(0);
 
-  // On through the other blocks to the end of the page.
+  // On through the other blocks to the end of the page; Enter opens the Telegram block.
+  const botBand = card(page, 'Telegram').getByRole('button', { name: 'Telegram' });
+  await tabTo(page, botBand, 60);
+  await page.keyboard.press('Enter');
+  await expect(botBand).toHaveAttribute('aria-expanded', 'true');
   await tabTo(page, card(page, 'Telegram').getByRole('button', { name: 'Verknüpfen' }), 60);
   await expectNoFocusTrap(page);
 
@@ -375,14 +392,17 @@ test('admin: the page stays in the administration, compact, with the link to the
   await page.goBack();
   await expect(pageTitle(page)).toBeVisible();
 
-  // A block folds by its band (Enter) and unfolds again; the page has no focus trap.
+  // A block starts closed (concept 24, P-3), unfolds by its band (Enter) and folds again; the
+  // page has no focus trap.
   const band = card(page, 'E-Mail').getByRole('button', { name: 'E-Mail' });
+  await expect(band).toHaveAttribute('aria-expanded', 'false');
   await resetFocus(page);
   await tabTo(page, band);
   await page.keyboard.press('Enter');
-  await expect(band).toHaveAttribute('aria-expanded', 'false');
-  await page.keyboard.press('Enter');
   await expect(band).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, band);
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'false');
   await expectNoFocusTrap(page);
 
   // The account page under /settings stays outside: app column, no link to the integrations.

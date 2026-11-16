@@ -8,7 +8,7 @@ import { sessionQuery, useActiveSession } from '@/app/session';
 import { intlLocale } from '@/i18n';
 import { FactList, Notice, Skeleton, Text } from '@/ui';
 import { CodeBlock, Switch } from '@/ui/aria';
-import { LanguageRanks } from '../admin/MetadataPage';
+import { LanguageRanks } from '../admin/metadata/languages';
 import {
   applyRadioOfferNow,
   metadataSettingsQuery,

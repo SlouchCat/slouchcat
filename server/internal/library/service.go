@@ -72,6 +72,9 @@ type Service struct {
 	// rootContentChanged is told when an administrator changed the content of a folder, which
 	// empties it like a removal does (optional, ADR 0015).
 	rootContentChanged func(ctx context.Context, libraryName, path, from, to string, items, files int64) error
+	// checkRootMetadata validates a folder's own text languages and images (metadata's
+	// ValidateRootMetadata, concept 24); nil checks only that they stand on a video folder.
+	checkRootMetadata func(model.RootMetadata) *model.ValidationError
 	// recheck ends open direct-play streams whose title became invisible after library.relink
 	// merged a copy (WithVisibilityRecheck; optional).
 	recheck func(ctx context.Context) error
@@ -177,6 +180,12 @@ type Option func(*Service)
 // (chapter_images.go); without it the chapter image jobs do nothing.
 func WithCacheDir(dir string) Option {
 	return func(s *Service) { s.cacheDir = dir }
+}
+
+// WithRootMetadataCheck sets the check of a folder's own text languages and images
+// (metadata.ValidateRootMetadata: known codes, no duplicates, known image kinds).
+func WithRootMetadataCheck(check func(model.RootMetadata) *model.ValidationError) Option {
+	return func(s *Service) { s.checkRootMetadata = check }
 }
 
 // WithClock replaces time.Now, for tests.
@@ -410,8 +419,9 @@ func nested(path, dir string) bool {
 }
 
 // refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library other
-// than the root except (0 for none: a folder that moves may overlap its own old path). path must
-// be absolute and cleaned.
+// than the roots in except (none: every root counts; a folder that moves may overlap its own old
+// path, and saveLibrary compares the folders of its own library itself). path must be absolute
+// and cleaned.
 //
 // It compares twice: once on the paths as they are written, and once on what
 // filepath.EvalSymlinks makes of them. The second pass matters because the first one compares
@@ -426,14 +436,19 @@ func nested(path, dir string) bool {
 // Unicode-folding share. Both need a stat of every stored root on every call; the folders of one
 // server are few and set by hand, and the damage is a double index, not an escape from the
 // browsable roots.
-func (s *Service) refuseOverlap(ctx context.Context, path string, except int64) error {
+func (s *Service) refuseOverlap(ctx context.Context, path string, except ...int64) error {
 	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
 	if err != nil {
 		return fmt.Errorf("list roots: %w", err)
 	}
+	return overlapping(roots, path, func(r appq.LibraryRoot) bool { return slices.Contains(except, r.ID) })
+}
+
+// overlapping is the comparison of refuseOverlap over roots, without those skip names.
+func overlapping(roots []appq.LibraryRoot, path string, skip func(appq.LibraryRoot) bool) error {
 	real := resolved(path)
 	for _, r := range roots {
-		if r.ID == except {
+		if skip(r) {
 			continue
 		}
 		old := filepath.Clean(r.Path)
@@ -632,6 +647,8 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	titles := map[string]bool{}        // the top-level titles that lost a file (rehome, ADR 0036)
+	titleOfItem := map[string]string{} // item id -> its top-level title, read once per chunk
 	for _, id := range ids {
 		mf, err := q.GetMediaFileSystem(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -646,6 +663,14 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		if err := q.DeleteMediaFile(ctx, id); err != nil {
 			return 0, 0, fmt.Errorf("delete media file %s: %w", id, err)
 		}
+		title, ok := titleOfItem[mf.ItemID]
+		if !ok {
+			if title, err = titleOf(ctx, q, mf.ItemID); err != nil {
+				return 0, 0, err
+			}
+			titleOfItem[mf.ItemID] = title
+		}
+		titles[title] = true
 		n, err := q.SoftDeleteItemWithoutFiles(ctx, systemq.SoftDeleteItemWithoutFilesParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: mf.ItemID})
 		if err != nil {
 			return 0, 0, fmt.Errorf("soft delete item %s: %w", mf.ItemID, err)
@@ -657,6 +682,11 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
 			return 0, 0, err
 		}
+	}
+	// A title that lost its last present file in its home folder moves to the folder of its
+	// oldest present file elsewhere, with that folder's list and a match.
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), slices.Sorted(maps.Keys(titles))); err != nil {
+		return 0, 0, err
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("store ignored files: %w", err)
@@ -909,8 +939,8 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	}
 	m := model.Library{
 		ID: l.ID, Name: l.Name, Kind: l.Kind, CreatedAt: time.UnixMilli(l.CreatedAt).UTC(),
-		DefaultRating: optRating(l.DefaultRating),
-		Roots:         make([]model.LibraryRoot, 0, len(roots)),
+		Revision: revision(l, roots), DefaultRating: optRating(l.DefaultRating),
+		Roots: make([]model.LibraryRoot, 0, len(roots)),
 		Scan: model.LibraryScan{
 			State:          l.LastScanState,
 			StartedAt:      timePtr(l.LastScanStartedAt),
@@ -937,10 +967,15 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		if err != nil {
 			return model.Library{}, fmt.Errorf("count content of root %d: %w", r.ID, err)
 		}
+		meta, err := model.ParseRootMetadata(r.TextLangs, r.Images)
+		if err != nil {
+			s.log.WarnContext(ctx, "folder metadata unreadable, shown like the default", "root_id", r.ID, "err", err)
+		}
 		m.Roots = append(m.Roots, model.LibraryRoot{
 			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
 			Content: r.Content, Providers: model.ParseProviders(r.Providers),
 			ItemCount: int(content.Items), FileCount: int(content.Files), ReadOnly: s.rootReadOnly(r.Path),
+			Metadata: meta, HomeTitleCount: int(content.HomeTitles),
 		})
 	}
 	return m, nil

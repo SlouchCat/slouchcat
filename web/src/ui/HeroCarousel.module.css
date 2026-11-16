@@ -17,17 +17,7 @@
   overflow: hidden;
   border-radius: var(--sc-radius-xl);
   isolation: isolate;
-}
-
-/* The frame's edge lies over the artwork, so the image fills the same box as the prepaint. */
-.stage::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  border: 1px solid var(--sc-color-border-subtle);
-  border-radius: inherit;
-  content: '';
-  pointer-events: none;
+  container-type: inline-size;
 }
 
 .art {
@@ -61,7 +51,13 @@
   opacity: 0.6;
 }
 
-/* Bottom and left scrims for the text; the frame keeps the artwork off the page around it. */
+/*
+ * Bottom and left scrims for the text. From a stage of 80rem the text block (at most 44rem) reaches
+ * half the stage's height and 55 % of its width; there both gradients are still at scrim.medium,
+ * so the text holds 4.5:1 over a white picture (concept 24 Z-6). On a narrower stage the block lies
+ * on a ground of its own (.content::before). The contrast test of the tokens reads these stops.
+ * The image itself has no frame (F-6).
+ */
 .scrim {
   position: absolute;
   inset: 0;
@@ -69,24 +65,58 @@
     linear-gradient(
       to top,
       var(--sc-color-scrim-strong) 0%,
-      var(--sc-color-scrim-medium) 30%,
-      var(--sc-color-scrim-clear) 60%
+      var(--sc-color-scrim-medium) 50%,
+      var(--sc-color-scrim-clear) 75%
     ),
     linear-gradient(
       to right,
       var(--sc-color-scrim-strong) 0%,
-      var(--sc-color-scrim-medium) 35%,
-      var(--sc-color-scrim-clear) 70%
+      var(--sc-color-scrim-medium) 55%,
+      var(--sc-color-scrim-clear) 85%
     );
 }
 
 .content {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-4);
   width: 100%;
   max-width: 44rem;
   padding: var(--sc-space-6);
+}
+
+/*
+ * Below a stage of 80rem the text block reaches past 55 % of the stage's width, where the left
+ * scrim fades out (phone, tablet, a window beside the side navigation): a ground of scrim.strong
+ * lies under the block (concept 24 Z-6), not under the stage. It reaches 14rem past the block's
+ * right edge and 12rem above its top and fades out there, to the right in its colour and upwards in
+ * its mask, each through medium and soft so that no edge shows; the rest of the image stays
+ * visible. Where the block spans the stage (phone, narrow tablet) the ground spans it too. A ground
+ * under the text, no frame around the image (F-6).
+ */
+@container (width < 80rem) {
+  .content::before {
+    position: absolute;
+    z-index: -1;
+    inset: -12rem -14rem 0 0;
+    background-image: linear-gradient(
+      to right,
+      var(--sc-color-scrim-strong) 0%,
+      var(--sc-color-scrim-strong) calc(100% - 14rem),
+      var(--sc-color-scrim-medium) calc(100% - 8.5rem),
+      var(--sc-color-scrim-soft) calc(100% - 4rem),
+      var(--sc-color-scrim-clear) 100%
+    );
+    content: '';
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--sc-color-scrim-soft) 3.5rem,
+      var(--sc-color-scrim-medium) 7rem,
+      var(--sc-color-bg-base) 12rem
+    );
+  }
 }
 
 /*

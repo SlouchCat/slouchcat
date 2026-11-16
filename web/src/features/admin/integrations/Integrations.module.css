@@ -153,7 +153,7 @@
   flex-direction: column;
   gap: var(--sc-space-3);
   padding: var(--sc-space-4);
-  border: 1px solid var(--sc-color-border);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
 }
@@ -185,7 +185,7 @@
   flex-direction: column;
   gap: var(--sc-space-3);
   padding-top: var(--sc-space-3);
-  border-top: 1px solid var(--sc-color-border);
+  border-top: 1px solid var(--sc-color-border-subtle);
 }
 
 /* The tiles of the services (admin redesign, mockup «Integrationen»): two columns while they
@@ -205,7 +205,7 @@
   gap: var(--sc-space-3);
   align-items: flex-start;
   padding: var(--sc-space-4);
-  border: 1px solid var(--sc-panel-border, var(--sc-color-border-subtle));
+  border: var(--sc-panel-border, 1px solid var(--sc-color-border-frame));
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-elevated);
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);

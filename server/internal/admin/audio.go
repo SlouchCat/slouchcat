@@ -71,35 +71,7 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 	if err != nil {
 		return model.Library{}, fmt.Errorf("get library: %w", err)
 	}
-	var verr *model.ValidationError
-	name := lib.Name
-	if upd.Name != nil {
-		name = strings.TrimSpace(*upd.Name)
-		switch {
-		case name == "":
-			verr = verr.Add("name", "required")
-		case utf8.RuneCountInString(name) > maxLibraryName:
-			verr = verr.Add("name", "too_long")
-		}
-	}
-	rating := lib.DefaultRating
-	if upd.DefaultRating != nil {
-		switch {
-		case !model.AudioLibraryKind(lib.Kind):
-			verr = verr.Add("defaultRating", "not_allowed")
-		case !validRating(s.ratingSystem(ctx), upd.DefaultRating, keptRating(lib.DefaultRating)...):
-			verr = verr.Add("defaultRating", "invalid_value")
-		default:
-			rating = sql.NullInt64{Int64: int64(*upd.DefaultRating), Valid: true}
-		}
-	}
-	if upd.Trickplay != nil {
-		if lib.Kind != model.LibraryVideo {
-			verr = verr.Add("trickplay", "not_allowed")
-		} else {
-			verr = upd.Trickplay.Validate(verr, "trickplay")
-		}
-	}
+	w, verr := s.checkLibraryUpdate(ctx, lib, upd)
 	if upd.PodcastDownloads != nil && lib.Kind != model.LibraryPodcasts {
 		verr = verr.Add("podcastDownloads", "not_allowed")
 	}
@@ -116,22 +88,9 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 		return model.Library{}, fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	now := s.now().UnixMilli()
-	if _, err := appq.New(tx).UpdateLibrarySettings(ctx, appq.UpdateLibrarySettingsParams{Name: name, DefaultRating: rating, Now: now, ID: id}); err != nil {
-		return model.Library{}, fmt.Errorf("update library: %w", err)
-	}
-	if upd.Trickplay != nil {
-		if err := library.SetLibraryTrickplay(ctx, appq.New(tx), id, *upd.Trickplay, now); err != nil {
-			return model.Library{}, err
-		}
-	}
-	var titles int64
-	if rating != lib.DefaultRating && rating.Valid {
-		if titles, err = systemq.New(tx).AdminApplyLibraryRating(ctx, systemq.AdminApplyLibraryRatingParams{
-			OwnRating: rating, Now: now, LibraryID: id,
-		}); err != nil {
-			return model.Library{}, fmt.Errorf("apply library rating: %w", err)
-		}
+	titles, err := s.writeLibraryUpdate(ctx, tx, lib, w)
+	if err != nil {
+		return model.Library{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("commit: %w", err)
@@ -143,9 +102,136 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 			return model.Library{}, err
 		}
 	}
-	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles,
+	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", w.rating != lib.DefaultRating, "titles_rerated", titles,
 		"trickplay_changed", upd.Trickplay != nil, "podcast_downloads_changed", upd.PodcastDownloads != nil)
 	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
+}
+
+// libraryWrite is a checked change of a library's own settings: the name, the default rating
+// and the trickplay setting (nil = unchanged).
+type libraryWrite struct {
+	name      string
+	rating    sql.NullInt64
+	trickplay *model.LibraryTrickplay
+}
+
+// checkLibraryUpdate checks name, default rating and trickplay of upd against the library (the
+// rules of updateLibrary and saveLibrary); the podcast setting is the caller's.
+func (s *Service) checkLibraryUpdate(ctx context.Context, lib appq.Library, upd model.LibraryUpdate) (libraryWrite, *model.ValidationError) {
+	var verr *model.ValidationError
+	w := libraryWrite{name: lib.Name, rating: lib.DefaultRating, trickplay: upd.Trickplay}
+	if upd.Name != nil {
+		w.name = strings.TrimSpace(*upd.Name)
+		switch {
+		case w.name == "":
+			verr = verr.Add("name", "required")
+		case utf8.RuneCountInString(w.name) > maxLibraryName:
+			verr = verr.Add("name", "too_long")
+		}
+	}
+	if upd.DefaultRating != nil {
+		switch {
+		case !model.AudioLibraryKind(lib.Kind):
+			verr = verr.Add("defaultRating", "not_allowed")
+		case !validRating(s.ratingSystem(ctx), upd.DefaultRating, keptRating(lib.DefaultRating)...):
+			verr = verr.Add("defaultRating", "invalid_value")
+		default:
+			w.rating = sql.NullInt64{Int64: int64(*upd.DefaultRating), Valid: true}
+		}
+	}
+	if upd.Trickplay != nil {
+		if lib.Kind != model.LibraryVideo {
+			verr = verr.Add("trickplay", "not_allowed")
+		} else {
+			verr = upd.Trickplay.Validate(verr, "trickplay")
+		}
+	}
+	return w, verr
+}
+
+// writeLibraryUpdate writes a checked change in tx: a new default reaches every title of the
+// library whose rating still comes from the library in the same transaction (AN-2). It returns the
+// number of titles rated anew. saveLibrary shares tx with its folder steps (concept 24 4.3).
+func (s *Service) writeLibraryUpdate(ctx context.Context, tx *sql.Tx, lib appq.Library, w libraryWrite) (int64, error) {
+	now := s.now().UnixMilli()
+	if _, err := appq.New(tx).UpdateLibrarySettings(ctx, appq.UpdateLibrarySettingsParams{Name: w.name, DefaultRating: w.rating, Now: now, ID: lib.ID}); err != nil {
+		return 0, fmt.Errorf("update library: %w", err)
+	}
+	if w.trickplay != nil {
+		if err := library.SetLibraryTrickplay(ctx, appq.New(tx), lib.ID, *w.trickplay, now); err != nil {
+			return 0, err
+		}
+	}
+	if w.rating == lib.DefaultRating || !w.rating.Valid {
+		return 0, nil
+	}
+	titles, err := systemq.New(tx).AdminApplyLibraryRating(ctx, systemq.AdminApplyLibraryRatingParams{
+		OwnRating: w.rating, Now: now, LibraryID: lib.ID,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("apply library rating: %w", err)
+	}
+	return titles, nil
+}
+
+// SaveLibrary saves the form «Bibliothek bearbeiten» in one go (saveLibrary, concept 24 4.3):
+// name, default rating and trickplay are checked here like updateLibrary and written by
+// writeLibraryUpdate inside the transaction package library opens for the folders; the folder
+// rules, the order, the revision, the typed paths and the scan lock live in package library.
+// Errors: model.ErrNotFound, *model.ValidationError (library fields first, then the folders),
+// model.ErrStale, model.ErrRootUnlisted, model.ErrScanRunning.
+func (s *Service) SaveLibrary(ctx context.Context, id int64, req model.LibrarySave) (model.LibrarySaved, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
+	lib, err := s.read.GetLibrary(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.LibrarySaved{}, model.ErrNotFound
+	}
+	if err != nil {
+		return model.LibrarySaved{}, fmt.Errorf("get library: %w", err)
+	}
+	name := req.Name
+	w, verr := s.checkLibraryUpdate(ctx, lib, model.LibraryUpdate{Name: &name, DefaultRating: req.DefaultRating, Trickplay: req.Trickplay})
+	if verr = validateSaveShapes(verr, req); verr != nil {
+		return model.LibrarySaved{}, verr
+	}
+	var titles int64
+	saved, err := s.libraries.Save(ctx, id, req, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		titles, err = s.writeLibraryUpdate(ctx, tx, lib, w)
+		return err
+	})
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	s.log.InfoContext(ctx, "library settings saved", "library_id", id, "default_rating_changed", w.rating != lib.DefaultRating,
+		"titles_rerated", titles, "trickplay_changed", req.Trickplay != nil)
+	// Everything is written: a failing count of the keyframe index only leaves it out of the
+	// answer, so the form does not report an error and retry with a revision that is gone.
+	libs := []model.Library{saved.Library}
+	if err := s.fillKeyframeIndex(ctx, libs); err != nil {
+		s.log.WarnContext(ctx, "keyframe index of a saved library not counted", "library_id", id, "err", err)
+	}
+	saved.Library = libs[0]
+	return saved, nil
+}
+
+// validateSaveShapes refuses what is not a folder of a saveLibrary request at all, with the
+// field names of createLibrary (roots[1].path) and removeRoots[0].confirmPath.
+func validateSaveShapes(verr *model.ValidationError, req model.LibrarySave) *model.ValidationError {
+	roots := make([]model.LibraryRootRequest, 0, len(req.Roots))
+	for i, r := range req.Roots {
+		roots = append(roots, r.LibraryRootRequest)
+		if len(r.ConfirmPath) > maxLibraryPath {
+			verr = verr.Add(fmt.Sprintf("roots[%d].confirmPath", i), "too_long")
+		}
+	}
+	verr = validateRootShapes(verr, "roots", roots)
+	for j, r := range req.Remove {
+		if len(r.ConfirmPath) > maxLibraryPath {
+			verr = verr.Add(fmt.Sprintf("removeRoots[%d].confirmPath", j), "too_long")
+		}
+	}
+	return verr
 }
 
 // checkRatingFloor rejects a manual rating below the default rating of the title's audio library

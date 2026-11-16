@@ -433,14 +433,15 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		feeds:         newFeedFetcher(o.feedHTTP, o.feedNow, o.feedAgent),
 	}
 	// The TMDB detail request of the record language asks for the images block in the languages
-	// of the image chains (ADR 0018); read per call, so a changed setting applies at once.
+	// of the image chains of the default and of every folder (ADR 0018, concept 24 3.3); read per
+	// call, so a changed setting applies at once.
 	svc.tmdb.imageLangs = func(ctx context.Context) []string {
-		st, err := svc.Settings(ctx)
+		langs, err := svc.imageLanguages(ctx)
 		if err != nil {
 			log.Warn("metadata settings for the image languages", "err", err)
 			return []string{}
 		}
-		return st.ImageLanguages()
+		return langs
 	}
 	svc.tmdb.includeAdult = func(ctx context.Context) bool {
 		st, err := svc.Settings(ctx)

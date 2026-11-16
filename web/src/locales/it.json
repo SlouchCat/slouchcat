@@ -228,7 +228,9 @@
       "files_not_deletable": "Un file del titolo non può essere eliminato. Non è stato eliminato nulla.",
       "not_deletable": "Questo titolo non può essere eliminato.",
       "deleting": "Eliminazione in corso.",
-      "changed": "Nel frattempo qualcosa è cambiato, controlla di nuovo."
+      "changed": "Nel frattempo qualcosa è cambiato, controlla di nuovo.",
+      "stale": "La libreria è stata modificata nel frattempo altrove. Ricaricala e salva di nuovo.",
+      "root_unlisted": "Nella richiesta manca una cartella della libreria. Ricarica la libreria; non è stato rimosso nulla."
     },
     "field": {
       "required": "Obbligatorio.",
@@ -251,6 +253,7 @@
       "root_overlap": "Questa cartella si sovrappone a un’altra cartella.",
       "path_with_content": "Un nuovo percorso non può essere combinato con un cambio di contenuto.",
       "root_files_missing": "Nel nuovo percorso non c’è nessuno dei file precedenti.",
+      "confirm_mismatch": "Il percorso non corrisponde a quello della cartella. Non è stato modificato nulla.",
       "content_not_allowed": "Questo contenuto non è adatto al tipo di libreria.",
       "providers_not_allowed": "Questo elenco di fonti di metadati non è consentito per questo contenuto.",
       "roots_required": "È necessaria almeno una cartella.",
@@ -566,9 +569,10 @@
       "submit_many": "Aggiungi libreria con {{count}} di cartelle",
       "submit_other": "Aggiungi libreria con {{count}} cartelle",
       "submitNone": "Aggiungi libreria senza cartelle",
-      "addSubmit_one": "Aggiungi la cartella",
-      "addSubmit_many": "Aggiungi {{count}} di cartelle",
-      "addSubmit_other": "Aggiungi {{count}} cartelle"
+      "marked": "Verrà rimossa al salvataggio. Poi confermerai con il percorso.",
+      "undo": "Annulla",
+      "undoLabel": "Annulla la rimozione della cartella {{number}}",
+      "removeStored": "Rimuovi cartella…"
     },
     "videoHint": "Le cartelle di questa libreria possono contenere film o serie TV, anche mescolati.",
     "page": {
@@ -632,7 +636,8 @@
     "notFound": {
       "title": "Libreria non trovata",
       "body": "Questa libreria non esiste oppure non ha titoli per questo profilo."
-    }
+    },
+    "kindFixed": "Il tipo resta fisso una volta creata la libreria."
   },
   "home": {
     "list": {
@@ -1884,11 +1889,8 @@
         "kind": "Tipo",
         "state": "Stato",
         "counts": "Titoli · file",
-        "folders": "Cartelle",
-        "metadata": "Metadati"
+        "folders": "Cartelle"
       },
-      "none": "–",
-      "noMetadata": "Nessun ambito dei metadati",
       "roots": "Cartelle",
       "fsType": "File system {{type}}",
       "watch": {
@@ -1954,25 +1956,11 @@
       "defaultRating": "Predefinita: {{rating}}",
       "noRoots": "Nessuna cartella: i titoli provengono dai feed sottoscritti.",
       "feedsOnly": "Titoli dai feed",
-      "changeRating": {
-        "action": "Cambia la classificazione predefinita",
-        "title": "Classificazione predefinita di {{name}}",
-        "description": "Tutti i titoli la cui classificazione deriva dalla libreria si adeguano subito. Le classificazioni impostate a mano restano.",
-        "submit": "Salva",
-        "saved": "La classificazione predefinita di {{name}} ora è {{rating}}."
-      },
       "folders": {
-        "title": "Cartelle di {{name}}",
-        "description": "Una libreria può avere più cartelle. La scansione e il monitoraggio recepiscono subito una nuova cartella.",
-        "none": "Questa libreria non ha cartelle. Non viene analizzato nulla finché non ne aggiungi una.",
         "content": "Titoli: {{items}} · file: {{files}}",
         "remove": {
-          "action": "Rimuovi",
-          "label": "Rimuovi la cartella {{path}}",
-          "title": "Rimuovere davvero questa cartella?",
           "inputLabel": "Digita il percorso per confermare",
           "mismatch": "Digita {{path}} esattamente così, poi il pulsante si attiva.",
-          "confirm": "Rimuovi la cartella",
           "lead_one": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titolo esce con essa da ogni elenco. Cosa significa:",
           "lead_many": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} di titoli escono con essa da ogni elenco. Cosa significa:",
           "lead_other": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titoli escono con essa da ogni elenco. Cosa significa:",
@@ -1984,52 +1972,28 @@
           "oneWay": "Se la cartella si trova fuori dalle cartelle consentite (SLOUCHCAT_BROWSE_ROOTS), non si può riaggiungere senza modificare la configurazione.",
           "last": "È l’ultima cartella: {{name}} resta, ma dopo non avrà più cartelle e non analizzerà nulla."
         },
-        "new": "Nuove cartelle",
         "change": {
-          "action": "Modifica",
-          "label": "Modifica la cartella {{path}}",
-          "title": "Modifica cartella",
-          "description": "Contenuto e fonti di metadati di {{path}}.",
-          "submit": "Salva",
           "identifier": "Cambia la fonte di riconoscimento: i testi di stagioni ed episodi vengono riassegnati da {{provider}}. Gli episodi restano, progressi e La mia lista restano associati a loro.",
           "fillers": "Cambiano solo le fonti di integrazione: i titoli vengono integrati di nuovo, non viene eliminato nulla.",
-          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e La mia lista restano associati ai vecchi titoli.",
-          "confirmTitle": "Cambiare davvero il contenuto?",
-          "confirm": "Cambia contenuto",
-          "saved": "La cartella {{path}} è stata modificata."
+          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e La mia lista restano associati ai vecchi titoli."
         },
         "move": {
-          "action": "Cambia percorso",
-          "label": "Cambia il percorso di {{path}}",
-          "title": "Cambiare percorso?",
-          "body": "Percorso precedente: {{old}} · Nuovo percorso: {{new}}. Titoli e dati degli utenti restano se i file si trovano lì con gli stessi nomi. Poi la cartella viene riletta.",
-          "confirm": "Cambia",
-          "saved": "Ora la cartella si trova in {{path}} e viene riletta."
+          "body": "Percorso precedente: {{old}} · Nuovo percorso: {{new}}. Titoli e dati degli utenti restano se i file si trovano lì con gli stessi nomi. Poi la cartella viene riletta."
         },
         "readOnly": "sola lettura",
         "writable": "scrivibile"
       },
-      "openFolders": "Cartelle",
-      "openFoldersLabel": "Modifica le cartelle di {{name}}",
       "rootCount_one": "{{count}} cartella",
       "rootCount_many": "{{count}} di cartelle",
       "rootCount_other": "{{count}} cartelle",
-      "noFolder": "Nessuna cartella: non viene analizzato nulla finché non ne aggiungi una in «Cartelle».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} di {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "come il server",
-        "texts": "lingue diverse",
-        "images": "immagini diverse",
-        "both": "lingue e immagini diverse",
-        "link": "Metadati della libreria",
         "audiobooksLink": "Fonti per gli audiolibri"
       },
       "trickplay": {
         "action": "Miniature di anteprima",
-        "actionLabel": "Miniature di anteprima di {{name}}",
-        "title": "Miniature di anteprima: {{name}}",
         "description": "Piccole immagini sopra la barra di avanzamento, una ogni 10 secondi. Film e serie TV si impostano separatamente, anche in una libreria mista.",
         "movies": "Film",
         "series": "Serie TV",
@@ -2091,12 +2055,12 @@
         "generate": {
           "action": "Genera ora",
           "hint": "Recupera le anteprime mancanti di tutte le librerie impostate su «In anticipo», come «Recupera le miniature di anteprima» in «Attività in background».",
-          "queued": "Il recupero delle anteprime è in coda."
+          "queued": "Il recupero delle anteprime è in coda.",
+          "unsaved": "Solo dopo il salvataggio: la generazione usa l’impostazione salvata."
         },
-        "submit": "Salva",
-        "saved": "Le miniature di anteprima di {{name}} sono state salvate.",
         "summary": "Miniature di anteprima: film {{movies}} · serie TV {{series}}",
-        "summaryNoKeep": "All’avvio, senza conservare"
+        "summaryNoKeep": "All’avvio, senza conservare",
+        "header": "Film: {{movies}} · serie TV: {{series}}"
       },
       "delete": {
         "action": "Elimina libreria…",
@@ -2115,11 +2079,58 @@
         "done": "Libreria «{{name}}» eliminata.",
         "notDone": "La libreria «{{name}}» non è stata eliminata. Il motivo è indicato nell’attività."
       },
-      "rename": {
-        "action": "Rinomina…",
-        "title": "Rinomina la libreria «{{name}}»",
-        "label": "Nome",
-        "saved": "Ora la libreria si chiama «{{name}}»."
+      "form": {
+        "editTitle": "Modifica libreria",
+        "changed": "modificato",
+        "pathAndContent": "Il percorso e il contenuto di questa cartella non si possono cambiare in un solo passaggio. Salva prima uno, poi l’altro.",
+        "pathHint": "Il nuovo percorso vale dopo il salvataggio. I titoli e i dati dei profili restano se i file si trovano lì con gli stessi nomi.",
+        "reloaded": "La libreria è stata modificata nel frattempo altrove. Il modulo mostra ora il suo nuovo stato; le tue modifiche non sono state salvate.",
+        "changedElsewhere": "La libreria è stata modificata nel frattempo altrove. Al salvataggio il modulo carica il suo nuovo stato; le tue modifiche non vengono salvate.",
+        "gone": "Questa libreria non esiste più. Non è stato salvato nulla.",
+        "scanRunning": "Per rimuovere una cartella o cambiarne il contenuto o il percorso bisogna attendere la fine della scansione. Quello che hai inserito resta.",
+        "scanCancelled": "La scansione è stata annullata. Salva di nuovo.",
+        "discard": {
+          "title": "Scartare le modifiche?",
+          "body": "Le modifiche non salvate della libreria {{name}} andranno perse.",
+          "confirm": "Scarta",
+          "keep": "Continua a modificare"
+        },
+        "confirm": {
+          "title": "Conferma le modifiche",
+          "intro": "Queste modifiche hanno effetto solo quando salvi qui.",
+          "remove": "Rimuovi cartella: {{path}}",
+          "content": "Cambia contenuto: {{path}}",
+          "path": "Cambia percorso: {{path}}",
+          "typeAll": "Potrai salvare quando ogni percorso sarà scritto esattamente.",
+          "submit": "Salva"
+        }
+      },
+      "edit": "Modifica",
+      "editLabel": "Modifica {{name}}",
+      "noFolderEdit": "Nessuna cartella: non viene scansionato nulla finché non ne aggiungi una in «Modifica».",
+      "saved": {
+        "title": "La libreria {{name}} è stata salvata.",
+        "name": "Nuovo nome: {{name}}",
+        "rating": "Classificazione predefinita: {{rating}}",
+        "added_one": "{{count}} cartella aggiunta; la scansione è in coda.",
+        "added_many": "{{count}} di cartelle aggiunte; la scansione è in coda.",
+        "added_other": "{{count}} cartelle aggiunte; la scansione è in coda.",
+        "removed_one": "{{count}} cartella rimossa.",
+        "removed_many": "{{count}} di cartelle rimosse.",
+        "removed_other": "{{count}} cartelle rimosse.",
+        "content_one": "{{count}} cartella con un altro contenuto viene riletta.",
+        "content_many": "{{count}} di cartelle con un altro contenuto vengono rilette.",
+        "content_other": "{{count}} cartelle con un altro contenuto vengono rilette.",
+        "moved_one": "{{count}} cartella con un nuovo percorso viene riletta.",
+        "moved_many": "{{count}} di cartelle con un nuovo percorso vengono rilette.",
+        "moved_other": "{{count}} cartelle con un nuovo percorso vengono rilette.",
+        "providers_one": "Nuove fonti per {{count}} cartella: i suoi titoli vengono riassociati o completati.",
+        "providers_many": "Nuove fonti per {{count}} di cartelle: i loro titoli vengono riassociati o completati.",
+        "providers_other": "Nuove fonti per {{count}} cartelle: i loro titoli vengono riassociati o completati.",
+        "metadata_one": "Lingue o immagini modificate per {{count}} cartella. Valgono per {{titles}} titoli non appena le applichi.",
+        "metadata_many": "Lingue o immagini modificate per {{count}} di cartelle. Valgono per {{titles}} titoli non appena le applichi.",
+        "metadata_other": "Lingue o immagini modificate per {{count}} cartelle. Valgono per {{titles}} titoli non appena le applichi.",
+        "dismiss": "Nascondi"
       }
     },
     "access": {
@@ -2395,7 +2406,9 @@
         "children": "Contenuto",
         "childCounts": "Stagioni: {{seasons}} · Episodi: {{episodes}} · Extra: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Cartella di origine",
+        "homeRootNone": "Nessuna, valgono le impostazioni predefinite"
       },
       "sources": {
         "title": "Origine per campo",
@@ -5019,7 +5032,6 @@
     },
     "metadata": {
       "title": "Metadati",
-      "intro": "Quali lingue forniscono le fonti di metadati, quali immagini in quale lingua e qualità e quale paese decide per primo la classificazione per età. L’impostazione predefinita vale per ogni libreria; una libreria può discostarsene per lingue e immagini.",
       "links": {
         "roots": "L’ordine delle fonti si imposta per cartella in Librerie.",
         "jobs": "Le pianificazioni si trovano in Attività in background.",
@@ -5031,9 +5043,6 @@
         "open": "Apri le fonti"
       },
       "areas": {
-        "label": "Aree",
-        "changed": "Modificato · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Locandina {{poster}}, sfondo {{backdrop}}",
         "sources": {
           "local": "File locali",
@@ -5041,20 +5050,17 @@
           "tmdbAdult": "TMDB con contenuti per adulti",
           "none": "Solo le fonti delle cartelle"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} cartella video segue le impostazioni predefinite",
+        "foldersFollow_many": "{{count}} di cartelle video seguono le impostazioni predefinite",
+        "foldersFollow_other": "{{count}} cartelle video seguono le impostazioni predefinite",
+        "foldersOwn_one": "{{count}} con impostazioni proprie",
+        "foldersOwn_many": "{{count}} con impostazioni proprie",
+        "foldersOwn_other": "{{count}} con impostazioni proprie"
       },
-      "scope": {
-        "label": "Si applica a",
-        "server": "Predefinita",
-        "serverHint": "Vale per ogni libreria senza una deroga propria.",
-        "libraryHint": "{{name}} usa l’impostazione predefinita. Attiva «in deroga» per modificare lingue o immagini solo per questa libreria.",
-        "deviates": "in deroga",
-        "textsDeviate": "Lingue in deroga",
-        "imagesDeviate": "Immagini in deroga",
-        "likeServer": "come il server",
-        "changed": "{{name}} (modificata)",
-        "serverDirty": "L’impostazione predefinita ha modifiche non salvate; qui si vede lo stato salvato."
-      },
+      "default": "Predefinita",
       "languages": {
         "title": "Lingue",
         "intro": "Ogni lingua di questo elenco viene recuperata per ogni titolo; i profili scelgono tra queste la lingua delle proprie descrizioni. La lingua dell’interfaccia la sceglie ogni profilo per conto proprio. Ogni lingua in più costa una richiesta per titolo e stagione.",
@@ -5128,7 +5134,6 @@
         }
       },
       "apply": {
-        "title": "Applica ai titoli esistenti",
         "short": "Applica",
         "intro": "I nuovi titoli usano subito le impostazioni. I titoli esistenti restano come sono finché non avvii l’esecuzione; compare in Attività in background con avanzamento, pausa e annullamento.",
         "what": "Cosa",
@@ -5136,7 +5141,8 @@
         "texts": "Solo testi",
         "images": "Solo immagini",
         "where": "Dove",
-        "all": "Tutte le librerie",
+        "all": "Tutte le cartelle",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} titolo",
         "titles_many": "{{count}} di titoli",
         "titles_other": "{{count}} titoli",
@@ -5165,6 +5171,29 @@
         "chain_duplicate": "Ogni lingua una sola volta.",
         "country_unknown": "Paese sconosciuto.",
         "source_unknown": "Questa fonte di immagini non è una candidata del titolo."
+      },
+      "introDefault": "Vale per ogni cartella senza impostazioni proprie. Le lingue e le immagini proprie di una cartella si impostano nella sua libreria, in «Modifica».",
+      "changed": "modificato",
+      "folders": {
+        "title": "Cartelle",
+        "intro": "Ogni cartella video segue le impostazioni predefinite finché non ha lingue o immagini proprie. Le imposti nella sua libreria, in «Modifica».",
+        "empty": "Ancora nessuna cartella video.",
+        "audio": "Le cartelle di audiolibri e podcast non hanno lingue né immagini proprie. Le fonti per gli audiolibri si trovano in «Audiolibri: fonti».",
+        "openLabel": "Modifica {{name}}, cartella {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Lingue: predefinite",
+        "langsOwn": "Lingue: {{chain}}",
+        "imagesDefault": "Immagini: predefinite",
+        "imagesOwn": "Immagini: proprie",
+        "likeDefault": "Predefinite",
+        "own": "Proprie",
+        "defaultIs": "Predefinito: {{value}}",
+        "imagesDefaultIs": "Predefinito: {{kinds}}. Lingua per tipo di immagine: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Vale solo per questa cartella.",
+        "cost": "Ogni lingua in più costa una richiesta per titolo e stagione di questa cartella al momento dell’applicazione.",
+        "always": "Slouchcat scarica sempre locandina e sfondo."
       }
     },
     "activity": {
@@ -5206,7 +5235,7 @@
       "intro": "Da dove Slouchcat prende dettagli e copertine degli audiolibri. I file hanno sempre la precedenza; un fornitore integra solo ciò che manca e mai un campo bloccato.",
       "folders": {
         "title": "Ordine per cartella",
-        "intro": "La fonte più in alto prevale per ogni campo. L’ordine e le fonti che partecipano si modificano nella finestra della cartella.",
+        "intro": "La fonte in alto prevale per ogni campo. L’ordine e le fonti che partecipano si cambiano nella libreria, in «Modifica».",
         "empty": "Non c’è ancora alcuna cartella di audiolibri.",
         "edit": "Modifica le fonti",
         "editLabel": "Modifica le fonti di {{path}}",

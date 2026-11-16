@@ -30,8 +30,37 @@ type preparedRoot struct {
 	path      string
 	content   string
 	providers []string
+	meta      model.RootMetadata
 	fsType    string
 	watch     string
+}
+
+// checkMetadata checks a folder's own text languages and images (concept 24 3.1): only a video
+// folder has them (not_allowed), and with WithRootMetadataCheck their codes and kinds. Field names
+// carry prefix ("roots[0]." or "").
+func (s *Service) checkMetadata(content string, m model.RootMetadata, prefix string) []model.FieldError {
+	if m.TextLangs == nil && m.Images == nil {
+		return nil
+	}
+	var out []model.FieldError
+	if content != model.RootMovie && content != model.RootSeries {
+		if m.TextLangs != nil {
+			out = append(out, model.FieldError{Field: prefix + "textLangs", Code: "not_allowed"})
+		}
+		if m.Images != nil {
+			out = append(out, model.FieldError{Field: prefix + "images", Code: "not_allowed"})
+		}
+		return out
+	}
+	if s.checkRootMetadata == nil {
+		return nil
+	}
+	if found := s.checkRootMetadata(m); found != nil {
+		for _, f := range found.Fields {
+			out = append(out, model.FieldError{Field: prefix + f.Field, Code: f.Code})
+		}
+	}
+	return out
 }
 
 // prepareRoots applies the rules to the folders of a request for a library of family kind.
@@ -42,42 +71,15 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 	out := make([]preparedRoot, 0, len(reqs))
 	seen := make([]string, 0, len(reqs))
 	for i, r := range reqs {
-		name := fmt.Sprintf("%s[%d].", field, i)
-		ok := true
-		switch {
-		case !model.ValidRootContent(r.Content):
-			verr = verr.Add(name+"content", "invalid_value")
-			ok = false
-		case !model.ContentAllowed(kind, r.Content):
-			verr = verr.Add(name+"content", model.CodeContentNotAllowed)
-			ok = false
-		}
-		if !model.ValidRootProviders(r.Content, r.Providers) {
-			verr = verr.Add(name+"providers", model.CodeProvidersNotAllowed)
-			ok = false
-		}
-		clean, err := s.prepareRootPath(ctx, r.Path, seen, 0)
-		switch {
-		case errors.Is(err, errRootOverlap):
-			verr = verr.Add(name+"path", model.CodeRootOverlap)
-			ok = false
-		case errors.Is(err, model.ErrLibraryPathInvalid):
-			verr = verr.Add(name+"path", "library_path_invalid")
-			ok = false
-		case err != nil:
+		p, ok, err := s.prepareRoot(ctx, kind, r, fmt.Sprintf("%s[%d].", field, i), &verr, seen)
+		if err != nil {
 			return nil, err
 		}
 		if !ok {
 			continue
 		}
-		seen = append(seen, clean)
-		fsType, err := paths.DetectFS(clean)
-		if err != nil {
-			verr = verr.Add(name+"path", "library_path_invalid")
-			continue
-		}
-		watch, _ := WatchMode(string(fsType))
-		out = append(out, preparedRoot{path: clean, content: r.Content, providers: r.Providers, fsType: string(fsType), watch: watch})
+		seen = append(seen, p.path)
+		out = append(out, p)
 	}
 	if verr != nil {
 		return nil, verr
@@ -85,10 +87,53 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 	return out, nil
 }
 
+// prepareRoot applies the rules to one new folder. Its field errors go to verr with the prefix
+// name ("roots[2]."); ok is false when it broke a rule. earlier and except are those of
+// prepareRootPath.
+func (s *Service) prepareRoot(ctx context.Context, kind string, r model.LibraryRootRequest, name string, verr **model.ValidationError, earlier []string, except ...int64) (preparedRoot, bool, error) {
+	ok := true
+	add := func(field, code string) {
+		*verr = (*verr).Add(name+field, code)
+		ok = false
+	}
+	switch {
+	case !model.ValidRootContent(r.Content):
+		add("content", "invalid_value")
+	case !model.ContentAllowed(kind, r.Content):
+		add("content", model.CodeContentNotAllowed)
+	}
+	if !model.ValidRootProviders(r.Content, r.Providers) {
+		add("providers", model.CodeProvidersNotAllowed)
+	}
+	for _, f := range s.checkMetadata(r.Content, r.Metadata, name) {
+		*verr = (*verr).Add(f.Field, f.Code)
+		ok = false
+	}
+	clean, err := s.prepareRootPath(ctx, r.Path, earlier, except...)
+	switch {
+	case errors.Is(err, errRootOverlap):
+		add("path", model.CodeRootOverlap)
+	case errors.Is(err, model.ErrLibraryPathInvalid):
+		add("path", "library_path_invalid")
+	case err != nil:
+		return preparedRoot{}, false, err
+	}
+	if !ok {
+		return preparedRoot{}, false, nil
+	}
+	fsType, err := paths.DetectFS(clean)
+	if err != nil {
+		add("path", "library_path_invalid")
+		return preparedRoot{}, false, nil
+	}
+	watch, _ := WatchMode(string(fsType))
+	return preparedRoot{path: clean, content: r.Content, providers: r.Providers, meta: r.Metadata, fsType: string(fsType), watch: watch}, true, nil
+}
+
 // prepareRootPath validates one folder path (ValidateNewRoot) and refuses it when it overlaps a
-// stored root other than except (refuseOverlap; 0 for none) or one of the folders of the same
+// stored root other than those in except (refuseOverlap) or one of the folders of the same
 // request (earlier). It returns the cleaned path.
-func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []string, except int64) (string, error) {
+func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []string, except ...int64) (string, error) {
 	path = strings.TrimSpace(path)
 	if err := s.ValidateNewRoot(ctx, path); err != nil {
 		return "", err
@@ -101,7 +146,7 @@ func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []st
 			return "", errRootOverlap
 		}
 	}
-	if err := s.refuseOverlap(ctx, clean, except); err != nil {
+	if err := s.refuseOverlap(ctx, clean, except...); err != nil {
 		return "", err
 	}
 	return clean, nil
@@ -117,8 +162,9 @@ func (s *Service) ValidateRoots(ctx context.Context, kind string, reqs []model.L
 
 // insertRoot writes one prepared folder.
 func insertRoot(ctx context.Context, q *appq.Queries, libraryID int64, r preparedRoot, now int64) (appq.LibraryRoot, error) {
+	textLangs, images := model.RootMetadataColumns(r.meta)
 	return q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{
 		LibraryID: libraryID, Path: r.path, FsType: r.fsType, Watch: r.watch,
-		Content: r.content, Providers: model.ProvidersJSON(r.providers), Now: now,
+		Content: r.content, Providers: model.ProvidersJSON(r.providers), TextLangs: textLangs, Images: images, Now: now,
 	})
 }

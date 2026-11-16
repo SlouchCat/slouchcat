@@ -245,7 +245,8 @@ func (w *batchWriter) findOrCreatePodcast(ctx context.Context, folder string, m 
 	if _, err := w.q.PodcastInsertFromFolder(ctx, systemq.PodcastInsertFromFolderParams{
 		ID: id, LibraryID: w.lib.ID, Title: m.title, SortTitle: SortTitle(m.title), Author: nullString(m.author), Genres: genres,
 		Explicit: boolInt(m.explicit), CoverPath: nullString(m.cover), FeedUrl: nullString(feedURL), FeedOrigin: origin,
-		FeedError: nullString(refused), OwnRating: rating, RatingSource: source, Now: sql.NullInt64{Int64: w.ms, Valid: true},
+		FeedError: nullString(refused), OwnRating: rating, RatingSource: source, RootID: sql.NullInt64{Int64: w.root.ID, Valid: true},
+		Now: sql.NullInt64{Int64: w.ms, Valid: true},
 	}); err != nil {
 		return "", fmt.Errorf("insert podcast: %w", err)
 	}

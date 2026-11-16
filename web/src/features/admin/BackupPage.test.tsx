@@ -4,6 +4,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { openFolded } from '@/test/fold';
 import { reloadToLogin } from './restart';
 
 // A-4 (concept 12, variant C): the backups per kind with download, restore and delete in the
@@ -92,18 +93,21 @@ describe('admin backup (A-4)', () => {
   it('lists the backups per kind with keys, encryption and a download link each (SIC-3)', async () => {
     mockApi(routes(() => [plain, secret, auto]));
     renderApp('/admin/backup');
+    const user = userEvent.setup();
     expect(await screen.findByRole('heading', { level: 1, name: 'Sicherung' })).toBeVisible();
     expect(await screen.findByRole('tab', { selected: true })).toHaveAccessibleName(
       'Sicherungen 3 Sicherungen',
     );
     // One section per kind: «Manuell» with the encrypted count, «Automatisch» with the sentence
-    // on when the server makes them.
+    // on when the server makes them. Both start closed (concept 24, P-3).
     expect(screen.getByRole('button', { name: 'Manuell 2 Sicherungen' })).toHaveAttribute(
       'aria-expanded',
-      'true',
+      'false',
     );
     expect(screen.getByText(/^1 verschlüsselt · neueste/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Automatisch 1 Sicherung' })).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    await openFolded(user);
     expect(
       screen.getByText(
         'Automatische Sicherungen legt der Server vor einer Migration der Datenbank (bei einem Update) und vor einer Wiederherstellung an.',
@@ -140,19 +144,22 @@ describe('admin backup (A-4)', () => {
     expect(download).toHaveAttribute('download', plain.name);
   });
 
-  it('folds a kind away by its heading; empty, the list says so', async () => {
+  it('a kind starts closed and opens by its heading; empty, the list says so', async () => {
     let list = [plain, auto];
     mockApi(routes(() => list));
     const { queryClient } = renderApp('/admin/backup');
     const user = userEvent.setup();
     const manual = await screen.findByRole('button', { name: 'Manuell 1 Sicherung' });
+    expect(manual).toHaveAttribute('aria-expanded', 'false');
     manual.focus();
     await user.keyboard('{Enter}');
+    expect(manual).toHaveAttribute('aria-expanded', 'true');
+    expect(manual).toHaveFocus();
+    expect(screen.getByRole('table', { name: 'Sicherungen: Manuell' })).toBeVisible();
+    expect(screen.queryByRole('table', { name: 'Sicherungen: Automatisch' })).toBeNull();
+    await user.keyboard(' ');
     expect(manual).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('table', { name: 'Sicherungen: Manuell' })).toBeNull();
-    expect(screen.getByRole('table', { name: 'Sicherungen: Automatisch' })).toBeVisible();
-    await user.keyboard(' ');
-    expect(manual).toHaveAttribute('aria-expanded', 'true');
 
     list = [];
     await act(() => queryClient.invalidateQueries({ queryKey: ['admin', 'backups'] }));
@@ -265,6 +272,8 @@ describe('admin backup (A-4)', () => {
     renderApp('/admin/backup');
     const user = userEvent.setup();
     // A refused restore first: its notice goes away with the next outcome.
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, plain.name, 'Wiederherstellen …');
     const confirm = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
@@ -292,6 +301,8 @@ describe('admin backup (A-4)', () => {
     const { calls } = mockApi(routes(() => [plain]));
     renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     const more = within(rowOf(plain.name)).getByRole('button', {
       name: `Weitere Aktionen für ${plain.name}`,
@@ -328,6 +339,8 @@ describe('admin backup (A-4)', () => {
     );
     renderApp('/admin/backup');
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, plain.name, 'Wiederherstellen …');
     const dialog = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
@@ -385,6 +398,8 @@ describe('admin backup (A-4)', () => {
     );
     renderApp('/admin/backup');
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, plain.name, 'Wiederherstellen …');
     const dialog = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
@@ -420,6 +435,8 @@ describe('admin backup (A-4)', () => {
     );
     const { queryClient } = renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, secret.name, 'Wiederherstellen …');
     const dialog = await screen.findByRole('dialog', { name: `„${secret.name}“ wiederherstellen` });
@@ -471,6 +488,8 @@ describe('admin backup (A-4)', () => {
     const { calls } = mockApi(routes(() => [secret]));
     renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, secret.name, 'Wiederherstellen …');
     const dialog = await screen.findByRole('dialog', { name: `„${secret.name}“ wiederherstellen` });
@@ -587,6 +606,8 @@ describe('admin backup (A-4)', () => {
     );
     renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, plain.name, 'Wiederherstellen …');
     const confirm = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
@@ -613,6 +634,8 @@ describe('admin backup (A-4)', () => {
     mockApi(routes(() => [plain]));
     const { router } = renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(/^Sicherungen/);
     const action = screen.getByRole('button', { name: 'Neue Sicherung' });
@@ -635,6 +658,8 @@ describe('admin backup (A-4)', () => {
     );
     renderApp('/admin/backup');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
     await pick(user, plain.name, 'Löschen …');
     await user.click(
@@ -679,6 +704,8 @@ describe('admin backup (A-4)', () => {
     const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
     fail = false;
     await user.click(retry);
+    await screen.findByRole('button', { name: /^Manuell / });
+    await openFolded(user);
     expect(await screen.findByRole('table', { name: 'Sicherungen: Manuell' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument();
   });

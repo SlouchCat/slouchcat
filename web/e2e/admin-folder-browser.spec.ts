@@ -156,6 +156,7 @@ test('a folder already in the field opens the dialog in that folder', async ({ p
 test('Escape closes without a change and returns the focus to the button', async ({ page }) => {
   await openForm(page);
   await page.keyboard.press('Tab'); // Video
+  await page.keyboard.press('Tab'); // the head of the folder card (concept 24 4.2)
   await page.keyboard.press('Tab');
   await expectFocusOn(page, folder(page));
   await page.keyboard.type('/unveraendert');

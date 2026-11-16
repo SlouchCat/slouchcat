@@ -376,6 +376,10 @@ func TestPodcastDownloadCreatesTheFolder(t *testing.T) {
 	if n := f.e.count(`SELECT count(*) FROM podcast_settings WHERE item_id = ? AND (pending_folder IS NOT NULL OR pending_root_id IS NOT NULL)`, neu); n != 0 {
 		t.Errorf("pending folder kept after the first file")
 	}
+	// The first file gives the subscription its home folder (ADR 0036), its episode too.
+	if n := f.e.count(`SELECT count(*) FROM items WHERE (id = ? OR parent_id = ?) AND root_id = ?`, neu, neu, f.root.ID); n != 2 {
+		t.Errorf("podcast and episode in the folder after the first file = %d rows, want 2", n)
+	}
 	f.e.scan(f.lib.ID)
 	if n := f.e.count(`SELECT count(*) FROM items WHERE kind = 'podcast' AND deleted_at IS NULL`); n != 2 {
 		t.Errorf("live podcasts after the scan = %d, want the two subscriptions", n)

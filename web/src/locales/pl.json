@@ -232,7 +232,9 @@
       "files_not_deletable": "Nie można usunąć pliku tego tytułu. Nic nie usunięto.",
       "not_deletable": "Tego tytułu nie można usunąć.",
       "deleting": "Trwa usuwanie.",
-      "changed": "W międzyczasie coś się zmieniło, sprawdź ponownie."
+      "changed": "W międzyczasie coś się zmieniło, sprawdź ponownie.",
+      "stale": "Biblioteka została w międzyczasie zmieniona w innym miejscu. Wczytaj ją ponownie i zapisz jeszcze raz.",
+      "root_unlisted": "W żądaniu brakuje folderu biblioteki. Wczytaj bibliotekę ponownie; nic nie zostało usunięte."
     },
     "field": {
       "required": "Wymagane.",
@@ -255,6 +257,7 @@
       "root_overlap": "Ten folder nakłada się na inny folder.",
       "path_with_content": "Nowej ścieżki nie można łączyć ze zmianą zawartości.",
       "root_files_missing": "Pod nową ścieżką nie ma żadnego z dotychczasowych plików folderu.",
+      "confirm_mismatch": "Ścieżka nie zgadza się ze ścieżką folderu. Nic nie zostało zmienione.",
       "content_not_allowed": "Ta zawartość nie pasuje do typu biblioteki.",
       "providers_not_allowed": "Ta lista źródeł metadanych nie jest dozwolona dla tej zawartości.",
       "roots_required": "Wymagany jest co najmniej jeden folder.",
@@ -579,10 +582,10 @@
       "submit_many": "Dodaj bibliotekę z {{count}} folderami",
       "submit_other": "Dodaj bibliotekę z {{count}} folderami",
       "submitNone": "Dodaj bibliotekę bez folderów",
-      "addSubmit_one": "Dodaj jeden folder",
-      "addSubmit_few": "Dodaj {{count}} foldery",
-      "addSubmit_many": "Dodaj {{count}} folderów",
-      "addSubmit_other": "Dodaj {{count}} folderu"
+      "marked": "Zostanie usunięty przy zapisie. Potwierdzisz to wtedy ścieżką.",
+      "undo": "Cofnij",
+      "undoLabel": "Cofnij usunięcie folderu {{number}}",
+      "removeStored": "Usuń folder…"
     },
     "videoHint": "Foldery tej biblioteki mogą zawierać filmy lub seriale, także wymieszane.",
     "page": {
@@ -650,7 +653,8 @@
     "notFound": {
       "title": "Nie znaleziono biblioteki",
       "body": "Ta biblioteka nie istnieje lub nie ma tytułów dla tego profilu."
-    }
+    },
+    "kindFixed": "Rodzaj jest ustalony po utworzeniu biblioteki."
   },
   "home": {
     "list": {
@@ -1937,11 +1941,8 @@
         "kind": "Rodzaj",
         "state": "Stan",
         "counts": "Tytuły · pliki",
-        "folders": "Foldery",
-        "metadata": "Metadane"
+        "folders": "Foldery"
       },
-      "none": "–",
-      "noMetadata": "Brak zakresu metadanych",
       "roots": "Foldery",
       "fsType": "System plików {{type}}",
       "watch": {
@@ -2007,25 +2008,11 @@
       "defaultRating": "Domyślnie: {{rating}}",
       "noRoots": "Brak folderu: tytuły pochodzą z subskrybowanych kanałów RSS.",
       "feedsOnly": "Tytuły z kanałów RSS",
-      "changeRating": {
-        "action": "Zmień domyślną kategorię",
-        "title": "Domyślna kategoria biblioteki {{name}}",
-        "description": "Wszystkie tytuły, których kategoria pochodzi z biblioteki, zmienią się od razu. Kategorie ustawione ręcznie pozostają.",
-        "submit": "Zapisz",
-        "saved": "Domyślna kategoria biblioteki {{name}} to teraz {{rating}}."
-      },
       "folders": {
-        "title": "Foldery biblioteki {{name}}",
-        "description": "Biblioteka może mieć kilka folderów. Skanowanie i obserwator od razu uwzględniają nowy folder.",
-        "none": "Ta biblioteka nie ma folderu. Nic nie jest skanowane, dopóki go nie dodasz.",
         "content": "Tytuły: {{items}} · pliki: {{files}}",
         "remove": {
-          "action": "Usuń",
-          "label": "Usuń folder {{path}}",
-          "title": "Na pewno usunąć ten folder?",
           "inputLabel": "Wpisz ścieżkę, aby potwierdzić",
           "mismatch": "Wpisz dokładnie {{path}}, wtedy przycisk stanie się aktywny.",
-          "confirm": "Usuń folder",
           "lead_one": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułu. Co to oznacza:",
           "lead_few": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułów. Co to oznacza:",
           "lead_many": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułów. Co to oznacza:",
@@ -2038,54 +2025,30 @@
           "oneWay": "Jeśli folder leży poza udostępnionymi folderami (SLOUCHCAT_BROWSE_ROOTS), nie można go dodać ponownie bez zmiany konfiguracji.",
           "last": "To ostatni folder: {{name}} pozostaje, ale potem nie ma już folderu i niczego nie skanuje."
         },
-        "new": "Nowe foldery",
         "change": {
-          "action": "Zmień",
-          "label": "Zmień folder {{path}}",
-          "title": "Zmień folder",
-          "description": "Zawartość i źródła metadanych folderu {{path}}.",
-          "submit": "Zapisz",
           "identifier": "Zmienia się źródło rozpoznawania: teksty sezonów i odcinków zostaną przypisane na nowo według {{provider}}. Same odcinki pozostają, postęp i lista nadal są do nich przypisane.",
           "fillers": "Zmieniają się tylko źródła uzupełniające: tytuły są uzupełniane na nowo, nic nie jest usuwane.",
-          "content": "Zmienia się zawartość: działa to jak usunięcie folderu i dodanie go od nowa. Tytuły tego folderu są usuwane logicznie i tworzone na nowo, pakiety offline znikają, postęp i lista pozostają przy starych tytułach.",
-          "confirmTitle": "Na pewno zmienić zawartość?",
-          "confirm": "Zmień zawartość",
-          "saved": "Zmieniono folder {{path}}."
+          "content": "Zmienia się zawartość: działa to jak usunięcie folderu i dodanie go od nowa. Tytuły tego folderu są usuwane logicznie i tworzone na nowo, pakiety offline znikają, postęp i lista pozostają przy starych tytułach."
         },
         "move": {
-          "action": "Zmień ścieżkę",
-          "label": "Zmień ścieżkę: {{path}}",
-          "title": "Zmienić ścieżkę?",
-          "body": "Stara ścieżka: {{old}} · Nowa ścieżka: {{new}}. Tytuły i dane użytkownika zostają, jeśli pliki leżą tam pod tymi samymi nazwami. Potem folder jest wczytywany od nowa.",
-          "confirm": "Zmień",
-          "saved": "Folder znajduje się teraz w {{path}} i jest wczytywany od nowa."
+          "body": "Stara ścieżka: {{old}} · Nowa ścieżka: {{new}}. Tytuły i dane użytkownika zostają, jeśli pliki leżą tam pod tymi samymi nazwami. Potem folder jest wczytywany od nowa."
         },
         "readOnly": "tylko do odczytu",
         "writable": "z możliwością zapisu"
       },
-      "openFolders": "Foldery",
-      "openFoldersLabel": "Edytuj foldery biblioteki {{name}}",
       "rootCount_one": "{{count}} folder",
       "rootCount_few": "{{count}} foldery",
       "rootCount_many": "{{count}} folderów",
       "rootCount_other": "{{count}} folderu",
-      "noFolder": "Brak folderu: nic nie jest skanowane, dopóki nie dodasz go w sekcji „Foldery”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_few": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "jak na serwerze",
-        "texts": "języki odbiegają",
-        "images": "obrazy odbiegają",
-        "both": "języki i obrazy odbiegają",
-        "link": "Metadane biblioteki",
         "audiobooksLink": "Źródła dla audiobooków"
       },
       "trickplay": {
         "action": "Miniatury podglądu",
-        "actionLabel": "Miniatury podglądu biblioteki {{name}}",
-        "title": "Miniatury podglądu: {{name}}",
         "description": "Małe obrazki nad osią czasu, jeden co 10 sekund. Filmy i seriale ustawia się osobno, także w bibliotece mieszanej.",
         "movies": "Filmy",
         "series": "Seriale",
@@ -2149,12 +2112,12 @@
         "generate": {
           "action": "Generuj teraz",
           "hint": "Uzupełnia brakujące miniatury podglądu wszystkich bibliotek z ustawieniem „Z wyprzedzeniem”, tak jak „Uzupełnij miniatury podglądu” w „Zadania w tle”.",
-          "queued": "Uzupełnianie miniatur podglądu czeka w kolejce."
+          "queued": "Uzupełnianie miniatur podglądu czeka w kolejce.",
+          "unsaved": "Dopiero po zapisaniu: generowanie używa zapisanego ustawienia."
         },
-        "submit": "Zapisz",
-        "saved": "Zapisano miniatury podglądu biblioteki {{name}}.",
         "summary": "Miniatury podglądu: filmy {{movies}} · seriale {{series}}",
-        "summaryNoKeep": "Przy starcie, bez zachowania"
+        "summaryNoKeep": "Przy starcie, bez zachowania",
+        "header": "Filmy: {{movies}} · seriale: {{series}}"
       },
       "delete": {
         "action": "Usuń bibliotekę…",
@@ -2174,11 +2137,64 @@
         "done": "Usunięto bibliotekę „{{name}}”.",
         "notDone": "Biblioteka „{{name}}” nie została usunięta. Powód podano przy zadaniu."
       },
-      "rename": {
-        "action": "Zmień nazwę…",
-        "title": "Zmień nazwę biblioteki „{{name}}”",
-        "label": "Nazwa",
-        "saved": "Biblioteka nazywa się teraz „{{name}}”."
+      "form": {
+        "editTitle": "Edytuj bibliotekę",
+        "changed": "zmieniono",
+        "pathAndContent": "Ścieżki i zawartości tego folderu nie można zmienić w jednym kroku. Najpierw zapisz jedno, potem drugie.",
+        "pathHint": "Nowa ścieżka zacznie obowiązywać po zapisaniu. Tytuły i dane użytkowników zostaną zachowane, jeśli pliki leżą tam pod tymi samymi nazwami.",
+        "reloaded": "Biblioteka została w międzyczasie zmieniona w innym miejscu. Formularz pokazuje teraz jej nowy stan; Twoje zmiany nie zostały zapisane.",
+        "changedElsewhere": "Biblioteka została w międzyczasie zmieniona w innym miejscu. Zapisanie wczyta jej nowy stan do formularza; Twoje zmiany nie zostaną wtedy zapisane.",
+        "gone": "Tej biblioteki już nie ma. Nic nie zostało zapisane.",
+        "scanRunning": "Usunięcie folderu oraz zmiana jego zawartości lub ścieżki muszą poczekać na koniec skanowania. Wpisane dane zostaną zachowane.",
+        "scanCancelled": "Skanowanie zostało przerwane. Zapisz teraz jeszcze raz.",
+        "discard": {
+          "title": "Odrzucić zmiany?",
+          "body": "Niezapisane zmiany w bibliotece {{name}} zostaną utracone.",
+          "confirm": "Odrzuć",
+          "keep": "Edytuj dalej"
+        },
+        "confirm": {
+          "title": "Potwierdź zmiany",
+          "intro": "Te zmiany zaczną działać dopiero po zapisaniu tutaj.",
+          "remove": "Usuń folder: {{path}}",
+          "content": "Zmień zawartość: {{path}}",
+          "path": "Zmień ścieżkę: {{path}}",
+          "typeAll": "Zapisanie będzie możliwe, gdy każda ścieżka zostanie wpisana dokładnie.",
+          "submit": "Zapisz"
+        }
+      },
+      "edit": "Edytuj",
+      "editLabel": "Edytuj: {{name}}",
+      "noFolderEdit": "Brak folderu: nic nie jest skanowane, dopóki nie dodasz go po kliknięciu „Edytuj”.",
+      "saved": {
+        "title": "Biblioteka {{name}} została zapisana.",
+        "name": "Nowa nazwa: {{name}}",
+        "rating": "Domyślny poziom: {{rating}}",
+        "added_one": "Dodano {{count}} folder; skanowanie czeka w kolejce.",
+        "added_few": "Dodano {{count}} foldery; skanowanie czeka w kolejce.",
+        "added_many": "Dodano {{count}} folderów; skanowanie czeka w kolejce.",
+        "added_other": "Dodano {{count}} folderu; skanowanie czeka w kolejce.",
+        "removed_one": "Usunięto {{count}} folder.",
+        "removed_few": "Usunięto {{count}} foldery.",
+        "removed_many": "Usunięto {{count}} folderów.",
+        "removed_other": "Usunięto {{count}} folderu.",
+        "content_one": "Inna zawartość w {{count}} folderze: zostanie wczytana od nowa.",
+        "content_few": "Inna zawartość w {{count}} folderach: zostanie wczytana od nowa.",
+        "content_many": "Inna zawartość w {{count}} folderach: zostanie wczytana od nowa.",
+        "content_other": "Inna zawartość w {{count}} folderach: zostanie wczytana od nowa.",
+        "moved_one": "Nowa ścieżka w {{count}} folderze: zawartość zostanie wczytana od nowa.",
+        "moved_few": "Nowa ścieżka w {{count}} folderach: zawartość zostanie wczytana od nowa.",
+        "moved_many": "Nowa ścieżka w {{count}} folderach: zawartość zostanie wczytana od nowa.",
+        "moved_other": "Nowa ścieżka w {{count}} folderach: zawartość zostanie wczytana od nowa.",
+        "providers_one": "Nowe źródła w {{count}} folderze: tytuły zostaną dopasowane lub uzupełnione od nowa.",
+        "providers_few": "Nowe źródła w {{count}} folderach: tytuły zostaną dopasowane lub uzupełnione od nowa.",
+        "providers_many": "Nowe źródła w {{count}} folderach: tytuły zostaną dopasowane lub uzupełnione od nowa.",
+        "providers_other": "Nowe źródła w {{count}} folderach: tytuły zostaną dopasowane lub uzupełnione od nowa.",
+        "metadata_one": "Zmienione języki lub obrazy w {{count}} folderze. Dotyczą tytułów: {{titles}}, gdy je zastosujesz.",
+        "metadata_few": "Zmienione języki lub obrazy w {{count}} folderach. Dotyczą tytułów: {{titles}}, gdy je zastosujesz.",
+        "metadata_many": "Zmienione języki lub obrazy w {{count}} folderach. Dotyczą tytułów: {{titles}}, gdy je zastosujesz.",
+        "metadata_other": "Zmienione języki lub obrazy w {{count}} folderach. Dotyczą tytułów: {{titles}}, gdy je zastosujesz.",
+        "dismiss": "Ukryj"
       }
     },
     "access": {
@@ -2486,7 +2502,9 @@
         "children": "Zawartość",
         "childCounts": "Sezony: {{seasons}} · Odcinki: {{episodes}} · Dodatki: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Folder biblioteki",
+        "homeRootNone": "Brak, obowiązują ustawienia domyślne"
       },
       "sources": {
         "title": "Źródło dla każdego pola",
@@ -5185,7 +5203,6 @@
     },
     "metadata": {
       "title": "Metadane",
-      "intro": "Jakie języki dostarczają źródła metadanych, jakie obrazy w jakim języku i jakości oraz który kraj jako pierwszy określa kategorię wiekową. Ustawienie domyślne dotyczy każdej biblioteki; biblioteka może odbiegać w językach i obrazach.",
       "links": {
         "roots": "Kolejność źródeł ustawia się dla każdego folderu w sekcji Biblioteki.",
         "jobs": "Harmonogramy znajdują się w sekcji Zadania w tle.",
@@ -5197,9 +5214,6 @@
         "open": "Otwórz źródła"
       },
       "areas": {
-        "label": "Obszary",
-        "changed": "Zmienione · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakat {{poster}}, tło {{backdrop}}",
         "sources": {
           "local": "Pliki lokalne",
@@ -5207,20 +5221,19 @@
           "tmdbAdult": "TMDB z treściami dla dorosłych",
           "none": "Tylko źródła folderów"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "Foldery wideo z ustawieniami domyślnymi: {{count}}",
+        "foldersFollow_few": "Foldery wideo z ustawieniami domyślnymi: {{count}}",
+        "foldersFollow_many": "Foldery wideo z ustawieniami domyślnymi: {{count}}",
+        "foldersFollow_other": "Foldery wideo z ustawieniami domyślnymi: {{count}}",
+        "foldersOwn_one": "z własnymi: {{count}}",
+        "foldersOwn_few": "z własnymi: {{count}}",
+        "foldersOwn_many": "z własnymi: {{count}}",
+        "foldersOwn_other": "z własnymi: {{count}}"
       },
-      "scope": {
-        "label": "Zakres",
-        "server": "Domyślne",
-        "serverHint": "Dotyczy wszystkich bibliotek bez własnych odstępstw.",
-        "libraryHint": "{{name}} używa ustawień domyślnych. Włącz „odbiega”, aby zmienić języki lub obrazy tylko dla tej biblioteki.",
-        "deviates": "odbiega",
-        "textsDeviate": "Języki odbiegają",
-        "imagesDeviate": "Obrazy odbiegają",
-        "likeServer": "jak na serwerze",
-        "changed": "{{name}} (zmienione)",
-        "serverDirty": "Ustawienia domyślne mają niezapisane zmiany; tutaj widać zapisany stan."
-      },
+      "default": "Domyślne",
       "languages": {
         "title": "Języki",
         "intro": "Każdy język z tej listy jest pobierany dla każdego tytułu; profile wybierają spośród nich język swoich opisów. Język interfejsu każdy profil wybiera sam. Każdy kolejny język to jedno zapytanie więcej na tytuł i sezon.",
@@ -5295,7 +5308,6 @@
         }
       },
       "apply": {
-        "title": "Zastosuj do istniejących tytułów",
         "short": "Zastosuj",
         "intro": "Nowe tytuły korzystają z ustawień od razu. Istniejące tytuły pozostają bez zmian, dopóki nie uruchomisz zadania; pojawia się ono w sekcji Zadania w tle z postępem, wstrzymaniem i anulowaniem.",
         "what": "Co",
@@ -5303,7 +5315,8 @@
         "texts": "Tylko teksty",
         "images": "Tylko obrazy",
         "where": "Gdzie",
-        "all": "Wszystkie biblioteki",
+        "all": "Wszystkie foldery",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} tytuł",
         "titles_few": "{{count}} tytuły",
         "titles_many": "{{count}} tytułów",
@@ -5334,6 +5347,29 @@
         "chain_duplicate": "Każdy język tylko raz.",
         "country_unknown": "Nieznany kraj.",
         "source_unknown": "To źródło obrazów nie należy do propozycji dla tego tytułu."
+      },
+      "introDefault": "Dotyczy każdego folderu bez własnych ustawień. Własne języki i obrazy folderu ustawisz po kliknięciu „Edytuj” przy jego bibliotece.",
+      "changed": "zmieniono",
+      "folders": {
+        "title": "Foldery",
+        "intro": "Każdy folder wideo stosuje ustawienia domyślne, dopóki nie ma własnych języków lub obrazów. Ustawisz je po kliknięciu „Edytuj” przy jego bibliotece.",
+        "empty": "Nie ma jeszcze folderu wideo.",
+        "audio": "Foldery audiobooków i podcastów nie mają własnych języków i obrazów. Źródła audiobooków znajdziesz na stronie „Audiobooki: źródła”.",
+        "openLabel": "Edytuj {{name}}, folder {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Języki: domyślne",
+        "langsOwn": "Języki: {{chain}}",
+        "imagesDefault": "Obrazy: domyślne",
+        "imagesOwn": "Obrazy: własne",
+        "likeDefault": "Jak domyślne",
+        "own": "Własne",
+        "defaultIs": "Domyślnie: {{value}}",
+        "imagesDefaultIs": "Domyślnie: {{kinds}}. Język dla rodzaju obrazu: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Dotyczy tylko tego folderu.",
+        "cost": "Każdy kolejny język oznacza przy zastosowaniu jedno zapytanie na tytuł i sezon tego folderu.",
+        "always": "Plakat i tło Slouchcat pobiera zawsze."
       }
     },
     "activity": {
@@ -5379,7 +5415,7 @@
       "intro": "Skąd Slouchcat bierze dane i okładki audiobooków. Pliki zawsze mają pierwszeństwo; dostawca uzupełnia tylko to, czego brakuje, i nigdy pola z blokadą.",
       "folders": {
         "title": "Kolejność dla każdego folderu",
-        "intro": "Wyższe źródło wygrywa dla każdego pola. Kolejność i to, które źródła biorą udział, zmieniasz w oknie folderu.",
+        "intro": "W każdym polu wygrywa źródło położone wyżej. Kolejność i udział źródeł zmienisz po kliknięciu „Edytuj” przy bibliotece.",
         "empty": "Nie ma jeszcze folderu audiobooków.",
         "edit": "Zmień źródła",
         "editLabel": "Zmień źródła: {{path}}",

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,9 +35,42 @@ const (
 // authTestLibraries is an in-memory admin.Libraries.
 type authTestLibraries struct {
 	libs []model.Library
-	// scanRunning makes RemoveRoot answer model.ErrScanRunning, as package library does while
-	// a scan holds the lock of that library.
-	scanRunning bool
+	// db runs the settings of Save in a transaction; saveErr is what Save answers after them
+	// (package library tests the folder rules themselves), saved the last request.
+	db      *sql.DB
+	saveErr error
+	saved   model.LibrarySave
+}
+
+// Save runs the library settings of saveLibrary in a transaction and answers saveErr, or the
+// library with every kept folder in metadataChanged.
+func (f *authTestLibraries) Save(ctx context.Context, id int64, req model.LibrarySave, settings func(context.Context, *sql.Tx) error) (model.LibrarySaved, error) {
+	f.saved = req
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	tx, err := f.db.BeginTx(ctx, nil)
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := settings(ctx, tx); err != nil {
+		return model.LibrarySaved{}, err
+	}
+	if f.saveErr != nil {
+		return model.LibrarySaved{}, f.saveErr
+	}
+	if err := tx.Commit(); err != nil {
+		return model.LibrarySaved{}, err
+	}
+	out := model.LibrarySaved{Library: lib, MetadataChanged: []model.RootTitles{}}
+	for _, r := range req.Roots {
+		if r.ID != 0 {
+			out.MetadataChanged = append(out.MetadataChanged, model.RootTitles{RootID: r.ID, HomeTitleCount: 3})
+		}
+	}
+	return out, nil
 }
 
 func (f *authTestLibraries) ValidatePath(_ context.Context, path string) error {
@@ -59,7 +93,7 @@ func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) 
 	}
 	for _, r := range req.Roots {
 		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(f.libs) + len(lib.Roots) + 1), Path: r.Path,
-			FSType: "nfs", Watch: "poll", Warning: "network_share", Content: r.Content, Providers: r.Providers})
+			FSType: "nfs", Watch: "poll", Warning: "network_share", Content: r.Content, Providers: r.Providers, Metadata: r.Metadata})
 	}
 	f.libs = append(f.libs, lib)
 	return lib, nil
@@ -98,83 +132,6 @@ func (f *authTestLibraries) ValidateRoots(ctx context.Context, _ string, roots [
 		return verr
 	}
 	return nil
-}
-
-// AddRoots, UpdateRoot and RemoveRoot answer like package library does (idea 02, E8 and E12),
-// so the handler tests see the real statuses: 422 for a confirmation that does not repeat the
-// folder, 409 while a scan runs.
-func (f *authTestLibraries) AddRoots(ctx context.Context, id int64, roots []model.LibraryRootRequest) (model.Library, error) {
-	lib, err := f.Get(ctx, id)
-	if err != nil {
-		return model.Library{}, err
-	}
-	if err := f.ValidateRoots(ctx, lib.Kind, roots, "roots"); err != nil {
-		return model.Library{}, err
-	}
-	for _, r := range roots {
-		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(lib.Roots) + 1), Path: r.Path, FSType: "ext4", Watch: "inotify",
-			Content: r.Content, Providers: r.Providers})
-	}
-	f.libs[id-1] = lib
-	return lib, nil
-}
-
-func (f *authTestLibraries) UpdateRoot(ctx context.Context, id, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
-	lib, err := f.Get(ctx, id)
-	if err != nil {
-		return model.Library{}, err
-	}
-	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
-	if idx < 0 {
-		return model.Library{}, model.ErrNotFound
-	}
-	// A new path (ADR 0023) goes without a content change and not under a running scan.
-	if upd.Path != nil {
-		if upd.Content != nil {
-			var verr *model.ValidationError
-			return model.Library{}, verr.Add("path", model.CodePathWithContent)
-		}
-		if f.scanRunning {
-			return model.Library{}, model.ErrScanRunning
-		}
-		lib.Roots[idx].Path = *upd.Path
-	}
-	// A content change is a removal and a re-read: it needs the typed path and no running scan,
-	// exactly like RemoveRoot (ADR 0015).
-	if upd.Content != nil && *upd.Content != lib.Roots[idx].Content {
-		if strings.TrimSpace(upd.ConfirmPath) != lib.Roots[idx].Path {
-			return model.Library{}, model.ErrConfirmMismatch
-		}
-		if f.scanRunning {
-			return model.Library{}, model.ErrScanRunning
-		}
-		lib.Roots[idx].Content = *upd.Content
-	}
-	if upd.Providers != nil {
-		lib.Roots[idx].Providers = upd.Providers
-	}
-	f.libs[id-1] = lib
-	return lib, nil
-}
-
-func (f *authTestLibraries) RemoveRoot(ctx context.Context, id, rootID int64, confirmPath string) (model.Library, error) {
-	lib, err := f.Get(ctx, id)
-	if err != nil {
-		return model.Library{}, err
-	}
-	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
-	if idx < 0 {
-		return model.Library{}, model.ErrNotFound
-	}
-	if strings.TrimSpace(confirmPath) != lib.Roots[idx].Path {
-		return model.Library{}, model.ErrConfirmMismatch
-	}
-	if f.scanRunning {
-		return model.Library{}, model.ErrScanRunning
-	}
-	lib.Roots = slices.Delete(lib.Roots, idx, idx+1)
-	f.libs[id-1] = lib
-	return lib, nil
 }
 
 // DeleteLibrary answers like package library does: unknown id 404, a wrong name 422.
@@ -227,7 +184,7 @@ func newAuthEnvAt(t *testing.T, clock *stepClock, wire ...func(*admin.Service)) 
 	}
 	a := auth.New(db, log).WithClock(clock.Now)
 	tmdb := &authTestTMDB{}
-	libs := &authTestLibraries{}
+	libs := &authTestLibraries{db: db.Write}
 	adm := admin.New(db, a, libs, ring, tmdb, func(string) string { return "" }, log)
 	for _, w := range wire {
 		w(adm)

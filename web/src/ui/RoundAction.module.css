@@ -23,10 +23,12 @@
   place-items: center;
   width: var(--sc-control-height);
   height: var(--sc-control-height);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-3);
   color: var(--sc-color-text-primary);
   transition:
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
 }
@@ -38,12 +40,14 @@
 }
 
 .on .circle {
+  border-color: var(--sc-accent);
   background-color: var(--sc-accent);
   color: var(--sc-on-accent);
 }
 
 /* Partly on (the half check mark, concept 20 F-12): the left half of the circle in the accent. */
 .mixed .circle {
+  border-color: var(--sc-accent);
   background-image: linear-gradient(90deg, var(--sc-accent) 50%, transparent 50%);
 }
 
@@ -61,13 +65,22 @@
   color: var(--sc-color-text-primary);
 }
 
-.action:active:not(:disabled) .circle {
-  transform: scale(0.95);
+/* Disabled (concept 24, Z-5): a dashed circle without fill, the label muted, no paleness. */
+.action:disabled {
+  color: var(--sc-color-text-muted);
+  cursor: default;
 }
 
-.action:disabled {
-  cursor: default;
-  opacity: 0.45;
+.action:disabled .circle {
+  border-style: dashed;
+  border-color: var(--sc-color-border-control);
+  background-color: transparent;
+  background-image: none;
+  color: var(--sc-color-text-muted);
+}
+
+.action:active:not(:disabled) .circle {
+  transform: scale(0.95);
 }
 
 @media (hover: hover) {

@@ -369,7 +369,7 @@ export function IssueTab({
                     </span>
                   ) : undefined
                 }
-                isExpanded={expanded[key] ?? true}
+                isExpanded={expanded[key] ?? false}
                 onExpandedChange={(open) => handlers.onExpandedChange(key, open)}
               >
                 <DataTable

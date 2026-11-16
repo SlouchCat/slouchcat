@@ -11,6 +11,7 @@ const item: AdminItem = {
   title: 'Alien',
   year: 1979,
   libraryId: 1,
+  homeRoot: { id: 4, path: '/media/Filme' },
   metadataState: 'unmatched',
   metadataError: 'no_match',
   anilistId: 1234,
@@ -105,6 +106,18 @@ describe('admin item page', () => {
     expect(within(facts).getByText('no_match')).toBeVisible();
     expect(within(facts).getByText('rating, title')).toBeVisible();
     expect(within(facts).getByText('Staffeln: 0 · Folgen: 0 · Extras: 2')).toBeVisible();
+    // The home folder, whose languages, images and sources the title follows (ADR 0036).
+    expect(within(facts).getByText('Heimatordner')).toBeVisible();
+    expect(within(facts).getByText('/media/Filme')).toBeVisible();
+  });
+
+  it('names the default when a title has no home folder (ADR 0036)', async () => {
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json({ ...item, homeRoot: undefined }) });
+    renderApp(base);
+    const facts = await screen.findByRole('region', { name: 'Metadaten' });
+    expect(
+      within(facts).getByText('Keiner, es gelten die Einstellungen des Standards'),
+    ).toBeVisible();
   });
 
   it('shows the files with name, version, size and state; a row folds out into path, probe date and error', async () => {

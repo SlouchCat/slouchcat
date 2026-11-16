@@ -905,6 +905,8 @@ function JobsContent() {
           <DisclosureGroup
             level={2}
             title={t('admin.jobs.running.title')}
+            // What the page is opened for: «Laufend» stays open (concept 24, exception 4).
+            defaultExpanded
             count={number.format(running.length)}
             countLabel={t('admin.jobs.running.count', { count: running.length })}
           >

@@ -1,5 +1,5 @@
 import type { TraktStatus, components } from '@slouchcat/api-client';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de.json';
@@ -125,12 +125,19 @@ function spotlightApi(
   });
 }
 
-const region = (name: string) => screen.findByRole('region', { name });
+/** A band, opened by its title: every band starts closed (concept 24, P-3). */
+const region = async (name: string) => {
+  const band = await screen.findByRole('region', { name });
+  const toggle = within(band).getByRole('button', { name });
+  if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
+  return band;
+};
 /** A number of the source: its input by the (screen reader only) label of its setting row. */
 const number = (card: HTMLElement, name: string | RegExp) =>
   within(card).getByRole('spinbutton', { name });
 const source = () => region('Quelle');
-const entriesTable = () => screen.findByRole('table', { name: 'Einträge der Liste' });
+const entriesTable = async () =>
+  within(await region('Einträge der Liste')).findByRole('table', { name: 'Einträge der Liste' });
 const statusRegion = () =>
   screen.getAllByRole('status').find((element) => element.closest('form') === null)!;
 const patches = (calls: Call[]) =>
@@ -229,33 +236,51 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     );
   });
 
-  it('the three bands fold by their title; a folded source keeps its draft', async () => {
+  it('the three bands start closed and say what they hold; a folded source keeps its draft', async () => {
     spotlightApi();
     renderApp('/admin/spotlight');
     const user = userEvent.setup();
-    const card = await source();
-    for (const name of ['Quelle', 'Einträge der Liste', 'Verwaiste Anpassungen']) {
-      expect(
-        within(await region(name)).getByRole('button', { name, expanded: true }),
-      ).toBeVisible();
+    // Concept 24, P-3: closed, each band names what is inside.
+    const summaries = {
+      Quelle: 'Trending bei Trakt · Filme und Serien',
+      'Einträge der Liste': '2 Einträge',
+      'Verwaiste Anpassungen': '1 Anpassung',
+    };
+    for (const [name, summary] of Object.entries(summaries)) {
+      const band = await screen.findByRole('region', { name });
+      expect(within(band).getByRole('button', { name, expanded: false })).toBeVisible();
+      expect(await within(band).findByText(summary)).toBeVisible();
     }
+    expect(screen.queryByRole('table')).toBeNull();
 
-    const count = number(card, 'Höchstens');
-    await user.clear(count);
-    await user.type(count, '12');
-    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    const card = await screen.findByRole('region', { name: 'Quelle' });
     const band = within(card).getByRole('button', { name: 'Quelle' });
     band.focus();
     await user.keyboard('{Enter}');
-    expect(band).toHaveAttribute('aria-expanded', 'false');
-    expect(within(card).queryByRole('spinbutton', { name: 'Höchstens' })).toBeNull();
-    // Folded, the band still says the source holds unsaved input and why the row is missing.
+    expect(band).toHaveAttribute('aria-expanded', 'true');
+    expect(band).toHaveFocus();
+    // Open, the fields say it; the band does not repeat it.
+    expect(within(card).queryByText('Trending bei Trakt · Filme und Serien')).toBeNull();
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '12');
+    await user.click(within(card).getByRole('radio', { name: 'Kinocharts' }));
     expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
+    band.focus();
     await user.keyboard(' ');
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    expect(band).toHaveFocus();
+    expect(within(card).queryByRole('spinbutton', { name: 'Höchstens' })).toBeNull();
+    // Folded, the band still says the source holds unsaved input, what it holds as typed and why
+    // the row is missing.
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(within(card).getByText('Kinocharts · Nur Filme')).toBeVisible();
+    expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
+    await user.keyboard('{Enter}');
     expect(number(card, 'Höchstens')).toHaveValue(12);
 
     // Typed back to the stored value, nothing is unsaved any more.
+    await user.click(within(card).getByRole('radio', { name: 'Trending bei Trakt' }));
     await user.clear(number(card, 'Höchstens'));
     await user.type(number(card, 'Höchstens'), '20');
     expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
@@ -318,6 +343,36 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
       intervalHours: 24,
       rotationSeconds: 5,
     });
+  });
+
+  it('a field error opens the source band folded while the save ran (concept 24, exception 3)', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = spotlightApi({
+      'PUT /admin/spotlight': async () => {
+        await answered;
+        return problem(422, 'validation_failed', {
+          errors: [{ field: 'itemCount', code: 'invalid_value' }],
+        });
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '10');
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    const band = within(card).getByRole('button', { name: 'Quelle' });
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(band).toHaveAttribute('aria-expanded', 'true'));
+    expect(await within(card).findByText('Ungültiger Wert.')).toBeVisible();
+    expect(number(card, 'Höchstens')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('"Speichern" stores the switch with the source in one PUT', async () => {
@@ -726,7 +781,9 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     const card = await source();
 
     expect(await within(card).findByText(/Die Liste ist leer/)).toBeVisible();
-    expect(await screen.findByText(/Noch keine Einträge/)).toBeVisible();
+    expect(
+      await within(await region('Einträge der Liste')).findByText(/Noch keine Einträge/),
+    ).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Verwaiste Anpassungen' })).toBeNull();
   });
 

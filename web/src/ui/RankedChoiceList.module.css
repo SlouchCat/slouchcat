@@ -14,10 +14,6 @@
   list-style: none;
 }
 
-.disabled .places {
-  opacity: 0.6;
-}
-
 /* One place: «1. Sprache», the select, «×». */
 .place {
   display: flex;
@@ -39,7 +35,7 @@
   min-width: 0;
   min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-3);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);
@@ -54,7 +50,10 @@
   outline-offset: var(--sc-focus-ring-offset);
 }
 
+/* Disabled (concept 24, Z-5): dashed without fill, the value muted, no paleness. */
 .select:disabled {
+  border-style: dashed;
+  background-color: transparent;
   color: var(--sc-color-text-muted);
   cursor: default;
 }

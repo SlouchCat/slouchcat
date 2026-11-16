@@ -245,6 +245,12 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       ['Pausiert', '0'],
     ]);
     expect(within(strip).getByText('2 geplant')).toBeVisible();
+    // «Läuft gerade» (the paper's «Laufend») is what the page is opened for: it starts open
+    // (concept 24, exception 4).
+    expect(await screen.findByRole('button', { name: /^Läuft gerade/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
     const pools = screen.getByRole('list', { name: 'Arbeiter' });
     expect(within(pools).getByText(/Allgemein: 4 Arbeiter · Stau ca. 3 h 10 min/)).toBeVisible();
     expect(within(pools).getByText(/Downloads: 1 Arbeiter · frei/)).toBeVisible();

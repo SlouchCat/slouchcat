@@ -8,9 +8,9 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// The administration's view of the metadata settings (getMetadataSettings, updateMetadataSettings,
-// getLibraryMetadata, updateLibraryMetadata; concept 10 5.1, ADR 0018), on top of Settings,
-// LibraryDeviation and ApplyMetadata.
+// The administration's view of the metadata settings (getMetadataSettings, updateMetadataSettings;
+// concept 10 5.1, ADR 0018), on top of Settings and ApplyMetadata. A folder's own languages and
+// images are part of the folder (saveLibrary, concept 24, ADR 0036).
 
 // toModel maps Settings onto the administration's view (without the counts).
 func (s Settings) toModel() model.MetadataSettings {
@@ -51,13 +51,12 @@ func (s *Service) MetadataSettings(ctx context.Context) (model.MetadataSettings,
 	if err != nil {
 		return model.MetadataSettings{}, err
 	}
-	return s.withCounts(ctx, st.toModel(), nil)
+	return s.withCounts(ctx, st.toModel())
 }
 
-// withCounts adds the affected titles (of the libraries, or of every library) and the titles with
-// local image files.
-func (s *Service) withCounts(ctx context.Context, m model.MetadataSettings, libraryIDs []int64) (model.MetadataSettings, error) {
-	n, err := s.CountApplyTitles(ctx, libraryIDs)
+// withCounts adds the affected titles of every folder and the titles with local image files.
+func (s *Service) withCounts(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error) {
+	n, err := s.CountApplyTitles(ctx, nil)
 	if err != nil {
 		return m, err
 	}
@@ -95,51 +94,9 @@ func (s *Service) UpdateMetadataSettings(ctx context.Context, m model.MetadataSe
 	return s.MetadataSettings(ctx)
 }
 
-// LibraryMetadata returns the deviation of a library with its effective values; model.ErrNotFound
-// for an unknown library.
-func (s *Service) LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error) {
-	if _, err := s.applyLibraries(ctx, []int64{libraryID}); err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	d, err := s.LibraryDeviation(ctx, libraryID)
-	if err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	st, err := s.Settings(ctx)
-	if err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	out := model.LibraryMetadata{LibraryID: libraryID, TextLangs: d.TextLangs}
-	if d.Images != nil {
-		out.Images = &model.LibraryImages{Langs: d.Images.Langs, Kinds: nonNil(d.Images.Kinds)}
-	}
-	eff, err := s.withCounts(ctx, d.apply(st).toModel(), []int64{libraryID})
-	if err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	out.Effective, out.AffectedTitles = eff, eff.AffectedTitles
-	return out, nil
-}
-
-// UpdateLibraryMetadata stores the deviation of a library (model.ErrNotFound,
-// *model.ValidationError) and returns the view.
-func (s *Service) UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error) {
-	if _, err := s.applyLibraries(ctx, []int64{libraryID}); err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	d := LibraryDeviation{TextLangs: textLangs}
-	if images != nil {
-		d.Images = &LibraryImages{Langs: images.Langs, Kinds: images.Kinds}
-	}
-	if err := s.UpdateLibraryDeviation(ctx, libraryID, d); err != nil {
-		return model.LibraryMetadata{}, err
-	}
-	return s.LibraryMetadata(ctx, libraryID)
-}
-
 // Apply is ApplyMetadata for the administration (*model.ValidationError).
 func (s *Service) Apply(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
-	id, n, err := s.ApplyMetadata(ctx, ApplyRequest{LibraryIDs: req.LibraryIDs, What: req.What})
+	id, n, err := s.ApplyMetadata(ctx, ApplyRequest{RootIDs: req.RootIDs, What: req.What})
 	if err != nil {
 		return model.ApplyMetadataResult{}, err
 	}

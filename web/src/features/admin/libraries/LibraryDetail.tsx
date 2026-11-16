@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { Chip, Notice, ProgressBar, TextLink } from '@/ui';
 import { ActionMenu, AriaButton, providerChain, type ActionMenuItem } from '@/ui/aria';
-import { isAudioLibrary } from '../../shared/LibraryFields';
+import { useFolderMetadataText } from '../metadata/languages';
 import { canScan, isScanning } from '../queries';
-import { canAcceptLoss, errorText, hasScanError, watchKeys } from './libraryColumns';
+import { canAcceptLoss, errorText, hasScanError } from './libraryColumns';
+import { RootFacts } from './RootFacts';
 import styles from './Libraries.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -23,24 +24,19 @@ const BACKFILL_TYPE = 'keyframes.backfill';
 export interface LibraryHandlers {
   onScan: (id: number) => void;
   onCancelScan: (id: number) => void;
-  onFolders: (id: number) => void;
-  onRating: (id: number) => void;
-  /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
-  onTrickplay: (id: number) => void;
+  /** «Bearbeiten»: the library form (concept 24 4.4). */
+  onEdit: (id: number) => void;
   onAcceptLoss: (library: Library) => void;
-  /** «Umbenennen …»: the name dialog of the page. */
-  onRename: (id: number) => void;
   /** «Bibliothek löschen …» (concept 20 P-8): the typed confirmation of the page. */
   onDelete: (library: Library) => void;
 }
 
 /**
- * The fold-out of a library (Bib-C): «Erneut scannen» or, while a scan runs, «Scan abbrechen»,
- * and «Ordner» as buttons, «Vorschau beim Spulen» for a video library (concept 18, 9);
- * «Umbenennen …», «Standardstufe ändern» (audio), «Verlust akzeptieren» and «Bibliothek löschen …»
- * (danger) in «Weitere Aktionen» (S-6; concept 20 P-8);
- * the link to its metadata (video); the progress of a running scan, the error band of the last
- * one, the trickplay setting, and every folder with its whole path (BIB-1 to BIB-4).
+ * The fold-out of a library (Bib-C, concept 24 4.4): «Erneut scannen» or, while a scan runs,
+ * «Scan abbrechen», and «Bearbeiten» as buttons; «Verlust akzeptieren» and «Bibliothek löschen …»
+ * (danger) in «Weitere Aktionen» (S-6; concept 20 P-8); of an audiobook library the link to its
+ * sources; the progress of a running scan, the error band of the last one, the keyframe index,
+ * the trickplay setting, and every folder with its whole path, read-only (BIB-1 to BIB-4).
  */
 export const LibraryDetail = memo(function LibraryDetail({
   library,
@@ -77,19 +73,13 @@ export const LibraryDetail = memo(function LibraryDetail({
   });
 
   const menu: ActionMenuItem[] = [
-    { id: 'rename', label: t('admin.libraries.rename.action') },
-    ...(isAudioLibrary(library.kind)
-      ? [{ id: 'rating', label: t('admin.libraries.changeRating.action') }]
-      : []),
     ...(canAcceptLoss(library)
       ? [{ id: 'acceptLoss', label: t('admin.libraries.acceptLoss.action'), danger: true }]
       : []),
     { id: 'delete', label: t('admin.libraries.delete.action'), danger: true },
   ];
   const onMenu = (id: string) => {
-    if (id === 'rename') handlers.onRename(library.id);
-    else if (id === 'rating') handlers.onRating(library.id);
-    else if (id === 'acceptLoss') handlers.onAcceptLoss(library);
+    if (id === 'acceptLoss') handlers.onAcceptLoss(library);
     else if (id === 'delete') handlers.onDelete(library);
   };
 
@@ -107,27 +97,13 @@ export const LibraryDetail = memo(function LibraryDetail({
           {scanning ? t('admin.libraries.cancel') : t('admin.libraries.rescan')}
         </AriaButton>
         <AriaButton
-          icon="folder"
-          aria-label={t('admin.libraries.openFoldersLabel', { name: library.name })}
-          onPress={() => handlers.onFolders(library.id)}
+          icon="pen"
+          aria-label={t('admin.libraries.editLabel', { name: library.name })}
+          onPress={() => handlers.onEdit(library.id)}
         >
-          {t('admin.libraries.openFolders')}
+          {t('admin.libraries.edit')}
         </AriaButton>
-        {library.kind === 'video' && (
-          <AriaButton
-            icon="image"
-            aria-label={t('admin.libraries.trickplay.actionLabel', { name: library.name })}
-            onPress={() => handlers.onTrickplay(library.id)}
-          >
-            {t('admin.libraries.trickplay.action')}
-          </AriaButton>
-        )}
         <ActionMenu rowName={library.name} items={menu} onAction={onMenu} />
-        {library.kind === 'video' && (
-          <TextLink href={`${paths.adminMetadata}?library=${library.id}`}>
-            {t('admin.libraries.metadata.link')}
-          </TextLink>
-        )}
         {library.kind === 'audiobooks' && (
           <TextLink href={paths.adminAudiobookSources}>
             {t('admin.libraries.metadata.audiobooksLink')}
@@ -216,13 +192,15 @@ function TrickplaySummary({ setting }: { setting: LibraryTrickplay }) {
 }
 
 /**
- * Every folder of the library with its whole path, content, provider list, file system, network
- * warning, watch mode and counts (BIB-2). Adding, changing and removing stay in the folders
- * dialog (BIB-5). A library without a folder says why: podcasts take their titles from feeds, a
- * video or audio library that lost its last folder scans nothing (idea 02, E13).
+ * Every folder of the library with its whole path, content, provider list, the languages and
+ * images of a video folder (the default or its own, concept 24 4.4) and the technical facts
+ * (RootFacts, BIB-2), read-only: adding, changing and removing are «Bearbeiten». A library without
+ * a folder says why: podcasts take their titles from feeds, a video or audio library that lost
+ * its last folder scans nothing until one is added under «Bearbeiten» (idea 02, E13).
  */
 function Folders({ library }: { library: Library }) {
   const { t } = useTranslation();
+  const metadata = useFolderMetadataText();
   return (
     <div className={styles.roots}>
       <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
@@ -230,7 +208,7 @@ function Folders({ library }: { library: Library }) {
         <p className={styles.muted}>
           {library.kind === 'podcasts'
             ? t('admin.libraries.noRoots')
-            : t('admin.libraries.noFolder')}
+            : t('admin.libraries.noFolderEdit')}
         </p>
       ) : (
         <ul className={styles.rootList}>
@@ -243,19 +221,13 @@ function Folders({ library }: { library: Library }) {
                   <Chip tone="outline">{t(`library.content.${root.content}`)}</Chip>
                 )}
                 <span className={styles.muted}>{providerChain(t, root.providers)}</span>
-                <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
-                {root.warning === 'network_share' && (
-                  <Chip tone="warning" icon="warning">
-                    {t('admin.libraries.warning.network_share')}
-                  </Chip>
+                {library.kind === 'video' && (
+                  <>
+                    <span className={styles.muted}>{metadata.langs(root)}</span>
+                    <span className={styles.muted}>{metadata.images(root)}</span>
+                  </>
                 )}
-                <span className={styles.muted}>{t(watchKeys[root.watch])}</span>
-                <span className={styles.muted}>
-                  {t('admin.libraries.folders.content', {
-                    items: root.itemCount,
-                    files: root.fileCount,
-                  })}
-                </span>
+                <RootFacts root={root} />
               </span>
             </li>
           ))}

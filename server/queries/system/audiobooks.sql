@@ -6,13 +6,14 @@
 -- A new book found by a scan: the metadata of metadata.json and the folder names (the tags follow
 -- with the probe), the age rating of the library (rating_source 'library', or 18 from 'tags' for
 -- an explicit book). Audiobooks need no provider match: metadata_state is 'matched' at once. providers
--- is the ordered source list of the root the book lies in (concept 19 D6.2), like InsertItem.
+-- is the ordered source list of the root the book lies in (concept 19 D6.2), like InsertItem;
+-- root_id that root, the book's home folder (ADR 0036).
 INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author, narrator, series_name,
                    series_index, publisher, isbn, asin, original_language, explicit, cover_path, own_rating,
-                   rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   rating_source, providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'audiobook', @library_id, @title, @sort_title, @year, @genres, @author, @narrator, @series_name,
         @series_index, @publisher, @isbn, @asin, @original_language, @explicit, @cover_path, @own_rating,
-        @rating_source, @providers, 'matched', @now, @now, @now, @now)
+        @rating_source, @providers, @root_id, 'matched', @now, @now, @now, @now)
 RETURNING *;
 
 -- name: UpdateAudiobook :exec

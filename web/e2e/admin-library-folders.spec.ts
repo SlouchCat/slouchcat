@@ -1,6 +1,6 @@
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { MEDIA_DIR, MOVIES_DIR } from './env';
 import {
   expectFocusOn,
@@ -10,14 +10,16 @@ import {
   tabTo,
 } from './keyboard';
 
-// Keyboard test of the folder list of a library and of the typed confirmation that removes one
-// (CLAUDE.md rule 8, idea 02 steps 13 and 14, E16 and E17): the library's row names how many
-// folders there are, its fold-out and the dialog list them, "Ordner hinzufügen" puts one in, and removing one stays
-// refused until its path has been typed out character for character.
+// Keyboard test of the form «Bibliothek bearbeiten» (CLAUDE.md rule 8; concept 24 4.1 to 4.3):
+// it opens from the library's fold-out, every folder is a closed card whose head opens and closes
+// with Enter and Space, a new card is open with the focus in its path, «Ordner entfernen …» only
+// marks the card and hands the focus to «Rückgängig», and «Speichern» saves everything in one go
+// after «Änderungen bestätigen», where a removal and another content are confirmed with the typed
+// path and a new path names old and new. Escape with changes asks «Änderungen verwerfen?».
 //
 // It works on a library of its own, in a hidden folder below the media root of the run: hidden
 // entries are skipped by the scanner and by the folder browser, so the other specs never see it.
-// There is no API to delete a library, so it stays for the rest of the run, like "E2E leer".
+// It stays for the rest of the run, like "E2E leer".
 
 const NAME = 'E2E Ordner';
 const base = join(MEDIA_DIR, '.e2e', NAME);
@@ -25,8 +27,8 @@ const first = join(base, 'eins');
 const second = join(base, 'zwei');
 const third = join(base, 'drei');
 const fourth = join(base, 'vier');
-// «Pfad ändern» (ADR 0023 point 4): one film in two folders under the same name, the old place
-// and the new one, so the scan at the new place finds the file again.
+// A new path (ADR 0023 point 4): one film in two folders under the same name, the old place and
+// the new one, so the scan at the new place finds the file again.
 const before = join(base, 'fuenf');
 const after = join(base, 'sechs');
 const MOVED_TITLE = 'E2E Umzug';
@@ -36,12 +38,20 @@ const movedFile = `${MOVED_TITLE} (2001)/${MOVED_TITLE} (2001).mp4`;
 const toggle = (page: Page) => page.getByRole('button', { name: NAME, exact: true });
 const row = (page: Page) => page.getByRole('row').filter({ has: toggle(page) });
 const foldOut = (page: Page) => page.getByRole('region', { name: NAME, exact: true });
-const foldersButton = (page: Page) =>
-  foldOut(page).getByRole('button', { name: `Ordner von ${NAME} bearbeiten` });
-const dialog = (page: Page) => page.getByRole('dialog', { name: `Ordner von ${NAME}` });
-const confirm = (page: Page) =>
-  page.getByRole('alertdialog', { name: 'Ordner wirklich entfernen?' });
-const change = (page: Page) => page.getByRole('dialog', { name: 'Ordner ändern' });
+const editButton = (page: Page) =>
+  foldOut(page).getByRole('button', { name: `${NAME} bearbeiten` });
+const form = (page: Page) => page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+const confirm = (page: Page) => page.getByRole('dialog', { name: 'Änderungen bestätigen' });
+const discard = (page: Page) => page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' });
+const card = (page: Page, number: number) =>
+  form(page).getByRole('listitem', { name: `Ordner ${number}` });
+/** Every folder card of the form (the cards hold lists of their own). */
+const cards = (page: Page) => form(page).getByRole('listitem', { name: /^Ordner \d+$/ });
+/** The head of a card: the first button, the one that folds it. */
+const head = (scope: Locator) => scope.getByRole('button').first();
+const pathOf = (scope: Locator) => scope.getByLabel('Ordner', { exact: true });
+const save = (page: Page) => form(page).getByRole('button', { name: 'Speichern', exact: true });
+const typed = (page: Page) => confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen');
 
 /** Creates the folders on disk; a library folder has to exist before the server takes it. */
 test.beforeAll(() => {
@@ -75,195 +85,270 @@ test.beforeEach(async ({ page }) => {
   await resetFocus(page);
 });
 
-// While a modal is open react-aria hides the rest of the page from the accessibility tree, so
-// anything in the row or its fold-out is asserted with the dialog closed.
-const closeDialog = async (page: Page) => {
-  await dialog(page).getByRole('button', { name: 'Schliessen' }).click();
-  await expect(dialog(page)).toHaveCount(0);
-};
-
-/** Folds the library's row out (the fold-out carries the button to the dialog). */
+/** Folds the library's row out (the fold-out carries «Bearbeiten»). */
 const openRow = async (page: Page) => {
   if ((await toggle(page).getAttribute('aria-expanded')) !== 'true') await toggle(page).click();
   await expect(foldOut(page)).toBeVisible();
 };
 
-const openDialog = async (page: Page) => {
+const openForm = async (page: Page) => {
   await openRow(page);
-  await foldersButton(page).click();
-  await expect(dialog(page)).toBeVisible();
+  await editButton(page).click();
+  await expect(form(page)).toBeVisible();
+  await expectFocusOn(page, form(page).getByLabel('Name', { exact: true }));
 };
 
-test('the folders dialog opens from the keyboard and lists the folder @keyboard', async ({
+/** «Speichern» by keyboard; with heavy changes the confirmation comes first. */
+const pressSave = async (page: Page) => {
+  await tabTo(page, save(page), 80);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+};
+
+/** The confirmation is there; Tab reaches its «Speichern», Enter saves, the form closes. */
+const confirmSave = async (page: Page) => {
+  const submit = confirm(page).getByRole('button', { name: 'Speichern', exact: true });
+  await expect(submit).toBeEnabled();
+  await tabTo(page, submit, 20);
+  await page.keyboard.press('Enter');
+  await expect(confirm(page)).toHaveCount(0);
+  await expect(form(page)).toHaveCount(0);
+};
+
+/** Removes the folder of `path` through the form, confirmed with its path (cleanup). */
+const removeFolder = async (page: Page, path: string) => {
+  await openForm(page);
+  const target = cards(page).filter({ hasText: path });
+  await head(target).click();
+  await target.getByRole('button', { name: /^Ordner \d+ entfernen$/ }).click();
+  await save(page).click();
+  await typed(page).fill(path);
+  await confirm(page).getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(form(page)).toHaveCount(0);
+};
+
+/**
+ * Adds folders through the form; a new folder needs no confirmation. A new card of a video
+ * library proposes the content the others lack; `films` keeps every new card at films.
+ */
+const addFolders = async (page: Page, paths: string[], films = false) => {
+  await openForm(page);
+  for (const path of paths) {
+    // «Ordner hinzufügen» while the library has none, «Weiteren …» after.
+    await form(page)
+      .getByRole('button', { name: /^(Weiteren )?Ordner hinzufügen$/ })
+      .click();
+    const last = cards(page).last();
+    await expectFocusOn(page, pathOf(last));
+    await page.keyboard.type(path);
+    if (films) await last.getByText('Filme', { exact: true }).click();
+  }
+  await save(page).click();
+  await expect(form(page)).toHaveCount(0);
+};
+
+test('the form opens by keyboard, its cards fold with Enter and Space, Escape asks before discarding @keyboard', async ({
   page,
 }) => {
-  // Tabbed to, not focused by script: a ring only counts when the keyboard put it there.
-  // The page carries a row per library, so the budget is generous. Enter folds the row out;
-  // its first stops are «Erneut scannen» and «Ordner».
+  // Tabbed to, not focused by script: a ring only counts when the keyboard put it there. Enter
+  // folds the row out; its stops are «Erneut scannen» and «Bearbeiten».
   await tabTo(page, toggle(page), 80);
   await page.keyboard.press('Enter');
   await expect(toggle(page)).toHaveAttribute('aria-expanded', 'true');
-  const open = foldersButton(page);
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, open);
-  await page.keyboard.press('Enter');
-
-  await expect(dialog(page)).toBeVisible();
-  await expect(dialog(page).getByText(first)).toBeVisible();
-  // Tab walks the dialog and every stop shows a ring.
-  await page.keyboard.press('Tab');
+  await expectFocusOn(page, editButton(page));
   await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(form(page)).toBeVisible();
 
-  // Escape closes and hands the focus back to the button that opened it.
+  // The name first; the kind is locked (no stop); then the head of the one closed card.
+  const name = form(page).getByLabel('Name', { exact: true });
+  await expectFocusOn(page, name);
+  await expect(form(page).getByRole('radio', { name: 'Video' })).toBeDisabled();
+  const one = card(page, 1);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, head(one));
+  await expectVisibleFocus(page);
+  await expect(head(one)).toHaveAttribute('aria-expanded', 'false');
+  await expect(head(one)).toContainText(first);
+  // Enter opens it, Space closes it; the focus stays on the head (concept 24 P-3).
+  await page.keyboard.press('Enter');
+  await expect(head(one)).toHaveAttribute('aria-expanded', 'true');
+  await expect(pathOf(one)).toHaveValue(first);
+  await expectFocusOn(page, head(one));
+  await page.keyboard.press('Space');
+  await expect(head(one)).toHaveAttribute('aria-expanded', 'false');
+  await expect(pathOf(one)).toBeHidden();
+  await expectFocusOn(page, head(one));
+
+  // Without a change Escape closes at once and hands the focus back to «Bearbeiten».
   await page.keyboard.press('Escape');
-  await expect(dialog(page)).toHaveCount(0);
-  await expectFocusOn(page, open);
+  await expect(form(page)).toHaveCount(0);
+  await expectFocusOn(page, editButton(page));
+
+  // With a change it asks; the safe answer has the focus and keeps what was typed.
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, name);
+  await page.keyboard.press('End');
+  await page.keyboard.type(' neu');
+  await page.keyboard.press('Escape');
+  await expect(discard(page)).toBeVisible();
+  const keep = discard(page).getByRole('button', { name: 'Weiter bearbeiten' });
+  await expectFocusOn(page, keep);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(discard(page)).toHaveCount(0);
+  await expect(name).toHaveValue(`${NAME} neu`);
+  // «Abbrechen» asks the same; «Verwerfen» closes, nothing is saved.
+  await tabTo(page, form(page).getByRole('button', { name: 'Abbrechen' }), 40);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, keep);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, discard(page).getByRole('button', { name: 'Verwerfen' }));
+  await page.keyboard.press('Enter');
+  await expect(form(page)).toHaveCount(0);
+  await expectFocusOn(page, editButton(page));
+  await expect(toggle(page)).toBeVisible();
   await expectNoFocusTrap(page);
 });
 
-/** Adds the paths as cards of «Neue Ordner» and submits them in one go (F-13). */
-const addFolders = async (page: Page, paths: string[]) => {
-  for (const [index, path] of paths.entries()) {
-    await dialog(page)
-      .getByRole('button', {
-        name: index === 0 ? 'Ordner hinzufügen' : 'Weiteren Ordner hinzufügen',
-        exact: true,
-      })
-      .click();
-    const cardOf = dialog(page).getByRole('listitem', { name: `Ordner ${index + 1}` });
-    await expectFocusOn(page, cardOf.getByLabel('Ordner', { exact: true }));
-    await page.keyboard.type(path);
-  }
-  const submit = dialog(page).getByRole('button', {
-    name: `${paths.length} Ordner hinzufügen`,
-    exact: true,
-  });
-  await submit.click();
-  for (const path of paths) await expect(dialog(page).getByText(path)).toBeVisible();
-};
-
-test('a second folder goes in, and comes out only after its path is typed', async ({ page }) => {
-  await openDialog(page);
-
-  // Add: «Ordner hinzufügen» opens a card, its path field takes the path, Enter in it submits.
-  await dialog(page).getByRole('button', { name: 'Ordner hinzufügen', exact: true }).click();
-  const field = dialog(page).getByLabel('Ordner', { exact: true });
-  await expectFocusOn(page, field);
-  await page.keyboard.type(second);
+test('a second folder goes in with «Speichern», and comes out only after its path is typed @keyboard', async ({
+  page,
+}) => {
+  await openForm(page);
+  // Add: the new card is open and takes the focus in its path; Enter in it saves the form.
+  await tabTo(page, form(page).getByRole('button', { name: 'Weiteren Ordner hinzufügen' }), 40);
   await page.keyboard.press('Enter');
-  await expect(dialog(page).getByText(second)).toBeVisible();
-
-  // The row counts instead of naming a path (E16); the fold-out lists both.
-  await closeDialog(page);
+  const two = card(page, 2);
+  await expect(head(two)).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, pathOf(two));
+  await page.keyboard.type(second);
+  await expect(two.getByText('geändert')).toBeVisible();
+  await page.keyboard.press('Enter');
+  // A new folder needs no confirmation; one band says what changed.
+  await expect(form(page)).toHaveCount(0);
+  await expect(page.getByText('1 Ordner hinzugefügt; der Scan ist eingereiht.')).toBeVisible();
   await expect(row(page).getByText('2 Ordner')).toBeVisible();
   await expect(foldOut(page).getByText(second)).toBeVisible();
-  await openDialog(page);
 
-  // Remove: the confirming button stays refused until the path is repeated exactly.
-  const removeRow = dialog(page).getByRole('button', { name: `Ordner ${second} entfernen` });
-  await tabTo(page, removeRow);
+  // Remove: only a mark, with «Rückgängig»; the focus follows.
+  await openForm(page);
+  await tabTo(page, head(card(page, 2)), 20);
   await page.keyboard.press('Enter');
-  await expect(confirm(page)).toBeVisible();
-
-  const remove = confirm(page).getByRole('button', { name: 'Ordner entfernen' });
-  await expect(remove).toBeDisabled();
-  const typed = confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen');
-  await expectFocusOn(page, typed);
+  const remove = card(page, 2).getByRole('button', { name: 'Ordner 2 entfernen' });
+  await tabTo(page, remove, 40);
   await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  const undo = card(page, 2).getByRole('button', {
+    name: 'Entfernen von Ordner 2 rückgängig machen',
+  });
+  await expectFocusOn(page, undo);
+  await expect(card(page, 2)).toContainText('Wird beim Speichern entfernt');
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, head(card(page, 2)));
+  await page.keyboard.press('Enter');
+  await tabTo(page, remove, 40);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, undo);
 
+  // «Speichern» asks first: the consequences and the typed path.
+  await pressSave(page);
+  await expect(confirm(page)).toBeVisible();
+  await expect(confirm(page).getByText(`Ordner entfernen: ${second}`)).toBeVisible();
+  await expect(confirm(page).getByText(/weich gelöscht/)).toBeVisible();
+  await tabTo(page, typed(page), 20);
+  await expectVisibleFocus(page);
+  const submit = confirm(page).getByRole('button', { name: 'Speichern', exact: true });
+  await expect(submit).toBeDisabled();
   // A near miss is still a miss; surrounding spaces are forgiven.
-  await typed.fill(first);
-  await expect(remove).toBeDisabled();
-  await typed.fill(`${second}x`);
-  await expect(remove).toBeDisabled();
-  await typed.fill(`${second} `);
-  await expect(remove).toBeEnabled();
-
-  // Escape leaves everything as it was.
+  await page.keyboard.type(first);
+  await expect(submit).toBeDisabled();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type(`${second}x`);
+  await expect(submit).toBeDisabled();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type(' ');
+  await expect(submit).toBeEnabled();
+  // Escape leaves the confirmation; the form and the mark stay.
   await page.keyboard.press('Escape');
   await expect(confirm(page)).toHaveCount(0);
-  await expect(dialog(page).getByText(second)).toBeVisible();
+  await expect(card(page, 2)).toContainText('Wird beim Speichern entfernt');
 
-  // Now for real.
-  await removeRow.click();
-  await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(second);
-  await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
-  await expect(confirm(page)).toHaveCount(0);
-  await expect(dialog(page).getByText(second)).toHaveCount(0);
-  await closeDialog(page);
+  // Now for real: the closed confirmation forgot the typed path, so it is typed again.
+  await pressSave(page);
+  await expect(typed(page)).toHaveValue('');
+  await tabTo(page, typed(page), 20);
+  await page.keyboard.type(second);
+  await confirmSave(page);
+  await expect(page.getByText('1 Ordner entfernt.')).toBeVisible();
   await expect(row(page).getByText(first)).toBeVisible();
   await expectNoFocusTrap(page);
 });
 
 test('a library without a folder says so and offers no scan (E13)', async ({ page }) => {
-  await openDialog(page);
-  await dialog(page)
-    .getByRole('button', { name: `Ordner ${first} entfernen` })
-    .click();
+  await openForm(page);
+  await head(card(page, 1)).click();
+  await card(page, 1).getByRole('button', { name: 'Ordner 1 entfernen' }).click();
+  await save(page).click();
   // The text names the last folder and the one-way door.
-  await expect(confirm(page).getByText(/letzte Ordner/)).toBeVisible();
+  await expect(confirm(page).getByText(/Es ist der letzte Ordner/)).toBeVisible();
   await expect(confirm(page).getByText(/SLOUCHCAT_BROWSE_ROOTS/)).toBeVisible();
-  await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
-  await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
-  await expect(confirm(page)).toHaveCount(0);
-
-  await expect(dialog(page).getByText(/Diese Bibliothek hat keinen Ordner/)).toBeVisible();
-  await closeDialog(page);
+  await typed(page).fill(first);
+  await confirm(page).getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(form(page)).toHaveCount(0);
 
   await expect(row(page).getByText('0 Ordner')).toBeVisible();
-  await expect(foldOut(page).getByText(/Kein Ordner: Es wird nichts gescannt/)).toBeVisible();
+  await expect(
+    foldOut(page).getByText(
+      'Kein Ordner: Es wird nichts gescannt, bis du unter «Bearbeiten» einen hinzufügst.',
+    ),
+  ).toBeVisible();
   await expect(foldOut(page).getByRole('button', { name: 'Erneut scannen' })).toBeDisabled();
 
   // Put it back, so the spec can run again on the same server.
-  await openDialog(page);
   await addFolders(page, [first]);
-  await closeDialog(page);
-});
-
-test('two folders go in with one submit, each with its own content (F-13)', async ({ page }) => {
-  await openDialog(page);
-  await addFolders(page, [third, fourth]);
-  await closeDialog(page);
-  // The second new card proposed the other content of a video library: a series folder.
-  await expect(row(page).getByText('3 Ordner')).toBeVisible();
-  await expect(row(page).getByText('2 Filme, 1 Serien')).toBeVisible();
-  // Out again, so the other tests find the one folder they expect.
-  await openDialog(page);
-  for (const path of [third, fourth]) {
-    await dialog(page)
-      .getByRole('button', { name: `Ordner ${path} entfernen` })
-      .click();
-    await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(path);
-    await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
-    await expect(confirm(page)).toHaveCount(0);
-  }
-  await closeDialog(page);
   await expect(row(page).getByText(first)).toBeVisible();
 });
 
-test('«Ändern» edits content and sources by keyboard; a content change needs the typed path', async ({
+test('two folders go in with one save, each with its own content (F-13)', async ({ page }) => {
+  await addFolders(page, [third, fourth]);
+  // The second new card proposed the other content of a video library: a series folder.
+  await expect(row(page).getByText('3 Ordner')).toBeVisible();
+  await expect(row(page).getByText('2 Filme, 1 Serien')).toBeVisible();
+  // Out again in one save, so the other tests find the one folder they expect.
+  await openForm(page);
+  for (const path of [third, fourth]) {
+    const target = cards(page).filter({ hasText: path });
+    await head(target).click();
+    await target.getByRole('button', { name: /^Ordner \d+ entfernen$/ }).click();
+  }
+  await save(page).click();
+  await expect(confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen')).toHaveCount(2);
+  await typed(page).first().fill(third);
+  await typed(page).last().fill(fourth);
+  await confirm(page).getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(form(page)).toHaveCount(0);
+  await expect(page.getByText('2 Ordner entfernt.')).toBeVisible();
+  await expect(row(page).getByText(first)).toBeVisible();
+});
+
+test('content and sources of a card by keyboard; another content needs the typed path @keyboard', async ({
   page,
 }) => {
-  await openDialog(page);
-  const open = dialog(page).getByRole('button', { name: `Ordner ${first} ändern` });
-  /** Opens «Ändern» by keyboard; the dialog starts on the checked content (its first field). */
-  const openChange = async () => {
-    if (!(await open.evaluate((element) => element === document.activeElement)))
-      await tabTo(page, open, 20);
-    await page.keyboard.press('Enter');
-    await expect(change(page)).toBeVisible();
-    await expectFocusOn(page, change(page).getByRole('radio', { checked: true }));
-  };
-  await openChange();
+  await openForm(page);
+  const one = card(page, 1);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, head(one));
+  await page.keyboard.press('Enter');
 
-  // The fillers only: ticking AniList needs no confirmation, the dialog says what happens.
-  const sources = change(page).getByRole('group', { name: 'Metadatenquellen' });
-  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeChecked();
-  await tabTo(page, sources.getByRole('checkbox', { name: 'AniList' }), 12);
+  // The fillers only: ticking AniList needs no confirmation, the card says what happens.
+  const sources = one.getByRole('group', { name: 'Metadatenquellen' });
+  await expect(one.getByRole('radio', { name: 'Filme' })).toBeChecked();
+  await tabTo(page, sources.getByRole('checkbox', { name: 'AniList' }), 20);
   await expectVisibleFocus(page);
   await page.keyboard.press('Space');
-  await expect(change(page).getByText(/Nur die Auffüller ändern sich/)).toBeVisible();
+  await expect(one.getByText(/Nur die Auffüller ändern sich/)).toBeVisible();
   // The order is a position per source (S-16): ↑ puts AniList first, where it may not stand.
   const rank = sources.getByRole('combobox', { name: 'Platz für AniList' });
   await page.keyboard.press('Tab');
@@ -271,51 +356,46 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, rank);
   await expect(sources.getByRole('alert')).toHaveText(/AniList kann keinen Titel erkennen/);
-  await expect(change(page).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  await expect(save(page)).toBeDisabled();
   await page.keyboard.press('ArrowDown');
   await expect(sources.getByRole('alert')).toHaveCount(0);
-  const saved = page.waitForResponse(
-    (response) => response.request().method() === 'PATCH' && /\/roots\/\d+$/.test(response.url()),
-  );
-  await change(page).getByRole('button', { name: 'Speichern' }).click();
-  expect((await saved).status()).toBe(200);
-  await expect(change(page)).toHaveCount(0);
-  await expect(dialog(page).getByText(`Der Ordner ${first} ist geändert.`)).toBeVisible();
-  const row = dialog(page).getByRole('listitem').filter({ hasText: first });
-  await expect(row.getByText('TMDB › AniList')).toBeVisible();
+  await pressSave(page);
+  await expect(form(page)).toHaveCount(0);
+  await expect(page.getByText(/^Neue Quellen bei 1 Ordner/)).toBeVisible();
+  await expect(foldOut(page).getByText('TMDB › AniList')).toBeVisible();
 
-  // The content: Escape leaves the confirmation, the typed path confirms it.
-  await openChange();
-  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeFocused();
+  // The content: the card warns; the confirmation wants the typed path, Escape leaves it.
+  await openForm(page);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  const films = one.getByRole('radio', { name: 'Filme' });
+  await tabTo(page, films, 20);
   await page.keyboard.press('ArrowRight');
-  await expect(change(page).getByRole('radio', { name: 'Serien' })).toBeChecked();
-  await expect(change(page).getByText(/wirkt wie Ordner entfernen und neu anlegen/)).toBeVisible();
-  await change(page).getByRole('button', { name: 'Speichern' }).click();
-  const typed = page.getByRole('alertdialog', { name: 'Inhalt wirklich wechseln?' });
-  await expect(typed).toBeVisible();
-  await expectFocusOn(page, typed.getByLabel('Tippe den Pfad, um zu bestätigen'));
-  await expect(typed.getByRole('button', { name: 'Inhalt wechseln' })).toBeDisabled();
+  await expect(one.getByRole('radio', { name: 'Serien' })).toBeChecked();
+  await expect(one.getByText(/wirkt wie Ordner entfernen und neu anlegen/)).toBeVisible();
+  await pressSave(page);
+  await expect(confirm(page).getByText(`Inhalt wechseln: ${first}`)).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(typed).toHaveCount(0);
-  await expect(change(page)).toBeVisible();
-  await change(page).getByRole('button', { name: 'Speichern' }).click();
-  await typed.getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
-  await typed.getByRole('button', { name: 'Inhalt wechseln' }).click();
-  await expect(typed).toHaveCount(0);
-  await expect(change(page)).toHaveCount(0);
-  await expect(row.getByText('TMDB › TVDB')).toBeVisible();
+  await expect(confirm(page)).toHaveCount(0);
+  await expect(form(page)).toBeVisible();
+  await pressSave(page);
+  await tabTo(page, typed(page), 20);
+  await page.keyboard.type(first);
+  await confirmSave(page);
+  await expect(foldOut(page).getByText('TMDB › TVDB')).toBeVisible();
 
-  // Back to films, so the spec can run again on the same server.
-  await openChange();
-  // The radio inputs are visually hidden (react-aria segments): the keyboard switches them.
-  await expect(change(page).getByRole('radio', { name: 'Serien' })).toBeFocused();
+  // Back to films with the old sources, so the spec can run again on the same server.
+  await openForm(page);
+  await head(one).click();
+  await expect(one.getByRole('radio', { name: 'Serien' })).toBeChecked();
+  await one.getByRole('radio', { name: 'Serien' }).focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeChecked();
-  await change(page).getByRole('button', { name: 'Speichern' }).click();
-  await typed.getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
-  await typed.getByRole('button', { name: 'Inhalt wechseln' }).click();
-  await expect(change(page)).toHaveCount(0);
-  await closeDialog(page);
+  await expect(one.getByRole('radio', { name: 'Filme' })).toBeChecked();
+  await save(page).click();
+  await typed(page).fill(first);
+  await confirm(page).getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(form(page)).toHaveCount(0);
+  await expect(foldOut(page).getByText('TMDB', { exact: true })).toBeVisible();
   await expectNoFocusTrap(page);
 });
 
@@ -333,113 +413,84 @@ async function ownLibrary(api: APIRequestContext) {
   return library!;
 }
 
-/** Waits until a scan of the library finished after `since`, and returns the id of the film. */
+/**
+ * Waits until a scan of the library finished after `since` and the film is listed, and returns
+ * its id. An earlier scan of the library (another test changed a folder) may end after `since`
+ * too, before the one that reads the film, so the poll waits for the film itself.
+ */
 async function movedTitleAfterScan(api: APIRequestContext, since: number): Promise<string> {
-  let libraryId = 0;
+  let id = '';
   await expect
     .poll(
       async () => {
         const library = await ownLibrary(api);
-        libraryId = library.id;
         const finished = library.scan.finishedAt ? Date.parse(library.scan.finishedAt) : 0;
-        return library.scan.state === 'done' && finished >= since;
+        if (library.scan.state !== 'done' || finished < since) return '';
+        const response = await api.get(`/api/v1/libraries/${library.id}/items?limit=100`);
+        if (response.status() !== 200) return '';
+        const { items } = (await response.json()) as { items: { id: string; title: string }[] };
+        id = items.find((candidate) => candidate.title === MOVED_TITLE)?.id ?? '';
+        return id;
       },
       { timeout: 30_000 },
     )
-    .toBe(true);
-  const response = await api.get(`/api/v1/libraries/${libraryId}/items?limit=100`);
-  expect(response.status()).toBe(200);
-  const { items } = (await response.json()) as { items: { id: string; title: string }[] };
-  const item = items.find((candidate) => candidate.title === MOVED_TITLE);
-  expect(item, MOVED_TITLE).toBeDefined();
-  return item!.id;
+    .not.toBe('');
+  return id;
 }
 
-test('«Pfad ändern» picks the new place by keyboard and keeps the title (ADR 0023)', async ({
+test('a new path by keyboard names old and new path, needs no typed path and keeps the title (ADR 0023)', async ({
   page,
 }) => {
-  const browser = page.getByRole('dialog', { name: 'Ordner auswählen' });
-  const confirmMove = page.getByRole('alertdialog', { name: 'Pfad ändern?' });
-  const moveButton = (path: string) =>
-    dialog(page).getByRole('button', { name: `Pfad von ${path} ändern` });
-
-  await openDialog(page);
   let since = Date.now();
-  await addFolders(page, [before]);
+  await addFolders(page, [before], true);
   const titleId = await movedTitleAfterScan(page.request, since);
 
-  /**
-   * Opens the browser from the row by keyboard and types the new place into its path field: the
-   * folders of this spec lie below a hidden folder, which the list does not show, and a library
-   * folder opens as a root of its own (PathBrowserDialog.startPosition).
-   */
-  const pickNewPlace = async () => {
-    const open = moveButton(before);
-    if (!(await open.evaluate((element) => element === document.activeElement)))
-      await tabTo(page, open, 30);
-    await expectVisibleFocus(page);
-    await page.keyboard.press('Enter');
-    await expect(browser).toBeVisible();
-    // The browser opens in the folder's own path, the focus on its first row.
-    const field = browser.getByLabel('Ordner', { exact: true });
-    await expect(field).toHaveValue(before);
-    const film = browser.getByRole('option', { name: new RegExp(MOVED_TITLE) });
-    await expectFocusOn(page, film);
-    await expectVisibleFocus(page);
-    await tabTo(page, field, 10);
-    await page.keyboard.press('ControlOrMeta+a');
-    await page.keyboard.type(after);
-    await tabTo(page, browser.getByRole('button', { name: 'OK', exact: true }), 10);
-    await page.keyboard.press('Enter');
-    await expect(browser).toHaveCount(0);
-    await expect(confirmMove).toBeVisible();
-    await expect(
-      confirmMove.getByText(`Alter Pfad: ${before} · Neuer Pfad: ${after}.`, { exact: false }),
-    ).toBeVisible();
-    await expectFocusOn(page, confirmMove.getByRole('button', { name: 'Ändern' }));
-    await expectVisibleFocus(page);
-  };
+  await openForm(page);
+  // By its number: its head names the new path once it is typed.
+  const label = await cards(page).filter({ hasText: before }).getAttribute('aria-label');
+  const moved = form(page).getByRole('listitem', { name: label ?? '', exact: true });
+  await tabTo(page, head(moved), 20);
+  await page.keyboard.press('Enter');
+  await tabTo(page, pathOf(moved), 10);
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type(after);
+  await expect(moved.getByText(/Der neue Pfad gilt nach dem Speichern/)).toBeVisible();
 
-  // Escape leaves the folder where it was and hands the focus back to its «Pfad ändern».
-  let patched = 0;
+  // Escape in the confirmation leaves the folder where it was; nothing is sent.
+  let sent = 0;
   page.on('request', (request) => {
-    if (request.method() === 'PATCH' && /\/roots\/\d+$/.test(request.url())) patched += 1;
+    if (request.method() === 'PUT' && /\/admin\/libraries\/\d+$/.test(request.url())) sent += 1;
   });
-  await pickNewPlace();
+  await pressSave(page);
+  await expect(confirm(page).getByText(`Pfad ändern: ${before}`)).toBeVisible();
+  await expect(
+    confirm(page).getByText(`Alter Pfad: ${before} · Neuer Pfad: ${after}.`, { exact: false }),
+  ).toBeVisible();
+  await expect(typed(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(confirmMove).toHaveCount(0);
-  await expectFocusOn(page, moveButton(before));
-  await expect(dialog(page).getByText(before, { exact: true })).toBeVisible();
-  expect(patched).toBe(0);
+  await expect(confirm(page)).toHaveCount(0);
+  expect(sent).toBe(0);
 
-  // Enter confirms: the server takes the new path, the list and the status say so.
-  await pickNewPlace();
+  // Enter confirms: the server takes the new path, the band says so.
+  await pressSave(page);
   const saved = page.waitForResponse(
-    (response) => response.request().method() === 'PATCH' && /\/roots\/\d+$/.test(response.url()),
+    (response) =>
+      response.request().method() === 'PUT' && /\/admin\/libraries\/\d+$/.test(response.url()),
   );
   since = Date.now();
-  await page.keyboard.press('Enter');
+  await confirmSave(page);
   const answer = await saved;
   expect(answer.status()).toBe(200);
-  expect(answer.request().postDataJSON()).toEqual({ path: after });
-  await expect(confirmMove).toHaveCount(0);
-  await expect(
-    dialog(page).getByText(`Der Ordner liegt jetzt unter ${after} und wird neu eingelesen.`),
-  ).toBeVisible();
-  await expect(dialog(page).getByText(after, { exact: true })).toBeVisible();
-  await expect(dialog(page).getByText(before, { exact: true })).toHaveCount(0);
-  await expectFocusOn(page, moveButton(after));
+  expect(answer.request().postDataJSON()).toMatchObject({ roots: [{}, { path: after }] });
+  await expect(page.getByText('1 Ordner mit neuem Pfad wird neu eingelesen.')).toBeVisible();
+  await expect(foldOut(page).getByText(after, { exact: true })).toBeVisible();
+  await expect(foldOut(page).getByText(before, { exact: true })).toHaveCount(0);
 
   // The scan at the new place finds the file under the same name: the title keeps its id.
   expect(await movedTitleAfterScan(page.request, since)).toBe(titleId);
 
   // Out again, so the spec can run again on the same server.
-  await dialog(page)
-    .getByRole('button', { name: `Ordner ${after} entfernen` })
-    .click();
-  await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(after);
-  await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
-  await expect(confirm(page)).toHaveCount(0);
-  await closeDialog(page);
+  await removeFolder(page, after);
+  await expect(foldOut(page).getByText(after, { exact: true })).toHaveCount(0);
   await expectNoFocusTrap(page);
 });

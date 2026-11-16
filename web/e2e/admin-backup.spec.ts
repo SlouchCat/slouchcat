@@ -111,15 +111,19 @@ test('A-4: create a backup without secrets, download it and delete it, by keyboa
     await expect(row.getByRole('cell').nth(2)).toHaveText('Nein');
     await expect(row.getByRole('cell').nth(3)).toHaveText('Nein');
 
-    // The kind folds away by its heading with Enter and comes back.
+    // The kind of the new backup is open (concept 24, exception 2). It folds away by its heading
+    // with Enter and comes back with Space; the focus stays on the heading.
     const group = page.getByRole('button', { name: /^Manuell \d+ Sicherung/ });
+    await expect(group).toHaveAttribute('aria-expanded', 'true');
     await resetFocus(page);
     await tabTo(page, group, TAB_MAX);
     await page.keyboard.press('Enter');
     await expect(group).toHaveAttribute('aria-expanded', 'false');
     await expect(manual).toBeHidden();
-    await page.keyboard.press('Enter');
+    await expectFocusOn(page, group);
+    await page.keyboard.press('Space');
     await expect(group).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, group);
 
     // The download link: its address answers with the archive, and Enter downloads the file.
     const link = row.getByRole('link', { name: `${backup.name} herunterladen` });

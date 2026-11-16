@@ -113,31 +113,50 @@ func (s *Service) RemoveRoot(ctx context.Context, libraryID, rootID int64, confi
 	if err != nil {
 		return model.Library{}, err
 	}
-	s.forgetRoot(libraryID, rootID)
-	s.settleScans(ctx, libraryID, rootID)
-
-	// Warn and not Info: the project keeps no audit table, so this line and the notification are
-	// the only trace that thousands of titles left the library on one click.
-	s.log.WarnContext(ctx, "library root removed", "library_id", libraryID, "library", lib.Name,
-		"root_id", rootID, "root", root.Path, "items_soft_deleted", items, "media_files_deleted", files)
-	if s.rootRemoved != nil {
-		if err := s.rootRemoved(ctx, lib.Name, root.Path, items, files); err != nil {
-			s.log.WarnContext(ctx, "notify library root removed", "library_id", libraryID, "err", err)
-		}
-	}
+	s.afterRootRemoved(ctx, lib, root, items, files)
 	return s.Get(ctx, libraryID)
 }
 
-// removeRootRows runs the four database steps of RemoveRoot in one transaction and returns how
-// many titles were soft-deleted and how many media files went with the root.
+// afterRootRemoved does what follows a committed removal outside the database: the watcher and
+// the scanner's state of the folder go, the queue is settled, and the log line and the
+// notification tell what left.
+func (s *Service) afterRootRemoved(ctx context.Context, lib appq.Library, root appq.LibraryRoot, items, files int64) {
+	s.forgetRoot(lib.ID, root.ID)
+	s.settleScans(ctx, lib.ID, root.ID)
+
+	// Warn and not Info: the project keeps no audit table, so this line and the notification are
+	// the only trace that thousands of titles left the library on one click.
+	s.log.WarnContext(ctx, "library root removed", "library_id", lib.ID, "library", lib.Name,
+		"root_id", root.ID, "root", root.Path, "items_soft_deleted", items, "media_files_deleted", files)
+	if s.rootRemoved != nil {
+		if err := s.rootRemoved(ctx, lib.Name, root.Path, items, files); err != nil {
+			s.log.WarnContext(ctx, "notify library root removed", "library_id", lib.ID, "err", err)
+		}
+	}
+}
+
+// removeRootRows runs the database steps of RemoveRoot in one transaction (removeRootRowsTx).
 func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (items, files int64, err error) {
-	now := s.now().UnixMilli()
-	ms := sql.NullInt64{Int64: now, Valid: true}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if items, files, err = s.removeRootRowsTx(ctx, tx, libraryID, rootID); err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, 0, fmt.Errorf("remove library root %d: %w", rootID, err)
+	}
+	return items, files, nil
+}
+
+// removeRootRowsTx runs the database steps of a removal in tx and returns how many titles were
+// soft-deleted and how many media files went with the root. saveLibrary shares tx with its other
+// steps (concept 24 4.3).
+func (s *Service) removeRootRowsTx(ctx context.Context, tx *sql.Tx, libraryID, rootID int64) (items, files int64, err error) {
+	now := s.now().UnixMilli()
+	ms := sql.NullInt64{Int64: now, Valid: true}
 	q := systemq.New(tx)
 
 	files, err = q.CountMediaFilesOfRoot(ctx, rootID)
@@ -173,6 +192,12 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if _, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
 	}
+	// The titles that stay and lived here move to the folder of their oldest present file (ADR
+	// 0036); the delete sets their root_id to NULL first, which rehome reads as "no home folder".
+	survivors, err := q.ListTitleIDsOfRoot(ctx, rootID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("list titles of root %d: %w", rootID, err)
+	}
 	n, err := q.DeleteLibraryRoot(ctx, systemq.DeleteLibraryRootParams{ID: rootID, LibraryID: libraryID})
 	if err != nil {
 		return 0, 0, fmt.Errorf("delete library root %d: %w", rootID, err)
@@ -180,8 +205,8 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if n == 0 {
 		return 0, 0, model.ErrNotFound
 	}
-	if err := tx.Commit(); err != nil {
-		return 0, 0, fmt.Errorf("remove library root %d: %w", rootID, err)
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), survivors); err != nil {
+		return 0, 0, err
 	}
 	return items, files, nil
 }

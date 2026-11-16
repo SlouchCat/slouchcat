@@ -90,7 +90,10 @@ Design-Brief von M1b gewählt und ersetzt dann diesen Wert.
 
 ## Kontrast
 
-`pnpm test` baut die Tokens und prüft nach WCAG 2.x (relative Luminanz), dass jede Akzentfarbe auf
-`color.bg.base`, die `on`-Farbe jeder Akzentfarbe auf ihrer Akzentfarbe sowie `text.primary`,
-`text.secondary` und `text.muted` auf `color.bg.base` mindestens 4.5:1 erreichen. Die Tabelle der
-Verhältnisse erscheint in der Testausgabe.
+`pnpm test` baut die Tokens und prüft nach WCAG 2.x (relative Luminanz) auf jeder deckenden Fläche
+(`color.bg.*` ohne `overlay`, `color.surface.*`): jede Textfarbe `color.text.*` mindestens 7:1, die
+Zustandsfarben `danger`, `warning`, `success` und jede Akzentfarbe als Text mindestens 4.5:1, die
+`on`-Farbe und `text.on-accent` auf jeder Akzentfarbe mindestens 4.5:1, die drei Rahmen-Tokens
+(Konzept 24, Z-2 bis Z-4) und Text über Bildern über einem weissen Bild (Z-6, aus den Stylesheets der
+Web-App gelesen, `test/css.ts`). Die Tabelle der Verhältnisse erscheint in der
+Testausgabe.

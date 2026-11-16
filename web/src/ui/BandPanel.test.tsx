@@ -37,7 +37,7 @@ describe('BandPanel (concept 12, 11.2)', () => {
     expect(screen.getByRole('tab', { name: 'Sicherungen' })).toBeVisible();
   });
 
-  it('folds its body away with Enter and Space, keeping what was typed', async () => {
+  it('starts closed; Enter and Space fold it, the focus stays, what was typed is kept', async () => {
     const user = userEvent.setup();
     render(
       <BandPanel title="E-Mail-Server" collapsible>
@@ -45,17 +45,34 @@ describe('BandPanel (concept 12, 11.2)', () => {
       </BandPanel>,
     );
     const toggle = screen.getByRole('button', { name: 'E-Mail-Server' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('textbox', { name: 'Server' })).toBeNull();
+    toggle.focus();
+    await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveFocus();
     const field = screen.getByRole('textbox', { name: 'Server' });
     expect(toggle).toHaveAttribute('aria-controls', field.parentElement?.id);
     await user.type(field, 'smtp.example.test');
     toggle.focus();
-    await user.keyboard('{Enter}');
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('textbox', { name: 'Server' })).toBeNull();
     await user.keyboard(' ');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+    expect(screen.queryByRole('textbox', { name: 'Server' })).toBeNull();
+    await user.keyboard('{Enter}');
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('textbox', { name: 'Server' })).toHaveValue('smtp.example.test');
+  });
+
+  it('describes its fold button by the state at the end of the band', () => {
+    render(
+      <BandPanel title="Einträge" meta="12 Titel" collapsible>
+        <p>Inhalt</p>
+      </BandPanel>,
+    );
+    expect(screen.getByRole('button', { name: 'Einträge' })).toHaveAccessibleDescription(
+      '12 Titel',
+    );
   });
 
   it('carries a tab bar in its band', async () => {

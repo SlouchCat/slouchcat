@@ -8,6 +8,8 @@
   pointer-events: none;
 }
 
+/* Text and controls lie on scrim.strong; the scrims fade out only in the padding towards the
+   picture (concept 24 Z-6, the contrast test of the tokens checks scrim.strong over white). */
 .top,
 .bottom {
   display: flex;
@@ -25,6 +27,7 @@
   background-image: linear-gradient(
     to bottom,
     var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-strong) calc(100% - var(--sc-space-16)),
     var(--sc-color-scrim-clear) 100%
   );
 }
@@ -37,6 +40,7 @@
   background-image: linear-gradient(
     to top,
     var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-strong) calc(100% - var(--sc-space-16)),
     var(--sc-color-scrim-clear) 100%
   );
 }

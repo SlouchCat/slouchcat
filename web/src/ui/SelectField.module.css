@@ -12,7 +12,7 @@
 .select {
   min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
 
   /* A field's corners in the administration's look (admin-look.css, build plan 2.7). */
   border-radius: var(--sc-select-radius, var(--sc-radius-full));

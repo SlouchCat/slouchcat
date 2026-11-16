@@ -232,7 +232,9 @@
       "files_not_deletable": "Soubor titulu nelze smazat. Nic nebylo smazáno.",
       "not_deletable": "Tento titul nelze smazat.",
       "deleting": "Právě se maže.",
-      "changed": "Mezitím se něco změnilo, zkontrolujte to prosím znovu."
+      "changed": "Mezitím se něco změnilo, zkontrolujte to prosím znovu.",
+      "stale": "Knihovna byla mezitím změněna jinde. Načtěte ji znovu a uložte ještě jednou.",
+      "root_unlisted": "V požadavku chybí jedna složka knihovny. Načtěte knihovnu znovu; nic nebylo odebráno."
     },
     "field": {
       "required": "Povinné.",
@@ -255,6 +257,7 @@
       "root_overlap": "Tato složka se překrývá s jinou složkou.",
       "path_with_content": "Novou cestu nelze kombinovat se změnou obsahu.",
       "root_files_missing": "Žádný soubor složky se nenachází pod novou cestou.",
+      "confirm_mismatch": "Cesta neodpovídá cestě složky. Nic nebylo změněno.",
       "content_not_allowed": "Tento obsah neodpovídá druhu knihovny.",
       "providers_not_allowed": "Tento seznam zdrojů metadat není pro tento obsah povolen.",
       "roots_required": "Je potřeba alespoň jedna složka.",
@@ -579,10 +582,10 @@
       "submit_many": "Přidat knihovnu s {{count}} složky",
       "submit_other": "Přidat knihovnu s {{count}} složkami",
       "submitNone": "Přidat knihovnu bez složek",
-      "addSubmit_one": "Přidat 1 složku",
-      "addSubmit_few": "Přidat {{count}} složky",
-      "addSubmit_many": "Přidat {{count}} složky",
-      "addSubmit_other": "Přidat {{count}} složek"
+      "marked": "Při uložení bude odebrána. Potvrdíte to pak zadáním její cesty.",
+      "undo": "Zpět",
+      "undoLabel": "Vrátit zpět odebrání složky {{number}}",
+      "removeStored": "Odebrat složku…"
     },
     "videoHint": "Složky této knihovny mohou obsahovat filmy nebo seriály, i smíšeně.",
     "page": {
@@ -650,7 +653,8 @@
     "notFound": {
       "title": "Knihovna nenalezena",
       "body": "Tato knihovna neexistuje nebo pro tento profil nemá žádné tituly."
-    }
+    },
+    "kindFixed": "Druh je po vytvoření knihovny pevně daný."
   },
   "home": {
     "list": {
@@ -1937,11 +1941,8 @@
         "kind": "Druh",
         "state": "Stav",
         "counts": "Tituly · soubory",
-        "folders": "Složky",
-        "metadata": "Metadata"
+        "folders": "Složky"
       },
-      "none": "–",
-      "noMetadata": "Žádný rozsah metadat",
       "roots": "Složky",
       "fsType": "Souborový systém {{type}}",
       "watch": {
@@ -2007,25 +2008,11 @@
       "defaultRating": "Výchozí: {{rating}}",
       "noRoots": "Žádná složka: tituly pocházejí z odebíraných kanálů.",
       "feedsOnly": "Tituly z kanálů",
-      "changeRating": {
-        "action": "Změnit výchozí věkové omezení",
-        "title": "Výchozí věkové omezení knihovny {{name}}",
-        "description": "Každý titul, jehož věkové omezení pochází z knihovny, se okamžitě přizpůsobí. Ručně nastavená omezení zůstanou.",
-        "submit": "Uložit",
-        "saved": "Výchozí věkové omezení knihovny {{name}} je nyní {{rating}}."
-      },
       "folders": {
-        "title": "Složky knihovny {{name}}",
-        "description": "Knihovna může obsahovat několik složek. Prohledávání i sledování novou složku zaznamenají okamžitě.",
-        "none": "Tato knihovna nemá žádnou složku. Dokud nějakou nepřidáte, nic se neprohledává.",
         "content": "Tituly: {{items}} · soubory: {{files}}",
         "remove": {
-          "action": "Odebrat",
-          "label": "Odebrat složku {{path}}",
-          "title": "Opravdu odebrat tuto složku?",
           "inputLabel": "Pro potvrzení zadejte cestu",
           "mismatch": "Zadejte {{path}} přesně, pak se tlačítko aktivuje.",
-          "confirm": "Odebrat složku",
           "lead_one": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titul s ní zmizí ze všech seznamů. Co to znamená:",
           "lead_few": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} tituly s ní zmizí ze všech seznamů. Co to znamená:",
           "lead_many": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulu s ní zmizí ze všech seznamů. Co to znamená:",
@@ -2038,54 +2025,30 @@
           "oneWay": "Pokud složka leží mimo procházené složky (SLOUCHCAT_BROWSE_ROOTS), nelze ji bez změny konfigurace znovu přidat.",
           "last": "Je to poslední složka: {{name}} zůstane, ale potom nebude mít žádnou složku a nic se nebude prohledávat."
         },
-        "new": "Nové složky",
         "change": {
-          "action": "Změnit",
-          "label": "Změnit složku {{path}}",
-          "title": "Změnit složku",
-          "description": "Obsah a zdroje metadat složky {{path}}.",
-          "submit": "Uložit",
           "identifier": "Mění se určující zdroj: texty řad a dílů se přiřadí znovu podle poskytovatele {{provider}}. Samotné díly zůstanou, průběh sledování a seznam zůstanou k nim připojeny.",
           "fillers": "Mění se jen doplňující zdroje: tituly se doplní znovu, nic se nemaže.",
-          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů.",
-          "confirmTitle": "Opravdu změnit obsah?",
-          "confirm": "Změnit obsah",
-          "saved": "Složka {{path}} byla změněna."
+          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů."
         },
         "move": {
-          "action": "Změnit cestu",
-          "label": "Změnit cestu složky {{path}}",
-          "title": "Změnit cestu?",
-          "body": "Stará cesta: {{old}} · Nová cesta: {{new}}. Tituly a uživatelská data zůstanou, pokud tam soubory leží pod stejnými názvy. Složka se poté načte znovu.",
-          "confirm": "Změnit",
-          "saved": "Složka nyní leží v {{path}} a je načtena znovu."
+          "body": "Stará cesta: {{old}} · Nová cesta: {{new}}. Tituly a uživatelská data zůstanou, pokud tam soubory leží pod stejnými názvy. Složka se poté načte znovu."
         },
         "readOnly": "jen pro čtení",
         "writable": "zapisovatelná"
       },
-      "openFolders": "Složky",
-      "openFoldersLabel": "Upravit složky knihovny {{name}}",
       "rootCount_one": "{{count}} složka",
       "rootCount_few": "{{count}} složky",
       "rootCount_many": "{{count}} složky",
       "rootCount_other": "{{count}} složek",
-      "noFolder": "Žádná složka: dokud nějakou nepřidáte v části „Složky“, nic se neprohledává.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_few": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "jako server",
-        "texts": "jazyky se liší",
-        "images": "obrázky se liší",
-        "both": "jazyky a obrázky se liší",
-        "link": "Metadata knihovny",
         "audiobooksLink": "Zdroje pro audioknihy"
       },
       "trickplay": {
         "action": "Náhledy při přetáčení",
-        "actionLabel": "Náhledy při přetáčení pro {{name}}",
-        "title": "Náhledy při přetáčení: {{name}}",
         "description": "Malé obrázky nad časovou osou, jeden každých 10 sekund. Filmy a seriály se nastavují zvlášť, i v knihovně, která obsahuje obojí.",
         "movies": "Filmy",
         "series": "Seriály",
@@ -2149,12 +2112,12 @@
         "generate": {
           "action": "Vytvořit teď",
           "hint": "Doplní chybějící náhledy každé knihovny v režimu „Předem“, stejně jako „Doplnit náhledy při přetáčení“ v části „Úlohy na pozadí“.",
-          "queued": "Doplňování náhledů čeká ve frontě."
+          "queued": "Doplňování náhledů čeká ve frontě.",
+          "unsaved": "Až po uložení: vytvoření použije uložené nastavení."
         },
-        "submit": "Uložit",
-        "saved": "Náhledy při přetáčení pro {{name}} jsou uloženy.",
         "summary": "Náhledy při přetáčení: filmy {{movies}} · seriály {{series}}",
-        "summaryNoKeep": "Při spuštění, neukládají se"
+        "summaryNoKeep": "Při spuštění, neukládají se",
+        "header": "Filmy: {{movies}} · seriály: {{series}}"
       },
       "delete": {
         "action": "Smazat knihovnu…",
@@ -2174,11 +2137,64 @@
         "done": "Knihovna „{{name}}“ smazána.",
         "notDone": "Knihovna „{{name}}“ nebyla smazána. Důvod uvádí úloha."
       },
-      "rename": {
-        "action": "Přejmenovat…",
-        "title": "Přejmenovat knihovnu „{{name}}“",
-        "label": "Název",
-        "saved": "Knihovna se nyní jmenuje „{{name}}“."
+      "form": {
+        "editTitle": "Upravit knihovnu",
+        "changed": "změněno",
+        "pathAndContent": "Cestu a obsah této složky nelze změnit v jednom kroku. Nejprve uložte jedno, pak druhé.",
+        "pathHint": "Nová cesta začne platit po uložení. Tituly a uživatelská data zůstanou zachovány, pokud tam soubory leží pod stejnými názvy.",
+        "reloaded": "Knihovna byla mezitím změněna jinde. Formulář nyní ukazuje její nový stav; vaše změny nebyly uloženy.",
+        "changedElsewhere": "Knihovna byla mezitím změněna jinde. Uložením se do formuláře načte její nový stav; vaše změny se pak neuloží.",
+        "gone": "Tato knihovna už neexistuje. Nic nebylo uloženo.",
+        "scanRunning": "Odebrání složky a změna jejího obsahu nebo cesty musí počkat na dokončení prohledávání. Vaše zadání zůstane.",
+        "scanCancelled": "Prohledávání bylo zrušeno. Uložte nyní znovu.",
+        "discard": {
+          "title": "Zahodit změny?",
+          "body": "Neuložené změny v knihovně {{name}} se ztratí.",
+          "confirm": "Zahodit",
+          "keep": "Pokračovat v úpravách"
+        },
+        "confirm": {
+          "title": "Potvrdit změny",
+          "intro": "Tyto změny se projeví, až zde uložíte.",
+          "remove": "Odebrat složku: {{path}}",
+          "content": "Změnit obsah: {{path}}",
+          "path": "Změnit cestu: {{path}}",
+          "typeAll": "Uložit půjde, jakmile bude každá cesta zadána přesně.",
+          "submit": "Uložit"
+        }
+      },
+      "edit": "Upravit",
+      "editLabel": "Upravit: {{name}}",
+      "noFolderEdit": "Žádná složka: nic se neprohledává, dokud nějakou nepřidáte pomocí „Upravit“.",
+      "saved": {
+        "title": "Knihovna {{name}} je uložena.",
+        "name": "Nový název: {{name}}",
+        "rating": "Výchozí úroveň: {{rating}}",
+        "added_one": "Přidána {{count}} složka; prohledávání čeká ve frontě.",
+        "added_few": "Přidány {{count}} složky; prohledávání čeká ve frontě.",
+        "added_many": "Přidáno {{count}} složky; prohledávání čeká ve frontě.",
+        "added_other": "Přidáno {{count}} složek; prohledávání čeká ve frontě.",
+        "removed_one": "Odebrána {{count}} složka.",
+        "removed_few": "Odebrány {{count}} složky.",
+        "removed_many": "Odebráno {{count}} složky.",
+        "removed_other": "Odebráno {{count}} složek.",
+        "content_one": "Jiný obsah v {{count}} složce se načte znovu.",
+        "content_few": "Jiný obsah v {{count}} složkách se načte znovu.",
+        "content_many": "Jiný obsah v {{count}} složkách se načte znovu.",
+        "content_other": "Jiný obsah v {{count}} složkách se načte znovu.",
+        "moved_one": "Nová cesta v {{count}} složce: obsah se načte znovu.",
+        "moved_few": "Nová cesta v {{count}} složkách: obsah se načte znovu.",
+        "moved_many": "Nová cesta v {{count}} složkách: obsah se načte znovu.",
+        "moved_other": "Nová cesta v {{count}} složkách: obsah se načte znovu.",
+        "providers_one": "Nové zdroje v {{count}} složce: tituly se přiřadí nebo doplní znovu.",
+        "providers_few": "Nové zdroje v {{count}} složkách: tituly se přiřadí nebo doplní znovu.",
+        "providers_many": "Nové zdroje v {{count}} složkách: tituly se přiřadí nebo doplní znovu.",
+        "providers_other": "Nové zdroje v {{count}} složkách: tituly se přiřadí nebo doplní znovu.",
+        "metadata_one": "Změněné jazyky nebo obrázky v {{count}} složce. Týkají se titulů: {{titles}}, jakmile je použijete.",
+        "metadata_few": "Změněné jazyky nebo obrázky v {{count}} složkách. Týkají se titulů: {{titles}}, jakmile je použijete.",
+        "metadata_many": "Změněné jazyky nebo obrázky v {{count}} složkách. Týkají se titulů: {{titles}}, jakmile je použijete.",
+        "metadata_other": "Změněné jazyky nebo obrázky v {{count}} složkách. Týkají se titulů: {{titles}}, jakmile je použijete.",
+        "dismiss": "Skrýt"
       }
     },
     "access": {
@@ -2486,7 +2502,9 @@
         "children": "Obsah",
         "childCounts": "Řady: {{seasons}} · Díly: {{episodes}} · Bonusy: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Složka knihovny",
+        "homeRootNone": "Žádná, platí výchozí nastavení"
       },
       "sources": {
         "title": "Zdroj podle pole",
@@ -5185,7 +5203,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Které jazyky metadatové zdroje dodávají, které obrázky v jakém jazyce a kvalitě a která země rozhoduje o věkovém omezení jako první. Výchozí nastavení platí pro každou knihovnu; knihovna se může u jazyků a obrázků odchýlit.",
       "links": {
         "roots": "Pořadí zdrojů se nastavuje pro každou složku v části Knihovny.",
         "jobs": "Plány jsou v části Úlohy na pozadí.",
@@ -5197,9 +5214,6 @@
         "open": "Otevřít zdroje"
       },
       "areas": {
-        "label": "Oblasti",
-        "changed": "Změněno · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakát {{poster}}, pozadí {{backdrop}}",
         "sources": {
           "local": "Místní soubory",
@@ -5207,20 +5221,19 @@
           "tmdbAdult": "TMDB s obsahem pro dospělé",
           "none": "Jen zdroje složek"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "Video složky s výchozím nastavením: {{count}}",
+        "foldersFollow_few": "Video složky s výchozím nastavením: {{count}}",
+        "foldersFollow_many": "Video složky s výchozím nastavením: {{count}}",
+        "foldersFollow_other": "Video složky s výchozím nastavením: {{count}}",
+        "foldersOwn_one": "s vlastním: {{count}}",
+        "foldersOwn_few": "s vlastním: {{count}}",
+        "foldersOwn_many": "s vlastním: {{count}}",
+        "foldersOwn_other": "s vlastním: {{count}}"
       },
-      "scope": {
-        "label": "Platí pro",
-        "server": "Výchozí",
-        "serverHint": "Platí pro každou knihovnu bez vlastní odchylky.",
-        "libraryHint": "{{name}} používá výchozí nastavení. Zapněte „odchyluje se“, abyste změnili jazyky nebo obrázky jen pro tuto knihovnu.",
-        "deviates": "odchyluje se",
-        "textsDeviate": "Jazyky se odchylují",
-        "imagesDeviate": "Obrázky se odchylují",
-        "likeServer": "jako server",
-        "changed": "{{name}} (změněno)",
-        "serverDirty": "Výchozí nastavení má neuložené změny; zde je vidět, co je uloženo."
-      },
+      "default": "Výchozí",
       "languages": {
         "title": "Jazyky",
         "intro": "Každý jazyk zde se načítá pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní si každý profil volí sám. Každý další jazyk stojí jeden požadavek na titul a řadu.",
@@ -5295,7 +5308,6 @@
         }
       },
       "apply": {
-        "title": "Použít na existující tituly",
         "short": "Použít",
         "intro": "Nové tituly používají nastavení hned. Existující tituly zůstávají, dokud nespustíte běh; objeví se v části Úlohy na pozadí s průběhem, pozastavením a zrušením.",
         "what": "Co",
@@ -5303,7 +5315,8 @@
         "texts": "Jen texty",
         "images": "Jen obrázky",
         "where": "Kde",
-        "all": "Každá knihovna",
+        "all": "Všechny složky",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} titul",
         "titles_few": "{{count}} tituly",
         "titles_many": "{{count}} titulu",
@@ -5334,6 +5347,29 @@
         "chain_duplicate": "Každý jazyk jednou.",
         "country_unknown": "Neznámá země.",
         "source_unknown": "Tento zdroj obrázků nepatří mezi návrhy pro tento titul."
+      },
+      "introDefault": "Platí pro každou složku bez vlastního nastavení. Vlastní jazyky a obrázky složky nastavíte pomocí „Upravit“ u její knihovny.",
+      "changed": "změněno",
+      "folders": {
+        "title": "Složky",
+        "intro": "Každá video složka se řídí výchozím nastavením, dokud nemá vlastní jazyky nebo obrázky. Nastavíte je pomocí „Upravit“ u její knihovny.",
+        "empty": "Zatím žádná video složka.",
+        "audio": "Složky audioknih a podcastů nemají vlastní jazyky a obrázky. Zdroje pro audioknihy najdete na stránce „Audioknihy: zdroje“.",
+        "openLabel": "Upravit {{name}}, složka {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Jazyky: výchozí",
+        "langsOwn": "Jazyky: {{chain}}",
+        "imagesDefault": "Obrázky: výchozí",
+        "imagesOwn": "Obrázky: vlastní",
+        "likeDefault": "Jako výchozí",
+        "own": "Vlastní",
+        "defaultIs": "Výchozí: {{value}}",
+        "imagesDefaultIs": "Výchozí: {{kinds}}. Jazyk podle druhu obrázku: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Platí jen pro tuto složku.",
+        "cost": "Každý další jazyk stojí při použití jeden požadavek na titul a řadu této složky.",
+        "always": "Plakát a pozadí Slouchcat stahuje vždy."
       }
     },
     "activity": {
@@ -5379,7 +5415,7 @@
       "intro": "Odkud Slouchcat bere údaje a obaly audioknih. Soubory mají vždy přednost; poskytovatel doplní jen to, co chybí, a nikdy zamčené pole.",
       "folders": {
         "title": "Pořadí podle složky",
-        "intro": "Horní zdroj vyhrává u každého pole. Pořadí a to, které zdroje se účastní, měníte v dialogu složky.",
+        "intro": "Pro každé pole vyhrává horní zdroj. Pořadí a účast zdrojů změníte pomocí „Upravit“ u knihovny.",
         "empty": "Zatím není žádná složka s audioknihami.",
         "edit": "Změnit zdroje",
         "editLabel": "Změnit zdroje složky {{path}}",

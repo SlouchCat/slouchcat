@@ -42,15 +42,15 @@ Komponententokens, deren Standardwert der heutige Wert ist: `--sc-control-height
 
 **Gruppe `density.compact`.** Eine Dichte-Gruppe liefert die kompakten Werte:
 
-| Grösse | Standard (heute) | Kompakt |
-|---|---|---|
-| Seitentitel | 60 px, `display` | 24 px, 600 |
-| Steuerelement-Höhe | 44 px | 32 px |
-| Schrift in Knöpfen und Feldern | 16 px | 14 px |
-| Panel Innenabstand / Lücke / Radius | 24 / 20 / 20 px | 16 / 12 / 12 px |
-| Abschnittsabstand | 40 bis 48 px | 24 px |
-| Tabellenzeile | rund 48 px | 40 px |
-| Seitenrand | bis 64 px | 24 bis 32 px |
+| Grösse                              | Standard (heute) | Kompakt         |
+| ----------------------------------- | ---------------- | --------------- |
+| Seitentitel                         | 60 px, `display` | 24 px, 600      |
+| Steuerelement-Höhe                  | 44 px            | 32 px           |
+| Schrift in Knöpfen und Feldern      | 16 px            | 14 px           |
+| Panel Innenabstand / Lücke / Radius | 24 / 20 / 20 px  | 16 / 12 / 12 px |
+| Abschnittsabstand                   | 40 bis 48 px     | 24 px           |
+| Tabellenzeile                       | rund 48 px       | 40 px           |
+| Seitenrand                          | bis 64 px        | 24 bis 32 px    |
 
 **Wo sie wirkt.** Nur im Inhaltsbereich (`#content`) und in den Dialogen der Verwaltungsseiten,
 unter `[data-shell="admin"]` (Attribut aus Konzept 11) und nur mit
@@ -137,3 +137,41 @@ unverändert (dieselben Farb-Tokens).
   `--sc-setting-text-gap`): Hilfezeile einer Einstellungszeile (`SettingRow`) und ihr Abstand zur
   Bezeichnung. Standard 14 px und 4 px wie bisher, kompakt 12 px und 0 wie in den Mockups (Int-A,
   Spo-A, Met-B); eine Einstellung mit einer Zeile Hilfe ist so rund 56 px hoch.
+
+## Nachtrag Konzept 24, Kontrast (16. November 2026)
+
+- **Farben und Konturen ändern sich, die Dichte bleibt.** Mit Konzept 24 P-4 (Frage 32) gelten
+  höhere Kontraste in Verwaltung und Zuschauer-App: Textfarben mindestens 7 : 1 auf jeder Fläche,
+  drei Rahmen-Tokens statt einem (`color.border.subtle` für Trennlinien, rund 2 : 1;
+  `color.border.frame` für Rahmen von Panel, Tabelle, Band, Hinweis und Speicherleiste, mindestens
+  3 : 1; `color.border.control` für die Kontur von Bedienelementen, mindestens 3 : 1), Gesperrtes
+  mit gestrichelter Kontur ohne Füllung statt Blässe. `ui/admin-look.css` setzt die Rahmen der
+  Verwaltung auf `color.border.frame`.
+- **Höhen, Abstände und Schriftgrössen der kompakten Dichte bleiben unverändert.** Die Kontur von
+  Knopf und Chip liegt innerhalb ihrer Mindesthöhe (`box-sizing: border-box`); die gewählten
+  Reiter erhalten einen Ring als Schatten, der keinen Platz braucht.
+- **Text über Bildern (Z-6) wird aus dem CSS gemessen.** `packages/design-tokens/test/css.ts` liest
+  die Verläufe, ihre Stopps und die Kästen des Texts aus `HeroCarousel.module.css`,
+  `Backdrop.module.css` mit `DetailHeader.module.css`, `PlayerChrome.module.css` und
+  `Player.module.css` (samt `@media`, `@container` und `--page-gutter` aus `global.css`) und rechnet
+  je Stelle den Grund unter dem schwächsten Text über einem weissen Bild. Wer einen Stopp ändert,
+  sieht den Test rot, sobald ein Text unter 4,5 : 1 fällt. Geprüft wird auf zehn
+  Bezugsansichten: 375 × 812, 812 × 375, 768 × 1024, 1024 × 768, 1280 × 800, 1440 × 900,
+  1920 × 1080, 1080 × 1920, 2560 × 1440 und 3440 × 1440; das Spotlight ab 768 px mit und ohne
+  Seitenleiste, der Player über die ganze Ansicht.
+- **Was das CSS nicht sagt, setzt der Test an.** Beim Spotlight ab einer Bühne von 80rem reicht
+  der Textblock bis zur halben Höhe der Bühne (Titel, Notiz und Knöpfe ergeben sich erst aus dem
+  Inhalt); darunter liegt der Block auf einem eigenen Grund (`scrim.strong`), und der Test misst
+  den Grund an der rechten oberen Ecke des Blocks unter dessen oberem Innenabstand, die Verläufe
+  der Bühne dort, wo sie am schwächsten sind (rechts oben). In der Pausenansicht misst er den
+  Grund an der rechten oberen Ecke der Pauseninfo. Die Kachel «Meine Medien» bleibt bei ihren
+  zwei Tokens.
+- **Schmale Ansichten haben einen Grund unter dem Text, nicht unter dem Bild.** Unter einer Bühne
+  von 80rem liegt im Spotlight `scrim.strong` unter dem Textblock (`.content`); der Grund reicht
+  14rem über dessen rechten Rand und 12rem über dessen oberen Rand hinaus und blendet dort weich
+  über `scrim.medium` und `scrim.soft` aus (nach rechts im Verlauf, nach oben in der Maske), ohne
+  sichtbare Kante; rechts davon bleibt das Bild sichtbar. Wo der Block die Bühne ausfüllt (Telefon,
+  schmales Tablet), reicht der Grund über die ganze Breite. Unter 80rem liegt in der Pausenansicht
+  des Players derselbe Grund unter der Pauseninfo, oben und unten ausgeblendet. Beim Kopf der
+  Detailseite reicht `scrim.strong` bis zum Beginn der Textspalte, mindestens 60 % hoch (auf
+  3440 × 1440 beginnt der Text rund 69 % hoch). Das Bild selbst bekommt keinen Rahmen (F-6).

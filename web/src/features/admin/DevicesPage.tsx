@@ -91,14 +91,15 @@ function DevicesContent() {
   // An unknown `?tab=` shows «Geräte», and the address says so too (replaced, not pushed).
   const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, DEVICES, { normalise: true });
 
-  // Folded sections by type, held by the page: the same type is folded in both tabs.
-  const [folded, setFolded] = useState<ReadonlySet<TypeKey>>(() => new Set());
+  // Opened sections by type, held by the page: the same type is open in both tabs. Every section
+  // starts closed (concept 24, P-3).
+  const [opened, setOpened] = useState<ReadonlySet<TypeKey>>(() => new Set());
   const onExpandedChange = useCallback(
     (type: TypeKey, open: boolean) =>
-      setFolded((current) => {
+      setOpened((current) => {
         const next = new Set(current);
-        if (open) next.delete(type);
-        else next.add(type);
+        if (open) next.add(type);
+        else next.delete(type);
         return next;
       }),
     [],
@@ -192,7 +193,7 @@ function DevicesContent() {
                         })
                       : undefined
                   }
-                  isExpanded={!folded.has(group.type)}
+                  isExpanded={opened.has(group.type)}
                   onExpandedChange={(open) => onExpandedChange(group.type, open)}
                 >
                   <DataTable

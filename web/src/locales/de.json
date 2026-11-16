@@ -224,7 +224,9 @@
       "files_not_deletable": "Eine Datei des Titels lässt sich nicht löschen. Nichts wurde gelöscht.",
       "not_deletable": "Dieser Titel lässt sich nicht löschen.",
       "deleting": "Wird gerade gelöscht.",
-      "changed": "Inzwischen hat sich etwas geändert, bitte erneut prüfen."
+      "changed": "Inzwischen hat sich etwas geändert, bitte erneut prüfen.",
+      "stale": "Die Bibliothek wurde inzwischen anderswo geändert. Lade sie neu und speichere noch einmal.",
+      "root_unlisted": "Ein Ordner der Bibliothek fehlt in der Anfrage. Lade die Bibliothek neu; es wurde nichts entfernt."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -247,6 +249,7 @@
       "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
       "path_with_content": "Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden.",
       "root_files_missing": "Unter dem neuen Pfad liegt keine der bisherigen Dateien.",
+      "confirm_mismatch": "Der Pfad stimmt nicht mit dem Pfad des Ordners überein. Es wurde nichts geändert.",
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
@@ -553,8 +556,10 @@
       "submit_one": "Bibliothek mit {{count}} Ordner hinzufügen",
       "submit_other": "Bibliothek mit {{count}} Ordnern hinzufügen",
       "submitNone": "Bibliothek ohne Ordner hinzufügen",
-      "addSubmit_one": "1 Ordner hinzufügen",
-      "addSubmit_other": "{{count}} Ordner hinzufügen"
+      "marked": "Wird beim Speichern entfernt. Du bestätigst dann mit dem Pfad.",
+      "undo": "Rückgängig",
+      "undoLabel": "Entfernen von Ordner {{number}} rückgängig machen",
+      "removeStored": "Ordner entfernen …"
     },
     "videoHint": "Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.",
     "page": {
@@ -614,7 +619,8 @@
     "notFound": {
       "title": "Bibliothek nicht gefunden",
       "body": "Diese Bibliothek gibt es nicht, oder sie hat für dieses Profil keine Titel."
-    }
+    },
+    "kindFixed": "Die Art steht fest, sobald die Bibliothek angelegt ist."
   },
   "home": {
     "list": {
@@ -1809,11 +1815,8 @@
         "kind": "Art",
         "state": "Zustand",
         "counts": "Titel · Dateien",
-        "folders": "Ordner",
-        "metadata": "Metadaten"
+        "folders": "Ordner"
       },
-      "none": "–",
-      "noMetadata": "Keine Metadaten-Geltung",
       "roots": "Ordner",
       "fsType": "Dateisystem {{type}}",
       "watch": {
@@ -1879,25 +1882,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Kein Ordner: Die Titel kommen aus abonnierten Feeds.",
       "feedsOnly": "Titel aus Feeds",
-      "changeRating": {
-        "action": "Standardstufe ändern",
-        "title": "Standardstufe von {{name}}",
-        "description": "Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.",
-        "submit": "Speichern",
-        "saved": "Die Standardstufe von {{name}} ist jetzt {{rating}}."
-      },
       "folders": {
-        "title": "Ordner von {{name}}",
-        "description": "Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.",
-        "none": "Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.",
         "content": "Titel: {{items}} · Dateien: {{files}}",
         "remove": {
-          "action": "Entfernen",
-          "label": "Ordner {{path}} entfernen",
-          "title": "Ordner wirklich entfernen?",
           "inputLabel": "Tippe den Pfad, um zu bestätigen",
           "mismatch": "Tippe {{path}} genau so ab, dann wird der Knopf aktiv.",
-          "confirm": "Ordner entfernen",
           "lead_one": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwindet damit aus allen Listen. Was das heisst:",
           "lead_other": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heisst:",
           "soft": "Die Titel werden weich gelöscht: Sie verschwinden aus allen Listen, aber Fortschritt, Merkliste und Picks bleiben an ihnen hängen. Ein Titel, von dem eine Datei in einem anderen Ordner dieser Bibliothek liegt, bleibt sichtbar.",
@@ -1908,50 +1897,26 @@
           "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
           "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
         },
-        "new": "Neue Ordner",
         "change": {
-          "action": "Ändern",
-          "label": "Ordner {{path}} ändern",
-          "title": "Ordner ändern",
-          "description": "Inhalt und Metadatenquellen von {{path}}.",
-          "submit": "Speichern",
           "identifier": "Der Erkenner wechselt: Staffel- und Folgentexte werden nach {{provider}} neu zugeordnet. Die Folgen selbst bleiben, Fortschritt und Merkliste hängen weiter an ihnen.",
           "fillers": "Nur die Auffüller ändern sich: die Titel werden neu aufgefüllt, nichts wird gelöscht.",
-          "content": "Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln.",
-          "confirmTitle": "Inhalt wirklich wechseln?",
-          "confirm": "Inhalt wechseln",
-          "saved": "Der Ordner {{path}} ist geändert."
+          "content": "Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln."
         },
         "move": {
-          "action": "Pfad ändern",
-          "label": "Pfad von {{path}} ändern",
-          "title": "Pfad ändern?",
-          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen.",
-          "confirm": "Ändern",
-          "saved": "Der Ordner liegt jetzt unter {{path}} und wird neu eingelesen."
+          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen."
         },
         "readOnly": "nur lesbar",
         "writable": "schreibbar"
       },
-      "openFolders": "Ordner",
-      "openFoldersLabel": "Ordner von {{name}} bearbeiten",
       "rootCount_one": "{{count}} Ordner",
       "rootCount_other": "{{count}} Ordner",
-      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "wie Server",
-        "texts": "Sprachen abweichend",
-        "images": "Bilder abweichend",
-        "both": "Sprachen und Bilder abweichend",
-        "link": "Metadaten der Bibliothek",
         "audiobooksLink": "Quellen für Hörbücher"
       },
       "trickplay": {
         "action": "Vorschau beim Spulen",
-        "actionLabel": "Vorschau beim Spulen von {{name}}",
-        "title": "Vorschau beim Spulen: {{name}}",
         "description": "Kleine Bilder über der Zeitleiste, ein Bild alle 10 Sekunden. Filme und Serien werden getrennt eingestellt, auch in einer gemischten Bibliothek.",
         "movies": "Filme",
         "series": "Serien",
@@ -2011,12 +1976,12 @@
         "generate": {
           "action": "Jetzt erzeugen",
           "hint": "Holt die fehlenden Vorschauen aller Bibliotheken mit «Im Voraus» nach, wie «Vorschau beim Spulen nachholen» auf «Hintergrundjobs».",
-          "queued": "Das Nachholen der Vorschauen ist eingereiht."
+          "queued": "Das Nachholen der Vorschauen ist eingereiht.",
+          "unsaved": "Erst nach dem Speichern: Das Erzeugen nutzt die gespeicherte Einstellung."
         },
-        "submit": "Speichern",
-        "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
         "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
-        "summaryNoKeep": "Beim Start, ohne Speichern"
+        "summaryNoKeep": "Beim Start, ohne Speichern",
+        "header": "Filme: {{movies}} · Serien: {{series}}"
       },
       "delete": {
         "action": "Bibliothek löschen …",
@@ -2034,11 +1999,52 @@
         "done": "Bibliothek «{{name}}» gelöscht.",
         "notDone": "Bibliothek «{{name}}» wurde nicht gelöscht. Warum, steht beim Job."
       },
-      "rename": {
-        "action": "Umbenennen …",
-        "title": "Bibliothek «{{name}}» umbenennen",
-        "label": "Name",
-        "saved": "Die Bibliothek heisst jetzt «{{name}}»."
+      "form": {
+        "editTitle": "Bibliothek bearbeiten",
+        "changed": "geändert",
+        "pathAndContent": "Pfad und Inhalt dieses Ordners lassen sich nicht in einem Schritt ändern. Speichere zuerst das eine, dann das andere.",
+        "pathHint": "Der neue Pfad gilt nach dem Speichern. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen.",
+        "reloaded": "Die Bibliothek wurde inzwischen anderswo geändert. Das Formular zeigt jetzt ihren neuen Stand; deine Änderungen sind nicht gespeichert.",
+        "changedElsewhere": "Die Bibliothek wurde inzwischen anderswo geändert. Beim Speichern lädt das Formular ihren neuen Stand; deine Änderungen werden dann nicht gespeichert.",
+        "gone": "Diese Bibliothek gibt es nicht mehr. Es wurde nichts gespeichert.",
+        "scanRunning": "Einen Ordner entfernen, seinen Inhalt oder seinen Pfad ändern geht erst, wenn der Scan fertig ist. Deine Eingaben bleiben stehen.",
+        "scanCancelled": "Der Scan ist abgebrochen. Speichere jetzt noch einmal.",
+        "discard": {
+          "title": "Änderungen verwerfen?",
+          "body": "Die ungespeicherten Änderungen an {{name}} gehen verloren.",
+          "confirm": "Verwerfen",
+          "keep": "Weiter bearbeiten"
+        },
+        "confirm": {
+          "title": "Änderungen bestätigen",
+          "intro": "Diese Änderungen wirken erst, wenn du hier speicherst.",
+          "remove": "Ordner entfernen: {{path}}",
+          "content": "Inhalt wechseln: {{path}}",
+          "path": "Pfad ändern: {{path}}",
+          "typeAll": "Speichern geht, sobald jeder Pfad genau abgetippt ist.",
+          "submit": "Speichern"
+        }
+      },
+      "edit": "Bearbeiten",
+      "editLabel": "{{name}} bearbeiten",
+      "noFolderEdit": "Kein Ordner: Es wird nichts gescannt, bis du unter «Bearbeiten» einen hinzufügst.",
+      "saved": {
+        "title": "Die Bibliothek {{name}} ist gespeichert.",
+        "name": "Neuer Name: {{name}}",
+        "rating": "Standardstufe: {{rating}}",
+        "added_one": "{{count}} Ordner hinzugefügt; der Scan ist eingereiht.",
+        "added_other": "{{count}} Ordner hinzugefügt; der Scan ist eingereiht.",
+        "removed_one": "{{count}} Ordner entfernt.",
+        "removed_other": "{{count}} Ordner entfernt.",
+        "content_one": "{{count}} Ordner mit anderem Inhalt wird neu eingelesen.",
+        "content_other": "{{count}} Ordner mit anderem Inhalt werden neu eingelesen.",
+        "moved_one": "{{count}} Ordner mit neuem Pfad wird neu eingelesen.",
+        "moved_other": "{{count}} Ordner mit neuem Pfad werden neu eingelesen.",
+        "providers_one": "Neue Quellen bei {{count}} Ordner: Die Titel werden neu zugeordnet oder aufgefüllt.",
+        "providers_other": "Neue Quellen bei {{count}} Ordnern: Die Titel werden neu zugeordnet oder aufgefüllt.",
+        "metadata_one": "Sprachen oder Bilder geändert bei {{count}} Ordner. Sie gelten für {{titles}} Titel, sobald du sie anwendest.",
+        "metadata_other": "Sprachen oder Bilder geändert bei {{count}} Ordnern. Sie gelten für {{titles}} Titel, sobald du sie anwendest.",
+        "dismiss": "Ausblenden"
       }
     },
     "access": {
@@ -2282,7 +2288,9 @@
         "children": "Inhalt",
         "childCounts": "Staffeln: {{seasons}} · Folgen: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Heimatordner",
+        "homeRootNone": "Keiner, es gelten die Einstellungen des Standards"
       },
       "sources": {
         "title": "Herkunft je Feld",
@@ -4831,7 +4839,6 @@
     },
     "metadata": {
       "title": "Metadaten",
-      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Qualität, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.",
       "links": {
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
@@ -4843,9 +4850,6 @@
         "open": "Quellen öffnen"
       },
       "areas": {
-        "label": "Bereiche",
-        "changed": "Geändert · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Poster {{poster}}, Hintergrund {{backdrop}}",
         "sources": {
           "local": "Lokale Dateien",
@@ -4853,20 +4857,15 @@
           "tmdbAdult": "TMDB mit Erwachseneninhalten",
           "none": "Nur die Quellen der Ordner"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} Video-Ordner folgt dem Standard",
+        "foldersFollow_other": "{{count}} Video-Ordner folgen dem Standard",
+        "foldersOwn_one": "{{count}} hat Eigenes",
+        "foldersOwn_other": "{{count}} haben Eigenes"
       },
-      "scope": {
-        "label": "Geltung",
-        "server": "Standard",
-        "serverHint": "Gilt für alle Bibliotheken ohne eigene Abweichung.",
-        "libraryHint": "{{name}} übernimmt den Standard. Schalte «abweichend» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.",
-        "deviates": "abweichend",
-        "textsDeviate": "Sprachen abweichend",
-        "imagesDeviate": "Bilder abweichend",
-        "likeServer": "wie Server",
-        "changed": "{{name}} (geändert)",
-        "serverDirty": "Standard hat ungespeicherte Änderungen; hier steht der gespeicherte Stand."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Sprachen",
         "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche wählt jedes Profil für sich. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
@@ -4939,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Auf bestehende Titel anwenden",
         "short": "Anwenden",
         "intro": "Neue Titel nutzen die Einstellungen sofort. Bestehende Titel bleiben, bis du den Lauf startest; er erscheint unter Hintergrundjobs mit Fortschritt, Pause und Abbruch.",
         "what": "Was",
@@ -4947,7 +4945,8 @@
         "texts": "Nur Texte",
         "images": "Nur Bilder",
         "where": "Wo",
-        "all": "Alle Bibliotheken",
+        "all": "Alle Ordner",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} Titel",
         "titles_other": "{{count}} Titel",
         "run": "Jetzt anwenden",
@@ -4974,6 +4973,29 @@
         "chain_duplicate": "Jede Sprache nur einmal.",
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
+      },
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Bearbeiten» ein.",
+      "changed": "geändert",
+      "folders": {
+        "title": "Ordner",
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in seiner Bibliothek unter «Bearbeiten» ein.",
+        "empty": "Noch kein Video-Ordner.",
+        "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter «Hörbücher: Quellen».",
+        "openLabel": "{{name}} bearbeiten, Ordner {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Sprachen: Standard",
+        "langsOwn": "Sprachen: {{chain}}",
+        "imagesDefault": "Bilder: Standard",
+        "imagesOwn": "Bilder: eigene",
+        "likeDefault": "Wie Standard",
+        "own": "Eigene",
+        "defaultIs": "Standard: {{value}}",
+        "imagesDefaultIs": "Standard: {{kinds}}. Sprache je Bildart: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Gilt nur für diesen Ordner.",
+        "cost": "Jede weitere Sprache kostet beim Anwenden eine Anfrage je Titel und Staffel dieses Ordners.",
+        "always": "Poster und Hintergrund holt Slouchcat immer."
       }
     },
     "activity": {
@@ -5011,7 +5033,7 @@
       "intro": "Woher Slouchcat Angaben und Cover für Hörbücher holt. Die Dateien kommen immer zuerst; ein Anbieter füllt nur, was fehlt, und nie ein Feld mit Schloss.",
       "folders": {
         "title": "Reihenfolge je Ordner",
-        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du im Dialog des Ordners.",
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du in der Bibliothek unter «Bearbeiten».",
         "empty": "Es gibt noch keinen Hörbuch-Ordner.",
         "edit": "Quellen ändern",
         "editLabel": "Quellen von {{path}} ändern",

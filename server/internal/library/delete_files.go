@@ -645,6 +645,10 @@ func (s *Service) dropDeletedFiles(ctx context.Context, t itemTree, gone []strin
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	title, err := titleOf(ctx, q, t.item.ID)
+	if err != nil {
+		return 0, nil, err
+	}
 	for chunk := range slices.Chunk(gone, treeChunk) {
 		if _, err := q.DeleteMediaFilesByID(ctx, chunk); err != nil {
 			return 0, nil, fmt.Errorf("drop rows of deleted files: %w", err)
@@ -724,6 +728,11 @@ func (s *Service) dropDeletedFiles(ctx context.Context, t itemTree, gone []strin
 			}
 			deleted = append(deleted, ids...)
 		}
+	}
+	// A title that stays and kept no present file in its home folder moves to the folder of its
+	// oldest present file elsewhere (ADR 0036); a title deleted for good is skipped.
+	if _, err := rehome(ctx, q, s.now(), title, false); err != nil {
+		return 0, nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, nil, fmt.Errorf("delete titles for good: %w", err)

@@ -15,8 +15,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
-// UpdateRoot changes the content, the provider list or the path of a folder (updateLibraryRoot,
-// ADR 0015, concept 6.3, ADR 0023 point 4). The four effects differ in weight, and the weight
+// UpdateRoot changes the content, the provider list or the path of a folder (as one folder of
+// saveLibrary, ADR 0015, concept 6.3, ADR 0023 point 4). The four effects differ in weight, and the weight
 // decides what the request has to carry:
 //
 //   - A change of the list that keeps the identifier (["tmdb"] → ["tmdb","anilist"], or the
@@ -86,9 +86,25 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	if !model.ValidRootProviders(content, providers) {
 		verr = verr.Add("providers", model.CodeProvidersNotAllowed)
 	}
+	meta, err := model.ParseRootMetadata(root.TextLangs, root.Images)
+	if err != nil {
+		s.log.WarnContext(ctx, "folder metadata unreadable, replaced by the request", "root_id", root.ID, "err", err)
+	}
+	if upd.SetTextLangs {
+		meta.TextLangs = upd.TextLangs
+	}
+	if upd.SetImages {
+		meta.Images = upd.Images
+	}
+	metaChanged := upd.SetTextLangs || upd.SetImages
+	if metaChanged {
+		for _, f := range s.checkMetadata(content, meta, "") {
+			verr = verr.Add(f.Field, f.Code)
+		}
+	}
 	var moved *preparedRoot
 	if upd.Path != nil {
-		p, err := s.prepareMovedRoot(ctx, root, *upd.Path, upd.Content != nil)
+		p, err := s.prepareMovedRoot(ctx, root, *upd.Path, upd.Content != nil, nil)
 		var field *model.ValidationError
 		switch {
 		case errors.As(err, &field):
@@ -101,16 +117,43 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	if verr != nil {
 		return model.Library{}, verr
 	}
+	// The own languages and images are written after the other change succeeded, so a refused
+	// content or path change leaves them as they were too.
+	writeMeta := func() error {
+		if !metaChanged {
+			return nil
+		}
+		textLangs, images := model.RootMetadataColumns(meta)
+		if err := appq.New(s.db.Write).UpdateLibraryRootMetadata(ctx, appq.UpdateLibraryRootMetadataParams{
+			TextLangs: textLangs, Images: images, ID: root.ID, LibraryID: root.LibraryID,
+		}); err != nil {
+			return fmt.Errorf("update own metadata of root %d: %w", root.ID, err)
+		}
+		return nil
+	}
 	if content != root.Content {
-		return s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
+		changed, err := s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
+		if err != nil || !metaChanged {
+			return changed, err
+		}
+		if err := writeMeta(); err != nil {
+			return model.Library{}, err
+		}
+		return s.Get(ctx, libraryID)
 	}
 	if moved != nil {
 		if err := s.changeRootPath(ctx, lib, root, *moved, old, providers); err != nil {
 			return model.Library{}, err
 		}
+		if err := writeMeta(); err != nil {
+			return model.Library{}, err
+		}
 		return s.QueueScan(ctx, libraryID)
 	}
 	if err := s.changeRootProviders(ctx, root, old, providers); err != nil {
+		return model.Library{}, err
+	}
+	if err := writeMeta(); err != nil {
 		return model.Library{}, err
 	}
 	return s.Get(ctx, libraryID)
@@ -122,7 +165,10 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 // library_path_invalid or root_overlap from the rules of a new folder, where root itself does not
 // count as an overlap, and root_files_missing when none of the folder's known files lies under the
 // new path.
-func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, path string, withContent bool) (*preparedRoot, error) {
+//
+// earlier and except widen the overlap rule for saveLibrary (prepareRootPath); UpdateRoot passes
+// none, so root itself is the only stored folder that does not count.
+func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, path string, withContent bool, earlier []string, except ...int64) (*preparedRoot, error) {
 	var verr *model.ValidationError
 	if withContent {
 		return nil, verr.Add("path", model.CodePathWithContent)
@@ -130,7 +176,10 @@ func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, p
 	if p := strings.TrimSpace(path); filepath.IsAbs(p) && filepath.Clean(p) == root.Path {
 		return nil, nil
 	}
-	clean, err := s.prepareRootPath(ctx, path, nil, root.ID)
+	if len(except) == 0 {
+		except = []int64{root.ID}
+	}
+	clean, err := s.prepareRootPath(ctx, path, earlier, except...)
 	switch {
 	case errors.Is(err, errRootOverlap):
 		return nil, verr.Add("path", model.CodeRootOverlap)
@@ -219,37 +268,61 @@ func (s *Service) changeRootPath(ctx context.Context, lib appq.Library, root app
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	files, err := systemq.New(tx).CountMediaFilesOfRoot(ctx, root.ID)
-	if err != nil {
-		return fmt.Errorf("count media files of root %d: %w", root.ID, err)
-	}
-	row, err := appq.New(tx).UpdateLibraryRootPath(ctx, appq.UpdateLibraryRootPathParams{
-		Path: moved.path, FsType: moved.fsType, Watch: moved.watch, ID: root.ID, LibraryID: root.LibraryID,
-	})
-	if errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("%w: library root %d", model.ErrNotFound, root.ID)
-	}
-	if err != nil {
-		return fmt.Errorf("update path of library root %d: %w", root.ID, err)
-	}
-	change, err := s.writeRootProviders(ctx, tx, row, old, providers)
+	moveDone, err := s.changeRootPathTx(ctx, tx, root, moved, old, providers)
 	if err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("change path of root %d: %w", root.ID, err)
 	}
+	s.afterRootPathChanged(ctx, lib, root, moveDone, old, providers)
+	return nil
+}
+
+// rootMove is what changeRootPathTx wrote, for the work after the commit.
+type rootMove struct {
+	row    appq.LibraryRoot
+	files  int64
+	change providerChange
+}
+
+// changeRootPathTx writes the new path of a folder with the file system facts of the new place and
+// a new provider list (writeRootProviders) in tx; the media files stay. The caller holds the scan
+// lock and has checked the overlap.
+func (s *Service) changeRootPathTx(ctx context.Context, tx *sql.Tx, root appq.LibraryRoot, moved preparedRoot, old, providers []string) (rootMove, error) {
+	files, err := systemq.New(tx).CountMediaFilesOfRoot(ctx, root.ID)
+	if err != nil {
+		return rootMove{}, fmt.Errorf("count media files of root %d: %w", root.ID, err)
+	}
+	row, err := appq.New(tx).UpdateLibraryRootPath(ctx, appq.UpdateLibraryRootPathParams{
+		Path: moved.path, FsType: moved.fsType, Watch: moved.watch, ID: root.ID, LibraryID: root.LibraryID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return rootMove{}, fmt.Errorf("%w: library root %d", model.ErrNotFound, root.ID)
+	}
+	if err != nil {
+		return rootMove{}, fmt.Errorf("update path of library root %d: %w", root.ID, err)
+	}
+	change, err := s.writeRootProviders(ctx, tx, row, old, providers)
+	if err != nil {
+		return rootMove{}, err
+	}
+	return rootMove{row: row, files: files, change: change}, nil
+}
+
+// afterRootPathChanged replaces the watcher of a moved folder and drops what the service and the
+// queue hold for the old place, after the commit.
+func (s *Service) afterRootPathChanged(ctx context.Context, lib appq.Library, root appq.LibraryRoot, m rootMove, old, providers []string) {
 	s.stopWatcher(root.ID)
 	s.resetRootState(lib.ID, root.ID)
 	s.dropQueuedPathScan(ctx, lib.ID, root.ID)
-	s.startWatcher(row)
+	s.startWatcher(m.row)
 
 	// Warn and not Info, as for a content change: the project keeps no audit table.
 	s.log.WarnContext(ctx, "library root path changed", "library_id", lib.ID, "library", lib.Name,
-		"root_id", root.ID, "from", root.Path, "to", row.Path, "fs_type", row.FsType, "watch", row.Watch,
-		"media_files_kept", files)
-	s.logProviderChange(ctx, row, old, providers, change)
-	return nil
+		"root_id", root.ID, "from", root.Path, "to", m.row.Path, "fs_type", m.row.FsType, "watch", m.row.Watch,
+		"media_files_kept", m.files)
+	s.logProviderChange(ctx, m.row, old, providers, m.change)
 }
 
 // providerChange is what writeRootProviders wrote, for the log line after the commit.
@@ -342,50 +415,84 @@ func (s *Service) changeRootContent(ctx context.Context, lib appq.Library, root 
 	}
 	defer unlock()
 
-	now := s.now().UnixMilli()
-	ms := sql.NullInt64{Int64: now, Valid: true}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return model.Library{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	q := systemq.New(tx)
-	files, err := q.CountMediaFilesOfRoot(ctx, root.ID)
+	items, files, err := s.changeRootContentTx(ctx, tx, root, content, providers)
 	if err != nil {
-		return model.Library{}, fmt.Errorf("count media files of root %d: %w", root.ID, err)
-	}
-	items, err := q.SoftDeleteItemsOfRootWithoutOtherFiles(ctx, systemq.SoftDeleteItemsOfRootWithoutOtherFilesParams{Now: ms, RootID: root.ID})
-	if err != nil {
-		return model.Library{}, fmt.Errorf("soft delete items of root %d: %w", root.ID, err)
-	}
-	if _, err := q.SoftDeleteEmptySeasons(ctx, ms); err != nil {
-		return model.Library{}, fmt.Errorf("soft delete empty seasons: %w", err)
-	}
-	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
-		return model.Library{}, fmt.Errorf("soft delete empty series: %w", err)
-	}
-	if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
 		return model.Library{}, err
-	}
-	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: root.ID, Now: now}); err != nil {
-		return model.Library{}, fmt.Errorf("move downloads off root %d: %w", root.ID, err)
-	}
-	// The cascade clears the downloads of the soft-deleted titles (their tombstones tell the
-	// devices), the triggers set items.available.
-	if _, err := q.DeleteMediaFilesOfRoot(ctx, root.ID); err != nil {
-		return model.Library{}, fmt.Errorf("delete media files of root %d: %w", root.ID, err)
-	}
-	if _, err := q.DeleteIgnoredFilesOfRoot(ctx, root.ID); err != nil {
-		return model.Library{}, fmt.Errorf("delete ignored files of root %d: %w", root.ID, err)
-	}
-	if _, err := appq.New(tx).UpdateLibraryRoot(ctx, appq.UpdateLibraryRootParams{
-		Content: content, Providers: model.ProvidersJSON(providers), ID: root.ID, LibraryID: root.LibraryID,
-	}); err != nil {
-		return model.Library{}, fmt.Errorf("update library root %d: %w", root.ID, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("change content of root %d: %w", root.ID, err)
 	}
+	s.afterRootContentChanged(ctx, lib, root, content, items, files)
+	return s.QueueScan(ctx, lib.ID)
+}
+
+// changeRootContentTx runs the removal steps of a folder in tx without removing the row and writes
+// the new content and list. It returns how many titles were soft-deleted and how many media files
+// went. The caller holds the scan lock and has checked the typed path.
+func (s *Service) changeRootContentTx(ctx context.Context, tx *sql.Tx, root appq.LibraryRoot, content string, providers []string) (items, files int64, err error) {
+	now := s.now().UnixMilli()
+	ms := sql.NullInt64{Int64: now, Valid: true}
+	q := systemq.New(tx)
+	files, err = q.CountMediaFilesOfRoot(ctx, root.ID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("count media files of root %d: %w", root.ID, err)
+	}
+	items, err = q.SoftDeleteItemsOfRootWithoutOtherFiles(ctx, systemq.SoftDeleteItemsOfRootWithoutOtherFilesParams{Now: ms, RootID: root.ID})
+	if err != nil {
+		return 0, 0, fmt.Errorf("soft delete items of root %d: %w", root.ID, err)
+	}
+	if _, err := q.SoftDeleteEmptySeasons(ctx, ms); err != nil {
+		return 0, 0, fmt.Errorf("soft delete empty seasons: %w", err)
+	}
+	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
+		return 0, 0, fmt.Errorf("soft delete empty series: %w", err)
+	}
+	if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+		return 0, 0, err
+	}
+	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: root.ID, Now: now}); err != nil {
+		return 0, 0, fmt.Errorf("move downloads off root %d: %w", root.ID, err)
+	}
+	// The cascade clears the downloads of the soft-deleted titles (their tombstones tell the
+	// devices), the triggers set items.available.
+	if _, err := q.DeleteMediaFilesOfRoot(ctx, root.ID); err != nil {
+		return 0, 0, fmt.Errorf("delete media files of root %d: %w", root.ID, err)
+	}
+	if _, err := q.DeleteIgnoredFilesOfRoot(ctx, root.ID); err != nil {
+		return 0, 0, fmt.Errorf("delete ignored files of root %d: %w", root.ID, err)
+	}
+	if _, err := appq.New(tx).UpdateLibraryRoot(ctx, appq.UpdateLibraryRootParams{
+		Content: content, Providers: model.ProvidersJSON(providers), ID: root.ID, LibraryID: root.LibraryID,
+	}); err != nil {
+		return 0, 0, fmt.Errorf("update library root %d: %w", root.ID, err)
+	}
+	// The titles that survive the content change still live here without a file: they lose the
+	// folder as their home, as a removal does through the foreign key, so a folder never holds a
+	// title of another content; those with a present file elsewhere move to the folder of their
+	// oldest one with its provider list (ADR 0036).
+	survivors, err := q.ListTitleIDsOfRoot(ctx, root.ID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("list titles of root %d: %w", root.ID, err)
+	}
+	for _, id := range survivors {
+		if _, err := q.SetTitleHome(ctx, systemq.SetTitleHomeParams{Now: now, TitleID: id}); err != nil {
+			return 0, 0, fmt.Errorf("clear home folder of %s: %w", id, err)
+		}
+	}
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), survivors); err != nil {
+		return 0, 0, err
+	}
+	return items, files, nil
+}
+
+// afterRootContentChanged clears what the scanner holds for a folder read with another parser
+// and tells what left, after the commit. The caller queues the scan.
+func (s *Service) afterRootContentChanged(ctx context.Context, lib appq.Library, root appq.LibraryRoot, content string, items, files int64) {
 	s.resetRootState(lib.ID, root.ID)
 	s.dropQueuedPathScan(ctx, lib.ID, root.ID)
 
@@ -398,7 +505,6 @@ func (s *Service) changeRootContent(ctx context.Context, lib appq.Library, root 
 			s.log.WarnContext(ctx, "notify library root content changed", "library_id", lib.ID, "err", err)
 		}
 	}
-	return s.QueueScan(ctx, lib.ID)
 }
 
 // resetRootState drops what the service holds for a folder that is about to be read with

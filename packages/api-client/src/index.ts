@@ -71,10 +71,12 @@ export type LibraryTrickplay = components['schemas']['LibraryTrickplay'];
 export type LibraryTrickplayEstimate = components['schemas']['LibraryTrickplayEstimate'];
 export type LibraryTrickplayKindEstimate = components['schemas']['LibraryTrickplayKindEstimate'];
 export type LibraryRoot = components['schemas']['LibraryRoot'];
-export type LibraryRootUpdate = components['schemas']['LibraryRootUpdate'];
 export type LibrarySummary = components['schemas']['LibrarySummary'];
 export type LibraryRequest = components['schemas']['LibraryRequest'];
 export type LibraryUpdate = components['schemas']['LibraryUpdate'];
+// The form «Bibliothek bearbeiten» in one go (concept 24 4.3, contract 1.40.0).
+export type LibrarySave = components['schemas']['LibrarySave'];
+export type LibrarySaved = components['schemas']['LibrarySaved'];
 export type AdminPodcast = components['schemas']['AdminPodcast'];
 export type AdminPodcastEpisode = components['schemas']['AdminPodcastEpisode'];
 export type AdminPodcastEpisodePage = components['schemas']['AdminPodcastEpisodePage'];
@@ -103,9 +105,9 @@ export type MetadataProviderInfo = components['schemas']['MetadataProviderInfo']
 export type MetadataSettings = components['schemas']['MetadataSettings'];
 export type MetadataSettingsUpdate = components['schemas']['MetadataSettingsUpdate'];
 export type ImageLangs = components['schemas']['ImageLangs'];
-export type LibraryImages = components['schemas']['LibraryImages'];
-export type LibraryMetadata = components['schemas']['LibraryMetadata'];
-export type LibraryMetadataUpdate = components['schemas']['LibraryMetadataUpdate'];
+// Concept 24 (contract 1.40.0): a folder's own images; a title's home folder.
+export type RootImages = components['schemas']['RootImages'];
+export type AdminItemHomeRoot = components['schemas']['AdminItemHomeRoot'];
 export type ApplyMetadataRequest = components['schemas']['ApplyMetadataRequest'];
 export type ApplyMetadataResponse = components['schemas']['ApplyMetadataResponse'];
 export type ImageKind = components['schemas']['ImageKind'];

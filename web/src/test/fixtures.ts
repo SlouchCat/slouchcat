@@ -7,6 +7,7 @@ import type {
   ItemRef,
   Library,
   LibrarySummary,
+  MetadataSettings,
   PlaybackInfo,
   Profile,
   ProfileSummary,
@@ -59,6 +60,24 @@ export const ratingSystems: RatingSystem[] = [
     ],
   },
 ];
+
+/** The metadata default (`getMetadataSettings`): Deutsch › Englisch, every image kind. */
+export const metadataSettings = (overrides: Partial<MetadataSettings> = {}): MetadataSettings => ({
+  textLangs: ['de', 'en'],
+  imageLangs: { poster: ['de', 'en', ''], backdrop: ['', 'de', 'en'], logo: ['de', 'en'] },
+  imageKinds: ['logo', 'season_poster', 'episode_still'],
+  imageMinWidth: { poster: 500, backdrop: 1280 },
+  imageByVote: true,
+  localImages: true,
+  ratingCountry: 'DE',
+  ratingSystems,
+  tmdbIncludeAdult: false,
+  fanartEnabled: false,
+  knownLanguages: ['de', 'en', 'es', 'fr', 'ja'],
+  affectedTitles: 1234,
+  localImageTitles: 211,
+  ...overrides,
+});
 
 /** The rating system of a country of `ratingSystems`. */
 export const ratingSystemOf = (country: string): RatingSystem =>
@@ -273,6 +292,7 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
   name: 'Filme',
   kind: 'video',
   createdAt: '2026-10-18T18:00:00Z',
+  revision: 'rev-1',
   roots: [
     {
       id: 1,
@@ -283,6 +303,9 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
       watch: 'inotify',
       itemCount: 12,
       fileCount: 14,
+      textLangs: null,
+      images: null,
+      homeTitleCount: 12,
     },
   ],
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },

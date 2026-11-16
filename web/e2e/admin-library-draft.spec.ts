@@ -10,7 +10,7 @@ import { adminEntry, TABS_TO_PAGE_ACTION } from './admin';
 
 // The kept draft of «Bibliothek hinzufügen» on the page "Bibliotheken" (concept 20, P-11, 13.2;
 // CLAUDE.md rule 8). Step 0 retraces Marco's sequence: a name typed in the add dialog, the dialog
-// cancelled, then something in «Ordner von …» of another library, then leaving the page. The
+// cancelled, then something in «Bearbeiten» of another library, then leaving the page. The
 // question «bleiben oder verwerfen» came from the add dialog's draft (`useUnsavedChanges(
 // draft.dirty)`), which the page showed nowhere. Now the page shows it in a band with
 // «Weiter bearbeiten» and «Entwurf verwerfen», and «Abbrechen» asks whether to keep it.
@@ -37,17 +37,21 @@ const discardButton = (page: Page) => page.getByRole('button', { name: 'Entwurf 
 /** The sidebar's «Automatisierung»: it leads to «Hintergrundjobs». */
 const jobsLink = (page: Page) => adminEntry(page, 'Automatisierung');
 
-/** Opens «Ordner von Filme», puts a card into «Neue Ordner», takes it out and closes. */
+/**
+ * Opens «Bearbeiten» of Filme, puts a new card in, takes it out and cancels: the form holds no
+ * change then, so «Abbrechen» closes without asking (an edit keeps no draft, concept 24 4.3).
+ */
 async function touchFolders(page: Page): Promise<void> {
   if ((await toggle(page, 'Filme').getAttribute('aria-expanded')) !== 'true') {
     await toggle(page, 'Filme').click();
   }
-  await foldOut(page, 'Filme').getByRole('button', { name: 'Ordner von Filme bearbeiten' }).click();
-  const folders = page.getByRole('dialog', { name: 'Ordner von Filme' });
-  await folders.getByRole('button', { name: 'Ordner hinzufügen', exact: true }).click();
-  await folders.getByRole('button', { name: 'Ordner 1 entfernen' }).click();
-  await folders.getByRole('button', { name: 'Schliessen' }).click();
-  await expect(folders).toHaveCount(0);
+  await foldOut(page, 'Filme').getByRole('button', { name: 'Filme bearbeiten' }).click();
+  const form = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+  await form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }).click();
+  const added = form.getByRole('listitem', { name: /^Ordner \d+$/ }).last();
+  await added.getByRole('button', { name: /^Ordner \d+ entfernen$/ }).click();
+  await form.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(form).toHaveCount(0);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -67,7 +71,7 @@ test('step 0: a cancelled draft is what asks on leaving, and the band now shows 
   await expect(addDialog(page)).toHaveCount(0);
   await expect(band(page)).toBeVisible();
 
-  // The folders dialog saves every step itself; the question on leaving is the draft's.
+  // «Bearbeiten» keeps no draft; the question on leaving is the add draft's.
   await touchFolders(page);
   await jobsLink(page).click();
   await expect(leaveQuestion(page)).toBeVisible();
@@ -83,7 +87,7 @@ test('step 0: a cancelled draft is what asks on leaving, and the band now shows 
   await expect(leaveQuestion(page)).toHaveCount(0);
 });
 
-test('step 0 control: the folders dialog alone leaves no draft (P-11)', async ({ page }) => {
+test('step 0 control: «Bearbeiten» alone leaves no draft (P-11)', async ({ page }) => {
   await touchFolders(page);
   await expect(band(page)).toHaveCount(0);
   await jobsLink(page).click();

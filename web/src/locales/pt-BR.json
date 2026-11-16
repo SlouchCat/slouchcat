@@ -228,7 +228,9 @@
       "files_not_deletable": "Não foi possível excluir um arquivo do título. Nada foi excluído.",
       "not_deletable": "Este título não pode ser excluído.",
       "deleting": "Este item está sendo excluído agora.",
-      "changed": "Algo mudou nesse meio-tempo; verifique novamente."
+      "changed": "Algo mudou nesse meio-tempo; verifique novamente.",
+      "stale": "A biblioteca foi alterada em outro lugar nesse meio-tempo. Carregue-a de novo e salve outra vez.",
+      "root_unlisted": "Falta uma pasta da biblioteca na solicitação. Carregue a biblioteca de novo; nada foi removido."
     },
     "field": {
       "required": "Obrigatório.",
@@ -251,6 +253,7 @@
       "root_overlap": "Esta pasta se sobrepõe a outra pasta.",
       "path_with_content": "Um novo caminho não pode ser combinado com uma alteração de conteúdo.",
       "root_files_missing": "Nenhum arquivo da pasta está no novo caminho.",
+      "confirm_mismatch": "O caminho não corresponde ao caminho da pasta. Nada foi alterado.",
       "content_not_allowed": "Este conteúdo não combina com o tipo da biblioteca.",
       "providers_not_allowed": "Esta lista de fontes de metadados não é permitida para este conteúdo.",
       "roots_required": "É necessária pelo menos uma pasta.",
@@ -566,9 +569,10 @@
       "submit_many": "Adicionar biblioteca com {{count}} de pastas",
       "submit_other": "Adicionar biblioteca com {{count}} pastas",
       "submitNone": "Adicionar biblioteca sem pastas",
-      "addSubmit_one": "Adicionar {{count}} pasta",
-      "addSubmit_many": "Adicionar {{count}} de pastas",
-      "addSubmit_other": "Adicionar {{count}} pastas"
+      "marked": "Será removida ao salvar. Depois você confirma com o caminho.",
+      "undo": "Desfazer",
+      "undoLabel": "Desfazer a remoção da pasta {{number}}",
+      "removeStored": "Remover pasta…"
     },
     "videoHint": "As pastas desta biblioteca podem conter filmes ou séries, inclusive misturados.",
     "page": {
@@ -632,7 +636,8 @@
     "notFound": {
       "title": "Biblioteca não encontrada",
       "body": "Esta biblioteca não existe ou não tem títulos para este perfil."
-    }
+    },
+    "kindFixed": "O tipo fica fixo depois que a biblioteca é criada."
   },
   "home": {
     "list": {
@@ -1884,11 +1889,8 @@
         "kind": "Tipo",
         "state": "Estado",
         "counts": "Títulos · arquivos",
-        "folders": "Pastas",
-        "metadata": "Metadados"
+        "folders": "Pastas"
       },
-      "none": "–",
-      "noMetadata": "Sem escopo de metadados",
       "roots": "Pastas",
       "fsType": "Sistema de arquivos {{type}}",
       "watch": {
@@ -1954,25 +1956,11 @@
       "defaultRating": "Padrão: {{rating}}",
       "noRoots": "Nenhuma pasta: os títulos vêm de feeds assinados.",
       "feedsOnly": "Títulos de feeds",
-      "changeRating": {
-        "action": "Alterar classificação padrão",
-        "title": "Classificação padrão de {{name}}",
-        "description": "Todos os títulos cuja classificação vem da biblioteca a acompanham de imediato. Classificações definidas manualmente permanecem.",
-        "submit": "Salvar",
-        "saved": "A classificação padrão de {{name}} agora é {{rating}}."
-      },
       "folders": {
-        "title": "Pastas de {{name}}",
-        "description": "Uma biblioteca pode ter várias pastas. A varredura e o monitoramento passam a incluir uma nova pasta de imediato.",
-        "none": "Esta biblioteca não tem pasta. Nada é escaneado até você adicionar uma.",
         "content": "Títulos: {{items}} · arquivos: {{files}}",
         "remove": {
-          "action": "Remover",
-          "label": "Remover a pasta {{path}}",
-          "title": "Remover mesmo esta pasta?",
           "inputLabel": "Digite o caminho para confirmar",
           "mismatch": "Digite {{path}} exatamente, e então o botão fica ativo.",
-          "confirm": "Remover a pasta",
           "lead_one": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} título sai de todas as listas com ela. O que isso significa:",
           "lead_many": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} de títulos saem de todas as listas com ela. O que isso significa:",
           "lead_other": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} títulos saem de todas as listas com ela. O que isso significa:",
@@ -1984,52 +1972,28 @@
           "oneWay": "Se a pasta estiver fora das pastas navegáveis (SLOUCHCAT_BROWSE_ROOTS), ela não poderá ser adicionada de novo sem alterar a configuração.",
           "last": "É a última pasta: {{name}} continua existindo, mas depois não terá pasta e não escaneará nada."
         },
-        "new": "Novas pastas",
         "change": {
-          "action": "Alterar",
-          "label": "Alterar a pasta {{path}}",
-          "title": "Alterar pasta",
-          "description": "Conteúdo e fontes de metadados de {{path}}.",
-          "submit": "Salvar",
           "identifier": "O identificador muda: os textos de temporadas e episódios são atribuídos de novo de acordo com {{provider}}. Os episódios em si permanecem, e o progresso e a Minha lista continuam ligados a eles.",
           "fillers": "Só os complementos mudam: os títulos são preenchidos de novo, nada é excluído.",
-          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a Minha lista ficam com os títulos antigos.",
-          "confirmTitle": "Alterar mesmo o conteúdo?",
-          "confirm": "Alterar conteúdo",
-          "saved": "A pasta {{path}} foi alterada."
+          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a Minha lista ficam com os títulos antigos."
         },
         "move": {
-          "action": "Alterar caminho",
-          "label": "Alterar o caminho de {{path}}",
-          "title": "Alterar caminho?",
-          "body": "Caminho antigo: {{old}} · Novo caminho: {{new}}. Títulos e dados dos usuários permanecem se os arquivos estiverem lá com os mesmos nomes. Depois, a pasta é lida de novo.",
-          "confirm": "Alterar",
-          "saved": "A pasta agora está em {{path}} e é lida de novo."
+          "body": "Caminho antigo: {{old}} · Novo caminho: {{new}}. Títulos e dados dos usuários permanecem se os arquivos estiverem lá com os mesmos nomes. Depois, a pasta é lida de novo."
         },
         "readOnly": "somente leitura",
         "writable": "gravável"
       },
-      "openFolders": "Pastas",
-      "openFoldersLabel": "Editar as pastas de {{name}}",
       "rootCount_one": "{{count}} pasta",
       "rootCount_many": "{{count}} de pastas",
       "rootCount_other": "{{count}} pastas",
-      "noFolder": "Nenhuma pasta: nada é escaneado até você adicionar uma em “Pastas”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "como o servidor",
-        "texts": "idiomas diferentes",
-        "images": "imagens diferentes",
-        "both": "idiomas e imagens diferentes",
-        "link": "Metadados da biblioteca",
         "audiobooksLink": "Fontes para audiolivros"
       },
       "trickplay": {
         "action": "Miniaturas de pré-visualização",
-        "actionLabel": "Miniaturas de pré-visualização de {{name}}",
-        "title": "Miniaturas de pré-visualização: {{name}}",
         "description": "Pequenas imagens acima da linha do tempo, uma a cada 10 segundos. Filmes e séries são configurados separadamente, inclusive numa biblioteca que tenha os dois.",
         "movies": "Filmes",
         "series": "Séries",
@@ -2091,12 +2055,12 @@
         "generate": {
           "action": "Gerar agora",
           "hint": "Completa as miniaturas ausentes de todas as bibliotecas em “Antecipadas”, como “Completar miniaturas de pré-visualização” em “Tarefas em segundo plano”.",
-          "queued": "A geração das miniaturas foi colocada na fila."
+          "queued": "A geração das miniaturas foi colocada na fila.",
+          "unsaved": "Só depois de salvar: a geração usa a configuração salva."
         },
-        "submit": "Salvar",
-        "saved": "As miniaturas de pré-visualização de {{name}} foram salvas.",
         "summary": "Miniaturas de pré-visualização: filmes {{movies}} · séries {{series}}",
-        "summaryNoKeep": "Ao iniciar, sem manter"
+        "summaryNoKeep": "Ao iniciar, sem manter",
+        "header": "Filmes: {{movies}} · séries: {{series}}"
       },
       "delete": {
         "action": "Excluir biblioteca…",
@@ -2115,11 +2079,58 @@
         "done": "Biblioteca “{{name}}” excluída.",
         "notDone": "A biblioteca “{{name}}” não foi excluída. A tarefa informa o motivo."
       },
-      "rename": {
-        "action": "Renomear…",
-        "title": "Renomear a biblioteca “{{name}}”",
-        "label": "Nome",
-        "saved": "A biblioteca agora se chama “{{name}}”."
+      "form": {
+        "editTitle": "Editar biblioteca",
+        "changed": "alterado",
+        "pathAndContent": "O caminho e o conteúdo desta pasta não podem mudar de uma só vez. Salve primeiro um e depois o outro.",
+        "pathHint": "O novo caminho vale depois de salvar. Os títulos e os dados dos perfis permanecem se os arquivos estiverem lá com os mesmos nomes.",
+        "reloaded": "A biblioteca foi alterada em outro lugar nesse meio-tempo. O formulário agora mostra o novo estado dela; suas alterações não foram salvas.",
+        "changedElsewhere": "A biblioteca foi alterada em outro lugar nesse meio-tempo. Ao salvar, o formulário carrega o novo estado dela; suas alterações então não são salvas.",
+        "gone": "Esta biblioteca não existe mais. Nada foi salvo.",
+        "scanRunning": "Remover uma pasta ou mudar o conteúdo ou o caminho dela precisa esperar a varredura terminar. O que você digitou continua aí.",
+        "scanCancelled": "A varredura foi cancelada. Salve de novo agora.",
+        "discard": {
+          "title": "Descartar alterações?",
+          "body": "As alterações não salvas na biblioteca {{name}} serão perdidas.",
+          "confirm": "Descartar",
+          "keep": "Continuar editando"
+        },
+        "confirm": {
+          "title": "Confirmar alterações",
+          "intro": "Estas alterações só valem quando você salva aqui.",
+          "remove": "Remover pasta: {{path}}",
+          "content": "Trocar conteúdo: {{path}}",
+          "path": "Alterar caminho: {{path}}",
+          "typeAll": "Você pode salvar assim que todos os caminhos forem digitados exatamente.",
+          "submit": "Salvar"
+        }
+      },
+      "edit": "Editar",
+      "editLabel": "Editar {{name}}",
+      "noFolderEdit": "Nenhuma pasta: nada é escaneado até você adicionar uma em “Editar”.",
+      "saved": {
+        "title": "A biblioteca {{name}} foi salva.",
+        "name": "Novo nome: {{name}}",
+        "rating": "Classificação indicativa padrão: {{rating}}",
+        "added_one": "{{count}} pasta adicionada; a varredura está na fila.",
+        "added_many": "{{count}} de pastas adicionadas; a varredura está na fila.",
+        "added_other": "{{count}} pastas adicionadas; a varredura está na fila.",
+        "removed_one": "{{count}} pasta removida.",
+        "removed_many": "{{count}} de pastas removidas.",
+        "removed_other": "{{count}} pastas removidas.",
+        "content_one": "{{count}} pasta com outro conteúdo é lida de novo.",
+        "content_many": "{{count}} de pastas com outro conteúdo são lidas de novo.",
+        "content_other": "{{count}} pastas com outro conteúdo são lidas de novo.",
+        "moved_one": "{{count}} pasta com um novo caminho é lida de novo.",
+        "moved_many": "{{count}} de pastas com um novo caminho são lidas de novo.",
+        "moved_other": "{{count}} pastas com um novo caminho são lidas de novo.",
+        "providers_one": "Novas fontes para {{count}} pasta: os títulos dela são associados ou preenchidos de novo.",
+        "providers_many": "Novas fontes para {{count}} de pastas: os títulos delas são associados ou preenchidos de novo.",
+        "providers_other": "Novas fontes para {{count}} pastas: os títulos delas são associados ou preenchidos de novo.",
+        "metadata_one": "Idiomas ou imagens alterados em {{count}} pasta. Valem para {{titles}} títulos assim que você os aplicar.",
+        "metadata_many": "Idiomas ou imagens alterados em {{count}} de pastas. Valem para {{titles}} títulos assim que você os aplicar.",
+        "metadata_other": "Idiomas ou imagens alterados em {{count}} pastas. Valem para {{titles}} títulos assim que você os aplicar.",
+        "dismiss": "Ocultar"
       }
     },
     "access": {
@@ -2395,7 +2406,9 @@
         "children": "Conteúdo",
         "childCounts": "Temporadas: {{seasons}} · Episódios: {{episodes}} · Extras: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Pasta de origem",
+        "homeRootNone": "Nenhuma, vale o padrão"
       },
       "sources": {
         "title": "Fonte por campo",
@@ -5019,7 +5032,6 @@
     },
     "metadata": {
       "title": "Metadados",
-      "intro": "Quais idiomas as fontes de metadados fornecem, quais imagens em qual idioma e qualidade, e qual país decide primeiro a classificação indicativa. O padrão vale para todas as bibliotecas; uma biblioteca pode divergir em idiomas e imagens.",
       "links": {
         "roots": "A ordem das fontes é definida por pasta, em Bibliotecas.",
         "jobs": "Os agendamentos estão em Tarefas em segundo plano.",
@@ -5031,9 +5043,6 @@
         "open": "Abrir fontes"
       },
       "areas": {
-        "label": "Áreas",
-        "changed": "Alterado · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Pôster {{poster}}, imagem de fundo {{backdrop}}",
         "sources": {
           "local": "Arquivos locais",
@@ -5041,20 +5050,17 @@
           "tmdbAdult": "TMDB com conteúdo adulto",
           "none": "Só as fontes das pastas"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} pasta de vídeo segue o padrão",
+        "foldersFollow_many": "{{count}} de pastas de vídeo seguem o padrão",
+        "foldersFollow_other": "{{count}} pastas de vídeo seguem o padrão",
+        "foldersOwn_one": "{{count}} com configuração própria",
+        "foldersOwn_many": "{{count}} com configuração própria",
+        "foldersOwn_other": "{{count}} com configuração própria"
       },
-      "scope": {
-        "label": "Vale para",
-        "server": "Padrão",
-        "serverHint": "Vale para todas as bibliotecas sem divergência própria.",
-        "libraryHint": "{{name}} usa o padrão. Ative “Idiomas personalizados” ou “Imagens personalizadas” para alterar idiomas ou imagens só desta biblioteca.",
-        "deviates": "personalizado",
-        "textsDeviate": "Idiomas personalizados",
-        "imagesDeviate": "Imagens personalizadas",
-        "likeServer": "como o servidor",
-        "changed": "{{name}} (alterado)",
-        "serverDirty": "O padrão tem alterações não salvas; aqui aparece o que está salvo."
-      },
+      "default": "Padrão",
       "languages": {
         "title": "Idiomas",
         "intro": "Cada idioma desta lista é buscado para cada título; os perfis escolhem entre eles o idioma das suas descrições. O idioma da interface cada perfil escolhe por conta própria. Cada idioma a mais custa uma solicitação por título e temporada.",
@@ -5128,7 +5134,6 @@
         }
       },
       "apply": {
-        "title": "Aplicar aos títulos existentes",
         "short": "Aplicar",
         "intro": "Títulos novos usam as configurações de imediato. Os existentes ficam como estão até você iniciar a execução; ela aparece em Tarefas em segundo plano, com progresso, pausa e cancelamento.",
         "what": "O quê",
@@ -5136,7 +5141,8 @@
         "texts": "Só textos",
         "images": "Só imagens",
         "where": "Onde",
-        "all": "Todas as bibliotecas",
+        "all": "Todas as pastas",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} título",
         "titles_many": "{{count}} de títulos",
         "titles_other": "{{count}} títulos",
@@ -5165,6 +5171,29 @@
         "chain_duplicate": "Cada idioma uma vez.",
         "country_unknown": "País desconhecido.",
         "source_unknown": "Esta fonte de imagens não é candidata do título."
+      },
+      "introDefault": "Vale para toda pasta sem configuração própria. Os idiomas e as imagens próprios de uma pasta são definidos na biblioteca dela, em “Editar”.",
+      "changed": "alterado",
+      "folders": {
+        "title": "Pastas",
+        "intro": "Toda pasta de vídeo segue o padrão até ter idiomas ou imagens próprios. Você os define na biblioteca dela, em “Editar”.",
+        "empty": "Ainda não há nenhuma pasta de vídeo.",
+        "audio": "As pastas de audiolivros e de podcasts não têm idiomas nem imagens próprios. As fontes dos audiolivros ficam em “Audiolivros: fontes”.",
+        "openLabel": "Editar {{name}}, pasta {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Idiomas: padrão",
+        "langsOwn": "Idiomas: {{chain}}",
+        "imagesDefault": "Imagens: padrão",
+        "imagesOwn": "Imagens: próprias",
+        "likeDefault": "Padrão",
+        "own": "Personalizado",
+        "defaultIs": "Padrão: {{value}}",
+        "imagesDefaultIs": "Padrão: {{kinds}}. Idioma por tipo de imagem: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Vale só para esta pasta.",
+        "cost": "Cada idioma adicional custa uma solicitação por título e temporada desta pasta ao aplicar.",
+        "always": "O Slouchcat sempre busca o pôster e a imagem de fundo."
       }
     },
     "activity": {
@@ -5206,7 +5235,7 @@
       "intro": "De onde o Slouchcat obtém detalhes e capas dos audiolivros. Os arquivos sempre vêm primeiro; um provedor só preenche o que falta, e nunca um campo bloqueado.",
       "folders": {
         "title": "Ordem por pasta",
-        "intro": "A fonte de cima vence em cada campo. A ordem e as fontes que participam são alteradas na caixa de diálogo da pasta.",
+        "intro": "A fonte de cima vence em cada campo. Você altera a ordem e as fontes que participam na biblioteca, em “Editar”.",
         "empty": "Ainda não há pasta de audiolivros.",
         "edit": "Alterar fontes",
         "editLabel": "Alterar as fontes de {{path}}",

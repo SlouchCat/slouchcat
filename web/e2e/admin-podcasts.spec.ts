@@ -14,6 +14,7 @@ import {
   subscribeFeed,
   unsubscribe,
 } from './audio';
+import { addRoot, removeRoot } from './librarySave';
 import { CSRF } from './catalog';
 import { FEED_BASE, MEDIA_DIR } from './env';
 import { expect, test } from './fixtures';
@@ -199,27 +200,6 @@ test('podcasts page: library tabs and rows by arrow keys; browser back leaves th
 /** The setting of stored episodes the library «Podcasts» has ab Werk (O-2). */
 const LINK_ONLY = { mode: 'link', scope: 'new', lastN: 10, parallel: 2 } as const;
 
-/** Removes a folder of a library; a scan that still runs refuses it for a moment (409). */
-async function removeRoot(
-  owner: APIRequestContext,
-  libraryId: number,
-  rootId: number,
-  path: string,
-) {
-  await expect
-    .poll(
-      async () =>
-        (
-          await owner.post(`/api/v1/admin/libraries/${libraryId}/roots/${rootId}/removal`, {
-            headers: CSRF,
-            data: { confirmPath: path },
-          })
-        ).status(),
-      { timeout: 30_000 },
-    )
-    .toBe(200);
-}
-
 /** The downloads of a podcast as the list of the administration counts them. */
 async function podcastDownloads(owner: APIRequestContext, podcastId: string) {
   const response = await owner.get('/api/v1/admin/podcasts');
@@ -251,14 +231,11 @@ test('podcasts page: band «Neue Folgen» and the confirmation by keyboard @keyb
   mkdirSync(dir, { recursive: true });
   const libraryId = await podcastLibraryId(owner);
   const podcast = await subscribeFeed(owner, key);
-  const added = await owner.post(`/api/v1/admin/libraries/${libraryId}/roots`, {
-    headers: CSRF,
-    data: { roots: [{ path: dir, content: 'podcast', providers: ['local'] }] },
+  const root = await addRoot(owner, libraryId, {
+    path: dir,
+    content: 'podcast',
+    providers: ['local'],
   });
-  expect(added.status(), await added.text()).toBe(201);
-  const root = ((await added.json()) as { roots: { id: number; path: string }[] }).roots.find(
-    (entry) => entry.path === dir,
-  );
   try {
     await page.goto('/admin/podcasts');
     await expect(podcastRow(page, podcast.id)).toBeVisible();
@@ -359,7 +336,7 @@ test('podcasts page: band «Neue Folgen» and the confirmation by keyboard @keyb
       .poll(async () => (await podcastDownloads(owner, podcast.id)).active, { timeout: 30_000 })
       .toBe(0);
     await unsubscribe(owner, podcast.id);
-    if (root) await removeRoot(owner, libraryId, root.id, dir);
+    await removeRoot(owner, libraryId, root.id, dir);
     await owner.patch(`/api/v1/admin/libraries/${libraryId}`, {
       headers: CSRF,
       data: { podcastDownloads: LINK_ONLY },

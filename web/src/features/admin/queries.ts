@@ -40,8 +40,6 @@ import type {
   RelinkPairList,
   JobTypeInfo,
   Library,
-  LibraryMetadata,
-  LibraryMetadataUpdate,
   MetadataProviderInfo,
   MetadataSettings,
   MetadataSettingsUpdate,
@@ -56,7 +54,7 @@ import type {
   TraktStatus,
   components,
 } from '@slouchcat/api-client';
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api, isApiError, request } from '@/api/client';
 import type { PagedSource } from '@/lib/pagedList';
 
@@ -91,6 +89,25 @@ export const metadataProvidersQuery = queryOptions({
     request(api.GET('/admin/metadata/providers', { signal })),
   staleTime: 60_000,
 });
+
+/**
+ * The providers with `languages` relative to a language list being edited (`textLangs`), for the
+ * hint which source does not know a language of that list. The previous answer stays while the
+ * next loads (`isPlaceholderData`); it belongs to the old list, so the hint waits for the new one.
+ */
+export const metadataProvidersForQuery = (textLangs: readonly string[]) =>
+  queryOptions({
+    queryKey: [...metadataProvidersQuery.queryKey, [...textLangs]],
+    queryFn: ({ signal }): Promise<MetadataProviderInfo[]> =>
+      request(
+        api.GET('/admin/metadata/providers', {
+          params: { query: { textLangs: [...textLangs] } },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
 
 export const invitationsQuery = queryOptions({
   queryKey: ['admin', 'invitations'],
@@ -574,19 +591,6 @@ export const metadataSettingsQuery = queryOptions({
 
 export const updateMetadataSettings = (body: MetadataSettingsUpdate): Promise<MetadataSettings> =>
   request(api.PUT('/admin/settings/metadata', { body }));
-
-export const libraryMetadataQuery = (id: number) =>
-  queryOptions({
-    queryKey: ['admin', 'library-metadata', id],
-    queryFn: ({ signal }): Promise<LibraryMetadata> =>
-      request(api.GET('/admin/libraries/{id}/metadata', { params: { path: { id } }, signal })),
-  });
-
-export const updateLibraryMetadata = (
-  id: number,
-  body: LibraryMetadataUpdate,
-): Promise<LibraryMetadata> =>
-  request(api.PUT('/admin/libraries/{id}/metadata', { params: { path: { id } }, body }));
 
 export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadataResponse> =>
   request(api.POST('/admin/metadata/apply', { body }));

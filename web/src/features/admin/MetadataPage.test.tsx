@@ -1,20 +1,19 @@
 import type {
-  LibraryMetadata,
-  LibraryMetadataUpdate,
   MetadataProviderInfo,
   MetadataSettings,
   MetadataSettingsUpdate,
 } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { library, ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call, type Routes } from '@/test/api';
+import { afterDialogsClosed } from '@/ui/aria';
 
-// The page "Metadaten" (concept 10, 7.1; layout concept 12 Met-B): the scope in the header, the
-// settings areas in a list, the selected area beside it; the server default and a library's
-// deviation, the language places, the image kinds and chains, quality, sources, rating country
-// and the apply run; one save bar for every changed scope.
+// The page "Metadaten" (concept 10, 7.1; concept 24 3.4): the default every folder without
+// settings of its own follows; the settings areas as fold sections, all closed, each header with
+// its summary and «geändert»; the language places, the image kinds and chains, quality, sources,
+// rating country, the apply run per folder and the video folders; one save bar.
 
 const settings = (overrides: Partial<MetadataSettings> = {}): MetadataSettings => ({
   textLangs: ['de', 'en'],
@@ -54,21 +53,18 @@ const providers: MetadataProviderInfo[] = [
 
 const libraries = [
   library(),
-  library({ id: 2, name: 'Serien' }),
-  library({ id: 3, name: 'Hörbücher', kind: 'audiobooks' }),
+  library({
+    id: 2,
+    name: 'Serien',
+    roots: [{ ...library().roots[0]!, id: 2, path: '/media/Serien', content: 'series' }],
+  }),
+  library({
+    id: 3,
+    name: 'Hörbücher',
+    kind: 'audiobooks',
+    roots: [{ ...library().roots[0]!, id: 3, path: '/media/Hoerbuecher', content: 'audiobook' }],
+  }),
 ];
-
-const libraryMeta = (overrides: Partial<LibraryMetadata> = {}): LibraryMetadata => ({
-  libraryId: 2,
-  textLangs: null,
-  images: null,
-  effective: settings(),
-  affectedTitles: 40,
-  ...overrides,
-});
-
-/** The library id in `/admin/libraries/{id}/metadata`. */
-const idOf = (call: Call) => Number(call.path.split('/')[3]);
 
 const routes = (extra: Routes = {}): Routes => ({
   ...signedIn,
@@ -82,50 +78,23 @@ const routes = (extra: Routes = {}): Routes => ({
         { type: 'image.fetch', counts: { queued: 7, planned: 0, running: 0, failed: 0 } },
       ],
     }),
-  'GET /admin/libraries/*/metadata': (call: Call) =>
-    json(libraryMeta({ libraryId: idOf(call), affectedTitles: idOf(call) * 20 })),
   ...extra,
 });
 
-/**
- * A server that keeps what it is sent: the default and each library's deviation. `failLibrary`
- * answers the PUT of that library with an error.
- */
-function statefulRoutes({ failLibrary }: { failLibrary?: number } = {}) {
+/** A server that keeps the default it is sent. */
+function statefulRoutes() {
   let server = settings();
-  const stored = new Map<number, LibraryMetadata>();
-  const metaOf = (id: number) =>
-    stored.get(id) ?? libraryMeta({ libraryId: id, effective: server, affectedTitles: id * 20 });
   return routes({
     'GET /admin/settings/metadata': () => json(server),
     'PUT /admin/settings/metadata': (call) => {
       server = settings({ ...(call.body as Partial<MetadataSettings>) });
       return json(server);
     },
-    'GET /admin/libraries/*/metadata': (call) => json(metaOf(idOf(call))),
-    'PUT /admin/libraries/*/metadata': (call) => {
-      const id = idOf(call);
-      if (id === failLibrary) return problem(500, 'internal');
-      const body = call.body as LibraryMetadataUpdate;
-      stored.set(
-        id,
-        libraryMeta({
-          libraryId: id,
-          textLangs: body.textLangs ?? null,
-          images: body.images ?? null,
-          effective: server,
-          affectedTitles: id * 20,
-        }),
-      );
-      return json(metaOf(id));
-    },
   });
 }
 
 const region = (name: string) => screen.getByRole('region', { name });
 const saveBar = () => region('Speichern');
-const areas = () => screen.getByRole('listbox', { name: 'Bereiche' });
-const scopeSelect = () => screen.getByLabelText('Geltung');
 
 /** The values of the places in a language list, place 1 first ("" = Ohne Text). */
 const placesOf = (list: HTMLElement) =>
@@ -142,20 +111,30 @@ const disabledOf = (select: HTMLElement) =>
 const puts = (calls: Call[], path: string) =>
   calls.filter((call) => call.method === 'PUT' && call.path === path).map((call) => call.body);
 
-/** Selects a settings area in the list on the left. */
-async function openArea(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(within(areas()).getByRole('option', { name }));
-  return screen.findByRole('region', { name: areaTitle[name] ?? name });
-}
-const areaTitle: Record<string, string> = { Anwenden: 'Auf bestehende Titel anwenden' };
+/** The toggle of a fold section: the button in its h2. */
+const toggleOf = (name: string) =>
+  within(screen.getByRole('heading', { level: 2, name })).getByRole('button', { name });
 
-describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
+/** The header line of a fold section: title, summary and «geändert». */
+const headerOf = (name: string) => screen.getByRole('heading', { level: 2, name }).parentElement!;
+
+/** Opens a fold section and returns its content (react-aria's panel, named by the toggle). */
+async function openArea(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const toggle = await screen.findByRole('button', { name });
+  if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
+  return screen.getByRole('group', { name });
+}
+
+/** The content of an open section. */
+const sectionOf = (name: string) => screen.findByRole('group', { name });
+
+describe('metadata settings page (concept 10, concept 24 3.4)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('«Speichern» without a change sends nothing and keeps the focus', async () => {
     const { calls } = mockApi(routes());
     renderApp('/admin/metadata');
-    await screen.findByRole('region', { name: 'Sprachen' });
+    await screen.findByRole('heading', { level: 2, name: 'Sprachen' });
     const user = userEvent.setup();
     const save = within(saveBar()).getByRole('button', { name: 'Speichern' });
     await user.click(save);
@@ -163,10 +142,10 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
-  it('puts the SaveBar into the page column, so it sticks while the areas scroll', async () => {
+  it('puts the SaveBar into the page column, so it sticks while the sections scroll', async () => {
     mockApi(routes());
     renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    const languages = await screen.findByRole('heading', { level: 2, name: 'Sprachen' });
     // position: sticky holds an element inside its parent: the parent must be the long column
     // that holds the h1 and the areas, not a wrapper only as tall as the bar.
     const column = screen.getByRole('region', { name: 'Speichern' }).parentElement;
@@ -181,25 +160,40 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     // The intro stands open below the title (build plan 2.6), no help button.
     expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
 
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
     expect(
-      within(areas())
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual([
-      expect.stringContaining('Sprachen'),
-      expect.stringContaining('Bilder'),
-      expect.stringContaining('Bildqualität'),
-      expect.stringContaining('Quellen'),
-      expect.stringContaining('Altersfreigabe'),
-      expect.stringContaining('Anwenden'),
+      screen.getByText(
+        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Bearbeiten» ein.',
+      ),
+    ).toBeVisible();
+    // Seven fold sections, all closed, each header with its summary (concept 24 3.4).
+    const sections = await screen.findAllByRole('heading', { level: 2 });
+    expect(sections.map((heading) => heading.textContent)).toEqual([
+      'Sprachen',
+      'Bilder',
+      'Bildqualität',
+      'Quellen',
+      'Altersfreigabe',
+      'Anwenden',
+      'Ordner',
     ]);
-    expect(within(areas()).getByRole('option', { name: 'Sprachen' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    for (const heading of sections)
+      expect(within(heading).getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+    expect(headerOf('Sprachen')).toHaveTextContent(/^Sprachen.*Deutsch › Englisch$/);
+    expect(headerOf('Bilder')).toHaveTextContent(
+      'Poster, Hintergrund, Logo, Staffelposter und Folgenbild',
     );
-    expect(scopeSelect()).toHaveValue('server');
-    expect(within(languages).getByText(/Gilt für alle Bibliotheken ohne eigene Abweichung/));
+    expect(headerOf('Bildqualität')).toHaveTextContent('Poster 500 px, Hintergrund 1280 px');
+    expect(headerOf('Quellen')).toHaveTextContent('Lokale Dateien');
+    expect(headerOf('Altersfreigabe')).toHaveTextContent('Deutschland');
+    expect(headerOf('Anwenden')).toHaveTextContent('Texte und Bilder · Alle Ordner (1234 Titel)');
+    expect(headerOf('Ordner')).toHaveTextContent(
+      '2 Video-Ordner folgen dem Standard, 0 haben Eigenes',
+    );
+    // No list of areas and no scope any more (concept 24 3.4): the page edits the default only.
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.queryByLabelText('Geltung')).toBeNull();
+    const user = userEvent.setup();
+    const languages = await openArea(user, 'Sprachen');
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
     // Fixed places, each a select of the languages (10.2).
@@ -228,7 +222,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     // has no Deutsch; TMDB and TVDB have both, the local files have no language list.
     expect(within(languages).getByText(/^Reihenfolge = Rückfall: fehlt ein Text/)).toBeVisible();
     const warning = within(languages).getByText(/kennt nicht:/);
-    expect(warning).toHaveTextContent(/^ANILIST kennt nicht: Deutsch 2 Sprachen:/);
+    // Its own line, apart from the quota line above.
+    expect(warning).toHaveTextContent(/^ANILIST kennt nicht: Deutsch$/);
     expect(warning).not.toHaveTextContent(/TMDB|TVDB|LOCAL/);
     // The links of MET-1.
     expect(
@@ -240,7 +235,6 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       screen.getByRole('link', { name: 'Die Zeitpläne stehen unter Hintergrundjobs.' }),
     ).toHaveAttribute('href', '/admin/jobs');
 
-    const user = userEvent.setup();
     const images = await openArea(user, 'Bilder');
     expect(within(images).getAllByText('immer')).toHaveLength(2);
     expect(within(images).getByRole('checkbox', { name: /Logo/ })).toBeChecked();
@@ -291,27 +285,141 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(saveBar()).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
 
     const apply = await openArea(user, 'Anwenden');
+    expect(within(apply).getByRole('radio', { name: 'Alle Ordner (1234 Titel)' })).toBeChecked();
+    // Only the folders of video libraries can be applied to (concept 24 3.3).
+    // Each folder names the titles whose home folder it is (concept 24 3.3, homeTitleCount).
     expect(
-      within(apply).getByRole('radio', { name: 'Alle Bibliotheken (1234 Titel)' }),
-    ).toBeChecked();
-    // Only video libraries can be applied to, each with its titles.
-    expect(within(apply).getByRole('radio', { name: 'Serien (40 Titel)' })).toBeVisible();
+      within(apply).getByRole('radio', { name: 'Serien: /media/Serien (12 Titel)' }),
+    ).toBeVisible();
     expect(within(apply).queryByRole('radio', { name: /Hörbücher/ })).toBeNull();
     expect(
       await within(apply).findByText(/Noch wartend: 3 Zuordnungen, 7 Bilder\. Noch kein Lauf\./),
     ).toBeVisible();
   });
 
-  it('the selected area lives in ?item= and survives a reload', async () => {
+  it('?item= opens the named section only; the others stay closed and fold as the reader leaves them', async () => {
     mockApi(routes());
-    const { router } = renderApp('/admin/metadata?item=rating');
-    expect(await screen.findByRole('region', { name: 'Altersfreigabe' })).toBeVisible();
+    renderApp('/admin/metadata?item=rating');
+    expect(await sectionOf('Altersfreigabe')).toBeVisible();
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    expect(toggleOf('Ordner')).toHaveAttribute('aria-expanded', 'false');
     const user = userEvent.setup();
+    // Folding it away is the reader's choice; another section opens beside it.
+    await user.click(toggleOf('Altersfreigabe'));
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
     await openArea(user, 'Bildqualität');
-    expect(router.state.location.search).toMatchObject({ item: 'quality' });
-    // The default area drops the parameter.
-    await openArea(user, 'Sprachen');
-    expect(router.state.location.search).not.toHaveProperty('item');
+    expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('the same ?item= link again reopens its section and brings its header into view once', async () => {
+    mockApi(routes());
+    const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { router } = renderApp('/admin/metadata?item=rating');
+    expect(await sectionOf('Altersfreigabe')).toBeVisible();
+    // The section's block, its header first (the side navigation scrolls its own entry too).
+    const block =
+      toggleOf('Altersfreigabe').closest('h2')!.parentElement!.parentElement!.parentElement!;
+    const scrollsOfBlock = () => scrolled.mock.contexts.filter((node) => node === block).length;
+    await waitFor(() => expect(scrollsOfBlock()).toBe(1));
+    expect(block).toContainElement(toggleOf('Altersfreigabe'));
+    expect(block.firstElementChild).toContainElement(toggleOf('Altersfreigabe'));
+    const user = userEvent.setup();
+    await user.click(toggleOf('Altersfreigabe'));
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
+    expect(scrollsOfBlock()).toBe(1);
+    // The same address again: no search value changes, the section opens and scrolls anew.
+    await act(() => router.navigate({ to: '/admin/metadata', search: { item: 'rating' } }));
+    await waitFor(() =>
+      expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'true'),
+    );
+    await waitFor(() => expect(scrollsOfBlock()).toBe(2));
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('?item=folders opens the folders: one row per video folder with languages, images and the way to its folders', async () => {
+    const own = library({
+      id: 4,
+      name: 'Anime',
+      roots: [
+        {
+          ...library().roots[0]!,
+          id: 4,
+          path: '/media/Anime',
+          content: 'series',
+          textLangs: ['ja', 'en'],
+          images: { langs: {}, kinds: [] },
+        },
+      ],
+    });
+    mockApi(routes({ 'GET /admin/libraries': () => json([...libraries, own]) }));
+    renderApp('/admin/metadata?item=folders');
+    const folders = await sectionOf('Ordner');
+    expect(headerOf('Ordner')).toHaveTextContent(
+      '2 Video-Ordner folgen dem Standard, 1 hat Eigenes',
+    );
+    const rows = within(folders).getAllByRole('listitem');
+    // Audiobook folders have no languages and images of their own (concept 24 3.1).
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent(/\/media\/Filme.*Sprachen: Standard.*Bilder: Standard/);
+    expect(rows[2]).toHaveTextContent(
+      /\/media\/Anime.*Anime.*Sprachen: Japanisch › Englisch.*Bilder: eigene/,
+    );
+    expect(
+      within(folders).getByText(/^Hörbuch- und Podcast-Ordner haben keine eigenen/),
+    ).toBeVisible();
+    const user = userEvent.setup();
+    // The row action opens «Bearbeiten» of the library with this folder's card open (4.5).
+    await user.click(
+      within(folders).getByRole('button', { name: 'Anime bearbeiten, Ordner /media/Anime' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    const card = within(dialog).getByRole('listitem', { name: 'Ordner 1' });
+    expect(within(card).getByRole('button', { name: /\/media\/Anime/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await waitFor(() => expect(within(card).getByLabelText('Ordner')).toHaveFocus());
+  });
+
+  it('the band after a save from «Bearbeiten» hands the focus to the page title when dismissed', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/libraries/1': (call: Call) =>
+          json({
+            library: { ...library(), name: (call.body as { name: string }).name },
+            metadataChanged: [],
+          }),
+      }),
+    );
+    renderApp('/admin/metadata?item=folders');
+    const folders = await sectionOf('Ordner');
+    const user = userEvent.setup();
+    await user.click(
+      within(folders).getByRole('button', { name: 'Filme bearbeiten, Ordner /media/Filme' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    const settingsLoads = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/admin/settings/metadata')
+        .length;
+    const before = settingsLoads();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // The dialog gives the focus back to the row's button; the save's own focus step (after the
+    // settings are loaded again and the dialog is gone) leaves it there.
+    const row = within(folders).getByRole('button', {
+      name: 'Filme bearbeiten, Ordner /media/Filme',
+    });
+    await waitFor(() => expect(row).toHaveFocus());
+    await waitFor(() => expect(settingsLoads()).toBeGreaterThan(before));
+    await act(() => afterDialogsClosed());
+    expect(row).toHaveFocus();
+    const dismiss = await screen.findByRole('button', { name: 'Ausblenden' });
+    await user.click(dismiss);
+    expect(screen.queryByRole('button', { name: 'Ausblenden' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
   });
 
   it('adds a language, swaps its place, saves the whole list once and reports the affected titles', async () => {
@@ -326,8 +434,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
         },
       }),
     );
-    renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     // «Weitere Sprache» appends a place with the first free language (by name: Französisch).
@@ -335,9 +443,9 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(placesOf(list)).toEqual(['de', 'en', 'fr']);
     expect(within(list).getByRole('combobox', { name: '3. Sprache' })).toHaveFocus();
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(within(areas()).getByRole('option', { name: 'Sprachen' })).toHaveAccessibleDescription(
-      /^Geändert · Deutsch › Englisch › Französisch$/,
-    );
+    // The header says «geändert», with the new list as the summary.
+    expect(headerOf('Sprachen')).toHaveTextContent('Deutsch › Englisch › Französischgeändert');
+    expect(headerOf('Bilder')).not.toHaveTextContent('geändert');
     // A free language replaces the place.
     await user.selectOptions(within(list).getByRole('combobox', { name: '3. Sprache' }), 'ja');
     expect(placesOf(list)).toEqual(['de', 'en', 'ja']);
@@ -365,10 +473,55 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
   });
 
+  it('asks the sources about the list as edited and holds the hint while their answer loads', async () => {
+    // TMDB knows Französisch, AniList only Englisch and Französisch; each answer names the
+    // languages of the list it was asked about.
+    const answers: MetadataProviderInfo[][] = [
+      [providers[0]!, providers[2]!],
+      [
+        { ...providers[0]!, languages: ['de', 'en', 'fr'] },
+        { ...providers[2]!, languages: ['en', 'fr'] },
+      ],
+    ];
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let asked = 0;
+    const { fetchMock } = mockApi(
+      routes({
+        'GET /admin/metadata/providers': async () => {
+          asked += 1;
+          if (asked > 1) await held;
+          return json(answers[Math.min(asked, 2) - 1]);
+        },
+      }),
+    );
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
+    expect(await within(languages).findByText('ANILIST kennt nicht: Deutsch')).toBeVisible();
+    const user = userEvent.setup();
+    const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
+    await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
+    expect(placesOf(list)).toEqual(['de', 'en', 'fr']);
+    // Asked about the edited list, not the saved default.
+    await waitFor(() => expect(asked).toBe(2));
+    const lastQuery = new URL((fetchMock.mock.calls.at(-1)?.[0] as Request).url).searchParams;
+    expect(lastQuery.getAll('textLangs')).toEqual(['de', 'en', 'fr']);
+    // The previous answer is about the old list: no hint from it (it would call Französisch
+    // unknown to TMDB), only the quota line.
+    expect(within(languages).queryByText(/kennt nicht/)).toBeNull();
+    expect(within(languages).getByText(/^3 Sprachen:/)).toBeVisible();
+    release();
+    const hint = await within(languages).findByText(/kennt nicht/);
+    expect(hint).toHaveTextContent(/^ANILIST kennt nicht: Deutsch$/);
+    expect(hint).not.toHaveTextContent(/TMDB/);
+  });
+
   it('swaps an image language with «Ohne Text» by its place', async () => {
     const { calls } = mockApi(statefulRoutes());
     renderApp('/admin/metadata?item=images');
-    const images = await screen.findByRole('region', { name: 'Bilder' });
+    const images = await sectionOf('Bilder');
     const user = userEvent.setup();
     const poster = within(images).getByRole('group', { name: 'Bildsprache Poster' });
     expect(placesOf(poster)).toEqual(['de', 'en', '']);
@@ -394,8 +547,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
           }),
       }),
     );
-    renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     // A list without Deutsch is fine on the page (concept 22 F-7); here the server refuses it.
@@ -412,158 +565,76 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
-  it('edits a library: the two deviations, dimmed inherited values, a PUT with null for "like the server"', async () => {
-    const { calls } = mockApi(statefulRoutes());
-    renderApp('/admin/metadata?library=2');
-    expect(await screen.findByText(/Serien übernimmt den Standard/)).toBeVisible();
-    const user = userEvent.setup();
-    expect(scopeSelect()).toHaveValue('2');
-    // Quality, sources, rating and apply belong to the server: not on a library.
-    expect(within(areas()).getAllByRole('option')).toHaveLength(2);
-    expect(within(areas()).queryByRole('option', { name: 'Bildqualität' })).toBeNull();
-    expect(within(areas()).queryByRole('option', { name: 'Altersfreigabe' })).toBeNull();
-    const languages = region('Sprachen');
-    expect(within(languages).getByText('wie Server')).toBeVisible();
-    const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    // Read-only: the places are disabled, no «×», no «Weitere Sprache».
-    expect(within(list).getByRole('combobox', { name: '2. Sprache' })).toBeDisabled();
-    expect(
-      within(list).queryByRole('button', { name: '2. Sprache (Englisch) entfernen' }),
-    ).toBeNull();
-    expect(within(list).queryByRole('button', { name: 'Weitere Sprache' })).toBeNull();
-
-    await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
-    expect(within(languages).queryByText('wie Server')).toBeNull();
-    // A library needs neither Deutsch nor Englisch: each place may go, every choice is open.
-    expect(
-      within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
-    ).toBeEnabled();
-    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([]);
-    await user.click(within(list).getByRole('button', { name: '2. Sprache (Englisch) entfernen' }));
-    expect(placesOf(list)).toEqual(['de']);
-    // The last entry cannot go; place 1 may hold any language (concept 22 F-7).
-    expect(
-      within(list).getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
-    ).toBeDisabled();
-    expect(disabledOf(within(list).getByRole('combobox', { name: '1. Sprache' }))).toEqual([]);
-    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
-    await waitFor(() => expect(puts(calls, '/admin/libraries/2/metadata')).toHaveLength(1));
-    expect(puts(calls, '/admin/libraries/2/metadata')[0]).toEqual({
-      textLangs: ['de'],
-      images: null,
+  it('opens a section folded during the save on its field error and marks the field', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
     });
-    expect(
-      await screen.findByText('Gespeichert für Serien. 40 Titel betroffen – jetzt anwenden?'),
-    ).toBeVisible();
-    expect(puts(calls, '/admin/settings/metadata')).toHaveLength(0);
-
-    // Switching the deviation off and saving sends null: the library follows the server again.
-    await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
-    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
-    await waitFor(() => expect(puts(calls, '/admin/libraries/2/metadata')).toHaveLength(2));
-    expect(puts(calls, '/admin/libraries/2/metadata')[1]).toEqual({
-      textLangs: null,
-      images: null,
-    });
-    // Switching it on again brings back the last deviating list, not the default (S-13).
-    await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
-    expect(placesOf(list)).toEqual(['de']);
-  });
-
-  it('shows on a library that follows the default when the default has unsaved changes', async () => {
-    mockApi(statefulRoutes());
-    renderApp('/admin/metadata');
-    const user = userEvent.setup();
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
-    await user.click(
-      within(within(languages).getByRole('group', { name: 'Metadaten-Sprachen' })).getByRole(
-        'button',
-        { name: '2. Sprache (Englisch) entfernen' },
-      ),
+    mockApi(
+      routes({
+        'PUT /admin/settings/metadata': async () => {
+          await held;
+          return problem(422, 'validation_failed', {
+            errors: [
+              { field: 'imageMinWidth.poster', code: 'invalid' },
+              { field: 'fanartEnabled', code: 'invalid' },
+            ],
+          });
+        },
+      }),
     );
-    await user.selectOptions(scopeSelect(), 'Serien');
-    const library = await screen.findByRole('region', { name: 'Sprachen' });
-    await within(library).findByText(/Serien übernimmt den Standard/);
-    expect(
-      within(library).getByText(
-        'Standard hat ungespeicherte Änderungen; hier steht der gespeicherte Stand.',
-      ),
-    ).toBeVisible();
-    // Its images follow an unchanged default: no note there.
-    await openArea(user, 'Bilder');
-    expect(screen.queryByText(/Standard hat ungespeicherte Änderungen/)).toBeNull();
+    renderApp('/admin/metadata?item=quality');
+    const quality = await sectionOf('Bildqualität');
+    const user = userEvent.setup();
+    await user.click(within(quality).getByRole('radio', { name: '1000 px' }));
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    // Folded while the server still decides; «Quellen» was never open.
+    await user.click(toggleOf('Bildqualität'));
+    expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'false');
+    expect(toggleOf('Quellen')).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'true'));
+    expect(toggleOf('Quellen')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    // Each section marks its field, not only the notice under the save bar.
+    expect(within(await sectionOf('Bildqualität')).getByText('Ungültiger Wert.')).toBeVisible();
+    expect(within(await sectionOf('Quellen')).getByText('Ungültiger Wert.')).toBeVisible();
   });
 
-  it('drops an unknown ?library= from the address and shows the default', async () => {
+  it('drops ?library= of the earlier scope from the address and shows the default', async () => {
     mockApi(routes());
-    const { router } = renderApp('/admin/metadata?library=3');
-    expect(
-      await screen.findByText(/Gilt für alle Bibliotheken ohne eigene Abweichung/),
-    ).toBeVisible();
+    const { router } = renderApp('/admin/metadata?library=2');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Sprachen' })).toBeVisible();
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('library'));
-    expect(scopeSelect()).toHaveValue('server');
   });
 
-  it('switches the scope from the server to a library and back without losing the server form', async () => {
-    mockApi(routes());
-    const { router } = renderApp('/admin/metadata');
-    await screen.findByRole('region', { name: 'Sprachen' });
-    const user = userEvent.setup();
-    await user.selectOptions(scopeSelect(), 'Serien');
-    expect(await screen.findByText(/Serien übernimmt den Standard/)).toBeVisible();
-    expect(router.state.location.search).toMatchObject({ library: 2 });
-    // Audiobook libraries have no metadata settings.
-    expect(within(scopeSelect()).queryByRole('option', { name: 'Hörbücher' })).toBeNull();
-    await user.selectOptions(scopeSelect(), 'Standard');
-    expect(
-      await screen.findByText(/Gilt für alle Bibliotheken ohne eigene Abweichung/),
-    ).toBeVisible();
-    expect(within(areas()).getByRole('option', { name: 'Bildqualität' })).toBeVisible();
-  });
-
-  it('keeps the drafts of every scope while the scope and the area change (S-13, S-17)', async () => {
+  it('keeps the drafts while a section folds away, marks it «geändert» and asks before leaving (S-17)', async () => {
     mockApi(statefulRoutes());
     const { router } = renderApp('/admin/metadata');
     const user = userEvent.setup();
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    const languages = await openArea(user, 'Sprachen');
     await user.click(
       within(within(languages).getByRole('group', { name: 'Metadaten-Sprachen' })).getByRole(
         'button',
         { name: '2. Sprache (Englisch) entfernen' },
       ),
     );
+    // Folded away, the section keeps the draft and says «geändert» in its header.
+    await user.click(toggleOf('Sprachen'));
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(headerOf('Sprachen')).getByText('geändert')).toBeVisible();
     await openArea(user, 'Altersfreigabe');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Land' }), 'CH');
-
-    // To the library Serien: its own change.
-    await user.selectOptions(scopeSelect(), 'Serien');
-    await screen.findByText(/Serien übernimmt den Standard/);
-    // The library has no "Altersfreigabe": the list falls back to its first area.
-    expect(region('Sprachen')).toBeVisible();
-    await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
-    expect(screen.getByRole('option', { name: 'Standard (geändert)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Serien (geändert)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Filme' })).toBeInTheDocument();
-    // Changing the scope or the area is not leaving the page: no question.
+    // Opening another section is not leaving the page: no question.
     expect(screen.queryByRole('alertdialog')).toBeNull();
-
-    // Back to the default: its area is selected again, and both its changes are still there.
-    await user.selectOptions(scopeSelect(), 'Standard (geändert)');
-    const rating = await screen.findByRole('region', { name: 'Altersfreigabe' });
-    expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('CH');
-    expect(
-      within(areas()).getByRole('option', { name: 'Altersfreigabe' }),
-    ).toHaveAccessibleDescription('Geändert · Schweiz');
+    expect(headerOf('Altersfreigabe')).toHaveTextContent('Schweizgeändert');
+    expect(headerOf('Quellen')).not.toHaveTextContent('geändert');
     const back = await openArea(user, 'Sprachen');
     expect(
       within(within(back).getByRole('group', { name: 'Metadaten-Sprachen' })).getAllByRole(
         'listitem',
       ),
     ).toHaveLength(1);
-    // And the library's switch too.
-    await user.selectOptions(scopeSelect(), 'Serien (geändert)');
-    expect(await screen.findByRole('switch', { name: 'Sprachen abweichend' })).toBeChecked();
-    expect(router.state.location.search).toMatchObject({ library: 2 });
 
     // Leaving the page asks first; staying keeps everything.
     void router.navigate({ to: '/admin/jobs' });
@@ -574,38 +645,6 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(router.state.location.pathname).toBe('/admin/metadata');
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
-  });
-
-  it('saves the changed scopes one after the other and stops at a failure, naming the scope', async () => {
-    const { calls } = mockApi(statefulRoutes({ failLibrary: 1 }));
-    renderApp('/admin/metadata?item=rating');
-    const user = userEvent.setup();
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
-    // Serien first, then Filme: the save goes by the list order, not by the order of the edits.
-    await user.selectOptions(scopeSelect(), 'Serien');
-    await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
-    await user.selectOptions(scopeSelect(), 'Filme');
-    await screen.findByText(/Filme übernimmt den Standard/);
-    await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
-
-    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog', { name: 'Freigabeland wechseln?' })).getByRole(
-        'button',
-        { name: 'Wechseln und neu lesen' },
-      ),
-    );
-    expect(await screen.findByText(/^«Filme» wurde nicht gespeichert: /)).toBeVisible();
-    const order = calls.filter((call) => call.method === 'PUT').map((call) => call.path);
-    expect(order).toEqual(['/admin/settings/metadata', '/admin/libraries/1/metadata']);
-    // The default is saved; Filme failed and Serien after it was never sent: both stay changed.
-    expect(
-      screen.getByText('Gespeichert für Standard. 1234 Titel betroffen – jetzt anwenden?'),
-    ).toBeVisible();
-    expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Standard' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Filme (geändert)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Serien (geändert)' })).toBeInTheDocument();
   });
 
   it('keeps what is typed while a save waits for the server', async () => {
@@ -645,7 +684,6 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     // The newer value stays, still unsaved.
     expect(screen.getByRole('combobox', { name: 'Land' })).toHaveValue('FR');
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(screen.getByRole('option', { name: 'Standard (geändert)' })).toBeInTheDocument();
   });
 
   it('keeps a field set back to its old value while the save waits (L-5)', async () => {
@@ -686,19 +724,15 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
-  it('"Verwerfen" names every changed scope and resets them all after the question', async () => {
+  it('"Verwerfen" names the default and resets it after the question', async () => {
     const { calls } = mockApi(statefulRoutes());
     renderApp('/admin/metadata?item=rating');
     const user = userEvent.setup();
     await user.selectOptions(await screen.findByRole('combobox', { name: 'Land' }), 'CH');
-    await user.selectOptions(scopeSelect(), 'Serien');
-    await user.click(await screen.findByRole('switch', { name: 'Sprachen abweichend' }));
 
     await user.click(within(saveBar()).getByRole('button', { name: 'Verwerfen' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Änderungen verwerfen?' });
-    expect(dialog).toHaveTextContent(
-      'Die ungespeicherten Änderungen an Standard und Serien gehen verloren.',
-    );
+    expect(dialog).toHaveTextContent('Die ungespeicherten Änderungen an Standard gehen verloren.');
     // Cancel keeps them.
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
@@ -708,11 +742,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Verwerfen' }),
     );
     await waitFor(() => expect(within(saveBar()).getByText('Gespeichert')).toBeVisible());
-    expect(screen.getByRole('switch', { name: 'Sprachen abweichend' })).not.toBeChecked();
-    expect(screen.getByRole('option', { name: 'Standard' })).toBeInTheDocument();
-    await user.selectOptions(scopeSelect(), 'Standard');
-    const rating = await openArea(user, 'Altersfreigabe');
-    expect(within(rating).getByRole('combobox', { name: 'Land' })).toHaveValue('DE');
+    expect(screen.getByRole('combobox', { name: 'Land' })).toHaveValue('DE');
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
@@ -723,10 +753,14 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       }),
     );
     renderApp('/admin/metadata?item=apply');
-    const apply = await screen.findByRole('region', { name: 'Auf bestehende Titel anwenden' });
+    const apply = await sectionOf('Anwenden');
     const user = userEvent.setup();
     await user.click(within(apply).getByRole('radio', { name: 'Nur Texte' }));
-    await user.click(within(apply).getByRole('radio', { name: 'Serien (40 Titel)' }));
+    await user.click(
+      within(apply).getByRole('radio', { name: 'Serien: /media/Serien (12 Titel)' }),
+    );
+    // The header names what and where.
+    expect(headerOf('Anwenden')).toHaveTextContent('Nur Texte · Serien: /media/Serien (12 Titel)');
     await user.click(within(apply).getByRole('button', { name: 'Jetzt anwenden' }));
     expect(
       await within(apply).findByText(
@@ -737,7 +771,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       (call) => call.method === 'POST' && call.path === '/admin/metadata/apply',
     );
     expect(posts).toHaveLength(1);
-    expect(posts[0]?.body).toEqual({ what: ['texts'], libraryIds: [2] });
+    expect(posts[0]?.body).toEqual({ what: ['texts'], rootIds: [2] });
   });
 
   it('a non-admin profile gets the notice instead of the settings', async () => {

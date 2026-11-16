@@ -12,21 +12,15 @@ import (
 // Handlers of library administration (contract tag admin). Errors go through serviceProblem
 // (auth_handlers.go).
 
-func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitAddLibraryRootResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitUpdateLibraryRootResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
+func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitListMetadataProvidersResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
 func (e serviceProblem) VisitDeleteLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSaveLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -70,37 +64,55 @@ func (s *server) ScanLibrary(ctx context.Context, req gen.ScanLibraryRequestObje
 	return gen.ScanLibrary202JSONResponse(toLibrary(lib)), nil
 }
 
-// AddLibraryRoot adds folders to a library in one go (idea 02, E8; F-13).
-func (s *server) AddLibraryRoot(ctx context.Context, req gen.AddLibraryRootRequestObject) (gen.AddLibraryRootResponseObject, error) {
-	lib, err := s.opts.Admin.AddLibraryRoots(ctx, req.Id, rootRequests(deref(req.Body).Roots))
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.AddLibraryRoot201JSONResponse(toLibrary(lib)), nil
-}
-
-// UpdateLibraryRoot changes the content, the metadata sources (ADR 0015) or the path (ADR 0023)
-// of a folder.
-func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRootRequestObject) (gen.UpdateLibraryRootResponseObject, error) {
+// SaveLibrary saves the form «Bibliothek bearbeiten» in one go (concept 24 4.3). Like
+// updateLibrary it re-checks the open streams, because a new default rating may have changed the
+// rating of titles.
+func (s *server) SaveLibrary(ctx context.Context, req gen.SaveLibraryRequestObject) (gen.SaveLibraryResponseObject, error) {
 	body := deref(req.Body)
-	upd := model.LibraryRootUpdate{ConfirmPath: deref(body.ConfirmPath), Path: body.Path}
-	if body.Content != nil {
-		c := string(*body.Content)
-		upd.Content = &c
+	save := model.LibrarySave{Revision: body.Revision, Name: body.Name, Trickplay: libraryTrickplay(body.Trickplay),
+		Roots: make([]model.LibrarySaveRoot, 0, len(body.Roots)), Remove: make([]model.LibrarySaveRemoval, 0, len(body.RemoveRoots))}
+	if body.DefaultRating != nil {
+		r := *body.DefaultRating
+		save.DefaultRating = &r
 	}
-	if body.Providers != nil {
-		upd.Providers = providerNames(*body.Providers)
+	for _, r := range body.Roots {
+		root := model.LibrarySaveRoot{ID: deref(r.Id), ConfirmPath: deref(r.ConfirmPath), LibraryRootRequest: model.LibraryRootRequest{
+			Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers),
+		}}
+		if r.TextLangs != nil {
+			langs := append([]string{}, *r.TextLangs...)
+			root.Metadata.TextLangs = &langs
+		}
+		root.Metadata.Images = fromRootImages(r.Images)
+		save.Roots = append(save.Roots, root)
 	}
-	lib, err := s.opts.Admin.UpdateLibraryRoot(ctx, req.Id, req.RootId, upd)
+	for _, r := range body.RemoveRoots {
+		save.Remove = append(save.Remove, model.LibrarySaveRemoval{ID: r.Id, ConfirmPath: r.ConfirmPath})
+	}
+	saved, err := s.opts.Admin.SaveLibrary(ctx, req.Id, save)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.UpdateLibraryRoot200JSONResponse(toLibrary(lib)), nil
+	// The save is committed: a failing recheck is logged, the answer is the saved library (an
+	// error would make the form retry with a revision that is gone).
+	if err := s.recheckStreams(ctx); err != nil {
+		s.p.log.WarnContext(ctx, "recheck streams after saving a library", "library_id", req.Id, "err", err)
+	}
+	out := gen.SaveLibrary200JSONResponse{Library: toLibrary(saved.Library), MetadataChanged: make([]gen.LibraryRootTitles, 0, len(saved.MetadataChanged))}
+	for _, m := range saved.MetadataChanged {
+		out.MetadataChanged = append(out.MetadataChanged, gen.LibraryRootTitles{RootId: m.RootID, HomeTitleCount: m.HomeTitleCount})
+	}
+	return out, nil
 }
 
-// ListMetadataProviders describes the providers to the folder form (ADR 0015).
-func (s *server) ListMetadataProviders(ctx context.Context, _ gen.ListMetadataProvidersRequestObject) (gen.ListMetadataProvidersResponseObject, error) {
-	infos, err := s.opts.Admin.ListMetadataProviders(ctx)
+// ListMetadataProviders describes the providers to the folder form (ADR 0015); textLangs names
+// the language list being edited (concept 24 3.3).
+func (s *server) ListMetadataProviders(ctx context.Context, req gen.ListMetadataProvidersRequestObject) (gen.ListMetadataProvidersResponseObject, error) {
+	var langs []string
+	if req.Params.TextLangs != nil {
+		langs = append([]string{}, *req.Params.TextLangs...)
+	}
+	infos, err := s.opts.Admin.ListMetadataProviders(ctx, langs)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -121,16 +133,6 @@ func (s *server) ListMetadataProviders(ctx context.Context, _ gen.ListMetadataPr
 		out = append(out, info)
 	}
 	return gen.ListMetadataProviders200JSONResponse(out), nil
-}
-
-// RemoveLibraryRoot removes a folder from a library; the typed confirmation travels in the body
-// (idea 02, E12), which is why it is a POST and not a DELETE.
-func (s *server) RemoveLibraryRoot(ctx context.Context, req gen.RemoveLibraryRootRequestObject) (gen.RemoveLibraryRootResponseObject, error) {
-	lib, err := s.opts.Admin.RemoveLibraryRoot(ctx, req.Id, req.RootId, deref(req.Body).ConfirmPath)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.RemoveLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
 // DeleteLibrary queues the delete of a library (concept 20 P-8, 202 with the job); the typed name travels in the body,
@@ -189,7 +191,11 @@ func toLibrary(l model.Library) gen.Library {
 	for _, r := range l.Roots {
 		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch),
 			Content: gen.RootContent(r.Content), Providers: providerEnums(r.Providers),
-			ItemCount: r.ItemCount, FileCount: r.FileCount}
+			ItemCount: r.ItemCount, FileCount: r.FileCount, HomeTitleCount: r.HomeTitleCount,
+			Images: toRootImages(r.Metadata.Images)}
+		if r.Metadata.TextLangs != nil {
+			root.TextLangs = strs(*r.Metadata.TextLangs)
+		}
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}
@@ -212,7 +218,7 @@ func toLibrary(l model.Library) gen.Library {
 		scan.LastError = &l.Scan.LastError
 	}
 	out := gen.Library{
-		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), DefaultRating: toRating(l.DefaultRating),
+		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Revision: l.Revision, DefaultRating: toRating(l.DefaultRating),
 		Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
 	}
 	if k := l.KeyframeIndex; k != nil {
@@ -276,7 +282,13 @@ func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
 func rootRequests(roots []gen.LibraryRootRequest) []model.LibraryRootRequest {
 	out := make([]model.LibraryRootRequest, 0, len(roots))
 	for _, r := range roots {
-		out = append(out, model.LibraryRootRequest{Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers)})
+		req := model.LibraryRootRequest{Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers)}
+		if r.TextLangs != nil {
+			langs := append([]string{}, *r.TextLangs...)
+			req.Metadata.TextLangs = &langs
+		}
+		req.Metadata.Images = fromRootImages(r.Images)
+		out = append(out, req)
 	}
 	return out
 }
@@ -326,4 +338,39 @@ func utc(t *time.Time) *time.Time {
 	}
 	u := t.UTC()
 	return &u
+}
+
+// toRootImages maps a folder's own images; nil (like the default) stays nil, so the answer says null.
+func toRootImages(m *model.RootImages) *gen.RootImages {
+	if m == nil {
+		return nil
+	}
+	out := &gen.RootImages{Kinds: make([]gen.RootImagesKinds, 0, len(m.Kinds))}
+	for _, k := range m.Kinds {
+		out.Kinds = append(out.Kinds, gen.RootImagesKinds(k))
+	}
+	for kind, dst := range map[string]**[]string{"poster": &out.Langs.Poster, "backdrop": &out.Langs.Backdrop, "logo": &out.Langs.Logo} {
+		if chain, ok := m.Langs[kind]; ok {
+			c := strs(chain)
+			*dst = &c
+		}
+	}
+	return out
+}
+
+// fromRootImages maps the own images of a request; a chain left out follows the default's.
+func fromRootImages(g *gen.RootImages) *model.RootImages {
+	if g == nil {
+		return nil
+	}
+	out := &model.RootImages{Langs: map[string][]string{}, Kinds: make([]string, 0, len(g.Kinds))}
+	for _, k := range g.Kinds {
+		out.Kinds = append(out.Kinds, string(k))
+	}
+	for kind, chain := range map[string]*[]string{"poster": g.Langs.Poster, "backdrop": g.Langs.Backdrop, "logo": g.Langs.Logo} {
+		if chain != nil {
+			out.Langs[kind] = append([]string{}, *chain...)
+		}
+	}
+	return out
 }

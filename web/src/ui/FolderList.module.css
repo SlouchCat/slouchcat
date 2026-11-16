@@ -28,7 +28,7 @@
   gap: var(--sc-space-4);
   min-width: 0;
   padding: var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-left: var(--sc-space-1) solid var(--sc-accent);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);
@@ -36,18 +36,89 @@
 
 .head {
   display: flex;
-  gap: var(--sc-space-3);
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
   align-items: center;
 }
 
+/* No gap here: a closed panel (hidden="until-found") still renders as an empty box, and a gap
+   before it left an empty band under the head. The open panel keeps its distance by a margin
+   (below .fields). */
+.disclosure {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.heading {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+/* The head of a card is its trigger: chevron, number and path, like DisclosureGroup's. */
+.trigger {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-2) 0 0;
+  border: 0;
+  border-radius: var(--sc-radius-sm);
+  background-color: transparent;
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.trigger[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.disclosure[data-expanded] .chevron {
+  transform: rotate(90deg);
+}
+
+/* A long path wraps anywhere instead of widening the dialog on a phone. */
+.cardPath {
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+/* A folder marked for removal: one line, its border dashed (Z-5: shape, not paleness). */
+.marked {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.remove {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The folder's number on the accent: a circle of 24 px, a pill for two digits. */
 .number {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: var(--sc-space-7);
-  height: var(--sc-space-7);
+  min-width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  padding: 0 var(--sc-space-2);
   border-radius: var(--sc-radius-full);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   background-color: var(--sc-accent);
   color: var(--sc-on-accent);
   font-size: var(--sc-font-size-sm);
@@ -56,7 +127,7 @@
 
 .summary {
   display: flex;
-  flex: 1;
+  flex: 1 1 16rem;
   flex-wrap: wrap;
   gap: var(--sc-space-2);
   align-items: center;
@@ -76,6 +147,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-4);
+}
+
+.disclosure[data-expanded] .fields {
+  margin-top: var(--sc-space-4);
 }
 
 /* The path field and «Durchsuchen …» on one line; the button sits level with the input, below

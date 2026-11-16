@@ -1,4 +1,5 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import { openGroups } from './admin';
 import { BROKEN_TITLE, CSRF, H264_COPY_TITLE, SHOW_TITLE, UNRATED_TITLE } from './catalog';
 import { expect, test } from './fixtures';
 import {
@@ -71,6 +72,16 @@ async function openTab(page: Page, name: RegExp): Promise<void> {
   await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
 }
 
+/**
+ * Opens the library sections of the tab `name` (they start closed, concept 24, P-3); the focus
+ * goes back to the tab, where `openTab` left it.
+ */
+async function openSections(page: Page, name: RegExp): Promise<void> {
+  const first = panel(page).getByRole('heading', { level: 3 }).first().getByRole('button');
+  await openGroups(panel(page), first);
+  await tab(page, name).focus();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/admin/maintenance');
   await expect(h1(page)).toBeVisible();
@@ -108,16 +119,23 @@ test('every issue kind has a tab with its count; arrows move between the tabs', 
   await expectNoFocusTrap(page, TAB_MAX);
 });
 
-test('a library section folds away with Enter and comes back', async ({ page }) => {
-  // Every title of the test media is unmatched (no TMDB key): the first tab has rows.
+test('a library section starts closed, opens with Enter, folds with Space and comes back', async ({
+  page,
+}) => {
+  // Every title of the test media is unmatched (no TMDB key): the first tab has rows. Every
+  // section starts closed (concept 24, P-3).
   const trigger = panel(page).getByRole('heading', { level: 3 }).first().getByRole('button');
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   const name = (await trigger.getAttribute('aria-controls')) ?? '';
   const section = page.locator(`[id="${name}"]`);
-  await expect(section.getByRole('table')).toBeVisible();
+  await expect(section.getByRole('table')).toBeHidden();
 
   await tabTo(page, trigger, TAB_MAX);
   await page.keyboard.press('Enter');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(section.getByRole('table')).toBeVisible();
+  await expectFocusOn(page, trigger);
+  await page.keyboard.press('Space');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(section.getByRole('table')).toBeHidden();
   await expectFocusOn(page, trigger);
@@ -142,9 +160,9 @@ test('duplicates list the H264 copy (same file hash) in a group of its own', asy
   owner,
 }) => {
   await openTab(page, /^Duplikate/);
-  // Only the first group starts open; the others open with Enter on their heading.
+  // Every group starts closed (concept 24, P-3); each opens with Enter on its heading.
   const triggers = panel(page).getByRole('button', { name: /^Gruppe \d+$/ });
-  await expect(triggers.first()).toBeVisible();
+  await expect(triggers.first()).toHaveAttribute('aria-expanded', 'false');
   const count = await triggers.count();
   for (let index = 0; index < count; index += 1) {
     const trigger = triggers.nth(index);
@@ -209,6 +227,7 @@ test('unrated: select by keyboard, assign a rating, the title leaves the list @k
   expect(unrated, `${UNRATED_TITLE} is unrated`).toBeDefined();
   try {
     await openTab(page, /^Altersfreigabe fehlt/);
+    await openSections(page, /^Altersfreigabe fehlt/);
     const box = panel(page).getByRole('checkbox', { name: `${UNRATED_TITLE} auswählen` });
     await expect(box).toBeVisible();
     await tabTo(page, box, TAB_MAX);
@@ -264,6 +283,7 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
   await openTab(page, /^Nicht abspielbar/);
   const link = panel(page).getByRole('link', { name: new RegExp(`^${BROKEN_TITLE}`) });
   if (listed) {
+    await openSections(page, /^Nicht abspielbar/);
     await expect(link).toBeVisible();
     // The path and the finding in full (S-5).
     await expect(panel(page).getByText(/\.mkv$/)).toBeVisible();
@@ -294,6 +314,7 @@ test('a title links to its administration page; Back returns to the tab', async 
   // Every title of the test media is unmatched and unrated (no TMDB key): «Altersfreigabe fehlt» has rows.
   await openTab(page, /^Altersfreigabe fehlt/);
   await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
+  await openSections(page, /^Altersfreigabe fehlt/);
   const first = panel(page).getByRole('link').first();
   await expect(first).toBeVisible();
   const href = await first.getAttribute('href');
@@ -309,6 +330,8 @@ test('a title links to its administration page; Back returns to the tab', async 
   await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
   await expect(h1(page)).toBeVisible();
   await expect(tab(page, /^Altersfreigabe fehlt/)).toHaveAttribute('aria-selected', 'true');
+  // Back on the page, its sections are closed again; nothing is kept (concept 24, P-3).
+  await openSections(page, /^Altersfreigabe fehlt/);
   await expect(
     panel(page).getByRole('link', { name: (await first.textContent()) ?? '' }),
   ).toBeVisible();
@@ -516,6 +539,7 @@ test.describe('refresh (requests intercepted)', () => {
     ] as const) {
       await page.goto(`/admin/maintenance?tab=${kind}`);
       await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+      await openSections(page, name);
       const box = panel(page).getByRole('checkbox', {
         name: `${String(stubs[kind].title)} auswählen`,
       });
@@ -573,6 +597,7 @@ test.describe('unmatched episode (list intercepted)', () => {
     });
     await page.goto('/admin/maintenance');
     await expect(h1(page)).toBeVisible();
+    await openSections(page, /^Nicht zugeordnet/);
 
     const match = panel(page).getByRole('button', { name: 'Zuordnen' });
     await expect(match).toBeDisabled();

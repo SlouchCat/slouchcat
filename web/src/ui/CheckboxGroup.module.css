@@ -40,10 +40,12 @@
   justify-content: center;
   width: var(--sc-space-6);
   height: var(--sc-space-6);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-sm);
   background-color: var(--sc-color-surface-3);
   color: transparent;
   transition:
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
@@ -62,6 +64,23 @@
 }
 
 .option[data-selected] .box {
+  border-color: var(--sc-accent);
   background-color: var(--sc-accent);
   color: var(--sc-on-accent);
+}
+
+/* Disabled (concept 24, Z-5): a dashed box without fill, the label muted, no paleness. */
+.option[data-disabled] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+.option[data-disabled] .box {
+  border-style: dashed;
+  border-color: var(--sc-color-border-control);
+  background-color: transparent;
+}
+
+.option[data-disabled][data-selected] .box {
+  color: var(--sc-color-text-muted);
 }

@@ -49,6 +49,20 @@ func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams
 	return err
 }
 
+const countAllItemsForApply = `-- name: CountAllItemsForApply :one
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series that metadata.apply over every folder queues: also those without a
+// home folder (ADR 0036), which no single folder names.
+func (q *Queries) CountAllItemsForApply(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllItemsForApply)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countForeignMediaFilesInDir = `-- name: CountForeignMediaFilesInDir :one
 SELECT count(*) FROM media_files
 WHERE root_id = ?1 AND item_id <> ?2 AND missing_since IS NULL
@@ -72,54 +86,12 @@ func (q *Queries) CountForeignMediaFilesInDir(ctx context.Context, arg CountFore
 	return count, err
 }
 
-const countItemsForMetadataApply = `-- name: CountItemsForMetadataApply :one
-SELECT count(*) FROM items
-WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
-  AND (?1 = 1 OR library_id IN (/*SLICE:library_ids*/?))
-`
-
-type CountItemsForMetadataApplyParams struct {
-	AllLibraries interface{}
-	LibraryIds   []int64
-}
-
-// Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
-func (q *Queries) CountItemsForMetadataApply(ctx context.Context, arg CountItemsForMetadataApplyParams) (int64, error) {
-	query := countItemsForMetadataApply
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.AllLibraries)
-	if len(arg.LibraryIds) > 0 {
-		for _, v := range arg.LibraryIds {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(arg.LibraryIds))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
-	}
-	row := q.db.QueryRowContext(ctx, query, queryParams...)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const countItemsWithLocalImages = `-- name: CountItemsWithLocalImages :one
 SELECT count(DISTINCT item_id) FROM item_local_images
 `
 
 func (q *Queries) CountItemsWithLocalImages(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countItemsWithLocalImages)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countLibraryItemsForApply = `-- name: CountLibraryItemsForApply :one
-SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
-`
-
-// Matched films and series of one library, the titles metadata.apply queues for it.
-func (q *Queries) CountLibraryItemsForApply(ctx context.Context, libraryID int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countLibraryItemsForApply, libraryID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -136,6 +108,21 @@ WHERE deleted_at IS NULL AND kind IN ('movie', 'series')
 // How many titles metadata.ratings_reread reads (the same filter as ListRatingRereadItems).
 func (q *Queries) CountRatingRereadItems(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countRatingRereadItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRootItemsForApply = `-- name: CountRootItemsForApply :one
+SELECT count(*) FROM items
+WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series whose home folder is the folder (ADR 0036), the titles metadata.apply
+// queues for it.
+func (q *Queries) CountRootItemsForApply(ctx context.Context, rootID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRootItemsForApply, rootID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -218,15 +205,6 @@ func (q *Queries) DeleteItemText(ctx context.Context, arg DeleteItemTextParams) 
 	return err
 }
 
-const deleteLibraryMetadata = `-- name: DeleteLibraryMetadata :exec
-DELETE FROM library_metadata WHERE library_id = ?1
-`
-
-func (q *Queries) DeleteLibraryMetadata(ctx context.Context, libraryID int64) error {
-	_, err := q.db.ExecContext(ctx, deleteLibraryMetadata, libraryID)
-	return err
-}
-
 const deleteOriginalImage = `-- name: DeleteOriginalImage :exec
 DELETE FROM images WHERE item_id = ?1 AND kind = ?2 AND size = 'original'
 `
@@ -243,22 +221,6 @@ func (q *Queries) DeleteOriginalImage(ctx context.Context, arg DeleteOriginalIma
 	return err
 }
 
-const getLibraryMetadata = `-- name: GetLibraryMetadata :one
-SELECT library_id, text_langs, images, updated_at FROM library_metadata WHERE library_id = ?1
-`
-
-func (q *Queries) GetLibraryMetadata(ctx context.Context, libraryID int64) (LibraryMetadatum, error) {
-	row := q.db.QueryRowContext(ctx, getLibraryMetadata, libraryID)
-	var i LibraryMetadatum
-	err := row.Scan(
-		&i.LibraryID,
-		&i.TextLangs,
-		&i.Images,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getLibraryRootPath = `-- name: GetLibraryRootPath :one
 SELECT path FROM library_roots WHERE id = ?1
 `
@@ -268,6 +230,32 @@ func (q *Queries) GetLibraryRootPath(ctx context.Context, id int64) (string, err
 	var path string
 	err := row.Scan(&path)
 	return path, err
+}
+
+const getRootMetadata = `-- name: GetRootMetadata :one
+SELECT id, library_id, content, text_langs, images FROM library_roots WHERE id = ?1
+`
+
+type GetRootMetadataRow struct {
+	ID        int64
+	LibraryID int64
+	Content   string
+	TextLangs sql.NullString
+	Images    sql.NullString
+}
+
+// The own settings of one folder, for the resolution per title (Effective).
+func (q *Queries) GetRootMetadata(ctx context.Context, id int64) (GetRootMetadataRow, error) {
+	row := q.db.QueryRowContext(ctx, getRootMetadata, id)
+	var i GetRootMetadataRow
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Content,
+		&i.TextLangs,
+		&i.Images,
+	)
+	return i, err
 }
 
 const getSystemSetting = `-- name: GetSystemSetting :one
@@ -280,6 +268,40 @@ func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, err
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const listAllApplyItems = `-- name: ListAllApplyItems :many
+SELECT id, kind FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
+`
+
+type ListAllApplyItemsRow struct {
+	ID   string
+	Kind string
+}
+
+func (q *Queries) ListAllApplyItems(ctx context.Context) ([]ListAllApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllApplyItems)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllApplyItemsRow{}
+	for rows.Next() {
+		var i ListAllApplyItemsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAllItemIDs = `-- name: ListAllItemIDs :many
@@ -312,7 +334,10 @@ func (q *Queries) ListAllItemIDs(ctx context.Context) ([]string, error) {
 }
 
 const listApplyItems = `-- name: ListApplyItems :many
-SELECT id, kind FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id
+SELECT id, kind FROM items
+WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
 `
 
 type ListApplyItemsRow struct {
@@ -320,9 +345,9 @@ type ListApplyItemsRow struct {
 	Kind string
 }
 
-// The matched films and series of a library in id order, for metadata.apply (one match per title).
-func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListApplyItemsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listApplyItems, libraryID)
+// The matched films and series of a folder in id order, for metadata.apply (one match per title).
+func (q *Queries) ListApplyItems(ctx context.Context, rootID int64) ([]ListApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplyItems, rootID)
 	if err != nil {
 		return nil, err
 	}
@@ -344,8 +369,55 @@ func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListAp
 	return items, nil
 }
 
+const listApplyItemsWithoutHome = `-- name: ListApplyItemsWithoutHome :many
+SELECT id, kind FROM items
+WHERE library_id IN (/*SLICE:library_ids*/?) AND root_id IS NULL AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
+`
+
+type ListApplyItemsWithoutHomeRow struct {
+	ID   string
+	Kind string
+}
+
+// The matched films and series of libraries without a home folder, for a metadata.apply run queued
+// before contract 1.40.0 with libraryIds: such a run covered every matched title of the library.
+func (q *Queries) ListApplyItemsWithoutHome(ctx context.Context, libraryIds []int64) ([]ListApplyItemsWithoutHomeRow, error) {
+	query := listApplyItemsWithoutHome
+	var queryParams []interface{}
+	if len(libraryIds) > 0 {
+		for _, v := range libraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(libraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListApplyItemsWithoutHomeRow{}
+	for rows.Next() {
+		var i ListApplyItemsWithoutHomeRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -436,6 +508,7 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.OwnRating,
 			&i.EffectiveRating,
 			&i.MinChildRating,
+			&i.RootID,
 		); err != nil {
 			return nil, err
 		}
@@ -875,38 +948,6 @@ func (q *Queries) ListLibraryIDs(ctx context.Context) ([]int64, error) {
 	return items, nil
 }
 
-const listLibraryMetadata = `-- name: ListLibraryMetadata :many
-SELECT library_id, text_langs, images, updated_at FROM library_metadata ORDER BY library_id
-`
-
-func (q *Queries) ListLibraryMetadata(ctx context.Context) ([]LibraryMetadatum, error) {
-	rows, err := q.db.QueryContext(ctx, listLibraryMetadata)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []LibraryMetadatum{}
-	for rows.Next() {
-		var i LibraryMetadatum
-		if err := rows.Scan(
-			&i.LibraryID,
-			&i.TextLangs,
-			&i.Images,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listLocalImagesByRoot = `-- name: ListLocalImagesByRoot :many
 SELECT item_id, kind, rel_path, root_id, width, height, size, mtime FROM item_local_images WHERE root_id = ?1 ORDER BY item_id, kind, rel_path
 `
@@ -1033,7 +1074,7 @@ func (q *Queries) ListMediaFileIDsByItem(ctx context.Context, itemID string) ([]
 }
 
 const listOriginalLanguageBackfillItems = `-- name: ListOriginalLanguageBackfillItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
   AND original_language IS NULL AND id > ?1
   AND instr(locked_fields, '"original_language"') = 0
@@ -1134,6 +1175,7 @@ func (q *Queries) ListOriginalLanguageBackfillItems(ctx context.Context, arg Lis
 			&i.OwnRating,
 			&i.EffectiveRating,
 			&i.MinChildRating,
+			&i.RootID,
 		); err != nil {
 			return nil, err
 		}
@@ -1221,7 +1263,7 @@ func (q *Queries) ListPodcastEpisodeIDs(ctx context.Context) ([]string, error) {
 }
 
 const listRatingRereadItems = `-- name: ListRatingRereadItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND id > ?1
   AND (rating_source LIKE 'tmdb:%' OR rating_source LIKE 'tvdb:%' OR (rating_source IS NULL AND own_rating IS NULL))
   AND (tmdb_id IS NOT NULL OR tvdb_id IS NOT NULL)
@@ -1324,6 +1366,114 @@ func (q *Queries) ListRatingRereadItems(ctx context.Context, arg ListRatingRerea
 			&i.OwnRating,
 			&i.EffectiveRating,
 			&i.MinChildRating,
+			&i.RootID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootIDs = `-- name: ListRootIDs :many
+SELECT id FROM library_roots ORDER BY id
+`
+
+func (q *Queries) ListRootIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listRootIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootIDsOfLibraries = `-- name: ListRootIDsOfLibraries :many
+SELECT id FROM library_roots WHERE library_id IN (/*SLICE:library_ids*/?) ORDER BY id
+`
+
+// The folders of libraries, for a metadata.apply run queued before contract 1.40.0 with libraryIds.
+func (q *Queries) ListRootIDsOfLibraries(ctx context.Context, libraryIds []int64) ([]int64, error) {
+	query := listRootIDsOfLibraries
+	var queryParams []interface{}
+	if len(libraryIds) > 0 {
+		for _, v := range libraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(libraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootMetadata = `-- name: ListRootMetadata :many
+SELECT id, library_id, content, text_langs, images FROM library_roots ORDER BY id
+`
+
+type ListRootMetadataRow struct {
+	ID        int64
+	LibraryID int64
+	Content   string
+	TextLangs sql.NullString
+	Images    sql.NullString
+}
+
+// The own settings of every folder (the languages a profile may choose, TMDB's image languages).
+func (q *Queries) ListRootMetadata(ctx context.Context) ([]ListRootMetadataRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRootMetadata)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRootMetadataRow{}
+	for rows.Next() {
+		var i ListRootMetadataRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.Content,
+			&i.TextLangs,
+			&i.Images,
 		); err != nil {
 			return nil, err
 		}
@@ -1417,7 +1567,7 @@ func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatc
 }
 
 const listVoteBackfillItems = `-- name: ListVoteBackfillItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
   AND vote_average IS NULL AND id > ?1
   AND (instr(providers, '"tmdb"') > 0 OR instr(providers, '"anilist"') > 0)
@@ -1523,6 +1673,7 @@ func (q *Queries) ListVoteBackfillItems(ctx context.Context, arg ListVoteBackfil
 			&i.OwnRating,
 			&i.EffectiveRating,
 			&i.MinChildRating,
+			&i.RootID,
 		); err != nil {
 			return nil, err
 		}
@@ -2070,29 +2221,6 @@ func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) 
 	return err
 }
 
-const upsertLibraryMetadata = `-- name: UpsertLibraryMetadata :exec
-INSERT INTO library_metadata (library_id, text_langs, images, updated_at)
-VALUES (?1, ?2, ?3, ?4)
-ON CONFLICT (library_id) DO UPDATE SET text_langs = excluded.text_langs, images = excluded.images, updated_at = excluded.updated_at
-`
-
-type UpsertLibraryMetadataParams struct {
-	LibraryID int64
-	TextLangs sql.NullString
-	Images    sql.NullString
-	Now       int64
-}
-
-func (q *Queries) UpsertLibraryMetadata(ctx context.Context, arg UpsertLibraryMetadataParams) error {
-	_, err := q.db.ExecContext(ctx, upsertLibraryMetadata,
-		arg.LibraryID,
-		arg.TextLangs,
-		arg.Images,
-		arg.Now,
-	)
-	return err
-}
-
 const upsertSystemSetting = `-- name: UpsertSystemSetting :exec
 
 INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
@@ -2105,8 +2233,9 @@ type UpsertSystemSettingParams struct {
 	Now   int64
 }
 
-// Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
-// deviation of a library in library_metadata (NULL = like the server).
+// Metadata settings (concept 10, ADR 0018; concept 24, ADR 0036): the server's keys live in
+// settings (metadata.*), a folder's own text languages and images in library_roots (NULL = like
+// the default).
 func (q *Queries) UpsertSystemSetting(ctx context.Context, arg UpsertSystemSettingParams) error {
 	_, err := q.db.ExecContext(ctx, upsertSystemSetting, arg.Key, arg.Value, arg.Now)
 	return err

@@ -42,6 +42,16 @@ export interface SourceDraft {
   rotationSeconds: string;
 }
 
+/**
+ * The medium the draft stores: a choice the chosen kind does not offer falls back to the kind's
+ * first medium; the choice itself stays, so going back to a kind with all media shows it again.
+ */
+export function sourceMedia(config: SpotlightConfig, draft: SourceDraft): SourceDraft['media'] {
+  const kind = config.listKinds.find((entry) => entry.key === draft.listKey);
+  const allowed = kind?.media ?? [draft.media];
+  return allowed.includes(draft.media) ? draft.media : (allowed[0] ?? draft.media);
+}
+
 export const sourceDraftOf = (config: SpotlightConfig): SourceDraft => ({
   enabled: config.enabled,
   listKey: config.listKey,
@@ -103,6 +113,7 @@ export function SourceForm({
   onSaved,
   onQueued,
   onFailed,
+  onInvalid,
 }: {
   config: SpotlightConfig;
   status?: TraktStatus;
@@ -115,6 +126,8 @@ export function SourceForm({
   onSaved: (message: string) => void;
   onQueued: (message: string) => Promise<void>;
   onFailed: (error: unknown) => void;
+  /** The server rejected a field: the band around the form opens to show it (concept 24, P-3). */
+  onInvalid?: () => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -124,9 +137,7 @@ export function SourceForm({
 
   const kind = config.listKinds.find((entry) => entry.key === draft.listKey);
   const allowedMedia = kind?.media ?? [draft.media];
-  // A choice the new kind does not offer falls back to the kind's first medium; the choice itself
-  // stays, so going back to a kind with all media shows it again.
-  const media = allowedMedia.includes(draft.media) ? draft.media : (allowedMedia[0] ?? draft.media);
+  const media = sourceMedia(config, draft);
 
   const save = useMutation({
     mutationFn: ({ body }: { body: SpotlightConfigUpdate; sent: SourceDraft }) =>
@@ -149,7 +160,9 @@ export function SourceForm({
     },
     // A field's problem shows at the field; anything else goes to the page.
     onError: (error) => {
-      if (formErrors(t, error).form) onFailed(error);
+      const { form, fields } = formErrors(t, error);
+      if (form) onFailed(error);
+      if (Object.keys(fields).length > 0) onInvalid?.();
     },
   });
   const refresh = useMutation({
