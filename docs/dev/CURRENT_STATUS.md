@@ -1,5 +1,126 @@
 # Aktueller Stand
 
+## Release 1.40.0: Konzept 24 «Metadaten pro Ordner», ein Formular je Bibliothek, Klappbares zu, mehr Kontrast (16. November 2026, Zweig `claude/k24-bau`)
+
+Marco am 16. November 2026: «Baue alle Stufen selbständig und mache ein einziger Release daraus.»
+Grundlage: `docs/planning/24-metadaten-pro-ordner.md` (Frage 32), ADR 0036, Entscheide beim Bau im
+Entscheidungsprotokoll (Nachtrag zu Frage 32). Vertrag **1.40.0** (brechend), Migration **00065**.
+
+**Stufe 1: Kontrast (P-4) und Klappbares (P-3).**
+
+- **Tokens:** `text.secondary` `#d9dce4`, `text.muted` `#bcc1cd`, Flächen `bg.elevated`,
+  `surface.1` bis `surface.3` angehoben; aus einem Rahmen-Token sind drei geworden:
+  `border.subtle` (Trennlinie, rund 2 : 1), `border.frame` (Fläche, 3,1 bis 3,4 : 1),
+  `border.control` (Bedienelement, 4,0 bis 4,6 : 1). Gedämpfter Text hält 7,3 bis 10,8 : 1.
+- **Bauteile:** Zweitknopf, Felder, Auswahl, Ankreuzfelder, Schalter, Chips mit Kontur; gewählter
+  Reiter mit Ring in der Profilfarbe; Tabellenkopf mit eigenem Grund; Rahmen um Flächen in der
+  Verwaltung. Gesperrtes zeigt eine gestrichelte Kontur statt Blässe (Z-5). Bilder haben keinen
+  Rahmen (F-6).
+- **Text über Bildern (Z-6):** Spotlight, Kopf der Detailseite, Player und Pausenansicht halten
+  mindestens 4,5 : 1 über einem weissen Bild auf zehn Bildschirmgrössen. Unterhalb von 80rem liegt
+  ein Grund unter dem Textblock, der weich ausläuft; das Bild daneben bleibt sichtbar.
+- **Wächter:** `packages/design-tokens/test/contrast.test.ts` prüft Z-1 bis Z-4 über alle Flächen
+  und Texte der Token-Quelle, Zustands- und Akzentfarben auf jeder Fläche (schwächstes Paar
+  `accent.ember` auf `surface.3` 4,54 : 1) und Z-6 aus den Verläufen der Stylesheets
+  (`test/css.ts`). `web/src/ui/colorTokens.test.ts` prüft jeden verwendeten Farb-Token gegen die
+  Quelle und fand `--sc-color-border`, den es nie gab. Abstands-Tokens prüft er nicht: der
+  ebenfalls nie vorhandene `--sc-space-7` der Ordnerkarte fiel erst am Bild auf.
+- **Storybook:** Seite «Kontrast» (zehn Geschichten: je Fläche, Zuschauer und Verwaltung); alle
+  Bilder neu, 562 Aufnahmen.
+- **Klappbares:** `DisclosureGroup` und das klappbare `BandPanel` starten zu; Geräte, Sicherung,
+  Pflege (Bibliotheken, Duplikate), Spotlight und Benachrichtigungskanäle starten zu. Offen bleiben
+  «Läuft gerade» auf «Hintergrundjobs» und die nächste Folge der Serienseite (F-5). Ein
+  Aufklapper mit einem Feldfehler öffnet sich; Zusammenfassung und «geändert» stehen in der
+  Kopfzeile und gehören zur Beschreibung des Knopfs für Vorleseprogramme.
+
+**Stufe 2: Metadaten je Ordner (P-1).**
+
+- **Migration `00065_root_metadata.sql`:** `library_roots.text_langs` und `.images` (`NULL` = wie
+  Standard), `items.root_id` mit Index und `ON DELETE SET NULL`; jede Abweichung aus
+  `library_metadata` geht auf jeden Video-Ordner der Bibliothek, dann entfällt die Tabelle. Gemessen
+  auf dem Entwicklungsrechner: 72'656 Titelzeilen und 69'041 Dateien in 0,85 s
+  (`docs/perf/24-ordner-metadaten.md`). Eingefrorener Stand `testdata/db/ordner-metadaten.sql`.
+- **Heimatordner (ADR 0036):** der Ordner der ältesten vorhandenen Datei, bei Gleichstand der Pfad;
+  Staffeln, Folgen und Extras erben. Gesetzt an jedem Weg, an dem ein Titel entsteht oder
+  zurückkommt; neu bestimmt, sobald im Heimatordner keine vorhandene Datei mehr liegt (Ordner
+  entfernt, anderer Inhalt, Dateien umgezogen, «Aufräumen», Löschen mit Dateien, Zusammenführen,
+  erster Podcast-Download), samt Quellenliste des neuen Ordners und neuem Zuordnen.
+- **Auflösung:** `metadata.Effective` fragt nach dem Titel; die Sprachauswahl der Profile und die
+  TMDB-Bildsprachen bilden sich aus dem Standard und allen Ordnern; «Anwenden» wirkt je Ordner
+  (`rootIds`).
+- **Oberfläche:** Seite «Metadaten» zeigt nur den Standard, als sieben Klappabschnitte mit
+  Zusammenfassung; der Abschnitt «Ordner» nennt je Video-Ordner Sprachen und Bilder. Die
+  Titelseite der Verwaltung nennt den Heimatordner. Die Spalte «Metadaten» der Seite
+  «Bibliotheken» entfällt.
+
+**Stufe 3: ein Formular je Bibliothek (P-2).**
+
+- **«Bearbeiten»** ist der Dialog «Bibliothek hinzufügen», gefüllt: Name, gesperrte Art, je Ordner
+  eine zugeklappte Karte (Pfad mit «Durchsuchen …», Inhalt, Quellen, Sprachen, Bilder,
+  «Ordner entfernen …»), Standardstufe, «Vorschau beim Spulen». Bauteil `LibraryForm` für
+  Hinzufügen, Bearbeiten und die Ersteinrichtung.
+- **Speichern in einem Zug:** neue Operation `saveLibrary` (`PUT /admin/libraries/{id}`) in einer
+  Transaktion, Reihenfolge entfernen, anderer Inhalt, Pfadwechsel, neue Ordner; höchstens ein Scan.
+  «Ordner entfernen» und «anderer Inhalt» bestätigt man beim Speichern mit dem getippten Pfad.
+  409 `stale` (inzwischen anderswo geändert), 409 `root_unlisted`, 409 `scan_running`; bei jedem
+  Fehler ist nichts geschrieben. Nach dem Speichern nennt ein Band, was sich geändert hat, und
+  bietet «Jetzt anwenden» an.
+- **Entfallen:** die Dialoge «Ordner», «Umbenennen», «Standardstufe ändern», «Vorschau beim Spulen»
+  und der Link «Metadaten der Bibliothek»; im Vertrag `getLibraryMetadata`,
+  `updateLibraryMetadata`, `addLibraryRoot`, `updateLibraryRoot`, `removeLibraryRoot`;
+  `ApplyMetadataRequest.libraryIds` (jetzt `rootIds`). Tabelle 4.5 des Konzepts («Nichts geht
+  verloren») ist Zeile für Zeile gegen die Oberfläche geprüft, vom Bau und vom Review.
+
+**Texte:** neue Schlüssel in `de`, `en`, `de-DE`; die zwanzig weiteren Sprachen nach
+`docs/i18n/README.md` übersetzt (70 Texte je Sprache) und von einem zweiten Agenten je Sprachgruppe
+gelesen: 158 Einträge korrigiert. `task i18n:check` grün.
+
+**Reviews:** drei unabhängige Code-Reviews (Server; Web Stufen 1 und 2; Web Stufe 3) und zwei
+Nachprüfungen der Korrekturen. Befunde und Stand:
+
+| Review | Befunde | Stand |
+|---|---|---|
+| Server | 2 Major (Heimatordner nach «Aufräumen» und Löschen mit Dateien; Zusammenführen bricht die Vererbung), 6 Minor, 3 Testlücken | behoben; Nachprüfung bestanden, 2 Folgepunkte behoben |
+| Web Stufen 1 und 2 | 1 Major (Text über Bildern nur auf breiten Bildschirmen lesbar), 11 Minor | behoben |
+| Web Stufe 3 | 1 Blocker (offenes Formular übernahm stillschweigend fremde Änderungen, 409 `stale` griff nie), 1 Major (getippter Pfad bestätigte eine spätere Änderung vor), 7 Minor | behoben; Nachprüfung bestanden, 3 Folgepunkte behoben |
+
+Sichtprüfung des Koordinators an den Storybook-Bildern und an Bildschirmfotos der laufenden App
+(Bibliotheken, «Bearbeiten», «Metadaten», Start; 1366 und 390 Pixel breit): drei Mängel behoben
+(dunkles Band mit harter Kante über dem Spotlight, Nummern-Abzeichen der Ordnerkarte als 8 Pixel
+schmaler Streifen, leerer Streifen unter einer zugeklappten Karte), dazu zusammenlaufende Hinweise
+unter der Sprachliste.
+
+**Prüfungen:** je Schritt `task check:fast` und die gezielten Tests des Schritts (Belege in den
+Berichten der Executor: Go-Pakete `library`, `metadata`, `admin`, `api`, `store`; Vitest der
+berührten Dateien; `task e2e:quick` der berührten Specs in Chromium, die `@keyboard`-Tests in
+Firefox; `task server:lint` ohne Befund).
+`task ci` beim ersten Lauf rot an `prettier --check` (`packages/design-tokens/tokens/color.json`, drei
+zu lange Zeilen; `check:fast` sieht nur `web/`), nach dem Formatieren grün auf `063d2d6c`: 43
+Go-Pakete mit `-race`, 2200 Vitest-Tests in 198 Dateien (dazu 12 der Tokens und 4 des API-Clients),
+Storybook 562, e2e 727 («3 shards in 891 s; all green»), 18 min 57 s. Danach folgten nur Doku und
+Versionsstellen.
+
+**Offen:**
+
+1. **Abnahme auf CT 190** durch Marco (Update per Updater; Migration 00065 läuft beim ersten
+   Start, die Sicherung davor wie immer). Auf CT 190 weicht keine Bibliothek ab, die Migration
+   kopiert dort nichts.
+2. **Band nach dem Speichern, genau ein Titel:** In einigen der zwanzig weiteren Sprachen steht die
+   Mehrzahl («1 titres»), weil die Titelzahl im Satz keine eigene Pluralform hat. Deutsch und
+   Englisch sind richtig.
+3. **Z-6 nicht gemessen:** die Personenseite (unscharfes Porträt als Hintergrund) und die Kachel
+   «Meine Medien» (behält ihre alte Prüfung mit zwei Tokens). Die Pausenansicht des Players ist an
+   einer Testseite geprüft, nicht im laufenden Player.
+4. **Heimatordner:** Liegt in einem zweiten Ordner eine ältere Datei, bleibt der Heimatordner beim
+   ersten, solange dort noch eine Datei liegt (ADR 0036, bewusst). Die Regel der Migration und die
+   des Servers stimmen am eingefrorenen Stand überein.
+5. **Anwenden nach dem Speichern** geschieht nie von selbst (jede Sprache kostet Anfragen); das
+   Band bietet es an.
+6. **Wackeltest unter Last:** `TestPoolIndexRunsOneJobAtATime` (`internal/jobs`) fiel in einem von
+   fünf ganzen Läufen der Go-Suite unter `-race` beim Aufräumen des Testordners (`TempDir RemoveAll
+   cleanup … directory not empty`). Das Paket ist von diesem Zweig nicht berührt, zehn
+   Wiederholungen allein waren grün. Nicht behoben.
+
 ## Patch 1.39.2: Pflege: Podcast-Duplikate «Datei und Feed» und «Zuordnen» bei Folgen (16. November 2026, Zweig `claude/pflege-podcast-paare-zuordnen`)
 
 Zwei Befunde von Marco auf CT 190 (Verwaltung › Medien › Pflege), beide gemessen. Vertrag bleibt 1.38.0,
