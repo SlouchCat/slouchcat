@@ -481,6 +481,7 @@
     "defaultRating": "Standard-Altersstufe",
     "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
     "podcastsHint": "Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.",
+    "audiobooksHint": "Ein Ordner je Hörbuch: Die Audiodateien eines Ordners bilden ein Buch, jede M4B-Datei ist ein eigenes Buch.",
     "browse": {
       "title": "Ordner auswählen",
       "open": "Durchsuchen …",

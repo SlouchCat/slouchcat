@@ -481,6 +481,7 @@
     "defaultRating": "Standaard leeftijdsclassificatie",
     "defaultRatingHint": "Geldt voor elke titel in deze bibliotheek. Afzonderlijke titels kunnen achteraf alleen strenger worden ingedeeld.",
     "podcastsHint": "Map optioneel: je kunt feeds ook zonder map abonneren onder Podcasts.",
+    "audiobooksHint": "Eén map per luisterboek: de audiobestanden van een map vormen één boek, en elk M4B-bestand is een eigen boek.",
     "browse": {
       "title": "Kies een map",
       "open": "Bladeren…",

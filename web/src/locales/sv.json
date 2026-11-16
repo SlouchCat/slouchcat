@@ -481,6 +481,7 @@
     "defaultRating": "Standardåldersgräns",
     "defaultRatingHint": "Gäller alla titlar i det här biblioteket. Enskilda titlar kan efteråt bara få en strängare åldersgräns.",
     "podcastsHint": "Mapp är valfri: du kan också prenumerera på flöden utan mapp under Poddar.",
+    "audiobooksHint": "En mapp per ljudbok: ljudfilerna i en mapp bildar en bok, och varje M4B-fil är en egen bok.",
     "browse": {
       "title": "Välj en mapp",
       "open": "Bläddra…",

@@ -481,6 +481,7 @@
     "defaultRating": "Oletusikäraja",
     "defaultRatingHint": "Koskee kaikkia tämän kirjaston nimikkeitä. Yksittäisille nimikkeille voi jälkeenpäin asettaa vain tiukemman ikärajan.",
     "podcastsHint": "Kansio on valinnainen: syötteitä voi tilata myös ilman kansiota Podcastit-osiossa.",
+    "audiobooksHint": "Jokaiselle äänikirjalle oma kansio: kansion äänitiedostot muodostavat yhden kirjan, ja jokainen M4B-tiedosto on oma kirjansa.",
     "browse": {
       "title": "Valitse kansio",
       "open": "Selaa…",

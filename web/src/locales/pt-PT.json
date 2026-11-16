@@ -493,6 +493,7 @@
     "defaultRating": "Classificação etária predefinida",
     "defaultRatingHint": "Aplica-se a todos os títulos desta biblioteca. Depois, cada título só pode ter uma classificação mais restritiva.",
     "podcastsHint": "Pasta opcional: também pode subscrever feeds sem pasta em Podcasts.",
+    "audiobooksHint": "Uma pasta por audiolivro: os ficheiros de áudio de uma pasta formam um livro, e cada ficheiro M4B é um livro à parte.",
     "browse": {
       "title": "Escolher uma pasta",
       "open": "Procurar…",

@@ -481,6 +481,7 @@
     "defaultRating": "Default age rating",
     "defaultRatingHint": "Applies to every title of this library. Single titles can only be rated stricter afterwards.",
     "podcastsHint": "Folder optional: you can also subscribe to feeds without a folder under Podcasts.",
+    "audiobooksHint": "One folder per audiobook: the audio files of a folder form one book, and every M4B file is a book of its own.",
     "browse": {
       "title": "Choose a folder",
       "open": "Browse …",

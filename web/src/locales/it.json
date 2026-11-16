@@ -493,6 +493,7 @@
     "defaultRating": "Classificazione per età predefinita",
     "defaultRatingHint": "Vale per ogni titolo di questa libreria. In seguito i singoli titoli possono solo essere classificati in modo più restrittivo.",
     "podcastsHint": "Cartella facoltativa: puoi iscriverti ai feed anche senza cartella, in Podcast.",
+    "audiobooksHint": "Una cartella per audiolibro: i file audio di una cartella formano un libro, e ogni file M4B è un libro a sé.",
     "browse": {
       "title": "Scegli una cartella",
       "open": "Sfoglia…",

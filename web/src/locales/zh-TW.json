@@ -469,6 +469,7 @@
     "defaultRating": "預設年齡分級",
     "defaultRatingHint": "適用於這個媒體庫中的所有作品。之後只能將個別作品設為更嚴格的分級。",
     "podcastsHint": "資料夾為選用：你也可以在「Podcast」中訂閱不需資料夾的訂閱源。",
+    "audiobooksHint": "每本有聲書一個資料夾：一個資料夾中的音訊檔案組成一本書，每個 M4B 檔案各自是一本書。",
     "browse": {
       "title": "選擇資料夾",
       "open": "瀏覽…",

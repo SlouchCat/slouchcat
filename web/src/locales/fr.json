@@ -493,6 +493,7 @@
     "defaultRating": "Classification par défaut",
     "defaultRatingHint": "S’applique à chaque titre de cette bibliothèque. Les titres pris individuellement ne peuvent ensuite être classés que plus strictement.",
     "podcastsHint": "Dossier facultatif : vous pouvez aussi vous abonner à des flux sans dossier, sous Podcasts.",
+    "audiobooksHint": "Un dossier par livre audio : les fichiers audio d’un dossier forment un livre, chaque fichier M4B est un livre à part entière.",
     "browse": {
       "title": "Choisir un dossier",
       "open": "Parcourir…",

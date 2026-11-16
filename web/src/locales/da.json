@@ -481,6 +481,7 @@
     "defaultRating": "Standardaldersgrænse",
     "defaultRatingHint": "Gælder for alle titler i dette bibliotek. Enkelte titler kan bagefter kun sættes strengere.",
     "podcastsHint": "Mappe er valgfri: Du kan også abonnere på feeds uden mappe under Podcasts.",
+    "audiobooksHint": "Én mappe pr. lydbog: Lydfilerne i en mappe udgør én bog, og hver M4B-fil er en bog for sig.",
     "browse": {
       "title": "Vælg en mappe",
       "open": "Gennemse…",

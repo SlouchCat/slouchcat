@@ -493,6 +493,7 @@
     "defaultRating": "Clasificación por edades predeterminada",
     "defaultRatingHint": "Se aplica a todos los títulos de esta biblioteca. Después, cada título solo se puede clasificar con más restricción.",
     "podcastsHint": "Carpeta opcional: también puedes suscribirte a feeds sin carpeta en Pódcast.",
+    "audiobooksHint": "Una carpeta por audiolibro: los archivos de audio de una carpeta forman un libro, y cada archivo M4B es un libro independiente.",
     "browse": {
       "title": "Elegir una carpeta",
       "open": "Examinar…",

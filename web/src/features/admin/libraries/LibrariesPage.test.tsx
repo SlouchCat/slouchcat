@@ -987,6 +987,27 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
       }),
     );
   });
+
+  it('names the folder rule of the chosen kind under the kind choice', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openAdd(user);
+    const video = 'Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.';
+    const audiobooks =
+      'Ein Ordner je Hörbuch: Die Audiodateien eines Ordners bilden ein Buch, jede M4B-Datei ist ein eigenes Buch.';
+    const podcasts = 'Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.';
+    expect(within(dialog).getByText(video)).toBeVisible();
+    await user.click(within(dialog).getByRole('radio', { name: 'Hörbücher' }));
+    expect(within(dialog).getByText(audiobooks)).toBeVisible();
+    expect(within(dialog).queryByText(video)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Podcasts' }));
+    expect(within(dialog).getByText(podcasts)).toBeVisible();
+    expect(within(dialog).queryByText(audiobooks)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Video' }));
+    expect(within(dialog).getByText(video)).toBeVisible();
+  });
+
   it('ignores a cancel right after the same button started the scan; both are announced', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let current = library();

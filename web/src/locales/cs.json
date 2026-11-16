@@ -505,6 +505,7 @@
     "defaultRating": "Výchozí věkové omezení",
     "defaultRatingHint": "Platí pro každý titul této knihovny. Jednotlivé tituly lze potom nastavit jen přísněji.",
     "podcastsHint": "Složka je volitelná: kanály můžete odebírat i bez složky v sekci Podcasty.",
+    "audiobooksHint": "Jedna složka na audioknihu: zvukové soubory jedné složky tvoří jednu knihu, každý soubor M4B je samostatná kniha.",
     "browse": {
       "title": "Vyberte složku",
       "open": "Procházet…",

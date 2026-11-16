@@ -481,6 +481,7 @@
     "defaultRating": "Varsayılan yaş sınırı",
     "defaultRatingHint": "Bu kitaplığın tüm içeriklerine uygulanır. Tek tek içerikler sonradan yalnızca daha sıkı derecelendirilebilir.",
     "podcastsHint": "Klasör isteğe bağlı: Podcast’ler altında klasörsüz de akışlara abone olabilirsiniz.",
+    "audiobooksHint": "Her sesli kitap için bir klasör: bir klasördeki ses dosyaları tek bir kitap oluşturur, her M4B dosyası ise ayrı bir kitaptır.",
     "browse": {
       "title": "Klasör seçin",
       "open": "Gözat…",

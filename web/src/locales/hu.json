@@ -481,6 +481,7 @@
     "defaultRating": "Alapértelmezett korhatár",
     "defaultRatingHint": "A könyvtár minden címére érvényes. Az egyes címek később csak szigorúbb besorolást kaphatnak.",
     "podcastsHint": "A mappa nem kötelező: hírcsatornákra mappa nélkül is feliratkozhat a Podcastok alatt.",
+    "audiobooksHint": "Hangoskönyvenként egy mappa: egy mappa hangfájljai egy könyvet alkotnak, és minden M4B-fájl külön könyv.",
     "browse": {
       "title": "Mappa kiválasztása",
       "open": "Tallózás…",

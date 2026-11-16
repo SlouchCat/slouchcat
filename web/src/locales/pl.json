@@ -505,6 +505,7 @@
     "defaultRating": "Domyślna kategoria wiekowa",
     "defaultRatingHint": "Dotyczy każdego tytułu tej biblioteki. Pojedynczym tytułom można potem nadać tylko surowszą kategorię.",
     "podcastsHint": "Folder opcjonalny: kanały RSS można też subskrybować bez folderu w sekcji Podcasty.",
+    "audiobooksHint": "Jeden folder na audiobook: pliki audio z jednego folderu tworzą jedną książkę, a każdy plik M4B to osobna książka.",
     "browse": {
       "title": "Wybierz folder",
       "open": "Przeglądaj…",
