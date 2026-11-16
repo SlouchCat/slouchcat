@@ -47,8 +47,9 @@ ADR 0029 (Nachtrag), Messung `docs/perf/19-podcasts.md` Abschnitt 9.
 - **«Befund»** ist übersetzt (15 Codes, eigener Text für eine Folge, auch die Codes des Reiters
   «Verwaist»); unbekannte Befunde erscheinen wie bisher. **«Pfad»** nennt die Datei des Titels
   (`AdminListUnmatched`).
-- Neue Texte in `de`, `en` und `de-DE`; die übrigen 20 Sprachen zeigen sie bis zur nächsten
-  Übersetzungsrunde auf Englisch.
+- Texte in allen 23 Sprachen: die zwanzig weiteren nach `docs/i18n/README.md` übersetzt und von einem
+  zweiten Agenten geprüft (Befunde in cs, da, fr, hu, nl, ja, pt-BR, sv, zh-CN, ko, uk eingearbeitet);
+  `task i18n:check` grün.
 
 **Offen:** (1) 113 Paare auf CT 190 bleiben in der Pflege (Titel im Feed nachträglich geändert, zwei
 Kopien einer Datei); sie lassen sich dort von Hand zusammenführen. (2) Die 32'265 weich gelöschten
