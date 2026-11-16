@@ -1,11 +1,12 @@
 # Konzept: Metadaten pro Ordner – ein Formular je Bibliothek, Klappbares zu, mehr Kontrast
 
-- **Status: Entwurf, Fassung 3 (16. November 2026). Alle Fragen sind beantwortet** (Abschnitt 10):
+- **Status: freigegeben (16. November 2026, Frage 32, PR #174). Fassung 3, alle Fragen sind
+  beantwortet** (Abschnitt 10):
   Marco hat das Mockup freigegeben, F-1 bis F-3 im Gespräch und F-4 bis F-6 über AskUserQuestion
   beantwortet, alle wie empfohlen. Fassung 2 hatte das Kritiker-Review eingearbeitet (REVISE,
   0 Blocker, 12 Major, 13 Minor; Abschnitt 12) und die Nachprüfung der Einarbeitung (acht kleine
-  Korrekturen). Die Freigabe des Papiers steht aus. **Gebaut wird erst auf Marcos ausdrückliches
-  Wort.**
+  Korrekturen). Marco hat das Papier am selben Tag freigegeben («Freigeben, mergen»). **Gebaut
+  wird erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco am 16. November 2026: «Zur Zeit gibt es Bibliothek Metadaten Einstellungen
   sowie Ordner Metadaten Einstellungen. Ich möchte, dass es nur noch Metadaten Einstellungen pro
   Ordner gibt. Deshalb möchte ich auch gerne die Ansicht in der Verwaltung/Medien angepasst haben.
@@ -641,7 +642,7 @@ kann die Stufen 2 und 3 auch in einem Release bestellen.
 | Spec, Design-Richtung: «wenig Rahmen und Linien» | gilt weiter für Bildflächen; Bedienelemente und Flächen der Verwaltung bekommen sichtbare Konturen (6.4) |
 | `packages/design-tokens/tokens/color.json`: ein Rahmen-Token, «used sparingly» | drei Rahmen-Tokens (6.2) |
 
-Das kommt mit der Freigabe als Zeile unter **Frage 32** ins Entscheidungsprotokoll.
+Das steht seit der Freigabe als Zeile unter **Frage 32** im Entscheidungsprotokoll.
 
 ## 10. Fragen
 
