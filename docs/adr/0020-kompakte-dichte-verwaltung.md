@@ -42,15 +42,15 @@ Komponententokens, deren Standardwert der heutige Wert ist: `--sc-control-height
 
 **Gruppe `density.compact`.** Eine Dichte-Gruppe liefert die kompakten Werte:
 
-| Grösse | Standard (heute) | Kompakt |
-|---|---|---|
-| Seitentitel | 60 px, `display` | 24 px, 600 |
-| Steuerelement-Höhe | 44 px | 32 px |
-| Schrift in Knöpfen und Feldern | 16 px | 14 px |
-| Panel Innenabstand / Lücke / Radius | 24 / 20 / 20 px | 16 / 12 / 12 px |
-| Abschnittsabstand | 40 bis 48 px | 24 px |
-| Tabellenzeile | rund 48 px | 40 px |
-| Seitenrand | bis 64 px | 24 bis 32 px |
+| Grösse                              | Standard (heute) | Kompakt         |
+| ----------------------------------- | ---------------- | --------------- |
+| Seitentitel                         | 60 px, `display` | 24 px, 600      |
+| Steuerelement-Höhe                  | 44 px            | 32 px           |
+| Schrift in Knöpfen und Feldern      | 16 px            | 14 px           |
+| Panel Innenabstand / Lücke / Radius | 24 / 20 / 20 px  | 16 / 12 / 12 px |
+| Abschnittsabstand                   | 40 bis 48 px     | 24 px           |
+| Tabellenzeile                       | rund 48 px       | 40 px           |
+| Seitenrand                          | bis 64 px        | 24 bis 32 px    |
 
 **Wo sie wirkt.** Nur im Inhaltsbereich (`#content`) und in den Dialogen der Verwaltungsseiten,
 unter `[data-shell="admin"]` (Attribut aus Konzept 11) und nur mit
@@ -150,3 +150,23 @@ unverändert (dieselben Farb-Tokens).
 - **Höhen, Abstände und Schriftgrössen der kompakten Dichte bleiben unverändert.** Die Kontur von
   Knopf und Chip liegt innerhalb ihrer Mindesthöhe (`box-sizing: border-box`); die gewählten
   Reiter erhalten einen Ring als Schatten, der keinen Platz braucht.
+- **Text über Bildern (Z-6) wird aus dem CSS gemessen.** `packages/design-tokens/test/css.ts` liest
+  die Verläufe, ihre Stopps und die Kästen des Texts aus `HeroCarousel.module.css`,
+  `Backdrop.module.css` mit `DetailHeader.module.css`, `PlayerChrome.module.css` und
+  `Player.module.css` (samt `@media`, `@container` und `--page-gutter` aus `global.css`) und rechnet
+  je Stelle den Grund unter dem schwächsten Text über einem weissen Bild. Wer einen Stopp ändert,
+  sieht den Test rot, sobald ein Text unter 4,5 : 1 fällt. Geprüft wird auf zehn
+  Bezugsansichten: 375 × 812, 812 × 375, 768 × 1024, 1024 × 768, 1280 × 800, 1440 × 900,
+  1920 × 1080, 1080 × 1920, 2560 × 1440 und 3440 × 1440; das Spotlight ab 768 px mit und ohne
+  Seitenleiste, der Player über die ganze Ansicht.
+- **Was das CSS nicht sagt, setzt der Test an.** Beim Spotlight ab einer Bühne von 80rem reicht
+  der Textblock bis zur halben Höhe der Bühne (Titel, Notiz und Knöpfe ergeben sich erst aus dem
+  Inhalt); darunter liegt der Block auf einem eigenen Grund (`scrim.strong`), und der Test nimmt
+  an, der Text könne überall auf der Bühne stehen. Die Kachel «Meine Medien» bleibt bei ihren zwei
+  Tokens.
+- **Schmale Ansichten haben einen ruhigen Grund.** Unter einer Bühne von 80rem liegt im Spotlight
+  ein gleichmässiger Grund `scrim.strong` unter dem ganzen Textblock, über die Breite der Bühne,
+  ausgeblendet nur im oberen Innenabstand; unter 80rem liegt die Pausenansicht des Players ganz auf
+  `scrim.strong`. Beim Kopf der Detailseite reicht `scrim.strong` bis zum Beginn der Textspalte,
+  mindestens 60 % hoch (auf 3440 × 1440 beginnt der Text rund 69 % hoch). Das Bild selbst bekommt
+  keinen Rahmen (F-6).

@@ -155,9 +155,10 @@
   object-fit: cover;
 }
 
-/* The pause view (V-10): the picture darkens towards the left, where the title shows; the pause
-   info (up to half the width) lies on scrim.strong (concept 24 Z-6). Under the controls, and the
-   pointer passes through. */
+/* The pause view (V-10): the picture darkens towards the left, where the title shows; from 80rem
+   the pause info (at most 36rem) stays within half the width and lies on scrim.strong (concept 24
+   Z-6, the contrast test of the tokens reads these stops). Under the controls, and the pointer
+   passes through. */
 .pauseView {
   position: absolute;
   inset: 0;
@@ -172,6 +173,15 @@
   );
   pointer-events: none;
   animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+/* Below 80rem the pause info reaches past half the width, where the gradient lightens: the whole
+   view lies on a uniform scrim.strong (concept 24 Z-6). */
+@media (width < 80rem) {
+  .pauseView {
+    background-color: var(--sc-color-scrim-strong);
+    background-image: none;
+  }
 }
 
 .pauseInfo {

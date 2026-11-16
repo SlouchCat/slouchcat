@@ -30,9 +30,10 @@
 
 /*
  * Bottom scrim into the page, left scrim behind the text. The text column of a detail page starts
- * about 60 % up the backdrop (the header and 28vh under an 80vh backdrop); up to there the bottom
- * scrim is at least scrim.strong, so the text holds 4.5:1 over a white picture (concept 24 Z-6,
- * the contrast test of the tokens mirrors this stop).
+ * below the header and the padding of DetailHeader.module.css .layout (about 60 % up an 80vh
+ * backdrop, higher on a wide and low screen); scrim.strong reaches up to there, at least 60 % up,
+ * so the text holds 4.5:1 over a white picture (concept 24 Z-6, the contrast test of the tokens
+ * reads these stops and that padding; change them together).
  */
 .scrim {
   position: absolute;
@@ -42,7 +43,8 @@
       to top,
       var(--sc-color-bg-base) 0%,
       var(--sc-color-scrim-solid) 18%,
-      var(--sc-color-scrim-strong) 60%,
+      var(--sc-color-scrim-strong)
+        max(60%, calc(100% - var(--sc-size-header-height) - clamp(var(--sc-space-16), 28vh, 18rem))),
       var(--sc-color-scrim-soft) 100%
     ),
     linear-gradient(to right, var(--sc-color-scrim-strong) 0%, var(--sc-color-scrim-clear) 70%);

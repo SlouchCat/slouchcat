@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { accentNames, tokens } from '../dist/index.js';
+import {
+  type Env,
+  type Rgba,
+  type Viewport,
+  colorAt,
+  declarationsOf,
+  gradients,
+  length,
+  paddingOf,
+  paint,
+  parseRules,
+  rootVars,
+  tokensCss,
+  valueOf,
+  webCss,
+} from './css.js';
 
 // WCAG 2.x relative luminance and contrast ratio.
 // https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
@@ -127,60 +143,267 @@ describe('border contrast (concept 24, Z-2 to Z-4)', () => {
   });
 });
 
-// Text over artwork (concept 24, Z-6): at least 4.5:1 over a white picture, the worst case. Each
-// place lists, top first, the layers under its weakest text (the point of the text farthest from
-// the dark corner of its gradients), mirroring the CSS named in the case; change them together.
+// Text over artwork (concept 24, Z-6): at least 4.5:1 over a white picture, the worst case. The
+// gradients, their stops and the boxes the text sits in are read from the web app's stylesheets
+// (css.ts), for each reference viewport; each place takes the point of its text farthest from the
+// dark end of its gradients. What a stylesheet cannot say (how far a text block reaches) is named
+// at the place and in ADR 0020, addendum concept 24.
 const white = '#ffffff';
-const overImage: { place: string; layers: string[]; text: Record<string, string> }[] = [
+const viewports: Record<string, Viewport> = {
+  phone: { width: 375, height: 812 },
+  'phone landscape': { width: 812, height: 375 },
+  tablet: { width: 768, height: 1024 },
+  'small laptop': { width: 1024, height: 768 },
+  laptop: { width: 1280, height: 800 },
+  'laptop 1440': { width: 1440, height: 900 },
+  'full HD': { width: 1920, height: 1080 },
+  'portrait monitor': { width: 1080, height: 1920 },
+  QHD: { width: 2560, height: 1440 },
+  'ultra-wide': { width: 3440, height: 1440 },
+};
+
+const tokenRules = parseRules(tokensCss());
+const globalRules = parseRules(webCss('ui/global.css'));
+const hero = parseRules(webCss('ui/HeroCarousel.module.css'));
+const backdrop = parseRules(webCss('ui/Backdrop.module.css'));
+const detailHeader = parseRules(webCss('features/catalog/DetailHeader.module.css'));
+const chrome = parseRules(webCss('ui/PlayerChrome.module.css'));
+const player = parseRules(webCss('features/player/Player.module.css'));
+
+/** The custom properties of the tokens and of global.css for a viewport. */
+function envOf(viewport: Viewport, container?: number): Env {
+  const base: Env = { viewport, vars: {} };
+  const vars = rootVars(globalRules, { ...base, vars: rootVars(tokenRules, base) });
+  return { viewport, vars, ...(container === undefined ? {} : { container }) };
+}
+
+const required = (value: string | undefined, what: string): string => {
+  if (value === undefined) throw new Error(`no ${what} in the stylesheet`);
+  return value;
+};
+
+/** The gradient layers of a rule, top first, each evaluated at its own point. */
+function layersAt(
+  rules: ReturnType<typeof parseRules>,
+  selector: string,
+  env: Env,
+  point: { fromTop: number; fromLeft: number; width: number; height: number },
+): Rgba[] {
+  const declarations = declarationsOf(rules, selector, env);
+  const layers = gradients(valueOf(declarations, 'background-image')).map((gradient) => {
+    switch (gradient.direction) {
+      case 'to top':
+        return colorAt(gradient, point.height - point.fromTop, point.height, env);
+      case 'to bottom':
+        return colorAt(gradient, point.fromTop, point.height, env);
+      case 'to right':
+        return colorAt(gradient, point.fromLeft, point.width, env);
+      default:
+        return colorAt(gradient, point.width - point.fromLeft, point.width, env);
+    }
+  });
+  const fill = valueOf(declarations, 'background-color');
+  return fill === undefined ? layers : [...layers, colorAtFill(fill, env)];
+}
+
+const colorAtFill = (fill: string, env: Env): Rgba =>
+  colorAt({ direction: 'to top', stops: [{ color: fill }, { color: fill }] }, 0, 1, env);
+
+interface Place {
+  place: string;
+  /** The ground under the weakest text, painted over white. */
+  ground: string;
+  text: Record<string, string>;
+}
+
+const heroText = { 'text.primary': text.primary, 'text.secondary': text.secondary };
+
+/**
+ * HeroCarousel.module.css: the stage is as wide as the page beside the side navigation (with or
+ * without it from 768 px) and as high as `.stage` says. With a ground under the text block
+ * (`.content::before`, a narrow stage) the text may stand anywhere on the stage, so the stage's
+ * scrims count only where they are weakest (its top right corner). Without one the text block
+ * reaches half the stage's height (not readable from CSS: title, note and actions) and as far as
+ * `.content` is wide.
+ */
+function spotlightPlaces(): Place[] {
+  return Object.entries(viewports).flatMap(([name, viewport]) => {
+    const env = envOf(viewport);
+    const gutter = length('var(--page-gutter)', env);
+    const sidenav = length('var(--sc-size-sidenav-width)', env);
+    const widths = viewport.width >= 768 ? [0, sidenav] : [0];
+    return widths.map((nav) => {
+      const width = viewport.width - nav - 2 * gutter;
+      const stageEnv = envOf(viewport, width);
+      const height = length(
+        required(valueOf(declarationsOf(hero, '.stage', stageEnv), 'height'), '.stage height'),
+        stageEnv,
+      );
+      const content = declarationsOf(hero, '.content', stageEnv);
+      const ground = declarationsOf(hero, '.content::before', stageEnv);
+      const stage = { width, height };
+      let layers: Rgba[];
+      if (valueOf(ground, 'background-image') !== undefined) {
+        // The ground is as high as the block; at most the stage. The text starts below its top
+        // padding.
+        const top = length(required(paddingOf(content, 'top'), '.content padding'), stageEnv);
+        layers = [
+          ...layersAt(hero, '.content::before', stageEnv, { ...stage, fromTop: top, fromLeft: 0 }),
+          ...layersAt(hero, '.scrim', stageEnv, { ...stage, fromTop: 0, fromLeft: width }),
+        ];
+      } else {
+        const right = Math.min(
+          width,
+          length(required(valueOf(content, 'max-width'), '.content max-width'), stageEnv, width),
+        );
+        layers = layersAt(hero, '.scrim', stageEnv, {
+          ...stage,
+          fromTop: height / 2,
+          fromLeft: right,
+        });
+      }
+      return {
+        place: `spotlight, ${name}${nav ? ' beside the side navigation' : ''}`,
+        ground: paint(layers, white),
+        text: heroText,
+      };
+    });
+  });
+}
+
+/**
+ * Backdrop.module.css under DetailHeader.module.css: the backdrop is as high as `.backdrop` says,
+ * the text column starts below the top padding of `.layout`; the left scrim counts where it has
+ * faded out (the column's right end). Text that starts below the backdrop stands on the page.
+ */
+function detailPlaces(): Place[] {
+  return Object.entries(viewports).flatMap(([name, viewport]) => {
+    const env = envOf(viewport);
+    const box = declarationsOf(backdrop, '.backdrop', env);
+    const height = Math.max(
+      length(required(valueOf(box, 'height'), '.backdrop height'), env),
+      length(required(valueOf(box, 'min-height'), '.backdrop min-height'), env),
+    );
+    const top = length(
+      required(paddingOf(declarationsOf(detailHeader, '.layout', env), 'top'), '.layout padding'),
+      env,
+    );
+    if (top >= height) return [];
+    const layers = layersAt(backdrop, '.scrim', env, {
+      width: viewport.width,
+      height,
+      fromTop: top,
+      fromLeft: viewport.width,
+    });
+    return [
+      {
+        place: `detail header, ${name}`,
+        ground: paint(layers, white),
+        text: {
+          'text.primary': text.primary,
+          'text.secondary': text.secondary,
+          'text.muted': text.muted,
+        },
+      },
+    ];
+  });
+}
+
+/**
+ * PlayerChrome.module.css, .top and .bottom: the text lies inside the padding; the edge of the
+ * text towards the picture is the weakest point. The content's own height does not matter to the
+ * stops, so one line of 48 px stands for it.
+ */
+function chromePlaces(): Place[] {
+  return Object.entries(viewports).flatMap(([name, viewport]) => {
+    const env = envOf(viewport);
+    return (['.top', '.bottom'] as const).map((selector) => {
+      const declarations = declarationsOf(chrome, selector, env);
+      const top = length(required(paddingOf(declarations, 'top'), `${selector} padding`), env);
+      const bottom = length(
+        required(paddingOf(declarations, 'bottom'), `${selector} padding`),
+        env,
+      );
+      const height = top + 48 + bottom;
+      const fromTop = selector === '.top' ? height - bottom : top;
+      const layers = layersAt(chrome, selector, env, {
+        width: viewport.width,
+        height,
+        fromTop,
+        fromLeft: 0,
+      });
+      return {
+        place: `player controls ${selector.slice(1)}, ${name}`,
+        ground: paint(layers, white),
+        text: heroText,
+      };
+    });
+  });
+}
+
+/**
+ * Player.module.css, .pauseView over the whole player (the viewport): the pause info starts at
+ * the view's left padding and is as wide as `.pauseInfo` allows; its right end is the weakest
+ * point.
+ */
+function pausePlaces(): Place[] {
+  return Object.entries(viewports).map(([name, viewport]) => {
+    const env = envOf(viewport);
+    const view = declarationsOf(player, '.pauseView', env);
+    const left = length(required(paddingOf(view, 'left'), '.pauseView padding'), env);
+    const right = length(required(paddingOf(view, 'right'), '.pauseView padding'), env);
+    const inner = viewport.width - left - right;
+    const info = Math.min(
+      inner,
+      length(
+        required(
+          valueOf(declarationsOf(player, '.pauseInfo', env), 'max-width'),
+          '.pauseInfo max-width',
+        ),
+        env,
+        inner,
+      ),
+    );
+    const layers = layersAt(player, '.pauseView', env, {
+      width: viewport.width,
+      height: viewport.height,
+      fromTop: 0,
+      fromLeft: left + info,
+    });
+    return { place: `player pause view, ${name}`, ground: paint(layers, white), text: heroText };
+  });
+}
+
+const overImage: Place[] = [
   {
     // LibraryTile.module.css, .tile::after: the name and the count at the bottom of the gradient.
     place: 'library tile label',
-    layers: [tokens.color.tile.labelGround, tokens.color.tile.shade],
-    text: { 'text.primary': text.primary, 'text.secondary': text.secondary },
+    ground: stack([tokens.color.tile.labelGround, tokens.color.tile.shade], white),
+    text: heroText,
   },
-  {
-    // HeroCarousel.module.css, .scrim: the text block reaches half the stage's height and 55 % of
-    // its width; there both gradients are at scrim.medium (stops at 50 % and 55 %).
-    place: 'spotlight',
-    layers: [scrim.medium, scrim.medium],
-    text: { 'text.primary': text.primary, 'text.secondary': text.secondary },
-  },
-  {
-    // Backdrop.module.css, .scrim: the text column of a detail page starts 60 % up the backdrop
-    // (header plus 28vh under an 80vh backdrop), where the bottom gradient is at scrim.strong; the
-    // left gradient has faded out at the column's right end.
-    place: 'detail header',
-    layers: [scrim.strong],
-    text: {
-      'text.primary': text.primary,
-      'text.secondary': text.secondary,
-      'text.muted': text.muted,
-    },
-  },
-  {
-    // PlayerChrome.module.css, .top and .bottom: scrim.strong under the content, the fade only in
-    // the padding towards the picture.
-    place: 'player controls',
-    layers: [scrim.strong],
-    text: { 'text.primary': text.primary, 'text.secondary': text.secondary },
-  },
-  {
-    // Player.module.css, .pauseView: the pause info spans up to half the width, still on
-    // scrim.strong (stop at 50 %).
-    place: 'player pause view',
-    layers: [scrim.strong],
-    text: { 'text.primary': text.primary, 'text.secondary': text.secondary },
-  },
+  ...spotlightPlaces(),
+  ...detailPlaces(),
+  ...chromePlaces(),
+  ...pausePlaces(),
 ];
 
 describe('text over artwork (concept 24, Z-6: at least 4.5:1 over a white picture)', () => {
-  it('keeps the text of every place with artwork readable', () => {
-    const rows = overImage.flatMap(({ place, layers, text: used }) => {
-      const ground = stack(layers, white);
-      return Object.entries(used).map(([name, foreground]) =>
+  it('keeps the text of every place with artwork readable on every reference viewport', () => {
+    const rows = overImage.flatMap(({ place, ground, text: used }) =>
+      Object.entries(used).map(([name, foreground]) =>
         measure(`${name} / ${place} over white`, foreground, ground),
-      );
-    });
+      ),
+    );
     expect(failing(rows, 4.5)).toEqual([]);
+  });
+
+  it('lays a ground under the spotlight text on a narrow stage and the whole pause view on a narrow screen', () => {
+    // A phone: the text block spans the stage, past where the left scrim fades out.
+    const phone = envOf(viewports.phone as Viewport, 343);
+    expect(
+      valueOf(declarationsOf(hero, '.content::before', phone), 'background-image'),
+    ).toBeDefined();
+    const narrow = envOf(viewports.phone as Viewport);
+    expect(valueOf(declarationsOf(player, '.pauseView', narrow), 'background-image')).toBe('none');
   });
 });

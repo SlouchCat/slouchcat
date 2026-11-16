@@ -17,6 +17,7 @@
   overflow: hidden;
   border-radius: var(--sc-radius-xl);
   isolation: isolate;
+  container-type: inline-size;
 }
 
 .art {
@@ -51,10 +52,11 @@
 }
 
 /*
- * Bottom and left scrims for the text. The text block reaches half the stage's height and 55 % of
- * its width; there both gradients are still at scrim.medium, so the text holds 4.5:1 over a white
- * picture (concept 24 Z-6, the contrast test of the tokens mirrors these stops). The image itself
- * has no frame (F-6).
+ * Bottom and left scrims for the text. From a stage of 80rem the text block (at most 44rem) reaches
+ * half the stage's height and 55 % of its width; there both gradients are still at scrim.medium,
+ * so the text holds 4.5:1 over a white picture (concept 24 Z-6). On a narrower stage the block lies
+ * on a ground of its own (.content::before). The contrast test of the tokens reads these stops.
+ * The image itself has no frame (F-6).
  */
 .scrim {
   position: absolute;
@@ -75,12 +77,35 @@
 }
 
 .content {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-4);
   width: 100%;
   max-width: 44rem;
   padding: var(--sc-space-6);
+}
+
+/*
+ * Below a stage of 80rem the text block reaches past 55 % of the stage's width, where the left
+ * scrim fades out (phone, tablet, a window beside the side navigation): a uniform ground of
+ * scrim.strong lies under the whole block, across the stage, and fades out only in the block's top
+ * padding (concept 24 Z-6). A ground under the text, no frame around the image (F-6).
+ */
+@container (width < 80rem) {
+  .content::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0 auto 0 0;
+    width: 100cqi;
+    background-image: linear-gradient(
+      to top,
+      var(--sc-color-scrim-strong) 0%,
+      var(--sc-color-scrim-strong) calc(100% - var(--sc-space-4)),
+      var(--sc-color-scrim-clear) 100%
+    );
+    content: '';
+  }
 }
 
 /*
