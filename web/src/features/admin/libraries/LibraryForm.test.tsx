@@ -910,9 +910,11 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
           .map((select) => select.value),
       ).toEqual(['de', 'en']);
       await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
+      // The cost and the quota of the edited list, each on its own line.
       expect(
-        within(card).getByText(/Jede weitere Sprache kostet beim Anwenden eine Anfrage/),
-      ).toHaveTextContent(/3 Sprachen: bis zu 33 Titel am Tag/);
+        within(card).getByText(/^Jede weitere Sprache kostet beim Anwenden eine Anfrage/),
+      ).toBeVisible();
+      expect(within(card).getByText(/^3 Sprachen: bis zu 33 Titel am Tag/)).toBeVisible();
       await waitFor(() =>
         expect(
           fetchMock.mock.calls.some(([input]) =>

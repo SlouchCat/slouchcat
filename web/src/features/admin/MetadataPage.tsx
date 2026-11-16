@@ -640,18 +640,21 @@ export function MetadataPage() {
           <Text tone="secondary" variant="caption">
             {t('admin.metadata.languages.fallback')}
           </Text>
-          <Text tone="secondary" variant="caption">
-            {[
-              // The previous list's answer stays while this one loads: no hint until it is there.
-              ...(providersOfList
-                ? unknownLanguages(t, nameOf, listOf, providersOfList, textLangs)
-                : []),
-              t('admin.metadata.languages.youtube', {
-                count: textLangs.length,
-                titles: youtubeTitles(textLangs),
-              }),
-            ].join(' ')}
-          </Text>
+          {[
+            // The previous list's answer stays while this one loads: no hint until it is there.
+            ...(providersOfList
+              ? unknownLanguages(t, nameOf, listOf, providersOfList, textLangs)
+              : []),
+            t('admin.metadata.languages.youtube', {
+              count: textLangs.length,
+              titles: youtubeTitles(textLangs),
+            }),
+          ].map((hint) => (
+            // One line per hint: joined into one they read as a single run-on sentence.
+            <Text key={hint} tone="secondary" variant="caption">
+              {hint}
+            </Text>
+          ))}
         </SectionBody>
       );
     if (id === 'images' && images)

@@ -222,7 +222,8 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     // has no Deutsch; TMDB and TVDB have both, the local files have no language list.
     expect(within(languages).getByText(/^Reihenfolge = Rückfall: fehlt ein Text/)).toBeVisible();
     const warning = within(languages).getByText(/kennt nicht:/);
-    expect(warning).toHaveTextContent(/^ANILIST kennt nicht: Deutsch 2 Sprachen:/);
+    // Its own line, apart from the quota line above.
+    expect(warning).toHaveTextContent(/^ANILIST kennt nicht: Deutsch$/);
     expect(warning).not.toHaveTextContent(/TMDB|TVDB|LOCAL/);
     // The links of MET-1.
     expect(
@@ -498,9 +499,7 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     );
     renderApp('/admin/metadata?item=languages');
     const languages = await sectionOf('Sprachen');
-    expect(
-      await within(languages).findByText(/^ANILIST kennt nicht: Deutsch 2 Sprachen/),
-    ).toBeVisible();
+    expect(await within(languages).findByText('ANILIST kennt nicht: Deutsch')).toBeVisible();
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
@@ -515,7 +514,7 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     expect(within(languages).getByText(/^3 Sprachen:/)).toBeVisible();
     release();
     const hint = await within(languages).findByText(/kennt nicht/);
-    expect(hint).toHaveTextContent(/^ANILIST kennt nicht: Deutsch 3 Sprachen:/);
+    expect(hint).toHaveTextContent(/^ANILIST kennt nicht: Deutsch$/);
     expect(hint).not.toHaveTextContent(/TMDB/);
   });
 

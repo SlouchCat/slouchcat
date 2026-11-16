@@ -83,17 +83,16 @@ describe('FolderMetadataFields (concept 24 4.2)', () => {
       textLangs: ['de', 'ja'],
       ownImages: false,
     });
-    expect(await screen.findByText(/^TMDB kennt nicht: Japanisch Jede/)).toBeVisible();
+    // One line per hint: what a source does not know, then the cost.
+    expect(await screen.findByText('TMDB kennt nicht: Japanisch')).toBeVisible();
+    expect(screen.getByText(/^Jede weitere Sprache kostet/)).toBeVisible();
     rerenderWith({ ownLangs: true, textLangs: ['de', 'ja', 'en'], ownImages: false });
     await waitFor(() => expect(asked).toBe(2));
     // The answer about ['de', 'ja'] would call Englisch unknown to TMDB.
     expect(screen.queryByText(/kennt nicht/)).toBeNull();
     release();
-    expect(
-      await screen.findByText(
-        /^TMDB kennt nicht: Japanisch ANILIST kennt nicht: Deutsch und Japanisch Jede/,
-      ),
-    ).toBeVisible();
+    expect(await screen.findByText('TMDB kennt nicht: Japanisch')).toBeVisible();
+    expect(screen.getByText('ANILIST kennt nicht: Deutsch und Japanisch')).toBeVisible();
   });
 
   it('names the default beside «Wie Standard»: the languages, the image kinds and their languages', async () => {

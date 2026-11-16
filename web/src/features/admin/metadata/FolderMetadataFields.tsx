@@ -220,18 +220,19 @@ export function FolderMetadataFields({
               known={known}
             />
           </SettingRow>
-          <Text tone="secondary" variant="caption">
-            {[
-              ...(providersOfList
-                ? unknownLanguages(t, nameOf, listOf, providersOfList, langs)
-                : []),
-              t('admin.metadata.folder.cost'),
-              t('admin.metadata.languages.youtube', {
-                count: langs.length,
-                titles: youtubeTitles(langs),
-              }),
-            ].join(' ')}
-          </Text>
+          {/* One line per hint: joined into one they read as a single run-on sentence. */}
+          {[
+            ...(providersOfList ? unknownLanguages(t, nameOf, listOf, providersOfList, langs) : []),
+            t('admin.metadata.folder.cost'),
+            t('admin.metadata.languages.youtube', {
+              count: langs.length,
+              titles: youtubeTitles(langs),
+            }),
+          ].map((hint) => (
+            <Text key={hint} tone="secondary" variant="caption">
+              {hint}
+            </Text>
+          ))}
         </div>
       )}
       {textLangsError && <Notice tone="danger">{textLangsError}</Notice>}
