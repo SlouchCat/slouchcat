@@ -667,6 +667,20 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(await screen.findByText('1 Ordner hinzugefügt; der Scan ist eingereiht.')).toBeVisible();
   });
 
+  it('«Speichern» disabled by the sources of a card without a path says why (Z-5)', async () => {
+    mockApi(routes([library()]));
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    // The only folder: its path emptied, its only source unticked.
+    const card = cardOf(dialog, 1);
+    await openCard(user, card);
+    await user.clear(within(card).getByLabelText('Ordner'));
+    await user.click(await within(card).findByRole('checkbox', { name: 'TMDB' }));
+    expect(saveOf(dialog)).toBeDisabled();
+    expect(within(dialog).getByText(/^Ordner 1: /)).toBeVisible();
+  });
+
   it('an empty path of a closed card opens it instead of failing silently', async () => {
     mockApi(routes([library()]));
     renderApp('/admin/libraries');

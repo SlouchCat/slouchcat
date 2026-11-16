@@ -404,7 +404,8 @@ function LibraryFormFields({
           onExpandedChange={(open) => onExpandedChange(TRICKPLAY, open)}
         />
       )}
-      {listError && kept.some((folder) => folder.path.trim()) && (
+      {/* The reason whenever it disables «Speichern», a card without a path included (Z-5). */}
+      {listError && kept.length > 0 && (
         <Notice tone="warning" live={false}>
           {listError}
         </Notice>
