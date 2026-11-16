@@ -2,8 +2,8 @@
 
 - **Status: Entwurf, Fassung 2 (16. November 2026).** Marco hat das Mockup freigegeben und F-1 bis
   F-3 beantwortet (Abschnitt 10). F-4 bis F-6 sind offen. Fassung 2 arbeitet das Kritiker-Review
-  ein (REVISE, 0 Blocker, 12 Major, 13 Minor; Abschnitt 12). **Gebaut wird erst auf Marcos
-  ausdrückliches Wort.**
+  ein (REVISE, 0 Blocker, 12 Major, 13 Minor; Abschnitt 12) und die Nachprüfung der Einarbeitung
+  (acht kleine Korrekturen). **Gebaut wird erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco am 16. November 2026: «Zur Zeit gibt es Bibliothek Metadaten Einstellungen
   sowie Ordner Metadaten Einstellungen. Ich möchte, dass es nur noch Metadaten Einstellungen pro
   Ordner gibt. Deshalb möchte ich auch gerne die Ansicht in der Verwaltung/Medien angepasst haben.
@@ -68,8 +68,9 @@ Videobibliotheken (Filme, Serien, Anime, Dokus). **Keine Bibliothek weicht ab**:
   löscht Textzeilen von Sprachen, die nicht mehr in der Liste stehen.
 - **Nur den Standard** lesen schon heute: der Hinweis, welche Sprache eine Quelle nicht kennt
   (`ProviderLanguages`, `settings.go`), und die Bildsprachen der TMDB-Anfrage
-  (`include_image_language`, `metadata.go`). Eine Sprache, die nur eine Bibliothek in ihrer
-  Bildkette hat, wird darum womöglich gar nicht angefragt.
+  (`include_image_language` in `tmdb.go`; die Liste liefert `Settings.ImageLanguages` aus dem
+  Standard, verdrahtet in `metadata.go`). Eine Sprache, die nur eine Bibliothek in ihrer Bildkette
+  hat, wird darum womöglich gar nicht angefragt.
 - **Quellen:** Ein Titel kennt seinen Ordner nicht. Es gibt kein `items.root_id`, nur
   `media_files.root_id`. Die Quellenliste des Ordners, den der Scan gerade liest, wird beim Anlegen
   auf den Titel kopiert (`items.providers`, `library/write.go`); das gilt auch für eine neue
@@ -131,7 +132,7 @@ Schwach ist, was kein Text ist:
   Verwaltung hängen daran (`ui/admin-look.css`).
 - **Knöpfe ohne Kontur:** `ui/Button.module.css` setzt `border: 0` für alle Varianten. Der
   Zweitknopf ist nur eine Füllung (`surface.3`) und wird beim Überfahren dunkler.
-- **Gesperrtes** ist Blässe: `opacity` zwischen 0,3 und 0,6 in elf Bauteilen (`Button`, `Switch`,
+- **Gesperrtes** ist Blässe: `opacity` zwischen 0,3 und 0,6 in dreizehn Bauteilen (`Button`, `Switch`,
   `Field`, `RoundAction`, `PlayerStep` 0,45; `SelectCheck`, `CandidateCard`, `LockToggle`,
   `RankedChoiceList` 0,6; `VolumeControl` 0,5; `AudioPlayer` 0,55; `WatchedToggle` 0,4;
   `LetterBar` 0,3).
@@ -233,6 +234,8 @@ Ordners mit ihrer ältesten Datei.
   gerade bearbeitet wird (Standard oder Ordner), nicht mehr nur mit dem Standard.
 - **TMDB-Bildsprachen:** `include_image_language` nimmt die Vereinigung der Bildketten des
   Standards und aller Ordner. Das schliesst die Lücke aus 2.2.
+- **Hörbücher:** `bookSourcesOf` liest künftig den Heimatordner statt den Ordner der ersten
+  vorhandenen Datei. So gilt eine Regel für alle Arten.
 - **Kosten:** Eine weitere Sprache an einem Ordner mit N Serien und S Staffeln je Serie kostet beim
   Anwenden rund N · (1 + S) TMDB-Anfragen. Die Ordnerkarte sagt das wie heute die Seite «Metadaten»
   («Jede weitere Sprache kostet eine Anfrage je Titel und Staffel»), samt dem Hinweis auf das
@@ -280,9 +283,9 @@ Eine Migration nach Vorlage (`migrations/TEMPLATE.sql.txt`, Regel 5):
    Trigger.
 2. Jede Abweichung in `library_metadata` wird auf **jeden Video-Ordner** dieser Bibliothek kopiert.
    Was heute gilt, gilt danach unverändert.
-3. `items.root_id` wird nach der Regel aus 3.2 gefüllt: Filme und Folgen aus ihrer ältesten
-   vorhandenen Datei, Serien aus der ältesten Datei ihrer Folgen, Staffeln, Folgen und Extras
-   danach vom Elternteil. Das sind auf CT 190 rund 70'000 Zeilen.
+3. `items.root_id` wird nach der Regel aus 3.2 gefüllt: zuerst Filme, Hörbücher und Podcasts aus
+   ihrer ältesten vorhandenen Datei und Serien aus der ältesten Datei ihrer Folgen; danach erben
+   Staffeln, Folgen und Extras vom Elternteil. Das sind auf CT 190 rund 70'000 Zeilen.
 4. `library_metadata` wird gelöscht.
 
 Auf CT 190 weicht keine Bibliothek ab; Schritt 2 kopiert dort nichts. Die Sicherung vor dem Lauf
@@ -386,7 +389,8 @@ Marco: «Ja, in einem Zug» (F-3). Nichts wirkt, bevor «Speichern» gedrückt i
   Pfadwechsel, neue Ordner; so kann ein neuer Ordner den Pfad eines eben entfernten bekommen. Was
   nicht in der Datenbank liegt (Überwachung, Scan-Zustand, Benachrichtigung), läuft nach dem
   Abschluss. Schlägt etwas fehl, ist nichts geschrieben; Feldfehler heissen wie beim Anlegen
-  `roots[i].…`.
+  `roots[i].…`. Ändert eine Anfrage Pfad und Inhalt desselben Ordners, lehnt der Server sie wie
+  heute mit einem Feldfehler ab, bevor etwas geschrieben wird.
 - **Höchstens ein Scan:** eingereiht nur, wenn ein Ordner neu ist oder einen anderen Pfad oder
   Inhalt hat. Geänderte Quellen reihen wie heute Zuordnen und Auffüllen ein, keinen Scan; ein
   neuer Name scannt nichts.
@@ -485,12 +489,12 @@ Players selbst (was in einem Panel aufklappt, schon).
 | 2 | Vorgabe von `BandPanel` (klappbar) | `ui/BandPanel.tsx` | `useState(true)` |
 | 3 | Gruppen je Gerätetyp | `admin/DevicesPage.tsx` | alle offen |
 | 4 | Gruppen je Sicherungsart | `admin/BackupPage.tsx` | alle offen |
-| 5 | Gruppe «Laufend» | `admin/JobsPage.tsx` | offen (F-5) |
+| 5 | Gruppe «Laufend» | `admin/JobsPage.tsx` | offen (F-5; Empfehlung: bleibt offen) |
 | 6 | Abschnitte je Bibliothek in der Pflege | `admin/maintenance/IssueTab.tsx` | alle offen |
 | 7 | Erste Duplikat-Gruppe | `admin/maintenance/DuplicatesTab.tsx` | erste offen |
 | 8 | Bänder «Quelle», «Einträge», «Verwaiste» | `admin/SpotlightPage.tsx` | offen |
 | 9 | Blöcke je Kanal | `notifications/ChannelSettingsPage.tsx` | alle offen |
-| 10 | Zeile der nächsten Folge auf der Serienseite | `catalog/SeasonShelf.tsx` | offen (F-5) |
+| 10 | Zeile der nächsten Folge auf der Serienseite | `catalog/SeasonShelf.tsx` | offen (F-5; Empfehlung: bleibt offen) |
 
 Zwei dieser Stellen zeigen beim Öffnen der Seite das, wofür man gekommen ist: die laufenden
 Aufträge und die Folge, die als nächste dran ist. Ob sie offen bleiben, entscheidet Marco (F-5).
@@ -552,7 +556,7 @@ Werte legt der Bau gegen den Kontrasttest fest.
 | Bauteil | Änderung |
 |---|---|
 | `Button` Zweitknopf | Kontur `border.control`; beim Überfahren heller statt dunkler |
-| Alles Gesperrte (die elf Bauteile aus 2.5) | Z-5 statt `opacity` |
+| Alles Gesperrte (die dreizehn Bauteile aus 2.5) | Z-5 statt `opacity` |
 | `Chip` neutral und Info | Kontur; die Zustands-Chips der Verwaltung bekommen eine Kontur in ihrer Farbe |
 | `TextField`, `SelectField`, `SearchField` | Kontur `border.control` |
 | `CheckboxGroup`, `SelectCheck`, `Switch` | Kästchen und Bahn mit Kontur |
@@ -615,7 +619,9 @@ Stichprobe von Hand angesehen. Die e2e-Tests vergleichen keine Bilder.
 Stufe 1 hängt an nichts und ist sofort sichtbar. Jede Stufe hinterlässt ein stimmiges Produkt: Nach
 Stufe 2 gibt es keine Bibliotheks-Ebene mehr, weder im Server noch in der Oberfläche. Stufe 2 baut
 das Stück «Sprachen und Bilder eines Ordners» als eigenes Bauteil, das Stufe 3 unverändert in das
-Formular setzt. Marco kann die Stufen 2 und 3 auch in einem Release bestellen.
+Formular setzt. Bis Stufe 3 heisst der Einstieg zu den Ordnern einer Bibliothek weiter «Ordner»;
+die Texte der Seite «Metadaten» (3.4) nennen ihn in Stufe 2 so und ab Stufe 3 «Bearbeiten». Marco
+kann die Stufen 2 und 3 auch in einem Release bestellen.
 
 ## 9. Änderungen an früheren Entscheiden
 
@@ -628,7 +634,7 @@ Formular setzt. Marco kann die Stufen 2 und 3 auch in einem Release bestellen.
 | Konzept 12, BIB-3 und BIB-5: Spalte «Metadaten», Ordner-Dialog | entfallen; ein Formular (4) |
 | Konzept 12, S-6 und Konzept 18, 9: «Umbenennen», «Standardstufe», «Vorschau beim Spulen» als eigene Dialoge | Felder desselben Formulars |
 | Frage 31, ADR 0035: «Alle Adressen `/admin/...` samt Suchparametern bleiben» | es entfällt `?library=` auf `/admin/metadata`; alte Links landen auf dem Standard |
-| Mehrere Seiten: Gruppen ab Werk offen (Geräte, Sicherung, Pflege, Spotlight, Kanäle, «Laufend») | ab Werk zu (5) |
+| Mehrere Seiten: Gruppen ab Werk offen (Geräte, Sicherung, Pflege, Spotlight, Kanäle) | ab Werk zu (5); «Laufend» und die nächste Folge nach F-5 |
 | ADR 0020: «Farben und Kontraste bleiben unverändert» | Farben und Konturen ändern sich für beide Oberflächen (6); die Dichte bleibt |
 | Spec, Design-Richtung: «wenig Rahmen und Linien» | gilt weiter für Bildflächen; Bedienelemente und Flächen der Verwaltung bekommen sichtbare Konturen (6.4) |
 | `packages/design-tokens/tokens/color.json`: ein Rahmen-Token, «used sparingly» | drei Rahmen-Tokens (6.2) |
@@ -670,10 +676,11 @@ Die Klappabschnitte der Seite «Metadaten» und die Ordnerkarte hat Marco mit de
   **Web:** `MetadataPage.test.tsx` ohne Geltung, `admin-metadata.spec.ts` (die Fälle «library
   deviation» und «scope switch» entfallen, dafür Abschnitte, «geändert» und `?item=`),
   **Tastaturtest der Klappabschnitte der Seite «Metadaten»** (Regel 8), Ordnerkarte mit Sprachen
-  und Bildern, `LibrariesPage.test.tsx` ohne Spalte «Metadaten».
+  und Bildern, `LibrariesPage.test.tsx` ohne Spalte «Metadaten», Test der Titelseite der
+  Verwaltung (Heimatordner in den Angaben, `admin/item/facts.tsx`).
 - **Stufe 3:** `saveLibrary` (alles in einer Transaktion; Reihenfolge; höchstens ein Scan und
   keiner bei reinem Umbenennen; fehlende und falsche Bestätigung; ein fehlender Ordner wird nicht
-  entfernt; 409 `stale`; 409 bei laufendem Scan; Feldfehler je Ordner; nichts geschrieben bei
+  entfernt; Pfad und Inhalt eines Ordners zugleich wird abgelehnt; 409 `stale`; 409 bei laufendem Scan; Feldfehler je Ordner; nichts geschrieben bei
   einem Fehler); `LibrariesPage.test.tsx`, `LibraryFoldersDialog.test.tsx` geht im Test des
   Formulars auf, `AudiobookSourcesPage.test.tsx`, `Setup.test.tsx`; e2e `admin-libraries.spec.ts`,
   `admin-library-folders.spec.ts`, `admin-library-draft.spec.ts`, `admin-folder-browser.spec.ts`,
