@@ -193,6 +193,9 @@
         "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade. Starte „Umhängen“ nach dem Scan noch einmal für den Rest.",
         "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade. Starte „Umhängen“ nach dem Scan noch einmal für den Rest."
       },
+      "matchHint": {
+        "episode": "Eine Folge wird über ihre Serie zugeordnet: „Zuordnen“ öffnet die Suche für die Serie."
+      },
       "duplicates": {
         "confirmBody_one": "Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu „{{title}}“. Der andere Titel wird gelöscht.",
         "confirmBody_other": "Dateien, Extras, Trailer und Fortschritt der {{count}} anderen Titel wandern zu „{{title}}“. Die anderen Titel werden gelöscht.",

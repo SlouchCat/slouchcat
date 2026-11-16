@@ -2203,7 +2203,7 @@
         "removed": "Odebrané tituly"
       },
       "hint": {
-        "unmatched": "Bez přiřazení není k dispozici popis, obrázky ani věkové omezení. Přiřaďte titul nebo ho obnovte.",
+        "unmatched": "Bez přiřazení není k dispozici popis, obrázky ani věkové omezení. Přiřaďte titul nebo ho obnovte. Díl se tu zobrazí, když je jeho seriál přiřazen, ale poskytovatel díl pod tímto číslem nezná; díl se přiřazuje přes svůj seriál.",
         "no_images": "Přiřazené tituly bez plakátu. Obnovení obrázky načte znovu.",
         "unrated": "Tituly bez věkového omezení vidí jen profily „Od 18 let“. Přiřaďte jim věkové omezení, aby se zpřístupnily.",
         "orphaned": "Tituly bez souboru nebo s chybějícími soubory, prázdné řady a seriály.",
@@ -2220,6 +2220,12 @@
       "selectedOfLoaded": "Vybráno {{count}} z {{loaded}} načtených",
       "selectAll": "Vybrat vše",
       "selectNone": "Zrušit výběr",
+      "matchHint": {
+        "none": "Vyberte právě jednu položku, kterou chcete přiřadit.",
+        "many": "Přiřadit lze jen právě jednu položku.",
+        "episode": "Díl se přiřazuje přes svůj seriál: „Přiřadit“ otevře vyhledávání seriálu."
+      },
+      "seriesNotFound": "Seriál tohoto dílu nebyl nalezen.",
       "shown": "{{shown}} z {{total}}",
       "entries_one": "{{count}} položka",
       "entries_few": "{{count}} položky",
@@ -2235,6 +2241,24 @@
       },
       "none": "–",
       "noneSpoken": "neuvedeno",
+      "detail": {
+        "unmatched": "Žádná shoda u poskytovatele",
+        "unmatchedEpisode": "Poskytovatel seriálu nezná díl pod tímto číslem",
+        "failed": "Načtení selhalo",
+        "skipped": "Přeskočeno",
+        "pending": "Na přiřazení čeká déle než 24 hodin",
+        "no_tmdb_key": "Není nastaven klíč TMDB",
+        "no_tvdb_key": "Není nastaven klíč TVDB",
+        "tmdb_key_invalid": "Klíč TMDB byl odmítnut",
+        "tvdb_key_invalid": "Klíč TVDB byl odmítnut",
+        "unsupported_kind": "Tento druh se nepřiřazuje",
+        "season_via_series": "Řady se přiřazují přes svůj seriál",
+        "series_unmatched": "Seriál není přiřazen",
+        "no_file": "Žádný soubor",
+        "files_missing": "Chybí všechny soubory",
+        "no_episodes": "Žádné díly",
+        "no_seasons": "Žádné řady"
+      },
       "titleCount_one": "{{count}} titul",
       "titleCount_few": "{{count}} tituly",
       "titleCount_many": "{{count}} titulu",

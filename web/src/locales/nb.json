@@ -2085,7 +2085,7 @@
         "removed": "Fjernede titler"
       },
       "hint": {
-        "unmatched": "Uten treff finnes det verken beskrivelse, bilder eller aldersgrense. Tilordne tittelen, eller oppdater den.",
+        "unmatched": "Uten treff finnes det verken beskrivelse, bilder eller aldersgrense. Tilordne tittelen, eller oppdater den. En episode står her når serien er tilordnet, men leverandøren ikke kjenner episoden under dette nummeret; den tilordnes via serien sin.",
         "no_images": "Tilordnede titler uten plakat. En oppdatering laster bildene inn på nytt.",
         "unrated": "Titler uten aldersgrense vises bare for profiler med «Fra 18 år». Gi dem en aldersgrense for å frigi dem.",
         "orphaned": "Titler uten fil eller med manglende filer, tomme sesonger og serier.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} av {{loaded}} innlastede valgt",
       "selectAll": "Velg alle",
       "selectNone": "Fjern utvalget",
+      "matchHint": {
+        "none": "Velg nøyaktig én oppføring for å tilordne den.",
+        "many": "Tilordning krever nøyaktig én oppføring.",
+        "episode": "En episode tilordnes via serien sin: «Tilordne» åpner søket for serien."
+      },
+      "seriesNotFound": "Fant ikke serien til denne episoden.",
       "shown": "{{shown}} av {{total}}",
       "entries_one": "{{count}} oppføring",
       "entries_other": "{{count}} oppføringer",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "ikke oppgitt",
+      "detail": {
+        "unmatched": "Ingen treff hos leverandøren",
+        "unmatchedEpisode": "Leverandøren av serien kjenner ikke episoden under dette nummeret",
+        "failed": "Oppslaget mislyktes",
+        "skipped": "Hoppet over",
+        "pending": "Har ventet på tilordning i over 24 timer",
+        "no_tmdb_key": "Ingen TMDB-nøkkel satt opp",
+        "no_tvdb_key": "Ingen TVDB-nøkkel satt opp",
+        "tmdb_key_invalid": "TMDB-nøkkelen ble avvist",
+        "tvdb_key_invalid": "TVDB-nøkkelen ble avvist",
+        "unsupported_kind": "Denne typen tilordnes ikke",
+        "season_via_series": "Sesonger tilordnes via serien sin",
+        "series_unmatched": "Serien er ikke tilordnet",
+        "no_file": "Ingen fil",
+        "files_missing": "Alle filene mangler",
+        "no_episodes": "Ingen episoder",
+        "no_seasons": "Ingen sesonger"
+      },
       "titleCount_one": "{{count}} tittel",
       "titleCount_other": "{{count}} titler",
       "fileCount_one": "{{count}} fil",

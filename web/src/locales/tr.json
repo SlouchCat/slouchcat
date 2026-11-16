@@ -2085,7 +2085,7 @@
         "removed": "Kaldırılan içerikler"
       },
       "hint": {
-        "unmatched": "Eşleşme olmadan açıklama, görsel ve yaş sınırı da olmaz. İçeriği eşleştirin ya da yenileyin.",
+        "unmatched": "Eşleşme olmadan açıklama, görsel ve yaş sınırı da olmaz. İçeriği eşleştirin ya da yenileyin. Bir bölüm, dizisi eşleşmiş olduğu halde sağlayıcı bu numaradaki bölümü tanımıyorsa burada listelenir; bölüm, dizisi üzerinden eşleştirilir.",
         "no_images": "Afişi olmayan eşleşmiş içerikler. Yenileme görselleri yeniden yükler.",
         "unrated": "Yaş sınırı olmayan içerikleri yalnızca “18 yaş ve üzeri” profiller görür. Bu içerikleri açmak için bir yaş sınırı atayın.",
         "orphaned": "Dosyası olmayan ya da dosyaları eksik içerikler, boş sezonlar ve diziler.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "Yüklenen {{loaded}} içerikten {{count}} tanesi seçili",
       "selectAll": "Tümünü seç",
       "selectNone": "Seçimi temizle",
+      "matchHint": {
+        "none": "Eşleştirmek için tam olarak bir kayıt seçin.",
+        "many": "Eşleştirme yalnızca tek bir kayıtla yapılabilir.",
+        "episode": "Bölümler dizileri üzerinden eşleştirilir: “Eşleştir” dizi için aramayı açar."
+      },
+      "seriesNotFound": "Bu bölümün dizisi bulunamadı.",
       "shown": "{{shown}} / {{total}}",
       "entries_one": "{{count}} kayıt",
       "entries_other": "{{count}} kayıt",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "belirtilmemiş",
+      "detail": {
+        "unmatched": "Sağlayıcıda eşleşme yok",
+        "unmatchedEpisode": "Dizinin sağlayıcısı bu numaradaki bölümü tanımıyor",
+        "failed": "Sorgu başarısız",
+        "skipped": "Atlandı",
+        "pending": "24 saatten uzun süredir eşleştirme bekliyor",
+        "no_tmdb_key": "Kayıtlı TMDB anahtarı yok",
+        "no_tvdb_key": "Kayıtlı TVDB anahtarı yok",
+        "tmdb_key_invalid": "TMDB anahtarı reddedildi",
+        "tvdb_key_invalid": "TVDB anahtarı reddedildi",
+        "unsupported_kind": "Bu tür eşleştirilmez",
+        "season_via_series": "Sezonlar dizileri üzerinden eşleştirilir",
+        "series_unmatched": "Dizisi eşleştirilmemiş",
+        "no_file": "Dosya yok",
+        "files_missing": "Tüm dosyalar eksik",
+        "no_episodes": "Bölüm yok",
+        "no_seasons": "Sezon yok"
+      },
       "titleCount_one": "{{count}} içerik",
       "titleCount_other": "{{count}} içerik",
       "fileCount_one": "{{count}} dosya",

@@ -2063,7 +2063,7 @@
         "removed": "Removed titles"
       },
       "hint": {
-        "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
+        "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it. An episode is listed here when its series is matched but the provider does not know the episode under this number; it is matched through its series.",
         "no_images": "Matched titles without a poster. A refresh loads the artwork again.",
         "unrated": "Titles without a rating are seen only by 18-rated profiles. Assign a rating to release them.",
         "orphaned": "Titles without a file or with missing files, empty seasons and series.",
@@ -2080,6 +2080,12 @@
       "selectedOfLoaded": "{{count}} of {{loaded}} loaded selected",
       "selectAll": "Select all",
       "selectNone": "Clear selection",
+      "matchHint": {
+        "none": "Select exactly one entry to match it.",
+        "many": "Matching takes exactly one entry.",
+        "episode": "An episode is matched through its series: “Match” opens the search for its series."
+      },
+      "seriesNotFound": "The series of this episode was not found.",
       "shown": "{{shown}} of {{total}}",
       "entries_one": "{{count}} entry",
       "entries_other": "{{count}} entries",
@@ -2093,6 +2099,24 @@
       },
       "none": "–",
       "noneSpoken": "not given",
+      "detail": {
+        "unmatched": "No match at the provider",
+        "unmatchedEpisode": "The provider of the series does not know the episode under this number",
+        "failed": "Lookup failed",
+        "skipped": "Skipped",
+        "pending": "Waiting for its match for more than 24 hours",
+        "no_tmdb_key": "No TMDB key stored",
+        "no_tvdb_key": "No TVDB key stored",
+        "tmdb_key_invalid": "TMDB key rejected",
+        "tvdb_key_invalid": "TVDB key rejected",
+        "unsupported_kind": "This kind is not matched",
+        "season_via_series": "Seasons are matched through their series",
+        "series_unmatched": "Its series is not matched",
+        "no_file": "No file",
+        "files_missing": "All files are missing",
+        "no_episodes": "No episodes",
+        "no_seasons": "No seasons"
+      },
       "titleCount_one": "{{count}} title",
       "titleCount_other": "{{count}} titles",
       "fileCount_one": "{{count}} file",

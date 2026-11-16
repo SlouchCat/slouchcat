@@ -100,3 +100,61 @@ Papiers für Dateinamen (M-1: 40 % der Namen wichen von Audiobookshelf ab).
   (M-1: die Hälfte hinter einem); gewollt (O-10).
 - Neue Dateien heissen wie die von Audiobookshelf; die beiden Werkzeuge können eine Weile nebeneinander
   laufen, die Reihenfolge in Abschnitt 8 des Papiers bleibt trotzdem empfohlen.
+
+## Nachtrag vom 16. November 2026: gleiche Minute und gleicher Titel paaren ohne Dauer; Nachzug nach jedem Feed-Abruf
+
+Ändert die Paarungsregel aus ADR 0015 (Zeile «Podcast-Ordner», «Dauer ±2 %») und aus Konzept 19 Teil A
+Abschnitt 8 sowie Riegel 2 von Entscheid 6. Vertrag unverändert, keine Migration.
+
+**Befund.** Auf CT 190 zeigte die Pflege 5'023 Gruppen «Datei und Feed»: dieselbe Folge als Datei und als
+Feed-Folge ohne Datei. In 4'614 Fällen stimmten Titel und Erscheinungsminute überein, aber die Dauer wich um
+2 bis 14 % ab (Beispiel: Feed 581'000 ms, Datei 548'544 ms). Die Dauer im Feed (`itunes:duration`, auf
+Sekunden) ist bei Anbietern mit eingesetzter Werbung nicht die der ausgelieferten Datei. Die Regel verwarf
+jedes Paar, dessen Dauern um mehr als 2 % auseinanderlagen. Messung: `docs/perf/19-podcasts.md`, Abschnitt 9.
+
+**Entscheid.**
+
+1. **Regel in drei Stufen** (`model.FitPodcastEpisodes`, `model.PickPodcastPair`; eine Stelle für Sonde,
+   Feed-Abruf, Nachzug und Planer, vorher zwei Kopien in `library` und `metadata`):
+   - **stark:** gleiche Erscheinungsminute **und** gleicher Sortiertitel. Die Dauer zählt nicht.
+   - **schwach:** nur eines der beiden stimmt, und die Dauern widersprechen sich nicht (beide bekannt und
+     innerhalb 2 % der Feed-Dauer, oder auf einer Seite unbekannt). Wie bisher.
+   - **kein Paar:** sonst.
+2. **Auswahl unter mehreren Kandidaten.** Ein starker Kandidat schlägt jeden schwachen (eine Wiederholung
+   derselben Folge trägt denselben Titel, aber ein anderes Datum). Unter mehreren starken entscheidet die
+   Dauer: genau einer mit übereinstimmender Dauer gewinnt. Mehrere schwache, oder mehrere starke, die die Dauer
+   nicht trennt, bleiben **unklar** und in der Pflege, wie bisher.
+3. **Nachzug als Schritt nach jedem Feed-Abruf**, kein eigener Job: `metadata.FetchPodcast` meldet das Ende
+   jedes Abrufs (neuer Inhalt, 304, Fehlschlag) über `WithPodcastChecked`, `library.PairPodcastEpisodes` paart
+   die Datei-Folgen des Podcasts mit seinen Feed-Folgen ohne Datei. Gepaart wird nur, wo sich Datei und
+   Feed-Folge **gegenseitig** wählen (zwei Dateien für eine Feed-Folge bleiben unklar). Der Schritt liest nur
+   die Datenbank, sondiert keine Datei und kostet zwei Abfragen, wenn nichts zu paaren ist. Er läuft vor dem
+   Haken des Planers (`WithPodcastFetched`).
+4. **Paaren führt Benutzerdaten zusammen.** Auf allen drei Wegen (Sonde, Riegel 1, Nachzug) gilt
+   `pairPodcastEpisodes`: Die Feed-Folge übernimmt die `media_files`-Zeilen und behält `guid`, Enclosure und
+   Texte; Fortschritt, «Gehört», Ereignisse, Tage, Merkliste, Empfehlungen, Benachrichtigungen und
+   Geräte-Downloads der Datei-Folge wandern nach den Regeln von `mergeItems` (je Profil gewinnt der weitere
+   Fortschritt und das spätere «Gehört»); die Datei-Folge wird **endgültig gelöscht** wie die Quelle einer
+   Zusammenführung. Vorher zog nur die Datei um, und die Datei-Folge blieb weich gelöscht stehen.
+
+**Warum ein Schritt beim Feed-Abruf und kein Hintergrundjob.** (a) Dort sitzt die andere Hälfte des Paarens
+schon: ein Abruf übernimmt für eine **neue** Feed-Folge die passende Datei-Folge (`adopt`); für **bekannte**
+Feed-Folgen fehlte das Gegenstück. (b) Jeder Podcast mit Feed wird alle 55 Minuten geprüft, unabhängig von
+«Speichern» oder «Nur Link»; der Bestand ist ohne Zutun innert einer Stunde nach dem Update gepaart. (c) Der
+Schritt heilt auch später entstehende Fälle (der Feed korrigiert Titel oder Datum einer bekannten Folge), ein
+einmaliger Job nicht. (d) Kein neuer Jobtyp, kein Zeitplan, kein Merker «schon gelaufen», keine neue
+Oberfläche. Weil der Schritt nicht vom Inhalt des Feeds abhängt, läuft er auch bei 304 und bei einem
+Fehlschlag: ein toter Feed hält seine Paare nicht fest.
+
+**Planer (Riegel 2 und 3).** Es wird keine Folge doppelt geladen: (a) Riegel 2 nennt jede Feed-Folge mit einem
+starken oder schwachen Kandidaten «unklar»; die neue Regel findet mehr Kandidaten als die alte, nie weniger.
+(b) Jedes neue starke Paar teilt die Minute und war über Riegel 3 (Datei innert 24 Stunden) schon «unklar»;
+die Menge der Folgen, die der Planer lädt, ändert sich durch die Regel nicht. (c) Nach dem Nachzug hat die
+Feed-Folge eine `media_files`-Zeile und ist für den Planer kein Kandidat mehr. Der Nachzug läuft im selben
+Abruf vor dem Planer. Test `TestPairPodcastEpisodesAndThePlannerLoadNothingTwice`.
+
+**Folgen.** Paare mit geändertem Titel (gleiche Minute, anderer Titel, Dauer weicht ab) und mit geändertem Datum
+(gleicher Titel, andere Minute, Dauer weicht ab) bleiben in der Pflege; auf der Kopie von CT 190 sind das 113
+von 5'019 Gruppen. Die 32'265 weich gelöschten Datei-Folgen früherer Paarungen bleiben stehen (offener Punkt in
+`docs/perf/19-podcasts.md`, Abschnitt 8); neue Paarungen hinterlassen keine mehr.
+

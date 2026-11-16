@@ -252,3 +252,73 @@ func TestSubscribeWithoutLoadingStoresTheScopeFirst(t *testing.T) {
 		t.Errorf("with the episodes stored (%d) the own scope «Nur neue Folgen» was stored %d times, want before them", episodes, scoped)
 	}
 }
+
+// Addendum of 16 November 2026 to ADR 0029: the pairing hook hears of every feed check of a
+// podcast, whatever the feed answered, and before the planner hears of new episodes.
+func TestPodcastCheckedHook(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	var mu sync.Mutex
+	var calls []string
+	note := func(what string) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls = append(calls, what)
+	}
+	e.svc = New(e.db, e.queue, staticKey(""), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler),
+		WithFeedClock(e.clock.now), WithFeedUserAgent("Slouchcat/test"),
+		WithPodcastChecked(func(_ context.Context, podcastID string) error {
+			note("checked " + podcastID)
+			return errors.New("pairing failed") // logged; the check stands
+		}),
+		WithPodcastFetched(func(_ context.Context, podcastID string, ids []string) error {
+			if len(ids) > 0 {
+				note("fetched " + podcastID)
+			}
+			return nil
+		}))
+	take := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		out := calls
+		calls = nil
+		return out
+	}
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	take()
+	// New content: the pairing first, then the planner.
+	e.clock.set(e.clock.now().Add(time.Hour))
+	e.feed.set(func(f *fakeFeed) { f.n = 3 })
+	if err := e.svc.FetchPodcast(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := take(), []string{"checked " + p.ID, "fetched " + p.ID}; !slices.Equal(got, want) {
+		t.Errorf("a fetch with a new episode called %v, want %v", got, want)
+	}
+	// Not modified.
+	requests := func() (n int) {
+		e.feed.set(func(f *fakeFeed) { n = f.requests })
+		return n
+	}
+	before := requests()
+	e.clock.set(e.clock.now().Add(time.Hour))
+	if err := e.svc.FetchPodcast(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := take(), []string{"checked " + p.ID}; !slices.Equal(got, want) || requests() == before {
+		t.Errorf("a fetch without changes called %v (requests %d → %d), want %v", got, before, requests(), want)
+	}
+	// The feed is down: the fetch fails, the pairing runs all the same.
+	e.clock.set(e.clock.now().Add(time.Hour))
+	e.feed.set(func(f *fakeFeed) { f.status = 503 })
+	if err := e.svc.FetchPodcast(ctx, p.ID); err == nil {
+		t.Error("a fetch of a feed that is down succeeded")
+	}
+	if got, want := take(), []string{"checked " + p.ID}; !slices.Equal(got, want) {
+		t.Errorf("a failed fetch called %v, want %v", got, want)
+	}
+}

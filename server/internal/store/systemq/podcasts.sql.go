@@ -824,7 +824,10 @@ type PodcastListFileEpisodesWithoutGUIDRow struct {
 	DurationMs  sql.NullInt64
 }
 
-// The file episodes of a podcast (no guid): the candidates a new feed episode may be paired with.
+// The file episodes of a podcast (no guid): the candidates a feed episode may be paired with. A
+// pair moves the media files and the user data of the file episode to the feed episode with the
+// queries of the duplicate merge (admin.sql) and deletes the file episode
+// (library.pairPodcastEpisodes).
 func (q *Queries) PodcastListFileEpisodesWithoutGUID(ctx context.Context, podcastID sql.NullString) ([]PodcastListFileEpisodesWithoutGUIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, podcastListFileEpisodesWithoutGUID, podcastID)
 	if err != nil {
@@ -881,23 +884,6 @@ func (q *Queries) PodcastListIDsByLibrary(ctx context.Context, libraryID int64) 
 		return nil, err
 	}
 	return items, nil
-}
-
-const podcastMoveMediaFiles = `-- name: PodcastMoveMediaFiles :exec
-UPDATE media_files SET item_id = ?1, updated_at = ?2 WHERE item_id = ?3
-`
-
-type PodcastMoveMediaFilesParams struct {
-	TargetID string
-	Now      int64
-	SourceID string
-}
-
-// The file of a file episode goes to the feed episode it was paired with; the triggers set
-// items.available of both.
-func (q *Queries) PodcastMoveMediaFiles(ctx context.Context, arg PodcastMoveMediaFilesParams) error {
-	_, err := q.db.ExecContext(ctx, podcastMoveMediaFiles, arg.TargetID, arg.Now, arg.SourceID)
-	return err
 }
 
 const podcastSetChecked = `-- name: PodcastSetChecked :exec
@@ -1018,21 +1004,6 @@ func (q *Queries) PodcastSoftDeleteEmptyFolderPodcasts(ctx context.Context, now 
 		return 0, err
 	}
 	return result.RowsAffected()
-}
-
-const podcastSoftDeleteEpisode = `-- name: PodcastSoftDeleteEpisode :exec
-UPDATE items SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2 AND kind = 'podcast_episode'
-`
-
-type PodcastSoftDeleteEpisodeParams struct {
-	Now sql.NullInt64
-	ID  string
-}
-
-// The file episode that gave its file to a feed episode leaves (it never had user data of its own).
-func (q *Queries) PodcastSoftDeleteEpisode(ctx context.Context, arg PodcastSoftDeleteEpisodeParams) error {
-	_, err := q.db.ExecContext(ctx, podcastSoftDeleteEpisode, arg.Now, arg.ID)
-	return err
 }
 
 const podcastUpdateChannel = `-- name: PodcastUpdateChannel :exec

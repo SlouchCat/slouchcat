@@ -2203,7 +2203,7 @@
         "removed": "Usunięte tytuły"
       },
       "hint": {
-        "unmatched": "Bez dopasowania brakuje opisu, obrazów i kategorii wiekowej. Dopasuj tytuł lub go odśwież.",
+        "unmatched": "Bez dopasowania brakuje opisu, obrazów i kategorii wiekowej. Dopasuj tytuł lub go odśwież. Odcinek pojawia się tutaj, gdy jego serial jest dopasowany, ale dostawca nie zna odcinka o tym numerze; odcinek dopasowuje się przez jego serial.",
         "no_images": "Dopasowane tytuły bez plakatu. Odświeżenie wczytuje obrazy ponownie.",
         "unrated": "Tytuły bez kategorii wiekowej widzą tylko profile „Od 18 lat”. Przypisz kategorię wiekową, aby je udostępnić.",
         "orphaned": "Tytuły bez pliku lub z brakującymi plikami, puste sezony i seriale.",
@@ -2220,6 +2220,12 @@
       "selectedOfLoaded": "Wybrano {{count}} z {{loaded}} wczytanych",
       "selectAll": "Wybierz wszystkie",
       "selectNone": "Wyczyść wybór",
+      "matchHint": {
+        "none": "Wybierz dokładnie jeden wpis, aby go dopasować.",
+        "many": "Dopasować można tylko dokładnie jeden wpis.",
+        "episode": "Odcinek dopasowuje się przez jego serial: „Dopasuj” otwiera wyszukiwanie serialu."
+      },
+      "seriesNotFound": "Nie znaleziono serialu tego odcinka.",
       "shown": "{{shown}} z {{total}}",
       "entries_one": "{{count}} wpis",
       "entries_few": "{{count}} wpisy",
@@ -2235,6 +2241,24 @@
       },
       "none": "–",
       "noneSpoken": "brak danych",
+      "detail": {
+        "unmatched": "Brak wyników u dostawcy",
+        "unmatchedEpisode": "Dostawca serialu nie zna odcinka o tym numerze",
+        "failed": "Błąd pobierania",
+        "skipped": "Pominięto",
+        "pending": "Od ponad 24 godzin czeka na dopasowanie",
+        "no_tmdb_key": "Brak klucza TMDB",
+        "no_tvdb_key": "Brak klucza TVDB",
+        "tmdb_key_invalid": "Klucz TMDB odrzucony",
+        "tvdb_key_invalid": "Klucz TVDB odrzucony",
+        "unsupported_kind": "Ten rodzaj nie jest dopasowywany",
+        "season_via_series": "Sezony dopasowuje się przez ich serial",
+        "series_unmatched": "Serial nie jest dopasowany",
+        "no_file": "Brak pliku",
+        "files_missing": "Brak wszystkich plików",
+        "no_episodes": "Brak odcinków",
+        "no_seasons": "Brak sezonów"
+      },
       "titleCount_one": "{{count}} tytuł",
       "titleCount_few": "{{count}} tytuły",
       "titleCount_many": "{{count}} tytułów",

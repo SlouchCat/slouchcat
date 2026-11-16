@@ -400,6 +400,12 @@ nach Audiobookshelfs Regel gebildet wird (ADR 0029, Entscheid 6). 89,9 % der Fee
 Datei nach Schlüssel, 1,9 % mehrere, 7,3 % keine (1'470 davon in einem Podcast). CT 190 hat zur Zeit keinen
 Podcast-Ordner eingetragen; er muss vor der Abnahme wieder hinein.
 
+**Nachtrag vom 16. November 2026 (ADR 0029, Nachtrag):** Die Regel des Verheiratens ist geändert. Gleiche
+Erscheinungsminute **und** gleicher Titel gelten als dieselbe Folge, auch wenn die Dauer abweicht (auf CT 190
+5'023 solche Paare); wo nur eines der beiden stimmt, bleibt die Dauer (±2 %) das Kriterium. Riegel 2 liest
+dieselbe Regel. Was die Sonde nicht verheiratet hat, zieht ein Schritt nach jedem Feed-Abruf nach
+(`PairPodcastEpisodes`), mit Fortschritt und «Gehört» der Profile.
+
 **Von Hand gelöschte Dateien.** Löscht Marco eine Podcast-Datei, markiert der nächste Scan ihre
 Zeile als fehlend; die Zeile bleibt an der Episode. Eine Folge, deren Zeilen alle fehlen, heisst
 «entfernt». Der Planer lädt sie nicht von selbst wieder, auch nicht bei «Alle Folgen» (6.1); «Laden»

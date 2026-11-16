@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -610,10 +611,12 @@ func parseSidecar(stem, name string) (sidecar, bool) {
 // (concept 4.5): the tags give the title (unless it only repeats the podcast's title, as
 // Audiobookshelf writes it for some episodes), the publication date (RFC 2822 in date or
 // releasedate) and the description (comment, else subtitle); the probe gives the duration. Then
-// the file is paired with a feed episode of the same podcast when exactly one fits (the same
-// publication minute, else the same title, duration within two percent): the feed episode takes
-// the file and keeps its guid, enclosure and texts, the file episode leaves. No pair, or two
-// candidates: nothing happens, both stay, the maintenance page lists them as file_and_feed.
+// the file is paired with the feed episode of the same podcast the pairing rule picks
+// (model.PickPodcastPair: the same publication minute and title whatever the durations say, else
+// one of the two with durations that do not contradict): the feed episode takes the file and the
+// user data of the file episode and keeps its guid, enclosure and texts, the file episode is
+// deleted (pairPodcastEpisodes). No pair, or no clear one: nothing happens, both stay, the
+// maintenance page lists them as file_and_feed.
 func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, file systemq.MediaFile, pr *transcode.Probe) error {
 	if item.DeletedAt.Valid || !item.ParentID.Valid || item.EnclosureUrl.Valid {
 		return nil // a feed episode that already holds its file needs no tags
@@ -644,11 +647,10 @@ func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, f
 	if err != nil {
 		return fmt.Errorf("list feed episodes: %w", err)
 	}
-	var hits []systemq.PodcastListFeedEpisodesWithoutFileRow
-	for _, c := range candidates {
-		if metadataPairs(c.PublishedAt, c.SortTitle, c.DurationMs, published, SortTitle(title), duration) {
-			hits = append(hits, c)
-		}
+	own := podcastTraits(published, SortTitle(title), duration)
+	fits := make([]model.PodcastPairFit, len(candidates))
+	for i, c := range candidates {
+		fits[i] = model.FitPodcastEpisodes(podcastTraits(c.PublishedAt, c.SortTitle, c.DurationMs), own)
 	}
 
 	now := s.now().UnixMilli()
@@ -658,33 +660,22 @@ func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, f
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if len(hits) == 1 {
+	if hit, ok := model.PickPodcastPair(fits); ok {
 		// The candidates were read before the transaction: a second copy of the same episode,
 		// probed at the same time, may have paired with the feed episode meanwhile. Only a pair
 		// that still holds in the transaction takes the file; otherwise this file episode stays.
-		ok, err := q.PodcastPairable(ctx, systemq.PodcastPairableParams{FeedEpisodeID: hits[0].ID, FileEpisodeID: item.ID})
+		feedEpisode := candidates[hit]
+		paired, err := pairPodcastEpisodes(ctx, q, now, feedEpisode.ID, item.ID)
 		if err != nil {
-			return fmt.Errorf("check pair: %w", err)
-		}
-		if ok == 0 {
-			hits = nil
-		}
-	}
-	if len(hits) == 1 {
-		// The feed episode takes the file and keeps everything the feed said; the file episode
-		// leaves. Its texts stay with it -- the feed's description is the better one.
-		feedEpisode := hits[0]
-		if err := q.PodcastMoveMediaFiles(ctx, systemq.PodcastMoveMediaFilesParams{TargetID: feedEpisode.ID, Now: now, SourceID: item.ID}); err != nil {
-			return fmt.Errorf("move file to feed episode: %w", err)
-		}
-		if err := q.PodcastSoftDeleteEpisode(ctx, systemq.PodcastSoftDeleteEpisodeParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: item.ID}); err != nil {
-			return fmt.Errorf("retire file episode: %w", err)
-		}
-		if err := tx.Commit(); err != nil {
 			return err
 		}
-		s.log.InfoContext(ctx, "podcast file paired with its feed episode", "item_id", feedEpisode.ID, "media_file_id", file.ID)
-		return nil
+		if paired {
+			if err := tx.Commit(); err != nil {
+				return err
+			}
+			s.log.InfoContext(ctx, "podcast file paired with its feed episode", "item_id", feedEpisode.ID, "media_file_id", file.ID)
+			return nil
+		}
 	}
 	if err := q.PodcastUpdateEpisodeFromTags(ctx, systemq.PodcastUpdateEpisodeFromTagsParams{
 		Title: title, SortTitle: SortTitle(title), PublishedAt: published, DurationMs: duration, Now: now, ID: item.ID,
@@ -703,27 +694,13 @@ func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, f
 	return tx.Commit()
 }
 
-// metadataPairs applies the pairing rule of concept 4.5 between a feed episode and a file
-// episode: the same publication minute, else the same sort title; a duration known on both sides
-// must agree within two percent of the feed's.
-func metadataPairs(feedPublished sql.NullInt64, feedSortTitle string, feedDuration sql.NullInt64,
-	filePublished sql.NullInt64, fileSortTitle string, fileDuration sql.NullInt64,
-) bool {
-	sameMinute := feedPublished.Valid && filePublished.Valid && feedPublished.Int64/60000 == filePublished.Int64/60000
-	sameTitle := feedSortTitle != "" && feedSortTitle == fileSortTitle
-	if !sameMinute && !sameTitle {
-		return false
+// podcastTraits is what the pairing rule reads of an episode row (model.FitPodcastEpisodes).
+func podcastTraits(published sql.NullInt64, sortTitle string, duration sql.NullInt64) model.PodcastEpisodeTraits {
+	t := model.PodcastEpisodeTraits{PublishedAt: published.Int64, Dated: published.Valid, SortTitle: sortTitle}
+	if duration.Valid && duration.Int64 > 0 {
+		t.DurationMs = duration.Int64
 	}
-	if feedDuration.Valid && feedDuration.Int64 > 0 && fileDuration.Valid && fileDuration.Int64 > 0 {
-		diff := feedDuration.Int64 - fileDuration.Int64
-		if diff < 0 {
-			diff = -diff
-		}
-		if diff*50 > feedDuration.Int64 {
-			return false
-		}
-	}
-	return true
+	return t
 }
 
 // parseTagDate reads the date of an episode tag: RFC 2822 as Audiobookshelf writes it ("Fri, 13

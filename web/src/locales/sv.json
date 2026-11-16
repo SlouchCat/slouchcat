@@ -2085,7 +2085,7 @@
         "removed": "Borttagna titlar"
       },
       "hint": {
-        "unmatched": "Utan matchning finns ingen beskrivning, inga bilder och ingen åldersgräns. Matcha titeln eller uppdatera den.",
+        "unmatched": "Utan matchning finns ingen beskrivning, inga bilder och ingen åldersgräns. Matcha titeln eller uppdatera den. Ett avsnitt visas här när serien är matchad men leverantören inte känner till avsnittet under det här numret; det matchas via serien.",
         "no_images": "Matchade titlar utan affisch. En uppdatering läser in bilderna igen.",
         "unrated": "Titlar utan åldersgräns visas bara för profiler med ”Från 18 år”. Ange en åldersgräns för att göra dem tillgängliga.",
         "orphaned": "Titlar utan fil eller med saknade filer, tomma säsonger och serier.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} av {{loaded}} inlästa markerade",
       "selectAll": "Markera alla",
       "selectNone": "Avmarkera",
+      "matchHint": {
+        "none": "Markera exakt en post för att matcha den.",
+        "many": "Det går bara att matcha en post i taget.",
+        "episode": "Ett avsnitt matchas via serien: ”Matcha” öppnar sökningen för serien."
+      },
+      "seriesNotFound": "Serien för det här avsnittet hittades inte.",
       "shown": "{{shown}} av {{total}}",
       "entries_one": "{{count}} post",
       "entries_other": "{{count}} poster",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "inte angiven",
+      "detail": {
+        "unmatched": "Ingen träff hos leverantören",
+        "unmatchedEpisode": "Seriens leverantör känner inte till avsnittet under det här numret",
+        "failed": "Fel vid hämtning",
+        "skipped": "Överhoppad",
+        "pending": "Har väntat på matchning i över 24 timmar",
+        "no_tmdb_key": "Ingen TMDB-nyckel sparad",
+        "no_tvdb_key": "Ingen TVDB-nyckel sparad",
+        "tmdb_key_invalid": "TMDB-nyckeln avvisades",
+        "tvdb_key_invalid": "TVDB-nyckeln avvisades",
+        "unsupported_kind": "Den här typen matchas inte",
+        "season_via_series": "Säsonger matchas via sin serie",
+        "series_unmatched": "Serien är inte matchad",
+        "no_file": "Ingen fil",
+        "files_missing": "Alla filer saknas",
+        "no_episodes": "Inga avsnitt",
+        "no_seasons": "Inga säsonger"
+      },
       "titleCount_one": "{{count}} titel",
       "titleCount_other": "{{count}} titlar",
       "fileCount_one": "{{count}} fil",

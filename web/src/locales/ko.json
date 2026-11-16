@@ -2026,7 +2026,7 @@
         "removed": "제거된 작품"
       },
       "hint": {
-        "unmatched": "매칭되지 않으면 줄거리, 이미지, 관람 등급이 없어요. 작품을 매칭하거나 새로고침하세요.",
+        "unmatched": "매칭되지 않으면 줄거리, 이미지, 관람 등급이 없어요. 작품을 매칭하거나 새로고침하세요. 시리즈는 매칭됐지만 제공자가 이 번호의 회차를 모르면 회차가 여기에 표시돼요. 회차는 시리즈를 통해 매칭해요.",
         "no_images": "매칭되었지만 포스터가 없는 작품이에요. 새로고침하면 이미지를 다시 불러와요.",
         "unrated": "등급이 없는 작품은 “18세 이상” 프로필에만 표시돼요. 공개하려면 등급을 지정하세요.",
         "orphaned": "파일이 없거나 일부 파일이 빠진 작품, 비어 있는 시즌과 시리즈예요.",
@@ -2043,6 +2043,12 @@
       "selectedOfLoaded": "불러온 {{loaded}}개 중 {{count}}개 선택됨",
       "selectAll": "모두 선택",
       "selectNone": "선택 해제",
+      "matchHint": {
+        "none": "매칭할 항목을 하나만 선택하세요.",
+        "many": "매칭은 항목 하나만 할 수 있어요.",
+        "episode": "회차는 시리즈를 통해 매칭해요: “매칭”을 누르면 시리즈 검색이 열려요."
+      },
+      "seriesNotFound": "이 회차의 시리즈를 찾지 못했어요.",
       "shown": "{{total}}개 중 {{shown}}개",
       "entries_other": "항목 {{count}}개",
       "library": "라이브러리 {{id}}",
@@ -2055,6 +2061,24 @@
       },
       "none": "–",
       "noneSpoken": "정보 없음",
+      "detail": {
+        "unmatched": "제공자에 일치 항목 없음",
+        "unmatchedEpisode": "시리즈 제공자에 이 번호의 회차가 없음",
+        "failed": "조회 실패",
+        "skipped": "건너뜀",
+        "pending": "24시간 넘게 매칭 대기 중",
+        "no_tmdb_key": "저장된 TMDB 키 없음",
+        "no_tvdb_key": "저장된 TVDB 키 없음",
+        "tmdb_key_invalid": "TMDB 키가 거부됨",
+        "tvdb_key_invalid": "TVDB 키가 거부됨",
+        "unsupported_kind": "이 유형은 매칭하지 않음",
+        "season_via_series": "시즌은 시리즈를 통해 매칭",
+        "series_unmatched": "시리즈가 매칭되지 않음",
+        "no_file": "파일 없음",
+        "files_missing": "모든 파일이 없어짐",
+        "no_episodes": "회차 없음",
+        "no_seasons": "시즌 없음"
+      },
       "titleCount_other": "작품 {{count}}개",
       "fileCount_other": "파일 {{count}}개",
       "action": {

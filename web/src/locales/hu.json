@@ -2085,7 +2085,7 @@
         "removed": "Eltávolított címek"
       },
       "hint": {
-        "unmatched": "Társítás nélkül nincs leírás, grafika és korhatár. Társítsa a címet, vagy frissítse.",
+        "unmatched": "Társítás nélkül nincs leírás, grafika és korhatár. Társítsa a címet, vagy frissítse. Egy epizód akkor szerepel itt, ha a sorozata társítva van, de a szolgáltató nem ismeri az epizódot ezen a számon; az epizódot a sorozatán keresztül lehet társítani.",
         "no_images": "Társított címek plakát nélkül. A frissítés újra betölti a grafikákat.",
         "unrated": "A korhatár nélküli címeket csak a „18 éves kortól” profilok látják. Rendeljen hozzájuk korhatárt, hogy elérhetővé váljanak.",
         "orphaned": "Fájl nélküli vagy hiányzó fájlú címek, üres évadok és sorozatok.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} kijelölve a(z) {{loaded}} betöltöttből",
       "selectAll": "Összes kijelölése",
       "selectNone": "Kijelölés törlése",
+      "matchHint": {
+        "none": "Jelöljön ki pontosan egy bejegyzést a társításhoz.",
+        "many": "Társítani csak pontosan egy bejegyzést lehet.",
+        "episode": "Az epizódot a sorozatán keresztül lehet társítani: a „Társítás” a sorozat keresését nyitja meg."
+      },
+      "seriesNotFound": "Az epizód sorozata nem található.",
       "shown": "{{shown}} / {{total}}",
       "entries_one": "{{count}} bejegyzés",
       "entries_other": "{{count}} bejegyzés",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "nincs megadva",
+      "detail": {
+        "unmatched": "Nincs találat a szolgáltatónál",
+        "unmatchedEpisode": "A sorozat szolgáltatója nem ismeri az epizódot ezen a számon",
+        "failed": "Sikertelen lekérés",
+        "skipped": "Kihagyva",
+        "pending": "Több mint 24 órája vár társításra",
+        "no_tmdb_key": "Nincs beállított TMDB-kulcs",
+        "no_tvdb_key": "Nincs beállított TVDB-kulcs",
+        "tmdb_key_invalid": "A TMDB-kulcs elutasítva",
+        "tvdb_key_invalid": "A TVDB-kulcs elutasítva",
+        "unsupported_kind": "Ez a típus nem társítható",
+        "season_via_series": "Az évadok a sorozatukon keresztül társíthatók",
+        "series_unmatched": "A sorozat nincs társítva",
+        "no_file": "Nincs fájl",
+        "files_missing": "Minden fájl hiányzik",
+        "no_episodes": "Nincs epizód",
+        "no_seasons": "Nincs évad"
+      },
       "titleCount_one": "{{count}} cím",
       "titleCount_other": "{{count}} cím",
       "fileCount_one": "{{count}} fájl",

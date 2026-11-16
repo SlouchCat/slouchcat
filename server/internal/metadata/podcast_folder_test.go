@@ -96,3 +96,38 @@ func TestFetchOfAFeedFromAFileIsGuarded(t *testing.T) {
 		t.Fatalf("feed_error after the refused fetch = %v", feedErr)
 	}
 }
+
+// The pairing rule since 16 November 2026 (addendum to ADR 0029): the same minute and the same
+// title are the same episode whatever the durations say (the feed states 0:01:03, the file of the
+// provider runs 55 s); the same title alone, on another day and with another length, is not.
+func TestFetchAdoptsAFileEpisodeWhateverItsDuration(t *testing.T) {
+	t.Parallel()
+	e := newPodcastEnv(t, 2)
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	third := time.Date(2025, 1, 4, 6, 0, 45, 0, time.UTC).UnixMilli()
+	later := time.Date(2025, 2, 1, 6, 0, 0, 0, time.UTC).UnixMilli()
+	for _, f := range []struct {
+		id, title string
+		published int64
+		duration  int64
+	}{{"01FILE000000000000000000F3", "Episode 3", third, 55_000}, {"01FILE000000000000000000F4", "Episode 4", later, 55_000}} {
+		mustExec(t, e.db.Write, `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, published_at, duration_ms, providers,
+		          metadata_state, added_at, created_at, updated_at) VALUES (?, 'podcast_episode', ?, 3, ?, ?, ?, ?, '["local"]', 'matched', 0, 0, 0)`,
+			f.id, p.ID, f.title, sortTitle(f.title), f.published, f.duration)
+	}
+	e.feed.set(func(f *fakeFeed) { f.n = 4 })
+	if err := e.svc.FetchPodcast(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	eps := e.episodes(t, p.ID)
+	if got := eps["ep-3"]; got.ID != "01FILE000000000000000000F3" || got.Enclosure == "" {
+		t.Errorf("episode 3 = %+v, want the file episode of its minute and title taken over", got)
+	}
+	if got := eps["ep-4"]; got.ID == "01FILE000000000000000000F4" {
+		t.Errorf("episode 4 took a file that shares only its title and runs 14 percent shorter: %+v", got)
+	}
+}

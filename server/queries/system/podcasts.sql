@@ -146,18 +146,12 @@ WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at 
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id);
 
 -- name: PodcastListFileEpisodesWithoutGUID :many
--- The file episodes of a podcast (no guid): the candidates a new feed episode may be paired with.
+-- The file episodes of a podcast (no guid): the candidates a feed episode may be paired with. A
+-- pair moves the media files and the user data of the file episode to the feed episode with the
+-- queries of the duplicate merge (admin.sql) and deletes the file episode
+-- (library.pairPodcastEpisodes).
 SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms FROM items AS i
 WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL;
-
--- name: PodcastMoveMediaFiles :exec
--- The file of a file episode goes to the feed episode it was paired with; the triggers set
--- items.available of both.
-UPDATE media_files SET item_id = @target_id, updated_at = @now WHERE item_id = @source_id;
-
--- name: PodcastSoftDeleteEpisode :exec
--- The file episode that gave its file to a feed episode leaves (it never had user data of its own).
-UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND kind = 'podcast_episode';
 
 -- name: PodcastAdoptFileEpisode :exec
 -- A new feed episode takes over a file episode instead of being inserted: guid, enclosure, date,

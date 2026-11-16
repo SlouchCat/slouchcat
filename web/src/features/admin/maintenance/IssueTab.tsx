@@ -1,6 +1,6 @@
 import type { Issue, IssueKind, Library } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -42,6 +42,8 @@ interface IssueTabProps {
   /** A dialog or a confirmation is open: no refetch on window focus meanwhile. */
   hold: boolean;
   refreshing: boolean;
+  /** «Zuordnen» looks up the series of an episode. */
+  matching: boolean;
   cleaning: boolean;
   handlers: IssueHandlers;
 }
@@ -80,6 +82,38 @@ function sectionsOf(
   return [...known, ...unknown];
 }
 
+/** The stable codes of `Issue.detail`; any other finding (probe errors, ratings) is free text. */
+const DETAIL_CODES = [
+  'unmatched',
+  'failed',
+  'skipped',
+  'pending',
+  'no_tmdb_key',
+  'no_tvdb_key',
+  'tmdb_key_invalid',
+  'tvdb_key_invalid',
+  'unsupported_kind',
+  'season_via_series',
+  'series_unmatched',
+  'no_file',
+  'files_missing',
+  'no_episodes',
+  'no_seasons',
+] as const;
+type DetailCode = (typeof DETAIL_CODES)[number];
+const isDetailCode = (detail: string): detail is DetailCode =>
+  (DETAIL_CODES as readonly string[]).includes(detail);
+
+/** The finding in words: a known code translated, an episode without a match told apart. */
+function detailText(t: TFunction, issue: Issue): string | undefined {
+  const { detail } = issue;
+  if (!detail || !isDetailCode(detail)) return detail;
+  if (detail === 'unmatched' && issue.itemKind === 'episode') {
+    return t('admin.maintenance.detail.unmatchedEpisode');
+  }
+  return t(`admin.maintenance.detail.${detail}`);
+}
+
 /** A path or a finding in full, wrapped where it has to (S-5: reachable without a pointer). */
 function LongText({ text, code = false }: { text: string | undefined; code?: boolean }) {
   const { t } = useTranslation();
@@ -111,10 +145,12 @@ export function IssueTab({
   expanded,
   hold,
   refreshing,
+  matching,
   cleaning,
   handlers,
 }: IssueTabProps) {
   const { t, i18n } = useTranslation();
+  const matchHintId = useId();
   const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   // The issues from the first on, a page more whenever the end of the tab comes within half a
   // screen (concept 18 C-3): only what is loaded is grouped, selected and counted.
@@ -142,9 +178,21 @@ export function IssueTab({
   const selectable = kind !== 'rating_mismatch';
   const none = chosen.length === 0;
   const matchTarget = chosen.length === 1 ? chosen[0] : undefined;
+  // An episode is matched through its series (the page looks it up).
   const canMatch =
     matchTarget !== undefined &&
-    (matchTarget.itemKind === 'movie' || matchTarget.itemKind === 'series');
+    (matchTarget.itemKind === 'movie' ||
+      matchTarget.itemKind === 'series' ||
+      matchTarget.itemKind === 'episode');
+  // Why «Zuordnen» is off, or what it does for an episode: visible next to the button.
+  const matchHint =
+    chosen.length === 0
+      ? t('admin.maintenance.matchHint.none')
+      : chosen.length > 1
+        ? t('admin.maintenance.matchHint.many')
+        : matchTarget?.itemKind === 'episode'
+          ? t('admin.maintenance.matchHint.episode')
+          : undefined;
   const allKeys = list.map(issueKey);
   const all = list.length > 0 && chosen.length === list.length;
 
@@ -169,11 +217,18 @@ export function IssueTab({
         <AriaButton
           variant="primary"
           isDisabled={!canMatch}
+          isPending={matching}
+          aria-describedby={matchHint ? matchHintId : undefined}
           onPress={() => matchTarget && handlers.onMatch(matchTarget)}
         >
           {t('admin.maintenance.action.match')}
         </AriaButton>
         {refreshButton(t('admin.maintenance.action.refresh'))}
+        {matchHint && (
+          <span id={matchHintId} className={styles.muted}>
+            {matchHint}
+          </span>
+        )}
       </>
     ),
     no_images: refreshButton(t('admin.maintenance.action.refresh')),
@@ -250,7 +305,7 @@ export function IssueTab({
     {
       key: 'detail',
       header: t('admin.maintenance.columns.detail'),
-      cell: (issue) => <LongText text={issue.detail} />,
+      cell: (issue) => <LongText text={detailText(t, issue)} />,
     },
   ];
   const kindName = t(`admin.maintenance.tab.${kind}`);

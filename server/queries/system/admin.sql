@@ -74,7 +74,12 @@ WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'));
 
 -- name: AdminListUnmatched :many
-SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
+-- rel_path: the file of the title, for the administrator to find it (a present one first; '' for
+-- a series, whose files hang on its episodes, and for a title without a file).
+SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error,
+       CAST(COALESCE((SELECT m.rel_path FROM media_files AS m WHERE m.item_id = i.id
+                      ORDER BY m.missing_since IS NOT NULL, m.rel_path LIMIT 1), '') AS TEXT) AS rel_path
+FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (i.metadata_state IN ('unmatched', 'failed')
        OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
@@ -445,7 +450,8 @@ WHERE im.size = @size AND im.kind = @kind AND im.format = 'jpeg' AND im.item_id 
 -- name: AdminListFileAndFeedEpisodes :many
 -- Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
 -- file episode (no enclosure) and a feed episode (no file) with the same publication minute or
--- the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+-- the same sort title. The scanner and the pairing after a feed check take the clear cases
+-- (model.PickPodcastPair); the rest is listed here.
 SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
        ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id
 FROM items AS fe

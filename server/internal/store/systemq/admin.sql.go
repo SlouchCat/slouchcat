@@ -502,7 +502,8 @@ type AdminListFileAndFeedEpisodesRow struct {
 
 // Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
 // file episode (no enclosure) and a feed episode (no file) with the same publication minute or
-// the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+// the same sort title. The scanner and the pairing after a feed check take the clear cases
+// (model.PickPodcastPair); the rest is listed here.
 func (q *Queries) AdminListFileAndFeedEpisodes(ctx context.Context, libraryID interface{}) ([]AdminListFileAndFeedEpisodesRow, error) {
 	rows, err := q.db.QueryContext(ctx, adminListFileAndFeedEpisodes, libraryID)
 	if err != nil {
@@ -1034,7 +1035,10 @@ func (q *Queries) AdminListTitleYearDuplicates(ctx context.Context, libraryID in
 }
 
 const adminListUnmatched = `-- name: AdminListUnmatched :many
-SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
+SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error,
+       CAST(COALESCE((SELECT m.rel_path FROM media_files AS m WHERE m.item_id = i.id
+                      ORDER BY m.missing_since IS NOT NULL, m.rel_path LIMIT 1), '') AS TEXT) AS rel_path
+FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (i.metadata_state IN ('unmatched', 'failed')
        OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
@@ -1063,8 +1067,11 @@ type AdminListUnmatchedRow struct {
 	LibraryID     int64
 	MetadataState string
 	MetadataError sql.NullString
+	RelPath       string
 }
 
+// rel_path: the file of the title, for the administrator to find it (a present one first; ” for
+// a series, whose files hang on its episodes, and for a title without a file).
 func (q *Queries) AdminListUnmatched(ctx context.Context, arg AdminListUnmatchedParams) ([]AdminListUnmatchedRow, error) {
 	rows, err := q.db.QueryContext(ctx, adminListUnmatched,
 		arg.PendingBefore,
@@ -1087,6 +1094,7 @@ func (q *Queries) AdminListUnmatched(ctx context.Context, arg AdminListUnmatched
 			&i.LibraryID,
 			&i.MetadataState,
 			&i.MetadataError,
+			&i.RelPath,
 		); err != nil {
 			return nil, err
 		}

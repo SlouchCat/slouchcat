@@ -152,3 +152,32 @@ Pflegewerkzeugen trennt.
 
 Offen, nicht behoben: Jede verheiratete Datei-Episode bleibt als weich gelöschte Zeile ohne Datei
 stehen (auf CT 190 32'265 Zeilen); kein Job räumt sie weg.
+
+## 9. Paare «Datei und Feed» mit abweichender Dauer (16. November 2026)
+
+Marco meldete 5'024 Duplikate in der Pflege. Gemessen auf CT 190 (Release 1.39.0, nur lesend):
+
+| Grösse | Wert |
+|---|---:|
+| Gruppen in `listDuplicates` | 5'024, davon 5'023 `file_and_feed`, 1 `file_hash` |
+| Datei-Folgen ohne GUID | 9'253, davon 4'827 mit mindestens einem Feed-Kandidaten (gleiche Minute oder gleicher Titel) |
+| Feed-Folgen ohne Datei | 6'475 |
+| Datei-Folgen mit genau einem Kandidaten nach der alten Regel (Dauer ±2 %) | 8 |
+| Datei-Folgen mit Kandidat gleicher Minute **und** gleichen Titels | 4'713 (4'614 mit genau diesem einen, 99 mit einem zweiten Kandidaten gleichen Titels an einem anderen Tag: Wiederholungen) |
+| Datei-Folgen mit Kandidat, bei dem nur eines stimmt und die Dauer abweicht | 112 (meist gleiche Minute, Titel im Feed nachträglich geändert) |
+| Abweichung der Dauer in einer Stichprobe von 40 Paaren | 2,1 bis 13,6 % |
+| Benutzerdaten an den Datei-Folgen der Paare | keine (0 Zeilen in `progress`, `progress_events`, `watchlist`, `downloads`) |
+
+**Nachzug an einer Kopie** (Sicherung `pre-migration-1.37.0` vom 15. November 2026, lokal migriert,
+`PairPodcastEpisodes` für alle 100 Podcasts; Kopie danach gelöscht):
+
+| | vorher | nachher |
+|---|---:|---:|
+| Gruppen `file_and_feed` | 5'019 | 113 |
+| lebende Podcast-Folgen | 32'947 | 28'240 |
+| davon mit Datei | 26'476 | 26'476 |
+| Zeilen `progress` / davon «Gehört» / `progress_events` | 46 / 11 / 1'957 | 46 / 11 / 1'957 |
+
+4'707 Paare in 14,0 s (eine Transaktion je Paar, höchstens 411 in einem Podcast); ein zweiter Lauf über alle
+100 Podcasts paart nichts und dauert 143 ms; `PRAGMA foreign_key_check` ohne Befund.
+
