@@ -4932,6 +4932,7 @@
         "images": "Images only",
         "where": "Where",
         "all": "Every folder",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} title",
         "titles_other": "{{count}} titles",
         "run": "Apply now",

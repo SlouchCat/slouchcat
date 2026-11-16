@@ -550,7 +550,10 @@ export function MetadataPage() {
     },
     ...videoFolders.map(({ library, root }) => ({
       value: String(root.id),
-      label: withTitles(`${library.name}: ${root.path}`, root.homeTitleCount),
+      label: withTitles(
+        t('admin.metadata.apply.folder', { library: library.name, path: root.path }),
+        root.homeTitleCount,
+      ),
     })),
   ];
 
