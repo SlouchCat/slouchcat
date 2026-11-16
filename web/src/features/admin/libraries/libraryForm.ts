@@ -222,7 +222,7 @@ export function saveRequest(
     const root = storedRoot(library, entry.key);
     if (root && marked.has(entry.key)) {
       removals.push(entry.key);
-      body.removeRoots.push({ id: root.id, confirmPath: typed[entry.key] ?? '' });
+      body.removeRoots.push({ id: root.id, confirmPath: (typed[entry.key] ?? '').trim() });
       continue;
     }
     roots.push(entry.key);
@@ -236,7 +236,9 @@ export function saveRequest(
       content: entry.content,
       providers: entry.providers,
       ...metadata,
-      ...(root && entry.content !== root.content ? { confirmPath: typed[entry.key] ?? '' } : {}),
+      ...(root && entry.content !== root.content
+        ? { confirmPath: (typed[entry.key] ?? '').trim() }
+        : {}),
     });
   }
   return { body, roots, removals };

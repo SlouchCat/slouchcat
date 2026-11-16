@@ -5009,7 +5009,6 @@
       "intro": "Hvor Slouchcat henter oplysninger og omslag til lydbøger. Filerne kommer altid først; en udbyder udfylder kun det, der mangler, og aldrig et felt med lås.",
       "folders": {
         "title": "Rækkefølge pr. mappe",
-        "intro": "Den øverste kilde vinder pr. felt. Rækkefølgen og hvilke kilder der deltager ændrer du i mappens dialog.",
         "empty": "Der er endnu ingen lydbogsmappe.",
         "edit": "Skift kilder",
         "editLabel": "Skift kilderne for {{path}}",

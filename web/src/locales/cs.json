@@ -5355,7 +5355,6 @@
       "intro": "Odkud Slouchcat bere údaje a obaly audioknih. Soubory mají vždy přednost; poskytovatel doplní jen to, co chybí, a nikdy zamčené pole.",
       "folders": {
         "title": "Pořadí podle složky",
-        "intro": "Horní zdroj vyhrává u každého pole. Pořadí a to, které zdroje se účastní, měníte v dialogu složky.",
         "empty": "Zatím není žádná složka s audioknihami.",
         "edit": "Změnit zdroje",
         "editLabel": "Změnit zdroje složky {{path}}",

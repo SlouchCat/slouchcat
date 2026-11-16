@@ -5009,7 +5009,6 @@
       "intro": "Mistä Slouchcat saa äänikirjojen tiedot ja kansikuvat. Tiedostot ovat aina ensisijaisia; lähde täydentää vain puuttuvan eikä koskaan lukittua kenttää.",
       "folders": {
         "title": "Järjestys kansioittain",
-        "intro": "Ylempi lähde voittaa kenttää kohti. Järjestystä ja mukana olevia lähteitä muutetaan kansion valintaikkunassa.",
         "empty": "Äänikirjakansiota ei ole vielä.",
         "edit": "Muuta lähteitä",
         "editLabel": "Muuta lähteitä: {{path}}",

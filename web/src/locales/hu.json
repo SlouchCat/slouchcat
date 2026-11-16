@@ -5009,7 +5009,6 @@
       "intro": "Honnan szerzi a Slouchcat a hangoskönyvek részleteit és borítóit. A fájlok mindig az első helyen állnak; a szolgáltató csak azt egészíti ki, ami hiányzik, és soha nem zárolt mezőt.",
       "folders": {
         "title": "Sorrend mappánként",
-        "intro": "A felső forrás nyer mezőnként. A sorrendet és azt, hogy mely források vesznek részt, a mappa párbeszédablakában módosíthatja.",
         "empty": "Még nincs hangoskönyv-mappa.",
         "edit": "Források módosítása",
         "editLabel": "{{path}} forrásainak módosítása",

@@ -5182,7 +5182,6 @@
       "intro": "De dónde obtiene Slouchcat los datos y las portadas de los audiolibros. Los archivos van siempre primero; un proveedor solo completa lo que falta y nunca un campo con candado.",
       "folders": {
         "title": "Orden por carpeta",
-        "intro": "La fuente de arriba gana en cada campo. El orden y qué fuentes participan se cambian en el cuadro de diálogo de la carpeta.",
         "empty": "Todavía no hay ninguna carpeta de audiolibros.",
         "edit": "Cambiar fuentes",
         "editLabel": "Cambiar las fuentes de {{path}}",

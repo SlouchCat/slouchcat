@@ -51,7 +51,8 @@ import {
   useUnsavedChanges,
 } from '@/ui/aria';
 import { serviceHref } from './integrations/services';
-import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
+import { SavedBand, type SavedLibrary } from './libraries/SavedBand';
+import { useLibraryEdit } from './libraries/useLibraryEdit';
 import {
   applyMetadata,
   jobTypesQuery,
@@ -273,7 +274,8 @@ function ApplySection({
 
 /**
  * The section «Ordner»: every video folder with its languages and images (default or its own) and
- * the way to its library's folder dialog, where «Ändern» edits them (concept 24 3.4, stage 2).
+ * «Bearbeiten» of its library with the folder's card open, where they are edited (concept 24 3.4,
+ * 4.5).
  */
 function FoldersSection({
   libraries,
@@ -285,22 +287,23 @@ function FoldersSection({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const text = useFolderMetadataText();
-  const [openId, setOpenId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const library = libraries.find((entry) => entry.id === openId);
   const folders = videoFoldersOf(libraries);
-
-  const changed = async (updated: Library) => {
+  const [saved, setSaved] = useState<SavedLibrary | null>(null);
+  // «Bearbeiten» of the folder's library with that folder's card open (concept 24 4.5).
+  const edit = useLibraryEdit((result, summary) => {
+    setSaved({ saved: result, summary });
     queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
-      list?.map((entry) => (entry.id === updated.id ? updated : entry)),
+      list?.map((entry) => (entry.id === result.library.id ? result.library : entry)),
     );
-    await queryClient.invalidateQueries({ queryKey: metadataSettingsQuery.queryKey });
-    await afterDialogsClosed();
-    focusTitleIfLost(titleRef);
-  };
+    void queryClient
+      .invalidateQueries({ queryKey: metadataSettingsQuery.queryKey })
+      .then(() => afterDialogsClosed())
+      .then(() => focusTitleIfLost(titleRef));
+  });
 
   return (
     <SectionBody intro={t('admin.metadata.folders.intro')}>
+      {saved && <SavedBand value={saved} onDismiss={() => setSaved(null)} />}
       {folders.length === 0 ? (
         <Text tone="secondary">{t('admin.metadata.folders.empty')}</Text>
       ) : (
@@ -316,17 +319,17 @@ function FoldersSection({
                 <Chip tone={root.images === null ? 'outline' : 'info'}>{text.images(root)}</Chip>
               </span>
               <AriaButton
-                icon="folder"
+                icon="pen"
                 aria-label={t('admin.metadata.folders.openLabel', {
                   name: owner.name,
                   path: root.path,
                 })}
                 onPress={() => {
-                  setOpenId(owner.id);
-                  setOpen(true);
+                  setSaved(null);
+                  edit.start(owner.id, root.id);
                 }}
               >
-                {t('admin.libraries.openFolders')}
+                {t('admin.libraries.edit')}
               </AriaButton>
             </li>
           ))}
@@ -335,15 +338,7 @@ function FoldersSection({
       <Text tone="secondary" variant="caption">
         {t('admin.metadata.folders.audio')}
       </Text>
-      {library && (
-        <LibraryFoldersDialog
-          key={library.id}
-          library={library}
-          isOpen={open}
-          onOpenChange={setOpen}
-          onChanged={(updated) => void changed(updated)}
-        />
-      )}
+      {edit.render(libraries)}
     </SectionBody>
   );
 }

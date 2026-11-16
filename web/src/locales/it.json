@@ -5182,7 +5182,6 @@
       "intro": "Da dove Slouchcat prende dettagli e copertine degli audiolibri. I file hanno sempre la precedenza; un fornitore integra solo ciò che manca e mai un campo bloccato.",
       "folders": {
         "title": "Ordine per cartella",
-        "intro": "La fonte più in alto prevale per ogni campo. L’ordine e le fonti che partecipano si modificano nella finestra della cartella.",
         "empty": "Non c’è ancora alcuna cartella di audiolibri.",
         "edit": "Modifica le fonti",
         "editLabel": "Modifica le fonti di {{path}}",

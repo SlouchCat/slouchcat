@@ -2062,6 +2062,27 @@
           "typeAll": "Speichern geht, sobald jeder Pfad genau abgetippt ist.",
           "submit": "Speichern"
         }
+      },
+      "edit": "Bearbeiten",
+      "editLabel": "{{name}} bearbeiten",
+      "noFolderEdit": "Kein Ordner: Es wird nichts gescannt, bis du unter «Bearbeiten» einen hinzufügst.",
+      "saved": {
+        "title": "Die Bibliothek {{name}} ist gespeichert.",
+        "name": "Neuer Name: {{name}}",
+        "rating": "Standardstufe: {{rating}}",
+        "added_one": "{{count}} Ordner hinzugefügt; der Scan ist eingereiht.",
+        "added_other": "{{count}} Ordner hinzugefügt; der Scan ist eingereiht.",
+        "removed_one": "{{count}} Ordner entfernt.",
+        "removed_other": "{{count}} Ordner entfernt.",
+        "content_one": "{{count}} Ordner mit anderem Inhalt wird neu eingelesen.",
+        "content_other": "{{count}} Ordner mit anderem Inhalt werden neu eingelesen.",
+        "moved_one": "{{count}} Ordner mit neuem Pfad wird neu eingelesen.",
+        "moved_other": "{{count}} Ordner mit neuem Pfad werden neu eingelesen.",
+        "providers_one": "Neue Quellen bei {{count}} Ordner: Die Titel werden neu zugeordnet oder aufgefüllt.",
+        "providers_other": "Neue Quellen bei {{count}} Ordnern: Die Titel werden neu zugeordnet oder aufgefüllt.",
+        "metadata_one": "Sprachen oder Bilder geändert bei {{count}} Ordner. Sie gelten für {{titles}} Titel, sobald du sie anwendest.",
+        "metadata_other": "Sprachen oder Bilder geändert bei {{count}} Ordnern. Sie gelten für {{titles}} Titel, sobald du sie anwendest.",
+        "dismiss": "Ausblenden"
       }
     },
     "access": {
@@ -4991,14 +5012,14 @@
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
       },
-      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Ordner» mit «Ändern» ein.",
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du unter «Bearbeiten» seiner Bibliothek ein.",
       "changed": "geändert",
       "folders": {
         "title": "Ordner",
-        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in den Ordnern seiner Bibliothek mit «Ändern» ein.",
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie unter «Bearbeiten» seiner Bibliothek ein.",
         "empty": "Noch kein Video-Ordner.",
         "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter «Hörbücher: Quellen».",
-        "openLabel": "Ordner von {{name}} öffnen: {{path}}"
+        "openLabel": "{{name}} bearbeiten, Ordner {{path}}"
       },
       "folder": {
         "langsDefault": "Sprachen: Standard",
@@ -5050,7 +5071,7 @@
       "intro": "Woher Slouchcat Angaben und Cover für Hörbücher holt. Die Dateien kommen immer zuerst; ein Anbieter füllt nur, was fehlt, und nie ein Feld mit Schloss.",
       "folders": {
         "title": "Reihenfolge je Ordner",
-        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du im Dialog des Ordners.",
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du unter «Bearbeiten» der Bibliothek.",
         "empty": "Es gibt noch keinen Hörbuch-Ordner.",
         "edit": "Quellen ändern",
         "editLabel": "Quellen von {{path}} ändern",

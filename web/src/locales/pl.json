@@ -5355,7 +5355,6 @@
       "intro": "Skąd Slouchcat bierze dane i okładki audiobooków. Pliki zawsze mają pierwszeństwo; dostawca uzupełnia tylko to, czego brakuje, i nigdy pola z blokadą.",
       "folders": {
         "title": "Kolejność dla każdego folderu",
-        "intro": "Wyższe źródło wygrywa dla każdego pola. Kolejność i to, które źródła biorą udział, zmieniasz w oknie folderu.",
         "empty": "Nie ma jeszcze folderu audiobooków.",
         "edit": "Zmień źródła",
         "editLabel": "Zmień źródła: {{path}}",

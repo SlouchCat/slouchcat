@@ -5009,7 +5009,6 @@
       "intro": "Slouchcat’in sesli kitaplar için ayrıntıları ve kapakları nereden aldığı. Dosyalar her zaman önce gelir; sağlayıcı yalnızca eksik olanı doldurur, kilitli bir alanı asla.",
       "folders": {
         "title": "Klasör başına sıra",
-        "intro": "Alan başına üstteki kaynak kazanır. Sırayı ve hangi kaynakların katıldığını klasörün iletişim kutusunda değiştirirsiniz.",
         "empty": "Henüz sesli kitap klasörü yok.",
         "edit": "Kaynakları değiştir",
         "editLabel": "{{path}} kaynaklarını değiştir",

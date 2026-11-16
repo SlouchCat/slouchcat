@@ -5182,7 +5182,6 @@
       "intro": "D’où Slouchcat tire les infos et les couvertures des livres audio. Les fichiers passent toujours en premier ; un fournisseur ne complète que ce qui manque, et jamais un champ verrouillé.",
       "folders": {
         "title": "Ordre par dossier",
-        "intro": "La source située au-dessus l’emporte pour chaque champ. L’ordre et les sources utilisées se modifient dans la boîte de dialogue du dossier.",
         "empty": "Il n’y a pas encore de dossier de livres audio.",
         "edit": "Modifier les sources",
         "editLabel": "Modifier les sources de {{path}}",

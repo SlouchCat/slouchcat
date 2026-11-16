@@ -5009,7 +5009,6 @@
       "intro": "Varifrån Slouchcat hämtar detaljer och omslag för ljudböcker. Filerna kommer alltid först. En leverantör fyller bara i det som saknas, och aldrig ett låst fält.",
       "folders": {
         "title": "Ordning per mapp",
-        "intro": "Den övre källan vinner per fält. Du ändrar ordningen och vilka källor som deltar i mappens dialogruta.",
         "empty": "Det finns ingen ljudboksmapp än.",
         "edit": "Ändra källor",
         "editLabel": "Ändra källorna för {{path}}",

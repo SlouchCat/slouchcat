@@ -292,6 +292,7 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
   name: 'Filme',
   kind: 'video',
   createdAt: '2026-10-18T18:00:00Z',
+  revision: 'rev-1',
   roots: [
     {
       id: 1,

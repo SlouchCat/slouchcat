@@ -2062,6 +2062,27 @@
           "typeAll": "You can save once every path is typed exactly.",
           "submit": "Save"
         }
+      },
+      "edit": "Edit",
+      "editLabel": "Edit {{name}}",
+      "noFolderEdit": "No folder: nothing is scanned until you add one under “Edit”.",
+      "saved": {
+        "title": "The library {{name}} is saved.",
+        "name": "New name: {{name}}",
+        "rating": "Default rating: {{rating}}",
+        "added_one": "{{count}} folder added; the scan is queued.",
+        "added_other": "{{count}} folders added; the scan is queued.",
+        "removed_one": "{{count}} folder removed.",
+        "removed_other": "{{count}} folders removed.",
+        "content_one": "{{count}} folder with another content is read anew.",
+        "content_other": "{{count}} folders with another content are read anew.",
+        "moved_one": "{{count}} folder with a new path is read anew.",
+        "moved_other": "{{count}} folders with a new path are read anew.",
+        "providers_one": "New sources for {{count}} folder: its titles are matched or filled again.",
+        "providers_other": "New sources for {{count}} folders: their titles are matched or filled again.",
+        "metadata_one": "Languages or images changed for {{count}} folder. They apply to {{titles}} titles once you apply them.",
+        "metadata_other": "Languages or images changed for {{count}} folders. They apply to {{titles}} titles once you apply them.",
+        "dismiss": "Dismiss"
       }
     },
     "access": {
@@ -4991,14 +5012,14 @@
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."
       },
-      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images in its library under “Folders” with “Change”.",
+      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images under “Edit” of its library.",
       "changed": "changed",
       "folders": {
         "title": "Folders",
-        "intro": "Every video folder follows the default until it has languages or images of its own. You set them in its library's folders with “Change”.",
+        "intro": "Every video folder follows the default until it has languages or images of its own. You set them under “Edit” of its library.",
         "empty": "No video folder yet.",
         "audio": "Audiobook and podcast folders have no languages and images of their own. The sources for audiobooks are under “Audiobooks: sources”.",
-        "openLabel": "Open the folders of {{name}}: {{path}}"
+        "openLabel": "Edit {{name}}, folder {{path}}"
       },
       "folder": {
         "langsDefault": "Languages: default",
@@ -5050,7 +5071,7 @@
       "intro": "Where Slouchcat gets details and covers for audiobooks. The files always come first; a provider fills only what is missing, and never a locked field.",
       "folders": {
         "title": "Order per folder",
-        "intro": "The upper source wins per field. You change the order and which sources take part in the dialog of the folder.",
+        "intro": "The upper source wins per field. You change the order and which sources take part under “Edit” of the library.",
         "empty": "There is no audiobook folder yet.",
         "edit": "Change sources",
         "editLabel": "Change the sources of {{path}}",

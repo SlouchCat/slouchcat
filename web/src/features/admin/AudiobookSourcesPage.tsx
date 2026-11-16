@@ -36,7 +36,8 @@ import { MetadataEditor } from './editor/MetadataEditor';
 import { serviceHref } from './integrations/services';
 import { SourceChip } from './integrations/shared';
 import { providerName } from './item/facts';
-import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
+import { SavedBand, type SavedLibrary } from './libraries/SavedBand';
+import { useLibraryEdit } from './libraries/useLibraryEdit';
 import {
   audiobookReviewQuery,
   audiobookSourcesQuery,
@@ -202,22 +203,32 @@ function Folders({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const libraries = useQuery(librariesQuery);
-  const [openId, setOpenId] = useState<number | null>(null);
-  const [open, setOpen] = useState(false);
-  const library = libraries.data?.find((entry) => entry.id === openId);
-
-  const changed = async (updated: Library) => {
+  const [saved, setSaved] = useState<SavedLibrary | null>(null);
+  // The pencil opens «Bearbeiten» of the folder's library with that folder's card open
+  // (concept 24 4.5, exception 1).
+  const edit = useLibraryEdit((result, summary) => {
+    setSaved({ saved: result, summary });
     queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
-      list?.map((entry) => (entry.id === updated.id ? updated : entry)),
+      list?.map((entry) => (entry.id === result.library.id ? result.library : entry)),
     );
-    await queryClient.invalidateQueries({ queryKey: audiobookSourcesQuery.queryKey });
-    await afterDialogsClosed();
-    focusTitleIfLost(titleRef);
-  };
+    void queryClient
+      .invalidateQueries({ queryKey: audiobookSourcesQuery.queryKey })
+      .then(() => afterDialogsClosed())
+      .then(() => focusTitleIfLost(titleRef));
+  });
 
   return (
     <BandPanel title={t('admin.audiobookSources.folders.title')}>
       <p className={styles.intro}>{t('admin.audiobookSources.folders.intro')}</p>
+      {saved && (
+        <SavedBand
+          value={saved}
+          onDismiss={() => {
+            setSaved(null);
+            void afterRender().then(() => focusTitleIfLost(titleRef));
+          }}
+        />
+      )}
       {sources.folders.length === 0 ? (
         <Text tone="secondary">{t('admin.audiobookSources.folders.empty')}</Text>
       ) : (
@@ -236,8 +247,8 @@ function Folders({
                   isDisabled={!libraries.data?.some((entry) => entry.id === folder.libraryId)}
                   aria-label={t('admin.audiobookSources.folders.editLabel', { path: folder.path })}
                   onPress={() => {
-                    setOpenId(folder.libraryId);
-                    setOpen(true);
+                    setSaved(null);
+                    edit.start(folder.libraryId, folder.rootId);
                   }}
                 >
                   {t('admin.audiobookSources.folders.edit')}
@@ -247,15 +258,7 @@ function Folders({
           ))}
         </div>
       )}
-      {library && (
-        <LibraryFoldersDialog
-          key={library.id}
-          library={library}
-          isOpen={open}
-          onOpenChange={setOpen}
-          onChanged={(updated) => void changed(updated)}
-        />
-      )}
+      {edit.render(libraries.data)}
     </BandPanel>
   );
 }

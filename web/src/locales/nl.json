@@ -5009,7 +5009,6 @@
       "intro": "Waar Slouchcat details en covers van luisterboeken vandaan haalt. De bestanden gaan altijd voor; een aanbieder vult alleen aan wat ontbreekt, en nooit een vergrendeld veld.",
       "folders": {
         "title": "Volgorde per map",
-        "intro": "De bovenste bron wint per veld. De volgorde en welke bronnen meedoen wijzig je in het venster van de map.",
         "empty": "Er is nog geen luisterboekmap.",
         "edit": "Bronnen wijzigen",
         "editLabel": "De bronnen van {{path}} wijzigen",

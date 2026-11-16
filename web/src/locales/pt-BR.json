@@ -5182,7 +5182,6 @@
       "intro": "De onde o Slouchcat obtém detalhes e capas dos audiolivros. Os arquivos sempre vêm primeiro; um provedor só preenche o que falta, e nunca um campo bloqueado.",
       "folders": {
         "title": "Ordem por pasta",
-        "intro": "A fonte de cima vence em cada campo. A ordem e as fontes que participam são alteradas na caixa de diálogo da pasta.",
         "empty": "Ainda não há pasta de audiolivros.",
         "edit": "Alterar fontes",
         "editLabel": "Alterar as fontes de {{path}}",

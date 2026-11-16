@@ -203,6 +203,29 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(within(audio).queryByText(/Keyframe-Index/)).toBeNull();
   });
 
+  it('a library without folder scans nothing and points to «Bearbeiten» (idea 02, E13; concept 24 4.4)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () =>
+        json([library(), library({ id: 2, name: 'Leer', kind: 'video', roots: [] })]),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    await screen.findByRole('button', { name: 'Filme' });
+    expect(within(rowOf('Leer')).getByText('0 Ordner')).toBeVisible();
+    const empty = await openRow(user, 'Leer');
+    expect(
+      within(empty).getByText(
+        'Kein Ordner: Es wird nichts gescannt, bis du unter «Bearbeiten» einen hinzufügst.',
+      ),
+    ).toBeVisible();
+    // The podcast sentence would be wrong here: this library has no feeds.
+    expect(within(empty).queryByText(/abonnierten Feeds/)).toBeNull();
+    expect(within(empty).getByRole('button', { name: 'Erneut scannen' })).toBeDisabled();
+    expect(within(empty).getByRole('button', { name: 'Leer bearbeiten' })).toBeEnabled();
+  });
+
   it('filters by kind with counts in the tabs and keeps the tab in the address', async () => {
     mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library(), books, podcasts]) });
     const { router } = renderApp('/admin/libraries?tab=nonsense');
@@ -290,7 +313,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     // and keeps the focus.
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' });
     await waitFor(() => expect(more).toHaveFocus());
-    expect(await menuEntries(user, more)).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
+    expect(await menuEntries(user, more)).toEqual(['Bibliothek löschen …']);
   });
 
   it('offers no loss acceptance once the loss is accepted, like the overview (concept 11)', async () => {
@@ -316,7 +339,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
+    ).toEqual(['Bibliothek löschen …']);
   });
 
   it('starts a rescan, polls every 5 s while the scan runs and shows «Live» meanwhile', async () => {
@@ -513,7 +536,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     );
   });
 
-  it('changes «Vorschau beim Spulen» with the estimate, warns before dropping and generates now', async () => {
+  it('«Bearbeiten» changes «Vorschau beim Spulen» with the estimate, warns before dropping and generates now', async () => {
     const estimateKind = (titles: number, perTitleBytes: number, storedBytes: number) => ({
       titles,
       files: titles,
@@ -535,7 +558,11 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
           },
         }),
       'POST /admin/job-types/trickplay.backfill/run': () => json([], 202),
-      'PATCH /admin/libraries/1': ({ body }) => json({ ...library(), ...(body as object) }),
+      'PUT /admin/libraries/1': ({ body }) =>
+        json({
+          library: { ...library(), trickplay: (body as { trickplay: object }).trickplay },
+          metadataChanged: [],
+        }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
@@ -543,10 +570,13 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(
       within(detail).getByText('Vorschau beim Spulen: Filme Im Voraus · Serien Im Voraus'),
     ).toBeVisible();
-    await user.click(
-      within(detail).getByRole('button', { name: 'Vorschau beim Spulen von Filme' }),
-    );
-    const dialog = await screen.findByRole('dialog', { name: 'Vorschau beim Spulen: Filme' });
+    await user.click(within(detail).getByRole('button', { name: 'Filme bearbeiten' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    // A closed section with the setting in its header (concept 24 4.1).
+    const section = within(dialog).getByRole('button', { name: 'Vorschau beim Spulen' });
+    expect(section).toHaveAttribute('aria-expanded', 'false');
+    expect(within(dialog).getByText('Filme: Im Voraus · Serien: Im Voraus')).toBeVisible();
+    await user.click(section);
     const movies = dialog.querySelector<HTMLElement>('[data-trickplay-group="movies"]')!;
     await waitFor(() => expect(within(movies).getByText('412 Filme, 783 h')).toBeVisible());
     // One decimal below 10 MB, so 2.9 MB does not read «3 MB».
@@ -567,21 +597,33 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     // library, and the stored previews go.
     await user.click(within(movies).getByText('Beim Start'));
     expect(within(movies).getByText('Ganze Bibliothek, höchstens')).toBeVisible();
+    // «Jetzt erzeugen» works on the saved setting: disabled while the section is unsaved, with
+    // the reason beside it (Z-5).
+    expect(within(dialog).getByRole('button', { name: 'Jetzt erzeugen' })).toBeDisabled();
+    expect(within(dialog).getByText(/^Erst nach dem Speichern/)).toBeVisible();
+    expect(within(dialog).getAllByText('geändert').length).toBeGreaterThan(0);
     await user.click(within(dialog).getByRole('switch', { name: 'Speichern' }));
     expect(within(movies).getByText('Pro Film, nur während der Wiedergabe')).toBeVisible();
     expect(within(movies).getByText('Ganze Bibliothek').nextSibling).toHaveTextContent('0 MB');
     expect(
       within(dialog).getByText(/gespeicherten Vorschauen der Filme gelöscht \(1[.,]2 GB\)/),
     ).toBeVisible();
-    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    const save = within(dialog).getAllByRole('button', { name: 'Speichern' }).at(-1)!;
+    await user.click(save);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+    expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+      revision: 'rev-1',
+      name: 'Filme',
       trickplay: {
         movies: { mode: 'on_start', keep: false },
         series: { mode: 'ahead', keep: true, scope: 'series' },
       },
+      removeRoots: [],
     });
-    expect(screen.getByText('Die Vorschau beim Spulen von Filme ist gespeichert.')).toBeVisible();
+    // One band says what changed (concept 24 4.3).
+    expect(
+      screen.getByText('Vorschau beim Spulen: Filme Beim Start, ohne Speichern · Serien Im Voraus'),
+    ).toBeVisible();
   });
 
   it('keeps what was typed when the dialog is closed without adding (S-13)', async () => {
@@ -799,14 +841,15 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
+    ).toEqual(['Bibliothek löschen …']);
   });
 
-  it('audio libraries: default rating in the row, changed through PATCH (AN-2, M6)', async () => {
+  it('audio libraries: default rating in the row, changed in «Bearbeiten» (AN-2, M6)', async () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([library(), books, podcasts]),
-      'PATCH /admin/libraries/3': () => json({ ...books, defaultRating: 12 }),
+      'PUT /admin/libraries/3': () =>
+        json({ library: { ...books, defaultRating: 12 }, metadataChanged: [] }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
@@ -829,60 +872,92 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         user,
         within(movieDetail).getByRole('button', { name: 'Weitere Aktionen für Filme' }),
       ),
-    ).toEqual(['Umbenennen …', 'Bibliothek löschen …']);
+    ).toEqual(['Bibliothek löschen …']);
 
     const detail = await openRow(user, 'Hörbücher');
-    const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
-    await user.click(more);
-    await user.click(await screen.findByRole('menuitem', { name: 'Standardstufe ändern' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Standardstufe von Hörbücher' });
+    const edit = within(detail).getByRole('button', { name: 'Hörbücher bearbeiten' });
+    await user.click(edit);
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    // The kind is set and locked (concept 24 4.1); audiobook folders have no languages.
+    expect(within(dialog).getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
+    expect(within(dialog).getByRole('radio', { name: 'Hörbücher' })).toBeDisabled();
+    expect(
+      within(dialog).getByText('Die Art steht fest, sobald die Bibliothek angelegt ist.'),
+    ).toBeVisible();
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Sprachen' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Vorschau beim Spulen' })).toBeNull();
     expect(within(dialog).getByRole('radio', { name: 'FSK 0' })).toBeChecked();
     await user.click(within(dialog).getByText('FSK 12'));
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ defaultRating: 12 });
-    expect(screen.getByText('Die Standardstufe von Hörbücher ist jetzt FSK 12.')).toBeVisible();
-    await waitFor(() => expect(more).toHaveFocus());
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      revision: 'rev-1',
+      name: 'Hörbücher',
+      defaultRating: 12,
+      roots: [{ id: 3, path: '/media/Hoerbuecher', content: 'audiobook', providers: ['local'] }],
+      removeRoots: [],
+    });
+    expect(screen.getByText('Standardstufe: FSK 12')).toBeVisible();
+    await waitFor(() => expect(edit).toHaveFocus());
   });
 
-  it('renames a library from its menu; a server error sits at the field', async () => {
+  it('renames a library in «Bearbeiten»; a server error sits at the field', async () => {
     let films = library({ scan: { state: 'done', itemCount: 318, fileCount: 300 } });
     let refuse = true;
     const { calls } = mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([films]),
       'GET /libraries/visible': () => json([]),
-      'PATCH /admin/libraries/1': (call) => {
+      'PUT /admin/libraries/1': (call) => {
         if (refuse)
           return problem(422, 'validation_failed', {
             errors: [{ field: 'name', code: 'too_long' }],
           });
-        films = { ...films, name: (call.body as { name: string }).name };
-        return json(films);
+        films = { ...films, name: (call.body as { name: string }).name, revision: 'rev-2' };
+        return json({ library: films, metadataChanged: [] });
       },
     });
     const { queryClient } = renderApp('/admin/libraries');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     const user = userEvent.setup();
     const detail = await openRow(user, 'Filme');
-    const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Filme' });
-    await user.click(more);
-    await user.click(await screen.findByRole('menuitem', { name: 'Umbenennen …' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek «Filme» umbenennen' });
+    await user.click(within(detail).getByRole('button', { name: 'Filme bearbeiten' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
     const field = within(dialog).getByLabelText('Name');
     expect(field).toHaveValue('Filme');
     await waitFor(() => expect(field).toHaveFocus());
+    await user.clear(field);
     await user.keyboard('Spielfilme{Enter}');
     await waitFor(() => expect(field).toHaveAccessibleDescription('Zu lang.'));
-    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
-    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ name: 'Spielfilme' });
+    const puts = () => calls.filter((call) => call.method === 'PUT');
+    expect(puts()).toHaveLength(1);
+    // The whole form in one go, every folder named (concept 24 4.3); a name alone confirms nothing.
+    expect(puts()[0]?.body).toEqual({
+      revision: 'rev-1',
+      name: 'Spielfilme',
+      trickplay: {
+        movies: { mode: 'ahead', keep: true },
+        series: { mode: 'ahead', keep: true, scope: 'series' },
+      },
+      roots: [
+        {
+          id: 1,
+          path: '/media/Filme',
+          content: 'movie',
+          providers: ['tmdb'],
+          textLangs: null,
+          images: null,
+        },
+      ],
+      removeRoots: [],
+    });
 
     refuse = false;
     await user.type(field, 'X');
     await user.keyboard('{Backspace}{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(2);
-    expect(screen.getByText('Die Bibliothek heisst jetzt «Spielfilme».')).toBeVisible();
+    expect(puts()).toHaveLength(2);
+    expect(screen.getByText('Neuer Name: Spielfilme')).toBeVisible();
     expect(await screen.findByRole('button', { name: 'Spielfilme' })).toBeVisible();
     // Everything else that shows the name reads it again.
     for (const queryKey of [['libraries'], ['home'], ['homeList'], ['library']])
@@ -1179,18 +1254,16 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
     more.focus();
     await user.keyboard('{Enter}');
-    const rename = await screen.findByRole('menuitem', { name: 'Umbenennen …' });
-    const rating = screen.getByRole('menuitem', { name: 'Standardstufe ändern' });
-    const loss = screen.getByRole('menuitem', { name: 'Verlust akzeptieren' });
-    // «Gefahr» at the bottom.
+    const loss = await screen.findByRole('menuitem', { name: 'Verlust akzeptieren' });
+    const remove = screen.getByRole('menuitem', { name: 'Bibliothek löschen …' });
+    // «Gefahr» holds both; rename, rating and trickplay are fields of «Bearbeiten» (concept 24).
     expect(screen.getByRole('group', { name: 'Gefahr' })).toContainElement(loss);
-    await waitFor(() => expect(rename).toHaveFocus());
+    expect(screen.queryByRole('menuitem', { name: 'Umbenennen …' })).toBeNull();
+    await waitFor(() => expect(loss).toHaveFocus());
     await user.keyboard('{ArrowDown}');
-    expect(rating).toHaveFocus();
-    await user.keyboard('{ArrowDown}');
-    expect(loss).toHaveFocus();
+    expect(remove).toHaveFocus();
     await user.keyboard('{ArrowUp}');
-    expect(rating).toHaveFocus();
+    expect(loss).toHaveFocus();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     await waitFor(() => expect(more).toHaveFocus());

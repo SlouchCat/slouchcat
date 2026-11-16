@@ -161,7 +161,7 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
 
     expect(
       screen.getByText(
-        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Ordner» mit «Ändern» ein.',
+        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du unter «Bearbeiten» seiner Bibliothek ein.',
       ),
     ).toBeVisible();
     // Seven fold sections, all closed, each header with its summary (concept 24 3.4).
@@ -368,10 +368,17 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
       within(folders).getByText(/^Hörbuch- und Podcast-Ordner haben keine eigenen/),
     ).toBeVisible();
     const user = userEvent.setup();
+    // The row action opens «Bearbeiten» of the library with this folder's card open (4.5).
     await user.click(
-      within(folders).getByRole('button', { name: 'Ordner von Anime öffnen: /media/Anime' }),
+      within(folders).getByRole('button', { name: 'Anime bearbeiten, Ordner /media/Anime' }),
     );
-    expect(await screen.findByRole('dialog', { name: /Anime/ })).toBeVisible();
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    const card = within(dialog).getByRole('listitem', { name: 'Ordner 1' });
+    expect(within(card).getByRole('button', { name: /\/media\/Anime/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await waitFor(() => expect(within(card).getByLabelText('Ordner')).toHaveFocus());
   });
 
   it('adds a language, swaps its place, saves the whole list once and reports the affected titles', async () => {

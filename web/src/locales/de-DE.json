@@ -182,7 +182,8 @@
       "rename": {
         "title": "Bibliothek „{{name}}“ umbenennen",
         "saved": "Die Bibliothek heißt jetzt „{{name}}“."
-      }
+      },
+      "noFolderEdit": "Kein Ordner: Es wird nichts gescannt, bis du unter „Bearbeiten“ einen hinzufügst."
     },
     "maintenance": {
       "hint": {
@@ -478,9 +479,9 @@
       "languages": {
         "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10.000)."
       },
-      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter „Ordner“ mit „Ändern“ ein.",
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du unter „Bearbeiten“ seiner Bibliothek ein.",
       "folders": {
-        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in den Ordnern seiner Bibliothek mit „Ändern“ ein.",
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie unter „Bearbeiten“ seiner Bibliothek ein.",
         "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter „Hörbücher: Quellen“."
       }
     },
@@ -521,6 +522,9 @@
       },
       "review": {
         "intro": "Hörbücher mit mehreren Kandidaten, einer Länge außerhalb der Toleranz oder einer gestörten Quelle. Der Bleistift öffnet den Editor."
+      },
+      "folders": {
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du unter „Bearbeiten“ der Bibliothek."
       }
     },
     "itemDelete": {
