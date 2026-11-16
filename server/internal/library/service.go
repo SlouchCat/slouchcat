@@ -647,7 +647,8 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	titles := map[string]bool{} // the top-level titles that lost a file (rehome, ADR 0036)
+	titles := map[string]bool{}        // the top-level titles that lost a file (rehome, ADR 0036)
+	titleOfItem := map[string]string{} // item id -> its top-level title, read once per chunk
 	for _, id := range ids {
 		mf, err := q.GetMediaFileSystem(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -662,9 +663,12 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		if err := q.DeleteMediaFile(ctx, id); err != nil {
 			return 0, 0, fmt.Errorf("delete media file %s: %w", id, err)
 		}
-		title, err := titleOf(ctx, q, mf.ItemID)
-		if err != nil {
-			return 0, 0, err
+		title, ok := titleOfItem[mf.ItemID]
+		if !ok {
+			if title, err = titleOf(ctx, q, mf.ItemID); err != nil {
+				return 0, 0, err
+			}
+			titleOfItem[mf.ItemID] = title
 		}
 		titles[title] = true
 		n, err := q.SoftDeleteItemWithoutFiles(ctx, systemq.SoftDeleteItemWithoutFilesParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: mf.ItemID})
