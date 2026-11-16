@@ -11,6 +11,8 @@ interface Editing {
   /** Counts the fillings of the form: a new opening and a reload after `stale` start afresh. */
   session: number;
   reloaded: boolean;
+  /** The library as the form is filled with it, out of the cache at the opening or the reload. */
+  library?: Library;
 }
 
 /**
@@ -18,7 +20,9 @@ interface Editing {
  * 4.4, 4.5): `start` opens the form of a library, with the card of `rootId` open (exception 1),
  * and `render` gives the form to put on the page. Each opening mounts the form afresh, so it starts at the
  * library's values; a stale form (409 `stale`) loads the libraries again and is filled anew with
- * the notice that it was.
+ * the notice that it was. The form keeps the library it was filled with while the page's list
+ * refetches; the list only feeds the facts of the folders and the notice that the library changed
+ * elsewhere. A library removed elsewhere keeps the form open, its save answers 404.
  */
 export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSummary) => void): {
   start: (id: number, rootId?: number) => void;
@@ -29,22 +33,35 @@ export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSumma
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [isOpen, setOpen] = useState(false);
-  const start = useCallback((id: number, rootId?: number) => {
-    setEditing((current) => ({
-      id,
-      rootId,
-      session: (current?.session ?? 0) + 1,
-      reloaded: false,
-    }));
-    setOpen(true);
-  }, []);
+  const cached = useCallback(
+    (id: number) =>
+      queryClient
+        .getQueryData<Library[]>(librariesQuery.queryKey)
+        ?.find((entry) => entry.id === id),
+    [queryClient],
+  );
+  const start = useCallback(
+    (id: number, rootId?: number) => {
+      setEditing((current) => ({
+        id,
+        rootId,
+        session: (current?.session ?? 0) + 1,
+        reloaded: false,
+        library: cached(id),
+      }));
+      setOpen(true);
+    },
+    [cached],
+  );
   const render = (libraries: readonly Library[] | undefined) => {
-    const library = libraries?.find((entry) => entry.id === editing?.id);
+    const live = libraries?.find((entry) => entry.id === editing?.id);
+    const library = editing?.library ?? live;
     return library && editing ? (
       <LibraryForm
         key={editing.session}
         mode="edit"
         library={library}
+        live={live}
         openRootId={editing.rootId}
         reloaded={editing.reloaded}
         isOpen={isOpen}
@@ -56,7 +73,12 @@ export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSumma
             .finally(() =>
               setEditing(
                 (current) =>
-                  current && { ...current, session: current.session + 1, reloaded: true },
+                  current && {
+                    ...current,
+                    session: current.session + 1,
+                    reloaded: true,
+                    library: cached(current.id),
+                  },
               ),
             )
             .catch(() => undefined)

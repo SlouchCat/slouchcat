@@ -2004,6 +2004,8 @@
         "pathAndContent": "Pfad und Inhalt dieses Ordners lassen sich nicht in einem Schritt ändern. Speichere zuerst das eine, dann das andere.",
         "pathHint": "Der neue Pfad gilt nach dem Speichern. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen.",
         "reloaded": "Die Bibliothek wurde inzwischen anderswo geändert. Das Formular zeigt jetzt ihren neuen Stand; deine Änderungen sind nicht gespeichert.",
+        "changedElsewhere": "Die Bibliothek wurde inzwischen anderswo geändert. Beim Speichern lädt das Formular ihren neuen Stand; deine Änderungen werden dann nicht gespeichert.",
+        "gone": "Diese Bibliothek gibt es nicht mehr. Es wurde nichts gespeichert.",
         "scanRunning": "Entfernen, ein anderer Inhalt und ein neuer Pfad warten, bis der Scan fertig ist. Deine Eingaben bleiben stehen.",
         "scanCancelled": "Der Scan ist abgebrochen. Speichere jetzt noch einmal.",
         "discard": {

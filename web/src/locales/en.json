@@ -2004,6 +2004,8 @@
         "pathAndContent": "The path and the content of this folder cannot change in one step. Save one first, then the other.",
         "pathHint": "The new path applies once you save. Titles and user data stay when the files lie there under the same names.",
         "reloaded": "The library was changed elsewhere in the meantime. The form now shows its new state; your changes were not saved.",
+        "changedElsewhere": "The library was changed elsewhere in the meantime. Saving loads its new state into the form; your changes are not saved then.",
+        "gone": "This library no longer exists. Nothing was saved.",
         "scanRunning": "Removing, another content and a new path wait until the scan is done. Your input stays.",
         "scanCancelled": "The scan is cancelled. Save again now.",
         "discard": {

@@ -163,8 +163,14 @@ interface AddProps {
 
 interface EditProps {
   mode: 'edit';
-  /** The library as the page has it; the page mounts the form afresh at each opening. */
+  /**
+   * The library the form is filled with; the page mounts the form afresh at each opening. The form
+   * keeps it while the page's list refetches: the revision it sends and every comparison (what
+   * changed, what needs a confirmation) stay with what the reader saw.
+   */
   library: Library;
+  /** The library as the page's list has it now (absent: removed elsewhere), for the facts only. */
+  live?: Library;
   /** The folder whose card is open at first (the pencil on «Hörbuch-Quellen», exception 1). */
   openRootId?: number;
   /** The form was filled anew because the library changed elsewhere (409 `stale`). */
@@ -194,8 +200,10 @@ export function LibraryForm(props: LibraryFormProps) {
 /** The fields both forms share, in the order of table 4.1. */
 interface FieldsProps {
   isEdit: boolean;
-  /** The stored library on edit: its folders' facts, the hints of a change, the estimate. */
+  /** The stored library on edit, as the form was filled: the hints of a change, the estimate. */
   library?: Library;
+  /** The library as the page has it now: the facts of its folders (titles, files, watch). */
+  live?: Library;
   kind: LibraryKind;
   onKindChange: (kind: LibraryKind) => void;
   name: string;
@@ -227,6 +235,7 @@ const TRICKPLAY = ' trickplay';
 function LibraryFormFields({
   isEdit,
   library,
+  live,
   kind,
   onKindChange,
   name,
@@ -337,7 +346,8 @@ function LibraryFormFields({
           />
         )}
         pathAddon={(folder) => {
-          const root = library && storedRoot(library, folder.key);
+          const root =
+            library && ((live && storedRoot(live, folder.key)) ?? storedRoot(library, folder.key));
           return root ? <RootFacts root={root} /> : null;
         }}
         cardAddon={(folder, cardName) => {
@@ -578,7 +588,8 @@ interface Refusal {
  * changes ask «Änderungen verwerfen?»; there is no kept draft of an edit.
  */
 function EditLibraryForm({
-  library,
+  library: opened,
+  live,
   openRootId,
   reloaded,
   isOpen,
@@ -588,6 +599,9 @@ function EditLibraryForm({
 }: EditProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  // The library as the form was filled with it (finding of the review: the list refetches while
+  // the form is open). A change elsewhere is shown, and the save answers 409 `stale` for it.
+  const [library] = useState(opened);
   const [state, setState] = useState<LibraryFormState>(() => editState(library));
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
@@ -604,6 +618,7 @@ function EditLibraryForm({
   const confirmations = confirmationsOf(library, state, marked);
   const kept = state.folders.filter((folder) => !marked.has(folder.key));
   const listError = folderListError(t, kept, providers.data);
+  const changedElsewhere = live !== undefined && live.revision !== library.revision;
 
   const open = (keys: readonly string[]) =>
     setExpanded((current) => new Set([...current, ...keys]));
@@ -699,8 +714,13 @@ function EditLibraryForm({
     : {};
   const refused = refusal?.error;
   const scanRunning = isApiError(refused) && refused.code === 'scan_running';
+  // 404: the library was removed elsewhere while the form was open.
   const formMessage =
-    refusal && !scanRunning && !confirming ? formErrors(t, refusal.error).form : null;
+    refusal && !scanRunning && !confirming
+      ? isApiError(refused, 404)
+        ? t('admin.libraries.form.gone')
+        : formErrors(t, refusal.error).form
+      : null;
   const requestClose = () => {
     if (dirty) setAsking(true);
     else onOpenChange(false);
@@ -724,6 +744,7 @@ function EditLibraryForm({
         <LibraryFormFields
           isEdit
           library={library}
+          live={live}
           kind={library.kind}
           onKindChange={() => undefined}
           name={state.name}
@@ -750,6 +771,9 @@ function EditLibraryForm({
           notices={
             <>
               {reloaded && <Notice tone="warning">{t('admin.libraries.form.reloaded')}</Notice>}
+              {changedElsewhere && (
+                <Notice tone="warning">{t('admin.libraries.form.changedElsewhere')}</Notice>
+              )}
               {formMessage && <Notice tone="danger">{formMessage}</Notice>}
             </>
           }

@@ -395,6 +395,93 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Kino');
   });
 
+  it('keeps the library it was filled with while the list changes elsewhere: a removed folder is no new one', async () => {
+    let current: Library = withTwoFolders;
+    const { calls } = mockApi(
+      routes([], {
+        'GET /admin/libraries': () => json([current]),
+        'PUT /admin/libraries/1': () => problem(409, 'stale'),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    let dialog = await openEdit(user);
+    // Another admin removes the second folder; the page's list refetches.
+    current = library({ revision: 'rev-2' });
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'libraries'] });
+    expect(
+      await within(dialog).findByText(/Beim Speichern lädt das Formular ihren neuen Stand/),
+    ).toBeVisible();
+    // The card of the removed folder is still the stored one, with nothing «geändert».
+    expect(within(cardOf(dialog, 2)).queryByText('geändert')).toBeNull();
+    const card = cardOf(dialog, 1);
+    await openCard(user, card);
+    await user.click(await within(card).findByRole('checkbox', { name: 'AniList' }));
+    await user.click(saveOf(dialog));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    // No confirmation, the loaded revision and both stored folders by id: the server says stale.
+    expect(puts(calls)[0]?.body).toMatchObject({
+      revision: 'rev-1',
+      roots: [{ id: 1 }, { id: 2, path: '/media/Filme-2' }],
+      removeRoots: [],
+    });
+    expect(await screen.findByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeVisible();
+    dialog = screen.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    expect(within(dialog).queryByRole('listitem', { name: 'Ordner 2' })).toBeNull();
+  });
+
+  it('a rename elsewhere is not reverted: the save carries the loaded revision and reaches 409 stale', async () => {
+    let current = library();
+    const { calls } = mockApi(
+      routes([], {
+        'GET /admin/libraries': () => json([current]),
+        'PUT /admin/libraries/1': () => problem(409, 'stale'),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    let dialog = await openEdit(user);
+    current = library({ name: 'Kino', revision: 'rev-2' });
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'libraries'] });
+    await within(dialog).findByText(/Beim Speichern lädt das Formular ihren neuen Stand/);
+    // The form still shows what the reader loaded.
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme');
+    const card = cardOf(dialog, 1);
+    await openCard(user, card);
+    await user.click(await within(card).findByRole('checkbox', { name: 'AniList' }));
+    await user.click(saveOf(dialog));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    expect(puts(calls)[0]?.body).toMatchObject({ revision: 'rev-1', name: 'Filme' });
+    expect(await screen.findByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeVisible();
+    dialog = screen.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Kino');
+  });
+
+  it('a library removed elsewhere keeps the form open; its save says the library is gone', async () => {
+    let current: Library[] = [library()];
+    mockApi(
+      routes([], {
+        'GET /admin/libraries': () => json(current),
+        'PUT /admin/libraries/1': () => problem(404, 'not_found'),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    current = [];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'libraries'] });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Filme' })).toBeNull());
+    expect(dialog).toBeInTheDocument();
+    await user.click(saveOf(dialog));
+    expect(
+      await within(dialog).findByText(
+        'Diese Bibliothek gibt es nicht mehr. Es wurde nichts gespeichert.',
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme neu');
+  });
+
   it('409 scan_running keeps the confirmation with every input and offers «Scan abbrechen»', async () => {
     const { calls } = mockApi(
       routes([withTwoFolders], {
