@@ -35,6 +35,11 @@ Grenze der sichtbaren Reihen. Vertrag bleibt 1.40.0 (nur Beschreibungen von `get
 - **Nicht geändert, schon vorher so:** Löscht der Job die Reihe zwischen Lesen und Schreiben eines
   Speicherns, antwortet der Server mit einem Fehler (Wettlauf in einem sehr kurzen Fenster, vom
   Prüfer am Code gefunden, nicht nachgestellt).
+- **Geprüft:** gezielte Tests (`go test ./internal/admin -run 'TestHomeRows|TestMyMedia'`, die
+  Vertragstests), unabhängige Code-Prüfung in zwei Lesungen (beide bestanden; die Befunde der
+  ersten sind eingearbeitet: gespeicherter Schalter, Wortlaut, drei Testfälle), `task ci` grün auf
+  `89b13d29` (43 Go-Pakete, 2200 Vitest-Tests, Storybook 562, e2e 727). Danach nur noch Wortlaut
+  (Beschreibung von `getHomeRows`, ein Testkommentar, eine Testmeldung) mit `task check:fast`.
 
 ## Release 1.40.0: Konzept 24 «Metadaten pro Ordner», ein Formular je Bibliothek, Klappbares zu, mehr Kontrast (16. November 2026, veröffentlicht: PR #176 `d8125392`, Tag `v1.40.0`, Lauf 43950610784, abgenommen)
 
