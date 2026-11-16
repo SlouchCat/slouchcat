@@ -58,8 +58,13 @@
   color: var(--sc-color-text-primary);
 }
 
+/* The selected tab: raised and ringed in the accent, at least 3:1 (concept 24, Z-3). */
 .tab[data-selected] {
   background-color: var(--sc-color-surface-3);
+
+  --sc-selected-ring: inset 0 0 0 1px var(--sc-accent);
+
+  box-shadow: var(--sc-selected-ring);
   color: var(--sc-color-text-primary);
 }
 

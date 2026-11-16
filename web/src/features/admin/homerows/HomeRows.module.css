@@ -69,7 +69,7 @@
   gap: var(--sc-space-1);
   margin: 0;
   padding: var(--sc-space-3);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-base);
   list-style: none;

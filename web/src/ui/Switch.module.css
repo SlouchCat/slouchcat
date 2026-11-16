@@ -22,18 +22,16 @@
   outline-offset: var(--sc-focus-ring-offset);
 }
 
-.switch[data-disabled] {
-  cursor: default;
-  opacity: 0.45;
-}
-
 .track {
   display: inline-flex;
   flex: none;
   align-items: center;
   width: calc(var(--sc-space-6) * 2);
   height: var(--sc-space-6);
-  padding: var(--sc-space-1);
+
+  /* The outline (concept 24, Z-3) takes 1 px of the padding, so the handle travels as before. */
+  padding: calc(var(--sc-space-1) - 1px);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-3);
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
@@ -50,10 +48,26 @@
 }
 
 .switch[data-selected] .track {
+  border-color: var(--sc-accent);
   background-color: var(--sc-accent);
 }
 
 .switch[data-selected] .handle {
   background-color: var(--sc-on-accent);
   transform: translateX(var(--sc-space-6));
+}
+
+/* Disabled (concept 24, Z-5): a dashed track without fill, the label muted, no paleness. */
+.switch[data-disabled] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+.switch[data-disabled] .track {
+  border-style: dashed;
+  background-color: transparent;
+}
+
+.switch[data-disabled] .handle {
+  background-color: var(--sc-color-text-muted);
 }

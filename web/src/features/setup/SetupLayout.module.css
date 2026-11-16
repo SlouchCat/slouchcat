@@ -135,7 +135,7 @@
   min-height: var(--sc-control-height);
   max-width: 100%;
   padding: 0 var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);

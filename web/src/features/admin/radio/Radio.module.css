@@ -31,7 +31,7 @@
   flex-direction: column;
   gap: var(--sc-space-2);
   padding: var(--sc-panel-padding);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-panel-radius);
   background-color: var(--sc-color-surface-1);
 }
@@ -71,7 +71,7 @@
 
   /* The mockup's filter bar over the list: a framed strip on the card's ground (plan 2.7, 5). */
   padding: var(--sc-space-3) var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-elevated);
 }
@@ -219,7 +219,7 @@
   flex-direction: column;
   gap: var(--sc-space-3);
   padding: var(--sc-panel-padding);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-panel-radius);
   background-color: var(--sc-color-surface-1);
 }
@@ -301,7 +301,7 @@
   justify-content: space-between;
   gap: var(--sc-space-2) var(--sc-space-4);
   padding: var(--sc-space-3) var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-bg-elevated);
 }

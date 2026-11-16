@@ -141,7 +141,7 @@
   align-items: center;
   min-height: var(--sc-space-8);
   padding: 0 var(--sc-space-3);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-secondary);
@@ -168,7 +168,7 @@
 
 .kbd {
   padding: 0 var(--sc-space-1);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-sm);
   color: var(--sc-color-text-muted);
   font-family: var(--sc-font-family-mono);

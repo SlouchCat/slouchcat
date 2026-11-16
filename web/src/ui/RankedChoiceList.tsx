@@ -89,7 +89,7 @@ export function RankedChoiceList({
   const free = freeChoices.find((entry) => entry.value !== '') ?? freeChoices[0];
 
   return (
-    <div className={isDisabled ? `${styles.list} ${styles.disabled}` : styles.list}>
+    <div className={styles.list}>
       <ol className={styles.places}>
         {value.map((choice, index) => {
           const selectId = `${id}-${index}`;

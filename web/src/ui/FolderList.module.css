@@ -28,7 +28,7 @@
   gap: var(--sc-space-4);
   min-width: 0;
   padding: var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-frame);
   border-left: var(--sc-space-1) solid var(--sc-accent);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);

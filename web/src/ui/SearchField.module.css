@@ -31,7 +31,7 @@
   width: 100%;
   min-height: calc(var(--sc-size-control-height) + var(--sc-space-2));
   padding: 0 var(--sc-space-5);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);

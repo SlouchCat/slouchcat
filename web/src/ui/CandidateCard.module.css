@@ -2,8 +2,11 @@
   display: flex;
   gap: var(--sc-space-3);
   width: 100%;
-  padding: var(--sc-space-2);
-  border: 0;
+
+  /* A control: outlined at 3:1 (concept 24, Z-3); the outline takes 1 px of the padding, so the
+     card keeps its size. */
+  padding: calc(var(--sc-space-2) - 1px);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);
@@ -13,9 +16,12 @@
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
+/* Disabled (concept 24, Z-5): dashed without fill, the text muted, no paleness. */
 .card:disabled {
+  border-style: dashed;
+  background-color: transparent;
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.6;
 }
 
 .card:hover:not(:disabled) {

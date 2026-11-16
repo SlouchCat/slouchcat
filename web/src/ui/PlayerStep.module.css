@@ -4,10 +4,14 @@
   display: inline-flex;
 }
 
-/* Greyed in place: still focusable, its fill does not answer the pointer. */
+/* Disabled in place (concept 24, Z-5): still focusable, dashed without fill, the label muted;
+   its fill does not answer the pointer. */
 .step > button[aria-disabled='true'] {
+  border-style: dashed;
+  border-color: var(--sc-color-border-control);
+  background-color: transparent;
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.45;
 }
 
 @media (hover: hover) {

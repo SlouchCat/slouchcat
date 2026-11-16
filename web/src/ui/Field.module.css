@@ -35,7 +35,7 @@
   width: 100%;
   min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-4);
-  border: 1px solid var(--sc-color-border-subtle);
+  border: 1px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);
@@ -91,8 +91,13 @@
   align-self: flex-start;
   gap: var(--sc-space-1);
   padding: var(--sc-space-1);
+
+  /* Outlined at 3:1 (concept 24, Z-3) as a ring that takes no room: the density stays. */
+  --sc-segments-ring: inset 0 0 0 1px var(--sc-color-border-control);
+
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-1);
+  box-shadow: var(--sc-segments-ring);
 }
 
 .segment {
@@ -118,13 +123,21 @@
   color: var(--sc-color-text-primary);
 }
 
+/* Disabled (concept 24, Z-5): dashed, muted, no paleness; never focused, so the outline is free. */
 .segment[data-disabled] {
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.45;
+  outline: 1px dashed var(--sc-color-border-control);
+  outline-offset: -1px;
 }
 
+/* The selected segment: raised and ringed in the accent (concept 24, Z-3). */
 .segment[data-selected] {
   background-color: var(--sc-color-surface-3);
+
+  --sc-selected-ring: inset 0 0 0 1px var(--sc-accent);
+
+  box-shadow: var(--sc-selected-ring);
   color: var(--sc-color-text-primary);
 }
 
@@ -158,11 +171,6 @@
   color: var(--sc-color-text-primary);
 }
 
-.radio[data-disabled] {
-  cursor: default;
-  opacity: 0.45;
-}
-
 .radio[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
@@ -175,7 +183,7 @@
   justify-content: center;
   width: var(--sc-space-4);
   height: var(--sc-space-4);
-  border: 2px solid var(--sc-color-text-muted);
+  border: 2px solid var(--sc-color-border-control);
   border-radius: var(--sc-radius-full);
   transition: border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
@@ -196,4 +204,15 @@
 
 .radio[data-selected] .dot::after {
   transform: scale(1);
+}
+
+/* Disabled (concept 24, Z-5): a dashed ring, the label muted, no paleness. */
+.radio[data-disabled] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+.radio[data-disabled] .dot {
+  border-style: dashed;
+  border-color: var(--sc-color-border-control);
 }

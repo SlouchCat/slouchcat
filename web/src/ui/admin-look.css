@@ -13,11 +13,12 @@
  *
  * Colours only from tokens: tints are the state colours mixed like the pills of the sidebar
  * (16 % behind text in the tone, here on bg-elevated: AdminSideNav.test.tsx checks warning and
- * danger on that ground; success reads 6.9:1).
+ * danger on that ground; success reads 6.9:1). Frames take border.frame (concept 24, Z-2); a
+ * state's own frame is its colour at 70 %, at least 3:1 against its tinted ground.
  */
 :root[data-shell='admin'] :is(#content, [data-density='compact']) {
   /* .card: a fine frame around a panel. */
-  --sc-panel-border: 1px solid var(--sc-color-border-subtle);
+  --sc-panel-border: 1px solid var(--sc-color-border-frame);
 
   /* .cardhead: the head of a BandPanel on the card's own ground, the title in the text colour. */
   --sc-band-background: transparent;
@@ -28,7 +29,7 @@
 
   /* .stat: framed on the card's ground, the radius of a card. */
   --sc-stat-background: var(--sc-color-bg-elevated);
-  --sc-stat-border: 1px solid var(--sc-color-border-subtle);
+  --sc-stat-border: 1px solid var(--sc-color-border-frame);
   --sc-stat-radius: var(--sc-radius-lg);
 
   /* .badge: the state's colour on its tint, opaque, so it reads on a cover as on a card. */
@@ -38,35 +39,38 @@
     var(--sc-color-bg-elevated)
   );
   --sc-chip-warning-color: var(--sc-color-state-warning);
+  --sc-chip-warning-border: color-mix(in srgb, var(--sc-color-state-warning) 70%, transparent);
   --sc-chip-danger-background: color-mix(
     in srgb,
     var(--sc-color-state-danger) 16%,
     var(--sc-color-bg-elevated)
   );
   --sc-chip-danger-color: var(--sc-color-state-danger);
+  --sc-chip-danger-border: color-mix(in srgb, var(--sc-color-state-danger) 70%, transparent);
   --sc-chip-success-background: color-mix(
     in srgb,
     var(--sc-color-state-success) 16%,
     var(--sc-color-bg-elevated)
   );
   --sc-chip-success-color: var(--sc-color-state-success);
+  --sc-chip-success-border: color-mix(in srgb, var(--sc-color-state-success) 70%, transparent);
 
   /* .callout: framed, a warning or a danger tinted. */
-  --sc-notice-border: 1px solid var(--sc-color-border-subtle);
+  --sc-notice-border: 1px solid var(--sc-color-border-frame);
   --sc-notice-warning-background: color-mix(
     in srgb,
     var(--sc-color-state-warning) 6%,
     var(--sc-color-surface-1)
   );
   --sc-notice-warning-border: 1px solid
-    color-mix(in srgb, var(--sc-color-state-warning) 25%, transparent);
+    color-mix(in srgb, var(--sc-color-state-warning) 70%, transparent);
   --sc-notice-danger-background: color-mix(
     in srgb,
     var(--sc-color-state-danger) 6%,
     var(--sc-color-surface-1)
   );
   --sc-notice-danger-border: 1px solid
-    color-mix(in srgb, var(--sc-color-state-danger) 25%, transparent);
+    color-mix(in srgb, var(--sc-color-state-danger) 70%, transparent);
 
   /* .btn: rounded corners, the main action in the profile's accent. */
   --sc-button-radius: var(--sc-radius-md);

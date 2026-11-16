@@ -33,9 +33,13 @@
   color: var(--sc-color-bg-base);
 }
 
+/* A letter without titles (concept 24, Z-5): dashed and muted, no paleness; never focused, so
+   the outline is free. */
 .letter:disabled {
+  color: var(--sc-color-text-muted);
   cursor: default;
-  opacity: 0.3;
+  outline: 1px dashed var(--sc-color-border-control);
+  outline-offset: -1px;
 }
 
 @media (hover: hover) {
