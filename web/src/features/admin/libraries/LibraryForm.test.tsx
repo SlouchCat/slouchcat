@@ -543,7 +543,7 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
       expect(langs).toHaveAccessibleDescription('Standard: Deutsch › Englisch');
       const images = within(card).getByRole('radiogroup', { name: 'Bilder' });
       expect(images).toHaveAccessibleDescription(
-        'Standard: Poster, Hintergrund, Logo, Staffelposter und Folgenbild',
+        'Standard: Poster, Hintergrund, Logo, Staffelposter und Folgenbild. Sprache je Bildart: Poster: Deutsch › Englisch › Ohne Text, Hintergrund: Ohne Text › Deutsch › Englisch und Logo: Deutsch › Englisch.',
       );
       expect(within(card).queryByRole('group', { name: 'Metadaten-Sprachen' })).toBeNull();
 
