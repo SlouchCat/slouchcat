@@ -720,6 +720,41 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     );
   });
 
+  it('the fold-out names the languages and images of each video folder, read-only (concept 24 4.4)', async () => {
+    const video = library({
+      roots: [
+        library().roots[0]!,
+        {
+          ...library().roots[0]!,
+          id: 2,
+          path: '/media/Anime',
+          content: 'series',
+          textLangs: ['ja', 'en'],
+          images: { langs: {}, kinds: [] },
+        },
+      ],
+    });
+    const audio = library({
+      id: 3,
+      name: 'Hörbücher',
+      kind: 'audiobooks',
+      roots: [{ ...library().roots[0]!, id: 3, path: '/media/Hoerbuecher', content: 'audiobook' }],
+    });
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([video, audio]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const detail = await openRow(user, 'Filme');
+    const [plain, own] = within(detail).getAllByRole('listitem');
+    expect(plain).toHaveTextContent('Sprachen: Standard');
+    expect(plain).toHaveTextContent('Bilder: Standard');
+    expect(own).toHaveTextContent('Sprachen: Japanisch › Englisch');
+    expect(own).toHaveTextContent('Bilder: eigene');
+    // Nothing to change here: the folders dialog edits them.
+    expect(within(detail).queryByRole('radio', { name: 'Eigene' })).toBeNull();
+    // The column «Metadaten» is gone (concept 24 4.4).
+    expect(screen.queryByRole('columnheader', { name: 'Metadaten' })).toBeNull();
+  });
+
   it('cancels a running scan; a cancelled scan has its own text and no loss action', async () => {
     const running = library({
       scan: { state: 'running', itemCount: 3, fileCount: 4, filesSeen: 40, filesTotal: 100 },

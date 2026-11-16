@@ -5,6 +5,7 @@ import { paths } from '@/app/paths';
 import { Chip, Notice, ProgressBar, TextLink } from '@/ui';
 import { ActionMenu, AriaButton, providerChain, type ActionMenuItem } from '@/ui/aria';
 import { isAudioLibrary } from '../../shared/LibraryFields';
+import { useFolderMetadataText } from '../metadata/languages';
 import { canScan, isScanning } from '../queries';
 import { canAcceptLoss, errorText, hasScanError, watchKeys } from './libraryColumns';
 import styles from './Libraries.module.css';
@@ -211,13 +212,15 @@ function TrickplaySummary({ setting }: { setting: LibraryTrickplay }) {
 }
 
 /**
- * Every folder of the library with its whole path, content, provider list, file system, network
- * warning, watch mode and counts (BIB-2). Adding, changing and removing stay in the folders
+ * Every folder of the library with its whole path, content, provider list, the languages and
+ * images of a video folder (the default or its own, read-only, concept 24 4.4), file system,
+ * network warning, watch mode and counts (BIB-2). Adding, changing and removing stay in the folders
  * dialog (BIB-5). A library without a folder says why: podcasts take their titles from feeds, a
  * video or audio library that lost its last folder scans nothing (idea 02, E13).
  */
 function Folders({ library }: { library: Library }) {
   const { t } = useTranslation();
+  const metadata = useFolderMetadataText();
   return (
     <div className={styles.roots}>
       <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
@@ -238,6 +241,12 @@ function Folders({ library }: { library: Library }) {
                   <Chip tone="outline">{t(`library.content.${root.content}`)}</Chip>
                 )}
                 <span className={styles.muted}>{providerChain(t, root.providers)}</span>
+                {library.kind === 'video' && (
+                  <>
+                    <span className={styles.muted}>{metadata.langs(root)}</span>
+                    <span className={styles.muted}>{metadata.images(root)}</span>
+                  </>
+                )}
                 <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
                 {root.warning === 'network_share' && (
                   <Chip tone="warning" icon="warning">
