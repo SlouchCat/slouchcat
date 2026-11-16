@@ -16,8 +16,8 @@ import (
 
 // Metadata settings (concept 10 section 4.1, ADR 0018, decision 16): twelve keys in the settings
 // table under metadata.*, read through Settings with a default for every missing key, so an
-// absent key is never an error. The server default is the effective setting of every library
-// until step 3 adds the deviation per library (library_metadata, Effective).
+// absent key is never an error. The server default is the effective setting of every title whose
+// home folder has no own languages and images (concept 24, ADR 0036; Effective).
 //
 // Language codes are BCP-47 with an optional region (de, en, pt-BR, zh-TW; E-10) and are checked
 // against the static list in languages.go, never fetched. Every effective text language list
@@ -54,7 +54,7 @@ var ChainImageKinds = []string{"poster", "backdrop", "logo"}
 var MinWidthImageKinds = []string{"poster", "backdrop"}
 
 // Settings are the resolved metadata settings: the server default, or the server default with
-// the deviation of one library applied (Effective).
+// the own settings of a title's home folder applied (Effective).
 type Settings struct {
 	// TextLangs is the ordered list of the languages every provider delivers for every title;
 	// the position is the rank written to item_texts.rank.

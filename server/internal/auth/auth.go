@@ -64,7 +64,7 @@ type Service struct {
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
 
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
-	// ADR 0018: the union of the server's and every library's list); nil = de and en.
+	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
 	metadataLanguages func(ctx context.Context) ([]string, error)
 }
 
