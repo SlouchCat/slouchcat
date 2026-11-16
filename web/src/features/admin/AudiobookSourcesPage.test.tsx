@@ -193,6 +193,29 @@ describe('AudiobookSourcesPage', () => {
     expect(screen.getByRole('combobox', { name: 'Region von Audible' })).toHaveValue('com');
   });
 
+  it('offers every tolerance from 1 to 10 % and saves one of them', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PATCH /admin/metadata/audiobooks': () => json(sources({ tolerancePercent: 7 })),
+      }),
+    );
+    const user = userEvent.setup();
+    await openPage();
+    const tolerance = await screen.findByRole('radiogroup', { name: 'Länge darf abweichen um' });
+    const radios = within(tolerance).getAllByRole('radio');
+    expect(radios).toHaveLength(10);
+    radios.forEach((radio, index) => expect(radio).toHaveAccessibleName(`${index + 1} %`));
+    expect(within(tolerance).getByRole('radio', { name: '3 %' })).toBeChecked();
+    await user.click(within(tolerance).getByRole('radio', { name: '7 %' }));
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        tolerancePercent: 7,
+      }),
+    );
+    expect(await screen.findByText('Einstellungen für Hörbücher gespeichert.')).toBeInTheDocument();
+  });
+
   it('shows the server’s field error of the Audnexus address', async () => {
     mockApi(
       routes({

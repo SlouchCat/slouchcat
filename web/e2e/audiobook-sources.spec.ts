@@ -133,7 +133,7 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   await expect(all).toBeChecked();
   const three = page.getByRole('radio', { name: '3 %' });
   await tabTo(page, three, 4);
-  await arrowAndBack(page, three, page.getByRole('radio', { name: '5 %' }));
+  await arrowAndBack(page, three, page.getByRole('radio', { name: '4 %' }));
   await expectVisibleFocus(page);
   // A switch toggles with Space.
   const authors = page.getByRole('switch', { name: 'Autorennamen vereinheitlichen' });
