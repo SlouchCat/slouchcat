@@ -30,10 +30,13 @@ SELECT retention_days FROM picks_config WHERE id = 1;
 -- Home rows (stream B1): the order and visibility of the start page rows (E-9, concept 15 P-7).
 -- A row is named by its id: the key for the fixed rows, 'library:<id>' for a library row
 -- (migration 00035). The administration rewrites the positions in one transaction. A library
--- row carries the name of its library (the row title "Neu in ...").
+-- row carries the name of its library (the row title "Neu in ...") and its deleting mark
+-- (library.delete): the administration's read leaves such a row out but keeps it in the stored
+-- order.
 
 -- name: ListHomeRows :many
-SELECT h.id, h.key, h.library_id, COALESCE(l.name, '') AS library_name, h.position, h.hidden, h.updated_at
+SELECT h.id, h.key, h.library_id, COALESCE(l.name, '') AS library_name, h.position, h.hidden, h.updated_at,
+       l.deleting_at AS library_deleting_at
 FROM home_rows AS h
 LEFT JOIN libraries AS l ON l.id = h.library_id
 ORDER BY h.position, h.id;
