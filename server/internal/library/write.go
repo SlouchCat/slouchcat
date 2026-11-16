@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -245,6 +247,10 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *library
 			return 0, err
 		}
 	}
+	moved, err := rehomeAll(ctx, w.q, now, w.touchedTitles())
+	if err != nil {
+		return 0, err
+	}
 	if prog != nil {
 		if err := appq.New(tx).SetLibraryScanProgress(ctx, appq.SetLibraryScanProgressParams{Seen: int64(prog.seen), Total: int64(prog.total), Now: w.ms, ID: lib.ID}); err != nil {
 			return 0, fmt.Errorf("set scan progress: %w", err)
@@ -258,6 +264,9 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *library
 	s.finishAudiobooks(ctx, w.books)
 	s.noteAdoptedPodcasts(ctx, lib.ID, w.adopted)
 	s.announceEpisodes(ctx, lib.ID, w.episodes)
+	if moved > 0 {
+		s.log.InfoContext(ctx, "titles moved to another home folder", "library_id", lib.ID, "titles", moved)
+	}
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
 	}
@@ -288,8 +297,8 @@ func (s *Service) announceEpisodes(ctx context.Context, libraryID int64, ids []s
 // batchWriter writes the operations of one batch in its transaction. The item index learns every
 // item it creates, so later files of the same title attach to it; a failed transaction fails the
 // whole scan, so the index never outlives a rollback. root is the folder of the operation being
-// written: its content picks the parser's reading and the index, its provider list goes on every
-// title the operation creates (ADR 0015).
+// written: its content picks the parser's reading and the index, its provider list and its id as
+// the home folder go on every title the operation creates (ADR 0015, ADR 0036).
 type batchWriter struct {
 	q        *systemq.Queries
 	lib      appq.Library
@@ -304,6 +313,28 @@ type batchWriter struct {
 	books    map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
 	episodes []string        // episode items created in this batch (Service.newEpisodes)
 	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
+	touched  map[string]bool // top-level titles whose files the batch wrote (rehome, ADR 0036)
+}
+
+// touch records the top-level title of item id (itself or its parent or grandparent in the index):
+// its home folder is determined again at the end of the batch (rehome).
+func (w *batchWriter) touch(id string) {
+	for range 2 {
+		p, ok := w.ix().parent[id]
+		if !ok {
+			break
+		}
+		id = p
+	}
+	if w.touched == nil {
+		w.touched = map[string]bool{}
+	}
+	w.touched[id] = true
+}
+
+// touchedTitles returns the touched titles in a fixed order.
+func (w *batchWriter) touchedTitles() []string {
+	return slices.Sorted(maps.Keys(w.touched))
 }
 
 // scannedBefore reports whether the scan before this one completed (concept 13 11.6, «after the
@@ -343,6 +374,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		if w.root.Content == model.RootAudiobook {
 			w.touchBook(itemID)
 		}
+		w.touch(itemID)
 		fileID := w.newID()
 		if _, err := q.InsertMediaFile(ctx, systemq.InsertMediaFileParams{
 			ID: fileID, ItemID: itemID, RootID: op.rs.root.ID, RelPath: op.disk.rel,
@@ -371,6 +403,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("update media file: %w", err)
 		}
+		w.touch(op.known.ItemID)
 		if title := w.ix().title(op.known.ItemID, model.TitleKindOfContent(w.root.Content)); title != "" {
 			w.ix().addFolder(title, fileFolderKey(w.root.Content, op.rs.root.ID, op.disk.rel, op.disk.parsed))
 		}
@@ -389,6 +422,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		if err := q.SetMediaFileMissing(ctx, systemq.SetMediaFileMissingParams{Now: w.ms, ID: op.known.ID}); err != nil {
 			return fmt.Errorf("mark media file missing: %w", err)
 		}
+		w.touch(op.known.ItemID)
 		w.stats.missing++
 	}
 	return nil
@@ -436,8 +470,10 @@ func (w *batchWriter) restore(ctx context.Context, id string, force bool) error 
 	return nil
 }
 
+// insert creates an item. A new title takes the folder being read as its home folder and that
+// folder's provider list; a child takes both from its parent (InsertItem, ADR 0036).
 func (w *batchWriter) insert(ctx context.Context, p systemq.InsertItemParams) error {
-	p.LibraryID, p.Now, p.Providers = w.lib.ID, w.ms, w.root.Providers
+	p.LibraryID, p.Now, p.Providers, p.RootID = w.lib.ID, w.ms, w.root.Providers, w.root.ID
 	if _, err := w.q.InsertItem(ctx, p); err != nil {
 		return fmt.Errorf("insert %s item: %w", p.Kind, err)
 	}

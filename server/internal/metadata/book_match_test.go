@@ -49,8 +49,8 @@ func (e *bookEnv) setFolderSources(t *testing.T, providers ...string) {
 	mustExec(t, e.db.Write, `UPDATE library_roots SET providers = ? WHERE id = ?`, string(raw), bookRoot)
 }
 
-// addBook inserts a book as the scan leaves it: the columns, a text row in its language and in en
-// (with the files' provenance), and one part.
+// addBook inserts a book as the scan leaves it: the columns with the book folder as its home folder
+// (ADR 0036), a text row in its language and in en (with the files' provenance), and one part.
 func (e *bookEnv) addBook(t *testing.T, b bookSeed) {
 	t.Helper()
 	if b.lang == "" {
@@ -67,9 +67,9 @@ func (e *bookEnv) addBook(t *testing.T, b bookSeed) {
 		return s
 	}
 	mustExec(t, e.db.Write, `INSERT INTO items (id, kind, library_id, title, sort_title, genres, author, narrator, publisher, asin, isbn,
-	                         original_language, duration_ms, providers, metadata_state, added_at, created_at, updated_at)
-	                         VALUES (?, 'audiobook', ?, ?, lower(?), '{"de":[],"en":[]}', ?, ?, ?, ?, ?, ?, ?, '["local"]', 'matched', 0, 0, 0)`,
-		b.id, bookLibrary, b.title, b.title, null(b.author), null(b.narrator), null(b.publisher), null(b.asin), null(b.isbn), b.lang, duration)
+	                         original_language, duration_ms, providers, root_id, metadata_state, added_at, created_at, updated_at)
+	                         VALUES (?, 'audiobook', ?, ?, lower(?), '{"de":[],"en":[]}', ?, ?, ?, ?, ?, ?, ?, '["local"]', ?, 'matched', 0, 0, 0)`,
+		b.id, bookLibrary, b.title, b.title, null(b.author), null(b.narrator), null(b.publisher), null(b.asin), null(b.isbn), b.lang, duration, bookRoot)
 	for _, l := range []string{b.lang, "en"} {
 		mustExec(t, e.db.Write, `INSERT OR IGNORE INTO item_texts (item_id, lang, title, sort_key, rank) VALUES (?, ?, ?, lower(?), 0)`, b.id, l, b.title, b.title)
 		mustExec(t, e.db.Write, `INSERT OR IGNORE INTO item_field_sources (item_id, field, lang, provider) VALUES (?, 'title', ?, 'local')`, b.id, l)

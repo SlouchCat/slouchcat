@@ -400,10 +400,11 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 const podcastInsertEpisode = `-- name: PodcastInsertEpisode :exec
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
                    enclosure_url, enclosure_type, enclosure_length, explicit, season_number, episode_number,
-                   own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast_episode', ?2, ?3, ?4, ?5, ?6, ?7, ?8,
         ?9, ?10, ?11, ?12, ?13, ?14,
-        ?15, ?16, '["local"]', 'matched', ?17, ?17, ?17, ?17)
+        ?15, ?16, '["local"]', (SELECT p.root_id FROM items AS p WHERE p.id = ?2),
+        'matched', ?17, ?17, ?17, ?17)
 `
 
 type PodcastInsertEpisodeParams struct {
@@ -426,7 +427,8 @@ type PodcastInsertEpisodeParams struct {
 	Now             sql.NullInt64
 }
 
-// An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026).
+// An episode has no cover of its own: it shows its podcast's (decision of 11 November 2026). It
+// takes the home folder of its podcast (ADR 0036; none for a podcast only from its feed).
 func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpisodeParams) error {
 	_, err := q.db.ExecContext(ctx, podcastInsertEpisode,
 		arg.ID,
@@ -452,9 +454,9 @@ func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpi
 
 const podcastInsertFolderEpisode = `-- name: PodcastInsertFolderEpisode :exec
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, published_at, own_rating, rating_source,
-                   providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast_episode', ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-        '["local"]', 'matched', ?9, ?9, ?9, ?9)
+        '["local"]', (SELECT p.root_id FROM items AS p WHERE p.id = ?2), 'matched', ?9, ?9, ?9, ?9)
 `
 
 type PodcastInsertFolderEpisodeParams struct {
@@ -470,7 +472,8 @@ type PodcastInsertFolderEpisodeParams struct {
 }
 
 // An episode read from a file: named after the file until its probe reads the tags, dated by the
-// file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file.
+// file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file;
+// its home folder is its podcast's (ADR 0036).
 func (q *Queries) PodcastInsertFolderEpisode(ctx context.Context, arg PodcastInsertFolderEpisodeParams) error {
 	_, err := q.db.ExecContext(ctx, podcastInsertFolderEpisode,
 		arg.ID,
@@ -489,9 +492,9 @@ func (q *Queries) PodcastInsertFolderEpisode(ctx context.Context, arg PodcastIns
 const podcastInsertFromFolder = `-- name: PodcastInsertFromFolder :one
 
 INSERT INTO items (id, kind, library_id, title, sort_title, author, genres, explicit, cover_path, feed_url, feed_origin,
-                   feed_error, own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+                   feed_error, own_rating, rating_source, providers, root_id, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-        ?11, ?12, ?13, '["local"]', 'matched', ?14, ?14, ?14, ?14)
+        ?11, ?12, ?13, '["local"]', ?14, 'matched', ?15, ?15, ?15, ?15)
 RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id
 `
 
@@ -509,13 +512,14 @@ type PodcastInsertFromFolderParams struct {
 	FeedError    sql.NullString
 	OwnRating    sql.NullInt64
 	RatingSource sql.NullString
+	RootID       sql.NullInt64
 	Now          sql.NullInt64
 }
 
 // Podcast folders (ADR 0015, concept 4.5): podcasts and episodes read from an Audiobookshelf
 // folder by the library package, and the pairing of file episodes with feed episodes.
 // A podcast read from a folder: metadata.json (title, author, description, genres, explicit,
-// feedURL) and the folder image. feed_url is NULL without feedURL; with one, feed_origin is 'file'
+// feedURL) and the folder image, with the folder as its home folder (ADR 0036). feed_url is NULL without feedURL; with one, feed_origin is 'file'
 // and the fetch runs like for any subscription. A feed_error names a feedURL the scanner refused.
 func (q *Queries) PodcastInsertFromFolder(ctx context.Context, arg PodcastInsertFromFolderParams) (Item, error) {
 	row := q.db.QueryRowContext(ctx, podcastInsertFromFolder,
@@ -532,6 +536,7 @@ func (q *Queries) PodcastInsertFromFolder(ctx context.Context, arg PodcastInsert
 		arg.FeedError,
 		arg.OwnRating,
 		arg.RatingSource,
+		arg.RootID,
 		arg.Now,
 	)
 	var i Item

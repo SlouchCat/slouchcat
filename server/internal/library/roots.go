@@ -173,12 +173,21 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if _, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
 	}
+	// The titles that stay and lived here move to the folder of their oldest present file (ADR
+	// 0036); the delete sets their root_id to NULL first, which rehome reads as "no home folder".
+	survivors, err := q.ListTitleIDsOfRoot(ctx, rootID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("list titles of root %d: %w", rootID, err)
+	}
 	n, err := q.DeleteLibraryRoot(ctx, systemq.DeleteLibraryRootParams{ID: rootID, LibraryID: libraryID})
 	if err != nil {
 		return 0, 0, fmt.Errorf("delete library root %d: %w", rootID, err)
 	}
 	if n == 0 {
 		return 0, 0, model.ErrNotFound
+	}
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), survivors); err != nil {
+		return 0, 0, err
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("remove library root %d: %w", rootID, err)

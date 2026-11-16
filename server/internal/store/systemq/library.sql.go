@@ -291,6 +291,17 @@ func (q *Queries) GetChapterImageFile(ctx context.Context, id string) (GetChapte
 	return i, err
 }
 
+const getLibraryRootProviders = `-- name: GetLibraryRootProviders :one
+SELECT providers FROM library_roots WHERE id = ?1
+`
+
+func (q *Queries) GetLibraryRootProviders(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getLibraryRootProviders, id)
+	var providers string
+	err := row.Scan(&providers)
+	return providers, err
+}
+
 const getTrickplayFile = `-- name: GetTrickplayFile :one
 
 SELECT m.id, m.item_id, m.size, m.mtime, m.duration_ms, m.probe, m.probed_at, m.keyframes, m.keyframes_source,
@@ -528,22 +539,12 @@ func (q *Queries) ListMediaFileRelPathsOfRoot(ctx context.Context, rootID int64)
 
 const listTitleIDsOfRoot = `-- name: ListTitleIDsOfRoot :many
 
-SELECT DISTINCT COALESCE(
-        CASE WHEN g.kind = 'series' THEN g.id END,
-        CASE WHEN p.kind IN ('series', 'movie', 'podcast') THEN p.id END,
-        i.id) AS id
-FROM media_files AS m
-JOIN items AS i ON i.id = m.item_id
-LEFT JOIN items AS p ON p.id = i.parent_id
-LEFT JOIN items AS g ON g.id = p.parent_id
-WHERE m.root_id = ?1 AND i.deleted_at IS NULL
-ORDER BY id
+SELECT id FROM items WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL ORDER BY id
 `
 
 // Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
-// The titles with a file in the folder, as the fill and match jobs need them: a movie, audiobook
-// or podcast is its own title, an episode stands for its series (the parent of its season, or its
-// direct parent for an episode without season folder), an extra for the title above it.
+// The titles whose home folder the folder is (ADR 0036): the films, series, audiobooks and
+// podcasts the fill and match jobs take, without their seasons, episodes and extras.
 func (q *Queries) ListTitleIDsOfRoot(ctx context.Context, rootID int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, listTitleIDsOfRoot, rootID)
 	if err != nil {
@@ -557,6 +558,44 @@ func (q *Queries) ListTitleIDsOfRoot(ctx context.Context, rootID int64) ([]strin
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTitlePresentRoots = `-- name: ListTitlePresentRoots :many
+
+SELECT m.root_id FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+JOIN items AS e ON e.id = m.item_id
+WHERE m.missing_since IS NULL
+  AND (e.id = ?1 OR (e.kind IN ('episode', 'podcast_episode')
+       AND (e.parent_id = ?1 OR e.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?1))))
+ORDER BY m.created_at, r.path || '/' || m.rel_path
+`
+
+// Home folder of a title (concept 24 section 3.2, ADR 0036).
+// The folders of the present files of a top-level title in the order of the home-folder rule:
+// oldest media_files.created_at first, ties by path. A film or audiobook counts its own files, a
+// series or podcast those of its episodes (below a season or directly); extras never count.
+func (q *Queries) ListTitlePresentRoots(ctx context.Context, titleID string) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listTitlePresentRoots, titleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var root_id int64
+		if err := rows.Scan(&root_id); err != nil {
+			return nil, err
+		}
+		items = append(items, root_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -709,6 +748,30 @@ func (q *Queries) MoveDownloadsOffRoot(ctx context.Context, arg MoveDownloadsOff
 	return result.RowsAffected()
 }
 
+const setTitleHome = `-- name: SetTitleHome :execrows
+UPDATE items SET root_id = ?1,
+    providers = coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = ?1), items.providers),
+    updated_at = ?2
+WHERE items.id = ?3 OR items.parent_id = ?3
+   OR items.parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = ?3)
+`
+
+type SetTitleHomeParams struct {
+	RootID  sql.NullInt64
+	Now     int64
+	TitleID string
+}
+
+// A new home folder for a top-level title, its seasons, episodes and extras, with the provider list
+// of that folder (concept 24 3.2: the list moves with the title).
+func (q *Queries) SetTitleHome(ctx context.Context, arg SetTitleHomeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setTitleHome, arg.RootID, arg.Now, arg.TitleID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const softDeleteEmptySeasons = `-- name: SoftDeleteEmptySeasons :execrows
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE kind = 'season' AND deleted_at IS NULL
@@ -809,17 +872,7 @@ func (q *Queries) TrickplayJobEnded(ctx context.Context, idempotencyKey sql.Null
 
 const updateItemsProvidersByRoot = `-- name: UpdateItemsProvidersByRoot :execrows
 UPDATE items SET providers = ?1, updated_at = ?2
-WHERE deleted_at IS NULL AND (
-    id IN (SELECT m.item_id FROM media_files AS m WHERE m.root_id = ?3)
-    OR id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = ?3)
-    OR id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-              JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)
-    OR parent_id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = ?3)
-    OR parent_id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-                     JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)
-    OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id IN (
-                         SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
-                         JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)))
+WHERE root_id = CAST(?3 AS INTEGER) AND deleted_at IS NULL
 `
 
 type UpdateItemsProvidersByRootParams struct {
@@ -828,10 +881,9 @@ type UpdateItemsProvidersByRootParams struct {
 	RootID    int64
 }
 
-// The new list of a folder on every title with a file in it, its ancestors and the descendants of
-// those ancestors: a series with all its seasons and episodes, a movie with its extras. The tree
-// is three levels deep at most (series, season, episode), so the ancestors are the parent and the
-// grandparent, the descendants the children and the grandchildren of what those name.
+// The new list of a folder on every title whose home folder it is, with its seasons, episodes and
+// extras, which carry the home folder of their title (ADR 0036). A title that also has files in
+// another folder keeps the list of its home folder.
 func (q *Queries) UpdateItemsProvidersByRoot(ctx context.Context, arg UpdateItemsProvidersByRootParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateItemsProvidersByRoot, arg.Providers, arg.Now, arg.RootID)
 	if err != nil {

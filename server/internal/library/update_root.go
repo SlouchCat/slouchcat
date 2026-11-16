@@ -383,6 +383,15 @@ func (s *Service) changeRootContent(ctx context.Context, lib appq.Library, root 
 	}); err != nil {
 		return model.Library{}, fmt.Errorf("update library root %d: %w", root.ID, err)
 	}
+	// The titles that survive the content change still live here without a file: they move to
+	// the folder of their oldest present file with its provider list (ADR 0036).
+	survivors, err := q.ListTitleIDsOfRoot(ctx, root.ID)
+	if err != nil {
+		return model.Library{}, fmt.Errorf("list titles of root %d: %w", root.ID, err)
+	}
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), survivors); err != nil {
+		return model.Library{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("change content of root %d: %w", root.ID, err)
 	}

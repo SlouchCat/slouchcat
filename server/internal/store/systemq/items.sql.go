@@ -220,10 +220,13 @@ const insertItem = `-- name: InsertItem :one
 
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
                    tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
-                   own_rating, rating_source, providers, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, root_id, added_at, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
-        ?17, ?18, ?19, ?20, ?20, ?20)
+        ?17, ?18,
+        coalesce((SELECT p.providers FROM items AS p WHERE p.id = ?3), ?19),
+        CASE WHEN ?3 IS NULL THEN CAST(?20 AS INTEGER) ELSE (SELECT p.root_id FROM items AS p WHERE p.id = ?3) END,
+        ?21, ?21, ?21)
 RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id
 `
 
@@ -246,14 +249,16 @@ type InsertItemParams struct {
 	ExtraKind     sql.NullString
 	OwnRating     sql.NullInt64
 	RatingSource  sql.NullString
-	Providers     string
+	Providers     interface{}
+	RootID        int64
 	Now           int64
 }
 
 // Unfiltered title queries for the scanner (package store/systemq). Owner: library package.
 // Times are Unix milliseconds.
-// providers is the ordered metadata source list of the root the file lies in (ADR 0015); a child
-// (season, episode, extra) carries the list of its parent.
+// providers is the ordered metadata source list of the root the file lies in (ADR 0015) and
+// root_id that root, the home folder of a new title (ADR 0036); a child (season, episode, extra)
+// takes the list and the home folder of its parent instead, whichever folder its file lies in.
 func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, error) {
 	row := q.db.QueryRowContext(ctx, insertItem,
 		arg.ID,
@@ -275,6 +280,7 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		arg.OwnRating,
 		arg.RatingSource,
 		arg.Providers,
+		arg.RootID,
 		arg.Now,
 	)
 	var i Item

@@ -55,14 +55,13 @@ WHERE kind = 'audiobook' AND deleted_at IS NULL
 GROUP BY coalesce(book_match_state, 'pending');
 
 -- "Jetzt alle ohne Zuordnung zuordnen": every book that is not deleted and not matched (pending,
--- review, none, error) with a file in a folder whose list holds a filler after local.
+-- review, none, error) whose home folder's list holds a filler after local (ADR 0036).
 -- name: ListAudiobooksToMatch :many
 SELECT i.id
 FROM items AS i
 WHERE i.kind = 'audiobook' AND i.deleted_at IS NULL
   AND (i.book_match_state IS NULL OR i.book_match_state IN ('review', 'none', 'error'))
-  AND EXISTS (SELECT 1 FROM media_files AS m JOIN library_roots AS r ON r.id = m.root_id
-              WHERE m.item_id = i.id AND json_array_length(r.providers) > 1)
+  AND EXISTS (SELECT 1 FROM library_roots AS r WHERE r.id = i.root_id AND json_array_length(r.providers) > 1)
 ORDER BY i.id;
 
 -- The list "Pruefen": books in review or error, by title.
@@ -81,14 +80,12 @@ WHERE id = @id AND kind = 'audiobook' AND author_display IS NOT sqlc.narg('autho
 
 -- The books of one match state ('' = not tried yet) without an active match job (also none queued
 -- behind a running one, key match:<id>:next), with the time of their last run and the source list
--- of the folder of their first present part ('[]' without one): the first run after the update,
+-- of their home folder ('[]' without one, ADR 0036): the first run after the update,
 -- the switch to "all" and the retry of books in error (QueuePendingMetadata; library_id 0 = every
 -- library).
 -- name: ListAudiobooksInMatchState :many
 SELECT i.id, i.book_matched_at,
-       CAST(coalesce((SELECT r.providers FROM media_files AS m JOIN library_roots AS r ON r.id = m.root_id
-                      WHERE m.item_id = i.id AND m.missing_since IS NULL
-                      ORDER BY m.rel_path, m.id LIMIT 1), '[]') AS TEXT) AS providers
+       CAST(coalesce((SELECT r.providers FROM library_roots AS r WHERE r.id = i.root_id), '[]') AS TEXT) AS providers
 FROM items AS i
 WHERE i.kind = 'audiobook' AND i.deleted_at IS NULL AND coalesce(i.book_match_state, '') = CAST(@state AS TEXT)
   AND (CAST(@library_id AS INTEGER) = 0 OR i.library_id = @library_id)
