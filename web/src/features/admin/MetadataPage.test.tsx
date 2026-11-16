@@ -400,6 +400,53 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
   });
 
+  it('asks the sources about the list as edited and holds the hint while their answer loads', async () => {
+    // TMDB knows Französisch, AniList only Englisch and Französisch; each answer names the
+    // languages of the list it was asked about.
+    const answers: MetadataProviderInfo[][] = [
+      [providers[0]!, providers[2]!],
+      [
+        { ...providers[0]!, languages: ['de', 'en', 'fr'] },
+        { ...providers[2]!, languages: ['en', 'fr'] },
+      ],
+    ];
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let asked = 0;
+    const { fetchMock } = mockApi(
+      routes({
+        'GET /admin/metadata/providers': async () => {
+          asked += 1;
+          if (asked > 1) await held;
+          return json(answers[Math.min(asked, 2) - 1]);
+        },
+      }),
+    );
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
+    expect(
+      await within(languages).findByText(/^ANILIST kennt nicht: Deutsch 2 Sprachen/),
+    ).toBeVisible();
+    const user = userEvent.setup();
+    const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
+    await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
+    expect(placesOf(list)).toEqual(['de', 'en', 'fr']);
+    // Asked about the edited list, not the saved default.
+    await waitFor(() => expect(asked).toBe(2));
+    const lastQuery = new URL((fetchMock.mock.calls.at(-1)?.[0] as Request).url).searchParams;
+    expect(lastQuery.getAll('textLangs')).toEqual(['de', 'en', 'fr']);
+    // The previous answer is about the old list: no hint from it (it would call Französisch
+    // unknown to TMDB), only the quota line.
+    expect(within(languages).queryByText(/kennt nicht/)).toBeNull();
+    expect(within(languages).getByText(/^3 Sprachen:/)).toBeVisible();
+    release();
+    const hint = await within(languages).findByText(/kennt nicht/);
+    expect(hint).toHaveTextContent(/^ANILIST kennt nicht: Deutsch 3 Sprachen:/);
+    expect(hint).not.toHaveTextContent(/TMDB/);
+  });
+
   it('swaps an image language with «Ohne Text» by its place', async () => {
     const { calls } = mockApi(statefulRoutes());
     renderApp('/admin/metadata?item=images');

@@ -2,16 +2,14 @@ import type {
   LibraryRequest,
   LibraryRoot,
   LibraryRootUpdate,
-  MetadataProviderInfo,
   MetadataSettings,
   RootImages,
 } from '@slouchcat/api-client';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
 import { Notice, Text } from '@/ui';
 import { CheckboxGroup, RadioGroup, SettingRow } from '@/ui/aria';
-import { metadataProvidersQuery, metadataSettingsQuery } from '../queries';
+import { metadataProvidersForQuery, metadataSettingsQuery } from '../queries';
 import {
   LanguageRanks,
   chainText,
@@ -153,18 +151,11 @@ export function FolderMetadataFields({
   const settings = useQuery(metadataSettingsQuery);
   const langs = value.ownLangs ? value.textLangs : undefined;
   const providers = useQuery({
-    queryKey: [...metadataProvidersQuery.queryKey, langs ?? []],
-    queryFn: ({ signal }): Promise<MetadataProviderInfo[]> =>
-      request(
-        api.GET('/admin/metadata/providers', {
-          params: { query: { textLangs: langs ?? [] } },
-          signal,
-        }),
-      ),
+    ...metadataProvidersForQuery(langs ?? []),
     enabled: langs !== undefined && langs.length > 0,
-    placeholderData: keepPreviousData,
-    staleTime: 60_000,
   });
+  // The previous answer belongs to the previous list: no hint until this list's answer is there.
+  const providersOfList = providers.isPlaceholderData ? undefined : providers.data;
   if (!settings.data) return null;
   const defaults = settings.data;
   const known = defaults.knownLanguages;
@@ -223,7 +214,9 @@ export function FolderMetadataFields({
           </SettingRow>
           <Text tone="secondary" variant="caption">
             {[
-              ...(providers.data ? unknownLanguages(t, nameOf, listOf, providers.data, langs) : []),
+              ...(providersOfList
+                ? unknownLanguages(t, nameOf, listOf, providersOfList, langs)
+                : []),
               t('admin.metadata.folder.cost'),
               t('admin.metadata.languages.youtube', {
                 count: langs.length,

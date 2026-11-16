@@ -56,7 +56,7 @@ import {
   applyMetadata,
   jobTypesQuery,
   librariesQuery,
-  metadataProvidersQuery,
+  metadataProvidersForQuery,
   metadataSettingsQuery,
   updateMetadataSettings,
 } from './queries';
@@ -369,7 +369,6 @@ export function MetadataPage() {
 
   const settings = useQuery({ ...metadataSettingsQuery, enabled: allowed });
   const libraries = useQuery({ ...librariesQuery, enabled: allowed });
-  const providers = useQuery({ ...metadataProvidersQuery, enabled: allowed });
 
   const originalOf = (id: string): ServerValues | undefined =>
     id === SERVER && settings.data ? serverValues(settings.data) : undefined;
@@ -487,6 +486,12 @@ export function MetadataPage() {
     drafts.set(SERVER, (values) => change(values));
 
   const textLangs = serverDraft?.textLangs;
+  // Which source does not know a language: asked for the list as edited, not the saved one.
+  const providers = useQuery({
+    ...metadataProvidersForQuery(textLangs ?? []),
+    enabled: allowed && textLangs !== undefined && textLangs.length > 0,
+  });
+  const providersOfList = providers.isPlaceholderData ? undefined : providers.data;
   const images: ImagesView | undefined = serverDraft && {
     langs: serverDraft.imageLangs,
     kinds: switchable(serverDraft.imageKinds),
@@ -599,15 +604,18 @@ export function MetadataPage() {
           <Text tone="secondary" variant="caption">
             {t('admin.metadata.languages.fallback')}
           </Text>
-          {providers.data && (
-            <Text tone="secondary" variant="caption">
-              {unknownLanguages(t, nameOf, listOf, providers.data, textLangs).join(' ')}{' '}
-              {t('admin.metadata.languages.youtube', {
+          <Text tone="secondary" variant="caption">
+            {[
+              // The previous list's answer stays while this one loads: no hint until it is there.
+              ...(providersOfList
+                ? unknownLanguages(t, nameOf, listOf, providersOfList, textLangs)
+                : []),
+              t('admin.metadata.languages.youtube', {
                 count: textLangs.length,
                 titles: youtubeTitles(textLangs),
-              })}
-            </Text>
-          )}
+              }),
+            ].join(' ')}
+          </Text>
         </SectionBody>
       );
     if (id === 'images' && images)
