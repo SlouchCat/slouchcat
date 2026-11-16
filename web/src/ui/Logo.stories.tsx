@@ -11,3 +11,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+/** Inside the administration: «Control Center» below the name (build plan 2.1). */
+export const Tagline: Story = { args: { tagline: 'Control Center' } };

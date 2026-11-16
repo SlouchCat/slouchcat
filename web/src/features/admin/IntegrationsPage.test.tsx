@@ -3,12 +3,14 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { dashboardFixture } from '@/test/admin';
 import { fill } from '@/test/fill';
 
-// Integrations (A-2; concept 12, variant A): six blocks that fold away by their band — provider
-// keys, webhooks, e-mail server, Telegram bot, Web Push, and the server's update check and public
-// address. Secrets are write-only; values from deploy/.env are read-only here. Unsaved input
-// survives a folded block and makes leaving the page ask first (S-13, S-17).
+// Integrations (A-2; concept 12, variant A; admin redesign): a tile per service — provider keys,
+// webhooks, e-mail server, Telegram bot, Web Push, and the server's update check and public
+// address — with its state from the dashboard, and a view per service (`?item=`). Secrets are
+// write-only; values from deploy/.env are read-only here. Unsaved input survives a change of view
+// and makes leaving the page ask first (S-13, S-17).
 
 const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
   publicUrlSource: 'none',
@@ -82,7 +84,7 @@ describe('integrations (A-2)', () => {
 
   it('shows six provider cards, folded, with their purpose and state (P-12)', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
     const cards = within(keys).getAllByRole('region');
@@ -107,7 +109,7 @@ describe('integrations (A-2)', () => {
 
   it('an open card holds the fields of its provider, one help sentence with one link and one «Speichern»', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tvdb = await openCard(user, 'TVDB');
     const toggle = within(tvdb).getByRole('button', { name: 'Zuklappen: TVDB' });
@@ -144,7 +146,7 @@ describe('integrations (A-2)', () => {
     const { calls } = mockApi(
       routes({ 'POST /admin/settings/keys/trakt/check': () => json({ ok: true }) }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const trakt = await openCard(user, 'Trakt');
     const field = within(trakt).getByLabelText('Client-ID', INPUT);
@@ -169,7 +171,7 @@ describe('integrations (A-2)', () => {
           json({ ok: false, problem: 'invalid', message: 'tmdb /configuration: status 401' }),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tmdb = await openCard(user, 'TMDB');
     await user.click(within(tmdb).getByRole('button', { name: 'TMDB prüfen' }));
@@ -197,7 +199,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tvdb = await openCard(user, 'TVDB');
     const save = within(tvdb).getByRole('button', { name: 'TVDB speichern' });
@@ -239,7 +241,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tvdb = await openCard(user, 'TVDB');
     expect(within(tvdb).queryByText('abgewiesen')).toBeNull();
@@ -261,7 +263,7 @@ describe('integrations (A-2)', () => {
 
   it('an invalid TMDB key is reported at its field (servers before contract 1.32.0)', async () => {
     mockApi(routes({ 'PUT /admin/settings': () => problem(422, 'tmdb_key_invalid') }));
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tmdb = await openCard(user, 'TMDB');
     const field = within(tmdb).getByLabelText('Zugriffstoken (v4)', INPUT);
@@ -287,7 +289,7 @@ describe('integrations (A-2)', () => {
         'PUT /admin/settings': () => json(settings()),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const fanart = await openCard(user, 'Fanart.tv');
     await user.click(within(fanart).getByRole('button', { name: 'Fanart.tv löschen' }));
@@ -309,7 +311,7 @@ describe('integrations (A-2)', () => {
           problem(422, 'env_wins', { errors: [{ field: 'keys.tvdb', code: 'env_wins' }] }),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const tvdb = await openCard(user, 'TVDB');
     const field = within(tvdb).getByLabelText('Schlüssel', INPUT);
@@ -322,13 +324,17 @@ describe('integrations (A-2)', () => {
 
   it('names every hidden-label field like the visible label of its row (WCAG 2.5.3)', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    const { router } = renderApp('/admin/integrations?item=keys');
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
     expect(within(keys).queryAllByRole('group')).toHaveLength(0);
+    await router.navigate({ to: '/admin/integrations', search: { item: 'email' } });
     const rows = [
-      ...within(section('E-Mail-Server')).getAllByRole('group'),
-      ...within(section('Telegram-Bot')).getAllByRole('group'),
+      ...within(await screen.findByRole('region', { name: 'E-Mail-Server' })).getAllByRole('group'),
     ];
+    await router.navigate({ to: '/admin/integrations', search: { item: 'telegram' } });
+    rows.push(
+      ...within(await screen.findByRole('region', { name: 'Telegram-Bot' })).getAllByRole('group'),
+    );
     let fields = 0;
     for (const row of rows) {
       const label = row.getAttribute('aria-labelledby');
@@ -368,7 +374,7 @@ describe('integrations (A-2)', () => {
         'POST /admin/settings/email/test': () => testReply.clone(),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(within(email).queryByRole('button', { name: 'Testmail senden' })).toBeNull();
@@ -434,7 +440,7 @@ describe('integrations (A-2)', () => {
           ),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(within(email).getByLabelText('Server und Port', INPUT)).toBeDisabled();
     expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('mail.local');
@@ -455,7 +461,7 @@ describe('integrations (A-2)', () => {
       },
     });
     const { calls } = mockApi(routes({ 'GET /admin/settings': () => json(stored) }));
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     // One row per setting (Int-A): a group named by its label; host and port share a row.
@@ -501,7 +507,7 @@ describe('integrations (A-2)', () => {
           }),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     const save = () => within(email).getByRole('button', { name: 'E-Mail-Server speichern' });
@@ -560,7 +566,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     const host = within(email).getByLabelText('Server und Port', INPUT);
@@ -602,7 +608,7 @@ describe('integrations (A-2)', () => {
           json(settings({ telegram: { source: 'stored', botUsername: 'slouchcat_bot' } })),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=telegram');
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const bot = within(telegram).getByRole('group', { name: 'Bot' });
     expect(within(bot).getByText('Bot: @slouchcat_bot')).toBeVisible();
@@ -622,7 +628,7 @@ describe('integrations (A-2)', () => {
     mockApi(
       routes({ 'GET /admin/settings': () => json(settings({ telegram: { source: 'env' } })) }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=telegram');
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     expect(within(telegram).queryByRole('group', { name: 'Bot' })).toBeNull();
     const row = within(telegram).getByRole('group', { name: 'Bot-Token' });
@@ -639,7 +645,7 @@ describe('integrations (A-2)', () => {
         'PUT /admin/settings': () => json(settings()),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=telegram');
     const user = userEvent.setup();
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot löschen' }));
@@ -657,7 +663,7 @@ describe('integrations (A-2)', () => {
 
   it('a Telegram bot that is not set up says so', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=telegram');
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     expect(
       within(within(telegram).getByRole('group', { name: 'Bot' })).getByText(
@@ -677,7 +683,7 @@ describe('integrations (A-2)', () => {
             : json(settings({ telegram: { source: 'stored', botUsername: 'slouchcat_bot' } })),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=telegram');
     const user = userEvent.setup();
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const token = within(telegram).getByLabelText('Bot-Token', INPUT);
@@ -713,7 +719,7 @@ describe('integrations (A-2)', () => {
             : json(settings()),
       }),
     );
-    const { queryClient } = renderApp('/admin/integrations');
+    const { queryClient, router } = renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const secrets = [
       'yt-secret-key-0001',
@@ -733,7 +739,8 @@ describe('integrations (A-2)', () => {
     await user.click(within(youtube).getByRole('button', { name: 'YouTube speichern' }));
     expect(await within(youtube).findByText('YouTube gespeichert.')).toBeVisible();
 
-    const email = section('E-Mail-Server');
+    await router.navigate({ to: '/admin/integrations', search: { item: 'email' } });
+    const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
     await fill(user, within(email).getByLabelText('Passwort', INPUT), secrets[1]!);
     await fill(user, within(email).getByLabelText(/Absender/, INPUT), 'media@example.ch');
@@ -742,7 +749,8 @@ describe('integrations (A-2)', () => {
 
     // A refused token does not stay either. `gcTime: 0` drops a settled mutation on a zero
     // timeout, which can come after the render that marks the field, so the check waits for it.
-    const telegram = section('Telegram-Bot');
+    await router.navigate({ to: '/admin/integrations', search: { item: 'telegram' } });
+    const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const token = within(telegram).getByLabelText('Bot-Token', INPUT);
     await fill(user, token, secrets[2]!);
     await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }));
@@ -761,7 +769,7 @@ describe('integrations (A-2)', () => {
           json(settings({ push: { configured: true, publicKey: 'BNeuerSchluessel' } })),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=push');
     const user = userEvent.setup();
     const push = await screen.findByRole('region', { name: 'Web-Push' });
     expect(within(push).getByText('BEl62iUYgUivxIkv69yViEuiBIa')).toBeVisible();
@@ -787,7 +795,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     const update = await serverRow('Update-Prüfung');
     expect(update).toHaveAccessibleDescription(/Installiert wird nichts/);
@@ -818,7 +826,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     const address = await serverRow('Öffentliche Adresse');
     const field = within(address).getByLabelText('Adresse');
@@ -852,7 +860,7 @@ describe('integrations (A-2)', () => {
           json(settings({ publicUrl: 'https://media.example.ch', publicUrlSource: 'stored' })),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     const address = await serverRow('Öffentliche Adresse');
     expect(within(address).getByLabelText('Adresse')).toHaveValue('https://media.example.ch');
@@ -876,7 +884,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     const address = await serverRow('Öffentliche Adresse');
     const field = within(address).getByLabelText('Adresse');
@@ -907,7 +915,7 @@ describe('integrations (A-2)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=keys');
     const user = userEvent.setup();
     const youtube = await openCard(user, 'YouTube');
     const field = within(youtube).getByLabelText('Schlüssel', INPUT);
@@ -924,82 +932,172 @@ describe('integrations (A-2)', () => {
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-0001' } }]);
   });
 
-  it('keeps the intro behind the help button; six blocks start open and fold by keyboard', async () => {
-    mockApi(routes());
+  it('shows the intro open below the title and a tile per service with its state', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboardFixture({
+              integrations: [
+                { key: 'tmdb', state: 'configured' },
+                { key: 'tvdb', state: 'error', detail: 'TVDB lehnt den Schlüssel ab.' },
+                { key: 'youtube', state: 'missing' },
+                { key: 'trakt', state: 'configured' },
+                { key: 'email', state: 'missing' },
+                { key: 'push', state: 'configured' },
+                { key: 'telegram', state: 'missing' },
+                { key: 'updateCheck', state: 'disabled' },
+              ],
+              webhooks: { total: 2, eventsLast24h: 1, silent: ['Sonarr Keller'] },
+            }),
+          ),
+      }),
+    );
     renderApp('/admin/integrations');
-    const user = userEvent.setup();
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
-    const help = screen.getByRole('button', { name: 'Hilfe zu dieser Seite' });
-    expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).not.toBeVisible();
-    await user.click(help);
+    // Build plan 2.6: the intro stands open, the help button is gone.
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
     expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
 
-    await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    const bands = BLOCKS.map((name) =>
-      within(section(name)).getByRole('button', { name, expanded: true }),
+    // Six tiles, each named by its link into the service's view; no view shows yet.
+    const list = await screen.findByRole('list', { name: 'Dienste' });
+    const links = within(list).getAllByRole('link');
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual(
+      BLOCKS.map((name, index) => [
+        name,
+        `/admin/integrations?item=${['keys', 'webhooks', 'email', 'telegram', 'push', 'server'][index]}`,
+      ]),
     );
-    expect(bands).toHaveLength(6);
-    for (const band of bands) {
-      expect(within(band.closest('h2')!).getByRole('button')).toBe(band);
-    }
+    expect(screen.queryByRole('region')).toBeNull();
+    const tile = (name: string) => within(list).getByRole('link', { name }).closest('li')!;
 
-    // Enter folds the e-mail block away, Space opens it again.
-    const mail = bands[2]!;
-    mail.focus();
-    await user.keyboard('{Enter}');
-    expect(mail).toHaveAttribute('aria-expanded', 'false');
+    // What is set up, as the bands say it, and the whole state from the dashboard (build plan
+    // 7.2): every key with its state, the reason of an error, the webhooks of the last 24 hours.
+    expect(await screen.findByText('3 von 8 eingerichtet')).toBeVisible();
+    const keys = tile('Schlüssel der Anbieter');
+    expect(within(keys).getByText('2 von 6 Anbietern eingerichtet')).toBeVisible();
+    expect(within(keys).getByText('TMDB: Eingerichtet')).toBeVisible();
+    expect(within(keys).getByText('TVDB: Fehler')).toBeVisible();
+    expect(within(keys).getByText('TVDB lehnt den Schlüssel ab.')).toBeVisible();
+    expect(within(keys).getByText('YouTube: Nicht eingerichtet')).toBeVisible();
+    expect(within(keys).getByText('Trakt: Eingerichtet')).toBeVisible();
+    expect(within(tile('E-Mail-Server')).getByText('E-Mail: Nicht eingerichtet')).toBeVisible();
+    expect(within(tile('E-Mail-Server')).getByText('Nicht gesetzt')).toBeVisible();
+    expect(within(tile('Telegram-Bot')).getByText('Telegram: Nicht eingerichtet')).toBeVisible();
+    expect(within(tile('Web-Push')).getByText('Web-Push: Eingerichtet')).toBeVisible();
+    expect(within(tile('Web-Push')).getByText('Schlüsselpaar vorhanden.')).toBeVisible();
+    expect(within(tile('Server')).getByText('Update-Prüfung: Ausgeschaltet')).toBeVisible();
+    const hooks = tile('Webhooks von Radarr und Sonarr');
     expect(
-      within(section('E-Mail-Server')).queryByRole('textbox', { name: 'Server und Port' }),
-    ).toBeNull();
-    expect(mail).toHaveFocus();
-    await user.keyboard(' ');
-    expect(mail).toHaveAttribute('aria-expanded', 'true');
-    expect(
-      within(section('E-Mail-Server')).getByRole('textbox', { name: 'Server und Port' }),
+      within(hooks).getByText(
+        '1 Meldung im Protokoll der letzten 24 Stunden, von 2 Integrationen.',
+      ),
     ).toBeVisible();
+    expect(within(hooks).getByText('Seit sieben Tagen ohne Meldung: Sonarr Keller')).toBeVisible();
+    expect(await within(hooks).findByText('0 Integrationen')).toBeVisible();
   });
 
-  it('a folded block keeps what was typed in it (S-13)', async () => {
-    const { calls } = mockApi(routes({ 'PUT /admin/settings': () => json(settings()) }));
-    renderApp('/admin/integrations');
+  it('a tile opens its service; «Alle Integrationen» leads back to it, the focus follows', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboardFixture({
+              integrations: [
+                { key: 'tvdb', state: 'error', detail: 'TVDB lehnt den Schlüssel ab.' },
+              ],
+            }),
+          ),
+      }),
+    );
+    const { router } = renderApp('/admin/integrations');
     const user = userEvent.setup();
+    const list = await screen.findByRole('list', { name: 'Dienste' });
+    await user.click(within(list).getByRole('link', { name: 'Schlüssel der Anbieter' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ item: 'keys' }));
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    expect(within(keys).getByRole('heading', { level: 2 })).toHaveFocus();
+    // The view carries the state of its integrations, the reason of the error too.
+    expect(await within(keys).findByText('TVDB lehnt den Schlüssel ab.')).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Dienste' })).toBeNull();
+    // One view at a time.
+    expect(screen.queryByRole('region', { name: 'E-Mail-Server' })).toBeNull();
+
+    await user.click(screen.getByRole('link', { name: 'Alle Integrationen' }));
+    const back = await screen.findByRole('list', { name: 'Dienste' });
+    await waitFor(() =>
+      expect(within(back).getByRole('link', { name: 'Schlüssel der Anbieter' })).toHaveFocus(),
+    );
+    expect(screen.queryByRole('region', { name: 'Schlüssel der Anbieter' })).toBeNull();
+  });
+
+  it('an unknown service in the address shows the tiles', async () => {
+    mockApi(routes());
+    const { router } = renderApp('/admin/integrations?item=nonsense');
+    expect(await screen.findByRole('list', { name: 'Dienste' })).toBeVisible();
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it('the page works without the dashboard and shows no states', async () => {
+    mockApi(routes({ 'GET /admin/dashboard': () => problem(503, 'unavailable') }));
+    renderApp('/admin/integrations');
+    const list = await screen.findByRole('list', { name: 'Dienste' });
+    expect(within(list).getAllByRole('link')).toHaveLength(6);
+    expect(await within(list).findByText('2 von 6 Anbietern eingerichtet')).toBeVisible();
+    expect(screen.queryByText(/: Eingerichtet$/)).toBeNull();
+    expect(screen.queryByText(/von \d+ eingerichtet$/)).toBeNull();
+  });
+
+  it('a change of view keeps what was typed; the tile says it is unsaved (S-13)', async () => {
+    const { calls } = mockApi(routes({ 'PUT /admin/settings': () => json(settings()) }));
+    const { router } = renderApp('/admin/integrations?item=keys');
+    const user = userEvent.setup();
+    const show = async (item: string, name: string) => {
+      await router.navigate({ to: '/admin/integrations', search: { item } });
+      return screen.findByRole('region', { name });
+    };
     await fill(
       user,
       within(await openCard(user, 'YouTube')).getByLabelText('Schlüssel', INPUT),
       'yt-draft',
     );
-    await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT), '1:draft');
+    const keys = section('Schlüssel der Anbieter');
+    expect(within(keys).getAllByText('ungespeichert')[0]).toBeVisible();
     await fill(
       user,
-      within(section('E-Mail-Server')).getByLabelText('Server und Port', INPUT),
+      within(await show('telegram', 'Telegram-Bot')).getByLabelText('Bot-Token', INPUT),
+      '1:draft',
+    );
+    await fill(
+      user,
+      within(await show('email', 'E-Mail-Server')).getByLabelText('Server und Port', INPUT),
       'smtp.draft',
     );
-    const band = within(keys).getByRole('button', { name: 'Schlüssel der Anbieter' });
-    // The band says the block holds unsaved input, folded or not.
-    expect(within(keys).getAllByText('ungespeichert')[0]).toBeVisible();
 
+    // The tiles name the services with unsaved input.
+    await router.navigate({ to: '/admin/integrations', search: {} });
+    const list = await screen.findByRole('list', { name: 'Dienste' });
+    const tile = (name: string) => within(list).getByRole('link', { name }).closest('li')!;
     for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
-      await user.click(within(section(name)).getByRole('button', { name }));
+      expect(within(tile(name)).getByText('ungespeichert')).toBeVisible();
     }
-    expect(band).toHaveAttribute('aria-expanded', 'false');
-    expect(within(keys).getAllByText('ungespeichert')[0]).toBeVisible();
-    for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
-      await user.click(within(section(name)).getByRole('button', { name }));
-    }
+    expect(within(tile('Web-Push')).queryByText('ungespeichert')).toBeNull();
+
     // A folded card keeps it too.
+    await show('keys', 'Schlüssel der Anbieter');
     await user.click(within(card('YouTube')).getByRole('button', { name: 'Zuklappen: YouTube' }));
     expect(within(card('YouTube')).getByText('ungespeichert')).toBeVisible();
     const youtube = await openCard(user, 'YouTube');
     expect(within(youtube).getByLabelText('Schlüssel', INPUT)).toHaveValue('yt-draft');
-    expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT)).toHaveValue(
-      '1:draft',
-    );
-    expect(within(section('E-Mail-Server')).getByLabelText('Server und Port', INPUT)).toHaveValue(
-      'smtp.draft',
-    );
+    expect(
+      within(await show('telegram', 'Telegram-Bot')).getByLabelText('Bot-Token', INPUT),
+    ).toHaveValue('1:draft');
+    expect(
+      within(await show('email', 'E-Mail-Server')).getByLabelText('Server und Port', INPUT),
+    ).toHaveValue('smtp.draft');
 
     // The kept value is what gets saved; afterwards nothing is unsaved any more.
+    await show('keys', 'Schlüssel der Anbieter');
     await user.click(within(youtube).getByRole('button', { name: 'YouTube speichern' }));
     expect(await within(youtube).findByText('YouTube gespeichert.')).toBeVisible();
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-draft' } }]);
@@ -1008,7 +1106,7 @@ describe('integrations (A-2)', () => {
 
   it('leaving the page with unsaved input asks first; staying keeps it', async () => {
     mockApi(routes({ 'GET /admin/dashboard': () => problem(503, 'unavailable') }));
-    const { router } = renderApp('/admin/integrations');
+    const { router } = renderApp('/admin/integrations?item=server');
     const user = userEvent.setup();
     await screen.findByLabelText('Adresse');
 
@@ -1016,7 +1114,7 @@ describe('integrations (A-2)', () => {
     await router.navigate({ to: '/admin/jobs' });
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    await router.navigate({ to: '/admin/integrations' });
+    await router.navigate({ to: '/admin/integrations', search: { item: 'server' } });
     await fill(user, await screen.findByLabelText('Adresse'), 'https://media.example.ch');
 
     void router.navigate({ to: '/admin' });
@@ -1036,20 +1134,23 @@ describe('integrations (A-2)', () => {
 
   it('the bands count what is set up', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    const { router } = renderApp('/admin/integrations?item=keys');
     // TMDB is stored and Trakt comes from deploy/.env; the other four providers are not set up.
     expect(await screen.findByText('2 von 6 Anbietern eingerichtet')).toBeVisible();
     expect(section('Schlüssel der Anbieter')).toContainElement(
       screen.getByText('2 von 6 Anbietern eingerichtet'),
     );
+    await router.navigate({ to: '/admin/integrations', search: { item: 'webhooks' } });
     expect(
-      await within(section('Webhooks von Radarr und Sonarr')).findByText('0 Integrationen'),
+      await within(
+        await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' }),
+      ).findByText('0 Integrationen'),
     ).toBeVisible();
   });
 
   it('links to the notification channels, which link back here', async () => {
     mockApi(routes());
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=email');
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(
       within(email).getByRole('link', { name: 'Zu den Benachrichtigungskanälen' }),

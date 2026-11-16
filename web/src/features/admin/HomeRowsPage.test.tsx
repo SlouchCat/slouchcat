@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 import { adminShell, renderAdminPage } from '@/test/admin';
 
-// The start page rows (M7, E-9; concept 12, variant C): tabs «Reihenfolge» and «Vorschau» in the
-// band, a position per row (RankSelect, S-16), «Ausblenden», a fold-out with what the row shows,
+// The start page rows (M7, E-9; concept 12, variant C; redesign build plan 5): the editor «Reihen»
+// and the «Vorschau» side by side, a position per row (RankSelect, S-16), «Ausblenden», a fold-out with what the row shows,
 // and one SaveBar for everything. The server stores and applies the order; the page only edits it.
 
 const keys = [
@@ -63,6 +63,9 @@ const rowNames = () =>
     .map((cell) => cell.textContent);
 const rank = (name: string) => screen.getByRole('combobox', { name: `Platz für ${name}` });
 const saveBar = () => screen.getByRole('region', { name: 'Speichern' });
+/** The editor's or the preview's panel, by its title; its band holds the count. */
+const band = (name: 'Reihen' | 'Vorschau') => screen.getByRole('region', { name });
+
 const previewNames = () =>
   within(screen.getByRole('list', { name: 'Vorschau der Startseite' }))
     .getAllByRole('listitem')
@@ -272,19 +275,19 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(second).not.toBe(first);
   });
 
-  it('the preview shows the unsaved order; the draft stays across tabs (S-17)', async () => {
+  it('the preview next to the editor shows the unsaved order (S-17)', async () => {
     mockApi(storingRoutes());
     const { router } = renderApp('/admin/home-rows');
     const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
-    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(
-      'Reihenfolge 8 Reihen',
-    );
+    expect(band('Reihen')).toHaveTextContent('8 Reihen');
+    expect(band('Vorschau')).toHaveTextContent('8 sichtbar');
+    expect(screen.queryByRole('tab')).toBeNull();
     await user.selectOptions(rank('Merkliste'), 'Platz 1');
     await user.click(within(table()).getByRole('checkbox', { name: 'Genres ausblenden' }));
 
-    await user.click(screen.getByRole('tab', { name: 'Vorschau 7 sichtbar' }));
-    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'preview' }));
+    expect(band('Vorschau')).toHaveTextContent('7 sichtbar');
+    expect(router.state.location.search).toEqual({});
     expect(previewNames()).toEqual([
       '1. Merkliste',
       '2. Spotlight',
@@ -296,29 +299,32 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
       '8. Genres ausgeblendet',
     ]);
     expect(screen.getByText(/Schema mit Platzhaltern/)).toBeVisible();
-    // Changing the tab is not leaving the page: no question.
     expect(screen.queryByRole('alertdialog')).toBeNull();
-
-    await user.click(screen.getByRole('tab', { name: /^Reihenfolge/ }));
-    await waitFor(() => expect(router.state.location.search).toEqual({}));
     expect(rowNames()[0]).toBe('Merkliste');
     expect(within(table()).getByRole('checkbox', { name: 'Genres ausblenden' })).toBeChecked();
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
-  it('opens a linked tab; an unknown ?tab= shows «Reihenfolge» and leaves the address', async () => {
+  it('?tab=preview brings the preview into view; an unknown ?tab= leaves the address', async () => {
     mockApi(storingRoutes());
+    const scrolled: Element[] = [];
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (
+      this: Element,
+    ) {
+      scrolled.push(this);
+    });
     const linked = renderApp('/admin/home-rows?tab=preview');
-    expect(await screen.findByRole('tab', { selected: true })).toHaveAccessibleName(
-      'Vorschau 8 sichtbar',
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    // Only the preview's side scrolls into view (the sidebar may scroll its current entry too).
+    await waitFor(() =>
+      expect(scrolled.filter((element) => element.contains(band('Vorschau')))).toHaveLength(1),
     );
     expect(previewNames()[0]).toBe('1. Spotlight');
     linked.unmount();
+    scroll.mockRestore();
 
     const { router } = renderApp('/admin/home-rows?tab=nonsense');
-    expect(await screen.findByRole('tab', { selected: true })).toHaveAccessibleName(
-      'Reihenfolge 8 Reihen',
-    );
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     // Replaced, not pushed: going back does not return to the unknown tab.
     expect(router.history.length).toBe(1);
@@ -349,9 +355,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(watchDetail).toHaveTextContent('Die Merkliste des Profils.');
     expect(within(watchDetail).queryByRole('link')).toBeNull();
 
-    // The open rows stay open across the preview, and move with their row.
-    await user.click(screen.getByRole('tab', { name: /^Vorschau/ }));
-    await user.click(screen.getByRole('tab', { name: /^Reihenfolge/ }));
+    // The open rows move with their row.
     expect(within(table()).getByRole('button', { name: 'User-Empfehlungen' })).toHaveAttribute(
       'aria-expanded',
       'true',
@@ -505,15 +509,12 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(calls.some((call) => call.path === '/admin/trakt')).toBe(false);
   });
 
-  it('keeps the intro behind the help button', async () => {
+  it('shows the intro open below the title (build plan 2.6)', async () => {
     mockApi(storingRoutes());
     renderApp('/admin/home-rows');
-    const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
-    const intro = screen.getByText(/Ausgeblendete und leere Reihen erscheinen nicht/);
-    expect(intro).not.toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
-    expect(intro).toBeVisible();
+    expect(screen.getByText(/Ausgeblendete und leere Reihen erscheinen nicht/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
   });
 
   it('lists «Meine Medien» and a row per library, tagged «Bibliothek», and sends them by id', async () => {
@@ -527,9 +528,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
       'Neu in Filme Bibliothek',
       'Neu in Serien Bibliothek',
     ]);
-    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(
-      'Reihenfolge 11 Reihen',
-    );
+    expect(band('Reihen')).toHaveTextContent('11 Reihen');
     // Showing one library row leaves the other one hidden: the rows differ by id, not by key.
     await user.click(within(table()).getByRole('checkbox', { name: 'Neu in Filme ausblenden' }));
     expect(
@@ -552,7 +551,6 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(body.map((row) => row.key)).toEqual(['library', ...keys, 'libraries', 'library']);
     expect(body.filter((row) => !row.hidden).map((row) => row.id)).toEqual(['library:1', ...keys]);
 
-    await user.click(screen.getByRole('tab', { name: /^Vorschau/ }));
     expect(previewNames()[0]).toBe('1. Neu in Filme');
     expect(previewNames()[9]).toBe('10. Meine Medien ausgeblendet');
   });
@@ -566,7 +564,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
-    expect(screen.getByRole('tab', { name: 'Vorschau 15 sichtbar' })).toBeVisible();
+    expect(band('Vorschau')).toHaveTextContent('15 sichtbar');
 
     const mine = within(table()).getByRole('checkbox', { name: 'Meine Medien ausblenden' });
     await user.click(mine);
@@ -580,6 +578,6 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     await user.click(within(table()).getByRole('checkbox', { name: 'Neu in A ausblenden' }));
     await user.click(mine);
     expect(mine).not.toBeChecked();
-    expect(screen.getByRole('tab', { name: 'Vorschau 15 sichtbar' })).toBeVisible();
+    expect(band('Vorschau')).toHaveTextContent('15 sichtbar');
   });
 });

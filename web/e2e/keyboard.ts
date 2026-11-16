@@ -67,8 +67,11 @@ export async function tabTo(page: Page, locator: Locator, max = 40): Promise<voi
 async function markLastTabbable(page: Page): Promise<void> {
   await page.evaluate(() => {
     document.querySelector('[data-e2e-last-tabbable]')?.removeAttribute('data-e2e-last-tabbable');
+    // The first summary of a <details> is a Tab stop of its own in both browsers. Left out, the
+    // server log's summary at the end of /admin/server stood after the mark: Chromium went on to
+    // the browser UI, headless Firefox stayed on the summary and never reached the mark.
     const candidates = document.querySelectorAll<HTMLElement>(
-      'a[href], button, input, select, textarea, [tabindex]',
+      'a[href], button, input, select, textarea, [tabindex], details > summary:first-of-type',
     );
     const tabbable = [...candidates].filter((element) => {
       if (element.tabIndex < 0 || element.matches(':disabled')) return false;

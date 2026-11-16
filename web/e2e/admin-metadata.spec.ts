@@ -2,6 +2,7 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import { adminEntry, areaTab } from './admin';
 
 // The page "Metadaten" (concept 10, 7.1, ADR 0018; layout concept 12 Met-B) against the real
 // server: the scope select in the header, the list of settings areas (MasterDetail), the server
@@ -204,11 +205,9 @@ test('the default scope lists the areas and the languages, the save bar is clean
   // The overview first, for the browser back at the end. Both pages must have rendered before
   // going back (Firefox, see admin-libraries.spec).
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await openMetadata(page);
-  await expect(
-    page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Metadaten' }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(areaTab(page, 'Metadaten')).toHaveAttribute('aria-current', 'page');
   await expect(scopeSelect(page)).toHaveValue('server');
   await expect(areas(page).getByRole('option')).toHaveCount(6);
   const languages = region(page, 'Sprachen');
@@ -247,7 +246,7 @@ test('the default scope lists the areas and the languages, the save bar is clean
   // Browser back returns to the overview; the areas replaced the address, they add no step.
   await page.goBack();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
 });
 
 test('a language is added, put on its place with several arrow steps, saved and removed, all by keyboard @keyboard', async ({
@@ -512,9 +511,8 @@ test('changes survive switching the scope; leaving the page asks first', async (
   ).toEqual(swapped);
 
   // The sidebar link waits for the question; Escape stays on the page.
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  const current = sidebar.getByRole('link', { name: 'Metadaten' });
-  const jobs = sidebar.getByRole('link', { name: 'Hintergrundjobs' });
+  const current = adminEntry(page, 'Medien');
+  const jobs = adminEntry(page, 'Automatisierung');
   await arrowTo(page, current, jobs);
   await page.keyboard.press('Enter');
   const leave = page.getByRole('alertdialog', {

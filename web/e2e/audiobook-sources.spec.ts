@@ -117,7 +117,10 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
 
   // The Google Books key lives with the provider keys since concept 20 (O-7): its link is the
   // next stop.
-  await tabTo(page, page.getByRole('link', { name: 'Unter «Integrationen» einrichten' }), 4);
+  const keysLink = page.getByRole('link', { name: 'Unter «Integrationen» einrichten' });
+  await tabTo(page, keysLink, 4);
+  // It opens the keys' view of the integrations, not its tiles.
+  await expect(keysLink).toHaveAttribute('href', '/admin/integrations?item=keys');
 
   // «Automatisch zuordnen» and the tolerance: one Tab stop each, the arrows pick; nothing saved.
   const all = page.getByRole('radio', { name: 'Alle ohne Zuordnung' });

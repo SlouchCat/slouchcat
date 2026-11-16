@@ -1,5 +1,54 @@
 # Aktueller Stand
 
+## Release 1.39.0: Verwaltungs-Redesign: sechs Bereiche, Suchpalette, Seite «Server» (16. November 2026, PR #172, Tag `v1.39.0` auf dem Merge-Commit, abgenommen)
+
+Umbau der ganzen Verwaltung nach dem Mockup, das Marco am 15. November 2026 freigegeben hat
+(Frage 31, ADR 0035, `docs/design/admin-redesign/`). Bedingung: keine bestehende Funktion geht
+verloren. Nur Web-Oberfläche: Vertrag unverändert, keine Migration, kein neuer Endpunkt, keine
+Änderung an `server/` oder `api/`. **Abgenommen** von Marco am 16. November 2026 auf CT 190
+(«Sieht gut aus. Machen wir so»), Merge und Release 1.39.0 auf sein Wort. Der Vertrag bleibt 1.38.0.
+
+- **Navigation:** Seitenleiste mit «Zurück zur App», «Übersicht» und fünf Bereichen (Medien, Nutzer &
+  Geräte, Startseite, Automatisierung, System); die Seiten eines Bereichs als Bereichsreiter über
+  jeder Seite, mit den Zahlen der Seiten; Brotkrumen in der Kopfzeile; Suchpalette «Bereich suchen»
+  (`Strg K`). Auf dem Handy das Blatt mit allen Seiten nach Bereichen. Quelle
+  `web/src/features/admin/sections.ts` (`adminAreas`). Alle Adressen `/admin/...` samt `?tab=`,
+  `?item=`, `?days=` bleiben.
+- **Übersicht** «Alles im Blick»: Hinweisband, vier Kennzahlen als Verweise (Speicher mit beiden
+  Pfaden, F-4), «Was benötigt Aufmerksamkeit?», «Gerade aktiv», Schnellzugriffe, Kurzstatus.
+- **Neue Seite System › Server** (`/admin/server`): alle Serverfunktionen der bisherigen Übersicht
+  ungekürzt (Version, Updates und Installation, Neustart, Speicher, Aktivität, Fehlerprotokoll mit
+  5-s-Abfrage, A-3).
+- **Integrationen** als Kacheln je Dienst mit eigener Ansicht (`?item=`); der Zustand der
+  Integrationen und Webhooks steht jetzt hier. **Hintergrundjobs** mit vier Kennzahlen und
+  Zustandsfilter. **Startseite** mit Editor und Vorschau nebeneinander. Übrige Seiten: Hauptaktion
+  im Kopf, Karten, Zustand als Abzeichen, gerahmte Filterleisten.
+- **Seitenkopf:** Zeile «BEREICH / SEITE», Titel grösser, Einleitung offen (höchstens zwei Zeilen,
+  «Mehr») statt hinter dem Hilfe-Knopf. `/settings/*` unverändert.
+- **Aussehen** nur unter `data-shell="admin"` (`web/src/ui/admin-look.css`, Komponenten-Tokens mit
+  Rückfall); Zuschauerseiten unverändert, bestehende Storybook-Bilder ausserhalb der Verwaltung
+  byte-gleich.
+- **Funktionserhalt:** Bestand vor dem Umbau aufgenommen (876 Funktionen,
+  `functional-inventory.csv`), nach dem Umbau von vier unabhängigen Prüfern Zeile für Zeile geprüft,
+  Befunde behoben und nachgeprüft: 759 mit Test, 117 ohne Test wie vorher, keine Lücke
+  (`funktionsabdeckung.md`, `funktionsabdeckung.csv`). Abweichungen vom Mockup mit Grund in
+  `abweichungen.md` (13 Widersprüche Mockup gegen Bestand: es gilt der Bestand).
+- **Übersetzt:** 75 neue oder geänderte Texte in allen 23 Sprachen, zweitgelesen
+  (`check.ts --all --strict` 0 Fehler, 0 fehlend).
+- **Geprüft:** je Schritt `task check:fast` und die e2e-Specs der Seiten; `task ci` grün auf
+  `39d1039e` (43 Go-Pakete, 2160 Vitest-Tests, Storybook 551, e2e 723; drei rote Läufe davor mit
+  Ursachen in `docs/design/admin-redesign/abnahme.md`); neue Specs `e2e/admin-shell.spec.ts`
+  (Rahmen, Tastatur) und `e2e/admin-server.spec.ts` (Regel 8).
+- **Tastaturweg:** Vom Seitenanfang zur Hauptaktion einer Seite sind es 11 Tab-Stopps statt 9 (zwei
+  Brotkrumen und die Bereichsreiter dazu, der Hilfe-Knopf weg); der Sprunglink «Zum Inhalt
+  springen» bleibt.
+- **Nebenbefund, nicht Teil des Umbaus:** Während des Löschjobs einer Bibliothek führt «Meine
+  Medien» ihren Eintrag noch, obwohl die Bibliotheksliste sie schon nicht mehr zeigt.
+- **Bilder:** 55 Bildschirmfotos der gebauten Seiten in `docs/design/admin-redesign/screenshots/`.
+- **Rückweg:** keine Migration; ein Image vor dem Umbau läuft mit derselben Datenbank. Auf CT 190
+  als eigenes Image mit den Skripten `design-alt.sh` und `design-neu.sh`.
+- **Offen:** Abnahme durch Marco auf CT 190; Merge und Release auf sein Wort.
+
 ## Release 1.38.0: Konzept 23 «Player-Bedienung» (15. November 2026, veröffentlicht: PR #170 `7234ea0d`, Tag `v1.38.0`, abgenommen)
 
 Konzept 23 (`docs/planning/23-player-bedienung.md`, Frage 30) ganz gebaut, alle drei Stufen in einem

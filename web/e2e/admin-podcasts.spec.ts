@@ -25,6 +25,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo } from './playback';
+import { areaTab } from './admin';
 
 // /admin/podcasts (M6, H-2; concept 12, variant C; concept 19 part A, 12.2 variant A) by keyboard
 // (rule 8): tabs «Alle» and one per podcast library, each podcast a row with its cover that folds
@@ -46,9 +47,7 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
     await page.goto('/admin/podcasts');
     const heading = page.getByRole('heading', { level: 1, name: 'Podcasts' });
     await expect(heading).toBeVisible();
-    await expect(
-      page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Podcasts' }),
-    ).toHaveAttribute('aria-current', 'page');
+    await expect(areaTab(page, 'Podcasts')).toHaveAttribute('aria-current', 'page');
     await expect(
       page
         .getByRole('tablist', { name: 'Podcasts nach Bibliothek' })

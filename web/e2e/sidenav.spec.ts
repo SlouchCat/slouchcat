@@ -492,7 +492,7 @@ test('/admin with the column hidden: the admin sidebar stands in its place, noth
     }).observe(document, { attributes: true, childList: true, subtree: true });
   });
   const adminNav = page.getByRole('navigation', { name: 'Verwaltung' });
-  const heading = page.getByRole('heading', { level: 1, name: 'Verwaltung' });
+  const heading = page.getByRole('heading', { level: 1, name: 'Alles im Blick' });
   const lefts: number[] = [];
   try {
     await page.goto('/');

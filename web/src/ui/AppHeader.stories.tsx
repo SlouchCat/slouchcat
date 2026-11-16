@@ -71,3 +71,35 @@ export const WithNotifications: Story = {
     },
   },
 };
+
+/** Inside the administration (build plan 2.1): tagline, breadcrumb and «Bereich suchen». */
+export const Admin: Story = {
+  args: {
+    admin: {
+      tagline: 'Control Center',
+      breadcrumbLabel: 'Pfad',
+      crumbs: [
+        { href: '#admin', label: 'Verwaltung' },
+        { href: '#libraries', label: 'Medien' },
+        { href: '#libraries', label: 'Bibliotheken' },
+      ],
+      finder: {
+        label: 'Bereich suchen',
+        shortcut: 'Strg K',
+        keyShortcuts: 'Control+K',
+        expanded: false,
+        onPress: () => undefined,
+      },
+    },
+    notifications: {
+      href: '#notifications',
+      label: 'Benachrichtigungen',
+      accessibleLabel: 'Benachrichtigungen, 3 ungelesen',
+      unread: 3,
+      overflowLabel: '99+',
+    },
+  },
+};
+
+/** Second Tab stop in the administration: «Verwaltung» in the breadcrumb. */
+export const AdminCrumbFocused: Story = { args: { ...Admin.args }, tags: ['press:Tab+Tab'] };

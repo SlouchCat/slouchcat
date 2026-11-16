@@ -73,7 +73,7 @@ export const paths = {
   /** The spotlight list of the start page (M11, ADR 0011). */
   adminSpotlight: '/admin/spotlight',
   person: (id: number) => `/people/${id}`,
-  /** Administration (M8): the overview with the dashboard and the cards of every admin page. */
+  /** Administration (M8): the overview with what needs attention and links to every area. */
   admin: '/admin',
   adminIntegrations: '/admin/integrations',
   adminMetadata: '/admin/metadata',
@@ -86,6 +86,8 @@ export const paths = {
   /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
   adminStats: '/admin/stats',
   adminBackup: '/admin/backup',
+  /** System › Server (redesign, build plan 4): version, updates, restart, storage, server log. */
+  adminServer: '/admin/server',
   /** Notification channels of the signed-in account (M8), for every account with the app's column. */
   notificationSettings: '/settings/notifications',
   /** The same page inside the administration (concept 15, P-4), with the admin sidebar. */

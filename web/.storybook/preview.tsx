@@ -2,6 +2,8 @@ import '@slouchcat/design-tokens/tokens.css';
 import '@/ui/global.css';
 // The compact density of the administration (ADR 0020), as in the app (main.tsx).
 import '@/ui/density.css';
+// The administration's look (build plan 2.7): stories with the compact density show it.
+import '@/ui/admin-look.css';
 import '@/i18n';
 import type { Preview } from '@storybook/react-vite';
 import { clearUnlistedLanguage, setLanguage, supportedLanguages } from '@/i18n';

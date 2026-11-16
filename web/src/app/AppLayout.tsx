@@ -15,7 +15,9 @@ import { useTranslation } from 'react-i18next';
 import { myMediaQuery } from '@/features/catalog/queries';
 import { notificationsQuery, notificationsSource } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
+import type { AdminFinder as AdminFinderType } from '@/features/admin/AdminFinder';
 import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
+import { currentSection, firstSectionOf } from '@/features/admin/sections';
 import { offlineSupported } from '@/features/offline/support';
 import { useWideScreen } from '@/lib/useWideScreen';
 import {
@@ -28,6 +30,7 @@ import {
   SideNavMenu,
   sideNavFocusKey,
   SpatialGroup,
+  type HeaderAdmin,
   type SideNavEntry,
   type SideNavProps,
 } from '@/ui';
@@ -53,6 +56,22 @@ const AdminShellNav = lazy(() =>
     (): AdminShellNavModule => ({ default: () => null }),
   ),
 );
+
+type AdminFinderModule = { default: ComponentType<ComponentProps<typeof AdminFinderType>> };
+
+/**
+ * The administration's search palette (build plan 2.4), loaded when it opens first: like the
+ * sidebar it builds on '@/ui/aria' (P-10).
+ */
+const AdminFinder = lazy(() =>
+  import('@/features/admin/AdminFinder').then(
+    (module): AdminFinderModule => ({ default: module.AdminFinder }),
+    (): AdminFinderModule => ({ default: () => null }),
+  ),
+);
+
+/** Whether the shortcuts of this device use ⌘ (Apple) rather than Ctrl. */
+const appleKeys = () => /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 /** Index of «Übersicht» among the sidebar's entries (after «Zurück zur App»). */
 const ADMIN_OVERVIEW_INDEX = 1;
@@ -176,6 +195,48 @@ export function AppLayout() {
       delete root.dataset.shell;
     };
   }, [adminShell]);
+  // The search palette of the administration (build plan 2.4): «Bereich suchen» in the header, and
+  // Ctrl+K / ⌘K on every admin page while no dialog is open. "/" keeps opening the media search.
+  const [finderOpen, setFinderOpen] = useState(false);
+  useEffect(() => {
+    if (!adminShell) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.shiftKey) return;
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      event.preventDefault();
+      setFinderOpen(true);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [adminShell]);
+  const adminHeader = (): HeaderAdmin => {
+    const section = currentSection(pathname);
+    const root = { href: paths.admin, label: t('admin.nav.label') };
+    const apple = appleKeys();
+    return {
+      tagline: t('admin.nav.tagline'),
+      breadcrumbLabel: t('admin.nav.breadcrumb'),
+      crumbs: section
+        ? [
+            root,
+            {
+              href: firstSectionOf(section.area).href,
+              label: t(`admin.nav.areas.${section.area}`),
+            },
+            { href: section.href, label: t(`admin.sections.${section.key}.title`) },
+          ]
+        : [root, { href: paths.admin, label: t('admin.nav.overview') }],
+      finder: {
+        label: t('admin.finder.button'),
+        shortcut: t(apple ? 'admin.finder.shortcutMac' : 'admin.finder.shortcut'),
+        keyShortcuts: apple ? 'Meta+K' : 'Control+K',
+        expanded: finderOpen,
+        onPress: () => setFinderOpen(true),
+      },
+    };
+  };
+
   // The admin sidebar's focused entry, carried over when it mounts again (AdminSideNav).
   const adminFocus = useRef<number | null>(null);
 
@@ -407,6 +468,7 @@ export function AppLayout() {
             accessibleLabel: t('nav.searchOpen'),
             current: pathname.startsWith(paths.search),
           }}
+          admin={adminShell ? adminHeader() : undefined}
           profileName={session.profile.name}
           profileHref={paths.profiles}
           profileLabel={t('nav.switchProfile', { name: session.profile.name })}
@@ -457,6 +519,11 @@ export function AppLayout() {
           }
         />
       </SpatialGroup>
+      {adminShell && finderOpen && (
+        <Suspense fallback={null}>
+          <AdminFinder onClose={() => setFinderOpen(false)} />
+        </Suspense>
+      )}
       <Announcements profileId={session.profile.id} />
     </>
   );

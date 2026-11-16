@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { listMyMedia, setMyMedia } from './curation';
+import { listMyMedia, restoreMyMedia } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -9,6 +9,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo } from './playback';
+import { areaTab } from './admin';
 
 // /admin/my-media (concept 21 P-11, variant A; O-20, O-21) by keyboard (rule 8): ↑/↓ on an
 // entry's position moves it, Space on «Ausblenden» hides it in the side navigation or on the start
@@ -37,11 +38,7 @@ test('«Meine Medien» by keyboard: placing and hiding per place reach the side 
   try {
     await page.goto('/admin/my-media');
     await expect(page.getByRole('heading', { level: 1, name: 'Meine Medien' })).toBeVisible();
-    const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-    await expect(sidebar.getByRole('link', { name: 'Meine Medien' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    await expect(areaTab(page, 'Meine Medien')).toHaveAttribute('aria-current', 'page');
     const table = entriesTable(page);
     await expect(table.getByRole('rowheader')).toHaveCount(before.length);
     const shown = await names(page);
@@ -103,7 +100,7 @@ test('«Meine Medien» by keyboard: placing and hiding per place reach the side 
       hideHome: false,
     });
   } finally {
-    await setMyMedia(owner, before);
+    await restoreMyMedia(owner, before);
   }
 });
 
@@ -146,13 +143,12 @@ test('«Meine Medien»: the preview by ←/→ shows the draft; leaving asks, «
   await expectFocusOn(page, order);
   await expect(page).toHaveURL(/\/admin\/my-media$/);
 
-  // The sidebar link waits for the question; Escape stays on the page.
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  const homeRows = sidebar.getByRole('link', { name: 'Startseite' });
+  // The tab link waits for the question; Escape stays on the page.
+  const homeRows = areaTab(page, 'Startseite');
   const toHomeRows = async () => {
     await resetFocus(page);
-    await tabTo(page, sidebar.getByRole('link', { name: 'Meine Medien' }), 40);
-    await arrowTo(page, homeRows, 'ArrowUp');
+    await tabTo(page, areaTab(page, 'Meine Medien'), 40);
+    await arrowTo(page, homeRows, 'ArrowLeft');
     await expectVisibleFocus(page);
   };
   await toHomeRows();

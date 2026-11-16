@@ -21,6 +21,7 @@ import {
   watchStopAnswers,
   type PlaybackData,
 } from './playback';
+import { areaTab } from './admin';
 
 // W-6: two running streams (two browsers) show up as tiles (concept 12, mockup Str-D2) with
 // profile, device, title, quality and mode, counted under «Serverlast»; "Beenden" stops the client
@@ -145,7 +146,10 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     expect(first.playbackSessionId).not.toBe(second.playbackSessionId);
 
     // «Serverlast»: the four counters hold at least these two streams, the bandwidth is a rate.
-    await expect(overview.getByRole('heading', { level: 2, name: 'Serverlast' })).toBeVisible();
+    // The counters stand right below the header (redesign, mockup .statrow), named by the group.
+    await expect(overview.getByRole('group', { name: 'Serverlast' })).toBeVisible();
+    // Its heading is there for screen readers only (STR-004).
+    await expect(overview.getByRole('heading', { level: 2, name: 'Serverlast' })).toHaveCount(1);
     const counted = await Promise.all(
       ['Transcode HW', 'Transcode SW', 'Remux', 'Direct'].map((label) =>
         loadCount(overview, label),
@@ -263,15 +267,10 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     await expectNoFocusTrap(overview);
     console.log(JSON.stringify({ measurement: 'admin-stop', stopMs, buffered }));
 
-    // Back (rule 8): the sidebar leads to «Geräte», the browser's Back returns to the overview.
+    // Back (rule 8): the area's tabs lead to «Geräte», the browser's Back returns to the overview.
     await resetFocus(overview);
-    await tabTo(
-      overview,
-      overview
-        .getByRole('navigation', { name: 'Verwaltung' })
-        .getByRole('link', { name: /^Streams(,|$)/ }),
-    );
-    await overview.keyboard.press('ArrowUp');
+    await tabTo(overview, areaTab(overview, 'Streams'));
+    await overview.keyboard.press('ArrowLeft');
     await overview.keyboard.press('Enter');
     await expect(overview).toHaveURL(/\/admin\/devices$/);
     await overview.goBack();

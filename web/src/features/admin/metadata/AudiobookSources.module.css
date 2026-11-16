@@ -2,14 +2,28 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-8);
+  gap: var(--sc-space-6);
 }
 
-.section {
+/* The line under a card's title (as SectionHeader's description). */
+.intro {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* A long label wraps inside the card on a phone instead of being cut off by it. */
+.shrink button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* The folder rows: a path has no spaces, so it may break anywhere (390 px phone, A-3a). */
+.folders {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-3);
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .inline {

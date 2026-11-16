@@ -37,6 +37,7 @@
 }
 
 .relayHead {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: var(--sc-space-2);
@@ -67,13 +68,35 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--sc-space-3) var(--sc-space-4);
+
+  /* The mockup's filter bar over the list: a framed strip on the card's ground (plan 2.7, 5). */
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
 }
 
-.stationCell,
-.stateCell {
+.stationCell {
   display: inline-flex;
   align-items: center;
   gap: var(--sc-space-2);
+}
+
+/* The provider's button stays inside its column; its text ends with an ellipsis. */
+.provider {
+  display: flex;
+  min-width: 0;
+}
+
+.provider > button {
+  max-width: 100%;
+}
+
+.clip {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The editor: each field with its lock beside it. */
@@ -102,6 +125,13 @@
   flex: 1;
   align-items: flex-start;
   gap: var(--sc-space-4);
+}
+
+/* The line under a card's title (as SectionHeader's description). */
+.intro {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
 }
 
 /* «Angebot» and «Eigene Sender»: a section with its title line and its table. */

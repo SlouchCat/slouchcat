@@ -1,4 +1,5 @@
-/* The six blocks: 20 px apart (concept 12, 10.2). Frame, band and padding come from BandPanel. */
+/* The tiles, the open view and its link back: 20 px apart (concept 12, 10.2). Frame, band and
+   padding of a view come from BandPanel. */
 .blocks {
   display: flex;
   flex-direction: column;
@@ -185,4 +186,120 @@
   gap: var(--sc-space-3);
   padding-top: var(--sc-space-3);
   border-top: 1px solid var(--sc-color-border);
+}
+
+/* The tiles of the services (admin redesign, mockup «Integrationen»): two columns while they
+   fit, one on a phone. The tile's name is its link; its ::after covers the tile for the pointer. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: flex-start;
+  padding: var(--sc-space-4);
+  border: 1px solid var(--sc-panel-border, var(--sc-color-border-subtle));
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    background-color: var(--sc-color-surface-2);
+  }
+}
+
+.tileIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-accent);
+}
+
+.tileText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.tileTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.tileLink {
+  color: var(--sc-color-text-primary);
+  text-decoration: none;
+}
+
+/* The ring stays on the link (the name); the tile shows its surface with it. */
+.tile:has(.tileLink:focus-visible) {
+  background-color: var(--sc-color-surface-2);
+}
+
+.tileLink::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+}
+
+.tileMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.tileArrow {
+  flex: none;
+  align-self: center;
+  color: var(--sc-color-text-muted);
+}
+
+/* The state of a service from the dashboard: one line per integration, the reason below. */
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+.statusEntry {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.statusDetail {
+  display: block;
+  padding-left: var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* «Alle Integrationen» above a service's view. */
+.back {
+  align-self: flex-start;
 }

@@ -75,7 +75,7 @@
           "test_failed": "test bij het starten mislukt"
         },
         "saved": "Opgeslagen: {{name}}",
-        "restartAdmin": "Geldt na een herstart van de server (Overzicht › Opnieuw starten)."
+        "restartAdmin": "Geldt na een herstart van de server (Systeem › Server › Opnieuw starten)."
       },
       "fallback": {
         "title": "De gekozen grafische chip werkt niet",
@@ -363,7 +363,7 @@
       },
       "radio": "Internetradio",
       "radioToggle": "{{country}} aan het radioaanbod toevoegen",
-      "radioHint": "Het land komt zonder zenders in het aanbod. De zenders markeer je later onder Beheer › Radio."
+      "radioHint": "Het land komt zonder zenders in het aanbod. De zenders kies je later onder Beheer › Media › Radio."
     },
     "services": {
       "recommended": "Aanbevolen",
@@ -399,7 +399,7 @@
       "folder": "Map {{position}}"
     },
     "household": {
-      "accounts": "Gasten met een eigen account nodig je later uit onder Beheer › Accounts."
+      "accounts": "Gasten met een eigen account nodig je later uit onder Beheer › Gebruikers & apparaten › Accounts."
     },
     "access": {
       "here": "Je gebruikt nu {{url}}.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat is ingesteld",
       "restartTitle": "Slouchcat start opnieuw op…",
       "restartBody": "De keuze van de grafische chip geldt na de herstart. Daarna lopen de eerste scans verder.",
-      "busy": "Slouchcat kon niet opnieuw starten, omdat er een back-up of een update loopt. De keuze van de grafische chip geldt na de volgende herstart (Beheer › Overzicht).",
+      "busy": "Slouchcat kon niet opnieuw starten, omdat er een back-up of update loopt. De keuze van de grafische chip geldt na de volgende herstart (Beheer › Systeem › Server).",
       "scanProgress": "{{state}}: {{seen}} van {{total}} bestanden",
       "home": "Naar de startpagina"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Help bij deze pagina",
+      "less": "Minder",
+      "more": "Meer",
       "live_one": "Live, elke seconde",
       "live_other": "Live, elke {{count}} seconden"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Snelheid {{rate}}×",
       "muted": "Gedempt",
       "previousEpisode": "Vorige aflevering",
+      "forward10": "10 seconden vooruit",
+      "options": "Opties",
+      "view": "Tijd en weergave",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Geen hoofdstukken",
       "lastChapter": "Laatste hoofdstuk",
       "noNextEpisode": "Geen volgende aflevering",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Volgende aflevering",
       "previousEpisodeCard": "Vorige aflevering",
       "cardSeason": "Seizoen {{season}} · {{name}}",
-      "notOnDevice": "Niet op dit apparaat",
-      "forward10": "10 seconden vooruit",
-      "options": "Opties",
-      "view": "Tijd en weergave",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Niet op dit apparaat"
     },
     "tabs": {
       "label": "Meer over de titel",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Instellingen",
+        "relaysCard": "Buffers en doorgiften",
+        "coverCard": "Covers en externe gegevens",
         "buffer": "Timeshift",
         "bufferHelp": "Hoever luisteraars terug kunnen gaan. Bij 60 minuten halveert het aantal zenders, zolang het budget gelijk blijft.",
         "minutes_one": "{{count}} minuut",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} en {{formatted}} titel verdwijnen uit Slouchcat, met voortgang, vinkjes, Mijn lijst, tips, eigen afbeeldingen en teksten, de homerij “Nieuw in {{name}}”, de toegang van de profielen en de downloads op de apparaten.",
         "lead_other": "{{roots}} en {{formatted}} titels verdwijnen uit Slouchcat, met voortgang, vinkjes, Mijn lijst, tips, eigen afbeeldingen en teksten, de homerij “Nieuw in {{name}}”, de toegang van de profielen en de downloads op de apparaten.",
         "files": "De bestanden op de schijf blijven ongemoeid. Loopt er een scan van deze bibliotheek, dan annuleert Slouchcat die eerst.",
-        "backup": "Daarvoor maakt Slouchcat een back-up van de database (Beheer › Back-up). Met het terugzetten van deze back-up is alles weer als vóór het verwijderen, inclusief de voortgang van elk profiel sindsdien.",
+        "backup": "Daarvoor maakt Slouchcat een back-up van de database (Beheer › Systeem › Back-up). Wie deze back-up terugzet, zet alles terug naar de stand van vóór het verwijderen, ook de voortgang van alle profielen sindsdien.",
         "final": "Anders kan het niet ongedaan worden gemaakt: een nieuwe scan van dezelfde mappen maakt de titels opnieuw aan, zonder voortgang.",
         "inputLabel": "Typ de naam ter bevestiging",
         "mismatch": "Typ {{name}} exact zo om de knop te activeren.",
@@ -3128,8 +3132,6 @@
       "list": "Rijen van de startpagina",
       "band": "Rijen",
       "tabs": {
-        "label": "Weergave van de rijen",
-        "order": "Volgorde",
         "preview": "Voorbeeld"
       },
       "count_one": "{{number}} rij",
@@ -3315,17 +3317,35 @@
       "rowSettings": "Waar de rij op de startpagina staat en of hij verschijnt, stel je in onder “Startpagina”.",
       "rowSettingsLink": "Naar “Startpagina”"
     },
+    "finder": {
+      "button": "Onderdeel zoeken",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Een onderdeel van het beheer zoeken",
+      "placeholder": "Bibliotheken, taken, back-up…",
+      "results": "Resultaten",
+      "empty": "Niets gevonden",
+      "area": "Onderdeel",
+      "search": "Media zoeken",
+      "hint": "Pijltjestoetsen kiezen, Enter opent, Esc sluit"
+    },
     "nav": {
       "label": "Beheer",
       "overview": "Overzicht",
-      "groups": {
-        "library": "Bibliotheek",
-        "accounts": "Accounts",
-        "curation": "Curatie",
+      "areas": {
+        "media": "Media",
+        "people": "Gebruikers & apparaten",
+        "home": "Startpagina",
+        "automation": "Automatisering",
         "system": "Systeem"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Kruimelpad",
+      "tabs": "Pagina’s in {{area}}",
       "back": "Terug naar de app",
       "updateLabel": "Overzicht, update naar versie {{version}} beschikbaar",
+      "updateBadge": "{{name}}, update naar versie {{version}} beschikbaar",
       "sheet": {
         "label": "Beheerpagina’s",
         "close": "Beheerpagina’s sluiten"
@@ -3406,7 +3426,19 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Bronnen voor luisterboeken"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Versie, updates, herstart, opslag en foutenlogboek op één plek.",
+      "state": "Serverstatus",
+      "updates": "Updates & herstart",
+      "toIntegrations": "Grafische chip, openbaar adres en updatecontrole: Integraties"
     },
     "home": {
       "setupBand": {
@@ -3416,8 +3448,41 @@
         "action": "Configuratie voortzetten"
       },
       "title": "Beheer",
-      "live": "Live, elke 5 seconden",
       "liveFailed": "Geen antwoord, elke 5 seconden opnieuw proberen",
+      "heading": "Alles in één oogopslag",
+      "intro": "Het belangrijkste eerst. De rest vind je via de onderdelen.",
+      "refresh": "Vernieuwen",
+      "attention": {
+        "title": "Wat heeft aandacht nodig?",
+        "band_one": "{{count}} punt heeft aandacht nodig",
+        "band_other": "{{count}} punten hebben aandacht nodig",
+        "show": "Bekijken",
+        "none": "Alles in orde."
+      },
+      "metrics": {
+        "label": "Kerncijfers",
+        "streams": "Actieve streams",
+        "streamsNote": "Nu verbonden",
+        "jobs": "Lopende taken",
+        "jobsNote": "{{queued}} wachtend",
+        "jobsNotePaused": "{{queued}} wachtend · {{paused}} gepauzeerd",
+        "maintenance": "Titels voor onderhoud",
+        "maintenanceNote": "Open gevallen in het onderhoud",
+        "storage": "Opslagruimte",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "In gebruik: configuratie · cache"
+      },
+      "active": {
+        "title": "Nu actief"
+      },
+      "quick": {
+        "title": "Direct naar je werk"
+      },
+      "summary": {
+        "title": "Server & recente activiteit",
+        "details": "Serverdetails",
+        "log": "Serverlogboek bekijken"
+      },
       "update": {
         "title": "Versie {{version}} is beschikbaar",
         "body": "Je gebruikt {{current}}. Slouchcat installeert zelf niets: haal het nieuwe image op met docker compose pull en start opnieuw met docker compose up -d.",
@@ -3436,10 +3501,6 @@
       },
       "jobs": {
         "title": "Taken",
-        "queued": "In de wachtrij",
-        "running": "Bezig",
-        "failed": "Mislukt",
-        "paused": "Gepauzeerd",
         "all": "Achtergrondtaken",
         "toFailed": "Fouten bekijken",
         "active": "Lopende taken",
@@ -3480,7 +3541,6 @@
         "manage": "Webhooks beheren"
       },
       "server": {
-        "title": "Server",
         "version": "Versie",
         "uptime": "Draait al",
         "update": "Updates",
@@ -3583,10 +3643,8 @@
         "empty": "Nog geen activiteit."
       },
       "hints": {
-        "title": "Meldingen",
         "count_one": "{{count}} melding",
         "count_other": "{{count}} meldingen",
-        "none": "Geen meldingen.",
         "failed_one": "{{formatted}} achtergrondtaak mislukt",
         "failed_other": "{{formatted}} achtergrondtaken mislukt",
         "paused_one": "{{count}} taaktype gepauzeerd",
@@ -3598,6 +3656,7 @@
         "keyRejected": "Sleutel van {{name}} geweigerd",
         "keyRejectedBody": "De aanbieder weigert de sleutel. Totdat een nieuwe sleutel werkt, haalt Slouchcat daar geen metadata op.",
         "toKeys": "Naar de sleutels",
+        "toGpu": "Naar de keuze van de grafische chip",
         "ratingsReread": "Classificaties worden opnieuw gelezen",
         "ratingsRereadBody": "Tot de taak klaar is, gelden de vorige classificaties, of die nu strenger of soepeler zijn.",
         "minimumAge": "Classificaties zijn nu minimumleeftijden",
@@ -3659,6 +3718,16 @@
       "cleared": "{{name}} verwijderd.",
       "unsaved": "niet opgeslagen",
       "notificationsLink": "Naar de meldingskanalen",
+      "services": {
+        "label": "Diensten",
+        "back": "Alle integraties",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt en Google Books.",
+        "webhooks": "Radarr en Sonarr melden nieuwe en gewijzigde bestanden.",
+        "email": "Server voor meldingen, uitnodigingen en mededelingen per e-mail.",
+        "telegram": "Bot voor meldingen via Telegram.",
+        "push": "Meldingen in de browser en in de geïnstalleerde app.",
+        "server": "Updatecontrole, openbaar adres en grafische chip."
+      },
       "keys": {
         "title": "Sleutels van aanbieders",
         "intro": "Slouchcat haalt hiermee teksten, afbeeldingen en trailers op. Zonder sleutel blijft de aanbieder uit.",
@@ -4277,10 +4346,10 @@
       "counts": {
         "running": "Bezig",
         "queued": "In de wachtrij",
-        "planned": "Gepland",
         "paused": "Gepauzeerd",
         "failed": "Mislukt",
-        "label": "Overzicht"
+        "label": "Overzicht",
+        "plannedNote": "{{number}} gepland"
       },
       "pools": {
         "title": "Workers",
@@ -4746,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Updates gepauzeerd"
+      "livePaused": "Updates gepauzeerd",
+      "filter": {
+        "label": "Taaktypen filteren op status",
+        "all": "Alle",
+        "running": "Bezig",
+        "failed": "Mislukt",
+        "paused": "Gepauzeerd",
+        "empty": "Geen taaktype van deze groep met deze status."
+      }
     },
     "metadata": {
       "title": "Metadata",
@@ -5048,7 +5125,7 @@
         "library": "Alleen uit Slouchcat halen",
         "files": "Ook de bestanden verwijderen"
       },
-      "libraryHint": "De bestanden blijven op de schijf. De titel blijft weg, ook als er nieuwe bestanden komen; onder “Onderhoud › Weggehaalde titels” kan hij met voortgang, vinkjes en Mijn lijst worden teruggezet.",
+      "libraryHint": "De bestanden blijven op de schijf. De titel blijft weggehaald, ook als er nieuwe bestanden bijkomen; onder “Onderhoud › Weggehaalde titels” kun je hem met voortgang, vinkjes en Mijn lijst weer opnemen.",
       "everywhere": "De titel verdwijnt uit elke lijst van elk profiel; downloads op de apparaten worden verwijderd.",
       "arr": "Radarr en Sonarr merken hier niets van.",
       "affected_one": "Betrokken: {{count}} bestand · {{size}}",

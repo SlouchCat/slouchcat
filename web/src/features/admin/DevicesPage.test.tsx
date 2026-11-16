@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { adminShell, renderAdminPage, findAdminTabs } from '@/test/admin';
 
 // W-7 devices for the main account's primary profile (concept 12, variant C): tabs «Geräte» and
 // «Fähigkeiten» in the band, one section per device type in both, a device without a type under
@@ -342,11 +342,16 @@ describe('admin devices (W-7)', () => {
   it('links devices and streams in the admin navigation', async () => {
     mockApi({ ...signedIn, ...adminShell, 'GET /admin/devices': () => json([]) });
     const { nav } = await renderAdminPage('/admin/devices');
-    expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Nutzer & Geräte' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(nav).getByRole('link', { name: 'Streams' })).toHaveAttribute(
+    const tabs = await findAdminTabs();
+    expect(within(tabs).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(tabs).getByRole('link', { name: 'Streams' })).toHaveAttribute(
       'href',
       '/admin/streams',
     );

@@ -170,6 +170,22 @@ export async function setMyMedia(
 }
 
 /**
+ * Puts back order and visibility of `before` for the entries that are still there. A library
+ * another spec removed meanwhile (its deletion is a job that ends after the 202) or added would
+ * make `setMyMedia(before)` a different set of entries, which the server refuses (422, `rows`);
+ * entries `before` did not know keep their place after the others.
+ */
+export async function restoreMyMedia(
+  api: APIRequestContext,
+  before: readonly MyMediaData[],
+): Promise<void> {
+  const now = await listMyMedia(api);
+  const kept = before.filter((entry) => now.some((current) => current.id === entry.id));
+  const added = now.filter((current) => !before.some((entry) => entry.id === current.id));
+  await setMyMedia(api, [...kept, ...added]);
+}
+
+/**
  * Leaves the curation as the global setup made it: only the baseline pick, no manual
  * collection, the start page rows in their default order with none hidden. TMDB collections
  * (none in the e2e run, the server has no key) cannot be deleted and stay.

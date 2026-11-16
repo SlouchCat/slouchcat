@@ -3,17 +3,21 @@ import type { TFunction } from 'i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/format';
-import { Chip, StatusDot, VisuallyHidden, type StatusDotState } from '@/ui';
+import { Chip, VisuallyHidden } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
 import styles from './Libraries.module.css';
 import { ratingLabel } from '../../shared/choices';
 import { intlLocale } from '@/i18n';
 
-const dotOf: Record<Library['scan']['state'], StatusDotState> = {
-  never: 'pending',
-  queued: 'active',
-  running: 'active',
+/** The scan state as a badge in the tone of its state (redesign, build plan 2.7). */
+const toneOf: Record<
+  Library['scan']['state'],
+  'outline' | 'info' | 'success' | 'danger' | 'warning'
+> = {
+  never: 'outline',
+  queued: 'info',
+  running: 'info',
   done: 'success',
   failed: 'danger',
   aborted: 'warning',
@@ -73,9 +77,8 @@ function StateCell({ library }: { library: Library }) {
   const { scan } = library;
   return (
     <span className={styles.cellStack}>
-      <span className={styles.stateLine}>
-        <StatusDot state={dotOf[scan.state]} />
-        {t(`admin.libraries.state.${scan.state}`)}
+      <span>
+        <Chip tone={toneOf[scan.state]}>{t(`admin.libraries.state.${scan.state}`)}</Chip>
       </span>
       {scan.finishedAt && (
         <span className={styles.muted}>

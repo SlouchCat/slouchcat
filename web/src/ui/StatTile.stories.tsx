@@ -37,3 +37,13 @@ export const Warning: Story = { args: { label: 'inotify belegt', value: '86 %', 
 export const WithNote: Story = {
   args: { label: 'Direkt', value: '2 Wiedergaben', note: '50 % aller Wiedergaben' },
 };
+
+/** A key figure of the admin overview: the tile links the page behind the number. */
+export const AsLink: Story = {
+  args: {
+    label: 'Aktive Streams',
+    value: '2',
+    note: 'Gerade verbunden',
+    href: '/admin/streams',
+  },
+};

@@ -1,6 +1,6 @@
 import type { HomeRowSetting } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -26,7 +26,6 @@ import {
   useStatusMessage,
   useUnsavedChanges,
   type DataColumn,
-  type TabItem,
 } from '@/ui/aria';
 import { HomeRowsPreview } from './homerows/HomeRowsPreview';
 import {
@@ -43,7 +42,11 @@ import { homeRowsQuery, setHomeRows } from './queries';
 import styles from './homerows/HomeRows.module.css';
 import { intlLocale } from '@/i18n';
 
-/** The tabs in the band: the order (the default, no `?tab=`) and the preview. */
+/**
+ * The two halves of the page, the order (the default, no `?tab=`) and the preview. They stand side
+ * by side (redesign, build plan 5: editor left, preview right; stacked on narrow screens); the old
+ * tab ids stay valid: `?tab=preview` brings the preview into view on arrival.
+ */
 const ORDER = 'order';
 const PREVIEW = 'preview';
 const TAB_IDS = [ORDER, PREVIEW] as const;
@@ -56,8 +59,8 @@ const DRAFT = 'rows';
  * profile: the eight fixed rows, «Meine Medien» and one row «Neu in …» per library (tagged
  * «Bibliothek»), each named by its id. At most fifteen rows are visible (F-12): showing one more is
  * refused with a message.
- * The tab «Reihenfolge» gives each row a position (RankSelect, S-16) and «Ausblenden», and folds
- * out what the row shows with a link to the page that keeps its content; the tab «Vorschau»
+ * The editor «Reihen» gives each row a position (RankSelect, S-16) and «Ausblenden», and folds
+ * out what the row shows with a link to the page that keeps its content; the «Vorschau» next to it
  * sketches the start page in the order on the page, saved or not. The SaveBar stores everything
  * at once or discards it. The Trakt list behind Spotlight and its state are on the spotlight
  * page; one line links there.
@@ -101,10 +104,19 @@ function HomeRowsContent() {
     refetchOnReconnect: !unsaved.pausePolling,
   });
 
-  // An unknown `?tab=` shows «Reihenfolge», and the address says so too (replaced, not pushed).
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ORDER, { normalise: true });
+  // An unknown `?tab=` drops out of the address (replaced, not pushed); `?tab=preview`, the old
+  // link to the preview's tab, scrolls the preview into view once the rows are there.
+  const [tab] = useSearchSelection('tab', TAB_IDS, ORDER, { normalise: true });
+  const previewRef = useRef<HTMLDivElement>(null);
+  const hasRows = (cached?.length ?? 0) > 0;
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (tab !== PREVIEW || !hasRows || scrolled.current) return;
+    scrolled.current = true;
+    previewRef.current?.scrollIntoView({ block: 'start' });
+  }, [tab, hasRows]);
 
-  // Open rows, held by the page: switching to the preview and back keeps them open.
+  // Open rows, held by the page.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const onExpandedChange = useCallback(
     (key: string, open: boolean) =>
@@ -240,40 +252,6 @@ function HomeRowsContent() {
   };
 
   const visible = visibleCount(rows);
-  const tabs: TabItem[] = [
-    {
-      id: ORDER,
-      label: t('admin.homeRows.tabs.order'),
-      count: number.format(rows.length),
-      countLabel: t('admin.homeRows.count', {
-        count: rows.length,
-        number: number.format(rows.length),
-      }),
-      content: (
-        <div className={styles.tab}>
-          <RankHint id={hintId} />
-          <DataTable
-            caption={t('admin.homeRows.list')}
-            columns={columns}
-            rows={rows}
-            rowKey={(row) => row.id}
-            expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
-            layout="fixed"
-          />
-        </div>
-      ),
-    },
-    {
-      id: PREVIEW,
-      label: t('admin.homeRows.tabs.preview'),
-      count: number.format(visible),
-      countLabel: t('admin.homeRows.visibleCount', {
-        count: visible,
-        number: number.format(visible),
-      }),
-      content: <HomeRowsPreview rows={rows} />,
-    },
-  ];
 
   return (
     <AdminPage
@@ -295,16 +273,42 @@ function HomeRowsContent() {
       )}
       {rows.length > 0 && (
         <>
-          <BandPanel
-            title={t('admin.homeRows.band')}
-            icon="list"
-            tabs={{
-              label: t('admin.homeRows.tabs.label'),
-              selectedKey: tab,
-              onSelectionChange: selectTab,
-              tabs,
-            }}
-          />
+          <div className={styles.workspace}>
+            <div className={styles.halves}>
+              <BandPanel
+                title={t('admin.homeRows.band')}
+                icon="list"
+                meta={t('admin.homeRows.count', {
+                  count: rows.length,
+                  number: number.format(rows.length),
+                })}
+              >
+                <div className={styles.tab}>
+                  <RankHint id={hintId} />
+                  <DataTable
+                    caption={t('admin.homeRows.list')}
+                    columns={columns}
+                    rows={rows}
+                    rowKey={(row) => row.id}
+                    expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                    layout="fixed"
+                  />
+                </div>
+              </BandPanel>
+              <div ref={previewRef} className={styles.previewSide}>
+                <BandPanel
+                  title={t('admin.homeRows.tabs.preview')}
+                  icon="monitor"
+                  meta={t('admin.homeRows.visibleCount', {
+                    count: visible,
+                    number: number.format(visible),
+                  })}
+                >
+                  <HomeRowsPreview rows={rows} />
+                </BandPanel>
+              </div>
+            </div>
+          </div>
           {/* A direct child of the page's column, so it sticks to the bottom while the rows scroll
               (a wrapper only as tall as the bar would hold it in place). */}
           <SaveBar

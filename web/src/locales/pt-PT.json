@@ -79,7 +79,7 @@
           "test_failed": "o teste no arranque falhou"
         },
         "saved": "Guardado: {{name}}",
-        "restartAdmin": "Aplica-se depois de o servidor reiniciar (Visão geral › Reiniciar)."
+        "restartAdmin": "Aplica-se depois de o servidor reiniciar (Sistema › Servidor › Reiniciar)."
       },
       "fallback": {
         "title": "O chip gráfico escolhido não funciona",
@@ -367,7 +367,7 @@
       },
       "radio": "Rádio online",
       "radioToggle": "Adicionar {{country}} à oferta de rádio",
-      "radioHint": "O país entra na oferta sem estações. As estações escolhe-as mais tarde em Administração › Rádio."
+      "radioHint": "O país entra na oferta sem estações. As estações escolhe-as mais tarde em Administração › Conteúdos › Rádio."
     },
     "services": {
       "recommended": "Recomendado",
@@ -403,7 +403,7 @@
       "folder": "Pasta {{position}}"
     },
     "household": {
-      "accounts": "Pode convidar mais tarde pessoas com conta própria em Administração › Contas."
+      "accounts": "Os convidados com conta própria convida-os mais tarde em Administração › Utilizadores e dispositivos › Contas."
     },
     "access": {
       "here": "Está a usar {{url}} neste momento.",
@@ -430,7 +430,7 @@
       "title": "O Slouchcat está configurado",
       "restartTitle": "O Slouchcat está a reiniciar…",
       "restartBody": "A escolha do chip gráfico aplica-se depois do reinício. As primeiras análises continuam a seguir.",
-      "busy": "O Slouchcat não conseguiu reiniciar porque está a decorrer uma cópia de segurança ou uma atualização. A escolha do chip gráfico aplica-se no próximo reinício (Administração › Visão geral).",
+      "busy": "O Slouchcat não conseguiu reiniciar porque está a decorrer uma cópia de segurança ou uma atualização. A escolha do chip gráfico aplica-se depois do próximo reinício (Administração › Sistema › Servidor).",
       "scanProgress": "{{state}}: {{seen}} de {{total}} ficheiros",
       "home": "Ir para o início"
     },
@@ -699,6 +699,8 @@
     },
     "adminPage": {
       "help": "Ajuda sobre esta página",
+      "less": "Menos",
+      "more": "Mais",
       "live_one": "Em direto, a cada segundo",
       "live_many": "Em direto, a cada {{count}} de segundos",
       "live_other": "Em direto, a cada {{count}} segundos"
@@ -1169,6 +1171,11 @@
       "rate": "Velocidade {{rate}}×",
       "muted": "Sem som",
       "previousEpisode": "Episódio anterior",
+      "forward10": "Avançar 10 segundos",
+      "options": "Opções",
+      "view": "Tempo e vista",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Sem capítulos",
       "lastChapter": "Último capítulo",
       "noNextEpisode": "Sem episódio seguinte",
@@ -1178,12 +1185,7 @@
       "nextEpisodeCard": "Episódio seguinte",
       "previousEpisodeCard": "Episódio anterior",
       "cardSeason": "Temporada {{season}} · {{name}}",
-      "notOnDevice": "Não está neste dispositivo",
-      "forward10": "Avançar 10 segundos",
-      "options": "Opções",
-      "view": "Tempo e vista",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Não está neste dispositivo"
     },
     "tabs": {
       "label": "Mais sobre o título",
@@ -1468,6 +1470,8 @@
       },
       "settings": {
         "title": "Definições",
+        "relaysCard": "Buffers e retransmissões",
+        "coverCard": "Capas e dados externos",
         "buffer": "Retrocesso",
         "bufferHelp": "Até onde os ouvintes podem recuar. 60 minutos reduzem para metade o número de estações, mantendo-se o orçamento.",
         "minutes_one": "{{count}} minuto",
@@ -2100,7 +2104,7 @@
         "lead_many": "{{roots}} e {{formatted}} de títulos saem do Slouchcat, com o progresso, as marcações, a lista, as escolhas, as imagens e textos próprios, a fila do início «Novidades em {{name}}», as autorizações dos perfis e as transferências nos dispositivos.",
         "lead_other": "{{roots}} e {{formatted}} títulos saem do Slouchcat, com o progresso, as marcações, a lista, as escolhas, as imagens e textos próprios, a fila do início «Novidades em {{name}}», as autorizações dos perfis e as transferências nos dispositivos.",
         "files": "Os ficheiros no disco não são tocados. Se estiver em curso uma análise desta biblioteca, o Slouchcat cancela-a primeiro.",
-        "backup": "Antes disso, o Slouchcat faz uma cópia de segurança da base de dados (Administração › Cópia de segurança). Restaurar essa cópia repõe tudo no estado anterior à eliminação, incluindo o progresso de cada perfil desde então.",
+        "backup": "Antes disso, o Slouchcat faz uma cópia de segurança da base de dados (Administração › Sistema › Cópia de segurança). Quem restaurar essa cópia repõe tudo no estado anterior à eliminação, incluindo o progresso de todos os perfis desde então.",
         "final": "Caso contrário, não pode ser anulado: uma nova análise das mesmas pastas volta a criar os títulos, sem progresso.",
         "inputLabel": "Escreva o nome para confirmar",
         "mismatch": "Escreva {{name}} exatamente assim para ativar o botão.",
@@ -3245,8 +3249,6 @@
       "list": "Filas do início",
       "band": "Filas",
       "tabs": {
-        "label": "Vista das filas",
-        "order": "Ordem",
         "preview": "Pré-visualização"
       },
       "count_one": "{{number}} fila",
@@ -3436,17 +3438,35 @@
       "rowSettings": "A posição da fila no início e se aparece ou não define-se em «Início».",
       "rowSettingsLink": "Ir para «Início»"
     },
+    "finder": {
+      "button": "Procurar secção",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Procurar uma secção da administração",
+      "placeholder": "Bibliotecas, tarefas, cópia de segurança…",
+      "results": "Resultados",
+      "empty": "Nada encontrado",
+      "area": "Área",
+      "search": "Pesquisa de conteúdos",
+      "hint": "Setas para escolher, Enter para abrir, Esc para fechar"
+    },
     "nav": {
       "label": "Administração",
       "overview": "Visão geral",
-      "groups": {
-        "library": "Biblioteca",
-        "accounts": "Contas",
-        "curation": "Curadoria",
+      "areas": {
+        "media": "Conteúdos",
+        "people": "Utilizadores e dispositivos",
+        "home": "Início",
+        "automation": "Automatização",
         "system": "Sistema"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Caminho",
+      "tabs": "Páginas da área {{area}}",
       "back": "Voltar à aplicação",
       "updateLabel": "Visão geral, atualização para a versão {{version}} disponível",
+      "updateBadge": "{{name}}, atualização para a versão {{version}} disponível",
       "sheet": {
         "label": "Páginas da administração",
         "close": "Fechar páginas da administração"
@@ -3534,7 +3554,19 @@
       },
       "metadata": {
         "title": "Metadados"
+      },
+      "audiobookSources": {
+        "title": "Fontes de audiolivros"
+      },
+      "server": {
+        "title": "Servidor"
       }
+    },
+    "server": {
+      "intro": "Versão, atualizações, reinício, armazenamento e registo de erros num só local.",
+      "state": "Estado do servidor",
+      "updates": "Atualizações e reinício",
+      "toIntegrations": "Chip gráfico, endereço público e verificação de atualizações: Integrações"
     },
     "home": {
       "setupBand": {
@@ -3544,8 +3576,42 @@
         "action": "Continuar configuração"
       },
       "title": "Administração",
-      "live": "Em direto, a cada 5 segundos",
       "liveFailed": "Sem resposta, nova tentativa a cada 5 segundos",
+      "heading": "Tudo num relance",
+      "intro": "O importante primeiro. O resto encontra-se nas áreas.",
+      "refresh": "Atualizar",
+      "attention": {
+        "title": "O que precisa de atenção?",
+        "band_one": "{{count}} ponto precisa de atenção",
+        "band_many": "{{count}} de pontos precisam de atenção",
+        "band_other": "{{count}} pontos precisam de atenção",
+        "show": "Ver",
+        "none": "Tudo em ordem."
+      },
+      "metrics": {
+        "label": "Números principais",
+        "streams": "Transmissões ativas",
+        "streamsNote": "Ligadas neste momento",
+        "jobs": "Tarefas em curso",
+        "jobsNote": "{{queued}} em espera",
+        "jobsNotePaused": "{{queued}} em espera · {{paused}} em pausa",
+        "maintenance": "Títulos a tratar",
+        "maintenanceNote": "Casos em aberto na manutenção",
+        "storage": "Armazenamento",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "Ocupado: configuração · cache"
+      },
+      "active": {
+        "title": "Ativo neste momento"
+      },
+      "quick": {
+        "title": "Diretamente ao seu trabalho"
+      },
+      "summary": {
+        "title": "Servidor e atividade recente",
+        "details": "Detalhes do servidor",
+        "log": "Abrir o registo do servidor"
+      },
       "update": {
         "title": "A versão {{version}} está disponível",
         "body": "Está a executar a {{current}}. O Slouchcat não instala nada sozinho: obtenha a nova imagem com docker compose pull e reinicie com docker compose up -d.",
@@ -3564,10 +3630,6 @@
       },
       "jobs": {
         "title": "Tarefas",
-        "queued": "Em fila",
-        "running": "Em curso",
-        "failed": "Falhadas",
-        "paused": "Em pausa",
         "all": "Tarefas em segundo plano",
         "toFailed": "Ver falhas",
         "active": "Tarefas em curso",
@@ -3610,7 +3672,6 @@
         "manage": "Gerir webhooks"
       },
       "server": {
-        "title": "Servidor",
         "version": "Versão",
         "uptime": "Em execução há",
         "update": "Atualizações",
@@ -3714,11 +3775,9 @@
         "empty": "Ainda sem atividade."
       },
       "hints": {
-        "title": "Alertas",
         "count_one": "{{count}} alerta",
         "count_many": "{{count}} de alertas",
         "count_other": "{{count}} alertas",
-        "none": "Sem alertas.",
         "failed_one": "{{formatted}} tarefa em segundo plano falhou",
         "failed_many": "{{formatted}} de tarefas em segundo plano falharam",
         "failed_other": "{{formatted}} tarefas em segundo plano falharam",
@@ -3732,6 +3791,7 @@
         "keyRejected": "Chave de {{name}} rejeitada",
         "keyRejectedBody": "O fornecedor rejeita a chave. Enquanto não houver uma chave nova válida, o Slouchcat não obtém metadados dele.",
         "toKeys": "Ir para as chaves",
+        "toGpu": "Ir para a escolha do chip gráfico",
         "ratingsReread": "As classificações estão a ser relidas",
         "ratingsRereadBody": "Até a tarefa terminar, aplicam-se as classificações anteriores, mais restritas ou mais permissivas.",
         "minimumAge": "As classificações são agora idades mínimas",
@@ -3796,6 +3856,16 @@
       "cleared": "{{name}} eliminado.",
       "unsaved": "por guardar",
       "notificationsLink": "Ir para os canais de notificação",
+      "services": {
+        "label": "Serviços",
+        "back": "Todas as integrações",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt e Google Books.",
+        "webhooks": "O Radarr e o Sonarr comunicam os ficheiros novos e alterados.",
+        "email": "Servidor para notificações, convites e avisos por e-mail.",
+        "telegram": "Bot para notificações por Telegram.",
+        "push": "Notificações no navegador e na aplicação instalada.",
+        "server": "Verificação de atualizações, endereço público e chip gráfico."
+      },
       "keys": {
         "title": "Chaves dos fornecedores",
         "intro": "Com elas, o Slouchcat obtém textos, imagens e trailers. Sem chave, o fornecedor fica desativado.",
@@ -4427,10 +4497,10 @@
       "counts": {
         "running": "Em curso",
         "queued": "Em fila",
-        "planned": "Agendadas",
         "paused": "Em pausa",
         "failed": "Falhadas",
-        "label": "Resumo"
+        "label": "Resumo",
+        "plannedNote": "{{number}} planeadas"
       },
       "pools": {
         "title": "Trabalhadores",
@@ -4911,7 +4981,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Atualizações em pausa"
+      "livePaused": "Atualizações em pausa",
+      "filter": {
+        "label": "Filtrar os tipos de tarefa por estado",
+        "all": "Todas",
+        "running": "Em curso",
+        "failed": "Falhadas",
+        "paused": "Em pausa",
+        "empty": "Nenhum tipo de tarefa deste grupo neste estado."
+      }
     },
     "metadata": {
       "title": "Metadados",
@@ -5221,7 +5299,7 @@
         "library": "Apenas retirar do Slouchcat",
         "files": "Eliminar também os ficheiros"
       },
-      "libraryHint": "Os ficheiros permanecem no disco. O título continua de fora mesmo quando chegam ficheiros novos; em «Manutenção › Títulos removidos» pode ser recuperado com o progresso, as marcações e a lista.",
+      "libraryHint": "Os ficheiros ficam no disco. O título continua removido, mesmo que cheguem ficheiros novos; em «Manutenção › Títulos removidos» pode ser recuperado com progresso, marcações e A minha lista.",
       "everywhere": "O título sai de todas as listas de todos os perfis; as transferências nos dispositivos são removidas.",
       "arr": "O Radarr e o Sonarr não ficam a saber nada disto.",
       "affected_one": "Afetado: {{count}} ficheiro · {{size}}",

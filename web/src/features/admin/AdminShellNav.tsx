@@ -5,7 +5,6 @@ import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import type { IconName } from '@/ui';
 import {
   AdminSideNav,
   AdminSideNavMenu,
@@ -13,20 +12,22 @@ import {
   type AdminSideNavGroup,
   type AdminSideNavProps,
   type AdminSideNavTone,
+  type AreaTabsProps,
 } from '@/ui/aria';
 import { dashboardQuery } from './queries';
-import { adminGroups, adminSections, isSectionPath, type AdminGroup } from './sections';
+import {
+  adminAreaIcons,
+  adminAreas,
+  currentSection,
+  firstSectionOf,
+  sectionsOf,
+  type AdminArea,
+  type AdminSection,
+} from './sections';
 import { intlLocale } from '@/i18n';
 
 /** Poll interval of the sidebar's numbers on the admin pages but the overview, which asks itself. */
 const SHELL_POLL_MS = 30_000;
-
-const groupIcons = {
-  library: 'film',
-  accounts: 'users',
-  curation: 'star',
-  system: 'server',
-} as const satisfies Record<AdminGroup, IconName>;
 
 type Figure = Pick<AdminSideNavEntry, 'count' | 'alarm'> & { accessibleLabel: string };
 
@@ -34,20 +35,35 @@ type Figure = Pick<AdminSideNavEntry, 'count' | 'alarm'> & { accessibleLabel: st
 type SpokenCount =
   'titles' | 'maintenance' | 'accounts' | 'streams' | 'jobsRunning' | 'jobsFailed' | 'silent';
 
+/** What the admin frame needs: the column, the sheet, the area's tabs and where the page stands. */
+interface AdminNav {
+  /** The column from 768 px: back, then the overview and the five areas, the profile at the foot. */
+  column: Omit<AdminSideNavProps, 'focusCarry'>;
+  /** The sheet on a phone: back, the overview and the areas with all their pages. */
+  sheet: Omit<AdminSideNavProps, 'focusCarry'>;
+  /** The tabs of the current page's area; none on the overview. */
+  tabs?: Omit<AreaTabsProps, 'focusCarry'>;
+  /** Where the page stands: "Medien / Bibliotheken", or "Übersicht". */
+  trail: string;
+}
+
 /**
- * The entries of the sidebar (concept 11, 11.1): back to the app, the overview with the update
- * badge (A-5), then every admin page in its group. The numbers come from the dashboard after F-7
- * (few muted counts, coloured pills for what needs a look); without it (loading, an error) the
- * entries stand without numbers.
+ * The navigation of the administration (concept 11, 11.1; redesign, build plan 1 and 2): the
+ * overview with the update badge (A-5), the five areas and every page in its area. The numbers
+ * come from the dashboard after F-7 (few muted counts, coloured pills for what needs a look) and
+ * stand on the pages' tabs and the sheet's entries; an area's entry shows only what needs a look
+ * (build plan 1). Without the dashboard (loading, an error) the entries stand without numbers.
  */
-function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel: string } {
+export function useAdminNav(): AdminNav {
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const { pathname } = useLocation();
-  // The overview asks every 5 s itself (and not at all while the server restarts).
+  // The overview and the page «Server» ask every 5 s themselves (and not at all while the server
+  // restarts or an update installs).
   const dashboard = useQuery({
     ...dashboardQuery,
-    refetchInterval: pathname === paths.admin ? false : SHELL_POLL_MS,
+    refetchInterval:
+      pathname === paths.admin || pathname === paths.adminServer ? false : SHELL_POLL_MS,
   });
   const number = new Intl.NumberFormat(intlLocale(i18n.language));
 
@@ -108,7 +124,46 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
     }
   };
 
+  /** An area's entry shows only what needs a look (build plan 1). */
+  const areaFigure = (area: AdminArea, name: string, data: Dashboard): Figure | undefined => {
+    switch (area) {
+      case 'media':
+        return data.counts.maintenanceOpen > 0
+          ? pill('maintenance', name, data.counts.maintenanceOpen, 'warning')
+          : undefined;
+      case 'people':
+        return data.streams.length > 0
+          ? pill('streams', name, data.streams.length, 'accent')
+          : undefined;
+      case 'automation':
+        // A failed job before a silent webhook.
+        if (data.jobs.failed > 0) return pill('jobsFailed', name, data.jobs.failed, 'danger');
+        return data.webhooks.silent.length > 0
+          ? pill('silent', name, data.webhooks.silent.length, 'warning')
+          : undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const current = currentSection(pathname);
+  const areaName = (area: AdminArea) => t(`admin.nav.areas.${area}`);
+  const pageName = (section: AdminSection) => t(`admin.sections.${section.key}.title`);
   const update = session.updateAvailable;
+  /** The badge «Update» with its spoken name (A-5): on «Übersicht», «System» and «Server». */
+  const updateBadge = (name: string, version: string) => ({
+    badge: t('nav.update'),
+    accessibleLabel: t('admin.nav.updateBadge', { name, version }),
+  });
+  const pageEntry = (section: AdminSection): AdminSideNavEntry => {
+    const label = pageName(section);
+    const link = { href: section.href, label, icon: section.icon, current: section === current };
+    if (section.key === 'server' && update)
+      return { ...link, ...updateBadge(label, update.version) };
+    const numbers = dashboard.data && figure(section.key, label, dashboard.data);
+    return numbers ? { ...link, ...numbers } : link;
+  };
+
   const overviewLink = {
     href: paths.admin,
     label: t('admin.nav.overview'),
@@ -122,33 +177,42 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
         accessibleLabel: t('admin.nav.updateLabel', { version: update.version }),
       }
     : overviewLink;
-  const top: AdminSideNavEntry[] = [
-    { href: paths.home, label: t('admin.nav.back'), icon: 'back' },
-    overview,
-  ];
-  const groups: AdminSideNavGroup[] = adminGroups.map((group) => ({
-    label: t(`admin.nav.groups.${group}`),
-    icon: groupIcons[group],
-    entries: adminSections
-      .filter((section) => section.group === group)
-      .map((section): AdminSideNavEntry => {
-        const label = t(`admin.sections.${section.key}.title`);
-        const link = {
-          href: section.href,
-          label,
-          icon: section.icon,
-          current: isSectionPath(section, pathname),
-        };
-        const numbers = dashboard.data && figure(section.key, label, dashboard.data);
-        return numbers ? { ...link, ...numbers } : link;
-      }),
+  const back: AdminSideNavEntry = { href: paths.home, label: t('admin.nav.back'), icon: 'back' };
+  const areas = adminAreas.map((area): AdminSideNavEntry => {
+    const label = areaName(area);
+    const link = {
+      href: firstSectionOf(area).href,
+      label,
+      icon: adminAreaIcons[area],
+      current: current?.area === area,
+    };
+    if (area === 'system' && update) return { ...link, ...updateBadge(label, update.version) };
+    const numbers = dashboard.data && areaFigure(area, label, dashboard.data);
+    return numbers ? { ...link, ...numbers } : link;
+  });
+  const groups: AdminSideNavGroup[] = adminAreas.map((area) => ({
+    label: areaName(area),
+    icon: adminAreaIcons[area],
+    entries: sectionsOf(area).map(pageEntry),
   }));
-  const current = [...top, ...groups.flatMap((group) => group.entries)].find(
-    (entry) => entry.current,
-  );
+  const label = t('admin.nav.label');
   return {
-    nav: { label: t('admin.nav.label'), top, groups },
-    pageLabel: current?.label ?? t('admin.nav.overview'),
+    column: {
+      label,
+      top: [back],
+      heading: label,
+      entries: [overview, ...areas],
+      // Only an administrator's primary profile has the admin frame (AdminLayout).
+      profile: { name: session.profile.name, role: t('nav.profileRole.admin') },
+    },
+    sheet: { label, top: [back, overview], groups },
+    tabs: current && {
+      label: t('admin.nav.tabs', { area: areaName(current.area) }),
+      tabs: sectionsOf(current.area).map(pageEntry),
+    },
+    trail: current
+      ? t('admin.nav.trail', { area: areaName(current.area), page: pageName(current) })
+      : t('admin.nav.overview'),
   };
 }
 
@@ -157,19 +221,20 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
  * between the admin pages; `focusCarry` brings the focused entry back when it mounts again.
  */
 export function AdminShellNav({ focusCarry }: { focusCarry: RefObject<number | null> }) {
-  const { nav } = useAdminNav();
-  return <AdminSideNav {...nav} focusCarry={focusCarry} />;
+  const { column } = useAdminNav();
+  return <AdminSideNav {...column} focusCarry={focusCarry} />;
 }
 
-/** The same entries on a phone: the button «Verwaltung · page» with the sheet (AdminLayout). */
-export function AdminShellMenu() {
+/**
+ * On a phone: the button «Verwaltung › area / page» with the sheet of every page (AdminLayout).
+ */
+export function AdminShellMenu({ nav }: { nav: AdminNav }) {
   const { t } = useTranslation();
-  const { nav, pageLabel } = useAdminNav();
   return (
     <AdminSideNavMenu
-      {...nav}
+      {...nav.sheet}
       buttonLabel={t('admin.nav.label')}
-      pageLabel={pageLabel}
+      pageLabel={nav.trail}
       menuLabel={t('admin.nav.sheet.label')}
       closeLabel={t('admin.nav.sheet.close')}
     />

@@ -22,6 +22,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowBetweenRows, arrowTo } from './playback';
+import { areaTab } from './admin';
 
 // /admin/accounts (A-2, concept 12 variant C with KP-1) by keyboard (rule 8): the administrator
 // and an account in one table with rating, libraries, profiles and channels; each row folds out
@@ -413,12 +414,11 @@ test('K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Ver
     await page.keyboard.press('Enter');
     await expect(access.getByRole('radio', { name: 'FSK 12' })).toBeChecked();
 
-    // Leaving by the sidebar asks; the default stays, Escape stays as well.
-    const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-    const devices = nav.getByRole('link', { name: /^Geräte/ });
+    // Leaving by the area's tabs asks; the default stays, Escape stays as well.
+    const devices = areaTab(page, 'Geräte');
     await resetFocus(page);
-    await tabTo(page, nav.getByRole('link', { name: /^Konten/ }), TAB_MAX);
-    await arrowTo(page, devices);
+    await tabTo(page, areaTab(page, 'Konten'), TAB_MAX);
+    await arrowTo(page, devices, 'ArrowRight');
     await page.keyboard.press('Enter');
     const question = page.getByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
@@ -434,8 +434,8 @@ test('K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Ver
     await expect(question).toHaveCount(0);
     await expect(access.getByRole('radio', { name: 'FSK 12' })).toBeChecked();
 
-    // «Verwerfen» takes the stored value back; then the sidebar leaves without a question, and
-    // the browser's Back returns to the page.
+    // «Verwerfen» takes the stored value back; then the tabs leave without a question, and the
+    // browser's Back returns to the page.
     await resetFocus(page);
     await tabTo(page, discard, TAB_MAX);
     await page.keyboard.press('Enter');
@@ -443,8 +443,8 @@ test('K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Ver
     await expect(discard).toHaveCount(0);
     await expectFocusOn(page, save);
     await resetFocus(page);
-    await tabTo(page, nav.getByRole('link', { name: /^Konten/ }), TAB_MAX);
-    await arrowTo(page, devices);
+    await tabTo(page, areaTab(page, 'Konten'), TAB_MAX);
+    await arrowTo(page, devices, 'ArrowRight');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/devices$/);
     await page.goBack();
@@ -511,7 +511,9 @@ test('KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete b
   await page.goto('/admin/accounts?item=me#meine-profile');
   await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-  const entry = nav.getByRole('link', { name: /^Konten/ });
+  // The area's tab marks «Konten», the sidebar its area «Nutzer & Geräte».
+  await expect(areaTab(page, 'Konten')).toHaveAttribute('aria-current', 'page');
+  const entry = nav.getByRole('link', { name: /^Nutzer & Geräte/ });
   await expect(entry).toHaveAttribute('aria-current', 'page');
   await expect(accountToggle(page, OWNER.email)).toHaveAttribute('aria-expanded', 'true');
   const mine = accountFoldOut(page, OWNER.email).getByRole('region', { name: 'Meine Profile' });

@@ -56,12 +56,29 @@ export interface AdminSideNavGroup {
   entries: readonly AdminSideNavEntry[];
 }
 
+/** The active profile at the foot of the column: shown, not a link (the header has the picker). */
+export interface AdminSideNavProfile {
+  name: string;
+  /** Its role ("Server-Admin"). */
+  role: string;
+}
+
 export interface AdminSideNavProps {
   /** Accessible name of the navigation ("Verwaltung"). */
   label: string;
-  /** The entries above the groups: back to the app and the overview. */
+  /** The entries at the top: back to the app (and, in the sheet, the overview). */
   top: readonly AdminSideNavEntry[];
-  groups: readonly AdminSideNavGroup[];
+  /**
+   * The small heading above `entries` ("Verwaltung"), in small capitals. It names their list; it
+   * is no heading element, so none stands before the page's h1.
+   */
+  heading?: string;
+  /** The entries below the heading: in the column the overview and the areas. */
+  entries?: readonly AdminSideNavEntry[];
+  /** Entries in groups, each under its band: in the sheet the areas with all their pages. */
+  groups?: readonly AdminSideNavGroup[];
+  /** The active profile at the foot of the column (the sheet has none). */
+  profile?: AdminSideNavProfile;
   /**
    * When a page renders its own copy of the navigation, following a link replaces it and its
    * focused entry with it. A ref that outlives the pages carries the focused entry over: the next
@@ -98,33 +115,44 @@ function EntryContent({ entry }: { entry: AdminSideNavEntry }) {
           </span>
         )
       )}
+      {entry.current && (
+        <span className={styles.chevron} aria-hidden="true">
+          <Icon name="chevronRight" size="sm" />
+        </span>
+      )}
     </>
   );
 }
 
 /**
  * The entries of both renderings, the column (AdminSideNav) and the sheet (AdminSideNavMenu):
- * back to the app, the overview, then the four groups with a title band each and their pages.
+ * back to the app at the top, then in the column the heading «Verwaltung» with the overview and
+ * the five areas, in the sheet the overview and the areas as bands with all their pages.
  *
  * Like Tabs it is a single Tab stop (the current page's entry, roving tabIndex) across all
  * entries: ArrowDown and ArrowUp move between them (wrapping), Home and End go to the first and
  * last, Enter follows the link, Tab leaves the column. Leaving puts the Tab stop back on the
- * current page. The group titles are no headings, so no four headings stand before the page's h1.
+ * current page. The heading and the group titles are no headings, so none stands before the
+ * page's h1.
  */
 export function AdminSideNavContent({
   label,
   top,
-  groups,
+  heading,
+  entries: main = [],
+  groups = [],
   // A name ending in Ref tells the React compiler that writing `.current` is fine.
   focusCarry: focusCarryRef,
   className,
   revealCurrent = false,
 }: AdminSideNavContentProps) {
   const id = useId();
-  const entries = [...top, ...groups.flatMap((group) => group.entries)];
+  const entries = [...top, ...main, ...groups.flatMap((group) => group.entries)];
   const offsets = groups.map(
     (_, index) =>
-      top.length + groups.slice(0, index).reduce((sum, group) => sum + group.entries.length, 0),
+      top.length +
+      main.length +
+      groups.slice(0, index).reduce((sum, group) => sum + group.entries.length, 0),
   );
   const currentIndex = entries.findIndex((entry) => entry.current);
   const current = Math.max(0, currentIndex);
@@ -198,6 +226,7 @@ export function AdminSideNavContent({
     </li>
   );
 
+  const headingId = `${id}-heading`;
   return (
     <nav
       ref={navRef}
@@ -206,6 +235,18 @@ export function AdminSideNavContent({
       onBlur={onBlur}
     >
       <ul className={styles.list}>{top.map((entry, index) => link(entry, index, styles.entry))}</ul>
+      {main.length > 0 && (
+        <div className={styles.section}>
+          {heading && (
+            <span id={headingId} className={styles.heading}>
+              {heading}
+            </span>
+          )}
+          <ul className={styles.list} aria-labelledby={heading ? headingId : undefined}>
+            {main.map((entry, index) => link(entry, top.length + index, styles.entry))}
+          </ul>
+        </div>
+      )}
       {groups.map((group, groupIndex) => {
         const bandId = `${id}-${groupIndex}`;
         return (
@@ -231,10 +272,25 @@ export function AdminSideNavContent({
 }
 
 /**
- * The administration's sidebar (concept 11, 11.1 and 11.6) at the place and in the width of the
- * app's side navigation. Presentational only: the entries, their numbers and pills come in as
- * props.
+ * The administration's sidebar (concept 11, 11.1 and 11.6; redesign, build plan 2.2) at the place
+ * and in the width of the app's side navigation. Presentational only: the entries, their numbers
+ * and pills come in as props.
  */
-export function AdminSideNav(props: AdminSideNavProps) {
-  return <AdminSideNavContent {...props} className={styles.column} revealCurrent />;
+export function AdminSideNav({ profile, ...props }: AdminSideNavProps) {
+  return (
+    <div className={styles.column}>
+      <AdminSideNavContent {...props} revealCurrent />
+      {profile && (
+        <div className={styles.profile}>
+          <span className={styles.avatar} aria-hidden="true">
+            {profile.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span className={styles.who}>
+            <span className={styles.name}>{profile.name}</span>
+            <span className={styles.role}>{profile.role}</span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }

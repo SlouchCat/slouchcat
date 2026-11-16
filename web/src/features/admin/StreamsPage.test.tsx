@@ -217,7 +217,13 @@ describe('admin streams (W-6)', () => {
   it('counts the streams per mode and sums the bit rates under «Serverlast»', async () => {
     mockApi(routes(() => mixed));
     renderApp('/admin/streams');
-    expect(await screen.findByRole('heading', { level: 2, name: 'Serverlast' })).toBeVisible();
+    // The counters stand right below the header (redesign, mockup .statrow), named by the group.
+    const load = await screen.findByRole('group', { name: 'Serverlast' });
+    expect(load).toBeVisible();
+    // The heading of the section before the redesign stays for screen readers and the heading
+    // navigation (STR-004): a level 2 heading that names the group.
+    const heading = screen.getByRole('heading', { level: 2, name: 'Serverlast' });
+    expect(load).toHaveAttribute('aria-labelledby', heading.id);
     // The panel stands from the start, with «–» until the playbacks are there.
     await waitFor(() =>
       expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('1'),
@@ -671,7 +677,7 @@ describe('admin streams (W-6)', () => {
       expect(filterButton(/^Video/)).toHaveTextContent('Video –');
       expect(filterButton(/^Radio/)).toHaveTextContent('Radio 1');
       // «Serverlast» stays with the known radio count; the playbacks' counters are unknown (17.3).
-      expect(screen.getByRole('heading', { level: 2, name: 'Serverlast' })).toBeVisible();
+      expect(screen.getByRole('group', { name: 'Serverlast' })).toBeVisible();
       expect(within(loadOf('Radio')).getAllByRole('definition')[0]).not.toHaveTextContent('–');
       expect(within(loadOf('Transcode HW')).getAllByRole('definition')[0]).toHaveTextContent('–');
       expect(within(loadOf('Bandbreite gesamt')).getAllByRole('definition')[0]).toHaveTextContent(

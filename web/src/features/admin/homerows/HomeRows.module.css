@@ -156,3 +156,33 @@
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-2);
 }
+
+/*
+ * The start page's editor and its preview side by side (redesign, build plan 5; the mockup's
+ * .grid2) where the page holds both: the editor's table keeps a least width of 36rem there
+ * (DataTable's --sc-table-fixed-min-width, 48rem elsewhere); below, the preview follows the
+ * editor. While the rows scroll, the preview stays in view.
+ */
+.workspace {
+  container-type: inline-size;
+}
+
+.halves {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-section-gap);
+  align-items: start;
+}
+
+@container (width >= 58rem) {
+  .halves {
+    --sc-table-fixed-min-width: 36rem;
+
+    grid-template-columns: minmax(38rem, 1fr) minmax(18rem, 22rem);
+  }
+
+  .previewSide {
+    position: sticky;
+    top: var(--sc-space-4);
+  }
+}

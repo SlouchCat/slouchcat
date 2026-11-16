@@ -29,4 +29,12 @@ type Story = StoryObj<typeof meta>;
 /** The five counters of the jobs page (JOB-1) as compact tiles, 56 px high. */
 export const Default: Story = {};
 
+/**
+ * With `heading`: the label is also a level 2 heading for screen readers only (the streams'
+ * «Serverlast», STR-004); the look is the same as the default.
+ */
+export const WithHeading: Story = {
+  args: { label: 'Serverlast', heading: true },
+};
+
 // No compact story: the strip's tiles are 56 px in both densities (S-4), the shots are equal.

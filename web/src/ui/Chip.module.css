@@ -22,19 +22,20 @@
   color: var(--sc-color-text-primary);
 }
 
+/* Solid tones; the administration's look tints them instead (admin-look.css, build plan 2.7). */
 .warning {
-  background-color: var(--sc-color-state-warning);
-  color: var(--sc-color-bg-base);
+  background-color: var(--sc-chip-warning-background, var(--sc-color-state-warning));
+  color: var(--sc-chip-warning-color, var(--sc-color-bg-base));
 }
 
 .danger {
-  background-color: var(--sc-color-state-danger);
-  color: var(--sc-color-bg-base);
+  background-color: var(--sc-chip-danger-background, var(--sc-color-state-danger));
+  color: var(--sc-chip-danger-color, var(--sc-color-bg-base));
 }
 
 .success {
-  background-color: var(--sc-color-state-success);
-  color: var(--sc-color-bg-base);
+  background-color: var(--sc-chip-success-background, var(--sc-color-state-success));
+  color: var(--sc-chip-success-color, var(--sc-color-bg-base));
 }
 
 .info {

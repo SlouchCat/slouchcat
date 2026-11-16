@@ -75,7 +75,7 @@
           "test_failed": "probe failed at start"
         },
         "saved": "Saved: {{name}}",
-        "restartAdmin": "Applies after the server restarts (Overview › Restart)."
+        "restartAdmin": "Applies after the server restarts (System › Server › Restart)."
       },
       "fallback": {
         "title": "The chosen graphics chip does not work",
@@ -363,7 +363,7 @@
       },
       "radio": "Web radio",
       "radioToggle": "Add {{country}} to the radio offer",
-      "radioHint": "The country joins the offer without stations. You pick the stations later under Administration › Radio."
+      "radioHint": "The country joins the offer without stations. You pick the stations later under Administration › Media › Radio."
     },
     "services": {
       "recommended": "Recommended",
@@ -399,7 +399,7 @@
       "folder": "Folder {{position}}"
     },
     "household": {
-      "accounts": "You invite guests with an account of their own later under Administration › Accounts."
+      "accounts": "You invite guests with an account of their own later under Administration › Users & devices › Accounts."
     },
     "access": {
       "here": "You are using {{url}} right now.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat is set up",
       "restartTitle": "Slouchcat is restarting …",
       "restartBody": "The graphics chip choice applies after the restart. The first scans go on afterwards.",
-      "busy": "Slouchcat could not restart because a backup or an update is running. The graphics chip choice applies after the next restart (Administration › Overview).",
+      "busy": "Slouchcat could not restart because a backup or an update is running. The graphics chip choice applies after the next restart (Administration › System › Server).",
       "scanProgress": "{{state}}: {{seen}} of {{total}} files",
       "home": "Go to the start page"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Help for this page",
+      "less": "Less",
+      "more": "More",
       "live_one": "Live, every second",
       "live_other": "Live, every {{count}} seconds"
     },
@@ -1408,6 +1410,8 @@
       },
       "settings": {
         "title": "Settings",
+        "relaysCard": "Buffers and relays",
+        "coverCard": "Covers and external data",
         "buffer": "Time shift",
         "bufferHelp": "How far listeners can go back. 60 minutes halve the number of stations while the budget stays.",
         "minutes_one": "{{count}} minute",
@@ -2019,7 +2023,7 @@
         "lead_one": "{{roots}} and {{formatted}} title leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
         "lead_other": "{{roots}} and {{formatted}} titles leave Slouchcat, with progress, check marks, watchlist, picks, own images and texts, the home row “New in {{name}}”, the grants of the profiles and the downloads on the devices.",
         "files": "The files on the disk stay untouched. If a scan of this library is running, Slouchcat cancels it first.",
-        "backup": "Before that, Slouchcat backs the database up (Administration › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
+        "backup": "Before that, Slouchcat backs the database up (Administration › System › Backup). Restoring this backup puts everything back to the state before the delete, the progress of every profile since included.",
         "final": "Otherwise it cannot be undone: a new scan of the same folders creates the titles again, without progress.",
         "inputLabel": "Type the name to confirm",
         "mismatch": "Type {{name}} exactly like this to enable the button.",
@@ -3106,8 +3110,6 @@
       "list": "Rows of the start page",
       "band": "Rows",
       "tabs": {
-        "label": "View of the rows",
-        "order": "Order",
         "preview": "Preview"
       },
       "count_one": "{{number}} row",
@@ -3293,17 +3295,35 @@
       "rowSettings": "Where the row stands on the start page and whether it appears is set under “Start page”.",
       "rowSettingsLink": "Go to “Start page”"
     },
+    "finder": {
+      "button": "Find a section",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Find a section of the administration",
+      "placeholder": "Libraries, jobs, backup …",
+      "results": "Results",
+      "empty": "Nothing found",
+      "area": "Area",
+      "search": "Media search",
+      "hint": "Arrow keys choose, Enter opens, Esc closes"
+    },
     "nav": {
       "label": "Administration",
       "overview": "Overview",
-      "groups": {
-        "library": "Library",
-        "accounts": "Accounts",
-        "curation": "Curation",
+      "areas": {
+        "media": "Media",
+        "people": "Users & devices",
+        "home": "Home page",
+        "automation": "Automation",
         "system": "System"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Breadcrumb",
+      "tabs": "Pages in {{area}}",
       "back": "Back to the app",
       "updateLabel": "Overview, update to version {{version}} available",
+      "updateBadge": "{{name}}, update to version {{version}} available",
       "sheet": {
         "label": "Administration pages",
         "close": "Close administration pages"
@@ -3384,7 +3404,19 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Audiobook sources"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, updates, restart, storage and the error log in one place.",
+      "state": "Server state",
+      "updates": "Updates & restart",
+      "toIntegrations": "Graphics chip, public address and update check: Integrations"
     },
     "home": {
       "setupBand": {
@@ -3394,8 +3426,41 @@
         "action": "Continue setup"
       },
       "title": "Administration",
-      "live": "Live, every 5 seconds",
       "liveFailed": "No answer, trying again every 5 seconds",
+      "heading": "Everything at a glance",
+      "intro": "What matters first. Everything else is in the areas.",
+      "refresh": "Refresh",
+      "attention": {
+        "title": "What needs attention?",
+        "band_one": "{{count}} item needs attention",
+        "band_other": "{{count}} items need attention",
+        "show": "Show",
+        "none": "All is well."
+      },
+      "metrics": {
+        "label": "Key figures",
+        "streams": "Active streams",
+        "streamsNote": "Connected right now",
+        "jobs": "Running jobs",
+        "jobsNote": "{{queued}} waiting",
+        "jobsNotePaused": "{{queued}} waiting · {{paused}} paused",
+        "maintenance": "Titles to maintain",
+        "maintenanceNote": "Open cases in maintenance",
+        "storage": "Storage",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Used: configuration · cache"
+      },
+      "active": {
+        "title": "Active right now"
+      },
+      "quick": {
+        "title": "Straight to your tasks"
+      },
+      "summary": {
+        "title": "Server & recent activity",
+        "details": "Server details",
+        "log": "Open the server log"
+      },
       "update": {
         "title": "Version {{version}} is available",
         "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",
@@ -3414,10 +3479,6 @@
       },
       "jobs": {
         "title": "Tasks",
-        "queued": "Queued",
-        "running": "Running",
-        "failed": "Failed",
-        "paused": "Paused",
         "all": "Background jobs",
         "toFailed": "View failures",
         "active": "Running tasks",
@@ -3458,7 +3519,6 @@
         "manage": "Manage webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Running for",
         "update": "Updates",
@@ -3561,10 +3621,8 @@
         "empty": "No activity yet."
       },
       "hints": {
-        "title": "Notices",
         "count_one": "{{count}} notice",
         "count_other": "{{count}} notices",
-        "none": "No notices.",
         "failed_one": "{{formatted}} background job failed",
         "failed_other": "{{formatted}} background jobs failed",
         "paused_one": "{{count}} job type paused",
@@ -3576,6 +3634,7 @@
         "keyRejected": "{{name}} key rejected",
         "keyRejectedBody": "The provider rejects the key. Until a new key holds, Slouchcat fetches no metadata from it.",
         "toKeys": "To the keys",
+        "toGpu": "To the graphics chip choice",
         "ratingsReread": "Ratings are being read again",
         "ratingsRereadBody": "Until the job is done, the previous ratings apply, stricter or looser.",
         "minimumAge": "Ratings are minimum ages now",
@@ -3637,6 +3696,16 @@
       "cleared": "{{name}} deleted.",
       "unsaved": "unsaved",
       "notificationsLink": "Go to the notification channels",
+      "services": {
+        "label": "Services",
+        "back": "All integrations",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt and Google Books.",
+        "webhooks": "Radarr and Sonarr report new and changed files.",
+        "email": "Server for notifications, invitations and announcements by e-mail.",
+        "telegram": "Bot for notifications by Telegram.",
+        "push": "Notifications in the browser and in the installed app.",
+        "server": "Update check, public address and graphics chip."
+      },
       "keys": {
         "title": "Provider keys",
         "intro": "Slouchcat fetches texts, images and trailers with them. Without a key the provider stays off.",
@@ -4255,10 +4324,10 @@
       "counts": {
         "running": "Running",
         "queued": "Queued",
-        "planned": "Planned",
         "paused": "Paused",
         "failed": "Failed",
-        "label": "Summary"
+        "label": "Summary",
+        "plannedNote": "{{number}} planned"
       },
       "pools": {
         "title": "Workers",
@@ -4724,7 +4793,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Updates paused"
+      "livePaused": "Updates paused",
+      "filter": {
+        "label": "Filter job types by state",
+        "all": "All",
+        "running": "Running",
+        "failed": "Failed",
+        "paused": "Paused",
+        "empty": "No job type of this group in this state."
+      }
     },
     "metadata": {
       "title": "Metadata",

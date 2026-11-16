@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { DEFAULT_HOME_ROWS, listHomeRows, setHomeRows, titleId } from './curation';
 import { expect, test } from './fixtures';
@@ -10,11 +10,12 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo, resetProgress } from './playback';
+import { areaTab } from './admin';
 
 // /admin/home-rows (M7, E-9; concept 12, variant C) by keyboard (rule 8): the position of
 // "Neu hinzugefügt" by ↑ on its select changes the start page's order, a hidden row is gone from
-// it; a row folds out by Enter with its description; the tabs «Reihenfolge» and «Vorschau» by
-// ←/→; leaving with unsaved changes asks; the Trakt line leads to the spotlight page. ↑/↓
+// it; a row folds out by Enter with its description; the preview next to the editor follows the
+// unsaved order (redesign, build plan 5); leaving with unsaved changes asks; the Trakt line leads to the spotlight page. ↑/↓
 // between the rows, Tab, Enter and Space, browser back, no trap. Behind the eight fixed rows the
 // page lists «Meine Medien» and a row per library (concept 15 P-7), hidden; the Tab limits count
 // their stops too.
@@ -68,11 +69,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
 
     await page.goto('/admin/home-rows');
     await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
-    await expect(
-      page
-        .getByRole('navigation', { name: 'Verwaltung' })
-        .getByRole('link', { name: 'Startseite' }),
-    ).toHaveAttribute('aria-current', 'page');
+    await expect(areaTab(page, 'Startseite')).toHaveAttribute('aria-current', 'page');
     const table = rowsTable(page);
     await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
     // No arrow buttons any more (S-16): a position to choose per row.
@@ -142,7 +139,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
   }
 });
 
-test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen» restores', async ({
+test('the preview next to the editor shows the unsaved order; leaving asks, «Verwerfen» restores', async ({
   page,
   owner,
 }) => {
@@ -161,31 +158,24 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
   await expectFocusOn(page, rank);
 
-  // ←/→ in the tab list: «Vorschau» shows the order on the page, saved or not.
-  const order = page.getByRole('tab', { name: /^Reihenfolge/ });
-  const preview = page.getByRole('tab', { name: /^Vorschau/ });
-  await resetFocus(page);
-  await tabTo(page, order, 60);
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, preview);
-  await expect(preview).toHaveAttribute('aria-selected', 'true');
-  await expect(page).toHaveURL(/[?&]tab=preview/);
+  // The preview stands next to the editor and shows the order on the page, saved or not; at
+  // this width both halves fit side by side.
   const sketch = page.getByRole('list', { name: 'Vorschau der Startseite' });
   await expect(sketch.getByRole('listitem').nth(6)).toContainText(`7. ${last}`);
+  await expect(page.getByRole('tab')).toHaveCount(0);
+  const editorBox = await page.getByRole('region', { name: 'Reihen' }).boundingBox();
+  const previewBox = await page.getByRole('region', { name: 'Vorschau' }).boundingBox();
+  expect(previewBox!.x).toBeGreaterThan(editorBox!.x + editorBox!.width - 1);
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, order);
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
-  await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
 
-  // The sidebar link waits for the question; it starts on «Auf der Seite bleiben», Escape stays.
-  // Tab reaches the sidebar at its current entry, ↑ walks it to «Spotlight».
-  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-  const spotlight = sidebar.getByRole('link', { name: 'Spotlight' });
+  // The tab link waits for the question; it starts on «Auf der Seite bleiben», Escape stays.
+  // Tab reaches the area's tabs at the current page, → walks them to «Spotlight».
+  const spotlight = areaTab(page, 'Spotlight');
   const toSpotlight = async () => {
     await resetFocus(page);
-    await tabTo(page, sidebar.getByRole('link', { name: 'Startseite' }), 40);
-    await arrowTo(page, spotlight, 'ArrowUp');
+    await tabTo(page, areaTab(page, 'Startseite'), 40);
+    await arrowTo(page, spotlight, 'ArrowRight');
     await expectVisibleFocus(page);
   };
   await toSpotlight();
@@ -229,7 +219,7 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(table.getByRole('rowheader').first()).toHaveText(first ?? '');
   await expect(table.getByRole('rowheader').nth(7)).toHaveText(last);
 
-  // Nothing unsaved: the sidebar link goes at once.
+  // Nothing unsaved: the tab goes at once.
   await toSpotlight();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/spotlight$/);
@@ -288,4 +278,55 @@ test('ticking «Ausblenden» leaves the columns where they are (K12-9)', async (
     .click();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   await expect(hide).not.toBeChecked();
+});
+
+/** The boxes of the cards «Reihen» and «Vorschau» and of the rows table. */
+const halves = async (page: Page) => {
+  const box = async (locator: Locator) => {
+    const found = await locator.boundingBox();
+    if (!found) throw new Error('not laid out');
+    return found;
+  };
+  return {
+    rows: await box(page.getByRole('region', { name: 'Reihen', exact: true })),
+    preview: await box(page.getByRole('region', { name: 'Vorschau', exact: true })),
+    table: await box(rowsTable(page)),
+  };
+};
+
+test('the preview stands next to the rows on a wide window and below them on a narrow one (HOM-021)', async ({
+  page,
+  owner,
+}) => {
+  await setHomeRows(owner, DEFAULT_HOME_ROWS);
+
+  // 1440 px: the container is at least 58rem wide, the two cards stand side by side and the
+  // table keeps its minimum of 36rem next to the preview.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/home-rows');
+  await expect(rowsTable(page).getByRole('rowheader')).toHaveCount(
+    (await listHomeRows(owner)).length,
+  );
+  const wide = await halves(page);
+  expect(wide.preview.x, 'preview right of the rows').toBeGreaterThanOrEqual(
+    wide.rows.x + wide.rows.width - 1,
+  );
+  expect(Math.abs(wide.preview.y - wide.rows.y), 'both on one line').toBeLessThanOrEqual(1);
+  expect(wide.table.width, 'table at least 36rem').toBeGreaterThanOrEqual(36 * 16 - 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+
+  // 900 px: under 58rem the preview goes below the editor; the page stays as wide as the window
+  // (the table may scroll in itself).
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect
+    .poll(async () => {
+      const narrow = await halves(page);
+      return narrow.preview.y >= narrow.rows.y + narrow.rows.height - 1;
+    }, 'preview below the rows')
+    .toBe(true);
+  const narrow = await halves(page);
+  expect(Math.abs(narrow.preview.x - narrow.rows.x), 'one column').toBeLessThanOrEqual(1);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(900);
 });

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountLibraries, profiles } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 import { fill } from '@/test/fill';
+import { findAdminTabs } from '@/test/admin';
 
 // A-2 with ADR 0014 and concept 12 (variant C with KP-1): every account in one table with its
 // role and the owner badge, each row folding out. The signed-in account changes its own e-mail
@@ -392,11 +393,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     expect(within(access()).getByRole('radio', { name: 'FSK 16' })).toBeChecked();
 
     // Leaving the page with the draft asks; staying keeps it.
-    await user.click(
-      within(screen.getByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-        name: /^Geräte/,
-      }),
-    );
+    await user.click(within(await findAdminTabs()).getByRole('link', { name: /^Geräte/ }));
     const leave = await screen.findByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
     });
@@ -630,16 +627,16 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     });
     expect(mine).toHaveAttribute('id', 'meine-profile');
     expect(await within(mine).findByRole('article', { name: 'Lena' })).toBeVisible();
-    // The sidebar marks «Konten»: the profiles are a part of it.
-    const nav = screen.getByRole('navigation', { name: 'Verwaltung' });
-    expect(within(nav).getByRole('link', { name: /^Konten/ })).toHaveAttribute(
+    // The area's tabs mark «Konten»: the profiles are a part of it.
+    const tabs = await findAdminTabs();
+    expect(within(tabs).getByRole('link', { name: /^Konten/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
 
     await act(() => router.navigate({ href: '/admin/accounts?item=999&tab=bogus' }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
-    expect(within(nav).getByRole('link', { name: /^Konten/ })).toHaveAttribute(
+    expect(within(await findAdminTabs()).getByRole('link', { name: /^Konten/ })).toHaveAttribute(
       'aria-current',
       'page',
     );

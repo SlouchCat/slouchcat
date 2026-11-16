@@ -29,6 +29,7 @@ import {
 import { INTRO_SHOW_TITLE, itemIdByTitle } from './playback';
 import { SMTP_FROM } from './smtp-server.mjs';
 import { BOT_USERNAME, CHAT_ID } from './telegram-server.mjs';
+import { areaTab } from './admin';
 
 // Notification channels (A-6, E-8 channel part) against the server and the mocks of
 // start-server.mjs: e-mail through the SMTP mock, Telegram through the bot API mock, Web Push
@@ -336,7 +337,12 @@ test('admin: the page stays in the administration, compact, with the link to the
   await page.goto('/admin/notifications');
   await expect(pageTitle(page)).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-  const entry = nav.getByRole('link', { name: /^Benachrichtigungen(,|$)/ });
+  // The sidebar marks the area «Automatisierung», its tabs the page (build plan 2.5).
+  await expect(nav.getByRole('link', { name: /^Automatisierung(,|$)/ })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  const entry = areaTab(page, 'Benachrichtigungen');
   await expect(entry).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toHaveCount(0);
   // The administration's shell sets the compact density.
@@ -346,11 +352,12 @@ test('admin: the page stays in the administration, compact, with the link to the
   });
   await expect(toServer).toBeVisible();
 
-  // The sidebar is one Tab stop; ↑ reaches «Integrationen», Enter follows and keeps the sidebar.
+  // The area's tabs are one Tab stop; ← reaches «Integrationen», Enter follows and keeps the
+  // sidebar.
   await resetFocus(page);
   await tabTo(page, entry);
-  await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, nav.getByRole('link', { name: /^Integrationen(,|$)/ }));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, areaTab(page, 'Integrationen'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/integrations$/);
   await expect(nav).toBeVisible();

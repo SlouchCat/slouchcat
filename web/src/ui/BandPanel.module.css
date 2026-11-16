@@ -12,7 +12,9 @@
  * The head band (concept 12, 11.2): the profile's accent at 12 % over the panel, like the bands of
  * the administration's sidebar (16 %, AdminSideNav.module.css). The tint is a variable of the band
  * itself, so a frame with another accent recolours it. BandPanel.test.tsx checks the contrast of
- * the title and of the icon for all eight accents.
+ * the title and of the icon for all eight accents. The administration's look (admin-look.css,
+ * the mockup's .cardhead) replaces the ground through --sc-band-background and the title's colour
+ * through --sc-band-color; without them the band stays as it is.
  */
 .band {
   --sc-band-tint: color-mix(in srgb, var(--sc-accent) 12%, transparent);
@@ -25,7 +27,7 @@
   min-height: var(--sc-space-12);
   padding: var(--sc-space-1) var(--sc-panel-padding);
   border-bottom: 1px solid var(--sc-color-border-subtle);
-  background-color: var(--sc-band-tint);
+  background-color: var(--sc-band-background, var(--sc-band-tint));
 }
 
 /* With tabs the list follows the title; the tabs' own scroller keeps its room for focus rings. */
@@ -39,7 +41,7 @@
   align-items: center;
   min-width: 0;
   margin: 0;
-  color: var(--sc-color-text-primary);
+  color: var(--sc-band-color, var(--sc-color-text-primary));
   font-size: var(--sc-section-title-size);
   font-weight: var(--sc-font-weight-semibold);
   line-height: var(--sc-font-line-height-snug);

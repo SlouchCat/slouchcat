@@ -1,7 +1,7 @@
 import type { KeyState, Library } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -12,6 +12,7 @@ import { Chip, Notice, SelectField, Skeleton, Text, TextLink, VisuallyHidden } f
 import {
   AdminPage,
   afterDialogsClosed,
+  BandPanel,
   afterRender,
   AriaButton,
   ConfirmDialog,
@@ -32,6 +33,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import { MetadataEditor } from './editor/MetadataEditor';
+import { serviceHref } from './integrations/services';
 import { SourceChip } from './integrations/shared';
 import { providerName } from './item/facts';
 import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
@@ -203,7 +205,6 @@ function Folders({
   const [openId, setOpenId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const library = libraries.data?.find((entry) => entry.id === openId);
-  const headingId = useId();
 
   const changed = async (updated: Library) => {
     queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
@@ -215,37 +216,36 @@ function Folders({
   };
 
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <SectionHeader
-        id={headingId}
-        title={t('admin.audiobookSources.folders.title')}
-        description={t('admin.audiobookSources.folders.intro')}
-      />
+    <BandPanel title={t('admin.audiobookSources.folders.title')}>
+      <p className={styles.intro}>{t('admin.audiobookSources.folders.intro')}</p>
       {sources.folders.length === 0 ? (
         <Text tone="secondary">{t('admin.audiobookSources.folders.empty')}</Text>
       ) : (
-        sources.folders.map((folder) => (
-          <SettingRow
-            key={folder.rootId}
-            label={folder.path}
-            help={t('admin.audiobookSources.folders.library', { name: folder.libraryName })}
-          >
-            <div className={styles.inline}>
-              <Text>{providerChain(t, folder.providers)}</Text>
-              <AriaButton
-                icon="pen"
-                isDisabled={!libraries.data?.some((entry) => entry.id === folder.libraryId)}
-                aria-label={t('admin.audiobookSources.folders.editLabel', { path: folder.path })}
-                onPress={() => {
-                  setOpenId(folder.libraryId);
-                  setOpen(true);
-                }}
-              >
-                {t('admin.audiobookSources.folders.edit')}
-              </AriaButton>
-            </div>
-          </SettingRow>
-        ))
+        // A long folder path wraps anywhere instead of widening the page on a phone.
+        <div className={styles.folders}>
+          {sources.folders.map((folder) => (
+            <SettingRow
+              key={folder.rootId}
+              label={folder.path}
+              help={t('admin.audiobookSources.folders.library', { name: folder.libraryName })}
+            >
+              <div className={styles.inline}>
+                <Text>{providerChain(t, folder.providers)}</Text>
+                <AriaButton
+                  icon="pen"
+                  isDisabled={!libraries.data?.some((entry) => entry.id === folder.libraryId)}
+                  aria-label={t('admin.audiobookSources.folders.editLabel', { path: folder.path })}
+                  onPress={() => {
+                    setOpenId(folder.libraryId);
+                    setOpen(true);
+                  }}
+                >
+                  {t('admin.audiobookSources.folders.edit')}
+                </AriaButton>
+              </div>
+            </SettingRow>
+          ))}
+        </div>
       )}
       {library && (
         <LibraryFoldersDialog
@@ -256,7 +256,7 @@ function Folders({
           onChanged={(updated) => void changed(updated)}
         />
       )}
-    </section>
+    </BandPanel>
   );
 }
 
@@ -277,7 +277,6 @@ function Settings({
   const update = changes(sources, draft);
   const dirty = Object.keys(update).length > 0;
   const unsaved = useUnsavedChanges(dirty);
-  const headingId = useId();
 
   const save = useMutation({
     mutationFn: () => updateAudiobookSources(update),
@@ -295,104 +294,109 @@ function Settings({
   }
 
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <SectionHeader id={headingId} title={t('admin.audiobookSources.settings.title')} />
-      <StatusRegion message={message} />
-      <SettingRow
-        label={t('admin.audiobookSources.region.label')}
-        help={t('admin.audiobookSources.region.help')}
-      >
-        <SelectField
+    <>
+      <BandPanel title={t('admin.audiobookSources.settings.title')}>
+        <StatusRegion message={message} />
+        <SettingRow
           label={t('admin.audiobookSources.region.label')}
-          hideLabel
-          value={draft.audibleRegion}
-          onChange={(value) => {
-            if (isRegion(value)) set('audibleRegion', value);
-          }}
-          options={(Object.keys(REGIONS) as AudibleRegion[]).map((region) => ({
-            value: region,
-            label: t(REGIONS[region]),
-          }))}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.audiobookSources.audnexus.label')}
-        help={t('admin.audiobookSources.audnexus.help')}
-      >
-        <Form
-          validationErrors={errors?.fields}
-          // Enter in the field saves like the save bar, without a native submit (no reload).
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (dirty && !save.isPending) save.mutate();
-          }}
+          help={t('admin.audiobookSources.region.help')}
         >
-          <TextField
-            name="audnexusUrl"
-            label={t('admin.audiobookSources.audnexus.label')}
+          <SelectField
+            label={t('admin.audiobookSources.region.label')}
             hideLabel
-            type="url"
-            mono
-            spellCheck="false"
-            value={draft.audnexusUrl}
-            onChange={(value) => set('audnexusUrl', value)}
-            validate={(value) =>
-              /^https?:\/\/\S+$/.test(value.trim())
-                ? null
-                : t('admin.audiobookSources.audnexus.invalid')
-            }
+            value={draft.audibleRegion}
+            onChange={(value) => {
+              if (isRegion(value)) set('audibleRegion', value);
+            }}
+            options={(Object.keys(REGIONS) as AudibleRegion[]).map((region) => ({
+              value: region,
+              label: t(REGIONS[region]),
+            }))}
           />
-        </Form>
-      </SettingRow>
-      <GoogleBooksKey state={sources.googleBooksKey} />
-      <SettingRow label={t('admin.audiobookSources.auto.label')}>
-        <RadioGroup
-          label={t('admin.audiobookSources.auto.label')}
-          hideLabel
-          description={t(AUTO[draft.autoMatch][1])}
-          value={draft.autoMatch}
-          onChange={(value) => {
-            if (isAuto(value)) set('autoMatch', value);
-          }}
-          options={(Object.keys(AUTO) as AudiobookAutoMatch[]).map((mode) => ({
-            value: mode,
-            label: t(AUTO[mode][0]),
-          }))}
-        />
-      </SettingRow>
-      <SettingRow
-        label={t('admin.audiobookSources.tolerance.label')}
-        help={t('admin.audiobookSources.tolerance.help')}
-      >
-        <RadioGroup
+        </SettingRow>
+        <SettingRow
+          label={t('admin.audiobookSources.audnexus.label')}
+          help={t('admin.audiobookSources.audnexus.help')}
+        >
+          <Form
+            validationErrors={errors?.fields}
+            // Enter in the field saves like the save bar, without a native submit (no reload).
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (dirty && !save.isPending) save.mutate();
+            }}
+          >
+            <TextField
+              name="audnexusUrl"
+              label={t('admin.audiobookSources.audnexus.label')}
+              hideLabel
+              type="url"
+              mono
+              spellCheck="false"
+              value={draft.audnexusUrl}
+              onChange={(value) => set('audnexusUrl', value)}
+              validate={(value) =>
+                /^https?:\/\/\S+$/.test(value.trim())
+                  ? null
+                  : t('admin.audiobookSources.audnexus.invalid')
+              }
+            />
+          </Form>
+        </SettingRow>
+        <GoogleBooksKey state={sources.googleBooksKey} />
+        <SettingRow label={t('admin.audiobookSources.auto.label')}>
+          <RadioGroup
+            label={t('admin.audiobookSources.auto.label')}
+            hideLabel
+            description={t(AUTO[draft.autoMatch][1])}
+            value={draft.autoMatch}
+            onChange={(value) => {
+              if (isAuto(value)) set('autoMatch', value);
+            }}
+            options={(Object.keys(AUTO) as AudiobookAutoMatch[]).map((mode) => ({
+              value: mode,
+              label: t(AUTO[mode][0]),
+            }))}
+          />
+        </SettingRow>
+        <SettingRow
           label={t('admin.audiobookSources.tolerance.label')}
-          hideLabel
-          value={String(draft.tolerancePercent)}
-          onChange={(value) => set('tolerancePercent', Number(value))}
-          options={tolerances.map((count) => ({
-            value: String(count),
-            label: t('admin.audiobookSources.tolerance.option', { count }),
-          }))}
-        />
-      </SettingRow>
-      <SectionHeader level={3} title={t('admin.audiobookSources.normalize.title')} />
-      <SettingRow
-        label={t('admin.audiobookSources.normalize.authors')}
-        help={t('admin.audiobookSources.normalize.authorsHint')}
-      >
-        <Switch isSelected={draft.normalizeAuthors} onChange={(on) => set('normalizeAuthors', on)}>
-          <VisuallyHidden>{t('admin.audiobookSources.normalize.authors')}</VisuallyHidden>
-        </Switch>
-      </SettingRow>
-      <SettingRow
-        label={t('admin.audiobookSources.normalize.series')}
-        help={t('admin.audiobookSources.normalize.seriesHint')}
-      >
-        <Switch isSelected={draft.normalizeSeries} onChange={(on) => set('normalizeSeries', on)}>
-          <VisuallyHidden>{t('admin.audiobookSources.normalize.series')}</VisuallyHidden>
-        </Switch>
-      </SettingRow>
-      <Notice live={false}>{t('admin.audiobookSources.terms')}</Notice>
+          help={t('admin.audiobookSources.tolerance.help')}
+        >
+          <RadioGroup
+            label={t('admin.audiobookSources.tolerance.label')}
+            hideLabel
+            value={String(draft.tolerancePercent)}
+            onChange={(value) => set('tolerancePercent', Number(value))}
+            options={tolerances.map((count) => ({
+              value: String(count),
+              label: t('admin.audiobookSources.tolerance.option', { count }),
+            }))}
+          />
+        </SettingRow>
+        <SectionHeader level={3} title={t('admin.audiobookSources.normalize.title')} />
+        <SettingRow
+          label={t('admin.audiobookSources.normalize.authors')}
+          help={t('admin.audiobookSources.normalize.authorsHint')}
+        >
+          <Switch
+            isSelected={draft.normalizeAuthors}
+            onChange={(on) => set('normalizeAuthors', on)}
+          >
+            <VisuallyHidden>{t('admin.audiobookSources.normalize.authors')}</VisuallyHidden>
+          </Switch>
+        </SettingRow>
+        <SettingRow
+          label={t('admin.audiobookSources.normalize.series')}
+          help={t('admin.audiobookSources.normalize.seriesHint')}
+        >
+          <Switch isSelected={draft.normalizeSeries} onChange={(on) => set('normalizeSeries', on)}>
+            <VisuallyHidden>{t('admin.audiobookSources.normalize.series')}</VisuallyHidden>
+          </Switch>
+        </SettingRow>
+        <Notice live={false}>{t('admin.audiobookSources.terms')}</Notice>
+      </BandPanel>
+      {/* After the card, not in it: the card clips, and the bar sticks to the page's bottom. */}
       <SaveBar
         dirty={dirty}
         saving={save.isPending}
@@ -407,7 +411,7 @@ function Settings({
       />
       {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
       <ConfirmDialog {...unsaved.dialog} />
-    </section>
+    </>
   );
 }
 
@@ -423,9 +427,7 @@ function GoogleBooksKey({ state }: { state: KeyState }) {
       labelAddon={<SourceChip source={state.source} hint={state.hint} />}
       help={t('admin.audiobookSources.googleBooks.description')}
     >
-      <TextLink href={paths.adminIntegrations}>
-        {t('admin.audiobookSources.googleBooks.link')}
-      </TextLink>
+      <TextLink href={serviceHref('keys')}>{t('admin.audiobookSources.googleBooks.link')}</TextLink>
     </SettingRow>
   );
 }
@@ -436,7 +438,6 @@ function State({ sources }: { sources: AudiobookSources }) {
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
   const number = new Intl.NumberFormat(intlLocale(i18n.language));
-  const headingId = useId();
   const run = useMutation({
     mutationFn: matchAllAudiobooks,
     onSuccess: async ({ queued }) => {
@@ -455,8 +456,7 @@ function State({ sources }: { sources: AudiobookSources }) {
   ] as const;
 
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <SectionHeader id={headingId} title={t('admin.audiobookSources.stats.title')} />
+    <BandPanel title={t('admin.audiobookSources.stats.title')}>
       <div className={styles.tiles}>
         {tiles.map(([key, count]) => (
           <StatTile
@@ -473,7 +473,7 @@ function State({ sources }: { sources: AudiobookSources }) {
           {t('admin.audiobookSources.stats.running')}
         </Text>
       )}
-      <div className={styles.inline}>
+      <div className={`${styles.inline} ${styles.shrink}`}>
         <AriaButton
           variant="primary"
           icon="refresh"
@@ -508,7 +508,7 @@ function State({ sources }: { sources: AudiobookSources }) {
           </li>
         ))}
       </ul>
-    </section>
+    </BandPanel>
   );
 }
 
@@ -537,7 +537,6 @@ function Review({
   }, [running, refetch]);
   const [editing, setEditing] = useState<string | null>(null);
   const pens = useRef(new Map<string, HTMLButtonElement>());
-  const headingId = useId();
   const lengthOf = (ms: number | undefined) =>
     ms ? formatBookLength(t, ms) : t('admin.editor.bookMatch.lengthUnknown');
 
@@ -618,12 +617,8 @@ function Review({
   ];
 
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
-      <SectionHeader
-        id={headingId}
-        title={t('admin.audiobookSources.review.title')}
-        description={t('admin.audiobookSources.review.intro')}
-      />
+    <BandPanel title={t('admin.audiobookSources.review.title')}>
+      <p className={styles.intro}>{t('admin.audiobookSources.review.intro')}</p>
       {review.isPending && <Skeleton shape="block" />}
       {review.isError && (
         <Notice
@@ -674,6 +669,6 @@ function Review({
           }}
         />
       )}
-    </section>
+    </BandPanel>
   );
 }

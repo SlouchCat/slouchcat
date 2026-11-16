@@ -12,13 +12,6 @@
   align-items: flex-start;
 }
 
-.stateLine {
-  display: inline-flex;
-  gap: var(--sc-space-2);
-  align-items: center;
-  white-space: nowrap;
-}
-
 .muted {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);

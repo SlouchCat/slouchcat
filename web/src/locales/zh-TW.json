@@ -71,7 +71,7 @@
           "test_failed": "啟動時檢查失敗"
         },
         "saved": "已儲存：{{name}}",
-        "restartAdmin": "重新啟動伺服器後生效（總覽 › 重新啟動）。"
+        "restartAdmin": "重新啟動伺服器後生效（系統 › 伺服器 › 重新啟動）。"
       },
       "fallback": {
         "title": "所選的顯示晶片無法運作",
@@ -359,7 +359,7 @@
       },
       "radio": "網路電台",
       "radioToggle": "將 {{country}} 加入電台清單",
-      "radioHint": "該國家加入清單時不含任何電台。電台可稍後在「管理 › 廣播」中勾選。"
+      "radioHint": "該國家加入時不含電台。之後可在「管理 › 媒體 › 廣播」中選擇電台。"
     },
     "services": {
       "recommended": "建議",
@@ -395,7 +395,7 @@
       "folder": "資料夾 {{position}}"
     },
     "household": {
-      "accounts": "擁有自己帳戶的訪客，可稍後在「管理 › 帳戶」中邀請。"
+      "accounts": "擁有自己帳戶的訪客，之後可在「管理 › 使用者與裝置 › 帳戶」中邀請。"
     },
     "access": {
       "here": "你目前透過 {{url}} 存取。",
@@ -418,7 +418,7 @@
       "title": "Slouchcat 設定完成",
       "restartTitle": "Slouchcat 正在重新啟動…",
       "restartBody": "顯示晶片的選擇會在重新啟動後生效。首次掃描之後會繼續進行。",
-      "busy": "因為目前正在進行備份或更新，Slouchcat 無法重新啟動。顯示晶片的選擇會在下次重新啟動後生效（管理 › 總覽）。",
+      "busy": "目前正在備份或更新，Slouchcat 無法重新啟動。顯示晶片的選擇會在下次重新啟動後生效（管理 › 系統 › 伺服器）。",
       "scanProgress": "{{state}}：{{seen}} / {{total}} 個檔案",
       "home": "前往首頁"
     },
@@ -655,6 +655,8 @@
     },
     "adminPage": {
       "help": "此頁面的說明",
+      "less": "收合",
+      "more": "展開",
       "live_other": "即時，每 {{count}} 秒更新"
     },
     "actionMenu": {
@@ -1105,6 +1107,11 @@
       "rate": "速度 {{rate}}×",
       "muted": "已靜音",
       "previousEpisode": "上一集",
+      "forward10": "快轉 10 秒",
+      "options": "選項",
+      "view": "時間和檢視",
+      "tapBack": "−{{seconds}} 秒",
+      "tapForward": "+{{seconds}} 秒",
       "noChapters": "無章節",
       "lastChapter": "已是最後一章",
       "noNextEpisode": "沒有下一集",
@@ -1114,12 +1121,7 @@
       "nextEpisodeCard": "下一集",
       "previousEpisodeCard": "上一集",
       "cardSeason": "第 {{season}} 季 · {{name}}",
-      "notOnDevice": "不在這部裝置上",
-      "forward10": "快轉 10 秒",
-      "options": "選項",
-      "view": "時間和檢視",
-      "tapBack": "−{{seconds}} 秒",
-      "tapForward": "+{{seconds}} 秒"
+      "notOnDevice": "不在這部裝置上"
     },
     "tabs": {
       "label": "作品詳情",
@@ -1392,6 +1394,8 @@
       },
       "settings": {
         "title": "設定",
+        "relaysCard": "緩衝區與轉送",
+        "coverCard": "封面與外部資料",
         "buffer": "時間平移",
         "bufferHelp": "聽眾可以倒轉多久。在預算不變的情況下，60 分鐘會讓可用電台數量減半。",
         "minutes_other": "{{count}} 分鐘",
@@ -1982,7 +1986,7 @@
         "title": "要刪除媒體庫「{{name}}」嗎？",
         "lead_other": "{{roots}}和 {{formatted}} 部作品將從 Slouchcat 移除，連同進度、觀看標記、我的片單、推薦、自訂圖片和文字、首頁欄目「{{name}} 最新內容」、個人資料的存取權限，以及裝置上的下載內容。",
         "files": "磁碟上的檔案不會受到影響。如果這個媒體庫正在掃描，Slouchcat 會先取消掃描。",
-        "backup": "在此之前，Slouchcat 會備份資料庫（管理 › 備份）。還原這份備份會讓一切回到刪除前的狀態，包括此後所有個人資料的進度。",
+        "backup": "在此之前，Slouchcat 會備份資料庫（管理 › 系統 › 備份）。還原這份備份會讓一切回到刪除前的狀態，包括此後所有個人資料的進度。",
         "final": "除此之外無法復原：重新掃描相同的資料夾會重新建立作品，但不含進度。",
         "inputLabel": "輸入名稱以確認",
         "mismatch": "請完整輸入 {{name}}，按鈕才會啟用。",
@@ -3011,8 +3015,6 @@
       "list": "首頁的欄目",
       "band": "欄目",
       "tabs": {
-        "label": "欄目檢視",
-        "order": "順序",
         "preview": "預覽"
       },
       "count_other": "{{number}} 個欄目",
@@ -3194,17 +3196,35 @@
       "rowSettings": "欄目在首頁上的位置以及是否顯示，可在「首頁」中設定。",
       "rowSettingsLink": "前往「首頁」"
     },
+    "finder": {
+      "button": "搜尋分區",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "搜尋管理分區",
+      "placeholder": "媒體庫、工作、備份…",
+      "results": "搜尋結果",
+      "empty": "找不到結果",
+      "area": "分區",
+      "search": "媒體搜尋",
+      "hint": "方向鍵選擇，Enter 開啟，Esc 關閉"
+    },
     "nav": {
       "label": "管理",
       "overview": "總覽",
-      "groups": {
-        "library": "媒體庫",
-        "accounts": "帳戶",
-        "curation": "內容策展",
+      "areas": {
+        "media": "媒體",
+        "people": "使用者與裝置",
+        "home": "首頁",
+        "automation": "自動化",
         "system": "系統"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "導覽路徑",
+      "tabs": "{{area}} 中的頁面",
       "back": "返回應用程式",
       "updateLabel": "總覽，有可用的更新：版本 {{version}}",
+      "updateBadge": "{{name}}，有可用的更新：版本 {{version}}",
       "sheet": {
         "label": "管理頁面",
         "close": "關閉管理頁面"
@@ -3278,7 +3298,19 @@
       },
       "metadata": {
         "title": "中繼資料"
+      },
+      "audiobookSources": {
+        "title": "有聲書來源"
+      },
+      "server": {
+        "title": "伺服器"
       }
+    },
+    "server": {
+      "intro": "版本、更新、重新啟動、儲存空間和錯誤記錄集中在一處。",
+      "state": "伺服器狀態",
+      "updates": "更新與重新啟動",
+      "toIntegrations": "顯示晶片、公開網址和更新檢查：整合"
     },
     "home": {
       "setupBand": {
@@ -3288,8 +3320,40 @@
         "action": "繼續設定"
       },
       "title": "管理",
-      "live": "即時，每 5 秒更新",
       "liveFailed": "沒有回應，每 5 秒重試一次",
+      "heading": "全局一覽",
+      "intro": "重要事項優先顯示，其他內容可透過各分區查看。",
+      "refresh": "重新整理",
+      "attention": {
+        "title": "需要注意的事項",
+        "band_other": "{{count}} 項需要注意",
+        "show": "查看",
+        "none": "一切正常。"
+      },
+      "metrics": {
+        "label": "關鍵指標",
+        "streams": "使用中的串流",
+        "streamsNote": "目前已連線",
+        "jobs": "執行中的工作",
+        "jobsNote": "{{queued}} 個佇列中",
+        "jobsNotePaused": "{{queued}} 個佇列中 · {{paused}} 個已暫停",
+        "maintenance": "待維護作品",
+        "maintenanceNote": "維護中的待處理項目",
+        "storage": "儲存空間",
+        "storageValue": "{{config}}% · {{cache}}%",
+        "storageNote": "已用：設定 · 快取"
+      },
+      "active": {
+        "title": "目前活動"
+      },
+      "quick": {
+        "title": "快速前往"
+      },
+      "summary": {
+        "title": "伺服器與最近活動",
+        "details": "伺服器詳細資料",
+        "log": "查看伺服器記錄"
+      },
       "update": {
         "title": "已推出版本 {{version}}",
         "body": "你目前使用的是 {{current}}。Slouchcat 不會自行安裝任何內容：請使用 docker compose pull 取得新映像檔，並以 docker compose up -d 重新啟動。",
@@ -3308,10 +3372,6 @@
       },
       "jobs": {
         "title": "工作",
-        "queued": "佇列中",
-        "running": "執行中",
-        "failed": "失敗",
-        "paused": "已暫停",
         "all": "背景工作",
         "toFailed": "查看失敗項目",
         "active": "執行中的工作",
@@ -3350,7 +3410,6 @@
         "manage": "管理 Webhook"
       },
       "server": {
-        "title": "伺服器",
         "version": "版本",
         "uptime": "已執行",
         "update": "更新",
@@ -3452,9 +3511,7 @@
         "empty": "尚無活動。"
       },
       "hints": {
-        "title": "提示",
         "count_other": "{{count}} 則提示",
-        "none": "沒有提示。",
         "failed_other": "{{formatted}} 個背景工作失敗",
         "paused_other": "{{count}} 個工作類型已暫停",
         "toJobs": "前往背景工作",
@@ -3464,6 +3521,7 @@
         "keyRejected": "{{name}} 金鑰遭拒",
         "keyRejectedBody": "提供者拒絕了這個金鑰。在新金鑰生效之前，Slouchcat 不會從該提供者擷取中繼資料。",
         "toKeys": "前往金鑰",
+        "toGpu": "前往顯示晶片選擇",
         "ratingsReread": "正在重新讀取分級",
         "ratingsRereadBody": "在工作完成前，仍會沿用先前的分級，可能較嚴格，也可能較寬鬆。",
         "minimumAge": "分級現在代表最低年齡",
@@ -3522,6 +3580,16 @@
       "cleared": "已刪除 {{name}}。",
       "unsaved": "未儲存",
       "notificationsLink": "前往通知管道",
+      "services": {
+        "label": "服務",
+        "back": "所有整合",
+        "keys": "TMDB、TVDB、Fanart.tv、YouTube、Trakt 和 Google Books。",
+        "webhooks": "Radarr 和 Sonarr 會回報新增和變更的檔案。",
+        "email": "用於透過電子郵件傳送通知、邀請和公告的伺服器。",
+        "telegram": "透過 Telegram 傳送通知的機器人。",
+        "push": "在瀏覽器和已安裝的應用程式中顯示通知。",
+        "server": "更新檢查、公開網址和顯示晶片。"
+      },
       "keys": {
         "title": "提供者金鑰",
         "intro": "Slouchcat 會用這些金鑰擷取文字、圖片和預告片。沒有金鑰時，該提供者會保持關閉。",
@@ -4127,10 +4195,10 @@
       "counts": {
         "running": "執行中",
         "queued": "佇列中",
-        "planned": "已排程",
         "paused": "已暫停",
         "failed": "失敗",
-        "label": "摘要"
+        "label": "摘要",
+        "plannedNote": "{{number}} 個已排程"
       },
       "pools": {
         "title": "工作執行緒",
@@ -4581,7 +4649,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "已暫停更新"
+      "livePaused": "已暫停更新",
+      "filter": {
+        "label": "依狀態篩選工作類型",
+        "all": "全部",
+        "running": "執行中",
+        "failed": "失敗",
+        "paused": "已暫停",
+        "empty": "此群組中沒有處於此狀態的工作類型。"
+      }
     },
     "metadata": {
       "title": "中繼資料",
@@ -4875,7 +4951,7 @@
         "library": "只從 Slouchcat 移除",
         "files": "同時刪除檔案"
       },
-      "libraryHint": "檔案會保留在磁碟上。即使有新檔案加入，作品也會維持移除狀態；可以在「維護 › 已移除的作品」中連同進度、觀看標記和我的片單重新加入。",
+      "libraryHint": "檔案仍保留在磁碟上。即使有新檔案加入，此作品仍維持移除狀態；可在「維護 › 已移除的作品」中重新加入，進度、觀看標記和「我的片單」都會保留。",
       "everywhere": "作品會從所有個人資料的所有清單中消失；裝置上的下載內容會被移除。",
       "arr": "Radarr 和 Sonarr 不會收到任何通知。",
       "affected_other": "受影響：{{count}} 個檔案 · {{size}}",

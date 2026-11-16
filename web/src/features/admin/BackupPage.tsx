@@ -351,7 +351,28 @@ function BackupContent() {
   ];
 
   return (
-    <AdminPage title={t('admin.backup.title')} help={t('admin.backup.intro')} titleRef={titleRef}>
+    <AdminPage
+      title={t('admin.backup.title')}
+      help={t('admin.backup.intro')}
+      titleRef={titleRef}
+      // The page's main action at the end of its header (mockup «Sicherungen»): it opens the tab
+      // «Neue Sicherung», where the backup is made as before.
+      actions={
+        !restart && (
+          <AriaButton
+            variant="primary"
+            icon="plus"
+            isDisabled={restoring}
+            onPress={() => {
+              start();
+              selectTab('create');
+            }}
+          >
+            {t('admin.backup.tabs.create')}
+          </AriaButton>
+        )
+      }
+    >
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
       <StatusRegion message={failure === null ? message : null} />
       {restart ? (

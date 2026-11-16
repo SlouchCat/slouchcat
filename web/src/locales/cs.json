@@ -83,7 +83,7 @@
           "test_failed": "test při spuštění selhal"
         },
         "saved": "Uloženo: {{name}}",
-        "restartAdmin": "Platí po restartu serveru (Přehled › Restartovat)."
+        "restartAdmin": "Platí po restartu serveru (Systém › Server › Restartovat)."
       },
       "fallback": {
         "title": "Zvolený grafický čip nefunguje",
@@ -371,7 +371,7 @@
       },
       "radio": "Internetové rádio",
       "radioToggle": "Přidat zemi {{country}} do nabídky rádia",
-      "radioHint": "Země se do nabídky přidá bez stanic. Stanice označíte později v sekci Správa › Rádio."
+      "radioHint": "Země se do nabídky dostane bez stanic. Stanice si vyberete později v části Správa › Média › Rádio."
     },
     "services": {
       "recommended": "Doporučeno",
@@ -407,7 +407,7 @@
       "folder": "Složka {{position}}"
     },
     "household": {
-      "accounts": "Hosty s vlastním účtem pozvete později v sekci Správa › Účty."
+      "accounts": "Hosty s vlastním účtem pozvete později v části Správa › Uživatelé a zařízení › Účty."
     },
     "access": {
       "here": "Právě používáte adresu {{url}}.",
@@ -436,7 +436,7 @@
       "title": "Slouchcat je nastaven",
       "restartTitle": "Slouchcat se restartuje…",
       "restartBody": "Volba grafického čipu platí po restartu. První prohledávání pak budou pokračovat.",
-      "busy": "Slouchcat se nemohl restartovat, protože právě probíhá záloha nebo aktualizace. Volba grafického čipu začne platit po příštím restartu (Správa › Přehled).",
+      "busy": "Slouchcat se nepodařilo restartovat, protože právě běží záloha nebo aktualizace. Volba grafického čipu platí po příštím restartu (Správa › Systém › Server).",
       "scanProgress": "{{state}}: {{seen}} z {{total}} souborů",
       "home": "Přejít na úvodní stránku"
     },
@@ -721,6 +721,8 @@
     },
     "adminPage": {
       "help": "Nápověda k této stránce",
+      "less": "Méně",
+      "more": "Více",
       "live_one": "Živě, každou sekundu",
       "live_few": "Živě, každé {{count}} sekundy",
       "live_many": "Živě, každých {{count}} sekundy",
@@ -1201,6 +1203,11 @@
       "rate": "Rychlost {{rate}}×",
       "muted": "Ztlumeno",
       "previousEpisode": "Předchozí díl",
+      "forward10": "Vpřed o 10 sekund",
+      "options": "Možnosti",
+      "view": "Čas a zobrazení",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Žádné kapitoly",
       "lastChapter": "Poslední kapitola",
       "noNextEpisode": "Žádný další díl",
@@ -1210,12 +1217,7 @@
       "nextEpisodeCard": "Další díl",
       "previousEpisodeCard": "Předchozí díl",
       "cardSeason": "Řada {{season}} · {{name}}",
-      "notOnDevice": "Není v tomto zařízení",
-      "forward10": "Vpřed o 10 sekund",
-      "options": "Možnosti",
-      "view": "Čas a zobrazení",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Není v tomto zařízení"
     },
     "tabs": {
       "label": "Více o titulu",
@@ -1506,6 +1508,8 @@
       },
       "settings": {
         "title": "Nastavení",
+        "relaysCard": "Vyrovnávací paměti a přenosy",
+        "coverCard": "Obaly a externí data",
         "buffer": "Časový posun",
         "bufferHelp": "Jak daleko mohou posluchači jít zpět. 60 minut sníží počet stanic na polovinu, pokud rozpočet zůstane stejný.",
         "minutes_one": "{{count}} minuta",
@@ -2159,7 +2163,7 @@
         "lead_many": "Slouchcat opustí {{roots}} a {{formatted}} titulu, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
         "lead_other": "Slouchcat opustí {{roots}} a {{formatted}} titulů, včetně průběhu sledování, značek zhlédnutí, seznamu, tipů, vlastních obrázků a textů, řádku „Nově v knihovně {{name}}“ na úvodní stránce, oprávnění profilů a stažených položek na zařízeních.",
         "files": "Soubory na disku zůstanou nedotčeny. Pokud prohledávání této knihovny běží, Slouchcat ho nejdřív zruší.",
-        "backup": "Předtím Slouchcat zálohuje databázi (Správa › Záloha). Obnovení této zálohy vrátí vše do stavu před smazáním, včetně průběhu sledování všech profilů od té doby.",
+        "backup": "Předtím Slouchcat zálohuje databázi (Správa › Systém › Záloha). Obnovení této zálohy vrátí vše do stavu před smazáním, včetně průběhu všech profilů od té doby.",
         "final": "Jinak to nelze vrátit zpět: nové prohledání stejných složek vytvoří tituly znovu, bez průběhu sledování.",
         "inputLabel": "Pro potvrzení zadejte název",
         "mismatch": "Zadejte {{name}} přesně takto, aby se tlačítko aktivovalo.",
@@ -3362,8 +3366,6 @@
       "list": "Řádky úvodní stránky",
       "band": "Řádky",
       "tabs": {
-        "label": "Zobrazení řádků",
-        "order": "Pořadí",
         "preview": "Náhled"
       },
       "count_one": "{{number}} řádek",
@@ -3557,17 +3559,35 @@
       "rowSettings": "Kde řádek na úvodní stránce stojí a zda se zobrazuje, se nastavuje v části „Úvodní stránka“.",
       "rowSettingsLink": "Přejít na „Úvodní stránka“"
     },
+    "finder": {
+      "button": "Hledat oblast",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Hledat oblast správy",
+      "placeholder": "Knihovny, úlohy, záloha…",
+      "results": "Výsledky",
+      "empty": "Nic nenalezeno",
+      "area": "Oblast",
+      "search": "Hledání médií",
+      "hint": "Šipky vybírají, Enter otevře, Esc zavře"
+    },
     "nav": {
       "label": "Správa",
       "overview": "Přehled",
-      "groups": {
-        "library": "Knihovna",
-        "accounts": "Účty",
-        "curation": "Výběr obsahu",
+      "areas": {
+        "media": "Média",
+        "people": "Uživatelé a zařízení",
+        "home": "Úvodní stránka",
+        "automation": "Automatizace",
         "system": "Systém"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Cesta",
+      "tabs": "Stránky v oblasti: {{area}}",
       "back": "Zpět do aplikace",
       "updateLabel": "Přehled, k dispozici aktualizace na verzi {{version}}",
+      "updateBadge": "{{name}}, k dispozici aktualizace na verzi {{version}}",
       "sheet": {
         "label": "Stránky správy",
         "close": "Zavřít stránky správy"
@@ -3662,7 +3682,19 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Audioknihy: zdroje"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Verze, aktualizace, restart, úložiště a protokol chyb na jednom místě.",
+      "state": "Stav serveru",
+      "updates": "Aktualizace a restart",
+      "toIntegrations": "Grafický čip, veřejná adresa a kontrola aktualizací: Integrace"
     },
     "home": {
       "setupBand": {
@@ -3672,8 +3704,43 @@
         "action": "Pokračovat v nastavení"
       },
       "title": "Správa",
-      "live": "Živě, každých 5 sekund",
       "liveFailed": "Žádná odpověď, zkouším znovu každých 5 sekund",
+      "heading": "Vše na první pohled",
+      "intro": "Důležité na začátku. Vše ostatní najdete v oblastech.",
+      "refresh": "Obnovit",
+      "attention": {
+        "title": "Co vyžaduje pozornost?",
+        "band_one": "{{count}} položka vyžaduje pozornost",
+        "band_few": "{{count}} položky vyžadují pozornost",
+        "band_many": "{{count}} položky vyžaduje pozornost",
+        "band_other": "{{count}} položek vyžaduje pozornost",
+        "show": "Zobrazit",
+        "none": "Vše je v pořádku."
+      },
+      "metrics": {
+        "label": "Klíčové údaje",
+        "streams": "Aktivní streamy",
+        "streamsNote": "Právě připojeno",
+        "jobs": "Běžící úlohy",
+        "jobsNote": "ve frontě: {{queued}}",
+        "jobsNotePaused": "ve frontě: {{queued}} · pozastaveno: {{paused}}",
+        "maintenance": "Tituly k údržbě",
+        "maintenanceNote": "Otevřené případy v údržbě",
+        "storage": "Úložiště",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Využito: konfigurace · mezipaměť"
+      },
+      "active": {
+        "title": "Právě aktivní"
+      },
+      "quick": {
+        "title": "Rovnou k vašim úkolům"
+      },
+      "summary": {
+        "title": "Server a poslední aktivita",
+        "details": "Podrobnosti serveru",
+        "log": "Otevřít log serveru"
+      },
       "update": {
         "title": "K dispozici je verze {{version}}",
         "body": "Používáte {{current}}. Slouchcat nic neinstaluje sám: nový image stáhněte pomocí docker compose pull a restartujte pomocí docker compose up -d.",
@@ -3692,10 +3759,6 @@
       },
       "jobs": {
         "title": "Úlohy",
-        "queued": "Ve frontě",
-        "running": "Běží",
-        "failed": "Selhalo",
-        "paused": "Pozastaveno",
         "all": "Úlohy na pozadí",
         "toFailed": "Zobrazit selhání",
         "active": "Běžící úlohy",
@@ -3740,7 +3803,6 @@
         "manage": "Spravovat webhooky"
       },
       "server": {
-        "title": "Server",
         "version": "Verze",
         "uptime": "Doba běhu",
         "update": "Aktualizace",
@@ -3845,12 +3907,10 @@
         "empty": "Zatím žádná aktivita."
       },
       "hints": {
-        "title": "Výstrahy",
         "count_one": "{{count}} výstraha",
         "count_few": "{{count}} výstrahy",
         "count_many": "{{count}} výstrahy",
         "count_other": "{{count}} výstrah",
-        "none": "Žádné výstrahy.",
         "failed_one": "{{formatted}} úloha na pozadí selhala",
         "failed_few": "{{formatted}} úlohy na pozadí selhaly",
         "failed_many": "{{formatted}} úlohy na pozadí selhalo",
@@ -3866,6 +3926,7 @@
         "keyRejected": "Klíč {{name}} odmítnut",
         "keyRejectedBody": "Poskytovatel klíč odmítá. Dokud nebude platný nový klíč, Slouchcat z něj nestahuje žádná metadata.",
         "toKeys": "ke klíčům",
+        "toGpu": "K výběru grafického čipu",
         "ratingsReread": "Věková omezení se znovu načítají",
         "ratingsRereadBody": "Dokud úloha neskončí, platí dosavadní věková omezení, přísnější i volnější.",
         "minimumAge": "Věková omezení jsou teď minimální věk",
@@ -3933,6 +3994,16 @@
       "cleared": "{{name}} smazáno.",
       "unsaved": "neuloženo",
       "notificationsLink": "Přejít na kanály upozornění",
+      "services": {
+        "label": "Služby",
+        "back": "Všechny integrace",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt a Google Books.",
+        "webhooks": "Radarr a Sonarr hlásí nové a změněné soubory.",
+        "email": "Server pro upozornění, pozvánky a oznámení e-mailem.",
+        "telegram": "Bot pro upozornění přes Telegram.",
+        "push": "Upozornění v prohlížeči a v nainstalované aplikaci.",
+        "server": "Kontrola aktualizací, veřejná adresa a grafický čip."
+      },
       "keys": {
         "title": "Klíče poskytovatelů",
         "intro": "Slouchcat s nimi stahuje texty, obrázky a upoutávky. Bez klíče zůstává poskytovatel vypnutý.",
@@ -4577,10 +4648,10 @@
       "counts": {
         "running": "Běží",
         "queued": "Ve frontě",
-        "planned": "Naplánováno",
         "paused": "Pozastaveno",
         "failed": "Selhalo",
-        "label": "Přehled"
+        "label": "Přehled",
+        "plannedNote": "naplánováno: {{number}}"
       },
       "pools": {
         "title": "Pracovníci",
@@ -5076,7 +5147,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Aktualizace pozastaveny"
+      "livePaused": "Aktualizace pozastaveny",
+      "filter": {
+        "label": "Filtrovat typy úloh podle stavu",
+        "all": "Vše",
+        "running": "Běží",
+        "failed": "Selhalo",
+        "paused": "Pozastaveno",
+        "empty": "Žádný typ úlohy z této skupiny není v tomto stavu."
+      }
     },
     "metadata": {
       "title": "Metadata",
@@ -5394,7 +5473,7 @@
         "library": "Jen vyřadit ze Slouchcat",
         "files": "Smazat i soubory"
       },
-      "libraryHint": "Soubory zůstanou na disku. Titul zůstane vyřazen, i když přijdou nové soubory; v části „Údržba › Odebrané tituly“ ho lze vrátit i s průběhem sledování, značkami zhlédnutí a seznamem.",
+      "libraryHint": "Soubory zůstanou na disku. Titul zůstane odebraný, i když přibudou nové soubory; v části „Údržba › Odebrané tituly“ ho lze vrátit i s průběhem, zhlédnutím a Mým seznamem.",
       "everywhere": "Titul zmizí ze všech seznamů všech profilů; stažené položky na zařízeních budou odstraněny.",
       "arr": "Radarr a Sonarr se o tom nedozvědí.",
       "affected_one": "Dotčeno: {{count}} soubor · {{size}}",

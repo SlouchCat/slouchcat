@@ -75,7 +75,7 @@
           "test_failed": "Probe beim Start gescheitert"
         },
         "saved": "Gespeichert: {{name}}",
-        "restartAdmin": "Gilt nach einem Neustart des Servers (Übersicht › Neu starten)."
+        "restartAdmin": "Gilt nach einem Neustart des Servers (System › Server › Neu starten)."
       },
       "fallback": {
         "title": "Gewählter Grafikchip geht nicht",
@@ -363,7 +363,7 @@
       },
       "radio": "Webradio",
       "radioToggle": "{{country}} ins Radio-Angebot aufnehmen",
-      "radioHint": "Das Land kommt ohne Sender ins Angebot. Die Sender markierst du später unter Verwaltung › Radio."
+      "radioHint": "Das Land kommt ohne Sender ins Angebot. Die Sender markierst du später unter Verwaltung › Medien › Radio."
     },
     "services": {
       "recommended": "Empfohlen",
@@ -399,7 +399,7 @@
       "folder": "Ordner {{position}}"
     },
     "household": {
-      "accounts": "Gäste mit eigenem Konto lädst du später unter Verwaltung › Konten ein."
+      "accounts": "Gäste mit eigenem Konto lädst du später unter Verwaltung › Nutzer & Geräte › Konten ein."
     },
     "access": {
       "here": "Du greifst gerade über {{url}} zu.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat ist eingerichtet",
       "restartTitle": "Slouchcat startet neu …",
       "restartBody": "Die Wahl des Grafikchips gilt nach dem Neustart. Die ersten Scans laufen danach weiter.",
-      "busy": "Slouchcat konnte nicht neu starten, weil gerade eine Sicherung oder ein Update läuft. Die Wahl des Grafikchips gilt nach dem nächsten Neustart (Verwaltung › Übersicht).",
+      "busy": "Slouchcat konnte nicht neu starten, weil gerade eine Sicherung oder ein Update läuft. Die Wahl des Grafikchips gilt nach dem nächsten Neustart (Verwaltung › System › Server).",
       "scanProgress": "{{state}}: {{seen}} von {{total}} Dateien",
       "home": "Zur Startseite"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Hilfe zu dieser Seite",
+      "less": "Weniger",
+      "more": "Mehr",
       "live_one": "Live, jede Sekunde",
       "live_other": "Live, alle {{count}} Sekunden"
     },
@@ -1408,6 +1410,8 @@
       },
       "settings": {
         "title": "Einstellungen",
+        "relaysCard": "Puffer und Weiterleitungen",
+        "coverCard": "Cover und externe Daten",
         "buffer": "Zeitversatz",
         "bufferHelp": "Wie weit Hörer zurückspulen können. 60 Minuten halbieren die Zahl der Sender, wenn das Budget gleich bleibt.",
         "minutes_one": "{{count}} Minute",
@@ -2019,7 +2023,7 @@
         "lead_one": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
         "lead_other": "{{roots}} und {{formatted}} Titel verschwinden aus Slouchcat, samt Fortschritt, Haken, Merkliste, Empfehlungen, eigenen Bildern und Texten, der Startseitenreihe «Neu in {{name}}», den Freigaben der Profile und den Downloads auf den Geräten.",
         "files": "Die Dateien auf der Platte bleiben unberührt. Läuft gerade ein Scan dieser Bibliothek, bricht Slouchcat ihn zuerst ab.",
-        "backup": "Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › Sicherung). Wer diese Sicherung zurückspielt, setzt alles auf den Stand vor dem Löschen zurück, auch den Fortschritt aller Profile seither.",
+        "backup": "Vorher legt Slouchcat eine Sicherung der Datenbank an (Verwaltung › System › Sicherung). Wer diese Sicherung zurückspielt, setzt alles auf den Stand vor dem Löschen zurück, auch den Fortschritt aller Profile seither.",
         "final": "Sonst lässt es sich nicht rückgängig machen: Ein neuer Scan derselben Ordner legt die Titel ohne Fortschritt wieder an.",
         "inputLabel": "Zur Bestätigung den Namen eintippen",
         "mismatch": "Tippe {{name}} genau so ab, dann wird der Knopf aktiv.",
@@ -3106,8 +3110,6 @@
       "list": "Reihen der Startseite",
       "band": "Reihen",
       "tabs": {
-        "label": "Ansicht der Reihen",
-        "order": "Reihenfolge",
         "preview": "Vorschau"
       },
       "count_one": "{{number}} Reihe",
@@ -3293,17 +3295,35 @@
       "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter «Startseite» ein.",
       "rowSettingsLink": "Zur Seite «Startseite»"
     },
+    "finder": {
+      "button": "Bereich suchen",
+      "shortcut": "Strg K",
+      "shortcutMac": "⌘ K",
+      "label": "Bereich der Verwaltung suchen",
+      "placeholder": "Bibliotheken, Jobs, Sicherung …",
+      "results": "Treffer",
+      "empty": "Nichts gefunden",
+      "area": "Bereich",
+      "search": "Mediensuche",
+      "hint": "Pfeiltasten wählen, Enter öffnet, Esc schliesst"
+    },
     "nav": {
       "label": "Verwaltung",
       "overview": "Übersicht",
-      "groups": {
-        "library": "Bibliothek",
-        "accounts": "Konten",
-        "curation": "Kuratierung",
+      "areas": {
+        "media": "Medien",
+        "people": "Nutzer & Geräte",
+        "home": "Startseite",
+        "automation": "Automatisierung",
         "system": "System"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Pfad",
+      "tabs": "Seiten im Bereich {{area}}",
       "back": "Zurück zur App",
       "updateLabel": "Übersicht, Update auf Version {{version}} verfügbar",
+      "updateBadge": "{{name}}, Update auf Version {{version}} verfügbar",
       "sheet": {
         "label": "Seiten der Verwaltung",
         "close": "Seiten der Verwaltung schliessen"
@@ -3384,7 +3404,19 @@
       },
       "metadata": {
         "title": "Metadaten"
+      },
+      "audiobookSources": {
+        "title": "Hörbuch-Quellen"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, Updates, Neustart, Speicher und Fehlerprotokoll an einem Ort.",
+      "state": "Serverzustand",
+      "updates": "Updates & Neustart",
+      "toIntegrations": "Grafikchip, öffentliche Adresse und Update-Prüfung: Integrationen"
     },
     "home": {
       "setupBand": {
@@ -3394,8 +3426,41 @@
         "action": "Einrichtung fortsetzen"
       },
       "title": "Verwaltung",
-      "live": "Live, alle 5 Sekunden",
       "liveFailed": "Keine Antwort, neuer Versuch alle 5 Sekunden",
+      "heading": "Alles im Blick",
+      "intro": "Wichtiges zuerst. Alles Weitere erreichst du über die Bereiche.",
+      "refresh": "Aktualisieren",
+      "attention": {
+        "title": "Was benötigt Aufmerksamkeit?",
+        "band_one": "{{count}} Punkt benötigt Aufmerksamkeit",
+        "band_other": "{{count}} Punkte benötigen Aufmerksamkeit",
+        "show": "Ansehen",
+        "none": "Alles in Ordnung."
+      },
+      "metrics": {
+        "label": "Kennzahlen",
+        "streams": "Aktive Streams",
+        "streamsNote": "Gerade verbunden",
+        "jobs": "Laufende Jobs",
+        "jobsNote": "{{queued}} wartend",
+        "jobsNotePaused": "{{queued}} wartend · {{paused}} pausiert",
+        "maintenance": "Titel zur Pflege",
+        "maintenanceNote": "Offene Fälle in der Pflege",
+        "storage": "Speicherplatz",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Belegt: Konfiguration · Cache"
+      },
+      "active": {
+        "title": "Gerade aktiv"
+      },
+      "quick": {
+        "title": "Direkt zu deinen Aufgaben"
+      },
+      "summary": {
+        "title": "Server & letzte Aktivitäten",
+        "details": "Serverdetails",
+        "log": "Server-Protokoll ansehen"
+      },
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
@@ -3414,10 +3479,6 @@
       },
       "jobs": {
         "title": "Aufgaben",
-        "queued": "Wartend",
-        "running": "Laufend",
-        "failed": "Fehlgeschlagen",
-        "paused": "Pausiert",
         "all": "Hintergrundjobs",
         "toFailed": "Fehlschläge ansehen",
         "active": "Laufende Aufgaben",
@@ -3458,7 +3519,6 @@
         "manage": "Webhooks verwalten"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Läuft seit",
         "update": "Updates",
@@ -3561,10 +3621,8 @@
         "empty": "Noch keine Aktivität."
       },
       "hints": {
-        "title": "Hinweise",
         "count_one": "{{count}} Hinweis",
         "count_other": "{{count}} Hinweise",
-        "none": "Keine Hinweise.",
         "failed_one": "{{formatted}} Hintergrundjob fehlgeschlagen",
         "failed_other": "{{formatted}} Hintergrundjobs fehlgeschlagen",
         "paused_one": "{{count}} Jobart pausiert",
@@ -3576,6 +3634,7 @@
         "keyRejected": "{{name}}-Schlüssel abgewiesen",
         "keyRejectedBody": "Der Anbieter weist den Schlüssel ab. Bis ein neuer Schlüssel gilt, holt Slouchcat bei ihm keine Metadaten.",
         "toKeys": "Zu den Schlüsseln",
+        "toGpu": "Zur Grafikchip-Wahl",
         "ratingsReread": "Freigaben werden neu gelesen",
         "ratingsRereadBody": "Bis der Job fertig ist, gelten die bisherigen Freigaben, strenger oder lockerer.",
         "minimumAge": "Freigaben sind jetzt Mindestalter",
@@ -3637,6 +3696,16 @@
       "cleared": "{{name}} gelöscht.",
       "unsaved": "ungespeichert",
       "notificationsLink": "Zu den Benachrichtigungskanälen",
+      "services": {
+        "label": "Dienste",
+        "back": "Alle Integrationen",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt und Google Books.",
+        "webhooks": "Radarr und Sonarr melden neue und geänderte Dateien.",
+        "email": "Server für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.",
+        "telegram": "Bot für Benachrichtigungen per Telegram.",
+        "push": "Benachrichtigungen im Browser und in der installierten App.",
+        "server": "Update-Prüfung, öffentliche Adresse und Grafikchip."
+      },
       "keys": {
         "title": "Schlüssel der Anbieter",
         "intro": "Slouchcat holt damit Texte, Bilder und Trailer. Ohne Schlüssel bleibt der Anbieter aus.",
@@ -4255,10 +4324,10 @@
       "counts": {
         "running": "Laufend",
         "queued": "Wartend",
-        "planned": "Geplant",
         "paused": "Pausiert",
         "failed": "Fehlgeschlagen",
-        "label": "Zusammenfassung"
+        "label": "Zusammenfassung",
+        "plannedNote": "{{number}} geplant"
       },
       "pools": {
         "title": "Arbeiter",
@@ -4724,7 +4793,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Aktualisierung pausiert"
+      "livePaused": "Aktualisierung pausiert",
+      "filter": {
+        "label": "Jobarten nach Zustand filtern",
+        "all": "Alle",
+        "running": "Läuft",
+        "failed": "Fehler",
+        "paused": "Pausiert",
+        "empty": "Keine Jobart dieser Gruppe in diesem Zustand."
+      }
     },
     "metadata": {
       "title": "Metadaten",
@@ -5026,7 +5103,7 @@
         "library": "Nur aus Slouchcat entfernen",
         "files": "Auch die Dateien löschen"
       },
-      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Wartung › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
+      "libraryHint": "Die Dateien bleiben auf der Platte. Der Titel bleibt entfernt, auch wenn neue Dateien dazukommen; unter «Pflege › Entfernte Titel» lässt er sich mit Fortschritt, Haken und Merkliste wieder aufnehmen.",
       "everywhere": "Der Titel verschwindet für alle Profile aus allen Listen, Downloads auf den Geräten werden entfernt.",
       "arr": "Radarr und Sonarr erfahren davon nichts.",
       "affected_one": "Betroffen: {{count}} Datei · {{size}}",

@@ -3,6 +3,7 @@ import { CSRF } from './catalog';
 import { OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import { adminEntry, areaTab } from './admin';
 
 // /admin/radio (concept 16, 11, variant A «Reiter») by keyboard (rule 8): arrow keys across the
 // tabs with `?tab=` in the URL, Tab through the stations table, Enter opens the editor in
@@ -49,12 +50,12 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   };
   // SLOUCHCAT_TEST_RADIO_DISK_BUFFER (start-server.mjs): the disk buffer counts as a tmpfs.
   expect(config.bufferMode).toBe('tmpfs');
-  // Reached from the overview, so Back has a page to return to.
+  // Reached from the overview through «Medien», so Back has a page to return to.
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-  const navLink = page
-    .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name: 'Radio' });
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
+  await adminEntry(page, 'Medien').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
+  const navLink = areaTab(page, 'Radio');
   await navLink.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Radio' })).toBeVisible();
   await expect(navLink).toHaveAttribute('aria-current', 'page');
@@ -128,10 +129,11 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   await resetFocus(page);
   await expectNoFocusTrap(page);
 
-  // Back leaves the page to the overview: tabs and editor replaced their history entries.
+  // Back leaves the page to the one it came from («Bibliotheken», the area's first page): tabs
+  // and editor replaced their history entries.
   await page.goBack();
-  await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/libraries$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
 });
 
 test('a running listener is stopped through the confirmation', async ({ page, owner }) => {

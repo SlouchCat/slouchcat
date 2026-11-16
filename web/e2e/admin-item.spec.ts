@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { CSRF, H264_TITLE, idOf, itemPath } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import { adminEntry, areaTab } from './admin';
 
 // Administration view of a title (B-6, B-8, B-9; concept 12 variant C): tabs Metadaten, Bilder,
 // Dateien and Trailer in `?tab=`, «Herkunft je Feld» and «Freigabe» as disclosures, the match
@@ -169,13 +170,11 @@ test('an invalid YouTube link is reported at the field', async ({ page }) => {
 test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The admin sidebar's Tab stop is its current page: a title's page belongs to "Pflege".
-  await tabTo(
-    page,
-    page
-      .getByRole('navigation', { name: 'Verwaltung' })
-      .getByRole('link', { name: /^Pflege(,|$)/ }),
-  );
+  // The admin sidebar's Tab stop is its current area, and the area's tabs' the current page: a
+  // title's page belongs to "Medien", to "Pflege".
+  await tabTo(page, adminEntry(page, 'Medien'));
+  await tabTo(page, areaTab(page, 'Pflege'), 2);
+  await expect(areaTab(page, 'Pflege')).toHaveAttribute('aria-current', 'page');
   await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);
   await tabTo(page, page.getByRole('button', { name: 'Aktualisieren' }), 2);
   await tabTo(page, page.getByRole('link', { name: 'Zur Detailseite' }), 2);

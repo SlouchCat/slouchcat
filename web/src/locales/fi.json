@@ -75,7 +75,7 @@
           "test_failed": "testi epäonnistui käynnistyksessä"
         },
         "saved": "Tallennettu: {{name}}",
-        "restartAdmin": "Tulee voimaan, kun palvelin käynnistetään uudelleen (Yleiskuva › Käynnistä uudelleen)."
+        "restartAdmin": "Tulee voimaan, kun palvelin käynnistetään uudelleen (Järjestelmä › Palvelin › Käynnistä uudelleen)."
       },
       "fallback": {
         "title": "Valittu näytönohjain ei toimi",
@@ -363,7 +363,7 @@
       },
       "radio": "Nettiradio",
       "radioToggle": "Lisää {{country}} radiotarjontaan",
-      "radioHint": "Maa lisätään tarjontaan ilman asemia. Asemat valitaan myöhemmin kohdassa Hallinta › Radio."
+      "radioHint": "Maa tulee tarjontaan ilman asemia. Asemat valitaan myöhemmin kohdassa Hallinta › Media › Radio."
     },
     "services": {
       "recommended": "Suositeltu",
@@ -399,7 +399,7 @@
       "folder": "Kansio {{position}}"
     },
     "household": {
-      "accounts": "Vieraat, joilla on oma tili, kutsutaan myöhemmin kohdassa Hallinta › Tilit."
+      "accounts": "Oman tilin saavat vieraat kutsutaan myöhemmin kohdassa Hallinta › Käyttäjät & laitteet › Tilit."
     },
     "access": {
       "here": "Käytössä on nyt osoite {{url}}.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat on otettu käyttöön",
       "restartTitle": "Slouchcat käynnistyy uudelleen…",
       "restartBody": "Näytönohjaimen valinta tulee voimaan uudelleenkäynnistyksen jälkeen. Ensimmäiset skannaukset jatkuvat sen jälkeen.",
-      "busy": "Slouchcat ei voinut käynnistyä uudelleen, koska varmuuskopiointi tai päivitys on käynnissä. Näytönohjaimen valinta tulee voimaan seuraavan uudelleenkäynnistyksen jälkeen (Hallinta › Yleiskuva).",
+      "busy": "Slouchcat ei voinut käynnistyä uudelleen, koska varmuuskopiointi tai päivitys on käynnissä. Näytönohjaimen valinta tulee voimaan seuraavan uudelleenkäynnistyksen jälkeen (Hallinta › Järjestelmä › Palvelin).",
       "scanProgress": "{{state}}: {{seen}}/{{total}} tiedostoa",
       "home": "Siirry etusivulle"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Ohje tälle sivulle",
+      "less": "Vähemmän",
+      "more": "Enemmän",
       "live_one": "Live, joka sekunti",
       "live_other": "Live, {{count}} sekunnin välein"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Nopeus {{rate}}×",
       "muted": "Mykistetty",
       "previousEpisode": "Edellinen jakso",
+      "forward10": "Eteenpäin 10 sekuntia",
+      "options": "Valinnat",
+      "view": "Aika ja näkymä",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Ei lukuja",
       "lastChapter": "Viimeinen luku",
       "noNextEpisode": "Ei seuraavaa jaksoa",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Seuraava jakso",
       "previousEpisodeCard": "Edellinen jakso",
       "cardSeason": "Kausi {{season}} · {{name}}",
-      "notOnDevice": "Ei tällä laitteella",
-      "forward10": "Eteenpäin 10 sekuntia",
-      "options": "Valinnat",
-      "view": "Aika ja näkymä",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Ei tällä laitteella"
     },
     "tabs": {
       "label": "Lisää nimikkeestä",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Asetukset",
+        "relaysCard": "Puskurit ja välitykset",
+        "coverCard": "Kansikuvat ja ulkoiset tiedot",
         "buffer": "Aikasiirto",
         "bufferHelp": "Kuinka kauas taaksepäin kuuntelijat voivat mennä. 60 minuuttia puolittaa asemien määrän, kun budjetti pysyy samana.",
         "minutes_one": "{{count}} minuutti",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} ja {{formatted}} nimike poistuvat Slouchcatista katseluhistorian, merkintöjen, oman listan, suosikkien, omien kuvien ja tekstien, etusivun rivin ”Uutta: {{name}}”, profiilien käyttöoikeuksien ja laitteiden lataukset mukaan lukien.",
         "lead_other": "{{roots}} ja {{formatted}} nimikettä poistuvat Slouchcatista katseluhistorian, merkintöjen, oman listan, suosikkien, omien kuvien ja tekstien, etusivun rivin ”Uutta: {{name}}”, profiilien käyttöoikeuksien ja laitteiden lataukset mukaan lukien.",
         "files": "Levyllä olevat tiedostot säilyvät koskemattomina. Jos tämän kirjaston skannaus on käynnissä, Slouchcat peruu sen ensin.",
-        "backup": "Sitä ennen Slouchcat varmuuskopioi tietokannan (Hallinta › Varmuuskopio). Tämän varmuuskopion palauttaminen palauttaa kaiken poistoa edeltävään tilaan, myös kaikkien profiilien sen jälkeen kertyneen katseluhistorian menetyksellä.",
+        "backup": "Sitä ennen Slouchcat tekee tietokannasta varmuuskopion (Hallinta › Järjestelmä › Varmuuskopio). Kun tämä varmuuskopio palautetaan, kaikki palaa poistoa edeltävään tilaan, myös kaikkien profiilien edistyminen sen jälkeen.",
         "final": "Muuten sitä ei voi perua: samojen kansioiden uusi skannaus luo nimikkeet uudelleen, ilman katseluhistoriaa.",
         "inputLabel": "Vahvista kirjoittamalla nimi",
         "mismatch": "Kirjoita {{name}} täsmälleen näin, niin painike aktivoituu.",
@@ -3128,8 +3132,6 @@
       "list": "Etusivun rivit",
       "band": "Rivit",
       "tabs": {
-        "label": "Rivien näkymä",
-        "order": "Järjestys",
         "preview": "Esikatselu"
       },
       "count_one": "{{number}} rivi",
@@ -3315,17 +3317,35 @@
       "rowSettings": "Rivin paikka etusivulla ja se, näkyykö se, määritetään kohdassa ”Etusivu”.",
       "rowSettingsLink": "Siirry kohtaan ”Etusivu”"
     },
+    "finder": {
+      "button": "Etsi osio",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Etsi hallinnan osiota",
+      "placeholder": "Kirjastot, taustatyöt, varmuuskopio…",
+      "results": "Tulokset",
+      "empty": "Ei tuloksia",
+      "area": "Osio",
+      "search": "Median haku",
+      "hint": "Nuolinäppäimet valitsevat, Enter avaa, Esc sulkee"
+    },
     "nav": {
       "label": "Hallinta",
       "overview": "Yleiskuva",
-      "groups": {
-        "library": "Kirjasto",
-        "accounts": "Tilit",
-        "curation": "Kuratointi",
+      "areas": {
+        "media": "Media",
+        "people": "Käyttäjät & laitteet",
+        "home": "Etusivu",
+        "automation": "Automaatio",
         "system": "Järjestelmä"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Polku",
+      "tabs": "Sivut: {{area}}",
       "back": "Takaisin sovellukseen",
       "updateLabel": "Yleiskuva, versio {{version}} on päivitettävissä",
+      "updateBadge": "{{name}}, versio {{version}} on päivitettävissä",
       "sheet": {
         "label": "Hallinnan sivut",
         "close": "Sulje hallinnan sivut"
@@ -3406,7 +3426,19 @@
       },
       "metadata": {
         "title": "Metatiedot"
+      },
+      "audiobookSources": {
+        "title": "Äänikirjojen lähteet"
+      },
+      "server": {
+        "title": "Palvelin"
       }
+    },
+    "server": {
+      "intro": "Versio, päivitykset, uudelleenkäynnistys, tallennustila ja virheloki yhdessä paikassa.",
+      "state": "Palvelimen tila",
+      "updates": "Päivitykset & uudelleenkäynnistys",
+      "toIntegrations": "Näytönohjain, julkinen osoite ja päivitystarkistus: Integraatiot"
     },
     "home": {
       "setupBand": {
@@ -3416,8 +3448,41 @@
         "action": "Jatka käyttöönottoa"
       },
       "title": "Hallinta",
-      "live": "Live, 5 sekunnin välein",
       "liveFailed": "Ei vastausta, yritetään uudelleen 5 sekunnin välein",
+      "heading": "Kaikki yhdellä silmäyksellä",
+      "intro": "Tärkeimmät ensin. Kaiken muun löydät osioiden kautta.",
+      "refresh": "Päivitä",
+      "attention": {
+        "title": "Mikä vaatii huomiota?",
+        "band_one": "{{count}} kohta vaatii huomiota",
+        "band_other": "{{count}} kohtaa vaatii huomiota",
+        "show": "Näytä",
+        "none": "Kaikki kunnossa."
+      },
+      "metrics": {
+        "label": "Tunnusluvut",
+        "streams": "Aktiiviset suoratoistot",
+        "streamsNote": "Yhteydessä juuri nyt",
+        "jobs": "Käynnissä olevat työt",
+        "jobsNote": "{{queued}} odottaa",
+        "jobsNotePaused": "{{queued}} odottaa · {{paused}} tauolla",
+        "maintenance": "Ylläpitoa vaativat nimikkeet",
+        "maintenanceNote": "Avoimet tapaukset ylläpidossa",
+        "storage": "Tallennustila",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Käytössä: määritykset · välimuisti"
+      },
+      "active": {
+        "title": "Aktiivista juuri nyt"
+      },
+      "quick": {
+        "title": "Suoraan tehtäviisi"
+      },
+      "summary": {
+        "title": "Palvelin & viimeisin toiminta",
+        "details": "Palvelimen tiedot",
+        "log": "Avaa palvelinloki"
+      },
       "update": {
         "title": "Versio {{version}} on saatavilla",
         "body": "Käytössäsi on {{current}}. Slouchcat ei asenna mitään itse: hae uusi image komennolla docker compose pull ja käynnistä uudelleen komennolla docker compose up -d.",
@@ -3436,10 +3501,6 @@
       },
       "jobs": {
         "title": "Tehtävät",
-        "queued": "Jonossa",
-        "running": "Käynnissä",
-        "failed": "Epäonnistuneet",
-        "paused": "Tauolla",
         "all": "Taustatyöt",
         "toFailed": "Näytä virheet",
         "active": "Käynnissä olevat tehtävät",
@@ -3480,7 +3541,6 @@
         "manage": "Hallinnoi webhookeja"
       },
       "server": {
-        "title": "Palvelin",
         "version": "Versio",
         "uptime": "Käynnissä",
         "update": "Päivitykset",
@@ -3583,10 +3643,8 @@
         "empty": "Ei vielä toimintaa."
       },
       "hints": {
-        "title": "Huomautukset",
         "count_one": "{{count}} huomautus",
         "count_other": "{{count}} huomautusta",
-        "none": "Ei huomautuksia.",
         "failed_one": "{{formatted}} taustatyö epäonnistui",
         "failed_other": "{{formatted}} taustatyötä epäonnistui",
         "paused_one": "{{count}} työtyyppi tauolla",
@@ -3598,6 +3656,7 @@
         "keyRejected": "{{name}}: avain hylätty",
         "keyRejectedBody": "Lähde hylkää avaimen. Kunnes uusi avain kelpaa, Slouchcat ei hae sieltä metatietoja.",
         "toKeys": "Avaimiin",
+        "toGpu": "Näytönohjaimen valintaan",
         "ratingsReread": "Ikärajoja luetaan uudelleen",
         "ratingsRereadBody": "Kunnes työ on valmis, voimassa ovat aiemmat ikärajat, olivat ne tiukempia tai väljempiä.",
         "minimumAge": "Ikärajat ovat nyt vähimmäisikiä",
@@ -3659,6 +3718,16 @@
       "cleared": "{{name}} poistettu.",
       "unsaved": "tallentamaton",
       "notificationsLink": "Siirry ilmoituskanaviin",
+      "services": {
+        "label": "Palvelut",
+        "back": "Kaikki integraatiot",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt ja Google Books.",
+        "webhooks": "Radarr ja Sonarr ilmoittavat uusista ja muuttuneista tiedostoista.",
+        "email": "Palvelin ilmoitusten, kutsujen ja tiedotteiden lähettämiseen sähköpostilla.",
+        "telegram": "Botti Telegram-ilmoituksiin.",
+        "push": "Ilmoitukset selaimessa ja asennetussa sovelluksessa.",
+        "server": "Päivitystarkistus, julkinen osoite ja näytönohjain."
+      },
       "keys": {
         "title": "Lähteiden avaimet",
         "intro": "Slouchcat hakee niillä tekstit, kuvat ja trailerit. Ilman avainta lähde pysyy pois käytöstä.",
@@ -4277,10 +4346,10 @@
       "counts": {
         "running": "Käynnissä",
         "queued": "Jonossa",
-        "planned": "Suunniteltu",
         "paused": "Tauolla",
         "failed": "Epäonnistuneet",
-        "label": "Yhteenveto"
+        "label": "Yhteenveto",
+        "plannedNote": "Ajastettuja: {{number}}"
       },
       "pools": {
         "title": "Työntekijät",
@@ -4746,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Päivitykset tauolla"
+      "livePaused": "Päivitykset tauolla",
+      "filter": {
+        "label": "Suodata työtyypit tilan mukaan",
+        "all": "Kaikki",
+        "running": "Käynnissä",
+        "failed": "Virhe",
+        "paused": "Tauolla",
+        "empty": "Tässä ryhmässä ei ole työtyyppiä tässä tilassa."
+      }
     },
     "metadata": {
       "title": "Metatiedot",
@@ -5048,7 +5125,7 @@
         "library": "Poista vain Slouchcatista",
         "files": "Poista myös tiedostot"
       },
-      "libraryHint": "Tiedostot säilyvät levyllä. Nimike pysyy poissa, vaikka uusia tiedostoja tulisi; kohdassa ”Ylläpito › Poistetut nimikkeet” sen voi palauttaa katseluhistorioineen, merkintöineen ja omine listoineen.",
+      "libraryHint": "Tiedostot jäävät levylle. Nimike pysyy poistettuna, vaikka uusia tiedostoja tulisi; kohdassa ”Ylläpito › Poistetut nimikkeet” sen voi ottaa takaisin edistymisen, merkintöjen ja Oman listan kanssa.",
       "everywhere": "Nimike poistuu kaikkien profiilien kaikilta listoilta; laitteiden lataukset poistetaan.",
       "arr": "Radarr ja Sonarr eivät saa tästä tietoa.",
       "affected_one": "Koskee: {{count}} tiedosto · {{size}}",

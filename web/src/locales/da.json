@@ -75,7 +75,7 @@
           "test_failed": "testen mislykkedes ved start"
         },
         "saved": "Gemt: {{name}}",
-        "restartAdmin": "Gælder efter en genstart af serveren (Overblik › Genstart)."
+        "restartAdmin": "Gælder efter en genstart af serveren (System › Server › Genstart)."
       },
       "fallback": {
         "title": "Den valgte grafikchip virker ikke",
@@ -363,7 +363,7 @@
       },
       "radio": "Netradio",
       "radioToggle": "Føj {{country}} til radiotilbuddet",
-      "radioHint": "Landet kommer med i tilbuddet uden stationer. Stationerne vælger du senere under Administration › Radio."
+      "radioHint": "Landet kommer med i udbuddet uden stationer. Stationerne vælger du senere under Administration › Medier › Radio."
     },
     "services": {
       "recommended": "Anbefalet",
@@ -399,7 +399,7 @@
       "folder": "Mappe {{position}}"
     },
     "household": {
-      "accounts": "Gæster med deres egen konto inviterer du senere under Administration › Konti."
+      "accounts": "Gæster med egen konto inviterer du senere under Administration › Brugere & enheder › Konti."
     },
     "access": {
       "here": "Du bruger {{url}} lige nu.",
@@ -424,7 +424,7 @@
       "title": "Slouchcat er sat op",
       "restartTitle": "Slouchcat genstarter…",
       "restartBody": "Valget af grafikchip gælder efter genstarten. De første scanninger fortsætter bagefter.",
-      "busy": "Slouchcat kunne ikke genstarte, fordi en sikkerhedskopiering eller en opdatering er i gang. Valget af grafikchip gælder efter næste genstart (Administration › Overblik).",
+      "busy": "Slouchcat kunne ikke genstarte, fordi en sikkerhedskopiering eller en opdatering kører. Valget af grafikchip gælder efter næste genstart (Administration › System › Server).",
       "scanProgress": "{{state}}: {{seen}} af {{total}} filer",
       "home": "Gå til startsiden"
     },
@@ -677,6 +677,8 @@
     },
     "adminPage": {
       "help": "Hjælp til denne side",
+      "less": "Mindre",
+      "more": "Mere",
       "live_one": "Live, hvert sekund",
       "live_other": "Live, hvert {{count}}. sekund"
     },
@@ -1137,6 +1139,11 @@
       "rate": "Hastighed {{rate}}×",
       "muted": "Lyden er slået fra",
       "previousEpisode": "Forrige afsnit",
+      "forward10": "10 sekunder frem",
+      "options": "Muligheder",
+      "view": "Tid og visning",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s",
       "noChapters": "Ingen kapitler",
       "lastChapter": "Sidste kapitel",
       "noNextEpisode": "Ikke flere afsnit",
@@ -1146,12 +1153,7 @@
       "nextEpisodeCard": "Næste afsnit",
       "previousEpisodeCard": "Forrige afsnit",
       "cardSeason": "Sæson {{season}} · {{name}}",
-      "notOnDevice": "Ikke på denne enhed",
-      "forward10": "10 sekunder frem",
-      "options": "Muligheder",
-      "view": "Tid og visning",
-      "tapBack": "−{{seconds}} s",
-      "tapForward": "+{{seconds}} s"
+      "notOnDevice": "Ikke på denne enhed"
     },
     "tabs": {
       "label": "Mere om titlen",
@@ -1430,6 +1432,8 @@
       },
       "settings": {
         "title": "Indstillinger",
+        "relaysCard": "Buffere og videresendelser",
+        "coverCard": "Omslag og eksterne data",
         "buffer": "Tidsforskydning",
         "bufferHelp": "Hvor langt tilbage lyttere kan spole. 60 minutter halverer antallet af stationer, hvis budgettet er det samme.",
         "minutes_one": "{{count}} minut",
@@ -2041,7 +2045,7 @@
         "lead_one": "{{roots}} og {{formatted}} titel forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes adgang og downloads på enhederne.",
         "lead_other": "{{roots}} og {{formatted}} titler forsvinder fra Slouchcat, sammen med fremskridt, afkrydsninger, Min liste, anbefalinger, egne billeder og tekster, startsiderækken »Nyt i {{name}}«, profilernes adgang og downloads på enhederne.",
         "files": "Filerne på disken forbliver uberørte. Kører der netop en scanning af dette bibliotek, afbryder Slouchcat den først.",
-        "backup": "Før det laver Slouchcat en sikkerhedskopi af databasen (Administration › Sikkerhedskopi). Den, der gendanner denne sikkerhedskopi, sætter alt tilbage til tilstanden før sletningen, også alle profilers fremskridt siden.",
+        "backup": "Før det opretter Slouchcat en sikkerhedskopi af databasen (Administration › System › Sikkerhedskopi). Gendanner du denne sikkerhedskopi, sættes alt tilbage til tilstanden før sletningen, også alle profilers fremskridt siden da.",
         "final": "Ellers kan det ikke fortrydes: En ny scanning af de samme mapper opretter titlerne igen, uden fremskridt.",
         "inputLabel": "Skriv navnet for at bekræfte",
         "mismatch": "Skriv {{name}} præcis sådan, så bliver knappen aktiv.",
@@ -3128,8 +3132,6 @@
       "list": "Startsidens rækker",
       "band": "Rækker",
       "tabs": {
-        "label": "Visning af rækkerne",
-        "order": "Rækkefølge",
         "preview": "Forhåndsvisning"
       },
       "count_one": "{{number}} række",
@@ -3315,17 +3317,35 @@
       "rowSettings": "Hvor rækken står på startsiden, og om den vises, indstilles under »Startside«.",
       "rowSettingsLink": "Gå til »Startside«"
     },
+    "finder": {
+      "button": "Find område",
+      "shortcut": "Ctrl K",
+      "shortcutMac": "⌘ K",
+      "label": "Find et område i administrationen",
+      "placeholder": "Biblioteker, job, sikkerhedskopi…",
+      "results": "Resultater",
+      "empty": "Intet fundet",
+      "area": "Område",
+      "search": "Mediesøgning",
+      "hint": "Piletaster vælger, Enter åbner, Esc lukker"
+    },
     "nav": {
       "label": "Administration",
       "overview": "Overblik",
-      "groups": {
-        "library": "Bibliotek",
-        "accounts": "Konti",
-        "curation": "Kuratering",
+      "areas": {
+        "media": "Medier",
+        "people": "Brugere & enheder",
+        "home": "Startside",
+        "automation": "Automatisering",
         "system": "System"
       },
+      "tagline": "Control Center",
+      "trail": "{{area}} / {{page}}",
+      "breadcrumb": "Sti",
+      "tabs": "Sider i {{area}}",
       "back": "Tilbage til appen",
       "updateLabel": "Overblik, opdatering til version {{version}} er tilgængelig",
+      "updateBadge": "{{name}}, opdatering til version {{version}} er tilgængelig",
       "sheet": {
         "label": "Administrationens sider",
         "close": "Luk administrationens sider"
@@ -3406,7 +3426,19 @@
       },
       "metadata": {
         "title": "Metadata"
+      },
+      "audiobookSources": {
+        "title": "Kilder til lydbøger"
+      },
+      "server": {
+        "title": "Server"
       }
+    },
+    "server": {
+      "intro": "Version, opdateringer, genstart, lagerplads og fejllog samlet ét sted.",
+      "state": "Serverstatus",
+      "updates": "Opdateringer & genstart",
+      "toIntegrations": "Grafikchip, offentlig adresse og opdateringskontrol: Integrationer"
     },
     "home": {
       "setupBand": {
@@ -3416,8 +3448,41 @@
         "action": "Fortsæt opsætningen"
       },
       "title": "Administration",
-      "live": "Live, hvert 5. sekund",
       "liveFailed": "Intet svar, prøver igen hvert 5. sekund",
+      "heading": "Alt samlet i ét overblik",
+      "intro": "Det vigtigste først. Resten når du via områderne.",
+      "refresh": "Opdater",
+      "attention": {
+        "title": "Hvad kræver opmærksomhed?",
+        "band_one": "{{count}} punkt kræver opmærksomhed",
+        "band_other": "{{count}} punkter kræver opmærksomhed",
+        "show": "Vis",
+        "none": "Alt er i orden."
+      },
+      "metrics": {
+        "label": "Nøgletal",
+        "streams": "Aktive streams",
+        "streamsNote": "Forbundet lige nu",
+        "jobs": "Kørende job",
+        "jobsNote": "{{queued}} venter",
+        "jobsNotePaused": "{{queued}} venter · {{paused}} på pause",
+        "maintenance": "Titler til vedligeholdelse",
+        "maintenanceNote": "Åbne sager i vedligeholdelsen",
+        "storage": "Lagerplads",
+        "storageValue": "{{config}} % · {{cache}} %",
+        "storageNote": "Brugt: konfiguration · cache"
+      },
+      "active": {
+        "title": "Aktive lige nu"
+      },
+      "quick": {
+        "title": "Direkte til dine opgaver"
+      },
+      "summary": {
+        "title": "Server & seneste aktivitet",
+        "details": "Serverdetaljer",
+        "log": "Se serverloggen"
+      },
       "update": {
         "title": "Version {{version}} er tilgængelig",
         "body": "Du kører {{current}}. Slouchcat installerer ikke noget selv: Hent det nye image med docker compose pull, og genstart med docker compose up -d.",
@@ -3436,10 +3501,6 @@
       },
       "jobs": {
         "title": "Opgaver",
-        "queued": "Venter",
-        "running": "Kører",
-        "failed": "Mislykkede",
-        "paused": "På pause",
         "all": "Baggrundsjob",
         "toFailed": "Se fejl",
         "active": "Kørende opgaver",
@@ -3480,7 +3541,6 @@
         "manage": "Administrer webhooks"
       },
       "server": {
-        "title": "Server",
         "version": "Version",
         "uptime": "Kører siden",
         "update": "Opdateringer",
@@ -3583,10 +3643,8 @@
         "empty": "Ingen aktivitet endnu."
       },
       "hints": {
-        "title": "Bemærkninger",
         "count_one": "{{count}} bemærkning",
         "count_other": "{{count}} bemærkninger",
-        "none": "Ingen bemærkninger.",
         "failed_one": "{{formatted}} baggrundsjob mislykkedes",
         "failed_other": "{{formatted}} baggrundsjob mislykkedes",
         "paused_one": "{{count}} jobtype på pause",
@@ -3598,6 +3656,7 @@
         "keyRejected": "Nøglen til {{name}} afvist",
         "keyRejectedBody": "Udbyderen afviser nøglen. Indtil en ny nøgle gælder, henter Slouchcat ingen metadata hos den.",
         "toKeys": "Til nøglerne",
+        "toGpu": "Til valget af grafikchip",
         "ratingsReread": "Aldersgrænserne indlæses igen",
         "ratingsRereadBody": "Indtil jobbet er færdigt, gælder de hidtidige aldersgrænser, uanset om de er strengere eller mildere.",
         "minimumAge": "Aldersgrænser er nu minimumsaldre",
@@ -3659,6 +3718,16 @@
       "cleared": "{{name}} slettet.",
       "unsaved": "ugemt",
       "notificationsLink": "Gå til notifikationskanalerne",
+      "services": {
+        "label": "Tjenester",
+        "back": "Alle integrationer",
+        "keys": "TMDB, TVDB, Fanart.tv, YouTube, Trakt og Google Books.",
+        "webhooks": "Radarr og Sonarr melder nye og ændrede filer.",
+        "email": "Server til notifikationer, invitationer og meddelelser pr. e-mail.",
+        "telegram": "Bot til notifikationer via Telegram.",
+        "push": "Notifikationer i browseren og i den installerede app.",
+        "server": "Opdateringskontrol, offentlig adresse og grafikchip."
+      },
       "keys": {
         "title": "Udbydernes nøgler",
         "intro": "Slouchcat henter tekster, billeder og trailere med dem. Uden nøgle forbliver udbyderen slået fra.",
@@ -4277,10 +4346,10 @@
       "counts": {
         "running": "Kører",
         "queued": "Venter",
-        "planned": "Planlagt",
         "paused": "På pause",
         "failed": "Mislykkede",
-        "label": "Oversigt"
+        "label": "Oversigt",
+        "plannedNote": "{{number}} planlagt"
       },
       "pools": {
         "title": "Arbejdere",
@@ -4746,7 +4815,15 @@
       },
       "separator": " · ",
       "none": "–",
-      "livePaused": "Opdatering sat på pause"
+      "livePaused": "Opdatering sat på pause",
+      "filter": {
+        "label": "Filtrer jobtyper efter tilstand",
+        "all": "Alle",
+        "running": "Kører",
+        "failed": "Fejl",
+        "paused": "På pause",
+        "empty": "Ingen jobtype i denne gruppe har den tilstand."
+      }
     },
     "metadata": {
       "title": "Metadata",
@@ -5048,7 +5125,7 @@
         "library": "Fjern kun fra Slouchcat",
         "files": "Slet også filerne"
       },
-      "libraryHint": "Filerne bliver på disken. Titlen forbliver fjernet, selv når der kommer nye filer; under »Vedligeholdelse › Fjernede titler« kan den tages tilbage med fremskridt, afkrydsninger og Min liste.",
+      "libraryHint": "Filerne bliver på disken. Titlen forbliver fjernet, også når der kommer nye filer; under »Vedligeholdelse › Fjernede titler« kan den tages tilbage med fremskridt, flueben og Min liste.",
       "everywhere": "Titlen forsvinder fra alle lister for alle profiler; downloads på enhederne fjernes.",
       "arr": "Radarr og Sonarr får intet at vide om det.",
       "affected_one": "Berørt: {{count}} fil · {{size}}",

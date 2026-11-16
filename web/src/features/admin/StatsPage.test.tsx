@@ -141,13 +141,12 @@ describe('admin statistics (A-8)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Statistiken' })).toBeVisible();
     expect(screen.getByRole('radio', { name: '30 Tage' })).toBeChecked();
     expect(askedDays(fetchMock)).toEqual(['30']);
-    // The intro sits behind the help button (S-2).
+    // The intro stands open below the title (build plan 2.6), without a help button.
     const intro = screen.getByText(
       'Was in letzter Zeit geschaut wurde, über alle Konten und Profile.',
     );
-    expect(intro).not.toBeVisible();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
     expect(intro).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
 
     // «Wiedergabe» (STA-2): counts with their shares and the GPU share of the transcodes.
     const playback = await screen.findByRole('group', { name: 'Wiedergabe' });

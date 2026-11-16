@@ -140,7 +140,7 @@ test('AAC in copy mode plays; mini player and «Jetzt läuft» by keyboard; navi
     .getByRole('link', { name: /^Verwaltung/ })
     .click();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
   await expectSounding(page, browserName, 1);
 

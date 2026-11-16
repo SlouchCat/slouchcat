@@ -1,6 +1,7 @@
 /*
- * The button at the top of an admin page on a phone: "Verwaltung · page", full width. The sheet it
- * opens takes the drawer's styles from SideNav.module.css.
+ * The button at the top of an admin page on a phone (build plan 2.3): the breadcrumb line of the
+ * mockup, "Verwaltung › area / page", full width. The sheet it opens takes the drawer's styles
+ * from SideNav.module.css.
  */
 .trigger {
   display: flex;
@@ -8,15 +9,16 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  margin-bottom: var(--sc-space-6);
-  padding: var(--sc-space-3) var(--sc-space-4);
-  border: 0;
-  border-radius: var(--sc-radius-lg);
+  min-height: var(--sc-size-control-height);
+  margin-bottom: var(--sc-space-4);
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-bg-elevated);
-  color: var(--sc-color-text-primary);
+  color: var(--sc-color-text-secondary);
   font: inherit;
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-semibold);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-medium);
   text-align: left;
   cursor: pointer;
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
@@ -35,11 +37,20 @@
   min-width: 0;
 }
 
+.triggerLabel > svg {
+  flex: none;
+  color: var(--sc-color-text-muted);
+}
+
+.root {
+  flex: none;
+}
+
 .page {
   overflow: hidden;
   min-width: 0;
-  color: var(--sc-color-text-muted);
-  font-weight: var(--sc-font-weight-medium);
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -2,9 +2,10 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
 // The compact density of the administration (concept 12, 5.1 and 5.2; ADR 0020; K12-8): with a
-// mouse from 768 px the content of /admin/* and the dialogs opened from it use 32 px controls and
-// a 24 px title. The app header, the administration's sidebar and /settings/* keep today's size,
-// and so do touch devices and phones (44 px).
+// mouse from 768 px the content of /admin/* and the dialogs opened from it use 32 px controls.
+// The app header, the administration's sidebar and /settings/* keep today's size, and so do touch
+// devices and phones (44 px). Since the redesign (build plan 2.6) a page in the admin frame has a
+// 30 px title over the area's tabs; the overview keeps the 24 px title until step 2.
 
 const DESKTOP = { width: 1440, height: 900 };
 
@@ -18,9 +19,16 @@ const layoutHeight = (locator: Locator) =>
 const fontSize = (locator: Locator) =>
   locator.evaluate((element) => getComputedStyle(element).fontSize);
 
-/** The h1's text (Text variant pageTitle inside the h1 of AdminPage). */
+/** The h1's text (Text variant pageTitle inside the h1 of AdminPage outside the admin frame). */
 const title = (page: Page) => page.getByRole('heading', { level: 1 }).locator('span');
-const help = (page: Page) => page.getByRole('button', { name: 'Hilfe zu dieser Seite' });
+/**
+ * A control of the content: the current tab of the area (build plan 2.5), a control-height link.
+ * It took the place of the help button, which the admin frame no longer has (build plan 2.6).
+ */
+const control = (page: Page) =>
+  page
+    .getByRole('navigation', { name: /^Seiten im Bereich / })
+    .getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
 const menu = (page: Page) => page.getByRole('button', { name: 'Menü', exact: true });
 
 async function openJobs(page: Page) {
@@ -36,29 +44,30 @@ test.describe('with a mouse from 768 px', () => {
     expect(await page.evaluate(() => matchMedia('(pointer: fine)').matches)).toBe(true);
     await expect(page.locator('html')).toHaveAttribute('data-shell', 'admin');
 
-    await expect.poll(() => height(help(page))).toBe(32);
-    expect(await fontSize(title(page))).toBe('24px');
+    await expect.poll(() => height(control(page))).toBe(32);
+    // The admin frame's title (build plan 2.6): 30 px from 768 px.
+    expect(await fontSize(page.getByRole('heading', { level: 1 }))).toBe('30px');
     // The side margin of the content: 32 px instead of 64 px from 1440 px.
     expect(
       await page
         .locator('#content')
         .evaluate((element) => getComputedStyle(element).getPropertyValue('--page-gutter').trim()),
     ).toBe('32px');
-    // The h1 is as high as its 24 px title, not the 48 px line of an h1's own 2em.
-    expect(await height(page.getByRole('heading', { level: 1 }))).toBeLessThanOrEqual(32);
+    // The h1 is as high as its 30 px title (line height 1.1), not an h1's own 2em line.
+    expect(await height(page.getByRole('heading', { level: 1 }))).toBeLessThanOrEqual(34);
 
     // Outside #content: the app header and the administration's sidebar.
     expect(await height(menu(page))).toBe(44);
     const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-    const entry = sidebar.getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
+    const entry = sidebar.getByRole('link', { name: /^Automatisierung(,|$)/ });
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 
-  test('the overview has the 24 px page title of the other pages', async ({ page }) => {
+  test('the overview has the 30 px page title of the admin frame', async ({ page }) => {
     await page.goto('/admin');
-    const heading = page.getByRole('heading', { level: 1, name: 'Verwaltung' });
+    const heading = page.getByRole('heading', { level: 1, name: 'Alles im Blick' });
     await expect(heading).toBeVisible();
-    expect(await fontSize(heading)).toBe('24px');
+    expect(await fontSize(heading)).toBe('30px');
   });
 
   test('a table row is 40 px high (S-5)', async ({ page }) => {
@@ -127,7 +136,7 @@ test.describe('with a mouse from 768 px', () => {
     page,
   }) => {
     await openJobs(page);
-    await expect.poll(() => height(help(page))).toBe(32);
+    await expect.poll(() => height(control(page))).toBe(32);
 
     // In the app, without a new page load: the menu's drawer links to the own profiles.
     await menu(page).click();
@@ -146,7 +155,7 @@ test.describe('with a mouse from 768 px', () => {
     await expect(page).toHaveURL(/\/admin\/jobs$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-shell', 'admin');
-    await expect.poll(() => height(help(page))).toBe(32);
+    await expect.poll(() => height(control(page))).toBe(32);
   });
 
   test('a dialog opened from an administration page is compact', async ({ page }) => {
@@ -163,14 +172,15 @@ test.describe('with a mouse from 768 px', () => {
   });
 
   test('the question before leaving with unsaved input is compact', async ({ page }) => {
-    await page.goto('/admin/integrations');
+    // The view of the provider keys (`?item=`, admin redesign).
+    await page.goto('/admin/integrations?item=keys');
     await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
     // The provider cards start folded (concept 20, P-12).
     const youtube = page.getByRole('region', { name: 'YouTube', exact: true });
     await youtube.getByRole('button', { name: 'Einrichten: YouTube' }).click();
     await youtube.getByRole('textbox', { name: 'Schlüssel', exact: true }).fill('unsaved-key');
     await page
-      .getByRole('navigation', { name: 'Verwaltung' })
+      .getByRole('navigation', { name: 'Seiten im Bereich Automatisierung' })
       .getByRole('link', { name: /^Hintergrundjobs(,|$)/ })
       .click();
     const question = page.getByRole('alertdialog', {
@@ -189,7 +199,7 @@ test.describe('on a phone', () => {
 
   test('controls keep 44 px below 768 px', async ({ page }) => {
     await openJobs(page);
-    await expect.poll(() => height(help(page))).toBe(44);
+    await expect.poll(() => height(control(page))).toBe(44);
   });
 });
 
@@ -200,6 +210,6 @@ test.describe('on a tablet with touch', () => {
   test('controls keep 44 px with a coarse pointer from 768 px', async ({ page }) => {
     await openJobs(page);
     expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
-    await expect.poll(() => height(help(page))).toBe(44);
+    await expect.poll(() => height(control(page))).toBe(44);
   });
 });

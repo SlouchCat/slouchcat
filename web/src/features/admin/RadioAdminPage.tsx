@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,20 +9,25 @@ import { paths } from '@/app/paths';
 import { Notice, TextLink } from '@/ui';
 import {
   AdminPage,
+  AriaButton,
   ConfirmDialog,
+  StatusRegion,
   StatusStrip,
   Tabs,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
 } from '@/ui/aria';
 import {
   RADIO_RELAYS_POLL_MS,
+  radioAdminKeys,
   radioCatalogQuery,
   radioConfigQuery,
   radioOfferQuery,
   radioRelaysQuery,
   type RadioOfferStep,
 } from './queries';
+import { CreateStationDialog } from './radio/CreateStationDialog';
 import { OfferTab } from './radio/OfferTab';
 import { OverviewTab } from './radio/OverviewTab';
 import { OwnStationsTab } from './radio/OwnStationsTab';
@@ -86,6 +91,10 @@ function RadioAdminContent() {
     });
   // The poll of the relays waits while a confirmation is open.
   const [holdPoll, setHoldPoll] = useState(false);
+  // «Eigenen Sender hinzufügen», the main action in the head (mockup «Sender hinzufügen»).
+  const queryClient = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useStatusMessage();
 
   const [steps, setSteps] = useState<RadioOfferStep[]>([]);
   const unsaved = useUnsavedChanges(steps.length > 0);
@@ -161,7 +170,13 @@ function RadioAdminContent() {
       liveSeconds={tab === 'uebersicht' && !holdPoll ? RADIO_RELAYS_POLL_MS / 1000 : undefined}
       titleRef={titleRef}
       status={status}
+      actions={
+        <AriaButton variant="primary" icon="plus" onPress={() => setCreating(true)}>
+          {t('admin.radio.own.add')}
+        </AriaButton>
+      }
     >
+      <StatusRegion message={message} />
       {config.data?.bufferMode === 'memory' && (
         <Notice tone="warning" title={t('admin.radio.memory.title')}>
           {t('admin.radio.memory.body')}
@@ -221,6 +236,23 @@ function RadioAdminContent() {
           },
         ]}
       />
+      {creating && (
+        <CreateStationDialog
+          onClose={() => setCreating(false)}
+          onCreated={(station) => {
+            setCreating(false);
+            setMessage(t('admin.radio.own.created', { name: station.name }));
+            void queryClient.invalidateQueries({ queryKey: radioAdminKeys.all });
+            // The logo comes through the editor's upload (or the homepage's icon). The page goes
+            // to «Eigene Sender», so the station stands in the list once the editor closes, from
+            // whichever tab it was added (RAD-064). One navigation for both parameters.
+            void navigate({
+              search: (previous) => ({ ...previous, tab: 'eigene', item: String(station.id) }),
+              replace: true,
+            });
+          }}
+        />
+      )}
       {editing !== undefined && Number.isInteger(editing) && (
         <StationEditor stationId={editing} onClose={() => openEditor(undefined)} />
       )}

@@ -84,3 +84,125 @@
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
 }
+
+/*
+ * Inside the administration's frame (build plan 2.6, mockup .heading): the line over the title,
+ * a large title, the intro sentence open below; the actions at the end, at the foot of the text,
+ * or below it when the line wraps. As tight as the mockup, so the page's first working line does
+ * not move further down than needed.
+ */
+.framed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-4);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.heading {
+  display: flex;
+  flex: 1 1 30rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--sc-accent);
+  font-size: var(--sc-admin-eyebrow-size);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: calc(2.5 * var(--sc-font-letter-spacing-caps));
+  text-transform: uppercase;
+}
+
+.framedTitle {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--sc-admin-title-size-narrow);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-admin-title-tracking);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+.framedIntro {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-admin-intro-size);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+/* The intro and «Mehr» beside its last line. */
+.introLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-end;
+  min-width: 0;
+}
+
+/* Two lines (INTRO_LINES in AdminPage.tsx), cut with an ellipsis. */
+.introClamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.introToggle {
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-sm);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-admin-intro-size);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-normal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.introToggle:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+@media (hover: hover) {
+  .introToggle:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.framedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* On a phone an action is never wider than the page: a long label (in any language) wraps inside
+   its button. From 768 px the buttons keep their one line. */
+@media (width < 768px) {
+  .framedActions > :is(a, button) {
+    max-width: 100%;
+    padding-block: var(--sc-space-2);
+    line-height: var(--sc-font-line-height-tight);
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+@media (width >= 768px) {
+  .framedTitle {
+    font-size: var(--sc-admin-title-size);
+  }
+}

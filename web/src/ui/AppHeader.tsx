@@ -49,11 +49,49 @@ export interface HeaderSearch {
   current?: boolean;
 }
 
+/** One step of the administration's breadcrumb; the last one is the current page. */
+export interface HeaderCrumb {
+  href: string;
+  label: string;
+}
+
+/**
+ * What the header shows inside the administration (build plan 2.1): a line under the logo, the
+ * breadcrumb from 768 px and «Bereich suchen» in place of the search link.
+ */
+export interface HeaderAdmin {
+  /** Under the logo's name ("Control Center"). */
+  tagline: string;
+  /** Accessible name of the breadcrumb ("Pfad"). */
+  breadcrumbLabel: string;
+  /**
+   * «Verwaltung», the area and the page; the last is the current page and no link. The
+   * separators: an arrow after the first step, a slash between area and page.
+   */
+  crumbs: readonly HeaderCrumb[];
+  finder: HeaderFinder;
+}
+
+/** The button that opens the administration's search palette (build plan 2.4). */
+export interface HeaderFinder {
+  /** Visible text and accessible name ("Bereich suchen"); on phones the icon stands alone. */
+  label: string;
+  /** The shortcut as shown ("Strg K", "⌘ K"). */
+  shortcut: string;
+  /** The shortcut for assistive technology (`aria-keyshortcuts`, "Control+K"). */
+  keyShortcuts: string;
+  /** Whether the palette is open (`aria-expanded`). */
+  expanded: boolean;
+  onPress: () => void;
+}
+
 interface AppHeaderProps {
   appName: string;
   homeHref: string;
   menu?: HeaderMenu;
   search: HeaderSearch;
+  /** Inside the administration: tagline, breadcrumb, and the finder instead of `search`. */
+  admin?: HeaderAdmin;
   profileName: string;
   /** The profile picker: avatar and name link there to switch profiles. */
   profileHref: string;
@@ -82,6 +120,70 @@ function SearchLink({ search }: { search: HeaderSearch }) {
         {search.label}
       </span>
     </AppLink>
+  );
+}
+
+function FinderButton({ finder }: { finder: HeaderFinder }) {
+  const { ref, onFocus } = useSpatialItem<HTMLButtonElement>();
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onFocus={onFocus}
+      className={styles.finder}
+      aria-label={finder.label}
+      aria-keyshortcuts={finder.keyShortcuts}
+      aria-haspopup="dialog"
+      aria-expanded={finder.expanded}
+      onClick={finder.onPress}
+    >
+      <Icon name="search" size="sm" />
+      <span className={styles.text} aria-hidden="true">
+        {finder.label}
+      </span>
+      <kbd className={styles.kbd} aria-hidden="true">
+        {finder.shortcut}
+      </kbd>
+    </button>
+  );
+}
+
+function CrumbLink({ crumb }: { crumb: HeaderCrumb }) {
+  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
+  return (
+    <AppLink ref={ref} onFocus={onFocus} href={crumb.href} className={styles.crumbLink}>
+      {crumb.label}
+    </AppLink>
+  );
+}
+
+/** «Verwaltung › Medien / Bibliotheken» (build plan 2.1), from 768 px. */
+function Breadcrumb({ label, crumbs }: { label: string; crumbs: readonly HeaderCrumb[] }) {
+  return (
+    <nav aria-label={label} className={styles.breadcrumb}>
+      <ol className={styles.crumbs}>
+        {crumbs.map((crumb, index) => {
+          const last = index === crumbs.length - 1;
+          return (
+            <li key={index} className={styles.crumb}>
+              {index === 1 && <Icon name="chevronRight" size="sm" />}
+              {index > 1 && (
+                <span className={styles.slash} aria-hidden="true">
+                  /
+                </span>
+              )}
+              {last ? (
+                <span className={styles.crumbCurrent} aria-current="page">
+                  {crumb.label}
+                </span>
+              ) : (
+                <CrumbLink crumb={crumb} />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
@@ -115,6 +217,7 @@ export function AppHeader({
   homeHref,
   menu,
   search,
+  admin,
   profileName,
   profileHref,
   profileLabel,
@@ -132,7 +235,11 @@ export function AppHeader({
   }, []);
 
   return (
-    <header className={styles.header} data-scrolled={scrolled || undefined}>
+    <header
+      className={styles.header}
+      data-scrolled={scrolled || undefined}
+      data-admin={admin ? '' : undefined}
+    >
       <SpatialGroup focusKey="header" className={styles.inner}>
         {menu && (
           <SpatialButton
@@ -147,10 +254,11 @@ export function AppHeader({
           />
         )}
         <AppLink ref={homeRef} onFocus={onHomeFocus} href={homeHref} className={styles.brand}>
-          <Logo name={appName} />
+          <Logo name={appName} tagline={admin?.tagline} />
         </AppLink>
+        {admin && <Breadcrumb label={admin.breadcrumbLabel} crumbs={admin.crumbs} />}
         <div className={styles.account}>
-          <SearchLink search={search} />
+          {admin ? <FinderButton finder={admin.finder} /> : <SearchLink search={search} />}
           {notifications && <InboxLink inbox={notifications} />}
           <AppLink
             ref={profileRef}

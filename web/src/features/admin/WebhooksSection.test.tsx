@@ -7,7 +7,7 @@ import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test
 // M9 webhooks (I-8, decision 5.6): one address per integration, shown exactly once with a copy
 // button, afterwards only its last four characters; a table whose rows fold out into the path
 // mapping and the event log (concept 12, Int-A); renew and delete. Unsaved rows of a mapping live
-// in the page, so folding the row or the block away keeps them (S-13, S-17).
+// in the page, so folding the row away or changing the view keeps them (S-13, S-17).
 
 const settings: AdminSettings = {
   publicUrlSource: 'none',
@@ -86,7 +86,7 @@ describe('webhook integrations (I-8)', () => {
 
   it('lists an integration with its last four characters and last contact; the row folds out into mapping and event log', async () => {
     const { calls } = mockApi(routes());
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const { table, toggle, row } = await integrationRow('Radarr');
     const headers = within(table)
@@ -121,7 +121,7 @@ describe('webhook integrations (I-8)', () => {
     mockApi(
       routes({ 'GET /admin/integrations': () => json([{ ...radarr, lastSeenAt: undefined }]) }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
     const { row } = await integrationRow('Radarr');
     expect(within(row).getByText('Hat noch nie etwas gemeldet.')).toBeVisible();
   });
@@ -143,7 +143,7 @@ describe('webhook integrations (I-8)', () => {
           ),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const { section } = await integrationRow('Radarr');
     const form = within(section).getByRole('group', { name: 'Neue Integration' });
@@ -180,7 +180,7 @@ describe('webhook integrations (I-8)', () => {
           json({ integration: { ...radarr, tokenTail: 'oken' }, url, token: 'NEW-token' }),
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const { row } = await integrationRow('Radarr');
     await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
@@ -214,7 +214,7 @@ describe('webhook integrations (I-8)', () => {
           json({ integration: radarr, url: second, token: 'SECOND-token' }),
       }),
     );
-    const { queryClient } = renderApp('/admin/integrations');
+    const { queryClient } = renderApp('/admin/integrations?item=webhooks');
     const held = () =>
       queryClient
         .getMutationCache()
@@ -247,7 +247,7 @@ describe('webhook integrations (I-8)', () => {
   it('a typed name of a new integration makes leaving the page ask first', async () => {
     const user = userEvent.setup();
     mockApi(routes());
-    const { router } = renderApp('/admin/integrations');
+    const { router } = renderApp('/admin/integrations?item=webhooks');
     const { section } = await integrationRow('Radarr');
     await user.type(within(section).getByLabelText('Name'), 'Sonarr Kinder');
     expect(within(section).getByText('ungespeichert')).toBeVisible();
@@ -262,7 +262,7 @@ describe('webhook integrations (I-8)', () => {
   it('a failed renewal is reported in the block', async () => {
     const user = userEvent.setup();
     mockApi(routes({ 'POST /admin/integrations/1/token': () => problem(500, 'internal') }));
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
     const { row } = await integrationRow('Radarr');
     await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
     await user.click(
@@ -284,7 +284,7 @@ describe('webhook integrations (I-8)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const section = await openIntegration('Radarr');
     const from = within(section).getByLabelText('Pfad im Dienst');
@@ -313,7 +313,7 @@ describe('webhook integrations (I-8)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const section = await openIntegration('Radarr');
     await user.click(within(section).getByRole('button', { name: 'Zeile hinzufügen' }));
@@ -332,10 +332,10 @@ describe('webhook integrations (I-8)', () => {
     expect(within(section).queryByText('ungespeichert')).toBeNull();
   });
 
-  it('keeps unsaved rows when the row or the block is folded away (S-13)', async () => {
+  it('keeps unsaved rows when the row is folded away or the view changes (S-13)', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi(routes());
-    renderApp('/admin/integrations');
+    const { router } = renderApp('/admin/integrations?item=webhooks');
 
     const section = await openIntegration('Radarr');
     const { toggle } = await integrationRow('Radarr');
@@ -347,11 +347,11 @@ describe('webhook integrations (I-8)', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByLabelText('Pfad auf diesem Server')).toBeNull();
     expect(within(toggle).getByText('ungespeichert')).toBeVisible();
-    const band = within(section).getByRole('button', { name: BLOCK });
-    expect(band).toHaveAttribute('aria-expanded', 'true');
-    await user.click(band);
-    expect(band).toHaveAttribute('aria-expanded', 'false');
-    await user.click(band);
+    // Another service's view and back (admin redesign): the draft stays as well.
+    await router.navigate({ to: '/admin/integrations', search: { item: 'email' } });
+    expect(await screen.findByRole('region', { name: 'E-Mail-Server' })).toBeVisible();
+    await router.navigate({ to: '/admin/integrations', search: { item: 'webhooks' } });
+    expect(await screen.findByRole('region', { name: BLOCK })).toBeVisible();
     await user.click(toggle);
     expect(within(section).getByLabelText('Pfad auf diesem Server')).toHaveValue('/media/Kino');
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
@@ -366,7 +366,7 @@ describe('webhook integrations (I-8)', () => {
     const user = userEvent.setup();
     let pathMap = radarr.pathMap;
     mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
-    const { queryClient } = renderApp('/admin/integrations');
+    const { queryClient } = renderApp('/admin/integrations?item=webhooks');
 
     const section = await openIntegration('Radarr');
     const { toggle } = await integrationRow('Radarr');
@@ -400,7 +400,7 @@ describe('webhook integrations (I-8)', () => {
     const user = userEvent.setup();
     let pathMap = radarr.pathMap;
     mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
-    const { queryClient } = renderApp('/admin/integrations');
+    const { queryClient } = renderApp('/admin/integrations?item=webhooks');
 
     const section = await openIntegration('Radarr');
     const to = within(section).getByLabelText('Pfad auf diesem Server');
@@ -437,7 +437,7 @@ describe('webhook integrations (I-8)', () => {
         },
       }),
     );
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
 
     const { row } = await integrationRow('Radarr');
     await user.click(within(row).getByRole('button', { name: 'Radarr löschen' }));
@@ -454,7 +454,7 @@ describe('webhook integrations (I-8)', () => {
 
   it('says so when no integration exists yet', async () => {
     mockApi(routes({ 'GET /admin/integrations': () => json([]) }));
-    renderApp('/admin/integrations');
+    renderApp('/admin/integrations?item=webhooks');
     expect(
       await within(await screen.findByRole('region', { name: BLOCK })).findByText(
         'Noch keine Integration eingerichtet.',

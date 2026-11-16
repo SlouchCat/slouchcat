@@ -106,6 +106,18 @@ export function typeState(info: JobTypeInfo): TypeState {
   return 'idle';
 }
 
+/** The filter above a group's table (mockup «Alle / Läuft / Fehler / Pausiert»), in its order. */
+export const TYPE_FILTERS = ['all', 'running', 'failed', 'paused'] as const;
+export type TypeFilter = (typeof TYPE_FILTERS)[number];
+
+/** Whether a type shows under a filter: runs now, has failed runs, or is paused. */
+export function matchesTypeFilter(info: JobTypeInfo, filter: TypeFilter): boolean {
+  if (filter === 'running') return info.counts.running > 0;
+  if (filter === 'failed') return info.counts.failed > 0;
+  if (filter === 'paused') return info.paused;
+  return true;
+}
+
 /** Seconds since the run started, from the clock `now` (the client counts up between polls). */
 export function elapsedSeconds(run: JobRun, now: number): number {
   if (run.state !== 'running' || !run.startedAt) return run.durationSeconds ?? 0;

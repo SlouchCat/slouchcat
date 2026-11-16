@@ -389,6 +389,7 @@ const adminHomeRoute = createRoute({
 const integrationsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/integrations',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/IntegrationsPage'),
     'IntegrationsPage',
@@ -579,6 +580,13 @@ const statsRoute = createRoute({
     return { days: isStatsDays(days) ? days : undefined };
   },
   component: lazyRouteComponent(() => import('@/features/admin/StatsPage'), 'StatsPage'),
+});
+
+/** System › Server (redesign, build plan 4): the server's functions of the former overview. */
+const serverRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/server',
+  component: lazyRouteComponent(() => import('@/features/admin/ServerPage'), 'ServerPage'),
 });
 
 const announcementsRoute = createRoute({
@@ -787,6 +795,7 @@ export const routeTree = rootRoute.addChildren([
           accountsRoute,
           backupRoute,
           statsRoute,
+          serverRoute,
           announcementsRoute,
           adminNotificationsRoute,
         ]),

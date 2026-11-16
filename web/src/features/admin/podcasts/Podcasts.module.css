@@ -192,6 +192,12 @@
   gap: var(--sc-space-3) var(--sc-space-5);
   align-items: flex-end;
   justify-content: space-between;
+
+  /* The mockup's filter bar over the list: a framed strip on the card's ground (plan 2.7, 5). */
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
 }
 
 .toolbarFields {
@@ -207,6 +213,18 @@
   flex-wrap: wrap;
   gap: var(--sc-space-5);
   align-items: center;
+
+  /* A card like the sections below it (Panel, plan 2.7). */
+  padding: var(--sc-panel-padding);
+  border: var(--sc-panel-border, 0);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+@media (width < 480px) {
+  .head {
+    padding: var(--sc-space-5) var(--sc-space-4);
+  }
 }
 
 .headText {

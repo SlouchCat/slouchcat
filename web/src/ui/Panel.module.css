@@ -5,7 +5,9 @@
   min-width: 0;
   margin: 0;
   padding: var(--sc-panel-padding);
-  border: 0;
+
+  /* No frame but in the administration's look (admin-look.css, build plan 2.7). */
+  border: var(--sc-panel-border, 0);
   border-radius: var(--sc-panel-radius);
   background-color: var(--sc-color-bg-elevated);
 }

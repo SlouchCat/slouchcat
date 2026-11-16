@@ -2,9 +2,9 @@ import type { TraktStatus } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { codeMessage } from '@/api/errors';
-import { paths } from '@/app/paths';
 import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Skeleton, StatusDot, TextLink, type StatusDotState } from '@/ui';
+import { serviceHref } from '../integrations/services';
 import type { SpotlightConfig, SpotlightEntries } from '../queries';
 import styles from './Spotlight.module.css';
 import { intlLocale } from '@/i18n';
@@ -97,7 +97,7 @@ export function FetchState({
           </>
         )}
         {separator}
-        <TextLink href={paths.adminIntegrations}>
+        <TextLink href={serviceHref('keys')}>
           {status.configured ? t('admin.spotlight.state.keySet') : t('admin.spotlight.state.noKey')}
         </TextLink>
       </p>

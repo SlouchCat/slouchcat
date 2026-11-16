@@ -1,13 +1,16 @@
-/* Title on the left, «Live, alle 5 Sekunden» small on the right (G-3). */
-.head {
+/*
+ * The overview (redesign, build plan 3; mockup «Übersicht»): the band, four key figures, two
+ * cards side by side, the links to the areas and the server in short. Columns follow the
+ * content's own width (G-1, with or without the sidebar).
+ */
+.body {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2) var(--sc-space-4);
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: var(--sc-space-6);
+  flex-direction: column;
+  gap: var(--sc-section-gap);
+  container-type: inline-size;
 }
 
+/* «Keine Antwort, neuer Versuch alle 5 Sekunden» next to «Aktualisieren». */
 .live {
   display: inline-flex;
   gap: var(--sc-space-2);
@@ -16,287 +19,108 @@
   font-size: var(--sc-font-size-xs);
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-6);
+/* Four key figures: two columns on a phone, four from about 44 rem. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sc-space-3);
 }
 
-/*
- * Eight equal cards (11.1): two columns from about 44 rem of the content's own width (G-1, with or
- * without the sidebar), one below. The cards of a row are equally high and fill their cells (P-1).
- */
-.frame {
-  container-type: inline-size;
-}
-
-.grid {
+/* Two cards side by side from about 44 rem, equally high (P-1). */
+.panels {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sc-space-4);
 }
 
 @container (width >= 44rem) {
-  .grid {
+  .metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .panels {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.counters {
+/* The target of «Ansehen»: the card «Was benötigt Aufmerksamkeit?», filling its cell. */
+.target {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--sc-radius-xl);
+  scroll-margin-top: var(--sc-space-6);
+}
+
+.target > * {
+  flex: 1;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.sectionHead {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sc-space-2);
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
 }
 
-.rows,
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
+.sectionTitle {
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.list {
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
-}
-
-.integration {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-}
-
-.integrationName {
-  display: inline-flex;
-  gap: var(--sc-space-2);
-  align-items: center;
-  color: var(--sc-color-text-primary);
-  font-size: var(--sc-font-size-sm);
-}
-
-.detail {
-  padding-left: var(--sc-space-4);
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  overflow-wrap: anywhere;
-}
-
-/* A failed job type: its name with the number, the newest error cut to one line (G-4). */
-.failure {
-  display: flex;
-  gap: var(--sc-space-2);
-  align-items: baseline;
-  min-width: 0;
-}
-
-.failureText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.failureType {
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-semibold);
-}
-
-.oneLine {
-  overflow: hidden;
-  color: var(--sc-color-text-muted);
-  font-family: var(--sc-font-family-mono);
-  font-size: var(--sc-font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hint {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  min-width: 0;
-  padding: var(--sc-space-3);
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-}
-
-.hintHead {
-  display: flex;
-  gap: var(--sc-space-2);
-  align-items: baseline;
-}
-
-.hintTitle {
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-semibold);
-}
-
-.hintAction {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  padding-left: var(--sc-space-4);
-  font-size: var(--sc-font-size-sm);
-}
-
-.meter {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-}
-
-/* The server log (F-3): collapsed below the cards, its number in the summary. */
-.log {
-  min-width: 0;
-}
-
-.details {
-  border-radius: var(--sc-radius-xl);
-  background-color: var(--sc-color-bg-elevated);
-}
-
-/* A list item, so the browser keeps its disclosure triangle; global.css draws the focus ring. */
-.summary {
-  padding: var(--sc-space-4) var(--sc-space-6);
-  border-radius: var(--sc-radius-xl);
-  cursor: pointer;
-}
-
-.summaryTitle {
   font-size: var(--sc-font-size-md);
   font-weight: var(--sc-font-weight-semibold);
 }
 
-.summaryCount {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
+/* The areas: one column on a phone, two, then three (mockup .quick). */
+.quick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.logBody {
+@container (width >= 30rem) {
+  .quick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (width >= 56rem) {
+  .quick {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* «Gerade aktiv»: jobs and streams, each under a small heading. */
+.activeGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-3);
-  padding: 0 var(--sc-space-6) var(--sc-space-6);
+  gap: var(--sc-space-2);
 }
 
-.errors {
+.activeTitle {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.rows {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.errors:empty {
-  display: none;
-}
-
-.error {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  padding: var(--sc-space-3) var(--sc-space-4);
-  border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-1);
-}
-
-.errorMeta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-1) var(--sc-space-3);
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-}
-
-.errorMessage {
-  font-family: var(--sc-font-family-mono);
-  font-size: var(--sc-font-size-sm);
-  overflow-wrap: anywhere;
-}
-
-/* «Update installieren» on the server card (concept 15 P-8): state, button or manual steps. */
-.install {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-3);
-  align-items: flex-start;
-}
-
-.install > * {
-  max-width: 100%;
-}
-
-.installState {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  align-self: stretch;
-}
-
-.installTitle {
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-semibold);
-}
-
-.installDone {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-  align-items: baseline;
-  font-size: var(--sc-font-size-sm);
-}
-
-/* The companion's own words: English, plain text, kept as written. */
-.installMessage {
-  display: block;
-  font-family: var(--sc-font-family-mono);
-  font-size: var(--sc-font-size-xs);
-  overflow-wrap: anywhere;
-}
-
-.steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2) var(--sc-space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.step {
-  display: inline-flex;
-  gap: var(--sc-space-2);
-  align-items: center;
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
-}
-
-.step[aria-current='step'] {
-  color: var(--sc-color-text-primary);
-  font-weight: var(--sc-font-weight-semibold);
-}
-
-.manual {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  align-self: stretch;
-}
-
-/* The release notes in the confirmation: plain text with its line breaks, scrolled on its own. */
-.notes {
-  max-height: 40dvh;
-  overflow-y: auto;
-  padding: var(--sc-space-3);
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }

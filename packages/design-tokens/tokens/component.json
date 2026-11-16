@@ -127,6 +127,30 @@
       "$description": "14 px: the number of titles under the name."
     }
   },
+  "admin": {
+    "$type": "dimension",
+    "$description": "The administration's frame (redesign, build plan 2): the page header inside the admin layout (AdminPage with AdminFrame), sizes after the mockup's .heading.",
+    "title-size": {
+      "$value": "1.875rem",
+      "$description": "30 px: the page title (h1) from 768 px; the mockup's 25 to 33 px, kept low so the first working line does not move down."
+    },
+    "title-size-narrow": {
+      "$value": "1.5625rem",
+      "$description": "25 px: the page title below 768 px."
+    },
+    "title-tracking": {
+      "$value": "-0.03em",
+      "$description": "Letter spacing of the large title."
+    },
+    "eyebrow-size": {
+      "$value": "0.6875rem",
+      "$description": "11 px: the line «MEDIEN / BIBLIOTHEKEN» over the title, in spaced capitals."
+    },
+    "intro-size": {
+      "$value": "0.8125rem",
+      "$description": "13 px: the page's intro sentence below the title."
+    }
+  },
   "density": {
     "compact": {
       "$type": "dimension",

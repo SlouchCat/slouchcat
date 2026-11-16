@@ -1,0 +1,259 @@
+/* The parts the overview and the page «Server» share (parts.tsx). */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail {
+  padding-inline-start: var(--sc-space-4);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* A failed job type: its name with the number, the newest error cut to one line (G-4). */
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.failureType {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.oneLine {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.hintHead {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+}
+
+.hintTitle {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.hintAction {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding-inline-start: var(--sc-space-4);
+  font-size: var(--sc-font-size-sm);
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+/* The server log (F-3): collapsed below the cards, its number in the summary. */
+.log {
+  min-width: 0;
+}
+
+.details {
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+/* A list item, so the browser keeps its disclosure triangle; global.css draws the focus ring. */
+.summary {
+  padding: var(--sc-space-4) var(--sc-space-6);
+  border-radius: var(--sc-radius-xl);
+  cursor: pointer;
+}
+
+.summaryTitle {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.summaryCount {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.logBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding: 0 var(--sc-space-6) var(--sc-space-6);
+}
+
+.errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.errors:empty {
+  display: none;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.errorMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.errorMessage {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* «Update installieren» on the server card (concept 15 P-8): state, button or manual steps. */
+.install {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  align-items: flex-start;
+}
+
+.install > * {
+  max-width: 100%;
+}
+
+.installState {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-self: stretch;
+}
+
+.installTitle {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.installDone {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The companion's own words: English, plain text, kept as written. */
+.installMessage {
+  display: block;
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.step[aria-current='step'] {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-self: stretch;
+}
+
+/* The release notes in the confirmation: plain text with its line breaks, scrolled on its own. */
+.notes {
+  max-height: 40dvh;
+  overflow-y: auto;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The page «Server» (build plan 4): the cards in two columns from about 44 rem of the content's
+   own width, one below; the server log below them. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-section-gap);
+}
+
+.frame {
+  container-type: inline-size;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-4);
+}
+
+@container (width >= 44rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* «Keine Antwort, neuer Versuch alle 5 Sekunden» next to the header's actions. */
+.live {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}

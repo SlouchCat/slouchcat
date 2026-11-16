@@ -599,10 +599,27 @@ describe('admin backup (A-4)', () => {
       'aria-disabled',
       'true',
     );
+    // The header's main action waits too.
+    expect(screen.getByRole('button', { name: 'Neue Sicherung' })).toBeDisabled();
     release(json(accepted, 202));
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Server startet neu' }),
     ).toBeVisible();
+    // The restart panel offers no new backup: the header's action is gone with the cards.
+    expect(screen.queryByRole('button', { name: 'Neue Sicherung' })).toBeNull();
+  });
+
+  it("the header's «Neue Sicherung» opens the tab «Neue Sicherung» (?tab=create)", async () => {
+    mockApi(routes(() => [plain]));
+    const { router } = renderApp('/admin/backup');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
+    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(/^Sicherungen/);
+    const action = screen.getByRole('button', { name: 'Neue Sicherung' });
+    expect(action).toBeEnabled();
+    await user.click(action);
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'create' }));
+    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName('Neue Sicherung');
   });
 
   it('clears the last outcome when a new action starts; a new scope drops the create error', async () => {
