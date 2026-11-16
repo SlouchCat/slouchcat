@@ -64,6 +64,13 @@
   border-color: var(--sc-color-state-danger);
 }
 
+/* Disabled (concept 24, Z-5): a dashed outline without fill, the value muted. */
+.input[data-disabled] {
+  border-style: dashed;
+  background-color: transparent;
+  color: var(--sc-color-text-muted);
+}
+
 .multiline {
   padding: var(--sc-space-3) var(--sc-space-4);
   line-height: var(--sc-font-line-height-normal);
