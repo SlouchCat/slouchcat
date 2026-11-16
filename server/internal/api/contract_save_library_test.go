@@ -42,7 +42,7 @@ func TestContractSaveLibrary(t *testing.T) {
 		}
 		var out gen.Library
 		decode(t, rec, &out)
-		if out.Revision == nil || *out.Revision == "" {
+		if out.Revision == "" {
 			t.Fatalf("getLibrary without revision: %s", rec.Body.String())
 		}
 		return out
@@ -53,7 +53,7 @@ func TestContractSaveLibrary(t *testing.T) {
 		for _, r := range l.Roots {
 			roots = append(roots, map[string]any{"id": r.Id, "path": r.Path, "content": r.Content, "providers": r.Providers})
 		}
-		raw, err := json.Marshal(map[string]any{"revision": *l.Revision, "name": name, "defaultRating": rating, "roots": roots, "removeRoots": []any{}})
+		raw, err := json.Marshal(map[string]any{"revision": l.Revision, "name": name, "defaultRating": rating, "roots": roots, "removeRoots": []any{}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,11 +68,11 @@ func TestContractSaveLibrary(t *testing.T) {
 	var saved gen.LibrarySaved
 	decode(t, rec, &saved)
 	if saved.Library.Name != "Hörspiele" || saved.Library.DefaultRating == nil || *saved.Library.DefaultRating != 12 ||
-		saved.MetadataChanged == nil || len(saved.MetadataChanged) != 0 || *saved.Library.Revision == *before.Revision {
+		saved.MetadataChanged == nil || len(saved.MetadataChanged) != 0 || saved.Library.Revision == before.Revision {
 		t.Fatalf("saved = %s", rec.Body.String())
 	}
-	if after := get(); *after.Revision != *saved.Library.Revision {
-		t.Fatalf("getLibrary revision %s, saveLibrary answered %s", *after.Revision, *saved.Library.Revision)
+	if after := get(); after.Revision != saved.Library.Revision {
+		t.Fatalf("getLibrary revision %s, saveLibrary answered %s", after.Revision, saved.Library.Revision)
 	}
 
 	// The form loaded before the save is stale now.

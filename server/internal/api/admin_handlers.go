@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -13,18 +12,11 @@ import (
 // Handlers of library administration (contract tag admin). Errors go through serviceProblem
 // (auth_handlers.go).
 
-func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitAddLibraryRootResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitUpdateLibraryRootResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
+func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitListMetadataProvidersResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
-func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitDeleteLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -70,60 +62,6 @@ func (s *server) ScanLibrary(ctx context.Context, req gen.ScanLibraryRequestObje
 		return s.problem(ctx, err), nil
 	}
 	return gen.ScanLibrary202JSONResponse(toLibrary(lib)), nil
-}
-
-// AddLibraryRoot adds folders to a library in one go (idea 02, E8; F-13).
-func (s *server) AddLibraryRoot(ctx context.Context, req gen.AddLibraryRootRequestObject) (gen.AddLibraryRootResponseObject, error) {
-	lib, err := s.opts.Admin.AddLibraryRoots(ctx, req.Id, rootRequests(deref(req.Body).Roots))
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.AddLibraryRoot201JSONResponse(toLibrary(lib)), nil
-}
-
-// UpdateLibraryRoot changes the content, the metadata sources (ADR 0015) or the path (ADR 0023)
-// of a folder.
-func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRootRequestObject) (gen.UpdateLibraryRootResponseObject, error) {
-	body := deref(req.Body)
-	upd := model.LibraryRootUpdate{ConfirmPath: deref(body.ConfirmPath), Path: body.Path}
-	if body.Content != nil {
-		c := string(*body.Content)
-		upd.Content = &c
-	}
-	if body.Providers != nil {
-		upd.Providers = providerNames(*body.Providers)
-	}
-	// textLangs and images have three states (concept 24 3.6): absent = unchanged, null = like the
-	// default, a value = the folder's own.
-	var verr *model.ValidationError
-	if len(body.TextLangs) > 0 {
-		upd.SetTextLangs = true
-		if string(body.TextLangs) != "null" {
-			var langs []string
-			if err := json.Unmarshal(body.TextLangs, &langs); err != nil || langs == nil {
-				verr = verr.Add("textLangs", "invalid_value")
-			}
-			upd.TextLangs = &langs
-		}
-	}
-	if len(body.Images) > 0 {
-		upd.SetImages = true
-		if string(body.Images) != "null" {
-			var imgs gen.RootImages
-			if err := json.Unmarshal(body.Images, &imgs); err != nil {
-				verr = verr.Add("images", "invalid_value")
-			}
-			upd.Images = fromRootImages(&imgs)
-		}
-	}
-	if verr != nil {
-		return s.problem(ctx, verr), nil
-	}
-	lib, err := s.opts.Admin.UpdateLibraryRoot(ctx, req.Id, req.RootId, upd)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.UpdateLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
 // SaveLibrary saves the form «Bibliothek bearbeiten» in one go (concept 24 4.3). Like
@@ -193,16 +131,6 @@ func (s *server) ListMetadataProviders(ctx context.Context, req gen.ListMetadata
 		out = append(out, info)
 	}
 	return gen.ListMetadataProviders200JSONResponse(out), nil
-}
-
-// RemoveLibraryRoot removes a folder from a library; the typed confirmation travels in the body
-// (idea 02, E12), which is why it is a POST and not a DELETE.
-func (s *server) RemoveLibraryRoot(ctx context.Context, req gen.RemoveLibraryRootRequestObject) (gen.RemoveLibraryRootResponseObject, error) {
-	lib, err := s.opts.Admin.RemoveLibraryRoot(ctx, req.Id, req.RootId, deref(req.Body).ConfirmPath)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.RemoveLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
 // DeleteLibrary queues the delete of a library (concept 20 P-8, 202 with the job); the typed name travels in the body,
@@ -288,7 +216,7 @@ func toLibrary(l model.Library) gen.Library {
 		scan.LastError = &l.Scan.LastError
 	}
 	out := gen.Library{
-		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Revision: optString(l.Revision), DefaultRating: toRating(l.DefaultRating),
+		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Revision: l.Revision, DefaultRating: toRating(l.DefaultRating),
 		Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
 	}
 	if k := l.KeyframeIndex; k != nil {

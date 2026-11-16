@@ -109,13 +109,6 @@ type AdminService interface {
 	ScanLibrary(ctx context.Context, id int64) (model.Library, error)
 	// AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 	AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error)
-	// AddLibraryRoots adds folders to a library in one transaction (idea 02, E8; F-13). Errors:
-	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
-	AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
-	// UpdateLibraryRoot changes the content, the provider list (ADR 0015), the path (ADR 0023) or
-	// the own text languages and images (concept 24) of a folder. Errors:
-	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, model.ErrScanRunning.
-	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// ListMetadataProviders describes the providers (ADR 0015; the book sources since concept 19 D6).
 	// textLangs is the language list being edited (concept 24 3.3); nil = the default's.
 	ListMetadataProviders(ctx context.Context, textLangs []string) ([]model.MetadataProviderInfo, error)
@@ -123,10 +116,6 @@ type AdminService interface {
 	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
 	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
 	ApplyMetadata(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
-	// RemoveLibraryRoot removes a folder and soft-deletes the titles that live only there
-	// (E12). Errors: model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch,
-	// model.ErrScanRunning.
-	RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
 	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). Errors:
 	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, *model.PlayingError.
 	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)

@@ -71,7 +71,6 @@ export type LibraryTrickplay = components['schemas']['LibraryTrickplay'];
 export type LibraryTrickplayEstimate = components['schemas']['LibraryTrickplayEstimate'];
 export type LibraryTrickplayKindEstimate = components['schemas']['LibraryTrickplayKindEstimate'];
 export type LibraryRoot = components['schemas']['LibraryRoot'];
-export type LibraryRootUpdate = components['schemas']['LibraryRootUpdate'];
 export type LibrarySummary = components['schemas']['LibrarySummary'];
 export type LibraryRequest = components['schemas']['LibraryRequest'];
 export type LibraryUpdate = components['schemas']['LibraryUpdate'];

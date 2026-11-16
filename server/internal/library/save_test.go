@@ -342,6 +342,50 @@ func TestSaveLibraryWhileAScanRuns(t *testing.T) {
 	}
 }
 
+// TestSaveLibraryPathChangeWhileAScanRuns: a new path takes the scan lock like a removal or a
+// content change; under a running scan the whole save is refused and writes nothing, not even the
+// name of the same request.
+func TestSaveLibraryPathChangeWhileAScanRuns(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	media := t.TempDir()
+	dir := filepath.Join(media, "Filme")
+	for i, f := range firstFolder {
+		writeFile(t, dir, f, "video "+string(rune('a'+i)))
+	}
+	writeFile(t, media, "Neu/Alien (1979)/Alien (1979).mkv", "video a")
+	WithBrowseRoots([]string{media})(e.svc)
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	e.clearJobs()
+	unlock, err := e.svc.lockScan(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := e.form(lib.ID)
+	req.Roots[0].Path = filepath.Join(media, "Neu")
+	if _, err := e.svc.Save(e.ctx, lib.ID, req, renameTo(lib.ID, "Kino")); !errors.Is(err, model.ErrScanRunning) {
+		t.Fatalf("path change under a scan: err = %v, want ErrScanRunning", err)
+	}
+	if e.str(`SELECT path FROM library_roots WHERE library_id = ?`, lib.ID) != dir || e.libraryName(lib.ID) != "Filme" ||
+		e.jobCount(JobScanLibrary) != 0 {
+		t.Fatal("a refused path change under a scan wrote something")
+	}
+	if again := e.form(lib.ID); again.Revision != req.Revision {
+		t.Fatal("a refused path change under a scan changed the revision")
+	}
+
+	// Once the scan is over, the same request goes through.
+	unlock()
+	if _, err := e.svc.Save(e.ctx, lib.ID, req, renameTo(lib.ID, "Kino")); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.str(`SELECT path FROM library_roots WHERE library_id = ?`, lib.ID); got != filepath.Join(media, "Neu") {
+		t.Fatalf("path = %s", got)
+	}
+}
+
 // TestSaveLibraryProvidersAndMetadata: a new provider list queues matching or filling, no scan;
 // new languages or images are stored and answered with the titles of the folder.
 func TestSaveLibraryProvidersAndMetadata(t *testing.T) {

@@ -224,7 +224,9 @@
       "files_not_deletable": "A file of the title cannot be deleted. Nothing was deleted.",
       "not_deletable": "This title cannot be deleted.",
       "deleting": "This is being deleted right now.",
-      "changed": "Something changed meanwhile, please check again."
+      "changed": "Something changed meanwhile, please check again.",
+      "stale": "The library was changed elsewhere in the meantime. Load it again and save once more.",
+      "root_unlisted": "A folder of the library is missing from the request. Load the library again; nothing was removed."
     },
     "field": {
       "required": "Required.",

@@ -44,9 +44,7 @@ type fakeLibraries struct {
 	validateErr error
 	// validateDir lets the fake describe real directories (library.ValidateDir) instead of
 	// accepting every path; the wizard's path check needs that, the setup tests do not.
-	validateDir  bool
-	addedRoots   []addedRoot
-	removedRoots []removedRoot
+	validateDir bool
 	// saveDB runs the settings of Save in a transaction of its own, so the admin half of
 	// saveLibrary writes for real; saved records the requests and saveErr is returned after the
 	// settings ran (their transaction is rolled back then, as in package library).
@@ -122,17 +120,6 @@ func (f *fakeLibraries) AcceptLoss(ctx context.Context, id int64) (model.Library
 	return f.Get(ctx, id)
 }
 
-// addedRoot and removedRoot record what the admin service forwarded (idea 02, E8 and E12).
-type addedRoot struct {
-	libraryID int64
-	path      string
-}
-
-type removedRoot struct {
-	libraryID, rootID int64
-	confirmPath       string
-}
-
 // ValidateRoots runs the fake's path rules on every folder the way package library reports
 // them: a path ValidateNewRoot refuses becomes the field error <field>[i].path.
 func (f *fakeLibraries) ValidateRoots(ctx context.Context, _ string, roots []model.LibraryRootRequest, field string) error {
@@ -152,23 +139,6 @@ func (f *fakeLibraries) ValidateRoots(ctx context.Context, _ string, roots []mod
 	return nil
 }
 
-func (f *fakeLibraries) AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error) {
-	if err := f.ValidateRoots(ctx, "", roots, "roots"); err != nil {
-		return model.Library{}, err
-	}
-	if _, err := f.Get(ctx, libraryID); err != nil {
-		return model.Library{}, err
-	}
-	for _, r := range roots {
-		f.addedRoots = append(f.addedRoots, addedRoot{libraryID, r.Path})
-	}
-	return f.Get(ctx, libraryID)
-}
-
-func (f *fakeLibraries) UpdateRoot(ctx context.Context, libraryID, _ int64, _ model.LibraryRootUpdate) (model.Library, error) {
-	return f.Get(ctx, libraryID)
-}
-
 func (f *fakeLibraries) DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, _ model.Actor) (model.LibraryDeletionQueued, error) {
 	lib, err := f.Get(ctx, libraryID)
 	if err != nil {
@@ -178,22 +148,6 @@ func (f *fakeLibraries) DeleteLibrary(ctx context.Context, libraryID int64, conf
 		return model.LibraryDeletionQueued{}, model.ErrConfirmMismatch
 	}
 	return model.LibraryDeletionQueued{Name: lib.Name, JobID: 1}, nil
-}
-
-func (f *fakeLibraries) RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {
-	lib, err := f.Get(ctx, libraryID)
-	if err != nil {
-		return model.Library{}, err
-	}
-	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
-	if idx < 0 {
-		return model.Library{}, model.ErrNotFound
-	}
-	if confirmPath != lib.Roots[idx].Path {
-		return model.Library{}, model.ErrConfirmMismatch
-	}
-	f.removedRoots = append(f.removedRoots, removedRoot{libraryID, rootID, confirmPath})
-	return lib, nil
 }
 
 func (f *fakeLibraries) Save(ctx context.Context, libraryID int64, req model.LibrarySave, settings func(context.Context, *sql.Tx) error) (model.LibrarySaved, error) {
@@ -631,48 +585,5 @@ func TestSetItemRating(t *testing.T) {
 	}
 	if _, err := f.svc.SetItemRating(ctx, id, &twelve); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("deleted item: %v", err)
-	}
-}
-
-// TestLibraryRootDelegation: the admin service refuses what is not a path and not a confirmation
-// at all, and leaves every rule about the path itself to package library (idea 02, E8 and E12).
-func TestLibraryRootDelegation(t *testing.T) {
-	ctx := context.Background()
-	f := newFixture(t)
-	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Filme", Kind: model.LibraryVideo, Roots: movieRoots("/media/Filme")}); err != nil {
-		t.Fatal(err)
-	}
-	var verr *model.ValidationError
-	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("   ")); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "roots[0].path", Code: "required"}}) {
-		t.Fatalf("AddLibraryRoots without a path: %v", err)
-	}
-	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("/"+strings.Repeat("x", 4096))); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "roots[0].path", Code: "too_long"}}) {
-		t.Fatalf("AddLibraryRoots with an over-long path: %v", err)
-	}
-	// The folder reaches package library, where the browsable-root rule of E14 runs on it.
-	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("/media/Filme-2")); err != nil {
-		t.Fatalf("AddLibraryRoots: %v", err)
-	}
-	if !slices.Equal(f.libs.addedRoots, []addedRoot{{1, "/media/Filme-2"}}) {
-		t.Fatalf("addedRoots = %+v", f.libs.addedRoots)
-	}
-	if !slices.Contains(f.libs.validated, "/media/Filme-2") {
-		t.Fatalf("the new folder did not go through ValidateNewRoot: %v", f.libs.validated)
-	}
-
-	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, " "); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "confirmPath", Code: "required"}}) {
-		t.Fatalf("RemoveLibraryRoot without a confirmation: %v", err)
-	}
-	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, "/media/Filme-2"); !errors.Is(err, model.ErrConfirmMismatch) {
-		t.Fatalf("RemoveLibraryRoot with the wrong folder: %v", err)
-	}
-	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, "/media/Filme"); err != nil {
-		t.Fatalf("RemoveLibraryRoot: %v", err)
-	}
-	if !slices.Equal(f.libs.removedRoots, []removedRoot{{1, 1, "/media/Filme"}}) {
-		t.Fatalf("removedRoots = %+v", f.libs.removedRoots)
 	}
 }

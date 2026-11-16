@@ -25,6 +25,10 @@ const problemKeys = {
   // Removing a folder from a library (idea 02, E12).
   scan_running: 'errors.code.scan_running',
   confirm_mismatch: 'errors.code.confirm_mismatch',
+  // The form «Bibliothek bearbeiten» (saveLibrary, concept 24 4.3): the library changed since the
+  // form loaded it, or a stored folder is missing from the request.
+  stale: 'errors.code.stale',
+  root_unlisted: 'errors.code.root_unlisted',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   provider_not_configured: 'errors.code.provider_not_configured',

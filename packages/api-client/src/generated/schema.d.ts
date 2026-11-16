@@ -1546,112 +1546,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/libraries/{id}/roots": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add folders to a library (B-1, F-13)
-         * @description Adds one or more directories to a library in one request; the scan and the watchers pick
-         *     them up at once. Every folder brings its content and its ordered provider list (ADR 0015).
-         *     Each path must lie below a browsable root (idea 02, E14) and must overlap neither a root of
-         *     this or another library nor another folder of the request; the content must fit the family
-         *     of the library (a podcast library takes `podcast` folders, a video library `movie` and
-         *     `series`). All folders are inserted in one transaction: a request whose third folder fails
-         *     leaves none behind, and the answer names the folder by its index. The answer is the library
-         *     with its new folders; one scan is queued for it.
-         */
-        post: operations["addLibraryRoot"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/libraries/{id}/roots/{rootId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change the content, the metadata sources or the path of a folder (F-4, ADR 0023)
-         * @description Changes what a folder holds, who describes it (ADR 0015) or where it lies (ADR 0023). The
-         *     four effects differ in weight, and the weight decides what the request has to carry:
-         *
-         *     - A new provider list with the same first entry writes the list on every title of the
-         *       folder and queues one metadata job per title. Nothing is deleted, no confirmation.
-         *     - A new first entry (`["tmdb","tvdb"]` → `["tvdb","tmdb"]` on a series folder) does the
-         *       same; the job identifies the titles anew and describes seasons and episodes by the new
-         *       provider's numbering. The episode items stay, so progress and watchlist stay attached.
-         *       No confirmation either.
-         *     - A new content (`movie` ↔ `series`) is, in effect, "remove the folder and add it again":
-         *       the titles that live only there are soft-deleted, their offline downloads dropped, the
-         *       folder's files forgotten and read afresh by a queued scan. It therefore needs the typed
-         *       path in `confirmPath`, exactly like `removeLibraryRoot` (`confirm_mismatch`), and a
-         *       running scan refuses it (`scan_running`).
-         *     - A new `path` (the folder moved, ADR 0023 point 4) is checked like a new folder:
-         *       absolute, readable, below a browsable root (`library_path_invalid`), overlapping no
-         *       other folder (`root_overlap`). A folder with known files must hold at least one of them
-         *       at its relative path under the new path (`root_files_missing`), so a wrong folder cannot
-         *       let the scan lose them all. The folder keeps its titles and files; the server takes the
-         *       new path and a new `providers` list in one transaction under the scan lock (a running
-         *       scan refuses it, `scan_running`), restarts the folder's watcher and queues a scan, which
-         *       finds the files again by name, inode or partial hash. Files it does not find count
-         *       towards the loss threshold of the scan. No `confirmPath`; the same path is no change. It
-         *       cannot be combined with `content` (`path_with_content`), but with `providers`.
-         */
-        patch: operations["updateLibraryRoot"];
-        trace?: never;
-    };
-    "/admin/libraries/{id}/roots/{rootId}/removal": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Remove a folder from a library and delete its titles (B-1)
-         * @description Removes the directory from the library. The titles that live only there leave the library:
-         *     they are soft-deleted, so they vanish from every list, and their offline downloads are
-         *     dropped on the devices that hold them. Their progress, watchlist entries and picks stay
-         *     attached to the soft-deleted title, as they do for a detached disk; a title that carries a
-         *     provider id comes back with all of it when the same folder is added again within 30 days,
-         *     a title without one comes back as a new title. A title with a file under another folder of
-         *     the library stays, and keeps its download. A podcast with a feed that was read from the
-         *     folder stays as a subscription made by hand (`feedOrigin` `admin`); a podcast without feed
-         *     goes with its episodes. `confirmPath` must repeat the folder's path
-         *     exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
-         *     stored row, never against anything else the request carries. It guards against a slip and
-         *     against a stale list, not against a caller that means it: whatever can send this request
-         *     can send the confirmation with it, and no server can tell whether a human typed it. The
-         *     library may lose its last
-         *     folder and then holds none at all; its settings stay. A POST and not a DELETE, because the
-         *     confirmation travels in the body and a DELETE body is dropped by some proxies and HTTP
-         *     clients.
-         */
-        post: operations["removeLibraryRoot"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/libraries/{id}/deletion": {
         parameters: {
             query?: never;
@@ -2531,7 +2425,7 @@ export interface paths {
          * @description Since contract 1.26.0 (concept 19 D6). The server-wide settings of the book sources (Audible
          *     region, Audnexus address, Google Books key, automatic match with tolerance, unifying of
          *     author and series names), the ordered list of every audiobook folder (shown only; it is
-         *     changed in the dialog of the folder, `updateLibraryRoot`), the state of each source
+         *     changed in the form of its library, `saveLibrary`), the state of each source
          *     (`configured`, `pausedUntil` while a source rests after repeated refusals), the numbers of the
          *     books per match state and whether a match run is queued or running.
          */
@@ -8339,35 +8233,6 @@ export interface components {
              */
             images?: components["schemas"]["RootImages"] | null;
         };
-        /** @description The folders `addLibraryRoot` adds in one go (F-13). */
-        LibraryRootsRequest: {
-            roots: components["schemas"]["LibraryRootRequest"][];
-        };
-        /**
-         * @description A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers`, `path`,
-         *     `textLangs` and `images`. A content change empties the folder's titles like a removal and
-         *     therefore repeats the path; a new path keeps them and cannot be combined with a content
-         *     change. `textLangs` and `images` (since contract 1.40.0, concept 24 section 3.6) have three
-         *     states each: left out = unchanged, `null` = like the default, a value = the folder's own.
-         *     They change no title row: the titles whose home folder it is read them live (ADR 0036).
-         */
-        LibraryRootUpdate: {
-            /**
-             * @description The new absolute directory of the folder (it moved, ADR 0023 point 4), below a
-             *     browsable root, for example `/media/Filme-neu`, holding at least one of the folder's
-             *     known files (`root_files_missing`). Its titles, files and user data stay when the scan
-             *     finds the files there under the same names.
-             */
-            path?: string;
-            content?: components["schemas"]["RootContent"];
-            providers?: components["schemas"]["MetadataProvider"][];
-            /** @description The folder's path, repeated by the administrator; required for a content change. */
-            confirmPath?: string;
-            /** @description The folder's own text languages in order, or `null` for the default's. Video folders only. */
-            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
-            /** @description The folder's own images, or `null` for the default's. Video folders only. */
-            images?: components["schemas"]["RootImages"] | null;
-        };
         /** @description The form «Bibliothek bearbeiten» as a whole (`saveLibrary`, concept 24, 4.3). */
         LibrarySave: {
             /** @description `Library.revision` of the library the form loaded. */
@@ -8420,14 +8285,6 @@ export interface components {
             /** Format: int64 */
             rootId: number;
             homeTitleCount: number;
-        };
-        /**
-         * @description The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
-         *     compared against the stored row, so a mis-aimed click cannot delete the titles of a folder.
-         */
-        LibraryRootRemoval: {
-            /** @description The folder's path, repeated by the administrator. */
-            confirmPath: string;
         };
         /**
          * @description The confirmation of a library delete (concept 20 P-8). It is typed by the administrator and
@@ -8616,7 +8473,7 @@ export interface components {
              *     languages, images). It changes with every change to one of them and not with a scan; the
              *     form sends it back in `saveLibrary`. Opaque; the server always sends it.
              */
-            revision?: string;
+            revision: string;
             /** @description Default age rating of an audio library (AN-2); absent for video libraries. */
             defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
@@ -8800,7 +8657,7 @@ export interface components {
             warning?: string;
             /**
              * @description Titles with at least one file in this folder. It is the upper bound of what
-             *     `removeLibraryRoot` takes out of the library: a title that also has a file in another
+             *     removing the folder (`saveLibrary`) takes out of the library: a title that also has a file in another
              *     folder of the library stays. The confirmation dialog names this number (idea 02, E12).
              */
             itemCount: number;
@@ -11990,8 +11847,6 @@ export interface components {
         /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
         DownloadToken: string;
         LibraryID: number;
-        /** @description The id of the folder inside the library (`Library.roots[].id`). */
-        LibraryRootID: number;
         /** @description Job id from the dashboard. */
         JobID: number;
         /** @description Job type, for example `scan.library`. */
@@ -15126,183 +14981,6 @@ export interface operations {
             };
             /** @description Unknown library (`not_found`). */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    addLibraryRoot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["LibraryID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LibraryRootsRequest"];
-            };
-        };
-        responses: {
-            /** @description The library with its new folders. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Library"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown library (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /**
-             * @description `validation_failed` with the index of the folder that broke a rule: `roots[2].path`
-             *     with `library_path_invalid` or `root_overlap`, `roots[2].content` with
-             *     `content_not_allowed`, `roots[2].providers` with `providers_not_allowed`; or an empty
-             *     list.
-             */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    updateLibraryRoot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["LibraryID"];
-                /** @description The id of the folder inside the library (`Library.roots[].id`). */
-                rootId: components["parameters"]["LibraryRootID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LibraryRootUpdate"];
-            };
-        };
-        responses: {
-            /** @description The library with the changed folder. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Library"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description No such library, or the folder is not one of its roots (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description A scan of this library is running (`scan_running`); only a content or path change is refused by it. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /**
-             * @description `validation_failed` (`content` `content_not_allowed`, `providers`
-             *     `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap`,
-             *     `root_files_missing` or `path_with_content`, or none of the fields given), or a
-             *     content change whose `confirmPath` does not repeat the folder's path
-             *     (`confirm_mismatch`).
-             */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    removeLibraryRoot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["LibraryID"];
-                /** @description The id of the folder inside the library (`Library.roots[].id`). */
-                rootId: components["parameters"]["LibraryRootID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LibraryRootRemoval"];
-            };
-        };
-        responses: {
-            /** @description The library without the folder. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Library"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description No such library, or the folder is not one of its roots (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /**
-             * @description A scan of this library is running (`scan_running`); it holds the roots it started with,
-             *     so the folder is removed after it finished or was cancelled.
-             */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /**
-             * @description `confirmPath` does not repeat the folder's path (`confirm_mismatch`), or it is missing
-             *     (`validation_failed`).
-             */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

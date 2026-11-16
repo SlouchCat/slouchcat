@@ -2,10 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
@@ -54,82 +52,6 @@ func TestCreateLibraryWithSeveralFolders(t *testing.T) {
 	wantStatus(t, rec, http.StatusUnprocessableEntity)
 	if f := fieldProblem(t, rec); f != "roots[0].providers required" {
 		t.Fatalf("empty provider list: %s", f)
-	}
-}
-
-func TestUpdateLibraryRootEndpoint(t *testing.T) {
-	t.Parallel()
-	e := newAuthEnv(t)
-	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
-	wantStatus(t, rec, http.StatusCreated)
-	owner := sessionCookie(t, rec)
-	const root = "/api/v1/admin/libraries/1/roots/1"
-
-	// A list change needs no confirmation.
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"providers": []string{"tmdb", "anilist"}}, owner)
-	wantStatus(t, rec, http.StatusOK)
-	var lib gen.Library
-	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
-		t.Fatal(err)
-	}
-	if len(lib.Roots) != 1 || len(lib.Roots[0].Providers) != 2 || lib.Roots[0].Providers[1] != gen.MetadataProviderAnilist {
-		t.Fatalf("root after the list change = %+v", lib.Roots)
-	}
-	// A content change without the typed path, with a wrong one, under a running scan, and done.
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"content": "series"}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if code := problemCode(t, rec); code != "confirm_mismatch" {
-		t.Fatalf("content change without confirmation: %s", code)
-	}
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"content": "series", "confirmPath": "/media/Serien"}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	e.libs.scanRunning = true
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"content": "series", "confirmPath": "/media/Filme"}, owner)
-	wantStatus(t, rec, http.StatusConflict)
-	if code := problemCode(t, rec); code != "scan_running" {
-		t.Fatalf("content change under a scan: %s", code)
-	}
-	e.libs.scanRunning = false
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"content": "series", "confirmPath": "/media/Filme", "providers": []string{"tmdb", "tvdb"}}, owner)
-	wantStatus(t, rec, http.StatusOK)
-	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
-		t.Fatal(err)
-	}
-	if lib.Roots[0].Content != gen.RootContentSeries {
-		t.Fatalf("root after the content change = %+v", lib.Roots[0])
-	}
-	// A new path (ADR 0023): not with a content change, not under a running scan, with a list.
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu", "content": "movie", "confirmPath": "/media/Filme"}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if f := fieldProblem(t, rec); f != "path path_with_content" {
-		t.Fatalf("path with content: %s", f)
-	}
-	e.libs.scanRunning = true
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu"}, owner)
-	wantStatus(t, rec, http.StatusConflict)
-	e.libs.scanRunning = false
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu", "providers": []string{"tvdb", "tmdb"}}, owner)
-	wantStatus(t, rec, http.StatusOK)
-	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
-		t.Fatal(err)
-	}
-	if r := lib.Roots[0]; r.Path != "/media/Serien-neu" || r.Content != gen.RootContentSeries || r.Providers[0] != gen.MetadataProviderTvdb {
-		t.Fatalf("root after the path change = %+v", r)
-	}
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/" + strings.Repeat("x", 4096)}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if f := fieldProblem(t, rec); f != "path too_long" {
-		t.Fatalf("long path: %s", f)
-	}
-	// Nothing to change, an unknown folder, an unknown value.
-	rec = e.call(t, http.MethodPatch, root, map[string]any{}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	rec = e.call(t, http.MethodPatch, "/api/v1/admin/libraries/1/roots/99", map[string]any{"providers": []string{"tmdb"}}, owner)
-	wantStatus(t, rec, http.StatusNotFound)
-	rec = e.call(t, http.MethodPatch, root, map[string]any{"content": "music", "confirmPath": "/media/Filme"}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if f := fieldProblem(t, rec); f != "content invalid_value" {
-		t.Fatalf("unknown content: %s", f)
 	}
 }
 
@@ -206,32 +128,6 @@ func TestFolderMetadataThroughTheContract(t *testing.T) {
 	got := root(rec)
 	if string(got["textLangs"]) != `["ja","en"]` || string(got["images"]) != "null" || string(got["homeTitleCount"]) != "0" {
 		t.Fatalf("new folder: textLangs %s images %s homeTitleCount %s", got["textLangs"], got["images"], got["homeTitleCount"])
-	}
-	var lib gen.Library
-	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
-		t.Fatal(err)
-	}
-	path := fmt.Sprintf("/api/v1/admin/libraries/%d/roots/%d", lib.Id, lib.Roots[0].Id)
-
-	// Own images with no kind on; textLangs left out stays.
-	rec = e.call(t, http.MethodPatch, path, map[string]any{"images": map[string]any{"langs": map[string]any{"poster": []string{"", "ja"}}, "kinds": []string{}}}, owner)
-	wantStatus(t, rec, http.StatusOK)
-	got = root(rec)
-	if string(got["textLangs"]) != `["ja","en"]` || !strings.Contains(string(got["images"]), `"kinds":[]`) || !strings.Contains(string(got["images"]), `"poster":["","ja"]`) {
-		t.Fatalf("after the images: textLangs %s images %s", got["textLangs"], got["images"])
-	}
-	// null = like the default, for each field on its own.
-	rec = e.call(t, http.MethodPatch, path, map[string]any{"textLangs": nil}, owner)
-	wantStatus(t, rec, http.StatusOK)
-	got = root(rec)
-	if string(got["textLangs"]) != "null" || string(got["images"]) == "null" {
-		t.Fatalf("after textLangs null: textLangs %s images %s", got["textLangs"], got["images"])
-	}
-	// Not a list: a field error, nothing written.
-	rec = e.call(t, http.MethodPatch, path, map[string]any{"textLangs": "ja"}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if f := fieldProblem(t, rec); f != "textLangs invalid_value" {
-		t.Fatalf("textLangs as a string: %s", f)
 	}
 }
 

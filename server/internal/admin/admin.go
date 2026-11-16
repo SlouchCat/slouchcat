@@ -104,17 +104,6 @@ type Libraries interface {
 	// checks the first library before it creates the account); *model.ValidationError with the
 	// index of the folder that broke a rule, field names prefixed with field.
 	ValidateRoots(ctx context.Context, kind string, roots []model.LibraryRootRequest, field string) error
-	// AddRoots adds further folders to a library in one transaction (idea 02, E8; F-13);
-	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
-	AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
-	// UpdateRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
-	// folder; a content change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
-	// model.ErrConfirmMismatch, model.ErrScanRunning.
-	UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
-	// RemoveRoot removes a folder and soft-deletes the titles that live only there (E12).
-	// confirmPath must repeat the stored path; model.ErrNotFound, model.ErrConfirmMismatch,
-	// model.ErrScanRunning.
-	RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
 	// Save stores the form «Bibliothek bearbeiten» in one transaction (saveLibrary, concept 24
 	// 4.3); settings writes the library's own settings into it. model.ErrNotFound, model.ErrStale,
 	// model.ErrRootUnlisted, *model.ValidationError, model.ErrScanRunning.
@@ -669,47 +658,6 @@ func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Librar
 	return s.withKeyframeIndex(ctx)(s.libraries.AcceptLoss(ctx, id))
 }
 
-// AddLibraryRoots adds further folders to a library in one go (idea 02, E8; F-13). The folder
-// rules, the overlap check and the browsable-root rule live in package library; this only refuses
-// what is not a folder request at all.
-func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error) {
-	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	var verr *model.ValidationError
-	if len(roots) == 0 {
-		verr = verr.Add("roots", "required")
-	}
-	if verr = validateRootShapes(verr, "roots", roots); verr != nil {
-		return model.Library{}, verr
-	}
-	return s.withKeyframeIndex(ctx)(s.libraries.AddRoots(ctx, libraryID, roots))
-}
-
-// UpdateLibraryRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
-// folder. The rules and the typed confirmation of a content change live in package library.
-func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
-	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	var verr *model.ValidationError
-	if upd.Content == nil && upd.Providers == nil && upd.Path == nil && !upd.SetTextLangs && !upd.SetImages {
-		verr = verr.Add("body", "required")
-	}
-	if upd.Path != nil && len(*upd.Path) > maxLibraryPath {
-		verr = verr.Add("path", "too_long")
-	}
-	if upd.Content != nil && !model.ValidRootContent(*upd.Content) {
-		verr = verr.Add("content", "invalid_value")
-	}
-	if upd.Providers != nil && len(upd.Providers) == 0 {
-		verr = verr.Add("providers", "required")
-	}
-	if len(upd.ConfirmPath) > maxLibraryPath {
-		verr = verr.Add("confirmPath", "too_long")
-	}
-	if verr != nil {
-		return model.Library{}, verr
-	}
-	return s.withKeyframeIndex(ctx)(s.libraries.UpdateRoot(ctx, libraryID, rootID, upd))
-}
-
 // ListMetadataProviders describes the providers to the administration
 // (listMetadataProviders, ADR 0015): whether each one is configured, which roles it plays and in
 // the lists of which root contents it may stand. The interface builds its checkbox list from
@@ -766,25 +714,6 @@ func (s *Service) ListMetadataProviders(ctx context.Context, textLangs []string)
 		}
 	}
 	return infos, nil
-}
-
-// RemoveLibraryRoot removes a folder from a library and lets the titles that live only there
-// leave it (idea 02, E12). confirmPath is compared against the stored row inside package
-// library, never here: a confirmation checked against another value from the same request would
-// confirm nothing.
-func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {
-	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	var verr *model.ValidationError
-	switch {
-	case strings.TrimSpace(confirmPath) == "":
-		verr = verr.Add("confirmPath", "required")
-	case len(strings.TrimSpace(confirmPath)) > maxLibraryPath:
-		verr = verr.Add("confirmPath", "too_long")
-	}
-	if verr != nil {
-		return model.Library{}, verr
-	}
-	return s.withKeyframeIndex(ctx)(s.libraries.RemoveRoot(ctx, libraryID, rootID, confirmPath))
 }
 
 // DeleteLibrary deletes a library for good (concept 20 P-8); confirmName is compared against the
