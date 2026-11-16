@@ -88,23 +88,34 @@
 
 /*
  * Below a stage of 80rem the text block reaches past 55 % of the stage's width, where the left
- * scrim fades out (phone, tablet, a window beside the side navigation): a uniform ground of
- * scrim.strong lies under the whole block, across the stage, and fades out only in the block's top
- * padding (concept 24 Z-6). A ground under the text, no frame around the image (F-6).
+ * scrim fades out (phone, tablet, a window beside the side navigation): a ground of scrim.strong
+ * lies under the block (concept 24 Z-6), not under the stage. It reaches 14rem past the block's
+ * right edge and 12rem above its top and fades out there, to the right in its colour and upwards in
+ * its mask, each through medium and soft so that no edge shows; the rest of the image stays
+ * visible. Where the block spans the stage (phone, narrow tablet) the ground spans it too. A ground
+ * under the text, no frame around the image (F-6).
  */
 @container (width < 80rem) {
   .content::before {
     position: absolute;
     z-index: -1;
-    inset: 0 auto 0 0;
-    width: 100cqi;
+    inset: -12rem -14rem 0 0;
     background-image: linear-gradient(
-      to top,
+      to right,
       var(--sc-color-scrim-strong) 0%,
-      var(--sc-color-scrim-strong) calc(100% - var(--sc-space-4)),
+      var(--sc-color-scrim-strong) calc(100% - 14rem),
+      var(--sc-color-scrim-medium) calc(100% - 8.5rem),
+      var(--sc-color-scrim-soft) calc(100% - 4rem),
       var(--sc-color-scrim-clear) 100%
     );
     content: '';
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--sc-color-scrim-soft) 3.5rem,
+      var(--sc-color-scrim-medium) 7rem,
+      var(--sc-color-bg-base) 12rem
+    );
   }
 }
 

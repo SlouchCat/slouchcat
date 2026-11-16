@@ -161,12 +161,17 @@ unverändert (dieselben Farb-Tokens).
   Seitenleiste, der Player über die ganze Ansicht.
 - **Was das CSS nicht sagt, setzt der Test an.** Beim Spotlight ab einer Bühne von 80rem reicht
   der Textblock bis zur halben Höhe der Bühne (Titel, Notiz und Knöpfe ergeben sich erst aus dem
-  Inhalt); darunter liegt der Block auf einem eigenen Grund (`scrim.strong`), und der Test nimmt
-  an, der Text könne überall auf der Bühne stehen. Die Kachel «Meine Medien» bleibt bei ihren zwei
-  Tokens.
-- **Schmale Ansichten haben einen ruhigen Grund.** Unter einer Bühne von 80rem liegt im Spotlight
-  ein gleichmässiger Grund `scrim.strong` unter dem ganzen Textblock, über die Breite der Bühne,
-  ausgeblendet nur im oberen Innenabstand; unter 80rem liegt die Pausenansicht des Players ganz auf
-  `scrim.strong`. Beim Kopf der Detailseite reicht `scrim.strong` bis zum Beginn der Textspalte,
-  mindestens 60 % hoch (auf 3440 × 1440 beginnt der Text rund 69 % hoch). Das Bild selbst bekommt
-  keinen Rahmen (F-6).
+  Inhalt); darunter liegt der Block auf einem eigenen Grund (`scrim.strong`), und der Test misst
+  den Grund an der rechten oberen Ecke des Blocks unter dessen oberem Innenabstand, die Verläufe
+  der Bühne dort, wo sie am schwächsten sind (rechts oben). In der Pausenansicht misst er den
+  Grund an der rechten oberen Ecke der Pauseninfo. Die Kachel «Meine Medien» bleibt bei ihren
+  zwei Tokens.
+- **Schmale Ansichten haben einen Grund unter dem Text, nicht unter dem Bild.** Unter einer Bühne
+  von 80rem liegt im Spotlight `scrim.strong` unter dem Textblock (`.content`); der Grund reicht
+  14rem über dessen rechten Rand und 12rem über dessen oberen Rand hinaus und blendet dort weich
+  über `scrim.medium` und `scrim.soft` aus (nach rechts im Verlauf, nach oben in der Maske), ohne
+  sichtbare Kante; rechts davon bleibt das Bild sichtbar. Wo der Block die Bühne ausfüllt (Telefon,
+  schmales Tablet), reicht der Grund über die ganze Breite. Unter 80rem liegt in der Pausenansicht
+  des Players derselbe Grund unter der Pauseninfo, oben und unten ausgeblendet. Beim Kopf der
+  Detailseite reicht `scrim.strong` bis zum Beginn der Textspalte, mindestens 60 % hoch (auf
+  3440 × 1440 beginnt der Text rund 69 % hoch). Das Bild selbst bekommt keinen Rahmen (F-6).

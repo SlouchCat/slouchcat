@@ -12,6 +12,7 @@ import {
   paint,
   parseRules,
   rootVars,
+  splitTop,
   tokensCss,
   valueOf,
   webCss,
@@ -220,28 +221,43 @@ const required = (value: string | undefined, what: string): string => {
   return value;
 };
 
-/** The gradient layers of a rule, top first, each evaluated at its own point. */
+type Point = { fromTop: number; fromLeft: number; width: number; height: number };
+
+/** A gradient evaluated at a point of its box. */
+function gradientAt(gradient: ReturnType<typeof gradients>[number], env: Env, point: Point): Rgba {
+  switch (gradient.direction) {
+    case 'to top':
+      return colorAt(gradient, point.height - point.fromTop, point.height, env);
+    case 'to bottom':
+      return colorAt(gradient, point.fromTop, point.height, env);
+    case 'to right':
+      return colorAt(gradient, point.fromLeft, point.width, env);
+    default:
+      return colorAt(gradient, point.width - point.fromLeft, point.width, env);
+  }
+}
+
+/**
+ * The gradient layers of a rule, top first, each evaluated at its own point. A `mask-image` of
+ * gradients scales the alpha of every layer by the mask's alpha at that point.
+ */
 function layersAt(
   rules: ReturnType<typeof parseRules>,
   selector: string,
   env: Env,
-  point: { fromTop: number; fromLeft: number; width: number; height: number },
+  point: Point,
 ): Rgba[] {
   const declarations = declarationsOf(rules, selector, env);
-  const layers = gradients(valueOf(declarations, 'background-image')).map((gradient) => {
-    switch (gradient.direction) {
-      case 'to top':
-        return colorAt(gradient, point.height - point.fromTop, point.height, env);
-      case 'to bottom':
-        return colorAt(gradient, point.fromTop, point.height, env);
-      case 'to right':
-        return colorAt(gradient, point.fromLeft, point.width, env);
-      default:
-        return colorAt(gradient, point.width - point.fromLeft, point.width, env);
-    }
-  });
+  const layers = gradients(valueOf(declarations, 'background-image')).map((gradient) =>
+    gradientAt(gradient, env, point),
+  );
   const fill = valueOf(declarations, 'background-color');
-  return fill === undefined ? layers : [...layers, colorAtFill(fill, env)];
+  const painted = fill === undefined ? layers : [...layers, colorAtFill(fill, env)];
+  const mask = gradients(valueOf(declarations, 'mask-image')).reduce(
+    (alpha, gradient) => alpha * gradientAt(gradient, env, point).a,
+    1,
+  );
+  return painted.map((layer) => ({ ...layer, a: layer.a * mask }));
 }
 
 const colorAtFill = (fill: string, env: Env): Rgba =>
@@ -259,10 +275,11 @@ const heroText = { 'text.primary': text.primary, 'text.secondary': text.secondar
 /**
  * HeroCarousel.module.css: the stage is as wide as the page beside the side navigation (with or
  * without it from 768 px) and as high as `.stage` says. With a ground under the text block
- * (`.content::before`, a narrow stage) the text may stand anywhere on the stage, so the stage's
- * scrims count only where they are weakest (its top right corner). Without one the text block
- * reaches half the stage's height (not readable from CSS: title, note and actions) and as far as
- * `.content` is wide.
+ * (`.content::before`, a narrow stage) the ground reaches past the block by its negative `inset`
+ * and fades out there; the text stands inside the block, so its weakest point is the block's right
+ * edge just below its top padding, and the stage's scrims count only where they are weakest (the
+ * stage's top right corner). Without a ground the text block reaches half the stage's height (not
+ * readable from CSS: title, note and actions) and as far as `.content` is wide.
  */
 function spotlightPlaces(): Place[] {
   return Object.entries(viewports).flatMap(([name, viewport]) => {
@@ -280,20 +297,31 @@ function spotlightPlaces(): Place[] {
       const content = declarationsOf(hero, '.content', stageEnv);
       const ground = declarationsOf(hero, '.content::before', stageEnv);
       const stage = { width, height };
+      const right = Math.min(
+        width,
+        length(required(valueOf(content, 'max-width'), '.content max-width'), stageEnv, width),
+      );
       let layers: Rgba[];
       if (valueOf(ground, 'background-image') !== undefined) {
-        // The ground is as high as the block; at most the stage. The text starts below its top
-        // padding.
+        // The ground reaches `up` above the block and `out` past its right edge; the block is at
+        // most as high as the stage. The text starts below the block's top padding.
+        const [up = '0', out = '0'] = splitTop(
+          required(valueOf(ground, 'inset'), '.content::before inset'),
+          ' ',
+        );
+        const above = -length(up, stageEnv);
+        const beyond = -length(out, stageEnv, right);
         const top = length(required(paddingOf(content, 'top'), '.content padding'), stageEnv);
         layers = [
-          ...layersAt(hero, '.content::before', stageEnv, { ...stage, fromTop: top, fromLeft: 0 }),
+          ...layersAt(hero, '.content::before', stageEnv, {
+            width: right + beyond,
+            height: height + above,
+            fromTop: above + top,
+            fromLeft: right,
+          }),
           ...layersAt(hero, '.scrim', stageEnv, { ...stage, fromTop: 0, fromLeft: width }),
         ];
       } else {
-        const right = Math.min(
-          width,
-          length(required(valueOf(content, 'max-width'), '.content max-width'), stageEnv, width),
-        );
         layers = layersAt(hero, '.scrim', stageEnv, {
           ...stage,
           fromTop: height / 2,
@@ -382,7 +410,9 @@ function chromePlaces(): Place[] {
 /**
  * Player.module.css, .pauseView over the whole player (the viewport): the pause info starts at
  * the view's left padding and is as wide as `.pauseInfo` allows; its right end is the weakest
- * point.
+ * point. With a ground under the info (`.pauseInfo::before`, a narrow screen) the ground reaches
+ * past the info by its negative `inset`; the text's weakest point there is the info's top right
+ * corner (the ground's fades up and down are alike).
  */
 function pausePlaces(): Place[] {
   return Object.entries(viewports).map(([name, viewport]) => {
@@ -408,6 +438,24 @@ function pausePlaces(): Place[] {
       fromTop: 0,
       fromLeft: left + info,
     });
+    const ground = declarationsOf(player, '.pauseInfo::before', env);
+    if (valueOf(ground, 'background-image') !== undefined) {
+      const [up = '0', out = '0', down = '0', back = '0'] = splitTop(
+        required(valueOf(ground, 'inset'), '.pauseInfo::before inset'),
+        ' ',
+      );
+      const [above, beyond, below, before] = [up, out, down, back].map(
+        (side) => -length(side, env, info),
+      ) as [number, number, number, number];
+      layers.unshift(
+        ...layersAt(player, '.pauseInfo::before', env, {
+          width: before + info + beyond,
+          height: above + viewport.height + below,
+          fromTop: above,
+          fromLeft: before + info,
+        }),
+      );
+    }
     return { place: `player pause view, ${name}`, ground: paint(layers, white), text: heroText };
   });
 }
@@ -435,13 +483,15 @@ describe('text over artwork (concept 24, Z-6: at least 4.5:1 over a white pictur
     expect(failing(rows, 4.5)).toEqual([]);
   });
 
-  it('lays a ground under the spotlight text on a narrow stage and the whole pause view on a narrow screen', () => {
+  it('lays a ground under the spotlight text on a narrow stage and under the pause info on a narrow screen', () => {
     // A phone: the text block spans the stage, past where the left scrim fades out.
     const phone = envOf(viewports.phone as Viewport, 343);
     expect(
       valueOf(declarationsOf(hero, '.content::before', phone), 'background-image'),
     ).toBeDefined();
     const narrow = envOf(viewports.phone as Viewport);
-    expect(valueOf(declarationsOf(player, '.pauseView', narrow), 'background-image')).toBe('none');
+    expect(
+      valueOf(declarationsOf(player, '.pauseInfo::before', narrow), 'background-image'),
+    ).toBeDefined();
   });
 });

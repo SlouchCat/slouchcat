@@ -175,20 +175,46 @@
   animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
 }
 
-/* Below 80rem the pause info reaches past half the width, where the gradient lightens: the whole
-   view lies on a uniform scrim.strong (concept 24 Z-6). */
+/* Below 80rem the pause info reaches past half the width, where the gradient lightens: a ground of
+   scrim.strong lies under the info (concept 24 Z-6), from the view's left edge to 14rem past the
+   info's right edge and 12rem above and below it, and fades out there through medium and soft, to
+   the right in its colour, up and down in its mask, so that no edge shows and the rest of the
+   picture stays visible. Where the info spans the view (phone) the ground spans it too. */
 @media (width < 80rem) {
-  .pauseView {
-    background-color: var(--sc-color-scrim-strong);
-    background-image: none;
+  .pauseInfo::before {
+    position: absolute;
+    z-index: -1;
+    inset: -12rem -14rem -12rem calc(-1 * var(--page-gutter));
+    background-image: linear-gradient(
+      to right,
+      var(--sc-color-scrim-strong) 0%,
+      var(--sc-color-scrim-strong) calc(100% - 14rem),
+      var(--sc-color-scrim-medium) calc(100% - 8.5rem),
+      var(--sc-color-scrim-soft) calc(100% - 4rem),
+      var(--sc-color-scrim-clear) 100%
+    );
+    content: '';
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--sc-color-scrim-soft) 3.5rem,
+      var(--sc-color-scrim-medium) 7rem,
+      var(--sc-color-bg-base) 12rem,
+      var(--sc-color-bg-base) calc(100% - 12rem),
+      var(--sc-color-scrim-medium) calc(100% - 7rem),
+      var(--sc-color-scrim-soft) calc(100% - 3.5rem),
+      transparent 100%
+    );
   }
 }
 
 .pauseInfo {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
   max-width: min(36rem, 100%);
+  isolation: isolate;
 }
 
 .pauseEyebrow {

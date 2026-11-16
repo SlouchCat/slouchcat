@@ -276,9 +276,10 @@ export interface Rgba {
   a: number;
 }
 
-/** A colour: #rrggbb, #rrggbbaa, rgb() or rgba(), or a var() of one. */
+/** A colour: #rrggbb, #rrggbbaa, rgb(), rgba() or transparent, or a var() of one. */
 export function color(text: string, env: Env): Rgba {
   const value = text.trim();
+  if (value === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
   const variable = /^var\((.*)\)$/.exec(value);
   if (variable) return color(resolveVar(variable[1] ?? '', env), env);
   const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})?$/i.exec(value);
