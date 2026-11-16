@@ -873,6 +873,10 @@ func (s *Service) insertPodcastFile(ctx context.Context, r *os.Root, root appq.L
 	if err := q.PodcastClearPendingFolder(ctx, systemq.PodcastClearPendingFolderParams{Now: now, ItemID: podcastID}); err != nil {
 		return fmt.Errorf("clear pending folder: %w", err)
 	}
+	// The first file of a podcast made from a feed gives it a home folder (ADR 0036).
+	if _, err := rehome(ctx, q, time.UnixMilli(now), podcastID, false); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
