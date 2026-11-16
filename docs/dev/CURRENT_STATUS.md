@@ -33,11 +33,13 @@ ADR 0029 (Nachtrag), Messung `docs/perf/19-podcasts.md` Abschnitt 9.
 
 - **Warum die 264 Folgen dort stehen:** Ihre Serie ist zugeordnet, aber der Anbieter der Serie kennt
   die Folge unter dieser Staffel- und Folgennummer nicht (`matchEpisode`, Antwort «nicht gefunden»).
-  Beispiele von CT 190: Doppelfolgen, die im Ordner als zwei Nummern liegen («Beverly Hills, 90210»
-  S04E32), eine andere Staffelzählung («Dragon Ball Super» 117 Folgen in Staffel 2 bis 5), eine der
-  falschen Serie zugeordnete Serie. «Aktualisieren» fragt dieselbe Nummer beim selben Anbieter noch
-  einmal und heilt sie nur, wenn der Anbieter die Folge inzwischen führt. Abhilfe ist die Zuordnung der
-  Serie (anderer Eintrag oder TVDB statt TMDB).
+  Auf CT 190 (nachgelesen, nur lesend) sind es zwei Fälle. Erstens Serien, die dem falschen Eintrag
+  zugeordnet sind: «Dragon Ball Super» hängt an «Dragon Ball Super: Beerus» (2026) und hat darum 117
+  von 131 Folgen ohne Treffer, «Monster» (2022) hängt an «Monster High» (16 von 35). Zweitens
+  einzelne Nummern, die der Anbieter anders zählt: Doppelfolgen, die im Ordner als zwei Nummern liegen
+  («Beverly Hills, 90210» S04E32, 9 von 293). «Aktualisieren» fragt dieselbe Nummer beim selben
+  Eintrag noch einmal und heilt eine Folge nur, wenn der Anbieter sie inzwischen führt. Abhilfe ist
+  die Zuordnung der Serie: der richtige Eintrag, oder TVDB statt TMDB bei anderer Zählung.
 - **Knopf:** Für eine gewählte Folge öffnet «Zuordnen» den bestehenden Dialog für ihre **Serie**. `Issue`
   trägt die Serie nicht; der Client liest sie über `getAdminItem` (`parentId`, höchstens zwei Schritte).
   Damit bleibt der Vertrag unverändert und der Release ein Patch. Neben dem Knopf steht als Text, warum
