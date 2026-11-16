@@ -23,7 +23,7 @@ interface Editing {
  * the notice that it was. The form keeps the library it was filled with while the page's list
  * refetches; the list only feeds the facts of the folders and the notice that the library changed
  * elsewhere. A library removed elsewhere keeps the form open, its save answers 404; so does a
- * reload after `stale` that no longer finds it.
+ * reload after `stale` that no longer finds it. A reload that fails fills nothing anew.
  */
 export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSummary) => void): {
   start: (id: number, rootId?: number) => void;
@@ -70,24 +70,22 @@ export function useLibraryEdit(onSaved: (saved: LibrarySaved, summary: SaveSumma
         onSaved={onSaved}
         onStale={() => {
           const { id } = editing;
-          return queryClient
-            .fetchQuery({ ...librariesQuery, staleTime: 0 })
-            .catch(() => undefined)
-            .then(() => {
-              // Removed elsewhere: the form stays with what was typed and says so, as on 404.
-              const fresh = cached(id);
-              if (!fresh) return false;
-              setEditing(
-                (current) =>
-                  current && {
-                    ...current,
-                    session: current.session + 1,
-                    reloaded: true,
-                    library: fresh,
-                  },
-              );
-              return true;
-            });
+          // A failed reload rejects: the form keeps what was typed and shows the error.
+          return queryClient.fetchQuery({ ...librariesQuery, staleTime: 0 }).then(() => {
+            // Removed elsewhere: the form stays with what was typed and says so, as on 404.
+            const fresh = cached(id);
+            if (!fresh) return false;
+            setEditing(
+              (current) =>
+                current && {
+                  ...current,
+                  session: current.session + 1,
+                  reloaded: true,
+                  library: fresh,
+                },
+            );
+            return true;
+          });
         }}
       />
     ) : null;

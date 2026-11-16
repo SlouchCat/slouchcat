@@ -597,6 +597,30 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  it('409 stale with a reload that fails keeps every input and shows the error', async () => {
+    let reachable = true;
+    mockApi(
+      routes([], {
+        'GET /admin/libraries': () => {
+          if (!reachable) throw new TypeError('Failed to fetch');
+          return json([library()]);
+        },
+        'PUT /admin/libraries/1': () => {
+          reachable = false;
+          return problem(409, 'stale');
+        },
+      }),
+    );
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    await user.click(saveOf(dialog));
+    expect(await within(dialog).findByText('Der Server ist nicht erreichbar.')).toBeVisible();
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme neu');
+    expect(within(dialog).queryByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeNull();
+  });
+
   it('a card edited and then marked for removal sends only the removal', async () => {
     const { calls } = mockApi(
       routes([withTwoFolders], { 'PUT /admin/libraries/1': saved(withTwoFolders) }),

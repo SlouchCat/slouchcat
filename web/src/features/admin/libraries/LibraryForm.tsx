@@ -181,7 +181,8 @@ interface EditProps {
   onSaved: (saved: LibrarySaved, summary: SaveSummary) => void;
   /**
    * 409 `stale` or `root_unlisted`: the page loads the library again and fills the form anew
-   * (true); false when the library is no longer there, and the form stays as it is.
+   * (true); false when the library is no longer there, and the form stays as it is. It rejects
+   * when the reload fails; the form then keeps its inputs and shows the error.
    */
   onStale: () => Promise<boolean>;
 }
@@ -625,6 +626,8 @@ function EditLibraryForm({
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   // The reload after `stale` found the library removed elsewhere.
   const [gone, setGone] = useState(false);
+  // The reload after `stale` failed: the form keeps its inputs and shows why.
+  const [reloadError, setReloadError] = useState<{ error: unknown } | null>(null);
   // The cards whose path and content changed together, as the last «Speichern» found them.
   const [blocked, setBlocked] = useState<readonly string[]>([]);
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
@@ -685,14 +688,18 @@ function EditLibraryForm({
     const sent = saveRequest(library, state, marked, typed);
     setRefusal(null);
     setGone(false);
+    setReloadError(null);
     cancelScan.reset();
     save.mutate(sent.body, {
       onError: (error) => {
         if (isApiError(error) && (error.code === 'stale' || error.code === 'root_unlisted')) {
           endConfirming();
-          void onStale().then((filled) => {
-            if (!filled) setGone(true);
-          });
+          void onStale().then(
+            (filled) => {
+              if (!filled) setGone(true);
+            },
+            (failure: unknown) => setReloadError({ error: failure }),
+          );
           return;
         }
         setRefusal({ error, sent: { roots: sent.roots, removals: sent.removals } });
@@ -735,11 +742,13 @@ function EditLibraryForm({
   // was open.
   const formMessage = gone
     ? t('admin.libraries.form.gone')
-    : refusal && !scanRunning && !confirming
-      ? isApiError(refused, 404)
-        ? t('admin.libraries.form.gone')
-        : formErrors(t, refusal.error).form
-      : null;
+    : reloadError
+      ? problemMessage(t, reloadError.error)
+      : refusal && !scanRunning && !confirming
+        ? isApiError(refused, 404)
+          ? t('admin.libraries.form.gone')
+          : formErrors(t, refusal.error).form
+        : null;
   const requestClose = () => {
     if (dirty) setAsking(true);
     else onOpenChange(false);
