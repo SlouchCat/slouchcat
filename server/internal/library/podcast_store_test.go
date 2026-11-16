@@ -254,7 +254,7 @@ func TestPodcastRiegel(t *testing.T) {
 	if n := f.e.count(`SELECT count(*) FROM media_files WHERE item_id = ?`, pairTitle); n != 1 {
 		t.Errorf("files of the paired feed episode = %d", n)
 	}
-	if n := f.e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NOT NULL`, pairFile); n != 1 {
+	if n := f.e.count(`SELECT count(*) FROM items WHERE id = ?`, pairFile); n != 0 {
 		t.Errorf("file episode kept after the pair")
 	}
 	if ok, err := f.e.svc.pairPodcastFile(f.e.ctx, pairTitle, pairFile); err != nil || ok {

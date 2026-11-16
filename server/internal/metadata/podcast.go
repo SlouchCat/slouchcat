@@ -469,6 +469,8 @@ func (s *Service) handlePodcastFetch(ctx context.Context, j *jobs.Job) error {
 // check, 200 updates the channel (except locked fields) and inserts or updates the episodes by
 // guid (the newest 2000; episodes that leave the feed stay). A failure is recorded in feed_error
 // and returned, so the job retries with backoff. An unknown or deleted podcast is no error.
+// Whatever the feed answered, the check ends with the hook of WithPodcastChecked: pairing the
+// files of the podcast with its feed episodes depends on the database, not on the answer.
 func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 	p, err := s.read.PodcastGet(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && p.DeletedAt.Valid) {
@@ -489,10 +491,15 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 			Now: checked, FeedError: nullStr(feedErrorText(err)), ID: id}); serr != nil {
 			return errors.Join(err, serr)
 		}
+		s.notePodcastChecked(ctx, id)
 		return fmt.Errorf("fetch podcast %s: %w", id, err)
 	}
 	if res.notModified {
-		return s.write.PodcastSetChecked(ctx, systemq.PodcastSetCheckedParams{Now: checked, ID: id})
+		if err := s.write.PodcastSetChecked(ctx, systemq.PodcastSetCheckedParams{Now: checked, ID: id}); err != nil {
+			return err
+		}
+		s.notePodcastChecked(ctx, id)
+		return nil
 	}
 	locked := lockedFields(p.LockedFields)
 	title := cmp.Or(strings.TrimSpace(res.feed.Title), p.Title)
@@ -519,6 +526,9 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 		return fmt.Errorf("update podcast %s: %w", id, err)
 	}
 	rerated, added, err := s.storeEpisodes(ctx, id, p.LibraryID, title, res.feed, locked, now)
+	// Before the planner hears of the new episodes: what is paired here it neither loads nor
+	// calls unclear.
+	s.notePodcastChecked(ctx, id)
 	if len(added) > 0 {
 		s.notePodcastFetched(ctx, id, added)
 	}
@@ -696,47 +706,29 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 	return episodeChange{newID: id, published: published}, upsertTexts(ctx, q, id, title, e.Description, nil, w.langs)
 }
 
-// adopt finds the one file episode a new feed episode stands for (concept 4.5): the same
-// publication minute, else the same sort title; the duration within two percent when both are
-// known. Exactly one candidate, or none: two files that fit stay apart rather than one of them
-// being married to the wrong feed episode. A taken candidate is removed from the list.
+// adopt finds the one file episode a new feed episode stands for (concept 4.5): the one the
+// pairing rule picks among the file episodes without guid (model.PickPodcastPair: the same
+// publication minute and title whatever the durations say, else one of the two with durations
+// that do not contradict). No clear pick: the files stay apart rather than one of them being
+// married to the wrong feed episode. A taken candidate is removed from the list.
 func (w *episodeWrite) adopt(e feed.Episode, published sql.NullInt64) (systemq.PodcastListFileEpisodesWithoutGUIDRow, bool) {
-	var hits []int
+	own := model.PodcastEpisodeTraits{PublishedAt: published.Int64, Dated: published.Valid, SortTitle: sortTitle(e.Title),
+		DurationMs: max(e.Duration.Milliseconds(), 0)}
+	fits := make([]model.PodcastPairFit, len(w.files))
 	for i, f := range w.files {
-		if !PairsEpisode(published, sortTitle(e.Title), e.Duration.Milliseconds(), f.PublishedAt, f.SortTitle, f.DurationMs) {
-			continue
+		file := model.PodcastEpisodeTraits{PublishedAt: f.PublishedAt.Int64, Dated: f.PublishedAt.Valid, SortTitle: f.SortTitle}
+		if f.DurationMs.Valid && f.DurationMs.Int64 > 0 {
+			file.DurationMs = f.DurationMs.Int64
 		}
-		hits = append(hits, i)
+		fits[i] = model.FitPodcastEpisodes(own, file)
 	}
-	if len(hits) != 1 {
+	hit, ok := model.PickPodcastPair(fits)
+	if !ok {
 		return systemq.PodcastListFileEpisodesWithoutGUIDRow{}, false
 	}
-	row := w.files[hits[0]]
-	w.files = slices.Delete(w.files, hits[0], hits[0]+1)
+	row := w.files[hit]
+	w.files = slices.Delete(w.files, hit, hit+1)
 	return row, true
-}
-
-// PairsEpisode reports whether a feed episode and a file episode are the same episode: the
-// publication minute equal, else the sort titles equal; a known duration on both sides must agree
-// within two percent. The scanner's probe step uses the same rule the other way round.
-func PairsEpisode(feedPublished sql.NullInt64, feedSortTitle string, feedDurationMs int64,
-	filePublished sql.NullInt64, fileSortTitle string, fileDurationMs sql.NullInt64,
-) bool {
-	sameMinute := feedPublished.Valid && filePublished.Valid && feedPublished.Int64/60000 == filePublished.Int64/60000
-	sameTitle := feedSortTitle != "" && feedSortTitle == fileSortTitle
-	if !sameMinute && !sameTitle {
-		return false
-	}
-	if feedDurationMs > 0 && fileDurationMs.Valid && fileDurationMs.Int64 > 0 {
-		diff := feedDurationMs - fileDurationMs.Int64
-		if diff < 0 {
-			diff = -diff
-		}
-		if diff*50 > feedDurationMs {
-			return false
-		}
-	}
-	return true
 }
 
 // upsertTexts writes title and description for every language of the effective list (a feed has
@@ -874,6 +866,18 @@ func (s *Service) notePodcastFetched(ctx context.Context, podcastID string, newI
 	defer cancel()
 	if err := s.podcastFetched(hookCtx, podcastID, newIDs); err != nil {
 		s.log.WarnContext(ctx, "queue the podcast planner", "item_id", podcastID, "episodes", len(newIDs), "err", err)
+	}
+}
+
+// notePodcastChecked tells the pairing hook that a feed check of the podcast ended
+// (WithPodcastChecked); a failure is logged, the check stands. It runs in the context of the fetch:
+// a cancelled job stops pairing between two pairs.
+func (s *Service) notePodcastChecked(ctx context.Context, podcastID string) {
+	if s.podcastChecked == nil {
+		return
+	}
+	if err := s.podcastChecked(ctx, podcastID); err != nil {
+		s.log.WarnContext(ctx, "pair the files of the podcast with its feed episodes", "item_id", podcastID, "err", err)
 	}
 }
 

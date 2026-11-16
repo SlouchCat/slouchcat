@@ -502,7 +502,8 @@ type AdminListFileAndFeedEpisodesRow struct {
 
 // Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
 // file episode (no enclosure) and a feed episode (no file) with the same publication minute or
-// the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+// the same sort title. The scanner and the pairing after a feed check take the clear cases
+// (model.PickPodcastPair); the rest is listed here.
 func (q *Queries) AdminListFileAndFeedEpisodes(ctx context.Context, libraryID interface{}) ([]AdminListFileAndFeedEpisodesRow, error) {
 	rows, err := q.db.QueryContext(ctx, adminListFileAndFeedEpisodes, libraryID)
 	if err != nil {

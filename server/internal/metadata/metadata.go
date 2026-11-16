@@ -165,6 +165,8 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// podcastFetched hears of a fetch with new episodes and of a new subscription (WithPodcastFetched).
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	// podcastChecked hears of every feed check of a podcast (WithPodcastChecked).
+	podcastChecked func(ctx context.Context, podcastID string) error
 	// podcastChanged and podcastSavable serve the own setting of a podcast (WithPodcastSettingHooks).
 	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
 	podcastSavable func(ctx context.Context, podcastID string) error
@@ -220,6 +222,8 @@ type options struct {
 	relink      func(ctx context.Context, itemID string) (bool, error)
 	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
+	// podcastChecked: see WithPodcastChecked.
+	podcastChecked func(ctx context.Context, podcastID string) error
 	podcastChanged func(ctx context.Context, podcastID string, stop bool) error
 	podcastSavable func(ctx context.Context, podcastID string) error
 	podcastStates  func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
@@ -308,6 +312,14 @@ func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 // or all of them. An error is logged.
 func WithPodcastFetched(fn func(ctx context.Context, podcastID string, newIDs []string) error) Option {
 	return func(o *options) { o.podcastFetched = fn }
+}
+
+// WithPodcastChecked sets the function that hears of every feed check of a podcast, whatever the
+// feed answered (new content, not modified, a failure), after the episodes are stored and before
+// WithPodcastFetched: library.Service.PairPodcastEpisodes pairs the files of the podcast with its
+// feed episodes there (addendum of 16 November 2026 to ADR 0029). An error is logged.
+func WithPodcastChecked(fn func(ctx context.Context, podcastID string) error) Option {
+	return func(o *options) { o.podcastChecked = fn }
 }
 
 // WithPodcastSettingHooks sets the functions UpdatePodcastDownloads calls (concept 19 part A, 5.3):
@@ -408,6 +420,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		recheck:         o.recheck,
 		newEpisodes:     o.newEpisodes,
 		podcastFetched:  o.podcastFetched,
+		podcastChecked:  o.podcastChecked,
 		podcastChanged:  o.podcastChanged,
 		podcastSavable:  o.podcastSavable,
 		podcastStates:   o.podcastStates,

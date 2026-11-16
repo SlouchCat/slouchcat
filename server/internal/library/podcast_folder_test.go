@@ -391,8 +391,9 @@ func TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe(t *testing.T) {
 	if v := e.str(`SELECT group_concat(title || ':' || (SELECT count(*) FROM media_files WHERE item_id = i.id), ',') FROM (SELECT id, title FROM items AS i WHERE kind = 'podcast_episode' AND deleted_at IS NULL ORDER BY title) AS i`); v != "Feed One:1,Feed Two A:0,Feed Two B:0,Slouchcat Test Episode 2:1" {
 		t.Errorf("episodes after the probe = %q, want the ambiguous file kept apart", v)
 	}
-	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND deleted_at IS NOT NULL`); n != 1 {
-		t.Errorf("retired file episodes = %d, want 1", n)
+	// The paired file episode is deleted for good, like the source of a merge.
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode'`); n != 4 {
+		t.Errorf("episode rows after the probe = %d, want 3 feed + the one file episode that stays", n)
 	}
 	var published sql.NullInt64
 	if err := e.db.Read.QueryRowContext(e.ctx, `SELECT published_at FROM items WHERE title = 'Slouchcat Test Episode 2'`).Scan(&published); err != nil {

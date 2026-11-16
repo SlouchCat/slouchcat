@@ -450,7 +450,8 @@ WHERE im.size = @size AND im.kind = @kind AND im.format = 'jpeg' AND im.item_id 
 -- name: AdminListFileAndFeedEpisodes :many
 -- Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
 -- file episode (no enclosure) and a feed episode (no file) with the same publication minute or
--- the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+-- the same sort title. The scanner and the pairing after a feed check take the clear cases
+-- (model.PickPodcastPair); the rest is listed here.
 SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
        ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id
 FROM items AS fe

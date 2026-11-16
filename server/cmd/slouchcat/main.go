@@ -321,6 +321,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	podcastFetched := func(ctx context.Context, podcastID string, newIDs []string) error {
 		return libSvc.QueuePodcastSync(ctx, podcastID, newIDs)
 	}
+	// After every feed check the files of the podcast are paired with its feed episodes
+	// (addendum of 16 November 2026 to ADR 0029).
+	podcastChecked := func(ctx context.Context, podcastID string) error {
+		_, err := libSvc.PairPodcastEpisodes(ctx, podcastID)
+		return err
+	}
 	podcastSavable := func(ctx context.Context, podcastID string) error { return libSvc.PodcastSavable(ctx, podcastID) }
 	podcastChanged := func(ctx context.Context, podcastID string, stop bool) error {
 		return libSvc.QueuePodcastSettingChanged(ctx, podcastID, stop)
@@ -335,7 +341,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
 		metadata.WithAudioSeriesRelink(library.RelinkAudioSeries), metadata.WithAuthorDisplay(authorDisplay),
-		metadata.WithPodcastFetched(podcastFetched), metadata.WithPodcastSettingHooks(podcastSavable, podcastChanged),
+		metadata.WithPodcastFetched(podcastFetched), metadata.WithPodcastChecked(podcastChecked),
+		metadata.WithPodcastSettingHooks(podcastSavable, podcastChanged),
 		metadata.WithPodcastStates(podcastStates)}
 	if cfg.Dev && cfg.TestBooksBaseURL != "" {
 		metaOpts = append(metaOpts, metadata.WithTestBookSources(cfg.TestBooksBaseURL))
