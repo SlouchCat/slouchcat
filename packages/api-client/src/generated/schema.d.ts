@@ -3317,7 +3317,7 @@ export interface paths {
          *     `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
          *     new library gets its row hidden at the end. A library that is being deleted (job
          *     `library.delete`) has no row here, like in the list of libraries; its row keeps its stored
-         *     place, so `position` may leave a gap (closed by the next save).
+         *     place, so `position` may leave a gap (closed by the first save after the job has finished).
          */
         get: operations["getHomeRows"];
         /**

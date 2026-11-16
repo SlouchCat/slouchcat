@@ -318,8 +318,9 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 
 // The row of a library that is being deleted keeps its stored hidden flag even when a page read
 // before the deletion names it as shown; the request decides only its place. Two libraries being
-// deleted at once, both rows shown, count toward neither the named nor the left-out limit; undoing
-// both brings back two visible rows more than the limit, and the next save of that list is refused.
+// deleted at once, both rows shown and left out of the request, do not count toward the limit
+// (TestHomeRowsDeletingLibrary probes the limit with such a row named); undoing both brings back
+// two visible rows more than the limit, and the next save of that list is refused.
 func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 	c := newCurationFixture(t)
 	q := appq.New(c.f.DB.Write)
@@ -410,7 +411,7 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 	}
 	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(8))), "rows", "too_many_visible")
 	if _, err := c.svc.SetHomeRows(c.ctx, show(7)); err != nil {
-		t.Fatalf("fifteen visible with two libraries being deleted left out: %v", err)
+		t.Fatalf("fifteen visible with three libraries being deleted left out, two of them shown: %v", err)
 	}
 	if h := storedHidden(); !h[hidden] || h[shownA] || h[shownB] {
 		t.Errorf("stored flags A %v, B %v, H %v after the left-out save", h[shownA], h[shownB], h[hidden])
