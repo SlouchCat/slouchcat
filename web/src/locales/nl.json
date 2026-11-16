@@ -224,7 +224,9 @@
       "files_not_deletable": "Een bestand van de titel kan niet worden verwijderd. Er is niets verwijderd.",
       "not_deletable": "Deze titel kan niet worden verwijderd.",
       "deleting": "Wordt nu verwijderd.",
-      "changed": "Er is intussen iets gewijzigd, controleer opnieuw."
+      "changed": "Er is intussen iets gewijzigd, controleer opnieuw.",
+      "stale": "De bibliotheek is intussen elders gewijzigd. Laad de bibliotheek opnieuw en sla nog een keer op.",
+      "root_unlisted": "Een map van de bibliotheek ontbreekt in het verzoek. Laad de bibliotheek opnieuw; er is niets verwijderd."
     },
     "field": {
       "required": "Verplicht.",
@@ -247,6 +249,7 @@
       "root_overlap": "Deze map overlapt met een andere map.",
       "path_with_content": "Een nieuw pad kan niet worden gecombineerd met een wijziging van de inhoud.",
       "root_files_missing": "Onder het nieuwe pad staat geen van de bestaande bestanden.",
+      "confirm_mismatch": "Het pad komt niet overeen met het pad van de map. Er is niets gewijzigd.",
       "content_not_allowed": "Deze inhoud past niet bij het type bibliotheek.",
       "providers_not_allowed": "Deze lijst met metadatabronnen is niet toegestaan voor deze inhoud.",
       "roots_required": "Minimaal één map is vereist.",
@@ -552,7 +555,11 @@
       "providers": "Map {{number}}: {{message}}",
       "submit_one": "Bibliotheek met {{count}} map toevoegen",
       "submit_other": "Bibliotheek met {{count}} mappen toevoegen",
-      "submitNone": "Bibliotheek zonder mappen toevoegen"
+      "submitNone": "Bibliotheek zonder mappen toevoegen",
+      "marked": "Wordt bij het opslaan verwijderd. Je bevestigt dat daarna met het pad.",
+      "undo": "Ongedaan maken",
+      "undoLabel": "Verwijderen van map {{number}} ongedaan maken",
+      "removeStored": "Map weghalen …"
     },
     "videoHint": "De mappen van deze bibliotheek mogen films of series bevatten, ook door elkaar.",
     "page": {
@@ -612,7 +619,8 @@
     "notFound": {
       "title": "Bibliotheek niet gevonden",
       "body": "Deze bibliotheek bestaat niet of heeft geen titels voor dit profiel."
-    }
+    },
+    "kindFixed": "De soort ligt vast zodra de bibliotheek is aangemaakt."
   },
   "home": {
     "list": {
@@ -1990,10 +1998,12 @@
         "generate": {
           "action": "Nu genereren",
           "hint": "Haalt de ontbrekende voorbeelden in van elke bibliotheek op “Vooraf”, zoals “Voorbeeldminiaturen aanvullen” onder “Achtergrondtaken”.",
-          "queued": "Het inhalen van de voorbeelden staat in de wachtrij."
+          "queued": "Het inhalen van de voorbeelden staat in de wachtrij.",
+          "unsaved": "Pas na het opslaan: genereren gebruikt de opgeslagen instelling."
         },
         "summary": "Voorbeeldminiaturen: films {{movies}} · series {{series}}",
-        "summaryNoKeep": "Bij het starten, niet bewaard"
+        "summaryNoKeep": "Bij het starten, niet bewaard",
+        "header": "Films: {{movies}} · series: {{series}}"
       },
       "delete": {
         "action": "Bibliotheek verwijderen…",
@@ -2010,6 +2020,53 @@
         "jobs": "Naar de taak",
         "done": "Bibliotheek “{{name}}” verwijderd.",
         "notDone": "Bibliotheek “{{name}}” is niet verwijderd. De taak zegt waarom."
+      },
+      "form": {
+        "editTitle": "Bibliotheek bewerken",
+        "changed": "gewijzigd",
+        "pathAndContent": "Pad en inhoud van deze map kunnen niet in één keer veranderen. Sla eerst het ene op, dan het andere.",
+        "pathHint": "Het nieuwe pad geldt na het opslaan. Titels en gebruikersgegevens blijven behouden als de bestanden daar onder dezelfde namen staan.",
+        "reloaded": "De bibliotheek is intussen elders gewijzigd. Het formulier toont nu de nieuwe stand; je wijzigingen zijn niet opgeslagen.",
+        "changedElsewhere": "De bibliotheek is intussen elders gewijzigd. Bij het opslaan laadt het formulier de nieuwe stand; je wijzigingen worden dan niet opgeslagen.",
+        "gone": "Deze bibliotheek bestaat niet meer. Er is niets opgeslagen.",
+        "scanRunning": "Weghalen, andere inhoud en een nieuw pad wachten tot de scan klaar is. Je invoer blijft staan.",
+        "scanCancelled": "De scan is afgebroken. Sla nu nog een keer op.",
+        "discard": {
+          "title": "Wijzigingen verwerpen?",
+          "body": "De niet-opgeslagen wijzigingen aan {{name}} gaan verloren.",
+          "confirm": "Verwerpen",
+          "keep": "Verder bewerken"
+        },
+        "confirm": {
+          "title": "Wijzigingen bevestigen",
+          "intro": "Deze wijzigingen gaan pas in als je hier opslaat.",
+          "remove": "Map weghalen: {{path}}",
+          "content": "Inhoud wijzigen: {{path}}",
+          "path": "Pad wijzigen: {{path}}",
+          "typeAll": "Je kunt opslaan zodra elk pad precies is ingetypt.",
+          "submit": "Opslaan"
+        }
+      },
+      "edit": "Bewerken",
+      "editLabel": "{{name}} bewerken",
+      "noFolderEdit": "Geen map: er wordt niets gescand tot je er een toevoegt onder “Bewerken”.",
+      "saved": {
+        "title": "De bibliotheek {{name}} is opgeslagen.",
+        "name": "Nieuwe naam: {{name}}",
+        "rating": "Standaardclassificatie: {{rating}}",
+        "added_one": "{{count}} map toegevoegd; de scan staat in de wachtrij.",
+        "added_other": "{{count}} mappen toegevoegd; de scan staat in de wachtrij.",
+        "removed_one": "{{count}} map verwijderd.",
+        "removed_other": "{{count}} mappen verwijderd.",
+        "content_one": "{{count}} map met andere inhoud wordt opnieuw ingelezen.",
+        "content_other": "{{count}} mappen met andere inhoud worden opnieuw ingelezen.",
+        "moved_one": "{{count}} map met een nieuw pad wordt opnieuw ingelezen.",
+        "moved_other": "{{count}} mappen met een nieuw pad worden opnieuw ingelezen.",
+        "providers_one": "Nieuwe bronnen voor {{count}} map: de titels worden opnieuw gekoppeld of aangevuld.",
+        "providers_other": "Nieuwe bronnen voor {{count}} mappen: de titels worden opnieuw gekoppeld of aangevuld.",
+        "metadata_one": "Talen of afbeeldingen gewijzigd voor {{count}} map. Ze gelden voor {{titles}} titels zodra je ze toepast.",
+        "metadata_other": "Talen of afbeeldingen gewijzigd voor {{count}} mappen. Ze gelden voor {{titles}} titels zodra je ze toepast.",
+        "dismiss": "Verbergen"
       }
     },
     "access": {
@@ -2253,7 +2310,9 @@
         "children": "Inhoud",
         "childCounts": "Seizoenen: {{seasons}} · Afleveringen: {{episodes}} · Extra’s: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Hoofdmap",
+        "homeRootNone": "Geen, de standaard geldt"
       },
       "sources": {
         "title": "Bron per veld",
@@ -4820,7 +4879,13 @@
           "tmdbAdult": "TMDB met content voor volwassenen",
           "none": "Alleen de bronnen van de mappen"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} videomap volgt de standaard",
+        "foldersFollow_other": "{{count}} videomappen volgen de standaard",
+        "foldersOwn_one": "{{count}} heeft eigen instellingen",
+        "foldersOwn_other": "{{count}} hebben eigen instellingen"
       },
       "default": "Standaard",
       "languages": {
@@ -4902,7 +4967,8 @@
         "texts": "Alleen teksten",
         "images": "Alleen afbeeldingen",
         "where": "Waar",
-        "all": "Elke bibliotheek",
+        "all": "Elke map",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} titel",
         "titles_other": "{{count}} titels",
         "run": "Nu toepassen",
@@ -4929,6 +4995,29 @@
         "chain_duplicate": "Elke taal één keer.",
         "country_unknown": "Onbekend land.",
         "source_unknown": "Deze afbeeldingsbron is geen kandidaat van de titel."
+      },
+      "introDefault": "Geldt voor elke map zonder eigen instellingen. De eigen talen en afbeeldingen van een map stel je in onder “Bewerken” van de bijbehorende bibliotheek.",
+      "changed": "gewijzigd",
+      "folders": {
+        "title": "Mappen",
+        "intro": "Elke videomap volgt de standaard totdat ze eigen talen of afbeeldingen heeft. Die stel je in onder “Bewerken” van de bijbehorende bibliotheek.",
+        "empty": "Nog geen videomap.",
+        "audio": "Luisterboek- en podcastmappen hebben geen eigen talen en afbeeldingen. De bronnen voor luisterboeken staan onder “Luisterboeken: bronnen”.",
+        "openLabel": "{{name}} bewerken, map {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Talen: standaard",
+        "langsOwn": "Talen: {{chain}}",
+        "imagesDefault": "Afbeeldingen: standaard",
+        "imagesOwn": "Afbeeldingen: eigen",
+        "likeDefault": "Zoals standaard",
+        "own": "Eigen",
+        "defaultIs": "Standaard: {{value}}",
+        "imagesDefaultIs": "Standaard: {{kinds}}. Taal per soort afbeelding: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Geldt alleen voor deze map.",
+        "cost": "Elke extra taal kost bij het toepassen één verzoek per titel en seizoen van deze map.",
+        "always": "Slouchcat haalt poster en achtergrond altijd op."
       }
     },
     "activity": {
@@ -4966,6 +5055,7 @@
       "intro": "Waar Slouchcat details en covers van luisterboeken vandaan haalt. De bestanden gaan altijd voor; een aanbieder vult alleen aan wat ontbreekt, en nooit een vergrendeld veld.",
       "folders": {
         "title": "Volgorde per map",
+        "intro": "De bovenste bron wint per veld. De volgorde en welke bronnen meedoen wijzig je onder “Bewerken” van de bibliotheek.",
         "empty": "Er is nog geen luisterboekmap.",
         "edit": "Bronnen wijzigen",
         "editLabel": "De bronnen van {{path}} wijzigen",

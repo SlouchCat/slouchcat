@@ -224,7 +224,9 @@
       "files_not_deletable": "İçeriğin bir dosyası silinemiyor. Hiçbir şey silinmedi.",
       "not_deletable": "Bu içerik silinemez.",
       "deleting": "Şu an siliniyor.",
-      "changed": "Bu arada bir şey değişti, lütfen tekrar denetleyin."
+      "changed": "Bu arada bir şey değişti, lütfen tekrar denetleyin.",
+      "stale": "Kitaplık bu arada başka bir yerde değiştirildi. Yeniden yükleyip bir kez daha kaydedin.",
+      "root_unlisted": "Kitaplığın bir klasörü istekte eksik. Kitaplığı yeniden yükleyin; hiçbir şey kaldırılmadı."
     },
     "field": {
       "required": "Zorunlu alan.",
@@ -247,6 +249,7 @@
       "root_overlap": "Bu klasör başka bir klasörle çakışıyor.",
       "path_with_content": "Yeni bir yol, içerik değişikliğiyle birleştirilemez.",
       "root_files_missing": "Klasörün mevcut dosyalarından hiçbiri yeni yolun altında değil.",
+      "confirm_mismatch": "Yol, klasörün yoluyla eşleşmiyor. Hiçbir şey değiştirilmedi.",
       "content_not_allowed": "Bu içerik kitaplığın türüne uymuyor.",
       "providers_not_allowed": "Bu meta veri kaynakları listesine bu içerik için izin verilmiyor.",
       "roots_required": "En az bir klasör gerekli.",
@@ -552,7 +555,11 @@
       "providers": "Klasör {{number}}: {{message}}",
       "submit_one": "{{count}} klasörlü kitaplık ekle",
       "submit_other": "{{count}} klasörlü kitaplık ekle",
-      "submitNone": "Klasörsüz kitaplık ekle"
+      "submitNone": "Klasörsüz kitaplık ekle",
+      "marked": "Kaydettiğinizde kaldırılır. Ardından yolu yazarak onaylarsınız.",
+      "undo": "Geri al",
+      "undoLabel": "{{number}}. klasörün kaldırılmasını geri al",
+      "removeStored": "Klasörü kaldır…"
     },
     "videoHint": "Bu kitaplığın klasörleri film veya dizi içerebilir, karışık da olabilir.",
     "page": {
@@ -612,7 +619,8 @@
     "notFound": {
       "title": "Kitaplık bulunamadı",
       "body": "Bu kitaplık yok ya da bu profil için içeriği yok."
-    }
+    },
+    "kindFixed": "Kitaplık oluşturulduktan sonra tür değiştirilemez."
   },
   "home": {
     "list": {
@@ -1990,10 +1998,12 @@
         "generate": {
           "action": "Şimdi oluştur",
           "hint": "“Önceden” olan her kitaplığın eksik önizlemelerini tamamlar; “Arka plan görevleri” altındaki “Önizleme küçük resimlerini tamamla” gibi.",
-          "queued": "Önizlemelerin tamamlanması sıraya alındı."
+          "queued": "Önizlemelerin tamamlanması sıraya alındı.",
+          "unsaved": "Önce kaydedin: oluşturma, kaydedilmiş ayarı kullanır."
         },
         "summary": "Önizleme küçük resimleri: filmler {{movies}} · diziler {{series}}",
-        "summaryNoKeep": "Başlarken, saklanmaz"
+        "summaryNoKeep": "Başlarken, saklanmaz",
+        "header": "Filmler: {{movies}} · diziler: {{series}}"
       },
       "delete": {
         "action": "Kitaplığı sil…",
@@ -2010,6 +2020,53 @@
         "jobs": "Göreve git",
         "done": "“{{name}}” kitaplığı silindi.",
         "notDone": "“{{name}}” kitaplığı silinmedi. Nedeni görevde yazıyor."
+      },
+      "form": {
+        "editTitle": "Kitaplığı düzenle",
+        "changed": "değişti",
+        "pathAndContent": "Bu klasörün yolu ve içeriği tek adımda değiştirilemez. Önce birini, sonra diğerini kaydedin.",
+        "pathHint": "Yeni yol, kaydettiğinizde geçerli olur. Dosyalar orada aynı adlarla duruyorsa içerikler ve kullanıcı verileri kalır.",
+        "reloaded": "Kitaplık bu arada başka bir yerde değiştirildi. Form artık kitaplığın güncel durumunu gösteriyor; değişiklikleriniz kaydedilmedi.",
+        "changedElsewhere": "Kitaplık bu arada başka bir yerde değiştirildi. Kaydettiğinizde form kitaplığın güncel durumunu yükler; değişiklikleriniz o zaman kaydedilmez.",
+        "gone": "Bu kitaplık artık yok. Hiçbir şey kaydedilmedi.",
+        "scanRunning": "Kaldırma, içerik değişikliği ve yeni yol, tarama bitene kadar bekler. Girdikleriniz korunur.",
+        "scanCancelled": "Tarama iptal edildi. Şimdi yeniden kaydedin.",
+        "discard": {
+          "title": "Değişikliklerden vazgeçilsin mi?",
+          "body": "{{name}} üzerindeki kaydedilmemiş değişiklikler kaybolur.",
+          "confirm": "Vazgeç",
+          "keep": "Düzenlemeye dön"
+        },
+        "confirm": {
+          "title": "Değişiklikleri onayla",
+          "intro": "Bu değişiklikler ancak burada kaydettiğinizde geçerli olur.",
+          "remove": "Klasörü kaldır: {{path}}",
+          "content": "İçeriği değiştir: {{path}}",
+          "path": "Yolu değiştir: {{path}}",
+          "typeAll": "Her yolu aynen yazdığınızda kaydedebilirsiniz.",
+          "submit": "Kaydet"
+        }
+      },
+      "edit": "Düzenle",
+      "editLabel": "{{name}} kitaplığını düzenle",
+      "noFolderEdit": "Klasör yok: “Düzenle” altında bir klasör ekleyene kadar hiçbir şey taranmaz.",
+      "saved": {
+        "title": "{{name}} kitaplığı kaydedildi.",
+        "name": "Yeni ad: {{name}}",
+        "rating": "Varsayılan seviye: {{rating}}",
+        "added_one": "{{count}} klasör eklendi; tarama sıraya alındı.",
+        "added_other": "{{count}} klasör eklendi; tarama sıraya alındı.",
+        "removed_one": "{{count}} klasör kaldırıldı.",
+        "removed_other": "{{count}} klasör kaldırıldı.",
+        "content_one": "İçeriği değişen {{count}} klasör yeniden okunur.",
+        "content_other": "İçeriği değişen {{count}} klasör yeniden okunur.",
+        "moved_one": "Yolu değişen {{count}} klasör yeniden okunur.",
+        "moved_other": "Yolu değişen {{count}} klasör yeniden okunur.",
+        "providers_one": "{{count}} klasör için yeni kaynaklar: içerikleri yeniden eşleştirilir ya da tamamlanır.",
+        "providers_other": "{{count}} klasör için yeni kaynaklar: içerikleri yeniden eşleştirilir ya da tamamlanır.",
+        "metadata_one": "{{count}} klasörde diller ya da görseller değişti. Siz uyguladığınızda {{titles}} içerik için geçerli olur.",
+        "metadata_other": "{{count}} klasörde diller ya da görseller değişti. Siz uyguladığınızda {{titles}} içerik için geçerli olur.",
+        "dismiss": "Gizle"
       }
     },
     "access": {
@@ -2253,7 +2310,9 @@
         "children": "İçerik",
         "childCounts": "Sezon: {{seasons}} · Bölüm: {{episodes}} · Ekstra: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Ana klasör",
+        "homeRootNone": "Yok, varsayılan geçerli"
       },
       "sources": {
         "title": "Alan başına kaynak",
@@ -4820,7 +4879,13 @@
           "tmdbAdult": "Yetişkin içerikli TMDB",
           "none": "Yalnızca klasörlerin kaynakları"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} video klasörü varsayılanı izliyor",
+        "foldersFollow_other": "{{count}} video klasörü varsayılanı izliyor",
+        "foldersOwn_one": "{{count}} klasörün kendi ayarı var",
+        "foldersOwn_other": "{{count}} klasörün kendi ayarı var"
       },
       "default": "Varsayılan",
       "languages": {
@@ -4902,7 +4967,8 @@
         "texts": "Yalnızca metinler",
         "images": "Yalnızca görseller",
         "where": "Nerede",
-        "all": "Tüm kitaplıklar",
+        "all": "Tüm klasörler",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} içerik",
         "titles_other": "{{count}} içerik",
         "run": "Şimdi uygula",
@@ -4929,6 +4995,29 @@
         "chain_duplicate": "Her dil yalnızca bir kez.",
         "country_unknown": "Bilinmeyen ülke.",
         "source_unknown": "Bu görsel kaynağı, bu içerik için önerilen kaynaklar arasında değil."
+      },
+      "introDefault": "Kendi ayarı olmayan her klasör için geçerlidir. Bir klasörün kendi dillerini ve görsellerini, kitaplığının “Düzenle” bölümünde ayarlarsınız.",
+      "changed": "değişti",
+      "folders": {
+        "title": "Klasörler",
+        "intro": "Her video klasörü, kendi dilleri ya da görselleri olana kadar varsayılanı izler. Bunları kitaplığının “Düzenle” bölümünde ayarlarsınız.",
+        "empty": "Henüz video klasörü yok.",
+        "audio": "Sesli kitap ve podcast klasörlerinin kendi dilleri ve görselleri yoktur. Sesli kitap kaynakları “Sesli kitaplar: kaynaklar” altındadır.",
+        "openLabel": "{{name}} kitaplığını düzenle, klasör {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Diller: varsayılan",
+        "langsOwn": "Diller: {{chain}}",
+        "imagesDefault": "Görseller: varsayılan",
+        "imagesOwn": "Görseller: özel",
+        "likeDefault": "Varsayılan gibi",
+        "own": "Özel",
+        "defaultIs": "Varsayılan: {{value}}",
+        "imagesDefaultIs": "Varsayılan: {{kinds}}. Görsel türü başına dil: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Yalnızca bu klasör için geçerlidir.",
+        "cost": "Her ek dil, uygulanırken bu klasördeki içerik ve sezon başına bir istek daha demektir.",
+        "always": "Slouchcat afişi ve arka planı her zaman getirir."
       }
     },
     "activity": {
@@ -4966,6 +5055,7 @@
       "intro": "Slouchcat’in sesli kitaplar için ayrıntıları ve kapakları nereden aldığı. Dosyalar her zaman önce gelir; sağlayıcı yalnızca eksik olanı doldurur, kilitli bir alanı asla.",
       "folders": {
         "title": "Klasör başına sıra",
+        "intro": "Her alanda üstteki kaynak kazanır. Sırayı ve hangi kaynakların katılacağını kitaplığın “Düzenle” bölümünde değiştirirsiniz.",
         "empty": "Henüz sesli kitap klasörü yok.",
         "edit": "Kaynakları değiştir",
         "editLabel": "{{path}} kaynaklarını değiştir",

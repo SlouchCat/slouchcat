@@ -220,7 +220,9 @@
       "files_not_deletable": "此作品的某个文件无法删除。未删除任何内容。",
       "not_deletable": "此作品无法删除。",
       "deleting": "正在删除。",
-      "changed": "内容在此期间有变化，请重新检查。"
+      "changed": "内容在此期间有变化，请重新检查。",
+      "stale": "媒体库在此期间已在别处被更改。请重新加载后再保存一次。",
+      "root_unlisted": "请求中缺少媒体库的一个文件夹。请重新加载媒体库；未移除任何内容。"
     },
     "field": {
       "required": "必填。",
@@ -243,6 +245,7 @@
       "root_overlap": "此文件夹与另一个文件夹重叠。",
       "path_with_content": "新路径不能与内容类型更改同时进行。",
       "root_files_missing": "新路径下找不到该文件夹原有的任何文件。",
+      "confirm_mismatch": "路径与文件夹的路径不符。未更改任何内容。",
       "content_not_allowed": "此内容与媒体库类型不符。",
       "providers_not_allowed": "此内容不允许使用这组元数据来源。",
       "roots_required": "至少需要一个文件夹。",
@@ -539,7 +542,11 @@
       "overlap": "文件夹 {{number}} 与上方的某个文件夹重叠。",
       "providers": "文件夹 {{number}}：{{message}}",
       "submit_other": "添加媒体库（{{count}} 个文件夹）",
-      "submitNone": "添加媒体库（无文件夹）"
+      "submitNone": "添加媒体库（无文件夹）",
+      "marked": "保存时将移除。届时需输入路径确认。",
+      "undo": "撤销",
+      "undoLabel": "撤销移除文件夹 {{number}}",
+      "removeStored": "移除文件夹…"
     },
     "videoHint": "此媒体库的文件夹可以包含电影或剧集，也可以混合存放。",
     "page": {
@@ -595,7 +602,8 @@
     "notFound": {
       "title": "未找到媒体库",
       "body": "此媒体库不存在，或没有适合此个人资料的作品。"
-    }
+    },
+    "kindFixed": "媒体库创建后，类型不能再更改。"
   },
   "home": {
     "list": {
@@ -1933,10 +1941,12 @@
         "generate": {
           "action": "立即生成",
           "hint": "为所有设为“提前生成”的媒体库补建缺失的预览，与“后台任务”中的“补建拖动预览”相同。",
-          "queued": "补建预览已排队。"
+          "queued": "补建预览已排队。",
+          "unsaved": "需先保存：生成时使用已保存的设置。"
         },
         "summary": "拖动预览：电影 {{movies}} · 剧集 {{series}}",
-        "summaryNoKeep": "播放时生成，不保留"
+        "summaryNoKeep": "播放时生成，不保留",
+        "header": "电影：{{movies}} · 剧集：{{series}}"
       },
       "delete": {
         "action": "删除媒体库…",
@@ -1952,6 +1962,47 @@
         "jobs": "前往任务",
         "done": "已删除媒体库“{{name}}”。",
         "notDone": "媒体库“{{name}}”未被删除。原因请查看任务。"
+      },
+      "form": {
+        "editTitle": "编辑媒体库",
+        "changed": "已更改",
+        "pathAndContent": "此文件夹的路径和内容类型不能一次更改。请先保存其中一项，再更改另一项。",
+        "pathHint": "新路径在保存后生效。如果文件在新路径下的名称相同，作品和用户数据都会保留。",
+        "reloaded": "媒体库在此期间已在别处被更改。表单现在显示其最新状态；你的更改未保存。",
+        "changedElsewhere": "媒体库在此期间已在别处被更改。保存时表单会载入其最新状态，你的更改将不会保存。",
+        "gone": "此媒体库已不存在。未保存任何内容。",
+        "scanRunning": "移除、更改内容类型和新路径将等到扫描完成后进行。你的输入会保留。",
+        "scanCancelled": "扫描已取消。请现在重新保存。",
+        "discard": {
+          "title": "要放弃更改吗？",
+          "body": "对 {{name}} 未保存的更改将丢失。",
+          "confirm": "放弃",
+          "keep": "继续编辑"
+        },
+        "confirm": {
+          "title": "确认更改",
+          "intro": "这些更改只有在此处保存后才会生效。",
+          "remove": "移除文件夹：{{path}}",
+          "content": "更改内容类型：{{path}}",
+          "path": "更改路径：{{path}}",
+          "typeAll": "准确输入每个路径后即可保存。",
+          "submit": "保存"
+        }
+      },
+      "edit": "编辑",
+      "editLabel": "编辑 {{name}}",
+      "noFolderEdit": "无文件夹：在“编辑”中添加文件夹之前，不会扫描任何内容。",
+      "saved": {
+        "title": "媒体库 {{name}} 已保存。",
+        "name": "新名称：{{name}}",
+        "rating": "默认级别：{{rating}}",
+        "added_other": "已添加 {{count}} 个文件夹；扫描已排队。",
+        "removed_other": "已移除 {{count}} 个文件夹。",
+        "content_other": "{{count}} 个文件夹的内容类型已更改，将重新读取。",
+        "moved_other": "{{count}} 个文件夹的路径已更改，将重新读取。",
+        "providers_other": "{{count}} 个文件夹有新的来源：其作品将重新匹配或补全。",
+        "metadata_other": "{{count}} 个文件夹的语言或图片已更改。应用后将作用于 {{titles}} 部作品。",
+        "dismiss": "隐藏"
       }
     },
     "access": {
@@ -2163,7 +2214,9 @@
         "children": "内容",
         "childCounts": "季：{{seasons}} · 单集：{{episodes}} · 花絮：{{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "所属文件夹",
+        "homeRootNone": "无，使用默认设置"
       },
       "sources": {
         "title": "各字段来源",
@@ -4655,7 +4708,11 @@
           "tmdbAdult": "TMDB（含成人内容）",
           "none": "仅文件夹的来源"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}，{{own}}",
+        "foldersFollow_other": "{{count}} 个视频文件夹沿用默认",
+        "foldersOwn_other": "{{count}} 个自定义"
       },
       "default": "默认",
       "languages": {
@@ -4736,7 +4793,8 @@
         "texts": "仅文本",
         "images": "仅图片",
         "where": "范围",
-        "all": "所有媒体库",
+        "all": "所有文件夹",
+        "folder": "{{library}}：{{path}}",
         "titles_other": "{{count}} 部作品",
         "run": "立即应用",
         "running": "正在排队…",
@@ -4761,6 +4819,29 @@
         "chain_duplicate": "每种语言只能出现一次。",
         "country_unknown": "未知的国家。",
         "source_unknown": "此图片来源不是该作品的候选来源。"
+      },
+      "introDefault": "适用于所有没有单独设置的文件夹。文件夹自己的语言和图片在其媒体库的“编辑”中设置。",
+      "changed": "已更改",
+      "folders": {
+        "title": "文件夹",
+        "intro": "每个视频文件夹都沿用默认设置，直到它有自己的语言或图片。可在其媒体库的“编辑”中设置。",
+        "empty": "还没有视频文件夹。",
+        "audio": "有声书和播客文件夹没有单独的语言和图片设置。有声书的来源在“有声书：来源”中。",
+        "openLabel": "编辑 {{name}}，文件夹 {{path}}"
+      },
+      "folder": {
+        "langsDefault": "语言：默认",
+        "langsOwn": "语言：{{chain}}",
+        "imagesDefault": "图片：默认",
+        "imagesOwn": "图片：自定义",
+        "likeDefault": "与默认相同",
+        "own": "自定义",
+        "defaultIs": "默认：{{value}}",
+        "imagesDefaultIs": "默认：{{kinds}}。各图片类型的语言：{{chains}}。",
+        "imageChain": "{{kind}}：{{chain}}",
+        "onlyHere": "仅适用于此文件夹。",
+        "cost": "应用时，每增加一种语言，此文件夹的每部作品和每一季就多一次请求。",
+        "always": "Slouchcat 始终获取海报和背景图。"
       }
     },
     "activity": {
@@ -4794,6 +4875,7 @@
       "intro": "Slouchcat 从何处获取有声书的信息和封面。文件始终优先；提供商只补充缺失的内容，且从不覆盖已锁定的字段。",
       "folders": {
         "title": "各文件夹的顺序",
+        "intro": "每个字段以上方的来源为准。来源的顺序以及启用哪些来源，可在媒体库的“编辑”中更改。",
         "empty": "还没有有声书文件夹。",
         "edit": "更改来源",
         "editLabel": "更改 {{path}} 的来源",

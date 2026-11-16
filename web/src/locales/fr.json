@@ -228,7 +228,9 @@
       "files_not_deletable": "Un fichier du titre ne peut pas être supprimé. Rien n’a été supprimé.",
       "not_deletable": "Ce titre ne peut pas être supprimé.",
       "deleting": "Suppression en cours.",
-      "changed": "Quelque chose a changé entre-temps, veuillez vérifier de nouveau."
+      "changed": "Quelque chose a changé entre-temps, veuillez vérifier de nouveau.",
+      "stale": "La bibliothèque a été modifiée entre-temps ailleurs. Rechargez-la et enregistrez à nouveau.",
+      "root_unlisted": "Un dossier de la bibliothèque manque dans la demande. Rechargez la bibliothèque ; rien n’a été supprimé."
     },
     "field": {
       "required": "Obligatoire.",
@@ -251,6 +253,7 @@
       "root_overlap": "Ce dossier chevauche un autre dossier.",
       "path_with_content": "Un nouveau chemin ne peut pas être combiné avec un changement de contenu.",
       "root_files_missing": "Aucun des fichiers du dossier ne se trouve sous le nouveau chemin.",
+      "confirm_mismatch": "Le chemin ne correspond pas à celui du dossier. Rien n’a été modifié.",
       "content_not_allowed": "Ce contenu ne correspond pas au type de la bibliothèque.",
       "providers_not_allowed": "Cette liste de sources de métadonnées n’est pas autorisée pour ce contenu.",
       "roots_required": "Au moins un dossier est requis.",
@@ -565,7 +568,11 @@
       "submit_one": "Ajouter la bibliothèque avec {{count}} dossier",
       "submit_many": "Ajouter la bibliothèque avec {{count}} de dossiers",
       "submit_other": "Ajouter la bibliothèque avec {{count}} dossiers",
-      "submitNone": "Ajouter la bibliothèque sans dossier"
+      "submitNone": "Ajouter la bibliothèque sans dossier",
+      "marked": "Sera supprimé à l’enregistrement. Vous confirmerez alors avec le chemin.",
+      "undo": "Annuler",
+      "undoLabel": "Annuler la suppression du dossier {{number}}",
+      "removeStored": "Supprimer le dossier…"
     },
     "videoHint": "Les dossiers de cette bibliothèque peuvent contenir des films ou des séries, y compris mélangés.",
     "page": {
@@ -629,7 +636,8 @@
     "notFound": {
       "title": "Bibliothèque introuvable",
       "body": "Cette bibliothèque n’existe pas ou ne contient aucun titre pour ce profil."
-    }
+    },
+    "kindFixed": "Le type est figé une fois la bibliothèque créée."
   },
   "home": {
     "list": {
@@ -2047,10 +2055,12 @@
         "generate": {
           "action": "Générer maintenant",
           "hint": "Rattrape les aperçus manquants de toutes les bibliothèques réglées sur « À l’avance », comme « Rattraper les vignettes d’aperçu » dans « Tâches en arrière-plan ».",
-          "queued": "Le rattrapage des aperçus est en attente."
+          "queued": "Le rattrapage des aperçus est en attente.",
+          "unsaved": "Seulement après l’enregistrement : la génération utilise le réglage enregistré."
         },
         "summary": "Vignettes d’aperçu : films {{movies}} · séries {{series}}",
-        "summaryNoKeep": "Au lancement, sans conservation"
+        "summaryNoKeep": "Au lancement, sans conservation",
+        "header": "Films : {{movies}} · séries : {{series}}"
       },
       "delete": {
         "action": "Supprimer la bibliothèque…",
@@ -2068,6 +2078,59 @@
         "jobs": "Aller à la tâche",
         "done": "Bibliothèque « {{name}} » supprimée.",
         "notDone": "La bibliothèque « {{name}} » n’a pas été supprimée. La tâche en indique la raison."
+      },
+      "form": {
+        "editTitle": "Modifier la bibliothèque",
+        "changed": "modifié",
+        "pathAndContent": "Le chemin et le contenu de ce dossier ne peuvent pas changer en une seule fois. Enregistrez d’abord l’un, puis l’autre.",
+        "pathHint": "Le nouveau chemin s’applique après l’enregistrement. Les titres et les données des profils sont conservés si les fichiers s’y trouvent sous les mêmes noms.",
+        "reloaded": "La bibliothèque a été modifiée entre-temps ailleurs. Le formulaire affiche maintenant son nouvel état ; vos modifications n’ont pas été enregistrées.",
+        "changedElsewhere": "La bibliothèque a été modifiée entre-temps ailleurs. L’enregistrement charge son nouvel état dans le formulaire ; vos modifications ne sont alors pas enregistrées.",
+        "gone": "Cette bibliothèque n’existe plus. Rien n’a été enregistré.",
+        "scanRunning": "La suppression, un autre contenu et un nouveau chemin attendent la fin de l’analyse. Votre saisie est conservée.",
+        "scanCancelled": "L’analyse est annulée. Enregistrez à nouveau.",
+        "discard": {
+          "title": "Abandonner les modifications ?",
+          "body": "Les modifications non enregistrées de la bibliothèque {{name}} seront perdues.",
+          "confirm": "Abandonner",
+          "keep": "Continuer à modifier"
+        },
+        "confirm": {
+          "title": "Confirmer les modifications",
+          "intro": "Ces modifications ne prennent effet que si vous enregistrez ici.",
+          "remove": "Supprimer le dossier : {{path}}",
+          "content": "Changer le contenu : {{path}}",
+          "path": "Changer le chemin : {{path}}",
+          "typeAll": "Vous pourrez enregistrer dès que chaque chemin sera saisi exactement.",
+          "submit": "Enregistrer"
+        }
+      },
+      "edit": "Modifier",
+      "editLabel": "Modifier {{name}}",
+      "noFolderEdit": "Aucun dossier : rien n’est analysé tant que vous n’en ajoutez pas un sous « Modifier ».",
+      "saved": {
+        "title": "La bibliothèque {{name}} est enregistrée.",
+        "name": "Nouveau nom : {{name}}",
+        "rating": "Classification par défaut : {{rating}}",
+        "added_one": "{{count}} dossier ajouté ; l’analyse est en file d’attente.",
+        "added_many": "{{count}} de dossiers ajoutés ; l’analyse est en file d’attente.",
+        "added_other": "{{count}} dossiers ajoutés ; l’analyse est en file d’attente.",
+        "removed_one": "{{count}} dossier supprimé.",
+        "removed_many": "{{count}} de dossiers supprimés.",
+        "removed_other": "{{count}} dossiers supprimés.",
+        "content_one": "{{count}} dossier au contenu différent est relu.",
+        "content_many": "{{count}} de dossiers au contenu différent sont relus.",
+        "content_other": "{{count}} dossiers au contenu différent sont relus.",
+        "moved_one": "{{count}} dossier avec un nouveau chemin est relu.",
+        "moved_many": "{{count}} de dossiers avec un nouveau chemin sont relus.",
+        "moved_other": "{{count}} dossiers avec un nouveau chemin sont relus.",
+        "providers_one": "Nouvelles sources pour {{count}} dossier : ses titres sont de nouveau associés ou complétés.",
+        "providers_many": "Nouvelles sources pour {{count}} de dossiers : leurs titres sont de nouveau associés ou complétés.",
+        "providers_other": "Nouvelles sources pour {{count}} dossiers : leurs titres sont de nouveau associés ou complétés.",
+        "metadata_one": "Langues ou images modifiées pour {{count}} dossier. Elles s’appliquent à {{titles}} titres dès que vous les appliquez.",
+        "metadata_many": "Langues ou images modifiées pour {{count}} de dossiers. Elles s’appliquent à {{titles}} titres dès que vous les appliquez.",
+        "metadata_other": "Langues ou images modifiées pour {{count}} dossiers. Elles s’appliquent à {{titles}} titres dès que vous les appliquez.",
+        "dismiss": "Masquer"
       }
     },
     "access": {
@@ -2343,7 +2406,9 @@
         "children": "Contenu",
         "childCounts": "Saisons : {{seasons}} · Épisodes : {{episodes}} · Bonus : {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Dossier d’accueil",
+        "homeRootNone": "Aucun, le défaut s’applique"
       },
       "sources": {
         "title": "Source par champ",
@@ -4985,7 +5050,15 @@
           "tmdbAdult": "TMDB avec contenus pour adultes",
           "none": "Uniquement les sources des dossiers"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} dossier vidéo suit le défaut",
+        "foldersFollow_many": "{{count}} de dossiers vidéo suivent le défaut",
+        "foldersFollow_other": "{{count}} dossiers vidéo suivent le défaut",
+        "foldersOwn_one": "{{count}} personnalisé",
+        "foldersOwn_many": "{{count}} personnalisés",
+        "foldersOwn_other": "{{count}} personnalisés"
       },
       "default": "Par défaut",
       "languages": {
@@ -5068,7 +5141,8 @@
         "texts": "Textes uniquement",
         "images": "Images uniquement",
         "where": "Où",
-        "all": "Toutes les bibliothèques",
+        "all": "Tous les dossiers",
+        "folder": "{{library}} : {{path}}",
         "titles_one": "{{count}} titre",
         "titles_many": "{{count}} de titres",
         "titles_other": "{{count}} titres",
@@ -5097,6 +5171,29 @@
         "chain_duplicate": "Chaque langue une seule fois.",
         "country_unknown": "Pays inconnu.",
         "source_unknown": "Cette source d’images n’est pas un candidat du titre."
+      },
+      "introDefault": "S’applique à chaque dossier sans réglage propre. Les langues et images propres d’un dossier se définissent sous « Modifier » de sa bibliothèque.",
+      "changed": "modifié",
+      "folders": {
+        "title": "Dossiers",
+        "intro": "Chaque dossier vidéo suit le défaut tant qu’il n’a pas de langues ou d’images propres. Vous les définissez sous « Modifier » de sa bibliothèque.",
+        "empty": "Aucun dossier vidéo pour l’instant.",
+        "audio": "Les dossiers de livres audio et de podcasts n’ont pas de langues ni d’images propres. Les sources des livres audio se trouvent sous « Livres audio : sources ».",
+        "openLabel": "Modifier {{name}}, dossier {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Langues : par défaut",
+        "langsOwn": "Langues : {{chain}}",
+        "imagesDefault": "Images : par défaut",
+        "imagesOwn": "Images : personnalisées",
+        "likeDefault": "Comme par défaut",
+        "own": "Personnalisé",
+        "defaultIs": "Par défaut : {{value}}",
+        "imagesDefaultIs": "Par défaut : {{kinds}}. Langue par type d’image : {{chains}}.",
+        "imageChain": "{{kind}} : {{chain}}",
+        "onlyHere": "S’applique uniquement à ce dossier.",
+        "cost": "Chaque langue supplémentaire coûte une requête par titre et par saison de ce dossier lors de l’application.",
+        "always": "Slouchcat récupère toujours l’affiche et l’image de fond."
       }
     },
     "activity": {
@@ -5138,6 +5235,7 @@
       "intro": "D’où Slouchcat tire les infos et les couvertures des livres audio. Les fichiers passent toujours en premier ; un fournisseur ne complète que ce qui manque, et jamais un champ verrouillé.",
       "folders": {
         "title": "Ordre par dossier",
+        "intro": "La source du haut l’emporte pour chaque champ. Vous modifiez l’ordre et les sources utilisées sous « Modifier » de la bibliothèque.",
         "empty": "Il n’y a pas encore de dossier de livres audio.",
         "edit": "Modifier les sources",
         "editLabel": "Modifier les sources de {{path}}",

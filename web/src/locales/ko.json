@@ -220,7 +220,9 @@
       "files_not_deletable": "작품의 파일 중 하나를 삭제할 수 없어요. 아무것도 삭제하지 않았어요.",
       "not_deletable": "삭제할 수 없는 작품이에요.",
       "deleting": "지금 삭제하는 중이에요.",
-      "changed": "그사이 변경된 내용이 있어요. 다시 확인하세요."
+      "changed": "그사이 변경된 내용이 있어요. 다시 확인하세요.",
+      "stale": "그사이 다른 곳에서 라이브러리가 변경됐어요. 다시 불러온 뒤 한 번 더 저장하세요.",
+      "root_unlisted": "요청에 라이브러리 폴더 하나가 빠져 있어요. 라이브러리를 다시 불러오세요. 아무것도 제거하지 않았어요."
     },
     "field": {
       "required": "필수 항목이에요.",
@@ -243,6 +245,7 @@
       "root_overlap": "다른 폴더와 겹치는 폴더예요.",
       "path_with_content": "새 경로와 콘텐츠 변경을 함께 할 수 없어요.",
       "root_files_missing": "새 경로 아래에 기존 파일이 하나도 없어요.",
+      "confirm_mismatch": "경로가 폴더의 경로와 일치하지 않아요. 아무것도 변경하지 않았어요.",
       "content_not_allowed": "이 콘텐츠는 라이브러리 유형에 맞지 않아요.",
       "providers_not_allowed": "이 콘텐츠에는 허용되지 않는 메타데이터 소스 목록이에요.",
       "roots_required": "폴더가 하나 이상 필요해요.",
@@ -539,7 +542,11 @@
       "overlap": "폴더 {{number}}이(가) 위쪽 폴더와 겹쳐요.",
       "providers": "폴더 {{number}}: {{message}}",
       "submit_other": "폴더 {{count}}개로 라이브러리 추가",
-      "submitNone": "폴더 없이 라이브러리 추가"
+      "submitNone": "폴더 없이 라이브러리 추가",
+      "marked": "저장하면 제거돼요. 그때 경로를 입력해 확인해요.",
+      "undo": "실행 취소",
+      "undoLabel": "폴더 {{number}} 제거 취소",
+      "removeStored": "폴더 제거…"
     },
     "videoHint": "이 라이브러리의 폴더에는 영화나 시리즈를 넣을 수 있고, 섞어서 넣어도 돼요.",
     "page": {
@@ -595,7 +602,8 @@
     "notFound": {
       "title": "라이브러리를 찾을 수 없어요",
       "body": "존재하지 않는 라이브러리이거나 이 프로필에서 볼 수 있는 작품이 없어요."
-    }
+    },
+    "kindFixed": "라이브러리를 만든 뒤에는 종류를 바꿀 수 없어요."
   },
   "home": {
     "list": {
@@ -1933,10 +1941,12 @@
         "generate": {
           "action": "지금 생성",
           "hint": "“미리 생성”으로 설정한 모든 라이브러리의 빠진 미리보기를 보충해요. “백그라운드 작업”의 “탐색 미리보기 보충”과 같아요.",
-          "queued": "미리보기 보충을 대기열에 넣었어요."
+          "queued": "미리보기 보충을 대기열에 넣었어요.",
+          "unsaved": "저장한 뒤에 할 수 있어요. 생성에는 저장된 설정이 쓰여요."
         },
         "summary": "탐색 미리보기: 영화 {{movies}} · 시리즈 {{series}}",
-        "summaryNoKeep": "재생 시 생성, 보관 안 함"
+        "summaryNoKeep": "재생 시 생성, 보관 안 함",
+        "header": "영화: {{movies}} · 시리즈: {{series}}"
       },
       "delete": {
         "action": "라이브러리 삭제…",
@@ -1952,6 +1962,47 @@
         "jobs": "작업으로 이동",
         "done": "“{{name}}” 라이브러리를 삭제했어요.",
         "notDone": "“{{name}}” 라이브러리를 삭제하지 못했어요. 이유는 작업에서 확인하세요."
+      },
+      "form": {
+        "editTitle": "라이브러리 편집",
+        "changed": "변경됨",
+        "pathAndContent": "이 폴더의 경로와 콘텐츠는 한 번에 바꿀 수 없어요. 하나를 먼저 저장한 뒤 다른 하나를 바꾸세요.",
+        "pathHint": "새 경로는 저장하면 적용돼요. 파일이 같은 이름으로 그곳에 있으면 작품과 사용자 데이터는 그대로 남아요.",
+        "reloaded": "그사이 다른 곳에서 라이브러리가 변경됐어요. 이제 양식에 새 상태가 표시돼요. 변경 사항은 저장되지 않았어요.",
+        "changedElsewhere": "그사이 다른 곳에서 라이브러리가 변경됐어요. 저장하면 양식에 새 상태를 불러오며, 이때 변경 사항은 저장되지 않아요.",
+        "gone": "이 라이브러리는 더 이상 없어요. 아무것도 저장하지 않았어요.",
+        "scanRunning": "제거, 콘텐츠 변경, 새 경로는 스캔이 끝날 때까지 기다려요. 입력한 내용은 그대로 남아요.",
+        "scanCancelled": "스캔이 취소됐어요. 지금 다시 저장하세요.",
+        "discard": {
+          "title": "변경 사항을 버릴까요?",
+          "body": "{{name}}의 저장하지 않은 변경 사항이 사라져요.",
+          "confirm": "버리기",
+          "keep": "계속 편집"
+        },
+        "confirm": {
+          "title": "변경 사항 확인",
+          "intro": "이 변경 사항은 여기서 저장해야 적용돼요.",
+          "remove": "폴더 제거: {{path}}",
+          "content": "콘텐츠 변경: {{path}}",
+          "path": "경로 변경: {{path}}",
+          "typeAll": "모든 경로를 정확히 입력하면 저장할 수 있어요.",
+          "submit": "저장"
+        }
+      },
+      "edit": "편집",
+      "editLabel": "{{name}} 편집",
+      "noFolderEdit": "폴더 없음: “편집”에서 폴더를 추가할 때까지 아무것도 스캔하지 않아요.",
+      "saved": {
+        "title": "{{name}} 라이브러리를 저장했어요.",
+        "name": "새 이름: {{name}}",
+        "rating": "기본 등급: {{rating}}",
+        "added_other": "폴더 {{count}}개를 추가했어요. 스캔이 대기 중이에요.",
+        "removed_other": "폴더 {{count}}개를 제거했어요.",
+        "content_other": "콘텐츠가 바뀐 폴더 {{count}}개를 다시 읽어요.",
+        "moved_other": "경로가 바뀐 폴더 {{count}}개를 다시 읽어요.",
+        "providers_other": "폴더 {{count}}개의 소스가 바뀌었어요. 작품을 다시 매칭하거나 채워요.",
+        "metadata_other": "폴더 {{count}}개의 언어 또는 이미지가 바뀌었어요. 적용하면 작품 {{titles}}개에 반영돼요.",
+        "dismiss": "숨기기"
       }
     },
     "access": {
@@ -2163,7 +2214,9 @@
         "children": "콘텐츠",
         "childCounts": "시즌: {{seasons}} · 회차: {{episodes}} · 부가 영상: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}~{{to}}"
+        "episodeRange": "{{from}}~{{to}}",
+        "homeRoot": "소속 폴더",
+        "homeRootNone": "없음, 기본값 적용"
       },
       "sources": {
         "title": "항목별 출처",
@@ -4655,7 +4708,11 @@
           "tmdbAdult": "TMDB 성인 콘텐츠 포함",
           "none": "폴더의 소스만"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_other": "동영상 폴더 {{count}}개는 기본값을 따름",
+        "foldersOwn_other": "{{count}}개는 직접 설정"
       },
       "default": "기본값",
       "languages": {
@@ -4736,7 +4793,8 @@
         "texts": "텍스트만",
         "images": "이미지만",
         "where": "범위",
-        "all": "모든 라이브러리",
+        "all": "모든 폴더",
+        "folder": "{{library}}: {{path}}",
         "titles_other": "작품 {{count}}개",
         "run": "지금 적용",
         "running": "대기열에 넣는 중…",
@@ -4761,6 +4819,29 @@
         "chain_duplicate": "각 언어는 한 번만 넣을 수 있어요.",
         "country_unknown": "알 수 없는 국가예요.",
         "source_unknown": "이 작품의 후보가 아닌 이미지 소스예요."
+      },
+      "introDefault": "자체 설정이 없는 모든 폴더에 적용돼요. 폴더별 언어와 이미지는 해당 라이브러리의 “편집”에서 설정해요.",
+      "changed": "변경됨",
+      "folders": {
+        "title": "폴더",
+        "intro": "동영상 폴더는 자체 언어나 이미지를 갖기 전까지 기본값을 따라요. 해당 라이브러리의 “편집”에서 설정해요.",
+        "empty": "아직 동영상 폴더가 없어요.",
+        "audio": "오디오북 및 팟캐스트 폴더에는 자체 언어와 이미지가 없어요. 오디오북 소스는 “오디오북: 소스”에 있어요.",
+        "openLabel": "{{name}} 편집, 폴더 {{path}}"
+      },
+      "folder": {
+        "langsDefault": "언어: 기본값",
+        "langsOwn": "언어: {{chain}}",
+        "imagesDefault": "이미지: 기본값",
+        "imagesOwn": "이미지: 직접 설정",
+        "likeDefault": "기본값과 같음",
+        "own": "직접 설정",
+        "defaultIs": "기본값: {{value}}",
+        "imagesDefaultIs": "기본값: {{kinds}}. 이미지 종류별 언어: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "이 폴더에만 적용돼요.",
+        "cost": "언어를 하나 더 추가할 때마다 적용 시 이 폴더의 작품과 시즌당 요청이 한 번씩 늘어나요.",
+        "always": "Slouchcat은 포스터와 배경 이미지를 항상 가져와요."
       }
     },
     "activity": {
@@ -4794,6 +4875,7 @@
       "intro": "Slouchcat이 오디오북의 정보와 표지를 가져오는 곳이에요. 항상 파일이 우선하며, 제공자는 없는 정보만 채우고 잠긴 항목은 채우지 않아요.",
       "folders": {
         "title": "폴더별 순서",
+        "intro": "필드마다 위쪽 소스가 우선해요. 순서와 사용할 소스는 라이브러리의 “편집”에서 바꿔요.",
         "empty": "아직 오디오북 폴더가 없어요.",
         "edit": "소스 변경",
         "editLabel": "{{path}}의 소스 변경",

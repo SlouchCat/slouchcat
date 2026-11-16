@@ -224,7 +224,9 @@
       "files_not_deletable": "Nimikkeen tiedostoa ei voi poistaa. Mitään ei poistettu.",
       "not_deletable": "Tätä nimikettä ei voi poistaa.",
       "deleting": "Tätä poistetaan parhaillaan.",
-      "changed": "Jokin muuttui sillä välin. Tarkista uudelleen."
+      "changed": "Jokin muuttui sillä välin. Tarkista uudelleen.",
+      "stale": "Kirjastoa on muutettu sillä välin muualla. Lataa kirjasto uudelleen ja tallenna vielä kerran.",
+      "root_unlisted": "Kirjaston kansio puuttuu pyynnöstä. Lataa kirjasto uudelleen; mitään ei poistettu."
     },
     "field": {
       "required": "Pakollinen.",
@@ -247,6 +249,7 @@
       "root_overlap": "Kansio on päällekkäinen toisen kansion kanssa.",
       "path_with_content": "Uutta polkua ei voi yhdistää sisällön muutokseen.",
       "root_files_missing": "Mikään kansion tiedosto ei ole uuden polun alla.",
+      "confirm_mismatch": "Polku ei vastaa kansion polkua. Mitään ei muutettu.",
       "content_not_allowed": "Tämä sisältö ei sovi kirjaston tyyppiin.",
       "providers_not_allowed": "Tämä metatietolähteiden lista ei ole sallittu tälle sisällölle.",
       "roots_required": "Vähintään yksi kansio vaaditaan.",
@@ -552,7 +555,11 @@
       "providers": "Kansio {{number}}: {{message}}",
       "submit_one": "Lisää kirjasto, {{count}} kansio",
       "submit_other": "Lisää kirjasto, {{count}} kansiota",
-      "submitNone": "Lisää kirjasto ilman kansioita"
+      "submitNone": "Lisää kirjasto ilman kansioita",
+      "marked": "Poistetaan tallennettaessa. Vahvista poisto sen jälkeen polulla.",
+      "undo": "Kumoa",
+      "undoLabel": "Kumoa kansion {{number}} poisto",
+      "removeStored": "Poista kansio …"
     },
     "videoHint": "Tämän kirjaston kansioissa voi olla elokuvia tai sarjoja, myös sekaisin.",
     "page": {
@@ -612,7 +619,8 @@
     "notFound": {
       "title": "Kirjastoa ei löytynyt",
       "body": "Kirjastoa ei ole tai siinä ei ole nimikkeitä tälle profiilille."
-    }
+    },
+    "kindFixed": "Tyyppi lukitaan, kun kirjasto on luotu."
   },
   "home": {
     "list": {
@@ -1990,10 +1998,12 @@
         "generate": {
           "action": "Luo nyt",
           "hint": "Täydentää puuttuvat esikatselut jokaisesta kirjastosta, jonka tila on ”Etukäteen”, kuten ”Täydennä esikatselukuvat” kohdassa ”Taustatyöt”.",
-          "queued": "Esikatselujen täydennys on jonossa."
+          "queued": "Esikatselujen täydennys on jonossa.",
+          "unsaved": "Vasta tallennuksen jälkeen: luonti käyttää tallennettua asetusta."
         },
         "summary": "Esikatselukuvat: elokuvat {{movies}} · sarjat {{series}}",
-        "summaryNoKeep": "Aloitettaessa, ei säilytetä"
+        "summaryNoKeep": "Aloitettaessa, ei säilytetä",
+        "header": "Elokuvat: {{movies}} · sarjat: {{series}}"
       },
       "delete": {
         "action": "Poista kirjasto…",
@@ -2010,6 +2020,53 @@
         "jobs": "Siirry työhön",
         "done": "Kirjasto ”{{name}}” poistettu.",
         "notDone": "Kirjastoa ”{{name}}” ei poistettu. Työ kertoo syyn."
+      },
+      "form": {
+        "editTitle": "Muokkaa kirjastoa",
+        "changed": "muutettu",
+        "pathAndContent": "Kansion polkua ja sisältöä ei voi muuttaa samalla kertaa. Tallenna ensin toinen, sitten toinen.",
+        "pathHint": "Uusi polku tulee voimaan tallennettaessa. Nimikkeet ja käyttäjätiedot säilyvät, jos tiedostot ovat siellä samoilla nimillä.",
+        "reloaded": "Kirjastoa on muutettu sillä välin muualla. Lomake näyttää nyt sen uuden tilan; muutoksia ei tallennettu.",
+        "changedElsewhere": "Kirjastoa on muutettu sillä välin muualla. Tallennettaessa lomake lataa sen uuden tilan; muutoksia ei silloin tallenneta.",
+        "gone": "Tätä kirjastoa ei enää ole. Mitään ei tallennettu.",
+        "scanRunning": "Poisto, sisällön vaihto ja uusi polku odottavat, kunnes skannaus on valmis. Syöttämäsi tiedot säilyvät.",
+        "scanCancelled": "Skannaus on keskeytetty. Tallenna nyt uudelleen.",
+        "discard": {
+          "title": "Hylätäänkö muutokset?",
+          "body": "Tallentamattomat muutokset kirjastoon {{name}} menetetään.",
+          "confirm": "Hylkää",
+          "keep": "Jatka muokkausta"
+        },
+        "confirm": {
+          "title": "Vahvista muutokset",
+          "intro": "Nämä muutokset tulevat voimaan vasta, kun tallennat tässä.",
+          "remove": "Poista kansio: {{path}}",
+          "content": "Vaihda sisältö: {{path}}",
+          "path": "Vaihda polku: {{path}}",
+          "typeAll": "Tallentaa voi, kun jokainen polku on kirjoitettu täsmälleen.",
+          "submit": "Tallenna"
+        }
+      },
+      "edit": "Muokkaa",
+      "editLabel": "Muokkaa: {{name}}",
+      "noFolderEdit": "Ei kansiota: mitään ei skannata, ennen kuin lisäät sellaisen kohdassa ”Muokkaa”.",
+      "saved": {
+        "title": "Kirjasto {{name}} on tallennettu.",
+        "name": "Uusi nimi: {{name}}",
+        "rating": "Oletusikäraja: {{rating}}",
+        "added_one": "{{count}} kansio lisätty; skannaus on jonossa.",
+        "added_other": "{{count}} kansiota lisätty; skannaus on jonossa.",
+        "removed_one": "{{count}} kansio poistettu.",
+        "removed_other": "{{count}} kansiota poistettu.",
+        "content_one": "{{count}} kansio, jonka sisältö on toinen, luetaan uudelleen.",
+        "content_other": "{{count}} kansiota, joiden sisältö on toinen, luetaan uudelleen.",
+        "moved_one": "{{count}} kansio, jonka polku on uusi, luetaan uudelleen.",
+        "moved_other": "{{count}} kansiota, joiden polku on uusi, luetaan uudelleen.",
+        "providers_one": "Uudet lähteet {{count}} kansiolle: nimikkeet yhdistetään tai täydennetään uudelleen.",
+        "providers_other": "Uudet lähteet {{count}} kansiolle: nimikkeet yhdistetään tai täydennetään uudelleen.",
+        "metadata_one": "Kielet tai kuvat muutettu {{count}} kansiolle. Ne koskevat {{titles}} nimikettä, kun otat ne käyttöön.",
+        "metadata_other": "Kielet tai kuvat muutettu {{count}} kansiolle. Ne koskevat {{titles}} nimikettä, kun otat ne käyttöön.",
+        "dismiss": "Piilota"
       }
     },
     "access": {
@@ -2253,7 +2310,9 @@
         "children": "Sisältö",
         "childCounts": "Kaudet: {{seasons}} · Jaksot: {{episodes}} · Lisämateriaalit: {{extras}}",
         "none": "–",
-        "episodeRange": "{{from}}–{{to}}"
+        "episodeRange": "{{from}}–{{to}}",
+        "homeRoot": "Kotikansio",
+        "homeRootNone": "Ei mitään, oletus on voimassa"
       },
       "sources": {
         "title": "Lähde kenttää kohti",
@@ -4820,7 +4879,13 @@
           "tmdbAdult": "TMDB aikuissisällöllä",
           "none": "Vain kansioiden lähteet"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} videokansio noudattaa oletusta",
+        "foldersFollow_other": "{{count}} videokansiota noudattaa oletusta",
+        "foldersOwn_one": "{{count}} käyttää omia asetuksia",
+        "foldersOwn_other": "{{count}} käyttää omia asetuksia"
       },
       "default": "Oletus",
       "languages": {
@@ -4902,7 +4967,8 @@
         "texts": "Vain tekstit",
         "images": "Vain kuvat",
         "where": "Missä",
-        "all": "Jokainen kirjasto",
+        "all": "Kaikki kansiot",
+        "folder": "{{library}}: {{path}}",
         "titles_one": "{{count}} nimike",
         "titles_other": "{{count}} nimikettä",
         "run": "Ota käyttöön nyt",
@@ -4929,6 +4995,29 @@
         "chain_duplicate": "Jokainen kieli kerran.",
         "country_unknown": "Tuntematon maa.",
         "source_unknown": "Tämä kuvalähde ei ole nimikkeen ehdokas."
+      },
+      "introDefault": "Koskee jokaista kansiota, jolla ei ole omia asetuksia. Kansion omat kielet ja kuvat asetetaan sen kirjaston kohdassa ”Muokkaa”.",
+      "changed": "muutettu",
+      "folders": {
+        "title": "Kansiot",
+        "intro": "Jokainen videokansio noudattaa oletusta, kunnes sillä on omat kielet tai kuvat. Ne asetetaan kansion kirjaston kohdassa ”Muokkaa”.",
+        "empty": "Ei vielä videokansiota.",
+        "audio": "Äänikirjojen ja podcastien kansioilla ei ole omia kieliä eikä kuvia. Äänikirjojen lähteet ovat kohdassa ”Äänikirjat: lähteet”.",
+        "openLabel": "Muokkaa: {{name}}, kansio {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Kielet: oletus",
+        "langsOwn": "Kielet: {{chain}}",
+        "imagesDefault": "Kuvat: oletus",
+        "imagesOwn": "Kuvat: omat",
+        "likeDefault": "Kuten oletus",
+        "own": "Omat",
+        "defaultIs": "Oletus: {{value}}",
+        "imagesDefaultIs": "Oletus: {{kinds}}. Kieli kuvatyypeittäin: {{chains}}.",
+        "imageChain": "{{kind}}: {{chain}}",
+        "onlyHere": "Koskee vain tätä kansiota.",
+        "cost": "Jokainen lisäkieli maksaa käyttöönotettaessa yhden pyynnön kansion jokaista nimikettä ja tuotantokautta kohti.",
+        "always": "Slouchcat hakee aina julisteen ja taustakuvan."
       }
     },
     "activity": {
@@ -4966,6 +5055,7 @@
       "intro": "Mistä Slouchcat saa äänikirjojen tiedot ja kansikuvat. Tiedostot ovat aina ensisijaisia; lähde täydentää vain puuttuvan eikä koskaan lukittua kenttää.",
       "folders": {
         "title": "Järjestys kansioittain",
+        "intro": "Ylin lähde voittaa kentittäin. Järjestyksen ja mukana olevat lähteet muutat kirjaston kohdassa ”Muokkaa”.",
         "empty": "Äänikirjakansiota ei ole vielä.",
         "edit": "Muuta lähteitä",
         "editLabel": "Muuta lähteitä: {{path}}",
