@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Welke talen de metadatabronnen leveren, welke afbeeldingen in welke taal en kwaliteit, en welk land als eerste de leeftijdsclassificatie bepaalt. De standaard geldt voor elke bibliotheek; een bibliotheek mag afwijken voor talen en afbeeldingen.",
       "links": {
         "roots": "De volgorde van de bronnen stel je per map in onder Bibliotheken.",
         "jobs": "De schema’s staan onder Achtergrondtaken.",
@@ -4857,8 +4856,6 @@
         "open": "Bronnen openen"
       },
       "areas": {
-        "label": "Onderdelen",
-        "changed": "Gewijzigd · {{summary}}",
         "quality": "Poster {{poster}}, achtergrond {{backdrop}}",
         "sources": {
           "local": "Lokale bestanden",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Toepassen op bestaande titels",
         "short": "Toepassen",
         "intro": "Nieuwe titels gebruiken de instellingen meteen. Bestaande titels blijven zoals ze zijn totdat je de run start; die verschijnt onder Achtergrondtaken met voortgang, pauzeren en annuleren.",
         "what": "Wat",

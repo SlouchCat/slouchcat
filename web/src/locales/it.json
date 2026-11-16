@@ -5011,7 +5011,6 @@
     },
     "metadata": {
       "title": "Metadati",
-      "intro": "Quali lingue forniscono le fonti di metadati, quali immagini in quale lingua e qualità e quale paese decide per primo la classificazione per età. L’impostazione predefinita vale per ogni libreria; una libreria può discostarsene per lingue e immagini.",
       "links": {
         "roots": "L’ordine delle fonti si imposta per cartella in Librerie.",
         "jobs": "Le pianificazioni si trovano in Attività in background.",
@@ -5023,8 +5022,6 @@
         "open": "Apri le fonti"
       },
       "areas": {
-        "label": "Aree",
-        "changed": "Modificato · {{summary}}",
         "quality": "Locandina {{poster}}, sfondo {{backdrop}}",
         "sources": {
           "local": "File locali",
@@ -5108,7 +5105,6 @@
         }
       },
       "apply": {
-        "title": "Applica ai titoli esistenti",
         "short": "Applica",
         "intro": "I nuovi titoli usano subito le impostazioni. I titoli esistenti restano come sono finché non avvii l’esecuzione; compare in Attività in background con avanzamento, pausa e annullamento.",
         "what": "Cosa",

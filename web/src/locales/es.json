@@ -5011,7 +5011,6 @@
     },
     "metadata": {
       "title": "Metadatos",
-      "intro": "Qué idiomas entregan las fuentes de metadatos, qué imágenes en qué idioma y con qué calidad, y qué país decide primero la clasificación por edades. El valor predeterminado se aplica a todas las bibliotecas; una biblioteca puede diferir en idiomas e imágenes.",
       "links": {
         "roots": "El orden de las fuentes se define por carpeta en Bibliotecas.",
         "jobs": "Las programaciones están en Tareas en segundo plano.",
@@ -5023,8 +5022,6 @@
         "open": "Abrir fuentes"
       },
       "areas": {
-        "label": "Secciones",
-        "changed": "Modificado · {{summary}}",
         "quality": "Póster {{poster}}, fondo {{backdrop}}",
         "sources": {
           "local": "Archivos locales",
@@ -5108,7 +5105,6 @@
         }
       },
       "apply": {
-        "title": "Aplicar a los títulos existentes",
         "short": "Aplicar",
         "intro": "Los títulos nuevos usan los ajustes al instante. Los existentes se quedan como están hasta que inicies la ejecución; aparece en Tareas en segundo plano con progreso, pausa y cancelación.",
         "what": "Qué",

@@ -5011,7 +5011,6 @@
     },
     "metadata": {
       "title": "Metadados",
-      "intro": "Em que idiomas as fontes de metadados fornecem informação, que imagens em que idioma e qualidade, e que país decide primeiro a classificação etária. A predefinição aplica-se a todas as bibliotecas; uma biblioteca pode divergir nos idiomas e nas imagens.",
       "links": {
         "roots": "A ordem das fontes define-se por pasta em Bibliotecas.",
         "jobs": "Os agendamentos estão em Tarefas em segundo plano.",
@@ -5023,8 +5022,6 @@
         "open": "Abrir fontes"
       },
       "areas": {
-        "label": "Áreas",
-        "changed": "Alterado · {{summary}}",
         "quality": "Cartaz {{poster}}, imagem de fundo {{backdrop}}",
         "sources": {
           "local": "Ficheiros locais",
@@ -5108,7 +5105,6 @@
         }
       },
       "apply": {
-        "title": "Aplicar aos títulos existentes",
         "short": "Aplicar",
         "intro": "Os títulos novos usam as definições de imediato. Os títulos existentes mantêm-se até iniciar a execução; esta aparece em Tarefas em segundo plano com progresso, pausa e cancelamento.",
         "what": "O quê",

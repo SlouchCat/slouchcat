@@ -1,20 +1,18 @@
 import type {
   ImageLangs,
   Library,
-  MetadataProviderInfo,
   MetadataSettings,
   MetadataSettingsUpdate,
 } from '@slouchcat/api-client';
-import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getRouteApi } from '@tanstack/react-router';
@@ -39,21 +37,21 @@ import {
   AriaButton,
   CheckboxGroup,
   ConfirmDialog,
-  MasterDetail,
+  DisclosureGroup,
   RadioGroup,
-  RankedChoiceList,
   SaveBar,
   SectionHeader,
   SettingRow,
   StatusRegion,
   Switch,
+  afterDialogsClosed,
+  focusTitleIfLost,
   useDrafts,
-  useSearchSelection,
   useStatusMessage,
   useUnsavedChanges,
-  type MasterDetailItem,
 } from '@/ui/aria';
 import { serviceHref } from './integrations/services';
+import { LibraryFoldersDialog } from './libraries/LibraryFoldersDialog';
 import {
   applyMetadata,
   jobTypesQuery,
@@ -63,6 +61,15 @@ import {
   updateMetadataSettings,
 } from './queries';
 import { ratingCountryOptions, ratingStepsText } from '../shared/choices';
+import {
+  LanguageRanks,
+  chainText,
+  unknownLanguages,
+  useFolderMetadataText,
+  useLanguageName,
+  useListOf,
+  youtubeTitles,
+} from './metadata/languages';
 import styles from './metadata/Metadata.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -82,18 +89,28 @@ type Switchable = (typeof SWITCHABLE)[number];
 const POSTER_WIDTHS = [0, 500, 1000, 1500, 2000] as const;
 const BACKDROP_WIDTHS = [0, 1280, 1920, 3840] as const;
 
-/** The YouTube quota: 10'000 units a day, a search costs 100 (ADR 0006). */
-const YOUTUBE_SEARCHES_PER_DAY = 100;
-
 /** The draft id of the default, the only settings this page edits (concept 24 3.4). */
 const SERVER = 'server';
 
-/** The settings areas of the list (Met-B). */
-const SERVER_AREAS = ['languages', 'images', 'quality', 'sources', 'rating', 'apply'] as const;
-type Area = (typeof SERVER_AREAS)[number];
+/** The fold sections of the page, top to bottom (concept 24 3.4); `?item=` opens one. */
+const SECTIONS = [
+  'languages',
+  'images',
+  'quality',
+  'sources',
+  'rating',
+  'apply',
+  'folders',
+] as const;
+type Section = (typeof SECTIONS)[number];
+const isSection = (value: unknown): value is Section =>
+  typeof value === 'string' && (SECTIONS as readonly string[]).includes(value);
 
 /** The draft of the server default: everything `PUT` takes. */
 type ServerValues = MetadataSettingsUpdate;
+
+/** What «Anwenden» brings to the titles. */
+type ApplyWhat = 'both' | 'texts' | 'images';
 
 /** The image part a page shows: the chains and the switchable kinds. */
 interface ImagesView {
@@ -126,8 +143,8 @@ function serverValues(s: MetadataSettings): ServerValues {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/** The fields of the default that each area edits, for the «geändert» mark in the list. */
-const SERVER_FIELDS: Record<Exclude<Area, 'apply'>, (keyof ServerValues)[]> = {
+/** The fields of the default that each section edits, for its «geändert». */
+const SERVER_FIELDS: Record<Exclude<Section, 'apply' | 'folders'>, (keyof ServerValues)[]> = {
   languages: ['textLangs'],
   images: ['imageLangs', 'imageKinds'],
   quality: ['imageMinWidth', 'imageByVote'],
@@ -135,117 +152,52 @@ const SERVER_FIELDS: Record<Exclude<Area, 'apply'>, (keyof ServerValues)[]> = {
   rating: ['ratingCountry'],
 };
 
-/** The display name of a language code in the interface language (rule 9: no name in the code). */
-function useLanguageName(): (code: string) => string {
-  const { i18n } = useTranslation();
-  const names = useMemo(
-    () => new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'language' }),
-    [i18n.language],
-  );
-  return (code: string) => (code ? (names.of(code) ?? code) : '');
-}
+/** The video folders of the libraries, each with its library (concept 24 3.1). */
+const videoFoldersOf = (libraries: readonly Library[]) =>
+  libraries
+    .filter((library) => library.kind === 'video')
+    .flatMap((library) =>
+      library.roots
+        .filter((root) => root.content === 'movie' || root.content === 'series')
+        .map((root) => ({ library, root })),
+    );
 
-/**
- * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
- * Sprache» … each with a select of every known language; picking one that sits on another place
- * swaps the two. «Weitere Sprache» appends a place, «×» removes one, except the last one; a chain
- * offers "" (no text). No list has to hold German or English (concept 22 F-7, ADR 0033).
- */
-export function LanguageRanks({
-  value,
-  onChange,
-  known,
-  allowNoText,
-  disabled,
-}: {
-  value: string[];
-  onChange: (value: string[]) => void;
-  known: readonly string[];
-  allowNoText?: boolean;
-  disabled?: boolean;
-}) {
-  const { t } = useTranslation();
-  const nameOf = useLanguageName();
-  const choices = useMemo(() => {
-    const codes = [...new Set([...known, ...value.filter((code) => code !== '')])];
-    const list = codes.map((code) => ({ value: code, label: nameOf(code) }));
-    list.sort((a, b) => a.label.localeCompare(b.label));
-    return allowNoText ? [{ value: '', label: t('admin.metadata.images.noText') }, ...list] : list;
-  }, [known, value, allowNoText, nameOf, t]);
+/** The body of one fold section: the area's intro, then its fields. */
+function SectionBody({ intro, children }: { intro: string; children: ReactNode }) {
   return (
-    <RankedChoiceList
-      choices={choices}
-      value={value}
-      onChange={onChange}
-      rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
-      addLabel={t('admin.metadata.languages.more')}
-      isDisabled={disabled}
-    />
-  );
-}
-
-/** One settings area in the detail: a section named by its h2 (S-3). */
-function AreaPanel({
-  title,
-  intro,
-  actions,
-  children,
-}: {
-  title: string;
-  intro: string;
-  actions?: ReactNode;
-  children: ReactNode;
-}) {
-  const id = useId();
-  return (
-    <Panel as="section" aria-labelledby={id}>
-      <SectionHeader id={id} title={title} description={intro} actions={actions} />
+    <div className={styles.body}>
+      <Text tone="secondary">{intro}</Text>
       {children}
-    </Panel>
+    </div>
   );
 }
 
-/** Which of the server's languages a provider does not know (6.1, 12.3). */
-function unknownLanguages(
-  t: TFunction,
-  nameOf: (code: string) => string,
-  listOf: (items: string[]) => string,
-  providers: MetadataProviderInfo[],
-  langs: string[],
-): string[] {
-  const lines: string[] = [];
-  for (const p of providers) {
-    if (p.id === 'local') continue;
-    const missing = langs.filter((code) => !p.languages.includes(code));
-    if (missing.length > 0 && p.languages.length > 0) {
-      lines.push(
-        t('admin.metadata.languages.unknownAt', {
-          provider: p.id.toUpperCase(),
-          languages: listOf(missing.map(nameOf)),
-        }),
-      );
-    }
-  }
-  return lines;
-}
-
 /**
- * The area "Anwenden": what, where (every folder or one video folder, concept 24 3.3), the button,
- * the waiting children of the jobs page.
+ * The section «Anwenden»: what and where (every folder or one video folder with the titles whose
+ * home folder it is, concept 24 3.3), the button, the waiting children of the jobs page and the
+ * last run. What and where are the page's, so the closed header can name them.
  */
 function ApplySection({
   libraries,
-  settings,
   paused,
+  what,
+  onWhatChange,
+  where,
+  onWhereChange,
+  whatOptions,
+  whereOptions,
 }: {
-  libraries: Library[];
-  settings: MetadataSettings;
+  libraries: readonly Library[];
   paused: boolean;
+  what: ApplyWhat;
+  onWhatChange: (what: ApplyWhat) => void;
+  where: string;
+  onWhereChange: (where: string) => void;
+  whatOptions: { value: ApplyWhat; label: string }[];
+  whereOptions: { value: string; label: string }[];
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const [what, setWhat] = useState<'both' | 'texts' | 'images'>('both');
-  const [where, setWhere] = useState('all');
   const [message, setMessage] = useStatusMessage();
   const jobTypes = useQuery({ ...jobTypesQuery, refetchInterval: paused ? false : 10_000 });
   const run = useMutation({
@@ -258,41 +210,26 @@ function ApplySection({
   const waiting = (type: string) =>
     jobTypes.data?.types.find((entry) => entry.type === type)?.counts.queued ?? 0;
   const lastRun = jobTypes.data?.types.find((entry) => entry.type === 'metadata.apply')?.lastRun;
-  const withTitles = (name: string, count: number | undefined) =>
-    count === undefined ? name : `${name} (${t('admin.metadata.apply.titles', { count })})`;
+  // A folder that left the libraries meanwhile falls back to every folder.
+  const known =
+    where === 'all' || videoFoldersOf(libraries).some((f) => String(f.root.id) === where);
   return (
-    <AreaPanel title={t('admin.metadata.apply.title')} intro={t('admin.metadata.apply.intro')}>
+    <SectionBody intro={t('admin.metadata.apply.intro')}>
       <div className={styles.fields}>
         <RadioGroup
           name="what"
           label={t('admin.metadata.apply.what')}
           value={what}
-          onChange={(value) => setWhat(value as 'both' | 'texts' | 'images')}
-          options={[
-            { value: 'both', label: t('admin.metadata.apply.both') },
-            { value: 'texts', label: t('admin.metadata.apply.texts') },
-            { value: 'images', label: t('admin.metadata.apply.images') },
-          ]}
+          onChange={(value) => onWhatChange(value as ApplyWhat)}
+          options={whatOptions}
         />
         <RadioGroup
           name="where"
           label={t('admin.metadata.apply.where')}
-          value={where}
-          onChange={setWhere}
-          options={[
-            {
-              value: 'all',
-              label: withTitles(t('admin.metadata.apply.all'), settings.affectedTitles),
-            },
-            ...libraries.flatMap((library) =>
-              library.roots
-                .filter((root) => root.content === 'movie' || root.content === 'series')
-                .map((root) => ({
-                  value: String(root.id),
-                  label: `${library.name}: ${root.path}`,
-                })),
-            ),
-          ]}
+          orientation="vertical"
+          value={known ? where : 'all'}
+          onChange={onWhereChange}
+          options={whereOptions}
         />
       </div>
       <div className={styles.actions}>
@@ -303,7 +240,7 @@ function ApplySection({
             setMessage(null);
             void run.mutate({
               what: what === 'both' ? ['texts', 'images'] : [what],
-              ...(where === 'all' ? {} : { rootIds: [Number(where)] }),
+              ...(where === 'all' || !known ? {} : { rootIds: [Number(where)] }),
             });
           }}
         >
@@ -330,16 +267,93 @@ function ApplySection({
             : t('admin.metadata.apply.noRun')}
         </Text>
       )}
-    </AreaPanel>
+    </SectionBody>
   );
 }
 
 /**
- * The page "Metadaten" (concept 10, ADR 0018; layout concept 12 Met-B): the default settings, which
- * every folder without settings of its own follows (concept 24 3.4); the settings areas in a list
- * on the left (`?item=`), the selected area on the right. A folder's own languages and images are
- * part of the folder. Unsaved changes are kept while the area changes (useDrafts, S-17); the save
- * bar stores them. `?library=` of the earlier per-library scope leaves the address.
+ * The section «Ordner»: every video folder with its languages and images (default or its own) and
+ * the way to its library's folder dialog, where «Ändern» edits them (concept 24 3.4, stage 2).
+ */
+function FoldersSection({
+  libraries,
+  titleRef,
+}: {
+  libraries: readonly Library[];
+  titleRef: RefObject<HTMLHeadingElement | null>;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const text = useFolderMetadataText();
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const library = libraries.find((entry) => entry.id === openId);
+  const folders = videoFoldersOf(libraries);
+
+  const changed = async (updated: Library) => {
+    queryClient.setQueryData<Library[]>(librariesQuery.queryKey, (list) =>
+      list?.map((entry) => (entry.id === updated.id ? updated : entry)),
+    );
+    await queryClient.invalidateQueries({ queryKey: metadataSettingsQuery.queryKey });
+    await afterDialogsClosed();
+    focusTitleIfLost(titleRef);
+  };
+
+  return (
+    <SectionBody intro={t('admin.metadata.folders.intro')}>
+      {folders.length === 0 ? (
+        <Text tone="secondary">{t('admin.metadata.folders.empty')}</Text>
+      ) : (
+        <ul className={styles.folders}>
+          {folders.map(({ library: owner, root }) => (
+            <li key={root.id} className={styles.folder}>
+              <code className={styles.path}>{root.path}</code>
+              <span className={styles.folderMeta}>
+                <Text tone="secondary" as="span">
+                  {owner.name}
+                </Text>
+                <Chip tone={root.textLangs === null ? 'outline' : 'info'}>{text.langs(root)}</Chip>
+                <Chip tone={root.images === null ? 'outline' : 'info'}>{text.images(root)}</Chip>
+              </span>
+              <AriaButton
+                icon="folder"
+                aria-label={t('admin.metadata.folders.openLabel', {
+                  name: owner.name,
+                  path: root.path,
+                })}
+                onPress={() => {
+                  setOpenId(owner.id);
+                  setOpen(true);
+                }}
+              >
+                {t('admin.libraries.openFolders')}
+              </AriaButton>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Text tone="secondary" variant="caption">
+        {t('admin.metadata.folders.audio')}
+      </Text>
+      {library && (
+        <LibraryFoldersDialog
+          key={library.id}
+          library={library}
+          isOpen={open}
+          onOpenChange={setOpen}
+          onChanged={(updated) => void changed(updated)}
+        />
+      )}
+    </SectionBody>
+  );
+}
+
+/**
+ * The page "Metadaten" (concept 10, ADR 0018): the default settings, which every folder without
+ * settings of its own follows (concept 24 3.4). The areas are fold sections, all closed, each
+ * header with its summary and «geändert» while it holds unsaved changes; `?item=` opens the named
+ * section (concept 24 5, exception 1). Unsaved changes stay while a section folds away (useDrafts,
+ * S-17); the save bar stores them. `?library=` of the earlier per-library scope leaves the address.
  */
 export function MetadataPage() {
   const { t, i18n } = useTranslation();
@@ -348,16 +362,14 @@ export function MetadataPage() {
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const nameOf = useLanguageName();
+  const listOf = useListOf();
+  const folderText = useFolderMetadataText();
   const navigate = route.useNavigate();
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const settings = useQuery({ ...metadataSettingsQuery, enabled: allowed });
   const libraries = useQuery({ ...librariesQuery, enabled: allowed });
   const providers = useQuery({ ...metadataProvidersQuery, enabled: allowed });
-  const videoLibraries = useMemo(
-    () => (libraries.data ?? []).filter((library) => library.kind === 'video'),
-    [libraries.data],
-  );
 
   const originalOf = (id: string): ServerValues | undefined =>
     id === SERVER && settings.data ? serverValues(settings.data) : undefined;
@@ -371,7 +383,7 @@ export function MetadataPage() {
   });
 
   // The per-library scope is gone (concept 24 3.4): an old `?library=` leaves the address.
-  const { library: stale } = route.useSearch();
+  const { library: stale, item: askedItem } = route.useSearch();
   useEffect(() => {
     if (stale !== undefined)
       void navigate({
@@ -380,11 +392,29 @@ export function MetadataPage() {
         search: (previous) => ({ ...previous, library: undefined }),
       });
   }, [stale, navigate]);
-  const [area, selectArea] = useSearchSelection('item', SERVER_AREAS, 'languages');
+
+  // Every section starts closed (concept 24 P-3) and stays as the reader leaves it; `?item=`
+  // opens its section once, adjusted while rendering so it is open in the first render.
+  const [expanded, setExpanded] = useState<ReadonlySet<Section>>(() => new Set());
+  const [openedItem, setOpenedItem] = useState<Section | undefined>(undefined);
+  if (isSection(askedItem) && openedItem !== askedItem) {
+    setOpenedItem(askedItem);
+    setExpanded((current) => new Set(current).add(askedItem));
+  } else if (!isSection(askedItem) && openedItem !== undefined) {
+    setOpenedItem(undefined);
+  }
+  const toggle = (id: Section, open: boolean) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (open) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const [applyWhat, setApplyWhat] = useState<ApplyWhat>('both');
+  const [applyWhere, setApplyWhere] = useState('all');
 
   const defaultName = t('admin.metadata.default');
-  const listOf = (names: string[]) =>
-    new Intl.ListFormat(intlLocale(i18n.language), { type: 'conjunction' }).format(names);
 
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
@@ -425,6 +455,15 @@ export function MetadataPage() {
       await queryClient.invalidateQueries({ queryKey: ['session'] });
     } catch (error) {
       setFailure({ error });
+      // A field error opens the section that holds the field (concept 24 5, exception 3).
+      const fields = Object.keys(formErrors(t, error).fields);
+      setExpanded((current) => {
+        const next = new Set(current);
+        for (const [id, names] of Object.entries(SERVER_FIELDS))
+          if (fields.some((field) => names.some((name) => field.split('.')[0] === name)))
+            next.add(id as Section);
+        return next;
+      });
     }
     setSaving(false);
   };
@@ -463,28 +502,46 @@ export function MetadataPage() {
   const setChain = (kind: ChainKind, chain: string[]) =>
     setImages((view) => ({ ...view, langs: { ...view.langs, [kind]: chain } }));
 
-  /** Whether an area differs from what the server holds. */
-  const areaDirty = (id: Area): boolean => {
-    if (id === 'apply' || !drafts.isDirty(SERVER)) return false;
+  /** Whether a section differs from what the server holds. */
+  const sectionDirty = (id: Section): boolean => {
+    if (id === 'apply' || id === 'folders' || !drafts.isDirty(SERVER)) return false;
     if (!settings.data || !serverDraft) return false;
     const original = serverValues(settings.data);
     return SERVER_FIELDS[id].some((field) => !same(serverDraft[field], original[field]));
   };
 
+  const videoFolders = videoFoldersOf(libraries.data ?? []);
+  const ownFolders = videoFolders.filter(({ root }) => folderText.isOwn(root)).length;
+  const applyWhatOptions: { value: ApplyWhat; label: string }[] = [
+    { value: 'both', label: t('admin.metadata.apply.both') },
+    { value: 'texts', label: t('admin.metadata.apply.texts') },
+    { value: 'images', label: t('admin.metadata.apply.images') },
+  ];
+  const withTitles = (name: string, count: number) =>
+    `${name} (${t('admin.metadata.apply.titles', { count })})`;
+  const applyWhereOptions = [
+    {
+      value: 'all',
+      label: withTitles(t('admin.metadata.apply.all'), settings.data?.affectedTitles ?? 0),
+    },
+    ...videoFolders.map(({ library, root }) => ({
+      value: String(root.id),
+      label: withTitles(`${library.name}: ${root.path}`, root.homeTitleCount),
+    })),
+  ];
+
   const widthLabel = (width: number) =>
     width === 0 ? t('admin.metadata.quality.any') : t('admin.metadata.quality.px', { width });
-  const summaryOf = (id: Area): string | undefined => {
-    let summary: string | undefined;
-    if (id === 'languages' && textLangs)
-      summary = textLangs.map(nameOf).join(t('admin.metadata.areas.separator'));
+  const summaryOf = (id: Section): string => {
+    if (id === 'languages' && textLangs) return chainText(t, nameOf, textLangs);
     if (id === 'images' && images)
-      summary = listOf([
+      return listOf([
         t('admin.metadata.images.kind.poster'),
         t('admin.metadata.images.kind.backdrop'),
         ...images.kinds.map((kind) => t(`admin.metadata.images.kind.${kind}`)),
       ]);
     if (id === 'quality' && serverDraft)
-      summary = t('admin.metadata.areas.quality', {
+      return t('admin.metadata.areas.quality', {
         poster: widthLabel(serverDraft.imageMinWidth.poster),
         backdrop: widthLabel(serverDraft.imageMinWidth.backdrop),
       });
@@ -494,252 +551,258 @@ export function MetadataPage() {
         serverDraft.fanartEnabled ? t('admin.metadata.areas.sources.fanart') : '',
         serverDraft.tmdbIncludeAdult ? t('admin.metadata.areas.sources.tmdbAdult') : '',
       ].filter(Boolean);
-      summary = on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
+      return on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
     }
     if (id === 'rating' && serverDraft)
-      summary =
+      return (
         ratingCountries.find((option) => option.value === serverDraft.ratingCountry)?.label ??
-        serverDraft.ratingCountry;
-    if (summary !== undefined && areaDirty(id))
-      summary = t('admin.metadata.areas.changed', { summary });
-    return summary;
+        serverDraft.ratingCountry
+      );
+    if (id === 'apply') {
+      const what = applyWhatOptions.find((option) => option.value === applyWhat)?.label ?? '';
+      const where =
+        applyWhereOptions.find((option) => option.value === applyWhere)?.label ??
+        applyWhereOptions[0]?.label ??
+        '';
+      return t('admin.metadata.areas.apply', { what, where });
+    }
+    if (id === 'folders')
+      return t('admin.metadata.areas.folders', {
+        follow: t('admin.metadata.areas.foldersFollow', {
+          count: videoFolders.length - ownFolders,
+        }),
+        own: t('admin.metadata.areas.foldersOwn', { count: ownFolders }),
+      });
+    return '';
   };
-  const areaLabels: Record<Area, string> = {
+  const titles: Record<Section, string> = {
     languages: t('admin.metadata.languages.title'),
     images: t('admin.metadata.images.title'),
     quality: t('admin.metadata.quality.title'),
     sources: t('admin.metadata.sources.title'),
     rating: t('admin.metadata.rating.title'),
     apply: t('admin.metadata.apply.short'),
+    folders: t('admin.metadata.folders.title'),
   };
-  const areaItems: MasterDetailItem[] = SERVER_AREAS.map((id) => ({
-    id,
-    label: areaLabels[id],
-    description: summaryOf(id),
-  }));
 
-  const youtubeTitles = textLangs
-    ? Math.floor(
-        YOUTUBE_SEARCHES_PER_DAY / Math.max(1, new Set(textLangs.map((c) => c.split('-')[0])).size),
-      )
-    : 0;
   const textLangsError = fieldError('textLangs');
   const ratingCountryError = fieldError('ratingCountry');
 
-  let detail: ReactNode = null;
-  if (area === 'languages' && textLangs) {
-    detail = (
-      <AreaPanel
-        title={t('admin.metadata.languages.title')}
-        intro={t('admin.metadata.languages.intro')}
-      >
-        <SettingRow label={t('admin.metadata.languages.list')}>
-          <LanguageRanks value={textLangs} onChange={setTextLangs} known={known} />
-        </SettingRow>
-        {textLangsError && <Notice tone="danger">{textLangsError}</Notice>}
-        <Text tone="secondary" variant="caption">
-          {t('admin.metadata.languages.fallback')}
-        </Text>
-        {providers.data && (
+  const contentOf = (id: Section): ReactNode => {
+    if (id === 'languages' && textLangs)
+      return (
+        <SectionBody intro={t('admin.metadata.languages.intro')}>
+          <SettingRow label={t('admin.metadata.languages.list')}>
+            <LanguageRanks value={textLangs} onChange={setTextLangs} known={known} />
+          </SettingRow>
+          {textLangsError && <Notice tone="danger">{textLangsError}</Notice>}
           <Text tone="secondary" variant="caption">
-            {unknownLanguages(t, nameOf, listOf, providers.data, textLangs).join(' ')}{' '}
-            {t('admin.metadata.languages.youtube', {
-              count: textLangs.length,
-              titles: youtubeTitles,
-            })}
+            {t('admin.metadata.languages.fallback')}
           </Text>
-        )}
-      </AreaPanel>
-    );
-  } else if (area === 'images' && images) {
-    detail = (
-      <AreaPanel title={t('admin.metadata.images.title')} intro={t('admin.metadata.images.intro')}>
-        <div>
-          {ALWAYS_KINDS.map((kind) => (
+          {providers.data && (
+            <Text tone="secondary" variant="caption">
+              {unknownLanguages(t, nameOf, listOf, providers.data, textLangs).join(' ')}{' '}
+              {t('admin.metadata.languages.youtube', {
+                count: textLangs.length,
+                titles: youtubeTitles(textLangs),
+              })}
+            </Text>
+          )}
+        </SectionBody>
+      );
+    if (id === 'images' && images)
+      return (
+        <SectionBody intro={t('admin.metadata.images.intro')}>
+          <div>
+            {ALWAYS_KINDS.map((kind) => (
+              <SettingRow
+                key={kind}
+                label={t(`admin.metadata.images.kind.${kind}`)}
+                help={t(`admin.metadata.images.kindHint.${kind}`)}
+              >
+                <Chip tone="outline">{t('admin.metadata.images.always')}</Chip>
+              </SettingRow>
+            ))}
+          </div>
+          <CheckboxGroup
+            label={t('admin.metadata.images.kinds')}
+            value={images.kinds}
+            onChange={(kinds) => setImages((view) => ({ ...view, kinds: switchable(kinds) }))}
+            options={SWITCHABLE.map((kind: Switchable) => ({
+              value: kind,
+              label: t(`admin.metadata.images.kind.${kind}`),
+              description: t(`admin.metadata.images.kindHint.${kind}`),
+            }))}
+          />
+          <Text tone="secondary" variant="caption">
+            {t('admin.metadata.images.notBuilt')}
+          </Text>
+          <SectionHeader
+            level={3}
+            title={t('admin.metadata.images.chains')}
+            description={t('admin.metadata.images.chainsIntro')}
+          />
+          {CHAIN_KINDS.map((kind) => (
             <SettingRow
               key={kind}
-              label={t(`admin.metadata.images.kind.${kind}`)}
-              help={t(`admin.metadata.images.kindHint.${kind}`)}
+              label={t('admin.metadata.images.chainOf', {
+                kind: t(`admin.metadata.images.kind.${kind}`),
+              })}
             >
-              <Chip tone="outline">{t('admin.metadata.images.always')}</Chip>
+              <LanguageRanks
+                value={images.langs[kind]}
+                onChange={(chain) => setChain(kind, chain)}
+                known={known}
+                allowNoText
+              />
             </SettingRow>
           ))}
-        </div>
-        <CheckboxGroup
-          label={t('admin.metadata.images.kinds')}
-          value={images.kinds}
-          onChange={(kinds) => setImages((view) => ({ ...view, kinds: switchable(kinds) }))}
-          options={SWITCHABLE.map((kind: Switchable) => ({
-            value: kind,
-            label: t(`admin.metadata.images.kind.${kind}`),
-            description: t(`admin.metadata.images.kindHint.${kind}`),
-          }))}
-        />
-        <Text tone="secondary" variant="caption">
-          {t('admin.metadata.images.notBuilt')}
-        </Text>
-        <SectionHeader
-          level={3}
-          title={t('admin.metadata.images.chains')}
-          description={t('admin.metadata.images.chainsIntro')}
-        />
-        {CHAIN_KINDS.map((kind) => (
+          {CHAIN_KINDS.map((kind) => fieldError(`imageLangs.${kind}`))
+            .filter(Boolean)
+            .map((error) => (
+              <Notice key={error} tone="danger">
+                {error}
+              </Notice>
+            ))}
+        </SectionBody>
+      );
+    if (id === 'quality' && serverDraft)
+      return (
+        <SectionBody intro={t('admin.metadata.quality.intro')}>
+          <div className={styles.fields}>
+            <RadioGroup
+              name="minPoster"
+              label={t('admin.metadata.quality.minPoster')}
+              value={String(serverDraft.imageMinWidth.poster)}
+              onChange={(value) =>
+                setServer((values) => ({
+                  ...values,
+                  imageMinWidth: { ...values.imageMinWidth, poster: Number(value) },
+                }))
+              }
+              options={POSTER_WIDTHS.map((width) => ({
+                value: String(width),
+                label: widthLabel(width),
+              }))}
+            />
+            <RadioGroup
+              name="minBackdrop"
+              label={t('admin.metadata.quality.minBackdrop')}
+              value={String(serverDraft.imageMinWidth.backdrop)}
+              onChange={(value) =>
+                setServer((values) => ({
+                  ...values,
+                  imageMinWidth: { ...values.imageMinWidth, backdrop: Number(value) },
+                }))
+              }
+              options={BACKDROP_WIDTHS.map((width) => ({
+                value: String(width),
+                label: widthLabel(width),
+              }))}
+            />
+          </div>
           <SettingRow
-            key={kind}
-            label={t('admin.metadata.images.chainOf', {
-              kind: t(`admin.metadata.images.kind.${kind}`),
-            })}
+            label={t('admin.metadata.quality.byVote')}
+            help={`${t('admin.metadata.quality.byVoteHint')} ${t('admin.metadata.quality.fallback')}`}
           >
-            <LanguageRanks
-              value={images.langs[kind]}
-              onChange={(chain) => setChain(kind, chain)}
-              known={known}
-              allowNoText
+            <Switch
+              isSelected={serverDraft.imageByVote}
+              onChange={(on) => setServer((values) => ({ ...values, imageByVote: on }))}
+            >
+              <VisuallyHidden>{t('admin.metadata.quality.byVote')}</VisuallyHidden>
+            </Switch>
+          </SettingRow>
+        </SectionBody>
+      );
+    if (id === 'sources' && serverDraft && settings.data)
+      return (
+        <SectionBody intro={t('admin.metadata.sources.intro')}>
+          <div>
+            <SettingRow
+              label={t('admin.metadata.sources.tmdbAdult')}
+              help={t('admin.metadata.sources.tmdbAdultHint')}
+            >
+              <Switch
+                isSelected={serverDraft.tmdbIncludeAdult}
+                onChange={(on) => setServer((values) => ({ ...values, tmdbIncludeAdult: on }))}
+              >
+                <VisuallyHidden>{t('admin.metadata.sources.tmdbAdult')}</VisuallyHidden>
+              </Switch>
+            </SettingRow>
+            <SettingRow
+              label={t('admin.metadata.sources.local')}
+              help={`${t('admin.metadata.sources.localHint')} ${t('admin.metadata.sources.localCount', { count: settings.data.localImageTitles })}.`}
+            >
+              <Switch
+                isSelected={serverDraft.localImages}
+                onChange={(on) => setServer((values) => ({ ...values, localImages: on }))}
+              >
+                <VisuallyHidden>{t('admin.metadata.sources.local')}</VisuallyHidden>
+              </Switch>
+            </SettingRow>
+            <SettingRow
+              label={t('admin.metadata.sources.fanart')}
+              help={t('admin.metadata.sources.fanartHint')}
+            >
+              <TextLink href={serviceHref('keys')}>{t('admin.metadata.links.keys')}</TextLink>
+              <Switch
+                isSelected={serverDraft.fanartEnabled}
+                onChange={(on) => setServer((values) => ({ ...values, fanartEnabled: on }))}
+              >
+                <VisuallyHidden>{t('admin.metadata.sources.fanart')}</VisuallyHidden>
+              </Switch>
+            </SettingRow>
+          </div>
+          <Text tone="secondary" variant="caption">
+            {t('admin.metadata.sources.localSmall')}
+          </Text>
+        </SectionBody>
+      );
+    if (id === 'rating' && serverDraft) {
+      const chosen = settings.data?.ratingSystems.find(
+        (rs) => rs.country === serverDraft.ratingCountry,
+      );
+      return (
+        <SectionBody intro={t('admin.metadata.rating.intro')}>
+          <SettingRow label={t('admin.metadata.rating.country')}>
+            <SelectField
+              label={t('admin.metadata.rating.country')}
+              hideLabel
+              value={serverDraft.ratingCountry}
+              onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
+              options={ratingCountries}
             />
           </SettingRow>
-        ))}
-        {CHAIN_KINDS.map((kind) => fieldError(`imageLangs.${kind}`))
-          .filter(Boolean)
-          .map((error) => (
-            <Notice key={error} tone="danger">
-              {error}
-            </Notice>
-          ))}
-      </AreaPanel>
-    );
-  } else if (area === 'quality' && serverDraft) {
-    detail = (
-      <AreaPanel
-        title={t('admin.metadata.quality.title')}
-        intro={t('admin.metadata.quality.intro')}
-      >
-        <div className={styles.fields}>
-          <RadioGroup
-            name="minPoster"
-            label={t('admin.metadata.quality.minPoster')}
-            value={String(serverDraft.imageMinWidth.poster)}
-            onChange={(value) =>
-              setServer((values) => ({
-                ...values,
-                imageMinWidth: { ...values.imageMinWidth, poster: Number(value) },
-              }))
-            }
-            options={POSTER_WIDTHS.map((width) => ({
-              value: String(width),
-              label: widthLabel(width),
-            }))}
-          />
-          <RadioGroup
-            name="minBackdrop"
-            label={t('admin.metadata.quality.minBackdrop')}
-            value={String(serverDraft.imageMinWidth.backdrop)}
-            onChange={(value) =>
-              setServer((values) => ({
-                ...values,
-                imageMinWidth: { ...values.imageMinWidth, backdrop: Number(value) },
-              }))
-            }
-            options={BACKDROP_WIDTHS.map((width) => ({
-              value: String(width),
-              label: widthLabel(width),
-            }))}
-          />
-        </div>
-        <SettingRow
-          label={t('admin.metadata.quality.byVote')}
-          help={`${t('admin.metadata.quality.byVoteHint')} ${t('admin.metadata.quality.fallback')}`}
-        >
-          <Switch
-            isSelected={serverDraft.imageByVote}
-            onChange={(on) => setServer((values) => ({ ...values, imageByVote: on }))}
-          >
-            <VisuallyHidden>{t('admin.metadata.quality.byVote')}</VisuallyHidden>
-          </Switch>
-        </SettingRow>
-      </AreaPanel>
-    );
-  } else if (area === 'sources' && serverDraft && settings.data) {
-    detail = (
-      <AreaPanel
-        title={t('admin.metadata.sources.title')}
-        intro={t('admin.metadata.sources.intro')}
-      >
-        <div>
-          <SettingRow
-            label={t('admin.metadata.sources.tmdbAdult')}
-            help={t('admin.metadata.sources.tmdbAdultHint')}
-          >
-            <Switch
-              isSelected={serverDraft.tmdbIncludeAdult}
-              onChange={(on) => setServer((values) => ({ ...values, tmdbIncludeAdult: on }))}
-            >
-              <VisuallyHidden>{t('admin.metadata.sources.tmdbAdult')}</VisuallyHidden>
-            </Switch>
-          </SettingRow>
-          <SettingRow
-            label={t('admin.metadata.sources.local')}
-            help={`${t('admin.metadata.sources.localHint')} ${t('admin.metadata.sources.localCount', { count: settings.data.localImageTitles })}.`}
-          >
-            <Switch
-              isSelected={serverDraft.localImages}
-              onChange={(on) => setServer((values) => ({ ...values, localImages: on }))}
-            >
-              <VisuallyHidden>{t('admin.metadata.sources.local')}</VisuallyHidden>
-            </Switch>
-          </SettingRow>
-          <SettingRow
-            label={t('admin.metadata.sources.fanart')}
-            help={t('admin.metadata.sources.fanartHint')}
-          >
-            <TextLink href={serviceHref('keys')}>{t('admin.metadata.links.keys')}</TextLink>
-            <Switch
-              isSelected={serverDraft.fanartEnabled}
-              onChange={(on) => setServer((values) => ({ ...values, fanartEnabled: on }))}
-            >
-              <VisuallyHidden>{t('admin.metadata.sources.fanart')}</VisuallyHidden>
-            </Switch>
-          </SettingRow>
-        </div>
-        <Text tone="secondary" variant="caption">
-          {t('admin.metadata.sources.localSmall')}
-        </Text>
-      </AreaPanel>
-    );
-  } else if (area === 'rating' && serverDraft) {
-    const chosen = settings.data?.ratingSystems.find(
-      (rs) => rs.country === serverDraft.ratingCountry,
-    );
-    detail = (
-      <AreaPanel title={t('admin.metadata.rating.title')} intro={t('admin.metadata.rating.intro')}>
-        <SettingRow label={t('admin.metadata.rating.country')}>
-          <SelectField
-            label={t('admin.metadata.rating.country')}
-            hideLabel
-            value={serverDraft.ratingCountry}
-            onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
-            options={ratingCountries}
-          />
-        </SettingRow>
-        {chosen && (
-          <Text tone="secondary">
-            {t('admin.metadata.rating.steps', { steps: ratingStepsText(t, chosen) })}
+          {chosen && (
+            <Text tone="secondary">
+              {t('admin.metadata.rating.steps', { steps: ratingStepsText(t, chosen) })}
+            </Text>
+          )}
+          {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
+          <Text tone="secondary" variant="caption">
+            {t('admin.metadata.rating.hint')}
           </Text>
-        )}
-        {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
-        <Text tone="secondary" variant="caption">
-          {t('admin.metadata.rating.hint')}
-        </Text>
-      </AreaPanel>
-    );
-  } else if (area === 'apply' && settings.data) {
-    detail = (
-      <ApplySection
-        libraries={videoLibraries}
-        settings={settings.data}
-        paused={unsaved.pausePolling}
-      />
-    );
-  }
+        </SectionBody>
+      );
+    }
+    if (id === 'apply' && settings.data && libraries.data)
+      return (
+        <ApplySection
+          libraries={libraries.data}
+          // Folded content stays mounted: the jobs are polled only while «Anwenden» is open.
+          paused={unsaved.pausePolling || !expanded.has('apply')}
+          what={applyWhat}
+          onWhatChange={setApplyWhat}
+          where={applyWhere}
+          onWhereChange={setApplyWhere}
+          whatOptions={applyWhatOptions}
+          whereOptions={applyWhereOptions}
+        />
+      );
+    if (id === 'folders' && libraries.data)
+      return <FoldersSection libraries={libraries.data} titleRef={titleRef} />;
+    return null;
+  };
 
   const ready = allowed && settings.data && libraries.data;
   const loadError = settings.error ?? libraries.error;
@@ -747,7 +810,7 @@ export function MetadataPage() {
   return (
     <AdminPage
       title={t('admin.metadata.title')}
-      help={t('admin.metadata.intro')}
+      help={t('admin.metadata.introDefault')}
       titleRef={titleRef}
     >
       {!allowed ? (
@@ -789,19 +852,35 @@ export function MetadataPage() {
               {t('admin.metadata.audiobooks.body')}
             </Notice>
           )}
-          <MasterDetail
-            label={t('admin.metadata.areas.label')}
-            items={areaItems}
-            selectedId={area}
-            onSelect={selectArea}
-          >
-            {detail}
-          </MasterDetail>
+          <Panel>
+            <div className={styles.sections}>
+              {SECTIONS.map((id) => (
+                <div key={id} className={styles.section}>
+                  <DisclosureGroup
+                    level={2}
+                    title={titles[id]}
+                    meta={
+                      <>
+                        <span className={styles.summary}>{summaryOf(id)}</span>
+                        {sectionDirty(id) && (
+                          <Chip tone="warning">{t('admin.metadata.changed')}</Chip>
+                        )}
+                      </>
+                    }
+                    isExpanded={expanded.has(id)}
+                    onExpandedChange={(open) => toggle(id, open)}
+                  >
+                    {contentOf(id)}
+                  </DisclosureGroup>
+                </div>
+              ))}
+            </div>
+          </Panel>
           <Text tone="secondary" variant="caption">
             <TextLink href={paths.adminLibraries}>{t('admin.metadata.links.roots')}</TextLink>{' '}
             <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>
           </Text>
-          {/* A direct child of the page's column, so it sticks to the bottom while the areas
+          {/* A direct child of the page's column, so it sticks to the bottom while the sections
               scroll (a wrapper only as tall as the bar would hold it in place). */}
           <SaveBar
             dirty={drafts.dirty}

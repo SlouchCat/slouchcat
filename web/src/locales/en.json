@@ -4823,7 +4823,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Which languages the metadata sources deliver, which images in which language and quality, and which country decides the age rating first. The default applies to every folder without settings of its own; a folder may have its own languages and images.",
       "links": {
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
@@ -4835,8 +4834,6 @@
         "open": "Open sources"
       },
       "areas": {
-        "label": "Areas",
-        "changed": "Changed · {{summary}}",
         "quality": "Poster {{poster}}, backdrop {{backdrop}}",
         "sources": {
           "local": "Local files",
@@ -4844,7 +4841,13 @@
           "tmdbAdult": "TMDB with adult content",
           "none": "Only the folders' sources"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} video folder follows the default",
+        "foldersFollow_other": "{{count}} video folders follow the default",
+        "foldersOwn_one": "{{count}} has its own",
+        "foldersOwn_other": "{{count}} have their own"
       },
       "default": "Default",
       "languages": {
@@ -4919,7 +4922,6 @@
         }
       },
       "apply": {
-        "title": "Apply to existing titles",
         "short": "Apply",
         "intro": "New titles use the settings at once. Existing titles stay until you start the run; it appears under Background jobs with progress, pause and cancel.",
         "what": "What",
@@ -4954,6 +4956,21 @@
         "chain_duplicate": "Every language once.",
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."
+      },
+      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images in its library under “Folders” with “Change”.",
+      "changed": "changed",
+      "folders": {
+        "title": "Folders",
+        "intro": "Every video folder follows the default until it has languages or images of its own. You set them in its library's folders with “Change”.",
+        "empty": "No video folder yet.",
+        "audio": "Audiobook and podcast folders have no languages and images of their own. The sources for audiobooks are under “Audiobooks: sources”.",
+        "openLabel": "Open the folders of {{name}}: {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Languages: default",
+        "langsOwn": "Languages: {{chain}}",
+        "imagesDefault": "Images: default",
+        "imagesOwn": "Images: own"
       }
     },
     "activity": {

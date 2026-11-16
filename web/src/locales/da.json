@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Hvilke sprog metadatakilderne leverer, hvilke billeder i hvilket sprog og hvilken kvalitet, og hvilket land der først afgør aldersgrænsen. Standarden gælder for alle biblioteker; et bibliotek kan afvige for sprog og billeder.",
       "links": {
         "roots": "Kildernes rækkefølge fastlægges pr. mappe under Biblioteker.",
         "jobs": "Tidsplanerne findes under Baggrundsjob.",
@@ -4857,8 +4856,6 @@
         "open": "Åbn kilder"
       },
       "areas": {
-        "label": "Områder",
-        "changed": "Ændret · {{summary}}",
         "quality": "Plakat {{poster}}, baggrund {{backdrop}}",
         "sources": {
           "local": "Lokale filer",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Anvend på eksisterende titler",
         "short": "Anvend",
         "intro": "Nye titler bruger indstillingerne med det samme. Eksisterende titler forbliver, indtil du starter kørslen; den vises under Baggrundsjob med fremskridt, pause og afbrydelse.",
         "what": "Hvad",

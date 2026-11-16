@@ -4823,7 +4823,6 @@
     },
     "metadata": {
       "title": "Metadaten",
-      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Qualität, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für jeden Ordner ohne eigene Einstellung; ein Ordner kann bei Sprachen und Bildern Eigenes haben.",
       "links": {
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
@@ -4835,8 +4834,6 @@
         "open": "Quellen öffnen"
       },
       "areas": {
-        "label": "Bereiche",
-        "changed": "Geändert · {{summary}}",
         "quality": "Poster {{poster}}, Hintergrund {{backdrop}}",
         "sources": {
           "local": "Lokale Dateien",
@@ -4844,7 +4841,13 @@
           "tmdbAdult": "TMDB mit Erwachseneninhalten",
           "none": "Nur die Quellen der Ordner"
         },
-        "separator": " › "
+        "separator": " › ",
+        "apply": "{{what}} · {{where}}",
+        "folders": "{{follow}}, {{own}}",
+        "foldersFollow_one": "{{count}} Video-Ordner folgt dem Standard",
+        "foldersFollow_other": "{{count}} Video-Ordner folgen dem Standard",
+        "foldersOwn_one": "{{count}} hat Eigenes",
+        "foldersOwn_other": "{{count}} haben Eigenes"
       },
       "default": "Standard",
       "languages": {
@@ -4919,7 +4922,6 @@
         }
       },
       "apply": {
-        "title": "Auf bestehende Titel anwenden",
         "short": "Anwenden",
         "intro": "Neue Titel nutzen die Einstellungen sofort. Bestehende Titel bleiben, bis du den Lauf startest; er erscheint unter Hintergrundjobs mit Fortschritt, Pause und Abbruch.",
         "what": "Was",
@@ -4954,6 +4956,21 @@
         "chain_duplicate": "Jede Sprache nur einmal.",
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
+      },
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Ordner» mit «Ändern» ein.",
+      "changed": "geändert",
+      "folders": {
+        "title": "Ordner",
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in den Ordnern seiner Bibliothek mit «Ändern» ein.",
+        "empty": "Noch kein Video-Ordner.",
+        "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter «Hörbücher: Quellen».",
+        "openLabel": "Ordner von {{name}} öffnen: {{path}}"
+      },
+      "folder": {
+        "langsDefault": "Sprachen: Standard",
+        "langsOwn": "Sprachen: {{chain}}",
+        "imagesDefault": "Bilder: Standard",
+        "imagesOwn": "Bilder: eigene"
       }
     },
     "activity": {

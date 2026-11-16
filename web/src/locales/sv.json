@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Vilka språk metadatakällorna levererar, vilka bilder på vilket språk och i vilken kvalitet, och vilket land som avgör åldersgränsen först. Standarden gäller alla bibliotek. Ett bibliotek får avvika när det gäller språk och bilder.",
       "links": {
         "roots": "Källornas ordning ställs in per mapp under Bibliotek.",
         "jobs": "Scheman finns under Bakgrundsjobb.",
@@ -4857,8 +4856,6 @@
         "open": "Öppna källor"
       },
       "areas": {
-        "label": "Områden",
-        "changed": "Ändrat · {{summary}}",
         "quality": "Affisch {{poster}}, bakgrund {{backdrop}}",
         "sources": {
           "local": "Lokala filer",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Tillämpa på befintliga titlar",
         "short": "Tillämpa",
         "intro": "Nya titlar använder inställningarna direkt. Befintliga titlar förblir som de är tills du startar körningen. Den visas under Bakgrundsjobb med förlopp, paus och avbryt.",
         "what": "Vad",

@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Metatiedot",
-      "intro": "Mitä kieliä metatietolähteet toimittavat, mitä kuvia millä kielellä ja laadulla, ja minkä maan mukaan ikäraja määräytyy ensisijaisesti. Oletus koskee jokaista kirjastoa; kirjasto voi poiketa kielien ja kuvien osalta.",
       "links": {
         "roots": "Lähteiden järjestys asetetaan kansiokohtaisesti kohdassa Kirjastot.",
         "jobs": "Aikataulut ovat kohdassa Taustatyöt.",
@@ -4857,8 +4856,6 @@
         "open": "Avaa lähteet"
       },
       "areas": {
-        "label": "Alueet",
-        "changed": "Muutettu · {{summary}}",
         "quality": "Juliste {{poster}}, taustakuva {{backdrop}}",
         "sources": {
           "local": "Paikalliset tiedostot",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Ota käyttöön olemassa oleville nimikkeille",
         "short": "Ota käyttöön",
         "intro": "Uudet nimikkeet käyttävät asetuksia heti. Olemassa olevat nimikkeet pysyvät ennallaan, kunnes käynnistät ajon; se näkyy kohdassa Taustatyöt edistymisen, tauon ja peruutuksen kanssa.",
         "what": "Mitä",

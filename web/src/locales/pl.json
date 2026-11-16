@@ -5177,7 +5177,6 @@
     },
     "metadata": {
       "title": "Metadane",
-      "intro": "Jakie języki dostarczają źródła metadanych, jakie obrazy w jakim języku i jakości oraz który kraj jako pierwszy określa kategorię wiekową. Ustawienie domyślne dotyczy każdej biblioteki; biblioteka może odbiegać w językach i obrazach.",
       "links": {
         "roots": "Kolejność źródeł ustawia się dla każdego folderu w sekcji Biblioteki.",
         "jobs": "Harmonogramy znajdują się w sekcji Zadania w tle.",
@@ -5189,8 +5188,6 @@
         "open": "Otwórz źródła"
       },
       "areas": {
-        "label": "Obszary",
-        "changed": "Zmienione · {{summary}}",
         "quality": "Plakat {{poster}}, tło {{backdrop}}",
         "sources": {
           "local": "Pliki lokalne",
@@ -5275,7 +5272,6 @@
         }
       },
       "apply": {
-        "title": "Zastosuj do istniejących tytułów",
         "short": "Zastosuj",
         "intro": "Nowe tytuły korzystają z ustawień od razu. Istniejące tytuły pozostają bez zmian, dopóki nie uruchomisz zadania; pojawia się ono w sekcji Zadania w tle z postępem, wstrzymaniem i anulowaniem.",
         "what": "Co",

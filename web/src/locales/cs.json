@@ -5177,7 +5177,6 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Které jazyky metadatové zdroje dodávají, které obrázky v jakém jazyce a kvalitě a která země rozhoduje o věkovém omezení jako první. Výchozí nastavení platí pro každou knihovnu; knihovna se může u jazyků a obrázků odchýlit.",
       "links": {
         "roots": "Pořadí zdrojů se nastavuje pro každou složku v části Knihovny.",
         "jobs": "Plány jsou v části Úlohy na pozadí.",
@@ -5189,8 +5188,6 @@
         "open": "Otevřít zdroje"
       },
       "areas": {
-        "label": "Oblasti",
-        "changed": "Změněno · {{summary}}",
         "quality": "Plakát {{poster}}, pozadí {{backdrop}}",
         "sources": {
           "local": "Místní soubory",
@@ -5275,7 +5272,6 @@
         }
       },
       "apply": {
-        "title": "Použít na existující tituly",
         "short": "Použít",
         "intro": "Nové tituly používají nastavení hned. Existující tituly zůstávají, dokud nespustíte běh; objeví se v části Úlohy na pozadí s průběhem, pozastavením a zrušením.",
         "what": "Co",

@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Meta veri",
-      "intro": "Meta veri kaynaklarının hangi dilleri sunduğu, hangi görsellerin hangi dilde ve kalitede olduğu ve yaş sınırını ilk hangi ülkenin belirlediği. Varsayılan her kitaplık için geçerlidir; bir kitaplık diller ve görseller için ondan ayrılabilir.",
       "links": {
         "roots": "Kaynakların sırası klasör başına Kitaplıklar altında ayarlanır.",
         "jobs": "Zamanlamalar Arka plan görevleri altında.",
@@ -4857,8 +4856,6 @@
         "open": "Kaynakları aç"
       },
       "areas": {
-        "label": "Alanlar",
-        "changed": "Değişti · {{summary}}",
         "quality": "Afiş {{poster}}, arka plan {{backdrop}}",
         "sources": {
           "local": "Yerel dosyalar",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Mevcut içeriklere uygula",
         "short": "Uygula",
         "intro": "Yeni içerikler ayarları hemen kullanır. Mevcut içerikler siz çalışmayı başlatana kadar olduğu gibi kalır; çalışma Arka plan görevleri altında ilerleme, duraklatma ve iptal ile görünür.",
         "what": "Ne",

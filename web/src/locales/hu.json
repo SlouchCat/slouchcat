@@ -4845,7 +4845,6 @@
     },
     "metadata": {
       "title": "Metaadatok",
-      "intro": "Mely nyelveken szállítják a metaadatforrások az adatokat, mely képek milyen nyelven és minőségben, és melyik ország határozza meg elsőként a korhatárt. Az alapértelmezés minden könyvtárra érvényes; egy könyvtár a nyelveknél és a képeknél eltérhet.",
       "links": {
         "roots": "A források sorrendje mappánként állítható a Könyvtárak alatt.",
         "jobs": "Az ütemezések a Háttérfeladatok alatt találhatók.",
@@ -4857,8 +4856,6 @@
         "open": "Források megnyitása"
       },
       "areas": {
-        "label": "Területek",
-        "changed": "Módosítva · {{summary}}",
         "quality": "Plakát {{poster}}, háttérkép {{backdrop}}",
         "sources": {
           "local": "Helyi fájlok",
@@ -4941,7 +4938,6 @@
         }
       },
       "apply": {
-        "title": "Alkalmazás a meglévő címekre",
         "short": "Alkalmazás",
         "intro": "Az új címek azonnal az új beállításokat használják. A meglévő címek változatlanok maradnak, amíg el nem indítja a futást; az a Háttérfeladatok alatt jelenik meg előrehaladással, szünettel és megszakítással.",
         "what": "Mit",

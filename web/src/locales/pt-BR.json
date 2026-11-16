@@ -5011,7 +5011,6 @@
     },
     "metadata": {
       "title": "Metadados",
-      "intro": "Quais idiomas as fontes de metadados fornecem, quais imagens em qual idioma e qualidade, e qual país decide primeiro a classificação indicativa. O padrão vale para todas as bibliotecas; uma biblioteca pode divergir em idiomas e imagens.",
       "links": {
         "roots": "A ordem das fontes é definida por pasta, em Bibliotecas.",
         "jobs": "Os agendamentos estão em Tarefas em segundo plano.",
@@ -5023,8 +5022,6 @@
         "open": "Abrir fontes"
       },
       "areas": {
-        "label": "Áreas",
-        "changed": "Alterado · {{summary}}",
         "quality": "Pôster {{poster}}, imagem de fundo {{backdrop}}",
         "sources": {
           "local": "Arquivos locais",
@@ -5108,7 +5105,6 @@
         }
       },
       "apply": {
-        "title": "Aplicar aos títulos existentes",
         "short": "Aplicar",
         "intro": "Títulos novos usam as configurações de imediato. Os existentes ficam como estão até você iniciar a execução; ela aparece em Tarefas em segundo plano, com progresso, pausa e cancelamento.",
         "what": "O quê",

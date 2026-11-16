@@ -5011,7 +5011,6 @@
     },
     "metadata": {
       "title": "Métadonnées",
-      "intro": "Quelles langues les sources de métadonnées fournissent, quelles images dans quelle langue et quelle qualité, et quel pays détermine en premier la classification. Le réglage par défaut s’applique à toutes les bibliothèques ; une bibliothèque peut y déroger pour les langues et les images.",
       "links": {
         "roots": "L’ordre des sources se règle par dossier sous Bibliothèques.",
         "jobs": "Les planifications se trouvent sous Tâches en arrière-plan.",
@@ -5023,8 +5022,6 @@
         "open": "Ouvrir les sources"
       },
       "areas": {
-        "label": "Sections",
-        "changed": "Modifié · {{summary}}",
         "quality": "Affiche {{poster}}, image de fond {{backdrop}}",
         "sources": {
           "local": "Fichiers locaux",
@@ -5108,7 +5105,6 @@
         }
       },
       "apply": {
-        "title": "Appliquer aux titres existants",
         "short": "Appliquer",
         "intro": "Les nouveaux titres utilisent aussitôt les paramètres. Les titres existants restent inchangés jusqu’à ce que vous lanciez l’exécution ; elle apparaît sous Tâches en arrière-plan, avec progression, pause et annulation.",
         "what": "Quoi",

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminShell, renderAdminPage } from '@/test/admin';
 import { json, mockApi, problem, signedIn, type Routes } from '@/test/api';
-import { audioIds, library } from '@/test/fixtures';
+import { audioIds, library, ratingSystems } from '@/test/fixtures';
 import type { AudiobookSources, BookReviewEntry } from './queries';
 
 // The page «Hörbücher: Quellen» (concept 19 D6.6, mockup Quellen): the source list of each
@@ -357,6 +357,7 @@ describe('AudiobookSourcesPage', () => {
             imageByVote: true,
             localImages: true,
             ratingCountry: 'DE',
+            ratingSystems,
             tmdbIncludeAdult: false,
             fanartEnabled: false,
             knownLanguages: ['de'],

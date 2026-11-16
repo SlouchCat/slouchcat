@@ -9,10 +9,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { library, ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call, type Routes } from '@/test/api';
 
-// The page "Metadaten" (concept 10, 7.1; layout concept 12 Met-B; concept 24 3.4): the default
-// every folder without settings of its own follows; the settings areas in a list, the selected
-// area beside it; the language places, the image kinds and chains, quality, sources, rating
-// country and the apply run per folder; one save bar.
+// The page "Metadaten" (concept 10, 7.1; concept 24 3.4): the default every folder without
+// settings of its own follows; the settings areas as fold sections, all closed, each header with
+// its summary and «geändert»; the language places, the image kinds and chains, quality, sources,
+// rating country, the apply run per folder and the video folders; one save bar.
 
 const settings = (overrides: Partial<MetadataSettings> = {}): MetadataSettings => ({
   textLangs: ['de', 'en'],
@@ -94,7 +94,6 @@ function statefulRoutes() {
 
 const region = (name: string) => screen.getByRole('region', { name });
 const saveBar = () => region('Speichern');
-const areas = () => screen.getByRole('listbox', { name: 'Bereiche' });
 
 /** The values of the places in a language list, place 1 first ("" = Ohne Text). */
 const placesOf = (list: HTMLElement) =>
@@ -111,20 +110,30 @@ const disabledOf = (select: HTMLElement) =>
 const puts = (calls: Call[], path: string) =>
   calls.filter((call) => call.method === 'PUT' && call.path === path).map((call) => call.body);
 
-/** Selects a settings area in the list on the left. */
-async function openArea(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.click(within(areas()).getByRole('option', { name }));
-  return screen.findByRole('region', { name: areaTitle[name] ?? name });
-}
-const areaTitle: Record<string, string> = { Anwenden: 'Auf bestehende Titel anwenden' };
+/** The toggle of a fold section: the button in its h2. */
+const toggleOf = (name: string) =>
+  within(screen.getByRole('heading', { level: 2, name })).getByRole('button', { name });
 
-describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
+/** The header line of a fold section: title, summary and «geändert». */
+const headerOf = (name: string) => screen.getByRole('heading', { level: 2, name }).parentElement!;
+
+/** Opens a fold section and returns its content (react-aria's panel, named by the toggle). */
+async function openArea(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const toggle = await screen.findByRole('button', { name });
+  if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
+  return screen.getByRole('group', { name });
+}
+
+/** The content of an open section. */
+const sectionOf = (name: string) => screen.findByRole('group', { name });
+
+describe('metadata settings page (concept 10, concept 24 3.4)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('«Speichern» without a change sends nothing and keeps the focus', async () => {
     const { calls } = mockApi(routes());
     renderApp('/admin/metadata');
-    await screen.findByRole('region', { name: 'Sprachen' });
+    await screen.findByRole('heading', { level: 2, name: 'Sprachen' });
     const user = userEvent.setup();
     const save = within(saveBar()).getByRole('button', { name: 'Speichern' });
     await user.click(save);
@@ -132,10 +141,10 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
-  it('puts the SaveBar into the page column, so it sticks while the areas scroll', async () => {
+  it('puts the SaveBar into the page column, so it sticks while the sections scroll', async () => {
     mockApi(routes());
     renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    const languages = await screen.findByRole('heading', { level: 2, name: 'Sprachen' });
     // position: sticky holds an element inside its parent: the parent must be the long column
     // that holds the h1 and the areas, not a wrapper only as tall as the bar.
     const column = screen.getByRole('region', { name: 'Speichern' }).parentElement;
@@ -150,25 +159,40 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     // The intro stands open below the title (build plan 2.6), no help button.
     expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
 
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
     expect(
-      within(areas())
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual([
-      expect.stringContaining('Sprachen'),
-      expect.stringContaining('Bilder'),
-      expect.stringContaining('Bildqualität'),
-      expect.stringContaining('Quellen'),
-      expect.stringContaining('Altersfreigabe'),
-      expect.stringContaining('Anwenden'),
+      screen.getByText(
+        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Ordner» mit «Ändern» ein.',
+      ),
+    ).toBeVisible();
+    // Seven fold sections, all closed, each header with its summary (concept 24 3.4).
+    const sections = await screen.findAllByRole('heading', { level: 2 });
+    expect(sections.map((heading) => heading.textContent)).toEqual([
+      'Sprachen',
+      'Bilder',
+      'Bildqualität',
+      'Quellen',
+      'Altersfreigabe',
+      'Anwenden',
+      'Ordner',
     ]);
-    expect(within(areas()).getByRole('option', { name: 'Sprachen' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    for (const heading of sections)
+      expect(within(heading).getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+    expect(headerOf('Sprachen')).toHaveTextContent(/^Sprachen.*Deutsch › Englisch$/);
+    expect(headerOf('Bilder')).toHaveTextContent(
+      'Poster, Hintergrund, Logo, Staffelposter und Folgenbild',
     );
-    // No scope any more (concept 24 3.4): the page edits the default only.
+    expect(headerOf('Bildqualität')).toHaveTextContent('Poster 500 px, Hintergrund 1280 px');
+    expect(headerOf('Quellen')).toHaveTextContent('Lokale Dateien');
+    expect(headerOf('Altersfreigabe')).toHaveTextContent('Deutschland');
+    expect(headerOf('Anwenden')).toHaveTextContent('Texte und Bilder · Alle Ordner (1234 Titel)');
+    expect(headerOf('Ordner')).toHaveTextContent(
+      '2 Video-Ordner folgen dem Standard, 0 haben Eigenes',
+    );
+    // No list of areas and no scope any more (concept 24 3.4): the page edits the default only.
+    expect(screen.queryByRole('listbox')).toBeNull();
     expect(screen.queryByLabelText('Geltung')).toBeNull();
+    const user = userEvent.setup();
+    const languages = await openArea(user, 'Sprachen');
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
     // Fixed places, each a select of the languages (10.2).
@@ -209,7 +233,6 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       screen.getByRole('link', { name: 'Die Zeitpläne stehen unter Hintergrundjobs.' }),
     ).toHaveAttribute('href', '/admin/jobs');
 
-    const user = userEvent.setup();
     const images = await openArea(user, 'Bilder');
     expect(within(images).getAllByText('immer')).toHaveLength(2);
     expect(within(images).getByRole('checkbox', { name: /Logo/ })).toBeChecked();
@@ -262,23 +285,68 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const apply = await openArea(user, 'Anwenden');
     expect(within(apply).getByRole('radio', { name: 'Alle Ordner (1234 Titel)' })).toBeChecked();
     // Only the folders of video libraries can be applied to (concept 24 3.3).
-    expect(within(apply).getByRole('radio', { name: 'Serien: /media/Serien' })).toBeVisible();
+    // Each folder names the titles whose home folder it is (concept 24 3.3, homeTitleCount).
+    expect(
+      within(apply).getByRole('radio', { name: 'Serien: /media/Serien (12 Titel)' }),
+    ).toBeVisible();
     expect(within(apply).queryByRole('radio', { name: /Hörbücher/ })).toBeNull();
     expect(
       await within(apply).findByText(/Noch wartend: 3 Zuordnungen, 7 Bilder\. Noch kein Lauf\./),
     ).toBeVisible();
   });
 
-  it('the selected area lives in ?item= and survives a reload', async () => {
+  it('?item= opens the named section only; the others stay closed and fold as the reader leaves them', async () => {
     mockApi(routes());
-    const { router } = renderApp('/admin/metadata?item=rating');
-    expect(await screen.findByRole('region', { name: 'Altersfreigabe' })).toBeVisible();
+    renderApp('/admin/metadata?item=rating');
+    expect(await sectionOf('Altersfreigabe')).toBeVisible();
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    expect(toggleOf('Ordner')).toHaveAttribute('aria-expanded', 'false');
     const user = userEvent.setup();
+    // Folding it away is the reader's choice; another section opens beside it.
+    await user.click(toggleOf('Altersfreigabe'));
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
     await openArea(user, 'Bildqualität');
-    expect(router.state.location.search).toMatchObject({ item: 'quality' });
-    // The default area drops the parameter.
-    await openArea(user, 'Sprachen');
-    expect(router.state.location.search).not.toHaveProperty('item');
+    expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Altersfreigabe')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('?item=folders opens the folders: one row per video folder with languages, images and the way to its folders', async () => {
+    const own = library({
+      id: 4,
+      name: 'Anime',
+      roots: [
+        {
+          ...library().roots[0]!,
+          id: 4,
+          path: '/media/Anime',
+          content: 'series',
+          textLangs: ['ja', 'en'],
+          images: { langs: {}, kinds: [] },
+        },
+      ],
+    });
+    mockApi(routes({ 'GET /admin/libraries': () => json([...libraries, own]) }));
+    renderApp('/admin/metadata?item=folders');
+    const folders = await sectionOf('Ordner');
+    expect(headerOf('Ordner')).toHaveTextContent(
+      '2 Video-Ordner folgen dem Standard, 1 hat Eigenes',
+    );
+    const rows = within(folders).getAllByRole('listitem');
+    // Audiobook folders have no languages and images of their own (concept 24 3.1).
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent(/\/media\/Filme.*Sprachen: Standard.*Bilder: Standard/);
+    expect(rows[2]).toHaveTextContent(
+      /\/media\/Anime.*Anime.*Sprachen: Japanisch › Englisch.*Bilder: eigene/,
+    );
+    expect(
+      within(folders).getByText(/^Hörbuch- und Podcast-Ordner haben keine eigenen/),
+    ).toBeVisible();
+    const user = userEvent.setup();
+    await user.click(
+      within(folders).getByRole('button', { name: 'Ordner von Anime öffnen: /media/Anime' }),
+    );
+    expect(await screen.findByRole('dialog', { name: /Anime/ })).toBeVisible();
   });
 
   it('adds a language, swaps its place, saves the whole list once and reports the affected titles', async () => {
@@ -293,8 +361,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
         },
       }),
     );
-    renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     // «Weitere Sprache» appends a place with the first free language (by name: Französisch).
@@ -302,9 +370,9 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(placesOf(list)).toEqual(['de', 'en', 'fr']);
     expect(within(list).getByRole('combobox', { name: '3. Sprache' })).toHaveFocus();
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(within(areas()).getByRole('option', { name: 'Sprachen' })).toHaveAccessibleDescription(
-      /^Geändert · Deutsch › Englisch › Französisch$/,
-    );
+    // The header says «geändert», with the new list as the summary.
+    expect(headerOf('Sprachen')).toHaveTextContent('Deutsch › Englisch › Französischgeändert');
+    expect(headerOf('Bilder')).not.toHaveTextContent('geändert');
     // A free language replaces the place.
     await user.selectOptions(within(list).getByRole('combobox', { name: '3. Sprache' }), 'ja');
     expect(placesOf(list)).toEqual(['de', 'en', 'ja']);
@@ -335,7 +403,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
   it('swaps an image language with «Ohne Text» by its place', async () => {
     const { calls } = mockApi(statefulRoutes());
     renderApp('/admin/metadata?item=images');
-    const images = await screen.findByRole('region', { name: 'Bilder' });
+    const images = await sectionOf('Bilder');
     const user = userEvent.setup();
     const poster = within(images).getByRole('group', { name: 'Bildsprache Poster' });
     expect(placesOf(poster)).toEqual(['de', 'en', '']);
@@ -361,8 +429,8 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
           }),
       }),
     );
-    renderApp('/admin/metadata');
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    renderApp('/admin/metadata?item=languages');
+    const languages = await sectionOf('Sprachen');
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
     // A list without Deutsch is fine on the page (concept 22 F-7); here the server refuses it.
@@ -382,28 +450,31 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
   it('drops ?library= of the earlier scope from the address and shows the default', async () => {
     mockApi(routes());
     const { router } = renderApp('/admin/metadata?library=2');
-    expect(await screen.findByRole('region', { name: 'Sprachen' })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Sprachen' })).toBeVisible();
     await waitFor(() => expect(router.state.location.search).not.toHaveProperty('library'));
   });
 
-  it('keeps the drafts while the area changes and asks before leaving (S-17)', async () => {
+  it('keeps the drafts while a section folds away, marks it «geändert» and asks before leaving (S-17)', async () => {
     mockApi(statefulRoutes());
     const { router } = renderApp('/admin/metadata');
     const user = userEvent.setup();
-    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    const languages = await openArea(user, 'Sprachen');
     await user.click(
       within(within(languages).getByRole('group', { name: 'Metadaten-Sprachen' })).getByRole(
         'button',
         { name: '2. Sprache (Englisch) entfernen' },
       ),
     );
+    // Folded away, the section keeps the draft and says «geändert» in its header.
+    await user.click(toggleOf('Sprachen'));
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    expect(within(headerOf('Sprachen')).getByText('geändert')).toBeVisible();
     await openArea(user, 'Altersfreigabe');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Land' }), 'CH');
-    // Changing the area is not leaving the page: no question.
+    // Opening another section is not leaving the page: no question.
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(
-      within(areas()).getByRole('option', { name: 'Altersfreigabe' }),
-    ).toHaveAccessibleDescription('Geändert · Schweiz');
+    expect(headerOf('Altersfreigabe')).toHaveTextContent('Schweizgeändert');
+    expect(headerOf('Quellen')).not.toHaveTextContent('geändert');
     const back = await openArea(user, 'Sprachen');
     expect(
       within(within(back).getByRole('group', { name: 'Metadaten-Sprachen' })).getAllByRole(
@@ -528,10 +599,14 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       }),
     );
     renderApp('/admin/metadata?item=apply');
-    const apply = await screen.findByRole('region', { name: 'Auf bestehende Titel anwenden' });
+    const apply = await sectionOf('Anwenden');
     const user = userEvent.setup();
     await user.click(within(apply).getByRole('radio', { name: 'Nur Texte' }));
-    await user.click(within(apply).getByRole('radio', { name: 'Serien: /media/Serien' }));
+    await user.click(
+      within(apply).getByRole('radio', { name: 'Serien: /media/Serien (12 Titel)' }),
+    );
+    // The header names what and where.
+    expect(headerOf('Anwenden')).toHaveTextContent('Nur Texte · Serien: /media/Serien (12 Titel)');
     await user.click(within(apply).getByRole('button', { name: 'Jetzt anwenden' }));
     expect(
       await within(apply).findByText(
