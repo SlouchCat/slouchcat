@@ -22,7 +22,12 @@ Behebung am 16. November 2026 freigegeben. Vertrag bleibt 1.38.0 (nur Beschreibu
   Antwortet der Begleiter, sagt der Hinweis, dass er das Update auf Knopfdruck installiert
   (`admin.home.update.bodyUpdater`). Die Einleitung der Update-Prüfung sagt «Die Prüfung selbst
   installiert nichts.»
-- Texte in allen 23 Sprachen.
+- Texte in allen 23 Sprachen, von einem zweiten Leser geprüft (kein Fehler).
+- **Geprüft:** gezielte Tests je Korrektur, unabhängige Code-Prüfung (alle vier Korrekturen
+  bestätigt), `task ci` grün auf `d412a361` (43 Go-Pakete, 2165 Vitest-Tests, Storybook 551, e2e
+  723). Ein Lauf davor war rot wegen eines Tests unter Last
+  (`e2e/admin-folder-browser.spec.ts:156`, Fokus nach Escape); allein achtmal wiederholt grün, der
+  Patch berührt den Weg nicht.
 - **Nicht in diesem Patch:** Verwaltung › Startseite führt die Reihe «Neu in …» einer Bibliothek
   während ihres Löschjobs ebenfalls noch (`ListHomeRows`). Die Behebung braucht einen Entscheid, ob
   eine solche Reihe zur Grenze der sichtbaren Reihen zählt.
