@@ -84,3 +84,41 @@ func TestMigration00065RootMetadata(t *testing.T) {
 		t.Errorf("home folder of the test show after its folder went: %d rows with NULL, want 1", got)
 	}
 }
+
+// Files of the same age (ADR 0036): the path decides. With every file at the same created_at, the
+// test show takes whichever of its two series folders has the path that comes first.
+func TestMigration00065TieBreakByPath(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for _, c := range []struct {
+		behind int64 // the folder whose path is moved behind the other
+		want   int64
+	}{{5, 2}, {2, 5}} {
+		cfg := t.TempDir()
+		path := cfg + "/" + FileName
+		replay(t, path, frozenState(t, "ordner-metadaten.sql"))
+		raw := openRaw(t, path)
+		if _, err := raw.Exec(`UPDATE media_files SET created_at = 1`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := raw.Exec(`UPDATE library_roots SET path = '/zz/frozen/behind' WHERE id = ?`, c.behind); err != nil {
+			t.Fatal(err)
+		}
+		if err := raw.Close(); err != nil {
+			t.Fatal(err)
+		}
+		db, err := Open(ctx, Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var root int64
+		err = db.Read.QueryRowContext(ctx, `SELECT coalesce(root_id, 0) FROM items WHERE id = '01M6585TXFV7FMJPYSCG96AQRK'`).Scan(&root)
+		_ = db.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if root != c.want {
+			t.Errorf("folder %d behind: test show with files of the same age = folder %d, want %d", c.behind, root, c.want)
+		}
+	}
+}
