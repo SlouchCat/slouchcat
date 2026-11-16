@@ -1,5 +1,41 @@
 # Aktueller Stand
 
+## Patch 1.40.1: Verwaltung › Startseite ohne die Reihe einer Bibliothek im Löschjob (16. November 2026, Zweig `claude/patch-1.40.1`)
+
+Der Befund stand seit Patch 1.39.1 offen («Nicht in diesem Patch»). Marco hat die Behebung am
+16. November 2026 freigegeben, mit dem Entscheid: Die Reihe wird ausgeblendet und zählt nicht zur
+Grenze der sichtbaren Reihen. Vertrag bleibt 1.40.0 (nur Beschreibungen von `getHomeRows` und
+`setHomeRows` nachgeführt), keine Migration.
+
+- **Fehler:** Verwaltung › Startseite führte die Reihe «Neu in …» einer Bibliothek, bis der Job
+  `library.delete` fertig war, obwohl die Bibliotheksliste sie schon nicht mehr zeigte. Die Reihe
+  zählte dabei zu den höchstens 15 sichtbaren Reihen (`model.MaxVisibleHomeRows`).
+- **Neu:** `admin.HomeRows` lässt die Reihe weg, sobald `deleting_at` gesetzt ist (`ListHomeRows`
+  liefert die Marke mit). `SetHomeRows` gleicht weiter gegen alle gespeicherten Reihen ab: Eine
+  Liste ohne die Reihe lässt ihr Platz und Schalter, eine veraltete Liste, die sie noch nennt,
+  bleibt gültig, die Antwort lässt sie weg. Von einer solchen Reihe übernimmt der Server nur den
+  Platz; ihr Schalter «ausgeblendet» bleibt, wie er gespeichert ist. Die Reihe zählt nicht zur
+  Grenze.
+- **Folge, bewusst so:** Schlägt der Löschjob fehl, hebt er `deleting_at` auf, und die Reihe steht
+  wieder an ihrem Platz. War sie sichtbar und hat die Verwaltung inzwischen andere Reihen
+  eingeblendet, können mehr sichtbare Reihen gespeichert sein, als die Grenze erlaubt (eine je
+  Bibliothek, deren Löschen aufgehoben wurde). Die Startseite der Zuschauer zeigt nie mehr als
+  15 Reihen (`discover.MaxRows`); das nächste Speichern mit zu vielen sichtbaren Reihen lehnt der
+  Server wie bisher ab (`too_many_visible`), bis eine Reihe ausgeblendet ist. Die Seite zeigt dann
+  die Fehlermeldung des Servers, keinen eigenen Hinweis.
+- **Zuschauerseite unverändert:** Sie war schon richtig, die Reihe lädt über `visible_items` leer
+  und entfällt.
+- **Web unverändert:** `rows.ts` sortiert nach `position` (eine Lücke stört nicht) und zählt nur
+  die gelisteten Reihen, passend zur Regel des Servers.
+- **Test:** `TestHomeRowsDeletingLibrary` (`server/internal/admin/homerows_test.go`): Lesen ohne
+  die Reihe, Speichern mit und ohne sie, gespeicherter Schalter bleibt, Grenze (15 sichtbare und
+  die Reihe im Löschjob gehen, 16 sichtbare nicht), zwei Bibliotheken zugleich im Löschjob,
+  Rückkehr an den Platz nach aufgehobenem Löschen. Gegenprobe: Ohne den Filter oder mit der alten
+  Zählung ist der Test rot.
+- **Nicht geändert, schon vorher so:** Löscht der Job die Reihe zwischen Lesen und Schreiben eines
+  Speicherns, antwortet der Server mit einem Fehler (Wettlauf in einem sehr kurzen Fenster, vom
+  Prüfer am Code gefunden, nicht nachgestellt).
+
 ## Release 1.40.0: Konzept 24 «Metadaten pro Ordner», ein Formular je Bibliothek, Klappbares zu, mehr Kontrast (16. November 2026, veröffentlicht: PR #176 `d8125392`, Tag `v1.40.0`, Lauf 43950610784, abgenommen)
 
 Marco am 16. November 2026: «Baue alle Stufen selbständig und mache ein einziger Release daraus.»
@@ -217,7 +253,7 @@ Behebung am 16. November 2026 freigegeben. Vertrag bleibt 1.38.0 (nur Beschreibu
   Patch berührt den Weg nicht.
 - **Nicht in diesem Patch:** Verwaltung › Startseite führt die Reihe «Neu in …» einer Bibliothek
   während ihres Löschjobs ebenfalls noch (`ListHomeRows`). Die Behebung braucht einen Entscheid, ob
-  eine solche Reihe zur Grenze der sichtbaren Reihen zählt.
+  eine solche Reihe zur Grenze der sichtbaren Reihen zählt. Behoben mit Patch 1.40.1.
 
 ## Release 1.39.0: Verwaltungs-Redesign: sechs Bereiche, Suchpalette, Seite «Server» (16. November 2026, PR #172, Tag `v1.39.0` auf dem Merge-Commit, abgenommen)
 
