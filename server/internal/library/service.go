@@ -924,8 +924,8 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	}
 	m := model.Library{
 		ID: l.ID, Name: l.Name, Kind: l.Kind, CreatedAt: time.UnixMilli(l.CreatedAt).UTC(),
-		DefaultRating: optRating(l.DefaultRating),
-		Roots:         make([]model.LibraryRoot, 0, len(roots)),
+		Revision: revision(l, roots), DefaultRating: optRating(l.DefaultRating),
+		Roots: make([]model.LibraryRoot, 0, len(roots)),
 		Scan: model.LibraryScan{
 			State:          l.LastScanState,
 			StartedAt:      timePtr(l.LastScanStartedAt),

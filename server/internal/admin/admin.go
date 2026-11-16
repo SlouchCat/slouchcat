@@ -115,6 +115,10 @@ type Libraries interface {
 	// confirmPath must repeat the stored path; model.ErrNotFound, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.
 	RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
+	// Save stores the form «Bibliothek bearbeiten» in one transaction (saveLibrary, concept 24
+	// 4.3); settings writes the library's own settings into it. model.ErrNotFound, model.ErrStale,
+	// model.ErrRootUnlisted, *model.ValidationError, model.ErrScanRunning.
+	Save(ctx context.Context, libraryID int64, req model.LibrarySave, settings func(context.Context, *sql.Tx) error) (model.LibrarySaved, error)
 	// DeleteLibrary deletes a library for good, never a file (concept 20 P-8). confirmName must
 	// repeat the stored name; model.ErrNotFound, model.ErrConfirmMismatch, *model.PlayingError.
 	DeleteLibrary(ctx context.Context, libraryID int64, confirmName string, by model.Actor) (model.LibraryDeletionQueued, error)

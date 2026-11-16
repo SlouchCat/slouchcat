@@ -47,6 +47,12 @@ type fakeLibraries struct {
 	validateDir  bool
 	addedRoots   []addedRoot
 	removedRoots []removedRoot
+	// saveDB runs the settings of Save in a transaction of its own, so the admin half of
+	// saveLibrary writes for real; saved records the requests and saveErr is returned after the
+	// settings ran (their transaction is rolled back then, as in package library).
+	saveDB  *sql.DB
+	saved   []model.LibrarySave
+	saveErr error
 }
 
 func (f *fakeLibraries) ValidatePath(_ context.Context, path string) error {
@@ -188,6 +194,29 @@ func (f *fakeLibraries) RemoveRoot(ctx context.Context, libraryID, rootID int64,
 	}
 	f.removedRoots = append(f.removedRoots, removedRoot{libraryID, rootID, confirmPath})
 	return lib, nil
+}
+
+func (f *fakeLibraries) Save(ctx context.Context, libraryID int64, req model.LibrarySave, settings func(context.Context, *sql.Tx) error) (model.LibrarySaved, error) {
+	f.saved = append(f.saved, req)
+	if f.saveDB != nil {
+		tx, err := f.saveDB.BeginTx(ctx, nil)
+		if err != nil {
+			return model.LibrarySaved{}, err
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := settings(ctx, tx); err != nil {
+			return model.LibrarySaved{}, err
+		}
+		if f.saveErr != nil {
+			return model.LibrarySaved{}, f.saveErr
+		}
+		if err := tx.Commit(); err != nil {
+			return model.LibrarySaved{}, err
+		}
+	} else if f.saveErr != nil {
+		return model.LibrarySaved{}, f.saveErr
+	}
+	return model.LibrarySaved{Library: model.Library{ID: libraryID}, MetadataChanged: []model.RootTitles{}}, nil
 }
 
 type fakeTMDB struct {

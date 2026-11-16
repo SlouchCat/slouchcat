@@ -28,6 +28,7 @@ func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) er
 	return e.visit(w)
 }
 func (e serviceProblem) VisitDeleteLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSaveLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -123,6 +124,45 @@ func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRoo
 		return s.problem(ctx, err), nil
 	}
 	return gen.UpdateLibraryRoot200JSONResponse(toLibrary(lib)), nil
+}
+
+// SaveLibrary saves the form «Bibliothek bearbeiten» in one go (concept 24 4.3). Like
+// updateLibrary it re-checks the open streams, because a new default rating may have changed the
+// rating of titles.
+func (s *server) SaveLibrary(ctx context.Context, req gen.SaveLibraryRequestObject) (gen.SaveLibraryResponseObject, error) {
+	body := deref(req.Body)
+	save := model.LibrarySave{Revision: body.Revision, Name: body.Name, Trickplay: libraryTrickplay(body.Trickplay),
+		Roots: make([]model.LibrarySaveRoot, 0, len(body.Roots)), Remove: make([]model.LibrarySaveRemoval, 0, len(body.RemoveRoots))}
+	if body.DefaultRating != nil {
+		r := *body.DefaultRating
+		save.DefaultRating = &r
+	}
+	for _, r := range body.Roots {
+		root := model.LibrarySaveRoot{ID: deref(r.Id), ConfirmPath: deref(r.ConfirmPath), LibraryRootRequest: model.LibraryRootRequest{
+			Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers),
+		}}
+		if r.TextLangs != nil {
+			langs := append([]string{}, *r.TextLangs...)
+			root.Metadata.TextLangs = &langs
+		}
+		root.Metadata.Images = fromRootImages(r.Images)
+		save.Roots = append(save.Roots, root)
+	}
+	for _, r := range body.RemoveRoots {
+		save.Remove = append(save.Remove, model.LibrarySaveRemoval{ID: r.Id, ConfirmPath: r.ConfirmPath})
+	}
+	saved, err := s.opts.Admin.SaveLibrary(ctx, req.Id, save)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	if err := s.recheckStreams(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.SaveLibrary200JSONResponse{Library: toLibrary(saved.Library), MetadataChanged: make([]gen.LibraryRootTitles, 0, len(saved.MetadataChanged))}
+	for _, m := range saved.MetadataChanged {
+		out.MetadataChanged = append(out.MetadataChanged, gen.LibraryRootTitles{RootId: m.RootID, HomeTitleCount: m.HomeTitleCount})
+	}
+	return out, nil
 }
 
 // ListMetadataProviders describes the providers to the folder form (ADR 0015); textLangs names
@@ -248,7 +288,7 @@ func toLibrary(l model.Library) gen.Library {
 		scan.LastError = &l.Scan.LastError
 	}
 	out := gen.Library{
-		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), DefaultRating: toRating(l.DefaultRating),
+		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Revision: optString(l.Revision), DefaultRating: toRating(l.DefaultRating),
 		Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
 	}
 	if k := l.KeyframeIndex; k != nil {

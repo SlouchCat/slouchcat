@@ -410,6 +410,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
 		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed confirmation does not repeat what is about to be removed.")
+	case errors.Is(err, model.ErrStale):
+		p.write(w, r, http.StatusConflict, "stale", "The library changed since the form loaded it; load it again. Nothing was saved.")
+	case errors.Is(err, model.ErrRootUnlisted):
+		p.write(w, r, http.StatusConflict, "root_unlisted", "A folder of the library is neither kept nor removed by the request. Nothing was saved.")
 	case errors.Is(err, model.ErrChanged):
 		p.write(w, r, http.StatusConflict, "changed", "The files of the title changed since the preview; check it again.")
 	case errors.Is(err, model.ErrDeleting):

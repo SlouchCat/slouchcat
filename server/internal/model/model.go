@@ -31,9 +31,15 @@ var (
 	// ErrConfirmMismatch: the typed confirmation does not repeat what is about to be removed
 	// (422 confirm_mismatch, idea 02, E12).
 	ErrConfirmMismatch = errors.New("confirmation does not match") // 422 confirm_mismatch
-	ErrTMDBKeyInvalid  = errors.New("tmdb key invalid")            // 422 tmdb_key_invalid
-	ErrTMDBUnreachable = errors.New("tmdb unreachable")            // 422 tmdb_unreachable
-	ErrTooManyAttempts = errors.New("too many attempts")           // 429 too_many_attempts
+	// ErrStale: the library or one of its folders changed since the form loaded it (409 stale,
+	// saveLibrary, concept 24 4.3).
+	ErrStale = errors.New("library changed since it was loaded")
+	// ErrRootUnlisted: a stored folder is neither kept nor removed by a saveLibrary request (409
+	// root_unlisted, concept 24 4.3); it is not removed.
+	ErrRootUnlisted    = errors.New("stored folder missing from the request")
+	ErrTMDBKeyInvalid  = errors.New("tmdb key invalid")  // 422 tmdb_key_invalid
+	ErrTMDBUnreachable = errors.New("tmdb unreachable")  // 422 tmdb_unreachable
+	ErrTooManyAttempts = errors.New("too many attempts") // 429 too_many_attempts
 	// ErrProviderNotConfigured: a metadata provider without key was asked (422 provider_not_configured).
 	ErrProviderNotConfigured = errors.New("provider not configured")
 )
@@ -1760,6 +1766,44 @@ type LibraryUpdate struct {
 	PodcastDownloads *PodcastDownloads
 }
 
+// LibrarySave is the form «Bibliothek bearbeiten» as a whole (saveLibrary, concept 24 4.3): the
+// library's settings, every folder it keeps or gets and the folders it removes.
+type LibrarySave struct {
+	Revision      string // Library.Revision of the library the form loaded
+	Name          string
+	DefaultRating *int              // audio libraries only; nil = unchanged
+	Trickplay     *LibraryTrickplay // video libraries only; nil = unchanged
+	Roots         []LibrarySaveRoot
+	Remove        []LibrarySaveRemoval
+}
+
+// LibrarySaveRoot is one folder of a LibrarySave in its new state; ID 0 is a new folder.
+// ConfirmPath repeats the stored path for a content change.
+type LibrarySaveRoot struct {
+	ID int64
+	LibraryRootRequest
+	ConfirmPath string
+}
+
+// LibrarySaveRemoval is a stored folder a LibrarySave removes, with its typed path.
+type LibrarySaveRemoval struct {
+	ID          int64
+	ConfirmPath string
+}
+
+// LibrarySaved is the answer of saveLibrary: the saved library and the kept folders whose own
+// languages or images changed, with the number of titles whose home folder they are.
+type LibrarySaved struct {
+	Library         Library
+	MetadataChanged []RootTitles
+}
+
+// RootTitles is a folder and the number of titles whose home folder it is (ADR 0036).
+type RootTitles struct {
+	RootID         int64
+	HomeTitleCount int
+}
+
 // SetupRequest is the input of the first-start wizard.
 type SetupRequest struct {
 	Email    string
@@ -1813,9 +1857,12 @@ type LibraryScan struct {
 
 // Library with its roots and scan state.
 type Library struct {
-	ID            int64
-	Name          string
-	Kind          string
+	ID   int64
+	Name string
+	Kind string
+	// Revision is the state the form «Bibliothek bearbeiten» edits, derived from the stored rows
+	// (concept 24 4.3); saveLibrary refuses a request that names another one (ErrStale).
+	Revision      string
 	DefaultRating *int // audio libraries only (AN-2)
 	Roots         []LibraryRoot
 	Scan          LibraryScan

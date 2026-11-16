@@ -174,6 +174,62 @@ func (s *Service) writeLibraryUpdate(ctx context.Context, tx *sql.Tx, lib appq.L
 	return titles, nil
 }
 
+// SaveLibrary saves the form «Bibliothek bearbeiten» in one go (saveLibrary, concept 24 4.3):
+// name, default rating and trickplay are checked here like updateLibrary and written by
+// writeLibraryUpdate inside the transaction package library opens for the folders; the folder
+// rules, the order, the revision, the typed paths and the scan lock live in package library.
+// Errors: model.ErrNotFound, *model.ValidationError (library fields first, then the folders),
+// model.ErrStale, model.ErrRootUnlisted, model.ErrScanRunning.
+func (s *Service) SaveLibrary(ctx context.Context, id int64, req model.LibrarySave) (model.LibrarySaved, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
+	lib, err := s.read.GetLibrary(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.LibrarySaved{}, model.ErrNotFound
+	}
+	if err != nil {
+		return model.LibrarySaved{}, fmt.Errorf("get library: %w", err)
+	}
+	name := req.Name
+	w, verr := s.checkLibraryUpdate(ctx, lib, model.LibraryUpdate{Name: &name, DefaultRating: req.DefaultRating, Trickplay: req.Trickplay})
+	if verr = validateSaveShapes(verr, req); verr != nil {
+		return model.LibrarySaved{}, verr
+	}
+	var titles int64
+	saved, err := s.libraries.Save(ctx, id, req, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		titles, err = s.writeLibraryUpdate(ctx, tx, lib, w)
+		return err
+	})
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	s.log.InfoContext(ctx, "library settings saved", "library_id", id, "default_rating_changed", w.rating != lib.DefaultRating,
+		"titles_rerated", titles, "trickplay_changed", req.Trickplay != nil)
+	if saved.Library, err = s.withKeyframeIndex(ctx)(saved.Library, nil); err != nil {
+		return model.LibrarySaved{}, err
+	}
+	return saved, nil
+}
+
+// validateSaveShapes refuses what is not a folder of a saveLibrary request at all, with the
+// field names of createLibrary (roots[1].path) and removeRoots[0].confirmPath.
+func validateSaveShapes(verr *model.ValidationError, req model.LibrarySave) *model.ValidationError {
+	roots := make([]model.LibraryRootRequest, 0, len(req.Roots))
+	for i, r := range req.Roots {
+		roots = append(roots, r.LibraryRootRequest)
+		if len(r.ConfirmPath) > maxLibraryPath {
+			verr = verr.Add(fmt.Sprintf("roots[%d].confirmPath", i), "too_long")
+		}
+	}
+	verr = validateRootShapes(verr, "roots", roots)
+	for j, r := range req.Remove {
+		if len(r.ConfirmPath) > maxLibraryPath {
+			verr = verr.Add(fmt.Sprintf("removeRoots[%d].confirmPath", j), "too_long")
+		}
+	}
+	return verr
+}
+
 // checkRatingFloor rejects a manual rating below the default rating of the title's audio library
 // (AN-2: a title may only be rated stricter than its library); model.ErrRatingBelowDefault.
 func (s *Service) checkRatingFloor(ctx context.Context, item systemq.Item, rating *int) error {

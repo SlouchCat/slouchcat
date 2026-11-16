@@ -1431,7 +1431,36 @@ export interface paths {
         };
         /** One library with its scan state */
         get: operations["getLibrary"];
-        put?: never;
+        /**
+         * Save the whole form «Bibliothek bearbeiten» in one go (concept 24, 4.3)
+         * @description Since contract 1.40.0. Takes name, default rating, «Vorschau beim Spulen» and every folder of
+         *     the library as the form shows them, plus an explicit list of the folders to remove, and saves
+         *     all of it in one transaction: nothing is written when any part fails. The kind cannot change.
+         *
+         *     - **Every stored folder is named**: either in `roots` (with its `id`) or in `removeRoots`. A
+         *       stored folder in neither is not removed; the request is refused with 409 `root_unlisted`.
+         *       A folder without `id` is new.
+         *     - **Stale form**: `revision` repeats `Library.revision` of the library the form loaded. When
+         *       the library or one of its folders changed since (another window, another administrator),
+         *       the answer is 409 `stale` and nothing is written; the form loads the library again.
+         *     - **Order**: remove, other content, other path, new folders. A new folder may therefore take
+         *       the path of a folder removed in the same request.
+         *     - **Typed confirmation**: removing a folder and changing its content repeat the folder's
+         *       stored path in `confirmPath` (`required` when missing, `confirm_mismatch` when it does not
+         *       repeat the path). A new path needs none. Path and content of one folder cannot change
+         *       together (`path_with_content`).
+         *     - **Running scan**: a removal, a new content or a new path take the scan lock of the library;
+         *       while a scan runs the whole request is refused with 409 `scan_running` and nothing is
+         *       written. Name, rating, trickplay, providers, languages, images and new folders go through
+         *       during a scan.
+         *     - **At most one scan** is queued, and only when a folder is new or has another path or
+         *       content. A new provider list queues matching or filling of the folder's titles, no scan; a
+         *       new name queues nothing. The last folder may be removed.
+         *     - **Languages and images** are only stored; `metadataChanged` names every kept folder whose
+         *       `textLangs` or `images` changed with the number of titles whose home folder it is, so the
+         *       form can offer «Jetzt anwenden» (`applyMetadata`). The server never applies by itself.
+         */
+        put: operations["saveLibrary"];
         post?: never;
         delete?: never;
         options?: never;
@@ -8339,6 +8368,59 @@ export interface components {
             /** @description The folder's own images, or `null` for the default's. Video folders only. */
             images?: components["schemas"]["RootImages"] | null;
         };
+        /** @description The form «Bibliothek bearbeiten» as a whole (`saveLibrary`, concept 24, 4.3). */
+        LibrarySave: {
+            /** @description `Library.revision` of the library the form loaded. */
+            revision: string;
+            name: string;
+            /** @description Default age rating of an audio library; left out = unchanged, `not_allowed` for video. */
+            defaultRating?: components["schemas"]["Rating"];
+            /** @description «Vorschau beim Spulen» of a video library; left out = unchanged, `not_allowed` for audio. */
+            trickplay?: components["schemas"]["LibraryTrickplay"];
+            /** @description Every folder the library keeps or gets, stored ones with `id`, new ones without. */
+            roots: components["schemas"]["LibrarySaveRoot"][];
+            /** @description The stored folders to remove, each with its typed path. */
+            removeRoots: components["schemas"]["LibrarySaveRemoval"][];
+        };
+        /**
+         * @description One folder of `saveLibrary` as the form shows it. All fields are its new state: `textLangs`
+         *     and `images` left out or `null` mean like the default, as in `LibraryRootRequest`.
+         */
+        LibrarySaveRoot: {
+            /**
+             * Format: int64
+             * @description The stored folder; left out for a new folder.
+             */
+            id?: number;
+            path: string;
+            content: components["schemas"]["RootContent"];
+            providers: components["schemas"]["MetadataProvider"][];
+            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
+            images?: components["schemas"]["RootImages"] | null;
+            /** @description The folder's stored path, typed by the administrator; required for a content change. */
+            confirmPath?: string;
+        };
+        /** @description A stored folder `saveLibrary` removes, with its stored path typed by the administrator. */
+        LibrarySaveRemoval: {
+            /** Format: int64 */
+            id: number;
+            confirmPath: string;
+        };
+        /** @description The answer of `saveLibrary`. */
+        LibrarySaved: {
+            library: components["schemas"]["Library"];
+            /**
+             * @description The kept folders whose `textLangs` or `images` changed, with the number of titles whose
+             *     home folder they are (ADR 0036): what «Jetzt anwenden» would reach. Empty when none changed;
+             *     new folders are never in it.
+             */
+            metadataChanged: components["schemas"]["LibraryRootTitles"][];
+        };
+        LibraryRootTitles: {
+            /** Format: int64 */
+            rootId: number;
+            homeTitleCount: number;
+        };
         /**
          * @description The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
          *     compared against the stored row, so a mis-aimed click cannot delete the titles of a folder.
@@ -8528,6 +8610,13 @@ export interface components {
             id: number;
             name: string;
             kind: components["schemas"]["LibraryKind"];
+            /**
+             * @description Since contract 1.40.0 (concept 24, 4.3): the state of the library and its folders as the
+             *     form edits them (name, default rating, trickplay, and per folder path, content, providers,
+             *     languages, images). It changes with every change to one of them and not with a scan; the
+             *     form sends it back in `saveLibrary`. Opaque; the server always sends it.
+             */
+            revision?: string;
             /** @description Default age rating of an audio library (AN-2); absent for video libraries. */
             defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
@@ -14735,6 +14824,76 @@ export interface operations {
             };
             /** @description Unknown library (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    saveLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySave"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySaved"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `stale` (the library changed since the form loaded it), `root_unlisted` (a stored folder
+             *     is neither in `roots` nor in `removeRoots`) or `scan_running` (a removal, content or path
+             *     change while a scan of the library runs). Nothing is written.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `validation_failed`; nothing is written. Library fields as in `updateLibrary` (`name`
+             *     `required` or `too_long`, `defaultRating` `invalid_value` or `not_allowed`, `trickplay`
+             *     `not_allowed`). Folders by their index in the request, like `createLibrary`:
+             *     `roots[1].id` `unknown_root` or `duplicate`, `roots[1].path` `library_path_invalid`,
+             *     `root_overlap`, `root_files_missing` or `path_with_content`, `roots[1].content`
+             *     `content_not_allowed`, `roots[1].providers` `providers_not_allowed`,
+             *     `roots[1].textLangs` and `roots[1].images` `not_allowed` or the codes of
+             *     `updateMetadataSettings`, `roots[1].confirmPath` `required` or `confirm_mismatch`
+             *     (content change); `removeRoots[0].id` `unknown_root` or `duplicate`,
+             *     `removeRoots[0].confirmPath` `required` or `confirm_mismatch`.
+             */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

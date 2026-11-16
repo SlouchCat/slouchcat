@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Handler tests of ADR 0015: folders with content and provider list through the contract,
@@ -232,4 +233,85 @@ func TestFolderMetadataThroughTheContract(t *testing.T) {
 	if f := fieldProblem(t, rec); f != "textLangs invalid_value" {
 		t.Fatalf("textLangs as a string: %s", f)
 	}
+}
+
+// TestSaveLibraryEndpoint: saveLibrary through the contract (concept 24 4.3). The rules live in
+// package library and are tested there; here the mapping of the body and the statuses and codes
+// of the contract are.
+func TestSaveLibraryEndpoint(t *testing.T) {
+	t.Parallel()
+	e := newAuthEnv(t)
+	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
+	wantStatus(t, rec, http.StatusCreated)
+	owner := sessionCookie(t, rec)
+	const lib = "/api/v1/admin/libraries/1"
+	// The fake library service holds library 1; package admin reads its row for the settings.
+	if _, err := e.db.Write.Exec(`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 1, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{
+		"revision": "r1", "name": "Kino",
+		"roots": []any{
+			map[string]any{"id": 1, "path": "/media/Filme", "content": "series", "providers": []string{"tmdb"}, "confirmPath": "/media/Filme",
+				"textLangs": []string{"ja", "en"}, "images": map[string]any{"langs": map[string]any{"poster": []string{""}}, "kinds": []string{}}},
+			movieRoot("/media/Neu"),
+		},
+		"removeRoots": []any{map[string]any{"id": 7, "confirmPath": "/media/Alt"}},
+	}
+
+	rec = e.call(t, http.MethodPut, lib, body, owner)
+	wantStatus(t, rec, http.StatusOK)
+	var saved gen.LibrarySaved
+	if err := json.Unmarshal(rec.Body.Bytes(), &saved); err != nil {
+		t.Fatal(err)
+	}
+	if saved.Library.Id != 1 || len(saved.MetadataChanged) != 1 || saved.MetadataChanged[0].RootId != 1 || saved.MetadataChanged[0].HomeTitleCount != 3 {
+		t.Fatalf("answer = %s", rec.Body.String())
+	}
+	got := e.libs.saved
+	if got.Revision != "r1" || len(got.Roots) != 2 || len(got.Remove) != 1 || got.Remove[0].ID != 7 || got.Remove[0].ConfirmPath != "/media/Alt" {
+		t.Fatalf("request = %+v", got)
+	}
+	if r := got.Roots[0]; r.ID != 1 || r.Content != "series" || r.ConfirmPath != "/media/Filme" || r.Metadata.TextLangs == nil ||
+		len(*r.Metadata.TextLangs) != 2 || r.Metadata.Images == nil || len(r.Metadata.Images.Langs["poster"]) != 1 {
+		t.Fatalf("kept folder = %+v", r)
+	}
+	if r := got.Roots[1]; r.ID != 0 || r.Path != "/media/Neu" || r.Metadata.TextLangs != nil || r.Metadata.Images != nil {
+		t.Fatalf("new folder = %+v", r)
+	}
+	var name string
+	if err := e.db.Read.QueryRow(`SELECT name FROM libraries WHERE id = 1`).Scan(&name); err != nil || name != "Kino" {
+		t.Fatalf("name = %q %v", name, err)
+	}
+
+	// The three conflicts and a field error; the name written by the settings step goes back.
+	body["name"] = "Anders"
+	for _, c := range []struct {
+		err  error
+		code string
+	}{{model.ErrStale, "stale"}, {model.ErrRootUnlisted, "root_unlisted"}, {model.ErrScanRunning, "scan_running"}} {
+		e.libs.saveErr = c.err
+		rec = e.call(t, http.MethodPut, lib, body, owner)
+		wantStatus(t, rec, http.StatusConflict)
+		if code := problemCode(t, rec); code != c.code {
+			t.Errorf("%v: code %s, want %s", c.err, code, c.code)
+		}
+	}
+	e.libs.saveErr = (&model.ValidationError{}).Add("roots[1].path", "root_overlap")
+	rec = e.call(t, http.MethodPut, lib, body, owner)
+	if f := fieldProblem(t, rec); f != "roots[1].path root_overlap" {
+		t.Fatalf("field error: %s", f)
+	}
+	e.libs.saveErr = nil
+	if err := e.db.Read.QueryRow(`SELECT name FROM libraries WHERE id = 1`).Scan(&name); err != nil || name != "Kino" {
+		t.Fatalf("name after the refused saves = %q %v", name, err)
+	}
+	// Library fields are checked before the folders, with the names of updateLibrary.
+	body["name"] = " "
+	rec = e.call(t, http.MethodPut, lib, body, owner)
+	if f := fieldProblem(t, rec); f != "name required" {
+		t.Fatalf("empty name: %s", f)
+	}
+	rec = e.call(t, http.MethodPut, "/api/v1/admin/libraries/99", body, owner)
+	wantStatus(t, rec, http.StatusNotFound)
 }

@@ -208,7 +208,10 @@ var adminRegistry = map[string]adminCall{
 	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},
 	"browseServerPaths": {contract: "POST /admin/fs/browse", path: "/admin/fs/browse",
 		body: `{"rootId":"does-not-exist"}`, ownerStatus: http.StatusNotFound},
-	"getLibrary":        {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
+	"getLibrary": {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
+	// Concept 24 4.3: the fixture has no library 777.
+	"saveLibrary": {contract: "PUT /admin/libraries/{id}", path: "/admin/libraries/777",
+		body: `{"revision":"0","name":"X","roots":[],"removeRoots":[]}`, ownerStatus: http.StatusNotFound},
 	"scanLibrary":       {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
 	"acceptLibraryLoss": {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
 	// Idea 02, E8 and E12, ADR 0015: the fixture has no library 777 or 9999, so all three answer

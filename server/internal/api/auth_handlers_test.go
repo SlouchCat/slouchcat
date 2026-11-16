@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,6 +38,42 @@ type authTestLibraries struct {
 	// scanRunning makes RemoveRoot answer model.ErrScanRunning, as package library does while
 	// a scan holds the lock of that library.
 	scanRunning bool
+	// db runs the settings of Save in a transaction; saveErr is what Save answers after them
+	// (package library tests the folder rules themselves), saved the last request.
+	db      *sql.DB
+	saveErr error
+	saved   model.LibrarySave
+}
+
+// Save runs the library settings of saveLibrary in a transaction and answers saveErr, or the
+// library with every kept folder in metadataChanged.
+func (f *authTestLibraries) Save(ctx context.Context, id int64, req model.LibrarySave, settings func(context.Context, *sql.Tx) error) (model.LibrarySaved, error) {
+	f.saved = req
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	tx, err := f.db.BeginTx(ctx, nil)
+	if err != nil {
+		return model.LibrarySaved{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := settings(ctx, tx); err != nil {
+		return model.LibrarySaved{}, err
+	}
+	if f.saveErr != nil {
+		return model.LibrarySaved{}, f.saveErr
+	}
+	if err := tx.Commit(); err != nil {
+		return model.LibrarySaved{}, err
+	}
+	out := model.LibrarySaved{Library: lib, MetadataChanged: []model.RootTitles{}}
+	for _, r := range req.Roots {
+		if r.ID != 0 {
+			out.MetadataChanged = append(out.MetadataChanged, model.RootTitles{RootID: r.ID, HomeTitleCount: 3})
+		}
+	}
+	return out, nil
 }
 
 func (f *authTestLibraries) ValidatePath(_ context.Context, path string) error {
@@ -233,7 +270,7 @@ func newAuthEnvAt(t *testing.T, clock *stepClock, wire ...func(*admin.Service)) 
 	}
 	a := auth.New(db, log).WithClock(clock.Now)
 	tmdb := &authTestTMDB{}
-	libs := &authTestLibraries{}
+	libs := &authTestLibraries{db: db.Write}
 	adm := admin.New(db, a, libs, ring, tmdb, func(string) string { return "" }, log)
 	for _, w := range wire {
 		w(adm)

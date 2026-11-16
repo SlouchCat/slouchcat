@@ -226,6 +226,10 @@ type AdminService interface {
 	// UpdateLibrary renames a library or sets the default rating of an audio library; titles rated
 	// by the library follow (model.ErrNotFound, *model.ValidationError).
 	UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error)
+	// SaveLibrary saves the form «Bibliothek bearbeiten» in one transaction (concept 24 4.3;
+	// model.ErrNotFound, *model.ValidationError, model.ErrStale, model.ErrRootUnlisted,
+	// model.ErrScanRunning).
+	SaveLibrary(ctx context.Context, id int64, req model.LibrarySave) (model.LibrarySaved, error)
 	// ListPodcasts returns every podcast subscription, newest first.
 	ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error)
 	// CreatePodcast subscribes a podcast library to a feed after one fetch (*model.ValidationError,
