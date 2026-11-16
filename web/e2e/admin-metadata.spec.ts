@@ -1,7 +1,13 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 import { areaTab } from './admin';
 
 // The page "Metadaten" (concept 10, 7.1, ADR 0018; concept 24 3.4) against the real server: the
@@ -527,6 +533,23 @@ test('?item= opens the named section only; «Anwenden» goes to one folder with 
   await expect(folders.getByRole('listitem')).toHaveCount(roots.length);
   await expect(folders.getByRole('listitem').first()).toContainText(folder.path);
   await expect(folders.getByRole('listitem').first()).toContainText(/Sprachen: /);
+  // The row action is «Bearbeiten» of the folder's library with that folder's card open
+  // (concept 24 4.5); Escape without a change returns to it.
+  const edit = folders.getByRole('button', {
+    name: `${folder.library} bearbeiten, Ordner ${folder.path}`,
+  });
+  await tabToFromTop(page, edit);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  const form = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
+  const card = form
+    .getByRole('listitem', { name: /^Ordner \d+$/ })
+    .filter({ hasText: folder.path });
+  await expect(card.getByRole('button').first()).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, card.getByLabel('Ordner', { exact: true }));
+  await page.keyboard.press('Escape');
+  await expect(form).toHaveCount(0);
+  await expectFocusOn(page, edit);
 
   await openMetadata(page, '?item=apply');
   const apply = section(page, 'Anwenden');

@@ -73,13 +73,22 @@ test('«Hörbücher: Quellen» by keyboard: folder dialog, settings, «Jetzt all
   await page.keyboard.press('Enter');
   await expect(heading(page)).toBeVisible();
 
-  // The folder's list is shown only; its button opens the folder's dialog, Escape returns.
+  // The folder's list is shown only; its button opens «Bearbeiten» of its library with this
+  // folder's card open and the focus in its path (concept 24 4.5); Escape returns.
   const folderButton = page.getByRole('button', { name: /^Quellen von .* ändern$/ }).first();
   await resetFocus(page);
   await tabTo(page, folderButton, 80);
   await page.keyboard.press('Enter');
-  const folders = page.getByRole('dialog', { name: 'Ordner von Hörbücher' });
+  const folders = page.getByRole('dialog', { name: 'Bibliothek bearbeiten' });
   await expect(folders).toBeVisible();
+  const card = folders
+    .getByRole('listitem', { name: /^Ordner \d+$/ })
+    .filter({ has: page.getByRole('button', { expanded: true }) });
+  await expect(card).toHaveCount(1);
+  await expectFocusOn(page, card.getByLabel('Ordner', { exact: true }));
+  await expectVisibleFocus(page);
+  // Audiobook folders have path and sources, no languages and images (4.2).
+  await expect(card.getByRole('radiogroup', { name: 'Sprachen' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(folders).toHaveCount(0);
   await expectFocusOn(page, folderButton);
