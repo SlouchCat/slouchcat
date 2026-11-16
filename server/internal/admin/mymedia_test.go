@@ -1,11 +1,13 @@
 package admin
 
 import (
+	"database/sql"
 	"fmt"
 	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
 // myMediaIDs returns the ids of entries in their order.
@@ -131,5 +133,93 @@ func TestMyMediaNewLibrary(t *testing.T) {
 	}
 	if e := out[1]; e.HideSidebar || e.HideHome || e.Position != 1 {
 		t.Errorf("left-out library %+v lost its place or flags", e)
+	}
+}
+
+// A library that is being deleted (deleting_at, library.delete) leaves «Meine Medien» of the
+// administration at once, like ListLibraries. SetMyMedia still merges against its stored entry: a
+// list that names it and one that leaves it out are both valid, it keeps its place, and the answer
+// leaves it out. Undoing the deletion shows it again at its place.
+func TestMyMediaDeletingLibrary(t *testing.T) {
+	c := newCurationFixture(t)
+	var id int64
+	if err := c.f.DB.Write.QueryRowContext(c.ctx, `INSERT INTO libraries (name, kind, created_at, updated_at) VALUES ('Anime', 'video', 5, 5) RETURNING id`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	gone := fmt.Sprintf("library:%d", id)
+	before, err := c.svc.MyMedia(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fixture's library, Anime, radio, collections, picks.
+	if ids := myMediaIDs(before); len(ids) != 5 || ids[1] != gone {
+		t.Fatalf("entries %v, want Anime second", ids)
+	}
+	q := appq.New(c.f.DB.Write)
+	if n, err := q.MarkLibraryDeleting(c.ctx, appq.MarkLibraryDeletingParams{Now: sql.NullInt64{Int64: 7, Valid: true}, ID: id}); err != nil || n != 1 {
+		t.Fatalf("mark deleting: %d (%v)", n, err)
+	}
+	without := slices.Delete(slices.Clone(before), 1, 2)
+	entries, err := c.svc.MyMedia(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(myMediaIDs(entries), myMediaIDs(without)) {
+		t.Fatalf("entries while deleting %v, want %v", myMediaIDs(entries), myMediaIDs(without))
+	}
+
+	stored := func() []string {
+		t.Helper()
+		rows, err := q.ListMyMedia(c.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := make([]string, 0, len(rows))
+		for i, r := range rows {
+			if r.Position != int64(i) {
+				t.Errorf("stored entry %s at position %d, want %d", r.ID, r.Position, i)
+			}
+			out = append(out, r.ID)
+		}
+		return out
+	}
+	// A page read before the mark still sends the entry: valid, it moves radio to the front.
+	stale := []model.MyMediaSetting{before[2], before[0], before[1], before[3], before[4]}
+	stale[2].HideHome = true
+	out, err := c.svc.SetMyMedia(c.ctx, stale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{before[2].ID, before[0].ID, before[3].ID, before[4].ID}; !slices.Equal(myMediaIDs(out), want) {
+		t.Errorf("answer %v, want without the library being deleted %v", myMediaIDs(out), want)
+	}
+	if want := []string{before[2].ID, before[0].ID, gone, before[3].ID, before[4].ID}; !slices.Equal(stored(), want) {
+		t.Errorf("stored %v, want %v", stored(), want)
+	}
+	// A page read after the mark leaves it out: it keeps its place (index 2) and its flags.
+	fresh := []model.MyMediaSetting{before[0], before[2], before[3], before[4]}
+	out, err = c.svc.SetMyMedia(c.ctx, fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := myMediaIDs(fresh); !slices.Equal(myMediaIDs(out), want) {
+		t.Errorf("answer %v, want %v", myMediaIDs(out), want)
+	}
+	if want := []string{before[0].ID, before[2].ID, gone, before[3].ID, before[4].ID}; !slices.Equal(stored(), want) {
+		t.Errorf("stored %v, want the left-out library at its place %v", stored(), want)
+	}
+
+	if err := q.ClearLibraryDeleting(c.ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	back, err := c.svc.MyMedia(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{before[0].ID, before[2].ID, gone, before[3].ID, before[4].ID}; !slices.Equal(myMediaIDs(back), want) {
+		t.Fatalf("entries after undoing %v, want %v", myMediaIDs(back), want)
+	}
+	if e := back[2]; e.Position != 2 || !e.HideHome || e.HideSidebar || e.LibraryName != "Anime" {
+		t.Errorf("entry after undoing %+v, want at position 2 with its flags", e)
 	}
 }

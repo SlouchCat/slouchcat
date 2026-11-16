@@ -115,27 +115,30 @@ func (q *Queries) ListHomeRows(ctx context.Context) ([]ListHomeRowsRow, error) {
 const listMyMedia = `-- name: ListMyMedia :many
 
 SELECT m.id, m.key, m.library_id, COALESCE(l.name, '') AS library_name, COALESCE(l.kind, '') AS library_kind,
-       m.position, m.hide_sidebar, m.hide_home
+       m.position, m.hide_sidebar, m.hide_home, l.deleting_at AS library_deleting_at
 FROM my_media AS m
 LEFT JOIN libraries AS l ON l.id = m.library_id
 ORDER BY m.position, m.id
 `
 
 type ListMyMediaRow struct {
-	ID          string
-	Key         string
-	LibraryID   sql.NullInt64
-	LibraryName string
-	LibraryKind string
-	Position    int64
-	HideSidebar int64
-	HideHome    int64
+	ID                string
+	Key               string
+	LibraryID         sql.NullInt64
+	LibraryName       string
+	LibraryKind       string
+	Position          int64
+	HideSidebar       int64
+	HideHome          int64
+	LibraryDeletingAt sql.NullInt64
 }
 
 // "Meine Medien" (concept 21 P-11, migration 00059): one order of the group for the side navigation
 // and the start page tiles, for every profile, hidden per place. An entry is named by its id:
 // 'library:<id>' for a library, the key for radio, collections and picks. A library entry carries
-// the name and kind of its library. The administration rewrites the positions in one transaction.
+// the name and kind of its library and its deleting mark (library.delete): the administration's read
+// leaves such an entry out but keeps it in the stored order. The administration rewrites the
+// positions in one transaction.
 func (q *Queries) ListMyMedia(ctx context.Context) ([]ListMyMediaRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMyMedia)
 	if err != nil {
@@ -154,6 +157,7 @@ func (q *Queries) ListMyMedia(ctx context.Context) ([]ListMyMediaRow, error) {
 			&i.Position,
 			&i.HideSidebar,
 			&i.HideHome,
+			&i.LibraryDeletingAt,
 		); err != nil {
 			return nil, err
 		}

@@ -44,11 +44,13 @@ UPDATE home_rows SET position = @position, hidden = @hidden, updated_at = @now W
 -- "Meine Medien" (concept 21 P-11, migration 00059): one order of the group for the side navigation
 -- and the start page tiles, for every profile, hidden per place. An entry is named by its id:
 -- 'library:<id>' for a library, the key for radio, collections and picks. A library entry carries
--- the name and kind of its library. The administration rewrites the positions in one transaction.
+-- the name and kind of its library and its deleting mark (library.delete): the administration's read
+-- leaves such an entry out but keeps it in the stored order. The administration rewrites the
+-- positions in one transaction.
 
 -- name: ListMyMedia :many
 SELECT m.id, m.key, m.library_id, COALESCE(l.name, '') AS library_name, COALESCE(l.kind, '') AS library_kind,
-       m.position, m.hide_sidebar, m.hide_home
+       m.position, m.hide_sidebar, m.hide_home, l.deleting_at AS library_deleting_at
 FROM my_media AS m
 LEFT JOIN libraries AS l ON l.id = m.library_id
 ORDER BY m.position, m.id;
