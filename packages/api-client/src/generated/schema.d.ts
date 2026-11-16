@@ -3315,15 +3315,21 @@ export interface paths {
          * The order of the start page rows (E-9)
          * @description Every row in display order (since contract 1.15.0, concept 15 P-7): the eight fixed rows,
          *     `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
-         *     new library gets its row hidden at the end.
+         *     new library gets its row hidden at the end. A library that is being deleted (job
+         *     `library.delete`) has no row here, like in the list of libraries; its row keeps its stored
+         *     place, so `position` may leave a gap (closed by the first save after the job has finished).
          */
         get: operations["getHomeRows"];
         /**
          * Set the order and visibility of the start page rows (E-9)
          * @description The rows by `id` (since contract 1.15.0, breaking): the array order is the display order, and
          *     `hidden` of each listed row is stored; `position` is ignored. A stored row the array leaves
-         *     out (for example a library added after the page was read) keeps its place in the stored order
-         *     and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
+         *     out (for example a library added after the page was read, or one that is being deleted) keeps
+         *     its place in the stored order and its `hidden` flag. The row of a library that is being
+         *     deleted may still be sent: only its place is taken from the request, its `hidden` flag stays
+         *     as stored. The answer leaves it out like `getHomeRows`. At most fifteen rows
+         *     may be visible (F-12); hidden rows and the row of a library that is being deleted do not
+         *     count.
          */
         put: operations["setHomeRows"];
         post?: never;
@@ -18011,7 +18017,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All rows in display order, with the hidden flag. */
+            /** @description All rows in display order, with the hidden flag, without the row of a library that is being deleted. */
             200: {
                 headers: {
                     [name: string]: unknown;
