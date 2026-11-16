@@ -158,8 +158,8 @@ func TestHomeRowsNewLibraryAndLimit(t *testing.T) {
 // administration at once, like ListLibraries. SetHomeRows still merges against its stored row: a
 // list that names it and one that leaves it out are both valid, it keeps its place and hidden flag,
 // and the answer leaves it out. The row does not count toward the fifteen visible places (F-12), so
-// undoing the deletion can bring back one visible row more than the limit; the next save of that
-// list is refused.
+// undoing the deletion can bring back more visible rows than the limit, one per library whose
+// deletion was undone and whose row was visible (here one); the next save of that list is refused.
 func TestHomeRowsDeletingLibrary(t *testing.T) {
 	c := newCurationFixture(t)
 	newLibrary := func(name string) string {
@@ -312,6 +312,130 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 	}
 	if visible != model.MaxVisibleHomeRows+1 {
 		t.Errorf("%d visible rows after undoing, want one more than the limit", visible)
+	}
+	wantField(t, "saved after undoing", errOf(c.svc.SetHomeRows(c.ctx, back)), "rows", "too_many_visible")
+}
+
+// The row of a library that is being deleted keeps its stored hidden flag even when a page read
+// before the deletion names it as shown; the request decides only its place. Two libraries being
+// deleted at once, both rows shown, count toward neither the named nor the left-out limit; undoing
+// both brings back two visible rows more than the limit, and the next save of that list is refused.
+func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
+	c := newCurationFixture(t)
+	q := appq.New(c.f.DB.Write)
+	libs := map[string]int64{}
+	newLibrary := func(name string) string {
+		t.Helper()
+		var id int64
+		if err := c.f.DB.Write.QueryRowContext(c.ctx, `INSERT INTO libraries (name, kind, created_at, updated_at) VALUES (?, 'video', 5, 5) RETURNING id`,
+			name).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		row := fmt.Sprintf("library:%d", id)
+		libs[row] = id
+		return row
+	}
+	shownA, shownB, hidden := newLibrary("A"), newLibrary("B"), newLibrary("H")
+	// Five more libraries: 11 + 3 + 5 = 19 rows, sixteen of them not being deleted.
+	for i := range 5 {
+		newLibrary(fmt.Sprintf("Neu %d", i))
+	}
+	rows, err := c.svc.HomeRows(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 19 {
+		t.Fatalf("rows %v, want 19", homeRowIDs(rows))
+	}
+	// A and B shown, H hidden: ten visible rows, the eight fixed ones, A and B.
+	for i := range rows {
+		if rows[i].ID == shownA || rows[i].ID == shownB {
+			rows[i].Hidden = false
+		}
+	}
+	before, err := c.svc.SetHomeRows(c.ctx, rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range []string{shownA, shownB, hidden} {
+		if n, err := q.MarkLibraryDeleting(c.ctx, appq.MarkLibraryDeletingParams{Now: sql.NullInt64{Int64: 7, Valid: true}, ID: libs[row]}); err != nil || n != 1 {
+			t.Fatalf("mark deleting %s: %d (%v)", row, n, err)
+		}
+	}
+	storedHidden := func() map[string]bool {
+		t.Helper()
+		rows, err := q.ListHomeRows(c.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := make(map[string]bool, len(rows))
+		for _, r := range rows {
+			out[r.ID] = r.Hidden == 1
+		}
+		return out
+	}
+
+	// A page read before the marks names H as shown: valid, H stays hidden.
+	stale := slices.Clone(before)
+	for i := range stale {
+		if stale[i].ID == hidden {
+			stale[i].Hidden = false
+		}
+	}
+	if _, err := c.svc.SetHomeRows(c.ctx, stale); err != nil {
+		t.Fatalf("stale list naming H: %v", err)
+	}
+	if h := storedHidden(); !h[hidden] || h[shownA] || h[shownB] {
+		t.Errorf("stored flags A %v, B %v, H %v, want A and B shown, H hidden", h[shownA], h[shownB], h[hidden])
+	}
+
+	// A page read after the marks leaves A, B and H out: fifteen other rows visible are accepted,
+	// sixteen are too many.
+	read, err := c.svc.HomeRows(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(read) != 16 {
+		t.Fatalf("rows while deleting %v, want 16", homeRowIDs(read))
+	}
+	show := func(n int) []model.HomeRowSetting {
+		next := slices.Clone(read)
+		for i := range next {
+			if n > 0 && next[i].Hidden {
+				next[i].Hidden = false
+				n--
+			}
+		}
+		return next
+	}
+	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(8))), "rows", "too_many_visible")
+	if _, err := c.svc.SetHomeRows(c.ctx, show(7)); err != nil {
+		t.Fatalf("fifteen visible with two libraries being deleted left out: %v", err)
+	}
+	if h := storedHidden(); !h[hidden] || h[shownA] || h[shownB] {
+		t.Errorf("stored flags A %v, B %v, H %v after the left-out save", h[shownA], h[shownB], h[hidden])
+	}
+
+	for _, row := range []string{shownA, shownB, hidden} {
+		if err := q.ClearLibraryDeleting(c.ctx, libs[row]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	back, err := c.svc.HomeRows(c.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	visible := 0
+	for _, r := range back {
+		if !r.Hidden {
+			visible++
+		}
+		if r.ID == hidden && !r.Hidden {
+			t.Errorf("H after undoing %+v, want hidden", r)
+		}
+	}
+	if len(back) != 19 || visible != model.MaxVisibleHomeRows+2 {
+		t.Errorf("%d rows, %d visible after undoing, want 19 and seventeen visible", len(back), visible)
 	}
 	wantField(t, "saved after undoing", errOf(c.svc.SetHomeRows(c.ctx, back)), "rows", "too_many_visible")
 }
