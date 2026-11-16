@@ -270,6 +270,17 @@ func TestAdminMaintenanceIssues(t *testing.T) {
 	if got := m.issues(t, IssueUnmatched); got[0].Detail == "" {
 		t.Errorf("unmatched detail empty: %+v", got)
 	}
+	// An unmatched title names its file, so the administrator finds it (the episode of a matched
+	// series shows only its own title otherwise).
+	for _, is := range m.issues(t, IssueUnmatched) {
+		it, err := m.svc.GetAdminItem(m.ctx, is.ItemID)
+		if err != nil || len(it.MediaFiles) == 0 {
+			t.Fatalf("files of %s: %+v, %v", is.ItemID, it.MediaFiles, err)
+		}
+		if is.Path != it.MediaFiles[0].Path || is.Path == "" {
+			t.Errorf("unmatched %s: path = %q, want its file %q", is.ItemID, is.Path, it.MediaFiles[0].Path)
+		}
+	}
 	if got := issueIDs(m.issues(t, IssueNoImages)); !slices.Equal(got, []string{f.Rated(0).ID}) {
 		t.Errorf("no_images = %v", got)
 	}

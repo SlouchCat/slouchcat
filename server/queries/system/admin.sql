@@ -74,7 +74,12 @@ WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'));
 
 -- name: AdminListUnmatched :many
-SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
+-- rel_path: the file of the title, for the administrator to find it (a present one first; '' for
+-- a series, whose files hang on its episodes, and for a title without a file).
+SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error,
+       CAST(COALESCE((SELECT m.rel_path FROM media_files AS m WHERE m.item_id = i.id
+                      ORDER BY m.missing_since IS NOT NULL, m.rel_path LIMIT 1), '') AS TEXT) AS rel_path
+FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (i.metadata_state IN ('unmatched', 'failed')
        OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))

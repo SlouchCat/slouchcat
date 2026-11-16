@@ -82,7 +82,7 @@ func (s *Service) ListIssues(ctx context.Context, kind string, libraryID *int64,
 		rows, err = s.sys.AdminListUnmatched(ctx, systemq.AdminListUnmatchedParams{PendingBefore: before, LibraryID: lib, LimitCount: lim, OffsetCount: off})
 		for _, r := range rows {
 			is := issue(r.ID, r.Kind, r.Title, r.Year, r.LibraryID)
-			is.Detail = r.MetadataState
+			is.Path, is.Detail = r.RelPath, r.MetadataState
 			if r.MetadataError.String != "" {
 				is.Detail = r.MetadataError.String
 			}
