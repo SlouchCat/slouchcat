@@ -635,7 +635,6 @@ function EditLibraryForm({
   const confirmations = confirmationsOf(library, state, marked);
   const kept = state.folders.filter((folder) => !marked.has(folder.key));
   const listError = folderListError(t, kept, providers.data);
-  const changedElsewhere = live !== undefined && live.revision !== library.revision;
 
   const open = (keys: readonly string[]) =>
     setExpanded((current) => new Set([...current, ...keys]));
@@ -683,6 +682,11 @@ function EditLibraryForm({
       request(api.DELETE('/admin/libraries/{id}/scan', { params: { path: { id: library.id } } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey }),
   });
+
+  // Not once the form saved or closed: the page writes the saved library into its list while the
+  // form is still mounted for its closing animation.
+  const changedElsewhere =
+    isOpen && !save.isSuccess && live !== undefined && live.revision !== library.revision;
 
   const send = () => {
     const sent = saveRequest(library, state, marked, typed);

@@ -1,9 +1,12 @@
 import type { Library, LibrarySave, MetadataProviderInfo } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { library, metadataSettings } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { LibraryForm } from './LibraryForm';
 
 // «Bibliothek bearbeiten» (concept 24 4.1 to 4.3): the library's values in the form of
 // «Hinzufügen», one closed card per folder, and everything saved in one `saveLibrary`. The cases
@@ -619,6 +622,50 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     expect(await within(dialog).findByText('Der Server ist nicht erreichbar.')).toBeVisible();
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Filme neu');
     expect(within(dialog).queryByText(/Das Formular zeigt jetzt ihren neuen Stand/)).toBeNull();
+  });
+
+  it('a saved form does not say the library changed elsewhere while it is still mounted', async () => {
+    const { calls } = mockApi(routes([library()], { 'PUT /admin/libraries/1': saved(library()) }));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // As on the page: `onSaved` writes the saved library into the list while the form is still
+    // mounted (its closing animation); the form here is not closed, so it stays visible.
+    function Page() {
+      const [live, setLive] = useState<Library>(library());
+      return (
+        <LibraryForm
+          mode="edit"
+          library={library()}
+          live={live}
+          isOpen
+          onOpenChange={() => undefined}
+          onSaved={(result) => setLive(result.library)}
+          onStale={() => Promise.resolve(true)}
+        />
+      );
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Page />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    // Every render counts, not only the last one.
+    let flashed = false;
+    const observer = new MutationObserver(() => {
+      if (dialog.textContent?.includes('Beim Speichern lädt das Formular ihren neuen Stand'))
+        flashed = true;
+    });
+    observer.observe(dialog, { childList: true, subtree: true, characterData: true });
+    await user.click(saveOf(dialog));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    await waitFor(() => expect(saveOf(dialog)).toHaveTextContent('Speichern'));
+    observer.disconnect();
+    expect(flashed).toBe(false);
+    expect(
+      within(dialog).queryByText(/Beim Speichern lädt das Formular ihren neuen Stand/),
+    ).toBeNull();
   });
 
   it('a card edited and then marked for removal sends only the removal', async () => {
