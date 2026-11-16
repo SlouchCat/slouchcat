@@ -4970,7 +4970,13 @@
         "langsDefault": "Languages: default",
         "langsOwn": "Languages: {{chain}}",
         "imagesDefault": "Images: default",
-        "imagesOwn": "Images: own"
+        "imagesOwn": "Images: own",
+        "likeDefault": "Like the default",
+        "own": "Own",
+        "defaultIs": "Default: {{value}}",
+        "onlyHere": "Applies to this folder only.",
+        "cost": "Each further language costs one request per title and season of this folder when applied.",
+        "always": "Slouchcat always fetches poster and backdrop."
       }
     },
     "activity": {

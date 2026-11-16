@@ -253,7 +253,13 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
       await tabTo(page, open, 20);
     await page.keyboard.press('Enter');
     await expect(change(page)).toBeVisible();
-    await expectFocusOn(page, change(page).getByRole('radio', { checked: true }));
+    // The content's checked radio: the languages and images below have checked radios too.
+    await expectFocusOn(
+      page,
+      change(page)
+        .getByRole('radiogroup', { name: 'Inhalt' })
+        .getByRole('radio', { checked: true }),
+    );
   };
   await openChange();
 

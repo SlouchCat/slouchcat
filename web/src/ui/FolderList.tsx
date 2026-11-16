@@ -99,6 +99,11 @@ interface FolderListProps {
   pathButton?: (entry: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
   /** Rendered below the path field of a card: the wizard's check. */
   pathAddon?: (entry: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
+  /**
+   * Rendered at the end of a card, below its sources; `name` is the card's input prefix
+   * (`roots[1]`), so the part can name its fields and find the server's messages.
+   */
+  cardAddon?: (entry: FolderEntry, name: string) => ReactNode;
   /** The path field of a card lost the focus (the wizard checks the folder then). */
   onPathBlur?: (entry: FolderEntry) => void;
   /** The server's field messages by input name (`roots[1].providers`), shown at the field. */
@@ -127,6 +132,7 @@ export function FolderList({
   namePrefix,
   pathButton,
   pathAddon,
+  cardAddon,
   onPathBlur,
   fieldErrors,
   ordering,
@@ -254,6 +260,7 @@ export function FolderList({
                   ordering={ordering}
                   error={fieldErrors?.[`${name}.providers`] ?? fieldErrors?.[`${name}.content`]}
                 />
+                {cardAddon?.(entry, name)}
               </div>
             </li>
           );

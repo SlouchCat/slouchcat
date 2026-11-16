@@ -2,7 +2,7 @@ import type { Library, MetadataProviderInfo } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { library } from '@/test/fixtures';
+import { library, metadataSettings } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 const second = {
@@ -555,5 +555,202 @@ describe('library folders dialog', () => {
     // Another folder action starts: the refusal belonged to «Pfad ändern» only.
     await user.click(within(dialog).getByRole('button', { name: 'Ordner /media/Filme entfernen' }));
     await waitFor(() => expect(within(dialog).queryByText(message)).toBeNull());
+  });
+
+  describe('languages and images of a folder (concept 24 4.2)', () => {
+    const anime = library({
+      id: 3,
+      name: 'Anime',
+      roots: [
+        {
+          ...library().roots[0]!,
+          id: 7,
+          path: '/media/Anime',
+          content: 'series',
+          providers: ['tmdb'],
+          textLangs: ['ja', 'en'],
+          images: { langs: { poster: ['ja', ''] }, kinds: ['logo'] },
+        },
+      ],
+    });
+    const routes = (extra: Record<string, unknown> = {}) => ({
+      ...signedIn,
+      'GET /admin/libraries': () => json([library(), anime]),
+      'GET /admin/metadata/providers': () => json(providers),
+      'GET /admin/settings/metadata': () => json(metadataSettings()),
+      ...extra,
+    });
+
+    async function openChange(user: User, name: string, path: string) {
+      const detail = await openRow(user, name);
+      await user.click(
+        within(detail).getByRole('button', { name: `Ordner von ${name} bearbeiten` }),
+      );
+      const dialog = await screen.findByRole('dialog', { name: `Ordner von ${name}` });
+      await user.click(within(dialog).getByRole('button', { name: `Ordner ${path} ändern` }));
+      return screen.findByRole('dialog', { name: 'Ordner ändern' });
+    }
+
+    it('«Ändern»: «Wie Standard» names the default, «Eigene» starts from it, only the change is sent', async () => {
+      const { calls, fetchMock } = mockApi(
+        routes({ 'PATCH /admin/libraries/1/roots/1': () => json(library()) }),
+      );
+      renderApp('/admin/libraries');
+      const user = userEvent.setup();
+      const change = await openChange(user, 'Filme', '/media/Filme');
+      const langs = await within(change).findByRole('radiogroup', { name: 'Sprachen' });
+      expect(within(langs).getByRole('radio', { name: 'Wie Standard' })).toBeChecked();
+      expect(langs).toHaveAccessibleDescription('Standard: Deutsch › Englisch');
+      const images = within(change).getByRole('radiogroup', { name: 'Bilder' });
+      expect(images).toHaveAccessibleDescription(
+        'Standard: Poster, Hintergrund, Logo, Staffelposter und Folgenbild',
+      );
+      // Nothing of its own: no place list.
+      expect(within(change).queryByRole('group', { name: 'Metadaten-Sprachen' })).toBeNull();
+
+      await user.click(within(langs).getByRole('radio', { name: 'Eigene' }));
+      expect(langs).toHaveAccessibleDescription('Gilt nur für diesen Ordner.');
+      const list = within(change).getByRole('group', { name: 'Metadaten-Sprachen' });
+      expect(
+        within(list)
+          .getAllByRole<HTMLSelectElement>('combobox')
+          .map((select) => select.value),
+      ).toEqual(['de', 'en']);
+      await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
+      // The hints: the cost, the quota, and the source that lacks a language of this list.
+      expect(
+        within(change).getByText(/Jede weitere Sprache kostet beim Anwenden eine Anfrage/),
+      ).toHaveTextContent(/3 Sprachen: bis zu 33 Titel am Tag/);
+      await waitFor(() =>
+        expect(
+          fetchMock.mock.calls.some(([input]) =>
+            input.url.endsWith('/admin/metadata/providers?textLangs=de&textLangs=en&textLangs=fr'),
+          ),
+        ).toBe(true),
+      );
+      await user.click(within(change).getByRole('button', { name: 'Speichern' }));
+      await waitFor(() =>
+        expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+          textLangs: ['de', 'en', 'fr'],
+        }),
+      );
+    });
+
+    it('«Ändern» back to the default sends null; switching back before the save keeps the own list', async () => {
+      const { calls } = mockApi(routes({ 'PATCH /admin/libraries/3/roots/7': () => json(anime) }));
+      renderApp('/admin/libraries');
+      const user = userEvent.setup();
+      const change = await openChange(user, 'Anime', '/media/Anime');
+      const langs = await within(change).findByRole('radiogroup', { name: 'Sprachen' });
+      const images = within(change).getByRole('radiogroup', { name: 'Bilder' });
+      expect(within(langs).getByRole('radio', { name: 'Eigene' })).toBeChecked();
+      expect(within(change).getByRole('checkbox', { name: /Logo/ })).toBeChecked();
+      expect(within(change).getByRole('checkbox', { name: /Staffelposter/ })).not.toBeChecked();
+      const poster = within(change).getByRole('group', { name: 'Bildsprache Poster' });
+      expect(
+        within(poster)
+          .getAllByRole<HTMLSelectElement>('combobox')
+          .map((select) => select.value),
+      ).toEqual(['ja', '']);
+      // A chain the folder leaves out follows the default's.
+      const logo = within(change).getByRole('group', { name: 'Bildsprache Logo' });
+      expect(
+        within(logo)
+          .getAllByRole<HTMLSelectElement>('combobox')
+          .map((select) => select.value),
+      ).toEqual(['de', 'en']);
+
+      // Back and forth: the own list is still there, nothing to send.
+      await user.click(within(langs).getByRole('radio', { name: 'Wie Standard' }));
+      expect(within(change).queryByRole('group', { name: 'Metadaten-Sprachen' })).toBeNull();
+      await user.click(within(langs).getByRole('radio', { name: 'Eigene' }));
+      const list = within(change).getByRole('group', { name: 'Metadaten-Sprachen' });
+      expect(
+        within(list)
+          .getAllByRole<HTMLSelectElement>('combobox')
+          .map((select) => select.value),
+      ).toEqual(['ja', 'en']);
+      const save = within(change).getByRole('button', { name: 'Speichern' });
+      await user.click(save);
+      expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+
+      await user.click(within(langs).getByRole('radio', { name: 'Wie Standard' }));
+      await user.click(within(images).getByRole('radio', { name: 'Wie Standard' }));
+      await user.click(save);
+      await waitFor(() =>
+        expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+          textLangs: null,
+          images: null,
+        }),
+      );
+    });
+
+    it('«Ändern» shows the server messages at their fields', async () => {
+      mockApi(
+        routes({
+          'PATCH /admin/libraries/3/roots/7': () =>
+            problem(422, 'validation_failed', {
+              errors: [
+                { field: 'textLangs', code: 'lang_unknown' },
+                { field: 'images.langs.poster', code: 'chain_duplicate' },
+              ],
+            }),
+        }),
+      );
+      renderApp('/admin/libraries');
+      const user = userEvent.setup();
+      const change = await openChange(user, 'Anime', '/media/Anime');
+      await user.click(
+        within(await within(change).findByRole('group', { name: 'Bildsprache Logo' })).getByRole(
+          'button',
+          { name: 'Weitere Sprache' },
+        ),
+      );
+      await user.click(within(change).getByRole('button', { name: 'Speichern' }));
+      const poster = within(change).getByRole('group', { name: 'Bildsprache Poster' });
+      expect(await within(change).findByText('Jede Sprache nur einmal.')).toBeVisible();
+      // The chain's message stands right below the chain, the list's below the list.
+      expect(poster.parentElement).toHaveTextContent('Jede Sprache nur einmal.');
+      expect(
+        within(change).getByRole('group', { name: 'Metadaten-Sprachen' }).parentElement
+          ?.parentElement,
+      ).toHaveTextContent('Unbekannter Sprachcode.');
+    });
+
+    it('a new folder of a video library sends its own images', async () => {
+      const { calls } = mockApi(
+        routes({
+          'POST /admin/libraries/1/roots': () => json(library()),
+        }),
+      );
+      renderApp('/admin/libraries');
+      const user = userEvent.setup();
+      const dialog = await openFolders(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Ordner hinzufügen' }));
+      await user.type(within(dialog).getByRole('textbox', { name: 'Ordner' }), '/media/Filme-3');
+      const images = await within(dialog).findByRole('radiogroup', { name: 'Bilder' });
+      await user.click(within(images).getByRole('radio', { name: 'Eigene' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: /Folgenbild/ }));
+      await user.click(within(dialog).getByRole('button', { name: '1 Ordner hinzufügen' }));
+      await waitFor(() =>
+        expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+          roots: [
+            {
+              path: '/media/Filme-3',
+              content: 'movie',
+              providers: ['tmdb'],
+              images: {
+                langs: {
+                  poster: ['de', 'en', ''],
+                  backdrop: ['', 'de', 'en'],
+                  logo: ['de', 'en'],
+                },
+                kinds: ['logo', 'season_poster'],
+              },
+            },
+          ],
+        }),
+      );
+    });
   });
 });

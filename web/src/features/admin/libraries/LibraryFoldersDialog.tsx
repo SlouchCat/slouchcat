@@ -25,7 +25,14 @@ import {
 import { browseKey } from '../../shared/pathBrowser';
 import { PathBrowserButton } from '../../shared/PathBrowserButton';
 import { PathBrowserDialog } from '../../shared/PathBrowserDialog';
-import { librariesQuery, metadataProvidersQuery } from '../queries';
+import {
+  FolderMetadataFields,
+  folderMetadataDraft,
+  folderMetadataRequest,
+  folderMetadataUpdate,
+  type FolderMetadataDraft,
+} from '../metadata/FolderMetadataFields';
+import { librariesQuery, metadataProvidersQuery, metadataSettingsQuery } from '../queries';
 import { watchKeys } from './libraryColumns';
 import styles from './LibraryFoldersDialog.module.css';
 
@@ -60,6 +67,8 @@ export function LibraryFoldersDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [folders, setFolders] = useState<FolderEntry[]>([]);
+  // The languages and images of each new card by its key (concept 24 4.2); absent = default.
+  const [newMetadata, setNewMetadata] = useState<Record<string, FolderMetadataDraft>>({});
   const [removing, setRemoving] = useState<LibraryRoot | null>(null);
   const [changing, setChanging] = useState<LibraryRoot | null>(null);
   // «Pfad ändern»: the folder browser picks the new path, a plain confirmation names both paths.
@@ -73,9 +82,13 @@ export function LibraryFoldersDialog({
   // mark is stale, so its queries go with the library list.
   const refresh = async (updated: Library) => {
     onChanged(updated);
+    // A folder's own languages widen the profiles' choice (concept 24 3.3); the settings count
+    // the titles anew.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: browseKey }),
+      queryClient.invalidateQueries({ queryKey: metadataSettingsQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['session'] }),
     ]);
   };
 
@@ -89,12 +102,14 @@ export function LibraryFoldersDialog({
               path: folder.path.trim(),
               content: folder.content,
               providers: folder.providers,
+              ...(library.kind === 'video' ? folderMetadataRequest(newMetadata[folder.key]) : {}),
             })),
           },
         }),
       ),
     onSuccess: async (updated) => {
       setFolders([]);
+      setNewMetadata({});
       await refresh(updated);
     },
   });
@@ -159,6 +174,7 @@ export function LibraryFoldersDialog({
     remove.reset();
     move.reset();
     setFolders([]);
+    setNewMetadata({});
     setRemoving(null);
     setChanging(null);
     setBrowsing(null);
@@ -296,6 +312,21 @@ export function LibraryFoldersDialog({
               namePrefix="roots"
               fieldErrors={addErrors?.fields}
               ordering="rank"
+              cardAddon={
+                library.kind === 'video'
+                  ? (folder, cardName) => (
+                      <FolderMetadataFields
+                        name={folder.key}
+                        value={newMetadata[folder.key] ?? folderMetadataDraft()}
+                        onChange={(metadata) =>
+                          setNewMetadata((current) => ({ ...current, [folder.key]: metadata }))
+                        }
+                        fieldPrefix={`${cardName}.`}
+                        fieldErrors={addErrors?.fields}
+                      />
+                    )
+                  : undefined
+              }
               pathButton={(folder, inputRef) => (
                 <PathBrowserButton
                   path={folder.path}
@@ -406,7 +437,8 @@ export function LibraryFoldersDialog({
 
 /**
  * «Ordner ändern» (updateLibraryRoot, ADR 0015, concept 6.3): content and provider list of one
- * folder. The three weights show before the save: only fillers change (nothing is deleted), the
+ * folder, and of a video folder its languages and images (concept 24 4.2, three states each).
+ * The languages and images change no title row and need no confirmation. The three weights show before the save: only fillers change (nothing is deleted), the
  * identifier changes (season and episode texts follow the new numbering), the content changes
  * (the folder is read anew, which weighs as much as removing it -- the typed path confirms it,
  * concept 9.5).
@@ -426,6 +458,9 @@ function ChangeRootDialog({
   const providers = useQuery(metadataProvidersQuery);
   const [content, setContent] = useState(root.content);
   const [list, setList] = useState(root.providers);
+  const [metadata, setMetadata] = useState(() => folderMetadataDraft(root));
+  const video = library.kind === 'video';
+  const metadataChanges = video ? folderMetadataUpdate(metadata, root) : {};
   const [confirming, setConfirming] = useState(false);
   const contents = contentsOf(library.kind);
   const contentChanges = content !== root.content;
@@ -443,12 +478,13 @@ function ChangeRootDialog({
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const listError = providerListError(t, content, list, providers.data);
-  const unchanged = !contentChanges && !listChanges;
+  const unchanged = !contentChanges && !listChanges && Object.keys(metadataChanges).length === 0;
 
   const submit = (confirmPath?: string) => {
     save.mutate({
       ...(contentChanges ? { content } : {}),
       ...(listChanges || contentChanges ? { providers: list } : {}),
+      ...metadataChanges,
       ...(confirmPath !== undefined ? { confirmPath } : {}),
     });
   };
@@ -513,6 +549,14 @@ function ChangeRootDialog({
           )}
           {!contentChanges && !identifierChanges && listChanges && (
             <Notice live={false}>{t('admin.libraries.folders.change.fillers')}</Notice>
+          )}
+          {video && (
+            <FolderMetadataFields
+              name="metadata"
+              value={metadata}
+              onChange={setMetadata}
+              fieldErrors={errors?.fields}
+            />
           )}
           <div className={styles.addActions}>
             <AriaButton variant="ghost" onPress={onClose}>

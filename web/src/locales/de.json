@@ -4970,7 +4970,13 @@
         "langsDefault": "Sprachen: Standard",
         "langsOwn": "Sprachen: {{chain}}",
         "imagesDefault": "Bilder: Standard",
-        "imagesOwn": "Bilder: eigene"
+        "imagesOwn": "Bilder: eigene",
+        "likeDefault": "Wie Standard",
+        "own": "Eigene",
+        "defaultIs": "Standard: {{value}}",
+        "onlyHere": "Gilt nur für diesen Ordner.",
+        "cost": "Jede weitere Sprache kostet beim Anwenden eine Anfrage je Titel und Staffel dieses Ordners.",
+        "always": "Poster und Hintergrund holt Slouchcat immer."
       }
     },
     "activity": {

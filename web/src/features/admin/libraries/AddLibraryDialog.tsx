@@ -22,6 +22,13 @@ import {
   type LibraryKind,
 } from '../../shared/LibraryFields';
 import { PathBrowserButton } from '../../shared/PathBrowserButton';
+import {
+  FolderMetadataFields,
+  folderMetadataDraft,
+  folderMetadataRequest,
+  hasOwnMetadata,
+  type FolderMetadataDraft,
+} from '../metadata/FolderMetadataFields';
 import { librariesQuery, metadataProvidersQuery } from '../queries';
 import { DEFAULT_TRICKPLAY, sameTrickplay, TrickplayFields } from './TrickplayFields';
 import styles from './Libraries.module.css';
@@ -38,6 +45,9 @@ export interface LibraryDraft {
   /** «Vorschau beim Spulen» of a video library (concept 18, 9). */
   trickplay: LibraryTrickplay;
   setTrickplay: (trickplay: LibraryTrickplay) => void;
+  /** The languages and images of each video card by its key (concept 24 4.2); absent = default. */
+  folderMetadata: Readonly<Record<string, FolderMetadataDraft>>;
+  setFolderMetadata: (key: string, metadata: FolderMetadataDraft) => void;
   /** Kind and folders together: a new kind starts with its own cards. */
   changeKind: (kind: LibraryKind) => void;
   /** Something differs from an empty form (an untouched form is no draft). */
@@ -68,10 +78,17 @@ export function useLibraryDraft(): LibraryDraft {
   // The folders are controlled values: the browse dialog writes the chosen path into a card.
   const [folders, setFolders] = useState<FolderEntry[]>(() => initialFolders('video'));
   const [trickplay, setTrickplay] = useState<LibraryTrickplay>(DEFAULT_TRICKPLAY);
+  const [folderMetadata, setMetadata] = useState<Record<string, FolderMetadataDraft>>({});
+  const setFolderMetadata = useCallback(
+    (key: string, metadata: FolderMetadataDraft) =>
+      setMetadata((current) => ({ ...current, [key]: metadata })),
+    [],
+  );
   const changeKind = (next: LibraryKind) => {
     if (next === kind) return;
     setKind(next);
     setFolders(initialFolders(next));
+    setMetadata({});
   };
   const reset = useCallback(() => {
     setName('');
@@ -79,13 +96,15 @@ export function useLibraryDraft(): LibraryDraft {
     setRating('0');
     setFolders(initialFolders('video'));
     setTrickplay(DEFAULT_TRICKPLAY);
+    setMetadata({});
   }, []);
   const dirty =
     name.trim() !== '' ||
     kind !== 'video' ||
     rating !== '0' ||
     !untouchedFolders(folders) ||
-    !sameTrickplay(trickplay, DEFAULT_TRICKPLAY);
+    !sameTrickplay(trickplay, DEFAULT_TRICKPLAY) ||
+    folders.some((folder) => hasOwnMetadata(folderMetadata[folder.key]));
   return {
     name,
     setName,
@@ -96,6 +115,8 @@ export function useLibraryDraft(): LibraryDraft {
     setFolders,
     trickplay,
     setTrickplay,
+    folderMetadata,
+    setFolderMetadata,
     changeKind,
     dirty,
     reset,
@@ -113,7 +134,7 @@ interface AddLibraryDialogProps {
 /**
  * «Bibliothek hinzufügen» (BIB-6; concept 12, 11.5 point 8: from the page into a dialog): name,
  * kind, default rating of an audio library, the folder cards with their sources (by position,
- * S-16) and the folder browser, «Vorschau beim Spulen» of a video library (concept 18, 9),
+ * S-16), the languages and images of a video folder (concept 24 4.2) and the folder browser, «Vorschau beim Spulen» of a video library (concept 18, 9),
  * «N Ordner hinzufügen». The draft is the page's, so what was
  * typed is still there when the dialog is closed without adding and opened again, and leaving the
  * page asks first (S-13); a library that was added empties it. «Abbrechen» asks whether to keep
@@ -128,7 +149,7 @@ export function AddLibraryDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { name, setName, kind, rating, setRating, folders, setFolders, changeKind } = draft;
-  const { trickplay, setTrickplay } = draft;
+  const { trickplay, setTrickplay, folderMetadata, setFolderMetadata } = draft;
   const trickplayHeading = useId();
   const [asking, setAsking] = useState(false);
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
@@ -149,7 +170,14 @@ export function AddLibraryDialog({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const body = libraryRequest(name.trim(), kind, folders, rating);
+    // Only video folders have languages and images of their own (concept 24 3.1).
+    const body = libraryRequest(
+      name.trim(),
+      kind,
+      folders,
+      rating,
+      kind === 'video' ? (folder) => folderMetadataRequest(folderMetadata[folder.key]) : undefined,
+    );
     create.mutate(kind === 'video' ? { ...body, trickplay } : body);
   };
   // A message belongs to the request that is over once the dialog closes; the draft stays.
@@ -202,6 +230,19 @@ export function AddLibraryDialog({
             providerInfos={providers.data}
             fieldErrors={errors?.fields}
             ordering="rank"
+            cardAddon={
+              kind === 'video'
+                ? (folder, cardName) => (
+                    <FolderMetadataFields
+                      name={folder.key}
+                      value={folderMetadata[folder.key] ?? folderMetadataDraft()}
+                      onChange={(metadata) => setFolderMetadata(folder.key, metadata)}
+                      fieldPrefix={`${cardName}.`}
+                      fieldErrors={errors?.fields}
+                    />
+                  )
+                : undefined
+            }
             pathButton={(folder, inputRef) => (
               <PathBrowserButton
                 path={folder.path}

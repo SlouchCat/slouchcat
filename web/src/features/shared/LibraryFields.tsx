@@ -27,13 +27,15 @@ export function initialFolders(kind: LibraryKind): FolderEntry[] {
 
 /**
  * Body of createLibrary (and the library of the setup wizard): every card of the folder list as
- * one root with its content and provider list; only an audio library sends its default rating.
+ * one root with its content and provider list, plus what `extra` adds per card (the languages
+ * and images of a video folder, concept 24); only an audio library sends its default rating.
  */
 export function libraryRequest(
   name: string,
   kind: LibraryKind,
   folders: readonly FolderEntry[],
   rating: string,
+  extra?: (folder: FolderEntry) => Partial<LibraryRequest['roots'][number]>,
 ): LibraryRequest {
   const defaultRating = isAudioLibrary(kind) ? titleRatingOf(rating) : undefined;
   return {
@@ -43,6 +45,7 @@ export function libraryRequest(
       path: folder.path.trim(),
       content: folder.content,
       providers: folder.providers,
+      ...extra?.(folder),
     })),
     ...(defaultRating !== undefined ? { defaultRating } : {}),
   };
@@ -65,6 +68,8 @@ interface LibraryFieldsProps {
   /** Rendered below the path field of a card (the wizard's check). */
   pathAddon?: (folder: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
   onPathBlur?: (folder: FolderEntry) => void;
+  /** Rendered at the end of a card (the languages and images of a video folder, concept 24). */
+  cardAddon?: (folder: FolderEntry, name: string) => ReactNode;
   /** The server's field messages by input name, for the parts of a card without an input. */
   fieldErrors?: Readonly<Record<string, string>>;
   /** How the sources of a card are ordered: arrows (setup wizard) or by position (admin, S-16). */
@@ -89,6 +94,7 @@ export function LibraryFields({
   pathButton,
   pathAddon,
   onPathBlur,
+  cardAddon,
   fieldErrors,
   ordering,
 }: LibraryFieldsProps) {
@@ -120,6 +126,7 @@ export function LibraryFields({
         pathButton={pathButton}
         pathAddon={pathAddon}
         onPathBlur={onPathBlur}
+        cardAddon={cardAddon}
         fieldErrors={fieldErrors}
         ordering={ordering}
       />

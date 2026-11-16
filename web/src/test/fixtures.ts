@@ -7,6 +7,7 @@ import type {
   ItemRef,
   Library,
   LibrarySummary,
+  MetadataSettings,
   PlaybackInfo,
   Profile,
   ProfileSummary,
@@ -59,6 +60,24 @@ export const ratingSystems: RatingSystem[] = [
     ],
   },
 ];
+
+/** The metadata default (`getMetadataSettings`): Deutsch › Englisch, every image kind. */
+export const metadataSettings = (overrides: Partial<MetadataSettings> = {}): MetadataSettings => ({
+  textLangs: ['de', 'en'],
+  imageLangs: { poster: ['de', 'en', ''], backdrop: ['', 'de', 'en'], logo: ['de', 'en'] },
+  imageKinds: ['logo', 'season_poster', 'episode_still'],
+  imageMinWidth: { poster: 500, backdrop: 1280 },
+  imageByVote: true,
+  localImages: true,
+  ratingCountry: 'DE',
+  ratingSystems,
+  tmdbIncludeAdult: false,
+  fanartEnabled: false,
+  knownLanguages: ['de', 'en', 'es', 'fr', 'ja'],
+  affectedTitles: 1234,
+  localImageTitles: 211,
+  ...overrides,
+});
 
 /** The rating system of a country of `ratingSystems`. */
 export const ratingSystemOf = (country: string): RatingSystem =>

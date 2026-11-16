@@ -2,7 +2,7 @@ import type { MetadataProviderInfo } from '@slouchcat/api-client';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { library } from '@/test/fixtures';
+import { library, metadataSettings } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 // The page "Bibliotheken" on the pattern of concept 12 (variant C, Bib-C): filter tabs by kind,
@@ -418,6 +418,46 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         series: { mode: 'off', keep: true, scope: 'series' },
       },
     });
+  });
+
+  it('a new video folder takes its own languages; the server message lands in its card (concept 24 4.2)', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([]),
+      'GET /admin/settings/metadata': () => json(metadataSettings()),
+      'POST /admin/libraries': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'roots[0].textLangs', code: 'langs_empty' }],
+        }),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Anime');
+    await user.type(within(dialog).getByLabelText('Ordner'), '/media/Anime');
+    const card = within(dialog).getByRole('listitem', { name: 'Ordner 1' });
+    const langs = await within(card).findByRole('radiogroup', { name: 'Sprachen' });
+    expect(langs).toHaveAccessibleDescription('Standard: Deutsch › Englisch');
+    await user.click(within(langs).getByRole('radio', { name: 'Eigene' }));
+    const list = within(card).getByRole('group', { name: 'Metadaten-Sprachen' });
+    await user.selectOptions(within(list).getByRole('combobox', { name: '1. Sprache' }), 'ja');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }),
+    );
+    expect(await within(card).findByText('Mindestens eine Sprache.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+      roots: [
+        { path: '/media/Anime', content: 'movie', providers: ['tmdb'], textLangs: ['ja', 'en'] },
+      ],
+    });
+    expect(
+      (calls.find((call) => call.method === 'POST')?.body as { roots: object[] }).roots[0],
+    ).not.toHaveProperty('images');
+
+    // Audiobook and podcast folders have no languages and images of their own (3.1).
+    await user.click(within(dialog).getByRole('radio', { name: 'Hörbücher' }));
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Sprachen' })).toBeNull();
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Bilder' })).toBeNull();
   });
 
   it('sets «Vorschau beim Spulen» of a new video library, films and series apart (concept 18, 9)', async () => {

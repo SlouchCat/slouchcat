@@ -1,0 +1,22 @@
+/* «Sprachen und Bilder eines Ordners» (concept 24 4.2): the two rows below each other. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+/* What «Eigene» opens: indented under its row, so it reads as part of it. */
+.own {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+  padding-inline-start: var(--sc-space-4);
+  border-inline-start: 2px solid var(--sc-color-border-subtle);
+}
+
+.own .own {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
