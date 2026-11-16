@@ -796,7 +796,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(plain).toHaveTextContent('Bilder: Standard');
     expect(own).toHaveTextContent('Sprachen: Japanisch › Englisch');
     expect(own).toHaveTextContent('Bilder: eigene');
-    // Nothing to change here: the folders dialog edits them.
+    // Nothing to change here: «Bearbeiten» edits them.
     expect(within(detail).queryByRole('radio', { name: 'Eigene' })).toBeNull();
     // The column «Metadaten» is gone (concept 24 4.4).
     expect(screen.queryByRole('columnheader', { name: 'Metadaten' })).toBeNull();

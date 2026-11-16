@@ -102,7 +102,7 @@ export const Mixed: Story = {};
 /** The form of a new video library: one card, which the list keeps. */
 export const One: Story = { args: { paths: ['/media/nas/Filme'] } };
 
-/** A podcast library may stay without folders; the dialog «Ordner von X» starts empty as well. */
+/** A podcast library may stay without folders. */
 export const Empty: Story = { args: { kind: 'podcasts', min: 0, paths: [] } };
 
 /** «Bibliothek bearbeiten»: every stored folder closed to one line, the first marked for removal. */
