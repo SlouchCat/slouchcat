@@ -44,4 +44,32 @@ describe('DisclosureGroup (concept 12, 11.2; concept 24, P-3)', () => {
     );
     expect(screen.getByText('Inhalt')).toBeVisible();
   });
+
+  it('describes its button by the summary and «geändert» beside it', () => {
+    render(
+      <DisclosureGroup
+        level={2}
+        title="Sprachen"
+        meta={
+          <>
+            <span>Deutsch › Englisch</span>
+            <span>geändert</span>
+          </>
+        }
+      >
+        <p>Inhalt</p>
+      </DisclosureGroup>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Sprachen' });
+    expect(toggle).toHaveAccessibleDescription('Deutsch › Englischgeändert');
+  });
+
+  it('has no description without a meta', () => {
+    render(
+      <DisclosureGroup title="Filme">
+        <p>Inhalt</p>
+      </DisclosureGroup>,
+    );
+    expect(screen.getByRole('button', { name: 'Filme' })).not.toHaveAttribute('aria-describedby');
+  });
 });

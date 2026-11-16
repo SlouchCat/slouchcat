@@ -64,6 +64,17 @@ describe('BandPanel (concept 12, 11.2)', () => {
     expect(screen.getByRole('textbox', { name: 'Server' })).toHaveValue('smtp.example.test');
   });
 
+  it('describes its fold button by the state at the end of the band', () => {
+    render(
+      <BandPanel title="Einträge" meta="12 Titel" collapsible>
+        <p>Inhalt</p>
+      </BandPanel>,
+    );
+    expect(screen.getByRole('button', { name: 'Einträge' })).toHaveAccessibleDescription(
+      '12 Titel',
+    );
+  });
+
   it('carries a tab bar in its band', async () => {
     const user = userEvent.setup();
     render(

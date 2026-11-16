@@ -59,6 +59,7 @@ export function BandPanel({
 }: BandPanelProps) {
   const headingId = useId();
   const bodyId = useId();
+  const metaId = useId();
   const [ownExpanded, setOwnExpanded] = useState(false);
   const expanded = !collapsible || (isExpanded ?? ownExpanded);
   const toggle = () => {
@@ -84,6 +85,8 @@ export function BandPanel({
           className={styles.toggle}
           aria-expanded={expanded}
           aria-controls={bodyId}
+          // The state at the end of the band (a count, «geändert») is heard with the title.
+          aria-describedby={meta ? metaId : undefined}
           onClick={toggle}
         >
           <span className={`${styles.chevron} ${expanded ? styles.open : ''}`}>
@@ -125,7 +128,11 @@ export function BandPanel({
     <section className={styles.panel} aria-labelledby={headingId}>
       <div className={styles.band}>
         {heading}
-        {meta && <div className={styles.meta}>{meta}</div>}
+        {meta && (
+          <div id={metaId} className={styles.meta}>
+            {meta}
+          </div>
+        )}
       </div>
       <div id={bodyId} className={styles.body} hidden={!expanded}>
         {children}
