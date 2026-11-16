@@ -273,7 +273,6 @@ Build-Cache für `-race` auf, den nur `main` speichert.
 Minute statt nach rund 15. Geprüft an den Merges der Nacht vom 15. November (#158, #162 bis #165,
 #167: übernommen; #166 Doku: voll; ein Zweig hinter `main`: voll).
 
-
 **Korrektur vom 16. November 2026: Abfrage ohne `status=success`.** Nach dem Merge von #178 lief
 `main` voll, obwohl alle vier Bedingungen galten: Der PR-Lauf 43963247669 war 28 Sekunden vor dem
 Merge fertig, alle 20 Jobs grün. Das Skript fragte die Läufe des PR-Kopfs mit dem Filter
