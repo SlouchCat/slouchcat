@@ -66,3 +66,22 @@ dem gerade gelesenen Ordner kopiert, und eine Serie in zwei Ordnern trug gemisch
 - Der Vertrag bricht (1.40.0): `getLibraryMetadata` und `updateLibraryMetadata` entfallen. Der
   einzige Client ist die eigene Web-App im selben Release.
 - Die Zeit der Migration auf einer grossen Datenbank steht in `docs/perf/24-ordner-metadaten.md`.
+
+## Nachtrag Stufe 3: Speichern in einem Zug (16. November 2026)
+
+`saveLibrary` (`PUT /admin/libraries/{id}`) speichert das Formular «Bibliothek bearbeiten» als Ganzes:
+Name, Standardstufe, Vorschau beim Spulen, jeden Ordner im neuen Stand (bestehende mit Kennung, neue
+ohne) und eine **ausdrückliche Liste der zu entfernenden Ordner** mit getipptem Pfad. Ein gespeicherter
+Ordner, der in keiner der beiden Listen steht, ist ein Fehler (409 `root_unlisted`) und bleibt. Alles
+läuft in **einer Transaktion** in fester Reihenfolge: entfernen, anderer Inhalt, anderer Pfad, neue
+Ordner; so kann ein neuer Ordner den Pfad eines eben entfernten übernehmen. Die Bausteine bleiben die
+bisherigen (`removeRootRowsTx`, `changeRootContentTx`, `changeRootPathTx`, `writeRootProviders`,
+`insertRoot` im Paket `library`, `writeLibraryUpdate` im Paket `admin`), jetzt mit gemeinsamer
+Transaktion; Überwachung, Scan-Zustand, Warteschlange und Benachrichtigung folgen erst nach dem
+Abschluss. Gegen einen veralteten Stand nennt die Anfrage die **Marke** `Library.revision`, die das
+Formular geladen hat. Sie hat keine eigene Spalte: Der Server leitet sie aus den gespeicherten Zeilen
+ab (Hash über Name, Art, Standardstufe, Vorschau und je Ordner Kennung, Pfad, Inhalt, Quellen, Sprachen
+und Bilder), prüft sie vor und nochmals in der Transaktion und antwortet bei Abweichung mit 409 `stale`,
+ohne etwas zu schreiben. Ein Scan ändert die Marke nicht; die Einstellung «Neue Folgen» der Podcasts
+gehört nicht zum Formular und zählt ebenfalls nicht. Ein Wechsel hin und zurück ergibt wieder dieselbe
+Marke, was richtig ist: Der gespeicherte Stand ist dann wieder der geladene.
