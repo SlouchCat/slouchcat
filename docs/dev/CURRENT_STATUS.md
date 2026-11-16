@@ -1,5 +1,58 @@
 # Aktueller Stand
 
+## Patch 1.39.2: Pflege: Podcast-Duplikate «Datei und Feed» und «Zuordnen» bei Folgen (16. November 2026, Zweig `claude/pflege-podcast-paare-zuordnen`)
+
+Zwei Befunde von Marco auf CT 190 (Verwaltung › Medien › Pflege), beide gemessen. Vertrag bleibt 1.38.0,
+keine Migration. Entscheid und Begründung: `docs/planning/04-entscheidungen.md` (16. November 2026),
+ADR 0029 (Nachtrag), Messung `docs/perf/19-podcasts.md` Abschnitt 9.
+
+**A. 5'023 falsche Duplikate «Datei und Feed».**
+
+- **Ursache:** Die Paarungsregel verwarf jedes Paar aus Datei-Folge und Feed-Folge, dessen Dauern um
+  mehr als 2 % auseinanderlagen. Die Dauer im Feed stimmt bei vielen Anbietern nicht mit der
+  ausgelieferten Datei überein (2 bis 14 %).
+- **Neue Regel** (`server/internal/model/podcast_pair.go`, vorher zwei Kopien in `library` und
+  `metadata`): gleiche Erscheinungsminute **und** gleicher Sortiertitel sind dieselbe Folge, ohne Blick
+  auf die Dauer. Stimmt nur eines, bleibt die Dauer das Kriterium. Ein Kandidat mit Minute und Titel
+  schlägt einen mit nur einem Merkmal (Wiederholungen); unter mehreren mit Minute und Titel entscheidet
+  die Dauer; der Rest bleibt unklar und in der Pflege.
+- **Nachzug:** `library.PairPodcastEpisodes` läuft nach jedem Feed-Abruf eines Podcasts (neuer Haken
+  `metadata.WithPodcastChecked`; auch bei 304 und bei einem Fehlschlag), liest nur die Datenbank und
+  paart, wo sich Datei und Feed-Folge gegenseitig wählen. Kein neuer Jobtyp. Der Bestand ist rund eine
+  Stunde nach dem Update gepaart (Abruf alle 55 Minuten).
+- **Paaren** (`pairPodcastEpisodes`, für Sonde, Riegel 1 und Nachzug): die Feed-Folge übernimmt die
+  Datei und behält `guid`, Enclosure und Texte; Fortschritt, «Gehört», Merkliste und Geräte-Downloads
+  der Datei-Folge wandern nach den Regeln von `mergeItems`; die Datei-Folge wird endgültig gelöscht
+  (vorher weich gelöscht, ohne Benutzerdaten mitzunehmen).
+- **Planer:** Riegel 2 liest dieselbe Regel. Es wird keine Folge doppelt geladen
+  (`TestPairPodcastEpisodesAndThePlannerLoadNothingTwice`).
+- **Beleg an einer Kopie der Datenbank von CT 190:** 5'019 Gruppen vorher, 113 nachher; 4'707 Paare in
+  14,0 s; Fortschritt unverändert (46 Zeilen, 11 «Gehört»); zweiter Lauf paart nichts (143 ms).
+
+**B. «Nicht zugeordnet»: «Zuordnen» war stumm gesperrt.**
+
+- **Warum die 264 Folgen dort stehen:** Ihre Serie ist zugeordnet, aber der Anbieter der Serie kennt
+  die Folge unter dieser Staffel- und Folgennummer nicht (`matchEpisode`, Antwort «nicht gefunden»).
+  Beispiele von CT 190: Doppelfolgen, die im Ordner als zwei Nummern liegen («Beverly Hills, 90210»
+  S04E32), eine andere Staffelzählung («Dragon Ball Super» 117 Folgen in Staffel 2 bis 5), eine der
+  falschen Serie zugeordnete Serie. «Aktualisieren» fragt dieselbe Nummer beim selben Anbieter noch
+  einmal und heilt sie nur, wenn der Anbieter die Folge inzwischen führt. Abhilfe ist die Zuordnung der
+  Serie (anderer Eintrag oder TVDB statt TMDB).
+- **Knopf:** Für eine gewählte Folge öffnet «Zuordnen» den bestehenden Dialog für ihre **Serie**. `Issue`
+  trägt die Serie nicht; der Client liest sie über `getAdminItem` (`parentId`, höchstens zwei Schritte).
+  Damit bleibt der Vertrag unverändert und der Release ein Patch. Neben dem Knopf steht als Text, warum
+  er gesperrt ist (kein Eintrag, mehrere Einträge) oder was er bei einer Folge tut.
+- **«Befund»** ist übersetzt (15 Codes, eigener Text für eine Folge, auch die Codes des Reiters
+  «Verwaist»); unbekannte Befunde erscheinen wie bisher. **«Pfad»** nennt die Datei des Titels
+  (`AdminListUnmatched`).
+- Neue Texte in `de`, `en` und `de-DE`; die übrigen 20 Sprachen zeigen sie bis zur nächsten
+  Übersetzungsrunde auf Englisch.
+
+**Offen:** (1) 113 Paare auf CT 190 bleiben in der Pflege (Titel im Feed nachträglich geändert, zwei
+Kopien einer Datei); sie lassen sich dort von Hand zusammenführen. (2) Die 32'265 weich gelöschten
+Datei-Folgen früherer Paarungen räumt weiterhin kein Job weg. (3) Der neue e2e-Test der Seite läuft nur
+in Chromium; in Firefox läuft wie bei jeder Seite der eine `@keyboard`-Test.
+
 ## Patch 1.39.1: vier Nebenbefunde aus der Prüfung des Verwaltungs-Redesigns (16. November 2026, Zweig `claude/patch-1.39.1`)
 
 Vier Fehler, die schon vor dem Redesign bestanden und bei der Aufnahme des Bestands auffielen
