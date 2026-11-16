@@ -27,7 +27,13 @@ const issue = (kind: IssueKind, n: number, extra: Partial<Issue> = {}): Issue =>
 const initial: Record<IssueKind, Issue[]> = {
   unmatched: [
     issue('unmatched', 1, { title: 'Slouchcat Test H264', year: 2024 }),
-    issue('unmatched', 2, { itemKind: 'episode', title: 'Episode 1', libraryId: 2 }),
+    issue('unmatched', 2, {
+      itemKind: 'episode',
+      title: 'Episode 1',
+      libraryId: 2,
+      path: 'Slouchcat Test Show/Season 01/S01E01.mkv',
+      detail: 'unmatched',
+    }),
   ],
   no_images: [],
   unrated: [issue('unrated', 3, { title: 'Slouchcat Test Unrated' }), issue('unrated', 4)],
@@ -233,11 +239,146 @@ describe('maintenance page', () => {
     expect(within(series).getByRole('link', { name: 'Episode 1' })).toBeVisible();
     expect(within(series).getByText('Folge')).toBeVisible();
     expect(screen.getByText('2 von 2')).toBeVisible();
-    // Without path and finding: a dash on screen, «keine Angabe» for screen readers.
+    // The path of the episode's file and its finding in words.
     const episodeRow = within(series).getByRole('row', { name: /^Episode 1/ });
-    for (const dash of within(episodeRow).getAllByText('–'))
+    expect(within(episodeRow).getByText('Slouchcat Test Show/Season 01/S01E01.mkv')).toBeVisible();
+    expect(
+      within(episodeRow).getByText(
+        'Der Anbieter der Serie kennt die Folge unter dieser Nummer nicht',
+      ),
+    ).toBeVisible();
+    // Without path and finding: a dash on screen, «keine Angabe» for screen readers.
+    const movieRow = within(movies).getByRole('row', { name: /^Slouchcat Test H264/ });
+    for (const dash of within(movieRow).getAllByText('–'))
       expect(dash).toHaveAttribute('aria-hidden', 'true');
-    expect(within(episodeRow).getAllByText('keine Angabe')).toHaveLength(2);
+    expect(within(movieRow).getAllByText('keine Angabe')).toHaveLength(2);
+  });
+
+  it('«Befund»: a known code reads in words, any other finding as it is', async () => {
+    lists.unmatched = [
+      issue('unmatched', 13, { title: 'Ohne Schlüssel', detail: 'no_tmdb_key' }),
+      issue('unmatched', 14, { title: 'Abruf', detail: 'TMDB: 500 Internal Server Error' }),
+      issue('unmatched', 15, { title: 'Ohne Treffer', detail: 'unmatched' }),
+    ];
+    lists.orphaned = [issue('orphaned', 16, { detail: 'files_missing' })];
+    const user = userEvent.setup();
+    setup();
+    renderApp('/admin/maintenance');
+    const row = async (name: RegExp) => screen.findByRole('row', { name });
+    expect(
+      within(await row(/^Ohne Schlüssel/)).getByText('Kein TMDB-Schlüssel hinterlegt'),
+    ).toBeVisible();
+    expect(within(await row(/^Abruf/)).getByText('TMDB: 500 Internal Server Error')).toBeVisible();
+    expect(
+      within(await row(/^Ohne Treffer/)).getByText('Kein Treffer beim Anbieter'),
+    ).toBeVisible();
+    expect(screen.queryByText('no_tmdb_key')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
+    expect(within(await row(/^Titel 16/)).getByText('Alle Dateien fehlen')).toBeVisible();
+  });
+
+  it('unmatched: the line next to «Zuordnen» says why it is off', async () => {
+    const user = userEvent.setup();
+    setup();
+    renderApp('/admin/maintenance');
+    await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
+    const match = screen.getByRole('button', { name: 'Zuordnen' });
+
+    expect(match).toBeDisabled();
+    expect(
+      within(panel()).getByText('Wähle genau einen Eintrag, um ihn zuzuordnen.'),
+    ).toBeVisible();
+    expect(match).toHaveAccessibleDescription('Wähle genau einen Eintrag, um ihn zuzuordnen.');
+
+    await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
+    expect(match).toBeDisabled();
+    expect(within(panel()).getByText('Zuordnen geht nur mit genau einem Eintrag.')).toBeVisible();
+    expect(match).toHaveAccessibleDescription('Zuordnen geht nur mit genau einem Eintrag.');
+
+    // One film: the button is on and needs no line.
+    await user.click(screen.getByRole('checkbox', { name: 'Episode 1 auswählen' }));
+    expect(match).toBeEnabled();
+    expect(match).not.toHaveAttribute('aria-describedby');
+    expect(within(panel()).queryByText(/genau einem? Eintrag/)).not.toBeInTheDocument();
+  });
+
+  it('unmatched: an episode is matched through its series, read up from the episode', async () => {
+    const user = userEvent.setup();
+    const { calls } = setup({
+      [`GET /admin/items/${id(2)}`]: () =>
+        json({ id: id(2), kind: 'episode', title: 'Episode 1', parentId: id(50) }),
+      [`GET /admin/items/${id(50)}`]: () =>
+        json({ id: id(50), kind: 'season', title: 'Staffel 1', parentId: id(51) }),
+      [`GET /admin/items/${id(51)}`]: () =>
+        json({ id: id(51), kind: 'series', title: 'Slouchcat Test Show', year: 2020 }),
+      'GET /admin/metadata/search': () =>
+        json([{ provider: 'tvdb', providerId: '81189', title: 'Slouchcat Test Show', year: 2020 }]),
+      [`PUT /admin/items/${id(51)}/match`]: () => json({}, 202),
+    });
+    renderApp('/admin/maintenance');
+    await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
+    const match = screen.getByRole('button', { name: 'Zuordnen' });
+    expect(match).toBeEnabled();
+    const hint =
+      'Eine Folge wird über ihre Serie zugeordnet: «Zuordnen» öffnet die Suche für die Serie.';
+    expect(within(panel()).getByText(hint)).toBeVisible();
+    expect(match).toHaveAccessibleDescription(hint);
+
+    await user.click(match);
+    const dialog = await screen.findByRole('dialog', { name: 'Titel zuordnen' });
+    expect(within(dialog).getByLabelText('Suchbegriff')).toHaveValue('Slouchcat Test Show');
+    expect(within(dialog).getByLabelText('Jahr (optional)')).toHaveValue('2020');
+    expect(within(dialog).getByRole('radio', { name: 'Serie' })).toBeChecked();
+    expect(
+      calls
+        .filter((call) => call.method === 'GET' && call.path.startsWith('/admin/items/'))
+        .map((call) => call.path),
+    ).toEqual([`/admin/items/${id(2)}`, `/admin/items/${id(50)}`, `/admin/items/${id(51)}`]);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Suchen' }));
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Slouchcat Test Show (2020) zuordnen' }),
+    );
+    await waitFor(() =>
+      expect(calls.find((call) => call.path === `/admin/items/${id(51)}/match`)?.body).toEqual({
+        provider: 'tvdb',
+        providerId: '81189',
+      }),
+    );
+    expect(calls.some((call) => call.path === `/admin/items/${id(2)}/match`)).toBe(false);
+    expect(
+      await within(panel()).findByText('Zuordnung gespeichert, die Metadaten werden geladen.'),
+    ).toBeVisible();
+  });
+
+  it('unmatched: a failed lookup of the series lands in the outcome line, no dialog opens', async () => {
+    const user = userEvent.setup();
+    setup({ [`GET /admin/items/${id(2)}`]: () => problem(404, 'not_found') });
+    renderApp('/admin/maintenance');
+    await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Zuordnen' }));
+    const outcome = await within(panel()).findByText('Nicht gefunden.');
+    expect(outcome.closest('[role="status"]')).not.toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('unmatched: an episode without a series says so', async () => {
+    const user = userEvent.setup();
+    setup({
+      [`GET /admin/items/${id(2)}`]: () =>
+        json({ id: id(2), kind: 'episode', title: 'Episode 1', parentId: id(50) }),
+      [`GET /admin/items/${id(50)}`]: () =>
+        json({ id: id(50), kind: 'season', title: 'Staffel 1' }),
+    });
+    renderApp('/admin/maintenance');
+    await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Zuordnen' }));
+    const outcome = await within(panel()).findByText(
+      'Die Serie dieser Folge wurde nicht gefunden.',
+    );
+    expect(outcome.closest('[role="status"]')).not.toBeNull();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('groups the loaded issues in the order of the libraries; an unknown library comes last', async () => {
@@ -388,10 +529,7 @@ describe('maintenance page', () => {
     await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
 
     const match = screen.getByRole('button', { name: 'Zuordnen' });
-    // Episodes are matched through their series: one film or series only.
-    await user.click(screen.getByRole('checkbox', { name: 'Episode 1 auswählen' }));
     expect(match).toBeDisabled();
-    await user.click(screen.getByRole('checkbox', { name: 'Episode 1 auswählen' }));
     await user.click(screen.getByRole('checkbox', { name: 'Slouchcat Test H264 auswählen' }));
     expect(match).toBeEnabled();
 

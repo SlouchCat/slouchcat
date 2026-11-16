@@ -1,5 +1,5 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
-import { BROKEN_TITLE, CSRF, H264_COPY_TITLE, UNRATED_TITLE } from './catalog';
+import { BROKEN_TITLE, CSRF, H264_COPY_TITLE, SHOW_TITLE, UNRATED_TITLE } from './catalog';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -8,6 +8,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { episodeIds, itemIdByTitle } from './playback';
 
 // B-9 maintenance (concept 12, variant C): each prepared case of the test media shows up in its
 // tab (unplayable file, duplicate by file hash, title without rating), grouped by library, and
@@ -532,5 +533,76 @@ test.describe('refresh (requests intercepted)', () => {
       await expect(h1(page)).toBeFocused();
       await expectNoFocusTrap(page, TAB_MAX);
     }
+  });
+});
+
+test.describe('unmatched episode (list intercepted)', () => {
+  // Without a TMDB key the series of the test media stays unmatched, so the server lists no
+  // episode of a matched series: the list holds one real episode of SHOW_TITLE here. The walk up
+  // to its series and the search dialog run against the server. The worker stays out, as above.
+  test.use({ serviceWorkers: 'block' });
+
+  test('«Zuordnen» says why it is off; one episode opens the search for its series', async ({
+    page,
+    owner,
+  }) => {
+    const seriesId = await itemIdByTitle(owner, SHOW_TITLE);
+    const [episodeId] = await episodeIds(owner, seriesId);
+    expect(episodeId, 'an episode of the test show').toBeDefined();
+    const response = await owner.get(`/api/v1/admin/items/${seriesId}`);
+    expect(response.status(), await response.text()).toBe(200);
+    const { libraryId } = (await response.json()) as { libraryId: number };
+    const stub = {
+      kind: 'unmatched',
+      itemId: episodeId,
+      itemKind: 'episode',
+      title: 'E2E Folge',
+      libraryId,
+      path: 'Slouchcat Test Show/Season 01/S01E01.mkv',
+      detail: 'unmatched',
+    };
+    await page.route('**/api/v1/admin/maintenance/issues?*', async (route) => {
+      const kind = new URL(route.request().url()).searchParams.get('kind');
+      if (kind !== 'unmatched') return route.continue();
+      return route.fulfill({ json: { total: 1, items: [stub] } });
+    });
+    const matched: string[] = [];
+    await page.route('**/api/v1/admin/items/*/match', async (route) => {
+      matched.push(new URL(route.request().url()).pathname);
+      await route.fulfill({ status: 202, json: {} });
+    });
+    await page.goto('/admin/maintenance');
+    await expect(h1(page)).toBeVisible();
+
+    const match = panel(page).getByRole('button', { name: 'Zuordnen' });
+    await expect(match).toBeDisabled();
+    await expect(
+      panel(page).getByText('Wähle genau einen Eintrag, um ihn zuzuordnen.'),
+    ).toBeVisible();
+    await expect(
+      panel(page).getByText('Der Anbieter der Serie kennt die Folge unter dieser Nummer nicht'),
+    ).toBeVisible();
+
+    const box = panel(page).getByRole('checkbox', { name: 'E2E Folge auswählen' });
+    await tabTo(page, box, TAB_MAX);
+    await page.keyboard.press('Space');
+    await expect(box).toBeChecked();
+    const hint =
+      'Eine Folge wird über ihre Serie zugeordnet: «Zuordnen» öffnet die Suche für die Serie.';
+    await expect(panel(page).getByText(hint)).toBeVisible();
+    await expect(match).toBeEnabled();
+    await expect(match).toHaveAccessibleDescription(hint);
+
+    await tabBackTo(page, match);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Titel zuordnen' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Suchbegriff')).toHaveValue(SHOW_TITLE);
+    await expect(dialog.getByRole('radio', { name: 'Serie' })).toBeChecked();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, match);
+    await expectNoFocusTrap(page, TAB_MAX);
+    expect(matched).toEqual([]);
   });
 });

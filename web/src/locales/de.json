@@ -2063,7 +2063,7 @@
         "removed": "Entfernte Titel"
       },
       "hint": {
-        "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
+        "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn. Eine Folge steht hier, wenn ihre Serie zugeordnet ist, der Anbieter die Folge unter dieser Nummer aber nicht kennt; sie wird über ihre Serie zugeordnet.",
         "no_images": "Zugeordnete Titel ohne Poster. Eine Aktualisierung lädt die Bilder neu.",
         "unrated": "Titel ohne Freigabe sehen nur Profile ab 18. Weise eine Freigabe zu, um sie freizugeben.",
         "orphaned": "Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.",
@@ -2080,6 +2080,12 @@
       "selectedOfLoaded": "{{count}} von {{loaded}} geladenen ausgewählt",
       "selectAll": "Alle auswählen",
       "selectNone": "Auswahl aufheben",
+      "matchHint": {
+        "none": "Wähle genau einen Eintrag, um ihn zuzuordnen.",
+        "many": "Zuordnen geht nur mit genau einem Eintrag.",
+        "episode": "Eine Folge wird über ihre Serie zugeordnet: «Zuordnen» öffnet die Suche für die Serie."
+      },
+      "seriesNotFound": "Die Serie dieser Folge wurde nicht gefunden.",
       "shown": "{{shown}} von {{total}}",
       "entries_one": "{{count}} Eintrag",
       "entries_other": "{{count}} Einträge",
@@ -2093,6 +2099,24 @@
       },
       "none": "–",
       "noneSpoken": "keine Angabe",
+      "detail": {
+        "unmatched": "Kein Treffer beim Anbieter",
+        "unmatchedEpisode": "Der Anbieter der Serie kennt die Folge unter dieser Nummer nicht",
+        "failed": "Abruf fehlgeschlagen",
+        "skipped": "Übersprungen",
+        "pending": "Wartet seit über 24 Stunden auf die Zuordnung",
+        "no_tmdb_key": "Kein TMDB-Schlüssel hinterlegt",
+        "no_tvdb_key": "Kein TVDB-Schlüssel hinterlegt",
+        "tmdb_key_invalid": "TMDB-Schlüssel abgewiesen",
+        "tvdb_key_invalid": "TVDB-Schlüssel abgewiesen",
+        "unsupported_kind": "Diese Art wird nicht zugeordnet",
+        "season_via_series": "Staffeln werden über ihre Serie zugeordnet",
+        "series_unmatched": "Die Serie ist nicht zugeordnet",
+        "no_file": "Keine Datei",
+        "files_missing": "Alle Dateien fehlen",
+        "no_episodes": "Keine Folgen",
+        "no_seasons": "Keine Staffeln"
+      },
       "titleCount_one": "{{count}} Titel",
       "titleCount_other": "{{count}} Titel",
       "fileCount_one": "{{count}} Datei",

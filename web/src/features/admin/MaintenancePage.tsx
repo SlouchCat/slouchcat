@@ -41,6 +41,7 @@ import {
 } from './maintenance/shared';
 import { MatchDialog } from './MatchDialog';
 import {
+  adminItemQuery,
   duplicatesQuery,
   issueCountQuery,
   issueKinds,
@@ -51,8 +52,22 @@ import {
 } from './queries';
 import { intlLocale } from '@/i18n';
 
+/** What the assignment searches for: the title itself, or the series of an episode. */
+interface MatchTarget {
+  itemId: string;
+  title: string;
+  year?: number;
+  kind: 'movie' | 'series';
+}
+
 /** The dialog of the page besides its confirmation: assignment or rating of the selection. */
-type ActionDialog = { type: 'match'; issue: Issue } | { type: 'rating'; itemIds: string[] } | null;
+type ActionDialog =
+  | { type: 'match'; tabId: IssueKind; target: MatchTarget }
+  | { type: 'rating'; itemIds: string[] }
+  | null;
+
+/** An episode's parent is its season, whose parent is the series, or the series itself. */
+const SERIES_STEPS = 2;
 
 /**
  * Library maintenance (B-9; concept 12, variant C): one tab per kind of issue with its count
@@ -178,6 +193,34 @@ function MaintenanceContent() {
       ),
     onError: (error, { kind }) => failed(kind, error),
   });
+  // An episode is matched through its series: read the chain up from the episode first.
+  const findSeries = useMutation({
+    mutationFn: async (issue: Issue): Promise<MatchTarget | null> => {
+      let item = await queryClient.fetchQuery(adminItemQuery(issue.itemId));
+      for (let step = 0; step < SERIES_STEPS && item.parentId; step += 1) {
+        item = await queryClient.fetchQuery(adminItemQuery(item.parentId));
+        if (item.kind === 'series') {
+          return { itemId: item.id, title: item.title, year: item.year, kind: 'series' };
+        }
+      }
+      return null;
+    },
+    onSuccess: (target, issue) => {
+      if (target) {
+        setDialog({ type: 'match', tabId: issue.kind, target });
+        return;
+      }
+      setOutcomes((current) => ({
+        ...current,
+        [issue.kind]: {
+          tone: 'danger',
+          text: t('admin.maintenance.seriesNotFound'),
+          key: (current[issue.kind]?.key ?? 0) + 1,
+        },
+      }));
+    },
+    onError: (error, issue) => failed(issue.kind, error),
+  });
   const cleanup = useMutation({
     mutationFn: ({
       body,
@@ -292,6 +335,7 @@ function MaintenanceContent() {
     void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
+  const { mutate: findSeriesMutate } = findSeries;
   const { mutate: refreshMutate } = refreshItems;
   const { mutate: cleanupMutate } = cleanup;
   const { mutate: mergeMutate } = merge;
@@ -300,7 +344,22 @@ function MaintenanceContent() {
     () => ({
       onSelect: (kind, keys) => setSelection((current) => ({ ...current, [kind]: keys })),
       onExpandedChange: (key, open) => setExpanded((current) => ({ ...current, [key]: open })),
-      onMatch: (issue) => setDialog({ type: 'match', issue }),
+      onMatch: (issue) => {
+        if (issue.itemKind === 'episode') {
+          findSeriesMutate(issue);
+          return;
+        }
+        setDialog({
+          type: 'match',
+          tabId: issue.kind,
+          target: {
+            itemId: issue.itemId,
+            title: issue.title,
+            year: issue.year,
+            kind: issue.itemKind === 'series' ? 'series' : 'movie',
+          },
+        });
+      },
       onRefresh: (kind, ids) => refreshMutate({ kind, ids }),
       onRating: (itemIds) => setDialog({ type: 'rating', itemIds }),
       onCleanup: (kind, itemIds) =>
@@ -320,7 +379,7 @@ function MaintenanceContent() {
           onConfirm: () => cleanupMutate({ kind, body: { mediaFileIds } }),
         }),
     }),
-    [ask, t, refreshMutate, cleanupMutate],
+    [ask, t, findSeriesMutate, refreshMutate, cleanupMutate],
   );
   const onMerge = useCallback(
     (group: DuplicateGroup, targetId: string) => {
@@ -385,6 +444,7 @@ function MaintenanceContent() {
             expanded={expanded}
             hold={hold}
             refreshing={refreshItems.isPending && refreshItems.variables.kind === kind}
+            matching={findSeries.isPending && findSeries.variables.kind === kind}
             cleaning={cleanup.isPending}
             handlers={handlers}
           />
@@ -465,13 +525,13 @@ function MaintenanceContent() {
       />
       {dialog?.type === 'match' && (
         <MatchDialog
-          itemId={dialog.issue.itemId}
-          title={dialog.issue.title}
-          year={dialog.issue.year}
-          kind={dialog.issue.itemKind === 'series' ? 'series' : 'movie'}
+          itemId={dialog.target.itemId}
+          title={dialog.target.title}
+          year={dialog.target.year}
+          kind={dialog.target.kind}
           onClose={closeDialog}
           onMatched={() =>
-            void finish(dialog.issue.kind, {
+            void finish(dialog.tabId, {
               tone: 'info',
               text: t('admin.maintenance.done.match'),
             })
