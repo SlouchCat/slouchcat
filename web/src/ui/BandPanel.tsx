@@ -15,7 +15,7 @@ interface BandPanelBase {
 interface BandPanelWithBody extends BandPanelBase {
   /** The title becomes a button that folds the body away (`aria-expanded`). */
   collapsible?: boolean;
-  /** Open state when the page holds it; uncontrolled (open at first) without. */
+  /** Open state when the page holds it; uncontrolled (closed at first, concept 24, P-3) without. */
   isExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   children?: ReactNode;
@@ -59,7 +59,7 @@ export function BandPanel({
 }: BandPanelProps) {
   const headingId = useId();
   const bodyId = useId();
-  const [ownExpanded, setOwnExpanded] = useState(true);
+  const [ownExpanded, setOwnExpanded] = useState(false);
   const expanded = !collapsible || (isExpanded ?? ownExpanded);
   const toggle = () => {
     setOwnExpanded(!expanded);

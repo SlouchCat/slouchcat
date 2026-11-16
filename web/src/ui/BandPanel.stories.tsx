@@ -71,11 +71,11 @@ type Story = StoryObj<typeof meta>;
 /** The tinted band (the profile's accent at 12 %) with title, icon and state. */
 export const Default: Story = {};
 
-/** The title is a button that folds the body away. */
+/** The title is a button that folds the body away; closed at first (concept 24, P-3). */
 export const Collapsible: Story = { args: { form: 'collapsible' } };
 
-/** Folded with the keyboard: Tab to the title, Enter. */
-export const Collapsed: Story = { args: { form: 'collapsible' }, tags: ['press:Tab+Enter'] };
+/** Opened with the keyboard: Tab to the title, Enter. */
+export const Expanded: Story = { args: { form: 'collapsible' }, tags: ['press:Tab+Enter'] };
 
 /** A tab bar in the band (devices, podcasts, backup). */
 export const WithTabs: Story = { args: { form: 'tabs' } };

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 import { adminShell, renderAdminPage, findAdminTabs } from '@/test/admin';
+import { openFolded } from '@/test/fold';
 
 // W-7 devices for the main account's primary profile (concept 12, variant C): tabs «Geräte» and
 // «Fähigkeiten» in the band, one section per device type in both, a device without a type under
@@ -65,6 +66,7 @@ describe('admin devices (W-7)', () => {
   it('lists the devices by type with owner, last contact and streams', async () => {
     mockApi({ ...signedIn, 'GET /admin/devices': () => json(devices) });
     renderApp('/admin/devices');
+    const user = userEvent.setup();
     expect(await screen.findByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
     const tabs = await screen.findByRole('tablist', { name: 'Ansicht der Geräte' });
     expect(
@@ -80,6 +82,9 @@ describe('admin devices (W-7)', () => {
       screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent),
     ).toEqual(['Computer 22 Geräte', 'Unbekannt 11 Gerät']);
     expect(screen.getByText('1 Stream')).toBeVisible();
+    // Every type starts closed (concept 24, P-3).
+    expect(screen.queryByRole('table')).toBeNull();
+    await openFolded(user);
 
     const computers = screen.getByRole('table', { name: 'Geräte: Computer' });
     expect(headersOf(computers)).toEqual([
@@ -111,6 +116,7 @@ describe('admin devices (W-7)', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('tab', { name: /^Fähigkeiten/ }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'capabilities' }));
+    await openFolded(user);
     const computers = screen.getByRole('table', { name: 'Fähigkeiten: Computer' });
     expect(headersOf(computers)).toEqual([
       'Gerät',
@@ -158,25 +164,27 @@ describe('admin devices (W-7)', () => {
     expect(router.history.length).toBe(1);
   });
 
-  it('folds a type away by its heading; it stays folded in the other tab', async () => {
+  it('a type starts closed and opens by its heading; it stays open in the other tab', async () => {
     mockApi({ ...signedIn, 'GET /admin/devices': () => json(devices) });
     renderApp('/admin/devices');
     const user = userEvent.setup();
     const computers = await screen.findByRole('button', { name: 'Computer 2 Geräte' });
-    expect(computers).toHaveAttribute('aria-expanded', 'true');
-    computers.focus();
-    await user.keyboard('{Enter}');
     expect(computers).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('table', { name: 'Geräte: Computer' })).toBeNull();
+    computers.focus();
+    await user.keyboard('{Enter}');
+    expect(computers).toHaveAttribute('aria-expanded', 'true');
+    expect(computers).toHaveFocus();
+    expect(screen.getByRole('table', { name: 'Geräte: Computer' })).toBeVisible();
 
     await user.click(screen.getByRole('tab', { name: /^Fähigkeiten/ }));
     expect(screen.getByRole('button', { name: 'Computer 2 Geräte' })).toHaveAttribute(
       'aria-expanded',
-      'false',
+      'true',
     );
     expect(screen.getByRole('button', { name: 'Unbekannt 1 Gerät' })).toHaveAttribute(
       'aria-expanded',
-      'true',
+      'false',
     );
   });
 
@@ -192,6 +200,8 @@ describe('admin devices (W-7)', () => {
     });
     renderApp('/admin/devices');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Computer 2 Geräte' });
+    await openFolded(user);
     const first = await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' });
     const second = screen.getByRole('button', { name: 'Firefox 140 · Windows vergessen' });
     first.focus();
@@ -228,6 +238,8 @@ describe('admin devices (W-7)', () => {
     const { calls } = mockApi({ ...signedIn, 'GET /admin/devices': () => json(devices) });
     renderApp('/admin/devices');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Computer 2 Geräte' });
+    await openFolded(user);
     const forget = await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' });
     await user.click(forget);
     const dialog = await screen.findByRole('alertdialog', {
@@ -257,6 +269,9 @@ describe('admin devices (W-7)', () => {
         ]),
     });
     renderApp('/admin/devices');
+    const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Unbekannt 2 Geräte' });
+    await openFolded(user);
     // The unknown type is listed under «Unbekannt», with the device without a type.
     const unknown = await screen.findByRole('table', { name: 'Geräte: Unbekannt' });
     expect(
@@ -280,6 +295,8 @@ describe('admin devices (W-7)', () => {
         focusManager.setFocused(true);
       });
     try {
+      await screen.findByRole('button', { name: 'Computer 2 Geräte' });
+      await openFolded(user);
       await user.click(await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' }));
       const dialog = await screen.findByRole('alertdialog');
       const before = lists();
@@ -306,6 +323,8 @@ describe('admin devices (W-7)', () => {
     });
     renderApp('/admin/devices');
     const user = userEvent.setup();
+    await screen.findByRole('button', { name: 'Computer 2 Geräte' });
+    await openFolded(user);
     await user.click(await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' }));
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'Gerät vergessen' }));
@@ -325,6 +344,8 @@ describe('admin devices (W-7)', () => {
     const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
     fail = false;
     await user.click(retry);
+    await screen.findByRole('button', { name: 'Computer 2 Geräte' });
+    await openFolded(user);
     expect(await screen.findByRole('table', { name: 'Geräte: Computer' })).toBeVisible();
   });
 

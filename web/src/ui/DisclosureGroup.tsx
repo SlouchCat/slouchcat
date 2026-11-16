@@ -15,8 +15,13 @@ interface DisclosureGroupProps {
   countLabel?: string;
   /** Small state at the end of the heading line, outside the button. */
   meta?: ReactNode;
-  /** Open state when the page holds it; uncontrolled (open at first) without. */
+  /** Open state when the page holds it; uncontrolled without. */
   isExpanded?: boolean;
+  /**
+   * Open at first when uncontrolled. Every collapsible starts closed (concept 24, P-3); only what
+   * the page is opened for (the group «Laufend» on «Jobs», exception 4) sets it.
+   */
+  defaultExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   /** The group's own content, usually a DataTable. */
   children: ReactNode;
@@ -35,13 +40,14 @@ export function DisclosureGroup({
   countLabel,
   meta,
   isExpanded,
+  defaultExpanded = false,
   onExpandedChange,
   children,
 }: DisclosureGroupProps) {
   return (
     <Disclosure
       className={styles.group}
-      defaultExpanded
+      defaultExpanded={defaultExpanded}
       isExpanded={isExpanded}
       onExpandedChange={onExpandedChange}
     >

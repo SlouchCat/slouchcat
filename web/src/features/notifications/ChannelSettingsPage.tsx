@@ -90,13 +90,14 @@ export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } =
     refetchOnWindowFocus: !hold,
   });
 
-  // Folded blocks; the drafts stay in the page, so folding loses nothing.
-  const [folded, setFolded] = useState<ReadonlySet<Channel>>(() => new Set());
+  // Opened blocks; every block starts closed (concept 24, P-3). The drafts stay in the page, so
+  // folding loses nothing.
+  const [opened, setOpened] = useState<ReadonlySet<Channel>>(() => new Set());
   const setExpanded = (channel: Channel, expanded: boolean) =>
-    setFolded((current) => {
+    setOpened((current) => {
       const next = new Set(current);
-      if (expanded) next.delete(channel);
-      else next.add(channel);
+      if (expanded) next.add(channel);
+      else next.delete(channel);
       return next;
     });
 
@@ -178,7 +179,7 @@ export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } =
           {ordered(channels.data.channels).map((setting) => {
             const { channel } = setting;
             const state = stateOf(setting);
-            const expanded = !folded.has(channel);
+            const expanded = opened.has(channel);
             const shown = expanded ? undefined : summary(setting);
             const dirty = isPrimary && drafts.isDirty(channel);
             return (

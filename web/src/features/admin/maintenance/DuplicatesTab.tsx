@@ -83,7 +83,7 @@ export function DuplicatesTab({
                 ? (picked ?? '')
                 : (group.items[0]?.itemId ?? '')
             }
-            isExpanded={expanded[key] ?? index === 0}
+            isExpanded={expanded[key] ?? false}
             merging={merging === key}
             busy={merging !== undefined}
             onTarget={(itemId) => onTarget(key, itemId)}

@@ -8,9 +8,10 @@ import type {
   RelinkUserData,
 } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Call } from '@/test/api';
+import { openFolded } from '@/test/fold';
 import { library } from '@/test/fixtures';
 
 const id = (n: number) => `01JB8Z6Q4M7N9P2R3S5T7V9X${String(n).padStart(2, '0')}`;
@@ -193,6 +194,11 @@ function setup(extra: Record<string, (call: Call) => Response> = {}) {
 }
 
 const panel = () => screen.getByRole('tabpanel');
+/** Waits for the tab's sections and opens them: every section starts closed (concept 24, P-3). */
+async function openSections(user: UserEvent) {
+  await within(await screen.findByRole('tabpanel')).findAllByRole('heading', { level: 3 });
+  await openFolded(user);
+}
 const title = () => screen.getByRole('heading', { level: 1, name: 'Pflege' });
 
 describe('maintenance page', () => {
@@ -205,6 +211,7 @@ describe('maintenance page', () => {
   it('shows a tab per issue kind with its count and lists the first one by library', async () => {
     setup();
     renderApp('/admin/maintenance');
+    const user = userEvent.setup();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Pflege' })).toBeVisible();
     const tabs = screen.getByRole('tablist', { name: 'Problemarten' });
@@ -225,13 +232,18 @@ describe('maintenance page', () => {
     // The intro sits behind the help button (S-2); the tab's hint stays visible.
     expect(within(panel()).getByText(/^Ohne Zuordnung fehlen Beschreibung/)).toBeVisible();
 
+    // One section per library, named from the library list, each with its own table; every
+    // section starts closed (concept 24, P-3).
+    const toggle = await screen.findByRole('button', { name: 'Filme 1 Eintrag' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('table')).toBeNull();
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle).toHaveFocus();
+    await openFolded(user);
     const link = await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
     expect(link).toHaveAttribute('href', `/admin/items/${id(1)}`);
-    // One section per library, named from the library list, each with its own table.
-    expect(screen.getByRole('button', { name: 'Filme 1 Eintrag' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
     const movies = screen.getByRole('group', { name: 'Filme 1 Eintrag' });
     expect(within(movies).getByRole('table', { name: 'Nicht zugeordnet in Filme' })).toBeVisible();
     expect(within(movies).getByRole('link', { name: 'Slouchcat Test H264 (2024)' })).toBeVisible();
@@ -264,6 +276,7 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup();
     renderApp('/admin/maintenance');
+    await openSections(user);
     const row = async (name: RegExp) => screen.findByRole('row', { name });
     expect(
       within(await row(/^Ohne Schlüssel/)).getByText('Kein TMDB-Schlüssel hinterlegt'),
@@ -275,6 +288,7 @@ describe('maintenance page', () => {
     expect(screen.queryByText('no_tmdb_key')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
+    await openSections(user);
     expect(within(await row(/^Titel 16/)).getByText('Alle Dateien fehlen')).toBeVisible();
   });
 
@@ -282,6 +296,7 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup();
     renderApp('/admin/maintenance');
+    await openSections(user);
     await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
     const match = screen.getByRole('button', { name: 'Zuordnen' });
 
@@ -317,6 +332,7 @@ describe('maintenance page', () => {
       [`PUT /admin/items/${id(51)}/match`]: () => json({}, 202),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
     const match = screen.getByRole('button', { name: 'Zuordnen' });
     expect(match).toBeEnabled();
@@ -356,6 +372,7 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup({ [`GET /admin/items/${id(2)}`]: () => problem(404, 'not_found') });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Zuordnen' }));
     const outcome = await within(panel()).findByText('Nicht gefunden.');
@@ -372,6 +389,7 @@ describe('maintenance page', () => {
         json({ id: id(50), kind: 'season', title: 'Staffel 1' }),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await user.click(await screen.findByRole('checkbox', { name: 'Episode 1 auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Zuordnen' }));
     const outcome = await within(panel()).findByText(
@@ -391,6 +409,7 @@ describe('maintenance page', () => {
     ];
     setup();
     renderApp('/admin/maintenance?tab=unrated');
+    await openSections(user);
     await screen.findByRole('link', { name: 'Titel 20' });
 
     const headings = within(panel()).getAllByRole('heading', { level: 3 });
@@ -433,6 +452,7 @@ describe('maintenance page', () => {
     });
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Nicht abspielbar/ }));
+    await openSections(user);
 
     const row = await screen.findByRole('link', { name: 'Slouchcat Test Broken' });
     expect(row).toBeVisible();
@@ -468,6 +488,7 @@ describe('maintenance page', () => {
       'POST /admin/maintenance/cleanup': () => json({ items: 1, files: 0 }),
     });
     const { queryClient } = renderApp('/admin/maintenance?tab=orphaned');
+    await openSections(user);
     await user.click(await screen.findByRole('checkbox', { name: 'Titel 5 auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Bereinigen' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Titel bereinigen?' });
@@ -492,6 +513,7 @@ describe('maintenance page', () => {
     const { calls } = setup({ 'POST /admin/items/rating': () => json({ updated: 2 }) });
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Altersfreigabe fehlt/ }));
+    await openSections(user);
     await screen.findByRole('link', { name: 'Slouchcat Test Unrated' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Freigabe zuweisen' }));
@@ -526,6 +548,7 @@ describe('maintenance page', () => {
       [`POST /admin/items/${id(1)}/refresh`]: () => json({}, 202),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
 
     const match = screen.getByRole('button', { name: 'Zuordnen' });
@@ -556,6 +579,7 @@ describe('maintenance page', () => {
       [`POST /admin/items/${id(2)}/refresh`]: () => problem(404, 'not_found'),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
     const listed = () =>
       calls.filter((call) => call.method === 'GET' && call.path === '/admin/maintenance/issues')
@@ -576,6 +600,7 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup();
     renderApp('/admin/maintenance?tab=unrated');
+    await openSections(user);
     await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' });
     const boxes = async () => within(panel()).findAllByRole('checkbox');
     expect(await boxes()).toHaveLength(2);
@@ -604,6 +629,7 @@ describe('maintenance page', () => {
     const refreshed = () =>
       calls.filter((call) => call.method === 'POST' && call.path.endsWith('/refresh'));
     renderApp('/admin/maintenance?tab=no_images');
+    await openSections(user);
 
     await user.click(await screen.findByRole('checkbox', { name: 'Ohne Poster auswählen' }));
     await user.click(within(panel()).getByRole('button', { name: 'Aktualisieren' }));
@@ -611,6 +637,7 @@ describe('maintenance page', () => {
     expect(refreshed().map((call) => call.path)).toEqual([`/admin/items/${id(12)}/refresh`]);
 
     await user.click(screen.getByRole('tab', { name: /^Nicht abspielbar/ }));
+    await openSections(user);
     const recheck = within(panel()).getByRole('button', { name: 'Erneut prüfen' });
     expect(recheck).toBeDisabled();
     await user.click(
@@ -640,6 +667,7 @@ describe('maintenance page', () => {
     });
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Verwaist \d/ }));
+    await openSections(user);
     await screen.findByRole('link', { name: 'Titel 5' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     const trigger = screen.getByRole('button', { name: 'Bereinigen' });
@@ -661,6 +689,7 @@ describe('maintenance page', () => {
       'GET /admin/metadata/search': () => (reachable ? json([]) : problem(503, 'tmdb_unreachable')),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await user.click(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test H264 auswählen' }),
     );
@@ -694,6 +723,7 @@ describe('maintenance page', () => {
       [`PUT /admin/items/${id(1)}/match`]: () => json({}, 202),
     });
     renderApp('/admin/maintenance');
+    await openSections(user);
     await user.click(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test H264 auswählen' }),
     );
@@ -719,6 +749,7 @@ describe('maintenance page', () => {
     setup();
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Freigabe abweichend/ }));
+    await openSections(user);
     await screen.findByRole('link', { name: 'Titel 7' });
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Alle auswählen' })).not.toBeInTheDocument();
@@ -736,6 +767,10 @@ describe('maintenance page', () => {
     });
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Duplikate/ }));
+    // Every group starts closed (concept 24, P-3); the first one opens with its button.
+    const firstToggle = await screen.findByRole('button', { name: 'Gruppe 1' });
+    expect(firstToggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(firstToggle);
     const group = await screen.findByRole('group', { name: 'Gruppe 1' });
     expect(screen.getByRole('heading', { level: 3, name: 'Gruppe 1' })).toBeVisible();
     // Titles of two libraries in one group: not split by library.
@@ -749,7 +784,7 @@ describe('maintenance page', () => {
     expect(screen.getByText(/^Die Pfade sind die im Container/)).toBeVisible();
     // PFL-4: each file with its size.
     expect(within(group).getAllByText('1 MB')).toHaveLength(2);
-    // Only the first group starts open (mockup Pfl-C); the second one opens with its button.
+    // The second one stays closed until its button opens it.
     const secondToggle = screen.getByRole('button', { name: 'Gruppe 2' });
     expect(secondToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('group', { name: 'Gruppe 2' })).not.toBeInTheDocument();
@@ -1123,10 +1158,12 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup();
     renderApp('/admin/maintenance?tab=unrated');
+    await openSections(user);
     await user.click(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),
     );
     await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
+    await openSections(user);
     await screen.findByRole('link', { name: 'Titel 5' });
     expect(screen.getByText(/^0 von \d+ geladenen ausgewählt$/)).toBeVisible();
     await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
