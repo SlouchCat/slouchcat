@@ -609,6 +609,13 @@ function EditLibraryForm({
   );
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
+  // A typed path confirms the change the dialog listed when it was typed. It stays while the dialog
+  // stays open across a refusal (409 `scan_running`, a wrong typed path) and goes when it closes,
+  // so no later «Speichern» opens it filled in.
+  const endConfirming = () => {
+    setConfirming(false);
+    setTyped({});
+  };
   const [asking, setAsking] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   // The cards whose path and content changed together, as the last «Speichern» found them.
@@ -640,7 +647,7 @@ function EditLibraryForm({
       request(api.PUT('/admin/libraries/{id}', { params: { path: { id: library.id } }, body })),
     onSuccess: async (saved) => {
       const summary = saveSummary(library, state, marked);
-      setConfirming(false);
+      endConfirming();
       onOpenChange(false);
       onSaved(saved, summary);
       // The browse dialog marks every folder of a library; a folder's own languages widen the
@@ -674,7 +681,7 @@ function EditLibraryForm({
     save.mutate(sent.body, {
       onError: (error) => {
         if (isApiError(error) && (error.code === 'stale' || error.code === 'root_unlisted')) {
-          setConfirming(false);
+          endConfirming();
           onStale();
           return;
         }
@@ -683,7 +690,7 @@ function EditLibraryForm({
         const fields = formFieldErrors(formErrors(t, error).fields, state, sent);
         // A wrong typed path is the confirmation's business; anything else goes to the form.
         if (Object.keys(fields).some((field) => field.startsWith('confirm.'))) return;
-        setConfirming(false);
+        endConfirming();
         open(cardsWithErrors(fields, state));
         if (opensTrickplay(fields)) setOpen(TRICKPLAY, true);
       },
@@ -799,7 +806,7 @@ function EditLibraryForm({
         isOpen={confirming}
         onOpenChange={(next) => {
           if (next || save.isPending) return;
-          setConfirming(false);
+          endConfirming();
           if (scanRunning) setRefusal(null);
         }}
         library={library}

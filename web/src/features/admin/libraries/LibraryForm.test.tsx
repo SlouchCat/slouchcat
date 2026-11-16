@@ -248,7 +248,7 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
   });
 
   it('the confirmation of the last folder names that consequence; a closed one starts the typing again', async () => {
-    mockApi(routes([library()]));
+    const { calls } = mockApi(routes([library()]));
     renderApp('/admin/libraries');
     const user = userEvent.setup();
     const dialog = await openEdit(user);
@@ -265,12 +265,49 @@ describe('library form «Bearbeiten» (concept 24 4.1 to 4.3)', () => {
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Änderungen bestätigen' })).toBeNull(),
     );
-    // The form keeps the typed path while it is open, so «Speichern» again does not ask twice.
+    // Something else is edited; «Speichern» again asks afresh: an empty field, «Speichern» off,
+    // and Enter in the field removes nothing.
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
     await user.click(saveOf(dialog));
     confirm = await screen.findByRole('dialog', { name: 'Änderungen bestätigen' });
-    expect(within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen')).toHaveValue(
+    const field = within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen');
+    expect(field).toHaveValue('');
+    expect(within(confirm).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await user.type(field, '{Enter}');
+    expect(puts(calls)).toHaveLength(0);
+  });
+
+  it('a path typed for a removal does not confirm a content change after «Rückgängig»', async () => {
+    const { calls } = mockApi(routes([library()]));
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const dialog = await openEdit(user);
+    await openCard(user, cardOf(dialog, 1));
+    await user.click(within(cardOf(dialog, 1)).getByRole('button', { name: 'Ordner 1 entfernen' }));
+    await user.click(saveOf(dialog));
+    let confirm = await screen.findByRole('dialog', { name: 'Änderungen bestätigen' });
+    await user.type(
+      within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen'),
       '/media/Filme',
     );
+    await user.click(within(confirm).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Änderungen bestätigen' })).toBeNull(),
+    );
+    await user.click(
+      within(cardOf(dialog, 1)).getByRole('button', {
+        name: 'Entfernen von Ordner 1 rückgängig machen',
+      }),
+    );
+    const card = cardOf(dialog, 1);
+    await openCard(user, card);
+    await user.click(within(card).getByRole('radio', { name: 'Serien' }));
+    await user.click(saveOf(dialog));
+    confirm = await screen.findByRole('dialog', { name: 'Änderungen bestätigen' });
+    expect(within(confirm).getByText('Inhalt wechseln: /media/Filme')).toBeVisible();
+    expect(within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen')).toHaveValue('');
+    expect(within(confirm).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    expect(puts(calls)).toHaveLength(0);
   });
 
   it('a content change warns in the card and needs the typed path; path and content together are refused before the save', async () => {
