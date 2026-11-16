@@ -127,6 +127,22 @@
   justify-content: flex-end;
 }
 
+/* One folder of «Änderungen bestätigen»: its heading, the consequences and the typed path, framed
+   as the folders of the fold-out. */
+.confirmFolder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.confirmFolder p,
+.confirmFolder ul {
+  margin: 0;
+}
+
 /* «Vorschau beim Spulen» (concept 18, 9): the film and the series group side by side where there
    is room, each with its choice, its sentence and its estimate. */
 .trickplay {
