@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 // The frame of the administration (redesign, build plan 2): the sidebar holds the overview and the
 // five areas, the pages of an area are tabs above each of its pages.
@@ -29,3 +29,18 @@ export const TABS_TO_PAGE_ACTION = 11;
 /** An entry of the sidebar by its label; a pill or badge may follow in its spoken name. */
 export const adminEntry = (page: Page, name: string) =>
   adminNav(page).getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
+
+/**
+ * Opens every closed collapsible in `scope` (concept 24, P-3: all of them start closed): the
+ * toggles in headings, as DisclosureGroup and a collapsible BandPanel write them. `first` is one
+ * of them; it is awaited, so the groups are drawn before the others are counted. Row toggles of a
+ * table are not in a heading and stay as they are.
+ */
+export async function openGroups(scope: Page | Locator, first: Locator): Promise<void> {
+  await expect(first).toBeVisible();
+  const closed = scope.getByRole('heading').getByRole('button', { expanded: false });
+  for (let count = await closed.count(); count > 0; count = await closed.count()) {
+    await closed.first().click();
+    await expect.poll(() => closed.count()).not.toBe(count);
+  }
+}

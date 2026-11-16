@@ -61,6 +61,13 @@ const answer = (page: Page, method: string, path: string) =>
 
 const region = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
 
+/** Opens a band by its title: every band starts closed (concept 24, P-3). */
+async function openBand(page: Page, name: string) {
+  const band = region(page, name).getByRole('button', { name, exact: true });
+  if ((await band.getAttribute('aria-expanded')) === 'false') await band.click();
+  await expect(band).toHaveAttribute('aria-expanded', 'true');
+}
+
 /** Tab from the top of the page to `target`. */
 async function tabToFromTop(page: Page, target: Locator) {
   await resetFocus(page);
@@ -80,6 +87,7 @@ async function navTo(page: Page, current: string, name: string): Promise<void> {
 async function openSpotlight(page: Page) {
   await page.goto('/admin/spotlight');
   await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
+  await openBand(page, 'Quelle');
   await expect(region(page, 'Quelle').getByRole('switch')).toBeVisible();
 }
 
@@ -111,8 +119,8 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     await expect(page.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toHaveCount(0);
     await tabToFromTop(page, areaTab(page, 'Spotlight'));
 
-    // The band «Quelle» folds by Enter and opens by Space; folded, the next Tab stop is the next
-    // band.
+    // The band «Quelle» starts closed (concept 24, P-3) and says what it holds; closed, the next
+    // Tab stop is the next band. Space opens it, Enter folds it, the focus stays on the title.
     const source = region(page, 'Quelle');
     const sourceBand = source.getByRole('button', { name: 'Quelle' });
     const entriesBand = region(page, 'Einträge der Liste').getByRole('button', {
@@ -120,13 +128,21 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     });
     const show = source.getByRole('switch', { name: 'Auf der Startseite zeigen' });
     await tabTo(page, sourceBand, 5);
-    await page.keyboard.press('Enter');
     await expect(sourceBand).toHaveAttribute('aria-expanded', 'false');
     await expect(show).toBeHidden();
+    await expect(source).toContainText(/ · (Nur Filme|Nur Serien|Filme und Serien)/);
     await page.keyboard.press('Tab');
     await expectFocusOn(page, entriesBand);
     await page.keyboard.press('Shift+Tab');
     await expectFocusOn(page, sourceBand);
+    await page.keyboard.press('Space');
+    await expect(sourceBand).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, sourceBand);
+    await expect(show).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(sourceBand).toHaveAttribute('aria-expanded', 'false');
+    await expectFocusOn(page, sourceBand);
+    await expect(show).toBeHidden();
     await page.keyboard.press('Space');
     await expect(sourceBand).toHaveAttribute('aria-expanded', 'true');
     await expect(show).toBeVisible();
@@ -184,6 +200,7 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     await expectVisibleFocus(page);
     // Stored: the page shows it after a reload, and the start page's band takes it (F-10).
     await page.reload();
+    await openBand(page, 'Quelle');
     await expect(rotation).toHaveValue('7');
     await expect
       .poll(
@@ -217,6 +234,7 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
       .poll(() => entryCount(owner), { timeout: 60_000, intervals: [1000] })
       .toBe(MOCK_ENTRIES);
     await page.reload();
+    await openBand(page, 'Einträge der Liste');
     const table = page.getByRole('table', { name: 'Einträge der Liste' });
     await expect(table.getByRole('rowheader')).toHaveCount(MOCK_ENTRIES);
     await expect(table.getByText('Nicht in der Bibliothek', { exact: true })).toHaveCount(0);
