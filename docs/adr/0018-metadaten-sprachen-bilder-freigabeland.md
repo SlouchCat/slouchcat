@@ -4,7 +4,9 @@
   Auffüllreihenfolge: die Felder `poster` und `backdrop` werden nicht mehr allein nach dem Rang der
   Ordnerliste entschieden, Abschnitt «Was von ADR 0015 stehen bleibt») und **ergänzt ADR 0006** um
   einen Satz (die Trailer-Kette sucht YouTube in den Metadaten-Sprachen statt fest in `de` und `en`;
-  Abschnitt «Was von ADR 0006 stehen bleibt»)
+  Abschnitt «Was von ADR 0006 stehen bleibt»); **E-8 ersetzt durch ADR 0036** (16. November 2026):
+  Sprachen und Bilder gibt es je Ordner statt je Bibliothek (`library_roots.text_langs`, `.images`),
+  die Tabelle `library_metadata` entfällt mit Migration 00065
 - Quelle: Konzept `docs/planning/10-metadaten-einstellungen.md` (Fassung 2, 31. Oktober 2026,
   Abschnitte 2, 4, 5, 6 und 9); **Frage 16** in `docs/planning/04-entscheidungen.md` mit Marcos
   Antworten F-1 bis F-10 und O-1 bis O-4; Idee 01 (`docs/ideas/01-metadaten-einstellungen.md`,

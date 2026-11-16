@@ -5,7 +5,9 @@
   **teilweise ersetzt durch ADR 0018** (31. Oktober 2026): die Bildfelder `poster`, `backdrop` und neu
   `logo` werden nicht mehr allein nach dem Rang der Ordnerliste entschieden, sondern mit der festen
   Reihenfolge `["local", …Ordnerliste, "fanart"]`, Sprachkette, Mindestbreite und Bewertung; Quelle und
-  Sprache stehen in `item_images`. Alles andere gilt weiter
+  Sprache stehen in `item_images`. Alles andere gilt weiter; **geändert durch ADR 0036** (16. November
+  2026): die Quellenliste eines Ordners gilt für die Titel, deren Heimatordner er ist (`items.root_id`,
+  der Ordner der ältesten vorhandenen Datei), statt für jeden Titel mit einer Datei darin samt Serie
 - Quelle: Konzept `docs/planning/07-bibliotheken.md` (Fassung 4, 28./29. Oktober 2026, Abschnitte 2,
   4, 5, 6, 9); **Frage 13** in `docs/planning/04-entscheidungen.md` mit Marcos Antworten F-1 bis F-13;
   Idee 01 (`docs/ideas/01-metadaten-einstellungen.md`, Teil A); ADR 0006 (Anbieter-Schnittstelle),

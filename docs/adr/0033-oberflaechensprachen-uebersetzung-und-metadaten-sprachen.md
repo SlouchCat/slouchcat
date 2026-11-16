@@ -177,6 +177,9 @@ fünf Stufen. Diese ADR hält die Entscheide fest; Stufe 1 baut das Gerüst ohne
 
 ## Was von ADR 0018 bleibt
 
+**Nachtrag 16. November 2026 (ADR 0036):** Die Abweichung je Bibliothek ist eine eigene Liste je
+Ordner geworden; die Sprachregeln dieser ADR gelten für die Liste eines Ordners.
+
 Die geordnete Metadaten-Sprachliste des Servers mit Abweichung je Bibliothek, die Kette Metadaten-Sprache →
 Rückfallsprache → Rang, `profiles.metadata_language`, die Bildwahl mit Sprachkette und lokalen Dateien und das
 Freigabeland. Neu ist nur, dass die Liste kein Deutsch enthalten muss und das zweite Glied der Kette je
