@@ -432,6 +432,11 @@ export function MetadataPage() {
   }
   const errors = failure ? formErrors(t, failure.error) : null;
   const fieldError = (field: string) => errors?.fields?.[field];
+  /** The server's message for a field, at the field (concept 24 5, exception 3). */
+  const fieldNotice = (field: string) => {
+    const message = fieldError(field);
+    return message ? <Notice tone="danger">{message}</Notice> : null;
+  };
 
   const onSave = async () => {
     const values = drafts.valueOf(SERVER);
@@ -592,6 +597,16 @@ export function MetadataPage() {
 
   const textLangsError = fieldError('textLangs');
   const ratingCountryError = fieldError('ratingCountry');
+  // The server's message at each field the sections hold.
+  const kindsNotice = fieldNotice('imageKinds');
+  const imageLangsNotice = fieldNotice('imageLangs');
+  const minWidthNotice = fieldNotice('imageMinWidth');
+  const minPosterNotice = fieldNotice('imageMinWidth.poster');
+  const minBackdropNotice = fieldNotice('imageMinWidth.backdrop');
+  const byVoteNotice = fieldNotice('imageByVote');
+  const tmdbAdultNotice = fieldNotice('tmdbIncludeAdult');
+  const localImagesNotice = fieldNotice('localImages');
+  const fanartNotice = fieldNotice('fanartEnabled');
 
   const contentOf = (id: Section): ReactNode => {
     if (id === 'languages' && textLangs)
@@ -642,6 +657,7 @@ export function MetadataPage() {
               description: t(`admin.metadata.images.kindHint.${kind}`),
             }))}
           />
+          {kindsNotice}
           <Text tone="secondary" variant="caption">
             {t('admin.metadata.images.notBuilt')}
           </Text>
@@ -665,6 +681,7 @@ export function MetadataPage() {
               />
             </SettingRow>
           ))}
+          {imageLangsNotice}
           {CHAIN_KINDS.map((kind) => fieldError(`imageLangs.${kind}`))
             .filter(Boolean)
             .map((error) => (
@@ -709,6 +726,9 @@ export function MetadataPage() {
               }))}
             />
           </div>
+          {minWidthNotice}
+          {minPosterNotice}
+          {minBackdropNotice}
           <SettingRow
             label={t('admin.metadata.quality.byVote')}
             help={`${t('admin.metadata.quality.byVoteHint')} ${t('admin.metadata.quality.fallback')}`}
@@ -720,6 +740,7 @@ export function MetadataPage() {
               <VisuallyHidden>{t('admin.metadata.quality.byVote')}</VisuallyHidden>
             </Switch>
           </SettingRow>
+          {byVoteNotice}
         </SectionBody>
       );
     if (id === 'sources' && serverDraft && settings.data)
@@ -737,6 +758,7 @@ export function MetadataPage() {
                 <VisuallyHidden>{t('admin.metadata.sources.tmdbAdult')}</VisuallyHidden>
               </Switch>
             </SettingRow>
+            {tmdbAdultNotice}
             <SettingRow
               label={t('admin.metadata.sources.local')}
               help={`${t('admin.metadata.sources.localHint')} ${t('admin.metadata.sources.localCount', { count: settings.data.localImageTitles })}.`}
@@ -748,6 +770,7 @@ export function MetadataPage() {
                 <VisuallyHidden>{t('admin.metadata.sources.local')}</VisuallyHidden>
               </Switch>
             </SettingRow>
+            {localImagesNotice}
             <SettingRow
               label={t('admin.metadata.sources.fanart')}
               help={t('admin.metadata.sources.fanartHint')}
@@ -760,6 +783,7 @@ export function MetadataPage() {
                 <VisuallyHidden>{t('admin.metadata.sources.fanart')}</VisuallyHidden>
               </Switch>
             </SettingRow>
+            {fanartNotice}
           </div>
           <Text tone="secondary" variant="caption">
             {t('admin.metadata.sources.localSmall')}

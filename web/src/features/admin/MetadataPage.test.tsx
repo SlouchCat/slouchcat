@@ -494,6 +494,42 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
+  it('opens a section folded during the save on its field error and marks the field', async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockApi(
+      routes({
+        'PUT /admin/settings/metadata': async () => {
+          await held;
+          return problem(422, 'validation_failed', {
+            errors: [
+              { field: 'imageMinWidth.poster', code: 'invalid' },
+              { field: 'fanartEnabled', code: 'invalid' },
+            ],
+          });
+        },
+      }),
+    );
+    renderApp('/admin/metadata?item=quality');
+    const quality = await sectionOf('Bildqualität');
+    const user = userEvent.setup();
+    await user.click(within(quality).getByRole('radio', { name: '1000 px' }));
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    // Folded while the server still decides; «Quellen» was never open.
+    await user.click(toggleOf('Bildqualität'));
+    expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'false');
+    expect(toggleOf('Quellen')).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(toggleOf('Bildqualität')).toHaveAttribute('aria-expanded', 'true'));
+    expect(toggleOf('Quellen')).toHaveAttribute('aria-expanded', 'true');
+    expect(toggleOf('Sprachen')).toHaveAttribute('aria-expanded', 'false');
+    // Each section marks its field, not only the notice under the save bar.
+    expect(within(await sectionOf('Bildqualität')).getByText('Ungültiger Wert.')).toBeVisible();
+    expect(within(await sectionOf('Quellen')).getByText('Ungültiger Wert.')).toBeVisible();
+  });
+
   it('drops ?library= of the earlier scope from the address and shows the default', async () => {
     mockApi(routes());
     const { router } = renderApp('/admin/metadata?library=2');
