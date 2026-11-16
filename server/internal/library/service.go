@@ -419,8 +419,9 @@ func nested(path, dir string) bool {
 }
 
 // refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library other
-// than the root except (0 for none: a folder that moves may overlap its own old path). path must
-// be absolute and cleaned.
+// than the roots in except (none: every root counts; a folder that moves may overlap its own old
+// path, and saveLibrary compares the folders of its own library itself). path must be absolute
+// and cleaned.
 //
 // It compares twice: once on the paths as they are written, and once on what
 // filepath.EvalSymlinks makes of them. The second pass matters because the first one compares
@@ -435,14 +436,19 @@ func nested(path, dir string) bool {
 // Unicode-folding share. Both need a stat of every stored root on every call; the folders of one
 // server are few and set by hand, and the damage is a double index, not an escape from the
 // browsable roots.
-func (s *Service) refuseOverlap(ctx context.Context, path string, except int64) error {
+func (s *Service) refuseOverlap(ctx context.Context, path string, except ...int64) error {
 	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
 	if err != nil {
 		return fmt.Errorf("list roots: %w", err)
 	}
+	return overlapping(roots, path, func(r appq.LibraryRoot) bool { return slices.Contains(except, r.ID) })
+}
+
+// overlapping is the comparison of refuseOverlap over roots, without those skip names.
+func overlapping(roots []appq.LibraryRoot, path string, skip func(appq.LibraryRoot) bool) error {
 	real := resolved(path)
 	for _, r := range roots {
-		if r.ID == except {
+		if skip(r) {
 			continue
 		}
 		old := filepath.Clean(r.Path)
