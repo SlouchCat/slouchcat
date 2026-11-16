@@ -2026,7 +2026,7 @@
         "removed": "已移除的作品"
       },
       "hint": {
-        "unmatched": "未匹配的作品没有简介、图片和分级。请匹配或刷新此作品。",
+        "unmatched": "未匹配的作品没有简介、图片和分级。请匹配或刷新此作品。如果某集所属的剧集已匹配，但提供商没有该编号的单集，它就会列在这里；单集通过所属剧集匹配。",
         "no_images": "已匹配但没有海报的作品。刷新可重新加载图片。",
         "unrated": "没有分级的作品仅对“18 岁以上”的个人资料可见。请为其指定分级以开放观看。",
         "orphaned": "没有文件或文件缺失的作品，以及空的季和剧集。",
@@ -2043,6 +2043,12 @@
       "selectedOfLoaded": "已加载 {{loaded}} 项，已选 {{count}} 项",
       "selectAll": "全选",
       "selectNone": "取消选择",
+      "matchHint": {
+        "none": "请只选择一个条目进行匹配。",
+        "many": "一次只能匹配一个条目。",
+        "episode": "单集通过所属剧集匹配：“匹配”会打开该剧集的搜索。"
+      },
+      "seriesNotFound": "未找到此单集所属的剧集。",
       "shown": "{{shown}} / {{total}}",
       "entries_other": "{{count}} 个条目",
       "library": "媒体库 {{id}}",
@@ -2055,6 +2061,24 @@
       },
       "none": "–",
       "noneSpoken": "未提供",
+      "detail": {
+        "unmatched": "提供商无匹配结果",
+        "unmatchedEpisode": "剧集提供商无此编号的单集",
+        "failed": "获取失败",
+        "skipped": "已跳过",
+        "pending": "等待匹配超过 24 小时",
+        "no_tmdb_key": "未保存 TMDB 密钥",
+        "no_tvdb_key": "未保存 TVDB 密钥",
+        "tmdb_key_invalid": "TMDB 密钥被拒绝",
+        "tvdb_key_invalid": "TVDB 密钥被拒绝",
+        "unsupported_kind": "此类型不进行匹配",
+        "season_via_series": "季通过所属剧集匹配",
+        "series_unmatched": "所属剧集未匹配",
+        "no_file": "无文件",
+        "files_missing": "所有文件均缺失",
+        "no_episodes": "无单集",
+        "no_seasons": "无季"
+      },
       "titleCount_other": "{{count}} 部作品",
       "fileCount_other": "{{count}} 个文件",
       "action": {

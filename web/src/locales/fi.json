@@ -2085,7 +2085,7 @@
         "removed": "Poistetut nimikkeet"
       },
       "hint": {
-        "unmatched": "Ilman kohdistusta ei ole kuvausta, kuvitusta eikä ikärajaa. Kohdista nimike tai päivitä se.",
+        "unmatched": "Ilman kohdistusta ei ole kuvausta, kuvitusta eikä ikärajaa. Kohdista nimike tai päivitä se. Jakso näkyy tässä, kun sen sarja on kohdistettu mutta lähde ei tunne jaksoa tällä numerolla; jakso kohdistetaan sarjansa kautta.",
         "no_images": "Kohdistetut nimikkeet ilman julistetta. Päivitys lataa kuvituksen uudelleen.",
         "unrated": "Nimikkeet ilman ikärajaa näkyvät vain profiileille, joiden ikäraja on 18+. Määritä ikäraja, niin ne tulevat näkyviin.",
         "orphaned": "Nimikkeet ilman tiedostoa tai puuttuvilla tiedostoilla, tyhjät kaudet ja sarjat.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} / {{loaded}} ladatusta valittu",
       "selectAll": "Valitse kaikki",
       "selectNone": "Tyhjennä valinta",
+      "matchHint": {
+        "none": "Valitse kohdistettavaksi tasan yksi kohde.",
+        "many": "Kohdistaminen vaatii tasan yhden kohteen.",
+        "episode": "Jakso kohdistetaan sarjansa kautta: ”Kohdista” avaa sarjan haun."
+      },
+      "seriesNotFound": "Jakson sarjaa ei löytynyt.",
       "shown": "{{shown}} / {{total}}",
       "entries_one": "{{count}} kohde",
       "entries_other": "{{count}} kohdetta",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "ei annettu",
+      "detail": {
+        "unmatched": "Ei osumaa lähteessä",
+        "unmatchedEpisode": "Sarjan lähde ei tunne jaksoa tällä numerolla",
+        "failed": "Haku epäonnistui",
+        "skipped": "Ohitettu",
+        "pending": "Odottanut kohdistusta yli 24 tuntia",
+        "no_tmdb_key": "TMDB-avain puuttuu",
+        "no_tvdb_key": "TVDB-avain puuttuu",
+        "tmdb_key_invalid": "TMDB-avain hylättiin",
+        "tvdb_key_invalid": "TVDB-avain hylättiin",
+        "unsupported_kind": "Tätä tyyppiä ei kohdisteta",
+        "season_via_series": "Kaudet kohdistetaan sarjansa kautta",
+        "series_unmatched": "Sarjaa ei ole kohdistettu",
+        "no_file": "Ei tiedostoa",
+        "files_missing": "Kaikki tiedostot puuttuvat",
+        "no_episodes": "Ei jaksoja",
+        "no_seasons": "Ei kausia"
+      },
       "titleCount_one": "{{count}} nimike",
       "titleCount_other": "{{count}} nimikettä",
       "fileCount_one": "{{count}} tiedosto",

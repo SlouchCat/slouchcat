@@ -2026,7 +2026,7 @@
         "removed": "削除した作品"
       },
       "hint": {
-        "unmatched": "照合されていない作品には、あらすじ、画像、年齢区分がありません。作品を照合するか、更新してください。",
+        "unmatched": "照合されていない作品には、あらすじ、画像、年齢区分がありません。作品を照合するか、更新してください。TV番組が照合済みでも、プロバイダーにその番号のエピソードがない場合は、エピソードがここに表示されます。エピソードはTV番組を通じて照合します。",
         "no_images": "照合済みでポスターがない作品です。更新すると画像が再読み込みされます。",
         "unrated": "年齢区分のない作品は「18歳以上」のプロフィールにのみ表示されます。公開するには年齢区分を割り当ててください。",
         "orphaned": "ファイルがない、またはファイルが見つからない作品と、空のシーズンやTV番組です。",
@@ -2043,6 +2043,12 @@
       "selectedOfLoaded": "読み込み済み{{loaded}}件中{{count}}件を選択中",
       "selectAll": "すべて選択",
       "selectNone": "選択を解除",
+      "matchHint": {
+        "none": "照合する項目を1件だけ選択してください。",
+        "many": "照合できるのは1件だけです。",
+        "episode": "エピソードはTV番組を通じて照合します：「照合」でTV番組の検索が開きます。"
+      },
+      "seriesNotFound": "このエピソードのTV番組が見つかりませんでした。",
       "shown": "{{shown}} / {{total}}",
       "entries_other": "{{count}}件",
       "library": "ライブラリ{{id}}",
@@ -2055,6 +2061,24 @@
       },
       "none": "–",
       "noneSpoken": "指定なし",
+      "detail": {
+        "unmatched": "プロバイダーに該当なし",
+        "unmatchedEpisode": "TV番組のプロバイダーにこの番号のエピソードなし",
+        "failed": "取得に失敗",
+        "skipped": "スキップ",
+        "pending": "24時間以上照合待ち",
+        "no_tmdb_key": "TMDBのキー未設定",
+        "no_tvdb_key": "TVDBのキー未設定",
+        "tmdb_key_invalid": "TMDBがキーを拒否",
+        "tvdb_key_invalid": "TVDBがキーを拒否",
+        "unsupported_kind": "この種類は照合対象外",
+        "season_via_series": "シーズンはTV番組を通じて照合",
+        "series_unmatched": "TV番組が未照合",
+        "no_file": "ファイルなし",
+        "files_missing": "全ファイルが見つかりません",
+        "no_episodes": "エピソードなし",
+        "no_seasons": "シーズンなし"
+      },
       "titleCount_other": "{{count}}作品",
       "fileCount_other": "{{count}}ファイル",
       "action": {

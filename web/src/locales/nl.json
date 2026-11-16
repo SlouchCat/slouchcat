@@ -2085,7 +2085,7 @@
         "removed": "Weggehaalde titels"
       },
       "hint": {
-        "unmatched": "Zonder koppeling is er geen beschrijving, artwork of classificatie. Koppel de titel of vernieuw hem.",
+        "unmatched": "Zonder koppeling is er geen beschrijving, artwork of classificatie. Koppel de titel of vernieuw hem. Een aflevering staat hier als de serie gekoppeld is, maar de aanbieder de aflevering onder dit nummer niet kent; ze wordt via de serie gekoppeld.",
         "no_images": "Gekoppelde titels zonder poster. Vernieuwen laadt het artwork opnieuw.",
         "unrated": "Titels zonder classificatie zijn alleen zichtbaar voor profielen “Vanaf 18 jaar”. Wijs een classificatie toe om ze vrij te geven.",
         "orphaned": "Titels zonder bestand of met ontbrekende bestanden, lege seizoenen en series.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} van {{loaded}} geladen geselecteerd",
       "selectAll": "Alles selecteren",
       "selectNone": "Selectie wissen",
+      "matchHint": {
+        "none": "Selecteer precies één item om het te koppelen.",
+        "many": "Koppelen kan alleen met precies één item.",
+        "episode": "Een aflevering wordt via de serie gekoppeld: “Koppelen” opent het zoekvenster voor de serie."
+      },
+      "seriesNotFound": "De serie van deze aflevering is niet gevonden.",
       "shown": "{{shown}} van {{total}}",
       "entries_one": "{{count}} item",
       "entries_other": "{{count}} items",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "niet opgegeven",
+      "detail": {
+        "unmatched": "Geen treffer bij de aanbieder",
+        "unmatchedEpisode": "De aanbieder van de serie kent de aflevering onder dit nummer niet",
+        "failed": "Ophalen mislukt",
+        "skipped": "Overgeslagen",
+        "pending": "Wacht al meer dan 24 uur op koppeling",
+        "no_tmdb_key": "Geen TMDB-sleutel ingesteld",
+        "no_tvdb_key": "Geen TVDB-sleutel ingesteld",
+        "tmdb_key_invalid": "TMDB-sleutel geweigerd",
+        "tvdb_key_invalid": "TVDB-sleutel geweigerd",
+        "unsupported_kind": "Deze soort wordt niet gekoppeld",
+        "season_via_series": "Seizoenen worden via hun serie gekoppeld",
+        "series_unmatched": "De serie is niet gekoppeld",
+        "no_file": "Geen bestand",
+        "files_missing": "Alle bestanden ontbreken",
+        "no_episodes": "Geen afleveringen",
+        "no_seasons": "Geen seizoenen"
+      },
       "titleCount_one": "{{count}} titel",
       "titleCount_other": "{{count}} titels",
       "fileCount_one": "{{count}} bestand",

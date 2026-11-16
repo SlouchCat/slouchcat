@@ -2085,7 +2085,7 @@
         "removed": "Fjernede titler"
       },
       "hint": {
-        "unmatched": "Uden tilknytning mangler beskrivelse, billeder og aldersgrænse. Knyt titlen til en kilde, eller opdatér den.",
+        "unmatched": "Uden tilknytning mangler beskrivelse, billeder og aldersgrænse. Knyt titlen til en kilde, eller opdatér den. Et afsnit står her, når dets serie er tilknyttet, men udbyderen ikke kender afsnittet under dette nummer; det tilknyttes via sin serie.",
         "no_images": "Tilknyttede titler uden plakat. En opdatering indlæser billederne påny.",
         "unrated": "Titler uden aldersgrænse ses kun af profiler med »Fra 18 år«. Tildel en aldersgrænse for at frigive dem.",
         "orphaned": "Titler uden fil eller med manglende filer, tomme sæsoner og serier.",
@@ -2102,6 +2102,12 @@
       "selectedOfLoaded": "{{count}} af {{loaded}} indlæste valgt",
       "selectAll": "Vælg alle",
       "selectNone": "Ryd markering",
+      "matchHint": {
+        "none": "Vælg præcis én post for at tilknytte den.",
+        "many": "Tilknytning kræver præcis én post.",
+        "episode": "Et afsnit tilknyttes via sin serie: »Tilknyt« åbner søgningen for serien."
+      },
+      "seriesNotFound": "Serien for dette afsnit blev ikke fundet.",
       "shown": "{{shown}} af {{total}}",
       "entries_one": "{{count}} post",
       "entries_other": "{{count}} poster",
@@ -2115,6 +2121,24 @@
       },
       "none": "–",
       "noneSpoken": "ikke angivet",
+      "detail": {
+        "unmatched": "Intet resultat hos udbyderen",
+        "unmatchedEpisode": "Seriens udbyder kender ikke afsnittet under dette nummer",
+        "failed": "Opslag mislykkedes",
+        "skipped": "Sprunget over",
+        "pending": "Har ventet over 24 timer på tilknytning",
+        "no_tmdb_key": "Ingen TMDB-nøgle angivet",
+        "no_tvdb_key": "Ingen TVDB-nøgle angivet",
+        "tmdb_key_invalid": "TMDB-nøgle afvist",
+        "tvdb_key_invalid": "TVDB-nøgle afvist",
+        "unsupported_kind": "Denne type tilknyttes ikke",
+        "season_via_series": "Sæsoner tilknyttes via deres serie",
+        "series_unmatched": "Serien er ikke tilknyttet",
+        "no_file": "Ingen fil",
+        "files_missing": "Alle filer mangler",
+        "no_episodes": "Ingen afsnit",
+        "no_seasons": "Ingen sæsoner"
+      },
       "titleCount_one": "{{count}} titel",
       "titleCount_other": "{{count}} titler",
       "fileCount_one": "{{count}} fil",

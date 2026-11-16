@@ -2144,7 +2144,7 @@
         "removed": "Titres retirés"
       },
       "hint": {
-        "unmatched": "Sans association, il n’y a ni synopsis, ni visuels, ni classification. Associez le titre ou actualisez-le.",
+        "unmatched": "Sans association, il n’y a ni synopsis, ni visuels, ni classification. Associez le titre ou actualisez-le. Un épisode figure ici lorsque sa série est associée mais que le fournisseur ne connaît pas l’épisode sous ce numéro ; il s’associe via sa série.",
         "no_images": "Titres associés sans affiche. Une actualisation recharge les visuels.",
         "unrated": "Les titres sans classification ne sont visibles que pour les profils « Dès 18 ans ». Attribuez-leur une classification pour les rendre visibles.",
         "orphaned": "Titres sans fichier ou avec des fichiers manquants, saisons et séries vides.",
@@ -2161,6 +2161,12 @@
       "selectedOfLoaded": "{{count}} sélectionné(s) sur {{loaded}} chargés",
       "selectAll": "Tout sélectionner",
       "selectNone": "Désélectionner tout",
+      "matchHint": {
+        "none": "Sélectionnez exactement une entrée pour l’associer.",
+        "many": "L’association ne fonctionne qu’avec une seule entrée.",
+        "episode": "Un épisode s’associe via sa série : « Associer » ouvre la recherche de la série."
+      },
+      "seriesNotFound": "La série de cet épisode est introuvable.",
       "shown": "{{shown}} sur {{total}}",
       "entries_one": "{{count}} entrée",
       "entries_many": "{{count}} d’entrées",
@@ -2175,6 +2181,24 @@
       },
       "none": "–",
       "noneSpoken": "non renseigné",
+      "detail": {
+        "unmatched": "Aucun résultat chez le fournisseur",
+        "unmatchedEpisode": "Le fournisseur de la série ne connaît pas l’épisode sous ce numéro",
+        "failed": "Échec de la requête",
+        "skipped": "Ignoré",
+        "pending": "En attente d’association depuis plus de 24 heures",
+        "no_tmdb_key": "Aucune clé TMDB configurée",
+        "no_tvdb_key": "Aucune clé TVDB configurée",
+        "tmdb_key_invalid": "Clé TMDB refusée",
+        "tvdb_key_invalid": "Clé TVDB refusée",
+        "unsupported_kind": "Ce type ne peut pas être associé",
+        "season_via_series": "Les saisons s’associent via leur série",
+        "series_unmatched": "La série n’est pas associée",
+        "no_file": "Aucun fichier",
+        "files_missing": "Tous les fichiers manquent",
+        "no_episodes": "Aucun épisode",
+        "no_seasons": "Aucune saison"
+      },
       "titleCount_one": "{{count}} titre",
       "titleCount_many": "{{count}} de titres",
       "titleCount_other": "{{count}} titres",

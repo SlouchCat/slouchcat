@@ -2026,7 +2026,7 @@
         "removed": "已移除的作品"
       },
       "hint": {
-        "unmatched": "未比對的作品沒有簡介、圖片和分級。請比對或重新整理作品。",
+        "unmatched": "未比對的作品沒有簡介、圖片和分級。請比對或重新整理作品。如果某集所屬的影集已比對，但提供者沒有這個編號的單集，它就會列在這裡；單集透過所屬影集比對。",
         "no_images": "已比對但沒有海報的作品。重新整理會重新載入圖片。",
         "unrated": "沒有分級的作品只會對「18 歲以上」的個人資料顯示。請指定分級以開放觀看。",
         "orphaned": "沒有檔案或檔案遺失的作品，以及空的季和影集。",
@@ -2043,6 +2043,12 @@
       "selectedOfLoaded": "已選取 {{count}} 個（共載入 {{loaded}} 個）",
       "selectAll": "全選",
       "selectNone": "取消選取",
+      "matchHint": {
+        "none": "請只選取一個項目進行比對。",
+        "many": "一次只能比對一個項目。",
+        "episode": "單集透過所屬影集比對：「比對」會開啟該影集的搜尋。"
+      },
+      "seriesNotFound": "找不到這個單集所屬的影集。",
       "shown": "{{shown}} / {{total}}",
       "entries_other": "{{count}} 個項目",
       "library": "媒體庫 {{id}}",
@@ -2055,6 +2061,24 @@
       },
       "none": "–",
       "noneSpoken": "未提供",
+      "detail": {
+        "unmatched": "提供者沒有相符結果",
+        "unmatchedEpisode": "影集提供者沒有這個編號的單集",
+        "failed": "擷取失敗",
+        "skipped": "已略過",
+        "pending": "等待比對超過 24 小時",
+        "no_tmdb_key": "未儲存 TMDB 金鑰",
+        "no_tvdb_key": "未儲存 TVDB 金鑰",
+        "tmdb_key_invalid": "TMDB 金鑰遭拒",
+        "tvdb_key_invalid": "TVDB 金鑰遭拒",
+        "unsupported_kind": "不比對此類型",
+        "season_via_series": "季透過所屬影集比對",
+        "series_unmatched": "所屬影集未比對",
+        "no_file": "沒有檔案",
+        "files_missing": "所有檔案皆遺失",
+        "no_episodes": "沒有單集",
+        "no_seasons": "沒有季"
+      },
       "titleCount_other": "{{count}} 部作品",
       "fileCount_other": "{{count}} 個檔案",
       "action": {
