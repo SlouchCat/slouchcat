@@ -404,6 +404,14 @@ WHERE root_id = CAST(@root_id AS INTEGER) AND parent_id IS NULL AND deleted_at I
   AND kind IN ('movie', 'series') AND metadata_state = 'matched'
 ORDER BY id;
 
+-- name: ListApplyItemsWithoutHome :many
+-- The matched films and series of libraries without a home folder, for a metadata.apply run queued
+-- before contract 1.40.0 with libraryIds: such a run covered every matched title of the library.
+SELECT id, kind FROM items
+WHERE library_id IN (sqlc.slice('library_ids')) AND root_id IS NULL AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id;
+
 -- name: ListRootIDs :many
 SELECT id FROM library_roots ORDER BY id;
 

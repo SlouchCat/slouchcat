@@ -69,7 +69,10 @@ func (s *Service) ApplyMetadata(ctx context.Context, req ApplyRequest) (int64, i
 			break
 		}
 	}
-	roots, err := s.applyRoots(ctx, req.RootIDs)
+	scope := slices.Clone(req.RootIDs)
+	slices.Sort(scope)
+	scope = slices.Compact(scope)
+	roots, err := s.applyRoots(ctx, scope)
 	if errors.Is(err, model.ErrNotFound) {
 		verr = verr.Add("rootIds", "unknown_root")
 	} else if err != nil {
@@ -84,9 +87,6 @@ func (s *Service) ApplyMetadata(ctx context.Context, req ApplyRequest) (int64, i
 	}
 	what := slices.Clone(req.What)
 	sort.Strings(what)
-	scope := slices.Clone(req.RootIDs)
-	slices.Sort(scope)
-	scope = slices.Compact(scope)
 	payload, err := json.Marshal(applyPayload{RootIDs: scope, What: what})
 	if err != nil {
 		return 0, 0, fmt.Errorf("%s payload: %w", JobApply, err)
@@ -148,7 +148,7 @@ func (s *Service) CountApplyTitles(ctx context.Context, rootIDs []int64) (int, e
 
 // runRoots resolves the folders of a queued run: nil and true for every title. A run of contract
 // 1.38.0 names libraries: their folders now, none when they have none or are gone (never "every
-// folder"). Folders removed since the request drop out; when none is left there is nothing to do
+// folder"); handleApply adds the titles of those libraries without a home folder. Folders removed since the request drop out; when none is left there is nothing to do
 // (nil, false).
 func (s *Service) runRoots(ctx context.Context, p applyPayload) ([]int64, bool, error) {
 	ids := p.RootIDs
@@ -186,18 +186,37 @@ func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	if !ok {
+	// A run with libraryIds also covers the titles of those libraries without a home folder, as
+	// it did before contract 1.40.0.
+	var homeless []systemq.ListApplyItemsRow
+	if len(p.RootIDs) == 0 && len(p.LibraryIDs) > 0 {
+		rows, err := s.read.ListApplyItemsWithoutHome(ctx, p.LibraryIDs)
+		if err != nil {
+			return fmt.Errorf("%s: titles without a home folder of libraries %v: %w", JobApply, p.LibraryIDs, err)
+		}
+		for _, it := range rows {
+			homeless = append(homeless, systemq.ListApplyItemsRow(it))
+		}
+	}
+	if !ok && len(homeless) == 0 {
 		s.log.Info("metadata apply found none of its folders", "roots", p.RootIDs, "libraries", p.LibraryIDs)
 		return nil // the folders or libraries went since the request: nothing to do
 	}
 	texts := slices.Contains(p.What, ApplyTexts)
-	total, err := s.CountApplyTitles(ctx, roots)
-	if err != nil {
-		return err
+	total := len(homeless)
+	if ok {
+		n, err := s.CountApplyTitles(ctx, roots)
+		if err != nil {
+			return err
+		}
+		total += n
 	}
 	done := 0
-	batches := make([][]systemq.ListApplyItemsRow, 0, max(len(roots), 1))
-	if len(roots) == 0 {
+	batches := make([][]systemq.ListApplyItemsRow, 0, max(len(roots), 1)+1)
+	if len(homeless) > 0 {
+		batches = append(batches, homeless)
+	}
+	if ok && len(roots) == 0 {
 		all, err := s.read.ListAllApplyItems(ctx)
 		if err != nil {
 			return fmt.Errorf("%s: list titles: %w", JobApply, err)

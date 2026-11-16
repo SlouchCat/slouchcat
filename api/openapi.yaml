@@ -13573,6 +13573,7 @@ components:
             to; left out or empty = every folder. A folder means the titles whose home folder it is
             (ADR 0036); an unknown folder is `rootIds` `unknown_root`.
           maxItems: 200
+          uniqueItems: true
           items:
             type: integer
             format: int64

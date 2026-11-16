@@ -183,12 +183,29 @@ func TestApplyRunWithLibraryIDsCoversTheirFolders(t *testing.T) {
 	if got := run(`{"libraryIds":[777],"what":["texts"]}`); len(got) != 0 {
 		t.Fatalf("a library that went queued %v, want nothing", got)
 	}
-	if got := run(`{"libraryIds":[2],"what":["texts"]}`); len(got) != 1 || got[0] != "match:"+idByIMDB+" p1" {
-		t.Fatalf("library 2 queued %v, want the match of its folder's title", got)
+	// Library 2 also holds a matched film without a home folder: such a run covered every matched
+	// title of the library, so it takes that one too.
+	e.addItem(t, itemSeed{id: idBySearch, title: "Third"})
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched', library_id = 2, root_id = NULL WHERE id = ?`, idBySearch)
+	if got := run(`{"libraryIds":[2],"what":["texts"]}`); !slices.Equal(slices.Sorted(slices.Values(got)), []string{"match:" + idByIMDB + " p1", "match:" + idBySearch + " p1"}) {
+		t.Fatalf("library 2 queued %v, want the matches of its folder's title and of the title without a home folder", got)
 	}
 	// A folder that went since the request covers nothing either.
-	if got := run(`{"rootIds":[555],"what":["texts"]}`); len(got) != 1 {
-		t.Fatalf("a folder that went queued %v, want still only the one match", got)
+	if got := run(`{"rootIds":[555],"what":["texts"]}`); len(got) != 2 {
+		t.Fatalf("a folder that went queued %v, want still only the two matches", got)
+	}
+}
+
+// rootIds sent twice count once: affectedTitles is what the run queues.
+func TestApplyCountsAFolderOnce(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched' WHERE id = ?`, idByTMDB)
+	ownFolder(t, e.db.Write, 1, 1, "movie", model.RootMetadata{}, idByTMDB)
+	if _, titles, err := e.svc.ApplyMetadata(ctx, ApplyRequest{What: []string{ApplyTexts}, RootIDs: []int64{1, 1}}); err != nil || titles != 1 {
+		t.Fatalf("apply with folder 1 twice = %d titles, %v; want 1", titles, err)
 	}
 }
 

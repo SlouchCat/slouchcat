@@ -369,6 +369,53 @@ func (q *Queries) ListApplyItems(ctx context.Context, rootID int64) ([]ListApply
 	return items, nil
 }
 
+const listApplyItemsWithoutHome = `-- name: ListApplyItemsWithoutHome :many
+SELECT id, kind FROM items
+WHERE library_id IN (/*SLICE:library_ids*/?) AND root_id IS NULL AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
+`
+
+type ListApplyItemsWithoutHomeRow struct {
+	ID   string
+	Kind string
+}
+
+// The matched films and series of libraries without a home folder, for a metadata.apply run queued
+// before contract 1.40.0 with libraryIds: such a run covered every matched title of the library.
+func (q *Queries) ListApplyItemsWithoutHome(ctx context.Context, libraryIds []int64) ([]ListApplyItemsWithoutHomeRow, error) {
+	query := listApplyItemsWithoutHome
+	var queryParams []interface{}
+	if len(libraryIds) > 0 {
+		for _, v := range libraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(libraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListApplyItemsWithoutHomeRow{}
+	for rows.Next() {
+		var i ListApplyItemsWithoutHomeRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChildItems = `-- name: ListChildItems :many
 SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language, publisher, isbn, asin, audio_series_id, author_display, book_match_state, book_match_provider, book_match_id, book_match_region, book_matched_at, book_match_score, book_match_error, book_match_manual, removed_at, own_rating, effective_rating, min_child_rating, root_id FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
