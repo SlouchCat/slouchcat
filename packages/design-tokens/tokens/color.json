@@ -7,27 +7,39 @@
         "$description": "App background, near-black with a cool cast."
       },
       "elevated": {
-        "$value": "#13151b",
+        "$value": "#171a22",
         "$description": "Panels and sheets that sit above the base."
       },
       "overlay": { "$value": "#0b0c10d9", "$description": "Scrim behind dialogs and over artwork." }
     },
     "surface": {
-      "1": { "$value": "#16181f", "$description": "Cards and rows at rest." },
-      "2": { "$value": "#1d2029", "$description": "Hovered or selected cards." },
-      "3": { "$value": "#262a35", "$description": "Inputs and pressed states." }
+      "1": { "$value": "#1b1e27", "$description": "Cards and rows at rest." },
+      "2": { "$value": "#20242f", "$description": "Hovered or selected cards, expanded rows, table heads." },
+      "3": { "$value": "#2b3040", "$description": "Inputs, secondary buttons and pressed states." }
     },
     "text": {
       "primary": { "$value": "#f3f3f5", "$description": "Titles and body text." },
-      "secondary": { "$value": "#b6b9c4", "$description": "Supporting text and metadata." },
-      "muted": { "$value": "#9095a3", "$description": "Hints and disabled labels." },
+      "secondary": { "$value": "#d9dce4", "$description": "Supporting text, metadata and table heads." },
+      "muted": { "$value": "#bcc1cd", "$description": "Hints and disabled labels; at least 7:1 on every surface." },
       "on-accent": {
         "$value": "{color.bg.base}",
         "$description": "Default text on any accent fill."
       }
     },
     "border": {
-      "subtle": { "$value": "#ffffff14", "$description": "Hairline separators, used sparingly." }
+      "$description": "Three strengths (concept 24, P-4): a divider is quieter than a frame, a frame quieter than a control.",
+      "subtle": {
+        "$value": "#ffffff38",
+        "$description": "Dividers between rows of a list or table, about 2:1 against every surface."
+      },
+      "frame": {
+        "$value": "#ffffff5c",
+        "$description": "Frame of a panel, table, band, notice, save bar or menu: at least 3:1 against every surface."
+      },
+      "control": {
+        "$value": "#ffffff73",
+        "$description": "Outline of a control (button, field, select, checkbox, switch, tab): at least 3:1 against every surface; dashed when disabled."
+      }
     },
     "state": {
       "focus-ring": {
