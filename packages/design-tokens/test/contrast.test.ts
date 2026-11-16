@@ -68,19 +68,30 @@ function failing(rows: Row[], min: number, max = Infinity): string[] {
 const bg = tokens.color.bg.base;
 const { border, scrim, text } = tokens.color;
 
-// Every surface text, frames and controls can sit on, not only the base background.
-const surfaces: Record<string, string> = {
-  'bg.base': bg,
-  'bg.elevated': tokens.color.bg.elevated,
-  'surface.1': tokens.color.surface['1'],
-  'surface.2': tokens.color.surface['2'],
-  'surface.3': tokens.color.surface['3'],
-};
-const textTokens: Record<string, string> = {
-  'text.primary': text.primary,
-  'text.secondary': text.secondary,
-  'text.muted': text.muted,
-};
+// Every surface text, frames and controls can sit on, not only the base background: the opaque
+// backgrounds (bg.overlay is a translucent scrim) and every surface step, read from the tokens.
+const opaque = (value: string) => /^#[0-9a-f]{6}$/i.test(value);
+const surfaces: Record<string, string> = Object.fromEntries([
+  ...Object.entries(tokens.color.bg)
+    .filter(([, value]) => opaque(value))
+    .map(([name, value]) => [`bg.${name}`, value]),
+  ...Object.entries(tokens.color.surface).map(([name, value]) => [`surface.${name}`, value]),
+]);
+// Every text colour; on-accent is text on an accent fill, checked with the accents.
+const textTokens: Record<string, string> = Object.fromEntries(
+  Object.entries(text)
+    .filter(([name]) => name !== 'onAccent')
+    .map(([name, value]) => [`text.${name}`, value]),
+);
+
+/** Colours as text on every surface: name / surface rows. */
+function onSurfaces(colours: Record<string, string>): Row[] {
+  return Object.entries(colours).flatMap(([name, foreground]) =>
+    Object.entries(surfaces).map(([surfaceName, background]) =>
+      measure(`${name} / ${surfaceName}`, foreground, background),
+    ),
+  );
+}
 
 /** A border token (translucent white) against each surface: its painted colour on that surface. */
 function borderRows(name: string, token: string): Row[] {
@@ -90,13 +101,40 @@ function borderRows(name: string, token: string): Row[] {
 }
 
 describe('text contrast (concept 24, Z-1: at least 7:1)', () => {
+  it('reads every opaque background, every surface and every text colour', () => {
+    expect(Object.keys(surfaces)).toEqual([
+      'bg.base',
+      'bg.elevated',
+      'surface.1',
+      'surface.2',
+      'surface.3',
+    ]);
+    expect(Object.keys(textTokens)).toEqual(['text.primary', 'text.secondary', 'text.muted']);
+  });
+
   it('keeps every text token at 7:1 on every surface', () => {
-    const rows = Object.entries(textTokens).flatMap(([textName, foreground]) =>
-      Object.entries(surfaces).map(([surfaceName, background]) =>
-        measure(`${textName} / ${surfaceName}`, foreground, background),
+    expect(failing(onSurfaces(textTokens), 7)).toEqual([]);
+  });
+});
+
+// State colours and profile accents as text (a Chip, a StatusDot's word, a link, a danger
+// notice) on every surface, Z-1: at least 4.5:1.
+describe('state and accent colours as text (concept 24, Z-1: at least 4.5:1)', () => {
+  it('keeps danger, warning and success at 4.5:1 on every surface', () => {
+    const { danger, warning, success } = tokens.color.state;
+    expect(
+      failing(
+        onSurfaces({ 'state.danger': danger, 'state.warning': warning, 'state.success': success }),
+        4.5,
       ),
+    ).toEqual([]);
+  });
+
+  it('keeps every profile accent at 4.5:1 on every surface', () => {
+    const accents = Object.fromEntries(
+      accentNames.map((name) => [`accent.${name}`, tokens.color.accent[name].base]),
     );
-    expect(failing(rows, 7)).toEqual([]);
+    expect(failing(onSurfaces(accents), 4.5)).toEqual([]);
   });
 });
 
@@ -105,12 +143,12 @@ describe('accent contrast (WCAG 2.x, minimum 4.5:1)', () => {
     expect(accentNames).toHaveLength(8);
   });
 
-  it('meets 4.5:1 for every accent as text and its text on the accent', () => {
+  it('meets 4.5:1 for the text on every accent, its own and text.on-accent', () => {
     const rows = accentNames.flatMap((name) => {
       const accent = tokens.color.accent[name];
       return [
-        measure(`accent.${name} / bg.base`, accent.base, bg),
         measure(`accent.${name}.on / accent.${name}`, accent.on, accent.base),
+        measure(`text.on-accent / accent.${name}`, text.onAccent, accent.base),
       ];
     });
     expect(failing(rows, 4.5)).toEqual([]);
