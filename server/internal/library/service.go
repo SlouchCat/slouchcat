@@ -647,6 +647,7 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
+	titles := map[string]bool{} // the top-level titles that lost a file (rehome, ADR 0036)
 	for _, id := range ids {
 		mf, err := q.GetMediaFileSystem(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -661,6 +662,11 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		if err := q.DeleteMediaFile(ctx, id); err != nil {
 			return 0, 0, fmt.Errorf("delete media file %s: %w", id, err)
 		}
+		title, err := titleOf(ctx, q, mf.ItemID)
+		if err != nil {
+			return 0, 0, err
+		}
+		titles[title] = true
 		n, err := q.SoftDeleteItemWithoutFiles(ctx, systemq.SoftDeleteItemWithoutFilesParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: mf.ItemID})
 		if err != nil {
 			return 0, 0, fmt.Errorf("soft delete item %s: %w", mf.ItemID, err)
@@ -672,6 +678,11 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
 			return 0, 0, err
 		}
+	}
+	// A title that lost its last present file in its home folder moves to the folder of its
+	// oldest present file elsewhere, with that folder's list and a match.
+	if _, err := rehomeAll(ctx, q, time.UnixMilli(now), slices.Sorted(maps.Keys(titles))); err != nil {
+		return 0, 0, err
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("store ignored files: %w", err)

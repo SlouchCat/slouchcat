@@ -76,6 +76,31 @@ func rehome(ctx context.Context, q *systemq.Queries, now time.Time, id string, s
 	return true, nil
 }
 
+// RehomeTx is rehome for another package (the merge of package admin moves files and children
+// below a title and spreads its home folder onto them, ADR 0036).
+func RehomeTx(ctx context.Context, q *systemq.Queries, now time.Time, id string, spread bool) (bool, error) {
+	return rehome(ctx, q, now, id, spread)
+}
+
+// titleOf returns the top-level title of item id: the item itself, its parent or its grandparent
+// (a film, series, audiobook or podcast). An unknown id is its own title; rehome skips it.
+func titleOf(ctx context.Context, q *systemq.Queries, id string) (string, error) {
+	for range 2 {
+		item, err := q.GetItemSystem(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return id, nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("title of %s: %w", id, err)
+		}
+		if !item.ParentID.Valid {
+			return id, nil
+		}
+		id = item.ParentID.String
+	}
+	return id, nil
+}
+
 // rehomeAll runs rehome for every id and returns how many titles moved.
 func rehomeAll(ctx context.Context, q *systemq.Queries, now time.Time, ids []string) (int, error) {
 	moved := 0

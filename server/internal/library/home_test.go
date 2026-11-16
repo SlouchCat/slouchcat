@@ -299,3 +299,54 @@ func TestHomeFolderOfARelinkedTitle(t *testing.T) {
 		t.Errorf("relinked film = %s, want the copy's folder with its list", got)
 	}
 }
+
+// The clean-up of maintenance (CleanupItems → IgnoreFiles) takes the copy in the home folder: the
+// film moves to the folder of its other copy with that folder's list and queues its match.
+func TestHomeFolderAfterIgnoringTheFileInIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	_, a, b, film, _, _ := e.twoMovieFolders([]string{model.ProviderTMDB, model.ProviderAniList})
+	e.settleJobs()
+	file := e.str(`SELECT id FROM media_files WHERE item_id = ? AND root_id = ?`, film, a)
+	if files, _, err := e.svc.IgnoreFiles(e.ctx, []string{file}, "unplayable"); err != nil || files != 1 {
+		t.Fatalf("ignore = %d, %v", files, err)
+	}
+	if got := e.home(film); got != rootText(b)+`/["tmdb","anilist"]` {
+		t.Errorf("after the clean-up = %s, want the second folder with its list", got)
+	}
+	if !e.queuedMatch(film) {
+		t.Error("the move queued no match")
+	}
+}
+
+// Deleting with its files the only episode of a series in its home folder moves the series with
+// its seasons and episodes to the folder of the other episodes.
+func TestHomeFolderAfterDeletingTheEpisodeInIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dirA := tree(t, []string{"Show (2020)/Season 01/Show (2020) S01E01.mkv"})
+	dirB := tree(t, []string{"Show (2020)/Season 02/Show (2020) S02E01.mkv"})
+	lib := e.createSeries(dirA)
+	e.scan(lib.ID)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, []model.LibraryRootRequest{{Path: dirB, Content: model.RootSeries, Providers: []string{model.ProviderTVDB, model.ProviderTMDB}}}); err != nil {
+		t.Fatal(err)
+	}
+	e.scan(lib.ID)
+	sb := rootIDOf(t, e, lib.ID, dirB)
+	series := e.str(`SELECT id FROM items WHERE kind = 'series'`)
+	e.settleJobs()
+	episode := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Show (2020)/Season 01/Show (2020) S01E01.mkv'`)
+	if _, err := e.deleteItem(episode, "de", model.DeleteModeFiles, "", model.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	want := rootText(sb) + `/["tvdb","tmdb"]`
+	if got := e.home(series); got != want {
+		t.Errorf("series after the delete = %s, want %s", got, want)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE kind IN ('season', 'episode') AND (root_id IS NOT ? OR providers <> '["tvdb","tmdb"]')`, sb); n != 0 {
+		t.Errorf("%d seasons or episodes do not carry the series' new home folder and list", n)
+	}
+	if !e.queuedMatch(series) {
+		t.Error("the move queued no match")
+	}
+}
