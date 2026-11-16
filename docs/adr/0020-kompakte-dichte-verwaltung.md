@@ -137,3 +137,16 @@ unverändert (dieselben Farb-Tokens).
   `--sc-setting-text-gap`): Hilfezeile einer Einstellungszeile (`SettingRow`) und ihr Abstand zur
   Bezeichnung. Standard 14 px und 4 px wie bisher, kompakt 12 px und 0 wie in den Mockups (Int-A,
   Spo-A, Met-B); eine Einstellung mit einer Zeile Hilfe ist so rund 56 px hoch.
+
+## Nachtrag Konzept 24, Kontrast (16. November 2026)
+
+- **Farben und Konturen ändern sich, die Dichte bleibt.** Mit Konzept 24 P-4 (Frage 32) gelten
+  höhere Kontraste in Verwaltung und Zuschauer-App: Textfarben mindestens 7 : 1 auf jeder Fläche,
+  drei Rahmen-Tokens statt einem (`color.border.subtle` für Trennlinien, rund 2 : 1;
+  `color.border.frame` für Rahmen von Panel, Tabelle, Band, Hinweis und Speicherleiste, mindestens
+  3 : 1; `color.border.control` für die Kontur von Bedienelementen, mindestens 3 : 1), Gesperrtes
+  mit gestrichelter Kontur ohne Füllung statt Blässe. `ui/admin-look.css` setzt die Rahmen der
+  Verwaltung auf `color.border.frame`.
+- **Höhen, Abstände und Schriftgrössen der kompakten Dichte bleiben unverändert.** Die Kontur von
+  Knopf und Chip liegt innerhalb ihrer Mindesthöhe (`box-sizing: border-box`); die gewählten
+  Reiter erhalten einen Ring als Schatten, der keinen Platz braucht.
