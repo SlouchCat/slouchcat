@@ -65,7 +65,7 @@ export function entryColumns(
       width: '21%',
       header: t('admin.spotlight.entries.columns.title'),
       rowHeader: true,
-      // A hidden entry: poster and title at half strength (mockup Spo-A).
+      // A hidden entry: the title muted, the poster at half strength (mockup Spo-A, Z-5).
       cell: (entry) => (
         <PosterTitle posterUrl={entry.posterUrl} className={entry.hidden ? styles.dimmed : ''}>
           <TitleText t={t} entry={entry} />

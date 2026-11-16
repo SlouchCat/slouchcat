@@ -84,10 +84,11 @@
   border-radius: var(--sc-radius-md);
 }
 
-/* A hidden row keeps its place, dimmed with a dashed outline. */
+/* A hidden row keeps its place with a dashed outline, its name muted and its state marker
+   «ausgeblendet» (concept 24 Z-5: by shape, not by paleness); only the sketch of its cards fades. */
 .off {
-  border: 1px dashed var(--sc-color-border-subtle);
-  opacity: 0.5;
+  border: 1px dashed var(--sc-color-border-control);
+  color: var(--sc-color-text-muted);
 }
 
 .previewName {
@@ -111,6 +112,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-1);
+}
+
+/* The cards of a hidden row fade; its name and marker stay readable (.off). */
+.off .sketch {
+  opacity: 0.5;
 }
 
 .strip {

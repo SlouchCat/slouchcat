@@ -89,8 +89,13 @@
   white-space: nowrap;
 }
 
-/* A hidden entry: its poster and title at half strength, as on the mockup. */
+/* A hidden entry: its title in muted text (its status or override says «ausgeblendet»), only its
+   poster at half strength (concept 24 Z-5: text stays readable, no paleness). */
 .dimmed {
+  color: var(--sc-color-text-muted);
+}
+
+.dimmed img {
   opacity: 0.5;
 }
 
