@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { library, ratingSystems } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call, type Routes } from '@/test/api';
+import { afterDialogsClosed } from '@/ui/aria';
 
 // The page "Metadaten" (concept 10, 7.1; concept 24 3.4): the default every folder without
 // settings of its own follows; the settings areas as fold sections, all closed, each header with
@@ -379,6 +380,45 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
       'true',
     );
     await waitFor(() => expect(within(card).getByLabelText('Ordner')).toHaveFocus());
+  });
+
+  it('the band after a save from «Bearbeiten» hands the focus to the page title when dismissed', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/libraries/1': (call: Call) =>
+          json({
+            library: { ...library(), name: (call.body as { name: string }).name },
+            metadataChanged: [],
+          }),
+      }),
+    );
+    renderApp('/admin/metadata?item=folders');
+    const folders = await sectionOf('Ordner');
+    const user = userEvent.setup();
+    await user.click(
+      within(folders).getByRole('button', { name: 'Filme bearbeiten, Ordner /media/Filme' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Bibliothek bearbeiten' });
+    await user.type(within(dialog).getByLabelText('Name'), ' neu');
+    const settingsLoads = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/admin/settings/metadata')
+        .length;
+    const before = settingsLoads();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // The dialog gives the focus back to the row's button; the save's own focus step (after the
+    // settings are loaded again and the dialog is gone) leaves it there.
+    const row = within(folders).getByRole('button', {
+      name: 'Filme bearbeiten, Ordner /media/Filme',
+    });
+    await waitFor(() => expect(row).toHaveFocus());
+    await waitFor(() => expect(settingsLoads()).toBeGreaterThan(before));
+    await act(() => afterDialogsClosed());
+    expect(row).toHaveFocus();
+    const dismiss = await screen.findByRole('button', { name: 'Ausblenden' });
+    await user.click(dismiss);
+    expect(screen.queryByRole('button', { name: 'Ausblenden' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
   });
 
   it('adds a language, swaps its place, saves the whole list once and reports the affected titles', async () => {

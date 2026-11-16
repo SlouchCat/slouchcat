@@ -45,6 +45,7 @@ import {
   StatusRegion,
   Switch,
   afterDialogsClosed,
+  afterRender,
   focusTitleIfLost,
   useDrafts,
   useStatusMessage,
@@ -303,7 +304,15 @@ function FoldersSection({
 
   return (
     <SectionBody intro={t('admin.metadata.folders.intro')}>
-      {saved && <SavedBand value={saved} onDismiss={() => setSaved(null)} />}
+      {saved && (
+        <SavedBand
+          value={saved}
+          onDismiss={() => {
+            setSaved(null);
+            void afterRender().then(() => focusTitleIfLost(titleRef));
+          }}
+        />
+      )}
       {folders.length === 0 ? (
         <Text tone="secondary">{t('admin.metadata.folders.empty')}</Text>
       ) : (
