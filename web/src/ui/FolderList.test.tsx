@@ -2,6 +2,7 @@ import type { MetadataProviderInfo } from '@slouchcat/api-client';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { act } from 'react';
 import { describe, expect, it } from 'vitest';
 import { FolderList, folderListError, newFolderEntry, type FolderEntry } from './FolderList';
 
@@ -142,5 +143,64 @@ describe('FolderList', () => {
     expect(screen.queryByRole('button', { name: /nach (oben|unten)$/ })).toBeNull();
     await user.selectOptions(screen.getByRole('combobox', { name: 'Platz für TVDB' }), 'Platz 1');
     expect(screen.getByTestId('value')).toHaveTextContent('|series|tvdb,tmdb');
+  });
+
+  it('a card folds to one line with path, content and sources; Enter opens it (concept 24 4.2)', async () => {
+    const user = userEvent.setup();
+    render(<Harness kind="video" min={1} />);
+    const card = screen.getByRole('listitem', { name: 'Ordner 1' });
+    // A new card is open (exception 2); its head names the card while the path is empty.
+    const head = within(card).getByRole('button', { name: /Ordner 1/ });
+    expect(head).toHaveAttribute('aria-expanded', 'true');
+    await user.type(within(card).getByLabelText('Ordner'), '/media/Filme');
+    await user.click(head);
+    expect(head).toHaveAttribute('aria-expanded', 'false');
+    // The fields stay mounted, so nothing typed is lost; they are hidden.
+    expect(within(card).getByLabelText('Ordner')).not.toBeVisible();
+    expect(within(card).getByRole('button', { name: /\/media\/Filme/ })).toBe(head);
+    const line = head.closest('h3')!.parentElement!;
+    expect(line).toHaveTextContent('/media/FilmeFilmeTMDB');
+    head.focus();
+    await user.keyboard('{Enter}');
+    expect(head).toHaveAttribute('aria-expanded', 'true');
+    expect(head).toHaveFocus();
+  });
+
+  it('marks a stored folder instead of removing it; «Rückgängig» brings it back to its head', async () => {
+    const user = userEvent.setup();
+    const stored = { ...newFolderEntry('video', []), key: 'root-1', path: '/media/Filme' };
+    function Marking() {
+      const [marked, setMarked] = useState<ReadonlySet<string>>(new Set());
+      return (
+        <FolderList
+          kind="video"
+          entries={[stored]}
+          onChange={() => undefined}
+          infos={infos}
+          min={0}
+          namePrefix="roots"
+          expandedKeys={new Set(['root-1'])}
+          marking={{
+            isStored: (entry) => entry.key === 'root-1',
+            marked,
+            onMark: (key) => setMarked(new Set([key])),
+            onUndo: () => setMarked(new Set()),
+          }}
+        />
+      );
+    }
+    render(<Marking />);
+    await user.click(screen.getByRole('button', { name: 'Ordner 1 entfernen' }));
+    const card = screen.getByRole('listitem', { name: 'Ordner 1' });
+    expect(within(card).getByText(/Wird beim Speichern entfernt/)).toBeVisible();
+    expect(within(card).queryByLabelText('Ordner')).toBeNull();
+    const undo = within(card).getByRole('button', {
+      name: 'Entfernen von Ordner 1 rückgängig machen',
+    });
+    expect(undo).toHaveFocus();
+    await user.click(undo);
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: /\/media\/Filme/ })).toHaveFocus();
+    expect(screen.getByLabelText('Ordner')).toHaveValue('/media/Filme');
   });
 });

@@ -25,7 +25,7 @@ import {
   useUnsavedChanges,
 } from '@/ui/aria';
 import { jobRunsKey, jobRunsQuery, librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
-import { AddLibraryDialog, useLibraryDraft } from './AddLibraryDialog';
+import { LibraryForm, useLibraryDraft } from './LibraryForm';
 import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
@@ -492,7 +492,8 @@ function LibrariesContent() {
         />
       )}
 
-      <AddLibraryDialog
+      <LibraryForm
+        mode="add"
         draft={draft}
         isOpen={addOpen}
         onOpenChange={onAddOpenChange}

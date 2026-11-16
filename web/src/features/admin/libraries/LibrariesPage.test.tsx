@@ -471,6 +471,11 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     const dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
     await user.type(within(dialog).getByLabelText('Ordner'), '/media/Dokus');
+    // The section starts closed and names the setting in its header (concept 24 4.1, P-3).
+    const section = within(dialog).getByRole('button', { name: 'Vorschau beim Spulen' });
+    expect(section).toHaveAttribute('aria-expanded', 'false');
+    expect(within(dialog).getByText('Filme: Aus · Serien: Aus')).toBeVisible();
+    await user.click(section);
     const movies = within(dialog).getByRole('radiogroup', { name: 'Filme' });
     const series = within(dialog).getByRole('radiogroup', { name: 'Serien' });
     // «Aus» first and chosen (1.23.1), in both groups.

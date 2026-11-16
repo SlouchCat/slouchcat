@@ -36,8 +36,73 @@
 
 .head {
   display: flex;
-  gap: var(--sc-space-3);
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
   align-items: center;
+}
+
+.disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.heading {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+/* The head of a card is its trigger: chevron, number and path, like DisclosureGroup's. */
+.trigger {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-2) 0 0;
+  border: 0;
+  border-radius: var(--sc-radius-sm);
+  background-color: transparent;
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.trigger[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.disclosure[data-expanded] .chevron {
+  transform: rotate(90deg);
+}
+
+/* A long path wraps anywhere instead of widening the dialog on a phone. */
+.cardPath {
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+/* A folder marked for removal: one line, its border dashed (Z-5: shape, not paleness). */
+.marked {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.remove {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .number {
@@ -56,7 +121,7 @@
 
 .summary {
   display: flex;
-  flex: 1;
+  flex: 1 1 16rem;
   flex-wrap: wrap;
   gap: var(--sc-space-2);
   align-items: center;

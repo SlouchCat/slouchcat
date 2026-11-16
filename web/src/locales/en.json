@@ -554,7 +554,11 @@
       "submit_other": "Add library with {{count}} folders",
       "submitNone": "Add library without folders",
       "addSubmit_one": "Add 1 folder",
-      "addSubmit_other": "Add {{count}} folders"
+      "addSubmit_other": "Add {{count}} folders",
+      "marked": "Will be removed when you save. You then confirm it with the path.",
+      "undo": "Undo",
+      "undoLabel": "Undo removing folder {{number}}",
+      "removeStored": "Remove folder …"
     },
     "videoHint": "The folders of this library may hold films or series, mixed as well.",
     "page": {
@@ -614,7 +618,8 @@
     "notFound": {
       "title": "Library not found",
       "body": "This library does not exist or has no titles for this profile."
-    }
+    },
+    "kindFixed": "The kind is fixed once the library has been created."
   },
   "home": {
     "list": {
@@ -2003,12 +2008,14 @@
         "generate": {
           "action": "Generate now",
           "hint": "Catches up on the missing previews of every library «In advance», like «Backfill seek previews» on «Background jobs».",
-          "queued": "Catching up on the previews is queued."
+          "queued": "Catching up on the previews is queued.",
+          "unsaved": "Only after saving: generating uses the saved setting."
         },
         "submit": "Save",
         "saved": "The seek preview of {{name}} is saved.",
         "summary": "Seek preview: films {{movies}} · series {{series}}",
-        "summaryNoKeep": "At start, not kept"
+        "summaryNoKeep": "At start, not kept",
+        "header": "Films: {{movies}} · series: {{series}}"
       },
       "delete": {
         "action": "Delete library …",
@@ -2031,6 +2038,30 @@
         "title": "Rename library “{{name}}”",
         "label": "Name",
         "saved": "The library is now called “{{name}}”."
+      },
+      "form": {
+        "editTitle": "Edit library",
+        "changed": "changed",
+        "pathAndContent": "The path and the content of this folder cannot change in one step. Save one first, then the other.",
+        "pathHint": "The new path applies once you save. Titles and user data stay when the files lie there under the same names.",
+        "reloaded": "The library was changed elsewhere in the meantime. The form now shows its new state; your changes were not saved.",
+        "scanRunning": "Removing, another content and a new path wait until the scan is done. Your input stays.",
+        "scanCancelled": "The scan is cancelled. Save again now.",
+        "discard": {
+          "title": "Discard changes?",
+          "body": "The unsaved changes to {{name}} will be lost.",
+          "confirm": "Discard",
+          "keep": "Keep editing"
+        },
+        "confirm": {
+          "title": "Confirm changes",
+          "intro": "These changes take effect only when you save here.",
+          "remove": "Remove folder: {{path}}",
+          "content": "Change content: {{path}}",
+          "path": "Change path: {{path}}",
+          "typeAll": "You can save once every path is typed exactly.",
+          "submit": "Save"
+        }
       }
     },
     "access": {

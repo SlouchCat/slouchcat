@@ -554,7 +554,11 @@
       "submit_other": "Bibliothek mit {{count}} Ordnern hinzufügen",
       "submitNone": "Bibliothek ohne Ordner hinzufügen",
       "addSubmit_one": "1 Ordner hinzufügen",
-      "addSubmit_other": "{{count}} Ordner hinzufügen"
+      "addSubmit_other": "{{count}} Ordner hinzufügen",
+      "marked": "Wird beim Speichern entfernt. Du bestätigst dann mit dem Pfad.",
+      "undo": "Rückgängig",
+      "undoLabel": "Entfernen von Ordner {{number}} rückgängig machen",
+      "removeStored": "Ordner entfernen …"
     },
     "videoHint": "Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.",
     "page": {
@@ -614,7 +618,8 @@
     "notFound": {
       "title": "Bibliothek nicht gefunden",
       "body": "Diese Bibliothek gibt es nicht, oder sie hat für dieses Profil keine Titel."
-    }
+    },
+    "kindFixed": "Die Art steht fest, sobald die Bibliothek angelegt ist."
   },
   "home": {
     "list": {
@@ -2003,12 +2008,14 @@
         "generate": {
           "action": "Jetzt erzeugen",
           "hint": "Holt die fehlenden Vorschauen aller Bibliotheken mit «Im Voraus» nach, wie «Vorschau beim Spulen nachholen» auf «Hintergrundjobs».",
-          "queued": "Das Nachholen der Vorschauen ist eingereiht."
+          "queued": "Das Nachholen der Vorschauen ist eingereiht.",
+          "unsaved": "Erst nach dem Speichern: Das Erzeugen nutzt die gespeicherte Einstellung."
         },
         "submit": "Speichern",
         "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
         "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
-        "summaryNoKeep": "Beim Start, ohne Speichern"
+        "summaryNoKeep": "Beim Start, ohne Speichern",
+        "header": "Filme: {{movies}} · Serien: {{series}}"
       },
       "delete": {
         "action": "Bibliothek löschen …",
@@ -2031,6 +2038,30 @@
         "title": "Bibliothek «{{name}}» umbenennen",
         "label": "Name",
         "saved": "Die Bibliothek heisst jetzt «{{name}}»."
+      },
+      "form": {
+        "editTitle": "Bibliothek bearbeiten",
+        "changed": "geändert",
+        "pathAndContent": "Pfad und Inhalt dieses Ordners lassen sich nicht in einem Schritt ändern. Speichere zuerst das eine, dann das andere.",
+        "pathHint": "Der neue Pfad gilt nach dem Speichern. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen.",
+        "reloaded": "Die Bibliothek wurde inzwischen anderswo geändert. Das Formular zeigt jetzt ihren neuen Stand; deine Änderungen sind nicht gespeichert.",
+        "scanRunning": "Entfernen, ein anderer Inhalt und ein neuer Pfad warten, bis der Scan fertig ist. Deine Eingaben bleiben stehen.",
+        "scanCancelled": "Der Scan ist abgebrochen. Speichere jetzt noch einmal.",
+        "discard": {
+          "title": "Änderungen verwerfen?",
+          "body": "Die ungespeicherten Änderungen an {{name}} gehen verloren.",
+          "confirm": "Verwerfen",
+          "keep": "Weiter bearbeiten"
+        },
+        "confirm": {
+          "title": "Änderungen bestätigen",
+          "intro": "Diese Änderungen wirken erst, wenn du hier speicherst.",
+          "remove": "Ordner entfernen: {{path}}",
+          "content": "Inhalt wechseln: {{path}}",
+          "path": "Pfad ändern: {{path}}",
+          "typeAll": "Speichern geht, sobald jeder Pfad genau abgetippt ist.",
+          "submit": "Speichern"
+        }
       }
     },
     "access": {

@@ -66,8 +66,8 @@ const copyImages = (images: RootImages): RootImages => ({
   kinds: [...images.kinds],
 });
 
-/** The draft's values: `null` = like the default. */
-function valuesOf(draft: FolderMetadataDraft): {
+/** The draft's values: `null` = like the default (the whole state, as `saveLibrary` takes it). */
+export function folderMetadataValues(draft: FolderMetadataDraft): {
   textLangs: string[] | null;
   images: RootImages | null;
 } {
@@ -82,7 +82,7 @@ export function folderMetadataRequest(
   draft: FolderMetadataDraft | undefined,
 ): Partial<Pick<LibraryRootRequest, 'textLangs' | 'images'>> {
   if (!draft) return {};
-  const { textLangs, images } = valuesOf(draft);
+  const { textLangs, images } = folderMetadataValues(draft);
   return { ...(textLangs ? { textLangs } : {}), ...(images ? { images } : {}) };
 }
 
@@ -96,7 +96,7 @@ export function folderMetadataUpdate(
   draft: FolderMetadataDraft,
   root: Pick<LibraryRoot, 'textLangs' | 'images'>,
 ): Partial<Pick<LibraryRootUpdate, 'textLangs' | 'images'>> {
-  const { textLangs, images } = valuesOf(draft);
+  const { textLangs, images } = folderMetadataValues(draft);
   return {
     ...(same(textLangs, root.textLangs) ? {} : { textLangs }),
     ...(same(images, root.images) ? {} : { images }),

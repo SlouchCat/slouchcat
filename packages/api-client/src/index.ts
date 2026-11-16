@@ -75,6 +75,9 @@ export type LibraryRootUpdate = components['schemas']['LibraryRootUpdate'];
 export type LibrarySummary = components['schemas']['LibrarySummary'];
 export type LibraryRequest = components['schemas']['LibraryRequest'];
 export type LibraryUpdate = components['schemas']['LibraryUpdate'];
+// The form «Bibliothek bearbeiten» in one go (concept 24 4.3, contract 1.40.0).
+export type LibrarySave = components['schemas']['LibrarySave'];
+export type LibrarySaved = components['schemas']['LibrarySaved'];
 export type AdminPodcast = components['schemas']['AdminPodcast'];
 export type AdminPodcastEpisode = components['schemas']['AdminPodcastEpisode'];
 export type AdminPodcastEpisodePage = components['schemas']['AdminPodcastEpisodePage'];
