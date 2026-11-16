@@ -3317,7 +3317,7 @@ export interface paths {
          *     `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
          *     new library gets its row hidden at the end. A library that is being deleted (job
          *     `library.delete`) has no row here, like in the list of libraries; its row keeps its stored
-         *     place, so `position` may leave a gap until the job has finished.
+         *     place, so `position` may leave a gap (closed by the next save).
          */
         get: operations["getHomeRows"];
         /**
@@ -3326,7 +3326,8 @@ export interface paths {
          *     `hidden` of each listed row is stored; `position` is ignored. A stored row the array leaves
          *     out (for example a library added after the page was read, or one that is being deleted) keeps
          *     its place in the stored order and its `hidden` flag. The row of a library that is being
-         *     deleted may still be sent; the answer leaves it out like `getHomeRows`. At most fifteen rows
+         *     deleted may still be sent: only its place is taken from the request, its `hidden` flag stays
+         *     as stored. The answer leaves it out like `getHomeRows`. At most fifteen rows
          *     may be visible (F-12); hidden rows and the row of a library that is being deleted do not
          *     count.
          */
