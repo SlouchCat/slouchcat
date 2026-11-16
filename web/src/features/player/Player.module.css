@@ -155,8 +155,9 @@
   object-fit: cover;
 }
 
-/* The pause view (V-10): the picture darkens towards the left, where the title shows. Under the
-   controls, and the pointer passes through. */
+/* The pause view (V-10): the picture darkens towards the left, where the title shows; the pause
+   info (up to half the width) lies on scrim.strong (concept 24 Z-6). Under the controls, and the
+   pointer passes through. */
 .pauseView {
   position: absolute;
   inset: 0;
@@ -166,7 +167,7 @@
   background-image: linear-gradient(
     to right,
     var(--sc-color-scrim-strong) 0%,
-    var(--sc-color-scrim-medium) 50%,
+    var(--sc-color-scrim-strong) 50%,
     var(--sc-color-scrim-soft) 100%
   );
   pointer-events: none;

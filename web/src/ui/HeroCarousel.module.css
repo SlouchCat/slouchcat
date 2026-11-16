@@ -19,17 +19,6 @@
   isolation: isolate;
 }
 
-/* The frame's edge lies over the artwork, so the image fills the same box as the prepaint. */
-.stage::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  border: 1px solid var(--sc-color-border-subtle);
-  border-radius: inherit;
-  content: '';
-  pointer-events: none;
-}
-
 .art {
   position: absolute;
   z-index: -1;
@@ -61,7 +50,12 @@
   opacity: 0.6;
 }
 
-/* Bottom and left scrims for the text; the frame keeps the artwork off the page around it. */
+/*
+ * Bottom and left scrims for the text. The text block reaches half the stage's height and 55 % of
+ * its width; there both gradients are still at scrim.medium, so the text holds 4.5:1 over a white
+ * picture (concept 24 Z-6, the contrast test of the tokens mirrors these stops). The image itself
+ * has no frame (F-6).
+ */
 .scrim {
   position: absolute;
   inset: 0;
@@ -69,14 +63,14 @@
     linear-gradient(
       to top,
       var(--sc-color-scrim-strong) 0%,
-      var(--sc-color-scrim-medium) 30%,
-      var(--sc-color-scrim-clear) 60%
+      var(--sc-color-scrim-medium) 50%,
+      var(--sc-color-scrim-clear) 75%
     ),
     linear-gradient(
       to right,
       var(--sc-color-scrim-strong) 0%,
-      var(--sc-color-scrim-medium) 35%,
-      var(--sc-color-scrim-clear) 70%
+      var(--sc-color-scrim-medium) 55%,
+      var(--sc-color-scrim-clear) 85%
     );
 }
 
