@@ -51,6 +51,15 @@ ADR 0029 (Nachtrag), Messung `docs/perf/19-podcasts.md` Abschnitt 9.
   zweiten Agenten geprüft (Befunde in cs, da, fr, hu, nl, ja, pt-BR, sv, zh-CN, ko, uk eingearbeitet);
   `task i18n:check` grün.
 
+**Prüfungen:** je Schritt `task check:fast` und die gezielten Tests (`go test ./internal/model -run
+'TestFitPodcastEpisodes|TestPickPodcastPair'`, `go test ./internal/library -run
+'TestPairPodcastEpisodes|TestPodcastPairs|TestPodcastRiegel'`, `go test ./internal/metadata -run
+'TestPodcastCheckedHook|TestFetchAdopts'`, `go test ./internal/admin -run Maintenance`, Vitest
+`MaintenancePage.test.tsx`, `task e2e:quick -- e2e/maintenance.spec.ts` in Chromium, der
+`@keyboard`-Test der Seite in Firefox), `task server:lint` ohne Befund, `task i18n:check` grün.
+`task ci` grün auf `33b21936`: 43 Go-Pakete mit `-race`, 2170 Vitest-Tests, Storybook 551,
+e2e 724 («3 shards in 784 s; all green»), 28 min 51 s.
+
 **Offen:** (1) 113 Paare auf CT 190 bleiben in der Pflege (Titel im Feed nachträglich geändert, zwei
 Kopien einer Datei); sie lassen sich dort von Hand zusammenführen. (2) Die 32'265 weich gelöschten
 Datei-Folgen früherer Paarungen räumt weiterhin kein Job weg. (3) Der neue e2e-Test der Seite läuft nur
