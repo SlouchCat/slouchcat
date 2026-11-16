@@ -78,6 +78,12 @@ Vorlage: `handoff/docs/05_ABNAHME_CHECKLISTE.md`. Stand 16. November 2026, Zweig
 
 Server-Tests, Vitest, Storybook und Build waren in allen vier Läufen grün.
 
+## Abnahme
+
+Marco hat den Stand `95422263` am 16. November 2026 auf CT 190 angesehen und abgenommen («Sieht gut
+aus. Machen wir so») und Merge und Release 1.39.0 freigegeben. GitHub CI des Pull Requests 172 war
+grün (20 von 20 Prüfungen).
+
 ## Was nicht behauptet wird
 
 «100 % funktionsgleich» steht hier nicht. Belegt ist: Jede der 876 aufgenommenen Funktionen ist im

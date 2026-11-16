@@ -1,11 +1,12 @@
 # Aktueller Stand
 
-## Verwaltungs-Redesign: sechs Bereiche, Suchpalette, Seite «Server» (15. November 2026, gebaut auf `claude/admin-redesign`, **nicht gemergt, kein Release**)
+## Release 1.39.0: Verwaltungs-Redesign: sechs Bereiche, Suchpalette, Seite «Server» (16. November 2026, PR #172, Tag `v1.39.0` auf dem Merge-Commit, abgenommen)
 
 Umbau der ganzen Verwaltung nach dem Mockup, das Marco am 15. November 2026 freigegeben hat
 (Frage 31, ADR 0035, `docs/design/admin-redesign/`). Bedingung: keine bestehende Funktion geht
 verloren. Nur Web-Oberfläche: Vertrag unverändert, keine Migration, kein neuer Endpunkt, keine
-Änderung an `server/` oder `api/`. Merge und Release nur auf Marcos Wort.
+Änderung an `server/` oder `api/`. **Abgenommen** von Marco am 16. November 2026 auf CT 190
+(«Sieht gut aus. Machen wir so»), Merge und Release 1.39.0 auf sein Wort. Der Vertrag bleibt 1.38.0.
 
 - **Navigation:** Seitenleiste mit «Zurück zur App», «Übersicht» und fünf Bereichen (Medien, Nutzer &
   Geräte, Startseite, Automatisierung, System); die Seiten eines Bereichs als Bereichsreiter über
