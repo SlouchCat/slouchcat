@@ -50,8 +50,12 @@ if [ "$(git rev-parse "HEAD^{tree}")" != "$(git rev-parse "$p2^{tree}")" ]; then
   answer false
 fi
 
-runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$p2&status=success" \
-  --jq '.workflow_runs[].id' 2>/dev/null) || {
+# The list is not filtered with status=success: that filter missed a finished run once (the merge
+# of #178 on 16 November 2026: the run was complete and green, and status=success did not list
+# it, not even twenty minutes later; apparently GitHub answers the filter from an index). The
+# run's own fields decide.
+runs=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$p2&per_page=100" \
+  --jq '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | .id' 2>/dev/null) || {
   say "listing the runs of $p2 failed"
   answer false
 }
