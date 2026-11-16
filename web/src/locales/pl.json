@@ -2145,7 +2145,7 @@
         "reloaded": "Biblioteka została w międzyczasie zmieniona w innym miejscu. Formularz pokazuje teraz jej nowy stan; Twoje zmiany nie zostały zapisane.",
         "changedElsewhere": "Biblioteka została w międzyczasie zmieniona w innym miejscu. Zapisanie wczyta jej nowy stan do formularza; Twoje zmiany nie zostaną wtedy zapisane.",
         "gone": "Tej biblioteki już nie ma. Nic nie zostało zapisane.",
-        "scanRunning": "Usunięcie, inna zawartość i nowa ścieżka poczekają na koniec skanowania. Wpisane dane zostają.",
+        "scanRunning": "Usunięcie folderu oraz zmiana jego zawartości lub ścieżki muszą poczekać na koniec skanowania. Wpisane dane zostaną zachowane.",
         "scanCancelled": "Skanowanie zostało przerwane. Zapisz teraz jeszcze raz.",
         "discard": {
           "title": "Odrzucić zmiany?",
@@ -2165,7 +2165,7 @@
       },
       "edit": "Edytuj",
       "editLabel": "Edytuj: {{name}}",
-      "noFolderEdit": "Brak folderu: nic nie jest skanowane, dopóki nie dodasz go pod „Edytuj”.",
+      "noFolderEdit": "Brak folderu: nic nie jest skanowane, dopóki nie dodasz go po kliknięciu „Edytuj”.",
       "saved": {
         "title": "Biblioteka {{name}} została zapisana.",
         "name": "Nowa nazwa: {{name}}",
@@ -2503,8 +2503,8 @@
         "childCounts": "Sezony: {{seasons}} · Odcinki: {{episodes}} · Dodatki: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Folder domowy",
-        "homeRootNone": "Brak, obowiązuje domyślny"
+        "homeRoot": "Folder biblioteki",
+        "homeRootNone": "Brak, obowiązują ustawienia domyślne"
       },
       "sources": {
         "title": "Źródło dla każdego pola",
@@ -5348,13 +5348,13 @@
         "country_unknown": "Nieznany kraj.",
         "source_unknown": "To źródło obrazów nie należy do propozycji dla tego tytułu."
       },
-      "introDefault": "Dotyczy każdego folderu bez własnych ustawień. Własne języki i obrazy folderu ustawisz pod „Edytuj” jego biblioteki.",
+      "introDefault": "Dotyczy każdego folderu bez własnych ustawień. Własne języki i obrazy folderu ustawisz po kliknięciu „Edytuj” przy jego bibliotece.",
       "changed": "zmieniono",
       "folders": {
         "title": "Foldery",
-        "intro": "Każdy folder wideo stosuje ustawienia domyślne, dopóki nie ma własnych języków lub obrazów. Ustawisz je pod „Edytuj” jego biblioteki.",
+        "intro": "Każdy folder wideo stosuje ustawienia domyślne, dopóki nie ma własnych języków lub obrazów. Ustawisz je po kliknięciu „Edytuj” przy jego bibliotece.",
         "empty": "Nie ma jeszcze folderu wideo.",
-        "audio": "Foldery audiobooków i podcastów nie mają własnych języków i obrazów. Źródła audiobooków znajdziesz pod „Audiobooki: źródła”.",
+        "audio": "Foldery audiobooków i podcastów nie mają własnych języków i obrazów. Źródła audiobooków znajdziesz na stronie „Audiobooki: źródła”.",
         "openLabel": "Edytuj {{name}}, folder {{path}}"
       },
       "folder": {
@@ -5415,7 +5415,7 @@
       "intro": "Skąd Slouchcat bierze dane i okładki audiobooków. Pliki zawsze mają pierwszeństwo; dostawca uzupełnia tylko to, czego brakuje, i nigdy pola z blokadą.",
       "folders": {
         "title": "Kolejność dla każdego folderu",
-        "intro": "Wygrywa wyższe źródło w każdym polu. Kolejność i udział źródeł zmienisz pod „Edytuj” biblioteki.",
+        "intro": "W każdym polu wygrywa źródło położone wyżej. Kolejność i udział źródeł zmienisz po kliknięciu „Edytuj” przy bibliotece.",
         "empty": "Nie ma jeszcze folderu audiobooków.",
         "edit": "Zmień źródła",
         "editLabel": "Zmień źródła: {{path}}",

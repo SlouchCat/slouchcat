@@ -2042,8 +2042,8 @@
         "moved_other": "{{count}} folders with a new path are read in again.",
         "providers_one": "New sources for {{count}} folder: its titles are matched or filled again.",
         "providers_other": "New sources for {{count}} folders: their titles are matched or filled again.",
-        "metadata_one": "Languages or images changed for {{count}} folder. The change reaches {{titles}} titles once you apply it.",
-        "metadata_other": "Languages or images changed for {{count}} folders. The change reaches {{titles}} titles once you apply it.",
+        "metadata_one": "Languages or images changed for {{count}} folder. Titles affected once you apply the change: {{titles}}.",
+        "metadata_other": "Languages or images changed for {{count}} folders. Titles affected once you apply the change: {{titles}}.",
         "dismiss": "Dismiss"
       }
     },
@@ -2290,7 +2290,7 @@
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
         "homeRoot": "Home folder",
-        "homeRootNone": "None, the default applies"
+        "homeRootNone": "None, the default settings apply"
       },
       "sources": {
         "title": "Source per field",
@@ -4974,11 +4974,11 @@
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."
       },
-      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images under “Edit” of its library.",
+      "introDefault": "Applies to every folder without settings of its own. You set a folder's own languages and images in its library, under “Edit”.",
       "changed": "changed",
       "folders": {
         "title": "Folders",
-        "intro": "Every video folder follows the default until it has languages or images of its own. You set them under “Edit” of its library.",
+        "intro": "Every video folder follows the default until it has languages or images of its own. You set them in its library, under “Edit”.",
         "empty": "No video folder yet.",
         "audio": "Audiobook and podcast folders have no languages and images of their own. The sources for audiobooks are under “Audiobooks: sources”.",
         "openLabel": "Edit {{name}}, folder {{path}}"
@@ -5033,7 +5033,7 @@
       "intro": "Where Slouchcat gets details and covers for audiobooks. The files always come first; a provider fills only what is missing, and never a locked field.",
       "folders": {
         "title": "Order per folder",
-        "intro": "The upper source wins per field. You change the order and which sources take part under “Edit” of the library.",
+        "intro": "The upper source wins per field. You change the order and which sources take part in the library, under “Edit”.",
         "empty": "There is no audiobook folder yet.",
         "edit": "Change sources",
         "editLabel": "Change the sources of {{path}}",

@@ -2003,7 +2003,7 @@
         },
         "summary": "Önizleme küçük resimleri: filmler {{movies}} · diziler {{series}}",
         "summaryNoKeep": "Başlarken, saklanmaz",
-        "header": "Filmler: {{movies}} · diziler: {{series}}"
+        "header": "Filmler: {{movies}} · Diziler: {{series}}"
       },
       "delete": {
         "action": "Kitaplığı sil…",
@@ -2311,7 +2311,7 @@
         "childCounts": "Sezon: {{seasons}} · Bölüm: {{episodes}} · Ekstra: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Ana klasör",
+        "homeRoot": "Ait olduğu klasör",
         "homeRootNone": "Yok, varsayılan geçerli"
       },
       "sources": {

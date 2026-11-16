@@ -571,7 +571,7 @@
       "submitNone": "Añadir biblioteca sin carpetas",
       "marked": "Se quitará al guardar. Después lo confirmarás con la ruta.",
       "undo": "Deshacer",
-      "undoLabel": "Deshacer la eliminación de la carpeta {{number}}",
+      "undoLabel": "Deshacer la retirada de la carpeta {{number}}",
       "removeStored": "Quitar carpeta…"
     },
     "videoHint": "Las carpetas de esta biblioteca pueden contener películas o series, incluso mezcladas.",
@@ -2087,7 +2087,7 @@
         "reloaded": "La biblioteca se ha modificado mientras tanto en otro sitio. El formulario muestra ahora su nuevo estado; tus cambios no se han guardado.",
         "changedElsewhere": "La biblioteca se ha modificado mientras tanto en otro sitio. Al guardar, el formulario carga su nuevo estado; tus cambios no se guardan.",
         "gone": "Esta biblioteca ya no existe. No se ha guardado nada.",
-        "scanRunning": "Quitar, otro contenido y una nueva ruta esperan a que termine el escaneo. Lo que has escrito se conserva.",
+        "scanRunning": "Quitar una carpeta o cambiar su contenido o su ruta tiene que esperar a que termine el escaneo. Lo que has escrito se conserva.",
         "scanCancelled": "Se ha cancelado el escaneo. Guarda de nuevo.",
         "discard": {
           "title": "¿Descartar los cambios?",
@@ -2127,9 +2127,9 @@
         "providers_one": "Fuentes nuevas para {{count}} carpeta: sus títulos se vuelven a asociar o a completar.",
         "providers_many": "Fuentes nuevas para {{count}} de carpetas: sus títulos se vuelven a asociar o a completar.",
         "providers_other": "Fuentes nuevas para {{count}} carpetas: sus títulos se vuelven a asociar o a completar.",
-        "metadata_one": "Idiomas o imágenes cambiados en {{count}} carpeta. Se aplican a {{titles}} títulos en cuanto los apliques.",
-        "metadata_many": "Idiomas o imágenes cambiados en {{count}} de carpetas. Se aplican a {{titles}} títulos en cuanto los apliques.",
-        "metadata_other": "Idiomas o imágenes cambiados en {{count}} carpetas. Se aplican a {{titles}} títulos en cuanto los apliques.",
+        "metadata_one": "Idiomas o imágenes cambiados en {{count}} carpeta. Afectan a {{titles}} títulos en cuanto los apliques.",
+        "metadata_many": "Idiomas o imágenes cambiados en {{count}} de carpetas. Afectan a {{titles}} títulos en cuanto los apliques.",
+        "metadata_other": "Idiomas o imágenes cambiados en {{count}} carpetas. Afectan a {{titles}} títulos en cuanto los apliques.",
         "dismiss": "Ocultar"
       }
     },
@@ -2407,8 +2407,8 @@
         "childCounts": "Temporadas: {{seasons}} · Episodios: {{episodes}} · Extras: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Carpeta de inicio",
-        "homeRootNone": "Ninguna, se aplica la predeterminada"
+        "homeRoot": "Carpeta de origen",
+        "homeRootNone": "Ninguna, se aplican los ajustes predeterminados"
       },
       "sources": {
         "title": "Origen por campo",
@@ -5172,11 +5172,11 @@
         "country_unknown": "País desconocido.",
         "source_unknown": "Esta fuente de imágenes no es candidata del título."
       },
-      "introDefault": "Se aplica a cada carpeta sin ajustes propios. Los idiomas y las imágenes propios de una carpeta se ajustan en «Editar» de su biblioteca.",
+      "introDefault": "Se aplica a cada carpeta sin ajustes propios. Los idiomas y las imágenes propios de una carpeta se ajustan en su biblioteca, en «Editar».",
       "changed": "modificado",
       "folders": {
         "title": "Carpetas",
-        "intro": "Cada carpeta de vídeo sigue lo predeterminado hasta que tiene idiomas o imágenes propios. Los ajustas en «Editar» de su biblioteca.",
+        "intro": "Cada carpeta de vídeo sigue lo predeterminado hasta que tiene idiomas o imágenes propios. Los ajustas en su biblioteca, en «Editar».",
         "empty": "Aún no hay ninguna carpeta de vídeo.",
         "audio": "Las carpetas de audiolibros y de podcasts no tienen idiomas ni imágenes propios. Las fuentes de los audiolibros están en «Audiolibros: fuentes».",
         "openLabel": "Editar {{name}}, carpeta {{path}}"
@@ -5186,8 +5186,8 @@
         "langsOwn": "Idiomas: {{chain}}",
         "imagesDefault": "Imágenes: predeterminadas",
         "imagesOwn": "Imágenes: propias",
-        "likeDefault": "Como el predeterminado",
-        "own": "Propios",
+        "likeDefault": "Predeterminado",
+        "own": "Personalizado",
         "defaultIs": "Predeterminado: {{value}}",
         "imagesDefaultIs": "Predeterminado: {{kinds}}. Idioma por tipo de imagen: {{chains}}.",
         "imageChain": "{{kind}}: {{chain}}",
@@ -5235,7 +5235,7 @@
       "intro": "De dónde obtiene Slouchcat los datos y las portadas de los audiolibros. Los archivos van siempre primero; un proveedor solo completa lo que falta y nunca un campo con candado.",
       "folders": {
         "title": "Orden por carpeta",
-        "intro": "La fuente de arriba gana en cada campo. El orden y las fuentes que participan se cambian en «Editar» de la biblioteca.",
+        "intro": "La fuente de arriba gana en cada campo. El orden y las fuentes que participan se cambian en la biblioteca, en «Editar».",
         "empty": "Todavía no hay ninguna carpeta de audiolibros.",
         "edit": "Cambiar fuentes",
         "editLabel": "Cambiar las fuentes de {{path}}",

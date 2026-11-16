@@ -115,7 +115,9 @@ describe('admin item page', () => {
     mockApi({ ...signedIn, [`GET ${base}`]: () => json({ ...item, homeRoot: undefined }) });
     renderApp(base);
     const facts = await screen.findByRole('region', { name: 'Metadaten' });
-    expect(within(facts).getByText('Keiner, es gilt der Standard')).toBeVisible();
+    expect(
+      within(facts).getByText('Keiner, es gelten die Einstellungen des Standards'),
+    ).toBeVisible();
   });
 
   it('shows the files with name, version, size and state; a row folds out into path, probe date and error', async () => {

@@ -2087,7 +2087,7 @@
         "reloaded": "A biblioteca foi alterada em outro lugar nesse meio-tempo. O formulário agora mostra o novo estado dela; suas alterações não foram salvas.",
         "changedElsewhere": "A biblioteca foi alterada em outro lugar nesse meio-tempo. Ao salvar, o formulário carrega o novo estado dela; suas alterações então não são salvas.",
         "gone": "Esta biblioteca não existe mais. Nada foi salvo.",
-        "scanRunning": "Remover, outro conteúdo e um novo caminho esperam até a varredura terminar. O que você digitou continua aí.",
+        "scanRunning": "Remover uma pasta ou mudar o conteúdo ou o caminho dela precisa esperar a varredura terminar. O que você digitou continua aí.",
         "scanCancelled": "A varredura foi cancelada. Salve de novo agora.",
         "discard": {
           "title": "Descartar alterações?",
@@ -2107,11 +2107,11 @@
       },
       "edit": "Editar",
       "editLabel": "Editar {{name}}",
-      "noFolderEdit": "Nenhuma pasta: nada é varrido até você adicionar uma em “Editar”.",
+      "noFolderEdit": "Nenhuma pasta: nada é escaneado até você adicionar uma em “Editar”.",
       "saved": {
         "title": "A biblioteca {{name}} foi salva.",
         "name": "Novo nome: {{name}}",
-        "rating": "Classificação padrão: {{rating}}",
+        "rating": "Classificação indicativa padrão: {{rating}}",
         "added_one": "{{count}} pasta adicionada; a varredura está na fila.",
         "added_many": "{{count}} de pastas adicionadas; a varredura está na fila.",
         "added_other": "{{count}} pastas adicionadas; a varredura está na fila.",
@@ -2407,7 +2407,7 @@
         "childCounts": "Temporadas: {{seasons}} · Episódios: {{episodes}} · Extras: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Pasta inicial",
+        "homeRoot": "Pasta de origem",
         "homeRootNone": "Nenhuma, vale o padrão"
       },
       "sources": {
@@ -5172,11 +5172,11 @@
         "country_unknown": "País desconhecido.",
         "source_unknown": "Esta fonte de imagens não é candidata do título."
       },
-      "introDefault": "Vale para toda pasta sem configuração própria. Os idiomas e as imagens próprios de uma pasta são definidos em “Editar” da biblioteca dela.",
+      "introDefault": "Vale para toda pasta sem configuração própria. Os idiomas e as imagens próprios de uma pasta são definidos na biblioteca dela, em “Editar”.",
       "changed": "alterado",
       "folders": {
         "title": "Pastas",
-        "intro": "Toda pasta de vídeo segue o padrão até ter idiomas ou imagens próprios. Você os define em “Editar” da biblioteca dela.",
+        "intro": "Toda pasta de vídeo segue o padrão até ter idiomas ou imagens próprios. Você os define na biblioteca dela, em “Editar”.",
         "empty": "Ainda não há nenhuma pasta de vídeo.",
         "audio": "As pastas de audiolivros e de podcasts não têm idiomas nem imagens próprios. As fontes dos audiolivros ficam em “Audiolivros: fontes”.",
         "openLabel": "Editar {{name}}, pasta {{path}}"
@@ -5186,14 +5186,14 @@
         "langsOwn": "Idiomas: {{chain}}",
         "imagesDefault": "Imagens: padrão",
         "imagesOwn": "Imagens: próprias",
-        "likeDefault": "Igual ao padrão",
-        "own": "Próprias",
+        "likeDefault": "Padrão",
+        "own": "Personalizado",
         "defaultIs": "Padrão: {{value}}",
         "imagesDefaultIs": "Padrão: {{kinds}}. Idioma por tipo de imagem: {{chains}}.",
         "imageChain": "{{kind}}: {{chain}}",
         "onlyHere": "Vale só para esta pasta.",
         "cost": "Cada idioma adicional custa uma solicitação por título e temporada desta pasta ao aplicar.",
-        "always": "O Slouchcat sempre busca o pôster e o plano de fundo."
+        "always": "O Slouchcat sempre busca o pôster e a imagem de fundo."
       }
     },
     "activity": {
@@ -5235,7 +5235,7 @@
       "intro": "De onde o Slouchcat obtém detalhes e capas dos audiolivros. Os arquivos sempre vêm primeiro; um provedor só preenche o que falta, e nunca um campo bloqueado.",
       "folders": {
         "title": "Ordem por pasta",
-        "intro": "A fonte de cima vence em cada campo. A ordem e as fontes que participam você altera em “Editar” da biblioteca.",
+        "intro": "A fonte de cima vence em cada campo. Você altera a ordem e as fontes que participam na biblioteca, em “Editar”.",
         "empty": "Ainda não há pasta de audiolivros.",
         "edit": "Alterar fontes",
         "editLabel": "Alterar as fontes de {{path}}",

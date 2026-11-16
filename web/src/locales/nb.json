@@ -2029,7 +2029,7 @@
         "reloaded": "Biblioteket er endret et annet sted i mellomtiden. Skjemaet viser nå den nye tilstanden; endringene dine er ikke lagret.",
         "changedElsewhere": "Biblioteket er endret et annet sted i mellomtiden. Ved lagring laster skjemaet inn den nye tilstanden; endringene dine blir da ikke lagret.",
         "gone": "Dette biblioteket finnes ikke lenger. Ingenting ble lagret.",
-        "scanRunning": "Fjerning, annet innhold og en ny sti venter til skanningen er ferdig. Det du har skrevet inn, blir stående.",
+        "scanRunning": "Å fjerne en mappe eller endre innholdet eller stien må vente til skanningen er ferdig. Det du har skrevet inn, blir stående.",
         "scanCancelled": "Skanningen er avbrutt. Lagre på nytt nå.",
         "discard": {
           "title": "Forkaste endringer?",
@@ -2062,8 +2062,8 @@
         "content_other": "{{count}} mapper med annet innhold leses inn på nytt.",
         "moved_one": "{{count}} mappe med ny sti leses inn på nytt.",
         "moved_other": "{{count}} mapper med ny sti leses inn på nytt.",
-        "providers_one": "Nye kilder for {{count}} mappe: Titlene matches eller fylles ut på nytt.",
-        "providers_other": "Nye kilder for {{count}} mapper: Titlene matches eller fylles ut på nytt.",
+        "providers_one": "Nye kilder for {{count}} mappe: Titlene tilordnes på nytt eller fylles ut.",
+        "providers_other": "Nye kilder for {{count}} mapper: Titlene tilordnes på nytt eller fylles ut.",
         "metadata_one": "Språk eller bilder er endret for {{count}} mappe. De gjelder for {{titles}} titler når du tar dem i bruk.",
         "metadata_other": "Språk eller bilder er endret for {{count}} mapper. De gjelder for {{titles}} titler når du tar dem i bruk.",
         "dismiss": "Skjul"
@@ -2311,7 +2311,7 @@
         "childCounts": "Sesonger: {{seasons}} · Episoder: {{episodes}} · Ekstramateriale: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Hjemmemappe",
+        "homeRoot": "Bibliotekmappe",
         "homeRootNone": "Ingen, standarden gjelder"
       },
       "sources": {

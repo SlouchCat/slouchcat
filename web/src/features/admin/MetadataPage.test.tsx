@@ -162,7 +162,7 @@ describe('metadata settings page (concept 10, concept 24 3.4)', () => {
 
     expect(
       screen.getByText(
-        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du unter «Bearbeiten» seiner Bibliothek ein.',
+        'Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Bearbeiten» ein.',
       ),
     ).toBeVisible();
     // Seven fold sections, all closed, each header with its summary (concept 24 3.4).

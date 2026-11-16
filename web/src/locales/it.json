@@ -2087,12 +2087,12 @@
         "reloaded": "La libreria è stata modificata nel frattempo altrove. Il modulo mostra ora il suo nuovo stato; le tue modifiche non sono state salvate.",
         "changedElsewhere": "La libreria è stata modificata nel frattempo altrove. Al salvataggio il modulo carica il suo nuovo stato; le tue modifiche non vengono salvate.",
         "gone": "Questa libreria non esiste più. Non è stato salvato nulla.",
-        "scanRunning": "La rimozione, un altro contenuto e un nuovo percorso attendono la fine della scansione. Quello che hai inserito resta.",
+        "scanRunning": "Per rimuovere una cartella o cambiarne il contenuto o il percorso bisogna attendere la fine della scansione. Quello che hai inserito resta.",
         "scanCancelled": "La scansione è stata annullata. Salva di nuovo.",
         "discard": {
-          "title": "Annullare le modifiche?",
+          "title": "Scartare le modifiche?",
           "body": "Le modifiche non salvate della libreria {{name}} andranno perse.",
-          "confirm": "Annulla modifiche",
+          "confirm": "Scarta",
           "keep": "Continua a modificare"
         },
         "confirm": {
@@ -2407,8 +2407,8 @@
         "childCounts": "Stagioni: {{seasons}} · Episodi: {{episodes}} · Extra: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Cartella principale",
-        "homeRootNone": "Nessuna, vale quella predefinita"
+        "homeRoot": "Cartella di origine",
+        "homeRootNone": "Nessuna, valgono le impostazioni predefinite"
       },
       "sources": {
         "title": "Origine per campo",
@@ -5172,11 +5172,11 @@
         "country_unknown": "Paese sconosciuto.",
         "source_unknown": "Questa fonte di immagini non è una candidata del titolo."
       },
-      "introDefault": "Vale per ogni cartella senza impostazioni proprie. Le lingue e le immagini proprie di una cartella si impostano in «Modifica» della sua libreria.",
+      "introDefault": "Vale per ogni cartella senza impostazioni proprie. Le lingue e le immagini proprie di una cartella si impostano nella sua libreria, in «Modifica».",
       "changed": "modificato",
       "folders": {
         "title": "Cartelle",
-        "intro": "Ogni cartella video segue le impostazioni predefinite finché non ha lingue o immagini proprie. Le imposti in «Modifica» della sua libreria.",
+        "intro": "Ogni cartella video segue le impostazioni predefinite finché non ha lingue o immagini proprie. Le imposti nella sua libreria, in «Modifica».",
         "empty": "Ancora nessuna cartella video.",
         "audio": "Le cartelle di audiolibri e podcast non hanno lingue né immagini proprie. Le fonti per gli audiolibri si trovano in «Audiolibri: fonti».",
         "openLabel": "Modifica {{name}}, cartella {{path}}"
@@ -5186,7 +5186,7 @@
         "langsOwn": "Lingue: {{chain}}",
         "imagesDefault": "Immagini: predefinite",
         "imagesOwn": "Immagini: proprie",
-        "likeDefault": "Come predefinito",
+        "likeDefault": "Predefinite",
         "own": "Proprie",
         "defaultIs": "Predefinito: {{value}}",
         "imagesDefaultIs": "Predefinito: {{kinds}}. Lingua per tipo di immagine: {{chains}}.",
@@ -5235,7 +5235,7 @@
       "intro": "Da dove Slouchcat prende dettagli e copertine degli audiolibri. I file hanno sempre la precedenza; un fornitore integra solo ciò che manca e mai un campo bloccato.",
       "folders": {
         "title": "Ordine per cartella",
-        "intro": "La fonte in alto prevale per ogni campo. L’ordine e le fonti che partecipano si cambiano in «Modifica» della libreria.",
+        "intro": "La fonte in alto prevale per ogni campo. L’ordine e le fonti che partecipano si cambiano nella libreria, in «Modifica».",
         "empty": "Non c’è ancora alcuna cartella di audiolibri.",
         "edit": "Modifica le fonti",
         "editLabel": "Modifica le fonti di {{path}}",

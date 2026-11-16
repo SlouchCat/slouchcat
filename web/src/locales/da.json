@@ -2029,10 +2029,10 @@
         "reloaded": "Biblioteket er i mellemtiden blevet ændret et andet sted. Formularen viser nu den nye tilstand; dine ændringer er ikke gemt.",
         "changedElsewhere": "Biblioteket er i mellemtiden blevet ændret et andet sted. Når du gemmer, indlæser formularen den nye tilstand; dine ændringer bliver så ikke gemt.",
         "gone": "Dette bibliotek findes ikke længere. Der er ikke gemt noget.",
-        "scanRunning": "Fjernelse, andet indhold og en ny sti venter, til scanningen er færdig. Dine indtastninger bliver stående.",
-        "scanCancelled": "Scanningen er afbrudt. Gem igen nu.",
+        "scanRunning": "Fjernelse af en mappe og ændring af dens indhold eller sti må vente, til scanningen er færdig. Dine indtastninger bliver stående.",
+        "scanCancelled": "Scanningen er annulleret. Gem igen nu.",
         "discard": {
-          "title": "Kassér ændringer?",
+          "title": "Kassere ændringerne?",
           "body": "De ugemte ændringer i {{name}} går tabt.",
           "confirm": "Kassér",
           "keep": "Rediger videre"
@@ -2062,8 +2062,8 @@
         "content_other": "{{count}} mapper med andet indhold indlæses igen.",
         "moved_one": "{{count}} mappe med ny sti indlæses igen.",
         "moved_other": "{{count}} mapper med ny sti indlæses igen.",
-        "providers_one": "Nye kilder til {{count}} mappe: Titlerne matches eller udfyldes igen.",
-        "providers_other": "Nye kilder til {{count}} mapper: Titlerne matches eller udfyldes igen.",
+        "providers_one": "Nye kilder til {{count}} mappe: Titlerne tilknyttes igen eller udfyldes.",
+        "providers_other": "Nye kilder til {{count}} mapper: Titlerne tilknyttes igen eller udfyldes.",
         "metadata_one": "Sprog eller billeder er ændret for {{count}} mappe. De gælder for {{titles}} titler, når du anvender dem.",
         "metadata_other": "Sprog eller billeder er ændret for {{count}} mapper. De gælder for {{titles}} titler, når du anvender dem.",
         "dismiss": "Skjul"
@@ -2311,7 +2311,7 @@
         "childCounts": "Sæsoner: {{seasons}} · Afsnit: {{episodes}} · Ekstramateriale: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Hjemmemappe",
+        "homeRoot": "Biblioteksmappe",
         "homeRootNone": "Ingen, standarden gælder"
       },
       "sources": {
@@ -5016,7 +5016,7 @@
         "imagesDefaultIs": "Standard: {{kinds}}. Sprog pr. billedtype: {{chains}}.",
         "imageChain": "{{kind}}: {{chain}}",
         "onlyHere": "Gælder kun for denne mappe.",
-        "cost": "Hvert ekstra sprog koster én anmodning pr. titel og sæson i denne mappe, når det anvendes.",
+        "cost": "Hvert ekstra sprog koster én forespørgsel pr. titel og sæson i denne mappe, når det anvendes.",
         "always": "Slouchcat henter altid plakat og baggrund."
       }
     },

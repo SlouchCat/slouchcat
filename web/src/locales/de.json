@@ -2007,7 +2007,7 @@
         "reloaded": "Die Bibliothek wurde inzwischen anderswo geändert. Das Formular zeigt jetzt ihren neuen Stand; deine Änderungen sind nicht gespeichert.",
         "changedElsewhere": "Die Bibliothek wurde inzwischen anderswo geändert. Beim Speichern lädt das Formular ihren neuen Stand; deine Änderungen werden dann nicht gespeichert.",
         "gone": "Diese Bibliothek gibt es nicht mehr. Es wurde nichts gespeichert.",
-        "scanRunning": "Entfernen, ein anderer Inhalt und ein neuer Pfad warten, bis der Scan fertig ist. Deine Eingaben bleiben stehen.",
+        "scanRunning": "Einen Ordner entfernen, seinen Inhalt oder seinen Pfad ändern geht erst, wenn der Scan fertig ist. Deine Eingaben bleiben stehen.",
         "scanCancelled": "Der Scan ist abgebrochen. Speichere jetzt noch einmal.",
         "discard": {
           "title": "Änderungen verwerfen?",
@@ -2290,7 +2290,7 @@
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
         "homeRoot": "Heimatordner",
-        "homeRootNone": "Keiner, es gilt der Standard"
+        "homeRootNone": "Keiner, es gelten die Einstellungen des Standards"
       },
       "sources": {
         "title": "Herkunft je Feld",
@@ -4974,11 +4974,11 @@
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
       },
-      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du unter «Bearbeiten» seiner Bibliothek ein.",
+      "introDefault": "Gilt für jeden Ordner ohne eigene Einstellung. Eigene Sprachen und Bilder eines Ordners stellst du in seiner Bibliothek unter «Bearbeiten» ein.",
       "changed": "geändert",
       "folders": {
         "title": "Ordner",
-        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie unter «Bearbeiten» seiner Bibliothek ein.",
+        "intro": "Jeder Video-Ordner folgt dem Standard, bis er eigene Sprachen oder Bilder hat. Du stellst sie in seiner Bibliothek unter «Bearbeiten» ein.",
         "empty": "Noch kein Video-Ordner.",
         "audio": "Hörbuch- und Podcast-Ordner haben keine eigenen Sprachen und Bilder. Die Quellen für Hörbücher stehen unter «Hörbücher: Quellen».",
         "openLabel": "{{name}} bearbeiten, Ordner {{path}}"
@@ -5033,7 +5033,7 @@
       "intro": "Woher Slouchcat Angaben und Cover für Hörbücher holt. Die Dateien kommen immer zuerst; ein Anbieter füllt nur, was fehlt, und nie ein Feld mit Schloss.",
       "folders": {
         "title": "Reihenfolge je Ordner",
-        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du unter «Bearbeiten» der Bibliothek.",
+        "intro": "Die obere Quelle gewinnt je Feld. Die Reihenfolge und welche Quellen mitmachen, änderst du in der Bibliothek unter «Bearbeiten».",
         "empty": "Es gibt noch keinen Hörbuch-Ordner.",
         "edit": "Quellen ändern",
         "editLabel": "Quellen von {{path}} ändern",

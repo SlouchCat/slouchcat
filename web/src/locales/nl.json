@@ -226,7 +226,7 @@
       "deleting": "Wordt nu verwijderd.",
       "changed": "Er is intussen iets gewijzigd, controleer opnieuw.",
       "stale": "De bibliotheek is intussen elders gewijzigd. Laad de bibliotheek opnieuw en sla nog een keer op.",
-      "root_unlisted": "Een map van de bibliotheek ontbreekt in het verzoek. Laad de bibliotheek opnieuw; er is niets verwijderd."
+      "root_unlisted": "Een map van de bibliotheek ontbreekt in het verzoek. Laad de bibliotheek opnieuw; er is niets weggehaald."
     },
     "field": {
       "required": "Verplicht.",
@@ -556,9 +556,9 @@
       "submit_one": "Bibliotheek met {{count}} map toevoegen",
       "submit_other": "Bibliotheek met {{count}} mappen toevoegen",
       "submitNone": "Bibliotheek zonder mappen toevoegen",
-      "marked": "Wordt bij het opslaan verwijderd. Je bevestigt dat daarna met het pad.",
+      "marked": "Wordt bij het opslaan weggehaald. Je bevestigt dat dan met het pad.",
       "undo": "Ongedaan maken",
-      "undoLabel": "Verwijderen van map {{number}} ongedaan maken",
+      "undoLabel": "Weghalen van map {{number}} ongedaan maken",
       "removeStored": "Map weghalen …"
     },
     "videoHint": "De mappen van deze bibliotheek mogen films of series bevatten, ook door elkaar.",
@@ -2026,11 +2026,11 @@
         "changed": "gewijzigd",
         "pathAndContent": "Pad en inhoud van deze map kunnen niet in één keer veranderen. Sla eerst het ene op, dan het andere.",
         "pathHint": "Het nieuwe pad geldt na het opslaan. Titels en gebruikersgegevens blijven behouden als de bestanden daar onder dezelfde namen staan.",
-        "reloaded": "De bibliotheek is intussen elders gewijzigd. Het formulier toont nu de nieuwe stand; je wijzigingen zijn niet opgeslagen.",
-        "changedElsewhere": "De bibliotheek is intussen elders gewijzigd. Bij het opslaan laadt het formulier de nieuwe stand; je wijzigingen worden dan niet opgeslagen.",
+        "reloaded": "De bibliotheek is intussen elders gewijzigd. Het formulier toont nu de nieuwe versie; je wijzigingen zijn niet opgeslagen.",
+        "changedElsewhere": "De bibliotheek is intussen elders gewijzigd. Bij het opslaan laadt het formulier de nieuwe versie; je wijzigingen worden dan niet opgeslagen.",
         "gone": "Deze bibliotheek bestaat niet meer. Er is niets opgeslagen.",
-        "scanRunning": "Weghalen, andere inhoud en een nieuw pad wachten tot de scan klaar is. Je invoer blijft staan.",
-        "scanCancelled": "De scan is afgebroken. Sla nu nog een keer op.",
+        "scanRunning": "Een map weghalen of de inhoud of het pad ervan wijzigen kan pas als de scan klaar is. Je invoer blijft staan.",
+        "scanCancelled": "De scan is geannuleerd. Sla nu nog een keer op.",
         "discard": {
           "title": "Wijzigingen verwerpen?",
           "body": "De niet-opgeslagen wijzigingen aan {{name}} gaan verloren.",
@@ -2053,11 +2053,11 @@
       "saved": {
         "title": "De bibliotheek {{name}} is opgeslagen.",
         "name": "Nieuwe naam: {{name}}",
-        "rating": "Standaardclassificatie: {{rating}}",
+        "rating": "Standaard leeftijdsclassificatie: {{rating}}",
         "added_one": "{{count}} map toegevoegd; de scan staat in de wachtrij.",
         "added_other": "{{count}} mappen toegevoegd; de scan staat in de wachtrij.",
-        "removed_one": "{{count}} map verwijderd.",
-        "removed_other": "{{count}} mappen verwijderd.",
+        "removed_one": "{{count}} map weggehaald.",
+        "removed_other": "{{count}} mappen weggehaald.",
         "content_one": "{{count}} map met andere inhoud wordt opnieuw ingelezen.",
         "content_other": "{{count}} mappen met andere inhoud worden opnieuw ingelezen.",
         "moved_one": "{{count}} map met een nieuw pad wordt opnieuw ingelezen.",
@@ -2311,7 +2311,7 @@
         "childCounts": "Seizoenen: {{seasons}} · Afleveringen: {{episodes}} · Extra’s: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Hoofdmap",
+        "homeRoot": "Bibliotheekmap",
         "homeRootNone": "Geen, de standaard geldt"
       },
       "sources": {

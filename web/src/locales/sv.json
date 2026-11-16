@@ -2029,12 +2029,12 @@
         "reloaded": "Biblioteket har under tiden ändrats på annat håll. Formuläret visar nu det nya läget; dina ändringar har inte sparats.",
         "changedElsewhere": "Biblioteket har under tiden ändrats på annat håll. När du sparar läser formuläret in det nya läget; dina ändringar sparas då inte.",
         "gone": "Det här biblioteket finns inte längre. Ingenting har sparats.",
-        "scanRunning": "Borttagning, annat innehåll och en ny sökväg väntar tills skanningen är klar. Dina uppgifter finns kvar.",
-        "scanCancelled": "Skanningen har avbrutits. Spara igen nu.",
+        "scanRunning": "Att ta bort en mapp eller ändra dess innehåll eller sökväg får vänta tills genomsökningen är klar. Dina uppgifter finns kvar.",
+        "scanCancelled": "Genomsökningen har avbrutits. Spara igen nu.",
         "discard": {
-          "title": "Förkasta ändringar?",
+          "title": "Kasta ändringarna?",
           "body": "De osparade ändringarna i {{name}} går förlorade.",
-          "confirm": "Förkasta",
+          "confirm": "Kasta",
           "keep": "Fortsätt redigera"
         },
         "confirm": {
@@ -2049,13 +2049,13 @@
       },
       "edit": "Redigera",
       "editLabel": "Redigera {{name}}",
-      "noFolderEdit": "Ingen mapp: ingenting skannas förrän du lägger till en under ”Redigera”.",
+      "noFolderEdit": "Ingen mapp: ingenting genomsöks förrän du lägger till en under ”Redigera”.",
       "saved": {
         "title": "Biblioteket {{name}} har sparats.",
         "name": "Nytt namn: {{name}}",
         "rating": "Standardåldersgräns: {{rating}}",
-        "added_one": "{{count}} mapp har lagts till; skanningen står i kö.",
-        "added_other": "{{count}} mappar har lagts till; skanningen står i kö.",
+        "added_one": "{{count}} mapp har lagts till; genomsökningen står i kö.",
+        "added_other": "{{count}} mappar har lagts till; genomsökningen står i kö.",
         "removed_one": "{{count}} mapp har tagits bort.",
         "removed_other": "{{count}} mappar har tagits bort.",
         "content_one": "{{count}} mapp med annat innehåll läses in på nytt.",
@@ -2311,7 +2311,7 @@
         "childCounts": "Säsonger: {{seasons}} · Avsnitt: {{episodes}} · Extramaterial: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Hemmapp",
+        "homeRoot": "Biblioteksmapp",
         "homeRootNone": "Ingen, standarden gäller"
       },
       "sources": {
@@ -5017,7 +5017,7 @@
         "imageChain": "{{kind}}: {{chain}}",
         "onlyHere": "Gäller bara för den här mappen.",
         "cost": "Varje ytterligare språk kostar en förfrågan per titel och säsong i den här mappen när du tillämpar det.",
-        "always": "Slouchcat hämtar alltid affisch och bakgrundsbild."
+        "always": "Slouchcat hämtar alltid affisch och bakgrund."
       }
     },
     "activity": {

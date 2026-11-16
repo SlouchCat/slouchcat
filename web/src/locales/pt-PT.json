@@ -2087,7 +2087,7 @@
         "reloaded": "A biblioteca foi alterada entretanto noutro local. O formulário mostra agora o novo estado; as suas alterações não foram guardadas.",
         "changedElsewhere": "A biblioteca foi alterada entretanto noutro local. Ao guardar, o formulário carrega o novo estado; as suas alterações não são então guardadas.",
         "gone": "Esta biblioteca já não existe. Nada foi guardado.",
-        "scanRunning": "Remover, outro conteúdo e um novo caminho aguardam até a análise terminar. O que escreveu mantém-se.",
+        "scanRunning": "Remover uma pasta ou mudar o respetivo conteúdo ou caminho tem de aguardar até a análise terminar. O que escreveu mantém-se.",
         "scanCancelled": "A análise foi cancelada. Guarde de novo agora.",
         "discard": {
           "title": "Descartar as alterações?",
@@ -2127,9 +2127,9 @@
         "providers_one": "Novas fontes para {{count}} pasta: os títulos são associados ou preenchidos de novo.",
         "providers_many": "Novas fontes para {{count}} de pastas: os títulos são associados ou preenchidos de novo.",
         "providers_other": "Novas fontes para {{count}} pastas: os títulos são associados ou preenchidos de novo.",
-        "metadata_one": "Idiomas ou imagens alterados em {{count}} pasta. Aplicam-se a {{titles}} títulos assim que os aplicar.",
-        "metadata_many": "Idiomas ou imagens alterados em {{count}} de pastas. Aplicam-se a {{titles}} títulos assim que os aplicar.",
-        "metadata_other": "Idiomas ou imagens alterados em {{count}} pastas. Aplicam-se a {{titles}} títulos assim que os aplicar.",
+        "metadata_one": "Idiomas ou imagens alterados em {{count}} pasta. Passam a valer para {{titles}} títulos assim que os aplicar.",
+        "metadata_many": "Idiomas ou imagens alterados em {{count}} de pastas. Passam a valer para {{titles}} títulos assim que os aplicar.",
+        "metadata_other": "Idiomas ou imagens alterados em {{count}} pastas. Passam a valer para {{titles}} títulos assim que os aplicar.",
         "dismiss": "Ocultar"
       }
     },
@@ -2407,7 +2407,7 @@
         "childCounts": "Temporadas: {{seasons}} · Episódios: {{episodes}} · Extras: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Pasta principal",
+        "homeRoot": "Pasta de origem",
         "homeRootNone": "Nenhuma, aplica-se a predefinição"
       },
       "sources": {
@@ -5172,11 +5172,11 @@
         "country_unknown": "País desconhecido.",
         "source_unknown": "Esta fonte de imagens não é uma opção para este título."
       },
-      "introDefault": "Aplica-se a cada pasta sem definições próprias. Os idiomas e as imagens próprios de uma pasta definem-se em «Editar» da respetiva biblioteca.",
+      "introDefault": "Aplica-se a cada pasta sem definições próprias. Os idiomas e as imagens próprios de uma pasta definem-se na respetiva biblioteca, em «Editar».",
       "changed": "alterado",
       "folders": {
         "title": "Pastas",
-        "intro": "Cada pasta de vídeo segue a predefinição até ter idiomas ou imagens próprios. Define-os em «Editar» da respetiva biblioteca.",
+        "intro": "Cada pasta de vídeo segue a predefinição até ter idiomas ou imagens próprios. Define-os na respetiva biblioteca, em «Editar».",
         "empty": "Ainda não existe nenhuma pasta de vídeo.",
         "audio": "As pastas de audiolivros e de podcasts não têm idiomas nem imagens próprios. As fontes dos audiolivros estão em «Audiolivros: fontes».",
         "openLabel": "Editar {{name}}, pasta {{path}}"
@@ -5186,8 +5186,8 @@
         "langsOwn": "Idiomas: {{chain}}",
         "imagesDefault": "Imagens: predefinição",
         "imagesOwn": "Imagens: próprias",
-        "likeDefault": "Como a predefinição",
-        "own": "Próprias",
+        "likeDefault": "Predefinido",
+        "own": "Personalizado",
         "defaultIs": "Predefinição: {{value}}",
         "imagesDefaultIs": "Predefinição: {{kinds}}. Idioma por tipo de imagem: {{chains}}.",
         "imageChain": "{{kind}}: {{chain}}",
@@ -5235,7 +5235,7 @@
       "intro": "De onde o Slouchcat obtém detalhes e capas dos audiolivros. Os ficheiros vêm sempre primeiro; um fornecedor só preenche o que falta e nunca um campo bloqueado.",
       "folders": {
         "title": "Ordem por pasta",
-        "intro": "A fonte de cima prevalece em cada campo. A ordem e as fontes que participam alteram-se em «Editar» da biblioteca.",
+        "intro": "A fonte de cima prevalece em cada campo. A ordem e as fontes que participam alteram-se na biblioteca, em «Editar».",
         "empty": "Ainda não há nenhuma pasta de audiolivros.",
         "edit": "Alterar fontes",
         "editLabel": "Alterar as fontes de {{path}}",

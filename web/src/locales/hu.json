@@ -1999,7 +1999,7 @@
           "action": "Létrehozás most",
           "hint": "Pótolja a hiányzó előnézeteket minden „Előre” beállítású könyvtárnál, ahogy az „Előnézeti képek pótlása” a „Háttérfeladatok” között.",
           "queued": "Az előnézetek pótlása sorba állt.",
-          "unsaved": "Csak mentés után: a generálás a mentett beállítást használja."
+          "unsaved": "Csak mentés után: a létrehozás a mentett beállítást használja."
         },
         "summary": "Előnézeti képek: filmek {{movies}} · sorozatok {{series}}",
         "summaryNoKeep": "Induláskor, nem megtartva",
@@ -2029,7 +2029,7 @@
         "reloaded": "A könyvtár időközben máshol megváltozott. Az űrlap most az új állapotot mutatja; a módosításai nem lettek mentve.",
         "changedElsewhere": "A könyvtár időközben máshol megváltozott. Mentéskor az űrlap betölti az új állapotot; a módosításai ilyenkor nem kerülnek mentésre.",
         "gone": "Ez a könyvtár már nem létezik. Semmi sem lett mentve.",
-        "scanRunning": "Az eltávolítás, a más tartalom és az új útvonal megvárja a beolvasás végét. A megadott adatok megmaradnak.",
+        "scanRunning": "Mappa eltávolítása, illetve tartalmának vagy útvonalának módosítása csak a beolvasás befejezése után lehetséges. A megadott adatok megmaradnak.",
         "scanCancelled": "A beolvasás megszakadt. Mentsen most újra.",
         "discard": {
           "title": "Elveti a módosításokat?",
@@ -2311,7 +2311,7 @@
         "childCounts": "Évadok: {{seasons}} · Epizódok: {{episodes}} · Extrák: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Alapmappa",
+        "homeRoot": "Könyvtári mappa",
         "homeRootNone": "Nincs, az alapértelmezett érvényes"
       },
       "sources": {
@@ -4996,11 +4996,11 @@
         "country_unknown": "Ismeretlen ország.",
         "source_unknown": "Ez a képforrás nem szerepel a cím javaslatai között."
       },
-      "introDefault": "Minden olyan mappára érvényes, amelynek nincs saját beállítása. A mappa saját nyelveit és képeit a könyvtár „Szerkesztés” gombja alatt állíthatja be.",
+      "introDefault": "Minden olyan mappára érvényes, amelynek nincs saját beállítása. A mappa saját nyelveit és képeit a könyvtára „Szerkesztés” gombjával állíthatja be.",
       "changed": "módosítva",
       "folders": {
         "title": "Mappák",
-        "intro": "Minden videómappa az alapértelmezést követi, amíg nincsenek saját nyelvei vagy képei. A könyvtár „Szerkesztés” gombja alatt állíthatja be őket.",
+        "intro": "Minden videómappa az alapértelmezést követi, amíg nincsenek saját nyelvei vagy képei. Ezeket a könyvtára „Szerkesztés” gombjával állíthatja be.",
         "empty": "Még nincs videómappa.",
         "audio": "A hangoskönyv- és podcastmappáknak nincsenek saját nyelveik és képeik. A hangoskönyvek forrásai a „Hangoskönyvek: források” alatt találhatók.",
         "openLabel": "Szerkesztés: {{name}}, mappa: {{path}}"
@@ -5055,7 +5055,7 @@
       "intro": "Honnan szerzi a Slouchcat a hangoskönyvek részleteit és borítóit. A fájlok mindig az első helyen állnak; a szolgáltató csak azt egészíti ki, ami hiányzik, és soha nem zárolt mezőt.",
       "folders": {
         "title": "Sorrend mappánként",
-        "intro": "Mezőnként a felső forrás nyer. A sorrendet és a részt vevő forrásokat a könyvtár „Szerkesztés” gombja alatt módosíthatja.",
+        "intro": "Mezőnként a felső forrás nyer. A sorrendet és a részt vevő forrásokat a könyvtár „Szerkesztés” gombjával módosíthatja.",
         "empty": "Még nincs hangoskönyv-mappa.",
         "edit": "Források módosítása",
         "editLabel": "{{path}} forrásainak módosítása",

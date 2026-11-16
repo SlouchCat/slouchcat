@@ -2024,13 +2024,13 @@
       "form": {
         "editTitle": "Muokkaa kirjastoa",
         "changed": "muutettu",
-        "pathAndContent": "Kansion polkua ja sisältöä ei voi muuttaa samalla kertaa. Tallenna ensin toinen, sitten toinen.",
+        "pathAndContent": "Kansion polkua ja sisältöä ei voi muuttaa samalla kertaa. Tallenna ensin yksi muutos, sitten toinen.",
         "pathHint": "Uusi polku tulee voimaan tallennettaessa. Nimikkeet ja käyttäjätiedot säilyvät, jos tiedostot ovat siellä samoilla nimillä.",
         "reloaded": "Kirjastoa on muutettu sillä välin muualla. Lomake näyttää nyt sen uuden tilan; muutoksia ei tallennettu.",
         "changedElsewhere": "Kirjastoa on muutettu sillä välin muualla. Tallennettaessa lomake lataa sen uuden tilan; muutoksia ei silloin tallenneta.",
         "gone": "Tätä kirjastoa ei enää ole. Mitään ei tallennettu.",
         "scanRunning": "Poisto, sisällön vaihto ja uusi polku odottavat, kunnes skannaus on valmis. Syöttämäsi tiedot säilyvät.",
-        "scanCancelled": "Skannaus on keskeytetty. Tallenna nyt uudelleen.",
+        "scanCancelled": "Skannaus on peruttu. Tallenna nyt uudelleen.",
         "discard": {
           "title": "Hylätäänkö muutokset?",
           "body": "Tallentamattomat muutokset kirjastoon {{name}} menetetään.",
@@ -2058,12 +2058,12 @@
         "added_other": "{{count}} kansiota lisätty; skannaus on jonossa.",
         "removed_one": "{{count}} kansio poistettu.",
         "removed_other": "{{count}} kansiota poistettu.",
-        "content_one": "{{count}} kansio, jonka sisältö on toinen, luetaan uudelleen.",
-        "content_other": "{{count}} kansiota, joiden sisältö on toinen, luetaan uudelleen.",
+        "content_one": "{{count}} kansio, jonka sisältö on vaihdettu, luetaan uudelleen.",
+        "content_other": "{{count}} kansiota, joiden sisältö on vaihdettu, luetaan uudelleen.",
         "moved_one": "{{count}} kansio, jonka polku on uusi, luetaan uudelleen.",
         "moved_other": "{{count}} kansiota, joiden polku on uusi, luetaan uudelleen.",
-        "providers_one": "Uudet lähteet {{count}} kansiolle: nimikkeet yhdistetään tai täydennetään uudelleen.",
-        "providers_other": "Uudet lähteet {{count}} kansiolle: nimikkeet yhdistetään tai täydennetään uudelleen.",
+        "providers_one": "Uudet lähteet {{count}} kansiolle: nimikkeet kohdistetaan uudelleen tai täydennetään.",
+        "providers_other": "Uudet lähteet {{count}} kansiolle: nimikkeet kohdistetaan uudelleen tai täydennetään.",
         "metadata_one": "Kielet tai kuvat muutettu {{count}} kansiolle. Ne koskevat {{titles}} nimikettä, kun otat ne käyttöön.",
         "metadata_other": "Kielet tai kuvat muutettu {{count}} kansiolle. Ne koskevat {{titles}} nimikettä, kun otat ne käyttöön.",
         "dismiss": "Piilota"
@@ -2311,7 +2311,7 @@
         "childCounts": "Kaudet: {{seasons}} · Jaksot: {{episodes}} · Lisämateriaalit: {{extras}}",
         "none": "–",
         "episodeRange": "{{from}}–{{to}}",
-        "homeRoot": "Kotikansio",
+        "homeRoot": "Kirjastokansio",
         "homeRootNone": "Ei mitään, oletus on voimassa"
       },
       "sources": {
@@ -5016,7 +5016,7 @@
         "imagesDefaultIs": "Oletus: {{kinds}}. Kieli kuvatyypeittäin: {{chains}}.",
         "imageChain": "{{kind}}: {{chain}}",
         "onlyHere": "Koskee vain tätä kansiota.",
-        "cost": "Jokainen lisäkieli maksaa käyttöönotettaessa yhden pyynnön kansion jokaista nimikettä ja tuotantokautta kohti.",
+        "cost": "Jokainen lisäkieli maksaa käyttöönotettaessa yhden pyynnön tämän kansion nimikettä ja kautta kohden.",
         "always": "Slouchcat hakee aina julisteen ja taustakuvan."
       }
     },
