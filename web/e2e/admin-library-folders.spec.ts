@@ -275,8 +275,11 @@ test('a second folder goes in with «Speichern», and comes out only after its p
   await expect(confirm(page)).toHaveCount(0);
   await expect(card(page, 2)).toContainText('Wird beim Speichern entfernt');
 
-  // Now for real.
+  // Now for real: the closed confirmation forgot the typed path, so it is typed again.
   await pressSave(page);
+  await expect(typed(page)).toHaveValue('');
+  await tabTo(page, typed(page), 20);
+  await page.keyboard.type(second);
   await confirmSave(page);
   await expect(page.getByText('1 Ordner entfernt.')).toBeVisible();
   await expect(row(page).getByText(first)).toBeVisible();
