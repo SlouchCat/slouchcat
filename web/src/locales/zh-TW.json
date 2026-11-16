@@ -1778,11 +1778,8 @@
         "kind": "類型",
         "state": "狀態",
         "counts": "作品 · 檔案",
-        "folders": "資料夾",
-        "metadata": "中繼資料"
+        "folders": "資料夾"
       },
-      "none": "–",
-      "noMetadata": "沒有中繼資料範圍",
       "roots": "資料夾",
       "fsType": "檔案系統 {{type}}",
       "watch": {
@@ -1907,11 +1904,6 @@
       "noFolder": "沒有資料夾：在「資料夾」中新增資料夾之前，不會掃描任何內容。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
-        "like": "與伺服器相同",
-        "texts": "語言不同",
-        "images": "圖片不同",
-        "both": "語言和圖片不同",
-        "link": "媒體庫的中繼資料",
         "audiobooksLink": "有聲書的來源"
       },
       "trickplay": {
@@ -4701,7 +4693,6 @@
       "areas": {
         "label": "區域",
         "changed": "已變更 · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "海報 {{poster}}，背景圖 {{backdrop}}",
         "sources": {
           "local": "本機檔案",
@@ -4711,18 +4702,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "適用於",
-        "server": "預設",
-        "serverHint": "適用於所有沒有另行設定的媒體庫。",
-        "libraryHint": "{{name}} 使用預設值。開啟「另行設定」即可只為這個媒體庫變更語言或圖片。",
-        "deviates": "另行設定",
-        "textsDeviate": "語言另行設定",
-        "imagesDeviate": "圖片另行設定",
-        "likeServer": "與伺服器相同",
-        "changed": "{{name}}（已變更）",
-        "serverDirty": "預設值有未儲存的變更；這裡顯示的是已儲存的狀態。"
-      },
+      "default": "預設",
       "languages": {
         "title": "語言",
         "intro": "這裡的每種語言都會為每部作品擷取；個人資料可從中選擇簡介語言。介面語言由每個個人資料各自選擇。每多一種語言，每部作品和每一季就會多一次請求。",

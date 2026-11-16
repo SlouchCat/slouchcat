@@ -1809,11 +1809,8 @@
         "kind": "Art",
         "state": "Zustand",
         "counts": "Titel · Dateien",
-        "folders": "Ordner",
-        "metadata": "Metadaten"
+        "folders": "Ordner"
       },
-      "none": "–",
-      "noMetadata": "Keine Metadaten-Geltung",
       "roots": "Ordner",
       "fsType": "Dateisystem {{type}}",
       "watch": {
@@ -1941,11 +1938,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "wie Server",
-        "texts": "Sprachen abweichend",
-        "images": "Bilder abweichend",
-        "both": "Sprachen und Bilder abweichend",
-        "link": "Metadaten der Bibliothek",
         "audiobooksLink": "Quellen für Hörbücher"
       },
       "trickplay": {
@@ -4831,7 +4823,7 @@
     },
     "metadata": {
       "title": "Metadaten",
-      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Qualität, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.",
+      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Qualität, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für jeden Ordner ohne eigene Einstellung; ein Ordner kann bei Sprachen und Bildern Eigenes haben.",
       "links": {
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
@@ -4845,7 +4837,6 @@
       "areas": {
         "label": "Bereiche",
         "changed": "Geändert · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Poster {{poster}}, Hintergrund {{backdrop}}",
         "sources": {
           "local": "Lokale Dateien",
@@ -4855,18 +4846,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Geltung",
-        "server": "Standard",
-        "serverHint": "Gilt für alle Bibliotheken ohne eigene Abweichung.",
-        "libraryHint": "{{name}} übernimmt den Standard. Schalte «abweichend» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.",
-        "deviates": "abweichend",
-        "textsDeviate": "Sprachen abweichend",
-        "imagesDeviate": "Bilder abweichend",
-        "likeServer": "wie Server",
-        "changed": "{{name}} (geändert)",
-        "serverDirty": "Standard hat ungespeicherte Änderungen; hier steht der gespeicherte Stand."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Sprachen",
         "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche wählt jedes Profil für sich. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
@@ -4947,7 +4927,7 @@
         "texts": "Nur Texte",
         "images": "Nur Bilder",
         "where": "Wo",
-        "all": "Alle Bibliotheken",
+        "all": "Alle Ordner",
         "titles_one": "{{count}} Titel",
         "titles_other": "{{count}} Titel",
         "run": "Jetzt anwenden",

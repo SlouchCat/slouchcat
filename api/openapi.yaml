@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.38.0
+  version: 1.40.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -4885,79 +4885,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
-  /admin/libraries/{id}/metadata:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-    get:
-      operationId: getLibraryMetadata
-      summary: The metadata deviation of a library (concept 10, ADR 0018)
-      description: |
-        The deviation of the library from the server (`textLangs`, `images`; `null` = like the
-        server) and the effective values the jobs use for its titles. 404 for an unknown library.
-      tags: [admin]
-      x-visibility: admin
-      responses:
-        "200":
-          description: Deviation and effective values.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LibraryMetadata"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown library.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    put:
-      operationId: updateLibraryMetadata
-      summary: Change the metadata deviation of a library
-      description: |
-        `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
-        "like the server". A library's language list need not hold `de` or `en` (contract 1.34.0,
-        ADR 0033; `ui_lang_required` is gone).
-        Nothing is queued (F-8); the answer names the affected titles of the library.
-      tags: [admin]
-      x-visibility: admin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryMetadataUpdate"
-      responses:
-        "200":
-          description: Deviation and effective values.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LibraryMetadata"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown library.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: "`validation_failed` (see `errors`)."
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
   /admin/metadata/apply:
     post:
       operationId: applyMetadata
@@ -5007,8 +4934,22 @@ paths:
         list, `fill`: may follow), the root contents the provider may stand in the list of, and the
         text languages it delivers (the hint "delivers no German" for AniList). The interface offers
         nothing this list does not allow; the server checks the same rules again on every write.
+        Since contract 1.40.0 (concept 24 section 3.3) `textLangs` names the text language list being
+        edited (the default's or a folder's); without it `languages` refers to the default's list.
       tags: [admin]
       x-visibility: admin
+      parameters:
+        - name: textLangs
+          in: query
+          required: false
+          style: form
+          explode: true
+          description: The text language list the `languages` of each provider refer to, in its order.
+          schema:
+            type: array
+            maxItems: 50
+            items:
+              $ref: "#/components/schemas/MetadataLanguage"
       responses:
         "200":
           description: The providers in the order the interface shows them.
@@ -13711,65 +13652,47 @@ components:
         fanartEnabled:
           type: boolean
 
-    LibraryImages:
+    RootImages:
       type: object
-      description: "The image deviation of a library: chains and switchable kinds."
+      description: |
+        The own images of a video folder (concept 24 section 3.1, ADR 0036): the language chain per
+        image kind and the switchable kinds that are on. A kind left out of `langs` follows the
+        default's chain; `kinds` is complete, `[]` means no logo, season poster and episode still.
       required: [langs, kinds]
       properties:
         langs:
-          $ref: "#/components/schemas/ImageLangs"
+          type: object
+          description: Chains per kind (`poster`, `backdrop`, `logo`); `""` = without text.
+          properties:
+            poster:
+              type: array
+              items:
+                type: string
+            backdrop:
+              type: array
+              items:
+                type: string
+            logo:
+              type: array
+              items:
+                type: string
         kinds:
           type: array
           items:
             type: string
             enum: [logo, season_poster, episode_still]
 
-    LibraryMetadata:
-      type: object
-      description: The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5).
-      required: [libraryId, effective, affectedTitles]
-      properties:
-        libraryId:
-          type: integer
-          format: int64
-        textLangs:
-          type: array
-          nullable: true
-          description: The library's own text language list, or `null` for the server's.
-          items:
-            $ref: "#/components/schemas/MetadataLanguage"
-        images:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/LibraryImages"
-          description: The library's own image chains and kinds, or `null` for the server's.
-        effective:
-          $ref: "#/components/schemas/MetadataSettings"
-        affectedTitles:
-          type: integer
-          description: Matched films and series of the library an `applyMetadata` would queue.
-
-    LibraryMetadataUpdate:
-      type: object
-      description: Replaces the deviation; a field left out or `null` means "like the server".
-      properties:
-        textLangs:
-          type: array
-          nullable: true
-          items:
-            type: string
-        images:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/LibraryImages"
-
     ApplyMetadataRequest:
       type: object
       required: [what]
       properties:
-        libraryIds:
+        rootIds:
           type: array
-          description: The libraries to apply to; left out = every library.
+          description: |
+            Since contract 1.40.0 (replaces `libraryIds`, concept 24 section 3.3): the folders to apply
+            to; left out or empty = every folder. A folder means the titles whose home folder it is
+            (ADR 0036); an unknown folder is `rootIds` `unknown_root`.
+          maxItems: 200
           items:
             type: integer
             format: int64
@@ -13792,7 +13715,7 @@ components:
           description: The queued `metadata.apply` run (the parent; the children show on the jobs page).
         titles:
           type: integer
-          description: Matched films and series the run will queue.
+          description: Matched films and series the run will queue (whose home folder is one of the folders).
 
     MetadataProviderInfo:
       type: object
@@ -13817,9 +13740,10 @@ components:
         languages:
           type: array
           description: |
-            Text languages the provider delivers out of the server's metadata language list (ADR 0018):
-            the languages of the list it knows, in the list's order; empty for the local reader. A
-            language of the list that is missing here is skipped at that provider.
+            Text languages the provider delivers out of a metadata language list (ADR 0018): the
+            default's, or since contract 1.40.0 the list named by `textLangs`; the languages of the
+            list it knows, in the list's order; empty for the local reader. A language of the list
+            that is missing here is skipped at that provider.
           items:
             type: string
 
@@ -14236,6 +14160,17 @@ components:
           type: string
           description: Last ffprobe failure; set means unplayable (B-9).
 
+    AdminItemHomeRoot:
+      type: object
+      required: [id, path]
+      description: The home folder of a title (since contract 1.40.0).
+      properties:
+        id:
+          type: integer
+          format: int64
+        path:
+          type: string
+
     AdminItem:
       type: object
       description: Administration view of a title; not an `ItemRef` (unfiltered, admin only).
@@ -14253,6 +14188,13 @@ components:
         libraryId:
           type: integer
           format: int64
+        homeRoot:
+          $ref: "#/components/schemas/AdminItemHomeRoot"
+          description: |
+            Since contract 1.40.0 (concept 24 section 3.2, ADR 0036): the title's home folder, whose
+            languages, images and provider list it follows; a season, episode or extra names its
+            title's. Absent without one (a podcast only from its feed, a title whose files are all
+            missing since its folder went).
         parentId:
           $ref: "#/components/schemas/ItemID"
         seasonNumber:
@@ -15007,6 +14949,22 @@ components:
           uniqueItems: true
           items:
             $ref: "#/components/schemas/MetadataProvider"
+        textLangs:
+          type: array
+          nullable: true
+          description: |
+            Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages in order;
+            left out or `null` = like the default. Video folders only (`not_allowed` otherwise).
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          description: |
+            Since contract 1.40.0: the folder's own images; left out or `null` = like the default.
+            Video folders only (`not_allowed` otherwise).
+          allOf:
+            - $ref: "#/components/schemas/RootImages"
 
     LibraryRootsRequest:
       type: object
@@ -15023,9 +14981,12 @@ components:
     LibraryRootUpdate:
       type: object
       description: |
-        A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers` and
-        `path`. A content change empties the folder's titles like a removal and therefore repeats
-        the path; a new path keeps them and cannot be combined with a content change.
+        A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers`, `path`,
+        `textLangs` and `images`. A content change empties the folder's titles like a removal and
+        therefore repeats the path; a new path keeps them and cannot be combined with a content
+        change. `textLangs` and `images` (since contract 1.40.0, concept 24 section 3.6) have three
+        states each: left out = unchanged, `null` = like the default, a value = the folder's own.
+        They change no title row: the titles whose home folder it is read them live (ADR 0036).
       properties:
         path:
           type: string
@@ -15050,6 +15011,25 @@ components:
           description: The folder's path, repeated by the administrator; required for a content change.
           minLength: 1
           maxLength: 4096
+        textLangs:
+          # The Go server reads the raw value to tell a missing field (unchanged) from null (like the
+          # default); the generated code imports encoding/json already.
+          x-go-type: json.RawMessage
+          x-go-type-skip-optional-pointer: true
+          oneOf:
+            - type: array
+              maxItems: 50
+              items:
+                $ref: "#/components/schemas/MetadataLanguage"
+            - type: "null"
+          description: The folder's own text languages in order, or `null` for the default's. Video folders only.
+        images:
+          x-go-type: json.RawMessage
+          x-go-type-skip-optional-pointer: true
+          oneOf:
+            - $ref: "#/components/schemas/RootImages"
+            - type: "null"
+          description: The folder's own images, or `null` for the default's. Video folders only.
 
     LibraryRootRemoval:
       type: object
@@ -15591,7 +15571,7 @@ components:
 
     LibraryRoot:
       type: object
-      required: [id, path, fsType, watch, content, providers, itemCount, fileCount]
+      required: [id, path, fsType, watch, content, providers, itemCount, fileCount, textLangs, images, homeTitleCount]
       properties:
         id:
           type: integer
@@ -15624,6 +15604,27 @@ components:
         fileCount:
           type: integer
           description: Media files registered in this folder; they all go with the folder.
+        textLangs:
+          type: array
+          nullable: true
+          description: |
+            Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages, or `null`
+            when it follows the default (always `null` for audiobook and podcast folders).
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          # A pointer, so the Go server writes null for a folder that follows the default.
+          x-go-type: "*RootImages"
+          description: "Since contract 1.40.0: the folder's own images, or `null` when it follows the default."
+          allOf:
+            - $ref: "#/components/schemas/RootImages"
+        homeTitleCount:
+          type: integer
+          description: |
+            Since contract 1.40.0: the films, series, audiobooks and podcasts whose home folder this
+            folder is (the folder of their oldest present file, ADR 0036); its settings and its
+            provider list apply to them.
         readOnly:
           type: boolean
           description: |

@@ -379,7 +379,7 @@ function LibrariesContent() {
     [scanMutate, cancelMutate, acceptLossMutate, ask, t],
   );
 
-  const columns = useMemo(() => libraryColumns(t, hold, ratingSystem), [t, hold, ratingSystem]);
+  const columns = useMemo(() => libraryColumns(t, ratingSystem), [t, ratingSystem]);
   const detail = (library: Library) => (
     <LibraryDetail
       library={library}

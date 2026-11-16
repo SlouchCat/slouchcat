@@ -1831,11 +1831,8 @@
         "kind": "Tür",
         "state": "Durum",
         "counts": "İçerik · dosya",
-        "folders": "Klasörler",
-        "metadata": "Meta veri"
+        "folders": "Klasörler"
       },
-      "none": "–",
-      "noMetadata": "Meta veri kapsamı yok",
       "roots": "Klasörler",
       "fsType": "Dosya sistemi {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "sunucudaki gibi",
-        "texts": "diller farklı",
-        "images": "görseller farklı",
-        "both": "diller ve görseller farklı",
-        "link": "Kitaplığın meta verisi",
         "audiobooksLink": "Sesli kitap kaynakları"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Alanlar",
         "changed": "Değişti · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Afiş {{poster}}, arka plan {{backdrop}}",
         "sources": {
           "local": "Yerel dosyalar",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Geçerli olduğu yer",
-        "server": "Varsayılan",
-        "serverHint": "Kendi farkı olmayan her kitaplık için geçerlidir.",
-        "libraryHint": "{{name}} varsayılanı kullanıyor. Yalnızca bu kitaplığın dillerini veya görsellerini değiştirmek için “farklı” anahtarını açın.",
-        "deviates": "farklı",
-        "textsDeviate": "Diller farklı",
-        "imagesDeviate": "Görseller farklı",
-        "likeServer": "sunucudaki gibi",
-        "changed": "{{name}} (değişti)",
-        "serverDirty": "Varsayılanda kaydedilmemiş değişiklikler var; burada kaydedilmiş hali görünüyor."
-      },
+      "default": "Varsayılan",
       "languages": {
         "title": "Diller",
         "intro": "Buradaki her dil her içerik için getirilir; profiller açıklamalarının dilini bunlar arasından seçer. Arayüz dilini her profil kendisi seçer. Her ek dil, içerik ve sezon başına bir istek daha demektir.",

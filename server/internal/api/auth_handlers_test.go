@@ -59,7 +59,7 @@ func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) 
 	}
 	for _, r := range req.Roots {
 		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(f.libs) + len(lib.Roots) + 1), Path: r.Path,
-			FSType: "nfs", Watch: "poll", Warning: "network_share", Content: r.Content, Providers: r.Providers})
+			FSType: "nfs", Watch: "poll", Warning: "network_share", Content: r.Content, Providers: r.Providers, Metadata: r.Metadata})
 	}
 	f.libs = append(f.libs, lib)
 	return lib, nil
@@ -113,7 +113,7 @@ func (f *authTestLibraries) AddRoots(ctx context.Context, id int64, roots []mode
 	}
 	for _, r := range roots {
 		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(lib.Roots) + 1), Path: r.Path, FSType: "ext4", Watch: "inotify",
-			Content: r.Content, Providers: r.Providers})
+			Content: r.Content, Providers: r.Providers, Metadata: r.Metadata})
 	}
 	f.libs[id-1] = lib
 	return lib, nil
@@ -152,6 +152,12 @@ func (f *authTestLibraries) UpdateRoot(ctx context.Context, id, rootID int64, up
 	}
 	if upd.Providers != nil {
 		lib.Roots[idx].Providers = upd.Providers
+	}
+	if upd.SetTextLangs {
+		lib.Roots[idx].Metadata.TextLangs = upd.TextLangs
+	}
+	if upd.SetImages {
+		lib.Roots[idx].Metadata.Images = upd.Images
 	}
 	f.libs[id-1] = lib
 	return lib, nil

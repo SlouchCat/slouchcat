@@ -72,6 +72,9 @@ type Service struct {
 	// rootContentChanged is told when an administrator changed the content of a folder, which
 	// empties it like a removal does (optional, ADR 0015).
 	rootContentChanged func(ctx context.Context, libraryName, path, from, to string, items, files int64) error
+	// checkRootMetadata validates a folder's own text languages and images (metadata's
+	// ValidateRootMetadata, concept 24); nil checks only that they stand on a video folder.
+	checkRootMetadata func(model.RootMetadata) *model.ValidationError
 	// recheck ends open direct-play streams whose title became invisible after library.relink
 	// merged a copy (WithVisibilityRecheck; optional).
 	recheck func(ctx context.Context) error
@@ -177,6 +180,12 @@ type Option func(*Service)
 // (chapter_images.go); without it the chapter image jobs do nothing.
 func WithCacheDir(dir string) Option {
 	return func(s *Service) { s.cacheDir = dir }
+}
+
+// WithRootMetadataCheck sets the check of a folder's own text languages and images
+// (metadata.ValidateRootMetadata: known codes, no duplicates, known image kinds).
+func WithRootMetadataCheck(check func(model.RootMetadata) *model.ValidationError) Option {
+	return func(s *Service) { s.checkRootMetadata = check }
 }
 
 // WithClock replaces time.Now, for tests.
@@ -937,10 +946,15 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		if err != nil {
 			return model.Library{}, fmt.Errorf("count content of root %d: %w", r.ID, err)
 		}
+		meta, err := model.ParseRootMetadata(r.TextLangs, r.Images)
+		if err != nil {
+			s.log.WarnContext(ctx, "folder metadata unreadable, shown like the default", "root_id", r.ID, "err", err)
+		}
 		m.Roots = append(m.Roots, model.LibraryRoot{
 			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
 			Content: r.Content, Providers: model.ParseProviders(r.Providers),
 			ItemCount: int(content.Items), FileCount: int(content.Files), ReadOnly: s.rootReadOnly(r.Path),
+			Metadata: meta, HomeTitleCount: int(content.HomeTitles),
 		})
 	}
 	return m, nil

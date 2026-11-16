@@ -8,19 +8,13 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// Metadata settings of concept 10 (ADR 0018): the server's settings, a library's deviation and
-// the apply run; all x-visibility admin (concept 9.1).
+// Metadata settings of concept 10 (ADR 0018): the server's settings and the apply run per folder
+// (concept 24); all x-visibility admin (concept 9.1).
 
 func (e serviceProblem) VisitGetMetadataSettingsResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitUpdateMetadataSettingsResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
-func (e serviceProblem) VisitGetLibraryMetadataResponse(w http.ResponseWriter) error {
-	return e.visit(w)
-}
-func (e serviceProblem) VisitUpdateLibraryMetadataResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitApplyMetadataResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -48,34 +42,13 @@ func (s *server) UpdateMetadataSettings(ctx context.Context, req gen.UpdateMetad
 	return gen.UpdateMetadataSettings200JSONResponse(toMetadataSettings(st)), nil
 }
 
-func (s *server) GetLibraryMetadata(ctx context.Context, req gen.GetLibraryMetadataRequestObject) (gen.GetLibraryMetadataResponseObject, error) {
-	lm, err := s.opts.Admin.LibraryMetadata(ctx, req.Id)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.GetLibraryMetadata200JSONResponse(toLibraryMetadata(lm)), nil
-}
-
-func (s *server) UpdateLibraryMetadata(ctx context.Context, req gen.UpdateLibraryMetadataRequestObject) (gen.UpdateLibraryMetadataResponseObject, error) {
-	b := deref(req.Body)
-	var images *model.LibraryImages
-	if b.Images != nil {
-		images = &model.LibraryImages{Langs: fromImageLangs(b.Images.Langs), Kinds: libraryKinds(b.Images.Kinds)}
-	}
-	lm, err := s.opts.Admin.UpdateLibraryMetadata(ctx, req.Id, b.TextLangs, images)
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.UpdateLibraryMetadata200JSONResponse(toLibraryMetadata(lm)), nil
-}
-
 func (s *server) ApplyMetadata(ctx context.Context, req gen.ApplyMetadataRequestObject) (gen.ApplyMetadataResponseObject, error) {
 	b := deref(req.Body)
 	what := make([]string, 0, len(b.What))
 	for _, w := range b.What {
 		what = append(what, string(w))
 	}
-	res, err := s.opts.Admin.ApplyMetadata(ctx, model.ApplyMetadataRequest{LibraryIDs: deref(b.LibraryIds), What: what})
+	res, err := s.opts.Admin.ApplyMetadata(ctx, model.ApplyMetadataRequest{RootIDs: deref(b.RootIds), What: what})
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -106,30 +79,6 @@ func toMetadataSettings(st model.MetadataSettings) gen.MetadataSettings {
 		RatingSystems:  toRatingSystems(st.RatingSystems),
 		AffectedTitles: st.AffectedTitles, LocalImageTitles: st.LocalImageTitles,
 	}
-}
-
-func toLibraryMetadata(lm model.LibraryMetadata) gen.LibraryMetadata {
-	out := gen.LibraryMetadata{LibraryId: lm.LibraryID, Effective: toMetadataSettings(lm.Effective), AffectedTitles: lm.AffectedTitles}
-	if lm.TextLangs != nil {
-		langs := strs(*lm.TextLangs)
-		out.TextLangs = &langs
-	}
-	if lm.Images != nil {
-		kinds := make([]gen.LibraryImagesKinds, 0, len(lm.Images.Kinds))
-		for _, k := range lm.Images.Kinds {
-			kinds = append(kinds, gen.LibraryImagesKinds(k))
-		}
-		out.Images = &gen.LibraryImages{Langs: toImageLangs(lm.Images.Langs), Kinds: kinds}
-	}
-	return out
-}
-
-func libraryKinds(ks []gen.LibraryImagesKinds) []string {
-	out := make([]string, 0, len(ks))
-	for _, k := range ks {
-		out = append(out, string(k))
-	}
-	return out
 }
 
 // strs returns a non-nil string slice (JSON [] instead of null).

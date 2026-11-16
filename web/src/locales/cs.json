@@ -1937,11 +1937,8 @@
         "kind": "Druh",
         "state": "Stav",
         "counts": "Tituly · soubory",
-        "folders": "Složky",
-        "metadata": "Metadata"
+        "folders": "Složky"
       },
-      "none": "–",
-      "noMetadata": "Žádný rozsah metadat",
       "roots": "Složky",
       "fsType": "Souborový systém {{type}}",
       "watch": {
@@ -2075,11 +2072,6 @@
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "jako server",
-        "texts": "jazyky se liší",
-        "images": "obrázky se liší",
-        "both": "jazyky a obrázky se liší",
-        "link": "Metadata knihovny",
         "audiobooksLink": "Zdroje pro audioknihy"
       },
       "trickplay": {
@@ -5199,7 +5191,6 @@
       "areas": {
         "label": "Oblasti",
         "changed": "Změněno · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakát {{poster}}, pozadí {{backdrop}}",
         "sources": {
           "local": "Místní soubory",
@@ -5209,18 +5200,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Platí pro",
-        "server": "Výchozí",
-        "serverHint": "Platí pro každou knihovnu bez vlastní odchylky.",
-        "libraryHint": "{{name}} používá výchozí nastavení. Zapněte „odchyluje se“, abyste změnili jazyky nebo obrázky jen pro tuto knihovnu.",
-        "deviates": "odchyluje se",
-        "textsDeviate": "Jazyky se odchylují",
-        "imagesDeviate": "Obrázky se odchylují",
-        "likeServer": "jako server",
-        "changed": "{{name}} (změněno)",
-        "serverDirty": "Výchozí nastavení má neuložené změny; zde je vidět, co je uloženo."
-      },
+      "default": "Výchozí",
       "languages": {
         "title": "Jazyky",
         "intro": "Každý jazyk zde se načítá pro každý titul; profily si z nich vybírají jazyk svých popisů. Jazyk rozhraní si každý profil volí sám. Každý další jazyk stojí jeden požadavek na titul a řadu.",

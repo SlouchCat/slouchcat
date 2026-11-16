@@ -123,11 +123,6 @@ export const LibraryDetail = memo(function LibraryDetail({
           </AriaButton>
         )}
         <ActionMenu rowName={library.name} items={menu} onAction={onMenu} />
-        {library.kind === 'video' && (
-          <TextLink href={`${paths.adminMetadata}?library=${library.id}`}>
-            {t('admin.libraries.metadata.link')}
-          </TextLink>
-        )}
         {library.kind === 'audiobooks' && (
           <TextLink href={paths.adminAudiobookSources}>
             {t('admin.libraries.metadata.audiobooksLink')}

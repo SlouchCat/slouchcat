@@ -86,6 +86,22 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	if !model.ValidRootProviders(content, providers) {
 		verr = verr.Add("providers", model.CodeProvidersNotAllowed)
 	}
+	meta, err := model.ParseRootMetadata(root.TextLangs, root.Images)
+	if err != nil {
+		s.log.WarnContext(ctx, "folder metadata unreadable, replaced by the request", "root_id", root.ID, "err", err)
+	}
+	if upd.SetTextLangs {
+		meta.TextLangs = upd.TextLangs
+	}
+	if upd.SetImages {
+		meta.Images = upd.Images
+	}
+	metaChanged := upd.SetTextLangs || upd.SetImages
+	if metaChanged {
+		for _, f := range s.checkMetadata(content, meta, "") {
+			verr = verr.Add(f.Field, f.Code)
+		}
+	}
 	var moved *preparedRoot
 	if upd.Path != nil {
 		p, err := s.prepareMovedRoot(ctx, root, *upd.Path, upd.Content != nil)
@@ -101,16 +117,43 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	if verr != nil {
 		return model.Library{}, verr
 	}
+	// The own languages and images are written after the other change succeeded, so a refused
+	// content or path change leaves them as they were too.
+	writeMeta := func() error {
+		if !metaChanged {
+			return nil
+		}
+		textLangs, images := model.RootMetadataColumns(meta)
+		if err := appq.New(s.db.Write).UpdateLibraryRootMetadata(ctx, appq.UpdateLibraryRootMetadataParams{
+			TextLangs: textLangs, Images: images, ID: root.ID, LibraryID: root.LibraryID,
+		}); err != nil {
+			return fmt.Errorf("update own metadata of root %d: %w", root.ID, err)
+		}
+		return nil
+	}
 	if content != root.Content {
-		return s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
+		changed, err := s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
+		if err != nil || !metaChanged {
+			return changed, err
+		}
+		if err := writeMeta(); err != nil {
+			return model.Library{}, err
+		}
+		return s.Get(ctx, libraryID)
 	}
 	if moved != nil {
 		if err := s.changeRootPath(ctx, lib, root, *moved, old, providers); err != nil {
 			return model.Library{}, err
 		}
+		if err := writeMeta(); err != nil {
+			return model.Library{}, err
+		}
 		return s.QueueScan(ctx, libraryID)
 	}
 	if err := s.changeRootProviders(ctx, root, old, providers); err != nil {
+		return model.Library{}, err
+	}
+	if err := writeMeta(); err != nil {
 		return model.Library{}, err
 	}
 	return s.Get(ctx, libraryID)

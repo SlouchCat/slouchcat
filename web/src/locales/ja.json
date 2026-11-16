@@ -1778,11 +1778,8 @@
         "kind": "種類",
         "state": "状態",
         "counts": "作品 · ファイル",
-        "folders": "フォルダー",
-        "metadata": "メタデータ"
+        "folders": "フォルダー"
       },
-      "none": "–",
-      "noMetadata": "メタデータの適用範囲なし",
       "roots": "フォルダー",
       "fsType": "ファイルシステム {{type}}",
       "watch": {
@@ -1907,11 +1904,6 @@
       "noFolder": "フォルダーなし：「フォルダー」で追加するまで、何もスキャンされません。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
-        "like": "サーバーと同じ",
-        "texts": "言語が異なる",
-        "images": "画像が異なる",
-        "both": "言語と画像が異なる",
-        "link": "ライブラリのメタデータ",
         "audiobooksLink": "オーディオブックのソース"
       },
       "trickplay": {
@@ -4701,7 +4693,6 @@
       "areas": {
         "label": "エリア",
         "changed": "変更あり · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "ポスター{{poster}}、背景{{backdrop}}",
         "sources": {
           "local": "ローカルファイル",
@@ -4711,18 +4702,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "適用先",
-        "server": "既定",
-        "serverHint": "独自の設定がないすべてのライブラリに適用されます。",
-        "libraryHint": "{{name}}は既定の設定を使用しています。このライブラリだけ言語や画像を変更するには、「個別設定」をオンにしてください。",
-        "deviates": "個別設定",
-        "textsDeviate": "言語が異なる",
-        "imagesDeviate": "画像が異なる",
-        "likeServer": "サーバーと同じ",
-        "changed": "{{name}}（変更あり）",
-        "serverDirty": "既定の設定に未保存の変更があります。ここには保存済みの内容が表示されています。"
-      },
+      "default": "既定",
       "languages": {
         "title": "言語",
         "intro": "ここにあるすべての言語が作品ごとに取得され、プロフィールはその中からあらすじの言語を選びます。表示言語は各プロフィールが個別に選びます。言語を1つ追加するごとに、作品とシーズンごとのリクエストが1回増えます。",

@@ -55,6 +55,9 @@ const books = library({
       watch: 'inotify',
       itemCount: 0,
       fileCount: 0,
+      textLangs: null,
+      images: null,
+      homeTitleCount: 0,
     },
   ],
 });
@@ -111,6 +114,9 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
                 warning: 'network_share',
                 itemCount: 0,
                 fileCount: 0,
+                textLangs: null,
+                images: null,
+                homeTitleCount: 0,
               },
             ],
             scan: { state: 'failed', itemCount: 0, fileCount: 0, lastError: 'permission denied' },
@@ -232,58 +238,25 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(screen.queryByRole('button', { name: 'Filme' })).toBeNull();
   });
 
-  it('names the metadata deviation of a video library and links to it (BIB-3)', async () => {
-    mockApi({
+  it('has no column «Metadaten» and no link to a library deviation any more (concept 24 3.4)', async () => {
+    const { calls } = mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([library(), books]),
-      'GET /admin/libraries/1/metadata': () =>
-        json({
-          textLangs: ['en'],
-          effective: { textLangs: ['en'], imageLangs: {}, imageKinds: [] },
-        }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
 
     await screen.findByRole('button', { name: 'Filme' });
-    expect(await within(rowOf('Filme')).findByText('Sprachen abweichend')).toBeVisible();
-    // An audio library has no metadata settings of its own.
-    // The dash is for the eye; a screen reader hears what it means.
-    expect(within(rowOf('Hörbücher')).getByText('–')).toHaveAttribute('aria-hidden', 'true');
-    expect(within(rowOf('Hörbücher')).getByText('Keine Metadaten-Geltung')).toBeInTheDocument();
-
+    expect(screen.queryByRole('columnheader', { name: 'Metadaten' })).toBeNull();
     const detail = await openRow(user, 'Filme');
-    expect(within(detail).getByRole('link', { name: 'Metadaten der Bibliothek' })).toHaveAttribute(
-      'href',
-      '/admin/metadata?library=1',
-    );
+    expect(within(detail).queryByRole('link', { name: 'Metadaten der Bibliothek' })).toBeNull();
+    // Audiobooks keep the way to their sources.
     const audio = await openRow(user, 'Hörbücher');
-    expect(within(audio).queryByRole('link', { name: 'Metadaten der Bibliothek' })).toBeNull();
-  });
-
-  it('names «wie Server», «Bilder abweichend» and both deviations (BIB-3)', async () => {
-    const effective = { textLangs: ['de'], imageLangs: {}, imageKinds: [] };
-    const images = { langs: {}, kinds: ['logo'] };
-    mockApi({
-      ...signedIn,
-      'GET /admin/libraries': () =>
-        json([
-          library({ id: 1, name: 'Filme' }),
-          library({ id: 3, name: 'Serien' }),
-          library({ id: 4, name: 'Dokus' }),
-        ]),
-      'GET /admin/libraries/1/metadata': () => json({ libraryId: 1, effective }),
-      'GET /admin/libraries/3/metadata': () =>
-        json({ libraryId: 3, textLangs: null, images, effective }),
-      'GET /admin/libraries/4/metadata': () =>
-        json({ libraryId: 4, textLangs: ['en'], images, effective }),
-    });
-    renderApp('/admin/libraries');
-
-    await screen.findByRole('button', { name: 'Dokus' });
-    expect(await within(rowOf('Filme')).findByText('wie Server')).toBeVisible();
-    expect(await within(rowOf('Serien')).findByText('Bilder abweichend')).toBeVisible();
-    expect(await within(rowOf('Dokus')).findByText('Sprachen und Bilder abweichend')).toBeVisible();
+    expect(within(audio).getByRole('link', { name: 'Quellen für Hörbücher' })).toHaveAttribute(
+      'href',
+      '/admin/metadata/audiobooks',
+    );
+    expect(calls.some((call) => call.path.endsWith('/metadata'))).toBe(false);
   });
 
   it('explains an aborted scan and accepts the loss after confirmation (BIB-4)', async () => {

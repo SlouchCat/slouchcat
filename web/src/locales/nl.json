@@ -1831,11 +1831,8 @@
         "kind": "Soort",
         "state": "Status",
         "counts": "Titels · bestanden",
-        "folders": "Mappen",
-        "metadata": "Metadata"
+        "folders": "Mappen"
       },
-      "none": "–",
-      "noMetadata": "Geen metadatabereik",
       "roots": "Mappen",
       "fsType": "Bestandssysteem {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "zoals de server",
-        "texts": "talen wijken af",
-        "images": "afbeeldingen wijken af",
-        "both": "talen en afbeeldingen wijken af",
-        "link": "Metadata van de bibliotheek",
         "audiobooksLink": "Bronnen voor luisterboeken"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Onderdelen",
         "changed": "Gewijzigd · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Poster {{poster}}, achtergrond {{backdrop}}",
         "sources": {
           "local": "Lokale bestanden",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Geldt voor",
-        "server": "Standaard",
-        "serverHint": "Geldt voor elke bibliotheek zonder eigen afwijking.",
-        "libraryHint": "{{name}} gebruikt de standaard. Zet “wijkt af” aan om talen of afbeeldingen alleen voor deze bibliotheek te wijzigen.",
-        "deviates": "wijkt af",
-        "textsDeviate": "Talen wijken af",
-        "imagesDeviate": "Afbeeldingen wijken af",
-        "likeServer": "zoals de server",
-        "changed": "{{name}} (gewijzigd)",
-        "serverDirty": "De standaard heeft niet-opgeslagen wijzigingen; dit toont wat is opgeslagen."
-      },
+      "default": "Standaard",
       "languages": {
         "title": "Talen",
         "intro": "Elke taal hier wordt voor elke titel opgehaald; profielen kiezen daaruit de taal van hun beschrijvingen. De interfacetaal kiest elk profiel zelf. Elke extra taal kost één verzoek per titel en seizoen.",

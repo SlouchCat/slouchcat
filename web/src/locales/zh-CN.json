@@ -1778,11 +1778,8 @@
         "kind": "类型",
         "state": "状态",
         "counts": "作品 · 文件",
-        "folders": "文件夹",
-        "metadata": "元数据"
+        "folders": "文件夹"
       },
-      "none": "–",
-      "noMetadata": "无元数据设置",
       "roots": "文件夹",
       "fsType": "文件系统 {{type}}",
       "watch": {
@@ -1907,11 +1904,6 @@
       "noFolder": "无文件夹：在“文件夹”中添加文件夹之前，不会扫描任何内容。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
-        "like": "与服务器相同",
-        "texts": "语言不同",
-        "images": "图片不同",
-        "both": "语言和图片不同",
-        "link": "媒体库的元数据",
         "audiobooksLink": "有声书来源"
       },
       "trickplay": {
@@ -4701,7 +4693,6 @@
       "areas": {
         "label": "分区",
         "changed": "已更改 · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "海报 {{poster}}，背景图 {{backdrop}}",
         "sources": {
           "local": "本地文件",
@@ -4711,18 +4702,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "适用范围",
-        "server": "默认",
-        "serverHint": "适用于所有没有单独设置的媒体库。",
-        "libraryHint": "{{name}} 使用默认设置。开启“单独设置”即可仅为此媒体库更改语言或图片。",
-        "deviates": "单独设置",
-        "textsDeviate": "语言单独设置",
-        "imagesDeviate": "图片单独设置",
-        "likeServer": "与服务器相同",
-        "changed": "{{name}}（已更改）",
-        "serverDirty": "默认设置有未保存的更改；此处显示的是已保存的状态。"
-      },
+      "default": "默认",
       "languages": {
         "title": "语言",
         "intro": "此处的每种语言都会为每部作品获取；个人资料从中选择简介语言。界面语言由每个个人资料自行选择。每增加一种语言，每部作品和每一季就多一次请求。",

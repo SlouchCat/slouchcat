@@ -15,6 +15,9 @@ const second = {
   warning: 'network_share',
   itemCount: 3,
   fileCount: 4,
+  textLangs: null,
+  images: null,
+  homeTitleCount: 3,
 };
 
 const withTwoFolders: Library = library({ roots: [library().roots[0]!, second] });
@@ -344,6 +347,9 @@ describe('library folders dialog', () => {
           watch: 'inotify',
           itemCount: 2,
           fileCount: 6,
+          textLangs: null,
+          images: null,
+          homeTitleCount: 2,
         },
       ],
     });

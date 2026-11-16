@@ -460,9 +460,6 @@
       "audiobooks": {
         "body": "Woher Slouchcat Angaben, Länge und Cover für Hörbücher holt, automatisches Zuordnen und die Liste „Prüfen“."
       },
-      "scope": {
-        "libraryHint": "{{name}} übernimmt den Standard. Schalte „abweichend“ ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern."
-      },
       "images": {
         "chainsIntro": "Reihenfolge, in der ein Bild gewählt wird. „Ohne Text“ ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.",
         "kindHint": {

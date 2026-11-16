@@ -2,13 +2,13 @@ import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
-import { adminEntry, areaTab } from './admin';
+import { areaTab } from './admin';
 
-// The page "Metadaten" (concept 10, 7.1, ADR 0018; layout concept 12 Met-B) against the real
-// server: the scope select in the header, the list of settings areas (MasterDetail), the server
-// default with its language places, the sticky save bar, a library's deviation, the rating
-// country, the apply run and the question before leaving with unsaved changes. Every test leaves
-// the settings as it found them (the suite shares one server).
+// The page "Metadaten" (concept 10, 7.1, ADR 0018; layout concept 12 Met-B; concept 24 3.4)
+// against the real server: the list of settings areas (MasterDetail), the default with its
+// language places, the sticky save bar, the rating country, the apply run and the question before
+// leaving with unsaved changes. Every test leaves the settings as it found them (the suite shares
+// one server).
 
 interface ImageLangs {
   poster: string[];
@@ -29,12 +29,6 @@ interface Settings {
   knownLanguages: string[];
   affectedTitles: number;
   localImageTitles: number;
-}
-
-interface LibraryMetadata {
-  libraryId: number;
-  textLangs: string[] | null;
-  images: { langs: ImageLangs; kinds: string[] } | null;
 }
 
 async function settingsOf(api: APIRequestContext): Promise<Settings> {
@@ -66,25 +60,9 @@ async function restore(api: APIRequestContext, before: Settings): Promise<void> 
   expect(response.status(), await response.text()).toBe(200);
 }
 
-async function libraryId(api: APIRequestContext, name: string): Promise<number> {
-  const response = await api.get('/api/v1/admin/libraries');
-  expect(response.status()).toBe(200);
-  const libraries = (await response.json()) as { id: number; name: string }[];
-  const library = libraries.find((entry) => entry.name === name);
-  if (!library) throw new Error(`no library ${name}`);
-  return library.id;
-}
-
-async function libraryMetadataOf(api: APIRequestContext, id: number): Promise<LibraryMetadata> {
-  const response = await api.get(`/api/v1/admin/libraries/${id}/metadata`);
-  expect(response.status(), await response.text()).toBe(200);
-  return (await response.json()) as LibraryMetadata;
-}
-
 const region = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
 const saveBar = (page: Page) => region(page, 'Speichern');
 const areas = (page: Page) => page.getByRole('listbox', { name: 'Bereiche' });
-const scopeSelect = (page: Page) => page.getByLabel('Geltung', { exact: true });
 
 /** The select of place `n` (1-based) of a language list. */
 const place = (list: Locator, n: number) =>
@@ -148,17 +126,6 @@ async function pickByKeys(page: Page, select: Locator, value: string): Promise<n
   return steps;
 }
 
-/** Picks the scope in the header select by keyboard; a changed scope carries «(geändert)». */
-async function chooseScope(page: Page, name: string) {
-  const select = scopeSelect(page);
-  const value = await select
-    .getByRole('option')
-    .filter({ hasText: new RegExp(`^${name}( \\(geändert\\))?$`) })
-    .getAttribute('value');
-  await tabToFromTop(page, select);
-  await pickByKeys(page, select, value ?? '');
-}
-
 /** The list with `next` on place `index` (0-based); a language on another place swaps (10.2). */
 function chooseAt(list: readonly string[], index: number, next: string): string[] {
   const out = [...list];
@@ -197,7 +164,7 @@ test('the sticky save bar does not cover the focused element (WCAG 2.4.11)', asy
   expect(focused!.y + focused!.height).toBeLessThanOrEqual(bar!.y);
 });
 
-test('the default scope lists the areas and the languages, the save bar is clean, nothing is sent', async ({
+test('the default lists the areas and the languages, the save bar is clean, nothing is sent', async ({
   page,
   owner,
 }) => {
@@ -208,7 +175,6 @@ test('the default scope lists the areas and the languages, the save bar is clean
   await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await openMetadata(page);
   await expect(areaTab(page, 'Metadaten')).toHaveAttribute('aria-current', 'page');
-  await expect(scopeSelect(page)).toHaveValue('server');
   await expect(areas(page).getByRole('option')).toHaveCount(6);
   const languages = region(page, 'Sprachen');
   const list = languages.getByRole('group', { name: 'Metadaten-Sprachen' });
@@ -401,148 +367,12 @@ test('a new rating country with titles asks before saving; Escape keeps the chan
   expect((await settingsOf(owner)).ratingCountry).toBe(before.ratingCountry);
 });
 
-test('a library deviates in its languages; the libraries page says so', async ({ page, owner }) => {
-  const id = await libraryId(owner, 'Dokus');
-  const before = await libraryMetadataOf(owner, id);
-  try {
-    await openMetadata(page);
-    await chooseScope(page, 'Dokus');
-    await expect(page.getByText(/Dokus übernimmt den Standard/)).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`[?&]library=${id}`));
-    // A library has only the two areas it can deviate in.
-    await expect(areas(page).getByRole('option')).toHaveCount(2);
-    const languages = region(page, 'Sprachen');
-    await expect(languages.getByText('wie Server')).toBeVisible();
-    const list = languages.getByRole('group', { name: 'Metadaten-Sprachen' });
-    // Read-only: disabled places, no «×».
-    await expect(place(list, 2)).toBeDisabled();
-    await expect(list.getByRole('button', { name: /^2\. Sprache .* entfernen$/ })).toHaveCount(0);
-
-    // Space switches the deviation on; the places become editable, "wie Server" goes.
-    const deviate = page.getByRole('switch', { name: 'Sprachen abweichend' });
-    await tabToFromTop(page, deviate);
-    await page.keyboard.press('Space');
-    await expect(deviate).toBeChecked();
-    await expect(languages.getByText('wie Server')).toHaveCount(0);
-    await expect(place(list, 2)).toHaveValue('en');
-    // Any place of a library's list may go (concept 22 F-7), here Englisch.
-    const remove = list.getByRole('button', { name: '2. Sprache (Englisch) entfernen' });
-    await expect(remove).toBeEnabled();
-    await tabToFromTop(page, remove);
-    await page.keyboard.press('Enter');
-    await expect(list.getByRole('listitem')).toHaveCount(1);
-    // The focus moves to the remaining place.
-    await expectFocusOn(page, place(list, 1));
-    // Deutsch is the last place now: it cannot go (a list keeps one place).
-    await expect(
-      list.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }),
-    ).toBeDisabled();
-
-    const save = saveBar(page).getByRole('button', { name: 'Speichern' });
-    await tabToFromTop(page, save);
-    const stored = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PUT' &&
-        response.url().endsWith(`/admin/libraries/${id}/metadata`),
-    );
-    await page.keyboard.press('Enter');
-    expect((await stored).status()).toBe(200);
-    await expect(
-      page.getByText(/^Gespeichert für Dokus\. \d+ Titel betroffen – jetzt anwenden\?$/),
-    ).toBeVisible();
-    expect((await libraryMetadataOf(owner, id)).textLangs).toEqual(['de']);
-
-    // The libraries page names the deviation in the row; its fold-out links here (concept 12).
-    await page.goto('/admin/libraries');
-    const toggle = page.getByRole('button', { name: 'Dokus', exact: true });
-    const row = page.getByRole('row').filter({ has: toggle });
-    await expect(row.getByText('Sprachen abweichend')).toBeVisible();
-    await tabToFromTop(page, toggle);
-    await page.keyboard.press('Enter');
-    const link = page
-      .getByRole('region', { name: 'Dokus', exact: true })
-      .getByRole('link', { name: 'Metadaten der Bibliothek' });
-    await expect(link).toHaveAttribute('href', `/admin/metadata?library=${id}`);
-    await tabTo(page, link, 10);
-    await page.keyboard.press('Enter');
-    await expect(page.getByRole('heading', { level: 1, name: 'Metadaten' })).toBeVisible();
-    await expect(scopeSelect(page)).toHaveValue(String(id));
-    await expect(page.getByRole('switch', { name: 'Sprachen abweichend' })).toBeChecked();
-  } finally {
-    const response = await owner.put(`/api/v1/admin/libraries/${id}/metadata`, {
-      headers: CSRF,
-      data: { textLangs: before.textLangs, images: before.images },
-    });
-    expect(response.status(), await response.text()).toBe(200);
-  }
-});
-
-test('changes survive switching the scope; leaving the page asks first', async ({
-  page,
-  owner,
-}) => {
-  const before = await settingsOf(owner);
-  const id = await libraryId(owner, 'Dokus');
-  const libraryBefore = await libraryMetadataOf(owner, id);
-  await openMetadata(page, '?item=images');
-  const images = region(page, 'Bilder');
-  const poster = images.getByRole('group', { name: 'Bildsprache Poster' });
-  // The image places by the arrows: place 1 takes the language of place 2, the two swap.
-  const chain = await placesOf(poster);
-  expect(chain.length).toBeGreaterThan(1);
-  const swapped = chooseAt(chain, 0, chain[1]);
-  await tabToFromTop(page, place(poster, 1));
-  await pickByKeys(page, place(poster, 1), chain[1]);
-  expect(await placesOf(poster)).toEqual(swapped);
-  await expectFocusOn(page, place(poster, 1));
-  await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
-
-  // Another scope by keyboard, and back: the change is still there, nothing was asked.
-  await chooseScope(page, 'Dokus');
-  await expect(page.getByText(/Dokus übernimmt den Standard/)).toBeVisible();
-  await expect(scopeSelect(page).getByRole('option', { name: 'Standard (geändert)' })).toHaveCount(
-    1,
-  );
-  await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await chooseScope(page, 'Standard');
-  await expect(region(page, 'Bilder')).toBeVisible();
-  expect(
-    await placesOf(region(page, 'Bilder').getByRole('group', { name: 'Bildsprache Poster' })),
-  ).toEqual(swapped);
-
-  // The sidebar link waits for the question; Escape stays on the page.
-  const current = adminEntry(page, 'Medien');
-  const jobs = adminEntry(page, 'Automatisierung');
-  await arrowTo(page, current, jobs);
-  await page.keyboard.press('Enter');
-  const leave = page.getByRole('alertdialog', {
-    name: 'Seite mit ungespeicherten Änderungen verlassen?',
-  });
-  // The question starts on «Auf der Seite bleiben», in both browsers (ui/Dialog, c61fe4b).
-  const stay = leave.getByRole('button', { name: 'Auf der Seite bleiben' });
-  await expectFocusOn(page, stay);
-  await page.keyboard.press('Escape');
-  await expect(leave).toBeHidden();
-  await expect(page).toHaveURL(/\/admin\/metadata/);
-  await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
-
-  // «Verwerfen und verlassen» goes; nothing was saved.
-  await arrowTo(page, current, jobs);
-  await page.keyboard.press('Enter');
-  await expectFocusOn(page, stay);
-  await tabTo(page, leave.getByRole('button', { name: 'Verwerfen und verlassen' }), 3);
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/admin\/jobs/);
-  expect(await settingsOf(owner)).toEqual(before);
-  expect(await libraryMetadataOf(owner, id)).toEqual(libraryBefore);
-});
-
 test('"Jetzt anwenden" sends what and where and reports the queued run', async ({ page }) => {
   // The run itself would queue a match per title on the shared server; the request is answered
   // here, the server's own queueing is covered by the Go tests of the package metadata.
-  let sent: { what: string[]; libraryIds?: number[] } | null = null;
+  let sent: { what: string[]; rootIds?: number[] } | null = null;
   await page.route('**/api/v1/admin/metadata/apply', async (route) => {
-    sent = route.request().postDataJSON() as { what: string[]; libraryIds?: number[] };
+    sent = route.request().postDataJSON() as { what: string[]; rootIds?: number[] };
     await route.fulfill({
       status: 202,
       contentType: 'application/json',
@@ -557,7 +387,7 @@ test('"Jetzt anwenden" sends what and where and reports the queued run', async (
   await page.keyboard.press('ArrowRight');
   await expect(what.getByRole('radio', { name: 'Nur Bilder' })).toBeChecked();
   await expect(
-    apply.getByRole('radiogroup', { name: 'Wo' }).getByRole('radio', { name: /Alle Bibliotheken/ }),
+    apply.getByRole('radiogroup', { name: 'Wo' }).getByRole('radio', { name: /Alle Ordner/ }),
   ).toBeChecked();
   const run = apply.getByRole('button', { name: 'Jetzt anwenden' });
   await tabToFromTop(page, run);

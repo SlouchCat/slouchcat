@@ -115,8 +115,11 @@ DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;
 -- What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
 -- the titles that have at least one file in it. The second number is the upper bound of what the
 -- removal takes out -- a title with a file in another folder of the library stays -- and one pass
--- over the root_id index answers both.
-SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = @root_id;
+-- over the root_id index answers both. home_titles are the films, series, audiobooks and podcasts
+-- whose home folder it is (ADR 0036; the items_root index).
+SELECT count(*) AS files, count(DISTINCT item_id) AS items,
+       (SELECT count(*) FROM items AS i WHERE i.root_id = CAST(@root_id AS INTEGER) AND i.parent_id IS NULL AND i.deleted_at IS NULL) AS home_titles
+FROM media_files WHERE root_id = CAST(@root_id AS INTEGER);
 
 -- Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
 

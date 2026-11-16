@@ -85,6 +85,9 @@ const audioLibrary = library({
       watch: 'inotify',
       itemCount: 2,
       fileCount: 3,
+      textLangs: null,
+      images: null,
+      homeTitleCount: 2,
     },
   ],
 });

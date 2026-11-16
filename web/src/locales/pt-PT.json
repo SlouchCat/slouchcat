@@ -1884,11 +1884,8 @@
         "kind": "Tipo",
         "state": "Estado",
         "counts": "Títulos · ficheiros",
-        "folders": "Pastas",
-        "metadata": "Metadados"
+        "folders": "Pastas"
       },
-      "none": "–",
-      "noMetadata": "Sem âmbito de metadados",
       "roots": "Pastas",
       "fsType": "Sistema de ficheiros {{type}}",
       "watch": {
@@ -2019,11 +2016,6 @@
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "como o servidor",
-        "texts": "idiomas diferentes",
-        "images": "imagens diferentes",
-        "both": "idiomas e imagens diferentes",
-        "link": "Metadados da biblioteca",
         "audiobooksLink": "Fontes de audiolivros"
       },
       "trickplay": {
@@ -5033,7 +5025,6 @@
       "areas": {
         "label": "Áreas",
         "changed": "Alterado · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Cartaz {{poster}}, imagem de fundo {{backdrop}}",
         "sources": {
           "local": "Ficheiros locais",
@@ -5043,18 +5034,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Aplica-se a",
-        "server": "Predefinição",
-        "serverHint": "Aplica-se a todas as bibliotecas sem uma divergência própria.",
-        "libraryHint": "{{name}} usa a predefinição. Ative «diverge» para alterar idiomas ou imagens apenas desta biblioteca.",
-        "deviates": "diverge",
-        "textsDeviate": "Idiomas divergem",
-        "imagesDeviate": "Imagens divergem",
-        "likeServer": "como o servidor",
-        "changed": "{{name}} (alterado)",
-        "serverDirty": "A predefinição tem alterações por guardar; isto mostra o que está guardado."
-      },
+      "default": "Predefinição",
       "languages": {
         "title": "Idiomas",
         "intro": "Cada idioma desta lista é obtido para cada título; os perfis escolhem entre eles o idioma das suas descrições. Cada perfil escolhe o seu próprio idioma da interface. Cada idioma adicional custa um pedido por título e temporada.",

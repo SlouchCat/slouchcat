@@ -40,8 +40,6 @@ import type {
   RelinkPairList,
   JobTypeInfo,
   Library,
-  LibraryMetadata,
-  LibraryMetadataUpdate,
   MetadataProviderInfo,
   MetadataSettings,
   MetadataSettingsUpdate,
@@ -574,19 +572,6 @@ export const metadataSettingsQuery = queryOptions({
 
 export const updateMetadataSettings = (body: MetadataSettingsUpdate): Promise<MetadataSettings> =>
   request(api.PUT('/admin/settings/metadata', { body }));
-
-export const libraryMetadataQuery = (id: number) =>
-  queryOptions({
-    queryKey: ['admin', 'library-metadata', id],
-    queryFn: ({ signal }): Promise<LibraryMetadata> =>
-      request(api.GET('/admin/libraries/{id}/metadata', { params: { path: { id } }, signal })),
-  });
-
-export const updateLibraryMetadata = (
-  id: number,
-  body: LibraryMetadataUpdate,
-): Promise<LibraryMetadata> =>
-  request(api.PUT('/admin/libraries/{id}/metadata', { params: { path: { id } }, body }));
 
 export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadataResponse> =>
   request(api.POST('/admin/metadata/apply', { body }));

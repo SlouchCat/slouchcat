@@ -164,12 +164,10 @@ type Metadata interface {
 	// ProviderLanguages names, per provider, the languages of a text language list it delivers
 	// (ADR 0018, listMetadataProviders): the list being edited, nil = the default's (concept 24).
 	ProviderLanguages(ctx context.Context, langs []string) (map[string][]string, error)
-	// Metadata settings of concept 10 (ADR 0018): the server's settings, a library's deviation
-	// and the apply run (*model.ValidationError, model.ErrNotFound).
+	// Metadata settings of concept 10 (ADR 0018): the server's settings and the apply run per
+	// folder (concept 24; *model.ValidationError).
 	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
 	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
-	LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error)
-	UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error)
 	Apply(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// ListTrailersSystem lists every trailer of a title, unfiltered.
 	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
@@ -687,7 +685,7 @@ func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []
 func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
-	if upd.Content == nil && upd.Providers == nil && upd.Path == nil {
+	if upd.Content == nil && upd.Providers == nil && upd.Path == nil && !upd.SetTextLangs && !upd.SetImages {
 		verr = verr.Add("body", "required")
 	}
 	if upd.Path != nil && len(*upd.Path) > maxLibraryPath {
@@ -712,7 +710,10 @@ func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64
 // (listMetadataProviders, ADR 0015): whether each one is configured, which roles it plays and in
 // the lists of which root contents it may stand. The interface builds its checkbox list from
 // this and shows "no key" and "no German" from it, instead of a table of its own.
-func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error) {
+//
+// textLangs is the text language list being edited (concept 24 3.3: the default's or a folder's);
+// nil = the default's.
+func (s *Service) ListMetadataProviders(ctx context.Context, textLangs []string) ([]model.MetadataProviderInfo, error) {
 	tmdbKey, err := s.TMDBKey(ctx)
 	if err != nil {
 		return nil, err
@@ -725,11 +726,11 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 	if err != nil {
 		return nil, err
 	}
-	// The languages of the server's list each provider delivers (ADR 0018; a language of the list
-	// missing at a provider is skipped there).
+	// The languages of the list each provider delivers (ADR 0018; a language of the list missing
+	// at a provider is skipped there).
 	langs := map[string][]string{model.ProviderTMDB: {"de", "en"}, model.ProviderTVDB: {"de", "en"}, model.ProviderAniList: {"en"}}
 	if s.meta != nil {
-		pl, err := s.meta.ProviderLanguages(ctx, nil)
+		pl, err := s.meta.ProviderLanguages(ctx, textLangs)
 		if err != nil {
 			return nil, err
 		}

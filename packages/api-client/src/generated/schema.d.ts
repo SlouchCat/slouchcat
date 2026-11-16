@@ -2437,36 +2437,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/libraries/{id}/metadata": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        /**
-         * The metadata deviation of a library (concept 10, ADR 0018)
-         * @description The deviation of the library from the server (`textLangs`, `images`; `null` = like the
-         *     server) and the effective values the jobs use for its titles. 404 for an unknown library.
-         */
-        get: operations["getLibraryMetadata"];
-        /**
-         * Change the metadata deviation of a library
-         * @description `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
-         *     "like the server". A library's language list need not hold `de` or `en` (contract 1.34.0,
-         *     ADR 0033; `ui_lang_required` is gone).
-         *     Nothing is queued (F-8); the answer names the affected titles of the library.
-         */
-        put: operations["updateLibraryMetadata"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/metadata/apply": {
         parameters: {
             query?: never;
@@ -2508,6 +2478,8 @@ export interface paths {
          *     list, `fill`: may follow), the root contents the provider may stand in the list of, and the
          *     text languages it delivers (the hint "delivers no German" for AniList). The interface offers
          *     nothing this list does not allow; the server checks the same rules again on every write.
+         *     Since contract 1.40.0 (concept 24 section 3.3) `textLangs` names the text language list being
+         *     edited (the default's or a folder's); without it `languages` refers to the default's list.
          */
         get: operations["listMetadataProviders"];
         put?: never;
@@ -7564,31 +7536,27 @@ export interface components {
             tmdbIncludeAdult: boolean;
             fanartEnabled: boolean;
         };
-        /** @description The image deviation of a library: chains and switchable kinds. */
-        LibraryImages: {
-            langs: components["schemas"]["ImageLangs"];
+        /**
+         * @description The own images of a video folder (concept 24 section 3.1, ADR 0036): the language chain per
+         *     image kind and the switchable kinds that are on. A kind left out of `langs` follows the
+         *     default's chain; `kinds` is complete, `[]` means no logo, season poster and episode still.
+         */
+        RootImages: {
+            /** @description Chains per kind (`poster`, `backdrop`, `logo`); `""` = without text. */
+            langs: {
+                poster?: string[];
+                backdrop?: string[];
+                logo?: string[];
+            };
             kinds: ("logo" | "season_poster" | "episode_still")[];
         };
-        /** @description The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5). */
-        LibraryMetadata: {
-            /** Format: int64 */
-            libraryId: number;
-            /** @description The library's own text language list, or `null` for the server's. */
-            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
-            /** @description The library's own image chains and kinds, or `null` for the server's. */
-            images?: components["schemas"]["LibraryImages"] | null;
-            effective: components["schemas"]["MetadataSettings"];
-            /** @description Matched films and series of the library an `applyMetadata` would queue. */
-            affectedTitles: number;
-        };
-        /** @description Replaces the deviation; a field left out or `null` means "like the server". */
-        LibraryMetadataUpdate: {
-            textLangs?: string[] | null;
-            images?: components["schemas"]["LibraryImages"] | null;
-        };
         ApplyMetadataRequest: {
-            /** @description The libraries to apply to; left out = every library. */
-            libraryIds?: number[];
+            /**
+             * @description Since contract 1.40.0 (replaces `libraryIds`, concept 24 section 3.3): the folders to apply
+             *     to; left out or empty = every folder. A folder means the titles whose home folder it is
+             *     (ADR 0036); an unknown folder is `rootIds` `unknown_root`.
+             */
+            rootIds?: number[];
             /** @description `texts` queues one `metadata.match` per title (texts, then fill and images follow); `images` alone queues only `metadata.fill` and `image.fetch`. */
             what: ("texts" | "images")[];
         };
@@ -7598,7 +7566,7 @@ export interface components {
              * @description The queued `metadata.apply` run (the parent; the children show on the jobs page).
              */
             jobId: number;
-            /** @description Matched films and series the run will queue. */
+            /** @description Matched films and series the run will queue (whose home folder is one of the folders). */
             titles: number;
         };
         /** @description One provider as `listMetadataProviders` describes it. */
@@ -7610,9 +7578,10 @@ export interface components {
             /** @description The root contents the provider may stand in the list of. */
             contents: components["schemas"]["RootContent"][];
             /**
-             * @description Text languages the provider delivers out of the server's metadata language list (ADR 0018):
-             *     the languages of the list it knows, in the list's order; empty for the local reader. A
-             *     language of the list that is missing here is skipped at that provider.
+             * @description Text languages the provider delivers out of a metadata language list (ADR 0018): the
+             *     default's, or since contract 1.40.0 the list named by `textLangs`; the languages of the
+             *     list it knows, in the list's order; empty for the local reader. A language of the list
+             *     that is missing here is skipped at that provider.
              */
             languages: string[];
         };
@@ -7873,6 +7842,12 @@ export interface components {
             /** @description Last ffprobe failure; set means unplayable (B-9). */
             probeError?: string;
         };
+        /** @description The home folder of a title (since contract 1.40.0). */
+        AdminItemHomeRoot: {
+            /** Format: int64 */
+            id: number;
+            path: string;
+        };
         /** @description Administration view of a title; not an `ItemRef` (unfiltered, admin only). */
         AdminItem: {
             id: components["schemas"]["ItemID"];
@@ -7882,6 +7857,13 @@ export interface components {
             year?: number;
             /** Format: int64 */
             libraryId: number;
+            /**
+             * @description Since contract 1.40.0 (concept 24 section 3.2, ADR 0036): the title's home folder, whose
+             *     languages, images and provider list it follows; a season, episode or extra names its
+             *     title's. Absent without one (a podcast only from its feed, a title whose files are all
+             *     missing since its folder went).
+             */
+            homeRoot?: components["schemas"]["AdminItemHomeRoot"];
             parentId?: components["schemas"]["ItemID"];
             seasonNumber?: number;
             episodeNumber?: number;
@@ -8317,15 +8299,28 @@ export interface components {
              *     (`providers_not_allowed` otherwise).
              */
             providers: components["schemas"]["MetadataProvider"][];
+            /**
+             * @description Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages in order;
+             *     left out or `null` = like the default. Video folders only (`not_allowed` otherwise).
+             */
+            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
+            /**
+             * @description Since contract 1.40.0: the folder's own images; left out or `null` = like the default.
+             *     Video folders only (`not_allowed` otherwise).
+             */
+            images?: components["schemas"]["RootImages"] | null;
         };
         /** @description The folders `addLibraryRoot` adds in one go (F-13). */
         LibraryRootsRequest: {
             roots: components["schemas"]["LibraryRootRequest"][];
         };
         /**
-         * @description A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers` and
-         *     `path`. A content change empties the folder's titles like a removal and therefore repeats
-         *     the path; a new path keeps them and cannot be combined with a content change.
+         * @description A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers`, `path`,
+         *     `textLangs` and `images`. A content change empties the folder's titles like a removal and
+         *     therefore repeats the path; a new path keeps them and cannot be combined with a content
+         *     change. `textLangs` and `images` (since contract 1.40.0, concept 24 section 3.6) have three
+         *     states each: left out = unchanged, `null` = like the default, a value = the folder's own.
+         *     They change no title row: the titles whose home folder it is read them live (ADR 0036).
          */
         LibraryRootUpdate: {
             /**
@@ -8339,6 +8334,10 @@ export interface components {
             providers?: components["schemas"]["MetadataProvider"][];
             /** @description The folder's path, repeated by the administrator; required for a content change. */
             confirmPath?: string;
+            /** @description The folder's own text languages in order, or `null` for the default's. Video folders only. */
+            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
+            /** @description The folder's own images, or `null` for the default's. Video folders only. */
+            images?: components["schemas"]["RootImages"] | null;
         };
         /**
          * @description The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
@@ -8718,6 +8717,19 @@ export interface components {
             itemCount: number;
             /** @description Media files registered in this folder; they all go with the folder. */
             fileCount: number;
+            /**
+             * @description Since contract 1.40.0 (concept 24, ADR 0036): the folder's own text languages, or `null`
+             *     when it follows the default (always `null` for audiobook and podcast folders).
+             */
+            textLangs: components["schemas"]["MetadataLanguage"][] | null;
+            /** @description Since contract 1.40.0: the folder's own images, or `null` when it follows the default. */
+            images: components["schemas"]["RootImages"] | null;
+            /**
+             * @description Since contract 1.40.0: the films, series, audiobooks and podcasts whose home folder this
+             *     folder is (the folder of their oldest present file, ADR 0036); its settings and its
+             *     provider list apply to them.
+             */
+            homeTitleCount: number;
             /**
              * @description The folder's file system is mounted read-only (statfs, checked without writing; ADR
              *     0032), so Slouchcat cannot delete a file in it. Absent when the check did not answer in
@@ -16624,85 +16636,6 @@ export interface operations {
             };
         };
     };
-    getLibraryMetadata: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deviation and effective values. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LibraryMetadata"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown library. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    updateLibraryMetadata: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LibraryMetadataUpdate"];
-            };
-        };
-        responses: {
-            /** @description Deviation and effective values. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LibraryMetadata"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown library. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description `validation_failed` (see `errors`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     applyMetadata: {
         parameters: {
             query?: never;
@@ -16740,7 +16673,10 @@ export interface operations {
     };
     listMetadataProviders: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The text language list the `languages` of each provider refer to, in its order. */
+                textLangs?: components["schemas"]["MetadataLanguage"][];
+            };
             header?: never;
             path?: never;
             cookie?: never;

@@ -1884,11 +1884,8 @@
         "kind": "Tipo",
         "state": "Estado",
         "counts": "Títulos · arquivos",
-        "folders": "Pastas",
-        "metadata": "Metadados"
+        "folders": "Pastas"
       },
-      "none": "–",
-      "noMetadata": "Sem escopo de metadados",
       "roots": "Pastas",
       "fsType": "Sistema de arquivos {{type}}",
       "watch": {
@@ -2019,11 +2016,6 @@
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "como o servidor",
-        "texts": "idiomas diferentes",
-        "images": "imagens diferentes",
-        "both": "idiomas e imagens diferentes",
-        "link": "Metadados da biblioteca",
         "audiobooksLink": "Fontes para audiolivros"
       },
       "trickplay": {
@@ -5033,7 +5025,6 @@
       "areas": {
         "label": "Áreas",
         "changed": "Alterado · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Pôster {{poster}}, imagem de fundo {{backdrop}}",
         "sources": {
           "local": "Arquivos locais",
@@ -5043,18 +5034,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Vale para",
-        "server": "Padrão",
-        "serverHint": "Vale para todas as bibliotecas sem divergência própria.",
-        "libraryHint": "{{name}} usa o padrão. Ative “Idiomas personalizados” ou “Imagens personalizadas” para alterar idiomas ou imagens só desta biblioteca.",
-        "deviates": "personalizado",
-        "textsDeviate": "Idiomas personalizados",
-        "imagesDeviate": "Imagens personalizadas",
-        "likeServer": "como o servidor",
-        "changed": "{{name}} (alterado)",
-        "serverDirty": "O padrão tem alterações não salvas; aqui aparece o que está salvo."
-      },
+      "default": "Padrão",
       "languages": {
         "title": "Idiomas",
         "intro": "Cada idioma desta lista é buscado para cada título; os perfis escolhem entre eles o idioma das suas descrições. O idioma da interface cada perfil escolhe por conta própria. Cada idioma a mais custa uma solicitação por título e temporada.",

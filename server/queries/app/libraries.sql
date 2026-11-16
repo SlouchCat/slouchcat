@@ -19,8 +19,9 @@ WHERE id = @id;
 
 -- name: InsertLibraryRoot :one
 -- content and providers come from the request; the column defaults only serve migration 00023.
-INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
-VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @now)
+-- text_langs and images are the folder's own settings (NULL = like the default, ADR 0036).
+INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, text_langs, images, created_at)
+VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @text_langs, @images, @now)
 RETURNING *;
 
 -- name: UpdateLibraryRoot :one

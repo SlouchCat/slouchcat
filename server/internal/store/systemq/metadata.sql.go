@@ -49,6 +49,20 @@ func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams
 	return err
 }
 
+const countAllItemsForApply = `-- name: CountAllItemsForApply :one
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series that metadata.apply over every folder queues: also those without a
+// home folder (ADR 0036), which no single folder names.
+func (q *Queries) CountAllItemsForApply(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllItemsForApply)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countForeignMediaFilesInDir = `-- name: CountForeignMediaFilesInDir :one
 SELECT count(*) FROM media_files
 WHERE root_id = ?1 AND item_id <> ?2 AND missing_since IS NULL
@@ -72,54 +86,12 @@ func (q *Queries) CountForeignMediaFilesInDir(ctx context.Context, arg CountFore
 	return count, err
 }
 
-const countItemsForMetadataApply = `-- name: CountItemsForMetadataApply :one
-SELECT count(*) FROM items
-WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
-  AND (?1 = 1 OR library_id IN (/*SLICE:library_ids*/?))
-`
-
-type CountItemsForMetadataApplyParams struct {
-	AllLibraries interface{}
-	LibraryIds   []int64
-}
-
-// Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
-func (q *Queries) CountItemsForMetadataApply(ctx context.Context, arg CountItemsForMetadataApplyParams) (int64, error) {
-	query := countItemsForMetadataApply
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.AllLibraries)
-	if len(arg.LibraryIds) > 0 {
-		for _, v := range arg.LibraryIds {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(arg.LibraryIds))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
-	}
-	row := q.db.QueryRowContext(ctx, query, queryParams...)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const countItemsWithLocalImages = `-- name: CountItemsWithLocalImages :one
 SELECT count(DISTINCT item_id) FROM item_local_images
 `
 
 func (q *Queries) CountItemsWithLocalImages(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countItemsWithLocalImages)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countLibraryItemsForApply = `-- name: CountLibraryItemsForApply :one
-SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
-`
-
-// Matched films and series of one library, the titles metadata.apply queues for it.
-func (q *Queries) CountLibraryItemsForApply(ctx context.Context, libraryID int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countLibraryItemsForApply, libraryID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -136,6 +108,21 @@ WHERE deleted_at IS NULL AND kind IN ('movie', 'series')
 // How many titles metadata.ratings_reread reads (the same filter as ListRatingRereadItems).
 func (q *Queries) CountRatingRereadItems(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countRatingRereadItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRootItemsForApply = `-- name: CountRootItemsForApply :one
+SELECT count(*) FROM items
+WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series whose home folder is the folder (ADR 0036), the titles metadata.apply
+// queues for it.
+func (q *Queries) CountRootItemsForApply(ctx context.Context, rootID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRootItemsForApply, rootID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -283,6 +270,40 @@ func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, err
 	return value, err
 }
 
+const listAllApplyItems = `-- name: ListAllApplyItems :many
+SELECT id, kind FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
+`
+
+type ListAllApplyItemsRow struct {
+	ID   string
+	Kind string
+}
+
+func (q *Queries) ListAllApplyItems(ctx context.Context) ([]ListAllApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllApplyItems)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllApplyItemsRow{}
+	for rows.Next() {
+		var i ListAllApplyItemsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAllItemIDs = `-- name: ListAllItemIDs :many
 SELECT id FROM items
 `
@@ -313,7 +334,10 @@ func (q *Queries) ListAllItemIDs(ctx context.Context) ([]string, error) {
 }
 
 const listApplyItems = `-- name: ListApplyItems :many
-SELECT id, kind FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id
+SELECT id, kind FROM items
+WHERE root_id = CAST(?1 AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id
 `
 
 type ListApplyItemsRow struct {
@@ -321,9 +345,9 @@ type ListApplyItemsRow struct {
 	Kind string
 }
 
-// The matched films and series of a library in id order, for metadata.apply (one match per title).
-func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListApplyItemsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listApplyItems, libraryID)
+// The matched films and series of a folder in id order, for metadata.apply (one match per title).
+func (q *Queries) ListApplyItems(ctx context.Context, rootID int64) ([]ListApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplyItems, rootID)
 	if err != nil {
 		return nil, err
 	}
@@ -1300,6 +1324,71 @@ func (q *Queries) ListRatingRereadItems(ctx context.Context, arg ListRatingRerea
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootIDs = `-- name: ListRootIDs :many
+SELECT id FROM library_roots ORDER BY id
+`
+
+func (q *Queries) ListRootIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listRootIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootIDsOfLibraries = `-- name: ListRootIDsOfLibraries :many
+SELECT id FROM library_roots WHERE library_id IN (/*SLICE:library_ids*/?) ORDER BY id
+`
+
+// The folders of libraries, for a metadata.apply run queued before contract 1.40.0 with libraryIds.
+func (q *Queries) ListRootIDsOfLibraries(ctx context.Context, libraryIds []int64) ([]int64, error) {
+	query := listRootIDsOfLibraries
+	var queryParams []interface{}
+	if len(libraryIds) > 0 {
+		for _, v := range libraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(libraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -103,9 +103,9 @@ export type MetadataProviderInfo = components['schemas']['MetadataProviderInfo']
 export type MetadataSettings = components['schemas']['MetadataSettings'];
 export type MetadataSettingsUpdate = components['schemas']['MetadataSettingsUpdate'];
 export type ImageLangs = components['schemas']['ImageLangs'];
-export type LibraryImages = components['schemas']['LibraryImages'];
-export type LibraryMetadata = components['schemas']['LibraryMetadata'];
-export type LibraryMetadataUpdate = components['schemas']['LibraryMetadataUpdate'];
+// Concept 24 (contract 1.40.0): a folder's own images; a title's home folder.
+export type RootImages = components['schemas']['RootImages'];
+export type AdminItemHomeRoot = components['schemas']['AdminItemHomeRoot'];
 export type ApplyMetadataRequest = components['schemas']['ApplyMetadataRequest'];
 export type ApplyMetadataResponse = components['schemas']['ApplyMetadataResponse'];
 export type ImageKind = components['schemas']['ImageKind'];

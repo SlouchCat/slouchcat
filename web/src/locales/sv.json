@@ -1831,11 +1831,8 @@
         "kind": "Typ",
         "state": "Status",
         "counts": "Titlar · filer",
-        "folders": "Mappar",
-        "metadata": "Metadata"
+        "folders": "Mappar"
       },
-      "none": "–",
-      "noMetadata": "Inget metadataomfång",
       "roots": "Mappar",
       "fsType": "Filsystem {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "som servern",
-        "texts": "språk avviker",
-        "images": "bilder avviker",
-        "both": "språk och bilder avviker",
-        "link": "Bibliotekets metadata",
         "audiobooksLink": "Källor för ljudböcker"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Områden",
         "changed": "Ändrat · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Affisch {{poster}}, bakgrund {{backdrop}}",
         "sources": {
           "local": "Lokala filer",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Gäller för",
-        "server": "Standard",
-        "serverHint": "Gäller alla bibliotek utan egen avvikelse.",
-        "libraryHint": "{{name}} använder standarden. Slå på ”avviker” för att ändra språk eller bilder bara för det här biblioteket.",
-        "deviates": "avviker",
-        "textsDeviate": "Språk avviker",
-        "imagesDeviate": "Bilder avviker",
-        "likeServer": "som servern",
-        "changed": "{{name}} (ändrad)",
-        "serverDirty": "Standarden har osparade ändringar. Här visas det som är sparat."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Språk",
         "intro": "Varje språk här hämtas för varje titel. Profilerna väljer språket för sina beskrivningar bland dem. Gränssnittets språk väljer varje profil själv. Varje ytterligare språk kostar en förfrågan per titel och säsong.",

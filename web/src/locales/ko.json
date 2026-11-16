@@ -1778,11 +1778,8 @@
         "kind": "유형",
         "state": "상태",
         "counts": "작품 · 파일",
-        "folders": "폴더",
-        "metadata": "메타데이터"
+        "folders": "폴더"
       },
-      "none": "–",
-      "noMetadata": "메타데이터 적용 범위 없음",
       "roots": "폴더",
       "fsType": "파일 시스템 {{type}}",
       "watch": {
@@ -1907,11 +1904,6 @@
       "noFolder": "폴더 없음: “폴더”에서 폴더를 추가할 때까지 아무것도 스캔하지 않아요.",
       "rootSummary_other": "{{content}} {{count}}개",
       "metadata": {
-        "like": "서버와 같음",
-        "texts": "언어 다름",
-        "images": "이미지 다름",
-        "both": "언어와 이미지 다름",
-        "link": "라이브러리 메타데이터",
         "audiobooksLink": "오디오북 소스"
       },
       "trickplay": {
@@ -4701,7 +4693,6 @@
       "areas": {
         "label": "영역",
         "changed": "변경됨 · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "포스터 {{poster}}, 배경 {{backdrop}}",
         "sources": {
           "local": "로컬 파일",
@@ -4711,18 +4702,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "적용 대상",
-        "server": "기본값",
-        "serverHint": "별도 설정이 없는 모든 라이브러리에 적용돼요.",
-        "libraryHint": "{{name}}은(는) 기본값을 사용해요. 이 라이브러리에서만 언어나 이미지를 바꾸려면 “별도 설정”을 켜세요.",
-        "deviates": "별도 설정",
-        "textsDeviate": "언어 별도 설정",
-        "imagesDeviate": "이미지 별도 설정",
-        "likeServer": "서버와 같음",
-        "changed": "{{name}}(변경됨)",
-        "serverDirty": "기본값에 저장하지 않은 변경 사항이 있어요. 여기에는 저장된 상태가 표시돼요."
-      },
+      "default": "기본값",
       "languages": {
         "title": "언어",
         "intro": "여기 있는 모든 언어를 작품마다 가져와요. 프로필은 그중에서 설명 언어를 골라요. 인터페이스 언어는 프로필마다 따로 정해요. 언어를 하나 더 추가할 때마다 작품과 시즌당 요청이 한 번씩 늘어나요.",

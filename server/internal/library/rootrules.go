@@ -30,8 +30,37 @@ type preparedRoot struct {
 	path      string
 	content   string
 	providers []string
+	meta      model.RootMetadata
 	fsType    string
 	watch     string
+}
+
+// checkMetadata checks a folder's own text languages and images (concept 24 3.1): only a video
+// folder has them (not_allowed), and with WithRootMetadataCheck their codes and kinds. Field names
+// carry prefix ("roots[0]." or "").
+func (s *Service) checkMetadata(content string, m model.RootMetadata, prefix string) []model.FieldError {
+	if m.TextLangs == nil && m.Images == nil {
+		return nil
+	}
+	var out []model.FieldError
+	if content != model.RootMovie && content != model.RootSeries {
+		if m.TextLangs != nil {
+			out = append(out, model.FieldError{Field: prefix + "textLangs", Code: "not_allowed"})
+		}
+		if m.Images != nil {
+			out = append(out, model.FieldError{Field: prefix + "images", Code: "not_allowed"})
+		}
+		return out
+	}
+	if s.checkRootMetadata == nil {
+		return nil
+	}
+	if found := s.checkRootMetadata(m); found != nil {
+		for _, f := range found.Fields {
+			out = append(out, model.FieldError{Field: prefix + f.Field, Code: f.Code})
+		}
+	}
+	return out
 }
 
 // prepareRoots applies the rules to the folders of a request for a library of family kind.
@@ -56,6 +85,10 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 			verr = verr.Add(name+"providers", model.CodeProvidersNotAllowed)
 			ok = false
 		}
+		for _, f := range s.checkMetadata(r.Content, r.Metadata, name) {
+			verr = verr.Add(f.Field, f.Code)
+			ok = false
+		}
 		clean, err := s.prepareRootPath(ctx, r.Path, seen, 0)
 		switch {
 		case errors.Is(err, errRootOverlap):
@@ -77,7 +110,7 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 			continue
 		}
 		watch, _ := WatchMode(string(fsType))
-		out = append(out, preparedRoot{path: clean, content: r.Content, providers: r.Providers, fsType: string(fsType), watch: watch})
+		out = append(out, preparedRoot{path: clean, content: r.Content, providers: r.Providers, meta: r.Metadata, fsType: string(fsType), watch: watch})
 	}
 	if verr != nil {
 		return nil, verr
@@ -117,8 +150,9 @@ func (s *Service) ValidateRoots(ctx context.Context, kind string, reqs []model.L
 
 // insertRoot writes one prepared folder.
 func insertRoot(ctx context.Context, q *appq.Queries, libraryID int64, r preparedRoot, now int64) (appq.LibraryRoot, error) {
+	textLangs, images := model.RootMetadataColumns(r.meta)
 	return q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{
 		LibraryID: libraryID, Path: r.path, FsType: r.fsType, Watch: r.watch,
-		Content: r.content, Providers: model.ProvidersJSON(r.providers), Now: now,
+		Content: r.content, Providers: model.ProvidersJSON(r.providers), TextLangs: textLangs, Images: images, Now: now,
 	})
 }

@@ -13,12 +13,14 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // metadata.apply (concept 10 section 6.5, ADR 0018): the event job that brings existing titles
 // up to the current metadata settings. The administrator queues it with applyMetadata ("Jetzt
 // anwenden", F-8); saving a setting never queues it. The handler walks the matched films and
-// series of the chosen libraries and queues one child per title:
+// series whose home folder is one of the chosen folders (concept 24 3.3, ADR 0036) and queues one
+// child per title:
 //
 //   - what contains "texts": metadata.match (a new fetch as refreshItem does, without the probes),
 //     because only the match asks the providers per language and a folder with one provider runs
@@ -39,16 +41,19 @@ const (
 	ApplyImages = "images"
 )
 
-// applyPayload is the payload of metadata.apply.
+// applyPayload is the payload of metadata.apply. RootIDs names the folders (empty = every folder).
+// LibraryIDs is the scope of a run queued before contract 1.40.0: handleApply turns it into the
+// folders of those libraries and never reads it as "every folder".
 type applyPayload struct {
+	RootIDs    []int64  `json:"rootIds,omitempty"`
 	LibraryIDs []int64  `json:"libraryIds,omitempty"`
 	What       []string `json:"what"`
 }
 
 // ApplyRequest is what applyMetadata queues.
 type ApplyRequest struct {
-	LibraryIDs []int64  // nil or empty = every library
-	What       []string // texts, images
+	RootIDs []int64  // nil or empty = every folder
+	What    []string // texts, images
 }
 
 // ApplyMetadata validates the request, counts the affected titles and queues one metadata.apply
@@ -64,33 +69,36 @@ func (s *Service) ApplyMetadata(ctx context.Context, req ApplyRequest) (int64, i
 			break
 		}
 	}
-	libs, err := s.applyLibraries(ctx, req.LibraryIDs)
+	roots, err := s.applyRoots(ctx, req.RootIDs)
 	if errors.Is(err, model.ErrNotFound) {
-		verr = verr.Add("libraryIds", "unknown_library")
+		verr = verr.Add("rootIds", "unknown_root")
 	} else if err != nil {
 		return 0, 0, err
 	}
 	if verr != nil {
 		return 0, 0, verr
 	}
-	titles, err := s.CountApplyTitles(ctx, libs)
+	titles, err := s.CountApplyTitles(ctx, roots)
 	if err != nil {
 		return 0, 0, err
 	}
 	what := slices.Clone(req.What)
 	sort.Strings(what)
-	payload, err := json.Marshal(applyPayload{LibraryIDs: req.LibraryIDs, What: what})
+	scope := slices.Clone(req.RootIDs)
+	slices.Sort(scope)
+	scope = slices.Compact(scope)
+	payload, err := json.Marshal(applyPayload{RootIDs: scope, What: what})
 	if err != nil {
 		return 0, 0, fmt.Errorf("%s payload: %w", JobApply, err)
 	}
-	keyLibs := make([]string, 0, len(req.LibraryIDs))
-	for _, id := range req.LibraryIDs {
-		keyLibs = append(keyLibs, strconv.FormatInt(id, 10))
+	keyRoots := make([]string, 0, len(scope))
+	for _, id := range scope {
+		keyRoots = append(keyRoots, strconv.FormatInt(id, 10))
 	}
-	sort.Strings(keyLibs)
+	// "roots:" keeps the key apart from a waiting run of contract 1.38.0, whose key named libraries.
 	id, err := s.queue.Enqueue(ctx, jobs.NewJob{
 		Type: JobApply, Priority: applyPriority, Payload: payload,
-		IdempotencyKey: "apply:" + strings.Join(what, "+") + ":" + strings.Join(keyLibs, ","),
+		IdempotencyKey: "apply:" + strings.Join(what, "+") + ":roots:" + strings.Join(keyRoots, ","),
 	})
 	if err != nil {
 		return 0, 0, fmt.Errorf("enqueue %s: %w", JobApply, err)
@@ -98,15 +106,15 @@ func (s *Service) ApplyMetadata(ctx context.Context, req ApplyRequest) (int64, i
 	return id, titles, nil
 }
 
-// applyLibraries resolves the libraries of a request: the given ids (model.ErrNotFound when one
-// is unknown), or every library.
-func (s *Service) applyLibraries(ctx context.Context, ids []int64) ([]int64, error) {
-	all, err := s.read.ListLibraryIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list libraries: %w", err)
-	}
+// applyRoots checks the folders of a request: the given ids (model.ErrNotFound when one is
+// unknown); nil for every title.
+func (s *Service) applyRoots(ctx context.Context, ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
-		return all, nil
+		return nil, nil
+	}
+	all, err := s.read.ListRootIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list folders: %w", err)
 	}
 	for _, id := range ids {
 		if !slices.Contains(all, id) {
@@ -116,24 +124,57 @@ func (s *Service) applyLibraries(ctx context.Context, ids []int64) ([]int64, err
 	return ids, nil
 }
 
-// CountApplyTitles counts the matched films and series of the libraries (every library when
-// libraryIDs is empty): what an apply would queue, the number the settings pages show (F-8).
-func (s *Service) CountApplyTitles(ctx context.Context, libraryIDs []int64) (int, error) {
-	if len(libraryIDs) == 0 {
-		var err error
-		if libraryIDs, err = s.read.ListLibraryIDs(ctx); err != nil {
-			return 0, fmt.Errorf("list libraries: %w", err)
+// CountApplyTitles counts the matched films and series whose home folder is one of the folders;
+// with rootIDs empty every one, also those without a home folder: what an apply would queue, the
+// number the settings page shows (F-8).
+func (s *Service) CountApplyTitles(ctx context.Context, rootIDs []int64) (int, error) {
+	if len(rootIDs) == 0 {
+		n, err := s.read.CountAllItemsForApply(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("count titles: %w", err)
 		}
+		return int(n), nil
 	}
 	total := 0
-	for _, id := range libraryIDs {
-		n, err := s.read.CountLibraryItemsForApply(ctx, id)
+	for _, id := range rootIDs {
+		n, err := s.read.CountRootItemsForApply(ctx, id)
 		if err != nil {
-			return 0, fmt.Errorf("count titles of library %d: %w", id, err)
+			return 0, fmt.Errorf("count titles of folder %d: %w", id, err)
 		}
 		total += int(n)
 	}
 	return total, nil
+}
+
+// runRoots resolves the folders of a queued run: nil and true for every title. A run of contract
+// 1.38.0 names libraries: their folders now, none when they have none or are gone (never "every
+// folder"). Folders removed since the request drop out; when none is left there is nothing to do
+// (nil, false).
+func (s *Service) runRoots(ctx context.Context, p applyPayload) ([]int64, bool, error) {
+	ids := p.RootIDs
+	if len(ids) == 0 && len(p.LibraryIDs) > 0 {
+		var err error
+		if ids, err = s.read.ListRootIDsOfLibraries(ctx, p.LibraryIDs); err != nil {
+			return nil, false, fmt.Errorf("folders of libraries %v: %w", p.LibraryIDs, err)
+		}
+		if len(ids) == 0 {
+			return nil, false, nil
+		}
+	}
+	if len(ids) == 0 {
+		return nil, true, nil
+	}
+	all, err := s.read.ListRootIDs(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("list folders: %w", err)
+	}
+	known := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if slices.Contains(all, id) {
+			known = append(known, id)
+		}
+	}
+	return known, len(known) > 0, nil
 }
 
 func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
@@ -141,24 +182,40 @@ func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
 	if err := json.Unmarshal(j.Payload, &p); err != nil {
 		return fmt.Errorf("%s payload: %w", JobApply, err)
 	}
-	libs, err := s.applyLibraries(ctx, p.LibraryIDs)
-	if errors.Is(err, model.ErrNotFound) {
-		return nil // a library deleted since the request: nothing to do
-	}
+	roots, ok, err := s.runRoots(ctx, p)
 	if err != nil {
 		return err
 	}
+	if !ok {
+		s.log.Info("metadata apply found none of its folders", "roots", p.RootIDs, "libraries", p.LibraryIDs)
+		return nil // the folders or libraries went since the request: nothing to do
+	}
 	texts := slices.Contains(p.What, ApplyTexts)
-	total, err := s.CountApplyTitles(ctx, libs)
+	total, err := s.CountApplyTitles(ctx, roots)
 	if err != nil {
 		return err
 	}
 	done := 0
-	for _, lib := range libs {
-		items, err := s.read.ListApplyItems(ctx, lib)
+	batches := make([][]systemq.ListApplyItemsRow, 0, max(len(roots), 1))
+	if len(roots) == 0 {
+		all, err := s.read.ListAllApplyItems(ctx)
 		if err != nil {
-			return fmt.Errorf("%s: list titles of library %d: %w", JobApply, lib, err)
+			return fmt.Errorf("%s: list titles: %w", JobApply, err)
 		}
+		batch := make([]systemq.ListApplyItemsRow, 0, len(all))
+		for _, it := range all {
+			batch = append(batch, systemq.ListApplyItemsRow(it))
+		}
+		batches = append(batches, batch)
+	}
+	for _, root := range roots {
+		items, err := s.read.ListApplyItems(ctx, root)
+		if err != nil {
+			return fmt.Errorf("%s: list titles of folder %d: %w", JobApply, root, err)
+		}
+		batches = append(batches, items)
+	}
+	for _, items := range batches {
 		for _, it := range items {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -179,7 +236,7 @@ func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
 			jobs.Progress(ctx, int64(done), int64(total), fmt.Sprintf("%d Titel eingereiht", done))
 		}
 	}
-	s.log.Info("metadata apply queued its children", "libraries", len(libs), "titles", done, "what", p.What)
+	s.log.Info("metadata apply queued its children", "folders", len(roots), "every_title", len(roots) == 0, "titles", done, "what", p.What)
 	return nil
 }
 

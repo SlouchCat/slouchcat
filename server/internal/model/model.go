@@ -427,6 +427,14 @@ type AdminItem struct {
 	// sources, nil for a book never tried (contract 1.26.0, concept 19 D6.3).
 	DurationMs *int64
 	BookMatch  *AdminBookMatch
+	// HomeRoot is the title's home folder (concept 24 3.2, ADR 0036), nil without one.
+	HomeRoot *AdminItemHomeRoot
+}
+
+// AdminItemHomeRoot names the home folder of a title.
+type AdminItemHomeRoot struct {
+	ID   int64
+	Path string
 }
 
 // AdminBookMatch is the match of an audiobook (items.book_match_*).
@@ -1616,12 +1624,6 @@ type MetadataSettings struct {
 	LocalImageTitles int
 }
 
-// LibraryImages is the image deviation of a library (concept 10 4.5).
-type LibraryImages struct {
-	Langs map[string][]string
-	Kinds []string
-}
-
 // RootMetadata is what a video folder sets itself (concept 24 section 3.1, ADR 0036): its text
 // languages and its images; nil = like the default. Stored in library_roots.text_langs and
 // .images; the titles whose home folder it is read it live (metadata.Effective).
@@ -1680,19 +1682,10 @@ func ParseRootMetadata(textLangs, images sql.NullString) (RootMetadata, error) {
 	return m, nil
 }
 
-// LibraryMetadata is the deviation of a library (nil = like the server) with the effective values.
-type LibraryMetadata struct {
-	LibraryID      int64
-	TextLangs      *[]string
-	Images         *LibraryImages
-	Effective      MetadataSettings
-	AffectedTitles int
-}
-
 // ApplyMetadataRequest queues metadata.apply (concept 10 6.5).
 type ApplyMetadataRequest struct {
-	LibraryIDs []int64  // empty = every library
-	What       []string // texts, images
+	RootIDs []int64  // the folders (their home titles, ADR 0036); empty = every folder
+	What    []string // texts, images
 }
 
 // ApplyMetadataResult is the queued run and the number of titles it covers.
@@ -1735,6 +1728,9 @@ type LibraryRootRequest struct {
 	Path      string
 	Content   string   // movie, series, audiobook, podcast
 	Providers []string // ordered; the first identifies, the others fill
+	// Metadata is the folder's own text languages and images (concept 24 3.1); nil fields = like
+	// the default. Video folders only.
+	Metadata RootMetadata
 }
 
 // LibraryRootUpdate changes the content, the provider list or the path of a folder
@@ -1746,6 +1742,12 @@ type LibraryRootUpdate struct {
 	Providers   []string // nil = unchanged
 	Path        *string  // nil = unchanged
 	ConfirmPath string
+	// SetTextLangs and SetImages change the folder's own metadata (concept 24 3.6): false =
+	// unchanged; true with a nil value = like the default, with a value = the folder's own.
+	SetTextLangs bool
+	TextLangs    *[]string
+	SetImages    bool
+	Images       *RootImages
 }
 
 // LibraryUpdate changes the name or the default rating of a library (updateLibrary).
@@ -1790,6 +1792,10 @@ type LibraryRoot struct {
 	// ReadOnly: the folder's file system is mounted read-only (ADR 0032); nil when the check did
 	// not answer in time.
 	ReadOnly *bool
+	// Metadata is the folder's own text languages and images (nil fields = like the default) and
+	// HomeTitleCount the titles whose home folder it is (concept 24, ADR 0036).
+	Metadata       RootMetadata
+	HomeTitleCount int
 }
 
 // LibraryScan is the state of the running or last scan.

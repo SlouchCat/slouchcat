@@ -1937,11 +1937,8 @@
         "kind": "Rodzaj",
         "state": "Stan",
         "counts": "Tytuły · pliki",
-        "folders": "Foldery",
-        "metadata": "Metadane"
+        "folders": "Foldery"
       },
-      "none": "–",
-      "noMetadata": "Brak zakresu metadanych",
       "roots": "Foldery",
       "fsType": "System plików {{type}}",
       "watch": {
@@ -2075,11 +2072,6 @@
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "jak na serwerze",
-        "texts": "języki odbiegają",
-        "images": "obrazy odbiegają",
-        "both": "języki i obrazy odbiegają",
-        "link": "Metadane biblioteki",
         "audiobooksLink": "Źródła dla audiobooków"
       },
       "trickplay": {
@@ -5199,7 +5191,6 @@
       "areas": {
         "label": "Obszary",
         "changed": "Zmienione · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakat {{poster}}, tło {{backdrop}}",
         "sources": {
           "local": "Pliki lokalne",
@@ -5209,18 +5200,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Zakres",
-        "server": "Domyślne",
-        "serverHint": "Dotyczy wszystkich bibliotek bez własnych odstępstw.",
-        "libraryHint": "{{name}} używa ustawień domyślnych. Włącz „odbiega”, aby zmienić języki lub obrazy tylko dla tej biblioteki.",
-        "deviates": "odbiega",
-        "textsDeviate": "Języki odbiegają",
-        "imagesDeviate": "Obrazy odbiegają",
-        "likeServer": "jak na serwerze",
-        "changed": "{{name}} (zmienione)",
-        "serverDirty": "Ustawienia domyślne mają niezapisane zmiany; tutaj widać zapisany stan."
-      },
+      "default": "Domyślne",
       "languages": {
         "title": "Języki",
         "intro": "Każdy język z tej listy jest pobierany dla każdego tytułu; profile wybierają spośród nich język swoich opisów. Język interfejsu każdy profil wybiera sam. Każdy kolejny język to jedno zapytanie więcej na tytuł i sezon.",

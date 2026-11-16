@@ -1831,11 +1831,8 @@
         "kind": "Tyyppi",
         "state": "Tila",
         "counts": "Nimikkeet · tiedostot",
-        "folders": "Kansiot",
-        "metadata": "Metatiedot"
+        "folders": "Kansiot"
       },
-      "none": "–",
-      "noMetadata": "Ei metatietojen aluetta",
       "roots": "Kansiot",
       "fsType": "Tiedostojärjestelmä {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "kuten palvelimella",
-        "texts": "kielet poikkeavat",
-        "images": "kuvat poikkeavat",
-        "both": "kielet ja kuvat poikkeavat",
-        "link": "Kirjaston metatiedot",
         "audiobooksLink": "Äänikirjojen lähteet"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Alueet",
         "changed": "Muutettu · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Juliste {{poster}}, taustakuva {{backdrop}}",
         "sources": {
           "local": "Paikalliset tiedostot",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Koskee",
-        "server": "Oletus",
-        "serverHint": "Koskee jokaista kirjastoa, jolla ei ole omaa poikkeamaa.",
-        "libraryHint": "{{name}} käyttää oletusta. Ota ”poikkeaa” käyttöön muuttaaksesi kieliä tai kuvia vain tälle kirjastolle.",
-        "deviates": "poikkeaa",
-        "textsDeviate": "Kielet poikkeavat",
-        "imagesDeviate": "Kuvat poikkeavat",
-        "likeServer": "kuten palvelimella",
-        "changed": "{{name}} (muutettu)",
-        "serverDirty": "Oletuksessa on tallentamattomia muutoksia; tämä näyttää tallennetun."
-      },
+      "default": "Oletus",
       "languages": {
         "title": "Kielet",
         "intro": "Jokainen tässä oleva kieli haetaan jokaiselle nimikkeelle; profiilit valitsevat niistä kuvaustensa kielen. Käyttöliittymän kielen kukin profiili valitsee itse. Jokainen lisäkieli maksaa yhden pyynnön nimikettä ja kautta kohden.",

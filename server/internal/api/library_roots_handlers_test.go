@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -172,5 +174,62 @@ func TestListMetadataProvidersEndpoint(t *testing.T) {
 			len(book.Languages) != 0 || book.Configured != (id != gen.MetadataProviderGooglebooks) {
 			t.Fatalf("%s = %+v", id, book)
 		}
+	}
+}
+
+// Concept 24 section 3.6 (contract 1.40.0): a folder's own text languages and images through the
+// contract. A new folder takes them or follows the default (null); on a change each has three
+// states: left out = unchanged, null = like the default, a value = the folder's own, and an own
+// image setting with no kind on is kept as such.
+func TestFolderMetadataThroughTheContract(t *testing.T) {
+	t.Parallel()
+	e := newAuthEnv(t)
+	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
+	wantStatus(t, rec, http.StatusCreated)
+	owner := sessionCookie(t, rec)
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries", map[string]any{"name": "Anime", "kind": "video", "roots": []any{
+		map[string]any{"path": "/media/Anime", "content": "series", "providers": []string{"tvdb", "tmdb"}, "textLangs": []string{"ja", "en"}},
+	}}, owner)
+	wantStatus(t, rec, http.StatusCreated)
+	root := func(rec *httptest.ResponseRecorder) map[string]json.RawMessage {
+		t.Helper()
+		var lib struct {
+			ID    int64                        `json:"id"`
+			Roots []map[string]json.RawMessage `json:"roots"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil || len(lib.Roots) == 0 {
+			t.Fatalf("library %s: %v", rec.Body.String(), err)
+		}
+		return lib.Roots[len(lib.Roots)-1]
+	}
+	got := root(rec)
+	if string(got["textLangs"]) != `["ja","en"]` || string(got["images"]) != "null" || string(got["homeTitleCount"]) != "0" {
+		t.Fatalf("new folder: textLangs %s images %s homeTitleCount %s", got["textLangs"], got["images"], got["homeTitleCount"])
+	}
+	var lib gen.Library
+	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
+		t.Fatal(err)
+	}
+	path := fmt.Sprintf("/api/v1/admin/libraries/%d/roots/%d", lib.Id, lib.Roots[0].Id)
+
+	// Own images with no kind on; textLangs left out stays.
+	rec = e.call(t, http.MethodPatch, path, map[string]any{"images": map[string]any{"langs": map[string]any{"poster": []string{"", "ja"}}, "kinds": []string{}}}, owner)
+	wantStatus(t, rec, http.StatusOK)
+	got = root(rec)
+	if string(got["textLangs"]) != `["ja","en"]` || !strings.Contains(string(got["images"]), `"kinds":[]`) || !strings.Contains(string(got["images"]), `"poster":["","ja"]`) {
+		t.Fatalf("after the images: textLangs %s images %s", got["textLangs"], got["images"])
+	}
+	// null = like the default, for each field on its own.
+	rec = e.call(t, http.MethodPatch, path, map[string]any{"textLangs": nil}, owner)
+	wantStatus(t, rec, http.StatusOK)
+	got = root(rec)
+	if string(got["textLangs"]) != "null" || string(got["images"]) == "null" {
+		t.Fatalf("after textLangs null: textLangs %s images %s", got["textLangs"], got["images"])
+	}
+	// Not a list: a field error, nothing written.
+	rec = e.call(t, http.MethodPatch, path, map[string]any{"textLangs": "ja"}, owner)
+	wantStatus(t, rec, http.StatusUnprocessableEntity)
+	if f := fieldProblem(t, rec); f != "textLangs invalid_value" {
+		t.Fatalf("textLangs as a string: %s", f)
 	}
 }

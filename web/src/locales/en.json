@@ -1809,11 +1809,8 @@
         "kind": "Kind",
         "state": "State",
         "counts": "Titles · files",
-        "folders": "Folders",
-        "metadata": "Metadata"
+        "folders": "Folders"
       },
-      "none": "–",
-      "noMetadata": "No metadata scope",
       "roots": "Folders",
       "fsType": "File system {{type}}",
       "watch": {
@@ -1941,11 +1938,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "like the server",
-        "texts": "languages deviate",
-        "images": "images deviate",
-        "both": "languages and images deviate",
-        "link": "Metadata of the library",
         "audiobooksLink": "Sources for audiobooks"
       },
       "trickplay": {
@@ -4831,7 +4823,7 @@
     },
     "metadata": {
       "title": "Metadata",
-      "intro": "Which languages the metadata sources deliver, which images in which language and quality, and which country decides the age rating first. The default applies to every library; a library may deviate for languages and images.",
+      "intro": "Which languages the metadata sources deliver, which images in which language and quality, and which country decides the age rating first. The default applies to every folder without settings of its own; a folder may have its own languages and images.",
       "links": {
         "roots": "The order of the sources is set per folder under Libraries.",
         "jobs": "The schedules are under Background jobs.",
@@ -4845,7 +4837,6 @@
       "areas": {
         "label": "Areas",
         "changed": "Changed · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Poster {{poster}}, backdrop {{backdrop}}",
         "sources": {
           "local": "Local files",
@@ -4855,18 +4846,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Applies to",
-        "server": "Default",
-        "serverHint": "Applies to every library without a deviation of its own.",
-        "libraryHint": "{{name}} uses the default. Switch «deviates» on to change languages or images for this library only.",
-        "deviates": "deviates",
-        "textsDeviate": "Languages deviate",
-        "imagesDeviate": "Images deviate",
-        "likeServer": "like the server",
-        "changed": "{{name}} (changed)",
-        "serverDirty": "The default has unsaved changes; this shows what is saved."
-      },
+      "default": "Default",
       "languages": {
         "title": "Languages",
         "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. Each profile chooses its own interface language. Every further language costs one request per title and season.",
@@ -4947,7 +4927,7 @@
         "texts": "Texts only",
         "images": "Images only",
         "where": "Where",
-        "all": "Every library",
+        "all": "Every folder",
         "titles_one": "{{count}} title",
         "titles_other": "{{count}} titles",
         "run": "Apply now",

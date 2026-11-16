@@ -1884,11 +1884,8 @@
         "kind": "Tipo",
         "state": "Estado",
         "counts": "Títulos · archivos",
-        "folders": "Carpetas",
-        "metadata": "Metadatos"
+        "folders": "Carpetas"
       },
-      "none": "–",
-      "noMetadata": "Sin ámbito de metadatos",
       "roots": "Carpetas",
       "fsType": "Sistema de archivos {{type}}",
       "watch": {
@@ -2019,11 +2016,6 @@
       "rootSummary_many": "{{count}} de {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "como el servidor",
-        "texts": "idiomas distintos",
-        "images": "imágenes distintas",
-        "both": "idiomas e imágenes distintos",
-        "link": "Metadatos de la biblioteca",
         "audiobooksLink": "Fuentes de audiolibros"
       },
       "trickplay": {
@@ -5033,7 +5025,6 @@
       "areas": {
         "label": "Secciones",
         "changed": "Modificado · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Póster {{poster}}, fondo {{backdrop}}",
         "sources": {
           "local": "Archivos locales",
@@ -5043,18 +5034,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Ámbito",
-        "server": "Predeterminado",
-        "serverHint": "Se aplica a todas las bibliotecas sin una diferencia propia.",
-        "libraryHint": "{{name}} usa el valor predeterminado. Activa «distinto» para cambiar los idiomas o las imágenes solo en esta biblioteca.",
-        "deviates": "distinto",
-        "textsDeviate": "Idiomas distintos",
-        "imagesDeviate": "Imágenes distintas",
-        "likeServer": "como el servidor",
-        "changed": "{{name}} (modificado)",
-        "serverDirty": "El valor predeterminado tiene cambios sin guardar; aquí se muestra lo guardado."
-      },
+      "default": "Predeterminado",
       "languages": {
         "title": "Idiomas",
         "intro": "Cada idioma de esta lista se obtiene para cada título; los perfiles eligen entre ellos el idioma de sus descripciones. El idioma de la interfaz lo elige cada perfil por su cuenta. Cada idioma adicional cuesta una solicitud por título y temporada.",

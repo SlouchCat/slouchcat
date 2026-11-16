@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -91,6 +92,32 @@ func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRoo
 	if body.Providers != nil {
 		upd.Providers = providerNames(*body.Providers)
 	}
+	// textLangs and images have three states (concept 24 3.6): absent = unchanged, null = like the
+	// default, a value = the folder's own.
+	var verr *model.ValidationError
+	if len(body.TextLangs) > 0 {
+		upd.SetTextLangs = true
+		if string(body.TextLangs) != "null" {
+			var langs []string
+			if err := json.Unmarshal(body.TextLangs, &langs); err != nil || langs == nil {
+				verr = verr.Add("textLangs", "invalid_value")
+			}
+			upd.TextLangs = &langs
+		}
+	}
+	if len(body.Images) > 0 {
+		upd.SetImages = true
+		if string(body.Images) != "null" {
+			var imgs gen.RootImages
+			if err := json.Unmarshal(body.Images, &imgs); err != nil {
+				verr = verr.Add("images", "invalid_value")
+			}
+			upd.Images = fromRootImages(&imgs)
+		}
+	}
+	if verr != nil {
+		return s.problem(ctx, verr), nil
+	}
 	lib, err := s.opts.Admin.UpdateLibraryRoot(ctx, req.Id, req.RootId, upd)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -98,9 +125,14 @@ func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRoo
 	return gen.UpdateLibraryRoot200JSONResponse(toLibrary(lib)), nil
 }
 
-// ListMetadataProviders describes the providers to the folder form (ADR 0015).
-func (s *server) ListMetadataProviders(ctx context.Context, _ gen.ListMetadataProvidersRequestObject) (gen.ListMetadataProvidersResponseObject, error) {
-	infos, err := s.opts.Admin.ListMetadataProviders(ctx)
+// ListMetadataProviders describes the providers to the folder form (ADR 0015); textLangs names
+// the language list being edited (concept 24 3.3).
+func (s *server) ListMetadataProviders(ctx context.Context, req gen.ListMetadataProvidersRequestObject) (gen.ListMetadataProvidersResponseObject, error) {
+	var langs []string
+	if req.Params.TextLangs != nil {
+		langs = append([]string{}, *req.Params.TextLangs...)
+	}
+	infos, err := s.opts.Admin.ListMetadataProviders(ctx, langs)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -189,7 +221,11 @@ func toLibrary(l model.Library) gen.Library {
 	for _, r := range l.Roots {
 		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch),
 			Content: gen.RootContent(r.Content), Providers: providerEnums(r.Providers),
-			ItemCount: r.ItemCount, FileCount: r.FileCount}
+			ItemCount: r.ItemCount, FileCount: r.FileCount, HomeTitleCount: r.HomeTitleCount,
+			Images: toRootImages(r.Metadata.Images)}
+		if r.Metadata.TextLangs != nil {
+			root.TextLangs = strs(*r.Metadata.TextLangs)
+		}
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}
@@ -276,7 +312,13 @@ func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
 func rootRequests(roots []gen.LibraryRootRequest) []model.LibraryRootRequest {
 	out := make([]model.LibraryRootRequest, 0, len(roots))
 	for _, r := range roots {
-		out = append(out, model.LibraryRootRequest{Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers)})
+		req := model.LibraryRootRequest{Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers)}
+		if r.TextLangs != nil {
+			langs := append([]string{}, *r.TextLangs...)
+			req.Metadata.TextLangs = &langs
+		}
+		req.Metadata.Images = fromRootImages(r.Images)
+		out = append(out, req)
 	}
 	return out
 }
@@ -326,4 +368,39 @@ func utc(t *time.Time) *time.Time {
 	}
 	u := t.UTC()
 	return &u
+}
+
+// toRootImages maps a folder's own images; nil (like the default) stays nil, so the answer says null.
+func toRootImages(m *model.RootImages) *gen.RootImages {
+	if m == nil {
+		return nil
+	}
+	out := &gen.RootImages{Kinds: make([]gen.RootImagesKinds, 0, len(m.Kinds))}
+	for _, k := range m.Kinds {
+		out.Kinds = append(out.Kinds, gen.RootImagesKinds(k))
+	}
+	for kind, dst := range map[string]**[]string{"poster": &out.Langs.Poster, "backdrop": &out.Langs.Backdrop, "logo": &out.Langs.Logo} {
+		if chain, ok := m.Langs[kind]; ok {
+			c := strs(chain)
+			*dst = &c
+		}
+	}
+	return out
+}
+
+// fromRootImages maps the own images of a request; a chain left out follows the default's.
+func fromRootImages(g *gen.RootImages) *model.RootImages {
+	if g == nil {
+		return nil
+	}
+	out := &model.RootImages{Langs: map[string][]string{}, Kinds: make([]string, 0, len(g.Kinds))}
+	for _, k := range g.Kinds {
+		out.Kinds = append(out.Kinds, string(k))
+	}
+	for kind, chain := range map[string]*[]string{"poster": g.Langs.Poster, "backdrop": g.Langs.Backdrop, "logo": g.Langs.Logo} {
+		if chain != nil {
+			out.Langs[kind] = append([]string{}, *chain...)
+		}
+	}
+	return out
 }

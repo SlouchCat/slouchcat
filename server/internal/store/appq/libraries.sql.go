@@ -184,8 +184,8 @@ func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (L
 }
 
 const insertLibraryRoot = `-- name: InsertLibraryRoot :one
-INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, text_langs, images, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 RETURNING id, library_id, path, fs_type, watch, created_at, content, providers, text_langs, images
 `
 
@@ -196,10 +196,13 @@ type InsertLibraryRootParams struct {
 	Watch     string
 	Content   string
 	Providers string
+	TextLangs sql.NullString
+	Images    sql.NullString
 	Now       int64
 }
 
 // content and providers come from the request; the column defaults only serve migration 00023.
+// text_langs and images are the folder's own settings (NULL = like the default, ADR 0036).
 func (q *Queries) InsertLibraryRoot(ctx context.Context, arg InsertLibraryRootParams) (LibraryRoot, error) {
 	row := q.db.QueryRowContext(ctx, insertLibraryRoot,
 		arg.LibraryID,
@@ -208,6 +211,8 @@ func (q *Queries) InsertLibraryRoot(ctx context.Context, arg InsertLibraryRootPa
 		arg.Watch,
 		arg.Content,
 		arg.Providers,
+		arg.TextLangs,
+		arg.Images,
 		arg.Now,
 	)
 	var i LibraryRoot

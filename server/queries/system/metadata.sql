@@ -145,11 +145,16 @@ SELECT value FROM settings WHERE key = @key;
 -- Every settings row whose key starts with the prefix (metadata.*), for metadata.Settings.
 SELECT key, value FROM settings WHERE key LIKE @prefix ORDER BY key;
 
--- name: CountItemsForMetadataApply :one
--- Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
+-- name: CountAllItemsForApply :one
+-- Matched films and series that metadata.apply over every folder queues: also those without a
+-- home folder (ADR 0036), which no single folder names.
 SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched';
+
+-- name: ListAllApplyItems :many
+SELECT id, kind FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
-  AND (sqlc.arg('all_libraries') = 1 OR library_id IN (sqlc.slice('library_ids')));
+ORDER BY id;
 
 -- name: ListImagesByItem :many
 -- Every stored image row of a title, originals included (image.fetch compares them with TMDB).
@@ -385,13 +390,26 @@ SELECT id, library_id, content, text_langs, images FROM library_roots WHERE id =
 -- The own settings of every folder (the languages a profile may choose, TMDB's image languages).
 SELECT id, library_id, content, text_langs, images FROM library_roots ORDER BY id;
 
--- name: CountLibraryItemsForApply :one
--- Matched films and series of one library, the titles metadata.apply queues for it.
-SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched';
+-- name: CountRootItemsForApply :one
+-- Matched films and series whose home folder is the folder (ADR 0036), the titles metadata.apply
+-- queues for it.
+SELECT count(*) FROM items
+WHERE root_id = CAST(@root_id AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched';
 
 -- name: ListApplyItems :many
--- The matched films and series of a library in id order, for metadata.apply (one match per title).
-SELECT id, kind FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id;
+-- The matched films and series of a folder in id order, for metadata.apply (one match per title).
+SELECT id, kind FROM items
+WHERE root_id = CAST(@root_id AS INTEGER) AND parent_id IS NULL AND deleted_at IS NULL
+  AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+ORDER BY id;
+
+-- name: ListRootIDs :many
+SELECT id FROM library_roots ORDER BY id;
+
+-- name: ListRootIDsOfLibraries :many
+-- The folders of libraries, for a metadata.apply run queued before contract 1.40.0 with libraryIds.
+SELECT id FROM library_roots WHERE library_id IN (sqlc.slice('library_ids')) ORDER BY id;
 
 -- name: ListLibraryIDs :many
 SELECT id FROM libraries ORDER BY id;

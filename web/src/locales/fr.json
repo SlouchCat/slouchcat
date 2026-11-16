@@ -1884,11 +1884,8 @@
         "kind": "Type",
         "state": "État",
         "counts": "Titres · fichiers",
-        "folders": "Dossiers",
-        "metadata": "Métadonnées"
+        "folders": "Dossiers"
       },
-      "none": "–",
-      "noMetadata": "Aucune portée de métadonnées",
       "roots": "Dossiers",
       "fsType": "Système de fichiers {{type}}",
       "watch": {
@@ -2019,11 +2016,6 @@
       "rootSummary_many": "{{count}} de {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "comme le serveur",
-        "texts": "langues différentes",
-        "images": "images différentes",
-        "both": "langues et images différentes",
-        "link": "Métadonnées de la bibliothèque",
         "audiobooksLink": "Sources pour les livres audio"
       },
       "trickplay": {
@@ -5033,7 +5025,6 @@
       "areas": {
         "label": "Sections",
         "changed": "Modifié · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Affiche {{poster}}, image de fond {{backdrop}}",
         "sources": {
           "local": "Fichiers locaux",
@@ -5043,18 +5034,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "S’applique à",
-        "server": "Par défaut",
-        "serverHint": "S’applique à toutes les bibliothèques sans dérogation propre.",
-        "libraryHint": "{{name}} utilise le réglage par défaut. Activez « différent » pour modifier les langues ou les images pour cette bibliothèque uniquement.",
-        "deviates": "différent",
-        "textsDeviate": "Langues différentes",
-        "imagesDeviate": "Images différentes",
-        "likeServer": "comme le serveur",
-        "changed": "{{name}} (modifié)",
-        "serverDirty": "Le réglage par défaut a des modifications non enregistrées ; ce qui est affiché ici est l’état enregistré."
-      },
+      "default": "Par défaut",
       "languages": {
         "title": "Langues",
         "intro": "Chaque langue indiquée ici est récupérée pour chaque titre ; les profils y choisissent la langue de leurs descriptions. Chaque profil choisit lui-même la langue de son interface. Chaque langue supplémentaire coûte une requête par titre et par saison.",

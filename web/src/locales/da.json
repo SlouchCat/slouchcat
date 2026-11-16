@@ -1831,11 +1831,8 @@
         "kind": "Type",
         "state": "Status",
         "counts": "Titler · filer",
-        "folders": "Mapper",
-        "metadata": "Metadata"
+        "folders": "Mapper"
       },
-      "none": "–",
-      "noMetadata": "Ingen metadataomfang",
       "roots": "Mapper",
       "fsType": "Filsystem {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "som serveren",
-        "texts": "sprog afviger",
-        "images": "billeder afviger",
-        "both": "sprog og billeder afviger",
-        "link": "Bibliotekets metadata",
         "audiobooksLink": "Kilder til lydbøger"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Områder",
         "changed": "Ændret · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakat {{poster}}, baggrund {{backdrop}}",
         "sources": {
           "local": "Lokale filer",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Gælder for",
-        "server": "Standard",
-        "serverHint": "Gælder for alle biblioteker uden egen afvigelse.",
-        "libraryHint": "{{name}} bruger standarden. Slå »afviger« til for kun at ændre sprog eller billeder for dette bibliotek.",
-        "deviates": "afviger",
-        "textsDeviate": "Sprog afviger",
-        "imagesDeviate": "Billeder afviger",
-        "likeServer": "som serveren",
-        "changed": "{{name}} (ændret)",
-        "serverDirty": "Standarden har ugemte ændringer; her vises det gemte."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Sprog",
         "intro": "Hvert sprog her hentes for hver titel; profilerne vælger sproget for deres beskrivelser blandt dem. Grænsefladens sprog vælger hver profil selv. Hvert ekstra sprog koster én forespørgsel pr. titel og sæson.",

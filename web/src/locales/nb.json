@@ -1831,11 +1831,8 @@
         "kind": "Type",
         "state": "Tilstand",
         "counts": "Titler · filer",
-        "folders": "Mapper",
-        "metadata": "Metadata"
+        "folders": "Mapper"
       },
-      "none": "–",
-      "noMetadata": "Ingen metadataomfang",
       "roots": "Mapper",
       "fsType": "Filsystem {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "som serveren",
-        "texts": "språk avviker",
-        "images": "bilder avviker",
-        "both": "språk og bilder avviker",
-        "link": "Metadata for biblioteket",
         "audiobooksLink": "Kilder for lydbøker"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Områder",
         "changed": "Endret · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakat {{poster}}, bakgrunn {{backdrop}}",
         "sources": {
           "local": "Lokale filer",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Gjelder for",
-        "server": "Standard",
-        "serverHint": "Gjelder alle bibliotek uten et eget avvik.",
-        "libraryHint": "{{name}} bruker standarden. Slå på «avviker» for å endre språk eller bilder bare for dette biblioteket.",
-        "deviates": "avviker",
-        "textsDeviate": "Språk avviker",
-        "imagesDeviate": "Bilder avviker",
-        "likeServer": "som serveren",
-        "changed": "{{name}} (endret)",
-        "serverDirty": "Standarden har ulagrede endringer; dette viser det som er lagret."
-      },
+      "default": "Standard",
       "languages": {
         "title": "Språk",
         "intro": "Hvert språk her hentes for hver tittel; profilene velger språket for beskrivelsene sine blant dem. Språket i grensesnittet velger hver profil selv. Hvert ekstra språk koster én forespørsel per tittel og sesong.",

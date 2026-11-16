@@ -101,22 +101,26 @@ func (q *Queries) CountLibraryProbeErrors(ctx context.Context, libraryID int64) 
 }
 
 const countLibraryRootContent = `-- name: CountLibraryRootContent :one
-SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = ?1
+SELECT count(*) AS files, count(DISTINCT item_id) AS items,
+       (SELECT count(*) FROM items AS i WHERE i.root_id = CAST(?1 AS INTEGER) AND i.parent_id IS NULL AND i.deleted_at IS NULL) AS home_titles
+FROM media_files WHERE root_id = CAST(?1 AS INTEGER)
 `
 
 type CountLibraryRootContentRow struct {
-	Files int64
-	Items int64
+	Files      int64
+	Items      int64
+	HomeTitles int64
 }
 
 // What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
 // the titles that have at least one file in it. The second number is the upper bound of what the
 // removal takes out -- a title with a file in another folder of the library stays -- and one pass
-// over the root_id index answers both.
+// over the root_id index answers both. home_titles are the films, series, audiobooks and podcasts
+// whose home folder it is (ADR 0036; the items_root index).
 func (q *Queries) CountLibraryRootContent(ctx context.Context, rootID int64) (CountLibraryRootContentRow, error) {
 	row := q.db.QueryRowContext(ctx, countLibraryRootContent, rootID)
 	var i CountLibraryRootContentRow
-	err := row.Scan(&i.Files, &i.Items)
+	err := row.Scan(&i.Files, &i.Items, &i.HomeTitles)
 	return i, err
 }
 

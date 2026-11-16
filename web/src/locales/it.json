@@ -1884,11 +1884,8 @@
         "kind": "Tipo",
         "state": "Stato",
         "counts": "Titoli · file",
-        "folders": "Cartelle",
-        "metadata": "Metadati"
+        "folders": "Cartelle"
       },
-      "none": "–",
-      "noMetadata": "Nessun ambito dei metadati",
       "roots": "Cartelle",
       "fsType": "File system {{type}}",
       "watch": {
@@ -2019,11 +2016,6 @@
       "rootSummary_many": "{{count}} di {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "come il server",
-        "texts": "lingue diverse",
-        "images": "immagini diverse",
-        "both": "lingue e immagini diverse",
-        "link": "Metadati della libreria",
         "audiobooksLink": "Fonti per gli audiolibri"
       },
       "trickplay": {
@@ -5033,7 +5025,6 @@
       "areas": {
         "label": "Aree",
         "changed": "Modificato · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Locandina {{poster}}, sfondo {{backdrop}}",
         "sources": {
           "local": "File locali",
@@ -5043,18 +5034,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Si applica a",
-        "server": "Predefinita",
-        "serverHint": "Vale per ogni libreria senza una deroga propria.",
-        "libraryHint": "{{name}} usa l’impostazione predefinita. Attiva «in deroga» per modificare lingue o immagini solo per questa libreria.",
-        "deviates": "in deroga",
-        "textsDeviate": "Lingue in deroga",
-        "imagesDeviate": "Immagini in deroga",
-        "likeServer": "come il server",
-        "changed": "{{name}} (modificata)",
-        "serverDirty": "L’impostazione predefinita ha modifiche non salvate; qui si vede lo stato salvato."
-      },
+      "default": "Predefinita",
       "languages": {
         "title": "Lingue",
         "intro": "Ogni lingua di questo elenco viene recuperata per ogni titolo; i profili scelgono tra queste la lingua delle proprie descrizioni. La lingua dell’interfaccia la sceglie ogni profilo per conto proprio. Ogni lingua in più costa una richiesta per titolo e stagione.",

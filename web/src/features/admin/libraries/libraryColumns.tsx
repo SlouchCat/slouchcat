@@ -1,11 +1,9 @@
 import type { Library, RatingSystem } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/format';
-import { Chip, VisuallyHidden } from '@/ui';
+import { Chip } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
-import { libraryMetadataQuery } from '../queries';
 import styles from './Libraries.module.css';
 import { ratingLabel } from '../../shared/choices';
 import { intlLocale } from '@/i18n';
@@ -128,38 +126,8 @@ function FoldersCell({ library }: { library: Library }) {
   );
 }
 
-/**
- * The metadata deviation of a video library (concept 10, 7.2; BIB-3): «wie Server» or which part
- * deviates. The link to the page "Metadaten" sits in the fold-out. It asks while the page asks.
- */
-function MetadataCell({ library, hold }: { library: Library; hold: boolean }) {
-  const { t } = useTranslation();
-  const metadata = useQuery({
-    ...libraryMetadataQuery(library.id),
-    enabled: library.kind === 'video',
-    refetchOnWindowFocus: !hold,
-  });
-  if (library.kind !== 'video') {
-    return (
-      <>
-        <span aria-hidden="true">{t('admin.libraries.none')}</span>
-        <VisuallyHidden>{t('admin.libraries.noMetadata')}</VisuallyHidden>
-      </>
-    );
-  }
-  if (!metadata.data) return null;
-  const texts = metadata.data.textLangs != null;
-  const images = metadata.data.images != null;
-  const key = texts && images ? 'both' : texts ? 'texts' : images ? 'images' : 'like';
-  return <>{t(`admin.libraries.metadata.${key}`)}</>;
-}
-
 /** The columns of a library table: the row folds out on the name (Bib-C). */
-export function libraryColumns(
-  t: TFunction,
-  hold: boolean,
-  ratingSystem?: RatingSystem,
-): DataColumn<Library>[] {
+export function libraryColumns(t: TFunction, ratingSystem?: RatingSystem): DataColumn<Library>[] {
   return [
     {
       key: 'name',
@@ -206,11 +174,6 @@ export function libraryColumns(
       key: 'folders',
       header: t('admin.libraries.columns.folders'),
       cell: (library) => <FoldersCell library={library} />,
-    },
-    {
-      key: 'metadata',
-      header: t('admin.libraries.columns.metadata'),
-      cell: (library) => <MetadataCell library={library} hold={hold} />,
     },
   ];
 }

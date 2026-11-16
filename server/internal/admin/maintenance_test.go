@@ -825,20 +825,35 @@ func TestAdminItemOriginalLanguage(t *testing.T) {
 	}
 }
 
+// The title page of the administration names the home folder (concept 24 3.2, ADR 0036); a title
+// without one names none.
+func TestAdminItemHomeFolder(t *testing.T) {
+	m := newMaintFixture(t)
+	film := m.f.Rated(0)
+	if _, err := m.f.DB.Write.ExecContext(m.ctx, `UPDATE items SET root_id = ? WHERE id = ?`, m.f.RootID(), film.ID); err != nil {
+		t.Fatal(err)
+	}
+	it, err := m.svc.GetAdminItem(m.ctx, film.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.HomeRoot == nil || it.HomeRoot.ID != m.f.RootID() || it.HomeRoot.Path != m.f.MediaDir {
+		t.Errorf("home folder = %+v, want root %d at %s", it.HomeRoot, m.f.RootID(), m.f.MediaDir)
+	}
+	if _, err := m.f.DB.Write.ExecContext(m.ctx, `UPDATE items SET root_id = NULL WHERE id = ?`, film.ID); err != nil {
+		t.Fatal(err)
+	}
+	if it, err := m.svc.GetAdminItem(m.ctx, film.ID); err != nil || it.HomeRoot != nil {
+		t.Errorf("without a home folder: %+v, %v", it.HomeRoot, err)
+	}
+}
+
 func (m *fakeMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
 	return model.MetadataSettings{}, nil
 }
 
 func (m *fakeMetadata) UpdateMetadataSettings(context.Context, model.MetadataSettings) (model.MetadataSettings, error) {
 	return model.MetadataSettings{}, nil
-}
-
-func (m *fakeMetadata) LibraryMetadata(context.Context, int64) (model.LibraryMetadata, error) {
-	return model.LibraryMetadata{}, nil
-}
-
-func (m *fakeMetadata) UpdateLibraryMetadata(context.Context, int64, *[]string, *model.LibraryImages) (model.LibraryMetadata, error) {
-	return model.LibraryMetadata{}, nil
 }
 
 func (m *fakeMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {

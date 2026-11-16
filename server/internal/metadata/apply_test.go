@@ -45,9 +45,10 @@ func TestServerMetadataSettingsStoredAtOnce(t *testing.T) {
 	}
 }
 
-// apply queues one metadata.match per matched title of the chosen libraries (texts), or fill and
-// image.fetch (images only); a second apply of the same scope is one run, and a waiting child is
-// not doubled (RaiseQueuedPriority). The job type is registered as an event type.
+// apply queues one metadata.match per matched title whose home folder is one of the chosen
+// folders (texts), or fill and image.fetch (images only); a second apply of the same scope is one
+// run, and a waiting child is not doubled (RaiseQueuedPriority). The job type is registered as an
+// event type.
 func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, goodToken)
@@ -56,32 +57,37 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	e.addItem(t, itemSeed{id: idByIMDB, title: "Second", imdbID: "tt0000550"})
 	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched' WHERE id IN (?, ?)`, idByTMDB, idByIMDB)
 	mustExec(t, e.db.Write, `UPDATE items SET library_id = 2 WHERE id = ?`, idByIMDB)
+	ownFolder(t, e.db.Write, 1, 1, "movie", model.RootMetadata{}, idByTMDB)
+	ownFolder(t, e.db.Write, 2, 2, "movie", model.RootMetadata{}, idByIMDB)
 
 	n, err := e.svc.CountApplyTitles(ctx, nil)
 	if err != nil || n != 2 {
-		t.Fatalf("titles over every library = %d, %v", n, err)
+		t.Fatalf("titles over every folder = %d, %v", n, err)
 	}
 	if n, err := e.svc.CountApplyTitles(ctx, []int64{1}); err != nil || n != 1 {
-		t.Fatalf("titles of library 1 = %d, %v", n, err)
+		t.Fatalf("titles of folder 1 = %d, %v", n, err)
 	}
-	id, titles, err := e.svc.ApplyMetadata(ctx, ApplyRequest{LibraryIDs: []int64{1}, What: []string{ApplyTexts}})
+	id, titles, err := e.svc.ApplyMetadata(ctx, ApplyRequest{RootIDs: []int64{1}, What: []string{ApplyTexts}})
 	if err != nil || titles != 1 || id == 0 {
 		t.Fatalf("apply: id %d titles %d err %v", id, titles, err)
 	}
-	// The same scope again while the run waits: the same run, no second one.
-	id2, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{LibraryIDs: []int64{1}, What: []string{ApplyTexts}})
+	// The same scope again while the run waits: the same run, no second one; the key names the folders.
+	id2, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{RootIDs: []int64{1}, What: []string{ApplyTexts}})
 	if err != nil || id2 != id {
 		t.Fatalf("second apply: id %d (first %d), %v", id2, id, err)
+	}
+	if j, err := e.queue.Get(ctx, id); err != nil || j.IdempotencyKey != "apply:texts:roots:1" {
+		t.Errorf("key = %q, %v; want apply:texts:roots:1", j.IdempotencyKey, err)
 	}
 	var verr *model.ValidationError
 	if _, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{What: []string{"covers"}}); !errors.As(err, &verr) {
 		t.Errorf("unknown what: %v", err)
 	}
-	if _, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{LibraryIDs: []int64{777}, What: []string{ApplyTexts}}); !errors.As(err, &verr) {
-		t.Errorf("unknown library: %v", err)
+	if _, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{RootIDs: []int64{777}, What: []string{ApplyTexts}}); !errors.As(err, &verr) || !hasFieldError(verr.Fields, "rootIds", "unknown_root") {
+		t.Errorf("unknown folder: %v", err)
 	}
 
-	// Run the parent by hand: one match per title of library 1, none for library 2.
+	// Run the parent by hand: one match per title of folder 1, none for folder 2.
 	j, err := e.queue.Get(ctx, id)
 	if err != nil {
 		t.Fatal(err)
@@ -91,9 +97,9 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	}
 	matches := e.jobList(t, JobMatch)
 	if len(matches) != 1 || matches[0] != "match:"+idByTMDB+" p1" {
-		t.Fatalf("match jobs after apply(texts, lib 1) = %v", matches)
+		t.Fatalf("match jobs after apply(texts, folder 1) = %v", matches)
 	}
-	// Images only, every library: fill and image.fetch per title; the waiting match stays single.
+	// Images only, every folder: fill and image.fetch per title; the waiting match stays single.
 	id3, titles3, err := e.svc.ApplyMetadata(ctx, ApplyRequest{What: []string{ApplyImages}})
 	if err != nil || titles3 != 2 {
 		t.Fatalf("apply images: %d %v", titles3, err)
@@ -111,7 +117,7 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	if matches := e.jobList(t, JobMatch); len(matches) != 1 {
 		t.Errorf("match jobs after the second apply = %v, want still one", matches)
 	}
-	// A third texts apply over every library lifts nothing twice either: still one match for the
+	// A third texts apply over every folder lifts nothing twice either: still one match for the
 	// first title, one new for the second.
 	id4, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{What: []string{ApplyTexts}})
 	if err != nil {
@@ -122,7 +128,7 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 		t.Fatal(err)
 	}
 	if matches := e.jobList(t, JobMatch); len(matches) != 2 {
-		t.Errorf("match jobs after apply over every library = %v, want two", matches)
+		t.Errorf("match jobs after apply over every folder = %v, want two", matches)
 	}
 	var payload applyPayload
 	if err := json.Unmarshal(j4.Payload, &payload); err != nil || !slices.Equal(payload.What, []string{ApplyTexts}) {
@@ -140,6 +146,49 @@ func TestApplyQueuesChildrenWithoutDoubles(t *testing.T) {
 	}
 	if !found {
 		t.Error("metadata.apply should be registered as an event type without Run")
+	}
+}
+
+// A run queued before contract 1.40.0 carries libraryIds: it covers the folders of those libraries,
+// and a library without folders (or one that went) covers nothing, never every folder.
+func TestApplyRunWithLibraryIDsCoversTheirFolders(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
+	e.addItem(t, itemSeed{id: idByIMDB, title: "Second", imdbID: "tt0000550"})
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched' WHERE id IN (?, ?)`, idByTMDB, idByIMDB)
+	mustExec(t, e.db.Write, `UPDATE items SET library_id = 2 WHERE id = ?`, idByIMDB)
+	ownFolder(t, e.db.Write, 1, 1, "movie", model.RootMetadata{}, idByTMDB)
+	ownFolder(t, e.db.Write, 2, 2, "movie", model.RootMetadata{}, idByIMDB)
+	mustExec(t, e.db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (9, 'Leer', 'video', 0, 0)`)
+	run := func(payload string) []string {
+		t.Helper()
+		id, err := e.queue.Enqueue(ctx, jobs.NewJob{Type: JobApply, Priority: applyPriority, Payload: json.RawMessage(payload), IdempotencyKey: payload})
+		if err != nil {
+			t.Fatal(err)
+		}
+		j, err := e.queue.Get(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.handleApply(ctx, &j); err != nil {
+			t.Fatal(err)
+		}
+		return e.jobList(t, JobMatch)
+	}
+	if got := run(`{"libraryIds":[9],"what":["texts"]}`); len(got) != 0 {
+		t.Fatalf("a library without folders queued %v, want nothing", got)
+	}
+	if got := run(`{"libraryIds":[777],"what":["texts"]}`); len(got) != 0 {
+		t.Fatalf("a library that went queued %v, want nothing", got)
+	}
+	if got := run(`{"libraryIds":[2],"what":["texts"]}`); len(got) != 1 || got[0] != "match:"+idByIMDB+" p1" {
+		t.Fatalf("library 2 queued %v, want the match of its folder's title", got)
+	}
+	// A folder that went since the request covers nothing either.
+	if got := run(`{"rootIds":[555],"what":["texts"]}`); len(got) != 1 {
+		t.Fatalf("a folder that went queued %v, want still only the one match", got)
 	}
 }
 

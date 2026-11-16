@@ -1831,11 +1831,8 @@
         "kind": "Típus",
         "state": "Állapot",
         "counts": "Címek · fájlok",
-        "folders": "Mappák",
-        "metadata": "Metaadatok"
+        "folders": "Mappák"
       },
-      "none": "–",
-      "noMetadata": "Nincs metaadat-hatókör",
       "roots": "Mappák",
       "fsType": "Fájlrendszer: {{type}}",
       "watch": {
@@ -1963,11 +1960,6 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "mint a kiszolgálón",
-        "texts": "a nyelvek eltérnek",
-        "images": "a képek eltérnek",
-        "both": "a nyelvek és a képek eltérnek",
-        "link": "A könyvtár metaadatai",
         "audiobooksLink": "Hangoskönyv-források"
       },
       "trickplay": {
@@ -4867,7 +4859,6 @@
       "areas": {
         "label": "Területek",
         "changed": "Módosítva · {{summary}}",
-        "scoped": "{{state}} · {{summary}}",
         "quality": "Plakát {{poster}}, háttérkép {{backdrop}}",
         "sources": {
           "local": "Helyi fájlok",
@@ -4877,18 +4868,7 @@
         },
         "separator": " › "
       },
-      "scope": {
-        "label": "Érvényes erre",
-        "server": "Alapértelmezés",
-        "serverHint": "Minden saját eltérés nélküli könyvtárra érvényes.",
-        "libraryHint": "A(z) {{name}} az alapértelmezést használja. Kapcsolja be az „eltér” beállítást, hogy csak ennél a könyvtárnál módosítsa a nyelveket vagy a képeket.",
-        "deviates": "eltér",
-        "textsDeviate": "A nyelvek eltérnek",
-        "imagesDeviate": "A képek eltérnek",
-        "likeServer": "mint a kiszolgálón",
-        "changed": "{{name}} (módosítva)",
-        "serverDirty": "Az alapértelmezésnek nem mentett módosításai vannak; ez a mentett állapotot mutatja."
-      },
+      "default": "Alapértelmezés",
       "languages": {
         "title": "Nyelvek",
         "intro": "Minden itt szereplő nyelvet minden címhez letölt a rendszer; a profilok ezek közül választják ki a leírásaik nyelvét. A felület nyelvét minden profil maga választja. Minden további nyelv címenként és évadonként egy további kérést jelent.",
