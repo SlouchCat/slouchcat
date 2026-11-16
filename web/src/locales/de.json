@@ -553,8 +553,6 @@
       "submit_one": "Bibliothek mit {{count}} Ordner hinzufügen",
       "submit_other": "Bibliothek mit {{count}} Ordnern hinzufügen",
       "submitNone": "Bibliothek ohne Ordner hinzufügen",
-      "addSubmit_one": "1 Ordner hinzufügen",
-      "addSubmit_other": "{{count}} Ordner hinzufügen",
       "marked": "Wird beim Speichern entfernt. Du bestätigst dann mit dem Pfad.",
       "undo": "Rückgängig",
       "undoLabel": "Entfernen von Ordner {{number}} rückgängig machen",
@@ -1881,25 +1879,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Kein Ordner: Die Titel kommen aus abonnierten Feeds.",
       "feedsOnly": "Titel aus Feeds",
-      "changeRating": {
-        "action": "Standardstufe ändern",
-        "title": "Standardstufe von {{name}}",
-        "description": "Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.",
-        "submit": "Speichern",
-        "saved": "Die Standardstufe von {{name}} ist jetzt {{rating}}."
-      },
       "folders": {
-        "title": "Ordner von {{name}}",
-        "description": "Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.",
-        "none": "Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.",
         "content": "Titel: {{items}} · Dateien: {{files}}",
         "remove": {
-          "action": "Entfernen",
-          "label": "Ordner {{path}} entfernen",
-          "title": "Ordner wirklich entfernen?",
           "inputLabel": "Tippe den Pfad, um zu bestätigen",
           "mismatch": "Tippe {{path}} genau so ab, dann wird der Knopf aktiv.",
-          "confirm": "Ordner entfernen",
           "lead_one": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwindet damit aus allen Listen. Was das heisst:",
           "lead_other": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heisst:",
           "soft": "Die Titel werden weich gelöscht: Sie verschwinden aus allen Listen, aber Fortschritt, Merkliste und Picks bleiben an ihnen hängen. Ein Titel, von dem eine Datei in einem anderen Ordner dieser Bibliothek liegt, bleibt sichtbar.",
@@ -1910,36 +1894,19 @@
           "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
           "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
         },
-        "new": "Neue Ordner",
         "change": {
-          "action": "Ändern",
-          "label": "Ordner {{path}} ändern",
-          "title": "Ordner ändern",
-          "description": "Inhalt und Metadatenquellen von {{path}}.",
-          "submit": "Speichern",
           "identifier": "Der Erkenner wechselt: Staffel- und Folgentexte werden nach {{provider}} neu zugeordnet. Die Folgen selbst bleiben, Fortschritt und Merkliste hängen weiter an ihnen.",
           "fillers": "Nur die Auffüller ändern sich: die Titel werden neu aufgefüllt, nichts wird gelöscht.",
-          "content": "Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln.",
-          "confirmTitle": "Inhalt wirklich wechseln?",
-          "confirm": "Inhalt wechseln",
-          "saved": "Der Ordner {{path}} ist geändert."
+          "content": "Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln."
         },
         "move": {
-          "action": "Pfad ändern",
-          "label": "Pfad von {{path}} ändern",
-          "title": "Pfad ändern?",
-          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen.",
-          "confirm": "Ändern",
-          "saved": "Der Ordner liegt jetzt unter {{path}} und wird neu eingelesen."
+          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen."
         },
         "readOnly": "nur lesbar",
         "writable": "schreibbar"
       },
-      "openFolders": "Ordner",
-      "openFoldersLabel": "Ordner von {{name}} bearbeiten",
       "rootCount_one": "{{count}} Ordner",
       "rootCount_other": "{{count}} Ordner",
-      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1947,8 +1914,6 @@
       },
       "trickplay": {
         "action": "Vorschau beim Spulen",
-        "actionLabel": "Vorschau beim Spulen von {{name}}",
-        "title": "Vorschau beim Spulen: {{name}}",
         "description": "Kleine Bilder über der Zeitleiste, ein Bild alle 10 Sekunden. Filme und Serien werden getrennt eingestellt, auch in einer gemischten Bibliothek.",
         "movies": "Filme",
         "series": "Serien",
@@ -2011,8 +1976,6 @@
           "queued": "Das Nachholen der Vorschauen ist eingereiht.",
           "unsaved": "Erst nach dem Speichern: Das Erzeugen nutzt die gespeicherte Einstellung."
         },
-        "submit": "Speichern",
-        "saved": "Die Vorschau beim Spulen von {{name}} ist gespeichert.",
         "summary": "Vorschau beim Spulen: Filme {{movies}} · Serien {{series}}",
         "summaryNoKeep": "Beim Start, ohne Speichern",
         "header": "Filme: {{movies}} · Serien: {{series}}"
@@ -2032,12 +1995,6 @@
         "jobs": "Zum Job",
         "done": "Bibliothek «{{name}}» gelöscht.",
         "notDone": "Bibliothek «{{name}}» wurde nicht gelöscht. Warum, steht beim Job."
-      },
-      "rename": {
-        "action": "Umbenennen …",
-        "title": "Bibliothek «{{name}}» umbenennen",
-        "label": "Name",
-        "saved": "Die Bibliothek heisst jetzt «{{name}}»."
       },
       "form": {
         "editTitle": "Bibliothek bearbeiten",

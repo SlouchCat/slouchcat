@@ -552,9 +552,7 @@
       "providers": "Mappe {{number}}: {{message}}",
       "submit_one": "Tilføj bibliotek med {{count}} mappe",
       "submit_other": "Tilføj bibliotek med {{count}} mapper",
-      "submitNone": "Tilføj bibliotek uden mapper",
-      "addSubmit_one": "Tilføj 1 mappe",
-      "addSubmit_other": "Tilføj {{count}} mapper"
+      "submitNone": "Tilføj bibliotek uden mapper"
     },
     "videoHint": "Mapperne i dette bibliotek må indeholde film eller serier, også blandet.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Ingen mappe: Titlerne kommer fra abonnerede feeds.",
       "feedsOnly": "Titler fra feeds",
-      "changeRating": {
-        "action": "Skift standardniveau",
-        "title": "Standardniveau for {{name}}",
-        "description": "Alle titler, hvis niveau kommer fra biblioteket, følger med med det samme. Niveauer sat manuelt bliver.",
-        "submit": "Gem",
-        "saved": "Standardniveauet for {{name}} er nu {{rating}}."
-      },
       "folders": {
-        "title": "Mapper i {{name}}",
-        "description": "Et bibliotek kan have flere mapper. Scanningen og overvågningen opfanger en ny mappe med det samme.",
-        "none": "Dette bibliotek har ingen mappe. Der scannes ikke noget, før du tilføjer en.",
         "content": "Titler: {{items}} · filer: {{files}}",
         "remove": {
-          "action": "Fjern",
-          "label": "Fjern mappen {{path}}",
-          "title": "Fjerne denne mappe?",
           "inputLabel": "Skriv stien for at bekræfte",
           "mismatch": "Skriv {{path}} præcis, så bliver knappen aktiv.",
-          "confirm": "Fjern mappen",
           "lead_one": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Op til {{count}} titel forsvinder dermed fra alle lister. Det betyder:",
           "lead_other": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Op til {{count}} titler forsvinder dermed fra alle lister. Det betyder:",
           "soft": "Titlerne slettes midlertidigt (soft delete): De forsvinder fra alle lister, men fremskridt, Min liste og anbefalinger forbliver knyttet til dem. En titel med en fil i en anden mappe i dette bibliotek forbliver synlig.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Ligger mappen uden for de frigivne mapper (SLOUCHCAT_BROWSE_ROOTS), kan den ikke tilføjes igen uden en ændring af konfigurationen.",
           "last": "Det er den sidste mappe: {{name}} består, men har bagefter ingen mappe og scanner ikke noget."
         },
-        "new": "Nye mapper",
         "change": {
-          "action": "Skift",
-          "label": "Skift mappen {{path}}",
-          "title": "Skift mappe",
-          "description": "Indhold og metadatakilder for {{path}}.",
-          "submit": "Gem",
           "identifier": "Genkenderen skifter: Tekster til sæsoner og afsnit knyttes påny til {{provider}}. Selve afsnittene bliver, fremskridt og Min liste forbliver knyttet til dem.",
           "fillers": "Kun udfyldere ændres: Titlerne udfyldes påny, intet slettes.",
-          "content": "Indholdet skifter: Det virker som at fjerne mappen og oprette den igen. Mappens titler slettes midlertidigt og oprettes påny, offlinepakker er væk, fremskridt og Min liste forbliver hos de gamle titler.",
-          "confirmTitle": "Skifte indholdet?",
-          "confirm": "Skift indhold",
-          "saved": "Mappen {{path}} er ændret."
+          "content": "Indholdet skifter: Det virker som at fjerne mappen og oprette den igen. Mappens titler slettes midlertidigt og oprettes påny, offlinepakker er væk, fremskridt og Min liste forbliver hos de gamle titler."
         },
         "move": {
-          "action": "Skift sti",
-          "label": "Skift stien for {{path}}",
-          "title": "Skifte sti?",
-          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brugerdata bevares, hvis filerne ligger dér med de samme navne. Bagefter indlæses mappen påny.",
-          "confirm": "Skift",
-          "saved": "Mappen ligger nu på {{path}} og indlæses påny."
+          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brugerdata bevares, hvis filerne ligger dér med de samme navne. Bagefter indlæses mappen påny."
         },
         "readOnly": "skrivebeskyttet",
         "writable": "skrivbar"
       },
-      "openFolders": "Mapper",
-      "openFoldersLabel": "Rediger mapperne i {{name}}",
       "rootCount_one": "{{count}} mappe",
       "rootCount_other": "{{count}} mapper",
-      "noFolder": "Ingen mappe: Der scannes ikke noget, før du tilføjer en under »Mapper«.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Forhåndsvisninger",
-        "actionLabel": "Forhåndsvisninger for {{name}}",
-        "title": "Forhåndsvisninger: {{name}}",
         "description": "Små billeder over tidslinjen, ét hver 10. sekund. Film og serier indstilles hver for sig, også i et blandet bibliotek.",
         "movies": "Film",
         "series": "Serier",
@@ -2027,8 +1992,6 @@
           "hint": "Opretter de manglende forhåndsvisninger i alle biblioteker med »På forhånd«, ligesom »Opret manglende forhåndsvisninger« under »Baggrundsjob«.",
           "queued": "De manglende forhåndsvisninger er sat i kø."
         },
-        "submit": "Gem",
-        "saved": "Forhåndsvisningerne for {{name}} er gemt.",
         "summary": "Forhåndsvisninger: film {{movies}} · serier {{series}}",
         "summaryNoKeep": "Ved start, gemmes ikke"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Gå til jobbet",
         "done": "Biblioteket »{{name}}« er slettet.",
         "notDone": "Biblioteket »{{name}}« blev ikke slettet. Jobbet siger hvorfor."
-      },
-      "rename": {
-        "action": "Omdøb…",
-        "title": "Omdøb biblioteket »{{name}}«",
-        "label": "Navn",
-        "saved": "Biblioteket hedder nu »{{name}}«."
       }
     },
     "access": {

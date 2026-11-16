@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   folderMetadataDraft,
   folderMetadataRequest,
-  folderMetadataUpdate,
+  folderMetadataValues,
   hasOwnMetadata,
 } from './FolderMetadataFields';
 
 // The draft of «Sprachen und Bilder eines Ordners» and what it sends (concept 24 3.6): a new
-// folder sends only its own values; a changed folder has three states per field.
+// folder sends only its own values; the form «Bearbeiten» sends a folder's whole state, `null`
+// for what follows the default (saveLibrary).
 
 const own = { textLangs: ['ja', 'en'], images: { langs: { poster: ['ja'] }, kinds: [] } };
 const plain = { textLangs: null, images: null };
@@ -36,19 +37,15 @@ describe('folder metadata draft', () => {
     ).toEqual({ textLangs: ['fr'], images: { langs: {}, kinds: [] } });
   });
 
-  it('a changed folder: left out when unchanged, null back to the default, the value when own', () => {
-    expect(folderMetadataUpdate(folderMetadataDraft(own), own)).toEqual({});
+  it('a stored folder: its whole state, null back to the default, the value when own', () => {
+    expect(folderMetadataValues(folderMetadataDraft(own))).toEqual(own);
+    expect(folderMetadataValues(folderMetadataDraft(plain))).toEqual(plain);
     // Back to the default: the kept list goes with the save, as null.
     expect(
-      folderMetadataUpdate({ ...folderMetadataDraft(own), ownLangs: false, ownImages: false }, own),
-    ).toEqual({ textLangs: null, images: null });
+      folderMetadataValues({ ...folderMetadataDraft(own), ownLangs: false, ownImages: false }),
+    ).toEqual(plain);
     expect(
-      folderMetadataUpdate(
-        { ...folderMetadataDraft(plain), ownLangs: true, textLangs: ['de'] },
-        plain,
-      ),
-    ).toEqual({ textLangs: ['de'] });
-    // Switched back and forth before the save: nothing changed.
-    expect(folderMetadataUpdate({ ...folderMetadataDraft(own), ownLangs: true }, own)).toEqual({});
+      folderMetadataValues({ ...folderMetadataDraft(plain), ownLangs: true, textLangs: ['de'] }),
+    ).toEqual({ textLangs: ['de'], images: null });
   });
 });

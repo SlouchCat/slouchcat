@@ -578,11 +578,7 @@
       "submit_few": "Dodaj bibliotekę z {{count}} folderami",
       "submit_many": "Dodaj bibliotekę z {{count}} folderami",
       "submit_other": "Dodaj bibliotekę z {{count}} folderami",
-      "submitNone": "Dodaj bibliotekę bez folderów",
-      "addSubmit_one": "Dodaj jeden folder",
-      "addSubmit_few": "Dodaj {{count}} foldery",
-      "addSubmit_many": "Dodaj {{count}} folderów",
-      "addSubmit_other": "Dodaj {{count}} folderu"
+      "submitNone": "Dodaj bibliotekę bez folderów"
     },
     "videoHint": "Foldery tej biblioteki mogą zawierać filmy lub seriale, także wymieszane.",
     "page": {
@@ -2004,25 +2000,11 @@
       "defaultRating": "Domyślnie: {{rating}}",
       "noRoots": "Brak folderu: tytuły pochodzą z subskrybowanych kanałów RSS.",
       "feedsOnly": "Tytuły z kanałów RSS",
-      "changeRating": {
-        "action": "Zmień domyślną kategorię",
-        "title": "Domyślna kategoria biblioteki {{name}}",
-        "description": "Wszystkie tytuły, których kategoria pochodzi z biblioteki, zmienią się od razu. Kategorie ustawione ręcznie pozostają.",
-        "submit": "Zapisz",
-        "saved": "Domyślna kategoria biblioteki {{name}} to teraz {{rating}}."
-      },
       "folders": {
-        "title": "Foldery biblioteki {{name}}",
-        "description": "Biblioteka może mieć kilka folderów. Skanowanie i obserwator od razu uwzględniają nowy folder.",
-        "none": "Ta biblioteka nie ma folderu. Nic nie jest skanowane, dopóki go nie dodasz.",
         "content": "Tytuły: {{items}} · pliki: {{files}}",
         "remove": {
-          "action": "Usuń",
-          "label": "Usuń folder {{path}}",
-          "title": "Na pewno usunąć ten folder?",
           "inputLabel": "Wpisz ścieżkę, aby potwierdzić",
           "mismatch": "Wpisz dokładnie {{path}}, wtedy przycisk stanie się aktywny.",
-          "confirm": "Usuń folder",
           "lead_one": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułu. Co to oznacza:",
           "lead_few": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułów. Co to oznacza:",
           "lead_many": "Usuwasz <path>{{path}}</path> z biblioteki {{name}}. Razem z nim ze wszystkich list zniknie do {{count}} tytułów. Co to oznacza:",
@@ -2035,38 +2017,21 @@
           "oneWay": "Jeśli folder leży poza udostępnionymi folderami (SLOUCHCAT_BROWSE_ROOTS), nie można go dodać ponownie bez zmiany konfiguracji.",
           "last": "To ostatni folder: {{name}} pozostaje, ale potem nie ma już folderu i niczego nie skanuje."
         },
-        "new": "Nowe foldery",
         "change": {
-          "action": "Zmień",
-          "label": "Zmień folder {{path}}",
-          "title": "Zmień folder",
-          "description": "Zawartość i źródła metadanych folderu {{path}}.",
-          "submit": "Zapisz",
           "identifier": "Zmienia się źródło rozpoznawania: teksty sezonów i odcinków zostaną przypisane na nowo według {{provider}}. Same odcinki pozostają, postęp i lista nadal są do nich przypisane.",
           "fillers": "Zmieniają się tylko źródła uzupełniające: tytuły są uzupełniane na nowo, nic nie jest usuwane.",
-          "content": "Zmienia się zawartość: działa to jak usunięcie folderu i dodanie go od nowa. Tytuły tego folderu są usuwane logicznie i tworzone na nowo, pakiety offline znikają, postęp i lista pozostają przy starych tytułach.",
-          "confirmTitle": "Na pewno zmienić zawartość?",
-          "confirm": "Zmień zawartość",
-          "saved": "Zmieniono folder {{path}}."
+          "content": "Zmienia się zawartość: działa to jak usunięcie folderu i dodanie go od nowa. Tytuły tego folderu są usuwane logicznie i tworzone na nowo, pakiety offline znikają, postęp i lista pozostają przy starych tytułach."
         },
         "move": {
-          "action": "Zmień ścieżkę",
-          "label": "Zmień ścieżkę: {{path}}",
-          "title": "Zmienić ścieżkę?",
-          "body": "Stara ścieżka: {{old}} · Nowa ścieżka: {{new}}. Tytuły i dane użytkownika zostają, jeśli pliki leżą tam pod tymi samymi nazwami. Potem folder jest wczytywany od nowa.",
-          "confirm": "Zmień",
-          "saved": "Folder znajduje się teraz w {{path}} i jest wczytywany od nowa."
+          "body": "Stara ścieżka: {{old}} · Nowa ścieżka: {{new}}. Tytuły i dane użytkownika zostają, jeśli pliki leżą tam pod tymi samymi nazwami. Potem folder jest wczytywany od nowa."
         },
         "readOnly": "tylko do odczytu",
         "writable": "z możliwością zapisu"
       },
-      "openFolders": "Foldery",
-      "openFoldersLabel": "Edytuj foldery biblioteki {{name}}",
       "rootCount_one": "{{count}} folder",
       "rootCount_few": "{{count}} foldery",
       "rootCount_many": "{{count}} folderów",
       "rootCount_other": "{{count}} folderu",
-      "noFolder": "Brak folderu: nic nie jest skanowane, dopóki nie dodasz go w sekcji „Foldery”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_few": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
@@ -2076,8 +2041,6 @@
       },
       "trickplay": {
         "action": "Miniatury podglądu",
-        "actionLabel": "Miniatury podglądu biblioteki {{name}}",
-        "title": "Miniatury podglądu: {{name}}",
         "description": "Małe obrazki nad osią czasu, jeden co 10 sekund. Filmy i seriale ustawia się osobno, także w bibliotece mieszanej.",
         "movies": "Filmy",
         "series": "Seriale",
@@ -2143,8 +2106,6 @@
           "hint": "Uzupełnia brakujące miniatury podglądu wszystkich bibliotek z ustawieniem „Z wyprzedzeniem”, tak jak „Uzupełnij miniatury podglądu” w „Zadania w tle”.",
           "queued": "Uzupełnianie miniatur podglądu czeka w kolejce."
         },
-        "submit": "Zapisz",
-        "saved": "Zapisano miniatury podglądu biblioteki {{name}}.",
         "summary": "Miniatury podglądu: filmy {{movies}} · seriale {{series}}",
         "summaryNoKeep": "Przy starcie, bez zachowania"
       },
@@ -2165,12 +2126,6 @@
         "jobs": "Przejdź do zadania",
         "done": "Usunięto bibliotekę „{{name}}”.",
         "notDone": "Biblioteka „{{name}}” nie została usunięta. Powód podano przy zadaniu."
-      },
-      "rename": {
-        "action": "Zmień nazwę…",
-        "title": "Zmień nazwę biblioteki „{{name}}”",
-        "label": "Nazwa",
-        "saved": "Biblioteka nazywa się teraz „{{name}}”."
       }
     },
     "access": {

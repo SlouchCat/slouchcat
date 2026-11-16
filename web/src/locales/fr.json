@@ -565,10 +565,7 @@
       "submit_one": "Ajouter la bibliothèque avec {{count}} dossier",
       "submit_many": "Ajouter la bibliothèque avec {{count}} de dossiers",
       "submit_other": "Ajouter la bibliothèque avec {{count}} dossiers",
-      "submitNone": "Ajouter la bibliothèque sans dossier",
-      "addSubmit_one": "Ajouter {{count}} dossier",
-      "addSubmit_many": "Ajouter {{count}} de dossiers",
-      "addSubmit_other": "Ajouter {{count}} dossiers"
+      "submitNone": "Ajouter la bibliothèque sans dossier"
     },
     "videoHint": "Les dossiers de cette bibliothèque peuvent contenir des films ou des séries, y compris mélangés.",
     "page": {
@@ -1951,25 +1948,11 @@
       "defaultRating": "Par défaut : {{rating}}",
       "noRoots": "Aucun dossier : les titres proviennent des flux auxquels vous êtes abonné.",
       "feedsOnly": "Titres issus de flux",
-      "changeRating": {
-        "action": "Modifier la classification par défaut",
-        "title": "Classification par défaut de la bibliothèque {{name}}",
-        "description": "Tous les titres dont la classification vient de la bibliothèque suivent aussitôt. Les classifications définies manuellement sont conservées.",
-        "submit": "Enregistrer",
-        "saved": "La classification par défaut de la bibliothèque {{name}} est maintenant {{rating}}."
-      },
       "folders": {
-        "title": "Dossiers de la bibliothèque {{name}}",
-        "description": "Une bibliothèque peut contenir plusieurs dossiers. L’analyse et la surveillance prennent aussitôt en compte un nouveau dossier.",
-        "none": "Cette bibliothèque n’a aucun dossier. Rien n’est analysé tant que vous n’en ajoutez pas un.",
         "content": "Titres : {{items}} · fichiers : {{files}}",
         "remove": {
-          "action": "Retirer",
-          "label": "Retirer le dossier {{path}}",
-          "title": "Retirer vraiment ce dossier ?",
           "inputLabel": "Saisissez le chemin pour confirmer",
           "mismatch": "Saisissez {{path}} exactement : le bouton sera alors actif.",
-          "confirm": "Retirer le dossier",
           "lead_one": "Vous retirez <path>{{path}}</path> de la bibliothèque {{name}}. Jusqu’à {{count}} titre disparaît avec lui de toutes les listes. Ce que cela implique :",
           "lead_many": "Vous retirez <path>{{path}}</path> de la bibliothèque {{name}}. Jusqu’à {{count}} de titres disparaissent avec lui de toutes les listes. Ce que cela implique :",
           "lead_other": "Vous retirez <path>{{path}}</path> de la bibliothèque {{name}}. Jusqu’à {{count}} titres disparaissent avec lui de toutes les listes. Ce que cela implique :",
@@ -1981,37 +1964,20 @@
           "oneWay": "Si le dossier se trouve en dehors des dossiers autorisés (SLOUCHCAT_BROWSE_ROOTS), il ne peut pas être ajouté de nouveau sans modifier la configuration.",
           "last": "C’est le dernier dossier : la bibliothèque {{name}} subsiste, mais n’aura ensuite plus aucun dossier et n’analysera plus rien."
         },
-        "new": "Nouveaux dossiers",
         "change": {
-          "action": "Modifier",
-          "label": "Modifier le dossier {{path}}",
-          "title": "Modifier le dossier",
-          "description": "Contenu et sources de métadonnées de {{path}}.",
-          "submit": "Enregistrer",
           "identifier": "L’identificateur change : les textes des saisons et des épisodes sont réassociés d’après {{provider}}. Les épisodes eux-mêmes sont conservés, la progression et Ma liste y restent rattachées.",
           "fillers": "Seuls les compléments changent : les titres sont complétés de nouveau, rien n’est supprimé.",
-          "content": "Le contenu change : cela revient à retirer le dossier puis à le rajouter. Les titres de ce dossier font l’objet d’une suppression logique et sont recréés, les paquets hors ligne disparaissent, la progression et Ma liste restent liées aux anciens titres.",
-          "confirmTitle": "Changer vraiment le contenu ?",
-          "confirm": "Changer le contenu",
-          "saved": "Le dossier {{path}} a été modifié."
+          "content": "Le contenu change : cela revient à retirer le dossier puis à le rajouter. Les titres de ce dossier font l’objet d’une suppression logique et sont recréés, les paquets hors ligne disparaissent, la progression et Ma liste restent liées aux anciens titres."
         },
         "move": {
-          "action": "Modifier le chemin",
-          "label": "Modifier le chemin de {{path}}",
-          "title": "Modifier le chemin ?",
-          "body": "Ancien chemin : {{old}} · Nouveau chemin : {{new}}. Les titres et les données des utilisateurs sont conservés si les fichiers s’y trouvent sous les mêmes noms. Le dossier est ensuite relu.",
-          "confirm": "Modifier",
-          "saved": "Le dossier se trouve désormais à l’emplacement {{path}} et est relu."
+          "body": "Ancien chemin : {{old}} · Nouveau chemin : {{new}}. Les titres et les données des utilisateurs sont conservés si les fichiers s’y trouvent sous les mêmes noms. Le dossier est ensuite relu."
         },
         "readOnly": "lecture seule",
         "writable": "accessible en écriture"
       },
-      "openFolders": "Dossiers",
-      "openFoldersLabel": "Modifier les dossiers de la bibliothèque {{name}}",
       "rootCount_one": "{{count}} dossier",
       "rootCount_many": "{{count}} de dossiers",
       "rootCount_other": "{{count}} dossiers",
-      "noFolder": "Aucun dossier : rien n’est analysé tant que vous n’en ajoutez pas un sous « Dossiers ».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} de {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
@@ -2020,8 +1986,6 @@
       },
       "trickplay": {
         "action": "Vignettes d’aperçu",
-        "actionLabel": "Vignettes d’aperçu de la bibliothèque {{name}}",
-        "title": "Vignettes d’aperçu : {{name}}",
         "description": "De petites images au-dessus de la chronologie, une toutes les 10 secondes. Les films et les séries se règlent séparément, y compris dans une bibliothèque qui contient les deux.",
         "movies": "Films",
         "series": "Séries",
@@ -2085,8 +2049,6 @@
           "hint": "Rattrape les aperçus manquants de toutes les bibliothèques réglées sur « À l’avance », comme « Rattraper les vignettes d’aperçu » dans « Tâches en arrière-plan ».",
           "queued": "Le rattrapage des aperçus est en attente."
         },
-        "submit": "Enregistrer",
-        "saved": "Les vignettes d’aperçu de la bibliothèque {{name}} sont enregistrées.",
         "summary": "Vignettes d’aperçu : films {{movies}} · séries {{series}}",
         "summaryNoKeep": "Au lancement, sans conservation"
       },
@@ -2106,12 +2068,6 @@
         "jobs": "Aller à la tâche",
         "done": "Bibliothèque « {{name}} » supprimée.",
         "notDone": "La bibliothèque « {{name}} » n’a pas été supprimée. La tâche en indique la raison."
-      },
-      "rename": {
-        "action": "Renommer…",
-        "title": "Renommer la bibliothèque « {{name}} »",
-        "label": "Nom",
-        "saved": "La bibliothèque s’appelle désormais « {{name}} »."
       }
     },
     "access": {

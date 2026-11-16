@@ -159,7 +159,6 @@
           "oneWay": "Liegt der Ordner außerhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen."
         }
       },
-      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter „Ordner“ einen hinzufügst.",
       "trickplay": {
         "facts": {
           "ahead": {
@@ -178,10 +177,6 @@
         "queued": "Bibliothek „{{name}}“ wird im Hintergrund gelöscht.",
         "done": "Bibliothek „{{name}}“ gelöscht.",
         "notDone": "Bibliothek „{{name}}“ wurde nicht gelöscht. Warum, steht beim Job."
-      },
-      "rename": {
-        "title": "Bibliothek „{{name}}“ umbenennen",
-        "saved": "Die Bibliothek heißt jetzt „{{name}}“."
       },
       "noFolderEdit": "Kein Ordner: Es wird nichts gescannt, bis du unter „Bearbeiten“ einen hinzufügst."
     },

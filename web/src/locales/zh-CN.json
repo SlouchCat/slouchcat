@@ -539,8 +539,7 @@
       "overlap": "文件夹 {{number}} 与上方的某个文件夹重叠。",
       "providers": "文件夹 {{number}}：{{message}}",
       "submit_other": "添加媒体库（{{count}} 个文件夹）",
-      "submitNone": "添加媒体库（无文件夹）",
-      "addSubmit_other": "添加 {{count}} 个文件夹"
+      "submitNone": "添加媒体库（无文件夹）"
     },
     "videoHint": "此媒体库的文件夹可以包含电影或剧集，也可以混合存放。",
     "page": {
@@ -1845,25 +1844,11 @@
       "defaultRating": "默认：{{rating}}",
       "noRoots": "无文件夹：作品来自已订阅的订阅源。",
       "feedsOnly": "作品来自订阅源",
-      "changeRating": {
-        "action": "更改默认分级",
-        "title": "{{name}} 的默认分级",
-        "description": "分级来自媒体库的所有作品会立即跟随更改。手动设置的分级保持不变。",
-        "submit": "保存",
-        "saved": "{{name}} 的默认分级现为 {{rating}}。"
-      },
       "folders": {
-        "title": "{{name}} 的文件夹",
-        "description": "一个媒体库可以包含多个文件夹。扫描和监视会立即纳入新文件夹。",
-        "none": "此媒体库没有文件夹。添加文件夹之前不会扫描任何内容。",
         "content": "作品：{{items}} · 文件：{{files}}",
         "remove": {
-          "action": "移除",
-          "label": "移除文件夹 {{path}}",
-          "title": "确定要移除此文件夹吗？",
           "inputLabel": "输入路径以确认",
           "mismatch": "请准确输入 {{path}}，按钮才会启用。",
-          "confirm": "移除文件夹",
           "lead_other": "你将从媒体库 {{name}} 中移除 <path>{{path}}</path>。最多 {{count}} 部作品会因此从所有列表中消失。这意味着：",
           "soft": "这些作品会被软删除：它们会从所有列表中消失，但播放进度、片单条目和推荐仍会保留。如果某部作品在此媒体库的其他文件夹中还有文件，它将继续显示。",
           "downloads": "离线下载会被真正删除：下载过这些作品的设备会在下次同步时删除对应的下载包。",
@@ -1873,43 +1858,24 @@
           "oneWay": "如果文件夹位于可浏览的文件夹（SLOUCHCAT_BROWSE_ROOTS）之外，不更改配置就无法再次添加。",
           "last": "这是最后一个文件夹：{{name}} 会保留，但之后不再有文件夹，也不会扫描任何内容。"
         },
-        "new": "新文件夹",
         "change": {
-          "action": "更改",
-          "label": "更改文件夹 {{path}}",
-          "title": "更改文件夹",
-          "description": "{{path}} 的内容和元数据来源。",
-          "submit": "保存",
           "identifier": "识别来源将更改：季和单集的文本将按 {{provider}} 重新匹配。单集本身保持不变，播放进度和片单仍与之关联。",
           "fillers": "只更改补充来源：作品信息会重新补充，不会删除任何内容。",
-          "content": "内容类型将更改：效果相当于移除文件夹后重新添加。此文件夹中的作品会被软删除并重新创建，离线下载包会被删除，播放进度和片单仍与旧作品关联。",
-          "confirmTitle": "确定要更改内容类型吗？",
-          "confirm": "更改内容类型",
-          "saved": "文件夹 {{path}} 已更改。"
+          "content": "内容类型将更改：效果相当于移除文件夹后重新添加。此文件夹中的作品会被软删除并重新创建，离线下载包会被删除，播放进度和片单仍与旧作品关联。"
         },
         "move": {
-          "action": "更改路径",
-          "label": "更改 {{path}} 的路径",
-          "title": "要更改路径吗？",
-          "body": "旧路径：{{old}} · 新路径：{{new}}。如果文件在新路径下的名称相同，作品和用户数据都会保留。之后会重新读取该文件夹。",
-          "confirm": "更改",
-          "saved": "文件夹现位于 {{path}}，正在重新读取。"
+          "body": "旧路径：{{old}} · 新路径：{{new}}。如果文件在新路径下的名称相同，作品和用户数据都会保留。之后会重新读取该文件夹。"
         },
         "readOnly": "只读",
         "writable": "可写"
       },
-      "openFolders": "文件夹",
-      "openFoldersLabel": "编辑 {{name}} 的文件夹",
       "rootCount_other": "{{count}} 个文件夹",
-      "noFolder": "无文件夹：在“文件夹”中添加文件夹之前，不会扫描任何内容。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
         "audiobooksLink": "有声书来源"
       },
       "trickplay": {
         "action": "拖动预览",
-        "actionLabel": "{{name}} 的拖动预览",
-        "title": "拖动预览：{{name}}",
         "description": "进度条上方的小图，每 10 秒一张。电影和剧集分别设置，在同时包含两者的媒体库中也是如此。",
         "movies": "电影",
         "series": "剧集",
@@ -1969,8 +1935,6 @@
           "hint": "为所有设为“提前生成”的媒体库补建缺失的预览，与“后台任务”中的“补建拖动预览”相同。",
           "queued": "补建预览已排队。"
         },
-        "submit": "保存",
-        "saved": "{{name}} 的拖动预览设置已保存。",
         "summary": "拖动预览：电影 {{movies}} · 剧集 {{series}}",
         "summaryNoKeep": "播放时生成，不保留"
       },
@@ -1988,12 +1952,6 @@
         "jobs": "前往任务",
         "done": "已删除媒体库“{{name}}”。",
         "notDone": "媒体库“{{name}}”未被删除。原因请查看任务。"
-      },
-      "rename": {
-        "action": "重命名…",
-        "title": "重命名媒体库“{{name}}”",
-        "label": "名称",
-        "saved": "媒体库现名为“{{name}}”。"
       }
     },
     "access": {

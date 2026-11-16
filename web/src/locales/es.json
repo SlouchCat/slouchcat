@@ -565,10 +565,7 @@
       "submit_one": "Añadir biblioteca con {{count}} carpeta",
       "submit_many": "Añadir biblioteca con {{count}} de carpetas",
       "submit_other": "Añadir biblioteca con {{count}} carpetas",
-      "submitNone": "Añadir biblioteca sin carpetas",
-      "addSubmit_one": "Añadir 1 carpeta",
-      "addSubmit_many": "Añadir {{count}} de carpetas",
-      "addSubmit_other": "Añadir {{count}} carpetas"
+      "submitNone": "Añadir biblioteca sin carpetas"
     },
     "videoHint": "Las carpetas de esta biblioteca pueden contener películas o series, incluso mezcladas.",
     "page": {
@@ -1951,25 +1948,11 @@
       "defaultRating": "Predeterminada: {{rating}}",
       "noRoots": "Sin carpeta: los títulos proceden de feeds suscritos.",
       "feedsOnly": "Títulos de feeds",
-      "changeRating": {
-        "action": "Cambiar la clasificación predeterminada",
-        "title": "Clasificación predeterminada de {{name}}",
-        "description": "Todos los títulos cuya clasificación procede de la biblioteca la adoptan al instante. Las clasificaciones asignadas a mano se mantienen.",
-        "submit": "Guardar",
-        "saved": "La clasificación predeterminada de {{name}} es ahora {{rating}}."
-      },
       "folders": {
-        "title": "Carpetas de {{name}}",
-        "description": "Una biblioteca puede tener varias carpetas. El escaneo y la vigilancia incorporan una carpeta nueva al instante.",
-        "none": "Esta biblioteca no tiene ninguna carpeta. No se escaneará nada hasta que añadas una.",
         "content": "Títulos: {{items}} · archivos: {{files}}",
         "remove": {
-          "action": "Quitar",
-          "label": "Quitar la carpeta {{path}}",
-          "title": "¿Seguro que quieres quitar esta carpeta?",
           "inputLabel": "Escribe la ruta para confirmar",
           "mismatch": "Escribe {{path}} exactamente así y el botón se activará.",
-          "confirm": "Quitar la carpeta",
           "lead_one": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} título desaparecerá de todas las listas. Qué implica:",
           "lead_many": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} de títulos desaparecerán de todas las listas. Qué implica:",
           "lead_other": "Vas a quitar <path>{{path}}</path> de la biblioteca {{name}}. Hasta {{count}} títulos desaparecerán de todas las listas. Qué implica:",
@@ -1981,37 +1964,20 @@
           "oneWay": "Si la carpeta queda fuera de las carpetas explorables (SLOUCHCAT_BROWSE_ROOTS), no se puede volver a añadir sin cambiar la configuración.",
           "last": "Es la última carpeta: {{name}} sigue existiendo, pero después no tendrá ninguna carpeta y no escaneará nada."
         },
-        "new": "Carpetas nuevas",
         "change": {
-          "action": "Cambiar",
-          "label": "Cambiar la carpeta {{path}}",
-          "title": "Cambiar carpeta",
-          "description": "Contenido y fuentes de metadatos de {{path}}.",
-          "submit": "Guardar",
           "identifier": "Cambia el identificador: los textos de temporadas y episodios se vuelven a asociar con {{provider}}. Los episodios se mantienen, y el progreso y Mi lista siguen asociados a ellos.",
           "fillers": "Solo cambian las fuentes que completan datos: los títulos se vuelven a completar, no se elimina nada.",
-          "content": "Cambia el contenido: equivale a quitar la carpeta y volver a añadirla. Los títulos de esta carpeta se eliminan de forma lógica y se crean de nuevo, los paquetes sin conexión desaparecen, y el progreso y Mi lista siguen asociados a los títulos antiguos.",
-          "confirmTitle": "¿Seguro que quieres cambiar el contenido?",
-          "confirm": "Cambiar contenido",
-          "saved": "Se ha cambiado la carpeta {{path}}."
+          "content": "Cambia el contenido: equivale a quitar la carpeta y volver a añadirla. Los títulos de esta carpeta se eliminan de forma lógica y se crean de nuevo, los paquetes sin conexión desaparecen, y el progreso y Mi lista siguen asociados a los títulos antiguos."
         },
         "move": {
-          "action": "Cambiar ruta",
-          "label": "Cambiar la ruta de {{path}}",
-          "title": "¿Cambiar la ruta?",
-          "body": "Ruta anterior: {{old}} · Ruta nueva: {{new}}. Los títulos y los datos de usuario se conservan si los archivos están allí con los mismos nombres. Después se vuelve a leer la carpeta.",
-          "confirm": "Cambiar",
-          "saved": "La carpeta está ahora en {{path}} y se vuelve a leer."
+          "body": "Ruta anterior: {{old}} · Ruta nueva: {{new}}. Los títulos y los datos de usuario se conservan si los archivos están allí con los mismos nombres. Después se vuelve a leer la carpeta."
         },
         "readOnly": "solo lectura",
         "writable": "con escritura"
       },
-      "openFolders": "Carpetas",
-      "openFoldersLabel": "Editar las carpetas de {{name}}",
       "rootCount_one": "{{count}} carpeta",
       "rootCount_many": "{{count}} de carpetas",
       "rootCount_other": "{{count}} carpetas",
-      "noFolder": "Sin carpeta: no se escaneará nada hasta que añadas una en «Carpetas».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} de {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
@@ -2020,8 +1986,6 @@
       },
       "trickplay": {
         "action": "Miniaturas de vista previa",
-        "actionLabel": "Miniaturas de vista previa de {{name}}",
-        "title": "Miniaturas de vista previa: {{name}}",
         "description": "Imágenes pequeñas sobre la línea de tiempo, una cada 10 segundos. Las películas y las series se ajustan por separado, también en una biblioteca mixta.",
         "movies": "Películas",
         "series": "Series",
@@ -2085,8 +2049,6 @@
           "hint": "Completa las vistas previas que faltan de todas las bibliotecas con «Por adelantado», igual que «Completar miniaturas de vista previa» en «Tareas en segundo plano».",
           "queued": "Se ha puesto en cola la creación de las vistas previas que faltan."
         },
-        "submit": "Guardar",
-        "saved": "Se han guardado las miniaturas de vista previa de {{name}}.",
         "summary": "Miniaturas de vista previa: películas {{movies}} · series {{series}}",
         "summaryNoKeep": "Al iniciar, sin conservar"
       },
@@ -2106,12 +2068,6 @@
         "jobs": "Ir a la tarea",
         "done": "Biblioteca «{{name}}» eliminada.",
         "notDone": "La biblioteca «{{name}}» no se ha eliminado. La tarea indica el motivo."
-      },
-      "rename": {
-        "action": "Cambiar nombre…",
-        "title": "Cambiar el nombre de la biblioteca «{{name}}»",
-        "label": "Nombre",
-        "saved": "La biblioteca ahora se llama «{{name}}»."
       }
     },
     "access": {

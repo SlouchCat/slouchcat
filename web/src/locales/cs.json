@@ -578,11 +578,7 @@
       "submit_few": "Přidat knihovnu s {{count}} složkami",
       "submit_many": "Přidat knihovnu s {{count}} složky",
       "submit_other": "Přidat knihovnu s {{count}} složkami",
-      "submitNone": "Přidat knihovnu bez složek",
-      "addSubmit_one": "Přidat 1 složku",
-      "addSubmit_few": "Přidat {{count}} složky",
-      "addSubmit_many": "Přidat {{count}} složky",
-      "addSubmit_other": "Přidat {{count}} složek"
+      "submitNone": "Přidat knihovnu bez složek"
     },
     "videoHint": "Složky této knihovny mohou obsahovat filmy nebo seriály, i smíšeně.",
     "page": {
@@ -2004,25 +2000,11 @@
       "defaultRating": "Výchozí: {{rating}}",
       "noRoots": "Žádná složka: tituly pocházejí z odebíraných kanálů.",
       "feedsOnly": "Tituly z kanálů",
-      "changeRating": {
-        "action": "Změnit výchozí věkové omezení",
-        "title": "Výchozí věkové omezení knihovny {{name}}",
-        "description": "Každý titul, jehož věkové omezení pochází z knihovny, se okamžitě přizpůsobí. Ručně nastavená omezení zůstanou.",
-        "submit": "Uložit",
-        "saved": "Výchozí věkové omezení knihovny {{name}} je nyní {{rating}}."
-      },
       "folders": {
-        "title": "Složky knihovny {{name}}",
-        "description": "Knihovna může obsahovat několik složek. Prohledávání i sledování novou složku zaznamenají okamžitě.",
-        "none": "Tato knihovna nemá žádnou složku. Dokud nějakou nepřidáte, nic se neprohledává.",
         "content": "Tituly: {{items}} · soubory: {{files}}",
         "remove": {
-          "action": "Odebrat",
-          "label": "Odebrat složku {{path}}",
-          "title": "Opravdu odebrat tuto složku?",
           "inputLabel": "Pro potvrzení zadejte cestu",
           "mismatch": "Zadejte {{path}} přesně, pak se tlačítko aktivuje.",
-          "confirm": "Odebrat složku",
           "lead_one": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titul s ní zmizí ze všech seznamů. Co to znamená:",
           "lead_few": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} tituly s ní zmizí ze všech seznamů. Co to znamená:",
           "lead_many": "Odebíráte <path>{{path}}</path> z knihovny {{name}}. Až {{count}} titulu s ní zmizí ze všech seznamů. Co to znamená:",
@@ -2035,38 +2017,21 @@
           "oneWay": "Pokud složka leží mimo procházené složky (SLOUCHCAT_BROWSE_ROOTS), nelze ji bez změny konfigurace znovu přidat.",
           "last": "Je to poslední složka: {{name}} zůstane, ale potom nebude mít žádnou složku a nic se nebude prohledávat."
         },
-        "new": "Nové složky",
         "change": {
-          "action": "Změnit",
-          "label": "Změnit složku {{path}}",
-          "title": "Změnit složku",
-          "description": "Obsah a zdroje metadat složky {{path}}.",
-          "submit": "Uložit",
           "identifier": "Mění se určující zdroj: texty řad a dílů se přiřadí znovu podle poskytovatele {{provider}}. Samotné díly zůstanou, průběh sledování a seznam zůstanou k nim připojeny.",
           "fillers": "Mění se jen doplňující zdroje: tituly se doplní znovu, nic se nemaže.",
-          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů.",
-          "confirmTitle": "Opravdu změnit obsah?",
-          "confirm": "Změnit obsah",
-          "saved": "Složka {{path}} byla změněna."
+          "content": "Mění se obsah: funguje to jako odebrání složky a její opětovné přidání. Tituly této složky se označí jako smazané a vytvoří se znovu, offline balíčky zmizí, průběh sledování a seznam zůstanou u starých titulů."
         },
         "move": {
-          "action": "Změnit cestu",
-          "label": "Změnit cestu složky {{path}}",
-          "title": "Změnit cestu?",
-          "body": "Stará cesta: {{old}} · Nová cesta: {{new}}. Tituly a uživatelská data zůstanou, pokud tam soubory leží pod stejnými názvy. Složka se poté načte znovu.",
-          "confirm": "Změnit",
-          "saved": "Složka nyní leží v {{path}} a je načtena znovu."
+          "body": "Stará cesta: {{old}} · Nová cesta: {{new}}. Tituly a uživatelská data zůstanou, pokud tam soubory leží pod stejnými názvy. Složka se poté načte znovu."
         },
         "readOnly": "jen pro čtení",
         "writable": "zapisovatelná"
       },
-      "openFolders": "Složky",
-      "openFoldersLabel": "Upravit složky knihovny {{name}}",
       "rootCount_one": "{{count}} složka",
       "rootCount_few": "{{count}} složky",
       "rootCount_many": "{{count}} složky",
       "rootCount_other": "{{count}} složek",
-      "noFolder": "Žádná složka: dokud nějakou nepřidáte v části „Složky“, nic se neprohledává.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_few": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
@@ -2076,8 +2041,6 @@
       },
       "trickplay": {
         "action": "Náhledy při přetáčení",
-        "actionLabel": "Náhledy při přetáčení pro {{name}}",
-        "title": "Náhledy při přetáčení: {{name}}",
         "description": "Malé obrázky nad časovou osou, jeden každých 10 sekund. Filmy a seriály se nastavují zvlášť, i v knihovně, která obsahuje obojí.",
         "movies": "Filmy",
         "series": "Seriály",
@@ -2143,8 +2106,6 @@
           "hint": "Doplní chybějící náhledy každé knihovny v režimu „Předem“, stejně jako „Doplnit náhledy při přetáčení“ v části „Úlohy na pozadí“.",
           "queued": "Doplňování náhledů čeká ve frontě."
         },
-        "submit": "Uložit",
-        "saved": "Náhledy při přetáčení pro {{name}} jsou uloženy.",
         "summary": "Náhledy při přetáčení: filmy {{movies}} · seriály {{series}}",
         "summaryNoKeep": "Při spuštění, neukládají se"
       },
@@ -2165,12 +2126,6 @@
         "jobs": "Přejít na úlohu",
         "done": "Knihovna „{{name}}“ smazána.",
         "notDone": "Knihovna „{{name}}“ nebyla smazána. Důvod uvádí úloha."
-      },
-      "rename": {
-        "action": "Přejmenovat…",
-        "title": "Přejmenovat knihovnu „{{name}}“",
-        "label": "Název",
-        "saved": "Knihovna se nyní jmenuje „{{name}}“."
       }
     },
     "access": {

@@ -1,7 +1,6 @@
 import type {
   LibraryRequest,
   LibraryRoot,
-  LibraryRootUpdate,
   MetadataSettings,
   RootImages,
 } from '@slouchcat/api-client';
@@ -21,7 +20,7 @@ import {
 } from './languages';
 import styles from './FolderMetadataFields.module.css';
 
-/** One folder of `createLibrary` and `addLibraryRoot`. */
+/** One folder of `createLibrary`. */
 type LibraryRootRequest = LibraryRequest['roots'][number];
 
 /** The chains of a folder's own images, in the order of the page «Metadaten». */
@@ -77,30 +76,13 @@ export function folderMetadataValues(draft: FolderMetadataDraft): {
   };
 }
 
-/** The fields of a new folder (createLibrary, addLibraryRoot): only its own values are sent. */
+/** The fields of a new folder (createLibrary): only its own values are sent. */
 export function folderMetadataRequest(
   draft: FolderMetadataDraft | undefined,
 ): Partial<Pick<LibraryRootRequest, 'textLangs' | 'images'>> {
   if (!draft) return {};
   const { textLangs, images } = folderMetadataValues(draft);
   return { ...(textLangs ? { textLangs } : {}), ...(images ? { images } : {}) };
-}
-
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-
-/**
- * The fields of a changed folder (updateLibraryRoot, concept 24 3.6): left out when unchanged,
- * `null` back to the default, the list when it is the folder's own.
- */
-export function folderMetadataUpdate(
-  draft: FolderMetadataDraft,
-  root: Pick<LibraryRoot, 'textLangs' | 'images'>,
-): Partial<Pick<LibraryRootUpdate, 'textLangs' | 'images'>> {
-  const { textLangs, images } = folderMetadataValues(draft);
-  return {
-    ...(same(textLangs, root.textLangs) ? {} : { textLangs }),
-    ...(same(images, root.images) ? {} : { images }),
-  };
 }
 
 /** Whether a new folder's draft has something of its own. */
@@ -137,7 +119,7 @@ interface FolderMetadataFieldsProps {
  * the default; the place list of the languages, the switchable image kinds and the language per
  * image kind as on the page «Metadaten», with the hints which source does not know a language
  * (for this list), what a language costs and the YouTube quota. Only video folders have it. The
- * form that holds the folder sends the draft (folderMetadataRequest, folderMetadataUpdate).
+ * form that holds the folder sends the draft (folderMetadataRequest, folderMetadataValues).
  */
 export function FolderMetadataFields({
   value,

@@ -552,9 +552,7 @@
       "providers": "Map {{number}}: {{message}}",
       "submit_one": "Bibliotheek met {{count}} map toevoegen",
       "submit_other": "Bibliotheek met {{count}} mappen toevoegen",
-      "submitNone": "Bibliotheek zonder mappen toevoegen",
-      "addSubmit_one": "Eén map toevoegen",
-      "addSubmit_other": "{{count}} mappen toevoegen"
+      "submitNone": "Bibliotheek zonder mappen toevoegen"
     },
     "videoHint": "De mappen van deze bibliotheek mogen films of series bevatten, ook door elkaar.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Standaard: {{rating}}",
       "noRoots": "Geen map: de titels komen uit geabonneerde feeds.",
       "feedsOnly": "Titels uit feeds",
-      "changeRating": {
-        "action": "Standaardclassificatie wijzigen",
-        "title": "Standaardclassificatie van {{name}}",
-        "description": "Elke titel waarvan de classificatie van de bibliotheek komt, volgt meteen. Handmatig ingestelde classificaties blijven staan.",
-        "submit": "Opslaan",
-        "saved": "De standaardclassificatie van {{name}} is nu {{rating}}."
-      },
       "folders": {
-        "title": "Mappen van {{name}}",
-        "description": "Een bibliotheek kan meerdere mappen bevatten. De scan en de bewaker pakken een nieuwe map meteen op.",
-        "none": "Deze bibliotheek heeft geen map. Er wordt niets gescand totdat je er een toevoegt.",
         "content": "Titels: {{items}} · bestanden: {{files}}",
         "remove": {
-          "action": "Weghalen",
-          "label": "Map {{path}} weghalen",
-          "title": "Deze map echt weghalen?",
           "inputLabel": "Typ het pad ter bevestiging",
           "mismatch": "Typ {{path}} exact zo, dan wordt de knop actief.",
-          "confirm": "Map weghalen",
           "lead_one": "Je haalt <path>{{path}}</path> weg uit de bibliotheek {{name}}. Maximaal {{count}} titel verdwijnt daarmee uit elke lijst. Dit betekent het:",
           "lead_other": "Je haalt <path>{{path}}</path> weg uit de bibliotheek {{name}}. Maximaal {{count}} titels verdwijnen daarmee uit elke lijst. Dit betekent het:",
           "soft": "De titels worden zacht verwijderd: ze verdwijnen uit elke lijst, maar voortgang, items op Mijn lijst en tips blijven eraan gekoppeld. Een titel met een bestand in een andere map van deze bibliotheek blijft zichtbaar.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Ligt de map buiten de doorzoekbare mappen (SLOUCHCAT_BROWSE_ROOTS), dan kan hij zonder wijziging van de configuratie niet opnieuw worden toegevoegd.",
           "last": "Het is de laatste map: {{name}} blijft bestaan, maar heeft daarna geen map meer en scant niets."
         },
-        "new": "Nieuwe mappen",
         "change": {
-          "action": "Wijzigen",
-          "label": "Map {{path}} wijzigen",
-          "title": "Map wijzigen",
-          "description": "Inhoud en metadatabronnen van {{path}}.",
-          "submit": "Opslaan",
           "identifier": "De herkenner verandert: seizoens- en afleveringsteksten worden opnieuw toegewezen via {{provider}}. De afleveringen zelf blijven, voortgang en Mijn lijst blijven eraan gekoppeld.",
           "fillers": "Alleen de aanvullers veranderen: de titels worden opnieuw aangevuld, er wordt niets verwijderd.",
-          "content": "De inhoud verandert: dat werkt als de map weghalen en opnieuw toevoegen. De titels van deze map worden zacht verwijderd en opnieuw aangemaakt, offlinepakketten zijn weg, voortgang en Mijn lijst blijven bij de oude titels.",
-          "confirmTitle": "De inhoud echt wijzigen?",
-          "confirm": "Inhoud wijzigen",
-          "saved": "De map {{path}} is gewijzigd."
+          "content": "De inhoud verandert: dat werkt als de map weghalen en opnieuw toevoegen. De titels van deze map worden zacht verwijderd en opnieuw aangemaakt, offlinepakketten zijn weg, voortgang en Mijn lijst blijven bij de oude titels."
         },
         "move": {
-          "action": "Pad wijzigen",
-          "label": "Pad van {{path}} wijzigen",
-          "title": "Pad wijzigen?",
-          "body": "Oud pad: {{old}} · Nieuw pad: {{new}}. Titels en gebruikersgegevens blijven behouden als de bestanden daar onder dezelfde namen staan. Daarna wordt de map opnieuw ingelezen.",
-          "confirm": "Wijzigen",
-          "saved": "De map staat nu op {{path}} en wordt opnieuw ingelezen."
+          "body": "Oud pad: {{old}} · Nieuw pad: {{new}}. Titels en gebruikersgegevens blijven behouden als de bestanden daar onder dezelfde namen staan. Daarna wordt de map opnieuw ingelezen."
         },
         "readOnly": "alleen-lezen",
         "writable": "beschrijfbaar"
       },
-      "openFolders": "Mappen",
-      "openFoldersLabel": "Mappen van {{name}} bewerken",
       "rootCount_one": "{{count}} map",
       "rootCount_other": "{{count}} mappen",
-      "noFolder": "Geen map: er wordt niets gescand totdat je er een toevoegt onder “Mappen”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Voorbeeldminiaturen",
-        "actionLabel": "Voorbeeldminiaturen van {{name}}",
-        "title": "Voorbeeldminiaturen: {{name}}",
         "description": "Kleine afbeeldingen boven de tijdlijn, eentje per 10 seconden. Films en series stel je apart in, ook in een bibliotheek met beide.",
         "movies": "Films",
         "series": "Series",
@@ -2027,8 +1992,6 @@
           "hint": "Haalt de ontbrekende voorbeelden in van elke bibliotheek op “Vooraf”, zoals “Voorbeeldminiaturen aanvullen” onder “Achtergrondtaken”.",
           "queued": "Het inhalen van de voorbeelden staat in de wachtrij."
         },
-        "submit": "Opslaan",
-        "saved": "De voorbeeldminiaturen van {{name}} zijn opgeslagen.",
         "summary": "Voorbeeldminiaturen: films {{movies}} · series {{series}}",
         "summaryNoKeep": "Bij het starten, niet bewaard"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Naar de taak",
         "done": "Bibliotheek “{{name}}” verwijderd.",
         "notDone": "Bibliotheek “{{name}}” is niet verwijderd. De taak zegt waarom."
-      },
-      "rename": {
-        "action": "Hernoemen…",
-        "title": "Bibliotheek “{{name}}” hernoemen",
-        "label": "Naam",
-        "saved": "De bibliotheek heet nu “{{name}}”."
       }
     },
     "access": {

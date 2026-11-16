@@ -552,9 +552,7 @@
       "providers": "Kansio {{number}}: {{message}}",
       "submit_one": "Lisää kirjasto, {{count}} kansio",
       "submit_other": "Lisää kirjasto, {{count}} kansiota",
-      "submitNone": "Lisää kirjasto ilman kansioita",
-      "addSubmit_one": "Lisää yksi kansio",
-      "addSubmit_other": "Lisää {{count}} kansiota"
+      "submitNone": "Lisää kirjasto ilman kansioita"
     },
     "videoHint": "Tämän kirjaston kansioissa voi olla elokuvia tai sarjoja, myös sekaisin.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Oletus: {{rating}}",
       "noRoots": "Ei kansiota: nimikkeet tulevat tilatuista syötteistä.",
       "feedsOnly": "Nimikkeet syötteistä",
-      "changeRating": {
-        "action": "Muuta oletusikärajaa",
-        "title": "Oletusikäraja: {{name}}",
-        "description": "Jokainen nimike, jonka ikäraja tulee kirjastolta, seuraa muutosta heti. Käsin asetetut ikärajat säilyvät.",
-        "submit": "Tallenna",
-        "saved": "Kirjaston {{name}} oletusikäraja on nyt {{rating}}."
-      },
       "folders": {
-        "title": "Kirjaston {{name}} kansiot",
-        "description": "Kirjastossa voi olla useita kansioita. Skannaus ja tarkkailija ottavat uuden kansion huomioon heti.",
-        "none": "Tässä kirjastossa ei ole kansiota. Mitään ei skannata, ennen kuin lisäät sellaisen.",
         "content": "Nimikkeet: {{items}} · tiedostot: {{files}}",
         "remove": {
-          "action": "Poista",
-          "label": "Poista kansio {{path}}",
-          "title": "Poistetaanko kansio varmasti?",
           "inputLabel": "Vahvista kirjoittamalla polku",
           "mismatch": "Kirjoita {{path}} täsmälleen, niin painike aktivoituu.",
-          "confirm": "Poista kansio",
           "lead_one": "Poistat polun <path>{{path}}</path> kirjastosta {{name}}. Enintään {{count}} nimike poistuu sen mukana kaikista listoista. Tämä tarkoittaa:",
           "lead_other": "Poistat polun <path>{{path}}</path> kirjastosta {{name}}. Enintään {{count}} nimikettä poistuu sen mukana kaikista listoista. Tämä tarkoittaa:",
           "soft": "Nimikkeet poistetaan pehmeästi: ne katoavat kaikista listoista, mutta katseluhistoria, omat listat ja suosikit pysyvät niihin liitettyinä. Nimike, jolla on tiedosto toisessa tämän kirjaston kansiossa, pysyy näkyvissä.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Jos kansio on selattavien kansioiden (SLOUCHCAT_BROWSE_ROOTS) ulkopuolella, sitä ei voi lisätä uudelleen ilman asetusten muutosta.",
           "last": "Tämä on viimeinen kansio: {{name}} säilyy, mutta siinä ei ole sen jälkeen kansiota, eikä mitään skannata."
         },
-        "new": "Uudet kansiot",
         "change": {
-          "action": "Muuta",
-          "label": "Muuta kansiota {{path}}",
-          "title": "Muuta kansiota",
-          "description": "Polun {{path}} sisältö ja metatietolähteet.",
-          "submit": "Tallenna",
           "identifier": "Tunnistaja muuttuu: kausien ja jaksojen tekstit kohdistetaan uudelleen lähteen {{provider}} mukaan. Jaksot itse säilyvät, katseluhistoria ja omat listat pysyvät niihin liitettyinä.",
           "fillers": "Vain täydentäjät muuttuvat: nimikkeiden tiedot täydennetään uudelleen, mitään ei poisteta.",
-          "content": "Sisältö muuttuu: se toimii kuin kansion poistaminen ja lisääminen uudelleen. Kansion nimikkeet poistetaan pehmeästi ja luodaan uudelleen, offline-paketit poistuvat, katseluhistoria ja omat listat jäävät vanhoille nimikkeille.",
-          "confirmTitle": "Muutetaanko sisältö varmasti?",
-          "confirm": "Muuta sisältöä",
-          "saved": "Kansiota {{path}} on muutettu."
+          "content": "Sisältö muuttuu: se toimii kuin kansion poistaminen ja lisääminen uudelleen. Kansion nimikkeet poistetaan pehmeästi ja luodaan uudelleen, offline-paketit poistuvat, katseluhistoria ja omat listat jäävät vanhoille nimikkeille."
         },
         "move": {
-          "action": "Muuta polkua",
-          "label": "Muuta polkua: {{path}}",
-          "title": "Muutetaanko polku?",
-          "body": "Vanha polku: {{old}} · Uusi polku: {{new}}. Nimikkeet ja käyttäjätiedot säilyvät, jos tiedostot ovat siellä samoilla nimillä. Kansio luetaan tämän jälkeen uudelleen.",
-          "confirm": "Muuta",
-          "saved": "Kansio sijaitsee nyt polussa {{path}}, ja se luetaan uudelleen."
+          "body": "Vanha polku: {{old}} · Uusi polku: {{new}}. Nimikkeet ja käyttäjätiedot säilyvät, jos tiedostot ovat siellä samoilla nimillä. Kansio luetaan tämän jälkeen uudelleen."
         },
         "readOnly": "vain luku",
         "writable": "kirjoitettava"
       },
-      "openFolders": "Kansiot",
-      "openFoldersLabel": "Muokkaa kirjaston {{name}} kansioita",
       "rootCount_one": "{{count}} kansio",
       "rootCount_other": "{{count}} kansiota",
-      "noFolder": "Ei kansiota: mitään ei skannata, ennen kuin lisäät sellaisen kohdassa ”Kansiot”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Esikatselukuvat",
-        "actionLabel": "Esikatselukuvat: {{name}}",
-        "title": "Esikatselukuvat: {{name}}",
         "description": "Pieniä kuvia aikajanan yläpuolella, yksi 10 sekunnin välein. Elokuvat ja sarjat asetetaan erikseen, myös kirjastossa, jossa on molempia.",
         "movies": "Elokuvat",
         "series": "Sarjat",
@@ -2027,8 +1992,6 @@
           "hint": "Täydentää puuttuvat esikatselut jokaisesta kirjastosta, jonka tila on ”Etukäteen”, kuten ”Täydennä esikatselukuvat” kohdassa ”Taustatyöt”.",
           "queued": "Esikatselujen täydennys on jonossa."
         },
-        "submit": "Tallenna",
-        "saved": "Kirjaston {{name}} esikatselukuvat on tallennettu.",
         "summary": "Esikatselukuvat: elokuvat {{movies}} · sarjat {{series}}",
         "summaryNoKeep": "Aloitettaessa, ei säilytetä"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Siirry työhön",
         "done": "Kirjasto ”{{name}}” poistettu.",
         "notDone": "Kirjastoa ”{{name}}” ei poistettu. Työ kertoo syyn."
-      },
-      "rename": {
-        "action": "Nimeä uudelleen…",
-        "title": "Nimeä kirjasto ”{{name}}” uudelleen",
-        "label": "Nimi",
-        "saved": "Kirjaston nimi on nyt ”{{name}}”."
       }
     },
     "access": {

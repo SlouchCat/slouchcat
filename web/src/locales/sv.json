@@ -552,9 +552,7 @@
       "providers": "Mapp {{number}}: {{message}}",
       "submit_one": "Lägg till bibliotek med {{count}} mapp",
       "submit_other": "Lägg till bibliotek med {{count}} mappar",
-      "submitNone": "Lägg till bibliotek utan mappar",
-      "addSubmit_one": "Lägg till 1 mapp",
-      "addSubmit_other": "Lägg till {{count}} mappar"
+      "submitNone": "Lägg till bibliotek utan mappar"
     },
     "videoHint": "Mapparna i det här biblioteket kan innehålla filmer eller serier, även blandat.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Ingen mapp: titlarna kommer från prenumererade flöden.",
       "feedsOnly": "Titlar från flöden",
-      "changeRating": {
-        "action": "Ändra standardåldersgräns",
-        "title": "Standardåldersgräns för {{name}}",
-        "description": "Varje titel vars åldersgräns kommer från biblioteket följer direkt. Åldersgränser som satts manuellt behålls.",
-        "submit": "Spara",
-        "saved": "Standardåldersgränsen för {{name}} är nu {{rating}}."
-      },
       "folders": {
-        "title": "Mappar i {{name}}",
-        "description": "Ett bibliotek kan innehålla flera mappar. Genomsökningen och bevakningen tar med en ny mapp direkt.",
-        "none": "Det här biblioteket har ingen mapp. Inget genomsöks förrän du lägger till en.",
         "content": "Titlar: {{items}} · filer: {{files}}",
         "remove": {
-          "action": "Ta bort",
-          "label": "Ta bort mappen {{path}}",
-          "title": "Vill du verkligen ta bort mappen?",
           "inputLabel": "Skriv sökvägen för att bekräfta",
           "mismatch": "Skriv {{path}} exakt, så blir knappen aktiv.",
-          "confirm": "Ta bort mappen",
           "lead_one": "Du tar bort <path>{{path}}</path> från biblioteket {{name}}. Upp till {{count}} titel försvinner från alla listor tillsammans med den. Det innebär:",
           "lead_other": "Du tar bort <path>{{path}}</path> från biblioteket {{name}}. Upp till {{count}} titlar försvinner från alla listor tillsammans med den. Det innebär:",
           "soft": "Titlarna tas bort mjukt: de försvinner från alla listor, men framsteg, poster i Min lista och tips finns kvar kopplade till dem. En titel med en fil i en annan mapp i det här biblioteket förblir synlig.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Om mappen ligger utanför de mappar som går att bläddra i (SLOUCHCAT_BROWSE_ROOTS) kan den inte läggas till igen utan en ändring i konfigurationen.",
           "last": "Det är den sista mappen: {{name}} finns kvar, men har därefter ingen mapp och genomsöker ingenting."
         },
-        "new": "Nya mappar",
         "change": {
-          "action": "Ändra",
-          "label": "Ändra mappen {{path}}",
-          "title": "Ändra mapp",
-          "description": "Innehåll och metadatakällor för {{path}}.",
-          "submit": "Spara",
           "identifier": "Identifieraren ändras: säsongs- och avsnittstexter tilldelas på nytt efter {{provider}}. Själva avsnitten finns kvar, framsteg och Min lista förblir kopplade till dem.",
           "fillers": "Bara kompletteringskällorna ändras: titlarna kompletteras på nytt, inget tas bort.",
-          "content": "Innehållet ändras: det fungerar som att ta bort mappen och lägga till den igen. Mappens titlar tas bort mjukt och skapas på nytt, offlinepaket försvinner, framsteg och Min lista stannar kvar på de gamla titlarna.",
-          "confirmTitle": "Vill du verkligen ändra innehållet?",
-          "confirm": "Ändra innehåll",
-          "saved": "Mappen {{path}} har ändrats."
+          "content": "Innehållet ändras: det fungerar som att ta bort mappen och lägga till den igen. Mappens titlar tas bort mjukt och skapas på nytt, offlinepaket försvinner, framsteg och Min lista stannar kvar på de gamla titlarna."
         },
         "move": {
-          "action": "Ändra sökväg",
-          "label": "Ändra sökvägen för {{path}}",
-          "title": "Ändra sökväg?",
-          "body": "Gammal sökväg: {{old}} · Ny sökväg: {{new}}. Titlar och användardata finns kvar om filerna ligger där med samma namn. Mappen läses därefter in på nytt.",
-          "confirm": "Ändra",
-          "saved": "Mappen ligger nu på {{path}} och läses in på nytt."
+          "body": "Gammal sökväg: {{old}} · Ny sökväg: {{new}}. Titlar och användardata finns kvar om filerna ligger där med samma namn. Mappen läses därefter in på nytt."
         },
         "readOnly": "skrivskyddad",
         "writable": "skrivbar"
       },
-      "openFolders": "Mappar",
-      "openFoldersLabel": "Redigera mapparna i {{name}}",
       "rootCount_one": "{{count}} mapp",
       "rootCount_other": "{{count}} mappar",
-      "noFolder": "Ingen mapp: inget genomsöks förrän du lägger till en under ”Mappar”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Förhandsbilder",
-        "actionLabel": "Förhandsbilder för {{name}}",
-        "title": "Förhandsbilder: {{name}}",
         "description": "Små bilder ovanför tidslinjen, en var 10:e sekund. Filmer och serier ställs in var för sig, även i ett bibliotek som innehåller båda.",
         "movies": "Filmer",
         "series": "Serier",
@@ -2027,8 +1992,6 @@
           "hint": "Tar igen de saknade förhandsbilderna för varje bibliotek med ”I förväg”, som ”Komplettera förhandsbilder” under ”Bakgrundsjobb”.",
           "queued": "Komplettering av förhandsbilderna står i kö."
         },
-        "submit": "Spara",
-        "saved": "Förhandsbilderna för {{name}} har sparats.",
         "summary": "Förhandsbilder: filmer {{movies}} · serier {{series}}",
         "summaryNoKeep": "Vid start, behålls inte"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Gå till jobbet",
         "done": "Biblioteket ”{{name}}” har tagits bort.",
         "notDone": "Biblioteket ”{{name}}” togs inte bort. Jobbet anger varför."
-      },
-      "rename": {
-        "action": "Byt namn…",
-        "title": "Byt namn på biblioteket ”{{name}}”",
-        "label": "Namn",
-        "saved": "Biblioteket heter nu ”{{name}}”."
       }
     },
     "access": {

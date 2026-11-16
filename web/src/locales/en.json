@@ -553,8 +553,6 @@
       "submit_one": "Add library with {{count}} folder",
       "submit_other": "Add library with {{count}} folders",
       "submitNone": "Add library without folders",
-      "addSubmit_one": "Add 1 folder",
-      "addSubmit_other": "Add {{count}} folders",
       "marked": "Will be removed when you save. You then confirm it with the path.",
       "undo": "Undo",
       "undoLabel": "Undo removing folder {{number}}",
@@ -1881,25 +1879,11 @@
       "defaultRating": "Default: {{rating}}",
       "noRoots": "No folder: the titles come from subscribed feeds.",
       "feedsOnly": "Titles from feeds",
-      "changeRating": {
-        "action": "Change default rating",
-        "title": "Default rating of {{name}}",
-        "description": "Every title whose rating comes from the library follows at once. Ratings set by hand stay.",
-        "submit": "Save",
-        "saved": "The default rating of {{name}} is now {{rating}}."
-      },
       "folders": {
-        "title": "Folders of {{name}}",
-        "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
-        "none": "This library has no folder. Nothing is scanned until you add one.",
         "content": "Titles: {{items}} · files: {{files}}",
         "remove": {
-          "action": "Remove",
-          "label": "Remove the folder {{path}}",
-          "title": "Really remove this folder?",
           "inputLabel": "Type the path to confirm",
           "mismatch": "Type {{path}} exactly, then the button becomes active.",
-          "confirm": "Remove the folder",
           "lead_one": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} title leaves every list with it. What that means:",
           "lead_other": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} titles leave every list with it. What that means:",
           "soft": "The titles are soft-deleted: they vanish from every list, but progress, watchlist entries and picks stay attached to them. A title with a file in another folder of this library stays visible.",
@@ -1910,36 +1894,19 @@
           "oneWay": "If the folder lies outside the browsable folders (SLOUCHCAT_BROWSE_ROOTS), it cannot be added again without a change to the configuration.",
           "last": "It is the last folder: {{name}} stays, but holds no folder afterwards and scans nothing."
         },
-        "new": "New folders",
         "change": {
-          "action": "Change",
-          "label": "Change folder {{path}}",
-          "title": "Change folder",
-          "description": "Content and metadata sources of {{path}}.",
-          "submit": "Save",
           "identifier": "The identifier changes: season and episode texts are assigned anew after {{provider}}. The episodes themselves stay, progress and watchlist stay attached to them.",
           "fillers": "Only the fillers change: the titles are filled in again, nothing is deleted.",
-          "content": "The content changes: that works like removing the folder and adding it again. The titles of this folder are soft-deleted and created anew, offline packages are gone, progress and watchlist stay with the old titles.",
-          "confirmTitle": "Really change the content?",
-          "confirm": "Change content",
-          "saved": "The folder {{path}} is changed."
+          "content": "The content changes: that works like removing the folder and adding it again. The titles of this folder are soft-deleted and created anew, offline packages are gone, progress and watchlist stay with the old titles."
         },
         "move": {
-          "action": "Change path",
-          "label": "Change the path of {{path}}",
-          "title": "Change path?",
-          "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards.",
-          "confirm": "Change",
-          "saved": "The folder now lies at {{path}} and is read anew."
+          "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards."
         },
         "readOnly": "read-only",
         "writable": "writable"
       },
-      "openFolders": "Folders",
-      "openFoldersLabel": "Edit the folders of {{name}}",
       "rootCount_one": "{{count}} folder",
       "rootCount_other": "{{count}} folders",
-      "noFolder": "No folder: nothing is scanned until you add one under “Folders”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1947,8 +1914,6 @@
       },
       "trickplay": {
         "action": "Seek preview",
-        "actionLabel": "Seek preview of {{name}}",
-        "title": "Seek preview: {{name}}",
         "description": "Small pictures above the timeline, one every 10 seconds. Films and series are set separately, also in a library that holds both.",
         "movies": "Films",
         "series": "Series",
@@ -2011,8 +1976,6 @@
           "queued": "Catching up on the previews is queued.",
           "unsaved": "Only after saving: generating uses the saved setting."
         },
-        "submit": "Save",
-        "saved": "The seek preview of {{name}} is saved.",
         "summary": "Seek preview: films {{movies}} · series {{series}}",
         "summaryNoKeep": "At start, not kept",
         "header": "Films: {{movies}} · series: {{series}}"
@@ -2032,12 +1995,6 @@
         "jobs": "Go to the job",
         "done": "Library “{{name}}” deleted.",
         "notDone": "Library “{{name}}” was not deleted. The job says why."
-      },
-      "rename": {
-        "action": "Rename …",
-        "title": "Rename library “{{name}}”",
-        "label": "Name",
-        "saved": "The library is now called “{{name}}”."
       },
       "form": {
         "editTitle": "Edit library",

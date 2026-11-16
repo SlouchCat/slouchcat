@@ -539,8 +539,7 @@
       "overlap": "資料夾 {{number}} 與上方的資料夾重疊。",
       "providers": "資料夾 {{number}}：{{message}}",
       "submit_other": "新增含 {{count}} 個資料夾的媒體庫",
-      "submitNone": "新增不含資料夾的媒體庫",
-      "addSubmit_other": "新增 {{count}} 個資料夾"
+      "submitNone": "新增不含資料夾的媒體庫"
     },
     "videoHint": "這個媒體庫的資料夾可以包含電影或影集，也可以混合存放。",
     "page": {
@@ -1845,25 +1844,11 @@
       "defaultRating": "預設：{{rating}}",
       "noRoots": "沒有資料夾：作品來自訂閱的訂閱源。",
       "feedsOnly": "來自訂閱源的作品",
-      "changeRating": {
-        "action": "變更預設分級",
-        "title": "{{name}} 的預設分級",
-        "description": "所有分級來自媒體庫的作品都會立即跟著變更。手動設定的分級會保留。",
-        "submit": "儲存",
-        "saved": "{{name}} 的預設分級現在是 {{rating}}。"
-      },
       "folders": {
-        "title": "{{name}} 的資料夾",
-        "description": "一個媒體庫可以包含多個資料夾。掃描和監看會立即納入新資料夾。",
-        "none": "這個媒體庫沒有資料夾。新增資料夾之前不會掃描任何內容。",
         "content": "作品：{{items}} · 檔案：{{files}}",
         "remove": {
-          "action": "移除",
-          "label": "移除資料夾 {{path}}",
-          "title": "確定要移除這個資料夾嗎？",
           "inputLabel": "輸入路徑以確認",
           "mismatch": "請完整輸入 {{path}}，按鈕才會啟用。",
-          "confirm": "移除資料夾",
           "lead_other": "你即將從媒體庫 {{name}} 移除 <path>{{path}}</path>。最多 {{count}} 部作品會因此從所有清單中消失。這代表：",
           "soft": "這些作品會被軟刪除：它們會從所有清單中消失，但進度、我的片單項目和推薦仍會保留。如果作品在此媒體庫的其他資料夾中還有檔案，就會繼續顯示。",
           "downloads": "離線下載會真正刪除：已下載其中任何作品的裝置，會在下次同步時刪除該下載包。",
@@ -1873,43 +1858,24 @@
           "oneWay": "如果資料夾位於可瀏覽的資料夾（SLOUCHCAT_BROWSE_ROOTS）之外，不變更設定就無法再次新增。",
           "last": "這是最後一個資料夾：{{name}} 會保留，但之後沒有任何資料夾，也不會掃描任何內容。"
         },
-        "new": "新資料夾",
         "change": {
-          "action": "變更",
-          "label": "變更資料夾 {{path}}",
-          "title": "變更資料夾",
-          "description": "{{path}} 的內容和中繼資料來源。",
-          "submit": "儲存",
           "identifier": "辨識來源將變更：季和單集的文字會依 {{provider}} 重新對應。單集本身會保留，進度和我的片單也仍與它們相連。",
           "fillers": "只有補充來源會變更：作品會重新補充資料，不會刪除任何內容。",
-          "content": "內容類型將變更：效果等同於移除資料夾後再重新新增。此資料夾的作品會被軟刪除並重新建立，離線下載包會消失，進度和我的片單則留在舊作品上。",
-          "confirmTitle": "確定要變更內容類型嗎？",
-          "confirm": "變更內容類型",
-          "saved": "已變更資料夾 {{path}}。"
+          "content": "內容類型將變更：效果等同於移除資料夾後再重新新增。此資料夾的作品會被軟刪除並重新建立，離線下載包會消失，進度和我的片單則留在舊作品上。"
         },
         "move": {
-          "action": "變更路徑",
-          "label": "變更 {{path}} 的路徑",
-          "title": "要變更路徑嗎？",
-          "body": "舊路徑：{{old}} · 新路徑：{{new}}。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。之後會重新讀取資料夾。",
-          "confirm": "變更",
-          "saved": "資料夾現在位於 {{path}}，正在重新讀取。"
+          "body": "舊路徑：{{old}} · 新路徑：{{new}}。只要檔案以相同名稱位於新路徑，作品和使用者資料都會保留。之後會重新讀取資料夾。"
         },
         "readOnly": "唯讀",
         "writable": "可寫入"
       },
-      "openFolders": "資料夾",
-      "openFoldersLabel": "編輯 {{name}} 的資料夾",
       "rootCount_other": "{{count}} 個資料夾",
-      "noFolder": "沒有資料夾：在「資料夾」中新增資料夾之前，不會掃描任何內容。",
       "rootSummary_other": "{{content}}：{{count}}",
       "metadata": {
         "audiobooksLink": "有聲書的來源"
       },
       "trickplay": {
         "action": "拖曳預覽",
-        "actionLabel": "{{name}} 的拖曳預覽",
-        "title": "拖曳預覽：{{name}}",
         "description": "時間軸上方的小圖，每 10 秒一張。電影和影集分開設定，即使在同時包含兩者的媒體庫中也是如此。",
         "movies": "電影",
         "series": "影集",
@@ -1969,8 +1935,6 @@
           "hint": "為所有設為「預先產生」的媒體庫補建缺少的預覽，與「背景工作」中的「補建拖曳預覽」相同。",
           "queued": "預覽補建已排入佇列。"
         },
-        "submit": "儲存",
-        "saved": "已儲存 {{name}} 的拖曳預覽。",
         "summary": "拖曳預覽：電影 {{movies}} · 影集 {{series}}",
         "summaryNoKeep": "開始時，不保留"
       },
@@ -1988,12 +1952,6 @@
         "jobs": "前往工作",
         "done": "已刪除媒體庫「{{name}}」。",
         "notDone": "媒體庫「{{name}}」未刪除。原因請參閱工作。"
-      },
-      "rename": {
-        "action": "重新命名…",
-        "title": "重新命名媒體庫「{{name}}」",
-        "label": "名稱",
-        "saved": "媒體庫現在名為「{{name}}」。"
       }
     },
     "access": {

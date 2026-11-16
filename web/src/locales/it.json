@@ -565,10 +565,7 @@
       "submit_one": "Aggiungi libreria con {{count}} cartella",
       "submit_many": "Aggiungi libreria con {{count}} di cartelle",
       "submit_other": "Aggiungi libreria con {{count}} cartelle",
-      "submitNone": "Aggiungi libreria senza cartelle",
-      "addSubmit_one": "Aggiungi la cartella",
-      "addSubmit_many": "Aggiungi {{count}} di cartelle",
-      "addSubmit_other": "Aggiungi {{count}} cartelle"
+      "submitNone": "Aggiungi libreria senza cartelle"
     },
     "videoHint": "Le cartelle di questa libreria possono contenere film o serie TV, anche mescolati.",
     "page": {
@@ -1951,25 +1948,11 @@
       "defaultRating": "Predefinita: {{rating}}",
       "noRoots": "Nessuna cartella: i titoli provengono dai feed sottoscritti.",
       "feedsOnly": "Titoli dai feed",
-      "changeRating": {
-        "action": "Cambia la classificazione predefinita",
-        "title": "Classificazione predefinita di {{name}}",
-        "description": "Tutti i titoli la cui classificazione deriva dalla libreria si adeguano subito. Le classificazioni impostate a mano restano.",
-        "submit": "Salva",
-        "saved": "La classificazione predefinita di {{name}} ora è {{rating}}."
-      },
       "folders": {
-        "title": "Cartelle di {{name}}",
-        "description": "Una libreria può avere più cartelle. La scansione e il monitoraggio recepiscono subito una nuova cartella.",
-        "none": "Questa libreria non ha cartelle. Non viene analizzato nulla finché non ne aggiungi una.",
         "content": "Titoli: {{items}} · file: {{files}}",
         "remove": {
-          "action": "Rimuovi",
-          "label": "Rimuovi la cartella {{path}}",
-          "title": "Rimuovere davvero questa cartella?",
           "inputLabel": "Digita il percorso per confermare",
           "mismatch": "Digita {{path}} esattamente così, poi il pulsante si attiva.",
-          "confirm": "Rimuovi la cartella",
           "lead_one": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titolo esce con essa da ogni elenco. Cosa significa:",
           "lead_many": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} di titoli escono con essa da ogni elenco. Cosa significa:",
           "lead_other": "Stai rimuovendo <path>{{path}}</path> dalla libreria {{name}}. Fino a {{count}} titoli escono con essa da ogni elenco. Cosa significa:",
@@ -1981,37 +1964,20 @@
           "oneWay": "Se la cartella si trova fuori dalle cartelle consentite (SLOUCHCAT_BROWSE_ROOTS), non si può riaggiungere senza modificare la configurazione.",
           "last": "È l’ultima cartella: {{name}} resta, ma dopo non avrà più cartelle e non analizzerà nulla."
         },
-        "new": "Nuove cartelle",
         "change": {
-          "action": "Modifica",
-          "label": "Modifica la cartella {{path}}",
-          "title": "Modifica cartella",
-          "description": "Contenuto e fonti di metadati di {{path}}.",
-          "submit": "Salva",
           "identifier": "Cambia la fonte di riconoscimento: i testi di stagioni ed episodi vengono riassegnati da {{provider}}. Gli episodi restano, progressi e La mia lista restano associati a loro.",
           "fillers": "Cambiano solo le fonti di integrazione: i titoli vengono integrati di nuovo, non viene eliminato nulla.",
-          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e La mia lista restano associati ai vecchi titoli.",
-          "confirmTitle": "Cambiare davvero il contenuto?",
-          "confirm": "Cambia contenuto",
-          "saved": "La cartella {{path}} è stata modificata."
+          "content": "Cambia il contenuto: equivale a rimuovere la cartella e aggiungerla di nuovo. I titoli di questa cartella vengono eliminati in modo reversibile e ricreati, i pacchetti offline spariscono, progressi e La mia lista restano associati ai vecchi titoli."
         },
         "move": {
-          "action": "Cambia percorso",
-          "label": "Cambia il percorso di {{path}}",
-          "title": "Cambiare percorso?",
-          "body": "Percorso precedente: {{old}} · Nuovo percorso: {{new}}. Titoli e dati degli utenti restano se i file si trovano lì con gli stessi nomi. Poi la cartella viene riletta.",
-          "confirm": "Cambia",
-          "saved": "Ora la cartella si trova in {{path}} e viene riletta."
+          "body": "Percorso precedente: {{old}} · Nuovo percorso: {{new}}. Titoli e dati degli utenti restano se i file si trovano lì con gli stessi nomi. Poi la cartella viene riletta."
         },
         "readOnly": "sola lettura",
         "writable": "scrivibile"
       },
-      "openFolders": "Cartelle",
-      "openFoldersLabel": "Modifica le cartelle di {{name}}",
       "rootCount_one": "{{count}} cartella",
       "rootCount_many": "{{count}} di cartelle",
       "rootCount_other": "{{count}} cartelle",
-      "noFolder": "Nessuna cartella: non viene analizzato nulla finché non ne aggiungi una in «Cartelle».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} di {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
@@ -2020,8 +1986,6 @@
       },
       "trickplay": {
         "action": "Miniature di anteprima",
-        "actionLabel": "Miniature di anteprima di {{name}}",
-        "title": "Miniature di anteprima: {{name}}",
         "description": "Piccole immagini sopra la barra di avanzamento, una ogni 10 secondi. Film e serie TV si impostano separatamente, anche in una libreria mista.",
         "movies": "Film",
         "series": "Serie TV",
@@ -2085,8 +2049,6 @@
           "hint": "Recupera le anteprime mancanti di tutte le librerie impostate su «In anticipo», come «Recupera le miniature di anteprima» in «Attività in background».",
           "queued": "Il recupero delle anteprime è in coda."
         },
-        "submit": "Salva",
-        "saved": "Le miniature di anteprima di {{name}} sono state salvate.",
         "summary": "Miniature di anteprima: film {{movies}} · serie TV {{series}}",
         "summaryNoKeep": "All’avvio, senza conservare"
       },
@@ -2106,12 +2068,6 @@
         "jobs": "Vai all’attività",
         "done": "Libreria «{{name}}» eliminata.",
         "notDone": "La libreria «{{name}}» non è stata eliminata. Il motivo è indicato nell’attività."
-      },
-      "rename": {
-        "action": "Rinomina…",
-        "title": "Rinomina la libreria «{{name}}»",
-        "label": "Nome",
-        "saved": "Ora la libreria si chiama «{{name}}»."
       }
     },
     "access": {

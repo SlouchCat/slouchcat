@@ -565,10 +565,7 @@
       "submit_one": "Adicionar biblioteca com {{count}} pasta",
       "submit_many": "Adicionar biblioteca com {{count}} de pastas",
       "submit_other": "Adicionar biblioteca com {{count}} pastas",
-      "submitNone": "Adicionar biblioteca sem pastas",
-      "addSubmit_one": "Adicionar {{count}} pasta",
-      "addSubmit_many": "Adicionar {{count}} de pastas",
-      "addSubmit_other": "Adicionar {{count}} pastas"
+      "submitNone": "Adicionar biblioteca sem pastas"
     },
     "videoHint": "As pastas desta biblioteca podem conter filmes ou séries, inclusive misturados.",
     "page": {
@@ -1951,25 +1948,11 @@
       "defaultRating": "Padrão: {{rating}}",
       "noRoots": "Nenhuma pasta: os títulos vêm de feeds assinados.",
       "feedsOnly": "Títulos de feeds",
-      "changeRating": {
-        "action": "Alterar classificação padrão",
-        "title": "Classificação padrão de {{name}}",
-        "description": "Todos os títulos cuja classificação vem da biblioteca a acompanham de imediato. Classificações definidas manualmente permanecem.",
-        "submit": "Salvar",
-        "saved": "A classificação padrão de {{name}} agora é {{rating}}."
-      },
       "folders": {
-        "title": "Pastas de {{name}}",
-        "description": "Uma biblioteca pode ter várias pastas. A varredura e o monitoramento passam a incluir uma nova pasta de imediato.",
-        "none": "Esta biblioteca não tem pasta. Nada é escaneado até você adicionar uma.",
         "content": "Títulos: {{items}} · arquivos: {{files}}",
         "remove": {
-          "action": "Remover",
-          "label": "Remover a pasta {{path}}",
-          "title": "Remover mesmo esta pasta?",
           "inputLabel": "Digite o caminho para confirmar",
           "mismatch": "Digite {{path}} exatamente, e então o botão fica ativo.",
-          "confirm": "Remover a pasta",
           "lead_one": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} título sai de todas as listas com ela. O que isso significa:",
           "lead_many": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} de títulos saem de todas as listas com ela. O que isso significa:",
           "lead_other": "Você está removendo <path>{{path}}</path> da biblioteca {{name}}. Até {{count}} títulos saem de todas as listas com ela. O que isso significa:",
@@ -1981,37 +1964,20 @@
           "oneWay": "Se a pasta estiver fora das pastas navegáveis (SLOUCHCAT_BROWSE_ROOTS), ela não poderá ser adicionada de novo sem alterar a configuração.",
           "last": "É a última pasta: {{name}} continua existindo, mas depois não terá pasta e não escaneará nada."
         },
-        "new": "Novas pastas",
         "change": {
-          "action": "Alterar",
-          "label": "Alterar a pasta {{path}}",
-          "title": "Alterar pasta",
-          "description": "Conteúdo e fontes de metadados de {{path}}.",
-          "submit": "Salvar",
           "identifier": "O identificador muda: os textos de temporadas e episódios são atribuídos de novo de acordo com {{provider}}. Os episódios em si permanecem, e o progresso e a Minha lista continuam ligados a eles.",
           "fillers": "Só os complementos mudam: os títulos são preenchidos de novo, nada é excluído.",
-          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a Minha lista ficam com os títulos antigos.",
-          "confirmTitle": "Alterar mesmo o conteúdo?",
-          "confirm": "Alterar conteúdo",
-          "saved": "A pasta {{path}} foi alterada."
+          "content": "O conteúdo muda: isso equivale a remover a pasta e adicioná-la de novo. Os títulos desta pasta são excluídos de forma reversível e criados novamente, os pacotes offline somem, e o progresso e a Minha lista ficam com os títulos antigos."
         },
         "move": {
-          "action": "Alterar caminho",
-          "label": "Alterar o caminho de {{path}}",
-          "title": "Alterar caminho?",
-          "body": "Caminho antigo: {{old}} · Novo caminho: {{new}}. Títulos e dados dos usuários permanecem se os arquivos estiverem lá com os mesmos nomes. Depois, a pasta é lida de novo.",
-          "confirm": "Alterar",
-          "saved": "A pasta agora está em {{path}} e é lida de novo."
+          "body": "Caminho antigo: {{old}} · Novo caminho: {{new}}. Títulos e dados dos usuários permanecem se os arquivos estiverem lá com os mesmos nomes. Depois, a pasta é lida de novo."
         },
         "readOnly": "somente leitura",
         "writable": "gravável"
       },
-      "openFolders": "Pastas",
-      "openFoldersLabel": "Editar as pastas de {{name}}",
       "rootCount_one": "{{count}} pasta",
       "rootCount_many": "{{count}} de pastas",
       "rootCount_other": "{{count}} pastas",
-      "noFolder": "Nenhuma pasta: nada é escaneado até você adicionar uma em “Pastas”.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_many": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
@@ -2020,8 +1986,6 @@
       },
       "trickplay": {
         "action": "Miniaturas de pré-visualização",
-        "actionLabel": "Miniaturas de pré-visualização de {{name}}",
-        "title": "Miniaturas de pré-visualização: {{name}}",
         "description": "Pequenas imagens acima da linha do tempo, uma a cada 10 segundos. Filmes e séries são configurados separadamente, inclusive numa biblioteca que tenha os dois.",
         "movies": "Filmes",
         "series": "Séries",
@@ -2085,8 +2049,6 @@
           "hint": "Completa as miniaturas ausentes de todas as bibliotecas em “Antecipadas”, como “Completar miniaturas de pré-visualização” em “Tarefas em segundo plano”.",
           "queued": "A geração das miniaturas foi colocada na fila."
         },
-        "submit": "Salvar",
-        "saved": "As miniaturas de pré-visualização de {{name}} foram salvas.",
         "summary": "Miniaturas de pré-visualização: filmes {{movies}} · séries {{series}}",
         "summaryNoKeep": "Ao iniciar, sem manter"
       },
@@ -2106,12 +2068,6 @@
         "jobs": "Ir para a tarefa",
         "done": "Biblioteca “{{name}}” excluída.",
         "notDone": "A biblioteca “{{name}}” não foi excluída. A tarefa informa o motivo."
-      },
-      "rename": {
-        "action": "Renomear…",
-        "title": "Renomear a biblioteca “{{name}}”",
-        "label": "Nome",
-        "saved": "A biblioteca agora se chama “{{name}}”."
       }
     },
     "access": {

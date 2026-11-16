@@ -552,9 +552,7 @@
       "providers": "Mappe {{number}}: {{message}}",
       "submit_one": "Legg til bibliotek med {{count}} mappe",
       "submit_other": "Legg til bibliotek med {{count}} mapper",
-      "submitNone": "Legg til bibliotek uten mapper",
-      "addSubmit_one": "Legg til 1 mappe",
-      "addSubmit_other": "Legg til {{count}} mapper"
+      "submitNone": "Legg til bibliotek uten mapper"
     },
     "videoHint": "Mappene i dette biblioteket kan inneholde filmer eller serier, også blandet.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Ingen mappe: titlene kommer fra abonnerte feeder.",
       "feedsOnly": "Titler fra feeder",
-      "changeRating": {
-        "action": "Endre standard aldersgrense",
-        "title": "Standard aldersgrense for {{name}}",
-        "description": "Alle titler som får aldersgrensen fra biblioteket, følger med med en gang. Aldersgrenser satt manuelt blir stående.",
-        "submit": "Lagre",
-        "saved": "Standard aldersgrense for {{name}} er nå {{rating}}."
-      },
       "folders": {
-        "title": "Mapper i {{name}}",
-        "description": "Et bibliotek kan ha flere mapper. Skanningen og overvåkeren fanger opp en ny mappe med en gang.",
-        "none": "Dette biblioteket har ingen mappe. Ingenting skannes før du legger til en.",
         "content": "Titler: {{items}} · filer: {{files}}",
         "remove": {
-          "action": "Fjern",
-          "label": "Fjern mappen {{path}}",
-          "title": "Fjerne denne mappen?",
           "inputLabel": "Skriv inn stien for å bekrefte",
           "mismatch": "Skriv {{path}} nøyaktig, så blir knappen aktiv.",
-          "confirm": "Fjern mappen",
           "lead_one": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Opptil {{count}} tittel forsvinner fra alle lister med den. Dette betyr det:",
           "lead_other": "Du fjerner <path>{{path}}</path> fra biblioteket {{name}}. Opptil {{count}} titler forsvinner fra alle lister med den. Dette betyr det:",
           "soft": "Titlene slettes midlertidig: de forsvinner fra alle lister, men fremdrift, oppføringer i Min liste og anbefalinger forblir knyttet til dem. En tittel med en fil i en annen mappe i dette biblioteket forblir synlig.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Hvis mappen ligger utenfor mappene det kan bla gjennom (SLOUCHCAT_BROWSE_ROOTS), kan den ikke legges til igjen uten en endring i konfigurasjonen.",
           "last": "Dette er den siste mappen: {{name}} blir værende, men har ingen mappe etterpå og skanner ingenting."
         },
-        "new": "Nye mapper",
         "change": {
-          "action": "Endre",
-          "label": "Endre mappen {{path}}",
-          "title": "Endre mappe",
-          "description": "Innhold og metadatakilder for {{path}}.",
-          "submit": "Lagre",
           "identifier": "Identifikatoren endres: tekstene for sesonger og episoder tilordnes på nytt etter {{provider}}. Selve episodene blir værende, fremdrift og Min liste forblir knyttet til dem.",
           "fillers": "Bare utfyllerne endres: titlene fylles ut på nytt, ingenting slettes.",
-          "content": "Innholdet endres: det fungerer som å fjerne mappen og legge den til igjen. Titlene i denne mappen slettes midlertidig og opprettes på nytt, frakoblede pakker forsvinner, fremdrift og Min liste blir værende hos de gamle titlene.",
-          "confirmTitle": "Endre innholdet?",
-          "confirm": "Endre innhold",
-          "saved": "Mappen {{path}} er endret."
+          "content": "Innholdet endres: det fungerer som å fjerne mappen og legge den til igjen. Titlene i denne mappen slettes midlertidig og opprettes på nytt, frakoblede pakker forsvinner, fremdrift og Min liste blir værende hos de gamle titlene."
         },
         "move": {
-          "action": "Endre sti",
-          "label": "Endre stien til {{path}}",
-          "title": "Endre sti?",
-          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brukerdata blir værende når filene ligger der under samme navn. Mappen leses inn på nytt etterpå.",
-          "confirm": "Endre",
-          "saved": "Mappen ligger nå på {{path}} og leses inn på nytt."
+          "body": "Gammel sti: {{old}} · Ny sti: {{new}}. Titler og brukerdata blir værende når filene ligger der under samme navn. Mappen leses inn på nytt etterpå."
         },
         "readOnly": "skrivebeskyttet",
         "writable": "skrivbar"
       },
-      "openFolders": "Mapper",
-      "openFoldersLabel": "Rediger mappene til {{name}}",
       "rootCount_one": "{{count}} mappe",
       "rootCount_other": "{{count}} mapper",
-      "noFolder": "Ingen mappe: ingenting skannes før du legger til en under «Mapper».",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Forhåndsvisninger",
-        "actionLabel": "Forhåndsvisninger for {{name}}",
-        "title": "Forhåndsvisninger: {{name}}",
         "description": "Små bilder over tidslinjen, ett hvert 10. sekund. Filmer og serier stilles inn hver for seg, også i et bibliotek som har begge deler.",
         "movies": "Filmer",
         "series": "Serier",
@@ -2027,8 +1992,6 @@
           "hint": "Tar igjen de manglende forhåndsvisningene for alle bibliotek med «På forhånd», som «Etterfyll forhåndsvisninger» under «Bakgrunnsjobber».",
           "queued": "Innhentingen av forhåndsvisningene står i kø."
         },
-        "submit": "Lagre",
-        "saved": "Forhåndsvisningene for {{name}} er lagret.",
         "summary": "Forhåndsvisninger: filmer {{movies}} · serier {{series}}",
         "summaryNoKeep": "Ved start, ikke beholdt"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Gå til jobben",
         "done": "Biblioteket «{{name}}» er slettet.",
         "notDone": "Biblioteket «{{name}}» ble ikke slettet. Jobben forteller hvorfor."
-      },
-      "rename": {
-        "action": "Gi nytt navn…",
-        "title": "Gi biblioteket «{{name}}» nytt navn",
-        "label": "Navn",
-        "saved": "Biblioteket heter nå «{{name}}»."
       }
     },
     "access": {

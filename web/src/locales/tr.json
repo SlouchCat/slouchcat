@@ -552,9 +552,7 @@
       "providers": "Klasör {{number}}: {{message}}",
       "submit_one": "{{count}} klasörlü kitaplık ekle",
       "submit_other": "{{count}} klasörlü kitaplık ekle",
-      "submitNone": "Klasörsüz kitaplık ekle",
-      "addSubmit_one": "1 klasör ekle",
-      "addSubmit_other": "{{count}} klasör ekle"
+      "submitNone": "Klasörsüz kitaplık ekle"
     },
     "videoHint": "Bu kitaplığın klasörleri film veya dizi içerebilir, karışık da olabilir.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Varsayılan: {{rating}}",
       "noRoots": "Klasör yok: içerikler abone olunan akışlardan gelir.",
       "feedsOnly": "Akışlardan içerikler",
-      "changeRating": {
-        "action": "Varsayılan yaş sınırını değiştir",
-        "title": "{{name}} varsayılan yaş sınırı",
-        "description": "Yaş sınırı kitaplıktan gelen her içerik hemen buna uyar. Elle ayarlananlar kalır.",
-        "submit": "Kaydet",
-        "saved": "{{name}} kitaplığının varsayılan yaş sınırı artık {{rating}}."
-      },
       "folders": {
-        "title": "{{name}} klasörleri",
-        "description": "Bir kitaplık birden fazla klasör içerebilir. Tarama ve izleyici yeni klasörü hemen fark eder.",
-        "none": "Bu kitaplıkta klasör yok. Siz bir tane ekleyene kadar hiçbir şey taranmaz.",
         "content": "İçerik: {{items}} · dosya: {{files}}",
         "remove": {
-          "action": "Kaldır",
-          "label": "{{path}} klasörünü kaldır",
-          "title": "Klasör gerçekten kaldırılsın mı?",
           "inputLabel": "Onaylamak için yolu yazın",
           "mismatch": "{{path}} değerini aynen yazın, düğme ancak o zaman etkinleşir.",
-          "confirm": "Klasörü kaldır",
           "lead_one": "<path>{{path}}</path> yolunu {{name}} kitaplığından kaldırıyorsunuz. Bununla birlikte en fazla {{count}} içerik tüm listelerden çıkar. Bunun anlamı:",
           "lead_other": "<path>{{path}}</path> yolunu {{name}} kitaplığından kaldırıyorsunuz. Bununla birlikte en fazla {{count}} içerik tüm listelerden çıkar. Bunun anlamı:",
           "soft": "İçerikler yumuşak silinir: tüm listelerden kaybolurlar, ama ilerleme, liste kayıtları ve öneriler onlara bağlı kalır. Bu kitaplığın başka bir klasöründe dosyası olan içerik görünür kalır.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Klasör göz atılabilir klasörlerin (SLOUCHCAT_BROWSE_ROOTS) dışındaysa yapılandırma değiştirilmeden yeniden eklenemez.",
           "last": "Bu son klasör: {{name}} kalır ama sonrasında klasörü olmaz ve hiçbir şey taramaz."
         },
-        "new": "Yeni klasörler",
         "change": {
-          "action": "Değiştir",
-          "label": "{{path}} klasörünü değiştir",
-          "title": "Klasörü değiştir",
-          "description": "{{path}} klasörünün içeriği ve meta veri kaynakları.",
-          "submit": "Kaydet",
           "identifier": "Tanıyıcı değişiyor: sezon ve bölüm metinleri {{provider}} sonrasında yeniden atanır. Bölümlerin kendisi kalır, ilerleme ve liste kayıtları onlara bağlı kalır.",
           "fillers": "Yalnızca tamamlayıcılar değişiyor: içerikler yeniden doldurulur, hiçbir şey silinmez.",
-          "content": "İçerik değişiyor: bu, klasörü kaldırıp yeniden eklemek gibi çalışır. Bu klasörün içerikleri yumuşak silinir ve yeniden oluşturulur, çevrimdışı paketler kaybolur, ilerleme ve liste kayıtları eski içeriklerde kalır.",
-          "confirmTitle": "İçerik gerçekten değiştirilsin mi?",
-          "confirm": "İçeriği değiştir",
-          "saved": "{{path}} klasörü değiştirildi."
+          "content": "İçerik değişiyor: bu, klasörü kaldırıp yeniden eklemek gibi çalışır. Bu klasörün içerikleri yumuşak silinir ve yeniden oluşturulur, çevrimdışı paketler kaybolur, ilerleme ve liste kayıtları eski içeriklerde kalır."
         },
         "move": {
-          "action": "Yolu değiştir",
-          "label": "{{path}} yolunu değiştir",
-          "title": "Yol değiştirilsin mi?",
-          "body": "Eski yol: {{old}} · Yeni yol: {{new}}. Dosyalar orada aynı adlarla duruyorsa içerikler ve kullanıcı verileri kalır. Klasör ardından yeniden okunur.",
-          "confirm": "Değiştir",
-          "saved": "Klasör artık {{path}} konumunda ve yeniden okunuyor."
+          "body": "Eski yol: {{old}} · Yeni yol: {{new}}. Dosyalar orada aynı adlarla duruyorsa içerikler ve kullanıcı verileri kalır. Klasör ardından yeniden okunur."
         },
         "readOnly": "salt okunur",
         "writable": "yazılabilir"
       },
-      "openFolders": "Klasörler",
-      "openFoldersLabel": "{{name}} klasörlerini düzenle",
       "rootCount_one": "{{count}} klasör",
       "rootCount_other": "{{count}} klasör",
-      "noFolder": "Klasör yok: “Klasörler” altından bir tane ekleyene kadar hiçbir şey taranmaz.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Önizleme küçük resimleri",
-        "actionLabel": "{{name}} önizleme küçük resimleri",
-        "title": "Önizleme küçük resimleri: {{name}}",
         "description": "Zaman çizelgesinin üstünde her 10 saniyede bir küçük resim. Filmler ve diziler, ikisini birden içeren bir kitaplıkta bile ayrı ayrı ayarlanır.",
         "movies": "Filmler",
         "series": "Diziler",
@@ -2027,8 +1992,6 @@
           "hint": "“Önceden” olan her kitaplığın eksik önizlemelerini tamamlar; “Arka plan görevleri” altındaki “Önizleme küçük resimlerini tamamla” gibi.",
           "queued": "Önizlemelerin tamamlanması sıraya alındı."
         },
-        "submit": "Kaydet",
-        "saved": "{{name}} önizleme küçük resimleri kaydedildi.",
         "summary": "Önizleme küçük resimleri: filmler {{movies}} · diziler {{series}}",
         "summaryNoKeep": "Başlarken, saklanmaz"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Göreve git",
         "done": "“{{name}}” kitaplığı silindi.",
         "notDone": "“{{name}}” kitaplığı silinmedi. Nedeni görevde yazıyor."
-      },
-      "rename": {
-        "action": "Yeniden adlandır…",
-        "title": "“{{name}}” kitaplığını yeniden adlandır",
-        "label": "Ad",
-        "saved": "Kitaplığın yeni adı “{{name}}”."
       }
     },
     "access": {

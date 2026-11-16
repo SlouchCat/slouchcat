@@ -552,9 +552,7 @@
       "providers": "{{number}}. mappa: {{message}}",
       "submit_one": "Könyvtár hozzáadása {{count}} mappával",
       "submit_other": "Könyvtár hozzáadása {{count}} mappával",
-      "submitNone": "Könyvtár hozzáadása mappa nélkül",
-      "addSubmit_one": "1 mappa hozzáadása",
-      "addSubmit_other": "{{count}} mappa hozzáadása"
+      "submitNone": "Könyvtár hozzáadása mappa nélkül"
     },
     "videoHint": "A könyvtár mappái filmeket vagy sorozatokat is tartalmazhatnak, akár vegyesen.",
     "page": {
@@ -1898,25 +1896,11 @@
       "defaultRating": "Alapértelmezett: {{rating}}",
       "noRoots": "Nincs mappa: a címek a feliratkozott hírcsatornákból származnak.",
       "feedsOnly": "Címek hírcsatornákból",
-      "changeRating": {
-        "action": "Alapértelmezett korhatár módosítása",
-        "title": "Alapértelmezett korhatár: {{name}}",
-        "description": "Minden cím, amelynek korhatára a könyvtárból származik, azonnal követi. A kézzel beállított korhatárok megmaradnak.",
-        "submit": "Mentés",
-        "saved": "A(z) {{name}} alapértelmezett korhatára mostantól {{rating}}."
-      },
       "folders": {
-        "title": "Mappák: {{name}}",
-        "description": "Egy könyvtár több mappát is tartalmazhat. A beolvasás és a figyelő az újat azonnal felveszi.",
-        "none": "Ennek a könyvtárnak nincs mappája. Amíg nem ad hozzá egyet, semmi sem kerül beolvasásra.",
         "content": "Címek: {{items}} · fájlok: {{files}}",
         "remove": {
-          "action": "Eltávolítás",
-          "label": "Mappa eltávolítása: {{path}}",
-          "title": "Biztosan eltávolítja ezt a mappát?",
           "inputLabel": "A megerősítéshez írja be az útvonalat",
           "mismatch": "Pontosan ezt írja be: {{path}}, utána a gomb aktívvá válik.",
-          "confirm": "Mappa eltávolítása",
           "lead_one": "Eltávolítja ezt: <path>{{path}}</path> a(z) {{name}} könyvtárból. Vele együtt legfeljebb {{count}} cím tűnik el minden listáról. Ez a következőt jelenti:",
           "lead_other": "Eltávolítja ezt: <path>{{path}}</path> a(z) {{name}} könyvtárból. Vele együtt legfeljebb {{count}} cím tűnik el minden listáról. Ez a következőt jelenti:",
           "soft": "A címek puha törléssel kerülnek ki: minden listáról eltűnnek, de az előrehaladás, a saját listás bejegyzések és az ajánlások megmaradnak hozzájuk. Az a cím, amelynek fájlja a könyvtár egy másik mappájában is van, látható marad.",
@@ -1927,36 +1911,19 @@
           "oneWay": "Ha a mappa a tallózható mappákon (SLOUCHCAT_BROWSE_ROOTS) kívül van, a konfiguráció módosítása nélkül nem adható hozzá újra.",
           "last": "Ez az utolsó mappa: a(z) {{name}} megmarad, de ezután nem lesz mappája, és semmit sem olvas be."
         },
-        "new": "Új mappák",
         "change": {
-          "action": "Módosítás",
-          "label": "Mappa módosítása: {{path}}",
-          "title": "Mappa módosítása",
-          "description": "Tartalom és metaadatforrások: {{path}}.",
-          "submit": "Mentés",
           "identifier": "Az azonosító változik: az évad- és epizódszövegek újra hozzárendelődnek ennek alapján: {{provider}}. Maguk az epizódok megmaradnak, az előrehaladás és a saját lista hozzájuk kötve marad.",
           "fillers": "Csak a kiegészítők változnak: a címek újra kiegészülnek, semmi sem törlődik.",
-          "content": "A tartalom változik: ez ugyanaz, mintha eltávolítaná a mappát, és újra hozzáadná. A mappa címei puha törléssel kikerülnek és újra létrejönnek, az offline csomagok megszűnnek, az előrehaladás és a saját lista a régi címekhez kötve marad.",
-          "confirmTitle": "Biztosan módosítja a tartalmat?",
-          "confirm": "Tartalom módosítása",
-          "saved": "A mappa módosítva: {{path}}."
+          "content": "A tartalom változik: ez ugyanaz, mintha eltávolítaná a mappát, és újra hozzáadná. A mappa címei puha törléssel kikerülnek és újra létrejönnek, az offline csomagok megszűnnek, az előrehaladás és a saját lista a régi címekhez kötve marad."
         },
         "move": {
-          "action": "Útvonal módosítása",
-          "label": "Útvonal módosítása: {{path}}",
-          "title": "Módosítja az útvonalat?",
-          "body": "Régi útvonal: {{old}} · Új útvonal: {{new}}. A címek és a felhasználói adatok megmaradnak, ha a fájlok ugyanazokkal a nevekkel ott találhatók. A mappa ezután újra beolvasásra kerül.",
-          "confirm": "Módosítás",
-          "saved": "A mappa mostantól itt van: {{path}}, és újra beolvasásra kerül."
+          "body": "Régi útvonal: {{old}} · Új útvonal: {{new}}. A címek és a felhasználói adatok megmaradnak, ha a fájlok ugyanazokkal a nevekkel ott találhatók. A mappa ezután újra beolvasásra kerül."
         },
         "readOnly": "csak olvasható",
         "writable": "írható"
       },
-      "openFolders": "Mappák",
-      "openFoldersLabel": "Mappák szerkesztése: {{name}}",
       "rootCount_one": "{{count}} mappa",
       "rootCount_other": "{{count}} mappa",
-      "noFolder": "Nincs mappa: amíg nem ad hozzá egyet a „Mappák” alatt, semmi sem kerül beolvasásra.",
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
@@ -1964,8 +1931,6 @@
       },
       "trickplay": {
         "action": "Előnézeti képek",
-        "actionLabel": "Előnézeti képek: {{name}}",
-        "title": "Előnézeti képek: {{name}}",
         "description": "Kis képek az idővonal fölött, 10 másodpercenként egy. A filmeket és a sorozatokat külön kell beállítani, vegyes könyvtárban is.",
         "movies": "Filmek",
         "series": "Sorozatok",
@@ -2027,8 +1992,6 @@
           "hint": "Pótolja a hiányzó előnézeteket minden „Előre” beállítású könyvtárnál, ahogy az „Előnézeti képek pótlása” a „Háttérfeladatok” között.",
           "queued": "Az előnézetek pótlása sorba állt."
         },
-        "submit": "Mentés",
-        "saved": "A(z) {{name}} előnézeti képei mentve.",
         "summary": "Előnézeti képek: filmek {{movies}} · sorozatok {{series}}",
         "summaryNoKeep": "Induláskor, nem megtartva"
       },
@@ -2047,12 +2010,6 @@
         "jobs": "Ugrás a feladathoz",
         "done": "A(z) „{{name}}” könyvtár törölve.",
         "notDone": "A(z) „{{name}}” könyvtár nem lett törölve. A feladat megmondja, miért."
-      },
-      "rename": {
-        "action": "Átnevezés…",
-        "title": "Könyvtár átnevezése: „{{name}}”",
-        "label": "Név",
-        "saved": "A könyvtár új neve: „{{name}}”."
       }
     },
     "access": {
