@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bibliotheken</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f7a988}a:hover{color:#ffc9b2}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f5f6f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;padding:16px 16px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#d9dce4;border:1px dashed #ffffff66;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #ffffff73;background:none;color:#f5f6f8;text-decoration:none;font-size:13px;font-weight:600}
+.pill:hover{background:#2e3445;color:#fff}
+.pill[aria-current="page"],.pill[aria-pressed="true"]{border-color:#e8794a;background:#e8794a40}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border:1px solid #ffffff57;border-radius:12px;background:#171a22;align-self:flex-start}
+.tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;color:#d9dce4;font-size:13px;font-weight:600;text-decoration:none}
+.tab:hover{color:#fff}
+.tab[aria-current="page"]{background:#343a4d;color:#fff}
+.cnt{font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;background:#0b0c10;color:#d9dce4;border:1px solid #ffffff57}
+.eye{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#f08e63}
+.h1{margin:0;font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.03em}
+.sub{margin:0;color:#d9dce4}
+.panel{background:#171a22;border:1px solid #ffffff57;border-radius:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #ffffff73;background:#20242f;color:#f5f6f8;font-size:14px;font-weight:600;text-decoration:none}
+.btn:hover{background:#2e3445;color:#fff}
+.btn.pri{background:#e8794a;border-color:#e8794a;color:#1c0d06}
+.btn.pri:hover{background:#f39468;color:#1c0d06}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid #ffffff73;color:#f5f6f8;white-space:nowrap}
+.chip.ok{border-color:#7be0a880;background:#5fcf8f2e;color:#7be0a8}
+.chip.warn{border-color:#f3ca7680;background:#e8b65a2e;color:#f3ca76}
+.chip.info{border-color:#ffffff57;background:#2b3040;color:#d9dce4}
+.chip.std{border-style:dashed;color:#d9dce4;font-weight:600}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;overflow-wrap:anywhere}
+.hint{font-size:13px;color:#bcc1cd;margin:0}
+.head{display:flex;gap:12px;padding:8px 16px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#d9dce4;border-bottom:1px solid #ffffff57;background:#20242f;border-radius:12px 12px 0 0}
+.lib{border-top:1px solid #ffffff38}
+.fold{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;width:100%;min-height:60px;padding:8px 16px;background:none;border:0;color:#f5f6f8;text-align:left}
+.fold:hover{background:#20242f}
+.c1{flex:1.2 1 150px;min-width:0;display:flex;align-items:center;gap:8px;font-weight:700}
+.c2{flex:1 1 120px;min-width:0;color:#d9dce4}
+.c3{flex:1.3 1 170px;min-width:0;color:#d9dce4}
+.c4{flex:.8 1 100px;min-width:0;color:#d9dce4}
+.c5{flex:2 1 240px;min-width:0;color:#d9dce4}
+.detail{padding:4px 16px 16px;background:#20242f;display:flex;flex-direction:column;gap:12px}
+.line{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.dir{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:10px 12px;border:1px solid #ffffff57;border-radius:8px;background:#0f1116}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Bibliotheken.dc.html" aria-current="page">1 Bibliotheken</a>
+    <a class="pill" href="Main.dc.html">2 Bearbeiten</a>
+    <a class="pill" href="Ordner.dc.html">3 Ordner offen</a>
+    <a class="pill" href="Metadaten.dc.html">4 Metadaten-Standard</a>
+    <a class="pill" href="Kontrast.dc.html">5 Kontrast</a>
+  </nav>
+
+  <nav class="tabs" aria-label="Bereich Medien">
+    <a class="tab" href="Bibliotheken.dc.html" aria-current="page">Bibliotheken <span class="cnt">71'370</span></a>
+    <a class="tab" href="Metadaten.dc.html">Metadaten</a>
+    <a class="tab" href="#">Pflege <span class="cnt">264</span></a>
+    <a class="tab" href="#">Podcasts</a>
+    <a class="tab" href="#">Radio</a>
+    <a class="tab" href="#">Hörbuch-Quellen</a>
+  </nav>
+
+  <header style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="eye">Medien / Bibliotheken</div>
+      <h1 class="h1">Bibliotheken</h1>
+      <p class="sub">Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans.</p>
+    </div>
+    <a class="btn pri" href="Main.dc.html">+ Bibliothek hinzufügen</a>
+  </header>
+
+  <div class="line" role="group" aria-label="Filter nach Art">
+    <button class="pill" aria-pressed="{{ true }}">Alle <span class="cnt">6</span></button>
+    <button class="pill" aria-pressed="{{ false }}">Video <span class="cnt">4</span></button>
+    <button class="pill" aria-pressed="{{ false }}">Hörbücher <span class="cnt">1</span></button>
+    <button class="pill" aria-pressed="{{ false }}">Podcasts <span class="cnt">1</span></button>
+  </div>
+
+  <section class="panel" aria-label="Bibliotheken">
+    <div class="head" aria-hidden="true">
+      <span class="c1">Bibliothek</span>
+      <span class="c2">Art</span>
+      <span class="c3">Zustand</span>
+      <span class="c4">Titel</span>
+      <span class="c5">Ordner</span>
+    </div>
+
+    <sc-for list="{{ libs }}" as="l" hint-placeholder-count="6">
+      <div class="lib">
+        <button class="fold" aria-expanded="{{ l.open }}" onClick="{{ l.toggle }}">
+          <span class="c1">
+            <sc-if value="{{ l.closed }}" hint-placeholder-val="{{ true }}">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+            </sc-if>
+            <sc-if value="{{ l.open }}" hint-placeholder-val="{{ false }}">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
+            </sc-if>
+            {{ l.name }}
+          </span>
+          <span class="c2">{{ l.kind }}</span>
+          <span class="c3"><span class="chip ok">Aktuell</span> {{ l.scan }}</span>
+          <span class="c4">{{ l.titles }}</span>
+          <span class="c5 mono">{{ l.dirs }}</span>
+        </button>
+
+        <sc-if value="{{ l.open }}" hint-placeholder-val="{{ false }}">
+          <div class="detail">
+            <div class="line">
+              <button class="btn">Erneut scannen</button>
+              <a class="btn pri" href="Main.dc.html">Bearbeiten</a>
+              <button class="btn" aria-label="{{ l.moreLabel }}">Weitere Aktionen …</button>
+            </div>
+            <sc-for list="{{ l.folders }}" as="d" hint-placeholder-count="2">
+              <div class="dir">
+                <span class="mono" style="font-weight: 700; flex: 1 1 260px; min-width: 0">{{ d.path }}</span>
+                <span class="chip">{{ d.kind }}</span>
+                <span class="chip info">{{ d.chain }}</span>
+                <sc-if value="{{ d.video }}" hint-placeholder-val="{{ true }}">
+                  <span class="chip std">Sprachen: Standard</span>
+                </sc-if>
+                <sc-if value="{{ d.video }}" hint-placeholder-val="{{ true }}">
+                  <span class="chip std">Bilder: Standard</span>
+                </sc-if>
+                <span class="chip warn">Netzlaufwerk</span>
+                <span class="hint">{{ d.counts }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: {} };
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var L = [
+      ['Filme', 'Video', '16.11.2026, 10:07', '1840', [['/media/nas/Filme', 'Filme', 'TMDB', true, '1840 Titel · 2539 Dateien']]],
+      ['Podcast', 'Podcasts · FSK 0', '16.11.2026, 12:01', '33075', [['/media/nas/Audiobookshelf/Podcast', 'Podcasts', 'Dateien und Feeds', false, '26500 Titel · 26503 Dateien']]],
+      ['Hörbücher', 'Hörbücher · FSK 0', '16.11.2026, 09:23', '89', [['/media/nas/Audiobookshelf/Hörbücher', 'Hörbücher', 'Lokal › Audible › DNB › Apple Books', false, '89 Titel · 89 Dateien']]],
+      ['Serien', 'Video', '16.11.2026, 11:41', '31922', [['/media/nas/Serien', 'Serien', 'TMDB › TVDB', true, '29384 Titel · 29767 Dateien']]],
+      ['Anime', 'Video', '16.11.2026, 10:58', '3222', [['/media/nas/MangaFilme', 'Filme', 'TMDB', true, '83 Titel · 85 Dateien'], ['/media/nas/MangaSerien', 'Serien', 'TVDB › TMDB', true, '3001 Titel · 3012 Dateien']]],
+      ['Dokus', 'Video', '16.11.2026, 09:23', '1222', [['/media/nas/Doku/Filme', 'Filme', 'TMDB', true, '10 Titel · 10 Dateien'], ['/media/nas/Doku/Serien', 'Serien', 'TMDB › TVDB', true, '1041 Titel · 1049 Dateien']]]
+    ];
+    return {
+      libs: L.map(function (l, i) {
+        var open = !!st.open[i];
+        return {
+          name: l[0], kind: l[1], scan: l[2], titles: l[3],
+          dirs: l[4].length === 1 ? l[4][0][0] : l[4].length + ' Ordner',
+          open: open, closed: !open, moreLabel: 'Weitere Aktionen für ' + l[0],
+          toggle: function () { var o = Object.assign({}, st.open); o[i] = !open; self.setState({ open: o }); },
+          folders: l[4].map(function (d) { return { path: d[0], kind: d[1], chain: d[2], video: d[3], counts: d[4] }; })
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

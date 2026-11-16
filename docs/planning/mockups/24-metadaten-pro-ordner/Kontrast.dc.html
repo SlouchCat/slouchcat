@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Kontrast bisher und neu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10}
+a{color:#f7a988}a:hover{color:#ffc9b2}
+a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pg{box-sizing:border-box;min-height:100vh;background:#0b0c10;color:#f5f6f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;padding:16px 16px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.mock{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#d9dce4;border:1px dashed #ffffff66;border-radius:12px;padding:8px 12px}
+.pill{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #ffffff73;color:#f5f6f8;text-decoration:none;font-size:13px;font-weight:600}
+.pill[aria-current="page"]{border-color:#e8794a;background:#e8794a40}
+.cols{display:flex;flex-wrap:wrap;gap:20px}
+.col{flex:1 1 440px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.cap{margin:0;font-size:18px;font-weight:700}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;overflow-wrap:anywhere}
+.cell{flex:1 1 110px;min-width:0}
+.vals{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr);gap:0;border:1px solid #ffffff57;border-radius:12px;background:#171a22;overflow:hidden}
+.vals>div{padding:10px 14px;border-top:1px solid #ffffff38}
+.vals>.vh{border-top:0;background:#20242f;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#d9dce4}
+.num{font-variant-numeric:tabular-nums;font-weight:700}
+</style>
+</helmet>
+<div class="pg">
+<div class="wrap">
+
+  <nav class="mock" aria-label="Mockup-Navigation">
+    <span>Mockup:</span>
+    <a class="pill" href="Bibliotheken.dc.html">1 Bibliotheken</a>
+    <a class="pill" href="Main.dc.html">2 Bearbeiten</a>
+    <a class="pill" href="Ordner.dc.html">3 Ordner offen</a>
+    <a class="pill" href="Metadaten.dc.html">4 Metadaten-Standard</a>
+    <a class="pill" href="Kontrast.dc.html" aria-current="page">5 Kontrast</a>
+  </nav>
+
+  <div class="cols">
+
+    <div class="col">
+      <h2 class="cap">Bisher</h2>
+      <div style="background: #13151b; border: 1px solid #ffffff14; border-radius: 12px; color: #f3f3f5">
+        <div style="display: flex; gap: 12px; padding: 6px 16px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #9095a3; border-bottom: 1px solid #ffffff14">
+          <span class="cell">Bibliothek</span><span class="cell">Zustand</span><span class="cell">Ordner</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 12px 16px; align-items: center; background: #1d2029">
+          <span class="cell" style="font-weight: 600">Filme</span>
+          <span class="cell" style="color: #9095a3"><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #5fcf8f26; color: #5fcf8f">Aktuell</span> 16.11.2026, 10:07</span>
+          <span class="cell mono" style="color: #b6b9c4">/media/nas/Filme</span>
+        </div>
+        <div style="padding: 12px 16px 16px; background: #1d2029; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+            <span style="display: inline-flex; align-items: center; min-height: 32px; padding: 0 16px; border-radius: 8px; background: #262a35; font-weight: 600">Erneut scannen</span>
+            <span style="display: inline-flex; align-items: center; min-height: 32px; padding: 0 16px; border-radius: 8px; background: #262a35; font-weight: 600">Ordner</span>
+            <span style="display: inline-flex; align-items: center; min-height: 32px; padding: 0 16px; border-radius: 8px; background: #e8794a73; color: #1c0d06; font-weight: 600">Zuordnen</span>
+          </div>
+          <span style="color: #9095a3">Keyframe-Index vollständig</span>
+          <div style="padding: 10px 12px; border-radius: 8px; background: #13151b; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center">
+            <span class="mono" style="color: #b6b9c4; flex: 1 1 200px">/media/nas/Filme</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid #f3f3f5">Filme</span>
+            <span style="color: #9095a3">TMDB</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #262a35; color: #b6b9c4">Dateisystem nfs</span>
+            <span style="color: #9095a3">Titel: 1840 · Dateien: 2539</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <h2 class="cap">Neu</h2>
+      <div style="background: #171a22; border: 1px solid #ffffff57; border-radius: 12px; color: #f5f6f8">
+        <div style="display: flex; gap: 12px; padding: 8px 16px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #d9dce4; border-bottom: 1px solid #ffffff57; background: #20242f; border-radius: 12px 12px 0 0">
+          <span class="cell">Bibliothek</span><span class="cell">Zustand</span><span class="cell">Ordner</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 12px 16px; align-items: center; background: #20242f">
+          <span class="cell" style="font-weight: 700">Filme</span>
+          <span class="cell" style="color: #d9dce4"><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid #7be0a880; background: #5fcf8f2e; color: #7be0a8">Aktuell</span> 16.11.2026, 10:07</span>
+          <span class="cell mono" style="color: #f5f6f8">/media/nas/Filme</span>
+        </div>
+        <div style="padding: 12px 16px 16px; background: #20242f; border-radius: 0 0 12px 12px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+            <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #ffffff73; background: #2b3040; font-weight: 600">Erneut scannen</span>
+            <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #e8794a; background: #e8794a; color: #1c0d06; font-weight: 600">Bearbeiten</span>
+            <span style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px dashed #ffffff73; color: #bcc1cd; font-weight: 600">Zuordnen</span>
+            <span style="color: #bcc1cd">Gesperrt: nur für einen Film oder eine Serie.</span>
+          </div>
+          <span style="color: #bcc1cd">Keyframe-Index vollständig</span>
+          <div style="padding: 10px 12px; border: 1px solid #ffffff57; border-radius: 8px; background: #0f1116; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center">
+            <span class="mono" style="font-weight: 700; flex: 1 1 200px">/media/nas/Filme</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid #ffffff73">Filme</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid #ffffff57; background: #2b3040; color: #d9dce4">TMDB</span>
+            <span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; border: 1px solid #ffffff57; background: #2b3040; color: #d9dce4">Dateisystem nfs</span>
+            <span style="color: #bcc1cd">1840 Titel · 2539 Dateien</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vals" role="table" aria-label="Kontrastwerte">
+    <div class="vh" role="columnheader">Was</div><div class="vh" role="columnheader">Bisher</div><div class="vh" role="columnheader">Neu</div>
+    <div>Gedämpfter Text auf einer Fläche</div><div class="num">6,1 : 1</div><div class="num">9,7 : 1</div>
+    <div>Gedämpfter Text in einer aufgeklappten Zeile</div><div class="num">5,4 : 1</div><div class="num">8,6 : 1</div>
+    <div>Zweiter Text auf einer Fläche</div><div class="num">9,3 : 1</div><div class="num">12,7 : 1</div>
+    <div>Spaltenkopf einer Tabelle</div><div class="num">6,1 : 1</div><div class="num">11,3 : 1</div>
+    <div>Rahmen einer Fläche</div><div class="num">1,2 : 1</div><div class="num">3,1 : 1</div>
+    <div>Knopf gegen seine Zeile</div><div class="num">1,1 : 1 (Fläche)</div><div class="num">4,3 : 1 (Rahmen)</div>
+    <div>Rahmen eines Eingabefelds</div><div class="num">nicht gemessen</div><div class="num">6,2 : 1</div>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
