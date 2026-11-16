@@ -10,6 +10,7 @@
   Wort «Baue alle Stufen selbständig und mache ein einziger Release daraus». Was der Bau anders
   entschieden hat als dieses Papier, steht im Entscheidungsprotokoll (Nachtrag zu Frage 32) und in
   `docs/dev/CURRENT_STATUS.md`; die ADR ist `docs/adr/0036-metadaten-je-ordner-heimatordner.md`.
+  Veröffentlicht am selben Tag (PR #176, Tag `v1.40.0`) und von Marco auf CT 190 abgenommen.
 - **Auslöser:** Marco am 16. November 2026: «Zur Zeit gibt es Bibliothek Metadaten Einstellungen
   sowie Ordner Metadaten Einstellungen. Ich möchte, dass es nur noch Metadaten Einstellungen pro
   Ordner gibt. Deshalb möchte ich auch gerne die Ansicht in der Verwaltung/Medien angepasst haben.
