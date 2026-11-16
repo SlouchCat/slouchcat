@@ -35,6 +35,7 @@ import {
   SourceForm,
   sourceChanged,
   sourceDraftOf,
+  sourceMedia,
   type SourceDraft,
 } from './spotlight/SourceForm';
 
@@ -240,6 +241,18 @@ function SpotlightContent() {
   );
 
   const list = entries.data;
+  // The source starts closed (concept 24, P-3); a field the server rejects opens it again.
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const openSource = useCallback(() => setSourceOpen(true), []);
+  // The closed band says which list it shows, as typed while that is unsaved.
+  const shown = configData && (drafts.valueOf(SOURCE_DRAFT) ?? sourceDraftOf(configData));
+  const sourceSummary =
+    shown && !sourceOpen
+      ? [
+          t(`admin.spotlight.lists.${shown.listKey}`, { defaultValue: shown.listKey }),
+          t(`admin.spotlight.media.${sourceMedia(configData, shown)}`),
+        ].join(t('format.separator'))
+      : undefined;
   // The band's chip waits for the entries: the hits decide whether the row is shown.
   const state = config.data && status.data && list && rowState(t, status.data, config.data, list);
 
@@ -258,11 +271,14 @@ function SpotlightContent() {
       {config.data && (
         <BandPanel
           collapsible
+          isExpanded={sourceOpen}
+          onExpandedChange={setSourceOpen}
           icon="spotlight"
           title={t('admin.spotlight.source.title')}
           meta={
             <>
               {changed && <Chip tone="warning">{t('admin.spotlight.unsaved')}</Chip>}
+              {sourceSummary}
               {state && <RowChip state={state} />}
             </>
           }
@@ -277,6 +293,7 @@ function SpotlightContent() {
             onSaved={say}
             onQueued={queued}
             onFailed={fail}
+            onInvalid={openSource}
           />
         </BandPanel>
       )}

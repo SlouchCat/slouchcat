@@ -207,6 +207,7 @@ export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } =
                       values={drafts.valueOf(channel) ?? channelDraftOf(setting, accountEmail)}
                       dirty={drafts.isDirty(channel)}
                       onChange={(next) => drafts.set(channel, next)}
+                      onInvalid={() => setExpanded(channel, true)}
                       // The draft is spent when it still says what was sent; what was changed
                       // while the save ran stays a draft (decision 18, addendum 3).
                       onSaved={(sent, saved) =>

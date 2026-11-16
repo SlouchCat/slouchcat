@@ -347,6 +347,35 @@ describe('notification channels page', () => {
     expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('a field error opens the block folded while the save ran (concept 24, exception 3)', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mockApi({
+      ...page,
+      'PUT /me/channels/email': async () => {
+        await answered;
+        return problem(422, 'validation_failed', {
+          errors: [{ field: 'email.address', code: 'invalid_email' }],
+        });
+      },
+    });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const user = userEvent.setup();
+    const address = within(mail).getByLabelText('E-Mail-Adresse');
+    await user.clear(address);
+    await user.type(address, 'familie@example');
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
+    const band = within(mail).getByRole('button', { name: 'E-Mail' });
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(band).toHaveAttribute('aria-expanded', 'true'));
+    expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('sends a test message and says what went wrong', async () => {
     let answer: () => Response = noContent;
     const { calls } = mockApi({ ...page, 'POST /me/channels/email/test': () => answer() });

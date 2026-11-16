@@ -236,14 +236,20 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     );
   });
 
-  it('the three bands start closed; a folded source keeps its draft', async () => {
+  it('the three bands start closed and say what they hold; a folded source keeps its draft', async () => {
     spotlightApi();
     renderApp('/admin/spotlight');
     const user = userEvent.setup();
-    // Concept 24, P-3: every band starts closed.
-    for (const name of ['Quelle', 'Einträge der Liste', 'Verwaiste Anpassungen']) {
+    // Concept 24, P-3: closed, each band names what is inside.
+    const summaries = {
+      Quelle: 'Trending bei Trakt · Filme und Serien',
+      'Einträge der Liste': '2 Einträge',
+      'Verwaiste Anpassungen': '1 Anpassung',
+    };
+    for (const [name, summary] of Object.entries(summaries)) {
       const band = await screen.findByRole('region', { name });
       expect(within(band).getByRole('button', { name, expanded: false })).toBeVisible();
+      expect(await within(band).findByText(summary)).toBeVisible();
     }
     expect(screen.queryByRole('table')).toBeNull();
 
@@ -253,6 +259,8 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     await user.keyboard('{Enter}');
     expect(band).toHaveAttribute('aria-expanded', 'true');
     expect(band).toHaveFocus();
+    // Open, the fields say it; the band does not repeat it.
+    expect(within(card).queryByText('Trending bei Trakt · Filme und Serien')).toBeNull();
     const count = number(card, 'Höchstens');
     await user.clear(count);
     await user.type(count, '12');
@@ -263,8 +271,10 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(band).toHaveAttribute('aria-expanded', 'false');
     expect(band).toHaveFocus();
     expect(within(card).queryByRole('spinbutton', { name: 'Höchstens' })).toBeNull();
-    // Folded, the band still says the source holds unsaved input and why the row is missing.
+    // Folded, the band still says the source holds unsaved input, what it holds as typed and why
+    // the row is missing.
     expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(within(card).getByText('Kinocharts · Nur Filme')).toBeVisible();
     expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
     await user.keyboard('{Enter}');
     expect(number(card, 'Höchstens')).toHaveValue(12);
@@ -333,6 +343,36 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
       intervalHours: 24,
       rotationSeconds: 5,
     });
+  });
+
+  it('a field error opens the source band folded while the save ran (concept 24, exception 3)', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = spotlightApi({
+      'PUT /admin/spotlight': async () => {
+        await answered;
+        return problem(422, 'validation_failed', {
+          errors: [{ field: 'itemCount', code: 'invalid_value' }],
+        });
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '10');
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    const band = within(card).getByRole('button', { name: 'Quelle' });
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    release();
+    await waitFor(() => expect(band).toHaveAttribute('aria-expanded', 'true'));
+    expect(await within(card).findByText('Ungültiger Wert.')).toBeVisible();
+    expect(number(card, 'Höchstens')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('"Speichern" stores the switch with the source in one PUT', async () => {
