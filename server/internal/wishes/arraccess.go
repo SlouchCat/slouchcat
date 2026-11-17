@@ -449,6 +449,7 @@ type ArrServiceStatus struct {
 	LastError   string // error class of the last call or of reading Seerr
 	LastAt      time.Time
 	Counts      TagCounts
+	Progress    ArrProgressStatus
 }
 
 // ArrStatus is the state of Radarr and Sonarr (getArrStatus). Reading it may ask Seerr for the
@@ -481,6 +482,9 @@ func (s *Service) ArrStatus(ctx context.Context) (ArrStatus, error) {
 			case tagFailed:
 				st.Counts.Failed = int(c.N)
 			}
+		}
+		if st.Progress, err = s.progressStatus(ctx, kind); err != nil {
+			return ArrStatus{}, err
 		}
 		if kind == arr.Radarr {
 			out.Radarr = st

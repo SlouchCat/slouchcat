@@ -60,6 +60,7 @@ func (s *Service) registerArrTypes(r *jobs.Registry) {
 		Name: JobTag, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: tagPriority, Handler: s.handleTags, Run: s.runTags, Every: tagEvery,
 	})
+	s.registerProgressType(r)
 }
 
 func (s *Service) runTags(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {

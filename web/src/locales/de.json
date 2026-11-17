@@ -4677,6 +4677,11 @@
           "description": "Hängt in Radarr und Sonarr den Tag des Profils an Filme und Serien, die über Slouchcat gewünscht wurden und in Beschaffung sind. Tags werden nie entfernt.",
           "trigger": "nach dem Abgleich mit Seerr, alle 15 Minuten und von Hand"
         },
+        "wishes_progress": {
+          "name": "Download-Fortschritt lesen",
+          "description": "Liest die Warteschlange von Radarr und Sonarr und zeigt bei Wünschen in Beschaffung, ob gesucht, heruntergeladen oder eingelesen wird. Ändert nichts in Radarr und Sonarr.",
+          "trigger": "jede Minute, solange Wünsche in Beschaffung sind und der Download-Fortschritt eingeschaltet ist"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",

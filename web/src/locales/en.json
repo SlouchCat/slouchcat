@@ -4677,6 +4677,11 @@
           "description": "Attaches the profile's tag in Radarr and Sonarr to films and series wished through Slouchcat that are being procured. Tags are never removed.",
           "trigger": "after the sync with Seerr, every 15 minutes and by hand"
         },
+        "wishes_progress": {
+          "name": "Read download progress",
+          "description": "Reads the queue of Radarr and Sonarr and shows for wishes being procured whether they are searched, downloaded or imported. Changes nothing in Radarr and Sonarr.",
+          "trigger": "every minute while wishes are being procured and the download progress is switched on"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

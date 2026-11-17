@@ -1224,6 +1224,22 @@ type WishProfileTag struct {
 	SetAt     int64
 }
 
+type WishProgress struct {
+	WishID        int64
+	Service       string
+	ArrTitleID    sql.NullInt64
+	Stage         sql.NullString
+	Percent       sql.NullInt64
+	EtaSeconds    sql.NullInt64
+	EpisodesDone  sql.NullInt64
+	EpisodesTotal sql.NullInt64
+	AdminMessage  sql.NullString
+	Error         sql.NullString
+	HasFile       sql.NullInt64
+	TitleReadAt   sql.NullInt64
+	ReadAt        int64
+}
+
 type WishRequester struct {
 	WishID     int64
 	ProfileID  int64
