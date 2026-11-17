@@ -173,6 +173,9 @@ func (s *Service) withdraw(ctx context.Context, wishID int64) error {
 			case !ours || r.Is4K:
 			case !own && isOpenRequest(r):
 				stay = append(stay, r)
+			case own && r.Status == seerr.RequestPending && heldByOther(ctx, s.read, w.ID, r.ID):
+				// Another open wish attached to it (a 409 of another profile, review M-5): it stays
+				// in Seerr and belongs to that wish now.
 			case own && r.Status == seerr.RequestPending:
 				err := sess.DeleteRequest(ctx, r.ID)
 				switch {
@@ -197,6 +200,13 @@ func (s *Service) withdraw(ctx context.Context, wishID int64) error {
 		return s.reopen(ctx, w, stay, mi)
 	}
 	return s.withdrawDone(ctx, w, deleted)
+}
+
+// heldByOther reports whether another open wish or season carries the request; an error counts as
+// held, so nothing is deleted on a doubt.
+func heldByOther(ctx context.Context, q *wishq.Queries, wishID int64, requestID int) bool {
+	held, err := q.RequestHeldByOtherWish(ctx, wishq.RequestHeldByOtherWishParams{SeerrRequestID: num64(int64(requestID)), WishID: wishID})
+	return err != nil || held != 0
 }
 
 // knownRequests are the request ids Slouchcat stored for the wish and, for a series, its seasons.
@@ -276,12 +286,12 @@ func (s *Service) reopen(ctx context.Context, w wishq.Wish, stay []seerr.Request
 	if mi != nil {
 		ms = mi.Status
 	}
-	state, detail := "", ""
+	state, detail, fail := "", "", ""
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
 		now := s.now().UnixMilli()
 		var reqID sql.NullInt64
 		if w.Media == model.WishMediaMovie {
-			state, detail, _ = requestState(stay[0].Status, ms)
+			state, detail, fail = requestState(stay[0].Status, ms)
 			reqID = num64(int64(stay[0].ID))
 		} else {
 			seasons, err := q.ListWishSeasons(ctx, w.ID)
@@ -293,7 +303,11 @@ func (s *Service) reopen(ctx context.Context, w wishq.Wish, stay []seerr.Request
 				st := se.State
 				for _, r := range stay {
 					if carries(r, []int{int(se.SeasonNumber)}) {
-						st, _, _ = requestState(r.Status, seasonMedia(mi, int(se.SeasonNumber)))
+						var why string
+						st, _, why = requestState(r.Status, seasonMedia(mi, int(se.SeasonNumber)))
+						if why != "" {
+							fail = why
+						}
 						if _, err := q.SetWishSeasonRequest(ctx, wishq.SetWishSeasonRequestParams{SeerrRequestID: num64(int64(r.ID)),
 							SeerrUpdatedAt: updatedOf(r), State: st, WishID: w.ID, SeasonNumber: se.SeasonNumber}); err != nil {
 							return err
@@ -304,13 +318,23 @@ func (s *Service) reopen(ctx context.Context, w wishq.Wish, stay []seerr.Request
 				states = append(states, st)
 			}
 			state = showState(states)
+			if state != model.WishFailed {
+				fail = ""
+			} else if fail == "" {
+				fail = model.WishFailArrFailed
+			}
 		}
 		if _, err := q.SetWishSeerr(ctx, wishq.SetWishSeerrParams{SeerrRequestID: reqID, Now: now, ID: w.ID}); err != nil {
 			return err
 		}
-		p := wishq.SetWishStateParams{State: state, StateDetail: nullString(detail), Now: now, ID: w.ID}
+		// The request may have failed or its medium gone meanwhile: the fail reason goes with the
+		// state (CHECK of wishes) and a closed state keeps its closing time (review Minor 4).
+		p := wishq.SetWishStateParams{State: state, StateDetail: nullString(detail), FailReason: nullString(fail), Now: now, ID: w.ID}
 		if state == model.WishProcessing {
 			p.ApprovedAt = num64(now)
+		}
+		if !isOpen(state) {
+			p.ClosedAt = num64(now)
 		}
 		if _, err := q.SetWishState(ctx, p); err != nil {
 			return err

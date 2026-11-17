@@ -263,6 +263,13 @@ func (s *Service) send(ctx context.Context, sess seerr.Session, w wishq.Wish, se
 		}
 	}
 	movie := w.Media == model.WishMediaMovie
+	if !movie && len(wanted) == 0 {
+		// A queued series wish without a queued season that carries no request: never sent as an
+		// empty season set and never «attached» without a hit (review M-2). The outbox tries again
+		// and gives up after its 24 h.
+		s.log.ErrorContext(ctx, "queued series wish without a season to send", "wish_id", w.ID)
+		return sent{retry: true}
+	}
 	if w.Attempts > 0 {
 		var mi *seerr.Media
 		if movie {
@@ -285,7 +292,7 @@ func (s *Service) send(ctx context.Context, sess seerr.Session, w wishq.Wish, se
 			}
 			res.mediaID, res.mediaState = mi.ID, mi.Status
 			if movie {
-				if r := openRequest(mi.Requests); r != nil {
+				if r := blockingRequest(mi.Requests); r != nil {
 					res.film, res.how = r, "attached"
 					return res
 				}
@@ -358,7 +365,7 @@ func (s *Service) lookup(ctx context.Context, w wishq.Wish, seasons []int, res s
 	}
 	res.mediaID, res.mediaState = mi.ID, mi.Status
 	if w.Media == model.WishMediaMovie {
-		r := openRequest(mi.Requests)
+		r := blockingRequest(mi.Requests)
 		if r == nil {
 			return sent{retry: true}
 		}
@@ -371,14 +378,15 @@ func (s *Service) lookup(ctx context.Context, w wishq.Wish, seasons []int, res s
 	return res
 }
 
-// hitSeasons records the open requests of mi that carry a wanted season and returns the rest.
+// hitSeasons records the requests of mi that carry a wanted season and lock it (blocks) and
+// returns the rest.
 func (res *sent) hitSeasons(mi *seerr.Media, wanted []int) []int {
 	var rest []int
 	for _, n := range wanted {
 		found := false
 		for i := range mi.Requests {
 			r := mi.Requests[i]
-			if !isOpenRequest(r) || !slices.ContainsFunc(r.Seasons, func(sr seerr.SeasonRequest) bool { return sr.SeasonNumber == n }) {
+			if !blocks(r) || !slices.ContainsFunc(r.Seasons, func(sr seerr.SeasonRequest) bool { return sr.SeasonNumber == n }) {
 				continue
 			}
 			res.seasons[n] = seasonHit{found: true, req: r, media: seasonMedia(mi, n)}
@@ -405,9 +413,17 @@ func isOpenRequest(r seerr.Request) bool {
 	return !r.Is4K && (r.Status == seerr.RequestPending || r.Status == seerr.RequestApproved)
 }
 
-func openRequest(reqs []seerr.Request) *seerr.Request {
+// blocks reports whether a request locks its title in Seerr, so a new POST gets 409: pending,
+// approved, and FAILED too (only DECLINED and COMPLETED free it, architecture 8.1 «Ausnahme
+// arr_failed»). A wish attaches to it; a FAILED one makes the wish failed with arr_failed at once
+// instead of 24 h of retries (review M-4).
+func blocks(r seerr.Request) bool {
+	return isOpenRequest(r) || (!r.Is4K && r.Status == seerr.RequestFailed)
+}
+
+func blockingRequest(reqs []seerr.Request) *seerr.Request {
 	for i := range reqs {
-		if isOpenRequest(reqs[i]) {
+		if blocks(reqs[i]) {
 			return &reqs[i]
 		}
 	}
@@ -489,9 +505,9 @@ func requestState(rs seerr.MediaRequestStatus, ms seerr.MediaStatus) (state, det
 // stateRank orders the open states, the weakest first (architecture 8.1).
 var stateRank = map[string]int{model.WishQueued: 0, model.WishPending: 1, model.WishProcessing: 2}
 
-// showState derives the state of a series wish from its seasons: the weakest open state; partial
-// once a season is available while others are open; available when every season is; otherwise
-// failed before declined before withdrawn.
+// showState derives the state of a series wish from its seasons: the weakest open state; queued
+// while a season waits in the outbox; partial once a season is available while others are open;
+// available when every season is; otherwise failed before declined before withdrawn.
 func showState(states []string) string {
 	open, avail := "", 0
 	has := map[string]bool{}
@@ -505,6 +521,10 @@ func showState(states []string) string {
 		}
 	}
 	switch {
+	case open == model.WishQueued:
+		// A season still waits in the outbox: the wish stays queued, so wishes.submit sends it,
+		// also while another season is available already (review M-1).
+		return open
 	case open != "" && avail > 0:
 		return model.WishPartial
 	case open != "":
@@ -602,7 +622,11 @@ func (s *Service) accepted(ctx context.Context, w wishq.Wish, res sent) error {
 		if withdrawn {
 			keep = model.WishWithdrawn
 		}
-		if _, err := q.SetWishSubmitted(ctx, wishq.SetWishSubmittedParams{SeerrRequestID: reqID, SeerrMediaID: media, State: keep,
+		keepFail := sql.NullString{}
+		if keep == model.WishFailed {
+			keepFail = nullString(fail)
+		}
+		if _, err := q.SetWishSubmitted(ctx, wishq.SetWishSubmittedParams{SeerrRequestID: reqID, SeerrMediaID: media, State: keep, FailReason: keepFail,
 			Now: num64(now), SeerrUpdatedAt: updated, ID: w.ID}); err != nil {
 			return fmt.Errorf("submitted: %w", err)
 		}

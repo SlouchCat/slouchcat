@@ -364,6 +364,8 @@ func (s *Service) markAvailable(ctx context.Context, w wishq.Wish, itemID string
 			p.AvailableAt, p.ClosedAt = num64(now), num64(now)
 		case model.WishProcessing, model.WishPartial:
 			p.StateDetail = w.StateDetail
+		case model.WishDeclined: // the other seasons were declined before (review Minor 5)
+			p.ClosedAt = num64(now)
 		case model.WishFailed: // the other seasons failed before
 			p.FailReason = w.FailReason
 			if !p.FailReason.Valid {

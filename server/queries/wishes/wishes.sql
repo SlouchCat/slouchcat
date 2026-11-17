@@ -35,7 +35,21 @@ ORDER BY id;
 SELECT * FROM wishes WHERE state IN ('queued', 'pending', 'processing', 'partial') ORDER BY id;
 
 -- name: GetWishBySeerrRequest :one
-SELECT * FROM wishes WHERE seerr_request_id = @seerr_request_id;
+-- The wish of a film request: the open one first (wishes_request holds an id once among the open
+-- wishes only, migration 00081), else the newest closed one.
+SELECT * FROM wishes WHERE seerr_request_id = @seerr_request_id
+ORDER BY state IN ('queued', 'pending', 'processing') DESC, id DESC
+LIMIT 1;
+
+-- name: RequestHeldByOtherWish :one
+-- Whether another open wish (a film) or open season carries the request.
+SELECT CAST(EXISTS (
+    SELECT 1 FROM wishes AS w
+    WHERE w.seerr_request_id = @seerr_request_id AND w.id <> @wish_id AND w.state IN ('queued', 'pending', 'processing')
+    UNION ALL
+    SELECT 1 FROM wish_seasons AS s
+    WHERE s.seerr_request_id = @seerr_request_id AND s.wish_id <> @wish_id AND s.state IN ('queued', 'pending', 'processing')
+) AS INTEGER) AS held;
 
 -- name: ListDueWishes :many
 -- The outbox: queued wishes whose next attempt is due, oldest attempt first.
@@ -62,9 +76,9 @@ WHERE id = @id;
 
 -- name: SetWishSubmitted :execrows
 -- The request reached Seerr: request and media id (the request id only for a film), the state
--- Seerr answered with and the time.
+-- Seerr answered with (failed with its reason: a FAILED request it attached to) and the time.
 UPDATE wishes SET seerr_request_id = sqlc.narg('seerr_request_id'), seerr_media_id = sqlc.narg('seerr_media_id'),
-                  state = @state, fail_reason = NULL, attempts = attempts + 1, next_attempt_at = NULL,
+                  state = @state, fail_reason = sqlc.narg('fail_reason'), attempts = attempts + 1, next_attempt_at = NULL,
                   submitted_at = @now, updated_at = @now, seerr_updated_at = sqlc.narg('seerr_updated_at')
 WHERE id = @id;
 

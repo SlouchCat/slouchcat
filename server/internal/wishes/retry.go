@@ -108,11 +108,20 @@ func (s *Service) retryInSeerr(ctx context.Context, w wishq.Wish) error {
 }
 
 // reopenFailed moves the failed wish and its failed seasons (of the requests ids, nil: all) to state,
-// clears the fail reason and the closing time and writes the event retried. Another open wish of
-// the title (a partial unique index) makes it model.ErrWishNotRetryable.
+// clears the fail reason and the closing time and writes the event retried. Back to the outbox
+// (queued) the old request ids go into the event and are cleared, so the outbox sends those seasons
+// (or the film) again instead of looping «attached» (review M-2). Another open wish of the title
+// (a partial unique index) makes it model.ErrWishNotRetryable.
 func (s *Service) reopenFailed(ctx context.Context, w wishq.Wish, state string, ids []int) error {
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
 		now := s.now().UnixMilli()
+		var dropped []int64
+		if state == model.WishQueued && w.SeerrRequestID.Valid {
+			dropped = append(dropped, w.SeerrRequestID.Int64)
+			if _, err := q.ClearWishRequest(ctx, wishq.ClearWishRequestParams{Now: now, ID: w.ID}); err != nil {
+				return fmt.Errorf("clear request: %w", err)
+			}
+		}
 		n, err := q.SetWishState(ctx, wishq.SetWishStateParams{State: state, Now: now, ID: w.ID})
 		if err != nil {
 			return fmt.Errorf("reopen wish: %w", err)
@@ -128,11 +137,24 @@ func (s *Service) reopenFailed(ctx context.Context, w wishq.Wish, state string, 
 			if se.State != model.WishFailed || (ids != nil && !slices.Contains(ids, int(se.SeerrRequestID.Int64))) {
 				continue
 			}
+			if state == model.WishQueued {
+				if se.SeerrRequestID.Valid && !slices.Contains(dropped, se.SeerrRequestID.Int64) {
+					dropped = append(dropped, se.SeerrRequestID.Int64)
+				}
+				if _, err := q.SetWishSeasonRequest(ctx, wishq.SetWishSeasonRequestParams{State: state, WishID: w.ID, SeasonNumber: se.SeasonNumber}); err != nil {
+					return fmt.Errorf("season request: %w", err)
+				}
+				continue
+			}
 			if _, err := q.SetWishSeasonState(ctx, wishq.SetWishSeasonStateParams{State: state, WishID: w.ID, SeasonNumber: se.SeasonNumber}); err != nil {
 				return fmt.Errorf("season state: %w", err)
 			}
 		}
-		return s.event(ctx, q, w.ID, eventRetried, map[string]any{"from": model.WishFailed, "to": state, "reason": w.FailReason.String})
+		d := map[string]any{"from": model.WishFailed, "to": state, "reason": w.FailReason.String}
+		if len(dropped) > 0 {
+			d["requestIds"] = dropped
+		}
+		return s.event(ctx, q, w.ID, eventRetried, d)
 	})
 	if isUnique(err) {
 		return model.ErrWishNotRetryable

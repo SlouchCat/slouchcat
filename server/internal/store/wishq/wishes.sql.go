@@ -152,8 +152,12 @@ func (q *Queries) GetWish(ctx context.Context, id int64) (Wish, error) {
 
 const getWishBySeerrRequest = `-- name: GetWishBySeerrRequest :one
 SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes WHERE seerr_request_id = ?1
+ORDER BY state IN ('queued', 'pending', 'processing') DESC, id DESC
+LIMIT 1
 `
 
+// The wish of a film request: the open one first (wishes_request holds an id once among the open
+// wishes only, migration 00081), else the newest closed one.
 func (q *Queries) GetWishBySeerrRequest(ctx context.Context, seerrRequestID sql.NullInt64) (Wish, error) {
 	row := q.db.QueryRowContext(ctx, getWishBySeerrRequest, seerrRequestID)
 	var i Wish
@@ -1037,6 +1041,29 @@ func (q *Queries) ProfileHasWish(ctx context.Context, arg ProfileHasWishParams) 
 	return has_wish, err
 }
 
+const requestHeldByOtherWish = `-- name: RequestHeldByOtherWish :one
+SELECT CAST(EXISTS (
+    SELECT 1 FROM wishes AS w
+    WHERE w.seerr_request_id = ?1 AND w.id <> ?2 AND w.state IN ('queued', 'pending', 'processing')
+    UNION ALL
+    SELECT 1 FROM wish_seasons AS s
+    WHERE s.seerr_request_id = ?1 AND s.wish_id <> ?2 AND s.state IN ('queued', 'pending', 'processing')
+) AS INTEGER) AS held
+`
+
+type RequestHeldByOtherWishParams struct {
+	SeerrRequestID sql.NullInt64
+	WishID         int64
+}
+
+// Whether another open wish (a film) or open season carries the request.
+func (q *Queries) RequestHeldByOtherWish(ctx context.Context, arg RequestHeldByOtherWishParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, requestHeldByOtherWish, arg.SeerrRequestID, arg.WishID)
+	var held int64
+	err := row.Scan(&held)
+	return held, err
+}
+
 const setWishAttempt = `-- name: SetWishAttempt :execrows
 UPDATE wishes SET attempts = attempts + 1, next_attempt_at = ?1, updated_at = ?2
 WHERE id = ?3
@@ -1222,27 +1249,29 @@ func (q *Queries) SetWishState(ctx context.Context, arg SetWishStateParams) (int
 
 const setWishSubmitted = `-- name: SetWishSubmitted :execrows
 UPDATE wishes SET seerr_request_id = ?1, seerr_media_id = ?2,
-                  state = ?3, fail_reason = NULL, attempts = attempts + 1, next_attempt_at = NULL,
-                  submitted_at = ?4, updated_at = ?4, seerr_updated_at = ?5
-WHERE id = ?6
+                  state = ?3, fail_reason = ?4, attempts = attempts + 1, next_attempt_at = NULL,
+                  submitted_at = ?5, updated_at = ?5, seerr_updated_at = ?6
+WHERE id = ?7
 `
 
 type SetWishSubmittedParams struct {
 	SeerrRequestID sql.NullInt64
 	SeerrMediaID   sql.NullInt64
 	State          string
+	FailReason     sql.NullString
 	Now            sql.NullInt64
 	SeerrUpdatedAt sql.NullInt64
 	ID             int64
 }
 
 // The request reached Seerr: request and media id (the request id only for a film), the state
-// Seerr answered with and the time.
+// Seerr answered with (failed with its reason: a FAILED request it attached to) and the time.
 func (q *Queries) SetWishSubmitted(ctx context.Context, arg SetWishSubmittedParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setWishSubmitted,
 		arg.SeerrRequestID,
 		arg.SeerrMediaID,
 		arg.State,
+		arg.FailReason,
 		arg.Now,
 		arg.SeerrUpdatedAt,
 		arg.ID,
