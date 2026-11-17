@@ -330,3 +330,32 @@ test('the preview stands next to the rows on a wide window and below them on a n
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(900);
 });
+
+// Concept 25 (M-28, N-97): the row «Erfüllte Wünsche» stands in the table like every row, with
+// its position and «Ausblenden»; Enter folds out what it shows and the link to «Wünsche».
+test('«Erfüllte Wünsche»: its place, «Ausblenden» and the fold-out by keyboard @keyboard', async ({
+  page,
+  owner,
+}) => {
+  await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  await page.goto('/admin/home-rows');
+  const table = rowsTable(page);
+  await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
+  await expect(table.getByRole('combobox', { name: 'Platz für Erfüllte Wünsche' })).toBeVisible();
+  await expect(table.getByRole('checkbox', { name: 'Erfüllte Wünsche ausblenden' })).toBeVisible();
+  const row = table.getByRole('button', { name: 'Erfüllte Wünsche' });
+  await resetFocus(page);
+  await tabTo(page, row, 120);
+  await page.keyboard.press('Enter');
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, row);
+  await expect(table.getByText(/in den letzten 14 Tagen erfüllt wurden/)).toBeVisible();
+  const link = table.getByRole('link', { name: 'Zur Seite «Wünsche»' });
+  await expect(link).toHaveAttribute('href', '/admin/wishes');
+  await tabTo(page, link, 5);
+  await expectVisibleFocus(page);
+  await row.focus();
+  await page.keyboard.press('Enter');
+  await expect(row).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#content')).not.toContainText('{{');
+});

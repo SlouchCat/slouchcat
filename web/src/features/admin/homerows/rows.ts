@@ -19,6 +19,8 @@ export const rowPage = {
   collections: { href: paths.adminCollections, titleKey: 'admin.collections.title' },
   // Concept 21 P-11: which tiles «Meine Medien» shows, in which order.
   libraries: { href: paths.adminMyMedia, titleKey: 'admin.myMedia.title' },
+  // Concept 25 (M-28, N-97): the wishes behind «Erfüllte Wünsche».
+  wishes: { href: paths.adminWishes, titleKey: 'admin.wishes.title' },
 } as const satisfies Partial<Record<HomeRowKey, { href: string; titleKey: string }>>;
 
 export const pageOf = (key: HomeRowKey) =>
