@@ -815,7 +815,22 @@
     "seasons": "Seasons",
     "seasonWall": {
       "showAll": "Show all {{total}} seasons",
-      "showLess": "Show less"
+      "showLess": "Show less",
+      "season": "Season {{number}}",
+      "present_one": "{{present}} of {{count}} season available",
+      "present_other": "{{present}} of {{count}} seasons available",
+      "next": "Still running, next episode on {{date}}",
+      "running": "Still running",
+      "state": {
+        "missing": "Missing",
+        "requested": "Requested",
+        "processing": "Being fetched",
+        "announced": "Announced"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "Request {{title}}",
+      "cardJoin": "{{title}}: already requested, join",
+      "request": "Request seasons"
     },
     "episodes": {
       "title": "Episodes",

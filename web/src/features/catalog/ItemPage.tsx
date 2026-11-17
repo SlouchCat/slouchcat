@@ -626,7 +626,7 @@ function ItemView({ itemId }: { itemId: string }) {
             />
           )}
           {item.kind === 'series' && (
-            <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
+            <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} series={item} />
           )}
           {item.kind === 'season' && (
             <section

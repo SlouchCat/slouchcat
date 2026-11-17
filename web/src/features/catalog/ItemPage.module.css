@@ -161,9 +161,39 @@
   min-width: 0;
 }
 
-/* «Alle N Staffeln anzeigen» under the wall. */
+/* «Alle N Staffeln anzeigen» and «Staffeln anfordern» under the wall. */
 .wallToggle {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+}
+
+/*
+ * A season the profile cannot play (concept 25 M-06): over the empty cover a dashed outline and its
+ * mark in the middle, so it reads apart from the dimmed covers of the seasons that are there by
+ * its form, not by paleness alone (the state stands on the cover as text).
+ */
+.missingSeason {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: center;
+  justify-content: center;
+  padding: var(--sc-space-1);
+  border: var(--sc-focus-ring-width) dashed var(--sc-color-border-control);
+  border-radius: inherit;
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-secondary);
+  text-align: center;
+}
+
+.missingState {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  hyphens: auto;
 }
 
 .seasonHead {

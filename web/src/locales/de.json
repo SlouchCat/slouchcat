@@ -815,7 +815,22 @@
     "seasons": "Staffeln",
     "seasonWall": {
       "showAll": "Alle {{total}} Staffeln anzeigen",
-      "showLess": "Weniger anzeigen"
+      "showLess": "Weniger anzeigen",
+      "season": "Staffel {{number}}",
+      "present_one": "{{present}} von {{count}} Staffel vorhanden",
+      "present_other": "{{present}} von {{count}} Staffeln vorhanden",
+      "next": "Läuft noch, nächste Folge am {{date}}",
+      "running": "Läuft noch",
+      "state": {
+        "missing": "Fehlt",
+        "requested": "Angefordert",
+        "processing": "In Beschaffung",
+        "announced": "Angekündigt"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "{{title}} anfordern",
+      "cardJoin": "{{title}}: bereits angefordert, mitwünschen",
+      "request": "Staffeln anfordern"
     },
     "episodes": {
       "title": "Folgen",

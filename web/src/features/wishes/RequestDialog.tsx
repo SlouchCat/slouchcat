@@ -38,6 +38,10 @@ interface RequestDialogProps {
   onDone: (wish: Wish) => void;
   /** The title arrived in the library meanwhile (409 `already_available`). */
   onAvailable: (item: ItemRef) => void;
+  /** The seasons chosen at first (a missing season pressed on the series page); else all. */
+  preselect?: readonly number[];
+  /** Seasons the dialog leaves out (announced ones on the series page, concept 25 M-06). */
+  skip?: readonly number[];
 }
 
 /** The limit's warning when the chosen titles do not fit: none while they fit or it is unknown. */
@@ -72,6 +76,8 @@ export function RequestDialog({
   onClose,
   onDone,
   onAvailable,
+  preselect,
+  skip,
 }: RequestDialogProps) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -81,11 +87,18 @@ export function RequestDialog({
   const quotaRead = useQuery(wishQuotaQuery);
   const create = useCreateWish();
   const form = useRef<HTMLFormElement>(null);
-  const offered: readonly Season[] = seasons.data?.seasons ?? [];
+  const offered: readonly Season[] = (seasons.data?.seasons ?? []).filter(
+    (season) => !skip?.includes(season.number),
+  );
   const choosable = offered.filter((season) => season.state !== 'available');
   const [chosen, setChosen] = useState<readonly string[] | null>(null);
-  // At first every season that can be chosen is chosen («Alle fehlenden Staffeln», concept 4.2).
-  const picked = chosen ?? choosable.map((season) => String(season.number));
+  // At first every season that can be chosen is chosen («Alle fehlenden Staffeln», concept 4.2),
+  // or only the one pressed on the series page.
+  const picked =
+    chosen ??
+    choosable
+      .filter((season) => !preselect || preselect.includes(season.number))
+      .map((season) => String(season.number));
   const all = choosable.length > 0 && picked.length === choosable.length;
   const fresh = offered.filter(
     (season) => season.state === 'missing' && picked.includes(String(season.number)),
@@ -106,8 +119,14 @@ export function RequestDialog({
     const onDialog =
       !active || active === document.body || active.getAttribute('role') === 'dialog';
     if (!onDialog || element.contains(active)) return;
-    element.querySelector<HTMLElement>('input:not(:disabled), button')?.focus();
-  }, [series, loaded]);
+    // The pressed season's box when there is one, else the first choice.
+    const first = preselect?.[0];
+    const pressed =
+      first === undefined
+        ? null
+        : element.querySelector<HTMLElement>(`input[value="${first}"]:not(:disabled)`);
+    (pressed ?? element.querySelector<HTMLElement>('input:not(:disabled), button'))?.focus();
+  }, [series, loaded, preselect]);
 
   const onChange = (next: string[]) => {
     const wasAll = picked.includes(ALL) || all;
