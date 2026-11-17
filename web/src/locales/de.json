@@ -4766,6 +4766,11 @@
           "trigger": "vom Planer bei «Speichern», «Fehlende nachladen» und «Laden» je Folge; je Anbieter eine zur Zeit",
           "progress": "Bytes: {{done}} von {{total}}"
         },
+        "titles_refresh": {
+          "name": "Fehlende Titel auffrischen",
+          "description": "Liest Angaben, Freigaben und Trailer der Titel, die nicht in der Bibliothek stehen, nach 7 Tagen neu von TMDB.",
+          "trigger": "Zeitplan täglich"
+        },
         "trakt_refresh": {
           "name": "Spotlight-Liste abrufen",
           "description": "Holt die Trakt-Liste, aus der das Spotlight seine Titel nimmt.",

@@ -402,10 +402,14 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	} else if seed, err := lang.Seed(t.Context()); err != nil || seed.Enabled {
 		t.Errorf("metadata.original_language_backfill seed = %+v, %v, want the schedule off", seed, err)
 	}
+	if titles, ok := r.Lookup(JobTitlesRefresh); !ok || !titles.Scheduled() || titles.Run == nil || titles.Handler == nil ||
+		titles.Priority != 7 || titles.Every != 24*time.Hour || titles.StartDelay != nil || titles.Seed != nil {
+		t.Errorf("titles.refresh = %+v, want a daily schedule type at priority 7 with Run and handler (concept 25)", titles)
+	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 13 {
-		t.Errorf("handlers attached = %v, want the twelve metadata types (metadata.ratings_reread since concept 22) with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 14 {
+		t.Errorf("handlers attached = %v, want the thirteen metadata types (metadata.ratings_reread since concept 22, titles.refresh since concept 25) with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

@@ -75,3 +75,6 @@ ON CONFLICT (media, tmdb_id, kind, size, format) DO UPDATE SET
 DELETE FROM external_title_images
 WHERE media = @media AND tmdb_id = @tmdb_id AND kind = @kind
 RETURNING rel_path;
+
+-- name: DeleteExternalTitleImage :exec
+DELETE FROM external_title_images WHERE id = @id;

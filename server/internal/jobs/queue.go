@@ -13,7 +13,8 @@
 //     current when one moves):
 //     9 probe.keyframes of a playback that fell back to transcoding (library.QueueKeyframesForPlayback)
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
-//     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
+//     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen"), the daily
+//     titles.refresh of the titles outside the library (metadata, concept 25)
 //     6 scan.path
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
 //     (library, concept 13)

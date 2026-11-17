@@ -126,6 +126,7 @@ type Movie struct {
 	Overview         string       `json:"overview"`
 	Tagline          string       `json:"tagline"`
 	ReleaseDate      string       `json:"release_date"` // YYYY-MM-DD or empty
+	Status           string       `json:"status"`       // Released, Post Production, …
 	Runtime          int          `json:"runtime"`      // minutes, 0 when unknown
 	VoteAverage      float64      `json:"vote_average"` // 0 to 10, 0 when nobody voted
 	Genres           []Genre      `json:"genres"`
@@ -242,8 +243,14 @@ type TV struct {
 		SeasonNumber int    `json:"season_number"`
 		EpisodeCount int    `json:"episode_count"`
 		PosterPath   string `json:"poster_path"`
+		AirDate      string `json:"air_date"`
 	} `json:"seasons"`
-	CreatedBy []struct {
+	// Status is TMDB's state of the series (Returning Series, Ended, …); the last aired and the
+	// next episode are nil when TMDB names none (titles outside the library, concept 25).
+	Status           string     `json:"status"`
+	LastEpisodeToAir *TVEpisode `json:"last_episode_to_air"`
+	NextEpisodeToAir *TVEpisode `json:"next_episode_to_air"`
+	CreatedBy        []struct {
 		ID          int64  `json:"id"`
 		Name        string `json:"name"`
 		ProfilePath string `json:"profile_path"`

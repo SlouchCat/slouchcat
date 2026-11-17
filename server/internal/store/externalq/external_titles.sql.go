@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const deleteExternalTitleImage = `-- name: DeleteExternalTitleImage :exec
+DELETE FROM external_title_images WHERE id = ?1
+`
+
+func (q *Queries) DeleteExternalTitleImage(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExternalTitleImage, id)
+	return err
+}
+
 const deleteExternalTitleImages = `-- name: DeleteExternalTitleImages :many
 DELETE FROM external_title_images
 WHERE media = ?1 AND tmdb_id = ?2 AND kind = ?3

@@ -188,6 +188,9 @@ type Service struct {
 	imageMu    sync.Mutex
 	imageLocks map[string]*imageLock // the image writers per title at work (lockItemImages)
 
+	externalMu     sync.Mutex
+	externalMisses map[string]time.Time // titles and images outside the library TMDB refused (external_titles.go)
+
 	feeds feedFetcher // podcast feeds (podcast.go)
 
 	books bookSources // the audiobook sources (book_provider.go, concept 19 D6)
@@ -498,7 +501,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // people.details (an event type with a time window of its own) fetches the facts of the person
 // page from TMDB (people_details.go, concept 21 P-8). metadata.ratings_reread (an event type,
 // ratings_reread.go, concept 22 section 4.11) reads the ratings anew once after the update and
-// after every change of the rating country.
+// after every change of the rating country. titles.refresh (a schedule type, daily, priority 7)
+// fetches the titles outside the library again that are older than ExternalTitleMaxAge
+// (external_titles.go, concept 25).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -535,6 +540,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobTraktRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: traktPriority, Handler: s.handleTraktRefresh, Run: s.runTrakt, Every: traktDefaultInterval, Seed: s.traktSeed,
+	})
+	r.Register(jobs.Type{
+		Name: JobTitlesRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: titlesRefreshPriority, Handler: s.handleTitlesRefresh, Run: s.runTitlesRefresh, Every: titlesRefreshEvery,
 	})
 }
 
