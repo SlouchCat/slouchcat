@@ -7094,6 +7094,30 @@
         "title": "Seite nicht gefunden",
         "body": "Diese Seite gibt es für dieses Profil nicht."
       }
+    },
+    "titles": {
+      "moviesIntro": "Alle Filme, die TMDB kennt, ob schon in der Bibliothek oder nicht. Was fehlt, kannst du anfordern.",
+      "seriesIntro": "Alle Serien, die TMDB kennt, ob schon in der Bibliothek oder nicht. Was fehlt, kannst du anfordern.",
+      "sort": "Sortierung",
+      "sorts": {
+        "popularity": "Beliebtheit",
+        "newest": "Neueste zuerst",
+        "rating": "Am besten bewertet"
+      },
+      "filter": "Filter: {{summary}}",
+      "filterLabel": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alle Genres",
+      "genreId": "Genre {{id}}",
+      "library": "Bibliothek",
+      "hide": "Vorhandene ausblenden",
+      "hideHelp": "Zeigt nur, was noch nicht in der Bibliothek ist.",
+      "hidden": "Vorhandene ausgeblendet",
+      "shown": "Vorhandene sichtbar",
+      "clear": "Filter zurücksetzen",
+      "apply": "Anwenden",
+      "moviesEmpty": "Keine Filme für diese Auswahl.",
+      "seriesEmpty": "Keine Serien für diese Auswahl."
     }
   },
   "titles": {

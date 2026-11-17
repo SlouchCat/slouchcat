@@ -18,6 +18,7 @@ import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
+import { validateTitlesParams } from '@/features/wishes/discover/wishesAreaParams';
 import { validateWishesParams } from '@/features/wishes/wishesParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
@@ -677,6 +678,27 @@ const discoverRoute = createRoute({
   ),
 });
 
+// «Filme» and «Serien»: sort, genre and «Vorhandene ausblenden» in the URL.
+const discoverMoviesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/movies',
+  validateSearch: validateTitlesParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/TitlesPage'),
+    'WishMoviesPage',
+  ),
+});
+
+const discoverSeriesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/series',
+  validateSearch: validateTitlesParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/TitlesPage'),
+    'WishSeriesPage',
+  ),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -857,6 +879,8 @@ export const routeTree = rootRoute.addChildren([
         titleRoute,
         wishesViewerRoute,
         discoverRoute,
+        discoverMoviesRoute,
+        discoverSeriesRoute,
       ]),
       playRoute,
       setupStepRoute,
