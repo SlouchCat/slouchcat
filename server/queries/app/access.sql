@@ -97,8 +97,8 @@ UPDATE accounts SET last_seen_at = @now WHERE id = @id;
 -- name: InsertInvitedAccount :one
 -- An invitation never creates an administrator: the role is a literal in this file, not a
 -- parameter, so no request body and no slip in a handler can raise it (ADR 0014, lock 4).
-INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
-VALUES (@email, @password_hash, 'user', @max_rating, @all_libraries, sqlc.narg('invited_by'), @now, @now)
+INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, can_request, invited_by, created_at, updated_at)
+VALUES (@email, @password_hash, 'user', @max_rating, @all_libraries, @can_request, sqlc.narg('invited_by'), @now, @now)
 RETURNING *;
 
 -- name: CountOtherAdmins :one
@@ -174,8 +174,11 @@ DELETE FROM pin_attempts WHERE device_id = @device_id;
 DELETE FROM devices WHERE id = @id;
 
 -- name: InsertInvitation :one
-INSERT INTO invitations (token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at)
-VALUES (@token_hash, @note, @max_rating, @all_libraries, sqlc.narg('created_by'), @now, @expires_at)
+INSERT INTO invitations (token_hash, note, max_rating, all_libraries, can_request, wish_limit_mode,
+                         wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days, created_by, created_at, expires_at)
+VALUES (@token_hash, @note, @max_rating, @all_libraries, @can_request, @wish_limit_mode,
+        sqlc.narg('wish_movie_limit'), sqlc.narg('wish_movie_days'), sqlc.narg('wish_tv_limit'), sqlc.narg('wish_tv_days'),
+        sqlc.narg('created_by'), @now, @expires_at)
 RETURNING *;
 
 -- name: InsertInvitationLibrary :exec
@@ -205,3 +208,12 @@ WHERE id = @id AND used_at IS NULL AND revoked_at IS NULL AND expires_at > @now;
 
 -- name: RevokeInvitation :execrows
 UPDATE invitations SET revoked_at = @now WHERE id = @id AND used_at IS NULL AND revoked_at IS NULL;
+
+-- name: SetAccountCanRequest :execrows
+-- The request right of an account, the cap of its profiles (concept 25, data model 2.3); set by an
+-- administrator.
+UPDATE accounts SET can_request = @can_request, updated_at = @now WHERE id = @id;
+
+-- name: SetProfileCanRequest :exec
+-- The request right of a profile, set by the primary profile; effective only with the account's.
+UPDATE profiles SET can_request = @can_request, updated_at = @now WHERE id = @id;

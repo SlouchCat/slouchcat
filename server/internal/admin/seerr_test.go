@@ -23,6 +23,12 @@ func (h *fakeSeerrHooks) SeerrSaved(context.Context)            { h.saved++ }
 func (h *fakeSeerrHooks) WishSettingsSaved(context.Context, model.WishSettings, model.WishSettings) {
 	h.wishSaved++
 }
+func (h *fakeSeerrHooks) IntegrationStatus(context.Context) (model.IntegrationStatus, error) {
+	return model.IntegrationStatus{Key: "seerr", State: model.IntegrationMissing}, nil
+}
+func (h *fakeSeerrHooks) DashboardWishes(context.Context) (*model.DashboardWishes, error) {
+	return nil, nil
+}
 
 func rawSetting(t *testing.T, f *fixture, key string) (string, bool) {
 	t.Helper()

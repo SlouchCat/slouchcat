@@ -80,6 +80,10 @@ type SeerrHooks interface {
 	// WishSettingsSaved is called after the wish settings were saved, with the settings before and
 	// after: «Wünsche aktiv» switched on queues the shared user, a new default limit is written.
 	WishSettingsSaved(ctx context.Context, before, after model.WishSettings)
+	// IntegrationStatus is the dashboard entry `seerr`.
+	IntegrationStatus(ctx context.Context) (model.IntegrationStatus, error)
+	// DashboardWishes are the hints of the wishes of the overview; nil while Seerr is not set up.
+	DashboardWishes(ctx context.Context) (*model.DashboardWishes, error)
 }
 
 // WithSeerr sets the hooks of package wishes and returns the receiver.

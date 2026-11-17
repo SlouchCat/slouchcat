@@ -68,6 +68,9 @@ type Service struct {
 	// passwordSeen gets the password in the three moments the server sees it in clear text (package
 	// wishes, concept 25 architecture 18.3); it must return at once. nil = none.
 	passwordSeen func(ctx context.Context, accountID int64, email, password, moment string)
+	// requestRightChanged runs after an administrator changed the request right of an account
+	// (package wishes: the rights of a Seerr user Slouchcat opened follow it, N-110). nil = none.
+	requestRightChanged func(ctx context.Context, accountID int64)
 
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
 	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
@@ -150,6 +153,13 @@ const (
 // password goes nowhere else. It returns the receiver.
 func (s *Service) WithPasswordSeen(fn func(ctx context.Context, accountID int64, email, password, moment string)) *Service {
 	s.passwordSeen = fn
+	return s
+}
+
+// WithRequestRightChanged runs fn after UpdateAccountAccess changed the request right of an account
+// (wishes.RequestRightChanged) and returns the receiver.
+func (s *Service) WithRequestRightChanged(fn func(ctx context.Context, accountID int64)) *Service {
+	s.requestRightChanged = fn
 	return s
 }
 
@@ -603,7 +613,7 @@ func toAccount(a appq.Account, libs []int64) model.Account {
 	}
 	return model.Account{
 		ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating),
-		AllLibraries: a.AllLibraries == 1, LibraryIDs: libs, Limits: AccountLimits(a),
+		AllLibraries: a.AllLibraries == 1, LibraryIDs: libs, Limits: AccountLimits(a), CanRequest: a.CanRequest == 1,
 	}
 }
 
@@ -618,7 +628,7 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
 		MetadataLanguage: p.MetadataLanguage.String,
 		AllLibraries:     p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
-		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
+		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1, CanRequest: p.CanRequest == 1,
 		Limits: limits, Effective: limits.Cap(account), Prefs: prefsOf(p),
 	}
 }

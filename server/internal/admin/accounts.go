@@ -36,7 +36,7 @@ func (s *Service) ListAccounts(ctx context.Context) ([]model.AdminAccount, error
 		out[i] = model.AdminAccount{
 			ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1,
 			LibraryIDs: []int64{}, Profiles: []model.ProfileRef{}, Channels: []model.ChannelSummary{},
-			CreatedAt: time.UnixMilli(a.CreatedAt).UTC(),
+			CreatedAt: time.UnixMilli(a.CreatedAt).UTC(), CanRequest: a.CanRequest == 1,
 			Limits: auth.AccountLimits(appq.Account{
 				MaxBitrateKbps: a.MaxBitrateKbps, MaxHeight: a.MaxHeight, MaxStreams: a.MaxStreams,
 			}),

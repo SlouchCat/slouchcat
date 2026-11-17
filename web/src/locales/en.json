@@ -3706,7 +3706,8 @@
         "email": "E-mail",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Update check"
+        "updateCheck": "Update check",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Set in deploy/.env",

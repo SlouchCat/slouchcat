@@ -151,6 +151,11 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	if err := s.ratingAttention(ctx, &d.Attention); err != nil {
 		return model.Dashboard{}, err
 	}
+	if s.seerr != nil {
+		if d.Attention.Wishes, err = s.seerr.DashboardWishes(ctx); err != nil {
+			return model.Dashboard{}, err
+		}
+	}
 	if d.Counts, err = s.dashboardCounts(ctx); err != nil {
 		return model.Dashboard{}, err
 	}
@@ -438,7 +443,15 @@ func (s *Service) integrations(ctx context.Context, update model.UpdateState) ([
 	case update.Error != "":
 		st.State, st.Detail = model.IntegrationError, update.Error
 	}
-	return append(out, st), nil
+	out = append(out, st)
+	// Seerr (concept 25): from package wishes; without it the connection is not set up.
+	seerrSt := model.IntegrationStatus{Key: "seerr", State: model.IntegrationMissing}
+	if s.seerr != nil {
+		if seerrSt, err = s.seerr.IntegrationStatus(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return append(out, seerrSt), nil
 }
 
 // channelAvailability asks package notify; without it the configuration alone decides.

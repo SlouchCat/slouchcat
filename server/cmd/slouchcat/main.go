@@ -388,7 +388,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	authSvc.WithAccountDeleting(wishSvc.AccountDeleting)
 	// The password goes to Seerr in the three moments the server sees it (architecture 18.3), in the
 	// background and only in memory.
-	authSvc.WithPasswordSeen(wishSvc.PasswordSeen)
+	authSvc.WithPasswordSeen(wishSvc.PasswordSeen).WithRequestRightChanged(wishSvc.RequestRightChanged)
+	// A new account: the default channels (M8) and the wish limit of its invitation (concept 25).
+	authSvc.WithAccountCreated(func(ctx context.Context, accountID int64) error {
+		return errors.Join(notifySvc.EnsureDefaults(ctx, accountID), wishSvc.AccountCreated(ctx, accountID))
+	})
 	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
 	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
 	// cleans it up. A restore swapped in at this start is recorded in the restored database.

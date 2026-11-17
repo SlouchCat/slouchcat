@@ -39,6 +39,87 @@ type WishesService interface {
 	// SetAccountLimit sets the limit of an account (default, custom, unlimited); model.ErrNotFound,
 	// *model.ValidationError.
 	SetAccountLimit(ctx context.Context, accountID int64, mode string, movie, tv *model.WishLimit, by int64) (model.AccountWishLimit, error)
+	// ForProfile is the request right of the active profile (SessionInfo.wishes); model.ErrNotFound.
+	ForProfile(ctx context.Context, accountID, profileID int64) (model.WishRights, error)
+}
+
+// wishRights is SessionInfo.wishes; nil without the service or an active profile (the session
+// answer never fails over it, the error is logged).
+func (s *server) wishRights(ctx context.Context, session model.Session) *gen.WishRights {
+	if s.opts.Wishes == nil || !session.HasProfile() {
+		return nil
+	}
+	r, err := s.opts.Wishes.ForProfile(ctx, session.Account.ID, session.Profile.ID)
+	if err != nil {
+		s.p.log.WarnContext(ctx, "wish rights of the session", "err", err)
+		return nil
+	}
+	out := &gen.WishRights{Enabled: r.Enabled, CanRequest: r.CanRequest, Movies: r.Movies, Shows: r.Shows}
+	if r.Reason != "" {
+		reason := gen.WishRightsReason(r.Reason)
+		out.Reason = &reason
+	}
+	return out
+}
+
+// accountWishes adds the request right, the Seerr user, the chip and the limit of every account
+// to the account list (concept 25 data model 4.6); without Seerr set up only canRequest.
+func (s *server) accountWishes(ctx context.Context, items []gen.AdminAccount) error {
+	if s.opts.Wishes == nil {
+		return nil
+	}
+	st, err := s.opts.Wishes.Status(ctx)
+	if err != nil || st.State == model.SeerrStateNotConfigured {
+		return err
+	}
+	m, err := s.opts.Wishes.WishMappings(ctx)
+	if err != nil {
+		return err
+	}
+	names := map[int]string{}
+	users, err := s.opts.Wishes.SeerrUsers(ctx)
+	if err != nil {
+		return err
+	}
+	for _, u := range users {
+		names[u.ID] = u.DisplayName
+	}
+	byID := make(map[int64]model.WishAccountMapping, len(m.Accounts))
+	for _, a := range m.Accounts {
+		byID[a.AccountID] = a
+	}
+	for i := range items {
+		a, ok := byID[items[i].Id]
+		if !ok {
+			continue
+		}
+		state := gen.Allowed
+		switch {
+		case !a.CanRequest:
+			state = gen.NotAllowed
+		case a.State == model.WishMappingNone || a.State == "waiting":
+			state = gen.MappingMissing
+		}
+		items[i].WishState = &state
+		limit := toAccountWishLimit(a.Limit)
+		items[i].WishLimit = &limit
+		if a.State != model.WishMappingNone {
+			u := &gen.AccountSeerrUser{Id: a.SeerrUserID, State: gen.AccountSeerrUserState(a.State), LinkedAt: a.LinkedAt}
+			if a.SeerrUserID != nil {
+				u.DisplayName = optString(names[*a.SeerrUserID])
+			}
+			if a.PasswordState != "" {
+				ps := gen.AccountSeerrUserPasswordState(a.PasswordState)
+				u.PasswordState = &ps
+			}
+			if a.LinkedBy != "" {
+				lb := gen.AccountSeerrUserLinkedBy(a.LinkedBy)
+				u.LinkedBy = &lb
+			}
+			items[i].SeerrUser = u
+		}
+	}
+	return nil
 }
 
 func (e serviceProblem) VisitGetSeerrSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -403,4 +484,30 @@ func toWishSettings(ws model.WishSettings) gen.WishSettings {
 		AllowWithdraw: ws.AllowWithdraw, PinExternalHideTitle: ws.PINExternalHideTitle,
 		ProvisionAccounts: ws.ProvisionAccounts, SyncPassword: ws.SyncPassword, DefaultLimit: toWishLimits(ws.DefaultLimit),
 	}
+}
+
+func toDashboardWishes(d *model.DashboardWishes) *gen.DashboardWishes {
+	if d == nil {
+		return nil
+	}
+	out := &gen.DashboardWishes{
+		Unmapped: d.Unmapped, UnmappedFallback: d.UnmappedFallback, GoneUsers: d.GoneUsers,
+		Linked: make([]gen.WishLinkHint, 0, len(d.Linked)), QuotaReached: make([]gen.WishQuotaHint, 0, len(d.QuotaReached)),
+	}
+	if d.SeerrState != "" {
+		st := gen.DashboardWishesSeerrState(d.SeerrState)
+		out.SeerrState = &st
+	}
+	for _, l := range d.Linked {
+		out.Linked = append(out.Linked, gen.WishLinkHint{
+			AccountId: l.AccountID, AccountEmail: l.AccountEmail, SeerrUserId: l.SeerrUserID, SeerrDisplayName: l.SeerrDisplayName,
+			LinkedBy: gen.WishLinkHintLinkedBy(l.LinkedBy), LinkedAt: l.LinkedAt,
+		})
+	}
+	for _, q := range d.QuotaReached {
+		out.QuotaReached = append(out.QuotaReached, gen.WishQuotaHint{
+			AccountId: q.AccountID, AccountEmail: q.AccountEmail, Movie: toWishQuotaPart(q.Movie), Tv: toWishQuotaPart(q.TV),
+		})
+	}
+	return out
 }

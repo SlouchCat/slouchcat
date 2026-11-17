@@ -11397,6 +11397,12 @@ components:
             Since contract 1.36.0 (concept 22 section 4.11): the server's rating country with its steps;
             the client labels ages and offers ceilings from it. Absent in answers of older servers (then
             the client prints every age as «ab N»).
+        wishes:
+          $ref: "#/components/schemas/WishRights"
+          description: |
+            Since contract 1.41.0 (concept 25): what the active profile may request through Seerr. The
+            server decides (rule 12); with `canRequest` false the client shows nothing about wishes (F-9).
+            Absent without an active profile.
 
     Account:
       type: object
@@ -11496,6 +11502,12 @@ components:
         subtitleLanguages:
           $ref: "#/components/schemas/PlaybackLanguages"
           description: The subtitle languages of the profile in order of preference (since contract 1.11.0).
+        canRequest:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25): the request right of the profile, set by the primary
+            profile; it applies only when the account has the right too (the cap). Primary profiles
+            start with it, further profiles without.
 
     ProfileSummary:
       type: object
@@ -11575,6 +11587,11 @@ components:
         subtitleLanguages:
           $ref: "#/components/schemas/PlaybackLanguages"
           description: The subtitle languages in order of preference (since contract 1.11.0).
+        canRequest:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
+            account has no right is refused (422 `canRequest` `account_not_allowed`).
 
     ProfileUpdate:
       type: object
@@ -11618,6 +11635,11 @@ components:
         subtitleLanguages:
           $ref: "#/components/schemas/PlaybackLanguages"
           description: The subtitle languages in order of preference (since contract 1.11.0).
+        canRequest:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
+            account has no right is refused (422 `canRequest` `account_not_allowed`).
 
     PlaybackLanguage:
       type: string
@@ -11793,6 +11815,14 @@ components:
             format: int64
           uniqueItems: true
           description: Libraries the guest may see when `allLibraries` is false.
+        canRequest:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25): the request right the new account gets; absent = the
+            setting «Neue Konten dürfen anfordern».
+        wishLimit:
+          $ref: "#/components/schemas/InvitationWishLimit"
+          description: Since contract 1.41.0. The wish limit the new account gets; absent = `default`.
 
     InvitationState:
       type: string
@@ -11831,6 +11861,11 @@ components:
           type: string
           format: email
           description: E-mail of the guest account that accepted the link, while that account exists.
+        canRequest:
+          type: boolean
+          description: Since contract 1.41.0. The request right the account of this invitation gets.
+        wishLimit:
+          $ref: "#/components/schemas/InvitationWishLimit"
 
     InvitationCreated:
       allOf:
@@ -11919,6 +11954,12 @@ components:
             Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
             profile of the account. `watchLimitMinutes` is a profile setting and ignored here. The object
             replaces all three at once: a field left out clears that limit.
+        canRequest:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25): the request right of the account, the cap of all its
+            profiles. The only field an administrator account takes (block «Wünsche»); the rights of a
+            Seerr user Slouchcat opened follow it.
 
     ItemRatingRequest:
       type: object
@@ -18165,6 +18206,8 @@ components:
             type: string
             description: Provider as in `checkProviderKey` (`tmdb`, `tvdb`). No enum, so a new provider breaks no client.
             examples: ["tvdb"]
+        wishes:
+          $ref: "#/components/schemas/DashboardWishes"
 
     AbortedScan:
       type: object
@@ -18706,7 +18749,12 @@ components:
       properties:
         key:
           type: string
-          enum: [tmdb, tvdb, youtube, trakt, email, push, telegram, updateCheck]
+          enum: [tmdb, tvdb, youtube, trakt, email, push, telegram, updateCheck, seerr]
+          description: |
+            `seerr` since contract 1.41.0 (concept 25): `missing` without address or key, `disabled`
+            when switched off, `error` when the key is refused, Seerr is unreachable or another
+            instance waits for a decision (`detail` `key_invalid`, `unreachable`, `instance_changed`),
+            else `configured` (`detail` `untested` before a test or job reached Seerr).
         state:
           type: string
           enum: [configured, missing, error, disabled]
@@ -19140,6 +19188,126 @@ components:
         seerrAdmin:
           type: boolean
           description: The Seerr user is an administrator and has no limit in Seerr.
+
+    WishRights:
+      type: object
+      description: Since contract 1.41.0. The request right of a profile (concept 25, users and profiles 9).
+      required: [enabled, canRequest, movies, shows]
+      properties:
+        enabled:
+          type: boolean
+          description: Wishes are switched on and Seerr is set up.
+        canRequest:
+          type: boolean
+        reason:
+          type: string
+          enum: [disabled, account_not_allowed, profile_not_allowed, no_mapping, seerr_user_gone]
+          description: Why `canRequest` is false.
+        movies:
+          type: boolean
+          description: Films may be requested («Filme erlauben» and the right of the Seerr user).
+        shows:
+          type: boolean
+
+    InvitationWishLimit:
+      type: object
+      description: Since contract 1.41.0. The wish limit an invitation hands to its account.
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [default, custom, unlimited]
+        movie:
+          $ref: "#/components/schemas/WishLimit"
+        tv:
+          $ref: "#/components/schemas/WishLimit"
+
+    AccountSeerrUser:
+      type: object
+      description: Since contract 1.41.0. The Seerr user of an account as the account list shows it.
+      required: [state]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        state:
+          type: string
+          enum: [created, linked, manual, waiting]
+        passwordState:
+          type: string
+          enum: [synced, next_login, "off", admin, external]
+        linkedBy:
+          type: string
+          enum: [admin, invite, email_change]
+        linkedAt:
+          type: string
+          format: date-time
+
+    DashboardWishes:
+      type: object
+      description: |
+        Since contract 1.41.0 (concept 25, administration 2): the hints of the wishes; absent while
+        Seerr is not set up. Every list is empty instead of absent.
+      required: [unmapped, unmappedFallback, linked, quotaReached, goneUsers]
+      properties:
+        seerrState:
+          type: string
+          enum: [key_invalid, unreachable, instance_changed]
+          description: «Seerr nicht erreichbar» or «Andere Seerr-Instanz erkannt»; absent when Seerr answers.
+        unmapped:
+          type: integer
+          description: Accounts with the request right and no ready Seerr user («n Konten ohne Seerr-Benutzer»).
+        unmappedFallback:
+          type: boolean
+          description: They send through the shared user meanwhile («Konten ohne Seerr-Benutzer» = «Sammelbenutzer»).
+        linked:
+          type: array
+          description: «Neu verknüpft» for seven days after an invitation or an email change (N-93), newest first.
+          items:
+            $ref: "#/components/schemas/WishLinkHint"
+        quotaReached:
+          type: array
+          description: Accounts whose limit for films or seasons is used up, by the last state of Seerr.
+          items:
+            $ref: "#/components/schemas/WishQuotaHint"
+        goneUsers:
+          type: integer
+          description: Accounts whose Seerr user is gone from Seerr.
+
+    WishLinkHint:
+      type: object
+      required: [accountId, accountEmail, seerrUserId, seerrDisplayName, linkedBy, linkedAt]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        accountEmail:
+          type: string
+        seerrUserId:
+          type: integer
+        seerrDisplayName:
+          type: string
+        linkedBy:
+          type: string
+          enum: [invite, email_change]
+        linkedAt:
+          type: string
+          format: date-time
+
+    WishQuotaHint:
+      type: object
+      required: [accountId, accountEmail]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        accountEmail:
+          type: string
+        movie:
+          $ref: "#/components/schemas/WishQuotaPart"
+        tv:
+          $ref: "#/components/schemas/WishQuotaPart"
 
     AccountWishLimitRequest:
       type: object
@@ -19806,6 +19974,20 @@ components:
           description: |
             Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
             profile of the account. `watchLimitMinutes` is a profile setting and always absent here.
+        canRequest:
+          type: boolean
+          description: Since contract 1.41.0. The request right of the account (concept 25).
+        wishState:
+          type: string
+          enum: [allowed, not_allowed, mapping_missing]
+          description: |
+            Since contract 1.41.0. The chip of the account: `allowed` (right and a ready Seerr user),
+            `not_allowed` (no right), `mapping_missing` (right, but no ready Seerr user: it sends through
+            the shared user or, with «Nicht erlauben», cannot request). Absent while Seerr is not set up.
+        seerrUser:
+          $ref: "#/components/schemas/AccountSeerrUser"
+        wishLimit:
+          $ref: "#/components/schemas/AccountWishLimit"
 
     AccountRoleUpdate:
       type: object

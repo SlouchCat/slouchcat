@@ -183,6 +183,7 @@ type Account struct {
 	AllLibraries bool
 	LibraryIDs   []int64        // libraries of the account; empty when AllLibraries
 	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
+	CanRequest   bool           // may request titles through Seerr: the cap of its profiles (concept 25)
 }
 
 // Role values of Account.Role. The owner is not a third value: it is an administrator with
@@ -209,6 +210,7 @@ type Profile struct {
 	HasPin           bool
 	HasOfflinePin    bool // a separate offline PIN is set (AN-19)
 	IsPrimary        bool // the account's primary profile: manages profiles, cannot be deleted
+	CanRequest       bool // the request right of the profile; effective only with the account's (concept 25)
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits
@@ -298,6 +300,7 @@ type ProfileInput struct {
 	LibraryIDs       *[]int64
 	PIN              *string         // create only
 	Limits           *PlaybackLimits // replaces all limits at once; nil keeps them
+	CanRequest       *bool           // the request right (concept 25); never above the account's
 	// The playback preferences (concept 13); each nil field keeps its value (update) or takes the
 	// column default (create).
 	AudioLanguages    *[]string
@@ -312,6 +315,7 @@ type AccountAccessUpdate struct {
 	AllLibraries *bool
 	LibraryIDs   *[]int64
 	Limits       *PlaybackLimits // replaces the three W-8 caps at once; nil keeps them
+	CanRequest   *bool           // the request right (concept 25); the only field an administrator account takes
 }
 
 // InvitationRequest creates an invitation link.
@@ -320,6 +324,15 @@ type InvitationRequest struct {
 	MaxRating    int
 	AllLibraries bool
 	LibraryIDs   []int64
+	CanRequest   *bool                // nil: the setting «Neue Konten dürfen anfordern» (concept 25)
+	WishLimit    *InvitationWishLimit // nil: the default limit
+}
+
+// InvitationWishLimit is the wish limit an invitation hands to its account: mode default, custom
+// (with Movie and TV) or unlimited (concept 25, data model 2.3).
+type InvitationWishLimit struct {
+	Mode      string
+	Movie, TV *WishLimit
 }
 
 // Invitation is an invitation link with its state (open, used, expired, revoked). Token and URL
@@ -336,6 +349,8 @@ type Invitation struct {
 	UsedAt       *time.Time
 	UsedByEmail  string
 	Token        string
+	CanRequest   bool
+	WishLimit    InvitationWishLimit
 }
 
 // InvitationPreview is what the invited person sees before accepting.

@@ -10,6 +10,26 @@ import (
 	"database/sql"
 )
 
+const copyInvitationLimit = `-- name: CopyInvitationLimit :exec
+INSERT INTO wish_account_limits (account_id, mode, movie_limit, movie_days, tv_limit, tv_days, set_at, set_by)
+SELECT i.used_by, i.wish_limit_mode, i.wish_movie_limit, i.wish_movie_days, i.wish_tv_limit, i.wish_tv_days, ?1, i.created_by
+FROM invitations AS i
+WHERE i.used_by = ?2 AND i.wish_limit_mode <> 'default'
+ON CONFLICT (account_id) DO NOTHING
+`
+
+type CopyInvitationLimitParams struct {
+	Now       int64
+	AccountID sql.NullInt64
+}
+
+// The limit an invitation hands to the account that accepted it (data model 2.3); 'default' adds no
+// row.
+func (q *Queries) CopyInvitationLimit(ctx context.Context, arg CopyInvitationLimitParams) error {
+	_, err := q.db.ExecContext(ctx, copyInvitationLimit, arg.Now, arg.AccountID)
+	return err
+}
+
 const deleteAccountWishLimit = `-- name: DeleteAccountWishLimit :exec
 DELETE FROM wish_account_limits WHERE account_id = ?1
 `

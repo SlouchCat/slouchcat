@@ -150,7 +150,7 @@ func TestDashboardIntegrations(t *testing.T) {
 			out[i.Key] = i
 			keys = append(keys, i.Key)
 		}
-		if got := strings.Join(keys, ","); got != "tmdb,tvdb,youtube,trakt,email,push,telegram,updateCheck" {
+		if got := strings.Join(keys, ","); got != "tmdb,tvdb,youtube,trakt,email,push,telegram,updateCheck,seerr" {
 			t.Fatalf("integration keys = %s", got)
 		}
 		return out
@@ -158,7 +158,7 @@ func TestDashboardIntegrations(t *testing.T) {
 	st := states()
 	for key, want := range map[string]string{
 		"tmdb": "configured", "tvdb": "missing", "youtube": "configured", "trakt": "missing",
-		"email": "missing", "push": "configured", "telegram": "missing", "updateCheck": "configured",
+		"email": "missing", "push": "configured", "telegram": "missing", "updateCheck": "configured", "seerr": "missing",
 	} {
 		if st[key].State != want {
 			t.Errorf("%s = %+v, want %s", key, st[key], want)

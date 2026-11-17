@@ -24,7 +24,7 @@ export const SERVICE_ICON = {
   server: 'server',
 } as const satisfies Record<Service, IconName>;
 
-/** The dashboard's integration keys each service stands for (`getDashboard`, eight keys). */
+/** The dashboard's integration keys each service stands for (`getDashboard`; `seerr` gets its view with the Seerr tile). */
 const STATUS_KEYS = {
   keys: ['tmdb', 'tvdb', 'youtube', 'trakt'],
   webhooks: [],

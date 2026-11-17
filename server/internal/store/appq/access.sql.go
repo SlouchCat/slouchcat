@@ -321,19 +321,28 @@ func (q *Queries) InsertAccountLibrary(ctx context.Context, arg InsertAccountLib
 }
 
 const insertInvitation = `-- name: InsertInvitation :one
-INSERT INTO invitations (token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO invitations (token_hash, note, max_rating, all_libraries, can_request, wish_limit_mode,
+                         wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days, created_by, created_at, expires_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6,
+        ?7, ?8, ?9, ?10,
+        ?11, ?12, ?13)
 RETURNING id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at, can_request, wish_limit_mode, wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days
 `
 
 type InsertInvitationParams struct {
-	TokenHash    string
-	Note         sql.NullString
-	MaxRating    int64
-	AllLibraries int64
-	CreatedBy    sql.NullInt64
-	Now          int64
-	ExpiresAt    int64
+	TokenHash      string
+	Note           sql.NullString
+	MaxRating      int64
+	AllLibraries   int64
+	CanRequest     int64
+	WishLimitMode  string
+	WishMovieLimit sql.NullInt64
+	WishMovieDays  sql.NullInt64
+	WishTvLimit    sql.NullInt64
+	WishTvDays     sql.NullInt64
+	CreatedBy      sql.NullInt64
+	Now            int64
+	ExpiresAt      int64
 }
 
 func (q *Queries) InsertInvitation(ctx context.Context, arg InsertInvitationParams) (Invitation, error) {
@@ -342,6 +351,12 @@ func (q *Queries) InsertInvitation(ctx context.Context, arg InsertInvitationPara
 		arg.Note,
 		arg.MaxRating,
 		arg.AllLibraries,
+		arg.CanRequest,
+		arg.WishLimitMode,
+		arg.WishMovieLimit,
+		arg.WishMovieDays,
+		arg.WishTvLimit,
+		arg.WishTvDays,
 		arg.CreatedBy,
 		arg.Now,
 		arg.ExpiresAt,
@@ -384,8 +399,8 @@ func (q *Queries) InsertInvitationLibrary(ctx context.Context, arg InsertInvitat
 }
 
 const insertInvitedAccount = `-- name: InsertInvitedAccount :one
-INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
-VALUES (?1, ?2, 'user', ?3, ?4, ?5, ?6, ?6)
+INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, can_request, invited_by, created_at, updated_at)
+VALUES (?1, ?2, 'user', ?3, ?4, ?5, ?6, ?7, ?7)
 RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request
 `
 
@@ -394,6 +409,7 @@ type InsertInvitedAccountParams struct {
 	PasswordHash string
 	MaxRating    int64
 	AllLibraries int64
+	CanRequest   int64
 	InvitedBy    sql.NullInt64
 	Now          int64
 }
@@ -406,6 +422,7 @@ func (q *Queries) InsertInvitedAccount(ctx context.Context, arg InsertInvitedAcc
 		arg.PasswordHash,
 		arg.MaxRating,
 		arg.AllLibraries,
+		arg.CanRequest,
 		arg.InvitedBy,
 		arg.Now,
 	)
@@ -914,6 +931,26 @@ func (q *Queries) RevokePlaybackSessionsByProfile(ctx context.Context, arg Revok
 	return items, nil
 }
 
+const setAccountCanRequest = `-- name: SetAccountCanRequest :execrows
+UPDATE accounts SET can_request = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetAccountCanRequestParams struct {
+	CanRequest int64
+	Now        int64
+	ID         int64
+}
+
+// The request right of an account, the cap of its profiles (concept 25, data model 2.3); set by an
+// administrator.
+func (q *Queries) SetAccountCanRequest(ctx context.Context, arg SetAccountCanRequestParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setAccountCanRequest, arg.CanRequest, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setAccountRole = `-- name: SetAccountRole :execrows
 UPDATE accounts
 SET role = ?1,
@@ -939,6 +976,22 @@ func (q *Queries) SetAccountRole(ctx context.Context, arg SetAccountRoleParams) 
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const setProfileCanRequest = `-- name: SetProfileCanRequest :exec
+UPDATE profiles SET can_request = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetProfileCanRequestParams struct {
+	CanRequest int64
+	Now        int64
+	ID         int64
+}
+
+// The request right of a profile, set by the primary profile; effective only with the account's.
+func (q *Queries) SetProfileCanRequest(ctx context.Context, arg SetProfileCanRequestParams) error {
+	_, err := q.db.ExecContext(ctx, setProfileCanRequest, arg.CanRequest, arg.Now, arg.ID)
+	return err
 }
 
 const setProfilePin = `-- name: SetProfilePin :exec

@@ -324,3 +324,20 @@ type WishLinkHint struct {
 	LinkedBy         string // invite or email_change
 	LinkedAt         time.Time
 }
+
+// DashboardWishes are the hints of the wishes in the overview (concept 25, administration 2).
+type DashboardWishes struct {
+	SeerrState       string // key_invalid, unreachable, instance_changed; "" when Seerr answers
+	Unmapped         int    // accounts with the right and no ready Seerr user
+	UnmappedFallback bool   // they send through the shared user meanwhile
+	Linked           []WishLinkHint
+	QuotaReached     []WishQuotaHint
+	GoneUsers        int // accounts whose Seerr user is gone from Seerr
+}
+
+// WishQuotaHint is an account whose limit is used up (a half with remaining 0).
+type WishQuotaHint struct {
+	AccountID    int64
+	AccountEmail string
+	Movie, TV    *WishQuotaPart
+}

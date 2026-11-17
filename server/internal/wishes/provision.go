@@ -745,3 +745,24 @@ func (s *Service) RecentLinks(ctx context.Context) ([]model.WishLinkHint, error)
 	}
 	return out, nil
 }
+
+// RequestRightChanged is the hook of package auth after an administrator changed the request right
+// of an account: the rights of a user Slouchcat opened follow it (N-110) through seerr.provision.
+func (s *Service) RequestRightChanged(ctx context.Context, accountID int64) {
+	m, err := s.read.GetAccountMapping(ctx, accountID)
+	if err != nil || m.State != StateReady || m.Origin.String != OriginCreated {
+		return
+	}
+	if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, LinkedBy: LinkedByAdmin}, jobs.ManualPriority); err != nil {
+		s.log.WarnContext(ctx, "rights of seerr user not queued", "account_id", accountID, "err", err)
+	}
+}
+
+// AccountCreated is the hook of package auth after a new account was committed: an invitation
+// hands its wish limit to the account (data model 2.3), before the Seerr user is opened with it.
+func (s *Service) AccountCreated(ctx context.Context, accountID int64) error {
+	if err := s.write.CopyInvitationLimit(ctx, wishq.CopyInvitationLimitParams{Now: s.now().UnixMilli(), AccountID: sql.NullInt64{Int64: accountID, Valid: true}}); err != nil {
+		return fmt.Errorf("limit of the invitation: %w", err)
+	}
+	return nil
+}

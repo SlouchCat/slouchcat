@@ -23,7 +23,11 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 		return notFoundOr(err, "get account")
 	}
 	if acc.Role == model.RoleAdmin {
-		return model.ErrAdminLimitsFixed
+		// An administrator has no access limits; only the request right (block «Wünsche»).
+		if in.MaxRating != nil || in.AllLibraries != nil || in.LibraryIDs != nil || in.Limits != nil || in.CanRequest == nil {
+			return model.ErrAdminLimitsFixed
+		}
+		return s.setAccountCanRequest(ctx, acc, *in.CanRequest)
 	}
 	var verr *model.ValidationError
 	maxRating, all := acc.MaxRating, acc.AllLibraries
@@ -91,10 +95,35 @@ func (s *Service) UpdateAccountAccess(ctx context.Context, id int64, in model.Ac
 			return fmt.Errorf("insert account library: %w", err)
 		}
 	}
+	if in.CanRequest != nil {
+		if _, err := q.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(*in.CanRequest), Now: now, ID: acc.ID}); err != nil {
+			return fmt.Errorf("set request right: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
+	if in.CanRequest != nil && boolInt(*in.CanRequest) != acc.CanRequest {
+		s.rightChanged(ctx, acc.ID)
+	}
 	return nil
+}
+
+// setAccountCanRequest writes the request right of an account alone (administrators).
+func (s *Service) setAccountCanRequest(ctx context.Context, acc appq.Account, on bool) error {
+	if _, err := s.write.SetAccountCanRequest(ctx, appq.SetAccountCanRequestParams{CanRequest: boolInt(on), Now: s.now().UnixMilli(), ID: acc.ID}); err != nil {
+		return fmt.Errorf("set request right: %w", err)
+	}
+	if boolInt(on) != acc.CanRequest {
+		s.rightChanged(ctx, acc.ID)
+	}
+	return nil
+}
+
+func (s *Service) rightChanged(ctx context.Context, accountID int64) {
+	if s.requestRightChanged != nil {
+		s.requestRightChanged(ctx, accountID)
+	}
 }
 
 // DeleteAccount deletes an account with its profiles and progress (K-7). The order is deliberate:

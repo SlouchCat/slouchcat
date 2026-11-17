@@ -29,7 +29,7 @@ func (s *server) UpdateAccountAccess(ctx context.Context, req gen.UpdateAccountA
 	b := deref(req.Body)
 	upd := model.AccountAccessUpdate{
 		MaxRating: ratingPtr(b.MaxRating), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds,
-		Limits: fromPlaybackLimits(b.Limits),
+		Limits: fromPlaybackLimits(b.Limits), CanRequest: b.CanRequest,
 	}
 	err = svc.UpdateAccountAccess(ctx, req.Id, upd)
 	s.forgetDashboardCounts()

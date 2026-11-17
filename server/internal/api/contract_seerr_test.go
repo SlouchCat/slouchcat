@@ -202,6 +202,67 @@ func TestContractSeerr(t *testing.T) {
 	if counts.Link == nil || counts.Create == nil || *counts.Create < 1 {
 		t.Errorf("all = %+v", counts)
 	}
+	// Build step 1.6: the session carries the right of the profile, the account list the right, the
+	// chip and the Seerr user, the overview the integration seerr and the hints of the wishes.
+	var sess struct {
+		Wishes *struct {
+			Enabled    bool   `json:"enabled"`
+			CanRequest bool   `json:"canRequest"`
+			Reason     string `json:"reason"`
+		} `json:"wishes"`
+	}
+	if err := call(http.MethodGet, "/auth/session", ``, http.StatusOK).Decode(&sess); err != nil {
+		t.Fatal(err)
+	}
+	if sess.Wishes == nil || !sess.Wishes.Enabled || (!sess.Wishes.CanRequest && sess.Wishes.Reason == "") {
+		t.Errorf("session wishes = %+v", sess.Wishes)
+	}
+	var accounts []struct {
+		ID         int64  `json:"id"`
+		CanRequest *bool  `json:"canRequest"`
+		WishState  string `json:"wishState"`
+		SeerrUser  *struct {
+			State string `json:"state"`
+		} `json:"seerrUser"`
+		WishLimit *struct {
+			Mode string `json:"mode"`
+		} `json:"wishLimit"`
+	}
+	if err := call(http.MethodGet, "/admin/accounts", ``, http.StatusOK).Decode(&accounts); err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, a := range accounts {
+		if a.CanRequest == nil || a.WishState == "" || a.WishLimit == nil {
+			t.Errorf("account %d = %+v", a.ID, a)
+		}
+		if strconv.FormatInt(a.ID, 10) == guest {
+			seen = a.SeerrUser != nil && a.SeerrUser.State == "created" && a.WishLimit.Mode == "custom"
+		}
+	}
+	if !seen {
+		t.Errorf("guest in the account list = %+v", accounts)
+	}
+	var dash struct {
+		Integrations []struct {
+			Key, State string
+		} `json:"integrations"`
+		Attention struct {
+			Wishes *struct {
+				Unmapped int   `json:"unmapped"`
+				Linked   []any `json:"linked"`
+			} `json:"wishes"`
+		} `json:"attention"`
+	}
+	if err := call(http.MethodGet, "/admin/dashboard", ``, http.StatusOK).Decode(&dash); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(dash.Integrations); n == 0 || dash.Integrations[n-1].Key != "seerr" || dash.Integrations[n-1].State != "configured" {
+		t.Errorf("integrations = %+v", dash.Integrations)
+	}
+	if dash.Attention.Wishes == nil || dash.Attention.Wishes.Linked == nil {
+		t.Errorf("dashboard wishes = %+v", dash.Attention.Wishes)
+	}
 	call(http.MethodPut, "/admin/wishes/settings", `{"provisionAccounts":false}`, http.StatusOK)
 	code(http.MethodPost, "/admin/wishes/accounts/"+owner+"/provision", ``, http.StatusConflict, "provision_disabled")
 	code(http.MethodPost, "/admin/wishes/accounts/provision", ``, http.StatusConflict, "provision_disabled")
