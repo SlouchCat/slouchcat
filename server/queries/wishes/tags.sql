@@ -68,6 +68,10 @@ UPDATE wish_tags SET state = 'set', arr_tag_id = @arr_tag_id, arr_title_id = @ar
                      attempts = attempts + 1, set_at = @now
 WHERE wish_id = @wish_id AND profile_id = @profile_id AND state <> 'set';
 
+-- name: SetOpenWishTagName :exec
+-- The profile's tag name changed before the row was set: the row takes the current one.
+UPDATE wish_tags SET tag_name = @tag_name WHERE wish_id = @wish_id AND profile_id = @profile_id AND state <> 'set';
+
 -- name: SetWishTagOpen :exec
 -- A try that did not set the tag: pending (title not yet there) or failed (service refused or did
 -- not answer). Known ids are kept.

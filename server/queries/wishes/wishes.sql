@@ -129,6 +129,15 @@ WHERE tmdb_id = @tmdb_id AND season_number = @season_number AND state IN ('queue
 -- The seasons a Seerr request carries (the sync).
 SELECT * FROM wish_seasons WHERE seerr_request_id = @seerr_request_id ORDER BY wish_id, season_number;
 
+-- name: ListOtherFailedWishesOfRequests :many
+-- The other wishes that failed with Seerr's FAILED on one of these requests (several may share
+-- one since migration 00081); a retry of one takes their requesters along (review Minor 5).
+SELECT DISTINCT w.id FROM wishes AS w
+LEFT JOIN wish_seasons AS s ON s.wish_id = w.id
+WHERE w.id <> @wish_id AND w.state = 'failed' AND w.fail_reason = 'arr_failed'
+  AND (w.seerr_request_id IN (sqlc.slice('request_ids')) OR s.seerr_request_id IN (sqlc.slice('season_request_ids')))
+ORDER BY w.id;
+
 -- name: InsertWishRequester :execrows
 -- The owner or a profile that joins; joining twice changes nothing (0 rows).
 INSERT OR IGNORE INTO wish_requesters (wish_id, profile_id, account_id, role, created_at)

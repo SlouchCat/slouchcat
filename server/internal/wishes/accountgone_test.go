@@ -192,3 +192,52 @@ func TestAcceptedOnlyFromQueued(t *testing.T) {
 		t.Errorf("event = %s %s", kind, detail)
 	}
 }
+
+// A deletion that fails leaves the wishes as they were (review Minor 1): closing the wishes and
+// deleting the account are one transaction.
+func TestFailedAccountDeletionKeepsWishes(t *testing.T) {
+	r := newRequestFixture(t)
+	res := r.create(r.gast, film(matrix))
+	r.exec(`CREATE TRIGGER k25_no_delete BEFORE DELETE ON accounts BEGIN SELECT RAISE(ABORT, 'refused'); END`)
+	a := auth.New(r.db, r.log).WithAccountDeleting(r.svc.AccountDeleting)
+	if err := a.DeleteAccount(r.ctx, 2, nil); err == nil {
+		t.Fatal("deletion did not fail")
+	}
+	w := r.wish(res.Wish.ID)
+	if w.State != model.WishPending || w.FailReason != "" || len(w.Requesters) != 1 || w.SeerrRequestID == 0 {
+		t.Errorf("wish after the failed deletion = %+v", w)
+	}
+	if kind, _ := r.lastEvent(res.Wish.ID); kind == eventAccountDeleted {
+		t.Error("event of the deletion written")
+	}
+}
+
+// A queued wish handed over while a submission held it (repoint gave up) goes out as the new
+// owner's user at its next attempt (review Minor 1, 9).
+func TestRepointWhileTheWishIsLocked(t *testing.T) {
+	r := newRequestFixture(t)
+	r.gast2() // account 2 sends as user 4
+	r.fake.SetFailure("POST /request", seerrtest.Failure{Status: 503, Message: "down"})
+	res := r.create(r.gast, film(matrix))
+	r.clock.advance(time.Second)
+	r.create(r.noah, film(matrix))
+	release, ok := r.svc.locks.try(res.Wish.ID) // a submission in flight
+	if !ok {
+		t.Fatal("lock")
+	}
+	r.deleteAccount(2)
+	release()
+	if w := r.wish(res.Wish.ID); w.SeerrUserID != 4 {
+		t.Fatalf("repoint did not give up: %+v", w)
+	}
+	r.fake.SetFailure("POST /request", seerrtest.Failure{})
+	if err := r.submitJob(res.Wish.ID); err != nil {
+		t.Fatal(err)
+	}
+	if reqs := r.fake.Requests(); len(reqs) != 1 || reqs[0].UserID != 3 {
+		t.Errorf("seerr requests = %+v", reqs)
+	}
+	if w := r.wish(res.Wish.ID); w.State != model.WishPending || w.SeerrUserID != 3 {
+		t.Errorf("wish = %+v", w)
+	}
+}

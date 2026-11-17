@@ -2,6 +2,7 @@ package wishes
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestRetryWish(t *testing.T) {
 	if w := r.wish(res.Wish.ID); w.State != model.WishFailed || w.FailReason != model.WishFailUnreachable24h {
 		t.Fatalf("not failed: %+v", w.Wish)
 	}
-	if err := r.svc.RetryWish(r.ctx, res.Wish.ID); err != nil {
+	if err := r.svc.RetryWish(r.ctx, res.Wish.ID, 1); err != nil {
 		t.Fatal(err)
 	}
 	if w := r.wish(res.Wish.ID); w.State != model.WishQueued || w.FailReason != "" || w.Events[0].Kind != eventRetried {
@@ -37,7 +38,7 @@ func TestRetryWish(t *testing.T) {
 	if w := r.wish(res.Wish.ID); w.State != model.WishQueued {
 		t.Errorf("failed again at once: %+v", w.Wish)
 	}
-	if err := r.svc.RetryWish(r.ctx, res.Wish.ID); !errors.Is(err, model.ErrWishNotRetryable) {
+	if err := r.svc.RetryWish(r.ctx, res.Wish.ID, 1); !errors.Is(err, model.ErrWishNotRetryable) {
 		t.Errorf("retry of a queued wish: %v", err)
 	}
 	// Seerr back: sent; Seerr reports the request failed (arr_failed); the retry asks Seerr.
@@ -48,7 +49,7 @@ func TestRetryWish(t *testing.T) {
 	w := r.wish(res.Wish.ID)
 	r.exec(`UPDATE wishes SET state = 'failed', fail_reason = 'arr_failed', closed_at = 1 WHERE id = ?`, res.Wish.ID)
 	r.fake.SetRequestStatus(w.SeerrRequestID, seerrtest.RequestFailed)
-	if err := r.svc.RetryWish(r.ctx, res.Wish.ID); err != nil {
+	if err := r.svc.RetryWish(r.ctx, res.Wish.ID, 1); err != nil {
 		t.Fatal(err)
 	}
 	if w := r.wish(res.Wish.ID); w.State != model.WishProcessing || r.fake.Calls("POST /request/{id}/retry") != 1 {
@@ -56,10 +57,10 @@ func TestRetryWish(t *testing.T) {
 	}
 	// Seerr no longer reports it as failed: refused, nothing changes.
 	r.exec(`UPDATE wishes SET state = 'failed', fail_reason = 'arr_failed', closed_at = 1 WHERE id = ?`, res.Wish.ID)
-	if err := r.svc.RetryWish(r.ctx, res.Wish.ID); !errors.Is(err, model.ErrWishNotRetryable) {
+	if err := r.svc.RetryWish(r.ctx, res.Wish.ID, 1); !errors.Is(err, model.ErrWishNotRetryable) {
 		t.Errorf("request not failed in seerr: %v", err)
 	}
-	if err := r.svc.RetryWish(r.ctx, 99999); !errors.Is(err, model.ErrNotFound) {
+	if err := r.svc.RetryWish(r.ctx, 99999, 1); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown wish: %v", err)
 	}
 }
@@ -101,5 +102,42 @@ func TestSpotlightWishes(t *testing.T) {
 	r.cfg.set(func(c *fakeConfig) { c.wish.Enabled = false })
 	if _, can, _ := r.svc.SpotlightWishes(r.ctx, nil); can {
 		t.Error("requestable with the wishes off")
+	}
+}
+
+// Two wishes failed on one FAILED request: retrying one takes the requesters of the other along as
+// co-wishers, the other stays closed (review Minor 5); the event names the acting account
+// (security review N-2).
+func TestRetryTakesOtherFailedWishesAlong(t *testing.T) {
+	r := newRequestFixture(t)
+	a := r.create(r.marco, film(matrix))
+	reqID := r.wish(a.Wish.ID).SeerrRequestID
+	r.exec(`UPDATE wishes SET state = 'failed', fail_reason = 'arr_failed', closed_at = 1 WHERE id = ?`, a.Wish.ID)
+	b := r.create(r.gast, film(matrix))
+	if !b.Created || r.wish(b.Wish.ID).SeerrRequestID != reqID {
+		t.Fatalf("second wish = %+v", r.wish(b.Wish.ID))
+	}
+	r.exec(`UPDATE wishes SET state = 'failed', fail_reason = 'arr_failed', closed_at = 1 WHERE id = ?`, b.Wish.ID)
+	r.fake.SetRequestStatus(reqID, seerrtest.RequestFailed)
+	if err := r.svc.RetryWish(r.ctx, a.Wish.ID, 7); err != nil {
+		t.Fatal(err)
+	}
+	w := r.wish(a.Wish.ID)
+	joined := false
+	for _, q := range w.Requesters {
+		joined = joined || (q.ProfileID == r.gast.ID && q.Role == model.WishRoleJoined)
+	}
+	if w.State != model.WishProcessing || !joined {
+		t.Errorf("retried wish = %+v", w)
+	}
+	if other := r.wish(b.Wish.ID); other.State != model.WishFailed {
+		t.Errorf("other wish = %+v", other)
+	}
+	if kind, _ := r.lastEvent(b.Wish.ID); kind != eventRetriedWith {
+		t.Errorf("event of the other wish = %s", kind)
+	}
+	var detail string
+	if err := r.db.Read.QueryRowContext(r.ctx, `SELECT detail FROM wish_events WHERE wish_id = ? AND kind = 'retried'`, a.Wish.ID).Scan(&detail); err != nil || !strings.Contains(detail, `"accountId":7`) {
+		t.Errorf("retried event = %s, %v", detail, err)
 	}
 }

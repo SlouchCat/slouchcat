@@ -206,6 +206,18 @@ func (s *Service) tagService(ctx context.Context, kind arr.Kind, rows []wishq.Li
 func (s *Service) tagOne(ctx context.Context, c *arr.Client, kind arr.Kind, r wishq.ListOpenWishTagsRow,
 	tagIDs map[string]int, titles map[int64]int,
 ) error {
+	// A row not set yet takes the profile's current tag name (review Minor 2): the name may have
+	// changed since the row was written.
+	name, err := s.profileTagName(ctx, r.ProfileID)
+	if err != nil {
+		return err
+	}
+	if name != r.TagName {
+		if err := s.write.SetOpenWishTagName(ctx, wishq.SetOpenWishTagNameParams{TagName: name, WishID: r.WishID, ProfileID: r.ProfileID}); err != nil {
+			return fmt.Errorf("store wish tag name: %w", err)
+		}
+		r.TagName = name
+	}
 	tagID, ok := tagIDs[r.TagName]
 	if !ok {
 		tag, created, err := c.EnsureTag(ctx, r.TagName)

@@ -21,11 +21,48 @@ import (
 // eventRetried is the event of a retry; the outbox reads its time.
 const eventRetried = "retried"
 
-// RetryWish retries the failed wish id: model.ErrNotFound for an unknown wish,
+// eventRetriedWith is the event of a failed wish whose requesters went to a retried wish of the
+// same Seerr request.
+const eventRetriedWith = "retried_with"
+
+// joinFailedOfRequests: the other wishes that failed on one of the retried requests stay closed,
+// and their open requesters join the retried wish as co-wishers, so they hear of the availability
+// (review Minor 5).
+func (s *Service) joinFailedOfRequests(ctx context.Context, q *wishq.Queries, wishID int64, ids []int, now int64) error {
+	req := make([]sql.NullInt64, 0, len(ids))
+	for _, id := range ids {
+		req = append(req, num64(int64(id)))
+	}
+	others, err := q.ListOtherFailedWishesOfRequests(ctx, wishq.ListOtherFailedWishesOfRequestsParams{WishID: wishID, RequestIds: req, SeasonRequestIds: req})
+	if err != nil {
+		return fmt.Errorf("other failed wishes: %w", err)
+	}
+	for _, other := range others {
+		reqs, err := q.ListWishRequesters(ctx, other)
+		if err != nil {
+			return fmt.Errorf("requesters: %w", err)
+		}
+		for _, r := range reqs {
+			if r.ClosedAt.Valid {
+				continue
+			}
+			if _, err := q.InsertWishRequester(ctx, wishq.InsertWishRequesterParams{WishID: wishID, ProfileID: r.ProfileID, AccountID: r.AccountID, Role: model.WishRoleJoined, Now: now}); err != nil {
+				return fmt.Errorf("join retried wish: %w", err)
+			}
+		}
+		if err := s.event(ctx, q, other, eventRetriedWith, map[string]any{"wishId": wishID}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RetryWish retries the failed wish id for the administrator accountID (named in the event):
+// model.ErrNotFound for an unknown wish,
 // model.ErrWishNotRetryable when it did not fail, failed with its account or another open wish
 // holds the title, model.ErrSeerrNotConfigured or model.ErrSeerrUnreachable when Seerr's retry is
 // needed and Seerr does not answer.
-func (s *Service) RetryWish(ctx context.Context, id int64) error {
+func (s *Service) RetryWish(ctx context.Context, id, accountID int64) error {
 	w, err := s.read.GetWish(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.ErrNotFound
@@ -42,9 +79,9 @@ func (s *Service) RetryWish(ctx context.Context, id int64) error {
 	}
 	defer release()
 	if w.FailReason.String == model.WishFailArrFailed {
-		return s.retryInSeerr(ctx, w)
+		return s.retryInSeerr(ctx, w, accountID)
 	}
-	if err := s.reopenFailed(ctx, w, model.WishQueued, nil); err != nil {
+	if err := s.reopenFailed(ctx, w, model.WishQueued, nil, accountID); err != nil {
 		return err
 	}
 	s.log.InfoContext(ctx, "failed wish back in the outbox", "wish_id", id, "reason", w.FailReason.String)
@@ -53,7 +90,7 @@ func (s *Service) RetryWish(ctx context.Context, id int64) error {
 
 // retryInSeerr asks Seerr to retry the failed requests of the wish (the film's or those of its
 // failed seasons) and moves the wish to processing.
-func (s *Service) retryInSeerr(ctx context.Context, w wishq.Wish) error {
+func (s *Service) retryInSeerr(ctx context.Context, w wishq.Wish, accountID int64) error {
 	var ids []int
 	if w.Media == model.WishMediaMovie {
 		if w.SeerrRequestID.Valid {
@@ -100,7 +137,7 @@ func (s *Service) retryInSeerr(ctx context.Context, w wishq.Wish) error {
 	if retried == 0 {
 		return model.ErrWishNotRetryable
 	}
-	if err := s.reopenFailed(ctx, w, model.WishProcessing, ids); err != nil {
+	if err := s.reopenFailed(ctx, w, model.WishProcessing, ids, accountID); err != nil {
 		return err
 	}
 	s.log.InfoContext(ctx, "failed wish retried in seerr", "wish_id", w.ID, "requests", retried)
@@ -111,8 +148,9 @@ func (s *Service) retryInSeerr(ctx context.Context, w wishq.Wish) error {
 // clears the fail reason and the closing time and writes the event retried. Back to the outbox
 // (queued) the old request ids go into the event and are cleared, so the outbox sends those seasons
 // (or the film) again instead of looping «attached» (review M-2). Another open wish of the title
-// (a partial unique index) makes it model.ErrWishNotRetryable.
-func (s *Service) reopenFailed(ctx context.Context, w wishq.Wish, state string, ids []int) error {
+// (a partial unique index) makes it model.ErrWishNotRetryable. accountID is the acting
+// administrator (security review N-2), 0 for none.
+func (s *Service) reopenFailed(ctx context.Context, w wishq.Wish, state string, ids []int, accountID int64) error {
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
 		now := s.now().UnixMilli()
 		var dropped []int64
@@ -154,7 +192,16 @@ func (s *Service) reopenFailed(ctx context.Context, w wishq.Wish, state string, 
 		if len(dropped) > 0 {
 			d["requestIds"] = dropped
 		}
-		return s.event(ctx, q, w.ID, eventRetried, d)
+		if accountID > 0 {
+			d["accountId"] = accountID
+		}
+		if err := s.event(ctx, q, w.ID, eventRetried, d); err != nil {
+			return err
+		}
+		if state == model.WishProcessing {
+			return s.joinFailedOfRequests(ctx, q, w.ID, ids, now)
+		}
+		return nil
 	})
 	if isUnique(err) {
 		return model.ErrWishNotRetryable

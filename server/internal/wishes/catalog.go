@@ -86,13 +86,16 @@ func (s *Service) SeriesCatalogOf(ctx context.Context, p model.Profile, seriesID
 	for _, se := range vc.Seasons {
 		cs := CatalogSeason{Number: se.Number, EpisodeCount: se.EpisodeCount, AirDate: se.AirDate, Episodes: se.Episodes, State: string(se.State)}
 		if se.State == visibility.SeasonMissing {
-			state, err := s.heldSeason(ctx, tmdbID, se.Number)
+			state, own, err := s.heldSeason(ctx, p.ID, tmdbID, se.Number)
 			if err != nil {
 				return nil, err
 			}
-			if state == "" {
+			switch {
+			case state == "":
 				free = true
-			} else {
+			case own: // the profile's own open wish holds it: nothing to join (review Minor 3)
+				cs.State = state
+			default:
 				cs.State, joinable = state, true
 			}
 		}
@@ -104,28 +107,36 @@ func (s *Service) SeriesCatalogOf(ctx context.Context, p model.Profile, seriesID
 }
 
 // heldSeason is the state of the open wish season of the series and season: requested,
-// processing, or "" when no open wish holds it.
-func (s *Service) heldSeason(ctx context.Context, tmdbID int64, number int) (string, error) {
+// processing, or "" when no open wish holds it; own reports that the profile is a requester of
+// that wish.
+func (s *Service) heldSeason(ctx context.Context, profileID, tmdbID int64, number int) (state string, own bool, err error) {
 	if tmdbID < 1 {
-		return "", nil
+		return "", false, nil
 	}
 	id, err := s.read.GetOpenSeasonWish(ctx, wishq.GetOpenSeasonWishParams{TmdbID: tmdbID, SeasonNumber: int64(number)})
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
+		return "", false, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("open season: %w", err)
+		return "", false, fmt.Errorf("open season: %w", err)
+	}
+	r, err := s.read.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: id, ProfileID: profileID})
+	switch {
+	case err == nil:
+		own = !r.ClosedAt.Valid
+	case !errors.Is(err, sql.ErrNoRows):
+		return "", false, fmt.Errorf("requester: %w", err)
 	}
 	seasons, err := s.read.ListWishSeasons(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("wish seasons: %w", err)
+		return "", false, fmt.Errorf("wish seasons: %w", err)
 	}
 	for _, se := range seasons {
 		if int(se.SeasonNumber) == number && se.State == model.WishProcessing {
-			return CatalogSeasonProcessing, nil
+			return CatalogSeasonProcessing, own, nil
 		}
 	}
-	return CatalogSeasonRequested, nil
+	return CatalogSeasonRequested, own, nil
 }
 
 func catalogEpisode(e *visibility.CatalogEpisode) *CatalogEpisode {

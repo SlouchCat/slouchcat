@@ -497,3 +497,27 @@ func TestTagOwnAddress(t *testing.T) {
 		t.Errorf("back to Seerr: %+v, %v", st.Radarr, err)
 	}
 }
+
+// A pending row takes the tag name set meanwhile (review Minor 2, 9).
+func TestTagNameChangedWhilePending(t *testing.T) {
+	f := newArrFixture(t)
+	f.wish(1, "movie", 603, "processing", "slouchcat", 1)
+	f.tagRun()
+	if st, name, _ := f.tagState(1, 1); st != tagPending || name != "sc-marco" {
+		t.Fatalf("state %s %s, want pending sc-marco", st, name)
+	}
+	custom := "papa"
+	if err := f.svc.SetProfileTagName(f.ctx, 1, &custom); err != nil {
+		t.Fatal(err)
+	}
+	f.radarr.AddMovie(arrtest.Movie{ID: 11, TMDBID: 603})
+	f.tagRun()
+	if st, name, _ := f.tagState(1, 1); st != tagSet || name != "papa" {
+		t.Fatalf("state %s %s, want set papa", st, name)
+	}
+	// The old tag was created by the first run (it ensures the tag before it looks for the title)
+	// but never reaches the title.
+	if m, _ := f.radarr.Movie(11); !containsInt(m.Tags, tagID(f.radarr, "papa")) || containsInt(m.Tags, tagID(f.radarr, "sc-marco")) {
+		t.Errorf("movie tags = %v, radarr tags %v", m.Tags, f.radarr.Tags())
+	}
+}

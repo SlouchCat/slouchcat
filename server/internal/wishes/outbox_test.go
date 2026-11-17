@@ -72,7 +72,7 @@ func TestRetriedSeriesWishSendsAgain(t *testing.T) {
 	r.deleteInSeerr(3, old)
 	r.exec(`UPDATE wish_seasons SET state = 'failed' WHERE wish_id = ?`, res.Wish.ID)
 	r.exec(`UPDATE wishes SET state = 'failed', fail_reason = 'seerr_request_gone', closed_at = 1 WHERE id = ?`, res.Wish.ID)
-	if err := r.svc.RetryWish(r.ctx, res.Wish.ID); err != nil {
+	if err := r.svc.RetryWish(r.ctx, res.Wish.ID, 1); err != nil {
 		t.Fatal(err)
 	}
 	if w := r.wish(res.Wish.ID); w.State != model.WishQueued || w.Seasons[0].State != model.WishQueued || w.Seasons[0].SeerrRequestID != 0 {

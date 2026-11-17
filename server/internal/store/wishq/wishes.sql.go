@@ -8,6 +8,7 @@ package wishq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const countProfileWishesSince = `-- name: CountProfileWishesSince :one
@@ -721,6 +722,64 @@ func (q *Queries) ListOpenWishesByTitle(ctx context.Context, arg ListOpenWishesB
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOtherFailedWishesOfRequests = `-- name: ListOtherFailedWishesOfRequests :many
+SELECT DISTINCT w.id FROM wishes AS w
+LEFT JOIN wish_seasons AS s ON s.wish_id = w.id
+WHERE w.id <> ?1 AND w.state = 'failed' AND w.fail_reason = 'arr_failed'
+  AND (w.seerr_request_id IN (/*SLICE:request_ids*/?) OR s.seerr_request_id IN (/*SLICE:season_request_ids*/?))
+ORDER BY w.id
+`
+
+type ListOtherFailedWishesOfRequestsParams struct {
+	WishID           int64
+	RequestIds       []sql.NullInt64
+	SeasonRequestIds []sql.NullInt64
+}
+
+// The other wishes that failed with Seerr's FAILED on one of these requests (several may share
+// one since migration 00081); a retry of one takes their requesters along (review Minor 5).
+func (q *Queries) ListOtherFailedWishesOfRequests(ctx context.Context, arg ListOtherFailedWishesOfRequestsParams) ([]int64, error) {
+	query := listOtherFailedWishesOfRequests
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.WishID)
+	if len(arg.RequestIds) > 0 {
+		for _, v := range arg.RequestIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:request_ids*/?", strings.Repeat(",?", len(arg.RequestIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:request_ids*/?", "NULL", 1)
+	}
+	if len(arg.SeasonRequestIds) > 0 {
+		for _, v := range arg.SeasonRequestIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:season_request_ids*/?", strings.Repeat(",?", len(arg.SeasonRequestIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:season_request_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

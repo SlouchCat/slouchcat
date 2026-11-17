@@ -370,6 +370,22 @@ func (q *Queries) SetCustomProfileTag(ctx context.Context, arg SetCustomProfileT
 	return err
 }
 
+const setOpenWishTagName = `-- name: SetOpenWishTagName :exec
+UPDATE wish_tags SET tag_name = ?1 WHERE wish_id = ?2 AND profile_id = ?3 AND state <> 'set'
+`
+
+type SetOpenWishTagNameParams struct {
+	TagName   string
+	WishID    int64
+	ProfileID int64
+}
+
+// The profile's tag name changed before the row was set: the row takes the current one.
+func (q *Queries) SetOpenWishTagName(ctx context.Context, arg SetOpenWishTagNameParams) error {
+	_, err := q.db.ExecContext(ctx, setOpenWishTagName, arg.TagName, arg.WishID, arg.ProfileID)
+	return err
+}
+
 const setWishTagDone = `-- name: SetWishTagDone :exec
 UPDATE wish_tags SET state = 'set', arr_tag_id = ?1, arr_title_id = ?2, last_error = NULL,
                      attempts = attempts + 1, set_at = ?3

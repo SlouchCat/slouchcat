@@ -170,6 +170,9 @@ func (s *Service) submit(ctx context.Context, wishID int64, wait time.Duration) 
 	if !w.SeerrUserID.Valid {
 		return time.Time{}, s.failWish(ctx, w.ID, model.WishFailSeerrUserGone, nil)
 	}
+	if failed, err := s.orphanSender(ctx, &w); err != nil || failed {
+		return time.Time{}, err
+	}
 	if why, err := s.senderStale(ctx, w); err != nil {
 		return time.Time{}, err
 	} else if why != "" {
@@ -263,6 +266,76 @@ func (s *Service) senderStale(ctx context.Context, w wishq.Wish) (string, error)
 		return "mapping_changed", nil
 	}
 	return "", nil
+}
+
+// orphanSender re-resolves the sender of a queued wish that went to a co-wisher because its
+// account was deleted (event owner_changed, reason account_deleted) while its frozen Seerr user
+// belongs to no account any more: repoint gave up because a submission held the wish. The wish
+// goes out as the current sender of its new owner, or fails with seerr_user_gone when the owner
+// may not request (review Minor 1). A user only unlinked keeps sending (architecture 8.1). It
+// reports whether the wish failed. The caller holds the wish's lock.
+func (s *Service) orphanSender(ctx context.Context, w *wishq.Wish) (bool, error) {
+	u, err := s.read.GetSeerrUser(ctx, w.SeerrUserID.Int64)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil // senderStale names it
+	}
+	if err != nil {
+		return false, fmt.Errorf("seerr user: %w", err)
+	}
+	if u.IsShared == 1 {
+		return false, nil
+	}
+	if _, err := s.read.GetMappingBySeerrUser(ctx, num64(u.SeerrID)); err == nil {
+		return false, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("mapping of seerr user: %w", err)
+	}
+	if handed, err := s.handedOverByDeletion(ctx, w.ID); err != nil || !handed {
+		return false, err
+	}
+	reqs, err := s.read.ListWishRequesters(ctx, w.ID)
+	if err != nil {
+		return false, fmt.Errorf("requesters: %w", err)
+	}
+	if len(reqs) == 0 || reqs[0].Role != model.WishRoleOwner {
+		return false, nil
+	}
+	rights, sender, err := s.SenderFor(ctx, reqs[0].AccountID, reqs[0].ProfileID)
+	switch {
+	case err != nil:
+		return false, err
+	case !rights.CanRequest && rights.Reason == model.WishReasonDisabled:
+		return false, nil // the outbox rests
+	case !rights.CanRequest:
+		return true, s.failWish(ctx, w.ID, model.WishFailSeerrUserGone, map[string]any{"detail": "mapping_changed"})
+	case int64(sender.SeerrUserID) == w.SeerrUserID.Int64:
+		return false, nil
+	}
+	if _, err := s.write.SetWishSeerrUser(ctx, wishq.SetWishSeerrUserParams{SeerrUserID: num64(int64(sender.SeerrUserID)), Now: s.now().UnixMilli(), ID: w.ID}); err != nil {
+		return false, fmt.Errorf("sender: %w", err)
+	}
+	s.log.InfoContext(ctx, "queued wish goes out as the current sender of its owner", "wish_id", w.ID, "from", w.SeerrUserID.Int64, "to", sender.SeerrUserID)
+	w.SeerrUserID = num64(int64(sender.SeerrUserID))
+	return false, nil
+}
+
+// handedOverByDeletion reports whether the newest change of owner of the wish came from the
+// deletion of an account.
+func (s *Service) handedOverByDeletion(ctx context.Context, wishID int64) (bool, error) {
+	events, err := s.read.ListWishEvents(ctx, wishq.ListWishEventsParams{WishID: wishID, LimitCount: model.WishEventsShown})
+	if err != nil {
+		return false, fmt.Errorf("events: %w", err)
+	}
+	for _, e := range events { // newest first
+		if e.Kind != "owner_changed" {
+			continue
+		}
+		var d struct {
+			Reason string `json:"reason"`
+		}
+		return json.Unmarshal([]byte(e.Detail.String), &d) == nil && d.Reason == eventAccountDeleted, nil
+	}
+	return false, nil
 }
 
 // send asks Seerr: the pre-check from the second attempt on, then POST /request.

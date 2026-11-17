@@ -42,7 +42,7 @@ type WishTitlesService interface {
 	WithdrawWish(ctx context.Context, p model.Profile, wishID int64) error
 	ProfileWishes(ctx context.Context, p model.Profile, filter string, offset, limit int) (model.WishPage, error)
 	AccountWishes(ctx context.Context, p model.Profile, filter string, offset, limit int) (model.WishPage, error)
-	RetryWish(ctx context.Context, id int64) error
+	RetryWish(ctx context.Context, id, accountID int64) error
 	WishQuota(ctx context.Context, p model.Profile) (model.WishQuota, error)
 	WishSeasons(ctx context.Context, p model.Profile, tmdbID int64) (model.WishSeasons, error)
 	AdminWishes(ctx context.Context, filter string, unmapped bool, offset, limit int) ([]model.AdminWish, int, model.WishCounts, error)
@@ -325,7 +325,7 @@ func (s *server) RetryWish(ctx context.Context, req gen.RetryWishRequestObject) 
 	if svc == nil {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
-	if err := svc.RetryWish(ctx, req.Id); err != nil {
+	if err := svc.RetryWish(ctx, req.Id, sessionAccountID(ctx)); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.RetryWish202Response{}, nil

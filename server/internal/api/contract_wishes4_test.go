@@ -224,6 +224,18 @@ func TestContractWishesStage4(t *testing.T) {
 	if strings.Join(states, ",") != "present,missing,processing,announced" {
 		t.Errorf("season states = %v", states)
 	}
+	// Every missing season held by the profile's own open wishes: nothing to request or join
+	// (review Minor 3).
+	c.exec(`INSERT INTO wishes (id, media, tmdb_id, tvdb_id, title, origin, state, created_at, updated_at) VALUES (7004, 'show', 1020, 77, 'Show', 'slouchcat', 'pending', 1, 2)`)
+	c.exec(`INSERT INTO wish_seasons (wish_id, season_number, tmdb_id, state) VALUES (7004, 2, 1020, 'pending')`)
+	c.exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (7003, ?, ?, 'owner', 1), (7004, ?, ?, 'owner', 1)`,
+		f.P12.ID, f.P12.AccountID, f.P12.ID, f.P12.AccountID)
+	if item := c.expect("p12", http.MethodGet, "/items/"+f.Show.Series.ID, "", http.StatusOK, ""); item["canRequestSeasons"] != false {
+		t.Errorf("own wishes hold every missing season: canRequestSeasons %v", item["canRequestSeasons"])
+	}
+	c.exec(`DELETE FROM wish_requesters WHERE wish_id IN (7003, 7004)`)
+	c.exec(`DELETE FROM wish_seasons WHERE wish_id = 7004`)
+	c.exec(`DELETE FROM wishes WHERE id = 7004`)
 	// A series wish carries its Seerr requests per season in the administration.
 	c.exec(`UPDATE wish_seasons SET seerr_request_id = 88 WHERE wish_id = 7003`)
 	for _, it := range c.expect("p18", http.MethodGet, "/admin/wishes?state=open", "", http.StatusOK, "")["items"].([]any) {

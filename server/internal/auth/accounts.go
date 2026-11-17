@@ -165,13 +165,21 @@ func (s *Service) DeleteAccount(ctx context.Context, accountID int64, end func(c
 		}
 	}
 	var after func(context.Context)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	if s.accountDeleting != nil {
-		if after, err = s.accountDeleting(ctx, acc.ID); err != nil {
+		if after, err = s.accountDeleting(ctx, acc.ID, tx); err != nil {
 			return err
 		}
 	}
-	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
+	if _, err := s.write.WithTx(tx).DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	if after != nil {
 		after(ctx)

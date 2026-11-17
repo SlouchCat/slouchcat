@@ -22,12 +22,13 @@ import (
 // eventAccountDeleted is the history entry of a wish whose account was deleted.
 const eventAccountDeleted = "account_deleted"
 
-// closeAccountWishes hands over or closes the wishes of the account before it is deleted.
-func (s *Service) closeAccountWishes(ctx context.Context, accountID int64) error {
+// closeAccountWishes hands over or closes the wishes of the account before it is deleted, in q
+// (the transaction that deletes the account, review Minor 1), and returns the queued wishes to
+// send as their new owner after the commit.
+func (s *Service) closeAccountWishes(ctx context.Context, q *wishq.Queries, accountID int64) ([]repointWish, error) {
 	var repoint []repointWish
 	closed, handed := 0, 0
-	err := s.inTx(ctx, func(q *wishq.Queries) error {
-		repoint, closed, handed = nil, 0, 0
+	err := func() error {
 		ids, err := q.ListAccountWishIDs(ctx, accountID)
 		if err != nil {
 			return fmt.Errorf("wishes of account: %w", err)
@@ -78,15 +79,12 @@ func (s *Service) closeAccountWishes(ctx context.Context, accountID int64) error
 			closed++
 		}
 		return nil
-	})
+	}()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	s.log.InfoContext(ctx, "wishes of a deleted account", "account_id", accountID, "closed", closed, "handed_over", handed)
-	for _, r := range repoint {
-		s.repoint(ctx, r)
-	}
-	return nil
+	return repoint, nil
 }
 
 // oldest is the requester that joined first.
@@ -154,7 +152,7 @@ type repointWish struct {
 
 // repoint sends a queued wish that went to a co-wisher as that co-wisher's Seerr user; nothing of
 // it is in Seerr yet. Without a user to send as, it fails with seerr_user_gone. A submission that
-// runs right now keeps the old user (it may have reached Seerr already).
+// runs right now keeps the lock; the next attempt re-resolves the sender (orphanSender).
 func (s *Service) repoint(ctx context.Context, r repointWish) {
 	release, ok := s.locks.try(r.wishID)
 	if !ok {

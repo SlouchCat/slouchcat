@@ -65,9 +65,9 @@ type Service struct {
 	// Hooks of package notify (M8), set before the service runs; nil = none.
 	accountCreated     func(ctx context.Context, accountID int64) error
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
-	// accountDeleting runs before an account is deleted (package wishes, concept 25 K-2) and returns
-	// what runs after the deletion; nil = none.
-	accountDeleting func(ctx context.Context, accountID int64) (func(context.Context), error)
+	// accountDeleting runs before an account is deleted, in the transaction that deletes it (package
+	// wishes, concept 25 K-2), and returns what runs after the commit; nil = none.
+	accountDeleting func(ctx context.Context, accountID int64, tx *sql.Tx) (func(context.Context), error)
 	// profileDeleting runs before a profile is deleted (package wishes: its wishes go to the primary
 	// profile, concept 25); an error stops the deletion.
 	profileDeleting func(ctx context.Context, accountID, profileID int64) error
@@ -137,11 +137,12 @@ func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAcc
 	return s
 }
 
-// WithAccountDeleting runs fn before DeleteAccount deletes an account, while its rows still exist,
-// and the function it returns after the deletion (wishes.AccountDeleting: the wishes are handed
-// over or closed, the Seerr user Slouchcat opened loses its rights, concept 25 K-2). An error of
-// fn stops the deletion. It returns the receiver.
-func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64) (func(context.Context), error)) *Service {
+// WithAccountDeleting runs fn before DeleteAccount deletes an account, while its rows still exist
+// and in the same transaction (review Minor 1: a failed deletion leaves the wishes as they were),
+// and the function it returns after the commit (wishes.AccountDeleting: the wishes are handed over
+// or closed, the Seerr user Slouchcat opened loses its rights, concept 25 K-2). An error of fn
+// stops the deletion. It returns the receiver.
+func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64, tx *sql.Tx) (func(context.Context), error)) *Service {
 	s.accountDeleting = fn
 	return s
 }
