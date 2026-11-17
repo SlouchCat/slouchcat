@@ -6587,8 +6587,9 @@ export interface components {
             ratingSystem?: components["schemas"]["RatingSystem"];
             /**
              * @description Since contract 1.41.0 (concept 25): what the active profile may request through Seerr. The
-             *     server decides (rule 12); with `canRequest` false the client shows nothing about wishes (F-9).
-             *     Absent without an active profile.
+             *     server decides (rule 12); with `canRequest` false the client offers no missing titles and no
+             *     request, and shows the entry «Wünsche» only when the profile already has wishes (then only
+             *     «Meine Wünsche», F-9, concept 4.5). Absent without an active profile.
              */
             wishes?: components["schemas"]["WishRights"];
         };
@@ -11741,6 +11742,8 @@ export interface components {
         ExternalTrailer: {
             /** @description YouTube key. */
             key: string;
+            /** @description The IFrame player URL (youtube-nocookie.com), built as for `Trailer.embedUrl`. */
+            embedUrl: string;
             lang?: string;
         };
         /** @description The wish card of the request dialog. */

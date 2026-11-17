@@ -160,10 +160,17 @@ func TestContractWishes(t *testing.T) {
 	expect("p18", http.MethodGet, title(tmdbUnknown), "", http.StatusOK, "")
 	expect("p16", http.MethodGet, title(tmdbUnknown), "", http.StatusNotFound, "not_found")
 	expect("p12", http.MethodGet, title(tmdbUnknown), "", http.StatusNotFound, "not_found")
-	// The preview page with its wish card.
+	// The preview page with its wish card; a trailer carries the player address the server builds
+	// for library trailers (model.Trailer.EmbedURL).
+	exec(`UPDATE external_titles SET trailers = '[{"lang":"de","key":"abc123"}]' WHERE media = 'movie' AND tmdb_id = ?`, tmdbMissing12)
 	pg := expect("p12", http.MethodGet, title(tmdbMissing12), "", http.StatusOK, "")
 	if pg["title"] != "Wunsch Zwoelf" || pg["canRequest"] != true || pg["minAge"] != float64(12) {
 		t.Errorf("preview = %v", pg)
+	}
+	if trailers, _ := pg["trailers"].([]any); len(trailers) != 1 ||
+		trailers[0].(map[string]any)["embedUrl"] != "https://www.youtube-nocookie.com/embed/abc123" ||
+		trailers[0].(map[string]any)["key"] != "abc123" {
+		t.Errorf("preview trailers = %v", pg["trailers"])
 	}
 	// The images as ImageRef: the own route with v and p; nominal sizes until the image is scaled.
 	imgs := pg["images"].(map[string]any)

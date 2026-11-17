@@ -2,16 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRadio } from '@/app/radio/useRadio';
 import { languageName } from '@/features/catalog/labels';
+import { autoplay } from '@/features/catalog/TrailerPanel';
 import type { ExternalTitle } from '@/features/wishes/queries';
 import { TrailerDialog } from '@/ui/aria';
-
-/**
- * The privacy-friendly YouTube player of a trailer key, the address the server builds for the
- * trailers of library titles (`youtube-nocookie.com/embed/{key}`), started by the viewer's press.
- * The contract gives a title outside the library its YouTube keys only (ExternalTrailer).
- */
-const embedUrl = (key: string) =>
-  `https://www.youtube-nocookie.com/embed/${encodeURIComponent(key)}?autoplay=1`;
 
 interface TitleTrailerProps {
   title: string;
@@ -21,8 +14,8 @@ interface TitleTrailerProps {
 
 /**
  * The trailer dialog of a preview page (concept 25, 5.1): the trailers TMDB named, by language,
- * in YouTube's player, like the trailer dialog of a library title (TrailerPanel). Loaded on demand
- * with react-aria; the radio pauses while it is open.
+ * in YouTube's player at the server's address, started like the trailer dialog of a library title
+ * (TrailerPanel, `autoplay`). Loaded on demand with react-aria; the radio pauses while it is open.
  */
 export function TitleTrailer({ title, trailers, onClose }: TitleTrailerProps) {
   const { t } = useTranslation();
@@ -44,7 +37,7 @@ export function TitleTrailer({ title, trailers, onClose }: TitleTrailerProps) {
       languages={languages.map((code) => ({ value: code, label: languageName(t, code) }))}
       language={language}
       onLanguageChange={setChosen}
-      embedUrl={trailer ? embedUrl(trailer.key) : undefined}
+      embedUrl={trailer ? autoplay(trailer.embedUrl) : undefined}
       frameTitle={t('trailer.frame', { title })}
       note={t('trailer.privacy')}
     >

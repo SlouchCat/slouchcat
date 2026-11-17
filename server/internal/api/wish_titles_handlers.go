@@ -212,7 +212,9 @@ func (s *server) GetExternalTitle(ctx context.Context, req gen.GetExternalTitleR
 			AirDate: optDate(se.AirDate), State: gen.ExternalTitleSeasonState(se.State)})
 	}
 	for _, tr := range t.Trailers {
-		out.Trailers = append(out.Trailers, gen.ExternalTrailer{Key: tr.Key, Lang: optString(tr.Lang)})
+		out.Trailers = append(out.Trailers, gen.ExternalTrailer{
+			Key: tr.Key, EmbedUrl: model.Trailer{YouTubeID: tr.Key}.EmbedURL(), Lang: optString(tr.Lang),
+		})
 	}
 	if e := t.NextEpisode; e != nil {
 		out.NextEpisode = &gen.ExternalEpisode{Season: e.Season, Episode: e.Episode, AirDate: optDate(e.AirDate)}
