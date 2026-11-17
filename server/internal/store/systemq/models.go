@@ -1217,6 +1217,13 @@ type WishEvent struct {
 	Detail sql.NullString
 }
 
+type WishProfileTag struct {
+	ProfileID int64
+	Name      string
+	Custom    int64
+	SetAt     int64
+}
+
 type WishRequester struct {
 	WishID     int64
 	ProfileID  int64
@@ -1236,4 +1243,17 @@ type WishSeason struct {
 	State          string
 	AvailableAt    sql.NullInt64
 	NotifiedAt     sql.NullInt64
+}
+
+type WishTag struct {
+	WishID     int64
+	ProfileID  int64
+	Service    string
+	TagName    string
+	ArrTagID   sql.NullInt64
+	ArrTitleID sql.NullInt64
+	State      string
+	Attempts   int64
+	LastError  sql.NullString
+	SetAt      sql.NullInt64
 }

@@ -219,3 +219,33 @@ func TestRedactSeerrKeys(t *testing.T) {
 		t.Errorf("output lost X-API-User: %s", out)
 	}
 }
+
+// Concept 25 stage 4 (rule 10, build step 4.6b): the keys of Radarr and Sonarr, read from Seerr,
+// never reach the log under their own names.
+func TestRedactArrKeys(t *testing.T) {
+	for _, key := range []string{"radarrApiKey", "radarrapikey", "radarr_api_key", "sonarrApiKey", "sonarrapikey", "sonarr.api_key"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"radarr_url", "sonarr_host", "arr_title_id"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("arr", "radarrApiKey", "radarr-FAKE-key", "sonarrApiKey", "sonarr-FAKE-key", "radarr_url", "http://192.0.2.7:7878")
+	out := buf.String()
+	for _, secret := range []string{"radarr-FAKE-key", "sonarr-FAKE-key"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, "192.0.2.7") {
+		t.Errorf("output lost the address: %s", out)
+	}
+}

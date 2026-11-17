@@ -4672,6 +4672,11 @@
           "description": "Reports a wish available as soon as Slouchcat can play the film or every wished season for a profile.",
           "trigger": "hourly schedule, after a wished title was recognised in the library, after the sync with Seerr"
         },
+        "wishes_tag": {
+          "name": "Set profile tags",
+          "description": "Attaches the profile's tag in Radarr and Sonarr to films and series wished through Slouchcat that are being procured. Tags are never removed.",
+          "trigger": "after the sync with Seerr, every 15 minutes and by hand"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

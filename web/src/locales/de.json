@@ -4672,6 +4672,11 @@
           "description": "Meldet einen Wunsch als verfügbar, sobald Slouchcat den Film oder alle gewünschten Staffeln für ein Profil abspielen kann.",
           "trigger": "Zeitplan stündlich, nach dem Erkennen eines gewünschten Titels in der Bibliothek, nach dem Abgleich mit Seerr"
         },
+        "wishes_tag": {
+          "name": "Profil-Tags setzen",
+          "description": "Hängt in Radarr und Sonarr den Tag des Profils an Filme und Serien, die über Slouchcat gewünscht wurden und in Beschaffung sind. Tags werden nie entfernt.",
+          "trigger": "nach dem Abgleich mit Seerr, alle 15 Minuten und von Hand"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",
