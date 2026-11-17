@@ -81,7 +81,7 @@ export function seerrUserColumns(
       header: t('admin.wishes.users.columns.password'),
       cell: (mapping) =>
         mapping.passwordState && userOf(mapping) ? (
-          <span className={styles.clip}>
+          <span className={`${styles.clip} ${styles.narrow}`}>
             {t(`admin.wishes.users.password.${mapping.passwordState}`)}
           </span>
         ) : (
@@ -111,8 +111,14 @@ export function seerrUserColumns(
           return <span className={styles.nowrap}>{t('admin.wishes.users.unlimited')}</span>;
         }
         const used = quotaShort(t, mapping.quota);
-        return used ? (
-          <span className={styles.nowrap}>{used}</span>
+        return used.length > 0 ? (
+          <span className={styles.factStack}>
+            {used.map((line) => (
+              <span key={line} className={styles.nowrap}>
+                {line}
+              </span>
+            ))}
+          </span>
         ) : (
           <span className={styles.muted}>{t(`admin.wishes.users.mode.${mapping.limit.mode}`)}</span>
         );

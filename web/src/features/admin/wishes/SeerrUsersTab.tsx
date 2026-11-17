@@ -41,7 +41,7 @@ import {
   type WishMappings,
   type WishSettings,
 } from '../queries';
-import { rightsText, seerrUserColumns, StateChip, userTypeText } from './columns';
+import { rightsText, seerrUserColumns, userTypeText } from './columns';
 import { QuotaLines } from './quota';
 import { limitSummary } from '../../shared/WishLimitFields';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
@@ -186,8 +186,13 @@ function AccountDetail({
     ],
     [
       t('admin.wishes.users.facts.state'),
-      <span key="state" className={styles.chips}>
-        <StateChip mapping={mapping} user={user} />
+      <span key="state" className={styles.factStack}>
+        {/* Words, not the row's chip: a long state wraps in its narrow column. */}
+        <span>
+          {user?.gone
+            ? t('admin.wishes.users.gone')
+            : t(`admin.wishes.users.state.${mapping.state}`)}
+        </span>
         {mapping.linkedAt && (
           <span className={styles.secondary}>
             {mapping.linkedBy

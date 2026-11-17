@@ -33,16 +33,18 @@ export function quotaText(
   return parts.join(separator);
 }
 
-/** «Filme 7/10 · Staffeln 2/5»: the table's cell; empty without a state or without a limit. */
-export function quotaShort(t: TFunction, quota: WishQuota | undefined): string | undefined {
-  if (quota === undefined || quota.unlimited) return undefined;
-  const parts = (['movie', 'tv'] as const).flatMap((kind) => {
+/**
+ * «Filme 7/10», «Staffeln 2/5»: the table's cell, one half per line; empty without a state or
+ * without a limit.
+ */
+export function quotaShort(t: TFunction, quota: WishQuota | undefined): string[] {
+  if (quota === undefined || quota.unlimited) return [];
+  return (['movie', 'tv'] as const).flatMap((kind) => {
     const part = quota[kind];
     return part
       ? [t(`admin.wishes.quota.short.${kind}`, { used: part.used, limit: part.limit })]
       : [];
   });
-  return parts.length > 0 ? parts.join(t('admin.wishes.separator')) : undefined;
 }
 
 /** The two halves of a limit state, one line each (or one line with `separator`). */

@@ -266,7 +266,8 @@ describe('Wünsche › Seerr-Benutzer', () => {
       }),
     );
     renderApp('/admin/wishes?item=1');
-    expect(await screen.findByText('Filme 9/10 · Staffeln 2/5')).toBeVisible();
+    expect(await screen.findByText('Filme 9/10')).toBeVisible();
+    expect(screen.getByText('Staffeln 2/5')).toBeVisible();
     expect(
       screen.getByText(/Filme: 9 von 10 in 7 Tagen · noch 1 frei · nächster Platz frei am/),
     ).toBeVisible();

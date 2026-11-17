@@ -38,6 +38,12 @@
   white-space: nowrap;
 }
 
+/* The password state is the longest cell: narrower, so the limit column fits beside it at
+   desktop width; the whole text stands in the fold-out. */
+.narrow {
+  max-width: 9rem;
+}
+
 /* The line above the table: what applies to new accounts, the shared user, the reload. */
 .bar {
   display: flex;
