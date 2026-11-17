@@ -1,11 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { dashboardFixture } from '@/test/admin';
 import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test/api';
 import { fill } from '@/test/fill';
 import type { SeerrSettings, SeerrStatus, SeerrTestResult } from '../queries';
 
-// Integrationen › Seerr (concept 25, M-22): the tile with the state from getSeerrStatus, the band
+// Integrationen › Seerr (concept 25, M-22): the tile with the state from the dashboard, the band
 // «Verbindung» with test and save (saving runs no test, the view tests the saved values right
 // after), a value of deploy/.env that locks its field, the check list, the decision about another
 // instance and the call log. The key is write-only.
@@ -79,9 +80,11 @@ afterEach(() => {
 });
 
 describe('Integrationen › Seerr (concept 25)', () => {
-  it('the tile names Seerr after the webhooks, with its state from getSeerrStatus', async () => {
+  it('the tile names Seerr after the webhooks, with its state from the dashboard', async () => {
     mockApi(
       routes({
+        'GET /admin/dashboard': () =>
+          json(dashboardFixture({ integrations: [{ key: 'seerr', state: 'configured' }] })),
         'GET /admin/seerr': () =>
           json(
             settings({
@@ -102,8 +105,9 @@ describe('Integrationen › Seerr (concept 25)', () => {
       'Seerr',
     ]);
     const tile = within(list).getByRole('link', { name: 'Seerr' }).closest('li')!;
-    expect(await within(tile).findByText('Seerr: Verbunden')).toBeVisible();
-    expect(within(tile).getByText('Version 3.5.1')).toBeVisible();
+    expect(await within(tile).findByText('Seerr: Eingerichtet')).toBeVisible();
+    // The version is what only getSeerrStatus knows: it stands in the view, not on the tile.
+    expect(within(tile).queryByText('Version 3.5.1')).toBeNull();
     expect(await within(tile).findByText('Seerr-Benutzer: 2 von 3 Konten')).toBeVisible();
   });
 

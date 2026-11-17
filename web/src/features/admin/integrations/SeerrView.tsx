@@ -58,17 +58,6 @@ import {
   type SeerrValues,
 } from './shared';
 
-/** The dot of a state of the connection; the text next to it carries the meaning. */
-const stateDot = {
-  not_configured: 'pending',
-  disabled: 'pending',
-  untested: 'warning',
-  connected: 'success',
-  key_invalid: 'danger',
-  unreachable: 'danger',
-  instance_changed: 'danger',
-} as const satisfies Record<SeerrStatus['state'], StatusDotState>;
-
 /** The chip of a state in the band «Verbindung». */
 const stateTone = {
   not_configured: 'outline',
@@ -114,27 +103,17 @@ function stateDetail(t: TFunction, status: SeerrStatus, language: string): strin
 }
 
 /**
- * The state of the connection as one line with its dot, the detail below: on the tile and on top
- * of the view. It reads getSeerrStatus, because the dashboard has no status key for Seerr yet;
- * once `IntegrationStatus.key` has `seerr`, the tile and the view take ServiceStatus like the
- * other services (STATUS_KEYS in services.tsx) and this line goes.
+ * What only getSeerrStatus knows about the state, below the dashboard's state line of the view
+ * frame (ServiceStatus): the version, when Seerr last answered, or what to do.
  */
-export function SeerrStateLine({ status }: { status: SeerrStatus }) {
+function SeerrStateDetail({ status }: { status: SeerrStatus }) {
   const { t, i18n } = useTranslation();
   const detail = stateDetail(t, status, i18n.language);
+  if (!detail) return null;
   return (
-    <ul className={styles.status}>
-      <li>
-        <span className={styles.statusEntry}>
-          <StatusDot state={stateDot[status.state]} />
-          {t('admin.home.integrations.entry', {
-            name: t('admin.integrations.names.seerr'),
-            state: t(`admin.integrations.seerr.state.${status.state}`),
-          })}
-        </span>
-        {detail && <span className={styles.statusDetail}>{detail}</span>}
-      </li>
-    </ul>
+    <Text as="p" variant="caption" tone="secondary">
+      {detail}
+    </Text>
   );
 }
 
@@ -500,7 +479,7 @@ export function SeerrView({
     <div className={styles.stack}>
       {status.isPending && <Skeleton shape="block" />}
       {status.isError && <Notice tone="danger" title={problemMessage(t, status.error)} />}
-      {status.data && <SeerrStateLine status={status.data} />}
+      {status.data && <SeerrStateDetail status={status.data} />}
       {status.data?.instanceChanged && (
         <InstanceNotice
           onDecided={(text) => {

@@ -1,4 +1,5 @@
 import type { Dashboard, IntegrationStatus } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
@@ -33,15 +34,11 @@ export const SERVICE_ICON = {
   server: 'server',
 } as const satisfies Record<Service, IconName>;
 
-/**
- * The dashboard's integration keys each service stands for (`getDashboard`, eight keys). Seerr has
- * none yet: its tile and view read getSeerrStatus (SeerrStateLine); with `seerr` in
- * `IntegrationStatus.key` it goes here and SeerrStateLine goes.
- */
+/** The dashboard's integration keys each service stands for (`getDashboard`, nine keys). */
 const STATUS_KEYS = {
   keys: ['tmdb', 'tvdb', 'youtube', 'trakt'],
   webhooks: [],
-  seerr: [],
+  seerr: ['seerr'],
   email: ['email'],
   telegram: ['telegram'],
   push: ['push'],
@@ -64,6 +61,17 @@ const integrationDot = {
   error: 'danger',
   disabled: 'pending',
 } as const satisfies Record<IntegrationStatus['state'], StatusDotState>;
+
+/**
+ * The reason of a state in words: the other integrations send a sentence, Seerr a code
+ * (`key_invalid`, `unreachable`, `instance_changed`, `untested`) named like its connection states.
+ */
+function integrationDetail(t: TFunction, integration: IntegrationStatus): string | undefined {
+  if (integration.key !== 'seerr' || !integration.detail) return integration.detail;
+  return t(`admin.integrations.seerr.state.${integration.detail}`, {
+    defaultValue: integration.detail,
+  });
+}
 
 /**
  * The state of a service as the dashboard knows it (build plan 7.2): each of its integrations
@@ -114,7 +122,9 @@ export function ServiceStatus({ service, dashboard }: { service: Service; dashbo
               state: t(`admin.home.integrations.state.${integration.state}`),
             })}
           </span>
-          {integration.detail && <span className={styles.statusDetail}>{integration.detail}</span>}
+          {integration.detail && (
+            <span className={styles.statusDetail}>{integrationDetail(t, integration)}</span>
+          )}
         </li>
       ))}
     </ul>

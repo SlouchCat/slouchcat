@@ -21,9 +21,22 @@
 //   GET  /api/v1/user/{id}           one user, 404 {"message": "User not found."}
 //   POST /api/v1/user                a local user (201, without e-mail in the answer, I-12); the
 //                                    same e-mail in any case 409 USER_EXISTS (I-14)
+//   GET  /api/v1/user/{id}/settings/main    username, e-mail, the four limit fields and the
+//                                    instance's `global*` ones (I-15)
+//   POST /api/v1/user/{id}/settings/main    writes them (200 without the limit fields, I-16);
+//                                    the e-mail of another user 400 INVALID_EMAIL (I-18)
+//   GET|POST /api/v1/user/{id}/settings/permissions   {permissions} (I-19)
+//   GET|POST /api/v1/user/{id}/settings/password      {hasPassword}; POST 204, under 8
+//                                    characters 400 (I-20)
+//   GET  /api/v1/user/{id}/quota     {movie {days, limit, used, remaining?, restricted}, tv}
+//                                    (I-30); limit 0 without `remaining` (I-31), null takes the
+//                                    instance's default (I-32), an administrator 0 (I-34)
 //   POST /__control                  {"instance": "other"} answers as another instance (user 1
 //                                    with another e-mail and creation time), {"instance": "same"}
-//                                    as the first one again
+//                                    as the first one again; {"failCreate": true|false} answers
+//                                    POST /user with 500 (an account then waits for Seerr);
+//                                    {"used": {"<id>": {"movie": n, "tv": n}}} sets what a
+//                                    user's limit has used
 //   POST /__reset                    the first instance and the five users of USERS again
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +52,12 @@ const ADMIN = 2;
 const REQUEST = 32;
 const AUTO_APPROVE = 128;
 const REQUEST_MOVIE = 262144;
+const MANAGE_USERS = 8;
 const MANAGE_ISSUES = 1048576;
+/** The instance's default rights of a new user (I-13). */
+const DEFAULT_PERMISSIONS = REQUEST | AUTO_APPROVE | MANAGE_ISSUES;
+/** The instance's default limit (I-7): 0 is unlimited (I-31). */
+const DEFAULT_QUOTA = { limit: 0, days: 7 };
 
 /**
  * The users of the instance. Neutral names, e-mails at example.org. User 1 is the owner of the key
@@ -85,6 +103,17 @@ export const USERS = [
     movieQuotaDays: 7,
   },
 ];
+
+/** A part of GET /user/{id}/quota (I-30, I-31, I-32, I-34). */
+function quotaPart(user, kind, used) {
+  const admin = (user.permissions & (ADMIN | MANAGE_USERS)) !== 0;
+  const limit = admin ? 0 : (user[`${kind}QuotaLimit`] ?? DEFAULT_QUOTA.limit);
+  const days = user[`${kind}QuotaDays`] ?? DEFAULT_QUOTA.days;
+  const count = used?.[kind] ?? 0;
+  if (limit === 0) return { days, limit: 0, used: count, restricted: false };
+  const remaining = Math.max(0, limit - count);
+  return { days, limit, used: count, remaining, restricted: remaining === 0 };
+}
 
 /** The creation time of every user of the first instance; user 1's is the fingerprint. */
 const CREATED = '2026-01-10T08:00:00.000Z';
@@ -164,6 +193,9 @@ export function startSeerrServer({
   let users = USERS.map((user) => ({ ...user }));
   let other = false;
   let nextId = 20;
+  let failCreate = false;
+  /** What each user's limit has used, by id. */
+  let used = {};
 
   const routes = async (request, url, response) => {
     const path = url.pathname.replace(/^\/api\/v1/, '');
@@ -213,10 +245,10 @@ export function startSeerrServer({
     if (method === 'GET' && path === '/settings/main') {
       sendJson(response, 200, {
         applicationTitle: 'Seerr',
-        defaultPermissions: REQUEST | AUTO_APPROVE | MANAGE_ISSUES,
+        defaultPermissions: DEFAULT_PERMISSIONS,
         defaultQuotas: {
-          movie: { quotaLimit: 0, quotaDays: 7 },
-          tv: { quotaLimit: 0, quotaDays: 7 },
+          movie: { quotaLimit: DEFAULT_QUOTA.limit, quotaDays: DEFAULT_QUOTA.days },
+          tv: { quotaLimit: DEFAULT_QUOTA.limit, quotaDays: DEFAULT_QUOTA.days },
         },
         localLogin: true,
       });
@@ -256,6 +288,10 @@ export function startSeerrServer({
     }
     if (method === 'POST' && path === '/user') {
       const body = JSON.parse((await readBody(request)) || '{}');
+      if (failCreate) {
+        sendJson(response, 500, { message: 'Something went wrong.' });
+        return;
+      }
       const email = String(body.email ?? '').toLowerCase();
       if (users.some((user) => user.email.toLowerCase() === email)) {
         sendJson(response, 409, {
@@ -269,7 +305,8 @@ export function startSeerrServer({
         displayName: String(body.username || email.split('@')[0]),
         email,
         userType: 2,
-        permissions: REQUEST | AUTO_APPROVE | MANAGE_ISSUES,
+        permissions: DEFAULT_PERMISSIONS,
+        hasPassword: String(body.password ?? '') !== '',
       };
       nextId += 1;
       users.push(user);
@@ -277,11 +314,97 @@ export function startSeerrServer({
       sendJson(response, 201, { ...userOf(user, other), email: undefined });
       return;
     }
-    const single = /^\/user\/(\d+)$/.exec(path);
-    if (method === 'GET' && single) {
-      const user = users.find((entry) => String(entry.id) === single[1]);
-      if (user) sendJson(response, 200, userOf(user, other));
-      else sendJson(response, 404, { message: 'User not found.' });
+    const single = /^\/user\/(\d+)(\/.*)?$/.exec(path);
+    const user = single ? users.find((entry) => String(entry.id) === single[1]) : undefined;
+    if (single && !user) {
+      sendJson(response, 404, { message: 'User not found.' });
+      return;
+    }
+    const rest = single?.[2] ?? '';
+    if (method === 'GET' && user && rest === '') {
+      sendJson(response, 200, userOf(user, other));
+      return;
+    }
+    if (user && rest === '/settings/main') {
+      if (method === 'GET') {
+        sendJson(response, 200, {
+          username: user.displayName,
+          email: user.email,
+          movieQuotaLimit: user.movieQuotaLimit ?? null,
+          movieQuotaDays: user.movieQuotaDays ?? null,
+          tvQuotaLimit: user.tvQuotaLimit ?? null,
+          tvQuotaDays: user.tvQuotaDays ?? null,
+          globalMovieQuotaLimit: DEFAULT_QUOTA.limit,
+          globalMovieQuotaDays: DEFAULT_QUOTA.days,
+          globalTvQuotaLimit: DEFAULT_QUOTA.limit,
+          globalTvQuotaDays: DEFAULT_QUOTA.days,
+          locale: '',
+          discoverRegion: '',
+          streamingRegion: '',
+          originalLanguage: '',
+          watchlistSyncMovies: false,
+          watchlistSyncTv: false,
+        });
+        return;
+      }
+      if (method === 'POST') {
+        const body = JSON.parse((await readBody(request)) || '{}');
+        const email = typeof body.email === 'string' ? body.email.toLowerCase() : undefined;
+        if (email && users.some((entry) => entry.id !== user.id && entry.email === email)) {
+          sendJson(response, 400, { message: 'INVALID_EMAIL' });
+          return;
+        }
+        if (email) user.email = email;
+        if (typeof body.username === 'string' && body.username !== '') {
+          user.displayName = body.username;
+        }
+        for (const key of ['movieQuotaLimit', 'movieQuotaDays', 'tvQuotaLimit', 'tvQuotaDays']) {
+          if (key in body) user[key] = body[key] ?? undefined;
+        }
+        // The answer has no limit fields (I-16).
+        sendJson(response, 200, {
+          username: user.displayName,
+          email: user.email,
+          locale: '',
+          discoverRegion: '',
+          streamingRegion: '',
+          originalLanguage: '',
+          watchlistSyncMovies: false,
+          watchlistSyncTv: false,
+        });
+        return;
+      }
+    }
+    if (user && rest === '/settings/permissions') {
+      if (method === 'POST') {
+        const body = JSON.parse((await readBody(request)) || '{}');
+        user.permissions = Number(body.permissions ?? 0);
+      }
+      sendJson(response, 200, { permissions: user.permissions });
+      return;
+    }
+    if (user && rest === '/settings/password') {
+      if (method === 'GET') {
+        sendJson(response, 200, { hasPassword: user.hasPassword === true });
+        return;
+      }
+      if (method === 'POST') {
+        const body = JSON.parse((await readBody(request)) || '{}');
+        if (String(body.newPassword ?? '').length < 8) {
+          sendJson(response, 400, { message: 'Password must be at least 8 characters.' });
+          return;
+        }
+        user.hasPassword = true;
+        response.writeHead(204).end();
+        return;
+      }
+    }
+    if (method === 'GET' && user && rest === '/quota') {
+      const mine = used[String(user.id)];
+      sendJson(response, 200, {
+        movie: quotaPart(user, 'movie', mine),
+        tv: quotaPart(user, 'tv', mine),
+      });
       return;
     }
     sendJson(response, 404, { message: 'Not found.' });
@@ -292,11 +415,13 @@ export function startSeerrServer({
     void (async () => {
       if (request.method === 'POST' && url.pathname === '/__control') {
         const body = JSON.parse((await readBody(request)) || '{}');
-        if (body.instance !== 'other' && body.instance !== 'same') {
+        if (body.instance !== undefined && body.instance !== 'other' && body.instance !== 'same') {
           response.writeHead(400).end();
           return;
         }
-        other = body.instance === 'other';
+        if (body.instance !== undefined) other = body.instance === 'other';
+        if (typeof body.failCreate === 'boolean') failCreate = body.failCreate;
+        if (body.used && typeof body.used === 'object') used = { ...used, ...body.used };
         response.writeHead(204).end();
         return;
       }
@@ -304,6 +429,8 @@ export function startSeerrServer({
         users = USERS.map((user) => ({ ...user }));
         other = false;
         nextId = 20;
+        failCreate = false;
+        used = {};
         response.writeHead(204).end();
         return;
       }

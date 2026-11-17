@@ -46,6 +46,30 @@ async function connect(api: APIRequestContext): Promise<void> {
     .toBeGreaterThanOrEqual(USERS.length);
 }
 
+/**
+ * Waits until no seerr.provision job is queued, planned or running: a hand choice queues one
+ * that writes the limit, and a choice undone before that job ran gets opened in Seerr by it
+ * (a server race, reported). Tests undo a choice only after it settled.
+ */
+async function provisionSettled(api: APIRequestContext): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        let open = 0;
+        for (const state of ['queued', 'planned', 'running']) {
+          const page = await json<{ total: number }>(
+            api,
+            `/admin/jobs?type=seerr.provision&state=${state}&limit=1`,
+          );
+          open += page.total;
+        }
+        return open;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(0);
+}
+
 interface Mapping {
   accountId: number;
   email: string;
@@ -58,10 +82,14 @@ const mappings = async (api: APIRequestContext) =>
 let settingsBefore: Record<string, unknown> | undefined;
 
 test.beforeEach(async ({ owner }) => {
+  // The mock's users as at the start: a user an earlier test opened or changed is gone again.
+  const reset = await fetch(`${SEERR_BASE}/__reset`, { method: 'POST' });
+  expect(reset.ok).toBe(true);
   settingsBefore = await json(owner, '/admin/wishes/settings');
 });
 
 test.afterEach(async ({ owner }) => {
+  await provisionSettled(owner);
   for (const mapping of await mappings(owner)) {
     if (mapping.seerrUserId !== undefined) {
       await send(owner, 'put', `/admin/wishes/mappings/accounts/${mapping.accountId}`, {
@@ -134,6 +162,7 @@ test('tabs, a row that folds out and a Seerr user chosen and unlinked by keyboar
   await expect(page.locator('#content')).not.toContainText('{{');
 
   // «Verknüpfung lösen» acts at once, without a dialog; the user stays in Seerr.
+  await provisionSettled(owner);
   const unlink = page.getByRole('button', { name: 'Verknüpfung lösen' });
   await tabTo(page, unlink, 4);
   await page.keyboard.press('Enter');

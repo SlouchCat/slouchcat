@@ -145,7 +145,7 @@ test('the tile opens the view; connect, test and save by keyboard @keyboard', as
   await tabTo(page, save, 4);
   await page.keyboard.press('Enter');
   await expect(seerr.getByText('Verbindung zu Seerr gespeichert.')).toBeVisible();
-  await expect(seerr.getByText('Seerr: Verbunden')).toBeVisible();
+  await expect(seerr.getByText('Seerr: Eingerichtet')).toBeVisible();
   await expect(seerr.getByText('Version 3.5.1')).toBeVisible();
   await expect(field(page, 'API-Schlüssel')).toHaveValue('');
   await expect(field(page, 'API-Schlüssel')).toHaveAttribute(
@@ -178,7 +178,7 @@ test('the tile opens the view; connect, test and save by keyboard @keyboard', as
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/integrations$/);
   await expectFocusOn(page, tile);
-  await expect(tiles.getByText('Seerr: Verbunden')).toBeVisible();
+  await expect(tiles.getByText('Seerr: Eingerichtet')).toBeVisible();
 });
 
 test('a wrong key, a bad address and a new host without the key are named', async ({
@@ -225,7 +225,7 @@ test('another instance waits for a decision; «Zuordnung löschen» asks first',
   const seerr = region(page, 'Seerr');
   const notice = seerr.getByRole('alert').filter({ hasText: 'Andere Seerr-Instanz erkannt' });
   await expect(notice).toBeVisible();
-  await expect(seerr.getByText('Seerr: Andere Instanz erkannt')).toBeVisible();
+  await expect(seerr.getByText('Seerr: Fehler')).toBeVisible();
 
   // «Zuordnung löschen» asks; Escape keeps everything and gives the focus back.
   const reset = notice.getByRole('button', { name: 'Zuordnung löschen' });

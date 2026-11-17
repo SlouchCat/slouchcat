@@ -76,7 +76,7 @@ test('a tile per service opens its view and leads back, all by keyboard @keyboar
   // The whole state from the dashboard stands at the tiles (build plan 7.2): the e2e server
   // has the Trakt id in its environment.
   await expect(list.getByText('Trakt: Eingerichtet')).toBeVisible();
-  await expect(page.getByText(/^\d von 8 eingerichtet$/)).toBeVisible();
+  await expect(page.getByText(/^\d von 9 eingerichtet$/)).toBeVisible();
 
   // The intro sentence stands open below the title (build plan 2.6); no help button any more.
   await expect(page.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toHaveCount(0);

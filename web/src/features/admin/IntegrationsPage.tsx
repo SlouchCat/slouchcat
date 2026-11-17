@@ -23,7 +23,7 @@ import {
   providerSource,
 } from './integrations/ProviderCard';
 import { PushBlock } from './integrations/PushBlock';
-import { SeerrStateLine, SeerrView } from './integrations/SeerrView';
+import { SeerrView } from './integrations/SeerrView';
 import { ServerBlock } from './integrations/ServerBlock';
 import {
   SERVICE_ICON,
@@ -261,9 +261,7 @@ export function IntegrationsPage() {
                         description={t(`admin.integrations.services.${service}`)}
                         meta={<BandMeta unsaved={unsavedOf[service]} {...tileMeta(service)} />}
                         status={
-                          service === 'seerr'
-                            ? seerrStatus.data && <SeerrStateLine status={seerrStatus.data} />
-                            : dashboard && <ServiceStatus service={service} dashboard={dashboard} />
+                          dashboard && <ServiceStatus service={service} dashboard={dashboard} />
                         }
                         linkRef={(element) => {
                           tiles.current[service] = element;
