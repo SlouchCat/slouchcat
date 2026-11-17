@@ -13,7 +13,6 @@ import {
   SettingRow,
   StatusRegion,
   Switch,
-  TextField,
 } from '@/ui/aria';
 import {
   setWishSettings,
@@ -24,6 +23,14 @@ import {
   type WishSettings,
   type WishSettingsUpdate,
 } from '../queries';
+import {
+  limitSummary,
+  WishLimitNumberFields,
+  wishLimitsOf,
+  wishNumbersOf,
+  wishNumbersValid,
+  type WishLimitNumbers,
+} from '../../shared/WishLimitFields';
 import { useImmediateSave } from './useImmediateSave';
 import styles from './Wishes.module.css';
 
@@ -45,36 +52,6 @@ const ALREADY_REQUESTED = [
 ] as const satisfies readonly WishSettings['alreadyRequested'][];
 const UNMAPPED = ['fallback', 'deny'] as const satisfies readonly WishSettings['unmapped'][];
 
-/** «10 Filme / 7 Tage» or «5 Staffeln / 7 Tage»; a limit of 0 is «ohne Limit». */
-export function limitPart(t: TFunction, limits: WishLimits, kind: 'movie' | 'tv'): string {
-  const { limit, days } = limits[kind];
-  return limit === 0
-    ? t(`admin.wishes.limit.${kind}None`)
-    : t(`admin.wishes.limit.${kind}`, { count: limit, days });
-}
-
-/** «10 Filme / 7 Tage · 5 Staffeln / 7 Tage». */
-export const limitSummary = (t: TFunction, limits: WishLimits): string =>
-  `${limitPart(t, limits, 'movie')}${t('admin.wishes.separator')}${limitPart(t, limits, 'tv')}`;
-
-/** A limit field as typed: whole numbers within the contract's bounds. */
-const within = (text: string, low: number, high: number) =>
-  /^\d{1,3}$/.test(text.trim()) && Number(text) >= low && Number(text) <= high;
-
-interface LimitDraft {
-  movieLimit: string;
-  movieDays: string;
-  tvLimit: string;
-  tvDays: string;
-}
-
-const draftOf = (limits: WishLimits): LimitDraft => ({
-  movieLimit: String(limits.movie.limit),
-  movieDays: String(limits.movie.days),
-  tvLimit: String(limits.tv.limit),
-  tvDays: String(limits.tv.days),
-});
-
 /**
  * «Limit ab Werk» (N-31, F-26): two counts and two periods. A field saves when it is left (or with
  * Enter) and all four hold a valid number; a wrong number stays in its field with the reason.
@@ -86,59 +63,30 @@ function DefaultLimit({
   limits: WishLimits;
   onSave: (limits: WishLimits) => void;
 }) {
-  const { t } = useTranslation();
-  const [draft, setDraft] = useState<LimitDraft>(() => draftOf(limits));
+  const [draft, setDraft] = useState<WishLimitNumbers>(() => wishNumbersOf(limits));
   // The server's value comes back after a save or a refusal: the fields take it over.
   const [shown, setShown] = useState(limits);
   if (JSON.stringify(shown) !== JSON.stringify(limits)) {
     setShown(limits);
-    setDraft(draftOf(limits));
+    setDraft(wishNumbersOf(limits));
   }
-  const valid =
-    within(draft.movieLimit, 0, 100) &&
-    within(draft.tvLimit, 0, 100) &&
-    within(draft.movieDays, 1, 90) &&
-    within(draft.tvDays, 1, 90);
   const commit = () => {
-    if (!valid) return;
-    const next: WishLimits = {
-      movie: { limit: Number(draft.movieLimit), days: Number(draft.movieDays) },
-      tv: { limit: Number(draft.tvLimit), days: Number(draft.tvDays) },
-    };
+    if (!wishNumbersValid(draft)) return;
+    const next = wishLimitsOf(draft);
     if (JSON.stringify(next) !== JSON.stringify(limits)) onSave(next);
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     commit();
   };
-  const number = (key: keyof LimitDraft, label: string, low: number, high: number) => (
-    <TextField
-      name={key}
-      label={label}
-      inputMode="numeric"
-      autoComplete="off"
-      value={draft[key]}
-      onChange={(value) => setDraft((current) => ({ ...current, [key]: value }))}
-      onBlur={commit}
-      validate={(text) =>
-        within(text, low, high) ? null : t('admin.wishes.settings.limitRange', { low, high })
-      }
-      validationBehavior="aria"
-    />
-  );
   return (
     <Form onSubmit={onSubmit} className={styles.limits}>
-      <div className={styles.limitRow}>
-        {number('movieLimit', t('admin.wishes.settings.movieLimit'), 0, 100)}
-        {number('movieDays', t('admin.wishes.settings.movieDays'), 1, 90)}
-      </div>
-      <div className={styles.limitRow}>
-        {number('tvLimit', t('admin.wishes.settings.tvLimit'), 0, 100)}
-        {number('tvDays', t('admin.wishes.settings.tvDays'), 1, 90)}
-      </div>
-      <Text variant="caption" tone="secondary">
-        {t('admin.wishes.settings.limitZero')}
-      </Text>
+      <WishLimitNumberFields
+        value={draft}
+        onChange={setDraft}
+        onBlur={commit}
+        name="defaultLimit"
+      />
     </Form>
   );
 }

@@ -9,6 +9,7 @@ import { manageProfilesQuery } from '../../profiles/queries';
 import type { LibraryOptions } from '../../shared/useLibraryOptions';
 import { AccessForm, type AccessDraft } from './AccessForm';
 import { OwnAccountForm, type OwnAccountDraft } from './OwnAccountForm';
+import { AdminWishesBlock } from './wishes';
 import styles from './Accounts.module.css';
 
 /** The fragment of «Meine Profile» (`/admin/accounts?item=me#meine-profile`). */
@@ -64,7 +65,13 @@ export function OwnAccountDetail({
   }, [location.hash, profilesLoaded, arrival, claimScroll]);
   return (
     <div className={styles.detail}>
-      <OwnAccountForm email={account.email} onSaved={onSaved} {...draft} />
+      <OwnAccountForm
+        email={account.email}
+        seerrPassword={account.seerrUser?.passwordState}
+        onSaved={onSaved}
+        {...draft}
+      />
+      {account.role === 'admin' && <AdminWishesBlock account={account} />}
       <section
         ref={profiles}
         id={MY_PROFILES}
@@ -116,7 +123,12 @@ export function OtherAccountDetail({
   const { t } = useTranslation();
   let first: ReactNode;
   if (account.role !== 'user') {
-    first = <Text tone="secondary">{t('admin.accounts.access.adminHint')}</Text>;
+    first = (
+      <>
+        <Text tone="secondary">{t('admin.accounts.access.adminHint')}</Text>
+        <AdminWishesBlock account={account} />
+      </>
+    );
   } else if (access && libraries.isReady) {
     first = (
       <AccessForm

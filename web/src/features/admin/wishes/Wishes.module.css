@@ -123,9 +123,3 @@
   gap: var(--sc-space-3);
   min-width: 0;
 }
-
-.limitRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  gap: var(--sc-space-3);
-}

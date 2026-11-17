@@ -9,8 +9,8 @@ import { type ActiveSession, refreshSession, useRatingSystem } from '@/app/sessi
 import { currentLanguage, isLanguage, type Language } from '@/i18n';
 import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { isAccentName, Notice } from '@/ui';
-import { AccentPicker, AriaButton, Form, PinField, RadioGroup, TextField } from '@/ui/aria';
+import { isAccentName, Notice, Text } from '@/ui';
+import { AccentPicker, AriaButton, Form, PinField, RadioGroup, Switch, TextField } from '@/ui/aria';
 import { accentOptions, languageOptions, ratingOf, ratingOptions } from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
 import {
@@ -80,6 +80,12 @@ export function ProfileForm({
   });
   const [pin, setPin] = useState('');
   const [limits, setLimits] = useState<LimitValues>(() => limitValues(profile?.limits));
+  // «Darf anfordern» (concept 25, M-11): the primary profile sets it while wishes are on; the
+  // account's right caps it (the server refuses a right above it, 422 account_not_allowed).
+  const wishes = session.wishes;
+  const showRequest = session.profile.isPrimary && wishes?.enabled === true;
+  const accountAllowed = wishes?.reason !== 'account_not_allowed';
+  const [canRequest, setCanRequest] = useState(profile?.canRequest ?? false);
   // The playback preferences as the profile holds them. A new profile leaves them to the server
   // until they are changed: it starts them from the language chosen above (F-12), so the fields
   // follow that language meanwhile.
@@ -137,6 +143,7 @@ export function ProfileForm({
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
       limits: limitsOf(limits),
       ...(prefs ?? {}),
+      ...(showRequest && accountAllowed ? { canRequest } : {}),
       ...(!profile && pin ? { pin } : {}),
     });
   };
@@ -217,6 +224,26 @@ export function ProfileForm({
           </Notice>
         )}
       </fieldset>
+      {showRequest && (
+        <fieldset className={styles.group}>
+          <legend className={styles.legend}>{t('profiles.settings.form.wishes')}</legend>
+          <Switch
+            name="canRequest"
+            isSelected={accountAllowed && canRequest}
+            isDisabled={!accountAllowed}
+            onChange={setCanRequest}
+          >
+            {t('profiles.settings.form.canRequest')}
+          </Switch>
+          <Text tone="secondary" variant="caption">
+            {t(
+              accountAllowed
+                ? 'profiles.settings.form.canRequestHelp'
+                : 'profiles.settings.form.canRequestCapped',
+            )}
+          </Text>
+        </fieldset>
+      )}
       {!profile && (
         <PinField
           name="pin"

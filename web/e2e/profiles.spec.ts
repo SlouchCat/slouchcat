@@ -5,6 +5,7 @@ import { choose } from './controls';
 import { OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
+import { connectSeerr, disconnectSeerr } from './seerr';
 
 // Profile picker (K-4), profile management (K-2) and the language switch without reload (C-3).
 // Each test logs in once with a session of its own: a profile switch changes the session on the
@@ -497,6 +498,34 @@ test.describe('profile management', () => {
     await expect(article(page, 'Tastatur')).toBeVisible();
 
     await expectNoFocusTrap(page);
+  });
+
+  test('«Darf Titel anfordern» in the dialog while wishes are on, by keyboard (M-11) @keyboard', async ({
+    page,
+  }) => {
+    const before = await connectSeerr(page.request, { enabled: true });
+    try {
+      await page.reload();
+      await expect(article(page, OWNER_PROFILE)).toBeVisible();
+      await article(page, OWNER_PROFILE).getByRole('button', { name: 'Bearbeiten' }).click();
+      const form = page.getByRole('dialog', { name: /bearbeiten/ });
+      const right = form.getByRole('switch', { name: 'Darf Titel anfordern' });
+      await tabTo(page, right, 40);
+      await expectVisibleFocus(page);
+      const wasOn = await right.isChecked();
+      await page.keyboard.press('Space');
+      await expect(right).toBeChecked({ checked: !wasOn });
+      await expect(
+        form.getByText('Das Profil darf fehlende Titel über Seerr anfordern.'),
+      ).toBeVisible();
+      await expect(form).not.toContainText('{{');
+      // Escape closes without saving.
+      await page.keyboard.press('Escape');
+      await expect(form).toBeHidden();
+      await expectNoFocusTrap(page);
+    } finally {
+      await disconnectSeerr(page.request, before);
+    }
   });
 
   test('a library restriction round-trips and the restricted profile sees none of the other titles', async ({

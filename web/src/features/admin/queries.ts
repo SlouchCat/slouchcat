@@ -959,6 +959,13 @@ export const setSeerrPasswordMode = (
     }),
   );
 
+/** The wish limit of an account (Konten › Zugriff); Slouchcat writes it into the Seerr user. */
+export const setAccountWishLimit = (
+  id: number,
+  body: components['schemas']['AccountWishLimitRequest'],
+): Promise<components['schemas']['AccountWishLimit']> =>
+  request(api.PUT('/admin/accounts/{id}/wish-limit', { params: { path: { id } }, body }));
+
 export const wishSettingsQuery = queryOptions({
   queryKey: [...wishKeys.all, 'settings'],
   queryFn: ({ signal }): Promise<WishSettings> =>

@@ -141,6 +141,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       'Altersstufe',
       'Bibliotheken',
       'Profile',
+      'Wünsche',
       'Zuletzt gesehen',
       'Kanäle',
       'Aktionen',
@@ -154,6 +155,8 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       'FSK 18',
       'Alle Bibliotheken',
       'Marco (Hauptprofil), Kinder',
+      // Without Seerr the account names no wish state.
+      '–',
       expect.stringMatching(/2026/) as string,
       'E-MailWeb-Push',
       '',
@@ -163,6 +166,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       'FSK 12',
       '1 Bibliothek',
       'Lena (Hauptprofil)',
+      '–',
       'Noch nie',
       'Keine',
       '',
@@ -322,6 +326,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       allLibraries: false,
       libraryIds: [1],
       limits: { maxHeight: 480, maxStreams: 2 },
+      canRequest: false,
     });
     // The draft is spent: «Verwerfen» goes, the focus stays on the save button.
     await waitFor(() =>
@@ -945,5 +950,194 @@ describe('invitations (K-6, KON-1, KON-5)', { timeout: 15_000 }, () => {
     const other = await openRow(userEvent.setup(), 'gast@example.test');
     expect(within(other).queryByRole('region', { name: /^Zugriff von/ })).toBeNull();
     expect(calls.some((call) => call.method === 'POST' || call.method === 'PATCH')).toBe(false);
+  });
+});
+
+describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const wishSettings = {
+    enabled: true,
+    allowMovies: true,
+    allowShows: true,
+    fromSearch: true,
+    fromDetail: true,
+    alreadyRequested: 'join',
+    unmapped: 'fallback',
+    newAccountsCanRequest: true,
+    allowWithdraw: true,
+    pinExternalHideTitle: true,
+    provisionAccounts: true,
+    syncPassword: true,
+    defaultLimit: { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } },
+  };
+  const effective = { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } };
+  const wishGuest: AdminAccount = {
+    ...guest,
+    canRequest: true,
+    wishState: 'allowed',
+    wishLimit: { mode: 'default', effective, seerrAdmin: false },
+    seerrUser: {
+      id: 4,
+      displayName: 'grosseltern',
+      state: 'created',
+      passwordState: 'synced',
+    },
+  };
+  const wishRoutes = (extra: Routes = {}): Routes =>
+    routes({
+      'GET /admin/accounts': () =>
+        json([
+          {
+            ...owner,
+            canRequest: true,
+            wishState: 'mapping_missing',
+            wishLimit: { mode: 'default', effective, seerrAdmin: true },
+            seerrUser: {
+              id: 1,
+              displayName: 'seerr-admin',
+              state: 'linked',
+              passwordState: 'admin',
+              linkedBy: 'admin',
+              linkedAt: '2026-11-17T08:00:00Z',
+            },
+          },
+          wishGuest,
+        ]),
+      'GET /admin/wishes/settings': () => json(wishSettings),
+      'GET /admin/seerr/status': () =>
+        json({
+          state: 'connected',
+          instanceChanged: false,
+          tested: true,
+          counts: { open: 0, queued: 0, unmapped: 0 },
+          log: [],
+        }),
+      ...extra,
+    });
+
+  it('names the wish state per account and the Seerr user with the way to change it', async () => {
+    mockApi(wishRoutes());
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    expect(within(rowOf('gast@example.test')).getByText('Erlaubt')).toBeVisible();
+    expect(within(rowOf('owner@example.test')).getByText('Ohne Seerr-Benutzer')).toBeVisible();
+    const other = await openRow(userEvent.setup(), 'gast@example.test');
+    expect(
+      within(other).getByText(/Seerr-Benutzer: grosseltern · eröffnet · Passwort abgeglichen/),
+    ).toBeVisible();
+    expect(within(other).getByRole('link', { name: 'Ändern' })).toHaveAttribute(
+      'href',
+      '/admin/wishes?tab=seerr-benutzer&item=7',
+    );
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('saves the request right with «Zugriff» and an own limit afterwards', async () => {
+    const { calls } = mockApi(
+      wishRoutes({
+        'PATCH /admin/accounts/7': () => new Response(null, { status: 204 }),
+        'PUT /admin/accounts/7/wish-limit': () =>
+          json({
+            mode: 'custom',
+            movie: { limit: 3, days: 14 },
+            tv: { limit: 5, days: 7 },
+            effective,
+            seerrAdmin: false,
+          }),
+      }),
+    );
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
+    const form = within(other).getByRole('region', { name: 'Zugriff von gast@example.test' });
+    // «Standard» names the default of the wish settings.
+    expect(
+      await within(form).findByText(/Wie unter Wünsche › Einstellungen: 10 Filme \/ 7 Tage/),
+    ).toBeVisible();
+    await user.click(within(form).getByRole('switch', { name: 'Darf Titel anfordern' }));
+    expect(
+      within(form).getByText('Die Rechte von «grosseltern» in Seerr werden angepasst.'),
+    ).toBeVisible();
+    await user.click(within(form).getByRole('radio', { name: 'Eigenes' }));
+    await fill(user, within(form).getByLabelText('Filme: Anzahl'), '3');
+    await fill(user, within(form).getByLabelText('Filme: Tage'), '14');
+    await user.click(within(form).getByRole('button', { name: 'Zugriff speichern' }));
+    expect(await screen.findByText('Zugriff von gast@example.test gespeichert.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+      canRequest: false,
+    });
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      mode: 'custom',
+      movie: { limit: 3, days: 14 },
+      tv: { limit: 5, days: 7 },
+    });
+  });
+
+  it('an administrator has only the request right, at once; the limit is fixed', async () => {
+    const helperWish: AdminAccount = {
+      ...helper,
+      canRequest: true,
+      wishLimit: { mode: 'default', effective, seerrAdmin: false },
+    };
+    const { calls } = mockApi(
+      wishRoutes({
+        'GET /admin/accounts': () => json([owner, helperWish]),
+        'PATCH /admin/accounts/8': () => new Response(null, { status: 204 }),
+      }),
+    );
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'admin2@example.test');
+    const block = within(other).getByRole('region', { name: 'Wünsche von admin2@example.test' });
+    expect(
+      within(block).getByText(/Bei Administratoren lässt es sich hier nicht ändern/),
+    ).toBeVisible();
+    expect(within(block).queryByRole('radio', { name: 'Eigenes' })).toBeNull();
+    await user.click(within(block).getByRole('switch', { name: 'Darf Titel anfordern' }));
+    expect(
+      await within(block).findByText('admin2@example.test darf keine Titel mehr anfordern.'),
+    ).toBeVisible();
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ canRequest: false });
+  });
+
+  it('the own account says what a new password does in Seerr', async () => {
+    mockApi(wishRoutes());
+    const { form } = await openOwn();
+    expect(
+      within(form).getByText(
+        /Dein Passwort in Seerr bleibt, wie es ist: Du bist dort Administrator/,
+      ),
+    ).toBeVisible();
+  });
+
+  it('the invitation takes the request right, the limit and says the account opens in Seerr', async () => {
+    const { calls } = mockApi(
+      wishRoutes({
+        'POST /admin/invitations': () =>
+          json({ invitation: invitation(), url: '/invite/t', token: 't' }, 201),
+      }),
+    );
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    const invite = await screen.findByRole('button', { name: 'Konto einladen' });
+    await waitFor(() => expect(invite).toBeEnabled());
+    await user.click(invite);
+    const dialog = await screen.findByRole('dialog', { name: 'Konto einladen' });
+    const right = await within(dialog).findByRole('switch', { name: 'Darf Titel anfordern' });
+    // The switch starts from «Neue Konten dürfen anfordern».
+    expect(right).toBeChecked();
+    expect(
+      within(dialog).getByText(/Beim Annehmen eröffnet Slouchcat das Konto auch in Seerr/),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('radio', { name: 'Unbegrenzt' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Einladung erstellen' }));
+    await within(dialog).findByLabelText('Einladungslink');
+    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+      canRequest: true,
+      wishLimit: { mode: 'unlimited' },
+    });
   });
 });

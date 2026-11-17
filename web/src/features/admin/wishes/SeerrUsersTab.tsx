@@ -43,7 +43,7 @@ import {
 } from '../queries';
 import { rightsText, seerrUserColumns, StateChip, userTypeText } from './columns';
 import { QuotaLines } from './quota';
-import { limitSummary } from './SettingsTab';
+import { limitSummary } from '../../shared/WishLimitFields';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
 import styles from './Wishes.module.css';
 

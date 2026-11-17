@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n';
 import { formatDate } from '@/lib/format';
 import type { WishLimits, WishQuota, WishQuotaPart } from '../queries';
-import { limitPart } from './SettingsTab';
+import { limitPart } from '../../shared/WishLimitFields';
 
 type Kind = 'movie' | 'tv';
 

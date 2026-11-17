@@ -4143,7 +4143,8 @@
         "profiles": "Profile",
         "lastSeen": "Zuletzt gesehen",
         "channels": "Kanäle",
-        "actions": "Aktionen"
+        "actions": "Aktionen",
+        "wishes": "Wünsche"
       },
       "roles": {
         "admin": "Administrator",
@@ -4171,7 +4172,14 @@
         "currentPasswordHint": "Bestätigt, dass du es bist.",
         "wrongPassword": "Das aktuelle Passwort stimmt nicht.",
         "unchanged": "Ändere die E-Mail-Adresse oder gib ein neues Passwort ein.",
-        "saved": "Dein Konto ist gespeichert."
+        "saved": "Dein Konto ist gespeichert.",
+        "seerrPassword": {
+          "synced": "Das neue Passwort gilt auch in Seerr.",
+          "next_login": "Das neue Passwort gilt auch in Seerr.",
+          "off": "In Seerr bleibt dein Passwort, wie es ist: Es wird nicht abgeglichen.",
+          "admin": "Dein Passwort in Seerr bleibt, wie es ist: Du bist dort Administrator.",
+          "external": "Dein Passwort in Seerr bleibt, wie es ist: Du meldest dich dort über Jellyfin, Emby oder Plex an."
+        }
       },
       "ownerBadge": "Besitzer",
       "access": {
@@ -4251,7 +4259,8 @@
           "libraries": "Bibliotheken",
           "detail": "Gültig bis / angenommen",
           "actions": "Aktionen"
-        }
+        },
+        "seerrHint": "Beim Annehmen eröffnet Slouchcat das Konto auch in Seerr: gleiche E-Mail, gleiches Passwort."
       },
       "discard": "Verwerfen",
       "status": {
@@ -4278,6 +4287,42 @@
         "mine": "Meine Profile",
         "of": "Profile von {{email}}",
         "readOnly": "Profile verwaltet jedes Konto selbst."
+      },
+      "wishes": {
+        "title": "Wünsche",
+        "of": "Wünsche von {{email}}",
+        "canRequest": "Darf Titel anfordern",
+        "canRequestHelp": "Gilt als Grenze für alle Profile. Welche Profile anfordern, wählt das Hauptprofil des Kontos.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Erlaubt",
+          "not_allowed": "Nicht erlaubt",
+          "mapping_missing": "Ohne Seerr-Benutzer"
+        },
+        "userLine": "Seerr-Benutzer: {{user}}",
+        "noUser": "noch keiner",
+        "change": "Ändern",
+        "userState": {
+          "created": "eröffnet",
+          "linked": "verknüpft",
+          "manual": "von Hand gewählt",
+          "waiting": "wartet auf Seerr"
+        },
+        "linkedBy": "verknüpft {{by}} am {{date}}",
+        "password": {
+          "synced": "Passwort abgeglichen",
+          "next_login": "Passwort folgt bei der nächsten Anmeldung",
+          "off": "Passwort wird nicht abgeglichen",
+          "admin": "Passwort bleibt in Seerr (Administrator)",
+          "external": "Anmeldung über Jellyfin, Emby oder Plex"
+        },
+        "rightsFollow": "Die Rechte von «{{name}}» in Seerr werden angepasst.",
+        "rightsStay": "«{{name}}» behält in Seerr seine Rechte, weil Slouchcat ihn nicht eröffnet hat.",
+        "adminLimit": "«{{name}}» ist in Seerr Administrator. Seerr gibt Administratoren kein Limit.",
+        "limitLater": "Noch kein Seerr-Benutzer: Slouchcat setzt das Limit, sobald das Konto dort eröffnet ist.",
+        "limitFixed": "Limit: {{limit}}. Bei Administratoren lässt es sich hier nicht ändern.",
+        "savedOn": "{{email}} darf jetzt Titel anfordern.",
+        "savedOff": "{{email}} darf keine Titel mehr anfordern."
       }
     },
     "backup": {
@@ -5703,6 +5748,14 @@
           "movie": "Filme {{used}}/{{limit}}",
           "tv": "Staffeln {{used}}/{{limit}}"
         }
+      },
+      "limitField": {
+        "label": "Limit",
+        "help": {
+          "default": "Wie unter Wünsche › Einstellungen: {{limit}}.",
+          "custom": "Eigene Zahlen für dieses Konto.",
+          "unlimited": "Ohne Limit für Filme und Staffeln."
+        }
       }
     }
   },
@@ -5806,7 +5859,11 @@
         "metadataLanguage": "Sprache der Beschreibungen",
         "metadataLanguageHint": "Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.",
         "likeUi": "Wie Oberfläche",
-        "playback": "Wiedergabe"
+        "playback": "Wiedergabe",
+        "wishes": "Wünsche",
+        "canRequest": "Darf Titel anfordern",
+        "canRequestHelp": "Das Profil darf fehlende Titel über Seerr anfordern.",
+        "canRequestCapped": "Dieses Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten."
       },
       "report": {
         "show": "Schauzeit anzeigen",

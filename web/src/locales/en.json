@@ -4143,7 +4143,8 @@
         "profiles": "Profiles",
         "lastSeen": "Last seen",
         "channels": "Channels",
-        "actions": "Actions"
+        "actions": "Actions",
+        "wishes": "Wishes"
       },
       "roles": {
         "admin": "Administrator",
@@ -4171,7 +4172,14 @@
         "currentPasswordHint": "Confirms that it is you.",
         "wrongPassword": "The current password is wrong.",
         "unchanged": "Change the e-mail address or enter a new password.",
-        "saved": "Your account is saved."
+        "saved": "Your account is saved.",
+        "seerrPassword": {
+          "synced": "The new password applies in Seerr too.",
+          "next_login": "The new password applies in Seerr too.",
+          "off": "Your password in Seerr stays as it is: it is not synced.",
+          "admin": "Your password in Seerr stays as it is: you are an administrator there.",
+          "external": "Your password in Seerr stays as it is: you sign in there through Jellyfin, Emby or Plex."
+        }
       },
       "ownerBadge": "Owner",
       "access": {
@@ -4251,7 +4259,8 @@
           "libraries": "Libraries",
           "detail": "Valid until / accepted",
           "actions": "Actions"
-        }
+        },
+        "seerrHint": "On accepting, Slouchcat opens the account in Seerr too: same e-mail, same password."
       },
       "discard": "Discard",
       "status": {
@@ -4278,6 +4287,42 @@
         "mine": "My profiles",
         "of": "Profiles of {{email}}",
         "readOnly": "Every account manages its own profiles."
+      },
+      "wishes": {
+        "title": "Wishes",
+        "of": "Wishes of {{email}}",
+        "canRequest": "May request titles",
+        "canRequestHelp": "The cap for all profiles. Which profiles request is chosen by the account's primary profile.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Allowed",
+          "not_allowed": "Not allowed",
+          "mapping_missing": "No Seerr user"
+        },
+        "userLine": "Seerr user: {{user}}",
+        "noUser": "none yet",
+        "change": "Change",
+        "userState": {
+          "created": "opened",
+          "linked": "linked",
+          "manual": "chosen by hand",
+          "waiting": "waiting for Seerr"
+        },
+        "linkedBy": "linked {{by}} on {{date}}",
+        "password": {
+          "synced": "password synced",
+          "next_login": "password follows at the next sign-in",
+          "off": "password not synced",
+          "admin": "password stays in Seerr (administrator)",
+          "external": "signs in through Jellyfin, Emby or Plex"
+        },
+        "rightsFollow": "The rights of «{{name}}» in Seerr are adjusted.",
+        "rightsStay": "«{{name}}» keeps its rights in Seerr, because Slouchcat did not open it.",
+        "adminLimit": "«{{name}}» is an administrator in Seerr. Seerr gives administrators no limit.",
+        "limitLater": "No Seerr user yet: Slouchcat sets the limit as soon as the account is opened there.",
+        "limitFixed": "Limit: {{limit}}. For administrators it cannot be changed here.",
+        "savedOn": "{{email}} may request titles now.",
+        "savedOff": "{{email}} may no longer request titles."
       }
     },
     "backup": {
@@ -5703,6 +5748,14 @@
           "movie": "Films {{used}}/{{limit}}",
           "tv": "Seasons {{used}}/{{limit}}"
         }
+      },
+      "limitField": {
+        "label": "Limit",
+        "help": {
+          "default": "As under Wishes › Settings: {{limit}}.",
+          "custom": "Numbers of its own for this account.",
+          "unlimited": "No limit for films and seasons."
+        }
       }
     }
   },
@@ -5806,7 +5859,11 @@
         "metadataLanguage": "Language of descriptions",
         "metadataLanguageHint": "Titles, descriptions and genres; the interface follows the language above.",
         "likeUi": "Like the interface",
-        "playback": "Playback"
+        "playback": "Playback",
+        "wishes": "Wishes",
+        "canRequest": "May request titles",
+        "canRequestHelp": "The profile may request missing titles through Seerr.",
+        "canRequestCapped": "This account may not request titles. An administrator sets the right under Accounts."
       },
       "report": {
         "show": "Show watch time",

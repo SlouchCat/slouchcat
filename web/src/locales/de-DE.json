@@ -366,6 +366,11 @@
         "promote": {
           "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf „ab 18“ und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen."
         }
+      },
+      "wishes": {
+        "rightsFollow": "Die Rechte von „{{name}}“ in Seerr werden angepasst.",
+        "rightsStay": "„{{name}}“ behält in Seerr seine Rechte, weil Slouchcat ihn nicht eröffnet hat.",
+        "adminLimit": "„{{name}}“ ist in Seerr Administrator. Seerr gibt Administratoren kein Limit."
       }
     },
     "backup": {

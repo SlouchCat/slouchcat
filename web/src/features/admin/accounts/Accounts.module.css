@@ -107,6 +107,16 @@
   justify-content: flex-end;
 }
 
+/* «Seerr-Benutzer: … · Ändern» (concept 25): the icon beside the words and the link. */
+.line {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
 /* The invitation dialog. */
 .form {
   display: flex;

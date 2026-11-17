@@ -6,6 +6,7 @@ import { Chip } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import styles from './Accounts.module.css';
 import { ratingLabel } from '../../shared/choices';
+import { WishChip } from './wishes';
 
 /** The profile names of an account, the primary one marked, as one line. */
 export const profileNames = (t: TFunction, account: AdminAccount) =>
@@ -17,7 +18,8 @@ export const profileNames = (t: TFunction, account: AdminAccount) =>
 
 /**
  * The columns of the account table (KON-2, mockup KP-1): the e-mail folds the row out; role with
- * the owner badge, rating, libraries, profiles (one line, the names in full in the fold-out), last
+ * the owner badge, rating, libraries, profiles (one line, the names in full in the fold-out), the
+ * request right (concept 25), last
  * contact and the channels the account switched on; «Weitere Aktionen» of another account last.
  */
 export function accountColumns(
@@ -62,6 +64,11 @@ export function accountColumns(
       key: 'profiles',
       header: t('admin.accounts.columns.profiles'),
       cell: (account) => <span className={styles.clip}>{profileNames(t, account)}</span>,
+    },
+    {
+      key: 'wishes',
+      header: t('admin.accounts.columns.wishes'),
+      cell: (account) => <WishChip account={account} />,
     },
     {
       key: 'lastSeen',
