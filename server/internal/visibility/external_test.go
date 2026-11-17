@@ -219,3 +219,47 @@ func TestVisibleSeasons(t *testing.T) {
 		t.Errorf("system scope: %v, want ErrUnscoped", err)
 	}
 }
+
+// The match the discover pages ask for a page of hits (concept 25, architecture 21.3): a library
+// title the profile sees comes with its item, one it may not see is in the library without an item
+// (the page leaves it out), a series whose TVDB id only external_titles knows is in the library,
+// one with a TVDB id in the ref as well, and Stored tells which hits external_titles holds.
+func TestMatchExternalTitlesForDiscover(t *testing.T) {
+	t.Parallel()
+	f, r := externalFixture(t)
+	ctx := context.Background()
+	refs := []ExternalRef{
+		movie(1002),                      // the film rated 12 of the library
+		movie(1003),                      // the film rated 16 of the library
+		{Media: MediaShow, TMDBID: 4242}, // S through the TVDB id of external_titles
+		{Media: MediaShow, TMDBID: 31337, TVDBID: 7777}, // S through the TVDB id of the ref
+		movie(5000), // missing, rated 12, stored
+		movie(5003), // missing, not stored
+	}
+	for _, tc := range []struct {
+		p       model.Profile
+		items   []string
+		missing []bool
+		details []bool
+	}{
+		{f.P18, []string{f.Rated(12).ID, f.Rated(16).ID, f.Show.Series.ID, f.Show.Series.ID, "", ""},
+			[]bool{false, false, false, false, true, true}, []bool{false, false, false, false, false, false}},
+		{f.P12, []string{f.Rated(12).ID, "", f.Show.Series.ID, f.Show.Series.ID, "", ""},
+			[]bool{false, false, false, false, true, false}, []bool{false, false, false, false, false, true}},
+	} {
+		got, err := r.MatchExternalTitles(ctx, Profile(tc.p), allowAll, refs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, g := range got {
+			inLib := i < 4
+			if g.ItemID != tc.items[i] || g.InLibrary != inLib || g.Missing != tc.missing[i] || g.NeedsDetails != tc.details[i] {
+				t.Errorf("%s ref %d: %+v, want item %q, in library %v, missing %v, details %v",
+					tc.p.Name, i, g, tc.items[i], inLib, tc.missing[i], tc.details[i])
+			}
+			if stored := i == 2 || i == 4; g.Stored != stored {
+				t.Errorf("%s ref %d: stored %v, want %v", tc.p.Name, i, g.Stored, stored)
+			}
+		}
+	}
+}

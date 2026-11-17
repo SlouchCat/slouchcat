@@ -4682,6 +4682,11 @@
           "description": "Reads the queue of Radarr and Sonarr and shows for wishes being procured whether they are searched, downloaded or imported. Changes nothing in Radarr and Sonarr.",
           "trigger": "every minute while wishes are being procured and the download progress is switched on"
         },
+        "wishes_discover": {
+          "name": "Preload wish lists",
+          "description": "Loads the rows of Discover from Seerr into the cache for every language and age step of the profiles that may request, and removes lists older than a day. Every hit is checked again for the profile.",
+          "trigger": "Schedule every hour, while wishes are active and the pages Discover, Movies, Series and Search are on"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

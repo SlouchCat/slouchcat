@@ -23,6 +23,28 @@ func (q *Queries) DeleteOldWishDiscoverPages(ctx context.Context, before int64) 
 	return result.RowsAffected()
 }
 
+const getProfileAgeCeiling = `-- name: GetProfileAgeCeiling :one
+SELECT CAST(min(p.max_rating, a.max_rating) AS INTEGER) AS max_age
+FROM profiles AS p
+JOIN accounts AS a ON a.id = p.account_id
+WHERE p.id = ?1 AND p.account_id = ?2
+`
+
+type GetProfileAgeCeilingParams struct {
+	ProfileID int64
+	AccountID int64
+}
+
+// The age ceiling of a profile: the lower of the profile's and the account's (visibility applies
+// the same, architecture section 3). It names the age step of the cache key and the pre-filter
+// certificationLte; the decision per title stays with visibility.
+func (q *Queries) GetProfileAgeCeiling(ctx context.Context, arg GetProfileAgeCeilingParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getProfileAgeCeiling, arg.ProfileID, arg.AccountID)
+	var max_age int64
+	err := row.Scan(&max_age)
+	return max_age, err
+}
+
 const getWishDiscoverPage = `-- name: GetWishDiscoverPage :one
 
 SELECT cache_key, items, total_pages, fetched_at FROM wish_discover_pages WHERE cache_key = ?1
@@ -40,6 +62,97 @@ func (q *Queries) GetWishDiscoverPage(ctx context.Context, cacheKey string) (Wis
 		&i.FetchedAt,
 	)
 	return i, err
+}
+
+const listDiscoverProfiles = `-- name: ListDiscoverProfiles :many
+SELECT p.id AS profile_id, p.account_id, p.language, p.metadata_language,
+       CAST(min(p.max_rating, a.max_rating) AS INTEGER) AS max_age
+FROM profiles AS p
+JOIN accounts AS a ON a.id = p.account_id
+WHERE p.can_request = 1 AND a.can_request = 1
+ORDER BY p.id
+`
+
+type ListDiscoverProfilesRow struct {
+	ProfileID        int64
+	AccountID        int64
+	Language         string
+	MetadataLanguage sql.NullString
+	MaxAge           int64
+}
+
+// The profiles whose account and profile switch allow requests, with their languages and age
+// ceiling (wishes.discover warms the lists for these). The service resolves the full right.
+func (q *Queries) ListDiscoverProfiles(ctx context.Context) ([]ListDiscoverProfilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDiscoverProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDiscoverProfilesRow{}
+	for rows.Next() {
+		var i ListDiscoverProfilesRow
+		if err := rows.Scan(
+			&i.ProfileID,
+			&i.AccountID,
+			&i.Language,
+			&i.MetadataLanguage,
+			&i.MaxAge,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOpenWishesOfProfile = `-- name: ListOpenWishesOfProfile :many
+SELECT w.id, w.media, w.tmdb_id, w.state
+FROM wish_requesters AS r
+JOIN wishes AS w ON w.id = r.wish_id
+WHERE r.profile_id = ?1 AND w.state IN ('queued', 'pending', 'processing', 'partial')
+`
+
+type ListOpenWishesOfProfileRow struct {
+	ID     int64
+	Media  string
+	TmdbID int64
+	State  string
+}
+
+// The open wishes the profile owns or joined, for the mark "angefordert" on the tiles of a page.
+func (q *Queries) ListOpenWishesOfProfile(ctx context.Context, profileID int64) ([]ListOpenWishesOfProfileRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenWishesOfProfile, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenWishesOfProfileRow{}
+	for rows.Next() {
+		var i ListOpenWishesOfProfileRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.State,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertWishDiscoverPage = `-- name: UpsertWishDiscoverPage :exec

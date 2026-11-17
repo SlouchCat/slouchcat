@@ -62,6 +62,8 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Priority: reconcilePriority, Handler: s.handleReconcile, Run: s.runReconcile, Every: reconcileEvery,
 	})
 	s.registerArrTypes(r) // wishes.tag and wishes.progress (arraccess.go, tags.go, progress.go)
+	// wishes.discover (discover.go)
+	s.registerDiscoverType(r)
 }
 
 func (s *Service) runUsers(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {

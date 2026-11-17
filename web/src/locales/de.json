@@ -4682,6 +4682,11 @@
           "description": "Liest die Warteschlange von Radarr und Sonarr und zeigt bei Wünschen in Beschaffung, ob gesucht, heruntergeladen oder eingelesen wird. Ändert nichts in Radarr und Sonarr.",
           "trigger": "jede Minute, solange Wünsche in Beschaffung sind und der Download-Fortschritt eingeschaltet ist"
         },
+        "wishes_discover": {
+          "name": "Wunschlisten vorladen",
+          "description": "Lädt die Reihen von Entdecken für jede Sprache und Altersstufe der Profile, die anfordern dürfen, aus Seerr in den Zwischenspeicher und entfernt Listen, die älter als einen Tag sind. Jeder Treffer wird für das Profil nachgeprüft.",
+          "trigger": "Zeitplan stündlich, solange Wünsche aktiv und die Seiten Entdecken, Filme, Serien und Suche eingeschaltet sind"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",

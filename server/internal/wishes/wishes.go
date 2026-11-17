@@ -91,6 +91,8 @@ type Service struct {
 	clientOf string // base and key the cached client was made for (in memory only)
 
 	arr arrServices // access to Radarr and Sonarr, made on first use (arraccess.go)
+
+	discover searchCache // the search of the wishes area, 10 minutes (discover.go)
 }
 
 // Option configures New.

@@ -24,8 +24,8 @@
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
 //     library.relink, the daily radio.catalog.sync and the weekly radio.wikidata.sync (radio),
 //     series.catalog of one series after its match (metadata, concept 25), wishes.tag
-//     (wishes, concept 25; a manual run at 7) and wishes.progress (every minute while wishes are
-//     in procurement)
+//     (wishes, concept 25; a manual run at 7), wishes.progress (every minute while wishes are
+//     in procurement) and wishes.discover (the lists of the wishes area, every hour)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh, podcast.download of the planner (pool podcast)

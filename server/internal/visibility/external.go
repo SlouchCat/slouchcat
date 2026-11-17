@@ -61,6 +61,10 @@ type ExternalMatch struct {
 	// age ceiling below 18, and external_titles does not hold the title yet: its age is unknown
 	// until the details are fetched (the search fetches the first 20, then asks again).
 	NeedsDetails bool
+	// Stored is true when external_titles holds the title: its age and its TVDB and IMDb ids are
+	// known to the match. The discover pages fetch the details of a series that is neither in the
+	// library nor stored, so a series of the library matched TVDB first is found (architecture 21.3).
+	Stored bool
 }
 
 // refJSON is one element of the refs array of MatchExternalTitles.
@@ -129,6 +133,7 @@ func (r *Reader) MatchExternalTitles(ctx context.Context, s Scope, right Request
 		m := &out[pos[row.Pos]]
 		m.ItemID = row.ItemID
 		m.InLibrary = row.InLibrary == 1
+		m.Stored = row.HasRow == 1
 		if m.InLibrary || right == nil || !right(m.Ref.Media) {
 			continue
 		}
