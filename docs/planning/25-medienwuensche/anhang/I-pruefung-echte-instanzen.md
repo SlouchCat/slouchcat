@@ -93,6 +93,34 @@ Nur lesend, am 17. November 2026. Sie hat drei Annahmen des Baus widerlegt.
 | N-117 | Die Raster «Filme» und «Serien» bieten die Sortierungen «Beliebtheit», «Neueste zuerst» (bis heute erschienen, mit Mindestzahl an Stimmen) und «Am besten bewertet» (mit Mindestzahl an Stimmen). «Titel A–Z» aus dem Mockup entfällt, weil Seerr sie nicht brauchbar liefert (I-63). | Redaktion (I-63 bis I-65); Abweichung vom Mockup, Marco wird sie gemeldet |
 | N-118 | Der Vorfilter nach Freigabe nimmt das gewählte Land (ADR 0034), für CH und AT aber DE, das nächste Land der Lesereihenfolge mit breiter Abdeckung. Über die Anzeige entscheidet weiter allein die Nachprüfung mit der Regel von Slouchcat. | Redaktion (I-66) |
 
+## 4b. Seerr: Anfragen, dritte Leseprobe
+
+Nur lesend, am 17. November 2026, während des Baus der Benutzerpflege und des Abgleichs. Es wurde nichts
+geschrieben und kein Wunsch angelegt.
+
+| Nr. | Befund | Folge für den Bau |
+|---|---|---|
+| I-70 | `GET /request?requestedBy=<id>&sort=added&sortDirection=desc` und `…&sortDirection=asc` wirken; ohne `sortDirection` kommt die Liste absteigend | «Nächster Platz frei» (Limit) liest die neuesten Anfragen des Benutzers zuerst, Seite um Seite bis vor das Fenster, und nimmt die älteste Anfrage im Fenster (so gebaut, `sortDirection=desc` wird immer mitgeschickt) |
+| I-71 | In der Liste `GET /request` tragen Serien-Anfragen `seasons[] {seasonNumber, status}` und `seasonCount`; `media.seasons` **fehlt** in der Liste. Im Einzelabruf `GET /request/{id}` und in `GET /tv/{id}` (`mediaInfo.seasons`, `mediaInfo.requests[]`) ist es da | Der Abgleich braucht `media.seasons` aus der Liste nicht: Die Staffeln einer Anfrage stehen in `seasons[]`; die Anfragen eines einzelnen Wunsches liest er mit dem Einzelabruf `GET /request/{id}` |
+| I-72 | `GET /user/{id}` liefert `permissions`, `userType` und die vier Limit-Felder (`movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays`) | Die frische Prüfung vor jedem Setzen von Passwort oder E-Mail (Benutzer 1, Verwaltungsrecht, lokale Anmeldung) stützt sich auf diesen Abruf (`03-architektur.md` Abschnitt 15.4) |
+
+Weiter **nicht** an der echten Instanz geprüft und damit Annahme aus dem Quellcode (Anhang D) oder aus den
+Nachbauten der Tests (`web/e2e/seerr-server.mjs`):
+
+- `POST /request` mit den Antworten 201, 202, 409 und den 403-Texten beim Anfordern;
+- 409 bei einer Anfrage zu einem Titel, dessen frühere Anfrage FAILED ist;
+- `POST /request/{id}/retry`;
+- Freigeben und Ablehnen (`POST /request/{id}/approve`, `…/decline`);
+- der Body des Seerr-Webhooks;
+- die Abweisung von `POST /user/{id}/settings/password` für Benutzer 1 und andere Administratoren (I-20);
+- die Felder der Sonarr-Warteschlange (I-57);
+- das Anhängen eines Tags mit `PUT /api/v3/movie/editor` bzw. `PUT /api/v3/series/editor` und
+  `applyTags: "add"` (Abschnitt 5).
+
+Hinweis zu den Prüfskripten: Sie lesen Adresse und Schlüssel aus `deploy/.env` des Entwicklungsrechners unter den
+Namen `SEERR_URL` und `SEERR_API_KEY` (Anhang H 11.1, B-3). Der Server selbst liest die Umgebungsvariablen
+`SLOUCHCAT_SEERR_URL` und `SLOUCHCAT_SEERR_API_KEY` (`07-administration.md`, Abschnitt Seerr-Verbindung).
+
 ## 5. Radarr und Sonarr: Tags und Warteschlange
 
 | Nr. | Befund | Folge für den Bau |

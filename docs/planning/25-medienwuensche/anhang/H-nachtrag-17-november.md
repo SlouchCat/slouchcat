@@ -611,3 +611,18 @@ Damit ist keine Frage mehr offen.
 | N-102 | Wünsche über den Sammelbenutzer merkt sich Slouchcat wie alle anderen mit Konto und Profil; in Seerr steht «slouchcat-gaeste». Bekommt das Konto später einen eigenen Benutzer, bleiben seine alten Wünsche beim Sammelbenutzer. Übernommen (F-21) werden Anfragen des Sammelbenutzers nicht. | Redaktion |
 | N-103 | **Passwort (F-24).** Slouchcat setzt das Passwort in Seerr nur bei Benutzern, die es selbst eröffnet hat (beim Annehmen einer Einladung, über «In Seerr eröffnen», über «Alle eröffnen»), und bei einem bestehenden Benutzer, der beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos verknüpft wurde (E-8). Verknüpft ein Administrator ein bestehendes Konto über die E-Mail oder von Hand mit einem bestehenden Seerr-Benutzer, steht der Passwortstand auf «Wird nicht abgeglichen»; er kann den Abgleich je Konto einschalten. | Marco (F-24), Schalter je Konto Redaktion |
 | N-104 | **Ein Release (F-22, B-1).** Die Stufen 0 bis 5 bleiben die Reihenfolge des Baus, aber es gibt einen Zweig, einen Pull Request und eine Version. Ein eingefrorener Datenbankstand am Schluss genügt. | Marco (B-1) |
+
+---
+
+## 12. Nach den Prüfungen des Baus
+
+Dieser Abschnitt ändert keine der Antworten oben und keinen der älteren Abschnitte. Er zeigt nur, wo der Bau
+eine Regel dieses Anhangs nach den Prüfungen vom 17. November 2026 enger gefasst oder anders benannt hat und wo
+das ausgeschrieben steht. Entschieden hat das die Redaktion, nicht Marco.
+
+| Thema | Was sich ändert | Von | Ausgeschrieben in |
+|---|---|---|---|
+| Verknüpfen privilegierter Seerr-Benutzer (E-8, N-90, N-91, N-95) | Beim Annehmen einer Einladung und nach einer E-Mail-Änderung verknüpft Slouchcat einen gefundenen Seerr-Benutzer **nicht**, wenn er Benutzer 1 ist oder eines der Rechte ADMIN, MANAGE_USERS, MANAGE_SETTINGS oder MANAGE_REQUESTS hat. Das Konto wartet mit dem Grund `seerr_user_privileged`; ein Administrator kann den Benutzer von Hand wählen (dann ohne Passwort- und E-Mail-Abgleich). Das engt E-8 («sofort verknüpfen») für diese Benutzer ein. Grund ist die Zusage aus N-91, dass sich ein Administrator von Seerr so nicht übernehmen lässt: Sie hielt nur für das Passwort, nicht für die Verknüpfung samt Anfragen | Sicherheitskorrektur der Redaktion nach der Sicherheitsprüfung des Baus; Marco ist informiert (Meldung der Bau-Session vom 17. November 2026) | `03-architektur.md` Abschnitte 15.4, 18.1, 18.2; `04-benutzer-profilmapping.md` Abschnitte 12.2, 12.3, 12.5; ADR 0037, Nachtrag |
+| Weitere Schutzregeln für Passwort und E-Mail | jedes Verwaltungsrecht zählt als «Administrator»; frische Prüfung vor jedem Setzen; eine Übergabe je Konto zugleich; Domain `slouchcat.invalid` für Konten gesperrt; «gleicher Host» vergleicht auch das Schema; kein Senden als ein Seerr-Benutzer, der inzwischen einem anderen Konto gehört oder privilegiert ist | Redaktion (Sicherheitsprüfung) | `03-architektur.md` Abschnitt 15.4; `04-benutzer-profilmapping.md` Abschnitt 13.3 |
+| Namen der Umgebungsvariablen (B-3) | Der Server liest `SLOUCHCAT_SEERR_URL` und `SLOUCHCAT_SEERR_API_KEY`. `SEERR_URL` und `SEERR_API_KEY` aus B-3 heissen so nur in `deploy/.env` des Entwicklungsrechners, für die Prüfskripte von Anhang I | so gebaut | `07-administration.md` Abschnitt 4.1; Anhang I Abschnitt 4b |
+| Abweichungen vom Mockup | «Titel A–Z» entfällt; keine Altersfreigabe auf der Vorschauseite; Nachladen beim Scrollen statt «Mehr laden»; «Seerr-Benutzer» als Tabelle | Redaktion bzw. so gebaut (Gründe dort) | `mockup-abdeckung.md` Abschnitt 11 |
