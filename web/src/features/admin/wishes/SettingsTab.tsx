@@ -13,6 +13,7 @@ import {
   SettingRow,
   StatusRegion,
   Switch,
+  TextField,
 } from '@/ui/aria';
 import {
   setWishSettings,
@@ -44,7 +45,10 @@ type Toggle =
   | 'allowWithdraw'
   | 'pinExternalHideTitle'
   | 'provisionAccounts'
-  | 'syncPassword';
+  | 'syncPassword'
+  | 'profileTags'
+  | 'showProgress'
+  | 'discoverPages';
 
 const ALREADY_REQUESTED = [
   'join',
@@ -86,6 +90,59 @@ function DefaultLimit({
         onChange={setDraft}
         onBlur={commit}
         name="defaultLimit"
+      />
+    </Form>
+  );
+}
+
+/** What Radarr takes in a label, 1 to 10 characters (N-21, F-25). */
+const TAG_PREFIX = /^[a-z0-9-]{1,10}$/;
+
+/**
+ * «Präfix» of the tag names: saved when the field is left (or with Enter) and valid; a wrong one
+ * stays in its field with the reason and is not sent.
+ */
+function TagPrefix({
+  prefix,
+  isDisabled,
+  onSave,
+}: {
+  prefix: string;
+  isDisabled: boolean;
+  onSave: (prefix: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState(prefix);
+  // The server's value comes back after a save or a refusal: the field takes it over.
+  const [shown, setShown] = useState(prefix);
+  if (shown !== prefix) {
+    setShown(prefix);
+    setDraft(prefix);
+  }
+  const commit = () => {
+    const next = draft.trim();
+    if (TAG_PREFIX.test(next) && next !== prefix) onSave(next);
+  };
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    commit();
+  };
+  return (
+    <Form onSubmit={onSubmit}>
+      <TextField
+        name="tagPrefix"
+        label={t('admin.wishes.settings.tagPrefix')}
+        hideLabel
+        mono
+        autoComplete="off"
+        spellCheck="false"
+        isDisabled={isDisabled}
+        value={draft}
+        onChange={setDraft}
+        onBlur={commit}
+        validate={(text) =>
+          TAG_PREFIX.test(text.trim()) ? null : t('admin.wishes.settings.tagPrefixInvalid')
+        }
       />
     </Form>
   );
@@ -195,6 +252,7 @@ export function SettingsTab({
       <BandPanel title={t('admin.wishes.settings.where')} icon="search">
         {row('fromSearch')}
         {row('fromDetail')}
+        {row('discoverPages')}
       </BandPanel>
 
       <BandPanel title={t('admin.wishes.settings.rules')} icon="settings">
@@ -299,6 +357,49 @@ export function SettingsTab({
         </SettingRow>
       </BandPanel>
 
+      <BandPanel
+        title={t('admin.wishes.settings.arr')}
+        icon="bookmark"
+        collapsible
+        meta={
+          <span>
+            {t('admin.wishes.settings.arrSummary', {
+              tags: t(shown.profileTags ? 'admin.wishes.settings.on' : 'admin.wishes.settings.off'),
+              prefix: shown.tagPrefix,
+              progress: t(
+                shown.showProgress ? 'admin.wishes.settings.on' : 'admin.wishes.settings.off',
+              ),
+            })}
+          </span>
+        }
+      >
+        {row('profileTags')}
+        <SettingRow
+          label={t('admin.wishes.settings.tagPrefix')}
+          help={t('admin.wishes.settings.tagPrefixHelp')}
+        >
+          <TagPrefix
+            // A refused prefix starts the field afresh from what the server holds.
+            key={save.failure?.key === 'tagPrefix' ? save.failure.id : 0}
+            prefix={settings.data.tagPrefix}
+            isDisabled={!shown.profileTags}
+            onSave={(tagPrefix) => save.change('tagPrefix', { tagPrefix })}
+          />
+        </SettingRow>
+        {row('showProgress')}
+        <SettingRow
+          label={t('admin.wishes.settings.arrLinks')}
+          help={t('admin.wishes.settings.arrLinksHelp')}
+        >
+          <span className={styles.chips}>
+            <TextLink href={connection}>{t('admin.wishes.settings.toArr')}</TextLink>
+            <TextLink href={`${paths.adminWishes}?tab=seerr-benutzer`}>
+              {t('admin.wishes.settings.toUsers')}
+            </TextLink>
+          </span>
+        </SettingRow>
+      </BandPanel>
+
       <BandPanel title={t('admin.wishes.settings.links')} icon="external">
         <SettingRow
           label={t('admin.wishes.settings.who')}
@@ -352,6 +453,9 @@ function savedText(t: TFunction, key: string, patch: WishSettingsUpdate): string
       name: t('admin.wishes.settings.alreadyRequested'),
       value: t(`admin.wishes.settings.alreadyRequestedOptions.${patch.alreadyRequested}`),
     });
+  }
+  if (key === 'tagPrefix' && patch.tagPrefix) {
+    return t('admin.wishes.settings.tagPrefixSaved', { prefix: patch.tagPrefix });
   }
   if (key === 'unmapped' && patch.unmapped) {
     return t('admin.wishes.settings.choiceSaved', {

@@ -5777,7 +5777,24 @@
         "connectionHelp": "Adresse, Schlüssel, Test und Protokoll.",
         "users": "Seerr-Benutzer",
         "usersHelp": "Welches Konto als welcher Seerr-Benutzer anfordert, mit Passwort und Limit.",
-        "usersCount": "{{opened}} von {{total}} Konten"
+        "usersCount": "{{opened}} von {{total}} Konten",
+        "arr": "Radarr und Sonarr: Profil-Tag und Fortschritt",
+        "profileTags": "Profil-Tag in Radarr und Sonarr setzen",
+        "profileTagsHelp": "Hängt den Tag des Profils an den Titel, sobald Seerr ihn an Radarr oder Sonarr übergeben hat, und holt Tags nach, die nicht gesetzt werden konnten. Ändert sonst nichts in Radarr und Sonarr.",
+        "tagPrefix": "Präfix",
+        "tagPrefixHelp": "Kleinbuchstaben, Ziffern und Bindestrich. Beispiel: sc-noah. Gilt für neue Tags; bestehende Tags bleiben, wie sie sind. Den Tag eines einzelnen Profils änderst du unter «Seerr-Benutzer».",
+        "tagPrefixInvalid": "1 bis 10 Zeichen: nur Kleinbuchstaben a–z, Ziffern 0–9 und Bindestrich. Nicht gespeichert.",
+        "tagPrefixSaved": "Präfix «{{prefix}}»: Neue Tags heissen etwa {{prefix}}noah. Gesetzte Tags bleiben, wie sie sind.",
+        "showProgress": "Download-Fortschritt zeigen",
+        "showProgressHelp": "Zeigt bei Wünschen in Beschaffung, ob der Titel gesucht, heruntergeladen oder eingelesen wird. Slouchcat liest dafür jede Minute die Warteschlange von Radarr und Sonarr, solange Wünsche in Beschaffung sind.",
+        "arrSummary": "Tag {{tags}} · Präfix {{prefix}} · Fortschritt {{progress}}",
+        "on": "an",
+        "off": "aus",
+        "arrLinks": "Zugang zu Radarr und Sonarr",
+        "arrLinksHelp": "Adresse und Schlüssel kommen aus Seerr; Namen je Profil stehen unter Seerr-Benutzer.",
+        "toArr": "Integrationen › Seerr",
+        "discoverPages": "Seiten Entdecken, Filme, Serien und Suche",
+        "discoverPagesHelp": "Reiter im Bereich «Wünsche». Aus: nur «Meine Wünsche»."
       },
       "users": {
         "caption": "Konten und ihre Seerr-Benutzer",
@@ -5943,7 +5960,35 @@
         "provisionAllTitle": "Alle Konten in Seerr eröffnen?",
         "provisionAllBody": "Über gleiche E-Mail verknüpfen: {{link}} · In Seerr neu anlegen: {{create}}.",
         "provisionAllWaits": "Seerr ist gerade nicht verbunden: Die Konten warten dann und werden beim nächsten Abgleich eröffnet.",
-        "provisionAllQueued": "Eröffnen läuft: {{link}} verknüpfen, {{create}} neu anlegen."
+        "provisionAllQueued": "Eröffnen läuft: {{link}} verknüpfen, {{create}} neu anlegen.",
+        "profiles": {
+          "title": "Profile und Tags",
+          "help": "Jedes Profil trägt in Radarr und Sonarr seinen eigenen Tag, sobald ein Wunsch dort ankommt. Ein gesetzter Tag bleibt, auch wenn sich der Name ändert.",
+          "none": "Das Konto hat keine Profile.",
+          "custom": "eigener Name",
+          "change": "Ändern",
+          "changeLabel": "Tag von {{profile}} ändern",
+          "field": "Tag-Name für {{profile}}",
+          "fieldHelp": "Nur Kleinbuchstaben a–z, Ziffern 0–9 und Bindestrich.",
+          "invalid": "Erlaubt sind nur Kleinbuchstaben a–z, Ziffern 0–9 und der Bindestrich, höchstens 64 Zeichen.",
+          "save": "Speichern",
+          "saveLabel": "Tag von {{profile}} speichern",
+          "cancel": "Abbrechen",
+          "reset": "Zurücksetzen",
+          "resetLabel": "Tag von {{profile}} auf den Namen aus dem Präfix zurücksetzen",
+          "saved": "{{profile}}: Der Tag heisst jetzt {{name}}.",
+          "tagsOff": "Profil-Tags sind ausgeschaltet (Wünsche › Einstellungen)."
+        },
+        "takeOver": {
+          "title": "Anfragen aus Seerr",
+          "help": "Anfragen, die direkt in Seerr gestellt wurden, werden Wünsche des Hauptprofils mit dem Vermerk «In Seerr angelegt». Sie tragen keinen Profil-Tag.",
+          "counting": "Anfragen in Seerr werden gezählt …",
+          "none": "Keine Anfragen in Seerr.",
+          "action_one": "{{count}} Anfrage aus Seerr übernehmen",
+          "action_other": "{{count}} Anfragen aus Seerr übernehmen",
+          "queued_one": "{{count}} Anfrage von {{name}} wird übernommen.",
+          "queued_other": "{{count}} Anfragen von {{name}} werden übernommen."
+        }
       },
       "limitField": {
         "label": "Limit",

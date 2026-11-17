@@ -989,6 +989,32 @@ export const seerrUsersQuery = queryOptions({
     request(api.GET('/admin/wishes/mappings/users', { signal })),
 });
 
+/** The tag name of a profile in Radarr and Sonarr; `null` goes back to the name from the prefix. */
+export const setProfileTagName = (profileId: number, name: string | null) =>
+  request(
+    api.PUT('/admin/wishes/profiles/{profileId}/tag', {
+      params: { path: { profileId } },
+      body: { name },
+    }),
+  );
+
+/** Every request of a Seerr user in Seerr, before «Anfragen übernehmen» (stage 4, F-21). */
+export const seerrRequestCountQuery = (seerrUserId: number) =>
+  queryOptions({
+    queryKey: [...wishKeys.all, 'requestCount', seerrUserId],
+    queryFn: ({ signal }) =>
+      request(
+        api.GET('/admin/wishes/mappings/users/{seerrUserId}/requests/count', {
+          params: { path: { seerrUserId } },
+          signal,
+        }),
+      ),
+  });
+
+/** «Anfragen übernehmen»: queues the job `wishes.import` for one Seerr user (202). */
+export const importSeerrRequests = (seerrUserId: number) =>
+  request(api.POST('/admin/wishes/mappings/import', { body: { seerrUserId } }));
+
 /** Queues the job `seerr.users`; the list changes once it ran. */
 export const refreshSeerrUsers = (): Promise<void> =>
   request(api.POST('/admin/wishes/mappings/users/refresh'));

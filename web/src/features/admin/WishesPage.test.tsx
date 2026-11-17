@@ -132,6 +132,93 @@ describe('Wünsche › Seerr-Benutzer', () => {
     expect(document.body.textContent).not.toContain('{{');
   });
 
+  it('a profile tag changes in place: wrong characters stay, a taken name is refused, reset goes back', async () => {
+    let current = mapping({
+      seerrUserId: 2,
+      state: 'manual',
+      passwordState: 'external',
+      profiles: [
+        { profileId: 1, name: 'Marco', tagName: 'sc-marco', tagNameCustom: false },
+        { profileId: 4, name: 'Lena', tagName: 'lena-k', tagNameCustom: true },
+      ],
+    });
+    let taken = true;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({ accounts: [current], unlinkedUsers: [], opened: 1, total: 1 }),
+        'GET /admin/wishes/mappings/users/2/requests/count': () => json({ count: 3 }),
+        'POST /admin/wishes/mappings/import': () => json({ queued: 1 }, 202),
+        'PUT /admin/wishes/profiles/1/tag': () => {
+          if (taken) {
+            taken = false;
+            return problem(409, 'tag_name_taken');
+          }
+          current = {
+            ...current,
+            profiles: [
+              { profileId: 1, name: 'Marco', tagName: 'sc-marco-2', tagNameCustom: true },
+              ...(current.profiles ?? []).slice(1),
+            ],
+          };
+          return json({ profileId: 1, name: 'sc-marco-2', custom: true });
+        },
+        'PUT /admin/wishes/profiles/4/tag': () =>
+          json({ profileId: 4, name: 'sc-lena', custom: false }),
+      }),
+    );
+    renderApp('/admin/wishes?tab=seerr-benutzer');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'besitzer@example.org' }));
+    expect(screen.getByText('sc-marco')).toBeVisible();
+    expect(screen.getByText('eigener Name')).toBeVisible();
+
+    // «n Anfragen aus Seerr übernehmen» with the count from Seerr; 202 says what runs.
+    await user.click(
+      await screen.findByRole('button', { name: '3 Anfragen aus Seerr übernehmen' }),
+    );
+    expect(await screen.findByText('3 Anfragen von wohnzimmer werden übernommen.')).toBeVisible();
+    expect(calls.find((call) => call.path === '/admin/wishes/mappings/import')?.body).toEqual({
+      seerrUserId: 2,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Tag von Marco ändern' }));
+    const field = screen.getByRole('textbox', { name: 'Tag-Name für Marco' });
+    await waitFor(() => expect(field).toHaveFocus());
+    await user.clear(field);
+    await user.type(field, 'Marco!');
+    await user.click(screen.getByRole('button', { name: 'Tag von Marco speichern' }));
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(calls.some((call) => call.path === '/admin/wishes/profiles/1/tag')).toBe(false);
+    await user.clear(field);
+    await user.type(field, 'sc-marco-2');
+    await user.click(screen.getByRole('button', { name: 'Tag von Marco speichern' }));
+    expect(await screen.findByText('Ein anderes Profil hat schon diesen Tag-Namen.')).toBeVisible();
+    // Typing again clears the server's reason; the other profile has given the name up meanwhile.
+    await user.clear(field);
+    await user.type(field, 'sc-marco-2');
+    await user.click(screen.getByRole('button', { name: 'Tag von Marco speichern' }));
+    expect(await screen.findByText('Marco: Der Tag heisst jetzt sc-marco-2.')).toBeVisible();
+    expect(
+      calls.filter((call) => call.path === '/admin/wishes/profiles/1/tag').at(-1)?.body,
+    ).toEqual({
+      name: 'sc-marco-2',
+    });
+
+    // A custom name goes back to the one from the prefix.
+    await user.click(screen.getByRole('button', { name: 'Tag von Lena ändern' }));
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Tag von Lena auf den Namen aus dem Präfix zurücksetzen',
+      }),
+    );
+    expect(await screen.findByText('Lena: Der Tag heisst jetzt sc-lena.')).toBeVisible();
+    expect(calls.find((call) => call.path === '/admin/wishes/profiles/4/tag')?.body).toEqual({
+      name: null,
+    });
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
   it('«In Seerr eröffnen» names the user of the same e-mail; Seerr away, the account waits', async () => {
     const same = user(4, 'besitzer', { email: 'Besitzer@example.org' });
     const { calls } = mockApi(
@@ -343,6 +430,36 @@ describe('Wünsche › Seerr-Benutzer', () => {
 });
 
 describe('Wünsche › Einstellungen', () => {
+  it('the band of Radarr and Sonarr: the prefix saves when left, a wrong one is not sent', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/wishes/settings': () => json(settings({ tagPrefix: 'tag-' })),
+      }),
+    );
+    renderApp('/admin/wishes?tab=einstellungen');
+    const user = userEvent.setup();
+    const band = await screen.findByRole('button', {
+      name: 'Radarr und Sonarr: Profil-Tag und Fortschritt',
+    });
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    expect(band).toHaveAccessibleDescription('Tag an · Präfix sc- · Fortschritt an');
+    await user.click(band);
+    expect(
+      screen.getByRole('switch', { name: 'Seiten Entdecken, Filme, Serien und Suche' }),
+    ).toBeChecked();
+    const prefix = screen.getByRole('textbox', { name: 'Präfix' });
+    await user.clear(prefix);
+    await user.type(prefix, 'Tag_');
+    await user.tab();
+    expect(prefix).toHaveAttribute('aria-invalid', 'true');
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    await user.clear(prefix);
+    await user.type(prefix, 'tag-');
+    await user.tab();
+    expect(await screen.findByText(/Präfix «tag-»: Neue Tags heissen etwa tag-noah/)).toBeVisible();
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ tagPrefix: 'tag-' });
+  });
+
   it('a switch takes effect at once and says so', async () => {
     const { calls } = mockApi(
       routes({

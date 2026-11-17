@@ -830,3 +830,176 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
     await closeWishes(owner, setup);
   }
 });
+
+// M-24 and M-25 stage 4: the tag name of a profile changed in place (wrong characters stay, a
+// name of another profile is refused, «Zurücksetzen» goes back), «n Anfragen aus Seerr
+// übernehmen» with the count from Seerr, and the band «Radarr und Sonarr: Profil-Tag und
+// Fortschritt» of «Einstellungen» with the prefix and the switch of the wishes pages. Last in the
+// file: the take-over makes wishes of the requests made in Seerr.
+test('profile tags, the take-over and the band of Radarr and Sonarr by keyboard @keyboard', async ({
+  page,
+  owner,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await connect(owner);
+  const wohnzimmer = USER('wohnzimmer');
+  const ownerMapping = (await mappings(owner)).find((m) => m.email === OWNER.email);
+  await send(owner, 'put', `/admin/wishes/mappings/accounts/${ownerMapping?.accountId}`, {
+    seerrUserId: wohnzimmer.id,
+  });
+  await provisionSettled(owner);
+  // Two requests made directly in Seerr as «wohnzimmer».
+  for (const mediaId of [9001, 9003]) {
+    const made = await fetch(`${SEERR_BASE}/api/v1/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': SEERR_API_KEY,
+        'X-API-User': String(wohnzimmer.id),
+      },
+      body: JSON.stringify({ mediaType: 'movie', mediaId }),
+    });
+    expect(made.status).toBe(201);
+  }
+  const profiles = async () =>
+    (
+      await json<{
+        accounts: { email: string; profiles?: { profileId: number; tagName: string }[] }[];
+      }>(owner, '/admin/wishes/mappings')
+    ).accounts.find((m) => m.email === OWNER.email)?.profiles ?? [];
+  const [profile] = await profiles();
+  if (!profile) throw new Error('the owner has a profile');
+  const derived = profile.tagName;
+  try {
+    await page.goto('/admin/wishes?tab=seerr-benutzer');
+    const table = page.getByRole('table', { name: 'Konten und ihre Seerr-Benutzer' });
+    // The table fits beside the sidebar at 1280 px.
+    expect(
+      await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    const toggle = rowToggle(page, OWNER.email);
+    await resetFocus(page);
+    await tabTo(page, toggle, 60);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    // The take-over names the count from Seerr first.
+    const take = page.getByRole('button', { name: '2 Anfragen aus Seerr übernehmen' });
+    await expect(take).toBeVisible();
+    await expect(page.getByText(derived, { exact: true })).toBeVisible();
+    await shot(page, 'seerr-benutzer-tags-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await take.scrollIntoViewIfNeeded();
+    await shot(page, 'seerr-benutzer-tags-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await tabTo(page, take, 20);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('2 Anfragen von wohnzimmer werden übernommen.')).toBeVisible();
+
+    // «Ändern» opens the field with the name; wrong characters stay there and are not sent.
+    const change = page.getByRole('button', { name: `Tag von ${OWNER_PROFILE} ändern` });
+    await tabTo(page, change, 20);
+    await page.keyboard.press('Enter');
+    const field = page.getByRole('textbox', { name: `Tag-Name für ${OWNER_PROFILE}` });
+    await expectFocusOn(page, field);
+    await expect(field).toHaveValue(derived);
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('Haupt!');
+    await page.keyboard.press('Enter');
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
+    // A name another profile has: refused at the field.
+    await page.route('**/api/v1/admin/wishes/profiles/*/tag', (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          code: 'tag_name_taken',
+        }),
+      }),
+    );
+    await field.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('e2e-haupt');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Ein anderes Profil hat schon diesen Tag-Namen.')).toBeVisible();
+    await page.unroute('**/api/v1/admin/wishes/profiles/*/tag');
+    await shot(page, 'seerr-benutzer-tag-edit-desktop');
+    await field.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('e2e-haupt');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(`${OWNER_PROFILE}: Der Tag heisst jetzt e2e-haupt.`)).toBeVisible();
+    await expectFocusOn(page, change);
+    await expect(page.getByText('eigener Name')).toBeVisible();
+    // «Zurücksetzen» goes back to the name from the prefix.
+    await page.keyboard.press('Enter');
+    const reset = page.getByRole('button', {
+      name: `Tag von ${OWNER_PROFILE} auf den Namen aus dem Präfix zurücksetzen`,
+    });
+    await tabTo(page, reset, 6);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(`${OWNER_PROFILE}: Der Tag heisst jetzt ${derived}.`),
+    ).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // «Einstellungen»: the band starts closed with its summary; Enter opens it.
+    await page.goto('/admin/wishes?tab=einstellungen');
+    const band = page.getByRole('button', {
+      name: 'Radarr und Sonarr: Profil-Tag und Fortschritt',
+    });
+    await expect(band).toHaveAttribute('aria-expanded', 'false');
+    await expect(band).toHaveAccessibleDescription('Tag an · Präfix sc- · Fortschritt an');
+    await resetFocus(page);
+    await tabTo(page, band, 80);
+    await page.keyboard.press('Enter');
+    await expect(band).toHaveAttribute('aria-expanded', 'true');
+    const tags = page.getByRole('switch', { name: 'Profil-Tag in Radarr und Sonarr setzen' });
+    await tabTo(page, tags, 6);
+    await page.keyboard.press('Space');
+    await expect(
+      page.getByText('«Profil-Tag in Radarr und Sonarr setzen» ist ausgeschaltet. Gilt sofort.'),
+    ).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(
+      page.getByText('«Profil-Tag in Radarr und Sonarr setzen» ist eingeschaltet. Gilt sofort.'),
+    ).toBeVisible();
+    const prefix = page.getByRole('textbox', { name: 'Präfix' });
+    await tabTo(page, prefix, 6);
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('Tag_');
+    await page.keyboard.press('Tab');
+    await expect(prefix).toHaveAttribute('aria-invalid', 'true');
+    await expect(prefix).toHaveAccessibleDescription(/1 bis 10 Zeichen/);
+    await prefix.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('tag-');
+    await page.keyboard.press('Tab');
+    await expect(page.getByText(/^Präfix «tag-»: Neue Tags heissen etwa tag-noah/)).toBeVisible();
+    await expect(band).toHaveAccessibleDescription('Tag an · Präfix tag- · Fortschritt an');
+    const pages = page.getByRole('switch', { name: 'Seiten Entdecken, Filme, Serien und Suche' });
+    await pages.focus();
+    await page.keyboard.press('Space');
+    await expect(
+      page.getByText('«Seiten Entdecken, Filme, Serien und Suche» ist ausgeschaltet. Gilt sofort.'),
+    ).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+    await band.scrollIntoViewIfNeeded();
+    await shot(page, 'einstellungen-arr-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await band.scrollIntoViewIfNeeded();
+    await shot(page, 'einstellungen-arr-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // The band folds away with Space; the focus stays on its toggle.
+    await band.focus();
+    await page.keyboard.press('Space');
+    await expect(band).toHaveAttribute('aria-expanded', 'false');
+    await expectFocusOn(page, band);
+    await expectNoFocusTrap(page, 100);
+  } finally {
+    await send(owner, 'put', `/admin/wishes/profiles/${profile.profileId}/tag`, { name: null });
+  }
+});

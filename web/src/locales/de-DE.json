@@ -606,7 +606,10 @@
         "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf „Zurückziehen“ unter „Meine Wünsche“.",
         "limitZero": "Anzahl 0 heißt ohne Limit.",
         "perAccountHelp": "Unter „Konten“ lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
-        "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die „Lokale Anmeldung“. Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort."
+        "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die „Lokale Anmeldung“. Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.",
+        "tagPrefixHelp": "Kleinbuchstaben, Ziffern und Bindestrich. Beispiel: sc-noah. Gilt für neue Tags; bestehende Tags bleiben, wie sie sind. Den Tag eines einzelnen Profils änderst du unter „Seerr-Benutzer“.",
+        "tagPrefixSaved": "Präfix „{{prefix}}“: Neue Tags heißen etwa {{prefix}}noah. Gesetzte Tags bleiben, wie sie sind.",
+        "discoverPagesHelp": "Reiter im Bereich „Wünsche“. Aus: nur „Meine Wünsche“."
       },
       "users": {
         "goneTitle": "Benutzer „{{name}}“ nicht gefunden",
@@ -629,6 +632,12 @@
         "passwordNote": {
           "admin": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ ist in Seerr Administrator, sein Passwort bleibt dort, wie es ist.",
           "external": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ meldet sich über Jellyfin, Emby oder Plex an, nicht mit einem eigenen Passwort."
+        },
+        "profiles": {
+          "saved": "{{profile}}: Der Tag heißt jetzt {{name}}."
+        },
+        "takeOver": {
+          "help": "Anfragen, die direkt in Seerr gestellt wurden, werden Wünsche des Hauptprofils mit dem Vermerk „In Seerr angelegt“. Sie tragen keinen Profil-Tag."
         }
       },
       "requests": {

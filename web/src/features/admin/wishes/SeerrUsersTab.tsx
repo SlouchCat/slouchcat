@@ -25,6 +25,7 @@ import {
   StatusRegion,
   useStatusMessage,
   type DataTableExpand,
+  type Drafts,
 } from '@/ui/aria';
 import {
   dashboardQuery,
@@ -45,6 +46,7 @@ import { rightsText, seerrUserColumns, userTypeText } from './columns';
 import { QuotaLines } from '../../shared/quota';
 import { limitSummary } from '../../shared/WishLimitFields';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
+import { ProfileTags, TakeOver } from './ProfileTags';
 import styles from './Wishes.module.css';
 
 interface MappingChange {
@@ -112,6 +114,7 @@ function AccountDetail({
   settings,
   configured,
   stale,
+  tagDrafts,
 }: {
   mapping: WishAccountMapping;
   user: SeerrUser | undefined;
@@ -123,6 +126,8 @@ function AccountDetail({
   configured: boolean;
   /** The list of the users is the last one read (Seerr does not answer). */
   stale: boolean;
+  /** The tag names typed for the profiles (page drafts). */
+  tagDrafts: Drafts<string>;
 }) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -443,6 +448,8 @@ function AccountDetail({
           </Notice>
         ) : null}
       </section>
+      {ready && <TakeOver seerrUserId={user.id} name={user.displayName} />}
+      <ProfileTags mapping={mapping} drafts={tagDrafts} tagsOn={settings?.profileTags ?? true} />
     </div>
   );
 }
@@ -467,6 +474,7 @@ export function SeerrUsersTab({
   onProvisionAll,
   provisionAllPending,
   provisionAllMessage,
+  tagDrafts,
 }: {
   mappings: UseQueryResult<WishMappings>;
   users: UseQueryResult<SeerrUser[]>;
@@ -481,6 +489,8 @@ export function SeerrUsersTab({
   provisionAllPending: boolean;
   /** The outcome of «Alle eröffnen», or its refusal. */
   provisionAllMessage: ReactNode;
+  /** The tag names typed for the profiles, kept by the page so leaving asks first. */
+  tagDrafts: Drafts<string>;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -730,6 +740,7 @@ export function SeerrUsersTab({
                     settings={settings}
                     configured={configured}
                     stale={stale}
+                    tagDrafts={tagDrafts}
                   />
                 ),
                 expandedKeys: expanded,

@@ -5777,7 +5777,24 @@
         "connectionHelp": "Address, key, test and log.",
         "users": "Seerr users",
         "usersHelp": "Which account requests as which Seerr user, with password and limit.",
-        "usersCount": "{{opened}} of {{total}} accounts"
+        "usersCount": "{{opened}} of {{total}} accounts",
+        "arr": "Radarr and Sonarr: profile tag and progress",
+        "profileTags": "Set the profile tag in Radarr and Sonarr",
+        "profileTagsHelp": "Attaches the profile's tag to the title once Seerr has handed it to Radarr or Sonarr, and catches up on tags that could not be set. Changes nothing else in Radarr and Sonarr.",
+        "tagPrefix": "Prefix",
+        "tagPrefixHelp": "Lower-case letters, digits and the hyphen. Example: sc-noah. Applies to new tags; existing tags stay as they are. You change the tag of a single profile under “Seerr users”.",
+        "tagPrefixInvalid": "1 to 10 characters: only lower-case letters a–z, digits 0–9 and the hyphen. Not saved.",
+        "tagPrefixSaved": "Prefix “{{prefix}}”: new tags are called {{prefix}}noah, for instance. Tags already set stay as they are.",
+        "showProgress": "Show the download progress",
+        "showProgressHelp": "Shows at wishes in procurement whether the title is being searched, downloaded or imported. For that Slouchcat reads the queue of Radarr and Sonarr every minute while wishes are in procurement.",
+        "arrSummary": "Tag {{tags}} · prefix {{prefix}} · progress {{progress}}",
+        "on": "on",
+        "off": "off",
+        "arrLinks": "Access to Radarr and Sonarr",
+        "arrLinksHelp": "Address and key come from Seerr; the names per profile are under Seerr users.",
+        "toArr": "Integrations › Seerr",
+        "discoverPages": "Pages Discover, Films, Series and Search",
+        "discoverPagesHelp": "Tabs in the area “Wishes”. Off: only “My wishes”."
       },
       "users": {
         "caption": "Accounts and their Seerr users",
@@ -5943,7 +5960,35 @@
         "provisionAllTitle": "Open all accounts in Seerr?",
         "provisionAllBody": "Link by the same e-mail: {{link}} · Create new in Seerr: {{create}}.",
         "provisionAllWaits": "Seerr is not connected right now: the accounts then wait and are opened at the next sync.",
-        "provisionAllQueued": "Opening runs: {{link}} to link, {{create}} to create."
+        "provisionAllQueued": "Opening runs: {{link}} to link, {{create}} to create.",
+        "profiles": {
+          "title": "Profiles and tags",
+          "help": "Each profile carries its own tag in Radarr and Sonarr once a wish arrives there. A tag already set stays, even when the name changes.",
+          "none": "The account has no profiles.",
+          "custom": "own name",
+          "change": "Change",
+          "changeLabel": "Change the tag of {{profile}}",
+          "field": "Tag name for {{profile}}",
+          "fieldHelp": "Only lower-case letters a–z, digits 0–9 and the hyphen.",
+          "invalid": "Only lower-case letters a–z, digits 0–9 and the hyphen are allowed, at most 64 characters.",
+          "save": "Save",
+          "saveLabel": "Save the tag of {{profile}}",
+          "cancel": "Cancel",
+          "reset": "Reset",
+          "resetLabel": "Reset the tag of {{profile}} to the name from the prefix",
+          "saved": "{{profile}}: the tag is now called {{name}}.",
+          "tagsOff": "Profile tags are switched off (Wishes › Settings)."
+        },
+        "takeOver": {
+          "title": "Requests from Seerr",
+          "help": "Requests made directly in Seerr become wishes of the primary profile, marked “Created in Seerr”. They carry no profile tag.",
+          "counting": "Counting the requests in Seerr …",
+          "none": "No requests in Seerr.",
+          "action_one": "Take over {{count}} request from Seerr",
+          "action_other": "Take over {{count}} requests from Seerr",
+          "queued_one": "{{count}} request of {{name}} is being taken over.",
+          "queued_other": "{{count}} requests of {{name}} are being taken over."
+        }
       },
       "limitField": {
         "label": "Limit",

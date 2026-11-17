@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useActiveSession } from '@/app/session';
 import { intlLocale } from '@/i18n';
@@ -15,8 +15,10 @@ import {
   StatusRegion,
   StatusStrip,
   Tabs,
+  useDrafts,
   useSearchSelection,
   useStatusMessage,
+  useUnsavedChanges,
 } from '@/ui/aria';
 import {
   dashboardQuery,
@@ -27,6 +29,7 @@ import {
   wishMappingsQuery,
   wishSettingsQuery,
 } from './queries';
+import { tagDraft } from './wishes/ProfileTags';
 import { linkCandidate, SeerrUsersTab } from './wishes/SeerrUsersTab';
 import { RequestsTab } from './wishes/RequestsTab';
 import { SettingsTab } from './wishes/SettingsTab';
@@ -91,6 +94,19 @@ function WishesContent() {
   const users = useQuery({ ...seerrUsersQuery, refetchInterval: poll });
 
   const accounts = mappings.data?.accounts ?? [];
+  // The tag names typed for the profiles (stage 4): drafts against the stored names, so leaving
+  // the page with one asks first.
+  const mappingData = mappings.data;
+  const tagDrafts = useDrafts<string>(
+    useCallback(
+      (id: string) =>
+        mappingData?.accounts
+          .flatMap((account) => account.profiles ?? [])
+          .find((profile) => tagDraft(profile.profileId) === id)?.tagName,
+      [mappingData],
+    ),
+  );
+  const unsaved = useUnsavedChanges(tagDrafts.dirty);
   // `?item=` opens that account's row once, when the list knows it (as on «Konten»).
   const [openedItem, setOpenedItem] = useState<string | undefined>(undefined);
   const itemKnown =
@@ -190,6 +206,7 @@ function WishesContent() {
                 onReloaded={() => setReloadUntil(Date.now() + RELOAD_WINDOW_MS)}
                 onProvisionAll={() => setConfirmOpen(true)}
                 provisionAllPending={provisionAll.isPending}
+                tagDrafts={tagDrafts}
                 provisionAllMessage={
                   provisionAll.error ? (
                     <Notice tone="danger">{problemMessage(t, provisionAll.error)}</Notice>
@@ -222,6 +239,7 @@ function WishesContent() {
         cancelLabel={t('common.cancel')}
         onConfirm={() => provisionAll.mutate()}
       />
+      <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>
   );
 }
