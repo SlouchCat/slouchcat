@@ -177,6 +177,8 @@ tags:
     description: Incoming webhooks of Radarr and Sonarr (M9, I-8).
   - name: radio
     description: Webradio stations, favourites and listen sessions of the active profile (concept 16).
+  - name: wishes
+    description: Titles outside the library and the wishes of the active profile (concept 25).
 paths:
   /healthz:
     get:
@@ -8517,7 +8519,7 @@ paths:
         "422":
           description: |
             `channel_unavailable` (the server has the channel not configured; switching it off is always
-            allowed), `event_not_allowed` (`errors` on a guest account), `validation_failed`
+            allowed), `event_not_allowed` (`errors` or `wish_review` on an account that is no administrator), `validation_failed`
             (`email.address` `invalid_email`, an unknown event).
           content:
             application/problem+json:
@@ -9177,6 +9179,487 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/seerr/sync:
+    post:
+      operationId: syncWishesNow
+      summary: Sync the wishes with Seerr now (concept 25 stage 2)
+      description: |
+        Queues the job `wishes.sync` at once (Medien › Wünsche, band «Abgleich»); the answer does not
+        wait for it.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: Queued.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: The job type is paused (`job_type_paused`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Seerr is not set up (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes:
+    get:
+      operationId: listAdminWishes
+      summary: Every wish of the household (concept 25 stage 2, Medien › Wünsche › Anfragen)
+      description: |
+        Newest change first, with the requesters (account and profile) and the history. No `ItemRef` and
+        no scoped address: a title of the library is named by its `itemId`, its poster comes from
+        `getAdminExternalTitleImage` (the stored title outside the library of every wish). `counts`
+        count every wish, whatever the filter.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/WishStateFilter"
+        - name: unmapped
+          in: query
+          required: false
+          description: |
+            Only the wishes without a requester in Slouchcat (taken over from Seerr, or whose profiles are
+            gone).
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/WishPageOffset"
+        - $ref: "#/components/parameters/WishPageLimit"
+      responses:
+        "200":
+          description: One page of wishes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminWishPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `state` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/titles/{media}/{tmdbId}/images/{kind}/{size}:
+    get:
+      operationId: getAdminExternalTitleImage
+      summary: Image of a title outside the library for the administration (binary, system-wide)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getAdminItemImage`: without a profile
+        check, for the lists of the administration (Anfragen, Spotlight). Sizes and formats as
+        `getExternalTitleImage`. 404 for a title Slouchcat has not stored or without such an image.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ExternalMediaPath"
+        - $ref: "#/components/parameters/TmdbIdPath"
+        - $ref: "#/components/parameters/ExternalImageKindPath"
+        - $ref: "#/components/parameters/ExternalImageSizePath"
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No such title or image (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: TMDB did not deliver the image for now (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /titles/search:
+    get:
+      operationId: searchExternalTitles
+      summary: Search section «Noch nicht in der Bibliothek» (concept 25 stage 2, F-11)
+      description: |
+        The titles outside the library that match `q` at TMDB (Slouchcat's own key), as the active profile
+        may see them: only for a profile with the request right for the medium and with «Anfordern aus der
+        Suche» on, otherwise an empty list (F-9). TMDB's search carries no ratings: the server fetches the
+        details of the first 20 hits that are missing or of unknown age (within 3 s) and asks the
+        visibility again; a hit whose rating stays unknown counts as 18 and is missing for profiles below
+        18. Titles of the library are not part of this list (`search` finds them). The raw hits of TMDB
+        are kept 10 minutes. A hit whose details were not fetched has no images and no `minAge`.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: media
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ExternalMedia"
+        - $ref: "#/components/parameters/WishPageOffset"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: The missing titles, TMDB's order, films first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalTitlePage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: Validation failed (`validation_failed`; `q` `too_short` or `too_long`, `media` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: TMDB did not answer (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /titles/{media}/{tmdbId}:
+    get:
+      operationId: getExternalTitle
+      summary: Preview page of a title outside the library with its wish card (concept 25 stage 2)
+      description: |
+        The title as TMDB describes it (fetched and stored on the first call) with the wish of the active
+        profile (`wish`, open, own or joined) or its last closed one (`lastWish`), what it can request now
+        (`canRequest`, `requestReason`) and the limit of the Seerr user it sends as (`request.quota`).
+        404 when the profile may not see the title as a missing one: rated over its ceiling, unknown rating
+        for a profile below 18, no request right for the medium, «Anfordern aus der Suche» and «Anfordern
+        auf Detailseiten» both off, unknown at TMDB, or a library title the profile may not see; a profile
+        always sees a title it wished for itself (F-9). A library title the profile sees answers 409
+        `already_available` with its `item`; the client opens `/items/{id}`.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ExternalMediaPath"
+        - $ref: "#/components/parameters/TmdbIdPath"
+      responses:
+        "200":
+          description: The title.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalTitle"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: In the library and visible (`already_available`, with `item`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/WishProblem"
+        "503":
+          description: The title is not stored yet and TMDB did not answer (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /titles/{media}/{tmdbId}/images/{kind}/{size}:
+    get:
+      operationId: getExternalTitleImage
+      summary: Image of a title outside the library (binary, concept 25 stage 2)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`. The handler checks the
+        title like `getExternalTitle` (404 when the profile may not see it, also for a library title,
+        whose images come from `getItemImage`) without asking TMDB for the title; the image itself is
+        fetched from TMDB and scaled on its first request (never sent from TMDB to the browser). Sizes:
+        posters `w200`, `w400`, `w800`; backdrops `w780`, `w1280`, `w1920`; logos `w400`, `w800`. WebP when
+        `Accept` lists `image/webp`, else JPEG (a logo PNG), `Vary: Accept`. The address carries no
+        content hash: the answer has an `ETag` and `Cache-Control: private, max-age=86400`.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ExternalMediaPath"
+        - $ref: "#/components/parameters/TmdbIdPath"
+        - $ref: "#/components/parameters/ExternalImageKindPath"
+        - $ref: "#/components/parameters/ExternalImageSizePath"
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: The image did not change (`If-None-Match`).
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, not visible, or no such image (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: TMDB did not deliver the image for now (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /titles/show/{tmdbId}/seasons:
+    get:
+      operationId: getWishSeasons
+      summary: Seasons of a series the request dialog offers (concept 25 stage 2, N-63)
+      description: |
+        The seasons Seerr can order (`GET /tv/{tmdbId}`, kept one hour), or TMDB's when Seerr does not
+        answer within 3 s (`source` `tmdb_fallback`); season 0 is never offered. Each season is `missing`
+        (the profile can request it), `requested` (another open wish holds it: choosing it joins that
+        wish) or `available` (the profile plays every episode). For a series of the library only with its
+        seasons; 404 without the request right for series, for a missing series the profile may not see
+        (rating), a library series it may not see and an unknown TMDB id.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdPath"
+      responses:
+        "200":
+          description: The seasons.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishSeasons"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Not visible or not requestable (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Neither Seerr nor TMDB answered (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes:
+    get:
+      operationId: listWishes
+      summary: «Meine Wünsche» of the active profile (concept 25 stage 2)
+      description: |
+        The wishes of the active profile, its own and those it joined (`role`), newest first. `item` is
+        the library title of a fulfilled wish, only when the profile may see it; `external` is the title
+        outside the library (its images through `getExternalTitleImage`). `counts` count every wish of
+        the profile, whatever the filter.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/WishStateFilter"
+        - $ref: "#/components/parameters/WishPageOffset"
+        - $ref: "#/components/parameters/WishPageLimit"
+      responses:
+        "200":
+          description: One page of wishes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: Validation failed (`validation_failed`; `state` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    post:
+      operationId: createWish
+      summary: Request a title, or join the open wish of another profile (concept 25 stage 2, F-7, F-10)
+      description: |
+        A new wish (201) waits in the outbox and gets one attempt of at most 3 s at once; the state says
+        where it stands (`queued`, `pending`, `processing`, or `failed` with `failReason`). The same
+        profile asking again or joining an open wish answers 200 (`role` `joined`); a co-wish never
+        calls Seerr and never counts against the limit. A series names its `seasons` or sets
+        `allSeasons` («Alle fehlenden Staffeln»); when every chosen season joins other wishes, the answer
+        is the first of them. 403 `wish_not_allowed` concerns the right to request, not the visibility of
+        the title (with `reason`). 409 `quota_exceeded`: the free places of the limit do not reach the film
+        or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
+      tags: [wishes]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WishCreate"
+      responses:
+        "200":
+          description: The wish existed (asked again, or joined).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wish"
+        "201":
+          description: The new wish.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wish"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: |
+            No right to request this (`wish_not_allowed`, `reason`: `disabled`, `account_not_allowed`,
+            `profile_not_allowed`, `no_mapping`, `seerr_user_gone`, `movies_not_allowed`, `shows_not_allowed`,
+            `source_not_allowed`, `tvdb_id_missing`, `status_only`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/WishProblem"
+        "404":
+          description: Unknown at TMDB or not visible to the profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            `already_available` (in the library and visible, with `item`) or `quota_exceeded` (with `quota`
+            and `needed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/WishProblem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `media` `invalid_value`, `tmdbId` `out_of_range`,
+            `seasons` `required`, `not_allowed` (a film), `invalid_value` (with `allSeasons`),
+            `out_of_range` (season 0), `season_not_offered`, `no_season`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: The title is not stored yet and TMDB did not answer (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/quota:
+    get:
+      operationId: getWishQuota
+      summary: Limit of the Seerr user the active profile sends as (concept 25 stage 2)
+      description: |
+        From the stored state, without a call to Seerr; `queued` counts the wishes waiting in the outbox
+        and `remaining` is what is left after them. Without `at` while Seerr's state was never read. 404
+        for a profile without the request right.
+      tags: [wishes]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The limit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishQuota"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: The profile cannot request (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/{id}:
+    delete:
+      operationId: withdrawWish
+      summary: Withdraw a wish (concept 25 stage 2, F-17)
+      description: |
+        A profile that joined withdraws only itself; the owner withdraws the wish while it is not
+        approved yet (`queued`, `pending`); Seerr's request goes with it in the background.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Withdrawn.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: Withdrawing is switched off (`wish_not_allowed`, `reason` `withdraw_disabled`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/WishProblem"
+        "404":
+          description: Unknown or not a wish of the profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Past the approval (`wish_not_withdrawable`).
           content:
             application/problem+json:
               schema:
@@ -10847,6 +11330,61 @@ components:
         to the listen session and its station; the session's expiry slides with every heartbeat and live
         request. Redacted in all logs.
   parameters:
+    ExternalMediaPath:
+      name: media
+      in: path
+      required: true
+      description: Film (`movie`) or series (`show`) of TMDB.
+      schema:
+        $ref: "#/components/schemas/ExternalMedia"
+    TmdbIdPath:
+      name: tmdbId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    ExternalImageKindPath:
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ImageKind"
+    ExternalImageSizePath:
+      name: size
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [w200, w400, w800, w780, w1280, w1920]
+    WishStateFilter:
+      name: state
+      in: query
+      required: false
+      description: |
+        `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+        or `all` (the default).
+      schema:
+        type: string
+        enum: [open, available, closed, all]
+    WishPageOffset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    WishPageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
     ProfileID:
       name: id
       in: path
@@ -17247,14 +17785,19 @@ components:
 
     Notification:
       type: object
-      required: [id, kind, createdAt, item]
+      description: |
+        Since contract 1.41.0 (concept 25, breaking): `kind` has the wish kinds and `item` is optional.
+        `wish_available` names the film or series in `item`, `wish_season_available` the season;
+        `wish_approved`, `wish_declined` and `wish_failed` have `item` only while the library has the
+        title and the profile sees it; every wish entry carries `wish`.
+      required: [id, kind, createdAt]
       properties:
         id:
           type: integer
           format: int64
         kind:
           type: string
-          enum: [new_episode]
+          enum: [new_episode, wish_available, wish_season_available, wish_approved, wish_declined, wish_failed]
         createdAt:
           type: string
           format: date-time
@@ -17263,7 +17806,9 @@ components:
           format: date-time
         item:
           $ref: "#/components/schemas/ItemRef"
-          description: The new episode.
+          description: The new episode, or the title of a wish when the profile sees it.
+        wish:
+          $ref: "#/components/schemas/NotificationWish"
         parent:
           $ref: "#/components/schemas/ItemRef"
           description: The series or podcast on the watchlist, when still visible.
@@ -19148,6 +19693,582 @@ components:
             email:
               type: string
 
+    ExternalMedia:
+      type: string
+      enum: [movie, show]
+      description: Since contract 1.41.0. A title outside the library is a TMDB film or series.
+
+    WishState:
+      type: string
+      enum: [queued, pending, processing, partial, available, declined, failed, withdrawn]
+      description: |
+        Since contract 1.41.0. `queued` waits for the outbox, `pending` waits for an approval in Seerr,
+        `processing` is approved and on its way (`stateDetail` `importing`: Seerr has it, Slouchcat reads
+        it in), `partial` a series with some wished seasons playable, `available` playable for the
+        profile (F-13); closed are `available`, `declined`, `failed` (with `failReason`) and `withdrawn`.
+
+    WishStateDetail:
+      type: string
+      enum: [importing, not_found_in_library]
+      description: |
+        `importing` «Wird eingelesen» (Seerr reports the title available, Slouchcat cannot play it yet);
+        `not_found_in_library` Seerr reports it available for long without a library title.
+
+    WishFailReason:
+      type: string
+      enum: [quota, blocklisted, no_permission, arr_failed, unreachable_24h, seerr_request_gone, seerr_media_deleted,
+        seerr_user_gone, tvdb_id_missing, account_deleted]
+
+    WishRequestReason:
+      type: string
+      enum: [disabled, account_not_allowed, profile_not_allowed, no_mapping, seerr_user_gone, movies_not_allowed,
+        shows_not_allowed, status_only, already_requested]
+      description: |
+        Why `canRequest` is false: the reasons of `WishRights`, films or series not allowed, `status_only`
+        («Bereits angeforderte Titel: Nur Zustand zeigen» and another profile's wish holds it),
+        `already_requested` (the profile has an open wish for it, or every season is requested).
+
+    ExternalTitleImages:
+      type: object
+      description: Slouchcat's addresses of the images (never TMDB's); a kind without image is absent.
+      properties:
+        poster:
+          type: string
+        backdrop:
+          type: string
+        logo:
+          type: string
+
+    WishMark:
+      type: object
+      description: The open wish of the active profile on a title (own or joined).
+      required: [id, state]
+      properties:
+        id:
+          type: integer
+          format: int64
+        state:
+          $ref: "#/components/schemas/WishState"
+        stateDetail:
+          $ref: "#/components/schemas/WishStateDetail"
+
+    ExternalTitleRef:
+      type: object
+      description: |
+        Since contract 1.41.0. A title outside the library as it appears in lists (search section, «Meine
+        Wünsche»). Never part of the start page or the spotlight (N-70).
+      required: [media, tmdbId, title, images, hasTrailer, canRequest]
+      properties:
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        tmdbId:
+          type: integer
+          format: int64
+        title:
+          type: string
+          description: In the profile's metadata language, else its interface language, else any.
+        year:
+          type: integer
+        minAge:
+          type: integer
+          minimum: 0
+          maximum: 18
+          description: The age by the rating countries (ADR 0034); absent when unknown (counts as 18).
+        images:
+          $ref: "#/components/schemas/ExternalTitleImages"
+        hasTrailer:
+          type: boolean
+        wish:
+          $ref: "#/components/schemas/WishMark"
+        canRequest:
+          type: boolean
+          description: The profile can request it now, or join the open wish of another profile.
+        requestReason:
+          $ref: "#/components/schemas/WishRequestReason"
+
+    ExternalTitlePage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExternalTitleRef"
+        total:
+          type: integer
+          minimum: 0
+
+    ExternalTitleSeason:
+      type: object
+      required: [number, episodeCount, state]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        episodeCount:
+          type: integer
+          minimum: 1
+        airDate:
+          type: string
+          format: date
+        state:
+          type: string
+          enum: [missing, requested]
+          description: "`requested`: an open wish of the household holds the season."
+
+    ExternalTitle:
+      type: object
+      description: |
+        Since contract 1.41.0. The preview page of a title outside the library: everything of
+        `ExternalTitleRef` and the details, the seasons of a series (season 0 left out), the trailers
+        (YouTube keys), the wish card (`request`) and the last closed wish of the profile while it has
+        no open one.
+      required: [media, tmdbId, title, images, hasTrailer, canRequest, genres, seasons, trailers, request]
+      properties:
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        tmdbId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        year:
+          type: integer
+        minAge:
+          type: integer
+          minimum: 0
+          maximum: 18
+        images:
+          $ref: "#/components/schemas/ExternalTitleImages"
+        hasTrailer:
+          type: boolean
+        wish:
+          $ref: "#/components/schemas/WishMark"
+        canRequest:
+          type: boolean
+        requestReason:
+          $ref: "#/components/schemas/WishRequestReason"
+        originalTitle:
+          type: string
+        overview:
+          type: string
+        tagline:
+          type: string
+        releaseDate:
+          type: string
+          format: date
+          description: Release of a film, first air date of a series.
+        runtimeMinutes:
+          type: integer
+        genres:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          description: TMDB's status as delivered (`Returning Series`, `Ended`, `Released` …).
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExternalTitleSeason"
+        nextEpisode:
+          $ref: "#/components/schemas/ExternalEpisode"
+        trailers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExternalTrailer"
+        request:
+          $ref: "#/components/schemas/WishRequestCard"
+        lastWish:
+          $ref: "#/components/schemas/WishLast"
+
+    ExternalEpisode:
+      type: object
+      required: [season, episode]
+      properties:
+        season:
+          type: integer
+        episode:
+          type: integer
+        airDate:
+          type: string
+          format: date
+
+    ExternalTrailer:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+          description: YouTube key.
+        lang:
+          type: string
+
+    WishRequestCard:
+      type: object
+      description: The wish card of the request dialog.
+      required: [canRequest, autoApprove]
+      properties:
+        canRequest:
+          type: boolean
+        reason:
+          $ref: "#/components/schemas/WishRequestReason"
+        autoApprove:
+          type: boolean
+          description: Seerr approves the requests of the user the profile sends as at once.
+        quota:
+          $ref: "#/components/schemas/WishQuota"
+
+    WishLast:
+      type: object
+      description: The newest closed wish of the profile on the title.
+      required: [id, state, at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        state:
+          $ref: "#/components/schemas/WishState"
+        at:
+          type: string
+          format: date-time
+        reason:
+          $ref: "#/components/schemas/WishFailReason"
+
+    WishCreate:
+      type: object
+      required: [media, tmdbId]
+      properties:
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        tmdbId:
+          type: integer
+          format: int64
+        seasons:
+          type: array
+          description: The chosen seasons of a series (1 or more); not with a film.
+          items:
+            type: integer
+        allSeasons:
+          type: boolean
+          description: «Alle fehlenden Staffeln» of a series, instead of `seasons`.
+        source:
+          type: string
+          enum: [search, detail, list, admin_spotlight]
+          description: |
+            Where the request comes from; `search` and `detail` follow «Anfordern aus der Suche» and
+            «Anfordern auf Detailseiten» (`wish_not_allowed` `source_not_allowed` when off).
+
+    WishEvent:
+      type: object
+      required: [at, kind]
+      properties:
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          description: "`created`, `submitted`, `state_changed`, `season_available`, `joined`, `withdrawn` …"
+        detail:
+          type: string
+          description: JSON details of the event, no secrets.
+
+    WishSeasonState:
+      type: object
+      required: [number, state]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        state:
+          $ref: "#/components/schemas/WishState"
+
+    Wish:
+      type: object
+      description: Since contract 1.41.0. A wish as the active profile sees it.
+      required: [id, media, tmdbId, title, state, origin, role, seasons, canWithdraw, canRequestAgain, createdAt,
+        updatedAt, events]
+      properties:
+        id:
+          type: integer
+          format: int64
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        tmdbId:
+          type: integer
+          format: int64
+        title:
+          type: string
+          description: The title at the time of the wish.
+        year:
+          type: integer
+        state:
+          $ref: "#/components/schemas/WishState"
+        stateDetail:
+          $ref: "#/components/schemas/WishStateDetail"
+        failReason:
+          $ref: "#/components/schemas/WishFailReason"
+        origin:
+          type: string
+          enum: [slouchcat, jellyseerr]
+          description: "`jellyseerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4)."
+        role:
+          type: string
+          enum: [owner, joined]
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/WishSeasonState"
+        external:
+          $ref: "#/components/schemas/ExternalTitleRef"
+        item:
+          $ref: "#/components/schemas/ItemRef"
+          description: The library title of the wish, only when the profile may see it.
+        canWithdraw:
+          type: boolean
+        canRequestAgain:
+          type: boolean
+        hint:
+          type: string
+          enum: [already_approved]
+          description: "`already_approved`: withdrawn too late, Seerr had approved it; the wish goes on."
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        availableAt:
+          type: string
+          format: date-time
+        events:
+          type: array
+          description: Newest first, at most 20.
+          items:
+            $ref: "#/components/schemas/WishEvent"
+
+    WishCounts:
+      type: object
+      required: [open, pending, processing, partial, available, closed]
+      properties:
+        open:
+          type: integer
+        pending:
+          type: integer
+        processing:
+          type: integer
+        partial:
+          type: integer
+        available:
+          type: integer
+        closed:
+          type: integer
+
+    WishPage:
+      type: object
+      required: [items, total, counts]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wish"
+        total:
+          type: integer
+          minimum: 0
+        counts:
+          $ref: "#/components/schemas/WishCounts"
+
+    WishSeasons:
+      type: object
+      required: [source, seasons]
+      properties:
+        source:
+          type: string
+          enum: [seerr, tmdb_fallback]
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/WishSeasonOffer"
+
+    WishSeasonOffer:
+      type: object
+      required: [number, episodeCount, state]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        episodeCount:
+          type: integer
+        state:
+          type: string
+          enum: [missing, requested, available]
+
+    WishProblem:
+      type: object
+      description: |
+        Since contract 1.41.0. A problem of the wish operations with its extension: `reason` for
+        `wish_not_allowed`, `item` for `already_available`, `quota` and `needed` for `quota_exceeded`.
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+        reason:
+          type: string
+        item:
+          $ref: "#/components/schemas/ItemRef"
+        quota:
+          $ref: "#/components/schemas/WishQuota"
+        needed:
+          type: integer
+
+    AdminWishTitle:
+      type: object
+      required: [media, tmdbId, title, posterUrl]
+      properties:
+        itemId:
+          type: string
+          description: The library title once found (no `ItemRef`).
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        tmdbId:
+          type: integer
+          format: int64
+        tvdbId:
+          type: integer
+          format: int64
+        imdbId:
+          type: string
+        title:
+          type: string
+        year:
+          type: integer
+        posterUrl:
+          type: string
+          description: "`getAdminExternalTitleImage` in `w200`."
+
+    AdminWish:
+      type: object
+      description: Since contract 1.41.0. A wish in the administration; no `ItemRef`.
+      required: [id, title, state, origin, seasons, requesters, attempts, events, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          $ref: "#/components/schemas/AdminWishTitle"
+        state:
+          $ref: "#/components/schemas/WishState"
+        stateDetail:
+          $ref: "#/components/schemas/WishStateDetail"
+        failReason:
+          $ref: "#/components/schemas/WishFailReason"
+        origin:
+          type: string
+          enum: [slouchcat, jellyseerr]
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminWishSeason"
+        requesters:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminWishRequester"
+        seerrUserId:
+          type: integer
+          description: The Seerr user the wish went out as.
+        seerrRequestId:
+          type: integer
+        attempts:
+          type: integer
+          description: Attempts of the outbox.
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WishEvent"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        availableAt:
+          type: string
+          format: date-time
+
+    AdminWishSeason:
+      type: object
+      required: [number, state]
+      properties:
+        number:
+          type: integer
+        state:
+          $ref: "#/components/schemas/WishState"
+        seerrRequestId:
+          type: integer
+
+    AdminWishRequester:
+      type: object
+      required: [accountId, accountEmail, profileId, profileName, role, closed]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        accountEmail:
+          type: string
+        profileId:
+          type: integer
+          format: int64
+        profileName:
+          type: string
+        role:
+          type: string
+          enum: [owner, joined]
+        closed:
+          type: boolean
+          description: The profile withdrew itself.
+
+    AdminWishPage:
+      type: object
+      required: [items, total, counts]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminWish"
+        total:
+          type: integer
+          minimum: 0
+        counts:
+          $ref: "#/components/schemas/WishCounts"
+
+    NotificationWish:
+      type: object
+      description: The wish of an inbox entry about a wish (concept 25, contract 1.41.0).
+      required: [id, media, title, state]
+      properties:
+        id:
+          type: integer
+          format: int64
+        media:
+          $ref: "#/components/schemas/ExternalMedia"
+        title:
+          type: string
+          description: The title at the time of the wish.
+        state:
+          $ref: "#/components/schemas/WishState"
+
     WishLimit:
       type: object
       required: [limit, days]
@@ -19249,8 +20370,14 @@ components:
       description: |
         Since contract 1.41.0 (concept 25, administration 2): the hints of the wishes; absent while
         Seerr is not set up. Every list is empty instead of absent.
-      required: [unmapped, unmappedFallback, linked, quotaReached, goneUsers]
+      required: [open, queued, unmapped, unmappedFallback, linked, quotaReached, goneUsers]
       properties:
+        open:
+          type: integer
+          description: Open wishes of the household («Offene Wünsche», stage 2).
+        queued:
+          type: integer
+          description: Of them, the wishes still waiting for the outbox.
         seerrState:
           type: string
           enum: [key_invalid, unreachable, instance_changed]
@@ -20028,12 +21155,16 @@ components:
 
     EventType:
       type: string
-      enum: [new_content, errors, invitations, announcements]
+      enum: [new_content, errors, invitations, announcements, wish_available, wish_status, wish_review]
       description: |
         `new_content`: a new episode of a series or podcast on a profile's watchlist (per profile,
         prefixed with the profile name);
         `errors`: failures the main user should see (main account only); `invitations`: an
         invitation was accepted; `announcements`: the main user published an announcement.
+        Since contract 1.41.0 (concept 25, F-14; breaking): `wish_available` a wish of a profile can be
+        played (per profile, on by default), `wish_status` Seerr approved or declined a wish or it
+        failed (per profile, off by default), `wish_review` a wish waits for an approval in Seerr
+        (administrators only, like `errors`; `event_not_allowed` for others).
 
     ChannelSettings:
       type: object

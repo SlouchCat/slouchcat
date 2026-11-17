@@ -228,6 +228,12 @@ var adminRegistry = map[string]adminCall{
 	"provisionSeerrAccounts": {contract: "POST /admin/wishes/accounts/provision", path: "/admin/wishes/accounts/provision",
 		ownerStatus: http.StatusUnprocessableEntity},
 	"getWishSettings": {contract: "GET /admin/wishes/settings", path: "/admin/wishes/settings", ownerStatus: http.StatusOK},
+	// Stage 2 (contract 1.41.0): no wish yet, no Seerr, no stored title outside the library;
+	// TestContractWishes covers them with data.
+	"listAdminWishes": {contract: "GET /admin/wishes", path: "/admin/wishes?state=open", ownerStatus: http.StatusOK},
+	"syncWishesNow":   {contract: "POST /admin/seerr/sync", path: "/admin/seerr/sync", ownerStatus: http.StatusUnprocessableEntity},
+	"getAdminExternalTitleImage": {contract: "GET /admin/titles/{media}/{tmdbId}/images/{kind}/{size}",
+		path: "/admin/titles/movie/603/images/poster/w200", ownerStatus: http.StatusNotFound},
 	"setWishSettings": {contract: "PUT /admin/wishes/settings", path: "/admin/wishes/settings", body: `{"enabled":true}`,
 		ownerStatus: http.StatusConflict},
 	"createLibrary": {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},

@@ -59,6 +59,10 @@ func (s *titleStore) OpenExternalTitleImage(context.Context, string, int64, stri
 	return model.StreamSource{}, model.ErrNotFound
 }
 
+func (s *titleStore) SearchExternalTitles(context.Context, string, string) ([]metadata.ExternalHit, error) {
+	return nil, nil
+}
+
 func (s *titleStore) fetches() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

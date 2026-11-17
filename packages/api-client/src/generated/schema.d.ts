@@ -4951,6 +4951,253 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/seerr/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync the wishes with Seerr now (concept 25 stage 2)
+         * @description Queues the job `wishes.sync` at once (Medien › Wünsche, band «Abgleich»); the answer does not
+         *     wait for it.
+         */
+        post: operations["syncWishesNow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every wish of the household (concept 25 stage 2, Medien › Wünsche › Anfragen)
+         * @description Newest change first, with the requesters (account and profile) and the history. No `ItemRef` and
+         *     no scoped address: a title of the library is named by its `itemId`, its poster comes from
+         *     `getAdminExternalTitleImage` (the stored title outside the library of every wish). `counts`
+         *     count every wish, whatever the filter.
+         */
+        get: operations["listAdminWishes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/titles/{media}/{tmdbId}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a title outside the library for the administration (binary, system-wide)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getAdminItemImage`: without a profile
+         *     check, for the lists of the administration (Anfragen, Spotlight). Sizes and formats as
+         *     `getExternalTitleImage`. 404 for a title Slouchcat has not stored or without such an image.
+         */
+        get: operations["getAdminExternalTitleImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search section «Noch nicht in der Bibliothek» (concept 25 stage 2, F-11)
+         * @description The titles outside the library that match `q` at TMDB (Slouchcat's own key), as the active profile
+         *     may see them: only for a profile with the request right for the medium and with «Anfordern aus der
+         *     Suche» on, otherwise an empty list (F-9). TMDB's search carries no ratings: the server fetches the
+         *     details of the first 20 hits that are missing or of unknown age (within 3 s) and asks the
+         *     visibility again; a hit whose rating stays unknown counts as 18 and is missing for profiles below
+         *     18. Titles of the library are not part of this list (`search` finds them). The raw hits of TMDB
+         *     are kept 10 minutes. A hit whose details were not fetched has no images and no `minAge`.
+         */
+        get: operations["searchExternalTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/{media}/{tmdbId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview page of a title outside the library with its wish card (concept 25 stage 2)
+         * @description The title as TMDB describes it (fetched and stored on the first call) with the wish of the active
+         *     profile (`wish`, open, own or joined) or its last closed one (`lastWish`), what it can request now
+         *     (`canRequest`, `requestReason`) and the limit of the Seerr user it sends as (`request.quota`).
+         *     404 when the profile may not see the title as a missing one: rated over its ceiling, unknown rating
+         *     for a profile below 18, no request right for the medium, «Anfordern aus der Suche» and «Anfordern
+         *     auf Detailseiten» both off, unknown at TMDB, or a library title the profile may not see; a profile
+         *     always sees a title it wished for itself (F-9). A library title the profile sees answers 409
+         *     `already_available` with its `item`; the client opens `/items/{id}`.
+         */
+        get: operations["getExternalTitle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/{media}/{tmdbId}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a title outside the library (binary, concept 25 stage 2)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`. The handler checks the
+         *     title like `getExternalTitle` (404 when the profile may not see it, also for a library title,
+         *     whose images come from `getItemImage`) without asking TMDB for the title; the image itself is
+         *     fetched from TMDB and scaled on its first request (never sent from TMDB to the browser). Sizes:
+         *     posters `w200`, `w400`, `w800`; backdrops `w780`, `w1280`, `w1920`; logos `w400`, `w800`. WebP when
+         *     `Accept` lists `image/webp`, else JPEG (a logo PNG), `Vary: Accept`. The address carries no
+         *     content hash: the answer has an `ETag` and `Cache-Control: private, max-age=86400`.
+         */
+        get: operations["getExternalTitleImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/show/{tmdbId}/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons of a series the request dialog offers (concept 25 stage 2, N-63)
+         * @description The seasons Seerr can order (`GET /tv/{tmdbId}`, kept one hour), or TMDB's when Seerr does not
+         *     answer within 3 s (`source` `tmdb_fallback`); season 0 is never offered. Each season is `missing`
+         *     (the profile can request it), `requested` (another open wish holds it: choosing it joins that
+         *     wish) or `available` (the profile plays every episode). For a series of the library only with its
+         *     seasons; 404 without the request right for series, for a missing series the profile may not see
+         *     (rating), a library series it may not see and an unknown TMDB id.
+         */
+        get: operations["getWishSeasons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * «Meine Wünsche» of the active profile (concept 25 stage 2)
+         * @description The wishes of the active profile, its own and those it joined (`role`), newest first. `item` is
+         *     the library title of a fulfilled wish, only when the profile may see it; `external` is the title
+         *     outside the library (its images through `getExternalTitleImage`). `counts` count every wish of
+         *     the profile, whatever the filter.
+         */
+        get: operations["listWishes"];
+        put?: never;
+        /**
+         * Request a title, or join the open wish of another profile (concept 25 stage 2, F-7, F-10)
+         * @description A new wish (201) waits in the outbox and gets one attempt of at most 3 s at once; the state says
+         *     where it stands (`queued`, `pending`, `processing`, or `failed` with `failReason`). The same
+         *     profile asking again or joining an open wish answers 200 (`role` `joined`); a co-wish never
+         *     calls Seerr and never counts against the limit. A series names its `seasons` or sets
+         *     `allSeasons` («Alle fehlenden Staffeln»); when every chosen season joins other wishes, the answer
+         *     is the first of them. 403 `wish_not_allowed` concerns the right to request, not the visibility of
+         *     the title (with `reason`). 409 `quota_exceeded`: the free places of the limit do not reach the film
+         *     or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
+         */
+        post: operations["createWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Limit of the Seerr user the active profile sends as (concept 25 stage 2)
+         * @description From the stored state, without a call to Seerr; `queued` counts the wishes waiting in the outbox
+         *     and `remaining` is what is left after them. Without `at` while Seerr's state was never read. 404
+         *     for a profile without the request right.
+         */
+        get: operations["getWishQuota"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a wish (concept 25 stage 2, F-17)
+         * @description A profile that joined withdraws only itself; the owner withdraws the wish while it is not
+         *     approved yet (`queued`, `pending`); Seerr's request goes with it in the background.
+         */
+        delete: operations["withdrawWish"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/integrations": {
         parameters: {
             query?: never;
@@ -9677,17 +9924,24 @@ export interface components {
             offset: number;
             limit: number;
         };
+        /**
+         * @description Since contract 1.41.0 (concept 25, breaking): `kind` has the wish kinds and `item` is optional.
+         *     `wish_available` names the film or series in `item`, `wish_season_available` the season;
+         *     `wish_approved`, `wish_declined` and `wish_failed` have `item` only while the library has the
+         *     title and the profile sees it; every wish entry carries `wish`.
+         */
         Notification: {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            kind: "new_episode";
+            kind: "new_episode" | "wish_available" | "wish_season_available" | "wish_approved" | "wish_declined" | "wish_failed";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             readAt?: string;
-            /** @description The new episode. */
-            item: components["schemas"]["ItemRef"];
+            /** @description The new episode, or the title of a wish when the profile sees it. */
+            item?: components["schemas"]["ItemRef"];
+            wish?: components["schemas"]["NotificationWish"];
             /** @description The series or podcast on the watchlist, when still visible. */
             parent?: components["schemas"]["ItemRef"];
         };
@@ -10888,6 +11142,325 @@ export interface components {
                 email: string;
             };
         };
+        /**
+         * @description Since contract 1.41.0. A title outside the library is a TMDB film or series.
+         * @enum {string}
+         */
+        ExternalMedia: "movie" | "show";
+        /**
+         * @description Since contract 1.41.0. `queued` waits for the outbox, `pending` waits for an approval in Seerr,
+         *     `processing` is approved and on its way (`stateDetail` `importing`: Seerr has it, Slouchcat reads
+         *     it in), `partial` a series with some wished seasons playable, `available` playable for the
+         *     profile (F-13); closed are `available`, `declined`, `failed` (with `failReason`) and `withdrawn`.
+         * @enum {string}
+         */
+        WishState: "queued" | "pending" | "processing" | "partial" | "available" | "declined" | "failed" | "withdrawn";
+        /**
+         * @description `importing` «Wird eingelesen» (Seerr reports the title available, Slouchcat cannot play it yet);
+         *     `not_found_in_library` Seerr reports it available for long without a library title.
+         * @enum {string}
+         */
+        WishStateDetail: "importing" | "not_found_in_library";
+        /** @enum {string} */
+        WishFailReason: "quota" | "blocklisted" | "no_permission" | "arr_failed" | "unreachable_24h" | "seerr_request_gone" | "seerr_media_deleted" | "seerr_user_gone" | "tvdb_id_missing" | "account_deleted";
+        /**
+         * @description Why `canRequest` is false: the reasons of `WishRights`, films or series not allowed, `status_only`
+         *     («Bereits angeforderte Titel: Nur Zustand zeigen» and another profile's wish holds it),
+         *     `already_requested` (the profile has an open wish for it, or every season is requested).
+         * @enum {string}
+         */
+        WishRequestReason: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "movies_not_allowed" | "shows_not_allowed" | "status_only" | "already_requested";
+        /** @description Slouchcat's addresses of the images (never TMDB's); a kind without image is absent. */
+        ExternalTitleImages: {
+            poster?: string;
+            backdrop?: string;
+            logo?: string;
+        };
+        /** @description The open wish of the active profile on a title (own or joined). */
+        WishMark: {
+            /** Format: int64 */
+            id: number;
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+        };
+        /**
+         * @description Since contract 1.41.0. A title outside the library as it appears in lists (search section, «Meine
+         *     Wünsche»). Never part of the start page or the spotlight (N-70).
+         */
+        ExternalTitleRef: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description In the profile's metadata language, else its interface language, else any. */
+            title: string;
+            year?: number;
+            /** @description The age by the rating countries (ADR 0034); absent when unknown (counts as 18). */
+            minAge?: number;
+            images: components["schemas"]["ExternalTitleImages"];
+            hasTrailer: boolean;
+            wish?: components["schemas"]["WishMark"];
+            /** @description The profile can request it now, or join the open wish of another profile. */
+            canRequest: boolean;
+            requestReason?: components["schemas"]["WishRequestReason"];
+        };
+        ExternalTitlePage: {
+            items: components["schemas"]["ExternalTitleRef"][];
+            total: number;
+        };
+        ExternalTitleSeason: {
+            number: number;
+            episodeCount: number;
+            /** Format: date */
+            airDate?: string;
+            /**
+             * @description `requested`: an open wish of the household holds the season.
+             * @enum {string}
+             */
+            state: "missing" | "requested";
+        };
+        /**
+         * @description Since contract 1.41.0. The preview page of a title outside the library: everything of
+         *     `ExternalTitleRef` and the details, the seasons of a series (season 0 left out), the trailers
+         *     (YouTube keys), the wish card (`request`) and the last closed wish of the profile while it has
+         *     no open one.
+         */
+        ExternalTitle: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            title: string;
+            year?: number;
+            minAge?: number;
+            images: components["schemas"]["ExternalTitleImages"];
+            hasTrailer: boolean;
+            wish?: components["schemas"]["WishMark"];
+            canRequest: boolean;
+            requestReason?: components["schemas"]["WishRequestReason"];
+            originalTitle?: string;
+            overview?: string;
+            tagline?: string;
+            /**
+             * Format: date
+             * @description Release of a film, first air date of a series.
+             */
+            releaseDate?: string;
+            runtimeMinutes?: number;
+            genres: string[];
+            /** @description TMDB's status as delivered (`Returning Series`, `Ended`, `Released` …). */
+            status?: string;
+            seasons: components["schemas"]["ExternalTitleSeason"][];
+            nextEpisode?: components["schemas"]["ExternalEpisode"];
+            trailers: components["schemas"]["ExternalTrailer"][];
+            request: components["schemas"]["WishRequestCard"];
+            lastWish?: components["schemas"]["WishLast"];
+        };
+        ExternalEpisode: {
+            season: number;
+            episode: number;
+            /** Format: date */
+            airDate?: string;
+        };
+        ExternalTrailer: {
+            /** @description YouTube key. */
+            key: string;
+            lang?: string;
+        };
+        /** @description The wish card of the request dialog. */
+        WishRequestCard: {
+            canRequest: boolean;
+            reason?: components["schemas"]["WishRequestReason"];
+            /** @description Seerr approves the requests of the user the profile sends as at once. */
+            autoApprove: boolean;
+            quota?: components["schemas"]["WishQuota"];
+        };
+        /** @description The newest closed wish of the profile on the title. */
+        WishLast: {
+            /** Format: int64 */
+            id: number;
+            state: components["schemas"]["WishState"];
+            /** Format: date-time */
+            at: string;
+            reason?: components["schemas"]["WishFailReason"];
+        };
+        WishCreate: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description The chosen seasons of a series (1 or more); not with a film. */
+            seasons?: number[];
+            /** @description «Alle fehlenden Staffeln» of a series, instead of `seasons`. */
+            allSeasons?: boolean;
+            /**
+             * @description Where the request comes from; `search` and `detail` follow «Anfordern aus der Suche» and
+             *     «Anfordern auf Detailseiten» (`wish_not_allowed` `source_not_allowed` when off).
+             * @enum {string}
+             */
+            source?: "search" | "detail" | "list" | "admin_spotlight";
+        };
+        WishEvent: {
+            /** Format: date-time */
+            at: string;
+            /** @description `created`, `submitted`, `state_changed`, `season_available`, `joined`, `withdrawn` … */
+            kind: string;
+            /** @description JSON details of the event, no secrets. */
+            detail?: string;
+        };
+        WishSeasonState: {
+            number: number;
+            state: components["schemas"]["WishState"];
+        };
+        /** @description Since contract 1.41.0. A wish as the active profile sees it. */
+        Wish: {
+            /** Format: int64 */
+            id: number;
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description The title at the time of the wish. */
+            title: string;
+            year?: number;
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            failReason?: components["schemas"]["WishFailReason"];
+            /**
+             * @description `jellyseerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4).
+             * @enum {string}
+             */
+            origin: "slouchcat" | "jellyseerr";
+            /** @enum {string} */
+            role: "owner" | "joined";
+            seasons: components["schemas"]["WishSeasonState"][];
+            external?: components["schemas"]["ExternalTitleRef"];
+            /** @description The library title of the wish, only when the profile may see it. */
+            item?: components["schemas"]["ItemRef"];
+            canWithdraw: boolean;
+            canRequestAgain: boolean;
+            /**
+             * @description `already_approved`: withdrawn too late, Seerr had approved it; the wish goes on.
+             * @enum {string}
+             */
+            hint?: "already_approved";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            availableAt?: string;
+            /** @description Newest first, at most 20. */
+            events: components["schemas"]["WishEvent"][];
+        };
+        WishCounts: {
+            open: number;
+            pending: number;
+            processing: number;
+            partial: number;
+            available: number;
+            closed: number;
+        };
+        WishPage: {
+            items: components["schemas"]["Wish"][];
+            total: number;
+            counts: components["schemas"]["WishCounts"];
+        };
+        WishSeasons: {
+            /** @enum {string} */
+            source: "seerr" | "tmdb_fallback";
+            seasons: components["schemas"]["WishSeasonOffer"][];
+        };
+        WishSeasonOffer: {
+            number: number;
+            episodeCount: number;
+            /** @enum {string} */
+            state: "missing" | "requested" | "available";
+        };
+        /**
+         * @description Since contract 1.41.0. A problem of the wish operations with its extension: `reason` for
+         *     `wish_not_allowed`, `item` for `already_available`, `quota` and `needed` for `quota_exceeded`.
+         */
+        WishProblem: {
+            /** Format: uri-reference */
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            /** Format: uri-reference */
+            instance?: string;
+            code: string;
+            reason?: string;
+            item?: components["schemas"]["ItemRef"];
+            quota?: components["schemas"]["WishQuota"];
+            needed?: number;
+        };
+        AdminWishTitle: {
+            /** @description The library title once found (no `ItemRef`). */
+            itemId?: string;
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** Format: int64 */
+            tvdbId?: number;
+            imdbId?: string;
+            title: string;
+            year?: number;
+            /** @description `getAdminExternalTitleImage` in `w200`. */
+            posterUrl: string;
+        };
+        /** @description Since contract 1.41.0. A wish in the administration; no `ItemRef`. */
+        AdminWish: {
+            /** Format: int64 */
+            id: number;
+            title: components["schemas"]["AdminWishTitle"];
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            failReason?: components["schemas"]["WishFailReason"];
+            /** @enum {string} */
+            origin: "slouchcat" | "jellyseerr";
+            seasons: components["schemas"]["AdminWishSeason"][];
+            requesters: components["schemas"]["AdminWishRequester"][];
+            /** @description The Seerr user the wish went out as. */
+            seerrUserId?: number;
+            seerrRequestId?: number;
+            /** @description Attempts of the outbox. */
+            attempts: number;
+            events: components["schemas"]["WishEvent"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            availableAt?: string;
+        };
+        AdminWishSeason: {
+            number: number;
+            state: components["schemas"]["WishState"];
+            seerrRequestId?: number;
+        };
+        AdminWishRequester: {
+            /** Format: int64 */
+            accountId: number;
+            accountEmail: string;
+            /** Format: int64 */
+            profileId: number;
+            profileName: string;
+            /** @enum {string} */
+            role: "owner" | "joined";
+            /** @description The profile withdrew itself. */
+            closed: boolean;
+        };
+        AdminWishPage: {
+            items: components["schemas"]["AdminWish"][];
+            total: number;
+            counts: components["schemas"]["WishCounts"];
+        };
+        /** @description The wish of an inbox entry about a wish (concept 25, contract 1.41.0). */
+        NotificationWish: {
+            /** Format: int64 */
+            id: number;
+            media: components["schemas"]["ExternalMedia"];
+            /** @description The title at the time of the wish. */
+            title: string;
+            state: components["schemas"]["WishState"];
+        };
         WishLimit: {
             /** @description Titles (films) or seasons (series); 0 = no limit. */
             limit: number;
@@ -10946,6 +11519,10 @@ export interface components {
          *     Seerr is not set up. Every list is empty instead of absent.
          */
         DashboardWishes: {
+            /** @description Open wishes of the household («Offene Wünsche», stage 2). */
+            open: number;
+            /** @description Of them, the wishes still waiting for the outbox. */
+            queued: number;
             /**
              * @description «Seerr nicht erreichbar» or «Andere Seerr-Instanz erkannt»; absent when Seerr answers.
              * @enum {string}
@@ -11397,9 +11974,13 @@ export interface components {
          *     prefixed with the profile name);
          *     `errors`: failures the main user should see (main account only); `invitations`: an
          *     invitation was accepted; `announcements`: the main user published an announcement.
+         *     Since contract 1.41.0 (concept 25, F-14; breaking): `wish_available` a wish of a profile can be
+         *     played (per profile, on by default), `wish_status` Seerr approved or declined a wish or it
+         *     failed (per profile, off by default), `wish_review` a wish waits for an approval in Seerr
+         *     (administrators only, like `errors`; `event_not_allowed` for others).
          * @enum {string}
          */
-        EventType: "new_content" | "errors" | "invitations" | "announcements";
+        EventType: "new_content" | "errors" | "invitations" | "announcements" | "wish_available" | "wish_status" | "wish_review";
         ChannelSettings: {
             /** @description email, push and telegram, in this order. */
             channels: components["schemas"]["ChannelSetting"][];
@@ -12537,6 +13118,18 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Film (`movie`) or series (`show`) of TMDB. */
+        ExternalMediaPath: components["schemas"]["ExternalMedia"];
+        TmdbIdPath: number;
+        ExternalImageKindPath: components["schemas"]["ImageKind"];
+        ExternalImageSizePath: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920";
+        /**
+         * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+         *     or `all` (the default).
+         */
+        WishStateFilter: "open" | "available" | "closed" | "all";
+        WishPageOffset: number;
+        WishPageLimit: number;
         ProfileID: number;
         AccountID: number;
         InvitationID: number;
@@ -20901,7 +21494,7 @@ export interface operations {
             };
             /**
              * @description `channel_unavailable` (the server has the channel not configured; switching it off is always
-             *     allowed), `event_not_allowed` (`errors` on a guest account), `validation_failed`
+             *     allowed), `event_not_allowed` (`errors` or `wish_review` on an account that is no administrator), `validation_failed`
              *     (`email.address` `invalid_email`, an unknown event).
              */
             422: {
@@ -21634,6 +22227,533 @@ export interface operations {
             };
             /** @description Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    syncWishesNow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The job type is paused (`job_type_paused`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr is not set up (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                /**
+                 * @description Only the wishes without a requester in Slouchcat (taken over from Seerr, or whose profiles are
+                 *     gone).
+                 */
+                unmapped?: boolean;
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminExternalTitleImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+                kind: components["parameters"]["ExternalImageKindPath"];
+                size: components["parameters"]["ExternalImageSizePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such title or image (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchExternalTitles: {
+        parameters: {
+            query: {
+                q: string;
+                media?: components["schemas"]["ExternalMedia"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The missing titles, TMDB's order, films first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalTitlePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Validation failed (`validation_failed`; `q` `too_short` or `too_long`, `media` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getExternalTitle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalTitle"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description In the library and visible (`already_available`, with `item`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getExternalTitleImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+                kind: components["parameters"]["ExternalImageKindPath"];
+                size: components["parameters"]["ExternalImageSizePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description The image did not change (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, or no such image (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishSeasons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tmdbId: components["parameters"]["TmdbIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The seasons. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSeasons"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Not visible or not requestable (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Neither Seerr nor TMDB answered (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishCreate"];
+            };
+        };
+        responses: {
+            /** @description The wish existed (asked again, or joined). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wish"];
+                };
+            };
+            /** @description The new wish. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description No right to request this (`wish_not_allowed`, `reason`: `disabled`, `account_not_allowed`,
+             *     `profile_not_allowed`, `no_mapping`, `seerr_user_gone`, `movies_not_allowed`, `shows_not_allowed`,
+             *     `source_not_allowed`, `tvdb_id_missing`, `status_only`).
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /** @description Unknown at TMDB or not visible to the profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `already_available` (in the library and visible, with `item`) or `quota_exceeded` (with `quota`
+             *     and `needed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `media` `invalid_value`, `tmdbId` `out_of_range`,
+             *     `seasons` `required`, `not_allowed` (a film), `invalid_value` (with `allSeasons`),
+             *     `out_of_range` (season 0), `season_not_offered`, `no_season`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The limit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishQuota"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The profile cannot request (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    withdrawWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Withdrawing is switched off (`wish_not_allowed`, `reason` `withdraw_disabled`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /** @description Unknown or not a wish of the profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Past the approval (`wish_not_withdrawable`). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

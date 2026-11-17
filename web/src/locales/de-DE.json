@@ -587,7 +587,7 @@
     },
     "notifications": {
       "events": {
-        "helpAdmin": "Wofür eine Nachricht kommt. „Fehler“ gibt es nur für Administratoren."
+        "helpAdmin": "Wofür eine Nachricht kommt. „Fehler“ und „Wünsche: Freigabe nötig“ gibt es nur für Administratoren."
       },
       "push": {
         "ios": "Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü „Zum Home-Bildschirm“ wählen und Slouchcat von dort öffnen."

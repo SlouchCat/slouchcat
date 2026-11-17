@@ -5837,8 +5837,11 @@
         "errors": "Errors",
         "invitations": "Invitations",
         "announcements": "Announcements",
+        "wish_available": "Wishes: available",
+        "wish_status": "Wishes: approved, declined, failed",
+        "wish_review": "Wishes: approval needed",
         "help": "What a message is sent for.",
-        "helpAdmin": "What a message is sent for. “Errors” is for administrators only."
+        "helpAdmin": "What a message is sent for. “Errors” and “Wishes: approval needed” are for administrators only."
       },
       "unavailable": {
         "body": "The main user sets up this channel in the administration under Integrations.",

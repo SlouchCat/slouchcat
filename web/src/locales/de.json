@@ -5837,8 +5837,11 @@
         "errors": "Fehler",
         "invitations": "Einladungen",
         "announcements": "Ankündigungen",
+        "wish_available": "Wünsche: verfügbar",
+        "wish_status": "Wünsche: freigegeben, abgelehnt, fehlgeschlagen",
+        "wish_review": "Wünsche: Freigabe nötig",
         "help": "Wofür eine Nachricht kommt.",
-        "helpAdmin": "Wofür eine Nachricht kommt. «Fehler» gibt es nur für Administratoren."
+        "helpAdmin": "Wofür eine Nachricht kommt. «Fehler» und «Wünsche: Freigabe nötig» gibt es nur für Administratoren."
       },
       "unavailable": {
         "body": "Der Hauptbenutzer richtet diesen Kanal in der Verwaltung unter Integrationen ein.",

@@ -39,8 +39,12 @@ const entryKey = (entry: Notification) => `notification-${entry.id}`;
 /** An entry's expected height in px (InboxEntry: three lines in its padding). */
 const ENTRY_HEIGHT = 88;
 
-/** "S01E03 · Pilot" for an episode, the title for a podcast episode. */
+/**
+ * "S01E03 · Pilot" for an episode, the title for a podcast episode. An entry about a wish whose
+ * title the profile does not see (contract 1.41.0) has no item: the wish's title stands in.
+ */
 function entryTitle(t: TFunction, entry: Notification): string {
+  if (!entry.item) return entry.wish?.title ?? '';
   const code = episodeCode(t, entry.item);
   return code ? t('item.nextEpisodeLabel', { code, title: entry.item.title }) : entry.item.title;
 }
@@ -58,6 +62,7 @@ function entryLabel(t: TFunction, entry: Notification, language: string): string
 }
 
 function entryContext(t: TFunction, entry: Notification): string {
+  if (!entry.item) return '';
   const parent = entry.parent?.title ?? entry.item.seriesTitle;
   return parent ? t('notifications.newEpisode', { parent }) : t('notifications.newEpisodeAlone');
 }
@@ -156,7 +161,7 @@ export function NotificationsPage() {
               renderItem={(entry) => (
                 <InboxEntry
                   focusKey={entryKey(entry)}
-                  href={paths.item(entry.item.id)}
+                  href={entry.item ? paths.item(entry.item.id) : paths.notifications}
                   title={entryTitle(t, entry)}
                   context={entryContext(t, entry)}
                   time={formatDateTime(entry.createdAt, intlLocale(i18n.language))}

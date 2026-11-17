@@ -192,6 +192,7 @@ type Service struct {
 
 	externalMu     sync.Mutex
 	externalMisses map[string]time.Time // titles and images outside the library TMDB refused (external_titles.go)
+	externalSearch externalSearchCache  // raw TMDB hits of the search for missing titles (external_search.go)
 
 	feeds feedFetcher // podcast feeds (podcast.go)
 

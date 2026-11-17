@@ -122,13 +122,18 @@ describe('notification channels page', () => {
     expect(within(mail).getByRole('checkbox', { name: 'Ankündigungen' })).toBeChecked();
     expect(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' })).not.toBeChecked();
     // The main account may choose errors. M9 removed the acquisition event with its producer
-    // I-1, so four types are left.
+    // I-1; concept 25 added the three wish events, «Freigabe nötig» for administrators only.
     expect(within(mail).getByRole('checkbox', { name: 'Fehler' })).toBeVisible();
-    expect(within(mail).getAllByRole('checkbox')).toHaveLength(4);
+    expect(within(mail).getByRole('checkbox', { name: 'Wünsche: Freigabe nötig' })).toBeVisible();
+    expect(within(mail).getAllByRole('checkbox')).toHaveLength(7);
     expect(
       within(mail).queryByRole('checkbox', { name: 'Beschaffungsstatus' }),
     ).not.toBeInTheDocument();
-    expect(within(mail).getByText(/«Fehler» gibt es nur für Administratoren/)).toBeVisible();
+    expect(
+      within(mail).getByText(
+        /«Fehler» und «Wünsche: Freigabe nötig» gibt es nur für Administratoren/,
+      ),
+    ).toBeVisible();
     expect(within(mail).getByText('Aus')).toBeVisible();
     // E-mail, Telegram, Web-Push, each a block that folds away by its band (mockup Ben-A).
     const list = screen.getByRole('list', { name: 'Kanäle' });

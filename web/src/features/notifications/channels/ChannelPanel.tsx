@@ -101,7 +101,9 @@ export function ChannelPanel({
     test.reset();
     save.mutate(values);
   };
-  const events = EVENTS.filter((event) => isAdmin || event !== 'errors');
+  const events = EVENTS.filter(
+    (event) => isAdmin || (event !== 'errors' && event !== 'wish_review'),
+  );
 
   return (
     <>

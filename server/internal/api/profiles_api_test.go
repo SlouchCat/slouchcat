@@ -330,7 +330,7 @@ func TestInvitationFlow(t *testing.T) {
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Errorf("the response with the one-time token has Cache-Control %q, want no-store", got)
 	}
-	if inv.State != gen.Open || inv.Note == nil || *inv.Note != "Oma" || !strings.HasPrefix(inv.Url, "/invite/") || strings.TrimPrefix(inv.Url, "/invite/") != inv.Token || len(inv.Token) != 43 {
+	if inv.State != gen.InvitationStateOpen || inv.Note == nil || *inv.Note != "Oma" || !strings.HasPrefix(inv.Url, "/invite/") || strings.TrimPrefix(inv.Url, "/invite/") != inv.Token || len(inv.Token) != 43 {
 		t.Fatalf("created invitation = %s", rec.Body.String())
 	}
 	// The list never repeats the token.
@@ -384,7 +384,7 @@ func TestInvitationFlow(t *testing.T) {
 	}
 	var list []gen.Invitation
 	decode(t, owner.do(http.MethodGet, "/api/v1/admin/invitations", nil), &list)
-	if len(list) != 1 || list[0].State != gen.Used || list[0].UsedByEmail == nil || string(*list[0].UsedByEmail) != "oma@example.ch" {
+	if len(list) != 1 || list[0].State != gen.InvitationStateUsed || list[0].UsedByEmail == nil || string(*list[0].UsedByEmail) != "oma@example.ch" {
 		t.Errorf("invitation list = %+v", list)
 	}
 	var accounts []gen.AdminAccount

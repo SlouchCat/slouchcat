@@ -10,7 +10,8 @@ import (
 
 // M7 in-app inbox operations (plan M7, 5.5, design section 3.3): the entries of the active profile
 // through the notify service (Options.Notify; nil answers 501). Entries whose episode the profile
-// may no longer see are neither listed nor counted, and marking one answers 404.
+// may no longer see are neither listed nor counted, and marking one answers 404. Since contract
+// 1.41.0 an entry about a wish carries the wish, and its title only while the profile sees it.
 
 // Inbox page bounds of the contract.
 const (
@@ -58,8 +59,14 @@ func (s *server) ListNotifications(ctx context.Context, req gen.ListNotification
 	out := gen.NotificationPage{Notifications: make([]gen.Notification, 0, len(list)), Total: total, Unread: unread,
 		Offset: offset, Limit: limit}
 	for _, n := range list {
-		g := gen.Notification{Id: n.ID, Kind: gen.NotificationKind(n.Kind), CreatedAt: n.CreatedAt.UTC(),
-			ReadAt: utc(n.ReadAt), Item: toItemRef(session.Profile.ID, n.Item)}
+		g := gen.Notification{Id: n.ID, Kind: gen.NotificationKind(n.Kind), CreatedAt: n.CreatedAt.UTC(), ReadAt: utc(n.ReadAt)}
+		if n.Item.ID != "" { // a wish entry without a title the profile sees has none (contract 1.41.0)
+			item := toItemRef(session.Profile.ID, n.Item)
+			g.Item = &item
+		}
+		if w := n.Wish; w != nil {
+			g.Wish = &gen.NotificationWish{Id: w.ID, Media: gen.ExternalMedia(w.Media), Title: w.Title, State: gen.WishState(w.State)}
+		}
 		if n.Parent != nil {
 			parent := toItemRef(session.Profile.ID, *n.Parent)
 			g.Parent = &parent

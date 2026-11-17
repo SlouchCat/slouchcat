@@ -41,6 +41,8 @@ type WishesService interface {
 	SetAccountLimit(ctx context.Context, accountID int64, mode string, movie, tv *model.WishLimit, by int64) (model.AccountWishLimit, error)
 	// ForProfile is the request right of the active profile (SessionInfo.wishes); model.ErrNotFound.
 	ForProfile(ctx context.Context, accountID, profileID int64) (model.WishRights, error)
+	// Stage 2: titles outside the library and the wishes (wish_titles_handlers.go).
+	WishTitlesService
 }
 
 // wishRights is SessionInfo.wishes; nil without the service or an active profile (the session
@@ -491,7 +493,7 @@ func toDashboardWishes(d *model.DashboardWishes) *gen.DashboardWishes {
 		return nil
 	}
 	out := &gen.DashboardWishes{
-		Unmapped: d.Unmapped, UnmappedFallback: d.UnmappedFallback, GoneUsers: d.GoneUsers,
+		Open: d.Open, Queued: d.Queued, Unmapped: d.Unmapped, UnmappedFallback: d.UnmappedFallback, GoneUsers: d.GoneUsers,
 		Linked: make([]gen.WishLinkHint, 0, len(d.Linked)), QuotaReached: make([]gen.WishQuotaHint, 0, len(d.QuotaReached)),
 	}
 	if d.SeerrState != "" {

@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -102,6 +105,15 @@ func (l *fakeLib) CatalogSeasonTarget(_ context.Context, seriesID string, season
 	return t, ok, nil
 }
 
+func (l *fakeLib) Summary(_ context.Context, _ visibility.Scope, itemID string) (model.ItemSummary, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.hidden[itemID] || !slices.Contains(slices.Collect(maps.Values(l.items)), itemID) {
+		return model.ItemSummary{}, model.ErrNotFound
+	}
+	return model.ItemSummary{ID: itemID, Title: itemID}, nil
+}
+
 // fakeTitles is metadata's store of titles outside the library.
 type fakeTitles map[string]metadata.ExternalTitle
 
@@ -110,6 +122,32 @@ func (t fakeTitles) EnsureExternalTitle(_ context.Context, media string, tmdbID 
 		return x, nil
 	}
 	return metadata.ExternalTitle{}, model.ErrNotFound
+}
+
+func (t fakeTitles) ExternalTitle(ctx context.Context, media string, tmdbID int64) (metadata.ExternalTitle, error) {
+	return t.EnsureExternalTitle(ctx, media, tmdbID)
+}
+
+func (fakeTitles) OpenExternalTitleImage(context.Context, string, int64, string, string, bool) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
+}
+
+// SearchExternalTitles finds the stored titles whose title in any language contains query.
+func (t fakeTitles) SearchExternalTitles(_ context.Context, media, query string) ([]metadata.ExternalHit, error) {
+	var out []metadata.ExternalHit
+	for _, x := range t {
+		if media != "" && x.Media != media {
+			continue
+		}
+		for _, tx := range x.Texts {
+			if strings.Contains(strings.ToLower(tx.Title), strings.ToLower(query)) {
+				out = append(out, metadata.ExternalHit{Media: x.Media, TMDBID: x.TMDBID, Title: tx.Title, Year: x.Year})
+				break
+			}
+		}
+	}
+	slices.SortFunc(out, func(a, b metadata.ExternalHit) int { return int(a.TMDBID - b.TMDBID) })
+	return out, nil
 }
 
 // fakeNotifier records the calls of the Notifier.

@@ -45,6 +45,7 @@ func (s *Service) DashboardWishes(ctx context.Context) (*model.DashboardWishes, 
 		return nil, err
 	}
 	out := &model.DashboardWishes{
+		Open: st.Counts.Open, Queued: st.Counts.Queued,
 		Unmapped: st.Counts.Unmapped, UnmappedFallback: ws.Unmapped == model.WishesUnmappedFallback,
 		Linked: []model.WishLinkHint{}, QuotaReached: []model.WishQuotaHint{},
 	}

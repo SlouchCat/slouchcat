@@ -43,3 +43,6 @@ output-options:
     # Trickplay sheets (contract 1.23.0, ADR 0027).
     - getTrickplaySheet
     - getDownloadTrickplaySheet
+    # Images of titles outside the library (concept 25 stage 2, contract 1.41.0).
+    - getExternalTitleImage
+    - getAdminExternalTitleImage

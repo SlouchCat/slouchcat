@@ -328,6 +328,7 @@ type WishLinkHint struct {
 // DashboardWishes are the hints of the wishes in the overview (concept 25, administration 2).
 type DashboardWishes struct {
 	SeerrState       string // key_invalid, unreachable, instance_changed; "" when Seerr answers
+	Open, Queued     int    // open wishes («Offene Wünsche», stage 2) and those waiting for the outbox
 	Unmapped         int    // accounts with the right and no ready Seerr user
 	UnmappedFallback bool   // they send through the shared user meanwhile
 	Linked           []WishLinkHint

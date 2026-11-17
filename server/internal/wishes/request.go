@@ -667,9 +667,18 @@ func (s *Service) created(ctx context.Context, p model.Profile, res createResult
 			return model.WishCreated{}, err
 		}
 		out.Joined = append(out.Joined, w)
-		if out.Wish == nil && w.Media == model.WishMediaMovie {
-			out.Wish = &out.Joined[len(out.Joined)-1]
+	}
+	if err := s.withCards(ctx, p, out.Joined); err != nil {
+		return model.WishCreated{}, err
+	}
+	if out.Wish != nil {
+		cards := []model.Wish{*out.Wish}
+		if err := s.withCards(ctx, p, cards); err != nil {
+			return model.WishCreated{}, err
 		}
+		out.Wish = &cards[0]
+	} else if len(out.Joined) > 0 && out.Joined[0].Media == model.WishMediaMovie {
+		out.Wish = &out.Joined[0]
 	}
 	return out, nil
 }
@@ -816,6 +825,9 @@ func (s *Service) ProfileWishes(ctx context.Context, p model.Profile, filter str
 			return model.WishPage{}, err
 		}
 		out.Items = append(out.Items, w)
+	}
+	if err := s.withCards(ctx, p, out.Items); err != nil {
+		return model.WishPage{}, err
 	}
 	return out, nil
 }

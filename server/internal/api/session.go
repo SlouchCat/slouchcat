@@ -516,6 +516,12 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "rating_below_library_default", "A title of an audio library may only be rated stricter than the library default.")
 	case errors.Is(err, model.ErrEnclosureUnavailable):
 		p.write(w, r, http.StatusBadGateway, "enclosure_unavailable", "The podcast host did not deliver the episode.")
+	case errors.As(err, new(*model.WishNotAllowedError)):
+		p.write(w, r, http.StatusForbidden, "wish_not_allowed", "The profile may not request this.")
+	case errors.Is(err, errTMDBDown):
+		p.write(w, r, http.StatusServiceUnavailable, "tmdb_unreachable", "TMDB did not answer; try again later.")
+	case errors.Is(err, model.ErrWishNotWithdrawable):
+		p.write(w, r, http.StatusConflict, "wish_not_withdrawable", "The wish is past the approval and cannot be withdrawn.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.Is(err, model.ErrEnvWins), errors.Is(err, model.ErrSendFailed), errors.Is(err, model.ErrEmailSendFailed):

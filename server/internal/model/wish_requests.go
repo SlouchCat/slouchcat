@@ -147,7 +147,8 @@ type Wish struct {
 	Origin          string
 	Role            string // owner or joined; "" in the administration
 	Seasons         []WishSeason
-	ItemID          string // the library title visibility found; the contract makes it an ItemRef after a visibility check
+	ItemID          string             // the library title visibility found; the contract makes it an ItemRef after a visibility check
+	External        *ExternalTitleCard // the title outside the library as the profile sees it («Meine Wünsche», createWish); nil in the administration
 	CanWithdraw     bool
 	CanRequestAgain bool
 	Hint            string // already_approved

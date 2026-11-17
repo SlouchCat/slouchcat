@@ -740,6 +740,30 @@ var profileRegistry = map[string]profileCall{
 		}},
 	// M7 inbox (E-8): the fixture has no entries; contract_notify_test.go covers the visibility of
 	// the entries and the foreign-entry 404.
+	// Concept 25 stage 2 (contract 1.41.0): wishes are off in the fixture, so no profile may request
+	// and no title outside the library exists for it (F-9: 404, the search section empty, createWish
+	// 403 wish_not_allowed disabled). TestContractWishes covers them with Seerr and stored titles.
+	"searchExternalTitles": {contract: "GET /titles/search", path: "/titles/search?q=Fi",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			if !strings.Contains(rec.Body.String(), `"items":[]`) {
+				t.Errorf("%s: search section without the right = %s", token, rec.Body.String())
+			}
+		}},
+	"getExternalTitle": {contract: "GET /titles/{media}/{tmdbId}", path: "/titles/movie/603",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"getExternalTitleImage": {contract: "GET /titles/{media}/{tmdbId}/images/{kind}/{size}", path: "/titles/movie/603/images/poster/w400",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"getWishSeasons": {contract: "GET /titles/show/{tmdbId}/seasons", path: "/titles/show/1399/seasons",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listWishes": {contract: "GET /wishes", path: "/wishes",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"createWish": {contract: "POST /wishes", path: "/wishes", body: `{"media":"movie","tmdbId":603}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusForbidden }},
+	"getWishQuota": {contract: "GET /wishes/quota", path: "/wishes/quota",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"withdrawWish": {contract: "DELETE /wishes/{id}", path: "/wishes/9999",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"markNotificationRead": {contract: "PUT /notifications/{id}/read", path: "/notifications/1/read",
@@ -1332,7 +1356,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)
-	pf.wishes = wishes.New(f.DB, adm, pf.queue, log)
+	pf.wishes = wishes.New(f.DB, adm, pf.queue, log, wishes.WithLibrary(visibility.New(f.DB, log)), wishes.WithTitles(pods))
 	adm.WithSeerr(pf.wishes)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,

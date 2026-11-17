@@ -92,7 +92,7 @@ func TestContractNotifications(t *testing.T) {
 	if got := items(page); !slices.Equal(got, []string{e16}) || page.Total != 1 || page.Unread != 1 {
 		t.Fatalf("p18 inbox = %v total %d unread %d", got, page.Total, page.Unread)
 	}
-	if n := page.Notifications[0]; n.Kind != gen.NewEpisode || n.Parent == nil || n.Parent.Id != f.Show.Series.ID || n.ReadAt != nil {
+	if n := page.Notifications[0]; n.Kind != gen.NotificationKindNewEpisode || n.Parent == nil || n.Parent.Id != f.Show.Series.ID || n.ReadAt != nil {
 		t.Errorf("p18 entry = %+v", n)
 	}
 	if got := rec.of(f.P6); len(got) != 0 {

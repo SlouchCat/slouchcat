@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
@@ -23,12 +24,20 @@ type Library interface {
 	// CatalogSeasonTarget is the episode target of a season by series_catalog; found false sends
 	// the caller to the title outside the library.
 	CatalogSeasonTarget(ctx context.Context, seriesID string, season int) (visibility.SeasonTarget, bool, error)
+	// Summary is a library title as the profile sees it; model.ErrNotFound when it may not.
+	Summary(ctx context.Context, s visibility.Scope, itemID string) (model.ItemSummary, error)
 }
 
 // Titles is the part of package metadata the wishes ask (*metadata.Service): the stored title
 // outside the library, fetched from TMDB when missing.
 type Titles interface {
 	EnsureExternalTitle(ctx context.Context, media string, tmdbID int64) (metadata.ExternalTitle, error)
+	// ExternalTitle returns the stored title without asking TMDB; model.ErrNotFound without one.
+	ExternalTitle(ctx context.Context, media string, tmdbID int64) (metadata.ExternalTitle, error)
+	// OpenExternalTitleImage opens a stored image; it checks no profile.
+	OpenExternalTitleImage(ctx context.Context, media string, tmdbID int64, kind, size string, preferWebP bool) (model.StreamSource, error)
+	// SearchExternalTitles returns TMDB's hits of a query (media movie, show or "" for both).
+	SearchExternalTitles(ctx context.Context, media, query string) ([]metadata.ExternalHit, error)
 }
 
 // Notifier receives the changes of a wish that reach its requesters (architecture 12; package

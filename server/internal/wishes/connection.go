@@ -508,6 +508,16 @@ func (s *Service) Status(ctx context.Context) (model.SeerrStatus, error) {
 		return model.SeerrStatus{}, fmt.Errorf("count unmapped: %w", err)
 	}
 	st.Counts.Unmapped = int(unmapped)
+	open, err := s.read.ListOpenWishes(ctx)
+	if err != nil {
+		return model.SeerrStatus{}, fmt.Errorf("open wishes: %w", err)
+	}
+	st.Counts.Open = len(open)
+	for _, w := range open {
+		if w.State == model.WishQueued {
+			st.Counts.Queued++
+		}
+	}
 	rows, err := s.read.ListSeerrLog(ctx)
 	if err != nil {
 		return model.SeerrStatus{}, fmt.Errorf("list seerr log: %w", err)

@@ -101,6 +101,9 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + radioCoverPath:        "scoped",
 	"GET " + BasePath + adminRadioImagePath:   "admin",
 	"PUT " + BasePath + radioLogoUploadPath:   "admin",
+
+	"GET " + BasePath + externalImagePath:      "scoped",
+	"GET " + BasePath + adminExternalImagePath: "admin",
 }
 
 // Options configure NewHandler.
@@ -203,6 +206,8 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(radioCoverPath, s.getRadioCover)
 		r.With(authorize).Get(adminRadioImagePath, s.getAdminRadioImage)
 		r.With(authorize).Put(radioLogoUploadPath, s.uploadRadioStationLogo)
+		r.With(authorize).Get(externalImagePath, s.getExternalTitleImage)
+		r.With(authorize).Get(adminExternalImagePath, s.getAdminExternalTitleImage)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a
