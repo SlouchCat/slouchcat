@@ -124,6 +124,9 @@ type Options struct {
 	// Radio is the webradio (concept 16, contract 1.17.0); nil answers 501 on the JSON operations,
 	// the station images and the logo upload, and 401 on the live routes (radioAuth).
 	Radio RadioService
+	// Wishes is the Seerr test, state, instance, users and mapping (concept 25, contract 1.41.0);
+	// nil answers 501 on them.
+	Wishes WishesService
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.

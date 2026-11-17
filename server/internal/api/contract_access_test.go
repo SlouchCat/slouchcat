@@ -202,7 +202,27 @@ var adminRegistry = map[string]adminCall{
 	"setIntegrationPathMap": {contract: "PUT /admin/integrations/{id}/path-map", path: "/admin/integrations/9999/path-map",
 		body: `{"pathMap":[]}`, ownerStatus: http.StatusNotFound},
 	"listIntegrationEvents": {contract: "GET /admin/integrations/{id}/events", path: "/admin/integrations/9999/events", ownerStatus: http.StatusNotFound},
-	"createLibrary":         {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},
+	// Concept 25 (contract 1.41.0): the fixture has no Seerr, so the test, the refresh and the
+	// instance decision are refused, an unknown account is 404 and «Wünsche aktiv» needs a test.
+	// TestContractSeerr talks to a fake Seerr.
+	"getSeerrSettings": {contract: "GET /admin/seerr", path: "/admin/seerr", ownerStatus: http.StatusOK},
+	"updateSeerrSettings": {contract: "PUT /admin/seerr", path: "/admin/seerr", body: `{"url":"ftp://seerr.lan"}`,
+		ownerStatus: http.StatusUnprocessableEntity},
+	"testSeerrConnection": {contract: "POST /admin/seerr/test", path: "/admin/seerr/test", body: `{}`,
+		ownerStatus: http.StatusUnprocessableEntity},
+	"getSeerrStatus": {contract: "GET /admin/seerr/status", path: "/admin/seerr/status", ownerStatus: http.StatusOK},
+	"confirmSeerrInstance": {contract: "POST /admin/seerr/instance", path: "/admin/seerr/instance", body: `{"action":"confirm"}`,
+		ownerStatus: http.StatusConflict},
+	"getWishMappings": {contract: "GET /admin/wishes/mappings", path: "/admin/wishes/mappings", ownerStatus: http.StatusOK},
+	"listSeerrUsers":  {contract: "GET /admin/wishes/mappings/users", path: "/admin/wishes/mappings/users", ownerStatus: http.StatusOK},
+	"refreshSeerrUsers": {contract: "POST /admin/wishes/mappings/users/refresh", path: "/admin/wishes/mappings/users/refresh",
+		ownerStatus: http.StatusUnprocessableEntity},
+	"setAccountWishMapping": {contract: "PUT /admin/wishes/mappings/accounts/{accountId}", path: "/admin/wishes/mappings/accounts/9999",
+		body: `{"seerrUserId":null}`, ownerStatus: http.StatusNotFound},
+	"getWishSettings": {contract: "GET /admin/wishes/settings", path: "/admin/wishes/settings", ownerStatus: http.StatusOK},
+	"setWishSettings": {contract: "PUT /admin/wishes/settings", path: "/admin/wishes/settings", body: `{"enabled":true}`,
+		ownerStatus: http.StatusConflict},
+	"createLibrary": {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},
 	// Idea 02, the folder browser: the fixture has no browsable root, so the list is empty and
 	// every id is unknown -- the same 404 a path outside the roots gets.
 	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},

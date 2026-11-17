@@ -4659,6 +4659,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/seerr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The connection to Seerr without its key (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0 (concept 25, wishes through Seerr). The address and the api key of Seerr
+         *     (formerly Jellyseerr); the key is write-only and shows its last four characters. Values of the
+         *     environment (`SLOUCHCAT_SEERR_URL`, `SLOUCHCAT_SEERR_API_KEY`) win and cannot be changed here.
+         */
+        get: operations["getSeerrSettings"];
+        /**
+         * Save the connection to Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Absent fields stay; an empty `apiKey` keeps the stored key; `clear`
+         *     removes the stored address and key. The address is `http` or `https` without user info, query
+         *     or fragment; a trailing `/api/v1` is dropped. An address on another host needs the key again
+         *     (`seerr_key_required`): the stored key never travels to another address. A new address or key
+         *     voids the last connection test, so «Wünsche aktiv» needs a new one; saving queues the refresh of
+         *     the Seerr users.
+         */
+        put: operations["updateSeerrSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the connection to Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Runs the check list against the saved connection or against an address
+         *     and key not saved yet. A host other than the saved one needs `apiKey` (`seerr_key_required`).
+         *     The test never creates or changes anything in Seerr; a warning never fails it (`ok` is false
+         *     only with a failed check). Only a test of the saved values counts for «Wünsche aktiv» and
+         *     compares the instance.
+         */
+        post: operations["testSeerrConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State of the connection to Seerr and its call log (concept 25, contract 1.41.0) */
+        get: operations["getSeerrStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide about another Seerr instance (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. While another instance is detected under the address no call runs on
+         *     behalf of a user. `confirm` takes over the new instance and keeps every Seerr user of the
+         *     accounts; `reset` removes them and the list of the Seerr users. Both queue the refresh of the
+         *     users.
+         */
+        post: operations["confirmSeerrInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Seerr user of every account (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Every account with its Seerr user, password state and limit, the Seerr
+         *     users without an account and the shared user «slouchcat-gaeste». Never a key or a password.
+         */
+        get: operations["getWishMappings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The users of Seerr as Slouchcat last read them (concept 25, contract 1.41.0) */
+        get: operations["listSeerrUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reload the users of Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Queues the job `seerr.users` with manual priority.
+         */
+        post: operations["refreshSeerrUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose the Seerr user of an account by hand, or unlink it (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. A Seerr user chosen by hand keeps its password in Seerr (password state
+         *     `off`, `admin` for an administrator of Seerr, `external` for a sign-in through Plex, Jellyfin
+         *     or Emby) and its rights. `null` unlinks; the user stays in Seerr.
+         */
+        put: operations["setAccountWishMapping"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Settings of the wishes (concept 25, contract 1.41.0) */
+        get: operations["getWishSettings"];
+        /**
+         * Change settings of the wishes (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Absent fields stay; every change applies at once. `enabled` goes on only
+         *     after a successful test of the saved connection (`seerr_not_tested`).
+         */
+        put: operations["setWishSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/integrations": {
         parameters: {
             query?: never;
@@ -10418,6 +10615,237 @@ export interface components {
          * @enum {string}
          */
         SettingSource: "env" | "stored" | "none";
+        /** @description Since contract 1.41.0 (concept 25). The connection to Seerr; the key never leaves the server. */
+        SeerrSettings: {
+            /** @description «Seerr verwenden»; off, Slouchcat makes no call to Seerr (the test excepted). */
+            enabled: boolean;
+            /** @description The address, for example `http://192.168.1.50:5055`; absent while none is set. */
+            url?: string;
+            urlSource: components["schemas"]["SettingSource"];
+            apiKey: components["schemas"]["KeyState"];
+        };
+        /** @description Since contract 1.41.0. Absent fields stay. */
+        SeerrSettingsUpdate: {
+            enabled?: boolean;
+            /** @description The new address; an empty string removes it. */
+            url?: string;
+            /** @description The new key; empty keeps the stored one. */
+            apiKey?: string;
+            /** @description Remove the stored address and key («Löschen …»). */
+            clear?: boolean;
+        };
+        /** @description Since contract 1.41.0. Values not saved yet; absent ones are the saved values. */
+        SeerrTestRequest: {
+            url?: string;
+            apiKey?: string;
+        };
+        SeerrCheck: {
+            /**
+             * @description The check (architecture 15.1): `manage_users` judges the rights of the key's user (it never
+             *     creates a user); `password_transport` appears only as a warning, for `http` outside the
+             *     household's network.
+             * @enum {string}
+             */
+            key: "reachable" | "version" | "key_valid" | "manage_users" | "instance" | "act_as_user" | "csrf_off" | "radarr" | "sonarr" | "local_login" | "tvdb_seasons" | "password_transport";
+            /**
+             * @description A warning never fails the test.
+             * @enum {string}
+             */
+            level: "ok" | "warn" | "fail";
+            /**
+             * @description The version (`version`), the number of servers (`radarr`, `sonarr`), the source of the seasons
+             *     (`tvdb_seasons`), or a code: `not_verified` (a version below Jellyseerr 2.7 or Seerr 3.0),
+             *     `not_testable` (no user besides user 1), `instance_changed`, `not_user_one`, `not_available`,
+             *     `off`, `timeout`, `refused`, `redirect` or an error class.
+             */
+            detail?: string;
+        };
+        SeerrTestResult: {
+            /** @description No check failed. */
+            ok: boolean;
+            version?: string;
+            checks: components["schemas"]["SeerrCheck"][];
+        };
+        /** @description Since contract 1.41.0. The state of the connection, without any key. */
+        SeerrStatus: {
+            /**
+             * @description `untested`: configured, but no test or job reached Seerr yet. `instance_changed`: another
+             *     instance answers under the address; no call runs on behalf of a user until
+             *     `confirmSeerrInstance`.
+             * @enum {string}
+             */
+            state: "not_configured" | "disabled" | "untested" | "connected" | "key_invalid" | "unreachable" | "instance_changed";
+            version?: string;
+            /** Format: date-time */
+            lastSuccess?: string;
+            /** Format: date-time */
+            lastAttempt?: string;
+            /** @description The class of the last error (`unreachable`, `key_invalid`, `redirect`, `timeout`, `server`, …). */
+            lastError?: string;
+            instanceChanged: boolean;
+            /** @description The last test of the saved connection passed; «Wünsche aktiv» may go on. */
+            tested: boolean;
+            counts: {
+                /** @description Open wishes (from stage 2; 0 before). */
+                open: number;
+                /** @description Wishes waiting for the transfer (from stage 2; 0 before). */
+                queued: number;
+                /** @description Accounts that may request without a Seerr user. */
+                unmapped: number;
+            };
+            log: components["schemas"]["SeerrLogEntry"][];
+        };
+        /** @description One call to Seerr; never a header, a body, a key or the host. */
+        SeerrLogEntry: {
+            /** Format: date-time */
+            at: string;
+            method: string;
+            /** @description The path below `/api/v1`, without query. */
+            path: string;
+            /** @description Absent without an answer. */
+            status?: number;
+            /** Format: int64 */
+            durationMs: number;
+            error?: string;
+        };
+        SeerrInstanceDecision: {
+            /** @enum {string} */
+            action: "confirm" | "reset";
+        };
+        /**
+         * @description The limit fields of the user as Seerr holds them: absent = the default of the Seerr instance,
+         *     0 = no limit.
+         */
+        SeerrUserQuota: {
+            movieLimit?: number;
+            movieDays?: number;
+            tvLimit?: number;
+            tvDays?: number;
+        };
+        /** @description Since contract 1.41.0. A user of Seerr; rights derived by the server. */
+        SeerrUser: {
+            id: number;
+            displayName: string;
+            email?: string;
+            /**
+             * @description 1 Plex, 2 local, 3 Jellyfin, 4 Emby; only a local user gets a password from Slouchcat.
+             * @enum {integer}
+             */
+            userType: 1 | 2 | 3 | 4;
+            /** @description ADMIN or MANAGE_USERS in Seerr; no limit, no password sync. */
+            isAdmin: boolean;
+            canRequestMovies: boolean;
+            canRequestShows: boolean;
+            autoApprove: boolean;
+            /** @description The shared user «slouchcat-gaeste» of the accounts without a Seerr user. */
+            shared: boolean;
+            /** @description Missing in Seerr at the last refresh. */
+            gone: boolean;
+            quota: components["schemas"]["SeerrUserQuota"];
+            mappedTo?: {
+                /** Format: int64 */
+                accountId: number;
+                email: string;
+            };
+        };
+        WishLimit: {
+            /** @description Titles (films) or seasons (series); 0 = no limit. */
+            limit: number;
+            days: number;
+        };
+        WishLimits: {
+            movie: components["schemas"]["WishLimit"];
+            tv: components["schemas"]["WishLimit"];
+        };
+        /** @description The limit of an account; `effective` is the one that applies. */
+        AccountWishLimit: {
+            /** @enum {string} */
+            mode: "default" | "custom" | "unlimited";
+            movie?: components["schemas"]["WishLimit"];
+            tv?: components["schemas"]["WishLimit"];
+            effective: components["schemas"]["WishLimits"];
+            /** @description The Seerr user is an administrator and has no limit in Seerr. */
+            seerrAdmin: boolean;
+        };
+        /** @description Since contract 1.41.0. The Seerr user of one account. */
+        WishAccountMapping: {
+            /** Format: int64 */
+            accountId: number;
+            email: string;
+            /** @description The cap of the account. */
+            canRequest: boolean;
+            seerrUserId?: number;
+            /**
+             * @description Opened by Slouchcat, linked by the same email, chosen by hand, waiting for Seerr, not opened.
+             * @enum {string}
+             */
+            state: "created" | "linked" | "manual" | "waiting" | "none";
+            /** @enum {string} */
+            passwordState?: "synced" | "next_login" | "off" | "admin" | "external";
+            /** Format: date-time */
+            passwordSyncedAt?: string;
+            /** @enum {string} */
+            linkedBy?: "admin" | "invite" | "email_change";
+            /** Format: date-time */
+            linkedAt?: string;
+            provisionError?: string;
+            limit: components["schemas"]["AccountWishLimit"];
+        };
+        WishMappings: {
+            accounts: components["schemas"]["WishAccountMapping"][];
+            /** @description Seerr users without an account, the shared user excepted. */
+            unlinkedUsers: components["schemas"]["SeerrUser"][];
+            sharedUser?: components["schemas"]["SeerrUser"];
+            /** @description Accounts with a ready Seerr user. */
+            opened: number;
+            total: number;
+        };
+        AccountWishMappingRequest: {
+            /** @description The Seerr user; `null` unlinks. */
+            seerrUserId: number | null;
+        };
+        /** @description Since contract 1.41.0 (data model 2.12). The settings of Medien › Wünsche › Einstellungen. */
+        WishSettings: {
+            /** @description «Wünsche aktiv»; off by default, on only after a successful test. */
+            enabled: boolean;
+            allowMovies: boolean;
+            allowShows: boolean;
+            fromSearch: boolean;
+            fromDetail: boolean;
+            /** @enum {string} */
+            alreadyRequested: "join" | "status";
+            /**
+             * @description Accounts without a Seerr user send as the shared user «slouchcat-gaeste» (`fallback`, the default) or not at all.
+             * @enum {string}
+             */
+            unmapped: "fallback" | "deny";
+            newAccountsCanRequest: boolean;
+            allowWithdraw: boolean;
+            pinExternalHideTitle: boolean;
+            /** @description «Neue Konten in Seerr eröffnen». */
+            provisionAccounts: boolean;
+            /** @description «Passwort abgleichen». */
+            syncPassword: boolean;
+            defaultLimit: components["schemas"]["WishLimits"];
+        };
+        /** @description Since contract 1.41.0. Absent fields stay. */
+        WishSettingsUpdate: {
+            enabled?: boolean;
+            allowMovies?: boolean;
+            allowShows?: boolean;
+            fromSearch?: boolean;
+            fromDetail?: boolean;
+            /** @enum {string} */
+            alreadyRequested?: "join" | "status";
+            /** @enum {string} */
+            unmapped?: "fallback" | "deny";
+            newAccountsCanRequest?: boolean;
+            allowWithdraw?: boolean;
+            pinExternalHideTitle?: boolean;
+            provisionAccounts?: boolean;
+            syncPassword?: boolean;
+            defaultLimit?: components["schemas"]["WishLimits"];
+        };
         KeyState: {
             source: components["schemas"]["SettingSource"];
             /** @description The last four characters of a stored key; absent for keys from the environment. */
@@ -20375,6 +20803,359 @@ export interface operations {
             403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown or of another account (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateSeerrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The saved connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `validation_failed` (field `url` with code `seerr_url_invalid`, `apiKey` too long),
+             *     `seerr_key_required` (another host without a key) or `env_wins` (the value comes from the
+             *     environment; the field names it).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testSeerrConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SeerrTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The check list, also when single checks failed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `seerr_not_configured` (no address or key), `seerr_key_required` or `validation_failed`
+             *     (field `url`, code `seerr_url_invalid`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state, the counters and the last 20 calls. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    confirmSeerrInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrInstanceDecision"];
+            };
+        };
+        responses: {
+            /** @description The state after the decision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No other instance waits for a decision (`instance_unchanged`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishMappings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The mappings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishMappings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listSeerrUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every known Seerr user, by id. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrUser"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    refreshSeerrUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setAccountWishMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountWishMappingRequest"];
+            };
+        };
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account or Seerr user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The Seerr user belongs to another account, is the shared user or is gone from Seerr
+             *     (`seerr_user_taken`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setWishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description «Wünsche aktiv» needs a successful test of the saved connection (`seerr_not_tested`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

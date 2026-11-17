@@ -559,6 +559,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
 			Radio:    radioSvc,
+			Wishes:   wishSvc,
 
 			Integrations: integrationSvc,
 		}),

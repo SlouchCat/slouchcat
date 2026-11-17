@@ -40,6 +40,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // Child-profile contract test (plan 10.2) for every scoped operation of api/openapi.yaml. It runs the
@@ -1226,6 +1227,8 @@ type profileFixture struct {
 
 	integrations *integrations.Service // M9 webhook receiver
 
+	wishes *wishes.Service // concept 25: Seerr test, state, users and mapping (no Seerr configured)
+
 	// restarts counts the calls of the fake restart function (restore and restartServer, concept
 	// 11): no test restarts the process.
 	restarts *atomic.Int32
@@ -1329,6 +1332,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)
+	pf.wishes = wishes.New(f.DB, adm, pf.queue, log)
+	adm.WithSeerr(pf.wishes)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
@@ -1339,6 +1344,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		Radio:    pf.radio,
 
 		Integrations: pf.integrations,
+		Wishes:       pf.wishes,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf

@@ -581,6 +581,18 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusNotFound, "push_unavailable", "Web Push is not set up on this server.")
 	case errors.Is(err, model.ErrAnnouncementPublished):
 		p.write(w, r, http.StatusConflict, "announcement_published", "A published announcement cannot be changed.")
+	case errors.Is(err, model.ErrSeerrNotConfigured):
+		p.write(w, r, http.StatusUnprocessableEntity, "seerr_not_configured", "Seerr has no address or no api key.")
+	case errors.Is(err, model.ErrSeerrKeyRequired):
+		p.write(w, r, http.StatusUnprocessableEntity, "seerr_key_required", "An address on another host needs the api key again.")
+	case errors.Is(err, model.ErrSeerrNotTested):
+		p.write(w, r, http.StatusConflict, "seerr_not_tested", "Wishes go on only after a successful test of the saved connection to Seerr.")
+	case errors.Is(err, model.ErrSeerrUserTaken):
+		p.write(w, r, http.StatusConflict, "seerr_user_taken", "The Seerr user belongs to another account, is the shared user or is gone from Seerr.")
+	case errors.Is(err, model.ErrInstanceUnchanged):
+		p.write(w, r, http.StatusConflict, "instance_unchanged", "No other Seerr instance waits for a decision.")
+	case errors.Is(err, model.ErrInstanceChanged):
+		p.write(w, r, http.StatusConflict, "seerr_instance_changed", "Another Seerr instance answers; confirm or reset the mapping first.")
 	case errors.As(err, &verr):
 		p.writeValidation(w, r, verr)
 	case errors.Is(err, context.Canceled):
