@@ -1049,10 +1049,12 @@ type SpotlightEntry struct {
 	ListKey   string
 	Media     string
 	Position  int64
-	TmdbID    int64
+	TmdbID    sql.NullInt64
 	Title     sql.NullString
 	Year      sql.NullInt64
 	FetchedAt int64
+	TvdbID    sql.NullInt64
+	ImdbID    sql.NullString
 }
 
 type SpotlightOverride struct {

@@ -175,7 +175,8 @@ func (s *Service) SetSpotlightEntryOverride(ctx context.Context, media string, t
 		return model.SpotlightEntry{}, fmt.Errorf("get spotlight config: %w", err)
 	}
 	q := systemq.New(tx)
-	n, err := q.CountSpotlightEntry(ctx, systemq.CountSpotlightEntryParams{ListKey: cfg.ListKey, Media: media, TmdbID: tmdbID})
+	n, err := q.CountSpotlightEntry(ctx, systemq.CountSpotlightEntryParams{ListKey: cfg.ListKey, Media: media,
+		TmdbID: sql.NullInt64{Int64: tmdbID, Valid: true}})
 	if err != nil {
 		return model.SpotlightEntry{}, fmt.Errorf("count spotlight entry: %w", err)
 	}
@@ -282,7 +283,7 @@ func spotlightEntries(ctx context.Context, q *systemq.Queries, listKey string) (
 	entries = make([]model.SpotlightEntry, 0, len(rows))
 	for _, r := range rows {
 		e := model.SpotlightEntry{
-			Media: r.Media, TmdbID: r.TmdbID, Position: int(r.Position), Title: r.Title.String,
+			Media: r.Media, TmdbID: r.TmdbID.Int64, Position: int(r.Position), Title: r.Title.String,
 			Hidden: r.OverrideHidden.Valid && r.OverrideHidden.Int64 != 0, PinnedRank: nullIntPtr(r.PinnedRank),
 			Note: r.Note.String,
 		}

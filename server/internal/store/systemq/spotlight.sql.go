@@ -17,7 +17,7 @@ SELECT count(*) FROM spotlight_entries WHERE list_key = ?1 AND media = ?2 AND tm
 type CountSpotlightEntryParams struct {
 	ListKey string
 	Media   string
-	TmdbID  int64
+	TmdbID  sql.NullInt64
 }
 
 func (q *Queries) CountSpotlightEntry(ctx context.Context, arg CountSpotlightEntryParams) (int64, error) {
@@ -81,14 +81,14 @@ LEFT JOIN items AS i ON i.tmdb_id = e.tmdb_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
 LEFT JOIN spotlight_overrides AS o ON o.list_key = e.list_key AND o.media = e.media AND o.tmdb_id = e.tmdb_id
-WHERE e.list_key = ?1
+WHERE e.list_key = ?1 AND e.tmdb_id IS NOT NULL
 ORDER BY e.media, e.position
 `
 
 type ListSpotlightEntriesAdminRow struct {
 	Media          string
 	Position       int64
-	TmdbID         int64
+	TmdbID         sql.NullInt64
 	Title          sql.NullString
 	Year           sql.NullInt64
 	ItemID         sql.NullString
@@ -102,7 +102,8 @@ type ListSpotlightEntriesAdminRow struct {
 // in fetch order with its library title (matched by TMDB id and kind, deleted titles excluded, no
 // profile filter: the administration is system-wide, S-4 shows entries without a hit as well) and
 // its override. The title text is German, else English, else the parsed title, like the other
-// administration views.
+// administration views. Unmatched entries (no TMDB id, migration 00071) stay out until the
+// contract carries them (concept 25 step 3.3).
 func (q *Queries) ListSpotlightEntriesAdmin(ctx context.Context, listKey string) ([]ListSpotlightEntriesAdminRow, error) {
 	rows, err := q.db.QueryContext(ctx, listSpotlightEntriesAdmin, listKey)
 	if err != nil {
@@ -212,26 +213,32 @@ func (q *Queries) SpotlightDeleteEntries(ctx context.Context) error {
 }
 
 const spotlightInsertEntry = `-- name: SpotlightInsertEntry :exec
-INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, title, year, fetched_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, tvdb_id, imdb_id, title, year, fetched_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 `
 
 type SpotlightInsertEntryParams struct {
 	ListKey  string
 	Media    string
 	Position int64
-	TmdbID   int64
+	TmdbID   sql.NullInt64
+	TvdbID   sql.NullInt64
+	ImdbID   sql.NullString
 	Title    sql.NullString
 	Year     sql.NullInt64
 	Now      int64
 }
 
+// tmdb_id NULL marks a show known by its TVDB id only that TMDB find did not resolve
+// (unmatched, concept 25 N-62, migration 00071).
 func (q *Queries) SpotlightInsertEntry(ctx context.Context, arg SpotlightInsertEntryParams) error {
 	_, err := q.db.ExecContext(ctx, spotlightInsertEntry,
 		arg.ListKey,
 		arg.Media,
 		arg.Position,
 		arg.TmdbID,
+		arg.TvdbID,
+		arg.ImdbID,
 		arg.Title,
 		arg.Year,
 		arg.Now,

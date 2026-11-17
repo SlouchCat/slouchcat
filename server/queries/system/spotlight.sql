@@ -5,9 +5,11 @@
 -- name: SpotlightDeleteEntries :exec
 DELETE FROM spotlight_entries;
 
+-- tmdb_id NULL marks a show known by its TVDB id only that TMDB find did not resolve
+-- (unmatched, concept 25 N-62, migration 00071).
 -- name: SpotlightInsertEntry :exec
-INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, title, year, fetched_at)
-VALUES (@list_key, @media, @position, @tmdb_id, @title, @year, @now);
+INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, tvdb_id, imdb_id, title, year, fetched_at)
+VALUES (@list_key, @media, @position, @tmdb_id, @tvdb_id, @imdb_id, @title, @year, @now);
 
 -- name: SpotlightCountEntries :one
 -- Entries (films and shows together) fetched at min_fetched or later, before the library
@@ -18,7 +20,8 @@ SELECT count(*) FROM spotlight_entries WHERE fetched_at >= @min_fetched;
 -- in fetch order with its library title (matched by TMDB id and kind, deleted titles excluded, no
 -- profile filter: the administration is system-wide, S-4 shows entries without a hit as well) and
 -- its override. The title text is German, else English, else the parsed title, like the other
--- administration views.
+-- administration views. Unmatched entries (no TMDB id, migration 00071) stay out until the
+-- contract carries them (concept 25 step 3.3).
 -- name: ListSpotlightEntriesAdmin :many
 SELECT e.media, e.position, e.tmdb_id, e.title, e.year,
        i.id AS item_id, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title, '') AS item_title,
@@ -30,7 +33,7 @@ LEFT JOIN items AS i ON i.tmdb_id = e.tmdb_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
 LEFT JOIN spotlight_overrides AS o ON o.list_key = e.list_key AND o.media = e.media AND o.tmdb_id = e.tmdb_id
-WHERE e.list_key = @list_key
+WHERE e.list_key = @list_key AND e.tmdb_id IS NOT NULL
 ORDER BY e.media, e.position;
 
 -- Overrides of a list whose title is not among the fetched entries (orphans, plan 7.2); the
