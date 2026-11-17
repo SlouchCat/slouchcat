@@ -64,6 +64,8 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	s.registerArrTypes(r) // wishes.tag and wishes.progress (arraccess.go, tags.go, progress.go)
 	// wishes.discover (discover.go)
 	s.registerDiscoverType(r)
+	// wishes.import: the take-over of requests made in Seerr (takeover.go)
+	s.registerImportType(r)
 }
 
 func (s *Service) runUsers(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {

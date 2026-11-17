@@ -215,6 +215,10 @@ func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrU
 		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, Intent: intentSync, SeerrUser: *seerrUserID}, jobs.ManualPriority); err != nil {
 			s.log.WarnContext(ctx, "limit of the chosen user not queued", "account_id", accountID, "err", err)
 		}
+		// The requests the user made in Seerr itself are taken over (F-21, architecture 7.3).
+		if err := s.queueImport(ctx, *seerrUserID, importPriority, false); err != nil {
+			s.log.WarnContext(ctx, "take-over of the chosen user not queued", "account_id", accountID, "err", err)
+		}
 	}
 	all, err := m.WishMappings(ctx)
 	if err != nil {

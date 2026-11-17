@@ -348,8 +348,8 @@ func TestSyncReadsQuotaOfSeenUsers(t *testing.T) {
 	if q := r.mapping(1).Quota; q == nil || q.Movie == nil || q.Movie.Used != 0 {
 		t.Fatalf("never read: quota = %+v", q)
 	}
-	r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: matrix})
-	r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: alien})
+	first := r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: matrix})
+	second := r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: alien})
 	if got := reached(); len(got) != 0 {
 		t.Fatalf("reached before the sync = %+v", got)
 	}
@@ -363,6 +363,14 @@ func TestSyncReadsQuotaOfSeenUsers(t *testing.T) {
 	if n := r.fake.Calls("GET /user/{id}/quota"); n != 1 {
 		t.Errorf("quota read %d times, want once (user 3 only)", n)
 	}
+	// The sync took the two requests over as wishes of the account (step 4.6), so the user has open
+	// wishes and is read in every pass until they close: Seerr declines both, the next pass sees
+	// that and closes them.
+	r.fake.SetRequestStatus(first.ID, seerrtest.RequestDeclined)
+	r.fake.SetRequestStatus(second.ID, seerrtest.RequestDeclined)
+	r.clock.advance(time.Minute)
+	r.setLastSync(r.fake.Now().Add(-10 * time.Minute))
+	r.sync(false)
 	// A pass without requests of the user and without open wishes reads nothing.
 	r.fake.ResetCalls()
 	r.clock.advance(time.Minute)

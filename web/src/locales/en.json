@@ -4880,7 +4880,7 @@
         "wishes_sync": {
           "name": "Sync wishes with Seerr",
           "description": "Reads the changed requests from Seerr, updates the state of the wishes, checks wishes that did not change for long one by one and sends due wishes from the outbox again. The first sync reads every request.",
-          "trigger": "schedule every 5 minutes, «Sync now»",
+          "trigger": "schedule every 5 minutes, «Sync now», notification of the Seerr webhook",
           "progress": "Pages read: {{done}} of {{total}}"
         },
         "wishes_reconcile": {
@@ -4902,6 +4902,11 @@
           "name": "Preload wish lists",
           "description": "Loads the rows of Discover from Seerr into the cache for every language and age step of the profiles that may request, and removes lists older than a day. Every hit is checked again for the profile.",
           "trigger": "Schedule every hour, while wishes are active and the pages Discover, Movies, Series and Search are on"
+        },
+        "wishes_import": {
+          "name": "Take over requests from Seerr",
+          "description": "Takes over the open and recently available requests a linked Seerr user made in Seerr itself as wishes of the main profile of its account («Created in Seerr»). Requests of the shared user are left out. No notification is sent.",
+          "trigger": "Seerr user of an account linked, chosen or changed, «Take over requests»"
         },
         "segments_detect": {
           "name": "Detect intro and outro",

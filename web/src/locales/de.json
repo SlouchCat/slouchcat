@@ -4880,7 +4880,7 @@
         "wishes_sync": {
           "name": "Wünsche mit Seerr abgleichen",
           "description": "Liest die geänderten Anfragen aus Seerr, führt den Zustand der Wünsche nach, prüft lange unveränderte Wünsche einzeln und sendet fällige Wünsche aus dem Ausgangsfach erneut. Der erste Abgleich liest alle Anfragen.",
-          "trigger": "Zeitplan alle 5 Minuten, «Jetzt abgleichen»",
+          "trigger": "Zeitplan alle 5 Minuten, «Jetzt abgleichen», Meldung des Seerr-Webhooks",
           "progress": "Seiten gelesen: {{done}} von {{total}}"
         },
         "wishes_reconcile": {
@@ -4902,6 +4902,11 @@
           "name": "Wunschlisten vorladen",
           "description": "Lädt die Reihen von Entdecken für jede Sprache und Altersstufe der Profile, die anfordern dürfen, aus Seerr in den Zwischenspeicher und entfernt Listen, die älter als einen Tag sind. Jeder Treffer wird für das Profil nachgeprüft.",
           "trigger": "Zeitplan stündlich, solange Wünsche aktiv und die Seiten Entdecken, Filme, Serien und Suche eingeschaltet sind"
+        },
+        "wishes_import": {
+          "name": "Anfragen aus Seerr übernehmen",
+          "description": "Übernimmt die offenen und kürzlich verfügbar gewordenen Anfragen, die ein verknüpfter Seerr-Benutzer in Seerr selbst gestellt hat, als Wünsche des Hauptprofils seines Kontos («In Seerr angelegt»). Anfragen des Sammelbenutzers bleiben aussen vor. Es geht keine Benachrichtigung hinaus.",
+          "trigger": "Seerr-Benutzer eines Kontos verknüpft, gewählt oder geändert, «Anfragen übernehmen»"
         },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",

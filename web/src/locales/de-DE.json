@@ -418,7 +418,11 @@
           "trigger": "„Zurückziehen“ in „Meine Wünsche“; nach dem Abgleich, solange Seerr nicht erreichbar war"
         },
         "wishes_sync": {
-          "trigger": "Zeitplan alle 5 Minuten, „Jetzt abgleichen“"
+          "trigger": "Zeitplan alle 5 Minuten, „Jetzt abgleichen“, Meldung des Seerr-Webhooks"
+        },
+        "wishes_import": {
+          "description": "Übernimmt die offenen und kürzlich verfügbar gewordenen Anfragen, die ein verknüpfter Seerr-Benutzer in Seerr selbst gestellt hat, als Wünsche des Hauptprofils seines Kontos („In Seerr angelegt“). Anfragen des Sammelbenutzers bleiben außen vor. Es geht keine Benachrichtigung hinaus.",
+          "trigger": "Seerr-Benutzer eines Kontos verknüpft, gewählt oder geändert, „Anfragen übernehmen“"
         },
         "scan_library": {
           "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"

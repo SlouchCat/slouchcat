@@ -24,8 +24,10 @@ import (
 // one. The very first sync runs as the initial sync without a page limit. Every write happens only
 // when the request changed, so reading a request twice is harmless. Afterwards the sync checks
 // open wishes one by one (GET /request/{id}, at most once a day per wish, which also finds deleted
-// requests) and queues the due wishes of the outbox and the due withdrawals. The take-over of
-// requests made in Seerr (wishes.import, 7.3) is stage 4: unknown requests are only counted.
+// requests) and queues the due wishes of the outbox and the due withdrawals. An unknown request
+// goes to the take-over (takeover.go, 7.3): a linked user's becomes a wish of its account, another
+// user's a wish without a requester; nothing of the shared user. After the run the take-over of
+// every newly set Seerr user is queued.
 
 // JobSync is the job type of the sync.
 const JobSync = "wishes.sync"
@@ -143,7 +145,13 @@ func (s *Service) sync(ctx context.Context, initial bool) error {
 	if err != nil {
 		return err
 	}
-	return s.queueDue(ctx)
+	if err := s.queueDue(ctx); err != nil {
+		return err
+	}
+	if err := s.queueImports(ctx); err != nil {
+		s.log.WarnContext(ctx, "take-over not queued after the sync", "err", err)
+	}
+	return nil
 }
 
 // syncRequests runs the pass in progress or a new one; seen collects the Seerr users of the
@@ -238,22 +246,35 @@ func (s *Service) syncQuotas(ctx context.Context, admin seerr.Session, seen map[
 // applyPage writes what one page changed and the state of the pass in one transaction; the last
 // page moves the pointer and drops the pass.
 func (s *Service) applyPage(ctx context.Context, reqs []seerr.Request, pass syncPass, done bool) error {
+	cands, err := s.syncCandidates(ctx, reqs)
+	if err != nil {
+		return err
+	}
 	var changes []change
-	err := s.inTx(ctx, func(q *wishq.Queries) error {
+	importing := false
+	err = s.inTx(ctx, func(q *wishq.Queries) error {
 		changes = changes[:0]
-		unknown := 0
+		taken := 0
+		importing = false
 		for _, r := range reqs {
 			ch, known, err := s.applyRequest(ctx, q, r)
 			if err != nil {
 				return err
 			}
-			if !known {
-				unknown++
+			if c, ok := cands[r.ID]; ok && !known {
+				wrote, err := s.takeOver(ctx, q, c)
+				if err != nil {
+					return err
+				}
+				if wrote {
+					taken++
+					importing = importing || c.detail == model.WishDetailImporting
+				}
 			}
 			changes = append(changes, ch...)
 		}
-		if unknown > 0 {
-			s.log.DebugContext(ctx, "seerr requests without a wish", "count", unknown)
+		if taken > 0 {
+			s.log.InfoContext(ctx, "seerr requests taken over by the sync", "count", taken)
 		}
 		if done {
 			if err := s.setState(ctx, q, settingLastSync, strconv.FormatInt(pass.Top, 10)); err != nil {
@@ -267,7 +288,36 @@ func (s *Service) applyPage(ctx context.Context, reqs []seerr.Request, pass sync
 		return err
 	}
 	s.afterChanges(ctx, changes)
+	if importing {
+		if err := s.queueReconcile(ctx, nil); err != nil {
+			s.log.WarnContext(ctx, "reconcile not queued after a take-over", "err", err)
+		}
+	}
 	return nil
+}
+
+// syncCandidates prepares the unknown requests of a page for the take-over, outside the write
+// transaction (the title may come from TMDB): the shared user's and those without a user are left
+// out.
+func (s *Service) syncCandidates(ctx context.Context, reqs []seerr.Request) (map[int]takeOverCandidate, error) {
+	out := map[int]takeOverCandidate{}
+	for _, r := range reqs {
+		known, err := s.requestKnown(ctx, s.read, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		if known {
+			continue
+		}
+		owner, skip, err := s.syncOwner(ctx, r)
+		if err != nil {
+			return nil, err
+		}
+		if !skip {
+			out[r.ID] = s.candidateOf(ctx, r, owner)
+		}
+	}
+	return out, nil
 }
 
 // change is a change of state of a wish that the sync announces after its transaction.
