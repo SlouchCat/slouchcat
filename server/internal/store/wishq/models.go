@@ -1209,6 +1209,13 @@ type WishAccountMap struct {
 	SetBy            sql.NullInt64
 }
 
+type WishDiscoverPage struct {
+	CacheKey   string
+	Items      string
+	TotalPages sql.NullInt64
+	FetchedAt  int64
+}
+
 type WishEvent struct {
 	ID     int64
 	WishID int64
