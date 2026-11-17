@@ -1358,3 +1358,31 @@ func idsOf(p DiscoverPage) []int {
 	}
 	return ids
 }
+
+// POST /request/{id}/retry (concept 25, architecture 8.1): only a FAILED request, only with
+// MANAGE_REQUESTS; the fake moves it to approved. Not verified against a real instance.
+func TestRetryRequest(t *testing.T) {
+	f := seerrtest.New(t)
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 603, Name: "The Matrix"})
+	kid := localUser(f, "kid@example.test", seerrtest.PermRequest)
+	c := newClient(t, f)
+	ctx := context.Background()
+	r, err := c.AsUser(kid).CreateRequest(ctx, NewRequest{MediaType: MediaTypeMovie, TMDBID: 603})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.AsAdmin().RetryRequest(ctx, r.ID); !errors.Is(err, ErrConflict) {
+		t.Errorf("retry of a pending request: %v", err)
+	}
+	f.SetRequestStatus(r.ID, seerrtest.RequestFailed)
+	if _, err := c.AsUser(kid).RetryRequest(ctx, r.ID); !errors.Is(err, ErrAccessDenied) {
+		t.Errorf("retry without MANAGE_REQUESTS: %v", err)
+	}
+	got, err := c.AsAdmin().RetryRequest(ctx, r.ID)
+	if err != nil || got.ID != r.ID || got.Status != RequestApproved {
+		t.Errorf("retry = %+v, %v", got, err)
+	}
+	if _, err := c.AsAdmin().RetryRequest(ctx, 999); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown request: %v", err)
+	}
+}

@@ -56,6 +56,10 @@ const (
 //
 // A co-wish never calls Seerr and never counts against the limit. A new wish gets one attempt of
 // at most 3 s without pre-check; without an answer it stays queued for wishes.submit.
+// createPerHour is the limit of createWish: wishes a profile makes or joins per hour (data model
+// 4.4, Vorschlag 20/h); counted from wish_requesters, so it survives a restart.
+const createPerHour = 20
+
 func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.WishCreate) (model.WishCreated, error) {
 	if s.lib == nil {
 		return model.WishCreated{}, errNoLibrary
@@ -76,6 +80,13 @@ func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.Wish
 	}
 	if err := allowed(rights, ws, in); err != nil {
 		return model.WishCreated{}, err
+	}
+	if n, err := s.read.CountProfileWishesSince(ctx, wishq.CountProfileWishesSinceParams{
+		ProfileID: p.ID, Since: s.now().Add(-time.Hour).UnixMilli(),
+	}); err != nil {
+		return model.WishCreated{}, fmt.Errorf("wishes of the hour: %w", err)
+	} else if n >= createPerHour {
+		return model.WishCreated{}, model.ErrTooManyAttempts
 	}
 	title, err := s.titles.EnsureExternalTitle(ctx, in.Media, in.TMDBID)
 	if err != nil {
@@ -823,6 +834,55 @@ func (s *Service) ProfileWishes(ctx context.Context, p model.Profile, filter str
 		w, err := s.toWish(ctx, profileRow(r), r.Role, ws)
 		if err != nil {
 			return model.WishPage{}, err
+		}
+		out.Items = append(out.Items, w)
+	}
+	if err := s.withCards(ctx, p, out.Items); err != nil {
+		return model.WishPage{}, err
+	}
+	return out, nil
+}
+
+// AccountWishes is listAccountWishes: the wishes of every profile of the account, one entry per
+// profile and wish with the profile's name, newest first; the cards as profile p (the primary
+// profile asking) sees them. Filter, total and counts as in ProfileWishes.
+func (s *Service) AccountWishes(ctx context.Context, p model.Profile, filter string, offset, limit int) (model.WishPage, error) {
+	if err := validFilter(filter); err != nil {
+		return model.WishPage{}, err
+	}
+	ws, err := s.cfg.WishSettings(ctx)
+	if err != nil {
+		return model.WishPage{}, err
+	}
+	rows, err := s.read.ListAccountWishes(ctx, wishq.ListAccountWishesParams{AccountID: p.AccountID, LimitCount: listMax})
+	if err != nil {
+		return model.WishPage{}, fmt.Errorf("account wishes: %w", err)
+	}
+	var hits []wishq.ListAccountWishesRow
+	out := model.WishPage{Items: []model.Wish{}}
+	for _, r := range rows {
+		count(&out.Counts, r.State)
+		if inFilter(r.State, filter) {
+			hits = append(hits, r)
+		}
+	}
+	out.Total = len(hits)
+	for _, r := range page(hits, max(0, offset), limit) {
+		w, err := s.toWish(ctx, profileRow(wishq.ListProfileWishesRow{
+			ID: r.ID, Media: r.Media, TmdbID: r.TmdbID, TvdbID: r.TvdbID, ImdbID: r.ImdbID, Title: r.Title, Year: r.Year,
+			Origin: r.Origin, SeerrRequestID: r.SeerrRequestID, SeerrMediaID: r.SeerrMediaID, SeerrUserID: r.SeerrUserID,
+			State: r.State, StateDetail: r.StateDetail, FailReason: r.FailReason, Attempts: r.Attempts,
+			NextAttemptAt: r.NextAttemptAt, WithdrawPending: r.WithdrawPending, CheckedAt: r.CheckedAt, ItemID: r.ItemID,
+			CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, SubmittedAt: r.SubmittedAt, ApprovedAt: r.ApprovedAt,
+			AvailableAt: r.AvailableAt, ClosedAt: r.ClosedAt, SeerrUpdatedAt: r.SeerrUpdatedAt,
+		}), r.Role, ws)
+		if err != nil {
+			return model.WishPage{}, err
+		}
+		w.ProfileName = r.ProfileName
+		if r.ProfileID != p.ID {
+			// Withdrawing and requesting again belong to the profile of the entry («Meine Wünsche»).
+			w.CanWithdraw, w.CanRequestAgain = false, false
 		}
 		out.Items = append(out.Items, w)
 	}

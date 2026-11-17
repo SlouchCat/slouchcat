@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/seerr"
@@ -93,6 +94,8 @@ type Service struct {
 	arr arrServices // access to Radarr and Sonarr, made on first use (arraccess.go)
 
 	discover searchCache // the search of the wishes area, 10 minutes (discover.go)
+
+	searchLimit *auth.Limiter // searchExternalTitles per profile (preview.go)
 }
 
 // Option configures New.
@@ -108,7 +111,8 @@ func WithClientOptions(opts ...seerr.Option) Option {
 
 // New returns the service. queue may be nil in tests that do not queue jobs.
 func New(db *store.DB, cfg Config, queue Enqueuer, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: db, read: wishq.New(db.Read), write: wishq.New(db.Write), cfg: cfg, queue: queue, log: log, now: time.Now}
+	s := &Service{db: db, read: wishq.New(db.Read), write: wishq.New(db.Write), cfg: cfg, queue: queue, log: log, now: time.Now,
+		searchLimit: auth.NewLimiter(searchPerMin, searchPerMin)}
 	for _, o := range opts {
 		o(s)
 	}

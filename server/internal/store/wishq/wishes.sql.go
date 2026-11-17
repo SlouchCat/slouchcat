@@ -10,6 +10,23 @@ import (
 	"database/sql"
 )
 
+const countProfileWishesSince = `-- name: CountProfileWishesSince :one
+SELECT count(*) FROM wish_requesters WHERE profile_id = ?1 AND created_at >= ?2
+`
+
+type CountProfileWishesSinceParams struct {
+	ProfileID int64
+	Since     int64
+}
+
+// The wishes a profile made or joined since a time (the limit of createWish per profile and hour).
+func (q *Queries) CountProfileWishesSince(ctx context.Context, arg CountProfileWishesSinceParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProfileWishesSince, arg.ProfileID, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getOpenMovieWish = `-- name: GetOpenMovieWish :one
 SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes
 WHERE media = 'movie' AND tmdb_id = ?1 AND state IN ('queued', 'pending', 'processing')
@@ -271,6 +288,130 @@ func (q *Queries) InsertWishRequester(ctx context.Context, arg InsertWishRequest
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const lastWishEventAt = `-- name: LastWishEventAt :one
+SELECT CAST(COALESCE(MAX(at), 0) AS INTEGER) AS at FROM wish_events WHERE wish_id = ?1 AND kind = ?2
+`
+
+type LastWishEventAtParams struct {
+	WishID int64
+	Kind   string
+}
+
+// When the wish last had an event of this kind; 0 = never (the 24 h of the outbox count from a
+// retry of the administration).
+func (q *Queries) LastWishEventAt(ctx context.Context, arg LastWishEventAtParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, lastWishEventAt, arg.WishID, arg.Kind)
+	var at int64
+	err := row.Scan(&at)
+	return at, err
+}
+
+const listAccountWishes = `-- name: ListAccountWishes :many
+SELECT w.id, w.media, w.tmdb_id, w.tvdb_id, w.imdb_id, w.title, w.year, w.origin, w.seerr_request_id, w.seerr_media_id, w.seerr_user_id, w.state, w.state_detail, w.fail_reason, w.attempts, w.next_attempt_at, w.withdraw_pending, w.checked_at, w.item_id, w.created_at, w.updated_at, w.submitted_at, w.approved_at, w.available_at, w.closed_at, w.seerr_updated_at, r.role, r.created_at AS requested_at, r.notified_at, r.profile_id, p.name AS profile_name
+FROM wish_requesters AS r
+JOIN wishes AS w ON w.id = r.wish_id
+JOIN profiles AS p ON p.id = r.profile_id
+WHERE r.account_id = ?1
+ORDER BY r.created_at DESC, w.id DESC, r.profile_id
+LIMIT ?2
+`
+
+type ListAccountWishesParams struct {
+	AccountID  int64
+	LimitCount int64
+}
+
+type ListAccountWishesRow struct {
+	ID              int64
+	Media           string
+	TmdbID          int64
+	TvdbID          sql.NullInt64
+	ImdbID          sql.NullString
+	Title           string
+	Year            sql.NullInt64
+	Origin          string
+	SeerrRequestID  sql.NullInt64
+	SeerrMediaID    sql.NullInt64
+	SeerrUserID     sql.NullInt64
+	State           string
+	StateDetail     sql.NullString
+	FailReason      sql.NullString
+	Attempts        int64
+	NextAttemptAt   sql.NullInt64
+	WithdrawPending int64
+	CheckedAt       sql.NullInt64
+	ItemID          sql.NullString
+	CreatedAt       int64
+	UpdatedAt       int64
+	SubmittedAt     sql.NullInt64
+	ApprovedAt      sql.NullInt64
+	AvailableAt     sql.NullInt64
+	ClosedAt        sql.NullInt64
+	SeerrUpdatedAt  sql.NullInt64
+	Role            string
+	RequestedAt     int64
+	NotifiedAt      sql.NullInt64
+	ProfileID       int64
+	ProfileName     string
+}
+
+// listAccountWishes: the wishes of every profile of an account, one row per profile and wish,
+// newest first.
+func (q *Queries) ListAccountWishes(ctx context.Context, arg ListAccountWishesParams) ([]ListAccountWishesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAccountWishes, arg.AccountID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAccountWishesRow{}
+	for rows.Next() {
+		var i ListAccountWishesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.TvdbID,
+			&i.ImdbID,
+			&i.Title,
+			&i.Year,
+			&i.Origin,
+			&i.SeerrRequestID,
+			&i.SeerrMediaID,
+			&i.SeerrUserID,
+			&i.State,
+			&i.StateDetail,
+			&i.FailReason,
+			&i.Attempts,
+			&i.NextAttemptAt,
+			&i.WithdrawPending,
+			&i.CheckedAt,
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubmittedAt,
+			&i.ApprovedAt,
+			&i.AvailableAt,
+			&i.ClosedAt,
+			&i.SeerrUpdatedAt,
+			&i.Role,
+			&i.RequestedAt,
+			&i.NotifiedAt,
+			&i.ProfileID,
+			&i.ProfileName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDueWishes = `-- name: ListDueWishes :many

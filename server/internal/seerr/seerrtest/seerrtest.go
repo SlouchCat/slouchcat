@@ -102,6 +102,7 @@ const (
 	TextModifyUser     = "You do not have permission to modify the request user."
 	TextDeleteRequest  = "You do not have permission to delete this request."
 	TextOnlyPending    = "Only pending requests can be approved or declined."
+	TextOnlyFailed     = "Only failed requests can be retried."
 )
 
 // User is a Seerr user of the fake. Nil quota fields follow the defaults of Config.
@@ -547,6 +548,7 @@ func (s *Server) routes() http.Handler {
 		{pattern: "GET /request/{id}", handle: (*Server).getRequest},
 		{pattern: "DELETE /request/{id}", handle: (*Server).deleteRequest},
 		{pattern: "POST /request/{id}/{status}", handle: (*Server).decideRequest},
+		{pattern: "POST /request/{id}/retry", handle: (*Server).retryRequest},
 		{pattern: "GET /movie/{id}", query: []string{"language"}, handle: (*Server).getMovie},
 		{pattern: "GET /tv/{id}", query: []string{"language"}, handle: (*Server).getTV},
 		{pattern: "GET /discover/trending", query: []string{"page", "language", "mediaType", "timeWindow"}, handle: (*Server).trending},
@@ -1459,6 +1461,27 @@ func (s *Server) decideRequest(w http.ResponseWriter, r *http.Request, actor *Us
 			m.status = MediaUnknown
 		}
 	}
+	req.ModifiedBy, req.UpdatedAt, m.updatedAt = actor.ID, s.now, s.now
+	writeJSON(w, http.StatusOK, s.requestJSON(req, true))
+}
+
+// retryRequest sends a FAILED request again: approved, the media processing; another status is 409.
+func (s *Server) retryRequest(w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
+	if !actor.has(PermManageRequests) {
+		writeDenied(w)
+		return
+	}
+	req := s.findRequest(w, r)
+	switch {
+	case req == nil:
+		return
+	case req.Status != RequestFailed:
+		writeMessage(w, http.StatusConflict, TextOnlyFailed)
+		return
+	}
+	m := s.mediaFor(mediaKey{req.MediaType, req.TMDBID}, 0)
+	req.Status = RequestApproved
+	s.approved(m)
 	req.ModifiedBy, req.UpdatedAt, m.updatedAt = actor.ID, s.now, s.now
 	writeJSON(w, http.StatusOK, s.requestJSON(req, true))
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -347,6 +348,11 @@ func (s *Service) ItemSummary(ctx context.Context, p model.Profile, itemID strin
 // 18 (it counts as 18). Empty without the right or with «Anfordern aus der Suche» off.
 // *model.ValidationError for q outside 2 to 100 characters or an unknown medium;
 // model.ErrTMDBUnreachable, model.ErrTMDBKeyInvalid, model.ErrProviderNotConfigured from TMDB.
+// searchPerMin is the limit of searchExternalTitles per profile and minute, at once as well
+// (Vorschlag; data model 4.5 names a 429 without a number). The pot is the token bucket of the
+// login attempts (auth.Limiter), keyed by the profile.
+const searchPerMin = 30
+
 func (s *Service) SearchExternalTitles(ctx context.Context, p model.Profile, q, media string, offset, limit int) (model.ExternalTitlePage, error) {
 	q = strings.TrimSpace(q)
 	verr := &model.ValidationError{}
@@ -377,6 +383,9 @@ func (s *Service) SearchExternalTitles(ctx context.Context, p model.Profile, q, 
 	right := requestRight(rights)
 	if !ws.FromSearch || !right(model.WishMediaMovie) && !right(model.WishMediaShow) {
 		return out, nil
+	}
+	if err := s.searchLimit.Allow(strconv.FormatInt(p.ID, 10), s.now()); err != nil {
+		return model.ExternalTitlePage{}, err // model.ErrTooManyAttempts: every search may ask TMDB
 	}
 	hits, err := s.titles.SearchExternalTitles(ctx, media, q)
 	if err != nil {

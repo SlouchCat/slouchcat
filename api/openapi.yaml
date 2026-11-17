@@ -9254,6 +9254,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/wishes/{id}/retry:
+    post:
+      operationId: retryWish
+      summary: Retry a failed wish (concept 25 stage 2, Medien › Wünsche › Anfragen)
+      description: |
+        Since contract 1.41.0 (architecture 8.1, 8.2). Only a wish in the state `failed`, and not one
+        that failed because its account was deleted (`account_deleted`). A wish whose request Seerr
+        reports as failed (`failReason` `arr_failed`) is retried in Seerr (`POST /request/{id}/retry`)
+        and is `processing` again; every other failure goes back to the outbox as `queued` and gets
+        24 h anew. 409 `wish_not_retryable` also when another open wish holds the title now or Seerr no
+        longer reports the request as failed.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "202":
+          description: The wish is retried (in Seerr, or queued in the outbox).
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown wish (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The wish cannot be retried (`wish_not_retryable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Seerr has no address or key (`seerr_not_configured`; only for `arr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: |
+            Seerr did not answer, is switched off or waits for a confirmed instance (`seerr_unreachable`;
+            only for `arr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/titles/{media}/{tmdbId}/images/{kind}/{size}:
     get:
       operationId: getAdminExternalTitleImage
@@ -9349,6 +9403,16 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "422":
           description: Validation failed (`validation_failed`; `q` `too_short` or `too_long`, `media` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: More than 30 searches of the profile within a minute (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -9592,8 +9656,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: More than 20 wishes made or joined by the profile within the last hour (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "503":
           description: The title is not stored yet and TMDB did not answer (`tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /account/wishes:
+    get:
+      operationId: listAccountWishes
+      summary: The wishes of every profile of the account (concept 25 stage 2)
+      description: |
+        Since contract 1.41.0. Needs the account's primary profile to be active. One entry per profile
+        and wish, newest first, with `profileName`; `item` and `external` as the active (primary)
+        profile sees them, so the answer carries `ItemRef` and is scoped. `canWithdraw` and
+        `canRequestAgain` are true only on entries of the active profile. `counts` count every entry,
+        whatever the filter.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/WishStateFilter"
+        - $ref: "#/components/parameters/WishPageOffset"
+        - $ref: "#/components/parameters/WishPageLimit"
+      responses:
+        "200":
+          description: One page of wishes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "422":
+          description: Validation failed (`validation_failed`; `state` `invalid_value`).
           content:
             application/problem+json:
               schema:
@@ -19997,6 +20105,9 @@ components:
       required: [id, media, tmdbId, title, state, origin, role, seasons, canWithdraw, canRequestAgain, createdAt,
         updatedAt, events]
       properties:
+        profileName:
+          type: string
+          description: The profile of the entry; only in `listAccountWishes`.
         id:
           type: integer
           format: int64

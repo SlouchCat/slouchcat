@@ -762,6 +762,13 @@ var profileRegistry = map[string]profileCall{
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusForbidden }},
 	"getWishQuota": {contract: "GET /wishes/quota", path: "/wishes/quota",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listAccountWishes": {contract: "GET /account/wishes", path: "/account/wishes",
+		want: func(_ *vistest.Fixture, p model.Profile) int {
+			if p.IsPrimary {
+				return http.StatusOK
+			}
+			return http.StatusForbidden
+		}},
 	"withdrawWish": {contract: "DELETE /wishes/{id}", path: "/wishes/9999",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",

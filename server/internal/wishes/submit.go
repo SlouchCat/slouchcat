@@ -400,7 +400,13 @@ func (s *Service) attemptFailed(ctx context.Context, w wishq.Wish, res sent) (ti
 		s.recordOutcome(ctx, res.keyInvalid)
 	}
 	now := s.now()
-	age := now.UnixMilli() - w.CreatedAt - s.rested(ctx, w.CreatedAt, now.UnixMilli())
+	since := w.CreatedAt
+	if at, err := s.read.LastWishEventAt(ctx, wishq.LastWishEventAtParams{WishID: w.ID, Kind: eventRetried}); err != nil {
+		return time.Time{}, fmt.Errorf("retried at: %w", err)
+	} else if at > since {
+		since = at // a retry of the administration starts the 24 h anew
+	}
+	age := now.UnixMilli() - since - s.rested(ctx, since, now.UnixMilli())
 	if time.Duration(age)*time.Millisecond >= submitDeadln {
 		s.log.ErrorContext(ctx, "wish not submitted to seerr within 24 hours", "wish_id", w.ID, "attempts", w.Attempts+1)
 		return time.Time{}, s.failWish(ctx, w.ID, model.WishFailUnreachable24h, map[string]any{"attempts": w.Attempts + 1})

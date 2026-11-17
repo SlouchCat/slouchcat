@@ -40,6 +40,8 @@ type WishTitlesService interface {
 	CreateWish(ctx context.Context, p model.Profile, in model.WishCreate) (model.WishCreated, error)
 	WithdrawWish(ctx context.Context, p model.Profile, wishID int64) error
 	ProfileWishes(ctx context.Context, p model.Profile, filter string, offset, limit int) (model.WishPage, error)
+	AccountWishes(ctx context.Context, p model.Profile, filter string, offset, limit int) (model.WishPage, error)
+	RetryWish(ctx context.Context, id int64) error
 	WishQuota(ctx context.Context, p model.Profile) (model.WishQuota, error)
 	WishSeasons(ctx context.Context, p model.Profile, tmdbID int64) (model.WishSeasons, error)
 	AdminWishes(ctx context.Context, filter string, unmapped bool, offset, limit int) ([]model.AdminWish, int, model.WishCounts, error)
@@ -62,6 +64,10 @@ func (e serviceProblem) VisitGetWishQuotaResponse(w http.ResponseWriter) error  
 func (e serviceProblem) VisitWithdrawWishResponse(w http.ResponseWriter) error     { return e.visit(w) }
 func (e serviceProblem) VisitListAdminWishesResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitSyncWishesNowResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitListAccountWishesResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitRetryWishResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 // wishSession returns the session and the service; ok is false without the service (501).
 func (s *server) wishSession(ctx context.Context) (model.Session, WishTitlesService, bool, error) {
@@ -249,6 +255,51 @@ func (s *server) ListWishes(ctx context.Context, req gen.ListWishesRequestObject
 		out.Items = append(out.Items, g)
 	}
 	return out, nil
+}
+
+// ListAccountWishes is listAccountWishes: the wishes of every profile of the account, for the
+// primary profile only (403 primary_profile_required).
+func (s *server) ListAccountWishes(ctx context.Context, req gen.ListAccountWishesRequestObject) (gen.ListAccountWishesResponseObject, error) {
+	session, svc, ok, err := s.wishSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if !session.IsPrimary() {
+		return s.problem(ctx, model.ErrPrimaryProfileRequired), nil
+	}
+	filter := ""
+	if req.Params.State != nil {
+		filter = string(*req.Params.State)
+	}
+	page, err := svc.AccountWishes(ctx, session.Profile, filter, max(0, deref(req.Params.Offset)), wishLimit(req.Params.Limit))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.ListAccountWishes200JSONResponse{Items: make([]gen.Wish, 0, len(page.Items)), Total: page.Total, Counts: toWishCounts(page.Counts)}
+	for _, w := range page.Items {
+		g, err := s.toWish(ctx, svc, session.Profile, w)
+		if err != nil {
+			return s.problem(ctx, err), nil
+		}
+		g.ProfileName = optString(w.ProfileName)
+		out.Items = append(out.Items, g)
+	}
+	return out, nil
+}
+
+// RetryWish is retryWish of the administration.
+func (s *server) RetryWish(ctx context.Context, req gen.RetryWishRequestObject) (gen.RetryWishResponseObject, error) {
+	svc := s.opts.Wishes
+	if svc == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if err := svc.RetryWish(ctx, req.Id); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RetryWish202Response{}, nil
 }
 
 func wishLimit(l *int) int {

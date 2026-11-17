@@ -147,6 +147,17 @@ WHERE r.profile_id = @profile_id
 ORDER BY r.created_at DESC, w.id DESC
 LIMIT @limit_count OFFSET @offset_count;
 
+-- name: ListAccountWishes :many
+-- listAccountWishes: the wishes of every profile of an account, one row per profile and wish,
+-- newest first.
+SELECT w.*, r.role, r.created_at AS requested_at, r.notified_at, r.profile_id, p.name AS profile_name
+FROM wish_requesters AS r
+JOIN wishes AS w ON w.id = r.wish_id
+JOIN profiles AS p ON p.id = r.profile_id
+WHERE r.account_id = @account_id
+ORDER BY r.created_at DESC, w.id DESC, r.profile_id
+LIMIT @limit_count;
+
 -- name: ProfileHasWish :one
 -- Whether the profile requested this title, in any state (the exception of F-9: a profile sees a
 -- title it wished for without the request right).
@@ -161,3 +172,12 @@ INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (@wish_id, @now, @kin
 -- name: ListWishEvents :many
 -- The newest events of a wish, newest first.
 SELECT * FROM wish_events WHERE wish_id = @wish_id ORDER BY at DESC, id DESC LIMIT @limit_count;
+
+-- name: LastWishEventAt :one
+-- When the wish last had an event of this kind; 0 = never (the 24 h of the outbox count from a
+-- retry of the administration).
+SELECT CAST(COALESCE(MAX(at), 0) AS INTEGER) AS at FROM wish_events WHERE wish_id = @wish_id AND kind = @kind;
+
+-- name: CountProfileWishesSince :one
+-- The wishes a profile made or joined since a time (the limit of createWish per profile and hour).
+SELECT count(*) FROM wish_requesters WHERE profile_id = @profile_id AND created_at >= @since;

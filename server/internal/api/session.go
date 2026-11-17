@@ -520,6 +520,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusForbidden, "wish_not_allowed", "The profile may not request this.")
 	case errors.Is(err, errTMDBDown):
 		p.write(w, r, http.StatusServiceUnavailable, "tmdb_unreachable", "TMDB did not answer; try again later.")
+	case errors.Is(err, model.ErrWishNotRetryable):
+		p.write(w, r, http.StatusConflict, "wish_not_retryable", "Only a failed wish of an existing account can be retried, and only while no other open wish holds the title.")
+	case errors.Is(err, model.ErrSeerrUnreachable):
+		p.write(w, r, http.StatusServiceUnavailable, "seerr_unreachable", "Seerr did not answer; try again later.")
 	case errors.Is(err, model.ErrWishNotWithdrawable):
 		p.write(w, r, http.StatusConflict, "wish_not_withdrawable", "The wish is past the approval and cannot be withdrawn.")
 	case errors.Is(err, model.ErrTMDBUnreachable):

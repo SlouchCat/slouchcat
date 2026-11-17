@@ -4995,6 +4995,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/wishes/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed wish (concept 25 stage 2, Medien › Wünsche › Anfragen)
+         * @description Since contract 1.41.0 (architecture 8.1, 8.2). Only a wish in the state `failed`, and not one
+         *     that failed because its account was deleted (`account_deleted`). A wish whose request Seerr
+         *     reports as failed (`failReason` `arr_failed`) is retried in Seerr (`POST /request/{id}/retry`)
+         *     and is `processing` again; every other failure goes back to the outbox as `queued` and gets
+         *     24 h anew. 409 `wish_not_retryable` also when another open wish holds the title now or Seerr no
+         *     longer reports the request as failed.
+         */
+        post: operations["retryWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/titles/{media}/{tmdbId}/images/{kind}/{size}": {
         parameters: {
             query?: never;
@@ -5149,6 +5174,30 @@ export interface paths {
          *     or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
          */
         post: operations["createWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The wishes of every profile of the account (concept 25 stage 2)
+         * @description Since contract 1.41.0. Needs the account's primary profile to be active. One entry per profile
+         *     and wish, newest first, with `profileName`; `item` and `external` as the active (primary)
+         *     profile sees them, so the answer carries `ItemRef` and is scoped. `canWithdraw` and
+         *     `canRequestAgain` are true only on entries of the active profile. `counts` count every entry,
+         *     whatever the filter.
+         */
+        get: operations["listAccountWishes"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -11319,6 +11368,8 @@ export interface components {
         };
         /** @description Since contract 1.41.0. A wish as the active profile sees it. */
         Wish: {
+            /** @description The profile of the entry; only in `listAccountWishes`. */
+            profileName?: string;
             /** Format: int64 */
             id: number;
             media: components["schemas"]["ExternalMedia"];
@@ -22326,6 +22377,67 @@ export interface operations {
             };
         };
     };
+    retryWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish is retried (in Seerr, or queued in the outbox). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The wish cannot be retried (`wish_not_retryable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr has no address or key (`seerr_not_configured`; only for `arr_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Seerr did not answer, is switched off or waits for a confirmed instance (`seerr_unreachable`;
+             *     only for `arr_failed`).
+             */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getAdminExternalTitleImage: {
         parameters: {
             query?: never;
@@ -22401,6 +22513,16 @@ export interface operations {
             /** @description Validation failed (`validation_failed`; `q` `too_short` or `too_long`, `media` `invalid_value`). */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description More than 30 searches of the profile within a minute (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22682,8 +22804,57 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description More than 20 wishes made or joined by the profile within the last hour (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAccountWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -14,6 +14,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/seerr/seerrtest"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
@@ -285,6 +286,90 @@ func TestContractWishes(t *testing.T) {
 	expect("p18", http.MethodPost, "/admin/seerr/sync", "", http.StatusAccepted, "")
 	if st := expect("p18", http.MethodGet, "/admin/seerr/status", "", http.StatusOK, ""); st["counts"].(map[string]any)["open"] != float64(1) {
 		t.Errorf("status counts = %v, want one open wish", st["counts"])
+	}
+
+	// retryWish (architecture 8.1): only failed wishes; a submission failure goes back to the outbox,
+	// arr_failed is retried in Seerr; declined, account_deleted, an unknown wish and a title another
+	// open wish holds are refused.
+	state := func(id int) (st, reason string) {
+		t.Helper()
+		var r *string
+		if err := f.DB.Read.QueryRowContext(ctx, `SELECT state, fail_reason FROM wishes WHERE id = ?`, id).Scan(&st, &r); err != nil {
+			t.Fatal(err)
+		}
+		if r != nil {
+			reason = *r
+		}
+		return st, reason
+	}
+	exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, fail_reason, seerr_user_id, created_at, updated_at, closed_at)
+	      VALUES (910, 'movie', 9016, 'Wunsch Sechzehn', 'slouchcat', 'failed', 'quota', ?, 1, 2, 2),
+	             (911, 'movie', 9099, 'Wunsch Unbekannt', 'slouchcat', 'failed', 'account_deleted', NULL, 1, 2, 2),
+	             (912, 'movie', 9012, 'Wunsch Zwoelf', 'slouchcat', 'failed', 'quota', ?, 1, 2, 2)`, contractSharedID, contractSharedID)
+	expect("p18", http.MethodPost, "/admin/wishes/910/retry", "", http.StatusAccepted, "")
+	if st, reason := state(910); st != "queued" || reason != "" {
+		t.Errorf("retried submission failure = %s %s, want queued", st, reason)
+	}
+	expect("p18", http.MethodPost, "/admin/wishes/910/retry", "", http.StatusConflict, "wish_not_retryable")
+	expect("p18", http.MethodPost, "/admin/wishes/900/retry", "", http.StatusConflict, "wish_not_retryable") // declined
+	expect("p18", http.MethodPost, "/admin/wishes/911/retry", "", http.StatusConflict, "wish_not_retryable") // account_deleted
+	expect("p18", http.MethodPost, "/admin/wishes/912/retry", "", http.StatusConflict, "wish_not_retryable") // 9012 is open in another wish
+	expect("p18", http.MethodPost, "/admin/wishes/99999/retry", "", http.StatusNotFound, "not_found")
+	expect("p16", http.MethodPost, "/admin/wishes/910/retry", "", http.StatusForbidden, "")
+	sc, err := seerr.New(fake.URL, seerrtest.APIKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failedReq, err := sc.AsUser(contractSharedID).CreateRequest(ctx, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: tmdbMissing0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake.SetRequestStatus(failedReq.ID, seerrtest.RequestFailed)
+	exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, fail_reason, seerr_user_id, seerr_request_id, created_at, updated_at, closed_at)
+	      VALUES (913, 'movie', 9000, 'Wunsch Null', 'slouchcat', 'failed', 'arr_failed', ?, ?, 1, 2, 2)`, contractSharedID, failedReq.ID)
+	expect("p18", http.MethodPost, "/admin/wishes/913/retry", "", http.StatusAccepted, "")
+	if st, _ := state(913); st != "processing" || fake.Calls("POST /request/{id}/retry") != 1 {
+		t.Errorf("arr_failed retried = %s, %d calls", st, fake.Calls("POST /request/{id}/retry"))
+	}
+
+	// listAccountWishes: the wishes of every profile of the account for the primary profile only,
+	// with the profile's name; entries of other profiles cannot be withdrawn from here.
+	acc := expect("p18", http.MethodGet, "/account/wishes", "", http.StatusOK, "")
+	names := map[string]bool{}
+	accItems, _ := acc["items"].([]any)
+	for _, it := range accItems {
+		e := it.(map[string]any)
+		name, _ := e["profileName"].(string)
+		names[name] = true
+		if name != f.P18.Name && e["canWithdraw"] == true {
+			t.Errorf("entry of %s can be withdrawn by the primary profile: %v", name, e)
+		}
+	}
+	if !names[f.P18.Name] || !names[f.P12.Name] || !names[f.P6.Name] || acc["total"] != float64(len(accItems)) {
+		t.Errorf("account wishes = %v", acc)
+	}
+	expect("p12", http.MethodGet, "/account/wishes", "", http.StatusForbidden, "primary_profile_required")
+	expect("p18", http.MethodGet, "/account/wishes?state=nope", "", http.StatusUnprocessableEntity, "validation_failed")
+
+	// 429: more than 20 wishes of a profile in an hour, more than 30 searches in a minute.
+	for i := range 20 {
+		exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, created_at, updated_at, available_at, closed_at)
+		      VALUES (?, 'movie', ?, 'Viele', 'slouchcat', 'available', 1, 1, 1, 1)`, 921+i, 100+i)
+		exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (?, ?, ?, 'owner', ?)`,
+			921+i, f.P16.ID, f.P16.AccountID, time.Now().UnixMilli())
+	}
+	rec = send(t, h, http.MethodPost, BasePath+"/wishes", "p16", `{"media":"movie","tmdbId":9000}`, nil)
+	if rec.Code != http.StatusTooManyRequests || problemCode(t, rec) != "too_many_attempts" || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("21st wish in an hour: %d %s", rec.Code, rec.Body.String())
+	}
+	for i := range 31 {
+		rec = send(t, h, http.MethodGet, BasePath+"/titles/search?q=Wish", "p16", "", nil)
+		if want := http.StatusOK; i < 30 && rec.Code != want {
+			t.Fatalf("search %d: %d", i, rec.Code)
+		}
+	}
+	if rec.Code != http.StatusTooManyRequests || problemCode(t, rec) != "too_many_attempts" {
+		t.Errorf("31st search in a minute: %d %s", rec.Code, rec.Body.String())
 	}
 
 	// An inbox entry about a wish without a title the profile sees: no item, the wish.

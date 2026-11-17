@@ -90,6 +90,15 @@ const (
 // ErrWishNotWithdrawable: the wish is past the approval (409 wish_not_withdrawable, F-17).
 var ErrWishNotWithdrawable = errors.New("wish not withdrawable")
 
+// ErrWishNotRetryable: retryWish on a wish that did not fail, failed because its account was
+// deleted, whose title another open wish holds now, or whose request Seerr no longer reports as
+// failed (409 wish_not_retryable).
+var ErrWishNotRetryable = errors.New("wish not retryable")
+
+// ErrSeerrUnreachable: an administration action that needs Seerr right away did not reach it, or
+// Seerr is switched off or waits for a new instance (503 seerr_unreachable).
+var ErrSeerrUnreachable = errors.New("seerr unreachable")
+
 // WishNotAllowedError is 403 wish_not_allowed: the profile may not request this (Reason is one of
 // the WishRights reasons or a WishReason* above).
 type WishNotAllowedError struct{ Reason string }
@@ -146,6 +155,7 @@ type Wish struct {
 	FailReason      string
 	Origin          string
 	Role            string // owner or joined; "" in the administration
+	ProfileName     string // the profile of the entry; only in the wishes of an account (listAccountWishes)
 	Seasons         []WishSeason
 	ItemID          string             // the library title visibility found; the contract makes it an ItemRef after a visibility check
 	External        *ExternalTitleCard // the title outside the library as the profile sees it («Meine Wünsche», createWish); nil in the administration

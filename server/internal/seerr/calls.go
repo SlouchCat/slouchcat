@@ -372,6 +372,15 @@ func (s Session) DeclineRequest(ctx context.Context, id int) (Request, error) {
 	return out, err
 }
 
+// RetryRequest sends a FAILED request to Radarr or Sonarr again (MANAGE_REQUESTS, admin session;
+// concept 25, architecture 8.1 «arr_failed»); another status is ErrConflict. Not verified against a
+// real instance.
+func (s Session) RetryRequest(ctx context.Context, id int) (Request, error) {
+	var out Request
+	err := s.call(ctx, http.MethodPost, "/request/"+pathID(id)+"/retry", nil, nil, &out)
+	return out, err
+}
+
 // Titles. Every call makes Seerr ask TMDB (appendix D 6.2).
 
 // Movie returns GET /movie/{tmdbId} with mediaInfo and its requests.

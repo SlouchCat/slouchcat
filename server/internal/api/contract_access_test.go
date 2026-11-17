@@ -232,6 +232,7 @@ var adminRegistry = map[string]adminCall{
 	// TestContractWishes covers them with data.
 	"listAdminWishes": {contract: "GET /admin/wishes", path: "/admin/wishes?state=open", ownerStatus: http.StatusOK},
 	"syncWishesNow":   {contract: "POST /admin/seerr/sync", path: "/admin/seerr/sync", ownerStatus: http.StatusUnprocessableEntity},
+	"retryWish":       {contract: "POST /admin/wishes/{id}/retry", path: "/admin/wishes/9999/retry", ownerStatus: http.StatusNotFound},
 	"getAdminExternalTitleImage": {contract: "GET /admin/titles/{media}/{tmdbId}/images/{kind}/{size}",
 		path: "/admin/titles/movie/603/images/poster/w200", ownerStatus: http.StatusNotFound},
 	"setWishSettings": {contract: "PUT /admin/wishes/settings", path: "/admin/wishes/settings", body: `{"enabled":true}`,
