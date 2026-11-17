@@ -533,7 +533,7 @@ Spalte «Gespeichert» nach `08-datenmodell-api.md` Abschnitte 2.2, 2.3, 2.12 bi
 | Anfordern auf Detailseiten | M-25 | `wishes.from_detail` | M-06 ohne gedämpfte Karten, Zeile, Chip und Knopf |
 | Seiten Entdecken, Filme, Serien und Suche | M-25 | `wishes.discover_pages` | Seitenleiste führt zu M-08, Reiter nur «Meine Wünsche», M-31 bis M-34 zeigen «Entdecken gibt es für dieses Profil nicht» (bzw. 404 ohne eigene Wünsche); M-07 ohne Verweis; `wishes.discover` ruht; sind auch Suche und Detailseiten aus, antworten Vorschauseiten 404 |
 | Bereits angeforderte Titel | M-25, «Mitwünschen»/«Nur Zustand zeigen» | `wishes.already_requested` | «Nur Zustand zeigen»: Vorschauseite ohne «Benachrichtige mich», Posterkarte mit Chip «Bereits angefordert» statt Glocke, in M-13 fremd angeforderte Staffeln gesperrt |
-| Konten ohne Seerr-Benutzer, Sammelbenutzer | M-25, Segment und Auswahl | `wishes.unmapped`, `wishes.shared_seerr_user` | M-26 «Erlaubt · … (Sammelbenutzer)»; ein Konto ohne Benutzer darf anfordern; M-13 «(Sammelbenutzer)»; M-20 und M-21 ohne Hinweis «ohne Seerr-Benutzer» |
+| Konten ohne Seerr-Benutzer, Sammelbenutzer | M-25, Segment und Auswahl | `wishes.unmapped`; Sammelbenutzer über `seerr_users.is_shared` (so gebaut) | M-26 «Erlaubt · … (Sammelbenutzer)»; ein Konto ohne Benutzer darf anfordern; M-13 «(Sammelbenutzer)»; M-20 und M-21 ohne Hinweis «ohne Seerr-Benutzer» |
 | Neue Konten dürfen anfordern | M-25 | `wishes.new_accounts_can_request` | Vorgabe im Dialog «Konto einladen» |
 | Zurückziehen erlauben | M-25 | `wishes.allow_withdraw` | «Zurückziehen» fehlt in M-08 und M-03 |
 | Externe Nachrichten bei PIN-Profilen ohne Titel | M-25 | `wishes.pin_external_hide_title` | Betreff für Sandra in M-29 und M-00 mit oder ohne Titel |
@@ -820,10 +820,25 @@ das Mockup noch den alten Stand; der Bau folgt den Antworten und den Regeln N-10
 |---|---|---|---|
 | M-24 «Seerr-Benutzer», je Profil | zugeklappte **Ausnahme** «Profil sendet als anderer Seerr-Benutzer» mit Auswahlfeld «Sendet als» und der Meldung «Ausnahme gesetzt …»; Sandra sendet als sandra, Noah als kinder | keine Ausnahme je Profil: kein Auswahlfeld, keine Operation `setProfileWishMapping`, keine Tabelle `wish_profile_map`; alle Profile senden als Benutzer des Kontos | F-27 (N-100) |
 | M-11 Profile, M-13 Dialog | Zeile «Sendet als … (eigener Seerr-Benutzer)» bzw. «(eigener Benutzer des Profils)» mit Freigabe und Limit des Ausnahme-Benutzers | nur «Benutzer des Kontos» oder «Sammelbenutzer»; Noah im Konto marco fordert ohne Freigabe und ohne Limit an | F-27 (N-100) |
-| M-25 «Einstellungen», «Konten ohne Seerr-Benutzer» | ab Werk «Nicht erlauben»; bei «Sammelbenutzer» eine **Auswahl** unter den bestehenden Seerr-Benutzern; ohne Wahl der Chip «Ohne Benutzer gilt «Nicht erlauben»» | ab Werk «Sammelbenutzer»; Slouchcat legt den Benutzer «slouchcat-gaeste» selbst an (Recht `REQUEST`, keine Auto-Freigabe, Standard-Limit); keine Auswahl, andere Wahl «Nicht erlauben» | F-4 (N-101, N-102) |
+| M-25 «Einstellungen», «Konten ohne Seerr-Benutzer» | ab Werk «Nicht erlauben»; bei «Sammelbenutzer» eine **Auswahl** unter den bestehenden Seerr-Benutzern; ohne Wahl der Chip «Ohne Benutzer gilt «Nicht erlauben»» | ab Werk «Sammelbenutzer»; Slouchcat legt den Benutzer «slouchcat-gaeste» selbst an (Rechte wie Seerrs Vorgabe für neue Benutzer, auf Marcos Instanz mit Auto-Freigabe, Marco I-F2, N-111; Standard-Limit); keine Auswahl, andere Wahl «Nicht erlauben» | F-4 (N-101, N-102) |
 | M-26 Konten, M-13 Dialog, M-20 Übersicht | «Erlaubt · … (Sammelbenutzer)» mit dem gewählten Benutzer; ohne Wahl kein Anfordern | «Erlaubt · slouchcat-gaeste (Sammelbenutzer)» für jedes Konto ohne eigenen Benutzer, solange «Sammelbenutzer» gewählt ist | F-4 (N-101) |
 | M-24, M-26 Passwort eines vom Administrator verknüpften Kontos | nach «In Seerr eröffnen» mit gleicher E-Mail (Beispiel gast) oder «Anderen Benutzer wählen» der Stand «Wird bei der nächsten Anmeldung in Slouchcat übernommen» (Abschnitt 7.2) | Stand «Wird nicht abgeglichen»; der Benutzer behält sein Passwort, bis der Administrator den Abgleich für das Konto einschaltet. Beim Annehmen einer Einladung (M-35) und nach einer E-Mail-Änderung wird das Passwort weiter gesetzt (E-8) | F-24 (N-103) |
 | Hilfetexte zu «Passwort abgleichen» (M-25) und «Passwort» (M-22) | das Passwort gehe an jeden verknüpften Benutzer | Zusatz, dass vom Administrator verknüpfte Benutzer ihr Passwort behalten (Wortlaut im Bau, `07-administration.md`) | F-24 (N-103) |
 
 Die Antwort zu F-22 (ein Release am Schluss) betrifft das Mockup nicht.
+
+### 11.1 Abweichungen des Baus vom Mockup (17. November 2026)
+
+Was der Bau anders macht als das Mockup, ohne dass eine Antwort von Marco dahintersteht. Entschieden hat die
+Redaktion bzw. es ist so gebaut; der Grund steht je Zeile. Marco wird die Abweichungen gemeldet.
+
+| Stelle im Mockup | Was das Mockup zeigt | Was der Bau macht | Grund |
+|---|---|---|---|
+| M-32 «Filme», M-33 «Serien», Sortierung | «Beliebtheit», «Neueste zuerst», «Titel A–Z» | «Beliebtheit», «Neueste zuerst» (bis heute erschienen, mit Mindestzahl an Stimmen), «Am besten bewertet» (mit Mindestzahl an Stimmen); «Titel A–Z» entfällt | Seerr liefert keine brauchbare Sortierung nach Titel (Anhang I, I-63; N-117) |
+| M-31 bis M-34, Listen | Knopf «Mehr laden» mit «x von y angezeigt» | die nächste Seite lädt beim Scrollen nach; kein Knopf; höchstens 500 Seiten (I-67) | Muster der App (Konzept 18, C-3) |
+| M-03, M-04 Vorschauseite, Metazeile | Altersfreigabe in der Metazeile | keine Altersfreigabe | Zuschauer sehen keine Freigabe (Regel aus Konzept 17, F-10); der Entscheid über das Alter fällt im Server |
+| M-24 «Seerr-Benutzer» | je Konto ein eigenes, zugeklapptes Band | eine Tabelle mit aufklappbaren Zeilen wie die Seite «Konten»; Einstellungen und Kontosteuerungen wirken sofort | so gebaut, wie die Seite «Konten» (`07-administration.md`, Abschnitt 6) |
+| M-35 Einladung, M-24 | ein bestehender Seerr-Benutzer mit gleicher E-Mail wird immer sofort verknüpft | ein privilegierter Benutzer (Benutzer 1, `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS`, `MANAGE_REQUESTS`) wird nicht verknüpft; das Konto wartet (`seerr_user_privileged`), ein Administrator wählt von Hand. Die Seite der Einladung zeigt trotzdem dieselbe Meldung (N-94) | Sicherheitskorrektur der Redaktion nach der Sicherheitsprüfung, Marco ist informiert (Anhang H, Abschnitt 12) |
+| M-27 Spotlight, Einträge ohne TMDB-ID | «Anheften», «Ausblenden», «Notiz» für alle Einträge | bei Einträgen ohne TMDB-ID fehlen die drei Aktionen | die Anpassungen hängen an der TMDB-ID (`05-spotlight-integration.md`, Abschnitt 4) |
+| M-31 bis M-34, Titel und Poster | Titel und Poster aus Seerr | Titel, Poster und Hintergrund aus Slouchcats eigenen Daten in der Sprache des Profils, sobald es den Titel kennt | Seerr liefert die Listen in seiner eigenen Sprache (I-61; N-116) |
 

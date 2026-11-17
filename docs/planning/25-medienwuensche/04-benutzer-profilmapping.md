@@ -41,7 +41,7 @@ Rechte, Konto löschen, Profil-Tag, Limit und die frühere Ausnahme je Profil (A
 |---|---|---|---|
 | Welcher Slouchcat-Benutzer? | das **Konto** der Sitzung | `wish_requesters.account_id` | beim Anfordern, aus der Sitzung (`model.Session`) |
 | Welches Profil? | das **aktive Profil** der Sitzung | `wish_requesters.profile_id`, `role` = `owner` (Anforderer) oder `joined` (Mitwunsch) | beim Anfordern bzw. beim Mitwunsch |
-| Welcher Seerr-Benutzer? | der Benutzer des **Kontos**, ohne eigenen Benutzer der Sammelbenutzer (Regel 8); keine Ausnahme je Profil (F-27) | `wishes.seerr_user_id`; die Verknüpfung selbst in `wish_account_map`, der Sammelbenutzer in `wishes.shared_seerr_user` | beim Anfordern, danach **eingefroren** (Abschnitt 8) |
+| Welcher Seerr-Benutzer? | der Benutzer des **Kontos**, ohne eigenen Benutzer der Sammelbenutzer (Regel 8); keine Ausnahme je Profil (F-27) | `wishes.seerr_user_id`; die Verknüpfung selbst in `wish_account_map`, der Sammelbenutzer über den Merker `seerr_users.is_shared` (so gebaut) | beim Anfordern, danach **eingefroren** (Abschnitt 8) |
 | Wo sieht man das Profil ausserhalb von Slouchcat? | am **Profil-Tag** am Film in Radarr oder an der Serie in Sonarr (Abschnitt 16) | Zustand des Tags je Wunsch und Profil | sobald der Wunsch «In Beschaffung» ist |
 | Welches Limit gilt? | das Limit des Kontos, gezählt von Seerr am Benutzer des Kontos (Abschnitt 17) | Einstellung am Konto; Stand aus `GET /user/{id}/quota` | beim Eröffnen und nach jeder Änderung in Slouchcat in den Seerr-Benutzer geschrieben |
 | Wer wird benachrichtigt? | das anfordernde Profil und alle Mitwünscher, je erst wenn der Titel für **dieses** Profil sichtbar ist; extern die Kanäle ihrer Konten | `wish_requesters` (Empfänger), `account_channels` (Kanäle) | beim Ereignis, je Profil neu geprüft |
@@ -164,7 +164,7 @@ Die Spalten legt `08-datenmodell-api.md` fest. Inhaltlich braucht es:
 | `seerr_users` | Abbild der Seerr-Benutzer, mit `created_at` für den Fingerabdruck (Abschnitt 8.4) | `gone_at` gesetzt, wenn der Benutzer beim letzten Laden fehlte |
 | `wish_account_map` | `account_id` PK (CASCADE), `seerr_user_id` UNIQUE, `set_at`, `set_by`; neu der Zustand (eröffnet, verknüpft, von Hand, wartet) und der Stand des Passworts mit Zeitpunkt; `set_at` trägt auch den Hinweis «Neu verknüpft» (Abschnitt 12.5) | ein Benutzer je Konto, ein Konto je Benutzer |
 | ~~`wish_profile_map`~~ | entfällt (F-27, Anhang H 11.3 N-100) | – |
-| `wishes.shared_seerr_user` | Seerr-ID des Sammelbenutzers «slouchcat-gaeste» (N-101) | legt Slouchcat selbst an; gehört keinem Konto |
+| `seerr_users.is_shared` | Merker am Sammelbenutzer «slouchcat-gaeste» (N-101); so gebaut statt einer Einstellung `wishes.shared_seerr_user` | legt Slouchcat selbst an; höchstens einer; gehört keinem Konto |
 | Konto | Limit: «Standard», «Eigenes» mit Anzahl und Tagen je Art, «Unbegrenzt» | Vorgabe in den Einstellungen der Wünsche |
 | Profil | überschriebener Name des Profil-Tags | leer heisst Präfix plus Profilname |
 | je Wunsch und Profil | Zustand des Profil-Tags (gesetzt, noch nicht gesetzt) | nie entfernt |
@@ -330,9 +330,12 @@ sieht alte Anfragen eines neu verknüpften Benutzers nie (`03-architektur.md`, A
    «3 Anfragen von grosseltern in Seerr werden übernommen (Profil Oma & Opa).»
 7. Ein schon geführter «nicht zuordenbarer» Wunsch dieses Benutzers (Abschnitt 8.3) bekommt das Zielprofil als
    Besitzer; er wird nicht doppelt angelegt.
-8. **Vorschlag:** Übernommen werden nur offene und in den letzten 30 Tagen verfügbar gewordene Anfragen, damit
-   kein Konto mit alten Meldungen überschwemmt wird; für übernommene Anfragen, die schon verfügbar sind, kommt
-   keine Benachrichtigung.
+8. **So gebaut:** Übernommen werden nur offene und in den letzten 30 Tagen verfügbar gewordene Anfragen, damit
+   kein Konto mit alten Meldungen überschwemmt wird; abgelehnte, fehlgeschlagene und 4K-Anfragen nicht. Für
+   übernommene Anfragen kommt keine Benachrichtigung (`notified_at` wird beim Übernehmen gesetzt).
+9. **So gebaut:** Nach dem Upgrade läuft die Übernahme einmal für alle verknüpften Benutzer; danach reiht der
+   Abgleich sie für jeden Benutzer ein, der seit seiner letzten Übernahme neu gesetzt wurde
+   (`03-architektur.md`, Abschnitt 7.3).
 
 ### 8.3 Nicht zuordenbare Anfragen
 
@@ -343,8 +346,9 @@ sie unter «Anfragen» mit dem Filter «Nicht zuordenbar» und auf der Seite «S
 «Seerr-Benutzer ohne Konto» als Zähler beim Benutzer. Zuschauer sehen sie nie, und sie lösen keine
 Benachrichtigung aus. Fordert ein Profil denselben Titel an, wird es Mitwünscher dieses Wunsches; Seerr
 wird nicht aufgerufen, weil es dort ohnehin 409 meldete (Anhang F 2.10, 2.11). Ein Request des Sammelbenutzers,
-der in Seerr selbst entstand (nicht über Slouchcat), gilt ebenfalls als nicht zuordenbar (**Vorschlag**), weil
-unklar ist, welches Konto ihn stellte. Gehört der Benutzer später zu einem Konto, gilt Abschnitt 8.2.
+der in Seerr selbst entstand (nicht über Slouchcat), sollte ebenfalls als nicht zuordenbar gelten (**Vorschlag**);
+**so gebaut** übergehen Abgleich und Übernahme die Anfragen des Sammelbenutzers aber ganz, er wird also nicht
+geführt. Gehört der Benutzer später zu einem Konto, gilt Abschnitt 8.2.
 
 ### 8.4 Instanz wechselt
 
@@ -420,7 +424,7 @@ anderen Person. Das verletzt die Anforderung «nie falsch zuweisen». Darum:
 | Passwort in Seerr direkt geändert | nicht erkennbar | zwei verschiedene Passwörter, bis der Administrator «Passwort bei der nächsten Anmeldung neu übernehmen» wählt (Abschnitt 13.5) |
 | Profil-Tag nicht gesetzt | Radarr oder Sonarr nicht erreichbar oder lehnt ab | Wunsch unverändert; «Tag noch nicht gesetzt» in der Verwaltung; nächster Abgleich holt es nach (Abschnitt 16.5) |
 | Profil gelöscht | Löschen in `auth` | Seine Wünsche gehen an das Hauptprofil des Kontos (Verlauf «von gelöschtem Profil übernommen»); das Löschen in `auth` ruft dafür vorher `wishes` auf. Mitwünsche des Profils fallen weg. In Seerr ändert sich nichts; der Profil-Tag bleibt in Radarr und Sonarr. |
-| Konto gelöscht | `wish_account_map` fällt mit CASCADE | Der Seerr-Benutzer bleibt. Hat Slouchcat ihn eröffnet, verliert er die Rechte und bekommt ein Zufallspasswort; verknüpfte und von Hand gewählte Benutzer bleiben unverändert (Abschnitt 15). Wünsche mit Mitwünschern anderer Konten gehen an den ältesten dieser Mitwünscher. Die übrigen Wünsche des Kontos werden geschlossen: Offene bekommen `failed` mit Grund `account_deleted`, alle `closed_at`; ihre Request-IDs wandern in den Verlauf, damit sie den Titel nicht mehr sperren. In Seerr bleiben die Requests und erscheinen ab Stufe 4 als «nicht zuordenbar». Der Bestätigungstext «Konto entfernen» sagt: «Der Benutzer und seine Wünsche bleiben in Seerr bestehen.» |
+| Konto gelöscht | `wish_account_map` fällt mit CASCADE | So gebaut wie folgt. Der Seerr-Benutzer bleibt. Hat Slouchcat ihn eröffnet, verliert er die Rechte und bekommt ein Zufallspasswort; verknüpfte und von Hand gewählte Benutzer bleiben unverändert (Abschnitt 15). Wünsche mit Mitwünschern anderer Konten gehen an den ältesten dieser Mitwünscher. Die übrigen Wünsche des Kontos werden geschlossen: Offene bekommen `failed` mit Grund `account_deleted`, alle `closed_at`; ihre Request-IDs wandern in den Verlauf, damit sie den Titel nicht mehr sperren. In Seerr bleiben die Requests und erscheinen ab Stufe 4 als «nicht zuordenbar». Der Bestätigungstext «Konto entfernen» sagt: «Der Benutzer und seine Wünsche bleiben in Seerr bestehen.» |
 | Profilwechsel während offener Wünsche | – | Ein Wunsch gehört dem Profil, das ihn stellte. Nach dem Wechsel sieht das neue Profil nur seine eigenen Wünsche; das Hauptprofil sieht alle Wünsche des Kontos (`listAccountWishes`, `scoped` mit Hauptprofil), weil es das Konto verwaltet. Nichts wird umgehängt. |
 | Ausnahme eines Profils gesetzt oder entfernt | – | entfällt (F-27, Anhang H 11.3 N-100) |
 | Konto ohne Seerr-Benutzer, «Konten ohne Seerr-Benutzer» = «Nicht erlauben» | keine Zeile in `wish_account_map` oder `state = waiting` | Grund `no_mapping`; die Profile sehen keine fehlenden Titel (Abschnitt 9). Der Administrator sieht den Chip auf «Konten», den Eintrag auf «Seerr-Benutzer» und in der Übersicht «n Konten ohne Seerr-Benutzer». |
@@ -486,7 +490,10 @@ er aus, eröffnet der Administrator auch neue Konten von Hand.
 ### 12.2 Ablauf
 
 Der Job `seerr.provision` (ausgelöst durch die Einladung, durch den Knopf oder durch den Abgleich) läuft in fünf
-Schritten (Anhang H 4.1):
+Schritten (Anhang H 4.1). **So gebaut** trägt jeder Lauf seine Absicht: `open` (Einladung, «In Seerr eröffnen»,
+«Alle eröffnen»), `retry` (Konto im Zustand «wartet») oder `sync` (nach einer Handzuordnung, einem neuen Limit,
+einem neuen Wunschrecht). `sync` sucht nie über die E-Mail und legt nie an; die Schritte 1 und 2 gelten nur für
+`open` und `retry` (`03-architektur.md`, Abschnitt 18.2).
 
 1. `GET /user?q=<E-Mail>`. Gibt es einen exakten Treffer (ohne Gross-/Kleinschreibung), verknüpft Slouchcat
    ihn sofort, gleich wer den Job ausgelöst hat (Abschnitt 7, Marco E-8). Hat das Konto den Job ausgelöst und ist
@@ -496,9 +503,17 @@ Schritten (Anhang H 4.1):
    (Abschnitt 13.2). Hat ein Administrator den Job ausgelöst, behält der Benutzer sein Passwort: «Wird nicht
    abgeglichen» (Marco, F-24; N-103). Danach geht es bei Schritt 4
    weiter; die Rechte fasst Slouchcat nicht an (N-9).
+   **Ausnahme (Sicherheitskorrektur der Redaktion nach der Sicherheitsprüfung des Baus, Marco ist informiert):**
+   Hat das Konto den Job ausgelöst (Einladung, E-Mail-Änderung) und ist der Treffer Benutzer 1 oder hat er eines
+   der Rechte `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS`, verknüpft Slouchcat ihn nicht.
+   Das Konto wartet mit dem Grund `seerr_user_privileged` (Abschnitt 12.3). Ein Administrator kann den Benutzer
+   über «In Seerr eröffnen» oder von Hand wählen, dann ohne Passwort- und E-Mail-Abgleich. Das engt E-8 für diese
+   Benutzer ein (`03-architektur.md`, Abschnitt 15.4; Anhang H, Abschnitt 12).
 2. Sonst `POST /user {email, username, password}`. Meldet Seerr 409 (E-Mail schon vergeben), behandelt
    Slouchcat das wie einen Treffer.
-3. `POST /user/{id}/settings/permissions` setzt die Rechte (Abschnitt 14).
+3. Rechte: Ein neuer Benutzer behält Seerrs Standardrechte (`defaultPermissions`); nur ohne Wunschrecht des
+   Kontos setzt `POST /user/{id}/settings/permissions` den Wert `0` (Marco, I-F1; N-110; Abschnitt 14). Ein
+   `POST settings/permissions` mit `REQUEST` gibt es nicht mehr.
 4. `GET` und danach `POST /user/{id}/settings/main` mit dem Limit des Kontos (Abschnitt 17), nur für Benutzer
    ohne `MANAGE_USERS`. Die übrigen Felder schickt Slouchcat unverändert zurück.
 5. Slouchcat speichert am Konto den Zustand und den Stand des Passworts (Abschnitte 12.3 und 13.4).
@@ -515,6 +530,7 @@ Empfehlung).
 | «Verknüpft über gleiche E-Mail» | den Benutzer gab es schon; Slouchcat hat ihn verknüpft, auf Knopf des Administrators oder sofort beim Annehmen einer Einladung (E-4, E-8) |
 | «Von Hand zugeordnet» | der Administrator hat mit «Anderen Benutzer wählen» einen Benutzer gewählt |
 | «Wird eröffnet, sobald Seerr erreichbar ist» | der Job wartet auf Seerr |
+| «Wartet» mit Grund (so gebaut) | der Benutzer der E-Mail gehört schon einem anderen Konto oder ist der Sammelbenutzer (`seerr_user_taken`), oder er ist privilegiert und das Konto hat selbst ausgelöst (`seerr_user_privileged`, Abschnitt 12.2); ein Administrator wählt von Hand |
 | «Nicht eröffnet» | kein Benutzer; auf «Konten» trägt das Konto den Chip «Kein Seerr-Benutzer» |
 
 Solange ein Konto keinen Benutzer hat (auch «wird eröffnet»), sendet es über den Sammelbenutzer (ab Werk, Marco
@@ -547,7 +563,9 @@ ist damit zurückgezogen (Anhang H, Abschnitt 10, N-90).
 - **Schutz für Administratoren:** Mit der Verknüpfung geht das Passwort an den bestehenden Benutzer, wie bei
   jedem anderen (N-91, Abschnitt 13.1). Ausgenommen bleiben Benutzer 1, andere Administratoren von Seerr und
   Benutzer mit Anmeldung über Jellyfin, Emby oder Plex (N-6, Abschnitt 13.3). Ein Administrator von Seerr
-  lässt sich so nicht übernehmen.
+  lässt sich so nicht übernehmen. **So gebaut** verknüpft Slouchcat einen privilegierten Benutzer bei Einladung
+  und E-Mail-Änderung gar nicht erst, weil sonst seine Anfragen an das Konto gingen (Sicherheitskorrektur der
+  Redaktion, Abschnitt 12.2).
 - **Hinweis an die Administratoren (Empfehlung, N-93):** Die Übersicht der Verwaltung zeigt sieben Tage lang
   «Neu verknüpft: {{Konto}} mit dem bestehenden Seerr-Benutzer {{Name}}», mit Link auf «Seerr-Benutzer». Dort
   lässt sich die Verknüpfung lösen (Abschnitt 6, Regel 7). Das Protokoll hält jede Verknüpfung fest.
@@ -606,13 +624,20 @@ Passwort sofort, auch bei einem verknüpften Benutzer (E-8, N-91).
 
 Kein Abgleich gibt es bei (N-6):
 
-- **Benutzer 1 und anderen Administratoren von Seerr.** Das Passwort von Benutzer 1 kann Slouchcat nicht
+- **Benutzer 1 und anderen Administratoren von Seerr.** Als Administrator zählt so gebaut jeder Benutzer mit einem
+  Verwaltungsrecht (`ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS`, `MANAGE_REQUESTS`), nicht nur einer mit
+  `MANAGE_USERS`; «Kein Limit» bleibt an `MANAGE_USERS` gebunden (Abschnitt 17.4). Das Passwort von Benutzer 1 kann Slouchcat nicht
   setzen, weil der Schlüssel selbst als Benutzer 1 handelt und Seerr dafür das alte Passwort verlangt
   (Abschnitt 2.1). Das Passwort anderer Administratoren könnte Slouchcat als Benutzer 1 setzen; die Empfehlung
   lässt es trotzdem in Seerr, damit Slouchcat kein Administratorkonto von Seerr verändert. Die Seite
   zeigt «Bleibt in Seerr (Administrator)».
 - **Benutzern, die sich über Jellyfin, Emby oder Plex anmelden.** Sie haben kein eigenes Passwort in
   Seerr. Die Seite zeigt «Anmeldung über Jellyfin oder Plex».
+
+**Schutz beim Setzen (so gebaut, Sicherheitsprüfung):** Vor jedem Setzen von Passwort oder E-Mail liest
+Slouchcat den Seerr-Benutzer frisch (`GET /user/{id}`, Anhang I, I-72) und lässt es bei Benutzer 1, einem
+Verwaltungsrecht oder einer Anmeldung, die nicht lokal ist; der Lauf `seerr.users` führt den Passwortstand nach.
+Die Übergabe läuft je Konto unter einer Sperre, damit ein altes Passwort ein neueres nicht überholt.
 
 Der Schalter «Passwort abgleichen» unter Wünsche › Einstellungen ist ab Werk an (N-8). Ist er aus, gibt
 Slouchcat kein Passwort weiter; neue Benutzer behalten ihr Zufallspasswort.

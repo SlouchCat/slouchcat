@@ -154,6 +154,8 @@ Fehlende Einträge der Liste erscheinen weder auf der Startseite noch in der Spo
   auch ohne Treffer an (`server/internal/admin/spotlight.go:178-189`). Bei einem fehlenden Eintrag wirken sie
   erst, wenn der Titel in die Bibliothek kommt. Sie liegen weiter in `spotlight_overrides` mit Schlüssel
   (`list_key`, `media`, `tmdb_id`) und überleben jeden Abruf.
+- **So gebaut:** Einträge, die sich nicht zuordnen lassen (ohne TMDB-ID, N-62), lassen sich weder anheften noch
+  ausblenden noch kommentieren, weil die Anpassungen an der TMDB-ID hängen. Bei ihnen fehlen die drei Aktionen.
 
 **IDs je Eintrag** (neu, Empfehlung): Jeder Eintrag zeigt seine IDs in der Form «TMDB … · TVDB … · IMDb …»
 und, bei Serien, wie Slouchcat ihn erkannt hat: «In der Bibliothek über die TVDB-ID erkannt», «In der

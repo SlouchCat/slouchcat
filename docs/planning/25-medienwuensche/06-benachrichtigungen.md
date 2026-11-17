@@ -209,6 +209,7 @@ Ein gewöhnliches Konto bekommt damit heute auf keinem Kanal neue Inhalte. Für 
 | Staffeln | je Staffel ein Schlüssel. **Vorschlag:** Werden im selben Lauf mehrere Staffeln verfügbar, kommt eine Meldung «Staffeln 2 und 3 sind verfügbar». Macht die Staffel den Wunsch vollständig, kommt nur `wish_available`; die Schlüssel der Staffeln werden trotzdem geschrieben, damit keine späte Staffelmeldung folgt. |
 | Zustand kippt zurück | **Vorschlag:** Wird ein verfügbarer Titel gelöscht und später wieder eingelesen, kommt keine zweite Meldung, weil `notified_at` gesetzt ist, auch wenn der Eingangseintrag längst weggeräumt ist. Ein neuer Wunsch (neue `id`) hat neue Schlüssel und eigene Zeilen in `wish_requesters`. |
 | Höchstens eine Meldung | je Wunsch und Art höchstens eine Meldung; bei Staffeln je Staffel eine. |
+| Bekannte Grenzen (so gebaut) | Wartet ein Kinderprofil noch auf einen Titel, kann ein anderes Profil nach dem Aufräumen des Eingangs (90 Tage) dieselbe Staffelmeldung noch einmal bekommen. Stürzt der Server zwischen Speichern und Melden ab, geht eine Zustandsmeldung (freigegeben, abgelehnt, fehlgeschlagen) verloren; «verfügbar» wird nachgeholt (`03-architektur.md`, Abschnitt 14). |
 
 ## 8. Empfänger und Datenschutz
 
@@ -314,7 +315,7 @@ kein Link, Push nimmt den Pfad relativ. Die Ansicht «Seerr» erinnert daran, we
 | `account_channels` | Migration ergänzt die Ereignislisten (Abschnitt 6); `ChannelEnsureDefaults` mit den neuen Vorgaben |
 | `internal/model` | neue `Event*`-Konstanten, `Kind*` für die Eingangsarten |
 | `internal/notify` | `eventNames` erweitert (`channels.go:23`), `wish_review` wie `errors` nur für Administratoren, Erzeuger für Wunschmeldungen mit Sichtbarkeitsprüfung je Profil, PIN-Fassung, Bündelung je Konto (Vorschlag) |
-| `internal/wishes` | ruft `notify` bei Zustandswechseln; Haken «Titel zugeordnet» aus `metadata`; schreibt `wish_requesters.notified_at` und `wish_seasons.notified_at` |
+| `internal/wishes` | ruft `notify` bei Zustandswechseln; Haken «Titel zugeordnet» aus `metadata`. **So gebaut** schreibt nicht `wishes`, sondern `notify` selbst `wish_requesters.notified_at` und `wish_seasons.notified_at`, in derselben Transaktion wie den Eingangseintrag; Anfragen, die `wishes.import` übernimmt, setzen `notified_at` direkt, damit keine Meldung entsteht |
 | Vertrag | `EventType` und `Notification.kind` um die neuen Werte; `Notification.item` wird optional, dazu `wish` (Titel, Medienart, Zustand, Kennung). Nach der Praxis des Projekts **brechend** in Stufe 2 und 4 (`08-datenmodell-api.md`, Abschnitt 4.6); der Vertrag sagt zusätzlich, dass Clients unbekannte Arten überspringen. |
 | App | `NotificationsPage`: `entryContext` und `entryTitle` setzen heute «Neue Folge» voraus und brauchen je Art eine Darstellung; Leerzustand nennt auch Wünsche; Kanalseite mit drei neuen Häkchen |
 | Tests | Doppelschutz (auch nach dem Wegräumen nach 90 Tagen), Sichtbarkeit je Profil, Leseweg ohne `item_id` (Liste und Glocke), PIN-Fassung, Mitwunsch, Staffelbündel, Rückfüllung bei neuen und bestehenden Konten (eingefrorene DB-Stände, Regel 5) |

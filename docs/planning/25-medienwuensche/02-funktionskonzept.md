@@ -240,7 +240,8 @@ Seerr wieder erreichbar ist (Ablauf 4.9).
 3. Für jedes anfordernde Profil und jeden Mitwünscher prüft der Server, ob das Profil den Titel sehen darf.
 4. Erst dann wird der Wunsch für dieses Profil `available` und es bekommt den Eingangseintrag «Verfügbar:
    {{Titel}}» mit Link auf die Detailseite. Ist ein Profil (noch) nicht berechtigt, etwa weil die Freigabe
-   fehlt, wartet die Meldung für dieses Profil.
+   fehlt, wartet die Meldung für dieses Profil. So gebaut liest ein solches Profil den Wunsch bis dahin als «In Beschaffung · wird
+   eingelesen», ohne Zeitpunkt und ohne Verweis auf den Titel (`03-architektur.md`, Abschnitt 8.3).
 5. Kanäle des Kontos: E-Mail, Web-Push, Telegram mit `[Profilname]` im Betreff, wenn «Wünsche: verfügbar»
    gewählt ist (ab Werk an, F-14). Bei Profilen mit PIN nennt die Nachricht den Titel nicht (F-15).
 6. Bei Serien gilt eine Staffel erst als verfügbar, wenn sie vollständig ist: Slouchcat kann ihre Folgen
@@ -355,7 +356,8 @@ Sammelbenutzer gilt das Standard-Limit, gemeinsam für alle Konten, die über ih
 2. «Entdecken» zeigt Reihen wie Seerr: Im Trend, Beliebte Filme, Film-Genres, Demnächst im Kino, Beliebte
    Serien, Serien-Genres, Demnächst als Serie (Empfehlung N-51, F-28). Ein Suchfeld führt zu «Suche».
 3. «Filme» (M-32) und «Serien» (M-33) sind Posterraster mit Sortierung, Genre-Filter und «Vorhandene
-   ausblenden»; «Mehr laden» holt die nächste Seite.
+   ausblenden»; beim Scrollen lädt die nächste Seite nach (Redaktion: Muster der App, Konzept 18 C-3; einen Knopf
+   «Mehr laden» wie im Mockup gibt es nicht).
 4. Ein Poster eines fehlenden Titels öffnet die Vorschauseite, sein Plus-Knopf den Dialog. Ein Titel, der schon
    in der Bibliothek steht, trägt eine Marke und führt zur Detailseite.
 5. Angefordert wird wie in Ablauf 4.1 oder 4.2.
@@ -373,7 +375,7 @@ Aufbau der Seiten: Abschnitt 5.4.
 | Vorschauseite | `/titles/{movie\|show}/{tmdbId}` | neu | Aufbau wie Detailseite; Hauptknopf «Film anfordern» / «Serie anfordern» oder Zustand; Wunschkarte mit Zustand und Download-Fortschritt | M-03, M-04 |
 | Suche | `/search` | geändert | Abschnitt «Noch nicht in der Bibliothek» unter den Bibliothekstreffern; neu ein Verweis auf die Wunsch-Suche (N-57) | M-07 |
 | Wünsche · Entdecken | `/discover` (Redaktionsentscheid, wie im Mockup) | neu | Reihen wie auf der Startseite von Seerr, Genre-Kacheln, Suchfeld | M-31 |
-| Wünsche · Filme | `/discover/movies` | neu | Posterraster mit Sortierung, Genre-Filter, «Vorhandene ausblenden», «Mehr laden» | M-32 |
+| Wünsche · Filme | `/discover/movies` | neu | Posterraster mit Sortierung, Genre-Filter, «Vorhandene ausblenden», Nachladen beim Scrollen | M-32 |
 | Wünsche · Serien | `/discover/series` | neu | wie «Filme» | M-33 |
 | Wünsche · Suche | `/discover/search` | neu | Suche über alles, was TMDB kennt, auch nach Kennung `tmdb:`, `tvdb:`, `imdb:` | M-34 |
 | Wünsche · Meine Wünsche | `/wishes` | neu | fünfter Reiter des Bereichs; Liste, Filter, Verlauf je Wunsch, Download-Fortschritt, Zurückziehen, erneut anfordern, Anzeige des Limits | M-08 |
@@ -393,7 +395,8 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
 ### 5.1 Vorschauseite
 
 - Kopf wie die Detailseite: Hintergrund, Logo oder Titel, Metazeile (Jahr, Laufzeit oder Staffelzahl,
-  Genres, Freigabe) mit dem Chip «Noch nicht in der Bibliothek», Beschreibung.
+  Genres) mit dem Chip «Noch nicht in der Bibliothek», Beschreibung. Eine Altersfreigabe steht dort nicht, anders
+  als im Mockup: Zuschauer sehen keine Freigabe (Regel aus Konzept 17, F-10).
 - Knöpfe: Hauptknopf «Film anfordern» / «Serie anfordern» oder die Zustandsanzeige; «Trailer», wenn einer da ist.
 - **Wunschkarte:** Hat das Profil einen Wunsch zu diesem Titel, zeigt eine Karte unter dem Kopf Zustand, Datum
   und, solange der Wunsch «In Beschaffung» ist, den Download-Fortschritt, gleich wie «Meine Wünsche»
@@ -481,7 +484,7 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 | Reiter | Inhalt | Mockup |
 |---|---|---|
 | «Entdecken» | Reihen wie Seerr: Im Trend, Beliebte Filme, Film-Genres (Kacheln), Demnächst im Kino, Beliebte Serien, Serien-Genres (Kacheln), Demnächst als Serie; dazu ein Suchfeld. Die Reihen «Recently Added», «Recent Requests», «Plex Watchlist», «Studios», «Networks» von Seerr entfallen (F-28). | M-31 |
-| «Filme» | Posterraster mit Sortierung (Beliebtheit, Neueste zuerst, Titel), Genre-Filter und «Vorhandene ausblenden»; der Filter ist zugeklappt und zeigt seine Wahl im Kopf; «Mehr laden» | M-32 |
+| «Filme» | Posterraster mit Sortierung («Beliebtheit», «Neueste zuerst», «Am besten bewertet»; «Titel A–Z» aus dem Mockup entfällt, weil Seerr sie nicht brauchbar liefert, Anhang I N-117), Genre-Filter und «Vorhandene ausblenden»; der Filter ist zugeklappt und zeigt seine Wahl im Kopf; Nachladen beim Scrollen statt «Mehr laden» | M-32 |
 | «Serien» | wie «Filme» | M-33 |
 | «Suche» | sucht in allem, was TMDB kennt, auch nach Kennung: `tmdb:`, `tvdb:`, `imdb:`. Personen zeigt sie nicht. | M-34 |
 | «Meine Wünsche» | eigene Wünsche (Abschnitt 5.3); fünfter Reiter ist Redaktionsentscheid, Marco nannte vier | M-08 |
@@ -497,7 +500,12 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 - **Wer den Bereich sieht:** Es gilt F-9 unverändert: «Entdecken», «Filme», «Serien» und «Suche» sieht nur ein
   Profil, das anfordern kann (Abschnitt 3). Alle anderen sehen höchstens «Meine Wünsche». Die Altersstufe gilt
   für jeden Titel, unbekannt zählt als 18; für Profile mit Altersgrenze fragt der Server Seerr mit
-  `certificationLte` und prüft jeden Treffer selbst nach (N-56).
+  `certificationLte` und prüft jeden Treffer selbst nach (N-56); für CH und AT nimmt dieser Vorfilter DE (Anhang I
+  N-118).
+- **Nach der Prüfung an Marcos Seerr (Anhang I, Abschnitt 4a; Redaktion):** Titel, Poster und Hintergrund kommen
+  aus Slouchcats eigenen Daten in der Sprache des Profils, sobald es den Titel kennt, sonst der Text aus Seerr
+  (N-116); an die Listen «Filme» und «Serien» geht kein Sprachparameter (N-115); es gibt höchstens 500 Seiten
+  (I-67).
 - **Schalter:** «Seiten Entdecken, Filme, Serien und Suche» unter Wünsche › Einstellungen (N-57).
 - **Kein Verstoss gegen das Nicht-Ziel «algorithmische Empfehlungen»:** Die Listen sind öffentliche
   TMDB-Ranglisten, für alle gleich. S-4 («Titel ohne Bibliothekstreffer nie auf der Startseite») bleibt ohne
