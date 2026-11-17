@@ -61,6 +61,16 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/externalq
               desc: external_titles is read and written only by package metadata (concept 25 section 2.9)
+        wishq:
+          # The wish tables (concept 25, architecture 2.3): only package wishes reads and writes the
+          # Seerr users, the mapping, the limits and the call log; the others ask its services.
+          files:
+            - $all
+            - "!**/internal/wishes/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/wishq
+              desc: the wish tables are read and written only by package wishes (concept 25, architecture 2.3)
         test-helpers:
           # storetest and vistest open template databases and seed fixtures for tests. Code that
           # ships must never reach them; vistest builds on storetest, so the two may import each

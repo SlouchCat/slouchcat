@@ -23,6 +23,7 @@ type Account struct {
 	MaxBitrateKbps sql.NullInt64
 	MaxHeight      sql.NullInt64
 	MaxStreams     sql.NullInt64
+	CanRequest     int64
 }
 
 type AccountChannel struct {
@@ -309,17 +310,23 @@ type Image struct {
 }
 
 type Invitation struct {
-	ID           int64
-	TokenHash    string
-	Note         sql.NullString
-	MaxRating    int64
-	AllLibraries int64
-	CreatedBy    sql.NullInt64
-	CreatedAt    int64
-	ExpiresAt    int64
-	UsedAt       sql.NullInt64
-	UsedBy       sql.NullInt64
-	RevokedAt    sql.NullInt64
+	ID             int64
+	TokenHash      string
+	Note           sql.NullString
+	MaxRating      int64
+	AllLibraries   int64
+	CreatedBy      sql.NullInt64
+	CreatedAt      int64
+	ExpiresAt      int64
+	UsedAt         sql.NullInt64
+	UsedBy         sql.NullInt64
+	RevokedAt      sql.NullInt64
+	CanRequest     int64
+	WishLimitMode  string
+	WishMovieLimit sql.NullInt64
+	WishMovieDays  sql.NullInt64
+	WishTvLimit    sql.NullInt64
+	WishTvDays     sql.NullInt64
 }
 
 type InvitationLibrary struct {
@@ -719,6 +726,7 @@ type Profile struct {
 	AudioLanguages    string
 	SubtitleMode      string
 	SubtitleLanguages string
+	CanRequest        int64
 }
 
 type ProfileLibrary struct {
@@ -972,6 +980,38 @@ type SearchIndex struct {
 	RefID  string
 }
 
+type SeerrLog struct {
+	ID         int64
+	At         int64
+	Method     string
+	Path       string
+	Status     sql.NullInt64
+	DurationMs int64
+	Error      sql.NullString
+}
+
+type SeerrUser struct {
+	SeerrID         int64
+	DisplayName     string
+	Email           sql.NullString
+	UserType        int64
+	Permissions     int64
+	MovieQuotaLimit sql.NullInt64
+	MovieQuotaDays  sql.NullInt64
+	TvQuotaLimit    sql.NullInt64
+	TvQuotaDays     sql.NullInt64
+	MovieQuotaUsed  sql.NullInt64
+	TvQuotaUsed     sql.NullInt64
+	MovieNextFreeAt sql.NullInt64
+	TvNextFreeAt    sql.NullInt64
+	QuotaAt         sql.NullInt64
+	IsAdmin         int64
+	IsShared        int64
+	CreatedAt       sql.NullInt64
+	FetchedAt       int64
+	GoneAt          sql.NullInt64
+}
+
 type Session struct {
 	ID         int64
 	TokenHash  string
@@ -1097,4 +1137,30 @@ type WebhookIntegration struct {
 	LastSeenAt sql.NullInt64
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type WishAccountLimit struct {
+	AccountID  int64
+	Mode       string
+	MovieLimit sql.NullInt64
+	MovieDays  sql.NullInt64
+	TvLimit    sql.NullInt64
+	TvDays     sql.NullInt64
+	SetAt      int64
+	SetBy      sql.NullInt64
+}
+
+type WishAccountMap struct {
+	AccountID        int64
+	SeerrUserID      sql.NullInt64
+	Origin           sql.NullString
+	State            string
+	LinkedBy         sql.NullString
+	LinkedAt         sql.NullInt64
+	PasswordState    string
+	PasswordSyncedAt sql.NullInt64
+	ProvisionError   sql.NullString
+	LimitWrittenAt   sql.NullInt64
+	SetAt            int64
+	SetBy            sql.NullInt64
 }

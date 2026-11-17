@@ -187,7 +187,7 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 }
 
 const getInvitation = `-- name: GetInvitation :one
-SELECT id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at FROM invitations WHERE id = ?1
+SELECT id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at, can_request, wish_limit_mode, wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days FROM invitations WHERE id = ?1
 `
 
 func (q *Queries) GetInvitation(ctx context.Context, id int64) (Invitation, error) {
@@ -205,12 +205,18 @@ func (q *Queries) GetInvitation(ctx context.Context, id int64) (Invitation, erro
 		&i.UsedAt,
 		&i.UsedBy,
 		&i.RevokedAt,
+		&i.CanRequest,
+		&i.WishLimitMode,
+		&i.WishMovieLimit,
+		&i.WishMovieDays,
+		&i.WishTvLimit,
+		&i.WishTvDays,
 	)
 	return i, err
 }
 
 const getInvitationByTokenHash = `-- name: GetInvitationByTokenHash :one
-SELECT id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at FROM invitations WHERE token_hash = ?1
+SELECT id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at, can_request, wish_limit_mode, wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days FROM invitations WHERE token_hash = ?1
 `
 
 func (q *Queries) GetInvitationByTokenHash(ctx context.Context, tokenHash string) (Invitation, error) {
@@ -228,6 +234,12 @@ func (q *Queries) GetInvitationByTokenHash(ctx context.Context, tokenHash string
 		&i.UsedAt,
 		&i.UsedBy,
 		&i.RevokedAt,
+		&i.CanRequest,
+		&i.WishLimitMode,
+		&i.WishMovieLimit,
+		&i.WishMovieDays,
+		&i.WishTvLimit,
+		&i.WishTvDays,
 	)
 	return i, err
 }
@@ -255,7 +267,7 @@ func (q *Queries) GetPinAttempt(ctx context.Context, arg GetPinAttemptParams) (P
 }
 
 const getProfileOfAccount = `-- name: GetProfileOfAccount :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE id = ?1 AND account_id = ?2
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request FROM profiles WHERE id = ?1 AND account_id = ?2
 `
 
 type GetProfileOfAccountParams struct {
@@ -289,6 +301,7 @@ func (q *Queries) GetProfileOfAccount(ctx context.Context, arg GetProfileOfAccou
 		&i.AudioLanguages,
 		&i.SubtitleMode,
 		&i.SubtitleLanguages,
+		&i.CanRequest,
 	)
 	return i, err
 }
@@ -310,7 +323,7 @@ func (q *Queries) InsertAccountLibrary(ctx context.Context, arg InsertAccountLib
 const insertInvitation = `-- name: InsertInvitation :one
 INSERT INTO invitations (token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-RETURNING id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at
+RETURNING id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at, can_request, wish_limit_mode, wish_movie_limit, wish_movie_days, wish_tv_limit, wish_tv_days
 `
 
 type InsertInvitationParams struct {
@@ -346,6 +359,12 @@ func (q *Queries) InsertInvitation(ctx context.Context, arg InsertInvitationPara
 		&i.UsedAt,
 		&i.UsedBy,
 		&i.RevokedAt,
+		&i.CanRequest,
+		&i.WishLimitMode,
+		&i.WishMovieLimit,
+		&i.WishMovieDays,
+		&i.WishTvLimit,
+		&i.WishTvDays,
 	)
 	return i, err
 }
@@ -367,7 +386,7 @@ func (q *Queries) InsertInvitationLibrary(ctx context.Context, arg InsertInvitat
 const insertInvitedAccount = `-- name: InsertInvitedAccount :one
 INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
 VALUES (?1, ?2, 'user', ?3, ?4, ?5, ?6, ?6)
-RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
+RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request
 `
 
 type InsertInvitedAccountParams struct {
@@ -406,6 +425,7 @@ func (q *Queries) InsertInvitedAccount(ctx context.Context, arg InsertInvitedAcc
 		&i.MaxBitrateKbps,
 		&i.MaxHeight,
 		&i.MaxStreams,
+		&i.CanRequest,
 	)
 	return i, err
 }
@@ -577,24 +597,30 @@ func (q *Queries) ListInvitationLibraryIDs(ctx context.Context, invitationID int
 }
 
 const listInvitations = `-- name: ListInvitations :many
-SELECT i.id, i.token_hash, i.note, i.max_rating, i.all_libraries, i.created_by, i.created_at, i.expires_at, i.used_at, i.used_by, i.revoked_at, a.email AS used_by_email FROM invitations AS i
+SELECT i.id, i.token_hash, i.note, i.max_rating, i.all_libraries, i.created_by, i.created_at, i.expires_at, i.used_at, i.used_by, i.revoked_at, i.can_request, i.wish_limit_mode, i.wish_movie_limit, i.wish_movie_days, i.wish_tv_limit, i.wish_tv_days, a.email AS used_by_email FROM invitations AS i
 LEFT JOIN accounts AS a ON a.id = i.used_by
 ORDER BY i.created_at DESC, i.id DESC
 `
 
 type ListInvitationsRow struct {
-	ID           int64
-	TokenHash    string
-	Note         sql.NullString
-	MaxRating    int64
-	AllLibraries int64
-	CreatedBy    sql.NullInt64
-	CreatedAt    int64
-	ExpiresAt    int64
-	UsedAt       sql.NullInt64
-	UsedBy       sql.NullInt64
-	RevokedAt    sql.NullInt64
-	UsedByEmail  sql.NullString
+	ID             int64
+	TokenHash      string
+	Note           sql.NullString
+	MaxRating      int64
+	AllLibraries   int64
+	CreatedBy      sql.NullInt64
+	CreatedAt      int64
+	ExpiresAt      int64
+	UsedAt         sql.NullInt64
+	UsedBy         sql.NullInt64
+	RevokedAt      sql.NullInt64
+	CanRequest     int64
+	WishLimitMode  string
+	WishMovieLimit sql.NullInt64
+	WishMovieDays  sql.NullInt64
+	WishTvLimit    sql.NullInt64
+	WishTvDays     sql.NullInt64
+	UsedByEmail    sql.NullString
 }
 
 func (q *Queries) ListInvitations(ctx context.Context) ([]ListInvitationsRow, error) {
@@ -618,6 +644,12 @@ func (q *Queries) ListInvitations(ctx context.Context) ([]ListInvitationsRow, er
 			&i.UsedAt,
 			&i.UsedBy,
 			&i.RevokedAt,
+			&i.CanRequest,
+			&i.WishLimitMode,
+			&i.WishMovieLimit,
+			&i.WishMovieDays,
+			&i.WishTvLimit,
+			&i.WishTvDays,
 			&i.UsedByEmail,
 		); err != nil {
 			return nil, err
@@ -691,7 +723,7 @@ func (q *Queries) ListProfileLibrariesByAccount(ctx context.Context, accountID i
 }
 
 const listProfilesByAccount = `-- name: ListProfilesByAccount :many
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
 `
 
 func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([]Profile, error) {
@@ -726,6 +758,7 @@ func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([
 			&i.AudioLanguages,
 			&i.SubtitleMode,
 			&i.SubtitleLanguages,
+			&i.CanRequest,
 		); err != nil {
 			return nil, err
 		}
