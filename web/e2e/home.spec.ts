@@ -1350,16 +1350,18 @@ test('«Erfüllte Wünsche»: the row with a fulfilled title, by arrow keys; non
     const body = (await response.json()) as {
       rows: { id: string; key: string; items: { title: string }[] }[];
     };
-    const recent = body.rows.find((row) => row.key === 'recent');
-    const item = recent?.items[0];
-    if (!item) throw new Error('no recent title to fulfil');
-    fulfilled = item.title;
+    // A page of rows further down (`start`) without «Neu hinzugefügt» goes through unchanged.
     const at = body.rows.findIndex((row) => row.key === 'recent');
-    body.rows.splice(at, 0, { id: 'wishes', key: 'wishes', items: [item] });
+    const item = body.rows[at]?.items[0];
+    if (item) {
+      fulfilled = item.title;
+      body.rows.splice(at, 0, { id: 'wishes', key: 'wishes', items: [item] });
+    }
     await route.fulfill({ response, json: body });
   });
   await page.goto('/');
   const row = page.getByRole('region', { name: 'Erfüllte Wünsche' });
+  await expect(row).toBeVisible();
   const card = row.getByRole('link', { name: startsWith(fulfilled) });
   await expect(card).toBeVisible();
   await expect(page.locator('main')).not.toContainText('{{');

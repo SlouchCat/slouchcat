@@ -461,7 +461,7 @@ function SpotlightContent() {
             {ways.length === 0 ? (
               <Text tone="secondary">{t('admin.spotlight.matching.noHits')}</Text>
             ) : (
-              <FactList facts={ways} layout="rows" />
+              <FactList facts={ways} />
             )}
           </section>
           <section className={styles.part} aria-labelledby="spotlight-unmatched">

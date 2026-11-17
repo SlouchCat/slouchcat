@@ -63,7 +63,7 @@ function TitleText({
 }) {
   const matched = ids ? matchText(t, entry) : null;
   return (
-    <span className={styles.stack}>
+    <span className={ids ? `${styles.stack} ${styles.named}` : styles.stack}>
       <span className={styles.title}>{entryName(t, entry)}</span>
       <span className={styles.muted}>
         {entry.year
