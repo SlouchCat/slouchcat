@@ -569,6 +569,7 @@ Die Spalte «Empfehlung?» sagt, ob Marco der Empfehlung des Papiers gefolgt ist
 | Frage | Marcos Antwort | Empfehlung? |
 |---|---|---|
 | F-1 | «Wünsche» für die Funktion, «anfordern» auf Knöpfen | ja |
+| F-2 | nicht eigens gefragt: in der Sache durch E-1 (ein Seerr-Benutzer je Konto) und F-27 (keine Ausnahme je Profil) geklärt | – |
 | F-3 | Slouchcat handelt als der Benutzer (`X-API-User`), der Verbindungstest prüft es | ja |
 | F-4 | **Sammelbenutzer ab Werk.** Slouchcat legt in Seerr den Benutzer «slouchcat-gaeste» an (ohne Anmeldung, ohne automatische Freigabe); über ihn senden Konten ohne eigenen Seerr-Benutzer. Für ihn gilt das Standard-Limit, gemeinsam für alle diese Konten | **nein** |
 | F-5 | Wunschrecht je Konto (Administrator, Deckel) und je Profil (Hauptprofil); ab Werk Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus | ja |
