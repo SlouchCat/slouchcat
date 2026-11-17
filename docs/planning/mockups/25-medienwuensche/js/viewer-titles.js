@@ -53,25 +53,19 @@ function vtTop(t, ctx, posterExtra, info) {
 
 /* ---------- M-02 Spotlight-Liste ---------- */
 route('/lists/spotlight', () => {
-  const p = curProfile(), cfg = S.settings.spotlight, w = S.settings.wishes;
+  const p = curProfile(), cfg = S.settings.spotlight;
   const ov = cfg.overrides || {};
-  const showMissing = !!(cfg.showMissing && w.enabled && w.fromSpotlight && canRequest(p).ok);
   let list = SPOT_ORDER.map((k) => T[k]).filter((t) => !(ov[t.key] && ov[t.key].hidden));
   if (cfg.media === 'movie') list = list.filter((t) => t.kind === 'movie');
   if (cfg.media === 'show') list = list.filter((t) => t.kind === 'series');
-  list = list.filter((t) => (isPresent(t.key) ? titleVisible(p, t) : showMissing && titleVisible(p, t)));
-  if (!cfg.enabled) list = [];
-  const nPresent = list.filter((t) => isPresent(t.key)).length, nMissing = list.length - nPresent;
-  const f = showMissing ? ui.filter.spot || 'all' : 'all';
-  const shown = list.filter((t) => f === 'all' || (f === 'present' ? isPresent(t.key) : !isPresent(t.key)));
-  const pill = (v, label, n) => `<button type="button" class="pill" data-act="set" data-path="ui.filter.spot" data-value="${v}" aria-pressed="${f === v}" data-fid="sl:f:${v}">${label}<span class="n">${n}</span></button>`;
-  const pills = showMissing ? `<div class="pills" role="group" aria-label="Filter">${pill('all', 'Alle', list.length)}${pill('present', 'In der Bibliothek', nPresent)}${pill('missing', 'Noch nicht da', nMissing)}</div>` : '';
+  /* as today: only titles of the library; what is missing shows up under «Wünsche», never here */
+  list = cfg.enabled ? list.filter((t) => isPresent(t.key) && titleVisible(p, t)) : [];
   let body;
   if (!cfg.enabled) body = `<div class="empty">Das Spotlight ist ausgeschaltet.</div>`;
-  else if (!shown.length) body = `<div class="empty">${f === 'missing' ? 'Alle Titel dieser Liste sind schon in der Bibliothek.' : f === 'present' ? 'Von dieser Liste ist noch nichts in der Bibliothek.' : 'Diese Liste ist leer.'}</div>`;
-  else body = `<ul class="grid">${shown.map((t) => posterCard(t, { ctx: 'list' })).join('')}</ul>`;
-  const sub = `${esc(VT_LIST_LABEL[cfg.listKey] || 'Trakt-Liste')} · ${list.length} Titel${showMissing && nMissing ? `, davon ${nMissing} noch nicht in der Bibliothek` : ''}`;
-  return { type: 'viewer', nav: 'start', title: 'Spotlight', html: `<div class="page"><div class="head"><h1>Spotlight</h1><p class="sub">${sub}</p><div class="acts"><button type="button" class="btn secondary" data-act="back" data-fid="sl:back">${icon('arrowL')}Zurück</button></div></div>${pills}${body}</div>` };
+  else if (!list.length) body = `<div class="empty">Von dieser Liste ist noch nichts in der Bibliothek.</div>`;
+  else body = `<ul class="grid">${list.map((t) => posterCard(t, { ctx: 'list' })).join('')}</ul>`;
+  const sub = `${esc(VT_LIST_LABEL[cfg.listKey] || 'Trakt-Liste')} · ${list.length} Titel`;
+  return { type: 'viewer', nav: 'start', title: 'Spotlight', html: `<div class="page"><div class="head"><h1>Spotlight</h1><p class="sub">${sub}</p><div class="acts"><button type="button" class="btn secondary" data-act="back" data-fid="sl:back">${icon('arrowL')}Zurück</button></div></div>${body}</div>` };
 });
 
 /* ---------- M-03/M-04 Vorschauseite ---------- */
@@ -96,6 +90,7 @@ function vtWishCard(t, w, p) {
   const what = w.seasons.length ? vtPlural(w.seasons) : kindLabel(t);
   return `<section class="vt-wish" aria-label="Dein Wunsch"><div class="vt-wh"><h2>Dein Wunsch</h2>${wsChip(w.state)}</div>
     <p class="sec">${esc(what)} · angefordert am ${fmtDate(w.created)}${joiner ? ' · du wünschst mit' : ''}</p>
+    ${dlBlock(w)}
     ${w.state === 'queued' && w.detail ? `<p class="vt-detail">${icon('alert', 16)}<span>${esc(w.detail)}. Slouchcat versucht es weiter.</span></p>` : ''}
     <ol class="steps">${done}${todo}</ol><div class="acts">${acts}</div></section>`;
 }
@@ -103,7 +98,7 @@ function vtStatusBlock(t, p) {
   const a = availability(p, t), cr = canRequest(p, t), lc = lastClosed(t.key, p);
   if (a.kind === 'wished' && a.mine) return vtWishCard(t, a.wish, p);
   if (!cr.ok) {
-    const acts = cr.reason === 'unmapped' && isAdmin() ? `<a class="btn secondary sm" href="#/admin/wishes/mapping" data-fid="pv:map">${icon('link', 16)}Zuordnung öffnen</a>` : '';
+    const acts = cr.reason === 'unmapped' && isAdmin() ? `<a class="btn secondary sm" href="#/admin/wishes/mapping" data-fid="pv:map">${icon('link', 16)}Jellyseerr-Benutzer öffnen</a>` : '';
     return notice('warn', 'Anfordern ist für dieses Profil nicht möglich', esc(cr.text), acts);
   }
   if (a.kind === 'wished') {

@@ -111,7 +111,7 @@ a.stat:hover { border-color: var(--ctl); }
 .newtag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: var(--on-accent); letter-spacing: 0.04em; }
 
 /* tables */
-.tblw { border: 1px solid var(--frame); border-radius: 12px; overflow: auto; background: var(--elev); }
+.tblw { position: relative; border: 1px solid var(--frame); border-radius: 12px; overflow: auto; background: var(--elev); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th { text-align: left; font-size: 12px; font-weight: 600; color: var(--tx2); background: var(--s2); padding: 6px 16px; white-space: nowrap; }
 .tbl td { padding: 6px 16px; border-top: 1px solid var(--line); vertical-align: middle; color: var(--tx2); height: 44px; }

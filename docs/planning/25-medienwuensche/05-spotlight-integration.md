@@ -1,15 +1,21 @@
-# Konzept 25 · Spotlight: fehlende Titel auf der Bühne
+# Konzept 25 · Spotlight: nur Titel der Bibliothek, Abgleich auch über TVDB
 
-> **Kurz gesagt.** Das Spotlight zeigt künftig auf Wunsch des Administrators auch Trakt-Titel, die noch
-> nicht in der Bibliothek stehen, höchstens fünf von zwanzig und nur für Profile, die anfordern können. Sie
-> tragen den Chip «Noch nicht in der Bibliothek» und statt «Abspielen» den Knopf «Film anfordern». Die
-> erste Folie ist immer ein vorhandener Titel, damit Vormalen und Vorladen unverändert bleiben. Damit
-> vorhandene Serien nicht fälschlich als fehlend gelten, speichert der Trakt-Abruf neu auch TVDB- und
-> IMDb-ID. Ab Werk ist alles aus.
+> **Kurz gesagt.** Startseite und Spotlight-Liste zeigen weiter nur Titel, die in der Bibliothek stehen, wie
+> heute. Fehlende Einträge der Trakt-Liste erscheinen in der Zuschauer-App nirgends. Das hat Marco am
+> 17. November 2026 nach der Durchsicht des Mockups entschieden («In Spotlight soll nicht angezeigt werden was
+> fehlt», E-5). Fehlende Einträge sieht nur der Administrator unter Verwaltung › Spotlight, mit Poster, Zustand
+> und der Aktion «Anfordern». Neu ist ausserdem: Slouchcat erkennt Serien der Bibliothek auch über die TVDB- und
+> die IMDb-ID. Heute fehlen solche Serien im Spotlight, obwohl sie in der Bibliothek stehen. Bei Serien gilt
+> **TVDB zuerst**, so wie die Bibliothek Serien zuordnet; so bleibt TVDB durchgängig, wie Marco es verlangt hat
+> («Es soll konsistent sein»).
 
-Grundlage: [Anhang F](anhang/F-entscheid-blatt.md), Abschnitte 2.13, 3 und 4 (Band «Fehlende Titel»). Bestand mit Belegen:
-`01-bestandsanalyse.md` Abschnitte 2 und 3. Den Anforderungsdialog und die Zustände beschreibt
-`02-funktionskonzept.md`. Gebaut wird das in Stufe 3 «Spotlight». Offen als F-8 und F-9.
+Grundlage: [Anhang H](anhang/H-nachtrag-17-november.md), Abschnitte 3.4 und 4.6 (TVDB) sowie 8.2 und 8.4
+(Marcos zweite Rückmeldung, Regeln N-70 bis N-75), und [Anhang A](anhang/A-spotlight-startseite.md) (Bestand).
+Bestand mit Belegen: `01-bestandsanalyse.md` Abschnitte 2, 3 und 6. Wo und wie Zuschauer anfordern, beschreibt
+`02-funktionskonzept.md`. Gebaut wird das in Stufe 3 «Spotlight», die damit auf den Abgleich über TVDB und IMDb
+und die fehlenden Einträge in der Verwaltung schrumpft (Anhang H 8.7). Offen sind hier noch F-29 und F-34; F-8
+ist durch E-5 entschieden. Als Marcos Entscheid gilt nur, was Anhang H als seine Nachricht oder Antwort führt;
+alles andere ist Empfehlung der Redaktion.
 
 ## 1. Heute
 
@@ -19,113 +25,97 @@ Grundlage: [Anhang F](anhang/F-entscheid-blatt.md), Abschnitte 2.13, 3 und 4 (Ba
   mit `items` und `visible_items`, `server/queries/scoped/spotlight.sql:9-16`).
 - Ordnung: Trakt-Position, Angeheftete einfügen, `min_hits` prüfen, auf `item_count` (5–20) schneiden
   (`server/internal/visibility/discover.go:383-447`). Unter `min_hits` Treffern fehlt die Reihe.
-- Bühne: Folie mit Hintergrund, Logo, Metazeile, «Abspielen», «Details», «Trailer»; Posterreihe darunter
+- Bühne: Folie mit Hintergrund, Logo, Metazeile, «Abspielen», «Details», «Trailer»; die Posterreihe darunter
   stellt den Titel ins Band (`web/src/ui/HeroCarousel.tsx`, `web/src/features/catalog/HomePage.tsx:586-616`).
+- Abgleich nur über die TMDB-ID: Der Trakt-Client liest aus `ids` nur `tmdb`
+  (`server/internal/trakt/trakt.go:270-273`).
 - Fehlende Einträge sieht nur die Verwaltung, ohne Poster und ohne Aktionen
   (`web/src/features/admin/spotlight/columns.tsx:106,126-129`).
 - S-4 (Frage 11, `docs/planning/04-entscheidungen.md:20`) verbietet fehlende Titel auf der Startseite; ADR 0011
-  verwirft den Schalter dafür (`docs/adr/0011-spotlight.md:99`). ADR 0038 löst beides ab.
+  verwirft den Schalter dafür (`docs/adr/0011-spotlight.md:99`). Beides bleibt (N-70, Anhang H 8.5).
 
-## 2. Die vier Fälle
+## 2. Was bleibt wie heute
 
-| Fall | Bühne | Posterreihe | Spotlight-Liste |
-|---|---|---|---|
-| **A vorhanden** | wie heute: «Abspielen», «Details», «Trailer» | wie heute: Stift, Merken, Gesehen-Haken | wie heute |
-| **B fehlt** | Chip «Noch nicht in der Bibliothek» in der Metazeile; Hauptknopf «Film anfordern» / «Serie anfordern» (Plus-Symbol); «Details» öffnet die Vorschauseite; «Trailer», wenn einer da ist | kein Gesehen-Haken, kein Merken; unten rechts runder Plus-Knopf; Unterzeile «2026 · Noch nicht da» | im Filter «Noch nicht da» |
-| **C angefordert** | Chip bleibt; Hauptknopf wird zur Zustandsanzeige («Wird übermittelt», «Freigabe ausstehend», «In Beschaffung», «Teilweise verfügbar»); er führt zu «Meine Wünsche» | Zustandssymbol statt Plus-Knopf; Unterzeile mit Zustand | im Filter «Noch nicht da», mit Zustand |
-| **D verfügbar geworden** | normale Folie wie Fall A | wie Fall A | im Filter «In der Bibliothek» |
+Regel N-70 (Marco, Nachricht und E-5): Startseite (Bühne und Posterreihe) und Spotlight-Liste
+(`/lists/spotlight`) zeigen nur Titel der Bibliothek, wie heute. S-4 gilt ohne Ausnahme.
 
-Fall C zeigt den Zustand jedem Profil, das anfordern kann, auch wenn ein anderes Profil gewünscht hat; ein
-solches Profil sieht «Benachrichtige mich» als Mitwunsch (F-7), nie den Namen des Anforderers.
+- **Bühne, Posterreihe, Spotlight-Liste** bleiben in Aufbau, Knöpfen und Ordnung unverändert. Es gibt keinen
+  Chip «Noch nicht in der Bibliothek», keinen Knopf «Film anfordern» und keinen Filter «Noch nicht da».
+- **Keine fehlenden Einträge in der Zuschauer-App,** auch nicht als eigene Reihe unter Wünsche › Entdecken.
+  Marco hat diese Wahl ausdrücklich abgelehnt (E-5: «Nein, nirgends»).
+- **Angefordert wird anderswo.** Titel ausserhalb der Bibliothek gibt es nur im Bereich «Wünsche», im Abschnitt
+  «Noch nicht in der Bibliothek» der Suche, auf der Vorschauseite und als fehlende Staffeln einer vorhandenen
+  Serie (N-75; `02-funktionskonzept.md`, Abschnitte 4 und 5).
+- **Teilweise vorhandene Serien** sind Titel der Bibliothek und erscheinen im Spotlight wie heute, mit
+  «Abspielen». Fehlende Staffeln zeigt nur die Serienseite (M-06). Die Bühne trägt keinen Staffelhinweis.
+- **Ein erfüllter Wunsch** ist ein Titel der Bibliothek. Steht er in der Trakt-Liste, erscheint er im
+  Spotlight wie jeder andere vorhandene Titel. Die Bühne trägt keinen Wunsch-Chip (N-70; Anhang H,
+  Abschnitt 9, K-3). Der Chip «Dein Wunsch ist da» steht nur auf der Detailseite des Films (M-05) und in der
+  Startreihe «Erfüllte Wünsche». Diese Reihe ist eine eigene Reihe, nicht Teil des Spotlights (Empfehlung N-74,
+  offen als F-34; `02-funktionskonzept.md`, Abschnitt 5).
+- **Vormalen, Vorladen, Bilder, Service Worker** und die Kosten von `getHome` bleiben unverändert, weil die Bühne
+  weiter nur Titel der Bibliothek trägt (`01-bestandsanalyse.md`, Abschnitt 3). Neu sind nur die zusätzlichen
+  Treffer über TVDB und IMDb (Abschnitt 3); sie sind lokale Abfragen ohne Aufruf an TMDB oder Jellyseerr.
 
-**Fall D im Einzelnen:** Sobald der Titel in der Bibliothek steht und das Profil ihn sehen darf, trifft
-der Trakt-Eintrag den Bibliothekstitel. Er ist ab dann ein vorhandener Titel und zählt für `min_hits`.
-Für das anfordernde Profil und die Mitwünscher trägt die Folie 14 Tage nach der Erfüllung den Chip «Dein
-Wunsch ist da» (wie im Mockup).
+## 3. Was sich ändert: Abgleich über TVDB-, TMDB- und IMDb-ID
 
-**Geschlossene Wünsche:** Ein abgelehnter, fehlgeschlagener oder zurückgezogener Wunsch ist geschlossen. Der
-Titel gilt wieder als fehlend und erscheint als Fall B mit «Film anfordern». Die Vorschauseite nennt den letzten
-Wunsch mit Datum und Grund. Ausnahme `arr_failed`: Der Request in Jellyseerr sperrt den Titel weiter; die Folie
-zeigt «Fehlgeschlagen» ohne Anforderungsknopf (`03-architektur.md`, Abschnitt 8.1).
+### 3.1 Benutzt Jellyseerr auch TVDB?
 
-## 3. Kennzeichnung: unauffällig, aber eindeutig
+Marco hat am 17. November 2026 gefragt: «Benutzt Seerr auch tvdb? Es soll konsistent sein.» Die Antwort aus dem
+Quellcode von Seerr 3.5.2 (Anhang H 3.4 und 4.6, nicht gegen Marcos Instanz geprüft):
 
-- Ein Chip «Noch nicht in der Bibliothek» in der Metazeile der Folie, in der gleichen Grösse wie die
-  übrigen Angaben (Jahr, Freigabe, Laufzeit).
-- Das Plus-Symbol auf dem Hauptknopf und der runde Plus-Knopf am Poster ersetzen «Abspielen» und die
-  Haken. Es gibt kein Banner, keine Farbe nur für fehlende Titel und kein gedämpftes Bild.
-- Die Unterzeile am Poster sagt «Noch nicht da» oder den Zustand. Ein Zuschauer erkennt also an drei
-  Stellen, dass der Titel fehlt: Chip, Knopf, Unterzeile.
-- Farben und Texte nur aus Tokens und `locales` (Regel 9).
+**Jellyseerr führt jeden Titel über die TMDB-ID. TVDB nutzt es für zwei Dinge: Es gibt die TVDB-ID an Sonarr
+weiter, und es kann die Staffelliste aus TVDB lesen, wenn man das einstellt.**
 
-## 4. Regeln
+- Die TVDB-ID einer Serie nimmt Jellyseerr aus TMDB (`external_ids.tvdb_id`) und gibt sie an Sonarr weiter.
+  Sonarr selbst arbeitet mit der TVDB-ID. Fehlt sie, löscht Jellyseerr den Request beim Senden (Anhang D 4).
+- Seit Seerr 3.x gibt es die Einstellung «Metadaten-Anbieter» für Serien und Anime: `tmdb` (ab Werk) oder
+  `tvdb`. Mit `tvdb` lädt Jellyseerr die Serie weiter über die TMDB-ID, ersetzt aber die **Staffelliste** durch
+  die von TVDB (`GH:server/lib/settings/index.ts` Z. 111–118, 460–463; `GH:server/api/tvdb/index.ts`
+  Z. 136–260).
+- Der Schlüssel in Jellyseerr bleibt also immer die TMDB-ID. Was sich unterscheiden kann, ist die
+  **Staffelzählung**: TMDB und TVDB teilen manche Serien verschieden auf. Sonarr zählt nach TVDB, die Bibliothek
+  von Slouchcat ordnet Serien TVDB-zuerst zu (`server/internal/metadata/tvdb.go:430-434`).
 
-| Nr. | Regel | Begründung |
+### 3.2 Heute
+
+Der Trakt-Client liest nur `ids.tmdb` (`server/internal/trakt/trakt.go:270-273`). Eine Serie, die die
+Bibliothek über TVDB zugeordnet hat, hat keine `tmdb_id` (`server/internal/metadata/tvdb.go:430-434`). Sie
+trifft den Trakt-Eintrag nie: Sie **fehlt heute im Spotlight, obwohl sie in der Bibliothek steht**, und die
+Verwaltung führt sie als «Nicht in der Bibliothek» (N-73). Mit der Wunschfunktion käme dazu, dass die Verwaltung
+für eine vorhandene Serie «Anfordern» anböte.
+
+### 3.3 Regeln
+
+| Nr. | Regel | Von |
 |---|---|---|
-| S-1 | Schalter «Fehlende Titel zeigen» ist ab Werk **aus**. | S-4 galt bisher; Marco schaltet bewusst ein. |
-| S-2 | Höchstens N fehlende Titel (0–10, Vorgabe 5) unter den höchstens 20 Titeln (`item_count`). | Das Spotlight bleibt eine Bühne der Bibliothek. |
-| S-3 | Reihenfolge «Wie bei Trakt» (Vorgabe) oder «Nach den vorhandenen». | Trakt-Rang ist die Kuration; die zweite Wahl stellt fehlende ans Ende. |
-| S-4 | Die **erste Folie ist immer ein vorhandener Titel.** Steht ein fehlender auf Platz 1, rückt der erste vorhandene davor. | Vormalen und Vorladen setzen ein Bild aus dem Bildspeicher der Bibliothek voraus (Abschnitt 9). |
-| S-5 | Fehlende Titel zählen **nicht** für «Ausblenden unter» (`min_hits`). | Sonst erschiene die Reihe mit zu wenig Abspielbarem. |
-| S-6 | Profile, die nicht anfordern können, sehen **keine** fehlenden Titel (F-9): ohne Wunschrecht von Konto oder Profil, ohne Zuordnung (und ohne Sammelbenutzer), Medienart nicht erlaubt. | Ein Knopf ohne Wirkung wäre nur Werbung. |
-| S-7 | Freigabe des fehlenden Titels aus TMDB, gelesen in der Länderreihenfolge nach ADR 0034 (gewähltes Freigabeland, dann DE, AT, CH, GB, US; das erste Land mit bekanntem Wert gilt, dieselbe Funktion wie für Bibliothekstitel; innerhalb eines Lands der strengste Wert über die Anbieter), gegen min(Profil, Konto); **unbekannt = 18**. | Gleiche Regel wie für Bibliothekstitel (Regel 12: Entscheid im Server). |
-| S-8 | Ist «Wünsche aktiv» aus, Jellyseerr ausgeschaltet oder «Anfordern aus dem Spotlight» aus, gilt `canRequest` für das Spotlight als falsch: keine fehlenden Titel, weder auf der Startseite noch in der Spotlight-Liste. | Abgeleitet aus S-6. Ist Jellyseerr nur kurz nicht erreichbar oder lehnt den Schlüssel ab, bleiben die Titel sichtbar (Abschnitt 10). |
-| S-9 | Ein fehlender Titel ohne Eintrag in `external_titles` (noch nicht geholt) erscheint nicht. | Ohne Bild und Freigabe gibt es keine Folie und keine Prüfung. |
-| S-10 | Ein fehlender Titel, dessen Wunsch für dieses Profil schon `available` ist, ist ein vorhandener Titel (Fall D). | Ein Titel ist nie zugleich fehlend und vorhanden. |
+| N-60 | Jeder Eintrag trägt drei IDs: TMDB, TVDB, IMDb. `spotlight_entries` speichert dafür zusätzlich `tvdb_id` und `imdb_id` aus Trakt `ids`. Quelle ist Trakt (liefert alle drei), sonst TMDB `external_ids`. | aus Fassung 2, unverändert |
+| N-61 | Abgleich mit der Bibliothek bei **Serien: TVDB zuerst**, dann TMDB, dann IMDb, so wie die Bibliothek Serien zuordnet. Bei **Filmen: TMDB, dann IMDb**. Ein Eintrag gilt als vorhanden, wenn ein Bibliothekstitel derselben Art in dieser Reihenfolge eine gleiche ID hat. Die Abfrage liegt in `visibility` (Regel 2). Fassung 2 nannte TMDB zuerst. | Empfehlung (Marco: «konsistent») |
+| N-62 | Liefert Trakt zu einem Eintrag nur die TVDB-ID, schlägt Slouchcat die TMDB-ID über TMDB «find by external id» nach. Gelingt das nicht, gilt der Eintrag **nicht** als fehlend, denn ohne TMDB-ID wäre er nicht anforderbar (Jellyseerr braucht sie als `mediaId`). Er steht in der Verwaltung unter den nicht zuordenbaren Einträgen. | Empfehlung |
+| N-63 | Die Staffeln im Dialog «Anfordern» kommen aus Jellyseerr (`GET /tv/{tmdbId}`): Angeboten wird genau, was Jellyseerr bestellen kann. | Empfehlung |
+| N-64 | **Empfehlung an Marco:** in Jellyseerr den Metadaten-Anbieter für Serien auf TVDB stellen. Dann zählen Jellyseerr, Sonarr und Slouchcat Staffeln gleich. Der Verbindungstest liest die Einstellung (`GET /settings/metadatas`) und zeigt einen Hinweis, wenn sie auf TMDB steht. Umstellen muss Marco in Jellyseerr selbst. | Empfehlung (F-29) |
+| N-65 | Der Wunsch geht immer mit `tvdbId` an Jellyseerr. | aus Fassung 2, unverändert |
 
-Mit N = 0 und eingeschaltetem Schalter zeigt das Spotlight wie heute nur vorhandene Titel; die
-Verwaltung zeigt trotzdem Poster und Zustand der fehlenden Einträge.
+**Wo die Abgleichsregel gilt:** auf der Startseite und in der Spotlight-Liste (mehr Treffer, sonst nichts
+Neues), auf der Seite Verwaltung › Spotlight (vorhanden oder fehlend), in der Suche, auf den Seiten im Bereich
+«Wünsche» (Entdecken, Filme, Serien, Suche; N-55) und bei der Erkennung «verfügbar» (`02-funktionskonzept.md`
+Ablauf 4.7, `06-benachrichtigungen.md` Abschnitt 3.1). Massgeblich ist immer der Abgleich von Slouchcat, nicht
+der Zustand `mediaInfo` aus Jellyseerr.
 
-**Vorschlag zum Schnitt:** Der Server bildet die Reihe in dieser Folge: (1) Trakt-Liste mit Angehefteten wie
-heute; (2) vorhandene und erlaubte fehlende Titel getrennt filtern; (3) `min_hits` nur mit den vorhandenen
-prüfen; (4) fehlende auf N kürzen, in Trakt-Reihenfolge; (5) beide Gruppen nach der gewählten Reihenfolge
-zusammenführen; (6) S-4 anwenden; (7) auf `item_count` schneiden.
+**Was N-64 löst und was nicht.** Steht Jellyseerr auf TMDB, kann die Staffelliste im Dialog anders aussehen als
+die Staffeln derselben Serie in der Bibliothek, etwa wenn TMDB eine Staffel teilt, die TVDB als eine führt. Weil
+der Dialog die Staffeln aus Jellyseerr zeigt (N-63), bestellt er trotzdem nie etwas, das Jellyseerr nicht kennt.
+Erst mit TVDB in Jellyseerr stimmen Dialog, Sonarr und Bibliothek überein.
 
-## 5. Teilweise vorhandene Serien im Spotlight
+## 4. Verwaltung «Spotlight»: was bleibt, was dazukommt
 
-- Eine Serie, die in der Bibliothek steht, ist ein **vorhandener** Titel, auch wenn Staffeln fehlen. Die
-  Folie zeigt «Abspielen» wie heute.
-- **Vorschlag:** Kennt `series_catalog` fehlende Staffeln und kann das Profil anfordern, zeigt die Metazeile
-  zusätzlich «2 von 4 Staffeln»; die Aktion «Staffeln anfordern» liegt auf der Detailseite (M-06), nicht
-  auf der Bühne. Die Bühne bleibt so bei höchstens drei Knöpfen.
-- Teilweise vorhandene Serien zählen nicht zu den N fehlenden.
+Regel N-71 (Marco: «In der Verwaltung ist es gut so»): Die Seite bleibt, wie sie das Mockup der Fassung 3
+zeigte. Alle heutigen Optionen bleiben (ADR 0035: nichts geht verloren). Ort: Verwaltung › Startseite ›
+Spotlight (M-27). Schalter für fehlende Titel gibt es nicht (N-72).
 
-## 6. Kuratierung
-
-Der Administrator kann fehlende Einträge künftig genauso kuratieren wie vorhandene. Heute nimmt der
-Server Anpassungen auch ohne Treffer an (`server/internal/admin/spotlight.go:178-189`); nur die Oberfläche
-bot keine Knöpfe.
-
-| Aktion | für vorhandene | für fehlende |
-|---|---|---|
-| «Anheften» (Platz in der Reihe) | wie heute | neu; Vorschlag: ein angehefteter fehlender Titel zählt zu den N, und S-4 geht dem Anheften auf Platz 1 vor |
-| «Ausblenden» / «Einblenden» | wie heute | neu |
-| «Notiz» | wie heute (Bildunterschrift statt Jahr) | neu |
-| «Anfordern» | – | neu; **Vorschlag:** fordert im Namen des aktiven Profils (= Hauptprofil, die Verwaltung verlangt es) des Administrators an, über denselben Dialog M-13 |
-
-Die Anpassungen liegen weiter in `spotlight_overrides` mit Schlüssel (`list_key`, `media`, `tmdb_id`) und
-überleben jeden Abruf.
-
-## 7. Abgleich über TMDB-, TVDB- und IMDb-ID
-
-- **Heute** liest der Trakt-Client nur `ids.tmdb` (`server/internal/trakt/trakt.go:270-273`). Eine Serie, die
-  TVDB zuerst zugeordnet hat, hat keine `tmdb_id` (`server/internal/metadata/tvdb.go:430-434`) und gälte als
-  fehlend. Mit eingeschaltetem Schalter würde Slouchcat dann anbieten, eine vorhandene Serie anzufordern.
-- **Künftig** speichert `spotlight_entries` zusätzlich `tvdb_id` und `imdb_id` aus Trakt `ids`.
-- Ein Eintrag gilt als vorhanden, wenn ein Bibliothekstitel derselben Art eine gleiche TMDB-ID **oder**
-  TVDB-ID (Serien) **oder** IMDb-ID hat. Die Abfrage liegt in `visibility` (Regel 2).
-- Einträge ohne TMDB-ID fallen weiter weg: Jellyseerr braucht sie als `mediaId`.
-- Dieselbe Abgleichsregel gilt für die Suche und für die Erkennung «verfügbar» (`02-funktionskonzept.md`
-  Ablauf 4.7).
-
-## 8. Verwaltung «Spotlight»: was bleibt, was dazukommt
-
-Alle heutigen Optionen bleiben (ADR 0035: nichts geht verloren). Ort: Verwaltung › Startseite › Spotlight
-(M-27).
-
-**Kopf:** Titel «Spotlight», Hilfetext. **Vorschlag:** Der Satz «Gezeigt werden nur Titel, die in der eigenen
-Bibliothek stehen» wird zu «Gezeigt werden Titel aus der eigenen Bibliothek und, wenn eingeschaltet,
-fehlende Titel zum Anfordern».
+**Kopf:** Titel «Spotlight», Hilfetext unverändert: «Gezeigt werden nur Titel aus der eigenen Bibliothek.»
+Darüber ein Hinweis (Wortlaut Vorschlag, wie im Mockup): «Die Startseite zeigt weiterhin nur Vorhandenes.
+Fehlende Einträge der Liste erscheinen weder auf der Startseite noch in der Spotlight-Liste.»
 
 **Band «Quelle»** (unverändert, elf Felder):
 
@@ -136,117 +126,102 @@ fehlende Titel zum Anfordern».
 | 3 | «Adresse der Liste» | nur bei «per Adresse» |
 | 4 | «Medienart» | Nur Filme, Nur Serien, Filme und Serien |
 | 5 | «Höchstens» | 5–20 Titel je Profil |
-| 6 | «Ausblenden unter» | 0–10 Treffer je Profil; Hinweis neu: «Fehlende Titel zählen nicht.» |
+| 6 | «Ausblenden unter» | 0–10 Treffer je Profil |
 | 7 | «Abruf alle … Stunden» | 6–48 |
 | 8 | «Spotlight Wechsel Takt» | 3–15 Sekunden |
 | 9 | Abrufzustand | zuletzt abgerufen, Treffer, Schlüssel, Gründe |
 | 10 | «Jetzt abrufen» | höchstens einmal je Minute |
-| 11 | «Speichern» | speichert auch das Band «Fehlende Titel» |
+| 11 | «Speichern» | wie heute |
 
-**Band «Fehlende Titel»** (neu, zugeklappt; gespeichert zusammen mit dem Band «Quelle» über dessen «Speichern»):
+**Band «Fehlende Einträge»** (neu, zugeklappt, nur Anzeige, stellt nichts ein; N-72):
 
-| Feld | Werte |
+| Inhalt | Beispiel (Wortlaut Vorschlag) |
 |---|---|
-| «Fehlende Titel zeigen» | Schalter, ab Werk aus |
-| «Höchstens fehlende Titel» | 0–10, Vorgabe 5 |
-| Reihenfolge | «Wie bei Trakt» / «Nach den vorhandenen» |
-| Zustand | «7 fehlende Titel dürften erscheinen; 3 sind angefordert» |
-| Hinweis | ohne Jellyseerr, mit «Wünsche aktiv» aus oder mit «Anfordern aus dem Spotlight» aus: «Fehlende Titel erscheinen erst, wenn Wünsche eingerichtet sind.» bzw. «Anfordern aus dem Spotlight ist aus.» mit Link zu Medien › Wünsche › Einstellungen (Wortlaut Vorschlag) |
+| Satz zur Regel | «Die Startseite und die Spotlight-Liste zeigen nur Titel aus der Bibliothek. Einträge, die fehlen, siehst nur du hier in der Verwaltung. Profile fordern fehlende Titel unter «Wünsche» an.» |
+| Zählung | «7 Einträge der Liste fehlen in der Bibliothek, 3 davon sind angefordert.» |
+| Hinweis ohne Wünsche | ohne Jellyseerr oder mit «Wünsche aktiv» aus: «Anfordern geht erst, wenn Wünsche eingerichtet sind.» mit Link zu Medien › Wünsche › Einstellungen |
 
-**Band «Einträge der Liste»:** Spalten «Rang», «Titel», «Status», «Eigene Notiz», «Aktionen» bleiben.
-Fehlende Einträge bekommen Poster (aus `external_titles`, über die Admin-Bildroute `getAdminExternalTitleImage`), den Status «Noch nicht in der Bibliothek» oder
-«Angefordert · In Beschaffung» und die Aktionen «Anheften», «Ausblenden», «Notiz», «Anfordern».
+**Band «Einträge der Liste»:** Spalten «Rang», «Titel», «Status», «Eigene Notiz», «Aktionen» bleiben. Neu
+(N-71):
+
+- Fehlende Einträge bekommen ein Poster (aus `external_titles`, über die Admin-Bildroute
+  `getAdminExternalTitleImage`) und den Status «Noch nicht in der Bibliothek» oder «Angefordert · In
+  Beschaffung» (bzw. ein anderer Zustand des Wunsches).
+- Die Aktion **«Anfordern»** öffnet denselben Dialog M-13 und fordert im Namen des aktiven Profils des
+  Administrators an (Empfehlung; die Verwaltung verlangt das Hauptprofil). Sie fehlt, wenn schon ein offener
+  Wunsch besteht oder der Eintrag nicht zuordenbar ist.
+- «Anheften», «Ausblenden» und «Notiz» gibt es für alle Einträge, wie im Mockup. Der Server nimmt Anpassungen
+  auch ohne Treffer an (`server/internal/admin/spotlight.go:178-189`). Bei einem fehlenden Eintrag wirken sie
+  erst, wenn der Titel in die Bibliothek kommt. Sie liegen weiter in `spotlight_overrides` mit Schlüssel
+  (`list_key`, `media`, `tmdb_id`) und überleben jeden Abruf.
+
+**IDs je Eintrag** (neu, Empfehlung): Jeder Eintrag zeigt seine IDs in der Form «TMDB … · TVDB … · IMDb …»
+und, bei Serien, wie Slouchcat ihn erkannt hat: «In der Bibliothek über die TVDB-ID erkannt», «In der
+Bibliothek über die TMDB-ID erkannt» oder «Trakt nennt nur die TVDB-ID, TMDB-ID nachgeschlagen». Einträge, die
+sich nicht auflösen lassen (N-62), stehen mit «Nicht zuordenbar» und ohne «Anfordern» (Wortlaut Vorschlag).
+
+**Band «Abgleich über TMDB, TVDB und IMDb»** (neu, zugeklappt, nur Anzeige): nennt die Reihenfolge (Serien
+TVDB, TMDB, IMDb; Filme TMDB, IMDb), zählt die Einträge je Erkennungsweg und zeigt, woher Jellyseerr die
+Staffeln liest («Staffeln aus TMDB» oder «Staffeln aus TVDB») mit dem Hinweis aus N-64, wenn Jellyseerr auf
+TMDB steht.
 
 **Band «Verwaiste Anpassungen»** und **Fussnote** bleiben unverändert.
 
-Die Einstellungen der Wünsche selbst liegen unter Medien › Wünsche › Einstellungen (M-25), das verweist
-hierher («Fehlende Titel im Spotlight: Aus · Zur Seite Spotlight»). Jede Einstellung hat genau einen Ort.
+Unter Medien › Wünsche › Einstellungen (M-25) gibt es keinen Schalter zum Spotlight mehr; der frühere Schalter
+«Aus dem Spotlight» entfällt (N-72).
 
-## 9. Daten für fehlende Titel
+## 5. Daten für fehlende Einträge
 
 - **`external_titles`** hält je fehlendem Titel die Daten aus TMDB: Titel je Sprache
   (`external_title_texts`), Jahr, Beschreibung, Laufzeit, Genres, Freigabe je Land, Poster, Backdrop, Logo,
-  Trailer; bei Serien Staffeln mit Folgenzahl und Datum, Status und nächste Folge.
-- Der Job `titles.refresh` (24 h, läuft nach `trakt.refresh`) füllt sie für alle fehlenden Spotlight-Einträge.
-  Die Startseite ruft TMDB also nie selbst auf.
-- **Bildweg:** Slouchcat lädt Poster, Backdrop und Logo in den eigenen Bildspeicher und liefert sie über
-  `GET /titles/{media}/{tmdbId}/images/{kind}/{size}` (`http.Handler`, `scoped`). Die Verwaltung nutzt die
-  eigene Route `GET /admin/titles/{media}/{tmdbId}/images/{kind}/{size}` (`admin`), weil Verwaltungsantworten
-  keine scoped Adressen tragen. Der Browser lädt nie direkt von TMDB.
-- Die Startseite liefert fehlende Titel als eigenes Schema `ExternalTitleRef` neben `ItemRef` (nicht
-  brechend). Einzelheiten: `08-datenmodell-api.md`, Abschnitte 4.2 und 4.6.
+  Trailer; bei Serien Staffeln mit Folgenzahl und Datum, Status und nächste Folge, dazu die drei IDs (N-60).
+  Die Vorschauseite nutzt dieselbe Tabelle (`02-funktionskonzept.md`, Abschnitt 5.1).
+- Der Job `titles.refresh` (24 h, läuft nach `trakt.refresh`) füllt sie auch für die fehlenden
+  Spotlight-Einträge, damit die Verwaltung Poster und Zustand zeigen kann. Die Verwaltung ruft TMDB nie selbst
+  auf.
+- Die Verwaltung lädt die Bilder über `GET /admin/titles/{media}/{tmdbId}/images/{kind}/{size}` (`admin`), weil
+  Verwaltungsantworten keine scoped Adressen tragen. Der Browser lädt nie direkt von TMDB. Einzelheiten:
+  `08-datenmodell-api.md`.
 - `spotlight_entries` bleibt eine flüchtige Kopie der Trakt-Liste. Wunschzustände hängen nie daran, sondern
   an `wishes`.
 
-## 10. Jellyseerr nicht erreichbar, kein Recht
+## 6. Jellyseerr nicht erreichbar, Trakt-Abruf fehlgeschlagen
 
-| Lage | Spotlight |
+Für Zuschauer ändert keine dieser Lagen etwas am Spotlight, weil es nur Titel der Bibliothek zeigt.
+
+| Lage | Verwaltung › Spotlight |
 |---|---|
-| Jellyseerr kurz nicht erreichbar | fehlende Titel erscheinen weiter; «Film anfordern» nimmt den Wunsch an (`queued`, «Wird übermittelt») |
-| Jellyseerr meldet «Schlüssel ungültig» (403) | wie «nicht erreichbar», solange der Administrator «Jellyseerr verwenden» nicht ausschaltet: fehlende Titel bleiben sichtbar, Wünsche warten im Ausgangsfach, die Übersicht meldet den Fehler |
-| «Jellyseerr verwenden», «Wünsche aktiv» oder «Anfordern aus dem Spotlight» aus | keine fehlenden Titel (S-8) |
-| Profil oder Konto ohne Wunschrecht | keine fehlenden Titel (S-6) |
-| Konto ohne Zuordnung (und kein Sammelbenutzer) | keine fehlenden Titel (S-6); den Fall sieht der Administrator in der Verwaltung (Übersicht, Zuordnung, Konten) |
-| Medienart nicht erlaubt (z. B. «Serien erlauben» aus) | keine fehlenden Titel dieser Art |
-| Trakt-Abruf fehlgeschlagen | die Tabelle ist leer, das Spotlight fehlt ganz wie heute; offene Wünsche bleiben unberührt |
+| Jellyseerr kurz nicht erreichbar oder Schlüssel abgelehnt | Einträge und Zustände wie beim letzten Abgleich; «Anfordern» nimmt den Wunsch an (`queued`, «Wird übermittelt») |
+| «Jellyseerr verwenden» oder «Wünsche aktiv» aus | Einträge mit Poster bleiben sichtbar; «Anfordern» fehlt; das Band «Fehlende Einträge» nennt den Grund |
+| Trakt-Abruf fehlgeschlagen | die Tabelle ist leer, das Spotlight fehlt auf der Startseite ganz wie heute; offene Wünsche bleiben unberührt |
 
-## 11. Performance, Caching, Vormalen, Vorladen
+## 7. Verworfen
 
-| Punkt | Heute | Künftig | Warum |
-|---|---|---|---|
-| `homeQuery` | `staleTime` 30 s (`web/src/features/catalog/queries.ts:28-55`) | unverändert | Zustände ändern sich höchstens alle 5 min (`wishes.sync`) |
-| **Prepaint** (Vormalen des ersten Bühnenbilds durch den Server) | nur wenn Spotlight die erste Reihe ist (`server/internal/api/preload.go:24-27,100,194`) | unverändert | die erste Folie ist immer vorhanden (S-4), ihr Bild liegt im Bildspeicher der Bibliothek |
-| Vorladen von `/home?start=K` | Server würfelt die Startfolie (ADR 0016) | **Vorschlag:** `heroStart` zeigt nur auf vorhandene Folien | sonst wäre die erste sichtbare Folie fehlend |
-| Bilder der Bühne | aktive Folie sofort, nächste zwei danach (`web/src/ui/HeroCarousel.tsx:210-215`) | unverändert; fehlende Folien nutzen den neuen Bildweg | gleiche Ladeordnung, andere Adresse |
-| Service Worker | Bilder `/api/v1/items/{id}/images/…` CacheFirst, sonst `/api` NetworkOnly (`web/vite.config.ts:141-161`) | **Vorschlag:** Regel erweitern auf `/api/v1/titles/*/images/*`, gleicher Cache | sonst lädt jedes Bühnenbild eines fehlenden Titels bei jedem Wechsel neu |
-| Kosten für `getHome` | Join mit `items`, `visible_items` | dazu ein Join mit `external_titles` und `wishes` je Profil | lokale Abfragen, keine Aufrufe an TMDB oder Jellyseerr |
-| Höchstzahl | `MaxRowItems = 20` | unverändert, fehlende zählen mit | – |
+Fassung 2 und der erste Stand von Fassung 3 schlugen vor, fehlende Titel der Trakt-Liste auf der Bühne zu
+zeigen: mit Schalter «Fehlende Titel zeigen» (ab Werk aus), Deckel «Höchstens fehlende Titel» (Vorgabe 5 von
+20), Wahl der Reihenfolge, der Regel, dass die Bühne immer mit einem vorhandenen Titel beginnt, einem Chip
+«Noch nicht in der Bibliothek», dem Knopf «Film anfordern» auf der Bühne, einem Filter «Noch nicht da» in der
+Spotlight-Liste und dem Schalter «Aus dem Spotlight» unter Wünsche › Einstellungen. ADR 0038 sollte dafür S-4
+ablösen. Nach Marcos erster Antwort stand ausserdem eine eigene Reihe der fehlenden Einträge unter Wünsche ›
+Entdecken zur Wahl.
 
-Unverändert bleiben ausserdem Rotation, Pause bei Fokus, Endlosband und das Verhalten unter 768 px. Grund:
-Eine fehlende Folie hat denselben Aufbau wie eine vorhandene, nur andere Knöpfe.
+Marco hat das alles am 17. November 2026 abgelehnt: «In Spotlight soll nicht angezeigt werden was fehlt. Nur
+vorhandene Filme und Serien sollen auf der Startseite angezeigt werden.» und auf die Frage nach einer Reihe
+unter «Entdecken»: «Nein, nirgends» (E-5, Anhang H 8.1 und 8.2). Damit ist F-8 entschieden. ADR 0038 löst S-4
+nicht mehr ab (N-75).
 
-## 12. Aktualisierung nach dem Anfordern
-
-1. `createWish` antwortet mit dem Wunsch (201) oder dem bestehenden (200, auch Mitwunsch).
-2. Die App macht diese Abfragen ungültig: Startseite (`['home']`), die Spotlight-Liste, «Meine Wünsche», den
-   Zähler der Seitenleiste, die Vorschauseite des Titels und die Suchergebnisse.
-3. Bühne und Poster zeigen sofort den neuen Zustand aus der Antwort, ohne auf den nächsten Abruf zu warten.
-4. Solange das Profil offene Wünsche hat (`queued`, `pending`, `processing`, `partial`), fragt die App den
-   Zustand alle 30 s ab, nur bei sichtbarem Tab. Ohne offene Wünsche ruht die Abfrage.
-5. Antwortet `createWish` mit 409 `already_available`, zeigt der Dialog «Schon in der Bibliothek» und einen
-   Link zum Titel; die Startseite lädt neu.
-
-## 13. Spotlight-Liste `/lists/spotlight`
-
-- Die Liste hinter dem Titel «Spotlight» zeigt heute die Reihe in ihrer Ordnung
-  (`web/src/features/catalog/HomeListPage.tsx`).
-- Neu: Filter «Alle / In der Bibliothek / Noch nicht da» (M-02). «Noch nicht da» erscheint nur für Profile,
-  die anfordern können.
-- In der Liste gilt der Deckel N nicht. Sie zeigt alle erlaubten Einträge der Trakt-Liste, die
-  `external_titles` kennt, mit der Medienart aus dem Band «Quelle», geblättert wie heute (wie im Mockup).
-  Fehlende Titel haben hier dieselben Karten wie in der Posterreihe.
-- Ein Druck auf eine fehlende Karte öffnet die Vorschauseite, der Plus-Knopf den Dialog.
-
-## 14. Wie ein Trakt-Eintrag zur Folie wird
+## 8. Wie ein Trakt-Eintrag ins Spotlight und in die Verwaltung kommt
 
 ```mermaid
 flowchart TD
-  T[trakt.refresh: Eintrag mit TMDB-, TVDB-, IMDb-ID] --> S[(spotlight_entries)]
-  S --> M{Bibliothekstitel mit gleicher ID?}
-  M -- ja --> V{visible_items: darf das Profil ihn sehen?}
-  V -- ja --> A[vorhandene Folie, Fall A oder D]
-  V -- nein --> X[nicht gezeigt]
-  M -- nein --> R{"Schalter an, Wünsche aktiv, Anfordern aus dem Spotlight an, Profil kann anfordern, Medienart erlaubt?"}
-  R -- nein --> X
-  R -- ja --> E{external_titles vorhanden?}
-  E -- nein --> X
-  E -- ja --> F{TMDB-Freigabe, unbekannt = 18, höchstens min Profil, Konto?}
-  F -- nein --> X
-  F -- ja --> W{offener Wunsch zu diesem Titel?}
-  W -- ja --> C[Folie mit Zustand, Fall C]
-  W -- nein --> B[Folie «Film anfordern», Fall B]
-  A --> O[Ordnen: Trakt-Rang, Angeheftete, min_hits nur vorhandene, höchstens N fehlende, erste Folie vorhanden, item_count]
-  B --> O
-  C --> O
-  O --> H[getHome: ItemRef und ExternalTitleRef]
+  T["trakt.refresh: Eintrag mit TMDB-, TVDB-, IMDb-ID; nur TVDB: TMDB-ID nachschlagen"] --> S[("spotlight_entries")]
+  S --> M{"Bibliothekstitel mit gleicher ID? Serien TVDB, TMDB, IMDb; Filme TMDB, IMDb"}
+  M -- "ja" --> V{"visible_items: darf das Profil ihn sehen?"}
+  V -- "ja" --> O["Ordnen wie heute: Trakt-Rang, Angeheftete, min_hits, item_count"]
+  V -- "nein" --> X["für dieses Profil nicht gezeigt"]
+  O --> H["getHome und Spotlight-Liste: nur ItemRef"]
+  M -- "ja" --> AV["Verwaltung: Status Sichtbar"]
+  M -- "nein, TMDB-ID bekannt" --> AF["Verwaltung: Fehlende Einträge mit Poster, Zustand, Anfordern"]
+  M -- "nein, keine TMDB-ID" --> AN["Verwaltung: Nicht zuordenbar, ohne Anfordern"]
+  AF -.-> Z["Zuschauer-App: nirgends"]
 ```

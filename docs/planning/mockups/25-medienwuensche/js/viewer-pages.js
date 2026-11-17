@@ -83,7 +83,7 @@ route('/search', (pm, query) => {
   let res = '';
   if (!short) {
     if (lib.length) res += `<section class="vp-sec" aria-labelledby="vp-s-titles"><h2 id="vp-s-titles">Titel</h2><ul class="grid">${lib.map((t) => posterCard(t, { ctx: 's' })).join('')}</ul></section>`;
-    if (miss.length) res += `<section class="vp-sec vp-miss" aria-labelledby="vp-s-miss"><div class="vp-sech"><h2 id="vp-s-miss">Noch nicht in der Bibliothek ${vpNew()}</h2><p class="sub">Aus TMDB. Diese Titel kannst du anfordern.</p></div><ul class="grid">${miss.map((t) => posterCard(t, { ctx: 'sm' })).join('')}</ul></section>`;
+    if (miss.length) res += `<section class="vp-sec vp-miss" aria-labelledby="vp-s-miss"><div class="vp-sech"><h2 id="vp-s-miss">Noch nicht in der Bibliothek ${vpNew()}</h2><p class="sub">Aus TMDB. Diese Titel kannst du anfordern.</p>${hasQ && discoverOn(p) ? `<p><a class="lnk" href="#/discover/search?q=${encodeURIComponent((ui.q || '').trim())}" data-fid="s:disc">${icon('wish', 16)}Alle Treffer unter Wünsche suchen</a></p>` : ''}</div><ul class="grid">${miss.map((t) => posterCard(t, { ctx: 'sm' })).join('')}</ul></section>`;
     if (unmappedHint) res += `<section class="vp-sec">${notice('', 'Noch nicht in der Bibliothek', esc(cr.text))}</section>`;
     if (people.length) res += `<section class="vp-sec" aria-labelledby="vp-s-people"><h2 id="vp-s-people">Personen</h2><ul class="vp-people">${people.slice(0, 12).map((c, i) => `<li class="person"><a href="#/unchanged/person" data-fid="sp:${i}" class="vp-pl"><span class="pt">${c.img ? img(c.img, c.name) : esc(c.name[0])}</span><b>${esc(c.name)}</b><span>${esc(c.role || '')}${c.role ? ' · ' : ''}${esc(c.from)}</span></a></li>`).join('')}</ul></section>`;
     if (colls.length) res += `<section class="vp-sec" aria-labelledby="vp-s-coll"><h2 id="vp-s-coll">Sammlungen</h2><ul class="grid">${colls.map((c, i) => `<li class="pc"><a class="pl" href="#/unchanged/sammlungen" data-fid="sc:${i}"><span class="frame">${img(c.items[0].poster, c.name)}</span><span class="cap"><b>${esc(c.name)}</b><span>${vpPlural(c.items.length, 'Titel', 'Titel')}</span></span></a></li>`).join('')}</ul></section>`;
@@ -122,6 +122,7 @@ function vpWishRow(w, p, all) {
   const kind = t.kind === 'movie' ? `Film · ${esc(t.year)}` : `Serie · ${w.seasons.length ? 'Staffel ' + w.seasons.join(', ') : 'alle Staffeln'}`;
   const who = all && w.owner ? ` · ${esc(profile(w.owner).name)}` : '';
   const tags = [wsChip(w.state)];
+  { const dl = dlChip(w); if (dl) tags.push(dl); }
   if (w.joined.includes(p.id)) tags.push(`<span class="chip info">${icon('bell', 14)}Du wünschst mit</span>`);
   if (w.origin === 'jellyseerr') tags.push(`<span class="chip blue">${icon('external', 14)}In Jellyseerr angelegt</span>`);
   let extra = '';
@@ -164,7 +165,7 @@ route('/wishes', (pm, query) => {
   let body;
   if (!list.length) {
     body = !cr.ok ? notice('', 'Keine Wünsche', esc(cr.text))
-      : `<div class="empty vp-empty"><b>Noch keine Wünsche</b><p>Fehlt dir ein Film oder eine Serie? Im Spotlight und in der Suche findest du Titel, die noch nicht in der Bibliothek sind, und kannst sie anfordern.</p><div class="acts"><a class="btn secondary" href="#/" data-fid="w:e:spot">${icon('star')}Zum Spotlight</a><a class="btn secondary" href="#/search" data-fid="w:e:search">${icon('search')}Zur Suche</a></div></div>`;
+      : `<div class="empty vp-empty"><b>Noch keine Wünsche</b><p>Fehlt dir ein Film oder eine Serie? Unter «Entdecken», «Filme», «Serien» und in der Suche findest du Titel, die noch nicht in der Bibliothek sind, und kannst sie anfordern.</p><div class="acts"><a class="btn secondary" href="#/discover" data-fid="w:e:disc">${icon('star')}Zu «Entdecken»</a><a class="btn secondary" href="#/search" data-fid="w:e:search">${icon('search')}Zur Suche</a></div></div>`;
   } else {
     body = `<div class="vp-wbar"><div class="pills" role="group" aria-label="Wünsche filtern">${VP_WFILTER.map(([k, l, fn]) => vpPill('w:f:' + k, `${l}<span class="n">${list.filter(fn).length}</span>`, fk === k, `data-act="set" data-path="ui.filter.wishes" data-value="${k}"`)).join('')}</div>
       ${p.primary ? `<div class="vp-swrow">${sw('ui.filter.allProfiles', 'Wünsche aller Profile meines Kontos')}<span>Wünsche aller Profile meines Kontos</span></div>` : ''}</div>
@@ -173,7 +174,7 @@ route('/wishes', (pm, query) => {
   }
   return {
     type: 'viewer', nav: 'wishes', title: 'Meine Wünsche',
-    html: `<div class="page vp-scope"><div class="head"><h1>Meine Wünsche</h1><p class="sub">${openN} offen</p><div class="acts"><button type="button" class="btn ghost" data-act="back" data-fid="w:back">${icon('arrowL')}Zurück</button></div></div>${body}</div>`,
+    html: `<div class="page vp-scope">${wishNav('mine')}<div class="head"><h1>Meine Wünsche</h1><p class="sub">${openN} offen</p><div class="acts"><button type="button" class="btn ghost" data-act="back" data-fid="w:back">${icon('arrowL')}Zurück</button></div></div>${body}</div>`,
     after(root) { if (ui.vpScrollTo) { const el = root.querySelector('#vp-w-' + CSS.escape(ui.vpScrollTo)); ui.vpScrollTo = null; if (el) el.scrollIntoView({ block: 'center' }); } },
   };
 });
@@ -347,7 +348,7 @@ function vpProfCard(x) {
   if (dt.streams) chips.push(`<span class="chip info">${dt.streams} ${dt.streams === '1' ? 'Stream' : 'Streams'}</span>`);
   if (dt.watchLimit) chips.push(`<span class="chip info">${dt.watchLimit} min pro Tag</span>`);
   chips.push(x.canRequest && acc.canRequest ? `<span class="chip ok">${icon('wish', 12)}Darf anfordern</span>` : `<span class="chip outline">Darf nicht anfordern</span>`);
-  const send = su ? `Sendet als ${esc(seerrUser(su.id).name)} (${su.via === 'profile' ? 'eigener Jellyseerr-Benutzer' : su.via === 'account' ? 'Benutzer des Kontos' : 'Sammelbenutzer'})` : 'Keine Zuordnung';
+  const send = su ? `Sendet als ${esc(seerrUser(su.id).name)} (${su.via === 'profile' ? 'eigener Jellyseerr-Benutzer' : su.via === 'account' ? 'Benutzer des Kontos' : 'Sammelbenutzer'})` : 'Kein Jellyseerr-Benutzer';
   const mid = 'vp-menu:' + x.id, rid = 'vp-rep:' + x.id, menu = isOpen(mid);
   return `<li class="vp-card">
     <div class="vp-ph"><span class="av lg" style="background:${esc(x.accent)};color:${esc(x.on)}">${esc(x.name[0])}</span>
@@ -439,14 +440,22 @@ DIALOGS.vpPin = ({ id }) => {
 ACT.vpPinSave = () => { const dr = ui.draft.pin; if (!/^\d{4,8}$/.test(dr.v || '')) { dr.err = 'Die PIN braucht 4 bis 8 Ziffern.'; renderOverlays(); return; } const x = profile(dr.id); x.pin = true; closeDialog(); toast(`Die PIN für «${esc(x.name)}» ist gespeichert.`, 'ok'); commit(); };
 DIALOGS.vpPinDel = ({ id }) => { const x = profile(id); return { title: `PIN von ${esc(x.name)} entfernen?`, body: '<p class="lead">Danach kann jeder dieses Profil ohne PIN öffnen.</p>', actions: `<button type="button" class="btn ghost" data-act="close" data-fid="pind:x">Abbrechen</button><button type="button" class="btn primary" data-act="vpPinDelOk" data-id="${id}" data-fid="pind:ok" data-autofocus>PIN entfernen</button>` }; };
 ACT.vpPinDelOk = (d) => { const x = profile(d.id); x.pin = false; closeDialog(); toast(`Die PIN von «${esc(x.name)}» ist entfernt.`, 'ok'); commit(); };
-DIALOGS.vpProfDel = ({ id }) => { const x = profile(id); return { title: `Profil „${esc(x.name)}“ löschen?`, body: '<p class="lead">Fortschritt und Einstellungen dieses Profils gehen verloren. Das lässt sich nicht rückgängig machen.</p>', actions: `<button type="button" class="btn ghost" data-act="close" data-fid="pdel:x">Abbrechen</button><button type="button" class="btn primary" data-act="vpProfDelOk" data-id="${id}" data-fid="pdel:ok" data-autofocus>${icon('trash')}Profil löschen</button>` }; };
+DIALOGS.vpProfDel = ({ id }) => { const x = profile(id); return { title: `Profil «${esc(x.name)}» löschen?`, body: '<p class="lead">Fortschritt und Einstellungen dieses Profils gehen verloren. Das lässt sich nicht rückgängig machen.</p>', actions: `<button type="button" class="btn ghost" data-act="close" data-fid="pdel:x">Abbrechen</button><button type="button" class="btn primary" data-act="vpProfDelOk" data-id="${id}" data-fid="pdel:ok" data-autofocus>${icon('trash')}Profil löschen</button>` }; };
 ACT.vpProfDelOk = (d) => {
   const x = profile(d.id);
   closeDialog();
   if (!x || x.primary || x.id === curProfile().id) { toast('Das aktive Profil und das Hauptprofil lassen sich nicht löschen.', 'warn'); return; }
+  /* its wishes go to the main profile of the account, so nobody loses a wish and somebody still hears about it */
+  const main = profilesOf(x.accountId).find((y) => y.primary);
+  let moved = 0;
+  S.wishes.forEach((w) => {
+    if (w.owner === x.id) { w.owner = main.id; w.joined = w.joined.filter((j) => j !== main.id); ev(w, 'handover', `Von gelöschtem Profil ${x.name} übernommen: ${main.name}`); moved++; }
+    else if (w.joined.includes(x.id)) w.joined = w.joined.filter((j) => j !== x.id);
+  });
+  delete S.map.profiles[x.id];
   S.profiles = S.profiles.filter((y) => y.id !== x.id);
   S.notifications = S.notifications.filter((n) => n.profileId !== x.id);
-  toast(`Profil «${esc(x.name)}» ist gelöscht.`, 'ok');
+  toast(`Profil «${esc(x.name)}» ist gelöscht.${moved ? ` ${moved} ${moved === 1 ? 'Wunsch gehört' : 'Wünsche gehören'} jetzt ${esc(main.name)}.` : ''}`, 'ok');
   commit();
 };
 

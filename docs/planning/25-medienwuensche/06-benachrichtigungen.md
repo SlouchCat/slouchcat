@@ -7,12 +7,16 @@
 > «verfügbar» für Filme und ganze Serien, Stufe 4 die Staffel- und Zustandsmeldungen und «Freigabe nötig». Ab Werk ist
 > nur «Wünsche: verfügbar» auf den Kanälen an, für Administratoren dazu «Wünsche: Freigabe nötig» (F-14). Ein
 > eindeutiger Schlüssel je Profil verhindert doppelte Meldungen. Bei Profilen mit PIN nennt die externe
-> Nachricht den Titel nicht (F-15).
+> Nachricht den Titel nicht (F-15). Der Download-Fortschritt aus Radarr und Sonarr ist nur eine Anzeige beim
+> Wunsch und löst keine Meldung aus, auch «Download verzögert» nicht.
 
 Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md) (Abschnitte 2.8, 2.16, 2.17, 5). Belege zum heutigen System stammen aus
 [Anhang B](anhang/B-konten-benachrichtigungen.md) (Abschnitte 5 bis 8), am Anker `ba6efe31` im Worktree nachgesehen. Die Abläufe aus
 Zuschauersicht stehen in `02-funktionskonzept.md` (Abschnitte 4.6 und 4.7), die Kanalseite der Verwaltung in
-`07-administration.md` (Abschnitt 11). Abschnitte mit **Vorschlag** gehen über Anhang F hinaus.
+`07-administration.md` (Abschnitt 11). Für Fassung 3 kommen die Fälle aus [Anhang H](anhang/H-nachtrag-17-november.md)
+dazu (Eröffnung, Limit, Profil-Tag), aus Marcos zweiter Rückmeldung der Download-Fortschritt (E-7, Anhang H 8.4);
+sie ändern nichts an Arten und Ereignissen. Abschnitte mit **Vorschlag**
+gehen über Anhang F hinaus.
 
 ## 1. Das heutige System in fünf Sätzen
 
@@ -39,16 +43,19 @@ Zuschauersicht stehen in `02-funktionskonzept.md` (Abschnitte 4.6 und 4.7), die 
 | Serie: eine gewünschte Staffel vollständig abspielbar (Abschnitt 3.3), weitere fehlen noch | «Tulsa King: Staffel 3 ist verfügbar» · «Weitere Staffeln folgen»; bei einer laufenden Staffel «Tulsa King: Die bisher erschienenen Folgen von Staffel 3 sind da» | `/items/{id}` der Staffel | wie oben | `wish_season_available` | `wish_available` | an | 4 |
 | Jellyseerr hat freigegeben (vorher `pending`) | «Freigegeben: Paddington in Peru» · «Wird jetzt beschafft» | `/wishes?focus={wishId}` | wie oben | `wish_approved` | `wish_status` «Wünsche: freigegeben, abgelehnt, fehlgeschlagen» | aus | 4 |
 | Jellyseerr hat abgelehnt | «Abgelehnt: Paddington in Peru» · «Ohne Angabe eines Grundes» | `/wishes?focus={wishId}` | wie oben | `wish_declined` | `wish_status` | aus | 4 |
-| Übergabe gescheitert oder endgültig abgewiesen | «Fehlgeschlagen: Paddington in Peru» · Klartext, etwa «Kontingent für Filme erschöpft» | `/wishes?focus={wishId}` | wie oben | `wish_failed` | `wish_status` | aus | 4 |
+| Übergabe gescheitert oder endgültig abgewiesen | «Fehlgeschlagen: Paddington in Peru» · Klartext, etwa «Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.» | `/wishes?focus={wishId}` | wie oben | `wish_failed` | `wish_status` | aus | 4 |
 | Wunsch wartet in Jellyseerr auf Freigabe | kein Eingang | `/admin/wishes?state=pending` | alle Administratorkonten | – | `wish_review` «Wünsche: Freigabe nötig» (nur Administratoren) | an | 4 |
 | Übermittlung nach 24 h ohne Erfolg | kein Eingang | `/admin/wishes` | alle Administratorkonten | – | `errors` (besteht) | wie heute | 2 |
+| Konto nach 24 h noch nicht in Jellyseerr eröffnet (`seerr.provision` scheitert) | kein Eingang | `/admin/wishes/mapping` (Seite «Jellyseerr-Benutzer») | alle Administratorkonten | – | `errors` (besteht) | wie heute | 1 |
 
 Die Kanal-Ereignisse und Eingangsarten stammen aus Anhang F (2.16). Die Stufen sind ein Redaktionsentscheid vom 17. November 2026
 (`11-entscheide-und-adr.md` Abschnitt 7): **Stufe 2** bringt die Eingangsart und das Kanal-Ereignis `wish_available` für Filme und ganze
 Serien; **Stufe 4** bringt die Staffel-Meldungen (`wish_season_available`), «freigegeben, abgelehnt,
 fehlgeschlagen» (`wish_approved`, `wish_declined`, `wish_failed`, Kanal `wish_status`) und `wish_review`.
 **Vorschlag** sind die Texte und die Links mit `focus`. Bis Stufe 4 zeigt nur «Meine Wünsche» die Zustände
-«freigegeben», «abgelehnt» und «fehlgeschlagen».
+«freigegeben», «abgelehnt» und «fehlgeschlagen». Die Zeile «Konto nicht eröffnet» ist Empfehlung für Fassung 3
+und nutzt das bestehende Ereignis `errors`; ein neues Ereignis braucht sie nicht. Für das Limit, das Passwort,
+den Profil-Tag und den Download-Fortschritt gibt es keine Benachrichtigung (Abschnitt 4).
 
 **Vorschlag zu «freigegeben»:** Nur der Übergang `pending` → `processing` meldet «freigegeben». Gibt
 Jellyseerr einen Wunsch schon beim Anlegen frei (Auto-Freigabe), sieht das Profil das sofort im Dialog
@@ -58,13 +65,16 @@ Jellyseerr einen Wunsch schon beim Anlegen frei (Auto-Freigabe), sieht das Profi
 
 ### 3.1 Wann
 
-1. Radarr oder Sonarr legt die Datei ab; Slouchcat liest sie ein (Webhook, Watcher oder Vollscan).
+1. Radarr oder Sonarr legt die Datei ab; Slouchcat liest sie ein (Webhook wie heute, Watcher oder Vollscan).
+   Dass Radarr oder Sonarr importiert haben, zeigt der Download-Fortschritt als «Wird eingelesen»; es ist kein
+   Auslöser für «verfügbar».
 2. Der Metadaten-Match schreibt die Anbieter-IDs. An dieser Stelle hängt heute der Haken `WithRelink`
    («after it wrote the provider ids of a film or series», `server/internal/metadata/metadata.go:344-349`).
    Ein neuer Haken «Titel zugeordnet» (`WithMatched`) stösst den Dienst `wishes` an (Anhang F 7). Der Match
    ruft ihn nach `relinkQueued`, wenn kein Zwilling gemeldet wurde, auch bei `relink = false`, bei Serien erst
    nach `matchSeasons` (`server/internal/metadata/match.go:191`, `:300-303`; `03-architektur.md`, Abschnitt 11).
-3. `wishes` sucht offene Wünsche mit derselben TMDB-ID, bei Serien auch TVDB- und IMDb-ID, und fragt
+3. `wishes` sucht offene Wünsche mit derselben ID, bei Serien **TVDB zuerst**, dann TMDB, dann IMDb, bei Filmen
+   TMDB, dann IMDb (`05-spotlight-integration.md`, Abschnitt 3.3, N-61), und fragt
    `visibility`, ob es den Titel gibt und welches Profil ihn sehen darf (Regel 2: `wishes` fragt `items` nicht
    selbst ab).
 4. Stündlich läuft `wishes.reconcile` als Netz für alles, was der Haken verpasst hat (Neustart, späte
@@ -125,13 +135,21 @@ Sichtbarkeit. Keine Meldung nennt, wer sonst gewünscht hat.
 | Wunsch eingereicht | **keine** Benachrichtigung | Das Profil hat gerade selbst geklickt. Rückmeldung am Bildschirm im Dialog und in «Meine Wünsche» (Anhang F 2.16). |
 | genehmigt | Eingang `wish_approved`, Kanal `wish_status` (aus) | nützlich bei Kinderprofilen; nicht bei Auto-Freigabe (Abschnitt 2). |
 | abgelehnt | Eingang `wish_declined`, Kanal `wish_status` (aus) | ohne Grund, weil Jellyseerr keinen kennt ([Anhang D](anhang/D-jellyseerr-api.md) 8). |
-| fehlgeschlagen | Eingang `wish_failed`, Kanal `wish_status` (aus); Administratoren bekommen `errors` | Klartext für das Profil (Kontingent, Sperrliste, kein Recht); den Administratoren hilft das bestehende Fehlerereignis. |
+| fehlgeschlagen | Eingang `wish_failed`, Kanal `wish_status` (aus); Administratoren bekommen `errors` | Klartext für das Profil (Limit, Sperrliste, kein Recht); den Administratoren hilft das bestehende Fehlerereignis. |
 | Staffel verfügbar | Eingang `wish_season_available`, Kanal `wish_available` | Serien kommen oft staffelweise; die gewünschte Staffel ist der eigentliche Nutzen. |
 | Serie vollständig | als `wish_available`, keine zusätzliche Meldung | Die letzte fehlende Staffel macht den Wunsch `available`; eine Staffelmeldung und eine Serienmeldung zugleich wären doppelt. |
 | Zurückgezogen | keine | eigene Handlung |
 | Mitwunsch angenommen | keine | eigene Handlung |
 | Jellyseerr meldet «verfügbar», Slouchcat hat die Datei noch nicht | keine | F-13; Anzeige «wird eingelesen» genügt. |
 | Freigabe nötig (für Administratoren) | Kanal `wish_review` (an für Administratoren) | Jellyseerr meldet es zwar selbst, aber nicht an Slouchcats Kanäle; ab F-16 kann der Administrator in Slouchcat freigeben. |
+| Limit erreicht | **keine** Benachrichtigung | Der Dialog «Anfordern» sagt es im Moment, in dem es zählt: wie viel frei ist und wann der nächste Platz frei wird (`04-benutzer-profilmapping.md`, Abschnitt 17.6). Die Übersicht der Verwaltung zeigt «Limit erreicht» je Konto. |
+| Jellyseerr lehnt einen Wunsch trotz Vorprüfung wegen des Limits ab | Wunsch `failed` mit Grund `quota`; derselbe Weg wie jedes «fehlgeschlagen»: Eingang `wish_failed`, Kanal `wish_status` (ab Stufe 4) | Kommt vor, wenn zur gleichen Zeit jemand direkt in Jellyseerr wünscht (Jellyseerr zählt, Marco E-3). Kein eigenes Ereignis. |
+| Konto lässt sich nicht in Jellyseerr eröffnen | nach 24 h `errors` an die Administratoren (besteht), kein Eingang | Ein Fehler der Einrichtung, wie die Übermittlung nach 24 h. Der Zuschauer sieht nichts; das Konto kann bis dahin nicht anfordern. |
+| Profil-Tag in Radarr oder Sonarr nicht gesetzt | **keine** | Der Wunsch läuft unverändert weiter; die Verwaltung zeigt «Tag noch nicht gesetzt», der nächste Abgleich holt es nach (`04-benutzer-profilmapping.md`, Abschnitt 16.5). |
+| Download-Fortschritt («Wird gesucht», «Wird heruntergeladen · 45 % · noch 12 min», «Wird eingelesen») | **keine** | Nur Anzeige beim Wunsch unter «Meine Wünsche», auf der Wunschkarte der Vorschauseite und in der Verwaltung (Marco, E-7; N-82, N-87; `02-funktionskonzept.md`, Abschnitt 5.3). Die Meldung «verfügbar» kommt weiter erst, wenn Slouchcat den Titel abspielen kann. |
+| «Download verzögert» (Warteschlange meldet Warnung oder Fehler) | **keine** | Wird angezeigt, nicht gesendet. Die Meldung von Radarr oder Sonarr sieht nur die Verwaltung unter Anfragen (N-83). Erst wenn Jellyseerr den Wunsch als gescheitert führt, gilt der Weg «fehlgeschlagen» oben. |
+| Radarr oder Sonarr für den Fortschritt nicht erreichbar | **keine** | Der Wunsch bleibt «In Beschaffung»; die Verwaltung zeigt «Fortschritt nicht lesbar» (N-85). |
+| Passwort an Jellyseerr nicht übergeben | **keine** | Slouchcat übernimmt es bei der nächsten Anmeldung; die Seite «Jellyseerr-Benutzer» zeigt den Stand (`04-benutzer-profilmapping.md`, Abschnitt 13). |
 
 ## 5. Getrennte Einstellbarkeit
 
@@ -228,8 +246,16 @@ Ein gewöhnliches Konto bekommt damit heute auf keinem Kanal neue Inhalte. Für 
   fehlgeschlagene `notify.deliver` nur auf «Hintergrundjobs».
 - **`wish_review` nur an Administratoren**, ohne `[Profilname]` im Betreff, weil es ein Ereignis des Servers ist.
   Der Text nennt Titel und «Konto · Profil», wie die Verwaltung.
-- **Jellyseerr meldet weiter selbst**, wenn es dort eingerichtet ist (etwa E-Mail bei «verfügbar»). **Vorschlag:**
-  Die Ansicht «Jellyseerr» weist darauf hin, damit Marco dort doppelte Meldungen abschalten kann.
+- **Jellyseerr meldet weiter selbst**, wenn es dort eingerichtet ist (etwa E-Mail bei «verfügbar»). Weil jedes
+  Konto jetzt einen eigenen Jellyseerr-Benutzer mit seiner E-Mail hat (`04-benutzer-profilmapping.md`,
+  Abschnitt 12), können solche Meldungen von Jellyseerr auch die Konten erreichen.
+- **Bekannte Grenze (Redaktionsentscheid, Anhang H, Abschnitt 9, K-19).** Die Profile eines Kontos teilen das
+  Jellyseerr-Login des Kontos. Wer sich damit in Jellyseerr anmeldet, sieht dort die Wünsche aller Profile des
+  Kontos, auch die eines PIN-Profils. Die eigenen E-Mails von Jellyseerr nennen den Titel und umgehen so die
+  Regel für PIN-Profile (F-15). Slouchcat kann beides nicht verhindern (`04-benutzer-profilmapping.md`,
+  Abschnitt 13.6). **Empfehlung:** In Jellyseerr die eigenen Benachrichtigungen für die eröffneten Benutzer
+  ausgeschaltet lassen. Die Verwaltung zeigt dazu einen Hinweis unter Wünsche › Einstellungen; so vermeidet
+  Marco auch doppelte Meldungen.
 
 ## 9. Texte
 
@@ -257,7 +283,7 @@ Ziel des Tippens, bei Telegram als letzte Zeile.
 | verfügbar, PIN-Profil | «[Sandra] Ein Wunsch ist jetzt verfügbar.» · «Öffne Slouchcat, um ihn zu sehen.» | «[Sandra] Ein Wunsch ist jetzt verfügbar.» | «[Sandra] Ein Wunsch ist jetzt verfügbar.» + Link auf `/wishes` |
 | freigegeben | «[Noah] Freigegeben: Paddington in Peru» · «Der Wunsch wird jetzt beschafft.» | «[Noah] Freigegeben» · «Paddington in Peru wird beschafft» | wie E-Mail-Betreff + Link |
 | abgelehnt | «[Noah] Abgelehnt: Paddington in Peru» · «Jellyseerr nennt keinen Grund.» | «[Noah] Abgelehnt» · «Paddington in Peru» | wie E-Mail-Betreff + Link |
-| fehlgeschlagen | «[Noah] Fehlgeschlagen: Paddington in Peru» · «Kontingent für Filme erschöpft.» | «[Noah] Fehlgeschlagen» · «Kontingent für Filme erschöpft» | wie E-Mail-Betreff + Grund + Link |
+| fehlgeschlagen | «[Noah] Fehlgeschlagen: Paddington in Peru» · «Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.» | «[Noah] Fehlgeschlagen» · «Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.» | wie E-Mail-Betreff + Grund + Link |
 | Freigabe nötig | «Freigabe nötig: Paddington in Peru» · «marco@example.ch · Noah wünscht den Film. In Jellyseerr wartet er auf Freigabe.» | «Freigabe nötig» · «Paddington in Peru (Noah)» | wie E-Mail-Betreff + Link auf `/admin/wishes?state=pending` |
 
 ## 10. Deep-Links

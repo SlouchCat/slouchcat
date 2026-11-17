@@ -1,0 +1,18 @@
+/* M-35 «Einladung annehmen» (#/invite/:id). Prefix va-. */
+.va-wrap { min-height: 100%; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; background: var(--bg); }
+@container app (min-width: 768px) { .va-wrap { align-items: center; padding: 48px 24px; } }
+.va-card { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 16px; background: var(--elev); border: 1px solid var(--frame); min-width: 0; }
+@container app (min-width: 768px) { .va-card { padding: 32px; } }
+.va-brand { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; border-radius: 8px; font-size: 18px; font-weight: 700; color: var(--tx); }
+.va-brand .logo { width: 28px; height: 28px; color: var(--accent); }
+.va-h1 { font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--tx); }
+.va-sub { font-size: 14px; color: var(--tx2); }
+.va-facts { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 10px; background: var(--s1); border: 1px solid var(--frame); font-size: 14px; color: var(--tx2); }
+.va-facts li { display: flex; gap: 8px; align-items: flex-start; }
+.va-facts svg { flex: none; margin-top: 2px; color: var(--tx3); }
+.va-form { display: flex; flex-direction: column; gap: 14px; }
+.va-form .inp { width: 100%; }
+.va-seerr { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--s1)); font-size: 14px; color: var(--tx2); }
+.va-seerr b { color: var(--tx); font-weight: 600; }
+.va-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.va-acts .btn.primary { flex: 1 1 auto; justify-content: center; }

@@ -98,14 +98,15 @@ function aaIntegrationsPage() {
   const silent = aaHookSilent();
   const unsaved = '<span class="chip warn">ungespeichert</span>';
   const seerrDetail = st.k === 'ok' ? esc(S.seerr.version) : st.k === 'unreachable' ? `zuletzt erreicht ${ago(S.seerr.lastSync)}` : '';
+  const hints = aaSeerrHints(), firstHint = hints ? aaSeerrHintList()[0] : '';
   const tiles = [
     aaTile({ k: 'keys', icon: 'key', title: 'Schlüssel der Anbieter', desc: 'TMDB, TVDB, Fanart.tv, YouTube, Trakt und Google Books.', meta: `<span>${keysSet} von ${AA_PROV.length} Anbietern eingerichtet</span>${keysDirty ? unsaved : ''}`,
       sts: ['tmdb', 'tvdb', 'youtube', 'trakt'].map((k) => { const s = I.keys[k]; return aaStateLine(AA_PROV.find((p) => p.k === k).n, s.src !== 'none' && !s.rejected, s.src === 'env' ? 'In deploy/.env gesetzt' : s.rejected ? 'abgewiesen' : '', s.rejected ? 'bad' : ''); }).join('') }),
     aaTile({ k: 'webhooks', icon: 'link', title: 'Webhooks von Radarr und Sonarr', desc: 'Radarr und Sonarr melden neue und geänderte Dateien.', meta: `<span>${I.webhooks.length} ${I.webhooks.length === 1 ? 'Integration' : 'Integrationen'}</span>`,
       sts: I.webhooks.length ? `<li><span class="dot ${ev24 ? 'ok' : ''}"></span><span>${ev24} ${ev24 === 1 ? 'Meldung' : 'Meldungen'} im Protokoll der letzten 24 Stunden, von ${I.webhooks.length} Integrationen.</span></li>${silent.length ? `<li><span class="dot warn"></span><span>Seit sieben Tagen ohne Meldung: ${silent.map((h) => esc(h.name)).join(', ')}</span></li>` : ''}` : '<li><span class="dot"></span><span>Kein Webhook eingerichtet.</span></li>' }),
-    aaTile({ k: 'jellyseerr', isNew: true, icon: 'wish', title: 'Jellyseerr', desc: 'Wünsche der Zuschauer an Jellyseerr weitergeben und ihren Zustand abgleichen.',
-      meta: S.seerr.configured ? `<span>Zuletzt abgeglichen ${ago(S.seerr.lastSync)}</span><span>·</span><span>Zuordnung: ${mc.mapped} von ${mc.total} Konten</span><span>·</span><span>${wc.open} offene Wünsche</span>${aaSeerrDirty() ? unsaved : ''}` : (aaSeerrDirty() ? unsaved : ''),
-      sts: `<li><span class="dot ${st.dot}"></span><span>Jellyseerr: ${st.label}${seerrDetail ? ` · <span class="muted">${seerrDetail}</span>` : ''}</span></li>` }),
+    aaTile({ k: 'jellyseerr', isNew: true, icon: 'wish', title: 'Jellyseerr', desc: 'Wünsche der Zuschauer an Jellyseerr weitergeben und ihren Zustand abgleichen. Konten erhalten dort einen Benutzer mit demselben Login.',
+      meta: S.seerr.configured ? `<span>Jellyseerr-Benutzer: ${mc.mapped} von ${mc.total} Konten</span><span>·</span><span>${wc.open} offene Wünsche</span>${aaSeerrDirty() ? unsaved : ''}` : (aaSeerrDirty() ? unsaved : ''),
+      sts: `<li><span class="dot ${st.dot && st.k === 'ok' && hints ? 'warn' : st.dot}"></span><span>Jellyseerr: ${st.label}${firstHint ? ` · ${esc(firstHint)}` : ''}${seerrDetail ? ` · <span class="muted">${seerrDetail}</span>` : ''}</span></li>` }),
     aaTile({ k: 'email', icon: 'mail', title: 'E-Mail-Server', desc: 'Server für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.', meta: `<span>${I.email.host ? 'Gespeichert' : 'Nicht gesetzt'}</span>${aaEmailDirty() ? unsaved : ''}`, sts: aaStateLine('E-Mail', !!I.email.host, I.email.host ? esc(I.email.host + ':' + I.email.port) : '') }),
     aaTile({ k: 'telegram', icon: 'send', title: 'Telegram-Bot', desc: 'Bot für Benachrichtigungen per Telegram.', meta: `<span>${I.telegram.tail ? 'Gespeichert' : 'Nicht gesetzt'}</span>${(ui.draft.aaTg || {}).token ? unsaved : ''}`, sts: aaStateLine('Telegram', !!I.telegram.tail, I.telegram.bot ? '@' + esc(I.telegram.bot) : '') }),
     aaTile({ k: 'push', icon: 'bell', title: 'Web-Push', desc: 'Benachrichtigungen im Browser und in der installierten App.', meta: `<span>${I.push.has ? 'Schlüsselpaar vorhanden.' : 'Noch kein Schlüsselpaar.'}</span>`, sts: aaStateLine('Web-Push', I.push.has) }),
@@ -350,44 +351,189 @@ function aaSeerrRun() {
   if (/falsch/i.test(d.url)) c = 'unreachable';
   else if (/falsch/i.test(d.key)) c = 'badkey';
   else if (!S.seerr.configured && !d.key) c = 'nokey';
+  return aaSeerrRows(c);
+}
+/* address of Radarr or Sonarr that Slouchcat uses for the profile tag: its own, else the one Jellyseerr has */
+function aaArrAddr(a) { return (a.own || '').trim() || a.url; }
+/* «vor 40 s» below a minute, else the usual «vor 3 min» */
+function aaAgoS(ts) { const s = Math.round((Date.now() - ts) / 1000); return s < 60 ? `vor ${Math.max(1, s)} s` : ago(ts); }
+/* tested versions: Jellyseerr 2.7 and Seerr 3.x; an older one is a hint, not an error */
+function aaVersionOld(v) {
+  const m = /^(Jellyseerr|Seerr)\s+(\d+)\.(\d+)/.exec(v || '');
+  if (!m) return false;
+  const maj = Number(m[2]), min = Number(m[3]);
+  return m[1] === 'Jellyseerr' ? maj < 2 || (maj === 2 && min < 7) : maj < 3;
+}
+/* the check list for one condition of Jellyseerr; a warn is a hint and never fails the test */
+function aaSeerrRows(c) {
+  const ver = S.seerr.version || 'Seerr 3.5.2';
   const R = [
     ['Erreichbar', 'Antwort in 84 ms.'],
     ['Schlüssel gültig', 'Jellyseerr nimmt den Schlüssel an.'],
-    ['Version unterstützt (Seerr 3.5.2)', 'Braucht Jellyseerr 2.0 oder Seerr 3.0.'],
-    ['Handeln im Namen von Benutzern (X-API-User)', 'Wünsche gelten mit Rechten, Kontingent und Auto-Freigabe des zugeordneten Benutzers.'],
+    ['Version', ver],
+    ['Handeln im Namen von Benutzern (X-API-User)', 'Wünsche gelten mit Rechten, Limit und Auto-Freigabe des zugeordneten Benutzers.'],
     ['CSRF-Schutz in Jellyseerr aus', 'Schreibende Aufrufe kommen an.'],
     ['Radarr eingerichtet (1 Server)', 'Film-Wünsche gehen an Radarr.'],
     ['Sonarr eingerichtet (1 Server)', 'Serien-Wünsche gehen an Sonarr.'],
   ].map(([l, t]) => ({ k: 'ok', l, t }));
+  if (aaVersionOld(ver)) R[2] = { k: 'warn', l: 'Version', t: 'Version nicht geprüft: getestet sind Jellyseerr 2.7 und Seerr 3.x', short: 'Version nicht geprüft' };
+  R.push({ k: 'ok', isNew: true, l: 'Benutzer anlegen und ändern', t: 'Der Schlüssel des Administrators darf Konten in Jellyseerr eröffnen und Rechte, Limit und Passwort setzen.' });
+  R.push(S.seerr.localLogin
+    ? { k: 'ok', isNew: true, l: 'Lokale Anmeldung in Jellyseerr', t: 'Eröffnete Benutzer melden sich in Jellyseerr mit E-Mail und Passwort aus Slouchcat an.' }
+    : { k: 'warn', isNew: true, l: 'Lokale Anmeldung in Jellyseerr', t: 'Eröffnete Benutzer können sich in Jellyseerr nicht anmelden. In Jellyseerr unter Einstellungen › Benutzer «Lokale Anmeldung» einschalten.', short: 'Lokale Anmeldung in Jellyseerr aus' });
+  R.push(S.seerr.seasonsFrom === 'tvdb'
+    ? { k: 'ok', isNew: true, l: 'Staffeln aus TVDB', t: 'Jellyseerr, Sonarr und die Slouchcat-Bibliothek zählen Staffeln gleich.' }
+    : { k: 'warn', isNew: true, l: 'Staffeln aus TVDB', t: 'Jellyseerr liest Staffeln aus TMDB. Empfohlen ist TVDB, wie in Sonarr und in der Slouchcat-Bibliothek, sonst können Staffelnummern abweichen.', short: 'Staffeln aus TMDB' });
+  if (aaArrOn()) ['radarr', 'sonarr'].forEach((k) => {
+    const a = S.arr[k], addr = aaArrAddr(a);
+    R.push(a.condition === 'ok'
+      ? { k: 'ok', isNew: true, l: `${a.name} für Profil-Tags und Fortschritt`, t: `${a.name} erreichbar unter ${addr} · Warteschlange lesbar · Tag Requests: ${a.tagRequests ? 'an' : 'aus'}` }
+      : { k: 'warn', isNew: true, l: `${a.name} für Profil-Tags und Fortschritt`, t: `${a.name} nicht erreichbar: Profil-Tags werden nachgeholt, sobald es geht; der Download-Fortschritt fehlt so lange. Eigene Adresse eintragen?`, short: `${a.name} für Profil-Tags und Fortschritt nicht erreichbar` });
+  });
   const rest = (from) => { for (let i = from; i < R.length; i++) R[i] = { ...R[i], k: 'wait', t: 'nicht geprüft' }; };
   if (c === 'unreachable') { R[0] = { ...R[0], k: 'bad', t: 'Keine Antwort nach 10 Sekunden. Läuft Jellyseerr, stimmt die Adresse?' }; rest(1); }
   else if (c === 'badkey') { R[1] = { ...R[1], k: 'bad', t: 'Jellyseerr antwortet mit 403.' }; rest(2); }
   else if (c === 'nokey') { R[1] = { ...R[1], k: 'bad', t: 'Kein Schlüssel eingetragen.' }; rest(2); }
-  else if (c === 'csrf') R[4] = { ...R[4], k: 'bad', t: 'Schreibende Aufrufe scheitern, solange der Schutz an ist. In Jellyseerr unter Einstellungen › Netzwerk ausschalten.' };
+  else if (c === 'csrf') {
+    R[4] = { ...R[4], k: 'bad', t: 'Schreibende Aufrufe scheitern, solange der Schutz an ist. In Jellyseerr unter Einstellungen › Netzwerk ausschalten.' };
+    R[7] = { ...R[7], k: 'bad', t: 'Scheitert wie alle schreibenden Aufrufe, solange der CSRF-Schutz an ist. Konten werden danach beim nächsten Abgleich eröffnet.' };
+  }
   const bad = R.filter((r) => r.k === 'bad').length, warn = R.filter((r) => r.k === 'warn').length;
   return { at: Date.now(), rows: R, bad, warn };
 }
+/* accounts with the wish right but without a Jellyseerr user (not opened, waiting, or only a proposed link);
+   none when the collective user covers them (F-4) */
+function aaNoUserAccounts() { return S.settings.wishes.unmapped === 'fallback' && S.settings.wishes.fallbackUser ? [] : S.accounts.filter((a) => a.canRequest && !accSeerr(a).user); }
+/* hints of the saved connection, as the tile on «Integrationen» shows them (the first one stands in the tile) */
+function aaSeerrHintList() {
+  if (seerrState().k !== 'ok') return [];
+  const out = aaSeerrRows('ok').rows.filter((r) => r.k === 'warn').map((r) => r.short || r.l);
+  const n = aaNoUserAccounts().length;
+  if (n) out.push(`${n} ${n === 1 ? 'Konto' : 'Konten'} ohne Jellyseerr-Benutzer`);
+  return out;
+}
+function aaSeerrHints() { return aaSeerrHintList().length; }
+const aaHintWord = (n) => `${n} ${n === 1 ? 'Hinweis' : 'Hinweise'}`;
 function aaChecksHtml(res) {
   const ic = { ok: 'check', bad: 'x', warn: 'alert', wait: 'clock' };
-  return `<ul class="checks" aria-label="Ergebnis des Verbindungstests">${res.rows.map((r) => `<li class="${r.k}">${icon(ic[r.k], 18)}<div><b>${esc(r.l)}</b><small>${esc(r.t)}</small></div></li>`).join('')}</ul>`;
+  return `<ul class="checks" aria-label="Ergebnis des Verbindungstests">${res.rows.map((r) => `<li class="${r.k}">${icon(ic[r.k], 18)}<div><b>${esc(r.l)}${r.isNew ? ' ' + aaNew() : ''}</b><small>${esc(r.t)}</small></div></li>`).join('')}</ul>`;
+}
+/* Radarr and Sonarr are called for profile tags and for the download progress of wishes (read only) */
+function aaArrOn() { return S.settings.wishes.tags.enabled || progressOn(); }
+/* «Radarr erreichbar · Sonarr nicht erreichbar» */
+function aaArrSummary() {
+  if (!aaArrOn()) return 'aus · Profil-Tags und Fortschritt ausgeschaltet';
+  return ['radarr', 'sonarr'].map((k) => `${S.arr[k].name} ${S.arr[k].condition === 'ok' ? 'erreichbar' : 'nicht erreichbar'}`).join(' · ');
+}
+function aaArrDown() { return aaArrOn() ? ['radarr', 'sonarr'].map((k) => S.arr[k]).filter((a) => a.condition !== 'ok') : []; }
+/* tags that failed, or that have waited for more than 24 hours since the title was handed over */
+/* a tag that could not be set; a tag that is still waiting for the title does not count */
+function aaTagLate(w) { return wishTags(w).filter((x) => x.state === 'fail'); }
+/* counters of the band: tags set in the last 30 days, still open, failed */
+function aaTagCounts() {
+  const since = Date.now() - 30 * D;
+  const all = S.wishes.flatMap((w) => wishTags(w).map((x) => ({ ...x, w })));
+  return {
+    set: S.wishes.reduce((n, w) => n + w.events.filter((e) => e.k === 'tagged' && e.at > since).length, 0),
+    open: all.filter((x) => x.state === 'wait' && x.w.seerrRequestId && ['processing', 'partial'].includes(x.w.state)).length,
+    fail: all.filter((x) => x.state === 'fail').length,
+  };
+}
+/* wishes whose download progress Radarr or Sonarr report right now */
+function aaDlWishes() { return S.wishes.filter((w) => { const x = dlInfo(w); return x && x.k !== 'unknown'; }); }
+function aaLimitText(l) {
+  const part = (x, w) => (x && x.n ? `${x.n} ${w}` : `${w} ohne Limit`);
+  if (!l.movie.n && !l.tv.n) return 'ohne Limit';
+  const same = l.movie.days === l.tv.days || !l.movie.n || !l.tv.n;
+  const days = l.movie.n ? l.movie.days : l.tv.days;
+  return same ? `${part(l.movie, 'Filme')} / ${part(l.tv, 'Staffeln')} je ${days} Tage` : `${l.movie.n} Filme je ${l.movie.days} Tage / ${l.tv.n} Staffeln je ${l.tv.days} Tage`;
+}
+const AA_OPENED = ['created', 'linked', 'manual'];
+/* band «Benutzer und Limit» */
+function aaUsersBand() {
+  const w = S.settings.wishes, lim = w.limit;
+  const st = S.accounts.map((a) => accSeerr(a));
+  const opened = st.filter((x) => AA_OPENED.includes(x.state)).length;
+  const counts = Object.keys(SEERR_ACC).map((k) => [k, st.filter((x) => x.state === k).length]).filter(([, n]) => n);
+  const log = S.seerr.log.filter((l) => l.op === 'Benutzer eröffnen' || l.op === 'Passwort abgleichen').slice(0, 3);
+  const onoff = (v) => `<span class="chip ${v ? 'ok' : 'outline'}">${v ? 'an' : 'aus'}</span>`;
+  const meta = `<span>${opened} von ${S.accounts.length} Konten eröffnet</span><span class="aa-sep">·</span><span>Limit ${esc(aaLimitText(lim))}</span>${st.some((x) => x.state === 'waiting') ? '<span class="chip warn">wartet</span>' : ''}`;
+  const body = `<p class="sec">Jedes Konto hat in Jellyseerr einen eigenen Benutzer mit demselben Login. Seine Profile fordern als dieser Benutzer an und tragen einen Tag. Rechte, Limit und Freigabe kommen von diesem Benutzer.</p>
+    <dl class="kv aa-kv">
+      <dt>Konten in Jellyseerr eröffnen</dt><dd>${onoff(w.provision)}</dd>
+      <dt>Passwort abgleichen</dt><dd>${onoff(w.pwSync)}</dd>
+      <dt>Passwort</dt><dd>Slouchcat gibt das Passwort an Jellyseerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Ein Passwort, das jemand direkt in Jellyseerr ändert, bemerkt Slouchcat nicht.</dd>
+      <dt>Lokale Anmeldung in Jellyseerr</dt><dd>${onoff(S.seerr.localLogin)} <span class="muted">wird in Jellyseerr eingestellt (Einstellungen › Benutzer)</span></dd>
+      <dt>Limit ab Werk</dt><dd>${esc(aaLimitText(lim))}, rollierend. Slouchcat schreibt es in den Jellyseerr-Benutzer, Jellyseerr zählt.<br><span class="muted">Administratoren in Jellyseerr haben kein Limit.</span></dd>
+    </dl>
+    <div class="row-gap"><a class="lnk" href="#/admin/wishes/settings" data-fid="aa:sj:usr:set">Schalter und Limit unter Wünsche › Einstellungen ändern</a></div>
+    <h3 class="aa-h3">Konten in Jellyseerr</h3>
+    <ul class="aa-counts">${counts.map(([k, n]) => `<li><span class="chip ${SEERR_ACC[k].chip}">${n}</span><span>${esc(SEERR_ACC[k].label)}</span></li>`).join('')}</ul>
+    <div class="row-gap"><a class="btn secondary sm" href="#/admin/wishes/mapping" data-fid="aa:sj:usr:map">${icon('users', 16)}Jellyseerr-Benutzer verwalten</a></div>
+    <h3 class="aa-h3">Zuletzt</h3>
+    ${log.length ? `<ul class="feed aa-feed">${log.map((l) => `<li><time datetime="${new Date(l.at).toISOString()}">${fmtTime(l.at)}<br>${ago(l.at)}</time><span class="dot ${l.res === 'ok' ? 'ok' : 'bad'}" aria-label="${l.res === 'ok' ? 'gelungen' : 'Fehler'}"></span><div class="grow"><b>${esc(l.op)}</b> <span class="sec">${esc(l.text)}</span></div></li>`).join('')}</ul>` : '<p class="muted">Noch kein Konto eröffnet und kein Passwort abgeglichen.</p>'}`;
+  return band('aa:sj:users', `Benutzer und Limit ${aaNew()}`, meta, body, { icon: 'users' });
+}
+/* draft of the own addresses; saved with «Speichern» of the band */
+function aaArrDraft() { if (!ui.draft.aaArr) ui.draft.aaArr = { radarr: S.arr.radarr.own || '', sonarr: S.arr.sonarr.own || '' }; return ui.draft.aaArr; }
+function aaArrDirty() { const d = ui.draft.aaArr; return !!d && ['radarr', 'sonarr'].some((k) => (d[k] || '').trim() !== (S.arr[k].own || '').trim()); }
+/* the fact «Download-Fortschritt» of the bands «Abgleich» and «Radarr und Sonarr» */
+function aaProgFact(o = {}) {
+  if (!progressOn()) return null;
+  const down = aaArrDown();
+  if (down.length) return { k: 'bad', t: `Fortschritt nicht lesbar: ${down.map((a) => a.name).join(' und ')} nicht erreichbar` };
+  const l = aaLast('wishes.progress'), n = aaDlWishes().length;
+  return { k: 'ok', t: o.sync ? `Fortschritt aus Radarr und Sonarr: jede Minute, solange Wünsche in Beschaffung sind${l ? ` · zuletzt ${aaAgoS(l.at)}` : ''}` : `an · ${n} ${n === 1 ? 'Wunsch' : 'Wünsche'} mit Fortschritt${l ? ` · zuletzt gelesen ${aaAgoS(l.at)}` : ''}` };
+}
+/* band «Radarr und Sonarr (Profil-Tags und Fortschritt)» */
+function aaArrBand() {
+  const tags = S.settings.wishes.tags.enabled, on = aaArrOn(), down = aaArrDown(), d = aaArrDraft(), tc = aaTagCounts(), dl = aaDlWishes().length;
+  const dirty = aaArrDirty() ? '<span class="chip warn">ungespeichert</span>' : '';
+  const meta = `${dirty}<span>${esc(aaArrSummary())}${on && tags ? ` · ${tc.open} ${tc.open === 1 ? 'Tag' : 'Tags'} offen` : ''}${on && progressOn() ? ` · ${dl} ${dl === 1 ? 'Download' : 'Downloads'}` : ''}</span>${down.length ? '<span class="chip bad">Fehler</span>' : ''}`;
+  const row = (k) => {
+    const a = S.arr[k], busy = ui.busy['aaArr' + k], t = (ui.aaArrTest || {})[k];
+    return `<section class="aa-arr" aria-label="${a.name}"><div class="aa-arrh"><b>${a.name}</b>${a.condition === 'ok' ? '<span class="chip ok">Erreichbar</span>' : '<span class="chip warn">Nicht erreichbar · Eigene Adresse eintragen</span>'}</div>
+      <dl class="kv aa-kv"><dt>Adresse aus Jellyseerr</dt><dd class="mono">${esc(a.url)}</dd>
+        <dt>Tag Requests in Jellyseerr</dt><dd>${a.tagRequests ? 'an' : 'aus · Empfohlen: dann trägt jeder Titel auch den Tag des Kontos'}</dd></dl>
+      <div class="fld"><label for="aa-arr-${k}-own">Eigene Adresse</label><input id="aa-arr-${k}-own" class="inp" type="url" data-bind="ui.draft.aaArr.${k}" data-rerender data-fid="aa:arr:${k}:own" value="${esc(d[k] || '')}" placeholder="Leer: ${esc(a.url)}" ${aaInv('arr' + k)}><span class="hint">Nur nötig, wenn Slouchcat die Adresse aus Jellyseerr nicht erreicht, etwa bei Docker-internen Namen. Leer lassen, um die Adresse aus Jellyseerr zu nehmen. Den Schlüssel liest Slouchcat immer aus Jellyseerr.</span>${aaErrHtml('arr' + k)}</div>
+      <div class="row-gap"><button type="button" class="btn secondary sm" data-act="aaArrTest" data-id="${k}" data-fid="aa:arr:${k}:test" ${busy ? 'disabled aria-disabled="true"' : ''} aria-label="${a.name} testen">${busy ? '<span class="spin"></span>' : icon('zap', 14)}Testen</button>${busy ? '<span role="status">Wird geprüft …</span>' : t ? `<span class="sec" role="status">Geprüft ${fmtTime(t.at)}: ${esc(t.text)}</span>` : ''}</div></section>`;
+  };
+  const cnt = (n, href, fid, label) => `<dt>${label}</dt><dd><a class="lnk" href="${href}" data-fid="${fid}">${n}</a></dd>`;
+  const pf = aaProgFact();
+  const body = `<p class="sec">Slouchcat legt in Radarr und Sonarr je Profil einen Tag an und hängt ihn an den Titel, sobald Jellyseerr ihn dorthin übergeben hat. Dazu liest es die Warteschlange und den Dateistand der gewünschten Titel, um bei Wünschen den Download-Fortschritt zu zeigen. Sonst ändert Slouchcat in Radarr und Sonarr nichts. Neue Titel meldet weiter der Webhook.</p>
+    ${on ? '' : notice('', 'Profil-Tags und Download-Fortschritt sind ausgeschaltet.', 'Slouchcat ruft Radarr und Sonarr nicht auf.')}
+    <div class="aa-arrs">${row('radarr')}${row('sonarr')}</div>
+    <div class="row-gap"><button type="button" class="btn primary" data-act="aaArrSave" data-fid="aa:arr:save">Speichern</button>${dirty}</div>
+    <dl class="kv aa-kv">
+      ${tags ? cnt(tc.set, '#/admin/wishes', 'aa:arr:c:set', 'Tags gesetzt (30 Tage)') + cnt(tc.open, '#/admin/wishes?f=notag', 'aa:arr:c:open', 'offen') + cnt(tc.fail, '#/admin/wishes?f=notag', 'aa:arr:c:fail', 'fehlgeschlagen') : '<dt>Profil-Tag</dt><dd>aus</dd>'}
+      <dt>Download-Fortschritt ${aaNew()}</dt><dd>${pf ? `<span class="${pf.k === 'bad' ? 'err' : ''}">${esc(pf.t)}</span>` : 'aus · <a class="lnk" href="#/admin/wishes/settings" data-fid="aa:arr:progset">Einstellungen</a>'}</dd>
+    </dl>
+    <ul class="aa-links-in">
+      <li><a class="lnk" href="#/admin/wishes/settings" data-fid="aa:arr:set">Präfix ${esc(S.settings.wishes.tags.prefix)} und Download-Fortschritt · Einstellungen</a></li>
+      <li><a class="lnk" href="#/admin/wishes/mapping" data-fid="aa:arr:map">Namen je Profil · Jellyseerr-Benutzer</a></li>
+      <li><a class="lnk" href="#/admin/integrations/webhooks" data-fid="aa:arr:hooks">Webhooks von Radarr und Sonarr · unverändert, von Hand eingerichtet</a></li>
+    </ul>
+    <p class="aa-mockhint">Mockup: Den Zustand von Radarr und Sonarr stellst du unten rechts unter «Mockup» um. Eine eigene Adresse, die «falsch» enthält, ist nicht erreichbar.</p>`;
+  return band('aa:sj:arr', `Radarr und Sonarr (Profil-Tags und Fortschritt) ${aaNew()}`, meta, body, { icon: 'pin', open: down.length > 0 });
 }
 function aaSeerrView() {
   const st = seerrState(), c = S.seerr, d = aaSeerrDraft(), wc = wishCounts(), mc = aaMapCounts();
   const busy = ui.busy.seerrTest, test = ui.aaSeerrTest;
   const status = `<div class="aa-status"><span class="chip ${st.chip}">${st.label}</span>${c.configured ? `<span>${esc(c.version)}</span><span class="aa-sep">·</span><span>Zuletzt abgeglichen ${ago(c.lastSync)}</span>` : '<span>Trage Adresse und Schlüssel ein.</span>'}</div>`;
   const dirty = aaSeerrDirty() ? '<span class="chip warn">ungespeichert</span>' : '';
-  const guide = !c.configured ? `<ol class="aa-steps"><li>In Jellyseerr unter Einstellungen › Allgemein den API-Schlüssel kopieren.</li><li>Adresse und Schlüssel hier eintragen und «Verbindung testen».</li><li>«Speichern». Danach unter <a class="lnk" href="#/admin/wishes/mapping" data-fid="aa:sj:guide:map">Wünsche › Zuordnung</a> die Konten den Jellyseerr-Benutzern zuordnen.</li></ol>` : '';
+  const guide = !c.configured ? `<ol class="aa-steps"><li>In Jellyseerr unter Einstellungen › Allgemein den API-Schlüssel kopieren.</li><li>Adresse und Schlüssel hier eintragen und «Verbindung testen».</li><li>«Speichern». Danach unter <a class="lnk" href="#/admin/wishes/mapping" data-fid="aa:sj:guide:map">Wünsche › Jellyseerr-Benutzer</a> die Konten in Jellyseerr eröffnen.</li></ol>` : '';
   const conn = `${guide}
     ${aaSrow('Jellyseerr verwenden', 'Aus: Slouchcat ruft Jellyseerr nicht auf. Wünsche bleiben gespeichert.', sw('S.seerr.enabled', 'Jellyseerr verwenden', { after: 'aaSeerrToggled', disabled: !c.configured }) + (c.configured ? '' : '<span class="muted">Erst nach dem Speichern der Verbindung.</span>'), { isNew: true })}
     ${aaSrow('Adresse', 'Zum Beispiel http://192.168.1.50:5055. Slouchcat spricht nur diese Adresse an. Eine Adresse im Heimnetz ist erlaubt; Weiterleitungen folgt Slouchcat nicht.', `<input class="inp" type="url" data-bind="ui.draft.seerr.url" data-fid="aa:sj:url" value="${esc(d.url)}" placeholder="http://192.168.1.50:5055" aria-label="Adresse" ${aaInv('seerrUrl')}>${aaErrHtml('seerrUrl')}`, { col: true, isNew: true })}
     ${aaSrow('API-Schlüssel', 'Aus Jellyseerr: Einstellungen › Allgemein. Leer lassen, um den gespeicherten zu behalten.', `<input class="inp" type="password" autocomplete="new-password" data-bind="ui.draft.seerr.key" data-fid="aa:sj:key" value="${esc(d.key)}" placeholder="${c.configured && c.keyTail ? 'Gesetzt, endet auf …' + esc(c.keyTail) : ''}" aria-label="API-Schlüssel" ${aaInv('seerrKey')}>${aaErrHtml('seerrKey')}`, { col: true, isNew: true })}
     <div class="row-gap"><button type="button" class="btn secondary" data-act="aaSeerrTest" data-fid="aa:sj:test" ${busy ? 'disabled aria-disabled="true"' : ''}>${busy ? '<span class="spin"></span>' : icon('zap', 16)}Verbindung testen</button><button type="button" class="btn primary" data-act="aaSeerrSave" data-fid="aa:sj:save">Speichern</button><button type="button" class="btn quiet" data-act="aaSeerrDiscard" data-fid="aa:sj:discard" ${aaSeerrDirty() ? '' : 'disabled'}>Verwerfen</button>${dirty}</div>
-    ${busy ? '<div class="row-gap" role="status"><span class="spin"></span><span>Verbindung wird geprüft …</span></div>' : test ? `<div class="aa-test">${notice(test.bad ? 'bad' : test.warn ? 'warn' : 'ok', test.bad ? 'Der Test ist gescheitert.' : test.warn ? 'Verbunden, mit einer Warnung.' : 'Alle Prüfungen bestanden.', `Geprüft ${fmtTime(test.at)}.`)}${aaChecksHtml(test)}</div>` : ''}
+    ${busy ? '<div class="row-gap" role="status"><span class="spin"></span><span>Verbindung wird geprüft …</span></div>' : test ? `<div class="aa-test">${notice(test.bad ? 'bad' : 'ok', test.bad ? `Der Test ist gescheitert: ${esc(test.rows.filter((r) => r.k === 'bad').map((r) => r.l).join(', '))}.` : test.warn ? `Verbunden · ${aaHintWord(test.warn)}` : 'Alle Prüfungen bestanden.', `Geprüft ${fmtTime(test.at)}.${test.warn && !test.bad ? ' Ein Hinweis hält nichts auf; er sagt, was in Jellyseerr besser eingestellt wäre.' : ''}`)}${aaChecksHtml(test)}</div>` : ''}
     <p class="aa-mockhint">Mockup: Den Zustand von Jellyseerr stellst du unten rechts unter «Mockup» um. Enthält die Adresse oder der Schlüssel «falsch», scheitert der Test.</p>
     ${c.configured ? `<div class="aa-danger"><button type="button" class="btn dq" data-act="aaSeerrDelete" data-fid="aa:sj:delete">${icon('trash', 16)}Verbindung löschen …</button></div>` : ''}`;
   const lastBad = aaLastBad('Abgleich');
   const every = aaSyncEvery(), next = c.lastSync + AA_EVERY_MS[every] - Date.now();
   const syncMeta = c.configured ? `<span>Zuletzt ${ago(c.lastSync)} · alle ${every}</span>${st.k !== 'ok' && st.k !== 'off' ? '<span class="chip bad">Fehler</span>' : ''}` : '<span>Nicht eingerichtet</span>';
+  const pf = aaProgFact({ sync: true });
   const sync = `<dl class="kv">
       <dt>Letzter erfolgreicher Abgleich</dt><dd>${c.configured ? aaWhen(c.lastSync) + ` (${ago(c.lastSync)})` : '–'}${st.k !== 'ok' && lastBad && lastBad.at > c.lastSync ? `<br><span class="err">Letzter Versuch ${fmtTime(lastBad.at)}: ${esc(lastBad.text)}</span>` : ''}</dd>
       <dt>Nächster Lauf</dt><dd>${st.k === 'ok' ? `in ${aaDur(Math.max(60e3, next))}` : st.k === 'off' || st.k === 'none' ? 'aus' : `in ${aaDur(Math.max(60e3, next))}, solange Jellyseerr ${st.k === 'unreachable' ? 'nicht erreichbar ist, ohne Wirkung' : 'den Schlüssel ablehnt, ohne Wirkung'}`}</dd>
@@ -395,6 +541,7 @@ function aaSeerrView() {
       <dt>Offene Wünsche</dt><dd><a class="lnk" href="#/admin/wishes" data-act="aaGoWishes" data-f="open" data-fid="aa:sj:c:open">${wc.open}</a></dd>
       <dt>Warten auf Übermittlung</dt><dd><a class="lnk" href="#/admin/wishes" data-act="aaGoWishes" data-f="queued" data-fid="aa:sj:c:queued">${wc.queued}</a></dd>
       <dt>Nicht zuordenbar</dt><dd><a class="lnk" href="#/admin/wishes" data-act="aaGoWishes" data-f="unassigned" data-fid="aa:sj:c:un">${wc.unassigned}</a></dd>
+      <dt>Download-Fortschritt ${aaNew()}</dt><dd>${pf ? `<span class="${pf.k === 'bad' ? 'err' : ''}">${esc(pf.t)}</span>` : 'aus'}. Der Abgleich mit Jellyseerr bleibt davon unberührt. ${c.configured ? '<button type="button" class="lnk" data-act="aaToArrBand" data-fid="aa:sj:prog">Zum Band Radarr und Sonarr</button>' : ''}</dd>
     </dl>
     <div class="row-gap"><button type="button" class="btn secondary" data-act="aaSyncNow" data-fid="aa:sj:sync" ${c.configured ? '' : 'disabled'}>${icon('refresh', 16)}Jetzt abgleichen</button><a class="lnk" href="#/admin/jobs?group=system" data-fid="aa:sj:jobs">Zu den Jobs</a></div>`;
   const shown = ui.aaSeerrHook;
@@ -412,10 +559,11 @@ function aaSeerrView() {
   const html = `${status}
     ${band('aa:sj:conn', 'Verbindung', `${dirty}<span>${c.configured ? esc(c.url) : 'Keine Adresse'}</span><span class="chip ${st.chip}">${st.label}</span>`, conn, { open: openConn, icon: 'plug' })}
     ${band('aa:sj:sync', 'Abgleich', syncMeta + `<span>${wc.open} offen</span>`, sync, { icon: 'refresh' })}
+    ${c.configured ? aaUsersBand() + aaArrBand() : ''}
     ${band('aa:sj:hook', 'Sofortmeldung', `<span class="chip info">Stufe 4</span><span>${c.webhook ? 'Eingerichtet' : 'Aus'}</span>`, hook, { icon: 'zap' })}
     ${band('aa:sj:log', 'Protokoll', log.length ? `<span>${log.length} Einträge · ${errs} ${errs === 1 ? 'Fehler' : 'Fehler'}</span><span>Zuletzt: ${esc(log[0].op)} ${ago(log[0].at)}</span>` : '<span>leer</span>', logBody, { icon: 'list' })}
     <section class="card aa-links" aria-label="Verweise"><ul>
-      <li><a class="lnk" href="#/admin/wishes/mapping" data-fid="aa:sj:l:map">Zuordnung: ${mc.mapped} von ${mc.total} Konten zugeordnet</a></li>
+      <li><a class="lnk" href="#/admin/wishes/mapping" data-fid="aa:sj:l:map">Jellyseerr-Benutzer: ${mc.mapped} von ${mc.total} Konten eröffnet oder verknüpft</a></li>
       <li><a class="lnk" href="#/admin/wishes/settings" data-fid="aa:sj:l:set">Was angefordert werden darf</a></li>
       <li><a class="lnk" href="#/admin/wishes" data-fid="aa:sj:l:all">Alle Wünsche</a></li>
       ${aaInt().server.publicUrl ? '' : '<li class="muted">Ohne öffentliche Adresse fehlen Links in E-Mails. <a class="lnk" href="#/admin/integrations/server" data-fid="aa:sj:l:srv">Integrationen › Server</a></li>'}
@@ -423,6 +571,51 @@ function aaSeerrView() {
   return { h1: 'Jellyseerr', intro: 'Slouchcat reicht Wünsche an Jellyseerr weiter und liest ihren Zustand. Freigabe und Beschaffung bleiben in Jellyseerr.', html };
 }
 ACT.aaSeerrToggled = () => { logSeerr('Einstellungen', 'ok', S.seerr.enabled ? 'Jellyseerr eingeschaltet' : 'Jellyseerr ausgeschaltet: keine Aufrufe mehr'); save(); toast(S.seerr.enabled ? 'Jellyseerr eingeschaltet.' : 'Jellyseerr ausgeschaltet. Wünsche bleiben gespeichert.', 'ok'); };
+/* «Testen» for Radarr or Sonarr: checks the entered address (tag list and queue); simulated: an address with «falsch»
+   is unreachable, a new address answers, the saved one answers as the mockup condition says */
+ACT.aaArrTest = (d) => {
+  const a = S.arr[d.id], own = (aaArrDraft()[d.id] || '').trim();
+  if (own && !/^https?:\/\/[^\s/]+/.test(own)) { aaSetErr('arr' + d.id, 'Die Adresse beginnt mit http:// oder https://.'); render(); return; }
+  aaSetErr('arr' + d.id);
+  ui.busy['aaArr' + d.id] = true; render();
+  setTimeout(() => {
+    ui.busy['aaArr' + d.id] = false;
+    const addr = own || a.url, saved = own === (a.own || '').trim();
+    const ok = !/falsch/i.test(addr) && (!saved || a.condition === 'ok' || !!a.aaFalsch);
+    const text = ok ? `erreichbar unter ${addr} · Schlüssel gültig · Warteschlange lesbar` : `nicht erreichbar unter ${addr}`;
+    (ui.aaArrTest = ui.aaArrTest || {})[d.id] = { at: Date.now(), ok, text };
+    logSeerr('Radarr und Sonarr', ok ? 'ok' : 'bad', `${a.name}: ${text}${saved ? '' : ' (noch nicht gespeichert)'}`);
+    toast(ok ? `${esc(a.name)} antwortet unter ${esc(addr)}, die Warteschlange ist lesbar.${saved ? '' : ' Speichere die Adresse, damit Slouchcat sie nutzt.'}` : `${esc(a.name)} antwortet nicht unter ${esc(addr)}. Trage eine Adresse ein, die Slouchcat erreicht.`, ok ? 'ok' : 'bad');
+    save(); render();
+  }, 900);
+};
+/* «Speichern» of the band: takes the own addresses; simulated: «falsch» is unreachable, a corrected one answers */
+ACT.aaArrSave = () => {
+  const d = aaArrDraft();
+  let bad = false;
+  ['radarr', 'sonarr'].forEach((k) => { const v = (d[k] || '').trim(); const e = v && !/^https?:\/\/[^\s/]+/.test(v) ? 'Die Adresse beginnt mit http:// oder https://.' : ''; aaSetErr('arr' + k, e); if (e) bad = true; });
+  if (bad) { render(); return; }
+  const changed = [];
+  ['radarr', 'sonarr'].forEach((k) => {
+    const a = S.arr[k], v = (d[k] || '').trim();
+    if (v === (a.own || '').trim()) return;
+    a.own = v; changed.push(a.name);
+    if (/falsch/i.test(v)) { a.condition = 'unreachable'; a.aaFalsch = true; }
+    else if (a.aaFalsch || (v && a.condition !== 'ok')) { a.condition = 'ok'; delete a.aaFalsch; }
+    logSeerr('Radarr und Sonarr', a.condition === 'ok' ? 'ok' : 'bad', `${a.name}: ${v ? 'eigene Adresse ' + v : 'Adresse aus Jellyseerr'} gespeichert, ${a.condition === 'ok' ? 'erreichbar' : 'nicht erreichbar'}`);
+  });
+  ui.draft.aaArr = null;
+  if (!changed.length) { toast('Nichts geändert.', 'ok', 2500); render(); return; }
+  S.wishes.forEach(applyTags);
+  toast(`Gespeichert: ${esc(changed.join(' und '))}.`, 'ok');
+  commit();
+};
+/* link «Zum Band Radarr und Sonarr» in the band «Abgleich» */
+ACT.aaToArrBand = () => {
+  ui.open['aa:sj:arr'] = true; render();
+  const el = document.querySelector('[data-fid="band:aa:sj:arr"]');
+  if (el) { if (el.scrollIntoView) el.scrollIntoView({ block: 'start' }); el.focus(); }
+};
 ACT.aaSeerrTest = () => {
   const d = aaSeerrDraft();
   if (!d.url.trim()) { aaSetErr('seerrUrl', 'Gib die Adresse von Jellyseerr ein.'); ui.aaSeerrTest = null; render(); return; }
@@ -433,7 +626,7 @@ ACT.aaSeerrTest = () => {
     const r = aaSeerrRun();
     ui.aaSeerrTest = r;
     S.seerr.lastTest = r.at;
-    logSeerr('Verbindung testen', r.bad ? 'bad' : 'ok', r.bad ? r.rows.find((x) => x.k === 'bad').l + ': ' + r.rows.find((x) => x.k === 'bad').t : r.warn ? 'Seerr 3.5.2, CSRF-Schutz ist an' : 'Seerr 3.5.2, alle Prüfungen bestanden');
+    logSeerr('Verbindung testen', r.bad ? 'bad' : 'ok', r.bad ? r.rows.find((x) => x.k === 'bad').l + ': ' + r.rows.find((x) => x.k === 'bad').t : r.warn ? `Seerr 3.5.2, verbunden, ${aaHintWord(r.warn)}: ${r.rows.filter((x) => x.k === 'warn').map((x) => x.l).join(', ')}` : 'Seerr 3.5.2, alle Prüfungen bestanden');
     save(); render();
   }, 1200);
 };
@@ -454,7 +647,7 @@ ACT.aaSeerrSave = () => {
   if (first) c.lastSync = Date.now();
   logSeerr('Einstellungen', 'ok', 'Verbindung gespeichert; Benutzerliste wird geladen');
   ui.draft.seerr = { url: c.url, key: '' };
-  toast(first ? 'Verbindung gespeichert. Ordne jetzt die Konten zu: <a href="#/admin/wishes/mapping">Zuordnung</a>' : 'Verbindung zu Jellyseerr gespeichert.', 'ok', 6500);
+  toast(first ? 'Verbindung gespeichert. Eröffne jetzt die Konten in Jellyseerr: <a href="#/admin/wishes/mapping">Jellyseerr-Benutzer</a>' : 'Verbindung zu Jellyseerr gespeichert.', 'ok', 6500);
   commit();
 };
 ACT.aaSeerrDiscard = () => { ui.draft.seerr = null; aaSetErr('seerrUrl'); aaSetErr('seerrKey'); toast('Änderungen verworfen.', 'ok', 2500); render(); };
@@ -479,9 +672,9 @@ ACT.aaSjHookDelGo = () => { Object.assign(S.seerr, { webhook: false, webhookTail
 ACT.aaSjHookPing = () => { S.seerr.webhookLast = Date.now(); const ok = syncNow(); aaJobMark('wishes.sync', ok); logSeerr('Sofortmeldung', ok ? 'ok' : 'bad', ok ? 'MEDIA_APPROVED: Abgleich angestossen' : 'Meldung erhalten, Abgleich nicht möglich'); toast('Jellyseerr hat gemeldet; der Abgleich lief sofort.', 'ok'); commit(); };
 
 /* ---------- M-30 Hintergrundjobs ---------- */
-const AA_EVERY = ['5 min', '15 min', '30 min', '1 h', '2 h', '6 h', '12 h', '24 h', '48 h', '7 d'];
-const AA_EVERY_MS = { '5 min': 5 * 60e3, '15 min': 15 * 60e3, '30 min': 30 * 60e3, '1 h': H, '2 h': 2 * H, '6 h': 6 * H, '12 h': 12 * H, '24 h': D, '48 h': 2 * D, '7 d': 7 * D };
-const AA_EVERY_LABEL = { '5 min': 'alle 5 Minuten', '15 min': 'alle 15 Minuten', '30 min': 'alle 30 Minuten', '1 h': 'stündlich', '2 h': 'alle 2 Stunden', '6 h': 'alle 6 Stunden', '12 h': 'alle 12 Stunden', '24 h': 'täglich', '48 h': 'alle 2 Tage', '7 d': 'wöchentlich' };
+const AA_EVERY = ['1 min', '5 min', '15 min', '30 min', '1 h', '2 h', '6 h', '12 h', '24 h', '48 h', '7 d'];
+const AA_EVERY_MS = { '1 min': 60e3, '5 min': 5 * 60e3, '15 min': 15 * 60e3, '30 min': 30 * 60e3, '1 h': H, '2 h': 2 * H, '6 h': 6 * H, '12 h': 12 * H, '24 h': D, '48 h': 2 * D, '7 d': 7 * D };
+const AA_EVERY_LABEL = { '1 min': 'jede Minute', '5 min': 'alle 5 Minuten', '15 min': 'alle 15 Minuten', '30 min': 'alle 30 Minuten', '1 h': 'stündlich', '2 h': 'alle 2 Stunden', '6 h': 'alle 6 Stunden', '12 h': 'alle 12 Stunden', '24 h': 'täglich', '48 h': 'alle 2 Tage', '7 d': 'wöchentlich' };
 const AA_GROUPS = [['library', 'Bibliothek'], ['metadata', 'Metadaten'], ['delivery', 'Zustellung'], ['system', 'System']];
 const AA_POOLS = [['general', 'Allgemein', 4], ['download', 'Downloads', 1], ['notify', 'Benachrichtigungen', 2], ['index', 'Keyframe-Index', 1], ['trickplay', 'Vorschau beim Spulen', 1], ['podcast', 'Podcast-Folgen', 5]];
 /* [type, name, group, every ('' = event), pool, off by default, new, description] */
@@ -521,7 +714,7 @@ const AA_JOBS = [
   ['radio.catalog_sync', 'Radiokatalog abgleichen', 'metadata', '24 h', 'general', 0, 0, 'Gleicht die Senderliste mit Radio Browser ab.'],
   ['radio.wikidata_sync', 'Senderangaben aus Wikidata', 'metadata', '7 d', 'general', 0, 0, 'Holt Angaben zu den Sendern aus Wikidata.'],
   ['radio.logo.fetch', 'Senderlogo holen', 'metadata', '', 'general', 0, 0, 'Lädt das Logo eines Senders.'],
-  ['titles.refresh', 'Fehlende Titel auffrischen', 'metadata', '24 h', 'general', 0, 1, 'Frischt die Angaben zu fehlenden Titeln (Spotlight, offene Wünsche) bei TMDB auf, nach «Spotlight-Liste abrufen».'],
+  ['titles.refresh', 'Fehlende Titel auffrischen', 'metadata', '24 h', 'general', 0, 1, 'Frischt die Angaben zu fehlenden Titeln (fehlende Einträge der Trakt-Liste, offene Wünsche) bei TMDB auf, nach «Spotlight-Liste abrufen».'],
   ['series.catalog', 'Staffelliste der Serien', 'metadata', '7 d', 'general', 0, 1, 'Liest die Staffelliste laut TMDB für Serien in der Bibliothek, damit fehlende Staffeln erkennbar werden. Auch nach dem Zuordnen einer Serie.'],
   ['notify.deliver', 'Mitteilung zustellen', 'delivery', '', 'notify', 0, 0, 'Verschickt eine Benachrichtigung per E-Mail, Telegram oder Web-Push.'],
   ['download.prepare', 'Download vorbereiten', 'delivery', '', 'download', 0, 0, 'Bereitet einen Offline-Download vor.'],
@@ -530,9 +723,13 @@ const AA_JOBS = [
   ['jobs.prune', 'Verlauf aufräumen', 'system', '24 h', 'general', 0, 0, 'Entfernt Läufe, die älter als 30 Tage sind.'],
   ['wishes.sync', 'Wünsche abgleichen', 'system', '5 min', 'general', 0, 1, 'Liest den Zustand der Wünsche aus Jellyseerr und übermittelt wartende.'],
   ['wishes.reconcile', 'Verfügbare Wünsche prüfen', 'system', '1 h', 'general', 0, 1, 'Prüft, ob gewünschte Titel inzwischen in Slouchcat abspielbar sind, und meldet sie.'],
-  ['seerr.users', 'Jellyseerr-Benutzer laden', 'system', '24 h', 'general', 0, 1, 'Lädt die Benutzer aus Jellyseerr für die Zuordnung, mit Rechten und Kontingent.'],
+  ['seerr.users', 'Jellyseerr-Benutzer laden', 'system', '24 h', 'general', 0, 1, 'Lädt die Benutzer aus Jellyseerr mit Rechten und Limit.'],
   ['wishes.withdraw', 'Wunsch in Jellyseerr zurückziehen', 'delivery', '', 'general', 0, 1, 'Löscht nach dem Zurückziehen den Request in Jellyseerr, solange er nicht freigegeben ist. War er schon freigegeben, öffnet Slouchcat den Wunsch wieder.'],
   ['wishes.import', 'Anfragen aus Jellyseerr übernehmen (Stufe 4)', 'system', '', 'general', 0, 1, 'Liest die Anfragen eines Jellyseerr-Benutzers, sobald er einem Konto oder Profil zugeordnet wird, und führt sie als Wünsche mit dem Vermerk «In Jellyseerr angelegt».'],
+  ['seerr.provision', 'Konten in Jellyseerr eröffnen', 'system', '', 'general', 0, 1, 'Konten in Jellyseerr eröffnen und Rechte, Limit, Passwort nachziehen. Ein Konto mit derselben E-Mail wird verknüpft statt neu angelegt.'],
+  ['wishes.tag', 'Profil-Tag setzen', 'system', '', 'general', 0, 1, 'Hängt den Tag des Profils an den Titel, sobald Jellyseerr ihn an Radarr oder Sonarr übergeben hat, und holt Tags nach, die nicht gesetzt werden konnten. Ändert sonst nichts in Radarr und Sonarr.'],
+  ['wishes.progress', 'Download-Fortschritt lesen', 'system', '1 min', 'general', 0, 1, 'Liest für Wünsche in Beschaffung die Warteschlange von Radarr und Sonarr. Läuft nur, solange es solche Wünsche gibt; ändert dort nichts.'],
+  ['wishes.discover', 'Wünsche-Seiten vorladen', 'metadata', '1 h', 'general', 0, 1, 'Holt über Jellyseerr die Listen der Seiten «Entdecken», «Filme» und «Serien» (Trend, beliebt, demnächst) neu. Ruht, wenn die Seiten aus sind.'],
 ].map(([k, name, group, every, pool, off, isNew, desc]) => ({ k, name, group, every, pool, off: !!off, isNew: !!isNew, desc }));
 const aaJob = (k) => AA_JOBS.find((j) => j.k === k);
 function aaHash(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003; return h; }
@@ -543,7 +740,7 @@ function aaJobsState() {
     const now = Date.now();
     const last = {};
     AA_JOBS.forEach((j) => {
-      if (j.k.startsWith('wishes.') || j.k === 'seerr.users') return;
+      if (aaSeerrJob(j.k)) return;
       if (j.every && j.off) return;
       const span = j.every ? AA_EVERY_MS[j.every] : 3 * H;
       last[j.k] = { at: now - (aaHash(j.k) % Math.max(1, Math.floor(span / 60e3))) * 60e3 - 60e3, res: aaHash(j.k) % 5 === 0 ? 'skipped' : 'ok', err: '' };
@@ -570,7 +767,27 @@ function aaJobsState() {
   return S.aaJobs;
 }
 function aaSched(k) { const j = aaJob(k), s = (S.settings.jobs || {})[k] || {}; return { every: s.every || j.every, on: s.on ?? !j.off, win: !!s.win, from: s.from || '02:00', to: s.to || '05:00', once: s.once || '' }; }
-function aaSeerrJob(k) { return k.startsWith('wishes.') || k === 'seerr.users'; }
+function aaSeerrJob(k) { return k.startsWith('wishes.') || k === 'seerr.users' || k === 'seerr.provision'; }
+/* last run of the three jobs of Fassung 3 when the job state has none of its own yet */
+function aaLastNew(k, own) {
+  const newer = (x) => (own && (!x || own.at >= x.at) ? own : x);
+  if (k === 'seerr.provision') { const l = S.seerr.log.find((x) => x.op === 'Benutzer eröffnen'); return newer(l ? { at: l.at, res: l.res === 'ok' ? 'ok' : 'failed', err: l.res === 'ok' ? '' : l.text } : null); }
+  if (k === 'wishes.tag') {
+    if (!S.settings.wishes.tags.enabled) return own || null;
+    const fail = aaArrDown()[0];
+    return newer({ at: Date.now() - 4 * 60e3, res: fail ? 'failed' : 'ok', err: fail ? `${fail.name} ist nicht erreichbar` : '' });
+  }
+  if (k === 'wishes.progress') {
+    if (!progressOn()) return own || null;
+    if (!aaProgWishes().length) return newer({ at: Date.now() - 40 * 60e3, res: 'skipped', err: '' });
+    const fail = aaArrDown()[0];
+    return newer({ at: Date.now() - 40e3, res: fail ? 'failed' : 'ok', err: fail ? `${fail.name} ist nicht erreichbar` : '' });
+  }
+  if (k === 'wishes.discover') return S.settings.wishes.fromDiscover === false ? own || null : newer({ at: Date.now() - 17 * 60e3, res: 'ok', err: '' });
+  return own || null;
+}
+/* wishes being acquired, whose progress «Download-Fortschritt lesen» reads */
+function aaProgWishes() { return S.wishes.filter((w) => dlInfo(w)); }
 /* last run: real state for most jobs, derived from Jellyseerr for the new ones */
 function aaLast(k) {
   const js = aaJobsState(), st = seerrState(), own = js.last[k];
@@ -580,6 +797,7 @@ function aaLast(k) {
     return own && own.at > S.seerr.lastSync ? own : { at: S.seerr.lastSync, res: 'ok', err: '' };
   }
   if (k === 'wishes.submit') { const l = S.seerr.log.find((x) => x.op === 'Wunsch übermitteln'); return l ? { at: l.at, res: l.res === 'ok' ? 'ok' : 'failed', err: l.res === 'ok' ? '' : l.text } : own || null; }
+  if (['seerr.provision', 'wishes.tag', 'wishes.progress', 'wishes.discover'].includes(k)) return aaLastNew(k, own);
   return own || null;
 }
 function aaQueued(k) { if (k === 'wishes.submit') return S.wishes.filter((w) => w.state === 'queued').length; return aaJobsState().queued[k] || 0; }
@@ -589,6 +807,19 @@ function aaJobMark(k, ok, err) { aaJobsState().last[k] = { at: Date.now(), res: 
 function aaNext(j) {
   const js = aaJobsState();
   if (js.paused[j.k]) return 'pausiert';
+  if (j.k === 'seerr.provision') {
+    if (!S.settings.wishes.provision) return 'aus · unter Wünsche › Einstellungen ausgeschaltet';
+    if (!S.seerr.configured || !S.seerr.enabled) return 'wartet bis Jellyseerr eingerichtet ist';
+    const wait = S.accounts.filter((a) => accSeerr(a).state === 'waiting').length;
+    return `${esc(((S.settings.jobs || {})[j.k] || {}).every || 'bei Bedarf')}${wait ? ` · ${wait} ${wait === 1 ? 'Konto wartet' : 'Konten warten'} auf den nächsten Abgleich` : ''}`;
+  }
+  if (j.k === 'wishes.tag') {
+    if (!S.settings.wishes.tags.enabled) return 'aus · Profil-Tags ausgeschaltet';
+    if (!S.seerr.configured || !S.seerr.enabled) return 'wartet bis Jellyseerr eingerichtet ist';
+    return `mit dem Abgleich · ${aaNext(aaJob('wishes.sync'))}`;
+  }
+  if (j.k === 'wishes.discover' && S.settings.wishes.fromDiscover === false) return 'ruht · Seiten Entdecken, Filme, Serien und Suche ausgeschaltet';
+  if (j.k === 'wishes.progress' && !progressOn()) return 'aus · Download-Fortschritt ausgeschaltet';
   if (!j.every) return 'automatisch';
   const s = aaSched(j.k);
   if (!s.on) return s.once ? `aus · Termin: ${esc(s.once.replace('T', ', '))}` : 'aus';
@@ -615,9 +846,9 @@ function aaRunsDialogOpen(k) { ui.filter.aaRunTab = 'running'; openDialog('aaRun
 
 function aaJobRow(j) {
   const js = aaJobsState(), paused = !!js.paused[j.k], q = aaQueued(j.k);
-  const trig = j.every ? `Zeitplan ${AA_EVERY_LABEL[aaSched(j.k).every] || ''}${j.k === 'wishes.sync' ? ', «Jetzt abgleichen», Sofortmeldung von Jellyseerr' : j.k === 'trakt.refresh' ? ', «Jetzt abrufen»' : j.k === 'seerr.users' ? ', «Benutzerliste neu laden», Speichern der Verbindung' : ''}` : j.k === 'wishes.submit' ? 'Anfordern in der App, «Erneut übermitteln», fällige Wünsche aus dem Abgleich' : 'automatisch, durch Ereignisse im Server';
+  const trig = j.every ? `Zeitplan ${AA_EVERY_LABEL[aaSched(j.k).every] || ''}${j.k === 'wishes.sync' ? ', «Jetzt abgleichen», Sofortmeldung von Jellyseerr' : j.k === 'trakt.refresh' ? ', «Jetzt abrufen»' : j.k === 'seerr.users' ? ', «Benutzerliste neu laden», Speichern der Verbindung' : j.k === 'wishes.progress' ? ', nur solange Wünsche in Beschaffung sind und «Download-Fortschritt zeigen» an ist' : j.k === 'wishes.discover' ? ', ruht, wenn die Seiten Entdecken, Filme, Serien und Suche aus sind' : ''}` : j.k === 'wishes.tag' ? 'nach jedem Abgleich, Wunsch «In Beschaffung», neuer Mitwunsch' : j.k === 'wishes.submit' ? 'Anfordern in der App, «Erneut übermitteln», fällige Wünsche aus dem Abgleich' : j.k === 'seerr.provision' ? 'Einladung angenommen, Wunschrecht, Limit oder Passwort geändert, Anmeldung, «Alle eröffnen» unter Jellyseerr-Benutzer, Abgleich für wartende Konten' : 'automatisch, durch Ereignisse im Server';
   const acts = [
-    j.every ? `<button type="button" class="btn secondary sm" data-act="aaJobRun" data-id="${j.k}" data-fid="aa:job:${j.k}:run" aria-label="${esc(j.name)} jetzt ausführen">${icon('play', 14)}Jetzt ausführen</button>` : '',
+    j.every || j.k === 'seerr.provision' || j.k === 'wishes.tag' ? `<button type="button" class="btn secondary sm" data-act="aaJobRun" data-id="${j.k}" data-fid="aa:job:${j.k}:run" aria-label="${esc(j.name)} jetzt ausführen">${icon('play', 14)}Jetzt ausführen</button>` : '',
     `<button type="button" class="btn ghost sm" data-act="aaJobPause" data-id="${j.k}" data-fid="aa:job:${j.k}:pause" aria-label="${esc(j.name)} ${paused ? 'fortsetzen' : 'pausieren'}">${icon(paused ? 'play' : 'pause', 14)}${paused ? 'Fortsetzen' : 'Pausieren'}</button>`,
     j.every ? `<button type="button" class="btn ghost sm" data-act="aaJobSched" data-id="${j.k}" data-fid="aa:job:${j.k}:sched">${icon('clock', 14)}Zeitplan</button>` : '',
     `<button type="button" class="btn ghost sm" data-act="aaJobRuns" data-id="${j.k}" data-fid="aa:job:${j.k}:runs">${icon('list', 14)}Läufe</button>`,
@@ -686,6 +917,41 @@ ACT.aaJobRun = (d) => {
     aaJobMark(j.k, ok, seerrState().label);
     logSeerr('Benutzerliste laden', ok ? 'ok' : 'bad', ok ? `${S.seerrUsers.length} Benutzer geladen` : seerrState().label);
     toast(ok ? `${S.seerrUsers.length} Jellyseerr-Benutzer geladen.` : `«Jellyseerr-Benutzer laden»: ${esc(seerrState().label)}.`, ok ? 'ok' : 'bad'); commit(); return;
+  }
+  if (j.k === 'seerr.provision') {
+    if (!S.settings.wishes.provision) { aaJobMark(j.k, 'skipped'); toast('«Konten in Jellyseerr eröffnen» ist unter Wünsche › Einstellungen ausgeschaltet. Nichts eröffnet.', 'warn'); commit(); return; }
+    if (seerrState().k !== 'ok') { const n = provisionAll(); aaJobMark(j.k, false, seerrState().label); toast(`«Konten in Jellyseerr eröffnen»: ${esc(seerrState().label)}. ${n ? `${n} ${n === 1 ? 'Konto wartet' : 'Konten warten'} auf den nächsten Abgleich.` : ''}`, 'bad'); commit(); return; }
+    const before = S.accounts.filter((a) => !accSeerr(a).user).map((a) => a.email);
+    const n = provisionAll();
+    aaJobMark(j.k, n ? true : 'skipped');
+    toast(n ? `${n} ${n === 1 ? 'Konto' : 'Konten'} in Jellyseerr eröffnet oder verknüpft: ${esc(before.join(', '))}.` : '«Konten in Jellyseerr eröffnen»: Alle Konten haben einen Jellyseerr-Benutzer, nichts zu tun.', 'ok');
+    commit(); return;
+  }
+  if (j.k === 'wishes.tag') {
+    if (!S.settings.wishes.tags.enabled) { aaJobMark(j.k, 'skipped'); toast('Profil-Tags sind ausgeschaltet. Nichts zu tun.', 'warn'); commit(); return; }
+    const count = (s) => S.wishes.reduce((n, w) => n + wishTags(w).filter((x) => x.state === s).length, 0);
+    const set0 = count('set');
+    S.wishes.forEach(applyTags);
+    const added = count('set') - set0, failed = count('fail'), down = aaArrDown();
+    aaJobMark(j.k, failed ? false : added ? true : 'skipped', down.map((a) => a.name + ' ist nicht erreichbar').join(', '));
+    toast(failed ? `${failed} ${failed === 1 ? 'Tag' : 'Tags'} nicht gesetzt: ${esc(down.map((a) => a.name).join(', '))} nicht erreichbar. Die Wünsche laufen weiter.` : added ? `${added} ${added === 1 ? 'Tag' : 'Tags'} gesetzt.` : 'Alle Tags sind gesetzt, nichts zu tun.', failed ? 'bad' : 'ok');
+    commit(); return;
+  }
+  if (j.k === 'wishes.progress') {
+    if (!progressOn()) { aaJobMark(j.k, 'skipped'); toast('Der Download-Fortschritt ist ausgeschaltet. Nichts zu tun.', 'warn'); commit(); return; }
+    const list = aaProgWishes(), down = aaArrDown();
+    const read = list.filter((w) => dlInfo(w).k !== 'unknown').length, missed = list.length - read;
+    aaJobMark(j.k, missed ? false : read ? true : 'skipped', down.map((a) => a.name + ' ist nicht erreichbar').join(', '));
+    toast(!list.length ? 'Kein Wunsch in Beschaffung, nichts zu lesen.' : missed ? `${read} von ${list.length} ${list.length === 1 ? 'Wunsch' : 'Wünschen'} gelesen. ${esc(down.map((a) => a.name).join(' und '))} nicht erreichbar; der Fortschritt fehlt so lange.` : `Fortschritt von ${read} ${read === 1 ? 'Wunsch' : 'Wünschen'} aus Radarr und Sonarr gelesen.`, missed ? 'bad' : 'ok');
+    commit(); return;
+  }
+  if (j.k === 'wishes.discover') {
+    if (S.settings.wishes.fromDiscover === false) { aaJobMark(j.k, 'skipped'); toast('«Wünsche-Seiten vorladen» ruht: Die Seiten Entdecken, Filme, Serien und Suche sind ausgeschaltet.', 'warn'); commit(); return; }
+    const ok = seerrState().k === 'ok';
+    const n = Object.values(window.DISCOVER_ROWS || {}).reduce((s, l) => s + l.length, 0);
+    aaJobMark(j.k, ok, seerrState().label);
+    toast(ok ? `Listen aufgefrischt: ${DISC_ROWS.length} Reihen mit ${n} Titeln.` : `«Wünsche-Seiten vorladen»: ${esc(seerrState().label)}. Die Seiten zeigen den letzten Stand.`, ok ? 'ok' : 'bad');
+    commit(); return;
   }
   if (j.k === 'wishes.reconcile') { aaJobMark(j.k, 'skipped'); toast('«Verfügbare Wünsche prüfen»: kein neuer Titel abspielbar, nichts zu tun.', 'ok'); commit(); return; }
   const r = { id: 'r' + ++js.seq, k: j.k, subj: 'Von Hand gestartet', done: 0, total: 1, since: Date.now(), manual: true };
@@ -849,10 +1115,27 @@ function aaHints() {
     if (st.k === 'unreachable') out.push({ k: 'bad', isNew: true, t: 'Jellyseerr nicht erreichbar', b: `Wünsche warten als «Wird übermittelt». Letzter erfolgreicher Abgleich ${ago(S.seerr.lastSync)}.`, href: '#/admin/integrations/jellyseerr', l: 'Zu Jellyseerr' });
     if (st.k === 'badkey') out.push({ k: 'bad', isNew: true, t: 'Jellyseerr lehnt den Schlüssel ab', b: 'Jellyseerr antwortet mit 403. Trage einen gültigen API-Schlüssel ein.', href: '#/admin/integrations/jellyseerr', l: 'Zu Jellyseerr' });
     if (st.k === 'csrf') out.push({ k: 'warn', isNew: true, t: 'Jellyseerr blockiert schreibende Aufrufe', b: 'Der CSRF-Schutz in Jellyseerr ist an. In Jellyseerr unter Einstellungen › Netzwerk ausschalten.', href: '#/admin/integrations/jellyseerr', l: 'Zu Jellyseerr' });
-    const unmapped = S.settings.wishes.unmapped === 'fallback' && S.settings.wishes.fallbackUser ? [] : S.accounts.filter((a) => a.canRequest && !S.map.accounts[a.id]);
-    if (unmapped.length) out.push({ k: 'warn', isNew: true, t: `${unmapped.length} ${unmapped.length === 1 ? 'Konto' : 'Konten'} ohne Zuordnung`, b: `${unmapped.map((a) => a.email).join(', ')} ${unmapped.length === 1 ? 'darf' : 'dürfen'} anfordern, hat aber keinen Jellyseerr-Benutzer.`, href: '#/admin/wishes/mapping', l: 'Zur Zuordnung' });
+    /* a proposed link counts as without user until an administrator confirms it */
+    const unmapped = aaNoUserAccounts();
+    if (unmapped.length) {
+      const sug = unmapped.filter((a) => accSeerr(a).state === 'suggested').length;
+      out.push({ k: 'warn', isNew: true, t: `${unmapped.length} ${unmapped.length === 1 ? 'Konto' : 'Konten'} ohne Jellyseerr-Benutzer`, b: `${unmapped.map((a) => a.email).join(', ')}${sug ? ` (davon ${sug} ${sug === 1 ? 'Verknüpfung' : 'Verknüpfungen'} vorgeschlagen, ${sug === 1 ? 'wartet' : 'warten'} auf deine Bestätigung)` : ''}. Ihre Profile sehen keine fehlenden Titel.${st.k !== 'ok' ? ' Die Konten warten und werden beim nächsten Abgleich eröffnet.' : sug === unmapped.length ? ` Bestätige ${sug === 1 ? 'die Verknüpfung' : 'die Verknüpfungen'} unter Jellyseerr-Benutzer.` : ` «Alle eröffnen» unter Jellyseerr-Benutzer holt das nach${sug ? '; Vorschläge bestätigst du einzeln' : ''}.`}`, href: '#/admin/wishes/mapping', l: 'Zu den Jellyseerr-Benutzern' });
+    }
     const gone = Object.values(S.map.accounts).concat(Object.values(S.map.profiles)).map(seerrUser).filter((u) => u && u.gone);
-    if (gone.length) out.push({ k: 'warn', isNew: true, t: 'Benutzer in Jellyseerr gelöscht', b: gone.map((u) => u.name).filter((v, i, a) => a.indexOf(v) === i).join(', '), href: '#/admin/wishes/mapping', l: 'Zur Zuordnung' });
+    if (gone.length) out.push({ k: 'warn', isNew: true, t: 'Benutzer in Jellyseerr gelöscht', b: gone.map((u) => u.name).filter((v, i, a) => a.indexOf(v) === i).join(', '), href: '#/admin/wishes/mapping', l: 'Zu den Jellyseerr-Benutzern' });
+    S.accounts.forEach((a) => {
+      const u = accSeerr(a).user;
+      if (!u || u.gone) return;
+      const q = quotaFor(u);
+      const full = [['movie', 'Filme'], ['tv', 'Staffeln']].filter(([k]) => q[k].restricted);
+      if (full.length) out.push({ k: 'warn', isNew: true, t: `Limit erreicht: ${a.email}`, b: full.map(([k, w]) => `${w}: ${q[k].used} von ${q[k].limit} in ${q[k].days} Tagen, der nächste Platz wird ${whenFree(q[k].nextFree)} frei`).join('. ') + '.', href: `#/admin/accounts?open=${a.id}`, l: 'Zum Konto' });
+    });
+    /* tags that failed, or that have waited for more than 24 hours since the title was handed over */
+    const untagged = S.wishes.filter((w) => aaTagLate(w).length);
+    if (untagged.length) out.push({ k: 'warn', isNew: true, t: `${untagged.length} ${untagged.length === 1 ? 'Wunsch' : 'Wünsche'} ohne Profil-Tag`, b: `${untagged.map((w) => `«${T[w.titleKey].title}» (${arrOf(w).name}): ${aaTagLate(w).some((x) => x.state === 'fail') ? `${arrOf(w).name} nicht erreichbar` : `Titel noch nicht in ${arrOf(w).name}`}`).join(', ')}. Der Wunsch läuft weiter; der nächste Abgleich versucht es erneut.`, href: '#/admin/wishes?f=notag', l: 'Zu den Anfragen' });
+    /* one collective hint; the message of Radarr or Sonarr stays in the expanded row of the request */
+    const stalled = S.wishes.filter((w) => { const x = dlInfo(w); return x && x.k === 'stalled'; });
+    if (stalled.length) out.push({ k: 'warn', isNew: true, t: `${stalled.length} ${stalled.length === 1 ? 'Download' : 'Downloads'} verzögert`, b: stalled.map((w) => `«${T[w.titleKey].title}» (${arrOf(w).name}): Download verzögert`).join(', ') + '.', href: '#/admin/wishes?f=stalled', l: 'Zu den Anfragen' });
   }
   if (wc.pending) out.push({ k: 'warn', isNew: true, t: `${wc.pending} ${wc.pending === 1 ? 'Wunsch wartet' : 'Wünsche warten'} auf Freigabe`, b: S.wishes.filter((w) => w.state === 'pending').map((w) => `«${T[w.titleKey].title}»`).join(', '), href: '#/admin/wishes?state=pending', l: 'Zu den Anfragen' });
   if (wc.problems) out.push({ k: 'bad', isNew: true, t: `${wc.problems} ${wc.problems === 1 ? 'Wunsch' : 'Wünsche'} fehlgeschlagen`, b: S.wishes.filter((w) => w.state === 'failed').map((w) => `«${T[w.titleKey].title}»: ${FAIL_TEXT[w.failReason] || ''}`).join(' '), href: '#/admin/wishes?state=failed', l: 'Zu den Anfragen' });
@@ -873,14 +1156,14 @@ route('/admin', () => {
   </section>`;
   const hints = aaHints();
   const att = `<section class="card" aria-labelledby="aa-att-h"><div class="ch"><span class="ik">${icon('alert', 18)}</span><h2 id="aa-att-h">Was benötigt Aufmerksamkeit?</h2><span class="muted">${hints.length ? `${hints.length} ${hints.length === 1 ? 'Hinweis' : 'Hinweise'}` : ''}</span></div>
-    ${hints.length ? `<ul class="aa-hints">${hints.map((h, i) => `<li class="${h.k}"><span class="ic">${icon(h.k === 'bad' ? 'alert' : 'info', 18)}</span><div class="grow"><b>${esc(h.t)}${h.isNew ? ' ' + aaNew() : ''}</b>${h.b ? `<span>${esc(h.b)}</span>` : ''}</div><a class="btn secondary sm" href="${h.href.split('?state=')[0]}" ${h.href.includes('?state=') ? `data-act="aaGoWishes" data-f="${h.href.split('?state=')[1]}"` : ''} data-fid="aa:ov:hint:${i}" aria-label="${esc(h.l)}: ${esc(h.t)}">Ansehen</a></li>`).join('')}</ul>` : `<p class="aa-allok">${icon('check', 18)}Alles in Ordnung.</p>`}</section>`;
+    ${hints.length ? `<ul class="aa-hints">${hints.map((h, i) => `<li class="${h.k}"><span class="ic">${icon(h.k === 'bad' ? 'alert' : 'info', 18)}</span><div class="grow"><b>${esc(h.t)}${h.isNew ? ' ' + aaNew() : ''}</b>${h.b ? `<span>${esc(h.b)}</span>` : ''}</div><a class="btn secondary sm" href="${h.href.includes('?state=') ? h.href.split('?state=')[0] : h.href}" ${h.href.includes('?state=') ? `data-act="aaGoWishes" data-f="${h.href.split('?state=')[1]}"` : ''} data-fid="aa:ov:hint:${i}" aria-label="${esc(h.l)}: ${esc(h.t)}">Ansehen</a></li>`).join('')}</ul>` : `<p class="aa-allok">${icon('check', 18)}Alles in Ordnung.</p>`}</section>`;
   const runRows = js.running.map((r) => { const pct = Math.round((r.done / r.total) * 100); return `<li><div class="grow"><b>${esc(aaJob(r.k).name)}</b><span class="sec aa-small">${esc(r.subj)}</span></div><span class="aa-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Fortschritt ${esc(aaJob(r.k).name)}"><i style="width:${pct}%"></i></span></li>`; }).join('');
   const active = `<section class="card" aria-labelledby="aa-act-h"><div class="ch"><span class="ik">${icon('zap', 18)}</span><h2 id="aa-act-h">Gerade aktiv</h2></div>
     <h3 class="aa-h3">Aufgaben</h3>${runRows ? `<ul class="aa-active" aria-label="Laufende Aufgaben">${runRows}</ul>` : '<p class="muted">Gerade läuft keine Aufgabe.</p>'}
     <h3 class="aa-h3">Jetzt läuft</h3><ul class="aa-active" aria-label="Jetzt läuft"><li><div class="grow"><b>Godzilla Minus One</b><span class="sec aa-small">Oma &amp; Opa · Wohnzimmer-TV · Direktwiedergabe</span></div><span class="aa-bar" role="progressbar" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" aria-label="Fortschritt Godzilla Minus One"><i style="width:42%"></i></span></li></ul>
     <div class="foot"><a class="lnk" href="#/admin/jobs" data-fid="aa:ov:jobs">Hintergrundjobs</a>${js.failed.length ? '<a class="lnk" href="#/admin/jobs?group=failures" data-fid="aa:ov:failed">Fehlschläge ansehen</a>' : ''}<a class="lnk" href="${adminHref('streams')}" data-fid="aa:ov:streams">Alle Streams</a></div></section>`;
   const quick = `<section class="stack" aria-labelledby="aa-quick-h"><h2 id="aa-quick-h" class="aa-h2">Direkt zu deinen Aufgaben</h2><ul class="aa-quick">
-    ${showWishes ? `<li><a class="aa-lc new" href="#/admin/wishes" data-fid="aa:ov:q:wishes"><span class="ik">${icon('wish', 18)}</span><span class="grow"><b>Wünsche ${aaNew()}</b><span>${wc.open} offen · ${wc.pending} ${wc.pending === 1 ? 'wartet' : 'warten'} auf Freigabe · Zuordnung · Einstellungen</span></span>${icon('chevR', 16)}</a></li>` : ''}
+    ${showWishes ? `<li><a class="aa-lc new" href="#/admin/wishes" data-fid="aa:ov:q:wishes"><span class="ik">${icon('wish', 18)}</span><span class="grow"><b>Wünsche ${aaNew()}</b><span>${wc.open} offen · ${wc.pending} ${wc.pending === 1 ? 'wartet' : 'warten'} auf Freigabe · Jellyseerr-Benutzer · Einstellungen</span></span>${icon('chevR', 16)}</a></li>` : ''}
     ${AREAS.filter((a) => a.pages.length).map((a) => `<li><a class="aa-lc" href="${areaHref(a)}" data-fid="aa:ov:q:${a.key}"><span class="ik">${icon(a.icon, 18)}</span><span class="grow"><b>${a.label}</b><span>${a.pages.map((p) => p[1]).join(', ')}</span></span>${icon('chevR', 16)}</a></li>`).join('')}
   </ul></section>`;
   const silent = aaHookSilent();

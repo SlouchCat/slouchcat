@@ -16,7 +16,8 @@ function fulfilledRecently(p, t) { return S.wishes.some((w) => w.titleKey === t.
 function posterCard(t, o = {}) {
   const p = curProfile(), a = availability(p, t);
   const present = a.kind === 'present' || a.kind === 'partial';
-  const sub = o.caption != null ? o.caption : [t.year, present ? (a.kind === 'partial' && o.partial ? availText(a) : '') : availText(a)].filter(Boolean).join(' · ');
+  /* o.libMark: on the pages under «Wünsche» a title of the library says so */
+  const sub = o.caption != null ? o.caption : [t.year, present ? (a.kind === 'partial' && o.partial ? availText(a) : o.libMark ? 'In der Bibliothek' : '') : availText(a)].filter(Boolean).join(' · ');
   const tag = o.select ? `button type="button" data-act="heroSelect" data-key="${t.key}"` : `a href="${titleHref(t)}"`;
   const end = o.select ? 'button' : 'a';
   let over = '';
@@ -30,7 +31,7 @@ function posterCard(t, o = {}) {
   } else {
     over = `<span class="bl">${wsChip(a.wish.state)}</span>`;
   }
-  return `<li class="${cls('pc', o.dim && 'dim', !present && 'missing')}"><${tag} class="pl" data-fid="pc:${o.ctx || ''}:${t.key}" ${o.current ? 'aria-current="true"' : ''}><span class="frame">${img(t.poster, t.title)}</span><span class="cap"><b>${esc(t.title)}</b><span>${esc(sub)}</span></span></${end}>${over}</li>`;
+  return `<li class="${cls('pc', o.dim && 'dim', !present && 'missing', present && o.libMark && 'inlib')}"><${tag} class="pl" data-fid="pc:${o.ctx || ''}:${t.key}" ${o.current ? 'aria-current="true"' : ''}><span class="frame">${img(t.poster, t.title)}</span><span class="cap"><b>${esc(t.title)}</b><span>${esc(sub)}</span></span></${end}>${over}</li>`;
 }
 function rowHtml(key, title, href, items, o = {}) {
   if (!items.length) return '';
@@ -45,7 +46,7 @@ function mainActions(t, o = {}) {
   if (a.kind === 'present' || a.kind === 'partial') return `<button type="button" class="btn primary ${lg}" data-act="play" data-key="${t.key}" data-fid="${ctx}:play">${icon('play')}Abspielen</button>${details}${trailer}`;
   if (a.kind === 'wished' && a.mine) return `<a class="btn state ${lg}" href="#/wishes" data-fid="${ctx}:state">${icon(STATE_ICON[a.wish.state])}${STATE_LABEL[a.wish.state]}</a>${details}${trailer}`;
   const cr = canRequest(p, t);
-  const allowedHere = o.source === 'spotlight' ? S.settings.wishes.fromSpotlight : o.source === 'search' ? S.settings.wishes.fromSearch : true;
+  const allowedHere = o.source === 'search' ? S.settings.wishes.fromSearch : true;
   if (!cr.ok || !allowedHere) return `${details}${trailer}`;
   if (a.kind === 'wished' && S.settings.wishes.join !== 'join') return `${details}${trailer}`;
   if (a.kind === 'wished') return `<button type="button" class="btn primary ${lg}" data-act="askWish" data-key="${t.key}" data-fid="${ctx}:join">${icon('bell')}Benachrichtige mich</button>${details}${trailer}`;
@@ -55,7 +56,8 @@ function metaLine(t, o = {}) {
   const p = curProfile(), a = availability(p, t);
   const parts = [t.year, t.kind === 'movie' ? t.runtime : `${(t.seasons || []).length} Staffeln`].filter(Boolean).map((x, i) => `<span class="${i ? 'sep' : ''}">${esc(x)}</span>`);
   let chip = '';
-  if (a.kind === 'missing') chip = missingChip();
+  if (o.stage) chip = ''; /* the stage stays as it is today: no wish chips */
+  else if (a.kind === 'missing') chip = missingChip();
   else if (a.kind === 'wished') chip = a.mine ? wsChip(a.wish.state) : wsChip('queued', 'Bereits angefordert');
   else if (a.kind === 'partial' && canRequest(p, t).ok && S.settings.wishes.fromDetail) chip = `<span class="ws missing">${libSeasons(t.key).length} von ${airedSeasons(t).length} Staffeln vorhanden</span>`;
   else if (fulfilledRecently(p, t)) chip = wsChip('available', 'Dein Wunsch ist da');
@@ -71,8 +73,8 @@ function heroHtml(list) {
     <div class="rowhead"><h2><a href="#/lists/spotlight" data-fid="rh:spot">Spotlight${icon('chevR', 16)}</a></h2></div>
     <div class="stagebox">
       <div class="art" data-hero-art="${t.key}">${img(t.backdrop, t.title, 'class="fade"')}</div><div class="scr"></div>
-      <div class="cnt"><div class="slide" role="group" aria-roledescription="Folie" aria-label="${i + 1} von ${list.length}"><h3><a href="${titleHref(t)}" data-fid="st:title">${esc(t.title)}</a></h3>${metaLine(t)}${note ? `<p class="note">${esc(note)}</p>` : ''}</div>
-      <div class="acts">${mainActions(t, { source: 'spotlight' })}</div></div>
+      <div class="cnt"><div class="slide" role="group" aria-roledescription="Folie" aria-label="${i + 1} von ${list.length}"><h3><a href="${titleHref(t)}" data-fid="st:title">${esc(t.title)}</a></h3>${metaLine(t, { stage: true })}${note ? `<p class="note">${esc(note)}</p>` : ''}</div>
+      <div class="acts">${mainActions(t)}</div></div>
       <div class="corner"><span class="pos">${i + 1} von ${list.length}</span><button type="button" class="btn secondary icon" data-act="heroPause" aria-pressed="${ui.hero.paused}" aria-label="${ui.hero.paused ? 'Weiter' : 'Pause'}" data-fid="st:pause">${icon(ui.hero.paused ? 'play' : 'pause')}</button></div>
       <span class="arrow prev"><button type="button" class="btn secondary icon" data-act="heroStep" data-dir="-1" aria-label="Zurückblättern" data-fid="st:prev">${icon('chevL')}</button></span>
       <span class="arrow next"><button type="button" class="btn secondary icon" data-act="heroStep" data-dir="1" aria-label="Weiterblättern" data-fid="st:next">${icon('chevR')}</button></span>
@@ -80,7 +82,7 @@ function heroHtml(list) {
     <div class="scroller" data-keep="spot"><ul aria-label="Spotlight-Titel">${list.map((x, j) => posterCard(x, { ctx: 'spot', select: true, dim: j !== i, current: j === i })).join('')}</ul></div>
   </section>`;
 }
-const HOME_TITLES = { continue: 'Weiterschauen', recent: 'Neu hinzugefügt', released: 'Kürzlich veröffentlicht', picks: 'User-Empfehlungen', watchlist: 'Merkliste', wishes: 'Deine Wünsche', spotlight: 'Spotlight', collections: 'Sammlungen', genres: 'Genres', libraries: 'Meine Medien' };
+const HOME_TITLES = { continue: 'Weiterschauen', recent: 'Neu hinzugefügt', released: 'Kürzlich veröffentlicht', picks: 'User-Empfehlungen', watchlist: 'Merkliste', wishes: 'Erfüllte Wünsche', spotlight: 'Spotlight', collections: 'Sammlungen', genres: 'Genres', libraries: 'Meine Medien' };
 function homeRowItems(key, p) {
   const vis = (keys) => keys.map((k) => T[k]).filter((t) => isPresent(t.key) && t.age <= effMax(p));
   if (key === 'continue') return vis(['mobland', 'tenzing', 'dexter-resurrection', 'backrooms']);
@@ -88,7 +90,8 @@ function homeRowItems(key, p) {
   if (key === 'released') return vis(['spider-man-bnd', 'project-hail-mary', 'end-of-oak-street', 'heart-of-the-beast', 'supergirl', 'michael', 'rings-of-power']);
   if (key === 'picks') return vis(['tenzing', 'project-hail-mary', 'dune-2']);
   if (key === 'watchlist') return vis(Object.keys(S.marks.watchlist).filter((k) => S.marks.watchlist[k]));
-  if (key === 'wishes') { const seen = new Set(); return myWishes(p).filter((w) => OPEN_STATES.includes(w.state) || (w.state === 'available' && Date.now() - (w.closed || 0) < 14 * D)).map((w) => T[w.titleKey]).filter((t) => !seen.has(t.key) && seen.add(t.key)); }
+  /* the start page shows only what the library holds: wishes that came true in the last 14 days; open ones live under «Wünsche» */
+  if (key === 'wishes') { const seen = new Set(); return myWishes(p).filter((w) => w.state === 'available' && Date.now() - (w.closed || 0) < 14 * D).map((w) => T[w.titleKey]).filter((t) => isPresent(t.key) && t.age <= effMax(p) && !seen.has(t.key) && seen.add(t.key)); }
   return [];
 }
 route('/', () => {
@@ -97,7 +100,7 @@ route('/', () => {
   let html = '<h1 class="vh">Startseite</h1>';
   S.settings.homeRows.filter((r) => !r.hidden).forEach((r) => {
     if (r.key === 'spotlight') html += heroHtml(spot);
-    else if (r.key === 'wishes') html += rowHtml('wishes', 'Deine Wünsche', '#/wishes', homeRowItems('wishes', p), { partial: true });
+    else if (r.key === 'wishes') html += rowHtml('wishes', 'Erfüllte Wünsche', '#/wishes', homeRowItems('wishes', p));
     else html += rowHtml(r.key, HOME_TITLES[r.key], r.key === 'watchlist' ? '#/unchanged/merkliste' : '', homeRowItems(r.key, p));
   });
   return { type: 'viewer', nav: 'start', title: 'Startseite', html: `<div class="home">${html}</div>`, after: heroAfter };
@@ -127,7 +130,11 @@ ACT.askWish = (d) => {
   const miss = t.kind === 'series' ? (isPresent(t.key) ? missingSeasons(t) : airedSeasons(t).map((s) => s.n)) : [];
   const p = curProfile(), canJoin = S.settings.wishes.join === 'join';
   const free = miss.filter((n) => { const w = openWish(t.key, n); return !w || (canJoin && !isMine(w, p)); });
-  ui.draft.wish = { key: d.key, all: true, pick: Object.fromEntries(free.map((n) => [n, true])) };
+  /* the limit counts every season: preselect only as many new seasons as the limit still allows */
+  const lq = t.kind === 'series' ? quotaOfProfile(p) : null, left = lq && lq.tv.limit ? lq.tv.remaining : Infinity;
+  let fresh = 0;
+  const pick = Object.fromEntries(free.map((n) => { const on = !!openWish(t.key, n) || fresh < left; if (on && !openWish(t.key, n)) fresh++; return [n, on]; }));
+  ui.draft.wish = { key: d.key, all: true, pick, capped: left > 0 && free.filter((n) => !openWish(t.key, n)).length > left ? left : 0 };
   openDialog('wish', { key: d.key });
 };
 function wishChannels(p) { const acc = account(p.accountId); return ['App', ...Object.entries(acc.channels).filter(([, c]) => c.enabled && c.events.includes('wish_available')).map(([k]) => CHANNEL_LABEL[k])]; }
@@ -142,13 +149,15 @@ DIALOGS.wish = ({ key }) => {
   if (a.kind === 'wished' && !a.mine && film) {
     return { title: 'Schon angefordert', body: head + `<p class="lead">Dieser Film ist bereits angefordert (${STATE_LABEL[a.wish.state]}). Du kannst dich dazuschalten: Dann benachrichtigt dich Slouchcat ebenfalls, sobald er abspielbar ist.</p><div class="facts"><div class="f">${icon('bell', 16)}<span>Benachrichtigung über: ${wishChannels(p).join(', ')}</span></div></div>`, actions: `<button type="button" class="btn ghost" data-act="close" data-fid="wd:x">Abbrechen</button><button type="button" class="btn primary" data-act="confirmWish" data-fid="wd:ok" data-autofocus>${icon('bell')}Benachrichtige mich</button>` };
   }
-  facts.push(`<div class="f">${icon('user', 16)}<span>Geht als <b>${esc(u.name)}</b> an Jellyseerr${su.via === 'profile' ? ' (eigener Benutzer des Profils)' : su.via === 'fallback' ? ' (Sammelbenutzer)' : ' (Benutzer des Kontos)'}.</span></div>`);
+  facts.push(`<div class="f">${icon('user', 16)}<span>Wird als <b>${esc(u.name)}</b> an Jellyseerr übermittelt${su.via === 'profile' ? ' (eigener Benutzer des Profils)' : su.via === 'fallback' ? ' (Sammelbenutzer)' : ' (Benutzer des Kontos)'}.</span></div>`);
   facts.push(`<div class="f">${icon(u.autoApprove ? 'truck' : 'hourglass', 16)}<span>${u.autoApprove ? 'Wird sofort beschafft, eine Freigabe braucht es nicht.' : 'Braucht eine Freigabe. Den Stand siehst du unter «Meine Wünsche».'}</span></div>`);
-  if (u.quota) { const used = S.wishes.filter((x) => x.seerrUser === u.id && x.created > Date.now() - u.quota.days * D && x.seerrRequestId).length; facts.push(`<div class="f">${icon('chart', 16)}<span>Kontingent in Jellyseerr: ${u.quota.n} Titel in ${u.quota.days} Tagen, ${used} verbraucht.</span></div>`); }
+  const lq = quotaFor(u), lk = film ? 'movie' : 'tv', lx = lq[lk];
+  facts.push(`<div class="f">${icon('chart', 16)}<span>${lx.limit ? `Limit: <b>${quotaText(lx, lk)}</b> (${lx.limit} in ${lx.days} Tagen${lq.source === 'account' ? ', für alle Profile dieses Kontos gemeinsam' : ''}).` : lq.source === 'admin' ? 'Kein Limit: Administratoren fordern unbegrenzt an.' : 'Kein Limit.'}</span></div>`);
   facts.push(`<div class="f">${icon('bell', 16)}<span>Slouchcat meldet sich, sobald der Titel hier abspielbar ist: ${wishChannels(p).join(', ')}.</span></div>`);
   let body = head + `<div class="facts">${facts.join('')}</div>`;
   if (ss.k !== 'ok') body += notice('warn', 'Jellyseerr ist gerade nicht erreichbar', 'Dein Wunsch wird vorgemerkt. Slouchcat übermittelt ihn, sobald Jellyseerr wieder antwortet.');
-  let n = 1, label = 'Anfordern';
+  let n = 1, label = 'Anfordern', blocked = false;
+  if (film) { const lc = limitCheck(p, t, 1); if (!lc.ok) { blocked = true; body += notice('bad', 'Limit erreicht', esc(lc.text) + ' Wünsche, die schon jemand gestellt hat, kannst du weiter mitverfolgen: Sie zählen nicht.'); } }
   if (!film) {
     const have = libSeasons(t.key), d = ui.draft.wish;
     const rows = (t.seasons || []).map((s) => {
@@ -163,9 +172,11 @@ DIALOGS.wish = ({ key }) => {
     body += `<div class="fld"><span class="lbl">Staffeln</span><div class="seasonpick"><label class="check all"><input type="checkbox" data-fid="wd:all" data-act="wishAll" ${n === free.length && n > 0 ? 'checked' : ''} ${free.length ? '' : 'disabled'}><span>Alle fehlenden Staffeln${free.length ? ` (${free.length})` : ''}</span></label>${rows}</div><span class="hint">Einzelne Folgen lassen sich nicht anfordern. Qualität und Zielordner bestimmt Jellyseerr. Bei schon angeforderten Staffeln wirst du mitbenachrichtigt.</span></div>`;
     const fresh = free.filter((x) => d.pick[x] && !openWish(t.key, x)).length;
     label = n === 0 ? 'Staffeln wählen' : fresh === 0 ? 'Benachrichtige mich' : n === 1 ? '1 Staffel anfordern' : `${n} Staffeln anfordern`;
+    if (d.capped && fresh <= d.capped) body += notice('', 'Das Limit reicht nicht für alle Staffeln', `Noch ${d.capped} von ${lx.limit} Staffeln frei. Vorgewählt ${d.capped === 1 ? 'ist die erste fehlende Staffel' : 'sind die ersten ' + d.capped + ' fehlenden Staffeln'}; du kannst andere wählen.`);
+    if (fresh > 0) { const lc = limitCheck(p, t, fresh); if (!lc.ok) { blocked = true; body += notice('bad', lc.q.tv.remaining ? 'Zu viele Staffeln für das Limit' : 'Limit erreicht', esc(lc.text) + ' Jede Staffel zählt einzeln.'); } }
     if (!free.length) body += notice('', 'Nichts mehr anzufordern', 'Alle ausgestrahlten Staffeln sind vorhanden oder schon angefordert.');
   }
-  return { title: film ? 'Film anfordern' : 'Serie anfordern', body, actions: `<button type="button" class="btn ghost" data-act="close" data-fid="wd:x">Abbrechen</button><button type="button" class="btn primary" data-act="confirmWish" data-fid="wd:ok" ${n === 0 ? 'disabled' : 'data-autofocus'}>${icon('plus')}${label}</button>` };
+  return { title: film ? 'Film anfordern' : 'Serie anfordern', body, actions: `<button type="button" class="btn ghost" data-act="close" data-fid="wd:x">Abbrechen</button><button type="button" class="btn primary" data-act="confirmWish" data-fid="wd:ok" ${n === 0 || blocked ? 'disabled' : 'data-autofocus'}>${icon('plus')}${label}</button>` };
 };
 ACT.wishAll = (d, el) => { const dr = ui.draft.wish; Object.keys(dr.pick).forEach((k) => (dr.pick[k] = el.checked)); renderOverlays(); };
 ACT.confirmWish = () => {

@@ -7,10 +7,20 @@
 > Slouchcat legt Wünsche mit `X-Api-Key` und `X-API-User` im Namen des zugeordneten Jellyseerr-Benutzers an,
 > speichert sie zuerst lokal (Ausgangsfach) und gleicht alle 5 Minuten ab. «Verfügbar» meldet Slouchcat erst,
 > wenn die eigene Bibliothek den Titel für das Profil abspielen kann, nie allein auf Grund von Jellyseerr.
+> Neu in Fassung 3: Jedes Konto bekommt in Jellyseerr einen eigenen Benutzer mit demselben Login; Slouchcat
+> gibt das Passwort nur in den drei Momenten weiter, in denen der Server es ohnehin sieht, und speichert es nie.
+> Slouchcat schreibt das Limit je Konto in diesen Benutzer, Jellyseerr zählt. Ein kleines Paket `internal/arr`
+> spricht Radarr und Sonarr für genau zwei Dinge an: den Profil-Tag setzen und für den Download-Fortschritt die
+> Warteschlange und den Dateistand der gewünschten Titel lesen. Die Webhooks von Radarr und Sonarr bleiben, wie sie sind. Der Bereich «Wünsche» liest
+> Entdecken, Filme, Serien und Suche über Jellyseerr mit einem Zwischenspeicher. Startseite und Spotlight-Liste
+> zeigen weiter nur Titel der Bibliothek (S-4); das Spotlight erkennt vorhandene Serien neu auch über TVDB und
+> IMDb. Serien gleicht Slouchcat TVDB zuerst ab.
 
-Stand: `main` `ba6efe31`, Vertrag 1.40.0, letzte Migration 00065. Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md)
-(Abschnitte 1 bis 10); Belege `pfad:zeile` stammen aus den Anhängen A bis D oder sind im Worktree
-nachgesehen. Jellyseerr-Belege beziehen sich auf Seerr v3.5.2 (`GH:` = `github.com/seerr-team/seerr/blob/v3.5.2/`).
+Stand: Fassung 3 vom 17. November 2026 mit beiden Rückmeldungen von Marco an diesem Tag (E-1 bis E-7,
+[Anhang H](anhang/H-nachtrag-17-november.md)), `main` `ba6efe31`, Vertrag 1.40.0, letzte Migration 00065.
+Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md) (Abschnitte 1 bis 10) und Anhang H (Regeln N-1 bis N-88;
+Abschnitt 8 geht den Abschnitten 4 bis 7 vor); Belege `pfad:zeile` stammen aus den Anhängen A bis D
+und H oder sind im Worktree nachgesehen. Jellyseerr-Belege beziehen sich auf Seerr v3.5.2 (`GH:` = `github.com/seerr-team/seerr/blob/v3.5.2/`).
 Was über Anhang F hinausgeht, ist als **Vorschlag** gekennzeichnet. Datenmodell und Vertrag im Einzelnen:
 `08-datenmodell-api.md`; Bauschritte: `09-umsetzungsplan.md`; Benachrichtigungen: `06-benachrichtigungen.md`.
 
@@ -18,14 +28,17 @@ Was über Anhang F hinausgeht, ist als **Vorschlag** gekennzeichnet. Datenmodell
 
 | Nr. | Grundsatz | Herkunft |
 |---|---|---|
-| G-1 | Jellyseerr bleibt die Wunschverwaltung. Slouchcat spricht nie Radarr oder Sonarr an. | Anhang F 2.1 |
-| G-2 | Ausgehend nur zur eingetragenen Adresse, ohne Weiterleitung, mit Zeitlimit und Rate-Limit. | Anhang F 2.2 |
+| G-1 | Jellyseerr bleibt die Wunschverwaltung. Die API von Radarr und Sonarr nutzt Slouchcat für genau zwei Dinge: den Profil-Tag (Tag anlegen und an den Titel hängen, Abschnitt 20) und das Lesen des Download-Fortschritts (Warteschlange und Dateistand der gewünschten Titel: `queue`, `movie?tmdbId`, `series?tvdbId`; Abschnitt 22). Sonst nie. Die Webhooks von Radarr und Sonarr bleiben, wie sie sind (Abschnitt 10). | Anhang F 2.1; Anhang H N-22 (Marco, E-2), N-80, N-81 (Marco, E-6, E-7) |
+| G-2 | Ausgehend nur zur eingetragenen Adresse, ohne Weiterleitung, mit Zeitlimit und Rate-Limit. Für Radarr und Sonarr: nur die Adresse aus Jellyseerr oder die eigene Adresse des Administrators (Abschnitt 20.2). | Anhang F 2.2; Anhang H N-23 |
 | G-3 | Jeder Wunsch läuft im Namen eines Jellyseerr-Benutzers (`X-API-User`), nie mit `userId` im Body. | Anhang F 2.3, F-3 |
-| G-4 | Kein Aufruf an Jellyseerr im Seitenaufbau. Zuschauerseiten lesen nur lokale Tabellen. | Anhang F 2.9, 2.10 |
+| G-4 | Kein Aufruf an Jellyseerr im Seitenaufbau der übrigen Zuschauerseiten; sie lesen nur lokale Tabellen. Ausnahmen: die Seiten «Entdecken», «Filme», «Serien», «Suche» und die Staffelliste im Dialog «Anfordern», beide über einen Zwischenspeicher (Abschnitte 6.2 und 21). Radarr und Sonarr ruft kein Seitenaufbau auf; der Fortschritt kommt aus dem Zwischenspeicher (Abschnitt 22). | Anhang F 2.9, 2.10; Anhang H N-54, N-63, N-84 |
 | G-5 | «Verfügbar» = in Slouchcat für das Profil abspielbar. | Anhang F 2.8, F-13 |
 | G-6 | Regel 2 bleibt: Titel-SQL nur in den erlaubten Paketen; nicht sichtbar heisst 404. | CLAUDE.md Regel 2 |
 | G-7 | Der Server entscheidet Wunschrecht und Altersgrenze; der Client zeigt nur an. | Regel 12, Anhang F 2.6 |
 | G-8 | Jeder Job-Handler ist idempotent; ein abgebrochener Lauf darf beliebig oft neu starten. | ADR 0002, `server/internal/jobs/queue.go:1-7` |
+| G-9 | Das Passwort eines Kontos speichert Slouchcat nie im Klartext und schreibt es nie ins Protokoll. Es geht nur in den drei Momenten an Jellyseerr, in denen der Server es ohnehin sieht: Einladung annehmen, Passwort ändern, Anmeldung (Abschnitt 18). | Anhang H N-3, N-12 |
+| G-10 | Das Limit hat genau einen Ort: Slouchcat stellt es ein und schreibt es in den Jellyseerr-Benutzer, Jellyseerr zählt und setzt durch (Abschnitt 19). | Anhang H N-31, N-32 (Marco, E-3), N-37 |
+| G-11 | Startseite (Bühne und Posterreihe) und Spotlight-Liste zeigen nur Titel der Bibliothek, wie heute; S-4 gilt ohne Ausnahme. Fehlende Einträge der Trakt-Liste sieht nur der Administrator unter Verwaltung › Spotlight (Abschnitt 5.1). | Anhang H N-70, N-71 (Marco, E-5) |
 
 ## 2. Komponenten
 
@@ -33,17 +46,17 @@ Was über Anhang F hinausgeht, ist als **Vorschlag** gekennzeichnet. Datenmodell
 
 | Paket oder Datei | Änderung | Stufe |
 |---|---|---|
-| `internal/admin` (`settings.go`) | Einstellungen `seerr.*` und `wishes.*`; API-Schlüssel über `settingsWriter.setSecret` (`server/internal/admin/settings.go:630-640`) | 1 |
-| `internal/auth` (Profile, Konten, Einladungen) | Felder `can_request` an Konto, Profil und Einladung schreiben | 1 |
-| `internal/api` | neue Handler (strict server), Bild-Handler für fehlende Titel (`scoped` für Zuschauer, eigene Admin-Route für die Verwaltung), Sitzung mit `wishes`; Vertragstest | 1 bis 4 |
-| `internal/visibility` | neue Funktionen: Titel zu externen IDs, «fehlt für dieses Profil», Altersprüfung fehlender Titel, sichtbare Staffeln | 2, 3, 4 |
+| `internal/admin` (`settings.go`) | Einstellungen `seerr.*`, `wishes.*` und `arr.*` (Limit ab Werk, Schalter, Präfix des Profil-Tags, eigene Adressen von Radarr und Sonarr); API-Schlüssel über `settingsWriter.setSecret` (`server/internal/admin/settings.go:630-640`) | 1, 4, 5 |
+| `internal/auth` (Profile, Konten, Einladungen) | Felder `can_request` an Konto, Profil und Einladung schreiben; neuer Haken «Passwort gesehen» an drei Stellen (Abschnitt 18.3) und Abschluss beim Löschen eines Kontos (Abschnitt 18.4) | 1 |
+| `internal/api` | neue Handler (strict server), Bild-Handler für fehlende Titel (`scoped` für Zuschauer, eigene Admin-Route für die Verwaltung), Sitzung mit `wishes`, Limit und Seiten des Bereichs «Wünsche»; Vertragstest | 1 bis 5 |
+| `internal/visibility` | neue Funktionen: Titel zu externen IDs, «fehlt für dieses Profil», Altersprüfung fehlender Titel, sichtbare Staffeln; Spotlight-Abfrage erkennt Bibliothekstitel auch über TVDB und IMDb (Abschnitt 5.1) | 2, 3, 4 |
 | `internal/metadata` | neuer Haken `WithMatched` neben `WithRelink` (`server/internal/metadata/metadata.go:344-349`, `match.go:312-330`); TMDB-Abruf für `external_titles` und `series_catalog`; Trakt-Abruf liest `tvdb` und `imdb` (`server/internal/trakt/trakt.go:270-273`) | 2, 3, 4 |
 | `internal/notify` | neue Eingangsarten und Kanal-Ereignisse; neuer Leseweg für Einträge ohne `item_id` über `wish_id` (Details in `06-benachrichtigungen.md`, Abschnitte 8 und 11) | 2, 4 |
-| `internal/integrations` | `receiveWebhook` kennt die Art `jellyseerr` als reinen Anstoss | 4 |
-| `internal/discover` | Spotlight mischt fehlende Titel ein, Reihe `wishes` | 3 |
-| `internal/logging` | neue Schlüsselnamen in der Redaction-Liste und im Test (Regel 10) | 1 |
-| `cmd/slouchcat/main.go` | Verdrahtung von `seerr`, `wishes`, Haken und Jobarten (`main.go:418-443`) | 1 bis 4 |
-| `web/src` | neue Seiten und Bauteile (`02-funktionskonzept.md`, `05-spotlight-integration.md`, `07-administration.md`) | 1 bis 4 |
+| `internal/integrations` | `receiveWebhook` kennt die Art `jellyseerr` als reinen Anstoss; der Empfang von Radarr und Sonarr bleibt unverändert (Abschnitt 10; Vorschlag F-33 in Abschnitt 10.1) | 4 |
+| `internal/discover` | Reihe `wishes` «Erfüllte Wünsche»: nur Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden, also Bibliothekstitel als `ItemRef` (Empfehlung N-74, offen als F-34). Die Titel-IDs der erfüllten Wünsche liefert der Dienst `wishes` (nur er liest die Wunsch-Tabellen); ob das Profil sie sieht, prüft `discover` über `visibility` (Regel 2; Redaktionsentscheid zu K-16). Das Spotlight mischt nichts ein und zeigt weiter nur Bibliothekstitel | 3 |
+| `internal/logging` | neue Schlüsselnamen in der Redaction-Liste und im Test (Regel 10; Abschnitt 4.3) | 1, 4 |
+| `cmd/slouchcat/main.go` | Verdrahtung von `seerr`, `arr`, `wishes`, Haken und Jobarten (`main.go:418-443`; heutige Haken von `auth` an `main.go:292`) | 1 bis 5 |
+| `web/src` | neue Seiten und Bauteile (`02-funktionskonzept.md`, `05-spotlight-integration.md`, `07-administration.md`), dazu die Reiter «Entdecken», «Filme», «Serien», «Suche» und der Hinweis auf der Seite `/invite/$token` (`web/src/app/router.tsx:237`) | 1 bis 5 |
 
 ### 2.2 Neues Paket `internal/seerr`
 
@@ -60,10 +73,23 @@ Weiterleitungen; [Anhang A](anhang/A-spotlight-startseite.md), Anknüpfungspunkt
 | Rate-Limit | `ratelimit.Limiter` 5 Anfragen/s, Burst 5, je Instanz | Anhang F 2.2; Muster `server/internal/ratelimit/ratelimit.go:1-30` |
 | Antwortgrösse | **Vorschlag:** höchstens 4 MiB je Antwort, sonst Fehler | Schutz bei falscher Adresse |
 | Fehlertexte | nennen nur Schema und Host (`netguard.Clean`/`Site`), nie Pfad mit Schlüssel | `server/internal/netguard/netguard.go:130-150` |
-| Fehlerklassen | Sentinels `ErrUnreachable`, `ErrKeyInvalid`, `ErrForbidden` (mit Meldung), `ErrDuplicate`, `ErrNoSeasons`, `ErrNotFound`, `ErrServer`, `ErrCSRF` | Muster `model.ErrTMDBUnreachable` (`server/internal/metadata/tmdb.go:80-84`) |
+| Fehlerklassen | Sentinels `ErrUnreachable`, `ErrKeyInvalid`, `ErrForbidden` (mit Meldung), `ErrDuplicate`, `ErrNoSeasons`, `ErrNotFound`, `ErrServer`, `ErrCSRF`; neu **Vorschlag** `ErrUserExists` (409 bei `POST /user`), `ErrQuota` (403 `… Quota exceeded.`) | Muster `model.ErrTMDBUnreachable` (`server/internal/metadata/tmdb.go:80-84`) |
+| Inhalt im Protokoll | nie ein Body, nie ein Header; ein Body mit Passwort (`POST /user`, `…/settings/password`) erscheint auch in Fehlertexten nicht | `CLAUDE.md` Regel 10; Anhang H N-12 |
 | Wiederholung | keine im Client; die Job-Queue wiederholt | [Anhang C](anhang/C-integrationen-jobs-regeln.md), Abschnitt 3 |
 
-Der Client bildet die Antworten auf schmale Go-Typen ab (`Request`, `Media`, `User`, `Quota`, `Status`).
+**Aufrufe nach Gruppen** (Einzelheiten und Fallstricke: `08-datenmodell-api.md`, Abschnitt 5):
+
+| Gruppe | Aufrufe | Stufe |
+|---|---|---|
+| Verbindung | `GET /status`, `GET /auth/me`, `GET /service/radarr`, `GET /service/sonarr` | 1 |
+| Benutzer | `GET /user`, `GET /user?q=<E-Mail>`, `POST /user`, `GET` und `POST /user/{id}/settings/main`, `POST /user/{id}/settings/password`, `POST /user/{id}/settings/permissions` (Anhang H 3.1) | 1 |
+| Limit | `GET /user/{id}/quota`; Requests des Benutzers für «nächster Platz frei» (Abschnitt 19.3) | 1 |
+| Einstellungen | `GET /settings/public` (`localLogin`), `GET /settings/metadatas` (Staffelquelle), `GET /settings/radarr`, `GET /settings/sonarr` (Adresse, Schlüssel, «Tag Requests»; Anhang H 3.1, 3.4, 3.5) | 1, 4 |
+| Wünsche | `POST /request`, `GET /request`, `GET /request/{id}`, `DELETE /request/{id}`, `POST /request/{id}/approve|decline|retry`, `GET /movie/{tmdbId}`, `GET /tv/{tmdbId}` | 2, 4 |
+| Entdecken und Suche | `GET /discover/trending`, `/discover/movies`, `/discover/movies/upcoming`, `/discover/tv`, `/discover/tv/upcoming`, `/discover/genreslider/movie`, `/discover/genreslider/tv`, `/discover/movies/genre/{id}`, `/discover/tv/genre/{id}`, `GET /search` (Anhang H 3.3) | 5 |
+
+Der Client bildet die Antworten auf schmale Go-Typen ab (`Request`, `Media`, `User`, `Quota`, `Status`, neu
+`UserSettings`, `PublicSettings`, `DVRServer`, `DiscoverPage`).
 Er liest Statuswerte als Zahlen, nicht als Namen: `BLACKLISTED` und `BLOCKLISTED` haben beide den Wert 6
 ([Anhang D](anhang/D-jellyseerr-api.md), Abschnitt 5). Die Spec von Jellyseerr ist an mehreren Stellen falsch (D, Abschnitt 1); der Client
 folgt dem Code.
@@ -80,15 +106,23 @@ Der Dienst für alles, was Wünsche betrifft.
 | `Service.Sync` | Handler `wishes.sync`: Requests abgleichen, Zustände ableiten; auch der Erstabgleich (Abschnitt 7.2) |
 | `Service.Import` | Handler `wishes.import`: bestehende Requests eines zugeordneten Benutzers übernehmen (Abschnitt 7.3, F-21) |
 | `Service.Reconcile` | Handler `wishes.reconcile` und Haken `WithMatched`: Verfügbarkeit in der eigenen Bibliothek |
-| `Service.RefreshUsers` | Handler `seerr.users`: Benutzerliste, Rechte, Kontingente, Fingerabdruck der Instanz (Abschnitt 7.4) |
-| `Mapping` | Zuordnung Konto und Profil zu Jellyseerr-Benutzer, Vorschläge bei gleicher E-Mail |
+| `Service.RefreshUsers` | Handler `seerr.users`: Benutzerliste, Rechte, Limit-Stand, Fingerabdruck der Instanz (Abschnitt 7.4) |
+| `Service.Provision` | Handler `seerr.provision`: Jellyseerr-Benutzer eines Kontos eröffnen oder über die E-Mail verknüpfen, Rechte und Limit schreiben (Abschnitt 18) |
+| `Service.PasswordSeen` | Haken aus `auth`: Passwort im Speicher an Jellyseerr weitergeben, wenn der Zustand es verlangt (Abschnitt 18.3) |
+| `Quota` | Limit je Konto auflösen, Stand aus dem Zwischenspeicher, Vorprüfung beim Anfordern, «nächster Platz frei» (Abschnitt 19) |
+| `Service.Tag` | Handler `wishes.tag`: Profil-Tag über `internal/arr` setzen und nachholen (Abschnitt 20) |
+| `Service.Progress` | Handler `wishes.progress`: Warteschlange und Dateistand der gewünschten Titel in Radarr und Sonarr über `internal/arr` lesen, Einträge den Wünschen zuordnen, Zwischenspeicher `wish_progress` schreiben (Abschnitt 22) |
+| `Discover` | Leseweg der Seiten «Entdecken», «Filme», «Serien», «Suche» und Handler `wishes.discover` (Abschnitt 21) |
+| `Mapping` | Jellyseerr-Benutzer je Konto (eröffnet, verknüpft, von Hand), Ausnahme je Profil (F-27) |
 | `Rights` | `canRequest` und Grund je Sitzung, je Titel, je Medienart, je Stelle |
 
 SQL liegt in einem eigenen Abfrageordner, nur für dieses Paket (**Vorschlag:** `server/queries/wishes/` →
 `store/wishq`, eine depguard-Regel nach dem Muster `certq` in `server/.golangci.yml`). Das Paket fragt nur
 die Wunsch-Tabellen (`wishes`, `wish_seasons`, `wish_requesters`, `wish_events`, `seerr_users`,
-`wish_account_map`, `wish_profile_map`, `seerr_log`) und lesend `accounts`/`profiles` ab, nie `items`,
-`media_files` oder `tracks`, und importiert `store/systemq` nicht.
+`wish_account_map`, `wish_profile_map`, `seerr_log`, neu `wish_account_limits`, `wish_profile_tags`, `wish_tags`,
+`wish_progress`, `wish_discover_pages`) und lesend `accounts`/`profiles` ab, nie `items`, `media_files` oder `tracks`, und
+importiert `store/systemq` nicht. Ob ein Treffer aus Entdecken oder Suche in der Bibliothek steht, fragt es
+`visibility` (Abschnitt 21.3).
 
 ### 2.4 Wer welche Daten besitzt
 
@@ -99,7 +133,11 @@ die Wunsch-Tabellen (`wishes`, `wish_seasons`, `wish_requesters`, `wish_events`,
 | `spotlight_entries` (+ `tvdb_id`, `imdb_id`) | `metadata` (`server/internal/metadata/trakt.go:291-298`) | `visibility`, `admin` | wie heute |
 | `notifications`, `deliveries` | `notify` | `notify` | wie heute |
 | `accounts.can_request`, `profiles.can_request` | `auth`, `admin` | `wishes` (lesend), `api` (Sitzung) | Kontodeckel nur über `updateAccountAccess` (`docs/adr/0014-benutzerverwaltung.md:87`) |
-| `settings` `seerr.*`, `wishes.*` | `admin` | `wishes`, `seerr` (Konfiguration beim Aufruf) | ein Ort je Einstellung |
+| `settings` `seerr.*`, `wishes.*`, `arr.*` | `admin` | `wishes`, `seerr`, `arr` (Konfiguration beim Aufruf) | ein Ort je Einstellung |
+| `wish_account_limits` (Limit je Konto), `wish_profile_tags` (Name des Profil-Tags) | `wishes` über `admin` | `wishes` | Limit und Tag-Name gehören zum Wunschfach; die Felder stehen auf den Seiten Konten bzw. Jellyseerr-Benutzer |
+| `wish_tags`, `wish_discover_pages` | `wishes` | `wishes` | Zustand der Tags; Zwischenspeicher der Listen |
+| `wish_progress` (Download-Fortschritt je Wunsch, **Vorschlag**) | `wishes` (Job `wishes.progress`) | `wishes` (für `listWishes`, `getExternalTitle`, `listAdminWishes`) | Zwischenspeicher; kein Aufruf an Radarr oder Sonarr im Seitenaufbau (N-84) |
+| Schlüssel von Radarr und Sonarr | niemand (nur im Speicher von `arr`) | `arr` | aus `GET /settings/radarr|sonarr` gelesen, nie gespeichert (N-23) |
 
 ### 2.5 Diagramm (a): Komponentenübersicht
 
@@ -112,6 +150,8 @@ flowchart LR
     API["internal/api<br/>strict server und Bild-Handler"]
     W["internal/wishes<br/>Dienst und Jobs"]
     S["internal/seerr<br/>HTTP-Client ohne DB"]
+    AR["internal/arr<br/>Tags, Warteschlange, Dateistand, ohne DB"]
+    AU["internal/auth<br/>Einladung, Anmeldung, Passwort"]
     V["internal/visibility<br/>Sichtbarkeit und Altersprüfung"]
     M["internal/metadata<br/>Match, TMDB, Trakt"]
     N["internal/notify<br/>Eingang und Kanäle"]
@@ -132,8 +172,13 @@ flowchart LR
   W --> N
   W --> J
   S -->|"X-Api-Key und X-API-User"| JS
+  API --> AU
+  AU -->|"Haken Passwort gesehen"| W
+  W --> AR
+  AR -->|"Tag anlegen und anhängen"| ARR
+  AR -->|"GET queue, movie, series, nur lesen"| ARR
   JS --> ARR
-  ARR -->|"Webhook Import"| I
+  ARR -->|"Webhook Import, von Hand eingerichtet, wie heute"| I
   I -->|"scan.path"| L
   L --> M
   M -->|"Haken WithMatched"| W
@@ -147,6 +192,30 @@ flowchart LR
   I -.->|"wishes.sync jetzt"| J
 ```
 
+### 2.6 Neues Paket `internal/arr` (Profil-Tag und Download-Fortschritt, Stufe 4)
+
+**Vorschlag** für Name und Schnitt. Ein reiner HTTP-Client für Radarr und Sonarr (API v3), ohne Datenbank, nach
+dem Muster von `internal/seerr`. Er kennt genau zwei Dinge (Anhang H N-81, Marco, E-6 und E-7): Tags (Titel
+finden, Tag sicherstellen, Tag anhängen; N-22) und das **Lesen** der Warteschlange und des Dateistands der
+gewünschten Titel für den Download-Fortschritt (`queue`, `movie?tmdbId`, `series?tvdbId`; Abschnitt 22, K-5). Webhooks richtet er nicht ein; `GET /api/v3/notification` ruft er nicht auf (N-80).
+
+| Merkmal | Festlegung | Begründung |
+|---|---|---|
+| Aufrufe für den Tag | `GET /api/v3/tag`, `POST /api/v3/tag {label}`; Radarr `GET /api/v3/movie?tmdbId=`, `PUT /api/v3/movie/editor {movieIds, tags, applyTags: "add"}`; Sonarr `GET /api/v3/series?tvdbId=`, `PUT /api/v3/series/editor {seriesIds, tags, applyTags: "add"}` | lesende Aufrufe gegen Radarr 6.4.4.10685 und Sonarr 4.0.20.3014 geprüft; die drei schreibenden **nicht geprüft** (Anhang H 8.3) |
+| Aufrufe für den Fortschritt | `GET /api/v3/queue` je Dienst; zum Zuordnen `GET /api/v3/movie?tmdbId=` (Radarr) bzw. `GET /api/v3/series?tvdbId=` (Sonarr), dieselben Aufrufe wie beim Tag | geprüft gegen Marcos Instanzen, ausser den Sonarr-Feldern `seriesId`, `episodeId`, `seasonNumber` der Warteschlange (Anhang H 8.3) |
+| Nicht im Paket | Titel hinzufügen, löschen, suchen, Qualität, Einträge der Warteschlange ändern oder entfernen, Tags entfernen, Webhooks (`/api/v3/notification`) anlegen oder ändern | N-22, N-26, N-80; Spec `:69` bleibt |
+| Ziel | Standardserver ohne 4K aus `GET /settings/radarr` bzw. `/settings/sonarr` (`hostname`, `port`, `useSsl`, `baseUrl`), oder die eigene Adresse des Administrators (Abschnitt 20.2) | N-23, F-30 |
+| Schlüssel | `apiKey` aus derselben Antwort, nur im Speicher, dort 10 Minuten gültig; neu gelesen nach Ablauf oder nach einer Antwort 401; geht nur an den Host, den der Administrator bestätigt hat (Abschnitt 20.2) | N-23, K-23 |
+| LAN | erlaubt wie bei `seerr`: eigener `http.Client` ohne `netguard.RefuseLocal` (`server/internal/netguard/netguard.go:73`) | Radarr und Sonarr stehen im Heimnetz |
+| Weiterleitungen | keine (`CheckRedirect` liefert `http.ErrUseLastResponse`) | der Schlüssel darf nicht weiterwandern |
+| Zeitlimit, Rate-Limit | **Vorschlag:** 10 s, 2 Anfragen/s je Dienst | Tags sind selten; die Warteschlange liest `wishes.progress` höchstens einmal je Minute und Dienst |
+| Antwortgrösse | **Vorschlag:** höchstens 4 MiB je Antwort wie `seerr` | die Warteschlange kann viele Einträge tragen |
+| `os/exec` | keins (Regel 3) | – |
+| Tag-Namen | nur `a–z`, `0–9`, `-` (Radarr und Sonarr, Anhang H 3.5); `arr` prüft den Namen vor dem Senden | N-21 |
+
+Sonarr kennt Tags nur an der Serie, nicht an der Staffel (Anhang H 3.5). Ein Staffelwunsch bekommt darum den Tag
+an der ganzen Serie.
+
 ## 3. Regel 2: Titelabfragen nur über `visibility`
 
 `wishes` steht nicht in der Liste der Pakete, die `store/systemq` importieren dürfen
@@ -154,11 +223,13 @@ flowchart LR
 
 | Frage | Funktion in `visibility` (Vorschlag für Namen) | Stufe |
 |---|---|---|
-| Welcher Bibliothekstitel gehört zu diesen externen IDs (Film: TMDB, dann IMDb; Serie: TMDB, TVDB, IMDb)? | `TitleByExternalIDs(kind, tmdb, tvdb, imdb) (itemID, bool)` (ohne Profil, nur intern) | 2 |
+| Welcher Bibliothekstitel gehört zu diesen externen IDs (Film: TMDB, dann IMDb; Serie: TVDB, dann TMDB, dann IMDb, Abschnitt 5)? | `TitleByExternalIDs(kind, tmdb, tvdb, imdb) (itemID, bool)` (ohne Profil, nur intern) | 2 |
+| Welche Treffer einer Liste aus Entdecken oder Suche stehen in der Bibliothek, und welche davon sieht das Profil? | **Vorschlag:** `MatchExternalTitles(profile, refs) []Match` (gebündelt je Seite; Treffer mit `itemID` und «sichtbar») | 5 |
 | Darf das Profil diesen Bibliothekstitel sehen? | bestehend `Visible(profile, itemID)` (`server/internal/visibility/playback.go:18-25`) | 2 |
 | Ist dieser TMDB-Titel für das Profil ein «fehlender Titel»? (kein Bibliothekseintrag, auch kein unsichtbarer; Freigabe ≤ min(Profil, Konto)) | `MissingTitle(profile, media, tmdbID)` | 2 |
 | Welche Staffeln einer Serie sind für das Profil abspielbar, mit wie vielen Folgen? | `VisibleSeasons(profile, itemID) map[int]int` (Staffel → Zahl abspielbarer, sichtbarer Folgen) | 2 |
-| Welche Spotlight-Einträge fehlen für das Profil? | scoped Abfrage neben `ListSpotlightRow` (`server/queries/scoped/spotlight.sql`) | 3 |
+| Welche Spotlight-Einträge stehen sichtbar in der Bibliothek (über TMDB, TVDB oder IMDb)? | bestehende scoped Abfrage `ListSpotlightRow` (`server/queries/scoped/spotlight.sql:8-16`), erweitert: heute nur `i.tmdb_id = e.tmdb_id` (Z. 10), neu auch über `tvdb_id` und `imdb_id` (Abschnitt 5.1) | 3 |
+| Welche Spotlight-Einträge fehlen in der Bibliothek, mit welchem Zustand? | **Vorschlag:** Abfrage ohne Profil für die Verwaltung (`admin` liest über `visibility`, wie heute die Einträge der Liste) | 3 |
 
 Wichtig: Ein Titel, der in der Bibliothek steht, für das Profil aber zu hoch eingestuft ist, gilt **nicht**
 als fehlend. Sonst sähe ein Kinderprofil ihn als «Noch nicht in der Bibliothek» und könnte ihn anfordern.
@@ -174,11 +245,14 @@ und speichert ihn als `external_titles.min_age`. Unbekannt zählt als 18. Massge
 
 **Sehen nur mit Anfordern (F-9).** Ein fehlender Titel erscheint einem Profil nur, wenn `wishes.Rights` für
 dieses Profil, diese Medienart und diese Stelle `canRequest` liefert und `visibility.MissingTitle` die Freigabe
-bestätigt. Jede scoped Operation, die fehlende Titel liefert (Startseite, Suche, Vorschauseite, Bilder,
-Serienseite), prüft beides; sonst 404 bzw. kein Eintrag. Ausnahme: Hat das Profil selbst einen Wunsch zu
+bestätigt. Jede scoped Operation, die fehlende Titel liefert (Suche, Vorschauseite, Bilder, Serienseite, die
+Seiten «Entdecken», «Filme», «Serien», «Suche» des Bereichs «Wünsche»), prüft beides; sonst 404
+bzw. kein Eintrag. Den Bereich selbst sieht nur ein Profil, das anfordern kann; alle anderen sehen höchstens
+«Meine Wünsche» (Anhang H N-56). Ausnahme: Hat das Profil selbst einen Wunsch zu
 diesem Titel (Zeile in `wish_requesters`, jeder Zustand), liefern Vorschauseite, Bilder und «Meine Wünsche»
 den Titel auch ohne `canRequest`. Gründe, die nur vorübergehend sind (Jellyseerr nicht erreichbar, Schlüssel
-abgelehnt), nehmen `canRequest` nicht weg; die Wünsche warten im Ausgangsfach.
+abgelehnt), nehmen `canRequest` nicht weg; die Wünsche warten im Ausgangsfach. Startseite und Spotlight-Liste
+liefern nie einen fehlenden Titel, auch nicht für Profile, die anfordern können (G-11, N-70).
 
 ## 4. Authentifizierung und Geheimnisse
 
@@ -187,17 +261,24 @@ abgelehnt), nehmen `canRequest` nicht weg; die Wünsche warten im Ausgangsfach.
 | Header | Wert | Wann |
 |---|---|---|
 | `X-Api-Key` | der Admin-Schlüssel der Instanz | jeder Aufruf |
-| `X-API-User` | `seerr_id` des zugeordneten Jellyseerr-Benutzers | jeder Aufruf **im Namen eines Benutzers**: `POST /request`, `DELETE /request/{id}`, Vorprüfung `GET /movie|tv/{tmdbId}` beim Senden und beim Zurückziehen |
-| (kein `X-API-User`) | handelt als Benutzer 1 (Eigentümer, `ADMIN`) | Verwaltungsaufrufe: `GET /status`, `GET /auth/me`, `GET /user`, `GET /user/{id}/quota`, `GET /request` im Abgleich, `GET /request?requestedBy=<id>` in der Übernahme (braucht `MANAGE_REQUESTS`, Anhang D 6.1), `GET /request/{id}`, `GET /service/radarr|sonarr`, `POST /request/{id}/retry` |
+| `X-API-User` | `seerr_id` des zugeordneten Jellyseerr-Benutzers | jeder Aufruf **im Namen eines Benutzers**: `POST /request`, `DELETE /request/{id}`, Vorprüfung `GET /movie|tv/{tmdbId}` beim Senden und beim Zurückziehen; die Listen von Entdecken und `GET /search` (N-54) |
+| (kein `X-API-User`) | handelt als Benutzer 1 (Eigentümer, `ADMIN`) | Verwaltungsaufrufe: `GET /status`, `GET /auth/me`, `GET /user`, `GET /user/{id}/quota`, `GET /request` im Abgleich, `GET /request?requestedBy=<id>` in der Übernahme (braucht `MANAGE_REQUESTS`, Anhang D 6.1), `GET /request/{id}`, `GET /service/radarr|sonarr`, `POST /request/{id}/retry`; neu die Benutzerpflege `POST /user`, `…/settings/main`, `…/settings/password`, `…/settings/permissions` (braucht `MANAGE_USERS`, Benutzer 1 hat `ADMIN`), die Einstellungen `GET /settings/public|metadatas|radarr|sonarr` und die Staffelliste `GET /tv/{tmdbId}` für den Dialog |
+
+**Folge für das Passwort (belegt, Anhang H 3.1):** Ruft ein Aufrufer mit `MANAGE_USERS` die Passwort-Route für
+einen **anderen** Benutzer auf, setzt Jellyseerr das Passwort ohne das alte. Weil der Schlüssel ohne `X-API-User`
+als Benutzer 1 handelt, kann Slouchcat das Passwort jedes Benutzers setzen, **ausser das von Benutzer 1**: Dafür
+verlangt Jellyseerr das alte Passwort (`GH:server/routes/user/usersettings.ts` Z. 222–261). Das Passwort eines
+anderen Administrators dürfte Benutzer 1 setzen; Slouchcat gleicht es trotzdem nicht ab, und auch nicht das von
+Benutzer 1 (N-6, «bleibt in Jellyseerr»).
 
 Belegt in `GH:server/middleware/auth.ts` Z. 9–34: Stimmt der Schlüssel, nimmt Jellyseerr Benutzer 1 oder die
 ID aus `X-API-User`. Eine unbekannte ID lässt den Benutzer leer, jede geschützte Route antwortet dann 403.
 
 **Warum nicht `userId` im Body.** Die Auto-Freigabe prüft Jellyseerr am **Aufrufer**, nicht am Zielbenutzer
 (`GH:server/entity/MediaRequest.ts` Z. 340–353, 455–468). Mit Schlüssel ohne `X-API-User` ist der Aufrufer
-Benutzer 1 mit `ADMIN`: Jeder Wunsch wäre sofort freigegeben, das Kontingent des Zielbenutzers würde zwar
+Benutzer 1 mit `ADMIN`: Jeder Wunsch wäre sofort freigegeben, das Limit des Zielbenutzers würde zwar
 geprüft, die Freigabe-Schleife in Jellyseerr fiele aber weg. Mit `X-API-User` ist der Aufrufer der
-Zielbenutzer selbst; es gelten seine Rechte, sein Kontingent und seine Auto-Freigabe (Anhang F 2.3, F-3).
+Zielbenutzer selbst; es gelten seine Rechte, sein Limit und seine Auto-Freigabe (Anhang F 2.3, F-3).
 
 `X-API-User` ist undokumentiert (Anhang D 2.1), aber in Jellyseerr 2.7.3 und Seerr 3.5.2 byte-gleich
 (`middleware/auth.ts`). Der Verbindungstest prüft es: `GET /auth/me` mit `X-API-User: <id>` muss genau diese
@@ -212,26 +293,47 @@ dem ersten Benutzer ≠ 1 aus `GET /user`; gibt es nur Benutzer 1, zeigt der Tes
 | Umgebung | **Vorschlag:** `SLOUCHCAT_SEERR_API_KEY` und `SLOUCHCAT_SEERR_URL` gewinnen wie die anderen Anbieter (`server/internal/admin/admin.go:36-58`, `EnvWinsError`) | Felder gesperrt mit Hinweis «In deploy/.env gesetzt» |
 | Basisadresse | `settings` `seerr.url`, Klartext | kann Zugangsdaten tragen (`http://user:pw@…`): **Vorschlag:** Benutzerangaben in der Adresse werden abgewiesen (`validation_failed`) |
 | Webhook-Token (Stufe 4) | `webhook_integrations` wie Radarr/Sonarr: nur SHA-256 und `token_tail` (`server/internal/integrations/integrations.go:262-275`) | einmal anzeigen |
+| Passwort eines Kontos | **nirgends** im Klartext; in Slouchcat nur der Argon2id-Hash wie heute (`server/internal/auth/password.go:36`) | geht nur im Speicher von `auth` an `wishes` und von dort im Body an Jellyseerr (Abschnitt 18.3); nie in einer Job-Nutzlast, weil die Queue Nutzlasten in der Datenbank speichert (ADR 0002) |
+| Zufallspasswort für Jellyseerr (N-4, N-10) | nirgends | im Speicher erzeugt, gesendet, verworfen; niemand kennt es |
+| Schlüssel von Radarr und Sonarr | nirgends | aus `GET /settings/radarr|sonarr` beim Lauf gelesen, nur im Speicher von `arr` (N-23); nie in Antworten, nie in `seerr_log` |
+| Eigene Adressen von Radarr und Sonarr | `settings` `arr.radarr_url`, `arr.sonarr_url`, Klartext, ohne Benutzerangaben | wie `seerr.url` |
 
 ### 4.3 Redaction (Regel 10)
 
 `apikey` deckt `X-Api-Key` und `apiKey` schon ab (`server/internal/logging/logging.go:43-56`, Kommentar Z. 44).
-Neu in Liste **und** Test: `seerrapikey` (aus `seerr.api_key`). `X-API-User` ist **kein** Geheimnis (nur eine
-Benutzernummer) und bleibt lesbar. **Vorschlag:** Der Client loggt je Aufruf nur Methode, Pfad ohne Query, Status, Dauer, nie
-Header. Das Protokoll im Band «Protokoll» (Anhang F 4) speichert dieselben Felder.
+Die Liste vergleicht Endungen nach Kleinschreibung und ohne `-` und `_` (`logging.go:42-43`, Liste Z. 53–55,
+Prüfung `isSensitiveKey` Z. 186). Neu in Liste **und** Test (Regel 10 verlangt beides, auch wo eine Endung sie
+schon deckt): `seerrapikey` (aus `seerr.api_key`), `newpassword` (Body von `…/settings/password`, Anhang H N-12;
+`password` steht schon in der Liste), `radarrapikey`, `sonarrapikey` (Schlüssel aus `/settings/radarr|sonarr`).
+`X-API-User` ist **kein** Geheimnis (nur eine Benutzernummer) und bleibt lesbar. **Vorschlag:** Die Clients
+`seerr` und `arr` loggen je Aufruf nur Methode, Pfad ohne Query, Status, Dauer, nie Header und nie einen Body.
+Das Protokoll im Band «Protokoll» (Anhang F 4) speichert dieselben Felder; `GET /settings/radarr|sonarr`
+erscheint dort ohne Antwortinhalt.
 
 ## 5. Medienidentifikation über externe IDs
 
 | Medienart | Schlüssel zu Jellyseerr | Abgleich mit der Bibliothek | Quelle der IDs |
 |---|---|---|---|
 | Film | `mediaId` = TMDB-ID | TMDB-ID, sonst IMDb-ID | TMDB-Suche, `spotlight_entries`, `external_titles` |
-| Serie | `mediaId` = TMDB-ID, **dazu `tvdbId`** | TMDB-ID, TVDB-ID, IMDb-ID (in dieser Reihenfolge, Treffer genügt) | TMDB `external_ids` (`metadata/tmdb.go`), Trakt `ids` |
+| Serie | `mediaId` = TMDB-ID, **dazu `tvdbId`** | **TVDB-ID zuerst**, dann TMDB-ID, dann IMDb-ID (in dieser Reihenfolge, Treffer genügt) | Trakt `ids` (liefert alle drei), sonst TMDB `external_ids` (`metadata/tmdb.go`) |
 
 Gründe und Lücken:
 
-- **TVDB-zuerst-Serien.** Eine Serie, die TVDB als ersten Anbieter hat, bekommt keine `tmdb_id`
-  (`server/internal/metadata/tvdb.go:430-434`, Anhang A 8). Ein reiner TMDB-Abgleich hielte sie für fehlend und
-  böte sie zum Anfordern an. Darum gleicht Slouchcat Serien auch über TVDB- und IMDb-ID ab.
+- **TVDB zuerst, wie die Bibliothek.** Die Bibliothek ordnet Serien TVDB-zuerst zu; eine Serie mit TVDB als
+  erstem Anbieter bekommt keine `tmdb_id` (`server/internal/metadata/tvdb.go:430-434`, Anhang A 8). Ein reiner
+  TMDB-Abgleich hielte sie für fehlend und böte sie zum Anfordern an. Darum gleicht Slouchcat Serien in derselben
+  Reihenfolge ab wie die Bibliothek: TVDB, TMDB, IMDb. Die Reihenfolge ist Redaktion (Anhang H N-61) auf Marcos
+  Wunsch, es solle «konsistent» sein; Fassung 2 nannte TMDB zuerst. Filme bleiben bei TMDB, dann IMDb.
+- **Was Jellyseerr mit TVDB macht (Antwort auf Marcos Frage, Anhang H 4.6).** Jellyseerr führt jeden Titel über
+  die TMDB-ID. Die TVDB-ID einer Serie nimmt es aus TMDB und gibt sie an Sonarr weiter; Sonarr arbeitet mit ihr.
+  Mit der Einstellung «Metadaten-Anbieter» = `tvdb` lädt Jellyseerr die Serie weiter über die TMDB-ID, ersetzt aber
+  die **Staffelliste** durch die von TVDB (`GH:server/api/tvdb/index.ts` Z. 136–260, 550–552;
+  `GH:server/lib/settings/index.ts` Z. 111–118). Der Schlüssel zu Jellyseerr bleibt also immer die TMDB-ID; was
+  abweichen kann, ist die Staffelzählung (Abschnitt 6.2, F-29).
+- **Nur TVDB-ID bekannt.** Liefert Trakt zu einem Spotlight-Eintrag nur die TVDB-ID, löst `metadata` sie über
+  TMDB «find by external id» auf. Gelingt das nicht, gilt der Eintrag nicht als fehlend (er wäre nicht
+  anforderbar) und steht in der Verwaltung unter den nicht zuordenbaren Einträgen (Anhang H N-62). Steht die
+  Serie über die TVDB-ID in der Bibliothek, erscheint sie im Spotlight wie jeder Bibliothekstitel.
 - **Trakt-IDs mitnehmen.** Der Trakt-Client liest heute nur `ids.tmdb` (`server/internal/trakt/trakt.go:270-273`).
   Ab Stufe 3 liest er `ids.tvdb` und `ids.imdb` mit und speichert sie in `spotlight_entries` (Anhang F 2.13).
 - **TVDB-ID beim Senden.** Fehlt sie bei TMDB und in Jellyseerr, löscht Jellyseerr Media und Request beim Senden
@@ -239,7 +341,33 @@ Gründe und Lücken:
   `tvdbId` immer mit; eine Serie ohne TVDB-ID in `external_titles` ist nicht anforderbar
   (`canRequest = false`, Grund `tvdb_id_missing`, Hinweis auf der Vorschauseite).
 - **Index.** `items_tmdb` ist nicht eindeutig und ohne `kind` (`00003_libraries_items.sql:81`). Die Abfrage in
-  `visibility` filtert darum immer zusätzlich nach `kind` (`movie` bzw. `series`) und `deleted_at IS NULL`.
+  `visibility` filtert darum immer zusätzlich nach `kind` (`movie` bzw. `series`) und `deleted_at IS NULL`. Für
+  TVDB und IMDb gibt es `items_tvdb` (`00008_library_complete.sql:32`) und `items_imdb`
+  (`00003_libraries_items.sql:82`).
+
+### 5.1 Spotlight: was bleibt
+
+Marco will im Spotlight nicht sehen, was fehlt; nur vorhandene Filme und Serien sollen auf der Startseite stehen,
+und die Verwaltung ist «gut so» (Anhang H 8.1, E-5 «Nein, nirgends»). Daraus folgt (N-70 bis N-73):
+
+| Teil | Festlegung | Stufe |
+|---|---|---|
+| Startseite (Bühne, Posterreihe) und `/lists/spotlight` | nur Titel der Bibliothek, wie heute; kein Schalter, keine Höchstzahl, keine Mischregel. Prepaint und Vorladen (`server/internal/api/preload.go`) bleiben unberührt | – |
+| Erkennen vorhandener Titel | `ListSpotlightRow` vergleicht heute nur `items.tmdb_id = spotlight_entries.tmdb_id` (`server/queries/scoped/spotlight.sql:10`). Neu: Filme über TMDB, dann IMDb; Serien über TVDB, dann TMDB, dann IMDb (Abschnitt 5). Dafür speichert `metadata` aus Trakt neu `tvdb_id` und `imdb_id` in `spotlight_entries` (`08-datenmodell-api.md`, Abschnitt 2.11). Folge: TVDB-zuerst-Serien ohne `tmdb_id` fehlen heute im Spotlight, obwohl sie in der Bibliothek stehen, und erscheinen danach (N-73) | 3 |
+| Verwaltung › Spotlight | liest alle Einträge der Liste, auch die fehlenden, mit Poster, Zustand («Noch nicht in der Bibliothek», «Angefordert · In Beschaffung», «Nicht zuordenbar»), den drei IDs und «Anfordern» (N-71). Bilder über `getAdminExternalTitleImage`; Zustand aus `wishes` | 3 |
+| Fehlende Einträge in der Zuschauer-App | nirgends, auch nicht als Reihe unter «Entdecken» (N-70) | – |
+
+Ein Titel ausserhalb der Bibliothek erscheint damit nur im Bereich «Wünsche», im Abschnitt «Noch nicht in der
+Bibliothek» der Suche, auf der Vorschauseite und als fehlende Staffel einer vorhandenen Serie (N-75, ADR 0038).
+
+```mermaid
+flowchart LR
+  T["trakt.refresh"] -->|"tmdb, tvdb, imdb"| SE[("spotlight_entries")]
+  SE --> Q{"Treffer in items über TMDB, TVDB oder IMDb?"}
+  Q -->|"ja und für das Profil sichtbar"| H["Startseite und Spotlight-Liste"]
+  Q -->|"nein"| AD["nur Verwaltung › Spotlight, Band Fehlende Einträge"]
+  AD -->|"Anfordern als Hauptprofil"| W["createWish"]
+```
 
 ## 6. Anfordern
 
@@ -249,25 +377,44 @@ Gründe und Lücken:
    `visibility.MissingTitle`. Steht der Titel schon sichtbar in der Bibliothek: 409 `already_available` mit
    `ItemRef`. Nicht sichtbar oder zu hoch eingestuft: 404.
 2. Offener Wunsch für (`movie`, `tmdbId`) vorhanden: das Profil wird Mitwünscher, Antwort 200 mit dem
-   bestehenden Wunsch, **kein** Aufruf an Jellyseerr (Anhang F 2.11, F-7).
-3. Sonst: eine Transaktion legt `wishes` (`queued`), `wish_requesters` (`owner`) und `wish_events` (`created`) an.
+   bestehenden Wunsch, **kein** Aufruf an Jellyseerr (Anhang F 2.11, F-7). Ein Mitwunsch zählt nicht zum Limit
+   und geht auch, wenn das Limit erreicht ist (Anhang H N-33, N-36).
+3. **Limit prüfen** (Abschnitt 19.2): Reicht der freie Platz des Kontos nicht (Film: 1, Serie: die Zahl der
+   gewählten Staffeln ohne Mitwunsch-Staffeln), antwortet `createWish` mit 409 `quota_exceeded` und dem Zeitpunkt,
+   an dem der nächste Platz frei wird; es entsteht kein Wunsch. Ohne bekannten Stand (Jellyseerr nie erreicht)
+   prüft Slouchcat nicht vor; dann entscheidet Jellyseerr beim Senden.
+4. Sonst: eine Transaktion legt `wishes` (`queued`), `wish_requesters` (`owner`) und `wish_events` (`created`) an.
    Legen zwei Profile denselben Titel gleichzeitig an, verletzt der zweite INSERT den Teilindex
    `wishes_open_movie`. Der Dienst wiederholt dann die ganze Transaktion; beim zweiten Durchlauf greift
    Schritt 2 (Mitwunsch).
-4. Sofortversuch mit Zeitlimit 3 s (Abschnitt 6.3), **ohne** Vorprüfung: Beim ersten Versuch meldet Jellyseerr
+5. Sofortversuch mit Zeitlimit 3 s (Abschnitt 6.3), **ohne** Vorprüfung: Beim ersten Versuch meldet Jellyseerr
    ein Doppel selbst mit 409 oder 202. Gelingt er, ist der Zustand `pending` oder `processing`, Antwort 201.
    Gelingt er nicht (Zeitlimit, nicht erreichbar, 5xx): Zustand bleibt `queued`, Job `wishes.submit` wird
    eingereiht, Antwort 201 mit `queued`. Die Oberfläche zeigt «Wird übermittelt, sobald Jellyseerr erreichbar
    ist» (Anhang F 3).
-5. Endgültige Abweisung im Sofortversuch (403 Kontingent, Sperrliste, kein Recht): Zustand `failed` mit
+6. Endgültige Abweisung im Sofortversuch (403 Limit, Sperrliste, kein Recht): Zustand `failed` mit
    Klartext, Antwort 201 mit dem Wunsch im Zustand `failed`. **Vorschlag:** kein HTTP-Fehler, weil der Wunsch
-   angelegt und protokolliert ist; der Dialog zeigt den Grund.
+   angelegt und protokolliert ist; der Dialog zeigt den Grund. 403 Limit kommt trotz Vorprüfung vor, wenn
+   jemand inzwischen direkt in Jellyseerr angefordert hat (E-3: Jellyseerr zählt alles).
+7. Nach jedem gesendeten Wunsch liest Slouchcat den Stand des Limits neu (`GET /user/{id}/quota`, N-35).
 
 ### 6.2 Serie mit Staffeln
 
+- **Staffelliste aus Jellyseerr (Anhang H N-63).** Der Dialog bietet genau die Staffeln an, die Jellyseerr
+  bestellen kann. Das gilt für eine fehlende Serie (Vorschauseite) und ebenso für eine Serie der Bibliothek mit
+  fehlenden Staffeln, wenn `getItem` `canRequestSeasons` meldet; beide lesen über `getWishSeasons`
+  (`08-datenmodell-api.md`, Abschnitt 4.5, Redaktionsentscheid zu K-4). Beim Öffnen des Dialogs liest der Server `GET /tv/{tmdbId}` (ohne `X-API-User`, Zeitlimit 3 s)
+  und hält das Ergebnis je Serie 1 Stunde im Speicher (**Vorschlag**). Steht Jellyseerr auf TVDB-Staffeln
+  (Abschnitt 5), ist das die TVDB-Zählung wie in Sonarr. **Vorschlag:** Ist Jellyseerr nicht erreichbar, zeigt der
+  Dialog die Staffeln aus `external_titles` bzw. `series_catalog` mit dem Hinweis «Staffeln laut TMDB, Jellyseerr
+  nicht erreichbar»; der Wunsch geht ins Ausgangsfach wie jeder andere.
 - Der Dialog sendet `seasons: "all"` («Alle fehlenden Staffeln») oder eine Liste. Der Server rechnet die
-  Liste selbst aus: Staffeln aus `external_titles` bzw. `series_catalog` ohne Staffel 0 und ohne Staffeln mit
-  0 Folgen (wie Jellyseerr, `MediaRequest.ts` Z. 383–391), abzüglich der für das Profil schon abspielbaren.
+  Liste selbst aus: Staffeln aus der Liste von Jellyseerr ohne Staffel 0 und ohne Staffeln mit 0 Folgen (wie
+  Jellyseerr, `MediaRequest.ts` Z. 383–391), abzüglich der für das Profil schon abspielbaren.
+- **Staffelzählung.** Die abspielbaren Staffeln liefert `visibility.VisibleSeasons` nach den Staffelnummern der
+  Bibliothek; die Bibliothek ordnet Serien TVDB-zuerst zu. Zählt Jellyseerr nach TMDB und teilt TMDB eine Serie
+  anders auf als TVDB, können die Nummern auseinanderlaufen. Darum empfiehlt Fassung 3, Jellyseerr auf TVDB-Staffeln
+  zu stellen; der Verbindungstest zeigt sonst einen Hinweis (N-64, F-29). Slouchcat rechnet keine Nummern um.
 - **Mitwunsch je Staffel.** Staffeln, die ein anderes Profil schon offen gewünscht hat, zeigt der Dialog als
   «Bereits angefordert» und lässt sie wählen. Für sie wird das Profil Mitwünscher des bestehenden Wunsches,
   ohne Aufruf an Jellyseerr. Nur die übrigen Staffeln bilden einen neuen Wunsch mit eigener
@@ -327,9 +474,9 @@ herausgefiltert, weil schon angefragt), sucht der Job sie mit `GET /tv/{tmdbId}`
 | 409 `Request for this media already exists.` | jemand anders hat ihn in Jellyseerr schon angefordert (Duplikate sind global) | **Erfolg**: `GET /movie|tv/{tmdbId}` (ohne `X-API-User`), offenen Request suchen, anhängen; Zustand daraus |
 | 409 `Auto-request for this media and user already exists.` | gleich | gleich |
 | 202 `No seasons available to request` | alle Staffeln sind in Jellyseerr schon angefragt oder vorhanden | `GET /tv/{tmdbId}`: je Staffel den Request suchen und seine ID in `wish_seasons` setzen; sind die Staffeln in Jellyseerr schon «verfügbar», Zustand `processing` mit Zusatz «wird eingelesen» |
-| 403 `Movie Quota exceeded.` / `Series Quota exceeded.` | Kontingent erschöpft | `failed`, `fail_reason = quota` |
+| 403 `Movie Quota exceeded.` / `Series Quota exceeded.` | Limit erreicht (Jellyseerr zählt auch Wünsche, die direkt dort gestellt wurden) | `failed`, `fail_reason = quota`; Stand des Limits neu lesen (Abschnitt 19) |
 | 403 `This media is blocklisted.` / `…blacklisted.` | Sperrliste (3.x / 2.x) | `failed`, `fail_reason = blocklisted` |
-| 403 `You do not have permission to make … requests.` | Benutzer darf das nicht | `failed`, `fail_reason = no_permission`; Warnung in der Zuordnung |
+| 403 `You do not have permission to make … requests.` | Benutzer darf das nicht | `failed`, `fail_reason = no_permission`; Warnung auf der Seite Jellyseerr-Benutzer |
 | 403 ohne bekannte Meldung (auch «You do not have permission to access this endpoint») | Schlüssel ungültig **oder** `X-API-User` unbekannt; Jellyseerr meldet beides gleich (Anhang D 2.1) | `GET /auth/me` ohne Header. Antwortet es 200, ist der Schlüssel gut und der Benutzer fehlt: `failed`, `fail_reason = seerr_user_gone` (wie Abschnitt 14 und `04-benutzer-profilmapping.md`, Abschnitt 8.1). Sonst ist der Schlüssel ungültig: Wunsch bleibt `queued`, Verbindung «Schlüssel ungültig» |
 | 401 `You must be logged in…` | Schlüssel ungültig | bleibt `queued`, Zustand der Verbindung |
 | 500 | meist TMDB-Fehler in Jellyseerr (`MediaRequest.ts` Z. 169–172) | wie nicht erreichbar: später erneut |
@@ -368,7 +515,8 @@ und ein laufender POST lässt sich nicht abbrechen. Darum:
 5. Eigener Request im Status `PENDING`: `DELETE /request/{id}` mit `X-API-User`
    (`GH:server/routes/request.ts` Z. 719–752). 204 oder 404 → Merker löschen, fertig.
 6. Request schon freigegeben (`APPROVED` oder später) oder er gehört einem anderen Benutzer: Er bleibt in
-   Jellyseerr stehen. Der Wunsch wird wieder geöffnet (`processing`), der Verlauf schreibt `reopened`, und das
+   Jellyseerr stehen. Der Wunsch wird wieder geöffnet; sein Zustand folgt dem Request (`pending`, solange der
+   Request noch auf Freigabe wartet, sonst `processing`; Redaktionsentscheid zu K-21). Der Verlauf schreibt `reopened`, und das
    Profil bekommt den Hinweis «War schon freigegeben» (in «Meine Wünsche» und am Bildschirm).
 7. Fehler auf `DELETE`:
 
@@ -456,8 +604,8 @@ Sync():
 Der inkrementelle Abgleich sieht alte Requests eines **neu** zugeordneten Benutzers nie, weil er beim ersten
 älteren `updatedAt` abbricht. Darum gibt es einen eigenen Job.
 
-- **Auslöser:** Setzen oder Ändern einer Zuordnung (Konto oder Profil) und von Hand («Anfragen übernehmen» auf
-  der Seite Zuordnung). Schlüssel `wishes.import:<seerrUserId>`.
+- **Auslöser:** Verknüpfen über die E-Mail, Setzen oder Ändern einer Zuordnung (Konto oder Ausnahme des Profils) und von Hand («Anfragen übernehmen» auf
+  der Seite Jellyseerr-Benutzer; auch nach dem Verknüpfen über die E-Mail, Abschnitt 18.2). Schlüssel `wishes.import:<seerrUserId>`.
 - **Abruf:** `GET /request?requestedBy=<seerrUserId>&take=50&skip=n` seitenweise, ohne `X-API-User`, also als
   Benutzer 1. Der Filter `requestedBy` braucht beim Aufrufer `MANAGE_REQUESTS` oder `REQUEST_VIEW` (Anhang D
   6.1); Benutzer 1 hat `ADMIN`. Der Job speichert seinen Stand je Seite wie der Abgleich.
@@ -497,7 +645,10 @@ sendete Slouchcat sonst mit `X-API-User: 3` an eine ganz andere Person.
   `queued`.
 - **Bestätigen** übernimmt den neuen Fingerabdruck; die Zuordnungen bleiben, und ein Erstabgleich (7.2) läuft.
   **Löschen** entfernt alle Zuordnungen und die Request-IDs offener Wünsche (sie wandern in den Verlauf); die
-  offenen Wünsche bleiben `queued` und gehen nach einer neuen Zuordnung neu an Jellyseerr.
+  offenen Wünsche bleiben `queued` und gehen nach einer neuen Zuordnung neu an Jellyseerr. **Vorschlag:** Nach dem
+  Löschen eröffnet `seerr.provision` die Konten in der neuen Instanz neu (verknüpft bei gleicher E-Mail, weil ein
+  Administrator gehandelt hat, N-2a); die
+  Passwörter folgen bei der nächsten Anmeldung.
 - Einzelheiten aus Sicht der Zuordnung: `04-benutzer-profilmapping.md`, Abschnitt 8.4.
 
 ## 8. Zustandsverwaltung
@@ -572,7 +723,7 @@ stateDiagram-v2
 
   queued --> pending: gesendet, Request 1
   queued --> processing: gesendet, Request 2 oder angehängt
-  queued --> failed: 403 Kontingent, Sperrliste, kein Recht oder 24 h ohne Erfolg
+  queued --> failed: 403 Limit, Sperrliste, kein Recht oder 24 h ohne Erfolg
   queued --> withdrawn: Profil zieht zurück
   queued --> available: Titel kam auf anderem Weg
 
@@ -737,9 +888,19 @@ fängt den Rest.
 
 ## 10. Radarr/Sonarr-Webhooks und Jellyseerr-Webhook
 
-- **Radarr/Sonarr-Webhooks bleiben unverändert** (ADR 0010; `server/internal/integrations/receive.go:41-93`). Sie
-  lösen `scan.path` aus und beschleunigen damit genau den Weg, der zur Verfügbarkeit führt. Sie lesen weiterhin
-  keine IDs (`server/internal/model/integrations.go:45-51`). Slouchcat ruft Radarr und Sonarr nie auf (G-1).
+- **Radarr/Sonarr-Webhooks bleiben, wie sie heute sind** (Marco, E-6 «Webhooks wie heute»; N-80). Der
+  Administrator richtet sie weiter von Hand ein; die Seite «Webhooks von Radarr und Sonarr» und der eingehende
+  Teil von ADR 0010 ändern sich nicht. Slouchcat trägt in Radarr und Sonarr keinen Webhook ein. Der Empfang
+  (`server/internal/integrations/receive.go:41-93`) löst `scan.path` aus und beschleunigt damit genau den Weg, der
+  zur Verfügbarkeit führt. Er liest weiterhin nur `eventType` und den Ordner (`server/internal/model/integrations.go:45-51`,
+  `server/internal/api/webhook_handlers.go:21-32`). Ausgehend ruft Slouchcat Radarr und Sonarr über
+  `internal/arr` nur für zwei Dinge auf (G-1, Abschnitte 20 und 22): Warteschlange und Dateistand der gewünschten
+  Titel lesen (`queue`, `movie?tmdbId`, `series?tvdbId`) und den Profil-Tag setzen. Beides hat mit den Webhooks
+  nichts zu tun. Der Import in die Bibliothek kommt weiter über den Webhook; Slouchcat liest in Radarr und Sonarr
+  nur für die Anzeige am Wunsch (Redaktionsentscheid zu K-5).
+- **Verworfen (E-6):** «API und Webhook» (Slouchcat trägt den Webhook selbst ein und holt Verpasstes über
+  `GET /api/v3/history/since` nach) und «Nur API, ohne Webhook» (Abfragen im Takt, langsamer als die Sofortmeldung,
+  dauernde Grundlast). Marco hat beide nicht gewählt (Anhang H 8.2, 8.4).
 - **Jellyseerr-Webhook (Stufe 4, F-18):** reiner Anstoss. Jede gültige Meldung reiht `wishes.sync` mit
   Priorität 7 ein (oder hebt einen wartenden an, `RaiseQueuedPriority`). Der Inhalt wird nicht ausgewertet: Er
   hat keine Benutzer-ID, keinen Request-Status, keine Signatur und keine Wiederholung (Anhang D 9.2, 9.3).
@@ -748,6 +909,41 @@ fängt den Rest.
 - Die Webhook-Route `POST /webhooks/{token}` hat schon die CSRF-Ausnahme (`server/internal/api/webhook_handlers.go:45-54`);
   ein neuer Wert `jellyseerr` in `webhook_integrations.kind` braucht einen Tabellenneubau (CHECK, `server/migrations/00017_integrations.sql:24`).
   Ratenbegrenzung 10/s je Integration gilt weiter (`receive.go:17-19`).
+
+### 10.1 Vorschlag: Sofort-Import über Pfad und Kennung aus der Webhook-Meldung (offen als F-33)
+
+**Nur Vorschlag der Redaktion (N-88), nicht Teil von E-6, nicht entschieden.** Marco will, dass ein neuer Film
+oder eine neue Serie «rasendschnell» in Slouchcat ankommt (Anhang H 8.1). Ohne neue Anbindung liesse sich das über
+die Meldung erreichen, die heute schon kommt.
+
+**Heute (nachgesehen im Worktree):**
+
+- Die aufgezeichneten Meldungen tragen bei Radarr `movie.tmdbId`, `movie.imdbId`, `movie.folderPath` und
+  `movieFile.path` (`testdata/webhooks/radarr-6.4.4.10685-download.json:20, 39, 48, 77`), bei Sonarr
+  `series.tvdbId`, `series.tmdbId`, `series.imdbId`, `series.path`, `episodeFile.path` und `episodes[]`
+  (`testdata/webhooks/sonarr-4.0.20.3014-download.json:77, 127-138`; Anhang H 8.3).
+- `model.WebhookPayload` hat nur `Event`, `MoviePath`, `SeriesPath` (`server/internal/model/integrations.go:45-51`);
+  der Handler kopiert nur `eventType`, `movie.folderPath` und `series.path` (`server/internal/api/webhook_handlers.go:21-32`);
+  der Vertrag sagt «Only `eventType` and the directory are read» (`api/openapi.yaml:19214`).
+- `Receive` reiht genau einen `scan.path` für den Ordner ein (`receive.go:88`, `library.RequestPathScan` in
+  `server/internal/library/service.go:789`): Schlüssel `scan:<id>:path`, Priorität 6, Entprellung 2 s; der Scan
+  liest die genannten Ordner ohne Unterordner (`server/internal/library/doc.go:88-100`). Bei Sonarr ist das der
+  Serienordner (`series.path`), nicht der Staffelordner der neuen Folge.
+
+**Was sich mit F-33 ändern würde:**
+
+| Ort | Änderung |
+|---|---|
+| Vertrag `receiveWebhook` | liest zusätzlich `movieFile.path`, `episodeFile.path`, `movie.tmdbId`, `movie.imdbId`, `series.tvdbId`, `series.tmdbId`, `series.imdbId`; `additionalProperties: true` bleibt, die Operation bleibt `public` |
+| `model.WebhookPayload`, Handler | neue Felder für Dateipfad und Kennungen |
+| `integrations.Receive` | setzt den Dateipfad wie heute den Ordner um (Pfad-Umsetzung, Wurzeln über `paths`, sonst `outside_roots`) und reicht Datei und Kennungen an `library` weiter; fehlt die Datei (Ereignis `rename`, Löschen), bleibt alles wie heute |
+| `library` | neuer Auftrag «nur diese Datei einlesen» mit höherer Priorität als `scan.path` (**Vorschlag** 7), mit derselben Entprellung; die Datei wird über die Kennung zugeordnet (Film über TMDB bzw. IMDb, Serie über TVDB) statt über die Titelsuche; Regel 2 bleibt, denn `library` darf `items` lesen |
+| `wishes` | prüft danach sofort die offenen Wünsche zu diesen Kennungen (`wishes.reconcile:item:<itemId>`), statt auf den Haken nach dem Match oder den stündlichen Nachlauf zu warten |
+| Webhook-Protokoll | zeigt zusätzlich «Datei» und «Kennung» |
+
+**Vorher messen.** Wo heute die Zeit zwischen Import in Radarr und «Verfügbar» in Slouchcat bleibt (Entprellung,
+Ordner-Scan, Probe, Match, Haken), ist nicht gemessen. Erst eine Messung in `docs/perf/` zeigt, ob F-33 etwas
+bringt (`09-umsetzungsplan.md`, Schritt 6a). Ohne Antwort auf F-33 bleibt der Empfang, wie er ist.
 
 ## 11. Erkennung der tatsächlichen Verfügbarkeit
 
@@ -795,9 +991,13 @@ in die Leiter von `server/internal/jobs/queue.go:11-29` (9 hoch … 0 tief).
 | `wishes.submit` | `delivery`, `general` | Ereignis: `createWish`, Fälligkeit aus `wishes.sync`, `retryWish` | – | 7 (ein Mensch wartet) | `wishes.submit:<wishId>` | eigene Leiter über `next_attempt_at` (6.3); Queue-Versuche nur für unerwartete Fehler |
 | `wishes.withdraw` | `delivery`, `general` | Ereignis: `withdrawWish`; offene Merker aus `wishes.sync` | – | 7 | `wishes.withdraw:<wishId>` | wartet auf ein laufendes `wishes.submit` desselben Wunsches (Sperre je Wunsch, 6.6); eigene Leiter wie 6.3 |
 | `wishes.sync` | `system`, `general` | Zeitplan; «Jetzt abgleichen»; Jellyseerr-Webhook | 5 min (einstellbar, `MinEvery` 5 min) | 5, manuell und Webhook 7 | `wishes.sync`; Erstabgleich `wishes.sync:initial` (ohne Seitengrenze, mit Fortschritt, 7.2) | Queue-Backoff; Jellyseerr nicht erreichbar → Lauf endet ohne Fehler, Zustand «Nicht erreichbar»; Zustand «Schlüssel ungültig» → nur `GET /auth/me` |
-| `wishes.import` | `system`, `general` | Ereignis: Zuordnung gesetzt oder geändert; von Hand («Anfragen übernehmen») | – | 5, von Hand 7 | `wishes.import:<seerrUserId>` | Queue-Backoff; Stand je Seite (7.3); ab Stufe 4 |
+| `wishes.import` | `system`, `general` | Ereignis: Jellyseerr-Benutzer verknüpft, von Hand gesetzt oder geändert; von Hand («Anfragen übernehmen») | – | 5, von Hand 7 | `wishes.import:<seerrUserId>` | Queue-Backoff; Stand je Seite (7.3); ab Stufe 4 |
 | `wishes.reconcile` | `system`, `general` | Zeitplan; Haken `WithMatched`; Sync | 1 h | 5 | `wishes.reconcile` (alle) bzw. `wishes.reconcile:item:<itemId>` | Queue-Backoff |
 | `seerr.users` | `system`, `general` | Zeitplan; «Benutzerliste neu laden»; nach Speichern der Verbindung | 24 h | 4, manuell 7 | `seerr.users` | Queue-Backoff |
+| `seerr.provision` | `system`, `general` | Ereignis: Einladung angenommen (wenn der Versuch direkt danach scheiterte), «In Jellyseerr eröffnen», «Alle eröffnen», Wunschrecht oder Limit des Kontos geändert, Konto gelöscht; `wishes.sync` für Konten im Zustand «wartet» | – | 7 (ein Mensch wartet), aus dem Abgleich 5 | `seerr.provision:<accountId>` | Queue-Backoff; Jellyseerr nicht erreichbar → Zustand bleibt «wartet». Die Nutzlast trägt **nie** ein Passwort (18.3) |
+| `wishes.tag` | `system`, `general` | nach jedem Lauf von `wishes.sync`; Ereignis: Wunsch wird `processing`, Mitwunsch kommt dazu; «Profil-Tag setzen» | mit dem Abgleich | 4, manuell 7 | `wishes.tag` | Queue-Backoff; einzelne Fehler stehen in `wish_tags` und werden beim nächsten Lauf nachgeholt (20.3) |
+| `wishes.discover` | `metadata`, `general` | Zeitplan; Wechsel der Seiten an | 1 h | 4 | `wishes.discover` | Queue-Backoff; wärmt den Zwischenspeicher vor (21.2) |
+| `wishes.progress` | `system`, `general` | Zeitplan; läuft nur, solange es Wünsche «In Beschaffung» gibt und «Download-Fortschritt zeigen» an ist | 1 min | 4 | `wishes.progress` | keine Wiederholung über die Queue (der nächste Lauf kommt in 1 min); Fehler je Dienst in `wish_progress` (22.4) |
 | `titles.refresh` | `metadata`, `general` | Zeitplan nach `trakt.refresh`; offene Wünsche | 24 h | 7 (täglicher Lauf über den Massensprossen) | `titles.refresh` | Queue-Backoff, TMDB-Limiter |
 | `series.catalog` | `metadata`, `general` | Ereignis nach Match einer Serie; Zeitplan | 7 d | Zeitplanlauf 7, Ereignisläufe 4 | `series.catalog:<itemId>` bzw. `series.catalog` | Queue-Backoff |
 
@@ -819,19 +1019,34 @@ es damit ohne Zusatzarbeit.
 | Schlüssel ungültig | 401 oder 403 bei `GET /auth/me` ohne `X-API-User` | jeder Lauf von `wishes.sync` ruft nur `GET /auth/me`, sonst nichts; Wünsche bleiben `queued`; fehlende Titel bleiben sichtbar | «Schlüssel ungültig»; `errors` einmal je 60 min (Dedupe `notify`, Anhang B 5.3) |
 | «Jellyseerr verwenden» aus | Einstellung `seerr.enabled = 0` | kein Aufruf; Wünsche bleiben gespeichert; die 24-h-Frist der `queued`-Wünsche ruht (**Vorschlag**, T-2); Zuschauer sehen keine fehlenden Titel (`07-administration.md`, Abschnitt 4.6) | Zustand «Ausgeschaltet» |
 | Andere Jellyseerr-Instanz | Fingerabdruck weicht ab (7.4) | Übermittlung und Abgleich halten an; neue Wünsche bleiben `queued` | «Andere Jellyseerr-Instanz erkannt»; Zuordnung bestätigen oder löschen |
-| 403 Kontingent | Text `Movie Quota exceeded.` / `Series Quota exceeded.` | `failed`, `quota` | Klartext im Dialog und in «Meine Wünsche» |
+| 403 Limit | Text `Movie Quota exceeded.` / `Series Quota exceeded.` | `failed`, `quota`; Stand neu lesen | Klartext im Dialog und in «Meine Wünsche»; Übersicht «Limit erreicht» |
 | 403 Sperrliste | `This media is blocklisted.` / `blacklisted.` | `failed`, `blocklisted` | «In Jellyseerr gesperrt» |
-| 403 kein Recht | `You do not have permission to make … requests.` | `failed`, `no_permission`; Zuordnung warnt | Klartext; Zuordnung «darf nicht anfordern» |
+| 403 kein Recht | `You do not have permission to make … requests.` | `failed`, `no_permission`; Seite Jellyseerr-Benutzer warnt | Klartext; Jellyseerr-Benutzer «darf nicht anfordern» |
 | 409 Duplikat | Text | Erfolg, anhängen (6.4) | normaler Zustand |
 | 202 keine Staffeln | Status 202 | anhängen bzw. «wird eingelesen» (6.4) | normaler Zustand |
 | 500 TMDB in Jellyseerr | 500 | wie nicht erreichbar, Diagnose mit Text | Verwaltung: Diagnose |
 | CSRF-Schutz in Jellyseerr an | schreibende Aufrufe scheitern (Anhang D 2.4) | Verbindungstest prüft es (15.1); Wünsche bleiben `queued` | Test «CSRF-Schutz aus: nein» mit Hinweis |
-| Benutzer in Jellyseerr gelöscht | `seerr.users` findet ihn nicht mehr; `X-API-User` liefert 403 und `GET /auth/me` ohne Header 200 (6.4) | `seerr_users.gone_at` setzen; Zuordnung bleibt, Profile verlieren `canRequest` (Grund `seerr_user_gone`); seine Requests löscht Jellyseerr mit (CASCADE, Anhang D 7.2) → offene Wünsche über 404 `failed`, `seerr_request_gone`; noch nicht übermittelte Wünsche `failed`, `seerr_user_gone` (`04-benutzer-profilmapping.md`, Abschnitt 8.1) | Zuordnung «Benutzer in Jellyseerr gelöscht» |
+| Benutzer in Jellyseerr gelöscht | `seerr.users` findet ihn nicht mehr; `X-API-User` liefert 403 und `GET /auth/me` ohne Header 200 (6.4) | `seerr_users.gone_at` setzen; Zuordnung bleibt, Profile verlieren `canRequest` (Grund `seerr_user_gone`); seine Requests löscht Jellyseerr mit (CASCADE, Anhang D 7.2) → offene Wünsche über 404 `failed`, `seerr_request_gone`; noch nicht übermittelte Wünsche `failed`, `seerr_user_gone` (`04-benutzer-profilmapping.md`, Abschnitt 8.1) | Jellyseerr-Benutzer «Benutzer in Jellyseerr gelöscht» |
 | Request in Jellyseerr gelöscht | Einzelprüfung `GET /request/{id}` liefert 404 | `failed`, `fail_reason = seerr_request_gone`; der Wunsch ist geschlossen, das Profil kann erneut anfordern | Zustand «Fehlgeschlagen» mit Grund |
 | `DELETE /request/{id}` beim Zurückziehen scheitert | 401, 403, 404 | Tabelle in 6.6 | Hinweis «War schon freigegeben» bei 401 |
 | TVDB-ID fehlt | `external_titles.tvdb_id` leer | Serie nicht anforderbar | Vorschauseite: Hinweis |
 | Radarr/Sonarr in Jellyseerr nicht eingerichtet | `GET /service/radarr|sonarr` leer | Wünsche bleiben nach der Freigabe `processing` (Anhang D 10) | Verbindungstest warnt; Verwaltung: Hinweis am Wunsch |
 | TMDB in Slouchcat nicht erreichbar | `ErrTMDBUnreachable` | Vorschauseite aus dem Cache; ohne Cache 503 `tmdb_unreachable` | Seite mit Fehlerhinweis |
+| Jellyseerr nicht erreichbar beim Annehmen einer Einladung | Netzfehler, Zeitlimit beim Versuch direkt nach dem Annehmen | Konto ist in Slouchcat angelegt wie heute; Zustand des Jellyseerr-Benutzers «wartet»; `seerr.provision` eröffnet ihn später mit Zufallspasswort und `password_state = next_login`; das Passwort folgt bei der nächsten Anmeldung (N-4). Findet der spätere Lauf eine gleiche Adresse, entsteht nur ein Vorschlag (N-2a) | Jellyseerr-Benutzer «wartet»; Übersicht «n Konten ohne Jellyseerr-Benutzer» |
+| Gleiche E-Mail beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos | `GET /user?q=<E-Mail>` trifft, oder `POST /user` antwortet 409 | nur Vorschlag (N-2a): `state = suggested` mit der gefundenen ID; keine Verknüpfung, kein Passwort an den bestehenden Benutzer, kein Anfordern, bis ein Administrator bestätigt (`confirmSeerrAccountLink`); «Alle eröffnen» lässt das Konto aus. Die Antwort an das Konto ist dieselbe wie ohne Treffer | Jellyseerr-Benutzer «Verknüpfung vorgeschlagen», Band offen; Übersicht zählt das Konto als ohne Benutzer. Zuschauer: nichts |
+| `POST /user` antwortet 409, ausgelöst durch einen Administrator | `User already exists with submitted email.` (Anhang D 7.2) | wie ein Treffer bei gleicher E-Mail: verknüpfen (N-2), Herkunft `linked` | «Verknüpft» |
+| Passwort-Route weist ab | Ziel ist Benutzer 1 oder ein Administrator, oder Jellyseerr antwortet 403 | kein Abgleich; `password_state = admin`; das Passwort bleibt in Jellyseerr (N-6) | «Passwort bleibt in Jellyseerr (Administrator)» |
+| Passwortabgleich scheitert sonst | Netzfehler, 5xx bei `…/settings/password` | `password_state = next_login`; nächster Versuch bei der nächsten Anmeldung (N-4, N-5) | «folgt bei der nächsten Anmeldung» |
+| «Lokale Anmeldung» in Jellyseerr aus | `GET /settings/public` liefert `localLogin: false` | eröffnen geht weiter; Anmelden in Jellyseerr geht erst, wenn sie an ist (N-11) | Verbindungstest warnt (15.1) |
+| Limit von Jellyseerr abgelehnt | 403 `… Quota exceeded.` beim Senden | `failed`, `fail_reason = quota`; Stand neu lesen (19.3) | Klartext; Übersicht «Limit erreicht» |
+| Limit-Felder nicht geschrieben | Zielbenutzer hat `MANAGE_USERS` (Jellyseerr nimmt die Felder nicht an, Anhang H 3.1) | nichts schreiben; der Benutzer hat ohnehin kein Limit (N-34) | «Kein Limit (Administrator)» |
+| Radarr oder Sonarr nicht erreichbar | Netzfehler, Zeitlimit, 401 von `arr` | Tag später: `wish_tags.state = failed`, der nächste Lauf von `wishes.tag` versucht es erneut; der Wunsch ändert sich nicht (N-25) | «Tag noch nicht gesetzt»; Übersicht |
+| Titel noch nicht in Radarr oder Sonarr | `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` leer | `wish_tags.state` bleibt `pending`, neuer Versuch mit dem nächsten Abgleich; **Vorschlag:** nach 7 Tagen `failed` mit «Titel nicht in Radarr gefunden» | «Tag noch nicht gesetzt» |
+| Adresse von Radarr oder Sonarr aus Jellyseerr nicht erreichbar | etwa Docker-interne Namen | Administrator trägt eine eigene Adresse ein (N-23, F-30) | Band «Radarr und Sonarr (Profil-Tags und Fortschritt)» |
+| Fortschritt: Radarr oder Sonarr nicht erreichbar | Netzfehler, Zeitlimit, 401 bei `GET /api/v3/queue` | `wish_progress` dieses Dienstes bekommt `error = unreachable`; die letzte Anzeige verfällt nach 5 min (**Vorschlag**); der Wunsch bleibt «In Beschaffung» ohne Zusatz (N-85, N-87) | Zuschauer: nichts Zusätzliches; Verwaltung: «Fortschritt nicht lesbar» |
+| Fortschritt: Titel in Radarr oder Sonarr nicht gefunden | `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` leer | keine Zeile in `wish_progress`; der Wunsch bleibt «In Beschaffung» ohne Zusatz; der Abgleich mit Jellyseerr läuft unverändert | Verwaltung: «In Radarr noch nicht gefunden» |
+| Fortschritt: Feld der Warteschlange fehlt | `size`, `sizeleft` oder bei Sonarr `seriesId`, `episodeId` fehlen (Sonarr-Felder nicht geprüft, Anhang H 8.3) | Eintrag ohne Zuordnung wird übergangen; ohne `size`/`sizeleft` «Wird heruntergeladen» ohne Prozent, ohne `timeleft` ohne Restzeit | Verwaltung: «Fortschritt unvollständig» in der Diagnose |
+| Seite des Bereichs «Wünsche» ohne Jellyseerr | Netzfehler, Zeitlimit beim Laden einer Liste | Liste aus dem Zwischenspeicher, auch wenn älter als 1 h; ohne Eintrag Hinweis statt Liste (21.2) | «Jellyseerr ist gerade nicht erreichbar. Stand von {{Zeit}}.» |
 
 ## 15. Sicherheit und Berechtigungen
 
@@ -846,12 +1061,23 @@ es damit ohne Zusatzarbeit.
 | Instanz | `GET /auth/me` ohne Header: E-Mail und `createdAt` von Benutzer 1 | beim ersten Erfolg Fingerabdruck speichern, danach gleich (7.4) |
 | CSRF-Schutz aus | **Vorschlag:** `POST /request` mit leerem Body `{}` | 400 vom Validator heisst aus; 403 mit CSRF-Text heisst an. Abgeleitet: `csurf` läuft vor dem Validator (`GH:server/index.ts` Z. 195–214 vor Z. 239–244); nicht gegen eine Instanz geprüft |
 | Radarr und Sonarr | `GET /service/radarr`, `GET /service/sonarr` | je mindestens ein Eintrag (Warnung, kein Fehler) |
+| Benutzer anlegen und ändern (neu) | `GET /auth/me` ohne Header: Rechte von Benutzer 1; `GET /user` | `ADMIN` oder `MANAGE_USERS` (Benutzer 1 hat `ADMIN`); sonst Fehler, weil Eröffnen, Passwort, Rechte und Limit scheitern |
+| Lokale Anmeldung in Jellyseerr (neu) | `GET /settings/public` | `localLogin = true`; sonst **Warnung**: eröffnete Benutzer können sich in Jellyseerr nicht anmelden (N-11) |
+| Staffeln aus TVDB (neu) | `GET /settings/metadatas` | Anbieter für Serien `tvdb`; bei `tmdb` **Warnung** mit Hinweis (N-64). **Nicht verifiziert:** Feldname in der Antwort |
+| Radarr für Profil-Tags und Fortschritt (neu, Stufe 4) | `GET /settings/radarr` (Standardserver ohne 4K), dann über `arr` `GET /api/v3/tag` und `GET /api/v3/queue` an diese oder die eigene Adresse | erreichbar, Schlüssel gültig, Warteschlange lesbar; dazu der Wert «Tag Requests» (`tagRequests`, N-28). Sonst **Warnung** |
+| Sonarr für Profil-Tags und Fortschritt (neu, Stufe 4) | wie Radarr mit `/settings/sonarr` | wie Radarr |
+| Passwort unverschlüsselt (neu) | Schema und Host von `seerr.url`, `netguard.LocalHost` (`server/internal/netguard/netguard.go:58`) | `https` oder eine Adresse im eigenen Netz; sonst **Warnung** «Passwörter gingen unverschlüsselt ins Internet» (N-12) |
+
+Eine **Warnung** lässt den Test nicht scheitern: Er gilt als gelungen, wenn kein Prüfpunkt rot ist. Für T-1 zählen
+nur «erreichbar», «Schlüssel gültig» und «Handeln im Namen von Benutzern».
 
 ### 15.2 Sichtbarkeitsstufen
 
 | Stufe | Operationen | Begründung |
 |---|---|---|
-| `scoped` | `listWishes`, `createWish`, `withdrawWish`, `getExternalTitle`, `searchExternalTitles`, `getExternalTitleImage`, erweitert `getHome`, `listHomeRow`, `getItem` | Wunsch und Altersprüfung gehören zum Profil; Antworten mit `ItemRef` sind immer `scoped` (`CLAUDE.md` Regel 7, `docs/adr/0005-profilwahl-sitzung.md:31`) |
+| `scoped` | `listWishes`, `createWish`, `withdrawWish`, `getExternalTitle`, `searchExternalTitles`, `getExternalTitleImage`, erweitert `getHome`, `listHomeRow`, `getItem`; neu `getWishQuota`, `getWishDiscover`, `listWishDiscoverRow`, `listWishTitles`, `searchWishTitles`, `getWishSeasons` | Wunsch, Limit und Altersprüfung gehören zum Profil; Antworten mit `ItemRef` (Bibliothekstreffer auf den Wunsch-Seiten) sind immer `scoped` (`CLAUDE.md` Regel 7, `docs/adr/0005-profilwahl-sitzung.md:31`) |
+| `public` mit Seiteneffekt | `acceptInvitation`, `login` (Antwort unverändert; eröffnen bzw. Passwort übernehmen im Hintergrund, Abschnitt 18) | wie heute |
+| `account` mit Seiteneffekt | `updateAccount` (Passwort und E-Mail gehen an Jellyseerr) | wie heute |
 | `scoped`, zusätzlich Hauptprofil | `listAccountWishes` (Muster `requirePrimary`, `server/internal/auth/profiles.go:40`; sonst 403 `primary_profile_required`) | Übersicht des Kontos; die Antwort trägt `ItemRef` und darum nie `account` (`account`: keine Item-IDs, `docs/adr/0005-profilwahl-sitzung.md:40-42`) |
 | `account` | erweitert `getSession` (`SessionInfo.wishes` ohne Titel) | Sitzung |
 | `admin` | alle `/admin/seerr…` und `/admin/wishes…`, dazu die Bildroute `getAdminExternalTitleImage` (`/admin/titles/{media}/{tmdbId}/images/…`, `http.Handler`) | Verwaltung. Verwaltungsantworten tragen keine `ItemRef` und keine scoped Adresse (Muster `adminCurationAnswer`, `server/internal/api/contract_curation_test.go:30-43`): `AdminWish` nennt Titel, Jahr, IDs und eine Admin-Bildadresse; vorhandene Titel nutzen `getAdminItemImage` |
@@ -867,7 +1093,12 @@ Die LAN-Ausnahme ist vertretbar, weil die Adresse **nur der Administrator** setz
 Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegenmassnahmen:
 
 - Kein Wert aus einer Antwort von Jellyseerr wird je als Adresse aufgerufen (Poster-Pfade von Jellyseerr nutzt
-  Slouchcat nicht; Bilder kommen von TMDB über den eigenen Bildspeicher).
+  Slouchcat nicht; Bilder kommen von TMDB über den eigenen Bildspeicher). **Einzige Ausnahme** sind die Adressen von
+  Radarr und Sonarr aus `GET /settings/radarr|sonarr` (N-23). Dafür gilt Abschnitt 20.2: Slouchcat setzt die
+  Adresse nur aus `hostname`, `port`, `useSsl` und `baseUrl` zusammen, nur `http`/`https`, ohne Weiterleitung, und
+  nutzt sie erst, nachdem der Administrator sie einmal mit «Testen» bestätigt hat (**Vorschlag**). Meldet
+  Jellyseerr später einen anderen Host, halten `wishes.tag` und `wishes.progress` an, bis der Administrator erneut bestätigt; der Schlüssel
+  geht nie an einen unbestätigten Host.
 - Keine Weiterleitungen, nur `http`/`https`, keine Benutzerangaben in der Adresse.
 - Die Adresse ändert nur `updateSeerrSettings` (`admin`, mit Hauptprofil); der Test läuft nur gegen die
   gespeicherte oder gerade eingegebene Adresse.
@@ -885,7 +1116,16 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 - Rate-Limit je Profil für `createWish`: **Vorschlag:** 20 neue Wünsche je Stunde, Burst 5; darüber 429
   `too_many_attempts` mit `Retry-After` (wie im Vertrag, `api/openapi.yaml:261`). Mitwünsche zählen mit,
   idempotente Wiederholungen nicht.
-- `searchExternalTitles`: **Vorschlag:** 30 Suchen je Minute und Profil, dazu der TMDB-Limiter.
+- `searchExternalTitles` und `searchWishTitles`: **Vorschlag:** 30 Suchen je Minute und Profil, dazu der
+  TMDB-Limiter bzw. der Limiter von `seerr`.
+- Das Passwort im Body an Jellyseerr: nur über die eingetragene Adresse, nie über eine Weiterleitung; bei `http`
+  ausserhalb des eigenen Netzes warnt der Test (15.1). Antworten von `acceptInvitation`, `login` und
+  `updateAccount` sagen nie, ob es einen Benutzer mit dieser E-Mail in Jellyseerr gibt.
+- **Keine Übernahme fremder Jellyseerr-Benutzer (N-2a, Redaktionsentscheid zu K-1).** Eine E-Mail, die das Konto
+  selbst eingetippt hat (Einladung, eigene E-Mail geändert), führt nie zu einer Verknüpfung und nie zu einem
+  Passwort an einen bestehenden Benutzer, nur zu einem Vorschlag. Verknüpft wird nur, wenn ein Administrator
+  handelt oder bestätigt (Abschnitt 18.2). Bis dahin hat das Konto keinen Jellyseerr-Benutzer und kann nicht
+  anfordern.
 - Keine Secrets in Logs (Abschnitt 4.3). Fehlertexte an den Client nennen keinen Host und keinen Schlüssel.
 - Zuschauer sehen nie, wer sonst gewünscht hat (Anhang F 2.11); die Antwort `createWish` mit 200 sagt nur «schon
   gewünscht», nicht von wem.
@@ -894,10 +1134,13 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 
 | Punkt | Festlegung |
 |---|---|
-| Seitenaufbau | Startseite, Spotlight, Vorschauseite, «Meine Wünsche», Serienseite lesen nur lokale Tabellen; kein Aufruf an Jellyseerr |
+| Seitenaufbau | Startseite, Spotlight, Vorschauseite, «Meine Wünsche», Serienseite lesen nur lokale Tabellen; kein Aufruf an Jellyseerr, nie ein Aufruf an Radarr oder Sonarr. Ausnahmen für Jellyseerr (G-4): die Seiten «Entdecken», «Filme», «Serien», «Suche» (Zwischenspeicher 1 h, Abschnitt 21.2) und die Staffelliste im Dialog (1 h je Serie, Abschnitt 6.2) |
+| Download-Fortschritt | aus `wish_progress`, geschrieben von `wishes.progress` (1 min); je Lauf ein `GET /api/v3/queue` je Dienst, dazu `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` nur für Wünsche ohne bekannte Radarr- bzw. Sonarr-ID (in `wish_tags.arr_title_id` oder `wish_progress.arr_title_id`). Ruht ohne Wünsche in Beschaffung (Abschnitt 22) |
+| Limit | Stand aus `seerr_users` (zuletzt gelesen bei jedem Abgleich und nach jedem Wunsch); die Anzeige im Dialog und auf «Meine Wünsche» ruft Jellyseerr nicht auf (19.3) |
+| Entdecken für Profile mit Altersgrenze | Jellyseerr filtert mit `certificationLte`; Slouchcat prüft jeden Treffer nach. Für Treffer ohne Eintrag in `external_titles` holt der Server die Details wie bei der Suche (höchstens 20 je Seite, Zeitlimit 3 s); was nicht kam, fehlt diesen Profilen (21.4) |
 | Wunschzustand am Titel | ein Teilindex auf offene Wünsche je (`media`, `tmdb_id`); Abfrage je Seite gebündelt |
-| Spotlight | fehlende Titel kommen aus `spotlight_entries` + `external_titles` (lokal); die erste Folie bleibt ein vorhandener Titel, Prepaint und Vorladen bleiben unverändert (`server/internal/api/preload.go`; Anhang F 2.13) |
-| TMDB-Abrufe | über den bestehenden TMDB-Limiter (≤ 20/s, `docs/planning/03-plan-v1.md:115`); `titles.refresh` holt höchstens die Spotlight-Kandidaten und offene Wünsche; **Vorschlag:** Vorschauseite ohne Cache-Eintrag holt einmal synchron (Zeitlimit 5 s) und speichert; Einträge älter als 7 Tage frischt der Job auf |
+| Spotlight | nur Bibliothekstitel wie heute; der Abgleich über `tvdb_id` und `imdb_id` braucht Indizes auf `spotlight_entries` (`08-datenmodell-api.md`, Abschnitt 2.11), sonst nichts. Prepaint und Vorladen bleiben unverändert (`server/internal/api/preload.go`) |
+| TMDB-Abrufe | über den bestehenden TMDB-Limiter (≤ 20/s, `docs/planning/03-plan-v1.md:115`); `titles.refresh` holt höchstens die fehlenden Einträge des Spotlights (für die Verwaltung) und offene Wünsche; **Vorschlag:** Vorschauseite ohne Cache-Eintrag holt einmal synchron (Zeitlimit 5 s) und speichert; Einträge älter als 7 Tage frischt der Job auf |
 | Suche | TMDB-Suche live; **Vorschlag:** rohe TMDB-Treffer 10 min im Speicher je (Begriff, Sprache); der Filter nach Bibliothek, Recht und Alter läuft danach je Profil. Die Suchantwort von TMDB trägt keine Freigaben. Für Profile unter 18 holt der Server je Treffer ohne Eintrag in `external_titles` die Details (höchstens die ersten 20 Treffer, parallel unter dem TMDB-Limiter, Zeitlimit 3 s) und speichert sie in `external_titles`. Was im Zeitlimit nicht kam oder keine bekannte Freigabe hat, gilt als 18 und fehlt diesen Profilen. Für Profile ab 18 genügt die Suchantwort |
 | Bilder | eigene Route `/titles/{media}/{tmdbId}/images/{kind}/{size}` (`scoped`) und für die Verwaltung `/admin/titles/{media}/{tmdbId}/images/{kind}/{size}` (`admin`); Bild beim ersten Abruf von TMDB in den Bildspeicher, danach lokal; `Cache-Control` wie Titelbilder. **Vorschlag:** Service Worker nimmt die neue Route in den Bild-Cache auf (`web/vite.config.ts:141-156`) |
 | Abgleich | ein `GET /request`-Aufruf mit 50 Einträgen deckt im Haushalt fast immer alles; Jellyseerr fragt dabei Radarr/Sonarr ab, darum nicht öfter als alle 5 min |
@@ -918,9 +1161,523 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 | Sperrliste-Route | `/blacklist` | `/blocklist`, `/blacklist` veraltet | nicht verwenden |
 | Webhook-Variablen | `…discordId` | `…discordIds`, neu `media_imdbid` | Inhalt wird nicht ausgewertet |
 | Overseerr | archiviert (Anhang D 1) | – | nicht unterstützt; der Test meldet die Version |
+| Benutzerpflege, Limit, Discover, Suche (Anhang H 3.1 bis 3.3) | nicht nachgelesen | belegt | gegen 2.7.3 nicht geprüft; der Bau prüft gegen eine Instanz |
+| Metadaten-Anbieter für Serien | gibt es nicht | `tmdb` oder `tvdb` (seit 3.x, Anhang H 3.4) | ohne die Einstellung zeigt der Test «nicht prüfbar» (Warnung) |
 
 Migration in Slouchcat: alle Änderungen nach Vorlage und nur vorwärts (Regel 5); Neubauten von `notifications`,
 `deliveries`, `accounts`, `profiles`, `home_rows`, `webhook_integrations`, dazu einfache Spalten an
-`invitations`, `spotlight_entries` und `spotlight_config`; Reihenfolge je Stufe in
+`invitations`, `spotlight_entries`, `wish_account_map` und `seerr_users` sowie die neuen
+Tabellen `wish_account_limits`, `wish_profile_tags`, `wish_tags`, `wish_progress`, `wish_discover_pages`; Reihenfolge je Stufe in
 `08-datenmodell-api.md`. Bestehende Daten bleiben gültig; ab Werk ist alles aus, für Zuschauer ändert sich
 nichts, bis der Administrator Jellyseerr einrichtet und «Wünsche aktiv» einschaltet.
+
+## 18. Jellyseerr-Benutzer der Konten: eröffnen, verknüpfen, Passwort (Stufe 1)
+
+### 18.1 Was gilt
+
+Marco will, dass der Hauptbenutzer eines eingeladenen Kontos in Jellyseerr mit denselben Login-Daten eröffnet
+wird; Profile brauchen kein Login (Anhang H 1, E-1). Gibt es in Jellyseerr schon einen Benutzer mit derselben
+E-Mail, verknüpft Slouchcat ihn (E-4). Die Regeln N-1 bis N-12 stehen in Anhang H 4.1; hier der technische Weg. Was dort nicht als Marco markiert ist, ist Empfehlung der Redaktion.
+
+**Verknüpfen nur durch einen Administrator (N-2a, Redaktionsentscheid zu K-1).** Die E-Mail beim Annehmen einer
+Einladung und beim Ändern des eigenen Kontos tippt das Konto frei ein; niemand prüft sie. Würde Slouchcat dann
+einen bestehenden Benutzer mit dieser Adresse verknüpfen und ihm das Passwort setzen, übernähme das Konto einen
+fremden Jellyseerr-Benutzer. Darum verknüpft Slouchcat über die E-Mail nur, wenn ein Administrator handelt
+(«In Jellyseerr eröffnen», «Alle eröffnen») oder einen Vorschlag bestätigt. Tippt das Konto die Adresse selbst
+ein, entsteht nur ein **Vorschlag**: keine Verknüpfung, kein Passwort an den bestehenden Benutzer, kein Anfordern,
+bis ein Administrator unter Jellyseerr-Benutzer bestätigt. Das schränkt E-4 für diesen einen Fall ein; E-4 fragte
+nach Konten und Benutzern, «die es heute schon gibt», und dort verknüpft weiter der Knopf des Administrators.
+Offen als Teil von F-24.
+
+| Zustand am Konto | Bedeutung | Spalten (`08-datenmodell-api.md`, Abschnitt 2.2) |
+|---|---|---|
+| eröffnet | Slouchcat hat den Benutzer mit `POST /user` angelegt; Slouchcat führt seine Rechte (N-9) | `origin = created`, `state = ready` |
+| verknüpft | es gab ihn schon (gleiche E-Mail oder 409), ein Administrator hat gehandelt oder bestätigt (N-2a); Rechte fasst Slouchcat nicht an | `origin = linked`, `state = ready` |
+| Verknüpfung vorgeschlagen | beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos gab es einen Benutzer mit gleicher Adresse; nichts verknüpft, kein Passwort, kein Anfordern, bis ein Administrator bestätigt (N-2a) | `state = suggested`, `suggested_seerr_user_id` gesetzt, `seerr_user_id` leer |
+| von Hand | der Administrator hat ihn auf der Seite Jellyseerr-Benutzer gewählt | `origin = manual`, `state = ready` |
+| wartet | Eröffnen ist ausgelöst, Jellyseerr war nicht erreichbar | `state = waiting`, `seerr_user_id` leer |
+| nicht eröffnet | keine Zeile; nur Anzeige | – |
+
+Stand des Passworts (`password_state`): `synced` (gleich wie in Slouchcat, Zeit in `password_synced_at`),
+`next_login` (folgt bei der nächsten Anmeldung), `off` (Abgleich für dieses Konto aus), `admin` (Benutzer 1 oder
+Administrator in Jellyseerr, «bleibt in Jellyseerr», N-6), `external` (Benutzer meldet sich über Jellyfin, Emby oder
+Plex an, `user_type` ≠ 2, N-6).
+
+### 18.2 Ablauf der Eröffnung (`seerr.provision`)
+
+Ausgelöst durch die Einladung, durch «In Jellyseerr eröffnen» bzw. «Alle eröffnen» und durch den Abgleich für
+wartende Konten (Anhang H 4.1). Die Schalter «Neue Konten in Jellyseerr eröffnen» und «Passwort abgleichen»
+stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Jellyseerr eingerichtet ist (N-8).
+
+1. `GET /user?q=<E-Mail>`; exakter Treffer ohne Gross-/Kleinschreibung:
+   - **ausgelöst durch einen Administrator** («In Jellyseerr eröffnen», «Alle eröffnen», «Verknüpfung bestätigen»)
+     → verknüpfen (N-2), weiter bei 4. Das Passwort eines verknüpften Benutzers übernimmt Slouchcat nach der
+     Empfehlung zu F-24 ebenfalls, sofort wenn es im Speicher ist, sonst bei der nächsten Anmeldung; nie bei
+     Administratoren und Anmeldung über Jellyfin, Emby oder Plex (N-6).
+   - **ausgelöst durch das Konto selbst** (Einladung angenommen, eigene E-Mail geändert) → nur Vorschlag (N-2a):
+     `state = suggested`, `suggested_seerr_user_id` = gefundene ID, das Passwort im Speicher wird verworfen, kein
+     weiterer Aufruf an Jellyseerr. Ende. «Alle eröffnen» lässt solche Konten aus; der Abgleich für wartende
+     Konten ebenfalls.
+2. Sonst `POST /user {email, username, password}`; `username` = Teil der E-Mail vor dem @ (N-1). Passwort: das
+   echte, wenn es gerade im Speicher ist (18.3), sonst ein Zufallspasswort und `password_state = next_login` (N-4).
+   409 → wie Treffer behandeln, also je nach Auslöser verknüpfen oder nur vorschlagen.
+3. `POST /user/{id}/settings/permissions`: mit Wunschrecht des Kontos `REQUEST` (32), ohne `0` (N-9). Nur für
+   `origin = created`.
+4. `GET /user/{id}/settings/main`, dann `POST /user/{id}/settings/main` mit allen gelesenen Feldern unverändert und
+   den vier Limit-Feldern (Abschnitt 19). Jellyseerr schreibt **alle** Felder aus dem Body und leert fehlende
+   (Anhang H 3.1, `usersettings.ts` Z. 77–150). Nur für Benutzer ohne `MANAGE_USERS`.
+5. Zustand am Konto speichern; `wishes.import` für den Benutzer einreihen, wenn er verknüpft wurde (Stufe 4, 7.3).
+
+**Bestätigen (`confirmSeerrAccountLink`, Vorschlag).** Der Administrator bestätigt einen Vorschlag unter
+Jellyseerr-Benutzer. `wishes` liest den Benutzer neu (`GET /user?q=<E-Mail>`) und prüft, dass seine ID noch
+`suggested_seerr_user_id` ist und die E-Mail noch passt; sonst 409 und der Vorschlag fällt weg. Dann
+`origin = linked`, `state = ready`, weiter bei Schritt 4; das Passwort folgt nach F-24 bei der nächsten Anmeldung.
+Wählt der Administrator stattdessen von Hand einen anderen Benutzer, gilt `origin = manual`, und der Vorschlag
+fällt weg.
+
+**Antwort an das Konto.** Die Antwort auf `acceptInvitation` und `updateAccount` ist in allen Fällen gleich; sie
+verrät nie, ob Jellyseerr die Adresse kennt. Was das Konto später sieht, unterscheidet einen Vorschlag nicht von
+«wartet» (N-2a).
+
+Ein Profil bekommt nie einen eigenen Benutzer, ausser über die zugeklappte Ausnahme (N-41, F-27).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor G as Gast
+  participant A as api
+  participant AU as auth
+  participant W as wishes
+  participant S as seerr
+  participant J as Jellyseerr
+  participant Q as jobs
+
+  G->>A: POST acceptInvitation mit E-Mail und Passwort
+  A->>AU: AcceptInvitation
+  AU->>AU: Konto anlegen, Commit
+  AU->>W: Haken Passwort gesehen, Moment invitation
+  AU-->>A: Sitzung wie heute
+  A-->>G: 200, Anmeldung
+  W->>S: im Hintergrund, Passwort nur im Speicher
+  alt Jellyseerr erreichbar
+    S->>J: GET /user mit q gleich E-Mail
+    alt Treffer
+      J-->>S: Benutzer 4
+      W->>W: nur Vorschlag, state suggested, Passwort verwerfen
+      Note over W,J: Kein Passwort an Benutzer 4, kein Anfordern, bis ein Administrator bestätigt
+    else kein Treffer
+      S->>J: POST /user mit email, username, password
+      J-->>S: 201 Benutzer 6
+      S->>J: POST settings/permissions REQUEST
+      W->>W: eröffnet
+      S->>J: GET und POST settings/main mit Limit
+      W->>W: Passwort synced
+    end
+  else nicht erreichbar
+    W->>W: Zustand wartet, Passwort verwerfen
+    W->>Q: seerr.provision ohne Passwort
+    Note over W,Q: Später mit Zufallspasswort, das echte folgt bei der nächsten Anmeldung
+  end
+```
+
+### 18.3 Das Passwort in den drei Momenten
+
+Slouchcat sieht das Passwort im Klartext nur beim Annehmen der Einladung, beim Ändern des eigenen Passworts und
+bei jeder Anmeldung (Anhang H 3.6). Nur dann gibt es es weiter (N-3). Eine Funktion «Passwort zurücksetzen» gibt
+es heute nicht (`server/internal/auth/` kennt nur `UpdateAccount`); kommt sie, gilt für sie dasselbe wie für das
+Ändern.
+
+| Moment | Heute im Code | Wirkung in Jellyseerr |
+|---|---|---|
+| Einladung annehmen | `Service.AcceptInvitation` (`server/internal/auth/invitations.go:250`), Commit Z. 337, heutige Haken Z. 341–346; Handler `server/internal/api/invitation_handlers.go:61` | eröffnen (18.2) mit dem echten Passwort; gibt es die Adresse schon, nur Vorschlag ohne Passwort (N-2a) |
+| Passwort oder E-Mail ändern | `Service.UpdateAccount` (`server/internal/auth/account.go:19`), neues Passwort Z. 68–73, E-Mail Z. 87–88, Commit Z. 112; Handler `server/internal/api/account_handlers.go:44` | mit Benutzer: `POST /user/{id}/settings/password {newPassword}` sofort; E-Mail über `…/settings/main` (N-5). Schlägt es fehl: `next_login`. Ohne Benutzer (wartet, Vorschlag): die neue Adresse prüft Slouchcat wie beim Annehmen; Treffer → nur Vorschlag, ein alter Vorschlag fällt weg (N-2a). Gehört die neue Adresse schon einem anderen Jellyseerr-Benutzer, schreibt Slouchcat sie nicht und zeigt das nur der Verwaltung |
+| Anmeldung | `Service.Login` (`server/internal/auth/auth.go:273`), Passwort geprüft vor `StartSession` Z. 335; Handler `server/internal/api/auth_handlers.go:190` | nur wenn `password_state = next_login` und `state = ready`: Passwort setzen, dann `synced`. Bei `state = suggested` nie (N-2a) |
+
+**Haken (Vorschlag).** `auth` bekommt nach dem Muster von `WithAccountCreated` und `WithInvitationAccepted`
+(`server/internal/auth/auth.go:109-123`, verdrahtet in `server/cmd/slouchcat/main.go:292`) einen Haken
+`WithPasswordSeen(fn func(ctx, accountID int64, email, password, moment string))`. `auth` ruft ihn **nach** dem
+Commit bzw. nach der gelungenen Prüfung auf. Er gibt das Passwort an `wishes`, das es in einer Goroutine mit
+Zeitlimit 10 s weiterreicht und danach verwirft. Die Antwort an den Browser wartet darauf nicht und ändert sich
+nicht. Das Passwort steht nie in einer Job-Nutzlast, in `wish_events`, in `seerr_log` oder im Protokoll. Ein
+Fehler im Haken wird wie heute nur mit Konto-ID protokolliert (Muster `auth.go:126-133`).
+
+Slouchcat verlangt mindestens 10 Zeichen (`server/internal/auth/auth.go:40`), Jellyseerr 8; jedes
+Slouchcat-Passwort passt (Anhang H 3.1).
+
+**Kein Abgleich (N-6):** Benutzer 1 und andere Administratoren von Jellyseerr (`password_state = admin`) und
+Benutzer, die sich über Jellyfin, Emby oder Plex anmelden (`external`). Ändert jemand das Passwort direkt in
+Jellyseerr, bemerkt Slouchcat das nicht (N-7, Marco kannte die Folge); die Verwaltung bietet «Passwort bei der
+nächsten Anmeldung neu übernehmen» (`next_login`).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Z as Zuschauer
+  participant A as api
+  participant AU as auth
+  participant W as wishes
+  participant S as seerr
+  participant J as Jellyseerr
+
+  Z->>A: POST login mit E-Mail und Passwort
+  A->>AU: Login
+  AU->>AU: Passwort prüfen
+  AU->>W: Haken Passwort gesehen, Moment login
+  AU-->>A: Sitzung wie heute
+  A-->>Z: 200
+  W->>W: password_state lesen
+  alt next_login
+    W->>S: Passwort nur im Speicher
+    S->>J: POST settings/password mit newPassword
+    alt 204 oder 200
+      J-->>S: gesetzt
+      W->>W: synced, password_synced_at
+    else Fehler
+      J-->>S: Fehler oder Zeitlimit
+      W->>W: bleibt next_login
+    end
+  else synced, off, admin oder external
+    W->>W: nichts tun, Passwort verwerfen
+  end
+```
+
+### 18.4 Rechte, Löschen, Ausschalten
+
+- **Rechte folgen dem Wunschrecht (N-9).** Ändert der Administrator `accounts.can_request` über
+  `updateAccountAccess` (`server/internal/auth/accounts.go:20`), reiht `wishes` `seerr.provision` ein, das die
+  Rechte nachzieht. Nur für `origin = created`.
+- **Konto löschen (N-10, F-31).** `DeleteAccount` (`server/internal/auth/accounts.go:113`) ruft heute einen
+  Abschluss `end` auf. Darüber nimmt `wishes` nur einem Benutzer, den Slouchcat eröffnet hat (`origin = created`),
+  die Rechte (`permissions = 0`) und setzt ein Zufallspasswort. Verknüpfte (`linked`) und von Hand gewählte
+  (`manual`) Benutzer bleiben unverändert, wie bei N-9 (Redaktionsentscheid zu K-2). Der Benutzer bleibt in jedem
+  Fall bestehen, weil mit ihm seine Requests gelöscht würden (Anhang D 7.2). Ein Vorschlag (`suggested`) fällt
+  einfach weg. Die Rückfrage vor dem Löschen nennt, was mit dem Benutzer geschieht.
+- **Ausgeschaltet.** Mit «Neue Konten in Jellyseerr eröffnen» aus eröffnet die Einladung nichts; mit «Passwort
+  abgleichen» aus geht kein Passwort weiter (`password_state = off` für alle). Für ein Konto ohne
+  Jellyseerr-Benutzer gilt F-4.
+
+## 19. Limit je Konto (Stufe 1, Vorprüfung ab Stufe 2)
+
+### 19.1 Was gilt
+
+Marco will je Konto ein Limit, etwa 10 Filme und 5 Staffeln je Woche rollierend; es gilt für alle Profile
+gemeinsam, und Jellyseerr zählt alles, auch direkt dort gestellte Wünsche (Anhang H 1, E-3). Abgelehnte Wünsche
+und Mitwünsche zählen nicht (E-3). Regeln N-30 bis N-38 in Anhang H 4.3. Was dort nicht als Marco markiert ist, ist Empfehlung der Redaktion.
+
+| Punkt | Festlegung |
+|---|---|
+| Einstellen | Vorgabe in Wünsche › Einstellungen; je Konto unter Konten «Standard», «Eigenes» oder «Unbegrenzt» (N-31) |
+| Vorgabe ab Werk | 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen (Marcos Beispiel); 0 heisst ohne Limit (N-31, F-26) |
+| Schreiben | Slouchcat schreibt die vier Felder `movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays` in den Jellyseerr-Benutzer (18.2, Schritt 4), bei jeder Änderung und beim Eröffnen; für einen verknüpften Benutzer überschreibt es den Wert, der dort stand (N-37) |
+| «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. **Nicht verifiziert**, dass Jellyseerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
+| Zählen | Jellyseerr: rollierend, Requests mit `createdAt` in den letzten `…Days` Tagen; Filme nach Anzahl, Serien nach Summe der Staffeln; `DECLINED` zählt nicht, `FAILED` zählt (Anhang H 3.2) |
+| Ausgenommen | Benutzer mit `MANAGE_USERS` (also auch Administratoren) haben in Jellyseerr kein Limit; Jellyseerr nimmt die Felder für sie auch nicht an (N-34) |
+| Je Profil | kein Teil-Limit (N-38); ein Profil mit Ausnahme-Benutzer (F-27) hat das Limit dieses Benutzers |
+
+### 19.2 Vorprüfung beim Anfordern
+
+```mermaid
+flowchart TD
+  A["createWish"] --> B{"Mitwunsch?"}
+  B -->|"ja"| OK1["200 joined, zählt nicht"]
+  B -->|"nein"| C{"Benutzer hat MANAGE_USERS?"}
+  C -->|"ja"| SEND["Wunsch anlegen und senden"]
+  C -->|"nein"| D{"Stand im Zwischenspeicher bekannt?"}
+  D -->|"nein"| SEND
+  D -->|"ja"| E["frei = limit minus used minus wartende Wünsche"]
+  E --> F{"benötigt höchstens frei?"}
+  F -->|"ja"| SEND
+  F -->|"nein"| G["409 quota_exceeded mit nextFreeAt"]
+  SEND --> H{"Jellyseerr antwortet 403 Quota?"}
+  H -->|"ja"| I["failed, fail_reason quota"]
+  H -->|"nein"| J["pending oder processing"]
+  I --> K["Stand neu lesen"]
+  J --> K
+```
+
+- «benötigt» ist 1 bei einem Film und die Zahl der gewählten Staffeln ohne die Staffeln, für die das Profil
+  Mitwünscher wird (N-36).
+- «wartende Wünsche» sind Wünsche des Kontos (bzw. des Ausnahme-Benutzers) im Zustand `queued`: Jellyseerr kennt
+  sie noch nicht (N-35).
+- Der Dialog zeigt vorher, wie viel frei ist, und sperrt den Knopf mit dem Zeitpunkt, an dem der nächste Platz
+  frei wird (N-36). Der Titel bleibt sichtbar; Mitwünschen geht weiter.
+- **Vorschlag:** 409 statt 403, weil das Recht besteht und nur der Stand nicht reicht; 422 bleibt für falsche
+  Eingaben (`08-datenmodell-api.md`, Abschnitt 4.4).
+
+### 19.3 Stand lesen und «nächster Platz frei»
+
+- `GET /user/{id}/quota` (ohne `X-API-User`, braucht `MANAGE_USERS` und `MANAGE_REQUESTS`, Anhang D 7.2) bei jedem
+  Lauf von `seerr.users` und `wishes.sync` für Benutzer mit offenen oder neuen Wünschen und nach jedem gesendeten
+  Wunsch. Speichern in `seerr_users` (`…_quota_limit`, `…_quota_days`, `…_quota_used`, `quota_at`).
+- **Nächster Platz frei (N-35):** ältester zählender Request im Zeitraum + Tage. **Vorschlag:** gelesen mit
+  `GET /request?requestedBy=<id>&sort=added&sortDirection=asc&take=50` (Anhang D 6.1: `added` sortiert nach
+  `createdAt`), nur bei erreichtem oder fast erreichtem Limit. Bei Serien zählt jede Staffel; frei wird der Platz
+  des ältesten Requests mit seiner Staffelzahl. **Nicht geprüft** gegen eine Instanz.
+- Die Verwaltung zeigt den Stand je Konto «7 von 10 Filmen in 7 Tagen», inklusive der direkt in Jellyseerr
+  gestellten Wünsche (E-3).
+
+## 20. Profil-Tag in Radarr und Sonarr (Stufe 4)
+
+### 20.1 Was gilt
+
+Marco will sehen, welches Profil einen Titel angefordert hat, und hat dafür «Auch in Radarr/Sonarr» gewählt, als
+Tag; er wusste, dass das die heutige Regel bricht (Anhang H 2, E-2). Regeln N-20 bis N-28 in Anhang H 4.2. Was dort nicht als Marco markiert ist, ist Empfehlung der Redaktion.
+
+| Punkt | Festlegung |
+|---|---|
+| Profile | kein eigener Jellyseerr-Benutzer, kein Login; das Profil steht am Wunsch und als Tag (N-20, N-40) |
+| Name | Präfix + Profilname in Kleinbuchstaben, nur `a–z`, `0–9`, `-`; Präfix ab Werk `sc-`, einstellbar; haben zwei Profile denselben Namen, behält das erste den einfachen Namen (`sc-kinder`) und das später angelegte bekommt den Kontonamen dazu (`sc-kinder-grosseltern`), weil Tags nie umbenannt werden (N-21, Redaktionsentscheid zu K-18); je Profil überschreibbar (F-25) |
+| Zeitpunkt | sobald der Wunsch «In Beschaffung» ist, also Jellyseerr den Titel an Radarr oder Sonarr übergeben hat; ein Mitwunsch bekommt seinen Tag nachträglich (N-24) |
+| Fehler | ändern nichts am Wunsch; «Tag noch nicht gesetzt», der nächste Lauf holt es nach (N-25) |
+| Entfernen | nie, auch nicht beim Zurückziehen oder Löschen (N-26) |
+| Direkt in Jellyseerr gestellt | kein Profil-Tag, auch wenn `wishes.import` den Wunsch später einem Profil zuordnet; massgeblich ist `origin` = `jellyseerr` (N-27, Redaktionsentscheid) |
+| Tag des Kontos | ergänzend empfohlen: «Tag Requests» in Jellyseerr; dann trägt jeder Titel auch `<Benutzer-ID>-<Anzeigename>` des Kontos. Der Test zeigt, ob es an ist (N-28) |
+| Verworfen | `tags` im Body von `POST /request`: braucht `REQUEST_ADVANCED` für jeden Benutzer, ersetzt die Standard-Tags, kann einem Mitwunsch nichts nachreichen, und Jellyseerr legt keine Tags an (Anhang H 3.5, 4.2) |
+
+### 20.2 Zugang zu Radarr und Sonarr
+
+- Adresse und Schlüssel liest `arr` aus `GET /settings/radarr` bzw. `/settings/sonarr`, Standardserver
+  ohne 4K (`isDefault`, `is4k`; Anhang H 3.5). Der Administrator tippt keinen Schlüssel ein; die Schlüssel stehen
+  nur im Speicher (N-23). Dort hält `arr` sie 10 Minuten und liest sie erst nach Ablauf oder nach einer Antwort
+  401 von Radarr bzw. Sonarr neu aus Jellyseerr, nicht bei jedem Lauf von `wishes.progress` (Redaktionsentscheid zu
+  K-23).
+- Erreicht Slouchcat die Adresse nicht (etwa Docker-interne Namen), trägt der Administrator eine eigene Adresse
+  ein (`arr.radarr_url`, `arr.sonarr_url`); der Schlüssel kommt weiter aus Jellyseerr (F-30).
+- **Vorschlag (Sicherheit, 15.3):** Slouchcat nutzt eine Adresse aus Jellyseerr erst, wenn der Administrator sie im
+  Band «Radarr und Sonarr (Profil-Tags und Fortschritt)» einmal mit «Testen» bestätigt hat; der bestätigte Host
+  steht in `arr.radarr_host` bzw. `arr.sonarr_host`. Weicht der Host später ab, halten `wishes.tag` und
+  `wishes.progress` an.
+
+### 20.3 Ablauf (`wishes.tag`)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Q as jobs
+  participant W as wishes
+  participant S as seerr
+  participant J as Jellyseerr
+  participant AR as arr
+  participant R as Radarr
+
+  Q->>W: wishes.tag nach dem Abgleich
+  W->>W: wish_tags pending oder failed, Wunsch processing
+  opt Schlüssel nicht im Speicher, älter als 10 min oder letzte Antwort 401
+    W->>S: GET /settings/radarr
+    S->>J: ohne X-API-User
+    J-->>S: Standardserver mit Adresse und Schlüssel
+  end
+  W->>W: Host bestätigt?
+  W->>AR: Tag sc-noah sicherstellen
+  AR->>R: GET /api/v3/tag
+  alt Tag fehlt
+    AR->>R: POST /api/v3/tag mit label
+  end
+  AR->>R: GET /api/v3/movie mit tmdbId
+  alt Titel gefunden
+    AR->>R: PUT /api/v3/movie/editor, applyTags add
+    W->>W: wish_tags set
+  else noch nicht in Radarr
+    W->>W: bleibt pending, nächster Lauf
+  end
+  Note over W,R: Fehler ändern nichts am Wunsch. Tags werden nie entfernt
+```
+
+Für Serien gilt dasselbe mit Sonarr, `GET /api/v3/series?tvdbId=` und `PUT /api/v3/series/editor`. Je Wunsch und
+Profil eine Zeile in `wish_tags`; Besitzer und Mitwünscher bekommen je ihren Tag.
+
+## 21. Bereich «Wünsche»: Entdecken, Filme, Serien, Suche (Stufe 5)
+
+### 21.1 Was gilt
+
+Marco will eine Seite für Wünsche wie die Startseite von Jellyseerr, mit Discover, Movies, Series und Search
+(Anhang H 1). Der Eintrag «Wünsche» der Seitenleiste führt in einen Bereich mit den Reitern «Entdecken», «Filme»,
+«Serien», «Suche» und «Meine Wünsche» (N-50; «Meine Wünsche» als fünfter Reiter ist Redaktion). Reihen, Filter
+und Suche: N-51 bis N-53, F-28. Schalter «Seiten Entdecken, Filme, Serien und Suche» in Wünsche › Einstellungen
+(N-57). Was in Anhang H nicht als Marco
+markiert ist, ist Empfehlung der Redaktion.
+
+### 21.2 Leseweg und Zwischenspeicher
+
+- Die Daten holt der Server über die Discover- und Suchrouten von Jellyseerr (Anhang H 3.3), mit `X-API-User` des
+  Benutzers, als den das Profil anfordert (N-54). Der Client spricht nie mit Jellyseerr oder TMDB.
+- **Zwischenspeicher:** 1 Stunde je Liste, Seite, Sprache und Altersstufe (N-54), in `wish_discover_pages`
+  (`08-datenmodell-api.md`, Abschnitt 2.15). Gespeichert wird nur die Reihenfolge der Treffer und ihre Grunddaten;
+  Freigaben und Details liegen wie bisher in `external_titles`. Die Suche speichert **Vorschlag** 10 min im
+  Speicher wie `searchExternalTitles`.
+- Der Job `wishes.discover` (1 h) lädt die erste Seite jeder Reihe für jede Sprache und Altersstufe vor, die ein
+  Profil mit Wunschrecht hat. Ein Treffer, der fehlt, wird beim Seitenaufbau mit Zeitlimit 5 s geholt
+  (**Vorschlag**); ist Jellyseerr nicht erreichbar, gilt der ältere Eintrag, sonst der Hinweis (Abschnitt 14).
+- `mediaInfo` aus Jellyseerr nutzt Slouchcat nur für den Zustand in Jellyseerr («angefragt»), nie für «in der
+  Bibliothek» (N-55).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Z as Zuschauer
+  participant A as api
+  participant W as wishes
+  participant V as visibility
+  participant S as seerr
+  participant J as Jellyseerr
+  participant M as metadata
+
+  Z->>A: GET Entdecken, Reihe trending, Seite 1
+  A->>W: Discover Profil, Reihe, Seite
+  W->>W: Recht und Schalter prüfen, sonst 404
+  W->>W: Zwischenspeicher nach Liste, Seite, Sprache, Altersstufe
+  alt nicht im Speicher oder älter als 1 h
+    W->>S: GET /discover/trending mit X-API-User
+    S->>J: mit certificationLte bei Altersgrenze
+    J-->>S: Treffer mit tmdbId
+    W->>W: in wish_discover_pages speichern
+  end
+  W->>M: Freigaben fehlender Treffer, höchstens 20
+  M-->>W: external_titles mit min_age
+  W->>V: MatchExternalTitles Profil, Treffer
+  V-->>W: in der Bibliothek und sichtbar, oder fehlt und Freigabe passt
+  W-->>A: Einträge, Bibliothekstitel mit Marke und Link
+  A-->>Z: 200
+```
+
+### 21.3 Bibliothekstitel
+
+Titel, die in der Bibliothek stehen, erscheinen auch, mit Marke und Link zur Detailseite (N-55). Massgeblich ist
+der Abgleich von Slouchcat über `visibility` in der Reihenfolge von Abschnitt 5 (Serien TVDB zuerst). Für eine
+Serie ohne bekannte TVDB-ID holt `metadata` die `external_ids` von TMDB nach (in `external_titles`); bis dahin
+gleicht Slouchcat über TMDB ab. Ein Bibliothekstitel, den das Profil nicht sehen darf, erscheint gar nicht (404-Regel,
+Abschnitt 3). «Vorhandene ausblenden» (N-52) entfernt die Bibliothekstitel aus der Liste.
+
+### 21.4 Wer den Bereich sieht, Altersstufe
+
+- Den Bereich sieht nur ein Profil, das anfordern kann (F-9, N-56); alle anderen sehen höchstens «Meine Wünsche».
+- Die Altersstufe gilt für jeden Titel; unbekannt zählt als 18. Für Profile mit Altersgrenze fragt der Server
+  Jellyseerr mit `certificationLte` (und `certificationCountry` nach dem Freigabeland, **Vorschlag**) und prüft
+  jeden Treffer selbst mit `visibility.MissingTitle` nach (N-56). `certificationLte` ist nur ein Vorfilter.
+- Für `GET /discover/trending` nennt Anhang H 3.3 keinen Freigabe-Parameter (die Liste dort ist eine Auswahl;
+  **nicht verifiziert**, ob es einen gibt). Ohne Vorfilter wird die Reihe «Im Trend» für Profile mit Altersgrenze
+  stärker ausgedünnt (**Vorschlag:** bis zu drei Seiten lesen, um eine Reihe zu füllen).
+
+### 21.5 Kein Verstoss gegen Nicht-Ziele
+
+Die Listen sind öffentliche TMDB-Ranglisten, für alle gleich; das ist keine algorithmische Empfehlung (N-58).
+S-4 gilt für die Startseite ohne Ausnahme (N-70): Die neuen Seiten liegen unter «Wünsche», nicht auf der
+Startseite. Die fehlenden Einträge der Trakt-Liste erscheinen auch hier nicht als eigene Reihe (E-5).
+
+## 22. Download-Fortschritt aus Radarr und Sonarr (Stufe 4)
+
+### 22.1 Was gilt
+
+Marco will bei Wünschen den Download-Fortschritt aus Radarr und Sonarr sehen, «unter «Meine Wünsche» und in der
+Verwaltung» (Anhang H 8.2, E-7 «Ja, bei Wünschen»). Die API von Radarr und Sonarr dient damit zwei Dingen, dem
+Profil-Tag und dem Lesen des Fortschritts (E-6, E-7, N-81). Regeln N-82 bis N-87 in Anhang H 8.4; was dort nicht
+als Marco markiert ist, ist Empfehlung der Redaktion.
+
+| Punkt | Festlegung |
+|---|---|
+| Wo | beim Wunsch: «Meine Wünsche», Wunschkarte der Vorschauseite, Verwaltung › Wünsche › Anfragen. Nicht an Titeln der Bibliothek, nicht in Reihen, nicht in der Suche, nicht auf der Startseite (N-82) |
+| Wann | nur solange der Wunsch «In Beschaffung» ist (`processing`; bei Serien auch `partial` für die noch offenen Staffeln) |
+| Wirkung | nur Anzeige; die Zustände des Wunsches ändern sich nicht, «verfügbar» heisst weiter: Slouchcat kann den Titel abspielen (N-87, F-13) |
+| Schalter | «Download-Fortschritt zeigen» in Wünsche › Einstellungen, ab Werk an (N-86); aus: `wishes.progress` ruht, `wish_progress` wird geleert, keine Anzeige |
+| Zugang | derselbe wie für den Profil-Tag: Adresse und Schlüssel aus Jellyseerr oder eigene Adresse, Host bestätigt (Abschnitt 20.2) |
+
+### 22.2 Vier Anzeigen und wie sie entstehen (N-83)
+
+Die Felder der Warteschlange sind gegen Radarr 6.4.4.10685 geprüft; bei Sonarr war die Warteschlange beim Test
+leer, `seriesId`, `episodeId` und `seasonNumber` sind **nicht geprüft** (Anhang H 8.3).
+
+| Anzeige (Zuschauer) | `stage` in `wish_progress` | abgeleitet aus |
+|---|---|---|
+| «Wird gesucht» | `search` | Titel in Radarr bzw. Sonarr gefunden, kein Eintrag in der Warteschlange, keine Datei (`hasFile = false` bzw. die gewünschten Folgen fehlen laut `statistics` bzw. `seasons`) |
+| «Wird heruntergeladen · 45 % · noch 12 min» | `download` | Eintrag in der Warteschlange: Prozent = (`size` − `sizeleft`) / `size`; Restzeit aus `timeleft` (sonst aus `estimatedCompletionTime`); bei Serien die Summe über die Einträge der gewünschten Staffeln |
+| «Wird eingelesen» | `import` | Radarr meldet `hasFile = true` bzw. Sonarr hat die Folgen der gewünschten Staffeln, Slouchcat hat den Wunsch aber noch nicht erfüllt; gleich wie der Zusatz «wird eingelesen» aus Jellyseerr (Abschnitt 8.1) |
+| «Download verzögert» | `stalled` | `trackedDownloadStatus` = `warning` oder `error` an einem Eintrag des Wunsches; die Meldung (`errorMessage`, `statusMessages`) speichert Slouchcat nur für die Verwaltung |
+
+Bei Serien steht dazu «x von y Folgen da»: vorhandene Folgen der gewünschten Staffeln gegen ihre Folgenzahl laut
+`series_catalog` bzw. `external_titles`. `statistics` (`episodeFileCount`, `episodeCount`) gilt für die ganze Serie
+und ist geprüft; die Zahlen je Staffel stehen in `seasons`, deren Felder Anhang H 8.3 **nicht** nennt. Der Bau prüft
+sie gegen Marcos Sonarr; fehlen sie, zählt Slouchcat die Folgen nur für Wünsche über alle Staffeln. Gibt es mehrere Einträge, gewinnt `stalled` vor
+`download` vor `import` vor `search` (**Vorschlag**).
+
+Die Zuschauer-App zeigt nur diese Worte und Zahlen. `errorMessage`, `statusMessages`, `downloadClient` und der
+Dienst sieht nur die Verwaltung (N-83).
+
+### 22.3 Zuordnung der Warteschlange zu Wünschen
+
+| Dienst | Weg | Quelle |
+|---|---|---|
+| Radarr | Wunsch → `GET /api/v3/movie?tmdbId=<tmdb_id>` → `id` (Radarr-ID); Eintrag der Warteschlange mit `movieId` = diese ID | `movieId` geprüft (Anhang H 8.3) |
+| Sonarr | Wunsch → `GET /api/v3/series?tvdbId=<tvdb_id>` → `id`; Einträge mit `seriesId` = diese ID und `seasonNumber` in den gewünschten Staffeln | `seriesId`, `seasonNumber` **nicht geprüft**; fehlen sie, ordnet Slouchcat Sonarr-Einträge nicht zu (Abschnitt 14) |
+
+Die Radarr- bzw. Sonarr-ID merkt sich Slouchcat in `wish_progress.arr_title_id` (dieselbe ID wie
+`wish_tags.arr_title_id`); gesucht wird nur, solange sie fehlt. Ein Eintrag ohne passenden Wunsch wird nicht
+gespeichert: Slouchcat zeigt nie den Fortschritt eines Titels, den niemand über Slouchcat gewünscht hat (Spec
+`:67` bleibt dort Nicht-Ziel).
+
+### 22.4 Ablauf (`wishes.progress`) und Zwischenspeicher
+
+- **Takt:** jede Minute, nur solange es Wünsche «In Beschaffung» gibt und der Schalter an ist (N-84). Ohne solche
+  Wünsche reiht der Zeitplan den Lauf nicht ein bzw. der Lauf endet sofort ohne Aufruf.
+- **Je Lauf:** die Warteschlange je Dienst, für den es Wünsche gibt; dazu die Suchaufrufe aus 22.3 nur für
+  Wünsche ohne gemerkte ID. **Vorschlag:** `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` für `hasFile` und
+  `statistics` höchstens alle 5 min je Wunsch.
+- **Seiten der Warteschlange (Redaktionsentscheid zu K-8):** `GET /api/v3/queue` liefert Seiten. `arr` liest alle
+  Seiten (`page`, `totalRecords`) oder setzt `pageSize` gross genug; ein Eintrag auf Seite 2 darf nicht fehlen.
+  Welcher Weg bei Marcos Instanzen gilt und wie gross `pageSize` sein darf, prüft der Bau vorher gegen die
+  Instanz (**nicht geprüft**).
+- **Schlüssel:** wie in 20.2 aus dem Speicher von `arr`, 10 Minuten gültig; neu gelesen aus Jellyseerr erst nach
+  Ablauf oder nach einer Antwort 401 (Redaktionsentscheid zu K-23). Ein Lauf je Minute ruft Jellyseerr damit
+  höchstens alle 10 Minuten auf.
+- **Zwischenspeicher:** Tabelle `wish_progress` (`08-datenmodell-api.md`, Abschnitt 2.16), je Wunsch eine Zeile mit
+  `stage`, Prozent, Restzeit, Folgen, Meldung für die Verwaltung, Dienst, `read_at`. Ein Seitenaufbau liest nur
+  diese Tabelle; **kein Aufruf an Radarr oder Sonarr im Seitenaufbau** (N-84).
+- **Veralten:** Eine Zeile mit `read_at` älter als 5 min gilt als veraltet (**Vorschlag**); die Zuschauer-App zeigt
+  dann nichts Zusätzliches, die Verwaltung «Fortschritt nicht lesbar» mit Zeit (N-85).
+- **Aufräumen:** Wird der Wunsch `available`, `declined`, `failed` oder `withdrawn`, löscht `wishes` die Zeile.
+- **Kein Protokoll von Inhalten:** Antworten von Radarr und Sonarr erscheinen nur als Methode, Pfad, Status und
+  Dauer im Protokoll; Pfade aus der Warteschlange oder aus `movieFile.path` liest und speichert Slouchcat nicht.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Q as jobs
+  participant W as wishes
+  participant AR as arr
+  participant R as Radarr
+  participant DB as wish_progress
+  actor Z as Zuschauer
+  participant A as api
+
+  Q->>W: wishes.progress jede Minute
+  W->>W: Wünsche in Beschaffung und Schalter an?
+  alt keine Wünsche oder Schalter aus
+    W->>W: fertig, kein Aufruf
+  else Wünsche vorhanden
+    W->>AR: Warteschlange lesen, Schlüssel aus dem Speicher
+    loop bis alle Seiten gelesen
+      AR->>R: GET /api/v3/queue mit page und pageSize
+      R-->>AR: Einträge mit movieId, size, sizeleft, timeleft, trackedDownloadStatus
+    end
+    opt Radarr-ID des Wunsches unbekannt
+      AR->>R: GET /api/v3/movie mit tmdbId
+      R-->>AR: id, hasFile
+    end
+    W->>W: Einträge den Wünschen zuordnen, Stufe ableiten
+    W->>DB: Zeile je Wunsch mit stage, percent, eta, read_at
+  end
+  Z->>A: GET /wishes
+  A->>W: listWishes
+  W->>DB: Fortschritt lesen, kein Aufruf an Radarr
+  W-->>A: Wunsch mit progress stage, percent, eta
+  A-->>Z: Wird heruntergeladen, 45 Prozent, noch 12 min
+  Note over W,R: Für Serien gilt dasselbe mit Sonarr, series mit tvdbId und seriesId
+```
+
+### 22.5 Was Zuschauer und was Administratoren sehen
+
+| | Zuschauer («Meine Wünsche», Wunschkarte der Vorschauseite) | Verwaltung (Anfragen) |
+|---|---|---|
+| Anzeige | eine der vier Anzeigen, bei Serien «x von y Folgen da» | dieselbe Anzeige je Wunsch, dazu Dienst |
+| Meldung von Radarr oder Sonarr | nie | in der Aufklappzeile «Diagnose» (`errorMessage`, `statusMessages`, Download-Programm), ohne Pfade |
+| Radarr oder Sonarr nicht erreichbar | nichts Zusätzliches; der Wunsch bleibt «In Beschaffung» (N-85) | «Fortschritt nicht lesbar» mit Zeit des letzten Lesens |
+| Schalter aus | keine Anzeige | keine Anzeige; Hinweis im Band «Radarr und Sonarr (Profil-Tags und Fortschritt)» |

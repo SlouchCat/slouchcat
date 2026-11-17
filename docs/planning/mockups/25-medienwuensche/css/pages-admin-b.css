@@ -88,3 +88,54 @@
 .adm .ab-ph { display: flex; gap: 6px; overflow: hidden; }
 .adm .ab-ph i { flex: 0 0 34px; height: 50px; border-radius: 4px; background: var(--s3); border: 1px solid var(--line); }
 .adm .ab-ph i.big { flex: 1 1 auto; height: 72px; }
+
+/* Fassung 3: Jellyseerr-Benutzer je Konto, Limit, Profil-Tags */
+.adm .ab-help { color: var(--tx2); }
+.adm .ab-warnt { color: var(--warn); font-weight: 600; }
+.adm .ab-kv dd { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+@container app (max-width: 520px) { .adm .ab-kv { grid-template-columns: 1fr; gap: 2px 0; } .adm .ab-kv dd { margin-bottom: 8px; } }
+.adm .ab-acts { flex-wrap: wrap; }
+.adm .ab-pick { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 12px; border-radius: 8px; border: 1px solid var(--frame); background: var(--s1); }
+.adm .ab-pick .sel { width: auto; min-width: 220px; max-width: 100%; }
+.adm .ab-quota { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; min-width: 0; }
+.adm .ab-qrow { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; min-width: 0; }
+.adm .ab-quota .qm { white-space: normal; flex-wrap: wrap; }
+.adm .ab-prow2 { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.adm .ab-prow2:first-child { padding-top: 0; }
+.adm .ab-prow2:last-child { border-bottom: 0; padding-bottom: 0; }
+@container app (min-width: 900px) { .adm .ab-prow2 { grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr); align-items: start; } .adm .ab-prow2 .ab-exw { grid-column: 1 / -1; } }
+.adm .ab-prow2 .ab-pn { gap: 4px; }
+.adm .ab-exw .band { background: var(--s1); }
+.adm .ab-exw .band > .bh .tg { font-size: 14px; }
+.adm .ab-tagf { gap: 6px; }
+.adm .ab-taginp { width: 200px; max-width: 100%; font-family: ui-monospace, monospace; }
+.adm .ab-lim { display: flex; flex-direction: column; gap: 8px; }
+.adm .ab-limrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; color: var(--tx2); }
+.adm .ab-limrow b { min-width: 72px; color: var(--tx); font-weight: 500; }
+.adm .ab-limrow .inp.num { width: 84px; max-width: 84px; }
+.adm .ab-qlist { display: flex; flex-direction: column; }
+.adm .ab-qlist > li { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.adm .ab-qlist > li:last-child { border-bottom: 0; }
+.adm .ab-tagev { margin-top: 4px; width: 100%; }
+.adm .ab-tagev li.bad { color: var(--danger); }
+.adm .tbl .ab-ids { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--tx3); }
+.adm .ab-idl { display: flex; flex-direction: column; gap: 6px; padding-left: 20px; list-style: disc; font-size: 14px; color: var(--tx2); }
+.adm .ab-new.ab-line, .adm .fld.ab-new { padding: 8px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); }
+
+/* state chip with the download progress under it (M-23) */
+.adm .ab-st { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.adm .ab-st .dl { max-width: 100%; }
+.adm .kv dd .dlb { min-width: 0; max-width: 100%; }
+
+/* fixes after the comparison with the papers (17 November 2026) */
+.adm .ab-missl { display: flex; flex-direction: column; }
+.adm .ab-missl > li { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.adm .ab-missl > li:last-child { border-bottom: 0; }
+.adm .ab-missl .mini { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 220px; }
+.adm .ab-missl .mini .po { width: 32px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: var(--s1); flex: none; }
+.adm .ab-missl .mini .po img, .adm .ab-missl .mini .po .ph { width: 100%; height: 100%; object-fit: cover; font-size: 0; padding: 0; }
+.adm .ab-missl .mini .ab-tx { display: flex; flex-direction: column; min-width: 0; font-size: 14px; color: var(--tx); }
+.adm .ab-missl .mini .ab-tx > span { font-size: 12px; color: var(--tx3); font-weight: 400; }
+.adm .ab-free > li.ab-hl { box-shadow: inset 3px 0 0 var(--accent); padding-left: 12px; }
+.adm .ab-fullw { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+@container app (min-width: 900px) { .adm .ab-free > li .ab-fullw { grid-column: 1 / -1; } }

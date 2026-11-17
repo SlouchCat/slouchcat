@@ -1,51 +1,70 @@
 # Konzept 25 · Abdeckungsmatrix: Seiten, Mockups, Umsetzung
 
-> **Stand:** Fassung 2 der Papiere, Mockup vom 17. November 2026.
+> **Stand:** Fassung 3 der Papiere mit beiden Rückmeldungen von Marco vom 17. November 2026 (E-1 bis E-7,
+> [Anhang H](anhang/H-nachtrag-17-november.md)) und den Redaktionsentscheiden zur Kritik (Anhang H Abschnitt 9,
+> K-1 bis K-23); Mockup vom 17. November 2026, abgeglichen mit den Papieren.
 
-> **Kurz gesagt.** Diese Matrix führt jede Seite auf, die Konzept 25 berührt: 13 Seiten der Zuschauer-App
-> (M-01 bis M-12 und der Dialog M-13), 11 Seiten der Verwaltung (M-20 bis M-30) und die Mockup-Steuerung M-00.
-> Je Seite steht, was sie heute kann, was sich ändert, wer sie nutzt, welche Einstellungen und Operationen
-> dazukommen, was man im Mockup wirklich anklicken kann und wann und wo der Bau sie umsetzt. Danach folgen
-> Gegenproben für jede neue Einstellung, jede neue Berechtigung und jeden Zustand. Grundlage ist der Code des
-> Mockups (`js/*.js`), nicht der Plan. Abschnitt 9 nennt die Stellen, die das Mockup nicht bedienbar macht oder
-> nicht zeigt. Abschnitt 10 nennt die bewussten und die verbleibenden echten Unterschiede zwischen Mockup und
-> Papieren.
+> **Kurz gesagt.** Diese Matrix führt jede Seite auf, die Konzept 25 berührt: 18 Seiten der Zuschauer-App
+> (M-01 bis M-12, der Dialog M-13 und neu M-31 bis M-35), 11 Seiten der Verwaltung (M-20 bis M-30) und die
+> Mockup-Steuerung M-00, zusammen 30 Blöcke. Je Seite steht, was sie heute kann, was sich ändert, wer sie nutzt,
+> welche Einstellungen und Operationen dazukommen, was man im Mockup wirklich anklicken kann und wann und wo der
+> Bau sie umsetzt. Danach folgen Gegenproben für jede Einstellung, jede Berechtigung, jeden Zustand eines Wunsches
+> samt Download-Anzeige, die Verbindung, die Jellyseerr-Benutzer mit Vorschlag und Passwort, das Limit und die Tags.
+> Grundlage ist der Code des Mockups (`js/*.js`), nicht der Plan. Abschnitt 9 nennt, was das Mockup nicht zeigt.
+> Abschnitt 10 nennt die Unterschiede zwischen Mockup und Papieren.
 
-Grundlage sind die Papiere `01-…` bis `11-…` in Fassung 2. Operationen nach `08-datenmodell-api.md` Abschnitt 4,
-Einstellungen nach Abschnitt 2.12, Stufen und Schritte nach `09-umsetzungsplan.md`, Verwaltung nach
-`07-administration.md`, Abnahme nach `10-abnahmekriterien.md`. Verweise auf Anhang F meinen
-[Anhang F](anhang/F-entscheid-blatt.md). Anhang F bleibt als Zwischenstand stehen; wo die Papiere davon abweichen,
-gilt das Papier (`11-entscheide-und-adr.md`, Abschnitt 7.3). Wichtige Festlegungen von Fassung 2:
-`listAccountWishes` ist `scoped` und nur mit Hauptprofil; fehlende Titel sieht ein Profil nur, wenn es sie
-anfordern kann, ausser bei eigenen Wünschen (F-9); der Reiter «Wünsche» steht nach «Pflege»; die Reihe «Deine
-Wünsche» steht ab Werk nach «Weiterschauen»; die Zuordnung wird direkt in der Liste geändert; Einstellungen der
-Wünsche gelten sofort; die Benachrichtigung «verfügbar» kommt in Stufe 2, Staffel-Meldungen, `wish_status` und
-`wish_review` in Stufe 4; acht neue Jobarten mit `wishes.withdraw` und `wishes.import`; der Sammelbenutzer heisst
-im Wert `fallback`; Teilfragen T-1 und T-2.
+Grundlage sind die Papiere `01-…` bis `11-…` in Fassung 3 und Anhang H. Operationen nach `08-datenmodell-api.md`
+Abschnitte 4.5 und 4.6, Einstellungen nach Abschnitt 2.12, Tabellen nach Abschnitt 2, Stufen und Schritte nach
+`09-umsetzungsplan.md`, Verwaltung nach `07-administration.md`, Zuschauerseiten nach `02-funktionskonzept.md`
+Abschnitt 5, Abnahme nach `10-abnahmekriterien.md` Abschnitt 8. Regeln N-1 bis N-88 und N-2a nach Anhang H. Die
+Einschränkungen aus `01-bestandsanalyse.md` Abschnitt 20 heissen TE-1 bis TE-…; E-1 bis E-7 sind nur Marcos
+Antworten.
+
+**Was Marco entschieden hat** (nur seine zwei Nachrichten und die Antworten E-1 bis E-7, Anhang H Abschnitte 1,
+2, 8.1 und 8.2): Konto auch in Jellyseerr mit gleichem Login (E-1), Profil am Wunsch und als Tag in Radarr und
+Sonarr (E-2), Limit je Konto, Jellyseerr zählt alles (E-3), Verknüpfen über die gleiche E-Mail (E-4), Bereich
+«Wünsche» mit Discover, Movies, Series, Search, TVDB für Serien «konsistent», keine fehlenden Titel im Spotlight und
+nirgends in der Zuschauer-App (E-5), Webhooks wie heute (E-6), Download-Fortschritt bei Wünschen (E-7). **Alles
+andere** in dieser Matrix, etwa Namen, Vorgaben, Reihen, Anzeigen, Grenzen und die Entscheide zur Kritik K-1 bis
+K-23 (etwa der Vorschlag einer Verknüpfung, N-2a), ist **Empfehlung der Redaktion**. Offen sind die Fragen F-1
+bis F-34 ohne F-8 (durch E-5 entschieden) und F-20 (durch F-34 ersetzt), also 32, dazu T-1 und T-2.
 
 ## 1. So öffnest du das Mockup
 
 - **Einstieg:** `docs/planning/mockups/25-medienwuensche/index.html` im Browser öffnen. Ohne Hash springt das
-  Mockup auf die Route `#/mockup`: die Übersicht aller Mockup-Seiten mit Kennung, Name und Link.
-- **Steuerung:** die gelbe Schaltfläche «Mockup» unten rechts auf jeder Seite (M-00). Sie öffnet die
-  «Mockup-Steuerung» mit sechs Teilen: «Ansicht» (Desktop, Tablet, Handy), «Wer schaut?» (alle sechs Profile mit
-  Altersstufe, darunter Rolle und Recht des aktiven Profils), «Jellyseerr ist …» (Verbunden, Nicht erreichbar,
-  Schlüssel ungültig, CSRF-Schutz an, Nicht eingerichtet) mit «Abgleich jetzt ausführen», «Offene Wünsche
-  vorspulen» (je offener Wunsch ein Knopf «Übermitteln», «Freigeben», «Datei trifft ein» oder «Nächste Staffel
-  trifft ein», dazu «Ablehnen» bei `pending`, «Scheitern» bei `processing` und `partial`, «24 h vergehen» bei
-  `queued`), «Zuletzt zugestellt» (die letzten vier Zustellungen an Kanäle) und «Alle Mockup-Seiten» sowie «Alles
-  zurücksetzen».
-- **Zustand:** Alles bleibt im Browser (`localStorage`, Schlüssel `slouchcat-mockup-25-v4`), bis «Alles
+  Mockup auf `#/mockup`: Anleitung «So probierst du es aus» (sieben Schritte) und die Übersicht aller Seiten
+  (`MOCK_PAGES` in `js/mock.js`, 18 Seiten der Zuschauer-App und 11 der Verwaltung) mit Kennung, Name und Link.
+- **Steuerung:** die gelbe Schaltfläche «Mockup» unten rechts (M-00). Sie öffnet die «Mockup-Steuerung» mit den
+  Teilen «Ansicht», «Wer schaut?», «Jellyseerr ist …» mit «Abgleich jetzt ausführen», «Limit», «Radarr und Sonarr
+  (Profil-Tags, Fortschritt)», «Jellyseerr liest Staffeln aus …», «Konten», «Offene Wünsche vorspulen», «Zuletzt
+  zugestellt», «Alle Mockup-Seiten» und «Alles zurücksetzen» (Block M-00).
+- **Zustand:** Alles bleibt im Browser (`localStorage`, Schlüssel `slouchcat-mockup-25-v5`), bis «Alles
   zurücksetzen». Ist Jellyseerr nicht verbunden, trägt die Schaltfläche den Zusatz «· Jellyseerr: {Zustand}».
-- **Vorführwerte:** Das Mockup startet mit «Jellyseerr verwenden», «Wünsche aktiv» und «Fehlende Titel zeigen»
-  eingeschaltet. Ab Werk sind alle drei aus (Abschnitt 10.1).
-- **Klickfolgen** in diesem Papier beginnen nach «Alles zurücksetzen» mit dem Profil Marco, wenn nichts anderes
-  steht. «Mockup › Noah» heisst: Steuerung öffnen, unter «Wer schaut?» Noah wählen.
-- **Beispieldaten** (Anhang F 11, `04-benutzer-profilmapping.md` Abschnitt 11): Konto `marco@example.ch` mit Marco
-  (Hauptprofil, 18), Sandra (18, PIN), Noah (12), Mia (6, darf nicht anfordern); `grosseltern@example.ch` mit
-  «Oma & Opa» (16, Konto darf, keine Zuordnung); `gast@example.ch` mit «Gast» (16, Konto darf nicht).
-  Jellyseerr-Benutzer 1 marco, 2 sandra, 3 kinder (Freigabe nötig, Kontingent 5 je 7 Tage), 4 grosseltern (keine
-  Serien), 5 wohnzimmer-tv (gehört keinem Konto).
+- **Vorführwerte:** Das Mockup startet mit «Jellyseerr verwenden» und «Wünsche aktiv» eingeschaltet; ab Werk sind
+  beide aus (Abschnitt 10.1). Zwei Konten haben schon einen Jellyseerr-Benutzer (marco verknüpft, grosseltern
+  eröffnet).
+- **Klickfolgen** beginnen nach «Alles zurücksetzen» mit dem Profil Marco, wenn nichts anderes steht. «Mockup ›
+  Noah» heisst: Steuerung öffnen, unter «Wer schaut?» Noah wählen.
+- **Beispieldaten** (`04-benutzer-profilmapping.md` Abschnitt 11, `js/store.js` `seed()`):
+  - Konto `marco@example.ch` (Besitzer, Administrator) mit Marco (Hauptprofil, 18), Sandra (18, PIN, Ausnahme
+    → sandra), Noah (12, Ausnahme → kinder), Mia (6, darf nicht anfordern); Jellyseerr-Benutzer 1 marco,
+    «Verknüpft über gleiche E-Mail», Passwort «Bleibt in Jellyseerr (Administrator)», kein Limit.
+  - Konto `grosseltern@example.ch` mit «Oma & Opa» (16): Benutzer 4 grosseltern, «Von Slouchcat eröffnet»,
+    Passwort «Gleich wie in Slouchcat», Limit «Standard» 10 Filme und 5 Staffeln in 7 Tagen; direkt in Jellyseerr
+    gestellt sind zwei Filme und zwei Staffeln, also «8 von 10 Filmen frei» und «3 von 5 Staffeln frei».
+  - Konto `gast@example.ch` mit «Gast» (16), Konto darf nicht anfordern, «Nicht eröffnet»; in Jellyseerr gibt es
+    6 gast mit gleicher E-Mail.
+  - Jellyseerr-Benutzer 2 sandra (Auto-Freigabe), 3 kinder (keine Auto-Freigabe, Limit in Jellyseerr 5 Filme
+    und 2 Staffeln je 7 Tage), 5 wohnzimmer-tv (`tv@example.ch`, Anmeldung über Jellyfin, gehört keinem Konto).
+  - Offene Einladung «Für Tante Ruth» (ab 16, darf anfordern, Limit «Standard»).
+  - 82 Titel: 34 aus Fassung 2 (`js/data.js`, davon 20 in der Bibliothek) und 48 für die Seiten «Entdecken»,
+    «Filme», «Serien» (`js/data-discover.js`, keiner in der Bibliothek); 23 Titel ohne bekannte Freigabe zählen
+    als ab 18. Dazu ein erfundener, nicht zuordenbarer Spotlight-Eintrag «Hafen im Nordlicht» (nur M-27).
+  - Wünsche: «Resident Evil» (Marco, In Beschaffung, Download 45 %), «Toy Story 5» (Noah, Freigabe ausstehend),
+    «Godzilla Minus One» (Marco, verfügbar, Noah wünscht mit), «Street Fighter» (Noah, abgelehnt), «Black Doves»
+    Staffel 1 (Sandra, In Beschaffung, Download mit «6 von 8 Folgen da»), «Coyote vs. Acme» (Sandra,
+    fehlgeschlagen), «Clayface» (wohnzimmer-tv, nicht zuordenbar), «Verity» (in Jellyseerr angelegt, Sandra
+    zugeordnet, «Download verzögert», ohne Profil-Tag).
 
 ## 2. Matrix je Seite
 
@@ -57,39 +76,39 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 | Heute | gibt es nicht |
 | Geplante Änderung | keine; ersetzt im Mockup Jellyseerr, Radarr, Sonarr und die Zeit |
 | Rolle | Marco als Prüfer |
-| Neue oder veränderte Einstellungen | keine der App; Mockup-Zustand `S.view`, `S.seerr.condition` (`ok`, `unreachable`, `badkey`, `csrf`), `S.seerr.configured`, `S.session` |
+| Neue oder veränderte Einstellungen | keine der App; Mockup-Zustand `S.view`, `S.seerr.condition` (`ok`, `unreachable`, `badkey`, `csrf`), `S.seerr.configured`, `S.seerr.seasonsFrom` (`tmdb`, `tvdb`), `S.arr.radarr.condition`, `S.arr.sonarr.condition`, `seerrUsers[].direct` (direkt in Jellyseerr gestellte Wünsche), `wishes[].dl` (Download-Schritt, `stalled`), `S.session` |
 | API-Operationen | keine |
 | Mockup | M-00, `#/mockup`, Datei `js/mock.js` |
-| Abgedeckte interaktive Zustände | Ansicht Desktop, Tablet, Handy; Profilwechsel (wechselt auch das Konto; von einer Verwaltungsseite aus springt ein Nicht-Administrator auf `#/`); fünf Zustände von Jellyseerr, darunter «CSRF-Schutz an» (Protokolleintrag «HTTP 403: CSRF-Schutz blockiert schreibende Aufrufe»); «Abgleich jetzt ausführen» übermittelt wartende Wünsche oder meldet «Abgleich nicht möglich»; Vorspulen je Wunsch; «24 h vergehen» bei `queued`: der Wunsch wird `failed` mit Grund `timeout` («Jellyseerr war 24 Stunden lang nicht erreichbar.»), das Profil und seine Mitwünscher bekommen «Fehlgeschlagen: …», die Administratorkonten eine Zustellung «Wunsch nicht übermittelt: …» über Kanäle mit dem Ereignis «Fehler»; «Zuletzt zugestellt»; Zurücksetzen; Übersicht mit Anleitung «So probierst du es aus» und Links zu M-01 bis M-30 |
+| Abgedeckte interaktive Zustände | **Ansicht** Desktop, Tablet, Handy. **Wer schaut?** alle Profile mit Altersstufe, darunter Rolle und «darf anfordern als «…»» oder «darf nicht anfordern»; Profilwechsel wechselt das Konto; von einer Verwaltungsseite springt ein Nicht-Administrator auf `#/`. **Jellyseerr ist …** «Verbunden», «Nicht erreichbar», «Schlüssel ungültig», «CSRF-Schutz an», «Nicht eingerichtet» (mit Protokolleintrag); «Abgleich jetzt ausführen» übermittelt wartende Wünsche, holt Tags nach, eröffnet wartende Konten (ein Konto aus einer Einladung erhält dabei bei gleicher E-Mail nur einen Vorschlag) oder meldet «Abgleich nicht möglich». **Limit** zeigt das Limit des Benutzers des aktiven Profils (««grosseltern»: 8 von 10 Filmen frei, 3 von 5 Staffeln frei»; bei Marco «hat kein Limit (Administrator). Wechsle zu «Oma & Opa» …»); «Filme ausschöpfen» und «Staffeln ausschöpfen» legen den Rest als direkt in Jellyseerr gestellte Wünsche an; «Direkte Wünsche leeren». **Radarr und Sonarr** «Radarr erreichbar», «Radarr weg», «Sonarr erreichbar», «Sonarr weg»; «erreichbar» holt offene Tags nach. **Jellyseerr liest Staffeln aus …** «TMDB (ab Werk)», «TVDB» (wirkt auf den Verbindungstest, die Kachel und M-27). **Konten** «Einladung annehmen (Für Tante Ruth)» öffnet M-35; je Konto mit Passwortstand «folgt bei der nächsten Anmeldung» ein Knopf «{Konto} meldet sich an» (übernimmt das Passwort, sonst Meldung «Jellyseerr ist nicht erreichbar …»). **Offene Wünsche vorspulen** je offener Wunsch mit Zustand, Download-Anzeige und Profil: «Übermitteln» (`queued`), «Freigeben» und «Ablehnen» (`pending`), «Datei trifft ein» bzw. «Nächste Staffel trifft ein», «Download weiter», «Download hängt»/«Download läuft wieder», «Scheitern» (`processing`, `partial`), «24 h vergehen» (`queued`: Wunsch `failed` mit Grund «Jellyseerr war 24 Stunden lang nicht erreichbar.», Eingang an Profil und Mitwünscher, Zustellung «Wunsch nicht übermittelt: …» an Administratoren über Kanäle mit «Fehler»). **Zuletzt zugestellt** die letzten vier Zustellungen. «Alle Mockup-Seiten», «Alles zurücksetzen» |
 | Spätere technische Umsetzung | wird nicht gebaut |
 
-### M-01 · Startseite mit Spotlight (geändert)
+### M-01 · Startseite mit Spotlight (geändert: nur neue Reihe)
 
 | Zeile | Inhalt |
 |---|---|
 | Seite | bestehend, App-Route `/` |
-| Heute | Reihen nach Verwaltung «Startseite»: Spotlight-Bühne mit Posterreihe (nur Titel der Bibliothek, erste Folie vorgemalt), Weiterschauen, Neu hinzugefügt, Kürzlich veröffentlicht, User-Empfehlungen, Merkliste, ausblendbar Sammlungen, Genres, Meine Medien; Posterkarten mit «Gesehen» und «Merken» |
-| Geplante Änderung | Bühne und Posterreihe zeigen auch fehlende Titel (Chip «Noch nicht in der Bibliothek», Hauptknopf «Film anfordern» oder «Serie anfordern», danach Zustandsknopf); fremd angeforderter Titel mit «Benachrichtige mich» oder, bei «Nur Zustand zeigen», nur mit dem Chip «Bereits angefordert»; Posterkarte eines fehlenden Titels mit rundem Plus-Knopf statt «Gesehen» und «Merken»; Chip «Dein Wunsch ist da» 14 Tage nach der Erfüllung; neue Reihe «Deine Wünsche» ab Werk nach «Weiterschauen» |
-| Rolle | Zuschauer; fehlende Titel nur für Profile, die sie anfordern können (F-9) |
-| Neue oder veränderte Einstellungen | wirken hier: «Fehlende Titel zeigen», «Höchstens fehlende Titel», «Reihenfolge» (M-27); «Wünsche aktiv», «Anfordern aus dem Spotlight», «Filme erlauben», «Serien erlauben», «Bereits angeforderte Titel» (M-25); Platz und Ausblenden von «Deine Wünsche» (M-28) |
-| API-Operationen | `getHome`, `listHomeRow` (neu `HomeRow.external[]` mit `ExternalTitleRef`), `getExternalTitleImage`, `createWish` über M-13, Sitzung `wishes` |
-| Mockup | M-01, `#/`, `js/home.js` (`route('/')`, `heroHtml`, `posterCard`, `mainActions`, `metaLine`, `homeRowItems`); Mischregel `spotlightFor` in `js/store.js` |
-| Abgedeckte interaktive Zustände | Bühne blättern mit «Zurückblättern»/«Weiterblättern», Wahl in der Posterreihe (hält an), «Pause»/«Weiter», Wechsel alle 6 s (steht bei Fokus in der Bühne, offenem Dialog, offener Mockup-Steuerung); erste Folie immer vorhanden («Heart of the Beast»); fehlender Titel «Odyssey» mit Chip, «Film anfordern», «Details», «Trailer»; eigener Wunsch «Resident Evil» mit Zustandsknopf «In Beschaffung» nach `#/wishes`; fremder Wunsch «Verity» mit Chip «Bereits angefordert» und «Benachrichtige mich»; vorhandener Titel mit «Abspielen» (Dialog); «Godzilla Minus One» mit Chip «Dein Wunsch ist da» (14 Tage); teilweise vorhandene Serie «Tulsa King» mit Chip «2 von 3 Staffeln vorhanden» (nur für Profile, die anfordern können); Notiz aus M-27 unter dem Titel; Posterreihe: Plus-Knopf (fehlt), Glocke (fremder Wunsch), Zustands-Chip unten links (eigener Wunsch); Reihe «Deine Wünsche» (Marco: Resident Evil, Godzilla Minus One). «Nur Zustand zeigen» (M-25): «Verity» zeigt auf der Bühne nur «Details» und «Trailer», die Posterkarte den Chip «Bereits angefordert» statt der Glocke. «Aus dem Spotlight» aus: keine fehlenden Titel auf der Bühne. Profile: Mockup › Noah zeigt «Toy Story 5» mit «Freigabe ausstehend»; Mockup › Gast oder «Oma & Opa» zeigt keine fehlenden Titel; Mockup › Mia zeigt gar kein Spotlight (nur 2 Treffer, «Ausblenden unter» ist 5). Mockup › «Nicht eingerichtet» nimmt alle fehlenden Titel weg |
-| Spätere technische Umsetzung | Stufe 3: Schritt 3.2 (Mischregel in `server/internal/discover/`, `visibility/discover.go`, `queries/scoped/spotlight.sql`), 3.3 (Vertrag `HomeRow.external`, `HomeRowKey` + `wishes`), 3.4 (`web/src/ui/HeroCarousel.tsx`, `HomePage.tsx`); Tabellen `spotlight_entries` (+ `tvdb_id`, `imdb_id`), `spotlight_config`, `home_rows`, `external_titles`; Regeln `05-spotlight-integration.md` Abschnitte 2 bis 4 und 12; Messung nach `10-abnahmekriterien.md` Abschnitt 7 |
+| Heute | Reihen nach Verwaltung «Startseite»: Spotlight-Bühne mit Posterreihe (nur Titel der Bibliothek, erste Folie vorgemalt), Weiterschauen, Neu hinzugefügt, Kürzlich veröffentlicht, User-Empfehlungen, Merkliste, ausblendbar Sammlungen, Genres, Meine Medien; Posterkarten mit «Gesehen» und «Merken»; Abgleich mit der Trakt-Liste nur über die TMDB-ID |
+| Geplante Änderung | Spotlight wie heute: Bühne und Posterreihe nur mit Titeln der Bibliothek, ohne Wunsch-Chip und ohne Staffelhinweis (Marco, E-5; N-70; K-3). Neu erkennt das Spotlight vorhandene Serien auch über TVDB- und IMDb-ID (N-73). Neu die Reihe «Erfüllte Wünsche»: Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden, ab Werk nach «Weiterschauen» (Empfehlung N-74, F-34). Offene Wünsche stehen nicht auf der Startseite, ihre Zahl steht am Eintrag «Wünsche» der Seitenleiste |
+| Rolle | Zuschauer; jedes Profil sieht nur, was seine Altersstufe erlaubt |
+| Neue oder veränderte Einstellungen | Platz und Ausblenden der Reihe «Erfüllte Wünsche» (M-28); sonst nur die bestehenden des Spotlights (M-27). Keine Einstellung für fehlende Titel (N-72) |
+| API-Operationen | `getHome`, `listHomeRow` (Reihe `wishes` nur `ItemRef`, nie `ExternalTitleRef`; Spotlight neu mit Abgleich über TVDB und IMDb). Zähler der Seitenleiste aus den Wünschen des Profils (`listWishes`; `08` nennt dafür keine eigene Operation) |
+| Mockup | M-01, `#/`, `js/home.js` (`route('/')`, `heroHtml` mit `metaLine(t, { stage: true })`, `posterCard`, `mainActions`, `homeRowItems`); Spotlight `spotlightFor` in `js/store.js` (nur `isPresent`); Seitenleiste `js/shell.js` (`viewerNav`) |
+| Abgedeckte interaktive Zustände | Bühne mit 20 Titeln der Bibliothek (Marco): blättern, Wahl in der Posterreihe (hält an), «Pause»/«Weiter», Wechsel alle 6 s (steht bei Fokus in der Bühne, offenem Dialog, offener Steuerung); Knöpfe «Abspielen» (Dialog), «Details», «Trailer»; Notiz aus M-27 unter dem Titel. Auf der Bühne erscheint kein fehlender Titel und kein Chip, auch nicht bei «Godzilla Minus One» (erfüllt) und «Tulsa King» (teilweise vorhanden). Reihe «Erfüllte Wünsche» (Marco und Noah: «Godzilla Minus One»; Sandra: keine Reihe), nach «Datei trifft ein» erscheint der Titel dort, auch eine teilweise erfüllte Serie, ohne Staffelhinweis. Mockup › Mia: kein Spotlight (2 Treffer, «Ausblenden unter» 5). Eintrag «Wünsche» der Seitenleiste mit Zähler offener Wünsche; er führt zu M-31 oder, ohne Recht, zu M-08; er fehlt bei Profilen ohne Recht und ohne Wünsche (Mockup › Gast) |
+| Spätere technische Umsetzung | Stufe 3: Schritte 3.1 (Trakt-IDs, Migration `spotlight_ids`), 3.2 (`visibility`, `queries/scoped/spotlight.sql`: Filme TMDB, IMDb; Serien TVDB, TMDB, IMDb), 3.3 (`HomeRowKey` + `wishes`, brechend), 3.4 (Reihe `wishes`; das Paket der Startseite bekommt die Titel-IDs vom Dienst `wishes` und prüft über `visibility`, K-16); `05-spotlight-integration.md` Abschnitte 2 und 3; `02-funktionskonzept.md` Abschnitt 5; AK-69, AK-75, AK-78, AK-191, AK-195; Seitenleiste Stufe 2, Schritt 2.9 |
 
-### M-02 · Spotlight-Liste (geändert)
+### M-02 · Spotlight-Liste (unverändert gegenüber heute)
 
 | Zeile | Inhalt |
 |---|---|
 | Seite | bestehend, App-Route `/lists/spotlight` |
 | Heute | ganze Trakt-Liste als Posterraster, nur Titel der Bibliothek |
-| Geplante Änderung | auch fehlende Titel; Filter «Alle», «In der Bibliothek», «Noch nicht da»; Unterzeile «… davon n noch nicht in der Bibliothek» |
-| Rolle | Zuschauer, die anfordern können (Filter und fehlende Titel), sonst wie heute |
-| Neue oder veränderte Einstellungen | wirken hier: «Fehlende Titel zeigen» (M-27), «Wünsche aktiv», «Anfordern aus dem Spotlight» (M-25); ausgeblendete Einträge und Medienart (M-27, bestehend) |
-| API-Operationen | `listHomeRow` für die Reihe `spotlight` (erweitert um `external[]`) |
+| Geplante Änderung | keine im Aufbau; nur Titel der Bibliothek, kein Filter «Noch nicht da» (N-70, Anhang H 8.8). Mehr Treffer durch den Abgleich über TVDB und IMDb (N-73) |
+| Rolle | Zuschauer |
+| Neue oder veränderte Einstellungen | keine; die bestehenden aus M-27 (ausgeblendete Einträge, Medienart, Spotlight an/aus) |
+| API-Operationen | `listHomeRow` für die Reihe `spotlight`, nur `ItemRef` |
 | Mockup | M-02, `#/lists/spotlight`, `js/viewer-titles.js` (`route('/lists/spotlight')`) |
-| Abgedeckte interaktive Zustände | Filterpillen mit Zählern (nur wenn fehlende Titel gezeigt werden); leere Auswahl mit eigenem Text; Spotlight aus («Das Spotlight ist ausgeschaltet.»); Posterkarten wie M-01 mit Plus-Knopf, Glocke, Chip «Bereits angefordert» oder Zustand; «Aus dem Spotlight» aus (M-25): nur vorhandene Titel, keine Filter; Mockup › Gast zeigt nur vorhandene Titel ohne Filter; «Zurück» |
-| Spätere technische Umsetzung | Stufe 3, Schritt 3.4 (`HomeListPage.tsx`); `05-spotlight-integration.md` Abschnitt 13 |
+| Abgedeckte interaktive Zustände | Raster nur mit Titeln der Bibliothek, die das Profil sehen darf; Unterzeile «Trending bei Trakt · n Titel»; Spotlight aus: «Das Spotlight ist ausgeschaltet.»; nichts in der Bibliothek: «Von dieser Liste ist noch nichts in der Bibliothek.»; Posterkarten mit «Gesehen» und «Merken»; «Zurück». Kein Filter, kein Plus-Knopf |
+| Spätere technische Umsetzung | Stufe 3, Schritt 3.2 (gleiche Abfrage wie M-01); `05-spotlight-integration.md` Abschnitt 2; AK-191 |
 
 ### M-03 · Vorschauseite Film (neu)
 
@@ -97,13 +116,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | neu, App-Route `/titles/movie/{tmdbId}` |
 | Heute | gibt es nicht; fehlende Titel haben keine Seite |
-| Geplante Änderung | Aufbau wie die Detailseite (Hintergrund, Poster, Titel, Metazeile mit Freigabe, Genres, Tagline, Beschreibung, Besetzung); Hauptknopf «Film anfordern» oder der Zustand; Block «Dein Wunsch» mit Verlauf; letzter geschlossener Wunsch mit Datum und Grund; vorhandener Titel leitet auf `/items/{id}` um; nicht sichtbar heisst 404 ohne Hinweis auf die Freigabe |
-| Rolle | Zuschauer, die den Titel anfordern können; sonst nur, wenn ein eigener Wunsch besteht (F-9, `02-funktionskonzept.md` Abschnitt 4.5) |
-| Neue oder veränderte Einstellungen | wirken hier: «Wünsche aktiv», «Filme erlauben», «Zurückziehen erlauben», «Bereits angeforderte Titel» (M-25). «Anfordern auf Detailseiten» wirkt hier nicht; die Seite bleibt erreichbar, solange eine der drei Stellen an ist (`07-administration.md` Abschnitt 7) |
-| API-Operationen | `getExternalTitle` (mit `lastWish?`; 404 ohne Recht ausser bei eigenem Wunsch; 409 `already_available` mit `item`), `getExternalTitleImage`, `createWish`, `withdrawWish` |
-| Mockup | M-03, `#/titles/movie/1368337` («Odyssey»), `js/viewer-titles.js` (`route('/titles/:media/:tmdbId')`, `vtPreviewVisible`, `vtStatusBlock`, `vtWishCard`) |
-| Abgedeckte interaktive Zustände | ohne Wunsch: Hinweis «Noch nicht in der Bibliothek» und «Film anfordern» (öffnet M-13); eigener Wunsch: Block «Dein Wunsch» mit Chip, Verlauf (erledigt, laufend, ausstehend), «Zu meinen Wünschen», «Zurückziehen» bei `queued` und `pending`; Zusatz bei `queued` (etwa «Jellyseerr ist nicht erreichbar. Slouchcat versucht es weiter.»); Mitwunsch: «du wünschst mit» und «Nicht mehr mitwünschen» (Dialog); fremder Wunsch: Hinweis «Bereits angefordert» und «Benachrichtige mich», bei «Nur Zustand zeigen» ohne Knopf; letzter eigener Wunsch geschlossen: Hinweis «Dein letzter Wunsch: Abgelehnt/Fehlgeschlagen/Zurückgezogen» mit Datum und Grund (Mockup › Noah, `#/titles/movie/1153576`); ohne Recht mit eigenem Wunsch: Hinweis «Anfordern ist für dieses Profil nicht möglich», für Administratoren bei fehlender Zuordnung mit «Zuordnung öffnen»; ohne Recht und ohne eigenen Wunsch sowie über der Altersstufe: «Titel nicht gefunden» (Mockup › Noah, `#/titles/movie/1423191`); vorhanden: Umleitung ohne Verlaufseintrag (`#/titles/movie/940721` nach `#/items/godzilla-minus-one`); «Trailer» als Dialog; Besetzung blättern; «Zurück» |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.2 (`server/internal/metadata/`, Jobart `titles.refresh`, Bild-Handler), 2.3 (`visibility`: `MissingTitle`, `TitleByExternalIDs`, Regel F-9), 2.8 (`web/src/features/titles/`); Tabellen `external_titles`, `external_title_texts`, `external_title_images`; `02-funktionskonzept.md` Abschnitt 5.1, ADR 0038 |
+| Geplante Änderung | Aufbau wie die Detailseite (Hintergrund, Poster, Titel, Metazeile mit Chip «Noch nicht in der Bibliothek» und Freigabe, Genres, Tagline, Beschreibung, Besetzung); Hauptknopf «Film anfordern» oder der Zustand; **Wunschkarte** mit Zustand, Datum, Verlauf und, solange der Wunsch «In Beschaffung» ist, dem Download-Fortschritt (N-82); letzter geschlossener Wunsch mit Datum und Grund; vorhandener Titel leitet auf `/items/{id}` um; nicht sichtbar heisst 404 |
+| Rolle | Zuschauer, die den Titel anfordern können; sonst nur mit eigenem Wunsch (F-9, `02-funktionskonzept.md` Abschnitt 5.1) |
+| Neue oder veränderte Einstellungen | wirken hier: «Wünsche aktiv», «Filme erlauben», «Zurückziehen erlauben», «Bereits angeforderte Titel», «Download-Fortschritt zeigen» (M-25); die Seite antwortet 404, wenn «Anfordern aus der Suche», «Anfordern auf Detailseiten» und «Seiten Entdecken, Filme, Serien und Suche» alle aus sind (ausser bei eigenem Wunsch) |
+| API-Operationen | `getExternalTitle` (mit `lastWish?`, `wish.progress?`; 404 ohne Recht ausser bei eigenem Wunsch; 409 `already_available`), `getExternalTitleImage`, `createWish`, `withdrawWish`, `getWishQuota` (für M-13) |
+| Mockup | M-03, `#/titles/movie/1368337` («Odyssey»); mit Download `#/titles/movie/1423191` («Resident Evil», Marco), mit «Download verzögert» `#/titles/movie/1283515` («Verity», Mockup › Sandra); `js/viewer-titles.js` (`route('/titles/:media/:tmdbId')`, `vtPreviewVisible`, `vtStatusBlock`, `vtWishCard`), Fortschritt `dlBlock` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | ohne Wunsch: Hinweis «Noch nicht in der Bibliothek» und «Film anfordern» (öffnet M-13); eigener Wunsch: Wunschkarte «Dein Wunsch» mit Chip, Verlauf (erledigt, laufend, ausstehend), «Zu meinen Wünschen», «Zurückziehen» bei `queued` und `pending`; Zusatz bei `queued` (etwa «Jellyseerr ist nicht erreichbar. Slouchcat versucht es weiter.»); **Download** auf der Karte: «Wird gesucht», «Wird heruntergeladen · 45 % · noch 12 min» mit Balken, «Wird eingelesen», «Download verzögert», je mit «Stand aus Radarr, vor weniger als einer Minute gelesen.»; bei «Radarr weg» oder Schalter aus kein Zusatz (der Chip bleibt «In Beschaffung»); Mitwunsch: «du wünschst mit» und «Nicht mehr mitwünschen» (Dialog); fremder Wunsch: Hinweis «Bereits angefordert» und «Benachrichtige mich», bei «Nur Zustand zeigen» ohne Knopf; letzter eigener Wunsch geschlossen: «Dein letzter Wunsch: Abgelehnt/Fehlgeschlagen/Zurückgezogen» mit Datum und Grund (Mockup › Noah, `#/titles/movie/1153576`); ohne Recht mit eigenem Wunsch: «Anfordern ist für dieses Profil nicht möglich» mit Grund, für Administratoren ohne Jellyseerr-Benutzer «Jellyseerr-Benutzer öffnen»; ohne Recht und ohne eigenen Wunsch sowie über der Altersstufe: «Titel nicht gefunden» (Mockup › Noah, `#/titles/movie/1423191`); vorhanden: Umleitung ohne Verlaufseintrag (`#/titles/movie/940721` nach `#/items/godzilla-minus-one`); «Trailer» als Dialog; Besetzung blättern; «Zurück» |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.2 (`titles.refresh`, Bild-Handler), 2.3 (`visibility`: `MissingTitle`, `TitleByExternalIDs`, Regel F-9), 2.8 (`web/src/features/titles/`); Stufe 4: Schritte 4.6d (`wish_progress`, `wishes.progress`; liest Warteschlange und Dateistand, N-81 nach K-5), 4.6e (Fortschritt auf der Wunschkarte); `02-funktionskonzept.md` Abschnitte 5.1 und 5.3; AK-197 bis AK-200 |
 
 ### M-04 · Vorschauseite Serie (neu)
 
@@ -111,27 +130,27 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | neu, App-Route `/titles/show/{tmdbId}` |
 | Heute | gibt es nicht |
-| Geplante Änderung | wie M-03, dazu Staffelwand mit gedämpften Karten je Staffel und Zustand; Hinweis «Läuft noch · nächste Folge am …»; Hauptknopf «Serie anfordern»; Serie ohne TVDB-ID ohne Knopf mit Hinweis (AK-39) |
+| Geplante Änderung | wie M-03, dazu Staffelwand mit gedämpften Karten je Staffel und Zustand; «Läuft noch · nächste Folge am …»; Hauptknopf «Serie anfordern»; Staffeln im Dialog aus Jellyseerr (N-63); Serie ohne TVDB-ID ohne Knopf mit Hinweis (AK-39); bei Serien im Fortschritt «x von y Folgen da» (N-83) |
 | Rolle | wie M-03 |
 | Neue oder veränderte Einstellungen | zusätzlich «Serien erlauben» (M-25); der Jellyseerr-Benutzer muss Serien anfordern dürfen |
-| API-Operationen | `getExternalTitle` (`seasons[] {number, episodeCount, airDate, state}`), `createWish` mit `seasons` (403 `tvdb_id_missing`), `withdrawWish` |
-| Mockup | M-04, `#/titles/show/291507` («The Body»); weitere: `#/titles/show/225385` («Black Doves», Staffel 1 von Sandra angefordert), `#/titles/show/73223` («Black Clover», zwei Staffeln); `js/viewer-titles.js` (`vtGhost`, `vtSeasonState`) |
-| Abgedeckte interaktive Zustände | Staffelkarten mit Band «Fehlt» (klickbar, öffnet M-13 mit genau dieser Staffel), eigener Zustand (führt zu `#/wishes`), «Bereits angefordert» (fremder Wunsch, auf der Karte nicht klickbar, im Dialog wählbar), «Angekündigt»; Hinweis «Läuft noch · nächste Folge am 19. November 2026»; als Marco bei «Black Doves»: Staffel 1 «Bereits angefordert», Staffel 2 «Fehlt»; alle Zustände von M-03 |
-| Spätere technische Umsetzung | Stufe 2, Schritte 2.2, 2.3, 2.8 (Staffeln aus `external_titles.seasons`); `02-funktionskonzept.md` Abschnitt 6; TVDB-ID beim Senden Pflicht (`02-funktionskonzept.md` Abschnitt 6, AK-39) |
+| API-Operationen | `getExternalTitle` (`seasons[]`, `wish.progress?`), `getWishSeasons` (Staffeln aus Jellyseerr), `createWish` mit `seasons`, `withdrawWish`, `getWishQuota` |
+| Mockup | M-04, `#/titles/show/291507` («The Body»); weitere: `#/titles/show/225385` («Black Doves», Staffel 1 von Sandra angefordert, mit «6 von 8 Folgen da»), `#/titles/show/73223` («Black Clover», zwei Staffeln), für das Limit `#/titles/show/1100` («How I Met Your Mother», neun Staffeln); `js/viewer-titles.js` (`vtGhost`, `vtSeasonState`) |
+| Abgedeckte interaktive Zustände | Staffelkarten mit Band «Fehlt» (klickbar, öffnet M-13 mit genau dieser Staffel), eigener Zustand (führt zu `#/wishes`), «Bereits angefordert» (fremd, auf der Karte nicht klickbar, im Dialog wählbar), «Angekündigt»; «Läuft noch · nächste Folge am 19. November 2026»; Marco bei «Black Doves»: Staffel 1 «Bereits angefordert», Staffel 2 «Fehlt»; Mockup › Sandra bei «Black Doves»: Wunschkarte mit «Wird heruntergeladen · 12 % · 6 von 8 Folgen da · noch 38 min»; alle Zustände von M-03 |
+| Spätere technische Umsetzung | Stufe 2, Schritte 2.2, 2.3, 2.4 (`getWishSeasons`), 2.8; Stufe 4, Schritte 4.6d, 4.6e; `02-funktionskonzept.md` Abschnitte 5.1 und 6; AK-39, AK-201 |
 
-### M-05 · Detailseite Film (kleine Änderung)
+### M-05 · Detailseite Film (fast unverändert)
 
 | Zeile | Inhalt |
 |---|---|
 | Seite | bestehend, App-Route `/items/{id}` |
 | Heute | Hintergrund, Poster mit Merken, «Abspielen», runde Knöpfe «Trailer», «Von vorne», «Merken», «Gesehen», «Empfehlen» (Besitzerkonto), «Löschen» (Administrator), Besetzung |
-| Geplante Änderung | im Mockup: Die Metazeile zeigt 14 Tage lang den Chip «Dein Wunsch ist da», wenn ein eigener Wunsch erfüllt ist. Die Papiere führen die Seite noch als unverändert (Abschnitt 10.2) |
+| Geplante Änderung | nur der Chip «Dein Wunsch ist da» 14 Tage nach der Erfüllung; er steht nur hier, nie auf der Bühne (`02-funktionskonzept.md` Abschnitt 5, K-3). Kein Download-Fortschritt an Titeln der Bibliothek (N-82) |
 | Rolle | Zuschauer |
 | Neue oder veränderte Einstellungen | keine |
-| API-Operationen | `getItem` (für Filme unverändert; der Chip braucht den Wunsch des Profils, etwa über `listWishes`) |
-| Mockup | M-05, `#/items/masterplan`; mit erfülltem Wunsch `#/items/godzilla-minus-one`; `js/viewer-titles.js` (`route('/items/:key')`), Chip in `js/home.js` (`fulfilledRecently`, `metaLine`) |
-| Abgedeckte interaktive Zustände | «Abspielen» und «Von vorne» öffnen den Platzhalter des Players; «Trailer» als Dialog; «Merken» und «Gesehen» schalten um; «Empfehlen» mit Meldung «Bleibt 30 Tage»; «Löschen» öffnet den unveränderten Dialog und löscht nichts; Chip «Dein Wunsch ist da» bei Marco auf «Godzilla Minus One»; Titel über der Altersstufe gibt «Titel nicht gefunden» |
-| Spätere technische Umsetzung | offen, solange die Papiere die Seite als unverändert führen; der Chip auf der Startseite ist AK-131 (Stufe 3, Schritt 3.4) |
+| API-Operationen | `getItem` (unverändert); der Chip braucht den erfüllten Wunsch des Profils (`listWishes`) |
+| Mockup | M-05, `#/items/godzilla-minus-one` (mit erfülltem Wunsch); ohne Wunsch `#/items/masterplan`; `js/viewer-titles.js` (`route('/items/:key')`), Chip in `js/home.js` (`fulfilledRecently`, `metaLine`) |
+| Abgedeckte interaktive Zustände | «Abspielen» und «Von vorne» öffnen den Platzhalter des Players; «Trailer» als Dialog; «Merken» und «Gesehen» schalten um; «Empfehlen» mit Meldung «Bleibt 30 Tage»; «Löschen» öffnet den unveränderten Dialog und löscht nichts; Chip «Dein Wunsch ist da» bei Marco und Noah auf «Godzilla Minus One»; Titel über der Altersstufe gibt «Titel nicht gefunden» |
+| Spätere technische Umsetzung | Stufe 3, Schritt 3.4 zusammen mit der Reihe; AK-131 |
 
 ### M-06 · Detailseite Serie mit fehlenden Staffeln (geändert)
 
@@ -139,13 +158,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/items/{id}` |
 | Heute | Staffelwand der vorhandenen Staffeln, Folgenliste der gewählten Staffel mit Gesehen je Folge, runde Knöpfe wie M-05 |
-| Geplante Änderung | fehlende Staffeln als gedämpfte Karten; runder Knopf «Staffeln anfordern»; Chip «2 von 3 Staffeln vorhanden»; Zeile mit fehlenden und angeforderten Staffeln und Link «Meine Wünsche»; Hinweis «Läuft noch, nächste Folge am …» oder «Staffel 4 ist angekündigt»; alles nur für Profile, die anfordern können |
-| Rolle | Zuschauer; gedämpfte Karten, Zeile und Chip nur für Profile, die anfordern können, sonst wie heute |
+| Geplante Änderung | nur für Profile, die anfordern können: fehlende Staffeln als gedämpfte Karten, runder Knopf «Staffeln anfordern», Chip «2 von 3 Staffeln vorhanden», Zeile mit fehlenden und angeforderten Staffeln und Link «Meine Wünsche»; «Läuft noch, nächste Folge am …» oder «Staffel 4 ist angekündigt». Kein Download-Fortschritt (N-82) |
+| Rolle | Zuschauer; ohne Recht wie heute |
 | Neue oder veränderte Einstellungen | wirken hier: «Anfordern auf Detailseiten», «Serien erlauben», «Wünsche aktiv», «Bereits angeforderte Titel» (M-25) |
-| API-Operationen | `getItem` (neu `catalog`, `canRequestSeasons`), `createWish` mit `seasons` |
+| API-Operationen | `getItem` (neu `catalog`, `canRequestSeasons`), `getWishSeasons` (auch für eine vorhandene Serie, K-4), `createWish` mit `seasons`, `getWishQuota` |
 | Mockup | M-06, `#/items/tulsa-king`; weitere `#/items/rings-of-power`, `#/items/dexter-resurrection`, `#/items/black-clover` (nach Anfordern und «Datei trifft ein»); `js/viewer-titles.js` (`route('/items/:key')`, `vtMissingLine`, `vtGhost`, `vtEpisodes`) |
-| Abgedeckte interaktive Zustände | Staffel 1 und 2 vorhanden und wählbar (Folgenliste, Gesehen je Folge, Folge abspielen); Staffel 3 «Fehlt» (Klick öffnet M-13 mit Staffel 3), Staffel 4 «Angekündigt»; Zeile «Staffel 3 fehlt.»; nach dem Anfordern «Staffel 3 ist angefordert: In Beschaffung.» mit Link; Knopf «Staffeln anfordern» verschwindet, wenn keine Staffel frei ist oder «Auf Detailseiten» aus ist (dann sind die Karten auch nicht klickbar); Mockup › Gast oder «Oma & Opa» (ohne Zuordnung): nur vorhandene Staffeln, keine gedämpften Karten, keine Zeile, kein Chip; «Oma & Opa» nach «Übernehmen» in M-24 (grosseltern darf keine Serien): keine Karten, keine Zeile, aber der Chip bleibt (Abschnitt 9, Nr. 15); Mockup › Mia: «Titel nicht gefunden» (ab 16) |
-| Spätere technische Umsetzung | Stufe 4: Schritte 4.1 (`server/internal/metadata/`, Tabelle `series_catalog`, Jobart `series.catalog`), 4.2 (`web/src/features/catalog/ItemPage.tsx`, `SeasonShelf.tsx`, Staffelwahl mit Mitwunsch); `02-funktionskonzept.md` Abschnitt 6 |
+| Abgedeckte interaktive Zustände | Staffel 1 und 2 vorhanden und wählbar (Folgenliste, Gesehen je Folge, Folge abspielen); Staffel 3 «Fehlt» (Klick öffnet M-13 mit Staffel 3), Staffel 4 «Angekündigt»; Chip «2 von 3 Staffeln vorhanden» in der Metazeile; Zeile «Staffel 3 fehlt.»; nach dem Anfordern «Staffel 3 ist angefordert: In Beschaffung.» mit Link; «Staffeln anfordern» verschwindet, wenn keine Staffel frei ist; «Anfordern auf Detailseiten» aus: keine gedämpften Karten, keine Zeile, kein Chip, kein Knopf; Mockup › Gast: nur vorhandene Staffeln; Mockup › Mia: «Titel nicht gefunden» (ab 16) |
+| Spätere technische Umsetzung | Stufe 4: Schritte 4.1 (`series_catalog`, `series.catalog`), 4.2 (`ItemPage.tsx`, `SeasonShelf.tsx`, Staffelwahl mit Mitwunsch); `02-funktionskonzept.md` Abschnitt 6; AK-80, AK-132 |
 
 ### M-07 · Suche (geändert)
 
@@ -153,27 +172,27 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/search` |
 | Heute | Suchfeld (ab 2 Zeichen), Filter Genre, Jahr von/bis, Altersfreigabe höchstens, Medientyp, Verfügbarkeit «Auf dem Server»/«Auf diesem Gerät», Ergebnisse «Titel», «Personen», «Sammlungen» |
-| Geplante Änderung | Abschnitt «Noch nicht in der Bibliothek» aus der TMDB-Suche; Verfügbarkeitsfilter «Noch nicht da»; kein Hinweis für Profile, die nicht anfordern können (auch nicht bei fehlender Zuordnung) |
-| Rolle | Zuschauer; der neue Abschnitt nur für Profile, die anfordern können |
-| Neue oder veränderte Einstellungen | wirken hier: «Anfordern aus der Suche», «Wünsche aktiv», «Filme erlauben», «Serien erlauben» (M-25) |
-| API-Operationen | `search` (unverändert), `searchExternalTitles` (leer ohne Recht oder mit «Anfordern aus der Suche» aus), `getExternalTitleImage` |
+| Geplante Änderung | Abschnitt «Noch nicht in der Bibliothek» aus der TMDB-Suche, Verfügbarkeitsfilter «Noch nicht da»; neu ein Verweis auf die Wunsch-Suche M-34 mit demselben Suchbegriff (N-57). Kein Download-Fortschritt (N-82) |
+| Rolle | Zuschauer; Abschnitt, Filter und Verweis nur für Profile, die anfordern können |
+| Neue oder veränderte Einstellungen | wirken hier: «Anfordern aus der Suche», «Seiten Entdecken, Filme, Serien und Suche» (Verweis), «Wünsche aktiv», «Filme erlauben», «Serien erlauben» (M-25) |
+| API-Operationen | `search` (unverändert), `searchExternalTitles`, `getExternalTitleImage` |
 | Mockup | M-07, `#/search?q=the`, `js/viewer-pages.js` (`route('/search')`) |
-| Abgedeckte interaktive Zustände | Eingabe mit Live-Ergebnis; ein Zeichen: «Gib mindestens zwei Zeichen ein.»; Abschnitt «Titel» und darunter «Noch nicht in der Bibliothek» mit Plus-Knöpfen; Filter aufklappbar mit Zusammenfassung der aktiven Filter und «Filter zurücksetzen»; Pille «Noch nicht da» zeigt fehlende Titel auch ohne Suchbegriff; Personen und Sammlungen führen zur Hinweisseite «Unverändert»; «Nichts gefunden»; Mockup › Mia, Gast oder «Oma & Opa» (ohne Zuordnung): weder Abschnitt noch Pille noch Hinweis; «Oma & Opa» nach «Übernehmen» in M-24: nur fehlende Filme; «Aus der Suche» aus (M-25): Abschnitt und Pille fehlen |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.3 (Suche über TMDB gefiltert in `visibility`, Detailabruf der ersten 20 Treffer für Profile unter 18), 2.8 (`features/discover/SearchPage.tsx`); `02-funktionskonzept.md` Abschnitt 5.2 |
+| Abgedeckte interaktive Zustände | Eingabe mit Live-Ergebnis; ein Zeichen: «Gib mindestens zwei Zeichen ein.»; «Titel» und darunter «Noch nicht in der Bibliothek» mit Plus-Knöpfen und dem Link «Alle Treffer unter Wünsche suchen» (nur mit Suchbegriff, wenn es fehlende Treffer gibt und die Seiten an sind); Filter aufklappbar mit Zusammenfassung und «Filter zurücksetzen»; Pille «Noch nicht da» zeigt fehlende Titel auch ohne Suchbegriff; Personen und Sammlungen führen zur Hinweisseite «Unverändert»; «Nichts gefunden»; Mockup › Mia oder Gast: weder Abschnitt noch Pille noch Verweis; «Anfordern aus der Suche» aus: Abschnitt, Pille und Verweis fehlen; «Seiten Entdecken …» aus: nur der Verweis fehlt |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.3 (Suche über TMDB gefiltert in `visibility`), 2.8 (`SearchPage.tsx`); Verweis Stufe 5, Schritt 5.5; `02-funktionskonzept.md` Abschnitt 5.2; AK-187 |
 
-### M-08 · Meine Wünsche (neu)
+### M-08 · Wünsche · Meine Wünsche (neu)
 
 | Zeile | Inhalt |
 |---|---|
-| Seite | neu, App-Route `/wishes`; Eintrag «Wünsche» in der Seitenleiste nach «Gesehen» mit Zähler offener Wünsche, nur wenn das Profil anfordern kann oder eigene Wünsche hat |
+| Seite | neu, App-Route `/wishes`; fünfter Reiter des Bereichs «Wünsche» (N-50); Eintrag «Wünsche» der Seitenleiste nach «Gesehen» mit Zähler offener Wünsche |
 | Heute | gibt es nicht |
-| Geplante Änderung | Liste der eigenen Wünsche und Mitwünsche mit Zustand, Filter, Verlauf, Zurückziehen, Nicht mehr benachrichtigen, Erneut anfordern; für das Hauptprofil umschaltbar auf alle Profile des Kontos |
-| Rolle | jedes Profil mit Wünschen; Hauptprofil zusätzlich alle Profile des Kontos |
-| Neue oder veränderte Einstellungen | wirken hier: «Zurückziehen erlauben», «Bereits angeforderte Titel» (M-25) |
-| API-Operationen | `listWishes`, `listAccountWishes` (`scoped`, zusätzlich Hauptprofil, sonst 403 `primary_profile_required`), `withdrawWish`, `createWish` (über «Erneut anfordern») |
-| Mockup | M-08, `#/wishes`, Sprung aus M-09 mit `#/wishes?focus={id}`; `js/viewer-pages.js` (`route('/wishes')`, `vpWishRow`, `vpSteps`); Seitenleiste `js/shell.js` |
-| Abgedeckte interaktive Zustände | Filter «Alle», «Offen», «Verfügbar», «Abgeschlossen» mit Zählern; Schalter «Wünsche aller Profile meines Kontos» (nur Hauptprofil, zeigt den Profilnamen); je Zeile Chip, «Du wünschst mit», «In Jellyseerr angelegt», Klartext bei `queued`, `failed` (auch «Jellyseerr war 24 Stunden lang nicht erreichbar.»), `pending`, Staffel-Chips bei Serien; «Abspielen» und «Zum Titel» bei `available` und `partial`; «Zurückziehen» mit Rückfrage (Besitzer, `queued` und `pending`); «Nicht mehr benachrichtigen» (Mitwunsch); «Erneut anfordern» bei `declined`, `failed`, `withdrawn` (öffnet M-13); «Verlauf» aufklappbar; `?focus=` klappt den Verlauf auf und scrollt hin; leer mit Recht: «Noch keine Wünsche» mit «Zum Spotlight» und «Zur Suche»; leer ohne Recht: Hinweis mit Grund (Mockup › Mia); mit Wünschen, aber ohne Recht: Hinweis «Neue Wünsche sind nicht möglich»; Rückgabe an Mitwünscher beim Zurückziehen («… übernimmt») |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.4 (`server/internal/wishes/`: `createWish`, `withdrawWish` mit Job `wishes.withdraw`, Ausgangsfach), 2.9 (`web/src/features/wishes/`, `AppLayout.tsx`); Tabellen `wishes`, `wish_seasons`, `wish_requesters`, `wish_events`; `02-funktionskonzept.md` Abschnitte 4.8 und 5.3 |
+| Geplante Änderung | Reiter «Entdecken», «Filme», «Serien», «Suche», «Meine Wünsche» (ohne Recht nur «Meine Wünsche»); oben das Limit des Kontos (02 Abschnitt 4.10); Liste der eigenen Wünsche und Mitwünsche mit Zustand, Filter, Verlauf, Zurückziehen, Nicht mehr benachrichtigen, Erneut anfordern; Download-Fortschritt bei Wünschen in Beschaffung, ohne Meldung von Radarr oder Sonarr (N-82, N-83); für das Hauptprofil umschaltbar auf alle Profile des Kontos |
+| Rolle | jedes Profil mit Wünschen oder Recht; Hauptprofil zusätzlich alle Profile des Kontos |
+| Neue oder veränderte Einstellungen | wirken hier: «Zurückziehen erlauben», «Bereits angeforderte Titel», «Download-Fortschritt zeigen», «Seiten Entdecken, Filme, Serien und Suche» (Reiter) (M-25); Limit des Kontos (M-26) bzw. des Ausnahme-Benutzers |
+| API-Operationen | `listWishes`, `listAccountWishes` (`scoped`, nur Hauptprofil, sonst 403 `primary_profile_required`), beide mit `progress?`; `withdrawWish`, `createWish` (über «Erneut anfordern»), `getWishQuota` |
+| Mockup | M-08, `#/wishes`, Sprung aus M-09 mit `#/wishes?focus={id}`; `js/viewer-pages.js` (`route('/wishes')`, `vpWishRow`, `vpSteps`); Reiter und Limit `wishNav`, `quotaPill` in `js/model2.js`; Fortschritt `dlChip` |
+| Abgedeckte interaktive Zustände | Reiter mit Zähler an «Meine Wünsche»; Limit oben: Marco «Limit keines (Administrator)», Mockup › «Oma & Opa» je ein Balken «Filme 2 / 10 in 7 Tagen» und «Staffeln 2 / 5 in 7 Tagen», nach «Filme ausschöpfen» voll; Filter «Alle», «Offen», «Verfügbar», «Abgeschlossen» mit Zählern; Schalter «Wünsche aller Profile meines Kontos» (nur Hauptprofil, mit Profilname); je Zeile Chip, **Download-Zeile** («Wird gesucht», «Wird heruntergeladen · 45 % · noch 12 min», «Wird eingelesen», «Download verzögert», bei «Black Doves» mit «6 von 8 Folgen da»; bei «Radarr weg» oder Schalter aus nichts), «Du wünschst mit», «In Jellyseerr angelegt», Klartext bei `queued`, `failed`, `pending`; Staffel-Chips bei Serien; «Abspielen» und «Zum Titel» bei `available` und `partial`; «Zurückziehen» mit Rückfrage; «Nicht mehr benachrichtigen»; «Erneut anfordern» bei `declined`, `failed`, `withdrawn` (öffnet M-13); «Verlauf» aufklappbar; `?focus=` klappt auf und scrollt hin; leer mit Recht: «Noch keine Wünsche» mit «Unter «Entdecken», «Filme», «Serien» und in der Suche findest du Titel …» und den Knöpfen «Zu «Entdecken»» und «Zur Suche»; leer ohne Recht: «Keine Wünsche» mit Grund (Mockup › Mia); mit Wünschen ohne Recht: «Neue Wünsche sind nicht möglich»; Übergabe an Mitwünscher beim Zurückziehen |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.4 (`createWish`, `withdrawWish`, `getWishQuota`), 2.9 (`web/src/features/wishes/`, `AppLayout.tsx`); Stufe 4: Schritt 4.6e (Fortschritt); Stufe 5: Schritt 5.5 (Reiter); Tabellen `wishes`, `wish_seasons`, `wish_requesters`, `wish_events`, `wish_progress`; `02-funktionskonzept.md` Abschnitte 4.8, 4.10 und 5.3 |
 
 ### M-09 · Benachrichtigungen (geändert)
 
@@ -181,27 +200,27 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/notifications`; Glocke im Kopf mit Zähler |
 | Heute | Eingang des Profils mit «Neue Folge» je Serie der Merkliste, gelesen/ungelesen, «Alle als gelesen markieren», «Kanäle einstellen» |
-| Geplante Änderung | neue Eingangsart `wish_available` (Stufe 2); `wish_season_available`, `wish_approved`, `wish_declined`, `wish_failed` (Stufe 4); Link zum Titel oder zu `/wishes?focus={id}` |
-| Rolle | jedes Profil; nur das anfordernde Profil und Mitwünscher, je erst wenn der Titel für dieses Profil sichtbar ist |
+| Geplante Änderung | neue Eingangsart `wish_available` (Stufe 2); `wish_season_available`, `wish_approved`, `wish_declined`, `wish_failed` (Stufe 4); Link zum Titel oder zu `/wishes?focus={id}`. Keine Meldung zu Limit oder Download-Fortschritt (`06-benachrichtigungen.md` Abschnitt 4) |
+| Rolle | jedes Profil; nur Anforderer und Mitwünscher, je erst wenn der Titel für dieses Profil sichtbar ist |
 | Neue oder veränderte Einstellungen | keine; der Eingang ist immer an |
-| API-Operationen | `listNotifications` (brechend: `item` wird optional, neu `wish`), bestehende Operationen zum Lesen |
+| API-Operationen | `listNotifications` (brechend: `item` optional, neu `wish`), bestehende Operationen zum Lesen |
 | Mockup | M-09, `#/notifications`, `js/viewer-pages.js` (`route('/notifications')`), Texte `N_TEXT` in `js/store.js` |
-| Abgedeckte interaktive Zustände | ungelesen hervorgehoben und im Zähler der Glocke; Klick markiert gelesen und springt zum Titel bzw. zu M-08 mit `focus`; «Als gelesen markieren»/«Als ungelesen markieren»; «Alle als gelesen markieren»; leer: «Keine Benachrichtigungen» (Mockup › Mia); neue Meldungen entstehen beim Vorspulen (Freigeben, Ablehnen, Scheitern, 24 h vergehen, Datei trifft ein) mit Meldung am Bildschirm, wer über welche Kanäle benachrichtigt wurde. Alle Arten erscheinen ohne Stufenhinweis (Abschnitt 9) |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.6 (`server/internal/notify/`, Schlüssel `wish:<id>:available`, `notified_at`), 2.9 (`NotificationsPage.tsx`); Stufe 4: Schritt 4.3; Tabelle `notifications` (Neubau mit `wish_id`, `dedupe_key`); `06-benachrichtigungen.md` Abschnitte 2, 3, 7 und 10 |
+| Abgedeckte interaktive Zustände | ungelesen hervorgehoben und im Zähler der Glocke; Klick markiert gelesen und springt zum Titel bzw. zu M-08 mit `focus`; «Als gelesen markieren»/«Als ungelesen markieren»; «Alle als gelesen markieren»; leer: «Keine Benachrichtigungen» (Mockup › Mia); neue Meldungen beim Vorspulen (Freigeben, Ablehnen, Scheitern, 24 h vergehen, Datei trifft ein) mit Meldung am Bildschirm, über welche Kanäle zugestellt wurde. «Download weiter» und «Download hängt» erzeugen keine Meldung. Alle Arten erscheinen ohne Stufenhinweis (Abschnitt 9) |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.6, 2.9; Stufe 4: Schritt 4.3; Tabelle `notifications`; `06-benachrichtigungen.md` Abschnitte 2, 3, 7 und 10 |
 
 ### M-10 · Benachrichtigungskanäle (geändert)
 
 | Zeile | Inhalt |
 |---|---|
 | Seite | bestehend, App-Route `/settings/notifications` |
-| Heute | je Kanal (E-Mail, Telegram, Web-Push) ein Band mit Zustand, Schalter «Aktiv», Ereignissen «Neue Inhalte», «Fehler» (nur Administratoren), «Einladungen», «Ankündigungen», Adresse bzw. Verknüpfung bzw. Geräte, «Speichern», «Testnachricht»; ändern nur im Hauptprofil |
-| Geplante Änderung | drei neue Häkchen je Kanal: «Wünsche: verfügbar» (Stufe 2), «Wünsche: freigegeben, abgelehnt, fehlgeschlagen» (Stufe 4, ab Werk aus), nur Administratoren «Wünsche: Freigabe nötig» (Stufe 4); Hinweis «Wünsche und Profile» zur PIN-Regel; Kopf zählt die Ereignisse («5 Ereignisse», `07-administration.md` Abschnitt 11) |
+| Heute | je Kanal (E-Mail, Telegram, Web-Push) ein Band mit Zustand, «Aktiv», Ereignissen «Neue Inhalte», «Fehler» (nur Administratoren), «Einladungen», «Ankündigungen», Adresse bzw. Verknüpfung bzw. Geräte, «Speichern», «Testnachricht»; ändern nur im Hauptprofil |
+| Geplante Änderung | drei neue Häkchen je Kanal: «Wünsche: verfügbar» (Stufe 2), «Wünsche: freigegeben, abgelehnt, fehlgeschlagen» (Stufe 4, ab Werk aus), nur Administratoren «Wünsche: Freigabe nötig» (Stufe 4); Hinweis «Wünsche und Profile»; Kopf zählt die Ereignisse (`07-administration.md` Abschnitt 11) |
 | Rolle | Hauptprofil (ändern), weitere Profile (lesen) |
 | Neue oder veränderte Einstellungen | Ereignisse `wish_available`, `wish_status`, `wish_review` je Kanal |
-| API-Operationen | bestehende Kanal-Operationen; Ereignisliste erweitert (`EventType`, brechend), `wish_review` für andere Konten abgelehnt (`ErrEventNotAllowed`) |
+| API-Operationen | bestehende Kanal-Operationen; `EventType` erweitert (brechend) |
 | Mockup | M-10, `#/settings/notifications`, `js/viewer-pages.js` (`channelSettingsHtml`, `VP_EVENTS`) |
-| Abgedeckte interaktive Zustände | Bänder zugeklappt mit Zusammenfassung (Adresse, Geräte oder Verknüpfung und Zustand, ohne Zahl der Ereignisse); Häkchen wirken sofort auf spätere Zustellungen; Mockup › «Oma & Opa»: ohne «Fehler» und «Wünsche: Freigabe nötig»; Mockup › Sandra: alles gesperrt mit Hinweis «Nur im Hauptprofil» und «Profil wechseln»; «Testnachricht» mit Warnung, wenn der Kanal aus, nicht verknüpft oder ohne Gerät ist; Telegram «Verknüpfen» mit Code, «Verknüpfung prüfen», «Code erneuern», «Code verwerfen», «Verknüpfung lösen»; Web-Push «Auf diesem Gerät aktivieren» und «Entfernen» |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.6 (Rückfüllung `wish_available`, F-14), 2.9; Stufe 4: Schritt 4.3 (`wish_status` ab Werk aus, `wish_review`, Datenmigration für bestehende Administratorkonten); Tabelle `account_channels` (Feld `events`), `deliveries` (Neubau); `06-benachrichtigungen.md` Abschnitte 5 und 6 |
+| Abgedeckte interaktive Zustände | Bänder zugeklappt mit Zusammenfassung (ohne Zahl der Ereignisse); Häkchen wirken sofort auf spätere Zustellungen; Mockup › «Oma & Opa»: ohne «Fehler» und «Wünsche: Freigabe nötig»; Mockup › Sandra: alles gesperrt mit «Nur im Hauptprofil» und «Profil wechseln»; «Testnachricht» mit Warnung bei aus, nicht verknüpft oder ohne Gerät; Telegram «Verknüpfen», «Verknüpfung prüfen», «Code erneuern», «Code verwerfen», «Verknüpfung lösen»; Web-Push «Auf diesem Gerät aktivieren», «Entfernen» |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.6, 2.9; Stufe 4: Schritt 4.3; Tabellen `account_channels`, `deliveries`; `06-benachrichtigungen.md` Abschnitte 5 und 6 |
 
 ### M-11 · Profile (geändert)
 
@@ -209,13 +228,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/settings/profiles` |
 | Heute | Karten je Profil mit Chips, «Bearbeiten», «Schauzeit anzeigen», Menü «PIN setzen/ändern/entfernen», «Löschen»; Profildialog mit Name, Altersfreigabe, Sprache, Sprache der Beschreibungen, Farbe, Bibliotheken, Wiedergabe, Wiedergabe-Limits, PIN beim Anlegen; nur Hauptprofil |
-| Geplante Änderung | Profildialog: Abschnitt «Wünsche» mit Schalter «Darf Titel anfordern», gesperrt mit Hinweis, wenn das Konto nicht darf; Karte: Chip «Darf anfordern»/«Darf nicht anfordern» und Zeile «Sendet als {Benutzer} (…)» |
+| Geplante Änderung | Profildialog: Abschnitt «Wünsche» mit «Darf Titel anfordern», gesperrt mit Hinweis, wenn das Konto nicht darf; Karte: Chip «Darf anfordern»/«Darf nicht anfordern» und Zeile «Sendet als {Benutzer} (…)»; ein gelöschtes Profil gibt seine Wünsche an das Hauptprofil ab (`04-benutzer-profilmapping.md` Abschnitt 10). Der Profil-Tag und die Ausnahme werden in M-24 gesetzt, nicht hier |
 | Rolle | Hauptprofil des Kontos |
 | Neue oder veränderte Einstellungen | Wunschrecht des Profils (`profiles.can_request`) |
 | API-Operationen | `createProfile`, `updateProfile`, `listProfiles` (Feld `canRequest`) |
-| Mockup | M-11, `#/settings/profiles`, `js/viewer-pages.js` (`vpProfCard`, `DIALOGS.vpProf`) |
-| Abgedeckte interaktive Zustände | Schalter an/aus und speichern; neues Profil startet mit «aus»; Mockup › Gast: Schalter gesperrt mit «Das Konto darf nicht anfordern. Das stellt der Administrator ein.»; Mockup › Noah: Hinweis «Nur im Hauptprofil»; Zeile «Sendet als» zeigt eigener Benutzer, Benutzer des Kontos, Sammelbenutzer oder «Keine Zuordnung»; alle heutigen Teile bedienbar (Pflichtfeld Name, PIN 4 bis 8 Ziffern, Schauzeit-Diagramm, Löschen mit Rückfrage) |
-| Spätere technische Umsetzung | Stufe 1: Schritte 1.2 (Migration `wishes_rights`), 1.6 (`server/internal/auth/`, Deckelregel), 1.9 (`web/src/features/profiles/`); `04-benutzer-profilmapping.md` Abschnitt 9 |
+| Mockup | M-11, `#/settings/profiles`, `js/viewer-pages.js` (`vpProfCard`, `DIALOGS.vpProf`, `ACT.vpProfDelOk`) |
+| Abgedeckte interaktive Zustände | Schalter an/aus und speichern; neues Profil startet mit «aus»; Mockup › Gast: Schalter gesperrt mit «Das Konto darf nicht anfordern. Das stellt der Administrator ein.»; Mockup › Noah: «Nur im Hauptprofil»; Zeile «Sendet als» mit «eigener Jellyseerr-Benutzer» (Ausnahme), «Benutzer des Kontos», «Sammelbenutzer» oder «Kein Jellyseerr-Benutzer»; Profil löschen (etwa Noah): Meldung «… 1 Wunsch gehört jetzt Marco.», im Verlauf «Von gelöschtem Profil Noah übernommen: Marco», Mitwünsche des Profils fallen weg; ein neues Profil mit dem Namen eines Profils in einem anderen Konto bekommt den Tag mit Kontonamen (`sc-noah-grosseltern`, N-21 nach K-18); alle heutigen Teile bedienbar (Pflichtfeld Name, PIN 4 bis 8 Ziffern, Schauzeit, Löschen mit Rückfrage) |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.2 (`wishes_rights`), 1.6 (Deckelregel), 1.9 (`web/src/features/profiles/`); `04-benutzer-profilmapping.md` Abschnitte 9 und 10 |
 
 ### M-12 · Profilwahl (unverändert)
 
@@ -226,24 +245,94 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 | Geplante Änderung | keine |
 | Rolle | Konto ohne gewähltes Profil |
 | Neue oder veränderte Einstellungen | keine |
-| API-Operationen | Sitzung (erweitert um `wishes` als `WishRights {enabled, canRequest, reason?, movies, shows}` beim Wählen) |
+| API-Operationen | Sitzung (`getSession`: `wishes` als `WishRights`, Stufe 5 `wishes.discover`) |
 | Mockup | M-12, `#/profiles`, `js/viewer-pages.js` (`route('/profiles')`) |
-| Abgedeckte interaktive Zustände | Profil wählen; PIN-Dialog (im Mockup öffnet jede vierstellige PIN); Abschnitt «Andere Konten (nur im Mockup)» zum direkten Kontowechsel |
-| Spätere technische Umsetzung | Stufe 1, Schritt 1.6 (Sitzung `wishes`) |
+| Abgedeckte interaktive Zustände | Profil wählen; PIN-Dialog (jede vierstellige PIN öffnet); Abschnitt «Andere Konten (nur im Mockup)» zum Kontowechsel, auch zu Konten aus M-35 |
+| Spätere technische Umsetzung | Stufe 1, Schritt 1.6; Stufe 5, Schritt 5.4 |
 
 ### M-13 · Dialog «Anfordern» (neu)
 
 | Zeile | Inhalt |
 |---|---|
-| Seite | neu, Dialog auf M-01, M-02, M-03, M-04, M-06, M-07, M-08 und M-27 |
+| Seite | neu, Dialog auf M-03, M-04, M-06, M-07, M-08 («Erneut anfordern»), M-27 («Anfordern» des Administrators) und M-31 bis M-34 (`02-funktionskonzept.md` Abschnitt 5) |
 | Heute | gibt es nicht |
-| Geplante Änderung | ein Dialog: Poster, Titel, «Geht als {Benutzer} an Jellyseerr», «Wird sofort beschafft» oder «Braucht eine Freigabe», Kontingent, Kanäle der Meldung, bei Serien die Staffelwahl mit Mitwunsch je Staffel; «Anfordern»/«Abbrechen» |
+| Geplante Änderung | ein Dialog: Poster, Titel, «Wird als {Benutzer} an Jellyseerr übermittelt», «Wird sofort beschafft» oder «Braucht eine Freigabe», **Limit** (frei, erreicht mit Zeitpunkt des nächsten Platzes, zu viele Staffeln; N-36), Kanäle der Meldung, bei Serien Staffelwahl (aus Jellyseerr, N-63) mit Mitwunsch je Staffel; «Anfordern»/«Abbrechen» (02 Abschnitt 5.5) |
 | Rolle | Profil, das anfordern kann; in M-27 der Administrator mit seinem Hauptprofil |
-| Neue oder veränderte Einstellungen | wirken hier: «Bereits angeforderte Titel», «Konten ohne Zuordnung» mit Sammelbenutzer (M-25); Zuordnung (M-24); Kanal-Ereignis «Wünsche: verfügbar» (M-10) |
-| API-Operationen | `createWish` (201 neu, auch mit `joined` bei Serien; 200 bestehend oder Mitwunsch; 403 `wish_not_allowed` mit `reason`, etwa `status_only`, `tvdb_id_missing`; 404; 409 `already_available`) |
-| Mockup | M-13, kein eigener Hash; `js/home.js` (`ACT.askWish`, `DIALOGS.wish`, `ACT.confirmWish`), `ACT.vtAskSeason` in `js/viewer-titles.js`, `requestWish` in `js/store.js` |
-| Abgedeckte interaktive Zustände | Film neu: Fakten und «Anfordern»; Film schon angefordert: «Schon angefordert» mit «Benachrichtige mich» (bei «Nur Zustand zeigen» gibt es keinen Knopf, der dorthin führt); Serie: «Alle fehlenden Staffeln (n)» und einzelne Staffeln, Zeilen «Vorhanden», «Angekündigt», «Bereits angefordert» (fremd, wählbar) oder eigener Zustand; Knopf «n Staffeln anfordern», «Benachrichtige mich» (nur fremd angeforderte gewählt) oder gesperrt «Staffeln wählen»; beim Bestätigen hängt sich das Profil an die fremden Wünsche und bestellt nur den Rest neu (Marco bei «Black Doves»: Staffel 1 Mitwunsch, Staffel 2 neu); «Nur Zustand zeigen»: fremd angeforderte Staffeln gesperrt mit ihrem Zustand; «Nichts mehr anzufordern»; Jellyseerr nicht erreichbar: Hinweis «Dein Wunsch wird vorgemerkt» (Mockup › «Nicht erreichbar»); Kontingent: Mockup › Noah zeigt «5 Titel in 7 Tagen, 2 verbraucht»; der vierte neue Wunsch von Noah endet als «Fehlgeschlagen» mit Klartext; kein Recht: «Anfordern nicht möglich» mit Grund. Diesen Fall erreicht man nach Regel F-9 nur über einen eigenen Wunsch (Recht entziehen, dann «Erneut anfordern» in M-08, Mockup › Noah, «Street Fighter»); so steht es auch in `02-funktionskonzept.md` Abschnitt 4.5. Rückmeldung am Bildschirm je Ergebnis mit Link «Meine Wünsche» |
-| Spätere technische Umsetzung | Stufe 2: Schritte 2.4 (`createWish`, Mitwunsch auch je Staffel, Sofortversuch 3 s, `wishes.submit`), 2.8 (`web/src/ui/`); Stufe 4: Schritt 4.2 (Staffelwahl auf der Serienseite); `02-funktionskonzept.md` Abschnitte 4.1 bis 4.5; `03-architektur.md` Abschnitte 6.1 bis 6.5; Storybook für Dialog, Plus-Knopf, Zustandschip |
+| Neue oder veränderte Einstellungen | wirken hier: «Bereits angeforderte Titel», «Konten ohne Jellyseerr-Benutzer» mit Sammelbenutzer (M-25), Limit ab Werk (M-25) und je Konto (M-26), Ausnahme je Profil (M-24), «Wünsche: verfügbar» (M-10) |
+| API-Operationen | `createWish` (201 neu, 200 bestehend oder Mitwunsch; 403 `wish_not_allowed` mit `reason`; 404; 409 `already_available`; 409 `quota_exceeded`), `getWishQuota`, `getWishSeasons` |
+| Mockup | M-13, kein eigener Hash; `js/home.js` (`ACT.askWish` mit Kappung der Vorwahl, `DIALOGS.wish`, `ACT.confirmWish`), `ACT.vtAskSeason` in `js/viewer-titles.js`, `requestWish` in `js/store.js`, `limitCheck`, `quotaFor` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Film neu: Fakten «Wird als marco an Jellyseerr übermittelt (Benutzer des Kontos).» und «Anfordern»; Fakt Limit: «Limit: 8 von 10 Filmen frei (10 in 7 Tagen, für alle Profile dieses Kontos gemeinsam)» (Mockup › «Oma & Opa»), «Kein Limit: Administratoren fordern unbegrenzt an.» (Marco), «Kein Limit.» (Sandra), Limit des Ausnahme-Benutzers «4 von 5 Filmen frei» (Mockup › Noah); **Limit erreicht** («Filme ausschöpfen»): Band «Limit erreicht» mit «Das Limit ist erreicht: 10 Filme in 7 Tagen. Der nächste Platz wird am {Tag} um {Zeit} frei.», «Anfordern» gesperrt; Film schon angefordert: «Schon angefordert» mit «Benachrichtige mich», auch bei erreichtem Limit; Serie: «Alle fehlenden Staffeln (n)» und einzelne Staffeln mit «Vorhanden», «Angekündigt», «Bereits angefordert» oder eigenem Zustand; **gekappte Vorwahl**: reicht das Limit nicht, sind nur so viele neue Staffeln vorgewählt, wie frei sind, mit Hinweis «Das Limit reicht nicht für alle Staffeln … Vorgewählt sind die ersten 3 fehlenden Staffeln» (Mockup › «Oma & Opa», «How I Met Your Mother»; Mockup › Noah «Modern Family» mit 2); **zu viele Staffeln**: «Zu viele Staffeln für das Limit» mit «Noch 3 von 5 Staffeln frei. Wähle höchstens 3 Staffeln.», Knopf gesperrt; Staffeln, die schon jemand angefordert hat, kosten nichts; Knopf «n Staffeln anfordern», «Benachrichtige mich» (nur fremd angeforderte gewählt) oder gesperrt «Staffeln wählen»; «Nur Zustand zeigen»: fremd angeforderte Staffeln gesperrt; «Nichts mehr anzufordern»; Jellyseerr nicht erreichbar: «Dein Wunsch wird vorgemerkt»; kein Recht: «Anfordern nicht möglich» mit Grund (nur über einen eigenen Wunsch erreichbar, F-9); Rückmeldung je Ergebnis mit Link «Meine Wünsche» |
+| Spätere technische Umsetzung | Stufe 2: Schritte 2.4 (`createWish` mit Vorprüfung des Limits und `quota_exceeded`, `getWishQuota`, Staffeln aus Jellyseerr), 2.8 (`web/src/ui/`, Dialog mit Limit); Stufe 4: Schritt 4.2; `02-funktionskonzept.md` Abschnitte 4.1 bis 4.5, 4.10 und 5.5; `04-benutzer-profilmapping.md` Abschnitt 17; AK in `10-abnahmekriterien.md` Abschnitt 3.8 |
+
+### M-31 · Wünsche · Entdecken (neu)
+
+| Zeile | Inhalt |
+|---|---|
+| Seite | neu, App-Route `/discover` (K-13); erster Reiter des Bereichs «Wünsche», Ziel des Eintrags «Wünsche» der Seitenleiste |
+| Heute | gibt es nicht |
+| Geplante Änderung | Reihen wie die Startseite von Jellyseerr (Marco, Nachricht): Im Trend, Beliebte Filme, Film-Genres, Demnächst im Kino, Beliebte Serien, Serien-Genres, Demnächst als Serie (Auswahl Empfehlung N-51, F-28); Suchfeld; Bibliothekstitel mit Marke und Link zur Detailseite (N-55); keine Reihe mit fehlenden Einträgen des Spotlights (E-5) |
+| Rolle | nur Profile, die anfordern können (F-9, N-56); alle anderen sehen höchstens «Meine Wünsche» |
+| Neue oder veränderte Einstellungen | «Seiten Entdecken, Filme, Serien und Suche» (M-25); wirken auch «Filme erlauben», «Serien erlauben», «Wünsche aktiv»; Zeitplan `wishes.discover` (M-30) |
+| API-Operationen | `getWishDiscover`, `listWishDiscoverRow`, `getExternalTitleImage`, `createWish`, `getWishQuota`; Sitzung `wishes.discover` |
+| Mockup | M-31, `#/discover`, `js/viewer-discover.js` (`route('/discover')`, `dcGenreRow`, `dcGate`); Reihen `DISC_ROWS`, `discoverRow` in `js/model2.js`, Daten `DISCOVER_ROWS` in `js/data-discover.js`; Marke über `posterCard` mit `libMark` in `js/home.js` |
+| Abgedeckte interaktive Zustände | Reiter und Limit oben; Suchfeld «Film oder Serie suchen» mit «Suchen» oder Enter → M-34; Reihen in der Reihenfolge «Im Trend», «Beliebte Filme» (Kopf führt zu M-32), «Film-Genres» als Kacheln mit Zahl (führt zu M-32 mit Genre), «Demnächst im Kino» (M-32 «Neueste zuerst»), «Beliebte Serien», «Serien-Genres», «Demnächst als Serie»; je Reihe blättern; Poster: fehlend mit Plus und «Noch nicht da», fremd angefordert mit Glocke, eigener Wunsch mit Zustands-Chip, vorhanden mit Unterzeile «Jahr · In der Bibliothek» sowie «Gesehen» und «Merken»; Jellyseerr nicht verbunden: Band «Jellyseerr ist nicht erreichbar. Du siehst den Stand vom letzten Abruf.»; Mockup › Noah: nur Titel bis 12 mit bekannter Freigabe; Profil ohne Recht ohne Wünsche (Mockup › Mia): «Titel nicht gefunden»; ohne Recht mit Wünschen oder bei ausgeschalteten Seiten: Seite «Entdecken gibt es für dieses Profil nicht» mit «Zu «Meine Wünsche»» |
+| Spätere technische Umsetzung | Stufe 5: Schritte 5.1 (`wish_discover_pages`), 5.2 (Discover-Routen von Jellyseerr), 5.3 (`wishes.discover`, Nachprüfung je Treffer), 5.4 (Vertrag), 5.5 (`web/src/features/wishes/`); `02-funktionskonzept.md` Abschnitte 4.11 und 5.4; `05-spotlight-integration.md` Abschnitt 3.3 (Abgleich); AK-179 bis AK-183, AK-186, AK-188, AK-192 |
+
+### M-32 · Wünsche · Filme (neu)
+
+| Zeile | Inhalt |
+|---|---|
+| Seite | neu, App-Route `/discover/movies` |
+| Heute | gibt es nicht |
+| Geplante Änderung | Posterraster aller Filme, die TMDB kennt, mit Sortierung (Beliebtheit, Neueste zuerst, Titel), Genre-Filter und «Vorhandene ausblenden»; der Filter ist zugeklappt und zeigt seine Wahl im Kopf; «Mehr laden» (N-52) |
+| Rolle | wie M-31 |
+| Neue oder veränderte Einstellungen | wie M-31; Sortierung und Filter sind Ansicht, keine Einstellung |
+| API-Operationen | `listWishTitles` (`media=movie`, `sort`, `genre`, `hideAvailable`, `page`), `getExternalTitleImage`, `createWish`, `getWishQuota` |
+| Mockup | M-32, `#/discover/movies`, mit Vorgabe `#/discover/movies?genre=Drama&sort=new`; `js/viewer-discover.js` (`dcGridPage('movie')`), `discoverList` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Band «Filter und Sortierung» zugeklappt mit Kopf «Beliebtheit · Alle Genres · Vorhandene sichtbar»; Auswahl «Sortierung» (Beliebtheit, Neueste zuerst, Titel A–Z), «Genre», Schalter «Vorhandene ausblenden» mit Hilfe; «Filter zurücksetzen»; Vorgaben aus dem Link als Pillen «Genre: …», «Sortierung: …» mit Entfernen; Zählung «n Filme, davon k in der Bibliothek»; 24 je Seite, «Mehr laden» mit «x von y angezeigt»; leer: «Keine Filme für diese Auswahl» mit «Filter zurücksetzen»; Poster wie M-31, vorhandene mit «In der Bibliothek»; Jellyseerr nicht verbunden: Band mit letztem Stand; Zugang wie M-31 |
+| Spätere technische Umsetzung | Stufe 5: Schritte 5.2, 5.3, 5.4, 5.5; `02-funktionskonzept.md` Abschnitt 5.4; AK-185, AK-188 |
+
+### M-33 · Wünsche · Serien (neu)
+
+| Zeile | Inhalt |
+|---|---|
+| Seite | neu, App-Route `/discover/series` |
+| Heute | gibt es nicht |
+| Geplante Änderung | wie M-32 für Serien; Bibliotheksserien über TVDB zuerst erkannt (N-61) |
+| Rolle | wie M-31 |
+| Neue oder veränderte Einstellungen | wie M-32 |
+| API-Operationen | `listWishTitles` (`media=show`), `getExternalTitleImage`, `createWish`, `getWishSeasons`, `getWishQuota` |
+| Mockup | M-33, `#/discover/series`, `js/viewer-discover.js` (`dcGridPage('series')`) |
+| Abgedeckte interaktive Zustände | alle Zustände von M-32 mit «Serien»; vorhandene Serien («MobLand», «Tulsa King», «Die Ringe der Macht», «Dexter: Wiedererwachen») mit «In der Bibliothek», «Gesehen» und «Merken»; Plus öffnet M-13 mit Staffelwahl |
+| Spätere technische Umsetzung | Stufe 5: Schritte 5.2 bis 5.5; AK-183, AK-185, AK-188 |
+
+### M-34 · Wünsche · Suche (neu)
+
+| Zeile | Inhalt |
+|---|---|
+| Seite | neu, App-Route `/discover/search` |
+| Heute | gibt es nicht |
+| Geplante Änderung | Suche in allem, was TMDB kennt, auch nach Kennung `tmdb:`, `tvdb:`, `imdb:`; keine Personen (N-53) |
+| Rolle | wie M-31 |
+| Neue oder veränderte Einstellungen | wie M-31 |
+| API-Operationen | `searchWishTitles` (`q` 2–100 Zeichen), `getExternalTitleImage`, `createWish`, `getWishQuota` |
+| Mockup | M-34, `#/discover/search?q=the`, `js/viewer-discover.js` (`route('/discover/search')`, `dcHit`, `dcChip`, `dcExamples`), `discoverSearch` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Suchfeld mit Fokus beim Öffnen und Live-Ergebnis; ein Zeichen: «Gib mindestens zwei Zeichen ein.»; Kennungen als klickbare Beispiele «tmdb:1368337 · tvdb:413215 · imdb:…» füllen das Feld; ohne Begriff «Gib einen Titel ein …» und «Gerade beliebt» (6 Poster); Treffer getrennt «Filme (n)» und «Serien (n)», je Zeile Poster, Titel, «Jahr · Film · ab 14» oder «Freigabe unbekannt, zählt als ab 18», Originaltitel, Chip («In der Bibliothek», «2 von 3 Staffeln vorhanden», eigener Zustand, «Bereits angefordert», «Noch nicht in der Bibliothek») und Knöpfe («Film anfordern», «Benachrichtige mich», Zustand oder «Abspielen», dazu «Trailer»); 0 Treffer: «Nichts gefunden für «…»» mit «nicht nach Personen»; Jellyseerr nicht verbunden: Feld gesperrt, Band «Die Suche fragt Jellyseerr direkt …» mit «Zu «Entdecken»»; Zugang wie M-31 |
+| Spätere technische Umsetzung | Stufe 5: Schritte 5.2 (Präfixe), 5.3, 5.4, 5.5; AK-184, AK-188 |
+
+### M-35 · Einladung annehmen (heute vorhanden, im Mockup neu)
+
+| Zeile | Inhalt |
+|---|---|
+| Seite | bestehend, App-Route `/invite/$token` (`web/src/app/router.tsx:237`); im Mockup `#/invite/{id}` |
+| Heute | Seite der Einladung; legt mit `acceptInvitation` Konto und Hauptprofil an, unter anderem mit E-Mail und Passwort (Anhang H 3.6, `02-funktionskonzept.md` Abschnitt 4.9) |
+| Geplante Änderung | über dem Formular die Fakten der Einladung (Notiz, Altersstufe, Wunschrecht mit Limit, gültig bis); Hinweis «Dein Login gilt auch für Jellyseerr»; beim Absenden eröffnet Slouchcat im selben Zug den Jellyseerr-Benutzer mit gleicher E-Mail und gleichem Passwort (Marco, E-1; N-1). Gibt es die E-Mail in Jellyseerr schon, entsteht nur ein Vorschlag, den ein Administrator in M-24 bestätigt (N-2a nach K-1); die Seite sagt nie, ob Jellyseerr die Adresse kennt. Ist Jellyseerr nicht erreichbar, folgt der Benutzer beim nächsten Abgleich, das Passwort bei der nächsten Anmeldung (N-4). Fehlt Jellyseerr oder ist «Neue Konten in Jellyseerr eröffnen» aus, entfällt der Hinweis (Vorschlag, 02 Abschnitt 5.6) |
+| Rolle | eingeladene Person ohne Konto |
+| Neue oder veränderte Einstellungen | wirken hier: «Neue Konten in Jellyseerr eröffnen», «Passwort abgleichen» (M-25); Wunschrecht und Limit der Einladung (M-26) |
+| API-Operationen | `acceptInvitation` (Antwort in allen Fällen gleich; Seiteneffekt Eröffnung oder Vorschlag, Passwort nur an einen neu eröffneten Benutzer); danach `login` mit Seiteneffekt bei `next_login` |
+| Mockup | M-35, `#/invite/i1` (auch aus M-00 «Konten» und aus M-26 «Einladungslink öffnen»); `js/viewer-account.js` (`route('/invite/:id')`, `ACT.vaAccept`), `acceptInvitation`, `provisionAccount` (mit `by: 'self'`) in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Kopf mit Notiz «Für Tante Ruth», «Altersstufe ab 16», «Darf Titel anfordern · Limit: 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen», «Gültig bis …»; Felder «E-Mail», «Name des Profils», «Passwort» («Mindestens 10 Zeichen.»), «Passwort wiederholen»; Fehler «Gib eine gültige E-Mail-Adresse ein.», «Mit dieser E-Mail-Adresse gibt es schon ein Konto.», «Gib einen Namen für dein Profil ein.», «Mindestens 10 Zeichen.», «Die beiden Passwörter sind nicht gleich.»; Band «Dein Login gilt auch für Jellyseerr» (NEU) mit Text je Zustand (verbunden bzw. «Jellyseerr ist gerade nicht erreichbar …»); «Konto anlegen» meldet an, wechselt ins neue Profil und meldet bei neuer Adresse «In Jellyseerr hast du jetzt ein Konto mit derselben E-Mail und demselben Passwort.», bei einer Adresse, die Jellyseerr schon kennt (etwa `tv@example.ch`), und bei nicht erreichbarem Jellyseerr gleich neutral «Dein Konto in Jellyseerr ist noch nicht bereit. Bis dahin kannst du noch keine Titel anfordern.»; das Konto erscheint in M-24 als «Von Slouchcat eröffnet» (Passwort «Gleich wie in Slouchcat»), «Verknüpfung vorgeschlagen, wartet auf den Administrator» oder «Wird eröffnet, sobald Jellyseerr erreichbar ist», und in M-26; benutzte oder widerrufene Einladung: «Diese Einladung ist nicht mehr gültig»; ohne Jellyseerr oder mit Schalter aus kein Band, kein Benutzer |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.5a (`seerr.provision` mit Vorschlag), 1.5b (Haken `WithPasswordSeen` in `AcceptInvitation`, `Login`), 1.5c (Limit), 1.9 (Seite mit Hinweis); `04-benutzer-profilmapping.md` Abschnitte 12 und 13; `02-funktionskonzept.md` Abschnitte 4.9 und 5.6; AK in `10-abnahmekriterien.md` Abschnitt 2.5 (AK-213) |
 
 ### M-20 · Verwaltung › Übersicht (geändert)
 
@@ -251,13 +340,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/admin` |
 | Heute | «Alles im Blick», «Aktualisieren», Kennzahlen «Aktive Streams», «Laufende Jobs», «Titel zur Pflege», «Speicherplatz»; «Was benötigt Aufmerksamkeit?»; «Gerade aktiv»; «Direkt zu deinen Aufgaben»; «Server & letzte Aktivitäten» |
-| Geplante Änderung | fünfte Kennzahl «Offene Wünsche» (nur wenn Jellyseerr eingerichtet ist); Hinweise zu Wünschen und Jellyseerr, darunter «Andere Jellyseerr-Instanz erkannt»; Schnellzugriff «Wünsche»; Zeile «Jellyseerr» im Serverzustand; Wunsch-Ereignisse in «Letzte Aktivität» |
+| Geplante Änderung | fünfte Kennzahl «Offene Wünsche»; Hinweise zu Wünschen und Jellyseerr, neu in Fassung 3 «n Konten ohne Jellyseerr-Benutzer» (samt Vorschlägen), «Limit erreicht: {Konto}», «n Wünsche ohne Profil-Tag», «n Downloads verzögert» (`07-administration.md` Abschnitt 2); Schnellzugriff «Wünsche»; Zeile «Jellyseerr» im Serverzustand; Wunsch-Ereignisse in «Letzte Aktivität» |
 | Rolle | Administrator mit Hauptprofil |
 | Neue oder veränderte Einstellungen | keine |
 | API-Operationen | `getDashboard` (Kennzahl, Hinweise, Integrationsstatus `seerr`), `getSeerrStatus` |
-| Mockup | M-20, `#/admin`, `js/admin-a.js` (`route('/admin')`, `aaHints`) |
-| Abgedeckte interaktive Zustände | Kennzahl mit «n warten auf Freigabe», «–», wenn Jellyseerr nicht verbunden und kein Wunsch offen ist; Hinweise «Jellyseerr nicht erreichbar», «Jellyseerr lehnt den Schlüssel ab», «Jellyseerr blockiert schreibende Aufrufe» (CSRF), «n Konten ohne Zuordnung», «Benutzer in Jellyseerr gelöscht», «n Wünsche warten auf Freigabe», «n Wünsche fehlgeschlagen» (auch nach «24 h vergehen»), «n Wünsche warten auf Übermittlung», je «Ansehen» mit vorgewähltem Filter in M-23; «Alles in Ordnung.»; Mockup › «Nicht eingerichtet» blendet Kennzahl und Schnellzugriff aus; Mockup › Sandra zeigt «Nur für Administratoren» |
-| Spätere technische Umsetzung | Stufe 1 und 2: Schritt 2.10 (`web/src/features/admin/`); `07-administration.md` Abschnitt 2 |
+| Mockup | M-20, `#/admin`, `js/admin-a.js` (`route('/admin')`, `aaHints`, `aaNoUserAccounts`, `aaTagLate`) |
+| Abgedeckte interaktive Zustände | Kennzahl mit «n warten auf Freigabe», «–», wenn Jellyseerr nicht verbunden und kein Wunsch offen ist; Hinweise «Jellyseerr nicht erreichbar», «Jellyseerr lehnt den Schlüssel ab», «Jellyseerr blockiert schreibende Aufrufe», «n Konten ohne Jellyseerr-Benutzer» (nur Konten mit Wunschrecht; Text nennt «davon n Verknüpfung vorgeschlagen, wartet auf deine Bestätigung» und, bei nicht erreichbarem Jellyseerr, dass die Konten warten), «Benutzer in Jellyseerr gelöscht», «Limit erreicht: grosseltern@example.ch» mit «Filme: 10 von 10 in 7 Tagen, der nächste Platz wird am … frei» und «Zum Konto» (öffnet das Konto in M-26), «n Wünsche ohne Profil-Tag» (nur Tags, die nicht gesetzt werden konnten; nach «Radarr weg» und einem neuen Filmwunsch) mit Link auf M-23, Filter «Tag nicht gesetzt», ein Sammelhinweis «1 Download verzögert» mit ««Verity» (Radarr): Download verzögert», ohne Meldung von Radarr, Link auf M-23, Filter «Download verzögert», «n Wünsche warten auf Freigabe», «n Wünsche fehlgeschlagen», «n Wünsche warten auf Übermittlung»; je «Ansehen»; «Alles in Ordnung.»; Mockup › «Nicht eingerichtet» blendet Kennzahl, Jellyseerr-Hinweise und Schnellzugriff aus; Mockup › Sandra: «Nur für Administratoren» |
+| Spätere technische Umsetzung | Stufe 1 und 2: Schritt 2.10 (Kennzahl, «Limit erreicht», «Konten ohne Jellyseerr-Benutzer»); Stufe 4: Schritte 4.6c, 4.6e (Tag- und Download-Hinweise); `07-administration.md` Abschnitt 2 |
 
 ### M-21 · Verwaltung › Integrationen (geändert)
 
@@ -265,13 +354,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/admin/integrations` |
 | Heute | «n von m eingerichtet» und sechs Kacheln: Schlüssel der Anbieter, Webhooks von Radarr und Sonarr, E-Mail-Server, Telegram-Bot, Web-Push, Server |
-| Geplante Änderung | siebte Kachel «Jellyseerr» nach «Webhooks von Radarr und Sonarr» mit Meta «Zuordnung: n von m Konten · n offene Wünsche» und Zustand; die Zeile oben zählt neun Statusschlüssel (TMDB, TVDB, YouTube, Trakt, E-Mail, Telegram, Web-Push, Update-Prüfung, Jellyseerr) |
+| Geplante Änderung | siebte Kachel «Jellyseerr» nach «Webhooks von Radarr und Sonarr» mit Meta und Zustand, bei Hinweisen gelber Punkt und der erste Hinweis; neun Statusschlüssel. Die Ansicht «Webhooks von Radarr und Sonarr» bleibt wörtlich unverändert (E-6, N-80, K-7) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | keine auf der Kachel (alle in M-22) |
-| API-Operationen | `getSeerrStatus` neben den bestehenden Operationen |
-| Mockup | M-21, `#/admin/integrations`, `js/admin-a.js` (`aaIntegrationsPage`, `aaTile`, `aaIntCounts`); Zähler im Bereichsreiter `js/shell.js` (`areaTabs`) |
-| Abgedeckte interaktive Zustände | Kachel mit Punkt und «Verbunden», «Nicht erreichbar» (mit «zuletzt erreicht vor …»), «Schlüssel ungültig», «CSRF-Schutz blockiert», «Nicht eingerichtet», «Ausgeschaltet»; Zeile oben «n von 9 eingerichtet»; der Bereichsreiter «Integrationen» trägt denselben Wert «n / 9», beide aus `aaIntCounts`; Chip «ungespeichert» bei offener Eingabe in M-22; alle sechs bestehenden Ansichten bedienbar (`#/admin/integrations/keys`, `/webhooks`, `/email`, `/telegram`, `/push`, `/server`) |
-| Spätere technische Umsetzung | Stufe 1, Schritt 1.7 (`web/src/features/admin/integrations/`); `07-administration.md` Abschnitt 3 |
+| Neue oder veränderte Einstellungen | keine auf der Kachel |
+| API-Operationen | `getSeerrStatus`, Stufe 4 `getArrStatus`, neben den bestehenden |
+| Mockup | M-21, `#/admin/integrations`, `js/admin-a.js` (`aaIntegrationsPage`, `aaTile`, `aaIntCounts`, `aaSeerrHintList`); Zähler im Bereichsreiter `js/shell.js` (`areaTabs`) |
+| Abgedeckte interaktive Zustände | Kachel mit Beschreibung «Wünsche der Zuschauer an Jellyseerr weitergeben und ihren Zustand abgleichen. Konten erhalten dort einen Benutzer mit demselben Login.», Meta «Jellyseerr-Benutzer: 2 von 3 Konten · n offene Wünsche» und Zustand «Jellyseerr: Verbunden · Staffeln aus TMDB · Seerr 3.5.2» mit gelbem Punkt (erster Hinweis; sonst etwa «Radarr für Profil-Tags und Fortschritt nicht erreichbar», «Lokale Anmeldung in Jellyseerr aus» oder «n Konten ohne Jellyseerr-Benutzer»); «Nicht erreichbar» (mit «zuletzt erreicht vor …»), «Schlüssel ungültig», «CSRF-Schutz blockiert», «Nicht eingerichtet», «Ausgeschaltet»; Zeile oben «n von 9 eingerichtet», Bereichsreiter «n / 9»; Chip «ungespeichert»; alle sechs bestehenden Ansichten bedienbar (`#/admin/integrations/keys`, `/webhooks`, `/email`, `/telegram`, `/push`, `/server`) |
+| Spätere technische Umsetzung | Stufe 1, Schritt 1.7; Stufe 4, Schritt 4.6c; `07-administration.md` Abschnitt 3 |
 
 ### M-22 · Integrationen › Jellyseerr (neu)
 
@@ -279,41 +368,41 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | neu, App-Route `/admin/integrations?item=jellyseerr` (im Mockup `#/admin/integrations/jellyseerr`) |
 | Heute | gibt es nicht |
-| Geplante Änderung | vier Bänder: «Verbindung» (Schalter, Adresse, API-Schlüssel, Test mit Prüfliste einschliesslich Instanz, Speichern, Verwerfen, Löschen), «Abgleich» (letzter, nächster, Takt, Zähler, «Jetzt abgleichen»), «Sofortmeldung» (Stufe 4), «Protokoll» (20 Einträge); Verweise auf Zuordnung, Einstellungen, Anfragen |
+| Geplante Änderung | sechs Bänder in dieser Reihenfolge (`07-administration.md` Abschnitt 4): «Verbindung» (Schalter, Adresse, Schlüssel, Test mit Prüfliste, neu «Benutzer anlegen und ändern», «Lokale Anmeldung», «Staffeln aus TVDB», «Radarr/Sonarr für Profil-Tags und Fortschritt», «Passwort verschlüsselt»), «Abgleich» (mit Fakt «Download-Fortschritt»), «Benutzer und Limit» (Stufe 1, nur Anzeige), «Radarr und Sonarr (Profil-Tags und Fortschritt)» (Stufe 4: Adresse aus Jellyseerr, eigene Adresse mit «Speichern», «Testen», «Tag Requests», Zähler der Tags, Fakt «Download-Fortschritt», Link auf die unveränderten Webhooks), «Sofortmeldung» (Stufe 4), «Protokoll» |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | «Jellyseerr verwenden» (ab Werk aus), «Adresse», «API-Schlüssel»; Adresse der Sofortmeldung |
-| API-Operationen | `getSeerrSettings`, `updateSeerrSettings`, `testSeerrConnection` (neuer Host verlangt den Schlüssel), `getSeerrStatus`, `syncWishesNow`, `confirmSeerrInstance`; Stufe 4 `createIntegration`, `receiveWebhook` mit Art `jellyseerr` |
-| Mockup | M-22, `#/admin/integrations/jellyseerr`, `js/admin-a.js` (`aaSeerrView`, `aaSeerrRun`) |
-| Abgedeckte interaktive Zustände | Band «Verbindung» klappt bei Fehler und bei CSRF von selbst auf; «Verbindung testen» mit Ladeanzeige und Prüfliste (sieben Punkte: Erreichbar, Schlüssel gültig, Version, Handeln im Namen von Benutzern, CSRF-Schutz, Radarr, Sonarr); «falsch» in der Adresse ergibt «Nicht erreichbar», im Schlüssel «Schlüssel ungültig»; Mockup › «CSRF-Schutz an»: Prüfpunkt CSRF als Warnung, Ergebnis «Verbunden, mit einer Warnung.»; Pflicht- und Formfehler beim Speichern («Gib die Adresse von Jellyseerr ein.», «Ohne /api/v1 …»); ohne Einrichtung die Schrittanleitung und gesperrter Schalter; Schalter aus ergibt «Ausgeschaltet»; «Verbindung löschen …» mit Rückfrage; Abgleich mit Fehlerzeile «Letzter Versuch …»; Zähler als Links mit Filter in M-23; «Zeitplan ändern» springt zu M-30 auf `wishes.sync`; Sofortmeldung «Adresse erzeugen» (einmal gezeigt, kopieren, JSON-Vorlage), «Token erneuern», «Entfernen», «Meldung simulieren (Mockup)»; Protokoll mit Fehlern |
-| Spätere technische Umsetzung | Stufe 1: Schritte 1.1 (`server/internal/seerr/`), 1.3 (`settings` `seerr.*`, Redaction `seerr.api_key`), 1.5 (Verbindungstest, Fingerabdruck der Instanz), 1.7; Stufe 2: Schritte 2.5, 2.10 (Band «Abgleich»); Stufe 4: Schritt 4.5 (`webhook_integrations`); Tabelle `seerr_log`; `07-administration.md` Abschnitt 4, `03-architektur.md` Abschnitte 2.2, 7.4 und 15.1 |
+| Neue oder veränderte Einstellungen | «Jellyseerr verwenden» (ab Werk aus), «Adresse», «API-Schlüssel», Adresse der Sofortmeldung; neu «Eigene Adresse» für Radarr und Sonarr |
+| API-Operationen | `getSeerrSettings`, `updateSeerrSettings`, `testSeerrConnection` (neue Prüfpunkte `manage_users`, `local_login`, `tvdb_seasons`, `password_transport`, Stufe 4 `radarr_tags`, `sonarr_tags`), `getSeerrStatus`, `syncWishesNow`, `confirmSeerrInstance`; Stufe 4 `getArrStatus`, `updateArrSettings`, `testArrConnection`, `createIntegration`, `receiveWebhook` mit Art `jellyseerr` |
+| Mockup | M-22, `#/admin/integrations/jellyseerr`, `js/admin-a.js` (`aaSeerrView`, `aaSeerrRun`, `aaSeerrRows`, `aaUsersBand`, `aaArrBand`, `aaTagCounts`, `aaProgFact`, `ACT.aaArrTest`, `ACT.aaArrSave`) |
+| Abgedeckte interaktive Zustände | **Verbindung** klappt bei Fehler auf; «Verbindung testen» mit Ladeanzeige und Prüfliste aus zwölf Punkten (Erreichbar, Schlüssel gültig, «Version» mit «Seerr 3.5.2», Handeln im Namen von Benutzern, CSRF-Schutz, Radarr eingerichtet, Sonarr eingerichtet, neu «Benutzer anlegen und ändern», «Lokale Anmeldung in Jellyseerr», «Staffeln aus TVDB», «Radarr für Profil-Tags und Fortschritt» mit «Radarr erreichbar unter http://radarr:7878 · Warteschlange lesbar · Tag Requests: an», ebenso Sonarr); gelbe Hinweise lassen den Test gelingen («Verbunden · 1 Hinweis»): «Staffeln aus TVDB» bei Mockup › Staffeln «TMDB», Radarr oder Sonarr «… nicht erreichbar: Profil-Tags werden nachgeholt …; der Download-Fortschritt fehlt so lange. Eigene Adresse eintragen?»; «falsch» in Adresse oder Schlüssel ergibt «Nicht erreichbar» bzw. «Schlüssel ungültig»; CSRF: zwei Punkte rot, «Der Test ist gescheitert: …»; Pflicht- und Formfehler beim Speichern; ohne Einrichtung Schrittanleitung und gesperrter Schalter; «Verbindung löschen …». **Abgleich** mit Fehlerzeile, «Zeitplan ändern», Zählern als Links, Fakt «Download-Fortschritt» («Fortschritt aus Radarr und Sonarr: jede Minute, solange Wünsche in Beschaffung sind · zuletzt vor 30 s», bei Ausfall «Fortschritt nicht lesbar: Radarr nicht erreichbar») mit «Zum Band Radarr und Sonarr», «Jetzt abgleichen». **Benutzer und Limit** (nur eingerichtet): Kopf «2 von 3 Konten eröffnet · Limit 10 Filme / 5 Staffeln je 7 Tage», Einleitung «Jedes Konto hat in Jellyseerr einen eigenen Benutzer mit demselben Login …», Werte «Konten in Jellyseerr eröffnen», «Passwort abgleichen», «Passwort» (wann es weitergegeben wird), «Lokale Anmeldung», «Limit ab Werk» mit «Administratoren in Jellyseerr haben kein Limit.», Zähler je Zustand (auch «Verknüpfung vorgeschlagen …»), «Jellyseerr-Benutzer verwalten», letzte drei Eröffnungen und Passwortabgleiche. **Radarr und Sonarr** (nur eingerichtet, klappt bei Fehler auf): Kopf «Radarr erreichbar · Sonarr erreichbar · n Tags offen · n Downloads»; je Dienst Zustand («Erreichbar» bzw. «Nicht erreichbar · Eigene Adresse eintragen»), «Adresse aus Jellyseerr», «Tag Requests in Jellyseerr» (Radarr an, Sonarr «aus · Empfohlen: dann trägt jeder Titel auch den Tag des Kontos»), Feld «Eigene Adresse» (Entwurf mit Chip «ungespeichert»), «Testen» mit Ladeanzeige («erreichbar unter … · Schlüssel gültig · Warteschlange lesbar»; Adresse mit «falsch» nicht erreichbar); «Speichern» des Bands; Zähler «Tags gesetzt (30 Tage)», «offen», «fehlgeschlagen» als Links (die beiden letzten auf M-23, Filter «Tag nicht gesetzt»); Fakt «Download-Fortschritt» («an · n Wünsche mit Fortschritt · zuletzt gelesen vor 30 s» bzw. «aus · Einstellungen»); Verweise auf Präfix, Namen je Profil und die unveränderten Webhooks. **Sofortmeldung** (Chip «Stufe 4») «Adresse erzeugen», «Token erneuern», «Entfernen», «Meldung simulieren (Mockup)». **Protokoll** mit Eröffnungen, Vorschlägen, Passwortabgleichen, Tags und Fehlern |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.1, 1.3, 1.5 (Test mit neuen Prüfpunkten), 1.7; Stufe 2: Schritte 2.5, 2.10; Stufe 4: Schritte 4.5, 4.6a (Schlüssel 10 Minuten im Speicher, K-23; Warteschlange seitenweise, K-8), 4.6c; Tabelle `seerr_log`, Einstellungen `arr.radarr_url`, `arr.sonarr_url`; `07-administration.md` Abschnitt 4; AK-171, AK-172 |
 
 ### M-23 · Medien › Wünsche › Anfragen (neu)
 
 | Zeile | Inhalt |
 |---|---|
-| Seite | neu, App-Route `/admin/wishes`; Bereichsreiter «Wünsche» im Bereich Medien direkt nach «Pflege» mit Zähler «wartet auf Freigabe» |
+| Seite | neu, App-Route `/admin/wishes`, mit Filter aus dem Link `?f=notag`, `?f=stalled`, `?f=unassigned`, `?state=…`; Bereichsreiter «Wünsche» im Bereich Medien direkt nach «Pflege» |
 | Heute | gibt es nicht |
-| Geplante Änderung | Kennzahlen als Filter, Filter nach Zustand, «Nicht zuordenbar» und Medienart, Tabelle (Titel, Art, Gewünscht von, Jellyseerr-Benutzer, Zustand, Seit), Aufklappzeile mit Verlauf und Diagnose, Aktionen «Freigeben», «Ablehnen» (Stufe 4), «Erneut übermitteln», «In Jellyseerr öffnen», «Zum Titel», «Jetzt abgleichen» |
+| Geplante Änderung | Kennzahlen als Filter, Filter nach Zustand, «Nicht zuordenbar», Medienart, ab Stufe 4 «Tag nicht gesetzt» und «Download verzögert»; Tabelle mit Profil-Tag je Profil und Download-Fortschritt im Zustand; Aufklappzeile mit Verlauf, Diagnose und der Meldung von Radarr oder Sonarr; Band «Limit je Konto»; Aktionen «Freigeben», «Ablehnen» (Stufe 4), «Erneut übermitteln», «In Jellyseerr öffnen», «Zum Titel», «Jetzt abgleichen»; nicht zuordenbare Anfragen nur mit «In Jellyseerr öffnen» und «Benutzer zuordnen» (`07-administration.md` Abschnitt 5) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | keine (Reiter «Einstellungen» ist M-25) |
-| API-Operationen | `listAdminWishes` (`AdminWish` ohne `ItemRef`), `getAdminExternalTitleImage`, `retryWish`, `syncWishesNow`; Stufe 4 `approveWish`, `declineWish` |
-| Mockup | M-23, `#/admin/wishes`, `js/admin-b.js` (`route('/admin/wishes')`, `abWishRow`, `wishTabs`); Bereichsreiter `js/shell.js` (`AREAS`, `areaTabs`) |
-| Abgedeckte interaktive Zustände | Bereichsreiter «Wünsche» nach «Pflege» mit Zahl der wartenden Freigaben (sonst «NEU»); Reiter «Anfragen», «Zuordnung», «Einstellungen»; fünf Kennzahlen setzen den Filter; Filterpillen für alle acht Zustände (leere ausgeblendet) und «Nicht zuordenbar»; leere Auswahl mit «Alle Wünsche zeigen»; Aufklappzeile mit Verlauf und Diagnose (Request-ID, Übermittelt als mit `X-API-User`, TMDB-ID, Herkunft, Zustand, Fehlergrund, Zusatz, Mitwünscher); «Clayface» als «Nicht zuordenbar» mit Hinweis und «Zuordnung öffnen»; «Freigeben» und «Ablehnen» (Rückfrage nennt die Profile) bei «Toy Story 5»; Jellyseerr nicht verbunden oder CSRF: Band oben und Meldung «Geht nicht: Jellyseerr ist …»; «Erneut übermitteln» bei `queued` und `failed`; «In Jellyseerr öffnen» als Dialog mit der Nummer; Wünsche aus: Band mit Link zu M-25 |
-| Spätere technische Umsetzung | Stufe 1: Schritt 1.8 (Reiter, «Anfragen» zuerst nur als Hinweis); Stufe 2: Schritt 2.10 (`web/src/features/admin/`), Index `wishes_admin`; Stufe 4: Schritt 4.4 (`approveWish`, `declineWish`); `07-administration.md` Abschnitte 1.2 und 5 |
+| Neue oder veränderte Einstellungen | keine |
+| API-Operationen | `listAdminWishes` (`AdminWish` ohne `ItemRef`, mit `progress?`, Tags, Filter `progress=stalled`), `getAdminExternalTitleImage`, `retryWish`, `syncWishesNow`; Stufe 4 `approveWish`, `declineWish` |
+| Mockup | M-23, `#/admin/wishes`, `js/admin-b.js` (`route('/admin/wishes')`, `abWishRow`, `abQuotaBand`, `abWishTabs`, `AB_WF`, `abTakeQuery`); Tags `tagChips` und Fortschritt `dlChip`, `dlBlock` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Reiter «Anfragen» (Zahl offen), «Jellyseerr-Benutzer» (mit «n ohne»), «Einstellungen»; fünf Kennzahlen setzen den Filter; Band «Limit je Konto» zugeklappt (Kopf «0 Konten am Limit · 2 Konten mit Jellyseerr-Benutzer», nach «Filme ausschöpfen» «1 Konto am Limit»), Tabelle «Konto», «Filme» («2 von 10 in 7 Tagen», am Limit mit «nächster Platz am …»), «Staffeln», «Art» («Standard», «Eigenes», «Unbegrenzt», «Kein Limit (Administrator)») und «Limit ändern» (öffnet das Konto in M-26); Filterpillen für die Zustände, «Nicht zuordenbar», **«Tag nicht gesetzt»** (nur bei eingeschalteten Tags) und **«Download verzögert»** (nur bei eingeschaltetem Fortschritt) mit eigenem Leertext; Tabelle mit «Gewünscht von» samt Mitwünschern und **Tag-Chips** je Profil («sc-marco», «sc-noah · noch nicht gesetzt», «sc-marco · fehlgeschlagen» mit Grund im Titel), «Jellyseerr-Benutzer», «Zustand» mit **Download-Zeile** einschliesslich «Fortschritt nicht lesbar» (Mockup › «Radarr weg»); Aufklappzeile mit Verlauf und Diagnose (Request-ID, Übermittelt als, TMDB-ID, Herkunft, Zustand, Fehlergrund, Zusatz, Mitwünscher, «Profil-Tags» mit Ereignissen, bei «Verity» ohne Tag, «Download» mit Meldung von Radarr, etwa «Radarr meldet: Der Download-Client antwortet nicht.»); «Clayface» «Nicht zuordenbar» nur mit «In Jellyseerr öffnen» und «Benutzer zuordnen» (öffnet M-24 mit diesem Benutzer vorgewählt); Wunsch eines gelöschten Kontos mit Chip «Konto gelöscht» und Hinweis; «Freigeben», «Ablehnen» (Rückfrage nennt die Profile) bei «Toy Story 5»; Jellyseerr nicht verbunden oder CSRF: Band oben und «Geht nicht: …»; «Erneut übermitteln» bei `queued` und `failed`; «In Jellyseerr öffnen» als Dialog; Wünsche aus: Band mit Link zu M-25 |
+| Spätere technische Umsetzung | Stufe 1: Schritt 1.8; Stufe 2: Schritt 2.10 (mit Band «Limit je Konto»); Stufe 4: Schritte 4.4, 4.6c (Tags mit Filter), 4.6e (Fortschritt mit Filter und Meldung); `07-administration.md` Abschnitte 1.2, 5 und 13; AK-89, AK-173 bis AK-175, AK-198, AK-200 |
 
-### M-24 · Medien › Wünsche › Zuordnung (neu)
+### M-24 · Medien › Wünsche › Jellyseerr-Benutzer (neu, vorher «Zuordnung»)
 
 | Zeile | Inhalt |
 |---|---|
-| Seite | neu, App-Route `/admin/wishes/mapping` |
+| Seite | neu, App-Route `/admin/wishes/mapping` (mit `?user={id}` aus M-23) |
 | Heute | gibt es nicht |
-| Geplante Änderung | je Konto ein Auswahlfeld des Jellyseerr-Benutzers direkt in der Liste, sofort wirksam, Vorschlag bei gleicher E-Mail mit «Übernehmen», Fakten und Warnungen des Benutzers, aufklappbar die Profile mit «Wie Konto» oder eigenem Benutzer; Kopfzeile mit «Benutzerliste neu laden», «Alle Vorschläge übernehmen» und ab Stufe 4 «Anfragen übernehmen»; Liste der Jellyseerr-Benutzer ohne Konto; Meldung nennt Folgen einer Änderung |
+| Geplante Änderung | je Konto ein zugeklapptes Band: Jellyseerr-Benutzer, Zustand (eröffnet, verknüpft, von Hand, wartet, Verknüpfung vorgeschlagen, nicht eröffnet), Passwort, Rechte, Limit inklusive direkt in Jellyseerr gestellter Wünsche; Aktionen «In Jellyseerr eröffnen», «Alle eröffnen» (mit Rückfrage, lässt Vorschläge aus), «Verknüpfung bestätigen» (N-2a), «Anderen Benutzer wählen», «Lösen», Passwortmodus; je Profil Tag-Name und zugeklappt die Ausnahme «Profil sendet als anderer Jellyseerr-Benutzer» (N-41); Band «Jellyseerr-Benutzer ohne Konto» mit «Einem Konto zuordnen»; alles sofort wirksam (`07-administration.md` Abschnitt 6) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | Zuordnung je Konto und je Profil |
-| API-Operationen | `listSeerrUsers`, `refreshSeerrUsers`, `getWishMappings`, `setAccountWishMapping`, `setProfileWishMapping` (409 `seerr_user_taken`), `applyWishMappingSuggestions` (Vorschlag); Stufe 4 `importSeerrRequests`, `countSeerrRequests` |
-| Mockup | M-24, `#/admin/wishes/mapping`, `js/admin-b.js` (`abMapCard`, `abProfMap`, `abUserFacts`, `abUserWarn`) |
-| Abgedeckte interaktive Zustände | Auswahl ändern wirkt sofort mit Meldung «Zuordnung geändert: …» und Chip «Zuordnung geändert»; belegte Benutzer gesperrt mit «(belegt von …)»; gelöschte gesperrt mit «(in Jellyseerr gelöscht)»; Chip «Zuordnung fehlt»; Vorschlag «grosseltern» mit «Übernehmen»; «Alle Vorschläge übernehmen» mit Rückfrage und Liste der Paare; Profilzeilen «Profil zugeordnet: …», «Profil nicht zugeordnet · geht als …», «… kein Benutzer»; Wunschrecht des Profils nur lesend mit «Im Profil ändern»; Warnungen «darf keine Serien anfordern» (grosseltern), «Benutzer … nicht gefunden»; Hinweis für Konten ohne Recht mit «Zu den Konten»; «Benutzerliste neu laden» (scheitert ohne Verbindung mit «Gezeigt wird der letzte Stand»); Mockup-Hilfe «Benutzer „sandra“ in Jellyseerr löschen (Mockup)» und zurück |
-| Spätere technische Umsetzung | Stufe 1: Schritte 1.2 (Migration `wishes_mapping`), 1.5 (`server/internal/wishes/` `Mapping`, Jobart `seerr.users`), 1.8 (`web/src/features/admin/wishes/`); Stufe 4: Schritt 4.6 (`wishes.import`); Tabellen `seerr_users`, `wish_account_map`, `wish_profile_map`; `04-benutzer-profilmapping.md` Abschnitte 6 bis 8, `07-administration.md` Abschnitt 6 |
+| Neue oder veränderte Einstellungen | Jellyseerr-Benutzer je Konto, Passwortmodus je Konto, Tag-Name je Profil, Ausnahme je Profil |
+| API-Operationen | `listSeerrUsers`, `refreshSeerrUsers`, `getWishMappings`, `provisionSeerrAccount`, `provisionSeerrAccounts` (409 `provision_disabled`), `confirmSeerrAccountLink`, `setAccountWishMapping` (wählen, lösen, zuordnen; 409 `seerr_user_taken`), `setSeerrPasswordMode`, `setProfileWishMapping`, Stufe 4 `setProfileTagName`, `importSeerrRequests`, `countSeerrRequests`. `applyWishMappingSuggestions` entfällt (Vorschlag in `08` Abschnitt 4.5) |
+| Mockup | M-24, `#/admin/wishes/mapping`, `js/admin-b.js` (`route('/admin/wishes/mapping')`, `abSeerrBand`, `abProfRow`, `abQuotaBlock`, `abUserFacts`, `abUserWarn`, `DIALOGS.abProvisionAll`, `ACT.abConfirmLink`, `ACT.abAssignOk`); Zustände `SEERR_ACC`, `PW_STATE`, `provisionAccount`, `confirmLink`, `linkAccount`, `unlinkAccount`, `pwSetMode`, `seerrFreeFor` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Kennzahlen «Konten», «In Jellyseerr», «Ohne Benutzer» (mit «wartet»), «Passwort noch offen»; Warnung «1 Konto ohne Jellyseerr-Benutzer» mit «Alle eröffnen» und «Zu den Einstellungen»; «Alle eröffnen» fragt nach und listet «Über gleiche E-Mail-Adresse verknüpfen», «In Jellyseerr neu anlegen», «Vorgeschlagene Verknüpfung bleibt offen …»; Zeile «Neue Konten: werden in Jellyseerr eröffnet · Passwort: wird abgeglichen · Ändern»; «Benutzerliste neu laden» (ohne Verbindung «Gezeigt wird der letzte Stand»); je Konto ein zugeklapptes Band mit Rolle, Zustand, Benutzer mit ID, Zahl der Wünsche und Verbrauch im Kopf; darin «Jellyseerr-Benutzer» (Name, ID, E-Mail, Art, «von Slouchcat eröffnet» oder «bestand schon in Jellyseerr»; bei einem Vorschlag «… · vorgeschlagen»), «Wünsche», «Zustand» («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail», «Von Hand zugeordnet», «Wird eröffnet, sobald Jellyseerr erreichbar ist», «Verknüpfung vorgeschlagen, wartet auf den Administrator», «Nicht eröffnet», «In Jellyseerr gelöscht»), «Passwort» («Gleich wie in Slouchcat» mit Datum, «Wird bei der nächsten Anmeldung in Slouchcat übernommen», «Wird nicht abgeglichen», «Bleibt in Jellyseerr (Administrator)», «Anmeldung über Jellyfin oder Plex», ohne Benutzer «Folgt mit dem Benutzer»), «Rechte in Jellyseerr», «Limit» mit Balken, «davon n direkt in Jellyseerr gestellt», «Nächster Platz frei …», «Limit ändern»; **Vorschlag** (Konto aus M-35 mit `tv@example.ch`): Band offen, gelber Hinweis «Verknüpfung vorgeschlagen: «wohnzimmer-tv»» mit «Bestätige nur, wenn Konto und Benutzer dieselbe Person sind …» und «Verknüpfung bestätigen» (danach «Verknüpft über gleiche E-Mail», Passwort nach Art des Benutzers); Hinweis «In Jellyseerr gibt es schon «gast»» bei gast; «In Jellyseerr eröffnen» (verknüpft gast, bei «Nicht erreichbar» «wartet»), bei ausgeschaltetem Eröffnen gesperrt mit «Gesperrt: «Neue Konten in Jellyseerr eröffnen» ist … ausgeschaltet.» und «Zur Einstellung» (ebenso «Alle eröffnen»); «Anderen Benutzer wählen» mit Auswahl (Benutzer anderer Konten und solche, unter denen ein Profil eines anderen Kontos anfordert, gesperrt mit «gehört zu …») und «Übernehmen»; «Verknüpfung lösen» ohne Rückfrage mit Meldung; «Passwort bei der nächsten Anmeldung neu übernehmen» (gesperrt bei ausgeschaltetem Abgleich) und «Passwort nicht abgleichen», Erklärung bei Administrator und Jellyfin; Hinweis für Konten ohne Recht; je Profil Alter, PIN, Wunschrecht nur lesend («Im Profil ändern»), Feld «Eigener Name (Profil-Tag in Radarr und Sonarr)» mit Vorgabe als Platzhalter, wirksamem Tag als Chip, Meldung «Noah: Tag heisst jetzt …» und Fehler «Erlaubt sind nur Kleinbuchstaben a–z, Ziffern 0–9 und der Bindestrich.»; Band «Ausnahme» zugeklappt (Sandra: «Sendet als sandra», Noah: «Sendet als kinder») mit Auswahl (Benutzer mit ID), Fakten, Warnungen (Rechte nur bei Benutzern, die es schon gab) und Limit des Ausnahme-Benutzers; Band «Jellyseerr-Benutzer ohne Konto» (wohnzimmer-tv, gast) mit Anfragen, «davon n nicht zuordenbar», «Gleiche E-Mail wie …» und «Einem Konto zuordnen» (Auswahl der Konten ohne Benutzer, Meldung «n Anfragen übernimmt der nächste Abgleich»); Mockup-Hilfe «Benutzer «sandra» in Jellyseerr löschen (Mockup)» und zurück |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.2 (`wish_account_map` mit Herkunft, Zustand `ready`/`waiting`/`suggested`, `suggested_seerr_user_id`, Passwortstand), 1.5 (`seerr.users`), 1.5a (`seerr.provision`), 1.5b, 1.5c, 1.8 (`web/src/features/admin/wishes/`); Stufe 4: Schritte 4.6 (`wishes.import`), 4.6b, 4.6c (Tag-Name, `wish_profile_tags`); `04-benutzer-profilmapping.md` Abschnitte 12 bis 18; `07-administration.md` Abschnitt 6; AK in `10-abnahmekriterien.md` Abschnitte 2.2 und 2.5 (AK-213) |
 
 ### M-25 · Medien › Wünsche › Einstellungen (neu)
 
@@ -321,41 +410,41 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | neu, App-Route `/admin/wishes/settings` |
 | Heute | gibt es nicht |
-| Geplante Änderung | Karten «Grundsatz», «Woher angefordert werden darf», «Regeln», «Verweise»; jede Änderung gilt sofort, ohne «Speichern» und «Verwerfen» |
+| Geplante Änderung | Karten «Grundsatz», «Woher angefordert werden darf» (neu der Schalter für die Seiten Entdecken, Filme, Serien und Suche), «Regeln», «Verweise»; Bänder «Limit ab Werk», «Konten in Jellyseerr» (mit dem Hinweis auf das geteilte Login, K-19), «Radarr und Sonarr: Profil-Tag und Fortschritt» (mit «Download-Fortschritt zeigen»); jede Änderung gilt sofort; kein Schalter «Aus dem Spotlight» mehr (N-72) |
 | Rolle | Administrator |
 | Neue oder veränderte Einstellungen | alle `wishes.*` aus `08-datenmodell-api.md` Abschnitt 2.12 (Abschnitt 4 unten); «Wünsche aktiv» ab Werk aus, einschaltbar nur nach gelungenem Test (**Vorschlag** T-1) |
-| API-Operationen | `getWishSettings`, `setWishSettings` (je Änderung) |
-| Mockup | M-25, `#/admin/wishes/settings`, `js/admin-b.js` (`route('/admin/wishes/settings')`, `ACT.abSaved`) |
-| Abgedeckte interaktive Zustände | jeder Schalter mit Meldung «… ist eingeschaltet. Gilt sofort.»; «Wünsche aktiv» aus sperrt alle übrigen Zeilen mit Hinweis; «Bereits angeforderte Titel» mit Hilfetext je Wahl («Mitwünschen» / «Nur Zustand zeigen»); «Konten ohne Zuordnung» auf «Sammelbenutzer» zeigt die Auswahl, ohne Wahl Chip «Ohne Benutzer gilt «Nicht erlauben»»; Verweise mit Zustand: Spotlight («An · höchstens 5» oder «Aus»), Verbindung, Zuordnung «n von m Konten». «Wünsche aktiv» lässt sich ohne gelungenen Test einschalten (Abschnitt 9) |
-| Spätere technische Umsetzung | Stufe 1: Schritte 1.3 (`server/internal/admin/settings.go`), 1.8; Tabelle `settings` (`wishes.*`); `07-administration.md` Abschnitte 4.6 und 7 |
+| API-Operationen | `getWishSettings`, `setWishSettings` (je Änderung; mit `showProgress`) |
+| Mockup | M-25, `#/admin/wishes/settings`, `js/admin-b.js` (`route('/admin/wishes/settings')`, `abLimitDefBand`, `abProvBand`, `abTagBand`, `ACT.abSaved`, `ACT.abPrefixSaved`) |
+| Abgedeckte interaktive Zustände | jeder Schalter mit Meldung «… ist eingeschaltet. Gilt sofort.»; «Wünsche aktiv» aus sperrt die übrigen Zeilen mit Hinweis; «Anfordern aus der Suche», «Anfordern auf Detailseiten», «Seiten Entdecken, Filme, Serien und Suche»; «Bereits angeforderte Titel» mit Hilfetext je Wahl; «Konten ohne Jellyseerr-Benutzer» auf «Sammelbenutzer» zeigt die Auswahl, ohne Wahl Chip «Ohne Benutzer gilt «Nicht erlauben»»; **Limit ab Werk**: «Filme [10] in [7] Tagen», «Staffeln [5] in [7] Tagen», «0 heisst ohne Limit.», Fehler «Anzahl 0 bis 100, Tage 1 bis 90.», Meldung «Slouchcat schreibt es in 2 Jellyseerr-Benutzer der Konten mit «Standard».», Zeile «0 mit eigenem Limit · 0 unbegrenzt» mit Link zu M-26; **Konten in Jellyseerr**: «Neue Konten in Jellyseerr eröffnen» (Hilfe: bei gleicher Adresse nur ein Vorschlag, den du bestätigst), «Passwort abgleichen» mit Hilfe «Wer sich in Jellyseerr anmeldet, sieht dort die Wünsche aller Profile des Kontos, auch die eines Profils mit PIN.» und Chip «Lokale Anmeldung in Jellyseerr: an», Link «Zu den Jellyseerr-Benutzern»; **Radarr und Sonarr**: «Profil-Tag in Radarr und Sonarr setzen», «Download-Fortschritt zeigen», «Präfix» (`sc-`, 1 bis 10 Zeichen, nur a–z, 0–9, Bindestrich; ungültig: Fehler und Chip «Präfix ungültig», nicht gespeichert; gesperrt bei Tag aus), Beispiele «Marco → sc-marco», «Noah → sc-noah», «Oma & Opa → sc-oma-und-opa», Zustand von Radarr und Sonarr; Verweise mit Zustand der Verbindung und «2 von 3 Konten». «Wünsche aktiv» lässt sich ohne gelungenen Test einschalten (Abschnitt 9) |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.3, 1.8; Stufe 4: Schritt 4.6c; Stufe 5: Schritt 5.6; Tabelle `settings` (`wishes.*`); `07-administration.md` Abschnitte 4.6 und 7 |
 
 ### M-26 · Nutzer & Geräte › Konten (geändert)
 
 | Zeile | Inhalt |
 |---|---|
-| Seite | bestehend, App-Route `/admin/accounts` |
+| Seite | bestehend, App-Route `/admin/accounts` (mit `?open={konto}` aus M-20 und M-23) |
 | Heute | Zusammenfassung, Reiter «Konten» und «Einladungen», Tabelle mit E-Mail, Rolle, Altersstufe, Bibliotheken, Profile, Zuletzt gesehen, Kanäle, Aktionen; eigenes Konto «Konto ändern» und «Meine Profile»; anderes Konto Formular «Zugriff»; «Konto einladen» |
-| Geplante Änderung | Spalte «Wünsche» (Chip); im Formular «Zugriff» Schalter «Darf Titel anfordern», Zeile «Jellyseerr-Benutzer: … · Zuordnung ändern», Chips der Profile; Administratorkonten mit eigenem Block «Wünsche» (Entscheid vom 17. November 2026); Dialog «Konto einladen» mit Schalter; Spalte «Wünsche» bei Einladungen; Satz «Wünsche bleiben in Jellyseerr bestehen» beim Entfernen |
+| Geplante Änderung | Spalte «Wünsche»; im Formular «Zugriff» bzw. im Block «Wünsche» der Administratorkonten Schalter «Darf Titel anfordern», **Limit je Konto** («Standard», «Eigenes», «Unbegrenzt»; einziger Ort, N-31, gespeichert mit dem Formular) und Zeile «Jellyseerr-Benutzer»; Dialog «Konto einladen» mit Schalter, Limit und Hinweis auf dasselbe Login; Spalte «Wünsche» bei Einladungen; Passwortänderung mit Hinweis auf Jellyseerr; beim Entfernen Rechte und Zufallspasswort nur bei eröffneten Benutzern (N-10 nach K-2), offene Wünsche geschlossen (`07-administration.md` Abschnitt 8) |
 | Rolle | Administrator; Besitzer zusätzlich Rollenwechsel |
-| Neue oder veränderte Einstellungen | Wunschrecht des Kontos (`accounts.can_request`), Wunschrecht der Einladung (`invitations.can_request`) |
-| API-Operationen | `listAccounts`, `updateAccountAccess` (`canRequest`, `seerrUser`, `wishState`), `createInvitation`, `listInvitations` |
-| Mockup | M-26, `#/admin/accounts`, `js/admin-b.js` (`abAccRow`, `abAccDetail`, `abAccessForm`, `abWishBlock`, `DIALOGS.abInvite`) |
-| Abgedeckte interaktive Zustände | Chips «Erlaubt · marco», «Erlaubt · {Benutzer} (Sammelbenutzer)», «Zuordnung fehlt», «Benutzer gelöscht», «Nicht erlaubt»; Formular «Zugriff» bei grosseltern und gast mit Schalter, «Ungespeicherte Änderungen», «Verwerfen», «Zugriff speichern»; eigenes Administratorkonto mit Block «Wünsche» (gilt sofort) und «Meine Profile» mit Chips; Einladen mit Vorgabe aus «Neue Konten dürfen anfordern», danach Einmal-Link; Reiter «Einladungen» mit Spalte «Wünsche», «Widerrufen»; Menü «Zum Administrator ernennen», «Rolle entziehen», «Konto entfernen» (macht Wünsche nicht zuordenbar) |
-| Spätere technische Umsetzung | Stufe 1: Schritte 1.2, 1.6, 1.9 (`web/src/features/admin/accounts/`); `07-administration.md` Abschnitt 8; Wünsche eines entfernten Kontos werden geschlossen (`04-benutzer-profilmapping.md` Abschnitt 10) |
+| Neue oder veränderte Einstellungen | `accounts.can_request`, `invitations.can_request`, Limit je Konto (`wish_account_limits`), Limit der Einladung (**Vorschlag** Spalten an `invitations`) |
+| API-Operationen | `listAccounts`, `updateAccountAccess` (`canRequest`, `seerrUser` mit `state` auch `suggested`, `wishState`, `wishLimit`), `setAccountWishLimit`, `createInvitation`, `listInvitations` (`canRequest`, `wishLimit`), `updateAccount` (Seiteneffekt Passwort und E-Mail), `deleteAccount` (Seiteneffekt) |
+| Mockup | M-26, `#/admin/accounts`, `js/admin-b.js` (`abAccRow`, `abAccWish`, `abAccDetail`, `abAccessForm`, `abWishForm`, `abWishBlock`, `abSeerrLine`, `abLimitField`, `abOwnForm`, `DIALOGS.abInvite`, `DIALOGS.abRemove`, `abRemovePlan`) |
+| Abgedeckte interaktive Zustände | Spalte «Wünsche» mit «Erlaubt · marco», «Erlaubt · … (Sammelbenutzer)», «Wird in Jellyseerr eröffnet», «Kein Jellyseerr-Benutzer» (auch bei einem Vorschlag), «Benutzer gelöscht», «Nicht erlaubt»; grosseltern und gast: Formular «Zugriff» mit Fieldset «Wünsche» (Schalter, Zeile «Jellyseerr-Benutzer: grosseltern · eröffnet · Passwort abgeglichen · Ändern» bzw. «Verknüpfung vorgeschlagen: … · Bestätigen», Chips der Profile, Feld «Limit» mit «Standard»/«Eigenes»/«Unbegrenzt», bei «Eigenes» der Editor, Verbrauch in Jellyseerr), «Ungespeicherte Änderungen», «Verwerfen», «Zugriff speichern» mit «Die Rechte von «grosseltern» in Jellyseerr werden angepasst.» und «Limit: … In Jellyseerr bei «grosseltern» gesetzt.»; Administratorkonten: Block «Wünsche» mit denselben Teilen und «Speichern», Feld «Limit» gesperrt «Kein Limit (Administrator)»; eigenes Konto Marco: «Konto ändern» (E-Mail, neues Passwort mit Hinweis «Das neue Passwort gilt auch in Jellyseerr.», wenn das Passwort abgeglichen wird; aktuelles Passwort; Meldung nach dem Speichern je Stand, bei Marco «Dein Passwort in Jellyseerr bleibt, wie es ist: Du bist dort Administrator.»), Block «Wünsche», «Meine Profile»; «Konto einladen» mit Vorgabe aus «Neue Konten dürfen anfordern», Feld «Limit» und Hinweis «Beim Annehmen eröffnet Slouchcat das Konto auch in Jellyseerr …», danach Einmal-Link; Reiter «Einladungen» mit Spalte «Wünsche» («Darf anfordern», «Limit: Standard»), «Einladungslink öffnen» (führt zu M-35), «Widerrufen»; Menü «Zum Administrator ernennen», «Rolle entziehen», «Konto entfernen» mit Rückfrage: bei eröffnetem Benutzer «… verliert seine Rechte und bekommt ein neues Zufallspasswort.», bei verknüpftem «… bleibt unverändert.», bei Vorschlag «Die vorgeschlagene Verknüpfung … fällt weg»; dazu die Liste der Wünsche: offene werden geschlossen («Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr.»), Wünsche mit Mitwünschern anderer Konten gehen an den ältesten |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.2, 1.5b (Passwort bei `UpdateAccount`), 1.5c (`setAccountWishLimit`), 1.6, 1.9 (`web/src/features/admin/accounts/`); `07-administration.md` Abschnitt 8; `04-benutzer-profilmapping.md` Abschnitte 10, 13, 15 und 17 |
 
 ### M-27 · Startseite › Spotlight (geändert)
 
 | Zeile | Inhalt |
 |---|---|
 | Seite | bestehend, App-Route `/admin/spotlight` |
-| Heute | Band «Quelle» mit elf Feldern («Auf der Startseite zeigen», «Trakt-Liste», «Adresse der Liste», «Medienart», «Höchstens», «Ausblenden unter», «Abruf alle … Stunden», «Spotlight Wechsel Takt», Abrufzustand, «Jetzt abrufen», «Speichern»); Band «Einträge der Liste» mit «Anheften», «Ausblenden», «Notiz»; Band «Verwaiste Anpassungen» |
-| Geplante Änderung | Hinweis im Kopf; «Ausblenden unter» mit «Fehlende Titel zählen nicht.»; neues Band «Fehlende Titel» (gespeichert zusammen mit «Quelle»); Einträge: fehlende mit Poster, Zustand und «Anfordern» |
+| Heute | Band «Quelle» mit elf Feldern; Band «Einträge der Liste» mit «Anheften», «Ausblenden», «Notiz»; fehlende Einträge ohne Poster und ohne Aktion; Band «Verwaiste Anpassungen» |
+| Geplante Änderung | Hinweis im Kopf; neues Band «Fehlende Einträge» ohne Schalter mit Liste, Zustand und «Anfordern» (N-72); in «Einträge der Liste» fehlende Einträge mit Poster, Zustand und «Anfordern», je Eintrag die IDs TMDB, TVDB, IMDb, bei Serien der Erkennungsweg, nicht zuordenbare Einträge ohne «Anfordern» (N-62); neues Band «Abgleich über TMDB, TVDB und IMDb» mit Zählung, Staffelquelle und Liste der nicht zuordenbaren Einträge; Band «Quelle» unverändert (N-71; `05-spotlight-integration.md` Abschnitt 4) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | «Fehlende Titel zeigen» (ab Werk aus, F-8), «Höchstens fehlende Titel» (0 bis 10, Vorgabe 5), «Reihenfolge» («Wie bei Trakt»/«Nach den vorhandenen») |
-| API-Operationen | `getSpotlightConfig`, `setSpotlightConfig` (`showMissing`, `maxMissing`, `missingOrder`, Zähler), `getSpotlightEntries` (Poster über `getAdminExternalTitleImage`), `setSpotlightEntryOverride`, `createWish` des Hauptprofils |
-| Mockup | M-27, `#/admin/spotlight`, `js/admin-b.js` (`abSourceBand`, `abMissingBand`, `abEntriesBand`, `ACT.abSpotSave`) |
-| Abgedeckte interaktive Zustände | Band «Fehlende Titel» mit Schalter, Zahl und Reihenfolge (gesperrt, wenn aus), Zähler «n Einträge der Liste fehlen …, n davon sind angefordert. Marco sähe zurzeit n fehlende Titel» mit Grund; Warnungen bei «Wünsche aktiv» aus, «Aus dem Spotlight» aus («… zeigt das Spotlight keine fehlenden Titel»), Jellyseerr nicht eingerichtet; «Ungespeicherte Änderungen»; ein «Speichern» sichert beide Bänder; Prüfung beim Speichern («Erlaubt sind 0 bis 10.»); Einträge mit Status «Sichtbar», «Ausgeblendet», «Noch nicht in der Bibliothek», «Angefordert · In Beschaffung»; «Anheften» mit Platzwahl und Belegungsprüfung, «Notiz» (erscheint auf der Bühne), «Ausblenden»/«Einblenden», «Anfordern» (öffnet M-13 als aktives Profil); «Jetzt abrufen» mit Ladeanzeige; «Entfernen» bei verwaisten Anpassungen |
-| Spätere technische Umsetzung | Stufe 3: Schritte 3.1 (Trakt-IDs, Migration `spotlight_missing`), 3.5 (`web/src/features/admin/SpotlightPage.tsx`); Tabellen `spotlight_config`, `spotlight_entries`; `05-spotlight-integration.md` Abschnitt 8, `07-administration.md` Abschnitt 9 |
+| Neue oder veränderte Einstellungen | keine (die Schalter für fehlende Titel aus der ersten Fassung 3 entfallen, N-72) |
+| API-Operationen | `getSpotlightConfig`, `setSpotlightConfig` (unverändert), `getSpotlightEntries` (`tvdbId?`, `imdbId?`, `unmatched?`, `wish?`, Poster über `getAdminExternalTitleImage`), `setSpotlightEntryOverride`, `createWish` des Hauptprofils |
+| Mockup | M-27, `#/admin/spotlight`, `js/admin-b.js` (`abSourceBand`, `abMissingBand`, `abEntriesBand`, `abIdsBand`, `abOrphansBand`, `abSpotNoRequest`, `AB_UNMATCHED`, `ACT.abSpotSave`); IDs `idLine`, `ID_MATCH` in `js/model2.js` |
+| Abgedeckte interaktive Zustände | Hinweis «Die Startseite zeigt weiterhin nur Vorhandenes …»; Band «Quelle» mit allen elf Feldern, Prüfung beim Speichern, «Jetzt abrufen» mit Ladeanzeige, Gründe bei zu wenigen Treffern, «Ungespeicherte Änderungen»; Band «Fehlende Einträge» zugeklappt, Kopf «14 fehlen · 5 angefordert», zwei Sätze zur Regel und Zählung, darunter die Liste der 14 Einträge mit Poster, Zustand («Noch nicht in der Bibliothek» oder «Angefordert · In Beschaffung» usw.) und «Anfordern» (ohne offenen Wunsch); ohne Jellyseerr, mit «Jellyseerr verwenden» aus oder «Wünsche aktiv» aus: Chip «Anfordern nicht möglich», Hinweis «Anfordern geht erst, wenn Wünsche eingerichtet sind.» mit Grund und Links, kein «Anfordern» (auch nicht in «Einträge der Liste»); «Einträge der Liste» mit 35 Einträgen, je Rang, Poster, «Film · Jahr», IDs «TMDB … · IMDb …» bzw. bei Serien «TMDB … · TVDB … · IMDb …» (unbekannte als «–»), bei Serien Chip «In der Bibliothek über die TVDB-ID erkannt», «… über die TMDB-ID erkannt», «TMDB- und TVDB-ID von Trakt» oder «Trakt nennt nur die TVDB-ID, TMDB-ID nachgeschlagen»; Status «Sichtbar», «Ausgeblendet», «Noch nicht in der Bibliothek», «Angefordert · …» und beim erfundenen Eintrag «Hafen im Nordlicht» «Nicht zuordenbar: nur TVDB-ID bekannt, bei TMDB nicht gefunden» mit «Keine Aktion: ohne TMDB-ID nicht anforderbar»; «Anheften» mit Platzwahl und Belegungsprüfung, «Lösen», «Ausblenden»/«Einblenden», «Notiz» (erscheint auf der Bühne), «Anfordern» (öffnet M-13 als aktives Profil); Band «Abgleich über TMDB, TVDB und IMDb» mit Kopf «20 in der Bibliothek · 14 fehlen · 1 nicht zuordenbar», Text zu Filmen, Serien und Jellyseerr, Zählung «Erkannt nach Weg», «Staffeln in Jellyseerr» (TMDB mit Empfehlung, auf TVDB umzustellen; nach Mockup › TVDB grün) und Liste «Nicht zuordenbar»; «Entfernen» bei verwaisten Anpassungen; Fussnote zu M-28 |
+| Spätere technische Umsetzung | Stufe 3: Schritte 3.1 (`spotlight_ids`), 3.3 (`SpotlightEntry` erweitert), 3.5 (`SpotlightPage.tsx`); Stufe 2: Schritt 2.2 (`titles.refresh` auch für fehlende Einträge); `05-spotlight-integration.md` Abschnitte 4, 5 und 6; `07-administration.md` Abschnitt 9; AK-79, AK-169, AK-170, AK-193, AK-194 |
 
 ### M-28 · Startseite › Startseite (geändert)
 
@@ -363,13 +452,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/admin/home-rows` |
 | Heute | Band «Reihen» mit Platz, Reihe, Zustand, Ausblenden, Ausklappzeile; Grenze 15 sichtbare Reihen; Band «Vorschau»; Speicherleiste |
-| Geplante Änderung | neue Reihe «Deine Wünsche» mit Platz und Ausblenden, ab Werk direkt nach «Weiterschauen» (bei schon 15 sichtbaren Reihen ausgeblendet, **Vorschlag**); Ausklappzeile mit Link zu M-23 |
+| Geplante Änderung | neue Reihe «Erfüllte Wünsche» mit Platz und Ausblenden, ab Werk direkt nach «Weiterschauen» (bei schon 15 sichtbaren Reihen ausgeblendet, **Vorschlag**); Ausklappzeile mit der Regel «in den letzten 14 Tagen erfüllt» und Link «Zur Seite «Wünsche»» (`07-administration.md` Abschnitt 10; F-34) |
 | Rolle | Administrator |
 | Neue oder veränderte Einstellungen | Platz und Ausblenden der Reihe `wishes` |
 | API-Operationen | `getHomeRows`, `setHomeRows` (`HomeRowKey` + `wishes`, brechend) |
 | Mockup | M-28, `#/admin/home-rows`, `js/admin-b.js` (`route('/admin/home-rows')`, `AB_ROW_DESC.wishes`); Vorgabe in `seed()` von `js/store.js` |
-| Abgedeckte interaktive Zustände | Reihe «Deine Wünsche» auf Platz 3 nach «Weiterschauen»; Platz per Auswahl ändern (Meldung «Speichere, damit es gilt»); «Ausblenden»; Grenze 15 mit Warnung; Vorschau in ungespeicherter Reihenfolge; Speicherleiste mit «Verwerfen» (Rückfrage) und «Speichern»; Wirkung auf M-01 nach dem Speichern |
-| Spätere technische Umsetzung | Stufe 3: Schritte 3.3, 3.5 (`HomeRowsPage.tsx`); Tabelle `home_rows` (Neubau, CHECK + `wishes`); `07-administration.md` Abschnitt 10 |
+| Abgedeckte interaktive Zustände | Reihe «Erfüllte Wünsche» (NEU) auf Platz 3 nach «Weiterschauen»; Ausklappzeile «Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden … Offene Wünsche stehen unter «Wünsche», nicht auf der Startseite.» mit Link; Platz per Auswahl ändern («Speichere, damit es gilt»); «Ausblenden»; Grenze 15 mit Warnung; Vorschau in ungespeicherter Reihenfolge mit Hinweis, dass leere Reihen entfallen; «Verwerfen» (Rückfrage) und «Speichern»; Wirkung auf M-01 |
+| Spätere technische Umsetzung | Stufe 3: Schritte 3.3, 3.4, 3.5 (`HomeRowsPage.tsx`); Tabelle `home_rows` (CHECK + `wishes`); AK-78 |
 
 ### M-29 · Automatisierung › Benachrichtigungen (geändert)
 
@@ -377,13 +466,13 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route der Kanalseite in der Verwaltung |
 | Heute | Kanalseite des eigenen Kontos in der Verwaltungsleiste, Link zu den Kanälen des Servers |
-| Geplante Änderung | drei neue Ereignisse je Kanal wie M-10; Kopf zählt die Ereignisse; Karte «Was neu ist»; im Mockup zusätzlich Tabelle «Zuletzt zugestellt» (geht über `07-administration.md` Abschnitt 11 hinaus) |
+| Geplante Änderung | drei neue Ereignisse je Kanal wie M-10; Kopf zählt die Ereignisse; im Mockup zusätzlich Karte «Was neu ist» und Tabelle «Zuletzt zugestellt» (geht über `07-administration.md` Abschnitt 11 hinaus) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | wie M-10 (`wish_available`, `wish_status`, `wish_review`) |
+| Neue oder veränderte Einstellungen | wie M-10 |
 | API-Operationen | bestehende Kanal-Operationen; Zustellungen aus `deliveries` |
-| Mockup | M-29, `#/admin/notifications`, `js/admin-a.js` (`route('/admin/notifications')`), Kanalteil aus `channelSettingsHtml({ admin: true })` |
-| Abgedeckte interaktive Zustände | Karte «Kanäle des Servers» mit Zustand und «Ansehen»; alle Zustände von M-10; Tabelle «Zuletzt zugestellt» (Zeit, Kanal, Empfänger mit Profil, Betreff, Zustand) füllt sich beim Vorspulen, auch mit «Wunsch nicht übermittelt: …» (Ereignis «Fehler») nach «24 h vergehen»; Sandra mit PIN: Betreff ohne Titel («[Sandra] Ein Wunsch ist jetzt verfügbar.») |
-| Spätere technische Umsetzung | Stufe 2: Schritt 2.6; Stufe 4: Schritt 4.3; Tabellen `account_channels`, `deliveries`; `07-administration.md` Abschnitt 11, `06-benachrichtigungen.md` Abschnitt 8 |
+| Mockup | M-29, `#/admin/notifications`, `js/admin-a.js` (`route('/admin/notifications')`), Kanalteil `channelSettingsHtml({ admin: true })` |
+| Abgedeckte interaktive Zustände | Karte «Kanäle des Servers» mit «Ansehen»; Karte «Was neu ist»; alle Zustände von M-10; Tabelle «Zuletzt zugestellt» (Zeit, Kanal, Empfänger mit Profil, Betreff, Zustand) füllt sich beim Vorspulen, auch mit «Wunsch nicht übermittelt: …» nach «24 h vergehen» und «Wunsch wartet auf Freigabe: …»; Sandra mit PIN: Betreff ohne Titel |
+| Spätere technische Umsetzung | Stufe 2: Schritt 2.6; Stufe 4: Schritt 4.3; `07-administration.md` Abschnitt 11, `06-benachrichtigungen.md` Abschnitt 8 |
 
 ### M-30 · Automatisierung › Hintergrundjobs (geändert)
 
@@ -391,30 +480,30 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 |---|---|
 | Seite | bestehend, App-Route `/admin/jobs` |
 | Heute | Zusammenfassung, Arbeiter je Pool, Banner pausierter Jobs, «Läuft gerade», Reiter je Gruppe mit Filter, je Jobart Zustand, Letzter und Nächster Lauf, «Jetzt ausführen», «Pausieren», «Zeitplan», «Läufe», «Wartende abbrechen»; Reiter «Fehlschläge» |
-| Geplante Änderung | acht neue Jobarten: `wishes.submit`, `wishes.withdraw`, `wishes.sync` (mit Erstabgleich als Lauf mit Fortschritt), `wishes.import` (Stufe 4), `wishes.reconcile`, `seerr.users`, `titles.refresh`, `series.catalog`; Fehlschläge von Wünschen im Reiter «Fehlschläge» |
+| Geplante Änderung | zwölf neue Jobarten (acht aus Fassung 2, vier aus Fassung 3: `seerr.provision`, `wishes.tag`, `wishes.progress`, `wishes.discover`); Fehlschläge von Wünschen im Reiter «Fehlschläge»; Erstabgleich von `wishes.sync` als Lauf mit Fortschritt (`07-administration.md` Abschnitt 12) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | Zeitpläne der neuen Jobs mit Takt (einziger Ort des Abgleichtakts: `wishes.sync`); `wishes.submit`, `wishes.withdraw`, `wishes.import` laufen nach Ereignis ohne Zeitplan |
+| Neue oder veränderte Einstellungen | Zeitpläne der neuen Jobs mit Takt (einziger Ort des Abgleichtakts: `wishes.sync`) |
 | API-Operationen | bestehende Job-Operationen; neue Typen über `RegisterTypes` |
-| Mockup | M-30, `#/admin/jobs`, Sprung `#/admin/jobs?group=system&job=wishes.sync`; `js/admin-a.js` (`AA_JOBS`, `aaJobsPage`, `aaJobRow`, `DIALOGS.aaSched`, `DIALOGS.aaRuns`) |
-| Abgedeckte interaktive Zustände | acht neue Jobarten mit «NEU» und Gruppen-Markierung: «Wunsch übermitteln» (Zustellung), «Fehlende Titel auffrischen» und «Staffelliste der Serien» (Metadaten), «Wünsche abgleichen», «Verfügbare Wünsche prüfen», «Jellyseerr-Benutzer laden», «Zurückgezogene Wünsche in Jellyseerr löschen» (`wishes.withdraw`) und «Bestehende Anfragen übernehmen» (`wishes.import`) (System); die beiden letzten mit «Ausgelöst durch: automatisch, durch Ereignisse im Server», nur «Pausieren» und «Läufe», kein Lauf im Mockup; «Jetzt ausführen» für `wishes.sync` (gleicht ab oder meldet den Zustand), `seerr.users`, `wishes.reconcile` («nichts zu tun»); «Pausieren» von `wishes.submit` mit Banner «Wünsche bleiben «Wird übermittelt» …»; «Nächster Lauf» «wartet bis Jellyseerr eingerichtet ist»; Zeitplan-Dialog mit Takt, Zeitfenster, einmaligem Termin und Hinweis «einziger Ort des Abgleichtakts»; Läufe-Dialog von `wishes.submit` mit wartenden Wünschen («Jetzt übermitteln») und fehlgeschlagenen («Erneut»); Reiter «Fehlschläge» mit Zeilen «Wunsch übermitteln» und «Zum Wunsch», auch nach «24 h vergehen» |
-| Spätere technische Umsetzung | Stufe 1: Schritt 1.5 (`seerr.users`); Stufe 2: Schritte 2.2 (`titles.refresh`), 2.4 (`wishes.submit`, `wishes.withdraw`), 2.5 (`wishes.sync` mit Erstabgleich, `wishes.reconcile`), 2.10 (Jobtexte); Stufe 4: Schritte 4.1 (`series.catalog`), 4.6 (`wishes.import`); Tabelle `job_schedules`; `03-architektur.md` Abschnitt 13, `07-administration.md` Abschnitt 12 |
+| Mockup | M-30, `#/admin/jobs`, Sprünge `#/admin/jobs?group=system&job=wishes.sync`, `…&job=wishes.progress`; `js/admin-a.js` (`AA_JOBS`, `aaJobsPage`, `aaJobRow`, `aaLastNew`, `aaNext`, `ACT.aaJobRun`, `DIALOGS.aaSched`, `DIALOGS.aaRuns`) |
+| Abgedeckte interaktive Zustände | zwölf Jobarten mit «NEU»: Metadaten «Fehlende Titel auffrischen», «Staffelliste der Serien», «Wünsche-Seiten vorladen» (1 h; ruht, wenn die Seiten aus sind: «ruht · Seiten Entdecken, Filme, Serien und Suche ausgeschaltet»); Zustellung «Wunsch übermitteln», «Wunsch in Jellyseerr zurückziehen»; System «Wünsche abgleichen», «Verfügbare Wünsche prüfen», «Jellyseerr-Benutzer laden», «Anfragen aus Jellyseerr übernehmen (Stufe 4)», «Konten in Jellyseerr eröffnen», «Profil-Tag setzen» (ohne eigenen Zeitplan, «Ausgelöst durch: nach jedem Abgleich, Wunsch «In Beschaffung», neuer Mitwunsch», «Nächster Lauf: mit dem Abgleich · …»), «Download-Fortschritt lesen» (1 min); «Jetzt ausführen» für `wishes.sync`, `seerr.users`, `wishes.reconcile`, `seerr.provision` (eröffnet oder verknüpft alle Konten ohne Benutzer und ohne Vorschlag; bei Schalter aus «Nichts eröffnet»), `wishes.tag` («n Tags gesetzt» oder «… nicht gesetzt: Radarr nicht erreichbar»), `wishes.progress`, `wishes.discover` («Listen aufgefrischt: 5 Reihen mit 83 Titeln»); «Nächster Lauf» mit «aus · Profil-Tags ausgeschaltet», «aus · Download-Fortschritt ausgeschaltet», «bei Bedarf · 1 Konto wartet …», «wartet bis Jellyseerr eingerichtet ist»; Pausieren von `wishes.submit` mit Banner; Zeitplan-Dialog; Läufe-Dialog; Reiter «Fehlschläge» mit «Wunsch übermitteln» und «Zum Wunsch» |
+| Spätere technische Umsetzung | Stufe 1: Schritte 1.5 (`seerr.users`), 1.5a (`seerr.provision`); Stufe 2: Schritte 2.2, 2.4, 2.5, 2.10; Stufe 4: Schritte 4.1, 4.6, 4.6b (`wishes.tag`), 4.6d (`wishes.progress`); Stufe 5: Schritte 5.3, 5.6 (`wishes.discover`); Tabelle `job_schedules`; `03-architektur.md` Abschnitt 13, `07-administration.md` Abschnitt 12 |
 
 ## 3. Zuordnung zur Mindestprüfliste des Auftraggebers
 
 | Oberfläche der Liste | Mockup | Bemerkung |
 |---|---|---|
-| Startseite | M-01 | Reihen, Bühne, Reihe «Deine Wünsche» |
-| Spotlight | M-01 (Bühne und Posterreihe), M-02 (Liste), M-27 (Verwaltung) | |
-| Film-Detailseite | M-05 (vorhanden, Chip «Dein Wunsch ist da»), M-03 (fehlend, neu) | |
+| Startseite | M-01 | Spotlight nur mit Titeln der Bibliothek (E-5), Reihe «Erfüllte Wünsche» |
+| Spotlight | M-01 (Bühne und Posterreihe), M-02 (Liste), M-27 (Verwaltung) | fehlende Einträge nur in M-27 |
+| Film-Detailseite | M-05 (vorhanden, Chip «Dein Wunsch ist da»), M-03 (fehlend, neu, mit Wunschkarte und Download-Fortschritt) | |
 | Serien-Detailseite | M-06 (vorhanden mit fehlenden Staffeln), M-04 (fehlend, neu) | |
-| Globale Suche | M-07 | Abschnitt «Noch nicht in der Bibliothek» |
-| Entdecken | M-07, M-02, M-03, M-04 | Diese Seite gibt es in Slouchcat nicht, und es entsteht keine (Anhang F 2.14, `02-funktionskonzept.md` Abschnitt 8): Suche, Spotlight-Liste und Vorschauseite decken das Finden fehlender Titel ab, ohne eine Liste zu bauen, die wie eine algorithmische Empfehlung wirkt (Non-Goal). |
-| Meine Wünsche | M-08 | mit Sicht des Hauptprofils auf alle Profile |
+| Globale Suche | M-07 | Abschnitt «Noch nicht in der Bibliothek», Verweis auf M-34 |
+| Entdecken | M-31 (Entdecken), M-32 (Filme), M-33 (Serien), M-34 (Suche) | neu in Fassung 3 nach Marcos Nachricht («Discover, Movies, Series und Search») |
+| Meine Wünsche | M-08 | fünfter Reiter, Limit, Download-Fortschritt, Sicht des Hauptprofils |
 | Benachrichtigungen | M-09 (Eingang), M-10 (Kanäle) | |
-| Profileinstellungen | M-11 (Profile), M-10 (Kanäle), M-12 (Profilwahl) | die Seite «Einstellungen» des Profils (Tonsprachen, Untertitel) ändert sich nicht: Hinweisseite `#/unchanged/einstellungen` |
-| Admin Integrationen | M-21, M-22 | |
-| Admin Benutzer | M-26 (Konten, Einladungen), M-24 (Zuordnung) | |
-| Admin Profile | M-11, M-24, M-26 | Profile verwaltet jedes Konto selbst (M-11); die Verwaltung zeigt sie nur (Chips in M-26) und begrenzt sie über den Deckel des Kontos (M-26) und die Zuordnung je Profil (M-24). |
+| Profileinstellungen | M-11 (Profile), M-10 (Kanäle), M-12 (Profilwahl) | die Seite «Einstellungen» des Profils ändert sich nicht: `#/unchanged/einstellungen` |
+| Admin Integrationen | M-21, M-22 | mit Band «Radarr und Sonarr (Profil-Tags und Fortschritt)»; Webhooks unverändert |
+| Admin Benutzer | M-26 (Konten, Einladungen, Limit), M-24 (Jellyseerr-Benutzer, Vorschläge), M-35 (Einladung annehmen) | |
+| Admin Profile | M-11, M-24, M-26 | Profile verwaltet jedes Konto selbst (M-11); die Verwaltung zeigt sie (M-26) und setzt je Profil Tag und Ausnahme (M-24) |
 | Admin Spotlight | M-27, M-28 | |
 | Admin Benachrichtigungen | M-29 | |
 | Admin Hintergrundjobs | M-30 | |
@@ -422,124 +511,188 @@ im Wert `fallback`; Teilfragen T-1 und T-2.
 
 ## 4. Gegenprobe Einstellungen
 
-Spalte «Gespeichert» nach `08-datenmodell-api.md` Abschnitt 2.12 und Abschnitt 1.1.
+Spalte «Gespeichert» nach `08-datenmodell-api.md` Abschnitte 2.2, 2.3, 2.12 bis 2.14.
 
 | Einstellung | Sichtbar und bedienbar im Mockup | Gespeichert | Beobachtbare Wirkung im Mockup |
 |---|---|---|---|
-| Jellyseerr verwenden | M-22 `#/admin/integrations/jellyseerr`, Band «Verbindung», Schalter «Jellyseerr verwenden» | `settings` `seerr.enabled` (ab Werk 0) | Kachel M-21 und Chip zeigen «Ausgeschaltet»; auf M-01 verschwinden fehlende Titel; neue Wünsche nicht möglich |
-| Adresse | M-22, Feld «Adresse» | `seerr.url` | mit «falsch» nach «Speichern»: «Nicht erreichbar», Hinweis auf M-20 |
-| API-Schlüssel | M-22, Feld «API-Schlüssel» (Platzhalter «Gesetzt, endet auf …a1b2») | `seerr.api_key` (verschlüsselt) | mit «falsch»: «Schlüssel ungültig»; leer lassen behält den Schlüssel |
-| Sofortmeldung | M-22, Band «Sofortmeldung», «Adresse erzeugen» | `webhook_integrations` Art `jellyseerr` (Stufe 4) | einmal gezeigte Adresse; «Letzte Meldung» nach «Meldung simulieren (Mockup)» |
-| Wünsche aktiv | M-25 `#/admin/wishes/settings`, «Wünsche aktiv» | `wishes.enabled` (ab Werk 0) | fehlende Titel verschwinden aus M-01, M-02, M-07; Band in M-23 und M-24; übrige Zeilen in M-25 gesperrt |
-| Filme erlauben | M-25, «Filme erlauben» | `wishes.allow_movies` | fehlende Filme verschwinden auf M-01, M-02 und M-07; Vorschauseite eines Films ohne eigenen Wunsch gibt 404 |
-| Serien erlauben | M-25, «Serien erlauben» | `wishes.allow_shows` | fehlende Serien verschwinden; auf M-06 keine gedämpften Staffeln und keine Zeile; der Chip «2 von 3 Staffeln vorhanden» bleibt (Abschnitt 9, Nr. 15) |
-| Aus dem Spotlight | M-25, «Aus dem Spotlight» | `wishes.from_spotlight` | Bühne M-01 und Spotlight-Liste M-02 zeigen keine fehlenden Titel; M-27 warnt «Anfordern aus dem Spotlight ist aus» |
-| Aus der Suche | M-25, «Aus der Suche» | `wishes.from_search` | M-07 ohne Abschnitt und ohne Pille «Noch nicht da» |
-| Auf Detailseiten | M-25, «Auf Detailseiten (fehlende Staffeln)» | `wishes.from_detail` | M-06 ohne «Staffeln anfordern», Staffelkarten nicht klickbar; gedämpfte Karten, Zeile und Chip bleiben (Abschnitt 10.2, Nr. 1); M-03/M-04 bleiben erreichbar |
-| Bereits angeforderte Titel | M-25, Segment «Mitwünschen»/«Nur Zustand zeigen» | `wishes.already_requested` (`join`/`status`) | «Nur Zustand zeigen»: Bühne und Vorschauseite ohne «Benachrichtige mich», Posterkarte mit Chip «Bereits angefordert» statt Glocke; in M-13 sind fremd angeforderte Staffeln gesperrt und zeigen ihren Zustand |
-| Konten ohne Zuordnung | M-25, Segment «Nicht erlauben»/«Sammelbenutzer» | `wishes.unmapped` (`deny`/`fallback`) | «Sammelbenutzer» mit Wahl: M-26 zeigt «Erlaubt · … (Sammelbenutzer)», «Oma & Opa» darf anfordern und sieht fehlende Titel |
-| Sammelbenutzer | M-25, Auswahl unter «Sammelbenutzer» | `wishes.shared_seerr_user` | M-13 «(Sammelbenutzer)»; M-11 «Sendet als … (Sammelbenutzer)» |
-| Neue Konten dürfen anfordern | M-25, Schalter | `wishes.new_accounts_can_request` | Vorgabe des Schalters im Dialog «Konto einladen» (M-26) |
-| Zurückziehen erlauben | M-25, Schalter | `wishes.allow_withdraw` | «Zurückziehen» verschwindet in M-08 und M-03 |
-| Externe Nachrichten bei PIN-Profilen ohne Titel | M-25, Schalter | `wishes.pin_external_hide_title` | Betreff für Sandra in M-29 «Zuletzt zugestellt» und in M-00 mit oder ohne Titel |
-| Zuordnung Konto | M-24 `#/admin/wishes/mapping`, Auswahl «Jellyseerr-Benutzer» je Konto | `wish_account_map` | Chip in M-26, Zeile «Sendet als» in M-11, Fakten im Dialog M-13, fehlende Titel für die Profile des Kontos |
-| Zuordnung Profil | M-24, Band «Profile» je Konto, Auswahl «Wie Konto»/Benutzer | `wish_profile_map` | M-13 «(eigener Benutzer des Profils)»; Auto-Freigabe und Kontingent wechseln |
-| Wunschrecht Konto | M-26 `#/admin/accounts`, Zeile aufklappen, Formular «Zugriff», «Darf Titel anfordern» (Administratorkonten: Block «Wünsche») | `accounts.can_request` | Spalte «Wünsche»; Profilschalter in M-11 wird bedienbar oder gesperrt |
-| Wunschrecht Profil | M-11 `#/settings/profiles`, «Bearbeiten», Abschnitt «Wünsche», «Darf Titel anfordern» | `profiles.can_request` | Chips in M-11, M-24, M-26; fehlende Titel für das Profil sichtbar oder nicht |
-| Einladung | M-26, «Konto einladen», «Darf Titel anfordern» | `invitations.can_request` | Spalte «Wünsche» im Reiter «Einladungen» |
-| Fehlende Titel zeigen | M-27 `#/admin/spotlight`, Band «Fehlende Titel», «Fehlende Titel zeigen», «Speichern» | `spotlight_config.show_missing` (ab Werk aus, F-8) | Bühne M-01 mit oder ohne fehlende Titel; Filter in M-02; Verweis in M-25 |
-| Höchstens fehlende Titel | M-27, Zahl 0 bis 10 | `spotlight_config.max_missing` | mit 10 erscheinen auf M-01 für Marco auch «Toy Story 5» und weitere |
-| Reihenfolge | M-27, Segment «Wie bei Trakt»/«Nach den vorhandenen» | `spotlight_config.missing_order` | fehlende Titel an ihrem Trakt-Platz oder am Ende der Bühne |
-| Reihe «Deine Wünsche» | M-28 `#/admin/home-rows`, Zeile «Deine Wünsche», Platz und «Ausblenden», «Speichern» | `home_rows` (Schlüssel `wishes`) | Reihe auf M-01 wandert oder fehlt |
-| Ereignisse je Kanal | M-10 `#/settings/notifications` und M-29 `#/admin/notifications`, Häkchen «Wünsche: verfügbar», «Wünsche: freigegeben, abgelehnt, fehlgeschlagen», «Wünsche: Freigabe nötig» | `account_channels.events` | beim Vorspulen nennt die Meldung am Bildschirm nur noch «App» oder die verbleibenden Kanäle; «Zuletzt zugestellt» bekommt keinen Eintrag |
-| Zeitplan `wishes.sync` | M-30 `#/admin/jobs`, Gruppe «System», «Zeitplan» | `job_schedules` | M-22 Band «Abgleich» zeigt den neuen Takt |
-| Zeitplan `wishes.reconcile`, `seerr.users` | M-30, Gruppe «System», «Zeitplan» | `job_schedules` | «Nächster Lauf» in M-30 |
-| Zeitplan `titles.refresh`, `series.catalog` | M-30, Gruppe «Metadaten», «Zeitplan» | `job_schedules` | «Nächster Lauf» in M-30 |
-| `wishes.submit` | M-30, Gruppe «Zustellung»: kein Zeitplan (Ereignis), nur «Pausieren» und «Läufe» | Pause wie heute | Banner und Hinweis «nach 24 Stunden … fehlgeschlagen» |
-| `wishes.withdraw`, `wishes.import` | M-30, Gruppe «System»: kein Zeitplan (Ereignis), nur «Pausieren» und «Läufe» | Pause wie heute | nur Anzeige; die beiden Jobs laufen im Mockup nie (Abschnitt 9) |
-| Ansicht «Wünsche aller Profile meines Kontos» | M-08, Schalter (nur Hauptprofil) | keine Einstellung, nur Ansicht | Liste mit Profilnamen |
+| Jellyseerr verwenden | M-22, Band «Verbindung» | `seerr.enabled` (ab Werk 0) | M-21 «Ausgeschaltet»; keine fehlenden Titel; M-31 bis M-34 nur noch über eigene Wünsche; neue Wünsche nicht möglich; M-27 ohne «Anfordern» |
+| Adresse | M-22, «Adresse» | `seerr.url` | mit «falsch» nach «Speichern»: «Nicht erreichbar», Hinweis auf M-20 |
+| API-Schlüssel | M-22, «API-Schlüssel» | `seerr.api_key` (verschlüsselt) | mit «falsch»: «Schlüssel ungültig»; leer behält ihn |
+| Sofortmeldung | M-22, «Adresse erzeugen» | `webhook_integrations` Art `jellyseerr` (Stufe 4) | einmal gezeigte Adresse; «Letzte Meldung» nach «Meldung simulieren (Mockup)» |
+| Eigene Adresse Radarr, Sonarr | M-22, Band «Radarr und Sonarr», «Eigene Adresse», «Testen», «Speichern» | `arr.radarr_url`, `arr.sonarr_url` (bestätigter Host `arr.*_host` nicht im Mockup) | Entwurf mit «ungespeichert»; mit «falsch» und «Testen»: «nicht erreichbar unter …»; gespeichert mit «falsch»: Kachel und Band mit Fehler, Tags «fehlgeschlagen», Fortschritt «nicht lesbar»; korrigiert: wieder erreichbar, Tags nachgeholt |
+| Wünsche aktiv | M-25, «Wünsche aktiv» | `wishes.enabled` (ab Werk 0) | keine fehlenden Titel; Seiten M-31 bis M-34 weg; Band in M-23 und M-24; übrige Zeilen in M-25 gesperrt; M-27 ohne «Anfordern» |
+| Filme erlauben, Serien erlauben | M-25 | `wishes.allow_movies`, `wishes.allow_shows` | fehlende Filme bzw. Serien verschwinden aus M-07, M-31 bis M-34; Vorschauseite ohne eigenen Wunsch 404; bei Serien keine gedämpften Staffeln in M-06 |
+| Anfordern aus der Suche | M-25 | `wishes.from_search` | M-07 ohne Abschnitt, Pille und Verweis |
+| Anfordern auf Detailseiten | M-25 | `wishes.from_detail` | M-06 ohne gedämpfte Karten, Zeile, Chip und Knopf |
+| Seiten Entdecken, Filme, Serien und Suche | M-25 | `wishes.discover_pages` | Seitenleiste führt zu M-08, Reiter nur «Meine Wünsche», M-31 bis M-34 zeigen «Entdecken gibt es für dieses Profil nicht» (bzw. 404 ohne eigene Wünsche); M-07 ohne Verweis; `wishes.discover` ruht; sind auch Suche und Detailseiten aus, antworten Vorschauseiten 404 |
+| Bereits angeforderte Titel | M-25, «Mitwünschen»/«Nur Zustand zeigen» | `wishes.already_requested` | «Nur Zustand zeigen»: Vorschauseite ohne «Benachrichtige mich», Posterkarte mit Chip «Bereits angefordert» statt Glocke, in M-13 fremd angeforderte Staffeln gesperrt |
+| Konten ohne Jellyseerr-Benutzer, Sammelbenutzer | M-25, Segment und Auswahl | `wishes.unmapped`, `wishes.shared_seerr_user` | M-26 «Erlaubt · … (Sammelbenutzer)»; ein Konto ohne Benutzer darf anfordern; M-13 «(Sammelbenutzer)»; M-20 und M-21 ohne Hinweis «ohne Jellyseerr-Benutzer» |
+| Neue Konten dürfen anfordern | M-25 | `wishes.new_accounts_can_request` | Vorgabe im Dialog «Konto einladen» |
+| Zurückziehen erlauben | M-25 | `wishes.allow_withdraw` | «Zurückziehen» fehlt in M-08 und M-03 |
+| Externe Nachrichten bei PIN-Profilen ohne Titel | M-25 | `wishes.pin_external_hide_title` | Betreff für Sandra in M-29 und M-00 mit oder ohne Titel |
+| Limit ab Werk (Filme, Staffeln je Anzahl und Tage) | M-25, Band «Limit ab Werk» | `wishes.limit_movie_count`, `…_movie_days`, `…_tv_count`, `…_tv_days` | gilt sofort für Konten mit «Standard»: M-08 (Balken), M-13, M-23 (Band), M-24, M-26 («Standard: …»), M-35 (Kopf der Einladung); Prüfung «Anzahl 0 bis 100, Tage 1 bis 90.» |
+| Neue Konten in Jellyseerr eröffnen | M-25, Band «Konten in Jellyseerr» | `wishes.provision_accounts` | aus: M-35 ohne Hinweis und ohne Eröffnung, M-26 Einladen ohne Hinweis, M-24 «In Jellyseerr eröffnen» und «Alle eröffnen» gesperrt mit Grund und Link, M-30 «Konten in Jellyseerr eröffnen» «Nichts eröffnet», M-22 «aus» |
+| Passwort abgleichen | M-25, Band «Konten in Jellyseerr» | `wishes.sync_password` | aus: neu eröffnete oder verknüpfte Konten mit «Wird nicht abgeglichen»; in M-24 ist «Passwort bei der nächsten Anmeldung neu übernehmen» gesperrt mit Link; in M-26 kein Hinweis unter «Neues Passwort» |
+| Profil-Tag in Radarr und Sonarr setzen | M-25, Band «Radarr und Sonarr» | `wishes.profile_tags` | aus: keine Tag-Chips in M-23, Filter «Tag nicht gesetzt» weg, Diagnose «Ausgeschaltet», M-30 «aus · Profil-Tags ausgeschaltet», M-22 «Profil-Tag aus», M-24 Hinweis am Tag-Feld |
+| Präfix | M-25, Band «Radarr und Sonarr» | `wishes.tag_prefix` (`^[a-z0-9-]{1,10}$`) | Beispiele, Tag-Chips in M-23 und Platzhalter in M-24 ändern sich; ungültig: Fehler, «Präfix ungültig», nicht gespeichert |
+| Download-Fortschritt zeigen | M-25, Band «Radarr und Sonarr» | `wishes.show_progress` | aus: keine Download-Zeile in M-03, M-04, M-08, M-23 und M-00, Filter «Download verzögert» weg; M-30 «aus · Download-Fortschritt ausgeschaltet»; M-20 ohne «Downloads verzögert»; M-22 «aus»; Tags laufen weiter |
+| Jellyseerr-Benutzer des Kontos | M-24, je Konto «In Jellyseerr eröffnen», «Alle eröffnen», «Verknüpfung bestätigen», «Anderen Benutzer wählen», «Verknüpfung lösen»; Band «ohne Konto» «Einem Konto zuordnen» | `wish_account_map` (`seerr_user_id`, `origin`, `state` mit `suggested`, `suggested_seerr_user_id`) | Zustand in M-24, M-26, M-22; Konto darf anfordern oder nicht; Limit des Kontos geht an den Benutzer |
+| Passwortmodus je Konto | M-24, «Passwort bei der nächsten Anmeldung neu übernehmen», «Passwort nicht abgleichen» | `wish_account_map.password_state` | Zustand in M-24 und M-26; Knopf «{Konto} meldet sich an» erscheint in M-00 |
+| Ausnahme je Profil | M-24, Band «Ausnahme» je Profil | `wish_profile_map` | M-13 «(eigener Benutzer des Profils)», Freigabe und Limit des Ausnahme-Benutzers; M-11 «Sendet als … (eigener Jellyseerr-Benutzer)» |
+| Tag-Name je Profil | M-24, Feld «Eigener Name» | `wish_profile_tags` | Chip daneben, Meldung, Tag-Chips in M-23 |
+| Wunschrecht Konto | M-26, Formular «Zugriff» bzw. Block «Wünsche», gespeichert mit dem Formular | `accounts.can_request` | Spalte «Wünsche»; Profilschalter in M-11 bedienbar oder gesperrt; Rechte eines eröffneten Benutzers in M-24 folgen |
+| Wunschrecht Profil | M-11, «Bearbeiten», «Darf Titel anfordern» | `profiles.can_request` | Chips in M-11, M-24, M-26; Bereich «Wünsche» und fehlende Titel für das Profil |
+| Limit je Konto | M-26, Feld «Limit» im Formular «Zugriff» bzw. im Block «Wünsche», gespeichert mit «Zugriff speichern» bzw. «Speichern»; bei Administratoren gesperrt | `wish_account_limits` (`setAccountWishLimit`) | M-08, M-13, M-23 (Spalte «Art»), M-24 |
+| Einladung: Wunschrecht und Limit | M-26, «Konto einladen» | `invitations.can_request`, **Vorschlag** `invitations.wish_limit_*` | Spalte «Wünsche» bei Einladungen; Kopf von M-35; Konto aus M-35 erhält beides |
+| Reihe «Erfüllte Wünsche» | M-28 | `home_rows` (Schlüssel `wishes`) | Reihe auf M-01 wandert oder fehlt |
+| Ereignisse je Kanal | M-10, M-29 | `account_channels.events` | Meldung am Bildschirm nennt nur die verbleibenden Kanäle; «Zuletzt zugestellt» ohne Eintrag |
+| Zeitpläne `wishes.sync`, `wishes.reconcile`, `seerr.users`, `wishes.progress` | M-30, Gruppe «System», «Zeitplan» | `job_schedules` | «Nächster Lauf» in M-30; `wishes.sync` auch im Band «Abgleich» von M-22; `wishes.tag` läuft mit dem Abgleich |
+| Zeitpläne `titles.refresh`, `series.catalog`, `wishes.discover` | M-30, Gruppe «Metadaten», «Zeitplan» | `job_schedules` | «Nächster Lauf» in M-30 |
+| `wishes.submit`, `wishes.withdraw`, `wishes.import`, `seerr.provision`, `wishes.tag` | M-30: kein Zeitplan (Ereignis), «Pausieren» und «Läufe»; `seerr.provision` und `wishes.tag` dazu «Jetzt ausführen» | Pause wie heute | Banner bei `wishes.submit`; `wishes.withdraw` und `wishes.import` laufen nie (Abschnitt 9) |
+| Ansicht «Wünsche aller Profile meines Kontos» | M-08 (nur Hauptprofil) | keine Einstellung | Liste mit Profilnamen |
+| Sortierung, Genre, «Vorhandene ausblenden» | M-32, M-33 | keine Einstellung (Ansicht) | Raster, Zählung, Pillen |
+| nur im Mockup: Staffelquelle, Lokale Anmeldung | M-00 «Jellyseerr liest Staffeln aus …»; Lokale Anmeldung fest an | in Jellyseerr, nicht in Slouchcat | Prüfpunkt «Staffeln aus TVDB», erster Hinweis an der Kachel, Band «Abgleich über …» in M-27; «Lokale Anmeldung» bleibt grün (Abschnitt 9) |
 
 ## 5. Gegenprobe Berechtigungen
 
-| Berechtigung | Wo einstellbar oder sichtbar | Prüfung im Mockup |
+| Berechtigung oder Grund | Wo einstellbar oder sichtbar | Prüfung im Mockup |
 |---|---|---|
-| Wunschrecht Konto (Deckel) | einstellbar M-26 (Formular «Zugriff» oder Block «Wünsche»), sichtbar M-24, M-26, M-11 | Mockup › Gast: keine fehlenden Titel, kein Eintrag «Wünsche», Profilschalter in M-11 gesperrt. Dann Marco: M-26, gast aufklappen, «Darf Titel anfordern» an, «Zugriff speichern» (Chip «Zuordnung fehlt»); M-24 gast auf «wohnzimmer-tv»; Mockup › Gast, M-11 «Bearbeiten», Schalter an, «Speichern»: fehlende Titel erscheinen |
-| Wunschrecht Profil | einstellbar M-11 (Hauptprofil), sichtbar M-24, M-26 | Mockup › Mia: kein Abschnitt in M-07, «Keine Wünsche» in M-08. Marco: M-11, Mia «Bearbeiten», «Darf Titel anfordern», «Speichern»; Mockup › Mia: M-07 zeigt fehlende Titel bis «ab 6» |
-| Zuordnung als Bedingung (F-9) | M-24, M-26, M-20 | Mockup › «Oma & Opa» (Konto darf, keine Zuordnung): keine fehlenden Titel, kein Hinweis in M-07. Marco: M-24 bei grosseltern «Übernehmen»; Mockup › «Oma & Opa»: fehlende Filme erscheinen |
-| Jellyseerr-Recht Filme/Serien | sichtbar M-24 (Chips «Filme», «Serien», Warnung), nicht einstellbar (gehört Jellyseerr) | nach «Übernehmen» bei grosseltern: Mockup › «Oma & Opa» sieht fehlende Filme, aber keine fehlenden Serien und auf M-06 keine gedämpften Staffeln (`canRequest` Grund `seerr_kind`); M-24 warnt «darf keine Serien anfordern» |
-| Jellyseerr-Benutzer gelöscht | sichtbar M-24, M-20, M-26 | M-24 «Benutzer „sandra“ in Jellyseerr löschen (Mockup)»; Mockup › Sandra: fehlende Titel verschwinden (`seerr_user_gone`), eigene Wünsche bleiben in M-08 |
-| Auto-Freigabe | sichtbar M-24 (Chip «Auto-Freigabe»/«Braucht Freigabe»), M-13 | Marco fordert «Odyssey» an: «In Beschaffung». Mockup › Noah fordert «Moana» an: M-13 sagt «Braucht eine Freigabe», danach «Freigabe ausstehend» und Zustellung `wish_review` an Marco |
-| Kontingent | sichtbar M-24 (Chip «Kontingent 5 Titel je 7 Tage»), M-13 (Zählung) | Mockup › Noah: drei Filme anfordern gelingt, der vierte endet als «Fehlgeschlagen» mit «Das Kontingent des Jellyseerr-Benutzers ist erschöpft.» |
-| Freigeben und Ablehnen in Slouchcat (Stufe 4) | M-23, nur Administrator | Marco: M-23 «Toy Story 5» «Freigeben» oder «Ablehnen» (Rückfrage); Mockup › «Nicht erreichbar»: «Geht nicht …»; Mockup › Sandra: `#/admin/wishes` zeigt «Nur für Administratoren» |
-| Hauptprofil sieht Wünsche aller Profile | M-08, Schalter | Marco: Schalter an zeigt Wünsche von Sandra und Noah mit Namen; Mockup › Noah: kein Schalter |
-| Altersstufe | M-11 und M-26 (bestehend), wirkt auf fehlende Titel | Mockup › Noah (12): «Resident Evil» (16) fehlt überall, `#/titles/movie/1423191` zeigt «Titel nicht gefunden»; Mockup › Mia: «Tulsa King» gibt 404 |
-| Ändern der Kanäle | M-10, nur Hauptprofil | Mockup › Sandra: Häkchen gesperrt mit Hinweis |
+| Wunschrecht Konto (Deckel), Grund «Dieses Konto darf keine Titel anfordern.» | einstellbar M-26; sichtbar M-24, M-26, M-11 | Mockup › Gast: kein Eintrag «Wünsche», keine fehlenden Titel, M-11 gesperrt. Marco: M-26 gast «Darf Titel anfordern» an, «Zugriff speichern»; M-24 gast «In Jellyseerr eröffnen» (verknüpft 6 gast); Mockup › Gast: Bereich «Wünsche» erscheint |
+| Wunschrecht Profil, Grund «Dieses Profil darf keine Titel anfordern …» | einstellbar M-11 (Hauptprofil); sichtbar M-24, M-26 | Mockup › Mia: kein Eintrag «Wünsche», kein Abschnitt in M-07. Marco: M-11 Mia «Darf Titel anfordern», «Speichern»; Mockup › Mia: M-31 mit Titeln bis 6 |
+| Jellyseerr-Benutzer als Bedingung (F-9), Grund «Diesem Konto ist noch kein Jellyseerr-Benutzer zugeordnet …» | M-24, M-26, M-20 | Marco: M-24 grosseltern «Verknüpfung lösen»; Mockup › «Oma & Opa»: kein Bereich «Wünsche», keine fehlenden Titel; M-20 «1 Konto ohne Jellyseerr-Benutzer» |
+| Vorschlag ohne Bestätigung (N-2a) | M-24, M-20, M-21, M-26 | M-35 mit `tv@example.ch` annehmen: das neue Konto kann nicht anfordern, M-20 nennt «davon 1 Verknüpfung vorgeschlagen»; nach «Verknüpfung bestätigen» in M-24 darf es anfordern |
+| Jellyseerr-Benutzer gelöscht, Grund «… gibt es nicht mehr …» | M-24, M-20, M-26 | M-24 «Benutzer «sandra» in Jellyseerr löschen (Mockup)»; Mockup › Sandra: keine fehlenden Titel, M-08 «Neue Wünsche sind nicht möglich» mit Grund, eigene Wünsche bleiben |
+| Recht des Jellyseerr-Benutzers je Art, Grund «… darf diese Art von Titel nicht anfordern.» | M-24 (Chips «Filme», «Serien», Warnung nur bei Benutzern, die es schon gab) | mit den Beispieldaten nicht herstellbar (Abschnitt 9) |
+| Rechte eines eröffneten Benutzers folgen dem Wunschrecht (N-9) | M-26, M-24 | Marco: M-26 grosseltern Recht aus, «Zugriff speichern»: «Die Rechte von «grosseltern» in Jellyseerr werden angepasst.»; M-24 zeigt Filme und Serien gesperrt. Bei einem verknüpften Benutzer «… behält in Jellyseerr seine Rechte, weil Slouchcat ihn nicht eröffnet hat.» |
+| Konto löschen: Rechte nur bei eröffneten Benutzern (N-10 nach K-2) | M-26, M-24 | grosseltern entfernen: Rückfrage «… verliert seine Rechte und bekommt ein neues Zufallspasswort.»; danach steht grosseltern unter «ohne Konto» mit gesperrten Rechten. Ein verknüpftes Konto (gast nach «In Jellyseerr eröffnen») entfernen: «… bleibt unverändert.» |
+| Kein Limit für Administratoren (N-34) | M-13, M-08, M-23, M-24, M-26 | Marco: überall «kein Limit (Administrator)»; M-26 Feld «Limit» gesperrt «Kein Limit (Administrator)» |
+| Limit des Kontos und des Ausnahme-Benutzers | M-13, M-08, M-23, M-24 | Mockup › «Oma & Opa»: «8 von 10 Filmen frei»; Mockup › Noah: Limit von kinder (5 Filme, 2 Staffeln) |
+| Auto-Freigabe | M-24 (Chip «Automatische Freigabe: ja/nein»), M-13 | Marco fordert «Primetime» an: «In Beschaffung». Mockup › Noah fordert «Moana» an: «Braucht eine Freigabe», danach «Freigabe ausstehend» und Zustellung an Marco |
+| Freigeben und Ablehnen in Slouchcat (Stufe 4) | M-23, nur Administrator | Marco: «Toy Story 5» «Freigeben» oder «Ablehnen»; Mockup › «Nicht erreichbar»: «Geht nicht …»; Mockup › Sandra: `#/admin/wishes` zeigt «Nur für Administratoren» |
+| Wünsche ausgeschaltet, Grund «Wünsche sind ausgeschaltet.» | M-25 | M-25 «Wünsche aktiv» aus; Marco: M-08 «Neue Wünsche sind nicht möglich» mit diesem Grund |
+| Jellyseerr nicht eingerichtet, Grund «Jellyseerr ist nicht eingerichtet.» | M-22, M-00 | Mockup › «Nicht eingerichtet»: wie oben mit diesem Grund |
+| Art ausgeschaltet, Grund «Filme/Serien können zurzeit nicht angefordert werden.» | M-25 | M-25 «Filme erlauben» aus: kein fehlender Film; Vorschauseite eines eigenen Wunschs zeigt den Grund |
+| Altersstufe (404, nie 403) | M-11, M-26 (bestehend) | Mockup › Noah: «Resident Evil» (16) fehlt in M-31 bis M-34, `#/titles/movie/1423191` «Titel nicht gefunden»; Titel ohne Freigabe fehlen Noah ganz; Mockup › Mia: `#/items/tulsa-king` 404 |
+| Bereich «Wünsche» nur mit Recht (F-9, N-56) | Seitenleiste, M-31 bis M-34 | Mockup › Mia: Eintrag fehlt, `#/discover` «Titel nicht gefunden»; Mockup › Noah nach Entzug des Rechts: Eintrag führt zu M-08, `#/discover` zeigt «Entdecken gibt es für dieses Profil nicht» |
+| Hauptprofil sieht Wünsche aller Profile | M-08 | Marco: Schalter an zeigt Wünsche von Sandra und Noah; Mockup › Noah: kein Schalter |
+| Ändern der Kanäle | M-10, nur Hauptprofil | Mockup › Sandra: gesperrt mit Hinweis |
 | Ereignis «Freigabe nötig» | M-10, M-29, nur Administratorkonten | Mockup › «Oma & Opa»: Häkchen fehlt |
+| Passwort: kein Abgleich bei Administratoren und Anmeldung über Jellyfin (N-6) | M-24, M-26 | marco: «Bleibt in Jellyseerr (Administrator)», kein Knopf; M-24 gast «Anderen Benutzer wählen» → wohnzimmer-tv: «Anmeldung über Jellyfin oder Plex» |
 | Zugang zur Verwaltung | Administrator mit Hauptprofil | Mockup › Sandra auf `#/admin`: «Nur für Administratoren» |
 
-## 6. Gegenprobe Zustände eines Wunsches
+## 6. Gegenprobe Zustände eines Wunsches und Download-Anzeigen
 
-Kürzel der Orte: B = Bühne (M-01), P = Posterreihe (M-01, M-02, M-07), V = Vorschauseite (M-03, M-04) bzw.
-Serienseite (M-06), W = Meine Wünsche (M-08), A = Verwaltung Anfragen (M-23), S = Einträge in M-27.
+Kürzel der Orte: P = Posterkarten (M-07, M-31 bis M-33), L = Trefferliste M-34, V = Vorschauseite (M-03, M-04)
+bzw. Staffelkarten (M-06), W = Meine Wünsche (M-08), A = Verwaltung Anfragen (M-23), S = Einträge und fehlende
+Einträge in M-27, R = Reihe «Erfüllte Wünsche» (M-01). Die Bühne zeigt keine Wunschzustände (N-70, K-3).
 
 | Zustand | Sichtbar auf | Herstellen im Mockup |
 |---|---|---|
-| `queued` «Wird übermittelt» | B (Zustandsknopf), P (Chip), V (Block mit Zusatzzeile), W (Klartext), A (Filter), M-30 «Fehlschläge» und Läufe von `wishes.submit` | Mockup › «Nicht erreichbar» (Zusatz «Jellyseerr ist nicht erreichbar»), «Schlüssel ungültig» oder «CSRF-Schutz an» (Zusatz «Jellyseerr blockiert schreibende Aufrufe (CSRF-Schutz)»); auf M-01 bei «Odyssey» «Film anfordern», «Anfordern». Weiter mit Mockup › «Verbunden» und «Übermitteln» oder «Abgleich jetzt ausführen» |
-| `pending` «Freigabe ausstehend» | B, P, V, W («Wartet auf die Freigabe in Jellyseerr.»), A (mit «Freigeben», «Ablehnen»), Bereichsreiter-Zähler, M-20 | vorhanden: «Toy Story 5» (Mockup › Noah). Neu: Mockup › Noah, «Moana» anfordern |
-| `processing` «In Beschaffung» | B, P, V, W, A, S «Angefordert · In Beschaffung» | vorhanden: «Resident Evil» (Marco). Neu: Marco fordert «Primetime» an |
-| `partial` «Teilweise verfügbar» | W (Staffel-Chips), A, Reihe «Deine Wünsche» («1 Staffel fehlt»), Serienseite `#/items/black-clover` | Marco: `#/titles/show/73223`, «Serie anfordern», «2 Staffeln anfordern»; Mockup «Datei trifft ein» |
-| `available` «Verfügbar» | W (mit «Abspielen»), A, B und M-05 Chip «Dein Wunsch ist da», Reihe «Deine Wünsche» 14 Tage, M-09 | vorhanden: «Godzilla Minus One». Neu: Mockup «Datei trifft ein» bei «Resident Evil»; bei Serien «Nächste Staffel trifft ein» |
-| `declined` «Abgelehnt» | W (mit «Erneut anfordern»), A, V (Hinweis «Dein letzter Wunsch: Abgelehnt»), M-09 | vorhanden: «Street Fighter» (Mockup › Noah). Neu: Mockup «Ablehnen» bei einem `pending` oder M-23 «Ablehnen» |
-| `failed` «Fehlgeschlagen» | W (Grund), A (Diagnose «Fehlergrund»), V (Hinweis), M-20, M-30 «Fehlschläge», M-09 | vorhanden: «Coyote vs. Acme» (Mockup › Sandra). Neu: Mockup «Scheitern» bei `processing`, Kontingent (Abschnitt 5) oder «24 h vergehen» bei `queued` (Grund «Jellyseerr war 24 Stunden lang nicht erreichbar.», Zustellung «Fehler» an die Administratoren) |
-| `withdrawn` «Zurückgezogen» | W (Filter «Abgeschlossen»), A (Filter), V (Hinweis «Du hast ihn zurückgezogen.») | Mockup › Noah, M-08, «Toy Story 5» «Zurückziehen», bestätigen |
-| fehlt «Noch nicht in der Bibliothek» | B (Chip), P (Plus-Knopf, Unterzeile «Noch nicht da»), V (Hinweis), M-07 (Abschnitt), S (Chip) | vorhanden: «Odyssey», «Primetime» für Marco |
-| bereits angefordert (Mitwunsch) | B und P («Bereits angefordert», Glocke), V (Hinweis), M-13 «Schon angefordert»; nach dem Mitwunsch W («Du wünschst mit», «Nicht mehr benachrichtigen»), V («Nicht mehr mitwünschen»), A («+ Sandra») | Mockup › Sandra; auf M-01 «Resident Evil» «Benachrichtige mich», im Dialog «Benachrichtige mich». Für Staffeln: Marco bei «Black Doves», «Serie anfordern», Staffel 1 («Bereits angefordert») und Staffel 2 wählen, «2 Staffeln anfordern» |
-| bereits angefordert (nur Zustand) | B (nur «Details», «Trailer»), P (Chip «Bereits angefordert»), V (Hinweis ohne Knopf), M-13 (Staffel gesperrt mit Zustand) | M-25 «Nur Zustand zeigen», dann wie oben |
-| teilweise vorhanden | B (Chip «2 von 3 Staffeln vorhanden» bei «Tulsa King»), M-06 (gedämpfte Karten, Zeile), M-13 («Vorhanden») | vorhanden: `#/items/tulsa-king` |
-| angekündigt | M-06 und M-04 (Band «Angekündigt»), M-13 (Chip, nicht wählbar), Hinweis «Staffel 4 ist angekündigt» | vorhanden: Tulsa King Staffel 4, «Die Ringe der Macht» Staffel 3, Dexter Staffel 2 |
-| In Jellyseerr angelegt | W (Chip), A (Chip, Herkunft), M-24 (Zähler) | vorhanden: «Verity» (Sandra), «Clayface» (nicht zuordenbar) |
-| nicht zuordenbar | A (Filter, Hinweis), M-22 (Zähler), M-24 («davon 1 nicht zuordenbar») | vorhanden: «Clayface» von wohnzimmer-tv |
+| `queued` «Wird übermittelt» | P (Chip), L, V (Karte mit Zusatzzeile), W (Klartext), A (Filter), M-30 «Fehlschläge» und Läufe von `wishes.submit`, M-20 | Mockup › «Nicht erreichbar», «Schlüssel ungültig» oder «CSRF-Schutz an»; M-31 bei «Odyssey» Plus, «Anfordern». Weiter mit Mockup › «Verbunden» und «Übermitteln» oder «Abgleich jetzt ausführen» |
+| `pending` «Freigabe ausstehend» | P, L, V, W («Wartet auf die Freigabe in Jellyseerr.»), A (mit «Freigeben», «Ablehnen»), Bereichsreiter, M-20 | vorhanden: «Toy Story 5» (Mockup › Noah). Neu: Mockup › Noah, «Moana» anfordern |
+| `processing` «In Beschaffung» | P, L, V, W, A, S «Angefordert · In Beschaffung» | vorhanden: «Resident Evil». Neu: Marco fordert «Primetime» an |
+| ↳ «Wird gesucht» | V, W, A, M-00 | Mockup «Freigeben» bei «Toy Story 5» oder ein neuer Wunsch von Marco |
+| ↳ «Wird heruntergeladen · n % · noch m min» | V, W, A (mit Balken), M-00 | «Resident Evil» (45 %, 12 min); «Download weiter» schaltet 12 %, 45 %, 92 %; «Black Doves» mit «6 von 8 Folgen da» |
+| ↳ «Wird eingelesen» | V, W, A | «Resident Evil» zweimal «Download weiter» |
+| ↳ «Download verzögert» | V, W ohne Meldung; A (Filter «Download verzögert», Meldung von Radarr in der Aufklappzeile); M-20 Sammelhinweis ohne Meldung | vorhanden: «Verity» (Mockup › Sandra); sonst «Download hängt»; zurück mit «Download läuft wieder» |
+| ↳ Fortschritt nicht lesbar | A («Fortschritt nicht lesbar»), M-21, M-22; V und W ohne Zusatz | Mockup «Radarr weg» bzw. «Sonarr weg» |
+| ↳ Fortschritt aus | nirgends | M-25 «Download-Fortschritt zeigen» aus |
+| `partial` «Teilweise verfügbar» | W (Staffel-Chips), A, R, M-06 `#/items/black-clover` | Marco: `#/titles/show/73223`, «Serie anfordern», «2 Staffeln anfordern»; Mockup «Datei trifft ein» |
+| `available` «Verfügbar» | W (mit «Abspielen»), A, R (14 Tage), M-05 Chip «Dein Wunsch ist da», M-09 | vorhanden: «Godzilla Minus One». Neu: «Datei trifft ein» bei «Resident Evil»; bei Serien «Nächste Staffel trifft ein» |
+| `declined` «Abgelehnt» | W («Erneut anfordern»), A, V («Dein letzter Wunsch: Abgelehnt»), M-09 | vorhanden: «Street Fighter» (Mockup › Noah). Neu: Mockup «Ablehnen» oder M-23 «Ablehnen» |
+| `failed` «Fehlgeschlagen» | W (Grund), A («Fehlergrund»), V, M-20, M-30, M-09 | vorhanden: «Coyote vs. Acme» (Grund Radarr/Sonarr). Neu: «Scheitern»; «24 h vergehen» bei `queued` (Grund «Jellyseerr war 24 Stunden lang nicht erreichbar.»); Limit: Mockup › «Oma & Opa», «Nicht erreichbar», Film anfordern, «Filme ausschöpfen», «Verbunden», «Abgleich jetzt ausführen» (Grund «Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.»); Benutzer gelöscht: Mockup › Sandra bei «Nicht erreichbar» anfordern, sandra löschen, abgleichen; Konto gelöscht: grosseltern mit offenem Wunsch entfernen (Grund «Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr.», in A mit «Konto gelöscht») |
+| `withdrawn` «Zurückgezogen» | W (Filter «Abgeschlossen»), A, V («Du hast ihn zurückgezogen.») | Mockup › Noah, M-08, «Toy Story 5» «Zurückziehen» |
+| fehlt «Noch nicht in der Bibliothek» | P (Plus, «Noch nicht da»), L (Chip), V, M-07 (Abschnitt), S | «Odyssey», «Primetime» und die Titel aus `js/data-discover.js` |
+| vorhanden «In der Bibliothek» | P unter «Wünsche» (Unterzeile), L (Chip) | etwa «Dune: Part Two» in M-31, «Tulsa King» in M-33 |
+| bereits angefordert (Mitwunsch) | P (Glocke), L («Bereits angefordert»), V, M-13 «Schon angefordert»; danach W («Du wünschst mit», «Nicht mehr benachrichtigen»), V («Nicht mehr mitwünschen»), A («+ Name», zusätzlicher Tag-Chip) | Mockup › Sandra; M-34 «Resident Evil» «Benachrichtige mich». Staffeln: Marco bei «Black Doves» Staffeln 1 und 2 wählen |
+| bereits angefordert (nur Zustand) | P (Chip statt Glocke), V (ohne Knopf), M-13 (Staffel gesperrt) | M-25 «Nur Zustand zeigen» |
+| teilweise vorhanden | M-06 (gedämpfte Karten, Zeile, Chip), L («2 von 3 Staffeln vorhanden»), M-13 («Vorhanden»); nicht auf der Bühne | `#/items/tulsa-king` |
+| angekündigt | M-06 und M-04 («Angekündigt»), M-13 (nicht wählbar) | Tulsa King Staffel 4, «Die Ringe der Macht» Staffel 3, Dexter Staffel 2 |
+| in Jellyseerr angelegt | W (Chip), A (Chip, Herkunft, kein Profil-Tag) | «Verity», «Clayface» |
+| nicht zuordenbar | A (Filter, Hinweis, «Benutzer zuordnen»), M-22 (Zähler), M-24 («davon 1 nicht zuordenbar») | «Clayface» von wohnzimmer-tv |
+| Konto gelöscht | A (Chip «Konto gelöscht», Hinweis «Slouchcat hat den Wunsch geschlossen …») | M-26 grosseltern entfernen, nachdem «Oma & Opa» angefordert hat |
 
-## 7. Gegenprobe Verbindung, Zuordnung und Benachrichtigungen
+## 7. Gegenprobe Verbindung, Jellyseerr-Benutzer, Limit, Tags und Benachrichtigungen
 
-### 7.1 Verbindung
+### 7.1 Verbindung zu Jellyseerr, Radarr, Sonarr und Staffelquelle
 
 | Zustand | Mockup-Seite | Klickfolge |
 |---|---|---|
-| Nicht eingerichtet | M-21, M-22, M-20, M-23, M-25, M-27 | Mockup › «Nicht eingerichtet», oder M-22 «Verbindung löschen …» bestätigen. M-22 zeigt die Schrittanleitung; M-01 ohne fehlende Titel |
-| Verbunden | alle | Mockup › «Verbunden», oder M-22 «Speichern» ohne «falsch» |
-| Schlüssel ungültig | M-22 (Band offen, Prüfliste mit 403), M-21, M-20 | Mockup › «Schlüssel ungültig», oder M-22 Schlüssel «falsch123», «Speichern» |
-| Nicht erreichbar | M-22, M-21, M-20, M-23 (Band), M-13 (Hinweis) | Mockup › «Nicht erreichbar», oder Adresse mit «falsch», «Speichern» |
-| CSRF-Schutz an | M-22 (Band offen, Prüfpunkt als Warnung), M-21 (gelber Punkt «CSRF-Schutz blockiert»), M-20 (Hinweis «Jellyseerr blockiert schreibende Aufrufe»), M-23 (gelbes Band), M-13 (Hinweis), Schaltfläche «Mockup · Jellyseerr: CSRF-Schutz blockiert» | Mockup › «CSRF-Schutz an»; M-22 «Verbindung testen». Neue Wünsche bleiben `queued`; «Abgleich jetzt ausführen» meldet «Abgleich nicht möglich» |
-| Ausgeschaltet | M-22, M-21 | M-22 Schalter «Jellyseerr verwenden» aus |
+| Nicht eingerichtet | M-21, M-22, M-20, M-23, M-24, M-25, M-27 | Mockup › «Nicht eingerichtet» oder M-22 «Verbindung löschen …»; M-22 zeigt die Schrittanleitung, ohne Bänder «Benutzer und Limit» und «Radarr und Sonarr»; M-27 ohne «Anfordern» |
+| Verbunden | alle | Mockup › «Verbunden» |
+| Verbunden mit Hinweis | M-21 (gelber Punkt, erster Hinweis «Staffeln aus TMDB»), M-22 (Test «Verbunden · 1 Hinweis») | ab Start: Staffeln aus TMDB |
+| Schlüssel ungültig | M-22, M-21, M-20 | Mockup › «Schlüssel ungültig» oder Schlüssel «falsch123» speichern |
+| Nicht erreichbar | M-22, M-21, M-20, M-23, M-24, M-13, M-31 bis M-35 | Mockup › «Nicht erreichbar» oder Adresse mit «falsch»; M-34 gesperrt, M-31 bis M-33 «Stand vom letzten Abruf» |
+| CSRF-Schutz an | M-22 (zwei Prüfpunkte rot), M-21 (gelber Punkt), M-20, M-23, M-13 | Mockup › «CSRF-Schutz an»; neue Wünsche bleiben `queued`, Abgleich «nicht möglich» |
+| Ausgeschaltet | M-22, M-21 | M-22 Schalter aus |
+| Radarr bzw. Sonarr nicht erreichbar | M-21 (Hinweis, sofern es der erste ist), M-22 (Band offen, Chip «Fehler», Prüfpunkt gelb, Fakt «Fortschritt nicht lesbar»), M-25 (Chip), M-23 («Fortschritt nicht lesbar», Tag «fehlgeschlagen»), M-20 («Wünsche ohne Profil-Tag»), M-30 (`wishes.tag`, `wishes.progress` mit Fehler) | Mockup «Radarr weg» oder M-22 eigene Adresse mit «falsch», «Speichern» |
+| Radarr bzw. Sonarr wieder erreichbar | wie oben, Tags nachgeholt | Mockup «Radarr erreichbar» oder Adresse korrigieren, «Testen», «Speichern» |
+| Staffeln aus TMDB / aus TVDB | M-22 Prüfpunkt «Staffeln aus TVDB» gelb bzw. grün, M-21 Hinweis, M-27 «Staffeln in Jellyseerr» | Mockup › «Jellyseerr liest Staffeln aus …» |
+| Lokale Anmeldung aus | nicht herstellbar (Abschnitt 9) | |
 | Andere Instanz erkannt | nicht herstellbar (Abschnitt 9) | |
 
-### 7.2 Zuordnung
+### 7.2 Jellyseerr-Benutzer eines Kontos und Passwort
 
 | Zustand | Mockup-Seite | Klickfolge |
 |---|---|---|
-| Profil zugeordnet | M-24 (Band «Profile» bei marco), M-11 | vorhanden: Sandra → sandra, Noah → kinder |
-| Profil nicht zugeordnet (wie Konto) | M-24, M-11 «Benutzer des Kontos» | vorhanden: Marco, Mia |
-| Konto nicht zugeordnet | M-24 Chip «Zuordnung fehlt», M-26, M-20 Hinweis; Profile sehen keine fehlenden Titel | vorhanden: grosseltern (mit Vorschlag), gast |
-| Benutzer nicht gefunden | M-24 (rote Warnung, Band offen), M-20, M-26 | M-24 «Benutzer „sandra“ in Jellyseerr löschen (Mockup)»; Mockup › Sandra: fehlende Titel verschwinden |
-| Zuordnung geändert | M-24 Chip «Zuordnung geändert», Meldung | eine Auswahl in M-24 ändern oder «Übernehmen» |
-| Belegter Benutzer | M-24 Auswahl gesperrt «(belegt von …)» | Auswahl bei grosseltern öffnen |
-| Sammelbenutzer | M-25, M-26, M-13 | M-25 «Sammelbenutzer», Benutzer wählen |
+| «Von Slouchcat eröffnet» | M-24, M-26, M-22 | vorhanden: grosseltern; neu: M-35 mit einer E-Mail, die es in Jellyseerr nicht gibt |
+| «Verknüpft über gleiche E-Mail» | M-24, M-26 | vorhanden: marco; neu: M-24 gast «In Jellyseerr eröffnen» oder «Alle eröffnen», oder einen Vorschlag bestätigen |
+| «Verknüpfung vorgeschlagen, wartet auf den Administrator» | M-24 (Band offen, «Verknüpfung bestätigen»), M-26 («Verknüpfung vorgeschlagen: … · Bestätigen», Spalte «Kein Jellyseerr-Benutzer»), M-20, M-22 (Zähler) | M-35 mit `tv@example.ch` (wohnzimmer-tv) annehmen; «Alle eröffnen» lässt den Vorschlag stehen; ebenso nach einer Eröffnung, die bei nicht erreichbarem Jellyseerr wartete |
+| «Von Hand zugeordnet» | M-24, M-26 | M-24 «Anderen Benutzer wählen», Benutzer, «Übernehmen», oder «Einem Konto zuordnen» im Band «ohne Konto» |
+| «Wird eröffnet, sobald Jellyseerr erreichbar ist» | M-24 (Hinweis «Wartet auf Jellyseerr»), M-26 («Wird in Jellyseerr eröffnet»), M-20, M-30 | Mockup › «Nicht erreichbar», dann M-24 «In Jellyseerr eröffnen» oder M-35 absenden; eröffnet wird bei «Abgleich jetzt ausführen» mit «Verbunden» |
+| «Nicht eröffnet» | M-24, M-26, M-20 | vorhanden: gast; neu: «Verknüpfung lösen» (ohne Rückfrage; der Benutzer bleibt in Jellyseerr) |
+| «In Jellyseerr gelöscht» | M-24 (rote Warnung), M-26 («Benutzer gelöscht»), M-20 | Mockup › Sandra-Ausnahme: «Benutzer «sandra» in Jellyseerr löschen (Mockup)»; für ein Konto: «Ausnahme» von Sandra entfernen, gast → sandra wählen, dann löschen |
+| Passwort «Gleich wie in Slouchcat» | M-24 mit Datum, M-26 «Passwort abgeglichen» | grosseltern; Konto aus M-35; nach «{Konto} meldet sich an» |
+| Passwort «Wird bei der nächsten Anmeldung in Slouchcat übernommen» | M-24, M-26, M-00 (Knopf «… meldet sich an») | gast verknüpfen; Konto aus M-35 bei «Nicht erreichbar» nach dem Abgleich; «Passwort bei der nächsten Anmeldung neu übernehmen» |
+| Passwort «Wird nicht abgeglichen» | M-24, M-26 | «Passwort nicht abgleichen» oder M-25 «Passwort abgleichen» aus und dann eröffnen |
+| Passwort «Bleibt in Jellyseerr (Administrator)» | M-24, M-26 (Meldung bei Passwortänderung) | marco |
+| Passwort «Anmeldung über Jellyfin oder Plex» | M-24, M-26 | gast «Anderen Benutzer wählen» → wohnzimmer-tv, oder den Vorschlag von `tv@example.ch` bestätigen |
+| Anmeldung übernimmt das Passwort | M-00, M-24, M-22 (Protokoll) | M-00 «gast meldet sich an»; bei «Nicht erreichbar»: Meldung, Stand bleibt |
+| Ausnahme gesetzt / entfernt | M-24, M-11, M-13 | M-24 Sandra «Sendet als» auf «Benutzer des Kontos (marco)»: Meldung «Ausnahme entfernt …» |
 
-### 7.3 Benachrichtigungen
+### 7.3 Limit
 
 | Zustand | Mockup-Seite | Klickfolge |
 |---|---|---|
-| neu (ungelesen) | M-09, Glocke mit Zähler | vorhanden: Marco «Dein Wunsch ist da: Godzilla Minus One»; neu durch Vorspulen |
-| gelesen | M-09 | Meldung anklicken oder «Als gelesen markieren», «Alle als gelesen markieren» |
-| Ereignis ausgeschaltet | M-10, M-29, M-00 «Zuletzt zugestellt» | M-10 bei E-Mail «Wünsche: verfügbar» abwählen; Mockup «Datei trifft ein» bei «Resident Evil»: Meldung am Bildschirm nennt nur «App, Web-Push» |
-| E-Mail und Web-Push | M-29 «Zuletzt zugestellt» | vorhanden für marco (beide aktiv); grosseltern nur E-Mail |
-| Telegram | M-10 | «Verknüpfen», «Verknüpfung prüfen», Schalter «Aktiv» an |
-| Freigabe nötig an Administratoren (Stufe 4) | M-29 «Zuletzt zugestellt» | Mockup › Noah fordert «Moana» an: Zustellung «Wunsch wartet auf Freigabe» an marco |
-| Zustandsmeldung (Stufe 4) | M-09 | Mockup «Freigeben»: Eingang «Freigegeben: …», extern nur mit Häkchen `wish_status` (ab Werk aus) |
-| Übermittlung nach 24 h gescheitert | M-09, M-29, M-00 | Mockup › «Nicht erreichbar», Titel anfordern, Mockup «24 h vergehen»: Eingang «Fehlgeschlagen: …» beim Profil (in den Papieren erst Stufe 4), Zustellung «Wunsch nicht übermittelt: …» per E-Mail an marco (Ereignis «Fehler», Stufe 2) |
-| PIN-Profil | M-29, M-00 | Mockup › Sandra fordert einen Film an, Mockup «Datei trifft ein»: Betreff ohne Titel |
-| nicht sichtbar, keine Meldung | M-09 | Verfügbar-Meldungen über einen Titel über der Altersstufe des Profils entstehen nicht (Funktion `notify` in `js/store.js`) |
+| frei | M-08, M-13, M-23, M-24, M-26, M-00 | Mockup › «Oma & Opa»: «8 von 10 Filmen frei», «3 von 5 Staffeln frei», davon direkt in Jellyseerr 2 und 2 |
+| kein Limit (Administrator) | überall, M-26 gesperrt | Marco |
+| kein Limit (Benutzer ohne Limit) | M-13, M-08 | Mockup › Sandra (Ausnahme sandra) |
+| Limit des Ausnahme-Benutzers | M-13, M-08, M-24 (Ausnahme) | Mockup › Noah (kinder, 5 Filme und 2 Staffeln, «Limit aus Jellyseerr: Dieser Benutzer gehört zu keinem Konto.») |
+| Filme erreicht | M-13 (gesperrt mit Datum), M-08 (Balken voll), M-20 («Zum Konto»), M-23 («1 Konto am Limit», «nächster Platz am …»), M-24 («Nächster Platz frei …») | Mockup › «Oma & Opa», «Filme ausschöpfen»; zurück mit «Direkte Wünsche leeren» |
+| Staffeln erreicht | wie oben | «Staffeln ausschöpfen» |
+| gekappte Vorwahl | M-13 | Mockup › «Oma & Opa», `#/titles/show/1100`, «Serie anfordern» |
+| zu viele Staffeln | M-13 | danach eine vierte Staffel oder «Alle fehlenden Staffeln» wählen |
+| eigenes Limit, unbegrenzt | M-26 Feld «Limit» im Formular «Zugriff», M-24, M-23 (Spalte «Art») | M-26 grosseltern «Eigenes» bzw. «Unbegrenzt», «Zugriff speichern» |
+| Vorgabe geändert | M-25, alle Orte oben | M-25 Filme auf 3 |
+| wartende Wünsche zählen mit | M-13 | Mockup › «Oma & Opa» bei «Nicht erreichbar» drei Filme anfordern: Zähler sinkt |
+| abgelehnte, zurückgezogene Wünsche und Mitwünsche zählen nicht | M-13 | Mockup › Noah: «Street Fighter» (abgelehnt) und «Godzilla Minus One» (Mitwunsch) zählen nicht, «4 von 5 Filmen frei» |
+
+### 7.4 Profil-Tag
+
+| Zustand | Mockup-Seite | Klickfolge |
+|---|---|---|
+| gesetzt | M-23 (Chip, Ereignis «Tag «sc-marco» in Radarr gesetzt»), M-22 (Zähler «Tags gesetzt (30 Tage)») | «Resident Evil», «Godzilla Minus One» (sc-marco, sc-noah), «Black Doves» (sc-sandra) |
+| noch nicht gesetzt | M-23 (Chip «… · noch nicht gesetzt», Diagnose «Folgt nach dem Übermitteln.»), M-22 (Zähler «offen») | «Toy Story 5» (`pending`); ein `queued`-Wunsch |
+| fehlgeschlagen | M-23 (Chip «… · fehlgeschlagen», Ereignis, Filter «Tag nicht gesetzt»), M-20 («n Wünsche ohne Profil-Tag»), M-22 (Zähler), M-30 (`wishes.tag` mit Fehler) | Mockup «Radarr weg», Marco fordert «Primetime» an |
+| nachgeholt | M-23 | Mockup «Radarr erreichbar» oder «Abgleich jetzt ausführen» oder M-30 `wishes.tag` «Jetzt ausführen» |
+| Mitwunsch bekommt seinen Tag | M-23 | Mockup › Sandra, «Resident Evil» «Benachrichtige mich»: zweiter Chip «sc-sandra» |
+| kein Tag bei direkt in Jellyseerr gestellten Wünschen | M-23 | «Verity», «Clayface» (N-27) |
+| eigener Name, gleicher Name | M-24, M-23, M-25 | M-24 Noah «Eigener Name» «sc-noah-k»; als «Oma & Opa» in M-11 ein Profil «Noah» anlegen: es bekommt «sc-noah-grosseltern», Noah behält «sc-noah» (N-21 nach K-18) |
+| ausgeschaltet | M-23 («Ausgeschaltet»), M-30, M-22 | M-25 «Profil-Tag in Radarr und Sonarr setzen» aus |
+
+### 7.5 Benachrichtigungen
+
+| Zustand | Mockup-Seite | Klickfolge |
+|---|---|---|
+| neu (ungelesen) | M-09, Glocke | vorhanden: Marco «Dein Wunsch ist da: Godzilla Minus One»; neu durch Vorspulen |
+| gelesen | M-09 | anklicken, «Als gelesen markieren», «Alle als gelesen markieren» |
+| Ereignis ausgeschaltet | M-10, M-29, M-00 | M-10 E-Mail «Wünsche: verfügbar» ab; «Datei trifft ein» bei «Resident Evil»: Meldung nennt «App, Web-Push» |
+| Freigabe nötig an Administratoren (Stufe 4) | M-29, M-00 | Mockup › Noah fordert «Moana» an |
+| Zustandsmeldung (Stufe 4) | M-09 | Mockup «Freigeben»: «Freigegeben: …» |
+| Übermittlung nach 24 h gescheitert | M-09, M-29, M-00 | «Nicht erreichbar», anfordern, «24 h vergehen» |
+| PIN-Profil | M-29, M-00 | Mockup › Sandra fordert an, «Datei trifft ein»: Betreff ohne Titel |
+| nicht sichtbar, keine Meldung | M-09 | «verfügbar» über einen Titel über der Altersstufe entsteht nicht (`notify` in `js/store.js`) |
+| keine Meldung zu Limit oder Download | M-09 | «Download hängt», «Filme ausschöpfen»: kein Eingang |
 
 ## 8. Bestehende Funktionen bleiben
 
@@ -548,74 +701,102 @@ Serienseite (M-06), W = Meine Wünsche (M-08), A = Verwaltung Anfragen (M-23), S
 | M-01 Startseite | Bühne blättern, Pause, Wechsel, Posterreihe, Gesehen, Merken, alle Reihen nach Verwaltung | Reihen mit festen Beispieltiteln; «Abspielen» und «Trailer» als Dialog; Sammlungen, Genres, Meine Medien nur als ausgeblendete Zeilen |
 | M-02 Spotlight-Liste | Raster, «Zurück» | keine Sortierung |
 | M-05/M-06 Detailseiten | Abspielen, Von vorne, Trailer, Merken, Gesehen, Empfehlen, Löschen-Dialog, Staffelwahl, Folgenliste, Gesehen je Folge, Besetzung | Player und Trailer als Dialog; Löschen löscht nichts; höchstens 30 Folgen je Staffel |
-| M-07 Suche | Suchfeld, alle Filter, Personen, Sammlungen | Personen und Sammlungen führen auf die Hinweisseite «Unverändert»; «Auf diesem Gerät» mit drei festen Titeln |
+| M-07 Suche | Suchfeld, alle Filter, Personen, Sammlungen | Personen und Sammlungen führen auf «Unverändert»; «Auf diesem Gerät» mit drei festen Titeln |
 | M-09 Benachrichtigungen | «Neue Folge», gelesen/ungelesen, «Alle als gelesen markieren», «Kanäle einstellen» | |
 | M-10/M-29 Kanäle | Aktiv, Ereignisse, Adresse, Telegram-Verknüpfung, Geräte, Speichern, Testnachricht | «In Telegram öffnen» nur als Meldung |
 | M-11 Profile | ganzer Profildialog, PIN, Schauzeit, Löschen | Schauzeit als erfundenes Diagramm |
 | M-12 Profilwahl | Kacheln, PIN | jede vierstellige PIN öffnet; Kontowechsel nur im Mockup |
 | M-20 Übersicht | Kennzahlen, Hinweise, Schnellzugriffe, Serverzustand, Aktivität | «Gerade aktiv» und «Jetzt läuft» fest; Streams, Pflege, Speicher als feste Zahlen |
 | M-21 Integrationen | alle sechs Ansichten mit Speichern, Prüfen, Löschen, Webhooks samt Pfad-Umsetzung | externe Seiten nur als Meldung; Prüfungen simuliert |
-| M-26 Konten | Tabelle, Zugriff, Konto ändern, Einladungen, Rollen, Entfernen | Passwortprüfung simuliert |
+| M-26 Konten | Tabelle, Zugriff, Konto ändern, Einladungen, Rollen, Entfernen | jedes nicht leere aktuelle Passwort gilt |
 | M-27 Spotlight | alle elf Felder des Bands «Quelle», Einträge, verwaiste Anpassungen | Abruf ändert die Liste nicht |
 | M-28 Startseite | Platz, Ausblenden, Grenze 15, Vorschau, Speicherleiste | Vorschau als Schema |
 | M-30 Hintergrundjobs | alle Jobarten, Pools, Läufe, Zeitpläne, Fehlschläge | Läufe und Restzeiten erfunden |
-| unveränderte Seiten | Merkliste, Gesehen, Einstellungen, Bibliotheken, Person, Sammlungen (`#/unchanged/…`); 15 Verwaltungsseiten (`#/admin/x/…`, etwa Pflege, Geräte, Streams) | nur Hinweisseite «Unverändert» mit «Zurück» und «Alle Mockup-Seiten» |
+| M-35 Einladung annehmen | Felder und Prüfungen | nur die Einladung «Für Tante Ruth» und neu ausgestellte; das Passwort lebt nur im Entwurf und wird nicht gespeichert |
+| unveränderte Seiten | Merkliste, Gesehen, Einstellungen, Bibliotheken, Person, Sammlungen (`#/unchanged/…`); 15 Verwaltungsseiten (`#/admin/x/…`) | nur Hinweisseite «Unverändert» |
 
-**Was das Mockup grundsätzlich nicht zeigt:** Lade- und Fehlerzustände der App ausser dem Verbindungstest (etwa
-`tmdb_unreachable` 503, 429 der Suche); Offline-Verhalten der PWA; Texte in den 23 Sprachen; Tastaturtests nach
-Regel 8 (das Mockup ist bedienbar, wird aber nicht geprüft); echte Bilder, wenn `img/` fehlt; Zeitabläufe ausser
-der 24-Stunden-Grenze (Backoff, Zeitplan, Frist 14 Tage); den echten Player und Trailer.
+**Was das Mockup grundsätzlich nicht zeigt:** Lade- und Fehlerzustände der App ausser den Verbindungstests (etwa
+`tmdb_unreachable` 503, 429 der Suche); Offline-Verhalten der PWA (auch nicht «Nur online verfügbar» in M-08);
+Texte in den 23 Sprachen; Tastaturtests nach Regel 8 (das Mockup ist bedienbar, wird aber nicht geprüft); echte
+Bilder, wenn `img/` fehlt; Zeitabläufe ausser der 24-Stunden-Grenze und dem rollierenden Limit (Backoff,
+Zwischenspeicher von 1 Stunde, Zeitplan, Frist 14 Tage); echte Listen von TMDB und Jellyseerr; Jellyseerr selbst
+(etwa die Anmeldung dort oder seine eigenen E-Mails, K-19); den echten Player und Trailer.
 
-## 9. Lücken
+## 9. Verbleibende Lücken
 
-Stellen, die das Mockup nicht bedienbar macht oder nicht zeigt, obwohl die Papiere sie vorsehen. Nicht repariert.
-Die Regel F-9 (fehlende Titel nur bei Anfordern-Können) und die Folge, dass «kein Recht» und «Konto ohne
-Zuordnung» im Dialog M-13 nur über einen eigenen Wunsch erreichbar sind, sind keine Lücke mehr: So steht es in
-`02-funktionskonzept.md` Abschnitt 4.5.
+Stellen, die das Mockup nicht bedienbar macht oder nicht zeigt, obwohl Papiere oder Regeln N-1 bis N-88 und N-2a
+sie vorsehen. Nicht repariert. Geprüft wurden alle Regeln und alle Seitenabschnitte von `07` gegen den heutigen
+Code.
 
-| Nr. | Lücke | Datei und Stelle | Warum das nicht stört oder wo es steht |
+| Nr. | Lücke | Datei und Stelle | Wo es steht |
 |---|---|---|---|
-| 1 | Der Verbindungstest kann «Handeln im Namen von Benutzern wirkt nicht», «Version zu alt» und «Kein Sonarr in Jellyseerr» nicht als Fehler oder Warnung zeigen; die Varianten von «Nicht erreichbar» (abgelehnt, Weiterleitung), die Warnung bei `http` ausserhalb des Heimnetzes und die Pflicht, bei neuem Host den Schlüssel neu einzugeben, fehlen | `js/admin-a.js` Zeilen 347 bis 369 (`aaSeerrRun`) und 440 bis 459 (`ACT.aaSeerrSave`) | Die Prüfliste zeigt alle sieben Punkte und ihre Form; die Texte der Fehlerfälle stehen in `07-administration.md` Abschnitt 4.1 und `08-datenmodell-api.md` Abschnitt 4.5 (`testSeerrConnection`) |
-| 2 | «Wünsche aktiv» lässt sich einschalten, ohne dass der Test zuletzt gelang | `js/admin-b.js` Zeile 311 | Teilfrage T-1 ist offen (`11-entscheide-und-adr.md`, Teilfragen T-1 und T-2); `07-administration.md` Abschnitte 4.6 und 7 |
-| 3 | Instanzwechsel fehlt ganz: kein Prüfpunkt «Instanz», kein Zustand «Andere Instanz erkannt» auf M-21 und M-22, kein Hinweis «Andere Jellyseerr-Instanz erkannt» auf M-20, kein Band mit «Zuordnung bestätigen» und «Zuordnung löschen» auf M-24 | kein Vorkommen von «Instanz» in `js/` | Fingerabdruck ist **Vorschlag**; Ablauf in `03-architektur.md` Abschnitt 7.4, `04-benutzer-profilmapping.md` Abschnitt 8.4, `07-administration.md` Abschnitte 2, 4.1 und 6, AK-107 |
-| 4 | Warnung «Auto-Freigabe für ein Kinderprofil» fehlt, etwa wenn Mia «wie Konto» als marco mit Auto-Freigabe sendet | `js/admin-b.js` Zeilen 173 bis 180 (`abUserWarn`) | **Vorschlag** in `07-administration.md` Abschnitt 6; die übrigen Warnungen zeigen die Form |
-| 5 | Diagnose in M-23 ohne Versuche, nächsten Versuch, Media-ID, Rohstatus und Sichtbarkeit je Anforderer («für Noah nicht sichtbar»); kein Filter nach Medienart und keine eigene Spalte «Art»; Kennzahl «Verfügbar» zählt alle verfügbaren statt der letzten 30 Tage; bei fehlender Verbindung sind «Freigeben» und «Ablehnen» nicht gesperrt, sondern melden «Geht nicht …» | `js/admin-b.js` Zeilen 43 bis 54, 57 bis 94 und 100; `js/store.js` Zeile 207 | Aufbau, Verlauf und die vorhandene Diagnose genügen zur Beurteilung; vollständig in `07-administration.md` Abschnitte 5 und 13 |
-| 6 | Zusatz «wird eingelesen» bei `processing` fehlt, ebenso der Vorschlag «5 von 10 Folgen» für eine teilweise eingelesene Staffel | kein Vorkommen in `js/` | `02-funktionskonzept.md` Abschnitte 2 und 6, `03-architektur.md` Abschnitte 8.1 und 8.3; der Zustandschip zeigt die Form |
-| 7 | Der Fall «Serie ohne TVDB-ID» (kein Knopf, Hinweis) ist nicht dargestellt | kein Vorkommen in `js/` | AK-39 und `10-abnahmekriterien.md` Abschnitt 8 (M-03, M-04); Hinweisform wie «Anfordern ist für dieses Profil nicht möglich» in `js/viewer-titles.js` Zeile 107 |
-| 8 | Stufen sind nur bei «Sofortmeldung» gekennzeichnet. Ohne Hinweis erscheinen: Freigeben/Ablehnen (M-23), Eingangsmeldungen «Freigegeben», «Abgelehnt», «Fehlgeschlagen» und Staffel-Meldungen (M-09, auch nach «24 h vergehen»), `wish_status` und `wish_review` (M-10, M-29), fehlende Staffeln (M-06) und `wishes.import`, `series.catalog` (M-30), alle Stufe 4 | `js/admin-a.js` Zeile 415; `js/viewer-pages.js` Zeile 237 (`VP_EVENTS`) | Die Stufen stehen in `06-benachrichtigungen.md` Abschnitt 2 und `09-umsetzungsplan.md` Abschnitte 3 bis 6; das Mockup zeigt das Endbild |
-| 9 | Ungespeicherte Änderungen (M-22, M-26, M-27, M-28) zeigen den Chip «ungespeichert» bzw. «Ungespeicherte Änderungen», aber beim Verlassen der Seite kommt keine Rückfrage | keine Wegnavigations-Sperre in `js/core.js` (`go`, `render`) | Die Rückfrage ist heutiges Verhalten und bleibt (`07-administration.md` Abschnitte 3, 8 und 9) |
-| 10 | M-24 hat keinen Knopf «Anfragen übernehmen» (Stufe 4); die Meldung nach einer Zuordnung nennt keine Folgen («2 offene Wünsche bleiben bei kinder», «3 Anfragen von grosseltern werden übernommen»); `wishes.import` und `wishes.withdraw` stehen in M-30, laufen aber nie (Zurückziehen setzt sofort `withdrawn`, ohne Job und ohne den Fall «war schon freigegeben») | `js/admin-b.js` Zeilen 224 und 240 bis 251; `js/admin-a.js` Zeilen 534 und 535; `js/store.js` Zeilen 393 bis 401 (`withdrawWish`) | Übernahme als Beispieldaten («Verity», «Clayface») sichtbar; Regeln in `03-architektur.md` Abschnitte 6.6 und 7.3, `04-benutzer-profilmapping.md` Abschnitt 8.2, `07-administration.md` Abschnitte 5 und 6 |
-| 11 | Der Kopf der Kanalbänder zählt die Ereignisse nicht («5 Ereignisse») | `js/viewer-pages.js` Zeile 253 | `07-administration.md` Abschnitt 11; die Häkchen selbst sind bedienbar |
-| 12 | Erstabgleich von `wishes.sync` als eigener Lauf mit Fortschritt («Seite 12 von 60») fehlt | kein Vorkommen in `js/` | `10-abnahmekriterien.md` Abschnitt 8 (M-30), `03-architektur.md` Abschnitt 7.2, `07-administration.md` Abschnitt 12 |
-| 13 | Bei «CSRF-Schutz an» stimmen drei Texte nicht: Das Band «Abgleich» sagt «solange Jellyseerr den Schlüssel ablehnt»; der Dialog M-13 sagt «Jellyseerr ist gerade nicht erreichbar»; auch der lesende Abgleich wird verweigert, obwohl nur schreibende Aufrufe scheitern | `js/admin-a.js` Zeile 393; `js/home.js` Zeile 150; `js/store.js` Zeile 412 (`syncNow`) | Der Zustand selbst ist herstellbar und wirkt richtig auf neue Wünsche (`queued` mit Zusatz); Texte nach `07-administration.md` Abschnitt 4.1 |
+| 1 | Verbindungstest: «Handeln im Namen von Benutzern wirkt nicht», «Version nicht geprüft» (die Version ist fest «Seerr 3.5.2»), «Kein Sonarr in Jellyseerr», die Varianten von «Nicht erreichbar» und die Pflicht, bei neuem Host den Schlüssel neu einzugeben, sind nicht herstellbar; ebenso «Benutzer anlegen und ändern» als Fehler. Der Prüfpunkt «Passwort verschlüsselt» (Warnung bei `http` ausserhalb des eigenen Netzes, N-12) fehlt ganz. «Speichern» löst keinen Test aus | `js/admin-a.js` `aaSeerrRun`, `aaSeerrRows`, `ACT.aaSeerrSave` | `07-administration.md` Abschnitt 4.1; `08-datenmodell-api.md` Abschnitt 4.6 (`password_transport`); N-11, N-12 |
+| 2 | «Lokale Anmeldung in Jellyseerr» ist im Mockup fest an; die Warnungen im Test, an der Kachel, in M-25 und in M-24 lassen sich nicht zeigen | `js/store.js` `seed()` (`localLogin: true`), keine Steuerung in `js/mock.js` | N-11; `07-administration.md` Abschnitte 4.1, 4.7, 6 und 7 |
+| 3 | «Wünsche aktiv» lässt sich einschalten, ohne dass der Test zuletzt gelang | `js/admin-b.js` `route('/admin/wishes/settings')` | **Vorschlag** T-1; `07-administration.md` Abschnitte 4.6 und 7 |
+| 4 | Instanzwechsel fehlt: kein Prüfpunkt «Instanz», kein Zustand «Andere Instanz erkannt», kein Hinweis in M-20, keine Knöpfe «Zuordnung bestätigen» und «Zuordnung löschen» | kein Vorkommen in `js/` | `07-administration.md` Abschnitte 2, 3, 4.1, 6 und 13; `04-benutzer-profilmapping.md` Abschnitt 8.4; `confirmSeerrInstance` |
+| 5 | Warnungen in M-24 «Auto-Freigabe für ein Kinderprofil» und «Lokale Anmeldung in Jellyseerr aus» fehlen; «darf keine Serien anfordern» ist mit den Beispieldaten nicht herstellbar (alle Benutzer, die es schon gab, dürfen beides), ebenso der Grund `seerr_kind` und der Fehlschlag «darf diese Art von Titel nicht anfordern» | `js/admin-b.js` `abUserWarn`; `js/store.js` `seed()` | `07-administration.md` Abschnitt 6; `04-benutzer-profilmapping.md` Abschnitt 10 |
+| 6 | M-23: Diagnose ohne Media-ID, Rohstatus, Versuche, nächsten Versuch, TVDB- und IMDb-ID, Sichtbarkeit je Anforderer, Zeit des letzten Lesens des Fortschritts und Download-Programm; «Fortschritt unvollständig» (AK-208) fehlt; keine Spalte «Art», kein Filter nach Medienart, keine Suche nach Titel; Kennzahl «Verfügbar (letzte 30 Tage)» zählt alle verfügbaren; ohne Verbindung sind «Freigeben» und «Ablehnen» nicht gesperrt, sondern melden «Geht nicht …»; 409 «Schon entschieden» fehlt | `js/admin-b.js` `abWishRow`, `AB_WF`, `ACT.abApprove`; `js/store.js` `wishCounts` | `07-administration.md` Abschnitte 5 und 13 |
+| 7 | Folgenstand: «x von y Folgen da» gibt es nur als fester Wert beim Beispiel «Black Doves» und nur während «Wird heruntergeladen»; ein neuer Serienwunsch bekommt keinen Folgenstand, auch nicht je Staffel; die Staffelkarte «5 von 10 Folgen» einer teilweise eingelesenen Staffel fehlt | `js/model2.js` `dlInfo` (`d.eps`); `js/store.js` `seed()` (`w105`), `arriveWish` | N-83; AK-201; `02-funktionskonzept.md` Abschnitt 6 |
+| 8 | Der Fall «Serie ohne TVDB-ID» (kein Knopf, Hinweis) ist nicht dargestellt | kein Vorkommen in `js/` | AK-39; `10-abnahmekriterien.md` Abschnitt 8 (M-03, M-04) |
+| 9 | Die Staffelquelle von Jellyseerr wirkt nur auf Test, Kachel und M-27. Der Dialog M-13 zeigt die Staffeln immer aus den Beispieldaten; ein Beispiel, in dem TMDB und TVDB eine Serie verschieden teilen, gibt es nicht | `js/home.js` `DIALOGS.wish` (`t.seasons`); `js/mock.js` `ACT.mockSeasons` | N-63, N-64; `05-spotlight-integration.md` Abschnitt 3.3 |
+| 10 | Spotlight-Abgleich: Der Erkennungsweg je Serie ist fest hinterlegt, der nicht zuordenbare Eintrag «Hafen im Nordlicht» ist ein fester Vorführeintrag; dass eine TVDB-zuerst-Serie heute fehlte und jetzt erscheint, lässt sich nicht vorher/nachher zeigen | `js/model2.js` `ID_MATCH`; `js/admin-b.js` `AB_UNMATCHED` | N-62, N-73; AK-75, AK-169 |
+| 11 | Stufen sind nur bei «Sofortmeldung» und `wishes.import` gekennzeichnet. Ohne Hinweis erscheinen: Freigeben/Ablehnen, Status- und Staffel-Meldungen, `wish_status`, `wish_review`, fehlende Staffeln, `series.catalog` (Stufe 4), Profil-Tag und Download-Fortschritt (Stufe 4), die Seiten M-31 bis M-34 und `wishes.discover` (Stufe 5), Reihe «Erfüllte Wünsche» und Spotlight-Abgleich (Stufe 3) | `js/admin-a.js` (`aaSeerrView`, `AA_JOBS`); `js/viewer-pages.js` `VP_EVENTS` | Anhang H 4.7 und 8.7; `09-umsetzungsplan.md` |
+| 12 | Ungespeicherte Änderungen (M-22, M-26, M-27, M-28) zeigen einen Chip, aber beim Verlassen kommt keine Rückfrage | `js/core.js` (`go`, `render`) | heutiges Verhalten (`07-administration.md` Abschnitte 3, 8, 9) |
+| 13 | M-24 hat kein «Anfragen übernehmen» (Stufe 4); nach «Anderen Benutzer wählen» nennt die Meldung keine Folgen («2 offene Wünsche bleiben bei kinder»), nur «Einem Konto zuordnen» nennt die Zahl der Anfragen; `wishes.import` und `wishes.withdraw` laufen nie; Zurückziehen setzt sofort `withdrawn`, ohne den Fall «war schon freigegeben» | `js/admin-b.js` `ACT.abPickOk`, `ACT.abAssignOk`; `js/store.js` `withdrawWish` | `07-administration.md` Abschnitte 5 und 6; `04-benutzer-profilmapping.md` Abschnitt 8.2 |
+| 14 | Der Kopf der Kanalbänder zählt die Ereignisse nicht | `js/viewer-pages.js` `channelSettingsHtml` | `07-administration.md` Abschnitt 11 |
+| 15 | Erstabgleich von `wishes.sync` als eigener Lauf mit Fortschritt fehlt | kein Vorkommen in `js/` | `07-administration.md` Abschnitt 12; `10-abnahmekriterien.md` Abschnitt 8 (M-30) |
+| 16 | Texte bei «CSRF-Schutz an»: Band «Abgleich» sagt «solange Jellyseerr den Schlüssel ablehnt», M-13 «Jellyseerr ist gerade nicht erreichbar», M-31 bis M-35 ebenfalls «nicht erreichbar»; auch der lesende Abgleich wird verweigert | `js/admin-a.js` `aaSeerrView`; `js/home.js` `DIALOGS.wish`; `js/viewer-discover.js` `dcStale`; `js/store.js` `syncNow` | `07-administration.md` Abschnitt 4.1 |
+| 17 | Kein Ablauf «Passwort zurücksetzen» (weder für das eigene Konto noch durch den Administrator); die Weitergabe an Jellyseerr in diesem Moment ist darum nicht zu sehen | kein Vorkommen in `js/` | N-3, N-5; `04-benutzer-profilmapping.md` Abschnitt 13.1 |
+| 18 | Eine geänderte E-Mail geht nicht an Jellyseerr, und ein Konto ohne Benutzer bekommt danach keinen Vorschlag (N-2a); «Konto ändern» ändert die Adresse nur in Slouchcat. Mit den Beispieldaten führt eine Passwortänderung immer zu «bleibt in Jellyseerr (Administrator)»; «Das neue Passwort gilt auch in Jellyseerr» erreicht man nur über ein Konto aus M-35, das Marco danach zum Administrator ernennt | `js/admin-b.js` `ACT.abOwnSave`; `js/model2.js` `pwChanged` | N-5, N-2a; `07-administration.md` Abschnitte 6 und 8; `08` `updateAccount` |
+| 19 | Konto entfernen: Das Zufallspasswort für einen eröffneten Benutzer steht nur im Dialogtext, in der Meldung und im Protokoll; der Benutzer erscheint danach unter «Jellyseerr-Benutzer ohne Konto» mit gesperrten Rechten | `js/admin-b.js` `DIALOGS.abRemove`, `ACT.abRemoveOk` | N-10 nach K-2, F-31; `04-benutzer-profilmapping.md` Abschnitt 15 |
+| 20 | «Tag Requests» steht nur als Fakt (Radarr an, Sonarr aus); der Tag des Kontos (`4-grosseltern`) erscheint nirgends, und der Wert lässt sich nicht umschalten | `js/store.js` `seed()` (`tagRequests`); `js/admin-a.js` `aaArrBand` | N-28; `07-administration.md` Abschnitt 4.8 |
+| 21 | Die Reihen von «Entdecken» sind Beispieldaten: «Demnächst als Serie» ist mit laufenden Serien gefüllt (etwa «Die Simpsons» seit 1989, «Grey's Anatomy», «Navy CIS»), nicht mit angekündigten; «Im Trend» hat kein Zeitfenster; «Mehr laden» deckt nur die vorhandene Beispielliste weiter auf | `js/data-discover.js` `DISCOVER_ROWS`; `js/model2.js` `DISC_ORDER` | N-51, N-54; Anhang H 3.3 |
+| 22 | Die Wunsch-Suche findet nur die 82 Beispieltitel (Titel und Originaltitel), nicht alles, was TMDB kennt; Kennungen nur, soweit `js/data-discover.js` sie führt; Personen sind nicht suchbar (gewollt, N-53), es gibt aber auch kein Beispiel, das einen Personentreffer ausblendet | `js/model2.js` `discoverSearch` | N-53; AK-184 |
+| 23 | Vorschlag F-33 (Sofort-Import über Pfad und Kennung aus der Webhook-Meldung) ist nirgends gezeigt, auch nicht die zwei zusätzlichen Spalten im Meldungsprotokoll der Webhooks | kein Vorkommen in `js/` | N-88; `07-administration.md` Abschnitt 14; `09-umsetzungsplan.md` Abschnitt 6a |
+| 24 | Die Eröffnung meldet nach 24 Stunden «wartet» kein Fehlerereignis an die Administratoren | `js/model2.js` `provisionAccount` | `04-benutzer-profilmapping.md` Abschnitt 10 |
+| 25 | Jellyseerr-Adresse von Radarr oder Sonarr geändert («Radarr-Adresse in Jellyseerr geändert. Testen, um sie zu übernehmen.») und der bestätigte Host fehlen | `js/admin-a.js` `aaArrBand`, `ACT.aaArrTest` | `07-administration.md` Abschnitt 4.8; AK-171 |
 
-## 10. Unterschiede zwischen Mockup und Papieren
+Gegenüber dem ersten Stand von Fassung 3 geschlossen: Ein nicht zuordenbarer Spotlight-Eintrag ist als
+Vorführeintrag zu sehen (Lücke 10 nur noch eingeschränkt); «Wird eingelesen» gibt es seit dem Download-Fortschritt;
+die Regel F-9 und die Folge, dass «kein Recht» im Dialog M-13 nur über einen eigenen Wunsch erreichbar ist, stehen
+so in `02-funktionskonzept.md` Abschnitt 4.5.
+
+## 10. Widersprüche zwischen Mockup und Papieren
 
 ### 10.1 Bewusste Unterschiede
 
 | Stelle | Mockup | Papiere |
 |---|---|---|
-| «Jellyseerr verwenden» | startet eingeschaltet (`js/store.js` Zeile 37, `seerr.enabled: true`) | ab Werk aus (`07-administration.md` Abschnitt 4.1, `08-datenmodell-api.md` Abschnitt 2.12) |
-| «Wünsche aktiv» | startet eingeschaltet (`js/store.js` Zeile 47) | ab Werk aus, Redaktionsentscheid (`07-administration.md` Abschnitt 7) |
-| «Fehlende Titel zeigen» | startet eingeschaltet (`js/store.js` Zeile 48, `showMissing: true`) | ab Werk aus (F-8, `07-administration.md` Abschnitt 9) |
-| Beispieldaten, Zeit, Jellyseerr | gespielt über M-00 | gehört nicht zur App |
+| «Jellyseerr verwenden» | startet eingeschaltet (`js/store.js` `seed()`, `seerr.enabled: true`) | ab Werk aus (`07-administration.md` Abschnitt 4.1, `08-datenmodell-api.md` Abschnitt 2.12) |
+| «Wünsche aktiv» | startet eingeschaltet (`settings.wishes.enabled: true`) | ab Werk aus (`07-administration.md` Abschnitt 7) |
+| Konten in Jellyseerr | marco und grosseltern haben schon einen Benutzer | entstehen erst nach dem Einrichten; bestehende Konten eröffnet der Administrator (K-15; `04-benutzer-profilmapping.md` Abschnitt 11 beschreibt denselben Stand als Beispiel) |
+| nicht zuordenbarer Spotlight-Eintrag | «Hafen im Nordlicht» ist erfunden (`AB_UNMATCHED`) | kommt in der App aus der Trakt-Liste |
+| Beispieldaten, Zeit, Jellyseerr, Radarr, Sonarr | gespielt über M-00 | gehört nicht zur App |
 
-Die drei Schalter stehen an, damit man ohne Einrichtung sofort fehlende Titel sieht.
+Die Schalter stehen an, damit man ohne Einrichtung sofort anfordern kann.
 
-### 10.2 Verbleibende echte Widersprüche
+### 10.2 Verbleibende Widersprüche
 
-Keine bekannt. Die sieben Widersprüche, die diese Matrix in ihrer vorigen Fassung führte, sind am 17. November 2026
-behoben und im Browser nachgeprüft:
+Keine bekannt. Der letzte Fall (M-24: Kennzahlen der Kopfzeile, Platz des Bands mit Vorschlag, Name des Knopfs
+«Verknüpfung lösen») ist in `07-administration.md` Abschnitt 6 nachgezogen: Das Papier beschreibt jetzt, was das
+Mockup zeigt.
 
-| Nr. | Widerspruch | Behoben durch |
-|---|---|---|
-| 1 | «Auf Detailseiten» aus zeigte weiter gedämpfte Karten, Zeile und Chip | Mockup: `js/viewer-titles.js` (`ghosts` verlangt `fromDetail`), `js/home.js` (`metaLine`) |
-| 2 | Hilfetexte in M-25 beschrieben die alte Regel | Mockup: `js/admin-b.js` |
-| 3 | Alle drei Stellen aus: Vorschauseite blieb erreichbar | Mockup: `missingVisible` in `js/store.js` verlangt mindestens eine Stelle; eigene Wünsche bleiben sichtbar |
-| 4 | Detailseite Film galt als unverändert, zeigt aber den Chip «Dein Wunsch ist da» | Papiere: `02-funktionskonzept.md` Abschnitt 5, `10-abnahmekriterien.md` Abschnitt 8 |
-| 5 | Namen und Gruppe von `wishes.withdraw` und `wishes.import` in M-30 | Mockup: `js/admin-a.js` (Namen wie `07-administration.md` Abschnitt 12, `wishes.withdraw` unter Zustellung, `wishes.import` mit «Stufe 4») |
-| 6 | CSRF-Schutz im Test nur als Warnung | Mockup: `js/admin-a.js` (Prüfpunkt gilt als nicht bestanden) |
-| 7 | Hinweis «n Konten ohne Zuordnung» zählte trotz Sammelbenutzer | Mockup: `js/admin-a.js` |
-
-Ebenfalls behoben: Der Hinweis «Bereits angefordert» auf der Vorschauseite passt sich an «Nur Zustand zeigen» an, und der
-Chip «2 von 3 Staffeln vorhanden» prüft jetzt das Recht für den Titel (Art, Rechte des Jellyseerr-Benutzers).
+**Wie die 30 Widersprüche des ersten Stands gelöst wurden.** Im **Mockup** geändert wurden die Nummern 1 bis 13,
+15 bis 26, 28 und 30: Filter «Tag nicht gesetzt» und «Download verzögert» mit Link `?f=` (1), Sammelhinweis ohne
+Meldung von Radarr (2), Hinweis nur für Konten mit Wunschrecht (3), Kachel mit erstem Hinweis und Beschreibung (4),
+Reihenfolge und Fakten der Bänder (5), Prüftexte und Version (6), Einleitung und Hinweis des Bands «Benutzer und
+Limit» (7), Band «Radarr und Sonarr» mit Zählern und «Speichern» (8), Tag-Chips mit Zustand, Tabelle «Limit je
+Konto» mit «Art» und nächstem Platz, nur zwei Aktionen bei nicht zuordenbaren Anfragen (9), kein Tag für direkt in
+Jellyseerr gestellte Wünsche (10), Rückfrage bei «Alle eröffnen», «Verknüpfung lösen» ohne Dialog (11),
+`seerrFreeFor` (12), gesperrte Knöpfe bei ausgeschaltetem Eröffnen (13), Bezeichnungen und «Präfix» 1 bis 10 (15),
+Limit im Formular «Zugriff» und gesperrt bei Administratoren (16), Zeile «Jellyseerr-Benutzer» mit Passwortstand und
+Hinweis unter «Neues Passwort» (17), Konto entfernen mit `account_deleted` und Unterscheidung eröffnet/verknüpft
+(18), Liste, Hinweis und «Anfordern» im Band «Fehlende Einträge» (19), Band «Abgleich» mit Zählung, Staffelquelle
+und nicht zuordenbarem Eintrag (20), keine Chips auf der Bühne und kein Staffelhinweis in «Erfüllte Wünsche» (21),
+Leerzustand von M-08 mit «Entdecken» (22), Reihenfolge der Genre-Reihen (23), Marke «In der Bibliothek» (24),
+Suche ab zwei Zeichen (25), Namen und Gruppen der Jobs (26), Klartext beim abgelehnten Limit (28), Wünsche eines
+gelöschten Profils gehen an das Hauptprofil (30). In den **Papieren** geändert wurden die Nummern 14 (M-24 als
+Bänder in `07` Abschnitt 6), 15 (Name «Konten ohne Jellyseerr-Benutzer»), 27 (Dialog auch aus M-08 und M-27), 28
+(Text «Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.»), 29 (M-35 zeigt die Fakten der Einladung)
+und bei Nummer 2 die 24-Stunden-Regel (Hinweis und Filter zählen nur Tags, die nicht gesetzt werden konnten). Die
+sieben Widersprüche der Fassung 2 bleiben behoben.

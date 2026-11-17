@@ -32,6 +32,17 @@
 .aa-links ul { display: flex; flex-direction: column; gap: 8px; }
 .aa-feed li { align-items: flex-start; }
 .aa-feed .dot { margin-top: 7px; }
+/* Fassung 3: users and limit, Radarr and Sonarr for profile tags */
+.aa-kv dd { min-width: 0; overflow-wrap: anywhere; }
+.aa-kv dd .muted { display: block; font-size: 12px; }
+.aa-counts { display: flex; flex-direction: column; gap: 6px; }
+.aa-counts li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--tx2); }
+.aa-arrs { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@container app (min-width: 900px) { .aa-arrs { grid-template-columns: 1fr 1fr; } }
+.aa-arr { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px solid var(--frame); border-radius: 12px; background: var(--s1); }
+.aa-arrh { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.aa-arrh b { font-weight: 600; }
+.aa-arr .inp { width: 100%; min-width: 0; }
 
 /* overview */
 .stat.aa-new { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
@@ -94,3 +105,8 @@
   .aa-job { grid-template-columns: minmax(240px, 2.2fr) minmax(110px, 0.8fr) minmax(150px, 1.1fr) minmax(150px, 1.1fr) auto; }
   .aa-ja { grid-column: auto; justify-content: flex-end; max-width: 360px; }
 }
+
+/* Jellyseerr: link-styled buttons and the references of the band «Radarr und Sonarr» */
+.adm button.lnk { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.aa-links-in { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.aa-links-in .lnk { overflow-wrap: anywhere; }

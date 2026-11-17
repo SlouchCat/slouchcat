@@ -2,8 +2,15 @@
    Nothing here talks to a server. The state lives in localStorage so a reload keeps what you tried. */
 'use strict';
 
-const STORE_KEY = 'slouchcat-mockup-25-v4';
+const STORE_KEY = 'slouchcat-mockup-25-v5';
 const H = 3600e3, D = 24 * H;
+/* titles of the pages «Entdecken», «Filme», «Serien» (data-discover.js): same shape, never in the library */
+window.TITLES = window.TITLES.concat(window.DISCOVER_TITLES || []);
+window.TITLES.forEach((t) => {
+  if (t.age == null) { t.age = 18; t.ageUnknown = true; } /* no certification known: counts as 18 */
+  const x = (window.EXTERNAL_IDS || {})[t.key];
+  t.tvdbId = (x && x.tvdb) || null; t.imdbId = (x && x.imdb) || null;
+});
 const T = Object.fromEntries(window.TITLES.map((t) => [t.key, t]));
 T['godzilla-minus-one'].age = 12;
 const TMDB = Object.fromEntries(window.TITLES.map((t) => [(t.kind === 'movie' ? 'movie' : 'show') + '/' + t.tmdbId, t]));
@@ -17,7 +24,8 @@ const STATE_LABEL = { queued: 'Wird übermittelt', pending: 'Freigabe ausstehend
 const STATE_ICON = { queued: 'send', pending: 'hourglass', processing: 'truck', partial: 'truck', available: 'check', declined: 'ban', failed: 'alert', withdrawn: 'undo' };
 const OPEN_STATES = ['queued', 'pending', 'processing', 'partial'];
 const FAIL_TEXT = {
-  quota: 'Das Kontingent des Jellyseerr-Benutzers ist erschöpft.',
+  quota: 'Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.',
+  account_deleted: 'Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr.',
   no_permission: 'Der Jellyseerr-Benutzer darf diese Art von Titel nicht anfordern.',
   user_gone: 'Den zugeordneten Jellyseerr-Benutzer gibt es nicht mehr.',
   arr: 'Jellyseerr konnte den Titel nicht an Radarr oder Sonarr übergeben.',
@@ -30,31 +38,38 @@ function seed() {
   const now = Date.now();
   const ch = (email, push, tg) => ({ email, push, telegram: tg });
   return {
-    v: 4,
+    v: 5,
     session: { accountId: 'a1', profileId: 'p1' },
     view: 'desktop',
     seerr: {
       enabled: true, configured: true, url: 'http://192.168.1.50:5055', keyTail: 'a1b2', condition: 'ok', version: 'Seerr 3.5.2',
-      lastSync: now - 3 * 60e3, lastTest: now - 2 * D, webhook: false,
+      lastSync: now - 3 * 60e3, lastTest: now - 2 * D, webhook: false, localLogin: true, seasonsFrom: 'tmdb',
       log: [
         { at: now - 3 * 60e3, op: 'Abgleich', res: 'ok', text: '6 Anfragen geprüft, 0 geändert' },
         { at: now - 3 * H, op: 'Wunsch übermitteln', res: 'ok', text: '«Toy Story 5» als kinder · Freigabe ausstehend' },
         { at: now - 26 * H, op: 'Abgleich', res: 'ok', text: '«Godzilla Minus One»: in Jellyseerr verfügbar' },
         { at: now - 2 * D, op: 'Verbindung testen', res: 'ok', text: 'Seerr 3.5.2, alle Prüfungen bestanden' },
+        { at: now - 12 * D, op: 'Benutzer eröffnen', res: 'ok', text: 'grosseltern@example.ch als «grosseltern» angelegt, Passwort übernommen, Limit gesetzt' },
       ],
     },
+    /* Radarr and Sonarr: Slouchcat only labels titles there with the profile tag; address and key come from Jellyseerr */
+    arr: {
+      radarr: { name: 'Radarr', url: 'http://radarr:7878', own: '', condition: 'ok', tagRequests: true },
+      sonarr: { name: 'Sonarr', url: 'http://sonarr:8989', own: '', condition: 'ok', tagRequests: false },
+    },
     settings: {
-      wishes: { enabled: true, movies: true, shows: true, fromSpotlight: true, fromSearch: true, fromDetail: true, join: 'join', unmapped: 'deny', fallbackUser: '', newAccounts: false, withdraw: true, pinPrivacy: true },
-      spotlight: { enabled: true, listKey: 'trending', listUrl: '', media: 'both', itemCount: 20, minHits: 5, intervalHours: 24, rotationSeconds: 5, showMissing: true, maxMissing: 5, missingOrder: 'trakt', overrides: {} },
+      wishes: { enabled: true, movies: true, shows: true, fromSearch: true, fromDetail: true, fromDiscover: true, join: 'join', unmapped: 'deny', fallbackUser: '', newAccounts: false, withdraw: true, pinPrivacy: true,
+        provision: true, pwSync: true, limit: { movie: { n: 10, days: 7 }, tv: { n: 5, days: 7 } }, tags: { enabled: true, prefix: 'sc-' }, progress: true },
+      spotlight: { enabled: true, listKey: 'trending', listUrl: '', media: 'both', itemCount: 20, minHits: 5, intervalHours: 24, rotationSeconds: 5, overrides: {} },
       homeRows: [{ key: 'spotlight', hidden: false }, { key: 'continue', hidden: false }, { key: 'wishes', hidden: false }, { key: 'recent', hidden: false }, { key: 'released', hidden: false }, { key: 'picks', hidden: false }, { key: 'watchlist', hidden: false }, { key: 'collections', hidden: true }, { key: 'genres', hidden: true }, { key: 'libraries', hidden: true }],
-      jobs: { 'wishes.sync': { every: '5 min', on: true }, 'wishes.reconcile': { every: '1 h', on: true }, 'seerr.users': { every: '24 h', on: true }, 'titles.refresh': { every: '24 h', on: true }, 'series.catalog': { every: '7 d', on: true } },
+      jobs: { 'wishes.sync': { every: '5 min', on: true }, 'wishes.reconcile': { every: '1 h', on: true }, 'seerr.users': { every: '24 h', on: true }, 'titles.refresh': { every: '24 h', on: true }, 'series.catalog': { every: '7 d', on: true }, 'seerr.provision': { every: 'bei Bedarf', on: true }, 'wishes.discover': { every: '1 h', on: true }, 'wishes.progress': { every: '1 min', on: true } },
     },
     accounts: [
-      { id: 'a1', email: 'marco@example.ch', role: 'admin', owner: true, maxRating: 18, allLibraries: true, canRequest: true, lastSeen: now - 5 * 60e3,
+      { id: 'a1', email: 'marco@example.ch', role: 'admin', owner: true, maxRating: 18, allLibraries: true, canRequest: true, lastSeen: now - 5 * 60e3, limit: { mode: 'default' }, seerr: { state: 'linked', at: now - 20 * D, pw: 'admin' },
         channels: ch({ enabled: true, events: ['new_content', 'errors', 'invitations', 'announcements', 'wish_available', 'wish_review'], address: '' }, { enabled: true, events: ['new_content', 'wish_available', 'wish_review'], devices: 2 }, { enabled: false, events: ['announcements', 'wish_available'], linked: false }) },
-      { id: 'a2', email: 'grosseltern@example.ch', role: 'user', owner: false, maxRating: 16, allLibraries: true, canRequest: true, lastSeen: now - 2 * D,
+      { id: 'a2', email: 'grosseltern@example.ch', role: 'user', owner: false, maxRating: 16, allLibraries: true, canRequest: true, lastSeen: now - 2 * D, limit: { mode: 'default' }, seerr: { state: 'created', at: now - 12 * D, pw: 'synced', pwAt: now - 12 * D },
         channels: ch({ enabled: true, events: ['announcements', 'wish_available'], address: '' }, { enabled: false, events: ['announcements', 'wish_available'], devices: 0 }, { enabled: false, events: ['announcements', 'wish_available'], linked: false }) },
-      { id: 'a3', email: 'gast@example.ch', role: 'user', owner: false, maxRating: 16, allLibraries: false, canRequest: false, lastSeen: now - 9 * D,
+      { id: 'a3', email: 'gast@example.ch', role: 'user', owner: false, maxRating: 16, allLibraries: false, canRequest: false, lastSeen: now - 9 * D, limit: { mode: 'default' }, seerr: { state: 'none' },
         channels: ch({ enabled: true, events: ['announcements', 'wish_available'], address: '' }, { enabled: false, events: ['announcements', 'wish_available'], devices: 0 }, { enabled: false, events: ['announcements', 'wish_available'], linked: false }) },
     ],
     profiles: [
@@ -66,32 +81,33 @@ function seed() {
       { id: 'p6', accountId: 'a3', name: 'Gast', primary: true, maxRating: 16, pin: false, accent: '#a993f5', on: '#120c24', canRequest: false },
     ],
     seerrUsers: [
-      { id: 1, name: 'marco', email: 'marco@example.ch', type: 'Administrator', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false },
-      { id: 2, name: 'sandra', email: 'sandra@example.ch', type: 'Lokal', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false },
-      { id: 3, name: 'kinder', email: 'kinder@example.ch', type: 'Lokal', canMovie: true, canShow: true, autoApprove: false, quota: { n: 5, days: 7 }, gone: false },
-      { id: 4, name: 'grosseltern', email: 'grosseltern@example.ch', type: 'Lokal', canMovie: true, canShow: false, autoApprove: false, quota: null, gone: false },
-      { id: 5, name: 'wohnzimmer-tv', email: 'tv@example.ch', type: 'Jellyfin', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false },
+      { id: 1, name: 'marco', email: 'marco@example.ch', type: 'Administrator', admin: true, origin: 'seerr', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false, direct: [] },
+      { id: 2, name: 'sandra', email: 'sandra@example.ch', type: 'Lokal', origin: 'seerr', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false, direct: [] },
+      { id: 3, name: 'kinder', email: 'kinder@example.ch', type: 'Lokal', origin: 'seerr', canMovie: true, canShow: true, autoApprove: false, quota: { movie: { n: 5, days: 7 }, tv: { n: 2, days: 7 } }, gone: false, direct: [] },
+      { id: 4, name: 'grosseltern', email: 'grosseltern@example.ch', type: 'Lokal', origin: 'slouchcat', canMovie: true, canShow: true, autoApprove: false, quota: null, gone: false, direct: [{ media: 'movie', n: 1, at: now - 2 * D, title: 'Der Pate' }, { media: 'movie', n: 1, at: now - 5 * D, title: 'Casablanca' }, { media: 'show', n: 2, at: now - 3 * D, title: 'Der Bergdoktor · Staffeln 17 und 18' }] },
+      { id: 5, name: 'wohnzimmer-tv', email: 'tv@example.ch', type: 'Jellyfin', origin: 'seerr', canMovie: true, canShow: true, autoApprove: true, quota: null, gone: false, direct: [] },
+      { id: 6, name: 'gast', email: 'gast@example.ch', type: 'Lokal', origin: 'seerr', canMovie: true, canShow: true, autoApprove: false, quota: null, gone: false, direct: [] },
     ],
-    map: { accounts: { a1: 1 }, profiles: { p2: 2, p3: 3 } },
+    map: { accounts: { a1: 1, a2: 4 }, profiles: { p2: 2, p3: 3 } },
     library: { 'godzilla-minus-one': { present: true, seasons: [] } },
     marks: { watchlist: { 'dune-2': true, 'mobland': true }, watched: { 'dune': true, 'interstellar': true } },
     seq: 108,
     wishes: [
-      { id: 'w101', titleKey: 'resident-evil', media: 'movie', seasons: [], state: 'processing', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 412, owner: 'p1', joined: [], created: now - 2 * D,
+      { id: 'w101', titleKey: 'resident-evil', media: 'movie', seasons: [], state: 'processing', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 412, owner: 'p1', joined: [], tagged: { p1: 'set' }, dl: { step: 2 }, created: now - 2 * D,
         events: [{ at: now - 2 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 2 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als marco' }, { at: now - 2 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
       { id: 'w102', titleKey: 'toy-story-5', media: 'movie', seasons: [], state: 'pending', origin: 'slouchcat', seerrUser: 3, seerrRequestId: 418, owner: 'p3', joined: [], created: now - 3 * H,
         events: [{ at: now - 3 * H, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als kinder' }] },
-      { id: 'w103', titleKey: 'godzilla-minus-one', media: 'movie', seasons: [], state: 'available', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 398, owner: 'p1', joined: ['p3'], created: now - 4 * D, closed: now - 26 * H,
+      { id: 'w103', titleKey: 'godzilla-minus-one', media: 'movie', seasons: [], state: 'available', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 398, owner: 'p1', joined: ['p3'], tagged: { p1: 'set', p3: 'set' }, created: now - 4 * D, closed: now - 26 * H,
         events: [{ at: now - 4 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 4 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als marco' }, { at: now - 4 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }, { at: now - 3 * D, k: 'joined', t: 'Noah wünscht mit' }, { at: now - 26 * H, k: 'available', t: 'In Slouchcat verfügbar' }] },
       { id: 'w104', titleKey: 'street-fighter', media: 'movie', seasons: [], state: 'declined', origin: 'slouchcat', seerrUser: 3, seerrRequestId: 405, owner: 'p3', joined: [], created: now - 3 * D, closed: now - 2 * D,
         events: [{ at: now - 3 * D, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als kinder' }, { at: now - 2 * D, k: 'declined', t: 'In Jellyseerr abgelehnt' }] },
-      { id: 'w105', titleKey: 'black-doves', media: 'show', seasons: [1], seasonState: { 1: 'processing' }, state: 'processing', origin: 'slouchcat', seerrUser: 2, seerrRequestId: 415, owner: 'p2', joined: [], created: now - 20 * H,
+      { id: 'w105', titleKey: 'black-doves', media: 'show', seasons: [1], seasonState: { 1: 'processing' }, state: 'processing', origin: 'slouchcat', seerrUser: 2, seerrRequestId: 415, owner: 'p2', joined: [], tagged: { p2: 'set' }, dl: { step: 1, eps: [6, 8] }, created: now - 20 * H,
         events: [{ at: now - 20 * H, k: 'created', t: 'Angefordert von Sandra: Staffel 1' }, { at: now - 20 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als sandra' }, { at: now - 20 * H + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
       { id: 'w106', titleKey: 'coyote-vs-acme', media: 'movie', seasons: [], state: 'failed', failReason: 'arr', origin: 'slouchcat', seerrUser: 2, seerrRequestId: 409, owner: 'p2', joined: [], created: now - 30 * H, closed: now - 29 * H,
         events: [{ at: now - 30 * H, k: 'created', t: 'Angefordert von Sandra' }, { at: now - 30 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als sandra' }, { at: now - 29 * H, k: 'failed', t: FAIL_TEXT.arr }] },
       { id: 'w107', titleKey: 'clayface', media: 'movie', seasons: [], state: 'processing', origin: 'jellyseerr', seerrUser: 5, seerrRequestId: 401, owner: null, joined: [], created: now - 5 * D,
         events: [{ at: now - 5 * D, k: 'imported', t: 'In Jellyseerr angelegt von wohnzimmer-tv' }] },
-      { id: 'w108', titleKey: 'verity', media: 'movie', seasons: [], state: 'processing', origin: 'jellyseerr', seerrUser: 2, seerrRequestId: 403, owner: 'p2', joined: [], created: now - 6 * D,
+      { id: 'w108', titleKey: 'verity', media: 'movie', seasons: [], state: 'processing', origin: 'jellyseerr', seerrUser: 2, seerrRequestId: 403, owner: 'p2', joined: [], dl: { step: 2, stalled: true, msg: 'Radarr meldet: Der Download-Client antwortet nicht.' }, created: now - 6 * D,
         events: [{ at: now - 6 * D, k: 'imported', t: 'In Jellyseerr angelegt von sandra, Sandra zugeordnet' }] },
     ],
     notifications: [
@@ -106,13 +122,13 @@ function seed() {
       { at: now - 26 * H, accountId: 'a1', profileId: 'p1', channel: 'push', event: 'wish_available', subject: '[Marco] Dein Wunsch ist da: Godzilla Minus One', state: 'sent' },
       { at: now - 3 * H, accountId: 'a1', profileId: 'p3', channel: 'email', event: 'wish_review', subject: 'Wunsch wartet auf Freigabe: Toy Story 5 (Noah)', state: 'sent' },
     ],
-    invitations: [{ id: 'i1', note: 'Für Tante Ruth', state: 'open', maxRating: 16, canRequest: false, until: now + 5 * D }],
+    invitations: [{ id: 'i1', note: 'Für Tante Ruth', state: 'open', maxRating: 16, canRequest: true, until: now + 5 * D }],
   };
 }
 
 let S;
 function load() {
-  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 4) return o; } } catch (e) { /* private mode or blocked storage */ }
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) { const o = JSON.parse(raw); if (o && o.v === 5) return o; } } catch (e) { /* private mode or blocked storage */ }
   return null;
 }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
@@ -170,7 +186,7 @@ function canRequest(p, t) {
   return { ok: true };
 }
 /* missing titles exist for a profile only if it may request and the age allows it (else: 404) */
-function missingVisible(p, t) { const w = S.settings.wishes; return (w.fromSpotlight || w.fromSearch || w.fromDetail) && canRequest(p).ok && t.age <= effMax(p) && canRequest(p, t).ok; }
+function missingVisible(p, t) { const w = S.settings.wishes; return (w.fromSearch || w.fromDetail || w.fromDiscover) && canRequest(p).ok && t.age <= effMax(p) && canRequest(p, t).ok; }
 function titleVisible(p, t) { return isPresent(t.key) ? t.age <= effMax(p) : missingVisible(p, t); }
 
 function openWish(key, season) {
@@ -206,7 +222,7 @@ function wishCounts() {
     if (w.state === 'processing' || w.state === 'partial') c.processing++;
     if (w.state === 'available') c.available30++;
     if (w.state === 'failed') c.problems++;
-    if (!w.owner) c.unassigned++;
+    if (!w.owner && !w.goneAccount) c.unassigned++; /* a wish of a deleted account is closed, not «nicht zuordenbar» */
   });
   return c;
 }
@@ -231,25 +247,19 @@ function seerrState() {
   return { k: 'ok', label: 'Verbunden', chip: 'ok', dot: 'ok' };
 }
 
-/* Spotlight for one profile: Trakt order, first slide always present, at most N missing titles */
+/* Spotlight for one profile: the Trakt list cut with the library. Missing titles never appear here (start page and
+   Spotlight list show only what the library holds); the administration lists them. */
 function spotlightFor(p) {
-  const cfg = S.settings.spotlight, w = S.settings.wishes;
+  const cfg = S.settings.spotlight;
   if (!cfg.enabled) return [];
   const ov = cfg.overrides || {};
   let list = SPOT_ORDER.map((k) => T[k]).filter((t) => !(ov[t.key] && ov[t.key].hidden));
   if (cfg.media === 'movie') list = list.filter((t) => t.kind === 'movie');
   if (cfg.media === 'show') list = list.filter((t) => t.kind === 'series');
-  const showMissing = cfg.showMissing && w.enabled && w.fromSpotlight && S.seerr.enabled && S.seerr.configured && canRequest(p).ok;
-  const present = list.filter((t) => isPresent(t.key) && t.age <= effMax(p));
-  if (present.length < cfg.minHits) return [];
-  let missing = showMissing ? list.filter((t) => !isPresent(t.key) && missingVisible(p, t)).slice(0, cfg.maxMissing) : [];
-  let out;
-  if (cfg.missingOrder === 'after') out = [...present, ...missing];
-  else out = list.filter((t) => present.includes(t) || missing.includes(t));
+  const out = list.filter((t) => isPresent(t.key) && t.age <= effMax(p));
+  if (out.length < cfg.minHits) return [];
   const pinned = Object.entries(ov).filter(([k, o]) => o.pinned && out.some((t) => t.key === k)).sort((a, b) => a[1].pinned - b[1].pinned);
   pinned.forEach(([k, o]) => { const i = out.findIndex((t) => t.key === k); const [t] = out.splice(i, 1); out.splice(Math.min(o.pinned - 1, out.length), 0, t); });
-  const firstPresent = out.findIndex((t) => isPresent(t.key));
-  if (firstPresent > 0) { const [t] = out.splice(firstPresent, 1); out.unshift(t); }
   return out.slice(0, cfg.itemCount);
 }
 
@@ -310,11 +320,11 @@ function submitWish(w) {
   const fail = (r) => { w.state = 'failed'; w.failReason = r; w.closed = Date.now(); ev(w, 'failed', FAIL_TEXT[r]); logSeerr('Wunsch übermitteln', 'bad', `«${t.title}»: ${FAIL_TEXT[r]}`); if (w.owner) notify(w.owner, 'wish_failed', w); };
   if (!u || u.gone) return fail('user_gone');
   if ((w.media === 'movie' && !u.canMovie) || (w.media === 'show' && !u.canShow)) return fail('no_permission');
-  if (u.quota && S.wishes.filter((x) => x !== w && x.seerrUser === u.id && x.created > Date.now() - u.quota.days * D && x.seerrRequestId).length >= u.quota.n) return fail('quota');
+  { const k = w.media === 'movie' ? 'movie' : 'tv', q = quotaFor(u, w)[k]; if (q.limit && q.remaining < wishUnits(w)) return fail('quota'); }
   w.seerrRequestId = 400 + ++S.seq;
   w.detail = '';
   ev(w, 'submitted', `An Jellyseerr übermittelt als ${u.name}`);
-  if (u.autoApprove) { w.state = 'processing'; ev(w, 'approved', 'Automatisch freigegeben'); logSeerr('Wunsch übermitteln', 'ok', `«${t.title}» als ${u.name} · freigegeben`); }
+  if (u.autoApprove) { w.state = 'processing'; ev(w, 'approved', 'Automatisch freigegeben'); logSeerr('Wunsch übermitteln', 'ok', `«${t.title}» als ${u.name} · freigegeben`); applyTags(w); }
   else { w.state = 'pending'; logSeerr('Wunsch übermitteln', 'ok', `«${t.title}» als ${u.name} · Freigabe ausstehend`); notifyAdmins(w); }
 }
 /* createWish: one open wish per film / season; a second profile joins instead of ordering twice */
@@ -325,7 +335,7 @@ function requestWish(key, seasons = []) {
   if (t.kind === 'series' && seasons.length) {
     const others = openWishes(key).filter((w) => !isMine(w, p) && (!w.seasons.length || w.seasons.some((s) => seasons.includes(s))));
     if (others.length && S.settings.wishes.join === 'join') {
-      others.forEach((w) => { w.joined.push(p.id); ev(w, 'joined', `${p.name} wünscht mit`); });
+      others.forEach((w) => { w.joined.push(p.id); ev(w, 'joined', `${p.name} wünscht mit`); applyTags(w); });
       seasons = seasons.filter((s) => !others.some((w) => !w.seasons.length || w.seasons.includes(s)));
       save();
       if (!seasons.length) { toast(`Du wirst benachrichtigt, sobald «${esc(t.title)}» verfügbar ist.`, 'ok'); return others[0]; }
@@ -337,6 +347,7 @@ function requestWish(key, seasons = []) {
     if (S.settings.wishes.join !== 'join') { toast('Dieser Titel ist schon angefordert.', 'warn'); return existing; }
     existing.joined.push(p.id);
     ev(existing, 'joined', `${p.name} wünscht mit`);
+    applyTags(existing);
     save();
     toast(`Du wirst benachrichtigt, sobald «${esc(t.title)}» verfügbar ist.`, 'ok');
     return existing;
@@ -354,7 +365,7 @@ function requestWish(key, seasons = []) {
 function wishById(id) { return S.wishes.find((w) => w.id === id); }
 function approveWish(id, by = 'in der Verwaltung') {
   const w = wishById(id); if (!w || w.state !== 'pending') return;
-  w.state = 'processing'; ev(w, 'approved', `Freigegeben ${by}`); logSeerr('Freigeben', 'ok', `«${T[w.titleKey].title}»`);
+  w.state = 'processing'; ev(w, 'approved', `Freigegeben ${by}`); logSeerr('Freigeben', 'ok', `«${T[w.titleKey].title}»`); applyTags(w);
   if (w.owner) notify(w.owner, 'wish_approved', w); save();
 }
 function declineWish(id, by = 'in der Verwaltung') {
@@ -380,11 +391,11 @@ function arriveWish(id) {
     if (!lib.seasons.includes(next)) lib.seasons.push(next);
     const left = w.seasons.filter((s) => w.seasonState[s] !== 'available');
     ev(w, 'available', `Staffel ${next} ist in Slouchcat verfügbar`);
-    if (left.length) { w.state = 'partial'; people.forEach((pid) => notify(pid, 'wish_season_available', w, { season: next })); }
-    else { w.state = 'available'; w.closed = Date.now(); people.forEach((pid) => notify(pid, w.seasons.length > 1 ? 'wish_available' : 'wish_season_available', w, { season: w.seasons.length > 1 ? undefined : next })); }
+    if (left.length) { w.state = 'partial'; w.dl = { step: 0 }; people.forEach((pid) => notify(pid, 'wish_season_available', w, { season: next })); }
+    else { w.state = 'available'; delete w.dl; w.closed = Date.now(); people.forEach((pid) => notify(pid, w.seasons.length > 1 ? 'wish_available' : 'wish_season_available', w, { season: w.seasons.length > 1 ? undefined : next })); }
   } else {
     if (w.media === 'show') lib.seasons = airedSeasons(t).map((s) => s.n);
-    w.state = 'available'; w.closed = Date.now(); ev(w, 'available', 'In Slouchcat verfügbar');
+    w.state = 'available'; delete w.dl; w.closed = Date.now(); ev(w, 'available', 'In Slouchcat verfügbar');
     people.forEach((pid) => notify(pid, 'wish_available', w));
   }
   logSeerr('Abgleich', 'ok', `«${t.title}»: verfügbar`);
@@ -412,6 +423,8 @@ function syncNow() {
   if (seerrState().k !== 'ok') { logSeerr('Abgleich', 'bad', seerrState().label); save(); return false; }
   const q = S.wishes.filter((w) => w.state === 'queued');
   q.forEach(submitWish);
+  S.wishes.forEach(applyTags); /* tags that could not be set earlier */
+  S.accounts.filter((a) => (a.seerr || {}).state === 'waiting').forEach((a) => provisionAccount(a.id, { by: a.seerr.by }));
   S.seerr.lastSync = Date.now();
   logSeerr('Abgleich', 'ok', `${S.wishes.filter((w) => OPEN_STATES.includes(w.state)).length} Anfragen geprüft` + (q.length ? `, ${q.length} übermittelt` : ', 0 geändert'));
   save();

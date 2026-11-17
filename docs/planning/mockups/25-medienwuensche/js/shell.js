@@ -10,7 +10,7 @@ function viewerNav(nav) {
   const showWishes = canRequest(p).ok || myWishes(p).length > 0;
   const ent = (key, href, ic, label, cnt, hot) => `<li><a class="ent" href="${href}" ${nav === key ? 'aria-current="page"' : ''} data-fid="nav:${key}">${icon(ic, 16)}<span class="lb">${label}</span>${cnt != null && cnt !== '' ? `<span class="cnt ${hot ? 'hot' : ''}">${cnt}</span>` : ''}</a></li>`;
   return `<div class="pcard"><span class="av">${esc(p.name[0])}</span><span class="pt"><b>${esc(p.name)}</b><span>${roleLabel(p)}</span></span><a class="swi" href="#/profiles" data-fid="nav:switch">Wechseln</a></div>
-  <ul>${ent('start', '#/', 'home', 'Start')}${ent('search', '#/search', 'search', 'Suche')}${ent('watchlist', '#/unchanged/merkliste', 'bookmark', 'Merkliste')}${ent('watched', '#/unchanged/gesehen', 'check', 'Gesehen')}${showWishes ? ent('wishes', '#/wishes', 'wish', 'Wünsche', mine || '', true) : ''}</ul>
+  <ul>${ent('start', '#/', 'home', 'Start')}${ent('search', '#/search', 'search', 'Suche')}${ent('watchlist', '#/unchanged/merkliste', 'bookmark', 'Merkliste')}${ent('watched', '#/unchanged/gesehen', 'check', 'Gesehen')}${showWishes ? ent('wishes', discoverOn(p) ? '#/discover' : '#/wishes', 'wish', 'Wünsche', mine || '', true) : ''}</ul>
   <div class="band">${icon('film', 16)}<span>Meine Medien</span></div>
   <ul>${LIBS.map(([l, ic, c]) => ent('lib:' + l, '#/unchanged/' + encodeURIComponent(l.toLowerCase()), ic, l, c)).join('')}</ul>
   <div class="band">${icon('settings', 16)}<span>Konto</span></div>
@@ -23,7 +23,7 @@ function headerHtml(admin, view) {
   return `<header class="hd ${admin ? 'admin' : ''}">
     <button type="button" class="btn ghost icon menu" ${!admin && S.sideHidden ? 'style="display:inline-flex"' : ''} data-act="${!admin && S.sideHidden ? 'hideSide' : 'drawer'}" aria-label="Menü" data-fid="hd:menu">${icon('menu')}</button>
     <a class="brand" href="${admin ? '#/admin' : '#/'}" data-fid="hd:brand">${LOGO}<span><span class="name">Slouchcat</span>${admin ? '<span class="tag">CONTROL CENTER</span>' : ''}</span></a>
-    ${admin ? `<nav class="crumbs" aria-label="Brotkrumen"><a href="#/admin">Verwaltung</a><span class="sl">›</span><b>${esc(view.crumb || view.title || '')}</b></nav>` : ''}
+    ${admin ? `<nav class="crumbs" aria-label="Brotkrumen"><a href="#/admin" data-fid="hd:crumb">Verwaltung</a><span class="sl">›</span><b>${esc(view.crumb || view.title || '')}</b></nav>` : ''}
     <div class="acc">
       ${admin ? `<button type="button" class="finder" data-act="dialog" data-name="finder" data-fid="hd:finder">${icon('search', 16)}<span>Bereich suchen</span><kbd>Strg K</kbd></button>` : `<a class="inbox" href="#/search" aria-label="Suche öffnen" data-fid="hd:search">${icon('search')}<span class="t">Suche</span></a>`}
       <a class="inbox" href="#/notifications" aria-label="Benachrichtigungen${n ? ', ' + n + ' ungelesen' : ''}" data-fid="hd:inbox">${icon('bell')}<span class="t">Benachrichtigungen</span>${n ? `<span class="badge">${n}</span>` : ''}</a>
@@ -80,7 +80,7 @@ const SHELL = {
   drawer() {
     const adm = document.documentElement.dataset.shell === 'admin' && isAdmin();
     const { path } = parseHash();
-    return adm ? `<nav class="asn drawer" aria-label="Verwaltung">${adminNav('')}</nav>` : `<nav class="sn drawer" aria-label="Hauptnavigation">${viewerNav(path === '/' ? 'start' : path.slice(1))}</nav>`;
+    return adm ? `<nav class="asn drawer" aria-label="Verwaltung">${adminNav('')}</nav>` : `<nav class="sn drawer" aria-label="Hauptnavigation">${viewerNav(path === '/' ? 'start' : path.startsWith('/discover') ? 'wishes' : path.slice(1))}</nav>`;
   },
 };
 ACT.hideSide = () => { S.sideHidden = !S.sideHidden; commit(); };
@@ -103,7 +103,7 @@ route('/admin/x/:page', (pm) => {
 });
 DIALOGS.finder = () => {
   const q = (ui.q2 || '').toLowerCase();
-  const all = [['Übersicht', '#/admin'], ...AREAS.flatMap((a) => a.pages.map(([k, l]) => [`${a.label} › ${l}`, adminHref(k)])), ['Automatisierung › Integrationen › Jellyseerr', '#/admin/integrations/jellyseerr'], ['Medien › Wünsche › Zuordnung', '#/admin/wishes/mapping'], ['Medien › Wünsche › Einstellungen', '#/admin/wishes/settings']];
+  const all = [['Übersicht', '#/admin'], ...AREAS.flatMap((a) => a.pages.map(([k, l]) => [`${a.label} › ${l}`, adminHref(k)])), ['Automatisierung › Integrationen › Jellyseerr', '#/admin/integrations/jellyseerr'], ['Medien › Wünsche › Jellyseerr-Benutzer', '#/admin/wishes/mapping'], ['Medien › Wünsche › Einstellungen', '#/admin/wishes/settings']];
   const hits = all.filter(([l]) => l.toLowerCase().includes(q));
   return { title: 'Bereich suchen', body: `<input class="inp" data-bind="ui.q2" data-live data-fid="finder:q" data-autofocus placeholder="Seite der Verwaltung" aria-label="Seite der Verwaltung" value="${esc(ui.q2 || '')}"><ul class="stack" style="gap:4px">${hits.map(([l, h]) => `<li><a class="btn ghost wide" style="justify-content:flex-start" href="${h}" data-act="close" data-fid="finder:${h}">${esc(l)}</a></li>`).join('') || '<li class="muted">Nichts gefunden.</li>'}</ul>`, actions: `<button type="button" class="btn secondary" data-act="close" data-fid="finder:x">Schliessen</button>` };
 };

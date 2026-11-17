@@ -104,3 +104,50 @@ Verwaltung (`admin.css`, unter `.adm`): `.card` (+`.ch` mit `.ik` und `h2`, `.fo
 (Tabelle; `td.main`, `.end`, `tr.sub`, `.tog` Aufklapp-Knopf mit `aria-expanded`, `.ta` Aktionen, `.mini` Poster+Text),
 `.subtabs` (Unterreiter als Pillen, Zähler `.c`), `.kv` (Beschreibungsliste), `.checks` (Prüfliste `li.ok|.bad|.warn|.wait`),
 `.feed` (Protokoll mit `<time>`), `.savebar`, `.unchanged`, Knöpfe `.btn.primary` (Akzent), `.btn.quiet`, `.btn.dq` (ruhig rot).
+
+## Fassung 3 (`js/model2.js`, `css/wishhub.css`): Jellyseerr-Benutzer je Konto, Limit, Profil-Tags, Entdecken
+
+Skriptreihenfolge neu: `data.js`, `data-discover.js`, `core.js`, `store.js`, `model2.js`, `shell.js`, `home.js`,
+`viewer-titles.js`, `viewer-pages.js`, `admin-a.js`, `admin-b.js`, `viewer-discover.js`, `viewer-account.js`, `mock.js`.
+`model2.js` gehört zum Kern (nicht ändern). Gespeicherter Stand: `S.v === 5`.
+
+- **Titel:** `window.TITLES` enthält jetzt 82 Titel (34 + 48 aus `data-discover.js`). Neue Felder: `t.tvdbId`, `t.imdbId`
+  (oder `null`), `t.ageUnknown` (Freigabe unbekannt, zählt als 18), bei den neuen Titeln `t.release` (ISO-Datum), `t.score`.
+  `idLine(t)` → «TMDB 1 · TVDB 2 · IMDb tt3». `ID_MATCH[key]` / `ID_MATCH_TEXT[...]`: wie eine Serie der Trakt-Liste erkannt wurde.
+- **Entdecken:** `discoverOn(p)` (Seiten gibt es nur für ein Profil, das anfordern darf), `DISC_ROWS` (`[key, titel, href]`),
+  `discoverRow(key, p)`, `discoverList('movie'|'series', p, {genre, sort: 'popular'|'new'|'title', hidePresent})`,
+  `discoverGenres(kind, p)`, `discoverSearch(q, p)` (auch `tmdb:123`, `tvdb:123`, `imdb:tt…`), `wishNav(aktiv)` mit
+  `aktiv` = `discover|movies|series|search|mine` (Reiter + Limit-Anzeige; steht auf jeder Seite unter «Wünsche» zuoberst).
+  Schalter: `S.settings.wishes.fromDiscover`.
+- **Limit:** ab Werk `S.settings.wishes.limit = { movie: {n, days}, tv: {n, days} }` (`n` 0 = ohne Limit); je Konto
+  `account.limit = { mode: 'default'|'custom'|'unlimited', movie?, tv? }`. `limitOf(acc)`, `quotaFor(seerrUser)` →
+  `{ source: 'admin'|'account'|'seerr', unlimited, movie: {limit, days, used, remaining, restricted, nextFree, direct, entries[]}, tv: {…} }`,
+  `quotaOfProfile(p)`, `limitCheck(p, t, einheiten)` → `{ok, text}`, `quotaText(x, 'movie'|'tv')`, `quotaMeter(x, kind)`,
+  `quotaPill(p)`, `whenFree(ts)`, `linkedAccount(seerrUser)`. Jellyseerr zählt: Filme einzeln, Serien je Staffel,
+  rollierend über `days` Tage, auch direkt in Jellyseerr gestellte Wünsche (`seerrUser.direct[]`); abgelehnte,
+  zurückgezogene und Mitwünsche zählen nicht; Administratoren haben kein Limit.
+- **Jellyseerr-Benutzer des Kontos:** `accSeerr(acc)` → `{ state: 'created'|'linked'|'manual'|'waiting'|'none', user, pw:
+  'synced'|'next_login'|'off'|'admin'|'external', at, pwAt, info: {label, chip}, pwInfo: {label, chip} }`. Aktionen:
+  `provisionAccount(accId, {password})` (verknüpft bei gleicher E-Mail, sonst legt an), `provisionAll()`,
+  `linkAccount(accId, userId)`, `unlinkAccount(accId)`, `syncRights(accId)` (nach Ändern des Wunschrechts), `pwChanged(accId)`
+  (Passwort in Slouchcat geändert), `pwSignIn(accId)`, `pwSetMode(accId, an)`, `acceptInvitation(einladungsId, {email, name})`
+  → `{accountId, profileId}`. Schalter: `S.settings.wishes.provision`, `S.settings.wishes.pwSync`. `seerrUser`-Felder neu:
+  `origin: 'slouchcat'|'seerr'`, `admin`, `direct[]`. `S.seerr.localLogin`, `S.seerr.seasonsFrom` (`'tmdb'|'tvdb'`).
+- **Profil-Tag:** `S.settings.wishes.tags = { enabled, prefix }`, `tagLabel(p)` (eigener Name: `p.tagName`), `wishTags(w)` →
+  `[{profile, label, state: 'set'|'fail'|'wait'}]`, `tagChips(w)`, `applyTags(w)`, `S.arr.radarr` / `S.arr.sonarr`
+  (`name, url, own, condition: 'ok'|'unreachable', tagRequests`), `arrOf(w)`. Ereignisse am Wunsch: `tagged`, `tag_failed`.
+- **Klassen (`wishhub.css`):** `.whead`, `.wtabs`, `.quota`, `.qm` (+ `.full`, `.none`, `.bar`).
+
+## Nachtrag (zweite Rückmeldung vom 17. November 2026)
+
+- **Spotlight:** Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek (`spotlightFor(p)` liefert nie fehlende
+  Titel). Fehlende Einträge der Trakt-Liste sieht nur die Verwaltung (M-27). Die Schalter `fromSpotlight`,
+  `showMissing`, `maxMissing`, `missingOrder` gibt es nicht mehr. Die Startreihe `wishes` heisst «Erfüllte Wünsche» und
+  zeigt nur Wünsche, die in den letzten 14 Tagen wahr wurden.
+- **Webhooks von Radarr und Sonarr:** bleiben, wie sie heute sind (von Hand eingerichtet, Seite unverändert).
+- **Download-Fortschritt (nur lesend, nur bei Wünschen):** Schalter `S.settings.wishes.progress`, Job `wishes.progress`
+  (jede Minute). `dlInfo(w)` → `{ k: 'search'|'download'|'import'|'stalled'|'unknown', pct?, eta?, label, admin, arr }`
+  oder `null`; `dlChip(w, admin?)` (Zeile in Listen), `dlBlock(w, admin?)` (Block mit Balken), `dlBar(x)`,
+  `dlStep(id)`, `dlStall(id)`, `progressOn()`. Zustand am Wunsch: `w.dl = { step, stalled?, msg?, eps? }`. Ist Radarr
+  oder Sonarr nicht erreichbar, zeigt die Zuschauer-App nichts (Wunsch bleibt «In Beschaffung»), die Verwaltung
+  «Fortschritt nicht lesbar». Klassen: `.dl`, `.dlb` (+ `.search|.download|.import|.stalled|.unknown`).
