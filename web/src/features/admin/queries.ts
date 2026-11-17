@@ -944,6 +944,35 @@ export const testSeerrConnection = (body: SeerrTestRequest): Promise<SeerrTestRe
 export const confirmSeerrInstance = (action: 'confirm' | 'reset'): Promise<SeerrStatus> =>
   request(api.POST('/admin/seerr/instance', { body: { action } }));
 
+// Radarr and Sonarr for the profile tags and the progress (concept 25 stage 4, M-22): address and
+// key come from Seerr, an own address replaces the address; never a key in an answer.
+export type ArrStatus = components['schemas']['ArrStatus'];
+export type ArrServiceStatus = components['schemas']['ArrServiceStatus'];
+export type ArrSettingsUpdate = components['schemas']['ArrSettingsUpdate'];
+export type ArrTestResult = components['schemas']['ArrTestResult'];
+export type ArrService = components['schemas']['ArrTestRequest']['service'];
+export type SeerrWebhookSetup = components['schemas']['SeerrWebhookSetup'];
+
+export const arrStatusQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'arr'],
+  queryFn: ({ signal }): Promise<ArrStatus> => request(api.GET('/admin/seerr/arr', { signal })),
+});
+
+/** The own addresses; an empty one goes back to the address from Seerr. */
+export const updateArrSettings = (body: ArrSettingsUpdate): Promise<ArrStatus> =>
+  request(api.PUT('/admin/seerr/arr', { body }));
+
+/** «Testen»: reachable, key valid, and the host confirmed for the jobs. */
+export const testArrConnection = (service: ArrService): Promise<ArrTestResult> =>
+  request(api.POST('/admin/seerr/arr/test', { body: { service } }));
+
+/** What the administrator enters in Seerr for the instant notice (F-18). */
+export const seerrWebhookQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'webhook'],
+  queryFn: ({ signal }): Promise<SeerrWebhookSetup> =>
+    request(api.GET('/admin/seerr/webhook', { signal })),
+});
+
 export const wishKeys = { all: ['admin', 'wishes'] as const };
 
 /** Every account with its Seerr user, the Seerr users without an account, the shared user. */

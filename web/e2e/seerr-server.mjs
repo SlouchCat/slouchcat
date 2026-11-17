@@ -64,6 +64,8 @@
 //                                    POST /user with 500 (an account then waits for Seerr);
 //                                    {"used": {"<id>": {"movie": n, "tv": n}}} sets what a
 //                                    user's limit has used
+//                                    {"servers": false|true} answers /settings/radarr and
+//                                    /settings/sonarr without or with their one server
 //                                    {"request": {"id": n, "status": 1..5}} sets a request's
 //                                    status (approve 2, decline 3, fail 4, complete 5)
 //   GET  /__requests                 every request, for the specs' checks
@@ -370,6 +372,8 @@ export function startSeerrServer({
   let other = false;
   let nextId = 20;
   let failCreate = false;
+  /** Radarr and Sonarr are named under /settings (the control takes them away). */
+  let servers = true;
   /** What each user's limit has used, by id. */
   let used = {};
   /** The requests made through the mock (concept 25 stage 2). */
@@ -624,11 +628,11 @@ export function startSeerrServer({
       return;
     }
     if (method === 'GET' && path === '/settings/radarr') {
-      sendJson(response, 200, [dvr(0, 'Radarr', radarrPort)]);
+      sendJson(response, 200, servers ? [dvr(0, 'Radarr', radarrPort)] : []);
       return;
     }
     if (method === 'GET' && path === '/settings/sonarr') {
-      sendJson(response, 200, [dvr(0, 'Sonarr', sonarrPort)]);
+      sendJson(response, 200, servers ? [dvr(0, 'Sonarr', sonarrPort)] : []);
       return;
     }
     if (method === 'POST' && path === '/request') {
@@ -966,6 +970,7 @@ export function startSeerrServer({
         }
         if (body.instance !== undefined) other = body.instance === 'other';
         if (typeof body.failCreate === 'boolean') failCreate = body.failCreate;
+        if (typeof body.servers === 'boolean') servers = body.servers;
         if (body.used && typeof body.used === 'object') used = { ...used, ...body.used };
         if (body.request && typeof body.request === 'object') {
           const found = requests.find((r) => r.id === Number(body.request.id));
@@ -989,6 +994,7 @@ export function startSeerrServer({
         // User ids go on counting too: the server keeps the users it opened (the shared user
         // among them), and a new user with an old id would collide with them.
         failCreate = false;
+        servers = true;
         used = {};
         // Request ids go on counting, as Seerr's do: the server keeps the ids of earlier wishes.
         requests = [];

@@ -1,6 +1,8 @@
 import type { APIRequestContext, Page } from '@playwright/test';
+import { arrReset } from './arr';
+import { ARR_API_KEY } from './arr-server.mjs';
 import { CSRF } from './catalog';
-import { SEERR_BASE } from './env';
+import { BASE_URL, RADARR_BASE, SEERR_BASE, SONARR_BASE } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -29,6 +31,15 @@ async function seerrControl(instance: 'same' | 'other'): Promise<void> {
   const response = await fetch(`${SEERR_BASE}/__control`, {
     method: 'POST',
     body: JSON.stringify({ instance }),
+  });
+  expect(response.status).toBe(204);
+}
+
+/** Seerr names its Radarr and Sonarr, or none (`servers: false`). */
+async function seerrServers(servers: boolean): Promise<void> {
+  const response = await fetch(`${SEERR_BASE}/__control`, {
+    method: 'POST',
+    body: JSON.stringify({ servers }),
   });
   expect(response.status).toBe(204);
 }
@@ -155,8 +166,10 @@ test('the tile opens the view; connect, test and save by keyboard @keyboard', as
   await expect(seerr.getByText('ungespeichert')).toHaveCount(0);
 
   // The call log folds out with Enter and away with Space; the focus stays on its toggle.
+  // On the way, the band «Radarr und Sonarr» stands open: Radarr and Sonarr from Seerr wait for
+  // «Testen» (stage 4).
   const log = seerr.getByRole('button', { name: 'Protokoll', exact: true });
-  await tabTo(page, log, 8);
+  await tabTo(page, log, 20);
   await expect(log).toHaveAttribute('aria-expanded', 'false');
   await page.keyboard.press('Enter');
   await expect(log).toHaveAttribute('aria-expanded', 'true');
@@ -248,4 +261,179 @@ test('another instance waits for a decision; «Zuordnung löschen» asks first',
 
   // The mock answers as the first instance again: the server takes that one back over.
   await sameInstance(owner);
+});
+
+/** Where the coordinator's visual check finds the screenshots (SLOUCHCAT_E2E_SHOTS), if set. */
+const SHOTS = process.env.SLOUCHCAT_E2E_SHOTS;
+async function shot(page: Page, name: string): Promise<void> {
+  if (!SHOTS) return;
+  // A dialog that just opened plays its entry animation first; endless ones do not count.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animation) =>
+          animation.playState !== 'running' ||
+          animation.effect?.getComputedTiming().endTime === Infinity,
+      ),
+  );
+  await page.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+
+/** The view's text without the code to copy: Seerr's JSON template has «{{…}}» of its own. */
+const textOutsideCode = (page: Page) =>
+  page.locator('#content').evaluate((content) => {
+    const copy = content.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll('pre').forEach((code) => code.remove());
+    return copy.textContent;
+  });
+
+/** The webhook integrations of the kind `seerr` the test made, deleted again. */
+async function deleteSeerrHooks(api: APIRequestContext): Promise<void> {
+  const list = (await (await api.get('/api/v1/admin/integrations')).json()) as {
+    id: number;
+    kind: string;
+  }[];
+  for (const integration of list.filter((entry) => entry.kind === 'seerr')) {
+    const response = await api.delete(`/api/v1/admin/integrations/${integration.id}`, {
+      headers: CSRF,
+    });
+    expect(response.ok()).toBe(true);
+  }
+}
+
+// Stage 4 (M-22): the band «Radarr und Sonarr» with «Testen», which confirms the host from Seerr,
+// an own address saved with the band's «Speichern» and refused when it is no web address, Seerr
+// without a Radarr server; the band «Sofortmeldung» makes the address of the webhook integration
+// of the kind `seerr`, shows the template and the types to copy, and its log shows the notice that
+// queued the sync. All by keyboard.
+test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by keyboard @keyboard', async ({
+  page,
+  owner,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await arrReset();
+  await connect(owner);
+  try {
+    await page.goto('/admin/integrations?item=seerr');
+    const seerr = region(page, 'Seerr');
+    // The address from Seerr waits for «Testen»: the band is open (design rule 1.3).
+    const arrBand = seerr.getByRole('button', {
+      name: 'Radarr und Sonarr (Profil-Tags und Fortschritt)',
+    });
+    await expect(arrBand).toHaveAttribute('aria-expanded', 'true');
+    const radarr = seerr.getByRole('region', { name: 'Radarr', exact: true });
+    const sonarr = seerr.getByRole('region', { name: 'Sonarr', exact: true });
+    await expect(radarr.getByText('Radarr wartet auf «Testen»')).toBeVisible();
+    await expect(radarr.getByText(`Aus Seerr: ${RADARR_BASE}`)).toBeVisible();
+    // Never a key.
+    await expect(page.locator('#content')).not.toContainText(ARR_API_KEY);
+
+    // «Testen» by keyboard confirms the host.
+    const testRadarr = radarr.getByRole('button', { name: 'Radarr testen' });
+    await resetFocus(page);
+    await tabTo(page, testRadarr, 60);
+    await page.keyboard.press('Enter');
+    await expect(
+      radarr.getByText(
+        `Radarr antwortet unter ${RADARR_BASE}, der Schlüssel aus Seerr gilt. Die Adresse ist bestätigt.`,
+      ),
+    ).toBeVisible();
+    await expect(radarr.getByText('Radarr erreichbar', { exact: true })).toBeVisible();
+    await expectFocusOn(page, testRadarr);
+    await shot(page, 'seerr-radarr-test-desktop');
+
+    // An own address for Sonarr that does not answer: saved, then tested and named.
+    const own = seerr.getByRole('textbox', { name: 'Eigene Adresse für Sonarr' });
+    await tabTo(page, own, 20);
+    await page.keyboard.type('ftp://sonarr.example.org');
+    const save = seerr.getByRole('button', {
+      name: 'Eigene Adressen von Radarr und Sonarr speichern',
+    });
+    await tabTo(page, save, 6);
+    await page.keyboard.press('Enter');
+    await expect(own).toHaveAttribute('aria-invalid', 'true');
+    const dead = 'http://127.0.0.1:9';
+    await own.fill(dead);
+    await save.focus();
+    await page.keyboard.press('Enter');
+    await expect(seerr.getByText('Eigene Adressen gespeichert.')).toBeVisible();
+    await expect(sonarr.getByText(`Eigene Adresse: ${dead}`)).toBeVisible();
+    await sonarr.getByRole('button', { name: 'Sonarr testen' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(sonarr.getByText(/^Sonarr ist unter .* nicht erreichbar\.$/)).toBeVisible();
+    // Empty goes back to the address from Seerr.
+    await own.fill('');
+    await save.focus();
+    await page.keyboard.press('Enter');
+    await expect(sonarr.getByText(`Aus Seerr: ${SONARR_BASE}`)).toBeVisible();
+
+    // Seerr without a Radarr server: the test says so.
+    await seerrServers(false);
+    await testRadarr.focus();
+    await page.keyboard.press('Enter');
+    // The outcome's title; the state line below names the same reason once the status is read.
+    await expect(
+      radarr
+        .getByRole('paragraph')
+        .filter({ hasText: /^Seerr hat keinen Standardserver für Radarr\.$/ }),
+    ).toBeVisible();
+    await seerrServers(true);
+    await page.keyboard.press('Enter');
+    await expect(radarr.getByText(/^Radarr antwortet unter /)).toBeVisible();
+    expect(await textOutsideCode(page)).not.toContain('{{');
+
+    // The band folds away with Space and opens again with Enter; the focus stays on its toggle.
+    await arrBand.focus();
+    await page.keyboard.press('Space');
+    await expect(arrBand).toHaveAttribute('aria-expanded', 'false');
+    await expectFocusOn(page, arrBand);
+
+    // «Sofortmeldung»: closed at first; «Adresse erzeugen» shows the address once.
+    const hookBand = seerr.getByRole('button', { name: 'Sofortmeldung', exact: true });
+    await expect(hookBand).toHaveAttribute('aria-expanded', 'false');
+    await tabTo(page, hookBand, 6);
+    await page.keyboard.press('Enter');
+    await expect(hookBand).toHaveAttribute('aria-expanded', 'true');
+    const create = seerr.getByRole('button', { name: 'Adresse erzeugen' });
+    await tabTo(page, create, 6);
+    await page.keyboard.press('Enter');
+    const address = seerr.getByRole('textbox', { name: 'Vollständige Adresse' });
+    await expect(address).toBeFocused();
+    const url = await address.inputValue();
+    expect(url).toMatch(/\/api\/v1\/webhooks\//);
+    await expect(seerr.getByRole('group', { name: 'JSON-Vorlage für Seerr' })).toContainText(
+      'notification_type',
+    );
+    await expect(
+      seerr.getByRole('group', { name: 'Benachrichtigungsarten für Seerr' }),
+    ).toContainText('MEDIA_PENDING');
+    await expect(seerr.getByRole('button', { name: 'Vorlage kopieren' })).toBeVisible();
+    await expect(seerr.getByRole('button', { name: 'Arten kopieren' })).toBeVisible();
+
+    // Seerr reports: the sync is queued, the log says so.
+    // Without a public address the address is relative to the server.
+    const sent = await fetch(new URL(url, BASE_URL), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notification_type: 'MEDIA_APPROVED' }),
+    });
+    expect(sent.ok).toBe(true);
+    await page.reload();
+    await seerr.getByRole('button', { name: 'Sofortmeldung', exact: true }).click();
+    // Sonarr still waits for «Testen»: the band opens on its own again.
+    await expect(arrBand).toHaveAttribute('aria-expanded', 'true');
+    await expect(seerr.getByText('Wünsche werden abgeglichen')).toBeVisible();
+    expect(await textOutsideCode(page)).not.toContain('{{');
+    await shot(page, 'seerr-bands-open-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await shot(page, 'seerr-bands-open-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expectNoFocusTrap(page, 120);
+  } finally {
+    await seerrServers(true);
+    await deleteSeerrHooks(owner);
+    await send(owner, 'put', '/admin/seerr/arr', { radarrUrl: '', sonarrUrl: '' });
+    await arrReset();
+  }
 });

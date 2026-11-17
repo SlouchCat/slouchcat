@@ -50,6 +50,8 @@ import {
   type SeerrTestResult,
 } from '../queries';
 import styles from './Integrations.module.css';
+import { SeerrArrBand } from './SeerrArrBand';
+import { SeerrHookBand } from './SeerrHookBand';
 import {
   BandMeta,
   ClearButton,
@@ -391,7 +393,8 @@ function InstanceNotice({ onDecided }: { onDecided: (message: string) => void })
  * Integrationen › Seerr (concept 25, M-22, administration 4): the state line, the decision about
  * another instance, the band «Verbindung» (the switch «Seerr verwenden», address, write-only key;
  * «Verbindung testen» on the left, «Verwerfen», «Löschen …» and «Speichern» on the right, the
- * check list below) and the band «Protokoll». Both bands start closed; «Verbindung» opens while
+ * check list below), «Abgleich», and once an address is set the bands «Radarr und Sonarr»
+ * and «Sofortmeldung» (stage 4), then «Protokoll». The bands start closed; «Verbindung» opens while
  * the connection needs something (design rule 1.3). Saving runs no test on the server, so the
  * view tests the saved values right after. Values from deploy/.env lock their field.
  */
@@ -400,12 +403,15 @@ export function SeerrView({
   status,
   drafts,
   fields,
+  arrDrafts,
   onFocusLost,
 }: {
   settings: SeerrSettings;
   status: UseQueryResult<SeerrStatus>;
   drafts: Drafts<SeerrValues>;
   fields: Drafts<string>;
+  /** The own addresses of Radarr and Sonarr typed in the band «Radarr und Sonarr». */
+  arrDrafts: Drafts<string>;
   /** The element that held the focus is gone (the notice of another instance). */
   onFocusLost: () => void;
 }) {
@@ -674,6 +680,8 @@ export function SeerrView({
       >
         {status.data && <SyncBand status={status.data} />}
       </DisclosureGroup>
+      {settings.urlSource !== 'none' && <SeerrArrBand drafts={arrDrafts} />}
+      {settings.urlSource !== 'none' && <SeerrHookBand />}
       <DisclosureGroup
         title={t('admin.integrations.seerr.log.title')}
         meta={

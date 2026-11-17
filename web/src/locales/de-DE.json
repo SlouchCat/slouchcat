@@ -362,6 +362,15 @@
           "notTestable": "Nicht prüfbar: Seerr hat außer Benutzer 1 keinen Benutzer.",
           "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer „Lokale Anmeldung“ einschalten.",
           "arrNotConfirmed": "Die Adresse aus Seerr ist noch nicht bestätigt: Teste sie unter „Radarr und Sonarr“."
+        },
+        "arr": {
+          "state": {
+            "unconfirmed": "{{service}} wartet auf „Testen“"
+          }
+        },
+        "hook": {
+          "intro": "Seerr stößt den Abgleich sofort an, statt bis zu 5 Minuten zu warten. Der Abgleich bleibt die Grundlage.",
+          "where": "In Seerr unter Einstellungen › Benachrichtigungen › Webhook: die Adresse als „Webhook URL“, diese Vorlage als „JSON Payload“."
         }
       }
     },

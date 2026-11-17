@@ -357,3 +357,43 @@
 .nowrap {
   white-space: nowrap;
 }
+
+/* Integrationen › Seerr, band «Radarr und Sonarr» (concept 25 stage 4): the two services side by
+   side, one below the other when narrow; a fact with a chip and its detail on one line. */
+.arrServices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--sc-space-3);
+}
+
+.arrService {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-frame);
+  border-radius: var(--sc-radius-md);
+}
+
+.factLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.factDetail {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The links of a band to the places that belong to it. */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

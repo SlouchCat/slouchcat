@@ -23,6 +23,7 @@ import {
   providerSource,
 } from './integrations/ProviderCard';
 import { PushBlock } from './integrations/PushBlock';
+import { ownAddress } from './integrations/SeerrArrBand';
 import { SeerrView } from './integrations/SeerrView';
 import { ServerBlock } from './integrations/ServerBlock';
 import {
@@ -52,6 +53,7 @@ import {
   integrationsQuery,
   seerrSettingsQuery,
   seerrStatusQuery,
+  arrStatusQuery,
   settingsQuery,
   systemQuery,
   wishMappingsQuery,
@@ -84,6 +86,7 @@ export function IntegrationsPage() {
   const seerrStatus = useQuery({ ...seerrStatusQuery, enabled: allowed });
   const seerrConfigured = seerr.data !== undefined && seerr.data.urlSource !== 'none';
   const mappings = useQuery({ ...wishMappingsQuery, enabled: allowed && seerrConfigured });
+  const arrStatus = useQuery({ ...arrStatusQuery, enabled: allowed && seerrConfigured });
   // The states of the integrations and webhooks (build plan 7.2): the dashboard the admin shell
   // asks every 30 s; this page reads it along without a poll of its own. Without it the page
   // works all the same and shows no states.
@@ -127,7 +130,16 @@ export function IntegrationsPage() {
   // the same, so leaving the page asks for it too (S-13).
   const [newName, setNewName] = useState('');
   const webhooksDirty = pathMaps.dirty || newName.trim() !== '';
-  const seerrDirty = seerrDrafts.dirty || fields.isDirty(SEERR_KEY_DRAFT);
+  // The own addresses of Radarr and Sonarr (stage 4), drafted against the stored ones.
+  const arrData = arrStatus.data;
+  const arrDrafts = useDrafts<string>(
+    useCallback(
+      (id: string) =>
+        arrData && (id === 'radarr' || id === 'sonarr') ? ownAddress(arrData[id]) : undefined,
+      [arrData],
+    ),
+  );
+  const seerrDirty = seerrDrafts.dirty || fields.isDirty(SEERR_KEY_DRAFT) || arrDrafts.dirty;
   const unsaved = useUnsavedChanges(fields.dirty || email.dirty || webhooksDirty || seerrDirty);
   const keysDirty = PROVIDER_KEYS.some((keyName) => fields.isDirty(keyDraft(keyName)));
   // A provider counts as set up by its main key (concept 20, P-12).
@@ -320,6 +332,7 @@ export function IntegrationsPage() {
                     status={seerrStatus}
                     drafts={seerrDrafts}
                     fields={fields}
+                    arrDrafts={arrDrafts}
                     onFocusLost={() => titleRef.current?.focus()}
                   />
                 ) : (

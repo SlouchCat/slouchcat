@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { dashboardFixture } from '@/test/admin';
 import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test/api';
 import { fill } from '@/test/fill';
-import type { SeerrSettings, SeerrStatus, SeerrTestResult } from '../queries';
+import type { ArrStatus, SeerrSettings, SeerrStatus, SeerrTestResult } from '../queries';
 
 // Integrationen › Seerr (concept 25, M-22): the tile with the state from the dashboard, the band
 // «Verbindung» with test and save (saving runs no test, the view tests the saved values right
@@ -74,6 +74,13 @@ const routes = (extra: Routes = {}): Routes => ({
 const INPUT = { selector: 'input' };
 
 const view = () => screen.findByRole('region', { name: 'Seerr' });
+
+/** The page's text without the code to copy: Seerr's JSON template has «{{…}}» of its own. */
+const textOutsideCode = () => {
+  const copy = document.body.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll('pre').forEach((code) => code.remove());
+  return copy.textContent;
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -296,5 +303,167 @@ describe('Integrationen › Seerr (concept 25)', () => {
     expect(within(table).getByText('Keine Antwort')).toBeVisible();
     expect(within(table).getByText('timeout')).toBeVisible();
     expect(within(table).getByText('10003 ms')).toBeVisible();
+  });
+
+  it('Radarr and Sonarr: where the address comes from, «Testen», an own address; never a key', async () => {
+    let arr: ArrStatus = {
+      radarr: {
+        source: 'seerr',
+        address: 'http://radarr.lan:7878',
+        confirmed: false,
+        tagRequests: false,
+        counts: { set: 3, pending: 1, failed: 1 },
+        progress: { enabled: true, tracked: 2, lastReadAt: '2026-11-17T10:00:00Z' },
+      },
+      sonarr: {
+        source: 'none',
+        confirmed: false,
+        counts: { set: 0, pending: 0, failed: 0 },
+        progress: { enabled: true, tracked: 0, error: 'unreachable' },
+      },
+    };
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/seerr': () =>
+          json(settings({ enabled: true, urlSource: 'stored', url: 'http://seerr.lan' })),
+        'GET /admin/seerr/status': () => json(status({ state: 'connected', tested: true })),
+        'GET /admin/seerr/arr': () => json(arr),
+        'GET /admin/seerr/webhook': () =>
+          json({
+            jsonPayload: '{"notification_type":"{{notification_type}}"}',
+            types: 6,
+            typeNames: ['MEDIA_PENDING', 'MEDIA_APPROVED'],
+          }),
+        'GET /admin/wishes/settings': () => json({ profileTags: true, showProgress: true }),
+        'POST /admin/seerr/arr/test': () =>
+          json({
+            reachable: true,
+            keyValid: true,
+            tagRequests: false,
+            host: 'http://radarr.lan:7878',
+            source: 'seerr',
+          }),
+        'PUT /admin/seerr/arr': () => {
+          arr = {
+            ...arr,
+            sonarr: {
+              ...arr.sonarr,
+              source: 'own',
+              address: 'http://sonarr:8989',
+              confirmed: true,
+            },
+          };
+          return json(arr);
+        },
+      }),
+    );
+    renderApp('/admin/integrations?item=seerr');
+    const user = userEvent.setup();
+    const seerr = await view();
+    // Radarr waits for «Testen»: the band is open with it (design rule 1.3).
+    const band = within(seerr).getByRole('button', {
+      name: 'Radarr und Sonarr (Profil-Tags und Fortschritt)',
+    });
+    await waitFor(() => expect(band).toHaveAttribute('aria-expanded', 'true'));
+    const radarr = within(seerr).getByRole('region', { name: 'Radarr' });
+    expect(within(radarr).getByText('Aus Seerr: http://radarr.lan:7878')).toBeVisible();
+    expect(within(radarr).getByText('Radarr wartet auf «Testen»')).toBeVisible();
+    expect(
+      within(radarr).getByText(
+        '1 gesetzt · 1 offen · 1 fehlgeschlagen'.replace('1 gesetzt', '3 gesetzt'),
+      ),
+    ).toBeVisible();
+    const sonarr = within(seerr).getByRole('region', { name: 'Sonarr' });
+    expect(
+      within(sonarr).getByText('Keine: Seerr hat keinen Standardserver für Sonarr.'),
+    ).toBeVisible();
+    expect(
+      within(sonarr).getByText('Fortschritt nicht lesbar: Sonarr ist nicht erreichbar.'),
+    ).toBeVisible();
+
+    await user.click(within(radarr).getByRole('button', { name: 'Radarr testen' }));
+    expect(
+      await within(radarr).findByText(
+        'Radarr antwortet unter http://radarr.lan:7878, der Schlüssel aus Seerr gilt. Die Adresse ist bestätigt.',
+      ),
+    ).toBeVisible();
+
+    await fill(
+      user,
+      within(seerr).getByLabelText('Eigene Adresse für Sonarr', INPUT),
+      'http://sonarr:8989',
+    );
+    await user.click(
+      within(seerr).getByRole('button', {
+        name: 'Eigene Adressen von Radarr und Sonarr speichern',
+      }),
+    );
+    expect(await within(seerr).findByText('Eigene Adressen gespeichert.')).toBeVisible();
+    const put = calls.find((call) => call.method === 'PUT' && call.path === '/admin/seerr/arr');
+    expect(put?.body).toEqual({ sonarrUrl: 'http://sonarr:8989' });
+    expect(within(sonarr).getByText('Eigene Adresse: http://sonarr:8989')).toBeVisible();
+    expect(textOutsideCode()).not.toContain('{{');
+  });
+
+  it('«Sofortmeldung» makes the address of a webhook integration of the kind seerr', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/seerr': () =>
+          json(settings({ enabled: true, urlSource: 'stored', url: 'http://seerr.lan' })),
+        'GET /admin/seerr/status': () => json(status({ state: 'connected', tested: true })),
+        'GET /admin/seerr/arr': () =>
+          json({
+            radarr: {
+              source: 'none',
+              confirmed: false,
+              counts: { set: 0, pending: 0, failed: 0 },
+              progress: { enabled: true, tracked: 0 },
+            },
+            sonarr: {
+              source: 'none',
+              confirmed: false,
+              counts: { set: 0, pending: 0, failed: 0 },
+              progress: { enabled: true, tracked: 0 },
+            },
+          }),
+        'GET /admin/seerr/webhook': () =>
+          json({
+            jsonPayload: '{"notification_type":"x"}',
+            types: 6,
+            typeNames: ['MEDIA_PENDING', 'MEDIA_APPROVED'],
+          }),
+        'GET /admin/wishes/settings': () => json({ profileTags: true, showProgress: true }),
+        'POST /admin/integrations': () =>
+          json(
+            {
+              integration: {
+                id: 4,
+                name: 'Seerr',
+                kind: 'seerr',
+                tokenTail: 'ab12',
+                pathMap: [],
+                createdAt: '2026-11-17T10:00:00Z',
+              },
+              url: 'http://slouchcat.lan/api/v1/webhooks/secret-token-ab12',
+            },
+            201,
+          ),
+      }),
+    );
+    renderApp('/admin/integrations?item=seerr');
+    const user = userEvent.setup();
+    const seerr = await view();
+    const band = within(seerr).getByRole('button', { name: 'Sofortmeldung' });
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    await user.click(band);
+    expect(await within(seerr).findByText('MEDIA_PENDING', { exact: false })).toBeVisible();
+    await user.click(within(seerr).getByRole('button', { name: 'Adresse erzeugen' }));
+    expect(await within(seerr).findByDisplayValue(/secret-token-ab12$/)).toBeVisible();
+    const post = calls.find(
+      (call) => call.method === 'POST' && call.path === '/admin/integrations',
+    );
+    expect(post?.body).toEqual({ name: 'Seerr', kind: 'seerr' });
+    expect(within(seerr).getByRole('button', { name: 'Vorlage kopieren' })).toBeVisible();
+    expect(within(seerr).getByRole('button', { name: 'Arten kopieren' })).toBeVisible();
   });
 });
