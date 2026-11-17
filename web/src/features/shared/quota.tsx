@@ -13,6 +13,9 @@ type WishQuota = components['schemas']['WishQuota'];
 type WishQuotaPart = components['schemas']['WishQuotaPart'];
 type Kind = 'movie' | 'tv';
 
+/** A limit state Slouchcat never read from Seerr: no time, and not «Kein Limit» by right. */
+const unread = (quota: WishQuota) => quota.at === undefined && !quota.unlimited;
+
 /**
  * One half of a limit state as Seerr last reported it: «Filme: 7 von 10 in 7 Tagen · noch 3 frei
  * · nächster Platz frei am 20.11.2026». Without a state from Seerr the limit itself (`limits`, the
@@ -25,7 +28,8 @@ export function quotaText(
   quota: WishQuota | undefined,
   limits?: WishLimits,
 ): string {
-  if (quota === undefined) return limits ? limitPart(t, limits, kind) : '';
+  // Never read from Seerr (no `at`, not unlimited): nothing is known yet, so nothing is claimed.
+  if (quota === undefined || unread(quota)) return limits ? limitPart(t, limits, kind) : '';
   const part: WishQuotaPart | undefined = quota[kind];
   if (part === undefined) return t(`wishes.quota.${kind}None`);
   const parts = [
@@ -43,7 +47,7 @@ export function quotaText(
  * without a limit.
  */
 export function quotaShort(t: TFunction, quota: WishQuota | undefined): string[] {
-  if (quota === undefined || quota.unlimited) return [];
+  if (quota === undefined || quota.unlimited || unread(quota)) return [];
   return (['movie', 'tv'] as const).flatMap((kind) => {
     const part = quota[kind];
     return part ? [t(`wishes.quota.short.${kind}`, { used: part.used, limit: part.limit })] : [];

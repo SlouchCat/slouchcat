@@ -17,7 +17,13 @@ import {
   tabTo,
 } from './keyboard';
 import { SEERR_API_KEY, USERS } from './seerr-server.mjs';
-import { closeWishes, openWishes, type WishesSetup } from './wishes';
+import {
+  closeWishes,
+  openWishes,
+  seerrRequests,
+  setSeerrRequest,
+  type WishesSetup,
+} from './wishes';
 
 // Medien › Wünsche (concept 25, M-23, M-24 and M-25) against the real server and the Seerr mock
 // (seerr-server.mjs): the tabs «Anfragen» (the default), «Seerr-Benutzer» and «Einstellungen» (`?tab=`), the table of the
@@ -465,7 +471,24 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
       data: { media: 'movie', tmdbId: 9003, source: 'detail' },
     });
     expect(made.status(), await made.text()).toBe(201);
+    // A series is requested per season: «In Seerr» names its seasons' requests.
+    const series = await owner.post('/api/v1/wishes', {
+      headers: CSRF,
+      data: { media: 'show', tmdbId: 9100, seasons: [1, 2], source: 'detail' },
+    });
+    expect(series.status(), await series.text()).toBe(201);
+    await expect
+      .poll(async () => (await seerrRequests()).filter((r) => r.mediaId === 9100).length, {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(0);
     await page.goto('/admin/wishes');
+    const fog = page
+      .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
+      .getByRole('row')
+      .filter({ hasText: 'Nebelhafen' });
+    await expect(fog).toContainText(/Anfragen? \d+/);
+    await expect(fog).not.toContainText('Noch nicht');
     const requests = tabs(page).getByRole('tab', { name: 'Anfragen' });
     await expect(requests).toHaveAttribute('aria-selected', 'true');
     const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
@@ -499,6 +522,44 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
     await page.keyboard.press('Enter');
     await expect(page.getByText('Der Abgleich mit Seerr läuft.')).toBeVisible();
     await expectVisibleFocus(page);
+
+    // Seerr reports the film's request as failed: the wish fails, its fold-out offers «Erneut
+    // versuchen», which calls retryWish (202) and says so.
+    const film = (await seerrRequests()).find((r) => r.mediaId === 9003);
+    if (!film) throw new Error('the film was not sent to Seerr');
+    await setSeerrRequest(film.id, 4);
+    await expect
+      .poll(
+        async () => {
+          await owner.post('/api/v1/admin/seerr/sync', { headers: CSRF });
+          const list = (await (await owner.get('/api/v1/admin/wishes?limit=50')).json()) as {
+            items: { title: { tmdbId: number }; state: string }[];
+          };
+          return list.items.find((wish) => wish.title.tmdbId === 9003)?.state;
+        },
+        { timeout: 30_000, intervals: [1000] },
+      )
+      .toBe('failed');
+    await page.reload();
+    const failedRow = page
+      .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
+      .getByRole('row')
+      .filter({ hasText: 'Glasfabrik (2024)' });
+    const failedToggle = failedRow.getByRole('button', { name: /Glasfabrik/ });
+    await resetFocus(page);
+    await tabTo(page, failedToggle, 60);
+    await page.keyboard.press('Enter');
+    const retry = page.getByRole('button', { name: 'Glasfabrik: erneut versuchen' });
+    await tabTo(page, retry, 20);
+    const retried = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        /\/admin\/wishes\/\d+\/retry$/.test(response.url()),
+    );
+    await page.keyboard.press('Enter');
+    expect((await retried).status()).toBe(202);
+    await expect(page.getByText('Glasfabrik wird erneut versucht.')).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
     await expectNoFocusTrap(page, 120);
   } finally {
     await closeWishes(owner, setup);

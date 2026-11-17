@@ -5864,6 +5864,8 @@
         "noRequester": "Nobody in Slouchcat",
         "noRequest": "Not yet",
         "requestId": "Request {{id}}",
+        "requestIds_one": "Request {{ids}}",
+        "requestIds_other": "Requests {{ids}}",
         "filter": {
           "label": "Filter wishes by state",
           "all": "All",

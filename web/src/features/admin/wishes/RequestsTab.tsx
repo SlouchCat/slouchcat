@@ -100,14 +100,29 @@ function requestColumns(t: TFunction, language: string): DataColumn<AdminWish>[]
     {
       key: 'seerr',
       header: t('admin.wishes.requests.columns.seerr'),
-      cell: (wish) =>
-        wish.seerrRequestId === undefined ? (
+      cell: (wish) => {
+        // A series is requested per season: its seasons carry the request numbers.
+        const ids = [
+          ...new Set(
+            wish.title.media === 'show'
+              ? wish.seasons.flatMap((season) =>
+                  season.seerrRequestId === undefined ? [] : [season.seerrRequestId],
+                )
+              : [],
+          ),
+        ];
+        if (ids.length === 0 && wish.seerrRequestId !== undefined) ids.push(wish.seerrRequestId);
+        return ids.length === 0 ? (
           <span className={styles.muted}>{t('admin.wishes.requests.noRequest')}</span>
         ) : (
           <span className={styles.nowrap}>
-            {t('admin.wishes.requests.requestId', { id: wish.seerrRequestId })}
+            {t('admin.wishes.requests.requestIds', {
+              count: ids.length,
+              ids: ids.join(t('format.listSeparator')),
+            })}
           </span>
-        ),
+        );
+      },
     },
     {
       key: 'attempts',
@@ -127,10 +142,13 @@ function RequestDetail({
   wish,
   onRetry,
   retrying,
+  failure,
 }: {
   wish: AdminWish;
   onRetry: (wish: AdminWish) => void;
   retrying: boolean;
+  /** Why the last «Erneut versuchen» of this wish was refused (409 `wish_not_retryable`). */
+  failure: unknown;
 }) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -179,6 +197,7 @@ function RequestDetail({
           </ol>
         )}
       </section>
+      {failure ? <Notice tone="danger">{problemMessage(t, failure)}</Notice> : null}
       {canRetry && (
         <div className={styles.actions}>
           <AriaButton
@@ -225,7 +244,10 @@ export function RequestsTab() {
   });
   const retry = useMutation({
     mutationFn: (wish: AdminWish) => retryWish(wish.id),
-    onMutate: () => say(null),
+    onMutate: () => {
+      say(null);
+      sync.reset();
+    },
     onSuccess: async (_, wish) => {
       say(t('admin.wishes.requests.retried', { title: wish.title.title }));
       await refresh();
@@ -239,7 +261,8 @@ export function RequestsTab() {
     return counts[value];
   };
   const queued = status.data?.counts.queued ?? 0;
-  const failure = sync.error ?? retry.error;
+  // A refused retry shows at its wish's row; the page's line is the sync's.
+  const failure = sync.error;
 
   return (
     <div className={styles.tabBody}>
@@ -304,6 +327,7 @@ export function RequestsTab() {
                 <RequestDetail
                   wish={wish}
                   retrying={retry.isPending && retry.variables?.id === wish.id}
+                  failure={retry.variables?.id === wish.id ? retry.error : null}
                   onRetry={(entry) => retry.mutate(entry)}
                 />
               ),

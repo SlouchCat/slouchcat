@@ -242,6 +242,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
                 provisionError: 'email_taken',
                 quota: {
                   unlimited: false,
+                  at: '2026-11-17T08:00:00Z',
                   movie: {
                     limit: 10,
                     days: 7,
@@ -480,11 +481,10 @@ describe('Wünsche › Anfragen (M-23)', () => {
                 title: { media: 'show', tmdbId: 9100, title: 'Nebelhafen', posterUrl: '' },
                 state: 'pending',
                 failReason: undefined,
-                seerrRequestId: 104,
                 attempts: 1,
                 seasons: [
-                  { number: 1, state: 'pending' },
-                  { number: 2, state: 'pending' },
+                  { number: 1, state: 'pending', seerrRequestId: 104 },
+                  { number: 2, state: 'pending', seerrRequestId: 105 },
                 ],
               }),
             ],
@@ -510,7 +510,8 @@ describe('Wünsche › Anfragen (M-23)', () => {
     expect(within(copper).getByText('9')).toBeVisible();
     const fog = within(table).getByRole('row', { name: /Nebelhafen/ });
     expect(within(fog).getByText('Staffeln 1, 2')).toBeVisible();
-    expect(within(fog).getByText('Anfrage 104')).toBeVisible();
+    // A series is requested per season: the column names its seasons' requests.
+    expect(within(fog).getByText('Anfragen 104, 105')).toBeVisible();
     expect(screen.getByText('1 Wunsch wartet auf die Übermittlung an Seerr.')).toBeVisible();
 
     const user$ = userEvent.setup();
@@ -526,5 +527,38 @@ describe('Wünsche › Anfragen (M-23)', () => {
       ).toBe(true),
     );
     expect(document.body.textContent).not.toContain('{{');
+  });
+  it('a refused «Erneut versuchen» shows at its wish; a declined wish offers none', async () => {
+    mockApi(
+      routes({
+        'GET /admin/seerr/status': () => json(status()),
+        'GET /admin/wishes': () =>
+          json({
+            items: [
+              adminWish(),
+              adminWish({
+                id: 13,
+                title: { media: 'movie', tmdbId: 9001, title: 'Glasvogel', posterUrl: '' },
+                state: 'declined',
+                failReason: undefined,
+              }),
+            ],
+            total: 2,
+            counts: { open: 0, pending: 0, processing: 0, partial: 0, available: 0, closed: 2 },
+          }),
+        'POST /admin/wishes/11/retry': () => problem(409, 'wish_not_retryable'),
+      }),
+    );
+    renderApp('/admin/wishes');
+    const user = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    await user.click(within(table).getByRole('button', { name: /Glasvogel/ }));
+    expect(screen.queryByRole('button', { name: 'Glasvogel: erneut versuchen' })).toBeNull();
+    await user.click(within(table).getByRole('button', { name: /Kupfermond/ }));
+    const retry = await screen.findByRole('button', { name: 'Kupfermond: erneut versuchen' });
+    await user.click(retry);
+    const refused = await screen.findByText('Dieser Wunsch lässt sich nicht erneut versuchen.');
+    // At the row's fold-out, beside its button, not at the top of the tab.
+    expect(table).toContainElement(refused);
   });
 });

@@ -86,7 +86,11 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
       ...withWishes(),
       'GET /wishes': () => json({ items: [pending, partial, failed], total: 3, counts }),
       'GET /wishes/quota': () =>
-        json({ unlimited: false, movie: { limit: 10, days: 7, used: 3, queued: 0, remaining: 7 } }),
+        json({
+          unlimited: false,
+          movie: { limit: 10, days: 7, used: 3, queued: 0, remaining: 7 },
+          at: '2026-11-17T08:00:00Z',
+        }),
     });
     renderApp('/wishes');
     expect(await screen.findByRole('heading', { level: 1, name: 'Meine Wünsche' })).toBeVisible();
@@ -125,6 +129,17 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
     await user.click(screen.getByRole('button', { name: 'Offen (2)' }));
     await waitFor(() => expect(queryOf(fetchMock)).toContain('open'));
     expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('a limit never read from Seerr (no `at`) claims nothing, not «ohne Limit»', async () => {
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () => json({ items: [pending], total: 1, counts }),
+      'GET /wishes/quota': () => json({ unlimited: false }),
+    });
+    renderApp('/wishes');
+    expect(await screen.findByRole('article', { name: /Glasvogel/ })).toBeVisible();
+    expect(screen.queryByText(/ohne Limit|^Limit:/)).toBeNull();
   });
 
   it('asks before it withdraws, then calls withdrawWish', async () => {

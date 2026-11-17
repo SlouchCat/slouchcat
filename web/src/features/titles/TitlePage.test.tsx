@@ -38,6 +38,7 @@ const film: ExternalTitle = {
     quota: {
       unlimited: false,
       movie: { limit: 10, days: 7, used: 3, queued: 0, remaining: 7 },
+      at: '2026-11-17T08:00:00Z',
     },
   },
 };
@@ -58,6 +59,7 @@ const series: ExternalTitle = {
     autoApprove: true,
     quota: {
       unlimited: false,
+      at: '2026-11-17T08:00:00Z',
       tv: {
         limit: 5,
         days: 7,

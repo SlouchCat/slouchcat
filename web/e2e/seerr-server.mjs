@@ -25,6 +25,8 @@
 //                                    user's limit, which counts the requests (a season each)
 //   GET  /api/v1/request?take=&skip=&requestedBy=&filter=   {pageInfo, results}, newest first
 //   GET|DELETE /api/v1/request/{id}  one request; DELETE 204 (only pending, or the key's owner)
+//   POST /api/v1/request/{id}/retry  a failed request (status 4) sent again: approved (2), 200
+//                                    with the request; any other 500 «Request is not failed.»
 //   GET  /api/v1/movie/{id}, /tv/{id}  the titles of tmdb-server.mjs with mediaInfo and, for a
 //                                    series, the seasons Seerr can order (season 0 included)
 //   GET  /api/v1/user?take=&skip=    {pageInfo, results} (I-11)
@@ -425,6 +427,21 @@ export function startSeerrServer({
         response.writeHead(204).end();
         return;
       }
+    }
+    const retry = /^\/request\/(\d+)\/retry$/.exec(path);
+    if (method === 'POST' && retry) {
+      const found = requests.find((r) => String(r.id) === retry[1]);
+      if (!found) {
+        sendJson(response, 404, { message: 'Request not found.' });
+        return;
+      }
+      if (found.status !== 4) {
+        sendJson(response, 500, { message: 'Request is not failed.' });
+        return;
+      }
+      found.status = 2;
+      sendJson(response, 200, requestOf(found));
+      return;
     }
     const title = /^\/(movie|tv)\/(\d+)$/.exec(path);
     if (method === 'GET' && title) {
