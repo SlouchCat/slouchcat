@@ -1035,9 +1035,18 @@ export const setAccountWishMapping = (
  * «In Seerr eröffnen»: links a Seerr user with the same e-mail or opens a new one; when Seerr is
  * not reached the account comes back `waiting` (202) and a job tries again.
  */
-export const provisionSeerrAccount = (accountId: number): Promise<WishAccountMapping> =>
+export const provisionSeerrAccount = (
+  accountId: number,
+  allowPrivileged = false,
+): Promise<WishAccountMapping> =>
   request(
-    api.POST('/admin/wishes/accounts/{accountId}/provision', { params: { path: { accountId } } }),
+    api.POST('/admin/wishes/accounts/{accountId}/provision', {
+      params: {
+        path: { accountId },
+        // Only after the administrator confirmed linking a user that administers Seerr.
+        ...(allowPrivileged ? { query: { allowPrivileged: true } } : {}),
+      },
+    }),
   );
 
 /** «Alle eröffnen»: queues every account without a ready Seerr user; says how many link or open. */

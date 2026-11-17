@@ -92,6 +92,10 @@ function seerrUserText(t: TFunction, wish: AdminWish): string | undefined {
 
 type Review = { wish: AdminWish; approve: boolean };
 
+/** A request of the wish waits for an approval in Seerr: the film's, or one of a season. */
+const hasPending = (wish: AdminWish) =>
+  wish.state === 'pending' || wish.seasons.some((season) => season.state === 'pending');
+
 function requestColumns(
   t: TFunction,
   language: string,
@@ -212,7 +216,8 @@ function ReviewActions({
   onReview: (review: Review) => void;
 }) {
   const { t } = useTranslation();
-  if (wish.state !== 'pending') return null;
+  // A series in procurement can still have a season that waits for an approval.
+  if (!hasPending(wish)) return null;
   const title = wish.title.title;
   // The pressed button shows that it works and keeps the focus; the other one waits.
   const busy = pending?.wish.id === wish.id;

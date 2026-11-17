@@ -219,6 +219,58 @@ describe('Wünsche › Seerr-Benutzer', () => {
     expect(document.body.textContent).not.toContain('{{');
   });
 
+  it('a Seerr user that administers Seerr is linked only after a question that says what it means', async () => {
+    const admin = user(4, 'besitzer', { email: 'besitzer@example.org', isAdmin: true });
+    let current = mapping();
+    let posts = 0;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({ accounts: [current], unlinkedUsers: [admin], opened: 0, total: 1 }),
+        'GET /admin/wishes/mappings/users': () => json([...USERS, admin]),
+        // The first call finds the administrator and waits; the confirmed one links it.
+        'POST /admin/wishes/accounts/1/provision': () => {
+          posts += 1;
+          current =
+            posts > 1
+              ? mapping({
+                  seerrUserId: 4,
+                  state: 'linked',
+                  linkedBy: 'admin',
+                  passwordState: 'admin',
+                })
+              : mapping({ state: 'waiting', provisionError: 'seerr_user_privileged' });
+          return json(current, current.state === 'linked' ? 200 : 202);
+        },
+      }),
+    );
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
+    const user$ = userEvent.setup();
+    await user$.click(await screen.findByRole('button', { name: 'In Seerr eröffnen' }));
+    const question = await screen.findByRole('alertdialog', {
+      name: 'Seerr-Administrator besitzer verknüpfen?',
+    });
+    expect(within(question).getByText(/ohne Freigabe und ohne Limit/)).toBeVisible();
+    await user$.click(within(question).getByRole('button', { name: 'Abbrechen' }));
+    expect(
+      await screen.findByText(
+        /Dieser Seerr-Benutzer verwaltet Seerr\. Slouchcat verknüpft ihn nicht von selbst/,
+      ),
+    ).toBeVisible();
+    await user$.click(screen.getByRole('button', { name: 'Trotzdem verknüpfen …' }));
+    const again = await screen.findByRole('alertdialog');
+    await user$.click(within(again).getByRole('button', { name: 'Trotzdem verknüpfen' }));
+    expect(
+      await screen.findByText(
+        'besitzer@example.org ist mit dem Seerr-Benutzer «besitzer» verknüpft.',
+      ),
+    ).toBeVisible();
+    expect(calls.filter((call) => call.path === '/admin/wishes/accounts/1/provision')).toHaveLength(
+      2,
+    );
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
   it('«In Seerr eröffnen» names the user of the same e-mail; Seerr away, the account waits', async () => {
     const same = user(4, 'besitzer', { email: 'Besitzer@example.org' });
     const { calls } = mockApi(

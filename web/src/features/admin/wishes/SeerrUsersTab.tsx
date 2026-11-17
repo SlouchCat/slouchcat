@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -19,9 +19,13 @@ import {
   VisuallyHidden,
 } from '@/ui';
 import {
+  afterDialogsClosed,
+  afterRender,
   AriaButton,
   BandPanel,
+  ConfirmDialog,
   DataTable,
+  focusLost,
   StatusRegion,
   useStatusMessage,
   type DataTableExpand,
@@ -42,7 +46,7 @@ import {
   type WishMappings,
   type WishSettings,
 } from '../queries';
-import { rightsText, seerrUserColumns, userTypeText } from './columns';
+import { rightsText, seerrUserColumns, userTypeText, waitsForChoice } from './columns';
 import { QuotaLines } from '../../shared/quota';
 import { limitSummary } from '../../shared/WishLimitFields';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
@@ -54,7 +58,8 @@ interface MappingChange {
 }
 
 /** «In Seerr eröffnen» (or «Erneut versuchen») and the password mode of one account. */
-type RowAction = { kind: 'provision' } | { kind: 'password'; mode: SeerrPasswordMode };
+type RowAction =
+  { kind: 'provision'; allowPrivileged?: boolean } | { kind: 'password'; mode: SeerrPasswordMode };
 
 /** The reasons an account waits for Seerr that have words of their own (`provisionError`). */
 const WAIT_REASONS = [
@@ -64,7 +69,22 @@ const WAIT_REASONS = [
   'key_invalid',
   'instance_changed',
   'seerr_user_taken',
+  'seerr_user_privileged',
 ] as const;
+
+/** The classes of a refusal by Seerr that need no words of their own: one neutral sentence. */
+const REFUSALS: readonly string[] = [
+  'redirect',
+  'access_denied',
+  'csrf',
+  'quota',
+  'no_permission',
+  'forbidden',
+  'not_found',
+  'conflict',
+  'bad_request',
+  'failed',
+];
 
 type WaitReason = (typeof WAIT_REASONS)[number];
 const isWaitReason = (reason: string): reason is WaitReason =>
@@ -77,8 +97,9 @@ const isWaitReason = (reason: string): reason is WaitReason =>
 function waitText(t: TFunction, reason: string | undefined): string {
   if (reason === undefined) return t('admin.wishes.users.waitReason.unreachable');
   const code = reason.split(':')[0]?.trim() ?? reason;
-  return isWaitReason(code)
-    ? t(`admin.wishes.users.waitReason.${code}`)
+  if (isWaitReason(code)) return t(`admin.wishes.users.waitReason.${code}`);
+  return REFUSALS.includes(code)
+    ? t('admin.wishes.users.waitReason.refused')
     : t('admin.wishes.users.waitReason.other', { reason });
 }
 
@@ -115,6 +136,7 @@ function AccountDetail({
   configured,
   stale,
   tagDrafts,
+  onLinkPrivileged,
 }: {
   mapping: WishAccountMapping;
   user: SeerrUser | undefined;
@@ -128,6 +150,8 @@ function AccountDetail({
   stale: boolean;
   /** The tag names typed for the profiles (page drafts). */
   tagDrafts: Drafts<string>;
+  /** Asks before linking a Seerr user that administers Seerr. */
+  onLinkPrivileged: (mapping: WishAccountMapping) => void;
 }) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -143,6 +167,9 @@ function AccountDetail({
   const toAccount = `${paths.adminAccounts}?item=${mapping.accountId}`;
   const ready = user !== undefined && mapping.seerrUserId !== undefined;
   const password = ready ? mapping.passwordState : undefined;
+  // The user of the same e-mail administers Seerr: linking it waits for a confirmation.
+  const privileged =
+    mapping.state === 'waiting' && mapping.provisionError === 'seerr_user_privileged';
   const syncOff = settings !== undefined && !settings.syncPassword;
 
   const options = [
@@ -336,7 +363,15 @@ function AccountDetail({
         </Notice>
       )}
       {mapping.state === 'waiting' && (
-        <Notice tone="warning" live={false} title={t('admin.wishes.users.waitingTitle')}>
+        <Notice
+          tone="warning"
+          live={false}
+          title={t(
+            waitsForChoice(mapping)
+              ? 'admin.wishes.users.waitingChoiceTitle'
+              : 'admin.wishes.users.waitingTitle',
+          )}
+        >
           {waitText(t, mapping.provisionError)}
         </Notice>
       )}
@@ -345,7 +380,7 @@ function AccountDetail({
           {t('admin.wishes.users.emailTakenBody', { name: user.displayName })}
         </Notice>
       )}
-      {candidate && (
+      {candidate && !waitsForChoice(mapping) && (
         <Notice
           tone="info"
           live={false}
@@ -368,11 +403,15 @@ function AccountDetail({
               icon={provisionOff ? 'lock' : mapping.state === 'waiting' ? 'refresh' : 'plus'}
               isDisabled={provisionOff || !configured || pending !== undefined}
               isPending={acting?.kind === 'provision'}
-              onPress={() => actions.change(key, { kind: 'provision' })}
+              onPress={() =>
+                privileged ? onLinkPrivileged(mapping) : actions.change(key, { kind: 'provision' })
+              }
             >
-              {mapping.state === 'waiting'
-                ? t('admin.wishes.users.retry')
-                : t('admin.wishes.users.provision')}
+              {privileged
+                ? t('admin.wishes.users.linkPrivileged')
+                : mapping.state === 'waiting'
+                  ? t('admin.wishes.users.retry')
+                  : t('admin.wishes.users.provision')}
             </AriaButton>
           )}
           <SelectField
@@ -535,10 +574,13 @@ export function SeerrUsersTab({
         : t('admin.wishes.users.linked', { email: next.email, name: name(seerrUserId) });
     },
   });
+  // The account whose Seerr user of the same e-mail administers Seerr, while the question is open.
+  const [privileged, setPrivileged] = useState<WishAccountMapping | null>(null);
+  const body = useRef<HTMLDivElement>(null);
   const actions = useImmediateSave<RowAction, WishAccountMapping>({
     save: (action, key) =>
       action.kind === 'provision'
-        ? provisionSeerrAccount(Number(key))
+        ? provisionSeerrAccount(Number(key), action.allowPrivileged)
         : setSeerrPasswordMode(Number(key), action.mode),
     saved: async (next, action) => {
       queryClient.setQueryData(
@@ -563,6 +605,14 @@ export function SeerrUsersTab({
           { email: next.email },
         );
       }
+      if (next.state === 'waiting' && next.provisionError === 'seerr_user_privileged') {
+        // Seerr has a user of this e-mail that administers Seerr: ask before linking it.
+        setPrivileged(next);
+        return t('admin.wishes.users.provisioned.privileged', { email: next.email });
+      }
+      if (next.state === 'waiting' && next.provisionError === 'seerr_user_taken') {
+        return t('admin.wishes.users.provisioned.taken', { email: next.email });
+      }
       if (next.state === 'waiting') {
         return t('admin.wishes.users.provisioned.waiting', { email: next.email });
       }
@@ -582,6 +632,11 @@ export function SeerrUsersTab({
     },
   });
 
+  /** The Seerr user of the same e-mail as the account, by the last read list. */
+  const linkCandidateName = (mapping: WishAccountMapping) =>
+    (users.data ?? []).find(
+      (user) => !user.shared && user.email?.toLowerCase() === mapping.email.toLowerCase(),
+    )?.displayName;
   const columns = seerrUserColumns(t, userOf);
   const configured = status !== undefined && status.state !== 'not_configured';
   const list = mappings.data;
@@ -597,9 +652,38 @@ export function SeerrUsersTab({
   const toConnection = `${paths.adminIntegrations}?item=seerr`;
   const stale = status !== undefined && status.state !== 'connected';
 
+  const linkPrivileged = (mapping: WishAccountMapping) => {
+    actions.change(String(mapping.accountId), { kind: 'provision', allowPrivileged: true });
+    // The buttons of a waiting account go once it is linked: the focus goes to its row's toggle.
+    void afterDialogsClosed().then(async () => {
+      await afterRender();
+      if (focusLost()) {
+        body.current
+          ?.querySelector<HTMLElement>(`tr[data-row-key="${mapping.accountId}"] [aria-expanded]`)
+          ?.focus();
+      }
+    });
+  };
+
   return (
-    <div className={styles.tabBody}>
+    <div className={styles.tabBody} ref={body}>
       <VisuallyHidden as="h2">{t('admin.wishes.tabs.users')}</VisuallyHidden>
+      <ConfirmDialog
+        isOpen={privileged !== null}
+        onOpenChange={(open) => {
+          if (!open) setPrivileged(null);
+        }}
+        title={t('admin.wishes.users.privilegedTitle', {
+          name: (privileged && linkCandidateName(privileged)) ?? '',
+        })}
+        body={t('admin.wishes.users.privilegedBody', { email: privileged?.email ?? '' })}
+        confirmLabel={t('admin.wishes.users.privilegedConfirm')}
+        cancelLabel={t('common.cancel')}
+        tone="danger"
+        onConfirm={() => {
+          if (privileged) linkPrivileged(privileged);
+        }}
+      />
       <StatusRegion message={save.failure ? null : save.message} />
       <StatusRegion message={actions.failure ? null : actions.message} />
       {status && !configured && (
@@ -741,6 +825,7 @@ export function SeerrUsersTab({
                     configured={configured}
                     stale={stale}
                     tagDrafts={tagDrafts}
+                    onLinkPrivileged={setPrivileged}
                   />
                 ),
                 expandedKeys: expanded,

@@ -124,7 +124,11 @@ function WishesContent() {
     mutationFn: provisionSeerrAccounts,
     onMutate: () => sayProvision(null),
     onSuccess: async (result) => {
-      sayProvision(t('admin.wishes.users.provisionAllQueued', result));
+      sayProvision(
+        result.manual > 0
+          ? `${t('admin.wishes.users.provisionAllQueued', result)} ${t('admin.wishes.users.provisionAllManual', { count: result.manual })}`
+          : t('admin.wishes.users.provisionAllQueued', result),
+      );
       setReloadUntil(Date.now() + RELOAD_WINDOW_MS);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: wishKeys.all }),

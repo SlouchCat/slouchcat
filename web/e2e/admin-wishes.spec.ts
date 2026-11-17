@@ -1003,3 +1003,114 @@ test('profile tags, the take-over and the band of Radarr and Sonarr by keyboard 
     await send(owner, 'put', `/admin/wishes/profiles/${profile.profileId}/tag`, { name: null });
   }
 });
+
+// The second fix round of stage 4: a Seerr user of the same e-mail that administers Seerr is never
+// linked on its own. «Alle eröffnen» names the account that needs a choice by hand; the account
+// waits with the reason, and «Trotzdem verknüpfen …» links it only after a question that says what
+// it means. By keyboard; the question gives the focus back.
+test('a Seerr user that administers Seerr is linked only after a question @keyboard', async ({
+  page,
+  owner,
+  playwright,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const ADMIN = { email: 'wuensche-verwaltung@slouchcat.test', password: GUEST_PASSWORD };
+  await connect(owner);
+  await send(owner, 'put', '/admin/wishes/settings', { provisionAccounts: false });
+  const anonymous = await anonymousApi(playwright, baseURL ?? '');
+  const invitation = await createInvitation(owner);
+  await acceptInvitation(anonymous, invitation.token, {
+    email: ADMIN.email,
+    password: ADMIN.password,
+    profileName: 'Verwaltung',
+    language: 'de',
+  });
+  await anonymous.dispose();
+  try {
+    // Seerr has a user of that e-mail with the right to manage requests.
+    await seerrControl({ privileged: ADMIN.email });
+    await send(owner, 'post', '/admin/wishes/mappings/users/refresh');
+    await expect
+      .poll(
+        async () =>
+          (await json<{ email?: string }[]>(owner, '/admin/wishes/mappings/users')).some(
+            (entry) => entry.email === ADMIN.email,
+          ),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await send(owner, 'put', '/admin/wishes/settings', { provisionAccounts: true });
+
+    await page.goto('/admin/wishes?tab=seerr-benutzer');
+    const all = page.getByRole('button', { name: 'Alle eröffnen' });
+    await resetFocus(page);
+    await tabTo(page, all, 60);
+    await page.keyboard.press('Enter');
+    const question = page.getByRole('alertdialog', { name: 'Alle Konten in Seerr eröffnen?' });
+    await question.getByRole('button', { name: 'Alle eröffnen' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(/1 Konto braucht eine Wahl von Hand\./)).toBeVisible();
+    await expect
+      .poll(async () => (await mappings(owner)).find((m) => m.email === ADMIN.email)?.state, {
+        timeout: 15_000,
+      })
+      .toBe('waiting');
+    await provisionSettled(owner);
+    await page.reload();
+
+    const toggle = rowToggle(page, ADMIN.email);
+    await resetFocus(page);
+    await tabTo(page, toggle, 80);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(
+        /^Dieser Seerr-Benutzer verwaltet Seerr\. Slouchcat verknüpft ihn nicht von selbst/,
+      ),
+    ).toBeVisible();
+    await expect(rowToggle(page, ADMIN.email).locator('xpath=ancestor::tr')).toContainText(
+      'Wartet auf eine Wahl von Hand',
+    );
+    // The table with an open row fits beside the sidebar at 1280 px.
+    const usersTable = page.getByRole('table', { name: 'Konten und ihre Seerr-Benutzer' });
+    expect(
+      await usersTable
+        .locator('xpath=..')
+        .evaluate((frame) => frame.scrollWidth - frame.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    const link = page.getByRole('button', { name: 'Trotzdem verknüpfen …' });
+    await tabTo(page, link, 10);
+    await page.keyboard.press('Enter');
+    const ask = page.getByRole('alertdialog', { name: /^Seerr-Administrator .* verknüpfen\?$/ });
+    await expect(ask).toContainText('ohne Freigabe und ohne Limit');
+    await shot(page, 'seerr-benutzer-privileged-question-desktop');
+    // Escape keeps everything and gives the focus back.
+    await page.keyboard.press('Escape');
+    await expect(ask).toBeHidden();
+    await expectFocusOn(page, link);
+    expect(
+      (await mappings(owner)).find((m) => m.email === ADMIN.email)?.seerrUserId,
+    ).toBeUndefined();
+    await page.keyboard.press('Enter');
+    await ask.getByRole('button', { name: 'Trotzdem verknüpfen' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(`${ADMIN.email} ist mit dem Seerr-Benutzer «verwaltung» verknüpft.`),
+    ).toBeVisible();
+    await expect
+      .poll(async () => (await mappings(owner)).find((m) => m.email === ADMIN.email)?.seerrUserId)
+      .toBeDefined();
+    await expect(page.locator('#content')).not.toContainText('{{');
+    await expectNoFocusTrap(page, 100);
+  } finally {
+    await provisionSettled(owner);
+    for (const mapping of await mappings(owner)) {
+      if (mapping.seerrUserId !== undefined) {
+        await send(owner, 'put', `/admin/wishes/mappings/accounts/${mapping.accountId}`, {
+          seerrUserId: null,
+        });
+      }
+    }
+    await removeInvitedAccounts(owner);
+  }
+});

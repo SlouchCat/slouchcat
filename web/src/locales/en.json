@@ -4214,7 +4214,8 @@
           "tmdbSeasons": "Seerr reads seasons from TMDB. TVDB is recommended, as in Sonarr and in the Slouchcat library; otherwise season numbers may differ.",
           "passwordTransport": "Passwords would travel unencrypted over the internet. Use https.",
           "arrNotConfirmed": "The address from Seerr is not confirmed yet: test it under “Radarr and Sonarr”.",
-          "arrUnreachable": "Not reachable: no profile tags and no download progress."
+          "arrUnreachable": "Not reachable: no profile tags and no download progress.",
+          "csrfUnexpected": "Seerr accepted an empty request instead of refusing it. Wishes still go out; check the version of Seerr."
         },
         "instance": {
           "title": "Other Seerr instance detected",
@@ -5938,14 +5939,18 @@
           "key_invalid": "Seerr refused the API key. Once the connection is right again, the next sync tries again.",
           "instance_changed": "Another Seerr instance waits for your decision. Until then Slouchcat opens nothing.",
           "seerr_user_taken": "The Seerr user with this e-mail already belongs to another account or is the shared user. Choose the user by hand.",
-          "other": "Opening did not work ({{reason}}). The next sync tries again."
+          "other": "Opening did not work ({{reason}}). The next sync tries again.",
+          "seerr_user_privileged": "This Seerr user administers Seerr. Slouchcat does not link it on its own: link it after a question, or choose another user.",
+          "refused": "Seerr refused to open the account. The next sync tries again."
         },
         "emailTakenTitle": "Seerr refused the new e-mail",
         "emailTakenBody": "Another Seerr user already has this address. «{{name}}» keeps its previous e-mail in Seerr; the account goes on requesting as this user.",
         "provisioned": {
           "created": "{{email}} is opened in Seerr.",
           "linked": "{{email}} is linked to the Seerr user «{{name}}».",
-          "waiting": "Not opened in Seerr yet: {{email}} waits, the next sync tries again."
+          "waiting": "Not opened in Seerr yet: {{email}} waits, the next sync tries again.",
+          "privileged": "{{email}} waits: the Seerr user of this e-mail administers Seerr.",
+          "taken": "{{email}} waits: the Seerr user of this e-mail belongs to another account already. Choose the user by hand."
         },
         "passwordNext": "Take the password over again at the next sign-in",
         "passwordOff": "Do not sync the password",
@@ -5988,7 +5993,15 @@
           "action_other": "Take over {{count}} requests from Seerr",
           "queued_one": "{{count}} request of {{name}} is being taken over.",
           "queued_other": "{{count}} requests of {{name}} are being taken over."
-        }
+        },
+        "linkPrivileged": "Link anyway …",
+        "privilegedTitle": "Link the Seerr administrator {{name}}?",
+        "privilegedBody": "This Seerr user administers Seerr. The profiles of {{email}} then request as a Seerr administrator, without approval and without a limit. Slouchcat does not sync its password.",
+        "privilegedConfirm": "Link anyway",
+        "provisionAllManual_one": "{{count}} account needs a choice by hand.",
+        "provisionAllManual_other": "{{count}} accounts need a choice by hand.",
+        "waitingChoice": "Waits for a choice by hand",
+        "waitingChoiceTitle": "Waits for your choice"
       },
       "limitField": {
         "label": "Limit",

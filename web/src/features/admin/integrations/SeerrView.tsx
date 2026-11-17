@@ -200,6 +200,9 @@ function checkText(t: TFunction, check: SeerrCheck): string {
       if (detail === 'instance_changed') return t('admin.integrations.seerr.checkIssue.waiting');
       return level === 'fail' ? t('admin.integrations.seerr.checkIssue.actAsUser') : notTested;
     case 'csrf_off':
+      if (detail === 'unexpected_answer') {
+        return t('admin.integrations.seerr.checkIssue.csrfUnexpected');
+      }
       return level === 'fail' ? t('admin.integrations.seerr.checkIssue.csrfOn') : notTested;
     case 'radarr':
       return detail === '0' ? t('admin.integrations.seerr.checkIssue.noRadarr') : notTested;

@@ -69,6 +69,9 @@
 //                                    {"request": {"id": n, "status": 1..5}} sets a request's
 //                                    status (approve 2, decline 3, fail 4, complete 5)
 //   GET  /__requests                 every request, for the specs' checks
+//                                    {"privileged": "<e-mail>"} adds a user with that e-mail and
+//                                    MANAGE_REQUESTS (stage 4: Slouchcat links it only after the
+//                                    administrator confirmed)
 //   POST /__reset                    the first instance, the five users of USERS and no requests
 //                                    (request and user ids go on counting)
 import { createServer } from 'node:http';
@@ -88,6 +91,7 @@ const REQUEST = 32;
 const AUTO_APPROVE = 128;
 const REQUEST_MOVIE = 262144;
 const MANAGE_USERS = 8;
+const MANAGE_REQUESTS = 16;
 const MANAGE_ISSUES = 1048576;
 /** The instance's default rights of a new user (I-13). */
 const DEFAULT_PERMISSIONS = REQUEST | AUTO_APPROVE | MANAGE_ISSUES;
@@ -970,6 +974,16 @@ export function startSeerrServer({
         }
         if (body.instance !== undefined) other = body.instance === 'other';
         if (typeof body.failCreate === 'boolean') failCreate = body.failCreate;
+        if (typeof body.privileged === 'string') {
+          users.push({
+            id: nextId,
+            displayName: 'verwaltung',
+            email: body.privileged.toLowerCase(),
+            userType: 2,
+            permissions: REQUEST | MANAGE_REQUESTS,
+          });
+          nextId += 1;
+        }
         if (typeof body.servers === 'boolean') servers = body.servers;
         if (body.used && typeof body.used === 'object') used = { ...used, ...body.used };
         if (body.request && typeof body.request === 'object') {

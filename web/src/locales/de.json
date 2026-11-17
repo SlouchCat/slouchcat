@@ -4214,7 +4214,8 @@
           "tmdbSeasons": "Seerr liest Staffeln aus TMDB. Empfohlen ist TVDB, wie in Sonarr und in der Slouchcat-Bibliothek, sonst können Staffelnummern abweichen.",
           "passwordTransport": "Passwörter gingen unverschlüsselt ins Internet. Nutze https.",
           "arrNotConfirmed": "Die Adresse aus Seerr ist noch nicht bestätigt: Teste sie unter «Radarr und Sonarr».",
-          "arrUnreachable": "Nicht erreichbar: keine Profil-Tags und kein Download-Fortschritt."
+          "arrUnreachable": "Nicht erreichbar: keine Profil-Tags und kein Download-Fortschritt.",
+          "csrfUnexpected": "Seerr hat eine leere Anfrage angenommen statt sie abzulehnen. Wünsche gehen trotzdem hinaus; prüfe die Version von Seerr."
         },
         "instance": {
           "title": "Andere Seerr-Instanz erkannt",
@@ -5938,14 +5939,18 @@
           "key_invalid": "Seerr hat den API-Schlüssel abgelehnt. Sobald die Verbindung wieder stimmt, versucht es der nächste Abgleich wieder.",
           "instance_changed": "Eine andere Seerr-Instanz wartet auf deine Entscheidung. Bis dahin eröffnet Slouchcat nichts.",
           "seerr_user_taken": "Der Seerr-Benutzer mit dieser E-Mail gehört schon zu einem anderen Konto oder ist der Sammelbenutzer. Wähle den Benutzer von Hand.",
-          "other": "Das Eröffnen ist nicht gelungen ({{reason}}). Der nächste Abgleich versucht es wieder."
+          "other": "Das Eröffnen ist nicht gelungen ({{reason}}). Der nächste Abgleich versucht es wieder.",
+          "seerr_user_privileged": "Dieser Seerr-Benutzer verwaltet Seerr. Slouchcat verknüpft ihn nicht von selbst: Verknüpfe ihn nach einer Rückfrage oder wähle einen anderen Benutzer.",
+          "refused": "Seerr hat das Eröffnen abgelehnt. Der nächste Abgleich versucht es wieder."
         },
         "emailTakenTitle": "Seerr hat die neue E-Mail abgelehnt",
         "emailTakenBody": "Ein anderer Seerr-Benutzer hat diese Adresse schon. «{{name}}» behält in Seerr seine bisherige E-Mail; das Konto fordert weiter als dieser Benutzer an.",
         "provisioned": {
           "created": "{{email}} ist in Seerr eröffnet.",
           "linked": "{{email}} ist mit dem Seerr-Benutzer «{{name}}» verknüpft.",
-          "waiting": "Noch nicht in Seerr eröffnet: {{email}} wartet, der nächste Abgleich versucht es wieder."
+          "waiting": "Noch nicht in Seerr eröffnet: {{email}} wartet, der nächste Abgleich versucht es wieder.",
+          "privileged": "{{email}} wartet: Der Seerr-Benutzer mit dieser E-Mail verwaltet Seerr.",
+          "taken": "{{email}} wartet: Der Seerr-Benutzer mit dieser E-Mail gehört schon zu einem anderen Konto. Wähle den Benutzer von Hand."
         },
         "passwordNext": "Passwort bei der nächsten Anmeldung neu übernehmen",
         "passwordOff": "Passwort nicht abgleichen",
@@ -5988,7 +5993,15 @@
           "action_other": "{{count}} Anfragen aus Seerr übernehmen",
           "queued_one": "{{count}} Anfrage von {{name}} wird übernommen.",
           "queued_other": "{{count}} Anfragen von {{name}} werden übernommen."
-        }
+        },
+        "linkPrivileged": "Trotzdem verknüpfen …",
+        "privilegedTitle": "Seerr-Administrator {{name}} verknüpfen?",
+        "privilegedBody": "Dieser Seerr-Benutzer verwaltet Seerr. Die Profile von {{email}} fordern danach als Seerr-Administrator an, ohne Freigabe und ohne Limit. Sein Passwort gleicht Slouchcat nicht ab.",
+        "privilegedConfirm": "Trotzdem verknüpfen",
+        "provisionAllManual_one": "{{count}} Konto braucht eine Wahl von Hand.",
+        "provisionAllManual_other": "{{count}} Konten brauchen eine Wahl von Hand.",
+        "waitingChoice": "Wartet auf eine Wahl von Hand",
+        "waitingChoiceTitle": "Wartet auf deine Wahl"
       },
       "limitField": {
         "label": "Limit",

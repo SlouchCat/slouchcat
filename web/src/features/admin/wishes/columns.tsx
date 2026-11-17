@@ -6,6 +6,11 @@ import type { SeerrUser, WishAccountMapping } from '../queries';
 import { quotaShort } from '../../shared/quota';
 import styles from './Wishes.module.css';
 
+/** The account waits for a choice by hand, not for Seerr (stage 4, second fix round). */
+export const waitsForChoice = (mapping: WishAccountMapping) =>
+  mapping.provisionError === 'seerr_user_taken' ||
+  mapping.provisionError === 'seerr_user_privileged';
+
 /** The chip of how an account came to its Seerr user (or that it has none). */
 export const stateTone = {
   created: 'success',
@@ -37,6 +42,10 @@ export function rightsText(t: TFunction, user: SeerrUser): string {
 export function StateChip({ mapping, user }: { mapping: WishAccountMapping; user?: SeerrUser }) {
   const { t } = useTranslation();
   if (user?.gone) return <Chip tone="danger">{t('admin.wishes.users.gone')}</Chip>;
+  // A user of the same e-mail that Slouchcat does not take on its own waits for the administrator.
+  if (mapping.state === 'waiting' && waitsForChoice(mapping)) {
+    return <Chip tone="warning">{t('admin.wishes.users.waitingChoice')}</Chip>;
+  }
   return (
     <Chip tone={stateTone[mapping.state]}>{t(`admin.wishes.users.state.${mapping.state}`)}</Chip>
   );
