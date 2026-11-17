@@ -176,12 +176,20 @@ func TestHandOverOneAtATimePerAccount(t *testing.T) {
 	if m := f.mapping(3); m.PasswordState != PasswordNextLogin {
 		t.Fatalf("linked = %+v", m)
 	}
+	blocked := make(chan struct{})
+	f.svc.accountLocks.waiting = func(int64) { close(blocked) }
 	unlock, err := f.svc.accountLocks.lock(f.ctx, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- f.svc.handOver(f.ctx, 3, "grosseltern@example.test", testPassword, MomentLogin) }()
+	// The login waits in the lock (review Minor 8: proven, not hoped for).
+	select {
+	case <-blocked:
+	case err := <-done:
+		t.Fatalf("the login did not wait for the lock: %v", err)
+	}
 	// Meanwhile a password change synced the new password.
 	f.fake.UpdateUser(4, func(u *seerrtest.User) { u.Password = testPassword2 })
 	f.exec(`UPDATE wish_account_map SET password_state = 'synced' WHERE account_id = 3`)

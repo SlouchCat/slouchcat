@@ -359,6 +359,41 @@ func (q *Queries) ListUnprovisionedAccounts(ctx context.Context) ([]ListUnprovis
 	return items, nil
 }
 
+const listUnwrittenLimitMappings = `-- name: ListUnwrittenLimitMappings :many
+SELECT account_id, seerr_user_id FROM wish_account_map
+WHERE state = 'ready' AND limit_written_at IS NULL AND seerr_user_id IS NOT NULL ORDER BY account_id
+`
+
+type ListUnwrittenLimitMappingsRow struct {
+	AccountID   int64
+	SeerrUserID sql.NullInt64
+}
+
+// Ready users whose limit is not written to Seerr yet (a write failed or the limit changed); the
+// users job queues them again (review MJ-2).
+func (q *Queries) ListUnwrittenLimitMappings(ctx context.Context) ([]ListUnwrittenLimitMappingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUnwrittenLimitMappings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnwrittenLimitMappingsRow{}
+	for rows.Next() {
+		var i ListUnwrittenLimitMappingsRow
+		if err := rows.Scan(&i.AccountID, &i.SeerrUserID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWaitingMappings = `-- name: ListWaitingMappings :many
 SELECT account_id, linked_by, set_by FROM wish_account_map WHERE state = 'waiting' ORDER BY account_id
 `

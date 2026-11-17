@@ -205,6 +205,24 @@ func TestContractSeerr(t *testing.T) {
 	if counts.Link == nil || counts.Create == nil || counts.Manual == nil || *counts.Create < 1 {
 		t.Errorf("all = %+v", counts)
 	}
+	// A new Seerr user whose id belongs to the shared user (a Seerr that hands an id out again):
+	// the account waits with seerr_user_taken, 202, never 500.
+	probe := fake.AddUser(seerrtest.User{Email: "probe@example.test", Username: "probe"})
+	fake.RemoveUser(probe)
+	if _, err := pf.f.DB.Write.ExecContext(context.Background(),
+		`INSERT INTO seerr_users (seerr_id, display_name, email, user_type, permissions, fetched_at, is_shared) VALUES (?, 'slouchcat-gaeste', 'x@slouchcat.invalid', 2, 32, 1, 1)`, probe+1); err != nil {
+		t.Fatal(err)
+	}
+	var taken struct {
+		State          string `json:"state"`
+		ProvisionError string `json:"provisionError"`
+	}
+	if err := call(http.MethodPost, "/admin/wishes/accounts/"+owner+"/provision", ``, http.StatusAccepted).Decode(&taken); err != nil {
+		t.Fatal(err)
+	}
+	if taken.State != "waiting" || taken.ProvisionError != "seerr_user_taken" {
+		t.Errorf("taken = %+v", taken)
+	}
 	// Build step 1.6: the session carries the right of the profile, the account list the right, the
 	// chip and the Seerr user, the overview the integration seerr and the hints of the wishes.
 	var sess struct {

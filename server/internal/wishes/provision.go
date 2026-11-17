@@ -134,9 +134,15 @@ func (s *Service) provisionJob(ctx context.Context, p provisionPayload) error {
 	if err := s.provisionAllowed(ctx); err != nil {
 		return err
 	}
+	unlock, err := s.accountLocks.lock(ctx, p.AccountID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if p.Intent == intentRetry {
 		m, err := s.read.GetAccountMapping(ctx, p.AccountID)
-		if errors.Is(err, sql.ErrNoRows) || (err == nil && m.State != StateWaiting) {
+		// A ready user whose limit is not written yet is brought in line (review MJ-2).
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && m.State != StateWaiting && (m.State != StateReady || m.LimitWrittenAt.Valid)) {
 			s.log.InfoContext(ctx, "seerr provisioning dropped: mapping no longer waits", "account_id", p.AccountID)
 			return nil
 		}
@@ -146,13 +152,18 @@ func (s *Service) provisionJob(ctx context.Context, p provisionPayload) error {
 	}
 	// Neither job ever links a privileged user (security review M-1); only a retry keeps the
 	// trigger of the waiting mapping.
-	_, err := s.provisionRun(ctx, p.AccountID, provisionRun{linkedBy: p.LinkedBy, setBy: p.SetBy, retry: p.Intent == intentRetry})
+	_, err = s.provisionRun(ctx, p.AccountID, provisionRun{linkedBy: p.LinkedBy, setBy: p.SetBy, retry: p.Intent == intentRetry})
 	return err
 }
 
 // syncAccount runs a sync job: it brings the ready user of the account in line and never searches
 // or opens a user. Nothing when the account has no ready user or, with seerrUser > 0, another one.
 func (s *Service) syncAccount(ctx context.Context, accountID int64, seerrUser int) error {
+	unlock, err := s.accountLocks.lock(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	acc, err := s.read.GetProvisionAccount(ctx, accountID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.ErrNotFound
@@ -185,8 +196,22 @@ func (s *Service) ProvisionAccount(ctx context.Context, accountID, by int64, all
 	if err := s.provisionAllowed(ctx); err != nil {
 		return model.WishAccountMapping{}, err
 	}
+	unlock, err := s.accountLocks.lock(ctx, accountID)
+	if err != nil {
+		return model.WishAccountMapping{}, err
+	}
 	run := provisionRun{linkedBy: LinkedByAdmin, setBy: by, allowPrivileged: allowPrivileged}
-	if _, err := s.provisionRun(ctx, accountID, run); err != nil && !s.waits(err) {
+	state, err := s.provisionRun(ctx, accountID, run)
+	unlock()
+	if state == StateReady && err != nil {
+		// The user is recorded; its rights, limit or quota are written by the retry (review MJ-2).
+		if qerr := s.queueProvision(context.WithoutCancel(ctx), provisionPayload{AccountID: accountID, Intent: intentRetry, LinkedBy: LinkedByAdmin, SetBy: by}, provisionPriority); qerr != nil {
+			return model.WishAccountMapping{}, errors.Join(err, qerr)
+		}
+		s.log.WarnContext(ctx, "seerr user recorded, rights or limit follow", "account_id", accountID, "reason", errorClass(err))
+		err = nil
+	}
+	if err != nil && !s.waits(err) {
 		return model.WishAccountMapping{}, err
 	}
 	return s.accountMapping(ctx, accountID)
@@ -271,8 +296,10 @@ func (s *Service) waits(err error) bool {
 // provision opens or links the Seerr user of the account. password is the account's password when
 // it is in memory (an invitation, build step 1.5b), else "". It returns the state of the mapping:
 // ready, waiting, or "" when nothing was to be done (an email change of an account without a user
-// and without a hit in Seerr). A waiting account comes back with the error that made it wait. It
-// never links a privileged user (provisionRun with allowPrivileged does).
+// and without a hit in Seerr). A waiting account comes back with the error that made it wait; a
+// ready one with an error when its rights, limit or quota are still to write (a retry repairs
+// them, review MJ-1, MJ-2). It never links a privileged user (provisionRun with allowPrivileged
+// does). The caller holds the account's lock (accountLocks).
 func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, password string, setBy int64) (string, error) {
 	return s.provisionRun(ctx, accountID, provisionRun{linkedBy: linkedBy, password: password, setBy: setBy})
 }
@@ -347,12 +374,18 @@ func (s *Service) provisionRun(ctx context.Context, accountID int64, run provisi
 		}
 		if !created {
 			hit = &u // 409: the user exists after all
-		} else if err := s.opened(ctx, admin, acc, u, password != "" && ws.SyncPassword, ws, setBy); err != nil {
+		} else if ready, err := s.opened(ctx, admin, acc, u, password != "" && ws.SyncPassword, ws, setBy); ready {
+			return StateReady, err
+		} else if errors.Is(err, model.ErrSeerrUserTaken) {
+			return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserTaken)
+		} else if err != nil {
 			return s.wait(ctx, accountID, linkedBy, setBy, err)
 		}
 	}
 	if hit != nil {
-		if err := s.link(ctx, admin, acc, *hit, linkedBy, auto, password, ws, setBy); err != nil {
+		if ready, err := s.link(ctx, admin, acc, *hit, linkedBy, auto, password, ws, setBy); ready {
+			return StateReady, err
+		} else if err != nil {
 			switch {
 			case errors.Is(err, model.ErrSeerrUserTaken):
 				return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserTaken)
@@ -481,15 +514,12 @@ var err409Lost = errors.New("seerr reported the email as taken but no user has i
 // and for the shared user. It is never stored.
 func randomPassword() string { return rand.Text() }
 
-// opened records a user Slouchcat just created: the mirror, the mapping (origin created) and the
-// rights (permissions 0 without the request right, N-110), then the limit.
-func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, synced bool, ws model.WishSettings, setBy int64) error {
-	if acc.CanRequest != 1 {
-		if err := admin.SetPermissions(ctx, u.ID, seerr.PermNone); err != nil {
-			return err
-		}
-		u.Permissions = seerr.PermNone
-	}
+// opened records a user Slouchcat just created: first the mirror and the mapping (origin created)
+// in one transaction, so a later failure never turns it into a linked user (review MJ-1); then the
+// rights (permissions 0 without the request right, N-110), the limit and the quota. ready reports
+// that the mapping is recorded: an error after it leaves the rest to the retry (syncReady).
+// model.ErrSeerrUserTaken when the new user's id belongs to another account or the shared user.
+func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, synced bool, ws model.WishSettings, setBy int64) (ready bool, err error) {
 	state := PasswordNextLogin
 	var syncedAt sql.NullInt64
 	switch {
@@ -498,7 +528,12 @@ func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.Get
 	case synced:
 		state, syncedAt = PasswordSynced, sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
 	}
-	err := s.inTx(ctx, func(q *wishq.Queries) error {
+	err = s.inTx(ctx, func(q *wishq.Queries) error {
+		if row, err := q.GetSeerrUser(ctx, int64(u.ID)); err == nil && row.IsShared == 1 {
+			return model.ErrSeerrUserTaken
+		} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("seerr user: %w", err)
+		}
 		if err := s.mirror(ctx, q, u); err != nil {
 			return err
 		}
@@ -509,13 +544,25 @@ func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.Get
 		})
 	})
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "seerr_user_taken") || isUnique(err) {
+			return false, model.ErrSeerrUserTaken
+		}
+		return false, err
 	}
 	s.log.InfoContext(ctx, "seerr user opened", "account_id", acc.ID, "seerr_user_id", u.ID, "password_state", state)
-	if err := s.writeLimit(ctx, admin, acc.ID, u.ID); err != nil {
-		return err
+	if acc.CanRequest != 1 {
+		m, err := s.read.GetAccountMapping(ctx, acc.ID)
+		if err != nil {
+			return true, fmt.Errorf("mapping: %w", err)
+		}
+		if err := s.syncRights(ctx, admin, acc, m); err != nil {
+			return true, err
+		}
 	}
-	return s.refreshQuota(ctx, admin, u.ID)
+	if err := s.writeLimit(ctx, admin, acc.ID, u.ID); err != nil {
+		return true, err
+	}
+	return true, s.refreshQuota(ctx, admin, u.ID)
 }
 
 // link records an existing user as the user of the account (origin linked, N-90) with the trigger
@@ -526,9 +573,10 @@ func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.Get
 // errUserPrivileged when an automatic link (auto: an invitation, an email change) meets user 1 or a user with a managing
 // right (security review H-1: only an administrator links such a user, by «In Seerr eröffnen» or
 // by hand).
-func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, linkedBy string, auto bool, password string, ws model.WishSettings, setBy int64) error {
+// ready reports that the mapping is recorded (an error after it leaves the limit to the retry).
+func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, linkedBy string, auto bool, password string, ws model.WishSettings, setBy int64) (ready bool, err error) {
 	if auto && privileged(int64(u.ID), u.Permissions) {
-		return errUserPrivileged
+		return false, errUserPrivileged
 	}
 	now := s.now().UnixMilli()
 	fallback := PasswordNextLogin
@@ -536,7 +584,7 @@ func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetPr
 		fallback = PasswordOff
 	}
 	var state string
-	err := s.inTx(ctx, func(q *wishq.Queries) error {
+	err = s.inTx(ctx, func(q *wishq.Queries) error {
 		row, err := q.GetSeerrUser(ctx, int64(u.ID))
 		switch {
 		case err == nil && row.IsShared == 1:
@@ -567,9 +615,9 @@ func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetPr
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "seerr_user_taken") {
-			return model.ErrSeerrUserTaken
+			return false, model.ErrSeerrUserTaken
 		}
-		return err
+		return false, err
 	}
 	// The log names the account, the Seerr user and the trigger; never the email or the password.
 	s.log.InfoContext(ctx, "seerr user linked", "account_id", acc.ID, "seerr_user_id", u.ID, "linked_by", linkedBy, "password_state", state)
@@ -577,9 +625,9 @@ func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetPr
 		s.setPassword(ctx, admin, acc.ID, u.ID, password)
 	}
 	if err := s.writeLimit(ctx, admin, acc.ID, u.ID); err != nil {
-		return err
+		return true, err
 	}
-	return s.refreshQuota(ctx, admin, u.ID)
+	return true, s.refreshQuota(ctx, admin, u.ID)
 }
 
 // mirror writes the user to seerr_users (its row must exist before the mapping points at it).
@@ -805,8 +853,8 @@ func (s *Service) WishSettingsSaved(ctx context.Context, before, after model.Wis
 	}
 }
 
-// queueAfterUsers queues, after a refresh of the users, the accounts that wait for Seerr and the
-// shared user while there is none.
+// queueAfterUsers queues, after a refresh of the users, the accounts that wait for Seerr, the
+// ready users whose limit is not written yet (review MJ-2) and the shared user while there is none.
 func (s *Service) queueAfterUsers(ctx context.Context) error {
 	rows, err := s.read.ListWaitingMappings(ctx)
 	if err != nil {
@@ -814,6 +862,15 @@ func (s *Service) queueAfterUsers(ctx context.Context) error {
 	}
 	for _, r := range rows {
 		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.AccountID, Intent: intentRetry, LinkedBy: r.LinkedBy.String, SetBy: r.SetBy.Int64}, provisionPriority); err != nil {
+			return err
+		}
+	}
+	unwritten, err := s.read.ListUnwrittenLimitMappings(ctx)
+	if err != nil {
+		return fmt.Errorf("list unwritten limits: %w", err)
+	}
+	for _, r := range unwritten {
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.AccountID, Intent: intentSync, SeerrUser: int(r.SeerrUserID.Int64)}, provisionPriority); err != nil {
 			return err
 		}
 	}

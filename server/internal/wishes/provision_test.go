@@ -520,3 +520,142 @@ func TestProvisionJobOfHandChoiceNeverOpens(t *testing.T) {
 		t.Errorf("switched off: %d searches or creations", n)
 	}
 }
+
+// takeQueued removes and returns the waiting jobs of type typ whose payload contains part.
+func (f *fixture) takeQueued(typ, part string) []jobs.NewJob {
+	f.queue.mu.Lock()
+	defer f.queue.mu.Unlock()
+	var out []jobs.NewJob
+	keep := f.queue.jobs[:0]
+	for _, j := range f.queue.jobs {
+		if j.Type == typ && strings.Contains(string(j.Payload), part) {
+			out = append(out, j)
+		} else {
+			keep = append(keep, j)
+		}
+	}
+	f.queue.jobs = keep
+	return out
+}
+
+// A user Slouchcat created stays created (review MJ-1): POST /user succeeds and the next call
+// fails; the mapping is ready with origin created at once, and the retry sets the rights 0 for an
+// account without the request right and writes the limit. No «Neu verknüpft» hint.
+func TestCreatedUserStaysCreated(t *testing.T) {
+	f := newFixture(t)
+	f.exec(`UPDATE accounts SET can_request = 0 WHERE id = 2`)
+	f.fake.SetFailure("POST /user/{id}/settings/permissions", seerrtest.Failure{Status: 503, Times: 1})
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.State != OriginCreated || a.SeerrUserID == nil {
+		t.Fatalf("after the failed rights = %+v", a)
+	}
+	id := *a.SeerrUserID
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 2 AND limit_written_at IS NULL`); got != 1 {
+		t.Errorf("limit written before the rights")
+	}
+	if n := f.runQueued(JobProvision); n < 1 {
+		t.Fatal("no retry queued")
+	}
+	if m := f.mapping(2); m.State != OriginCreated || m.SeerrUserID == nil || *m.SeerrUserID != id || m.LinkedBy != "" {
+		t.Errorf("after the retry = %+v", m)
+	}
+	if u, _ := f.fake.User(id); u.Permissions != 0 || u.MovieQuotaLimit == nil || *u.MovieQuotaLimit != 10 {
+		t.Errorf("seerr user after the retry = %+v", u)
+	}
+	if n := f.fake.Calls("POST /user"); n != 1 {
+		t.Errorf("POST /user %d times", n)
+	}
+	if hints, _ := f.svc.RecentLinks(f.ctx); len(hints) != 0 {
+		t.Errorf("hints = %+v", hints)
+	}
+}
+
+// The limit is always written (review MJ-2): a failed write after opening is repaired by the
+// retry, one after a link by the users job.
+func TestLimitWrittenAfterAFailure(t *testing.T) {
+	f := newFixture(t)
+	f.fake.SetFailure("POST /user/{id}/settings/main", seerrtest.Failure{Status: 503, Times: 1})
+	if a, err := f.svc.ProvisionAccount(f.ctx, 1, 1, false); err != nil || a.State != OriginCreated {
+		t.Fatalf("opened = %+v, %v", a, err)
+	}
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 1 AND limit_written_at IS NULL`); got != 1 {
+		t.Fatal("limit written although Seerr refused")
+	}
+	f.runQueued(JobProvision)
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 1 AND limit_written_at IS NOT NULL`); got != 1 {
+		t.Error("retry did not write the limit")
+	}
+	// A link: the retry job is lost, the users job picks the account up.
+	f.fake.SetFailure("POST /user/{id}/settings/main", seerrtest.Failure{Status: 503, Times: 1})
+	if a, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil || a.State != OriginLinked {
+		t.Fatalf("linked = %+v, %v", a, err)
+	}
+	f.takeQueued(JobProvision, "")
+	f.refresh()
+	f.runQueued(JobProvision)
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 3 AND limit_written_at IS NOT NULL`); got != 1 {
+		t.Error("users job did not write the limit")
+	}
+	if u, _ := f.fake.User(4); u.MovieQuotaLimit == nil || *u.MovieQuotaLimit != 10 {
+		t.Errorf("linked user = %+v", u)
+	}
+}
+
+// «Alle eröffnen» racing an accepted invitation (review MJ-1): the job waits for the lock the
+// hand-over holds and then finds the user the invitation opened; one POST /user, origin created.
+func TestProvisionAllWaitsForTheInvitation(t *testing.T) {
+	f := newFixture(t)
+	blocked := make(chan struct{})
+	f.svc.accountLocks.waiting = func(int64) { close(blocked) }
+	unlock, err := f.svc.accountLocks.lock(f.ctx, 1) // the invitation's hand-over
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	job := f.takeQueued(JobProvision, `"accountId":1,`)
+	if len(job) != 1 {
+		t.Fatalf("jobs = %d", len(job))
+	}
+	done := make(chan error, 1)
+	go func() { done <- f.svc.handleProvision(f.ctx, &jobs.Job{Type: job[0].Type, Payload: job[0].Payload}) }()
+	select {
+	case <-blocked:
+	case err := <-done:
+		t.Fatalf("the job did not wait for the hand-over: %v", err)
+	}
+	if _, err := f.svc.provision(f.ctx, 1, LinkedByInvite, testPassword, 0); err != nil {
+		t.Fatal(err)
+	}
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if m := f.mapping(1); m.State != OriginCreated || m.PasswordState != PasswordSynced {
+		t.Errorf("mapping = %+v", m)
+	}
+	if n := f.fake.Calls("POST /user"); n != 1 {
+		t.Errorf("POST /user %d times", n)
+	}
+}
+
+// A new user whose id belongs to the shared user (a Seerr that handed an id out again) leaves the
+// account waiting with seerr_user_taken; «In Seerr eröffnen» answers 202, never 500.
+func TestCreatedUserIDTaken(t *testing.T) {
+	f := newFixture(t)
+	if err := f.svc.EnsureSharedUser(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.exec(`UPDATE seerr_users SET seerr_id = 6 WHERE seerr_id = 5`) // the next id the fake gives
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.State != StateWaiting || a.ProvisionError != ProvisionUserTaken {
+		t.Errorf("mapping = %+v", a)
+	}
+}

@@ -52,9 +52,13 @@ func (s *Service) PasswordSeen(ctx context.Context, accountID int64, email, pass
 
 // accountLocks holds one hand-over per account at a time (security review L-3): without it a
 // login that read next_login could finish after a password change and write the old password.
+// The provisioning of an account (provisionJob, ProvisionAccount, syncAccount) holds the same
+// lock (review MJ-1): «Alle eröffnen» and an accepted invitation never open two users.
 type accountLocks struct {
 	mu   sync.Mutex
 	held map[int64]chan struct{}
+	// waiting, when set, is called once a lock has to wait for another holder (tests).
+	waiting func(id int64)
 }
 
 // lock waits for the account's hand-over in flight, at most until ctx ends.
@@ -68,7 +72,16 @@ func (l *accountLocks) lock(ctx context.Context, id int64) (func(), error) {
 		ch = make(chan struct{}, 1)
 		l.held[id] = ch
 	}
+	waiting := l.waiting
 	l.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, nil
+	default:
+	}
+	if waiting != nil {
+		waiting(id)
+	}
 	select {
 	case ch <- struct{}{}:
 		return func() { <-ch }, nil
@@ -155,7 +168,7 @@ func syncable(state string) bool { return state == PasswordSynced || state == Pa
 // sign-in (next_login).
 func (s *Service) provisionInMemory(ctx context.Context, accountID int64, linkedBy, password string) error {
 	state, err := s.provision(ctx, accountID, linkedBy, password, 0)
-	if state == StateWaiting && err != nil {
+	if state != "" && err != nil { // waiting, or ready with its rights or limit still to write
 		if qerr := s.queueProvision(context.WithoutCancel(ctx), provisionPayload{AccountID: accountID, Intent: intentRetry, LinkedBy: linkedBy}, provisionPriority); qerr != nil {
 			return errors.Join(err, qerr)
 		}

@@ -103,6 +103,12 @@ ORDER BY a.id;
 -- Accounts whose opening waits for Seerr; the users job queues them again.
 SELECT account_id, linked_by, set_by FROM wish_account_map WHERE state = 'waiting' ORDER BY account_id;
 
+-- name: ListUnwrittenLimitMappings :many
+-- Ready users whose limit is not written to Seerr yet (a write failed or the limit changed); the
+-- users job queues them again (review MJ-2).
+SELECT account_id, seerr_user_id FROM wish_account_map
+WHERE state = 'ready' AND limit_written_at IS NULL AND seerr_user_id IS NOT NULL ORDER BY account_id;
+
 -- name: ListRecentLinks :many
 -- The hint "Neu verknuepft" (N-93): accounts linked to an existing Seerr user after an invitation or
 -- an e-mail change since @since, newest first. Never after a link by an administrator.
