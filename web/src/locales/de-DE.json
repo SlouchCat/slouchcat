@@ -728,6 +728,11 @@
         "body": "Deine bisherigen Wünsche findest du weiterhin unter „Meine Wünsche“.",
         "action": "Zu „Meine Wünsche“"
       }
+    },
+    "search": {
+      "empty": {
+        "title": "Nichts gefunden für „{{q}}“"
+      }
     }
   }
 }

@@ -18,6 +18,8 @@
 //   GET /tv/{id}?language=&append_to_response=content_ratings,external_ids,credits,images
 //   GET /movie|tv/{id}/videos              one YouTube trailer per fixture
 //   GET /{size}/{file}.png                 a small generated picture (poster 2:3, backdrop 16:9)
+//   GET /{size}/genre-{id}.jpg             a small JPEG: the backdrop of a genre tile (the server
+//                                          keeps only JPEGs there, as TMDB serves them)
 //   GET /__stats                           {calls}: how many API calls the mock answered
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -140,6 +142,12 @@ export const SHOWS = [
     color: [170, 150, 80],
   },
 ];
+
+/** A JPEG of 64 × 36 in one colour, for the genre backdrops of seerr-server.mjs. */
+const GENRE_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYwLjMxLjEwMgD/2wBDAAgQEBMQExYWFhYWFhoYGhsbGxoaGhobGxsdHR0iIiIdHR0bGx0dICAiIiUmJSMjIiMmJigoKDAwLi44ODpFRVP/xABNAAEBAAAAAAAAAAAAAAAAAAAABgEBAQEAAAAAAAAAAAAAAAAAAAQFEAEAAAAAAAAAAAAAAAAAAAAAEQEAAAAAAAAAAAAAAAAAAAAA/8AAEQgAJABAAwEiAAIRAAMRAP/aAAwDAQACEQMRAD8AnQGglAAAAAAAAAAAAAAAAAAAAAAf/9k=',
+  'base64',
+);
 
 // A PNG of one colour: the image pipeline decodes, scales and stores it like a real one.
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -335,6 +343,14 @@ export function startTmdbServer({
     const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`);
     if (url.pathname === '/__stats') {
       sendJson(response, 200, { calls });
+      return;
+    }
+    if (request.method === 'GET' && /\/genre-\d+\.jpg$/.test(url.pathname)) {
+      response.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': GENRE_JPEG.length,
+      });
+      response.end(GENRE_JPEG);
       return;
     }
     // Images: /t/p/{size}/{file}.png or /{size}/{file}.png, no key (TMDB's CDN asks for none).

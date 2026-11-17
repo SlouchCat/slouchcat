@@ -6335,7 +6335,8 @@
       "title": "Not in the library yet",
       "notHere": "Not here yet",
       "request": "Request {{title}}"
-    }
+    },
+    "inWishes": "Search the wishes too"
   },
   "watchlist": {
     "title": "Watchlist",
@@ -7118,6 +7119,17 @@
       "apply": "Apply",
       "moviesEmpty": "No films for this choice.",
       "seriesEmpty": "No series for this choice."
+    },
+    "search": {
+      "intro": "Search everything TMDB knows, also what is still missing. Also by id such as tmdb:603, tvdb:121361 or imdb:tt0133093.",
+      "placeholder": "Film or series",
+      "start": "Enter a title. The search covers everything TMDB knows, original titles too.",
+      "tooShort": "Enter at least two characters.",
+      "hits": "Results",
+      "empty": {
+        "title": "Nothing found for “{{q}}”",
+        "body": "The search looks for film and series titles, not for people. Try another term or an id."
+      }
     }
   },
   "titles": {

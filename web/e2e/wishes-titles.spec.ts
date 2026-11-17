@@ -66,8 +66,11 @@ test('«Filme» by keyboard: from the row title, the closed band, genre by arrow
     await expect(page).toHaveURL(/\/discover\/movies\?genre=18$/);
 
     // The grid by arrows; Enter opens the preview page, back returns to the same card.
-    const cards = films.getByRole('link');
+    // The Drama films are there, and the focus stayed on the button meanwhile.
+    await expect(films.getByRole('link', { name: /Rotes Ufer/ })).toBeVisible();
     await expect(films.getByRole('link', { name: /Kupfermond/ })).toHaveCount(0);
+    await expectFocusOn(page, chosen);
+    const cards = films.getByRole('link');
     await tabTo(page, cards.first(), 10);
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, cards.nth(1));

@@ -297,17 +297,17 @@ const DISCOVER_PARAMS = {
 
 const GENRE_SLIDES = {
   movie: [
-    { id: 18, de: 'Drama', en: 'Drama', backdrops: ['/movie-9001-backdrop.png'] },
-    { id: 12, de: 'Abenteuer', en: 'Adventure', backdrops: ['/movie-9002-backdrop.png'] },
+    { id: 18, de: 'Drama', en: 'Drama', backdrops: ['/genre-18.jpg'] },
+    { id: 12, de: 'Abenteuer', en: 'Adventure', backdrops: ['/genre-12.jpg'] },
     { id: 99, de: 'Dokumentarfilm', en: 'Documentary', backdrops: [] },
   ],
   tv: [
-    { id: 80, de: 'Krimi', en: 'Crime', backdrops: ['/tv-9100-backdrop.png'] },
+    { id: 80, de: 'Krimi', en: 'Crime', backdrops: ['/genre-80.jpg'] },
     {
       id: 10765,
       de: 'Sci-Fi & Fantasy',
       en: 'Sci-Fi & Fantasy',
-      backdrops: ['/tv-9101-backdrop.png'],
+      backdrops: ['/genre-10765.jpg'],
     },
   ],
 };

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AppLink, useSpatialItem } from '@/ui';
 import styles from './WishesArea.module.css';
 
@@ -16,10 +17,19 @@ interface GenreTileProps {
  */
 export function GenreTile({ href, name, imageUrl, focusKey }: GenreTileProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
+  // A backdrop that does not come (404, TMDB out of reach) leaves the tile with its name alone.
+  const [failed, setFailed] = useState(false);
   return (
     <AppLink ref={ref} href={href} className={styles.genre} onFocus={onFocus}>
-      {imageUrl && (
-        <img className={styles.genreImage} src={imageUrl} alt="" loading="lazy" decoding="async" />
+      {imageUrl && !failed && (
+        <img
+          className={styles.genreImage}
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       )}
       <span className={styles.genreName}>{name}</span>
     </AppLink>

@@ -6335,7 +6335,8 @@
       "title": "Noch nicht in der Bibliothek",
       "notHere": "Noch nicht da",
       "request": "{{title}} anfordern"
-    }
+    },
+    "inWishes": "Auch in den Wünschen suchen"
   },
   "watchlist": {
     "title": "Merkliste",
@@ -7118,6 +7119,17 @@
       "apply": "Anwenden",
       "moviesEmpty": "Keine Filme für diese Auswahl.",
       "seriesEmpty": "Keine Serien für diese Auswahl."
+    },
+    "search": {
+      "intro": "Suche in allem, was TMDB kennt, auch in dem, was noch fehlt. Auch nach Kennung wie tmdb:603, tvdb:121361 oder imdb:tt0133093.",
+      "placeholder": "Film oder Serie",
+      "start": "Gib einen Titel ein. Gesucht wird in allem, was TMDB kennt, auch nach Originaltitel.",
+      "tooShort": "Gib mindestens zwei Zeichen ein.",
+      "hits": "Treffer",
+      "empty": {
+        "title": "Nichts gefunden für «{{q}}»",
+        "body": "Gesucht wird nach Film- und Serientiteln, nicht nach Personen. Versuche einen anderen Begriff oder eine Kennung."
+      }
     }
   },
   "titles": {

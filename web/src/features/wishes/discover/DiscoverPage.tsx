@@ -122,7 +122,7 @@ export function DiscoverPage() {
             <SpatialGroup focusKey="discover-search-box" className={styles.searchRow}>
               <SearchField
                 label={t('wishes.discover.searchLabel')}
-                placeholder={t('wishes.discover.searchLabel')}
+                placeholder={t('wishes.search.placeholder')}
                 value={text}
                 onChange={setText}
                 focusKey={SEARCH_KEY}

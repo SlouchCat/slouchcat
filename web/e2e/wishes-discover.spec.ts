@@ -86,6 +86,16 @@ test('«Entdecken» by keyboard: the entry leads here, seven rows, arrows, plus,
       'href',
       '/discover/series?sort=newest',
     );
+    // Two genres have a backdrop (the JPEG of the TMDB mock), «Dokumentarfilm» none.
+    const backdrops = row(page, 'Film-Genres').locator('img');
+    await expect(backdrops).toHaveCount(2);
+    await expect
+      .poll(() =>
+        backdrops.evaluateAll((images) =>
+          images.map((image) => (image as HTMLImageElement).naturalWidth),
+        ),
+      )
+      .toEqual([64, 64]);
     await expect(row(page, 'Film-Genres').getByRole('link', { name: 'Drama' })).toHaveAttribute(
       'href',
       '/discover/movies?genre=18',

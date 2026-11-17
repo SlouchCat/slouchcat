@@ -53,6 +53,7 @@ export function WishesNav({ current, limit = false }: { current: WishesArea; lim
               focusKey={`wishes-area-${area.key}`}
               href={area.href}
               icon={area.icon}
+              size="sm"
               variant={area.key === current ? 'primary' : 'ghost'}
               aria-current={area.key === current ? 'page' : undefined}
             >

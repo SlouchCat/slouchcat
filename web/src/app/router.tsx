@@ -18,7 +18,10 @@ import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
-import { validateTitlesParams } from '@/features/wishes/discover/wishesAreaParams';
+import {
+  validateTitlesParams,
+  validateWishSearchParams,
+} from '@/features/wishes/discover/wishesAreaParams';
 import { validateWishesParams } from '@/features/wishes/wishesParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
@@ -699,6 +702,17 @@ const discoverSeriesRoute = createRoute({
   ),
 });
 
+// «Suche» of the wishes area: the text in the URL.
+const discoverSearchRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/search',
+  validateSearch: validateWishSearchParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/WishSearchPage'),
+    'WishSearchPage',
+  ),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -881,6 +895,7 @@ export const routeTree = rootRoute.addChildren([
         discoverRoute,
         discoverMoviesRoute,
         discoverSeriesRoute,
+        discoverSearchRoute,
       ]),
       playRoute,
       setupStepRoute,
