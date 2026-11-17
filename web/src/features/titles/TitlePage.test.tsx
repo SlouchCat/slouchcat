@@ -249,4 +249,26 @@ describe('preview page of a title outside the library (concept 25, 5.1)', () => 
     expect(screen.getByText('Dein letzter Wunsch: Abgelehnt')).toBeVisible();
     expect(screen.getByText(/12\.11\.2026 · Seerr nennt keinen Grund/)).toBeVisible();
   });
+  it('shows the download progress of the own wish on its card (E-7)', async () => {
+    const readAt = '2026-11-17T09:00:00Z';
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () =>
+        json({
+          ...film,
+          wish: {
+            id: 41,
+            state: 'processing',
+            progress: { stage: 'download', percent: 60, etaSeconds: 300, readAt },
+          },
+        }),
+      'GET /wishes': () =>
+        json({ items: [wishOf(film, { state: 'processing' })], total: 1, counts }),
+    });
+    renderApp('/titles/movie/9001');
+    const card = await screen.findByRole('region', { name: 'Dein Wunsch' });
+    expect(within(card).getByText('In Beschaffung')).toBeVisible();
+    expect(within(card).getByText('Wird heruntergeladen · 60 % · noch 5 min')).toBeVisible();
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
+  });
 });

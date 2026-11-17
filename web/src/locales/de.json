@@ -7145,6 +7145,16 @@
         "title": "Nichts gefunden für «{{q}}»",
         "body": "Gesucht wird nach Film- und Serientiteln, nicht nach Personen. Versuche einen anderen Begriff oder eine Kennung."
       }
+    },
+    "progress": {
+      "search": "Wird gesucht",
+      "download": "Wird heruntergeladen",
+      "import": "Wird eingelesen",
+      "stalled": "Download verzögert",
+      "percent": "{{percent}} %",
+      "episodes_one": "{{done}} von {{count}} Folge da",
+      "episodes_other": "{{done}} von {{count}} Folgen da",
+      "eta": "noch {{time}}"
     }
   },
   "titles": {

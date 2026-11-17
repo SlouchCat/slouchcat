@@ -7145,6 +7145,16 @@
         "title": "Nothing found for “{{q}}”",
         "body": "The search looks for film and series titles, not for people. Try another term or an id."
       }
+    },
+    "progress": {
+      "search": "Searching",
+      "download": "Downloading",
+      "import": "Being imported",
+      "stalled": "Download delayed",
+      "percent": "{{percent}}%",
+      "episodes_one": "{{done}} of {{count}} episode here",
+      "episodes_other": "{{done}} of {{count}} episodes here",
+      "eta": "{{time}} left"
     }
   },
   "titles": {

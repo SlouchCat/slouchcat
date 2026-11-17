@@ -23,6 +23,7 @@ export type WishProblem = components['schemas']['WishProblem'];
 export type WishQuota = components['schemas']['WishQuota'];
 export type WishSeasons = components['schemas']['WishSeasons'];
 export type WishEvent = components['schemas']['WishEvent'];
+export type WishProgress = components['schemas']['WishProgress'];
 export type WishStateFilter = 'open' | 'available' | 'closed';
 
 /** Every query of this feature lives under one of these, so a wish refreshes them all. */

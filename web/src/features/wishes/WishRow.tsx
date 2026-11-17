@@ -7,6 +7,7 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import { PosterFallback, SpatialButton, SpatialButtonLink, SpatialGroup } from '@/ui';
 import type { Wish } from './queries';
 import { eventText, failText, seasonsText, WishStateChip } from './state';
+import { WishProgressLine } from './WishProgress';
 import styles from './Wishes.module.css';
 
 /** The focus key of a row's first control (its title link), for the page's start and its arrows. */
@@ -22,7 +23,7 @@ interface WishRowProps {
 
 /**
  * One wish of «Meine Wünsche» (concept 25, 5.3, M-08): the poster without a frame, the title, the
- * seasons, the state with its date, why it failed, the history folded away (closed at first, its
+ * seasons, the state with its date and, in procurement, its download progress, why it failed, the history folded away (closed at first, its
  * last step in the toggle), and the actions the server allows: «Zum Titel» (the library title
  * once the profile sees it, else the preview), «Zurückziehen», «Erneut anfordern».
  */
@@ -60,6 +61,7 @@ export function WishRow({ wish, onWithdraw, onRequestAgain, busy }: WishRowProps
           <WishStateChip state={wish.state} detail={wish.stateDetail} />
           <time dateTime={when}>{formatDate(when, language)}</time>
         </p>
+        <WishProgressLine progress={wish.progress} />
         {wish.failReason && <p className={styles.line}>{failText(t, wish.failReason)}</p>}
         <SpatialGroup className={styles.actions}>
           <SpatialButtonLink focusKey={key} href={href} variant="secondary" size="sm">

@@ -48,6 +48,30 @@
   font-size: var(--sc-font-size-sm);
 }
 
+/*
+ * The download progress of a wish in procurement (concept 25, 5.3): its words with a mark, under
+ * them a bar while it downloads. A display only.
+ */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: var(--sc-size-form-max);
+}
+
+.progressLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.progress[data-stage='stalled'] .progressLine > svg {
+  color: var(--sc-color-state-warning);
+}
+
 /* The history of a wish, newest first: time and what happened. */
 .events {
   display: flex;

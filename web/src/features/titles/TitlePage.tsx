@@ -271,7 +271,8 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
           {wish && openWish.data && (
             <div className={itemStyles.block}>
               <WishCard
-                wish={openWish.data}
+                // The progress of the preview's own answer: read for this page (WishMark).
+                wish={{ ...openWish.data, progress: wish.progress ?? openWish.data.progress }}
                 withdrawing={withdraw.isPending}
                 onWithdraw={() => setWithdrawAsk(true)}
               />

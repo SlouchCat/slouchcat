@@ -5,6 +5,7 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import { SpatialButton, SpatialButtonLink, SpatialGroup } from '@/ui';
 import type { Wish } from './queries';
 import { eventText, failText, seasonsText, WishStateChip } from './state';
+import { WishProgressLine } from './WishProgress';
 import styles from './Wishes.module.css';
 
 /** The newest steps of a wish the card shows; «Meine Wünsche» has the whole history. */
@@ -22,7 +23,7 @@ interface WishCardProps {
 
 /**
  * The wish card under the head of the preview page (concept 25, 5.1, M-03): the state, the seasons
- * and the date, whether the profile joined another profile's wish, the newest steps, and the
+ * and the date, the download progress in procurement, whether the profile joined another profile's wish, the newest steps, and the
  * actions «Zu meinen Wünschen» and «Zurückziehen» where the server allows it.
  */
 export function WishCard({ wish, onWithdraw, withdrawing }: WishCardProps) {
@@ -45,6 +46,7 @@ export function WishCard({ wish, onWithdraw, withdrawing }: WishCardProps) {
         <WishStateChip state={wish.state} detail={wish.stateDetail} />
       </div>
       <p className={styles.line}>{line}</p>
+      <WishProgressLine progress={wish.progress} />
       {wish.failReason && <p className={styles.line}>{failText(t, wish.failReason)}</p>}
       {wish.events.length > 0 && (
         <ol className={styles.events} aria-label={t('wishes.card.history')}>

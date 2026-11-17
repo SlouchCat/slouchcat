@@ -187,4 +187,65 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
     expect(await within(other).findByRole('link', { name: 'Gesehen' })).toBeVisible();
     expect(within(other).queryByRole('link', { name: /Wünsche/ })).toBeNull();
   });
+  it('shows the download progress of the wishes in procurement, nothing without it (E-7)', async () => {
+    const procuring = (
+      id: number,
+      title: string,
+      progress: Wish['progress'],
+      extra: Partial<Wish> = {},
+    ): Wish => ({
+      ...base,
+      id,
+      media: 'movie',
+      tmdbId: 9000 + id,
+      title,
+      state: 'processing',
+      progress,
+      ...extra,
+    });
+    const readAt = '2026-11-17T09:00:00Z';
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () =>
+        json({
+          items: [
+            procuring(11, 'Sternenfeld', { stage: 'search', readAt }),
+            procuring(12, 'Rotes Ufer', {
+              stage: 'download',
+              percent: 45,
+              etaSeconds: 720,
+              readAt,
+            }),
+            procuring(13, 'Winterhaus', { stage: 'import', readAt }),
+            procuring(
+              14,
+              'Lichtturm',
+              { stage: 'stalled', episodes: { done: 3, total: 8 }, readAt },
+              { media: 'show', seasons: [{ number: 1, state: 'processing' }] },
+            ),
+            procuring(15, 'Glasküste', undefined),
+          ],
+          total: 5,
+          counts: { ...counts, open: 5 },
+        }),
+      'GET /wishes/quota': () => json({ unlimited: true, at: readAt }),
+    });
+    renderApp('/wishes');
+    const row = (name: string) => screen.findByRole('article', { name: new RegExp(name) });
+    expect(within(await row('Sternenfeld')).getByText('Wird gesucht')).toBeVisible();
+    const download = await row('Rotes Ufer');
+    expect(within(download).getByText('Wird heruntergeladen · 45 % · noch 12 min')).toBeVisible();
+    expect(
+      within(download).getByRole('progressbar', {
+        name: 'Wird heruntergeladen · 45 % · noch 12 min',
+      }),
+    ).toHaveAttribute('aria-valuenow', '45');
+    expect(within(await row('Winterhaus')).getByText('Wird eingelesen')).toBeVisible();
+    const stalled = await row('Lichtturm');
+    expect(within(stalled).getByText('Download verzögert · 3 von 8 Folgen da')).toBeVisible();
+    expect(within(stalled).queryByRole('progressbar')).toBeNull();
+    const without = await row('Glasküste');
+    expect(within(without).queryByText(/Wird |Download/)).toBeNull();
+    expect(document.body.textContent).not.toContain('{{');
+  });
 });
