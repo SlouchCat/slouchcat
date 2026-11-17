@@ -236,6 +236,7 @@ type Service struct {
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
+	seerr         SeerrHooks    // nil until WithSeerr (concept 25)
 	counts        countsCache   // the counts of the admin sidebar (concept 11, dashboard.go)
 	setupMu       sync.Mutex    // serialises the read-modify-write of the guided wizard (setup_wizard.go)
 }

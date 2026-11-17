@@ -141,6 +141,11 @@ func New(baseURL, apiKey string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
+// NormalizeAddress checks an address of Seerr as New does and returns it without a trailing "/"
+// and "/api/v1": http or https, a host, no user info, no query or fragment. Its error (ErrInvalid)
+// never quotes the address, which could carry credentials.
+func NormalizeAddress(raw string) (string, error) { return cleanBase(raw) }
+
 // cleanBase checks the address the administrator entered: http or https, a host, no user info,
 // no query or fragment. A trailing "/" and a trailing "/api/v1" are dropped.
 func cleanBase(raw string) (string, error) {

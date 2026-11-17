@@ -187,3 +187,35 @@ func TestRedactRadioToken(t *testing.T) {
 		}
 	}
 }
+
+// Concept 25 (rule 10, build plan 1.3): the key of Seerr under every name it travels by and the
+// password of Seerr's user routes never reach the log; X-API-User is a user number and stays.
+func TestRedactSeerrKeys(t *testing.T) {
+	for _, key := range []string{"seerr.api_key", "seerrApiKey", "seerrapikey", "SLOUCHCAT_SEERR_API_KEY", "X-Api-Key",
+		"newPassword", "newpassword", "new_password", "password"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"X-API-User", "seerr.url", "seerr_user_id", "password_state"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("seerr", "seerr.api_key", "seerr-FAKE-key", "seerrApiKey", "seerr-FAKE-key2", "newPassword", "seerr-FAKE-pw",
+		"password", "seerr-FAKE-pw2", "X-API-User", "4242")
+	out := buf.String()
+	for _, secret := range []string{"seerr-FAKE-key", "seerr-FAKE-key2", "seerr-FAKE-pw", "seerr-FAKE-pw2"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, "4242") {
+		t.Errorf("output lost X-API-User: %s", out)
+	}
+}
