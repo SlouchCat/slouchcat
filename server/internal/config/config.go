@@ -84,6 +84,11 @@ type Config struct {
 	// (SLOUCHCAT_TEST_BOOKS_BASE_URL, concept 19 D6; metadata.BookSourceURLsFromBase); honoured in
 	// development mode only.
 	TestBooksBaseURL string
+	// TestTMDBBaseURL and TestTMDBImageBaseURL point the TMDB API and its images at a mock
+	// (SLOUCHCAT_TEST_TMDB_BASE_URL, SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL, the e2e suite of concept
+	// 25); honoured in development mode only. An empty image base keeps TMDB's.
+	TestTMDBBaseURL      string
+	TestTMDBImageBaseURL string
 	// SMTP* configure the e-mail server of the notifications (M8, A-6); empty SMTPHost = none (the
 	// admin may store one in the settings). SMTPTLS is starttls (default), tls or none; SMTPPort
 	// defaults to 587, 465 or 25 by SMTPTLS when a host is set. Secrets come from the environment only.
@@ -294,6 +299,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	cfg.TraktClientID = strings.TrimSpace(env("TRAKT_CLIENT_ID", ""))
 	cfg.TraktBaseURL = strings.TrimSpace(env("TRAKT_BASE_URL", ""))
 	cfg.TestBooksBaseURL = strings.TrimSpace(env("TEST_BOOKS_BASE_URL", ""))
+	cfg.TestTMDBBaseURL = strings.TrimSpace(env("TEST_TMDB_BASE_URL", ""))
+	cfg.TestTMDBImageBaseURL = strings.TrimSpace(env("TEST_TMDB_IMAGE_BASE_URL", ""))
 	if err := loadNotifyConfig(&cfg, env); err != nil {
 		return Config{}, err
 	}

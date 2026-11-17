@@ -351,6 +351,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	} else if cfg.TestBooksBaseURL != "" {
 		log.Warn("SLOUCHCAT_TEST_BOOKS_BASE_URL is ignored without --dev")
 	}
+	metaOpts = append(metaOpts, tmdbTestBase(cfg, log)...)
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metaOpts...)
 	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
 	var load library.TrickplayLoad
@@ -782,4 +783,25 @@ func recordRestored(ctx context.Context, record func(context.Context, model.Acti
 // recordStarted records server_started with the version once the server listens (concept 11).
 func recordStarted(ctx context.Context, record func(context.Context, model.ActivityEvent), version string) {
 	record(ctx, model.ActivityEvent{Kind: model.ActivityServerStarted, Detail: model.ActivityDetail{Version: version}})
+}
+
+// tmdbTestBase points TMDB at the mock of the e2e suite (SLOUCHCAT_TEST_TMDB_BASE_URL and
+// SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL), in development mode only; without --dev the addresses are
+// ignored with a warning, and unset nothing changes.
+func tmdbTestBase(cfg config.Config, log *slog.Logger) []metadata.Option {
+	if cfg.TestTMDBBaseURL == "" && cfg.TestTMDBImageBaseURL == "" {
+		return nil
+	}
+	if !cfg.Dev {
+		log.Warn("SLOUCHCAT_TEST_TMDB_BASE_URL and SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL are ignored without --dev")
+		return nil
+	}
+	api, images := cfg.TestTMDBBaseURL, cfg.TestTMDBImageBaseURL
+	if api == "" {
+		api = metadata.DefaultAPIBase
+	}
+	if images == "" {
+		images = metadata.DefaultImageBase
+	}
+	return []metadata.Option{metadata.WithBaseURL(api, images)}
 }
