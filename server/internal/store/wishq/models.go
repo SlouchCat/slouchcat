@@ -605,8 +605,10 @@ type Notification struct {
 	ID        int64
 	ProfileID int64
 	Kind      string
-	ItemID    string
+	ItemID    sql.NullString
 	ParentID  sql.NullString
+	WishID    sql.NullInt64
+	DedupeKey string
 	CreatedAt int64
 	ReadAt    sql.NullInt64
 }
@@ -1141,6 +1143,35 @@ type WebhookIntegration struct {
 	UpdatedAt  int64
 }
 
+type Wish struct {
+	ID              int64
+	Media           string
+	TmdbID          int64
+	TvdbID          sql.NullInt64
+	ImdbID          sql.NullString
+	Title           string
+	Year            sql.NullInt64
+	Origin          string
+	SeerrRequestID  sql.NullInt64
+	SeerrMediaID    sql.NullInt64
+	SeerrUserID     sql.NullInt64
+	State           string
+	StateDetail     sql.NullString
+	FailReason      sql.NullString
+	Attempts        int64
+	NextAttemptAt   sql.NullInt64
+	WithdrawPending int64
+	CheckedAt       sql.NullInt64
+	ItemID          sql.NullString
+	CreatedAt       int64
+	UpdatedAt       int64
+	SubmittedAt     sql.NullInt64
+	ApprovedAt      sql.NullInt64
+	AvailableAt     sql.NullInt64
+	ClosedAt        sql.NullInt64
+	SeerrUpdatedAt  sql.NullInt64
+}
+
 type WishAccountLimit struct {
 	AccountID  int64
 	Mode       string
@@ -1165,4 +1196,33 @@ type WishAccountMap struct {
 	LimitWrittenAt   sql.NullInt64
 	SetAt            int64
 	SetBy            sql.NullInt64
+}
+
+type WishEvent struct {
+	ID     int64
+	WishID int64
+	At     int64
+	Kind   string
+	Detail sql.NullString
+}
+
+type WishRequester struct {
+	WishID     int64
+	ProfileID  int64
+	AccountID  int64
+	Role       string
+	CreatedAt  int64
+	NotifiedAt sql.NullInt64
+	ClosedAt   sql.NullInt64
+}
+
+type WishSeason struct {
+	WishID         int64
+	SeasonNumber   int64
+	TmdbID         int64
+	SeerrRequestID sql.NullInt64
+	SeerrUpdatedAt sql.NullInt64
+	State          string
+	AvailableAt    sql.NullInt64
+	NotifiedAt     sql.NullInt64
 }

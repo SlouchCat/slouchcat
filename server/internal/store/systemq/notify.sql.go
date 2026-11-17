@@ -130,8 +130,8 @@ func (q *Queries) NotifyHasFollowed(ctx context.Context) (bool, error) {
 }
 
 const notifyInsert = `-- name: NotifyInsert :execresult
-INSERT OR IGNORE INTO notifications (profile_id, kind, item_id, parent_id, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5)
+INSERT OR IGNORE INTO notifications (profile_id, kind, item_id, parent_id, dedupe_key, created_at)
+VALUES (?1, ?2, CAST(?3 AS TEXT), ?4, 'episode:' || CAST(?3 AS TEXT), ?5)
 `
 
 type NotifyInsertParams struct {
@@ -142,7 +142,8 @@ type NotifyInsertParams struct {
 	Now       int64
 }
 
-// One entry per profile and episode; a second event for the same episode inserts nothing.
+// One entry per profile and episode; a second event for the same episode inserts nothing (the
+// dedupe key of an episode is 'episode:<item_id>', migration 00070).
 func (q *Queries) NotifyInsert(ctx context.Context, arg NotifyInsertParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, notifyInsert,
 		arg.ProfileID,
@@ -154,7 +155,7 @@ func (q *Queries) NotifyInsert(ctx context.Context, arg NotifyInsertParams) (sql
 }
 
 const notifyList = `-- name: NotifyList :many
-SELECT n.id, n.kind, n.item_id, n.parent_id, n.created_at, n.read_at
+SELECT n.id, n.kind, CAST(n.item_id AS TEXT) AS item_id, n.parent_id, n.created_at, n.read_at
 FROM notifications AS n
 JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
 WHERE n.profile_id = ?1
@@ -177,7 +178,8 @@ type NotifyListRow struct {
 	ReadAt    sql.NullInt64
 }
 
-// One page of the profile's inbox, newest first, only entries whose episode the profile sees.
+// One page of the profile's inbox, newest first, only entries whose episode the profile sees (the
+// join keeps item_id non-NULL).
 func (q *Queries) NotifyList(ctx context.Context, arg NotifyListParams) ([]NotifyListRow, error) {
 	rows, err := q.db.QueryContext(ctx, notifyList, arg.ProfileID, arg.OffsetCount, arg.LimitCount)
 	if err != nil {

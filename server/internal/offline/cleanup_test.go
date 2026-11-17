@@ -126,11 +126,11 @@ func TestCleanupOldReadNotifications(t *testing.T) {
 	f := e.f
 	now := e.clock.Now()
 	old, young := now.Add(-91*24*time.Hour).UnixMilli(), now.Add(-89*24*time.Hour).UnixMilli()
-	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at, read_at) VALUES
-	        (?, 'new_episode', ?, ?, ?), (?, 'new_episode', ?, ?, ?), (?, 'new_episode', ?, ?, NULL)`,
-		f.P18.ID, f.Rated(0).ID, old, young,
-		f.P18.ID, f.Rated(6).ID, young, young,
-		f.P18.ID, f.Rated(12).ID, old)
+	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, dedupe_key, created_at, read_at) VALUES
+	        (?, 'new_episode', ?, 'episode:' || ?, ?, ?), (?, 'new_episode', ?, 'episode:' || ?, ?, ?), (?, 'new_episode', ?, 'episode:' || ?, ?, NULL)`,
+		f.P18.ID, f.Rated(0).ID, f.Rated(0).ID, old, young,
+		f.P18.ID, f.Rated(6).ID, f.Rated(6).ID, young, young,
+		f.P18.ID, f.Rated(12).ID, f.Rated(12).ID, old)
 	if err := e.svc.Cleanup(ctx); err != nil {
 		t.Fatal(err)
 	}

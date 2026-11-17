@@ -23,13 +23,15 @@ WHERE e.id IN (sqlc.slice('episode_ids')) AND e.kind IN ('episode', 'podcast_epi
 ORDER BY e.id, p.id;
 
 -- name: NotifyInsert :execresult
--- One entry per profile and episode; a second event for the same episode inserts nothing.
-INSERT OR IGNORE INTO notifications (profile_id, kind, item_id, parent_id, created_at)
-VALUES (@profile_id, @kind, @item_id, @parent_id, @now);
+-- One entry per profile and episode; a second event for the same episode inserts nothing (the
+-- dedupe key of an episode is 'episode:<item_id>', migration 00070).
+INSERT OR IGNORE INTO notifications (profile_id, kind, item_id, parent_id, dedupe_key, created_at)
+VALUES (@profile_id, @kind, CAST(@item_id AS TEXT), @parent_id, 'episode:' || CAST(@item_id AS TEXT), @now);
 
 -- name: NotifyList :many
--- One page of the profile's inbox, newest first, only entries whose episode the profile sees.
-SELECT n.id, n.kind, n.item_id, n.parent_id, n.created_at, n.read_at
+-- One page of the profile's inbox, newest first, only entries whose episode the profile sees (the
+-- join keeps item_id non-NULL).
+SELECT n.id, n.kind, CAST(n.item_id AS TEXT) AS item_id, n.parent_id, n.created_at, n.read_at
 FROM notifications AS n
 JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
 WHERE n.profile_id = @profile_id
