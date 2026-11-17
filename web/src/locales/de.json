@@ -226,7 +226,10 @@
       "deleting": "Wird gerade gelöscht.",
       "changed": "Inzwischen hat sich etwas geändert, bitte erneut prüfen.",
       "stale": "Die Bibliothek wurde inzwischen anderswo geändert. Lade sie neu und speichere noch einmal.",
-      "root_unlisted": "Ein Ordner der Bibliothek fehlt in der Anfrage. Lade die Bibliothek neu; es wurde nichts entfernt."
+      "root_unlisted": "Ein Ordner der Bibliothek fehlt in der Anfrage. Lade die Bibliothek neu; es wurde nichts entfernt.",
+      "seerr_key_required": "Eine Adresse auf einem anderen Rechner braucht den API-Schlüssel neu: Der gespeicherte geht nie an eine andere Adresse.",
+      "seerr_not_configured": "Trage zuerst Adresse und API-Schlüssel von Seerr ein.",
+      "instance_unchanged": "Es wartet keine andere Seerr-Instanz auf eine Entscheidung."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -257,7 +260,8 @@
       "local_address": "Diese Adresse liegt im lokalen Netz. Auch eigene Sender müssen aus dem Internet kommen.",
       "not_own": "Das lässt sich nur bei eigenen Sendern ändern.",
       "not_matched": "Dieses Hörbuch ist keiner Quelle zugeordnet.",
-      "not_found": "Diesen Eintrag gibt es bei der Quelle nicht."
+      "not_found": "Diesen Eintrag gibt es bei der Quelle nicht.",
+      "seerr_url_invalid": "Gib eine Adresse mit http:// oder https:// an, ohne Benutzer, Passwort, Abfrage oder Anker."
     }
   },
   "setup": {
@@ -3739,7 +3743,8 @@
         "email": "Server für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.",
         "telegram": "Bot für Benachrichtigungen per Telegram.",
         "push": "Benachrichtigungen im Browser und in der installierten App.",
-        "server": "Update-Prüfung, öffentliche Adresse und Grafikchip."
+        "server": "Update-Prüfung, öffentliche Adresse und Grafikchip.",
+        "seerr": "Wünsche der Zuschauer an Seerr weitergeben und ihren Zustand abgleichen. Konten erhalten dort einen Benutzer mit demselben Login."
       },
       "keys": {
         "title": "Schlüssel der Anbieter",
@@ -3958,6 +3963,132 @@
         "checkLabel": "{{name}} prüfen",
         "rejected": "abgewiesen",
         "savedRejected": "{{name}} gespeichert, aber der Anbieter weist den Schlüssel ab."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Verbindung zu Seerr",
+        "accounts": "Seerr-Benutzer: {{opened}} von {{total}} Konten",
+        "version": "Version {{version}}",
+        "lastSuccess": "Zuletzt erreicht {{time}}",
+        "state": {
+          "not_configured": "Nicht eingerichtet",
+          "disabled": "Ausgeschaltet",
+          "untested": "Nicht getestet",
+          "connected": "Verbunden",
+          "key_invalid": "Schlüssel ungültig",
+          "unreachable": "Nicht erreichbar",
+          "instance_changed": "Andere Instanz erkannt"
+        },
+        "stateHint": {
+          "not_configured": "Trage Adresse und Schlüssel ein.",
+          "disabled": "Slouchcat ruft Seerr nicht auf. Wünsche bleiben gespeichert.",
+          "untested": "Teste die Verbindung, damit sich «Wünsche aktiv» einschalten lässt.",
+          "instance_changed": "Bis du entscheidest, stellt Slouchcat keine Wünsche und gleicht nichts ab."
+        },
+        "connection": {
+          "title": "Verbindung",
+          "noAddress": "Keine Adresse"
+        },
+        "enabled": "Seerr verwenden",
+        "enabledHelp": "Aus: Slouchcat ruft Seerr nicht auf. Wünsche bleiben gespeichert.",
+        "url": "Adresse",
+        "urlHelp": "Zum Beispiel http://192.168.1.50:5055. Slouchcat spricht nur diese Adresse an. Eine Adresse im Heimnetz ist erlaubt; Weiterleitungen folgt Slouchcat nicht.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API-Schlüssel",
+        "apiKeyHelp": "Aus Seerr: Einstellungen › Allgemein. Leer lassen, um den gespeicherten zu behalten. Eine Adresse auf einem anderen Rechner braucht den Schlüssel neu.",
+        "clearBody": "Adresse und Schlüssel werden entfernt. Wünsche bleiben gespeichert, werden aber nicht mehr übermittelt und abgeglichen.",
+        "test": {
+          "action": "Verbindung testen",
+          "running": "Verbindung wird geprüft …",
+          "listLabel": "Ergebnis des Verbindungstests",
+          "passed": "Alle Prüfungen bestanden.",
+          "passedWithHints_one": "Verbunden · {{count}} Hinweis",
+          "passedWithHints_other": "Verbunden · {{count}} Hinweise",
+          "hintsHelp": "Ein Hinweis hält nichts auf; er sagt, was in Seerr besser eingestellt wäre.",
+          "failed": "Der Test ist gescheitert: {{checks}}."
+        },
+        "level": {
+          "ok": "bestanden",
+          "warn": "Hinweis",
+          "fail": "gescheitert"
+        },
+        "checks": {
+          "reachable": "Erreichbar",
+          "version": "Version",
+          "key_valid": "Schlüssel gültig",
+          "manage_users": "Benutzer anlegen und ändern",
+          "instance": "Instanz",
+          "act_as_user": "Handeln im Namen von Benutzern",
+          "csrf_off": "CSRF-Schutz in Seerr aus",
+          "radarr": "Radarr in Seerr",
+          "sonarr": "Sonarr in Seerr",
+          "local_login": "Lokale Anmeldung in Seerr",
+          "tvdb_seasons": "Staffeln aus TVDB",
+          "password_transport": "Passwort verschlüsselt"
+        },
+        "checkOk": {
+          "reachable": "Seerr antwortet.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr nimmt den Schlüssel an.",
+          "manage_users": "Der Schlüssel darf Konten in Seerr eröffnen und Rechte, Limit und Passwort setzen.",
+          "instance": "Gleiche Instanz wie beim Einrichten.",
+          "act_as_user": "Wünsche gelten mit Rechten, Limit und Auto-Freigabe des zugeordneten Benutzers.",
+          "csrf_off": "Schreibende Aufrufe kommen an.",
+          "radarr_one": "Film-Wünsche gehen an Radarr ({{count}} Server).",
+          "radarr_other": "Film-Wünsche gehen an Radarr ({{count}} Server).",
+          "sonarr_one": "Serien-Wünsche gehen an Sonarr ({{count}} Server).",
+          "sonarr_other": "Serien-Wünsche gehen an Sonarr ({{count}} Server).",
+          "local_login": "Eröffnete Benutzer melden sich in Seerr mit E-Mail und Passwort aus Slouchcat an.",
+          "tvdb_seasons": "Seerr, Sonarr und die Slouchcat-Bibliothek zählen Staffeln gleich.",
+          "password_transport": "Passwörter gehen verschlüsselt oder bleiben im Heimnetz."
+        },
+        "checkIssue": {
+          "notTested": "Nicht geprüft.",
+          "timeout": "Nicht erreichbar: Zeitüberschreitung.",
+          "refused": "Nicht erreichbar: Verbindung abgelehnt.",
+          "redirect": "Nicht erreichbar: Weiterleitung nicht erlaubt.",
+          "unreachable": "Nicht erreichbar. Läuft Seerr, und stimmt die Adresse?",
+          "versionNotVerified": "Version nicht geprüft: getestet sind Jellyseerr 2.7 und Seerr 3.x.",
+          "keyNotUserOne": "Der Schlüssel gehört nicht zum Besitzer von Seerr (Benutzer 1).",
+          "keyInvalid": "Seerr lehnt den Schlüssel ab.",
+          "manageUsers": "Der Schlüssel darf keine Benutzer anlegen: Konten lassen sich nicht eröffnen.",
+          "instance": "Andere Seerr-Instanz erkannt.",
+          "notTestable": "Nicht prüfbar: Seerr hat ausser Benutzer 1 keinen Benutzer.",
+          "waiting": "Nicht geprüft, solange eine andere Instanz auf deine Entscheidung wartet.",
+          "actAsUser": "Wirkt nicht: Wünsche würden als Administrator gestellt.",
+          "csrfOn": "An: Schreibende Aufrufe scheitern. In den Netzwerk-Einstellungen von Seerr ausschalten.",
+          "noRadarr": "Kein Radarr in Seerr: Film-Wünsche bleiben liegen.",
+          "noSonarr": "Kein Sonarr in Seerr: Serien-Wünsche bleiben liegen.",
+          "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer «Lokale Anmeldung» einschalten.",
+          "noSeasonSource": "Seerr nennt die Quelle der Staffeln nicht.",
+          "tmdbSeasons": "Seerr liest Staffeln aus TMDB. Empfohlen ist TVDB, wie in Sonarr und in der Slouchcat-Bibliothek, sonst können Staffelnummern abweichen.",
+          "passwordTransport": "Passwörter gingen unverschlüsselt ins Internet. Nutze https."
+        },
+        "instance": {
+          "title": "Andere Seerr-Instanz erkannt",
+          "body": "Unter der Adresse antwortet eine andere Seerr-Instanz als beim Einrichten. Bis du entscheidest, stellt Slouchcat keine Wünsche und gleicht nichts ab.",
+          "confirm": "Zuordnung bestätigen",
+          "reset": "Zuordnung löschen",
+          "resetTitle": "Zuordnung zu Seerr löschen?",
+          "resetBody": "Die Seerr-Benutzer aller Konten und die geladene Benutzerliste werden entfernt. Danach lädt Slouchcat die Benutzer der neuen Instanz.",
+          "confirmed": "Neue Instanz übernommen. Die Seerr-Benutzer der Konten bleiben.",
+          "resetDone": "Zuordnung gelöscht. Slouchcat lädt die Benutzer der neuen Instanz."
+        },
+        "log": {
+          "title": "Protokoll",
+          "summary_one": "{{count}} Eintrag · {{errors}} Fehler",
+          "summary_other": "{{count}} Einträge · {{errors}} Fehler",
+          "empty": "Noch keine Einträge.",
+          "caption": "Die letzten Aufrufe an Seerr",
+          "at": "Zeit",
+          "call": "Aufruf",
+          "result": "Ergebnis",
+          "duration": "Dauer",
+          "error": "Fehler",
+          "noAnswer": "Keine Antwort",
+          "ms": "{{ms}} ms",
+          "note": "Nie mit Kopfzeilen oder Schlüssel. Höchstens 20 Einträge."
+        }
       }
     },
     "accounts": {

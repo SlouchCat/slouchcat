@@ -31,6 +31,7 @@ const PAGES = [
   '/admin/integrations',
   '/admin/integrations?item=keys',
   '/admin/integrations?item=webhooks',
+  '/admin/integrations?item=seerr',
   '/admin/integrations?item=email',
   '/admin/stats',
   '/admin/backup',

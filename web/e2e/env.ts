@@ -81,6 +81,8 @@ export const RADIO_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_R
 // The book sources of audiobooks (books-server.mjs, concept 19 D3) ten below: Audible, Audnexus,
 // DNB, Apple Books, Open Library and Google Books in one mock (SLOUCHCAT_TEST_BOOKS_BASE_URL).
 export const BOOKS_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_BOOKS_PORT ?? PORT - 10)}`;
+// Seerr (seerr-server.mjs, concept 25) eleven below; the specs enter this address in the form.
+export const SEERR_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_SEERR_PORT ?? PORT - 11)}`;
 
 /** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
 export const SERVER_LOG = `${ARTEFACTS}server.log`;

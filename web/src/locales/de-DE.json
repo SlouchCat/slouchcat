@@ -339,6 +339,15 @@
           "help": "Ein Schlüssel der „Books API“ aus der Google Cloud Console. Welcher Ordner die Quelle nutzt, steht unter „Hörbücher: Quellen“."
         },
         "envNote": "Der Wert kommt aus deploy/.env und lässt sich nur dort ändern. „Prüfen“ fragt den Anbieter trotzdem."
+      },
+      "seerr": {
+        "stateHint": {
+          "untested": "Teste die Verbindung, damit sich „Wünsche aktiv“ einschalten lässt."
+        },
+        "checkIssue": {
+          "notTestable": "Nicht prüfbar: Seerr hat außer Benutzer 1 keinen Benutzer.",
+          "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer „Lokale Anmeldung“ einschalten."
+        }
       }
     },
     "accounts": {

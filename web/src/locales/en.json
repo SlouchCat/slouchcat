@@ -226,7 +226,10 @@
       "deleting": "This is being deleted right now.",
       "changed": "Something changed meanwhile, please check again.",
       "stale": "The library was changed elsewhere in the meantime. Load it again and save once more.",
-      "root_unlisted": "A folder of the library is missing from the request. Load the library again; nothing was removed."
+      "root_unlisted": "A folder of the library is missing from the request. Load the library again; nothing was removed.",
+      "seerr_key_required": "An address on another machine needs the API key again: the stored one never goes to another address.",
+      "seerr_not_configured": "Enter the address and API key of Seerr first.",
+      "instance_unchanged": "No other Seerr instance waits for a decision."
     },
     "field": {
       "required": "Required.",
@@ -257,7 +260,8 @@
       "local_address": "This address is in the local network. Own stations must come from the internet as well.",
       "not_own": "Only an own station can change this.",
       "not_matched": "This audiobook is not matched to a source.",
-      "not_found": "The source has no such entry."
+      "not_found": "The source has no such entry.",
+      "seerr_url_invalid": "Enter an address with http:// or https://, without user, password, query or fragment."
     }
   },
   "setup": {
@@ -3739,7 +3743,8 @@
         "email": "Server for notifications, invitations and announcements by e-mail.",
         "telegram": "Bot for notifications by Telegram.",
         "push": "Notifications in the browser and in the installed app.",
-        "server": "Update check, public address and graphics chip."
+        "server": "Update check, public address and graphics chip.",
+        "seerr": "Pass the viewers' wishes on to Seerr and keep their state in sync. Accounts get a user there with the same login."
       },
       "keys": {
         "title": "Provider keys",
@@ -3958,6 +3963,132 @@
         "checkLabel": "Check {{name}}",
         "rejected": "rejected",
         "savedRejected": "{{name}} saved, but the provider rejects the key."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Connection to Seerr",
+        "accounts": "Seerr users: {{opened}} of {{total}} accounts",
+        "version": "Version {{version}}",
+        "lastSuccess": "Last reached {{time}}",
+        "state": {
+          "not_configured": "Not set up",
+          "disabled": "Switched off",
+          "untested": "Not tested",
+          "connected": "Connected",
+          "key_invalid": "Key invalid",
+          "unreachable": "Unreachable",
+          "instance_changed": "Other instance detected"
+        },
+        "stateHint": {
+          "not_configured": "Enter the address and the key.",
+          "disabled": "Slouchcat does not call Seerr. Wishes stay stored.",
+          "untested": "Test the connection so that “Wishes active” can be switched on.",
+          "instance_changed": "Until you decide, Slouchcat sends no wishes and syncs nothing."
+        },
+        "connection": {
+          "title": "Connection",
+          "noAddress": "No address"
+        },
+        "enabled": "Use Seerr",
+        "enabledHelp": "Off: Slouchcat does not call Seerr. Wishes stay stored.",
+        "url": "Address",
+        "urlHelp": "For example http://192.168.1.50:5055. Slouchcat only talks to this address. An address in the home network is allowed; Slouchcat does not follow redirects.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API key",
+        "apiKeyHelp": "From Seerr: Settings › General. Leave empty to keep the stored one. An address on another machine needs the key again.",
+        "clearBody": "The address and the key are removed. Wishes stay stored, but are no longer passed on or synced.",
+        "test": {
+          "action": "Test connection",
+          "running": "Checking the connection …",
+          "listLabel": "Result of the connection test",
+          "passed": "All checks passed.",
+          "passedWithHints_one": "Connected · {{count}} hint",
+          "passedWithHints_other": "Connected · {{count}} hints",
+          "hintsHelp": "A hint stops nothing; it says what would be better set in Seerr.",
+          "failed": "The test failed: {{checks}}."
+        },
+        "level": {
+          "ok": "passed",
+          "warn": "hint",
+          "fail": "failed"
+        },
+        "checks": {
+          "reachable": "Reachable",
+          "version": "Version",
+          "key_valid": "Key valid",
+          "manage_users": "Create and change users",
+          "instance": "Instance",
+          "act_as_user": "Acting on behalf of users",
+          "csrf_off": "CSRF protection in Seerr off",
+          "radarr": "Radarr in Seerr",
+          "sonarr": "Sonarr in Seerr",
+          "local_login": "Local sign-in in Seerr",
+          "tvdb_seasons": "Seasons from TVDB",
+          "password_transport": "Password encrypted"
+        },
+        "checkOk": {
+          "reachable": "Seerr answers.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr accepts the key.",
+          "manage_users": "The key may open accounts in Seerr and set rights, limit and password.",
+          "instance": "Same instance as when it was set up.",
+          "act_as_user": "Wishes count with the rights, limit and auto-approval of the assigned user.",
+          "csrf_off": "Writing calls get through.",
+          "radarr_one": "Film wishes go to Radarr ({{count}} server).",
+          "radarr_other": "Film wishes go to Radarr ({{count}} servers).",
+          "sonarr_one": "Series wishes go to Sonarr ({{count}} server).",
+          "sonarr_other": "Series wishes go to Sonarr ({{count}} servers).",
+          "local_login": "Opened users sign in to Seerr with the e-mail and password from Slouchcat.",
+          "tvdb_seasons": "Seerr, Sonarr and the Slouchcat library count seasons the same way.",
+          "password_transport": "Passwords travel encrypted or stay in the home network."
+        },
+        "checkIssue": {
+          "notTested": "Not checked.",
+          "timeout": "Unreachable: timeout.",
+          "refused": "Unreachable: connection refused.",
+          "redirect": "Unreachable: redirects are not allowed.",
+          "unreachable": "Unreachable. Is Seerr running, and is the address right?",
+          "versionNotVerified": "Version not verified: tested are Jellyseerr 2.7 and Seerr 3.x.",
+          "keyNotUserOne": "The key does not belong to the owner of Seerr (user 1).",
+          "keyInvalid": "Seerr refuses the key.",
+          "manageUsers": "The key may not create users: accounts cannot be opened.",
+          "instance": "Other Seerr instance detected.",
+          "notTestable": "Not testable: Seerr has no user besides user 1.",
+          "waiting": "Not checked while another instance waits for your decision.",
+          "actAsUser": "Does not work: wishes would be made as the administrator.",
+          "csrfOn": "On: writing calls fail. Switch it off in Seerr's network settings.",
+          "noRadarr": "No Radarr in Seerr: film wishes stay put.",
+          "noSonarr": "No Sonarr in Seerr: series wishes stay put.",
+          "localLoginOff": "Opened users cannot sign in to Seerr. Switch on “Local sign-in” in Seerr under Settings › Users.",
+          "noSeasonSource": "Seerr does not name the source of its seasons.",
+          "tmdbSeasons": "Seerr reads seasons from TMDB. TVDB is recommended, as in Sonarr and in the Slouchcat library; otherwise season numbers may differ.",
+          "passwordTransport": "Passwords would travel unencrypted over the internet. Use https."
+        },
+        "instance": {
+          "title": "Other Seerr instance detected",
+          "body": "Another Seerr instance answers at the address than when it was set up. Until you decide, Slouchcat sends no wishes and syncs nothing.",
+          "confirm": "Confirm the assignment",
+          "reset": "Delete the assignment",
+          "resetTitle": "Delete the assignment to Seerr?",
+          "resetBody": "The Seerr users of every account and the loaded user list are removed. Slouchcat then loads the users of the new instance.",
+          "confirmed": "New instance taken over. The Seerr users of the accounts stay.",
+          "resetDone": "Assignment deleted. Slouchcat loads the users of the new instance."
+        },
+        "log": {
+          "title": "Log",
+          "summary_one": "{{count}} entry · {{errors}} errors",
+          "summary_other": "{{count}} entries · {{errors}} errors",
+          "empty": "No entries yet.",
+          "caption": "The latest calls to Seerr",
+          "at": "Time",
+          "call": "Call",
+          "result": "Result",
+          "duration": "Duration",
+          "error": "Error",
+          "noAnswer": "No answer",
+          "ms": "{{ms}} ms",
+          "note": "Never with headers or key. At most 20 entries."
+        }
       }
     },
     "accounts": {

@@ -303,3 +303,46 @@
 .back {
   align-self: flex-start;
 }
+
+/* The check list of the Seerr test (concept 25, administration 4.1): a dot, the check point and
+   what it found, one line each. */
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.checkText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.checkLabel {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.checkDetail {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The address in the head of the band «Verbindung»: one line, cut with an ellipsis. */
+.clipMeta {
+  overflow: hidden;
+  max-width: 20rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

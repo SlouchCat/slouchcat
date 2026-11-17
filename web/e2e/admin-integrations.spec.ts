@@ -47,6 +47,8 @@ const serverRow = (page: Page, name: string) =>
 const SERVICES = {
   keys: 'Schlüssel der Anbieter',
   webhooks: 'Webhooks von Radarr und Sonarr',
+  // Its view has a spec of its own (admin-seerr.spec.ts, concept 25).
+  seerr: 'Seerr',
   email: 'E-Mail-Server',
   telegram: 'Telegram-Bot',
   push: 'Web-Push',

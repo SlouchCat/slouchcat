@@ -853,3 +853,89 @@ export async function applyRadioOfferNow(steps: RadioOfferStep[]): Promise<Radio
     return applyRadioOffer(again.version, steps);
   }
 }
+
+// Wishes through Seerr (concept 25, contract 1.41.0): the connection under Integrationen › Seerr,
+// the Seerr users and the settings under Medien › Wünsche. The api key is write-only: it goes out
+// with a save or a test and never comes back.
+
+export type SeerrSettings = components['schemas']['SeerrSettings'];
+export type SeerrSettingsUpdate = components['schemas']['SeerrSettingsUpdate'];
+export type SeerrTestRequest = components['schemas']['SeerrTestRequest'];
+export type SeerrTestResult = components['schemas']['SeerrTestResult'];
+export type SeerrCheck = components['schemas']['SeerrCheck'];
+export type SeerrStatus = components['schemas']['SeerrStatus'];
+export type SeerrLogEntry = components['schemas']['SeerrLogEntry'];
+export type SeerrUser = components['schemas']['SeerrUser'];
+export type WishMappings = components['schemas']['WishMappings'];
+export type WishAccountMapping = components['schemas']['WishAccountMapping'];
+export type WishLimits = components['schemas']['WishLimits'];
+export type WishSettings = components['schemas']['WishSettings'];
+export type WishSettingsUpdate = components['schemas']['WishSettingsUpdate'];
+
+export const seerrKeys = { all: ['admin', 'seerr'] as const };
+
+export const seerrSettingsQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'settings'],
+  queryFn: ({ signal }): Promise<SeerrSettings> => request(api.GET('/admin/seerr', { signal })),
+});
+
+/** The state of the connection, the counters and the last 20 calls. */
+export const seerrStatusQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'status'],
+  queryFn: ({ signal }): Promise<SeerrStatus> =>
+    request(api.GET('/admin/seerr/status', { signal })),
+});
+
+/** Saving runs no test; a new host needs the key again (`seerr_key_required`). */
+export const updateSeerrSettings = (body: SeerrSettingsUpdate): Promise<SeerrSettings> =>
+  request(api.PUT('/admin/seerr', { body }));
+
+/** The check list against the saved connection, or against values not saved yet. */
+export const testSeerrConnection = (body: SeerrTestRequest): Promise<SeerrTestResult> =>
+  request(api.POST('/admin/seerr/test', { body }));
+
+/** «Zuordnung bestätigen» (`confirm`) or «Zuordnung löschen» (`reset`) of another instance. */
+export const confirmSeerrInstance = (action: 'confirm' | 'reset'): Promise<SeerrStatus> =>
+  request(api.POST('/admin/seerr/instance', { body: { action } }));
+
+export const wishKeys = { all: ['admin', 'wishes'] as const };
+
+/** Every account with its Seerr user, the Seerr users without an account, the shared user. */
+export const wishMappingsQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'mappings'],
+  queryFn: ({ signal }): Promise<WishMappings> =>
+    request(api.GET('/admin/wishes/mappings', { signal })),
+});
+
+/** Every Seerr user as Slouchcat last read them, the taken and the shared one included. */
+export const seerrUsersQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'users'],
+  queryFn: ({ signal }): Promise<SeerrUser[]> =>
+    request(api.GET('/admin/wishes/mappings/users', { signal })),
+});
+
+/** Queues the job `seerr.users`; the list changes once it ran. */
+export const refreshSeerrUsers = (): Promise<void> =>
+  request(api.POST('/admin/wishes/mappings/users/refresh'));
+
+/** The Seerr user of an account by hand; `null` unlinks (the user stays in Seerr). */
+export const setAccountWishMapping = (
+  accountId: number,
+  seerrUserId: number | null,
+): Promise<WishAccountMapping> =>
+  request(
+    api.PUT('/admin/wishes/mappings/accounts/{accountId}', {
+      params: { path: { accountId } },
+      body: { seerrUserId },
+    }),
+  );
+
+export const wishSettingsQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'settings'],
+  queryFn: ({ signal }): Promise<WishSettings> =>
+    request(api.GET('/admin/wishes/settings', { signal })),
+});
+
+/** Every change applies at once; «Wünsche aktiv» goes on only after a passed test. */
+export const setWishSettings = (body: WishSettingsUpdate): Promise<WishSettings> =>
+  request(api.PUT('/admin/wishes/settings', { body }));

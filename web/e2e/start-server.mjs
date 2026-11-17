@@ -4,7 +4,7 @@
 // feed (feed-server.mjs, M6), the Trakt mock (trakt-server.mjs, M7) and the mocks of the
 // notification channels and the update check (smtp-, push-, telegram- and update-server.mjs, M8)
 // the Radio Browser with the test station (radio-server.mjs, concept 16) and the book sources of
-// audiobooks (books-server.mjs, concept 19 D3) run in this process and stop with the server.
+// audiobooks (books-server.mjs, concept 19 D3) and Seerr (seerr-server.mjs, concept 25) run in this process and stop with the server.
 //
 // The suite runs bin/slouchcat-e2e, the server built with the tag radiotest (`task build`): only
 // that build reads the catalog URL from the environment and lets the radio dial the loopback (plan
@@ -28,6 +28,7 @@ import { startBooksServer } from './books-server.mjs';
 import { startFeedServer } from './feed-server.mjs';
 import { startPushServer } from './push-server.mjs';
 import { startRadioServer } from './radio-server.mjs';
+import { startSeerrServer } from './seerr-server.mjs';
 import { SMTP_FROM, SMTP_PASSWORD, SMTP_USER, startSmtpServer } from './smtp-server.mjs';
 import { startTelegramServer, TELEGRAM_BOT_TOKEN } from './telegram-server.mjs';
 import { startTraktServer, TRAKT_CLIENT_ID } from './trakt-server.mjs';
@@ -70,6 +71,9 @@ const update = await startUpdateServer({ port: below('UPDATE', 7) });
 const radio = await startRadioServer({ port: below('RADIO', 9) });
 // The book sources ten below (books-server.mjs): the automatic match at start asks them.
 const books = await startBooksServer({ port: below('BOOKS', 10) });
+// Seerr eleven below (seerr-server.mjs, concept 25). No SLOUCHCAT_SEERR_* variable: the specs
+// enter its address in the form, which a value of the environment would lock.
+const seerr = await startSeerrServer({ port: below('SEERR', 11) });
 
 // The artefact folder of env.ts ARTEFACTS (SLOUCHCAT_E2E_ARTEFACTS moves it, e2e/parallel.mjs).
 const logFile = process.env.SLOUCHCAT_E2E_ARTEFACTS
@@ -174,5 +178,6 @@ server.on('exit', (code) => {
     update.close(),
     radio.close(),
     books.close(),
+    seerr.close(),
   ]).finally(() => process.exit(code ?? 0));
 });

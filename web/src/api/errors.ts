@@ -103,6 +103,11 @@ const problemKeys = {
   files_not_deletable: 'errors.code.files_not_deletable',
   deleting: 'errors.code.deleting',
   changed: 'errors.code.changed',
+  // Seerr (concept 25, contract 1.41.0): another host needs the key again, no address or key yet,
+  // no other instance waits for a decision.
+  seerr_key_required: 'errors.code.seerr_key_required',
+  seerr_not_configured: 'errors.code.seerr_not_configured',
+  instance_unchanged: 'errors.code.instance_unchanged',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -157,6 +162,8 @@ const fieldKeys = {
   // only an own station has.
   local_address: 'errors.field.local_address',
   not_own: 'errors.field.not_own',
+  // The address of Seerr (concept 25): http or https without user info, query or fragment.
+  seerr_url_invalid: 'errors.field.seerr_url_invalid',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>
@@ -201,6 +208,8 @@ const fieldOfCode: Record<string, string> = {
   passphrase_required: 'passphrase',
   passphrase_too_short: 'passphrase',
   passphrase_wrong: 'passphrase',
+  // The connection to Seerr: a new host needs the key again (concept 25).
+  seerr_key_required: 'apiKey',
 };
 
 export interface FormErrors {

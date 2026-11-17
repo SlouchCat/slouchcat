@@ -36,6 +36,9 @@ export const TELEGRAM_DRAFT = 'telegram';
 export const PASSWORD_DRAFT = 'email.password';
 export const PUBLIC_URL_DRAFT = 'publicUrl';
 export const EMAIL_DRAFT = 'email';
+/** Draft ids of Seerr (concept 25): address and switch together, the write-only key alone. */
+export const SEERR_DRAFT = 'seerr';
+export const SEERR_KEY_DRAFT = 'seerr.apiKey';
 
 /** After a part of the settings is stored: the answer is the whole new state of the page. */
 export function useSettingsSaved(
@@ -156,7 +159,16 @@ export function Actions({
 }
 
 /** «Löschen …» of a stored value: quiet red text that asks before it deletes. */
-export function ClearButton({ name, onClear }: { name: string; onClear: () => void }) {
+export function ClearButton({
+  name,
+  body,
+  onClear,
+}: {
+  name: string;
+  /** What deleting means for this value, in place of the general sentence. */
+  body?: string;
+  onClear: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <ConfirmDialog
@@ -169,7 +181,7 @@ export function ClearButton({ name, onClear }: { name: string; onClear: () => vo
         </AriaButton>
       }
       title={t('admin.integrations.clear.title', { name })}
-      body={t('admin.integrations.clear.body')}
+      body={body ?? t('admin.integrations.clear.body')}
       confirmLabel={t('admin.integrations.clear.confirm')}
       cancelLabel={t('common.cancel')}
       tone="danger"
@@ -193,6 +205,17 @@ export function validPort(text: string): boolean {
   const port = Number(digits);
   return port > 0 && port < 65536;
 }
+
+/** The address and «Seerr verwenden» as the form edits them. */
+export interface SeerrValues {
+  url: string;
+  enabled: boolean;
+}
+
+export const seerrValues = (seerr: { url?: string; enabled: boolean }): SeerrValues => ({
+  url: seerr.url ?? '',
+  enabled: seerr.enabled,
+});
 
 export const emailValues = (email: AdminSettings['email']): EmailValues => ({
   host: email.host ?? '',

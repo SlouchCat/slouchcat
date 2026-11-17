@@ -9,7 +9,15 @@ import styles from './Integrations.module.css';
  * The services of the integrations page (mockup: one tile each, each with a view of its own),
  * in their order. `?item=` names the open one; without it the page shows the tiles.
  */
-export const SERVICES = ['keys', 'webhooks', 'email', 'telegram', 'push', 'server'] as const;
+export const SERVICES = [
+  'keys',
+  'webhooks',
+  'seerr',
+  'email',
+  'telegram',
+  'push',
+  'server',
+] as const;
 export type Service = (typeof SERVICES)[number];
 
 /** The address of a service's view: the deep link of its tile. */
@@ -18,16 +26,22 @@ export const serviceHref = (service: Service) => `${paths.adminIntegrations}?ite
 export const SERVICE_ICON = {
   keys: 'lock',
   webhooks: 'plug',
+  seerr: 'heart',
   email: 'megaphone',
   telegram: 'external',
   push: 'bell',
   server: 'server',
 } as const satisfies Record<Service, IconName>;
 
-/** The dashboard's integration keys each service stands for (`getDashboard`; `seerr` gets its view with the Seerr tile). */
+/**
+ * The dashboard's integration keys each service stands for (`getDashboard`, eight keys). Seerr has
+ * none yet: its tile and view read getSeerrStatus (SeerrStateLine); with `seerr` in
+ * `IntegrationStatus.key` it goes here and SeerrStateLine goes.
+ */
 const STATUS_KEYS = {
   keys: ['tmdb', 'tvdb', 'youtube', 'trakt'],
   webhooks: [],
+  seerr: [],
   email: ['email'],
   telegram: ['telegram'],
   push: ['push'],

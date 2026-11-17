@@ -7,7 +7,7 @@ import { dashboardFixture } from '@/test/admin';
 import { fill } from '@/test/fill';
 
 // Integrations (A-2; concept 12, variant A; admin redesign): a tile per service — provider keys,
-// webhooks, e-mail server, Telegram bot, Web Push, and the server's update check and public
+// webhooks, Seerr (its own tests: integrations/SeerrView.test.tsx), e-mail server, Telegram bot, Web Push, and the server's update check and public
 // address — with its state from the dashboard, and a view per service (`?item=`). Secrets are
 // write-only; values from deploy/.env are read-only here. Unsaved input survives a change of view
 // and makes leaving the page ask first (S-13, S-17).
@@ -54,6 +54,7 @@ const serverRow = async (name: string) =>
 const BLOCKS = [
   'Schlüssel der Anbieter',
   'Webhooks von Radarr und Sonarr',
+  'Seerr',
   'E-Mail-Server',
   'Telegram-Bot',
   'Web-Push',
@@ -959,13 +960,13 @@ describe('integrations (A-2)', () => {
     expect(screen.queryByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeNull();
     expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
 
-    // Six tiles, each named by its link into the service's view; no view shows yet.
+    // Seven tiles, each named by its link into the service's view; no view shows yet.
     const list = await screen.findByRole('list', { name: 'Dienste' });
     const links = within(list).getAllByRole('link');
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual(
       BLOCKS.map((name, index) => [
         name,
-        `/admin/integrations?item=${['keys', 'webhooks', 'email', 'telegram', 'push', 'server'][index]}`,
+        `/admin/integrations?item=${['keys', 'webhooks', 'seerr', 'email', 'telegram', 'push', 'server'][index]}`,
       ]),
     );
     expect(screen.queryByRole('region')).toBeNull();
@@ -1042,7 +1043,7 @@ describe('integrations (A-2)', () => {
     mockApi(routes({ 'GET /admin/dashboard': () => problem(503, 'unavailable') }));
     renderApp('/admin/integrations');
     const list = await screen.findByRole('list', { name: 'Dienste' });
-    expect(within(list).getAllByRole('link')).toHaveLength(6);
+    expect(within(list).getAllByRole('link')).toHaveLength(7);
     expect(await within(list).findByText('2 von 6 Anbietern eingerichtet')).toBeVisible();
     expect(screen.queryByText(/: Eingerichtet$/)).toBeNull();
     expect(screen.queryByText(/von \d+ eingerichtet$/)).toBeNull();
