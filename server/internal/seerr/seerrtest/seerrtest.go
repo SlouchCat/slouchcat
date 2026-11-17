@@ -151,7 +151,16 @@ type Title struct {
 	// does for a title rated in another country only (the server checks every hit again, N-56).
 	IgnoresCertification bool
 	Upcoming             bool
-	Seasons              []Season
+	// OriginalLanguage is the original language ("" = "en"): /discover/movies and /discover/tv
+	// read their parameter language as a filter on it (appendix I, I-60).
+	OriginalLanguage string
+	// Names are the display names per language beside Name (the fallback).
+	Names map[string]string
+	// Released is the release or first air date YYYY-MM-DD ("" = 1 January of Year).
+	Released    string
+	VoteCount   int
+	VoteAverage float64
+	Seasons     []Season
 }
 
 // Request is a request of the fake.
@@ -195,6 +204,11 @@ type Config struct {
 	MetadataAnime         string
 	Radarr, Sonarr        []DVR
 	DefaultPermissions    uint64
+	// Locale is the instance's display language ("" = "en"): /discover/movies and /discover/tv
+	// answer in the acting user's locale, else in this one, whatever the call asks (I-61).
+	Locale string
+	// MinTotalPages raises the totalPages the lists report (TMDB says 1001 while page 501 fails, I-67).
+	MinTotalPages int
 	// Default quotas for users whose fields are nil (Seerr: settings.main.defaultQuotas).
 	DefaultMovieQuotaLimit, DefaultMovieQuotaDays int
 	DefaultTVQuotaLimit, DefaultTVQuotaDays       int
@@ -1451,23 +1465,45 @@ func (s *Server) decideRequest(w http.ResponseWriter, r *http.Request, actor *Us
 
 // Titles, discover and search.
 
-func (s *Server) titleJSON(t *Title) map[string]any {
+func (s *Server) titleJSON(t *Title) map[string]any { return s.titleJSONIn(t, "") }
+
+func (t *Title) originalLanguage() string {
+	if t.OriginalLanguage == "" {
+		return "en"
+	}
+	return t.OriginalLanguage
+}
+
+func (t *Title) date() string {
+	if t.Released != "" {
+		return t.Released
+	}
+	if t.Year > 0 {
+		return strconv.Itoa(t.Year) + "-01-01"
+	}
+	return ""
+}
+
+// titleJSONIn is the title with its name in lang (Names), else Name.
+func (s *Server) titleJSONIn(t *Title, lang string) map[string]any {
 	out := map[string]any{
 		"id": t.TMDBID, "mediaType": t.MediaType, "overview": "Overview of " + t.Name,
 		"posterPath": "/poster" + strconv.Itoa(t.TMDBID) + ".jpg", "backdropPath": "/backdrop" + strconv.Itoa(t.TMDBID) + ".jpg",
-		"genreIds": slices.Clone(t.GenreIDs), "popularity": t.Popularity, "voteAverage": 7.5, "originalLanguage": "en",
+		"genreIds": slices.Clone(t.GenreIDs), "popularity": t.Popularity, "voteAverage": t.VoteAverage, "voteCount": t.VoteCount,
+		"originalLanguage": t.originalLanguage(),
 	}
-	date := ""
-	if t.Year > 0 {
-		date = strconv.Itoa(t.Year) + "-01-01"
+	name := t.Name
+	if n, ok := t.Names[lang]; ok && lang != "" {
+		name = n
 	}
+	date := t.date()
 	switch t.MediaType {
 	case "movie":
-		out["title"], out["originalTitle"], out["releaseDate"] = t.Name, t.Name, date
+		out["title"], out["originalTitle"], out["releaseDate"] = name, t.Name, date
 	case "tv":
-		out["name"], out["originalName"], out["firstAirDate"] = t.Name, t.Name, date
+		out["name"], out["originalName"], out["firstAirDate"] = name, t.Name, date
 	default:
-		out["name"] = t.Name
+		out["name"] = name
 	}
 	if m, ok := s.media[mediaKey{t.MediaType, t.TMDBID}]; ok {
 		out["mediaInfo"] = s.mediaJSON(m, false)
@@ -1521,20 +1557,35 @@ func (s *Server) getTV(w http.ResponseWriter, r *http.Request, _ *User, _ map[st
 // pageSize is TMDB's page size.
 const pageSize = 20
 
-func (s *Server) page(w http.ResponseWriter, r *http.Request, titles []*Title) {
+// page answers one page of titles in the display language lang, sorted by sortBy: the release
+// date or the vote average descending, else (popularity.desc, and every value Seerr does not
+// know, title.asc and name.asc among them: I-63, I-68) by popularity. Page 501 and above answer
+// 500 like TMDB (I-67).
+func (s *Server) page(w http.ResponseWriter, r *http.Request, titles []*Title, lang, sortBy string) {
+	less := func(a, b *Title) bool { return a.Popularity > b.Popularity }
+	switch sortBy {
+	case "primary_release_date.desc", "first_air_date.desc":
+		less = func(a, b *Title) bool { return a.date() > b.date() }
+	case "vote_average.desc":
+		less = func(a, b *Title) bool { return a.VoteAverage > b.VoteAverage }
+	}
 	sort.SliceStable(titles, func(i, j int) bool {
-		if titles[i].Popularity != titles[j].Popularity {
-			return titles[i].Popularity > titles[j].Popularity
+		if less(titles[i], titles[j]) != less(titles[j], titles[i]) {
+			return less(titles[i], titles[j])
 		}
 		return titles[i].TMDBID < titles[j].TMDBID
 	})
 	page := max(queryInt(r, "page", 1), 1)
+	if page > 500 {
+		writeMessage(w, http.StatusInternalServerError, "Unable to retrieve popular movies.")
+		return
+	}
 	results := []map[string]any{}
 	for _, t := range window(titles, pageSize, (page-1)*pageSize) {
-		results = append(results, s.titleJSON(t))
+		results = append(results, s.titleJSONIn(t, lang))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"page": page, "totalPages": (len(titles) + pageSize - 1) / pageSize, "totalResults": len(titles), "results": results,
+		"page": page, "totalPages": max((len(titles)+pageSize-1)/pageSize, s.cfg.MinTotalPages), "totalResults": len(titles), "results": results,
 	})
 }
 
@@ -1552,13 +1603,29 @@ func (s *Server) trending(w http.ResponseWriter, r *http.Request, _ *User, _ map
 	mt := r.URL.Query().Get("mediaType")
 	s.page(w, r, s.catalogue(func(t *Title) bool {
 		return t.MediaType != "person" && (mt == "" || mt == "all" || mt == t.MediaType)
-	}))
+	}), r.URL.Query().Get("language"), "")
 }
 
-// discoverList answers /discover/movies|tv (genre and certificationLte filter), their upcoming
-// lists and the lists by genre (genre id in the path).
+// discoverList answers /discover/movies|tv (filtered: genre, certificationLte, the release date
+// and vote count, sortBy, and language as the original language with the display language of the
+// acting user or the instance, I-60, I-61), their upcoming lists and the lists by genre (genre id
+// in the path); those two take language as the display language.
 func discoverList(mediaType string, upcoming bool) func(*Server, http.ResponseWriter, *http.Request, *User, map[string]json.RawMessage) {
-	return func(s *Server, w http.ResponseWriter, r *http.Request, _ *User, _ map[string]json.RawMessage) {
+	return func(s *Server, w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
+		q := r.URL.Query()
+		filtered := !upcoming && pathInt(r, "id") == 0
+		lang, sortBy, original := q.Get("language"), "", ""
+		before, votes := q.Get("primaryReleaseDateLte")+q.Get("firstAirDateLte"), queryInt(r, "voteCountGte", 0)
+		if filtered {
+			original, sortBy = lang, q.Get("sortBy")
+			lang = s.cfg.Locale
+			if actor != nil && actor.Locale != "" {
+				lang = actor.Locale
+			}
+			if lang == "" {
+				lang = "en"
+			}
+		}
 		var genres []int
 		for g := range strings.SplitSeq(r.URL.Query().Get("genre"), ",") {
 			if n, err := strconv.Atoi(strings.TrimSpace(g)); err == nil {
@@ -1580,12 +1647,18 @@ func discoverList(mediaType string, upcoming bool) func(*Server, http.ResponseWr
 			if len(genres) > 0 && !slices.ContainsFunc(genres, func(g int) bool { return slices.Contains(t.GenreIDs, g) }) {
 				return false
 			}
+			if original != "" && t.originalLanguage() != original {
+				return false
+			}
+			if before != "" && t.date() > before || t.VoteCount < votes {
+				return false
+			}
 			if hasLte && !t.IgnoresCertification {
 				c, err := strconv.Atoi(t.Certification)
 				return err == nil && c <= lte
 			}
 			return true
-		}))
+		}), lang, sortBy)
 	}
 }
 
@@ -1672,5 +1745,5 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request, _ *User, _ map[s
 	default:
 		keep = func(t *Title) bool { return lower != "" && strings.Contains(strings.ToLower(t.Name), lower) }
 	}
-	s.page(w, r, s.catalogue(keep))
+	s.page(w, r, s.catalogue(keep), r.URL.Query().Get("language"), "")
 }

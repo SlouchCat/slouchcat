@@ -420,7 +420,7 @@ func TestDiscoverNotFoundWithoutRight(t *testing.T) {
 		"genre row without genre": func() error { _, err := d.svc.DiscoverRowPage(d.ctx, d.marco, RowMovieGenres, 1, 0); return err }(),
 		"genre on trending":       func() error { _, err := d.svc.DiscoverRowPage(d.ctx, d.marco, RowTrending, 1, 28); return err }(),
 		"unknown sort": func() error {
-			_, err := d.svc.DiscoverTitles(d.ctx, d.marco, TitlesQuery{Media: model.WishMediaMovie, Sort: "rating"})
+			_, err := d.svc.DiscoverTitles(d.ctx, d.marco, TitlesQuery{Media: model.WishMediaMovie, Sort: "title"})
 			return err
 		}(),
 		"short search": func() error { _, err := d.svc.SearchWishTitles(d.ctx, d.marco, " m ", 1); return err }(),
@@ -523,5 +523,103 @@ func TestDiscoverJobWarmsAgeSteps(t *testing.T) {
 	d.exec(`INSERT INTO settings (key, value, updated_at) VALUES ('wishes.discover_pages', '0', 1)`)
 	if ids, err := d.svc.runDiscover(d.ctx, nil, discoverPriority); err != nil || len(ids) != 0 {
 		t.Errorf("run with the pages off = %v, %v", ids, err)
+	}
+}
+
+// Seerr's text of the film and series lists is in the user's locale (I-61): a hit Slouchcat knows
+// shows its own title in the profile's language and the image kinds it has stored; a hit nobody
+// knows keeps Seerr's text. Adult profiles fetch the details too (N-116).
+func TestDiscoverOwnTextsAndImages(t *testing.T) {
+	d := newDiscoverFixture(t)
+	d.store.stored[refKey("movie", matrix)] = metadata.ExternalTitle{Media: "movie", TMDBID: matrix, Year: 1999, MinAge: age(16),
+		ImageKinds: []string{"poster", "backdrop"}, Texts: map[string]metadata.ExternalText{"de": {Title: "Matrix"}, "en": {Title: "The Matrix"}}}
+	d.store.tmdb[refKey("show", got)] = metadata.ExternalTitle{Media: "show", TMDBID: got, TVDBID: gotTVDB, Year: 2011,
+		ImageKinds: []string{"poster"}, Texts: map[string]metadata.ExternalText{"de": {Title: "Game of Thrones – Das Lied"}}}
+	page, err := d.svc.DiscoverRowPage(d.ctx, d.marco, RowTrending, 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string]DiscoverEntry{}
+	for _, e := range page.Entries {
+		by[refKey(e.Media, e.TMDBID)] = e
+	}
+	if e := by[refKey("movie", matrix)]; e.Title != "Matrix" || e.Year != 1999 || !slices.Equal(e.ImageKinds, []string{"poster", "backdrop"}) {
+		t.Errorf("matrix = %+v, want the own German title and the stored image kinds", e)
+	}
+	if e := by[refKey("show", got)]; e.Title != "Game of Thrones – Das Lied" || e.Year != 2011 || !slices.Equal(e.ImageKinds, []string{"poster"}) {
+		t.Errorf("series = %+v, want the fetched details", e)
+	}
+	if e := by[refKey("movie", alien)]; e.Title != "Alien" || len(e.ImageKinds) != 0 {
+		t.Errorf("alien = %+v, want Seerr's text without images", e)
+	}
+	// Alien and the series were not stored: both fetched for the adult profile, Matrix only read.
+	if n := d.store.fetches(); n != 2 {
+		t.Errorf("fetches = %d, want 2", n)
+	}
+}
+
+// The grids go to Seerr as the real instance needs them (N-115, N-117, N-118, I-67): no language on
+// /discover/movies and /discover/tv but on trending; «newest» only released until today with a vote
+// floor, «rating» with its floor; the pre-filter of CH goes with DE; at most 500 pages.
+func TestDiscoverQueriesAsTheRealSeerr(t *testing.T) {
+	d := newDiscoverFixture(t)
+	d.fake.Configure(func(c *seerrtest.Config) { c.MinTotalPages = 1001 })
+	d.film(5012, "Rated Twelve", 30, age(12), false)
+	d.exec(`INSERT INTO settings (key, value, updated_at) VALUES ('metadata.rating_country', 'CH', 1)`)
+	today := d.clock.now().Format(time.DateOnly)
+	d.fake.ResetCalls()
+
+	for _, q := range []TitlesQuery{
+		{Media: model.WishMediaMovie, Sort: SortNewest},
+		{Media: model.WishMediaShow, Sort: SortNewest},
+		{Media: model.WishMediaMovie, Sort: SortRating},
+		{Media: model.WishMediaShow, Sort: SortRating},
+	} {
+		page, err := d.svc.DiscoverTitles(d.ctx, d.marco, q)
+		if err != nil || page.TotalPages != 500 {
+			t.Fatalf("%+v: %d pages, %v", q, page.TotalPages, err)
+		}
+	}
+	d.dlib.setCeiling(12)
+	if _, err := d.svc.DiscoverRowPage(d.ctx, d.noah12, RowPopularMovies, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.svc.DiscoverRowPage(d.ctx, d.noah12, RowTrending, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]string{
+		{"sortBy": "primary_release_date.desc", "primaryReleaseDateLte": today, "voteCountGte": "50"},
+		{"sortBy": "first_air_date.desc", "firstAirDateLte": today, "voteCountGte": "20"},
+		{"sortBy": "vote_average.desc", "voteCountGte": "500"},
+		{"sortBy": "vote_average.desc", "voteCountGte": "200"},
+		{"sortBy": "popularity.desc", "certificationLte": "12", "certificationCountry": "DE"},
+	}
+	var got []map[string]string
+	for _, c := range d.fake.CallLog() {
+		switch c.Route {
+		case "GET /discover/movies", "GET /discover/tv":
+			if c.Query.Has("language") {
+				t.Errorf("%s sent language: %v", c.Route, c.Query)
+			}
+			m := map[string]string{}
+			for k := range c.Query {
+				if k != "page" {
+					m[k] = c.Query.Get(k)
+				}
+			}
+			got = append(got, m)
+		case "GET /discover/trending":
+			if c.Query.Get("language") != "de" {
+				t.Errorf("trending without the display language: %v", c.Query)
+			}
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("list calls = %v", got)
+	}
+	for i := range want {
+		if fmt.Sprint(got[i]) != fmt.Sprint(want[i]) {
+			t.Errorf("call %d = %v, want %v", i, got[i], want[i])
+		}
 	}
 }

@@ -415,14 +415,22 @@ type TrendingQuery struct {
 	TimeWindow string // day, week; "" = Seerr's default (day)
 }
 
-// DiscoverQuery is the query of GET /discover/movies and /discover/tv.
+// DiscoverQuery is the query of GET /discover/movies and /discover/tv. It has no language: on these
+// two routes Seerr reads language as a filter on the original language (appendix I, I-60, N-115),
+// and their display language is the acting user's locale, not selectable per call (I-61).
 type DiscoverQuery struct {
-	PageQuery
-	SortBy               string // for example popularity.desc
+	Page                 int
+	SortBy               string // for example popularity.desc; Seerr answers an unknown value with the default list (I-68)
 	Genre                string // TMDB genre ids, comma separated
 	CertificationLte     string // a certificate of CertificationCountry, for example "12" (DE)
 	CertificationCountry string // ISO 3166-1 alpha-2
+	ReleasedBefore       string // YYYY-MM-DD: primaryReleaseDateLte (films) resp. firstAirDateLte (series)
+	VoteCountGte         int    // the least number of votes (I-64, I-65)
 }
+
+// MaxPage is the highest page TMDB serves: page 501 answers 500 although totalPages may say 1001
+// (I-67). The client refuses a higher page and reports at most this many pages.
+const MaxPage = 500
 
 // The discover and search routes and the query parameters Seerr's validator accepts on each
 // (GH:server/routes/discover.ts, search.ts; appendix H 3.3). The client sends a subset.
@@ -442,12 +450,17 @@ const (
 )
 
 var (
-	pageLanguage   = []string{"page", "language"}
-	discoverFilter = []string{"page", "language", "sortBy", "genre", "studio", "keywords", "primaryReleaseDateGte",
+	pageLanguage = []string{"page", "language"}
+	// Seerr knows language on /discover/movies and /discover/tv too, as a filter on the original
+	// language (I-60); the client never sends it there (N-115), so the guard does not allow it.
+	discoverFilter = []string{"page", "sortBy", "genre", "studio", "keywords", "primaryReleaseDateGte",
 		"primaryReleaseDateLte", "withRuntimeGte", "withRuntimeLte", "voteAverageGte", "voteAverageLte", "voteCountGte",
 		"voteCountLte", "watchProviders", "watchRegion", "certification", "certificationGte", "certificationLte",
 		"certificationCountry"}
-	discoverTVFilter = append(slices.Clone(discoverFilter), "network", "firstAirDateGte", "firstAirDateLte", "status")
+	discoverTVFilter = []string{"page", "sortBy", "genre", "network", "keywords", "firstAirDateGte", "firstAirDateLte",
+		"withRuntimeGte", "withRuntimeLte", "voteAverageGte", "voteAverageLte", "voteCountGte", "voteCountLte",
+		"watchProviders", "watchRegion", "status", "certification", "certificationGte", "certificationLte",
+		"certificationCountry"}
 
 	routeParams = map[string][]string{
 		routeTrending:       {"page", "language", "mediaType", "timeWindow"},
@@ -475,6 +488,11 @@ var (
 // parameters Seerr's validator knows for route, only known values of the fixed sets.
 func (s Session) checkQuery(route string, v url.Values) error {
 	op := http.MethodGet + " " + route
+	if p := v.Get("page"); p != "" {
+		if n, err := strconv.Atoi(p); err != nil || n < 1 || n > MaxPage {
+			return &Error{Op: op, classes: []error{ErrInvalid}, cause: errors.New("page out of range")}
+		}
+	}
 	if _, ok := s.UserID(); !ok {
 		return &Error{Op: op, classes: []error{ErrInvalid}, cause: errors.New("discover and search need a user session")}
 	}
@@ -507,12 +525,12 @@ func (s Session) Trending(ctx context.Context, q TrendingQuery) (DiscoverPage, e
 
 // DiscoverMovies returns GET /discover/movies.
 func (s Session) DiscoverMovies(ctx context.Context, q DiscoverQuery) (DiscoverPage, error) {
-	return s.discover(ctx, routeMovies, routeMovies, q.discoverValues())
+	return s.discover(ctx, routeMovies, routeMovies, q.discoverValues(false))
 }
 
 // DiscoverTV returns GET /discover/tv.
 func (s Session) DiscoverTV(ctx context.Context, q DiscoverQuery) (DiscoverPage, error) {
-	return s.discover(ctx, routeTV, routeTV, q.discoverValues())
+	return s.discover(ctx, routeTV, routeTV, q.discoverValues(true))
 }
 
 // UpcomingMovies returns GET /discover/movies/upcoming.
@@ -648,12 +666,19 @@ func (s Session) SearchByID(ctx context.Context, prefix IDPrefix, id, mediaType 
 	return page, nil
 }
 
-func (q DiscoverQuery) discoverValues() url.Values {
-	v := q.values()
+func (q DiscoverQuery) discoverValues(tv bool) url.Values {
+	v := url.Values{}
+	setInt(v, "page", q.Page)
 	setString(v, "sortBy", q.SortBy)
 	setString(v, "genre", q.Genre)
 	setString(v, "certificationLte", q.CertificationLte)
 	setString(v, "certificationCountry", q.CertificationCountry)
+	if tv {
+		setString(v, "firstAirDateLte", q.ReleasedBefore)
+	} else {
+		setString(v, "primaryReleaseDateLte", q.ReleasedBefore)
+	}
+	setInt(v, "voteCountGte", q.VoteCountGte)
 	return v
 }
 
@@ -663,6 +688,7 @@ func (s Session) discover(ctx context.Context, route, path string, v url.Values)
 	}
 	var out DiscoverPage
 	err := s.call(ctx, http.MethodGet, path, v, nil, &out)
+	out.TotalPages = min(out.TotalPages, MaxPage)
 	return out, err
 }
 

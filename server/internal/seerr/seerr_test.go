@@ -818,7 +818,7 @@ func TestDiscoverAndSearch(t *testing.T) {
 	if err != nil || tr.TotalResults != 27 || tr.TotalPages != 2 || len(tr.Results) != 20 {
 		t.Errorf("trending = %d %d %d, %v", tr.TotalResults, tr.TotalPages, len(tr.Results), err)
 	}
-	p2, err := user.DiscoverMovies(ctx, DiscoverQuery{PageQuery: PageQuery{Page: 2}, SortBy: "popularity.desc", Genre: "28", CertificationLte: "12", CertificationCountry: "CH"})
+	p2, err := user.DiscoverMovies(ctx, DiscoverQuery{Page: 2, SortBy: "popularity.desc", Genre: "28", CertificationLte: "12", CertificationCountry: "CH"})
 	if err != nil || p2.Page != 2 || p2.TotalResults != 25 || len(p2.Results) != 5 || p2.Results[0].MediaType != "movie" {
 		t.Errorf("movies page 2 = %+v, %v", p2, err)
 	}
@@ -1142,7 +1142,7 @@ func TestDiscoverParametersAndUser(t *testing.T) {
 	ctx := context.Background()
 	user := newClient(t, f).AsUser(uid)
 
-	m, err := user.DiscoverMovies(ctx, DiscoverQuery{PageQuery: PageQuery{Page: 1, Language: "de"}, SortBy: "popularity.desc",
+	m, err := user.DiscoverMovies(ctx, DiscoverQuery{Page: 1, SortBy: "popularity.desc",
 		Genre: "28", CertificationLte: "12", CertificationCountry: "DE"})
 	// The fake ignores certificationLte for 604 the way TMDB does for a title rated elsewhere.
 	if err != nil || len(m.Results) != 1 || m.Results[0].ID != 604 {
@@ -1164,7 +1164,7 @@ func TestDiscoverParametersAndUser(t *testing.T) {
 	}
 
 	want := map[string]url.Values{
-		"GET /discover/movies": {"page": {"1"}, "language": {"de"}, "sortBy": {"popularity.desc"}, "genre": {"28"},
+		"GET /discover/movies": {"page": {"1"}, "sortBy": {"popularity.desc"}, "genre": {"28"},
 			"certificationLte": {"12"}, "certificationCountry": {"DE"}},
 		"GET /discover/tv":  {"sortBy": {"first_air_date.desc"}},
 		"GET /genres/movie": {"language": {"de"}},
@@ -1254,4 +1254,107 @@ func TestDiscoverSearchByID(t *testing.T) {
 	if _, err := user.SearchByID(ctx, PrefixTMDB, "1", "person", PageQuery{}); !errors.Is(err, ErrInvalid) {
 		t.Errorf("bad media type: %v", err)
 	}
+}
+
+// The real instance (appendix I section 4a): language filters /discover/movies and /discover/tv by
+// the original language and their display language is the user's locale (I-60, I-61), so the
+// client never sends it there (N-115); on trending it is the display language (I-62). title.asc is
+// ignored (I-63); «newest» and «rating» go with a date and a vote floor (I-64, I-65); page 501
+// fails while totalPages says more, and the client never asks for it and reports at most 500
+// (I-67).
+func TestDiscoverAsTheRealSeerr(t *testing.T) {
+	f := seerrtest.New(t)
+	f.Configure(func(c *seerrtest.Config) { c.MinTotalPages = 1001 })
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 1, Name: "Old Hit", Names: map[string]string{"de": "Alter Hit"}, Released: "2001-05-01", Popularity: 90, VoteCount: 9000, VoteAverage: 7})
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 2, Name: "Das Boot", OriginalLanguage: "de", Released: "2025-03-01", Popularity: 10, VoteCount: 800, VoteAverage: 8.5})
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 3, Name: "Coming Soon", Released: "2028-01-01", Popularity: 50, VoteCount: 3})
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 4, Name: "A Recent One", Released: "2026-10-01", Popularity: 20, VoteCount: 60, VoteAverage: 6})
+	uid := f.AddUser(seerrtest.User{Email: "ida@example.org", Username: "ida", UserType: seerrtest.UserLocal, Permissions: seerrtest.PermRequest, Locale: "en"})
+	ctx := context.Background()
+	user := newClient(t, f).AsUser(uid)
+
+	raw := func(query string) []int {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodGet, f.URL+"/api/v1/discover/movies?"+query, nil)
+		req.Header.Set("X-Api-Key", seerrtest.APIKey)
+		req.Header.Set("X-API-User", strconv.Itoa(uid))
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var p DiscoverPage
+		_ = json.NewDecoder(resp.Body).Decode(&p)
+		var ids []int
+		for _, r := range p.Results {
+			ids = append(ids, r.ID)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return []int{-resp.StatusCode}
+		}
+		return ids
+	}
+	if got := raw("language=de"); !slices.Equal(got, []int{2}) {
+		t.Errorf("fake language=de = %v, want only the German production", got)
+	}
+	if got := raw("sortBy=title.asc"); !slices.Equal(got, []int{1, 3, 4, 2}) {
+		t.Errorf("fake title.asc = %v, want the popularity order", got)
+	}
+	if got := raw("page=501"); !slices.Equal(got, []int{-500}) {
+		t.Errorf("fake page 501 = %v, want 500", got)
+	}
+
+	pop, err := user.DiscoverMovies(ctx, DiscoverQuery{SortBy: "popularity.desc"})
+	if err != nil || len(pop.Results) != 4 || pop.Results[0].DisplayName() != "Old Hit" || pop.TotalPages != MaxPage {
+		t.Errorf("popular = %+v, %v; want all four in the user's locale and 500 pages", pop, err)
+	}
+	if tr, err := user.Trending(ctx, TrendingQuery{PageQuery: PageQuery{Language: "de"}}); err != nil || tr.Results[0].DisplayName() != "Alter Hit" {
+		t.Errorf("trending in de = %+v, %v", tr, err)
+	}
+	newest, err := user.DiscoverMovies(ctx, DiscoverQuery{SortBy: "primary_release_date.desc", ReleasedBefore: "2026-11-17", VoteCountGte: 50})
+	if ids := idsOf(newest); err != nil || !slices.Equal(ids, []int{4, 2, 1}) {
+		t.Errorf("newest = %v, %v", ids, err)
+	}
+	rated, err := user.DiscoverMovies(ctx, DiscoverQuery{SortBy: "vote_average.desc", VoteCountGte: 500})
+	if ids := idsOf(rated); err != nil || !slices.Equal(ids, []int{2, 1}) {
+		t.Errorf("rating = %v, %v", ids, err)
+	}
+	if _, err := user.DiscoverTV(ctx, DiscoverQuery{ReleasedBefore: "2026-11-17", VoteCountGte: 20}); err != nil {
+		t.Errorf("tv with date and votes: %v", err)
+	}
+	f.ResetCalls()
+	if _, err := user.DiscoverMovies(ctx, DiscoverQuery{Page: 501}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("page 501: %v, want ErrInvalid", err)
+	}
+	if _, err := user.discover(ctx, routeTV, routeTV, url.Values{"language": {"de"}}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("language on /discover/tv: %v, want ErrInvalid", err)
+	}
+	if n := len(f.CallLog()); n != 0 {
+		t.Errorf("calls reached Seerr: %d", n)
+	}
+	for _, c := range []struct {
+		tv   bool
+		want url.Values
+	}{
+		{false, url.Values{"primaryReleaseDateLte": {"2026-11-17"}, "voteCountGte": {"50"}, "sortBy": {"primary_release_date.desc"}}},
+		{true, url.Values{"firstAirDateLte": {"2026-11-17"}, "voteCountGte": {"20"}, "sortBy": {"first_air_date.desc"}}},
+	} {
+		sort := "primary_release_date.desc"
+		votes := 50
+		if c.tv {
+			sort, votes = "first_air_date.desc", 20
+		}
+		got := DiscoverQuery{SortBy: sort, ReleasedBefore: "2026-11-17", VoteCountGte: votes}.discoverValues(c.tv)
+		if !maps.EqualFunc(got, c.want, slices.Equal) {
+			t.Errorf("tv %v: %v, want %v", c.tv, got, c.want)
+		}
+	}
+}
+
+func idsOf(p DiscoverPage) []int {
+	var ids []int
+	for _, r := range p.Results {
+		ids = append(ids, r.ID)
+	}
+	return ids
 }

@@ -30,9 +30,15 @@ import (
 //     (N-54); the search 10 minutes in memory. While Seerr does not answer, an older row is
 //     served with Stale set; without one the call fails with ErrDiscoverUnreachable.
 //   - Age: for a profile below 18 Seerr is asked with certificationLte of the rating country (ADR
-//     0034) where the route knows it, a pre-filter only. Every hit is checked again through
-//     visibility with the age in external_titles (unknown counts as 18); hits without a stored row
-//     are fetched through metadata, at most 20 per page and within 3 s (architecture 16).
+//     0034; DE for CH and AT, N-118) where the route knows it, a pre-filter only. Every hit is
+//     checked again through visibility with the age in external_titles (unknown counts as 18).
+//   - Details: every hit is looked up in metadata; hits without a stored row are fetched, for every
+//     profile, at most 20 per page and within 3 s (architecture 16). Title, year and image kinds
+//     come from Slouchcat's own data in the profile's language, Seerr's text is the fallback
+//     (N-116: the film and series lists of Seerr answer in the user's locale, appendix I, I-61).
+//   - Seerr's quirks (appendix I section 4a): no language on /discover/movies and /discover/tv
+//     (it filters the original language there, N-115), sort orders with a date and vote floor
+//     (N-117), at most 500 pages (I-67).
 //   - Library: the match of Slouchcat through visibility (series TVDB first), never mediaInfo of
 //     Seerr (N-55). A library title the profile sees carries its item id; one it may not see is
 //     left out (404 rule). mediaInfo only says «in Seerr angefragt».
@@ -59,11 +65,12 @@ const (
 // DiscoverRows are the seven rows of «Entdecken» in their order.
 var DiscoverRows = []string{RowTrending, RowPopularMovies, RowMovieGenres, RowUpcomingMovies, RowPopularShows, RowShowGenres, RowUpcomingShows}
 
-// The sort orders of «Filme» and «Serien» (N-52).
+// The sort orders of «Filme» and «Serien» (N-52 as amended by N-117: «Titel A-Z» is dropped,
+// Seerr serves no usable title order, appendix I, I-63).
 const (
 	SortPopularity = "popularity"
 	SortNewest     = "newest"
-	SortTitle      = "title"
+	SortRating     = "rating" // «Am besten bewertet»
 )
 
 // The search text of searchWishTitles: 2 to 100 characters (data model 4.5).
@@ -99,19 +106,25 @@ type DiscoverWish struct {
 
 // DiscoverEntry is one tile (DiscoverEntry of the contract).
 type DiscoverEntry struct {
-	Media        string // model.WishMediaMovie or model.WishMediaShow
-	TMDBID       int64
-	Title        string
-	Year         int    // 0 = unknown
-	PosterPath   string // TMDB path as Seerr gives it; images go through the server's own route
-	BackdropPath string
-	MinAge       *int   // the stored age, nil when unknown (only titles outside the library)
-	ItemID       string // the library title the profile sees: mark «In der Bibliothek», ItemRef
+	Media  string // model.WishMediaMovie or model.WishMediaShow
+	TMDBID int64
+	// Title and Year come from Slouchcat's own data in the profile's language when it knows the
+	// title, else from Seerr (N-116: Seerr's display language of the film and series lists is the
+	// user's locale, I-61).
+	Title string
+	Year  int // 0 = unknown
+	// ImageKinds are the kinds Slouchcat has stored for the title (poster, backdrop, logo): its
+	// own image route serves them. Empty while Slouchcat does not know the title (N-116).
+	ImageKinds []string
+	MinAge     *int   // the stored age, nil when unknown (only titles outside the library)
+	ItemID     string // the library title the profile sees: mark «In der Bibliothek», ItemRef
 	// SeerrRequested: Seerr knows a request for the title (mediaInfo pending, processing or
 	// partially available); never «in der Bibliothek» (N-55).
 	SeerrRequested bool
 	Wish           *DiscoverWish // the profile's own open wish (owner or joined)
 	CanRequest     bool          // missing, the profile may request the medium, no own open wish
+
+	posterPath, backdropPath string // TMDB paths as Seerr gave them; internal only
 }
 
 // DiscoverGenre is one genre tile of the rows «Film-Genres» and «Serien-Genres», or one genre of
@@ -145,7 +158,7 @@ type DiscoverRow struct {
 // TitlesQuery is the query of «Filme» and «Serien» (listWishTitles).
 type TitlesQuery struct {
 	Media         string // model.WishMediaMovie or model.WishMediaShow
-	Sort          string // SortPopularity (default), SortNewest, SortTitle
+	Sort          string // SortPopularity (default), SortNewest, SortRating
 	Genre         int    // TMDB genre id, 0 = all
 	HideAvailable bool   // «Vorhandene ausblenden»: no library titles
 	Page          int    // 1 based, 0 = 1
@@ -264,7 +277,7 @@ func (s *Service) DiscoverTitles(ctx context.Context, p model.Profile, q TitlesQ
 		q.Sort = SortPopularity
 	}
 	verr := checkPage(q.Page)
-	if q.Sort != SortPopularity && q.Sort != SortNewest && q.Sort != SortTitle {
+	if q.Sort != SortPopularity && q.Sort != SortNewest && q.Sort != SortRating {
 		verr = verr.Add("sort", "invalid_value")
 	}
 	if q.Genre < 0 {
@@ -438,10 +451,12 @@ func (l listSpec) key(page int, a discoverAccess) string {
 func cacheKey(parts ...string) string { return strings.Join(parts, "|") }
 
 // fetch reads the list from Seerr.
-func (l listSpec) fetch(ctx context.Context, sess seerr.Session, page int, a discoverAccess, country string) (seerr.DiscoverPage, error) {
+// /discover/movies and /discover/tv get no language (N-115: there it filters the original
+// language); the other routes get it as the display language (I-62).
+func (l listSpec) fetch(ctx context.Context, sess seerr.Session, page int, a discoverAccess, country, today string) (seerr.DiscoverPage, error) {
 	pq := seerr.PageQuery{Page: page, Language: a.language}
 	discoverQuery := func(tv bool, sortBy string) seerr.DiscoverQuery {
-		q := seerr.DiscoverQuery{PageQuery: pq, SortBy: sortBy}
+		q := seerr.DiscoverQuery{Page: page, SortBy: sortBy}
 		if l.genre > 0 {
 			q.Genre = strconv.Itoa(l.genre)
 		}
@@ -463,20 +478,44 @@ func (l listSpec) fetch(ctx context.Context, sess seerr.Session, page int, a dis
 		return sess.UpcomingTV(ctx, pq)
 	}
 	tv := l.titles == model.WishMediaShow
-	sortBy := map[string][2]string{
-		SortPopularity: {"popularity.desc", "popularity.desc"},
-		SortNewest:     {"primary_release_date.desc", "first_air_date.desc"},
-		SortTitle:      {"title.asc", "name.asc"},
-	}[l.sort]
+	o := gridSorts[l.sort][0]
 	if tv {
-		return sess.DiscoverTV(ctx, discoverQuery(true, sortBy[1]))
+		o = gridSorts[l.sort][1]
 	}
-	return sess.DiscoverMovies(ctx, discoverQuery(false, sortBy[0]))
+	q := discoverQuery(tv, o.sortBy)
+	q.VoteCountGte = o.votes
+	if o.released {
+		q.ReleasedBefore = today
+	}
+	if tv {
+		return sess.DiscoverTV(ctx, q)
+	}
+	return sess.DiscoverMovies(ctx, q)
+}
+
+// gridSort is how a sort order of the grids goes to Seerr, for films [0] and series [1] (N-117).
+type gridSort struct {
+	sortBy   string
+	votes    int  // voteCountGte, 0 = none
+	released bool // only released until today (primaryReleaseDateLte resp. firstAirDateLte)
+}
+
+var gridSorts = map[string][2]gridSort{
+	SortPopularity: {{sortBy: "popularity.desc"}, {sortBy: "popularity.desc"}},
+	// Without the date the list starts with titles of the next years, without the vote floor with
+	// unknown ones (I-64).
+	SortNewest: {{"primary_release_date.desc", 50, true}, {"first_air_date.desc", 20, true}},
+	// Without the floor titles with a handful of votes lead (I-65).
+	SortRating: {{sortBy: "vote_average.desc", votes: 500}, {sortBy: "vote_average.desc", votes: 200}},
 }
 
 // certificationFor is the pre-filter of an age ceiling: the certificate of the rating country,
-// else of Germany (ADR 0034, F-12).
+// else of Germany (ADR 0034, F-12). For CH and AT it is Germany's (N-118): TMDB knows too few
+// certificates of those two, the pre-filter would empty the lists (I-66).
 func certificationFor(country string, age int, tv bool) (lte, cc string) {
+	if country == "CH" || country == "AT" {
+		country = ratingCountryBase
+	}
 	for _, c := range []string{country, ratingCountryBase} {
 		if cert, ok := metadata.CertificationAtMost(c, age, tv); ok {
 			return cert, c
@@ -495,7 +534,7 @@ func (s *Service) listPage(ctx context.Context, a discoverAccess, l listSpec, pa
 		country = ratingCountryBase
 	}
 	list, err := s.cached(ctx, a, l.key(page, a), func(sess seerr.Session, ctx context.Context) (cachedList, error) {
-		res, err := l.fetch(ctx, sess, page, a, country)
+		res, err := l.fetch(ctx, sess, page, a, country, s.now().Format(time.DateOnly))
 		return cachedList{hits: hitsOf(res), totalPages: res.TotalPages}, err
 	})
 	if err != nil {
@@ -698,8 +737,10 @@ func (b *detailBudget) take() bool {
 }
 
 // entries checks every hit for the profile (rule 12: the server decides): the library match and
-// the age through visibility, the details of hits without a stored row through metadata (budget),
-// the own open wishes.
+// the age through visibility, the own open wishes. Every hit is looked up in metadata (N-116): a
+// stored title gives its texts, age and image kinds, a title not stored is fetched within the
+// budget of the page; a fetched one is matched again, its TVDB id may name a library series and
+// its age decides below 18.
 func (s *Service) entries(ctx context.Context, a discoverAccess, hits []cachedHit, page int, hideAvailable bool, at time.Time, stale bool, budget *detailBudget) (DiscoverPage, error) {
 	out := DiscoverPage{Entries: []DiscoverEntry{}, Page: page, Stale: stale, FetchedAt: at}
 	if len(hits) == 0 {
@@ -718,17 +759,17 @@ func (s *Service) entries(ctx context.Context, a discoverAccess, hits []cachedHi
 	if err != nil {
 		return out, err
 	}
-	ages := make([]*int, len(hits))
-	if again := s.fetchDetails(ctx, matches, refs, ages, budget); len(again) > 0 {
-		re := make([]visibility.ExternalRef, len(again))
-		for i, idx := range again {
+	details, fetched := s.fetchDetails(ctx, matches, refs, budget)
+	if len(fetched) > 0 {
+		re := make([]visibility.ExternalRef, len(fetched))
+		for i, idx := range fetched {
 			re[i] = refs[idx]
 		}
 		m2, err := s.lib.MatchExternalTitles(ctx, scope, right, re)
 		if err != nil {
 			return out, err
 		}
-		for i, idx := range again {
+		for i, idx := range fetched {
 			matches[idx] = m2[i]
 		}
 	}
@@ -743,14 +784,25 @@ func (s *Service) entries(ctx context.Context, a discoverAccess, hits []cachedHi
 		case m.InLibrary && m.ItemID != "" && !hideAvailable:
 			e = DiscoverEntry{ItemID: m.ItemID}
 		case !m.InLibrary && m.Missing:
-			e = DiscoverEntry{MinAge: ages[i]}
+			if d := details[i]; d != nil {
+				e.MinAge = d.MinAge
+			}
 		default:
 			// A library title the profile may not see (404 rule), a hidden one, one rated above the
 			// profile or with an age still unknown below 18, a medium it may not request.
 			continue
 		}
 		e.Media, e.TMDBID, e.Title, e.Year = h.Media, h.TMDBID, h.Title, h.Year
-		e.PosterPath, e.BackdropPath = h.PosterPath, h.BackdropPath
+		e.posterPath, e.backdropPath = h.PosterPath, h.BackdropPath
+		if d := details[i]; d != nil {
+			if name, ok := ownTitle(*d, a.profile); ok {
+				e.Title = name
+			}
+			if d.Year > 0 {
+				e.Year = d.Year
+			}
+			e.ImageKinds = d.ImageKinds
+		}
 		st := seerr.MediaStatus(h.SeerrStatus)
 		e.SeerrRequested = st == seerr.MediaPending || st == seerr.MediaProcessing || st == seerr.MediaPartiallyAvailable
 		if w, ok := wishes[refKeyOf(h.Media, h.TMDBID)]; ok {
@@ -762,41 +814,48 @@ func (s *Service) entries(ctx context.Context, a discoverAccess, hits []cachedHi
 	return out, nil
 }
 
-// fetchDetails fetches, within the budget and detailWait, the details of the hits whose age the
-// profile needs (NeedsDetails) and of series that are neither in the library nor stored (their
-// TVDB id may name a library series, architecture 21.3). It fills the TVDB and IMDb ids into refs
-// and the ages, and returns the indexes to match again.
-func (s *Service) fetchDetails(ctx context.Context, matches []visibility.ExternalMatch, refs []visibility.ExternalRef, ages []*int, budget *detailBudget) []int {
-	if s.titles == nil {
-		return nil
-	}
-	var want []int
-	for i, m := range matches {
-		if m.InLibrary {
+// ownTitle is the title of Slouchcat's own data in the profile's metadata language, else its
+// interface language (each also by its base), with false when neither has a text: Seerr's text
+// stays then (N-116).
+func ownTitle(t metadata.ExternalTitle, p model.Profile) (string, bool) {
+	for _, lang := range []string{p.MetadataLanguage, model.MetadataBase(p.Language), p.Language} {
+		if lang == "" {
 			continue
 		}
-		if m.NeedsDetails || (refs[i].Media == visibility.MediaShow && !m.Stored) {
-			want = append(want, i)
+		base, _, _ := strings.Cut(lang, "-")
+		for _, l := range []string{lang, base} {
+			if tx, ok := t.Texts[l]; ok && tx.Title != "" {
+				return tx.Title, true
+			}
 		}
 	}
-	if len(want) == 0 {
-		return nil
+	return "", false
+}
+
+// fetchDetails looks every hit up in metadata within detailWait: a stored title is read without
+// cost, a title not stored is fetched from TMDB while the budget lasts (detailMax per page). It
+// returns the titles by index (nil: unknown) and the indexes fetched now, whose refs got their
+// TVDB and IMDb ids to be matched again.
+func (s *Service) fetchDetails(ctx context.Context, matches []visibility.ExternalMatch, refs []visibility.ExternalRef, budget *detailBudget) ([]*metadata.ExternalTitle, []int) {
+	details := make([]*metadata.ExternalTitle, len(refs))
+	if s.titles == nil {
+		return details, nil
 	}
 	dctx, cancel := context.WithTimeout(ctx, detailWait)
 	defer cancel()
 	var (
-		mu    sync.Mutex
-		wg    sync.WaitGroup
-		again []int
-		sem   = make(chan struct{}, detailParallel)
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		fetched []int
+		sem     = make(chan struct{}, detailParallel)
 	)
-	for _, i := range want {
-		if !budget.take() {
-			break
+	for i, m := range matches {
+		if !m.Stored && !budget.take() {
+			continue
 		}
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(i int) {
+		go func(i int, stored bool) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			t, err := s.titles.EnsureExternalTitle(dctx, refs[i].Media, refs[i].TMDBID)
@@ -808,13 +867,15 @@ func (s *Service) fetchDetails(ctx context.Context, matches []visibility.Externa
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			refs[i].TVDBID, refs[i].IMDBID = t.TVDBID, t.IMDBID
-			ages[i] = t.MinAge
-			again = append(again, i)
-		}(i)
+			details[i] = &t
+			if !stored {
+				refs[i].TVDBID, refs[i].IMDBID = t.TVDBID, t.IMDBID
+				fetched = append(fetched, i)
+			}
+		}(i, m.Stored)
 	}
 	wg.Wait()
-	return again
+	return details, fetched
 }
 
 func refKeyOf(media string, tmdbID int64) string { return media + ":" + strconv.FormatInt(tmdbID, 10) }
