@@ -332,7 +332,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return model.Session{}, "", err
 	}

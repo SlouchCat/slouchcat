@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -46,12 +47,14 @@ const (
 
 // Service implements api.AuthService and creates the owner account for the setup wizard.
 type Service struct {
-	db     *sql.DB // writer, for transactions
-	write  *appq.Queries
-	read   *appq.Queries
-	log    *slog.Logger
-	now    func() time.Time
-	params argonParams
+	db    *sql.DB // writer, for transactions
+	write *appq.Queries
+	read  *appq.Queries
+	log   *slog.Logger
+	now   func() time.Time
+	// argonRuns counts the argon2id runs this service started (tests read it).
+	argonRuns atomic.Int64
+	params    argonParams
 
 	attempts Limiter
 	pinMu    sync.Mutex // serialises PIN checks (pin.go)
@@ -280,7 +283,7 @@ func (s *Service) CreateOwnerProfile(ctx context.Context, email, password, langu
 	if verr != nil {
 		return model.Account{}, model.Profile{}, verr
 	}
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return model.Account{}, model.Profile{}, err
 	}
@@ -411,7 +414,7 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 // verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id
 // slot.
 func (s *Service) verify(ctx context.Context, password, encoded string) (bool, error) {
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return false, err
 	}

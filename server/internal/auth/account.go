@@ -66,7 +66,7 @@ func (s *Service) UpdateAccount(ctx context.Context, session model.Session, upd 
 	}
 	hash := ""
 	if upd.NewPassword != nil {
-		release, err := acquireArgon(ctx)
+		release, err := s.acquireArgon(ctx)
 		if err != nil {
 			return model.Session{}, err
 		}
