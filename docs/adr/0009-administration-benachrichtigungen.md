@@ -67,3 +67,11 @@ Wirkung. Entfernt sind `EventAcquisition` und `AcquisitionChanged` in `internal/
 die Texte, der Eintrag im Vertrag (`EventType`) und die Oberfläche; die Vorwärts-Migration 00018 baut
 `deliveries` ohne den Namen neu auf und putzt ihn aus den gespeicherten Ereignislisten. Die Einstellungsseite
 zeigt seither vier Ereignistypen statt fünf. Alles andere in diesem ADR bleibt gültig.
+
+## Nachtrag vom 17. November 2026 (Konzept 25, Frage 33)
+
+Mit den Wünschen über Seerr (ADR 0037) kommen drei Kanal-Ereignisse dazu, diesmal mit echtem Erzeuger, dem Paket
+`wishes`: `wish_available` (ab Werk an), `wish_status` (freigegeben, abgelehnt, fehlgeschlagen; ab Werk aus) und
+`wish_review` (Freigabe nötig; nur Administratoren, ab Werk an). Dazu kommen fünf Eingangsarten
+(`wish_available`, `wish_season_available`, `wish_approved`, `wish_declined`, `wish_failed`). Externe
+Nachrichten von PIN-Profilen nennen keinen Titel. Alles andere in diesem ADR bleibt gültig.

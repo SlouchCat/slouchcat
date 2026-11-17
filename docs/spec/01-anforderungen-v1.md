@@ -32,7 +32,7 @@
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
 | Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3) |
 | Server-Administration | active | Einrichtungsassistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Benachrichtigungen, Statistiken, Ankündigungen | Kriterien A-1 bis A-9 |
-| Integrationen | active | Radarr/Sonarr-Webhooks für schnelles Einlesen, Bazarr für Untertitel, Trakt (öffentliche Listen), YouTube-Trailer | Kriterien I-5, I-7, I-8; **Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt** (Runden 12 und 20) |
+| Integrationen | active | Radarr/Sonarr-Webhooks für schnelles Einlesen, Bazarr für Untertitel, Trakt (öffentliche Listen), YouTube-Trailer | Kriterien I-5, I-7, I-8; **Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt** (Runden 12 und 20). *Nachtrag 17. November 2026: Ausnahme Wünsche über Seerr (Frage 33, Konzept 25, ADR 0037).* |
 
 ## Goal
 Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server für einen Haushalt und dessen eingeladene Gäste. Nutzer erleben ihn wie einen persönlichen Streamingdienst: Netflix-artige Profile mit Altersfreigabe und PIN, eine kuratierte Startseite mit „Cat's Empfehlungen“ (vom Hauptbenutzer gepflegte Top Picks), verlässliche Wiedergabe mit Transcoding und echte Offline-Wiedergabe. Server und Produkt sind gleichwertig: Die Admin-Oberfläche erhält dieselbe Design-Sorgfalt wie die Zuschauerseite, und die API ist von Anfang an für Fremd-Clients dokumentiert. Version 1 deckt Filme, Serien, Hörbücher und Podcasts ab, läuft als Docker-Stack auf Linux und wird über eine Web-App (PWA) bedient. Alle wichtigen Funktionen von Jellyfin sind enthalten; darüber hinaus Kuratierung, Schauzeit-Limits, Geräte-Fähigkeitsprofile, Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten mit Benachrichtigung bei neuen Folgen (Nachtrag: seit Konzept 20 Stufe 3 durch die Merkliste abgelöst, siehe E-8). Radarr und Sonarr melden neue und geänderte Dateien per Webhook, damit sie ohne Verzögerung in der Bibliothek erscheinen.
@@ -43,7 +43,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - Genau ein Client in Version 1: Web-App als PWA für Desktop, Handy und Tablet. Offline-Speicher liegt im Browser; dessen Grenzen (Quota, iOS-Eviction) sind in der Architektur zu adressieren.
 - Medientypen Version 1: Filme, Serien, Hörbücher, Podcasts. Architektur hält Musik, Fotos und Live-TV offen, baut sie aber nicht.
 - Untertitel-Beschaffung erfolgt über Bazarr, nicht in Slouchcat. Anzeige und Umschalten vorhandener Untertitel sind Slouchcats Aufgabe.
-- Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20).
+- Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20). *(Nachtrag 17. November 2026, Frage 33, ADR 0037: Wünsche verwaltet Seerr. Slouchcat legt sie dort im Namen des Seerr-Benutzers des Kontos an, zeigt ihren Zustand und meldet die Verfügbarkeit; eine eigene Wunschverwaltung baut es nicht.)*
 - YouTube-Trailer werden eingebettet oder gestreamt, nicht heruntergeladen (Nutzungsbedingungen). Die Suche nach passenden Trailern darf über eine KI-API laufen, muss aber nicht.
 - Trakt liefert nur öffentliche Listen über einen Server-API-Schlüssel; kein Trakt-Login für Profile, kein Hochladen des Schauverlaufs.
 - Solo-Entwicklung mit Claude Code und oh-my-claudecode-Agenten, keine feste Deadline. Erstes Etappenziel: vertikaler Durchstich (Bibliothek scannen, Film abspielen, Startseite) innerhalb der ersten Wochen.
@@ -63,10 +63,22 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - Entdecken-Hilfen „Was schauen wir heute?“-Assistent, Zufallsauswahl, Trailer-Reel und automatische Themenlisten (Kandidaten für Version 1.x, in Runde 18 nicht gewählt).
 - Trakt-Konten je Profil, Scrobbling, Import von Trakt-Watchlists.
 - Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer.
-- Eigene Wunschverwaltung und ein Bereich „Wünschen“ über die Seerr-API in Slouchcat; Wünsche entstehen direkt in Seerr (Runde 20).
-- Beschaffungsstatus aus Radarr/Sonarr am Titel und in der Suche („gewünscht“, „in Beschaffung“, „verfügbar“) sowie die Benachrichtigung bei Verfügbarkeit (Runde 20, Kandidaten für die Ideensammlung).
+- Eigene Wunschverwaltung und ein Bereich „Wünschen“ über die Seerr-API in Slouchcat; Wünsche entstehen direkt in Seerr (Runde 20). Ausnahme seit 17. November 2026:
+  Wünsche über Seerr (Frage 33 im Entscheidungsprotokoll, Konzept 25, ADR 0037). Seerr bleibt die Wunschverwaltung;
+  Slouchcat legt an, zeigt den Zustand, zieht zurück und reicht für Administratoren Freigeben und Ablehnen durch.
+  Slouchcat eröffnet für jedes Konto einen Benutzer in Seerr mit demselben Login, legt den Sammelbenutzer
+  «slouchcat-gaeste» an und schreibt die Limits; die Seiten «Entdecken», «Filme», «Serien» und «Suche» zeigen Titel
+  zum Anfordern. Eine eigene Wunschverwaltung bleibt Nicht-Ziel.
+- Beschaffungsstatus aus Radarr/Sonarr am Titel und in der Suche („gewünscht“, „in Beschaffung“, „verfügbar“) sowie die Benachrichtigung bei Verfügbarkeit (Runde 20, Kandidaten für die Ideensammlung). Ausnahme seit 17. November 2026, nur beim
+  Wunsch (Frage 33, ADR 0037): der Zustand eigener Wünsche aus Seerr, der Download-Fortschritt aus Radarr und Sonarr
+  beim Wunsch («Meine Wünsche», Wunschkarte, Verwaltung) und die Benachrichtigung, wenn ein gewünschter Titel in
+  Slouchcat abspielbar ist. Am Titel der Bibliothek, in Reihen und in der Suche bleibt ein Beschaffungsstatus
+  Nicht-Ziel, ebenso der Suchfilter «in Beschaffung».
 - Download-Fortschritt aus SABnzbd am Titel (Runde 20).
-- Steuerung von Radarr, Sonarr, SABnzbd aus Slouchcat heraus (Qualitätsprofile, Warteschlangen).
+- Steuerung von Radarr, Sonarr, SABnzbd aus Slouchcat heraus (Qualitätsprofile, Warteschlangen). Ausnahme seit
+  17. November 2026 (Frage 33, ADR 0037): Slouchcat legt in Radarr und Sonarr Tags an und hängt sie an Titel, um zu
+  zeigen, welches Profil gewünscht hat. Warteschlange und Dateistand der gewünschten Titel liest es nur, für den
+  Download-Fortschritt bei Wünschen, und ändert sie nie. Sonst nichts.
 - Eigene Untertitel-Beschaffung (Bazarr übernimmt).
 - Mandantenfähigkeit (mehrere gleichberechtigte Haushalte auf einem Server).
 - Cloud-Betrieb, natives Installationspaket, Windows- oder macOS-Server.
@@ -155,6 +167,10 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] I-5 Von Bazarr beschaffte Untertitel werden nach Ablage erkannt und sofort im Player angeboten.
 - [ ] I-7 Trakt wird über einen Server-API-Schlüssel angebunden und liefert nur öffentliche Listen; fällt Trakt aus, verschwinden die Reihen aus E-7 ohne weitere Auswirkung.
 - [ ] I-8 Radarr und Sonarr melden Import, Umbenennung und Löschung einer Datei per Webhook an Slouchcat. Jede Integration hat eine eigene Adresse mit eigenem Token; Slouchcat prüft das Token, setzt den gemeldeten Pfad gemäss der Umsetzungstabelle der Integration auf eine Bibliothekswurzel um und scannt gezielt diesen Ordner, sodass die Änderung ohne Voll-Scan sichtbar wird. Ohne eingerichteten Webhook bleibt der reguläre Abgleich die einzige Quelle, und es geht nichts verloren.
+
+> *Nachtrag 17. November 2026: Neue Kriterien I-9 (Wunsch anlegen und Zustand, mit Download-Fortschritt), I-10
+> (Benachrichtigung bei Verfügbarkeit) und I-11 (fehlende Titel in der Suche und auf den Wünsche-Seiten, nie auf der
+> Startseite) stehen in ADR 0037 (Frage 33, Konzept 25); die Liste hier bleibt unverändert.*
 
 > I-1 bis I-4 und I-6 (Statusanzeige, Benachrichtigung bei Verfügbarkeit, Bereich „Wünschen“ über Seerr, SABnzbd-Fortschritt) sind in Runde 20 entfallen und stehen in den Non-Goals. Die Nummern bleiben unbesetzt, damit ältere Verweise lesbar bleiben.
 

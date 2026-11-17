@@ -63,3 +63,19 @@ Ablehnung würde dort als Fehler erscheinen, obwohl nichts falsch ist.
   weggefallen sind.
 - Die CSRF-Ausnahme ist die erste ihrer Art. Wächst die Liste, gehört sie in eine eigene Betrachtung;
   solange sie eine Zeile hat, ist sie im Code und hier beschrieben.
+
+## Nachtrag vom 17. November 2026 (Konzept 25, Frage 33, ADR 0037)
+
+Der Satz, Slouchcat rufe Radarr und Sonarr nie auf, gilt nicht mehr ganz. Es gibt **zwei eng gefasste
+Ausnahmen** (Marco, E-2 und E-7), beide über das Paket `internal/arr`:
+
+1. Slouchcat legt in Radarr und Sonarr den Tag eines Profils an und hängt ihn an den gewünschten Film bzw. die
+   gewünschte Serie (`applyTags: "add"`); Tags entfernt es nie.
+2. Slouchcat liest Warteschlange und Dateistand der gewünschten Titel (`GET /api/v3/queue`, `movie?tmdbId`,
+   `series?tvdbId`) für den Download-Fortschritt beim Wunsch und ändert sie nie.
+
+«Registers nothing there» bleibt: Slouchcat trägt in Radarr und Sonarr keinen Webhook ein (E-6). Der Import in die
+Bibliothek kommt weiter über diesen Webhook; der eingehende Teil dieses ADR (Route, Token, `scan.path`, CSRF-Ausnahme)
+bleibt unverändert. Mit Stufe 4 von Konzept 25 kommt die Art `jellyseerr` neben `radarr` und `sonarr` dazu, nur als
+Anstoss des Abgleichs mit Seerr; sie nutzt dieselbe Route `/webhooks/{token}`, darum gibt es **keine** zweite
+CSRF-Ausnahme.
