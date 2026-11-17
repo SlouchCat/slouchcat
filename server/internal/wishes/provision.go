@@ -384,6 +384,16 @@ func (s *Service) provisionRun(ctx context.Context, accountID int64, run provisi
 		} else if ready, err := s.opened(ctx, admin, acc, u, newPassword != "" && ws.SyncPassword, ws, setBy); ready {
 			return StateReady, err
 		} else if errors.Is(err, model.ErrSeerrUserTaken) {
+			// The user just opened is recorded nowhere: best effort, it loses its rights and gets a
+			// random password (the client deletes no user on purpose); the mirror row of the id
+			// belongs to someone else and stays.
+			reason := ""
+			if err := admin.SetPermissions(ctx, u.ID, seerr.PermNone); err != nil {
+				reason = errorClass(err)
+			} else if err := admin.SetPassword(ctx, u.ID, randomPassword()); err != nil {
+				reason = errorClass(err)
+			}
+			s.log.WarnContext(ctx, "seerr user just opened has an id slouchcat knows; left in seerr without rights", "account_id", accountID, "seerr_user_id", u.ID, "cleanup_failed", reason)
 			return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserTaken)
 		} else if err != nil {
 			return s.wait(ctx, accountID, linkedBy, setBy, err)

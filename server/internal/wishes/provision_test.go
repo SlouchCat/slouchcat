@@ -702,3 +702,32 @@ func TestCreatedUserWithoutRequestRightWaitsForTheRights(t *testing.T) {
 	}
 	f.noPasswordAnywhere(testPassword)
 }
+
+// The user just opened whose id is taken is cleaned up as far as Seerr lets it (open question of
+// the third review): rights 0 and a random password, a warning without the email or a password;
+// the mirror row of the shared user stays as it was.
+func TestCreatedUserIDTakenIsCleanedUp(t *testing.T) {
+	f := newFixture(t)
+	if err := f.svc.EnsureSharedUser(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.exec(`UPDATE seerr_users SET seerr_id = 6 WHERE seerr_id = 5`) // the next id the fake gives
+	f.fake.Configure(func(c *seerrtest.Config) { c.DefaultPermissions = seerrtest.OwnerDefaultPermissions })
+	if _, err := f.svc.provision(f.ctx, 2, LinkedByInvite, testPassword, 0); err != nil {
+		t.Fatal(err)
+	}
+	if m := f.mapping(2); m.State != StateWaiting || m.ProvisionError != ProvisionUserTaken {
+		t.Errorf("mapping = %+v", m)
+	}
+	u, ok := f.fake.User(6)
+	if !ok || u.Email != "gast@example.test" || u.Permissions != 0 || u.Password == testPassword || u.Password == "" {
+		t.Errorf("orphan user = %+v", u)
+	}
+	if got := f.count(`SELECT count(*) FROM seerr_users WHERE seerr_id = 6 AND is_shared = 1 AND permissions <> 0`); got != 1 {
+		t.Error("mirror row of the shared user changed")
+	}
+	logs := f.logs.String()
+	if !strings.Contains(logs, "left in seerr without rights") || strings.Contains(logs, "gast@example.test") || strings.Contains(logs, testPassword) {
+		t.Errorf("log = %s", logs)
+	}
+}
