@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "E-post",
         "role": "Rolle",
-        "rating": "Nivå",
-        "libraries": "Bibliotek",
         "profiles": "Profiler",
         "lastSeen": "Sist sett",
         "channels": "Kanaler",

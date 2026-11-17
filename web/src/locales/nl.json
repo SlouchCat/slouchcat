@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "E-mail",
         "role": "Rol",
-        "rating": "Classificatie",
-        "libraries": "Bibliotheken",
         "profiles": "Profielen",
         "lastSeen": "Laatst gezien",
         "channels": "Kanalen",

@@ -113,8 +113,9 @@ test('A-2: the administrator and an account in one table, with the owner badge',
     await expect(guest).toContainText('FSK 12');
     await expect(guest).toContainText('Gast (Hauptprofil)');
     // Plan 5.2: an invited account gets announcements by e-mail unless it switches them off.
-    // The cells after the e-mail: role, rating, libraries, profiles, wishes, last seen, channels.
-    await expect(guest.getByRole('cell').nth(6)).toHaveText('E-Mail');
+    // The cells after the e-mail: role, access (rating, libraries, wishes), profiles, last seen,
+    // channels.
+    await expect(guest.getByRole('cell').nth(4)).toHaveText('E-Mail');
 
     // The own fold-out: «Konto ändern» and «Meine Profile»; neither a role action nor a removal,
     // the owner is protected (ADR 0014).
@@ -721,4 +722,56 @@ test('concept 25: request right and limit in «Zugriff», the invitation and the
     await revokeInvitations(owner);
     await anonymous.dispose();
   }
+});
+
+test.describe('at desktop width', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('the table and an opened row fit the frame at 1280 px; on a phone the fold-out fits the screen', async ({
+    page,
+    owner,
+    playwright,
+    baseURL,
+    extraHTTPHeaders,
+  }) => {
+    const anonymous = await anonymousApi(playwright, baseURL!, extraHTTPHeaders);
+    // With Seerr the row has the column «Wünsche» and «Zugriff» the request right and the limit.
+    const before = await connectSeerr(owner);
+    try {
+      await inviteGuest(owner, anonymous);
+      await openAccounts(page);
+      await accountToggle(page, GUEST.email).click();
+      const access = accountFoldOut(page, GUEST.email).getByRole('region', {
+        name: `Zugriff von ${GUEST.email}`,
+      });
+      const save = access.getByRole('button', { name: 'Zugriff speichern' });
+      await expect(save).toBeVisible();
+      // No sideways scroll in the table's frame, and the save button within the window.
+      const frame = page.getByRole('table', { name: 'Konten' }).locator('xpath=..');
+      expect(
+        await frame.evaluate((element) => element.scrollWidth - element.clientWidth),
+      ).toBeLessThanOrEqual(0);
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport({ ratio: 1 });
+      const box = (await save.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(1280);
+
+      // On a phone the table scrolls sideways in its frame; the open row's form does not: it is
+      // no wider than the screen and its save button stays on it.
+      await page.setViewportSize({ width: 390, height: 844 });
+      const form = accountFoldOut(page, GUEST.email).locator('td > div');
+      await expect
+        .poll(async () => {
+          const { x, width } = (await form.boundingBox())!;
+          return x + width;
+        })
+        .toBeLessThanOrEqual(390);
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport({ ratio: 1 });
+    } finally {
+      await disconnectSeerr(owner, before);
+      await revokeInvitations(owner);
+      await anonymous.dispose();
+    }
+  });
 });

@@ -3844,8 +3844,6 @@
       "columns": {
         "email": "メール",
         "role": "役割",
-        "rating": "年齢区分",
-        "libraries": "ライブラリ",
         "profiles": "プロフィール",
         "lastSeen": "最終利用",
         "channels": "チャンネル",

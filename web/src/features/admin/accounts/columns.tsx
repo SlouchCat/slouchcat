@@ -18,9 +18,9 @@ export const profileNames = (t: TFunction, account: AdminAccount) =>
 
 /**
  * The columns of the account table (KON-2, mockup KP-1): the e-mail folds the row out; role with
- * the owner badge, rating, libraries, profiles (one line, the names in full in the fold-out), the
- * request right (concept 25), last
- * contact and the channels the account switched on; «Weitere Aktionen» of another account last.
+ * the owner badge, the access (rating, libraries and the request right of concept 25, one line
+ * each), profiles (one line, the names in full in the fold-out), last contact and the channels the
+ * account switched on; «Weitere Aktionen» of another account last.
  */
 export function accountColumns(
   t: TFunction,
@@ -46,19 +46,26 @@ export function accountColumns(
       ),
     },
     {
-      key: 'rating',
-      header: t('admin.accounts.columns.rating'),
+      // Rating, libraries and the request right one line each: the fold-out's form «Zugriff»
+      // changes all three, and stacked they leave the table room to fit beside the sidebar at
+      // desktop width.
+      key: 'access',
+      header: t('admin.accounts.columns.access'),
       cell: (account) => (
-        <span className={styles.nowrap}>{ratingLabel(t, account.maxRating, ratingSystem)}</span>
+        <span className={styles.stack}>
+          <span className={styles.nowrap}>{ratingLabel(t, account.maxRating, ratingSystem)}</span>
+          <span>
+            {account.allLibraries
+              ? t('libraries.all')
+              : t('admin.accounts.libraries', { count: account.libraryIds.length })}
+          </span>
+          {account.wishState && (
+            <span className={styles.wrapChip}>
+              <WishChip account={account} />
+            </span>
+          )}
+        </span>
       ),
-    },
-    {
-      key: 'libraries',
-      header: t('admin.accounts.columns.libraries'),
-      cell: (account) =>
-        account.allLibraries
-          ? t('libraries.all')
-          : t('admin.accounts.libraries', { count: account.libraryIds.length }),
     },
     {
       key: 'profiles',
@@ -66,18 +73,11 @@ export function accountColumns(
       cell: (account) => <span className={styles.clip}>{profileNames(t, account)}</span>,
     },
     {
-      key: 'wishes',
-      header: t('admin.accounts.columns.wishes'),
-      cell: (account) => <WishChip account={account} />,
-    },
-    {
       key: 'lastSeen',
       header: t('admin.accounts.columns.lastSeen'),
       cell: (account) =>
         account.lastSeenAt ? (
-          <time className={styles.nowrap} dateTime={account.lastSeenAt}>
-            {formatDateTime(account.lastSeenAt, language)}
-          </time>
+          <time dateTime={account.lastSeenAt}>{formatDateTime(account.lastSeenAt, language)}</time>
         ) : (
           <span className={styles.muted}>{t('admin.accounts.neverSeen')}</span>
         ),

@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "Sähköposti",
         "role": "Rooli",
-        "rating": "Ikäraja",
-        "libraries": "Kirjastot",
         "profiles": "Profiilit",
         "lastSeen": "Viimeksi nähty",
         "channels": "Kanavat",

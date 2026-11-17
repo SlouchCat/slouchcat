@@ -3844,8 +3844,6 @@
       "columns": {
         "email": "이메일",
         "role": "역할",
-        "rating": "등급",
-        "libraries": "라이브러리",
         "profiles": "프로필",
         "lastSeen": "마지막 접속",
         "channels": "채널",

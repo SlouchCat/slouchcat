@@ -4132,8 +4132,6 @@
       "columns": {
         "email": "E-mail",
         "role": "Função",
-        "rating": "Classificação",
-        "libraries": "Bibliotecas",
         "profiles": "Perfis",
         "lastSeen": "Último acesso",
         "channels": "Canais",

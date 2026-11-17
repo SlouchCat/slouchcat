@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "E-mail",
         "role": "Szerepkör",
-        "rating": "Korhatár",
-        "libraries": "Könyvtárak",
         "profiles": "Profilok",
         "lastSeen": "Utoljára látva",
         "channels": "Csatornák",

@@ -3844,8 +3844,6 @@
       "columns": {
         "email": "電子郵件",
         "role": "角色",
-        "rating": "分級",
-        "libraries": "媒體庫",
         "profiles": "個人資料",
         "lastSeen": "上次上線",
         "channels": "管道",

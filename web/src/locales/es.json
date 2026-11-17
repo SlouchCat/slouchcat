@@ -4132,8 +4132,6 @@
       "columns": {
         "email": "Correo electrónico",
         "role": "Rol",
-        "rating": "Clasificación",
-        "libraries": "Bibliotecas",
         "profiles": "Perfiles",
         "lastSeen": "Última conexión",
         "channels": "Canales",

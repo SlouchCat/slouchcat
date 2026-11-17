@@ -4140,13 +4140,11 @@
       "columns": {
         "email": "E-Mail",
         "role": "Rolle",
-        "rating": "Altersstufe",
-        "libraries": "Bibliotheken",
+        "access": "Zugriff",
         "profiles": "Profile",
         "lastSeen": "Zuletzt gesehen",
         "channels": "Kanäle",
-        "actions": "Aktionen",
-        "wishes": "Wünsche"
+        "actions": "Aktionen"
       },
       "roles": {
         "admin": "Administrator",

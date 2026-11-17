@@ -3844,8 +3844,6 @@
       "columns": {
         "email": "电子邮件",
         "role": "角色",
-        "rating": "分级",
-        "libraries": "媒体库",
         "profiles": "个人资料",
         "lastSeen": "最近活动",
         "channels": "渠道",

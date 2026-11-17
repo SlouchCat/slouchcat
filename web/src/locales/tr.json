@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "E-posta",
         "role": "Rol",
-        "rating": "Yaş sınırı",
-        "libraries": "Kitaplıklar",
         "profiles": "Profiller",
         "lastSeen": "Son görülme",
         "channels": "Kanallar",

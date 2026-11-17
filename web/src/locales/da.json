@@ -3988,8 +3988,6 @@
       "columns": {
         "email": "E-mail",
         "role": "Rolle",
-        "rating": "Aldersgrænse",
-        "libraries": "Biblioteker",
         "profiles": "Profiler",
         "lastSeen": "Senest set",
         "channels": "Kanaler",

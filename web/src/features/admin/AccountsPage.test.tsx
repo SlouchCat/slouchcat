@@ -135,38 +135,24 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       within(table())
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual([
-      'E-Mail',
-      'Rolle',
-      'Altersstufe',
-      'Bibliotheken',
-      'Profile',
-      'Wünsche',
-      'Zuletzt gesehen',
-      'Kanäle',
-      'Aktionen',
-    ]);
+    ).toEqual(['E-Mail', 'Rolle', 'Zugriff', 'Profile', 'Zuletzt gesehen', 'Kanäle', 'Aktionen']);
     const cells = (email: string) =>
       within(rowOf(email))
         .getAllByRole('cell')
         .map((cell) => cell.textContent);
     expect(cells('owner@example.test')).toEqual([
       'AdministratorBesitzer',
-      'FSK 18',
-      'Alle Bibliotheken',
+      // Without Seerr the access names no wish state.
+      'FSK 18Alle Bibliotheken',
       'Marco (Hauptprofil), Kinder',
-      // Without Seerr the account names no wish state.
-      '–',
       expect.stringMatching(/2026/) as string,
       'E-MailWeb-Push',
       '',
     ]);
     expect(cells('gast@example.test')).toEqual([
       'Konto',
-      'FSK 12',
-      '1 Bibliothek',
+      'FSK 121 Bibliothek',
       'Lena (Hauptprofil)',
-      '–',
       'Noch nie',
       'Keine',
       '',
@@ -687,7 +673,7 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({ name: 'Kind' });
     expect(await within(mine).findByRole('article', { name: 'Kind' })).toBeVisible();
     await waitFor(() =>
-      expect(within(rowOf('owner@example.test')).getAllByRole('cell')[3]).toHaveTextContent(
+      expect(within(rowOf('owner@example.test')).getAllByRole('cell')[2]).toHaveTextContent(
         'Marco (Hauptprofil), Kinder, Kind',
       ),
     );

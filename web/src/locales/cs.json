@@ -4276,8 +4276,6 @@
       "columns": {
         "email": "E-mail",
         "role": "Role",
-        "rating": "Věkové omezení",
-        "libraries": "Knihovny",
         "profiles": "Profily",
         "lastSeen": "Naposledy viděn",
         "channels": "Kanály",

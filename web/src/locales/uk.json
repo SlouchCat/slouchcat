@@ -4276,8 +4276,6 @@
       "columns": {
         "email": "Ел. пошта",
         "role": "Роль",
-        "rating": "Рейтинг",
-        "libraries": "Бібліотеки",
         "profiles": "Профілі",
         "lastSeen": "Остання активність",
         "channels": "Канали",
