@@ -33,6 +33,9 @@ type WishesService interface {
 	ProvisionAccount(ctx context.Context, accountID, by int64) (model.WishAccountMapping, error)
 	// ProvisionAll queues it for every account without a ready user; errors as ProvisionAccount.
 	ProvisionAll(ctx context.Context, by int64) (link, create int, err error)
+	// SetPasswordMode switches the password sync of an account (next_login or off);
+	// model.ErrNotFound, model.ErrPasswordNotSyncable, *model.ValidationError.
+	SetPasswordMode(ctx context.Context, accountID int64, mode string) (model.WishAccountMapping, error)
 }
 
 func (e serviceProblem) VisitGetSeerrSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -58,6 +61,9 @@ func (e serviceProblem) VisitProvisionSeerrAccountResponse(w http.ResponseWriter
 	return e.visit(w)
 }
 func (e serviceProblem) VisitProvisionSeerrAccountsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitSetSeerrPasswordModeResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitGetWishSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -252,6 +258,17 @@ func (s *server) ProvisionSeerrAccounts(ctx context.Context, _ gen.ProvisionSeer
 		return s.problem(ctx, err), nil
 	}
 	return gen.ProvisionSeerrAccounts202JSONResponse{Link: link, Create: create}, nil
+}
+
+func (s *server) SetSeerrPasswordMode(ctx context.Context, req gen.SetSeerrPasswordModeRequestObject) (gen.SetSeerrPasswordModeResponseObject, error) {
+	if s.opts.Wishes == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	a, err := s.opts.Wishes.SetPasswordMode(ctx, req.AccountId, string(deref(req.Body).Mode))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetSeerrPasswordMode200JSONResponse(toWishAccountMapping(a)), nil
 }
 
 // sessionAccountID is the account of the session (the administrator who acts), 0 without one.

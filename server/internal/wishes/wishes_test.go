@@ -85,6 +85,7 @@ type fixture struct {
 	svc   *Service
 	logs  *bytes.Buffer
 	log   *slog.Logger
+	dir   string // the configuration directory with the database files
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -95,7 +96,8 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := storetest.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	dir := t.TempDir()
+	db, err := storetest.Open(ctx, store.Options{ConfigDir: dir, Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +106,7 @@ func newFixture(t *testing.T) *fixture {
 	fake.AddUser(seerrtest.User{ID: 3, Email: "kinder@example.test", Username: "kinder", Permissions: seerrtest.PermRequest})
 	fake.AddUser(seerrtest.User{ID: 4, Email: "grosseltern@example.test", Username: "grosseltern", Permissions: seerrtest.PermRequest | seerrtest.PermAutoApprove})
 	fake.AddUser(seerrtest.User{ID: 5, Email: "slouchcat-gaeste@slouchcat.invalid", Username: "slouchcat-gaeste", Permissions: seerrtest.PermRequestMovie})
-	f := &fixture{t: t, ctx: ctx, db: db, fake: fake, queue: &fakeQueue{}, logs: &logs, log: log,
+	f := &fixture{t: t, ctx: ctx, db: db, fake: fake, queue: &fakeQueue{}, logs: &logs, log: log, dir: dir,
 		cfg: &fakeConfig{seer: model.SeerrConfig{Enabled: true, URL: fake.URL, APIKey: seerrtest.APIKey},
 			wish: model.WishSettings{Enabled: true, AllowMovies: true, AllowShows: true, Unmapped: model.WishesUnmappedFallback,
 				ProvisionAccounts: true, SyncPassword: true,

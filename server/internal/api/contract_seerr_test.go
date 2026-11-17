@@ -169,6 +169,14 @@ func TestContractSeerr(t *testing.T) {
 		t.Errorf("opened = %+v", m)
 	}
 	code(http.MethodPost, "/admin/wishes/accounts/9999/provision", ``, http.StatusNotFound, "not_found")
+	// setSeerrPasswordMode (build step 1.5b).
+	if err := call(http.MethodPut, "/admin/wishes/accounts/"+guest+"/password", `{"mode":"off"}`, http.StatusOK).Decode(&m); err != nil {
+		t.Fatal(err)
+	}
+	if m.PasswordState != "off" {
+		t.Errorf("password mode = %+v", m)
+	}
+	code(http.MethodPut, "/admin/wishes/accounts/"+guest+"/password", `{"mode":"always"}`, http.StatusUnprocessableEntity, "validation_failed")
 	var counts struct {
 		Link   *int `json:"link"`
 		Create *int `json:"create"`

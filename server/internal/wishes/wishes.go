@@ -74,6 +74,8 @@ type Service struct {
 	now   func() time.Time
 	opts  []seerr.Option
 
+	bg sync.WaitGroup // hand-overs of a password in flight (password.go)
+
 	mu       sync.Mutex
 	client   *seerr.Client
 	clientOf string // base and key the cached client was made for (in memory only)

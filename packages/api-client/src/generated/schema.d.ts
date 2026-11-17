@@ -4859,6 +4859,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/wishes/accounts/{accountId}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch the password sync of one account with Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. `next_login` («Passwort bei der nächsten Anmeldung neu übernehmen»)
+         *     hands the account's password to its Seerr user at the next sign-in, also for an account an
+         *     administrator linked to an existing user (state `off`, N-103); `off` («Passwort nicht
+         *     abgleichen») never. An administrator of Seerr and a user signing in through Plex, Jellyfin or
+         *     Emby keep their password in Seerr (`password_not_syncable`).
+         */
+        put: operations["setSeerrPasswordMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/wishes/accounts/provision": {
         parameters: {
             query?: never;
@@ -10835,6 +10859,11 @@ export interface components {
             linkedBy?: "admin" | "invite" | "email_change";
             /** Format: date-time */
             linkedAt?: string;
+            /**
+             * @description Why the account waits (the class of the error, for example `unreachable`, `server`,
+             *     `instance_changed`, `seerr_user_taken`), or on a ready user `email_taken`: Seerr refused
+             *     the account's new email because another Seerr user has it; the user stayed unchanged.
+             */
             provisionError?: string;
             limit: components["schemas"]["AccountWishLimit"];
         };
@@ -10846,6 +10875,10 @@ export interface components {
             /** @description Accounts with a ready Seerr user. */
             opened: number;
             total: number;
+        };
+        SeerrPasswordModeRequest: {
+            /** @enum {string} */
+            mode: "next_login" | "off";
         };
         /** @description Since contract 1.41.0. The answer of «Alle eröffnen». */
         ProvisionSeerrAccountsResult: {
@@ -21203,6 +21236,61 @@ export interface operations {
                 };
             };
             /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setSeerrPasswordMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrPasswordModeRequest"];
+            };
+        };
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account or no ready Seerr user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The password of this Seerr user is not synced (`password_not_syncable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
             422: {
                 headers: {
                     [name: string]: unknown;

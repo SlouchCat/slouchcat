@@ -8987,6 +8987,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/wishes/accounts/{accountId}/password:
+    put:
+      operationId: setSeerrPasswordMode
+      summary: Switch the password sync of one account with Seerr (concept 25, contract 1.41.0)
+      description: |
+        Since contract 1.41.0. `next_login` («Passwort bei der nächsten Anmeldung neu übernehmen»)
+        hands the account's password to its Seerr user at the next sign-in, also for an account an
+        administrator linked to an existing user (state `off`, N-103); `off` («Passwort nicht
+        abgleichen») never. An administrator of Seerr and a user signing in through Plex, Jellyfin or
+        Emby keep their password in Seerr (`password_not_syncable`).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeerrPasswordModeRequest"
+      responses:
+        "200":
+          description: The account with its Seerr user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishAccountMapping"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown account or no ready Seerr user (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The password of this Seerr user is not synced (`password_not_syncable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/wishes/accounts/provision:
     post:
       operationId: provisionSeerrAccounts
@@ -19068,6 +19124,10 @@ components:
           format: date-time
         provisionError:
           type: string
+          description: |
+            Why the account waits (the class of the error, for example `unreachable`, `server`,
+            `instance_changed`, `seerr_user_taken`), or on a ready user `email_taken`: Seerr refused
+            the account's new email because another Seerr user has it; the user stayed unchanged.
         limit:
           $ref: "#/components/schemas/AccountWishLimit"
 
@@ -19091,6 +19151,14 @@ components:
           description: Accounts with a ready Seerr user.
         total:
           type: integer
+
+    SeerrPasswordModeRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [next_login, "off"]
 
     ProvisionSeerrAccountsResult:
       type: object

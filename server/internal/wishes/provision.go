@@ -274,7 +274,8 @@ func (s *Service) provisionSession(ctx context.Context) (seerr.Session, error) {
 // wait keeps the account waiting for Seerr with the class of err and returns err, so the job tries
 // again.
 func (s *Service) wait(ctx context.Context, accountID int64, linkedBy string, setBy int64, cause error) (string, error) {
-	if err := s.write.SetWaitingMapping(ctx, wishq.SetWaitingMappingParams{
+	// Without cancel: a hand-over that ran out of its time still records the wait.
+	if err := s.write.SetWaitingMapping(context.WithoutCancel(ctx), wishq.SetWaitingMappingParams{
 		AccountID: accountID, LinkedBy: nullString(linkedBy), ProvisionError: nullString(provisionError(cause)),
 		Now: s.now().UnixMilli(), SetBy: sql.NullInt64{Int64: setBy, Valid: setBy > 0},
 	}); err != nil {

@@ -344,6 +344,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 			s.log.WarnContext(ctx, "invitation accepted hook failed", "invitation_id", inv.ID, "err", err)
 		}
 	}
+	s.seen(ctx, acc.ID, email, in.Password, PasswordMomentInvitation)
 	account := toAccount(acc, libs)
 	return s.StartSession(ctx, account, toProfile(prof, nil, account.Limits), userAgent)
 }

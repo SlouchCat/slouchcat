@@ -65,6 +65,9 @@ type Service struct {
 	// accountDeleting runs before an account is deleted (package wishes, concept 25 K-2) and returns
 	// what runs after the deletion; nil = none.
 	accountDeleting func(ctx context.Context, accountID int64) func(context.Context)
+	// passwordSeen gets the password in the three moments the server sees it in clear text (package
+	// wishes, concept 25 architecture 18.3); it must return at once. nil = none.
+	passwordSeen func(ctx context.Context, accountID int64, email, password, moment string)
 
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
 	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
@@ -131,6 +134,29 @@ func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAcc
 func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64) func(context.Context)) *Service {
 	s.accountDeleting = fn
 	return s
+}
+
+// Moments of WithPasswordSeen.
+const (
+	PasswordMomentInvitation     = "invitation"      // an invitation was accepted
+	PasswordMomentLogin          = "login"           // the password was checked at a sign-in
+	PasswordMomentPasswordChange = "password_change" // the account set a new password
+	PasswordMomentEmailChange    = "email_change"    // the account changed its email (with a new password or the current one)
+)
+
+// WithPasswordSeen runs fn with the clear-text password after AcceptInvitation and UpdateAccount
+// committed and after Login checked it (wishes.PasswordSeen hands it to Seerr in the background,
+// concept 25 architecture 18.3). fn must not block: the answer to the browser waits for it. The
+// password goes nowhere else. It returns the receiver.
+func (s *Service) WithPasswordSeen(fn func(ctx context.Context, accountID int64, email, password, moment string)) *Service {
+	s.passwordSeen = fn
+	return s
+}
+
+func (s *Service) seen(ctx context.Context, accountID int64, email, password, moment string) {
+	if s.passwordSeen != nil {
+		s.passwordSeen(ctx, accountID, email, password, moment)
+	}
 }
 
 // created runs the account hook.
@@ -343,7 +369,12 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 			return model.Session{}, "", err
 		}
 	}
-	return s.StartSession(ctx, account, profile, userAgent)
+	sess, token, err := s.StartSession(ctx, account, profile, userAgent)
+	if err != nil {
+		return model.Session{}, "", err
+	}
+	s.seen(ctx, acc.ID, acc.Email, password, PasswordMomentLogin)
+	return sess, token, nil
 }
 
 // verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id

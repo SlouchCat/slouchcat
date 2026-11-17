@@ -74,3 +74,7 @@ DELETE FROM seerr_users;
 UPDATE seerr_users SET permissions = @permissions,
     is_admin = CASE WHEN (@permissions & 10) <> 0 THEN 1 ELSE 0 END
 WHERE seerr_id = @seerr_id;
+
+-- name: SetSeerrUserEmail :exec
+-- The email Slouchcat just wrote to a user after an e-mail change of its account (N-95).
+UPDATE seerr_users SET email = @email WHERE seerr_id = @seerr_id;

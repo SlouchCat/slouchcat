@@ -10,13 +10,14 @@ import (
 
 // Errors of the Seerr connection and the wish settings.
 var (
-	ErrSeerrNotConfigured = errors.New("seerr not configured")          // 422 seerr_not_configured: no address or no api key
-	ErrSeerrKeyRequired   = errors.New("seerr api key required")        // 422 seerr_key_required: a new host needs the key again
-	ErrSeerrNotTested     = errors.New("seerr connection not tested")   // 409 seerr_not_tested: «Wünsche aktiv» needs a successful test (T-1)
-	ErrSeerrUserTaken     = errors.New("seerr user taken")              // 409 seerr_user_taken: the user belongs to another account or is the shared user
-	ErrInstanceUnchanged  = errors.New("seerr instance unchanged")      // 409 instance_unchanged: no other instance is waiting for a decision
-	ErrInstanceChanged    = errors.New("other seerr instance detected") // no call on behalf of a user until the administrator decides
-	ErrProvisionDisabled  = errors.New("seerr provisioning disabled")   // 409 provision_disabled: «Neue Konten in Seerr eröffnen» is off
+	ErrSeerrNotConfigured  = errors.New("seerr not configured")          // 422 seerr_not_configured: no address or no api key
+	ErrSeerrKeyRequired    = errors.New("seerr api key required")        // 422 seerr_key_required: a new host needs the key again
+	ErrSeerrNotTested      = errors.New("seerr connection not tested")   // 409 seerr_not_tested: «Wünsche aktiv» needs a successful test (T-1)
+	ErrSeerrUserTaken      = errors.New("seerr user taken")              // 409 seerr_user_taken: the user belongs to another account or is the shared user
+	ErrInstanceUnchanged   = errors.New("seerr instance unchanged")      // 409 instance_unchanged: no other instance is waiting for a decision
+	ErrInstanceChanged     = errors.New("other seerr instance detected") // no call on behalf of a user until the administrator decides
+	ErrProvisionDisabled   = errors.New("seerr provisioning disabled")   // 409 provision_disabled: «Neue Konten in Seerr eröffnen» is off
+	ErrPasswordNotSyncable = errors.New("seerr password not syncable")   // 409 password_not_syncable: an administrator of Seerr or a sign-in through Plex, Jellyfin or Emby
 )
 
 // Codes of the validation errors.

@@ -240,6 +240,21 @@ func (q *Queries) MarkSeerrUsersGone(ctx context.Context, arg MarkSeerrUsersGone
 	return result.RowsAffected()
 }
 
+const setSeerrUserEmail = `-- name: SetSeerrUserEmail :exec
+UPDATE seerr_users SET email = ?1 WHERE seerr_id = ?2
+`
+
+type SetSeerrUserEmailParams struct {
+	Email   sql.NullString
+	SeerrID int64
+}
+
+// The email Slouchcat just wrote to a user after an e-mail change of its account (N-95).
+func (q *Queries) SetSeerrUserEmail(ctx context.Context, arg SetSeerrUserEmailParams) error {
+	_, err := q.db.ExecContext(ctx, setSeerrUserEmail, arg.Email, arg.SeerrID)
+	return err
+}
+
 const setSeerrUserPermissions = `-- name: SetSeerrUserPermissions :exec
 UPDATE seerr_users SET permissions = ?1,
     is_admin = CASE WHEN (?1 & 10) <> 0 THEN 1 ELSE 0 END

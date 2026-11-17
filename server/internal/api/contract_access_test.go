@@ -221,6 +221,8 @@ var adminRegistry = map[string]adminCall{
 		body: `{"seerrUserId":null}`, ownerStatus: http.StatusNotFound},
 	"provisionSeerrAccount": {contract: "POST /admin/wishes/accounts/{accountId}/provision", path: "/admin/wishes/accounts/9999/provision",
 		ownerStatus: http.StatusUnprocessableEntity},
+	"setSeerrPasswordMode": {contract: "PUT /admin/wishes/accounts/{accountId}/password", path: "/admin/wishes/accounts/9999/password",
+		body: `{"mode":"next_login"}`, ownerStatus: http.StatusNotFound},
 	"provisionSeerrAccounts": {contract: "POST /admin/wishes/accounts/provision", path: "/admin/wishes/accounts/provision",
 		ownerStatus: http.StatusUnprocessableEntity},
 	"getWishSettings": {contract: "GET /admin/wishes/settings", path: "/admin/wishes/settings", ownerStatus: http.StatusOK},
