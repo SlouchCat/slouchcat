@@ -162,9 +162,23 @@ func TestContractWishes(t *testing.T) {
 	expect("p12", http.MethodGet, title(tmdbUnknown), "", http.StatusNotFound, "not_found")
 	// The preview page with its wish card.
 	pg := expect("p12", http.MethodGet, title(tmdbMissing12), "", http.StatusOK, "")
-	if pg["title"] != "Wunsch Zwoelf" || pg["canRequest"] != true || pg["minAge"] != float64(12) ||
-		pg["images"].(map[string]any)["poster"] != BasePath+title(tmdbMissing12)+"/images/poster/w400" {
+	if pg["title"] != "Wunsch Zwoelf" || pg["canRequest"] != true || pg["minAge"] != float64(12) {
 		t.Errorf("preview = %v", pg)
+	}
+	// The images as ImageRef: the own route with v and p; nominal sizes until the image is scaled.
+	imgs := pg["images"].(map[string]any)
+	for key, want := range map[string][3]any{
+		"poster": {"poster/w400", 400.0, 600.0}, "posterSmall": {"poster/w200", 200.0, 300.0}, "posterLarge": {"poster/w800", 800.0, 1200.0},
+	} {
+		ref, _ := imgs[key].(map[string]any)
+		u, _ := ref["url"].(string)
+		if ref == nil || !strings.HasPrefix(u, BasePath+title(tmdbMissing12)+"/images/"+want[0].(string)+"?v=") ||
+			!strings.HasSuffix(u, fmt.Sprintf("&p=%d", f.P12.ID)) || ref["width"] != want[1] || ref["height"] != want[2] {
+			t.Errorf("images.%s = %v", key, ref)
+		}
+	}
+	if imgs["backdrop"] != nil || imgs["logo"] != nil {
+		t.Errorf("a kind without a TMDB image: %v", imgs)
 	}
 	// Without the request right 404, also for a title rated 0; with an own wish 200 (F-9).
 	expect("p6", http.MethodGet, title(tmdbMissing0), "", http.StatusNotFound, "not_found")

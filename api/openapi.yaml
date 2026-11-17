@@ -9489,6 +9489,19 @@ paths:
         - $ref: "#/components/parameters/TmdbIdPath"
         - $ref: "#/components/parameters/ExternalImageKindPath"
         - $ref: "#/components/parameters/ExternalImageSizePath"
+        - name: v
+          in: query
+          required: false
+          description: The version of the image (`ExternalTitleImages`) for cache busting; ignored by the server.
+          schema:
+            type: string
+        - name: p
+          in: query
+          required: false
+          description: The profile id, so a browser cache never serves one profile's image to another; ignored by the server.
+          schema:
+            type: integer
+            format: int64
       responses:
         "200":
           description: The image.
@@ -19846,14 +19859,35 @@ components:
 
     ExternalTitleImages:
       type: object
-      description: Slouchcat's addresses of the images (never TMDB's); a kind without image is absent.
+      description: |
+        The images of a title outside the library as `ImageRef`, like `ItemImages`: Slouchcat's
+        addresses (`getExternalTitleImage`, never TMDB's) with the cache-busting `v` and the profile
+        id `p`; a kind without image is absent. TMDB's image is scaled on its first request: until
+        then every size of the kind is offered with the nominal height (poster 2:3, backdrop 16:9,
+        logo 4:1) and `v` names the fetch of the title; afterwards only the stored sizes (never wider
+        than the original) with their real width, height and content hash.
       properties:
         poster:
-          type: string
+          $ref: "#/components/schemas/ImageRef"
+          description: Poster in w400.
+        posterSmall:
+          $ref: "#/components/schemas/ImageRef"
+          description: Poster in w200.
+        posterLarge:
+          $ref: "#/components/schemas/ImageRef"
+          description: Poster in w800.
         backdrop:
-          type: string
+          $ref: "#/components/schemas/ImageRef"
+          description: Backdrop in w1280.
+        backdropSmall:
+          $ref: "#/components/schemas/ImageRef"
+          description: Backdrop in w780.
+        backdropLarge:
+          $ref: "#/components/schemas/ImageRef"
+          description: Backdrop in w1920.
         logo:
-          type: string
+          $ref: "#/components/schemas/ImageRef"
+          description: Logo in w400 (PNG or WebP with transparency).
 
     WishMark:
       type: object

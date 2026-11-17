@@ -35,10 +35,20 @@ type ExternalTitleCard struct {
 	Year          int  // 0 = unknown
 	MinAge        *int // nil = unknown
 	ImageKinds    []string
+	Images        []ExternalImage // the sizes the pages reference, of the kinds in ImageKinds
+	ProfileID     int64           // the profile the card is for (the p of the image addresses)
 	HasTrailer    bool
 	Wish          *WishMark
 	CanRequest    bool
 	RequestReason string
+}
+
+// ExternalImage is one size of an image of a title outside the library: kind, size (w400), width
+// and height (nominal until the image is scaled) and the version for cache busting.
+type ExternalImage struct {
+	Kind, Size    string
+	Width, Height int
+	Version       string
 }
 
 // ExternalTitlePreview is the preview page of a title outside the library with its wish card

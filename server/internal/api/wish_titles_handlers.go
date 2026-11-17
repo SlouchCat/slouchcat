@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -176,7 +177,7 @@ func (s *server) GetExternalTitle(ctx context.Context, req gen.GetExternalTitleR
 	}
 	out := gen.GetExternalTitle200JSONResponse{
 		Media: gen.ExternalMedia(t.Media), TmdbId: t.TMDBID, Title: t.Title, Year: optInt(t.Year), MinAge: t.MinAge,
-		Images: externalImages(t.Media, t.TMDBID, t.ImageKinds), HasTrailer: t.HasTrailer, Wish: toWishMark(t.Wish),
+		Images: externalImages(t.ExternalTitleCard), HasTrailer: t.HasTrailer, Wish: toWishMark(t.Wish),
 		CanRequest: t.CanRequest, RequestReason: requestReason(t.RequestReason),
 		OriginalTitle: optString(t.OriginalTitle), Overview: optString(t.Overview), Tagline: optString(t.Tagline),
 		ReleaseDate: optDate(t.ReleaseDate), RuntimeMinutes: optInt(t.RuntimeMinutes), Genres: t.Genres, Status: optString(t.Status),
@@ -501,24 +502,25 @@ func toAdminWish(a model.AdminWish) gen.AdminWish {
 func toExternalTitleRef(c model.ExternalTitleCard) gen.ExternalTitleRef {
 	return gen.ExternalTitleRef{
 		Media: gen.ExternalMedia(c.Media), TmdbId: c.TMDBID, Title: c.Title, Year: optInt(c.Year), MinAge: c.MinAge,
-		Images: externalImages(c.Media, c.TMDBID, c.ImageKinds), HasTrailer: c.HasTrailer, Wish: toWishMark(c.Wish),
+		Images: externalImages(c), HasTrailer: c.HasTrailer, Wish: toWishMark(c.Wish),
 		CanRequest: c.CanRequest, RequestReason: requestReason(c.RequestReason),
 	}
 }
 
-// externalImages are Slouchcat's addresses of the images of a title outside the library, in the
-// sizes the pages show (never TMDB's).
-func externalImages(media string, tmdbID int64, kinds []string) gen.ExternalTitleImages {
+// externalImages are the references of the images of a title outside the library, in the sizes of
+// ItemImages, with the cache-busting v and the profile id p (never TMDB's addresses).
+func externalImages(c model.ExternalTitleCard) gen.ExternalTitleImages {
 	var out gen.ExternalTitleImages
-	base := BasePath + fmt.Sprintf("/titles/%s/%d/images/", media, tmdbID)
-	for _, k := range kinds {
-		switch k {
-		case "poster":
-			out.Poster = optString(base + "poster/w400")
-		case "backdrop":
-			out.Backdrop = optString(base + "backdrop/w1280")
-		case "logo":
-			out.Logo = optString(base + "logo/w400")
+	base := BasePath + fmt.Sprintf("/titles/%s/%d/images/", c.Media, c.TMDBID)
+	slot := map[string]**gen.ImageRef{
+		"poster/w400": &out.Poster, "poster/w200": &out.PosterSmall, "poster/w800": &out.PosterLarge,
+		"backdrop/w1280": &out.Backdrop, "backdrop/w780": &out.BackdropSmall, "backdrop/w1920": &out.BackdropLarge,
+		"logo/w400": &out.Logo,
+	}
+	for _, im := range c.Images {
+		if dst, ok := slot[im.Kind+"/"+im.Size]; ok {
+			*dst = &gen.ImageRef{Url: base + im.Kind + "/" + im.Size + "?v=" + url.QueryEscape(im.Version) +
+				"&p=" + strconv.FormatInt(c.ProfileID, 10), Width: im.Width, Height: im.Height}
 		}
 	}
 	return out

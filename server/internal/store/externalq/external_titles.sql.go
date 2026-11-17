@@ -186,6 +186,56 @@ func (q *Queries) ListExternalTitleAges(ctx context.Context, arg ListExternalTit
 	return items, nil
 }
 
+const listExternalTitleImageSizes = `-- name: ListExternalTitleImageSizes :many
+SELECT kind, size, width, height, content_hash FROM external_title_images
+WHERE media = ?1 AND tmdb_id = ?2 AND format = CASE kind WHEN 'logo' THEN 'png' ELSE 'jpeg' END
+ORDER BY kind, width
+`
+
+type ListExternalTitleImageSizesParams struct {
+	Media  string
+	TmdbID int64
+}
+
+type ListExternalTitleImageSizesRow struct {
+	Kind        string
+	Size        string
+	Width       int64
+	Height      int64
+	ContentHash string
+}
+
+// The stored sizes of every kind of a title in one format per kind (the JPEG, a logo's PNG): the
+// width, height and hash of the image references.
+func (q *Queries) ListExternalTitleImageSizes(ctx context.Context, arg ListExternalTitleImageSizesParams) ([]ListExternalTitleImageSizesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listExternalTitleImageSizes, arg.Media, arg.TmdbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListExternalTitleImageSizesRow{}
+	for rows.Next() {
+		var i ListExternalTitleImageSizesRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Size,
+			&i.Width,
+			&i.Height,
+			&i.ContentHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExternalTitleImages = `-- name: ListExternalTitleImages :many
 SELECT id, media, tmdb_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, fetched_at FROM external_title_images
 WHERE media = ?1 AND tmdb_id = ?2 AND kind = ?3

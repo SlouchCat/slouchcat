@@ -93,7 +93,52 @@ type ExternalTitle struct {
 	NextEpisode    *ExternalEpisode
 	LastEpisode    *ExternalEpisode
 	ImageKinds     []string // poster, backdrop, logo: the kinds with a TMDB image
+	Images         []ExternalImageRef
 	FetchedAt      time.Time
+}
+
+// ExternalImageRef is one size of an image of a stored title as the pages reference it: the sizes
+// of imageWidths. Before the first request scales the image (OpenExternalTitleImage) every size is
+// offered with the nominal height of the kind (poster 2:3, backdrop 16:9, logo 4:1) and the time
+// of the title's fetch as Version; afterwards only the stored sizes (never wider than the
+// original) with their width, height and content hash, so a browser cache never keeps the guess.
+type ExternalImageRef struct {
+	Kind, Size    string
+	Width, Height int
+	Version       string
+}
+
+// nominalHeight is the height of width for a kind whose image is not scaled yet.
+func nominalHeight(kind string, width int) int {
+	switch kind {
+	case "poster":
+		return width * 3 / 2
+	case "backdrop":
+		return width * 9 / 16
+	}
+	return max(1, width/4)
+}
+
+// externalImageRefs are the references of the kinds with a TMDB image (see ExternalImageRef).
+func externalImageRefs(kinds []string, stored []externalq.ListExternalTitleImageSizesRow, fetchedAt int64) []ExternalImageRef {
+	var out []ExternalImageRef
+	for _, kind := range kinds {
+		n := 0
+		for _, r := range stored {
+			if r.Kind == kind {
+				out = append(out, ExternalImageRef{Kind: kind, Size: r.Size, Width: int(r.Width), Height: int(r.Height), Version: r.ContentHash})
+				n++
+			}
+		}
+		if n > 0 {
+			continue
+		}
+		for _, w := range imageWidths[kind] {
+			out = append(out, ExternalImageRef{Kind: kind, Size: sizeName(w), Width: w, Height: nominalHeight(kind, w),
+				Version: strconv.FormatInt(fetchedAt, 10)})
+		}
+	}
+	return out
 }
 
 // ExternalGenre is a TMDB genre with its name per text language.
@@ -168,7 +213,16 @@ func (s *Service) ExternalTitle(ctx context.Context, media string, tmdbID int64)
 	if err != nil {
 		return ExternalTitle{}, fmt.Errorf("list texts of external title %s: %w", externalKey(media, tmdbID), err)
 	}
-	return externalTitleOf(row, texts)
+	t, err := externalTitleOf(row, texts)
+	if err != nil {
+		return ExternalTitle{}, err
+	}
+	sizes, err := q.ListExternalTitleImageSizes(ctx, externalq.ListExternalTitleImageSizesParams{Media: media, TmdbID: tmdbID})
+	if err != nil {
+		return ExternalTitle{}, fmt.Errorf("list image sizes of external title %s: %w", externalKey(media, tmdbID), err)
+	}
+	t.Images = externalImageRefs(t.ImageKinds, sizes, row.FetchedAt)
+	return t, nil
 }
 
 // EnsureExternalTitle returns the stored title, or fetches and stores it when there is none. It

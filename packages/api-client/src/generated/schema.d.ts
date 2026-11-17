@@ -11227,11 +11227,29 @@ export interface components {
          * @enum {string}
          */
         WishRequestReason: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "movies_not_allowed" | "shows_not_allowed" | "status_only" | "already_requested";
-        /** @description Slouchcat's addresses of the images (never TMDB's); a kind without image is absent. */
+        /**
+         * @description The images of a title outside the library as `ImageRef`, like `ItemImages`: Slouchcat's
+         *     addresses (`getExternalTitleImage`, never TMDB's) with the cache-busting `v` and the profile
+         *     id `p`; a kind without image is absent. TMDB's image is scaled on its first request: until
+         *     then every size of the kind is offered with the nominal height (poster 2:3, backdrop 16:9,
+         *     logo 4:1) and `v` names the fetch of the title; afterwards only the stored sizes (never wider
+         *     than the original) with their real width, height and content hash.
+         */
         ExternalTitleImages: {
-            poster?: string;
-            backdrop?: string;
-            logo?: string;
+            /** @description Poster in w400. */
+            poster?: components["schemas"]["ImageRef"];
+            /** @description Poster in w200. */
+            posterSmall?: components["schemas"]["ImageRef"];
+            /** @description Poster in w800. */
+            posterLarge?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w1280. */
+            backdrop?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w780. */
+            backdropSmall?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w1920. */
+            backdropLarge?: components["schemas"]["ImageRef"];
+            /** @description Logo in w400 (PNG or WebP with transparency). */
+            logo?: components["schemas"]["ImageRef"];
         };
         /** @description The open wish of the active profile on a title (own or joined). */
         WishMark: {
@@ -22594,7 +22612,12 @@ export interface operations {
     };
     getExternalTitleImage: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The version of the image (`ExternalTitleImages`) for cache busting; ignored by the server. */
+                v?: string;
+                /** @description The profile id, so a browser cache never serves one profile's image to another; ignored by the server. */
+                p?: number;
+            };
             header?: never;
             path: {
                 /** @description Film (`movie`) or series (`show`) of TMDB. */

@@ -14,6 +14,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/externalq"
 )
 
 // externalRow reads the stored columns of an external title the tests look at.
@@ -372,5 +373,24 @@ func TestExternalTitleRefreshJobWithoutKey(t *testing.T) {
 	mustExec(t, bad.db.Write, `INSERT INTO external_titles (media, tmdb_id, fetched_at) VALUES ('movie', 550, 0)`)
 	if err := bad.svc.handleTitlesRefresh(ctx, &jobs.Job{Type: JobTitlesRefresh}); !errors.Is(err, model.ErrTMDBKeyInvalid) {
 		t.Errorf("titles.refresh with a rejected key = %v, want ErrTMDBKeyInvalid", err)
+	}
+}
+
+// The image references of a stored title: nominal sizes of every kind until the image is scaled,
+// then only the stored sizes with their width, height and hash.
+func TestExternalTitleImageRefs(t *testing.T) {
+	refs := externalImageRefs([]string{"backdrop", "poster"}, []externalq.ListExternalTitleImageSizesRow{
+		{Kind: "poster", Size: "w200", Width: 200, Height: 296, ContentHash: "h200"},
+		{Kind: "poster", Size: "w400", Width: 342, Height: 513, ContentHash: "h342"},
+	}, 77)
+	want := []ExternalImageRef{
+		{Kind: "backdrop", Size: "w780", Width: 780, Height: 438, Version: "77"},
+		{Kind: "backdrop", Size: "w1280", Width: 1280, Height: 720, Version: "77"},
+		{Kind: "backdrop", Size: "w1920", Width: 1920, Height: 1080, Version: "77"},
+		{Kind: "poster", Size: "w200", Width: 200, Height: 296, Version: "h200"},
+		{Kind: "poster", Size: "w400", Width: 342, Height: 513, Version: "h342"},
+	}
+	if !slices.Equal(refs, want) {
+		t.Errorf("refs = %+v", refs)
 	}
 }

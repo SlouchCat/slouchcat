@@ -258,10 +258,14 @@ func requestable(a titleAccess, media string, seasons []model.ExternalSeasonStat
 
 // card is the list form of a stored title for the profile, without wish and right.
 func card(t metadata.ExternalTitle, p model.Profile) model.ExternalTitleCard {
-	return model.ExternalTitleCard{
+	c := model.ExternalTitleCard{
 		Media: t.Media, TMDBID: t.TMDBID, Title: titleName(t, p), Year: t.Year, MinAge: t.MinAge,
-		ImageKinds: slices.Clone(t.ImageKinds), HasTrailer: len(t.Trailers) > 0,
+		ImageKinds: slices.Clone(t.ImageKinds), ProfileID: p.ID, HasTrailer: len(t.Trailers) > 0,
 	}
+	for _, im := range t.Images {
+		c.Images = append(c.Images, model.ExternalImage{Kind: im.Kind, Size: im.Size, Width: im.Width, Height: im.Height, Version: im.Version})
+	}
+	return c
 }
 
 // titleText is the text in the profile's metadata language, else its interface language, else
@@ -422,7 +426,7 @@ func (s *Service) SearchExternalTitles(ctx context.Context, p model.Profile, q, 
 			continue
 		}
 		h := hits[i]
-		c := model.ExternalTitleCard{Media: h.Media, TMDBID: h.TMDBID, Title: h.Title, Year: h.Year}
+		c := model.ExternalTitleCard{Media: h.Media, TMDBID: h.TMDBID, Title: h.Title, Year: h.Year, ProfileID: p.ID}
 		if t, ok := stored[titleKey(h.Media, h.TMDBID)]; ok {
 			c = card(t, p)
 		}

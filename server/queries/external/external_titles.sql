@@ -60,6 +60,13 @@ SELECT * FROM external_title_images
 WHERE media = @media AND tmdb_id = @tmdb_id AND kind = @kind
 ORDER BY size, format;
 
+-- name: ListExternalTitleImageSizes :many
+-- The stored sizes of every kind of a title in one format per kind (the JPEG, a logo's PNG): the
+-- width, height and hash of the image references.
+SELECT kind, size, width, height, content_hash FROM external_title_images
+WHERE media = @media AND tmdb_id = @tmdb_id AND format = CASE kind WHEN 'logo' THEN 'png' ELSE 'jpeg' END
+ORDER BY kind, width;
+
 -- name: UpsertExternalTitleImage :exec
 INSERT INTO external_title_images (media, tmdb_id, kind, size, format, lang, source_url, rel_path,
     content_hash, media_type, width, height, bytes, fetched_at)
