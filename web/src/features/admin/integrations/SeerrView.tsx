@@ -9,6 +9,7 @@ import { formatDateTime } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import {
   Chip,
+  FactList,
   Notice,
   Skeleton,
   StatusDot,
@@ -36,6 +37,7 @@ import {
 import {
   confirmSeerrInstance,
   dashboardQuery,
+  syncWishesNow,
   seerrKeys,
   seerrSettingsQuery,
   testSeerrConnection,
@@ -100,6 +102,54 @@ function stateDetail(t: TFunction, status: SeerrStatus, language: string): strin
     default:
       return t(`admin.integrations.seerr.stateHint.${status.state}`);
   }
+}
+
+/**
+ * The band «Abgleich» (concept 25, M-22): the open wishes, those waiting for the transfer, when
+ * Seerr last answered, and «Jetzt abgleichen», which queues the sync at once; the job texts live
+ * on «Automatisierung».
+ */
+function SyncBand({ status }: { status: SeerrStatus }) {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const [message, say] = useStatusMessage();
+  const sync = useMutation({
+    mutationFn: syncWishesNow,
+    onMutate: () => say(null),
+    onSuccess: async () => {
+      say(t('admin.wishes.requests.syncQueued'));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: seerrKeys.all }),
+        queryClient.invalidateQueries({ queryKey: wishKeys.all }),
+      ]);
+    },
+  });
+  return (
+    <div className={styles.stack}>
+      <FactList
+        facts={[
+          [t('admin.integrations.seerr.sync.open'), String(status.counts.open)],
+          [t('admin.integrations.seerr.sync.queued'), String(status.counts.queued)],
+          [
+            t('admin.integrations.seerr.sync.last'),
+            status.lastSuccess
+              ? formatDateTime(status.lastSuccess, intlLocale(i18n.language))
+              : t('admin.integrations.seerr.sync.never'),
+          ],
+        ]}
+      />
+      <Text tone="secondary">{t('admin.integrations.seerr.sync.every')}</Text>
+      <div className={styles.footer}>
+        <AriaButton icon="refresh" isPending={sync.isPending} onPress={() => sync.mutate()}>
+          {t('admin.wishes.requests.sync')}
+        </AriaButton>
+        <TextLink href={`${paths.adminWishes}?tab=anfragen`}>
+          {t('admin.integrations.seerr.sync.requestsLink')}
+        </TextLink>
+      </div>
+      <Outcome error={sync.error} message={message} />
+    </div>
+  );
 }
 
 /**
@@ -606,6 +656,18 @@ export function SeerrView({
           )}
           <Outcome error={errors?.form ? failed : null} message={message} />
         </div>
+      </DisclosureGroup>
+      <DisclosureGroup
+        title={t('admin.integrations.seerr.sync.title')}
+        meta={
+          status.data && (
+            <span>
+              {t('admin.integrations.seerr.sync.summary', { count: status.data.counts.open })}
+            </span>
+          )
+        }
+      >
+        {status.data && <SyncBand status={status.data} />}
       </DisclosureGroup>
       <DisclosureGroup
         title={t('admin.integrations.seerr.log.title')}

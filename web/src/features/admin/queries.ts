@@ -893,6 +893,29 @@ export const seerrSettingsQuery = queryOptions({
 });
 
 /** The state of the connection, the counters and the last 20 calls. */
+export type AdminWish = components['schemas']['AdminWish'];
+export type AdminWishPage = components['schemas']['AdminWishPage'];
+/** The filter of «Anfragen» (listAdminWishes `state`). */
+export type AdminWishFilter = 'all' | 'open' | 'available' | 'closed';
+
+/**
+ * Medien › Wünsche › Anfragen (concept 25 stage 2): the wishes of the household, newest change
+ * first; one page of the contract's most (100), `counts` whatever the filter.
+ */
+export const adminWishesQuery = (state: AdminWishFilter) =>
+  queryOptions({
+    queryKey: ['admin', 'wishes', 'requests', state],
+    queryFn: ({ signal }): Promise<AdminWishPage> =>
+      request(api.GET('/admin/wishes', { params: { query: { state, limit: 100 } }, signal })),
+  });
+
+/** «Jetzt abgleichen»: queues the sync of the wishes with Seerr (syncWishesNow). */
+export const syncWishesNow = () => request(api.POST('/admin/seerr/sync'));
+
+/** «Erneut versuchen» of a failed wish (retryWish). */
+export const retryWish = (id: number) =>
+  request(api.POST('/admin/wishes/{id}/retry', { params: { path: { id } } }));
+
 export const seerrStatusQuery = queryOptions({
   queryKey: [...seerrKeys.all, 'status'],
   queryFn: ({ signal }): Promise<SeerrStatus> =>

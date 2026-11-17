@@ -28,13 +28,14 @@ import {
   wishSettingsQuery,
 } from './queries';
 import { linkCandidate, SeerrUsersTab } from './wishes/SeerrUsersTab';
+import { RequestsTab } from './wishes/RequestsTab';
 import { SettingsTab } from './wishes/SettingsTab';
 
 /**
- * The tabs (concept 25, administration 1.2); the ids are part of links and stay stable. The tab
- * «Anfragen» comes with a later build step of the same release.
+ * The tabs (concept 25, administration 1.2); the ids are part of links and stay stable.
+ * «Anfragen» is the first and the default (M-23).
  */
-const TABS = ['seerr-benutzer', 'einstellungen'] as const;
+const TABS = ['anfragen', 'seerr-benutzer', 'einstellungen'] as const;
 
 /** How long «Benutzerliste neu laden» reads the lists again, every two seconds, for the job. */
 const RELOAD_POLL_MS = 2000;
@@ -68,7 +69,7 @@ function WishesContent() {
   const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const queryClient = useQueryClient();
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'seerr-benutzer', { normalise: true });
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'anfragen', { normalise: true });
   const search: Record<string, unknown> = useSearch({ strict: false });
   const askedItem = typeof search.item === 'string' ? search.item : undefined;
   // The rows that are open live in the page, so a change of tab keeps them.
@@ -163,6 +164,11 @@ function WishesContent() {
         selectedKey={tab}
         onSelectionChange={selectTab}
         tabs={[
+          {
+            id: 'anfragen',
+            label: t('admin.wishes.tabs.requests'),
+            content: <RequestsTab />,
+          },
           {
             id: 'seerr-benutzer',
             label: t('admin.wishes.tabs.users'),

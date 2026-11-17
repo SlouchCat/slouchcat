@@ -242,7 +242,8 @@
       "quota_exceeded": "The limit does not allow this.",
       "already_available": "The title is already in the library.",
       "wish_not_withdrawable": "The wish is already approved and can no longer be withdrawn.",
-      "seerr_unreachable": "Seerr cannot be reached right now."
+      "seerr_unreachable": "Seerr cannot be reached right now.",
+      "wish_not_retryable": "This wish cannot be retried."
     },
     "field": {
       "required": "Required.",
@@ -3745,7 +3746,12 @@
         "toLimit": "View the limit",
         "gone_one": "{{count}} account: user deleted in Seerr",
         "gone_other": "{{count}} accounts: user deleted in Seerr",
-        "goneBody": "Choose another user for these accounts or unlink them."
+        "goneBody": "Choose another user for these accounts or unlink them.",
+        "open_one": "{{count}} open wish",
+        "open_other": "{{count}} open wishes",
+        "openQueued_one": "{{count}} of them is waiting to be sent to Seerr.",
+        "openQueued_other": "{{count}} of them are waiting to be sent to Seerr.",
+        "toRequests": "To the requests"
       }
     },
     "integrations": {
@@ -4138,7 +4144,18 @@
           "ms": "{{ms}} ms",
           "note": "Never with headers or key. At most 20 entries."
         },
-        "usersLink": "Seerr users of the accounts"
+        "usersLink": "Seerr users of the accounts",
+        "sync": {
+          "title": "Sync",
+          "summary_one": "{{count}} open wish",
+          "summary_other": "{{count}} open wishes",
+          "open": "Open wishes",
+          "queued": "Waiting to be sent",
+          "last": "Seerr last reached",
+          "never": "Never",
+          "every": "Slouchcat syncs the wishes with Seerr every 5 minutes.",
+          "requestsLink": "To the requests"
+        }
       }
     },
     "accounts": {
@@ -5484,7 +5501,8 @@
       "tabs": {
         "label": "Parts of the wishes",
         "users": "Seerr users",
-        "settings": "Settings"
+        "settings": "Settings",
+        "requests": "Requests"
       },
       "strip": {
         "label": "Summary",
@@ -5758,6 +5776,57 @@
           "custom": "Numbers of its own for this account.",
           "unlimited": "No limit for films and seasons."
         }
+      },
+      "requests": {
+        "caption": "Every wish of the household",
+        "columns": {
+          "title": "Title",
+          "requesters": "Wished by",
+          "state": "State",
+          "seasons": "Seasons",
+          "seerr": "In Seerr",
+          "attempts": "Attempts"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (joined)",
+        "requesterClosed": "{{line}} (withdrawn)",
+        "noRequester": "Nobody in Slouchcat",
+        "noRequest": "Not yet",
+        "requestId": "Request {{id}}",
+        "filter": {
+          "label": "Filter wishes by state",
+          "all": "All",
+          "open": "Open",
+          "available": "Available",
+          "closed": "Closed",
+          "count_one": "{{count}} wish",
+          "count_other": "{{count}} wishes"
+        },
+        "sync": "Sync now",
+        "syncQueued": "The sync with Seerr is running.",
+        "queued_one": "{{count}} wish is waiting to be sent to Seerr.",
+        "queued_other": "{{count}} wishes are waiting to be sent to Seerr.",
+        "empty": "No wishes yet.",
+        "emptyFilter": "No wishes in this state.",
+        "facts": {
+          "label": "About the wish",
+          "created": "Requested",
+          "origin": "Origin",
+          "seerrUser": "Seerr user",
+          "failReason": "Reason",
+          "library": "Library"
+        },
+        "origin": {
+          "slouchcat": "Requested in Slouchcat",
+          "jellyseerr": "Made in Seerr"
+        },
+        "toItem": "To the title in the administration",
+        "history": "History",
+        "noHistory": "Nothing happened yet.",
+        "retry": "Retry",
+        "retryLabel": "Retry {{title}}",
+        "retried": "{{title}} is retried."
       }
     }
   },

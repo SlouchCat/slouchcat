@@ -242,7 +242,8 @@
       "quota_exceeded": "Das Limit reicht dafür nicht.",
       "already_available": "Der Titel ist schon in der Bibliothek.",
       "wish_not_withdrawable": "Der Wunsch ist schon freigegeben und lässt sich nicht mehr zurückziehen.",
-      "seerr_unreachable": "Seerr ist gerade nicht erreichbar."
+      "seerr_unreachable": "Seerr ist gerade nicht erreichbar.",
+      "wish_not_retryable": "Dieser Wunsch lässt sich nicht erneut versuchen."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -3745,7 +3746,12 @@
         "toLimit": "Limit ansehen",
         "gone_one": "{{count}} Konto: Benutzer in Seerr gelöscht",
         "gone_other": "{{count}} Konten: Benutzer in Seerr gelöscht",
-        "goneBody": "Wähle für diese Konten einen anderen Benutzer oder löse die Verknüpfung."
+        "goneBody": "Wähle für diese Konten einen anderen Benutzer oder löse die Verknüpfung.",
+        "open_one": "{{count}} offener Wunsch",
+        "open_other": "{{count}} offene Wünsche",
+        "openQueued_one": "Davon wartet {{count}} auf die Übermittlung an Seerr.",
+        "openQueued_other": "Davon warten {{count}} auf die Übermittlung an Seerr.",
+        "toRequests": "Zu den Anfragen"
       }
     },
     "integrations": {
@@ -4138,7 +4144,18 @@
           "ms": "{{ms}} ms",
           "note": "Nie mit Kopfzeilen oder Schlüssel. Höchstens 20 Einträge."
         },
-        "usersLink": "Seerr-Benutzer der Konten"
+        "usersLink": "Seerr-Benutzer der Konten",
+        "sync": {
+          "title": "Abgleich",
+          "summary_one": "{{count}} offener Wunsch",
+          "summary_other": "{{count}} offene Wünsche",
+          "open": "Offene Wünsche",
+          "queued": "Warten auf Übermittlung",
+          "last": "Seerr zuletzt erreicht",
+          "never": "Noch nie",
+          "every": "Slouchcat gleicht die Wünsche alle 5 Minuten mit Seerr ab.",
+          "requestsLink": "Zu den Anfragen"
+        }
       }
     },
     "accounts": {
@@ -5484,7 +5501,8 @@
       "tabs": {
         "label": "Bereiche der Wünsche",
         "users": "Seerr-Benutzer",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "requests": "Anfragen"
       },
       "strip": {
         "label": "Zusammenfassung",
@@ -5758,6 +5776,57 @@
           "custom": "Eigene Zahlen für dieses Konto.",
           "unlimited": "Ohne Limit für Filme und Staffeln."
         }
+      },
+      "requests": {
+        "caption": "Alle Wünsche des Haushalts",
+        "columns": {
+          "title": "Titel",
+          "requesters": "Gewünscht von",
+          "state": "Zustand",
+          "seasons": "Staffeln",
+          "seerr": "In Seerr",
+          "attempts": "Versuche"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (wünscht mit)",
+        "requesterClosed": "{{line}} (zurückgezogen)",
+        "noRequester": "Niemand in Slouchcat",
+        "noRequest": "Noch nicht",
+        "requestId": "Anfrage {{id}}",
+        "filter": {
+          "label": "Wünsche nach Zustand filtern",
+          "all": "Alle",
+          "open": "Offen",
+          "available": "Verfügbar",
+          "closed": "Abgeschlossen",
+          "count_one": "{{count}} Wunsch",
+          "count_other": "{{count}} Wünsche"
+        },
+        "sync": "Jetzt abgleichen",
+        "syncQueued": "Der Abgleich mit Seerr läuft.",
+        "queued_one": "{{count}} Wunsch wartet auf die Übermittlung an Seerr.",
+        "queued_other": "{{count}} Wünsche warten auf die Übermittlung an Seerr.",
+        "empty": "Noch keine Wünsche.",
+        "emptyFilter": "Keine Wünsche in diesem Zustand.",
+        "facts": {
+          "label": "Angaben zum Wunsch",
+          "created": "Angefordert",
+          "origin": "Herkunft",
+          "seerrUser": "Seerr-Benutzer",
+          "failReason": "Grund",
+          "library": "Bibliothek"
+        },
+        "origin": {
+          "slouchcat": "In Slouchcat angefordert",
+          "jellyseerr": "In Seerr angelegt"
+        },
+        "toItem": "Zum Titel in der Verwaltung",
+        "history": "Verlauf",
+        "noHistory": "Noch nichts geschehen.",
+        "retry": "Erneut versuchen",
+        "retryLabel": "{{title}}: erneut versuchen",
+        "retried": "{{title}} wird erneut versucht."
       }
     }
   },

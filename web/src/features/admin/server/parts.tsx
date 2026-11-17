@@ -347,6 +347,23 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
   if (wishes) {
     const users = `${paths.adminWishes}?tab=seerr-benutzer`;
     const usersAt = (accountId: number) => `${users}&item=${accountId}`;
+    // Open wishes of the household, those waiting for the transfer named (stage 2, M-20).
+    if (wishes.open > 0) {
+      hints.push({
+        key: 'wishes-open',
+        place: 'overview',
+        tone: 'active',
+        title: t('admin.home.wishes.open', { count: wishes.open }),
+        ...(wishes.queued > 0
+          ? { body: t('admin.home.wishes.openQueued', { count: wishes.queued }) }
+          : {}),
+        action: (
+          <TextLink href={`${paths.adminWishes}?tab=anfragen`}>
+            {t('admin.home.wishes.toRequests')}
+          </TextLink>
+        ),
+      });
+    }
     if (wishes.seerrState) {
       hints.push({
         key: 'wishes-seerr',

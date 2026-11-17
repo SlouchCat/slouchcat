@@ -124,6 +124,7 @@ const problemKeys = {
   already_available: 'errors.code.already_available',
   wish_not_withdrawable: 'errors.code.wish_not_withdrawable',
   seerr_unreachable: 'errors.code.seerr_unreachable',
+  wish_not_retryable: 'errors.code.wish_not_retryable',
 } as const;
 
 /** The reasons of `wish_not_allowed` (createWish, withdrawWish), each with its own sentence. */

@@ -7,7 +7,7 @@ import {
 } from './accounts';
 import { areaTab } from './admin';
 import { CSRF } from './catalog';
-import { GUEST_PASSWORD, OWNER, SEERR_BASE } from './env';
+import { GUEST_PASSWORD, OWNER, OWNER_PROFILE, SEERR_BASE } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -17,9 +17,10 @@ import {
   tabTo,
 } from './keyboard';
 import { SEERR_API_KEY, USERS } from './seerr-server.mjs';
+import { closeWishes, openWishes, type WishesSetup } from './wishes';
 
-// Medien › Wünsche (concept 25, M-24 and M-25) against the real server and the Seerr mock
-// (seerr-server.mjs): the tabs «Seerr-Benutzer» and «Einstellungen» (`?tab=`), the table of the
+// Medien › Wünsche (concept 25, M-23, M-24 and M-25) against the real server and the Seerr mock
+// (seerr-server.mjs): the tabs «Anfragen» (the default), «Seerr-Benutzer» and «Einstellungen» (`?tab=`), the table of the
 // accounts whose rows fold out, the Seerr user chosen and unlinked by hand at once, a user taken
 // meanwhile (409 at the row), and the settings that take effect at once, with the rollback of a
 // refused change and «Wünsche aktiv» locked before a passed test. All by keyboard, with a visible
@@ -137,7 +138,7 @@ test('tabs, a row that folds out and a Seerr user chosen and unlinked by keyboar
   owner,
 }) => {
   await connect(owner);
-  await page.goto('/admin/wishes');
+  await page.goto('/admin/wishes?tab=seerr-benutzer');
   await expect(page.getByRole('heading', { level: 1, name: 'Wünsche' })).toBeVisible();
   await expect(areaTab(page, 'Wünsche')).toHaveAttribute('aria-current', 'page');
   const users = tabs(page).getByRole('tab', { name: 'Seerr-Benutzer' });
@@ -155,7 +156,7 @@ test('tabs, a row that folds out and a Seerr user chosen and unlinked by keyboar
   await expect(page.getByText('Jede Änderung gilt sofort.')).toBeVisible();
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, users);
-  await expect(page).toHaveURL(/\/admin\/wishes(\?tab=seerr-benutzer)?$/);
+  await expect(page).toHaveURL(/\/admin\/wishes\?tab=seerr-benutzer$/);
 
   // The owner's row folds out with Enter; the focus stays on its toggle.
   const toggle = rowToggle(page, OWNER.email);
@@ -447,5 +448,59 @@ test('an account opened in Seerr, a waiting one tried again, the password mode a
       }
     }
     await removeInvitedAccounts(owner);
+  }
+});
+
+// M-23: «Anfragen», the first tab, with a wish made against the TMDB and Seerr mocks
+// (e2e/wishes.ts stores the TMDB key for this test only).
+test('«Anfragen»: the default tab, a wish row folds out with its history, «Jetzt abgleichen» by keyboard @keyboard', async ({
+  page,
+  owner,
+}) => {
+  let setup: WishesSetup | undefined;
+  try {
+    setup = await openWishes(owner);
+    const made = await owner.post('/api/v1/wishes', {
+      headers: CSRF,
+      data: { media: 'movie', tmdbId: 9003, source: 'detail' },
+    });
+    expect(made.status(), await made.text()).toBe(201);
+    await page.goto('/admin/wishes');
+    const requests = tabs(page).getByRole('tab', { name: 'Anfragen' });
+    await expect(requests).toHaveAttribute('aria-selected', 'true');
+    const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    const row = table.getByRole('row').filter({ hasText: 'Glasfabrik (2024)' });
+    await expect(row.getByText(`${OWNER.email} · ${OWNER_PROFILE}`)).toBeVisible();
+    // The table fits beside the sidebar at 1280 px: no sideways scroll in its frame.
+    expect(
+      await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // The filter's toolbar, then the row's toggle; Enter folds it out, the focus stays.
+    await resetFocus(page);
+    const all = page.getByRole('toolbar', { name: 'Wünsche nach Zustand filtern' });
+    await tabTo(page, all.getByRole('button', { name: /^Alle/ }), 60);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, all.getByRole('button', { name: /^Offen/ }));
+    await page.keyboard.press('Enter');
+    await expect(row).toBeVisible();
+    const toggle = row.getByRole('button', { name: /Glasfabrik/ });
+    await tabTo(page, toggle, 10);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, toggle);
+    await expect(page.getByRole('heading', { name: 'Verlauf' })).toBeVisible();
+
+    // «Jetzt abgleichen» queues the sync and says so.
+    const sync = page.getByRole('button', { name: 'Jetzt abgleichen' });
+    await resetFocus(page);
+    await tabTo(page, sync, 60);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Der Abgleich mit Seerr läuft.')).toBeVisible();
+    await expectVisibleFocus(page);
+    await expectNoFocusTrap(page, 120);
+  } finally {
+    await closeWishes(owner, setup);
   }
 });

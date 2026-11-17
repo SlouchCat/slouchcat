@@ -129,3 +129,19 @@
   gap: var(--sc-space-3);
   min-width: 0;
 }
+
+/* «Anfragen»: the history of a wish in its fold-out, time and step side by side. */
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+}

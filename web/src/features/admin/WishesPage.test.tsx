@@ -2,7 +2,13 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test/api';
-import type { SeerrStatus, SeerrUser, WishAccountMapping, WishSettings } from './queries';
+import type {
+  AdminWish,
+  SeerrStatus,
+  SeerrUser,
+  WishAccountMapping,
+  WishSettings,
+} from './queries';
 
 // Medien › Wünsche (concept 25, M-24 and M-25): the tabs «Seerr-Benutzer» and «Einstellungen»;
 // the Seerr user of an account chosen by hand at once (409 at the row), the settings that take
@@ -94,7 +100,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
         },
       }),
     );
-    renderApp('/admin/wishes');
+    renderApp('/admin/wishes?tab=seerr-benutzer');
     const user = userEvent.setup();
     expect(await screen.findByRole('heading', { level: 1, name: 'Wünsche' })).toBeVisible();
     const toggle = await screen.findByRole('button', { name: 'besitzer@example.org' });
@@ -133,7 +139,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
           json(mapping({ state: 'waiting', provisionError: 'unreachable' }), 202),
       }),
     );
-    renderApp('/admin/wishes?item=1');
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
     const user$ = userEvent.setup();
     expect(await screen.findByText('In Seerr gibt es schon «besitzer»')).toBeVisible();
     await user$.click(screen.getByRole('button', { name: 'In Seerr eröffnen' }));
@@ -157,7 +163,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
           }),
       }),
     );
-    renderApp('/admin/wishes?item=1');
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
     expect(await screen.findByText('Wartet auf Seerr')).toBeVisible();
     expect(screen.getByText(/nicht rechtzeitig geantwortet/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeEnabled();
@@ -167,7 +173,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
     mockApi(
       routes({ 'GET /admin/wishes/settings': () => json(settings({ provisionAccounts: false })) }),
     );
-    renderApp('/admin/wishes?item=1');
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
     expect(await screen.findByRole('button', { name: 'In Seerr eröffnen' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Alle eröffnen' })).toBeDisabled();
     expect(
@@ -198,7 +204,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
         'PUT /admin/wishes/accounts/1/password': () => answer(),
       }),
     );
-    renderApp('/admin/wishes?item=1');
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
     const user$ = userEvent.setup();
     const next = await screen.findByRole('button', {
       name: 'Passwort bei der nächsten Anmeldung neu übernehmen',
@@ -265,7 +271,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
           json([user(2, 'wohnzimmer', { userType: 2 }), user(3, 'chef', { isAdmin: true })]),
       }),
     );
-    renderApp('/admin/wishes?item=1');
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
     expect(await screen.findByText('Filme 9/10')).toBeVisible();
     expect(screen.getByText('Staffeln 2/5')).toBeVisible();
     expect(
@@ -292,7 +298,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
         'POST /admin/wishes/accounts/provision': () => json({ link: 1, create: 1 }, 202),
       }),
     );
-    renderApp('/admin/wishes');
+    renderApp('/admin/wishes?tab=seerr-benutzer');
     const user$ = userEvent.setup();
     await user$.click(await screen.findByRole('button', { name: 'Alle eröffnen' }));
     const dialog = await screen.findByRole('alertdialog', {
@@ -325,7 +331,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
 
   it('names the accounts without a Seerr user and the rule that applies to them', async () => {
     mockApi(routes({ 'GET /admin/wishes/settings': () => json(settings({ unmapped: 'deny' })) }));
-    renderApp('/admin/wishes');
+    renderApp('/admin/wishes?tab=seerr-benutzer');
     expect(await screen.findByText('1 Konto ohne Seerr-Benutzer')).toBeVisible();
     expect(screen.getByText(/auf «Nicht erlauben» steht/)).toBeVisible();
   });
@@ -406,5 +412,115 @@ describe('Wünsche › Einstellungen', () => {
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
       defaultLimit: { movie: { limit: 12, days: 7 }, tv: { limit: 5, days: 7 } },
     });
+  });
+});
+
+const adminWish = (overrides: Partial<AdminWish> = {}): AdminWish => ({
+  id: 11,
+  title: {
+    media: 'movie',
+    tmdbId: 9002,
+    title: 'Kupfermond',
+    year: 2025,
+    posterUrl: '/api/v1/admin/titles/movie/9002/images/poster/w200',
+  },
+  state: 'failed',
+  failReason: 'unreachable_24h',
+  origin: 'slouchcat',
+  seasons: [],
+  requesters: [
+    {
+      accountId: 1,
+      accountEmail: 'marco@example.org',
+      profileId: 1,
+      profileName: 'Marco',
+      role: 'owner',
+      closed: false,
+    },
+    {
+      accountId: 2,
+      accountEmail: 'lena@example.org',
+      profileId: 4,
+      profileName: 'Lena',
+      role: 'joined',
+      closed: false,
+    },
+  ],
+  seerrUserId: 3,
+  attempts: 9,
+  events: [
+    {
+      at: '2026-11-16T10:00:00Z',
+      kind: 'state_changed',
+      detail: '{"from":"queued","to":"failed"}',
+    },
+    { at: '2026-11-15T10:00:00Z', kind: 'created' },
+  ],
+  createdAt: '2026-11-15T10:00:00Z',
+  updatedAt: '2026-11-16T10:00:00Z',
+  ...overrides,
+});
+
+describe('Wünsche › Anfragen (M-23)', () => {
+  it('is the first tab and the default: the wishes with requesters, state and attempts; a row folds out', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/seerr/status': () =>
+          json(status({ counts: { open: 1, queued: 1, unmapped: 0 } })),
+        'GET /admin/wishes': () =>
+          json({
+            items: [
+              adminWish(),
+              adminWish({
+                id: 12,
+                title: { media: 'show', tmdbId: 9100, title: 'Nebelhafen', posterUrl: '' },
+                state: 'pending',
+                failReason: undefined,
+                seerrRequestId: 104,
+                attempts: 1,
+                seasons: [
+                  { number: 1, state: 'pending' },
+                  { number: 2, state: 'pending' },
+                ],
+              }),
+            ],
+            total: 2,
+            counts: { open: 1, pending: 1, processing: 0, partial: 0, available: 0, closed: 1 },
+          }),
+        'POST /admin/wishes/11/retry': () => new Response(null, { status: 202 }),
+        'POST /admin/seerr/sync': () => new Response(null, { status: 202 }),
+      }),
+    );
+    renderApp('/admin/wishes');
+    const tabs = await screen.findByRole('tablist');
+    expect(
+      within(tabs)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Anfragen', 'Seerr-Benutzer', 'Einstellungen']);
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    const copper = within(table).getByRole('row', { name: /Kupfermond \(2025\)/ });
+    expect(within(copper).getByText('marco@example.org · Marco')).toBeVisible();
+    expect(within(copper).getByText('lena@example.org · Lena (wünscht mit)')).toBeVisible();
+    expect(within(copper).getByText('Fehlgeschlagen')).toBeVisible();
+    expect(within(copper).getByText('9')).toBeVisible();
+    const fog = within(table).getByRole('row', { name: /Nebelhafen/ });
+    expect(within(fog).getByText('Staffeln 1, 2')).toBeVisible();
+    expect(within(fog).getByText('Anfrage 104')).toBeVisible();
+    expect(screen.getByText('1 Wunsch wartet auf die Übermittlung an Seerr.')).toBeVisible();
+
+    const user$ = userEvent.setup();
+    await user$.click(within(copper).getByRole('button', { name: /Kupfermond/ }));
+    expect(await screen.findByText('Seerr war 24 Stunden lang nicht erreichbar.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Verlauf' })).toBeVisible();
+    await user$.click(screen.getByRole('button', { name: 'Kupfermond: erneut versuchen' }));
+    expect(await screen.findByText('Kupfermond wird erneut versucht.')).toBeVisible();
+    await user$.click(screen.getByRole('button', { name: 'Jetzt abgleichen' }));
+    await waitFor(() =>
+      expect(
+        calls.some((call) => call.method === 'POST' && call.path === '/admin/seerr/sync'),
+      ).toBe(true),
+    );
+    expect(document.body.textContent).not.toContain('{{');
   });
 });
