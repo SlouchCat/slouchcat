@@ -413,10 +413,14 @@ func TestRegisterTypesSchedules(t *testing.T) {
 		titles.Priority != 7 || titles.Every != 24*time.Hour || titles.StartDelay != nil || titles.Seed != nil {
 		t.Errorf("titles.refresh = %+v, want a daily schedule type at priority 7 with Run and handler (concept 25)", titles)
 	}
+	if catalog, ok := r.Lookup(JobSeriesCatalog); !ok || !catalog.Scheduled() || catalog.Run == nil || catalog.Handler == nil ||
+		catalog.Priority != 7 || catalog.Every != 24*time.Hour || catalog.StartDelay != nil || catalog.Seed != nil {
+		t.Errorf("series.catalog = %+v, want a daily schedule type at priority 7 with Run and handler (concept 25 step 4.1)", catalog)
+	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 14 {
-		t.Errorf("handlers attached = %v, want the thirteen metadata types (metadata.ratings_reread since concept 22, titles.refresh since concept 25) with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 15 {
+		t.Errorf("handlers attached = %v, want the fourteen metadata types (metadata.ratings_reread since concept 22, titles.refresh and series.catalog since concept 25) with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

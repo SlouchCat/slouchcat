@@ -1014,6 +1014,17 @@ type SeerrUser struct {
 	GoneAt          sql.NullInt64
 }
 
+type SeriesCatalog struct {
+	ItemID       string
+	TmdbID       int64
+	Status       sql.NullString
+	InProduction int64
+	Seasons      string
+	NextEpisode  sql.NullString
+	LastEpisode  sql.NullString
+	FetchedAt    int64
+}
+
 type Session struct {
 	ID         int64
 	TokenHash  string

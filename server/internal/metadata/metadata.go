@@ -503,7 +503,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // ratings_reread.go, concept 22 section 4.11) reads the ratings anew once after the update and
 // after every change of the rating country. titles.refresh (a schedule type, daily, priority 7)
 // fetches the titles outside the library again that are older than ExternalTitleMaxAge
-// (external_titles.go, concept 25).
+// (external_titles.go, concept 25). series.catalog (a schedule type, daily, priority 7; the run of
+// one series is queued at priority 4 by QueueSeriesCatalog) stores the seasons of the series of the
+// library at TMDB (series_catalog.go, concept 25 step 4.1).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -544,6 +546,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobTitlesRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: titlesRefreshPriority, Handler: s.handleTitlesRefresh, Run: s.runTitlesRefresh, Every: titlesRefreshEvery,
+	})
+	r.Register(jobs.Type{
+		Name: JobSeriesCatalog, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: seriesCatalogPriority, Handler: s.handleSeriesCatalog, Run: s.runSeriesCatalog, Every: seriesCatalogEvery,
 	})
 }
 

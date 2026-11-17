@@ -248,6 +248,7 @@ type TV struct {
 	// Status is TMDB's state of the series (Returning Series, Ended, …); the last aired and the
 	// next episode are nil when TMDB names none (titles outside the library, concept 25).
 	Status           string     `json:"status"`
+	InProduction     bool       `json:"in_production"` // the series catalog (series_catalog.go)
 	LastEpisodeToAir *TVEpisode `json:"last_episode_to_air"`
 	NextEpisodeToAir *TVEpisode `json:"next_episode_to_air"`
 	CreatedBy        []struct {

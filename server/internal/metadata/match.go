@@ -306,6 +306,9 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item, relink boo
 	if err := s.enqueueFill(ctx, item.ID); err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
+	if err := s.QueueSeriesCatalog(ctx, item.ID); err != nil { // the seasons at TMDB (series_catalog.go)
+		return fmt.Errorf("metadata.match: %w", err)
+	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
 }
 

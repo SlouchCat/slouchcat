@@ -4777,6 +4777,11 @@
           "trigger": "vom Planer bei «Speichern», «Fehlende nachladen» und «Laden» je Folge; je Anbieter eine zur Zeit",
           "progress": "Bytes: {{done}} von {{total}}"
         },
+        "series_catalog": {
+          "name": "Staffellisten der Serien abrufen",
+          "description": "Liest für jede Serie der Bibliothek die Staffeln mit Folgenzahl, den Stand und die nächste Folge von TMDB, nach 7 Tagen neu.",
+          "trigger": "Zeitplan täglich, nach dem Zuordnen einer Serie"
+        },
         "titles_refresh": {
           "name": "Fehlende Titel auffrischen",
           "description": "Liest Angaben, Freigaben und Trailer der Titel, die nicht in der Bibliothek stehen, nach 7 Tagen neu von TMDB.",

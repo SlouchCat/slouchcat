@@ -4777,6 +4777,11 @@
           "trigger": "From the planner with “Store”, “Load missing” and “Load” per episode; one per host at a time",
           "progress": "Bytes: {{done}} of {{total}}"
         },
+        "series_catalog": {
+          "name": "Fetch the season lists of series",
+          "description": "Reads the seasons with their episode counts, the status and the next episode of every series in the library from TMDB, again after 7 days.",
+          "trigger": "Schedule daily, after a series is matched"
+        },
         "titles_refresh": {
           "name": "Refresh missing titles",
           "description": "Reads details, ratings and trailers of the titles that are not in the library again from TMDB after 7 days.",
