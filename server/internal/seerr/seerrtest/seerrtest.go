@@ -1592,11 +1592,16 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, titles []*Title, l
 	case "vote_average.desc":
 		less = func(a, b *Title) bool { return a.VoteAverage > b.VoteAverage }
 	}
+	// titles come from a map: a film and a series share a TMDB id (603), so the media type is the
+	// last tie-break, or the order changes from run to run.
 	sort.SliceStable(titles, func(i, j int) bool {
 		if less(titles[i], titles[j]) != less(titles[j], titles[i]) {
 			return less(titles[i], titles[j])
 		}
-		return titles[i].TMDBID < titles[j].TMDBID
+		if titles[i].TMDBID != titles[j].TMDBID {
+			return titles[i].TMDBID < titles[j].TMDBID
+		}
+		return titles[i].MediaType < titles[j].MediaType
 	})
 	page := max(queryInt(r, "page", 1), 1)
 	if page > 500 {
