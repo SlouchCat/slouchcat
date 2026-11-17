@@ -31,5 +31,10 @@
   "update_code": "Grund: {{code}}",
   "update_migrated": "Die Datenbank wurde bereits migriert; der Updater hat darum nichts zurückgenommen.",
   "update_migrated_backup": "Die Datenbank wurde bereits migriert; der Updater hat darum nichts zurückgenommen. Zurück geht es nur mit der Sicherung {{backup}}.",
-  "update_version_unknown": "(unbekannt)"
+  "update_version_unknown": "(unbekannt)",
+  "wish_available_subject": "Verfügbar: {{title}}",
+  "wish_available_movie_body": "Dein Wunsch ist da und kann jetzt geschaut werden.",
+  "wish_available_show_body": "Alle gewünschten Staffeln sind da.",
+  "wish_hidden_subject": "Ein Wunsch ist jetzt verfügbar.",
+  "wish_hidden_body": "Öffne Slouchcat, um ihn zu sehen."
 }

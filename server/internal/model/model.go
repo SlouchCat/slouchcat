@@ -1177,11 +1177,21 @@ type Collection struct {
 type Notification struct {
 	ID        int64
 	ProfileID int64
-	Kind      string // new_episode
+	Kind      string // new_episode, wish_available (concept 25)
 	CreatedAt time.Time
 	ReadAt    *time.Time
-	Item      ItemSummary  // the new episode
+	Item      ItemSummary  // the new episode, the title of a wish; zero for a wish entry without a title
 	Parent    *ItemSummary // the followed series or podcast, nil when not visible
+	Wish      *NotificationWish
+}
+
+// NotificationWish is the wish of an inbox entry about a wish (concept 25, 06-benachrichtigungen.md
+// section 8): nil for a new episode.
+type NotificationWish struct {
+	ID    int64
+	Media string // movie, show
+	Title string // the title at the time of the wish
+	State string // wishes.state
 }
 
 // AdminUserPick is a title of the user picks in the administration (concept 18 part B, 14.7, ADR

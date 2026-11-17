@@ -53,6 +53,7 @@ type Dispatcher interface {
 // packages library and metadata, the event hooks of auth, jobs and library and the announcements of
 // the administration.
 type Service struct {
+	db       *sql.DB // the write pool, for the transactions of the wish entries
 	write    *systemq.Queries
 	read     *systemq.Queries
 	vis      *visibility.Reader
@@ -103,7 +104,7 @@ func WithClock(now func() time.Time) Option {
 
 // New returns the service. Without WithQueue and SetConfig it keeps the inbox only.
 func New(db *store.DB, vis *visibility.Reader, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{write: systemq.New(db.Write), read: systemq.New(db.Read), vis: vis, log: log, now: time.Now,
+	s := &Service{db: db.Write, write: systemq.New(db.Write), read: systemq.New(db.Read), vis: vis, log: log, now: time.Now,
 		linkPoll: linkPollInterval}
 	s.dispatch = s
 	for _, o := range opts {
@@ -207,7 +208,7 @@ func (s *Service) notifyProfile(ctx context.Context, p model.Profile, episodeID,
 	if err != nil {
 		return fmt.Errorf("notification id: %w", err)
 	}
-	n, err := s.entry(ctx, scope, systemq.NotifyListRow{ID: id, Kind: KindNewEpisode, ItemID: episodeID,
+	n, err := s.entry(ctx, scope, systemq.NotifyListRow{ID: id, Kind: KindNewEpisode, ItemID: sql.NullString{String: episodeID, Valid: true},
 		ParentID: sql.NullString{String: parentID, Valid: true}, CreatedAt: now.UnixMilli()})
 	if err != nil {
 		return err
@@ -220,7 +221,8 @@ func (s *Service) notifyProfile(ctx context.Context, p model.Profile, episodeID,
 }
 
 // Notifications returns one page of the profile's inbox, newest first, with the total and the
-// unread count; entries whose episode the profile may no longer see are left out.
+// unread count; entries whose title the profile may no longer see are left out, entries of a wish
+// without a title are there for the wish's requesters (concept 25).
 func (s *Service) Notifications(ctx context.Context, profile model.Profile, offset, limit int) ([]model.Notification, int, int, error) {
 	limit = max(1, min(limit, MaxPage))
 	offset = max(0, offset)
@@ -248,13 +250,27 @@ func (s *Service) Notifications(ctx context.Context, profile model.Profile, offs
 	return out, int(count.Total), int(count.Unread), nil
 }
 
-// entry builds an inbox entry with the summaries of the episode and, when visible, its parent.
+// entry builds an inbox entry with the summaries of its title and, when visible, its parent, and
+// the wish of a wish entry.
 func (s *Service) entry(ctx context.Context, scope visibility.Scope, r systemq.NotifyListRow) (model.Notification, error) {
-	item, err := s.vis.Summary(ctx, scope, r.ItemID)
-	if err != nil {
-		return model.Notification{}, err
+	n := model.Notification{ID: r.ID, Kind: r.Kind, CreatedAt: time.UnixMilli(r.CreatedAt).UTC()}
+	if r.ItemID.Valid {
+		item, err := s.vis.Summary(ctx, scope, r.ItemID.String)
+		if err != nil {
+			return model.Notification{}, err
+		}
+		n.Item = item
 	}
-	n := model.Notification{ID: r.ID, Kind: r.Kind, CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), Item: item}
+	if r.WishID.Valid {
+		w, err := s.read.NotifyWish(ctx, r.WishID.Int64)
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.Notification{}, model.ErrNotFound // the wish went between the two reads
+		}
+		if err != nil {
+			return model.Notification{}, fmt.Errorf("wish of notification %d: %w", r.ID, err)
+		}
+		n.Wish = &model.NotificationWish{ID: w.ID, Media: w.Media, Title: w.Title, State: w.State}
+	}
 	if r.ReadAt.Valid {
 		t := time.UnixMilli(r.ReadAt.Int64).UTC()
 		n.ReadAt = &t
@@ -272,7 +288,7 @@ func (s *Service) entry(ctx context.Context, scope visibility.Scope, r systemq.N
 }
 
 // MarkRead marks one entry of the profile read; model.ErrNotFound for an unknown entry, another
-// profile's entry or one whose episode the profile may no longer see.
+// profile's entry or one the profile may no longer see (Notifications).
 func (s *Service) MarkRead(ctx context.Context, profile model.Profile, id int64) error {
 	n, err := s.write.NotifyMarkRead(ctx, systemq.NotifyMarkReadParams{
 		Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: id, ProfileID: profile.ID,

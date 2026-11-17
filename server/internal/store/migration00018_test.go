@@ -45,7 +45,8 @@ FROM accounts LIMIT 1;
 	}
 	defer db.Close()
 
-	// No channel chooses it any more, and the other four survive in their order.
+	// No channel chooses it any more, and the other four survive in their order, followed by
+	// wish_available, which migration 00072 appends to every list (concept 25 F-14).
 	rows, err := db.Read.Query(`SELECT channel, events FROM account_channels ORDER BY account_id, channel`)
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +62,7 @@ FROM accounts LIMIT 1;
 		if strings.Contains(events, "acquisition") {
 			t.Errorf("channel %s still chooses the event: %s", channel, events)
 		}
-		if channel == "email" && events != `["new_content","errors","invitations","announcements"]` {
+		if channel == "email" && events != `["new_content","errors","invitations","announcements","wish_available"]` {
 			t.Errorf("channel email keeps %s", events)
 		}
 	}

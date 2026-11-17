@@ -15,10 +15,12 @@ import (
 // defaults of plan 5.2: e-mail on for guests with the event announcements, the main account's e-mail
 // off with new content, errors, invitations and announcements chosen; push and Telegram off with the
 // same event lists. The frozen states M2 to M7 must come out that way (M2 carries a guest account).
+// The states run through every later migration, so the lists end with what those append:
+// wish_available for every account (00072, concept 25 F-14).
 func TestMigration00016DefaultChannels(t *testing.T) {
 	t.Parallel()
-	const ownerEvents = `["new_content","errors","invitations","announcements"]`
-	const guestEvents = `["announcements"]`
+	const ownerEvents = `["new_content","errors","invitations","announcements","wish_available"]`
+	const guestEvents = `["announcements","wish_available"]`
 	// The subtests run in parallel; the parent's cleanup runs once all of them are done.
 	var guests atomic.Int64
 	t.Cleanup(func() {

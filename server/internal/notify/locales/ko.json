@@ -31,5 +31,10 @@
   "update_code": "이유: {{code}}",
   "update_migrated": "데이터베이스가 이미 마이그레이션되어 업데이터가 아무것도 롤백하지 않았어요.",
   "update_migrated_backup": "데이터베이스가 이미 마이그레이션되어 업데이터가 아무것도 롤백하지 않았어요. 되돌리려면 {{backup}} 백업을 사용하는 수밖에 없어요.",
-  "update_version_unknown": "(알 수 없음)"
+  "update_version_unknown": "(알 수 없음)",
+  "wish_available_subject": "Available: {{title}}",
+  "wish_available_movie_body": "Your wish is here and ready to watch.",
+  "wish_available_show_body": "All the seasons you wished for are here.",
+  "wish_hidden_subject": "A wish is available now.",
+  "wish_hidden_body": "Open Slouchcat to see it."
 }

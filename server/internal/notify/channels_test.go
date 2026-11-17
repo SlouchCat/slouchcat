@@ -18,7 +18,8 @@ import (
 )
 
 // Plan 5.2: the main account starts with every channel off (new content, errors, invitations and
-// announcements chosen), a guest with e-mail on for announcements. available follows the server.
+// announcements chosen), a guest with e-mail on for announcements; both choose wish available
+// (concept 25 F-14). available follows the server.
 func TestChannelDefaults(t *testing.T) {
 	t.Parallel()
 	e := newChanEnv(t)
@@ -31,7 +32,7 @@ func TestChannelDefaults(t *testing.T) {
 		t.Fatalf("owner channels = %+v", owner)
 	}
 	for _, c := range owner {
-		if c.Enabled || !slices.Equal(c.Events, []string{"new_content", "errors", "invitations", "announcements"}) {
+		if c.Enabled || !slices.Equal(c.Events, []string{"new_content", "errors", "invitations", "announcements", "wish_available"}) {
 			t.Errorf("owner %s = enabled %v events %v", c.Channel, c.Enabled, c.Events)
 		}
 	}
@@ -48,7 +49,7 @@ func TestChannelDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !guest[0].Enabled || !slices.Equal(guest[0].Events, []string{"announcements"}) || guest[0].Email.Address != e.f.Guest.Email {
+	if !guest[0].Enabled || !slices.Equal(guest[0].Events, []string{"announcements", "wish_available"}) || guest[0].Email.Address != e.f.Guest.Email {
 		t.Errorf("guest e-mail = %+v", guest[0])
 	}
 	if guest[1].Enabled || guest[2].Enabled {

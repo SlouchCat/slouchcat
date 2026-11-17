@@ -31,5 +31,10 @@
   "update_code": "理由：{{code}}",
   "update_migrated": "データベースはすでに移行済みのため、アップデーターは何もロールバックしていません。",
   "update_migrated_backup": "データベースはすでに移行済みのため、アップデーターは何もロールバックしていません。元に戻すには、バックアップ{{backup}}を使うしかありません。",
-  "update_version_unknown": "（不明）"
+  "update_version_unknown": "（不明）",
+  "wish_available_subject": "Available: {{title}}",
+  "wish_available_movie_body": "Your wish is here and ready to watch.",
+  "wish_available_show_body": "All the seasons you wished for are here.",
+  "wish_hidden_subject": "A wish is available now.",
+  "wish_hidden_body": "Open Slouchcat to see it."
 }

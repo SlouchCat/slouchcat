@@ -1,5 +1,7 @@
--- In-app notifications (M7, E-8, plan 5.5), package notify. Inbox reads join visible_items for the
--- episode, so an entry whose episode the profile may no longer see is neither listed nor counted.
+-- In-app notifications (M7, E-8, plan 5.5), package notify. An entry with an item is read through
+-- visible_items, so an entry whose title the profile may no longer see is neither listed nor
+-- counted. An entry without an item belongs to a wish (concept 25, 06-benachrichtigungen.md
+-- section 8) and is read when the profile is a requester of that wish (wish_requesters).
 
 -- name: NotifyHasFollowed :one
 -- Whether any profile has a series or podcast on its watchlist (concept 20 P-2: the watchlist took
@@ -29,37 +31,47 @@ INSERT OR IGNORE INTO notifications (profile_id, kind, item_id, parent_id, dedup
 VALUES (@profile_id, @kind, CAST(@item_id AS TEXT), @parent_id, 'episode:' || CAST(@item_id AS TEXT), @now);
 
 -- name: NotifyList :many
--- One page of the profile's inbox, newest first, only entries whose episode the profile sees (the
--- join keeps item_id non-NULL).
-SELECT n.id, n.kind, CAST(n.item_id AS TEXT) AS item_id, n.parent_id, n.created_at, n.read_at
+-- One page of the profile's inbox, newest first: entries whose title the profile sees and entries
+-- without a title of a wish the profile requested or joined.
+SELECT n.id, n.kind, n.item_id, n.parent_id, n.wish_id, n.created_at, n.read_at
 FROM notifications AS n
-JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
 WHERE n.profile_id = @profile_id
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = n.profile_id AND v.item_id = n.item_id)
+       OR (n.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = n.wish_id AND r.profile_id = n.profile_id)))
 ORDER BY n.created_at DESC, n.id DESC
 LIMIT @limit_count OFFSET @offset_count;
 
 -- name: NotifyCount :one
--- Total and unread entries of the profile's inbox whose episode the profile sees.
+-- Total and unread entries of the profile's inbox that NotifyList reads.
 SELECT count(*) AS total, CAST(COALESCE(SUM(n.read_at IS NULL), 0) AS INTEGER) AS unread
 FROM notifications AS n
-JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
-WHERE n.profile_id = @profile_id;
+WHERE n.profile_id = @profile_id
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = n.profile_id AND v.item_id = n.item_id)
+       OR (n.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = n.wish_id AND r.profile_id = n.profile_id)));
 
 -- name: NotifyMarkRead :execrows
--- Marks one visible entry of the profile read (an entry read before keeps its time); 0 rows for an
--- unknown entry, another profile's entry or one whose episode the profile no longer sees.
+-- Marks one entry of the profile read that NotifyList reads (an entry read before keeps its time);
+-- 0 rows for an unknown entry, another profile's entry or one the profile no longer sees.
 UPDATE notifications SET read_at = COALESCE(read_at, @now)
 WHERE notifications.id = @id AND notifications.profile_id = @profile_id
-  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
-                                                 AND v.item_id = notifications.item_id);
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                  AND v.item_id = notifications.item_id)
+       OR (notifications.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = notifications.wish_id
+                                                            AND r.profile_id = notifications.profile_id)));
 
 -- name: NotifyMarkAllRead :exec
--- Marks every unread entry of the profile read whose episode the profile sees; entries of hidden
--- episodes keep their state, so they come back unread when the profile may see them again.
+-- Marks every unread entry of the profile read that NotifyList reads; entries of hidden titles keep
+-- their state, so they come back unread when the profile may see them again.
 UPDATE notifications SET read_at = @now
 WHERE notifications.profile_id = @profile_id AND notifications.read_at IS NULL
-  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
-                                                 AND v.item_id = notifications.item_id);
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                  AND v.item_id = notifications.item_id)
+       OR (notifications.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = notifications.wish_id
+                                                            AND r.profile_id = notifications.profile_id)));
 
 -- name: NotifyDeleteOldRead :execrows
 -- Read entries older than before go (offline cleanup, at most 500 per batch); unread ones stay.

@@ -20,7 +20,8 @@ import (
 // EventType).
 var (
 	channelNames = []string{model.ChannelEmail, model.ChannelPush, model.ChannelTelegram}
-	eventNames   = []string{model.EventNewContent, model.EventErrors, model.EventInvitations, model.EventAnnouncements}
+	eventNames   = []string{model.EventNewContent, model.EventErrors, model.EventInvitations, model.EventAnnouncements,
+		model.EventWishAvailable}
 )
 
 const maxEmailLen = 254
@@ -51,7 +52,8 @@ func parseEvents(raw string) []string {
 
 // EnsureDefaults creates the three channel rows of a new account with the defaults of plan 5.2:
 // e-mail on with announcements for a guest, everything off for the main account (with new content,
-// errors, invitations and announcements chosen). Existing rows stay. auth calls it after CreateOwner
+// errors, invitations and announcements chosen); every account chooses wish available (concept 25
+// F-14). Existing rows stay. auth calls it after CreateOwner
 // and AcceptInvitation.
 func (s *Service) EnsureDefaults(ctx context.Context, accountID int64) error {
 	if err := s.write.ChannelEnsureDefaults(ctx, systemq.ChannelEnsureDefaultsParams{Now: s.now().UnixMilli(), AccountID: accountID}); err != nil {

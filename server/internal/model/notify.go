@@ -44,6 +44,9 @@ const (
 	EventErrors        = "errors"
 	EventInvitations   = "invitations"
 	EventAnnouncements = "announcements"
+	// EventWishAvailable: a wish of a profile can be played now (concept 25, F-13, F-14; per
+	// profile, prefixed with the profile name). Season messages go out under it too.
+	EventWishAvailable = "wish_available"
 )
 
 // ChannelSummary is a channel in the account overview.

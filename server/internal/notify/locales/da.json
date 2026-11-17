@@ -31,5 +31,10 @@
   "update_code": "Årsag: {{code}}",
   "update_migrated": "Databasen var allerede migreret, så updateren rullede intet tilbage.",
   "update_migrated_backup": "Databasen var allerede migreret, så updateren rullede intet tilbage. Kun sikkerhedskopien {{backup}} fører tilbage.",
-  "update_version_unknown": "(ukendt)"
+  "update_version_unknown": "(ukendt)",
+  "wish_available_subject": "Available: {{title}}",
+  "wish_available_movie_body": "Your wish is here and ready to watch.",
+  "wish_available_show_body": "All the seasons you wished for are here.",
+  "wish_hidden_subject": "A wish is available now.",
+  "wish_hidden_body": "Open Slouchcat to see it."
 }

@@ -14,8 +14,10 @@ import (
 const notifyCount = `-- name: NotifyCount :one
 SELECT count(*) AS total, CAST(COALESCE(SUM(n.read_at IS NULL), 0) AS INTEGER) AS unread
 FROM notifications AS n
-JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
 WHERE n.profile_id = ?1
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = n.profile_id AND v.item_id = n.item_id)
+       OR (n.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = n.wish_id AND r.profile_id = n.profile_id)))
 `
 
 type NotifyCountRow struct {
@@ -23,7 +25,7 @@ type NotifyCountRow struct {
 	Unread int64
 }
 
-// Total and unread entries of the profile's inbox whose episode the profile sees.
+// Total and unread entries of the profile's inbox that NotifyList reads.
 func (q *Queries) NotifyCount(ctx context.Context, profileID int64) (NotifyCountRow, error) {
 	row := q.db.QueryRowContext(ctx, notifyCount, profileID)
 	var i NotifyCountRow
@@ -118,8 +120,10 @@ SELECT EXISTS (
 ) AS has_followed
 `
 
-// In-app notifications (M7, E-8, plan 5.5), package notify. Inbox reads join visible_items for the
-// episode, so an entry whose episode the profile may no longer see is neither listed nor counted.
+// In-app notifications (M7, E-8, plan 5.5), package notify. An entry with an item is read through
+// visible_items, so an entry whose title the profile may no longer see is neither listed nor
+// counted. An entry without an item belongs to a wish (concept 25, 06-benachrichtigungen.md
+// section 8) and is read when the profile is a requester of that wish (wish_requesters).
 // Whether any profile has a series or podcast on its watchlist (concept 20 P-2: the watchlist took
 // over from the favourite); without one a batch of new episodes needs no further read.
 func (q *Queries) NotifyHasFollowed(ctx context.Context) (bool, error) {
@@ -155,10 +159,12 @@ func (q *Queries) NotifyInsert(ctx context.Context, arg NotifyInsertParams) (sql
 }
 
 const notifyList = `-- name: NotifyList :many
-SELECT n.id, n.kind, CAST(n.item_id AS TEXT) AS item_id, n.parent_id, n.created_at, n.read_at
+SELECT n.id, n.kind, n.item_id, n.parent_id, n.wish_id, n.created_at, n.read_at
 FROM notifications AS n
-JOIN visible_items AS v ON v.profile_id = n.profile_id AND v.item_id = n.item_id
 WHERE n.profile_id = ?1
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = n.profile_id AND v.item_id = n.item_id)
+       OR (n.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = n.wish_id AND r.profile_id = n.profile_id)))
 ORDER BY n.created_at DESC, n.id DESC
 LIMIT ?3 OFFSET ?2
 `
@@ -172,14 +178,15 @@ type NotifyListParams struct {
 type NotifyListRow struct {
 	ID        int64
 	Kind      string
-	ItemID    string
+	ItemID    sql.NullString
 	ParentID  sql.NullString
+	WishID    sql.NullInt64
 	CreatedAt int64
 	ReadAt    sql.NullInt64
 }
 
-// One page of the profile's inbox, newest first, only entries whose episode the profile sees (the
-// join keeps item_id non-NULL).
+// One page of the profile's inbox, newest first: entries whose title the profile sees and entries
+// without a title of a wish the profile requested or joined.
 func (q *Queries) NotifyList(ctx context.Context, arg NotifyListParams) ([]NotifyListRow, error) {
 	rows, err := q.db.QueryContext(ctx, notifyList, arg.ProfileID, arg.OffsetCount, arg.LimitCount)
 	if err != nil {
@@ -194,6 +201,7 @@ func (q *Queries) NotifyList(ctx context.Context, arg NotifyListParams) ([]Notif
 			&i.Kind,
 			&i.ItemID,
 			&i.ParentID,
+			&i.WishID,
 			&i.CreatedAt,
 			&i.ReadAt,
 		); err != nil {
@@ -213,8 +221,11 @@ func (q *Queries) NotifyList(ctx context.Context, arg NotifyListParams) ([]Notif
 const notifyMarkAllRead = `-- name: NotifyMarkAllRead :exec
 UPDATE notifications SET read_at = ?1
 WHERE notifications.profile_id = ?2 AND notifications.read_at IS NULL
-  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
-                                                 AND v.item_id = notifications.item_id)
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                  AND v.item_id = notifications.item_id)
+       OR (notifications.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = notifications.wish_id
+                                                            AND r.profile_id = notifications.profile_id)))
 `
 
 type NotifyMarkAllReadParams struct {
@@ -222,8 +233,8 @@ type NotifyMarkAllReadParams struct {
 	ProfileID int64
 }
 
-// Marks every unread entry of the profile read whose episode the profile sees; entries of hidden
-// episodes keep their state, so they come back unread when the profile may see them again.
+// Marks every unread entry of the profile read that NotifyList reads; entries of hidden titles keep
+// their state, so they come back unread when the profile may see them again.
 func (q *Queries) NotifyMarkAllRead(ctx context.Context, arg NotifyMarkAllReadParams) error {
 	_, err := q.db.ExecContext(ctx, notifyMarkAllRead, arg.Now, arg.ProfileID)
 	return err
@@ -232,8 +243,11 @@ func (q *Queries) NotifyMarkAllRead(ctx context.Context, arg NotifyMarkAllReadPa
 const notifyMarkRead = `-- name: NotifyMarkRead :execrows
 UPDATE notifications SET read_at = COALESCE(read_at, ?1)
 WHERE notifications.id = ?2 AND notifications.profile_id = ?3
-  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
-                                                 AND v.item_id = notifications.item_id)
+  AND (EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                  AND v.item_id = notifications.item_id)
+       OR (notifications.item_id IS NULL
+           AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = notifications.wish_id
+                                                            AND r.profile_id = notifications.profile_id)))
 `
 
 type NotifyMarkReadParams struct {
@@ -242,8 +256,8 @@ type NotifyMarkReadParams struct {
 	ProfileID int64
 }
 
-// Marks one visible entry of the profile read (an entry read before keeps its time); 0 rows for an
-// unknown entry, another profile's entry or one whose episode the profile no longer sees.
+// Marks one entry of the profile read that NotifyList reads (an entry read before keeps its time);
+// 0 rows for an unknown entry, another profile's entry or one the profile no longer sees.
 func (q *Queries) NotifyMarkRead(ctx context.Context, arg NotifyMarkReadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, notifyMarkRead, arg.Now, arg.ID, arg.ProfileID)
 	if err != nil {
