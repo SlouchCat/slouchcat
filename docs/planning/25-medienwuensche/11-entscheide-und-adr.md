@@ -13,15 +13,16 @@
 > anders entschieden. Zu jeder steht hier, worum es geht, welche
 > Möglichkeiten es gibt, was empfohlen ist und was eine andere Wahl bedeutet. Wünschen ist heute ein Nicht-Ziel;
 > Abschnitt 2 listet jede Stelle in Spec, Plan, Protokoll, ADRs und `CLAUDE.md`, die sich mit einer Freigabe
-> ändert, und was ausdrücklich Nicht-Ziel bleibt. Abschnitt 3 ist der Entwurf für Frage 33 im
-> Entscheidungsprotokoll, Abschnitt 4 und 5 sind die Entwürfe von ADR 0037 und ADR 0038, Abschnitt 6 der Vorschlag
+> ändert, und was ausdrücklich Nicht-Ziel bleibt. Abschnitt 3 nennt den Eintrag Frage 33 im
+> Entscheidungsprotokoll (eingetragen am 17. November 2026), Abschnitt 4 und 5 sind die Entwürfe von ADR 0037 und ADR 0038, Abschnitt 6 der Vorschlag
 > für Regel 11, Abschnitt 7 die Einarbeitung der Kritik und von Marcos Rückmeldung samt Abweichungen. **Dieses
 > Papier ändert keine Regel und keine bestehende Datei.**
 
-> **Hinweis.** Alle Änderungen in Abschnitt 2 und 6 gelten erst, wenn Marco Konzept 25 freigibt und die
-> Antworten als **Frage 33** in `docs/planning/04-entscheidungen.md` stehen. Bis dahin gilt der heutige Wortlaut,
-> und kein Agent baut etwas davon (`docs/ideas/README.md:11-12`: «der Non-Goal fällt erst mit einem Eintrag im
-> Entscheidungsprotokoll»). Die ADR-Dateien entstehen in Stufe 0 unter `docs/adr/`, nicht vorher.
+> **Hinweis.** Marco hat Konzept 25 am 17. November 2026 freigegeben; **Frage 33** steht in
+> `docs/planning/04-entscheidungen.md`. Damit gelten die Ausnahmen aus Abschnitt 2, soweit Frage 33 sie nennt
+> (`docs/ideas/README.md:11-12`: «der Non-Goal fällt erst mit einem Eintrag im Entscheidungsprotokoll»). Der
+> Wortlaut von `CLAUDE.md` Regel 11 (Abschnitt 6) und der Nachtrag zu ADR 0010 werden in Stufe 0 nachgeführt; die
+> ADR-Dateien entstehen ebenfalls in Stufe 0 unter `docs/adr/`. Gebaut wird erst auf Marcos ausdrückliches Wort.
 
 Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md) (Abschnitte 2, 8, 9, 10) und für Fassung 3
 [Anhang H](anhang/H-nachtrag-17-november.md) (Regeln N-1 bis N-98; Abschnitt 10 geht den Abschnitten 4 bis 9 vor,
@@ -556,16 +557,21 @@ umgeschrieben; der neue Wortlaut gilt über Frage 33 und ADR 0037 (Vorgehen wie 
 | Login je Profil in Seerr | Marco, Anhang H 1 |
 | Wünsche offline | Anhang F 2.20 |
 
-## 3. Entwurf: Eintrag Frage 33 im Entscheidungsprotokoll
+## 3. Eintrag Frage 33 im Entscheidungsprotokoll
 
-Zeile für die Tabelle «Weitere Entscheide während der Umsetzung» in `docs/planning/04-entscheidungen.md`
-(Spalten Datum, Entscheid, Begründung, Betrifft), im Stil der Zeile zu Frage 32. E-1 bis E-11 sind entschieden,
-damit auch F-8, F-32, F-33, F-34 und bei F-24 der Teil «Verknüpfen»; für die 29 offenen Fragen und T-1, T-2 nimmt
-der Entwurf an, dass Marco den Empfehlungen folgt; jede abweichende Antwort ersetzt ihren Satz.
+Eingetragen am 17. November 2026 in `docs/planning/04-entscheidungen.md`, Tabelle «Weitere Entscheide während der
+Umsetzung», nach Marcos Wort «Ja, eintragen» auf die Frage, ob das Konzept als freigegeben gilt.
 
-```text
-| {{Datum}} | **Konzept 25 «Wünsche über Seerr» freigegeben: Zuschauer fordern fehlende Filme und Serien an, Seerr bleibt die Wunschverwaltung, Slouchcat meldet die Verfügbarkeit** (Frage 33, `docs/planning/25-medienwuensche/`, Fassung {{n}}; PR #{{n}}; ADR 0037 und ADR 0038 reserviert, sie entstehen mit Stufe 0). **Vorab am 17. November 2026 entschieden: E-1** Eingeladene Konten bekommen in Seerr einen Benutzer mit gleicher E-Mail und gleichem Passwort; **E-2** welches Profil angefordert hat, zeigt ein Tag in Radarr und Sonarr, dafür spricht Slouchcat diese direkt an; **E-3** das Limit je Konto stellt Slouchcat ein, Seerr zählt alles, auch direkt dort gestellte Wünsche, abgelehnte Wünsche und Mitwünsche nicht; **E-4** bestehende Benutzer mit derselben E-Mail werden verknüpft; **E-5** fehlende Titel der Trakt-Liste erscheinen in der Zuschauer-App nirgends, nur in der Verwaltung; **E-6** die Webhooks von Radarr und Sonarr bleiben wie heute, von Hand eingerichtet; **E-7** bei Wünschen zeigt Slouchcat den Download-Fortschritt aus Radarr und Sonarr; **E-8** auch beim Annehmen einer Einladung und nach einer E-Mail-Änderung verknüpft Slouchcat einen bestehenden Benutzer mit derselben E-Mail sofort und setzt ihm das Passwort, ausser Administratoren von Seerr und Anmeldung über Jellyfin, Emby oder Plex; wer eine fremde Adresse eintippt, bekommt diesen Benutzer samt seinen Anfragen (bekannte Grenze); **E-9** der Dienst heisst in der Oberfläche «Seerr»; **E-10** die Startreihe «Erfüllte Wünsche» zeigt nur Wünsche, die in den letzten 14 Tagen erfüllt wurden; **E-11** ein Sofort-Import über Dateipfad und Kennung aus der Webhook-Meldung kommt als eigener Schritt nach einer Messung und entfällt, wenn die Messung keinen Gewinn zeigt. **F-1:** Funktion und Seiten heissen «Wünsche», Knöpfe «anfordern». **F-2:** Jedes Konto hat einen Seerr-Benutzer; Profile haben kein Login; ein Seerr-Benutzer gehört höchstens einem Konto. **F-3:** Gesendet wird mit `X-API-User` und ohne `userId`; der Verbindungstest prüft es. **F-4:** Konten ohne Seerr-Benutzer können nicht anfordern; Sammelbenutzer als Wahl, ab Werk aus. **F-5:** Wunschrecht je Konto (Administrator) als Deckel und je Profil (Hauptprofil); Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus. **F-6:** Kinderprofile mit Recht dürfen anfordern, die Freigabe entscheidet Seerr. **F-7:** Ein zweites Profil wird Mitwünscher. **F-8:** entschieden durch E-5; Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; vorhandene Serien werden auch über TVDB und IMDb erkannt. **F-9:** Fehlende Titel und die Wünsche-Seiten sieht ein Profil nur, wenn es anfordern kann (Recht, Seerr-Benutzer, Art, Alter); einzige Ausnahme sind Titel mit eigenem Wunsch. **T-1:** «Wünsche aktiv» lässt sich nur mit gelungenem Test einschalten; ab Werk aus. **T-2:** Die Frist der Übermittlung ruht, solange «Seerr verwenden» aus ist. **F-10:** Anfordern über einen Dialog mit Stand des Limits. **F-11:** Bibliothekssuche über den eigenen TMDB-Schlüssel, Seite «Suche» über Seerr. **F-12:** Serien staffelweise, Staffeln aus Seerr, fehlende Staffeln auf der Serienseite. **F-13:** «Verfügbar» heisst: Slouchcat kann den Titel für das Profil abspielen. **F-14:** Kanal-Ereignisse `wish_available` (an), `wish_status` (aus), `wish_review` (an, nur Administratoren). **F-15:** Externe Nachrichten von PIN-Profilen ohne Titel. **F-16:** Freigeben und Ablehnen in der Verwaltung als Durchreichen, Stufe 4. **F-17:** Zurückziehen, solange nicht freigegeben. **F-18:** Seerr-Webhook nur als Anstoss, Stufe 4; Abgleich alle 5 min bleibt die Grundlage. **F-19:** Verbindung unter Integrationen, Seite «Wünsche» unter Medien mit «Anfragen», «Seerr-Benutzer», «Einstellungen». **F-20:** ersetzt durch F-34. **F-21:** Anfragen der Seerr-Benutzer der Konten werden übernommen («In Seerr angelegt»). **F-22:** sechs Stufen (0 bis 5), je ein Release. **F-23:** Jedes Konto bekommt einen Seerr-Benutzer; von selbst beim Annehmen einer Einladung, bestehende Konten über «Alle eröffnen» oder einzeln; ohne Wunschrecht ohne Rechte. **F-24:** Verknüpfen entschieden durch E-8; auch Benutzer, die ein Administrator nachträglich eröffnet oder verknüpft, übernehmen das Passwort, ausser Administratoren und Anmeldung über Jellyfin, Emby oder Plex; die Übersicht zeigt eine Verknüpfung nach Einladung oder E-Mail-Änderung sieben Tage lang als «Neu verknüpft». **F-25:** Profil-Tag `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, nie entfernt. **F-26:** Limit ab Werk 10 Filme und 5 Staffeln in 7 Tagen. **F-27:** Ausnahme «Profil sendet als anderer Seerr-Benutzer» bleibt zugeklappt. **F-28:** «Entdecken» mit sieben festen Reihen. **F-29:** Marco stellt Seerr auf TVDB-Staffeln; der Test zeigt die Einstellung. **F-30:** Zugang zu Radarr und Sonarr aus Seerr, eigene Adresse als Ausweg. **F-31:** Der Seerr-Benutzer eines gelöschten Kontos bleibt; hat Slouchcat ihn eröffnet, ohne Rechte und mit Zufallspasswort, sonst unverändert. **F-32:** entschieden durch E-9. **F-33:** entschieden durch E-11. **F-34:** entschieden durch E-10. Damit fallen die Nicht-Ziele Spec Zeile 66 in den genannten Teilen und Zeile 67 nur beim Wunsch; Zeile 69 erhält die Ausnahme für Profil-Tags, Warteschlange und Dateistand der gewünschten Titel werden nur gelesen; Zeile 65 und 68 bleiben. S-4 aus Frage 11 bleibt ohne Ausnahme. CLAUDE.md Regel 11 nennt die Ausnahmen; ADR 0010 erhält den Nachtrag zu Tags und Warteschlange, der Webhook-Empfang bleibt. | Auftrag von Marco vom 16. November 2026 (Wünsche über Seerr anbinden), drei Rückmeldungen von Marco vom 17. November 2026 mit E-1 bis E-11, Analyseberichte, Kritik und Nachtrag in `docs/planning/25-medienwuensche/anhang/` (A bis H), Antworten auf die offenen Fragen F-1 bis F-31 und T-1, T-2, Freigabe von Konzept und Mockups | Frage 33, ADR 0037, ADR 0038; hebt Spec Non-Goals Zeile 66 in Teilen und Zeile 67 nur beim Wunsch auf, ergänzt Zeile 69 um eine Ausnahme, ändert Spec Zeilen 35 und 46; bestätigt S-4 (Frage 11, ADR 0011, `05-plan-spotlight.md`); Nachträge zu Frage 10, ADR 0009, ADR 0010, ADR 0011, Plan 5.1, 5.5, 5.6; Regeln 2, 3, 5, 6, 7, 8, 9, 10, 11, 12 |
-```
+Der Eintrag hält fest:
+
+- **Entschieden von Marco:** E-1 bis E-11 (Abschnitt 0), dazu der Bereich «Wünsche» und die Erkennung der
+  Spotlight-Serien über die TVDB-ID aus seinen Rückmeldungen.
+- **Nicht einzeln beantwortet:** die 29 offenen Fragen und T-1, T-2 (Abschnitt 1). Bis zu Marcos Antwort gilt je
+  die Empfehlung dieses Papiers; die Bau-Session legt die Fragen einer Stufe vor deren Bau vor. Der Eintrag
+  schreibt Marco keine dieser Antworten zu. Ein früherer Entwurf dieses Abschnitts hatte angenommen, dass er
+  allen Empfehlungen folgt; das steht so nicht im Protokoll.
+- **Ausnahmen von Nicht-Zielen:** wie in Abschnitt 2 beschrieben. S-4 bleibt ohne Ausnahme.
+- **Bau:** sechs Stufen nach `09-umsetzungsplan.md`, erst auf Marcos ausdrückliches Wort.
 
 ## 4. Entwurf ADR 0037 «Wünsche über Seerr»
 

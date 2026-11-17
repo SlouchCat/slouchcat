@@ -1,7 +1,7 @@
 # Konzept 25 · Wünsche über Seerr
 
-- **Status: Entwurf zur Freigabe, Fassung 3 (nach Marcos drei Runden), 17. November 2026. Nichts ist
-  gebaut.** Fassung 2 arbeitete die 40 Befunde der ersten Kritik (Anhang G) und die Redaktionsentscheide vom
+- **Status: freigegeben am 17. November 2026 (Frage 33 in `docs/planning/04-entscheidungen.md`), Fassung 3 (nach
+  Marcos drei Runden). Nichts ist gebaut; der Bau folgt auf Marcos ausdrückliches Wort, mit einem eigenen Auftrag.** Fassung 2 arbeitete die 40 Befunde der ersten Kritik (Anhang G) und die Redaktionsentscheide vom
   17. November 2026 ein (`11-entscheide-und-adr.md`, Abschnitt 7). Fassung 3 umfasst drei Runden Marcos vom
   17. November 2026 mit seinen Antworten E-1 bis E-11 ([Anhang H](anhang/H-nachtrag-17-november.md)). Die
   erste: Seerr-Benutzer je Konto mit gleichem Login, Profil-Tag in Radarr und Sonarr, Limit je Konto,
@@ -12,8 +12,9 @@
   Messung. Was darüber hinausgeht, ist Empfehlung der Redaktion. Eine Kritik an Fassung 3 (Urteil REVISE,
   1 Blocker, 4 Major, 18 Minor) ist eingearbeitet; die Entscheide dazu hat die Redaktion getroffen, nicht Marco
   (Anhang H, Abschnitt 9, K-1 bis K-23). Den Blocker K-1 hat Marco mit E-8 anders entschieden (Anhang H,
-  Abschnitt 10). Marco prüft Konzept und Mockups, beantwortet die offenen Fragen und gibt frei
-  (`11-entscheide-und-adr.md`). Es gibt die Fragen F-1 bis F-34; entschieden sind F-8 (E-5), F-32 (E-9),
+  Abschnitt 10). Marco hat das Konzept am 17. November 2026 freigegeben («Ja, eintragen»). Die offenen Fragen hat er damit nicht
+  einzeln beantwortet: Bis zu seiner Antwort gilt je die Empfehlung (`11-entscheide-und-adr.md`), und die
+  Bau-Session legt die Fragen einer Stufe vor deren Bau vor. Es gibt die Fragen F-1 bis F-34; entschieden sind F-8 (E-5), F-32 (E-9),
   F-33 (E-11) und F-34 (E-10), F-20 ist durch F-34 ersetzt, F-24 ist für die Verknüpfung durch E-8
   entschieden. Offen sind damit 29 Fragen, dazu die Teilfragen T-1 und T-2. Erst danach folgt ein eigener
   Auftrag für den Bau.
