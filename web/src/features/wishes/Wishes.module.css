@@ -1,0 +1,100 @@
+/* Wishes through Seerr (concept 25 stage 2): the request dialog, the wish card of the preview page
+   and the rows of «Meine Wünsche». Pages and sections come from Discover.module.css and
+   ItemPage.module.css; this file lays out only what the wishes add. */
+
+/* The request dialog's form. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  justify-content: flex-end;
+}
+
+/* The wish card under the head of the preview page (M-03): state, seasons and date, the steps
+   that happened, the actions. A surface of its own, no frame. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: var(--sc-size-form-max);
+  padding: var(--sc-space-4);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.line {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The history of a wish, newest first: time and what happened. */
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+}
+
+.eventTime {
+  color: var(--sc-color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+/* The seasons of a series on its preview page: one line each, its state beside it. */
+.seasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.season {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+}
+
+.seasonName {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}

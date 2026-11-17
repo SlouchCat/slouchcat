@@ -16,6 +16,11 @@ interface Option {
   label: string;
   /** A short line under the label; it describes the checkbox and is not part of its name. */
   description?: string;
+  /**
+   * This one choice cannot be changed (a season that is already there, concept 25): a dashed box
+   * and muted words (no paleness), skipped by Tab; its description should say why.
+   */
+  isDisabled?: boolean;
 }
 
 interface CheckboxGroupProps extends Omit<
@@ -44,6 +49,7 @@ export function CheckboxGroup({ label, description, options, ...rest }: Checkbox
             <Checkbox
               key={option.value}
               value={option.value}
+              isDisabled={option.isDisabled}
               className={styles.option}
               aria-labelledby={`${id}-${option.value}-label`}
               aria-describedby={`${id}-${option.value}-description`}
@@ -59,7 +65,12 @@ export function CheckboxGroup({ label, description, options, ...rest }: Checkbox
               </span>
             </Checkbox>
           ) : (
-            <Checkbox key={option.value} value={option.value} className={styles.option}>
+            <Checkbox
+              key={option.value}
+              value={option.value}
+              isDisabled={option.isDisabled}
+              className={styles.option}
+            >
               <span className={styles.box} aria-hidden="true">
                 <Icon name="check" size="sm" />
               </span>

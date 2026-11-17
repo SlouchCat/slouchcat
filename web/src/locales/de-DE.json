@@ -695,5 +695,22 @@
     "code": {
       "provision_disabled": "„Neue Konten in Seerr eröffnen“ ist ausgeschaltet. Schalte es unter Wünsche › Einstellungen ein."
     }
+  },
+  "titles": {
+    "done": {
+      "requested": "Angefordert. Den Stand siehst du unter „Meine Wünsche“."
+    }
+  },
+  "wishes": {
+    "reason": {
+      "profile_not_allowed": "Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter „Profile“ erlauben."
+    },
+    "withdraw": {
+      "body": "„{{title}}“ wird nicht mehr angefordert; Slouchcat löscht den Wunsch auch in Seerr.",
+      "bodyJoined": "Du bekommst keine Nachricht mehr, wenn „{{title}}“ da ist. Die Wünsche der anderen Profile bleiben."
+    },
+    "dialog": {
+      "needsApproval": "Braucht eine Freigabe. Den Stand siehst du unter „Meine Wünsche“."
+    }
   }
 }

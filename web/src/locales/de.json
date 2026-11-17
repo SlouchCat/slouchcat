@@ -234,7 +234,12 @@
       "seerr_user_taken": "Dieser Seerr-Benutzer gehört schon zu einem anderen Konto, ist der Sammelbenutzer oder fehlt in Seerr.",
       "provision_disabled": "«Neue Konten in Seerr eröffnen» ist ausgeschaltet. Schalte es unter Wünsche › Einstellungen ein.",
       "password_not_syncable": "Das Passwort dieses Seerr-Benutzers gleicht Slouchcat nicht ab: Er ist in Seerr Administrator oder meldet sich über Jellyfin, Emby oder Plex an.",
-      "account_not_allowed": "Das Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten."
+      "account_not_allowed": "Das Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten.",
+      "wish_not_allowed": "Anfordern ist für dieses Profil nicht möglich.",
+      "quota_exceeded": "Das Limit reicht dafür nicht.",
+      "already_available": "Der Titel ist schon in der Bibliothek.",
+      "wish_not_withdrawable": "Der Wunsch ist schon freigegeben und lässt sich nicht mehr zurückziehen.",
+      "seerr_unreachable": "Seerr ist gerade nicht erreichbar."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -5743,17 +5748,6 @@
         "provisionAllWaits": "Seerr ist gerade nicht verbunden: Die Konten warten dann und werden beim nächsten Abgleich eröffnet.",
         "provisionAllQueued": "Eröffnen läuft: {{link}} verknüpfen, {{create}} neu anlegen."
       },
-      "quota": {
-        "movie": "Filme: {{used}} von {{limit}} in {{days}} Tagen",
-        "tv": "Staffeln: {{used}} von {{limit}} in {{days}} Tagen",
-        "remaining_one": "noch {{count}} frei",
-        "remaining_other": "noch {{count}} frei",
-        "nextFree": "nächster Platz frei am {{date}}",
-        "short": {
-          "movie": "Filme {{used}}/{{limit}}",
-          "tv": "Staffeln {{used}}/{{limit}}"
-        }
-      },
       "limitField": {
         "label": "Limit",
         "help": {
@@ -6191,6 +6185,11 @@
     "empty": {
       "title": "Nichts gefunden",
       "body": "Versuche einen anderen Begriff oder weniger Filter."
+    },
+    "missing": {
+      "title": "Noch nicht in der Bibliothek",
+      "notHere": "Noch nicht da",
+      "request": "{{title}} anfordern"
     }
   },
   "watchlist": {
@@ -6744,6 +6743,162 @@
       "halfBody_other": "{{count}} Folgen tragen den Haken. Alle Folgen markieren oder alle Haken entfernen? Das Entfernen lässt sich nicht rückgängig machen.",
       "markAll": "Alle Folgen als gesehen markieren",
       "removeAll": "Alle Haken entfernen"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Filme: {{used}} von {{limit}} in {{days}} Tagen",
+      "tv": "Staffeln: {{used}} von {{limit}} in {{days}} Tagen",
+      "remaining_one": "noch {{count}} frei",
+      "remaining_other": "noch {{count}} frei",
+      "nextFree": "nächster Platz frei am {{date}}",
+      "short": {
+        "movie": "Filme {{used}}/{{limit}}",
+        "tv": "Staffeln {{used}}/{{limit}}"
+      },
+      "movieNone": "Filme ohne Limit",
+      "tvNone": "Staffeln ohne Limit"
+    },
+    "state": {
+      "queued": "Wird übermittelt",
+      "pending": "Freigabe ausstehend",
+      "processing": "In Beschaffung",
+      "partial": "Teilweise verfügbar",
+      "available": "Verfügbar",
+      "declined": "Abgelehnt",
+      "failed": "Fehlgeschlagen",
+      "withdrawn": "Zurückgezogen"
+    },
+    "detail": {
+      "importing": "wird eingelesen",
+      "not_found_in_library": "in der Bibliothek noch nicht gefunden"
+    },
+    "fail": {
+      "quota": "Limit erreicht: Seerr hat den Wunsch nicht angenommen.",
+      "blocklisted": "Der Titel steht in Seerr auf der Sperrliste.",
+      "no_permission": "Der Seerr-Benutzer darf diese Art von Titel nicht anfordern.",
+      "arr_failed": "Seerr konnte den Titel nicht an Radarr oder Sonarr übergeben. Ein Administrator kann den Wunsch wiederholen.",
+      "unreachable_24h": "Seerr war 24 Stunden lang nicht erreichbar.",
+      "seerr_request_gone": "Der Wunsch wurde in Seerr gelöscht.",
+      "seerr_media_deleted": "Der Titel wurde in Seerr entfernt.",
+      "seerr_user_gone": "Den zugeordneten Seerr-Benutzer gibt es nicht mehr.",
+      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-Kennung, die Seerr braucht.",
+      "account_deleted": "Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr."
+    },
+    "reason": {
+      "disabled": "Wünsche sind ausgeschaltet.",
+      "account_not_allowed": "Dieses Konto darf keine Titel anfordern.",
+      "profile_not_allowed": "Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter «Profile» erlauben.",
+      "no_mapping": "Diesem Konto ist noch kein Seerr-Benutzer zugeordnet. Das richtet der Administrator ein.",
+      "seerr_user_gone": "Den zugeordneten Seerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.",
+      "movies_not_allowed": "Filme können zurzeit nicht angefordert werden.",
+      "shows_not_allowed": "Serien können zurzeit nicht angefordert werden.",
+      "status_only": "Ein anderes Profil hat den Titel schon angefordert. Sobald er da ist, findest du ihn in der Bibliothek.",
+      "already_requested": "Du hast den Titel schon angefordert.",
+      "source_not_allowed": "Von hier aus lassen sich zurzeit keine Titel anfordern.",
+      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-Kennung, die Seerr braucht.",
+      "withdraw_disabled": "Wünsche lassen sich zurzeit nicht zurückziehen."
+    },
+    "tmdbUnreachable": "TMDB ist gerade nicht erreichbar. Versuche es später erneut.",
+    "kind": {
+      "movie": "Film",
+      "show": "Serie"
+    },
+    "seasons_one": "Staffel {{list}}",
+    "seasons_other": "Staffeln {{list}}",
+    "event": {
+      "created": "Angefordert",
+      "submitted": "An Seerr übermittelt",
+      "attached": "In Seerr gefunden und übernommen",
+      "joined": "Mitgewünscht",
+      "withdrawn": "Zurückgezogen",
+      "withdraw_deleted": "In Seerr gelöscht",
+      "owner_changed": "Ein anderes Profil wünscht weiter",
+      "reopened": "War schon freigegeben, der Wunsch geht weiter",
+      "season_available_one": "Staffel {{seasons}} verfügbar",
+      "season_available_other": "Staffeln {{seasons}} verfügbar",
+      "changed": "Geändert"
+    },
+    "card": {
+      "title": "Dein Wunsch",
+      "requestedOn": "angefordert am {{date}}",
+      "joined": "du wünschst mit",
+      "history": "Verlauf",
+      "mine": "Zu meinen Wünschen"
+    },
+    "withdraw": {
+      "action": "Zurückziehen",
+      "actionJoined": "Nicht mehr mitwünschen",
+      "title": "Wunsch zurückziehen?",
+      "titleJoined": "Nicht mehr mitwünschen?",
+      "body": "«{{title}}» wird nicht mehr angefordert; Slouchcat löscht den Wunsch auch in Seerr.",
+      "bodyJoined": "Du bekommst keine Nachricht mehr, wenn «{{title}}» da ist. Die Wünsche der anderen Profile bleiben.",
+      "confirm": "Zurückziehen",
+      "confirmJoined": "Nicht mehr mitwünschen"
+    },
+    "dialog": {
+      "titleMovie": "Film anfordern: {{title}}",
+      "titleShow": "Serie anfordern: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Wird sofort beschafft, eine Freigabe braucht es nicht.",
+      "needsApproval": "Braucht eine Freigabe. Den Stand siehst du unter «Meine Wünsche».",
+      "seasons": "Staffeln",
+      "allSeasons": "Alle fehlenden Staffeln ({{count}})",
+      "season": "Staffel {{number}}",
+      "episodes_one": "{{count}} Folge",
+      "episodes_other": "{{count}} Folgen",
+      "seasonState": {
+        "requested": "bereits angefordert, du wirst mitbenachrichtigt",
+        "available": "verfügbar"
+      },
+      "nothingLeft": {
+        "title": "Nichts mehr anzufordern",
+        "body": "Alle Staffeln sind vorhanden oder schon angefordert."
+      },
+      "tooManySeasons_one": "Noch 1 von {{limit}} Staffeln frei. Wähle höchstens 1 Staffel.",
+      "tooManySeasons_other": "Noch {{count}} von {{limit}} Staffeln frei. Wähle höchstens {{count}} Staffeln.",
+      "reached": {
+        "movie_one": "Das Limit ist erreicht: {{count}} Film in {{days}} Tagen.",
+        "movie_other": "Das Limit ist erreicht: {{count}} Filme in {{days}} Tagen.",
+        "show_one": "Das Limit ist erreicht: {{count}} Staffel in {{days}} Tagen.",
+        "show_other": "Das Limit ist erreicht: {{count}} Staffeln in {{days}} Tagen."
+      },
+      "nextFree": "Der nächste Platz wird am {{date}} frei.",
+      "submit": "Anfordern",
+      "submitting": "Wird angefordert …",
+      "chooseSeasons": "Staffeln wählen",
+      "join": "Benachrichtige mich",
+      "submitSeasons_one": "{{count}} Staffel anfordern",
+      "submitSeasons_other": "{{count}} Staffeln anfordern"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Titel nicht gefunden",
+      "body": "Diesen Titel gibt es nicht, oder dieses Profil kann ihn nicht sehen."
+    },
+    "loading": "Titel",
+    "missing": "Noch nicht in der Bibliothek",
+    "seasonCount_one": "{{count}} Staffel",
+    "seasonCount_other": "{{count}} Staffeln",
+    "requestMovie": "Film anfordern",
+    "requestShow": "Serie anfordern",
+    "done": {
+      "requested": "Angefordert. Den Stand siehst du unter «Meine Wünsche».",
+      "joined": "Du wirst benachrichtigt, sobald der Titel da ist.",
+      "withdrawn": "Dein Wunsch ist zurückgezogen."
+    },
+    "alreadyRequested": "Bereits angefordert",
+    "cannotRequest": "Anfordern ist für dieses Profil nicht möglich",
+    "seasons": "Staffeln",
+    "seasonRequested": "Bereits angefordert",
+    "nextEpisode": "Läuft noch, nächste Folge am {{date}}",
+    "last": {
+      "title": "Dein letzter Wunsch: {{state}}",
+      "why": {
+        "declined": "Seerr nennt keinen Grund. Du kannst den Titel erneut anfordern.",
+        "withdrawn": "Du hast ihn zurückgezogen."
+      }
     }
   }
 }

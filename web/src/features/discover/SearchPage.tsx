@@ -23,6 +23,7 @@ import {
   SpatialPage,
 } from '@/ui';
 import { useCoverPens } from '@/features/catalog/EditMetadata';
+import { SearchMissing, useSearchMissing } from '@/features/wishes/SearchMissing';
 import { ratingAges, ratingFilterLabel } from '@/features/shared/choices';
 import { PageRetry } from './ItemGrid';
 import { PagedItemGrid } from './PagedItemGrid';
@@ -128,7 +129,19 @@ export function SearchPage() {
   const total = paged.total;
   const people = first?.people ?? [];
   const collections = first?.collections ?? [];
-  const found = total + people.length + collections.length > 0;
+  // Titles outside the library (concept 25, 5.2): of the filters only the kind maps to them.
+  const kinds = mediaTypesOf(params);
+  const missingMedia =
+    kinds.length === 0 || (kinds.includes('movie') && kinds.includes('series'))
+      ? undefined
+      : kinds.includes('movie')
+        ? 'movie'
+        : kinds.includes('series')
+          ? 'show'
+          : null;
+  const missing = useSearchMissing(body === null ? undefined : params.q, missingMedia);
+  const missingCount = missing.data?.items.length ?? 0;
+  const found = total + people.length + collections.length + missingCount > 0;
   const showResults = body !== null && results.isSuccess;
 
   const genreOptions = [
@@ -279,7 +292,7 @@ export function SearchPage() {
             <Notice tone="danger" title={problemMessage(t, results.error)} />
           )}
 
-          {showResults && !found && (
+          {showResults && !found && !missing.isFetching && (
             <Notice title={t('search.empty.title')}>{t('search.empty.body')}</Notice>
           )}
 
@@ -353,6 +366,9 @@ export function SearchPage() {
               </SpatialGroup>
             </section>
           )}
+
+          {/* After the library's sections (concept 25, 5.2). */}
+          {showResults && <SearchMissing query={missing} />}
         </div>
       </main>
     </SpatialPage>

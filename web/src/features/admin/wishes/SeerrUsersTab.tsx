@@ -42,7 +42,7 @@ import {
   type WishSettings,
 } from '../queries';
 import { rightsText, seerrUserColumns, userTypeText } from './columns';
-import { QuotaLines } from './quota';
+import { QuotaLines } from '../../shared/quota';
 import { limitSummary } from '../../shared/WishLimitFields';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
 import styles from './Wishes.module.css';

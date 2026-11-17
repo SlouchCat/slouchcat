@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Chip } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import type { SeerrUser, WishAccountMapping } from '../queries';
-import { quotaShort } from './quota';
+import { quotaShort } from '../../shared/quota';
 import styles from './Wishes.module.css';
 
 /** The chip of how an account came to its Seerr user (or that it has none). */

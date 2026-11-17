@@ -116,7 +116,33 @@ const problemKeys = {
   provision_disabled: 'errors.code.provision_disabled',
   password_not_syncable: 'errors.code.password_not_syncable',
   account_not_allowed: 'errors.code.account_not_allowed',
+  // Requesting a title (concept 25 stage 2): no right (the reason says which, see
+  // problemMessage), the limit, the title arrived in the library meanwhile, a wish past its
+  // approval, Seerr out of reach.
+  wish_not_allowed: 'errors.code.wish_not_allowed',
+  quota_exceeded: 'errors.code.quota_exceeded',
+  already_available: 'errors.code.already_available',
+  wish_not_withdrawable: 'errors.code.wish_not_withdrawable',
+  seerr_unreachable: 'errors.code.seerr_unreachable',
 } as const;
+
+/** The reasons of `wish_not_allowed` (createWish, withdrawWish), each with its own sentence. */
+const WISH_REASONS = [
+  'disabled',
+  'account_not_allowed',
+  'profile_not_allowed',
+  'no_mapping',
+  'seerr_user_gone',
+  'movies_not_allowed',
+  'shows_not_allowed',
+  'source_not_allowed',
+  'tvdb_id_missing',
+  'status_only',
+  'withdraw_disabled',
+] as const;
+
+const isWishReason = (reason: unknown): reason is (typeof WISH_REASONS)[number] =>
+  WISH_REASONS.some((known) => known === reason);
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
 const fieldKeys = {
@@ -185,6 +211,11 @@ export function problemMessage(t: TFunction, error: unknown): string {
   const playing = error.problem?.playingProfiles ?? [];
   if (code === 'playing' && playing.length > 0) {
     return t('errors.code.playing_named', { names: playing.join(t('format.listSeparator')) });
+  }
+  // `wish_not_allowed` says why (WishProblem.reason).
+  const reason = (error.problem as { reason?: unknown } | null)?.reason;
+  if (code === 'wish_not_allowed' && isWishReason(reason)) {
+    return t(`wishes.reason.${reason}`);
   }
   return has(problemKeys, code) ? t(problemKeys[code]) : t('errors.code.unknown');
 }

@@ -17,6 +17,16 @@
 //   GET  /api/v1/settings/radarr     one Radarr server (I-9)
 //   GET  /api/v1/settings/sonarr     one Sonarr server
 //   POST /api/v1/request {}          400 from the request validator: CSRF protection is off
+//   POST /api/v1/request {mediaType, mediaId, tvdbId?, seasons?}   a request of the X-API-User
+//                                    (concept 25 stage 2): pending, or approved with AUTO_APPROVE
+//                                    or ADMIN; 409 «Request for this media already exists.» for an
+//                                    open request of the film or of every chosen season; 403
+//                                    «Movie Quota exceeded.» / «Series Quota exceeded.» past the
+//                                    user's limit, which counts the requests (a season each)
+//   GET  /api/v1/request?take=&skip=&requestedBy=&filter=   {pageInfo, results}, newest first
+//   GET|DELETE /api/v1/request/{id}  one request; DELETE 204 (only pending, or the key's owner)
+//   GET  /api/v1/movie/{id}, /tv/{id}  the titles of tmdb-server.mjs with mediaInfo and, for a
+//                                    series, the seasons Seerr can order (season 0 included)
 //   GET  /api/v1/user?take=&skip=    {pageInfo, results} (I-11)
 //   GET  /api/v1/user/{id}           one user, 404 {"message": "User not found."}
 //   POST /api/v1/user                a local user (201, without e-mail in the answer, I-12); the
@@ -37,9 +47,13 @@
 //                                    POST /user with 500 (an account then waits for Seerr);
 //                                    {"used": {"<id>": {"movie": n, "tv": n}}} sets what a
 //                                    user's limit has used
-//   POST /__reset                    the first instance and the five users of USERS again
+//                                    {"request": {"id": n, "status": 1..5}} sets a request's
+//                                    status (approve 2, decline 3, fail 4, complete 5)
+//   GET  /__requests                 every request, for the specs' checks
+//   POST /__reset                    the first instance, the five users of USERS and no requests
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { MOVIES, SHOWS } from './tmdb-server.mjs';
 
 /** The api key the specs enter (a fake; the log scan of global-teardown.ts looks for it). */
 export const SEERR_API_KEY = 'e2e-seerr-key-4f2a9c71d3b8';
@@ -105,11 +119,11 @@ export const USERS = [
 ];
 
 /** A part of GET /user/{id}/quota (I-30, I-31, I-32, I-34). */
-function quotaPart(user, kind, used) {
+function quotaPart(user, kind, used, requested = 0) {
   const admin = (user.permissions & (ADMIN | MANAGE_USERS)) !== 0;
   const limit = admin ? 0 : (user[`${kind}QuotaLimit`] ?? DEFAULT_QUOTA.limit);
   const days = user[`${kind}QuotaDays`] ?? DEFAULT_QUOTA.days;
-  const count = used?.[kind] ?? 0;
+  const count = (used?.[kind] ?? 0) + requested;
   if (limit === 0) return { days, limit: 0, used: count, restricted: false };
   const remaining = Math.max(0, limit - count);
   return { days, limit, used: count, remaining, restricted: remaining === 0 };
@@ -196,6 +210,62 @@ export function startSeerrServer({
   let failCreate = false;
   /** What each user's limit has used, by id. */
   let used = {};
+  /** The requests made through the mock (concept 25 stage 2). */
+  let requests = [];
+  let nextRequest = 100;
+
+  /** What a user's requests count against the limit: films, and seasons of series. */
+  const requested = (user, kind) =>
+    requests
+      .filter((r) => r.requestedBy === user.id && r.status !== 3 && r.type === kind)
+      .reduce((sum, r) => sum + (kind === 'movie' ? 1 : r.seasons.length), 0);
+
+  /** Seerr's media row of a title: its status follows the newest open request. */
+  const mediaOf = (type, tmdbId) => {
+    const own = requests.filter((r) => r.type === type && r.mediaId === tmdbId && r.status !== 3);
+    if (own.length === 0) return undefined;
+    const approved = own.some((r) => r.status === 2 || r.status === 5);
+    const status = own.some((r) => r.status === 5) ? 5 : approved ? 3 : 2;
+    return {
+      id: tmdbId + 50000,
+      tmdbId,
+      tvdbId: own[0].tvdbId ?? null,
+      mediaType: type,
+      status,
+      status4k: 1,
+      seasons: own.flatMap((r) =>
+        r.seasons.map((season) => ({
+          id: season.id,
+          seasonNumber: season.seasonNumber,
+          status,
+          status4k: 1,
+        })),
+      ),
+      requests: [],
+      createdAt: CREATED,
+      updatedAt: CREATED,
+    };
+  };
+
+  const requestOf = (r) => ({
+    id: r.id,
+    status: r.status,
+    type: r.type,
+    is4k: false,
+    media: mediaOf(r.type, r.mediaId) ?? {
+      id: r.mediaId + 50000,
+      tmdbId: r.mediaId,
+      mediaType: r.type,
+      status: 1,
+      status4k: 1,
+      seasons: [],
+    },
+    seasons: r.seasons.map((season) => ({ ...season, status: r.status })),
+    requestedBy: userOf(users.find((user) => user.id === r.requestedBy) ?? users[0], other),
+    modifiedBy: null,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  });
 
   const routes = async (request, url, response) => {
     const path = url.pathname.replace(/^\/api\/v1/, '');
@@ -267,8 +337,136 @@ export function startSeerrServer({
       return;
     }
     if (method === 'POST' && path === '/request') {
-      // The request validator refuses the empty body: CSRF protection is off.
-      sendJson(response, 400, { message: 'request/body must have required property mediaType' });
+      const body = JSON.parse((await readBody(request)) || '{}');
+      if (body.mediaType !== 'movie' && body.mediaType !== 'tv') {
+        // The request validator refuses the empty body: CSRF protection is off.
+        sendJson(response, 400, { message: 'request/body must have required property mediaType' });
+        return;
+      }
+      const type = body.mediaType;
+      const mediaId = Number(body.mediaId);
+      const open = requests.filter(
+        (r) => r.type === type && r.mediaId === mediaId && r.status !== 3,
+      );
+      const taken = new Set(open.flatMap((r) => r.seasons.map((season) => season.seasonNumber)));
+      const seasons = type === 'tv' ? (body.seasons ?? []).filter((n) => !taken.has(n)) : [];
+      if ((type === 'movie' && open.length > 0) || (type === 'tv' && seasons.length === 0)) {
+        sendJson(response, 409, { message: 'Request for this media already exists.' });
+        return;
+      }
+      const kind = type === 'movie' ? 'movie' : 'tv';
+      const part = quotaPart(actor, kind, used[String(actor.id)], requested(actor, kind));
+      const needed = type === 'movie' ? 1 : seasons.length;
+      if (part.limit > 0 && part.remaining < needed) {
+        sendJson(response, 403, {
+          message: type === 'movie' ? 'Movie Quota exceeded.' : 'Series Quota exceeded.',
+        });
+        return;
+      }
+      const auto = (actor.permissions & (ADMIN | AUTO_APPROVE)) !== 0;
+      const now = new Date().toISOString();
+      const made = {
+        id: nextRequest,
+        status: auto ? 2 : 1,
+        type,
+        mediaId,
+        tvdbId: body.tvdbId,
+        seasons: seasons.map((seasonNumber, index) => ({
+          id: nextRequest * 100 + index,
+          seasonNumber,
+        })),
+        requestedBy: actor.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      nextRequest += 1;
+      requests.push(made);
+      sendJson(response, 201, requestOf(made));
+      return;
+    }
+    if (method === 'GET' && path === '/request') {
+      const take = Number(url.searchParams.get('take') ?? 10);
+      const skip = Number(url.searchParams.get('skip') ?? 0);
+      const by = url.searchParams.get('requestedBy');
+      const list = requests
+        .filter((r) => by === null || String(r.requestedBy) === by)
+        .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id - a.id);
+      sendJson(response, 200, {
+        pageInfo: {
+          pages: Math.max(1, Math.ceil(list.length / take)),
+          pageSize: take,
+          results: list.length,
+          page: Math.floor(skip / take) + 1,
+        },
+        results: list.slice(skip, skip + take).map(requestOf),
+      });
+      return;
+    }
+    const one = /^\/request\/(\d+)$/.exec(path);
+    if (one) {
+      const found = requests.find((r) => String(r.id) === one[1]);
+      if (!found) {
+        sendJson(response, 404, { message: 'Request not found.' });
+        return;
+      }
+      if (method === 'GET') {
+        sendJson(response, 200, requestOf(found));
+        return;
+      }
+      if (method === 'DELETE') {
+        if (found.status !== 1 && actor.id !== users[0].id) {
+          sendJson(response, 401, {
+            message: 'You do not have permission to delete this request.',
+          });
+          return;
+        }
+        requests = requests.filter((r) => r !== found);
+        response.writeHead(204).end();
+        return;
+      }
+    }
+    const title = /^\/(movie|tv)\/(\d+)$/.exec(path);
+    if (method === 'GET' && title) {
+      const [, type, id] = title;
+      const fixture = (type === 'movie' ? MOVIES : SHOWS).find((entry) => String(entry.id) === id);
+      if (!fixture) {
+        sendJson(response, 404, { message: 'Unable to retrieve media.' });
+        return;
+      }
+      const mediaInfo = mediaOf(type, fixture.id);
+      if (type === 'movie') {
+        sendJson(response, 200, {
+          id: fixture.id,
+          title: fixture.en,
+          releaseDate: fixture.date,
+          externalIds: { imdbId: `tt0${fixture.id}`, tvdbId: null },
+          ...(mediaInfo ? { mediaInfo } : {}),
+        });
+        return;
+      }
+      sendJson(response, 200, {
+        id: fixture.id,
+        name: fixture.en,
+        firstAirDate: fixture.date,
+        seasons: [
+          {
+            id: fixture.id * 10,
+            seasonNumber: 0,
+            episodeCount: 2,
+            name: 'Specials',
+            airDate: fixture.date,
+          },
+          ...fixture.seasons.map((season) => ({
+            id: fixture.id * 10 + season.n,
+            seasonNumber: season.n,
+            episodeCount: season.episodes,
+            name: `Season ${season.n}`,
+            airDate: season.date,
+          })),
+        ],
+        externalIds: { imdbId: `tt0${fixture.id}`, tvdbId: fixture.tvdb },
+        ...(mediaInfo ? { mediaInfo } : {}),
+      });
       return;
     }
     if (method === 'GET' && path === '/user') {
@@ -402,8 +600,8 @@ export function startSeerrServer({
     if (method === 'GET' && user && rest === '/quota') {
       const mine = used[String(user.id)];
       sendJson(response, 200, {
-        movie: quotaPart(user, 'movie', mine),
-        tv: quotaPart(user, 'tv', mine),
+        movie: quotaPart(user, 'movie', mine, requested(user, 'movie')),
+        tv: quotaPart(user, 'tv', mine, requested(user, 'tv')),
       });
       return;
     }
@@ -422,7 +620,20 @@ export function startSeerrServer({
         if (body.instance !== undefined) other = body.instance === 'other';
         if (typeof body.failCreate === 'boolean') failCreate = body.failCreate;
         if (body.used && typeof body.used === 'object') used = { ...used, ...body.used };
+        if (body.request && typeof body.request === 'object') {
+          const found = requests.find((r) => r.id === Number(body.request.id));
+          if (!found) {
+            response.writeHead(404).end();
+            return;
+          }
+          found.status = Number(body.request.status);
+          found.updatedAt = new Date().toISOString();
+        }
         response.writeHead(204).end();
+        return;
+      }
+      if (request.method === 'GET' && url.pathname === '/__requests') {
+        sendJson(response, 200, requests);
         return;
       }
       if (request.method === 'POST' && url.pathname === '/__reset') {
@@ -431,6 +642,8 @@ export function startSeerrServer({
         nextId = 20;
         failCreate = false;
         used = {};
+        requests = [];
+        nextRequest = 100;
         response.writeHead(204).end();
         return;
       }

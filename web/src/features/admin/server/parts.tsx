@@ -398,7 +398,7 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
       const halves = (['movie', 'tv'] as const).flatMap((kind) => {
         const part = reached[kind];
         if (!part || part.remaining > 0) return [];
-        const used = t(`admin.wishes.quota.${kind}`, {
+        const used = t(`wishes.quota.${kind}`, {
           used: part.used,
           limit: part.limit,
           days: part.days,

@@ -651,6 +651,13 @@ const downloadsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/offline/DownloadsPage'), 'DownloadsPage'),
 });
 
+// concept 25: the preview page of a title outside the library and «Meine Wünsche».
+const titleRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/titles/$media/$tmdbId',
+  component: lazyRouteComponent(() => import('@/features/titles/TitlePage'), 'TitlePage'),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -827,6 +834,8 @@ export const routeTree = rootRoute.addChildren([
         audioSeriesRoute,
         // concept 16
         radioRoute,
+        // concept 25
+        titleRoute,
       ]),
       playRoute,
       setupStepRoute,

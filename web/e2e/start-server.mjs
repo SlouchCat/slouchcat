@@ -4,7 +4,8 @@
 // feed (feed-server.mjs, M6), the Trakt mock (trakt-server.mjs, M7) and the mocks of the
 // notification channels and the update check (smtp-, push-, telegram- and update-server.mjs, M8)
 // the Radio Browser with the test station (radio-server.mjs, concept 16) and the book sources of
-// audiobooks (books-server.mjs, concept 19 D3) and Seerr (seerr-server.mjs, concept 25) run in this process and stop with the server.
+// audiobooks (books-server.mjs, concept 19 D3), Seerr (seerr-server.mjs, concept 25) and TMDB
+// (tmdb-server.mjs, concept 25 stage 2) run in this process and stop with the server.
 //
 // The suite runs bin/slouchcat-e2e, the server built with the tag radiotest (`task build`): only
 // that build reads the catalog URL from the environment and lets the radio dial the loopback (plan
@@ -31,6 +32,7 @@ import { startRadioServer } from './radio-server.mjs';
 import { startSeerrServer } from './seerr-server.mjs';
 import { SMTP_FROM, SMTP_PASSWORD, SMTP_USER, startSmtpServer } from './smtp-server.mjs';
 import { startTelegramServer, TELEGRAM_BOT_TOKEN } from './telegram-server.mjs';
+import { startTmdbServer } from './tmdb-server.mjs';
 import { startTraktServer, TRAKT_CLIENT_ID } from './trakt-server.mjs';
 import { startUpdateServer } from './update-server.mjs';
 
@@ -74,6 +76,10 @@ const books = await startBooksServer({ port: below('BOOKS', 10) });
 // Seerr eleven below (seerr-server.mjs, concept 25). No SLOUCHCAT_SEERR_* variable: the specs
 // enter its address in the form, which a value of the environment would lock.
 const seerr = await startSeerrServer({ port: below('SEERR', 11) });
+// TMDB twelve below (tmdb-server.mjs, concept 25 stage 2): the titles outside the library. The
+// server asks it only with a TMDB key, which the run has not (see SLOUCHCAT_TMDB_API_KEY below):
+// the wish specs store one through the administration and clear it afterwards (e2e/wishes.ts).
+const tmdb = await startTmdbServer({ port: below('TMDB', 12) });
 
 // The artefact folder of env.ts ARTEFACTS (SLOUCHCAT_E2E_ARTEFACTS moves it, e2e/parallel.mjs).
 const logFile = process.env.SLOUCHCAT_E2E_ARTEFACTS
@@ -109,8 +115,12 @@ const server = spawn(
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...process.env,
-      // No TMDB key in the e2e run: titles come from the file names.
+      // No TMDB key in the e2e run: titles come from the file names. A wish spec stores a key for
+      // its own time; TMDB is then the mock (with --dev only), which knows none of the library's
+      // titles, so they stay as they are.
       SLOUCHCAT_TMDB_API_KEY: '',
+      SLOUCHCAT_TEST_TMDB_BASE_URL: `http://127.0.0.1:${tmdb.port}/3`,
+      SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL: `http://127.0.0.1:${tmdb.port}/t/p`,
       // The specs that log in, try PINs or open invitation links give every test its own client
       // address (X-Forwarded-For, e2e/fixtures.ts), so the limit of 10 attempts per minute and
       // address does not couple tests to each other. The browser connects from the loopback.
@@ -179,5 +189,6 @@ server.on('exit', (code) => {
     radio.close(),
     books.close(),
     seerr.close(),
+    tmdb.close(),
   ]).finally(() => process.exit(code ?? 0));
 });

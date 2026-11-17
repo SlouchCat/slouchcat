@@ -234,7 +234,12 @@
       "seerr_user_taken": "This Seerr user already belongs to another account, is the shared user or is missing in Seerr.",
       "provision_disabled": "«Open new accounts in Seerr» is switched off. Switch it on under Wishes › Settings.",
       "password_not_syncable": "Slouchcat does not sync the password of this Seerr user: it is an administrator in Seerr or signs in through Jellyfin, Emby or Plex.",
-      "account_not_allowed": "The account may not request titles. An administrator sets the right under Accounts."
+      "account_not_allowed": "The account may not request titles. An administrator sets the right under Accounts.",
+      "wish_not_allowed": "This profile cannot request titles.",
+      "quota_exceeded": "The limit does not allow this.",
+      "already_available": "The title is already in the library.",
+      "wish_not_withdrawable": "The wish is already approved and can no longer be withdrawn.",
+      "seerr_unreachable": "Seerr cannot be reached right now."
     },
     "field": {
       "required": "Required.",
@@ -5743,17 +5748,6 @@
         "provisionAllWaits": "Seerr is not connected right now: the accounts then wait and are opened at the next sync.",
         "provisionAllQueued": "Opening runs: {{link}} to link, {{create}} to create."
       },
-      "quota": {
-        "movie": "Films: {{used}} of {{limit}} in {{days}} days",
-        "tv": "Seasons: {{used}} of {{limit}} in {{days}} days",
-        "remaining_one": "{{count}} left",
-        "remaining_other": "{{count}} left",
-        "nextFree": "next place free on {{date}}",
-        "short": {
-          "movie": "Films {{used}}/{{limit}}",
-          "tv": "Seasons {{used}}/{{limit}}"
-        }
-      },
       "limitField": {
         "label": "Limit",
         "help": {
@@ -6191,6 +6185,11 @@
     "empty": {
       "title": "Nothing found",
       "body": "Try another term or fewer filters."
+    },
+    "missing": {
+      "title": "Not in the library yet",
+      "notHere": "Not here yet",
+      "request": "Request {{title}}"
     }
   },
   "watchlist": {
@@ -6744,6 +6743,162 @@
       "halfBody_other": "{{count}} episodes have the check mark. Mark every episode or remove all check marks? Removing cannot be undone.",
       "markAll": "Mark every episode as watched",
       "removeAll": "Remove all check marks"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Films: {{used}} of {{limit}} in {{days}} days",
+      "tv": "Seasons: {{used}} of {{limit}} in {{days}} days",
+      "remaining_one": "{{count}} left",
+      "remaining_other": "{{count}} left",
+      "nextFree": "next place free on {{date}}",
+      "short": {
+        "movie": "Films {{used}}/{{limit}}",
+        "tv": "Seasons {{used}}/{{limit}}"
+      },
+      "movieNone": "Films without a limit",
+      "tvNone": "Seasons without a limit"
+    },
+    "state": {
+      "queued": "Being sent",
+      "pending": "Awaiting approval",
+      "processing": "Being fetched",
+      "partial": "Partly available",
+      "available": "Available",
+      "declined": "Declined",
+      "failed": "Failed",
+      "withdrawn": "Withdrawn"
+    },
+    "detail": {
+      "importing": "being read in",
+      "not_found_in_library": "not found in the library yet"
+    },
+    "fail": {
+      "quota": "Limit reached: Seerr did not accept the wish.",
+      "blocklisted": "The title is on Seerr’s blocklist.",
+      "no_permission": "The Seerr user may not request this kind of title.",
+      "arr_failed": "Seerr could not hand the title to Radarr or Sonarr. An administrator can retry the wish.",
+      "unreachable_24h": "Seerr could not be reached for 24 hours.",
+      "seerr_request_gone": "The wish was deleted in Seerr.",
+      "seerr_media_deleted": "The title was removed in Seerr.",
+      "seerr_user_gone": "The linked Seerr user no longer exists.",
+      "tvdb_id_missing": "This series lacks the TVDB id Seerr needs.",
+      "account_deleted": "The account that made the wish no longer exists."
+    },
+    "reason": {
+      "disabled": "Wishes are switched off.",
+      "account_not_allowed": "This account may not request titles.",
+      "profile_not_allowed": "This profile may not request titles. The main profile can allow it under “Profiles”.",
+      "no_mapping": "This account has no Seerr user yet. The administrator sets it up.",
+      "seerr_user_gone": "The linked Seerr user no longer exists. The administrator fixes this.",
+      "movies_not_allowed": "Films cannot be requested at the moment.",
+      "shows_not_allowed": "Series cannot be requested at the moment.",
+      "status_only": "Another profile has already requested this title. Once it is here, you will find it in the library.",
+      "already_requested": "You have already requested this title.",
+      "source_not_allowed": "Titles cannot be requested from here at the moment.",
+      "tvdb_id_missing": "This series lacks the TVDB id Seerr needs.",
+      "withdraw_disabled": "Wishes cannot be withdrawn at the moment."
+    },
+    "tmdbUnreachable": "TMDB cannot be reached right now. Try again later.",
+    "kind": {
+      "movie": "Film",
+      "show": "Series"
+    },
+    "seasons_one": "Season {{list}}",
+    "seasons_other": "Seasons {{list}}",
+    "event": {
+      "created": "Requested",
+      "submitted": "Sent to Seerr",
+      "attached": "Found in Seerr and taken over",
+      "joined": "Joined",
+      "withdrawn": "Withdrawn",
+      "withdraw_deleted": "Deleted in Seerr",
+      "owner_changed": "Another profile keeps wishing",
+      "reopened": "Already approved, the wish goes on",
+      "season_available_one": "Season {{seasons}} available",
+      "season_available_other": "Seasons {{seasons}} available",
+      "changed": "Changed"
+    },
+    "card": {
+      "title": "Your wish",
+      "requestedOn": "requested on {{date}}",
+      "joined": "you joined",
+      "history": "History",
+      "mine": "To my wishes"
+    },
+    "withdraw": {
+      "action": "Withdraw",
+      "actionJoined": "Stop joining",
+      "title": "Withdraw the wish?",
+      "titleJoined": "Stop joining?",
+      "body": "“{{title}}” will no longer be requested; Slouchcat deletes the wish in Seerr too.",
+      "bodyJoined": "You will get no message when “{{title}}” is here. The other profiles’ wishes stay.",
+      "confirm": "Withdraw",
+      "confirmJoined": "Stop joining"
+    },
+    "dialog": {
+      "titleMovie": "Request film: {{title}}",
+      "titleShow": "Request series: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Fetched at once, no approval needed.",
+      "needsApproval": "Needs an approval. You can follow it under “My wishes”.",
+      "seasons": "Seasons",
+      "allSeasons": "All missing seasons ({{count}})",
+      "season": "Season {{number}}",
+      "episodes_one": "{{count}} episode",
+      "episodes_other": "{{count}} episodes",
+      "seasonState": {
+        "requested": "already requested, you will be notified too",
+        "available": "available"
+      },
+      "nothingLeft": {
+        "title": "Nothing left to request",
+        "body": "Every season is here or already requested."
+      },
+      "tooManySeasons_one": "1 of {{limit}} seasons left. Choose at most 1 season.",
+      "tooManySeasons_other": "{{count}} of {{limit}} seasons left. Choose at most {{count}} seasons.",
+      "reached": {
+        "movie_one": "The limit is reached: {{count}} film in {{days}} days.",
+        "movie_other": "The limit is reached: {{count}} films in {{days}} days.",
+        "show_one": "The limit is reached: {{count}} season in {{days}} days.",
+        "show_other": "The limit is reached: {{count}} seasons in {{days}} days."
+      },
+      "nextFree": "The next place frees up on {{date}}.",
+      "submit": "Request",
+      "submitting": "Requesting …",
+      "chooseSeasons": "Choose seasons",
+      "join": "Notify me",
+      "submitSeasons_one": "Request {{count}} season",
+      "submitSeasons_other": "Request {{count}} seasons"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Title not found",
+      "body": "This title does not exist, or this profile cannot see it."
+    },
+    "loading": "Title",
+    "missing": "Not in the library yet",
+    "seasonCount_one": "{{count}} season",
+    "seasonCount_other": "{{count}} seasons",
+    "requestMovie": "Request film",
+    "requestShow": "Request series",
+    "done": {
+      "requested": "Requested. You can follow it under “My wishes”.",
+      "joined": "You will be notified as soon as the title is here.",
+      "withdrawn": "Your wish is withdrawn."
+    },
+    "alreadyRequested": "Already requested",
+    "cannotRequest": "This profile cannot request titles",
+    "seasons": "Seasons",
+    "seasonRequested": "Already requested",
+    "nextEpisode": "Still running, next episode on {{date}}",
+    "last": {
+      "title": "Your last wish: {{state}}",
+      "why": {
+        "declined": "Seerr gives no reason. You can request the title again.",
+        "withdrawn": "You withdrew it."
+      }
     }
   }
 }

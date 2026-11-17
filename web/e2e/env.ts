@@ -83,6 +83,8 @@ export const RADIO_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_R
 export const BOOKS_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_BOOKS_PORT ?? PORT - 10)}`;
 // Seerr (seerr-server.mjs, concept 25) eleven below; the specs enter this address in the form.
 export const SEERR_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_SEERR_PORT ?? PORT - 11)}`;
+// TMDB (tmdb-server.mjs, concept 25 stage 2) twelve below; the server reaches it with a key only.
+export const TMDB_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_TMDB_PORT ?? PORT - 12)}`;
 
 /** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
 export const SERVER_LOG = `${ARTEFACTS}server.log`;
