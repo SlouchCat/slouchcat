@@ -1019,28 +1019,6 @@ func (q *Queries) ListWishTitlesInUse(ctx context.Context, closedSince sql.NullI
 	return items, nil
 }
 
-const profileHasWish = `-- name: ProfileHasWish :one
-SELECT EXISTS (
-    SELECT 1 FROM wish_requesters AS r JOIN wishes AS w ON w.id = r.wish_id
-    WHERE r.profile_id = ?1 AND w.media = ?2 AND w.tmdb_id = ?3
-) AS has_wish
-`
-
-type ProfileHasWishParams struct {
-	ProfileID int64
-	Media     string
-	TmdbID    int64
-}
-
-// Whether the profile requested this title, in any state (the exception of F-9: a profile sees a
-// title it wished for without the request right).
-func (q *Queries) ProfileHasWish(ctx context.Context, arg ProfileHasWishParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, profileHasWish, arg.ProfileID, arg.Media, arg.TmdbID)
-	var has_wish bool
-	err := row.Scan(&has_wish)
-	return has_wish, err
-}
-
 const requestHeldByOtherWish = `-- name: RequestHeldByOtherWish :one
 SELECT CAST(EXISTS (
     SELECT 1 FROM wishes AS w
@@ -1096,33 +1074,6 @@ type SetWishCheckedParams struct {
 func (q *Queries) SetWishChecked(ctx context.Context, arg SetWishCheckedParams) error {
 	_, err := q.db.ExecContext(ctx, setWishChecked, arg.Now, arg.ID)
 	return err
-}
-
-const setWishExternalIDs = `-- name: SetWishExternalIDs :execrows
-UPDATE wishes SET tvdb_id = COALESCE(?1, tvdb_id), imdb_id = COALESCE(?2, imdb_id),
-                  updated_at = ?3
-WHERE id = ?4
-`
-
-type SetWishExternalIDsParams struct {
-	TvdbID sql.NullInt64
-	ImdbID sql.NullString
-	Now    int64
-	ID     int64
-}
-
-// The TVDB and IMDb ids found later (a show needs its TVDB id before it is sent).
-func (q *Queries) SetWishExternalIDs(ctx context.Context, arg SetWishExternalIDsParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, setWishExternalIDs,
-		arg.TvdbID,
-		arg.ImdbID,
-		arg.Now,
-		arg.ID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }
 
 const setWishItem = `-- name: SetWishItem :execrows

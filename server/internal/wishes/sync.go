@@ -185,6 +185,10 @@ func (s *Service) syncRequests(ctx context.Context, admin seerr.Session, initial
 		limit = 0
 	}
 	stop := pass.Until - syncMargin.Milliseconds()
+	// Seerr pages by skip, not by a cursor (review Minor 7): a request deleted in Seerr during a
+	// pass shifts the rest by one, and the request at the edge of the page is skipped in this pass.
+	// It is not lost: a request that changes later comes first in a following pass, and an open
+	// wish of it is read one by one after 24 h without a change (checkWishes).
 	for pages := 0; limit == 0 || pages < limit; pages++ {
 		page, err := admin.Requests(ctx, seerr.RequestQuery{Take: syncPageSize, Skip: pass.Page * syncPageSize, Sort: "modified", SortDirection: "desc"})
 		if err != nil {

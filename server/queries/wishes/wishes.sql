@@ -98,12 +98,6 @@ UPDATE wishes SET item_id = sqlc.narg('item_id'), updated_at = @now WHERE id = @
 -- name: SetWishChecked :exec
 UPDATE wishes SET checked_at = @now WHERE id = @id;
 
--- name: SetWishExternalIDs :execrows
--- The TVDB and IMDb ids found later (a show needs its TVDB id before it is sent).
-UPDATE wishes SET tvdb_id = COALESCE(sqlc.narg('tvdb_id'), tvdb_id), imdb_id = COALESCE(sqlc.narg('imdb_id'), imdb_id),
-                  updated_at = @now
-WHERE id = @id;
-
 -- name: UpsertWishSeason :exec
 -- One season of a series wish. tmdb_id must be the wish's (trigger wish_seasons_copy_insert); a
 -- second open row for the same TMDB id and season fails on wish_seasons_open.
@@ -171,14 +165,6 @@ JOIN profiles AS p ON p.id = r.profile_id
 WHERE r.account_id = @account_id
 ORDER BY r.created_at DESC, w.id DESC, r.profile_id
 LIMIT @limit_count;
-
--- name: ProfileHasWish :one
--- Whether the profile requested this title, in any state (the exception of F-9: a profile sees a
--- title it wished for without the request right).
-SELECT EXISTS (
-    SELECT 1 FROM wish_requesters AS r JOIN wishes AS w ON w.id = r.wish_id
-    WHERE r.profile_id = @profile_id AND w.media = @media AND w.tmdb_id = @tmdb_id
-) AS has_wish;
 
 -- name: InsertWishEvent :exec
 INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (@wish_id, @now, @kind, sqlc.narg('detail'));

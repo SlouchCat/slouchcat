@@ -24,7 +24,8 @@ import (
 // rating unknown. Every hour the reconcile checks every open wish. A film is available when a
 // requester sees it; a season when a requester plays as many episodes as the season has (a
 // running season: as many as have aired); a series when every wished season is, partial before.
-// The Notifier decides per profile and writes notified_at; this package never does.
+// The Notifier decides per profile and writes notified_at; this package writes it only for a
+// request it takes over that is available already, which gets no message (takeover.go).
 
 // JobReconcile is the job type of the reconcile.
 const JobReconcile = "wishes.reconcile"

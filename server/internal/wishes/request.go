@@ -29,7 +29,6 @@ var (
 )
 
 const (
-	createTries   = 3               // a conflict on a partial unique index repeats the transaction
 	seasonsTTL    = time.Hour       // the season list of Seerr per series (architecture 6.2)
 	seasonsWait   = 3 * time.Second // the dialog waits so long for Seerr
 	listMax       = 10000           // a household's wishes, read at once and filtered here
@@ -119,15 +118,7 @@ func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.Wish
 	}
 	nw := newWish{profile: p, sender: sender, title: title, tvdb: tvdb, seasons: wanted, source: in.Source,
 		statusOnly: ws.AlreadyRequested == model.WishesAlreadyStatus, name: titleName(title, p)}
-	var res createResult
-	for try := 1; ; try++ {
-		res, err = s.createTx(ctx, nw)
-		if err == nil || !isUnique(err) || try == createTries {
-			break
-		}
-		// Another profile created the same title at the same moment: the next pass joins it.
-		s.log.InfoContext(ctx, "wish created twice at once, joining", "tmdb_id", in.TMDBID)
-	}
+	res, err := s.createTx(ctx, nw)
 	if err != nil {
 		return model.WishCreated{}, err
 	}
@@ -460,8 +451,10 @@ type createResult struct {
 	same    int64 // the profile already had this film wish (idempotent)
 }
 
-// createTx joins open wishes and creates the rest in one transaction. A conflict on a partial
-// unique index (two profiles at the same moment) comes back for the caller to repeat.
+// createTx joins open wishes and creates the rest in one transaction. Two profiles that create
+// the same title at the same moment never both insert: the write pool has one connection and
+// every transaction begins IMMEDIATE (store.Open), so the second runs after the first, finds its
+// wish and joins it (architecture 6.1 step 4 needs no repeat here).
 func (s *Service) createTx(ctx context.Context, nw newWish) (createResult, error) {
 	var res createResult
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
