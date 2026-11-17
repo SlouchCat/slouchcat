@@ -299,3 +299,39 @@ func TestSharedUserOfAnAccountKeepsPassword(t *testing.T) {
 		t.Errorf("password of the account's user rewritten: %q", u.Password)
 	}
 }
+
+// A hand choice waits for the provisioning of the account in flight (review m-2): the job that
+// holds the lock links its user, the choice runs after it and stays.
+func TestSetAccountMappingWaitsForTheProvisioning(t *testing.T) {
+	f := newFixture(t)
+	f.refresh()
+	blocked := make(chan struct{})
+	f.svc.accountLocks.waiting = func(int64) { close(blocked) }
+	unlock, err := f.svc.accountLocks.lock(f.ctx, 3) // the job of «Alle eröffnen»
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.svc.SetAccountMapping(f.ctx, 3, ip(4), 1)
+		done <- err
+	}()
+	select {
+	case <-blocked:
+	case err := <-done:
+		t.Fatalf("the hand choice did not wait for the lock: %v", err)
+	}
+	if _, err := f.svc.provision(f.ctx, 3, LinkedByAdmin, "", 0); err != nil {
+		t.Fatal(err)
+	}
+	if m := f.mapping(3); m.State != OriginLinked {
+		t.Fatalf("job = %+v", m)
+	}
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if m := f.mapping(3); m.State != OriginManual || m.SeerrUserID == nil || *m.SeerrUserID != 4 {
+		t.Errorf("hand choice = %+v", m)
+	}
+}

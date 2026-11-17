@@ -166,6 +166,13 @@ func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrU
 	if err != nil {
 		return model.WishAccountMapping{}, err
 	}
+	// The lock of the provisioning (review m-2): a job that opens or links meanwhile never
+	// overwrites the hand choice.
+	unlock, err := s.accountLocks.lock(ctx, accountID)
+	if err != nil {
+		return model.WishAccountMapping{}, err
+	}
+	defer unlock()
 	err = s.inTx(ctx, func(q *wishq.Queries) error {
 		if n, err := q.AccountExists(ctx, accountID); err != nil {
 			return fmt.Errorf("account: %w", err)
