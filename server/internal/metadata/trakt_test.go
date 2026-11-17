@@ -255,6 +255,27 @@ func TestTraktRefresh(t *testing.T) {
 	if got := e.fake.requests(); !slices.Equal(got, []string{"/movies/trending", "/shows/trending"}) {
 		t.Errorf("requests = %v, want the two trending lists only", got)
 	}
+	// The entries the library lacks queue titles.refresh once, under its key (posters for the
+	// administration, 05-spotlight-integration.md section 5); a second fetch adds no job.
+	titlesQueued := func() int {
+		t.Helper()
+		var n int
+		if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`,
+			JobTitlesRefresh, titlesRefreshKey).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := titlesQueued(); n != 1 {
+		t.Errorf("titles.refresh queued %d times after the fetch, want 1", n)
+	}
+	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := titlesQueued(); n != 1 {
+		t.Errorf("titles.refresh queued %d times after a second fetch, want 1", n)
+	}
+	e.fake.forget()
 	first := e.clock.now()
 	st := e.status(t)
 	if !st.Configured || st.ListKey != "trending" || st.Entries != 3 || st.LastError != "" ||

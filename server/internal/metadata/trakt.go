@@ -317,7 +317,25 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 	}
 	s.log.InfoContext(ctx, "spotlight list refreshed", "list", spotlightListLabel(ref), "entries", len(entries),
 		"duration", s.trakt.now().Sub(attempt))
+	s.queueSpotlightTitles(ctx)
 	return nil
+}
+
+// queueSpotlightTitles queues titles.refresh once (under its key) when the list has missing
+// entries whose title is not stored yet, so the administration shows their posters without
+// waiting for the daily run (05-spotlight-integration.md section 5). A failure is only logged: the
+// daily run fetches them anyway.
+func (s *Service) queueSpotlightTitles(ctx context.Context) {
+	missing, err := systemq.New(s.db.Read).ListSpotlightTitlesToStore(ctx)
+	if err != nil || len(missing) == 0 || s.queue == nil {
+		if err != nil {
+			s.log.WarnContext(ctx, "spotlight titles to store not read", "err", err)
+		}
+		return
+	}
+	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTitlesRefresh, Priority: titlesRefreshPriority, IdempotencyKey: titlesRefreshKey}); err != nil {
+		s.log.WarnContext(ctx, "titles of the spotlight list not queued", "err", err)
+	}
 }
 
 // resolveTVDBOnly sets the TMDB id of every show Trakt names by its TVDB id only, through TMDB's
