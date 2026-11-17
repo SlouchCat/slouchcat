@@ -317,7 +317,7 @@ func TestDiscoverLibraryMatch(t *testing.T) {
 	// Game of Thrones: in the library under another TMDB id, matched by TVDB only.
 	d.dlib.byTVDB[gotTVDB] = "ITEM-GOT"
 	d.store.tmdb[refKey("show", got)] = metadata.ExternalTitle{Media: "show", TMDBID: got, TVDBID: gotTVDB}
-	d.exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, created_at, updated_at) VALUES (40, 'movie', ?, 'Alien', 'slouchcat', 'pending', 1, 1)`, alien)
+	d.exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, state_detail, created_at, updated_at) VALUES (40, 'movie', ?, 'Alien', 'slouchcat', 'processing', 'importing', 1, 1)`, alien)
 	d.exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (40, 1, 1, 'owner', 1)`)
 
 	page, err := d.svc.DiscoverRowPage(d.ctx, d.marco, RowTrending, 1, 0)
@@ -340,8 +340,8 @@ func TestDiscoverLibraryMatch(t *testing.T) {
 	if e, ok := by[refKey("movie", 7000)]; !ok || e.ItemID != "" || !e.CanRequest || e.SeerrRequested {
 		t.Errorf("available in Seerr only = %+v, %v; want missing and requestable", e, ok)
 	}
-	if e, ok := by[refKey("movie", alien)]; !ok || e.Wish == nil || e.Wish.ID != 40 || e.CanRequest || !e.SeerrRequested {
-		t.Errorf("alien = %+v, %v; want the own wish and «in Seerr angefragt»", e, ok)
+	if e, ok := by[refKey("movie", alien)]; !ok || e.Wish == nil || e.Wish.ID != 40 || e.Wish.StateDetail != model.WishDetailImporting || e.CanRequest || !e.SeerrRequested {
+		t.Errorf("alien = %+v, %v; want the own wish «wird eingelesen» and «in Seerr angefragt»", e, ok)
 	}
 	hidden, err := d.svc.DiscoverTitles(d.ctx, d.marco, TitlesQuery{Media: model.WishMediaMovie, HideAvailable: true})
 	if err != nil {

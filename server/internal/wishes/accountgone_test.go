@@ -265,3 +265,21 @@ func TestRepointWhileTheWishIsLocked(t *testing.T) {
 		t.Errorf("wish = %+v", w)
 	}
 }
+
+// The hand-over by a deleted account is found however many events followed it (review nit: not
+// bound to the WishEventsShown newest events); a later change of owner of another kind wins.
+func TestHandedOverByDeletionBeyondTheShownEvents(t *testing.T) {
+	r := newRequestFixture(t)
+	res := r.create(r.marco, film(matrix))
+	r.exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (?, 1000000000000, 'owner_changed', '{"reason":"account_deleted"}')`, res.Wish.ID)
+	for i := range model.WishEventsShown + 5 {
+		r.exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (?, ?, 'submit_failed', NULL)`, res.Wish.ID, 1000000000001+i)
+	}
+	if handed, err := r.svc.handedOverByDeletion(r.ctx, res.Wish.ID); err != nil || !handed {
+		t.Errorf("handed over = %v, %v", handed, err)
+	}
+	r.exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (?, 1000000001000, 'owner_changed', '{"reason":"profile_deleted"}')`, res.Wish.ID)
+	if handed, err := r.svc.handedOverByDeletion(r.ctx, res.Wish.ID); err != nil || handed {
+		t.Errorf("after a profile deletion = %v, %v", handed, err)
+	}
+}

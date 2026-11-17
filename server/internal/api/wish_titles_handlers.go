@@ -414,7 +414,9 @@ func (s *server) WithdrawWish(ctx context.Context, req gen.WithdrawWishRequestOb
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
 	if err := svc.WithdrawWish(ctx, session.Profile, req.Id); err != nil {
-		if body, ok := s.wishProblem(ctx, svc, session.Profile, err); ok {
+		// Only withdraw_disabled has a WishProblem body here (403 with the reason); every other
+		// error goes through problem with its own status.
+		if body, ok := s.wishProblem(ctx, svc, session.Profile, err); ok && body.Status == http.StatusForbidden {
 			return gen.WithdrawWish403ApplicationProblemPlusJSONResponse(body), nil
 		}
 		return s.problem(ctx, err), nil

@@ -113,17 +113,18 @@ func (q *Queries) ListDiscoverProfiles(ctx context.Context) ([]ListDiscoverProfi
 }
 
 const listOpenWishesOfProfile = `-- name: ListOpenWishesOfProfile :many
-SELECT w.id, w.media, w.tmdb_id, w.state
+SELECT w.id, w.media, w.tmdb_id, w.state, w.state_detail
 FROM wish_requesters AS r
 JOIN wishes AS w ON w.id = r.wish_id
 WHERE r.profile_id = ?1 AND w.state IN ('queued', 'pending', 'processing', 'partial')
 `
 
 type ListOpenWishesOfProfileRow struct {
-	ID     int64
-	Media  string
-	TmdbID int64
-	State  string
+	ID          int64
+	Media       string
+	TmdbID      int64
+	State       string
+	StateDetail sql.NullString
 }
 
 // The open wishes the profile owns or joined, for the mark "angefordert" on the tiles of a page.
@@ -141,6 +142,7 @@ func (q *Queries) ListOpenWishesOfProfile(ctx context.Context, profileID int64) 
 			&i.Media,
 			&i.TmdbID,
 			&i.State,
+			&i.StateDetail,
 		); err != nil {
 			return nil, err
 		}

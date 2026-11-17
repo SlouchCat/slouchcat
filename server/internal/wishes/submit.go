@@ -322,20 +322,17 @@ func (s *Service) orphanSender(ctx context.Context, w *wishq.Wish) (bool, error)
 // handedOverByDeletion reports whether the newest change of owner of the wish came from the
 // deletion of an account.
 func (s *Service) handedOverByDeletion(ctx context.Context, wishID int64) (bool, error) {
-	events, err := s.read.ListWishEvents(ctx, wishq.ListWishEventsParams{WishID: wishID, LimitCount: model.WishEventsShown})
+	detail, err := s.read.LastWishEventDetail(ctx, wishq.LastWishEventDetailParams{WishID: wishID, Kind: "owner_changed"})
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("events: %w", err)
 	}
-	for _, e := range events { // newest first
-		if e.Kind != "owner_changed" {
-			continue
-		}
-		var d struct {
-			Reason string `json:"reason"`
-		}
-		return json.Unmarshal([]byte(e.Detail.String), &d) == nil && d.Reason == eventAccountDeleted, nil
+	var d struct {
+		Reason string `json:"reason"`
 	}
-	return false, nil
+	return json.Unmarshal([]byte(detail.String), &d) == nil && d.Reason == eventAccountDeleted, nil
 }
 
 // send asks Seerr: the pre-check from the second attempt on, then POST /request.

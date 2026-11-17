@@ -208,7 +208,7 @@ func (s *server) discoverEntries(ctx context.Context, svc WishesService, p model
 		card := model.ExternalTitleCard{Media: e.Media, TMDBID: e.TMDBID, Title: e.Title, Year: e.Year, MinAge: e.MinAge,
 			ImageKinds: e.ImageKinds, Images: e.Images, ProfileID: p.ID, HasTrailer: e.HasTrailer, CanRequest: e.CanRequest}
 		if e.Wish != nil {
-			card.Wish = &model.WishMark{ID: e.Wish.ID, State: e.Wish.State}
+			card.Wish = &model.WishMark{ID: e.Wish.ID, State: e.Wish.State, StateDetail: e.Wish.StateDetail}
 		}
 		g := gen.DiscoverEntry{Title: toExternalTitleRef(card), SeerrRequested: e.SeerrRequested}
 		if e.ItemID != "" {

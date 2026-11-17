@@ -100,8 +100,9 @@ const (
 
 // DiscoverWish is the own open wish of the profile for a title (the mark «angefordert»).
 type DiscoverWish struct {
-	ID    int64
-	State string
+	ID          int64
+	State       string
+	StateDetail string // importing: «wird eingelesen»
 }
 
 // DiscoverEntry is one tile (DiscoverEntry of the contract).
@@ -898,7 +899,7 @@ func (s *Service) openWishes(ctx context.Context, profileID int64) (map[string]D
 	}
 	out := make(map[string]DiscoverWish, len(rows))
 	for _, r := range rows {
-		out[refKeyOf(r.Media, r.TmdbID)] = DiscoverWish{ID: r.ID, State: r.State}
+		out[refKeyOf(r.Media, r.TmdbID)] = DiscoverWish{ID: r.ID, State: r.State, StateDetail: r.StateDetail.String}
 	}
 	return out, nil
 }

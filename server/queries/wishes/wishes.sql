@@ -182,6 +182,11 @@ INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (@wish_id, @now, @kin
 -- The newest events of a wish, newest first.
 SELECT * FROM wish_events WHERE wish_id = @wish_id ORDER BY at DESC, id DESC LIMIT @limit_count;
 
+-- name: LastWishEventDetail :one
+-- The detail of the newest event of this kind of the wish (the hand-over of a queued wish, review
+-- nit: not bound to the events a wish shows).
+SELECT detail FROM wish_events WHERE wish_id = @wish_id AND kind = @kind ORDER BY at DESC, id DESC LIMIT 1;
+
 -- name: LastWishEventAt :one
 -- When the wish last had an event of this kind; 0 = never (the 24 h of the outbox count from a
 -- retry of the administration).

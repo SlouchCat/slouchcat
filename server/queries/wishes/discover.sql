@@ -35,7 +35,7 @@ ORDER BY p.id;
 
 -- name: ListOpenWishesOfProfile :many
 -- The open wishes the profile owns or joined, for the mark "angefordert" on the tiles of a page.
-SELECT w.id, w.media, w.tmdb_id, w.state
+SELECT w.id, w.media, w.tmdb_id, w.state, w.state_detail
 FROM wish_requesters AS r
 JOIN wishes AS w ON w.id = r.wish_id
 WHERE r.profile_id = @profile_id AND w.state IN ('queued', 'pending', 'processing', 'partial');

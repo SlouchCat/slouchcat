@@ -343,6 +343,12 @@ func TestContractWishes(t *testing.T) {
 	exec(`UPDATE wishes SET media = 'movie', state = 'available', available_at = 3 WHERE id = 8901`)
 	expect("p18", http.MethodGet, "/wishes?state=nope", "", http.StatusUnprocessableEntity, "validation_failed")
 
+	// Withdrawing switched off: 403 wish_not_allowed with the reason (the WishProblem body).
+	expect("p18", http.MethodPut, "/admin/wishes/settings", `{"enabled":true,"fromSearch":true,"fromDetail":true,"allowWithdraw":false}`, http.StatusOK, "")
+	if body := expect("p16", http.MethodDelete, fmt.Sprintf("/wishes/%v", wishID), "", http.StatusForbidden, "wish_not_allowed"); body["reason"] != "withdraw_disabled" {
+		t.Errorf("withdraw switched off = %v", body)
+	}
+	expect("p18", http.MethodPut, "/admin/wishes/settings", `{"enabled":true,"fromSearch":true,"fromDetail":true,"allowWithdraw":true}`, http.StatusOK, "")
 	// Withdrawing: the joined profile withdraws itself; a wish of another profile is 404.
 	expect("p16", http.MethodDelete, fmt.Sprintf("/wishes/%v", wishID), "", http.StatusNoContent, "")
 	expect("p12", http.MethodDelete, fmt.Sprintf("/wishes/%v", wishID), "", http.StatusNotFound, "not_found")

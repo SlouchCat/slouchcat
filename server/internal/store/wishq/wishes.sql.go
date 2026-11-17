@@ -340,6 +340,24 @@ func (q *Queries) LastWishEventAt(ctx context.Context, arg LastWishEventAtParams
 	return at, err
 }
 
+const lastWishEventDetail = `-- name: LastWishEventDetail :one
+SELECT detail FROM wish_events WHERE wish_id = ?1 AND kind = ?2 ORDER BY at DESC, id DESC LIMIT 1
+`
+
+type LastWishEventDetailParams struct {
+	WishID int64
+	Kind   string
+}
+
+// The detail of the newest event of this kind of the wish (the hand-over of a queued wish, review
+// nit: not bound to the events a wish shows).
+func (q *Queries) LastWishEventDetail(ctx context.Context, arg LastWishEventDetailParams) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, lastWishEventDetail, arg.WishID, arg.Kind)
+	var detail sql.NullString
+	err := row.Scan(&detail)
+	return detail, err
+}
+
 const listAccountWishes = `-- name: ListAccountWishes :many
 SELECT w.id, w.media, w.tmdb_id, w.tvdb_id, w.imdb_id, w.title, w.year, w.origin, w.seerr_request_id, w.seerr_media_id, w.seerr_user_id, w.state, w.state_detail, w.fail_reason, w.attempts, w.next_attempt_at, w.withdraw_pending, w.checked_at, w.item_id, w.created_at, w.updated_at, w.submitted_at, w.approved_at, w.available_at, w.closed_at, w.seerr_updated_at, r.role, r.created_at AS requested_at, r.notified_at, r.profile_id, p.name AS profile_name
 FROM wish_requesters AS r
