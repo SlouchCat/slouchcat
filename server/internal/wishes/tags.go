@@ -83,6 +83,17 @@ func (s *Service) QueueTags(ctx context.Context, manual bool) error {
 	return err
 }
 
+// tagsSoon queues a run of wishes.tag with the priority of the schedule; a failure is logged. It
+// runs after each sync, when a wish becomes processing and when a co-wisher joins.
+func (s *Service) tagsSoon(ctx context.Context) {
+	if s.queue == nil {
+		return
+	}
+	if err := s.QueueTags(ctx, false); err != nil {
+		s.log.WarnContext(ctx, "profile tags not queued", "err", err)
+	}
+}
+
 func (s *Service) queueTags(ctx context.Context, prio int) (int64, error) {
 	if s.queue == nil {
 		return 0, errors.New("wishes: no job queue")

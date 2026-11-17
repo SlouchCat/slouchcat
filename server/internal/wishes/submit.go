@@ -569,6 +569,9 @@ func (s *Service) accepted(ctx context.Context, w wishq.Wish, res sent) error {
 		return s.queueWish(ctx, JobWithdraw, w.ID, 0)
 	}
 	s.announce(ctx, w.ID, "", state, fail)
+	if state == model.WishProcessing {
+		s.tagsSoon(ctx)
+	}
 	s.refreshQuotaOf(ctx, int(w.SeerrUserID.Int64))
 	return nil
 }

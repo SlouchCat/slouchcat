@@ -151,6 +151,7 @@ func (s *Service) sync(ctx context.Context, initial bool) error {
 	if err := s.queueImports(ctx); err != nil {
 		s.log.WarnContext(ctx, "take-over not queued after the sync", "err", err)
 	}
+	s.tagsSoon(ctx) // the profile tags follow every sync (architecture 13)
 	return nil
 }
 
@@ -483,10 +484,14 @@ func (s *Service) applySeasons(ctx context.Context, q *wishq.Queries, wishID int
 
 // afterChanges announces the changes and queues the reconcile for titles Seerr reports available.
 func (s *Service) afterChanges(ctx context.Context, changes []change) {
-	reconcile := false
+	reconcile, procured := false, false
 	for _, c := range changes {
 		s.announce(ctx, c.wishID, c.from, c.to, c.fail)
 		reconcile = reconcile || c.importing
+		procured = procured || (c.to == model.WishProcessing && c.from != model.WishProcessing)
+	}
+	if procured {
+		s.tagsSoon(ctx)
 	}
 	if reconcile {
 		if err := s.queueReconcile(ctx, nil); err != nil {

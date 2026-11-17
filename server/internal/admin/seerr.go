@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +48,11 @@ const (
 	SettingWishesLimitMovieDays        = "wishes.limit_movie_days"
 	SettingWishesLimitTVCount          = "wishes.limit_tv_count"
 	SettingWishesLimitTVDays           = "wishes.limit_tv_days"
+	// Stage 4 and 5; package wishes reads the same keys (arraccess.go, discover.go).
+	SettingWishesProfileTags   = "wishes.profile_tags"
+	SettingWishesTagPrefix     = "wishes.tag_prefix"
+	SettingWishesShowProgress  = "wishes.show_progress"
+	SettingWishesDiscoverPages = "wishes.discover_pages"
 
 	// settingSeerrTest is the record of the last connection test, written by package wishes (T-1).
 	// A new address or key makes it void, so it goes in the same transaction.
@@ -68,7 +74,11 @@ var DefaultWishSettings = model.WishSettings{
 	AlreadyRequested: model.WishesAlreadyJoin, Unmapped: model.WishesUnmappedFallback,
 	AllowWithdraw: true, PINExternalHideTitle: true, ProvisionAccounts: true, SyncPassword: true,
 	DefaultLimit: model.WishLimits{Movie: model.WishLimit{Limit: 10, Days: 7}, TV: model.WishLimit{Limit: 5, Days: 7}},
+	ProfileTags:  true, TagPrefix: "sc-", ShowProgress: true, DiscoverPages: true,
 }
+
+// wishTagPrefix is the form of the prefix of the profile tags (data model 2.12).
+var wishTagPrefix = regexp.MustCompile(`^[a-z0-9-]{1,10}$`)
 
 // SeerrHooks is implemented by package wishes.
 type SeerrHooks interface {
@@ -239,6 +249,9 @@ func (s *Service) WishSettings(ctx context.Context) (model.WishSettings, error) 
 		{SettingWishesPINExternalHideTitle, &out.PINExternalHideTitle, d.PINExternalHideTitle},
 		{SettingWishesProvisionAccounts, &out.ProvisionAccounts, d.ProvisionAccounts},
 		{SettingWishesSyncPassword, &out.SyncPassword, d.SyncPassword},
+		{SettingWishesProfileTags, &out.ProfileTags, d.ProfileTags},
+		{SettingWishesShowProgress, &out.ShowProgress, d.ShowProgress},
+		{SettingWishesDiscoverPages, &out.DiscoverPages, d.DiscoverPages},
 	}
 	for _, b := range bools {
 		v, err := s.boolSetting(ctx, b.key, b.def)
@@ -262,6 +275,11 @@ func (s *Service) WishSettings(ctx context.Context) (model.WishSettings, error) 
 		if ok && slices.Contains(e.valid, v) {
 			*e.dst = v
 		}
+	}
+	if v, ok, err := s.setting(ctx, SettingWishesTagPrefix); err != nil {
+		return model.WishSettings{}, err
+	} else if ok && wishTagPrefix.MatchString(v) {
+		out.TagPrefix = v
 	}
 	for _, n := range []struct {
 		key      string
@@ -299,6 +317,9 @@ func (s *Service) SetWishSettings(ctx context.Context, upd model.WishSettingsUpd
 	if v := upd.Unmapped; v != nil && *v != model.WishesUnmappedFallback && *v != model.WishesUnmappedDeny {
 		verr = verr.Add("unmapped", "invalid_value")
 	}
+	if v := upd.TagPrefix; v != nil && !wishTagPrefix.MatchString(*v) {
+		verr = verr.Add("tagPrefix", "invalid_value")
+	}
 	if l := upd.DefaultLimit; l != nil {
 		checkWishLimit(verr, "defaultLimit.movie", l.Movie)
 		checkWishLimit(verr, "defaultLimit.tv", l.TV)
@@ -326,6 +347,8 @@ func (s *Service) SetWishSettings(ctx context.Context, upd model.WishSettingsUpd
 		SettingWishesNewAccountsCanRequest: upd.NewAccountsCanRequest, SettingWishesAllowWithdraw: upd.AllowWithdraw,
 		SettingWishesPINExternalHideTitle: upd.PINExternalHideTitle, SettingWishesProvisionAccounts: upd.ProvisionAccounts,
 		SettingWishesSyncPassword: upd.SyncPassword,
+		SettingWishesProfileTags:  upd.ProfileTags, SettingWishesShowProgress: upd.ShowProgress,
+		SettingWishesDiscoverPages: upd.DiscoverPages,
 	} {
 		if v != nil {
 			w.set(key, boolValue(*v))
@@ -336,6 +359,9 @@ func (s *Service) SetWishSettings(ctx context.Context, upd model.WishSettingsUpd
 	}
 	if v := upd.Unmapped; v != nil {
 		w.set(SettingWishesUnmapped, *v)
+	}
+	if v := upd.TagPrefix; v != nil {
+		w.set(SettingWishesTagPrefix, *v)
 	}
 	if l := upd.DefaultLimit; l != nil {
 		w.set(SettingWishesLimitMovieCount, strconv.Itoa(l.Movie.Limit))

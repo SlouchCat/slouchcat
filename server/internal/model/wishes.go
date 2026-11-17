@@ -91,6 +91,11 @@ type WishSettings struct {
 	ProvisionAccounts     bool   // «Neue Konten in Seerr eröffnen» (N-8)
 	SyncPassword          bool   // «Passwort abgleichen» (N-8)
 	DefaultLimit          WishLimits
+	// Stage 4 and 5 (data model 2.12): settings package wishes reads from the same keys.
+	ProfileTags   bool   // «Profil-Tag in Radarr und Sonarr setzen» (wishes.profile_tags)
+	TagPrefix     string // «Präfix», ^[a-z0-9-]{1,10}$ (wishes.tag_prefix; N-21, F-25)
+	ShowProgress  bool   // «Download-Fortschritt zeigen» (wishes.show_progress; N-86)
+	DiscoverPages bool   // «Seiten Entdecken, Filme, Serien und Suche» (wishes.discover_pages; N-57)
 }
 
 // WishSettingsUpdate changes the wish settings (setWishSettings); nil fields stay.
@@ -100,6 +105,8 @@ type WishSettingsUpdate struct {
 	NewAccountsCanRequest, AllowWithdraw, PINExternalHideTitle *bool
 	ProvisionAccounts, SyncPassword                            *bool
 	DefaultLimit                                               *WishLimits
+	ProfileTags, ShowProgress, DiscoverPages                   *bool
+	TagPrefix                                                  *string
 }
 
 // The connection test (testSeerrConnection, architecture 15.1, administration 4.1).

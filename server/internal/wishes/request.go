@@ -135,6 +135,9 @@ func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.Wish
 		s.log.InfoContext(ctx, "wish created", "wish_id", res.created, "media", in.Media, "tmdb_id", in.TMDBID, "seasons", len(wanted))
 		s.attemptNow(ctx, res.created)
 	}
+	if len(res.joined) > 0 {
+		s.tagsSoon(ctx) // a co-wisher gets its profile tag (architecture 13)
+	}
 	return s.created(ctx, p, res)
 }
 
