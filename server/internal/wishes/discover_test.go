@@ -44,6 +44,21 @@ func (s *titleStore) EnsureExternalTitle(_ context.Context, media string, tmdbID
 	return t, nil
 }
 
+// ExternalTitle is the stored title alone, as metadata answers without asking TMDB.
+func (s *titleStore) ExternalTitle(_ context.Context, media string, tmdbID int64) (metadata.ExternalTitle, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if t, ok := s.stored[refKey(media, tmdbID)]; ok {
+		return t, nil
+	}
+	return metadata.ExternalTitle{}, model.ErrNotFound
+}
+
+// The discover tests open no image and run no library search.
+func (s *titleStore) OpenExternalTitleImage(context.Context, string, int64, string, string, bool) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
+}
+
 func (s *titleStore) fetches() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -114,6 +129,15 @@ func (l *discoverLib) Visible(context.Context, visibility.Scope, string) error {
 
 func (l *discoverLib) VisibleSeasons(context.Context, visibility.Scope, string) (map[int]int, error) {
 	return map[int]int{}, nil
+}
+
+// The discover tests ask for no season target and no library summary.
+func (l *discoverLib) CatalogSeasonTarget(context.Context, string, int) (visibility.SeasonTarget, bool, error) {
+	return visibility.SeasonTarget{}, false, nil
+}
+
+func (l *discoverLib) Summary(context.Context, visibility.Scope, string) (model.ItemSummary, error) {
+	return model.ItemSummary{}, model.ErrNotFound
 }
 
 func (l *discoverLib) setCeiling(age int) {

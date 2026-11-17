@@ -383,7 +383,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Wishes through Seerr (concept 25): the connection and the settings come from the
 	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
 	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
-		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc))
+		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc), wishes.WithNotifier(wishes.NotifyAdapter(notifySvc)))
 	adminSvc.WithSeerr(wishSvc)
 	// The match of a film or series reconciles the wishes of the title with the library (concept 25).
 	metaSvc.WithMatched(wishSvc.TitleMatched)

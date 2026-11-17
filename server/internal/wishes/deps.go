@@ -20,6 +20,9 @@ type Library interface {
 	TitleByExternalIDs(ctx context.Context, ref visibility.ExternalRef) (itemID string, found bool, err error)
 	Visible(ctx context.Context, s visibility.Scope, itemID string) error
 	VisibleSeasons(ctx context.Context, s visibility.Scope, seriesID string) (map[int]int, error)
+	// CatalogSeasonTarget is the episode target of a season by series_catalog; found false sends
+	// the caller to the title outside the library.
+	CatalogSeasonTarget(ctx context.Context, seriesID string, season int) (visibility.SeasonTarget, bool, error)
 }
 
 // Titles is the part of package metadata the wishes ask (*metadata.Service): the stored title

@@ -227,18 +227,25 @@ func (s *Service) reconcileFilm(ctx context.Context, w wishq.Wish, itemID string
 }
 
 // target is the number of episodes a season needs: its episodes, or for a running season the
-// ones aired so far (architecture 8.1; series_catalog follows in stage 4, until then the title
-// outside the library).
-func target(t metadata.ExternalTitle, n int) (episodes int, airing bool) {
+// ones aired so far (architecture 8.1). series_catalog of the library series wins; without a row
+// for the season the title outside the library counts. A target below 1 is never reported.
+func (s *Service) target(ctx context.Context, seriesID string, t metadata.ExternalTitle, n int) (episodes int, airing bool, err error) {
+	ct, found, err := s.lib.CatalogSeasonTarget(ctx, seriesID, n)
+	if err != nil {
+		return 0, false, fmt.Errorf("catalog of %s: %w", seriesID, err)
+	}
+	if found {
+		return ct.Episodes, ct.Airing, nil
+	}
 	for _, se := range t.Seasons {
 		if se.Number == n {
 			episodes = se.EpisodeCount
 		}
 	}
 	if t.LastEpisode != nil && t.LastEpisode.Season == n && t.NextEpisode != nil && t.NextEpisode.Season == n && t.LastEpisode.Episode < episodes {
-		return t.LastEpisode.Episode, true
+		return t.LastEpisode.Episode, true, nil
 	}
-	return episodes, false
+	return episodes, false, nil
 }
 
 func (s *Service) reconcileSeries(ctx context.Context, w wishq.Wish, itemID string, scopes []visibility.Scope) error {
@@ -273,8 +280,14 @@ func (s *Service) reconcileSeries(ctx context.Context, w wishq.Wish, itemID stri
 	var complete []SeasonNotice
 	for _, se := range seasons {
 		n := int(se.SeasonNumber)
-		eps, airing := target(t, n)
-		if se.State == model.WishAvailable || se.State == model.WishWithdrawn || eps == 0 || best[n] < eps {
+		if se.State == model.WishAvailable || se.State == model.WishWithdrawn {
+			continue
+		}
+		eps, airing, err := s.target(ctx, itemID, t, n)
+		if err != nil {
+			return err
+		}
+		if eps < 1 || best[n] < eps {
 			continue
 		}
 		complete = append(complete, SeasonNotice{WishID: w.ID, SeriesID: itemID, Season: n, Episodes: eps, Airing: airing})
@@ -294,7 +307,13 @@ func (s *Service) seasonsAgain(ctx context.Context, w wishq.Wish, itemID string,
 		if se.State != model.WishAvailable || se.NotifiedAt.Valid {
 			continue
 		}
-		eps, airing := target(t, int(se.SeasonNumber))
+		eps, airing, err := s.target(ctx, itemID, t, int(se.SeasonNumber))
+		if err != nil {
+			return err
+		}
+		if eps < 1 {
+			continue
+		}
 		if _, err := s.notifier.WishSeasonAvailable(ctx, SeasonNotice{WishID: w.ID, SeriesID: itemID, Season: int(se.SeasonNumber), Episodes: eps, Airing: airing}); err != nil {
 			s.log.WarnContext(ctx, "season of a wish not announced", "wish_id", w.ID, "season", se.SeasonNumber, "err", err)
 		}

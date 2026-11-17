@@ -20,16 +20,18 @@ import (
 // and the withdrawal (architecture 6, 19.2; DoD row 2.4 of the build plan).
 
 // fakeLib is the library as visibility answers it: titles in the library by "media:tmdb", the
-// ones a profile may not see, and the playable episodes per season of a series.
+// ones a profile may not see, the playable episodes per season of a series and its catalog.
 type fakeLib struct {
 	mu      sync.Mutex
 	items   map[string]string
 	hidden  map[string]bool
 	seasons map[string]map[int]int
+	catalog map[string]map[int]visibility.SeasonTarget // series_catalog per series and season
 }
 
 func newFakeLib() *fakeLib {
-	return &fakeLib{items: map[string]string{}, hidden: map[string]bool{}, seasons: map[string]map[int]int{}}
+	return &fakeLib{items: map[string]string{}, hidden: map[string]bool{}, seasons: map[string]map[int]int{},
+		catalog: map[string]map[int]visibility.SeasonTarget{}}
 }
 
 func refKey(media string, tmdb int64) string { return fmt.Sprintf("%s:%d", media, tmdb) }
@@ -91,6 +93,13 @@ func (l *fakeLib) VisibleSeasons(_ context.Context, _ visibility.Scope, seriesID
 		out[k] = v
 	}
 	return out, nil
+}
+
+func (l *fakeLib) CatalogSeasonTarget(_ context.Context, seriesID string, season int) (visibility.SeasonTarget, bool, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	t, ok := l.catalog[seriesID][season]
+	return t, ok, nil
 }
 
 // fakeTitles is metadata's store of titles outside the library.

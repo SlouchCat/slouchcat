@@ -21,3 +21,12 @@ func AddBareTitle(ctx context.Context, db *store.DB, id, kind string) error {
 	}
 	return nil
 }
+
+// MarkTitleAvailable makes a bare title playable as far as visible_items is concerned
+// (available = 1), for tests that run the real visibility over it.
+func MarkTitleAvailable(ctx context.Context, db *store.DB, id string) error {
+	if _, err := db.Write.ExecContext(ctx, `UPDATE items SET available = 1 WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("title %s available: %w", id, err)
+	}
+	return nil
+}
