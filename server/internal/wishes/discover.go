@@ -116,6 +116,10 @@ type DiscoverEntry struct {
 	// ImageKinds are the kinds Slouchcat has stored for the title (poster, backdrop, logo): its
 	// own image route serves them. Empty while Slouchcat does not know the title (N-116).
 	ImageKinds []string
+	// Images are the sizes of ImageKinds with width, height and version (the references of the
+	// contract); HasTrailer says Slouchcat knows a trailer of the stored title.
+	Images     []model.ExternalImage
+	HasTrailer bool
 	MinAge     *int   // the stored age, nil when unknown (only titles outside the library)
 	ItemID     string // the library title the profile sees: mark «In der Bibliothek», ItemRef
 	// SeerrRequested: Seerr knows a request for the title (mediaInfo pending, processing or
@@ -802,6 +806,10 @@ func (s *Service) entries(ctx context.Context, a discoverAccess, hits []cachedHi
 				e.Year = d.Year
 			}
 			e.ImageKinds = d.ImageKinds
+			e.HasTrailer = len(d.Trailers) > 0
+			for _, im := range d.Images {
+				e.Images = append(e.Images, model.ExternalImage{Kind: im.Kind, Size: im.Size, Width: im.Width, Height: im.Height, Version: im.Version})
+			}
 		}
 		st := seerr.MediaStatus(h.SeerrStatus)
 		e.SeerrRequested = st == seerr.MediaPending || st == seerr.MediaProcessing || st == seerr.MediaPartiallyAvailable

@@ -9751,6 +9751,354 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /wishes/discover:
+    get:
+      operationId: getWishDiscover
+      summary: The page «Entdecken» of the wishes area (concept 25 stage 5, N-50, N-51)
+      description: |
+        Since contract 1.41.0. The seven rows in their fixed order with the first page of each, read from
+        Seerr on behalf of the Seerr user the profile sends as and cached for an hour (N-54). A row Seerr
+        could not read and nothing cached is `stale` and empty; when no row could be read at all the
+        answer is 503. Every entry is checked through the visibility with Slouchcat's own age: a
+        library title the profile may not see and a missing title above its age never appear.
+      tags: [wishes]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishDiscover"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57) (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/discover/{row}:
+    get:
+      operationId: listWishDiscoverRow
+      summary: One page of a row of «Entdecken» (concept 25 stage 5)
+      description: |
+        Since contract 1.41.0. A further page of a title row, or the titles of a genre: `genre` (a TMDB
+        genre id from a genre tile) is required on `movie_genres` and `show_genres` and allowed on
+        `popular_movies` and `popular_shows`.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: row
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/DiscoverRowKey"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 1
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57), or the row is unknown (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A genre where the row takes none, a missing genre, a page out of range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/titles/{media}:
+    get:
+      operationId: listWishTitles
+      summary: The pages «Filme» and «Serien» of the wishes area (concept 25 stage 5, N-52, N-117)
+      description: |
+        Since contract 1.41.0. Films or series by `popularity` (default), `newest` or `rating`
+        («Am besten bewertet»), narrowed to a genre; `hideAvailable` («Vorhandene ausblenden») leaves
+        out the titles of the library. At most 500 pages (Seerr's limit).
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExternalMedia"
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [popularity, newest, rating]
+            default: popularity
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: hideAvailable
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 1
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57) (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: An unknown sort, a genre below 1, a page out of range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/genres/{media}:
+    get:
+      operationId: listWishGenres
+      summary: The genres of films or series for the filter of «Filme» and «Serien» (concept 25 stage 5)
+      description: Since contract 1.41.0. TMDB's genres in the profile's language, cached like a list.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExternalMedia"
+      responses:
+        "200":
+          description: The genres.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WishGenreList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57) (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/genres/{media}/{genreId}/backdrop:
+    get:
+      operationId: getWishGenreBackdrop
+      summary: The image of a genre tile (concept 25 stage 5)
+      description: |
+        Since contract 1.41.0 (binary, CLAUDE.md rule 6). The backdrop Seerr names for the genre tile of
+        «Film-Genres» or «Serien-Genres», fetched from TMDB in w780 on its first request and kept in the
+        cache. The server takes the TMDB path only from its own cached genre row of the profile, never
+        from the request: a genre without a backdrop or one the row does not list is 404.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExternalMedia"
+        - name: genreId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The image (JPEG), `Cache-Control` private for a day with an ETag.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Not modified (`If-None-Match`).
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57), or the genre has no backdrop (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr or TMDB did not answer and nothing is cached (`seerr_unreachable`, `tmdb_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /wishes/search:
+    get:
+      operationId: searchWishTitles
+      summary: The page «Suche» of the wishes area (concept 25 stage 5, N-53)
+      description: |
+        Since contract 1.41.0. Searches over Seerr: any text TMDB knows, or a title by id with `tmdb:`,
+        `tvdb:` or `imdb:` (case-insensitive, a blank after the colon allowed). Persons never appear.
+        Kept 10 minutes in memory; never `stale`.
+      tags: [wishes]
+      x-visibility: scoped
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 1
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No active profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+            N-57) (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "`q` shorter than 2 or longer than 100 characters, a page out of range (`validation_failed`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /titles/search:
     get:
       operationId: searchExternalTitles
@@ -21157,6 +21505,110 @@ components:
           type: string
           format: date
 
+    DiscoverRowKey:
+      type: string
+      enum: [trending, popular_movies, movie_genres, upcoming_movies, popular_shows, show_genres, upcoming_shows]
+      description: The rows of «Entdecken» (N-51), in this order.
+
+    DiscoverEntry:
+      type: object
+      description: |
+        Since contract 1.41.0. One tile of the wishes area. `title` is the title as Slouchcat knows it
+        (its own text and images in the profile's language when it has the title stored; an entry it
+        does not know yet has no images and the page shows its placeholder). `item` is the library
+        title the profile sees («In der Bibliothek»); `title.wish` is the own open wish («Angefordert»);
+        `seerrRequested` says Seerr knows a request for it.
+      required: [title, seerrRequested]
+      properties:
+        title:
+          $ref: "#/components/schemas/ExternalTitleRef"
+        item:
+          $ref: "#/components/schemas/ItemRef"
+        seerrRequested:
+          type: boolean
+
+    DiscoverGenreTile:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          description: The TMDB genre id (`genre` of `listWishDiscoverRow`).
+        name:
+          type: string
+        backdrop:
+          $ref: "#/components/schemas/ImageRef"
+          description: Through `getWishGenreBackdrop`; absent when Seerr names none.
+
+    DiscoverRow:
+      type: object
+      required: [key, entries, genres, stale]
+      properties:
+        key:
+          $ref: "#/components/schemas/DiscoverRowKey"
+        entries:
+          type: array
+          description: The first page of a title row; empty on the genre rows.
+          items:
+            $ref: "#/components/schemas/DiscoverEntry"
+        genres:
+          type: array
+          description: The tiles of `movie_genres` and `show_genres`; empty otherwise.
+          items:
+            $ref: "#/components/schemas/DiscoverGenreTile"
+        nextPage:
+          type: integer
+          description: The page `listWishDiscoverRow` continues with; absent without one.
+        stale:
+          type: boolean
+          description: Older than an hour because Seerr did not answer, or empty because nothing was cached.
+        fetchedAt:
+          type: string
+          format: date-time
+
+    WishDiscover:
+      type: object
+      required: [rows]
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoverRow"
+
+    DiscoverPage:
+      type: object
+      required: [entries, page, stale, fetchedAt]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoverEntry"
+        page:
+          type: integer
+        totalPages:
+          type: integer
+          description: Absent when unknown; at most 500.
+        stale:
+          type: boolean
+        fetchedAt:
+          type: string
+          format: date-time
+
+    WishGenreList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+
     AdminWishTitle:
       type: object
       required: [media, tmdbId, title, posterUrl]
@@ -21361,6 +21813,11 @@ components:
           description: Films may be requested («Filme erlauben» and the right of the Seerr user).
         shows:
           type: boolean
+        discover:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (stage 5): the pages «Entdecken», «Filme», «Serien» and «Suche» of the
+            wishes area are visible (the profile may request and the pages are on, N-56, N-57).
 
     InvitationWishLimit:
       type: object

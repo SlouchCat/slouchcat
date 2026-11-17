@@ -46,3 +46,4 @@ output-options:
     # Images of titles outside the library (concept 25 stage 2, contract 1.41.0).
     - getExternalTitleImage
     - getAdminExternalTitleImage
+    - getWishGenreBackdrop

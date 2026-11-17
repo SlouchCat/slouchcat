@@ -27,11 +27,21 @@ import (
 
 // wishContract is a handler with Seerr set up and the wishes on (the frame of TestContractWishes).
 type wishContract struct {
-	t    *testing.T
-	pf   profileFixture
-	f    *vistest.Fixture
-	h    http.Handler
-	exec func(query string, args ...any)
+	t      *testing.T
+	pf     profileFixture
+	f      *vistest.Fixture
+	h      http.Handler
+	exec   func(query string, args ...any)
+	fake   *seerrtest.Server
+	titles contractTitles
+}
+
+// withTitles rebuilds the handler with another store of titles outside the library.
+func (c *wishContract) withTitles(titles wishes.Titles) {
+	log := vistest.Logger()
+	o := c.pf.opts
+	o.Wishes = wishes.New(c.f.DB, c.pf.admin, c.pf.queue, log, wishes.WithLibrary(visibility.New(c.f.DB, log)), wishes.WithTitles(titles))
+	c.h = NewHandler(o)
 }
 
 func newWishContract(t *testing.T) wishContract {
@@ -74,9 +84,9 @@ func newWishContract(t *testing.T) wishContract {
 	}
 	log := vistest.Logger()
 	titles := contractTitles{Service: metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), pf.admin, t.TempDir(), transcode.Runner{}, log)}
-	o := pf.opts
-	o.Wishes = wishes.New(f.DB, pf.admin, pf.queue, log, wishes.WithLibrary(visibility.New(f.DB, log)), wishes.WithTitles(titles))
-	return wishContract{t: t, pf: pf, f: f, h: NewHandler(o), exec: exec}
+	c := wishContract{t: t, pf: pf, f: f, exec: exec, fake: fake, titles: titles}
+	c.withTitles(titles)
+	return c
 }
 
 // expect sends a request and checks status and problem code; it returns the decoded JSON object.

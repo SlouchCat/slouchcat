@@ -5228,6 +5228,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/wishes/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Entdecken» of the wishes area (concept 25 stage 5, N-50, N-51)
+         * @description Since contract 1.41.0. The seven rows in their fixed order with the first page of each, read from
+         *     Seerr on behalf of the Seerr user the profile sends as and cached for an hour (N-54). A row Seerr
+         *     could not read and nothing cached is `stale` and empty; when no row could be read at all the
+         *     answer is 503. Every entry is checked through the visibility with Slouchcat's own age: a
+         *     library title the profile may not see and a missing title above its age never appear.
+         */
+        get: operations["getWishDiscover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/discover/{row}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One page of a row of «Entdecken» (concept 25 stage 5)
+         * @description Since contract 1.41.0. A further page of a title row, or the titles of a genre: `genre` (a TMDB
+         *     genre id from a genre tile) is required on `movie_genres` and `show_genres` and allowed on
+         *     `popular_movies` and `popular_shows`.
+         */
+        get: operations["listWishDiscoverRow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/titles/{media}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The pages «Filme» and «Serien» of the wishes area (concept 25 stage 5, N-52, N-117)
+         * @description Since contract 1.41.0. Films or series by `popularity` (default), `newest` or `rating`
+         *     («Am besten bewertet»), narrowed to a genre; `hideAvailable` («Vorhandene ausblenden») leaves
+         *     out the titles of the library. At most 500 pages (Seerr's limit).
+         */
+        get: operations["listWishTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/genres/{media}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The genres of films or series for the filter of «Filme» and «Serien» (concept 25 stage 5)
+         * @description Since contract 1.41.0. TMDB's genres in the profile's language, cached like a list.
+         */
+        get: operations["listWishGenres"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/genres/{media}/{genreId}/backdrop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The image of a genre tile (concept 25 stage 5)
+         * @description Since contract 1.41.0 (binary, CLAUDE.md rule 6). The backdrop Seerr names for the genre tile of
+         *     «Film-Genres» or «Serien-Genres», fetched from TMDB in w780 on its first request and kept in the
+         *     cache. The server takes the TMDB path only from its own cached genre row of the profile, never
+         *     from the request: a genre without a backdrop or one the row does not list is 404.
+         */
+        get: operations["getWishGenreBackdrop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Suche» of the wishes area (concept 25 stage 5, N-53)
+         * @description Since contract 1.41.0. Searches over Seerr: any text TMDB knows, or a title by id with `tmdb:`,
+         *     `tvdb:` or `imdb:` (case-insensitive, a blank after the colon allowed). Persons never appear.
+         *     Kept 10 minutes in memory; never `stale`.
+         */
+        get: operations["searchWishTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/titles/search": {
         parameters: {
             query?: never;
@@ -11970,6 +12103,61 @@ export interface components {
             /** Format: date */
             airDate?: string;
         };
+        /**
+         * @description The rows of «Entdecken» (N-51), in this order.
+         * @enum {string}
+         */
+        DiscoverRowKey: "trending" | "popular_movies" | "movie_genres" | "upcoming_movies" | "popular_shows" | "show_genres" | "upcoming_shows";
+        /**
+         * @description Since contract 1.41.0. One tile of the wishes area. `title` is the title as Slouchcat knows it
+         *     (its own text and images in the profile's language when it has the title stored; an entry it
+         *     does not know yet has no images and the page shows its placeholder). `item` is the library
+         *     title the profile sees («In der Bibliothek»); `title.wish` is the own open wish («Angefordert»);
+         *     `seerrRequested` says Seerr knows a request for it.
+         */
+        DiscoverEntry: {
+            title: components["schemas"]["ExternalTitleRef"];
+            item?: components["schemas"]["ItemRef"];
+            seerrRequested: boolean;
+        };
+        DiscoverGenreTile: {
+            /** @description The TMDB genre id (`genre` of `listWishDiscoverRow`). */
+            id: number;
+            name: string;
+            /** @description Through `getWishGenreBackdrop`; absent when Seerr names none. */
+            backdrop?: components["schemas"]["ImageRef"];
+        };
+        DiscoverRow: {
+            key: components["schemas"]["DiscoverRowKey"];
+            /** @description The first page of a title row; empty on the genre rows. */
+            entries: components["schemas"]["DiscoverEntry"][];
+            /** @description The tiles of `movie_genres` and `show_genres`; empty otherwise. */
+            genres: components["schemas"]["DiscoverGenreTile"][];
+            /** @description The page `listWishDiscoverRow` continues with; absent without one. */
+            nextPage?: number;
+            /** @description Older than an hour because Seerr did not answer, or empty because nothing was cached. */
+            stale: boolean;
+            /** Format: date-time */
+            fetchedAt?: string;
+        };
+        WishDiscover: {
+            rows: components["schemas"]["DiscoverRow"][];
+        };
+        DiscoverPage: {
+            entries: components["schemas"]["DiscoverEntry"][];
+            page: number;
+            /** @description Absent when unknown; at most 500. */
+            totalPages?: number;
+            stale: boolean;
+            /** Format: date-time */
+            fetchedAt: string;
+        };
+        WishGenreList: {
+            items: {
+                id: number;
+                name: string;
+            }[];
+        };
         AdminWishTitle: {
             /** @description The library title once found (no `ItemRef`). */
             itemId?: string;
@@ -12077,6 +12265,11 @@ export interface components {
             /** @description Films may be requested («Filme erlauben» and the right of the Seerr user). */
             movies: boolean;
             shows: boolean;
+            /**
+             * @description Since contract 1.41.0 (stage 5): the pages «Entdecken», «Filme», «Serien» and «Suche» of the
+             *     wishes area are visible (the profile may request and the pages are on, N-56, N-57).
+             */
+            discover?: boolean;
         };
         /** @description Since contract 1.41.0. The wish limit an invitation hands to its account. */
         InvitationWishLimit: {
@@ -23483,6 +23676,366 @@ export interface operations {
                 };
             };
             /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishDiscover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishDiscover"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishDiscoverRow: {
+        parameters: {
+            query?: {
+                page?: number;
+                genre?: number;
+            };
+            header?: never;
+            path: {
+                row: components["schemas"]["DiscoverRowKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57), or the row is unknown (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A genre where the row takes none, a missing genre, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishTitles: {
+        parameters: {
+            query?: {
+                sort?: "popularity" | "newest" | "rating";
+                genre?: number;
+                hideAvailable?: boolean;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An unknown sort, a genre below 1, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishGenres: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The genres. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishGenreList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishGenreBackdrop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+                genreId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image (JPEG), `Cache-Control` private for a day with an ETag. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description Not modified (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57), or the genre has no backdrop (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr or TMDB did not answer and nothing is cached (`seerr_unreachable`, `tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchWishTitles: {
+        parameters: {
+            query: {
+                q: string;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `q` shorter than 2 or longer than 100 characters, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
             503: {
                 headers: {
                     [name: string]: unknown;

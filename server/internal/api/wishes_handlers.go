@@ -45,6 +45,8 @@ type WishesService interface {
 	WishTitlesService
 	// Stage 4: series catalog, approval, take-over, Radarr and Sonarr (wish_stage4_handlers.go).
 	WishStage4Service
+	// Stage 5: the pages of the wishes area (wish_discover_handlers.go).
+	WishDiscoverService
 }
 
 // wishRights is SessionInfo.wishes; nil without the service or an active profile (the session
@@ -59,6 +61,11 @@ func (s *server) wishRights(ctx context.Context, session model.Session) *gen.Wis
 		return nil
 	}
 	out := &gen.WishRights{Enabled: r.Enabled, CanRequest: r.CanRequest, Movies: r.Movies, Shows: r.Shows}
+	if visible, err := s.opts.Wishes.DiscoverVisible(ctx, session.Profile); err != nil {
+		s.p.log.WarnContext(ctx, "wish pages of the session", "err", err)
+	} else {
+		out.Discover = &visible
+	}
 	if r.Reason != "" {
 		reason := gen.WishRightsReason(r.Reason)
 		out.Reason = &reason

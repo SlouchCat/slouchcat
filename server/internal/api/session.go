@@ -529,6 +529,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusBadGateway, "seerr_failed", "Seerr answered with an error.")
 	case errors.Is(err, model.ErrWishNotPending):
 		p.write(w, r, http.StatusConflict, "wish_not_pending", "The wish does not wait for an approval in Seerr any more.")
+	case errors.Is(err, wishes.ErrDiscoverUnreachable):
+		p.write(w, r, http.StatusServiceUnavailable, "seerr_unreachable", "Seerr did not answer and nothing is cached; try again later.")
 	case errors.Is(err, wishes.ErrTagNameTaken):
 		p.write(w, r, http.StatusConflict, "tag_name_taken", "Another profile has this tag name.")
 	case errors.Is(err, model.ErrWishNotWithdrawable):
