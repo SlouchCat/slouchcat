@@ -43,6 +43,7 @@ const resultTone = {
   ignored: 'neutral',
   outside_roots: 'warning',
   invalid_payload: 'warning',
+  sync_queued: 'success',
 } as const satisfies Record<IntegrationEvent['result'], string>;
 
 /**

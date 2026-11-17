@@ -341,6 +341,18 @@ type DashboardWishes struct {
 	Linked           []WishLinkHint
 	QuotaReached     []WishQuotaHint
 	GoneUsers        int // accounts whose Seerr user is gone from Seerr
+	// Stage 4 (administration 2): «n Wünsche ohne Profil-Tag» and «n Downloads verzögert».
+	TagsFailed       []WishServiceHint // tags that could not be set, with the error class
+	DownloadsStalled []WishServiceHint // downloads Radarr or Sonarr reports stalled (no message)
+}
+
+// WishServiceHint names a wish with the service of a hint («Dune (Radarr)»); Error is the class
+// of a tag failure, never an address, a key or a message of the service.
+type WishServiceHint struct {
+	WishID  int64
+	Title   string
+	Service string // radarr or sonarr
+	Error   string
 }
 
 // WishQuotaHint is an account whose limit is used up (a half with remaining 0).

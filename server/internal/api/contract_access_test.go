@@ -237,7 +237,22 @@ var adminRegistry = map[string]adminCall{
 		path: "/admin/titles/movie/603/images/poster/w200", ownerStatus: http.StatusNotFound},
 	"setWishSettings": {contract: "PUT /admin/wishes/settings", path: "/admin/wishes/settings", body: `{"enabled":true}`,
 		ownerStatus: http.StatusConflict},
-	"createLibrary": {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},
+	// Stage 4 (contract 1.41.0): no Seerr and no wish in the fixture; TestContractWishesStage4
+	// covers them with a fake Seerr.
+	"approveWish": {contract: "POST /admin/wishes/{id}/approve", path: "/admin/wishes/9999/approve", ownerStatus: http.StatusNotFound},
+	"declineWish": {contract: "POST /admin/wishes/{id}/decline", path: "/admin/wishes/9999/decline", ownerStatus: http.StatusNotFound},
+	"importSeerrRequests": {contract: "POST /admin/wishes/mappings/import", path: "/admin/wishes/mappings/import", body: `{}`,
+		ownerStatus: http.StatusUnprocessableEntity},
+	"countSeerrRequests": {contract: "GET /admin/wishes/mappings/users/{seerrUserId}/requests/count",
+		path: "/admin/wishes/mappings/users/7/requests/count", ownerStatus: http.StatusUnprocessableEntity},
+	"getArrStatus":      {contract: "GET /admin/seerr/arr", path: "/admin/seerr/arr", ownerStatus: http.StatusOK},
+	"updateArrSettings": {contract: "PUT /admin/seerr/arr", path: "/admin/seerr/arr", body: `{"radarrUrl":"ftp://radarr.lan"}`, ownerStatus: http.StatusUnprocessableEntity},
+	"testArrConnection": {contract: "POST /admin/seerr/arr/test", path: "/admin/seerr/arr/test", body: `{"service":"radarr"}`,
+		ownerStatus: http.StatusUnprocessableEntity},
+	"setProfileTagName": {contract: "PUT /admin/wishes/profiles/{profileId}/tag", path: "/admin/wishes/profiles/9999/tag",
+		body: `{"name":"sc-x"}`, ownerStatus: http.StatusNotFound},
+	"getSeerrWebhookSetup": {contract: "GET /admin/seerr/webhook", path: "/admin/seerr/webhook", ownerStatus: http.StatusOK},
+	"createLibrary":        {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},
 	// Idea 02, the folder browser: the fixture has no browsable root, so the list is empty and
 	// every id is unknown -- the same 404 a path outside the roots gets.
 	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},

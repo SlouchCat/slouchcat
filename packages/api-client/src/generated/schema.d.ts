@@ -4778,6 +4778,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/seerr/arr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State of Radarr and Sonarr for the profile tags and the progress (concept 25 stage 4)
+         * @description Since contract 1.41.0 (band «Radarr und Sonarr» of Integrationen › Seerr, data model 4.2
+         *     `ArrStatus`). Reading it may ask Seerr for the addresses (at most every 10 minutes); it never
+         *     calls Radarr or Sonarr and never carries a key.
+         */
+        get: operations["getArrStatus"];
+        /**
+         * Own addresses of Radarr and Sonarr (concept 25 stage 4)
+         * @description Since contract 1.41.0. An own address replaces the one from Seerr for the tags and the
+         *     progress; an empty string goes back to the address from Seerr. An absent field stays. The key
+         *     always comes from Seerr.
+         */
+        put: operations["updateArrSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/arr/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Radarr or Sonarr and confirm its host (concept 25 stage 4)
+         * @description Since contract 1.41.0 («Testen» in the band «Radarr und Sonarr»). Reads address and key from
+         *     Seerr anew (or the own address), asks the tag list of the service and, when it answers with the
+         *     key, confirms the host: only a confirmed host is called by the jobs. Failures of the service
+         *     are in the answer (200); failures of Seerr are problems.
+         */
+        post: operations["testArrConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to enter in Seerr for the instant notice (concept 25 stage 4, F-18)
+         * @description Since contract 1.41.0 (band «Sofortmeldung»). The JSON payload and the notification types to
+         *     tick under Settings › Notifications › Webhook in Seerr. The address is the one an integration of
+         *     the kind `seerr` shows once when it is created or renewed (`createIntegration`); a notice only
+         *     triggers the sync of the wishes.
+         */
+        get: operations["getSeerrWebhookSetup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/wishes/mappings": {
         parameters: {
             query?: never;
@@ -4830,6 +4904,72 @@ export interface paths {
          * @description Since contract 1.41.0. Queues the job `seerr.users` with manual priority.
          */
         post: operations["refreshSeerrUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take over the requests made directly in Seerr (concept 25 stage 4, F-21)
+         * @description Since contract 1.41.0 («Anfragen übernehmen»). Queues the job `wishes.import` for one Seerr
+         *     user, or without `seerrUserId` for every user linked to an account. A request of a linked user
+         *     becomes a wish of the origin `seerr` of the account's primary profile.
+         */
+        post: operations["importSeerrRequests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users/{seerrUserId}/requests/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Number of requests of a Seerr user (concept 25 stage 4)
+         * @description Since contract 1.41.0. For the message after a mapping («3 Anfragen von grosseltern werden
+         *     übernommen»): every request of the user in Seerr, also those the take-over leaves out. The
+         *     shared user counts 0.
+         */
+        get: operations["countSeerrRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/profiles/{profileId}/tag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Tag name of a profile in Radarr and Sonarr (concept 25 stage 4, N-113)
+         * @description Since contract 1.41.0. `null` or an empty name goes back to the name from the prefix and the
+         *     profile name. Only `a–z`, `0–9` and `-`; the name of another profile is refused. A tag already
+         *     set in Radarr or Sonarr stays there (Slouchcat never removes a tag).
+         */
+        put: operations["setProfileTagName"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5014,6 +5154,52 @@ export interface paths {
          *     longer reports the request as failed.
          */
         post: operations["retryWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a pending wish in Seerr (concept 25 stage 4, F-16)
+         * @description Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+         *     wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+         *     nothing itself: the state follows Seerr's answer (an approved wish is `processing`). The history names the acting account
+         *     (from the session).
+         */
+        post: operations["approveWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/{id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a pending wish in Seerr (concept 25 stage 4, F-16)
+         * @description Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+         *     wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+         *     nothing itself: the state follows Seerr's answer (a declined wish is closed as `declined`). The history names the acting account
+         *     (from the session).
+         */
+        post: operations["declineWish"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6983,6 +7169,17 @@ export interface components {
             cast?: components["schemas"]["CastMember"][];
             /** @description Trailers known for the title (`getItemTrailers`). */
             trailerCount?: number;
+            /**
+             * @description Since contract 1.41.0 (concept 25 stage 4): the season catalog of a series, only for a
+             *     profile that may request series (F-9) and only when TMDB's seasons are stored.
+             */
+            catalog?: components["schemas"]["SeriesCatalog"];
+            /**
+             * @description Since contract 1.41.0: the profile can request a missing season of this series from its
+             *     page (it may request series, «Anfordern auf Detailseiten» is on, and a missing season is
+             *     free or held by a wish it may join). Absent outside series and without `catalog`.
+             */
+            canRequestSeasons?: boolean;
         };
         /**
          * @description The episode of a series (or of one season) the detail page offers to play next (concept 17
@@ -11153,10 +11350,13 @@ export interface components {
             /**
              * @description The check (architecture 15.1): `manage_users` judges the rights of the key's user (it never
              *     creates a user); `password_transport` appears only as a warning, for `http` outside the
-             *     household's network.
+             *     household's network. `radarr_tags` and `sonarr_tags` (stage 4) read the tag list and the
+             *     queue of the service for the profile tags and the progress; warnings at most, `not_confirmed`
+             *     while the address from Seerr waits for «Testen», an `ok` detail says `tag_requests_on` or
+             *     `tag_requests_off`.
              * @enum {string}
              */
-            key: "reachable" | "version" | "key_valid" | "manage_users" | "instance" | "act_as_user" | "csrf_off" | "radarr" | "sonarr" | "local_login" | "tvdb_seasons" | "password_transport";
+            key: "reachable" | "version" | "key_valid" | "manage_users" | "instance" | "act_as_user" | "csrf_off" | "radarr" | "sonarr" | "local_login" | "tvdb_seasons" | "password_transport" | "radarr_tags" | "sonarr_tags";
             /**
              * @description A warning never fails the test.
              * @enum {string}
@@ -11316,6 +11516,8 @@ export interface components {
             id: number;
             state: components["schemas"]["WishState"];
             stateDetail?: components["schemas"]["WishStateDetail"];
+            /** @description Only on the wish card of `getExternalTitle`. */
+            progress?: components["schemas"]["WishProgress"];
         };
         /**
          * @description Since contract 1.41.0. A title outside the library as it appears in lists (search section, «Meine
@@ -11406,6 +11608,8 @@ export interface components {
             /** @description Seerr approves the requests of the user the profile sends as at once. */
             autoApprove: boolean;
             quota?: components["schemas"]["WishQuota"];
+            /** @description A film only, while the profile has no open wish of its own on it. */
+            shared?: components["schemas"]["WishShared"];
         };
         /** @description The newest closed wish of the profile on the title. */
         WishLast: {
@@ -11484,6 +11688,7 @@ export interface components {
             availableAt?: string;
             /** @description Newest first, at most 20. */
             events: components["schemas"]["WishEvent"][];
+            progress?: components["schemas"]["WishProgress"];
         };
         WishCounts: {
             open: number;
@@ -11527,6 +11732,244 @@ export interface components {
             quota?: components["schemas"]["WishQuota"];
             needed?: number;
         };
+        /**
+         * @description Since contract 1.41.0 (concept 25 stage 4, N-83). The download progress of a wish in procurement
+         *     as viewers see it: no message of Radarr or Sonarr, no service, no path. Absent when there is
+         *     nothing to show (not found, not readable, older than 5 minutes, «Download-Fortschritt zeigen» off).
+         */
+        WishProgress: {
+            /**
+             * @description «Wird gesucht», «Wird heruntergeladen», «Wird eingelesen», «Download verzögert».
+             * @enum {string}
+             */
+            stage: "search" | "download" | "import" | "stalled";
+            /** @description Only with `download`. */
+            percent?: number;
+            /** @description Only with `download`, when the service knows it. */
+            etaSeconds?: number;
+            episodes?: components["schemas"]["WishProgressEpisodes"];
+            /**
+             * Format: date-time
+             * @description When the queue was read.
+             */
+            readAt: string;
+        };
+        /** @description «x von y Folgen da» of a series wish. */
+        WishProgressEpisodes: {
+            done: number;
+            total: number;
+        };
+        /**
+         * @description Since contract 1.41.0. The progress for the administration: the viewers' fields plus the service,
+         *     its message (shortened, without paths) and the error. `stage` is absent while nothing is known;
+         *     `stale` says «Fortschritt nicht lesbar» (the last read is older than 5 minutes).
+         */
+        AdminWishProgress: {
+            /** @enum {string} */
+            stage?: "search" | "download" | "import" | "stalled";
+            percent?: number;
+            etaSeconds?: number;
+            episodes?: components["schemas"]["WishProgressEpisodes"];
+            /** Format: date-time */
+            readAt?: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @description The message of Radarr or Sonarr (for example the reason of a stalled download). */
+            message?: string;
+            /** @enum {string} */
+            error?: "unreachable" | "not_found" | "incomplete";
+            stale: boolean;
+        };
+        /**
+         * @description Since contract 1.41.0. The profile tag of a requester in Radarr or Sonarr: `set`, `pending` (waits
+         *     for the title in the service) or `failed` with the class of the error. A wish placed directly in
+         *     Seerr has none (N-27).
+         */
+        WishRequesterTag: {
+            /** @example sc-noah */
+            name: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @enum {string} */
+            state: "pending" | "set" | "failed";
+            /** @description The class of the last error (for example `unreachable`, `not_found`), never an address or a key. */
+            lastError?: string;
+            /** Format: date-time */
+            setAt?: string;
+        };
+        /**
+         * @description Since contract 1.41.0 (F-7 «Mitwünschen», functional concept 4.3). The open wish of another
+         *     profile on a film: its state, never who wished it. `canJoin` is true when the profile may
+         *     join it («Benachrichtige mich», no limit used); false with «Bereits angeforderte Titel: Nur
+         *     Zustand zeigen» or without the right for films.
+         */
+        WishShared: {
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            canJoin: boolean;
+        };
+        /** @description A wish of a hint of the overview with its service («Dune (Radarr)»). */
+        WishServiceHint: {
+            /** Format: int64 */
+            wishId: number;
+            title: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @description Only for a tag that could not be set; the class of the error. */
+            error?: string;
+        };
+        /** @description A profile of the account with its tag name in Radarr and Sonarr (N-113). */
+        WishProfileTag: {
+            /** Format: int64 */
+            profileId: number;
+            /** @description The name of the profile. */
+            name: string;
+            /**
+             * @description The tag name the profile has, or would get at its first tag.
+             * @example sc-noah
+             */
+            tagName: string;
+            /** @description Set by the administrator (`setProfileTagName`). */
+            tagNameCustom: boolean;
+        };
+        ProfileTagRequest: {
+            /** @description The tag name; `null` or empty takes the name from the prefix and the profile name. */
+            name: string | null;
+        };
+        ProfileTag: {
+            /** Format: int64 */
+            profileId: number;
+            name: string;
+            custom: boolean;
+        };
+        /** @description Since contract 1.41.0. Radarr and Sonarr for the profile tags and the progress; never a key. */
+        ArrStatus: {
+            radarr: components["schemas"]["ArrServiceStatus"];
+            sonarr: components["schemas"]["ArrServiceStatus"];
+        };
+        ArrServiceStatus: {
+            /**
+             * @description The address comes from Seerr, is an own one, or there is none.
+             * @enum {string}
+             */
+            source: "seerr" | "own" | "none";
+            /** @description The address the jobs use; absent with `none`. */
+            address?: string;
+            /**
+             * @description The jobs may call it: an own address, or the address from Seerr is the host a test
+             *     confirmed. A new host from Seerr stops the calls until «Testen» confirms it.
+             */
+            confirmed: boolean;
+            /** @description Outcome of the last call; absent before the first. */
+            reachable?: boolean;
+            /** @description «Tag Requests» of the server in Seerr. */
+            tagRequests?: boolean;
+            /** @description The class of the last error of a call or of reading Seerr. */
+            lastError?: string;
+            /** Format: date-time */
+            lastAt?: string;
+            /** @description The tag rows of the service per state. */
+            counts: {
+                set: number;
+                pending: number;
+                failed: number;
+            };
+            progress: {
+                /** @description «Download-Fortschritt zeigen». */
+                enabled: boolean;
+                /** Format: date-time */
+                lastReadAt?: string;
+                /** @description `unreachable` while the queue could not be read. */
+                error?: string;
+                /** @description Wishes with a progress to show. */
+                tracked: number;
+            };
+        };
+        /** @description Absent fields stay; an empty string goes back to the address from Seerr. */
+        ArrSettingsUpdate: {
+            /** @example http://192.168.1.125:7878 */
+            radarrUrl?: string;
+            sonarrUrl?: string;
+        };
+        ArrTestRequest: {
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+        };
+        /** @description The outcome of testing a service; never a key. */
+        ArrTestResult: {
+            reachable: boolean;
+            keyValid: boolean;
+            /** @description «Tag Requests» of the server in Seerr; absent with an own address. */
+            tagRequests?: boolean;
+            /** @description Scheme and host the test reached; confirmed when `reachable` and `keyValid`. */
+            host?: string;
+            /** @enum {string} */
+            source: "seerr" | "own";
+            /** @description The class of the error when not both are true. */
+            error?: string;
+        };
+        /** @description Since contract 1.41.0. What the administrator enters in Seerr for the instant notice. */
+        SeerrWebhookSetup: {
+            /** @description The template for «JSON Payload»; it sends no name or address of a person. */
+            jsonPayload: string;
+            /** @description Seerr's bit mask of the notification types to tick. */
+            types: number;
+            /**
+             * @description The same types by Seerr's names, in the order of Seerr's list.
+             * @example [
+             *       "MEDIA_PENDING",
+             *       "MEDIA_APPROVED"
+             *     ]
+             */
+            typeNames: string[];
+        };
+        SeerrImportRequest: {
+            /** @description One Seerr user; absent for every user linked to an account. */
+            seerrUserId?: number;
+        };
+        SeerrImportQueued: {
+            /** @description The users whose requests are taken over. */
+            queued: number;
+        };
+        SeerrRequestCount: {
+            count: number;
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25 stage 4, M-06). The seasons of a series of the library as the
+         *     active profile may request them: every season TMDB lists (season 0 never) plus every season the
+         *     profile can play. `missing` has aired and the profile can play none of it; `requested` and
+         *     `processing` are missing seasons an open wish holds («Bereits angefordert», «In Beschaffung»);
+         *     `announced` has not aired yet.
+         */
+        SeriesCatalog: {
+            /** @description TMDB's status («Returning Series», «Ended»). */
+            status?: string;
+            inProduction: boolean;
+            seasons: components["schemas"]["SeriesCatalogSeason"][];
+            nextEpisode?: components["schemas"]["SeriesCatalogEpisode"];
+            lastEpisode?: components["schemas"]["SeriesCatalogEpisode"];
+            /** @description «present von total Staffeln vorhanden». */
+            present: number;
+            /** @description Present plus missing seasons (announced ones do not count). */
+            total: number;
+        };
+        SeriesCatalogSeason: {
+            number: number;
+            /** @description Episodes by TMDB; 0 = unknown. */
+            episodeCount: number;
+            /** Format: date */
+            airDate?: string;
+            /** @description Episodes the profile can play. */
+            episodes: number;
+            /** @enum {string} */
+            state: "present" | "missing" | "announced" | "requested" | "processing";
+        };
+        SeriesCatalogEpisode: {
+            season: number;
+            episode: number;
+            /** Format: date */
+            airDate?: string;
+        };
         AdminWishTitle: {
             /** @description The library title once found (no `ItemRef`). */
             itemId?: string;
@@ -11555,7 +11998,11 @@ export interface components {
             requesters: components["schemas"]["AdminWishRequester"][];
             /** @description The Seerr user the wish went out as. */
             seerrUserId?: number;
+            /** @description Its display name from the stored list of Seerr users; absent when unknown. */
+            seerrUserName?: string;
+            /** @description The request of a film; a series has its requests in `seasons[].seerrRequestId`. */
             seerrRequestId?: number;
+            progress?: components["schemas"]["AdminWishProgress"];
             /** @description Attempts of the outbox. */
             attempts: number;
             events: components["schemas"]["WishEvent"][];
@@ -11582,6 +12029,7 @@ export interface components {
             role: "owner" | "joined";
             /** @description The profile withdrew itself. */
             closed: boolean;
+            tag?: components["schemas"]["WishRequesterTag"];
         };
         AdminWishPage: {
             items: components["schemas"]["AdminWish"][];
@@ -11674,6 +12122,16 @@ export interface components {
             quotaReached: components["schemas"]["WishQuotaHint"][];
             /** @description Accounts whose Seerr user is gone from Seerr. */
             goneUsers: number;
+            /**
+             * @description «n Wünsche ohne Profil-Tag» (stage 4): tags that could not be set, once per wish and service,
+             *     newest first, at most 20; a tag that waits for the title does not count.
+             */
+            tagsFailed: components["schemas"]["WishServiceHint"][];
+            /**
+             * @description «n Downloads verzögert» (stage 4): wishes whose download Radarr or Sonarr reports stalled by a
+             *     read of the last 5 minutes, newest first, at most 20; without the message of the service.
+             */
+            downloadsStalled: components["schemas"]["WishServiceHint"][];
         };
         WishLinkHint: {
             /** Format: int64 */
@@ -11757,6 +12215,8 @@ export interface components {
             provisionError?: string;
             limit: components["schemas"]["AccountWishLimit"];
             quota?: components["schemas"]["WishQuota"];
+            /** @description The profiles of the account with their tag names (stage 4, F-27, N-113). */
+            profiles?: components["schemas"]["WishProfileTag"][];
         };
         WishMappings: {
             accounts: components["schemas"]["WishAccountMapping"][];
@@ -11806,6 +12266,14 @@ export interface components {
             /** @description «Passwort abgleichen». */
             syncPassword: boolean;
             defaultLimit: components["schemas"]["WishLimits"];
+            /** @description «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default). */
+            profileTags: boolean;
+            /** @description «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`. */
+            tagPrefix: string;
+            /** @description «Download-Fortschritt zeigen» (stage 4, on by default, N-86). */
+            showProgress: boolean;
+            /** @description «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57). */
+            discoverPages: boolean;
         };
         /** @description Since contract 1.41.0. Absent fields stay. */
         WishSettingsUpdate: {
@@ -11824,6 +12292,14 @@ export interface components {
             provisionAccounts?: boolean;
             syncPassword?: boolean;
             defaultLimit?: components["schemas"]["WishLimits"];
+            /** @description «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default). */
+            profileTags?: boolean;
+            /** @description «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`. */
+            tagPrefix?: string;
+            /** @description «Download-Fortschritt zeigen» (stage 4, on by default, N-86). */
+            showProgress?: boolean;
+            /** @description «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57). */
+            discoverPages?: boolean;
         };
         KeyState: {
             source: components["schemas"]["SettingSource"];
@@ -12312,10 +12788,24 @@ export interface components {
             watchedMs: number;
         };
         /**
-         * @description The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
-         *     is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+         * @description The body Radarr, Sonarr or Seerr sends. Only `eventType`, the directory and Seerr's
+         *     `notification_type` are read; every other field is accepted and ignored, so a new field of a
+         *     later version breaks nothing (I-8). Seerr's default payload (`media`, `request`, `extra` …) and
+         *     the template of `getSeerrWebhookSetup` both pass; a Seerr notice only triggers the wish sync,
+         *     nothing of its body decides a state.
          */
         WebhookPayload: {
+            /**
+             * @description Seerr's notification type (`MEDIA_PENDING`, `TEST_NOTIFICATION` …); it names the log entry.
+             * @example MEDIA_APPROVED
+             */
+            notification_type?: string;
+            /** @description Seerr's media object (any shape, not read). */
+            media?: unknown;
+            /** @description Seerr's request object (any shape, not read). */
+            request?: unknown;
+            /** @description Seerr's extra fields (any shape, not read). */
+            extra?: unknown;
             /**
              * @description The event as the service names it: `Download`, `Rename`, `MovieFileDelete`,
              *     `EpisodeFileDelete`, `MovieDelete`, `SeriesDelete`, `Test`, `Grab`, `Health` …
@@ -12349,10 +12839,11 @@ export interface components {
         WebhookResult: {
             /**
              * @description `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
-             *     event of Radarr or Sonarr; `ignored`: an event without an effect here.
+             *     event of Radarr or Sonarr or the test notification of Seerr; `ignored`: an event without an
+             *     effect here; `sync_queued`: a notification of Seerr queued (or joined) a run of the wish sync.
              * @enum {string}
              */
-            result: "scan_queued" | "acknowledged" | "ignored";
+            result: "scan_queued" | "acknowledged" | "ignored" | "sync_queued";
             /**
              * @description The directory that is scanned, after the path mapping; only with `scan_queued`.
              * @example /media/Filme/Dune (2021)
@@ -12365,8 +12856,11 @@ export interface components {
             id: number;
             /** @example Radarr */
             name: string;
-            /** @enum {string} */
-            kind: "radarr" | "sonarr";
+            /**
+             * @description `seerr`: the instant notice of Seerr (stage 4, F-18), a trigger of the wish sync only.
+             * @enum {string}
+             */
+            kind: "radarr" | "sonarr" | "seerr";
             /** @description Last four characters of the token, so an address can be recognised in a list. */
             tokenTail: string;
             /** @description Prefix pairs, longest match wins; empty by default. */
@@ -12396,7 +12890,7 @@ export interface components {
         IntegrationRequest: {
             name: string;
             /** @enum {string} */
-            kind: "radarr" | "sonarr";
+            kind: "radarr" | "sonarr" | "seerr";
         };
         /** @description Translates a prefix of the reported path into a prefix on this server. */
         PathMapping: {
@@ -12431,11 +12925,12 @@ export interface components {
             resolvedPath?: string;
             /**
              * @description `scan_queued`: a targeted scan runs; `acknowledged`: the Test event; `ignored`: no effect;
+             *     `sync_queued`: a notification of Seerr queued the wish sync;
              *     `outside_roots`: the mapped path lies under no library root; `invalid_payload`: an acting
              *     event without a directory.
              * @enum {string}
              */
-            result: "scan_queued" | "acknowledged" | "ignored" | "outside_roots" | "invalid_payload";
+            result: "scan_queued" | "acknowledged" | "ignored" | "outside_roots" | "invalid_payload" | "sync_queued";
         };
         /** @description The "Webhooks" tile of the dashboard (A-3, decision 5.6). */
         WebhookTileStatus: {
@@ -22029,6 +22524,138 @@ export interface operations {
             };
         };
     };
+    getArrStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Both services. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateArrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArrSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The state after saving. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description An address that is no http(s) URL or carries user details (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testArrConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArrTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The outcome of the test. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Another Seerr instance waits for a decision (`seerr_instance_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown service (`validation_failed`) or Seerr has no address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrWebhookSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings for Seerr. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrWebhookSetup"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
     getWishMappings: {
         parameters: {
             query?: never;
@@ -22092,6 +22719,165 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    importSeerrRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SeerrImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrImportQueued"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The Seerr user belongs to no account, or is the shared user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    countSeerrRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                seerrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The number. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrRequestCount"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Another Seerr instance waits for a decision (`seerr_instance_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setProfileTagName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileTagRequest"];
+            };
+        };
+        responses: {
+            /** @description The tag name the profile has now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileTag"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Another profile has this tag name (`tag_name_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A name with other characters or too long (`validation_failed`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -22505,6 +23291,150 @@ export interface operations {
              * @description Seerr did not answer, is switched off or waits for a confirmed instance (`seerr_unreachable`;
              *     only for `arr_failed`).
              */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    approveWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish as the administration sees it after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The wish is not pending, or Seerr says none of its requests is pending any more
+             *     (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer or is switched off (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    declineWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish as the administration sees it after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The wish is not pending, or Seerr says none of its requests is pending any more
+             *     (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer or is switched off (`seerr_unreachable`). */
             503: {
                 headers: {
                     [name: string]: unknown;

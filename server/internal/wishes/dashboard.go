@@ -91,7 +91,36 @@ func (s *Service) DashboardWishes(ctx context.Context) (*model.DashboardWishes, 
 			out.QuotaReached = append(out.QuotaReached, h)
 		}
 	}
+	if out.TagsFailed, out.DownloadsStalled, err = s.arrHints(ctx); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// maxArrHints caps each list of the stage 4 hints; the overview names a few titles and the count.
+const maxArrHints = 20
+
+// arrHints are the hints «n Wünsche ohne Profil-Tag» (tags failed, not those waiting for the
+// title) and «n Downloads verzögert» (a fresh read of the queue says stalled).
+func (s *Service) arrHints(ctx context.Context) (tags, stalled []model.WishServiceHint, err error) {
+	tagRows, err := s.read.ListFailedTagHints(ctx, maxArrHints)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed tag hints: %w", err)
+	}
+	tags = make([]model.WishServiceHint, 0, len(tagRows))
+	for _, r := range tagRows {
+		tags = append(tags, model.WishServiceHint{WishID: r.WishID, Title: r.Title, Service: r.Service, Error: r.LastError})
+	}
+	rows, err := s.read.ListStalledProgressHints(ctx, wishq.ListStalledProgressHintsParams{
+		FreshSince: s.now().Add(-progressStale).UnixMilli(), MaxRows: maxArrHints})
+	if err != nil {
+		return nil, nil, fmt.Errorf("stalled download hints: %w", err)
+	}
+	stalled = make([]model.WishServiceHint, 0, len(rows))
+	for _, r := range rows {
+		stalled = append(stalled, model.WishServiceHint{WishID: r.WishID, Title: r.Title, Service: r.Service})
+	}
+	return tags, stalled, nil
 }
 
 // SpotlightWishes returns the wish of each title for the missing entries of Verwaltung ›

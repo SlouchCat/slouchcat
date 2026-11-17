@@ -213,6 +213,9 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 			Image: toPersonImageRef(c.PersonID, session.Profile.ID, c.Image)})
 	}
 	out.Cast = &cast
+	if err := s.itemCatalog(ctx, session.Profile, d, &out); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	return gen.GetItem200JSONResponse(out), nil
 }
 

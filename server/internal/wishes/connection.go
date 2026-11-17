@@ -300,6 +300,11 @@ func (s *Service) runChecks(ctx context.Context, c *seerr.Client, address string
 	if !secureTransport(ctx, address) {
 		add(model.SeerrCheckPasswordTransport, model.SeerrLevelWarn, "")
 	}
+	// Radarr and Sonarr for the profile tags and the progress (stage 4): they read the addresses
+	// of the saved connection, so an unsaved address is not tested against them.
+	if isSaved {
+		res.Checks = append(res.Checks, s.ArrTagChecks(ctx)...)
+	}
 	return res, nil
 }
 

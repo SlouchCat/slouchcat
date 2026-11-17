@@ -3825,7 +3825,8 @@
         "neverSeen": "Has never reported anything.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "New integration",
@@ -3870,7 +3871,8 @@
           "acknowledged": "Test acknowledged",
           "ignored": "No effect",
           "outside_roots": "Outside the libraries",
-          "invalid_payload": "Without a path"
+          "invalid_payload": "Without a path",
+          "sync_queued": "Wishes are synced"
         },
         "renew": {
           "action": "Renew token",
@@ -4079,7 +4081,9 @@
           "sonarr": "Sonarr in Seerr",
           "local_login": "Local sign-in in Seerr",
           "tvdb_seasons": "Seasons from TVDB",
-          "password_transport": "Password encrypted"
+          "password_transport": "Password encrypted",
+          "radarr_tags": "Radarr for profile tags",
+          "sonarr_tags": "Sonarr for profile tags"
         },
         "checkOk": {
           "reachable": "Seerr answers.",
@@ -4095,7 +4099,9 @@
           "sonarr_other": "Series wishes go to Sonarr ({{count}} servers).",
           "local_login": "Opened users sign in to Seerr with the e-mail and password from Slouchcat.",
           "tvdb_seasons": "Seerr, Sonarr and the Slouchcat library count seasons the same way.",
-          "password_transport": "Passwords travel encrypted or stay in the home network."
+          "password_transport": "Passwords travel encrypted or stay in the home network.",
+          "radarr_tags": "Radarr answers for profile tags and download progress.",
+          "sonarr_tags": "Sonarr answers for profile tags and download progress."
         },
         "checkIssue": {
           "notTested": "Not checked.",
@@ -4117,7 +4123,9 @@
           "localLoginOff": "Opened users cannot sign in to Seerr. Switch on “Local sign-in” in Seerr under Settings › Users.",
           "noSeasonSource": "Seerr does not name the source of its seasons.",
           "tmdbSeasons": "Seerr reads seasons from TMDB. TVDB is recommended, as in Sonarr and in the Slouchcat library; otherwise season numbers may differ.",
-          "passwordTransport": "Passwords would travel unencrypted over the internet. Use https."
+          "passwordTransport": "Passwords would travel unencrypted over the internet. Use https.",
+          "arrNotConfirmed": "The address from Seerr is not confirmed yet: test it under “Radarr and Sonarr”.",
+          "arrUnreachable": "Not reachable: no profile tags and no download progress."
         },
         "instance": {
           "title": "Other Seerr instance detected",

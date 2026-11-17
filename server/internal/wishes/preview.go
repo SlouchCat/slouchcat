@@ -178,20 +178,26 @@ func (s *Service) ExternalTitle(ctx context.Context, p model.Profile, media stri
 		out.LastWish = &model.WishLast{ID: w.ID, State: w.State, At: time.UnixMilli(at).UTC(), Reason: w.FailReason.String}
 	}
 	other := false // another open wish of the household holds the title (or a season of it)
+	var shared *model.WishShared
 	if media == model.WishMediaShow {
 		if out.Seasons, other, err = s.seasonStates(ctx, t, a.wishes.open); err != nil {
 			return model.ExternalTitlePreview{}, err
 		}
 	} else if a.wishes.open == nil {
-		switch _, err := s.read.GetOpenMovieWish(ctx, tmdbID); {
+		switch w, err := s.read.GetOpenMovieWish(ctx, tmdbID); {
 		case err == nil:
 			other = true
+			shared = &model.WishShared{State: w.State, StateDetail: w.StateDetail.String}
 		case !errors.Is(err, sql.ErrNoRows):
 			return model.ExternalTitlePreview{}, fmt.Errorf("open film wish: %w", err)
 		}
 	}
 	out.CanRequest, out.RequestReason = requestable(a, media, out.Seasons, other)
 	out.Request = model.WishRequestCard{CanRequest: out.CanRequest, Reason: out.RequestReason}
+	if shared != nil {
+		shared.CanJoin = out.CanRequest
+		out.Request.Shared = shared
+	}
 	if a.rights.CanRequest {
 		if q, err := s.quotaOf(ctx, s.read, p.AccountID, a.sender); err != nil {
 			return model.ExternalTitlePreview{}, err

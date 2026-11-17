@@ -71,7 +71,7 @@ func (e serviceProblem) VisitListAccountWishesResponse(w http.ResponseWriter) er
 func (e serviceProblem) VisitRetryWishResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 // wishSession returns the session and the service; ok is false without the service (501).
-func (s *server) wishSession(ctx context.Context) (model.Session, WishTitlesService, bool, error) {
+func (s *server) wishSession(ctx context.Context) (model.Session, WishesService, bool, error) {
 	session, found := sessionFrom(ctx)
 	if !found {
 		return model.Session{}, nil, false, errNoSession
@@ -188,6 +188,18 @@ func (s *server) GetExternalTitle(ctx context.Context, req gen.GetExternalTitleR
 	if out.Genres == nil {
 		out.Genres = []string{}
 	}
+	if sh := t.Request.Shared; sh != nil {
+		out.Request.Shared = &gen.WishShared{State: gen.WishState(sh.State), StateDetail: stateDetail(sh.StateDetail), CanJoin: sh.CanJoin}
+	}
+	if out.Wish != nil {
+		progress, err := svc.ProgressOf(ctx, []int64{out.Wish.Id})
+		if err != nil {
+			return s.problem(ctx, err), nil
+		}
+		if p, ok := progress[out.Wish.Id]; ok {
+			out.Wish.Progress = toWishProgress(p)
+		}
+	}
 	for _, se := range t.Seasons {
 		out.Seasons = append(out.Seasons, gen.ExternalTitleSeason{Number: se.Number, EpisodeCount: se.EpisodeCount,
 			AirDate: optDate(se.AirDate), State: gen.ExternalTitleSeasonState(se.State)})
@@ -248,11 +260,16 @@ func (s *server) ListWishes(ctx context.Context, req gen.ListWishesRequestObject
 		return s.problem(ctx, err), nil
 	}
 	out := gen.ListWishes200JSONResponse{Items: make([]gen.Wish, 0, len(page.Items)), Total: page.Total, Counts: toWishCounts(page.Counts)}
+	progress, err := s.wishProgress(ctx, page.Items)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
 	for _, w := range page.Items {
 		g, err := s.toWish(ctx, svc, session.Profile, w)
 		if err != nil {
 			return s.problem(ctx, err), nil
 		}
+		g.Progress = progress[w.ID]
 		out.Items = append(out.Items, g)
 	}
 	return out, nil
@@ -280,11 +297,16 @@ func (s *server) ListAccountWishes(ctx context.Context, req gen.ListAccountWishe
 		return s.problem(ctx, err), nil
 	}
 	out := gen.ListAccountWishes200JSONResponse{Items: make([]gen.Wish, 0, len(page.Items)), Total: page.Total, Counts: toWishCounts(page.Counts)}
+	progress, err := s.wishProgress(ctx, page.Items)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
 	for _, w := range page.Items {
 		g, err := s.toWish(ctx, svc, session.Profile, w)
 		if err != nil {
 			return s.problem(ctx, err), nil
 		}
+		g.Progress = progress[w.ID]
 		g.ProfileName = optString(w.ProfileName)
 		out.Items = append(out.Items, g)
 	}
@@ -399,11 +421,11 @@ func (s *server) ListAdminWishes(ctx context.Context, req gen.ListAdminWishesReq
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.ListAdminWishes200JSONResponse{Items: make([]gen.AdminWish, 0, len(items)), Total: total, Counts: toWishCounts(counts)}
-	for _, a := range items {
-		out.Items = append(out.Items, toAdminWish(a))
+	list, err := s.adminWishes(ctx, items)
+	if err != nil {
+		return s.problem(ctx, err), nil
 	}
-	return out, nil
+	return gen.ListAdminWishes200JSONResponse{Items: list, Total: total, Counts: toWishCounts(counts)}, nil
 }
 
 func (s *server) SyncWishesNow(ctx context.Context, _ gen.SyncWishesNowRequestObject) (gen.SyncWishesNowResponseObject, error) {
@@ -633,4 +655,21 @@ func (s *server) serveExternalImage(w http.ResponseWriter, r *http.Request, src 
 	w.Header().Set("Cache-Control", externalImageCache)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
+// wishProgress is the progress viewers see of the wishes (N-83: no message, no service).
+func (s *server) wishProgress(ctx context.Context, list []model.Wish) (map[int64]*gen.WishProgress, error) {
+	ids := make([]int64, 0, len(list))
+	for _, w := range list {
+		ids = append(ids, w.ID)
+	}
+	progress, err := s.opts.Wishes.ProgressOf(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]*gen.WishProgress, len(progress))
+	for id, p := range progress {
+		out[id] = toWishProgress(p)
+	}
+	return out, nil
 }

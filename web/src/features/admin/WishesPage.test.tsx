@@ -28,6 +28,10 @@ const settings = (overrides: Partial<WishSettings> = {}): WishSettings => ({
   provisionAccounts: true,
   syncPassword: true,
   defaultLimit: { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } },
+  profileTags: true,
+  tagPrefix: 'sc-',
+  showProgress: true,
+  discoverPages: true,
   ...overrides,
 });
 

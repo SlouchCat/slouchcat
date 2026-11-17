@@ -30,6 +30,9 @@ func (s *server) ReceiveWebhook(ctx context.Context, req gen.ReceiveWebhookReque
 		if req.Body.Series != nil && req.Body.Series.Path != nil {
 			p.SeriesPath = *req.Body.Series.Path
 		}
+		if req.Body.NotificationType != nil {
+			p.Notification = *req.Body.NotificationType
+		}
 	}
 	res, err := s.opts.Integrations.Receive(ctx, req.Token, p)
 	if err != nil {

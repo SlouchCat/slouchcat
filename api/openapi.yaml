@@ -8870,6 +8870,131 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/seerr/arr:
+    get:
+      operationId: getArrStatus
+      summary: State of Radarr and Sonarr for the profile tags and the progress (concept 25 stage 4)
+      description: |
+        Since contract 1.41.0 (band «Radarr und Sonarr» of Integrationen › Seerr, data model 4.2
+        `ArrStatus`). Reading it may ask Seerr for the addresses (at most every 10 minutes); it never
+        calls Radarr or Sonarr and never carries a key.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Both services.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    put:
+      operationId: updateArrSettings
+      summary: Own addresses of Radarr and Sonarr (concept 25 stage 4)
+      description: |
+        Since contract 1.41.0. An own address replaces the one from Seerr for the tags and the
+        progress; an empty string goes back to the address from Seerr. An absent field stays. The key
+        always comes from Seerr.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArrSettingsUpdate"
+      responses:
+        "200":
+          description: The state after saving.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: An address that is no http(s) URL or carries user details (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/seerr/arr/test:
+    post:
+      operationId: testArrConnection
+      summary: Test Radarr or Sonarr and confirm its host (concept 25 stage 4)
+      description: |
+        Since contract 1.41.0 («Testen» in the band «Radarr und Sonarr»). Reads address and key from
+        Seerr anew (or the own address), asks the tag list of the service and, when it answers with the
+        key, confirms the host: only a confirmed host is called by the jobs. Failures of the service
+        are in the answer (200); failures of Seerr are problems.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArrTestRequest"
+      responses:
+        "200":
+          description: The outcome of the test.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrTestResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: Another Seerr instance waits for a decision (`seerr_instance_changed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Unknown service (`validation_failed`) or Seerr has no address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/seerr/webhook:
+    get:
+      operationId: getSeerrWebhookSetup
+      summary: What to enter in Seerr for the instant notice (concept 25 stage 4, F-18)
+      description: |
+        Since contract 1.41.0 (band «Sofortmeldung»). The JSON payload and the notification types to
+        tick under Settings › Notifications › Webhook in Seerr. The address is the one an integration of
+        the kind `seerr` shows once when it is created or renewed (`createIntegration`); a notice only
+        triggers the sync of the wishes.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The settings for Seerr.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeerrWebhookSetup"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
   /admin/wishes/mappings:
     get:
       operationId: getWishMappings
@@ -8927,6 +9052,152 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "422":
           description: No address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes/mappings/import:
+    post:
+      operationId: importSeerrRequests
+      summary: Take over the requests made directly in Seerr (concept 25 stage 4, F-21)
+      description: |
+        Since contract 1.41.0 («Anfragen übernehmen»). Queues the job `wishes.import` for one Seerr
+        user, or without `seerrUserId` for every user linked to an account. A request of a linked user
+        becomes a wish of the origin `seerr` of the account's primary profile.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeerrImportRequest"
+      responses:
+        "202":
+          description: Queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeerrImportQueued"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: The Seerr user belongs to no account, or is the shared user (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: No address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes/mappings/users/{seerrUserId}/requests/count:
+    get:
+      operationId: countSeerrRequests
+      summary: Number of requests of a Seerr user (concept 25 stage 4)
+      description: |
+        Since contract 1.41.0. For the message after a mapping («3 Anfragen von grosseltern werden
+        übernommen»): every request of the user in Seerr, also those the take-over leaves out. The
+        shared user counts 0.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: seerrUserId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The number.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeerrRequestCount"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: Another Seerr instance waits for a decision (`seerr_instance_changed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: No address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Seerr answered with an error (`seerr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes/profiles/{profileId}/tag:
+    put:
+      operationId: setProfileTagName
+      summary: Tag name of a profile in Radarr and Sonarr (concept 25 stage 4, N-113)
+      description: |
+        Since contract 1.41.0. `null` or an empty name goes back to the name from the prefix and the
+        profile name. Only `a–z`, `0–9` and `-`; the name of another profile is refused. A tag already
+        set in Radarr or Sonarr stays there (Slouchcat never removes a tag).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileTagRequest"
+      responses:
+        "200":
+          description: The tag name the profile has now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileTag"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Another profile has this tag name (`tag_name_taken`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A name with other characters or too long (`validation_failed`).
           content:
             application/problem+json:
               schema:
@@ -9303,6 +9574,130 @@ paths:
           description: |
             Seerr did not answer, is switched off or waits for a confirmed instance (`seerr_unreachable`;
             only for `arr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes/{id}/approve:
+    post:
+      operationId: approveWish
+      summary: Approve a pending wish in Seerr (concept 25 stage 4, F-16)
+      description: |
+        Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+        wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+        nothing itself: the state follows Seerr's answer (an approved wish is `processing`). The history names the acting account
+        (from the session).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The wish as the administration sees it after the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminWish"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown wish (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            The wish is not pending, or Seerr says none of its requests is pending any more
+            (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: No address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Seerr answered with an error (`seerr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer or is switched off (`seerr_unreachable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/wishes/{id}/decline:
+    post:
+      operationId: declineWish
+      summary: Decline a pending wish in Seerr (concept 25 stage 4, F-16)
+      description: |
+        Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+        wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+        nothing itself: the state follows Seerr's answer (a declined wish is closed as `declined`). The history names the acting account
+        (from the session).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The wish as the administration sees it after the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminWish"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown wish (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            The wish is not pending, or Seerr says none of its requests is pending any more
+            (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: No address or key (`seerr_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: Seerr answered with an error (`seerr_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: Seerr did not answer or is switched off (`seerr_unreachable`).
           content:
             application/problem+json:
               schema:
@@ -13173,6 +13568,17 @@ components:
               type: integer
               minimum: 0
               description: Trailers known for the title (`getItemTrailers`).
+            catalog:
+              $ref: "#/components/schemas/SeriesCatalog"
+              description: |
+                Since contract 1.41.0 (concept 25 stage 4): the season catalog of a series, only for a
+                profile that may request series (F-9) and only when TMDB's seasons are stored.
+            canRequestSeasons:
+              type: boolean
+              description: |
+                Since contract 1.41.0: the profile can request a missing season of this series from its
+                page (it may request series, «Anfordern auf Detailseiten» is on, and a missing season is
+                free or held by a wish it may join). Absent outside series and without `catalog`.
 
     NextUp:
       type: object
@@ -19723,11 +20129,14 @@ components:
         key:
           type: string
           enum: [reachable, version, key_valid, manage_users, instance, act_as_user, csrf_off, radarr, sonarr,
-                 local_login, tvdb_seasons, password_transport]
+                 local_login, tvdb_seasons, password_transport, radarr_tags, sonarr_tags]
           description: |
             The check (architecture 15.1): `manage_users` judges the rights of the key's user (it never
             creates a user); `password_transport` appears only as a warning, for `http` outside the
-            household's network.
+            household's network. `radarr_tags` and `sonarr_tags` (stage 4) read the tag list and the
+            queue of the service for the profile tags and the progress; warnings at most, `not_confirmed`
+            while the address from Seerr waits for «Testen», an `ok` detail says `tag_requests_on` or
+            `tag_requests_off`.
         level:
           type: string
           enum: [ok, warn, fail]
@@ -19967,6 +20376,9 @@ components:
           $ref: "#/components/schemas/WishState"
         stateDetail:
           $ref: "#/components/schemas/WishStateDetail"
+        progress:
+          $ref: "#/components/schemas/WishProgress"
+          description: Only on the wish card of `getExternalTitle`.
 
     ExternalTitleRef:
       type: object
@@ -20134,6 +20546,9 @@ components:
           description: Seerr approves the requests of the user the profile sends as at once.
         quota:
           $ref: "#/components/schemas/WishQuota"
+        shared:
+          $ref: "#/components/schemas/WishShared"
+          description: A film only, while the profile has no open wish of its own on it.
 
     WishLast:
       type: object
@@ -20265,6 +20680,8 @@ components:
           description: Newest first, at most 20.
           items:
             $ref: "#/components/schemas/WishEvent"
+        progress:
+          $ref: "#/components/schemas/WishProgress"
 
     WishCounts:
       type: object
@@ -20352,6 +20769,394 @@ components:
         needed:
           type: integer
 
+    WishProgress:
+      type: object
+      description: |
+        Since contract 1.41.0 (concept 25 stage 4, N-83). The download progress of a wish in procurement
+        as viewers see it: no message of Radarr or Sonarr, no service, no path. Absent when there is
+        nothing to show (not found, not readable, older than 5 minutes, «Download-Fortschritt zeigen» off).
+      required: [stage, readAt]
+      properties:
+        stage:
+          type: string
+          enum: [search, download, import, stalled]
+          description: «Wird gesucht», «Wird heruntergeladen», «Wird eingelesen», «Download verzögert».
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Only with `download`.
+        etaSeconds:
+          type: integer
+          minimum: 0
+          description: Only with `download`, when the service knows it.
+        episodes:
+          $ref: "#/components/schemas/WishProgressEpisodes"
+        readAt:
+          type: string
+          format: date-time
+          description: When the queue was read.
+
+    WishProgressEpisodes:
+      type: object
+      description: «x von y Folgen da» of a series wish.
+      required: [done, total]
+      properties:
+        done:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+
+    AdminWishProgress:
+      type: object
+      description: |
+        Since contract 1.41.0. The progress for the administration: the viewers' fields plus the service,
+        its message (shortened, without paths) and the error. `stage` is absent while nothing is known;
+        `stale` says «Fortschritt nicht lesbar» (the last read is older than 5 minutes).
+      required: [service, stale]
+      properties:
+        stage:
+          type: string
+          enum: [search, download, import, stalled]
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        etaSeconds:
+          type: integer
+          minimum: 0
+        episodes:
+          $ref: "#/components/schemas/WishProgressEpisodes"
+        readAt:
+          type: string
+          format: date-time
+        service:
+          type: string
+          enum: [radarr, sonarr]
+        message:
+          type: string
+          description: The message of Radarr or Sonarr (for example the reason of a stalled download).
+        error:
+          type: string
+          enum: [unreachable, not_found, incomplete]
+        stale:
+          type: boolean
+
+    WishRequesterTag:
+      type: object
+      description: |
+        Since contract 1.41.0. The profile tag of a requester in Radarr or Sonarr: `set`, `pending` (waits
+        for the title in the service) or `failed` with the class of the error. A wish placed directly in
+        Seerr has none (N-27).
+      required: [name, service, state]
+      properties:
+        name:
+          type: string
+          examples: ["sc-noah"]
+        service:
+          type: string
+          enum: [radarr, sonarr]
+        state:
+          type: string
+          enum: [pending, set, failed]
+        lastError:
+          type: string
+          description: The class of the last error (for example `unreachable`, `not_found`), never an address or a key.
+        setAt:
+          type: string
+          format: date-time
+
+    WishShared:
+      type: object
+      description: |
+        Since contract 1.41.0 (F-7 «Mitwünschen», functional concept 4.3). The open wish of another
+        profile on a film: its state, never who wished it. `canJoin` is true when the profile may
+        join it («Benachrichtige mich», no limit used); false with «Bereits angeforderte Titel: Nur
+        Zustand zeigen» or without the right for films.
+      required: [state, canJoin]
+      properties:
+        state:
+          $ref: "#/components/schemas/WishState"
+        stateDetail:
+          $ref: "#/components/schemas/WishStateDetail"
+        canJoin:
+          type: boolean
+
+    WishServiceHint:
+      type: object
+      description: A wish of a hint of the overview with its service («Dune (Radarr)»).
+      required: [wishId, title, service]
+      properties:
+        wishId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        service:
+          type: string
+          enum: [radarr, sonarr]
+        error:
+          type: string
+          description: Only for a tag that could not be set; the class of the error.
+
+    WishProfileTag:
+      type: object
+      description: A profile of the account with its tag name in Radarr and Sonarr (N-113).
+      required: [profileId, name, tagName, tagNameCustom]
+      properties:
+        profileId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: The name of the profile.
+        tagName:
+          type: string
+          description: The tag name the profile has, or would get at its first tag.
+          examples: ["sc-noah"]
+        tagNameCustom:
+          type: boolean
+          description: Set by the administrator (`setProfileTagName`).
+
+    ProfileTagRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          oneOf:
+            - type: string
+              maxLength: 64
+            - type: "null"
+          description: The tag name; `null` or empty takes the name from the prefix and the profile name.
+
+    ProfileTag:
+      type: object
+      required: [profileId, name, custom]
+      properties:
+        profileId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        custom:
+          type: boolean
+
+    ArrStatus:
+      type: object
+      description: Since contract 1.41.0. Radarr and Sonarr for the profile tags and the progress; never a key.
+      required: [radarr, sonarr]
+      properties:
+        radarr:
+          $ref: "#/components/schemas/ArrServiceStatus"
+        sonarr:
+          $ref: "#/components/schemas/ArrServiceStatus"
+
+    ArrServiceStatus:
+      type: object
+      required: [source, confirmed, counts, progress]
+      properties:
+        source:
+          type: string
+          enum: [seerr, own, none]
+          description: The address comes from Seerr, is an own one, or there is none.
+        address:
+          type: string
+          description: The address the jobs use; absent with `none`.
+        confirmed:
+          type: boolean
+          description: |
+            The jobs may call it: an own address, or the address from Seerr is the host a test
+            confirmed. A new host from Seerr stops the calls until «Testen» confirms it.
+        reachable:
+          type: boolean
+          description: Outcome of the last call; absent before the first.
+        tagRequests:
+          type: boolean
+          description: «Tag Requests» of the server in Seerr.
+        lastError:
+          type: string
+          description: The class of the last error of a call or of reading Seerr.
+        lastAt:
+          type: string
+          format: date-time
+        counts:
+          type: object
+          description: The tag rows of the service per state.
+          required: [set, pending, failed]
+          properties:
+            set:
+              type: integer
+            pending:
+              type: integer
+            failed:
+              type: integer
+        progress:
+          type: object
+          required: [enabled, tracked]
+          properties:
+            enabled:
+              type: boolean
+              description: «Download-Fortschritt zeigen».
+            lastReadAt:
+              type: string
+              format: date-time
+            error:
+              type: string
+              description: "`unreachable` while the queue could not be read."
+            tracked:
+              type: integer
+              description: Wishes with a progress to show.
+
+    ArrSettingsUpdate:
+      type: object
+      description: Absent fields stay; an empty string goes back to the address from Seerr.
+      properties:
+        radarrUrl:
+          type: string
+          maxLength: 2048
+          examples: ["http://192.168.1.125:7878"]
+        sonarrUrl:
+          type: string
+          maxLength: 2048
+
+    ArrTestRequest:
+      type: object
+      required: [service]
+      properties:
+        service:
+          type: string
+          enum: [radarr, sonarr]
+
+    ArrTestResult:
+      type: object
+      description: The outcome of testing a service; never a key.
+      required: [reachable, keyValid, source]
+      properties:
+        reachable:
+          type: boolean
+        keyValid:
+          type: boolean
+        tagRequests:
+          type: boolean
+          description: «Tag Requests» of the server in Seerr; absent with an own address.
+        host:
+          type: string
+          description: Scheme and host the test reached; confirmed when `reachable` and `keyValid`.
+        source:
+          type: string
+          enum: [seerr, own]
+        error:
+          type: string
+          description: The class of the error when not both are true.
+
+    SeerrWebhookSetup:
+      type: object
+      description: Since contract 1.41.0. What the administrator enters in Seerr for the instant notice.
+      required: [jsonPayload, types, typeNames]
+      properties:
+        jsonPayload:
+          type: string
+          description: The template for «JSON Payload»; it sends no name or address of a person.
+        types:
+          type: integer
+          description: Seerr's bit mask of the notification types to tick.
+        typeNames:
+          type: array
+          description: The same types by Seerr's names, in the order of Seerr's list.
+          items:
+            type: string
+          examples: [["MEDIA_PENDING", "MEDIA_APPROVED"]]
+
+    SeerrImportRequest:
+      type: object
+      properties:
+        seerrUserId:
+          type: integer
+          minimum: 1
+          description: One Seerr user; absent for every user linked to an account.
+
+    SeerrImportQueued:
+      type: object
+      required: [queued]
+      properties:
+        queued:
+          type: integer
+          description: The users whose requests are taken over.
+
+    SeerrRequestCount:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+
+    SeriesCatalog:
+      type: object
+      description: |
+        Since contract 1.41.0 (concept 25 stage 4, M-06). The seasons of a series of the library as the
+        active profile may request them: every season TMDB lists (season 0 never) plus every season the
+        profile can play. `missing` has aired and the profile can play none of it; `requested` and
+        `processing` are missing seasons an open wish holds («Bereits angefordert», «In Beschaffung»);
+        `announced` has not aired yet.
+      required: [inProduction, seasons, present, total]
+      properties:
+        status:
+          type: string
+          description: TMDB's status («Returning Series», «Ended»).
+        inProduction:
+          type: boolean
+        seasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeriesCatalogSeason"
+        nextEpisode:
+          $ref: "#/components/schemas/SeriesCatalogEpisode"
+        lastEpisode:
+          $ref: "#/components/schemas/SeriesCatalogEpisode"
+        present:
+          type: integer
+          description: «present von total Staffeln vorhanden».
+        total:
+          type: integer
+          description: Present plus missing seasons (announced ones do not count).
+
+    SeriesCatalogSeason:
+      type: object
+      required: [number, episodeCount, episodes, state]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        episodeCount:
+          type: integer
+          minimum: 0
+          description: Episodes by TMDB; 0 = unknown.
+        airDate:
+          type: string
+          format: date
+        episodes:
+          type: integer
+          minimum: 0
+          description: Episodes the profile can play.
+        state:
+          type: string
+          enum: [present, missing, announced, requested, processing]
+
+    SeriesCatalogEpisode:
+      type: object
+      required: [season, episode]
+      properties:
+        season:
+          type: integer
+        episode:
+          type: integer
+        airDate:
+          type: string
+          format: date
+
     AdminWishTitle:
       type: object
       required: [media, tmdbId, title, posterUrl]
@@ -20407,8 +21212,14 @@ components:
         seerrUserId:
           type: integer
           description: The Seerr user the wish went out as.
+        seerrUserName:
+          type: string
+          description: Its display name from the stored list of Seerr users; absent when unknown.
         seerrRequestId:
           type: integer
+          description: The request of a film; a series has its requests in `seasons[].seerrRequestId`.
+        progress:
+          $ref: "#/components/schemas/AdminWishProgress"
         attempts:
           type: integer
           description: Attempts of the outbox.
@@ -20457,6 +21268,8 @@ components:
         closed:
           type: boolean
           description: The profile withdrew itself.
+        tag:
+          $ref: "#/components/schemas/WishRequesterTag"
 
     AdminWishPage:
       type: object
@@ -20589,7 +21402,8 @@ components:
       description: |
         Since contract 1.41.0 (concept 25, administration 2): the hints of the wishes; absent while
         Seerr is not set up. Every list is empty instead of absent.
-      required: [open, queued, unmapped, unmappedFallback, linked, quotaReached, goneUsers]
+      required: [open, queued, unmapped, unmappedFallback, linked, quotaReached, goneUsers, tagsFailed,
+        downloadsStalled]
       properties:
         open:
           type: integer
@@ -20620,6 +21434,20 @@ components:
         goneUsers:
           type: integer
           description: Accounts whose Seerr user is gone from Seerr.
+        tagsFailed:
+          type: array
+          description: |
+            «n Wünsche ohne Profil-Tag» (stage 4): tags that could not be set, once per wish and service,
+            newest first, at most 20; a tag that waits for the title does not count.
+          items:
+            $ref: "#/components/schemas/WishServiceHint"
+        downloadsStalled:
+          type: array
+          description: |
+            «n Downloads verzögert» (stage 4): wishes whose download Radarr or Sonarr reports stalled by a
+            read of the last 5 minutes, newest first, at most 20; without the message of the service.
+          items:
+            $ref: "#/components/schemas/WishServiceHint"
 
     WishLinkHint:
       type: object
@@ -20751,6 +21579,11 @@ components:
           $ref: "#/components/schemas/AccountWishLimit"
         quota:
           $ref: "#/components/schemas/WishQuota"
+        profiles:
+          type: array
+          description: The profiles of the account with their tag names (stage 4, F-27, N-113).
+          items:
+            $ref: "#/components/schemas/WishProfileTag"
 
     WishMappings:
       type: object
@@ -20813,7 +21646,7 @@ components:
       description: Since contract 1.41.0 (data model 2.12). The settings of Medien › Wünsche › Einstellungen.
       required: [enabled, allowMovies, allowShows, fromSearch, fromDetail, alreadyRequested, unmapped,
                  newAccountsCanRequest, allowWithdraw, pinExternalHideTitle, provisionAccounts, syncPassword,
-                 defaultLimit]
+                 defaultLimit, profileTags, tagPrefix, showProgress, discoverPages]
       properties:
         enabled:
           type: boolean
@@ -20847,6 +21680,19 @@ components:
           description: «Passwort abgleichen».
         defaultLimit:
           $ref: "#/components/schemas/WishLimits"
+        profileTags:
+          type: boolean
+          description: «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default).
+        tagPrefix:
+          type: string
+          pattern: "^[a-z0-9-]{1,10}$"
+          description: «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`.
+        showProgress:
+          type: boolean
+          description: «Download-Fortschritt zeigen» (stage 4, on by default, N-86).
+        discoverPages:
+          type: boolean
+          description: «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57).
 
     WishSettingsUpdate:
       type: object
@@ -20880,6 +21726,19 @@ components:
           type: boolean
         defaultLimit:
           $ref: "#/components/schemas/WishLimits"
+        profileTags:
+          type: boolean
+          description: «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default).
+        tagPrefix:
+          type: string
+          pattern: "^[a-z0-9-]{1,10}$"
+          description: «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`.
+        showProgress:
+          type: boolean
+          description: «Download-Fortschritt zeigen» (stage 4, on by default, N-86).
+        discoverPages:
+          type: boolean
+          description: «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57).
 
     KeyState:
       type: object
@@ -21755,10 +22614,23 @@ components:
     WebhookPayload:
       type: object
       description: |
-        The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
-        is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+        The body Radarr, Sonarr or Seerr sends. Only `eventType`, the directory and Seerr's
+        `notification_type` are read; every other field is accepted and ignored, so a new field of a
+        later version breaks nothing (I-8). Seerr's default payload (`media`, `request`, `extra` …) and
+        the template of `getSeerrWebhookSetup` both pass; a Seerr notice only triggers the wish sync,
+        nothing of its body decides a state.
       additionalProperties: true
       properties:
+        notification_type:
+          type: string
+          description: Seerr's notification type (`MEDIA_PENDING`, `TEST_NOTIFICATION` …); it names the log entry.
+          examples: ["MEDIA_APPROVED"]
+        media:
+          description: Seerr's media object (any shape, not read).
+        request:
+          description: Seerr's request object (any shape, not read).
+        extra:
+          description: Seerr's extra fields (any shape, not read).
         eventType:
           type: string
           description: |
@@ -21791,10 +22663,11 @@ components:
       properties:
         result:
           type: string
-          enum: [scan_queued, acknowledged, ignored]
+          enum: [scan_queued, acknowledged, ignored, sync_queued]
           description: |
             `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
-            event of Radarr or Sonarr; `ignored`: an event without an effect here.
+            event of Radarr or Sonarr or the test notification of Seerr; `ignored`: an event without an
+            effect here; `sync_queued`: a notification of Seerr queued (or joined) a run of the wish sync.
         path:
           type: string
           description: The directory that is scanned, after the path mapping; only with `scan_queued`.
@@ -21815,7 +22688,8 @@ components:
           examples: ["Radarr"]
         kind:
           type: string
-          enum: [radarr, sonarr]
+          enum: [radarr, sonarr, seerr]
+          description: "`seerr`: the instant notice of Seerr (stage 4, F-18), a trigger of the wish sync only."
         tokenTail:
           type: string
           minLength: 4
@@ -21861,7 +22735,7 @@ components:
           maxLength: 80
         kind:
           type: string
-          enum: [radarr, sonarr]
+          enum: [radarr, sonarr, seerr]
 
     PathMapping:
       type: object
@@ -21910,9 +22784,10 @@ components:
           description: The directory after the path mapping; absent for events without one.
         result:
           type: string
-          enum: [scan_queued, acknowledged, ignored, outside_roots, invalid_payload]
+          enum: [scan_queued, acknowledged, ignored, outside_roots, invalid_payload, sync_queued]
           description: |
             `scan_queued`: a targeted scan runs; `acknowledged`: the Test event; `ignored`: no effect;
+            `sync_queued`: a notification of Seerr queued the wish sync;
             `outside_roots`: the mapped path lies under no library root; `invalid_payload`: an acting
             event without a directory.
 

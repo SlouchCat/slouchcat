@@ -350,7 +350,8 @@
         },
         "checkIssue": {
           "notTestable": "Nicht prüfbar: Seerr hat außer Benutzer 1 keinen Benutzer.",
-          "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer „Lokale Anmeldung“ einschalten."
+          "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer „Lokale Anmeldung“ einschalten.",
+          "arrNotConfirmed": "Die Adresse aus Seerr ist noch nicht bestätigt: Teste sie unter „Radarr und Sonarr“."
         }
       }
     },

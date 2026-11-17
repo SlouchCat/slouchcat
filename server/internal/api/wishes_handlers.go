@@ -43,6 +43,8 @@ type WishesService interface {
 	ForProfile(ctx context.Context, accountID, profileID int64) (model.WishRights, error)
 	// Stage 2: titles outside the library and the wishes (wish_titles_handlers.go).
 	WishTitlesService
+	// Stage 4: series catalog, approval, take-over, Radarr and Sonarr (wish_stage4_handlers.go).
+	WishStage4Service
 }
 
 // wishRights is SessionInfo.wishes; nil without the service or an active profile (the session
@@ -299,6 +301,9 @@ func (s *server) GetWishMappings(ctx context.Context, _ gen.GetWishMappingsReque
 	for _, a := range m.Accounts {
 		out.Accounts = append(out.Accounts, toWishAccountMapping(a))
 	}
+	if err := s.mappingProfiles(ctx, out.Accounts); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	for _, u := range m.UnlinkedUsers {
 		out.UnlinkedUsers = append(out.UnlinkedUsers, toSeerrUser(u))
 	}
@@ -456,6 +461,7 @@ func (s *server) SetWishSettings(ctx context.Context, req gen.SetWishSettingsReq
 		Enabled: b.Enabled, AllowMovies: b.AllowMovies, AllowShows: b.AllowShows, FromSearch: b.FromSearch,
 		FromDetail: b.FromDetail, NewAccountsCanRequest: b.NewAccountsCanRequest, AllowWithdraw: b.AllowWithdraw,
 		PINExternalHideTitle: b.PinExternalHideTitle, ProvisionAccounts: b.ProvisionAccounts, SyncPassword: b.SyncPassword,
+		ProfileTags: b.ProfileTags, TagPrefix: b.TagPrefix, ShowProgress: b.ShowProgress, DiscoverPages: b.DiscoverPages,
 	}
 	if v := b.AlreadyRequested; v != nil {
 		s := string(*v)
@@ -485,6 +491,7 @@ func toWishSettings(ws model.WishSettings) gen.WishSettings {
 		Unmapped: gen.WishSettingsUnmapped(ws.Unmapped), NewAccountsCanRequest: ws.NewAccountsCanRequest,
 		AllowWithdraw: ws.AllowWithdraw, PinExternalHideTitle: ws.PINExternalHideTitle,
 		ProvisionAccounts: ws.ProvisionAccounts, SyncPassword: ws.SyncPassword, DefaultLimit: toWishLimits(ws.DefaultLimit),
+		ProfileTags: ws.ProfileTags, TagPrefix: ws.TagPrefix, ShowProgress: ws.ShowProgress, DiscoverPages: ws.DiscoverPages,
 	}
 }
 
@@ -495,6 +502,7 @@ func toDashboardWishes(d *model.DashboardWishes) *gen.DashboardWishes {
 	out := &gen.DashboardWishes{
 		Open: d.Open, Queued: d.Queued, Unmapped: d.Unmapped, UnmappedFallback: d.UnmappedFallback, GoneUsers: d.GoneUsers,
 		Linked: make([]gen.WishLinkHint, 0, len(d.Linked)), QuotaReached: make([]gen.WishQuotaHint, 0, len(d.QuotaReached)),
+		TagsFailed: toServiceHints(d.TagsFailed), DownloadsStalled: toServiceHints(d.DownloadsStalled),
 	}
 	if d.SeerrState != "" {
 		st := gen.DashboardWishesSeerrState(d.SeerrState)
@@ -510,6 +518,14 @@ func toDashboardWishes(d *model.DashboardWishes) *gen.DashboardWishes {
 		out.QuotaReached = append(out.QuotaReached, gen.WishQuotaHint{
 			AccountId: q.AccountID, AccountEmail: q.AccountEmail, Movie: toWishQuotaPart(q.Movie), Tv: toWishQuotaPart(q.TV),
 		})
+	}
+	return out
+}
+
+func toServiceHints(list []model.WishServiceHint) []gen.WishServiceHint {
+	out := make([]gen.WishServiceHint, 0, len(list))
+	for _, h := range list {
+		out = append(out, gen.WishServiceHint{WishId: h.WishID, Title: h.Title, Service: gen.WishServiceHintService(h.Service), Error: optString(h.Error)})
 	}
 	return out
 }

@@ -211,6 +211,11 @@ function checkText(t: TFunction, check: SeerrCheck): string {
       return detail === 'tmdb' ? t('admin.integrations.seerr.checkIssue.tmdbSeasons') : notTested;
     case 'password_transport':
       return t('admin.integrations.seerr.checkIssue.passwordTransport');
+    case 'radarr_tags':
+    case 'sonarr_tags':
+      return detail === 'not_confirmed'
+        ? t('admin.integrations.seerr.checkIssue.arrNotConfirmed')
+        : t('admin.integrations.seerr.checkIssue.arrUnreachable');
   }
 }
 

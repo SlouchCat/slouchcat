@@ -3825,7 +3825,8 @@
         "neverSeen": "Hat noch nie etwas gemeldet.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Neue Integration",
@@ -3870,7 +3871,8 @@
           "acknowledged": "Test quittiert",
           "ignored": "Ohne Wirkung",
           "outside_roots": "Ausserhalb der Bibliotheken",
-          "invalid_payload": "Ohne Pfad"
+          "invalid_payload": "Ohne Pfad",
+          "sync_queued": "Wünsche werden abgeglichen"
         },
         "renew": {
           "action": "Token erneuern",
@@ -4079,7 +4081,9 @@
           "sonarr": "Sonarr in Seerr",
           "local_login": "Lokale Anmeldung in Seerr",
           "tvdb_seasons": "Staffeln aus TVDB",
-          "password_transport": "Passwort verschlüsselt"
+          "password_transport": "Passwort verschlüsselt",
+          "radarr_tags": "Radarr für Profil-Tags",
+          "sonarr_tags": "Sonarr für Profil-Tags"
         },
         "checkOk": {
           "reachable": "Seerr antwortet.",
@@ -4095,7 +4099,9 @@
           "sonarr_other": "Serien-Wünsche gehen an Sonarr ({{count}} Server).",
           "local_login": "Eröffnete Benutzer melden sich in Seerr mit E-Mail und Passwort aus Slouchcat an.",
           "tvdb_seasons": "Seerr, Sonarr und die Slouchcat-Bibliothek zählen Staffeln gleich.",
-          "password_transport": "Passwörter gehen verschlüsselt oder bleiben im Heimnetz."
+          "password_transport": "Passwörter gehen verschlüsselt oder bleiben im Heimnetz.",
+          "radarr_tags": "Radarr antwortet für Profil-Tags und Download-Fortschritt.",
+          "sonarr_tags": "Sonarr antwortet für Profil-Tags und Download-Fortschritt."
         },
         "checkIssue": {
           "notTested": "Nicht geprüft.",
@@ -4117,7 +4123,9 @@
           "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer «Lokale Anmeldung» einschalten.",
           "noSeasonSource": "Seerr nennt die Quelle der Staffeln nicht.",
           "tmdbSeasons": "Seerr liest Staffeln aus TMDB. Empfohlen ist TVDB, wie in Sonarr und in der Slouchcat-Bibliothek, sonst können Staffelnummern abweichen.",
-          "passwordTransport": "Passwörter gingen unverschlüsselt ins Internet. Nutze https."
+          "passwordTransport": "Passwörter gingen unverschlüsselt ins Internet. Nutze https.",
+          "arrNotConfirmed": "Die Adresse aus Seerr ist noch nicht bestätigt: Teste sie unter «Radarr und Sonarr».",
+          "arrUnreachable": "Nicht erreichbar: keine Profil-Tags und kein Download-Fortschritt."
         },
         "instance": {
           "title": "Andere Seerr-Instanz erkannt",

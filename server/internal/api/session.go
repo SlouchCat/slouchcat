@@ -20,6 +20,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // Session cookie and CSRF header (plan 3.8 point 7, contract description).
@@ -524,6 +525,12 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "wish_not_retryable", "Only a failed wish of an existing account can be retried, and only while no other open wish holds the title.")
 	case errors.Is(err, model.ErrSeerrUnreachable):
 		p.write(w, r, http.StatusServiceUnavailable, "seerr_unreachable", "Seerr did not answer; try again later.")
+	case errors.Is(err, model.ErrSeerrFailed):
+		p.write(w, r, http.StatusBadGateway, "seerr_failed", "Seerr answered with an error.")
+	case errors.Is(err, model.ErrWishNotPending):
+		p.write(w, r, http.StatusConflict, "wish_not_pending", "The wish does not wait for an approval in Seerr any more.")
+	case errors.Is(err, wishes.ErrTagNameTaken):
+		p.write(w, r, http.StatusConflict, "tag_name_taken", "Another profile has this tag name.")
 	case errors.Is(err, model.ErrWishNotWithdrawable):
 		p.write(w, r, http.StatusConflict, "wish_not_withdrawable", "The wish is past the approval and cannot be withdrawn.")
 	case errors.Is(err, model.ErrTMDBUnreachable):

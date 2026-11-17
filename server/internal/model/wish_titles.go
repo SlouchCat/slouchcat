@@ -102,6 +102,18 @@ type WishRequestCard struct {
 	Reason      string
 	AutoApprove bool
 	Quota       *WishQuota
+	// Shared is the open film wish of another profile the profile is not part of (F-7
+	// «Mitwünschen», functional concept 4.3): its state, never who wished it; nil without one.
+	Shared *WishShared
+}
+
+// WishShared is the open wish of another profile on a film as a co-wisher may see it.
+type WishShared struct {
+	State       string
+	StateDetail string
+	// CanJoin: the profile may join it («Benachrichtige mich»): it may request films and
+	// «Bereits angeforderte Titel» is «Mitwünschen», not «Nur Zustand zeigen».
+	CanJoin bool
 }
 
 // WishLast is a closed wish of the profile (state, when and why).
