@@ -48,11 +48,13 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/radio"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
+	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // The radio service implements the API's webradio (package radio must not import api).
@@ -378,6 +380,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, hw, zoneName, started)
 	keys.admin = adminSvc
+	// Wishes through Seerr (concept 25): the connection and the settings come from the
+	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
+	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)))
+	adminSvc.WithSeerr(wishSvc)
 	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
 	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
 	// cleans it up. A restore swapped in at this start is recorded in the restored database.
@@ -441,6 +447,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	offlineSvc.RegisterTypes(registry)
 	notifySvc.RegisterTypes(registry)
 	radioSvc.RegisterTypes(registry)
+	wishSvc.RegisterTypes(registry)
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
 	}

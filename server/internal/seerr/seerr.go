@@ -63,6 +63,17 @@ type Client struct {
 	limiter *ratelimit.Limiter
 	log     *slog.Logger
 	agent   string
+	observe func(context.Context, Call)
+}
+
+// Call describes one finished call for an observer (WithObserver): method, path without query,
+// status (0 without an answer), duration and the error. Never a header or a body.
+type Call struct {
+	Method   string
+	Path     string
+	Status   int
+	Duration time.Duration
+	Err      error
 }
 
 // Option configures New.
@@ -94,6 +105,12 @@ func WithLogger(l *slog.Logger) Option {
 			c.log = l
 		}
 	}
+}
+
+// WithObserver sets a function that sees every finished call (package wishes writes them to its
+// call log). It runs on the caller's goroutine after the answer was read.
+func WithObserver(fn func(context.Context, Call)) Option {
+	return func(c *Client) { c.observe = fn }
 }
 
 // WithUserAgent sets the User-Agent ("Slouchcat/<version>"); "" keeps "Slouchcat".
@@ -238,6 +255,9 @@ func (s Session) send(ctx context.Context, method, path string, query url.Values
 		attrs = append(attrs, slog.String("error", err.Error()))
 	}
 	c.log.LogAttrs(ctx, slog.LevelDebug, "seerr call", attrs...)
+	if c.observe != nil {
+		c.observe(ctx, Call{Method: method, Path: path, Status: status, Duration: time.Since(start), Err: err})
+	}
 	return status, err
 }
 

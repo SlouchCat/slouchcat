@@ -390,6 +390,9 @@
         "radio_wikidata_sync": {
           "trigger": "wöchentlich ab 06:30, nach „Übernehmen“ mit neuen Sendern (höchstens einmal am Tag), beim Einschalten von „Wikidata verwenden“"
         },
+        "seerr_users": {
+          "trigger": "täglich, „Benutzerliste neu laden“, nach dem Speichern der Verbindung zu Seerr"
+        },
         "scan_library": {
           "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"
         },

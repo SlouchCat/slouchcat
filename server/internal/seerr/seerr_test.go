@@ -877,3 +877,37 @@ func TestOversizedAnswer(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+// The observer sees every finished call with method, path without query, status, duration and
+// error; a password of the body never reaches it.
+func TestObserverSeesEveryCall(t *testing.T) {
+	f := seerrtest.New(t)
+	var mu sync.Mutex
+	var calls []Call
+	c := newClient(t, f, WithObserver(func(_ context.Context, call Call) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls = append(calls, call)
+	}))
+	ctx := context.Background()
+	if _, err := c.AsAdmin().Users(ctx, UserQuery{Q: "secret-query", Take: 5}); err != nil {
+		t.Fatal(err)
+	}
+	f.SetFailure("POST /user/{id}/settings/password", seerrtest.Failure{Status: 500, Message: "boom pw-FAKE-0815"})
+	err := c.AsAdmin().SetPassword(ctx, 1, "pw-FAKE-0815")
+	if err == nil {
+		t.Fatal("the failure was not reported")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(calls) != 2 {
+		t.Fatalf("calls = %+v", calls)
+	}
+	if g := calls[0]; g.Method != http.MethodGet || g.Path != "/user" || g.Status != http.StatusOK || g.Err != nil || g.Duration < 0 {
+		t.Errorf("first call = %+v", g)
+	}
+	if g := calls[1]; g.Path != "/user/1/settings/password" || g.Status != 500 || !errors.Is(g.Err, ErrServer) ||
+		strings.Contains(g.Err.Error(), "pw-FAKE-0815") {
+		t.Errorf("second call = %+v", g)
+	}
+}

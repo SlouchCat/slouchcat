@@ -4640,6 +4640,11 @@
           "description": "Entfernt Titel, deren Dateien länger als die Schonfrist fehlen.",
           "trigger": "Zeitplan stündlich und Start des Servers"
         },
+        "seerr_users": {
+          "name": "Seerr-Benutzer laden",
+          "description": "Liest die Benutzer aus Seerr mit ihren Rechten und ihrem Limit und prüft, ob Slouchcat noch mit derselben Seerr-Instanz spricht.",
+          "trigger": "täglich, «Benutzerliste neu laden», nach dem Speichern der Verbindung zu Seerr"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",

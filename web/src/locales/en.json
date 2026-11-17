@@ -4640,6 +4640,11 @@
           "description": "Removes titles whose files have been missing beyond the grace period.",
           "trigger": "Schedule hourly and server start"
         },
+        "seerr_users": {
+          "name": "Load Seerr users",
+          "description": "Reads the users of Seerr with their rights and limits and checks that Slouchcat still talks to the same Seerr instance.",
+          "trigger": "daily, «Reload user list», after the connection to Seerr was saved"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

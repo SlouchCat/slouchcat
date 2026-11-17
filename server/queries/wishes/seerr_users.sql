@@ -25,7 +25,7 @@ SELECT * FROM seerr_users WHERE seerr_id = @seerr_id;
 
 -- name: ListSeerrUsers :many
 -- Every known user with the account it belongs to (NULL = none), by id.
-SELECT u.*, m.account_id AS mapped_account_id, a.email AS mapped_account_email
+SELECT sqlc.embed(u), m.account_id AS mapped_account_id, a.email AS mapped_account_email
 FROM seerr_users AS u
 LEFT JOIN wish_account_map AS m ON m.seerr_user_id = u.seerr_id
 LEFT JOIN accounts AS a ON a.id = m.account_id

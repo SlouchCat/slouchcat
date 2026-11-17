@@ -171,25 +171,7 @@ ORDER BY u.seerr_id
 `
 
 type ListSeerrUsersRow struct {
-	SeerrID            int64
-	DisplayName        string
-	Email              sql.NullString
-	UserType           int64
-	Permissions        int64
-	MovieQuotaLimit    sql.NullInt64
-	MovieQuotaDays     sql.NullInt64
-	TvQuotaLimit       sql.NullInt64
-	TvQuotaDays        sql.NullInt64
-	MovieQuotaUsed     sql.NullInt64
-	TvQuotaUsed        sql.NullInt64
-	MovieNextFreeAt    sql.NullInt64
-	TvNextFreeAt       sql.NullInt64
-	QuotaAt            sql.NullInt64
-	IsAdmin            int64
-	IsShared           int64
-	CreatedAt          sql.NullInt64
-	FetchedAt          int64
-	GoneAt             sql.NullInt64
+	SeerrUser          SeerrUser
 	MappedAccountID    sql.NullInt64
 	MappedAccountEmail sql.NullString
 }
@@ -205,25 +187,25 @@ func (q *Queries) ListSeerrUsers(ctx context.Context) ([]ListSeerrUsersRow, erro
 	for rows.Next() {
 		var i ListSeerrUsersRow
 		if err := rows.Scan(
-			&i.SeerrID,
-			&i.DisplayName,
-			&i.Email,
-			&i.UserType,
-			&i.Permissions,
-			&i.MovieQuotaLimit,
-			&i.MovieQuotaDays,
-			&i.TvQuotaLimit,
-			&i.TvQuotaDays,
-			&i.MovieQuotaUsed,
-			&i.TvQuotaUsed,
-			&i.MovieNextFreeAt,
-			&i.TvNextFreeAt,
-			&i.QuotaAt,
-			&i.IsAdmin,
-			&i.IsShared,
-			&i.CreatedAt,
-			&i.FetchedAt,
-			&i.GoneAt,
+			&i.SeerrUser.SeerrID,
+			&i.SeerrUser.DisplayName,
+			&i.SeerrUser.Email,
+			&i.SeerrUser.UserType,
+			&i.SeerrUser.Permissions,
+			&i.SeerrUser.MovieQuotaLimit,
+			&i.SeerrUser.MovieQuotaDays,
+			&i.SeerrUser.TvQuotaLimit,
+			&i.SeerrUser.TvQuotaDays,
+			&i.SeerrUser.MovieQuotaUsed,
+			&i.SeerrUser.TvQuotaUsed,
+			&i.SeerrUser.MovieNextFreeAt,
+			&i.SeerrUser.TvNextFreeAt,
+			&i.SeerrUser.QuotaAt,
+			&i.SeerrUser.IsAdmin,
+			&i.SeerrUser.IsShared,
+			&i.SeerrUser.CreatedAt,
+			&i.SeerrUser.FetchedAt,
+			&i.SeerrUser.GoneAt,
 			&i.MappedAccountID,
 			&i.MappedAccountEmail,
 		); err != nil {
