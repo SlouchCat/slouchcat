@@ -114,6 +114,11 @@ describe('Wünsche › Seerr-Benutzer', () => {
       .getAllByRole('row')
       .find((entry) => within(entry).queryByText('besitzer@example.org'))!;
     expect(await within(row).findByText('Von Hand zugeordnet')).toBeVisible();
+    // The limit: films and seasons on a line each, the mode apart; no placeholder left unfilled.
+    expect(screen.getByText('10 Filme / 7 Tage')).toBeVisible();
+    expect(screen.getByText('5 Staffeln / 7 Tage')).toBeVisible();
+    expect(screen.getByText('Standard')).toBeVisible();
+    expect(document.body.textContent).not.toContain('{{');
   });
 
   it('a user taken meanwhile answers 409 at the row and the choice springs back', async () => {

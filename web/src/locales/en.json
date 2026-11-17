@@ -5564,7 +5564,6 @@
         "followRightOff": "Follow the wish right of the account: may not request",
         "noLimitAdmin": "No limit (administrator in Seerr)",
         "unlimited": "Unlimited",
-        "limitMode": "{{limit}} ({{mode}})",
         "mode": {
           "default": "Default",
           "custom": "Own",

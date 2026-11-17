@@ -255,7 +255,7 @@ function CallLog({ status }: { status: SeerrStatus }) {
           {
             key: 'call',
             header: t('admin.integrations.seerr.log.call'),
-            cell: (entry) => <code className={styles.url}>{`${entry.method} ${entry.path}`}</code>,
+            cell: (entry) => <code className={styles.call}>{`${entry.method} ${entry.path}`}</code>,
           },
           {
             key: 'result',
@@ -271,7 +271,11 @@ function CallLog({ status }: { status: SeerrStatus }) {
             key: 'duration',
             header: t('admin.integrations.seerr.log.duration'),
             align: 'end',
-            cell: (entry) => t('admin.integrations.seerr.log.ms', { count: entry.durationMs }),
+            cell: (entry) => (
+              <span className={styles.nowrap}>
+                {t('admin.integrations.seerr.log.ms', { ms: entry.durationMs })}
+              </span>
+            ),
           },
           {
             key: 'error',

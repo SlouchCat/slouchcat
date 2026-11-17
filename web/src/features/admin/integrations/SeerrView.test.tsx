@@ -291,5 +291,6 @@ describe('Integrationen › Seerr (concept 25)', () => {
     expect(within(table).getByText('200')).toBeVisible();
     expect(within(table).getByText('Keine Antwort')).toBeVisible();
     expect(within(table).getByText('timeout')).toBeVisible();
+    expect(within(table).getByText('10003 ms')).toBeVisible();
   });
 });

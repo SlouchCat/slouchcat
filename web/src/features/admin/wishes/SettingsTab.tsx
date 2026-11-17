@@ -45,16 +45,17 @@ const ALREADY_REQUESTED = [
 ] as const satisfies readonly WishSettings['alreadyRequested'][];
 const UNMAPPED = ['fallback', 'deny'] as const satisfies readonly WishSettings['unmapped'][];
 
-/** «10 Filme / 7 Tage · 5 Staffeln / 7 Tage»; a limit of 0 is «ohne Limit». */
-export function limitSummary(t: TFunction, limits: WishLimits): string {
-  const part = (kind: 'movie' | 'tv') => {
-    const { limit, days } = limits[kind];
-    return limit === 0
-      ? t(`admin.wishes.limit.${kind}None`)
-      : t(`admin.wishes.limit.${kind}`, { count: limit, days });
-  };
-  return `${part('movie')}${t('admin.wishes.separator')}${part('tv')}`;
+/** «10 Filme / 7 Tage» or «5 Staffeln / 7 Tage»; a limit of 0 is «ohne Limit». */
+export function limitPart(t: TFunction, limits: WishLimits, kind: 'movie' | 'tv'): string {
+  const { limit, days } = limits[kind];
+  return limit === 0
+    ? t(`admin.wishes.limit.${kind}None`)
+    : t(`admin.wishes.limit.${kind}`, { count: limit, days });
 }
+
+/** «10 Filme / 7 Tage · 5 Staffeln / 7 Tage». */
+export const limitSummary = (t: TFunction, limits: WishLimits): string =>
+  `${limitPart(t, limits, 'movie')}${t('admin.wishes.separator')}${limitPart(t, limits, 'tv')}`;
 
 /** A limit field as typed: whole numbers within the contract's bounds. */
 const within = (text: string, low: number, high: number) =>

@@ -346,3 +346,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A call of the Seerr log on one line; on a phone the table scrolls sideways in its frame. */
+.call {
+  font-family: var(--sc-font-family-mono);
+  white-space: nowrap;
+}
+
+/* A duration of the Seerr log: number and unit together. */
+.nowrap {
+  white-space: nowrap;
+}

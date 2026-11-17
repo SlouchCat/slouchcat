@@ -162,6 +162,9 @@ test('the tile opens the view; connect, test and save by keyboard @keyboard', as
   await expect(log).toHaveAttribute('aria-expanded', 'true');
   const calls = seerr.getByRole('table', { name: 'Die letzten Aufrufe an Seerr' });
   await expect(calls.getByText('GET /status').first()).toBeVisible();
+  await expect(calls.getByText(/^\d+ ms$/).first()).toBeVisible();
+  // No text shows a placeholder its call did not fill.
+  await expect(page.locator('#content')).not.toContainText('{{');
   await expectFocusOn(page, log);
   await page.keyboard.press('Space');
   await expect(log).toHaveAttribute('aria-expanded', 'false');

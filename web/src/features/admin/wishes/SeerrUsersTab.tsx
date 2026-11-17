@@ -36,7 +36,7 @@ import {
   type WishSettings,
 } from '../queries';
 import { rightsText, seerrUserColumns, StateChip, userTypeText } from './columns';
-import { limitSummary } from './SettingsTab';
+import { limitPart } from './SettingsTab';
 import { useImmediateSave, type ImmediateSave } from './useImmediateSave';
 import styles from './Wishes.module.css';
 
@@ -97,9 +97,14 @@ function AccountDetail({
       user ? (
         <span className={styles.factStack}>
           <span>{t('admin.wishes.users.option', { name: user.displayName, id: user.id })}</span>
-          <span className={styles.secondary}>
-            {[user.email, userTypeText(t, user)].filter(Boolean).join(t('admin.wishes.separator'))}
-          </span>
+          {user.email && (
+            <span className={styles.secondary}>
+              {/* A long address wraps after the @, not inside a word. */}
+              {user.email.split('@')[0]}@<wbr />
+              {user.email.split('@').slice(1).join('@')}
+            </span>
+          )}
+          <span className={styles.secondary}>{userTypeText(t, user)}</span>
         </span>
       ) : (
         t('admin.wishes.users.noUser')
@@ -173,14 +178,19 @@ function AccountDetail({
     ],
     [
       t('admin.wishes.users.facts.limit'),
-      mapping.limit.seerrAdmin
-        ? t('admin.wishes.users.noLimitAdmin')
-        : mapping.limit.mode === 'unlimited'
-          ? t('admin.wishes.users.unlimited')
-          : t('admin.wishes.users.limitMode', {
-              limit: limitSummary(t, mapping.limit.effective),
-              mode: t(`admin.wishes.users.mode.${mapping.limit.mode}`),
-            }),
+      mapping.limit.seerrAdmin ? (
+        t('admin.wishes.users.noLimitAdmin')
+      ) : mapping.limit.mode === 'unlimited' ? (
+        t('admin.wishes.users.unlimited')
+      ) : (
+        <span className={styles.factStack}>
+          <span>{limitPart(t, mapping.limit.effective, 'movie')}</span>
+          <span>{limitPart(t, mapping.limit.effective, 'tv')}</span>
+          <span className={styles.secondary}>
+            {t(`admin.wishes.users.mode.${mapping.limit.mode}`)}
+          </span>
+        </span>
+      ),
     ],
     [
       t('admin.wishes.users.facts.right'),

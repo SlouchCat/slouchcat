@@ -5564,7 +5564,6 @@
         "followRightOff": "Folgen dem Wunschrecht des Kontos: darf nicht anfordern",
         "noLimitAdmin": "Kein Limit (Administrator in Seerr)",
         "unlimited": "Unbegrenzt",
-        "limitMode": "{{limit}} ({{mode}})",
         "mode": {
           "default": "Standard",
           "custom": "Eigenes",

@@ -130,6 +130,8 @@ test('tabs, a row that folds out and a Seerr user chosen and unlinked by keyboar
   await expect(row.getByText('Von Hand zugeordnet')).toBeVisible();
   await expect(row.getByText('Anmeldung über Jellyfin, Emby oder Plex')).toBeVisible();
   await expect(select).toHaveValue(String(wohnzimmer.id));
+  // No text shows a placeholder its call did not fill.
+  await expect(page.locator('#content')).not.toContainText('{{');
 
   // «Verknüpfung lösen» acts at once, without a dialog; the user stays in Seerr.
   const unlink = page.getByRole('button', { name: 'Verknüpfung lösen' });
@@ -243,6 +245,8 @@ test('the settings take effect at once by keyboard; a refused change rolls back 
   await tabTo(page, limit, 20);
   await page.keyboard.press('Enter');
   await expect(limit).toHaveAttribute('aria-expanded', 'true');
+  // No text shows a placeholder its call did not fill.
+  await expect(page.locator('#content')).not.toContainText('{{');
   const count = page.getByRole('textbox', { name: 'Filme: Anzahl' });
   await tabTo(page, count, 6);
   await page.keyboard.press('Control+A');
