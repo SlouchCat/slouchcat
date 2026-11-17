@@ -51,6 +51,16 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/certq
               desc: item_certifications is read and written only by package metadata (concept 22 section 4.11)
+        externalq:
+          # external_titles and its texts and images (concept 25 section 2.9): only package metadata
+          # fetches and stores titles outside the library; the itemsaccess analyzer does not cover them.
+          files:
+            - $all
+            - "!**/internal/metadata/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/externalq
+              desc: external_titles is read and written only by package metadata (concept 25 section 2.9)
         test-helpers:
           # storetest and vistest open template databases and seed fixtures for tests. Code that
           # ships must never reach them; vistest builds on storetest, so the two may import each

@@ -47,3 +47,14 @@ sql:
         package: certq
         out: internal/store/certq
         emit_empty_slices: true
+
+  # Titles outside the library (package store/externalq, concept 25 section 2.9). Importing it is
+  # allowed only in package metadata (depguard rule "externalq").
+  - engine: sqlite
+    schema: migrations
+    queries: queries/external
+    gen:
+      go:
+        package: externalq
+        out: internal/store/externalq
+        emit_empty_slices: true

@@ -223,6 +223,56 @@ type DownloadTombstone struct {
 	RemovedAt int64
 }
 
+type ExternalTitle struct {
+	Media          string
+	TmdbID         int64
+	TvdbID         sql.NullInt64
+	ImdbID         sql.NullString
+	OriginalTitle  sql.NullString
+	Year           sql.NullInt64
+	ReleaseDate    sql.NullString
+	RuntimeMinutes sql.NullInt64
+	Genres         string
+	Certifications string
+	MinAge         sql.NullInt64
+	PosterPath     sql.NullString
+	BackdropPath   sql.NullString
+	LogoPath       sql.NullString
+	Trailers       string
+	Status         sql.NullString
+	Seasons        string
+	NextEpisode    sql.NullString
+	LastEpisode    sql.NullString
+	FetchedAt      int64
+}
+
+type ExternalTitleImage struct {
+	ID          int64
+	Media       string
+	TmdbID      int64
+	Kind        string
+	Size        string
+	Format      string
+	Lang        sql.NullString
+	SourceUrl   string
+	RelPath     string
+	ContentHash string
+	MediaType   string
+	Width       int64
+	Height      int64
+	Bytes       int64
+	FetchedAt   int64
+}
+
+type ExternalTitleText struct {
+	Media    string
+	TmdbID   int64
+	Language string
+	Title    string
+	Overview sql.NullString
+	Tagline  sql.NullString
+}
+
 type HomeRow struct {
 	ID        string
 	Key       string
