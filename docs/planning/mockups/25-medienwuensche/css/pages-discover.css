@@ -1,0 +1,60 @@
+/* M-31 to M-34 (viewer-discover.js): Entdecken, Filme, Serien, Suche. Own classes carry the prefix dc-;
+   layout via container queries only, phone first. */
+
+/* search field (Entdecken and Suche) */
+.dc-q { display: flex; flex-wrap: wrap; gap: 8px; max-width: 768px; }
+.dc-qi { position: relative; flex: 1 1 220px; min-width: 0; display: block; }
+.dc-qi > svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--tx3); pointer-events: none; }
+.dc-qi .inp { width: 100%; height: 48px; padding-left: 48px; }
+.dc-qi.dc-big { max-width: 768px; flex: 0 0 auto; width: 100%; }
+.dc-qi.dc-big .inp { height: 52px; }
+.dc-q .btn { flex: none; height: 48px; }
+.dc-hint { font-size: 14px; color: var(--tx3); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: -4px; }
+.dc-ex { padding: 2px 4px; border-radius: 4px; color: var(--tx2); overflow-wrap: anywhere; }
+.dc-ex:hover { color: var(--tx); }
+
+/* Entdecken: rows reach to the page edge like on the start page */
+.dc-home { gap: 24px; }
+.dc-rows { display: flex; flex-direction: column; gap: 24px; margin: 0 calc(var(--gut) * -1); }
+.dc-rows > .empty { margin: 0 var(--gut); }
+.dc-genres .scroller > ul { gap: 12px; }
+.dc-tile { display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; width: 148px; height: 84px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--frame); background: var(--s2); color: var(--tx); text-decoration: none; transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), border-color 0.18s; }
+.dc-tile.m { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--s2)), var(--s2) 70%); }
+.dc-tile.s { background: linear-gradient(135deg, color-mix(in srgb, var(--info) 26%, var(--s2)), var(--s2) 70%); }
+.dc-tile b { font-size: 15px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-tile span { font-size: 12px; color: var(--tx2); }
+.dc-tile:hover, .dc-tile:focus-visible { transform: scale(1.03); border-color: var(--tx3); }
+@container app (min-width: 768px) { .dc-tile { width: 200px; height: 104px; padding: 14px 18px; } .dc-tile b { font-size: 17px; } }
+
+/* Filme and Serien */
+.dc-filters { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@container app (min-width: 768px) { .dc-filters { grid-template-columns: repeat(2, minmax(0, 260px)); align-items: end; } }
+@container app (min-width: 1100px) { .dc-filters { grid-template-columns: repeat(2, minmax(0, 260px)) auto; } }
+.dc-filters .sel { width: 100%; }
+.dc-sw { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.dc-sw > span { display: flex; flex-direction: column; font-size: 14px; color: var(--tx); }
+.dc-sw small { font-size: 12px; color: var(--tx3); }
+.dc-res { display: flex; flex-direction: column; gap: 12px; margin-top: -8px; }
+.dc-pre svg { margin-left: 2px; }
+.dc-count { color: var(--tx2); font-size: 14px; }
+.dc-more { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0 0; color: var(--tx3); font-size: 14px; }
+.dc-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dc-empty b { color: var(--tx); font-size: 16px; }
+.dc-empty p { max-width: 520px; color: var(--tx2); }
+.dc-empty .acts { justify-content: center; }
+
+/* Suche */
+.dc-status { color: var(--tx3); margin-top: -12px; }
+.dc-sec { display: flex; flex-direction: column; gap: 12px; }
+.dc-sec h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.dc-list { display: flex; flex-direction: column; gap: 12px; }
+.dc-hit { flex-wrap: wrap; border: 1px solid var(--line); }
+.dc-hit .thumb { display: block; }
+.dc-hit .bd2 { flex: 1 1 160px; }
+.dc-tl { align-self: flex-start; border-radius: 4px; overflow-wrap: anywhere; }
+.dc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-acts { flex: 1 1 100%; margin-top: 0; }
+@container app (min-width: 768px) {
+  .dc-hit { flex-wrap: nowrap; align-items: center; }
+  .dc-acts { flex: 0 0 auto; justify-content: flex-end; margin-left: auto; max-width: 50%; }
+}

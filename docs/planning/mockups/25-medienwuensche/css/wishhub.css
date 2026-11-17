@@ -1,0 +1,30 @@
+/* Shared pieces of the area «Wünsche» (Fassung 3): tabs, limit meter. */
+.whead { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 20px; }
+.wtabs { min-width: 0; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
+.wtabs::-webkit-scrollbar { display: none; }
+.wtabs ul { display: flex; gap: 6px; list-style: none; margin: 0; padding: 2px; }
+.wtabs a { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--frame); border-radius: 999px; color: var(--tx2); font-weight: 600; font-size: 14px; white-space: nowrap; text-decoration: none; background: var(--s1); }
+.wtabs a:hover { color: var(--tx); border-color: var(--tx3); }
+.wtabs a[aria-current="page"] { background: var(--tx); border-color: var(--tx); color: var(--bg); }
+.wtabs a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wtabs .c { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 12px; line-height: 20px; text-align: center; }
+.quota { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 8px 14px; border: 1px solid var(--frame); border-radius: 14px; background: var(--s1); font-size: 13px; color: var(--tx2); }
+.qm { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.qm b { color: var(--tx); font-weight: 600; }
+.qm .bar { position: relative; width: 64px; height: 6px; border-radius: 3px; background: var(--s3); overflow: hidden; }
+.qm .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ok); border-radius: 3px; }
+.qm.full .bar i { background: var(--danger); }
+.qm.full > span:last-child { color: var(--danger); font-weight: 600; }
+/* download progress of a wish (from Radarr or Sonarr) */
+.dl { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 3px 10px; border: 1px solid var(--frame); border-radius: 999px; background: var(--s1); color: var(--tx2); font-size: 13px; line-height: 1.4; }
+.dl .bar, .dlb .bar { position: relative; flex: 0 0 auto; width: 56px; height: 6px; border-radius: 3px; background: var(--s3); overflow: hidden; }
+.dl .bar i, .dlb .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--info); }
+.dl.import .bar i, .dlb.import .bar i { background: var(--ok); }
+.dl.stalled, .dlb.stalled .dlh { color: var(--warn); }
+.dl.stalled { border-color: var(--warn); }
+.dl.stalled .bar i, .dlb.stalled .bar i { background: var(--warn); }
+.dlb { display: grid; gap: 8px; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--frame); border-radius: 14px; background: var(--s1); }
+.dlb .dlh { display: flex; align-items: center; gap: 8px; color: var(--tx); }
+.dlb .bar { width: 100%; height: 8px; }
+.dlb p { margin: 0; font-size: 13px; color: var(--tx2); }
+.dl > span:last-child { min-width: 0; overflow-wrap: anywhere; }

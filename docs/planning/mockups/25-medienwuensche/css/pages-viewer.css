@@ -1,0 +1,44 @@
+/* M-02 Spotlight-Liste, M-03/M-04 Vorschauseite, M-05/M-06 Detailseite (viewer-titles.js). Prefix vt-. */
+
+/* detail and preview page: sections under the title block */
+.det .vt-sec { display: flex; flex-direction: column; gap: 12px; }
+.det .vt-status { max-width: calc(720px + 2 * var(--gut)); }
+.vt-note { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--tx2); }
+.vt-note svg { color: var(--tx3); flex: none; }
+.vt-note .lnk { font-size: 14px; }
+
+/* «Merken» on the poster */
+.det .poster .vt-pm { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
+.vt-rnd { width: 44px; height: 44px; border-radius: 50%; background: var(--scrim); border: 1px solid var(--ctl); display: grid; place-items: center; color: var(--tx); }
+.vt-rnd.on { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.vt-rnd:hover { transform: scale(1.06); }
+
+/* season wall: chosen season, ghost cards */
+.swall .pc .pl { display: block; width: 100%; text-align: left; }
+.swall .pc.vt-on .frame { box-shadow: 0 0 0 2px var(--tx); }
+.swall .pc.dim .pl:hover .frame, .swall .pc.dim .pl:focus-visible .frame { opacity: 0.9; }
+.swall .pc.ghost .ribbon .ws { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.swall .pc.ghost .ribbon .ws { font-size: 11px; padding: 0 8px; }
+@container app (min-width: 768px) { .swall .pc.ghost .ribbon .ws { font-size: 12px; padding: 0 10px; } }
+.swall .pc.ghost div.pl .frame { transform: none; }
+
+/* season head and episode rows */
+.vt-shead { display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+.vt-shead h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.vt-shead .sec { font-size: 14px; }
+.eprow .vt-ept { text-align: left; border-radius: 6px; }
+.eprow .vt-ept:hover { text-decoration: underline; text-underline-offset: 3px; }
+.vt-epw { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--s3); border: 1px solid var(--ctl); color: var(--tx2); }
+.vt-epw.on { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+
+/* «Dein Wunsch» on the preview page */
+.vt-wish { background: var(--elev); border: 1px solid var(--frame); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+@container app (min-width: 768px) { .vt-wish { padding: 24px; } }
+.vt-wish .vt-wh { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.vt-wish h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.vt-wish > .sec { font-size: 14px; }
+.vt-detail { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--tx2); }
+.vt-detail svg { color: var(--warn); flex: none; margin-top: 2px; }
+.steps li.vt-todo { color: var(--tx3); }
+.steps li.vt-todo::before { background: transparent; border-style: dashed; }
+.vt-wish .acts { gap: 8px; }
