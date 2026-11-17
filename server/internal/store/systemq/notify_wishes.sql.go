@@ -10,6 +10,26 @@ import (
 	"database/sql"
 )
 
+const notifySeasonItem = `-- name: NotifySeasonItem :one
+SELECT id FROM items
+WHERE parent_id = ?1 AND kind = 'season' AND season_number = ?2 AND deleted_at IS NULL
+ORDER BY id
+LIMIT 1
+`
+
+type NotifySeasonItemParams struct {
+	SeriesID     sql.NullString
+	SeasonNumber sql.NullInt64
+}
+
+// The season of a library series by its number (the link and the inbox entry of a season message).
+func (q *Queries) NotifySeasonItem(ctx context.Context, arg NotifySeasonItemParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, notifySeasonItem, arg.SeriesID, arg.SeasonNumber)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const notifyWish = `-- name: NotifyWish :one
 
 SELECT id, media, title, state FROM wishes WHERE id = ?1
@@ -26,6 +46,7 @@ type NotifyWishRow struct {
 // the wish and its requesters to address the messages, and writes the inbox entry together with
 // wish_requesters.notified_at, the guard that keeps a second message about the same wish out also
 // after the inbox entry was cleared away (section 7). Package wishes owns every other column.
+// The wish a message is about.
 func (q *Queries) NotifyWish(ctx context.Context, id int64) (NotifyWishRow, error) {
 	row := q.db.QueryRowContext(ctx, notifyWish, id)
 	var i NotifyWishRow
@@ -64,6 +85,27 @@ func (q *Queries) NotifyWishInsert(ctx context.Context, arg NotifyWishInsertPara
 		arg.DedupeKey,
 		arg.Now,
 	)
+}
+
+const notifyWishOwner = `-- name: NotifyWishOwner :one
+SELECT a.email, p.name
+FROM wish_requesters AS r
+JOIN accounts AS a ON a.id = r.account_id
+JOIN profiles AS p ON p.id = r.profile_id
+WHERE r.wish_id = ?1 AND r.role = 'owner'
+`
+
+type NotifyWishOwnerRow struct {
+	Email string
+	Name  string
+}
+
+// The account e-mail and profile name of the owner of a wish (the text of wish_review).
+func (q *Queries) NotifyWishOwner(ctx context.Context, wishID int64) (NotifyWishOwnerRow, error) {
+	row := q.db.QueryRowContext(ctx, notifyWishOwner, wishID)
+	var i NotifyWishOwnerRow
+	err := row.Scan(&i.Email, &i.Name)
+	return i, err
 }
 
 const notifyWishRequesterClaim = `-- name: NotifyWishRequesterClaim :execrows
@@ -140,4 +182,59 @@ func (q *Queries) NotifyWishRequesters(ctx context.Context, wishID int64) ([]Not
 		return nil, err
 	}
 	return items, nil
+}
+
+const notifyWishSeason = `-- name: NotifyWishSeason :one
+SELECT state, notified_at FROM wish_seasons WHERE wish_id = ?1 AND season_number = ?2
+`
+
+type NotifyWishSeasonParams struct {
+	WishID       int64
+	SeasonNumber int64
+}
+
+type NotifyWishSeasonRow struct {
+	State      string
+	NotifiedAt sql.NullInt64
+}
+
+// One wished season with the guard of its message (wish_seasons.notified_at).
+func (q *Queries) NotifyWishSeason(ctx context.Context, arg NotifyWishSeasonParams) (NotifyWishSeasonRow, error) {
+	row := q.db.QueryRowContext(ctx, notifyWishSeason, arg.WishID, arg.SeasonNumber)
+	var i NotifyWishSeasonRow
+	err := row.Scan(&i.State, &i.NotifiedAt)
+	return i, err
+}
+
+const notifyWishSeasonNotified = `-- name: NotifyWishSeasonNotified :exec
+UPDATE wish_seasons SET notified_at = ?1
+WHERE wish_id = ?2 AND season_number = ?3 AND notified_at IS NULL
+`
+
+type NotifyWishSeasonNotifiedParams struct {
+	Now          sql.NullInt64
+	WishID       int64
+	SeasonNumber int64
+}
+
+// Sets notified_at of a season once every open requester got its message.
+func (q *Queries) NotifyWishSeasonNotified(ctx context.Context, arg NotifyWishSeasonNotifiedParams) error {
+	_, err := q.db.ExecContext(ctx, notifyWishSeasonNotified, arg.Now, arg.WishID, arg.SeasonNumber)
+	return err
+}
+
+const notifyWishSeasonsNotifiedAll = `-- name: NotifyWishSeasonsNotifiedAll :exec
+UPDATE wish_seasons SET notified_at = ?1 WHERE wish_id = ?2 AND notified_at IS NULL
+`
+
+type NotifyWishSeasonsNotifiedAllParams struct {
+	Now    sql.NullInt64
+	WishID int64
+}
+
+// Sets notified_at of every season of a wish that is available as a whole: no season message
+// follows the message about the series.
+func (q *Queries) NotifyWishSeasonsNotifiedAll(ctx context.Context, arg NotifyWishSeasonsNotifiedAllParams) error {
+	_, err := q.db.ExecContext(ctx, notifyWishSeasonsNotifiedAll, arg.Now, arg.WishID)
+	return err
 }

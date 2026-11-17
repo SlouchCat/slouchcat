@@ -47,6 +47,10 @@ const (
 	// EventWishAvailable: a wish of a profile can be played now (concept 25, F-13, F-14; per
 	// profile, prefixed with the profile name). Season messages go out under it too.
 	EventWishAvailable = "wish_available"
+	// EventWishStatus: Seerr approved or declined a wish, or it failed (per profile; off by default).
+	EventWishStatus = "wish_status"
+	// EventWishReview: a wish waits for approval in Seerr (administrators only, like errors).
+	EventWishReview = "wish_review"
 )
 
 // ChannelSummary is a channel in the account overview.

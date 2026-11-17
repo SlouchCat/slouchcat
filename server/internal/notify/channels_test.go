@@ -18,8 +18,8 @@ import (
 )
 
 // Plan 5.2: the main account starts with every channel off (new content, errors, invitations and
-// announcements chosen), a guest with e-mail on for announcements; both choose wish available
-// (concept 25 F-14). available follows the server.
+// announcements chosen), a guest with e-mail on for announcements; both choose wish available,
+// the main account wish review too (concept 25 F-14). available follows the server.
 func TestChannelDefaults(t *testing.T) {
 	t.Parallel()
 	e := newChanEnv(t)
@@ -32,7 +32,7 @@ func TestChannelDefaults(t *testing.T) {
 		t.Fatalf("owner channels = %+v", owner)
 	}
 	for _, c := range owner {
-		if c.Enabled || !slices.Equal(c.Events, []string{"new_content", "errors", "invitations", "announcements", "wish_available"}) {
+		if c.Enabled || !slices.Equal(c.Events, []string{"new_content", "errors", "invitations", "announcements", "wish_available", "wish_review"}) {
 			t.Errorf("owner %s = enabled %v events %v", c.Channel, c.Enabled, c.Events)
 		}
 	}

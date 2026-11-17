@@ -46,24 +46,30 @@ FROM accounts LIMIT 1;
 	defer db.Close()
 
 	// No channel chooses it any more, and the other four survive in their order, followed by
-	// wish_available, which migration 00072 appends to every list (concept 25 F-14).
-	rows, err := db.Read.Query(`SELECT channel, events FROM account_channels ORDER BY account_id, channel`)
+	// wish_available, which migration 00072 appends to every list, and for an administrator
+	// wish_review, which 00073 appends (concept 25 F-14).
+	rows, err := db.Read.Query(`SELECT a.role, c.channel, c.events FROM account_channels AS c
+	                            JOIN accounts AS a ON a.id = c.account_id ORDER BY c.account_id, c.channel`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
 	seen := 0
 	for rows.Next() {
-		var channel, events string
-		if err := rows.Scan(&channel, &events); err != nil {
+		var role, channel, events string
+		if err := rows.Scan(&role, &channel, &events); err != nil {
 			t.Fatal(err)
 		}
 		seen++
 		if strings.Contains(events, "acquisition") {
 			t.Errorf("channel %s still chooses the event: %s", channel, events)
 		}
-		if channel == "email" && events != `["new_content","errors","invitations","announcements","wish_available"]` {
-			t.Errorf("channel email keeps %s", events)
+		want := `["new_content","errors","invitations","announcements","wish_available"]`
+		if role == "admin" {
+			want = `["new_content","errors","invitations","announcements","wish_available","wish_review"]`
+		}
+		if channel == "email" && events != want {
+			t.Errorf("channel email of a %s keeps %s, want %s", role, events, want)
 		}
 	}
 	if err := rows.Err(); err != nil {

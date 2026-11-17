@@ -54,13 +54,17 @@ CREATE TABLE before_00072 AS SELECT account_id, channel, enabled, events FROM ac
 		// Every row has the event exactly once.
 		`SELECT count(*) FROM account_channels AS c
 		 WHERE (SELECT count(*) FROM json_each(c.events) WHERE value = 'wish_available') = 1`: rows,
-		// Appended to the old list; enabled unchanged.
+		// Appended to the old list; enabled unchanged. The test runs every later migration too:
+		// 00073 appends wish_review to the rows of administrators.
 		`SELECT count(*) FROM account_channels AS c JOIN before_00072 AS b USING (account_id, channel)
 		 WHERE b.events NOT LIKE '%wish_available%' AND c.enabled = b.enabled
-		   AND c.events = json_insert(b.events, '$[#]', 'wish_available')`: rows - 1,
+		   AND c.events IN (json_insert(b.events, '$[#]', 'wish_available'),
+		                    json_insert(b.events, '$[#]', 'wish_available', '$[#]', 'wish_review'))`: rows - 1,
 		`SELECT count(*) FROM account_channels AS c JOIN before_00072 AS b USING (account_id, channel)
-		 WHERE b.events LIKE '%wish_available%' AND c.events = b.events AND c.enabled = b.enabled`: 1,
-		`SELECT count(*) FROM account_channels WHERE events = '["wish_available"]' AND enabled = 1`: 1,
+		 WHERE b.events LIKE '%wish_available%' AND c.enabled = b.enabled
+		   AND c.events IN (b.events, json_insert(b.events, '$[#]', 'wish_review'))`: 1,
+		`SELECT count(*) FROM account_channels WHERE events IN ('["wish_available"]', '["wish_available","wish_review"]')
+		 AND enabled = 1`: 1,
 		// Guests keep e-mail on with announcements, administrators their four events.
 		`SELECT count(*) FROM account_channels AS c JOIN accounts AS a ON a.id = c.account_id
 		 WHERE a.role = 'user' AND c.events <> '["announcements","wish_available"]'`: 0,

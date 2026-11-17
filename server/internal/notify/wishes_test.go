@@ -262,3 +262,210 @@ func TestWishAvailablePINProfileWithoutTitle(t *testing.T) {
 		t.Errorf("deliveries with the setting off = %+v, want %+v", got, want)
 	}
 }
+
+// addSeason adds a wished season in processing to a series wish.
+func (e *chanEnv) addSeason(t *testing.T, wishID int64, season int) {
+	t.Helper()
+	e.exec(t, `INSERT INTO wish_seasons (wish_id, season_number, tmdb_id, state) VALUES (?, ?, ?, 'processing')`, wishID, season, 1000+wishID)
+}
+
+// Section 3.3, AK-82: a season message comes only once the season is complete for the profile
+// (its playable, visible episodes reach the count), with its own text for a season still on air,
+// once per profile; wish_seasons.notified_at ends it once nobody waits, and no season message
+// follows the message about the whole series.
+func TestWishSeasonOnlyWhenComplete(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	f := e.f
+	e.enable(t, e.owner(), model.ChannelEmail, model.EventWishAvailable)
+	// Season 1 of the fixture series: four episodes for P18 (S01E01, E02 rated 16, E03-E04), three for P12.
+	e.addWish(t, 1, "show", "Show", f.P18, f.P12)
+	e.addSeason(t, 1, 1)
+	in := WishSeason{WishID: 1, SeriesID: f.Show.Series.ID, Season: 1, Episodes: 5}
+	out, err := e.svc.WishSeasonAvailable(ctx, in)
+	if err != nil || len(out.Notified) != 0 || !slices.Equal(out.Waiting, ids(f.P18, f.P12)) {
+		t.Fatalf("incomplete season = %+v, %v; want both waiting", out, err)
+	}
+	if n := e.count(t, `SELECT count(*) FROM notifications`); n != 0 {
+		t.Fatalf("%d entries for an incomplete season", n)
+	}
+	in.Episodes = 4
+	out, err = e.svc.WishSeasonAvailable(ctx, in)
+	if err != nil || !slices.Equal(out.Notified, ids(f.P18)) || !slices.Equal(out.Waiting, ids(f.P12)) {
+		t.Fatalf("season complete for P18 = %+v, %v", out, err)
+	}
+	series, err := e.svc.vis.Summary(ctx, visibility.Profile(f.P18), f.Show.Series.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := e.wishDeliveries(t, model.EventWishAvailable)
+	want := []wishDelivery{{f.Account.ID, f.P18.ID, model.EventWishAvailable,
+		"[" + f.P18.Name + "] " + localeText(t, "de", "wish_season_subject", vars{"title": series.Title, "season": 1}),
+		localeText(t, "de", "wish_season_body", nil), "/items/" + f.Show.Season.ID}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("deliveries = %+v, want %+v", got, want)
+	}
+	if n := e.count(t, `SELECT count(*) FROM notifications WHERE profile_id = ? AND kind = 'wish_season_available'
+	                    AND item_id = ? AND parent_id = ? AND dedupe_key = 'wish:1:season:1'`, f.P18.ID, f.Show.Season.ID, f.Show.Series.ID); n != 1 {
+		t.Errorf("season entries of P18 = %d, want 1", n)
+	}
+	if n := e.count(t, `SELECT count(*) FROM wish_seasons WHERE wish_id = 1 AND notified_at IS NULL`); n != 1 {
+		t.Errorf("notified_at set while P12 waits")
+	}
+	// Again: P18 has its entry, P12 still waits.
+	if out, err := e.svc.WishSeasonAvailable(ctx, in); err != nil || len(out.Notified) != 0 || !slices.Equal(out.Waiting, ids(f.P12)) {
+		t.Errorf("second pass = %+v, %v", out, err)
+	}
+
+	// A season on air: the three episodes aired so far are there for both; then notified_at ends it.
+	e.addWish(t, 2, "show", "Show", f.P18, f.P12)
+	e.addSeason(t, 2, 1)
+	aired := WishSeason{WishID: 2, SeriesID: f.Show.Series.ID, Season: 1, Episodes: 3, Airing: true}
+	if out, err := e.svc.WishSeasonAvailable(ctx, aired); err != nil || !slices.Equal(out.Notified, ids(f.P18, f.P12)) {
+		t.Fatalf("aired season = %+v, %v", out, err)
+	}
+	got = e.wishDeliveries(t, model.EventWishAvailable)
+	if len(got) != 3 || got[2].subject != "["+f.P12.Name+"] "+localeText(t, "de", "wish_season_aired_subject", vars{"title": series.Title, "season": 1}) ||
+		got[2].body != localeText(t, "de", "wish_season_aired_body", nil) {
+		t.Errorf("deliveries of the aired season = %+v", got)
+	}
+	if n := e.count(t, `SELECT count(*) FROM wish_seasons WHERE wish_id = 2 AND notified_at IS NOT NULL`); n != 1 {
+		t.Errorf("notified_at of the aired season not set")
+	}
+	e.exec(t, `DELETE FROM notifications`)
+	if out, err := e.svc.WishSeasonAvailable(ctx, aired); err != nil || len(out.Notified)+len(out.Waiting) != 0 {
+		t.Errorf("pass after notified_at = %+v, %v; want nothing", out, err)
+	}
+
+	// The whole series of wish 1 is available: one message, and no season message after it.
+	if out, err := e.svc.WishAvailable(ctx, 1, f.Show.Series.ID); err != nil || !slices.Equal(out.Notified, ids(f.P18, f.P12)) {
+		t.Fatalf("series available = %+v, %v", out, err)
+	}
+	if n := e.count(t, `SELECT count(*) FROM wish_seasons WHERE wish_id = 1 AND notified_at IS NOT NULL`); n != 1 {
+		t.Errorf("the seasons of a fulfilled wish are not marked notified")
+	}
+	before := len(e.wishDeliveries(t, model.EventWishAvailable))
+	in.Episodes = 3
+	if out, err := e.svc.WishSeasonAvailable(ctx, in); err != nil || len(out.Notified)+len(out.Waiting) != 0 {
+		t.Errorf("season after the series = %+v, %v; want nothing", out, err)
+	}
+	if after := len(e.wishDeliveries(t, model.EventWishAvailable)); after != before {
+		t.Errorf("%d season messages after the series message", after-before)
+	}
+	for name, bad := range map[string]WishSeason{
+		"film wish":         {WishID: 3, SeriesID: f.Show.Series.ID, Season: 1, Episodes: 1},
+		"season not wished": {WishID: 1, SeriesID: f.Show.Series.ID, Season: 2, Episodes: 1},
+	} {
+		if name == "film wish" {
+			e.addWish(t, 3, "movie", "Movie 06", f.P18)
+		}
+		if _, err := e.svc.WishSeasonAvailable(ctx, bad); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("%s: %v, want not found", name, err)
+		}
+	}
+}
+
+// Section 2, F-14: approved, declined and failed reach the inbox of every requester (without a
+// title, read through the wish) and the channels only where the event wish_status was chosen by
+// hand; each once; failed names its reason; a PIN profile's message names no title.
+func TestWishStatusOnlyWhenChannelEventOn(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	f := e.f
+	e.enable(t, e.owner(), model.ChannelEmail, model.EventWishAvailable)
+	e.addWish(t, 1, "movie", "Paddington in Peru", f.P18, f.PG)
+	if err := e.svc.WishApproved(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.wishDeliveries(t, model.EventWishStatus); len(got) != 0 {
+		t.Fatalf("status sent without the event chosen: %+v", got)
+	}
+	for _, p := range []model.Profile{f.P18, f.PG} {
+		list, _, unread, err := e.svc.Notifications(ctx, p, 0, 50)
+		if err != nil || len(list) != 1 || list[0].Kind != KindWishApproved || list[0].Wish == nil || list[0].Wish.ID != 1 || unread != 1 {
+			t.Errorf("%s: inbox %+v, unread %d, %v", p.Name, list, unread, err)
+		}
+	}
+
+	e.enable(t, e.owner(), model.ChannelEmail, model.EventWishAvailable, model.EventWishStatus)
+	for range 2 {
+		if err := e.svc.WishDeclined(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := e.wishDeliveries(t, model.EventWishStatus)
+	want := []wishDelivery{{f.Account.ID, f.P18.ID, model.EventWishStatus,
+		"[" + f.P18.Name + "] " + localeText(t, "de", "wish_declined_subject", vars{"title": "Paddington in Peru"}),
+		localeText(t, "de", "wish_declined_body", nil), "/wishes?focus=1"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("declined deliveries = %+v, want %+v", got, want)
+	}
+
+	e.exec(t, `UPDATE profiles SET pin_hash = 'argon2id-test-hash' WHERE id = ?`, f.P16.ID)
+	e.addWish(t, 2, "movie", "Movie 18", f.P18, f.P16)
+	if err := e.svc.WishFailed(ctx, 2, "quota"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.WishFailed(ctx, 1, "something_new"); err != nil {
+		t.Fatal(err)
+	}
+	got = e.wishDeliveries(t, model.EventWishStatus)[1:]
+	want = []wishDelivery{
+		{f.Account.ID, f.P18.ID, model.EventWishStatus, "[" + f.P18.Name + "] " + localeText(t, "de", "wish_failed_subject", vars{"title": "Movie 18"}),
+			localeText(t, "de", "wish_failed_quota", nil), "/wishes?focus=2"},
+		{f.Account.ID, f.P16.ID, model.EventWishStatus, "[" + f.P16.Name + "] " + localeText(t, "de", "wish_status_hidden_subject", nil),
+			localeText(t, "de", "wish_hidden_body", nil), "/wishes"},
+		{f.Account.ID, f.P18.ID, model.EventWishStatus, "[" + f.P18.Name + "] " + localeText(t, "de", "wish_failed_subject", vars{"title": "Paddington in Peru"}),
+			localeText(t, "de", "wish_failed_body", nil), "/wishes?focus=1"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("failed deliveries = %+v, want %+v", got, want)
+	}
+	if n := e.count(t, `SELECT count(*) FROM notifications WHERE item_id IS NULL AND wish_id IS NOT NULL`); n != 8 {
+		t.Errorf("%d status entries, want 8 (approved, declined, failed of wish 1 for two profiles, failed of wish 2 for two)", n)
+	}
+	if err := e.svc.WishApproved(ctx, 99); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("unknown wish: %v", err)
+	}
+}
+
+// F-14, section 5: wish_review reaches the switched-on channels of the administrators that chose
+// it, never another account (also not one whose row carries it), without a profile prefix, once
+// per wish; an account without administration may not choose it.
+func TestWishReviewOnlyAdministrators(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	f := e.f
+	e.enable(t, e.owner(), model.ChannelEmail, model.EventWishReview)
+	e.enable(t, e.admin2(), model.ChannelEmail, model.EventWishReview)
+	if _, err := e.svc.UpdateChannel(ctx, e.guest(), model.ChannelEmail,
+		model.ChannelSettingUpdate{Enabled: true, Events: []string{model.EventWishReview}}); !errors.Is(err, model.ErrEventNotAllowed) {
+		t.Errorf("an account without administration chose wish_review: %v", err)
+	}
+	e.exec(t, `UPDATE account_channels SET events = '["wish_review"]', enabled = 1 WHERE account_id = ? AND channel = 'email'`, f.Guest.ID)
+	e.addWish(t, 1, "show", "Tulsa King", f.PG)
+	for range 2 {
+		if err := e.svc.WishReview(ctx, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	subject := localeText(t, "de", "wish_review_subject", vars{"title": "Tulsa King"})
+	body := localeText(t, "de", "wish_review_show_body", vars{"account": f.Guest.Email, "profile": f.PG.Name})
+	got := e.wishDeliveries(t, model.EventWishReview)
+	want := []wishDelivery{
+		{f.Account.ID, 0, model.EventWishReview, subject, body, "/admin/wishes?state=pending"},
+		{f.Admin2.ID, 0, model.EventWishReview, subject, body, "/admin/wishes?state=pending"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("review deliveries = %+v, want %+v", got, want)
+	}
+	if n := e.count(t, `SELECT count(*) FROM notifications`); n != 0 {
+		t.Errorf("wish_review wrote %d inbox entries", n)
+	}
+	if err := e.svc.WishReview(ctx, 99); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("unknown wish: %v", err)
+	}
+}
