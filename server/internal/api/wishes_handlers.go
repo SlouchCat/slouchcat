@@ -36,6 +36,9 @@ type WishesService interface {
 	// SetPasswordMode switches the password sync of an account (next_login or off);
 	// model.ErrNotFound, model.ErrPasswordNotSyncable, *model.ValidationError.
 	SetPasswordMode(ctx context.Context, accountID int64, mode string) (model.WishAccountMapping, error)
+	// SetAccountLimit sets the limit of an account (default, custom, unlimited); model.ErrNotFound,
+	// *model.ValidationError.
+	SetAccountLimit(ctx context.Context, accountID int64, mode string, movie, tv *model.WishLimit, by int64) (model.AccountWishLimit, error)
 }
 
 func (e serviceProblem) VisitGetSeerrSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -64,6 +67,9 @@ func (e serviceProblem) VisitProvisionSeerrAccountsResponse(w http.ResponseWrite
 	return e.visit(w)
 }
 func (e serviceProblem) VisitSetSeerrPasswordModeResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitSetAccountWishLimitResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitGetWishSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -217,6 +223,7 @@ func (s *server) GetWishMappings(ctx context.Context, _ gen.GetWishMappingsReque
 		su := toSeerrUser(*m.SharedUser)
 		out.SharedUser = &su
 	}
+	out.SharedQuota = toWishQuota(m.SharedQuota)
 	return out, nil
 }
 
@@ -271,6 +278,25 @@ func (s *server) SetSeerrPasswordMode(ctx context.Context, req gen.SetSeerrPassw
 	return gen.SetSeerrPasswordMode200JSONResponse(toWishAccountMapping(a)), nil
 }
 
+func (s *server) SetAccountWishLimit(ctx context.Context, req gen.SetAccountWishLimitRequestObject) (gen.SetAccountWishLimitResponseObject, error) {
+	if s.opts.Wishes == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	b := deref(req.Body)
+	var movie, tv *model.WishLimit
+	if l := b.Movie; l != nil {
+		movie = &model.WishLimit{Limit: l.Limit, Days: l.Days}
+	}
+	if l := b.Tv; l != nil {
+		tv = &model.WishLimit{Limit: l.Limit, Days: l.Days}
+	}
+	l, err := s.opts.Wishes.SetAccountLimit(ctx, req.Id, string(b.Mode), movie, tv, sessionAccountID(ctx))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetAccountWishLimit200JSONResponse(toAccountWishLimit(l)), nil
+}
+
 // sessionAccountID is the account of the session (the administrator who acts), 0 without one.
 func sessionAccountID(ctx context.Context) int64 {
 	if session, ok := sessionFrom(ctx); ok {
@@ -283,11 +309,7 @@ func toWishAccountMapping(a model.WishAccountMapping) gen.WishAccountMapping {
 	out := gen.WishAccountMapping{
 		AccountId: a.AccountID, Email: a.Email, CanRequest: a.CanRequest, SeerrUserId: a.SeerrUserID,
 		State: gen.WishAccountMappingState(a.State), PasswordSyncedAt: a.PasswordSyncedAt, LinkedAt: a.LinkedAt,
-		ProvisionError: optString(a.ProvisionError),
-		Limit: gen.AccountWishLimit{
-			Mode: gen.AccountWishLimitMode(a.Limit.Mode), SeerrAdmin: a.Limit.SeerrAdmin,
-			Effective: toWishLimits(a.Limit.Effective),
-		},
+		ProvisionError: optString(a.ProvisionError), Limit: toAccountWishLimit(a.Limit), Quota: toWishQuota(a.Quota),
 	}
 	if a.PasswordState != "" {
 		ps := gen.WishAccountMappingPasswordState(a.PasswordState)
@@ -297,13 +319,37 @@ func toWishAccountMapping(a model.WishAccountMapping) gen.WishAccountMapping {
 		lb := gen.WishAccountMappingLinkedBy(a.LinkedBy)
 		out.LinkedBy = &lb
 	}
-	if l := a.Limit.Movie; l != nil {
-		out.Limit.Movie = &gen.WishLimit{Limit: l.Limit, Days: l.Days}
+	return out
+}
+
+func toAccountWishLimit(l model.AccountWishLimit) gen.AccountWishLimit {
+	out := gen.AccountWishLimit{Mode: gen.AccountWishLimitMode(l.Mode), SeerrAdmin: l.SeerrAdmin, Effective: toWishLimits(l.Effective)}
+	if m := l.Movie; m != nil {
+		out.Movie = &gen.WishLimit{Limit: m.Limit, Days: m.Days}
 	}
-	if l := a.Limit.TV; l != nil {
-		out.Limit.Tv = &gen.WishLimit{Limit: l.Limit, Days: l.Days}
+	if t := l.TV; t != nil {
+		out.Tv = &gen.WishLimit{Limit: t.Limit, Days: t.Days}
 	}
 	return out
+}
+
+func toWishQuota(q *model.WishQuota) *gen.WishQuota {
+	if q == nil {
+		return nil
+	}
+	out := &gen.WishQuota{Unlimited: q.Unlimited, At: q.At, Movie: toWishQuotaPart(q.Movie), Tv: toWishQuotaPart(q.TV)}
+	if q.Reason != "" {
+		r := gen.WishQuotaReason(q.Reason)
+		out.Reason = &r
+	}
+	return out
+}
+
+func toWishQuotaPart(p *model.WishQuotaPart) *gen.WishQuotaPart {
+	if p == nil {
+		return nil
+	}
+	return &gen.WishQuotaPart{Limit: p.Limit, Days: p.Days, Used: p.Used, Queued: p.Queued, Remaining: p.Remaining, NextFreeAt: p.NextFreeAt}
 }
 
 func toWishLimits(l model.WishLimits) gen.WishLimits {

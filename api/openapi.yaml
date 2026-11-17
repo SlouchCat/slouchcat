@@ -8053,6 +8053,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/accounts/{id}/wish-limit:
+    put:
+      operationId: setAccountWishLimit
+      summary: Set the wish limit of an account (concept 25, contract 1.41.0)
+      description: |
+        Since contract 1.41.0. `default` («Standard») follows the default of the wish settings,
+        `custom` («Eigenes») needs `movie` and `tv` (limit 0 to 100, 0 = no limit for that half; days
+        1 to 90), `unlimited` («Unbegrenzt») writes limit 0. Slouchcat writes the numbers into the
+        four limit fields of the account's Seerr user (job `seerr.provision`), never for a Seerr user
+        with MANAGE_USERS (`seerrAdmin`, «Kein Limit»).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountWishLimitRequest"
+      responses:
+        "200":
+          description: The limit of the account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountWishLimit"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/accounts/{id}/role:
     put:
       operationId: setAccountRole
@@ -19091,6 +19141,61 @@ components:
           type: boolean
           description: The Seerr user is an administrator and has no limit in Seerr.
 
+    AccountWishLimitRequest:
+      type: object
+      description: Since contract 1.41.0. The limit an administrator sets for an account.
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [default, custom, unlimited]
+        movie:
+          $ref: "#/components/schemas/WishLimit"
+        tv:
+          $ref: "#/components/schemas/WishLimit"
+
+    WishQuotaPart:
+      type: object
+      required: [limit, days, used, queued, remaining]
+      properties:
+        limit:
+          type: integer
+        days:
+          type: integer
+        used:
+          type: integer
+          description: Counted by Seerr in the window, also requests made directly in Seerr.
+        queued:
+          type: integer
+          description: Wishes still waiting for the outbox (from stage 2; 0 before).
+        remaining:
+          type: integer
+        nextFreeAt:
+          type: string
+          format: date-time
+          description: When the next place is free; only when at most one place is left.
+
+    WishQuota:
+      type: object
+      description: |
+        Since contract 1.41.0. The limit state of a Seerr user as Seerr last reported it. `unlimited`
+        with `reason` `admin` («Kein Limit», MANAGE_USERS) or `no_limit` («Unbegrenzt»); a half with
+        limit 0 is absent.
+      required: [unlimited]
+      properties:
+        unlimited:
+          type: boolean
+        reason:
+          type: string
+          enum: [admin, no_limit]
+        movie:
+          $ref: "#/components/schemas/WishQuotaPart"
+        tv:
+          $ref: "#/components/schemas/WishQuotaPart"
+        at:
+          type: string
+          format: date-time
+
     WishAccountMapping:
       type: object
       description: Since contract 1.41.0. The Seerr user of one account.
@@ -19130,6 +19235,8 @@ components:
             the account's new email because another Seerr user has it; the user stayed unchanged.
         limit:
           $ref: "#/components/schemas/AccountWishLimit"
+        quota:
+          $ref: "#/components/schemas/WishQuota"
 
     WishMappings:
       type: object
@@ -19146,6 +19253,8 @@ components:
             $ref: "#/components/schemas/SeerrUser"
         sharedUser:
           $ref: "#/components/schemas/SeerrUser"
+        sharedQuota:
+          $ref: "#/components/schemas/WishQuota"
         opened:
           type: integer
           description: Accounts with a ready Seerr user.

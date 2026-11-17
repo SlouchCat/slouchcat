@@ -21,6 +21,46 @@ func (q *Queries) AccountExists(ctx context.Context, accountID int64) (int64, er
 	return count, err
 }
 
+const clearDefaultLimitWritten = `-- name: ClearDefaultLimitWritten :many
+UPDATE wish_account_map SET limit_written_at = NULL
+WHERE state = 'ready' AND account_id NOT IN (SELECT account_id FROM wish_account_limits)
+RETURNING account_id
+`
+
+// The default limit changed: every ready account without an own limit writes it again.
+func (q *Queries) ClearDefaultLimitWritten(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, clearDefaultLimitWritten)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var account_id int64
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const clearMappingLimitWritten = `-- name: ClearMappingLimitWritten :exec
+UPDATE wish_account_map SET limit_written_at = NULL WHERE account_id = ?1
+`
+
+// The limit of the account changed: the next provisioning run writes it to Seerr again.
+func (q *Queries) ClearMappingLimitWritten(ctx context.Context, accountID int64) error {
+	_, err := q.db.ExecContext(ctx, clearMappingLimitWritten, accountID)
+	return err
+}
+
 const countUnmappedRequesters = `-- name: CountUnmappedRequesters :one
 SELECT count(*) FROM accounts AS a
 WHERE a.can_request = 1
@@ -184,6 +224,39 @@ func (q *Queries) ListAccountMappings(ctx context.Context) ([]ListAccountMapping
 			&i.SetAt,
 			&i.SetBy,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReadyMappings = `-- name: ListReadyMappings :many
+SELECT account_id, seerr_user_id FROM wish_account_map WHERE state = 'ready' ORDER BY account_id
+`
+
+type ListReadyMappingsRow struct {
+	AccountID   int64
+	SeerrUserID sql.NullInt64
+}
+
+// Every account with a ready Seerr user (the limit state of the users job).
+func (q *Queries) ListReadyMappings(ctx context.Context) ([]ListReadyMappingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listReadyMappings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReadyMappingsRow{}
+	for rows.Next() {
+		var i ListReadyMappingsRow
+		if err := rows.Scan(&i.AccountID, &i.SeerrUserID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

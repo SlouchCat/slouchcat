@@ -103,6 +103,7 @@ func (s *Service) handleUsers(ctx context.Context, _ *jobs.Job) error {
 		if qerr := s.queueAfterUsers(ctx); qerr != nil {
 			s.log.WarnContext(ctx, "seerr provisioning not queued after the refresh", "err", qerr)
 		}
+		s.refreshQuotas(ctx, c.AsAdmin()) // the limit state of every mapped user (architecture 19.3)
 	}
 	switch {
 	case err == nil, errors.Is(err, model.ErrInstanceChanged), errors.Is(err, seerr.ErrKeyInvalid):

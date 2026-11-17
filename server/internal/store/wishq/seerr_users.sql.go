@@ -311,6 +311,36 @@ func (q *Queries) SetSeerrUserQuota(ctx context.Context, arg SetSeerrUserQuotaPa
 	return err
 }
 
+const setSeerrUserQuotaState = `-- name: SetSeerrUserQuotaState :exec
+UPDATE seerr_users SET
+    movie_quota_used = ?1, tv_quota_used = ?2,
+    movie_next_free_at = ?3, tv_next_free_at = ?4, quota_at = ?5
+WHERE seerr_id = ?6
+`
+
+type SetSeerrUserQuotaStateParams struct {
+	MovieQuotaUsed  sql.NullInt64
+	TvQuotaUsed     sql.NullInt64
+	MovieNextFreeAt sql.NullInt64
+	TvNextFreeAt    sql.NullInt64
+	QuotaAt         sql.NullInt64
+	SeerrID         int64
+}
+
+// What GET /user/{id}/quota says is used, when the next place is free (N-35) and when it was read;
+// the limit fields stay as GET /user holds them.
+func (q *Queries) SetSeerrUserQuotaState(ctx context.Context, arg SetSeerrUserQuotaStateParams) error {
+	_, err := q.db.ExecContext(ctx, setSeerrUserQuotaState,
+		arg.MovieQuotaUsed,
+		arg.TvQuotaUsed,
+		arg.MovieNextFreeAt,
+		arg.TvNextFreeAt,
+		arg.QuotaAt,
+		arg.SeerrID,
+	)
+	return err
+}
+
 const setSharedSeerrUser = `-- name: SetSharedSeerrUser :execrows
 UPDATE seerr_users SET is_shared = 1 WHERE seerr_id = ?1
 `

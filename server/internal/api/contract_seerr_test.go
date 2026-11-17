@@ -169,6 +169,21 @@ func TestContractSeerr(t *testing.T) {
 		t.Errorf("opened = %+v", m)
 	}
 	code(http.MethodPost, "/admin/wishes/accounts/9999/provision", ``, http.StatusNotFound, "not_found")
+	// setAccountWishLimit (build step 1.5c).
+	var lim struct {
+		Mode      string `json:"mode"`
+		Effective struct {
+			Movie struct{ Limit, Days int } `json:"movie"`
+		} `json:"effective"`
+	}
+	if err := call(http.MethodPut, "/admin/accounts/"+guest+"/wish-limit", `{"mode":"custom","movie":{"limit":3,"days":14},"tv":{"limit":0,"days":7}}`, http.StatusOK).Decode(&lim); err != nil {
+		t.Fatal(err)
+	}
+	if lim.Mode != "custom" || lim.Effective.Movie.Limit != 3 || lim.Effective.Movie.Days != 14 {
+		t.Errorf("limit = %+v", lim)
+	}
+	code(http.MethodPut, "/admin/accounts/"+guest+"/wish-limit", `{"mode":"custom","movie":{"limit":3,"days":14}}`, http.StatusUnprocessableEntity, "validation_failed")
+	code(http.MethodPut, "/admin/accounts/9999/wish-limit", `{"mode":"default"}`, http.StatusNotFound, "not_found")
 	// setSeerrPasswordMode (build step 1.5b).
 	if err := call(http.MethodPut, "/admin/wishes/accounts/"+guest+"/password", `{"mode":"off"}`, http.StatusOK).Decode(&m); err != nil {
 		t.Fatal(err)

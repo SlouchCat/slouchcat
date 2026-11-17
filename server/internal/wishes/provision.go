@@ -53,11 +53,12 @@ const (
 
 // provisionPayload is the payload of a seerr.provision job. It never carries a password.
 type provisionPayload struct {
-	AccountID  int64  `json:"accountId,omitempty"`
-	LinkedBy   string `json:"linkedBy,omitempty"`
-	SetBy      int64  `json:"setBy,omitempty"`
-	Shared     bool   `json:"shared,omitempty"`     // make sure of the shared user
-	CloseSeerr int    `json:"closeSeerr,omitempty"` // a user Slouchcat opened whose account is gone
+	AccountID   int64  `json:"accountId,omitempty"`
+	LinkedBy    string `json:"linkedBy,omitempty"`
+	SetBy       int64  `json:"setBy,omitempty"`
+	Shared      bool   `json:"shared,omitempty"`      // make sure of the shared user
+	SharedLimit bool   `json:"sharedLimit,omitempty"` // and write the default limit to it again
+	CloseSeerr  int    `json:"closeSeerr,omitempty"`  // a user Slouchcat opened whose account is gone
 }
 
 // handleProvision runs one seerr.provision job. A run that cannot reach Seerr fails, so the queue
@@ -70,7 +71,7 @@ func (s *Service) handleProvision(ctx context.Context, j *jobs.Job) error {
 	var err error
 	switch {
 	case p.Shared:
-		err = s.EnsureSharedUser(ctx)
+		err = s.ensureShared(ctx, p.SharedLimit)
 	case p.CloseSeerr > 0:
 		err = s.closeUser(ctx, p.CloseSeerr)
 	case p.AccountID > 0:
@@ -395,7 +396,10 @@ func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.Get
 		return err
 	}
 	s.log.InfoContext(ctx, "seerr user opened", "account_id", acc.ID, "seerr_user_id", u.ID, "password_state", state)
-	return s.writeLimit(ctx, admin, acc.ID, u.ID)
+	if err := s.writeLimit(ctx, admin, acc.ID, u.ID); err != nil {
+		return err
+	}
+	return s.refreshQuota(ctx, admin, u.ID)
 }
 
 // link records an existing user as the user of the account (origin linked, N-90) with the trigger
@@ -430,6 +434,9 @@ func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetPr
 			return fmt.Errorf("seerr user: %w", err)
 		}
 		state = linkedPasswordState(row, fallback)
+		if err := s.adoptLimit(ctx, q, acc.ID, rawQuota(u), u.Permissions.Has(seerr.PermManageUsers), ws.DefaultLimit, setBy); err != nil {
+			return err
+		}
 		return q.SetReadyMapping(ctx, wishq.SetReadyMappingParams{
 			AccountID: acc.ID, SeerrUserID: sql.NullInt64{Int64: int64(u.ID), Valid: true},
 			Origin: nullString(OriginLinked), LinkedBy: nullString(linkedBy), LinkedAt: sql.NullInt64{Int64: now, Valid: true},
@@ -447,7 +454,10 @@ func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetPr
 	if state == PasswordNextLogin && password != "" {
 		s.setPassword(ctx, admin, acc.ID, u.ID, password)
 	}
-	return nil
+	if err := s.writeLimit(ctx, admin, acc.ID, u.ID); err != nil {
+		return err
+	}
+	return s.refreshQuota(ctx, admin, u.ID)
 }
 
 // mirror writes the user to seerr_users (its row must exist before the mapping points at it).
@@ -479,7 +489,24 @@ func (s *Service) setPassword(ctx context.Context, admin seerr.Session, accountI
 // follow the request right (N-110: 0 without it, the instance's defaultPermissions when it comes
 // back), linked and chosen users keep theirs.
 func (s *Service) syncReady(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, m wishq.WishAccountMap) error {
-	if m.Origin.String != OriginCreated || !m.SeerrUserID.Valid {
+	if !m.SeerrUserID.Valid {
+		return nil
+	}
+	if err := s.syncRights(ctx, admin, acc, m); err != nil {
+		return err
+	}
+	id := int(m.SeerrUserID.Int64)
+	if !m.LimitWrittenAt.Valid {
+		if err := s.writeLimit(ctx, admin, acc.ID, id); err != nil {
+			return err
+		}
+	}
+	return s.refreshQuota(ctx, admin, id)
+}
+
+// syncRights: the rights of a user Slouchcat opened follow the request right (N-110).
+func (s *Service) syncRights(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, m wishq.WishAccountMap) error {
+	if m.Origin.String != OriginCreated {
 		return nil
 	}
 	id := int(m.SeerrUserID.Int64)
@@ -561,7 +588,10 @@ func (s *Service) writeLimits(ctx context.Context, admin seerr.Session, seerrUse
 // random password that is never stored is opened. It keeps the rights Seerr gives a new user
 // (defaultPermissions, N-111) and gets the default limit. A shared user already known does
 // nothing.
-func (s *Service) EnsureSharedUser(ctx context.Context) error {
+func (s *Service) EnsureSharedUser(ctx context.Context) error { return s.ensureShared(ctx, false) }
+
+// ensureShared is EnsureSharedUser; rewrite writes the default limit to a known shared user again.
+func (s *Service) ensureShared(ctx context.Context, rewrite bool) error {
 	ws, err := s.cfg.WishSettings(ctx)
 	if err != nil {
 		return err
@@ -569,14 +599,19 @@ func (s *Service) EnsureSharedUser(ctx context.Context) error {
 	if !ws.Enabled {
 		return nil
 	}
-	if cur, err := s.SharedUser(ctx); err != nil {
+	cur, err := s.SharedUser(ctx)
+	if err != nil {
 		return err
-	} else if cur != nil && !cur.Gone {
+	}
+	if cur != nil && !cur.Gone && !rewrite {
 		return nil
 	}
 	admin, err := s.provisionSession(ctx)
 	if err != nil {
 		return err
+	}
+	if cur != nil && !cur.Gone {
+		return s.writeLimits(ctx, admin, cur.ID, ws.DefaultLimit)
 	}
 	u, err := findUser(ctx, admin, SharedEmail)
 	if err != nil {
@@ -599,15 +634,24 @@ func (s *Service) EnsureSharedUser(ctx context.Context) error {
 		return err
 	}
 	s.log.InfoContext(ctx, "shared seerr user ready", "seerr_user_id", user.ID, "taken_over", u != nil)
-	return s.writeLimits(ctx, admin, user.ID, ws.DefaultLimit)
+	if err := s.writeLimits(ctx, admin, user.ID, ws.DefaultLimit); err != nil {
+		return err
+	}
+	return s.refreshQuota(ctx, admin, user.ID)
 }
 
 // WishSettingsSaved is the hook of package admin after the wish settings were saved: switching
 // «Wünsche aktiv» on queues the shared user (N-101).
+// A new default limit is written to every account that follows it and to the shared user.
 func (s *Service) WishSettingsSaved(ctx context.Context, before, after model.WishSettings) {
 	if after.Enabled && !before.Enabled {
 		if err := s.queueProvision(ctx, provisionPayload{Shared: true}, jobs.ManualPriority); err != nil {
 			s.log.WarnContext(ctx, "shared seerr user not queued", "err", err)
+		}
+	}
+	if after.DefaultLimit != before.DefaultLimit {
+		if err := s.defaultLimitChanged(ctx); err != nil {
+			s.log.WarnContext(ctx, "new default limit not queued", "err", err)
 		}
 	}
 }

@@ -4292,6 +4292,30 @@ export interface paths {
         patch: operations["updateAccountAccess"];
         trace?: never;
     };
+    "/admin/accounts/{id}/wish-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the wish limit of an account (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. `default` («Standard») follows the default of the wish settings,
+         *     `custom` («Eigenes») needs `movie` and `tv` (limit 0 to 100, 0 = no limit for that half; days
+         *     1 to 90), `unlimited` («Unbegrenzt») writes limit 0. Slouchcat writes the numbers into the
+         *     four limit fields of the account's Seerr user (job `seerr.provision`), never for a Seerr user
+         *     with MANAGE_USERS (`seerrAdmin`, «Kein Limit»).
+         */
+        put: operations["setAccountWishLimit"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/accounts/{id}/role": {
         parameters: {
             query?: never;
@@ -10838,6 +10862,41 @@ export interface components {
             /** @description The Seerr user is an administrator and has no limit in Seerr. */
             seerrAdmin: boolean;
         };
+        /** @description Since contract 1.41.0. The limit an administrator sets for an account. */
+        AccountWishLimitRequest: {
+            /** @enum {string} */
+            mode: "default" | "custom" | "unlimited";
+            movie?: components["schemas"]["WishLimit"];
+            tv?: components["schemas"]["WishLimit"];
+        };
+        WishQuotaPart: {
+            limit: number;
+            days: number;
+            /** @description Counted by Seerr in the window, also requests made directly in Seerr. */
+            used: number;
+            /** @description Wishes still waiting for the outbox (from stage 2; 0 before). */
+            queued: number;
+            remaining: number;
+            /**
+             * Format: date-time
+             * @description When the next place is free; only when at most one place is left.
+             */
+            nextFreeAt?: string;
+        };
+        /**
+         * @description Since contract 1.41.0. The limit state of a Seerr user as Seerr last reported it. `unlimited`
+         *     with `reason` `admin` («Kein Limit», MANAGE_USERS) or `no_limit` («Unbegrenzt»); a half with
+         *     limit 0 is absent.
+         */
+        WishQuota: {
+            unlimited: boolean;
+            /** @enum {string} */
+            reason?: "admin" | "no_limit";
+            movie?: components["schemas"]["WishQuotaPart"];
+            tv?: components["schemas"]["WishQuotaPart"];
+            /** Format: date-time */
+            at?: string;
+        };
         /** @description Since contract 1.41.0. The Seerr user of one account. */
         WishAccountMapping: {
             /** Format: int64 */
@@ -10866,12 +10925,14 @@ export interface components {
              */
             provisionError?: string;
             limit: components["schemas"]["AccountWishLimit"];
+            quota?: components["schemas"]["WishQuota"];
         };
         WishMappings: {
             accounts: components["schemas"]["WishAccountMapping"][];
             /** @description Seerr users without an account, the shared user excepted. */
             unlinkedUsers: components["schemas"]["SeerrUser"][];
             sharedUser?: components["schemas"]["SeerrUser"];
+            sharedQuota?: components["schemas"]["WishQuota"];
             /** @description Accounts with a ready Seerr user. */
             opened: number;
             total: number;
@@ -20185,6 +20246,52 @@ export interface operations {
                 };
             };
             /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setAccountWishLimit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountWishLimitRequest"];
+            };
+        };
+        responses: {
+            /** @description The limit of the account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountWishLimit"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90). */
             422: {
                 headers: {
                     [name: string]: unknown;

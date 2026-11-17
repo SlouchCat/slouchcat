@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/store/wishq"
@@ -112,9 +113,23 @@ func (m *Mapping) WishMappings(ctx context.Context) (model.WishMappings, error) 
 		}
 		l, has := limitOf[r.AccountID]
 		a.Limit = accountLimit(l, has, settings.DefaultLimit, user != nil && user.IsAdmin)
+		if user != nil && r.State.String == StateReady {
+			row, err := m.s.read.GetSeerrUser(ctx, int64(user.ID))
+			if err != nil {
+				return model.WishMappings{}, fmt.Errorf("seerr user: %w", err)
+			}
+			a.Quota = wishQuota(row, a.Limit.Effective)
+		}
 		out.Accounts = append(out.Accounts, a)
 	}
 	out.Total = len(out.Accounts)
+	if out.SharedUser != nil {
+		row, err := m.s.read.GetSeerrUser(ctx, int64(out.SharedUser.ID))
+		if err != nil {
+			return model.WishMappings{}, fmt.Errorf("shared seerr user: %w", err)
+		}
+		out.SharedQuota = wishQuota(row, settings.DefaultLimit)
+	}
 	return out, nil
 }
 
@@ -145,7 +160,11 @@ func accountLimit(l wishq.WishAccountLimit, has bool, def model.WishLimits, seer
 // when the user belongs to another account, is the shared user or is gone from Seerr.
 func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrUserID *int, by int64) (model.WishAccountMapping, error) {
 	s := m.s
-	err := s.inTx(ctx, func(q *wishq.Queries) error {
+	ws, err := s.cfg.WishSettings(ctx)
+	if err != nil {
+		return model.WishAccountMapping{}, err
+	}
+	err = s.inTx(ctx, func(q *wishq.Queries) error {
 		if n, err := q.AccountExists(ctx, accountID); err != nil {
 			return fmt.Errorf("account: %w", err)
 		} else if n == 0 {
@@ -177,12 +196,22 @@ func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrU
 		if err != nil && strings.Contains(err.Error(), "seerr_user_taken") {
 			return model.ErrSeerrUserTaken
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		// N-112: the limit the user has in Seerr becomes the account's, unless it has its own.
+		return s.adoptLimit(ctx, q, accountID, toSeerrUser(u).Quota, u.IsAdmin == 1, ws.DefaultLimit, by)
 	})
 	if err != nil {
 		return model.WishAccountMapping{}, err
 	}
 	s.log.InfoContext(ctx, "seerr user of account set by hand", "account_id", accountID, "seerr_user_id", seerrUserID)
+	if seerrUserID != nil {
+		// The job writes the limit to the user (limit_written_at is empty after the choice).
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
+			s.log.WarnContext(ctx, "limit of the chosen user not queued", "account_id", accountID, "err", err)
+		}
+	}
 	all, err := m.WishMappings(ctx)
 	if err != nil {
 		return model.WishAccountMapping{}, err

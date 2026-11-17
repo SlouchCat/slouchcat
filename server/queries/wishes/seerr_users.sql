@@ -78,3 +78,11 @@ WHERE seerr_id = @seerr_id;
 -- name: SetSeerrUserEmail :exec
 -- The email Slouchcat just wrote to a user after an e-mail change of its account (N-95).
 UPDATE seerr_users SET email = @email WHERE seerr_id = @seerr_id;
+
+-- name: SetSeerrUserQuotaState :exec
+-- What GET /user/{id}/quota says is used, when the next place is free (N-35) and when it was read;
+-- the limit fields stay as GET /user holds them.
+UPDATE seerr_users SET
+    movie_quota_used = @movie_quota_used, tv_quota_used = @tv_quota_used,
+    movie_next_free_at = @movie_next_free_at, tv_next_free_at = @tv_next_free_at, quota_at = @quota_at
+WHERE seerr_id = @seerr_id;

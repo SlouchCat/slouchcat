@@ -262,6 +262,28 @@ type WishAccountMapping struct {
 	LinkedAt         *time.Time
 	ProvisionError   string
 	Limit            AccountWishLimit
+	Quota            *WishQuota // the state in Seerr; nil while never read
+}
+
+// Reasons of an unlimited WishQuota.
+const (
+	WishQuotaReasonAdmin   = "admin"    // the Seerr user has MANAGE_USERS: «Kein Limit»
+	WishQuotaReasonNoLimit = "no_limit" // both limits are 0: «Unbegrenzt»
+)
+
+// WishQuota is the limit state of a Seerr user (architecture 19.3): the effective limit with what
+// Seerr counts, also requests made directly in Seerr (E-3). A half with limit 0 is nil.
+type WishQuota struct {
+	Unlimited bool
+	Reason    string
+	Movie, TV *WishQuotaPart
+	At        *time.Time
+}
+
+// WishQuotaPart is one half of WishQuota; Queued counts wishes waiting for the outbox (stage 2).
+type WishQuotaPart struct {
+	Limit, Days, Used, Queued, Remaining int
+	NextFreeAt                           *time.Time
 }
 
 // WishMappings is the page «Seerr-Benutzer» (getWishMappings): Opened counts the accounts with a
@@ -270,6 +292,7 @@ type WishMappings struct {
 	Accounts      []WishAccountMapping
 	UnlinkedUsers []SeerrUser
 	SharedUser    *SeerrUser
+	SharedQuota   *WishQuota // the default limit, shared by every account that sends through it
 	Opened, Total int
 }
 

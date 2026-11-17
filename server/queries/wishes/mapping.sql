@@ -111,3 +111,17 @@ JOIN accounts AS a ON a.id = m.account_id
 JOIN seerr_users AS u ON u.seerr_id = m.seerr_user_id
 WHERE m.origin = 'linked' AND m.linked_by IN ('invite', 'email_change') AND m.linked_at >= @since
 ORDER BY m.linked_at DESC, m.account_id;
+
+-- name: ClearMappingLimitWritten :exec
+-- The limit of the account changed: the next provisioning run writes it to Seerr again.
+UPDATE wish_account_map SET limit_written_at = NULL WHERE account_id = @account_id;
+
+-- name: ClearDefaultLimitWritten :many
+-- The default limit changed: every ready account without an own limit writes it again.
+UPDATE wish_account_map SET limit_written_at = NULL
+WHERE state = 'ready' AND account_id NOT IN (SELECT account_id FROM wish_account_limits)
+RETURNING account_id;
+
+-- name: ListReadyMappings :many
+-- Every account with a ready Seerr user (the limit state of the users job).
+SELECT account_id, seerr_user_id FROM wish_account_map WHERE state = 'ready' ORDER BY account_id;
