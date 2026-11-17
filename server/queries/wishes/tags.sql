@@ -4,7 +4,7 @@
 
 -- name: ListTagCandidates :many
 -- The requesters (owner and co-wishers) of the wishes in procurement that have no tag row yet.
--- Wishes placed directly in Seerr (origin jellyseerr) get none (N-27).
+-- Wishes placed directly in Seerr (origin seerr) get none (N-27).
 SELECT w.id AS wish_id, w.media, r.profile_id, r.account_id
 FROM wishes AS w
 JOIN wish_requesters AS r ON r.wish_id = w.id

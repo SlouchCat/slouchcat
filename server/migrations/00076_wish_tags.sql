@@ -12,7 +12,7 @@
 --                      set, failed (Radarr or Sonarr refused or did not answer; the next run tries
 --                      again, N-25). tag_name is the name at the time of setting; a tag is never
 --                      removed (N-26). last_error is an error class, never an address or a key.
---                      Wishes placed directly in Seerr (origin jellyseerr) get no row (N-27).
+--                      Wishes placed directly in Seerr (origin seerr) get no row (N-27).
 --
 -- New tables only, nothing is rebuilt; the frame of the template stays.
 

@@ -39,7 +39,7 @@ export function WishRow({ wish, onWithdraw, onRequestAgain, busy }: WishRowProps
   const facts = [
     wish.media === 'show' ? seasonsText(t, wish.seasons) : t('wishes.kind.movie'),
     ...(wish.role === 'joined' ? [t('wishes.card.joined')] : []),
-    ...(wish.origin === 'jellyseerr' ? [t('wishes.row.fromSeerr')] : []),
+    ...(wish.origin === 'seerr' ? [t('wishes.row.fromSeerr')] : []),
   ].filter(Boolean);
   return (
     <article className={styles.row} aria-labelledby={`${historyId}-title`}>

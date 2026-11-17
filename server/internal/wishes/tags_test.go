@@ -280,7 +280,7 @@ func TestTagCoWisherLater(t *testing.T) {
 func TestTagNothingForSeerrRequests(t *testing.T) {
 	f := newArrFixture(t)
 	f.radarr.AddMovie(arrtest.Movie{ID: 11, TMDBID: 603})
-	f.wish(1, "movie", 603, "processing", "jellyseerr", 1)
+	f.wish(1, "movie", 603, "processing", "seerr", 1)
 	f.wish(2, "movie", 604, "pending", "slouchcat", 1)
 	f.wish(3, "movie", 605, "available", "slouchcat", 1)
 	f.tagRun()

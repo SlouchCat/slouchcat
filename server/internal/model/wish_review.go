@@ -16,4 +16,4 @@ var (
 
 // WishOriginSeerr is the origin of a wish taken over from a request made in Seerr itself («In
 // Seerr angelegt», F-21). The stored value keeps the name of the data model.
-const WishOriginSeerr = "jellyseerr"
+const WishOriginSeerr = "seerr"

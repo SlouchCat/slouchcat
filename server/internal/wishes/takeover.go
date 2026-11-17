@@ -25,7 +25,7 @@ import (
 // ready mapping whose user was set since its last take-over, which covers the links of the
 // provisioning), and by hand («Anfragen übernehmen»). The rules:
 //
-//   - A request of a linked user without a wish becomes a wish of origin jellyseerr («In Seerr
+//   - A request of a linked user without a wish becomes a wish of origin seerr («In Seerr
 //     angelegt») owned by the main profile of the account; it gets no profile tag (N-27).
 //   - Only open requests are taken over, and those Seerr reports available only when they changed
 //     in the last 30 days (Vorschlag of 03 7.3); declined, failed and 4K requests are not.

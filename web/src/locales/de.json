@@ -5819,7 +5819,7 @@
         },
         "origin": {
           "slouchcat": "In Slouchcat angefordert",
-          "jellyseerr": "In Seerr angelegt"
+          "seerr": "In Seerr angelegt"
         },
         "toItem": "Zum Titel in der Verwaltung",
         "history": "Verlauf",

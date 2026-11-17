@@ -71,7 +71,7 @@ func TestMigration00069Wishes(t *testing.T) {
 	for name, q := range map[string]string{
 		"second open film wish":   movie + `(10, 'movie', 1061474, 'Superman', 'slouchcat', 'processing', 1, 1)`,
 		"unknown state":           movie + `(11, 'movie', 12, 'X', 'slouchcat', 'requested', 1, 1)`,
-		"unknown origin":          `INSERT INTO wishes (media, tmdb_id, title, origin, state, created_at, updated_at) VALUES ('movie', 12, 'X', 'seerr', 'queued', 1, 1)`,
+		"unknown origin":          `INSERT INTO wishes (media, tmdb_id, title, origin, state, created_at, updated_at) VALUES ('movie', 12, 'X', 'jellyseerr', 'queued', 1, 1)`,
 		"partial film":            movie + `(12, 'movie', 13, 'X', 'slouchcat', 'partial', 1, 1)`,
 		"failed without a reason": movie + `(13, 'movie', 14, 'X', 'slouchcat', 'failed', 1, 1)`,
 		"reason without failed":   `INSERT INTO wishes (media, tmdb_id, title, origin, state, fail_reason, created_at, updated_at) VALUES ('movie', 15, 'X', 'slouchcat', 'pending', 'quota', 1, 1)`,

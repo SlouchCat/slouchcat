@@ -37,7 +37,7 @@ CREATE TABLE wishes (
     imdb_id          TEXT    CHECK (imdb_id IS NULL OR imdb_id <> ''),
     title            TEXT    NOT NULL CHECK (title <> ''),
     year             INTEGER,
-    origin           TEXT    NOT NULL CHECK (origin IN ('slouchcat', 'jellyseerr')),
+    origin           TEXT    NOT NULL CHECK (origin IN ('slouchcat', 'seerr')),
     seerr_request_id INTEGER CHECK (seerr_request_id IS NULL OR seerr_request_id > 0),
     seerr_media_id   INTEGER,
     seerr_user_id    INTEGER REFERENCES seerr_users(seerr_id) ON DELETE SET NULL,

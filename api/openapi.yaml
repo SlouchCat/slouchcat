@@ -20229,8 +20229,8 @@ components:
           $ref: "#/components/schemas/WishFailReason"
         origin:
           type: string
-          enum: [slouchcat, jellyseerr]
-          description: "`jellyseerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4)."
+          enum: [slouchcat, seerr]
+          description: "`seerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4)."
         role:
           type: string
           enum: [owner, joined]
@@ -20395,7 +20395,7 @@ components:
           $ref: "#/components/schemas/WishFailReason"
         origin:
           type: string
-          enum: [slouchcat, jellyseerr]
+          enum: [slouchcat, seerr]
         seasons:
           type: array
           items:

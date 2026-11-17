@@ -266,7 +266,7 @@ type ListTagCandidatesRow struct {
 // only, store/wishq). Times are Unix milliseconds. A tag is never removed: there is no query that
 // would forget a set row.
 // The requesters (owner and co-wishers) of the wishes in procurement that have no tag row yet.
-// Wishes placed directly in Seerr (origin jellyseerr) get none (N-27).
+// Wishes placed directly in Seerr (origin seerr) get none (N-27).
 func (q *Queries) ListTagCandidates(ctx context.Context) ([]ListTagCandidatesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTagCandidates)
 	if err != nil {

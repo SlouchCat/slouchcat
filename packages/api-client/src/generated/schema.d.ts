@@ -11459,10 +11459,10 @@ export interface components {
             stateDetail?: components["schemas"]["WishStateDetail"];
             failReason?: components["schemas"]["WishFailReason"];
             /**
-             * @description `jellyseerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4).
+             * @description `seerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4).
              * @enum {string}
              */
-            origin: "slouchcat" | "jellyseerr";
+            origin: "slouchcat" | "seerr";
             /** @enum {string} */
             role: "owner" | "joined";
             seasons: components["schemas"]["WishSeasonState"][];
@@ -11550,7 +11550,7 @@ export interface components {
             stateDetail?: components["schemas"]["WishStateDetail"];
             failReason?: components["schemas"]["WishFailReason"];
             /** @enum {string} */
-            origin: "slouchcat" | "jellyseerr";
+            origin: "slouchcat" | "seerr";
             seasons: components["schemas"]["AdminWishSeason"][];
             requesters: components["schemas"]["AdminWishRequester"][];
             /** @description The Seerr user the wish went out as. */
