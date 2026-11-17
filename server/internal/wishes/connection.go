@@ -255,7 +255,9 @@ func (s *Service) runChecks(ctx context.Context, c *seerr.Client, address string
 		}
 	}
 	// CSRF protection: POST /request {} is refused by the validator (400) when it is off.
-	if on, err := admin.CSRFProtection(ctx); err != nil {
+	if on, err := admin.CSRFProtection(ctx); errors.Is(err, seerr.ErrUnexpectedAnswer) {
+		add(model.SeerrCheckCSRFOff, model.SeerrLevelWarn, model.SeerrDetailUnexpected)
+	} else if err != nil {
 		add(model.SeerrCheckCSRFOff, model.SeerrLevelWarn, reachDetail(err))
 	} else if on {
 		add(model.SeerrCheckCSRFOff, model.SeerrLevelFail, "")

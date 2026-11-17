@@ -11507,7 +11507,8 @@ export interface components {
              * @description The version (`version`), the number of servers (`radarr`, `sonarr`), the source of the seasons
              *     (`tvdb_seasons`), or a code: `not_verified` (a version below Jellyseerr 2.7 or Seerr 3.0),
              *     `not_testable` (no user besides user 1), `instance_changed`, `not_user_one`, `not_available`,
-             *     `off`, `timeout`, `refused`, `redirect` or an error class.
+             *     `off`, `timeout`, `refused`, `redirect`, `unexpected_answer` (Seerr accepted the empty
+             *     request of the CSRF probe) or an error class.
              */
             detail?: string;
         };

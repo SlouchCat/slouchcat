@@ -533,6 +533,13 @@ func TestConnectionCalls(t *testing.T) {
 	if len(f.Requests()) != 0 {
 		t.Error("the csrf probe created a request")
 	}
+	// A 2xx answer to the probe is an error, never «protection off».
+	f.SetCSRF(false)
+	f.SetFailure("POST /request", seerrtest.Failure{Status: http.StatusCreated, Times: 1})
+	if on, err := admin.CSRFProtection(ctx); !errors.Is(err, ErrUnexpectedAnswer) || on {
+		t.Errorf("csrf probe answered 201: %v, %v", on, err)
+	}
+	f.SetCSRF(true)
 }
 
 func TestUsers(t *testing.T) {

@@ -2,6 +2,7 @@ package wishes
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -276,5 +277,37 @@ func TestSyncQueuesTakeOverOfNewMappings(t *testing.T) {
 	r.sync(false)
 	if n := r.queue.count(JobImport); n != 1 {
 		t.Errorf("imports queued after a new user = %d", n)
+	}
+}
+
+// The take-over pages oldest first and each later page starts a few requests early, so a request
+// that goes between two pages makes none skipped; every request is taken over once (review, open
+// question).
+func TestImportPagesInAStableOrder(t *testing.T) {
+	r := syncFixture(t)
+	base := r.fake.Now().Add(-time.Hour)
+	for i := range importPageSize + 10 {
+		r.fake.SeedRequest(seerrtest.Request{MediaType: "movie", TMDBID: 9000 + i, UserID: 4, CreatedAt: base.Add(time.Duration(i) * time.Second)})
+	}
+	if _, err := r.svc.SetAccountMapping(r.ctx, 3, ip(4), 1); err != nil {
+		t.Fatal(err)
+	}
+	r.fake.ResetCalls()
+	r.runImports()
+	var skips []string
+	for _, c := range r.fake.CallLog() {
+		if c.Route != "GET /request" || c.Query.Get("requestedBy") != "4" {
+			continue
+		}
+		if c.Query.Get("sort") != "added" || c.Query.Get("sortDirection") != "asc" {
+			t.Errorf("order of the take-over = %v", c.Query)
+		}
+		skips = append(skips, c.Query.Get("skip"))
+	}
+	if strings.Join(skips, ",") != ",45" && strings.Join(skips, ",") != "0,45" {
+		t.Errorf("skips = %v", skips)
+	}
+	if n := r.count(`SELECT count(*) FROM wishes WHERE tmdb_id BETWEEN 9000 AND 9099`); n != importPageSize+10 {
+		t.Errorf("wishes taken over = %d, want %d", n, importPageSize+10)
 	}
 }

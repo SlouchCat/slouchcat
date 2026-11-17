@@ -181,3 +181,38 @@ func TestApproveWishInstanceChanged(t *testing.T) {
 		t.Errorf("calls = %d", n)
 	}
 }
+
+// A series wish that is processing as a whole with one season still pending in Seerr: approving
+// acts on that season's request only (review, open question).
+func TestApproveWishPendingSeasonOfProcessingSeries(t *testing.T) {
+	r := newRequestFixture(t)
+	s1 := r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeTV, TMDBID: got, TVDBID: gotTVDB, Seasons: []int{1}})
+	res := r.create(r.marco, show(got, 1, 2))
+	w := r.wish(res.Wish.ID)
+	s2 := w.Seasons[1].SeerrRequestID
+	r.fake.SetRequestStatus(s1.ID, seerrtest.RequestApproved)
+	r.exec(`UPDATE wishes SET state = 'processing' WHERE id = ?`, res.Wish.ID)
+	r.exec(`UPDATE wish_seasons SET state = 'processing' WHERE wish_id = ? AND season_number = 1`, res.Wish.ID)
+	r.fake.ResetCalls()
+	out, err := r.svc.ApproveWish(r.ctx, res.Wish.ID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := r.fake.Calls("POST /request/{id}/{status}"); n != 1 {
+		t.Errorf("decisions = %d, want 1", n)
+	}
+	if req, _ := r.fake.Request(s2); req.Status != seerrtest.RequestApproved {
+		t.Errorf("season 2 request status = %d", req.Status)
+	}
+	if out.State != model.WishProcessing || out.Seasons[1].State != model.WishProcessing {
+		t.Errorf("after the approval = %s %+v", out.State, out.Seasons)
+	}
+	// Nothing pending any more: the conflict as before, no call.
+	r.fake.ResetCalls()
+	if _, err := r.svc.DeclineWish(r.ctx, res.Wish.ID, 1); !errors.Is(err, model.ErrWishNotPending) {
+		t.Errorf("nothing pending: %v", err)
+	}
+	if n := len(r.fake.CallLog()); n != 0 {
+		t.Errorf("calls = %d", n)
+	}
+}

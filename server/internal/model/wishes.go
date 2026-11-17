@@ -146,6 +146,7 @@ const (
 	SeerrDetailTimeout         = "timeout"
 	SeerrDetailRefused         = "refused"
 	SeerrDetailRedirect        = "redirect"
+	SeerrDetailUnexpected      = "unexpected_answer" // the CSRF probe was accepted (2xx)
 )
 
 // SeerrTestInput are values not saved yet; "" uses the saved one.

@@ -21,9 +21,11 @@ import (
 // tells its requesters through the status channel, a decline closes it as declined. The history
 // names the acting account.
 
-// ApproveWish approves the pending wish in Seerr and returns it as the administration sees it.
-// Errors: model.ErrNotFound for an unknown wish; model.ErrWishNotPending when the wish is not
-// pending, or Seerr says none of its requests is pending any more (the state is then read anew);
+// ApproveWish approves every request of the wish that waits for an approval in Seerr (a pending
+// film; the pending seasons of a series, also of a series wish that is processing or partial as a
+// whole) and returns the wish as the administration sees it. Errors: model.ErrNotFound for an
+// unknown wish; model.ErrWishNotPending when nothing of the wish is pending, or Seerr says none of
+// its requests is pending any more (the state is then read anew);
 // model.ErrInstanceChanged while another Seerr instance waits for the administrator;
 // model.ErrSeerrNotConfigured without address or key; model.ErrSeerrUnreachable when Seerr does
 // not answer or is switched off; model.ErrSeerrFailed when Seerr answers with another error.
@@ -32,7 +34,8 @@ func (s *Service) ApproveWish(ctx context.Context, wishID, accountID int64) (mod
 	return s.review(ctx, wishID, accountID, true)
 }
 
-// DeclineWish declines the pending wish in Seerr; the errors are those of ApproveWish.
+// DeclineWish declines the pending requests of the wish in Seerr; the rule and the errors are those
+// of ApproveWish.
 func (s *Service) DeclineWish(ctx context.Context, wishID, accountID int64) (model.AdminWish, error) {
 	return s.review(ctx, wishID, accountID, false)
 }
@@ -45,7 +48,9 @@ func (s *Service) review(ctx context.Context, wishID, accountID int64, approve b
 	if err != nil {
 		return model.AdminWish{}, fmt.Errorf("wish: %w", err)
 	}
-	if w.State != model.WishPending {
+	// The rule (review, open question): a film while the wish is pending; a series while any of
+	// its seasons waits in Seerr, also when the wish as a whole is processing or partial.
+	if !isOpen(w.State) || (w.Media == model.WishMediaMovie && w.State != model.WishPending) {
 		return model.AdminWish{}, model.ErrWishNotPending
 	}
 	ids, err := s.pendingRequests(ctx, w)

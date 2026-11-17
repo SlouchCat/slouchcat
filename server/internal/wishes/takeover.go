@@ -48,7 +48,10 @@ const JobImport = "wishes.import"
 const (
 	importPriority = 5
 	importPageSize = 50
-	importWindow   = 30 * 24 * time.Hour // requests Seerr reports available are taken over this long
+	// importOverlap: each later page starts this many requests early, so a request deleted in Seerr
+	// between two pages makes none skipped (the take-over of a known request changes nothing).
+	importOverlap = 5
+	importWindow  = 30 * 24 * time.Hour // requests Seerr reports available are taken over this long
 )
 
 type importPayload struct {
@@ -194,7 +197,10 @@ func (s *Service) importRequests(ctx context.Context, seerrUserID int, again boo
 	admin := c.AsAdmin()
 	taken := 0
 	for {
-		page, err := admin.Requests(ctx, seerr.RequestQuery{Take: importPageSize, Skip: st.Page * importPageSize, RequestedBy: seerrUserID})
+		// Oldest first (sort=added, sortDirection=asc): a new request goes to the end and shifts
+		// nothing (review, open question).
+		page, err := admin.Requests(ctx, seerr.RequestQuery{Take: importPageSize, Skip: max(0, st.Page*importPageSize-importOverlap),
+			Sort: "added", SortDirection: "asc", RequestedBy: seerrUserID})
 		if err != nil {
 			s.recordOutcome(ctx, seerrErr(err))
 			return err

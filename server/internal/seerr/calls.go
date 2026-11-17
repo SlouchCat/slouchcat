@@ -88,7 +88,9 @@ func (s Session) ExplainRefusal(ctx context.Context, err error) error {
 // CSRFProtection reports whether Seerr's CSRF protection is on, which refuses every write with the
 // api key (appendix D 2.4). It sends POST /request with an empty body, which the request
 // validator of Seerr refuses (400) when the protection is off; it never creates a request. Derived
-// from the source, not verified against an instance (architecture 15.1).
+// from the source, not verified against an instance (architecture 15.1). A 2xx answer is
+// ErrUnexpectedAnswer, never «protection off» (review, open question): Seerr then accepted the
+// empty body.
 func (s Session) CSRFProtection(ctx context.Context) (bool, error) {
 	err := s.call(ctx, http.MethodPost, "/request", nil, struct{}{}, nil)
 	switch {
@@ -97,10 +99,13 @@ func (s Session) CSRFProtection(ctx context.Context) (bool, error) {
 	case errors.Is(err, ErrBadRequest), errors.Is(err, ErrServer):
 		return false, nil
 	case err == nil:
-		return false, nil
+		return false, ErrUnexpectedAnswer
 	}
 	return false, err
 }
+
+// ErrUnexpectedAnswer: Seerr answered a probe in a way it should not (CSRFProtection).
+var ErrUnexpectedAnswer = errors.New("seerr: unexpected answer")
 
 // Users (appendix D 7, appendix H 3.1). The calls need MANAGE_USERS: call them on AsAdmin.
 
