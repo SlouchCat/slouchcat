@@ -145,3 +145,19 @@
   flex-wrap: wrap;
   gap: var(--sc-space-1) var(--sc-space-3);
 }
+
+/* «Freigeben» and «Ablehnen» at the end of a row of «Anfragen»: side by side, wrapping when the
+   column is narrow. */
+.rowActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+/* The kind or the seasons below a wish's title: in the row header's button, yet not bold. */
+.subline {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-regular);
+}

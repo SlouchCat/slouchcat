@@ -10,4 +10,6 @@ export declare const USERS: {
 }[];
 export declare function startSeerrServer(options?: {
   port?: number;
+  radarrPort?: number;
+  sonarrPort?: number;
 }): Promise<{ port: number; close: () => Promise<void> }>;

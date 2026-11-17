@@ -85,6 +85,9 @@ export const BOOKS_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_B
 export const SEERR_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_SEERR_PORT ?? PORT - 11)}`;
 // TMDB (tmdb-server.mjs, concept 25 stage 2) twelve below; the server reaches it with a key only.
 export const TMDB_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_TMDB_PORT ?? PORT - 12)}`;
+// Radarr and Sonarr (arr-server.mjs, concept 25 stage 4) thirteen and fourteen below; Seerr names them.
+export const RADARR_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_RADARR_PORT ?? PORT - 13)}`;
+export const SONARR_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_SONARR_PORT ?? PORT - 14)}`;
 
 /** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
 export const SERVER_LOG = `${ARTEFACTS}server.log`;

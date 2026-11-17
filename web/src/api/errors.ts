@@ -125,6 +125,12 @@ const problemKeys = {
   wish_not_withdrawable: 'errors.code.wish_not_withdrawable',
   seerr_unreachable: 'errors.code.seerr_unreachable',
   wish_not_retryable: 'errors.code.wish_not_retryable',
+  // The administration of the wishes (concept 25 stage 4): a choice Seerr made meanwhile, Seerr's
+  // error, another instance waiting for a decision, the tag name of another profile.
+  wish_not_pending: 'errors.code.wish_not_pending',
+  seerr_failed: 'errors.code.seerr_failed',
+  seerr_instance_changed: 'errors.code.seerr_instance_changed',
+  tag_name_taken: 'errors.code.tag_name_taken',
 } as const;
 
 /** The reasons of `wish_not_allowed` (createWish, withdrawWish), each with its own sentence. */

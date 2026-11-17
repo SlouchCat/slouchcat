@@ -6,6 +6,7 @@ import {
   removeInvitedAccounts,
 } from './accounts';
 import { areaTab } from './admin';
+import { arrControl, arrReset, runJob, testArr } from './arr';
 import { CSRF } from './catalog';
 import { GUEST_PASSWORD, OWNER, OWNER_PROFILE, SEERR_BASE } from './env';
 import { expect, test } from './fixtures';
@@ -508,7 +509,7 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
     await expectFocusOn(page, all.getByRole('button', { name: /^Offen/ }));
     await page.keyboard.press('Enter');
     await expect(row).toBeVisible();
-    const toggle = row.getByRole('button', { name: /Glasfabrik/ });
+    const toggle = row.getByRole('button', { name: /Glasfabrik \(2024\)/ });
     await tabTo(page, toggle, 10);
     await page.keyboard.press('Enter');
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -545,7 +546,7 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
       .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
       .getByRole('row')
       .filter({ hasText: 'Glasfabrik (2024)' });
-    const failedToggle = failedRow.getByRole('button', { name: /Glasfabrik/ });
+    const failedToggle = failedRow.getByRole('button', { name: /Glasfabrik \(2024\)/ });
     await resetFocus(page);
     await tabTo(page, failedToggle, 60);
     await page.keyboard.press('Enter');
@@ -562,6 +563,270 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
     await expect(page.locator('#content')).not.toContainText('{{');
     await expectNoFocusTrap(page, 120);
   } finally {
+    await closeWishes(owner, setup);
+  }
+});
+
+/** Where the coordinator's visual check finds the screenshots (SLOUCHCAT_E2E_SHOTS), if set. */
+const SHOTS = process.env.SLOUCHCAT_E2E_SHOTS;
+async function shot(page: Page, name: string): Promise<void> {
+  if (!SHOTS) return;
+  // A dialog that just opened plays its entry animation first; endless ones (a live dot) do not
+  // count.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every(
+        (animation) =>
+          animation.playState !== 'running' ||
+          animation.effect?.getComputedTiming().endTime === Infinity,
+      ),
+  );
+  await page.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+
+interface ListedWish {
+  id: number;
+  state: string;
+  title: { tmdbId: number };
+  progress?: { stage?: string };
+  requesters: { tag?: { state: string } }[];
+}
+
+const OPEN = ['queued', 'pending', 'processing', 'partial'];
+const listed = async (api: APIRequestContext) =>
+  (await json<{ items: ListedWish[] }>(api, '/admin/wishes?limit=100')).items;
+/** The open wish of a title (an earlier test may have left a closed one beside it). */
+const wishOf = (items: ListedWish[], tmdbId: number) =>
+  items.find((wish) => wish.title.tmdbId === tmdbId && OPEN.includes(wish.state));
+
+// M-23 stage 4: «Freigeben» and «Ablehnen» passed on to Seerr, the download progress and the
+// profile tags read from the Radarr mock (arr-server.mjs) by the jobs, which the test runs at once
+// (`runJob`) instead of waiting for their schedule; the two filters of the client and the
+// overview's two hints. Glasfabrik may still be in procurement from the test before; it is
+// approved here if not, and waits for Radarr either way.
+test('«Anfragen» stage 4: approve, decline behind a question, progress and tags by keyboard @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let setup: WishesSetup | undefined;
+  try {
+    await arrReset();
+    setup = await openWishes(owner);
+    // Radarr: Glasvogel downloads, Kupfermond is stalled and refuses its tag, Glasfabrik is not
+    // there yet.
+    await arrControl('radarr', {
+      queue: [
+        { title: 9001, state: 'downloading' },
+        { title: 9002, state: 'stalled' },
+      ],
+      failEditor: [9002],
+      absent: [9003],
+    });
+    // «Testen» confirms the hosts from Seerr before any job may call them.
+    await testArr(owner, 'radarr');
+    await testArr(owner, 'sonarr');
+    for (const data of [
+      { media: 'movie', tmdbId: 9001 },
+      { media: 'movie', tmdbId: 9002 },
+      { media: 'movie', tmdbId: 9003 },
+      { media: 'show', tmdbId: 9100, seasons: [1] },
+      { media: 'show', tmdbId: 9101, seasons: [1] },
+    ]) {
+      const made = await owner.post('/api/v1/wishes', {
+        headers: CSRF,
+        data: { ...data, source: 'detail' },
+      });
+      expect(made.ok(), await made.text()).toBe(true);
+    }
+    await expect
+      .poll(
+        async () => {
+          const items = await listed(owner);
+          return [9001, 9002, 9100, 9101].map((id) => wishOf(items, id)?.state);
+        },
+        { timeout: 30_000 },
+      )
+      .toEqual(['pending', 'pending', 'pending', 'pending']);
+    for (const tmdbId of [9001, 9002, 9003]) {
+      const wish = wishOf(await listed(owner), tmdbId);
+      if (wish?.state === 'pending') await send(owner, 'post', `/admin/wishes/${wish.id}/approve`);
+    }
+    // The jobs read Radarr; a read within 45 s of the last one does nothing, so the poll runs
+    // them until the rows are there.
+    await expect
+      .poll(
+        async () => {
+          await runJob(owner, 'wishes.tag');
+          await runJob(owner, 'wishes.progress');
+          const items = await listed(owner);
+          return [9001, 9002, 9003].map((id) => {
+            const wish = wishOf(items, id);
+            return `${wish?.progress?.stage}/${wish?.requesters[0]?.tag?.state}`;
+          });
+        },
+        { timeout: 120_000, intervals: [3000] },
+      )
+      .toEqual(['download/set', 'stalled/failed', 'undefined/pending']);
+
+    await page.goto('/admin/wishes');
+    const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    // An earlier test withdrew a wish of Nebelhafen: its row stays beside the open one.
+    const row = (title: string) =>
+      table.getByRole('row').filter({ hasText: title }).filter({ hasNotText: 'Zurückgezogen' });
+    await expect(
+      row('Nebelhafen').getByRole('button', { name: 'Nebelhafen freigeben' }),
+    ).toBeVisible();
+    await expect(
+      row('Glasküste').getByRole('button', { name: 'Glasküste ablehnen' }),
+    ).toBeVisible();
+    await expect(row('Glasvogel')).toContainText('Wird heruntergeladen · 45 % · noch 12 min');
+    await expect(row('Kupfermond')).toContainText('Download verzögert');
+    await expect(row('Kupfermond')).toContainText(/sc-\S+ · fehlgeschlagen/);
+    await expect(row('Glasfabrik')).toContainText(/sc-\S+ · ausstehend/);
+    // The message of Radarr stands only in the fold-out.
+    await expect(page.getByText(/No files found are eligible for import/)).toHaveCount(0);
+    // The table fits beside the sidebar at 1280 px: no sideways scroll in its frame.
+    expect(
+      await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
+    ).toBeLessThanOrEqual(0);
+    await expect(page.locator('#content')).not.toContainText('{{');
+    await shot(page, 'anfragen-pending-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await shot(page, 'anfragen-pending-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // Seerr has decided meanwhile: 409 at the row, whose fold-out opens with the reason.
+    await page.route('**/api/v1/admin/wishes/*/approve', (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          code: 'wish_not_pending',
+        }),
+      }),
+    );
+    const approve = row('Nebelhafen').getByRole('button', { name: 'Nebelhafen freigeben' });
+    await resetFocus(page);
+    await tabTo(page, approve, 80);
+    await page.keyboard.press('Enter');
+    await expect(table.getByText(/^Schon entschieden/)).toBeVisible();
+    const fogToggle = row('Nebelhafen').getByRole('button', { name: /^Nebelhafen \(2023\)/ });
+    await expect(fogToggle).toHaveAttribute('aria-expanded', 'true');
+    await page.unroute('**/api/v1/admin/wishes/*/approve');
+    // Approved for real: the buttons go, the focus moves to the row's toggle.
+    await expectFocusOn(page, approve);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Nebelhafen ist freigegeben und wird beschafft.')).toBeVisible();
+    await expectFocusOn(page, fogToggle);
+    await expect(row('Nebelhafen')).toContainText('In Beschaffung');
+    await expect(table.getByText('In der Verwaltung freigegeben')).toBeVisible();
+
+    // «Ablehnen» asks first: Escape keeps the wish and returns the focus, Enter declines.
+    const decline = row('Glasküste').getByRole('button', { name: 'Glasküste ablehnen' });
+    await tabTo(page, decline, 60);
+    await page.keyboard.press('Enter');
+    const question = page.getByRole('alertdialog', { name: 'Glasküste ablehnen?' });
+    await expect(question).toBeVisible();
+    await expect(question).toContainText('Die Profile sehen nur «Abgelehnt»');
+    await shot(page, 'anfragen-decline-question-desktop');
+    await page.keyboard.press('Escape');
+    await expect(question).toBeHidden();
+    await expectFocusOn(page, decline);
+    await page.keyboard.press('Enter');
+    await question.getByRole('button', { name: 'Ablehnen' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Glasküste ist abgelehnt.')).toBeVisible();
+    await expect(row('Glasküste')).toContainText('Abgelehnt');
+    const coast = (await seerrRequests()).filter((r) => r.mediaId === 9101);
+    expect(coast).toHaveLength(1);
+
+    // The stalled wish folds out by keyboard: progress with Radarr's message, the tag's reason.
+    const copper = row('Kupfermond').getByRole('button', { name: /^Kupfermond \(2025\)/ });
+    await resetFocus(page);
+    await tabTo(page, copper, 80);
+    await page.keyboard.press('Enter');
+    await expect(copper).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, copper);
+    await expect(page.getByText(/No files found are eligible for import/)).toBeVisible();
+    await expect(page.getByText('Radarr hat den Aufruf als ungültig abgelehnt.')).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+    await page.getByText(/No files found are eligible for import/).scrollIntoViewIfNeeded();
+    await shot(page, 'anfragen-stalled-open-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByText(/No files found are eligible for import/).scrollIntoViewIfNeeded();
+    await shot(page, 'anfragen-stalled-open-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    // The filters of the client: «Download verzögert» and «Tag nicht gesetzt» by the arrows.
+    const filters = page.getByRole('toolbar', { name: 'Wünsche nach Zustand filtern' });
+    const stalled = filters.getByRole('button', { name: /^Download verzögert/ });
+    await resetFocus(page);
+    await tabTo(page, filters.getByRole('button', { name: /^Alle/ }), 60);
+    for (let step = 0; step < 4; step += 1) await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, stalled);
+    await page.keyboard.press('Enter');
+    await expect(row('Glasvogel')).toHaveCount(0);
+    await expect(row('Kupfermond')).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(row('Kupfermond')).toBeVisible();
+    await expect(row('Glasfabrik')).toHaveCount(0);
+    await expectNoFocusTrap(page, 120);
+
+    // The overview names both, with the titles and the service.
+    await page.goto('/admin');
+    const attention = page.getByRole('region', { name: 'Was benötigt Aufmerksamkeit?' });
+    await expect(attention.getByText('1 Download verzögert')).toBeVisible();
+    await expect(attention.getByText('Kupfermond (Radarr)', { exact: true })).toBeVisible();
+    await expect(attention.getByText('1 Tag nicht gesetzt')).toBeVisible();
+    await expect(
+      attention.getByRole('link', { name: 'Verzögerte Downloads ansehen' }),
+    ).toHaveAttribute('href', '/admin/wishes?tab=anfragen&item=stalled');
+    await attention.getByText('1 Download verzögert').scrollIntoViewIfNeeded();
+    await shot(page, 'uebersicht-hints-desktop');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await attention.getByText('1 Download verzögert').scrollIntoViewIfNeeded();
+    await shot(page, 'uebersicht-hints-phone');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // The hint's link opens «Anfragen» with the filter.
+    await attention.getByRole('link', { name: 'Verzögerte Downloads ansehen' }).click();
+    await expect(filters.getByRole('button', { name: /^Download verzögert/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(row('Kupfermond')).toBeVisible();
+    await expect(row('Glasvogel')).toHaveCount(0);
+  } finally {
+    // Leave no hint behind for the specs after this one: the tag set after all, the progress gone.
+    await arrControl('radarr', { failEditor: [] });
+    await expect
+      .poll(
+        async () => {
+          await runJob(owner, 'wishes.tag');
+          return (await listed(owner)).some((wish) =>
+            wish.requesters.some((requester) => requester.tag?.state === 'failed'),
+          );
+        },
+        { timeout: 30_000, intervals: [2000] },
+      )
+      .toBe(false);
+    await send(owner, 'put', '/admin/wishes/settings', { showProgress: false });
+    await expect
+      .poll(
+        async () => {
+          await runJob(owner, 'wishes.progress');
+          return (await listed(owner)).some((wish) => wish.progress !== undefined);
+        },
+        { timeout: 30_000, intervals: [2000] },
+      )
+      .toBe(false);
+    await arrReset();
     await closeWishes(owner, setup);
   }
 });

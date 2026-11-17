@@ -621,6 +621,12 @@
           "admin": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ ist in Seerr Administrator, sein Passwort bleibt dort, wie es ist.",
           "external": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ meldet sich über Jellyfin, Emby oder Plex an, nicht mit einem eigenen Passwort."
         }
+      },
+      "requests": {
+        "declineBody": "Slouchcat gibt die Ablehnung an Seerr weiter. Seerr kennt keinen Grund: Die Profile sehen nur „Abgelehnt“ und werden benachrichtigt."
+      },
+      "arrError": {
+        "not_confirmed": "Die Adresse aus Seerr wartet auf „Testen“."
       }
     }
   },

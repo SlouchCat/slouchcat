@@ -496,7 +496,7 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(within(hints).queryByRole('link', { name: 'Zu den Schlüsseln' })).toBeNull();
   });
 
-  it('names the wishes: Seerr, accounts without a user, new links, limits and gone users', async () => {
+  it('names the wishes: Seerr, accounts without a user, new links, limits, gone users, stalled downloads and tags not set', async () => {
     const base = quiet();
     mockApi(
       routes({
@@ -535,6 +535,11 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
                   },
                 ],
                 goneUsers: 1,
+                downloadsStalled: [{ wishId: 11, title: 'Kupfermond', service: 'radarr' }],
+                tagsFailed: [
+                  { wishId: 11, title: 'Kupfermond', service: 'radarr', error: 'unreachable' },
+                  { wishId: 12, title: 'Nebelhafen', service: 'sonarr' },
+                ],
               },
             },
           }),
@@ -552,7 +557,24 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
         'Neu verknüpft: gast@example.org mit dem bestehenden Seerr-Benutzer gast',
         'Limit erreicht: kinder@example.org',
         '1 Konto: Benutzer in Seerr gelöscht',
+        '1 Download verzögert',
+        '2 Tags nicht gesetzt',
       ]),
+    );
+    // Radarr and Sonarr (stage 4): the titles with their service, a tag's reason, and the links
+    // to «Anfragen» with the matching filter.
+    expect(within(hints).getByText('Kupfermond (Radarr)')).toBeVisible();
+    expect(
+      within(hints).getByText(
+        'Kupfermond (Radarr): Radarr ist nicht erreichbar. Nebelhafen (Sonarr)',
+      ),
+    ).toBeVisible();
+    expect(
+      within(hints).getByRole('link', { name: 'Verzögerte Downloads ansehen' }),
+    ).toHaveAttribute('href', '/admin/wishes?tab=anfragen&item=stalled');
+    expect(within(hints).getByRole('link', { name: 'Fehlende Tags ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/wishes?tab=anfragen&item=untagged',
     );
     expect(
       within(hints).getByText(/Die Konten warten und werden beim nächsten Abgleich/),

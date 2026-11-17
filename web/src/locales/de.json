@@ -243,7 +243,11 @@
       "already_available": "Der Titel ist schon in der Bibliothek.",
       "wish_not_withdrawable": "Der Wunsch ist schon freigegeben und lässt sich nicht mehr zurückziehen.",
       "seerr_unreachable": "Seerr ist gerade nicht erreichbar.",
-      "wish_not_retryable": "Dieser Wunsch lässt sich nicht erneut versuchen."
+      "wish_not_retryable": "Dieser Wunsch lässt sich nicht erneut versuchen.",
+      "wish_not_pending": "Schon entschieden: Dieser Wunsch wartet in Seerr nicht mehr auf eine Freigabe. Der Abgleich holt den neuen Zustand.",
+      "seerr_failed": "Seerr hat mit einem Fehler geantwortet.",
+      "seerr_instance_changed": "Eine andere Seerr-Instanz wartet auf deine Entscheidung unter Integrationen › Seerr.",
+      "tag_name_taken": "Ein anderes Profil hat schon diesen Tag-Namen."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -3828,7 +3832,15 @@
         "open_other": "{{count}} offene Wünsche",
         "openQueued_one": "Davon wartet {{count}} auf die Übermittlung an Seerr.",
         "openQueued_other": "Davon warten {{count}} auf die Übermittlung an Seerr.",
-        "toRequests": "Zu den Anfragen"
+        "toRequests": "Zu den Anfragen",
+        "stalled_one": "{{count}} Download verzögert",
+        "stalled_other": "{{count}} Downloads verzögert",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Verzögerte Downloads ansehen",
+        "tagsFailed_one": "{{count}} Tag nicht gesetzt",
+        "tagsFailed_other": "{{count}} Tags nicht gesetzt",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Fehlende Tags ansehen"
       }
     },
     "integrations": {
@@ -5868,9 +5880,9 @@
           "title": "Titel",
           "requesters": "Gewünscht von",
           "state": "Zustand",
-          "seasons": "Staffeln",
           "seerr": "In Seerr",
-          "attempts": "Versuche"
+          "attempts": "Versuche",
+          "actions": "Aktionen"
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
@@ -5888,7 +5900,9 @@
           "available": "Verfügbar",
           "closed": "Abgeschlossen",
           "count_one": "{{count}} Wunsch",
-          "count_other": "{{count}} Wünsche"
+          "count_other": "{{count}} Wünsche",
+          "stalled": "Download verzögert",
+          "untagged": "Tag nicht gesetzt"
         },
         "sync": "Jetzt abgleichen",
         "syncQueued": "Der Abgleich mit Seerr läuft.",
@@ -5913,7 +5927,75 @@
         "noHistory": "Noch nichts geschehen.",
         "retry": "Erneut versuchen",
         "retryLabel": "{{title}}: erneut versuchen",
-        "retried": "{{title}} wird erneut versucht."
+        "retried": "{{title}} wird erneut versucht.",
+        "emptyStalled": "Kein Download ist verzögert.",
+        "emptyUntagged": "Jeder Profil-Tag ist gesetzt oder folgt noch.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Freigeben",
+        "approveLabel": "{{title}} freigeben",
+        "approved": "{{title}} ist freigegeben und wird beschafft.",
+        "decline": "Ablehnen",
+        "declineLabel": "{{title}} ablehnen",
+        "declineTitle": "{{title}} ablehnen?",
+        "declineBody": "Slouchcat gibt die Ablehnung an Seerr weiter. Seerr kennt keinen Grund: Die Profile sehen nur «Abgelehnt» und werden benachrichtigt.",
+        "declined": "{{title}} ist abgelehnt.",
+        "event": {
+          "approved_by_admin": "In der Verwaltung freigegeben",
+          "declined_by_admin": "In der Verwaltung abgelehnt"
+        },
+        "progress": {
+          "search": "Wird gesucht",
+          "download": "Wird heruntergeladen",
+          "import": "Wird eingelesen",
+          "stalled": "Download verzögert",
+          "percent": "{{percent}} %",
+          "etaMinutes": "noch {{minutes}} min",
+          "etaHours": "noch {{hours}} h {{minutes}} min",
+          "episodes": "{{done}} von {{total}} Folgen da",
+          "unreadable": "Fortschritt nicht lesbar",
+          "unreadableAt": "Fortschritt nicht lesbar · zuletzt gelesen {{time}}",
+          "notInService": "Noch nicht in {{service}}",
+          "incomplete": "Der Folgenstand ist nur teilweise lesbar."
+        },
+        "progressBlock": {
+          "title": "Fortschritt",
+          "service": "Dienst",
+          "state": "Stand",
+          "unknown": "Noch nichts bekannt",
+          "readAt": "Zuletzt gelesen",
+          "never": "Noch nie",
+          "note": "Hinweis",
+          "message": "Meldung von {{service}}"
+        },
+        "tags": {
+          "title": "Profil-Tags",
+          "set": "{{name}}",
+          "pending": "{{name}} · ausstehend",
+          "failed": "{{name}} · fehlgeschlagen",
+          "setAt": "In {{service}} gesetzt am {{time}}",
+          "setIn": "In {{service}} gesetzt",
+          "pendingHelp": "Der Tag folgt, sobald der Titel in {{service}} ist.",
+          "failedHelp": "{{service}} hat den Tag nicht angenommen."
+        }
+      },
+      "arrError": {
+        "not_in_arr": "Der Titel ist noch nicht in {{service}}.",
+        "tvdb_id_missing": "Der Serie fehlt die TVDB-ID.",
+        "not_confirmed": "Die Adresse aus Seerr wartet auf «Testen».",
+        "not_in_seerr": "Seerr hat keinen Standardserver für {{service}}.",
+        "seerr_off": "Seerr ist nicht eingerichtet oder ausgeschaltet.",
+        "redirect": "{{service}} leitet auf eine andere Adresse um.",
+        "timeout": "{{service}} hat nicht rechtzeitig geantwortet.",
+        "unreachable": "{{service}} ist nicht erreichbar.",
+        "key_invalid": "{{service}} lehnt den Schlüssel aus Seerr ab.",
+        "not_found": "{{service}} kennt den Titel nicht.",
+        "validation": "{{service}} hat den Aufruf als ungültig abgelehnt.",
+        "server": "{{service}} hat mit einem Fehler geantwortet.",
+        "bad_request": "{{service}} hat den Aufruf abgelehnt.",
+        "invalid": "{{service}} hat unerwartet geantwortet.",
+        "seerr": "Seerr hat Adresse und Schlüssel von {{service}} nicht geliefert.",
+        "other": "Fehler: {{error}}"
       }
     }
   },

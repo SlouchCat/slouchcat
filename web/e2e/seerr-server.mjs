@@ -14,8 +14,9 @@
 //   GET  /api/v1/settings/public     localLogin on (I-6)
 //   GET  /api/v1/settings/main       defaultPermissions and defaultQuotas (I-7)
 //   GET  /api/v1/settings/metadatas  {"tv": "tmdb", "anime": "tmdb"} (I-8): the test warns
-//   GET  /api/v1/settings/radarr     one Radarr server (I-9)
-//   GET  /api/v1/settings/sonarr     one Sonarr server
+//   GET  /api/v1/settings/radarr     one Radarr server (I-9): the Radarr mock of arr-server.mjs
+//   GET  /api/v1/settings/sonarr     one Sonarr server: the Sonarr mock (stage 4, profile tags
+//                                    and progress), with their key ARR_API_KEY
 //   POST /api/v1/request {}          400 from the request validator: CSRF protection is off
 //   POST /api/v1/request {mediaType, mediaId, tvdbId?, seasons?}   a request of the X-API-User
 //                                    (concept 25 stage 2): pending, or approved with AUTO_APPROVE
@@ -27,6 +28,9 @@
 //   GET|DELETE /api/v1/request/{id}  one request; DELETE 204 (only pending, or the key's owner)
 //   POST /api/v1/request/{id}/retry  a failed request (status 4) sent again: approved (2), 200
 //                                    with the request; any other 500 «Request is not failed.»
+//   POST /api/v1/request/{id}/approve|decline   a pending request (status 1) approved (2) or
+//                                    declined (3), 200 with the request; any other 409 «Only
+//                                    pending requests can be approved or declined.» (stage 4)
 //   GET  /api/v1/movie/{id}, /tv/{id}  the titles of tmdb-server.mjs with mediaInfo and, for a
 //                                    series, the seasons Seerr can order (season 0 included)
 //   GET  /api/v1/discover/trending, /discover/movies, /discover/tv, /discover/movies/upcoming,
@@ -49,6 +53,8 @@
 //   GET|POST /api/v1/user/{id}/settings/permissions   {permissions} (I-19)
 //   GET|POST /api/v1/user/{id}/settings/password      {hasPassword}; POST 204, under 8
 //                                    characters 400 (I-20)
+//   GET  /api/v1/user/{id}/requests?take=&skip=   {pageInfo, results} of that user, newest first
+//                                    (the count before «Anfragen übernehmen», stage 4)
 //   GET  /api/v1/user/{id}/quota     {movie {days, limit, used, remaining?, restricted}, tv}
 //                                    (I-30); limit 0 without `remaining` (I-31), null takes the
 //                                    instance's default (I-32), an administrator 0 (I-34)
@@ -65,6 +71,7 @@
 //                                    (request and user ids go on counting)
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { ARR_API_KEY } from './arr-server.mjs';
 import { MOVIES, SHOWS } from './tmdb-server.mjs';
 
 /** The api key the specs enter (a fake; the log scan of global-teardown.ts looks for it). */
@@ -194,7 +201,7 @@ const dvr = (id, name, port) => ({
   name,
   hostname: '127.0.0.1',
   port,
-  apiKey: 'e2e-dvr-key',
+  apiKey: ARR_API_KEY,
   useSsl: false,
   baseUrl: '',
   activeProfileId: 1,
@@ -350,11 +357,14 @@ const DISCOVER_TITLES = [
   .toSorted((a, b) => b.count - a.count || a.id - b.id);
 
 /**
- * Starts the Seerr mock on 127.0.0.1:`port` (SLOUCHCAT_E2E_SEERR_PORT, default 8086); resolves
- * with its port and a `close` function.
+ * Starts the Seerr mock on 127.0.0.1:`port` (SLOUCHCAT_E2E_SEERR_PORT, default 8086); its Radarr
+ * and Sonarr point at `radarrPort` and `sonarrPort` (the mocks of arr-server.mjs). Resolves with
+ * its port and a `close` function.
  */
 export function startSeerrServer({
   port = Number(process.env.SLOUCHCAT_E2E_SEERR_PORT ?? 8086),
+  radarrPort = 7878,
+  sonarrPort = 8989,
 } = {}) {
   let users = USERS.map((user) => ({ ...user }));
   let other = false;
@@ -614,11 +624,11 @@ export function startSeerrServer({
       return;
     }
     if (method === 'GET' && path === '/settings/radarr') {
-      sendJson(response, 200, [dvr(0, 'Radarr', 7878)]);
+      sendJson(response, 200, [dvr(0, 'Radarr', radarrPort)]);
       return;
     }
     if (method === 'GET' && path === '/settings/sonarr') {
-      sendJson(response, 200, [dvr(0, 'Sonarr', 8989)]);
+      sendJson(response, 200, [dvr(0, 'Sonarr', sonarrPort)]);
       return;
     }
     if (method === 'POST' && path === '/request') {
@@ -722,6 +732,22 @@ export function startSeerrServer({
         return;
       }
       found.status = 2;
+      sendJson(response, 200, requestOf(found));
+      return;
+    }
+    const decide = /^\/request\/(\d+)\/(approve|decline)$/.exec(path);
+    if (method === 'POST' && decide) {
+      const found = requests.find((r) => String(r.id) === decide[1]);
+      if (!found) {
+        sendJson(response, 404, { message: 'Request not found.' });
+        return;
+      }
+      if (found.status !== 1) {
+        sendJson(response, 409, { message: 'Only pending requests can be approved or declined.' });
+        return;
+      }
+      found.status = decide[2] === 'approve' ? 2 : 3;
+      found.updatedAt = new Date().toISOString();
       sendJson(response, 200, requestOf(found));
       return;
     }
@@ -900,6 +926,23 @@ export function startSeerrServer({
         response.writeHead(204).end();
         return;
       }
+    }
+    if (method === 'GET' && user && rest === '/requests') {
+      const take = Number(url.searchParams.get('take') ?? 10);
+      const skip = Number(url.searchParams.get('skip') ?? 0);
+      const list = requests
+        .filter((r) => r.requestedBy === user.id)
+        .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id - a.id);
+      sendJson(response, 200, {
+        pageInfo: {
+          pages: Math.max(1, Math.ceil(list.length / take)),
+          pageSize: take,
+          results: list.length,
+          page: Math.floor(skip / take) + 1,
+        },
+        results: list.slice(skip, skip + take).map(requestOf),
+      });
+      return;
     }
     if (method === 'GET' && user && rest === '/quota') {
       const mine = used[String(user.id)];

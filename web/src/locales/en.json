@@ -243,7 +243,11 @@
       "already_available": "The title is already in the library.",
       "wish_not_withdrawable": "The wish is already approved and can no longer be withdrawn.",
       "seerr_unreachable": "Seerr cannot be reached right now.",
-      "wish_not_retryable": "This wish cannot be retried."
+      "wish_not_retryable": "This wish cannot be retried.",
+      "wish_not_pending": "Already decided: this wish no longer waits for an approval in Seerr. The sync fetches the new state.",
+      "seerr_failed": "Seerr answered with an error.",
+      "seerr_instance_changed": "Another Seerr instance waits for your decision under Integrations › Seerr.",
+      "tag_name_taken": "Another profile already has this tag name."
     },
     "field": {
       "required": "Required.",
@@ -3828,7 +3832,15 @@
         "open_other": "{{count}} open wishes",
         "openQueued_one": "{{count}} of them is waiting to be sent to Seerr.",
         "openQueued_other": "{{count}} of them are waiting to be sent to Seerr.",
-        "toRequests": "To the requests"
+        "toRequests": "To the requests",
+        "stalled_one": "{{count}} download delayed",
+        "stalled_other": "{{count}} downloads delayed",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "View delayed downloads",
+        "tagsFailed_one": "{{count}} tag not set",
+        "tagsFailed_other": "{{count}} tags not set",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "View missing tags"
       }
     },
     "integrations": {
@@ -5868,9 +5880,9 @@
           "title": "Title",
           "requesters": "Wished by",
           "state": "State",
-          "seasons": "Seasons",
           "seerr": "In Seerr",
-          "attempts": "Attempts"
+          "attempts": "Attempts",
+          "actions": "Actions"
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
@@ -5888,7 +5900,9 @@
           "available": "Available",
           "closed": "Closed",
           "count_one": "{{count}} wish",
-          "count_other": "{{count}} wishes"
+          "count_other": "{{count}} wishes",
+          "stalled": "Download delayed",
+          "untagged": "Tag not set"
         },
         "sync": "Sync now",
         "syncQueued": "The sync with Seerr is running.",
@@ -5913,7 +5927,75 @@
         "noHistory": "Nothing happened yet.",
         "retry": "Retry",
         "retryLabel": "Retry {{title}}",
-        "retried": "{{title}} is retried."
+        "retried": "{{title}} is retried.",
+        "emptyStalled": "No download is delayed.",
+        "emptyUntagged": "Every profile tag is set or still to come.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Approve",
+        "approveLabel": "Approve {{title}}",
+        "approved": "{{title}} is approved and on its way.",
+        "decline": "Decline",
+        "declineLabel": "Decline {{title}}",
+        "declineTitle": "Decline {{title}}?",
+        "declineBody": "Slouchcat passes the refusal on to Seerr. Seerr keeps no reason: the profiles only see “Declined” and get a notification.",
+        "declined": "{{title}} is declined.",
+        "event": {
+          "approved_by_admin": "Approved in the administration",
+          "declined_by_admin": "Declined in the administration"
+        },
+        "progress": {
+          "search": "Searching",
+          "download": "Downloading",
+          "import": "Importing",
+          "stalled": "Download delayed",
+          "percent": "{{percent}} %",
+          "etaMinutes": "{{minutes}} min left",
+          "etaHours": "{{hours}} h {{minutes}} min left",
+          "episodes": "{{done}} of {{total}} episodes there",
+          "unreadable": "Progress not readable",
+          "unreadableAt": "Progress not readable · last read {{time}}",
+          "notInService": "Not in {{service}} yet",
+          "incomplete": "The episodes can only partly be read."
+        },
+        "progressBlock": {
+          "title": "Progress",
+          "service": "Service",
+          "state": "State",
+          "unknown": "Nothing known yet",
+          "readAt": "Last read",
+          "never": "Never",
+          "note": "Note",
+          "message": "Message from {{service}}"
+        },
+        "tags": {
+          "title": "Profile tags",
+          "set": "{{name}}",
+          "pending": "{{name}} · pending",
+          "failed": "{{name}} · failed",
+          "setAt": "Set in {{service}} on {{time}}",
+          "setIn": "Set in {{service}}",
+          "pendingHelp": "The tag follows once the title is in {{service}}.",
+          "failedHelp": "{{service}} did not take the tag."
+        }
+      },
+      "arrError": {
+        "not_in_arr": "The title is not in {{service}} yet.",
+        "tvdb_id_missing": "The series has no TVDB id.",
+        "not_confirmed": "The address from Seerr waits for “Test”.",
+        "not_in_seerr": "Seerr has no default server for {{service}}.",
+        "seerr_off": "Seerr is not set up or switched off.",
+        "redirect": "{{service}} redirects to another address.",
+        "timeout": "{{service}} did not answer in time.",
+        "unreachable": "{{service}} cannot be reached.",
+        "key_invalid": "{{service}} refuses the key from Seerr.",
+        "not_found": "{{service}} does not know the title.",
+        "validation": "{{service}} refused the call as invalid.",
+        "server": "{{service}} answered with an error.",
+        "bad_request": "{{service}} refused the call.",
+        "invalid": "{{service}} answered unexpectedly.",
+        "seerr": "Seerr did not hand over the address and key of {{service}}.",
+        "other": "Error: {{error}}"
       }
     }
   },

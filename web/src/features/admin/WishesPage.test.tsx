@@ -561,4 +561,129 @@ describe('Wünsche › Anfragen (M-23)', () => {
     // At the row's fold-out, beside its button, not at the top of the tab.
     expect(table).toContainElement(refused);
   });
+
+  it('approves and declines a pending wish; progress, tags and the two filters of stage 4', async () => {
+    const [owner] = adminWish().requesters;
+    if (!owner) throw new Error('the fixture has a requester');
+    const pending = adminWish({
+      id: 14,
+      title: { media: 'movie', tmdbId: 9003, title: 'Glasfabrik', year: 2024, posterUrl: '' },
+      state: 'pending',
+      failReason: undefined,
+      seerrUserName: 'kinder',
+      seerrRequestId: 101,
+      requesters: [owner],
+    });
+    const stalled = adminWish({
+      state: 'processing',
+      failReason: undefined,
+      requesters: [
+        {
+          ...owner,
+          tag: { name: 'sc-marco', service: 'radarr', state: 'failed', lastError: 'validation' },
+        },
+      ],
+      progress: {
+        stage: 'stalled',
+        service: 'radarr',
+        stale: false,
+        readAt: '2026-11-17T10:00:00Z',
+        message: 'No files found are eligible for import; (SABnzbd)',
+      },
+    });
+    const loading = adminWish({
+      id: 15,
+      title: { media: 'movie', tmdbId: 9001, title: 'Glasvogel', posterUrl: '' },
+      state: 'processing',
+      failReason: undefined,
+      requesters: [{ ...owner, tag: { name: 'sc-marco', service: 'radarr', state: 'set' } }],
+      progress: {
+        stage: 'download',
+        percent: 45,
+        etaSeconds: 720,
+        episodes: { done: 8, total: 10 },
+        service: 'radarr',
+        stale: false,
+        readAt: '2026-11-17T10:00:00Z',
+      },
+    });
+    const old = adminWish({
+      id: 16,
+      title: { media: 'movie', tmdbId: 9004, title: 'Altlicht', posterUrl: '' },
+      state: 'processing',
+      failReason: undefined,
+      requesters: [{ ...owner, tag: { name: 'sc-marco', service: 'radarr', state: 'pending' } }],
+      progress: { stage: 'search', service: 'radarr', stale: true, readAt: '2026-11-17T09:00:00Z' },
+    });
+    let approved = false;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes': () =>
+          json({
+            items: [
+              approved ? { ...pending, state: 'processing' } : pending,
+              stalled,
+              loading,
+              old,
+            ],
+            total: 4,
+            counts: { open: 4, pending: 1, processing: 3, partial: 0, available: 0, closed: 0 },
+          }),
+        'POST /admin/wishes/14/approve': () => {
+          if (!approved) {
+            approved = true;
+            return problem(409, 'wish_not_pending');
+          }
+          return json({ ...pending, state: 'processing' });
+        },
+        'POST /admin/wishes/14/decline': () => json({ ...pending, state: 'declined' }),
+      }),
+    );
+    renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    const glass = within(table).getByRole('row', { name: /Glasfabrik/ });
+    expect(within(glass).getByText('kinder')).toBeVisible();
+    const copper = within(table).getByRole('row', { name: /Kupfermond/ });
+    expect(within(copper).getByText('Download verzögert')).toBeVisible();
+    expect(within(copper).getByText('sc-marco · fehlgeschlagen')).toBeVisible();
+    // The message of Radarr stands only in the fold-out.
+    expect(screen.queryByText(/No files found/)).toBeNull();
+    const bird = within(table).getByRole('row', { name: /Glasvogel/ });
+    expect(
+      within(bird).getByText('Wird heruntergeladen · 45 % · noch 12 min · 8 von 10 Folgen da'),
+    ).toBeVisible();
+    expect(within(bird).getByText('sc-marco')).toBeVisible();
+    const light = within(table).getByRole('row', { name: /Altlicht/ });
+    expect(within(light).getByText(/^Fortschritt nicht lesbar · zuletzt gelesen /)).toBeVisible();
+    expect(within(light).getByText('sc-marco · ausstehend')).toBeVisible();
+
+    // «Ablehnen» asks first; «Abbrechen» keeps the wish.
+    await user$.click(within(glass).getByRole('button', { name: 'Glasfabrik ablehnen' }));
+    const question = await screen.findByRole('alertdialog', { name: 'Glasfabrik ablehnen?' });
+    await user$.click(within(question).getByRole('button', { name: 'Abbrechen' }));
+    expect(calls.some((call) => call.path === '/admin/wishes/14/decline')).toBe(false);
+
+    // A refused approval opens the row with the reason.
+    await user$.click(within(glass).getByRole('button', { name: 'Glasfabrik freigeben' }));
+    const refused = await screen.findByText(/Schon entschieden/);
+    expect(table).toContainElement(refused);
+    expect(within(glass).getByRole('button', { name: /Glasfabrik/, expanded: true })).toBeVisible();
+
+    await user$.click(within(copper).getByRole('button', { name: /Kupfermond/ }));
+    expect(
+      await screen.findByText('No files found are eligible for import; (SABnzbd)'),
+    ).toBeVisible();
+    expect(screen.getByText('Radarr hat den Aufruf als ungültig abgelehnt.')).toBeVisible();
+
+    // The two filters of the client: only the stalled wish, only the wish with a failed tag.
+    const filter = screen.getByRole('toolbar', { name: 'Wünsche nach Zustand filtern' });
+    await user$.click(within(filter).getByRole('button', { name: /^Download verzögert/ }));
+    await waitFor(() => expect(within(table).queryByRole('row', { name: /Glasvogel/ })).toBeNull());
+    expect(within(table).getByRole('row', { name: /Kupfermond/ })).toBeVisible();
+    await user$.click(within(filter).getByRole('button', { name: /^Tag nicht gesetzt/ }));
+    expect(within(table).getByRole('row', { name: /Kupfermond/ })).toBeVisible();
+    expect(within(table).queryByRole('row', { name: /Altlicht/ })).toBeNull();
+    expect(document.body.textContent).not.toContain('{{');
+  });
 });

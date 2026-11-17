@@ -41,6 +41,7 @@ import { integrationDetail, integrationHref, serviceHref } from '../integrations
 import { formatSeconds, typeName } from '../jobsFormat';
 import { dashboardQuery } from '../queries';
 import { reloadPage, RESTART_POLL_MS, restartedSince } from '../restart';
+import { arrErrorText, serviceName } from '../wishes/progress';
 import styles from './Server.module.css';
 
 // The parts the overview (`/admin`) and the page «Server» (`/admin/server`) share (redesign,
@@ -450,6 +451,55 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
         title: t('admin.home.wishes.gone', { count: wishes.goneUsers }),
         body: t('admin.home.wishes.goneBody'),
         action: <TextLink href={users}>{t('admin.home.wishes.toUsers')}</TextLink>,
+      });
+    }
+    // Radarr and Sonarr (stage 4): stalled downloads and tags that could not be set, each with
+    // its titles and service; the links open «Anfragen» with the matching filter.
+    const requests = `${paths.adminWishes}?tab=anfragen`;
+    if (wishes.downloadsStalled.length > 0) {
+      hints.push({
+        key: 'wishes-stalled',
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.stalled', { count: wishes.downloadsStalled.length }),
+        body: wishes.downloadsStalled
+          .map((hint) =>
+            t('admin.home.wishes.serviceTitle', {
+              title: hint.title,
+              service: serviceName(t, hint.service),
+            }),
+          )
+          .join(t('format.listSeparator')),
+        action: (
+          <TextLink href={`${requests}&item=stalled`}>{t('admin.home.wishes.toStalled')}</TextLink>
+        ),
+      });
+    }
+    if (wishes.tagsFailed.length > 0) {
+      hints.push({
+        key: 'wishes-tags',
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.tagsFailed', { count: wishes.tagsFailed.length }),
+        body: wishes.tagsFailed
+          .map((hint) => {
+            const entry = t('admin.home.wishes.serviceTitle', {
+              title: hint.title,
+              service: serviceName(t, hint.service),
+            });
+            return hint.error
+              ? t('admin.home.wishes.tagFailedEntry', {
+                  entry,
+                  reason: arrErrorText(t, hint.error, hint.service),
+                })
+              : entry;
+          })
+          .join(' '),
+        action: (
+          <TextLink href={`${requests}&item=untagged`}>
+            {t('admin.home.wishes.toUntagged')}
+          </TextLink>
+        ),
       });
     }
   }

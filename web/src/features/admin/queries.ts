@@ -895,6 +895,8 @@ export const seerrSettingsQuery = queryOptions({
 /** The state of the connection, the counters and the last 20 calls. */
 export type AdminWish = components['schemas']['AdminWish'];
 export type AdminWishPage = components['schemas']['AdminWishPage'];
+export type AdminWishProgress = components['schemas']['AdminWishProgress'];
+export type WishRequesterTag = components['schemas']['WishRequesterTag'];
 /** The filter of «Anfragen» (listAdminWishes `state`). */
 export type AdminWishFilter = 'all' | 'open' | 'available' | 'closed';
 
@@ -915,6 +917,14 @@ export const syncWishesNow = () => request(api.POST('/admin/seerr/sync'));
 /** «Erneut versuchen» of a failed wish (retryWish). */
 export const retryWish = (id: number) =>
   request(api.POST('/admin/wishes/{id}/retry', { params: { path: { id } } }));
+
+/** «Freigeben»: passes the approval of a pending wish on to Seerr; the wish as it is now. */
+export const approveWish = (id: number): Promise<AdminWish> =>
+  request(api.POST('/admin/wishes/{id}/approve', { params: { path: { id } } }));
+
+/** «Ablehnen»: passes the refusal of a pending wish on to Seerr; the wish as it is now. */
+export const declineWish = (id: number): Promise<AdminWish> =>
+  request(api.POST('/admin/wishes/{id}/decline', { params: { path: { id } } }));
 
 export const seerrStatusQuery = queryOptions({
   queryKey: [...seerrKeys.all, 'status'],

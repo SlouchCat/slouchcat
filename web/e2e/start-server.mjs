@@ -4,8 +4,8 @@
 // feed (feed-server.mjs, M6), the Trakt mock (trakt-server.mjs, M7) and the mocks of the
 // notification channels and the update check (smtp-, push-, telegram- and update-server.mjs, M8)
 // the Radio Browser with the test station (radio-server.mjs, concept 16) and the book sources of
-// audiobooks (books-server.mjs, concept 19 D3), Seerr (seerr-server.mjs, concept 25) and TMDB
-// (tmdb-server.mjs, concept 25 stage 2) run in this process and stop with the server.
+// audiobooks (books-server.mjs, concept 19 D3), Seerr (seerr-server.mjs, concept 25), TMDB
+// (tmdb-server.mjs, concept 25 stage 2) and Radarr and Sonarr (arr-server.mjs, stage 4) run in this process and stop with the server.
 //
 // The suite runs bin/slouchcat-e2e, the server built with the tag radiotest (`task build`): only
 // that build reads the catalog URL from the environment and lets the radio dial the loopback (plan
@@ -25,6 +25,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startArrServer } from './arr-server.mjs';
 import { startBooksServer } from './books-server.mjs';
 import { startFeedServer } from './feed-server.mjs';
 import { startPushServer } from './push-server.mjs';
@@ -73,9 +74,17 @@ const update = await startUpdateServer({ port: below('UPDATE', 7) });
 const radio = await startRadioServer({ port: below('RADIO', 9) });
 // The book sources ten below (books-server.mjs): the automatic match at start asks them.
 const books = await startBooksServer({ port: below('BOOKS', 10) });
+// Radarr thirteen and Sonarr fourteen below (arr-server.mjs, concept 25 stage 4): the profile tags
+// and the download progress. The server takes their address and key from Seerr, as in production.
+const radarr = await startArrServer({ kind: 'radarr', port: below('RADARR', 13) });
+const sonarr = await startArrServer({ kind: 'sonarr', port: below('SONARR', 14) });
 // Seerr eleven below (seerr-server.mjs, concept 25). No SLOUCHCAT_SEERR_* variable: the specs
 // enter its address in the form, which a value of the environment would lock.
-const seerr = await startSeerrServer({ port: below('SEERR', 11) });
+const seerr = await startSeerrServer({
+  port: below('SEERR', 11),
+  radarrPort: radarr.port,
+  sonarrPort: sonarr.port,
+});
 // TMDB twelve below (tmdb-server.mjs, concept 25 stage 2): the titles outside the library. The
 // server asks it only with a TMDB key, which the run has not (see SLOUCHCAT_TMDB_API_KEY below):
 // the wish specs store one through the administration and clear it afterwards (e2e/wishes.ts).
@@ -190,5 +199,7 @@ server.on('exit', (code) => {
     books.close(),
     seerr.close(),
     tmdb.close(),
+    radarr.close(),
+    sonarr.close(),
   ]).finally(() => process.exit(code ?? 0));
 });
