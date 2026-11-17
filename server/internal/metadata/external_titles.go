@@ -18,6 +18,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/externalq"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -937,7 +938,38 @@ func (s *Service) refreshOrder(ctx context.Context, now time.Time, open []TitleR
 			rows = append(rows, ref)
 		}
 	}
+	// The missing spotlight entries not stored yet (05-spotlight-integration.md section 5).
+	missing, err := systemq.New(s.db.Read).ListSpotlightTitlesToStore(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: spotlight titles: %w", JobTitlesRefresh, err)
+	}
+	for _, r := range missing {
+		if ref := (TitleRef{Media: r.Media, TMDBID: r.TmdbID.Int64}); !seen[ref] && len(rows) < titlesRefreshBatch {
+			seen[ref] = true
+			rows = append(rows, ref)
+		}
+	}
 	return rows, nil
+}
+
+// ExternalPosterVersion is the version of the stored poster of a title outside the library for the
+// administration's image route (getAdminExternalTitleImage): the content hash of its w200 JPEG,
+// else the time of the title's fetch while the poster is not scaled yet; "" when the title is not
+// stored or has no poster. Reading it counts as a use (migration 00074).
+func (s *Service) ExternalPosterVersion(ctx context.Context, media string, tmdbID int64) (string, error) {
+	t, err := s.ExternalTitle(ctx, media, tmdbID)
+	if errors.Is(err, model.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	for _, im := range t.Images {
+		if im.Kind == "poster" && im.Size == model.AdminPosterSize {
+			return im.Version, nil
+		}
+	}
+	return "", nil
 }
 
 // removeUnusedExternal deletes the stored titles not used since ExternalTitleUnusedAge before now

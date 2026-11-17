@@ -16,6 +16,9 @@ const fakeSeerrKey = "seerr-FAKE-key-0123456789abcd"
 type fakeSeerrHooks struct {
 	saved, wishSaved int
 	refuse           error
+	titleWishes      map[model.TitleKey]model.WishMark
+	canRequest       bool
+	askedTitles      []model.TitleKey
 }
 
 func (h *fakeSeerrHooks) CanEnableWishes(context.Context) error { return h.refuse }
@@ -28,6 +31,10 @@ func (h *fakeSeerrHooks) IntegrationStatus(context.Context) (model.IntegrationSt
 }
 func (h *fakeSeerrHooks) DashboardWishes(context.Context) (*model.DashboardWishes, error) {
 	return nil, nil
+}
+func (h *fakeSeerrHooks) SpotlightWishes(_ context.Context, titles []model.TitleKey) (map[model.TitleKey]model.WishMark, bool, error) {
+	h.askedTitles = append(h.askedTitles, titles...)
+	return h.titleWishes, h.canRequest, nil
 }
 
 func rawSetting(t *testing.T, f *fixture, key string) (string, bool) {

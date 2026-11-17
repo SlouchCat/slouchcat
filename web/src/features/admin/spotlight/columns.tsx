@@ -9,8 +9,9 @@ import styles from './Spotlight.module.css';
 export const entryName = (t: TFunction, entry: SpotlightEntry) =>
   entry.title ?? t('admin.spotlight.entries.untitled', { id: entry.tmdbId });
 
-/** The key of an entry in the tables and in the dialogs' state. */
-export const entryKey = (entry: SpotlightEntry) => `${entry.media}-${entry.tmdbId}`;
+/** The key of an entry in the tables and in the dialogs' state (an unmatched one by its place). */
+export const entryKey = (entry: SpotlightEntry) =>
+  `${entry.media}-${entry.tmdbId ?? -entry.position}`;
 
 const pinnedText = (t: TFunction, entry: SpotlightEntry) =>
   entry.pinnedRank === undefined

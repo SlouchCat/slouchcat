@@ -431,6 +431,15 @@ export const setSpotlightEntryOverride = (
     }),
   );
 
+/** The override of an entry; an unmatched entry (concept 25 N-62, no TMDB id) takes none. */
+export const overrideEntry = (
+  entry: SpotlightEntry,
+  body: SpotlightEntryOverride,
+): Promise<SpotlightEntry> =>
+  entry.tmdbId === undefined
+    ? Promise.reject(new TypeError('unmatched spotlight entry'))
+    : setSpotlightEntryOverride(entry.media, entry.tmdbId, body);
+
 /** Queues the spotlight fetch out of schedule ("Jetzt abrufen"); at most once a minute (429). */
 export const refreshSpotlight = () => request(api.POST('/admin/spotlight/refresh'));
 

@@ -63,6 +63,8 @@ const dune: SpotlightEntry = {
   itemTitle: 'Dune: Part One',
   hidden: false,
   orphaned: false,
+  unmatched: false,
+  canOverride: true,
   posterUrl: '/api/v1/admin/items/01J00000000000000000000001/images/poster/w200?v=dune',
 };
 const severance: SpotlightEntry = {
@@ -73,6 +75,8 @@ const severance: SpotlightEntry = {
   year: 2022,
   hidden: false,
   orphaned: false,
+  unmatched: false,
+  canOverride: true,
 };
 const orphan: SpotlightEntry = {
   media: 'movie',
@@ -82,6 +86,8 @@ const orphan: SpotlightEntry = {
   hidden: true,
   note: 'Alt',
   orphaned: true,
+  unmatched: false,
+  canOverride: true,
 };
 
 /** The routes of the page with a server that keeps the overrides it is sent. */

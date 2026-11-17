@@ -445,7 +445,8 @@ func TestExternalTitleRefreshInUse(t *testing.T) {
 	mustExec(t, e.db.Write, `UPDATE external_titles SET used_at = ?, fetched_at = ?`, old, stale)
 	mustExec(t, e.db.Write, `INSERT INTO external_titles (media, tmdb_id, fetched_at, used_at) VALUES ('movie', 603, ?, ?), ('movie', 604, ?, ?)`,
 		stale, testNow.Add(-day).UnixMilli(), stale, old)
-	mustExec(t, e.db.Write, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', 1, 604, 1)`)
+	// 605: a missing spotlight entry never stored comes last (05-spotlight-integration.md section 5).
+	mustExec(t, e.db.Write, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', 1, 604, 1), ('trending', 'movie', 2, 605, 1)`)
 	e.svc.wishTitles = func(_ context.Context, since time.Time) ([]TitleRef, []TitleRef, error) {
 		if !since.Equal(testNow.Add(-ExternalTitleUnusedAge)) {
 			t.Errorf("closed since %v", since)
@@ -459,7 +460,7 @@ func TestExternalTitleRefreshInUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []TitleRef{{MediaMovie, 601}, {MediaMovie, 604}, {MediaMovie, 603}}; !slices.Equal(order, want) {
+	if want := []TitleRef{{MediaMovie, 601}, {MediaMovie, 604}, {MediaMovie, 603}, {MediaMovie, 605}}; !slices.Equal(order, want) {
 		t.Errorf("order = %v, want %v", order, want)
 	}
 	before602 := e.tmdb.count("/3/movie/602")

@@ -85,6 +85,33 @@ func (q *Queries) GetOpenSeasonWish(ctx context.Context, arg GetOpenSeasonWishPa
 	return wish_id, err
 }
 
+const getTitleWish = `-- name: GetTitleWish :one
+SELECT id, state, state_detail FROM wishes
+WHERE media = ?1 AND tmdb_id = ?2
+ORDER BY CASE WHEN state IN ('queued', 'pending', 'processing', 'partial') THEN 0 ELSE 1 END, updated_at DESC, id DESC
+LIMIT 1
+`
+
+type GetTitleWishParams struct {
+	Media  string
+	TmdbID int64
+}
+
+type GetTitleWishRow struct {
+	ID          int64
+	State       string
+	StateDetail sql.NullString
+}
+
+// The wish of a title the administration shows on a missing spotlight entry: the open one, else
+// the newest.
+func (q *Queries) GetTitleWish(ctx context.Context, arg GetTitleWishParams) (GetTitleWishRow, error) {
+	row := q.db.QueryRowContext(ctx, getTitleWish, arg.Media, arg.TmdbID)
+	var i GetTitleWishRow
+	err := row.Scan(&i.ID, &i.State, &i.StateDetail)
+	return i, err
+}
+
 const getWish = `-- name: GetWish :one
 SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes WHERE id = ?1
 `

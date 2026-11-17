@@ -191,6 +191,8 @@ func TestContractSpotlightEntries(t *testing.T) {
 	}
 	exec(`INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, title, year, fetched_at) VALUES
 	      ('trending', 'movie', 1, 8001, 'Spotlight One', 2025, 1), ('trending', 'movie', 2, 9999, 'Not In The Library', NULL, 1)`)
+	// Concept 25 step 3.3: an unmatched show (TVDB id only, N-62) is listed without a TMDB id.
+	exec(`INSERT INTO spotlight_entries (list_key, media, position, tvdb_id, imdb_id, title, fetched_at) VALUES ('trending', 'show', 1, 777, 'tt0000777', 'Nicht zuordenbar', 1)`)
 	exec(`INSERT INTO spotlight_overrides (list_key, media, tmdb_id, hidden, note, updated_at) VALUES ('trending', 'show', 7777, 1, 'Weg', 1)`)
 	entries := func() gen.SpotlightEntries {
 		t.Helper()
@@ -212,18 +214,33 @@ func TestContractSpotlightEntries(t *testing.T) {
 	}
 
 	got := entries()
-	if got.ListKey != "trending" || len(got.Entries) != 2 || len(got.Orphans) != 1 {
+	if got.ListKey != "trending" || len(got.Entries) != 3 || len(got.Orphans) != 1 {
 		t.Fatalf("entries %+v", got)
 	}
-	hit, miss, orphan := got.Entries[0], got.Entries[1], got.Orphans[0]
-	if hit.TmdbId != 8001 || hit.Position != 1 || hit.ItemId == nil || *hit.ItemId != "01J9SPOTLIGHT0000000000001" ||
+	hit, miss, unmatched, orphan := got.Entries[0], got.Entries[1], got.Entries[2], got.Orphans[0]
+	if unmatched.Media != "show" || unmatched.TmdbId != nil || !unmatched.Unmatched || unmatched.CanOverride || unmatched.TvdbId == nil ||
+		*unmatched.TvdbId != 777 || unmatched.ImdbId == nil || *unmatched.ImdbId != "tt0000777" || unmatched.CanRequest != nil || unmatched.Wish != nil {
+		t.Errorf("unmatched %+v", unmatched)
+	}
+	if got.Missing == nil || got.Missing.Entries != 1 || got.Missing.Unmatched != 1 || got.Missing.Requested != 0 {
+		t.Errorf("missing %+v", got.Missing)
+	}
+	if !hit.CanOverride || hit.Unmatched || hit.Match == nil || *hit.Match != gen.SpotlightEntryMatchTmdb || !miss.CanOverride || miss.Match != nil {
+		t.Errorf("hit %+v, miss %+v", hit, miss)
+	}
+	// A missing entry never reaches a viewer answer (N-70): the start page shows library titles only.
+	if rec := send(t, h, http.MethodGet, BasePath+"/home", "p18", "", nil); rec.Code != http.StatusOK ||
+		strings.Contains(rec.Body.String(), "Not In The Library") || strings.Contains(rec.Body.String(), "Nicht zuordenbar") {
+		t.Errorf("home carries a missing entry: %d %s", rec.Code, rec.Body.String())
+	}
+	if deref(hit.TmdbId) != 8001 || hit.Position != 1 || hit.ItemId == nil || *hit.ItemId != "01J9SPOTLIGHT0000000000001" ||
 		hit.ItemTitle == nil || *hit.ItemTitle != "Spotlight 01" || hit.Year == nil || *hit.Year != 2025 || hit.Orphaned {
 		t.Errorf("hit %+v", hit)
 	}
-	if miss.TmdbId != 9999 || miss.Position != 2 || miss.ItemId != nil || miss.ItemTitle != nil || miss.Title == nil || *miss.Title != "Not In The Library" || miss.Year != nil {
+	if deref(miss.TmdbId) != 9999 || miss.Position != 2 || miss.ItemId != nil || miss.ItemTitle != nil || miss.Title == nil || *miss.Title != "Not In The Library" || miss.Year != nil {
 		t.Errorf("entry without a hit %+v", miss)
 	}
-	if orphan.Media != "show" || orphan.TmdbId != 7777 || orphan.Position != 0 || !orphan.Orphaned || !orphan.Hidden || orphan.Note == nil || *orphan.Note != "Weg" {
+	if orphan.Media != "show" || deref(orphan.TmdbId) != 7777 || orphan.Position != 0 || !orphan.Orphaned || !orphan.Hidden || orphan.Note == nil || *orphan.Note != "Weg" {
 		t.Errorf("orphan %+v", orphan)
 	}
 

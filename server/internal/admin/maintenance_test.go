@@ -30,6 +30,7 @@ type fakeMetadata struct {
 	unlocked  []string // itemID@number of refreshes before the unlock
 	searchErr error
 	searches  []string
+	posters   map[model.TitleKey]string // ExternalPosterVersion
 }
 
 func (m *fakeMetadata) Search(_ context.Context, provider, kind, query string, _ *int) ([]model.MetadataCandidate, error) {
@@ -885,6 +886,10 @@ func (m *fakeMetadata) CheckProviderKey(context.Context, string) (model.KeyCheck
 	return model.KeyCheck{OK: true}, nil
 }
 func (m *fakeMetadata) KeyRejected(context.Context, string) bool { return false }
+
+func (m *fakeMetadata) ExternalPosterVersion(_ context.Context, media string, tmdbID int64) (string, error) {
+	return m.posters[model.TitleKey{Media: media, TMDBID: tmdbID}], nil
+}
 
 // VerifyRatings repeats the trigger rules (plan 3.x) with minimum ages outside the FSK steps
 // (concept 22 stage 3, F-17): 14 on the series, 17 on an episode and 13 on a film give no issue;

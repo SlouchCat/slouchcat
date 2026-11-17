@@ -80,3 +80,26 @@ func TestTitlesInUse(t *testing.T) {
 		t.Errorf("open %v, recent %v", open, recent)
 	}
 }
+
+// SpotlightWishes (concept 25 step 3.3): the open wish of a title before a closed one, none for a
+// title without wish; requesting needs Seerr set up and switched on and «Wünsche aktiv».
+func TestSpotlightWishes(t *testing.T) {
+	r := newRequestFixture(t)
+	res := r.create(r.marco, film(matrix))
+	r.exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, created_at, updated_at, closed_at)
+	        VALUES (801, 'movie', ?, 'Matrix', 'slouchcat', 'declined', 1, ?, 1), (802, 'movie', ?, 'Alien', 'slouchcat', 'declined', 1, 1, 1)`,
+		matrix, r.clock.now().Add(time.Hour).UnixMilli(), alien)
+	r.cfg.set(func(c *fakeConfig) { c.wish.Enabled = true })
+	keys := []model.TitleKey{{Media: "movie", TMDBID: matrix}, {Media: "movie", TMDBID: alien}, {Media: "show", TMDBID: 1}}
+	marks, can, err := r.svc.SpotlightWishes(r.ctx, keys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := marks[keys[0]]; m.ID != res.Wish.ID || len(marks) != 2 || marks[keys[1]].State != model.WishDeclined || !can {
+		t.Errorf("marks %+v, can %v", marks, can)
+	}
+	r.cfg.set(func(c *fakeConfig) { c.wish.Enabled = false })
+	if _, can, _ := r.svc.SpotlightWishes(r.ctx, nil); can {
+		t.Error("requestable with the wishes off")
+	}
+}

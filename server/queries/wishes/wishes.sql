@@ -190,3 +190,11 @@ SELECT media, tmdb_id,
 FROM wishes
 WHERE state IN ('queued', 'pending', 'processing', 'partial') OR closed_at >= @closed_since
 ORDER BY open DESC, id;
+
+-- name: GetTitleWish :one
+-- The wish of a title the administration shows on a missing spotlight entry: the open one, else
+-- the newest.
+SELECT id, state, state_detail FROM wishes
+WHERE media = @media AND tmdb_id = @tmdb_id
+ORDER BY CASE WHEN state IN ('queued', 'pending', 'processing', 'partial') THEN 0 ELSE 1 END, updated_at DESC, id DESC
+LIMIT 1;

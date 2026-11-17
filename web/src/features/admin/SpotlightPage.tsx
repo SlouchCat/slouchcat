@@ -20,7 +20,7 @@ import {
   useUnsavedChanges,
 } from '@/ui/aria';
 import {
-  setSpotlightEntryOverride,
+  overrideEntry,
   spotlightConfigQuery,
   spotlightEntriesQuery,
   traktStatusQuery,
@@ -181,7 +181,7 @@ function SpotlightContent() {
   };
   const override = useMutation({
     mutationFn: ({ entry, body }: { entry: SpotlightEntry; body: SpotlightEntryOverride }) =>
-      setSpotlightEntryOverride(entry.media, entry.tmdbId, body),
+      overrideEntry(entry, body),
     onSuccess: async (saved, { entry, body }) => {
       say(outcome(entry, body));
       await settle(saved);

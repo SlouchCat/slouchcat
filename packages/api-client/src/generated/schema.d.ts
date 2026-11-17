@@ -10233,22 +10233,46 @@ export interface components {
             entries: components["schemas"]["SpotlightEntry"][];
             /** @description Overrides of this list whose title is not among the fetched entries any more. */
             orphans: components["schemas"]["SpotlightEntry"][];
+            missing?: components["schemas"]["SpotlightMissing"];
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25, band «Fehlende Einträge»): `entries` counts the entries
+         *     the library lacks (with a TMDB id), `requested` those of them with an open wish, `unmatched`
+         *     the entries TMDB could not resolve (no TMDB id, N-62). `canRequest`: the wishes are set up
+         *     (Seerr with address and key, switched on, «Wünsche aktiv»), so a missing entry can be
+         *     requested (`createWish` of the active profile, `source` `admin_spotlight`). The start page
+         *     and the spotlight list never show missing entries (N-70).
+         */
+        SpotlightMissing: {
+            entries: number;
+            requested: number;
+            unmatched: number;
+            canRequest: boolean;
         };
         /**
          * @description One entry of the fetched list with its library hit and its override. Not an `ItemRef`: the
-         *     administration is system-wide and names the library title by id and title only.
+         *     administration is system-wide and names the library title by id and title only. Since
+         *     contract 1.41.0 an entry carries its TVDB and IMDb ids, and an entry TMDB could not resolve
+         *     (`unmatched`) has no `tmdbId`.
          */
         SpotlightEntry: {
             /** @enum {string} */
             media: "movie" | "show";
-            /** Format: int64 */
-            tmdbId: number;
+            /**
+             * Format: int64
+             * @description Absent on an unmatched entry.
+             */
+            tmdbId?: number;
             /** @description The 1-based rank in the fetched list; 0 for an orphaned override. */
             position: number;
             /** @description The title as Trakt names it. */
             title?: string;
             year?: number;
-            /** @description The library title matched by TMDB id; absent when the library has no such title (never on the start page, S-4). */
+            /**
+             * @description The library title, matched like the start page (concept 25 N-61): a film by TMDB id, then
+             *     IMDb id; a show by TVDB id, then TMDB id, then IMDb id (`match`). Absent when the library
+             *     has no such title: a missing entry, never on the start page (S-4, N-70).
+             */
             itemId?: components["schemas"]["ItemID"];
             itemTitle?: string;
             hidden: boolean;
@@ -10257,8 +10281,41 @@ export interface components {
             note?: string;
             /** @description The override has no entry in the fetched list. */
             orphaned: boolean;
-            /** @description The poster (`w200`) of the library hit through `getAdminItemImage`; absent without hit or poster. */
+            /**
+             * @description The poster (`w200`): of the library hit through `getAdminItemImage`, of a missing entry
+             *     through `getAdminExternalTitleImage` (the stored title outside the library); absent
+             *     without poster.
+             */
             posterUrl?: string;
+            /**
+             * Format: int64
+             * @description The TVDB id Trakt names; absent without.
+             */
+            tvdbId?: number;
+            /** @description The IMDb id Trakt names (`tt…`); absent without. */
+            imdbId?: string;
+            /**
+             * @description The id the library title was found by; absent without hit.
+             * @enum {string}
+             */
+            match?: "tvdb" | "tmdb" | "imdb";
+            /**
+             * @description Trakt names only a TVDB id and TMDB could not resolve it (N-62): «Nicht zuordenbar». Such
+             *     an entry is neither missing nor requestable, and takes no override (`canOverride` false).
+             */
+            unmatched: boolean;
+            /**
+             * @description «Anheften», «Ausblenden» and «Notiz» (`setSpotlightEntryOverride`) apply: false only for
+             *     an unmatched entry, because overrides are kept by TMDB id.
+             */
+            canOverride: boolean;
+            /** @description A missing entry's wish of the title (the open one, else the newest); absent without any. */
+            wish?: components["schemas"]["WishMark"];
+            /**
+             * @description A missing entry can be requested from the administration: the wishes are set up and no open
+             *     wish holds the title. Absent (false) on entries of the library and unmatched ones.
+             */
+            canRequest?: boolean;
         };
         /**
          * @description The override of one entry. A field that is absent keeps its value; `null` clears it. An

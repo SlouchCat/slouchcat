@@ -1317,6 +1317,12 @@ type SpotlightEntries struct {
 	ListKey string
 	Entries []SpotlightEntry
 	Orphans []SpotlightEntry
+	// Missing counts the entries the library lacks (concept 25, band «Fehlende Einträge»):
+	// matched to TMDB, not in the library; Requested those of them with an open wish; Unmatched
+	// the entries TMDB could not resolve (N-62). CanRequest: the wishes are set up, so the
+	// administration may request a missing entry (createWish, source admin_spotlight).
+	Missing, Requested, Unmatched int
+	CanRequest                    bool
 }
 
 // SpotlightEntry is one fetched entry with its library hit (ItemID "" = no hit, never on the start
@@ -1334,6 +1340,18 @@ type SpotlightEntry struct {
 	Note       string
 	Orphaned   bool
 	PosterHash string // content hash of the hit's AdminPosterSize poster; "" = no hit or none stored
+	// Concept 25 step 3.3: the TVDB and IMDb ids from Trakt, the rung the library title was
+	// matched by (tvdb, tmdb, imdb; "" without hit) and Unmatched for an entry without TMDB id
+	// (N-62), which takes no override. A missing entry (no hit, TMDB id known) carries the wish of
+	// its title (open first, else the newest), whether the administration can request it, and the
+	// version of the stored poster of the title outside the library ("" = none stored yet).
+	TVDBID         int64
+	IMDBID         string
+	Match          string
+	Unmatched      bool
+	Wish           *WishMark
+	CanRequest     bool
+	ExternalPoster string
 }
 
 // SpotlightOverrideUpdate is the body of setSpotlightEntryOverride: a nil pointer keeps the value,

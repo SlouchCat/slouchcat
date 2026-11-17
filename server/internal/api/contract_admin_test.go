@@ -274,6 +274,10 @@ func (m contractMetadata) CheckProviderKey(_ context.Context, provider string) (
 
 // KeyRejected (concept 21 P-2): TVDB rejects its key, as CheckProviderKey refuses it; package
 // metadata remembers the real rejection (key_rejection_test.go).
+func (contractMetadata) ExternalPosterVersion(context.Context, string, int64) (string, error) {
+	return "", nil
+}
+
 func (contractMetadata) KeyRejected(_ context.Context, provider string) bool {
 	return provider == "tvdb"
 }

@@ -27,6 +27,12 @@ type WishMark struct {
 	StateDetail string
 }
 
+// TitleKey names a title by medium (movie, show) and TMDB id.
+type TitleKey struct {
+	Media  string
+	TMDBID int64
+}
+
 // ExternalTitleCard is a title outside the library in a list (ExternalTitleRef).
 type ExternalTitleCard struct {
 	Media         string

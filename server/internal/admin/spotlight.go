@@ -151,7 +151,74 @@ func (s *Service) SpotlightEntries(ctx context.Context) (model.SpotlightEntries,
 	if err != nil {
 		return model.SpotlightEntries{}, err
 	}
-	return model.SpotlightEntries{ListKey: cfg.ListKey, Entries: entries, Orphans: orphans}, nil
+	out := model.SpotlightEntries{ListKey: cfg.ListKey, Entries: entries, Orphans: orphans}
+	if out.CanRequest, err = s.missingEntries(ctx, out.Entries); err != nil {
+		return model.SpotlightEntries{}, err
+	}
+	for _, e := range out.Entries {
+		switch {
+		case e.Unmatched:
+			out.Unmatched++
+		case e.ItemID == "":
+			out.Missing++
+			if e.Wish != nil && openWishState(e.Wish.State) {
+				out.Requested++
+			}
+		}
+	}
+	return out, nil
+}
+
+// missingEntries completes the entries the library lacks (concept 25 step 3.3, N-71): the wish of
+// the title from package wishes, whether the administration can request it (the wishes are set up,
+// no open wish holds the title; an unmatched entry never), and the version of the stored poster of
+// the title outside the library. It reports whether requesting works at all.
+func (s *Service) missingEntries(ctx context.Context, entries []model.SpotlightEntry) (bool, error) {
+	var keys []model.TitleKey
+	for _, e := range entries {
+		if e.ItemID == "" && !e.Unmatched {
+			keys = append(keys, model.TitleKey{Media: e.Media, TMDBID: e.TmdbID})
+		}
+	}
+	if len(keys) == 0 && s.seerr == nil {
+		return false, nil
+	}
+	var marks map[model.TitleKey]model.WishMark
+	canRequest := false
+	if s.seerr != nil {
+		var err error
+		if marks, canRequest, err = s.seerr.SpotlightWishes(ctx, keys); err != nil {
+			return false, err
+		}
+	}
+	for i := range entries {
+		e := &entries[i]
+		if e.ItemID != "" || e.Unmatched {
+			continue
+		}
+		key := model.TitleKey{Media: e.Media, TMDBID: e.TmdbID}
+		if m, ok := marks[key]; ok {
+			e.Wish = &m
+		}
+		e.CanRequest = canRequest && (e.Wish == nil || !openWishState(e.Wish.State))
+		if s.meta != nil {
+			v, err := s.meta.ExternalPosterVersion(ctx, e.Media, e.TmdbID)
+			if err != nil {
+				return false, err
+			}
+			e.ExternalPoster = v
+		}
+	}
+	return canRequest, nil
+}
+
+// openWishState: queued, pending, processing or partial (data model 2.4).
+func openWishState(state string) bool {
+	switch state {
+	case model.WishQueued, model.WishPending, model.WishProcessing, model.WishPartial:
+		return true
+	}
+	return false
 }
 
 // SetSpotlightEntryOverride writes the override of one title (media, tmdbID) of the configured
@@ -237,6 +304,9 @@ func (s *Service) SetSpotlightEntryOverride(ctx context.Context, media string, t
 		return model.SpotlightEntry{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "spotlight override set", "list_key", cfg.ListKey, "media", media, "tmdb_id", tmdbID)
+	if _, err := s.missingEntries(ctx, entries); err != nil {
+		return model.SpotlightEntry{}, err
+	}
 	match := func(e model.SpotlightEntry) bool { return e.Media == media && e.TmdbID == tmdbID }
 	if i := slices.IndexFunc(entries, match); i >= 0 {
 		return entries[i], nil
@@ -285,14 +355,14 @@ func spotlightEntries(ctx context.Context, q *systemq.Queries, listKey string) (
 		e := model.SpotlightEntry{
 			Media: r.Media, TmdbID: r.TmdbID.Int64, Position: int(r.Position), Title: r.Title.String,
 			Hidden: r.OverrideHidden.Valid && r.OverrideHidden.Int64 != 0, PinnedRank: nullIntPtr(r.PinnedRank),
-			Note: r.Note.String,
+			Note: r.Note.String, TVDBID: r.TvdbID.Int64, IMDBID: r.ImdbID.String, Unmatched: !r.TmdbID.Valid,
 		}
 		if r.Year.Valid {
 			y := int(r.Year.Int64)
 			e.Year = &y
 		}
-		if r.ItemID.Valid {
-			e.ItemID, e.ItemTitle = r.ItemID.String, r.ItemTitle
+		if r.ItemID != "" {
+			e.ItemID, e.ItemTitle, e.Match = r.ItemID, r.ItemTitle, r.MatchRung
 		}
 		entries = append(entries, e)
 	}

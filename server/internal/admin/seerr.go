@@ -94,6 +94,10 @@ type SeerrHooks interface {
 	IntegrationStatus(ctx context.Context) (model.IntegrationStatus, error)
 	// DashboardWishes are the hints of the wishes of the overview; nil while Seerr is not set up.
 	DashboardWishes(ctx context.Context) (*model.DashboardWishes, error)
+	// SpotlightWishes returns the wish of each title (open first, else the newest; absent without
+	// any) for the missing spotlight entries, and whether the administration can request a title
+	// (Seerr set up and switched on, «Wünsche aktiv»; concept 25 step 3.3).
+	SpotlightWishes(ctx context.Context, titles []model.TitleKey) (map[model.TitleKey]model.WishMark, bool, error)
 }
 
 // WithSeerr sets the hooks of package wishes and returns the receiver.

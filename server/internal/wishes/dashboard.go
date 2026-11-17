@@ -2,8 +2,12 @@ package wishes
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/wishq"
 )
 
 // The overview of the administration (concept 25, administration 2, build step 1.6): the
@@ -88,4 +92,30 @@ func (s *Service) DashboardWishes(ctx context.Context) (*model.DashboardWishes, 
 		}
 	}
 	return out, nil
+}
+
+// SpotlightWishes returns the wish of each title for the missing entries of Verwaltung ›
+// Spotlight (open first, else the newest; absent without any) and whether the administration can
+// request: Seerr with address and key, switched on, «Wünsche aktiv» (concept 25 step 3.3, N-71).
+func (s *Service) SpotlightWishes(ctx context.Context, titles []model.TitleKey) (map[model.TitleKey]model.WishMark, bool, error) {
+	out := map[model.TitleKey]model.WishMark{}
+	for _, t := range titles {
+		w, err := s.read.GetTitleWish(ctx, wishq.GetTitleWishParams{Media: t.Media, TmdbID: t.TMDBID})
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			continue
+		case err != nil:
+			return nil, false, fmt.Errorf("wish of title: %w", err)
+		}
+		out[t] = model.WishMark{ID: w.ID, State: w.State, StateDetail: w.StateDetail.String}
+	}
+	cfg, err := s.cfg.SeerrConfig(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	ws, err := s.cfg.WishSettings(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	return out, cfg.Configured() && cfg.Enabled && ws.Enabled, nil
 }
