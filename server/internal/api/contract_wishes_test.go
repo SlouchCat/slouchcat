@@ -282,8 +282,24 @@ func TestContractWishes(t *testing.T) {
 	if it, _ := fulfilled("p18")["item"].(map[string]any); it == nil || it["id"] != f.Rated(16).ID {
 		t.Errorf("p18 fulfilled wish without its ItemRef")
 	}
-	if it := fulfilled("p12")["item"]; it != nil {
-		t.Errorf("p12 sees the ItemRef of a title rated 16: %v", it)
+	// p12 may not see the title rated 16: its wish reads «In Beschaffung · wird eingelesen»
+	// (architecture 8.3), without ItemRef and time, and counts as processing, not available.
+	if out := expect("p12", http.MethodGet, "/wishes?state=available", "", http.StatusOK, ""); out["total"] != float64(0) {
+		t.Errorf("p12 available wishes = %v", out)
+	}
+	all := expect("p12", http.MethodGet, "/wishes?state=all", "", http.StatusOK, "")
+	var hidden map[string]any
+	items, _ := all["items"].([]any)
+	for _, it := range items {
+		if w := it.(map[string]any); w["id"] == float64(8901) {
+			hidden = w
+		}
+	}
+	if hidden == nil || hidden["state"] != "processing" || hidden["stateDetail"] != "importing" || hidden["item"] != nil || hidden["availableAt"] != nil {
+		t.Errorf("p12 wish of a title rated 16 = %v", hidden)
+	}
+	if counts, _ := all["counts"].(map[string]any); counts == nil || counts["available"] != float64(0) || counts["processing"] == float64(0) {
+		t.Errorf("p12 counts = %v", all["counts"])
 	}
 	expect("p18", http.MethodGet, "/wishes?state=nope", "", http.StatusUnprocessableEntity, "validation_failed")
 

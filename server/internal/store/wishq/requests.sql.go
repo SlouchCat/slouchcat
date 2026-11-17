@@ -440,6 +440,35 @@ func (q *Queries) ListUnnotifiedAvailableWishes(ctx context.Context, since sql.N
 	return items, nil
 }
 
+const listWishIDsWithRequesters = `-- name: ListWishIDsWithRequesters :many
+SELECT DISTINCT wish_id FROM wish_requesters ORDER BY wish_id
+`
+
+// The wishes that have a requester (the filter "Nicht zuordenbar" of the administration keeps the
+// others).
+func (q *Queries) ListWishIDsWithRequesters(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listWishIDsWithRequesters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var wish_id int64
+		if err := rows.Scan(&wish_id); err != nil {
+			return nil, err
+		}
+		items = append(items, wish_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWishRequesterNames = `-- name: ListWishRequesterNames :many
 SELECT r.profile_id, r.account_id, r.role, r.created_at, r.closed_at, a.email AS account_email, p.name AS profile_name
 FROM wish_requesters AS r

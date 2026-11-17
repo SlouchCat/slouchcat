@@ -509,74 +509,92 @@ func (s *Service) checkWishes(ctx context.Context, admin seerr.Session) error {
 		return fmt.Errorf("wishes to check: %w", err)
 	}
 	for _, w := range rows {
-		ids, _, err := s.knownRequests(ctx, w)
-		if err != nil {
+		if err := s.checkWish(ctx, admin, w, now); err != nil {
 			return err
 		}
-		reqs := map[int]*seerr.Request{}
-		for _, id := range ids {
-			r, err := admin.Request(ctx, id)
-			switch {
-			case errors.Is(err, seerr.ErrNotFound):
-				reqs[id] = nil
-			case err != nil:
-				return err
-			default:
-				reqs[id] = &r
-			}
+	}
+	return nil
+}
+
+// checkWish reads the requests of one wish and writes what changed. The wish is read again in the
+// write transaction: a wish withdrawn or closed during the calls stays as it is (review Minor 2,
+// a GET 404 after the withdrawal deleted the request would turn withdrawn into failed).
+func (s *Service) checkWish(ctx context.Context, admin seerr.Session, w wishq.Wish, now time.Time) error {
+	ids, _, err := s.knownRequests(ctx, w)
+	if err != nil {
+		return err
+	}
+	reqs := map[int]*seerr.Request{}
+	for _, id := range ids {
+		r, err := admin.Request(ctx, id)
+		switch {
+		case errors.Is(err, seerr.ErrNotFound):
+			reqs[id] = nil
+		case err != nil:
+			return err
+		default:
+			reqs[id] = &r
 		}
-		var changes []change
-		err = s.inTx(ctx, func(q *wishq.Queries) error {
-			changes = nil
-			if err := q.SetWishChecked(ctx, wishq.SetWishCheckedParams{Now: num64(now.UnixMilli()), ID: w.ID}); err != nil {
-				return fmt.Errorf("checked: %w", err)
+	}
+	var changes []change
+	err = s.inTx(ctx, func(q *wishq.Queries) error {
+		changes = nil
+		if err := q.SetWishChecked(ctx, wishq.SetWishCheckedParams{Now: num64(now.UnixMilli()), ID: w.ID}); err != nil {
+			return fmt.Errorf("checked: %w", err)
+		}
+		cur, err := q.GetWish(ctx, w.ID)
+		if err != nil {
+			return fmt.Errorf("wish: %w", err)
+		}
+		if !isOpen(cur.State) || cur.State == model.WishQueued {
+			return nil
+		}
+		w = cur
+		if w.Media == model.WishMediaMovie {
+			r, ok := reqs[int(w.SeerrRequestID.Int64)]
+			if !ok {
+				return nil
 			}
-			if w.Media == model.WishMediaMovie {
-				r, ok := reqs[int(w.SeerrRequestID.Int64)]
-				if !ok {
-					return nil
-				}
-				if r == nil {
-					ch, err := s.setWish(ctx, q, w, model.WishFailed, "", model.WishFailRequestGone, sql.NullInt64{})
-					changes = ch
-					return err
-				}
-				ms := seerr.MediaUnknown
-				if r.Media != nil {
-					ms = r.Media.Status
-				}
-				ch, err := s.applyFilm(ctx, q, w, *r, ms)
+			if r == nil {
+				ch, err := s.setWish(ctx, q, w, model.WishFailed, "", model.WishFailRequestGone, sql.NullInt64{})
 				changes = ch
 				return err
 			}
-			seasons, err := q.ListWishSeasons(ctx, w.ID)
-			if err != nil {
-				return fmt.Errorf("seasons: %w", err)
+			ms := seerr.MediaUnknown
+			if r.Media != nil {
+				ms = r.Media.Status
 			}
-			ch, err := s.applySeasons(ctx, q, w.ID, func(n int) (seasonUpdate, bool) {
-				for _, se := range seasons {
-					if int(se.SeasonNumber) != n || !se.SeerrRequestID.Valid {
-						continue
-					}
-					r, ok := reqs[int(se.SeerrRequestID.Int64)]
-					switch {
-					case !ok:
-						return seasonUpdate{}, false
-					case r == nil:
-						return seasonUpdate{state: model.WishFailed, fail: model.WishFailRequestGone}, true
-					}
-					return seasonUpdateOf(*r, n), true
-				}
-				return seasonUpdate{}, false
-			})
+			ch, err := s.applyFilm(ctx, q, w, *r, ms)
 			changes = ch
 			return err
-		})
-		if err != nil {
-			return err
 		}
-		s.afterChanges(ctx, changes)
+		seasons, err := q.ListWishSeasons(ctx, w.ID)
+		if err != nil {
+			return fmt.Errorf("seasons: %w", err)
+		}
+		ch, err := s.applySeasons(ctx, q, w.ID, func(n int) (seasonUpdate, bool) {
+			for _, se := range seasons {
+				if int(se.SeasonNumber) != n || !se.SeerrRequestID.Valid {
+					continue
+				}
+				r, ok := reqs[int(se.SeerrRequestID.Int64)]
+				switch {
+				case !ok:
+					return seasonUpdate{}, false
+				case r == nil:
+					return seasonUpdate{state: model.WishFailed, fail: model.WishFailRequestGone}, true
+				}
+				return seasonUpdateOf(*r, n), true
+			}
+			return seasonUpdate{}, false
+		})
+		changes = ch
+		return err
+	})
+	if err != nil {
+		return err
 	}
+	s.afterChanges(ctx, changes)
 	return nil
 }
 

@@ -667,6 +667,12 @@ func (s *Service) accepted(ctx context.Context, w wishq.Wish, res sent) error {
 // announce tells the Notifier about a change of state: pending asks for a review, pending to
 // processing is an approval, declined and failed close the wish. An approval at creation (from
 // queued) is no message.
+//
+// Known limit (review Minor 8): it runs after the commit of the change, so a crash in between
+// loses «zur Freigabe», «freigegeben», «abgelehnt» and «fehlgeschlagen» for good. «Verfügbar» is
+// caught up because wish_requesters.notified_at marks what was sent (ListUnnotifiedAvailableWishes);
+// the status messages have no such mark, and a catch-up would need one in the schema (a column or
+// an outbox of messages), not a change of this package alone.
 func (s *Service) announce(ctx context.Context, wishID int64, from, to, fail string) {
 	if s.notifier == nil || from == to {
 		return

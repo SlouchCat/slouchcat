@@ -119,3 +119,8 @@ UPDATE wishes SET closed_at = COALESCE(closed_at, @now), updated_at = @now WHERE
 -- name: GetPrimaryProfile :one
 -- The primary profile of an account (it takes the wishes of a deleted profile).
 SELECT id FROM profiles WHERE account_id = @account_id AND is_default = 1;
+
+-- name: ListWishIDsWithRequesters :many
+-- The wishes that have a requester (the filter "Nicht zuordenbar" of the administration keeps the
+-- others).
+SELECT DISTINCT wish_id FROM wish_requesters ORDER BY wish_id;

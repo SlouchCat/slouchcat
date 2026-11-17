@@ -697,6 +697,63 @@ func (s *Service) created(ctx context.Context, p model.Profile, res createResult
 	return out, nil
 }
 
+// unseen tells, per library item, whether a profile may not see it: an available or partial wish
+// of such an item reads «In Beschaffung · wird eingelesen» for that profile (architecture 8.3,
+// security review M-1). The state of the wish stays as it is; only what the profile reads changes,
+// and the title stays 404 for it. One unseen serves one list (it caches per profile and item).
+type unseen struct {
+	s     *Service
+	cache map[[2]int64]map[string]bool // profile and account -> item -> hidden
+}
+
+func (s *Service) unseen() *unseen { return &unseen{s: s, cache: map[[2]int64]map[string]bool{}} }
+
+// hides reports whether the wish row (state, item) reads as processing for the profile.
+func (u *unseen) hides(ctx context.Context, profileID, accountID int64, state string, itemID sql.NullString) (bool, error) {
+	if (state != model.WishAvailable && state != model.WishPartial) || !itemID.Valid || u.s.lib == nil {
+		return false, nil
+	}
+	k := [2]int64{profileID, accountID}
+	if h, ok := u.cache[k][itemID.String]; ok {
+		return h, nil
+	}
+	err := u.s.lib.Visible(ctx, visibility.Profile(model.Profile{ID: profileID, AccountID: accountID}), itemID.String)
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return false, err
+	}
+	if u.cache[k] == nil {
+		u.cache[k] = map[string]bool{}
+	}
+	u.cache[k][itemID.String] = err != nil
+	return err != nil, nil
+}
+
+// asProcessing is what a hidden wish row reads: processing with «wird eingelesen», no time of the
+// availability, no item.
+func asProcessing(state, detail *string, availableAt *sql.NullInt64, itemID *sql.NullString) {
+	*state, *detail = model.WishProcessing, model.WishDetailImporting
+	*availableAt, *itemID = sql.NullInt64{}, sql.NullString{}
+}
+
+// hideAvailability removes what tells a hidden wish is in the library: available seasons read
+// processing, and the events of the availability go.
+func hideAvailability(w *model.Wish) {
+	for i := range w.Seasons {
+		if w.Seasons[i].State == model.WishAvailable {
+			w.Seasons[i].State = model.WishProcessing
+		}
+	}
+	w.Events = slices.DeleteFunc(w.Events, func(e model.WishEvent) bool {
+		if e.Kind == "season_available" {
+			return true
+		}
+		var d struct {
+			To string `json:"to"`
+		}
+		return e.Kind == "state_changed" && json.Unmarshal([]byte(e.Detail), &d) == nil && (d.To == model.WishAvailable || d.To == model.WishPartial)
+	})
+}
+
 // wishFor reads one wish as the profile sees it; model.ErrNotFound when it is not the profile's.
 func (s *Service) wishFor(ctx context.Context, profileID, wishID int64, ws model.WishSettings) (model.Wish, error) {
 	r, err := s.read.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: wishID, ProfileID: profileID})
@@ -710,7 +767,19 @@ func (s *Service) wishFor(ctx context.Context, profileID, wishID int64, ws model
 	if err != nil {
 		return model.Wish{}, fmt.Errorf("wish: %w", err)
 	}
-	return s.toWish(ctx, w, r.Role, ws)
+	hidden, err := s.unseen().hides(ctx, profileID, r.AccountID, w.State, w.ItemID)
+	if err != nil {
+		return model.Wish{}, err
+	}
+	if hidden {
+		asProcessing(&w.State, &w.StateDetail.String, &w.AvailableAt, &w.ItemID)
+		w.StateDetail.Valid = true
+	}
+	out, err := s.toWish(ctx, w, r.Role, ws)
+	if hidden {
+		hideAvailability(&out)
+	}
+	return out, err
 }
 
 // toWish maps a row with its seasons and newest events; role "" is the administration's view.
@@ -825,8 +894,19 @@ func (s *Service) ProfileWishes(ctx context.Context, p model.Profile, filter str
 		return model.WishPage{}, fmt.Errorf("profile wishes: %w", err)
 	}
 	var hits []wishq.ListProfileWishesRow
+	hidden := map[int64]bool{}
+	seen := s.unseen()
 	out := model.WishPage{Items: []model.Wish{}}
 	for _, r := range rows {
+		h, err := seen.hides(ctx, p.ID, p.AccountID, r.State, r.ItemID)
+		if err != nil {
+			return model.WishPage{}, err
+		}
+		if h {
+			hidden[r.ID] = true
+			asProcessing(&r.State, &r.StateDetail.String, &r.AvailableAt, &r.ItemID)
+			r.StateDetail.Valid = true
+		}
 		count(&out.Counts, r.State)
 		if inFilter(r.State, filter) {
 			hits = append(hits, r)
@@ -837,6 +917,9 @@ func (s *Service) ProfileWishes(ctx context.Context, p model.Profile, filter str
 		w, err := s.toWish(ctx, profileRow(r), r.Role, ws)
 		if err != nil {
 			return model.WishPage{}, err
+		}
+		if hidden[r.ID] {
+			hideAvailability(&w)
 		}
 		out.Items = append(out.Items, w)
 	}
@@ -862,8 +945,21 @@ func (s *Service) AccountWishes(ctx context.Context, p model.Profile, filter str
 		return model.WishPage{}, fmt.Errorf("account wishes: %w", err)
 	}
 	var hits []wishq.ListAccountWishesRow
+	type entry struct{ wish, profile int64 }
+	hidden := map[entry]bool{}
+	seen := s.unseen()
 	out := model.WishPage{Items: []model.Wish{}}
 	for _, r := range rows {
+		// Each entry as the profile of the entry sees it (architecture 8.3).
+		h, err := seen.hides(ctx, r.ProfileID, p.AccountID, r.State, r.ItemID)
+		if err != nil {
+			return model.WishPage{}, err
+		}
+		if h {
+			hidden[entry{r.ID, r.ProfileID}] = true
+			asProcessing(&r.State, &r.StateDetail.String, &r.AvailableAt, &r.ItemID)
+			r.StateDetail.Valid = true
+		}
 		count(&out.Counts, r.State)
 		if inFilter(r.State, filter) {
 			hits = append(hits, r)
@@ -883,6 +979,9 @@ func (s *Service) AccountWishes(ctx context.Context, p model.Profile, filter str
 			return model.WishPage{}, err
 		}
 		w.ProfileName = r.ProfileName
+		if hidden[entry{r.ID, r.ProfileID}] {
+			hideAvailability(&w)
+		}
 		if r.ProfileID != p.ID {
 			// Withdrawing and requesting again belong to the profile of the entry («Meine Wünsche»).
 			w.CanWithdraw, w.CanRequestAgain = false, false
@@ -921,19 +1020,34 @@ func (s *Service) AdminWishes(ctx context.Context, filter string, unmapped bool,
 	if err != nil {
 		return nil, 0, model.WishCounts{}, fmt.Errorf("all wishes: %w", err)
 	}
-	var counts model.WishCounts
-	var hits []model.AdminWish
-	for _, r := range rows {
-		names, err := s.read.ListWishRequesterNames(ctx, r.ID)
+	var with map[int64]bool
+	if unmapped {
+		ids, err := s.read.ListWishIDsWithRequesters(ctx)
 		if err != nil {
-			return nil, 0, model.WishCounts{}, fmt.Errorf("requesters: %w", err)
+			return nil, 0, model.WishCounts{}, fmt.Errorf("wishes with requesters: %w", err)
 		}
-		if unmapped && len(names) > 0 {
+		with = make(map[int64]bool, len(ids))
+		for _, id := range ids {
+			with[id] = true
+		}
+	}
+	var counts model.WishCounts
+	var hits []wishq.Wish
+	for _, r := range rows {
+		if unmapped && with[r.ID] {
 			continue
 		}
 		count(&counts, r.State)
-		if !inFilter(r.State, filter) {
-			continue
+		if inFilter(r.State, filter) {
+			hits = append(hits, r)
+		}
+	}
+	// Only the page is mapped (review Minor 10: two queries per wish for up to 10'000 wishes).
+	out := []model.AdminWish{}
+	for _, r := range page(hits, max(0, offset), limit) {
+		names, err := s.read.ListWishRequesterNames(ctx, r.ID)
+		if err != nil {
+			return nil, 0, model.WishCounts{}, fmt.Errorf("requesters: %w", err)
 		}
 		a := model.AdminWish{SeerrUserID: int(r.SeerrUserID.Int64), SeerrRequestID: int(r.SeerrRequestID.Int64), Attempts: int(r.Attempts),
 			Requesters: []model.AdminWishRequester{}}
@@ -944,11 +1058,7 @@ func (s *Service) AdminWishes(ctx context.Context, filter string, unmapped bool,
 		if a.Wish, err = s.toWish(ctx, r, "", ws); err != nil {
 			return nil, 0, model.WishCounts{}, err
 		}
-		hits = append(hits, a)
-	}
-	out := page(hits, max(0, offset), limit)
-	if out == nil {
-		out = []model.AdminWish{}
+		out = append(out, a)
 	}
 	return out, len(hits), counts, nil
 }

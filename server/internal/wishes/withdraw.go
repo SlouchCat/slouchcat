@@ -29,18 +29,22 @@ func (s *Service) WithdrawWish(ctx context.Context, p model.Profile, wishID int6
 	if err != nil {
 		return err
 	}
-	r, err := s.read.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: wishID, ProfileID: p.ID})
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && (r.AccountID != p.AccountID || r.ClosedAt.Valid)) {
-		return model.ErrNotFound
-	}
-	if err != nil {
-		return fmt.Errorf("requester: %w", err)
-	}
-	if !ws.AllowWithdraw {
-		return &model.WishNotAllowedError{Reason: model.WishReasonWithdrawDisabled}
-	}
 	queue := false
+	var r wishq.WishRequester
+	// The requester is read in the transaction (review Minor 6): an owner and a co-wisher who
+	// withdraw at the same moment see each other's change, and no open wish is left without one.
 	err = s.inTx(ctx, func(q *wishq.Queries) error {
+		var err error
+		r, err = q.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: wishID, ProfileID: p.ID})
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && (r.AccountID != p.AccountID || r.ClosedAt.Valid)) {
+			return model.ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("requester: %w", err)
+		}
+		if !ws.AllowWithdraw {
+			return &model.WishNotAllowedError{Reason: model.WishReasonWithdrawDisabled}
+		}
 		w, err := q.GetWish(ctx, wishID)
 		if err != nil {
 			return fmt.Errorf("wish: %w", err)

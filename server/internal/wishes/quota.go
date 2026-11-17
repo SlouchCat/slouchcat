@@ -173,15 +173,21 @@ func (s *Service) refreshQuota(ctx context.Context, admin seerr.Session, seerrUs
 	}
 	var movieFree, tvFree sql.NullInt64
 	if near(q.Movie) || near(q.TV) {
-		page, err := admin.Requests(ctx, seerr.RequestQuery{RequestedBy: seerrUserID, Sort: "added", SortDirection: "asc", Take: requestsOf})
+		days := 0
+		for _, p := range []seerr.QuotaPart{q.Movie, q.TV} {
+			if near(p) {
+				days = max(days, *p.Days)
+			}
+		}
+		reqs, err := windowRequests(ctx, admin, seerrUserID, s.now().Add(-time.Duration(days)*24*time.Hour))
 		if err != nil {
 			return err
 		}
 		if near(q.Movie) {
-			movieFree = nextFree(page.Results, seerr.MediaTypeMovie, *q.Movie.Days, s.now())
+			movieFree = nextFree(reqs, seerr.MediaTypeMovie, *q.Movie.Days, s.now())
 		}
 		if near(q.TV) {
-			tvFree = nextFree(page.Results, seerr.MediaTypeTV, *q.TV.Days, s.now())
+			tvFree = nextFree(reqs, seerr.MediaTypeTV, *q.TV.Days, s.now())
 		}
 	}
 	return s.write.SetSeerrUserQuotaState(ctx, wishq.SetSeerrUserQuotaStateParams{
@@ -197,17 +203,44 @@ func near(p seerr.QuotaPart) bool {
 	return p.Limit != nil && *p.Limit > 0 && p.Days != nil && p.Remaining != nil && *p.Remaining <= nextFreeOf
 }
 
+// windowPages bounds the pages windowRequests reads: 200 requests, far above any limit.
+const windowPages = 4
+
+// windowRequests reads the user's requests newest first until a page reaches back before since
+// (review Minor 1: the oldest 50 requests overall said nothing about the window of a user with
+// more requests than that).
+func windowRequests(ctx context.Context, admin seerr.Session, seerrUserID int, since time.Time) ([]seerr.Request, error) {
+	var out []seerr.Request
+	for page := range windowPages {
+		p, err := admin.Requests(ctx, seerr.RequestQuery{RequestedBy: seerrUserID, Sort: "added", SortDirection: "desc", Take: requestsOf, Skip: page * requestsOf})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p.Results...)
+		if len(p.Results) < requestsOf || !p.Results[len(p.Results)-1].CreatedAt.After(since) {
+			break
+		}
+	}
+	return out, nil
+}
+
 // nextFree is the oldest request of the media type within the window that counts (declined ones
-// do not) plus the days.
+// do not) plus the days; the order of reqs does not matter.
 func nextFree(reqs []seerr.Request, mediaType string, days int, now time.Time) sql.NullInt64 {
 	window := time.Duration(days) * 24 * time.Hour
-	for _, r := range reqs { // oldest first
+	var oldest time.Time
+	for _, r := range reqs {
 		if r.Type != mediaType || r.Status == seerr.RequestDeclined || !r.CreatedAt.After(now.Add(-window)) {
 			continue
 		}
-		return num64(r.CreatedAt.Add(window).UnixMilli())
+		if oldest.IsZero() || r.CreatedAt.Before(oldest) {
+			oldest = r.CreatedAt
+		}
 	}
-	return sql.NullInt64{}
+	if oldest.IsZero() {
+		return sql.NullInt64{}
+	}
+	return num64(oldest.Add(window).UnixMilli())
 }
 
 // wishQuota is the limit state of a user as the administration shows it: the effective limit with

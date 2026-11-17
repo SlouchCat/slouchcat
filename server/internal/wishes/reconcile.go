@@ -321,21 +321,41 @@ func (s *Service) seasonsAgain(ctx context.Context, w wishq.Wish, itemID string,
 	return nil
 }
 
-// markImporting keeps an open wish in processing with «wird eingelesen».
+// markImporting keeps an open wish in processing with «wird eingelesen»; the wish is read again in
+// the transaction, so a wish withdrawn or closed meanwhile stays as it is.
 func (s *Service) markImporting(ctx context.Context, w wishq.Wish) error {
-	if w.State != model.WishProcessing || w.StateDetail.String == model.WishDetailImporting {
-		return nil
-	}
-	_, err := s.write.SetWishState(ctx, wishq.SetWishStateParams{State: w.State, StateDetail: nullString(model.WishDetailImporting), Now: s.now().UnixMilli(), ID: w.ID})
-	return err
+	return s.inTx(ctx, func(q *wishq.Queries) error {
+		cur, err := q.GetWish(ctx, w.ID)
+		if err != nil {
+			return fmt.Errorf("wish: %w", err)
+		}
+		if cur.State != model.WishProcessing || cur.StateDetail.String == model.WishDetailImporting {
+			return nil
+		}
+		_, err = q.SetWishState(ctx, wishq.SetWishStateParams{State: cur.State, StateDetail: nullString(model.WishDetailImporting),
+			ApprovedAt: cur.ApprovedAt, Now: s.now().UnixMilli(), ID: w.ID})
+		return err
+	})
 }
 
 // markAvailable writes a film, or the complete seasons of a series, as available and announces it:
-// the whole wish when every season is, else each new season.
+// the whole wish when every season is, else each new season. The wish is read again in the
+// transaction (review Minor 3: the visibility checks and a TMDB fetch lie between the first read
+// and the write): a wish withdrawn meanwhile stays withdrawn and nothing is announced; any other
+// state counts as it is now (a failed or declined wish becomes available too, architecture 8.1).
 func (s *Service) markAvailable(ctx context.Context, w wishq.Wish, itemID string, complete []SeasonNotice) error {
 	state := model.WishAvailable
+	stale := false
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
 		now := s.now().UnixMilli()
+		cur, err := q.GetWish(ctx, w.ID)
+		if err != nil {
+			return fmt.Errorf("wish: %w", err)
+		}
+		if stale = cur.State == model.WishWithdrawn; stale {
+			return nil
+		}
+		w = cur
 		if w.Media == model.WishMediaShow {
 			for _, c := range complete {
 				if _, err := q.SetWishSeasonState(ctx, wishq.SetWishSeasonStateParams{State: model.WishAvailable, AvailableAt: num64(now),
@@ -378,7 +398,7 @@ func (s *Service) markAvailable(ctx context.Context, w wishq.Wish, itemID string
 		}
 		return s.event(ctx, q, w.ID, "state_changed", map[string]any{"from": w.State, "to": state, "seasons": seasonNumbers(complete)})
 	})
-	if err != nil {
+	if err != nil || stale {
 		return err
 	}
 	s.log.InfoContext(ctx, "wish found in the library", "wish_id", w.ID, "state", state, "seasons", len(complete))

@@ -50,8 +50,17 @@ func (s *Service) profileTitleWishes(ctx context.Context, p model.Profile) (map[
 		return nil, fmt.Errorf("profile wishes: %w", err)
 	}
 	out := map[string]titleWishes{}
+	seen := s.unseen()
 	for i := range rows {
 		r := &rows[i]
+		// A wish of a library title the profile may not see reads as in procurement (architecture
+		// 8.3): it is the open wish of the title for this profile, never its last closed one.
+		if h, err := seen.hides(ctx, p.ID, p.AccountID, r.State, r.ItemID); err != nil {
+			return nil, err
+		} else if h {
+			asProcessing(&r.State, &r.StateDetail.String, &r.AvailableAt, &r.ItemID)
+			r.StateDetail.Valid = true
+		}
 		k := titleKey(r.Media, r.TmdbID)
 		tw := out[k]
 		switch {
