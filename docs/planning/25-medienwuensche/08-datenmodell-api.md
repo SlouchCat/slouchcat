@@ -496,7 +496,9 @@ Seerr-Benutzer (`03-architektur.md`, Abschnitt 19). Für einen Benutzer mit `is_
 
 ### 2.14 `wish_profile_tags` und `wish_tags` (Stufe 4)
 
-`wish_profile_tags`: überschriebener Tag-Name je Profil (N-21). Keine Zeile = Name aus Präfix und Profilname.
+`wish_profile_tags`: überschriebener Tag-Name je Profil (N-21). Keine Zeile = Name aus Präfix und Profilname,
+gebildet nach N-113 (Anhang I, I-52: klein, Umlaute ausgeschrieben, alles ausser `a–z`, `0–9` wird `-`, leer
+geworden `<präfix>profil-<id>`); ein überschriebener Name wird nach derselben Regel geprüft (422 sonst).
 Haben zwei Profile denselben Namen, behält das zuerst angelegte (kleinere `profiles.id`) den einfachen Namen
 (`sc-kinder`); für das später angelegte schreibt Slouchcat beim ersten Tag eine Zeile mit dem Kontonamen dazu
 (`sc-kinder-grosseltern`). So ändert sich kein Name nachträglich; Tags werden nie umbenannt (N-21 genauer,

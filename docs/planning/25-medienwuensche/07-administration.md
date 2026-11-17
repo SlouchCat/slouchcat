@@ -267,7 +267,7 @@ stellt nichts ein; es zeigt den Stand und verlinkt auf die Orte der Einstellunge
 
 | Element | Inhalt |
 |---|---|
-| Einleitung | «Jedes Konto hat in Seerr einen eigenen Benutzer mit demselben Login. Seine Profile fordern als dieser Benutzer an und tragen einen Tag. Rechte, Limit und Freigabe kommen von diesem Benutzer.» (Wortlaut Mockup) |
+| Einleitung | Befund der Prüfung (Anhang I, I-10): Auf Marcos Instanz melden sich alle bestehenden Seerr-Benutzer über Emby an; verknüpft bekommen sie kein Passwort, dasselbe Login gibt es nur für neu eröffnete. Text: «Jedes Konto hat in Seerr einen eigenen Benutzer mit demselben Login. Seine Profile fordern als dieser Benutzer an und tragen einen Tag. Rechte, Limit und Freigabe kommen von diesem Benutzer.» (Wortlaut Mockup) |
 | Zeile «Konten in Seerr» | «3 von 3 Konten: 2 eröffnet, 1 verknüpft» bzw. «1 wartet, bis Seerr erreichbar ist»; Link «Zu den Seerr-Benutzern» |
 | Zeile «Neue Konten» | Wert von «Neue Konten in Seerr eröffnen» und «Passwort abgleichen», Link «Einstellungen» |
 | Zeile «Passwort» | «Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Ein Passwort, das jemand direkt in Seerr ändert, bemerkt Slouchcat nicht.» (N-3, N-7). Zusatz (Marco, F-24; N-103; Wortlaut **Vorschlag**): «Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.» |

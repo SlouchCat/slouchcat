@@ -4,7 +4,7 @@
 > eröffnet ihn, sobald jemand eine Einladung annimmt, und verknüpft einen Benutzer, den es in Seerr mit
 > derselben E-Mail schon gibt (Marco, 17. November 2026, E-1 und E-4). Das gilt sofort, auch wenn das Konto
 > die Adresse beim Annehmen einer Einladung selbst eingetippt hat (Marco, E-8); das ist eine bekannte Grenze
-> (Abschnitt 12.5). Profile bekommen in Seerr kein
+> (Abschnitt 12.5). Befund der Prüfung (Anhang I, I-10): Auf Marcos Instanz ist der Medienserver Emby, und alle bestehenden Seerr-Benutzer melden sich über Emby an. Sie werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6); dasselbe Login gibt es dort nur für Benutzer, die Slouchcat neu eröffnet. Profile bekommen in Seerr kein
 > Login. Slouchcat merkt sich je Wunsch das Profil und hängt einen **Profil-Tag** wie `sc-noah` an den Film in
 > Radarr oder die Serie in Sonarr, damit man auch dort sieht, wer was gewünscht hat (Marco, E-2). Über denselben
 > Zugang liest Slouchcat den Download-Fortschritt; die Webhooks von Radarr und Sonarr bleiben wie heute
@@ -199,7 +199,8 @@ Sammelbenutzer darf keinem Konto als Benutzer gehören; das prüft der Dienst in
 7. **Verknüpfung lösen.** Entfernt die Zeile. Die Wünsche bleiben in Seerr und in Slouchcat erhalten; das
    Konto kann danach nicht mehr anfordern.
 8. **Sammelbenutzer (Marco, F-4; ab Werk an).** Slouchcat legt in Seerr den lokalen Benutzer «slouchcat-gaeste»
-   an (ohne Anmeldung, ohne automatische Freigabe, Recht `REQUEST`) und schreibt ihm das Standard-Limit; es gilt
+   an (ohne Anmeldung, mit den Rechten aus Seerrs Vorgabe für neue Benutzer, auf Marcos Instanz also mit
+   automatischer Freigabe: Marco, I-F2; N-111) und schreibt ihm das Standard-Limit; es gilt
    gemeinsam für alle Konten, die über ihn senden. Über ihn senden Konten mit Wunschrecht ohne eigenen Benutzer
    («nicht eröffnet», «wartet»). Der Schalter «Konten ohne Seerr-Benutzer» steht ab Werk auf «Sammelbenutzer»,
    die andere Wahl ist «Nicht erlauben». Einen anderen Benutzer als Sammelbenutzer wählt man nicht (N-101).
@@ -280,8 +281,9 @@ die das Konto selbst eintippt (Einladung angenommen; Abschnitt 12.5).
 - **Von Hand:** «Anderen Benutzer wählen» bleibt für alle Fälle, in denen die E-Mail nicht passt. Zur Wahl
   stehen Benutzer, die zu keinem Konto gehören.
 - **Rechte** eines Benutzers, den es schon gab, fasst Slouchcat nicht an (N-9).
-- **Limit:** Slouchcat überschreibt das Limit, das dort stand, mit dem Limit des Kontos, ausser der Benutzer
-  hat `MANAGE_USERS` (N-37; Abschnitt 17).
+- **Limit:** Hat der Benutzer in Seerr schon ein eigenes Limit und das Konto in Slouchcat noch keines, übernimmt
+  Slouchcat es als eigenes Limit des Kontos; ohne Limit in Seerr gilt der Slouchcat-Standard (Marco, I-F3; N-112,
+  ersetzt N-37). Benutzer mit `MANAGE_USERS` bleiben ohne Limit (Abschnitt 17).
 - **Passwort:** beim Annehmen einer Einladung und nach einer E-Mail-Änderung des Kontos sofort bzw. bei der
   nächsten Anmeldung (N-91, folgt aus E-1 und E-8). Verknüpft ein Administrator ein bestehendes Konto mit einem
   bestehenden Seerr-Benutzer (über die E-Mail oder von Hand), behält dieser sein Passwort: «Wird nicht
@@ -655,13 +657,13 @@ Empfehlung (N-9):
 
 | Fall | Rechte des Benutzers in Seerr |
 |---|---|
-| eröffnet, Konto mit Wunschrecht | `REQUEST` (32) |
+| eröffnet, Konto mit Wunschrecht | wie Seerrs Vorgabe für neue Benutzer (`defaultPermissions`; auf Marcos Instanz `REQUEST` + `AUTO_APPROVE` + `MANAGE_ISSUES`, Anhang I I-13); Slouchcat schreibt nichts darüber (Marco, I-F1; N-110) |
 | eröffnet, Konto ohne Wunschrecht | keine (`permissions = 0`) |
-| Administrator schaltet das Wunschrecht des Kontos um | Slouchcat zieht die Rechte nach (`POST /user/{id}/settings/permissions`) |
+| Administrator schaltet das Wunschrecht des Kontos um | Slouchcat zieht die Rechte nach (`POST /user/{id}/settings/permissions`): ohne Recht `0`, mit Recht der aktuelle Wert von `defaultPermissions` (N-110) |
 | Benutzer bestand schon (verknüpft, auch beim Annehmen einer Einladung, oder von Hand zugeordnet) | Slouchcat fasst die Rechte nicht an |
 
-Auto-Freigabe bekommt ein eröffneter Benutzer nicht; `REQUEST` allein heisst «braucht eine Freigabe». Wer
-Auto-Freigabe geben will, stellt sie in Seerr ein. Die Seite «Seerr-Benutzer» zeigt die Rechte je
+Ob ein eröffneter Benutzer automatisch freigegeben wird, entscheidet Seerrs Vorgabe für neue Benutzer; auf Marcos
+Instanz ist das so (Marco, I-F1; Anhang I I-13). Wer das anders will, stellt es in Seerr ein. Die Seite «Seerr-Benutzer» zeigt die Rechte je
 Benutzer («darf Filme anfordern», «darf Serien anfordern», «Auto-Freigabe»).
 
 ## 15. Konto löschen
@@ -790,8 +792,11 @@ Slouchcat schreibt das Limit in den Seerr-Benutzer des Kontos (`movieQuotaLimit`
 die Zahl der Requests, bei Serien die **Summe der Staffeln** (Anhang H 3.2). Darum zählen auch Wünsche, die
 jemand direkt in Seerr stellt.
 
-Es gibt genau einen Ort, an dem das Limit eingestellt wird: Für einen verknüpften Benutzer überschreibt
-Slouchcat, was in Seerr stand (N-37).
+Es gibt genau einen Ort, an dem das Limit eingestellt wird: Slouchcat. Beim Verknüpfen übernimmt Slouchcat ein
+bestehendes Limit des Benutzers als eigenes Limit des Kontos, wenn das Konto noch keines hat; ohne Limit in Seerr
+gilt «Standard» (Marco, I-F3). Einzelheiten (N-112, Redaktion): beide Limits 0 → «Unbegrenzt»; leere Felder aus
+der Vorgabe; Werte ausserhalb 0 bis 100 bzw. 1 bis 90 Tage auf die Grenze gesetzt und in Seerr nachgeführt. Danach
+schreibt Slouchcat jede Änderung in Seerr.
 
 ### 17.3 Was zählt
 

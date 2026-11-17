@@ -133,7 +133,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-4 Konten ohne Seerr-Benutzer
 
-- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Sammelbenutzer ab Werk.** Slouchcat legt in Seerr den Benutzer «slouchcat-gaeste» an (ohne Anmeldung, ohne automatische Freigabe); über ihn senden Konten ohne eigenen Seerr-Benutzer. Für ihn gilt das Standard-Limit, gemeinsam für alle diese Konten.
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Sammelbenutzer ab Werk.** Slouchcat legt in Seerr den Benutzer «slouchcat-gaeste» an (ohne Anmeldung, ohne automatische Freigabe; die Freigabe hat Marco danach mit I-F2 anders beantwortet: Rechte wie Seerrs Vorgabe, Anhang I 6, N-111); über ihn senden Konten ohne eigenen Seerr-Benutzer. Für ihn gilt das Standard-Limit, gemeinsam für alle diese Konten.
 - **Worum:** Was passiert mit einem Konto, das (noch) keinen Seerr-Benutzer hat?
 - **In der Sache weitgehend geklärt:** Seit E-1 und E-4 bekommt jedes Konto einen Benutzer, durch Eröffnen beim
   Einladen, über die E-Mail oder über «In Seerr eröffnen». Ohne Benutzer bleibt ein Konto nur, solange es
@@ -691,7 +691,8 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
    senden über den Sammelbenutzer «slouchcat-gaeste», den Slouchcat anlegt (F-4, N-101, N-102). Ein
    Seerr-Benutzer gehört höchstens einem Konto. Je Wunsch speichert Slouchcat Konto, Profil,
    Seerr-Benutzer (eingefroren) und Request-ID, bei Serien je Staffel. Die Rechte eines eröffneten Benutzers
-   folgen dem Wunschrecht (`REQUEST` oder keine); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
+   folgen dem Wunschrecht: mit Recht Seerrs Vorgabe für neue Benutzer (`defaultPermissions`), ohne Recht keine
+   (Marco, I-F1; N-110); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
    gelöscht, bleibt sein Seerr-Benutzer bestehen; nur einem eröffneten nimmt Slouchcat die Rechte und setzt
    ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (N-10, F-31).
 5. **Wunschrecht** je Konto (`accounts.can_request`, Administrator) als Deckel und je Profil
@@ -1244,4 +1245,20 @@ B-4 zum Ablauf (Anhang H 11.1). Abschnitt 11 dort geht allen früheren vor.
 | übrige | nach Empfehlung | – | Antwort als erster Punkt jeder Frage in Abschnitt 1; `04` 19, `06` 13, `07` 14 |
 
 Das Mockup bleibt unverändert; wo es den alten Stand zeigt, steht in `mockup-abdeckung.md`, Abschnitt 11.
+
+### 7.9 Prüfung an den echten Instanzen (Anhang I)
+
+Vor dem Bau der Benutzerpflege wurden Seerr, Radarr und Sonarr geprüft (Anhang I). Drei Fragen daraus hat Marco
+am 17. November 2026 beantwortet; die Regeln N-110 bis N-114 gehen Anhang H und den Papieren vor.
+
+| Nr. | Marcos Antwort | Regel | Eingearbeitet in |
+|---|---|---|---|
+| I-F1 | eröffnete Benutzer bekommen die Rechte aus Seerrs Vorgabe | N-110 | `03` 18.2, 18.4; `04` 14; `09` 1.5a; `10` AK-139, AK-147; ADR 0037 Entscheid 4 |
+| I-F2 | «slouchcat-gaeste» ebenso, also mit automatischer Freigabe, wenn Seerrs Vorgabe sie hat | N-111 (ersetzt einen Teil von N-101) | README; `03` 18.5; `04` 6; `09` 1.5a; `10` AK-229; ADR 0037 Entscheid 21 |
+| I-F3 | ein bestehendes Limit wird beim Verknüpfen als eigenes Limit des Kontos übernommen | N-112 (ersetzt N-37) | `03` 19.1; `04` 7, 17.2; `09` 1.5c; `10` AK-153; ADR 0037 Entscheid 16 |
+| – | Redaktion: Tag-Name nach N-113, Unterscheidung Benutzer weg oder Schlüssel ungültig nach N-114 | N-113, N-114 | `03` 2.6, 6.4, 20.1; `08` 2.14; `09` 4.6b; ADR 0037 Entscheid 17 |
+
+Befund I-10 (kein Entscheid): Auf Marcos Instanz melden sich alle bestehenden Seerr-Benutzer über Emby an; sie
+werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6). Dasselbe Login gibt es dort nur für neu eröffnete
+Benutzer.
 

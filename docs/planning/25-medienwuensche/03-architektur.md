@@ -7,7 +7,8 @@
 > Slouchcat legt Wünsche mit `X-Api-Key` und `X-API-User` im Namen des zugeordneten Seerr-Benutzers an,
 > speichert sie zuerst lokal (Ausgangsfach) und gleicht alle 5 Minuten ab. «Verfügbar» meldet Slouchcat erst,
 > wenn die eigene Bibliothek den Titel für das Profil abspielen kann, nie allein auf Grund von Seerr.
-> Neu in Fassung 3: Jedes Konto bekommt in Seerr einen eigenen Benutzer mit demselben Login; Slouchcat
+> Neu in Fassung 3: Jedes Konto bekommt in Seerr einen eigenen Benutzer mit demselben Login (auf Marcos Instanz
+> nur für neu eröffnete Benutzer: alle bestehenden melden sich über Emby an, Anhang I, I-10); Slouchcat
 > gibt das Passwort nur in den drei Momenten weiter, in denen der Server es ohnehin sieht, und speichert es nie.
 > Slouchcat schreibt das Limit je Konto in diesen Benutzer, Seerr zählt. Ein kleines Paket `internal/arr`
 > spricht Radarr und Sonarr für genau zwei Dinge an: den Profil-Tag setzen und für den Download-Fortschritt die
@@ -211,7 +212,7 @@ gewünschten Titel für den Download-Fortschritt (`queue`, `movie?tmdbId`, `seri
 | Zeitlimit, Rate-Limit | **Vorschlag:** 10 s, 2 Anfragen/s je Dienst | Tags sind selten; die Warteschlange liest `wishes.progress` höchstens einmal je Minute und Dienst |
 | Antwortgrösse | **Vorschlag:** höchstens 4 MiB je Antwort wie `seerr` | die Warteschlange kann viele Einträge tragen |
 | `os/exec` | keins (Regel 3) | – |
-| Tag-Namen | nur `a–z`, `0–9`, `-` (Radarr und Sonarr, Anhang H 3.5); `arr` prüft den Namen vor dem Senden | N-21 |
+| Tag-Namen | nur `a–z`, `0–9`, `-` (Radarr lehnt alles andere mit 400 ab, Sonarr nicht; Anhang I, I-52); Bildung nach N-113 (Abschnitt 20.1); `arr` prüft den Namen vor dem Senden | N-21, N-113 |
 
 Sonarr kennt Tags nur an der Serie, nicht an der Staffel (Anhang H 3.5). Ein Staffelwunsch bekommt darum den Tag
 an der ganzen Serie.
@@ -477,7 +478,7 @@ herausgefiltert, weil schon angefragt), sucht der Job sie mit `GET /tv/{tmdbId}`
 | 403 `Movie Quota exceeded.` / `Series Quota exceeded.` | Limit erreicht (Seerr zählt auch Wünsche, die direkt dort gestellt wurden) | `failed`, `fail_reason = quota`; Stand des Limits neu lesen (Abschnitt 19) |
 | 403 `This media is blocklisted.` / `…blacklisted.` | Sperrliste (3.x / 2.x) | `failed`, `fail_reason = blocklisted` |
 | 403 `You do not have permission to make … requests.` | Benutzer darf das nicht | `failed`, `fail_reason = no_permission`; Warnung auf der Seite Seerr-Benutzer |
-| 403 ohne bekannte Meldung (auch «You do not have permission to access this endpoint») | Schlüssel ungültig **oder** `X-API-User` unbekannt; Seerr meldet beides gleich (Anhang D 2.1) | `GET /auth/me` ohne Header. Antwortet es 200, ist der Schlüssel gut und der Benutzer fehlt: `failed`, `fail_reason = seerr_user_gone` (wie Abschnitt 14 und `04-benutzer-profilmapping.md`, Abschnitt 8.1). Sonst ist der Schlüssel ungültig: Wunsch bleibt `queued`, Verbindung «Schlüssel ungültig» |
+| 403 ohne bekannte Meldung (auch «You do not have permission to access this endpoint») | Schlüssel ungültig **oder** `X-API-User` unbekannt; Seerr meldet beides gleich (Anhang D 2.1) | `GET /auth/me` ohne Header. Antwortet es 200, ist der Schlüssel gut und der Benutzer fehlt: `failed`, `fail_reason = seerr_user_gone` (wie Abschnitt 14 und `04-benutzer-profilmapping.md`, Abschnitt 8.1). Sonst ist der Schlüssel ungültig: Wunsch bleibt `queued`, Verbindung «Schlüssel ungültig». An der echten Instanz bestätigt: beide Fälle antworten gleich, der Text steht im Feld `error` (Anhang I, I-2, I-3; N-114) |
 | 401 `You must be logged in…` | Schlüssel ungültig | bleibt `queued`, Zustand der Verbindung |
 | 500 | meist TMDB-Fehler in Seerr (`MediaRequest.ts` Z. 169–172) | wie nicht erreichbar: später erneut |
 | 3xx | Weiterleitung | wie nicht erreichbar; Diagnose «Adresse leitet weiter» |
@@ -1236,8 +1237,10 @@ stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Seerr eingerichte
    echte, wenn es gerade im Speicher ist (18.3), sonst ein Zufallspasswort und `password_state = next_login` (N-4).
    Das gilt für jeden Benutzer, den Slouchcat eröffnet, auch über «In Seerr eröffnen» und «Alle eröffnen» (N-103).
    409 → wie ein Treffer: neu lesen (`GET /user?q=<E-Mail>`) und verknüpfen.
-3. `POST /user/{id}/settings/permissions`: mit Wunschrecht des Kontos `REQUEST` (32), ohne `0` (N-9). Nur für
-   `origin = created`.
+3. Rechte (Marco, I-F1; N-110): Mit Wunschrecht des Kontos behält der neue Benutzer die Rechte, die Seerr ihm beim
+   Anlegen gibt (`defaultPermissions`; auf Marcos Instanz `REQUEST` + `AUTO_APPROVE` + `MANAGE_ISSUES`, Anhang I
+   I-13); Slouchcat schreibt nichts darüber. Ohne Wunschrecht `POST /user/{id}/settings/permissions` mit `0`
+   (N-9). Nur für `origin = created`.
 4. `GET /user/{id}/settings/main`, dann `POST /user/{id}/settings/main` mit allen gelesenen Feldern unverändert und
    den vier Limit-Feldern (Abschnitt 19). Seerr schreibt **alle** Felder aus dem Body und leert fehlende
    (Anhang H 3.1, `usersettings.ts` Z. 77–150). Nur für Benutzer ohne `MANAGE_USERS`.
@@ -1365,7 +1368,8 @@ sequenceDiagram
 
 - **Rechte folgen dem Wunschrecht (N-9).** Ändert der Administrator `accounts.can_request` über
   `updateAccountAccess` (`server/internal/auth/accounts.go:20`), reiht `wishes` `seerr.provision` ein, das die
-  Rechte nachzieht. Nur für `origin = created`.
+  Rechte nachzieht: ohne Recht `0`, mit Recht der aktuelle Wert von `defaultPermissions` aus `GET /settings/main`
+  (N-110). Nur für `origin = created`.
 - **Konto löschen (N-10, F-31).** `DeleteAccount` (`server/internal/auth/accounts.go:113`) ruft heute einen
   Abschluss `end` auf. Darüber nimmt `wishes` nur einem Benutzer, den Slouchcat eröffnet hat (`origin = created`),
   die Rechte (`permissions = 0`) und setzt ein Zufallspasswort. Verknüpfte (`linked`) und von Hand gewählte
@@ -1382,7 +1386,8 @@ und Zeitpunkt sind Redaktion (N-101, N-102).
 
 - **Anlegen.** Sobald Seerr eingerichtet und «Wünsche aktiv» an ist, legt `seerr.provision` in Seerr den lokalen
   Benutzer «slouchcat-gaeste» an: E-Mail `slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort (nie gespeichert,
-  niemand meldet sich damit an), Recht `REQUEST`, keine automatische Freigabe. Dazu schreibt es das Standard-Limit
+  niemand meldet sich damit an) mit den Rechten aus `defaultPermissions`, auf Marcos Instanz also mit automatischer
+  Freigabe (Marco, I-F2; N-111 ersetzt hier «Recht `REQUEST`, keine automatische Freigabe» aus N-101). Dazu schreibt es das Standard-Limit
   (Abschnitt 19). **Vorschlag:** Gibt es die Adresse in Seerr schon (409 oder Treffer), übernimmt Slouchcat diesen
   Benutzer. Die
   Seerr-ID steht in `wishes.shared_seerr_user` (`08-datenmodell-api.md`, Abschnitt 2.9); der Administrator wählt
@@ -1410,8 +1415,8 @@ und Mitwünsche zählen nicht (E-3). Regeln N-30 bis N-38 in Anhang H 4.3. Was d
 |---|---|
 | Einstellen | Vorgabe in Wünsche › Einstellungen; je Konto unter Konten «Standard», «Eigenes» oder «Unbegrenzt» (N-31) |
 | Vorgabe ab Werk | 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen (Marcos Beispiel); 0 heisst ohne Limit (N-31, F-26) |
-| Schreiben | Slouchcat schreibt die vier Felder `movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays` in den Seerr-Benutzer (18.2, Schritt 4), bei jeder Änderung und beim Eröffnen; für einen verknüpften Benutzer überschreibt es den Wert, der dort stand (N-37) |
-| «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. **Nicht verifiziert**, dass Seerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
+| Schreiben | Slouchcat schreibt die vier Felder `movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays` in den Seerr-Benutzer (18.2, Schritt 4), bei jeder Änderung und beim Eröffnen. Beim Verknüpfen übernimmt es ein bestehendes Limit des Benutzers als eigenes Limit des Kontos, wenn das Konto noch keines hat (Marco, I-F3; N-112, ersetzt N-37): alle vier Felder leer → «Standard»; beide Limits 0 → «Unbegrenzt»; sonst «Eigenes» mit den Werten aus Seerr, leere Felder aus der Vorgabe, Werte ausserhalb 0 bis 100 bzw. 1 bis 90 Tage auf die Grenze gesetzt und in Seerr nachgeführt. Ein schon eigenes Limit in Slouchcat gewinnt |
+| «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. An der Instanz bestätigt: 0 heisst unbegrenzt, `remaining` fehlt dann (Anhang I, I-31); früher hiess es: nicht verifiziert, dass Seerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
 | Zählen | Seerr: rollierend, Requests mit `createdAt` in den letzten `…Days` Tagen; Filme nach Anzahl, Serien nach Summe der Staffeln; `DECLINED` zählt nicht, `FAILED` zählt (Anhang H 3.2) |
 | Ausgenommen | Benutzer mit `MANAGE_USERS` (also auch Administratoren) haben in Seerr kein Limit; Seerr nimmt die Felder für sie auch nicht an (N-34) |
 | Je Profil | kein Teil-Limit (N-38); eine Ausnahme je Profil gibt es nicht (F-27, N-100) |
@@ -1469,7 +1474,7 @@ Tag; er wusste, dass das die heutige Regel bricht (Anhang H 2, E-2). Regeln N-20
 | Punkt | Festlegung |
 |---|---|
 | Profile | kein eigener Seerr-Benutzer, kein Login; das Profil steht am Wunsch und als Tag (N-20, N-40) |
-| Name | Präfix + Profilname in Kleinbuchstaben, nur `a–z`, `0–9`, `-`; Präfix ab Werk `sc-`, einstellbar; haben zwei Profile denselben Namen, behält das erste den einfachen Namen (`sc-kinder`) und das später angelegte bekommt den Kontonamen dazu (`sc-kinder-grosseltern`), weil Tags nie umbenannt werden (N-21, Redaktionsentscheid zu K-18); je Profil überschreibbar (F-25) |
+| Name | Präfix + Profilname nach N-113 (Anhang I, I-52: Radarr nimmt nur `^[a-z0-9-]+$` an): klein, ä → ae, ö → oe, ü → ue, scharfes S → ss, andere Buchstaben mit Zeichen auf den Grundbuchstaben, alles andere ausser `a–z`, `0–9` wird `-`, mehrere `-` zu einem, kein `-` am Rand, leer geworden `<präfix>profil-<id>` (Redaktion); ein von Hand gesetzter Name wird nach derselben Regel geprüft; Präfix ab Werk `sc-`, einstellbar; haben zwei Profile denselben Namen, behält das erste den einfachen Namen (`sc-kinder`) und das später angelegte bekommt den Kontonamen dazu (`sc-kinder-grosseltern`), weil Tags nie umbenannt werden (N-21, Redaktionsentscheid zu K-18); je Profil überschreibbar (F-25) |
 | Zeitpunkt | sobald der Wunsch «In Beschaffung» ist, also Seerr den Titel an Radarr oder Sonarr übergeben hat; ein Mitwunsch bekommt seinen Tag nachträglich (N-24) |
 | Fehler | ändern nichts am Wunsch; «Tag noch nicht gesetzt», der nächste Lauf holt es nach (N-25) |
 | Entfernen | nie, auch nicht beim Zurückziehen oder Löschen (N-26) |

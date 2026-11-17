@@ -6,7 +6,8 @@
   **Nachtrag zu ADR 0010** (zwei Ausnahmen: Profil-Tags setzen, Warteschlange und Dateistand der gewünschten Titel
   lesen; der Webhook-Empfang bleibt).
 - Quelle: Konzept `docs/planning/25-medienwuensche/` (Papiere 01 bis 11, Fassung 3, nachgeführt auf die Antworten
-  vom 17. November 2026), Marcos Entscheide E-1 bis E-11 und seine Antworten auf die Fragen F-1 bis F-34, T-1, T-2
+  vom 17. November 2026), die Prüfung an Marcos echten Instanzen mit seinen Antworten I-F1 bis I-F3
+  (`docs/planning/25-medienwuensche/anhang/I-pruefung-echte-instanzen.md`, «Anhang I»), Marcos Entscheide E-1 bis E-11 und seine Antworten auf die Fragen F-1 bis F-34, T-1, T-2
   und B-1 bis B-4 vom 17. November 2026 (`docs/planning/25-medienwuensche/anhang/H-nachtrag-17-november.md`,
   Abschnitte 1, 2, 8, 10 und 11; die Anhänge in `docs/planning/25-medienwuensche/anhang/` heissen hier «Anhang D», «Anhang H» usw.), **Frage 33** mit Nachtrag in
   `docs/planning/04-entscheidungen.md`
@@ -75,7 +76,8 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
    senden über den Sammelbenutzer «slouchcat-gaeste», den Slouchcat anlegt (F-4, N-101, N-102). Ein
    Seerr-Benutzer gehört höchstens einem Konto. Je Wunsch speichert Slouchcat Konto, Profil,
    Seerr-Benutzer (eingefroren) und Request-ID, bei Serien je Staffel. Die Rechte eines eröffneten Benutzers
-   folgen dem Wunschrecht (`REQUEST` oder keine); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
+   folgen dem Wunschrecht: mit Recht Seerrs Vorgabe für neue Benutzer (`defaultPermissions`), ohne Recht keine
+   (Marco, I-F1; N-110); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
    gelöscht, bleibt sein Seerr-Benutzer bestehen; nur einem eröffneten nimmt Slouchcat die Rechte und setzt
    ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (N-10, F-31).
 5. **Wunschrecht** je Konto (`accounts.can_request`, Administrator) als Deckel und je Profil
@@ -131,10 +133,13 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
     für alle Profile gemeinsam. Eingestellt wird in Slouchcat (Vorgabe, je Konto «Standard», «Eigenes»,
     «Unbegrenzt»); Slouchcat schreibt es in den Seerr-Benutzer, Seerr zählt und setzt durch, auch für
     Wünsche, die direkt dort gestellt werden. Abgelehnte Wünsche und Mitwünsche zählen nicht. Benutzer mit
-    `MANAGE_USERS` haben kein Limit. Slouchcat prüft vor dem Anfordern mit dem zuletzt gelesenen Stand und sagt,
+    `MANAGE_USERS` haben kein Limit. Beim Verknüpfen übernimmt Slouchcat ein bestehendes Limit des Benutzers als
+    eigenes Limit des Kontos, wenn das Konto noch keines hat; ohne Limit in Seerr gilt «Standard» (Marco, I-F3;
+    Einzelheiten N-112). Slouchcat prüft vor dem Anfordern mit dem zuletzt gelesenen Stand und sagt,
     wann der nächste Platz frei wird.
 17. **Profil-Tag in Radarr und Sonarr (E-2).** Ist ein Wunsch «In Beschaffung», legt Slouchcat in Radarr bzw.
-    Sonarr den Tag des Profils an (`sc-<profilname>`) und hängt ihn an den Film bzw. die Serie, nachträglich auch
+    Sonarr den Tag des Profils an (`sc-<profilname>`, gebildet nach N-113, weil Radarr nur `a–z`, `0–9`, `-`
+    annimmt) und hängt ihn an den Film bzw. die Serie, nachträglich auch
     für Mitwünscher. Adresse und Schlüssel liest es aus Seerr und hält die Schlüssel nur im Speicher, je
     10 Minuten; neu gelesen wird nach Ablauf oder nach einer Antwort 401. Ein
     eigenes Paket `internal/arr` kennt nur diese Aufrufe. Fehler ändern nichts am Wunsch; Tags werden nie
@@ -158,8 +163,8 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
     entfällt, wenn die Messung keinen Gewinn zeigt; die Webhooks selbst ändern sich dadurch nicht.
 
 21. **Sammelbenutzer ab Werk (F-4).** Sobald Seerr eingerichtet und «Wünsche aktiv» an ist, legt Slouchcat in
-    Seerr den lokalen Benutzer «slouchcat-gaeste» an (`slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort, Recht
-    `REQUEST`, keine automatische Freigabe) und schreibt ihm das Standard-Limit; es gilt gemeinsam für alle Konten,
+    Seerr den lokalen Benutzer «slouchcat-gaeste» an (`slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort, Rechte
+    aus Seerrs Vorgabe für neue Benutzer, auf Marcos Instanz also mit automatischer Freigabe: I-F2, N-111) und schreibt ihm das Standard-Limit; es gilt gemeinsam für alle Konten,
     die über ihn senden. Über ihn senden Konten mit Wunschrecht ohne eigenen Seerr-Benutzer («nicht eröffnet»,
     «wartet»). «Konten ohne Seerr-Benutzer» steht ab Werk auf «Sammelbenutzer», die andere Wahl ist «Nicht
     erlauben»; einen anderen Benutzer als Sammelbenutzer wählt man nicht. Wünsche über ihn merkt sich Slouchcat mit
@@ -217,6 +222,9 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
   ruft Radarr und Sonarr jede Minute einmal je Dienst auf, nur solange Wünsche in Beschaffung sind.
 - Die Felder der Sonarr-Warteschlange (`seriesId`, `episodeId`, `seasonNumber`) sind nicht gegen eine Instanz
   geprüft; fehlen sie, zeigt Slouchcat weniger, nie Falsches.
+- **Befund der Prüfung (Anhang I, I-10):** Auf Marcos Instanz ist der Medienserver Emby, und alle bestehenden
+  Seerr-Benutzer melden sich über Emby an. Sie werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6);
+  dasselbe Login gibt es dort nur für Benutzer, die Slouchcat neu eröffnet.
 - Das Passwort verlässt den Server im Klartext Richtung Seerr; ändert jemand es direkt dort, laufen die beiden
   auseinander (Marco kannte die Folge, E-1).
 - Benutzerpflege, Passwort-Route und `settings/main` von Seerr sind im Code von Seerr 3.5.2 belegt, aber nicht

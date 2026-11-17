@@ -281,7 +281,11 @@ Technik und Fehlerfälle: `03-architektur.md`, Abschnitt 6.6.
 Marco hat am 17. November 2026 verlangt, dass ein eingeladener Benutzer «auch in Seerr eröffnet» wird, «mit den
 gleichen Login Daten» (Nachricht), und dass er sich dort mit E-Mail und Passwort von Slouchcat anmelden kann
 (E-1), und dass ein bestehender Seerr-Benutzer mit gleicher E-Mail sofort verknüpft wird, auch bei Einladungen
-(E-8). Der Ablauf im Einzelnen ist Empfehlung (N-1 bis N-5, N-90 bis N-95):
+(E-8). Der Ablauf im Einzelnen ist Empfehlung (N-1 bis N-5, N-90 bis N-95).
+
+**Befund der Prüfung (Anhang I, I-10):** Auf Marcos Instanz ist der Medienserver Emby, und alle bestehenden Seerr-Benutzer melden sich über Emby an. Sie werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6); dasselbe Login gibt es dort nur für Benutzer, die Slouchcat neu eröffnet.
+
+Der Ablauf:
 
 1. Die eingeladene Person öffnet den Link (Seite M-35, heute `/invite/$token`). Neu steht dort der Hinweis «Dein
    Login gilt auch für Seerr».
