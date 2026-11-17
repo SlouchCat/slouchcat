@@ -744,7 +744,7 @@ func (s *Service) fetchExternalImages(ctx context.Context, root *os.Root, media 
 		}
 		s.removeExternalFiles(stale)
 	}
-	return nil
+	return s.boundExternalImages(ctx, media, tmdbID)
 }
 
 // dropExternalRows deletes the rows of a kind whose file is not in keep.

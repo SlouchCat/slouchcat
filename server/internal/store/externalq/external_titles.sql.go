@@ -202,6 +202,46 @@ func (q *Queries) InsertExternalTitleText(ctx context.Context, arg InsertExterna
 	return err
 }
 
+const listExternalImageTitlesByUse = `-- name: ListExternalImageTitlesByUse :many
+SELECT i.media, i.tmdb_id, CAST(sum(i.bytes) AS INTEGER) AS bytes
+FROM external_title_images AS i
+LEFT JOIN external_titles AS t ON t.media = i.media AND t.tmdb_id = i.tmdb_id
+GROUP BY i.media, i.tmdb_id
+ORDER BY coalesce(max(t.used_at), 0), min(i.fetched_at), i.media, i.tmdb_id
+LIMIT ?1
+`
+
+type ListExternalImageTitlesByUseRow struct {
+	Media  string
+	TmdbID int64
+	Bytes  int64
+}
+
+// The titles with stored images, the least recently used first (used_at, then the oldest fetch),
+// with the size of their images; the bound of the cache drops them in this order.
+func (q *Queries) ListExternalImageTitlesByUse(ctx context.Context, limitCount int64) ([]ListExternalImageTitlesByUseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listExternalImageTitlesByUse, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListExternalImageTitlesByUseRow{}
+	for rows.Next() {
+		var i ListExternalImageTitlesByUseRow
+		if err := rows.Scan(&i.Media, &i.TmdbID, &i.Bytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExternalTitleAges = `-- name: ListExternalTitleAges :many
 SELECT media, tmdb_id, certifications, min_age FROM external_titles
 WHERE media > ?1 OR (media = ?1 AND tmdb_id > ?2)
@@ -501,6 +541,18 @@ type SetExternalTitleMinAgeParams struct {
 func (q *Queries) SetExternalTitleMinAge(ctx context.Context, arg SetExternalTitleMinAgeParams) error {
 	_, err := q.db.ExecContext(ctx, setExternalTitleMinAge, arg.MinAge, arg.Media, arg.TmdbID)
 	return err
+}
+
+const sumExternalTitleImageBytes = `-- name: SumExternalTitleImageBytes :one
+SELECT CAST(coalesce(sum(bytes), 0) AS INTEGER) FROM external_title_images
+`
+
+// The size of every stored image of titles outside the library (the bound of the cache).
+func (q *Queries) SumExternalTitleImageBytes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sumExternalTitleImageBytes)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const touchExternalTitle = `-- name: TouchExternalTitle :exec

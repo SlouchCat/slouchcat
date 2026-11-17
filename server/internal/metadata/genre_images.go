@@ -91,5 +91,9 @@ func (s *Service) fetchGenreBackdrop(ctx context.Context, root *os.Root, rel, sr
 	if err := root.MkdirAll(genreImagesDir, 0o750); err != nil {
 		return fmt.Errorf("create genre image dir: %w", err)
 	}
-	return writeFile(root, genreImagesDir, rel, data)
+	if err := writeFile(root, genreImagesDir, rel, data); err != nil {
+		return err
+	}
+	s.boundGenreImages(root, rel)
+	return nil
 }

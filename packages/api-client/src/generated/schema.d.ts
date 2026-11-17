@@ -23726,6 +23726,19 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /**
+             * @description More than 120 a minute (60 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
             503: {
                 headers: {
@@ -23785,6 +23798,19 @@ export interface operations {
             /** @description A genre where the row takes none, a missing genre, a page out of range (`validation_failed`). */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23858,6 +23884,19 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
             503: {
                 headers: {
@@ -23905,6 +23944,19 @@ export interface operations {
              */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23972,6 +24024,19 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /**
+             * @description More than 600 a minute (300 at once, shared with `getExternalTitleImage`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Seerr or TMDB did not answer and nothing is cached (`seerr_unreachable`, `tmdb_unreachable`). */
             503: {
                 headers: {
@@ -24029,6 +24094,19 @@ export interface operations {
             /** @description `q` shorter than 2 or longer than 100 characters, a page out of range (`validation_failed`). */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 30 a minute of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24141,6 +24219,19 @@ export interface operations {
                     "application/problem+json": components["schemas"]["WishProblem"];
                 };
             };
+            /**
+             * @description More than 60 a minute (30 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
             503: {
                 headers: {
@@ -24200,6 +24291,19 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /**
+             * @description More than 600 a minute (300 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
             503: {
                 headers: {
@@ -24235,6 +24339,19 @@ export interface operations {
             /** @description Not visible or not requestable (`not_found`). */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 60 a minute (30 at once, shared with `getExternalTitle`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

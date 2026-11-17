@@ -168,6 +168,9 @@ func (s *server) GetExternalTitle(ctx context.Context, req gen.GetExternalTitleR
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
+	if err := s.wishAllow(s.limits.titles, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	t, err := svc.ExternalTitle(ctx, session.Profile, string(req.Media), req.TmdbId)
 	if err != nil {
 		if body, ok := s.wishProblem(ctx, svc, session.Profile, err); ok {
@@ -227,6 +230,9 @@ func (s *server) GetWishSeasons(ctx context.Context, req gen.GetWishSeasonsReque
 	}
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if err := s.wishAllow(s.limits.titles, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
 	}
 	ws, err := svc.WishSeasons(ctx, session.Profile, req.TmdbId)
 	if err != nil {
@@ -599,6 +605,10 @@ func (s *server) getExternalTitleImage(w http.ResponseWriter, r *http.Request) {
 	media, tmdbID, kind, size, valid := externalImageParams(r)
 	if !valid {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	if err := s.wishAllow(s.limits.images, session.Profile); err != nil {
+		s.p.mapError(w, r, err)
 		return
 	}
 	w.Header().Add("Vary", "Accept")

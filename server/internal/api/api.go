@@ -154,7 +154,7 @@ func NewHandler(o Options) http.Handler {
 		visibility[route] = vis
 	}
 	authorize := p.authorize(o.Auth, visibility)
-	s := &server{opts: o, p: p}
+	s := &server{opts: o, p: p, limits: newWishLimiters()}
 
 	r := chi.NewRouter()
 	r.Use(securityHeaders, requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
@@ -222,8 +222,9 @@ func NewHandler(o Options) http.Handler {
 // server implements the generated strict server interface; the handlers live in one file per
 // feature (auth_handlers.go, admin_handlers.go, item_handlers.go, …).
 type server struct {
-	opts Options
-	p    problems
+	opts   Options
+	p      problems
+	limits wishLimiters // titles outside the library, per profile (wish_limits.go)
 }
 
 var _ gen.StrictServerInterface = (*server)(nil)

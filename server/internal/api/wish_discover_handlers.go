@@ -51,6 +51,9 @@ func (s *server) GetWishDiscover(ctx context.Context, _ gen.GetWishDiscoverReque
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
+	if err := s.wishAllow(s.limits.pages, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	rows, err := svc.Discover(ctx, session.Profile)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -91,6 +94,9 @@ func (s *server) ListWishDiscoverRow(ctx context.Context, req gen.ListWishDiscov
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
+	if err := s.wishAllow(s.limits.pages, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	page, err := svc.DiscoverRowPage(ctx, session.Profile, string(req.Row), deref(req.Params.Page), deref(req.Params.Genre))
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -115,6 +121,9 @@ func (s *server) ListWishTitles(ctx context.Context, req gen.ListWishTitlesReque
 	if req.Params.Sort != nil {
 		q.Sort = string(*req.Params.Sort)
 	}
+	if err := s.wishAllow(s.limits.pages, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	page, err := svc.DiscoverTitles(ctx, session.Profile, q)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -133,6 +142,9 @@ func (s *server) ListWishGenres(ctx context.Context, req gen.ListWishGenresReque
 	}
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if err := s.wishAllow(s.limits.pages, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
 	}
 	list, err := svc.DiscoverGenres(ctx, session.Profile, string(req.Media))
 	if err != nil {
@@ -159,6 +171,9 @@ func (s *server) SearchWishTitles(ctx context.Context, req gen.SearchWishTitlesR
 	}
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if err := s.wishAllow(s.limits.search, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
 	}
 	page, err := svc.SearchWishTitles(ctx, session.Profile, req.Params.Q, deref(req.Params.Page))
 	if err != nil {
@@ -225,6 +240,10 @@ func (s *server) getWishGenreBackdrop(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(raw)
 	if err != nil || id < 1 || strconv.Itoa(id) != raw || (media != model.WishMediaMovie && media != model.WishMediaShow) {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	if err := s.wishAllow(s.limits.images, session.Profile); err != nil {
+		s.p.mapError(w, r, err)
 		return
 	}
 	src, err := svc.GenreBackdrop(r.Context(), session.Profile, media, id)

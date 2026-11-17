@@ -34,6 +34,7 @@ type wishContract struct {
 	exec   func(query string, args ...any)
 	fake   *seerrtest.Server
 	titles contractTitles
+	now    func() time.Time // the clock of the handler (nil: time.Now)
 }
 
 // withTitles rebuilds the handler with another store of titles outside the library.
@@ -41,6 +42,7 @@ func (c *wishContract) withTitles(titles wishes.Titles) {
 	log := vistest.Logger()
 	o := c.pf.opts
 	o.Wishes = wishes.New(c.f.DB, c.pf.admin, c.pf.queue, log, wishes.WithLibrary(visibility.New(c.f.DB, log)), wishes.WithTitles(titles))
+	o.now = c.now
 	c.h = NewHandler(o)
 }
 

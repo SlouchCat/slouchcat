@@ -144,13 +144,15 @@ type Service struct {
 	keys   KeySource
 	cache  paths.Root
 	cacheE error // set when cacheDir is not usable as a root
-	runner transcode.Runner
-	log    *slog.Logger
-	client *Client
-	tmdb   *tmdbProvider
-	tvdb   *tvdbProvider
-	fanart *fanartProvider // Fanart.tv, the last image source (fanart.go)
-	now    func() time.Time
+	// externalImageCap bounds the images of titles outside the library (external_image_cache.go).
+	externalImageCap int64
+	runner           transcode.Runner
+	log              *slog.Logger
+	client           *Client
+	tmdb             *tmdbProvider
+	tvdb             *tvdbProvider
+	fanart           *fanartProvider // Fanart.tv, the last image source (fanart.go)
+	now              func() time.Time
 
 	anilist    *aniListProvider // AniList, a filler (ADR 0015; anilist.go)
 	animeLists *animeLists      // the mapping list of Fribb (anime_lists.go)
@@ -437,13 +439,15 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		keys:   keys,
 		cache:  root,
 		cacheE: err,
-		runner: runner,
-		log:    log,
-		client: client,
-		tmdb:   &tmdbProvider{client: client, keys: keys},
-		tvdb:   tvdb,
-		fanart: fanart,
-		now:    o.now,
+
+		externalImageCap: ExternalImageCacheBytes,
+		runner:           runner,
+		log:              log,
+		client:           client,
+		tmdb:             &tmdbProvider{client: client, keys: keys},
+		tvdb:             tvdb,
+		fanart:           fanart,
+		now:              o.now,
 
 		anilist:    newAniListProvider(o.anilistBase, o.anilistImgs, o.http, o.anilistOn, log),
 		animeLists: newAnimeLists(o.animeLists, o.animeHTTP, root, o.now, log),

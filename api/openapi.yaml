@@ -9786,6 +9786,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 120 a minute (60 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "503":
           description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
           content:
@@ -9848,6 +9860,18 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: A genre where the row takes none, a missing genre, a page out of range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -9931,6 +9955,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "503":
           description: Seerr did not answer and nothing is cached (`seerr_unreachable`).
           content:
@@ -9970,6 +10006,18 @@ paths:
           description: |
             The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
             N-57) (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -10026,6 +10074,18 @@ paths:
           description: |
             The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
             N-57), or the genre has no backdrop (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 600 a minute (300 at once, shared with `getExternalTitleImage`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -10088,6 +10148,18 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: "`q` shorter than 2 or longer than 100 characters, a page out of range (`validation_failed`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 30 a minute of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -10206,6 +10278,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/WishProblem"
+        "429":
+          description: |
+            More than 60 a minute (30 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "503":
           description: The title is not stored yet and TMDB did not answer (`tmdb_unreachable`).
           content:
@@ -10271,6 +10355,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 600 a minute (300 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "503":
           description: TMDB did not deliver the image for now (`tmdb_unreachable`).
           content:
@@ -10304,6 +10400,18 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           description: Not visible or not requestable (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            More than 60 a minute (30 at once, shared with `getExternalTitle`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+            in seconds. A person browsing never reaches it.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:

@@ -115,3 +115,17 @@ RETURNING rel_path;
 
 -- name: DeleteExternalTitleImage :exec
 DELETE FROM external_title_images WHERE id = @id;
+
+-- name: SumExternalTitleImageBytes :one
+-- The size of every stored image of titles outside the library (the bound of the cache).
+SELECT CAST(coalesce(sum(bytes), 0) AS INTEGER) FROM external_title_images;
+
+-- name: ListExternalImageTitlesByUse :many
+-- The titles with stored images, the least recently used first (used_at, then the oldest fetch),
+-- with the size of their images; the bound of the cache drops them in this order.
+SELECT i.media, i.tmdb_id, CAST(sum(i.bytes) AS INTEGER) AS bytes
+FROM external_title_images AS i
+LEFT JOIN external_titles AS t ON t.media = i.media AND t.tmdb_id = i.tmdb_id
+GROUP BY i.media, i.tmdb_id
+ORDER BY coalesce(max(t.used_at), 0), min(i.fetched_at), i.media, i.tmdb_id
+LIMIT @limit_count;
