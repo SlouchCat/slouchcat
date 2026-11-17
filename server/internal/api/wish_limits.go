@@ -2,6 +2,7 @@ package api
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -18,6 +19,12 @@ import (
 // and loads up to 7 rows x 20 posters plus about 40 genre tiles, so about 180 images; a scroll
 // through a row adds a page call and 20 posters. A preview page is one title call (and the
 // dialog one season call) and three to seven images.
+//
+// Each call also takes a token of the account (security review L-1): a household has up to ten
+// profiles (auth.MaxProfiles), and a new profile would otherwise start with a full bucket. Ten
+// profiles rarely browse at the same moment; the account bucket lets four of them browse at the
+// full pace of one profile (or all ten at 40 % of it), so it holds four times the bucket of one
+// profile and refills four times as fast.
 const (
 	// getExternalTitle and getWishSeasons: 60 a minute, 30 at once.
 	wishTitlesPerMin, wishTitlesBurst = 60, 30
@@ -29,23 +36,44 @@ const (
 	wishPagesPerMin, wishPagesBurst = 120, 60
 	// searchWishTitles: 30 a minute, as searchExternalTitles.
 	wishSearchPerMin, wishSearchBurst = 30, 30
+	// wishAccountFactor: the bucket of an account against that of one profile.
+	wishAccountFactor = 4
 )
 
-// wishLimiters are the buckets per profile of the operations on titles outside the library.
+// wishBucket is the bucket of one group per profile and per account.
+type wishBucket struct {
+	profile, account *auth.Limiter
+}
+
+func newWishBucket(perMin, burst float64) wishBucket {
+	return wishBucket{profile: auth.NewLimiter(perMin, burst), account: auth.NewLimiter(perMin*wishAccountFactor, burst*wishAccountFactor)}
+}
+
+// allow takes a token of the profile and one of its account; model.ErrTooManyAttempts when either
+// bucket is empty.
+func (l wishBucket) allow(p model.Profile, now time.Time) error {
+	if err := l.account.Allow(strconv.FormatInt(p.AccountID, 10), now); err != nil {
+		return err
+	}
+	return l.profile.Allow(strconv.FormatInt(p.ID, 10), now)
+}
+
+// wishLimiters are the buckets of the operations on titles outside the library.
 type wishLimiters struct {
-	titles, images, pages, search *auth.Limiter
+	titles, images, pages, search wishBucket
 }
 
 func newWishLimiters() wishLimiters {
 	return wishLimiters{
-		titles: auth.NewLimiter(wishTitlesPerMin, wishTitlesBurst),
-		images: auth.NewLimiter(wishImagesPerMin, wishImagesBurst),
-		pages:  auth.NewLimiter(wishPagesPerMin, wishPagesBurst),
-		search: auth.NewLimiter(wishSearchPerMin, wishSearchBurst),
+		titles: newWishBucket(wishTitlesPerMin, wishTitlesBurst),
+		images: newWishBucket(wishImagesPerMin, wishImagesBurst),
+		pages:  newWishBucket(wishPagesPerMin, wishPagesBurst),
+		search: newWishBucket(wishSearchPerMin, wishSearchBurst),
 	}
 }
 
-// wishAllow takes a token of the profile from l; model.ErrTooManyAttempts (429) when it is empty.
-func (s *server) wishAllow(l *auth.Limiter, p model.Profile) error {
-	return l.Allow(strconv.FormatInt(p.ID, 10), s.opts.now())
+// wishAllow takes a token of the profile and its account from l; model.ErrTooManyAttempts (429)
+// when one is empty.
+func (s *server) wishAllow(l wishBucket, p model.Profile) error {
+	return l.allow(p, s.opts.now())
 }

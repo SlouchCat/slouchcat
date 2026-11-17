@@ -162,10 +162,13 @@ type Wish struct {
 	CanWithdraw     bool
 	CanRequestAgain bool
 	Hint            string // already_approved
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	AvailableAt     *time.Time
-	Events          []WishEvent // newest first, at most WishEventsShown
+	// Hidden: the profile may not see the library title, so the wish reads as «wird eingelesen»
+	// (architecture 8.3); it carries no episode counts or progress (security review L-2).
+	Hidden      bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	AvailableAt *time.Time
+	Events      []WishEvent // newest first, at most WishEventsShown
 }
 
 // WishSeason is one season of a series wish.

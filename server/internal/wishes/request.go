@@ -731,6 +731,7 @@ func asProcessing(state, detail *string, availableAt *sql.NullInt64, itemID *sql
 // hideAvailability removes what tells a hidden wish is in the library: available seasons read
 // processing, and the events of the availability go.
 func hideAvailability(w *model.Wish) {
+	w.Hidden = true
 	for i := range w.Seasons {
 		if w.Seasons[i].State == model.WishAvailable {
 			w.Seasons[i].State = model.WishProcessing

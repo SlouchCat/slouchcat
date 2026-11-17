@@ -23690,6 +23690,13 @@ export interface operations {
                     "image/webp": string;
                 };
             };
+            /** @description The image did not change (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description No such title or image (`not_found`). */

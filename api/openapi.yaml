@@ -9751,6 +9751,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        "304":
+          description: The image did not change (`If-None-Match`).
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":

@@ -301,6 +301,46 @@ func TestContractWishes(t *testing.T) {
 	if counts, _ := all["counts"].(map[string]any); counts == nil || counts["available"] != float64(0) || counts["processing"] == float64(0) {
 		t.Errorf("p12 counts = %v", all["counts"])
 	}
+	// A partial series p12 may not see: «wird eingelesen» without episode counts or progress
+	// (security review L-2); p18 sees them.
+	exec(`UPDATE wishes SET media = 'show', state = 'partial', available_at = NULL WHERE id = 8901`)
+	exec(`INSERT INTO wish_progress (wish_id, service, stage, episodes_done, episodes_total, read_at) VALUES (8901, 'sonarr', 'download', 3, 8, ?)`, time.Now().UnixMilli())
+	progressOf := func(token string) any {
+		t.Helper()
+		for _, it := range expect(token, http.MethodGet, "/wishes?state=all", "", http.StatusOK, "")["items"].([]any) {
+			if w := it.(map[string]any); w["id"] == float64(8901) {
+				return w["progress"]
+			}
+		}
+		t.Fatalf("%s: wish 8901 missing", token)
+		return nil
+	}
+	if pr := progressOf("p18"); pr == nil {
+		t.Errorf("p18 progress of its partial wish missing")
+	}
+	if pr := progressOf("p12"); pr != nil {
+		t.Errorf("p12 progress of a hidden wish = %v", pr)
+	}
+	exec(`DELETE FROM wish_progress WHERE wish_id = 8901`)
+	// Viewers get the safe fields of the events only (security review L-3); the administration
+	// keeps the detail.
+	exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (8901, 5, 'owner_changed', '{"from":11,"to":12,"reason":"profile_deleted","accountId":3,"seerrUserId":4,"requestIds":[9],"seasons":[1]}')`)
+	for _, it := range expect("p18", http.MethodGet, "/wishes?state=all", "", http.StatusOK, "")["items"].([]any) {
+		w := it.(map[string]any)
+		for _, e := range w["events"].([]any) {
+			ev := e.(map[string]any)
+			d, _ := ev["detail"].(string)
+			for _, bad := range []string{"profileId", "accountId", "seerrUserId", "requestId", `"from"`, `"to":12`} {
+				if strings.Contains(d, bad) {
+					t.Errorf("viewer event %v carries %s", ev, bad)
+				}
+			}
+			if w["id"] == float64(8901) && ev["kind"] == "owner_changed" && d != `{"reason":"profile_deleted","seasons":[1]}` {
+				t.Errorf("viewer owner_changed = %q", d)
+			}
+		}
+	}
+	exec(`UPDATE wishes SET media = 'movie', state = 'available', available_at = 3 WHERE id = 8901`)
 	expect("p18", http.MethodGet, "/wishes?state=nope", "", http.StatusUnprocessableEntity, "validation_failed")
 
 	// Withdrawing: the joined profile withdraws itself; a wish of another profile is 404.

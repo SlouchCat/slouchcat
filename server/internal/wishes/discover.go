@@ -437,19 +437,21 @@ type listSpec struct {
 	genre  int
 }
 
-func (l listSpec) key(page int, a discoverAccess) string {
+// key names the cached page; the rating country is part of it, because the pre-filter of an age
+// ceiling depends on it (review Minor 6).
+func (l listSpec) key(page int, a discoverAccess, country string) string {
 	g := ""
 	if l.genre > 0 {
 		g = strconv.Itoa(l.genre)
 	}
 	if l.row != "" {
-		return cacheKey(l.row, "genre="+g, "p="+strconv.Itoa(page), a.language, strconv.Itoa(a.maxAge))
+		return cacheKey(l.row, "genre="+g, "p="+strconv.Itoa(page), a.language, strconv.Itoa(a.maxAge), country)
 	}
 	name := "movies"
 	if l.titles == model.WishMediaShow {
 		name = "shows"
 	}
-	return cacheKey(name, "sort="+l.sort, "genre="+g, "p="+strconv.Itoa(page), a.language, strconv.Itoa(a.maxAge))
+	return cacheKey(name, "sort="+l.sort, "genre="+g, "p="+strconv.Itoa(page), a.language, strconv.Itoa(a.maxAge), country)
 }
 
 func cacheKey(parts ...string) string { return strings.Join(parts, "|") }
@@ -537,7 +539,7 @@ func (s *Service) listPage(ctx context.Context, a discoverAccess, l listSpec, pa
 	if !model.IsRatingCountry(country) {
 		country = ratingCountryBase
 	}
-	list, err := s.cached(ctx, a, l.key(page, a), func(sess seerr.Session, ctx context.Context) (cachedList, error) {
+	list, err := s.cached(ctx, a, l.key(page, a, country), func(sess seerr.Session, ctx context.Context) (cachedList, error) {
 		res, err := l.fetch(ctx, sess, page, a, country, s.now().Format(time.DateOnly))
 		return cachedList{hits: hitsOf(res), totalPages: res.TotalPages}, err
 	})

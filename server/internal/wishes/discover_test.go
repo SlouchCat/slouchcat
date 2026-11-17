@@ -219,16 +219,25 @@ func TestDiscoverCachePerHourAndAgeStep(t *testing.T) {
 	if n := d.fake.Calls("GET /discover/trending"); n != 2 {
 		t.Errorf("trending calls after another age step = %d, want 2", n)
 	}
-	if n := d.count(`SELECT count(*) FROM wish_discover_pages WHERE cache_key IN ('trending|genre=|p=1|de|18', 'trending|genre=|p=1|de|12')`); n != 2 {
+	if n := d.count(`SELECT count(*) FROM wish_discover_pages WHERE cache_key IN ('trending|genre=|p=1|de|18|DE', 'trending|genre=|p=1|de|12|DE')`); n != 2 {
 		t.Errorf("cache rows = %d, want 2", n)
 	}
+	// Another rating country is its own cache entry (review Minor 6).
+	d.exec(`INSERT INTO settings (key, value, updated_at) VALUES ('metadata.rating_country', 'US', 1)`)
+	if _, err := d.svc.DiscoverRowPage(d.ctx, d.noah12, RowTrending, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	if n := d.fake.Calls("GET /discover/trending"); n != 3 {
+		t.Errorf("trending calls after another rating country = %d, want 3", n)
+	}
+	d.exec(`DELETE FROM settings WHERE key = 'metadata.rating_country'`)
 	d.dlib.setCeiling(18)
 	d.clock.advance(2 * time.Minute)
 	if _, err := d.svc.DiscoverRowPage(d.ctx, d.marco, RowTrending, 1, 0); err != nil {
 		t.Fatal(err)
 	}
-	if n := d.fake.Calls("GET /discover/trending"); n != 3 {
-		t.Errorf("trending calls after the hour = %d, want 3", n)
+	if n := d.fake.Calls("GET /discover/trending"); n != 4 {
+		t.Errorf("trending calls after the hour = %d, want 4", n)
 	}
 	for _, c := range d.fake.CallLog() {
 		if !c.HasAPIUser || c.APIUser != "3" {
@@ -516,7 +525,7 @@ func TestDiscoverJobWarmsAgeSteps(t *testing.T) {
 	}
 	// Marco 18, Noah 12 and the guest profile 3 (18, same step as Marco): two steps, seven rows each.
 	for _, step := range []string{"18", "12"} {
-		if n := d.count(`SELECT count(*) FROM wish_discover_pages WHERE cache_key LIKE '%|de|' || ?`, step); n != len(DiscoverRows) {
+		if n := d.count(`SELECT count(*) FROM wish_discover_pages WHERE (cache_key LIKE '%|de|' || ?1 OR cache_key LIKE '%|de|' || ?1 || '|DE')`, step); n != len(DiscoverRows) {
 			t.Errorf("rows of step %s = %d, want %d", step, n, len(DiscoverRows))
 		}
 	}

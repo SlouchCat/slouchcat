@@ -1,11 +1,14 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Concept 25, security finding: the operations on titles outside the library take a token per
@@ -51,4 +54,32 @@ func TestContractWishLimits(t *testing.T) {
 	// The pages of the wishes area: 60 at once; the search its own 30.
 	drain("p16", "/wishes/genres/movie", wishPagesBurst)
 	drain("p16", "/wishes/search?q=Wunsch", wishSearchBurst)
+}
+
+// The account has a bucket of its own (security review L-1): four profiles browse at full pace,
+// a fifth profile of the same household then waits although its own bucket is full; another
+// account is not touched.
+func TestWishLimitPerAccount(t *testing.T) {
+	l := newWishBucket(wishTitlesPerMin, wishTitlesBurst)
+	at := time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
+	for id := int64(1); id <= wishAccountFactor; id++ {
+		for i := range wishTitlesBurst {
+			if err := l.allow(model.Profile{ID: id, AccountID: 1}, at); err != nil {
+				t.Fatalf("profile %d, call %d: %v", id, i, err)
+			}
+		}
+	}
+	if err := l.allow(model.Profile{ID: 9, AccountID: 1}, at); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Errorf("fifth profile of the household: %v", err)
+	}
+	if err := l.allow(model.Profile{ID: 20, AccountID: 2}, at); err != nil {
+		t.Errorf("another account: %v", err)
+	}
+	// The account refills four times as fast as a profile: four tokens in a second.
+	at = at.Add(time.Second)
+	for id := int64(5); id <= 8; id++ {
+		if err := l.allow(model.Profile{ID: id, AccountID: 1}, at); err != nil {
+			t.Errorf("after the refill, profile %d: %v", id, err)
+		}
+	}
 }

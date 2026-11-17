@@ -25,6 +25,7 @@ type WishMark struct {
 	ID          int64
 	State       string
 	StateDetail string
+	Hidden      bool // reads as «wird eingelesen» for a library title the profile may not see
 }
 
 // TitleKey names a title by medium (movie, show) and TMDB id.

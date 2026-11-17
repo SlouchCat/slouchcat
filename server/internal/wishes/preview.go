@@ -39,6 +39,7 @@ const (
 // one.
 type titleWishes struct {
 	open, last *wishq.ListProfileWishesRow
+	openHidden bool // the open wish reads as «wird eingelesen» for a library title the profile may not see
 }
 
 func (w titleWishes) any() bool { return w.open != nil || w.last != nil }
@@ -55,9 +56,11 @@ func (s *Service) profileTitleWishes(ctx context.Context, p model.Profile) (map[
 		r := &rows[i]
 		// A wish of a library title the profile may not see reads as in procurement (architecture
 		// 8.3): it is the open wish of the title for this profile, never its last closed one.
-		if h, err := seen.hides(ctx, p.ID, p.AccountID, r.State, r.ItemID); err != nil {
+		h, err := seen.hides(ctx, p.ID, p.AccountID, r.State, r.ItemID)
+		if err != nil {
 			return nil, err
-		} else if h {
+		}
+		if h {
 			asProcessing(&r.State, &r.StateDetail.String, &r.AvailableAt, &r.ItemID)
 			r.StateDetail.Valid = true
 		}
@@ -65,7 +68,7 @@ func (s *Service) profileTitleWishes(ctx context.Context, p model.Profile) (map[
 		tw := out[k]
 		switch {
 		case isOpen(r.State) && tw.open == nil:
-			tw.open = r
+			tw.open, tw.openHidden = r, h
 		case !isOpen(r.State) && tw.last == nil:
 			tw.last = r
 		}
@@ -169,7 +172,7 @@ func (s *Service) ExternalTitle(ctx context.Context, p model.Profile, media stri
 		out.NextEpisode = &model.ExternalEpisodeDate{Season: e.Season, Episode: e.Episode, AirDate: e.AirDate}
 	}
 	if w := a.wishes.open; w != nil {
-		out.Wish = &model.WishMark{ID: w.ID, State: w.State, StateDetail: w.StateDetail.String}
+		out.Wish = &model.WishMark{ID: w.ID, State: w.State, StateDetail: w.StateDetail.String, Hidden: a.wishes.openHidden}
 	} else if w := a.wishes.last; w != nil {
 		at := w.UpdatedAt
 		if w.ClosedAt.Valid {

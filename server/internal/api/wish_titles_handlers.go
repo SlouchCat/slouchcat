@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -194,7 +195,7 @@ func (s *server) GetExternalTitle(ctx context.Context, req gen.GetExternalTitleR
 	if sh := t.Request.Shared; sh != nil {
 		out.Request.Shared = &gen.WishShared{State: gen.WishState(sh.State), StateDetail: stateDetail(sh.StateDetail), CanJoin: sh.CanJoin}
 	}
-	if out.Wish != nil {
+	if out.Wish != nil && !t.Wish.Hidden { // a hidden wish shows no progress (security review L-2)
 		progress, err := svc.ProgressOf(ctx, []int64{out.Wish.Id})
 		if err != nil {
 			return s.problem(ctx, err), nil
@@ -275,7 +276,9 @@ func (s *server) ListWishes(ctx context.Context, req gen.ListWishesRequestObject
 		if err != nil {
 			return s.problem(ctx, err), nil
 		}
-		g.Progress = progress[w.ID]
+		if !w.Hidden { // a hidden wish shows no progress (security review L-2)
+			g.Progress = progress[w.ID]
+		}
 		out.Items = append(out.Items, g)
 	}
 	return out, nil
@@ -312,7 +315,9 @@ func (s *server) ListAccountWishes(ctx context.Context, req gen.ListAccountWishe
 		if err != nil {
 			return s.problem(ctx, err), nil
 		}
-		g.Progress = progress[w.ID]
+		if !w.Hidden { // a hidden wish shows no progress (security review L-2)
+			g.Progress = progress[w.ID]
+		}
 		g.ProfileName = optString(w.ProfileName)
 		out.Items = append(out.Items, g)
 	}
@@ -452,7 +457,7 @@ func (s *server) toWish(ctx context.Context, svc WishTitlesService, p model.Prof
 		State: gen.WishState(w.State), StateDetail: stateDetail(w.StateDetail), FailReason: failReason(w.FailReason),
 		Origin: gen.WishOrigin(w.Origin), Role: gen.WishRole(w.Role), Seasons: make([]gen.WishSeasonState, 0, len(w.Seasons)),
 		CanWithdraw: w.CanWithdraw, CanRequestAgain: w.CanRequestAgain, CreatedAt: w.CreatedAt, UpdatedAt: w.UpdatedAt,
-		AvailableAt: w.AvailableAt, Events: toWishEvents(w.Events),
+		AvailableAt: w.AvailableAt, Events: toViewerWishEvents(w.Events),
 	}
 	if w.Hint != "" {
 		h := gen.WishHint(w.Hint)
@@ -482,6 +487,41 @@ func toWishEvents(events []model.WishEvent) []gen.WishEvent {
 	out := make([]gen.WishEvent, 0, len(events))
 	for _, e := range events {
 		out = append(out, gen.WishEvent{At: e.At, Kind: e.Kind, Detail: optString(e.Detail)})
+	}
+	return out
+}
+
+// viewerEventKeys are the fields of an event detail a viewer gets (security review L-3): the
+// seasons, the reason and the state the event led to; never a profile, account, Seerr user or
+// request id. The administration keeps the full detail (toWishEvents).
+var viewerEventKeys = []string{"seasons", "reason", "to", "state"}
+
+func toViewerWishEvents(events []model.WishEvent) []gen.WishEvent {
+	out := make([]gen.WishEvent, 0, len(events))
+	for _, e := range events {
+		ev := gen.WishEvent{At: e.At, Kind: e.Kind}
+		var all map[string]json.RawMessage
+		if e.Detail != "" && json.Unmarshal([]byte(e.Detail), &all) == nil {
+			keep := map[string]json.RawMessage{}
+			for _, k := range viewerEventKeys {
+				v, ok := all[k]
+				if !ok {
+					continue
+				}
+				// to and state name a state; owner_changed names a profile in to.
+				var str string
+				if (k == "to" || k == "state") && json.Unmarshal(v, &str) != nil {
+					continue
+				}
+				keep[k] = v
+			}
+			if len(keep) > 0 {
+				if b, err := json.Marshal(keep); err == nil {
+					ev.Detail = optString(string(b))
+				}
+			}
+		}
+		out = append(out, ev)
 	}
 	return out
 }
