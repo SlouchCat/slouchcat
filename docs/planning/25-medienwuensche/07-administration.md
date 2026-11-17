@@ -34,7 +34,7 @@ Abschnitt 4; Zuordnungsregeln: `04-benutzer-profilmapping.md`; Benachrichtigunge
 |---|---|---|
 | Adresse, Schlüssel, «Seerr verwenden» | Integrationen › Seerr | Übersicht (Zustand), Wünsche › Einstellungen (Zustand) |
 | Takt des Abgleichs | Hintergrundjobs, Zeitplan von `wishes.sync` | Integrationen › Seerr, Band «Abgleich» («alle 5 Minuten · Zeitplan ändern») |
-| Seerr-Benutzer des Kontos (eröffnen, verknüpfen, von Hand, lösen) und Ausnahme je Profil | Wünsche › Seerr-Benutzer | Konten (Zeile «Seerr-Benutzer»), Integrationen › Seerr (Band «Benutzer und Limit»: «n von m Konten») |
+| Seerr-Benutzer des Kontos (eröffnen, verknüpfen, von Hand, lösen); keine Ausnahme je Profil (F-27) | Wünsche › Seerr-Benutzer | Konten (Zeile «Seerr-Benutzer»), Integrationen › Seerr (Band «Benutzer und Limit»: «n von m Konten») |
 | Passwortabgleich je Konto («Passwort bei der nächsten Anmeldung neu übernehmen», «nicht abgleichen») | Wünsche › Seerr-Benutzer | Konten (Zeile «Seerr-Benutzer») |
 | Wunschrecht des Kontos | Konten, Formular «Zugriff», bei Administratorkonten Block «Wünsche» (und Dialog «Konto einladen» für das neue Konto) | Wünsche › Seerr-Benutzer (Chip, Rechte in Seerr) |
 | Wunschrecht des Profils | Profildialog (Hauptprofil des Kontos) | Konten (Chips der Profile) |
@@ -77,8 +77,8 @@ Medien wird damit: Bibliotheken, Metadaten, Pflege, Wünsche, Podcasts, Radio, H
 - Alles Klappbare startet **zugeklappt** und zeigt seine Zusammenfassung im Kopf (Frage 32, P-3). Ausnahmen wie
   dort: Sprunglink, eben Angelegtes, Fehler oder aktuelle Wahl darin.
 - **Anlegen und Ändern im selben Formular** (Frage 32, P-2). Für die Seerr-Benutzer heisst das: Eröffnen,
-  Verknüpfen, Lösen und die Ausnahme je Profil geschehen am selben Ort, direkt in der Liste der Seite
-  Seerr-Benutzer (Knöpfe und Auswahlfeld je Konto und je Profil, sofort wirksam), nicht in einem eigenen
+  Verknüpfen und Lösen geschehen am selben Ort, direkt in der Liste der Seite
+  Seerr-Benutzer (Knöpfe und Auswahlfeld je Konto, sofort wirksam), nicht in einem eigenen
   Dialog. Das Limit je Konto steht im selben Formular wie das Wunschrecht («Zugriff»).
 - **Sichtbare Rahmen, hoher Kontrast:** Rahmen und Bedienelemente mindestens 3 : 1, Text mindestens 7 : 1,
   Gesperrtes an der Form statt an Blässe (Frage 32, P-4).
@@ -102,7 +102,7 @@ Medien wird damit: Bibliotheken, Metadaten, Pflege, Wünsche, Podcasts, Radio, H
 | Kennzahl «Offene Wünsche» | Zahl aller Wünsche in `queued`, `pending`, `processing`, `partial`; Unterzeile «n warten auf Freigabe» | Verweis auf Wünsche › Anfragen. **Vorschlag:** als fünfte Kachel; nur sichtbar, wenn Seerr eingerichtet ist |
 | Hinweis «n Wünsche warten auf Freigabe» | Wünsche `pending` | Link auf Anfragen, Filter «Freigabe ausstehend» |
 | Hinweis «Seerr nicht erreichbar» | Zustand Nicht erreichbar oder Schlüssel ungültig | Link auf Integrationen › Seerr; Text nennt den Zustand |
-| Hinweis «n Konten ohne Seerr-Benutzer» | Konten mit Wunschrecht im Zustand «nicht eröffnet» oder «wartet» (und ohne Sammelbenutzer, F-4). Ihre Profile sehen keine fehlenden Titel; nur hier und auf den Seiten Seerr-Benutzer und Konten fällt der Fall auf. Text nennt, ob Seerr gerade nicht erreichbar ist («Die Konten warten und werden beim nächsten Abgleich eröffnet.») | Link auf Wünsche › Seerr-Benutzer mit «Alle eröffnen» |
+| Hinweis «n Konten ohne Seerr-Benutzer» | Konten mit Wunschrecht im Zustand «nicht eröffnet» oder «wartet». Ab Werk senden sie über den Sammelbenutzer «slouchcat-gaeste» (F-4); der Hinweis sagt das («senden bis dahin über den Sammelbenutzer»). Steht «Konten ohne Seerr-Benutzer» auf «Nicht erlauben», sehen ihre Profile keine fehlenden Titel; nur hier und auf den Seiten Seerr-Benutzer und Konten fällt der Fall auf. Text nennt, ob Seerr gerade nicht erreichbar ist («Die Konten warten und werden beim nächsten Abgleich eröffnet.») | Link auf Wünsche › Seerr-Benutzer mit «Alle eröffnen» |
 | Hinweis «Neu verknüpft» (neu, Stufe 1) | Konten, die beim Annehmen einer Einladung oder nach einer E-Mail-Änderung sofort mit einem bestehenden Seerr-Benutzer verknüpft wurden (`linked_by` = `invite` oder `email_change`), sieben Tage ab `linked_at`. Text: «Neu verknüpft: {{Konto}} mit dem bestehenden Seerr-Benutzer {{Name}}» (N-93, Empfehlung der Redaktion). Die Adresse hat das Konto selbst eingetippt; niemand hat sie geprüft (N-92). Eröffnet Slouchcat einen neuen Benutzer oder verknüpft ein Administrator, erscheint kein Hinweis | Link auf Wünsche › Seerr-Benutzer; das Band dieses Kontos zeigt dort den Hinweis und «Verknüpfung lösen» |
 | Hinweis «Limit erreicht: {{Konto}}» | Konten, deren Limit für Filme oder Staffeln ausgeschöpft ist, laut letztem Stand aus Seerr (`03-architektur.md`, Abschnitt 19.3). Text: «Filme: 10 von 10 in 7 Tagen, der nächste Platz wird am … frei» | Link auf Konten, Formular «Zugriff» dieses Kontos |
 | Hinweis «n Wünsche ohne Profil-Tag» (Stufe 4) | Zeilen in `wish_tags` mit Zustand `failed`, also Tags, die nicht gesetzt werden konnten (Redaktionsentscheid, `mockup-abdeckung.md` Abschnitt 10.2, Nr. 2); ein Tag, der noch auf den Titel in Radarr wartet, zählt nicht. Text nennt Titel und Dienst («Dune (Radarr)») und den Grund (Radarr nicht erreichbar, Titel noch nicht dort) | Link auf Wünsche › Anfragen, Filter «Tag nicht gesetzt» |
@@ -270,7 +270,8 @@ stellt nichts ein; es zeigt den Stand und verlinkt auf die Orte der Einstellunge
 | Einleitung | «Jedes Konto hat in Seerr einen eigenen Benutzer mit demselben Login. Seine Profile fordern als dieser Benutzer an und tragen einen Tag. Rechte, Limit und Freigabe kommen von diesem Benutzer.» (Wortlaut Mockup) |
 | Zeile «Konten in Seerr» | «3 von 3 Konten: 2 eröffnet, 1 verknüpft» bzw. «1 wartet, bis Seerr erreichbar ist»; Link «Zu den Seerr-Benutzern» |
 | Zeile «Neue Konten» | Wert von «Neue Konten in Seerr eröffnen» und «Passwort abgleichen», Link «Einstellungen» |
-| Zeile «Passwort» | «Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Ein Passwort, das jemand direkt in Seerr ändert, bemerkt Slouchcat nicht.» (N-3, N-7) |
+| Zeile «Passwort» | «Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Ein Passwort, das jemand direkt in Seerr ändert, bemerkt Slouchcat nicht.» (N-3, N-7). Zusatz (Marco, F-24; N-103; Wortlaut **Vorschlag**): «Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.» |
+| Zeile «Sammelbenutzer» | «slouchcat-gaeste: für Konten ohne eigenen Benutzer, Standard-Limit gemeinsam» bzw. «wird angelegt, sobald Wünsche aktiv sind»; Link «Einstellungen» (F-4, N-101; Wortlaut **Vorschlag**) |
 | Zeile «Limit ab Werk» | Wert und Link «Einstellungen»; Hinweis «Administratoren in Seerr haben kein Limit.» (N-34) |
 | Fakten | «Lokale Anmeldung: an» bzw. die Warnung aus dem Test |
 
@@ -335,14 +336,13 @@ Route im Mockup weiter `#/admin/wishes/mapping`.
 | Teil | Inhalt |
 |---|---|
 | Kopfzeile | vier Kennzahlen: «Konten», «In Seerr» (eröffnet oder verknüpft), «Ohne Benutzer» (mit «wartet»), «Passwort noch offen» (folgt bei der nächsten Anmeldung). Gelöschte Benutzer nennen der Hinweis darunter und das Band des Kontos; Knöpfe «Alle eröffnen» (`provisionSeerrAccounts`: verknüpft vorhandene Benutzer mit gleicher E-Mail und legt für die übrigen einen neuen an, N-2), «Benutzerliste neu laden» (`refreshSeerrUsers`, Zeit des letzten Ladens) und ab Stufe 4 «Anfragen übernehmen» (`wishes.import` für alle Benutzer der Konten) |
-| Band «Konten» | Je Konto ein eigenes Band, **zugeklappt** (Gestaltungsregel, Abschnitt 1.3; Redaktionsentscheid zum Abgleich mit dem Mockup, `mockup-abdeckung.md` Abschnitt 10.2, Nr. 14). Kopf des Bandes, kurz: E-Mail des Kontos, Rolle (Chip «Administrator» oder «Konto», dazu «Besitzer»), Chip mit dem Zustand, Name des Seerr-Benutzers und die Ausschöpfung des Limits («Filme 7/10 · Staffeln 2/5»). Aufgeklappt zeigt das Band eine Liste aus Begriff und Wert: «Seerr-Benutzer» (Name und ID, E-Mail, Art und Herkunft «von Slouchcat eröffnet» oder «bestand schon in Seerr»; ohne Benutzer «Keiner»), «Zustand» («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail», «Von Hand zugeordnet», «Wird eröffnet, sobald Seerr erreichbar ist», «Nicht eröffnet»; bei «Verknüpft über gleiche E-Mail» dazu der Auslöser: «beim Annehmen der Einladung», «nach Änderung der E-Mail» oder «durch einen Administrator», mit Datum), «Passwort» («Gleich wie in Slouchcat» mit «abgeglichen am …», «Wird bei der nächsten Anmeldung in Slouchcat übernommen», «Wird nicht abgeglichen», «Bleibt in Seerr (Administrator)», «Anmeldung über Jellyfin oder Plex»; ohne Benutzer «Folgt mit dem Benutzer»), «Rechte in Seerr» («Darf anfordern» = `REQUEST`, «Keine Rechte», bei verknüpften die Fakten aus Seerr; ohne Benutzer «Folgen dem Wunschrecht des Kontos»), «Limit» («Filme 7 von 10 · Staffeln 2 von 5 in 7 Tagen», inklusive der Wünsche, die direkt in Seerr gestellt wurden, E-3; «Kein Limit (Administrator)», N-34; ohne Benutzer «Wird beim Eröffnen gesetzt» mit Link «Limit ändern»). Darunter die Aktionen und die Profile |
-| Aktionen im Band | «In Seerr eröffnen» (`provisionSeerrAccount`; bei gleicher E-Mail verknüpft es, Hinweis «Gleiche E-Mail-Adresse: «In Seerr eröffnen» verknüpft diesen Benutzer, statt einen zweiten anzulegen.»), «Anderen Benutzer wählen» (Auswahlfeld, `setAccountWishMapping`, Zustand «Von Hand»), «Verknüpfung lösen» (`setAccountWishMapping` mit leer; der Benutzer bleibt in Seerr), «Passwort bei der nächsten Anmeldung neu übernehmen» und «Passwort nicht abgleichen» (`setSeerrPasswordMode`, N-7). Ist das Konto beim Annehmen einer Einladung oder nach einer E-Mail-Änderung verknüpft worden, steht über den Aktionen ein neutraler Hinweis: «Beim Annehmen der Einladung mit dem bestehenden Seerr-Benutzer {{Name}} verknüpft, weil die E-Mail gleich ist. Gehört er nicht zu diesem Konto, löse die Verknüpfung.» bzw. «… nach Änderung der E-Mail …» (Wortlaut **Vorschlag**, N-93) |
-| Profile im Band | die Profile des Kontos mit je **Profil-Tag** (Name, z. B. `sc-noah`, Feld «Eigener Name» zum Überschreiben, `setProfileTagName`, N-21) und dem Wunschrecht des Profils (nur lesen, setzt das Hauptprofil). Darunter zugeklappt die **Ausnahme** «Profil sendet als anderer Seerr-Benutzer» mit Auswahlfeld «Wie Konto» / Benutzer (`setProfileWishMapping`, N-41, F-27) und dem Hinweis «Es gelten Rechte, Limit und Freigabe dieses Benutzers.» |
+| Band «Konten» | Je Konto ein eigenes Band, **zugeklappt** (Gestaltungsregel, Abschnitt 1.3; Redaktionsentscheid zum Abgleich mit dem Mockup, `mockup-abdeckung.md` Abschnitt 10.2, Nr. 14). Kopf des Bandes, kurz: E-Mail des Kontos, Rolle (Chip «Administrator» oder «Konto», dazu «Besitzer»), Chip mit dem Zustand, Name des Seerr-Benutzers und die Ausschöpfung des Limits («Filme 7/10 · Staffeln 2/5»). Aufgeklappt zeigt das Band eine Liste aus Begriff und Wert: «Seerr-Benutzer» (Name und ID, E-Mail, Art und Herkunft «von Slouchcat eröffnet» oder «bestand schon in Seerr»; ohne Benutzer «Keiner»), «Zustand» («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail», «Von Hand zugeordnet», «Wird eröffnet, sobald Seerr erreichbar ist», «Nicht eröffnet»; bei «Verknüpft über gleiche E-Mail» dazu der Auslöser: «beim Annehmen der Einladung», «nach Änderung der E-Mail» oder «durch einen Administrator», mit Datum), «Passwort» («Gleich wie in Slouchcat» mit «abgeglichen am …», «Wird bei der nächsten Anmeldung in Slouchcat übernommen», «Wird nicht abgeglichen» (ab Werk bei einem Benutzer, den ein Administrator verknüpft oder von Hand gewählt hat, F-24, N-103), «Bleibt in Seerr (Administrator)», «Anmeldung über Jellyfin oder Plex»; ohne Benutzer «Folgt mit dem Benutzer»), «Rechte in Seerr» («Darf anfordern» = `REQUEST`, «Keine Rechte», bei verknüpften die Fakten aus Seerr; ohne Benutzer «Folgen dem Wunschrecht des Kontos»), «Limit» («Filme 7 von 10 · Staffeln 2 von 5 in 7 Tagen», inklusive der Wünsche, die direkt in Seerr gestellt wurden, E-3; «Kein Limit (Administrator)», N-34; ohne Benutzer «Wird beim Eröffnen gesetzt» mit Link «Limit ändern»). Darunter die Aktionen und die Profile |
+| Aktionen im Band | «In Seerr eröffnen» (`provisionSeerrAccount`; bei gleicher E-Mail verknüpft es, Hinweis «Gleiche E-Mail-Adresse: «In Seerr eröffnen» verknüpft diesen Benutzer, statt einen zweiten anzulegen.»), «Anderen Benutzer wählen» (Auswahlfeld, `setAccountWishMapping`, Zustand «Von Hand»), «Verknüpfung lösen» (`setAccountWishMapping` mit leer; der Benutzer bleibt in Seerr), «Passwort bei der nächsten Anmeldung neu übernehmen» und «Passwort nicht abgleichen» (`setSeerrPasswordMode`, N-7; schaltet auch den Abgleich eines vom Administrator verknüpften Kontos ein, N-103). Ist das Konto beim Annehmen einer Einladung oder nach einer E-Mail-Änderung verknüpft worden, steht über den Aktionen ein neutraler Hinweis: «Beim Annehmen der Einladung mit dem bestehenden Seerr-Benutzer {{Name}} verknüpft, weil die E-Mail gleich ist. Gehört er nicht zu diesem Konto, löse die Verknüpfung.» bzw. «… nach Änderung der E-Mail …» (Wortlaut **Vorschlag**, N-93) |
+| Profile im Band | die Profile des Kontos mit je **Profil-Tag** (Name, z. B. `sc-noah`, Feld «Eigener Name» zum Überschreiben, `setProfileTagName`, N-21) und dem Wunschrecht des Profils (nur lesen, setzt das Hauptprofil). Die Ausnahme «Profil sendet als anderer Seerr-Benutzer» entfällt (F-27, Anhang H 11.3 N-100) |
 | Band «Seerr-Benutzer ohne Konto» | Benutzer aus `seerr_users`, die keinem Konto gehören: Name, E-Mail, Art (lokal, Jellyfin, Emby, Plex), Fakten, Zähler «n nicht zuordenbare Anfragen»; Aktion «Einem Konto zuordnen» |
 
 Alles wirkt sofort und bestätigt sich mit einer Meldung, etwa «grosseltern in Seerr verknüpft.», «noah: Tag
-heisst jetzt sc-noah-k.» oder «Ausnahme gesetzt: Profil Noah sendet als kinder. Es gelten Rechte, Limit und
-Freigabe dieses Benutzers.» Einen eigenen Dialog gibt es nicht (Regel von Marco, Abschnitt 1.3). Nur «Alle
+heisst jetzt sc-noah-k.» Einen eigenen Dialog gibt es nicht (Regel von Marco, Abschnitt 1.3). Nur «Alle
 eröffnen» fragt vorher nach und listet, was geschieht («2 verknüpfen, 1 neu anlegen»).
 
 **Verknüpft beim Annehmen einer Einladung (Marco, E-8).** Findet Slouchcat beim Annehmen einer Einladung oder
@@ -390,7 +390,7 @@ Schalter und Auswahlfelder, die **sofort** gelten (wie im Mockup); es gibt kein 
 | «Anfordern aus der Suche» | «Abschnitt «Noch nicht in der Bibliothek».» | an/aus | an | aus: kein Abschnitt «Noch nicht in der Bibliothek» |
 | «Anfordern auf Detailseiten» | «Fehlende Staffeln auf der Seite einer Serie.» | an/aus | an | aus: keine fehlenden Staffeln, keine Zeile «2 von 4 Staffeln vorhanden», kein «Staffeln anfordern». Die Vorschauseite eines fehlenden Titels bleibt erreichbar, solange mindestens eine der drei Stellen an ist |
 | «Bereits angeforderte Titel» | «Was ein zweites Profil bei einem schon gewünschten Titel tun kann.» | «Mitwünschen» / «Nur Zustand zeigen» | Mitwünschen (F-7) | Knopf «Benachrichtige mich» oder nur der Zustand |
-| «Konten ohne Seerr-Benutzer» | «Sammelbenutzer: Alle Konten ohne eigenen Benutzer teilen Limit und Auto-Freigabe.» | «Nicht erlauben» / «Sammelbenutzer» + Auswahl | Nicht erlauben (F-4) | Auflösung nach `04-benutzer-profilmapping.md`, Abschnitt 6.1. Seit Fassung 3 betrifft das nur noch Konten, die (noch) keinen Seerr-Benutzer haben (Zustand «Wartet» oder «Nicht eröffnet») |
+| «Konten ohne Seerr-Benutzer» | «Sammelbenutzer: Alle Konten ohne eigenen Benutzer fordern als slouchcat-gaeste an und teilen das Standard-Limit.» (Wortlaut **Vorschlag**) | «Sammelbenutzer» / «Nicht erlauben»; keine Auswahl eines Benutzers, Slouchcat legt «slouchcat-gaeste» selbst an (N-101) | Sammelbenutzer (Marco, F-4) | Auflösung nach `04-benutzer-profilmapping.md`, Abschnitt 6.1. Betrifft nur Konten, die (noch) keinen Seerr-Benutzer haben (Zustand «Wartet» oder «Nicht eröffnet») |
 | «Neue Konten dürfen anfordern» | «Vorgabe im Dialog «Konto einladen».» | an/aus | aus (F-5) | Vorgabe des Schalters beim Einladen; ändert bestehende Konten nicht |
 | «Zurückziehen erlauben» | «Solange ein Wunsch nicht freigegeben ist.» | an/aus | an (F-17) | Knopf «Zurückziehen» in «Meine Wünsche» |
 | «Externe Nachrichten bei PIN-Profilen ohne Titel» | «E-Mail, Push und Telegram nennen dann nur das Profil.» | an/aus | an (F-15) | PIN-Fassung der Texte |
@@ -576,21 +576,21 @@ pausiert, zeigt der Dialog: «Wünsche bleiben «Wird übermittelt»; nach 24 St
 | Warum bekam ein Profil keine Meldung? | Anfragen › Diagnose («für Noah nicht sichtbar»); Kanalseite des Kontos; fehlgeschlagene `notify.deliver` auf Hintergrundjobs |
 | Warum gilt ein Titel nicht als verfügbar? | Anfragen › Diagnose («In Seerr verfügbar, in Slouchcat nicht gefunden» mit Link zur Pflege, `03-architektur.md`, Abschnitt 11) |
 
-## 14. Offene Entscheide in diesem Papier
+## 14. Entscheide in diesem Papier (beantwortet am 17. November 2026)
 
-| Nr. | Frage | Empfehlung |
+| Nr. | Frage | Marcos Antwort (Anhang H 11.2) |
 |---|---|---|
-| F-16 | Freigeben/Ablehnen in der Verwaltung in Stufe 4? | Ja |
-| F-18 | Seerr-Webhook als Sofortmeldung in Stufe 4? | Ja |
-| F-19 | Seite «Wünsche» unter Medien, Verbindung unter Integrationen? | Ja |
-| F-4 | Konten ohne Seerr-Benutzer (Sammelbenutzer)? | nicht erlauben als Vorgabe; betrifft seit Fassung 3 nur Konten, die noch keinen Benutzer haben |
-| F-23 | Für wen eröffnet Slouchcat einen Seerr-Benutzer? | für jedes Konto; von selbst nur beim Annehmen einer Einladung, bestehende Konten eröffnet der Administrator mit «Alle eröffnen» oder einzeln (K-15); ohne Wunschrecht ohne Rechte |
-| F-24 | Passwort bei verknüpften Benutzern übernehmen? | Die Verknüpfung bei der Einladung hat Marco entschieden: sofort (E-8). Offen als Empfehlung: Passwort auch bei Konten übernehmen, die ein Administrator nachträglich eröffnet oder verknüpft, bei der nächsten Anmeldung, ausser Administratoren und Anmeldung über Jellyfin, Emby oder Plex (K-11); Hinweis «Neu verknüpft» in der Übersicht (N-93) |
-| F-25 | Name des Profil-Tags | `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar; nie entfernen |
-| F-26 | Limit ab Werk | 10 Filme und 5 Staffeln in 7 Tagen; Administratoren ohne Limit |
-| F-27 | Ausnahme «Profil sendet als anderer Seerr-Benutzer» behalten? | ja, zugeklappt |
-| F-30 | Radarr und Sonarr (Profil-Tag und Fortschritt): Zugang aus Seerr lesen oder eigene Felder? | aus Seerr, eigene Adresse nur als Ausweg |
-| F-31 | Seerr-Benutzer eines gelöschten Kontos? | bleibt; nur ein von Slouchcat eröffneter verliert die Rechte und bekommt ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (K-2) |
+| F-16 | Freigeben/Ablehnen in der Verwaltung in Stufe 4? | Ja (nach Empfehlung) |
+| F-18 | Seerr-Webhook als Sofortmeldung in Stufe 4? | Ja, als Anstoss; der Abgleich alle 5 Minuten bleibt die Grundlage (nach Empfehlung) |
+| F-19 | Seite «Wünsche» unter Medien, Verbindung unter Integrationen? | Ja (nach Empfehlung) |
+| F-4 | Konten ohne Seerr-Benutzer (Sammelbenutzer)? | **Sammelbenutzer ab Werk** (gegen die Empfehlung): «slouchcat-gaeste», von Slouchcat angelegt, Standard-Limit gemeinsam; andere Wahl «Nicht erlauben» |
+| F-23 | Für wen eröffnet Slouchcat einen Seerr-Benutzer? | für jedes Konto; von selbst nur beim Annehmen einer Einladung, bestehende Konten eröffnet der Administrator mit «Alle eröffnen» oder einzeln (K-15); ohne Wunschrecht ohne Rechte (nach Empfehlung) |
+| F-24 | Passwort bei verknüpften Benutzern übernehmen? | **Nur für eingeladene und von Slouchcat eröffnete Benutzer** (gegen die Empfehlung); ein bestehender Seerr-Benutzer, den ein Administrator verknüpft, behält sein Passwort («Wird nicht abgeglichen», je Konto einschaltbar, N-103). Die Verknüpfung bei der Einladung bleibt E-8: sofort, mit Passwort. Hinweis «Neu verknüpft» (N-93): Redaktion |
+| F-25 | Name des Profil-Tags | `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar; nie entfernen (nach Empfehlung) |
+| F-26 | Limit ab Werk | 10 Filme und 5 Staffeln in 7 Tagen; Administratoren ohne Limit (nach Empfehlung) |
+| F-27 | Ausnahme «Profil sendet als anderer Seerr-Benutzer» behalten? | **Nein** (gegen die Empfehlung); wird nicht gebaut |
+| F-30 | Radarr und Sonarr (Profil-Tag und Fortschritt): Zugang aus Seerr lesen oder eigene Felder? | aus Seerr, die Adresse gilt nach einem «Testen», eigene Adresse als Ausweg (nach Empfehlung) |
+| F-31 | Seerr-Benutzer eines gelöschten Kontos? | bleibt; nur ein von Slouchcat eröffneter verliert die Rechte und bekommt ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (K-2; nach Empfehlung) |
 
 Was Marco am 17. November 2026 entschieden hat (E-1 bis E-4: gleiches Passwort, Tag in Radarr und Sonarr,
 Seerr zählt alles, Verknüpfen über die E-Mail; E-5 bis E-7: keine fehlenden Titel im Spotlight und nirgends
@@ -598,7 +598,8 @@ in der Zuschauer-App, Webhooks wie heute, Download-Fortschritt bei Wünschen; E-
 sofort verknüpfen, Name «Seerr», Startreihe «Erfüllte Wünsche», Sofort-Import nach Messung), steht in
 `11-entscheide-und-adr.md`, Abschnitt 0. Entschieden sind damit F-8 (E-5: Das Band «Fehlende Einträge» hat keine
 Schalter), F-32 (E-9), F-33 (E-11; ändert auf diesen Seiten nur zwei Spalten im Meldungsprotokoll der Webhooks,
-und nur, wenn die Messung einen Gewinn zeigt) und F-34 (E-10); F-20 ist durch F-34 ersetzt. Die übrigen Punkte
-dieses Papiers aus Fassung 3 sind Empfehlungen der Redaktion.
+und nur, wenn die Messung einen Gewinn zeigt) und F-34 (E-10); F-20 ist durch F-34 ersetzt. Die übrigen Fragen
+hat Marco am selben Tag beantwortet (Anhang H 11.2, Tabelle oben). Was darüber hinausgeht, ist Empfehlung der
+Redaktion.
 
 Begründungen und Folgen anderer Wahl: `11-entscheide-und-adr.md`, Abschnitt 1.

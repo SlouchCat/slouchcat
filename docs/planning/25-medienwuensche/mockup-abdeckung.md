@@ -12,7 +12,8 @@
 > Bau sie umsetzt. Danach folgen Gegenproben für jede Einstellung, jede Berechtigung, jeden Zustand eines Wunsches
 > samt Download-Anzeige, die Verbindung, die Seerr-Benutzer mit Passwort, das Limit und die Tags.
 > Grundlage ist der Code des Mockups (`js/*.js`), nicht der Plan. Abschnitt 9 nennt, was das Mockup nicht zeigt.
-> Abschnitt 10 nennt die Unterschiede zwischen Mockup und Papieren.
+> Abschnitt 10 nennt die Unterschiede zwischen Mockup und Papieren. Abschnitt 11 nennt, wo das Mockup nach
+> Marcos Antworten vom 17. November 2026 (Anhang H 11) noch den alten Stand zeigt.
 
 Grundlage sind die Papiere `01-…` bis `11-…` in Fassung 3 und Anhang H. Operationen nach `08-datenmodell-api.md`
 Abschnitte 4.5 und 4.6, Einstellungen nach Abschnitt 2.12, Tabellen nach Abschnitt 2, Stufen und Schritte nach
@@ -31,7 +32,9 @@ Annehmen einer Einladung sofort verknüpfen, mit bekanntem Risiko (E-8, N-90, N-
 «Erfüllte Wünsche» (E-10), Sofort-Import als eigener Schritt nach einer Messung (E-11). **Alles andere** in dieser
 Matrix, etwa Namen, Vorgaben, Anzeigen, Grenzen, der Hinweis «Neu verknüpft» (N-93) und die Entscheide zur Kritik
 K-1 bis K-23, ist **Empfehlung der Redaktion**. Von den Fragen F-1 bis F-34 sind F-8, F-32, F-33 und F-34
-entschieden, F-20 ist ersetzt, F-24 für die Verknüpfung entschieden; offen sind 29, dazu T-1 und T-2.
+entschieden, F-20 ist ersetzt. Die übrigen 29 Fragen und T-1, T-2 hat Marco am 17. November 2026 mit dem
+Bauauftrag beantwortet (Anhang H 11.2); keine ist mehr offen. Die Matrix beschreibt das Mockup und ist darum nicht
+umgeschrieben; wo der Bau davon abweicht, steht es in Abschnitt 11.
 
 ## 1. So öffnest du das Mockup
 
@@ -402,8 +405,8 @@ entschieden, F-20 ist ersetzt, F-24 für die Verknüpfung entschieden; offen sin
 | Heute | gibt es nicht |
 | Geplante Änderung | je Konto ein zugeklapptes Band: Seerr-Benutzer, Zustand (eröffnet, verknüpft mit Auslöser, von Hand, wartet, nicht eröffnet), Passwort, Rechte, Limit inklusive direkt in Seerr gestellter Wünsche; neutraler Hinweis bei einer Verknüpfung beim Annehmen einer Einladung (E-8, N-93); Aktionen «In Seerr eröffnen», «Alle eröffnen» (mit Rückfrage), «Anderen Benutzer wählen», «Verknüpfung lösen», Passwortmodus; je Profil Tag-Name und zugeklappt die Ausnahme «Profil sendet als anderer Seerr-Benutzer» (N-41); Band «Seerr-Benutzer ohne Konto» mit «Einem Konto zuordnen»; alles sofort wirksam (`07-administration.md` Abschnitt 6) |
 | Rolle | Administrator |
-| Neue oder veränderte Einstellungen | Seerr-Benutzer je Konto, Passwortmodus je Konto, Tag-Name je Profil, Ausnahme je Profil |
-| API-Operationen | `listSeerrUsers`, `refreshSeerrUsers`, `getWishMappings`, `provisionSeerrAccount`, `provisionSeerrAccounts` (409 `provision_disabled`), `setAccountWishMapping` (wählen, lösen, zuordnen; 409 `seerr_user_taken`), `setSeerrPasswordMode`, `setProfileWishMapping`, Stufe 4 `setProfileTagName`, `importSeerrRequests`, `countSeerrRequests`. `applyWishMappingSuggestions` entfällt (Vorschlag in `08` Abschnitt 4.5) |
+| Neue oder veränderte Einstellungen | Seerr-Benutzer je Konto, Passwortmodus je Konto, Tag-Name je Profil, Ausnahme je Profil (nur Mockup; entfällt im Bau, F-27, Abschnitt 11) |
+| API-Operationen | `listSeerrUsers`, `refreshSeerrUsers`, `getWishMappings`, `provisionSeerrAccount`, `provisionSeerrAccounts` (409 `provision_disabled`), `setAccountWishMapping` (wählen, lösen, zuordnen; 409 `seerr_user_taken`), `setSeerrPasswordMode`, `setProfileWishMapping` (entfällt im Bau, F-27), Stufe 4 `setProfileTagName`, `importSeerrRequests`, `countSeerrRequests`. `applyWishMappingSuggestions` entfällt (Vorschlag in `08` Abschnitt 4.5) |
 | Mockup | M-24, `#/admin/wishes/mapping`, `js/admin-b.js` (`route('/admin/wishes/mapping')`, `abSeerrBand`, `abProfRow`, `abQuotaBlock`, `abUserFacts`, `abUserWarn`, `DIALOGS.abProvisionAll`, `ACT.abAssignOk`); Zustände `SEERR_ACC`, `PW_STATE`, `provisionAccount`, `linkAccount`, `unlinkAccount`, `pwSetMode`, `seerrFreeFor` in `js/model2.js` |
 | Abgedeckte interaktive Zustände | Kennzahlen «Konten», «In Seerr», «Ohne Benutzer» (mit «wartet»), «Passwort noch offen»; Warnung «1 Konto ohne Seerr-Benutzer» mit «Alle eröffnen» und «Zu den Einstellungen»; «Alle eröffnen» fragt nach und listet «Über gleiche E-Mail-Adresse verknüpfen» und «In Seerr neu anlegen» («1 verknüpfen, 1 neu anlegen»); Zeile «Neue Konten: werden in Seerr eröffnet · Passwort: wird abgeglichen · Ändern»; «Benutzerliste neu laden» (ohne Verbindung «Gezeigt wird der letzte Stand»); je Konto ein zugeklapptes Band mit Rolle, Zustand, Benutzer mit ID, Zahl der Wünsche und Verbrauch im Kopf; darin «Seerr-Benutzer» (Name, ID, E-Mail, Art, «von Slouchcat eröffnet» oder «bestand schon in Seerr»), «Wünsche», «Zustand» («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail» mit «seit …», «Von Hand zugeordnet», «Wird eröffnet, sobald Seerr erreichbar ist», «Nicht eröffnet», «In Seerr gelöscht»), «Passwort» («Gleich wie in Slouchcat» mit Datum, «Wird bei der nächsten Anmeldung in Slouchcat übernommen», «Wird nicht abgeglichen», «Bleibt in Seerr (Administrator)», «Anmeldung über Jellyfin oder Plex», ohne Benutzer «Folgt mit dem Benutzer»), «Rechte in Seerr», «Limit» mit Balken, «davon n direkt in Seerr gestellt», «Nächster Platz frei …», «Limit ändern»; **Verknüpft beim Annehmen der Einladung** (Konto aus M-35 mit `tv@example.ch`): Zustand «Verknüpft über gleiche E-Mail», Passwort «Anmeldung über Jellyfin oder Plex», neutraler Hinweis «Verknüpft beim Annehmen der Einladung, weil die E-Mail-Adresse in Seerr schon vergeben war. Löse die Verknüpfung, wenn Konto und Benutzer nicht dieselbe Person sind.»; Hinweis «In Seerr gibt es schon «gast»» bei gast; «In Seerr eröffnen» (verknüpft gast, bei «Nicht erreichbar» «wartet»), bei ausgeschaltetem Eröffnen gesperrt mit «Gesperrt: «Neue Konten in Seerr eröffnen» ist … ausgeschaltet.» und «Zur Einstellung» (ebenso «Alle eröffnen»); «Anderen Benutzer wählen» mit Auswahl (Benutzer anderer Konten und solche, unter denen ein Profil eines anderen Kontos anfordert, gesperrt mit «gehört zu …») und «Übernehmen»; «Verknüpfung lösen» ohne Rückfrage mit Meldung; «Passwort bei der nächsten Anmeldung neu übernehmen» (gesperrt bei ausgeschaltetem Abgleich) und «Passwort nicht abgleichen», Erklärung bei Administrator und Jellyfin; Hinweis für Konten ohne Recht; je Profil Alter, PIN, Wunschrecht nur lesend («Im Profil ändern»), Feld «Eigener Name (Profil-Tag in Radarr und Sonarr)» mit Vorgabe als Platzhalter, wirksamem Tag als Chip, Meldung «Noah: Tag heisst jetzt …» und Fehler «Erlaubt sind nur Kleinbuchstaben a–z, Ziffern 0–9 und der Bindestrich.»; Band «Ausnahme» zugeklappt (Sandra: «Sendet als sandra», Noah: «Sendet als kinder») mit Auswahl (Benutzer mit ID), Fakten, Warnungen (Rechte nur bei Benutzern, die es schon gab) und Limit des Ausnahme-Benutzers; Band «Seerr-Benutzer ohne Konto» (wohnzimmer-tv, gast) mit Anfragen, «davon n nicht zuordenbar», «Gleiche E-Mail wie …» und «Einem Konto zuordnen» (Auswahl der Konten ohne Benutzer, Meldung «n Anfragen übernimmt der nächste Abgleich»); Mockup-Hilfe «Benutzer «sandra» in Seerr löschen (Mockup)» und zurück |
 | Spätere technische Umsetzung | Stufe 1: Schritte 1.2 (`wish_account_map` mit Herkunft, Auslöser der Verknüpfung, Zustand `ready`/`waiting`, Passwortstand), 1.5 (`seerr.users`), 1.5a (`seerr.provision`), 1.5b, 1.5c, 1.8 (`web/src/features/admin/wishes/`); Stufe 4: Schritte 4.6 (`wishes.import`), 4.6b, 4.6c (Tag-Name, `wish_profile_tags`); `04-benutzer-profilmapping.md` Abschnitte 12 bis 18; `07-administration.md` Abschnitt 6; AK in `10-abnahmekriterien.md` Abschnitte 2.2 und 2.5 (AK-216, AK-217, AK-220 bis AK-224) |
@@ -542,7 +545,7 @@ Spalte «Gespeichert» nach `08-datenmodell-api.md` Abschnitte 2.2, 2.3, 2.12 bi
 | Download-Fortschritt zeigen | M-25, Band «Radarr und Sonarr» | `wishes.show_progress` | aus: keine Download-Zeile in M-03, M-04, M-08, M-23 und M-00, Filter «Download verzögert» weg; M-30 «aus · Download-Fortschritt ausgeschaltet»; M-20 ohne «Downloads verzögert»; M-22 «aus»; Tags laufen weiter |
 | Seerr-Benutzer des Kontos | M-24, je Konto «In Seerr eröffnen», «Alle eröffnen», «Anderen Benutzer wählen», «Verknüpfung lösen»; Band «ohne Konto» «Einem Konto zuordnen»; M-35 verknüpft bei gleicher E-Mail sofort | `wish_account_map` (`seerr_user_id`, `origin`, Auslöser `linked_by`, `linked_at`, `state`) | Zustand in M-24, M-26, M-22; Konto darf anfordern oder nicht; Limit des Kontos geht an den Benutzer |
 | Passwortmodus je Konto | M-24, «Passwort bei der nächsten Anmeldung neu übernehmen», «Passwort nicht abgleichen» | `wish_account_map.password_state` | Zustand in M-24 und M-26; Knopf «{Konto} meldet sich an» erscheint in M-00 |
-| Ausnahme je Profil | M-24, Band «Ausnahme» je Profil | `wish_profile_map` | M-13 «(eigener Benutzer des Profils)», Freigabe und Limit des Ausnahme-Benutzers; M-11 «Sendet als … (eigener Seerr-Benutzer)» |
+| Ausnahme je Profil (nur Mockup; entfällt im Bau, F-27, Abschnitt 11) | M-24, Band «Ausnahme» je Profil | `wish_profile_map` (entfällt) | M-13 «(eigener Benutzer des Profils)», Freigabe und Limit des Ausnahme-Benutzers; M-11 «Sendet als … (eigener Seerr-Benutzer)» |
 | Tag-Name je Profil | M-24, Feld «Eigener Name» | `wish_profile_tags` | Chip daneben, Meldung, Tag-Chips in M-23 |
 | Wunschrecht Konto | M-26, Formular «Zugriff» bzw. Block «Wünsche», gespeichert mit dem Formular | `accounts.can_request` | Spalte «Wünsche»; Profilschalter in M-11 bedienbar oder gesperrt; Rechte eines eröffneten Benutzers in M-24 folgen |
 | Wunschrecht Profil | M-11, «Bearbeiten», «Darf Titel anfordern» | `profiles.can_request` | Chips in M-11, M-24, M-26; Bereich «Wünsche» und fehlende Titel für das Profil |
@@ -652,7 +655,7 @@ Einträge in M-27, R = Reihe «Erfüllte Wünsche» (M-01). Die Bühne zeigt kei
 | Passwort «Bleibt in Seerr (Administrator)» | M-24, M-26 (Meldung bei Passwortänderung) | marco |
 | Passwort «Anmeldung über Jellyfin oder Plex» | M-24, M-26 | gast «Anderen Benutzer wählen» → wohnzimmer-tv, oder M-35 mit `tv@example.ch` |
 | Anmeldung übernimmt das Passwort | M-00, M-24, M-22 (Protokoll) | M-00 «gast meldet sich an»; bei «Nicht erreichbar»: Meldung, Stand bleibt |
-| Ausnahme gesetzt / entfernt | M-24, M-11, M-13 | M-24 Sandra «Sendet als» auf «Benutzer des Kontos (marco)»: Meldung «Ausnahme entfernt …» |
+| Ausnahme gesetzt / entfernt (nur Mockup; entfällt im Bau, F-27) | M-24, M-11, M-13 | M-24 Sandra «Sendet als» auf «Benutzer des Kontos (marco)»: Meldung «Ausnahme entfernt …» |
 
 ### 7.3 Limit
 
@@ -806,3 +809,21 @@ Bänder in `07` Abschnitt 6), 15 (Name «Konten ohne Seerr-Benutzer»), 27 (Dial
 (Text «Limit erreicht: Seerr hat den Wunsch nicht angenommen.»), 29 (M-35 zeigt die Fakten der Einladung)
 und bei Nummer 2 die 24-Stunden-Regel (Hinweis und Filter zählen nur Tags, die nicht gesetzt werden konnten). Die
 sieben Widersprüche der Fassung 2 bleiben behoben.
+
+## 11. Abweichungen des Mockups von den Antworten vom 17. November 2026
+
+Das Mockup ist das Artefakt der Konzeptfassung 3 und bleibt unverändert. Marco hat danach alle offenen Fragen
+beantwortet (Anhang H 11.2) und bei vier Fragen anders gewählt, als die Papiere empfahlen. An diesen Stellen zeigt
+das Mockup noch den alten Stand; der Bau folgt den Antworten und den Regeln N-100 bis N-104 (Anhang H 11.3).
+
+| Stelle im Mockup | Was das Mockup zeigt | Was der Bau macht | Frage |
+|---|---|---|---|
+| M-24 «Seerr-Benutzer», je Profil | zugeklappte **Ausnahme** «Profil sendet als anderer Seerr-Benutzer» mit Auswahlfeld «Sendet als» und der Meldung «Ausnahme gesetzt …»; Sandra sendet als sandra, Noah als kinder | keine Ausnahme je Profil: kein Auswahlfeld, keine Operation `setProfileWishMapping`, keine Tabelle `wish_profile_map`; alle Profile senden als Benutzer des Kontos | F-27 (N-100) |
+| M-11 Profile, M-13 Dialog | Zeile «Sendet als … (eigener Seerr-Benutzer)» bzw. «(eigener Benutzer des Profils)» mit Freigabe und Limit des Ausnahme-Benutzers | nur «Benutzer des Kontos» oder «Sammelbenutzer»; Noah im Konto marco fordert ohne Freigabe und ohne Limit an | F-27 (N-100) |
+| M-25 «Einstellungen», «Konten ohne Seerr-Benutzer» | ab Werk «Nicht erlauben»; bei «Sammelbenutzer» eine **Auswahl** unter den bestehenden Seerr-Benutzern; ohne Wahl der Chip «Ohne Benutzer gilt «Nicht erlauben»» | ab Werk «Sammelbenutzer»; Slouchcat legt den Benutzer «slouchcat-gaeste» selbst an (Recht `REQUEST`, keine Auto-Freigabe, Standard-Limit); keine Auswahl, andere Wahl «Nicht erlauben» | F-4 (N-101, N-102) |
+| M-26 Konten, M-13 Dialog, M-20 Übersicht | «Erlaubt · … (Sammelbenutzer)» mit dem gewählten Benutzer; ohne Wahl kein Anfordern | «Erlaubt · slouchcat-gaeste (Sammelbenutzer)» für jedes Konto ohne eigenen Benutzer, solange «Sammelbenutzer» gewählt ist | F-4 (N-101) |
+| M-24, M-26 Passwort eines vom Administrator verknüpften Kontos | nach «In Seerr eröffnen» mit gleicher E-Mail (Beispiel gast) oder «Anderen Benutzer wählen» der Stand «Wird bei der nächsten Anmeldung in Slouchcat übernommen» (Abschnitt 7.2) | Stand «Wird nicht abgeglichen»; der Benutzer behält sein Passwort, bis der Administrator den Abgleich für das Konto einschaltet. Beim Annehmen einer Einladung (M-35) und nach einer E-Mail-Änderung wird das Passwort weiter gesetzt (E-8) | F-24 (N-103) |
+| Hilfetexte zu «Passwort abgleichen» (M-25) und «Passwort» (M-22) | das Passwort gehe an jeden verknüpften Benutzer | Zusatz, dass vom Administrator verknüpfte Benutzer ihr Passwort behalten (Wortlaut im Bau, `07-administration.md`) | F-24 (N-103) |
+
+Die Antwort zu F-22 (ein Release am Schluss) betrifft das Mockup nicht.
+

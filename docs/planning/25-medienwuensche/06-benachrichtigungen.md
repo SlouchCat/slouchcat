@@ -349,12 +349,12 @@ sequenceDiagram
   Wish->>Not: wish_available für Profil Noah
 ```
 
-## 13. Offene Entscheide in diesem Papier
+## 13. Entscheide in diesem Papier (beantwortet am 17. November 2026)
 
-| Nr. | Frage | Empfehlung |
+| Nr. | Frage | Marcos Antwort (Anhang H 11.2) |
 |---|---|---|
-| F-13 | «Verfügbar» = Slouchcat kann es für das Profil abspielen? | Ja |
-| F-14 | Drei Kanal-Ereignisse mit den Vorgaben aus Abschnitt 6? | Ja |
-| F-15 | Externe Nachrichten bei PIN-Profilen ohne Titel? | Ja |
+| F-13 | «Verfügbar» = Slouchcat kann es für das Profil abspielen? | Ja (nach Empfehlung) |
+| F-14 | Drei Kanal-Ereignisse mit den Vorgaben aus Abschnitt 6? | Ja (nach Empfehlung) |
+| F-15 | Externe Nachrichten bei PIN-Profilen ohne Titel? | Ja, abschaltbar (nach Empfehlung) |
 
 Begründungen und Folgen anderer Wahl: `11-entscheide-und-adr.md`, Abschnitt 1.

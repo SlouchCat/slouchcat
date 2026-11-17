@@ -113,13 +113,13 @@ Der Dienst für alles, was Wünsche betrifft.
 | `Service.Tag` | Handler `wishes.tag`: Profil-Tag über `internal/arr` setzen und nachholen (Abschnitt 20) |
 | `Service.Progress` | Handler `wishes.progress`: Warteschlange und Dateistand der gewünschten Titel in Radarr und Sonarr über `internal/arr` lesen, Einträge den Wünschen zuordnen, Zwischenspeicher `wish_progress` schreiben (Abschnitt 22) |
 | `Discover` | Leseweg der Seiten «Entdecken», «Filme», «Serien», «Suche» und Handler `wishes.discover` (Abschnitt 21) |
-| `Mapping` | Seerr-Benutzer je Konto (eröffnet, verknüpft, von Hand), Ausnahme je Profil (F-27) |
+| `Mapping` | Seerr-Benutzer je Konto (eröffnet, verknüpft, von Hand) und Sammelbenutzer «slouchcat-gaeste» (F-4, Abschnitt 18.5); keine Ausnahme je Profil (F-27, N-100) |
 | `Rights` | `canRequest` und Grund je Sitzung, je Titel, je Medienart, je Stelle |
 
 SQL liegt in einem eigenen Abfrageordner, nur für dieses Paket (**Vorschlag:** `server/queries/wishes/` →
 `store/wishq`, eine depguard-Regel nach dem Muster `certq` in `server/.golangci.yml`). Das Paket fragt nur
 die Wunsch-Tabellen (`wishes`, `wish_seasons`, `wish_requesters`, `wish_events`, `seerr_users`,
-`wish_account_map`, `wish_profile_map`, `seerr_log`, neu `wish_account_limits`, `wish_profile_tags`, `wish_tags`,
+`wish_account_map`, `seerr_log`, neu `wish_account_limits`, `wish_profile_tags`, `wish_tags`,
 `wish_progress`, `wish_discover_pages`) und lesend `accounts`/`profiles` ab, nie `items`, `media_files` oder `tracks`, und
 importiert `store/systemq` nicht. Ob ein Treffer aus Entdecken oder Suche in der Bibliothek steht, fragt es
 `visibility` (Abschnitt 21.3).
@@ -604,7 +604,7 @@ Sync():
 Der inkrementelle Abgleich sieht alte Requests eines **neu** zugeordneten Benutzers nie, weil er beim ersten
 älteren `updatedAt` abbricht. Darum gibt es einen eigenen Job.
 
-- **Auslöser:** Verknüpfen über die E-Mail, Setzen oder Ändern einer Zuordnung (Konto oder Ausnahme des Profils) und von Hand («Anfragen übernehmen» auf
+- **Auslöser:** Verknüpfen über die E-Mail, Setzen oder Ändern der Zuordnung eines Kontos und von Hand («Anfragen übernehmen» auf
   der Seite Seerr-Benutzer; auch nach dem Verknüpfen über die E-Mail, Abschnitt 18.2). Schlüssel `wishes.import:<seerrUserId>`.
 - **Abruf:** `GET /request?requestedBy=<seerrUserId>&take=50&skip=n` seitenweise, ohne `X-API-User`, also als
   Benutzer 1. Der Filter `requestedBy` braucht beim Aufrufer `MANAGE_REQUESTS` oder `REQUEST_VIEW` (Anhang D
@@ -613,9 +613,8 @@ Der inkrementelle Abgleich sieht alte Requests eines **neu** zugeordneten Benutz
   `take=1` (`pageInfo.results`) und nennt die Zahl: «3 Anfragen von grosseltern werden übernommen».
 - **Regeln** (wie `04-benutzer-profilmapping.md`, Abschnitt 8.2):
   - Request eines **zugeordneten** Seerr-Benutzers ohne lokalen Wunsch: neuer Wunsch mit `origin =
-    jellyseerr`, Besitzer ist das Profil mit eigener Zuordnung zu diesem Benutzer, sonst das Hauptprofil des
-    Kontos. Kennzeichen «In Seerr angelegt» (F-21). **Vorschlag:** Haben mehrere Profile desselben Kontos
-    denselben eigenen Benutzer, gewinnt das Hauptprofil, sonst das älteste dieser Profile.
+    jellyseerr`, Besitzer ist das Hauptprofil des Kontos (eine Zuordnung je Profil gibt es nicht, F-27).
+    Kennzeichen «In Seerr angelegt» (F-21). Anfragen des Sammelbenutzers übernimmt der Job nicht (N-102).
   - Schon geführter Wunsch **ohne** Zeile in `wish_requesters` («nicht zuordenbar»): bekommt das Zielprofil als
     Besitzer; Zustand und Verlauf bleiben.
   - **Vorschlag:** Übernommen werden nur offene und in den letzten 30 Tagen verfügbar gewordene Requests; für
@@ -1209,7 +1208,9 @@ Was es begrenzt, steht in Abschnitt 15.4.
 | nicht eröffnet | keine Zeile; nur Anzeige | – |
 
 Stand des Passworts (`password_state`): `synced` (gleich wie in Slouchcat, Zeit in `password_synced_at`),
-`next_login` (folgt bei der nächsten Anmeldung), `off` (Abgleich für dieses Konto aus), `admin` (Benutzer 1 oder
+`next_login` (folgt bei der nächsten Anmeldung), `off` («Wird nicht abgeglichen»: Abgleich für dieses Konto aus;
+ab Werk für Konten, die ein Administrator mit einem bestehenden Seerr-Benutzer verknüpft, Marco F-24, N-103;
+je Konto umschaltbar mit `setSeerrPasswordMode`), `admin` (Benutzer 1 oder
 Administrator in Seerr, «bleibt in Seerr», N-6), `external` (Benutzer meldet sich über Jellyfin, Emby oder
 Plex an, `user_type` ≠ 2, N-6).
 
@@ -1223,13 +1224,17 @@ stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Seerr eingerichte
    wer auslöst; weiter bei 4. `linked_by` hält den Auslöser fest: `admin` («In Seerr eröffnen», «Alle eröffnen»),
    `invite` (Einladung angenommen, auch wenn der Lauf später für ein wartendes Konto kommt), `email_change`
    (eigene E-Mail geändert, N-95).
-   Das Passwort geht an den verknüpften Benutzer (N-91): sofort, wenn es im Speicher ist (Einladung, 18.3), sonst
-   bei der nächsten Anmeldung (`password_state = next_login`). Dass dies auch für Konten gilt, die ein
-   Administrator nachträglich eröffnet oder verknüpft, bleibt Empfehlung zu F-24 (K-11). Nie bei Benutzer 1,
-   anderen Administratoren und Anmeldung über Jellyfin, Emby oder Plex (N-6): Verknüpft wird auch dann, das
-   Passwort bleibt in Seerr (`password_state = admin` bzw. `external`).
+   **Passwort (Marco, F-24; N-103):** Bei `linked_by` = `invite` oder `email_change` geht das Passwort an den
+   verknüpften Benutzer (E-8, N-91): sofort, wenn es im Speicher ist (Einladung, 18.3), sonst bei der nächsten
+   Anmeldung (`password_state = next_login`). Bei `linked_by = admin` («In Seerr eröffnen», «Alle eröffnen») und
+   bei einem von Hand gewählten Benutzer (`origin = manual`) behält der Benutzer sein Passwort:
+   `password_state = off` («Wird nicht abgeglichen»); der Administrator kann den Abgleich je Konto einschalten
+   (`setSeerrPasswordMode`, dann `next_login`; Schalter Redaktion). Nie bei Benutzer 1, anderen Administratoren
+   und Anmeldung über Jellyfin, Emby oder Plex (N-6): Verknüpft wird auch dann, das Passwort bleibt in Seerr
+   (`password_state = admin` bzw. `external`).
 2. Sonst `POST /user {email, username, password}`; `username` = Teil der E-Mail vor dem @ (N-1). Passwort: das
    echte, wenn es gerade im Speicher ist (18.3), sonst ein Zufallspasswort und `password_state = next_login` (N-4).
+   Das gilt für jeden Benutzer, den Slouchcat eröffnet, auch über «In Seerr eröffnen» und «Alle eröffnen» (N-103).
    409 → wie ein Treffer: neu lesen (`GET /user?q=<E-Mail>`) und verknüpfen.
 3. `POST /user/{id}/settings/permissions`: mit Wunschrecht des Kontos `REQUEST` (32), ohne `0` (N-9). Nur für
    `origin = created`.
@@ -1246,7 +1251,8 @@ stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Seerr eingerichte
 `updateAccount` ist in allen Fällen gleich; sie verrät nie, ob Seerr die Adresse schon kannte. Nach dem Annehmen
 sagt die Seite in beiden Fällen «In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.»
 
-Ein Profil bekommt nie einen eigenen Benutzer, ausser über die zugeklappte Ausnahme (N-41, F-27).
+Ein Profil bekommt nie einen eigenen Benutzer und sendet immer als Benutzer des Kontos, sonst als Sammelbenutzer;
+eine Ausnahme je Profil gibt es nicht (Marco, F-27; N-100).
 
 ```mermaid
 sequenceDiagram
@@ -1367,7 +1373,30 @@ sequenceDiagram
   Fall bestehen, weil mit ihm seine Requests gelöscht würden (Anhang D 7.2). Die Rückfrage vor dem Löschen nennt, was mit dem Benutzer geschieht.
 - **Ausgeschaltet.** Mit «Neue Konten in Seerr eröffnen» aus eröffnet die Einladung nichts; mit «Passwort
   abgleichen» aus geht kein Passwort weiter (`password_state = off` für alle). Für ein Konto ohne
-  Seerr-Benutzer gilt F-4.
+  Seerr-Benutzer gilt F-4 (Abschnitt 18.5).
+
+### 18.5 Sammelbenutzer «slouchcat-gaeste» (F-4)
+
+Marco hat am 17. November 2026 den Sammelbenutzer ab Werk gewählt (F-4, Anhang H 11.2). Einzelheiten wie E-Mail
+und Zeitpunkt sind Redaktion (N-101, N-102).
+
+- **Anlegen.** Sobald Seerr eingerichtet und «Wünsche aktiv» an ist, legt `seerr.provision` in Seerr den lokalen
+  Benutzer «slouchcat-gaeste» an: E-Mail `slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort (nie gespeichert,
+  niemand meldet sich damit an), Recht `REQUEST`, keine automatische Freigabe. Dazu schreibt es das Standard-Limit
+  (Abschnitt 19). **Vorschlag:** Gibt es die Adresse in Seerr schon (409 oder Treffer), übernimmt Slouchcat diesen
+  Benutzer. Die
+  Seerr-ID steht in `wishes.shared_seerr_user` (`08-datenmodell-api.md`, Abschnitt 2.9); der Administrator wählt
+  keinen anderen Benutzer.
+- **Wer über ihn sendet.** Konten mit Wunschrecht ohne eigenen Seerr-Benutzer (Zustand «nicht eröffnet» oder
+  «wartet»), solange `wishes.unmapped = fallback` («Konten ohne Seerr-Benutzer» = «Sammelbenutzer», ab Werk). Mit
+  «Nicht erlauben» (`deny`) können diese Konten nicht anfordern.
+- **Limit.** Für ihn gilt das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4).
+- **Wünsche (N-102).** Slouchcat merkt sich einen Wunsch über den Sammelbenutzer wie jeden anderen mit Konto und
+  Profil; `wishes.seerr_user_id` friert den Sammelbenutzer ein, in Seerr steht «slouchcat-gaeste». Bekommt das
+  Konto später einen eigenen Benutzer, bleiben seine alten Wünsche beim Sammelbenutzer. Anfragen des
+  Sammelbenutzers übernimmt `wishes.import` nicht (F-21).
+- **Passwort.** Das Passwort eines Kontos geht nie an den Sammelbenutzer (er ist nicht der Benutzer eines Kontos,
+  N-103).
 
 ## 19. Limit je Konto (Stufe 1, Vorprüfung ab Stufe 2)
 
@@ -1385,7 +1414,8 @@ und Mitwünsche zählen nicht (E-3). Regeln N-30 bis N-38 in Anhang H 4.3. Was d
 | «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. **Nicht verifiziert**, dass Seerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
 | Zählen | Seerr: rollierend, Requests mit `createdAt` in den letzten `…Days` Tagen; Filme nach Anzahl, Serien nach Summe der Staffeln; `DECLINED` zählt nicht, `FAILED` zählt (Anhang H 3.2) |
 | Ausgenommen | Benutzer mit `MANAGE_USERS` (also auch Administratoren) haben in Seerr kein Limit; Seerr nimmt die Felder für sie auch nicht an (N-34) |
-| Je Profil | kein Teil-Limit (N-38); ein Profil mit Ausnahme-Benutzer (F-27) hat das Limit dieses Benutzers |
+| Je Profil | kein Teil-Limit (N-38); eine Ausnahme je Profil gibt es nicht (F-27, N-100) |
+| Sammelbenutzer | das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4; Abschnitt 18.5) |
 
 ### 19.2 Vorprüfung beim Anfordern
 

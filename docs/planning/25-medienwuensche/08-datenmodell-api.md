@@ -8,7 +8,8 @@
 > Verwaltungs-Operationen (`admin`, ohne `ItemRef`); fehlende Titel erscheinen als eigenes Schema
 > `ExternalTitleRef` neben `ItemRef`.
 > Stufe 1 bleibt im Vertrag nicht brechend; Stufen 2, 3 und 4 erweitern Enums und sind nach der Praxis des
-> Projekts brechend; Stufe 5 (Wünsche-Seiten) ist wieder nicht brechend. Neu in Fassung 3: Zustand und
+> Projekts brechend; Stufe 5 (Wünsche-Seiten) ist wieder nicht brechend. Weil alle Stufen als ein Release
+> erscheinen (Marco, F-22 und B-1; N-104), hebt der Bau den Vertrag einmal an, brechend. Neu in Fassung 3: Zustand und
 > Passwortstand des Seerr-Benutzers je Konto, das Limit je Konto, der Stand des Limits aus Seerr, der
 > Profil-Tag je Wunsch und Profil, ein Zwischenspeicher für den Download-Fortschritt je Wunsch (`wish_progress`)
 > und einer für die Listen von Entdecken. Startseite und Spotlight bekommen keine fehlenden Titel und keine
@@ -31,7 +32,7 @@ den Abschnitten 4 bis 7). Grundlage: [Anhang F](anhang/F-entscheid-blatt.md) Abs
 | `seerr_users` (mit Stand des Limits) | neu | 1 | `wishes` |
 | `wish_account_map` (mit Zustand und Passwortstand) | neu | 1 | `wishes` |
 | `wish_account_limits` | neu | 1 | `wishes` (über `admin`) |
-| `wish_profile_map` | neu | 1 | `wishes` |
+| ~~`wish_profile_map`~~ | entfällt (F-27, Anhang H 11.3 N-100) | – | – |
 | `accounts` (+ `can_request`) | Neubau | 1 | `admin`, `auth` |
 | `profiles` (+ `can_request`) | Neubau | 1 | `auth` |
 | `invitations` (+ `can_request`, Limit) | Spalten | 1 | `auth` |
@@ -60,9 +61,7 @@ den Abschnitten 4 bis 7). Grundlage: [Anhang F](anhang/F-entscheid-blatt.md) Abs
 erDiagram
   accounts ||--o{ profiles : "hat"
   accounts ||--o| wish_account_map : "zugeordnet"
-  profiles ||--o| wish_profile_map : "eigener Benutzer"
   seerr_users ||--o{ wish_account_map : "gehört zu"
-  seerr_users ||--o{ wish_profile_map : "gehört zu"
   seerr_users ||--o{ wishes : "fordert an"
   wishes ||--o{ wish_seasons : "Staffeln"
   wishes ||--o{ wish_requesters : "Wünscher"
@@ -201,7 +200,7 @@ Abgeleitete Fakten für die Oberfläche (im Server, nicht im Client): «darf Fil
 «Auto-Freigabe» = `ADMIN`, `MANAGE_REQUESTS` (16), `AUTO_APPROVE` (128) bzw. `AUTO_APPROVE_MOVIE` (256) /
 `AUTO_APPROVE_TV` (512) (Anhang D 3.3, 7.3).
 
-### 2.2 `wish_account_map` und `wish_profile_map` (Stufe 1)
+### 2.2 `wish_account_map` (Stufe 1); `wish_profile_map` entfällt
 
 | Tabelle | Spalte | Typ | Bedingung |
 |---|---|---|---|
@@ -211,28 +210,28 @@ Abgeleitete Fakten für die Oberfläche (im Server, nicht im Client): «darf Fil
 | | `state` | TEXT | NOT NULL DEFAULT 'ready', CHECK IN ('ready', 'waiting'); CHECK `(state = 'waiting') = (seerr_user_id IS NULL)`; «nicht eröffnet» = keine Zeile |
 | | `linked_by` | TEXT | NULL; CHECK IN ('admin', 'invite', 'email_change'); CHECK `(origin = 'linked') = (linked_by IS NOT NULL)`. Auslöser der Verknüpfung: ein Administrator («In Seerr eröffnen», «Alle eröffnen»), das Annehmen einer Einladung (auch wenn der Lauf später für das wartende Konto kommt) oder eine E-Mail-Änderung des Kontos (N-95). Für den Hinweis «Neu verknüpft» (N-93) (**Vorschlag**) |
 | | `linked_at` | INTEGER | NULL; wann verknüpft wurde; NOT NULL bei `origin = 'linked'`. Die Übersicht zeigt `linked_by IN ('invite', 'email_change')` sieben Tage ab `linked_at` (N-93, **Vorschlag**) |
-| | `password_state` | TEXT | NOT NULL DEFAULT 'next_login', CHECK IN ('synced', 'next_login', 'off', 'admin', 'external') (`03-architektur.md`, Abschnitt 18.1) |
+| | `password_state` | TEXT | NOT NULL DEFAULT 'next_login', CHECK IN ('synced', 'next_login', 'off', 'admin', 'external') (`03-architektur.md`, Abschnitt 18.1). Bei `linked_by = 'admin'` und bei `origin = 'manual'` schreibt der Dienst `off` («Wird nicht abgeglichen», Marco F-24, N-103); `setSeerrPasswordMode` schaltet je Konto um |
 | | `password_synced_at` | INTEGER | NULL; letzter gelungener Passwortabgleich. **Nie** das Passwort selbst, auch kein Hash davon |
 | | `provision_error` | TEXT | NULL; letzter Fehler beim Eröffnen, ohne Body (Anzeige «wartet: …») |
 | | `limit_written_at` | INTEGER | NULL; wann das Limit zuletzt in den Benutzer geschrieben wurde |
 | | `set_at` | INTEGER | NOT NULL |
 | | `set_by` | INTEGER | → `accounts(id)` ON DELETE SET NULL; der Administrator, der eröffnet, verknüpft oder gewählt hat; NULL, wenn Slouchcat nach einer Einladung oder einer E-Mail-Änderung selbst eröffnet oder verknüpft hat |
-| `wish_profile_map` | `profile_id` | INTEGER | PK, → `profiles(id)` ON DELETE CASCADE |
-| | `seerr_user_id` | INTEGER | NOT NULL, → `seerr_users(seerr_id)` |
-| | `set_at` | INTEGER | NOT NULL |
 
 Rechte in Seerr führt Slouchcat nur bei `origin = 'created'` (N-9); bei `linked` und `manual` fasst es sie
 nicht an, auch nicht beim Löschen des Kontos (N-10, Redaktionsentscheid zu K-2). Einen Zustand «Verknüpfung
 vorgeschlagen» gibt es nicht mehr: N-2a ist zurückgezogen (Marco, E-8; N-90). Gibt es die E-Mail in Seerr schon,
-ist das Konto sofort `ready` mit `origin = 'linked'`; das Passwort geht an den Benutzer wie bei jedem anderen,
-ausser bei Administratoren und Anmeldung über Jellyfin, Emby oder Plex (N-91, N-6). `wish_profile_map` ist seit Fassung 3 die zugeklappte **Ausnahme** «Profil sendet als anderer
-Seerr-Benutzer» (N-41, F-27); im Normalfall hat ein Profil keine Zeile und sendet als Benutzer des Kontos.
+ist das Konto sofort `ready` mit `origin = 'linked'`. Das Passwort geht nur bei `linked_by` `invite` und
+`email_change` an den Benutzer (E-8, N-91), nie bei Administratoren und Anmeldung über Jellyfin, Emby oder Plex
+(N-6); bei `linked_by = 'admin'` behält der Benutzer sein Passwort (Marco, F-24; N-103).
+
+`wish_profile_map` entfällt (F-27, Anhang H 11.3 N-100): Es gibt keine Ausnahme je Profil; jedes Profil sendet
+als Benutzer des Kontos, sonst als Sammelbenutzer (`wishes.shared_seerr_user`, 2.12).
 
 Regel «Ein Seerr-Benutzer gehört höchstens zu einem Konto, Profile desselben Kontos dürfen ihn teilen»
 (Anhang F 2.4): `UNIQUE` deckt nur die Kontozuordnung. Den Rest prüft der Dienst in derselben Transaktion und
 antwortet 409 `seerr_user_taken` (`04-benutzer-profilmapping.md`, Abschnitt 5). **Vorschlag:** zusätzlich ein
-Trigger `BEFORE INSERT/UPDATE` auf beiden Tabellen als zweite Sicherung. Fehlt eine Zeile in
-`wish_profile_map`, gilt das Profil als «Wie Konto». Die Spalte `wishes.seerr_user_id` friert den Benutzer je
+Trigger `BEFORE INSERT/UPDATE` auf `wish_account_map` als zweite Sicherung, der auch den Sammelbenutzer als
+Benutzer eines Kontos abweist. Die Spalte `wishes.seerr_user_id` friert den Benutzer je
 Wunsch ein; spätere Zuordnungsänderungen hängen nichts um (`04-benutzer-profilmapping.md`, Abschnitt 8.1).
 
 ### 2.3 `accounts.can_request`, `profiles.can_request`, `invitations.can_request` (Stufe 1)
@@ -454,8 +453,8 @@ Neubau. Der Vertrag nimmt die Werte erst mit ihrem Erzeuger auf (ADR 0009: kein 
 | `wishes.allow_movies`, `wishes.allow_shows` | 0/1 | 1, 1 | «Filme erlauben», «Serien erlauben» |
 | `wishes.from_search`, `wishes.from_detail` | 0/1 | 1, 1 | «Anfordern aus der Suche», «Anfordern auf Detailseiten». Der Schalter «Aus dem Spotlight» entfällt (N-72), weil das Spotlight keine fehlenden Titel zeigt |
 | `wishes.already_requested` | `join`/`status` | `join` (F-7) | «Bereits angeforderte Titel» |
-| `wishes.unmapped` | `deny`/`fallback` | `deny` (F-4) | «Konten ohne Seerr-Benutzer» |
-| `wishes.shared_seerr_user` | Zahl | leer | Auswahl Sammelbenutzer |
+| `wishes.unmapped` | `deny`/`fallback` | `fallback` (Marco, F-4; N-101) | «Konten ohne Seerr-Benutzer»: «Sammelbenutzer» (`fallback`) oder «Nicht erlauben» (`deny`) |
+| `wishes.shared_seerr_user` | Zahl | leer, bis Slouchcat den Benutzer angelegt hat | Seerr-ID des Sammelbenutzers «slouchcat-gaeste», den Slouchcat selbst anlegt (N-101, `03-architektur.md`, Abschnitt 18.5); keine Auswahl, nur Anzeige |
 | `wishes.new_accounts_can_request` | 0/1 | 0 | «Neue Konten dürfen anfordern» |
 | `wishes.allow_withdraw` | 0/1 | 1 (F-17) | «Zurückziehen erlauben» |
 | `wishes.pin_external_hide_title` | 0/1 | 1 (F-15) | «Externe Nachrichten bei PIN-Profilen ohne Titel» |
@@ -579,7 +578,7 @@ zeigen» ausgeht. Pfade aus Radarr und Sonarr speichert die Tabelle nicht.
 - Neubau: neue Tabelle `…_new` anlegen, Daten kopieren, alte löschen, umbenennen, Indizes, Trigger und
   abhängige Views neu anlegen.
 - Vor jedem Lauf sichert der Server mit `VACUUM INTO` (fünf behalten).
-- Je Stufe ein eingefrorener DB-Stand in `testdata/db/` (heute 46 Dateien) mit Test `frozen_<name>_test.go`
+- Ein eingefrorener DB-Stand am Schluss in `testdata/db/` (heute 46 Dateien; Marco, B-1; N-104) mit Test `frozen_<name>_test.go`
   nach dem Muster `server/internal/store/frozen_detailseiten3_test.go`, dazu je Migration ein
   `migration<nummer>_test.go` (Muster `migration00065_test.go`).
 
@@ -587,7 +586,7 @@ zeigen» ausgeht. Pfade aus Radarr und Sonarr speichert die Tabelle nicht.
 
 | Stufe | Migration (Kurzname, Vorschlag) | Inhalt |
 |---|---|---|
-| 1 | `wishes_mapping` | `seerr_users` (mit Limit-Stand und `is_admin`), `wish_account_map` (mit `origin`, `state`, `password_state`), `wish_profile_map`, `wish_account_limits`, Trigger der Kontoregel, `seerr_log` |
+| 1 | `wishes_mapping` | `seerr_users` (mit Limit-Stand und `is_admin`), `wish_account_map` (mit `origin`, `state`, `password_state`), `wish_account_limits`, Trigger der Kontoregel, `seerr_log` (ohne `wish_profile_map`, F-27) |
 | 1 | `wishes_rights` | `accounts`/`profiles` + `can_request` (Neubau oder `ADD COLUMN`, 2.3), `visible_items` neu, `invitations` + `can_request` und Limit, Rückfüllung |
 | 2 | `wishes` | `wishes` (mit `withdraw_pending`, `checked_at`), `wish_seasons` (mit `seerr_request_id`, `notified_at`, + Trigger), `wish_requesters` (mit `notified_at`), `wish_events` |
 | 2 | `external_titles` | `external_titles`, `external_title_texts`, `external_title_images` |
@@ -635,7 +634,7 @@ steht im Vertragstest (Abschnitt 4.7). Bestehende gemeinsame Antworten (`Unauthe
 | `SeerrStatus` | `state` (`not_configured`, `connected`, `key_invalid`, `unreachable`, `instance_changed`, `disabled`), `version?`, `lastSync?`, `nextSync?`, `initialSync? {page, pages}`, `counts {open, queued, unmapped}`, `log[]` (20) |
 | `SeerrTestResult` | `checks[] {key, level, detail?}` mit `level` IN (`ok`, `warn`, `fail`) und `key` IN (`reachable`, `key_valid`, `version`, `act_as_user`, `instance`, `csrf_off`, `radarr`, `sonarr`, neu `manage_users`, `local_login`, `tvdb_seasons`, `password_transport`, ab Stufe 4 `radarr_tags`, `sonarr_tags`); `version` mit `warn` und `detail = not_verified` bei Versionen unter Jellyseerr 2.7 bzw. Seerr 3.0. Ein `warn` lässt den Test nicht scheitern (`07-administration.md`, Abschnitt 4.1) |
 | `SeerrUser` | `id`, `displayName`, `email?`, `userType`, `isAdmin`, `canRequestMovies`, `canRequestShows`, `autoApprove`, `quota?` (`WishQuota`), `gone`, `mappedTo? {accountId, email}` |
-| `WishMappings` | `accounts[]` je Konto: `accountId`, `email`, `canRequest`, `seerrUserId?`, `state` (`created`, `linked`, `manual`, `waiting`, `none`), `passwordState?`, `passwordSyncedAt?`, `rights?` (`request`, `none`, `external`), `limit` (`AccountWishLimit`), `quota?` (`WishQuota`), `provisionError?`, `profiles[] {profileId, name, tagName, tagNameCustom, seerrUserId?, mode}`; dazu `unlinkedUsers[]` (`SeerrUser` ohne Konto), `opened`, `total` |
+| `WishMappings` | `accounts[]` je Konto: `accountId`, `email`, `canRequest`, `seerrUserId?`, `state` (`created`, `linked`, `manual`, `waiting`, `none`), `passwordState?`, `passwordSyncedAt?`, `rights?` (`request`, `none`, `external`), `limit` (`AccountWishLimit`), `quota?` (`WishQuota`), `provisionError?`, `profiles[] {profileId, name, tagName, tagNameCustom}` (ohne `seerrUserId` und `mode`, F-27); `sharedUser? {seerrUserId, displayName, quota?}` (Sammelbenutzer, F-4; **Vorschlag**); dazu `unlinkedUsers[]` (`SeerrUser` ohne Konto), `opened`, `total` |
 | `ArrStatus` (neu, Stufe 4) | je `radarr` und `sonarr`: `source` (`seerr`, `own`, `none`), `address?`, `confirmed`, `reachable?`, `tagRequests?`, `lastError?`, `counts {set, pending, failed}`, `progress {enabled, lastReadAt?, error?, tracked}` (`tracked` = Wünsche mit Fortschritt). **Nie** ein Schlüssel |
 | `AccountWishLimit` (neu) | `mode` (`default`, `custom`, `unlimited`), `movie? {limit, days}`, `tv? {limit, days}`, `effective` (wirksames Limit), `seerrAdmin` (kein Limit in Seerr) |
 | `AdminWishTitle` | `itemId?` (Zeichenkette, keine `ItemRef`), `media`, `tmdbId`, `tvdbId?`, `imdbId?`, `title`, `year?`, `posterUrl?` (fehlender Titel: `getAdminExternalTitleImage`; vorhandener: `getAdminItemImage`) |
@@ -733,7 +732,7 @@ direkt dort angefordert), bleibt es bei 201 mit dem Wunsch im Zustand `failed`, 
 | `refreshSeerrUsers` | POST `/admin/wishes/mappings/users/refresh` | admin | – | 202; 422 `seerr_not_configured` | 1 |
 | `getWishMappings` | GET `/admin/wishes/mappings` | admin | – | 200 `WishMappings` | 1 |
 | `setAccountWishMapping` | PUT `/admin/wishes/mappings/accounts/{accountId}` | admin | `{seerrUserId: int\|null}` | 200; 404; 409 `seerr_user_taken` | 1 |
-| `setProfileWishMapping` | PUT `/admin/wishes/mappings/profiles/{profileId}` | admin | `{mode: same_as_account\|own, seerrUserId?}` | 200; 404; 409 `seerr_user_taken` | 1 |
+| ~~`setProfileWishMapping`~~ | – | – | – | – | entfällt (F-27, Anhang H 11.3 N-100) |
 | `applyWishMappingSuggestions` | POST `/admin/wishes/mappings/suggestions` | admin | `{accountIds[]}` | 200 `WishMappings`; 409 bei Konflikt (nichts übernommen) | entfällt in Fassung 3 (**Vorschlag**): ersetzt durch `provisionSeerrAccounts`, weil Slouchcat bei gleicher E-Mail selbst verknüpft (E-4, E-8) |
 | `getWishSettings` | GET `/admin/wishes/settings` | admin | – | 200 `WishSettings` | 1 |
 | `setWishSettings` | PUT `/admin/wishes/settings` | admin | `WishSettings` | 200; 422 | 1 |
@@ -754,7 +753,7 @@ direkt dort angefordert), bleibt es bei 201 mit dem Wunsch im Zustand `failed`, 
 | `declineWish` | POST `/admin/wishes/{id}/decline` | admin | – | wie `approveWish` | 4 |
 | `provisionSeerrAccount` (neu) | POST `/admin/wishes/accounts/{accountId}/provision` | admin | – | 202 (`seerr.provision` eingereiht) mit `state` `waiting`; 200 `WishMappings`-Eintrag, wenn sofort fertig; 404; 409 `provision_disabled` («Neue Konten in Seerr eröffnen» aus); 422 `seerr_not_configured`. Verknüpft bei gleicher E-Mail (N-2), `linked_by = 'admin'` | 1 |
 | `provisionSeerrAccounts` (neu) | POST `/admin/wishes/accounts/provision` | admin | – | 202 mit `{link, create}` (Zahl der Konten, die verknüpft bzw. neu angelegt werden); 409 `provision_disabled`; 422 `seerr_not_configured`. «Alle eröffnen»; `linked_by = 'admin'` | 1 |
-| `setSeerrPasswordMode` (neu) | PUT `/admin/wishes/accounts/{accountId}/password` | admin | `{mode: next_login\|off}` | 200; 404; 409 `password_not_syncable` (Administrator oder Anmeldung über Jellyfin, Emby, Plex). «Passwort bei der nächsten Anmeldung neu übernehmen» bzw. «nicht abgleichen» (N-7) | 1 |
+| `setSeerrPasswordMode` (neu) | PUT `/admin/wishes/accounts/{accountId}/password` | admin | `{mode: next_login\|off}` | 200; 404; 409 `password_not_syncable` (Administrator oder Anmeldung über Jellyfin, Emby, Plex). «Passwort bei der nächsten Anmeldung neu übernehmen» bzw. «nicht abgleichen» (N-7). Schaltet auch den Stand «Wird nicht abgeglichen» eines vom Administrator verknüpften Kontos ein (N-103) | 1 |
 | `setAccountWishLimit` (neu) | PUT `/admin/accounts/{accountId}/wish-limit` | admin | `AccountWishLimit` | 200 `AccountWishLimit`; 404; 422 `validation_failed` (Anzahl 0–100, Tage 1–90). Schreibt `wish_account_limits` und reiht `seerr.provision` ein | 1 |
 | `getWishQuota` (neu) | GET `/wishes/quota` | scoped | – | 200 `WishQuota` für den Benutzer, als den das Profil anfordert; aus dem Zwischenspeicher, kein Aufruf an Seerr | 2 |
 | `setProfileTagName` (neu) | PUT `/admin/wishes/profiles/{profileId}/tag` | admin | `{name: string\|null}` (leer = aus Präfix und Profilname) | 200; 404; 409 `tag_name_taken`; 422 `validation_failed` (nur `a–z`, `0–9`, `-`) | 4 |
@@ -831,6 +830,9 @@ sind neue Operationen und optionale Felder; `quota_exceeded` kommt mit `createWi
 Profil-Tag und Fortschritt (Stufe 4) erweitern ein Enum der Verwaltung und fügen optionale Felder hinzu. Dass das
 Spotlight keine fehlenden Titel zeigt (E-5), macht Stufe 3 kleiner, aber nicht weniger brechend, solange die
 Reihe «Erfüllte Wünsche» kommt (Marco, E-10; ohne die Reihe wäre Stufe 3 nicht brechend).
+
+**Ein Release (Marco, F-22 und B-1; N-104).** Die Tabelle zeigt, in welcher Stufe welcher Bruch entsteht. Weil alle
+Stufen in einem Pull Request und einer Version erscheinen, hebt der Bau den Vertrag einmal an, und zwar brechend.
 
 Nach «Vertrag = Tag» wird jede Anhebung beim Merge getaggt (`docs/dev/HANDOVER.md:120-127`). Die Nummern vergibt
 der Bau.

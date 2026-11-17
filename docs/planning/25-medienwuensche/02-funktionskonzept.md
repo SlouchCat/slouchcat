@@ -43,7 +43,7 @@ Marcos Ja.
 | **Erfüllte Wünsche** | Startreihe mit den Wünschen des Profils, die in den letzten 14 Tagen wahr wurden (Marco, E-10) |
 | **Wunschrecht** | ob ein Profil anfordern darf; Schalter je Konto (Administrator) und je Profil (Hauptprofil) |
 
-Die Begriffe sind offen als F-1. In der Oberfläche heisst der Dienst «Seerr» (Marco, E-9).
+Die Begriffe hat Marco mit F-1 so bestätigt (Anhang H 11.2). In der Oberfläche heisst der Dienst «Seerr» (Marco, E-9).
 
 ## 2. Zustände eines Wunsches
 
@@ -83,11 +83,11 @@ Ein Profil darf anfordern, wenn alles zutrifft:
 2. Das Konto hat das Wunschrecht (Administrator, Formular «Zugriff»; bei Administratorkonten der Block
    «Wünsche»). Vorgabe: Besitzerkonto an, neue Konten aus.
 3. Das Profil hat das Wunschrecht (Hauptprofil, Profildialog). Vorgabe: Hauptprofil an, weitere Profile aus.
-4. Das Konto hat einen Seerr-Benutzer (von Slouchcat eröffnet, verknüpft oder von Hand zugeordnet), das
-   Profil hat eine Ausnahme, oder der Sammelbenutzer greift. Konten ohne Seerr-Benutzer dürfen nicht
-   anfordern (Vorgabe; Sammelbenutzer als Wahl, F-4). Das gilt auch, solange ein Konto noch «wird eröffnet»
-   (Ablauf 4.9). Sobald der Benutzer besteht, geht das Anfordern;
-   das Passwort spielt dafür keine Rolle.
+4. Das Konto hat einen Seerr-Benutzer (von Slouchcat eröffnet, verknüpft oder von Hand zugeordnet), oder der
+   Sammelbenutzer «slouchcat-gaeste» greift. Konten ohne eigenen Seerr-Benutzer senden ab Werk über den
+   Sammelbenutzer (Marco, F-4; N-101), auch solange ein Konto noch «wird eröffnet» (Ablauf 4.9). Steht
+   «Konten ohne Seerr-Benutzer» auf «Nicht erlauben», können sie bis dahin nicht anfordern. Eine Ausnahme je
+   Profil gibt es nicht (Marco, F-27; N-100). Das Passwort spielt für das Anfordern keine Rolle.
 5. Die Medienart ist erlaubt («Filme erlauben», «Serien erlauben») und die Stelle ist erlaubt
    («Anfordern aus der Suche», «Anfordern auf Detailseiten», Schalter «Seiten Entdecken, Filme, Serien und
    Suche»). Einen Schalter für das Spotlight gibt es nicht, weil dort nichts anzufordern ist.
@@ -110,7 +110,7 @@ Dialog sperrt nur den Knopf (Abschnitt 4.10).
 Der Server liefert `canRequest`, einen Grund und den Stand des Limits; die App zeigt nur an (Regel 12). Recht,
 Limit und Auto-Freigabe in Seerr gelten so, als hätte der Seerr-Benutzer selbst geklickt
 (`X-API-User`, F-3). Seerr-Benutzer, Limit und Vorgaben im Einzelnen: `04-benutzer-profilmapping.md`
-(F-2, F-5, F-23 bis F-27).
+(F-2, F-4, F-5, F-23 bis F-27).
 
 ## 4. Abläufe
 
@@ -206,7 +206,7 @@ Seerr wieder erreichbar ist (Ablauf 4.9).
 |---|---|
 | Profil oder Konto ohne Wunschrecht | keine fehlenden Titel in der Suche, keine fehlenden Staffeln (F-9); im Bereich «Wünsche» keine Reiter «Entdecken», «Filme», «Serien», «Suche»; kein Eintrag «Wünsche» in der Seitenleiste, ausser es hat schon Wünsche (dann nur «Meine Wünsche») |
 | Profil ohne Wunschrecht öffnet eine Vorschauseite über einen Link | 404 «nicht gefunden»; Ausnahme: Das Profil hat selbst einen Wunsch zu diesem Titel, dann Seite ohne Anforderungsknopf |
-| Konto ohne Seerr-Benutzer (und kein Sammelbenutzer), auch solange es «wird eröffnet» | wie ohne Wunschrecht: keine fehlenden Titel. Der Administrator sieht den Fall in der Verwaltung (Übersicht «n Konten ohne Seerr-Benutzer», Seite «Seerr-Benutzer», Chip «Kein Seerr-Benutzer» bzw. «Wird in Seerr eröffnet» auf «Konten») |
+| Konto ohne Seerr-Benutzer, auch solange es «wird eröffnet», und «Konten ohne Seerr-Benutzer» steht auf «Nicht erlauben» (ab Werk «Sammelbenutzer», F-4) | wie ohne Wunschrecht: keine fehlenden Titel. Der Administrator sieht den Fall in der Verwaltung (Übersicht «n Konten ohne Seerr-Benutzer», Seite «Seerr-Benutzer», Chip «Kein Seerr-Benutzer» bzw. «Wird in Seerr eröffnet» auf «Konten») |
 | Medienart ausgeschaltet | keine fehlenden Titel dieser Art |
 | «Anfordern aus der Suche» aus | kein Abschnitt «Noch nicht in der Bibliothek» |
 | «Seiten Entdecken, Filme, Serien und Suche» aus | der Bereich «Wünsche» zeigt nur «Meine Wünsche» |
@@ -298,20 +298,24 @@ gleichen Login Daten» (Nachricht), und dass er sich dort mit E-Mail und Passwor
 5. Das Limit aus der Einladung (oder die Vorgabe) schreibt Slouchcat in den neuen Benutzer.
 6. Ist Seerr gerade nicht erreichbar, entsteht das Konto trotzdem. Der Benutzer in Seerr folgt beim
    nächsten Abgleich mit einem Zufallspasswort; das richtige Passwort übernimmt Slouchcat bei der nächsten
-   Anmeldung (N-4). Bis der Seerr-Benutzer besteht, kann das Konto nicht anfordern. Sobald er besteht,
-   geht das Anfordern; das Passwort spielt dafür keine Rolle.
+   Anmeldung (N-4). Bis der Seerr-Benutzer besteht, sendet das Konto über den Sammelbenutzer (ab Werk, F-4;
+   N-101); steht «Konten ohne Seerr-Benutzer» auf «Nicht erlauben», kann es bis dahin nicht anfordern. Das
+   Passwort spielt dafür keine Rolle.
 7. **Was das Konto erfährt:** Ob Slouchcat den Benutzer neu eröffnet oder einen bestehenden verknüpft hat,
    die Seite sagt nach dem Absenden in beiden Fällen dasselbe: «In Seerr hast du jetzt ein Konto mit derselben
    E-Mail und demselben Passwort.» Das Konto erfährt so nie, ob Seerr die Adresse schon kannte (N-94,
-   Empfehlung). Ist Seerr nicht erreichbar, sagt die Seite: Der Zugang zu Seerr ist noch nicht bereit; bis
-   dahin kann das Konto nichts anfordern.
+   Empfehlung). Ist Seerr nicht erreichbar, sagt die Seite: Der Zugang zu Seerr ist noch nicht bereit. (Der
+   frühere Zusatz «bis dahin kann das Konto nichts anfordern» gilt nur noch bei «Nicht erlauben», F-4.)
 
 Ändert ein Konto ohne Seerr-Benutzer später seine E-Mail in Slouchcat auf eine Adresse, die Seerr schon
 kennt, gilt dasselbe wie bei der Einladung: Slouchcat verknüpft sofort. Hat das Konto schon einen
 Seerr-Benutzer, ändert Slouchcat dessen E-Mail; lehnt Seerr ab, weil die Adresse vergeben ist, meldet
 Slouchcat das und lässt den Benutzer, wie er ist (N-95, Empfehlung).
 
-Ändert die Person später ihr Passwort oder ihre E-Mail in Slouchcat, gleicht Slouchcat Seerr ab. Ändert sie
+Ändert die Person später ihr Passwort oder ihre E-Mail in Slouchcat, gleicht Slouchcat Seerr ab. Das Passwort
+gleicht es nur ab, wenn Slouchcat den Benutzer eröffnet oder bei Einladung oder E-Mail-Änderung verknüpft hat;
+ein Benutzer, den ein Administrator verknüpft, behält sein Passwort, bis der Abgleich für das Konto eingeschaltet
+wird (Marco, F-24; N-103). Ändert sie
 das Passwort direkt in Seerr, laufen die beiden auseinander (Marco kannte die Folge, E-1). Einzelheiten,
 Ausnahmen und Schalter: `04-benutzer-profilmapping.md`, Abschnitte 12 und 13.
 
@@ -337,8 +341,9 @@ zeigt, ist Empfehlung (N-35, N-36):
    und Staffeln gleich (Redaktionsentscheid, `mockup-abdeckung.md` Abschnitt 10.2, Nr. 28). Eine Benachrichtigung über das erreichte Limit gibt
    es nicht; der Dialog sagt es (`06-benachrichtigungen.md`, Abschnitt 4).
 
-Das Limit gilt für alle Profile eines Kontos gemeinsam; ein Teil-Limit je Profil gibt es nicht. Ein Profil mit
-Ausnahme hat das Limit seines Ausnahme-Benutzers (`04-benutzer-profilmapping.md`, Abschnitte 17 und 18).
+Das Limit gilt für alle Profile eines Kontos gemeinsam; ein Teil-Limit je Profil gibt es nicht. Für den
+Sammelbenutzer gilt das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4;
+`04-benutzer-profilmapping.md`, Abschnitt 17). Die Ausnahme je Profil entfällt (F-27; Abschnitt 18 dort).
 
 ### 4.11 Stöbern im Bereich «Wünsche»
 
@@ -558,12 +563,12 @@ zählen Dialog, Sonarr und Bibliothek gleich (`05-spotlight-integration.md`, Abs
   Profil und Konto. **Unbekannte Freigabe zählt als 18.**
 - Ein Kinderprofil mit Wunschrecht darf anfordern (F-6). Ob der Wunsch eine Freigabe braucht, entscheidet die
   Auto-Freigabe des Seerr-Benutzers, als der es sendet. Im Normalfall ist das der Benutzer des Kontos; im
-  Konto des Administrators wäre der Wunsch damit sofort freigegeben und ohne Limit. Dafür gibt es die
-  zugeklappte Ausnahme «Profil sendet als anderer Seerr-Benutzer» (Empfehlung F-27,
-  `04-benutzer-profilmapping.md`, Abschnitt 18). Slouchcat baut keine eigene Freigabe.
-- Beispiel aus den Mockup-Daten: Noah (12) sendet mit einer Ausnahme als Seerr-Benutzer «kinder» (keine
-  Auto-Freigabe, eigenes Limit 5 Filme und 2 Staffeln je 7 Tage). Sein Wunsch zeigt «Freigabe ausstehend», bis
-  Marco ihn in Seerr freigibt. Mia (6) darf nicht anfordern und sieht keine fehlenden Titel.
+  Konto eines Seerr-Administrators ist der Wunsch damit sofort freigegeben und ohne Limit. Eine Ausnahme je
+  Profil gibt es nicht; Marco kennt die Folge und hat so gewählt (F-27; N-100). Begrenzen lässt sich das nur
+  über das Wunschrecht des Profils. Slouchcat baut keine eigene Freigabe.
+- Beispiel aus den Mockup-Daten: Mia (6) darf nicht anfordern und sieht keine fehlenden Titel. Das Mockup zeigt
+  noch Noah (12) mit einer Ausnahme als Seerr-Benutzer «kinder»; die entfällt (F-27, `mockup-abdeckung.md`,
+  Abschnitt «Abweichungen des Mockups»).
 - Die Benachrichtigung «verfügbar» kommt für ein Profil erst, wenn der Titel für **dieses** Profil sichtbar
   ist. Ein Erwachsener mit einem Mitwunsch kann also früher Bescheid bekommen als ein Kind.
 - Zuschauer sehen nie, wer sonst gewünscht hat. Die Verwaltung sieht alle Anforderer; in Radarr und Sonarr
