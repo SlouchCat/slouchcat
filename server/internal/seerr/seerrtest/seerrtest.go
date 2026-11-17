@@ -8,6 +8,13 @@
 // pictures (403 texts, CSRF protection, 500, redirects, a hanging answer). Every call is counted per
 // route, so a test can prove what was and was not called.
 //
+// Where appendix I (the check against a real Seerr 3.5.1) differs, the fake answers as appendix I
+// says: POST /user 201 without the email and with defaultPermissions; 409 for an email in any
+// spelling; POST …/settings/main without the quota fields and 400 INVALID_EMAIL for the email of
+// another user; GET /settings/main with defaultPermissions and defaultQuotas; a wrong key and an
+// unknown X-API-User 403 with the text in the field error, no key 401; users of the types Plex,
+// local, Jellyfin and Emby.
+//
 // It is a test helper: only _test.go files import it (depguard rule test-helpers). It imports
 // nothing of the server, so the tests of package seerr itself can use it.
 package seerrtest
@@ -43,7 +50,12 @@ const (
 	PermRequestView      uint64 = 16384
 	PermRequestMovie     uint64 = 262144
 	PermRequestTV        uint64 = 524288
+	PermManageIssues     uint64 = 1048576
 )
+
+// OwnerDefaultPermissions is the defaultPermissions of the owner's instance (appendix I, I-13):
+// REQUEST, AUTO_APPROVE and MANAGE_ISSUES.
+const OwnerDefaultPermissions = PermRequest | PermAutoApprove | PermManageIssues
 
 // User types.
 const (
@@ -76,6 +88,8 @@ const (
 // Texts of Seerr the fake answers with (appendix D 2.1, 3.4, 7.2, 8).
 const (
 	TextAccessEndpoint = "You do not have permission to access this endpoint"
+	TextNoSession      = "cookie 'connect.sid' required"
+	TextInvalidEmail   = "INVALID_EMAIL"
 	TextCSRF           = "invalid csrf token"
 	TextMovieQuota     = "Movie Quota exceeded."
 	TextSeriesQuota    = "Series Quota exceeded."
@@ -95,9 +109,10 @@ type User struct {
 	ID               int
 	Email            string
 	Username         string
-	JellyfinUsername string
+	PlexUsername     string
+	JellyfinUsername string // Emby users carry their name here too (appendix I, I-11)
 	JellyfinUserID   string
-	UserType         int
+	UserType         int // UserPlex, UserLocal (default), UserJellyfin, UserEmby
 	Permissions      uint64
 	Password         string // local users; the fake keeps it in clear text, it is a test helper
 	MovieQuotaLimit  *int
@@ -167,6 +182,7 @@ type DVR struct {
 // Config holds the instance settings.
 type Config struct {
 	Version               string
+	MediaServerType       int // 1 Plex, 2 Jellyfin (default), 3 Emby
 	LocalLogin            bool
 	EmailEnabled          bool
 	EnableSpecialEpisodes bool
@@ -242,12 +258,13 @@ var Start = time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
 
 // New starts a fake with user 1 (administrator, Jellyfin user, email admin@example.org), local
 // login on, default permissions REQUEST, no default quota, no titles. It closes with the test.
+// Configure DefaultPermissions = OwnerDefaultPermissions for the picture of the owner's instance.
 func New(t testing.TB) *Server {
 	t.Helper()
 	s := &Server{
 		stop: make(chan struct{}), now: Start,
 		cfg: Config{
-			Version: "3.5.2", LocalLogin: true, PartialRequests: true, MetadataTV: "tmdb", MetadataAnime: "tmdb",
+			Version: "3.5.2", MediaServerType: 2, LocalLogin: true, PartialRequests: true, MetadataTV: "tmdb", MetadataAnime: "tmdb",
 			DefaultPermissions: PermRequest, DefaultMovieQuotaDays: 7, DefaultTVQuotaDays: 7,
 		},
 		users: map[int]*User{}, nextUser: 1, titles: map[mediaKey]*Title{}, media: map[mediaKey]*media{},
@@ -493,6 +510,7 @@ func (s *Server) routes() http.Handler {
 		{pattern: "GET /status", public: true, handle: (*Server).status},
 		{pattern: "GET /settings/public", public: true, handle: (*Server).settingsPublic},
 		{pattern: "GET /auth/me", handle: (*Server).me},
+		{pattern: "GET /settings/main", handle: (*Server).settingsMain},
 		{pattern: "GET /settings/metadatas", handle: (*Server).settingsMetadatas},
 		{pattern: "GET /settings/radarr", handle: (*Server).settingsRadarr},
 		{pattern: "GET /settings/sonarr", handle: (*Server).settingsSonarr},
@@ -596,11 +614,16 @@ func (s *Server) wrap(rt route) http.HandlerFunc {
 			}
 			actor = s.users[id]
 		}
-		if actor == nil && !rt.public {
-			writeJSON(w, http.StatusForbidden, map[string]any{"status": 403, "message": TextAccessEndpoint})
-			return
+		switch {
+		case actor != nil || rt.public:
+			rt.handle(s, w, r, actor, body)
+		case r.Header.Get("X-Api-Key") == "":
+			// Without a key Seerr asks for its session cookie (appendix I, I-2).
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"message": TextNoSession, "errors": []any{TextNoSession}})
+		default:
+			// A wrong key and an unknown X-API-User get the same answer (I-2, I-3).
+			writeDenied(w)
 		}
-		rt.handle(s, w, r, actor, body)
 	}
 }
 
@@ -612,6 +635,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeMessage(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]any{"message": msg, "errors": []any{}})
+}
+
+// writeDenied is the answer of Seerr's authentication middleware: the text in the field error, not
+// message (appendix I, I-2).
+func writeDenied(w http.ResponseWriter) {
+	writeJSON(w, http.StatusForbidden, map[string]any{"status": http.StatusForbidden, "error": TextAccessEndpoint})
 }
 
 func pathInt(r *http.Request, name string) int {
@@ -649,7 +678,7 @@ func (s *Server) status(w http.ResponseWriter, _ *http.Request, _ *User, _ map[s
 func (s *Server) settingsPublic(w http.ResponseWriter, _ *http.Request, _ *User, _ map[string]json.RawMessage) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"initialized": true, "applicationTitle": "Seerr", "applicationUrl": "", "localLogin": s.cfg.LocalLogin,
-		"mediaServerType": 2, "partialRequestsEnabled": s.cfg.PartialRequests,
+		"mediaServerType": s.cfg.MediaServerType, "partialRequestsEnabled": s.cfg.PartialRequests,
 		"enableSpecialEpisodes": s.cfg.EnableSpecialEpisodes, "movie4kEnabled": s.cfg.Movie4K,
 		"series4kEnabled": s.cfg.Series4K, "emailEnabled": s.cfg.EmailEnabled, "userEmailRequired": false,
 		"locale": "en",
@@ -658,10 +687,27 @@ func (s *Server) settingsPublic(w http.ResponseWriter, _ *http.Request, _ *User,
 
 func (s *Server) adminOnly(w http.ResponseWriter, actor *User) bool {
 	if !actor.has(PermAdmin) {
-		writeJSON(w, http.StatusForbidden, map[string]any{"status": 403, "message": TextAccessEndpoint})
+		writeDenied(w)
 		return false
 	}
 	return true
+}
+
+// settingsMain answers the part of GET /settings/main the integration reads, with further fields of
+// the real answer (appendix I, I-7).
+func (s *Server) settingsMain(w http.ResponseWriter, _ *http.Request, actor *User, _ map[string]json.RawMessage) {
+	if s.adminOnly(w, actor) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"applicationTitle": "Seerr", "applicationUrl": "", "defaultPermissions": s.cfg.DefaultPermissions,
+			"defaultQuotas": map[string]any{
+				"movie": map[string]any{"quotaLimit": s.cfg.DefaultMovieQuotaLimit, "quotaDays": s.cfg.DefaultMovieQuotaDays},
+				"tv":    map[string]any{"quotaLimit": s.cfg.DefaultTVQuotaLimit, "quotaDays": s.cfg.DefaultTVQuotaDays},
+			},
+			"hideAvailable": false, "localLogin": s.cfg.LocalLogin, "mediaServerType": s.cfg.MediaServerType,
+			"partialRequestsEnabled": s.cfg.PartialRequests, "enableSpecialEpisodes": s.cfg.EnableSpecialEpisodes,
+			"locale": "en",
+		})
+	}
 }
 
 func (s *Server) settingsMetadatas(w http.ResponseWriter, _ *http.Request, actor *User, _ map[string]json.RawMessage) {
@@ -693,7 +739,7 @@ func (s *Server) userJSON(u *User, full bool) map[string]any {
 		display = u.Email
 	}
 	out := map[string]any{
-		"id": u.ID, "username": u.Username, "jellyfinUsername": u.JellyfinUsername, "plexUsername": nil,
+		"id": u.ID, "username": u.Username, "jellyfinUsername": u.JellyfinUsername, "plexUsername": nullable(u.PlexUsername),
 		"displayName": display, "userType": u.UserType, "permissions": u.Permissions,
 		"avatar": "/avatar/" + strconv.Itoa(u.ID), "requestCount": s.requestCount(u.ID),
 		"movieQuotaLimit": u.MovieQuotaLimit, "movieQuotaDays": u.MovieQuotaDays,
@@ -705,6 +751,13 @@ func (s *Server) userJSON(u *User, full bool) map[string]any {
 		out["jellyfinUserId"] = u.JellyfinUserID
 	}
 	return out
+}
+
+func nullable(v string) any {
+	if v == "" {
+		return nil
+	}
+	return v
 }
 
 func (s *Server) requestCount(userID int) int {
@@ -741,7 +794,7 @@ func (s *Server) me(w http.ResponseWriter, _ *http.Request, actor *User, _ map[s
 
 func (s *Server) listUsers(w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
 	if !actor.has(PermManageUsers) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return
 	}
 	q := strings.ToLower(r.URL.Query().Get("q"))
@@ -771,7 +824,7 @@ func window[T any](all []T, take, skip int) []T {
 
 func (s *Server) createUser(w http.ResponseWriter, _ *http.Request, actor *User, body map[string]json.RawMessage) {
 	if !actor.has(PermManageUsers) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return
 	}
 	var email, username, password string
@@ -799,7 +852,10 @@ func (s *Server) createUser(w http.ResponseWriter, _ *http.Request, actor *User,
 	}
 	s.nextUser++
 	s.users[u.ID] = u
-	writeJSON(w, http.StatusCreated, s.userJSON(u, true))
+	// Seerr 3.5.1 answers without the email (appendix I, I-12).
+	out := s.userJSON(u, true)
+	delete(out, "email")
+	writeJSON(w, http.StatusCreated, out)
 }
 
 func (s *Server) target(w http.ResponseWriter, r *http.Request) *User {
@@ -819,7 +875,7 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request, actor *User, _ 
 
 func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
 	if !actor.has(PermManageUsers) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return
 	}
 	u := s.target(w, r)
@@ -849,7 +905,7 @@ func (s *Server) removeUser(id int) {
 
 func (s *Server) ownOrManager(w http.ResponseWriter, actor, u *User) bool {
 	if actor.ID != u.ID && !actor.has(PermManageUsers) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return false
 	}
 	return true
@@ -866,11 +922,16 @@ func (s *Server) getUserSettings(w http.ResponseWriter, r *http.Request, actor *
 		"originalLanguage": u.OriginalLanguage, "movieQuotaLimit": u.MovieQuotaLimit,
 		"movieQuotaDays": u.MovieQuotaDays, "tvQuotaLimit": u.TVQuotaLimit, "tvQuotaDays": u.TVQuotaDays,
 		"watchlistSyncMovies": false, "watchlistSyncTv": false,
+		"globalMovieQuotaLimit": s.cfg.DefaultMovieQuotaLimit, "globalMovieQuotaDays": s.cfg.DefaultMovieQuotaDays,
+		"globalTvQuotaLimit": s.cfg.DefaultTVQuotaLimit, "globalTvQuotaDays": s.cfg.DefaultTVQuotaDays,
 	})
 }
 
-// setUserSettings writes every field from the body and clears the missing ones (appendix H 3.1);
-// the quota fields only when the target has no MANAGE_USERS and is not the caller.
+// setUserSettings writes every field from the body and clears the missing ones, as versions before
+// 3.5.1 do (appendix H 3.1; 3.5.1 keeps a missing username and email, appendix I, I-17: the
+// stricter picture proves that the client sends everything back); the quota fields only when the
+// target has no MANAGE_USERS and is not the caller. The email of another user (any spelling) is
+// 400 INVALID_EMAIL and changes nothing (I-18); the answer has no quota fields (I-16).
 func (s *Server) setUserSettings(w http.ResponseWriter, r *http.Request, actor *User, body map[string]json.RawMessage) {
 	u := s.target(w, r)
 	if u == nil || !s.ownOrManager(w, actor, u) {
@@ -880,6 +941,10 @@ func (s *Server) setUserSettings(w http.ResponseWriter, r *http.Request, actor *
 		var v string
 		decode(body, key, &v)
 		return v
+	}
+	if other := s.userByEmail(str("email")); other != nil && other.ID != u.ID {
+		writeMessage(w, http.StatusBadRequest, TextInvalidEmail)
+		return
 	}
 	num := func(key string) *int {
 		var v *int
@@ -892,7 +957,11 @@ func (s *Server) setUserSettings(w http.ResponseWriter, r *http.Request, actor *
 		u.MovieQuotaLimit, u.MovieQuotaDays = num("movieQuotaLimit"), num("movieQuotaDays")
 		u.TVQuotaLimit, u.TVQuotaDays = num("tvQuotaLimit"), num("tvQuotaDays")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"username": u.Username, "email": u.Email, "locale": u.Locale})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"username": u.Username, "email": u.Email, "locale": u.Locale, "discoverRegion": u.DiscoverRegion,
+		"streamingRegion": u.StreamingRegion, "originalLanguage": u.OriginalLanguage,
+		"watchlistSyncMovies": false, "watchlistSyncTv": false,
+	})
 }
 
 // setPassword: user 1 changes only its own password and needs the current one; an administrator's
@@ -919,7 +988,7 @@ func (s *Server) setPassword(w http.ResponseWriter, r *http.Request, actor *User
 		u.Password = next
 		w.WriteHeader(http.StatusNoContent)
 	case !actor.has(PermManageUsers):
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 	default:
 		u.Password = next
 		w.WriteHeader(http.StatusNoContent)
@@ -928,7 +997,7 @@ func (s *Server) setPassword(w http.ResponseWriter, r *http.Request, actor *User
 
 func (s *Server) setPermissions(w http.ResponseWriter, r *http.Request, actor *User, body map[string]json.RawMessage) {
 	if !actor.has(PermManageUsers) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return
 	}
 	u := s.target(w, r)
@@ -1340,7 +1409,7 @@ func (s *Server) decideRequest(w http.ResponseWriter, r *http.Request, actor *Us
 		return
 	}
 	if !actor.has(PermManageRequests) {
-		writeMessage(w, http.StatusForbidden, TextAccessEndpoint)
+		writeDenied(w)
 		return
 	}
 	req := s.findRequest(w, r)

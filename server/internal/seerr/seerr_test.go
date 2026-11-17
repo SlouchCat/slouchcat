@@ -201,7 +201,8 @@ func TestErrorClasses(t *testing.T) {
 	f := seerrtest.New(t)
 	c := newClient(t, f)
 	all := []error{ErrUnreachable, ErrRedirect, ErrKeyInvalid, ErrAccessDenied, ErrForbidden, ErrNoPermission, ErrQuota,
-		ErrBlocklisted, ErrCSRF, ErrNotFound, ErrConflict, ErrDuplicate, ErrUserExists, ErrBadRequest, ErrServer}
+		ErrBlocklisted, ErrCSRF, ErrNotFound, ErrConflict, ErrDuplicate, ErrUserExists, ErrBadRequest, ErrServer,
+		ErrInvalidEmail, ErrUserGone}
 	for _, tc := range []struct {
 		status int
 		msg    string
@@ -211,6 +212,9 @@ func TestErrorClasses(t *testing.T) {
 		{403, seerrtest.TextAccessEndpoint, false, []error{ErrKeyInvalid}},
 		{403, seerrtest.TextAccessEndpoint, true, []error{ErrAccessDenied, ErrForbidden}},
 		{401, "", false, []error{ErrKeyInvalid}},
+		{401, seerrtest.TextNoSession, false, []error{ErrKeyInvalid}},
+		{400, seerrtest.TextInvalidEmail, false, []error{ErrInvalidEmail, ErrBadRequest}},
+		{400, "Password must be at least 8 characters.", false, []error{ErrBadRequest}},
 		{403, seerrtest.TextMovieQuota, true, []error{ErrQuota, ErrForbidden}},
 		{403, seerrtest.TextSeriesQuota, true, []error{ErrQuota, ErrForbidden}},
 		{403, seerrtest.TextBlocklisted, true, []error{ErrBlocklisted, ErrForbidden}},
@@ -909,5 +913,167 @@ func TestObserverSeesEveryCall(t *testing.T) {
 	if g := calls[1]; g.Path != "/user/1/settings/password" || g.Status != 500 || !errors.Is(g.Err, ErrServer) ||
 		strings.Contains(g.Err.Error(), "pw-FAKE-0815") {
 		t.Errorf("second call = %+v", g)
+	}
+}
+
+// The fake and the client answer as the real Seerr 3.5.1 did (appendix I).
+func TestAnswersOfSeerr351(t *testing.T) {
+	f := seerrtest.New(t)
+	f.Configure(func(c *seerrtest.Config) {
+		c.DefaultPermissions = seerrtest.OwnerDefaultPermissions
+		c.DefaultMovieQuotaLimit, c.DefaultMovieQuotaDays = 3, 14
+		c.MediaServerType = 3
+	})
+	ctx := context.Background()
+	c := newClient(t, f)
+	admin := c.AsAdmin()
+
+	// I-12, I-14: 201 without the email, permissions from defaultPermissions; 409 in any spelling.
+	u, err := admin.CreateUser(ctx, NewUser{Email: "nora@example.org", Username: "nora", Password: "long-enough-1"})
+	if err != nil || u.ID == 0 || u.Email != "" || u.Permissions != Permission(seerrtest.OwnerDefaultPermissions) {
+		t.Fatalf("create = %+v, %v", u, err)
+	}
+	if _, err := admin.CreateUser(ctx, NewUser{Email: "NORA@Example.ORG", Password: "long-enough-1"}); !errors.Is(err, ErrUserExists) {
+		t.Errorf("duplicate in another spelling: %v", err)
+	}
+	// I-7: the defaults of a new user.
+	ms, err := admin.MainSettings(ctx)
+	if err != nil || ms.DefaultPermissions != Permission(seerrtest.OwnerDefaultPermissions) ||
+		ms.DefaultQuotas.Movie.QuotaLimit == nil || *ms.DefaultQuotas.Movie.QuotaLimit != 3 || *ms.DefaultQuotas.Movie.QuotaDays != 14 ||
+		ms.DefaultQuotas.TV.QuotaLimit == nil || *ms.DefaultQuotas.TV.QuotaLimit != 0 {
+		t.Errorf("main settings = %+v, %v", ms, err)
+	}
+	if _, err := c.AsUser(u.ID).MainSettings(ctx); !errors.Is(err, ErrAccessDenied) {
+		t.Errorf("main settings as a user: %v", err)
+	}
+	// I-15, I-16, I-18: settings/main of another user's email is INVALID_EMAIL, nothing changes.
+	other := localUser(f, "other@example.org", seerrtest.PermRequest)
+	set, err := admin.UserSettings(ctx, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := set.Field("globalMovieQuotaLimit"); !ok {
+		t.Error("settings/main without the global quota fields")
+	}
+	set.Email = ptr("Other@example.org")
+	set.MovieQuotaLimit = ptr(5)
+	if err := admin.SetUserSettings(ctx, u.ID, set); !errors.Is(err, ErrInvalidEmail) || !errors.Is(err, ErrBadRequest) {
+		t.Errorf("taken email: %v", err)
+	}
+	if fu, _ := f.User(u.ID); fu.Email != "nora@example.org" || fu.MovieQuotaLimit != nil {
+		t.Errorf("user changed after INVALID_EMAIL: %+v", fu)
+	}
+	set.Email = ptr("nora.new@example.org")
+	if err := admin.SetUserSettings(ctx, u.ID, set); err != nil {
+		t.Errorf("own new email: %v", err)
+	}
+	// I-20: the password route answers 204, too short 400.
+	if err := admin.SetPassword(ctx, u.ID, "another-password"); err != nil {
+		t.Errorf("password: %v", err)
+	}
+	if err := admin.SetPassword(ctx, u.ID, "short"); !errors.Is(err, ErrBadRequest) {
+		t.Errorf("short password: %v", err)
+	}
+	// I-31, I-32: limit 0 has no remaining; null follows defaultQuotas.
+	f.UpdateUser(u.ID, func(fu *seerrtest.User) { fu.MovieQuotaLimit, fu.TVQuotaLimit = nil, ptr(0) })
+	q, err := admin.Quota(ctx, u.ID)
+	if err != nil || q.Movie.Limit == nil || *q.Movie.Limit != 3 || *q.Movie.Days != 14 || q.Movie.Remaining == nil || *q.Movie.Remaining != 3 ||
+		q.TV.Limit == nil || *q.TV.Limit != 0 || q.TV.Remaining != nil || q.TV.Restricted {
+		t.Errorf("quota = %+v, %v", q, err)
+	}
+	// I-2: a wrong key is 403 with the text in the field error, no key 401.
+	wrong, err := New(f.URL, "wrong-key", WithLimiter(fast()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = wrong.AsAdmin().Me(ctx)
+	var se *Error
+	if !errors.As(err, &se) || !errors.Is(err, ErrKeyInvalid) || se.Status != http.StatusForbidden || se.Message != seerrtest.TextAccessEndpoint {
+		t.Errorf("wrong key: %#v", err)
+	}
+	resp, err := http.Get(f.URL + "/api/v1/auth/me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		Message string `json:"message"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized || body.Message != seerrtest.TextNoSession {
+		t.Errorf("no key: %d %q", resp.StatusCode, body.Message)
+	}
+	// I-10, I-11: users of every type, with their type.
+	f.AddUser(seerrtest.User{ID: 20, Email: "plex@example.org", PlexUsername: "plexer", UserType: seerrtest.UserPlex})
+	f.AddUser(seerrtest.User{ID: 21, Email: "jelly@example.org", JellyfinUsername: "jelly", UserType: seerrtest.UserJellyfin})
+	f.AddUser(seerrtest.User{ID: 22, Email: "emby@example.org", JellyfinUsername: "emby", UserType: seerrtest.UserEmby})
+	page, err := admin.Users(ctx, UserQuery{Take: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	types := map[int]UserType{}
+	for _, pu := range page.Results {
+		types[pu.ID] = pu.UserType
+	}
+	if types[20] != UserPlex || types[21] != UserJellyfin || types[22] != UserEmby || types[u.ID] != UserLocal || types[other] != UserLocal {
+		t.Errorf("types = %v", types)
+	}
+	if pu, _ := admin.User(ctx, 20); pu.PlexUsername != "plexer" {
+		t.Errorf("plex user = %+v", pu)
+	}
+	ps, err := admin.PublicSettings(ctx)
+	if err != nil || ps.MediaServerType != 3 {
+		t.Errorf("public settings = %+v, %v", ps, err)
+	}
+	// I-22: DELETE /user/{id} answers 200, the user is gone.
+	if err := admin.DeleteUser(ctx, other); err != nil {
+		t.Errorf("delete: %v", err)
+	}
+	if _, err := admin.User(ctx, other); !errors.Is(err, ErrNotFound) {
+		t.Errorf("deleted user: %v", err)
+	}
+}
+
+// N-114: a refused call on behalf of a user is told apart by a second call as the administrator.
+func TestExplainRefusal(t *testing.T) {
+	f := seerrtest.New(t)
+	ctx := context.Background()
+	c := newClient(t, f)
+	weak := localUser(f, "weak@example.org", 0)
+
+	// I-3: an unknown X-API-User answers as a wrong key; the administrator finds no such user.
+	_, err := c.AsUser(999).Me(ctx)
+	if !errors.Is(err, ErrAccessDenied) {
+		t.Fatalf("unknown user: %v", err)
+	}
+	if got := c.AsUser(999).ExplainRefusal(ctx, err); !errors.Is(got, ErrUserGone) || !errors.Is(got, ErrNotFound) || errors.Is(got, ErrAccessDenied) {
+		t.Errorf("unknown user explained = %v", got)
+	}
+	// I-23: a user without the right gets the same 403; the user exists, the refusal stays.
+	_, err = c.AsUser(weak).RadarrServers(ctx)
+	if !errors.Is(err, ErrAccessDenied) {
+		t.Fatalf("no right: %v", err)
+	}
+	if got := c.AsUser(weak).ExplainRefusal(ctx, err); !errors.Is(got, ErrAccessDenied) || errors.Is(got, ErrUserGone) {
+		t.Errorf("no right explained = %v", got)
+	}
+	// A wrong key fails the second call too.
+	wrong, err := New(f.URL, "wrong-key", WithLimiter(fast()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = wrong.AsUser(weak).Me(ctx)
+	if got := wrong.AsUser(weak).ExplainRefusal(ctx, err); !errors.Is(got, ErrKeyInvalid) || errors.Is(got, ErrUserGone) {
+		t.Errorf("wrong key explained = %v", got)
+	}
+	// Other errors and the administrator session come back unchanged.
+	if got := c.AsAdmin().ExplainRefusal(ctx, err); !errors.Is(got, ErrAccessDenied) || errors.Is(got, ErrKeyInvalid) {
+		t.Errorf("admin session = %v", got)
+	}
+	if got := c.AsUser(weak).ExplainRefusal(ctx, ErrQuota); !errors.Is(got, ErrQuota) {
+		t.Errorf("other error = %v", got)
+	}
+	if got := c.AsUser(weak).ExplainRefusal(ctx, nil); got != nil {
+		t.Errorf("nil = %v", got)
 	}
 }

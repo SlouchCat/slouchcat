@@ -51,6 +51,13 @@ var (
 	ErrNoSeasons = errors.New("seerr: no seasons available to request")
 	// ErrBadRequest: 400 (the request validator of Seerr) or another 4xx without a class.
 	ErrBadRequest = errors.New("seerr: bad request")
+	// ErrInvalidEmail: 400 {"message": "INVALID_EMAIL"} of POST /user/{id}/settings/main: the
+	// address belongs to another user, and Seerr left the user unchanged (appendix I, I-18). Also
+	// ErrBadRequest.
+	ErrInvalidEmail = errors.New("seerr: email belongs to another user")
+	// ErrUserGone: a call on behalf of a user was refused, and a second call as the administrator
+	// found that the user no longer exists (Session.ExplainRefusal, N-114). Also ErrNotFound.
+	ErrUserGone = errors.New("seerr: user gone")
 	// ErrServer: 5xx (for example a TMDB failure inside Seerr) or an answer that is no JSON of the
 	// expected shape or larger than the limit.
 	ErrServer = errors.New("seerr: server error")
@@ -111,6 +118,7 @@ const (
 	textCSRF           = "csrf"
 	textUserExists     = "user already exists"
 	textDuplicate      = "already exists"
+	textInvalidEmail   = "invalid_email"
 )
 
 // classify maps a non-2xx status and Seerr's message to the error classes. asUser is true for a
@@ -157,6 +165,8 @@ func classify(status int, message string, asUser bool) []error {
 		return []error{ErrConflict}
 	case status >= 500:
 		return []error{ErrServer}
+	case status == http.StatusBadRequest && m == textInvalidEmail:
+		return []error{ErrInvalidEmail, ErrBadRequest}
 	}
 	return []error{ErrBadRequest}
 }

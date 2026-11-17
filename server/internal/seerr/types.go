@@ -141,6 +141,22 @@ type PublicSettings struct {
 	Locale                 string `json:"locale"`
 }
 
+// MainSettings is the part of GET /settings/main the integration reads (appendix I, I-7): what
+// every new user gets. A quota field is nil when Seerr leaves it out.
+type MainSettings struct {
+	DefaultPermissions Permission `json:"defaultPermissions"`
+	DefaultQuotas      struct {
+		Movie DefaultQuota `json:"movie"`
+		TV    DefaultQuota `json:"tv"`
+	} `json:"defaultQuotas"`
+}
+
+// DefaultQuota is one half of defaultQuotas; limit 0 means no limit.
+type DefaultQuota struct {
+	QuotaLimit *int `json:"quotaLimit"`
+	QuotaDays  *int `json:"quotaDays"`
+}
+
 // MetadataSettings is GET /settings/metadatas: the metadata provider for series and anime, "tmdb"
 // or "tvdb" (3.x, appendix H 3.4). The field names are not verified against an instance; a missing
 // field stays "".
@@ -214,8 +230,10 @@ type NewUser struct {
 	Password string
 }
 
-// QuotaPart is one half of a user's quota. Limit 0 means no limit; Days, Limit and Remaining are
-// nil when Seerr leaves them out.
+// QuotaPart is one half of a user's quota. Limit 0 means no limit, and Seerr then leaves out
+// Remaining (appendix I, I-31); a user whose limit fields are null shows the instance's
+// defaultQuotas (I-32), a user with MANAGE_USERS always limit 0 (I-34). Days, Limit and Remaining
+// are nil when Seerr leaves them out.
 type QuotaPart struct {
 	Days       *int `json:"days"`
 	Limit      *int `json:"limit"`

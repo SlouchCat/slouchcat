@@ -53,6 +53,35 @@ func (s Session) SonarrServers(ctx context.Context) ([]DVRServer, error) {
 	return out, err
 }
 
+// MainSettings returns the part of GET /settings/main the integration reads: the permissions and
+// the quota every new user gets (appendix I, I-7). Administrator only.
+func (s Session) MainSettings(ctx context.Context) (MainSettings, error) {
+	var out MainSettings
+	err := s.call(ctx, http.MethodGet, "/settings/main", nil, nil, &out)
+	return out, err
+}
+
+// ExplainRefusal tells apart why a call on behalf of a user was refused (N-114): Seerr answers an
+// unknown X-API-User, a wrong key and a missing right with the same 403 (appendix I, I-2, I-3).
+// For an ErrAccessDenied of a session on behalf of a user it asks as the administrator for the
+// user (GET /user/{id}): not found is ErrUserGone, refused is ErrKeyInvalid, found keeps err (the
+// user lacks the right). Every other error, and err on the administrator session, comes back as
+// it is; so does err when the second call fails otherwise (Seerr unreachable).
+func (s Session) ExplainRefusal(ctx context.Context, err error) error {
+	id, ok := s.UserID()
+	if !ok || !errors.Is(err, ErrAccessDenied) {
+		return err
+	}
+	_, check := s.c.AsAdmin().User(ctx, id)
+	switch {
+	case errors.Is(check, ErrNotFound):
+		return &Error{Op: "GET /user/" + pathID(id), Status: http.StatusNotFound, classes: []error{ErrUserGone, ErrNotFound}}
+	case errors.Is(check, ErrKeyInvalid):
+		return check
+	}
+	return err
+}
+
 // CSRFProtection reports whether Seerr's CSRF protection is on, which refuses every write with the
 // api key (appendix D 2.4). It sends POST /request with an empty body, which the request
 // validator of Seerr refuses (400) when the protection is off; it never creates a request. Derived
@@ -99,7 +128,9 @@ func (s Session) User(ctx context.Context, id int) (User, error) {
 }
 
 // CreateUser creates a local user with POST /user {email, username, password}. A user with the
-// same email answers ErrUserExists. The password never appears in an error or the log.
+// same email in any spelling answers ErrUserExists. Seerr 3.5.1 answers 201 without the email and
+// with the instance's defaultPermissions, whatever the body says (appendix I, I-12): do not read
+// the email from the answer. The password never appears in an error or the log.
 func (s Session) CreateUser(ctx context.Context, u NewUser) (User, error) {
 	if strings.TrimSpace(u.Email) == "" || u.Password == "" {
 		return User{}, fmt.Errorf("%w: a new user needs email and password", ErrInvalid)
@@ -213,7 +244,9 @@ func (s Session) UserSettings(ctx context.Context, id int) (UserSettings, error)
 
 // SetUserSettings writes POST /user/{id}/settings/main with every field of set, which must come
 // from UserSettings (ErrInvalid otherwise: a body without the other fields would clear them).
-// Seerr takes the quota fields only for users without MANAGE_USERS.
+// Seerr takes the quota fields only for users without MANAGE_USERS. Its answer has no quota
+// fields (appendix I, I-16): read them back with Quota or User. An email of another user is
+// ErrInvalidEmail, and Seerr leaves the user unchanged (I-18).
 func (s Session) SetUserSettings(ctx context.Context, id int, set UserSettings) error {
 	if set.fields == nil {
 		return fmt.Errorf("%w: read the user settings before writing them", ErrInvalid)
