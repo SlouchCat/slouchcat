@@ -80,3 +80,42 @@ ORDER BY id;
 SELECT * FROM wishes
 WHERE media = 'movie' AND imdb_id = @imdb_id AND state IN ('queued', 'pending', 'processing')
 ORDER BY id;
+
+-- name: SetWishSeerrUser :execrows
+-- A queued wish that nothing of has reached Seerr goes out as another user (the hand-over of a
+-- deleted account's wish to a co-wisher of another account).
+UPDATE wishes SET seerr_user_id = @seerr_user_id, updated_at = @now
+WHERE id = @id AND state = 'queued' AND seerr_request_id IS NULL
+  AND NOT EXISTS (SELECT 1 FROM wish_seasons AS s WHERE s.wish_id = wishes.id AND s.seerr_request_id IS NOT NULL);
+
+-- name: ListAccountWishIDs :many
+-- The wishes an account requested or joined (before the account is deleted).
+SELECT DISTINCT wish_id FROM wish_requesters WHERE account_id = @account_id ORDER BY wish_id;
+
+-- name: ListProfileOwnedWishIDs :many
+-- The wishes a profile owns (before the profile is deleted).
+SELECT wish_id FROM wish_requesters WHERE profile_id = @profile_id AND role = 'owner' ORDER BY wish_id;
+
+-- name: DeleteAccountWishRequesters :execrows
+-- The requesters of a wish that belong to an account (its deletion hands the wish over first).
+DELETE FROM wish_requesters WHERE wish_id = @wish_id AND account_id = @account_id;
+
+-- name: MoveWishRequester :execrows
+-- A requester row goes to another profile with its role, times and message guard.
+UPDATE wish_requesters SET profile_id = @to_profile_id WHERE wish_id = @wish_id AND profile_id = @from_profile_id;
+
+-- name: ClearWishRequest :execrows
+-- The request id of a film wish goes (into the history); a closed wish no longer holds it.
+UPDATE wishes SET seerr_request_id = NULL, seerr_updated_at = NULL, updated_at = @now WHERE id = @id;
+
+-- name: ClearWishSeasonRequests :execrows
+-- The request ids of the seasons of a wish go (into the history).
+UPDATE wish_seasons SET seerr_request_id = NULL, seerr_updated_at = NULL WHERE wish_id = @wish_id;
+
+-- name: SetWishClosedAt :execrows
+-- A closed wish gets its closing time once.
+UPDATE wishes SET closed_at = COALESCE(closed_at, @now), updated_at = @now WHERE id = @id;
+
+-- name: GetPrimaryProfile :one
+-- The primary profile of an account (it takes the wishes of a deleted profile).
+SELECT id FROM profiles WHERE account_id = @account_id AND is_default = 1;

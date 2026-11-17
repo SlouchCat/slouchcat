@@ -10,6 +10,37 @@ import (
 	"database/sql"
 )
 
+const clearWishRequest = `-- name: ClearWishRequest :execrows
+UPDATE wishes SET seerr_request_id = NULL, seerr_updated_at = NULL, updated_at = ?1 WHERE id = ?2
+`
+
+type ClearWishRequestParams struct {
+	Now int64
+	ID  int64
+}
+
+// The request id of a film wish goes (into the history); a closed wish no longer holds it.
+func (q *Queries) ClearWishRequest(ctx context.Context, arg ClearWishRequestParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearWishRequest, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const clearWishSeasonRequests = `-- name: ClearWishSeasonRequests :execrows
+UPDATE wish_seasons SET seerr_request_id = NULL, seerr_updated_at = NULL WHERE wish_id = ?1
+`
+
+// The request ids of the seasons of a wish go (into the history).
+func (q *Queries) ClearWishSeasonRequests(ctx context.Context, wishID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearWishSeasonRequests, wishID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countQueuedMovieWishes = `-- name: CountQueuedMovieWishes :one
 
 SELECT count(*) FROM wishes
@@ -40,6 +71,24 @@ func (q *Queries) CountQueuedSeasons(ctx context.Context, seerrUserID sql.NullIn
 	return count, err
 }
 
+const deleteAccountWishRequesters = `-- name: DeleteAccountWishRequesters :execrows
+DELETE FROM wish_requesters WHERE wish_id = ?1 AND account_id = ?2
+`
+
+type DeleteAccountWishRequestersParams struct {
+	WishID    int64
+	AccountID int64
+}
+
+// The requesters of a wish that belong to an account (its deletion hands the wish over first).
+func (q *Queries) DeleteAccountWishRequesters(ctx context.Context, arg DeleteAccountWishRequestersParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAccountWishRequesters, arg.WishID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteWishRequester = `-- name: DeleteWishRequester :execrows
 DELETE FROM wish_requesters WHERE wish_id = ?1 AND profile_id = ?2
 `
@@ -56,6 +105,46 @@ func (q *Queries) DeleteWishRequester(ctx context.Context, arg DeleteWishRequest
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const getPrimaryProfile = `-- name: GetPrimaryProfile :one
+SELECT id FROM profiles WHERE account_id = ?1 AND is_default = 1
+`
+
+// The primary profile of an account (it takes the wishes of a deleted profile).
+func (q *Queries) GetPrimaryProfile(ctx context.Context, accountID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPrimaryProfile, accountID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const listAccountWishIDs = `-- name: ListAccountWishIDs :many
+SELECT DISTINCT wish_id FROM wish_requesters WHERE account_id = ?1 ORDER BY wish_id
+`
+
+// The wishes an account requested or joined (before the account is deleted).
+func (q *Queries) ListAccountWishIDs(ctx context.Context, accountID int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listAccountWishIDs, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var wish_id int64
+		if err := rows.Scan(&wish_id); err != nil {
+			return nil, err
+		}
+		items = append(items, wish_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAllWishes = `-- name: ListAllWishes :many
@@ -264,6 +353,34 @@ func (q *Queries) ListOpenWishRequesters(ctx context.Context, wishID int64) ([]W
 	return items, nil
 }
 
+const listProfileOwnedWishIDs = `-- name: ListProfileOwnedWishIDs :many
+SELECT wish_id FROM wish_requesters WHERE profile_id = ?1 AND role = 'owner' ORDER BY wish_id
+`
+
+// The wishes a profile owns (before the profile is deleted).
+func (q *Queries) ListProfileOwnedWishIDs(ctx context.Context, profileID int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listProfileOwnedWishIDs, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var wish_id int64
+		if err := rows.Scan(&wish_id); err != nil {
+			return nil, err
+		}
+		items = append(items, wish_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUnnotifiedAvailableWishes = `-- name: ListUnnotifiedAvailableWishes :many
 SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes AS w
 WHERE w.state = 'available' AND w.available_at >= ?1
@@ -441,6 +558,43 @@ func (q *Queries) ListWishesToCheck(ctx context.Context, arg ListWishesToCheckPa
 	return items, nil
 }
 
+const moveWishRequester = `-- name: MoveWishRequester :execrows
+UPDATE wish_requesters SET profile_id = ?1 WHERE wish_id = ?2 AND profile_id = ?3
+`
+
+type MoveWishRequesterParams struct {
+	ToProfileID   int64
+	WishID        int64
+	FromProfileID int64
+}
+
+// A requester row goes to another profile with its role, times and message guard.
+func (q *Queries) MoveWishRequester(ctx context.Context, arg MoveWishRequesterParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, moveWishRequester, arg.ToProfileID, arg.WishID, arg.FromProfileID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setWishClosedAt = `-- name: SetWishClosedAt :execrows
+UPDATE wishes SET closed_at = COALESCE(closed_at, ?1), updated_at = ?1 WHERE id = ?2
+`
+
+type SetWishClosedAtParams struct {
+	Now int64
+	ID  int64
+}
+
+// A closed wish gets its closing time once.
+func (q *Queries) SetWishClosedAt(ctx context.Context, arg SetWishClosedAtParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setWishClosedAt, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setWishRequesterRole = `-- name: SetWishRequesterRole :execrows
 UPDATE wish_requesters SET role = ?1 WHERE wish_id = ?2 AND profile_id = ?3
 `
@@ -512,6 +666,28 @@ func (q *Queries) SetWishSeerr(ctx context.Context, arg SetWishSeerrParams) (int
 		arg.Now,
 		arg.ID,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setWishSeerrUser = `-- name: SetWishSeerrUser :execrows
+UPDATE wishes SET seerr_user_id = ?1, updated_at = ?2
+WHERE id = ?3 AND state = 'queued' AND seerr_request_id IS NULL
+  AND NOT EXISTS (SELECT 1 FROM wish_seasons AS s WHERE s.wish_id = wishes.id AND s.seerr_request_id IS NOT NULL)
+`
+
+type SetWishSeerrUserParams struct {
+	SeerrUserID sql.NullInt64
+	Now         int64
+	ID          int64
+}
+
+// A queued wish that nothing of has reached Seerr goes out as another user (the hand-over of a
+// deleted account's wish to a co-wisher of another account).
+func (q *Queries) SetWishSeerrUser(ctx context.Context, arg SetWishSeerrUserParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setWishSeerrUser, arg.SeerrUserID, arg.Now, arg.ID)
 	if err != nil {
 		return 0, err
 	}

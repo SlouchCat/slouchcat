@@ -394,8 +394,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.WithSeerr(wishSvc)
 	// The match of a film or series reconciles the wishes of the title with the library (concept 25).
 	metaSvc.WithMatched(wishSvc.TitleMatched)
-	// A Seerr user Slouchcat opened loses its rights when its account is deleted (K-2).
-	authSvc.WithAccountDeleting(wishSvc.AccountDeleting)
+	// A deleted account hands over or closes its wishes, and a Seerr user Slouchcat opened loses its
+	// rights (K-2, AK-128); a deleted profile's wishes go to the primary profile.
+	authSvc.WithAccountDeleting(wishSvc.AccountDeleting).WithProfileDeleting(wishSvc.ProfileDeleting)
 	// The password goes to Seerr in the three moments the server sees it (architecture 18.3), in the
 	// background and only in memory.
 	authSvc.WithPasswordSeen(wishSvc.PasswordSeen).WithRequestRightChanged(wishSvc.RequestRightChanged)

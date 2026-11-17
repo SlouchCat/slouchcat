@@ -64,7 +64,10 @@ type Service struct {
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
 	// accountDeleting runs before an account is deleted (package wishes, concept 25 K-2) and returns
 	// what runs after the deletion; nil = none.
-	accountDeleting func(ctx context.Context, accountID int64) func(context.Context)
+	accountDeleting func(ctx context.Context, accountID int64) (func(context.Context), error)
+	// profileDeleting runs before a profile is deleted (package wishes: its wishes go to the primary
+	// profile, concept 25); an error stops the deletion.
+	profileDeleting func(ctx context.Context, accountID, profileID int64) error
 	// passwordSeen gets the password in the three moments the server sees it in clear text (package
 	// wishes, concept 25 architecture 18.3); it must return at once. nil = none.
 	passwordSeen func(ctx context.Context, accountID int64, email, password, moment string)
@@ -132,10 +135,19 @@ func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAcc
 }
 
 // WithAccountDeleting runs fn before DeleteAccount deletes an account, while its rows still exist,
-// and the function it returns after the deletion (wishes.AccountDeleting: the Seerr user Slouchcat
-// opened loses its rights, concept 25 K-2). It returns the receiver.
-func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64) func(context.Context)) *Service {
+// and the function it returns after the deletion (wishes.AccountDeleting: the wishes are handed
+// over or closed, the Seerr user Slouchcat opened loses its rights, concept 25 K-2). An error of
+// fn stops the deletion. It returns the receiver.
+func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64) (func(context.Context), error)) *Service {
 	s.accountDeleting = fn
+	return s
+}
+
+// WithProfileDeleting runs fn before DeleteProfile deletes a profile, while its rows still exist
+// (wishes.ProfileDeleting: its wishes go to the primary profile, concept 25). An error of fn stops
+// the deletion. It returns the receiver.
+func (s *Service) WithProfileDeleting(fn func(ctx context.Context, accountID, profileID int64) error) *Service {
+	s.profileDeleting = fn
 	return s
 }
 

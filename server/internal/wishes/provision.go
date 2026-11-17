@@ -790,27 +790,32 @@ func (s *Service) queueAfterUsers(ctx context.Context) error {
 	return nil
 }
 
-// AccountDeleting is the hook of package auth before an account is deleted (K-2, F-31): for a
-// user Slouchcat opened it returns what runs after the deletion, a job that takes the user's
-// rights and gives it a random password. A linked or chosen user stays as it is; the user stays
-// in Seerr in every case (its requests would go with it). nil when nothing is to be done.
-func (s *Service) AccountDeleting(ctx context.Context, accountID int64) func(context.Context) {
+// AccountDeleting is the hook of package auth before an account is deleted (K-2, F-31, AK-128).
+// It hands the account's wishes to co-wishers of other accounts or closes them (accountgone.go);
+// an error stops the deletion. For a user Slouchcat opened it returns what runs after the
+// deletion, a job that takes the user's rights and gives it a random password. A linked or chosen
+// user stays as it is; the user stays in Seerr in every case (its requests would go with it). nil
+// when nothing is to be done after the deletion.
+func (s *Service) AccountDeleting(ctx context.Context, accountID int64) (func(context.Context), error) {
+	if err := s.closeAccountWishes(ctx, accountID); err != nil {
+		return nil, fmt.Errorf("wishes of the account: %w", err)
+	}
 	m, err := s.read.GetAccountMapping(ctx, accountID)
 	if err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			s.log.WarnContext(ctx, "mapping of deleted account not read", "account_id", accountID, "err", err)
 		}
-		return nil
+		return nil, nil
 	}
 	if m.State != StateReady || m.Origin.String != OriginCreated || !m.SeerrUserID.Valid {
-		return nil
+		return nil, nil
 	}
 	id := int(m.SeerrUserID.Int64)
 	return func(ctx context.Context) {
 		if err := s.queueProvision(ctx, provisionPayload{CloseSeerr: id}, provisionPriority); err != nil {
 			s.log.WarnContext(ctx, "closing of seerr user not queued", "seerr_user_id", id, "err", err)
 		}
-	}
+	}, nil
 }
 
 // closeUser takes the rights of a user Slouchcat opened for a deleted account and gives it a random

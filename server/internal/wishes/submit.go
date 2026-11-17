@@ -170,6 +170,12 @@ func (s *Service) submit(ctx context.Context, wishID int64, wait time.Duration) 
 	if !w.SeerrUserID.Valid {
 		return time.Time{}, s.failWish(ctx, w.ID, model.WishFailSeerrUserGone, nil)
 	}
+	if why, err := s.senderStale(ctx, w); err != nil {
+		return time.Time{}, err
+	} else if why != "" {
+		s.log.WarnContext(ctx, "queued wish not sent: its seerr user may no longer send it", "wish_id", w.ID, "seerr_user_id", w.SeerrUserID.Int64, "detail", why)
+		return time.Time{}, s.failWish(ctx, w.ID, model.WishFailSeerrUserGone, map[string]any{"detail": why})
+	}
 	if w.Media == model.WishMediaShow && !w.TvdbID.Valid {
 		return time.Time{}, s.failWish(ctx, w.ID, model.WishFailTVDBIDMissing, nil)
 	}
@@ -205,6 +211,46 @@ func (s *Service) submit(ctx context.Context, wishID int64, wait time.Duration) 
 		return time.Time{}, s.failWish(ctx, w.ID, res.fail, map[string]any{"attempt": w.Attempts + 1})
 	}
 	return time.Time{}, s.accepted(ctx, w, res)
+}
+
+// senderStale says why the frozen Seerr user of a queued wish may no longer send it, "" while it
+// may (security review L-1). The rule of the papers (users and profiles 8.1, architecture 14): the
+// wish stays with the user frozen at its creation, also after the account got another user or was
+// unlinked, and Slouchcat never re-points it; it fails with seerr_user_gone when that user is gone
+// from Seerr ("user_gone"). Beyond the papers it also fails ("mapping_changed") when the user now
+// belongs to another account, or, no longer the user of any account and not the shared user, holds
+// a managing right: sending would act as another account or as an administrator of Seerr.
+func (s *Service) senderStale(ctx context.Context, w wishq.Wish) (string, error) {
+	u, err := s.read.GetSeerrUser(ctx, w.SeerrUserID.Int64)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "user_gone", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("seerr user: %w", err)
+	}
+	if u.GoneAt.Valid {
+		return "user_gone", nil
+	}
+	reqs, err := s.read.ListWishRequesters(ctx, w.ID)
+	if err != nil {
+		return "", fmt.Errorf("requesters: %w", err)
+	}
+	if len(reqs) == 0 || reqs[0].Role != model.WishRoleOwner {
+		return "", nil
+	}
+	m, err := s.read.GetMappingBySeerrUser(ctx, num64(u.SeerrID))
+	switch {
+	case err == nil && m.AccountID != reqs[0].AccountID:
+		return "mapping_changed", nil
+	case err == nil:
+		return "", nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return "", fmt.Errorf("mapping of seerr user: %w", err)
+	}
+	if u.IsShared == 0 && privileged(u.SeerrID, seerr.Permission(uint64(max(0, u.Permissions)))) {
+		return "mapping_changed", nil
+	}
+	return "", nil
 }
 
 // send asks Seerr: the pre-check from the second attempt on, then POST /request.
@@ -483,17 +529,31 @@ func updatedOf(r seerr.Request) sql.NullInt64 {
 }
 
 // accepted stores what Seerr took. A wish withdrawn meanwhile keeps its state; its request ids
-// are stored and the withdrawal is queued (architecture 6.3 step 5).
+// are stored and the withdrawal is queued (architecture 6.3 step 5). A wish that left the outbox
+// otherwise meanwhile (closed with its deleted account, failed, available) is not written: the
+// event keeps the request ids (review Minor 9).
 func (s *Service) accepted(ctx context.Context, w wishq.Wish, res sent) error {
 	now := s.now().UnixMilli()
 	var state, detail, fail string
-	withdrawn := false
+	withdrawn, late := false, false
 	err := s.inTx(ctx, func(q *wishq.Queries) error {
 		cur, err := q.GetWish(ctx, w.ID)
 		if err != nil {
 			return fmt.Errorf("wish: %w", err)
 		}
 		withdrawn = cur.State == model.WishWithdrawn
+		if late = cur.State != model.WishQueued && !withdrawn; late {
+			ids := []int{}
+			if res.film != nil {
+				ids = append(ids, res.film.ID)
+			}
+			for _, hit := range res.seasons {
+				if hit.found && !slices.Contains(ids, hit.req.ID) {
+					ids = append(ids, hit.req.ID)
+				}
+			}
+			return s.event(ctx, q, w.ID, res.how, map[string]any{"requestIds": ids, "late": cur.State})
+		}
 		ids := []int{}
 		var reqID, updated sql.NullInt64
 		if res.film != nil {
@@ -563,6 +623,10 @@ func (s *Service) accepted(ctx context.Context, w wishq.Wish, res sent) error {
 	})
 	if err != nil {
 		return err
+	}
+	if late {
+		s.log.InfoContext(ctx, "wish reached seerr after it left the outbox", "wish_id", w.ID, "how", res.how)
+		return nil
 	}
 	s.log.InfoContext(ctx, "wish reached seerr", "wish_id", w.ID, "how", res.how, "state", state, "withdrawn", withdrawn)
 	if withdrawn {

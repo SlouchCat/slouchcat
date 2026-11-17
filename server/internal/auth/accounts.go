@@ -166,7 +166,9 @@ func (s *Service) DeleteAccount(ctx context.Context, accountID int64, end func(c
 	}
 	var after func(context.Context)
 	if s.accountDeleting != nil {
-		after = s.accountDeleting(ctx, acc.ID)
+		if after, err = s.accountDeleting(ctx, acc.ID); err != nil {
+			return err
+		}
 	}
 	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)

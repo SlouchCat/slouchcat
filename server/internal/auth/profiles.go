@@ -539,6 +539,11 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 			return err
 		}
 	}
+	if s.profileDeleting != nil {
+		if err := s.profileDeleting(ctx, session.Account.ID, row.ID); err != nil {
+			return err
+		}
+	}
 	if err := s.write.DeleteProfile(ctx, row.ID); err != nil {
 		return fmt.Errorf("delete profile: %w", err)
 	}

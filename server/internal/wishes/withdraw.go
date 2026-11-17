@@ -130,6 +130,13 @@ func (s *Service) withdraw(ctx context.Context, wishID int64) error {
 	if !w.SeerrUserID.Valid {
 		return s.withdrawDone(ctx, w, nil)
 	}
+	// The request belongs to the frozen user (architecture 6.6 step 3); a user gone from Seerr took
+	// its requests with it (appendix D 7.2), nothing is left to delete.
+	if u, err := s.read.GetSeerrUser(ctx, w.SeerrUserID.Int64); err == nil && u.GoneAt.Valid {
+		return s.withdrawDone(ctx, w, nil)
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("seerr user: %w", err)
+	}
 	uid := int(w.SeerrUserID.Int64)
 	sess, err := s.sessionFor(ctx, w)
 	if paused(err) {
