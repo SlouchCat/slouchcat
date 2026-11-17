@@ -169,6 +169,8 @@ func TestContractSeerr(t *testing.T) {
 		t.Errorf("opened = %+v", m)
 	}
 	code(http.MethodPost, "/admin/wishes/accounts/9999/provision", ``, http.StatusNotFound, "not_found")
+	// The confirmation for a privileged user (security review M-1) is a query parameter.
+	call(http.MethodPost, "/admin/wishes/accounts/"+guest+"/provision?allowPrivileged=true", ``, http.StatusOK)
 	// setAccountWishLimit (build step 1.5c).
 	var lim struct {
 		Mode      string `json:"mode"`
@@ -195,11 +197,12 @@ func TestContractSeerr(t *testing.T) {
 	var counts struct {
 		Link   *int `json:"link"`
 		Create *int `json:"create"`
+		Manual *int `json:"manual"`
 	}
 	if err := call(http.MethodPost, "/admin/wishes/accounts/provision", ``, http.StatusAccepted).Decode(&counts); err != nil {
 		t.Fatal(err)
 	}
-	if counts.Link == nil || counts.Create == nil || *counts.Create < 1 {
+	if counts.Link == nil || counts.Create == nil || counts.Manual == nil || *counts.Create < 1 {
 		t.Errorf("all = %+v", counts)
 	}
 	// Build step 1.6: the session carries the right of the profile, the account list the right, the

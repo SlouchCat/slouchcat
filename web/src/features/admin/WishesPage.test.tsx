@@ -300,7 +300,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
             total: 2,
           }),
         'GET /admin/wishes/mappings/users': () => json([...USERS, same]),
-        'POST /admin/wishes/accounts/provision': () => json({ link: 1, create: 1 }, 202),
+        'POST /admin/wishes/accounts/provision': () => json({ link: 1, create: 1, manual: 0 }, 202),
       }),
     );
     renderApp('/admin/wishes?tab=seerr-benutzer');

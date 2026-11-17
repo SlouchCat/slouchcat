@@ -96,13 +96,14 @@ func (s *Service) handleProvision(ctx context.Context, j *jobs.Job) error {
 	return err
 }
 
-// queueProvision queues one provisioning job; one waiting job per account (or shared user, or
-// closed user) is enough.
+// queueProvision queues one provisioning job; one waiting job per account and intent (or shared
+// user, or closed user) is enough. Open and retry have keys of their own (review Minor 4): a
+// waiting retry never swallows «Alle eröffnen», nor the other way round.
 func (s *Service) queueProvision(ctx context.Context, p provisionPayload, prio int) error {
 	if s.queue == nil {
 		return errors.New("wishes: no job queue")
 	}
-	key := JobProvision + ":account:" + strconv.FormatInt(p.AccountID, 10)
+	key := JobProvision + ":" + p.Intent + ":account:" + strconv.FormatInt(p.AccountID, 10)
 	switch {
 	case p.AccountID > 0 && p.Intent != intentOpen && p.Intent != intentRetry:
 		// A sync never swallows an open job, nor one for another user (a second hand choice).
@@ -143,7 +144,9 @@ func (s *Service) provisionJob(ctx context.Context, p provisionPayload) error {
 			return fmt.Errorf("mapping: %w", err)
 		}
 	}
-	_, err := s.provision(ctx, p.AccountID, p.LinkedBy, "", p.SetBy)
+	// Neither job ever links a privileged user (security review M-1); only a retry keeps the
+	// trigger of the waiting mapping.
+	_, err := s.provisionRun(ctx, p.AccountID, provisionRun{linkedBy: p.LinkedBy, setBy: p.SetBy, retry: p.Intent == intentRetry})
 	return err
 }
 
@@ -174,46 +177,56 @@ func (s *Service) syncAccount(ctx context.Context, accountID int64, seerrUser in
 
 // ProvisionAccount is «In Seerr eröffnen» (provisionSeerrAccount): it opens or links the Seerr
 // user of the account at once and returns the mapping; state waiting when Seerr was not reached
-// (the job tries again). A hit by the email keeps its password (password state off, F-24, N-103).
-// model.ErrNotFound, model.ErrProvisionDisabled («Neue Konten in Seerr eröffnen» off),
-// model.ErrSeerrNotConfigured.
-func (s *Service) ProvisionAccount(ctx context.Context, accountID, by int64) (model.WishAccountMapping, error) {
+// (the job tries again) or when the user of the email is taken or privileged. A privileged user is
+// linked only with allowPrivileged, after the administrator confirmed (security review M-1). A hit
+// by the email keeps its password (password state off, F-24, N-103). model.ErrNotFound,
+// model.ErrProvisionDisabled («Neue Konten in Seerr eröffnen» off), model.ErrSeerrNotConfigured.
+func (s *Service) ProvisionAccount(ctx context.Context, accountID, by int64, allowPrivileged bool) (model.WishAccountMapping, error) {
 	if err := s.provisionAllowed(ctx); err != nil {
 		return model.WishAccountMapping{}, err
 	}
-	if _, err := s.provision(ctx, accountID, LinkedByAdmin, "", by); err != nil && !s.waits(err) {
+	run := provisionRun{linkedBy: LinkedByAdmin, setBy: by, allowPrivileged: allowPrivileged}
+	if _, err := s.provisionRun(ctx, accountID, run); err != nil && !s.waits(err) {
 		return model.WishAccountMapping{}, err
 	}
 	return s.accountMapping(ctx, accountID)
 }
 
 // ProvisionAll is «Alle eröffnen» (provisionSeerrAccounts): it queues the provisioning of every
-// account without a ready Seerr user and returns how many of them the mirror links by the email
-// and how many get a new user. Errors as ProvisionAccount.
-func (s *Service) ProvisionAll(ctx context.Context, by int64) (link, create int, err error) {
+// account without a ready Seerr user and returns how many of them the mirror links by the email,
+// how many get a new user and how many need a choice by hand. It is automatic for a privileged
+// user (security review M-1): the jobs never link one, and the accounts that wait already because
+// their user is taken or privileged are left out (counted in manual). Errors as ProvisionAccount.
+func (s *Service) ProvisionAll(ctx context.Context, by int64) (link, create, manual int, err error) {
 	if err := s.provisionAllowed(ctx); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	rows, err := s.read.ListUnprovisionedAccounts(ctx)
 	if err != nil {
-		return 0, 0, fmt.Errorf("list accounts: %w", err)
+		return 0, 0, 0, fmt.Errorf("list accounts: %w", err)
 	}
 	for _, r := range rows {
-		_, err := s.read.FindFreeSeerrUserByEmail(ctx, nullString(r.Email))
+		if r.ProvisionError.String == ProvisionUserTaken || r.ProvisionError.String == ProvisionUserPrivileged {
+			manual++
+			continue
+		}
+		u, err := s.read.FindFreeSeerrUserByEmail(ctx, nullString(r.Email))
 		switch {
+		case err == nil && privileged(u.SeerrID, seerr.Permission(uint64(max(0, u.Permissions)))):
+			manual++ // the job makes it wait with seerr_user_privileged
 		case err == nil:
 			link++
 		case errors.Is(err, sql.ErrNoRows):
 			create++
 		default:
-			return 0, 0, fmt.Errorf("find seerr user: %w", err)
+			return 0, 0, 0, fmt.Errorf("find seerr user: %w", err)
 		}
 		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.ID, Intent: intentOpen, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 	}
-	s.log.InfoContext(ctx, "seerr provisioning of every account queued", "link", link, "create", create)
-	return link, create, nil
+	s.log.InfoContext(ctx, "seerr provisioning of every account queued", "link", link, "create", create, "manual", manual)
+	return link, create, manual, nil
 }
 
 // provisionAllowed checks the switch «Neue Konten in Seerr eröffnen» and the connection.
@@ -258,8 +271,28 @@ func (s *Service) waits(err error) bool {
 // provision opens or links the Seerr user of the account. password is the account's password when
 // it is in memory (an invitation, build step 1.5b), else "". It returns the state of the mapping:
 // ready, waiting, or "" when nothing was to be done (an email change of an account without a user
-// and without a hit in Seerr). A waiting account comes back with the error that made it wait.
+// and without a hit in Seerr). A waiting account comes back with the error that made it wait. It
+// never links a privileged user (provisionRun with allowPrivileged does).
 func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, password string, setBy int64) (string, error) {
+	return s.provisionRun(ctx, accountID, provisionRun{linkedBy: linkedBy, password: password, setBy: setBy})
+}
+
+// provisionRun says how one run of provision may link.
+type provisionRun struct {
+	linkedBy string // the trigger; "" counts as admin
+	password string
+	setBy    int64
+	// retry keeps the trigger of a waiting mapping (an invitation stays the trigger of a later
+	// link); any other run records its own trigger, so an administrator's link is always admin.
+	retry bool
+	// allowPrivileged: only «In Seerr eröffnen» after the administrator confirmed may link user 1
+	// or a user with a managing right (security review H-1, M-1).
+	allowPrivileged bool
+}
+
+// provisionRun is provision with the rules of run.
+func (s *Service) provisionRun(ctx context.Context, accountID int64, run provisionRun) (string, error) {
+	linkedBy, password, setBy := run.linkedBy, run.password, run.setBy
 	acc, err := s.read.GetProvisionAccount(ctx, accountID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", model.ErrNotFound
@@ -279,10 +312,8 @@ func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, pass
 	if linkedBy == "" {
 		linkedBy = LinkedByAdmin
 	}
-	// An administrator's «In Seerr eröffnen» may link a privileged user; the account's own trigger
-	// (an invitation, an email change, a retry of one) may not (security review H-1).
-	auto := linkedBy != LinkedByAdmin
-	if hasRow && m.State == StateWaiting && m.LinkedBy.Valid && linkedBy != LinkedByEmailChange {
+	auto := !run.allowPrivileged
+	if run.retry && hasRow && m.State == StateWaiting && m.LinkedBy.Valid {
 		linkedBy = m.LinkedBy.String // an invitation stays the trigger of a later link
 	}
 	admin, err := s.provisionSession(ctx)
@@ -732,6 +763,14 @@ func (s *Service) ensureShared(ctx context.Context, rewrite bool) error {
 		user, takenOver = created, !isNew
 	}
 	if takenOver {
+		// A user of the address that belongs to an account (an account made before the reserved
+		// domain was refused) keeps its password: MarkShared would refuse it anyway (security
+		// review N-5).
+		if _, err := s.read.GetMappingBySeerrUser(ctx, sql.NullInt64{Int64: int64(user.ID), Valid: true}); err == nil {
+			return model.ErrSeerrUserTaken
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("mapping of seerr user: %w", err)
+		}
 		// Someone may know the password of a user that existed already (security review L-4).
 		if err := admin.SetPassword(ctx, user.ID, randomPassword()); err != nil {
 			return err

@@ -15,7 +15,7 @@ import (
 
 func TestCanRequestFollowsToSeerr(t *testing.T) {
 	f := newFixture(t)
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1) // opened, with the right
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false) // opened, with the right
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestCanRequestFollowsToSeerr(t *testing.T) {
 		t.Errorf("session right = %+v", r)
 	}
 	// A linked user: no job.
-	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := authSvc.UpdateAccountAccess(f.ctx, 3, model.AccountAccessUpdate{CanRequest: new(true)}); err != nil {

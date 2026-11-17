@@ -158,7 +158,7 @@ func TestReconcileDoesNotReviveWithdrawnWish(t *testing.T) {
 func TestNextFreeFromRequestsInsideTheWindow(t *testing.T) {
 	f := newFixture(t)
 	f.rebuild(WithClock(f.fake.Now))
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}

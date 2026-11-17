@@ -322,17 +322,20 @@ func (q *Queries) ListRecentLinks(ctx context.Context, since sql.NullInt64) ([]L
 }
 
 const listUnprovisionedAccounts = `-- name: ListUnprovisionedAccounts :many
-SELECT a.id, a.email FROM accounts AS a
-WHERE NOT EXISTS (SELECT 1 FROM wish_account_map AS m WHERE m.account_id = a.id AND m.state = 'ready')
+SELECT a.id, a.email, m.provision_error FROM accounts AS a
+LEFT JOIN wish_account_map AS m ON m.account_id = a.id
+WHERE m.state IS NULL OR m.state <> 'ready'
 ORDER BY a.id
 `
 
 type ListUnprovisionedAccountsRow struct {
-	ID    int64
-	Email string
+	ID             int64
+	Email          string
+	ProvisionError sql.NullString
 }
 
-// Accounts without a ready Seerr user ("Alle eroeffnen"), by id.
+// Accounts without a ready Seerr user ("Alle eroeffnen"), by id, with the reason a waiting one
+// waits (NULL without a mapping).
 func (q *Queries) ListUnprovisionedAccounts(ctx context.Context) ([]ListUnprovisionedAccountsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listUnprovisionedAccounts)
 	if err != nil {
@@ -342,7 +345,7 @@ func (q *Queries) ListUnprovisionedAccounts(ctx context.Context) ([]ListUnprovis
 	items := []ListUnprovisionedAccountsRow{}
 	for rows.Next() {
 		var i ListUnprovisionedAccountsRow
-		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+		if err := rows.Scan(&i.ID, &i.Email, &i.ProvisionError); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

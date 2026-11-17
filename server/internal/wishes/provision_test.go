@@ -68,7 +68,7 @@ func bodyKeys(fake *seerrtest.Server, route string) []string {
 func TestProvisionLinksByEmail(t *testing.T) {
 	f := newFixture(t)
 	f.fake.UpdateUser(4, func(u *seerrtest.User) { u.Email = "GrossEltern@Example.TEST" })
-	a, err := f.svc.ProvisionAccount(f.ctx, 3, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestProvisionLinksByEmail(t *testing.T) {
 	}
 	// A second run keeps the link and the rights of a linked user, even without the request right.
 	f.fake.ResetCalls()
-	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil {
 		t.Fatal(err)
 	}
 	if n := f.fake.Calls("POST /user/{id}/settings/permissions"); n != 0 {
@@ -98,7 +98,7 @@ func TestProvisionLinksByEmail(t *testing.T) {
 	f.refresh()
 	f.fake.UpdateUser(3, func(u *seerrtest.User) { u.Email = "gast@example.test" })
 	f.refresh()
-	link, create, err := f.svc.ProvisionAll(f.ctx, 1)
+	link, create, _, err := f.svc.ProvisionAll(f.ctx, 1)
 	if err != nil || link != 1 || create != 1 {
 		t.Fatalf("all = %d, %d, %v", link, create, err)
 	}
@@ -119,7 +119,7 @@ func TestProvisionLinksByEmail(t *testing.T) {
 func TestProvisionCreates(t *testing.T) {
 	f := newFixture(t)
 	f.fake.Configure(func(c *seerrtest.Config) { c.DefaultPermissions = seerrtest.OwnerDefaultPermissions })
-	a, err := f.svc.ProvisionAccount(f.ctx, 1, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 1, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestProvisionCreates(t *testing.T) {
 	// Without the request right: permissions 0.
 	f.exec(`UPDATE accounts SET can_request = 0 WHERE id = 2`)
 	f.fake.ResetCalls()
-	b, err := f.svc.ProvisionAccount(f.ctx, 2, 1)
+	b, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
 	if err != nil || b.State != OriginCreated {
 		t.Fatalf("gast = %+v, %v", b, err)
 	}
@@ -164,7 +164,7 @@ func TestProvisionCreates(t *testing.T) {
 	f.fake.Configure(func(c *seerrtest.Config) { c.DefaultPermissions = seerrtest.PermRequest | seerrtest.PermManageIssues })
 	f.exec(`UPDATE accounts SET can_request = 1 WHERE id = 2`)
 	f.fake.ResetCalls()
-	if _, err := f.svc.ProvisionAccount(f.ctx, 2, 1); err != nil {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false); err != nil {
 		t.Fatal(err)
 	}
 	if gu, _ := f.fake.User(*b.SeerrUserID); gu.Permissions != seerrtest.PermRequest|seerrtest.PermManageIssues || f.fake.Calls("GET /settings/main") != 1 {
@@ -185,7 +185,7 @@ func TestProvisionConflictAndWait(t *testing.T) {
 	f := newFixture(t)
 	f.fake.SetFailure("GET /user", seerrtest.Failure{Status: 200, Times: 1}) // the first search finds nothing
 	f.fake.UpdateUser(3, func(u *seerrtest.User) { u.Email = "gast@example.test" })
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestProvisionConflictAndWait(t *testing.T) {
 	}
 
 	f.fake.SetFailure("*", seerrtest.Failure{Status: 503, Message: "Something went wrong."})
-	w, err := f.svc.ProvisionAccount(f.ctx, 1, 1)
+	w, err := f.svc.ProvisionAccount(f.ctx, 1, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,15 +220,15 @@ func TestProvisionConflictAndWait(t *testing.T) {
 func TestProvisionRefused(t *testing.T) {
 	f := newFixture(t)
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = false })
-	if _, err := f.svc.ProvisionAccount(f.ctx, 1, 1); !errors.Is(err, model.ErrProvisionDisabled) {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 1, 1, false); !errors.Is(err, model.ErrProvisionDisabled) {
 		t.Errorf("switched off: %v", err)
 	}
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = true })
-	if _, err := f.svc.ProvisionAccount(f.ctx, 99, 1); !errors.Is(err, model.ErrNotFound) {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 99, 1, false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown account: %v", err)
 	}
 	f.cfg.set(func(c *fakeConfig) { c.seer.APIKey = "" })
-	if _, _, err := f.svc.ProvisionAll(f.ctx, 1); !errors.Is(err, model.ErrSeerrNotConfigured) {
+	if _, _, _, err := f.svc.ProvisionAll(f.ctx, 1); !errors.Is(err, model.ErrSeerrNotConfigured) {
 		t.Errorf("not configured: %v", err)
 	}
 }
@@ -286,7 +286,7 @@ func TestProvisionInviteAndLinkedHint(t *testing.T) {
 	// A link by an administrator never shows.
 	f.exec(`DELETE FROM wish_account_map WHERE account_id = 3`)
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = true })
-	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil {
+	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil {
 		t.Fatal(err)
 	}
 	if hints, _ := f.svc.RecentLinks(f.ctx); len(hints) != 1 {
@@ -377,11 +377,11 @@ func TestSharedUserTakenOver(t *testing.T) {
 func TestDeleteAccountProvision(t *testing.T) {
 	f := newFixture(t)
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = true })
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1) // opened
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false) // opened
 	if err != nil || a.State != OriginCreated {
 		t.Fatalf("opened = %+v, %v", a, err)
 	}
-	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil { // linked to 4
+	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil { // linked to 4
 		t.Fatal(err)
 	}
 	opened, _ := f.fake.User(*a.SeerrUserID)
@@ -420,7 +420,7 @@ func TestDeleteAccountProvision(t *testing.T) {
 func TestProvisionPayloadWithoutPassword(t *testing.T) {
 	f := newFixture(t)
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = true })
-	if _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
+	if _, _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
 		t.Fatal(err)
 	}
 	f.queue.mu.Lock()
@@ -491,7 +491,7 @@ func TestProvisionJobOfHandChoiceNeverOpens(t *testing.T) {
 
 	// A retry of a waiting account that was undone meanwhile does nothing.
 	f.fake.SetFailure("*", seerrtest.Failure{Status: 503})
-	if w, err := f.svc.ProvisionAccount(f.ctx, 1, 1); err != nil || w.State != StateWaiting {
+	if w, err := f.svc.ProvisionAccount(f.ctx, 1, 1, false); err != nil || w.State != StateWaiting {
 		t.Fatalf("waiting = %+v, %v", w, err)
 	}
 	f.fake.SetFailure("*", seerrtest.Failure{})
@@ -508,7 +508,7 @@ func TestProvisionJobOfHandChoiceNeverOpens(t *testing.T) {
 	}
 
 	// «Alle eröffnen», then the switch goes off before the jobs run: nobody is opened.
-	if _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
+	if _, _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
 		t.Fatal(err)
 	}
 	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = false })

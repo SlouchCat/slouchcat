@@ -1,8 +1,11 @@
 package wishes
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/seerr/seerrtest"
 )
 
@@ -47,12 +50,30 @@ func TestAutomaticLinkNeverTakesPrivilegedUser(t *testing.T) {
 				if m := f.mapping(3); m.State != StateWaiting || m.ProvisionError != ProvisionUserPrivileged {
 					t.Errorf("after a retry = %+v", m)
 				}
-				// The administrator's «In Seerr eröffnen» links it; the password stays in Seerr.
-				if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil {
+				// «Alle eröffnen» leaves the waiting account out and counts it for a choice by hand
+				// (security review M-1).
+				f.refresh()
+				f.runQueued(JobProvision)
+				if _, _, manual, err := f.svc.ProvisionAll(f.ctx, 1); err != nil || manual != 1 {
+					t.Fatalf("all: manual = %d, %v", manual, err)
+				}
+				if n := f.queued(JobProvision, `"accountId":3,`); n != 0 {
+					t.Errorf("waiting privileged account queued %d times", n)
+				}
+				// «In Seerr eröffnen» without the confirmation keeps it waiting; with it, it links;
+				// the password stays in Seerr.
+				f.fake.ResetCalls() // the shared user the refresh queued got a password
+				if m, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil || m.State != StateWaiting || m.ProvisionError != ProvisionUserPrivileged {
+					t.Fatalf("unconfirmed «In Seerr eröffnen» = %+v, %v", m, err)
+				}
+				if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, true); err != nil {
 					t.Fatal(err)
 				}
-				if m := f.mapping(3); m.State != OriginLinked || m.PasswordState != PasswordAdmin {
+				if m := f.mapping(3); m.State != OriginLinked || m.PasswordState != PasswordAdmin || m.LinkedBy != LinkedByAdmin {
 					t.Errorf("after «In Seerr eröffnen» = %+v", m)
+				}
+				if hints, _ := f.svc.RecentLinks(f.ctx); len(hints) != 0 {
+					t.Errorf("«Neu verknüpft» after an administrator's link: %+v", hints)
 				}
 				if n := f.fake.Calls("POST /user/{id}/settings/password"); n != 0 {
 					t.Errorf("password handed to a privileged user: %d", n)
@@ -201,5 +222,72 @@ func TestSameHostIncludesScheme(t *testing.T) {
 		if got := sameHost(c.a, c.b); got != c.same {
 			t.Errorf("sameHost(%q, %q) = %v", c.a, c.b, got)
 		}
+	}
+}
+
+// queued counts the waiting jobs of type typ whose payload contains part.
+func (f *fixture) queued(typ, part string) int {
+	f.queue.mu.Lock()
+	defer f.queue.mu.Unlock()
+	n := 0
+	for _, j := range f.queue.jobs {
+		if j.Type == typ && strings.Contains(string(j.Payload), part) {
+			n++
+		}
+	}
+	return n
+}
+
+// «Alle eröffnen» is automatic for a privileged user (security review M-1): a privileged user of
+// the same email is counted for a choice by hand, its job leaves the account waiting with
+// seerr_user_privileged and Seerr is not touched. Open and retry jobs of one account have keys of
+// their own (review Minor 4).
+func TestProvisionAllNeverTakesPrivilegedUser(t *testing.T) {
+	f := newFixture(t)
+	f.fake.UpdateUser(4, func(u *seerrtest.User) { u.Permissions = seerrtest.PermRequest | seerrtest.PermManageRequests })
+	f.refresh()
+	f.runQueued(JobProvision)
+	link, create, manual, err := f.svc.ProvisionAll(f.ctx, 1)
+	if err != nil || manual != 1 || link+create+manual != 3 {
+		t.Fatalf("all = %d, %d, %d, %v", link, create, manual, err)
+	}
+	f.fake.ResetCalls()
+	f.runQueued(JobProvision)
+	if m := f.mapping(3); m.State != StateWaiting || m.ProvisionError != ProvisionUserPrivileged || m.LinkedBy != LinkedByAdmin {
+		t.Errorf("privileged after «Alle eröffnen» = %+v", m)
+	}
+	for _, c := range f.fake.CallLog() {
+		if strings.Contains(c.Path, "/user/4") {
+			t.Errorf("privileged user touched: %s %s", c.Route, c.Path)
+		}
+	}
+	keys := map[string]bool{}
+	for _, intent := range []string{intentOpen, intentRetry} {
+		if err := f.svc.queueProvision(f.ctx, provisionPayload{AccountID: 3, Intent: intent}, provisionPriority); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.queue.mu.Lock()
+	for _, j := range f.queue.jobs {
+		keys[j.IdempotencyKey] = true
+	}
+	f.queue.mu.Unlock()
+	if len(keys) != 2 {
+		t.Errorf("open and retry share a key: %v", keys)
+	}
+}
+
+// A user of the shared address that belongs to an account keeps its password: the take-over
+// stops before the password (security review N-5).
+func TestSharedUserOfAnAccountKeepsPassword(t *testing.T) {
+	f := newFixture(t)
+	f.refresh()
+	f.fake.UpdateUser(5, func(u *seerrtest.User) { u.Password = "known-to-the-account" })
+	f.exec(`INSERT INTO wish_account_map (account_id, seerr_user_id, origin, state, password_state, set_at) VALUES (2, 5, 'manual', 'ready', 'off', 0)`)
+	if err := f.svc.EnsureSharedUser(f.ctx); !errors.Is(err, model.ErrSeerrUserTaken) {
+		t.Fatalf("ensure = %v", err)
+	}
+	if u, _ := f.fake.User(5); u.Password != "known-to-the-account" {
+		t.Errorf("password of the account's user rewritten: %q", u.Password)
 	}
 }

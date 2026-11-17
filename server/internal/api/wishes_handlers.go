@@ -30,9 +30,12 @@ type WishesService interface {
 	SetAccountMapping(ctx context.Context, accountID int64, seerrUserID *int, by int64) (model.WishAccountMapping, error)
 	// ProvisionAccount opens or links the Seerr user of an account at once (state waiting when Seerr
 	// was not reached); model.ErrNotFound, model.ErrProvisionDisabled, model.ErrSeerrNotConfigured.
-	ProvisionAccount(ctx context.Context, accountID, by int64) (model.WishAccountMapping, error)
-	// ProvisionAll queues it for every account without a ready user; errors as ProvisionAccount.
-	ProvisionAll(ctx context.Context, by int64) (link, create int, err error)
+	// allowPrivileged lets it link a Seerr user that administers Seerr (confirmed by the
+	// administrator); without it such a user leaves the account waiting (seerr_user_privileged).
+	ProvisionAccount(ctx context.Context, accountID, by int64, allowPrivileged bool) (model.WishAccountMapping, error)
+	// ProvisionAll queues it for every account without a ready user, never links a privileged
+	// user and counts the accounts that need a choice by hand; errors as ProvisionAccount.
+	ProvisionAll(ctx context.Context, by int64) (link, create, manual int, err error)
 	// SetPasswordMode switches the password sync of an account (next_login or off);
 	// model.ErrNotFound, model.ErrPasswordNotSyncable, *model.ValidationError.
 	SetPasswordMode(ctx context.Context, accountID int64, mode string) (model.WishAccountMapping, error)
@@ -341,7 +344,7 @@ func (s *server) ProvisionSeerrAccount(ctx context.Context, req gen.ProvisionSee
 	if s.opts.Wishes == nil {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
-	a, err := s.opts.Wishes.ProvisionAccount(ctx, req.AccountId, sessionAccountID(ctx))
+	a, err := s.opts.Wishes.ProvisionAccount(ctx, req.AccountId, sessionAccountID(ctx), deref(req.Params.AllowPrivileged))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -355,11 +358,11 @@ func (s *server) ProvisionSeerrAccounts(ctx context.Context, _ gen.ProvisionSeer
 	if s.opts.Wishes == nil {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
-	link, create, err := s.opts.Wishes.ProvisionAll(ctx, sessionAccountID(ctx))
+	link, create, manual, err := s.opts.Wishes.ProvisionAll(ctx, sessionAccountID(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.ProvisionSeerrAccounts202JSONResponse{Link: link, Create: create}, nil
+	return gen.ProvisionSeerrAccounts202JSONResponse{Link: link, Create: create, Manual: manual}, nil
 }
 
 func (s *server) SetSeerrPasswordMode(ctx context.Context, req gen.SetSeerrPasswordModeRequestObject) (gen.SetSeerrPasswordModeResponseObject, error) {
@@ -404,7 +407,14 @@ func toWishAccountMapping(a model.WishAccountMapping) gen.WishAccountMapping {
 	out := gen.WishAccountMapping{
 		AccountId: a.AccountID, Email: a.Email, CanRequest: a.CanRequest, SeerrUserId: a.SeerrUserID,
 		State: gen.WishAccountMappingState(a.State), PasswordSyncedAt: a.PasswordSyncedAt, LinkedAt: a.LinkedAt,
-		ProvisionError: optString(a.ProvisionError), Limit: toAccountWishLimit(a.Limit), Quota: toWishQuota(a.Quota),
+		Limit: toAccountWishLimit(a.Limit), Quota: toWishQuota(a.Quota),
+	}
+	if a.ProvisionError != "" {
+		pe := gen.WishAccountMappingProvisionError(a.ProvisionError)
+		if !pe.Valid() {
+			pe = gen.WishAccountMappingProvisionErrorFailed // a class the contract does not name
+		}
+		out.ProvisionError = &pe
 	}
 	if a.PasswordState != "" {
 		ps := gen.WishAccountMappingPasswordState(a.PasswordState)

@@ -27,7 +27,7 @@ func ip(n int) *int { return &n }
 // refused.
 func TestLimitModesWritten(t *testing.T) {
 	f := newFixture(t)
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1) // opened with the default
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false) // opened with the default
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestLimitModesWritten(t *testing.T) {
 func TestLimitNotForManageUsers(t *testing.T) {
 	f := newFixture(t)
 	f.fake.UpdateUser(4, func(u *seerrtest.User) { u.Permissions = seerrtest.PermManageUsers | seerrtest.PermRequest })
-	a, err := f.svc.ProvisionAccount(f.ctx, 3, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 3, 1, true) // a manager is privileged: linked only after the confirmation
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestLimitTakenOverWhenLinked(t *testing.T) {
 				f.exec(`INSERT INTO wish_account_limits (account_id, mode, movie_limit, movie_days, tv_limit, tv_days, set_at)
 				        VALUES (3, 'custom', 4, 21, 4, 21, 1)`)
 			}
-			a, err := f.svc.ProvisionAccount(f.ctx, 3, 1)
+			a, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -169,7 +169,7 @@ func TestQuotaStateAndNextFree(t *testing.T) {
 	f.rebuild(WithClock(f.fake.Now))
 	f.exec(`INSERT INTO wish_account_limits (account_id, mode, movie_limit, movie_days, tv_limit, tv_days, set_at)
 	        VALUES (2, 'custom', 2, 7, 0, 7, 1)`)
-	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1)
+	a, err := f.svc.ProvisionAccount(f.ctx, 2, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}

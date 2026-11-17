@@ -159,7 +159,7 @@ func TestPasswordSeenThreeMoments(t *testing.T) {
 // nothing. Administrators of Seerr and Emby users refuse the mode.
 func TestPasswordModeOfLinkedUsers(t *testing.T) {
 	f := newFixture(t)
-	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil { // grosseltern, linked to 4
+	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1, false); err != nil { // grosseltern, linked to 4
 		t.Fatal(err)
 	}
 	f.svc.PasswordSeen(f.ctx, 3, "grosseltern@example.test", testPassword, MomentPasswordChange)

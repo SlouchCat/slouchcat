@@ -5014,7 +5014,11 @@ export interface paths {
          *     otherwise Slouchcat opens a local user (`created`) with the rights Seerr gives a new user,
          *     none without the request right of the account, and a random password the account's own
          *     replaces at its next sign-in (`next_login`). 200 when it is done, 202 with `state: waiting`
-         *     when Seerr was not reached (the job `seerr.provision` tries again).
+         *     when Seerr was not reached (the job `seerr.provision` tries again) or when the user of the
+         *     same email is not taken on its own (`provisionError` `seerr_user_taken` or
+         *     `seerr_user_privileged`). A privileged user (user 1 or a managing right) is linked only
+         *     with `allowPrivileged=true`, after the administrator confirmed «Dieser Seerr-Benutzer
+         *     verwaltet Seerr»; the job and «Alle eröffnen» never link one.
          */
         post: operations["provisionSeerrAccount"];
         delete?: never;
@@ -5059,8 +5063,12 @@ export interface paths {
         /**
          * Open or link the Seerr user of every account without one («Alle eröffnen», concept 25, contract 1.41.0)
          * @description Since contract 1.41.0. Queues the job `seerr.provision` for every account without a ready
-         *     Seerr user and says how many of them the last read users link by the email (`link`) and how
-         *     many get a new user (`create`). The rules are those of `provisionSeerrAccount`.
+         *     Seerr user and says how many of them the last read users link by the email (`link`), how
+         *     many get a new user (`create`) and how many need a choice by hand (`manual`). It never links
+         *     a privileged Seerr user (user 1 or a managing right) and leaves out the accounts that wait
+         *     with `seerr_user_taken` or `seerr_user_privileged`; a privileged user of the same email
+         *     found now makes the account wait with `seerr_user_privileged`. The other rules are those
+         *     of `provisionSeerrAccount`.
          */
         post: operations["provisionSeerrAccounts"];
         delete?: never;
@@ -12401,11 +12409,18 @@ export interface components {
             /** Format: date-time */
             linkedAt?: string;
             /**
-             * @description Why the account waits (the class of the error, for example `unreachable`, `server`,
-             *     `instance_changed`, `seerr_user_taken`), or on a ready user `email_taken`: Seerr refused
-             *     the account's new email because another Seerr user has it; the user stayed unchanged.
+             * @description Why the account waits: the class of the error while Seerr was not reached or refused
+             *     (`redirect` … `failed`, `instance_changed`), or a Seerr user of the same email that
+             *     Slouchcat does not take on its own: `seerr_user_taken` (it belongs to another account
+             *     or is the shared user) or `seerr_user_privileged` (user 1 or a user with a managing
+             *     right: ADMIN, MANAGE_USERS, MANAGE_SETTINGS, MANAGE_REQUESTS). Both wait for the
+             *     administrator: the choice by hand, or for `seerr_user_privileged` also
+             *     `provisionSeerrAccount` with `allowPrivileged`. On a ready user `email_taken`: Seerr
+             *     refused the account's new email because another Seerr user has it; the user stayed
+             *     unchanged.
+             * @enum {string}
              */
-            provisionError?: string;
+            provisionError?: "redirect" | "unreachable" | "key_invalid" | "access_denied" | "csrf" | "quota" | "no_permission" | "forbidden" | "not_found" | "conflict" | "server" | "bad_request" | "timeout" | "failed" | "instance_changed" | "seerr_user_taken" | "seerr_user_privileged" | "email_taken";
             limit: components["schemas"]["AccountWishLimit"];
             quota?: components["schemas"]["WishQuota"];
             /** @description The profiles of the account with their tag names (stage 4, F-27, N-113). */
@@ -12431,6 +12446,11 @@ export interface components {
             link: number;
             /** @description Accounts that get a new Seerr user. */
             create: number;
+            /**
+             * @description Accounts whose Seerr user of the same email is taken or privileged: they need a choice
+             *     by hand («n Konten brauchen eine Wahl von Hand»); not queued when they wait already.
+             */
+            manual: number;
         };
         AccountWishMappingRequest: {
             /** @description The Seerr user; `null` unlinks. */
@@ -23132,7 +23152,10 @@ export interface operations {
     };
     provisionSeerrAccount: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Link the user of the same email also when it administers Seerr (confirmed by the administrator). */
+                allowPrivileged?: boolean;
+            };
             header?: never;
             path: {
                 accountId: number;
@@ -23150,7 +23173,10 @@ export interface operations {
                     "application/json": components["schemas"]["WishAccountMapping"];
                 };
             };
-            /** @description Seerr was not reached; the account waits (state `waiting`, `provisionError`). */
+            /**
+             * @description The account waits (state `waiting`, `provisionError`): Seerr was not reached, or the user
+             *     of the same email is taken or privileged.
+             */
             202: {
                 headers: {
                     [name: string]: unknown;
