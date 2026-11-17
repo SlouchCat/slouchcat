@@ -465,6 +465,39 @@ func (s *Server) Requests() []Request {
 	return out
 }
 
+// SeedRequest stores a request as a POST /request of its user would, without the checks of the
+// route (rights, limit, duplicates): the media row follows, the id and the times are set. Tests
+// with thousands of requests use it, because every POST of the fake reads all requests and the
+// setup through HTTP grows with their square (TestInitialSyncWithoutPageLimit ran into the time-out
+// of the client on a busy machine). Status 0 is pending.
+func (s *Server) SeedRequest(r Request) Request {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.mediaFor(mediaKey{r.MediaType, r.TMDBID}, 0)
+	if m.status == MediaUnknown || m.status == MediaDeleted {
+		m.status = MediaPending
+	}
+	if r.Status == 0 {
+		r.Status = RequestPending
+	}
+	if r.Status == RequestApproved {
+		s.approved(m)
+	}
+	r.ID = s.nextRequest
+	s.nextRequest++
+	if r.CreatedAt.IsZero() {
+		r.CreatedAt = s.now
+	}
+	if r.UpdatedAt.IsZero() {
+		r.UpdatedAt = s.now
+	}
+	m.updatedAt = s.now
+	c := r
+	c.Seasons = slices.Clone(r.Seasons)
+	s.requests[r.ID] = &c
+	return r
+}
+
 // SetRequestStatus changes the status of a request, as Seerr's jobs and Radarr do.
 func (s *Server) SetRequestStatus(id, status int) {
 	s.mu.Lock()

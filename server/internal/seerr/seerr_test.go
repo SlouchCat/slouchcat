@@ -129,8 +129,10 @@ func TestTimeout(t *testing.T) {
 	if !errors.Is(err, ErrUnreachable) {
 		t.Fatalf("err = %v, want ErrUnreachable", err)
 	}
-	if d := time.Since(start); d > 5*time.Second {
-		t.Errorf("call took %v", d)
+	// The fake never answers, so the error alone shows that a time-out ended the call; the bound
+	// tells the 300 ms of the option from the default Timeout (10 s) and is safe on a busy machine.
+	if d := time.Since(start); d >= Timeout {
+		t.Errorf("call took %v, the option did not replace the default %v", d, Timeout)
 	}
 
 	// A deadline of the caller (the 3 s immediate attempt) is a time-out as well.

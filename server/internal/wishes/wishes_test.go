@@ -229,7 +229,8 @@ func TestUsersGoneAndRights(t *testing.T) {
 	}
 	f.fake.RemoveUser(3)
 	f.fake.Advance(time.Minute)
-	f.svc.now = func() time.Time { return time.Now().Add(time.Minute) }
+	later := time.Now().Add(time.Minute) // after the first refresh; fixed, not read again
+	f.svc.now = func() time.Time { return later }
 	f.refresh()
 	if got := f.count(`SELECT count(*) FROM seerr_users WHERE seerr_id = 3 AND gone_at IS NOT NULL`); got != 1 {
 		t.Errorf("gone_at of user 3 not set")

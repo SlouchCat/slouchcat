@@ -180,3 +180,29 @@ func TestDeclinedByReconcileGetsClosedAt(t *testing.T) {
 		t.Errorf("wish = %+v", r.wish(res.Wish.ID))
 	}
 }
+
+// POST reached Seerr, the transaction that stores its answer failed: the attempt still counts, so
+// the next attempt pre-checks and attaches; one POST, one request (the claim of the outbox).
+func TestSubmitStoreFailedAfterPost(t *testing.T) {
+	r := newRequestFixture(t)
+	r.exec(`CREATE TRIGGER k25_test_store_fails BEFORE UPDATE OF submitted_at ON wishes BEGIN SELECT RAISE(ABORT, 'store failed'); END`)
+	res := r.create(r.marco, film(matrix))
+	r.exec(`DROP TRIGGER k25_test_store_fails`)
+	if w := r.wish(res.Wish.ID); w.State != model.WishQueued || w.Attempts != 1 || w.SeerrRequestID != 0 {
+		t.Fatalf("after the failed store = %+v", w)
+	}
+	if n := len(r.fake.Requests()); n != 1 {
+		t.Fatalf("requests in seerr = %d", n)
+	}
+	r.fake.ResetCalls()
+	if err := r.submitJob(res.Wish.ID); err != nil {
+		t.Fatal(err)
+	}
+	if posts, checks := r.fake.Calls("POST /request"), r.fake.Calls("GET /movie/{id}"); posts != 0 || checks != 1 {
+		t.Errorf("next attempt: %d POST, %d pre-checks", posts, checks)
+	}
+	reqs := r.fake.Requests()
+	if w := r.wish(res.Wish.ID); len(reqs) != 1 || w.State != model.WishPending || w.SeerrRequestID != reqs[0].ID {
+		t.Errorf("wish = %+v, requests %+v", w, reqs)
+	}
+}

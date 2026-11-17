@@ -263,7 +263,10 @@ func TestPasswordSeenDoesNotDelayOrTell(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := time.Since(start); d > time.Second {
+		// The hanging Seerr holds the hand-over for handOverTimeout; an answer that waited for it
+		// would take at least that long. Half of it is the bound, far above any login on a busy
+		// machine, so only a waiting answer fails.
+		if d := time.Since(start); d >= handOverTimeout/2 {
 			t.Errorf("known %v: the answer took %v", known, d)
 		}
 		sess.ID, sess.Account.ID, sess.Profile.ID, sess.Profile.AccountID = 0, 0, 0, 0

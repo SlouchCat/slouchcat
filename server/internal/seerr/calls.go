@@ -1,6 +1,7 @@
 package seerr
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -669,10 +670,22 @@ func (s Session) SearchByID(ctx context.Context, prefix IDPrefix, id, mediaType 
 			kept = append(kept, t)
 		}
 	}
+	// The film before the series of the same id, as the real instance answered (appendix I,
+	// I-42), whatever order a page has.
+	slices.SortStableFunc(kept, func(a, b Title) int {
+		return cmp.Compare(mediaOrder(a.MediaType), mediaOrder(b.MediaType))
+	})
 	page.Results = kept
 	page.TotalResults = len(kept)
 	page.TotalPages = min(page.TotalPages, 1)
 	return page, nil
+}
+
+func mediaOrder(t string) int {
+	if t == MediaTypeMovie {
+		return 0
+	}
+	return 1
 }
 
 func (q DiscoverQuery) discoverValues(tv bool) url.Values {

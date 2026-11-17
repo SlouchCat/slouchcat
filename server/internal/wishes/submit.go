@@ -19,7 +19,7 @@ import (
 // The outbox (concept 25, architecture 6.3 to 6.5, 14; build step 2.4): a wish waits as queued
 // until Seerr took it. The first attempt runs right after createWish without pre-check (Seerr
 // reports a duplicate itself with 409 or 202); from the second attempt on GET /movie|tv first
-// looks for a request the lost answer of an earlier POST created, so a request is never sent
+// looks for a request the lost answer of an earlier POST created, so a request is never created
 // twice. The ladder of the attempts lives in wishes.next_attempt_at (1, 2, 5, 10, 15, 30 min, then
 // hourly); after 24 h in the outbox the wish fails. The 24 h rest while Seerr is switched off,
 // not configured or another instance waits (T-2).
@@ -210,7 +210,19 @@ func (s *Service) submit(ctx context.Context, wishID int64, wait time.Duration) 
 		}
 		return time.Time{}, s.failWish(ctx, w.ID, res.fail, map[string]any{"attempt": w.Attempts + 1})
 	}
-	return time.Time{}, s.accepted(ctx, w, res)
+	if err := s.accepted(ctx, w, res); err != nil {
+		// Seerr took the request but it is not stored: the attempt counts, so the next one
+		// pre-checks with GET /movie|tv and attaches instead of sending a second POST. Only when
+		// even this write fails does the next attempt POST again; Seerr answers 409 then, and the
+		// wish attaches to the same request.
+		if _, aerr := s.write.SetWishAttempt(context.WithoutCancel(ctx), wishq.SetWishAttemptParams{
+			NextAttemptAt: num64(s.now().Add(ladder[0]).UnixMilli()), Now: s.now().UnixMilli(), ID: w.ID,
+		}); aerr != nil {
+			s.log.WarnContext(ctx, "attempt of a sent wish not counted", "wish_id", w.ID, "err", aerr)
+		}
+		return time.Time{}, err
+	}
+	return time.Time{}, nil
 }
 
 // senderStale says why the frozen Seerr user of a queued wish may no longer send it, "" while it

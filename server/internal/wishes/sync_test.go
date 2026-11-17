@@ -3,6 +3,7 @@ package wishes
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,13 +59,14 @@ func (r *rfix) setLastSync(t time.Time) {
 	        ON CONFLICT (key) DO UPDATE SET value = excluded.value`, strconv.FormatInt(t.UnixMilli(), 10))
 }
 
-// manyRequests makes n requests of user 4 in the fake, each for its own film, n minutes apart.
+// manyRequests makes n approved requests of user 4 (it may approve itself) in the fake, each for
+// its own film, stored directly: through POST /request the setup grows with the square of n.
 func (r *rfix) manyRequests(n int) {
 	r.t.Helper()
 	for i := range n {
 		id := 10000 + i
 		r.fake.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: id, Name: fmt.Sprintf("Film %d", i)})
-		r.directRequest(4, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: id})
+		r.fake.SeedRequest(seerrtest.Request{MediaType: "movie", TMDBID: id, UserID: 4, Status: seerrtest.RequestApproved, ModifiedBy: 4})
 	}
 }
 
@@ -148,8 +150,26 @@ func TestInitialSyncWithoutPageLimit(t *testing.T) {
 	}
 	r.queue.jobs = nil
 	top := r.clock.now().UnixMilli()
-	r.sync(true)
-	if n := len(r.skips()); n < 60 || n > 61 {
+	// One run reads every page. On a machine too slow for the client's time-out a page call can
+	// fail; the run then ends early with that error, keeps its page and the next run goes on. A
+	// page limit would end a run without such an error, so every early end must have one.
+	for runs := 1; ; runs++ {
+		r.sync(true)
+		if r.count(`SELECT count(*) FROM settings WHERE key = ?`, settingSyncPass) == 0 {
+			break
+		}
+		if n := strings.Count(r.logs.String(), "wish sync ended early"); n != runs {
+			t.Fatalf("run %d ended before the last page without an error of Seerr (%d early ends)", runs, n)
+		}
+		if runs == 5 {
+			t.Fatal("initial sync not done after 5 runs")
+		}
+	}
+	pages := map[string]bool{}
+	for _, skip := range r.skips() {
+		pages[skip] = true
+	}
+	if n := len(pages); n < 60 || n > 61 {
 		t.Errorf("initial pages = %d", n)
 	}
 	if n := r.count(`SELECT count(*) FROM settings WHERE key = 'seerr.last_sync' AND value = ?`, strconv.FormatInt(top, 10)); n != 1 {
