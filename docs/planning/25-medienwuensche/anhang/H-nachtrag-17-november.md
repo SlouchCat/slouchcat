@@ -543,3 +543,70 @@ Offen sind damit 29 Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T
 
 Der Zustand «Verknüpfung vorgeschlagen» ist entfernt; M-35 verknüpft sofort und zeigt in beiden Fällen dieselbe
 Meldung; M-20 zeigt den Hinweis «Neu verknüpft»; überall steht «Seerr».
+
+---
+
+## 11. Bauauftrag und Antworten auf die offenen Fragen (17. November 2026)
+
+Marco hat am 17. November 2026 den Bau bestellt: «Starte mit dem Bau mit Konzept 25. Mach alles in einem Zug und
+voll automatisch. Falls du CI Test machst prüfe regelmässig ob diese fertig. Falls du doch noch fragen hast, stell
+diese.» Auf die Rückfrage, wie mit den 29 offenen Fragen umzugehen sei, wählte er «Zeig sie mir zuerst» und hat
+sie danach alle beantwortet. Dieser Abschnitt gilt vor allen früheren, wo er ihnen widerspricht.
+
+### 11.1 Antworten zum Ablauf
+
+| Nr. | Frage | Marcos Antwort |
+|---|---|---|
+| B-1 | Wie veröffentlichen? | **Ein Release am Schluss:** alle Stufen in einem Zweig, ein Pull Request, eine Version (ersetzt die Empfehlung zu F-22). |
+| B-2 | Darf die Bau-Session selbst mergen und taggen? | **Nein, Marco gibt frei.** Gebaut wird bis zum grünen Pull Request; ein Zweig-Image für CT 190 ist möglich. |
+| B-3 | Prüfen an Marcos echtem Seerr? | **Auch schreibend:** ein Testbenutzer wird angelegt und wieder gelöscht; kein echter Wunsch. Adresse und Schlüssel trägt Marco in `deploy/.env` ein (`SEERR_URL`, `SEERR_API_KEY`). |
+| B-4 | Schreibend in Radarr und Sonarr testen? | **Ja:** ein Tag «sc-test», an keinen Titel gehängt, danach gelöscht. |
+
+### 11.2 Antworten auf die offenen Fragen
+
+Die Spalte «Empfehlung?» sagt, ob Marco der Empfehlung des Papiers gefolgt ist.
+
+| Frage | Marcos Antwort | Empfehlung? |
+|---|---|---|
+| F-1 | «Wünsche» für die Funktion, «anfordern» auf Knöpfen | ja |
+| F-3 | Slouchcat handelt als der Benutzer (`X-API-User`), der Verbindungstest prüft es | ja |
+| F-4 | **Sammelbenutzer ab Werk.** Slouchcat legt in Seerr den Benutzer «slouchcat-gaeste» an (ohne Anmeldung, ohne automatische Freigabe); über ihn senden Konten ohne eigenen Seerr-Benutzer. Für ihn gilt das Standard-Limit, gemeinsam für alle diese Konten | **nein** |
+| F-5 | Wunschrecht je Konto (Administrator, Deckel) und je Profil (Hauptprofil); ab Werk Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus | ja |
+| F-6 | Kinderprofile mit Recht dürfen anfordern; die Freigabe entscheidet Seerr am Benutzer des Kontos | ja |
+| F-7 | Mitwünschen | ja |
+| F-9 | Wer nicht anfordern darf, sieht fehlende Titel und den Bereich «Wünsche» gar nicht; Ausnahme eigene Wünsche | ja |
+| F-10 | Anfordern über einen Dialog | ja |
+| F-11 | Bibliothekssuche über TMDB mit eigenem Schlüssel, Seite «Suche» über Seerr | ja |
+| F-12 | Serien staffelweise | ja |
+| F-13 | «Verfügbar» heisst: Slouchcat kann den Titel für das Profil abspielen | ja |
+| F-14 | Drei eigene Kanal-Ereignisse: «verfügbar» (an), «freigegeben, abgelehnt, fehlgeschlagen» (aus), «Freigabe nötig» (an, nur Administratoren) | ja |
+| F-15 | Externe Nachrichten von PIN-Profilen ohne Titel, abschaltbar | ja |
+| F-16 | «Freigeben» und «Ablehnen» in der Verwaltung, als Durchreichen an Seerr | ja |
+| F-17 | Zurückziehen, solange nicht freigegeben | ja |
+| F-18 | Seerr-Webhook als Anstoss; der Abgleich alle 5 Minuten bleibt die Grundlage | ja |
+| F-19 | Verbindung unter Integrationen, tägliche Arbeit unter Medien › Wünsche | ja |
+| F-21 | Bestehende Anfragen verknüpfter Seerr-Benutzer übernehmen («In Seerr angelegt») | ja |
+| F-22 | **Ein Release am Schluss** (B-1) | **nein** |
+| F-23 | Für jedes Konto ein Seerr-Benutzer; ohne Wunschrecht ohne Rechte; bestehende Konten über «Alle eröffnen» | ja |
+| F-24 | **Passwort nur für eingeladene und von Slouchcat eröffnete Benutzer.** Ein bestehender Seerr-Benutzer, den ein Administrator verknüpft, behält sein Passwort. (Die Verknüpfung beim Annehmen einer Einladung bleibt E-8: sofort, mit Passwort.) | **nein** |
+| F-25 | Tag `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, nie entfernt | ja |
+| F-26 | Limit ab Werk: 10 Filme und 5 Staffeln je 7 Tage | ja |
+| F-27 | **Keine Ausnahme je Profil.** Alle Profile senden als Benutzer des Kontos. Die Einstellung «Profil sendet als anderer Seerr-Benutzer» wird nicht gebaut | **nein** |
+| F-28 | «Entdecken» mit sieben festen Reihen | ja |
+| F-29 | Marco stellt Seerr auf TVDB-Staffeln um; Slouchcat ändert die Einstellung nie, der Test zeigt einen Hinweis | ja |
+| F-30 | Zugang zu Radarr und Sonarr aus Seerr lesen; die Adresse gilt nach einem «Testen», eigene Adresse als Ausweg | ja |
+| F-31 | Der Seerr-Benutzer eines gelöschten Kontos bleibt; ein eröffneter ohne Rechte und mit Zufallspasswort, ein verknüpfter unverändert | ja |
+| T-1 | «Wünsche aktiv» lässt sich nur nach einem gelungenen Test einschalten; ab Werk aus | ja |
+| T-2 | Die Frist der Übermittlung ruht, solange Seerr in Slouchcat ausgeschaltet ist | ja |
+
+Damit ist keine Frage mehr offen.
+
+### 11.3 Was die vier abweichenden Antworten ändern
+
+| Nr. | Regel | Von |
+|---|---|---|
+| N-100 | **Keine Zuordnung je Profil (F-27).** Die Tabelle `wish_profile_map`, die Auswahl «Sendet als» und alle Regeln dazu entfallen. Ein Wunsch geht immer als der Seerr-Benutzer des Kontos, sonst als Sammelbenutzer. Folge, die Marco kennt: Profile im Konto eines Seerr-Administrators fordern ohne Freigabe und ohne Limit an; begrenzen lässt sich das nur über das Wunschrecht des Profils. | Marco (F-27) |
+| N-101 | **Sammelbenutzer ab Werk (F-4).** Sobald Seerr eingerichtet und «Wünsche aktiv» an ist, legt Slouchcat in Seerr den lokalen Benutzer «slouchcat-gaeste» an (E-Mail `slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort, Recht `REQUEST`, keine automatische Freigabe) und schreibt ihm das Standard-Limit. Konten ohne eigenen Seerr-Benutzer («nicht eröffnet», «wartet») senden über ihn. Der Schalter «Konten ohne Seerr-Benutzer» steht ab Werk auf «Sammelbenutzer»; die andere Wahl ist «Nicht erlauben». Einen anderen Benutzer als Sammelbenutzer zu wählen, ist nicht nötig und entfällt. | Marco (F-4), Einzelheiten (E-Mail, Zeitpunkt) Redaktion |
+| N-102 | Wünsche über den Sammelbenutzer merkt sich Slouchcat wie alle anderen mit Konto und Profil; in Seerr steht «slouchcat-gaeste». Bekommt das Konto später einen eigenen Benutzer, bleiben seine alten Wünsche beim Sammelbenutzer. Übernommen (F-21) werden Anfragen des Sammelbenutzers nicht. | Redaktion |
+| N-103 | **Passwort (F-24).** Slouchcat setzt das Passwort in Seerr nur bei Benutzern, die es selbst eröffnet hat (beim Annehmen einer Einladung, über «In Seerr eröffnen», über «Alle eröffnen»), und bei einem bestehenden Benutzer, der beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos verknüpft wurde (E-8). Verknüpft ein Administrator ein bestehendes Konto über die E-Mail oder von Hand mit einem bestehenden Seerr-Benutzer, steht der Passwortstand auf «Wird nicht abgeglichen»; er kann den Abgleich je Konto einschalten. | Marco (F-24), Schalter je Konto Redaktion |
+| N-104 | **Ein Release (F-22, B-1).** Die Stufen 0 bis 5 bleiben die Reihenfolge des Baus, aber es gibt einen Zweig, einen Pull Request und eine Version. Ein eingefrorener Datenbankstand am Schluss genügt. | Marco (B-1) |
