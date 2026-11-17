@@ -198,3 +198,13 @@ SELECT id, state, state_detail FROM wishes
 WHERE media = @media AND tmdb_id = @tmdb_id
 ORDER BY CASE WHEN state IN ('queued', 'pending', 'processing', 'partial') THEN 0 ELSE 1 END, updated_at DESC, id DESC
 LIMIT 1;
+
+-- name: ListFulfilledWishItems :many
+-- The start page row "Erfuellte Wuensche" (concept 25 E-10, N-97): the library titles of the wishes
+-- of a profile (own and joined, not left) that became available since since, newest first.
+SELECT w.item_id FROM wishes AS w
+JOIN wish_requesters AS r ON r.wish_id = w.id
+WHERE r.profile_id = @profile_id AND r.closed_at IS NULL
+  AND w.state = 'available' AND w.available_at >= @since AND w.item_id IS NOT NULL
+ORDER BY w.available_at DESC, w.id DESC
+LIMIT @limit_count;

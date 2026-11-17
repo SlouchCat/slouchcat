@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -369,4 +370,27 @@ func (s *Service) TitlesInUse(ctx context.Context, closedSince time.Time) (open,
 		}
 	}
 	return open, recent, nil
+}
+
+// fulfilledDays is the window of the start page row «Erfüllte Wünsche» (Marco, E-10).
+const fulfilledDays = 14
+
+// FulfilledItems are the library titles of the profile's wishes (own and joined) that became
+// available within the last 14 days, newest first, at most limit (the start page row wishes,
+// concept 25 step 3.4). Only ids: package discover checks the visibility (CLAUDE.md rule 2).
+func (s *Service) FulfilledItems(ctx context.Context, p model.Profile, limit int) ([]string, error) {
+	rows, err := s.read.ListFulfilledWishItems(ctx, wishq.ListFulfilledWishItemsParams{
+		ProfileID: p.ID, Since: sql.NullInt64{Int64: s.now().Add(-fulfilledDays * 24 * time.Hour).UnixMilli(), Valid: true},
+		LimitCount: int64(limit),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("fulfilled wishes: %w", err)
+	}
+	out := make([]string, 0, len(rows))
+	for _, id := range rows {
+		if id.Valid && !slices.Contains(out, id.String) {
+			out = append(out, id.String)
+		}
+	}
+	return out, nil
 }

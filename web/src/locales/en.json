@@ -662,7 +662,8 @@
       "released": "Recently released",
       "libraries": "My media",
       "library": "New in {{library}}",
-      "radio": "My stations"
+      "radio": "My stations",
+      "wishes": "Fulfilled wishes"
     },
     "remaining": "{{time}} left",
     "continue": {
@@ -3183,7 +3184,8 @@
         "genres": "The genres of the visible titles.",
         "libraries": "Tiles for the libraries the profile sees, for radio and, when shown, for collections and user picks; the page «My media» sets their order and hiding.",
         "library": "The titles that came into this library most recently; “Show all” opens the library sorted by “Recently added”.",
-        "radio": "The favourite stations of the profile as tiles; a station playing through the server right now shows its current title. Without favourites the row is left out."
+        "radio": "The favourite stations of the profile as tiles; a station playing through the server right now shows its current title. Without favourites the row is left out.",
+        "wishes": "The profile's wishes fulfilled within the last 14 days, so titles of the library. Open wishes are under “Wishes › My wishes”. An empty row is left out."
       },
       "pageLink": "Go to “{{page}}”",
       "moved": "{{row}} is now at position {{position}}. Save to apply it.",

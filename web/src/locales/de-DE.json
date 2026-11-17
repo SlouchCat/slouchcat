@@ -270,7 +270,8 @@
     "homeRows": {
       "rows": {
         "libraries": "Kacheln für die Bibliotheken, die das Profil sieht, für Radio und, wenn eingeblendet, für Sammlungen und User-Empfehlungen; Reihenfolge und Ausblenden regelt die Seite „Meine Medien“.",
-        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; „Alle anzeigen“ führt zur Bibliothek, sortiert nach „Zuletzt hinzugefügt“."
+        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; „Alle anzeigen“ führt zur Bibliothek, sortiert nach „Zuletzt hinzugefügt“.",
+        "wishes": "Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden, also Titel der Bibliothek. Offene Wünsche stehen unter „Wünsche › Meine Wünsche“. Leer erscheint die Reihe nicht."
       },
       "pageLink": "Zur Seite „{{page}}“",
       "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter „Spotlight“.",

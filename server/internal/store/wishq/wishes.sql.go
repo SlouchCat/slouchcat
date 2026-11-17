@@ -567,6 +567,46 @@ func (q *Queries) ListDueWithdrawals(ctx context.Context, arg ListDueWithdrawals
 	return items, nil
 }
 
+const listFulfilledWishItems = `-- name: ListFulfilledWishItems :many
+SELECT w.item_id FROM wishes AS w
+JOIN wish_requesters AS r ON r.wish_id = w.id
+WHERE r.profile_id = ?1 AND r.closed_at IS NULL
+  AND w.state = 'available' AND w.available_at >= ?2 AND w.item_id IS NOT NULL
+ORDER BY w.available_at DESC, w.id DESC
+LIMIT ?3
+`
+
+type ListFulfilledWishItemsParams struct {
+	ProfileID  int64
+	Since      sql.NullInt64
+	LimitCount int64
+}
+
+// The start page row "Erfuellte Wuensche" (concept 25 E-10, N-97): the library titles of the wishes
+// of a profile (own and joined, not left) that became available since since, newest first.
+func (q *Queries) ListFulfilledWishItems(ctx context.Context, arg ListFulfilledWishItemsParams) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, listFulfilledWishItems, arg.ProfileID, arg.Since, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []sql.NullString{}
+	for rows.Next() {
+		var item_id sql.NullString
+		if err := rows.Scan(&item_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenWishes = `-- name: ListOpenWishes :many
 SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes WHERE state IN ('queued', 'pending', 'processing', 'partial') ORDER BY id
 `

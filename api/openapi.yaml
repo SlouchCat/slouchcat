@@ -13372,8 +13372,10 @@ components:
         by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
         added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
         15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
-        («Meine Sender», concept 16 stage 2).
-      enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres, libraries, library, radio]
+        («Meine Sender», concept 16 stage 2). Contract 1.41.0 added `wishes` («Erfüllte Wünsche»,
+        concept 25 E-10): the active profile's wishes, own and joined, fulfilled within the last 14
+        days, newest first, as `ItemRef` of library titles the profile sees; left out when empty.
+      enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres, libraries, library, radio, wishes]
 
     HomeListKey:
       type: string
@@ -13387,7 +13389,7 @@ components:
       description: |
         The identity of a start page row (since contract 1.15.0): its key for every row but
         `library`, `library:<libraryId>` for a library row.
-      pattern: "^(spotlight|picks|continue|recent|released|watchlist|collections|genres|libraries|radio|library:[0-9]+)$"
+      pattern: "^(spotlight|picks|continue|recent|released|watchlist|collections|genres|libraries|radio|wishes|library:[0-9]+)$"
       maxLength: 40
 
     LibraryTile:

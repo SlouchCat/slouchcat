@@ -65,19 +65,36 @@ func TestMigration00039RadioStage2(t *testing.T) {
 	}
 	defer db.Close()
 	after := read(db.Read)
+	// Migration 00079 (concept 25) then puts «Erfüllte Wünsche» right behind «Weiterschauen»: every
+	// row behind that moves one place down (TestMigration00079HomeRowsWishes).
+	cont := before["continue"].position
+	shift := func(p int) int {
+		if p > cont {
+			return p + 1
+		}
+		return p
+	}
 	for id, r := range after {
-		if id == "radio" {
-			if want := (row{id: "radio", key: "radio", position: maxPos + 1, hidden: 1}); r != want {
+		switch id {
+		case "radio":
+			if want := (row{id: "radio", key: "radio", position: shift(maxPos + 1), hidden: 1}); r != want {
 				t.Errorf("row radio %+v, want %+v", r, want)
 			}
 			continue
+		case "wishes":
+			if want := (row{id: "wishes", key: "wishes", position: cont + 1}); r != want {
+				t.Errorf("row wishes %+v, want %+v", r, want)
+			}
+			continue
 		}
-		if old, ok := before[id]; !ok || r != old {
+		old, ok := before[id]
+		old.position = shift(old.position)
+		if !ok || r != old {
 			t.Errorf("row %+v, want %+v carried over", r, old)
 		}
 	}
-	if len(after) != len(before)+1 {
-		t.Errorf("%d home rows after the migration, want %d", len(after), len(before)+1)
+	if len(after) != len(before)+2 {
+		t.Errorf("%d home rows after the migrations, want %d", len(after), len(before)+2)
 	}
 
 	// The trigger of 00035 still adds a library's row, hidden, behind «Meine Sender».
@@ -86,8 +103,8 @@ func TestMigration00039RadioStage2(t *testing.T) {
 	}
 	var position, hidden int
 	if err := db.Read.QueryRowContext(ctx, `SELECT position, hidden FROM home_rows WHERE id = 'library:77'`).Scan(&position, &hidden); err != nil ||
-		position != maxPos+2 || hidden != 1 {
-		t.Errorf("row of the new library at %d, hidden %d (%v); want %d, hidden", position, hidden, err, maxPos+2)
+		position != maxPos+3 || hidden != 1 {
+		t.Errorf("row of the new library at %d, hidden %d (%v); want %d, hidden", position, hidden, err, maxPos+3)
 	}
 
 	var mb, itunes int

@@ -7133,10 +7133,12 @@ export interface components {
          *     by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
          *     added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
          *     15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
-         *     («Meine Sender», concept 16 stage 2).
+         *     («Meine Sender», concept 16 stage 2). Contract 1.41.0 added `wishes` («Erfüllte Wünsche»,
+         *     concept 25 E-10): the active profile's wishes, own and joined, fulfilled within the last 14
+         *     days, newest first, as `ItemRef` of library titles the profile sees; left out when empty.
          * @enum {string}
          */
-        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio" | "wishes";
         /**
          * @description The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
          *     1.31.0, concept 20 P-7).

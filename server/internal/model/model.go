@@ -1026,12 +1026,13 @@ const (
 	RowLibraries   = "libraries" // «Meine Medien», concept 15 P-7
 	RowLibrary     = "library"   // «Neu in …», one row per library
 	RowRadio       = "radio"     // «Meine Sender», concept 16 stage 2
+	RowWishes      = "wishes"    // «Erfüllte Wünsche», concept 25 E-10
 )
 
 // HomeRowKeys lists every row key: the eight fixed rows in the default order, then the two kinds
-// of concept 15 P-7 and «Meine Sender» of concept 16.
+// of concept 15 P-7, «Meine Sender» of concept 16 and «Erfüllte Wünsche» of concept 25.
 var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
-	RowLibraries, RowLibrary, RowRadio}
+	RowLibraries, RowLibrary, RowRadio, RowWishes}
 
 // Keys of the entries of «Meine Medien» (concept 21 P-11, table my_media).
 const (

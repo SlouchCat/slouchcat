@@ -19,10 +19,11 @@ func homeRowIDs(rows []model.HomeRowSetting) []string {
 	return out
 }
 
-// E-9, concept 15 P-7: the eight fixed rows in the default order, then «Meine Medien», «Meine
-// Sender» (migration 00039, concept 16 F-17: hidden at the end of the rows the migration found) and
-// one row per library created afterwards, hidden; the order is set by id, the slice order is the
-// display order.
+// E-9, concept 15 P-7: the eight fixed rows in the default order with «Erfüllte Wünsche» (migration
+// 00079, concept 25: shown, right after «Weiterschauen»), then «Meine Medien», «Meine Sender»
+// (migration 00039, concept 16 F-17: hidden at the end of the rows the migration found) and one row
+// per library created afterwards, hidden; the order is set by id, the slice order is the display
+// order.
 func TestHomeRows(t *testing.T) {
 	c := newCurationFixture(t)
 	rows, err := c.svc.HomeRows(c.ctx)
@@ -30,15 +31,16 @@ func TestHomeRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	lib := fmt.Sprintf("library:%d", c.f.LibraryID())
-	if want := append(slices.Clone(model.HomeRowKeys[:8]), model.RowLibraries, model.RowRadio, lib); !slices.Equal(homeRowIDs(rows), want) {
+	fixed := slices.Insert(slices.Clone(model.HomeRowKeys[:8]), 3, model.RowWishes)
+	if want := append(fixed, model.RowLibraries, model.RowRadio, lib); !slices.Equal(homeRowIDs(rows), want) {
 		t.Fatalf("default order %v, want %v", homeRowIDs(rows), want)
 	}
-	if r := rows[10]; r.Key != model.RowLibrary || r.LibraryID != c.f.LibraryID() || r.LibraryName != "Filme" || !r.Hidden || !rows[8].Hidden || !rows[9].Hidden {
-		t.Errorf("rows of P-7 %+v / %+v, want hidden, the library row with its library", rows[8], r)
+	if r := rows[11]; r.Key != model.RowLibrary || r.LibraryID != c.f.LibraryID() || r.LibraryName != "Filme" || !r.Hidden || !rows[9].Hidden || !rows[10].Hidden || rows[3].Hidden {
+		t.Errorf("rows of P-7 %+v / %+v, want hidden, the library row with its library", rows[9], r)
 	}
 
 	order := []string{model.RowRecent, lib, model.RowPicks, model.RowGenres, model.RowContinue, model.RowWatchlist,
-		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries, model.RowRadio}
+		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries, model.RowRadio, model.RowWishes}
 	in := make([]model.HomeRowSetting, 0, len(order))
 	for i, id := range order {
 		key := id
@@ -88,7 +90,7 @@ func TestHomeRowsNewLibraryAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Seven more libraries: 10 + 7 = 17 rows, more than the fifteen visible places.
+	// Seven more libraries: 11 + 7 = 18 rows, more than the fifteen visible places.
 	var ids []string
 	for i := range 7 {
 		var id int64
@@ -137,7 +139,8 @@ func TestHomeRowsNewLibraryAndLimit(t *testing.T) {
 		}
 	}
 
-	// Nine rows visible now (the eight and «Meine Medien»): six more reach fifteen, seven are too many.
+	// Ten rows visible now (the eight, «Erfüllte Wünsche» and «Meine Medien»): five more reach
+	// fifteen, six are too many.
 	show := func(n int) []model.HomeRowSetting {
 		next := slices.Clone(out)
 		for i := range next {
@@ -148,8 +151,8 @@ func TestHomeRowsNewLibraryAndLimit(t *testing.T) {
 		}
 		return next
 	}
-	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(7))), "rows", "too_many_visible")
-	if _, err := c.svc.SetHomeRows(c.ctx, show(6)); err != nil {
+	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(6))), "rows", "too_many_visible")
+	if _, err := c.svc.SetHomeRows(c.ctx, show(5)); err != nil {
 		t.Errorf("fifteen visible: %v", err)
 	}
 }
@@ -172,7 +175,7 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 		return fmt.Sprintf("library:%d", id)
 	}
 	gone := newLibrary("Anime")
-	// Five more libraries: 11 + 6 = 17 rows, sixteen of them not being deleted.
+	// Five more libraries: 12 + 6 = 18 rows, seventeen of them not being deleted.
 	for i := range 5 {
 		newLibrary(fmt.Sprintf("Neu %d", i))
 	}
@@ -180,14 +183,14 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ids := homeRowIDs(rows); len(ids) != 17 || ids[11] != gone {
-		t.Fatalf("rows %v, want Anime at index 11 of 17", ids)
+	if ids := homeRowIDs(rows); len(ids) != 18 || ids[12] != gone {
+		t.Fatalf("rows %v, want Anime at index 12 of 18", ids)
 	}
-	// Anime shown second: nine visible rows, the eight fixed ones and Anime.
+	// Anime shown second: ten visible rows, the eight fixed ones, «Erfüllte Wünsche» and Anime.
 	in := slices.Clone(rows)
-	anime := in[11]
+	anime := in[12]
 	anime.Hidden = false
-	in = slices.Insert(slices.Delete(in, 11, 12), 1, anime)
+	in = slices.Insert(slices.Delete(in, 12, 13), 1, anime)
 	before, err := c.svc.SetHomeRows(c.ctx, in)
 	if err != nil {
 		t.Fatal(err)
@@ -270,7 +273,7 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 		t.Errorf("stored %v, want %v", storedIDs(), place)
 	}
 
-	// Eight rows visible apart from Anime: seven more reach fifteen, eight are sixteen. Anime, shown
+	// Nine rows visible apart from Anime: six more reach fifteen, seven are sixteen. Anime, shown
 	// and named in the list, does not count.
 	show := func(n int) []model.HomeRowSetting {
 		next := slices.Clone(out)
@@ -282,8 +285,8 @@ func TestHomeRowsDeletingLibrary(t *testing.T) {
 		}
 		return next
 	}
-	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(8))), "rows", "too_many_visible")
-	with := slices.Insert(show(7), 2, anime)
+	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(7))), "rows", "too_many_visible")
+	with := slices.Insert(show(6), 2, anime)
 	if _, err := c.svc.SetHomeRows(c.ctx, with); err != nil {
 		t.Errorf("fifteen visible and the library being deleted: %v", err)
 	}
@@ -337,7 +340,7 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 		return row
 	}
 	shownA, shownB, hidden := newLibrary("A"), newLibrary("B"), newLibrary("H")
-	// Five more libraries: 11 + 3 + 5 = 19 rows, sixteen of them not being deleted.
+	// Five more libraries: 12 + 3 + 5 = 20 rows, seventeen of them not being deleted.
 	for i := range 5 {
 		newLibrary(fmt.Sprintf("Neu %d", i))
 	}
@@ -345,10 +348,10 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 19 {
-		t.Fatalf("rows %v, want 19", homeRowIDs(rows))
+	if len(rows) != 20 {
+		t.Fatalf("rows %v, want 20", homeRowIDs(rows))
 	}
-	// A and B shown, H hidden: ten visible rows, the eight fixed ones, A and B.
+	// A and B shown, H hidden: eleven visible rows, the eight fixed ones, «Erfüllte Wünsche», A and B.
 	for i := range rows {
 		if rows[i].ID == shownA || rows[i].ID == shownB {
 			rows[i].Hidden = false
@@ -396,8 +399,8 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(read) != 16 {
-		t.Fatalf("rows while deleting %v, want 16", homeRowIDs(read))
+	if len(read) != 17 {
+		t.Fatalf("rows while deleting %v, want 17", homeRowIDs(read))
 	}
 	show := func(n int) []model.HomeRowSetting {
 		next := slices.Clone(read)
@@ -409,8 +412,8 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 		}
 		return next
 	}
-	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(8))), "rows", "too_many_visible")
-	if _, err := c.svc.SetHomeRows(c.ctx, show(7)); err != nil {
+	wantField(t, "sixteen visible", errOf(c.svc.SetHomeRows(c.ctx, show(7))), "rows", "too_many_visible")
+	if _, err := c.svc.SetHomeRows(c.ctx, show(6)); err != nil {
 		t.Fatalf("fifteen visible with three libraries being deleted left out, two of them shown: %v", err)
 	}
 	if h := storedHidden(); !h[hidden] || h[shownA] || h[shownB] {
@@ -435,8 +438,8 @@ func TestHomeRowsDeletingLibraryFlagAndLimit(t *testing.T) {
 			t.Errorf("H after undoing %+v, want hidden", r)
 		}
 	}
-	if len(back) != 19 || visible != model.MaxVisibleHomeRows+2 {
-		t.Errorf("%d rows, %d visible after undoing, want 19 and seventeen visible", len(back), visible)
+	if len(back) != 20 || visible != model.MaxVisibleHomeRows+2 {
+		t.Errorf("%d rows, %d visible after undoing, want 20 and seventeen visible", len(back), visible)
 	}
 	wantField(t, "saved after undoing", errOf(c.svc.SetHomeRows(c.ctx, back)), "rows", "too_many_visible")
 }

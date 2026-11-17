@@ -23,7 +23,7 @@ var homeRowsCheck = regexp.MustCompile(`(?s)CREATE TABLE home_rows_new \(.*?\bke
 
 // E-9, ADR 0011, concept 15 P-7, concept 16 stage 2: the start page row keys live in three places,
 // the HomeRowKey enum of the contract, model.HomeRowKeys and the CHECK of home_rows in the newest
-// migration that rebuilt it (00039). All three name
+// migration that rebuilt it (00079, concept 25). All three name
 // the same set, so a key cannot be accepted by one layer and refused by another.
 func TestHomeRowKeysAgree(t *testing.T) {
 	t.Parallel()
@@ -38,13 +38,13 @@ func TestHomeRowKeysAgree(t *testing.T) {
 		contract = append(contract, fmt.Sprint(v))
 	}
 
-	migration, err := os.ReadFile("../../migrations/00039_radio_stage2.sql")
+	migration, err := os.ReadFile("../../migrations/00079_home_rows_wishes.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := homeRowsCheck.FindSubmatch(migration)
 	if m == nil {
-		t.Fatal("migration 00039 has no CHECK (key IN (...)) on home_rows_new")
+		t.Fatal("migration 00079 has no CHECK (key IN (...)) on home_rows_new")
 	}
 	var check []string
 	for _, k := range strings.Split(string(m[1]), ",") {
@@ -52,10 +52,10 @@ func TestHomeRowKeysAgree(t *testing.T) {
 	}
 
 	want := slices.Sorted(slices.Values(model.HomeRowKeys))
-	if len(slices.Compact(slices.Clone(want))) != 11 {
-		t.Fatalf("model.HomeRowKeys = %v, want eleven distinct keys", model.HomeRowKeys)
+	if len(slices.Compact(slices.Clone(want))) != 12 {
+		t.Fatalf("model.HomeRowKeys = %v, want twelve distinct keys", model.HomeRowKeys)
 	}
-	for place, got := range map[string][]string{"contract HomeRowKey": contract, "migration 00039 CHECK": check} {
+	for place, got := range map[string][]string{"contract HomeRowKey": contract, "migration 00079 CHECK": check} {
 		if got := slices.Sorted(slices.Values(got)); !slices.Equal(got, want) {
 			t.Errorf("%s = %v, want the keys of model.HomeRowKeys %v", place, got, want)
 		}

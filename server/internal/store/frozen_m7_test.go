@@ -49,7 +49,7 @@ func TestFrozenM7StateCoversM7Data(t *testing.T) {
 		"favourite series on the watchlist":          `SELECT count(*) FROM watchlist w JOIN items i ON i.id = w.item_id WHERE i.kind = 'series' AND w.follow_since = w.created_at`,
 		"favourite podcast on the watchlist":         `SELECT count(*) FROM watchlist w JOIN items i ON i.id = w.item_id WHERE i.kind = 'podcast' AND w.follow_since = w.created_at`,
 		"changed row order with a hidden row":        `SELECT count(*) FROM home_rows WHERE key = 'genres' AND hidden = 1`,
-		"eight home rows":                            `SELECT count(*) FROM home_rows WHERE (SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio')) = 8`,
+		"eight home rows":                            `SELECT count(*) FROM home_rows WHERE (SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio', 'wishes')) = 8`,
 		"spotlight movies and shows":                 `SELECT count(*) FROM spotlight_entries s WHERE s.list_key = 'trending' AND s.media = 'show' AND EXISTS (SELECT 1 FROM spotlight_entries u WHERE u.list_key = 'trending' AND u.media = 'movie')`,
 		"spotlight entries matching library titles":  `SELECT count(*) FROM spotlight_entries s JOIN items i ON i.tmdb_id = s.tmdb_id AND i.kind = CASE s.media WHEN 'movie' THEN 'movie' ELSE 'series' END`,
 		"spotlight config with the former constants": `SELECT count(*) FROM spotlight_config WHERE (SELECT count(*) FROM spotlight_config) = 1
@@ -69,8 +69,9 @@ func TestFrozenM7StateCoversM7Data(t *testing.T) {
 	// The hand-made order (recent before continue, genres hidden) survives 00021: spotlight takes
 	// position 0, released goes directly behind recent, the positions are exactly 0 to 7; 00035
 	// puts «Meine Medien» and the four library rows behind them (concept 15 P-7), 00039 «Meine
-	// Sender» behind those (concept 16 stage 2).
-	want := []string{"spotlight", "picks", "recent", "released", "continue", "watchlist", "collections", "genres",
+	// Sender» behind those (concept 16 stage 2), 00079 «Erfüllte Wünsche» right behind «Weiterschauen»
+	// (concept 25).
+	want := []string{"spotlight", "picks", "recent", "released", "continue", "wishes", "watchlist", "collections", "genres",
 		"libraries", "library", "library", "library", "library", "radio"}
 	if got := homeRowOrder(t, db); !slices.Equal(got, want) {
 		t.Errorf("home_rows order = %v, want %v", got, want)

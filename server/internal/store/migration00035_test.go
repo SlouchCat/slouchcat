@@ -72,23 +72,35 @@ func TestMigration00035HomeRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	// Migration 00079 (concept 25) puts «Erfüllte Wünsche» right behind «Weiterschauen»; the rows
+	// behind it move one place down (TestMigration00079HomeRowsWishes).
+	cont := before["continue"].position
 	var ids []string
 	for _, r := range read(db.Read) {
 		ids = append(ids, r.id)
+		if r.key == "wishes" {
+			if r.position != cont+1 || r.hidden != 0 {
+				t.Errorf("row wishes %+v, want shown behind continue", r)
+			}
+			continue
+		}
 		if old, ok := before[r.key]; ok {
+			if old.position > cont {
+				old.position++
+			}
 			if r != old {
 				t.Errorf("row %+v, want %+v carried over with id = key", r, old)
 			}
 			continue
 		}
-		if r.hidden != 1 || r.position < 8 {
+		if r.hidden != 1 || r.position < 9 {
 			t.Errorf("new row %+v, want hidden behind the eight", r)
 		}
 	}
 	// feinschliff.sql has the libraries 1 «Filme» and 2 «Serien»; «Meine Sender» of 00039 follows
 	// them (TestMigration00039RadioStage2).
-	if want := []string{"libraries", "library:1", "library:2", "radio"}; !slices.Equal(ids[8:], want) {
-		t.Errorf("rows behind the eight %v, want %v", ids[8:], want)
+	if want := []string{"libraries", "library:1", "library:2", "radio"}; !slices.Equal(ids[9:], want) {
+		t.Errorf("rows behind the nine %v, want %v", ids[9:], want)
 	}
 
 	// A new library gets its row, hidden, at the end.
@@ -99,8 +111,8 @@ func TestMigration00035HomeRows(t *testing.T) {
 	var position, hidden int
 	var updatedAt int64
 	if err := db.Read.QueryRowContext(ctx, `SELECT id, position, hidden, updated_at FROM home_rows WHERE library_id = 7`).Scan(&id, &position, &hidden, &updatedAt); err != nil ||
-		id != "library:7" || position != 12 || hidden != 1 || updatedAt != 42 {
-		t.Errorf("row of the new library = %s at %d, hidden %d, time %d (%v); want library:7 at 12, hidden, 42", id, position, hidden, updatedAt, err)
+		id != "library:7" || position != 13 || hidden != 1 || updatedAt != 42 {
+		t.Errorf("row of the new library = %s at %d, hidden %d, time %d (%v); want library:7 at 13, hidden, 42", id, position, hidden, updatedAt, err)
 	}
 
 	for _, bad := range []string{
