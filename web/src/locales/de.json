@@ -231,7 +231,10 @@
       "seerr_not_configured": "Trage zuerst Adresse und API-Schlüssel von Seerr ein.",
       "instance_unchanged": "Es wartet keine andere Seerr-Instanz auf eine Entscheidung.",
       "seerr_not_tested": "Wünsche lassen sich erst nach einem gelungenen Test der gespeicherten Verbindung einschalten.",
-      "seerr_user_taken": "Dieser Seerr-Benutzer gehört schon zu einem anderen Konto, ist der Sammelbenutzer oder fehlt in Seerr."
+      "seerr_user_taken": "Dieser Seerr-Benutzer gehört schon zu einem anderen Konto, ist der Sammelbenutzer oder fehlt in Seerr.",
+      "provision_disabled": "«Neue Konten in Seerr eröffnen» ist ausgeschaltet. Schalte es unter Wünsche › Einstellungen ein.",
+      "password_not_syncable": "Das Passwort dieses Seerr-Benutzers gleicht Slouchcat nicht ab: Er ist in Seerr Administrator oder meldet sich über Jellyfin, Emby oder Plex an.",
+      "account_not_allowed": "Das Konto darf keine Titel anfordern. Das Recht setzt ein Administrator unter Konten."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -3702,6 +3705,37 @@
         "hanging": "Eine Einhängung antwortet nicht mehr: {{count}} Auflistung hängt im Kern fest und lässt sich nicht abbrechen. Der Ordner-Browser arbeitet weiter, aber mit weniger Plätzen. Ein Neustart gibt sie frei.",
         "hanging_other": "Eine Einhängung antwortet nicht mehr: {{count}} Auflistungen hängen im Kern fest und lassen sich nicht abbrechen. Der Ordner-Browser arbeitet weiter, aber mit weniger Plätzen. Ein Neustart gibt sie frei.",
         "off": "Alle Plätze des Ordner-Browsers hängen an einer Einhängung, die nicht mehr antwortet. Bis zum Neustart lässt sich kein Ordner mehr durchsuchen; Pfade von Hand einzutippen geht weiterhin."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr nicht erreichbar",
+          "key_invalid": "Seerr lehnt den API-Schlüssel ab",
+          "instance_changed": "Andere Seerr-Instanz erkannt"
+        },
+        "seerrStateBody": {
+          "unreachable": "Neue Wünsche warten und gehen hinaus, sobald Seerr wieder antwortet.",
+          "key_invalid": "Slouchcat stellt keine Wünsche und gleicht nichts ab, bis der Schlüssel stimmt.",
+          "instance_changed": "Übermittlung und Abgleich halten an, bis du die Zuordnung bestätigst oder löschst."
+        },
+        "toConnection": "Zu Integrationen › Seerr",
+        "unmapped_one": "{{count}} Konto ohne Seerr-Benutzer",
+        "unmapped_other": "{{count}} Konten ohne Seerr-Benutzer",
+        "unmappedFallback": "Sie senden bis dahin über den Sammelbenutzer slouchcat-gaeste.",
+        "unmappedDeny": "Ihre Profile sehen keine fehlenden Titel, solange «Konten ohne Seerr-Benutzer» auf «Nicht erlauben» steht.",
+        "unmappedWaiting": "Die Konten warten und werden beim nächsten Abgleich eröffnet.",
+        "toUsers": "Zu den Seerr-Benutzern",
+        "linked": "Neu verknüpft: {{account}} mit dem bestehenden Seerr-Benutzer {{name}}",
+        "linkedBody": {
+          "invite": "Beim Annehmen der Einladung am {{date}}, weil die E-Mail gleich ist. Die Adresse hat das Konto selbst eingetippt; niemand hat sie geprüft.",
+          "email_change": "Nach Änderung der E-Mail am {{date}}, weil die E-Mail gleich ist. Die Adresse hat das Konto selbst eingetippt; niemand hat sie geprüft."
+        },
+        "toAccount": "Verknüpfung ansehen",
+        "quotaReached": "Limit erreicht: {{account}}",
+        "quotaNext": "{{used}}, der nächste Platz wird am {{date}} frei.",
+        "toLimit": "Limit ansehen",
+        "gone_one": "{{count}} Konto: Benutzer in Seerr gelöscht",
+        "gone_other": "{{count}} Konten: Benutzer in Seerr gelöscht",
+        "goneBody": "Wähle für diese Konten einen anderen Benutzer oder löse die Verknüpfung."
       }
     },
     "integrations": {
@@ -5501,7 +5535,8 @@
           "password": "Passwort",
           "rights": "Rechte in Seerr",
           "email": "E-Mail",
-          "type": "Art"
+          "type": "Art",
+          "limit": "Limit"
         },
         "noUser": "Keiner",
         "passwordFollows": "Folgt mit dem Benutzer",
@@ -5582,7 +5617,6 @@
           "noShows": "«{{name}}» darf keine Serien anfordern. Serienwünsche scheitern, Filme gehen.",
           "noMovies": "«{{name}}» darf keine Filme anfordern. Filmwünsche scheitern, Serien gehen."
         },
-        "provisionError": "Beim Eröffnen in Seerr: {{error}}",
         "change": "Seerr-Benutzer ändern",
         "unlink": "Verknüpfung lösen",
         "chooseHelp": "Wählbar sind Benutzer, die zu keinem anderen Konto gehören. Rechte und Passwort bleiben, wie sie in Seerr sind.",
@@ -5617,7 +5651,58 @@
         "unlinkedCount_one": "{{count}} Benutzer",
         "unlinkedCount_other": "{{count}} Benutzer",
         "unlinkedEmpty": "Jeder Seerr-Benutzer gehört zu einem Konto.",
-        "noEmail": "keine E-Mail"
+        "noEmail": "keine E-Mail",
+        "noLimit": "Kein Limit",
+        "limitOnOpen": "Wird beim Eröffnen gesetzt: {{limit}}",
+        "limitChange": "Limit ändern",
+        "quotaAt": "Stand aus Seerr {{time}}",
+        "provision": "In Seerr eröffnen",
+        "retry": "Erneut versuchen",
+        "provisionOffHint": "«Neue Konten in Seerr eröffnen» ist ausgeschaltet.",
+        "sameEmailTitle": "In Seerr gibt es schon «{{name}}»",
+        "sameEmailBody": "Gleiche E-Mail-Adresse: «In Seerr eröffnen» verknüpft diesen Benutzer, statt einen zweiten anzulegen.",
+        "waitingTitle": "Wartet auf Seerr",
+        "waitReason": {
+          "unreachable": "Seerr war beim Eröffnen nicht erreichbar. Der nächste Abgleich versucht es wieder.",
+          "server": "Seerr hat beim Eröffnen mit einem Fehler geantwortet. Der nächste Abgleich versucht es wieder.",
+          "timeout": "Seerr hat beim Eröffnen nicht rechtzeitig geantwortet. Der nächste Abgleich versucht es wieder.",
+          "key_invalid": "Seerr hat den API-Schlüssel abgelehnt. Sobald die Verbindung wieder stimmt, versucht es der nächste Abgleich wieder.",
+          "instance_changed": "Eine andere Seerr-Instanz wartet auf deine Entscheidung. Bis dahin eröffnet Slouchcat nichts.",
+          "seerr_user_taken": "Der Seerr-Benutzer mit dieser E-Mail gehört schon zu einem anderen Konto oder ist der Sammelbenutzer. Wähle den Benutzer von Hand.",
+          "other": "Das Eröffnen ist nicht gelungen ({{reason}}). Der nächste Abgleich versucht es wieder."
+        },
+        "emailTakenTitle": "Seerr hat die neue E-Mail abgelehnt",
+        "emailTakenBody": "Ein anderer Seerr-Benutzer hat diese Adresse schon. «{{name}}» behält in Seerr seine bisherige E-Mail; das Konto fordert weiter als dieser Benutzer an.",
+        "provisioned": {
+          "created": "{{email}} ist in Seerr eröffnet.",
+          "linked": "{{email}} ist mit dem Seerr-Benutzer «{{name}}» verknüpft.",
+          "waiting": "Noch nicht in Seerr eröffnet: {{email}} wartet, der nächste Abgleich versucht es wieder."
+        },
+        "passwordNext": "Passwort bei der nächsten Anmeldung neu übernehmen",
+        "passwordOff": "Passwort nicht abgleichen",
+        "passwordNextDone": "Das Passwort von {{email}} geht bei der nächsten Anmeldung an Seerr.",
+        "passwordOffDone": "Das Passwort von {{email}} wird nicht mehr mit Seerr abgeglichen.",
+        "passwordSyncOff": "Der Passwortabgleich ist ausgeschaltet.",
+        "passwordNote": {
+          "admin": "Das Passwort gleicht Slouchcat nicht ab: «{{name}}» ist in Seerr Administrator, sein Passwort bleibt dort, wie es ist.",
+          "external": "Das Passwort gleicht Slouchcat nicht ab: «{{name}}» meldet sich über Jellyfin, Emby oder Plex an, nicht mit einem eigenen Passwort."
+        },
+        "provisionAll": "Alle eröffnen",
+        "provisionAllTitle": "Alle Konten in Seerr eröffnen?",
+        "provisionAllBody": "Über gleiche E-Mail verknüpfen: {{link}} · In Seerr neu anlegen: {{create}}.",
+        "provisionAllWaits": "Seerr ist gerade nicht verbunden: Die Konten warten dann und werden beim nächsten Abgleich eröffnet.",
+        "provisionAllQueued": "Eröffnen läuft: {{link}} verknüpfen, {{create}} neu anlegen."
+      },
+      "quota": {
+        "movie": "Filme: {{used}} von {{limit}} in {{days}} Tagen",
+        "tv": "Staffeln: {{used}} von {{limit}} in {{days}} Tagen",
+        "remaining_one": "noch {{count}} frei",
+        "remaining_other": "noch {{count}} frei",
+        "nextFree": "nächster Platz frei am {{date}}",
+        "short": {
+          "movie": "Filme {{used}}/{{limit}}",
+          "tv": "Staffeln {{used}}/{{limit}}"
+        }
       }
     }
   },

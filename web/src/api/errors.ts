@@ -111,6 +111,11 @@ const problemKeys = {
   // The wishes (concept 25): «Wünsche aktiv» before a passed test, a Seerr user taken meanwhile.
   seerr_not_tested: 'errors.code.seerr_not_tested',
   seerr_user_taken: 'errors.code.seerr_user_taken',
+  // Opening accounts in Seerr while «Neue Konten in Seerr eröffnen» is off, the password of a
+  // Seerr administrator or an outside sign-in, the right of a profile above its account's.
+  provision_disabled: 'errors.code.provision_disabled',
+  password_not_syncable: 'errors.code.password_not_syncable',
+  account_not_allowed: 'errors.code.account_not_allowed',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

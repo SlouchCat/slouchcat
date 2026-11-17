@@ -1,13 +1,33 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useActiveSession } from '@/app/session';
 import { intlLocale } from '@/i18n';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { problemMessage } from '@/api/errors';
 import { Notice } from '@/ui';
-import { AdminPage, StatusStrip, Tabs, useSearchSelection } from '@/ui/aria';
-import { seerrStatusQuery, seerrUsersQuery, wishMappingsQuery, wishSettingsQuery } from './queries';
-import { SeerrUsersTab } from './wishes/SeerrUsersTab';
+import {
+  AdminPage,
+  afterDialogsClosed,
+  ConfirmDialog,
+  focusTitleIfLost,
+  StatusRegion,
+  StatusStrip,
+  Tabs,
+  useSearchSelection,
+  useStatusMessage,
+} from '@/ui/aria';
+import {
+  dashboardQuery,
+  provisionSeerrAccounts,
+  seerrStatusQuery,
+  seerrUsersQuery,
+  wishKeys,
+  wishMappingsQuery,
+  wishSettingsQuery,
+} from './queries';
+import { linkCandidate, SeerrUsersTab } from './wishes/SeerrUsersTab';
 import { SettingsTab } from './wishes/SettingsTab';
 
 /**
@@ -23,7 +43,9 @@ const RELOAD_WINDOW_MS = 20_000;
 /**
  * Medien › Wünsche (concept 25, M-24 and M-25): the Seerr users of the accounts and the settings
  * of the wishes, as tabs (`?tab=`). The counters of the Seerr users stand in the page's head while
- * their tab is open. Both tabs take effect at once, so the page holds no draft.
+ * their tab is open. Both tabs take effect at once, so the page holds no draft; the one question
+ * of the page is «Alle eröffnen», which names what will happen. `?item=<account>` opens that
+ * account's row (the overview's hints and the account page link it).
  */
 export function WishesPage() {
   const { t } = useTranslation();
@@ -45,9 +67,14 @@ function WishesContent() {
   const { t, i18n } = useTranslation();
   const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const queryClient = useQueryClient();
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'seerr-benutzer', { normalise: true });
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedItem = typeof search.item === 'string' ? search.item : undefined;
   // The rows that are open live in the page, so a change of tab keeps them.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [provisionMessage, sayProvision] = useStatusMessage();
   const [reloadUntil, setReloadUntil] = useState(0);
   const reloading = reloadUntil > 0;
   useEffect(() => {
@@ -63,6 +90,35 @@ function WishesContent() {
   const users = useQuery({ ...seerrUsersQuery, refetchInterval: poll });
 
   const accounts = mappings.data?.accounts ?? [];
+  // `?item=` opens that account's row once, when the list knows it (as on «Konten»).
+  const [openedItem, setOpenedItem] = useState<string | undefined>(undefined);
+  const itemKnown =
+    askedItem !== undefined && accounts.some((mapping) => String(mapping.accountId) === askedItem);
+  if (itemKnown && openedItem !== askedItem) {
+    setOpenedItem(askedItem);
+    setExpanded((current) => new Set(current).add(askedItem));
+  }
+
+  // What «Alle eröffnen» will do, by the last read users: link by the same e-mail, else open.
+  const todo = accounts.filter((mapping) => mapping.seerrUserId === undefined);
+  const link = todo.filter((mapping) => linkCandidate(mapping, users.data ?? [])).length;
+  const create = todo.length - link;
+  const provisionAll = useMutation({
+    mutationFn: provisionSeerrAccounts,
+    onMutate: () => sayProvision(null),
+    onSuccess: async (result) => {
+      sayProvision(t('admin.wishes.users.provisionAllQueued', result));
+      setReloadUntil(Date.now() + RELOAD_WINDOW_MS);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: wishKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+      ]);
+    },
+  });
+  const closeConfirm = (open: boolean) => {
+    setConfirmOpen(open);
+    if (!open) void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  };
   const waiting = accounts.filter((mapping) => mapping.state === 'waiting').length;
   const without = accounts.filter((mapping) => mapping.seerrUserId === undefined).length;
   const passwordOpen = accounts.filter((mapping) => mapping.passwordState === 'next_login').length;
@@ -126,6 +182,15 @@ function WishesContent() {
                   })
                 }
                 onReloaded={() => setReloadUntil(Date.now() + RELOAD_WINDOW_MS)}
+                onProvisionAll={() => setConfirmOpen(true)}
+                provisionAllPending={provisionAll.isPending}
+                provisionAllMessage={
+                  provisionAll.error ? (
+                    <Notice tone="danger">{problemMessage(t, provisionAll.error)}</Notice>
+                  ) : (
+                    <StatusRegion message={provisionMessage} />
+                  )
+                }
               />
             ),
           },
@@ -137,6 +202,19 @@ function WishesContent() {
             ),
           },
         ]}
+      />
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onOpenChange={closeConfirm}
+        title={t('admin.wishes.users.provisionAllTitle')}
+        body={`${t('admin.wishes.users.provisionAllBody', { link, create })}${
+          status.data && status.data.state !== 'connected'
+            ? ` ${t('admin.wishes.users.provisionAllWaits')}`
+            : ''
+        }`}
+        confirmLabel={t('admin.wishes.users.provisionAll')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => provisionAll.mutate()}
       />
     </AdminPage>
   );

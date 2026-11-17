@@ -302,6 +302,9 @@
       "hints": {
         "scan": "Scan der Bibliothek „{{name}}“ abgebrochen",
         "minimumAgeBody": "Slouchcat speichert seit diesem Update das echte Mindestalter jeder Freigabe: PG-13 ist „ab 13“ statt FSK 12, R ist „ab 17“ statt FSK 16. Profile „ab 12“ und „ab 16“ sehen dadurch weniger amerikanische Titel. Wer das nicht will, stellt das Profil höher."
+      },
+      "wishes": {
+        "unmappedDeny": "Ihre Profile sehen keine fehlenden Titel, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht."
       }
     },
     "integrations": {
@@ -585,7 +588,18 @@
         "linked": "{{email}} fordert jetzt als „{{name}}“ an. Rechte und Freigabe kommen von diesem Benutzer.",
         "unlinked": "Verknüpfung von {{email}} gelöst. „{{name}}“ bleibt in Seerr.",
         "withoutFallback": "Sie fordern bis dahin als Sammelbenutzer slouchcat-gaeste an (Regel „Konten ohne Seerr-Benutzer“).",
-        "withoutDeny": "Sie können nichts anfordern, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht."
+        "withoutDeny": "Sie können nichts anfordern, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht.",
+        "provisionOffHint": "„Neue Konten in Seerr eröffnen“ ist ausgeschaltet.",
+        "sameEmailTitle": "In Seerr gibt es schon „{{name}}“",
+        "sameEmailBody": "Gleiche E-Mail-Adresse: „In Seerr eröffnen“ verknüpft diesen Benutzer, statt einen zweiten anzulegen.",
+        "emailTakenBody": "Ein anderer Seerr-Benutzer hat diese Adresse schon. „{{name}}“ behält in Seerr seine bisherige E-Mail; das Konto fordert weiter als dieser Benutzer an.",
+        "provisioned": {
+          "linked": "{{email}} ist mit dem Seerr-Benutzer „{{name}}“ verknüpft."
+        },
+        "passwordNote": {
+          "admin": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ ist in Seerr Administrator, sein Passwort bleibt dort, wie es ist.",
+          "external": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ meldet sich über Jellyfin, Emby oder Plex an, nicht mit einem eigenen Passwort."
+        }
       }
     }
   },
@@ -665,6 +679,11 @@
     "ask": {
       "removeTitle": "„{{title}}“ als ungesehen markieren?",
       "halfTitle": "„{{title}}“ ist teilweise gesehen"
+    }
+  },
+  "errors": {
+    "code": {
+      "provision_disabled": "„Neue Konten in Seerr eröffnen“ ist ausgeschaltet. Schalte es unter Wünsche › Einstellungen ein."
     }
   }
 }

@@ -231,7 +231,10 @@
       "seerr_not_configured": "Enter the address and API key of Seerr first.",
       "instance_unchanged": "No other Seerr instance waits for a decision.",
       "seerr_not_tested": "Wishes can only be switched on after a passed test of the saved connection.",
-      "seerr_user_taken": "This Seerr user already belongs to another account, is the shared user or is missing in Seerr."
+      "seerr_user_taken": "This Seerr user already belongs to another account, is the shared user or is missing in Seerr.",
+      "provision_disabled": "«Open new accounts in Seerr» is switched off. Switch it on under Wishes › Settings.",
+      "password_not_syncable": "Slouchcat does not sync the password of this Seerr user: it is an administrator in Seerr or signs in through Jellyfin, Emby or Plex.",
+      "account_not_allowed": "The account may not request titles. An administrator sets the right under Accounts."
     },
     "field": {
       "required": "Required.",
@@ -3702,6 +3705,37 @@
         "hanging": "A mount stopped answering: {{count}} listing hangs in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
         "hanging_other": "A mount stopped answering: {{count}} listings hang in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
         "off": "Every slot of the folder browser hangs on a mount that stopped answering. No folder can be browsed until the server restarts; typing a path by hand still works."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr not reachable",
+          "key_invalid": "Seerr refuses the API key",
+          "instance_changed": "Another Seerr instance detected"
+        },
+        "seerrStateBody": {
+          "unreachable": "New wishes wait and go out as soon as Seerr answers again.",
+          "key_invalid": "Slouchcat sends no wishes and syncs nothing until the key is right.",
+          "instance_changed": "Sending and syncing stop until you confirm or delete the assignment."
+        },
+        "toConnection": "To Integrations › Seerr",
+        "unmapped_one": "{{count}} account without a Seerr user",
+        "unmapped_other": "{{count}} accounts without a Seerr user",
+        "unmappedFallback": "Until then they send through the shared user slouchcat-gaeste.",
+        "unmappedDeny": "Their profiles see no missing titles while «Accounts without a Seerr user» is set to «Do not allow».",
+        "unmappedWaiting": "The accounts wait and are opened at the next sync.",
+        "toUsers": "To the Seerr users",
+        "linked": "Newly linked: {{account}} with the existing Seerr user {{name}}",
+        "linkedBody": {
+          "invite": "When the invitation was accepted on {{date}}, because the e-mail is the same. The account typed the address itself; nobody checked it.",
+          "email_change": "After the e-mail changed on {{date}}, because the e-mail is the same. The account typed the address itself; nobody checked it."
+        },
+        "toAccount": "View the link",
+        "quotaReached": "Limit reached: {{account}}",
+        "quotaNext": "{{used}}, the next place is free on {{date}}.",
+        "toLimit": "View the limit",
+        "gone_one": "{{count}} account: user deleted in Seerr",
+        "gone_other": "{{count}} accounts: user deleted in Seerr",
+        "goneBody": "Choose another user for these accounts or unlink them."
       }
     },
     "integrations": {
@@ -5501,7 +5535,8 @@
           "password": "Password",
           "rights": "Rights in Seerr",
           "email": "E-mail",
-          "type": "Type"
+          "type": "Type",
+          "limit": "Limit"
         },
         "noUser": "None",
         "passwordFollows": "Follows with the user",
@@ -5582,7 +5617,6 @@
           "noShows": "“{{name}}” may not request series. Series wishes fail, films work.",
           "noMovies": "“{{name}}” may not request films. Film wishes fail, series work."
         },
-        "provisionError": "When opening in Seerr: {{error}}",
         "change": "Change the Seerr user",
         "unlink": "Remove the link",
         "chooseHelp": "Users that belong to no other account can be chosen. Rights and password stay as they are in Seerr.",
@@ -5617,7 +5651,58 @@
         "unlinkedCount_one": "{{count}} user",
         "unlinkedCount_other": "{{count}} users",
         "unlinkedEmpty": "Every Seerr user belongs to an account.",
-        "noEmail": "no e-mail"
+        "noEmail": "no e-mail",
+        "noLimit": "No limit",
+        "limitOnOpen": "Set when the account is opened: {{limit}}",
+        "limitChange": "Change limit",
+        "quotaAt": "State from Seerr {{time}}",
+        "provision": "Open in Seerr",
+        "retry": "Try again",
+        "provisionOffHint": "«Open new accounts in Seerr» is switched off.",
+        "sameEmailTitle": "Seerr already has «{{name}}»",
+        "sameEmailBody": "Same e-mail address: «Open in Seerr» links this user instead of creating a second one.",
+        "waitingTitle": "Waiting for Seerr",
+        "waitReason": {
+          "unreachable": "Seerr was not reachable when opening. The next sync tries again.",
+          "server": "Seerr answered with an error when opening. The next sync tries again.",
+          "timeout": "Seerr did not answer in time when opening. The next sync tries again.",
+          "key_invalid": "Seerr refused the API key. Once the connection is right again, the next sync tries again.",
+          "instance_changed": "Another Seerr instance waits for your decision. Until then Slouchcat opens nothing.",
+          "seerr_user_taken": "The Seerr user with this e-mail already belongs to another account or is the shared user. Choose the user by hand.",
+          "other": "Opening did not work ({{reason}}). The next sync tries again."
+        },
+        "emailTakenTitle": "Seerr refused the new e-mail",
+        "emailTakenBody": "Another Seerr user already has this address. «{{name}}» keeps its previous e-mail in Seerr; the account goes on requesting as this user.",
+        "provisioned": {
+          "created": "{{email}} is opened in Seerr.",
+          "linked": "{{email}} is linked to the Seerr user «{{name}}».",
+          "waiting": "Not opened in Seerr yet: {{email}} waits, the next sync tries again."
+        },
+        "passwordNext": "Take the password over again at the next sign-in",
+        "passwordOff": "Do not sync the password",
+        "passwordNextDone": "The password of {{email}} goes to Seerr at the next sign-in.",
+        "passwordOffDone": "The password of {{email}} is no longer synced with Seerr.",
+        "passwordSyncOff": "Password sync is switched off.",
+        "passwordNote": {
+          "admin": "Slouchcat does not sync the password: «{{name}}» is an administrator in Seerr, its password stays there as it is.",
+          "external": "Slouchcat does not sync the password: «{{name}}» signs in through Jellyfin, Emby or Plex, not with a password of its own."
+        },
+        "provisionAll": "Open all",
+        "provisionAllTitle": "Open all accounts in Seerr?",
+        "provisionAllBody": "Link by the same e-mail: {{link}} · Create new in Seerr: {{create}}.",
+        "provisionAllWaits": "Seerr is not connected right now: the accounts then wait and are opened at the next sync.",
+        "provisionAllQueued": "Opening runs: {{link}} to link, {{create}} to create."
+      },
+      "quota": {
+        "movie": "Films: {{used}} of {{limit}} in {{days}} days",
+        "tv": "Seasons: {{used}} of {{limit}} in {{days}} days",
+        "remaining_one": "{{count}} left",
+        "remaining_other": "{{count}} left",
+        "nextFree": "next place free on {{date}}",
+        "short": {
+          "movie": "Films {{used}}/{{limit}}",
+          "tv": "Seasons {{used}}/{{limit}}"
+        }
       }
     }
   },

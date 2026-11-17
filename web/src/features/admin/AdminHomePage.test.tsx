@@ -496,6 +496,85 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
     expect(within(hints).queryByRole('link', { name: 'Zu den Schlüsseln' })).toBeNull();
   });
 
+  it('names the wishes: Seerr, accounts without a user, new links, limits and gone users', async () => {
+    const base = quiet();
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json({
+            ...base,
+            integrations: [{ key: 'seerr', state: 'error', detail: 'unreachable' }],
+            attention: {
+              ...base.attention,
+              wishes: {
+                seerrState: 'unreachable',
+                unmapped: 2,
+                unmappedFallback: true,
+                linked: [
+                  {
+                    accountId: 4,
+                    accountEmail: 'gast@example.org',
+                    seerrUserId: 7,
+                    seerrDisplayName: 'gast',
+                    linkedBy: 'invite',
+                    linkedAt: '2026-11-16T10:00:00Z',
+                  },
+                ],
+                quotaReached: [
+                  {
+                    accountId: 5,
+                    accountEmail: 'kinder@example.org',
+                    movie: {
+                      limit: 10,
+                      days: 7,
+                      used: 10,
+                      queued: 0,
+                      remaining: 0,
+                      nextFreeAt: '2026-11-20T10:00:00Z',
+                    },
+                  },
+                ],
+                goneUsers: 1,
+              },
+            },
+          }),
+        'GET /admin/system': () => json({ ...system, inotify: { ...system.inotify, warn: false } }),
+      }),
+    );
+    renderApp('/admin');
+    const hints = await attentionCard();
+    await waitFor(() => expect(hintTitles(hints)).toContain('Seerr nicht erreichbar'));
+    // Seerr's state stands once, among the wishes, not also as an integration error.
+    expect(hintTitles(hints)).not.toContain('Seerr: Fehler');
+    expect(hintTitles(hints)).toEqual(
+      expect.arrayContaining([
+        '2 Konten ohne Seerr-Benutzer',
+        'Neu verknüpft: gast@example.org mit dem bestehenden Seerr-Benutzer gast',
+        'Limit erreicht: kinder@example.org',
+        '1 Konto: Benutzer in Seerr gelöscht',
+      ]),
+    );
+    expect(
+      within(hints).getByText(/Die Konten warten und werden beim nächsten Abgleich/),
+    ).toBeVisible();
+    expect(
+      within(hints).getByText(/Filme: 10 von 10 in 7 Tagen, der nächste Platz wird am .* frei/),
+    ).toBeVisible();
+    expect(within(hints).getByRole('link', { name: 'Zu Integrationen › Seerr' })).toHaveAttribute(
+      'href',
+      '/admin/integrations?item=seerr',
+    );
+    expect(within(hints).getByRole('link', { name: 'Verknüpfung ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/wishes?tab=seerr-benutzer&item=4',
+    );
+    expect(within(hints).getByRole('link', { name: 'Limit ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/accounts?item=5',
+    );
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
   it('names a development build as a hint instead of offering an update for it', async () => {
     mockApi(
       routes({

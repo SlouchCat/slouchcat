@@ -66,7 +66,10 @@ const integrationDot = {
  * The reason of a state in words: the other integrations send a sentence, Seerr a code
  * (`key_invalid`, `unreachable`, `instance_changed`, `untested`) named like its connection states.
  */
-function integrationDetail(t: TFunction, integration: IntegrationStatus): string | undefined {
+export function integrationDetail(
+  t: TFunction,
+  integration: IntegrationStatus,
+): string | undefined {
   if (integration.key !== 'seerr' || !integration.detail) return integration.detail;
   return t(`admin.integrations.seerr.state.${integration.detail}`, {
     defaultValue: integration.detail,

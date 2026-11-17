@@ -869,6 +869,10 @@ export type SeerrUser = components['schemas']['SeerrUser'];
 export type WishMappings = components['schemas']['WishMappings'];
 export type WishAccountMapping = components['schemas']['WishAccountMapping'];
 export type WishLimits = components['schemas']['WishLimits'];
+export type WishQuota = components['schemas']['WishQuota'];
+export type WishQuotaPart = components['schemas']['WishQuotaPart'];
+export type ProvisionSeerrAccountsResult = components['schemas']['ProvisionSeerrAccountsResult'];
+export type SeerrPasswordMode = components['schemas']['SeerrPasswordModeRequest']['mode'];
 export type WishSettings = components['schemas']['WishSettings'];
 export type WishSettingsUpdate = components['schemas']['WishSettingsUpdate'];
 
@@ -927,6 +931,31 @@ export const setAccountWishMapping = (
     api.PUT('/admin/wishes/mappings/accounts/{accountId}', {
       params: { path: { accountId } },
       body: { seerrUserId },
+    }),
+  );
+
+/**
+ * «In Seerr eröffnen»: links a Seerr user with the same e-mail or opens a new one; when Seerr is
+ * not reached the account comes back `waiting` (202) and a job tries again.
+ */
+export const provisionSeerrAccount = (accountId: number): Promise<WishAccountMapping> =>
+  request(
+    api.POST('/admin/wishes/accounts/{accountId}/provision', { params: { path: { accountId } } }),
+  );
+
+/** «Alle eröffnen»: queues every account without a ready Seerr user; says how many link or open. */
+export const provisionSeerrAccounts = (): Promise<ProvisionSeerrAccountsResult> =>
+  request(api.POST('/admin/wishes/accounts/provision'));
+
+/** The password sync of one account: at the next sign-in (`next_login`) or never (`off`). */
+export const setSeerrPasswordMode = (
+  accountId: number,
+  mode: SeerrPasswordMode,
+): Promise<WishAccountMapping> =>
+  request(
+    api.PUT('/admin/wishes/accounts/{accountId}/password', {
+      params: { path: { accountId } },
+      body: { mode },
     }),
   );
 

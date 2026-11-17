@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Chip } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import type { SeerrUser, WishAccountMapping } from '../queries';
+import { quotaShort } from './quota';
 import styles from './Wishes.module.css';
 
 /** The chip of how an account came to its Seerr user (or that it has none). */
@@ -43,7 +44,8 @@ export function StateChip({ mapping, user }: { mapping: WishAccountMapping; user
 
 /**
  * The columns of the table «Seerr-Benutzer» (M-24): the account's e-mail folds the row out; its
- * Seerr user with the state chip, the password state and the rights in Seerr, one line each.
+ * Seerr user with the state chip, the password state, the rights in Seerr and what the limit has
+ * used, one line each.
  * Without a user the cells say what follows from the account.
  */
 export function seerrUserColumns(
@@ -95,6 +97,24 @@ export function seerrUserColumns(
           <span className={styles.nowrap}>{rightsText(t, user)}</span>
         ) : (
           <span className={styles.muted}>{t('admin.wishes.users.rightsFollow')}</span>
+        );
+      },
+    },
+    {
+      key: 'limit',
+      header: t('admin.wishes.users.columns.limit'),
+      cell: (mapping) => {
+        if (mapping.limit.seerrAdmin || mapping.quota?.reason === 'admin') {
+          return <span className={styles.nowrap}>{t('admin.wishes.users.noLimit')}</span>;
+        }
+        if (mapping.limit.mode === 'unlimited' || mapping.quota?.reason === 'no_limit') {
+          return <span className={styles.nowrap}>{t('admin.wishes.users.unlimited')}</span>;
+        }
+        const used = quotaShort(t, mapping.quota);
+        return used ? (
+          <span className={styles.nowrap}>{used}</span>
+        ) : (
+          <span className={styles.muted}>{t(`admin.wishes.users.mode.${mapping.limit.mode}`)}</span>
         );
       },
     },

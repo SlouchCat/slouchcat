@@ -97,6 +97,25 @@
   align-items: flex-start;
 }
 
+/* A locked action's reason under it: the lock and the words, with the link to the setting. */
+.lockedLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The shared user and its limit state in the line above the table. */
+.sharedLine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
 /* «Limit ab Werk»: films and seasons, each a count and a period side by side. */
 .limits {
   display: flex;

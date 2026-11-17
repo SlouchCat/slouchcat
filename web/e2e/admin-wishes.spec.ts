@@ -1,10 +1,21 @@
 import type { APIRequestContext, Page } from '@playwright/test';
-import { acceptInvitation, anonymousApi, createInvitation } from './accounts';
+import {
+  acceptInvitation,
+  anonymousApi,
+  createInvitation,
+  removeInvitedAccounts,
+} from './accounts';
 import { areaTab } from './admin';
 import { CSRF } from './catalog';
 import { GUEST_PASSWORD, OWNER, SEERR_BASE } from './env';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 import { SEERR_API_KEY, USERS } from './seerr-server.mjs';
 
 // Medien › Wünsche (concept 25, M-24 and M-25) against the real server and the Seerr mock
@@ -70,10 +81,21 @@ async function provisionSettled(api: APIRequestContext): Promise<void> {
     .toBe(0);
 }
 
+/** Steers the Seerr mock (`failCreate`, `used`). */
+async function seerrControl(body: object): Promise<void> {
+  const response = await fetch(`${SEERR_BASE}/__control`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  expect(response.ok).toBe(true);
+}
+
 interface Mapping {
   accountId: number;
   email: string;
   seerrUserId?: number;
+  state?: string;
 }
 
 const mappings = async (api: APIRequestContext) =>
@@ -308,4 +330,122 @@ test('the settings take effect at once by keyboard; a refused change rolls back 
   await expect(shows).toBeChecked();
   await page.unroute('**/api/v1/admin/wishes/settings');
   await expectNoFocusTrap(page, 80);
+});
+
+test('an account opened in Seerr, a waiting one tried again, the password mode and «Alle eröffnen» by keyboard @keyboard', async ({
+  page,
+  owner,
+  playwright,
+  baseURL,
+}) => {
+  const OTHER = { email: 'wuensche-zwei@slouchcat.test', password: GUEST_PASSWORD };
+  await connect(owner);
+  // The guest arrives while opening is off: both accounts are without a Seerr user.
+  await send(owner, 'put', '/admin/wishes/settings', { provisionAccounts: false });
+  const anonymous = await anonymousApi(playwright, baseURL ?? '');
+  const invitation = await createInvitation(owner);
+  await acceptInvitation(anonymous, invitation.token, {
+    email: OTHER.email,
+    password: OTHER.password,
+    profileName: 'Zwei',
+    language: 'de',
+  });
+  await anonymous.dispose();
+
+  try {
+    await page.goto('/admin/wishes?tab=seerr-benutzer');
+    const all = page.getByRole('button', { name: 'Alle eröffnen' });
+    // Opening is off: the button is locked and says why, with the way to the setting.
+    await expect(all).toBeDisabled();
+    await expect(
+      page.getByText('«Neue Konten in Seerr eröffnen» ist ausgeschaltet.'),
+    ).toBeVisible();
+    await send(owner, 'put', '/admin/wishes/settings', { provisionAccounts: true });
+    await page.reload();
+    await expect(all).toBeEnabled();
+
+    // The owner's row: Seerr answers with an error, the account waits with the reason.
+    const toggle = rowToggle(page, OWNER.email);
+    await resetFocus(page);
+    await tabTo(page, toggle, 60);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await seerrControl({ failCreate: true });
+    const open = page.getByRole('button', { name: 'In Seerr eröffnen' }).first();
+    await tabTo(page, open, 10);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(`Noch nicht in Seerr eröffnet: ${OWNER.email} wartet`, { exact: false }),
+    ).toBeVisible();
+    await expect(page.getByText('Wartet auf Seerr', { exact: true })).toBeVisible();
+    await expect(page.getByText(/mit einem Fehler geantwortet/)).toBeVisible();
+
+    // «Erneut versuchen» once Seerr answers again opens the account.
+    await seerrControl({ failCreate: false });
+    await provisionSettled(owner);
+    const retry = page.getByRole('button', { name: 'Erneut versuchen' });
+    if ((await retry.count()) > 0) {
+      await retry.focus();
+      await expectVisibleFocus(page);
+      await page.keyboard.press('Enter');
+    }
+    const row = page
+      .getByRole('table', { name: 'Konten und ihre Seerr-Benutzer' })
+      .getByRole('row')
+      .filter({ has: page.getByRole('button', { name: OWNER.email, exact: true }) });
+    await expect(row.getByText('Von Slouchcat eröffnet')).toBeVisible();
+    await provisionSettled(owner);
+
+    // The password mode switches at once, both ways.
+    const passwordOff = page.getByRole('button', { name: 'Passwort nicht abgleichen' });
+    await tabTo(page, passwordOff, 10);
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(`Das Passwort von ${OWNER.email} wird nicht mehr mit Seerr abgeglichen.`),
+    ).toBeVisible();
+    const passwordNext = page.getByRole('button', {
+      name: 'Passwort bei der nächsten Anmeldung neu übernehmen',
+    });
+    await passwordNext.focus();
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText(`Das Passwort von ${OWNER.email} geht bei der nächsten Anmeldung an Seerr.`),
+    ).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // «Alle eröffnen» asks and names the counts; Escape keeps everything, Enter opens.
+    await all.focus();
+    await page.keyboard.press('Enter');
+    const question = page.getByRole('alertdialog', { name: 'Alle Konten in Seerr eröffnen?' });
+    await expect(question).toBeVisible();
+    await expect(
+      question.getByText('Über gleiche E-Mail verknüpfen: 0 · In Seerr neu anlegen: 1.'),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(question).toBeHidden();
+    await expectFocusOn(page, all);
+    await page.keyboard.press('Enter');
+    await expect(question).toBeVisible();
+    await question.getByRole('button', { name: 'Alle eröffnen' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Eröffnen läuft: 0 verknüpfen, 1 neu anlegen.')).toBeVisible();
+    await expect
+      .poll(async () => (await mappings(owner)).find((m) => m.email === OTHER.email)?.state, {
+        timeout: 15_000,
+      })
+      .toBe('created');
+    await provisionSettled(owner);
+    await expectNoFocusTrap(page, 80);
+  } finally {
+    await seerrControl({ failCreate: false });
+    await provisionSettled(owner);
+    for (const mapping of await mappings(owner)) {
+      if (mapping.seerrUserId !== undefined) {
+        await send(owner, 'put', `/admin/wishes/mappings/accounts/${mapping.accountId}`, {
+          seerrUserId: null,
+        });
+      }
+    }
+    await removeInvitedAccounts(owner);
+  }
 });

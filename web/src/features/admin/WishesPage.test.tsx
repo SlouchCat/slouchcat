@@ -117,8 +117,192 @@ describe('Wünsche › Seerr-Benutzer', () => {
     // The limit: films and seasons on a line each, the mode apart; no placeholder left unfilled.
     expect(screen.getByText('10 Filme / 7 Tage')).toBeVisible();
     expect(screen.getByText('5 Staffeln / 7 Tage')).toBeVisible();
-    expect(screen.getByText('Standard')).toBeVisible();
+    // «Standard» stands in the limit column and in the fold-out.
+    expect(screen.getAllByText('Standard')).toHaveLength(2);
     expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('«In Seerr eröffnen» names the user of the same e-mail; Seerr away, the account waits', async () => {
+    const same = user(4, 'besitzer', { email: 'Besitzer@example.org' });
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({ accounts: [mapping()], unlinkedUsers: [same], opened: 0, total: 1 }),
+        'GET /admin/wishes/mappings/users': () => json([...USERS, same]),
+        'POST /admin/wishes/accounts/1/provision': () =>
+          json(mapping({ state: 'waiting', provisionError: 'unreachable' }), 202),
+      }),
+    );
+    renderApp('/admin/wishes?item=1');
+    const user$ = userEvent.setup();
+    expect(await screen.findByText('In Seerr gibt es schon «besitzer»')).toBeVisible();
+    await user$.click(screen.getByRole('button', { name: 'In Seerr eröffnen' }));
+    expect(
+      await screen.findByText(/Noch nicht in Seerr eröffnet: besitzer@example.org wartet/),
+    ).toBeVisible();
+    expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/provision'))).toBe(
+      true,
+    );
+  });
+
+  it('a waiting account names its reason and offers «Erneut versuchen»', async () => {
+    mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({
+            accounts: [mapping({ state: 'waiting', provisionError: 'timeout' })],
+            unlinkedUsers: [],
+            opened: 0,
+            total: 1,
+          }),
+      }),
+    );
+    renderApp('/admin/wishes?item=1');
+    expect(await screen.findByText('Wartet auf Seerr')).toBeVisible();
+    expect(screen.getByText(/nicht rechtzeitig geantwortet/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeEnabled();
+  });
+
+  it('opening is locked while «Neue Konten in Seerr eröffnen» is off, with the reason', async () => {
+    mockApi(
+      routes({ 'GET /admin/wishes/settings': () => json(settings({ provisionAccounts: false })) }),
+    );
+    renderApp('/admin/wishes?item=1');
+    expect(await screen.findByRole('button', { name: 'In Seerr eröffnen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Alle eröffnen' })).toBeDisabled();
+    expect(
+      screen.getAllByText('«Neue Konten in Seerr eröffnen» ist ausgeschaltet.').length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('switches the password mode at once; a refusal stands at the row', async () => {
+    let answer = () =>
+      json(
+        mapping({
+          seerrUserId: 2,
+          state: 'linked',
+          linkedBy: 'admin',
+          passwordState: 'next_login',
+        }),
+      );
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({
+            accounts: [mapping({ seerrUserId: 2, state: 'linked', passwordState: 'off' })],
+            unlinkedUsers: [],
+            opened: 1,
+            total: 1,
+          }),
+        'GET /admin/wishes/mappings/users': () => json([user(2, 'wohnzimmer', { userType: 2 })]),
+        'PUT /admin/wishes/accounts/1/password': () => answer(),
+      }),
+    );
+    renderApp('/admin/wishes?item=1');
+    const user$ = userEvent.setup();
+    const next = await screen.findByRole('button', {
+      name: 'Passwort bei der nächsten Anmeldung neu übernehmen',
+    });
+    await user$.click(next);
+    expect(
+      await screen.findByText(/Das Passwort von besitzer@example.org geht bei der nächsten/),
+    ).toBeVisible();
+    expect(calls.find((call) => call.path.endsWith('/password'))?.body).toEqual({
+      mode: 'next_login',
+    });
+    answer = () => problem(409, 'password_not_syncable');
+    await user$.click(
+      await screen.findByRole('button', {
+        name: 'Passwort bei der nächsten Anmeldung neu übernehmen',
+      }),
+    );
+    expect(await screen.findByText(/gleicht Slouchcat nicht ab: Er ist in Seerr/)).toBeVisible();
+  });
+
+  it('shows what the limit has used, the next free place and «Kein Limit» for an administrator', async () => {
+    mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({
+            accounts: [
+              mapping({
+                seerrUserId: 2,
+                state: 'created',
+                passwordState: 'synced',
+                provisionError: 'email_taken',
+                quota: {
+                  unlimited: false,
+                  movie: {
+                    limit: 10,
+                    days: 7,
+                    used: 9,
+                    queued: 0,
+                    remaining: 1,
+                    nextFreeAt: '2026-11-20T10:00:00Z',
+                  },
+                  tv: { limit: 5, days: 7, used: 2, queued: 0, remaining: 3 },
+                },
+              }),
+              mapping({
+                accountId: 2,
+                email: 'chef@example.org',
+                seerrUserId: 3,
+                state: 'linked',
+                passwordState: 'admin',
+                limit: {
+                  mode: 'default',
+                  effective: { movie: { limit: 10, days: 7 }, tv: { limit: 5, days: 7 } },
+                  seerrAdmin: true,
+                },
+                quota: { unlimited: true, reason: 'admin' },
+              }),
+            ],
+            unlinkedUsers: [],
+            opened: 2,
+            total: 2,
+          }),
+        'GET /admin/wishes/mappings/users': () =>
+          json([user(2, 'wohnzimmer', { userType: 2 }), user(3, 'chef', { isAdmin: true })]),
+      }),
+    );
+    renderApp('/admin/wishes?item=1');
+    expect(await screen.findByText('Filme 9/10 · Staffeln 2/5')).toBeVisible();
+    expect(
+      screen.getByText(/Filme: 9 von 10 in 7 Tagen · noch 1 frei · nächster Platz frei am/),
+    ).toBeVisible();
+    expect(screen.getByText('Staffeln: 2 von 5 in 7 Tagen · noch 3 frei')).toBeVisible();
+    expect(screen.getByText('Seerr hat die neue E-Mail abgelehnt')).toBeVisible();
+    expect(screen.getByText('Kein Limit')).toBeVisible();
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('«Alle eröffnen» asks first and names how many link and how many are opened', async () => {
+    const same = user(4, 'besitzer', { email: 'besitzer@example.org' });
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings': () =>
+          json({
+            accounts: [mapping(), mapping({ accountId: 2, email: 'neu@example.org' })],
+            unlinkedUsers: [same],
+            opened: 0,
+            total: 2,
+          }),
+        'GET /admin/wishes/mappings/users': () => json([...USERS, same]),
+        'POST /admin/wishes/accounts/provision': () => json({ link: 1, create: 1 }, 202),
+      }),
+    );
+    renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    await user$.click(await screen.findByRole('button', { name: 'Alle eröffnen' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Alle Konten in Seerr eröffnen?',
+    });
+    expect(
+      within(dialog).getByText('Über gleiche E-Mail verknüpfen: 1 · In Seerr neu anlegen: 1.'),
+    ).toBeVisible();
+    expect(calls.some((call) => call.path.endsWith('/accounts/provision'))).toBe(false);
+    await user$.click(within(dialog).getByRole('button', { name: 'Alle eröffnen' }));
+    expect(await screen.findByText('Eröffnen läuft: 1 verknüpfen, 1 neu anlegen.')).toBeVisible();
   });
 
   it('a user taken meanwhile answers 409 at the row and the choice springs back', async () => {
