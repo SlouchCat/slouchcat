@@ -9,6 +9,7 @@ import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from '@/features/catal
 import { TRAILER_KEY } from '@/features/catalog/DetailActions';
 import {
   externalTitleQuery,
+  useCreateWish,
   useWithdrawWish,
   wishesSource,
   type ExternalMedia,
@@ -69,7 +70,8 @@ const MEDIA: readonly ExternalMedia[] = ['movie', 'show'];
 /**
  * The preview page of a title outside the library (concept 25, 5.1, M-03/M-04): the head of a
  * detail page with the chip «Noch nicht in der Bibliothek», the big button «Film anfordern» or
- * «Serie anfordern» (or the state of the profile's wish, which leads to «Meine Wünsche»), the
+ * «Serie anfordern» (or the state of the profile's wish, which leads to «Meine Wünsche»; on a film
+ * another profile wished, its state and «Benachrichtige mich», F-7), the
  * trailer, the wish card, the last closed wish and the seasons of a series. Whether the profile
  * may see and request the title is the server's answer (rule 12): 404 is «not there», 409 a title
  * of the library, which the page opens instead.
@@ -131,6 +133,7 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [done, setDone] = useState<Wish | null>(null);
   const withdraw = useWithdrawWish();
+  const join = useCreateWish();
   const openWish = useOpenWish(title?.wish?.id);
 
   // A title of the library the profile sees (409 `already_available`): its own page instead.
@@ -172,6 +175,8 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
   }
 
   const wish = title.wish;
+  // Another profile's open wish on the film (F-7): its state, never who; join it or only see it.
+  const shared = wish ? undefined : title.request.shared;
   const canRequest = title.request.canRequest && !wish;
   const startKey = wish || canRequest ? REQUEST_KEY : BACK_KEY;
   const hasTrailer = title.trailers.length > 0 && online;
@@ -195,6 +200,37 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
       >
         {wishStateText(t, wish.state, wish.stateDetail)}
       </SpatialButtonLink>
+    );
+  } else if (shared?.canJoin) {
+    // «Benachrichtige mich» (concept 25, 4.3): one press joins, no dialog, no limit used.
+    action = (
+      <SpatialButton
+        focusKey={REQUEST_KEY}
+        variant="primary"
+        size="lg"
+        icon="bell"
+        aria-disabled={join.isPending || undefined}
+        onPress={() => {
+          if (join.isPending) return;
+          setDone(null);
+          join.mutate(
+            { media, tmdbId, source: 'detail' },
+            {
+              // The big button turns into the state of the joined wish and keeps the focus.
+              onSuccess: (made) => {
+                setDone(made);
+                setSpatialFocus(REQUEST_KEY);
+              },
+              onError: (error) => {
+                const item = availableItem(error);
+                if (item) toLibrary(item);
+              },
+            },
+          );
+        }}
+      >
+        {t('titles.join')}
+      </SpatialButton>
     );
   } else if (canRequest) {
     action = (
@@ -258,6 +294,9 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
                   title={t(done.role === 'joined' ? 'titles.done.joined' : 'titles.done.requested')}
                 />
               )}
+              {join.isError && !availableItem(join.error) && (
+                <Notice tone="danger" title={wishProblemMessage(t, join.error)} />
+              )}
               {withdraw.isError && (
                 <Notice tone="danger" title={wishProblemMessage(t, withdraw.error)} />
               )}
@@ -278,7 +317,19 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
               />
             </div>
           )}
-          {reason && reason !== 'already_requested' && (
+          {shared && (
+            <div className={itemStyles.block}>
+              <Notice
+                tone="info"
+                title={t('titles.shared.title', {
+                  state: wishStateText(t, shared.state, shared.stateDetail),
+                })}
+              >
+                {t(shared.canJoin ? 'titles.shared.join' : 'titles.shared.statusOnly')}
+              </Notice>
+            </div>
+          )}
+          {!shared && reason && reason !== 'already_requested' && (
             <div className={itemStyles.block}>
               <Notice
                 tone={reason === 'status_only' ? 'info' : 'warning'}

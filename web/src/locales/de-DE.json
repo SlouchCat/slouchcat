@@ -710,6 +710,9 @@
   "titles": {
     "done": {
       "requested": "Angefordert. Den Stand siehst du unter „Meine Wünsche“."
+    },
+    "shared": {
+      "join": "Ein anderes Profil hat diesen Film schon angefordert. Mit „Benachrichtige mich“ meldet sich Slouchcat auch bei dir, sobald er abspielbar ist."
     }
   },
   "wishes": {

@@ -271,4 +271,68 @@ describe('preview page of a title outside the library (concept 25, 5.1)', () => 
     expect(within(card).getByText('Wird heruntergeladen · 60 % · noch 5 min')).toBeVisible();
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
   });
+  it('joins a film another profile wished with «Benachrichtige mich»; only the state without the right (F-7)', async () => {
+    let joined = false;
+    const shared = { state: 'pending' as const, canJoin: true };
+    const { calls } = mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () =>
+        json(
+          joined
+            ? { ...film, wish: { id: 41, state: 'pending' } }
+            : { ...film, request: { ...film.request, shared } },
+        ),
+      'GET /wishes': () =>
+        json({
+          items: joined ? [wishOf(film, { role: 'joined' })] : [],
+          total: joined ? 1 : 0,
+          counts,
+        }),
+      'POST /wishes': () => {
+        joined = true;
+        return json(wishOf(film, { role: 'joined' }), 201);
+      },
+    });
+    renderApp('/titles/movie/9001');
+    expect(await screen.findByText('Bereits angefordert · Freigabe ausstehend')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Film anfordern' })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Benachrichtige mich' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        media: 'movie',
+        tmdbId: 9001,
+        source: 'detail',
+      }),
+    );
+    expect(await screen.findByRole('link', { name: 'Freigabe ausstehend' })).toBeVisible();
+    expect(screen.getByText('Du wirst benachrichtigt, sobald der Titel da ist.')).toBeVisible();
+    const card = await screen.findByRole('region', { name: 'Dein Wunsch' });
+    expect(within(card).getByText(/du wünschst mit/)).toBeVisible();
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it("shows only the state of another profile's wish when it may not join", async () => {
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () =>
+        json({
+          ...film,
+          canRequest: false,
+          request: {
+            ...film.request,
+            canRequest: false,
+            reason: 'status_only',
+            shared: { state: 'processing', stateDetail: 'importing', canJoin: false },
+          },
+        }),
+    });
+    renderApp('/titles/movie/9001');
+    expect(
+      await screen.findByText('Bereits angefordert · In Beschaffung · wird eingelesen'),
+    ).toBeVisible();
+    expect(screen.getByText(/Sobald er abspielbar ist, findest du ihn/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Benachrichtige mich' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Film anfordern' })).toBeNull();
+  });
 });

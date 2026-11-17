@@ -7184,6 +7184,12 @@
         "declined": "Seerr nennt keinen Grund. Du kannst den Titel erneut anfordern.",
         "withdrawn": "Du hast ihn zurückgezogen."
       }
+    },
+    "join": "Benachrichtige mich",
+    "shared": {
+      "title": "Bereits angefordert · {{state}}",
+      "join": "Ein anderes Profil hat diesen Film schon angefordert. Mit «Benachrichtige mich» meldet sich Slouchcat auch bei dir, sobald er abspielbar ist.",
+      "statusOnly": "Ein anderes Profil hat diesen Film schon angefordert. Sobald er abspielbar ist, findest du ihn in der Bibliothek."
     }
   }
 }

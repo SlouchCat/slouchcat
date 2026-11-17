@@ -7184,6 +7184,12 @@
         "declined": "Seerr gives no reason. You can request the title again.",
         "withdrawn": "You withdrew it."
       }
+    },
+    "join": "Notify me",
+    "shared": {
+      "title": "Already requested · {{state}}",
+      "join": "Another profile has already requested this film. With “Notify me” Slouchcat lets you know too as soon as it can be played.",
+      "statusOnly": "Another profile has already requested this film. As soon as it can be played, you will find it in the library."
     }
   }
 }
