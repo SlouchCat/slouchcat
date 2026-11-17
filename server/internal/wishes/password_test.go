@@ -37,10 +37,12 @@ func (f *fixture) withAuth() *auth.Service {
 	return auth.New(f.db, f.log).WithPasswordSeen(f.svc.PasswordSeen)
 }
 
-// accept invites email and accepts it with password; it returns the session.
+// accept invites email with the request right and accepts it with password; it returns the
+// session. Without the right the new user waits for its rights before the password follows
+// (TestCreatedUserWithoutRequestRightWaitsForTheRights).
 func (f *fixture) accept(a *auth.Service, email, password string) model.Session {
 	f.t.Helper()
-	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 12, AllLibraries: true})
+	inv, err := a.CreateInvitation(f.ctx, model.Account{ID: 1}, model.InvitationRequest{MaxRating: 12, AllLibraries: true, CanRequest: new(true)})
 	if err != nil {
 		f.t.Fatal(err)
 	}

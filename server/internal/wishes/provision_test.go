@@ -657,3 +657,48 @@ func TestCreatedUserIDTaken(t *testing.T) {
 		t.Errorf("mapping = %+v", a)
 	}
 }
+
+// An accepted invitation of an account without the request right (review m-1): the new user gets
+// a random password, so the defaultPermissions it holds until the rights are 0 sign nobody in; a
+// sign-in before the retry hands nothing over, the retry sets the rights 0, and the account's
+// password follows at the next sign-in only.
+func TestCreatedUserWithoutRequestRightWaitsForTheRights(t *testing.T) {
+	f := newFixture(t)
+	f.exec(`UPDATE accounts SET can_request = 0 WHERE id = 2`)
+	f.fake.SetFailure("POST /user/{id}/settings/permissions", seerrtest.Failure{Status: 503, Times: 1})
+	if err := f.svc.handOver(f.ctx, 2, "gast@example.test", testPassword, MomentInvitation); err != nil {
+		t.Fatal(err)
+	}
+	m := f.mapping(2)
+	if m.State != OriginCreated || m.SeerrUserID == nil || m.PasswordState != PasswordNextLogin {
+		t.Fatalf("after the failed rights = %+v", m)
+	}
+	id := *m.SeerrUserID
+	if u, _ := f.fake.User(id); u.Password == testPassword || u.Password == "" || u.Permissions == 0 {
+		t.Fatalf("new user = %+v", u)
+	}
+	// A sign-in while Seerr still refuses the rights hands nothing over.
+	f.fake.SetFailure("POST /user/{id}/settings/permissions", seerrtest.Failure{Status: 503, Times: 1})
+	if err := f.svc.handOver(f.ctx, 2, "gast@example.test", testPassword, MomentLogin); err == nil {
+		t.Error("the sign-in did not report the refused rights")
+	}
+	if u, _ := f.fake.User(id); u.Password == testPassword || f.fake.Calls("POST /user/{id}/settings/password") != 0 {
+		t.Errorf("password handed over before the rights were 0")
+	}
+	if n := f.runQueued(JobProvision); n < 1 {
+		t.Fatal("no retry queued")
+	}
+	if u, _ := f.fake.User(id); u.Permissions != 0 || u.Password == testPassword {
+		t.Errorf("after the retry = %+v", u)
+	}
+	if m := f.mapping(2); m.PasswordState != PasswordNextLogin {
+		t.Errorf("password state after the retry = %q", m.PasswordState)
+	}
+	if err := f.svc.handOver(f.ctx, 2, "gast@example.test", testPassword, MomentLogin); err != nil {
+		t.Fatal(err)
+	}
+	if u, _ := f.fake.User(id); u.Password != testPassword || f.mapping(2).PasswordState != PasswordSynced {
+		t.Errorf("after the sign-in: password %q, state %q", u.Password, f.mapping(2).PasswordState)
+	}
+	f.noPasswordAnywhere(testPassword)
+}

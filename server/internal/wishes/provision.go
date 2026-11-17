@@ -368,13 +368,20 @@ func (s *Service) provisionRun(ctx context.Context, accountID int64, run provisi
 		return "", nil
 	}
 	if hit == nil {
-		u, created, err := s.createUser(ctx, admin, acc.Email, password, ws)
+		// Without the request right the new user starts with a random password (review m-1): Seerr
+		// gives it defaultPermissions until the rights are 0, and the account's password follows at
+		// the next sign-in (next_login) only after that.
+		newPassword := password
+		if acc.CanRequest != 1 {
+			newPassword = ""
+		}
+		u, created, err := s.createUser(ctx, admin, acc.Email, newPassword, ws)
 		if err != nil {
 			return s.wait(ctx, accountID, linkedBy, setBy, err)
 		}
 		if !created {
 			hit = &u // 409: the user exists after all
-		} else if ready, err := s.opened(ctx, admin, acc, u, password != "" && ws.SyncPassword, ws, setBy); ready {
+		} else if ready, err := s.opened(ctx, admin, acc, u, newPassword != "" && ws.SyncPassword, ws, setBy); ready {
 			return StateReady, err
 		} else if errors.Is(err, model.ErrSeerrUserTaken) {
 			return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserTaken)

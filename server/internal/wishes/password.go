@@ -155,6 +155,19 @@ func (s *Service) handOver(ctx context.Context, accountID int64, email, password
 	if err != nil {
 		return err
 	}
+	if m.Origin.String == OriginCreated {
+		// A user Slouchcat opened for an account without the request right gets the password only
+		// once its rights are 0 (review m-1); else it stays next_login.
+		acc, err := s.read.GetProvisionAccount(ctx, accountID)
+		if err != nil {
+			return fmt.Errorf("account: %w", err)
+		}
+		if acc.CanRequest != 1 {
+			if err := s.syncRights(ctx, admin, acc, m); err != nil {
+				return err
+			}
+		}
+	}
 	s.setPassword(ctx, admin, accountID, int(m.SeerrUserID.Int64), password)
 	return nil
 }
