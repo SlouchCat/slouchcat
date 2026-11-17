@@ -148,8 +148,8 @@ function images(kind, title) {
     vote_count: 10,
   });
   return {
-    posters: [image(posterPath(kind, title), 600, 900)],
-    backdrops: [image(backdropPath(kind, title), 1280, 720)],
+    posters: [image(posterPath(kind, title), 800, 1200)],
+    backdrops: [image(backdropPath(kind, title), 1920, 1080)],
     logos: [],
   };
 }
@@ -303,7 +303,9 @@ export function startTmdbServer({
         response.writeHead(404).end();
         return;
       }
-      const body = role === 'poster' ? png(60, 90, title.color) : png(128, 72, title.color);
+      // Big enough for every size the server keeps (posters to w800, backdrops to w1920): a
+      // picture is never scaled up.
+      const body = role === 'poster' ? png(800, 1200, title.color) : png(1920, 1080, title.color);
       response.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': body.length });
       response.end(body);
       return;

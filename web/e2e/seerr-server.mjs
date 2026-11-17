@@ -51,6 +51,7 @@
 //                                    status (approve 2, decline 3, fail 4, complete 5)
 //   GET  /__requests                 every request, for the specs' checks
 //   POST /__reset                    the first instance, the five users of USERS and no requests
+//                                    (request ids go on counting)
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { MOVIES, SHOWS } from './tmdb-server.mjs';
@@ -642,8 +643,8 @@ export function startSeerrServer({
         nextId = 20;
         failCreate = false;
         used = {};
+        // Request ids go on counting, as Seerr's do: the server keeps the ids of earlier wishes.
         requests = [];
-        nextRequest = 100;
         response.writeHead(204).end();
         return;
       }
