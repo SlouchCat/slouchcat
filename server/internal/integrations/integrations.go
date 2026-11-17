@@ -69,6 +69,8 @@ type Service struct {
 	baseURL func(ctx context.Context) string
 
 	limits *limiters
+
+	seerr SeerrSync // the sync a Seerr notification triggers (seerr.go); nil ignores them
 }
 
 // Option configures New.
@@ -135,7 +137,7 @@ func (s *Service) Create(ctx context.Context, name, kind string) (model.Integrat
 	if name == "" || len([]rune(name)) > 80 {
 		verr = verr.Add("name", "required")
 	}
-	if kind != model.IntegrationRadarr && kind != model.IntegrationSonarr {
+	if kind != model.IntegrationRadarr && kind != model.IntegrationSonarr && kind != model.IntegrationSeerr {
 		verr = verr.Add("kind", "invalid")
 	}
 	if verr != nil {

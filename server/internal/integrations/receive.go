@@ -37,7 +37,8 @@ const testEvent = "test"
 // Receive handles one webhook: it authenticates the token, enforces the rate limit, records the
 // call in the event log and queues a scan.path job when the event changed files. It returns
 // model.ErrWebhookToken (401), model.ErrWebhookRateLimited (429), model.ErrWebhookPathOutside (422) or a validation error (422);
-// every other event is accepted and ignored.
+// every other event is accepted and ignored. A notification on an integration of the kind seerr
+// only queues the sync of the wishes (receiveSeerr).
 func (s *Service) Receive(ctx context.Context, token string, p model.WebhookPayload) (model.WebhookReceipt, error) {
 	integ, err := s.Authenticate(ctx, token)
 	if err != nil {
@@ -50,6 +51,9 @@ func (s *Service) Receive(ctx context.Context, token string, p model.WebhookPayl
 		ID: integ.ID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
 	}); err != nil {
 		return model.WebhookReceipt{}, fmt.Errorf("touch integration: %w", err)
+	}
+	if integ.Kind == model.IntegrationSeerr {
+		return s.receiveSeerr(ctx, integ, p)
 	}
 
 	event := strings.TrimSpace(p.Event)

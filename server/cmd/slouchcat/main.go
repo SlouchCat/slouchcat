@@ -421,7 +421,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			return ""
 		}
 		return u + api.BasePath
-	}))
+	}), integrations.WithSeerrSync(wishSvc)) // the Seerr webhook triggers the wish sync (F-18)
 	adminSvc.WithIntegrations(integrationSvc)
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
