@@ -18,6 +18,7 @@ import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
+import { validateWishesParams } from '@/features/wishes/wishesParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -658,6 +659,14 @@ const titleRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/titles/TitlePage'), 'TitlePage'),
 });
 
+const wishesViewerRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/wishes',
+  // state (open, available, closed); anything else is dropped.
+  validateSearch: validateWishesParams,
+  component: lazyRouteComponent(() => import('@/features/wishes/WishesPage'), 'WishesPage'),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -836,6 +845,7 @@ export const routeTree = rootRoute.addChildren([
         radioRoute,
         // concept 25
         titleRoute,
+        wishesViewerRoute,
       ]),
       playRoute,
       setupStepRoute,

@@ -53,7 +53,10 @@
       "other": "Additional profile",
       "primary": "Primary profile",
       "admin": "Server admin"
-    }
+    },
+    "wishes": "Wishes",
+    "wishesLabel_one": "{{name}}, {{count}} open wish",
+    "wishesLabel_other": "{{name}}, {{count}} open wishes"
   },
   "system": {
     "server": {
@@ -5906,7 +5909,8 @@
     "notFound": {
       "title": "Link not found",
       "body": "This invitation link does not exist. Check that you copied all of it."
-    }
+    },
+    "seerrAccount": "Your login works for Seerr too: accepting creates an account there with the same e-mail address and password."
   },
   "kind": {
     "movie": "Film",
@@ -6278,7 +6282,12 @@
     "empty": {
       "title": "No notifications",
       "body": "Put series or podcasts on your watchlist to hear about new episodes here."
-    }
+    },
+    "wish_available": "Your wish is here",
+    "wish_season_available": "A season of your wish is here",
+    "wish_approved": "Your wish is approved",
+    "wish_declined": "Your wish was declined",
+    "wish_failed": "Your wish failed"
   },
   "settings": {
     "playback": {
@@ -6870,6 +6879,41 @@
       "join": "Notify me",
       "submitSeasons_one": "Request {{count}} season",
       "submitSeasons_other": "Request {{count}} seasons"
+    },
+    "page": {
+      "title": "My wishes",
+      "count_one": "{{count}} open wish",
+      "count_other": "{{count}} open wishes",
+      "limit": "Limit: {{limit}}",
+      "offline": "Only available online: the wishes live on the server.",
+      "filters": {
+        "label": "Filter wishes",
+        "all": "All",
+        "open": "Open",
+        "available": "Available",
+        "closed": "Closed"
+      },
+      "filter": "State",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "No wishes yet.",
+        "body": "What you request shows up here with its state."
+      },
+      "emptyFilter": {
+        "open": "No open wishes.",
+        "available": "No wish is available yet.",
+        "closed": "No closed wishes."
+      }
+    },
+    "row": {
+      "open": "To the title",
+      "play": "Play",
+      "withdrawLabel": "Withdraw {{title}}",
+      "withdrawJoinedLabel": "{{title}}: stop joining",
+      "again": "Request again",
+      "againLabel": "Request {{title}} again",
+      "history": "History: {{last}}",
+      "fromSeerr": "made in Seerr"
     }
   },
   "titles": {

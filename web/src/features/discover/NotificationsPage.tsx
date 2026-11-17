@@ -61,10 +61,31 @@ function entryLabel(t: TFunction, entry: Notification, language: string): string
     : t('notifications.entryLabelUnread', values);
 }
 
+/** The kinds of an entry about a wish (concept 25, M-09), each with its own context line. */
+const WISH_KINDS = [
+  'wish_available',
+  'wish_season_available',
+  'wish_approved',
+  'wish_declined',
+  'wish_failed',
+] as const;
+const isWishKind = (kind: Notification['kind']): kind is (typeof WISH_KINDS)[number] =>
+  WISH_KINDS.some((known) => known === kind);
+
 function entryContext(t: TFunction, entry: Notification): string {
+  if (isWishKind(entry.kind)) return t(`notifications.${entry.kind}`);
   if (!entry.item) return '';
   const parent = entry.parent?.title ?? entry.item.seriesTitle;
   return parent ? t('notifications.newEpisode', { parent }) : t('notifications.newEpisodeAlone');
+}
+
+/**
+ * Where an entry leads: its title when the profile sees it (an episode, a fulfilled wish), else
+ * «Meine Wünsche» for a wish whose title the profile cannot open (concept 25, M-09).
+ */
+function entryHref(entry: Notification): string {
+  if (entry.item) return paths.item(entry.item.id);
+  return entry.wish ? paths.wishes : paths.notifications;
 }
 
 /**
@@ -161,7 +182,7 @@ export function NotificationsPage() {
               renderItem={(entry) => (
                 <InboxEntry
                   focusKey={entryKey(entry)}
-                  href={entry.item ? paths.item(entry.item.id) : paths.notifications}
+                  href={entryHref(entry)}
                   title={entryTitle(t, entry)}
                   context={entryContext(t, entry)}
                   time={formatDateTime(entry.createdAt, intlLocale(i18n.language))}

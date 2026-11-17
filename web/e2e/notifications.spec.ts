@@ -142,3 +142,40 @@ test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus t
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL((url) => url.pathname === '/');
 });
+
+// Concept 25 (M-09): an entry about a wish. The server writes them when a wished title arrives
+// in the library, which the suite's file-named titles cannot do; the inbox's answer is therefore
+// set here (the shapes of the contract), the page and its links are the real ones.
+test('an entry about a wish: its context, the title when the profile sees it, else «Meine Wünsche»', async ({
+  page,
+}) => {
+  const now = new Date().toISOString();
+  const entries = [
+    {
+      id: 9902,
+      kind: 'wish_available',
+      createdAt: now,
+      wish: { id: 77, media: 'movie', title: 'Glasvogel', state: 'available' },
+    },
+    {
+      id: 9901,
+      kind: 'wish_declined',
+      createdAt: now,
+      readAt: now,
+      wish: { id: 78, media: 'movie', title: 'Kupfermond', state: 'declined' },
+    },
+  ];
+  await page.route(/\/api\/v1\/notifications(\?.*)?$/, (route) =>
+    route.fulfill({
+      json: { notifications: entries, total: 2, unread: 1, offset: 0, limit: 50 },
+    }),
+  );
+  await page.goto('/notifications');
+  const list = page.getByRole('list', { name: 'Benachrichtigungen' });
+  const available = list.getByRole('link', { name: /Ungelesen: Glasvogel/ });
+  await expect(available.getByText('Dein Wunsch ist da')).toBeVisible();
+  await expect(available).toHaveAttribute('href', '/wishes');
+  const declined = list.getByRole('link', { name: /Kupfermond/ });
+  await expect(declined.getByText('Dein Wunsch wurde abgelehnt')).toBeVisible();
+  await expect(page.locator('#content')).not.toContainText('{{');
+});

@@ -53,7 +53,10 @@
       "other": "Weiteres Profil",
       "primary": "Hauptprofil",
       "admin": "Server-Admin"
-    }
+    },
+    "wishes": "Wünsche",
+    "wishesLabel_one": "{{name}}, {{count}} offener Wunsch",
+    "wishesLabel_other": "{{name}}, {{count}} offene Wünsche"
   },
   "system": {
     "server": {
@@ -5906,7 +5909,8 @@
     "notFound": {
       "title": "Link nicht gefunden",
       "body": "Diesen Einladungslink gibt es nicht. Prüfe, ob du ihn vollständig kopiert hast."
-    }
+    },
+    "seerrAccount": "Dein Login gilt auch für Seerr: Beim Annehmen entsteht dort ein Konto mit derselben E-Mail-Adresse und demselben Passwort."
   },
   "kind": {
     "movie": "Film",
@@ -6278,7 +6282,12 @@
     "empty": {
       "title": "Keine Benachrichtigungen",
       "body": "Setze Serien oder Podcasts auf deine Merkliste, dann erfährst du hier von neuen Folgen."
-    }
+    },
+    "wish_available": "Dein Wunsch ist da",
+    "wish_season_available": "Eine Staffel deines Wunsches ist da",
+    "wish_approved": "Dein Wunsch ist freigegeben",
+    "wish_declined": "Dein Wunsch wurde abgelehnt",
+    "wish_failed": "Dein Wunsch ist fehlgeschlagen"
   },
   "settings": {
     "playback": {
@@ -6870,6 +6879,41 @@
       "join": "Benachrichtige mich",
       "submitSeasons_one": "{{count}} Staffel anfordern",
       "submitSeasons_other": "{{count}} Staffeln anfordern"
+    },
+    "page": {
+      "title": "Meine Wünsche",
+      "count_one": "{{count}} offener Wunsch",
+      "count_other": "{{count}} offene Wünsche",
+      "limit": "Limit: {{limit}}",
+      "offline": "Nur online verfügbar: Die Wünsche liegen auf dem Server.",
+      "filters": {
+        "label": "Wünsche filtern",
+        "all": "Alle",
+        "open": "Offen",
+        "available": "Verfügbar",
+        "closed": "Abgeschlossen"
+      },
+      "filter": "Zustand",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Noch keine Wünsche.",
+        "body": "Was du anforderst, erscheint hier mit seinem Stand."
+      },
+      "emptyFilter": {
+        "open": "Keine offenen Wünsche.",
+        "available": "Noch kein Wunsch ist verfügbar.",
+        "closed": "Keine abgeschlossenen Wünsche."
+      }
+    },
+    "row": {
+      "open": "Zum Titel",
+      "play": "Abspielen",
+      "withdrawLabel": "{{title}}: zurückziehen",
+      "withdrawJoinedLabel": "{{title}}: nicht mehr mitwünschen",
+      "again": "Erneut anfordern",
+      "againLabel": "{{title}} erneut anfordern",
+      "history": "Verlauf: {{last}}",
+      "fromSeerr": "in Seerr angelegt"
     }
   },
   "titles": {

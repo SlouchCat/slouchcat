@@ -43,6 +43,18 @@ describe('invitation page', () => {
     expect(screen.getByLabelText(/^Passwort/)).toBeVisible();
     expect(screen.getByLabelText(/^Profilname/)).toBeVisible();
     expect(screen.getByRole('radio', { name: 'Deutsch (Schweiz)' })).toBeChecked();
+    // Without Seerr the page says nothing about it.
+    expect(screen.queryByText(/Seerr/)).toBeNull();
+  });
+
+  it('says the login holds for Seerr too when accepting opens the account there (concept 25)', async () => {
+    mockApi({
+      ...visitor,
+      [`GET /invitations/${TOKEN}`]: () => json({ ...preview, seerrAccount: true }),
+    });
+    renderApp(`/invite/${TOKEN}`);
+    const summary = await screen.findByRole('region', { name: 'Für: Oma' });
+    expect(within(summary).getByText(/Dein Login gilt auch für Seerr/)).toBeVisible();
   });
 
   it('explains a used, expired or revoked link (410)', async () => {

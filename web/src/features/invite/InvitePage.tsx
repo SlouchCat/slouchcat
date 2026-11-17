@@ -71,6 +71,8 @@ function Summary({ invitation }: { invitation: InvitationPreview }) {
           </dd>
         </div>
       </dl>
+      {/* Concept 25, N-94: accepting opens the account in Seerr with the same login too. */}
+      {invitation.seerrAccount && <Text tone="secondary">{t('invite.seerrAccount')}</Text>}
       <Text tone="muted" variant="caption">
         {t('invite.expires', {
           date: formatDateTime(invitation.expiresAt, intlLocale(i18n.language)),

@@ -45,6 +45,16 @@ export async function openWishes(
     account: { id: number };
   };
   const accountId = session.account.id;
+  // The server knows Seerr's users only once it read them (a job): read them and wait.
+  await send(api, 'post', '/admin/wishes/mappings/users/refresh');
+  await expect
+    .poll(async () => {
+      const users = (await (await api.get('/api/v1/admin/wishes/mappings/users')).json()) as {
+        id: number;
+      }[];
+      return users.some((user) => user.id === seerrUserId);
+    })
+    .toBe(true);
   await send(api, 'put', `/admin/wishes/mappings/accounts/${accountId}`, { seerrUserId });
   await send(
     api,
