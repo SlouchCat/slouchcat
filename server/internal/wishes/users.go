@@ -37,6 +37,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Name: JobUsers, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: usersPriority, Handler: s.handleUsers, Run: s.runUsers, Every: usersEvery,
 	})
+	r.Register(jobs.Type{
+		Name: JobProvision, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: provisionPriority, Handler: s.handleProvision,
+	})
 }
 
 func (s *Service) runUsers(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
@@ -93,6 +97,12 @@ func (s *Service) handleUsers(ctx context.Context, _ *jobs.Job) error {
 	err = s.refreshUsers(ctx, c.AsAdmin())
 	if !errors.Is(err, model.ErrInstanceChanged) {
 		s.recordOutcome(ctx, seerrErr(err))
+	}
+	if err == nil && s.queue != nil {
+		// Accounts that wait for Seerr and a missing shared user are tried again (18.2, N-101).
+		if qerr := s.queueAfterUsers(ctx); qerr != nil {
+			s.log.WarnContext(ctx, "seerr provisioning not queued after the refresh", "err", qerr)
+		}
 	}
 	switch {
 	case err == nil, errors.Is(err, model.ErrInstanceChanged), errors.Is(err, seerr.ErrKeyInvalid):

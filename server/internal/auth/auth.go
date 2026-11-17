@@ -62,6 +62,9 @@ type Service struct {
 	// Hooks of package notify (M8), set before the service runs; nil = none.
 	accountCreated     func(ctx context.Context, accountID int64) error
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
+	// accountDeleting runs before an account is deleted (package wishes, concept 25 K-2) and returns
+	// what runs after the deletion; nil = none.
+	accountDeleting func(ctx context.Context, accountID int64) func(context.Context)
 
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
 	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
@@ -119,6 +122,14 @@ func (s *Service) WithAccountCreated(fn func(ctx context.Context, accountID int6
 // An error is logged.
 func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAccountID int64, guestEmail string) error) *Service {
 	s.invitationAccepted = fn
+	return s
+}
+
+// WithAccountDeleting runs fn before DeleteAccount deletes an account, while its rows still exist,
+// and the function it returns after the deletion (wishes.AccountDeleting: the Seerr user Slouchcat
+// opened loses its rights, concept 25 K-2). It returns the receiver.
+func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64) func(context.Context)) *Service {
+	s.accountDeleting = fn
 	return s
 }
 

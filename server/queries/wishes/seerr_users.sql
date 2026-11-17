@@ -68,3 +68,9 @@ WHERE seerr_id = @seerr_id;
 -- Resetting the mapping after an instance change: the mirror belongs to the old instance. Run after
 -- DeleteAllAccountMappings (foreign key).
 DELETE FROM seerr_users;
+
+-- name: SetSeerrUserPermissions :exec
+-- The rights Slouchcat just wrote to a user it opened (N-110).
+UPDATE seerr_users SET permissions = @permissions,
+    is_admin = CASE WHEN (@permissions & 10) <> 0 THEN 1 ELSE 0 END
+WHERE seerr_id = @seerr_id;

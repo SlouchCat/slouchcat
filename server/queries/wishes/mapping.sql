@@ -86,3 +86,28 @@ WHERE a.can_request = 1
 
 -- name: AccountExists :one
 SELECT count(*) FROM accounts WHERE id = @account_id;
+
+-- name: GetProvisionAccount :one
+-- The account the provisioning opens or links a Seerr user for (build step 1.5a).
+SELECT id, email, can_request FROM accounts WHERE id = @account_id;
+
+-- name: ListUnprovisionedAccounts :many
+-- Accounts without a ready Seerr user ("Alle eroeffnen"), by id.
+SELECT a.id, a.email FROM accounts AS a
+WHERE NOT EXISTS (SELECT 1 FROM wish_account_map AS m WHERE m.account_id = a.id AND m.state = 'ready')
+ORDER BY a.id;
+
+-- name: ListWaitingMappings :many
+-- Accounts whose opening waits for Seerr; the users job queues them again.
+SELECT account_id, linked_by, set_by FROM wish_account_map WHERE state = 'waiting' ORDER BY account_id;
+
+-- name: ListRecentLinks :many
+-- The hint "Neu verknuepft" (N-93): accounts linked to an existing Seerr user after an invitation or
+-- an e-mail change since @since, newest first. Never after a link by an administrator.
+SELECT m.account_id, a.email AS account_email, m.seerr_user_id, u.display_name AS seerr_display_name,
+       m.linked_by, m.linked_at
+FROM wish_account_map AS m
+JOIN accounts AS a ON a.id = m.account_id
+JOIN seerr_users AS u ON u.seerr_id = m.seerr_user_id
+WHERE m.origin = 'linked' AND m.linked_by IN ('invite', 'email_change') AND m.linked_at >= @since
+ORDER BY m.linked_at DESC, m.account_id;

@@ -4645,6 +4645,11 @@
           "description": "Reads the users of Seerr with their rights and limits and checks that Slouchcat still talks to the same Seerr instance.",
           "trigger": "daily, «Reload user list», after the connection to Seerr was saved"
         },
+        "seerr_provision": {
+          "name": "Open accounts in Seerr",
+          "description": "Opens or links the Seerr user of an account, creates the shared user «slouchcat-gaeste» and takes the rights from the Seerr user of a deleted account.",
+          "trigger": "«Open in Seerr», «Open all», invitation accepted, «Wishes active» switched on, after loading the Seerr users for waiting accounts, account deleted"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

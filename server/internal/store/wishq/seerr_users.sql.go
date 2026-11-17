@@ -240,6 +240,23 @@ func (q *Queries) MarkSeerrUsersGone(ctx context.Context, arg MarkSeerrUsersGone
 	return result.RowsAffected()
 }
 
+const setSeerrUserPermissions = `-- name: SetSeerrUserPermissions :exec
+UPDATE seerr_users SET permissions = ?1,
+    is_admin = CASE WHEN (?1 & 10) <> 0 THEN 1 ELSE 0 END
+WHERE seerr_id = ?2
+`
+
+type SetSeerrUserPermissionsParams struct {
+	Permissions int64
+	SeerrID     int64
+}
+
+// The rights Slouchcat just wrote to a user it opened (N-110).
+func (q *Queries) SetSeerrUserPermissions(ctx context.Context, arg SetSeerrUserPermissionsParams) error {
+	_, err := q.db.ExecContext(ctx, setSeerrUserPermissions, arg.Permissions, arg.SeerrID)
+	return err
+}
+
 const setSeerrUserQuota = `-- name: SetSeerrUserQuota :exec
 UPDATE seerr_users SET
     movie_quota_limit = ?1, movie_quota_days = ?2,

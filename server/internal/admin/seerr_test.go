@@ -14,12 +14,15 @@ import (
 const fakeSeerrKey = "seerr-FAKE-key-0123456789abcd"
 
 type fakeSeerrHooks struct {
-	saved  int
-	refuse error
+	saved, wishSaved int
+	refuse           error
 }
 
 func (h *fakeSeerrHooks) CanEnableWishes(context.Context) error { return h.refuse }
 func (h *fakeSeerrHooks) SeerrSaved(context.Context)            { h.saved++ }
+func (h *fakeSeerrHooks) WishSettingsSaved(context.Context, model.WishSettings, model.WishSettings) {
+	h.wishSaved++
+}
 
 func rawSetting(t *testing.T, f *fixture, key string) (string, bool) {
 	t.Helper()

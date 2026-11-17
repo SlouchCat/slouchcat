@@ -84,6 +84,7 @@ type fixture struct {
 	queue *fakeQueue
 	svc   *Service
 	logs  *bytes.Buffer
+	log   *slog.Logger
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -103,17 +104,24 @@ func newFixture(t *testing.T) *fixture {
 	fake.AddUser(seerrtest.User{ID: 3, Email: "kinder@example.test", Username: "kinder", Permissions: seerrtest.PermRequest})
 	fake.AddUser(seerrtest.User{ID: 4, Email: "grosseltern@example.test", Username: "grosseltern", Permissions: seerrtest.PermRequest | seerrtest.PermAutoApprove})
 	fake.AddUser(seerrtest.User{ID: 5, Email: "slouchcat-gaeste@slouchcat.invalid", Username: "slouchcat-gaeste", Permissions: seerrtest.PermRequestMovie})
-	f := &fixture{t: t, ctx: ctx, db: db, fake: fake, queue: &fakeQueue{}, logs: &logs,
+	f := &fixture{t: t, ctx: ctx, db: db, fake: fake, queue: &fakeQueue{}, logs: &logs, log: log,
 		cfg: &fakeConfig{seer: model.SeerrConfig{Enabled: true, URL: fake.URL, APIKey: seerrtest.APIKey},
 			wish: model.WishSettings{Enabled: true, AllowMovies: true, AllowShows: true, Unmapped: model.WishesUnmappedFallback,
+				ProvisionAccounts: true, SyncPassword: true,
 				DefaultLimit: model.WishLimits{Movie: model.WishLimit{Limit: 10, Days: 7}, TV: model.WishLimit{Limit: 5, Days: 7}}}}}
-	f.svc = New(db, f.cfg, f.queue, log, WithClientOptions(seerr.WithTimeout(2*time.Second), seerr.WithLimiter(ratelimit.New("wishes-test", 1000, 100))))
+	f.rebuild()
 	f.exec(`INSERT INTO accounts (id, email, password_hash, role, is_owner, created_at, updated_at, can_request)
 	        VALUES (1, 'marco@example.test', 'x', 'admin', 1, 1, 1, 1), (2, 'gast@example.test', 'x', 'user', 0, 1, 1, 1),
 	               (3, 'grosseltern@example.test', 'x', 'user', 0, 1, 1, 0)`)
 	f.exec(`INSERT INTO profiles (id, account_id, name, is_default, created_at, updated_at, can_request)
 	        VALUES (1, 1, 'Marco', 1, 1, 1, 1), (2, 1, 'Noah', 0, 1, 1, 0), (3, 2, 'Gast', 1, 1, 1, 1), (4, 3, 'Oma', 1, 1, 1, 1)`)
 	return f
+}
+
+// rebuild makes the service again with the options of the fixture and opts (a clock).
+func (f *fixture) rebuild(opts ...Option) {
+	f.svc = New(f.db, f.cfg, f.queue, f.log, append([]Option{WithClientOptions(seerr.WithTimeout(2*time.Second),
+		seerr.WithLimiter(ratelimit.New("wishes-test", 1000, 100)))}, opts...)...)
 }
 
 func (f *fixture) exec(query string, args ...any) {

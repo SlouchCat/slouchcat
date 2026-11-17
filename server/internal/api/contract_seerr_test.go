@@ -151,4 +151,35 @@ func TestContractSeerr(t *testing.T) {
 		t.Errorf("after unlinking: %+v", m)
 	}
 	call(http.MethodPost, "/admin/wishes/mappings/users/refresh", ``, http.StatusAccepted)
+
+	// «In Seerr eröffnen» (build step 1.5a): Seerr unreachable is 202 waiting, then 200 opened.
+	fake.SetFailure("*", seerrtest.Failure{Status: http.StatusServiceUnavailable})
+	m.SeerrUserID, m.PasswordState = 0, ""
+	if err := call(http.MethodPost, "/admin/wishes/accounts/"+owner+"/provision", ``, http.StatusAccepted).Decode(&m); err != nil {
+		t.Fatal(err)
+	}
+	if m.State != "waiting" || m.SeerrUserID != 0 {
+		t.Errorf("unreachable = %+v", m)
+	}
+	fake.SetFailure("*", seerrtest.Failure{})
+	if err := call(http.MethodPost, "/admin/wishes/accounts/"+guest+"/provision", ``, http.StatusOK).Decode(&m); err != nil {
+		t.Fatal(err)
+	}
+	if m.State != "created" || m.SeerrUserID == 0 || m.PasswordState != "next_login" || fake.Calls("POST /user") != 1 {
+		t.Errorf("opened = %+v", m)
+	}
+	code(http.MethodPost, "/admin/wishes/accounts/9999/provision", ``, http.StatusNotFound, "not_found")
+	var counts struct {
+		Link   *int `json:"link"`
+		Create *int `json:"create"`
+	}
+	if err := call(http.MethodPost, "/admin/wishes/accounts/provision", ``, http.StatusAccepted).Decode(&counts); err != nil {
+		t.Fatal(err)
+	}
+	if counts.Link == nil || counts.Create == nil || *counts.Create < 1 {
+		t.Errorf("all = %+v", counts)
+	}
+	call(http.MethodPut, "/admin/wishes/settings", `{"provisionAccounts":false}`, http.StatusOK)
+	code(http.MethodPost, "/admin/wishes/accounts/"+owner+"/provision", ``, http.StatusConflict, "provision_disabled")
+	code(http.MethodPost, "/admin/wishes/accounts/provision", ``, http.StatusConflict, "provision_disabled")
 }

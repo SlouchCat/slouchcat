@@ -4834,6 +4834,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/wishes/accounts/{accountId}/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or link the Seerr user of an account («In Seerr eröffnen», concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. A Seerr user with the same email (any spelling) is linked at once
+         *     (`linked`, `linkedBy: admin`) and keeps its password (`passwordState: off`) and its rights;
+         *     otherwise Slouchcat opens a local user (`created`) with the rights Seerr gives a new user,
+         *     none without the request right of the account, and a random password the account's own
+         *     replaces at its next sign-in (`next_login`). 200 when it is done, 202 with `state: waiting`
+         *     when Seerr was not reached (the job `seerr.provision` tries again).
+         */
+        post: operations["provisionSeerrAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/accounts/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or link the Seerr user of every account without one («Alle eröffnen», concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Queues the job `seerr.provision` for every account without a ready
+         *     Seerr user and says how many of them the last read users link by the email (`link`) and how
+         *     many get a new user (`create`). The rules are those of `provisionSeerrAccount`.
+         */
+        post: operations["provisionSeerrAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/wishes/settings": {
         parameters: {
             query?: never;
@@ -10799,6 +10846,13 @@ export interface components {
             /** @description Accounts with a ready Seerr user. */
             opened: number;
             total: number;
+        };
+        /** @description Since contract 1.41.0. The answer of «Alle eröffnen». */
+        ProvisionSeerrAccountsResult: {
+            /** @description Accounts a Seerr user with the same email is linked to. */
+            link: number;
+            /** @description Accounts that get a new Seerr user. */
+            create: number;
         };
         AccountWishMappingRequest: {
             /** @description The Seerr user; `null` unlinks. */
@@ -21090,6 +21144,106 @@ export interface operations {
              *     (`seerr_user_taken`).
              */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    provisionSeerrAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            /** @description Seerr was not reached; the account waits (state `waiting`, `provisionError`). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description «Neue Konten in Seerr eröffnen» is off (`provision_disabled`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    provisionSeerrAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionSeerrAccountsResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description «Neue Konten in Seerr eröffnen» is off (`provision_disabled`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

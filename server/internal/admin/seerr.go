@@ -77,6 +77,9 @@ type SeerrHooks interface {
 	CanEnableWishes(ctx context.Context) error
 	// SeerrSaved is called after the connection was saved: it queues the refresh of the Seerr users.
 	SeerrSaved(ctx context.Context)
+	// WishSettingsSaved is called after the wish settings were saved, with the settings before and
+	// after: «Wünsche aktiv» switched on queues the shared user, a new default limit is written.
+	WishSettingsSaved(ctx context.Context, before, after model.WishSettings)
 }
 
 // WithSeerr sets the hooks of package wishes and returns the receiver.
@@ -342,7 +345,14 @@ func (s *Service) SetWishSettings(ctx context.Context, upd model.WishSettingsUpd
 	if err := tx.Commit(); err != nil {
 		return model.WishSettings{}, fmt.Errorf("commit wish settings: %w", err)
 	}
-	return s.WishSettings(ctx)
+	after, err := s.WishSettings(ctx)
+	if err != nil {
+		return model.WishSettings{}, err
+	}
+	if s.seerr != nil {
+		s.seerr.WishSettingsSaved(ctx, cur, after)
+	}
+	return after, nil
 }
 
 func checkWishLimit(verr *model.ValidationError, field string, l model.WishLimit) {

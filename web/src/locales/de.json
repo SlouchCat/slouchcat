@@ -4645,6 +4645,11 @@
           "description": "Liest die Benutzer aus Seerr mit ihren Rechten und ihrem Limit und prüft, ob Slouchcat noch mit derselben Seerr-Instanz spricht.",
           "trigger": "täglich, «Benutzerliste neu laden», nach dem Speichern der Verbindung zu Seerr"
         },
+        "seerr_provision": {
+          "name": "Konten in Seerr eröffnen",
+          "description": "Eröffnet oder verknüpft den Seerr-Benutzer eines Kontos, legt den Sammelbenutzer «slouchcat-gaeste» an und nimmt dem Seerr-Benutzer eines gelöschten Kontos die Rechte.",
+          "trigger": "«In Seerr eröffnen», «Alle eröffnen», Einladung angenommen, «Wünsche aktiv» eingeschaltet, nach dem Laden der Seerr-Benutzer für wartende Konten, Konto gelöscht"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",

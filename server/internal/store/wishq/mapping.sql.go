@@ -109,6 +109,24 @@ func (q *Queries) GetMappingBySeerrUser(ctx context.Context, seerrUserID sql.Nul
 	return i, err
 }
 
+const getProvisionAccount = `-- name: GetProvisionAccount :one
+SELECT id, email, can_request FROM accounts WHERE id = ?1
+`
+
+type GetProvisionAccountRow struct {
+	ID         int64
+	Email      string
+	CanRequest int64
+}
+
+// The account the provisioning opens or links a Seerr user for (build step 1.5a).
+func (q *Queries) GetProvisionAccount(ctx context.Context, accountID int64) (GetProvisionAccountRow, error) {
+	row := q.db.QueryRowContext(ctx, getProvisionAccount, accountID)
+	var i GetProvisionAccountRow
+	err := row.Scan(&i.ID, &i.Email, &i.CanRequest)
+	return i, err
+}
+
 const listAccountMappings = `-- name: ListAccountMappings :many
 SELECT a.id AS account_id, a.email AS account_email, a.role AS account_role, a.is_owner AS account_is_owner,
        a.can_request AS account_can_request,
@@ -166,6 +184,126 @@ func (q *Queries) ListAccountMappings(ctx context.Context) ([]ListAccountMapping
 			&i.SetAt,
 			&i.SetBy,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentLinks = `-- name: ListRecentLinks :many
+SELECT m.account_id, a.email AS account_email, m.seerr_user_id, u.display_name AS seerr_display_name,
+       m.linked_by, m.linked_at
+FROM wish_account_map AS m
+JOIN accounts AS a ON a.id = m.account_id
+JOIN seerr_users AS u ON u.seerr_id = m.seerr_user_id
+WHERE m.origin = 'linked' AND m.linked_by IN ('invite', 'email_change') AND m.linked_at >= ?1
+ORDER BY m.linked_at DESC, m.account_id
+`
+
+type ListRecentLinksRow struct {
+	AccountID        int64
+	AccountEmail     string
+	SeerrUserID      sql.NullInt64
+	SeerrDisplayName string
+	LinkedBy         sql.NullString
+	LinkedAt         sql.NullInt64
+}
+
+// The hint "Neu verknuepft" (N-93): accounts linked to an existing Seerr user after an invitation or
+// an e-mail change since @since, newest first. Never after a link by an administrator.
+func (q *Queries) ListRecentLinks(ctx context.Context, since sql.NullInt64) ([]ListRecentLinksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentLinks, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentLinksRow{}
+	for rows.Next() {
+		var i ListRecentLinksRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.AccountEmail,
+			&i.SeerrUserID,
+			&i.SeerrDisplayName,
+			&i.LinkedBy,
+			&i.LinkedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnprovisionedAccounts = `-- name: ListUnprovisionedAccounts :many
+SELECT a.id, a.email FROM accounts AS a
+WHERE NOT EXISTS (SELECT 1 FROM wish_account_map AS m WHERE m.account_id = a.id AND m.state = 'ready')
+ORDER BY a.id
+`
+
+type ListUnprovisionedAccountsRow struct {
+	ID    int64
+	Email string
+}
+
+// Accounts without a ready Seerr user ("Alle eroeffnen"), by id.
+func (q *Queries) ListUnprovisionedAccounts(ctx context.Context) ([]ListUnprovisionedAccountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUnprovisionedAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnprovisionedAccountsRow{}
+	for rows.Next() {
+		var i ListUnprovisionedAccountsRow
+		if err := rows.Scan(&i.ID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWaitingMappings = `-- name: ListWaitingMappings :many
+SELECT account_id, linked_by, set_by FROM wish_account_map WHERE state = 'waiting' ORDER BY account_id
+`
+
+type ListWaitingMappingsRow struct {
+	AccountID int64
+	LinkedBy  sql.NullString
+	SetBy     sql.NullInt64
+}
+
+// Accounts whose opening waits for Seerr; the users job queues them again.
+func (q *Queries) ListWaitingMappings(ctx context.Context) ([]ListWaitingMappingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWaitingMappings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWaitingMappingsRow{}
+	for rows.Next() {
+		var i ListWaitingMappingsRow
+		if err := rows.Scan(&i.AccountID, &i.LinkedBy, &i.SetBy); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

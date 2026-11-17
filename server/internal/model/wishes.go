@@ -16,6 +16,7 @@ var (
 	ErrSeerrUserTaken     = errors.New("seerr user taken")              // 409 seerr_user_taken: the user belongs to another account or is the shared user
 	ErrInstanceUnchanged  = errors.New("seerr instance unchanged")      // 409 instance_unchanged: no other instance is waiting for a decision
 	ErrInstanceChanged    = errors.New("other seerr instance detected") // no call on behalf of a user until the administrator decides
+	ErrProvisionDisabled  = errors.New("seerr provisioning disabled")   // 409 provision_disabled: «Neue Konten in Seerr eröffnen» is off
 )
 
 // Codes of the validation errors.
@@ -287,4 +288,15 @@ type WishRights struct {
 	Reason     string
 	Movies     bool
 	Shows      bool
+}
+
+// WishLinkHint is the hint «Neu verknüpft» of the overview (N-93): an account linked to an existing
+// Seerr user after an invitation or an email change, for seven days from LinkedAt.
+type WishLinkHint struct {
+	AccountID        int64
+	AccountEmail     string
+	SeerrUserID      int
+	SeerrDisplayName string
+	LinkedBy         string // invite or email_change
+	LinkedAt         time.Time
 }

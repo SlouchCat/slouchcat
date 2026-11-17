@@ -384,6 +384,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
 	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)))
 	adminSvc.WithSeerr(wishSvc)
+	// A Seerr user Slouchcat opened loses its rights when its account is deleted (K-2).
+	authSvc.WithAccountDeleting(wishSvc.AccountDeleting)
 	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
 	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
 	// cleans it up. A restore swapped in at this start is recorded in the restored database.

@@ -589,6 +589,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "seerr_not_tested", "Wishes go on only after a successful test of the saved connection to Seerr.")
 	case errors.Is(err, model.ErrSeerrUserTaken):
 		p.write(w, r, http.StatusConflict, "seerr_user_taken", "The Seerr user belongs to another account, is the shared user or is gone from Seerr.")
+	case errors.Is(err, model.ErrProvisionDisabled):
+		p.write(w, r, http.StatusConflict, "provision_disabled", "Opening accounts in Seerr is switched off.")
 	case errors.Is(err, model.ErrInstanceUnchanged):
 		p.write(w, r, http.StatusConflict, "instance_unchanged", "No other Seerr instance waits for a decision.")
 	case errors.Is(err, model.ErrInstanceChanged):

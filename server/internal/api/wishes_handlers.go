@@ -28,6 +28,11 @@ type WishesService interface {
 	// SetAccountMapping sets (or with nil removes) the Seerr user of an account by hand;
 	// model.ErrNotFound, model.ErrSeerrUserTaken.
 	SetAccountMapping(ctx context.Context, accountID int64, seerrUserID *int, by int64) (model.WishAccountMapping, error)
+	// ProvisionAccount opens or links the Seerr user of an account at once (state waiting when Seerr
+	// was not reached); model.ErrNotFound, model.ErrProvisionDisabled, model.ErrSeerrNotConfigured.
+	ProvisionAccount(ctx context.Context, accountID, by int64) (model.WishAccountMapping, error)
+	// ProvisionAll queues it for every account without a ready user; errors as ProvisionAccount.
+	ProvisionAll(ctx context.Context, by int64) (link, create int, err error)
 }
 
 func (e serviceProblem) VisitGetSeerrSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -47,6 +52,12 @@ func (e serviceProblem) VisitRefreshSeerrUsersResponse(w http.ResponseWriter) er
 }
 func (e serviceProblem) VisitGetWishMappingsResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitSetAccountWishMappingResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitProvisionSeerrAccountResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitProvisionSeerrAccountsResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitGetWishSettingsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -216,6 +227,39 @@ func (s *server) SetAccountWishMapping(ctx context.Context, req gen.SetAccountWi
 		return s.problem(ctx, err), nil
 	}
 	return gen.SetAccountWishMapping200JSONResponse(toWishAccountMapping(a)), nil
+}
+
+func (s *server) ProvisionSeerrAccount(ctx context.Context, req gen.ProvisionSeerrAccountRequestObject) (gen.ProvisionSeerrAccountResponseObject, error) {
+	if s.opts.Wishes == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	a, err := s.opts.Wishes.ProvisionAccount(ctx, req.AccountId, sessionAccountID(ctx))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	if a.State == "waiting" {
+		return gen.ProvisionSeerrAccount202JSONResponse(toWishAccountMapping(a)), nil
+	}
+	return gen.ProvisionSeerrAccount200JSONResponse(toWishAccountMapping(a)), nil
+}
+
+func (s *server) ProvisionSeerrAccounts(ctx context.Context, _ gen.ProvisionSeerrAccountsRequestObject) (gen.ProvisionSeerrAccountsResponseObject, error) {
+	if s.opts.Wishes == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	link, create, err := s.opts.Wishes.ProvisionAll(ctx, sessionAccountID(ctx))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ProvisionSeerrAccounts202JSONResponse{Link: link, Create: create}, nil
+}
+
+// sessionAccountID is the account of the session (the administrator who acts), 0 without one.
+func sessionAccountID(ctx context.Context) int64 {
+	if session, ok := sessionFrom(ctx); ok {
+		return session.Account.ID
+	}
+	return 0
 }
 
 func toWishAccountMapping(a model.WishAccountMapping) gen.WishAccountMapping {

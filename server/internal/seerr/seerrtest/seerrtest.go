@@ -203,6 +203,7 @@ type Failure struct {
 	Message  string // as {"message": Message}; with a 3xx status the body stays empty
 	Location string // Location header of a 3xx answer
 	Hang     bool   // never answer; the request ends when the client gives up or the fake closes
+	Times    int    // answer so this many times, then as usual (0: until removed)
 }
 
 // Call is one call the fake received.
@@ -567,9 +568,18 @@ func (s *Server) wrap(rt route) http.HandlerFunc {
 
 		s.mu.Lock()
 		s.calls = append(s.calls, call)
-		f, ok := s.failures[rt.pattern]
+		key := rt.pattern
+		f, ok := s.failures[key]
 		if !ok {
-			f, ok = s.failures["*"]
+			key = "*"
+			f, ok = s.failures[key]
+		}
+		if ok && f.Times > 0 {
+			if f.Times--; f.Times == 0 {
+				delete(s.failures, key)
+			} else {
+				s.failures[key] = f
+			}
 		}
 		csrf := s.csrf
 		s.mu.Unlock()

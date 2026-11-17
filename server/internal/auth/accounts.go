@@ -135,8 +135,15 @@ func (s *Service) DeleteAccount(ctx context.Context, accountID int64, end func(c
 			return err
 		}
 	}
+	var after func(context.Context)
+	if s.accountDeleting != nil {
+		after = s.accountDeleting(ctx, acc.ID)
+	}
 	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
+	}
+	if after != nil {
+		after(ctx)
 	}
 	// The activity log keeps nothing of the account (concept 11): the trigger of migration 00031
 	// deletes its rows in the same statement, and an event written after it finds no account and is
