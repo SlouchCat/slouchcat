@@ -34,7 +34,9 @@ const (
 	// getWishDiscover, listWishDiscoverRow, listWishTitles and listWishGenres: 120 a minute, 60 at
 	// once.
 	wishPagesPerMin, wishPagesBurst = 120, 60
-	// searchWishTitles: 30 a minute, as searchExternalTitles.
+	// searchWishTitles: 30 a minute, as searchExternalTitles; each has its own bucket (the profile
+	// bucket of searchExternalTitles repeats the limit of package wishes, the account bucket is the
+	// one it lacked, review m-4).
 	wishSearchPerMin, wishSearchBurst = 30, 30
 	// wishAccountFactor: the bucket of an account against that of one profile.
 	wishAccountFactor = 4
@@ -50,25 +52,27 @@ func newWishBucket(perMin, burst float64) wishBucket {
 }
 
 // allow takes a token of the profile and one of its account; model.ErrTooManyAttempts when either
-// bucket is empty.
+// bucket is empty. The profile comes first (review m-5): a call its own bucket refuses takes no
+// token of the account, so one profile in a loop does not lock out the others.
 func (l wishBucket) allow(p model.Profile, now time.Time) error {
-	if err := l.account.Allow(strconv.FormatInt(p.AccountID, 10), now); err != nil {
+	if err := l.profile.Allow(strconv.FormatInt(p.ID, 10), now); err != nil {
 		return err
 	}
-	return l.profile.Allow(strconv.FormatInt(p.ID, 10), now)
+	return l.account.Allow(strconv.FormatInt(p.AccountID, 10), now)
 }
 
 // wishLimiters are the buckets of the operations on titles outside the library.
 type wishLimiters struct {
-	titles, images, pages, search wishBucket
+	titles, images, pages, search, external wishBucket
 }
 
 func newWishLimiters() wishLimiters {
 	return wishLimiters{
-		titles: newWishBucket(wishTitlesPerMin, wishTitlesBurst),
-		images: newWishBucket(wishImagesPerMin, wishImagesBurst),
-		pages:  newWishBucket(wishPagesPerMin, wishPagesBurst),
-		search: newWishBucket(wishSearchPerMin, wishSearchBurst),
+		titles:   newWishBucket(wishTitlesPerMin, wishTitlesBurst),
+		images:   newWishBucket(wishImagesPerMin, wishImagesBurst),
+		pages:    newWishBucket(wishPagesPerMin, wishPagesBurst),
+		search:   newWishBucket(wishSearchPerMin, wishSearchBurst),
+		external: newWishBucket(wishSearchPerMin, wishSearchBurst),
 	}
 }
 

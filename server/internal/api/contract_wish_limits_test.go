@@ -56,6 +56,26 @@ func TestContractWishLimits(t *testing.T) {
 	drain("p16", "/wishes/search?q=Wunsch", wishSearchBurst)
 }
 
+// searchExternalTitles takes a token of the account as well (review m-4): four profiles of the
+// household search at full pace, a fifth then waits although its own bucket is full.
+func TestContractExternalSearchPerAccount(t *testing.T) {
+	c := newWishContract(t)
+	at := time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return at }
+	c.withTitles(c.titles)
+	for _, token := range []string{"p0", "p12", "p16", "p18"} {
+		for i := range wishSearchBurst {
+			if rec := send(t, c.h, http.MethodGet, BasePath+"/titles/search?q=Wunsch", token, "", nil); rec.Code == http.StatusTooManyRequests {
+				t.Fatalf("%s: 429 after %d calls", token, i)
+			}
+		}
+	}
+	rec := send(t, c.h, http.MethodGet, BasePath+"/titles/search?q=Wunsch", "px", "", nil)
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" || !strings.Contains(rec.Body.String(), `"too_many_attempts"`) {
+		t.Errorf("fifth profile of the household: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 // The account has a bucket of its own (security review L-1): four profiles browse at full pace,
 // a fifth profile of the same household then waits although its own bucket is full; another
 // account is not touched.
@@ -80,6 +100,31 @@ func TestWishLimitPerAccount(t *testing.T) {
 	for id := int64(5); id <= 8; id++ {
 		if err := l.allow(model.Profile{ID: id, AccountID: 1}, at); err != nil {
 			t.Errorf("after the refill, profile %d: %v", id, err)
+		}
+	}
+}
+
+// A call the profile's own bucket refuses takes no token of the account (review m-5): one profile
+// in a loop leaves the account bucket to the others.
+func TestWishLimitProfileFirst(t *testing.T) {
+	l := newWishBucket(wishTitlesPerMin, wishTitlesBurst)
+	at := time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
+	loop := model.Profile{ID: 1, AccountID: 1}
+	for range wishTitlesBurst {
+		if err := l.allow(loop, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range wishTitlesBurst * wishAccountFactor {
+		if err := l.allow(loop, at); !errors.Is(err, model.ErrTooManyAttempts) {
+			t.Fatalf("looping profile: %v", err)
+		}
+	}
+	for id := int64(2); id <= wishAccountFactor; id++ {
+		for i := range wishTitlesBurst {
+			if err := l.allow(model.Profile{ID: id, AccountID: 1}, at); err != nil {
+				t.Fatalf("profile %d, call %d: %v", id, i, err)
+			}
 		}
 	}
 }

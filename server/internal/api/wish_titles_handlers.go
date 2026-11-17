@@ -134,6 +134,9 @@ func (s *server) SearchExternalTitles(ctx context.Context, req gen.SearchExterna
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
+	if err := s.wishAllow(s.limits.external, session.Profile); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	media := ""
 	if req.Params.Media != nil {
 		media = string(*req.Params.Media)
