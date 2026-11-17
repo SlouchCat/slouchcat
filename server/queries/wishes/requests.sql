@@ -49,3 +49,34 @@ WHERE id = @id;
 -- name: ListAllWishes :many
 -- Every wish for the administration, the latest change first.
 SELECT * FROM wishes ORDER BY updated_at DESC, id DESC LIMIT @limit_count;
+
+-- name: ListWishesToCheck :many
+-- Open wishes with a request that Seerr did not change for a day and that were not checked one by
+-- one for a day (architecture 7.1: GET /request/{id} at most once per 24 h per wish).
+SELECT * FROM wishes
+WHERE state IN ('pending', 'processing', 'partial') AND updated_at <= @cutoff
+  AND (checked_at IS NULL OR checked_at <= @cutoff)
+  AND (seerr_request_id IS NOT NULL
+       OR EXISTS (SELECT 1 FROM wish_seasons AS s WHERE s.wish_id = wishes.id AND s.seerr_request_id IS NOT NULL))
+ORDER BY checked_at IS NOT NULL, checked_at, id
+LIMIT @limit_count;
+
+-- name: ListUnnotifiedAvailableWishes :many
+-- Available wishes with a requester that still waits for its message (a profile that cannot see
+-- the title yet); the reconcile reports them again.
+SELECT * FROM wishes AS w
+WHERE w.state = 'available' AND w.available_at >= @since
+  AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = w.id AND r.closed_at IS NULL AND r.notified_at IS NULL)
+ORDER BY w.id;
+
+-- name: ListOpenShowWishesByTVDB :many
+-- Open series wishes of a TVDB id (the hook after the match of a TVDB-first series).
+SELECT * FROM wishes
+WHERE media = 'show' AND tvdb_id = @tvdb_id AND state IN ('queued', 'pending', 'processing', 'partial')
+ORDER BY id;
+
+-- name: ListOpenMovieWishesByIMDb :many
+-- Open film wishes of an IMDb id (the hook after the match of a film known by IMDb id only).
+SELECT * FROM wishes
+WHERE media = 'movie' AND imdb_id = @imdb_id AND state IN ('queued', 'pending', 'processing')
+ORDER BY id;

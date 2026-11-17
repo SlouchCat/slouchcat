@@ -3,7 +3,8 @@
 // the mirror of the Seerr users and the job seerr.users (users.go), the Seerr user of each account
 // (Mapping, mapping.go) and the request right of a profile (Rights, rights.go). Stage 2 requests:
 // creating, co-wishing and the lists (request.go), the outbox wishes.submit (submit.go), the
-// withdrawal wishes.withdraw (withdraw.go).
+// withdrawal wishes.withdraw (withdraw.go), the sync wishes.sync (sync.go) and the reconcile with
+// the library wishes.reconcile (reconcile.go).
 //
 // Rules of the package:
 //

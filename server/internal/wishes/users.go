@@ -51,6 +51,16 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Name: JobWithdraw, Group: jobs.GroupDelivery, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
 		Priority: submitPrio, Handler: s.handleWithdraw,
 	})
+	// The sync with Seerr every 5 minutes and the reconcile with the library every hour; the
+	// initial sync is a run of the sync type with its own key (architecture 7.2).
+	r.Register(jobs.Type{
+		Name: JobSync, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: syncPriority, Handler: s.handleSync, Run: s.runSync, Every: syncEvery,
+	})
+	r.Register(jobs.Type{
+		Name: JobReconcile, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: reconcilePriority, Handler: s.handleReconcile, Run: s.runReconcile, Every: reconcileEvery,
+	})
 }
 
 func (s *Service) runUsers(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {

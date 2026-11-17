@@ -280,6 +280,10 @@ func (r *rfix) runJobs(typ string) []error {
 			err = r.svc.handleSubmit(r.ctx, job)
 		case JobWithdraw:
 			err = r.svc.handleWithdraw(r.ctx, job)
+		case JobSync:
+			err = r.svc.handleSync(r.ctx, job)
+		case JobReconcile:
+			err = r.svc.handleReconcile(r.ctx, job)
 		}
 		var later *jobs.RetryLaterError
 		if err != nil && !errors.As(err, &later) {

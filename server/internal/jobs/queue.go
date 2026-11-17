@@ -19,7 +19,8 @@
 //     waits for the request)
 //     6 scan.path
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
-//     (library, concept 13)
+//     (library, concept 13), wishes.sync and wishes.reconcile (wishes, concept 25; «Jetzt
+//     abgleichen» at 7)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
 //     library.relink, the daily radio.catalog.sync and the weekly radio.wikidata.sync (radio),
 //     series.catalog of one series after its match (metadata, concept 25)

@@ -174,6 +174,8 @@ type Service struct {
 	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
+	// matched hears of a film or series whose provider ids the match wrote (Service.WithMatched).
+	matched func(ctx context.Context, m MatchedTitle)
 
 	trakt traktConfig // Trakt lists (trakt.go)
 
@@ -351,6 +353,31 @@ func WithPodcastStates(fn func(ctx context.Context, podcastID string) (map[strin
 // fails the match, which the queue retries.
 func WithRelink(fn func(ctx context.Context, itemID string) (bool, error)) Option {
 	return func(o *options) { o.relink = fn }
+}
+
+// MatchedTitle is a film or series of the library after its match: the provider ids it carries
+// now (0 and "" unknown). Kind is movie or series.
+type MatchedTitle struct {
+	ItemID string
+	Kind   string
+	TMDBID int64
+	TVDBID int64
+	IMDBID string
+}
+
+// WithMatched sets the hook a match calls once the provider ids of a film or series are written:
+// after the relink hook found no twin (also when the relink is skipped), for a series after its
+// seasons (concept 25, architecture 11: package wishes reconciles its wishes with the library).
+// A title with a twin gets no call; the twin's match makes it. The hook must not fail the match:
+// it logs its own errors. Set it before the workers start.
+func (s *Service) WithMatched(fn func(ctx context.Context, m MatchedTitle)) { s.matched = fn }
+
+// matchedHook calls the hook of WithMatched with the written ids of item.
+func (s *Service) matchedHook(ctx context.Context, item systemq.Item) {
+	if s.matched == nil {
+		return
+	}
+	s.matched(ctx, MatchedTitle{ItemID: item.ID, Kind: item.Kind, TMDBID: item.TmdbID.Int64, TVDBID: item.TvdbID.Int64, IMDBID: item.ImdbID.String})
 }
 
 // WithAudioSeriesRelink sets the function a book match calls inside its transaction after it wrote

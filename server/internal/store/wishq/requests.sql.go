@@ -113,6 +113,120 @@ func (q *Queries) ListAllWishes(ctx context.Context, limitCount int64) ([]Wish, 
 	return items, nil
 }
 
+const listOpenMovieWishesByIMDb = `-- name: ListOpenMovieWishesByIMDb :many
+SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes
+WHERE media = 'movie' AND imdb_id = ?1 AND state IN ('queued', 'pending', 'processing')
+ORDER BY id
+`
+
+// Open film wishes of an IMDb id (the hook after the match of a film known by IMDb id only).
+func (q *Queries) ListOpenMovieWishesByIMDb(ctx context.Context, imdbID sql.NullString) ([]Wish, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenMovieWishesByIMDb, imdbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Wish{}
+	for rows.Next() {
+		var i Wish
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.TvdbID,
+			&i.ImdbID,
+			&i.Title,
+			&i.Year,
+			&i.Origin,
+			&i.SeerrRequestID,
+			&i.SeerrMediaID,
+			&i.SeerrUserID,
+			&i.State,
+			&i.StateDetail,
+			&i.FailReason,
+			&i.Attempts,
+			&i.NextAttemptAt,
+			&i.WithdrawPending,
+			&i.CheckedAt,
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubmittedAt,
+			&i.ApprovedAt,
+			&i.AvailableAt,
+			&i.ClosedAt,
+			&i.SeerrUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOpenShowWishesByTVDB = `-- name: ListOpenShowWishesByTVDB :many
+SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes
+WHERE media = 'show' AND tvdb_id = ?1 AND state IN ('queued', 'pending', 'processing', 'partial')
+ORDER BY id
+`
+
+// Open series wishes of a TVDB id (the hook after the match of a TVDB-first series).
+func (q *Queries) ListOpenShowWishesByTVDB(ctx context.Context, tvdbID sql.NullInt64) ([]Wish, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenShowWishesByTVDB, tvdbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Wish{}
+	for rows.Next() {
+		var i Wish
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.TvdbID,
+			&i.ImdbID,
+			&i.Title,
+			&i.Year,
+			&i.Origin,
+			&i.SeerrRequestID,
+			&i.SeerrMediaID,
+			&i.SeerrUserID,
+			&i.State,
+			&i.StateDetail,
+			&i.FailReason,
+			&i.Attempts,
+			&i.NextAttemptAt,
+			&i.WithdrawPending,
+			&i.CheckedAt,
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubmittedAt,
+			&i.ApprovedAt,
+			&i.AvailableAt,
+			&i.ClosedAt,
+			&i.SeerrUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenWishRequesters = `-- name: ListOpenWishRequesters :many
 SELECT wish_id, profile_id, account_id, role, created_at, notified_at, closed_at FROM wish_requesters WHERE wish_id = ?1 AND closed_at IS NULL
 ORDER BY role = 'joined', created_at, profile_id
@@ -136,6 +250,65 @@ func (q *Queries) ListOpenWishRequesters(ctx context.Context, wishID int64) ([]W
 			&i.CreatedAt,
 			&i.NotifiedAt,
 			&i.ClosedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnnotifiedAvailableWishes = `-- name: ListUnnotifiedAvailableWishes :many
+SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes AS w
+WHERE w.state = 'available' AND w.available_at >= ?1
+  AND EXISTS (SELECT 1 FROM wish_requesters AS r WHERE r.wish_id = w.id AND r.closed_at IS NULL AND r.notified_at IS NULL)
+ORDER BY w.id
+`
+
+// Available wishes with a requester that still waits for its message (a profile that cannot see
+// the title yet); the reconcile reports them again.
+func (q *Queries) ListUnnotifiedAvailableWishes(ctx context.Context, since sql.NullInt64) ([]Wish, error) {
+	rows, err := q.db.QueryContext(ctx, listUnnotifiedAvailableWishes, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Wish{}
+	for rows.Next() {
+		var i Wish
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.TvdbID,
+			&i.ImdbID,
+			&i.Title,
+			&i.Year,
+			&i.Origin,
+			&i.SeerrRequestID,
+			&i.SeerrMediaID,
+			&i.SeerrUserID,
+			&i.State,
+			&i.StateDetail,
+			&i.FailReason,
+			&i.Attempts,
+			&i.NextAttemptAt,
+			&i.WithdrawPending,
+			&i.CheckedAt,
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubmittedAt,
+			&i.ApprovedAt,
+			&i.AvailableAt,
+			&i.ClosedAt,
+			&i.SeerrUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -187,6 +360,73 @@ func (q *Queries) ListWishRequesterNames(ctx context.Context, wishID int64) ([]L
 			&i.ClosedAt,
 			&i.AccountEmail,
 			&i.ProfileName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWishesToCheck = `-- name: ListWishesToCheck :many
+SELECT id, media, tmdb_id, tvdb_id, imdb_id, title, year, origin, seerr_request_id, seerr_media_id, seerr_user_id, state, state_detail, fail_reason, attempts, next_attempt_at, withdraw_pending, checked_at, item_id, created_at, updated_at, submitted_at, approved_at, available_at, closed_at, seerr_updated_at FROM wishes
+WHERE state IN ('pending', 'processing', 'partial') AND updated_at <= ?1
+  AND (checked_at IS NULL OR checked_at <= ?1)
+  AND (seerr_request_id IS NOT NULL
+       OR EXISTS (SELECT 1 FROM wish_seasons AS s WHERE s.wish_id = wishes.id AND s.seerr_request_id IS NOT NULL))
+ORDER BY checked_at IS NOT NULL, checked_at, id
+LIMIT ?2
+`
+
+type ListWishesToCheckParams struct {
+	Cutoff     int64
+	LimitCount int64
+}
+
+// Open wishes with a request that Seerr did not change for a day and that were not checked one by
+// one for a day (architecture 7.1: GET /request/{id} at most once per 24 h per wish).
+func (q *Queries) ListWishesToCheck(ctx context.Context, arg ListWishesToCheckParams) ([]Wish, error) {
+	rows, err := q.db.QueryContext(ctx, listWishesToCheck, arg.Cutoff, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Wish{}
+	for rows.Next() {
+		var i Wish
+		if err := rows.Scan(
+			&i.ID,
+			&i.Media,
+			&i.TmdbID,
+			&i.TvdbID,
+			&i.ImdbID,
+			&i.Title,
+			&i.Year,
+			&i.Origin,
+			&i.SeerrRequestID,
+			&i.SeerrMediaID,
+			&i.SeerrUserID,
+			&i.State,
+			&i.StateDetail,
+			&i.FailReason,
+			&i.Attempts,
+			&i.NextAttemptAt,
+			&i.WithdrawPending,
+			&i.CheckedAt,
+			&i.ItemID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SubmittedAt,
+			&i.ApprovedAt,
+			&i.AvailableAt,
+			&i.ClosedAt,
+			&i.SeerrUpdatedAt,
 		); err != nil {
 			return nil, err
 		}

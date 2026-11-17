@@ -4661,6 +4661,17 @@
           "description": "Deletes the own request of a withdrawn wish in Seerr while it is not approved. An approved request stays, and the wish opens again.",
           "trigger": "«Withdraw» in «My wishes»; after the sync while Seerr was unreachable"
         },
+        "wishes_sync": {
+          "name": "Sync wishes with Seerr",
+          "description": "Reads the changed requests from Seerr, updates the state of the wishes, checks wishes that did not change for long one by one and sends due wishes from the outbox again. The first sync reads every request.",
+          "trigger": "schedule every 5 minutes, «Sync now»",
+          "progress": "Pages read: {{done}} of {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Reconcile wishes with the library",
+          "description": "Reports a wish available as soon as Slouchcat can play the film or every wished season for a profile.",
+          "trigger": "hourly schedule, after a wished title was recognised in the library, after the sync with Seerr"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

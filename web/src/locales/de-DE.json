@@ -400,6 +400,9 @@
         "wishes_withdraw": {
           "trigger": "„Zurückziehen“ in „Meine Wünsche“; nach dem Abgleich, solange Seerr nicht erreichbar war"
         },
+        "wishes_sync": {
+          "trigger": "Zeitplan alle 5 Minuten, „Jetzt abgleichen“"
+        },
         "scan_library": {
           "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"
         },
