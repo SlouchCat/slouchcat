@@ -70,7 +70,7 @@ type Service struct {
 	accountDeleting func(ctx context.Context, accountID int64, tx *sql.Tx) (func(context.Context), error)
 	// profileDeleting runs before a profile is deleted (package wishes: its wishes go to the primary
 	// profile, concept 25); an error stops the deletion.
-	profileDeleting func(ctx context.Context, accountID, profileID int64) error
+	profileDeleting func(ctx context.Context, accountID, profileID int64, tx *sql.Tx) error
 	// passwordSeen gets the password in the three moments the server sees it in clear text (package
 	// wishes, concept 25 architecture 18.3); it must return at once. nil = none.
 	passwordSeen func(ctx context.Context, accountID int64, email, password, moment string)
@@ -148,9 +148,10 @@ func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int
 }
 
 // WithProfileDeleting runs fn before DeleteProfile deletes a profile, while its rows still exist
-// (wishes.ProfileDeleting: its wishes go to the primary profile, concept 25). An error of fn stops
+// and in the same transaction (review m-6: a failed deletion leaves the wishes as they were;
+// wishes.ProfileDeleting: its wishes go to the primary profile, concept 25). An error of fn stops
 // the deletion. It returns the receiver.
-func (s *Service) WithProfileDeleting(fn func(ctx context.Context, accountID, profileID int64) error) *Service {
+func (s *Service) WithProfileDeleting(fn func(ctx context.Context, accountID, profileID int64, tx *sql.Tx) error) *Service {
 	s.profileDeleting = fn
 	return s
 }

@@ -23,6 +23,13 @@ func (r *rfix) deleteAccount(id int64) {
 	}
 }
 
+// deleteProfile deletes a profile of account 1 as its primary profile (marco), with the hook.
+func (r *rfix) deleteProfile(id int64) error {
+	a := auth.New(r.db, r.log).WithProfileDeleting(r.svc.ProfileDeleting)
+	primary := model.Session{Account: model.Account{ID: 1}, Profile: model.Profile{ID: r.marco.ID, AccountID: 1, IsPrimary: true}}
+	return a.DeleteProfile(r.ctx, primary, id, nil)
+}
+
 func (r *rfix) lastEvent(wishID int64) (string, string) {
 	r.t.Helper()
 	var kind, detail string
@@ -102,10 +109,9 @@ func TestDeleteProfileHandsWishesToPrimary(t *testing.T) {
 	a := r.create(r.noah, film(matrix))
 	b := r.create(r.noah, film(alien))
 	r.create(r.marco, film(alien))
-	if err := r.svc.ProfileDeleting(r.ctx, 1, r.noah.ID); err != nil {
+	if err := r.deleteProfile(r.noah.ID); err != nil {
 		t.Fatal(err)
 	}
-	r.exec(`DELETE FROM profiles WHERE id = 2`)
 	for _, id := range []int64{a.Wish.ID, b.Wish.ID} {
 		w := r.wish(id)
 		if len(w.Requesters) != 1 || w.Requesters[0].ProfileID != r.marco.ID || w.Requesters[0].Role != model.WishRoleOwner || !isOpen(w.State) {
@@ -114,6 +120,24 @@ func TestDeleteProfileHandsWishesToPrimary(t *testing.T) {
 		if kind, detail := r.lastEvent(id); kind != "owner_changed" || !strings.Contains(detail, "profile_deleted") {
 			t.Errorf("event of %d = %s %s", id, kind, detail)
 		}
+	}
+}
+
+// A profile deletion that fails leaves its wishes as they were (review m-6): handing them to the
+// primary profile and deleting the profile are one transaction.
+func TestFailedProfileDeletionKeepsWishes(t *testing.T) {
+	r := newRequestFixture(t)
+	res := r.create(r.noah, film(matrix))
+	r.exec(`CREATE TRIGGER k25_no_profile_delete BEFORE DELETE ON profiles BEGIN SELECT RAISE(ABORT, 'refused'); END`)
+	if err := r.deleteProfile(r.noah.ID); err == nil {
+		t.Fatal("deletion did not fail")
+	}
+	w := r.wish(res.Wish.ID)
+	if len(w.Requesters) != 1 || w.Requesters[0].ProfileID != r.noah.ID || w.Requesters[0].Role != model.WishRoleOwner {
+		t.Errorf("wish after the failed deletion = %+v", w)
+	}
+	if kind, _ := r.lastEvent(res.Wish.ID); kind == "owner_changed" {
+		t.Error("event of the deletion written")
 	}
 }
 

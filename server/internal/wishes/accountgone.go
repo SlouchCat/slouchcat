@@ -170,11 +170,13 @@ func (s *Service) repoint(ctx context.Context, r repointWish) {
 	}
 }
 
-// ProfileDeleting is the hook of package auth before a profile is deleted (users and profiles 10):
-// the wishes the profile owns go to the primary profile of its account, with the event
-// owner_changed; what it joined falls away with it. Nothing changes in Seerr.
-func (s *Service) ProfileDeleting(ctx context.Context, accountID, profileID int64) error {
-	primary, err := s.read.GetPrimaryProfile(ctx, accountID)
+// ProfileDeleting is the hook of package auth before a profile is deleted (users and profiles 10),
+// in tx, the transaction that deletes the profile (review m-6): the wishes the profile owns go to
+// the primary profile of its account, with the event owner_changed; what it joined falls away
+// with it. Nothing changes in Seerr; an error stops the deletion.
+func (s *Service) ProfileDeleting(ctx context.Context, accountID, profileID int64, tx *sql.Tx) error {
+	q := wishq.New(tx)
+	primary, err := q.GetPrimaryProfile(ctx, accountID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -184,39 +186,33 @@ func (s *Service) ProfileDeleting(ctx context.Context, accountID, profileID int6
 	if primary == profileID {
 		return nil
 	}
-	moved := 0
-	err = s.inTx(ctx, func(q *wishq.Queries) error {
-		moved = 0
-		ids, err := q.ListProfileOwnedWishIDs(ctx, profileID)
-		if err != nil {
-			return fmt.Errorf("wishes of profile: %w", err)
-		}
-		for _, id := range ids {
-			_, err := q.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: id, ProfileID: primary})
-			switch {
-			case err == nil: // the primary profile joined already: it becomes the owner
-				if _, err := q.DeleteWishRequester(ctx, wishq.DeleteWishRequesterParams{WishID: id, ProfileID: profileID}); err != nil {
-					return fmt.Errorf("leave wish: %w", err)
-				}
-				if _, err := q.SetWishRequesterRole(ctx, wishq.SetWishRequesterRoleParams{Role: model.WishRoleOwner, WishID: id, ProfileID: primary}); err != nil {
-					return fmt.Errorf("new owner: %w", err)
-				}
-			case errors.Is(err, sql.ErrNoRows):
-				if _, err := q.MoveWishRequester(ctx, wishq.MoveWishRequesterParams{ToProfileID: primary, WishID: id, FromProfileID: profileID}); err != nil {
-					return fmt.Errorf("move owner: %w", err)
-				}
-			default:
-				return fmt.Errorf("requester: %w", err)
-			}
-			if err := s.event(ctx, q, id, "owner_changed", map[string]any{"from": profileID, "to": primary, "reason": "profile_deleted"}); err != nil {
-				return err
-			}
-			moved++
-		}
-		return nil
-	})
-	if err == nil && moved > 0 {
-		s.log.InfoContext(ctx, "wishes of a deleted profile go to the primary profile", "profile_id", profileID, "wishes", moved)
+	ids, err := q.ListProfileOwnedWishIDs(ctx, profileID)
+	if err != nil {
+		return fmt.Errorf("wishes of profile: %w", err)
 	}
-	return err
+	for _, id := range ids {
+		_, err := q.GetWishRequester(ctx, wishq.GetWishRequesterParams{WishID: id, ProfileID: primary})
+		switch {
+		case err == nil: // the primary profile joined already: it becomes the owner
+			if _, err := q.DeleteWishRequester(ctx, wishq.DeleteWishRequesterParams{WishID: id, ProfileID: profileID}); err != nil {
+				return fmt.Errorf("leave wish: %w", err)
+			}
+			if _, err := q.SetWishRequesterRole(ctx, wishq.SetWishRequesterRoleParams{Role: model.WishRoleOwner, WishID: id, ProfileID: primary}); err != nil {
+				return fmt.Errorf("new owner: %w", err)
+			}
+		case errors.Is(err, sql.ErrNoRows):
+			if _, err := q.MoveWishRequester(ctx, wishq.MoveWishRequesterParams{ToProfileID: primary, WishID: id, FromProfileID: profileID}); err != nil {
+				return fmt.Errorf("move owner: %w", err)
+			}
+		default:
+			return fmt.Errorf("requester: %w", err)
+		}
+		if err := s.event(ctx, q, id, "owner_changed", map[string]any{"from": profileID, "to": primary, "reason": "profile_deleted"}); err != nil {
+			return err
+		}
+	}
+	if len(ids) > 0 {
+		s.log.InfoContext(ctx, "wishes of a deleted profile go to the primary profile", "profile_id", profileID, "wishes", len(ids))
+	}
+	return nil
 }

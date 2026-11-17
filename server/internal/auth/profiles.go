@@ -539,13 +539,21 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 			return err
 		}
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 	if s.profileDeleting != nil {
-		if err := s.profileDeleting(ctx, session.Account.ID, row.ID); err != nil {
+		if err := s.profileDeleting(ctx, session.Account.ID, row.ID, tx); err != nil {
 			return err
 		}
 	}
-	if err := s.write.DeleteProfile(ctx, row.ID); err != nil {
+	if err := s.write.WithTx(tx).DeleteProfile(ctx, row.ID); err != nil {
 		return fmt.Errorf("delete profile: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	// The activity log keeps nothing of the profile (concept 11); see DeleteAccount.
 	if end != nil { // a stream opened by a request that was already past its checks
