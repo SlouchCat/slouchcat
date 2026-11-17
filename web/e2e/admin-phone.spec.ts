@@ -14,6 +14,8 @@ const PAGES = [
   '/admin/libraries',
   '/admin/podcasts',
   '/admin/maintenance',
+  '/admin/wishes',
+  '/admin/wishes?tab=einstellungen',
   '/admin/metadata',
   '/admin/metadata/audiobooks',
   '/admin/radio',

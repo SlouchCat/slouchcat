@@ -108,6 +108,9 @@ const problemKeys = {
   seerr_key_required: 'errors.code.seerr_key_required',
   seerr_not_configured: 'errors.code.seerr_not_configured',
   instance_unchanged: 'errors.code.instance_unchanged',
+  // The wishes (concept 25): «Wünsche aktiv» before a passed test, a Seerr user taken meanwhile.
+  seerr_not_tested: 'errors.code.seerr_not_tested',
+  seerr_user_taken: 'errors.code.seerr_user_taken',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

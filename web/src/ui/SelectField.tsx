@@ -5,6 +5,8 @@ import { useSpatialItem } from './spatial';
 export interface SelectOption<T extends string> {
   value: T;
   label: string;
+  /** Shown but not choosable; the label says why (a Seerr user that belongs to another account). */
+  disabled?: boolean;
 }
 
 /** A labelled group of options (`<optgroup>`): the facets of a tag rule. */
@@ -25,7 +27,7 @@ interface SelectFieldProps<T extends string> {
 }
 
 const optionOf = <T extends string>(option: SelectOption<T>) => (
-  <option key={option.value} value={option.value}>
+  <option key={option.value} value={option.value} disabled={option.disabled}>
     {option.label}
   </option>
 );

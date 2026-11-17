@@ -229,7 +229,9 @@
       "root_unlisted": "A folder of the library is missing from the request. Load the library again; nothing was removed.",
       "seerr_key_required": "An address on another machine needs the API key again: the stored one never goes to another address.",
       "seerr_not_configured": "Enter the address and API key of Seerr first.",
-      "instance_unchanged": "No other Seerr instance waits for a decision."
+      "instance_unchanged": "No other Seerr instance waits for a decision.",
+      "seerr_not_tested": "Wishes can only be switched on after a passed test of the saved connection.",
+      "seerr_user_taken": "This Seerr user already belongs to another account, is the shared user or is missing in Seerr."
     },
     "field": {
       "required": "Required.",
@@ -3447,6 +3449,9 @@
       },
       "server": {
         "title": "Server"
+      },
+      "wishes": {
+        "title": "Wishes"
       }
     },
     "server": {
@@ -4088,7 +4093,8 @@
           "noAnswer": "No answer",
           "ms": "{{ms}} ms",
           "note": "Never with headers or key. At most 20 entries."
-        }
+        },
+        "usersLink": "Seerr users of the accounts"
       }
     },
     "accounts": {
@@ -5378,6 +5384,242 @@
         "changed": "another file lies at the path by now"
       },
       "changed": "Something changed meanwhile, please check again. The list below is read anew; nothing was deleted."
+    },
+    "wishes": {
+      "title": "Wishes",
+      "intro": "Every account has a user of its own in Seerr with the same login. Its profiles request as that user. Rights, limit and approval come from that user.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Parts of the wishes",
+        "users": "Seerr users",
+        "settings": "Settings"
+      },
+      "strip": {
+        "label": "Summary",
+        "accounts": "Accounts",
+        "opened": "In Seerr",
+        "openedNote": "opened or linked",
+        "without": "Without a user",
+        "waiting_one": "{{count}} waits for Seerr",
+        "waiting_other": "{{count}} wait for Seerr",
+        "password": "Password pending",
+        "passwordNote": "follows at the next sign-in"
+      },
+      "limit": {
+        "movie_one": "{{count}} film / {{days}} days",
+        "movie_other": "{{count}} films / {{days}} days",
+        "movieNone": "Films without a limit",
+        "tv_one": "{{count}} season / {{days}} days",
+        "tv_other": "{{count}} seasons / {{days}} days",
+        "tvNone": "Seasons without a limit"
+      },
+      "settings": {
+        "atOnce": "Every change applies at once.",
+        "refused": "Not changed: {{reason}}",
+        "switchedOn": "“{{name}}” is on. Applies at once.",
+        "switchedOff": "“{{name}}” is off. Applies at once.",
+        "choiceSaved": "“{{name}}”: {{value}}. Applies at once.",
+        "limitSaved": "Default limit: {{limit}}. Applies at once to every account with “Default”.",
+        "basics": "Basics",
+        "where": "Where requesting is offered",
+        "rules": "Rules",
+        "enabled": "Wishes active",
+        "enabledHelp": "Profiles with the right can request missing titles. Off: nobody sees missing titles; open wishes carry on in Seerr.",
+        "enabledLocked": "Can only be switched on after a passed test of the saved connection.",
+        "toConnection": "To the connection",
+        "allowMovies": "Allow films",
+        "allowMoviesHelp": "Applies to every profile. Off: no “Request film”.",
+        "allowShows": "Allow series",
+        "allowShowsHelp": "Applies to every profile. Off: no “Request series” and no “Request seasons”.",
+        "fromSearch": "Request from the search",
+        "fromSearchHelp": "Section “Not in the library yet”. Off: the section is gone.",
+        "fromDetail": "Request on detail pages",
+        "fromDetailHelp": "Missing seasons on the page of a series in the library. Off: the series page shows only what is there.",
+        "alreadyRequested": "Titles already requested",
+        "alreadyRequestedHelp": {
+          "join": "Join: a second profile joins the open wish (“Notify me”) and is notified as well. Seerr gets no second request.",
+          "status": "Show the state only: a second profile sees “Already requested” but cannot join and is not notified."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Join",
+          "status": "Show the state only"
+        },
+        "unmapped": "Accounts without a Seerr user",
+        "unmappedHelp": {
+          "fallback": "Shared user: every account without a user of its own requests as slouchcat-gaeste and shares the default limit. Slouchcat creates this user in Seerr itself.",
+          "deny": "Do not allow: accounts without a user of their own cannot request until they have a Seerr user."
+        },
+        "unmappedOptions": {
+          "fallback": "Shared user",
+          "deny": "Do not allow"
+        },
+        "newAccountsCanRequest": "New accounts may request",
+        "newAccountsCanRequestHelp": "Default of the switch in the dialog “Invite account”. Does not change existing accounts.",
+        "allowWithdraw": "Allow withdrawing",
+        "allowWithdrawHelp": "While a wish is not approved. Button “Withdraw” under “My wishes”.",
+        "pinExternalHideTitle": "External messages of PIN profiles without the title",
+        "pinExternalHideTitleHelp": "E-mail, Web Push and Telegram then name only the profile, not the title.",
+        "defaultLimit": "Default limit",
+        "limitPerAccount": "Limit per account",
+        "limitPerAccountHelp": "Applies to all profiles of an account together. Seerr counts on a rolling basis and includes wishes made there directly. Declined wishes and joined wishes do not count. Administrators have no limit.",
+        "movieLimit": "Films: count",
+        "movieDays": "Films: days",
+        "tvLimit": "Seasons: count",
+        "tvDays": "Seasons: days",
+        "limitRange": "A whole number from {{low}} to {{high}}.",
+        "limitZero": "A count of 0 means no limit.",
+        "perAccount": "Different per account",
+        "perAccountHelp": "Under “Accounts” the limit of an account can be set differently: its own limit or unlimited.",
+        "toAccounts": "To the accounts",
+        "accountsInSeerr": "Accounts in Seerr",
+        "provisionOn": "Open new accounts",
+        "provisionOff": "Do not open new accounts",
+        "syncOn": "Sync password",
+        "syncOff": "no password sync",
+        "provisionAccounts": "Open new accounts in Seerr",
+        "provisionAccountsHelp": "When an invitation is accepted, Slouchcat opens the account in Seerr too: same e-mail, same password. If a user with the same e-mail exists there, Slouchcat links it at once. The new account types the address itself; nobody checks it. That is why the overview shows every such link for seven days.",
+        "syncPassword": "Sync password",
+        "syncPasswordHelp": "Slouchcat passes the password on to Seerr when it is set or changed and at the sign-in to Slouchcat. Slouchcat never stores it in plain text. Seerr needs “Local sign-in” for it. Users that existed in Seerr before and that an administrator links keep their password.",
+        "visibleInSeerr": "Whoever signs in to Seerr with an account's login sees the wishes of all profiles of that account there, those of a profile with a PIN too. Seerr also sends notifications of its own with the title; keep them switched off in Seerr for opened users.",
+        "existing": "Existing accounts",
+        "existingHelp": "Choose the Seerr user per account or remove the link.",
+        "toUsers": "To the Seerr users",
+        "links": "Links",
+        "who": "Who may request",
+        "whoHelp": "Who may request is set per account under Accounts; per profile the primary profile decides.",
+        "connection": "Connection to Seerr",
+        "connectionHelp": "Address, key, test and log.",
+        "users": "Seerr users",
+        "usersHelp": "Which account requests as which Seerr user, with password and limit.",
+        "usersCount": "{{opened}} of {{total}} accounts"
+      },
+      "users": {
+        "caption": "Accounts and their Seerr users",
+        "columns": {
+          "account": "Account",
+          "user": "Seerr user",
+          "password": "Password",
+          "rights": "Rights in Seerr",
+          "email": "E-mail",
+          "type": "Type"
+        },
+        "noUser": "None",
+        "passwordFollows": "Follows with the user",
+        "rightsFollow": "Follow the wish right",
+        "gone": "User deleted",
+        "state": {
+          "created": "Opened by Slouchcat",
+          "linked": "Linked by the same e-mail",
+          "manual": "Assigned by hand",
+          "waiting": "Opened as soon as Seerr is reachable",
+          "none": "Not opened"
+        },
+        "password": {
+          "synced": "Same as in Slouchcat",
+          "next_login": "Taken over at the next sign-in to Slouchcat",
+          "off": "Not synced",
+          "admin": "Stays in Seerr (administrator)",
+          "external": "Signs in through Jellyfin, Emby or Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Local",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Administrator",
+          "both": "Films and series",
+          "movies": "Films only",
+          "shows": "Series only",
+          "none": "No rights"
+        },
+        "choose": "Choose a user",
+        "chooseLabel": "Seerr user for {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (current)",
+        "optionGone": "{{option}} (deleted in Seerr)",
+        "optionTaken": "{{option}} · belongs to {{email}}",
+        "facts": {
+          "user": "Seerr user",
+          "state": "State",
+          "password": "Password",
+          "rights": "Rights in Seerr",
+          "limit": "Limit",
+          "right": "Wish right of the account"
+        },
+        "linkedBy": "{{by}} · since {{date}}",
+        "by": {
+          "admin": "by an administrator",
+          "invite": "when the invitation was accepted",
+          "email_change": "after the e-mail changed"
+        },
+        "since": "since {{date}}",
+        "syncedAt": "synced on {{time}}",
+        "movies": "Films",
+        "shows": "Series",
+        "autoApproveOn": "Auto-approval: yes",
+        "autoApproveOff": "Auto-approval: no",
+        "followRightOn": "Follow the wish right of the account: may request",
+        "followRightOff": "Follow the wish right of the account: may not request",
+        "noLimitAdmin": "No limit (administrator in Seerr)",
+        "unlimited": "Unlimited",
+        "limitMode": "{{limit}} ({{mode}})",
+        "mode": {
+          "default": "Default",
+          "custom": "Own",
+          "unlimited": "Unlimited"
+        },
+        "mayRequest": "May request",
+        "mayNotRequest": "May not request",
+        "goneTitle": "User “{{name}}” not found",
+        "goneBody": "Seerr no longer knows this user. Choose another user or remove the link.",
+        "selfLinked": {
+          "invite": "Linked with the existing Seerr user {{name}} when the invitation was accepted, because the e-mail is the same. If it does not belong to this account, remove the link.",
+          "email_change": "Linked with the existing Seerr user {{name}} after the e-mail changed, because the e-mail is the same. If it does not belong to this account, remove the link."
+        },
+        "warning": {
+          "nothing": "“{{name}}” may not request anything in Seerr. Every wish fails; give the user the right “Request” in Seerr or choose another one.",
+          "noShows": "“{{name}}” may not request series. Series wishes fail, films work.",
+          "noMovies": "“{{name}}” may not request films. Film wishes fail, series work."
+        },
+        "provisionError": "When opening in Seerr: {{error}}",
+        "change": "Change the Seerr user",
+        "unlink": "Remove the link",
+        "chooseHelp": "Users that belong to no other account can be chosen. Rights and password stay as they are in Seerr.",
+        "chooseHelpStale": "Users that belong to no other account can be chosen. The list shown is the one loaded last.",
+        "taken": "This Seerr user belongs to another account by now or can no longer be chosen. The choice is reset.",
+        "linked": "{{email}} now requests as “{{name}}”. Rights and approval come from this user.",
+        "unlinked": "Link of {{email}} removed. “{{name}}” stays in Seerr.",
+        "reloading": "The user list is being reloaded.",
+        "notConfigured": "Seerr is not set up",
+        "notConfiguredBody": "Without a connection there is no user list. Every account stays without a Seerr user for now.",
+        "toConnection": "To Integrations › Seerr",
+        "toDecision": "To the decision",
+        "instanceBody": "Until you decide under Integrations › Seerr, Slouchcat sends no wishes and syncs nothing. The list shows the last state.",
+        "goneCount_one": "{{count}} account: user deleted in Seerr",
+        "goneCount_other": "{{count}} accounts: user deleted in Seerr",
+        "goneCountBody": "Choose another user for these accounts or remove the link.",
+        "withoutCount_one": "{{count}} account without a Seerr user",
+        "withoutCount_other": "{{count}} accounts without a Seerr user",
+        "withoutFallback": "Until then they request as the shared user slouchcat-gaeste (rule “Accounts without a Seerr user”).",
+        "withoutDeny": "They cannot request while “Accounts without a Seerr user” is set to “Do not allow”.",
+        "toSettings": "To the settings",
+        "newAccounts": "New accounts: {{provision}} · Password: {{password}}",
+        "provisionOn": "are opened in Seerr",
+        "provisionOff": "are not opened",
+        "syncOn": "is synced",
+        "syncOff": "is not synced",
+        "changeSettings": "Change",
+        "shared": "Shared user: {{name}}",
+        "sharedLater": "Shared user: created once wishes are active",
+        "reload": "Reload the user list",
+        "unlinkedTitle": "Seerr users without an account",
+        "unlinkedCount_one": "{{count}} user",
+        "unlinkedCount_other": "{{count}} users",
+        "unlinkedEmpty": "Every Seerr user belongs to an account.",
+        "noEmail": "no e-mail"
+      }
     }
   },
   "language": {

@@ -407,6 +407,14 @@ const maintenanceRoute = createRoute({
   ),
 });
 
+const wishesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/wishes',
+  // `?tab=` selects «Seerr-Benutzer» or «Einstellungen» (concept 25).
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/WishesPage'), 'WishesPage'),
+});
+
 const devicesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/devices',
@@ -787,6 +795,7 @@ export const routeTree = rootRoute.addChildren([
           metadataRoute,
           audiobookSourcesRoute,
           maintenanceRoute,
+          wishesRoute,
           devicesRoute,
           streamsRoute,
           adminItemRoute,

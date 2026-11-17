@@ -23,6 +23,7 @@ const AREAS: readonly (readonly [string, readonly (readonly [string, string, str
       ['Bibliotheken', '/admin/libraries', 'Bibliotheken'],
       ['Metadaten', '/admin/metadata', 'Metadaten'],
       ['Pflege', '/admin/maintenance', 'Pflege'],
+      ['Wünsche', '/admin/wishes', 'Wünsche'],
       ['Podcasts', '/admin/podcasts', 'Podcasts'],
       ['Radio', '/admin/radio', 'Radio'],
       ['Hörbuch-Quellen', '/admin/metadata/audiobooks', 'Hörbücher: Quellen'],
@@ -108,9 +109,9 @@ test('the sidebar: back, the overview and five areas; one Tab stop and the arrow
   await expectNoFocusTrap(page, 120);
 });
 
-test('the area tabs reach every one of the 21 pages by keyboard', async ({ page }) => {
+test('the area tabs reach every one of the 22 pages by keyboard', async ({ page }) => {
   test.setTimeout(150_000);
-  expect(PAGES).toHaveLength(21);
+  expect(PAGES).toHaveLength(22);
   for (const [area, pages] of AREAS) {
     const [first] = pages;
     if (!first) throw new Error(`no page in ${area}`);
@@ -222,8 +223,8 @@ test('the palette: the button and Ctrl+K open it, typing filters, Enter opens, E
   await page.keyboard.press('Enter');
   await expect(palette(page)).toBeVisible();
   await expectFocusOn(page, paletteField(page));
-  // Overview, five areas, 21 pages, back to the app and the media search.
-  await expect(palette(page).getByRole('option')).toHaveCount(29);
+  // Overview, five areas, 22 pages, back to the app and the media search.
+  await expect(palette(page).getByRole('option')).toHaveCount(30);
   // The focus stays inside while it is open.
   for (const key of ['Tab', 'Tab', 'Shift+Tab']) {
     await page.keyboard.press(key);
@@ -321,11 +322,11 @@ test.describe('on a phone', () => {
       await page.keyboard.press('Enter');
       const sheet = page.getByRole('dialog', { name: 'Seiten der Verwaltung' });
       await expect(sheet).toBeVisible();
-      await expect(sheet.getByRole('link')).toHaveCount(23);
+      await expect(sheet.getByRole('link')).toHaveCount(24);
       const link = sheet
         .getByRole('list', { name: area })
         .getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
-      for (let presses = 0; presses < 23; presses += 1) {
+      for (let presses = 0; presses < 24; presses += 1) {
         if (await link.evaluate((element) => element === document.activeElement)) break;
         await page.keyboard.press('ArrowDown');
       }

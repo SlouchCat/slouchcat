@@ -43,9 +43,9 @@ const AREA_HEADINGS: Record<string, string> = {
 /**
  * The sheet on a phone: back, the overview and every page of the five areas (11.1: 19 pages;
  * concept 16 adds «Radio», concept 21 «Meine Medien», the redesign «Hörbuch-Quellen» and
- * «Server»).
+ * «Server», concept 25 «Wünsche»).
  */
-const SHEET_LINKS = 23;
+const SHEET_LINKS = 24;
 
 /** An entry of the sidebar by its label; numbers and pills may follow in its spoken name. */
 const entry = (page: Page, name: string) =>

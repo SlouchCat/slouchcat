@@ -555,6 +555,38 @@
         "kept_one": "„{{title}}“: {{count}} Datei gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten.",
         "kept_other": "„{{title}}“: {{count}} Dateien gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten."
       }
+    },
+    "wishes": {
+      "settings": {
+        "switchedOn": "„{{name}}“ ist eingeschaltet. Gilt sofort.",
+        "switchedOff": "„{{name}}“ ist ausgeschaltet. Gilt sofort.",
+        "choiceSaved": "„{{name}}“: {{value}}. Gilt sofort.",
+        "limitSaved": "Limit ab Werk: {{limit}}. Gilt sofort für alle Konten mit „Standard“.",
+        "allowMoviesHelp": "Gilt für alle Profile. Aus: kein „Film anfordern“.",
+        "allowShowsHelp": "Gilt für alle Profile. Aus: kein „Serie anfordern“ und keine „Staffeln anfordern“.",
+        "fromSearchHelp": "Abschnitt „Noch nicht in der Bibliothek“. Aus: Der Abschnitt fehlt.",
+        "alreadyRequestedHelp": {
+          "join": "Mitwünschen: Ein zweites Profil hängt sich an den offenen Wunsch („Benachrichtige mich“) und wird ebenfalls benachrichtigt. Seerr bekommt keine zweite Anfrage.",
+          "status": "Nur Zustand zeigen: Ein zweites Profil sieht „Bereits angefordert“, kann sich aber nicht dazuschalten und wird nicht benachrichtigt."
+        },
+        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog „Konto einladen“. Ändert bestehende Konten nicht.",
+        "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf „Zurückziehen“ unter „Meine Wünsche“.",
+        "limitZero": "Anzahl 0 heißt ohne Limit.",
+        "perAccountHelp": "Unter „Konten“ lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
+        "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die „Lokale Anmeldung“. Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort."
+      },
+      "users": {
+        "goneTitle": "Benutzer „{{name}}“ nicht gefunden",
+        "warning": {
+          "nothing": "„{{name}}“ darf in Seerr nichts anfordern. Jeder Wunsch scheitert; gib dem Benutzer in Seerr das Recht „Anfragen“ oder wähle einen anderen.",
+          "noShows": "„{{name}}“ darf keine Serien anfordern. Serienwünsche scheitern, Filme gehen.",
+          "noMovies": "„{{name}}“ darf keine Filme anfordern. Filmwünsche scheitern, Serien gehen."
+        },
+        "linked": "{{email}} fordert jetzt als „{{name}}“ an. Rechte und Freigabe kommen von diesem Benutzer.",
+        "unlinked": "Verknüpfung von {{email}} gelöst. „{{name}}“ bleibt in Seerr.",
+        "withoutFallback": "Sie fordern bis dahin als Sammelbenutzer slouchcat-gaeste an (Regel „Konten ohne Seerr-Benutzer“).",
+        "withoutDeny": "Sie können nichts anfordern, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht."
+      }
     }
   },
   "invite": {

@@ -229,7 +229,9 @@
       "root_unlisted": "Ein Ordner der Bibliothek fehlt in der Anfrage. Lade die Bibliothek neu; es wurde nichts entfernt.",
       "seerr_key_required": "Eine Adresse auf einem anderen Rechner braucht den API-Schlüssel neu: Der gespeicherte geht nie an eine andere Adresse.",
       "seerr_not_configured": "Trage zuerst Adresse und API-Schlüssel von Seerr ein.",
-      "instance_unchanged": "Es wartet keine andere Seerr-Instanz auf eine Entscheidung."
+      "instance_unchanged": "Es wartet keine andere Seerr-Instanz auf eine Entscheidung.",
+      "seerr_not_tested": "Wünsche lassen sich erst nach einem gelungenen Test der gespeicherten Verbindung einschalten.",
+      "seerr_user_taken": "Dieser Seerr-Benutzer gehört schon zu einem anderen Konto, ist der Sammelbenutzer oder fehlt in Seerr."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -3447,6 +3449,9 @@
       },
       "server": {
         "title": "Server"
+      },
+      "wishes": {
+        "title": "Wünsche"
       }
     },
     "server": {
@@ -4088,7 +4093,8 @@
           "noAnswer": "Keine Antwort",
           "ms": "{{ms}} ms",
           "note": "Nie mit Kopfzeilen oder Schlüssel. Höchstens 20 Einträge."
-        }
+        },
+        "usersLink": "Seerr-Benutzer der Konten"
       }
     },
     "accounts": {
@@ -5378,6 +5384,242 @@
         "changed": "an der Stelle liegt inzwischen eine andere Datei"
       },
       "changed": "Inzwischen hat sich etwas geändert, bitte erneut prüfen. Die Liste unten ist neu gelesen; nichts wurde gelöscht."
+    },
+    "wishes": {
+      "title": "Wünsche",
+      "intro": "Jedes Konto hat in Seerr einen eigenen Benutzer mit demselben Login. Seine Profile fordern als dieser Benutzer an. Rechte, Limit und Freigabe kommen von diesem Benutzer.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Bereiche der Wünsche",
+        "users": "Seerr-Benutzer",
+        "settings": "Einstellungen"
+      },
+      "strip": {
+        "label": "Zusammenfassung",
+        "accounts": "Konten",
+        "opened": "In Seerr",
+        "openedNote": "eröffnet oder verknüpft",
+        "without": "Ohne Benutzer",
+        "waiting_one": "{{count}} wartet auf Seerr",
+        "waiting_other": "{{count}} warten auf Seerr",
+        "password": "Passwort noch offen",
+        "passwordNote": "folgt bei der nächsten Anmeldung"
+      },
+      "limit": {
+        "movie_one": "{{count}} Film / {{days}} Tage",
+        "movie_other": "{{count}} Filme / {{days}} Tage",
+        "movieNone": "Filme ohne Limit",
+        "tv_one": "{{count}} Staffel / {{days}} Tage",
+        "tv_other": "{{count}} Staffeln / {{days}} Tage",
+        "tvNone": "Staffeln ohne Limit"
+      },
+      "settings": {
+        "atOnce": "Jede Änderung gilt sofort.",
+        "refused": "Nicht geändert: {{reason}}",
+        "switchedOn": "«{{name}}» ist eingeschaltet. Gilt sofort.",
+        "switchedOff": "«{{name}}» ist ausgeschaltet. Gilt sofort.",
+        "choiceSaved": "«{{name}}»: {{value}}. Gilt sofort.",
+        "limitSaved": "Limit ab Werk: {{limit}}. Gilt sofort für alle Konten mit «Standard».",
+        "basics": "Grundsatz",
+        "where": "Woher angefordert werden darf",
+        "rules": "Regeln",
+        "enabled": "Wünsche aktiv",
+        "enabledHelp": "Profile mit Recht können fehlende Titel anfordern. Aus: Niemand sieht fehlende Titel, offene Wünsche laufen in Seerr weiter.",
+        "enabledLocked": "Lässt sich erst nach einem gelungenen Test der gespeicherten Verbindung einschalten.",
+        "toConnection": "Zur Verbindung",
+        "allowMovies": "Filme erlauben",
+        "allowMoviesHelp": "Gilt für alle Profile. Aus: kein «Film anfordern».",
+        "allowShows": "Serien erlauben",
+        "allowShowsHelp": "Gilt für alle Profile. Aus: kein «Serie anfordern» und keine «Staffeln anfordern».",
+        "fromSearch": "Anfordern aus der Suche",
+        "fromSearchHelp": "Abschnitt «Noch nicht in der Bibliothek». Aus: Der Abschnitt fehlt.",
+        "fromDetail": "Anfordern auf Detailseiten",
+        "fromDetailHelp": "Fehlende Staffeln auf der Seite einer vorhandenen Serie. Aus: Die Serienseite zeigt nur, was vorhanden ist.",
+        "alreadyRequested": "Bereits angeforderte Titel",
+        "alreadyRequestedHelp": {
+          "join": "Mitwünschen: Ein zweites Profil hängt sich an den offenen Wunsch («Benachrichtige mich») und wird ebenfalls benachrichtigt. Seerr bekommt keine zweite Anfrage.",
+          "status": "Nur Zustand zeigen: Ein zweites Profil sieht «Bereits angefordert», kann sich aber nicht dazuschalten und wird nicht benachrichtigt."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Mitwünschen",
+          "status": "Nur Zustand zeigen"
+        },
+        "unmapped": "Konten ohne Seerr-Benutzer",
+        "unmappedHelp": {
+          "fallback": "Sammelbenutzer: Alle Konten ohne eigenen Benutzer fordern als slouchcat-gaeste an und teilen das Standard-Limit. Slouchcat legt diesen Benutzer in Seerr selbst an.",
+          "deny": "Nicht erlauben: Konten ohne eigenen Benutzer können nichts anfordern, bis sie einen Seerr-Benutzer haben."
+        },
+        "unmappedOptions": {
+          "fallback": "Sammelbenutzer",
+          "deny": "Nicht erlauben"
+        },
+        "newAccountsCanRequest": "Neue Konten dürfen anfordern",
+        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog «Konto einladen». Ändert bestehende Konten nicht.",
+        "allowWithdraw": "Zurückziehen erlauben",
+        "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf «Zurückziehen» unter «Meine Wünsche».",
+        "pinExternalHideTitle": "Externe Nachrichten bei PIN-Profilen ohne Titel",
+        "pinExternalHideTitleHelp": "E-Mail, Web-Push und Telegram nennen dann nur das Profil, nicht den Titel.",
+        "defaultLimit": "Limit ab Werk",
+        "limitPerAccount": "Limit je Konto",
+        "limitPerAccountHelp": "Gilt für alle Profile eines Kontos zusammen. Seerr zählt rollierend und rechnet auch Wünsche mit, die direkt dort gestellt werden. Abgelehnte Wünsche und Mitwünsche zählen nicht. Administratoren haben kein Limit.",
+        "movieLimit": "Filme: Anzahl",
+        "movieDays": "Filme: Tage",
+        "tvLimit": "Staffeln: Anzahl",
+        "tvDays": "Staffeln: Tage",
+        "limitRange": "Eine ganze Zahl von {{low}} bis {{high}}.",
+        "limitZero": "Anzahl 0 heisst ohne Limit.",
+        "perAccount": "Abweichend je Konto",
+        "perAccountHelp": "Unter «Konten» lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
+        "toAccounts": "Zu den Konten",
+        "accountsInSeerr": "Konten in Seerr",
+        "provisionOn": "Neue Konten eröffnen",
+        "provisionOff": "Neue Konten nicht eröffnen",
+        "syncOn": "Passwort abgleichen",
+        "syncOff": "kein Passwortabgleich",
+        "provisionAccounts": "Neue Konten in Seerr eröffnen",
+        "provisionAccountsHelp": "Beim Annehmen einer Einladung eröffnet Slouchcat das Konto auch in Seerr: gleiche E-Mail, gleiches Passwort. Gibt es dort schon einen Benutzer mit derselben E-Mail, verknüpft Slouchcat ihn sofort. Die Adresse tippt das neue Konto selbst ein; niemand prüft sie. Darum zeigt die Übersicht jede solche Verknüpfung sieben Tage lang.",
+        "syncPassword": "Passwort abgleichen",
+        "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die «Lokale Anmeldung». Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.",
+        "visibleInSeerr": "Wer sich mit dem Login eines Kontos in Seerr anmeldet, sieht dort die Wünsche aller Profile dieses Kontos, auch die eines Profils mit PIN. Seerr verschickt zudem eigene Benachrichtigungen mit dem Titel; lass sie für eröffnete Benutzer in Seerr ausgeschaltet.",
+        "existing": "Bestehende Konten",
+        "existingHelp": "Je Konto den Seerr-Benutzer wählen oder die Verknüpfung lösen.",
+        "toUsers": "Zu den Seerr-Benutzern",
+        "links": "Verweise",
+        "who": "Wer anfordern darf",
+        "whoHelp": "Wer anfordern darf, stellst du je Konto unter Konten ein; je Profil entscheidet das Hauptprofil.",
+        "connection": "Verbindung zu Seerr",
+        "connectionHelp": "Adresse, Schlüssel, Test und Protokoll.",
+        "users": "Seerr-Benutzer",
+        "usersHelp": "Welches Konto als welcher Seerr-Benutzer anfordert, mit Passwort und Limit.",
+        "usersCount": "{{opened}} von {{total}} Konten"
+      },
+      "users": {
+        "caption": "Konten und ihre Seerr-Benutzer",
+        "columns": {
+          "account": "Konto",
+          "user": "Seerr-Benutzer",
+          "password": "Passwort",
+          "rights": "Rechte in Seerr",
+          "email": "E-Mail",
+          "type": "Art"
+        },
+        "noUser": "Keiner",
+        "passwordFollows": "Folgt mit dem Benutzer",
+        "rightsFollow": "Folgen dem Wunschrecht",
+        "gone": "Benutzer gelöscht",
+        "state": {
+          "created": "Von Slouchcat eröffnet",
+          "linked": "Verknüpft über gleiche E-Mail",
+          "manual": "Von Hand zugeordnet",
+          "waiting": "Wird eröffnet, sobald Seerr erreichbar ist",
+          "none": "Nicht eröffnet"
+        },
+        "password": {
+          "synced": "Gleich wie in Slouchcat",
+          "next_login": "Wird bei der nächsten Anmeldung in Slouchcat übernommen",
+          "off": "Wird nicht abgeglichen",
+          "admin": "Bleibt in Seerr (Administrator)",
+          "external": "Anmeldung über Jellyfin, Emby oder Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Lokal",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Administrator",
+          "both": "Filme und Serien",
+          "movies": "Nur Filme",
+          "shows": "Nur Serien",
+          "none": "Keine Rechte"
+        },
+        "choose": "Benutzer wählen",
+        "chooseLabel": "Seerr-Benutzer für {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (jetzt)",
+        "optionGone": "{{option}} (in Seerr gelöscht)",
+        "optionTaken": "{{option}} · gehört zu {{email}}",
+        "facts": {
+          "user": "Seerr-Benutzer",
+          "state": "Zustand",
+          "password": "Passwort",
+          "rights": "Rechte in Seerr",
+          "limit": "Limit",
+          "right": "Wunschrecht des Kontos"
+        },
+        "linkedBy": "{{by}} · seit {{date}}",
+        "by": {
+          "admin": "durch einen Administrator",
+          "invite": "beim Annehmen der Einladung",
+          "email_change": "nach Änderung der E-Mail"
+        },
+        "since": "seit {{date}}",
+        "syncedAt": "abgeglichen am {{time}}",
+        "movies": "Filme",
+        "shows": "Serien",
+        "autoApproveOn": "Automatische Freigabe: ja",
+        "autoApproveOff": "Automatische Freigabe: nein",
+        "followRightOn": "Folgen dem Wunschrecht des Kontos: darf anfordern",
+        "followRightOff": "Folgen dem Wunschrecht des Kontos: darf nicht anfordern",
+        "noLimitAdmin": "Kein Limit (Administrator in Seerr)",
+        "unlimited": "Unbegrenzt",
+        "limitMode": "{{limit}} ({{mode}})",
+        "mode": {
+          "default": "Standard",
+          "custom": "Eigenes",
+          "unlimited": "Unbegrenzt"
+        },
+        "mayRequest": "Darf anfordern",
+        "mayNotRequest": "Darf nicht anfordern",
+        "goneTitle": "Benutzer «{{name}}» nicht gefunden",
+        "goneBody": "Seerr kennt diesen Benutzer nicht mehr. Wähle einen anderen Benutzer oder löse die Verknüpfung.",
+        "selfLinked": {
+          "invite": "Beim Annehmen der Einladung mit dem bestehenden Seerr-Benutzer {{name}} verknüpft, weil die E-Mail gleich ist. Gehört er nicht zu diesem Konto, löse die Verknüpfung.",
+          "email_change": "Nach Änderung der E-Mail mit dem bestehenden Seerr-Benutzer {{name}} verknüpft, weil die E-Mail gleich ist. Gehört er nicht zu diesem Konto, löse die Verknüpfung."
+        },
+        "warning": {
+          "nothing": "«{{name}}» darf in Seerr nichts anfordern. Jeder Wunsch scheitert; gib dem Benutzer in Seerr das Recht «Anfragen» oder wähle einen anderen.",
+          "noShows": "«{{name}}» darf keine Serien anfordern. Serienwünsche scheitern, Filme gehen.",
+          "noMovies": "«{{name}}» darf keine Filme anfordern. Filmwünsche scheitern, Serien gehen."
+        },
+        "provisionError": "Beim Eröffnen in Seerr: {{error}}",
+        "change": "Seerr-Benutzer ändern",
+        "unlink": "Verknüpfung lösen",
+        "chooseHelp": "Wählbar sind Benutzer, die zu keinem anderen Konto gehören. Rechte und Passwort bleiben, wie sie in Seerr sind.",
+        "chooseHelpStale": "Wählbar sind Benutzer, die zu keinem anderen Konto gehören. Gezeigt wird der zuletzt geladene Stand der Benutzerliste.",
+        "taken": "Dieser Seerr-Benutzer gehört inzwischen zu einem anderen Konto oder ist nicht mehr wählbar. Die Auswahl ist zurückgesetzt.",
+        "linked": "{{email}} fordert jetzt als «{{name}}» an. Rechte und Freigabe kommen von diesem Benutzer.",
+        "unlinked": "Verknüpfung von {{email}} gelöst. «{{name}}» bleibt in Seerr.",
+        "reloading": "Die Benutzerliste wird neu geladen.",
+        "notConfigured": "Seerr ist nicht eingerichtet",
+        "notConfiguredBody": "Ohne Verbindung gibt es keine Benutzerliste. Alle Konten bleiben vorerst ohne Seerr-Benutzer.",
+        "toConnection": "Zu Integrationen › Seerr",
+        "toDecision": "Zur Entscheidung",
+        "instanceBody": "Bis du unter Integrationen › Seerr entscheidest, stellt Slouchcat keine Wünsche und gleicht nichts ab. Die Liste zeigt den letzten Stand.",
+        "goneCount_one": "{{count}} Konto: Benutzer in Seerr gelöscht",
+        "goneCount_other": "{{count}} Konten: Benutzer in Seerr gelöscht",
+        "goneCountBody": "Wähle für diese Konten einen anderen Benutzer oder löse die Verknüpfung.",
+        "withoutCount_one": "{{count}} Konto ohne Seerr-Benutzer",
+        "withoutCount_other": "{{count}} Konten ohne Seerr-Benutzer",
+        "withoutFallback": "Sie fordern bis dahin als Sammelbenutzer slouchcat-gaeste an (Regel «Konten ohne Seerr-Benutzer»).",
+        "withoutDeny": "Sie können nichts anfordern, solange «Konten ohne Seerr-Benutzer» auf «Nicht erlauben» steht.",
+        "toSettings": "Zu den Einstellungen",
+        "newAccounts": "Neue Konten: {{provision}} · Passwort: {{password}}",
+        "provisionOn": "werden in Seerr eröffnet",
+        "provisionOff": "werden nicht eröffnet",
+        "syncOn": "wird abgeglichen",
+        "syncOff": "wird nicht abgeglichen",
+        "changeSettings": "Ändern",
+        "shared": "Sammelbenutzer: {{name}}",
+        "sharedLater": "Sammelbenutzer: wird angelegt, sobald Wünsche aktiv sind",
+        "reload": "Benutzerliste neu laden",
+        "unlinkedTitle": "Seerr-Benutzer ohne Konto",
+        "unlinkedCount_one": "{{count}} Benutzer",
+        "unlinkedCount_other": "{{count}} Benutzer",
+        "unlinkedEmpty": "Jeder Seerr-Benutzer gehört zu einem Konto.",
+        "noEmail": "keine E-Mail"
+      }
     }
   },
   "language": {

@@ -632,6 +632,7 @@ const SHEET = [
   ['Bibliotheken', '/admin/libraries'],
   ['Metadaten', '/admin/metadata'],
   ['Pflege', '/admin/maintenance'],
+  ['Wünsche', '/admin/wishes'],
   ['Podcasts', '/admin/podcasts'],
   ['Radio', '/admin/radio'],
   ['Hörbuch-Quellen', '/admin/metadata/audiobooks'],

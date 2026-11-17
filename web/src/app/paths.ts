@@ -14,6 +14,8 @@ export const paths = {
   playbackSettings: '/settings/playback',
   adminLibraries: '/admin/libraries',
   adminMaintenance: '/admin/maintenance',
+  /** Wishes through Seerr (concept 25): the Seerr users of the accounts and the settings. */
+  adminWishes: '/admin/wishes',
   adminDevices: '/admin/devices',
   adminStreams: '/admin/streams',
   /** Downloads of the active profile on this device (M5). */

@@ -39,15 +39,53 @@ async function send(api: APIRequestContext, method: 'put' | 'post', path: string
   return response;
 }
 
-/** The connection the mock answers to, saved and tested through the API. */
+/**
+ * The connection the mock answers to, saved and tested through the API. Saving queues the job
+ * `seerr.users`; it is waited for, so it never reads the mock while it plays another instance.
+ */
 async function connect(api: APIRequestContext): Promise<void> {
   await send(api, 'put', '/admin/seerr', { url: SEERR_BASE, apiKey: SEERR_API_KEY, enabled: true });
   await send(api, 'post', '/admin/seerr/test', {});
+  await expect
+    .poll(
+      async () =>
+        ((await (await api.get('/api/v1/admin/wishes/mappings/users')).json()) as unknown[]).length,
+      {
+        timeout: 15_000,
+      },
+    )
+    .toBeGreaterThan(0);
 }
 
-/** Deletes the connection again; the mock answers as the first instance. */
-async function disconnect(api: APIRequestContext): Promise<void> {
+/**
+ * The mock answers as the first instance again, and the server agrees: a test of the saved
+ * connection and, while it still sees another instance, «Zuordnung bestätigen». The job
+ * `seerr.users` a decision queues may read the mock between the two, so this repeats until a test
+ * finds the same instance.
+ */
+async function sameInstance(api: APIRequestContext): Promise<void> {
   await seerrControl('same');
+  await expect
+    .poll(
+      async () => {
+        await send(api, 'post', '/admin/seerr/test', {});
+        const status = (await (await api.get('/api/v1/admin/seerr/status')).json()) as {
+          instanceChanged: boolean;
+        };
+        if (!status.instanceChanged) return true;
+        await send(api, 'post', '/admin/seerr/instance', { action: 'confirm' });
+        return false;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+/** Deletes the connection again, after the server agreed on the first instance. */
+async function disconnect(api: APIRequestContext): Promise<void> {
+  const settings = (await (await api.get('/api/v1/admin/seerr')).json()) as { urlSource: string };
+  if (settings.urlSource === 'stored') await sameInstance(api);
+  else await seerrControl('same');
   await send(api, 'put', '/admin/seerr', { clear: true, enabled: false });
 }
 
@@ -205,8 +243,6 @@ test('another instance waits for a decision; «Zuordnung löschen» asks first',
   // The buttons went with the notice: the focus moves to the page's heading.
   await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeFocused();
 
-  // The mock answers as the first instance again: take that one back over as well.
-  await seerrControl('same');
-  await send(owner, 'post', '/admin/seerr/test', {});
-  await send(owner, 'post', '/admin/seerr/instance', { action: 'confirm' });
+  // The mock answers as the first instance again: the server takes that one back over.
+  await sameInstance(owner);
 });

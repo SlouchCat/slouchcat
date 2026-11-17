@@ -3,10 +3,20 @@ import type { TFunction } from 'i18next';
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { intlLocale } from '@/i18n';
 import { formatDateTime } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { Chip, Notice, Skeleton, StatusDot, Text, VisuallyHidden, type StatusDotState } from '@/ui';
+import {
+  Chip,
+  Notice,
+  Skeleton,
+  StatusDot,
+  Text,
+  TextLink,
+  VisuallyHidden,
+  type StatusDotState,
+} from '@/ui';
 import {
   afterDialogsClosed,
   afterRender,
@@ -629,6 +639,9 @@ export function SeerrView({
       >
         {status.data && <CallLog status={status.data} />}
       </DisclosureGroup>
+      <TextLink href={`${paths.adminWishes}?tab=seerr-benutzer`}>
+        {t('admin.integrations.seerr.usersLink')}
+      </TextLink>
     </div>
   );
 }
