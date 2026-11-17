@@ -262,3 +262,61 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
   «in Beschaffung» nicht.
 - **Spec A-6**: Die Kanäle tragen die Ereignisse der Wünsche statt des alten «Beschaffungsstatus».
 - **Neu Spec I-9 bis I-11** (Nummern I-1 bis I-4 bleiben unbesetzt).
+
+## Nachtrag vom 17. November 2026: Stand nach dem Bau
+
+Der Bau auf `claude/k25-bau` und seine Prüfungen (Sicherheitsprüfung, Prüfung des Servers, dritte Leseprobe an
+Marcos Seerr, `docs/planning/25-medienwuensche/anhang/I-pruefung-echte-instanzen.md` Abschnitt 4b) ändern diese
+Punkte des Entscheids. Der Text oben bleibt stehen; wo er widerspricht, gilt dieser Nachtrag. Keiner der Punkte ist
+ein Entscheid von Marco; sie sind Redaktion bzw. so gebaut. Einzelheiten: `docs/planning/25-medienwuensche/`,
+Papiere `03`, `04` und `08`, und Anhang H, Abschnitt 12.
+
+1. **Kein automatisches Verknüpfen privilegierter Seerr-Benutzer (zu Entscheid 4).** Beim Annehmen einer Einladung
+   und nach einer E-Mail-Änderung verknüpft Slouchcat einen gefundenen Seerr-Benutzer nicht, wenn er Benutzer 1
+   ist oder eines der Rechte `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS` hat. Das Konto
+   wartet mit dem Grund `seerr_user_privileged`; ein Administrator kann den Benutzer über «In Seerr eröffnen» oder
+   von Hand wählen, dann ohne Passwort- und E-Mail-Abgleich. Das engt E-8 («sofort verknüpfen») für diese Benutzer
+   ein. Grund: Die Zusage aus N-91, dass sich ein Administrator von Seerr so nicht übernehmen lässt, hielt nur für
+   das Passwort; mit der Verknüpfung wären seine Anfragen und sein Recht ohne Limit an das Konto gegangen. Es ist
+   eine Sicherheitskorrektur der Redaktion nach der Sicherheitsprüfung; Marco ist informiert (Meldung der
+   Bau-Session vom 17. November 2026), entschieden hat er sie nicht.
+2. **Schutz von Passwort und E-Mail (zu Entscheid 15).** Jedes der vier Verwaltungsrechte zählt für Passwort und
+   E-Mail als «Administrator»; «Kein Limit» bleibt an `MANAGE_USERS` gebunden, weil Seerr so rechnet. Vor jedem
+   Setzen liest Slouchcat den Benutzer frisch und lässt es bei Benutzer 1, einem Verwaltungsrecht oder einer
+   Anmeldung, die nicht lokal ist. Die Übergabe läuft je Konto unter einer Sperre, damit ein altes Passwort ein
+   neueres nicht überholt. Ein gespeicherter Schlüssel geht nur an dasselbe Schema, denselben Host und Port (zu
+   Entscheid 2): ein Wechsel von `https` auf `http` verlangt ihn neu.
+3. **Sammelbenutzer (zu Entscheid 21).** Ihn kennzeichnet der Merker `seerr_users.is_shared` (höchstens ein
+   Benutzer, nie einem Konto zugeordnet); eine Einstellung `wishes.shared_seerr_user` gibt es nicht. Die Domain
+   `slouchcat.invalid` ist für Konten gesperrt (Besitzer, Einladung, E-Mail-Änderung). Übernimmt Slouchcat einen
+   schon vorhandenen Benutzer dieser Adresse als Sammelbenutzer, setzt es ihm ein neues Zufallspasswort. Anfragen
+   des Sammelbenutzers übergehen Abgleich und Übernahme ganz.
+4. **Absicht des Jobs `seerr.provision`.** Jeder Lauf trägt `open` (Einladung, «In Seerr eröffnen», «Alle
+   eröffnen»), `retry` (wartendes Konto) oder `sync` (Handzuordnung, neues Limit, neues Wunschrecht). `sync` sucht
+   nie über die E-Mail und legt nie einen Benutzer an. Ein wartender Wunsch wird nie als ein Seerr-Benutzer
+   gesendet, der inzwischen einem anderen Konto gehört oder privilegiert ist; er scheitert mit `seerr_user_gone`
+   (Einzelheit `mapping_changed`).
+5. **Was ein Mitwünscher liest (zu Entscheid 10).** Darf ein Anforderer oder Mitwünscher den eingetroffenen Titel
+   nicht sehen, liest er den Wunsch als «In Beschaffung · wird eingelesen», ohne Zeitpunkt und ohne Verweis auf den
+   Titel; der Zustand des Wunsches bleibt, der Titel bleibt für ihn 404. Das Hauptprofil sieht über
+   `listAccountWishes` die Wünsche aller Profile des Kontos.
+6. **Konto und Profil gelöscht (zu Entscheid 4).** Wird ein Konto gelöscht, gehen offene Wünsche mit einem
+   Mitwünscher eines anderen Kontos an den ältesten dieser Mitwünscher; die übrigen schliessen als `failed` mit
+   `account_deleted`, ihre Request-IDs wandern in den Verlauf. Wird ein Profil gelöscht, gehen seine Wünsche an
+   das Hauptprofil des Kontos. Der Index auf die Request-Nummer gilt nur für offene Wünsche (Migration 00081).
+7. **Herkunft und Webhook-Art.** Die Webhook-Art des Seerr-Webhooks heisst `seerr` (Migration 00080
+   `webhook_seerr`), die Kachel der Verwaltung `?item=seerr`. Der Herkunftswert einer direkt in Seerr gestellten
+   Anfrage soll ebenfalls `seerr` heissen; im Code steht beim Stand dieses Nachtrags noch `jellyseerr`
+   (Migration 00069, Vertrag 1.41.0), die Umbenennung ist in Arbeit.
+8. **Freigeben und Ablehnen (zu Entscheid 12)** laufen als Benutzer 1, ohne `X-API-User`.
+9. **Meldungen (zu Entscheid 11).** `notified_at` schreibt `notify` selbst, in derselben Transaktion wie den
+   Eingangseintrag; übernommene Anfragen setzen es direkt, damit keine Meldung entsteht. Bekannte Grenzen: Nach dem
+   Aufräumen des Eingangs (90 Tage) kann ein Profil dieselbe Staffelmeldung noch einmal bekommen, wenn ein
+   Kinderprofil noch auf den Titel wartet; stürzt der Server zwischen Speichern und Melden ab, geht eine
+   Zustandsmeldung verloren, «verfügbar» wird nachgeholt.
+10. **Download-Fortschritt (zu Entscheid 19).** Der Planer kennt keinen Takt unter 5 Minuten; der Zeitplan stösst
+    eine Kette an, jeder Lauf plant den nächsten nach einer Minute. Pfade in Meldungen von Radarr und Sonarr
+    entfernt Slouchcat, bevor es etwas speichert oder zeigt.
+11. **Bremsen:** 20 Wünsche je Profil und Stunde, 30 Suchen je Profil und Minute (429 `too_many_attempts` mit
+    `Retry-After`). Bremsen gegen Massenabrufe fehlender Titel folgen mit dem Vertrag der Stufen 4 und 5 (in
+    Arbeit).

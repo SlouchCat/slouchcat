@@ -72,7 +72,7 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   «Teststufen» weiter unten. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`):
   `go vet` und `go test` ohne `-race` für die geänderten Pakete und ihre direkten Abnehmer.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
-  `E2E_PORT`, `+20`, `+40` … (Standard 8097) samt den Mocks auf den zehn Ports darunter. Ab 8097
+  `E2E_PORT`, `+20`, `+40` … (Standard 8097) samt den Mocks auf den zwölf Ports darunter. Ab 8097
   bleiben höchstens 5 Shards unter 8197; ein zweiter Lauf daneben beginnt auf 8297 oder höher. Jeder
   Shard hat einen eigenen Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`,
   Protokoll `run.log`) und eine Kopie von `testdata/media` aus harten Links, weil Specs dort Dateien
@@ -90,6 +90,16 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   eine Umgebungsvariable schaltet das im normalen Build nie frei (Konzept 16, Plan 3.8). Katalog und
   Teststation liefert `web/e2e/radio-server.mjs` neun Ports unter dem App-Port (Standard 8088) aus
   `testdata/radio/catalog.json`. Das Docker-Image und `bin/slouchcat` tragen das Tag nie.
+- Für die Wünsche (Konzept 25) startet `web/e2e/start-server.mjs` zwei weitere Nachbauten im selben Prozess:
+  `web/e2e/seerr-server.mjs` (Seerr, elf Ports unter dem App-Port) mit den Antworten, die Seerr 3.5.1 bei der
+  Prüfung der echten Instanzen gab (Benutzerpflege, Limit, Anfragen, Titel). Der Testserver bekommt keine
+  Variable `SLOUCHCAT_SEERR_*`, weil sie das Formular sperren würde; die Specs tragen Adresse und Schlüssel
+  in der Verwaltung ein. `web/e2e/tmdb-server.mjs` (TMDB, zwölf Ports darunter) liefert die Titel ausserhalb der
+  Bibliothek. Der Server fragt ihn nur über `SLOUCHCAT_TEST_TMDB_BASE_URL` (und
+  `SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL`) und nur im Entwicklungsmodus (`--dev`); ohne `--dev` übergeht er die
+  Variablen mit einer Warnung. Weil die Suite ohne TMDB-Schlüssel läuft, legen die Specs der Wünsche ihn über die
+  Verwaltung an und entfernen ihn danach (`web/e2e/wishes.ts`). Beide lassen sich einzeln starten
+  (`node e2e/seerr-server.mjs`, `node e2e/tmdb-server.mjs`).
 - `SLOUCHCAT_E2E_ARTEFACTS` und `SLOUCHCAT_E2E_MEDIA` verlegen Artefakte und Testmedien eines
   einzelnen Laufs (`web/e2e/env.ts`); `ci:e2e:parallel` setzt beide selbst.
 

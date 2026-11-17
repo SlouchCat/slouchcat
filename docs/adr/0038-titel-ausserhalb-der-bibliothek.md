@@ -96,3 +96,33 @@ dürfte, und der Browser soll keine Bilder direkt bei TMDB holen.
 - Die Startseite bekommt die neue Reihe «Erfüllte Wünsche» (Marco, E-10): Wünsche des Profils, die in den letzten 14 Tagen
   erfüllt wurden, also nur Titel der Bibliothek (`ItemRef`). Die Titel-IDs liefert `wishes`, die Sichtbarkeit prüft
   `visibility`. Der neue Schlüssel in `HomeRowKey` macht Stufe 3 brechend; ohne die Reihe wäre sie es nicht.
+
+## Nachtrag vom 17. November 2026: Stand nach dem Bau
+
+Der Bau auf `claude/k25-bau` und die zweite Leseprobe an Marcos Seerr
+(`docs/planning/25-medienwuensche/anhang/I-pruefung-echte-instanzen.md`, Abschnitt 4a) ändern diese Punkte des
+Entscheids. Der Text oben bleibt stehen; wo er widerspricht, gilt dieser Nachtrag. Keiner der Punkte ist ein
+Entscheid von Marco; sie sind Redaktion bzw. so gebaut.
+
+1. **Bilder als `ImageRef` (zu Entscheid 3).** Bilder fehlender Titel kommen wie Bibliotheksbilder als `ImageRef`
+   (Poster `w200`, `w400`, `w800`; Hintergrund `w780`, `w1280`, `w1920`; Logo `w400`), immer über Slouchcats
+   eigene Route.
+2. **Gebrauch und Aufräumen (zu den Folgen, «Vorschlag»).** `external_titles` hat die Spalte `used_at` (Migration
+   00074), höchstens einmal am Tag nachgeführt, wenn eine Seite den Titel liest. `titles.refresh` frischt nur auf,
+   was in Gebrauch ist, offene Wünsche zuerst, und löscht Einträge 30 Tage nach dem letzten Gebrauch samt Texten
+   und Bildern, wenn kein offener oder kürzlich geschlossener Wunsch und kein Spotlight-Eintrag auf sie zeigt. Eine
+   Obergrenze für den Bildspeicher fehlender Titel und Bremsen gegen Massenabrufe sind in Arbeit (Vertrag der
+   Stufen 4 und 5).
+3. **Spotlight-Einträge ohne TMDB-ID (zu Entscheid 5 und 6).** Nicht zuordenbare Einträge lassen sich in der
+   Verwaltung weder anheften noch ausblenden noch kommentieren, weil die Anpassungen an der TMDB-ID hängen.
+4. **Wünsche-Seiten (zu Entscheid 8), Regeln N-115 bis N-118.** An `/discover/movies` und `/discover/tv` sendet
+   Slouchcat kein `language`, weil Seerr dort damit die Originalsprache filtert (N-115). Titel, Poster und
+   Hintergrund eines Treffers kommen aus `external_titles` in der Sprache des Profils, sobald Slouchcat den Titel
+   kennt, sonst aus Seerr (N-116). Die Raster «Filme» und «Serien» sortieren nach «Beliebtheit», «Neueste zuerst»
+   und «Am besten bewertet»; «Titel A–Z» entfällt, weil Seerr sie nicht brauchbar liefert (N-117). Der Vorfilter
+   nach Freigabe nimmt für CH und AT das Land DE, weil die Abdeckung dort dünn ist; über die Anzeige entscheidet
+   weiter allein die Nachprüfung von Slouchcat (N-118). Slouchcat fragt höchstens Seite 500 ab.
+5. **Vorschauseite (zu Entscheid 4).** Sie zeigt Zuschauern keine Altersfreigabe (Regel aus Konzept 17, F-10);
+   über das Alter entscheidet weiter der Server.
+6. **Startreihe «Erfüllte Wünsche» (zu den Folgen).** Sie steht ab Werk sichtbar direkt nach «Weiterschauen»
+   (Migration 00079); sind schon 15 Reihen sichtbar, startet sie ausgeblendet.
