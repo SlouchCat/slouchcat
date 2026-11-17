@@ -230,9 +230,6 @@ func (s *Service) tagOne(ctx context.Context, c *arr.Client, kind arr.Kind, r wi
 		tagID, tagIDs[r.TagName] = tag.ID, tag.ID
 	}
 	titleID, known := titles[r.WishID]
-	if !known && r.ArrTitleID.Valid {
-		titleID, known = int(r.ArrTitleID.Int64), true
-	}
 	var tags []int
 	if !known {
 		var err error

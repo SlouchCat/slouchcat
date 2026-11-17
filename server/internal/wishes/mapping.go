@@ -37,25 +37,33 @@ const (
 
 // SeerrUsers returns every known Seerr user with the account it belongs to (listSeerrUsers).
 func (m *Mapping) SeerrUsers(ctx context.Context) ([]model.SeerrUser, error) {
+	users, _, err := m.seerrUsers(ctx)
+	return users, err
+}
+
+// seerrUsers is SeerrUsers with the rows by Seerr id (the quotas of WishMappings).
+func (m *Mapping) seerrUsers(ctx context.Context) ([]model.SeerrUser, map[int64]wishq.SeerrUser, error) {
 	rows, err := m.s.read.ListSeerrUsers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list seerr users: %w", err)
+		return nil, nil, fmt.Errorf("list seerr users: %w", err)
 	}
 	out := make([]model.SeerrUser, 0, len(rows))
+	byID := make(map[int64]wishq.SeerrUser, len(rows))
 	for _, r := range rows {
 		u := toSeerrUser(r.SeerrUser)
 		if r.MappedAccountID.Valid {
 			u.MappedTo = &model.SeerrUserAccount{AccountID: r.MappedAccountID.Int64, Email: r.MappedAccountEmail.String}
 		}
 		out = append(out, u)
+		byID[r.SeerrUser.SeerrID] = r.SeerrUser
 	}
-	return out, nil
+	return out, byID, nil
 }
 
 // WishMappings returns every account with its Seerr user, limit and state, the users without an
 // account and the shared user (getWishMappings).
 func (m *Mapping) WishMappings(ctx context.Context) (model.WishMappings, error) {
-	users, err := m.SeerrUsers(ctx)
+	users, rowOf, err := m.seerrUsers(ctx)
 	if err != nil {
 		return model.WishMappings{}, err
 	}
@@ -116,21 +124,13 @@ func (m *Mapping) WishMappings(ctx context.Context) (model.WishMappings, error) 
 		l, has := limitOf[r.AccountID]
 		a.Limit = accountLimit(l, has, settings.DefaultLimit, user != nil && user.IsAdmin)
 		if user != nil && r.State.String == StateReady {
-			row, err := m.s.read.GetSeerrUser(ctx, int64(user.ID))
-			if err != nil {
-				return model.WishMappings{}, fmt.Errorf("seerr user: %w", err)
-			}
-			a.Quota = wishQuota(row, a.Limit.Effective)
+			a.Quota = wishQuota(rowOf[int64(user.ID)], a.Limit.Effective)
 		}
 		out.Accounts = append(out.Accounts, a)
 	}
 	out.Total = len(out.Accounts)
 	if out.SharedUser != nil {
-		row, err := m.s.read.GetSeerrUser(ctx, int64(out.SharedUser.ID))
-		if err != nil {
-			return model.WishMappings{}, fmt.Errorf("shared seerr user: %w", err)
-		}
-		out.SharedQuota = wishQuota(row, settings.DefaultLimit)
+		out.SharedQuota = wishQuota(rowOf[int64(out.SharedUser.ID)], settings.DefaultLimit)
 	}
 	return out, nil
 }

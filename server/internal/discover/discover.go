@@ -376,12 +376,13 @@ func (s *Service) row(ctx context.Context, profile model.Profile, setting model.
 
 // wishesRow returns the row «Erfüllte Wünsche»: the titles of the profile's fulfilled wishes in the
 // order package wishes gives, the ones the profile sees only (CLAUDE.md rule 2), never a title
-// outside the library (N-70, N-74); none without a source.
+// outside the library (N-70, N-74); none without a source. It asks for more ids than the row
+// holds and fills the row after the visibility filter.
 func (s *Service) wishesRow(ctx context.Context, profile model.Profile, scope visibility.Scope) ([]model.ItemSummary, error) {
 	if s.wishes == nil {
 		return nil, nil
 	}
-	ids, err := s.wishes(ctx, profile, visibility.MaxRowItems)
+	ids, err := s.wishes(ctx, profile, wishesRowCandidates)
 	if err != nil {
 		return nil, fmt.Errorf("fulfilled wishes: %w", err)
 	}
@@ -394,12 +395,16 @@ func (s *Service) wishesRow(ctx context.Context, profile model.Profile, scope vi
 	}
 	out := make([]model.ItemSummary, 0, len(ids))
 	for _, id := range ids {
-		if it, ok := seen[id]; ok {
+		if it, ok := seen[id]; ok && len(out) < visibility.MaxRowItems {
 			out = append(out, it)
 		}
 	}
 	return out, nil
 }
+
+// wishesRowCandidates is how many fulfilled wishes the row «Erfüllte Wünsche» reads before the
+// visibility filter (the 14 days of the row keep it small).
+const wishesRowCandidates = 5 * visibility.MaxRowItems
 
 // radioRow returns the tiles of the row radio, none without a radio service or on its error.
 func (s *Service) radioRow(ctx context.Context, profile model.Profile) []model.RadioHomeStation {

@@ -569,13 +569,11 @@ func (s *Server) routes() http.Handler {
 		{pattern: "GET /user", query: []string{"take", "skip", "q", "sort", "sortDirection", "includeIds"}, handle: (*Server).listUsers},
 		{pattern: "POST /user", handle: (*Server).createUser},
 		{pattern: "GET /user/{id}", handle: (*Server).getUser},
-		{pattern: "DELETE /user/{id}", handle: (*Server).deleteUser},
 		{pattern: "GET /user/{id}/settings/main", handle: (*Server).getUserSettings},
 		{pattern: "POST /user/{id}/settings/main", handle: (*Server).setUserSettings},
 		{pattern: "POST /user/{id}/settings/password", handle: (*Server).setPassword},
 		{pattern: "POST /user/{id}/settings/permissions", handle: (*Server).setPermissions},
 		{pattern: "GET /user/{id}/quota", handle: (*Server).getQuota},
-		{pattern: "GET /user/{id}/requests", query: []string{"take", "skip"}, handle: (*Server).userRequests},
 		{pattern: "POST /request", handle: (*Server).createRequest},
 		{pattern: "GET /request", query: []string{"take", "skip", "filter", "sort", "sortDirection", "requestedBy", "mediaType"}, handle: (*Server).listRequests},
 		{pattern: "GET /request/{id}", handle: (*Server).getRequest},
@@ -935,27 +933,6 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request, actor *User, _ 
 	if u := s.target(w, r); u != nil {
 		writeJSON(w, http.StatusOK, s.userJSON(u, u.ID == actor.ID || actor.has(PermManageUsers)))
 	}
-}
-
-func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
-	if !actor.has(PermManageUsers) {
-		writeDenied(w)
-		return
-	}
-	u := s.target(w, r)
-	switch {
-	case u == nil:
-		return
-	case u.ID == 1:
-		writeMessage(w, http.StatusMethodNotAllowed, "This account cannot be deleted.")
-		return
-	case u.has(PermAdmin) && actor.ID != 1:
-		writeMessage(w, http.StatusMethodNotAllowed, "You cannot delete users with administrative privileges.")
-		return
-	}
-	out := s.userJSON(u, true)
-	s.removeUser(u.ID)
-	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) removeUser(id int) {
@@ -1408,30 +1385,6 @@ func (s *Server) listRequests(w http.ResponseWriter, r *http.Request, actor *Use
 		out = append(out, s.requestJSON(req, true))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"pageInfo": pageInfo(len(hits), take, skip), "results": out, "serviceErrors": map[string]any{}})
-}
-
-func (s *Server) userRequests(w http.ResponseWriter, r *http.Request, actor *User, _ map[string]json.RawMessage) {
-	u := s.target(w, r)
-	if u == nil {
-		return
-	}
-	if u.ID != actor.ID && !actor.hasAny(PermManageRequests, PermRequestView) {
-		writeMessage(w, http.StatusForbidden, "You do not have permission to view this user's requests.")
-		return
-	}
-	var hits []*Request
-	all := s.sortedRequests()
-	for i := len(all) - 1; i >= 0; i-- { // id DESC
-		if all[i].UserID == u.ID {
-			hits = append(hits, all[i])
-		}
-	}
-	take, skip := queryInt(r, "take", 20), queryInt(r, "skip", 0)
-	out := []map[string]any{}
-	for _, req := range window(hits, take, skip) {
-		out = append(out, s.requestJSON(req, true))
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"pageInfo": pageInfo(len(hits), take, skip), "results": out})
 }
 
 func (s *Server) findRequest(w http.ResponseWriter, r *http.Request) *Request {

@@ -51,7 +51,7 @@ SELECT t.media, t.tmdb_id FROM external_titles AS t
 WHERE coalesce(t.used_at, 0) < @used_before
   AND NOT EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id)
 ORDER BY coalesce(t.used_at, 0), t.media, t.tmdb_id
-LIMIT @limit_count;
+LIMIT @limit_count OFFSET @offset_count;
 
 -- name: DeleteExternalTitleImageRows :many
 -- Every image row of a title before the title goes; returns the image files to

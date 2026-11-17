@@ -569,3 +569,13 @@ func (s *Service) ArrTagChecks(ctx context.Context) []model.SeerrCheck {
 	}
 	return out
 }
+
+// TestArrService is TestArrConnection by the service name of the contract (radarr, sonarr); an
+// unknown name is a *model.ValidationError on service.
+func (s *Service) TestArrService(ctx context.Context, service string) (ArrTestResult, error) {
+	kind, err := ParseArrService(service)
+	if err != nil {
+		return ArrTestResult{}, &model.ValidationError{Fields: []model.FieldError{{Field: "service", Code: "invalid"}}}
+	}
+	return s.TestArrConnection(ctx, kind)
+}

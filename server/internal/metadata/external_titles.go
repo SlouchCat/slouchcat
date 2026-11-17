@@ -980,23 +980,35 @@ func (s *Service) removeUnusedExternal(ctx context.Context, now time.Time, open,
 	for _, r := range append(slices.Clone(open), recent...) {
 		keep[r] = true
 	}
-	rows, err := externalq.New(s.db.Read).ListUnusedExternalTitles(ctx, externalq.ListUnusedExternalTitlesParams{
-		UsedBefore: sql.NullInt64{Int64: now.Add(-ExternalTitleUnusedAge).UnixMilli(), Valid: true}, LimitCount: titlesRefreshBatch,
-	})
-	if err != nil {
-		return fmt.Errorf("%s: list unused titles: %w", JobTitlesRefresh, err)
-	}
-	removed := 0
-	for _, r := range rows {
-		if keep[TitleRef{Media: r.Media, TMDBID: r.TmdbID}] {
-			continue
-		}
-		rels, err := s.deleteExternal(ctx, r.Media, r.TmdbID)
+	// It pages past the kept rows (review nit: a thousand kept rows among the oldest stopped every
+	// removal) and removes at most titlesRefreshBatch per run.
+	removed, kept := 0, 0
+	for removed < titlesRefreshBatch {
+		rows, err := externalq.New(s.db.Read).ListUnusedExternalTitles(ctx, externalq.ListUnusedExternalTitlesParams{
+			UsedBefore: sql.NullInt64{Int64: now.Add(-ExternalTitleUnusedAge).UnixMilli(), Valid: true},
+			LimitCount: titlesRefreshBatch, OffsetCount: int64(kept),
+		})
 		if err != nil {
-			return fmt.Errorf("%s: %w", JobTitlesRefresh, err)
+			return fmt.Errorf("%s: list unused titles: %w", JobTitlesRefresh, err)
 		}
-		s.removeExternalFiles(rels)
-		removed++
+		for _, r := range rows {
+			if keep[TitleRef{Media: r.Media, TMDBID: r.TmdbID}] {
+				kept++ // stays in the list: the next page starts after it
+				continue
+			}
+			if removed == titlesRefreshBatch {
+				break
+			}
+			rels, err := s.deleteExternal(ctx, r.Media, r.TmdbID)
+			if err != nil {
+				return fmt.Errorf("%s: %w", JobTitlesRefresh, err)
+			}
+			s.removeExternalFiles(rels)
+			removed++
+		}
+		if len(rows) < titlesRefreshBatch {
+			break
+		}
 	}
 	if removed > 0 {
 		s.log.InfoContext(ctx, "unused external titles removed", "count", removed)

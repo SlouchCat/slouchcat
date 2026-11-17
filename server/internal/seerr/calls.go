@@ -269,24 +269,6 @@ func (s Session) Quota(ctx context.Context, id int) (Quota, error) {
 	return out, err
 }
 
-// UserRequests returns one page of GET /user/{id}/requests (newest first); take and skip 0 are not
-// sent.
-func (s Session) UserRequests(ctx context.Context, id, take, skip int) (RequestPage, error) {
-	v := url.Values{}
-	setInt(v, "take", take)
-	setInt(v, "skip", skip)
-	var out RequestPage
-	err := s.call(ctx, http.MethodGet, "/user/"+pathID(id)+"/requests", v, nil, &out)
-	return out, err
-}
-
-// DeleteUser deletes a user with DELETE /user/{id}. Seerr deletes the user's requests with it
-// (appendix D 7.2); the integration itself never deletes a user, only tests and the check against
-// a real instance do.
-func (s Session) DeleteUser(ctx context.Context, id int) error {
-	return s.call(ctx, http.MethodDelete, "/user/"+pathID(id), nil, nil, nil)
-}
-
 // Requests (appendix D 3, 6, 8).
 
 // CreateRequest sends POST /request on behalf of the session's user; on AsAdmin it refuses with

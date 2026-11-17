@@ -269,9 +269,6 @@ func (s *Service) markChanged(ctx context.Context, me seerr.User) error {
 // permission mask beyond the column.
 func upsertParams(u seerr.User, fetched int64) (wishq.UpsertSeerrUserParams, bool) {
 	if u.ID < 1 || u.UserType < seerr.UserPlex || u.UserType > seerr.UserEmby {
-		if u.Permissions > math.MaxInt64 {
-			return wishq.UpsertSeerrUserParams{}, false
-		}
 		return wishq.UpsertSeerrUserParams{}, false
 	}
 	name := strings.TrimSpace(u.DisplayName)

@@ -490,12 +490,13 @@ SELECT t.media, t.tmdb_id FROM external_titles AS t
 WHERE coalesce(t.used_at, 0) < ?1
   AND NOT EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id)
 ORDER BY coalesce(t.used_at, 0), t.media, t.tmdb_id
-LIMIT ?2
+LIMIT ?3 OFFSET ?2
 `
 
 type ListUnusedExternalTitlesParams struct {
-	UsedBefore sql.NullInt64
-	LimitCount int64
+	UsedBefore  sql.NullInt64
+	OffsetCount int64
+	LimitCount  int64
 }
 
 type ListUnusedExternalTitlesRow struct {
@@ -506,7 +507,7 @@ type ListUnusedExternalTitlesRow struct {
 // The rows not used since used_before (or never) and not on the spotlight list, the oldest use
 // first; the job keeps those an open or recently closed wish refers to.
 func (q *Queries) ListUnusedExternalTitles(ctx context.Context, arg ListUnusedExternalTitlesParams) ([]ListUnusedExternalTitlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listUnusedExternalTitles, arg.UsedBefore, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listUnusedExternalTitles, arg.UsedBefore, arg.OffsetCount, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}

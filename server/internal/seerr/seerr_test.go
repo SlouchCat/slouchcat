@@ -607,15 +607,6 @@ func TestUsers(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := admin.DeleteUser(ctx, 1); err == nil {
-		t.Error("user 1 deleted")
-	}
-	if err := admin.DeleteUser(ctx, u.ID); err != nil {
-		t.Error(err)
-	}
-	if _, ok := f.User(u.ID); ok {
-		t.Error("user still there")
-	}
 }
 
 func TestQuotaRollingWindow(t *testing.T) {
@@ -683,10 +674,6 @@ func TestQuotaRollingWindow(t *testing.T) {
 	q, _ = admin.Quota(ctx, mgr)
 	if (q.Movie.Limit != nil && *q.Movie.Limit != 0) || q.Movie.Restricted {
 		t.Errorf("manager quota = %+v", q.Movie)
-	}
-	page, err := admin.UserRequests(ctx, uid, 10, 0)
-	if err != nil || page.PageInfo.Results != 6 || page.Results[0].ID < page.Results[1].ID {
-		t.Errorf("user requests = %+v, %v", page.PageInfo, err)
 	}
 }
 
@@ -1036,10 +1023,8 @@ func TestAnswersOfSeerr351(t *testing.T) {
 	if err != nil || ps.MediaServerType != 3 {
 		t.Errorf("public settings = %+v, %v", ps, err)
 	}
-	// I-22: DELETE /user/{id} answers 200, the user is gone.
-	if err := admin.DeleteUser(ctx, other); err != nil {
-		t.Errorf("delete: %v", err)
-	}
+	// A user gone from Seerr (I-22; Slouchcat never deletes one, rule 11) answers 404.
+	f.RemoveUser(other)
 	if _, err := admin.User(ctx, other); !errors.Is(err, ErrNotFound) {
 		t.Errorf("deleted user: %v", err)
 	}

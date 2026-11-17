@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
@@ -71,5 +72,32 @@ func TestHomeWishesRow(t *testing.T) {
 	// Without a source the row never appears.
 	if page, err := New(f.DB, f.CacheDir, vistest.Logger()).Home(ctx, f.P6, nil); err != nil || slices.Contains(rowIDs(page.Rows), RowWishes) {
 		t.Errorf("without a source: rows %v, %v", rowIDs(page.Rows), err)
+	}
+}
+
+// The row is filled after the visibility filter: titles the profile may not see at the head of
+// the list leave room for the ones it sees (review nit).
+func TestHomeWishesRowFilledAfterTheFilter(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	exec(t, f, `UPDATE home_rows SET hidden = 0, position = -1 WHERE id = 'wishes'`)
+	asked := 0
+	source := func(_ context.Context, _ model.Profile, limit int) ([]string, error) {
+		asked = limit
+		ids := make([]string, 0, limit)
+		for range visibility.MaxRowItems {
+			ids = append(ids, f.Rated(18).ID) // above P6's rating
+		}
+		return append(ids, f.Rated(6).ID), nil
+	}
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithFulfilledWishes(source))
+	page, err := s.Home(ctx, f.P6, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked <= visibility.MaxRowItems || len(page.Rows) == 0 || page.Rows[0].Key != RowWishes ||
+		len(page.Rows[0].Items) != 1 || page.Rows[0].Items[0].ID != f.Rated(6).ID {
+		t.Errorf("asked %d, rows %v", asked, rowIDs(page.Rows))
 	}
 }

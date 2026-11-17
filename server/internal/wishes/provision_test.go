@@ -411,9 +411,7 @@ func TestDeleteAccountProvision(t *testing.T) {
 			t.Errorf("call for the linked user: %s", c.Route)
 		}
 	}
-	if n := f.fake.Calls("DELETE /user/{id}"); n != 0 {
-		t.Errorf("a user was deleted in seerr")
-	}
+	// The user stays in Seerr: the client has no call that deletes a user (rule 11).
 }
 
 // A provisioning job never carries a password.

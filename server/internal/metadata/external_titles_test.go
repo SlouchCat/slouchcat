@@ -500,3 +500,25 @@ func countRows(t *testing.T, e *env, query string) int {
 	}
 	return n
 }
+
+// The removal pages past the kept titles: a full batch of kept titles among the oldest does not
+// stop the removal of the next one (review nit).
+func TestUnusedExternalPagesPastTheKept(t *testing.T) {
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	mustExec(t, e.db.Write, `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+		INSERT INTO external_titles (media, tmdb_id, fetched_at, used_at) SELECT 'movie', i, 0, i FROM n`, titlesRefreshBatch+1)
+	keep := make([]TitleRef, 0, titlesRefreshBatch)
+	for i := range titlesRefreshBatch {
+		keep = append(keep, TitleRef{MediaMovie, int64(i + 1)})
+	}
+	if err := e.svc.removeUnusedExternal(ctx, testNow, keep, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.externalRow(t, MediaMovie, titlesRefreshBatch+1); ok {
+		t.Error("the title after the kept ones stayed")
+	}
+	if _, ok := e.externalRow(t, MediaMovie, 1); !ok {
+		t.Error("a kept title went")
+	}
+}
