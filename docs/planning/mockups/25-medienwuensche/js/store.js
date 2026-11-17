@@ -1,4 +1,4 @@
-/* Simulated state of the mockup: accounts, profiles, Jellyseerr users, mapping, wishes, notifications.
+/* Simulated state of the mockup: accounts, profiles, Seerr users, mapping, wishes, notifications.
    Nothing here talks to a server. The state lives in localStorage so a reload keeps what you tried. */
 'use strict';
 
@@ -24,12 +24,12 @@ const STATE_LABEL = { queued: 'Wird übermittelt', pending: 'Freigabe ausstehend
 const STATE_ICON = { queued: 'send', pending: 'hourglass', processing: 'truck', partial: 'truck', available: 'check', declined: 'ban', failed: 'alert', withdrawn: 'undo' };
 const OPEN_STATES = ['queued', 'pending', 'processing', 'partial'];
 const FAIL_TEXT = {
-  quota: 'Limit erreicht: Jellyseerr hat den Wunsch nicht angenommen.',
+  quota: 'Limit erreicht: Seerr hat den Wunsch nicht angenommen.',
   account_deleted: 'Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr.',
-  no_permission: 'Der Jellyseerr-Benutzer darf diese Art von Titel nicht anfordern.',
-  user_gone: 'Den zugeordneten Jellyseerr-Benutzer gibt es nicht mehr.',
-  arr: 'Jellyseerr konnte den Titel nicht an Radarr oder Sonarr übergeben.',
-  timeout: 'Jellyseerr war 24 Stunden lang nicht erreichbar.',
+  no_permission: 'Der Seerr-Benutzer darf diese Art von Titel nicht anfordern.',
+  user_gone: 'Den zugeordneten Seerr-Benutzer gibt es nicht mehr.',
+  arr: 'Seerr konnte den Titel nicht an Radarr oder Sonarr übergeben.',
+  timeout: 'Seerr war 24 Stunden lang nicht erreichbar.',
 };
 const EVENT_LABEL = { new_content: 'Neue Inhalte', errors: 'Fehler', invitations: 'Einladungen', announcements: 'Ankündigungen', wish_available: 'Wünsche: verfügbar', wish_status: 'Wünsche: freigegeben, abgelehnt, fehlgeschlagen', wish_review: 'Wünsche: Freigabe nötig' };
 const CHANNEL_LABEL = { email: 'E-Mail', push: 'Web-Push', telegram: 'Telegram' };
@@ -47,12 +47,12 @@ function seed() {
       log: [
         { at: now - 3 * 60e3, op: 'Abgleich', res: 'ok', text: '6 Anfragen geprüft, 0 geändert' },
         { at: now - 3 * H, op: 'Wunsch übermitteln', res: 'ok', text: '«Toy Story 5» als kinder · Freigabe ausstehend' },
-        { at: now - 26 * H, op: 'Abgleich', res: 'ok', text: '«Godzilla Minus One»: in Jellyseerr verfügbar' },
+        { at: now - 26 * H, op: 'Abgleich', res: 'ok', text: '«Godzilla Minus One»: in Seerr verfügbar' },
         { at: now - 2 * D, op: 'Verbindung testen', res: 'ok', text: 'Seerr 3.5.2, alle Prüfungen bestanden' },
         { at: now - 12 * D, op: 'Benutzer eröffnen', res: 'ok', text: 'grosseltern@example.ch als «grosseltern» angelegt, Passwort übernommen, Limit gesetzt' },
       ],
     },
-    /* Radarr and Sonarr: Slouchcat only labels titles there with the profile tag; address and key come from Jellyseerr */
+    /* Radarr and Sonarr: Slouchcat only labels titles there with the profile tag; address and key come from Seerr */
     arr: {
       radarr: { name: 'Radarr', url: 'http://radarr:7878', own: '', condition: 'ok', tagRequests: true },
       sonarr: { name: 'Sonarr', url: 'http://sonarr:8989', own: '', condition: 'ok', tagRequests: false },
@@ -94,21 +94,21 @@ function seed() {
     seq: 108,
     wishes: [
       { id: 'w101', titleKey: 'resident-evil', media: 'movie', seasons: [], state: 'processing', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 412, owner: 'p1', joined: [], tagged: { p1: 'set' }, dl: { step: 2 }, created: now - 2 * D,
-        events: [{ at: now - 2 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 2 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als marco' }, { at: now - 2 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
+        events: [{ at: now - 2 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 2 * D + 2e3, k: 'submitted', t: 'An Seerr übermittelt als marco' }, { at: now - 2 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
       { id: 'w102', titleKey: 'toy-story-5', media: 'movie', seasons: [], state: 'pending', origin: 'slouchcat', seerrUser: 3, seerrRequestId: 418, owner: 'p3', joined: [], created: now - 3 * H,
-        events: [{ at: now - 3 * H, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als kinder' }] },
+        events: [{ at: now - 3 * H, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * H + 2e3, k: 'submitted', t: 'An Seerr übermittelt als kinder' }] },
       { id: 'w103', titleKey: 'godzilla-minus-one', media: 'movie', seasons: [], state: 'available', origin: 'slouchcat', seerrUser: 1, seerrRequestId: 398, owner: 'p1', joined: ['p3'], tagged: { p1: 'set', p3: 'set' }, created: now - 4 * D, closed: now - 26 * H,
-        events: [{ at: now - 4 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 4 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als marco' }, { at: now - 4 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }, { at: now - 3 * D, k: 'joined', t: 'Noah wünscht mit' }, { at: now - 26 * H, k: 'available', t: 'In Slouchcat verfügbar' }] },
+        events: [{ at: now - 4 * D, k: 'created', t: 'Angefordert von Marco' }, { at: now - 4 * D + 2e3, k: 'submitted', t: 'An Seerr übermittelt als marco' }, { at: now - 4 * D + 3e3, k: 'approved', t: 'Automatisch freigegeben' }, { at: now - 3 * D, k: 'joined', t: 'Noah wünscht mit' }, { at: now - 26 * H, k: 'available', t: 'In Slouchcat verfügbar' }] },
       { id: 'w104', titleKey: 'street-fighter', media: 'movie', seasons: [], state: 'declined', origin: 'slouchcat', seerrUser: 3, seerrRequestId: 405, owner: 'p3', joined: [], created: now - 3 * D, closed: now - 2 * D,
-        events: [{ at: now - 3 * D, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * D + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als kinder' }, { at: now - 2 * D, k: 'declined', t: 'In Jellyseerr abgelehnt' }] },
+        events: [{ at: now - 3 * D, k: 'created', t: 'Angefordert von Noah' }, { at: now - 3 * D + 2e3, k: 'submitted', t: 'An Seerr übermittelt als kinder' }, { at: now - 2 * D, k: 'declined', t: 'In Seerr abgelehnt' }] },
       { id: 'w105', titleKey: 'black-doves', media: 'show', seasons: [1], seasonState: { 1: 'processing' }, state: 'processing', origin: 'slouchcat', seerrUser: 2, seerrRequestId: 415, owner: 'p2', joined: [], tagged: { p2: 'set' }, dl: { step: 1, eps: [6, 8] }, created: now - 20 * H,
-        events: [{ at: now - 20 * H, k: 'created', t: 'Angefordert von Sandra: Staffel 1' }, { at: now - 20 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als sandra' }, { at: now - 20 * H + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
+        events: [{ at: now - 20 * H, k: 'created', t: 'Angefordert von Sandra: Staffel 1' }, { at: now - 20 * H + 2e3, k: 'submitted', t: 'An Seerr übermittelt als sandra' }, { at: now - 20 * H + 3e3, k: 'approved', t: 'Automatisch freigegeben' }] },
       { id: 'w106', titleKey: 'coyote-vs-acme', media: 'movie', seasons: [], state: 'failed', failReason: 'arr', origin: 'slouchcat', seerrUser: 2, seerrRequestId: 409, owner: 'p2', joined: [], created: now - 30 * H, closed: now - 29 * H,
-        events: [{ at: now - 30 * H, k: 'created', t: 'Angefordert von Sandra' }, { at: now - 30 * H + 2e3, k: 'submitted', t: 'An Jellyseerr übermittelt als sandra' }, { at: now - 29 * H, k: 'failed', t: FAIL_TEXT.arr }] },
+        events: [{ at: now - 30 * H, k: 'created', t: 'Angefordert von Sandra' }, { at: now - 30 * H + 2e3, k: 'submitted', t: 'An Seerr übermittelt als sandra' }, { at: now - 29 * H, k: 'failed', t: FAIL_TEXT.arr }] },
       { id: 'w107', titleKey: 'clayface', media: 'movie', seasons: [], state: 'processing', origin: 'jellyseerr', seerrUser: 5, seerrRequestId: 401, owner: null, joined: [], created: now - 5 * D,
-        events: [{ at: now - 5 * D, k: 'imported', t: 'In Jellyseerr angelegt von wohnzimmer-tv' }] },
+        events: [{ at: now - 5 * D, k: 'imported', t: 'In Seerr angelegt von wohnzimmer-tv' }] },
       { id: 'w108', titleKey: 'verity', media: 'movie', seasons: [], state: 'processing', origin: 'jellyseerr', seerrUser: 2, seerrRequestId: 403, owner: 'p2', joined: [], dl: { step: 2, stalled: true, msg: 'Radarr meldet: Der Download-Client antwortet nicht.' }, created: now - 6 * D,
-        events: [{ at: now - 6 * D, k: 'imported', t: 'In Jellyseerr angelegt von sandra, Sandra zugeordnet' }] },
+        events: [{ at: now - 6 * D, k: 'imported', t: 'In Seerr angelegt von sandra, Sandra zugeordnet' }] },
     ],
     notifications: [
       { id: 'n1', profileId: 'p1', kind: 'wish_available', titleKey: 'godzilla-minus-one', wishId: 'w103', at: now - 26 * H, read: false },
@@ -157,7 +157,7 @@ function airedSeasons(t) { return (t.seasons || []).filter((s) => !upcoming(t.ke
 function missingSeasons(t) { const have = libSeasons(t.key); return airedSeasons(t).filter((s) => !have.includes(s.n)).map((s) => s.n); }
 function titleHref(t) { return isPresent(t.key) ? '#/items/' + t.key : `#/titles/${mediaOf(t)}/${t.tmdbId}`; }
 
-/* which Jellyseerr user a profile sends as: own mapping, else the account's, else the fallback user */
+/* which Seerr user a profile sends as: own mapping, else the account's, else the fallback user */
 function seerrUserFor(p) {
   const own = S.map.profiles[p.id];
   if (own) return { id: own, via: 'profile' };
@@ -170,15 +170,15 @@ function seerrUserFor(p) {
 function canRequest(p, t) {
   const w = S.settings.wishes;
   if (!w.enabled) return { ok: false, reason: 'off', text: 'Wünsche sind ausgeschaltet.' };
-  if (!S.seerr.enabled || !S.seerr.configured) return { ok: false, reason: 'seerr_off', text: 'Jellyseerr ist nicht eingerichtet.' };
+  if (!S.seerr.enabled || !S.seerr.configured) return { ok: false, reason: 'seerr_off', text: 'Seerr ist nicht eingerichtet.' };
   if (!account(p.accountId).canRequest) return { ok: false, reason: 'account', text: 'Dieses Konto darf keine Titel anfordern.' };
   if (!p.canRequest) return { ok: false, reason: 'profile', text: 'Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter «Profile» erlauben.' };
   const su = seerrUserFor(p);
-  if (!su) return { ok: false, reason: 'unmapped', text: 'Diesem Konto ist noch kein Jellyseerr-Benutzer zugeordnet. Das richtet der Administrator ein.' };
+  if (!su) return { ok: false, reason: 'unmapped', text: 'Diesem Konto ist noch kein Seerr-Benutzer zugeordnet. Das richtet der Administrator ein.' };
   const u = seerrUser(su.id);
-  if (!u || u.gone) return { ok: false, reason: 'seerr_user_gone', text: 'Den zugeordneten Jellyseerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.' };
+  if (!u || u.gone) return { ok: false, reason: 'seerr_user_gone', text: 'Den zugeordneten Seerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.' };
   if (t) {
-    if ((t.kind === 'movie' && !u.canMovie) || (t.kind === 'series' && !u.canShow)) return { ok: false, reason: 'seerr_kind', text: 'Der zugeordnete Jellyseerr-Benutzer darf diese Art von Titel nicht anfordern.' };
+    if ((t.kind === 'movie' && !u.canMovie) || (t.kind === 'series' && !u.canShow)) return { ok: false, reason: 'seerr_kind', text: 'Der zugeordnete Seerr-Benutzer darf diese Art von Titel nicht anfordern.' };
     if (t.kind === 'movie' && !w.movies) return { ok: false, reason: 'kind', text: 'Filme können zurzeit nicht angefordert werden.' };
     if (t.kind === 'series' && !w.shows) return { ok: false, reason: 'kind', text: 'Serien können zurzeit nicht angefordert werden.' };
     if (t.age > effMax(p)) return { ok: false, reason: 'age', text: 'Dieser Titel liegt über der Altersstufe des Profils.' };
@@ -307,12 +307,12 @@ function notifyAdmins(w) {
 function logSeerr(op, res, text) { S.seerr.log.unshift({ at: Date.now(), op, res, text }); S.seerr.log = S.seerr.log.slice(0, 20); }
 function ev(w, k, t) { w.events.push({ at: Date.now(), k, t }); }
 
-/* ---------- actions: what the server and Jellyseerr would do ---------- */
+/* ---------- actions: what the server and Seerr would do ---------- */
 function submitWish(w) {
   const c = S.seerr, t = T[w.titleKey];
   if (!c.enabled || !c.configured || c.condition !== 'ok') {
     w.state = 'queued';
-    w.detail = c.condition === 'badkey' ? 'Jellyseerr lehnt den Schlüssel ab' : c.condition === 'csrf' ? 'Jellyseerr blockiert schreibende Aufrufe (CSRF-Schutz)' : 'Jellyseerr ist nicht erreichbar';
+    w.detail = c.condition === 'badkey' ? 'Seerr lehnt den Schlüssel ab' : c.condition === 'csrf' ? 'Seerr blockiert schreibende Aufrufe (CSRF-Schutz)' : 'Seerr ist nicht erreichbar';
     logSeerr('Wunsch übermitteln', 'bad', `«${t.title}»: ${w.detail}. Neuer Versuch folgt.`);
     return;
   }
@@ -323,7 +323,7 @@ function submitWish(w) {
   { const k = w.media === 'movie' ? 'movie' : 'tv', q = quotaFor(u, w)[k]; if (q.limit && q.remaining < wishUnits(w)) return fail('quota'); }
   w.seerrRequestId = 400 + ++S.seq;
   w.detail = '';
-  ev(w, 'submitted', `An Jellyseerr übermittelt als ${u.name}`);
+  ev(w, 'submitted', `An Seerr übermittelt als ${u.name}`);
   if (u.autoApprove) { w.state = 'processing'; ev(w, 'approved', 'Automatisch freigegeben'); logSeerr('Wunsch übermitteln', 'ok', `«${t.title}» als ${u.name} · freigegeben`); applyTags(w); }
   else { w.state = 'pending'; logSeerr('Wunsch übermitteln', 'ok', `«${t.title}» als ${u.name} · Freigabe ausstehend`); notifyAdmins(w); }
 }
@@ -358,7 +358,7 @@ function requestWish(key, seasons = []) {
   S.wishes.unshift(w);
   submitWish(w);
   save();
-  const msg = { queued: `«${esc(t.title)}» ist vorgemerkt. Slouchcat übermittelt den Wunsch, sobald Jellyseerr erreichbar ist.`, pending: `«${esc(t.title)}» ist angefordert und wartet auf die Freigabe.`, processing: `«${esc(t.title)}» ist angefordert und wird beschafft.`, failed: `«${esc(t.title)}» konnte nicht angefordert werden: ${esc(FAIL_TEXT[w.failReason] || '')}` }[w.state];
+  const msg = { queued: `«${esc(t.title)}» ist vorgemerkt. Slouchcat übermittelt den Wunsch, sobald Seerr erreichbar ist.`, pending: `«${esc(t.title)}» ist angefordert und wartet auf die Freigabe.`, processing: `«${esc(t.title)}» ist angefordert und wird beschafft.`, failed: `«${esc(t.title)}» konnte nicht angefordert werden: ${esc(FAIL_TEXT[w.failReason] || '')}` }[w.state];
   toast(msg + ' <a href="#/wishes">Meine Wünsche</a>', w.state === 'failed' ? 'bad' : w.state === 'queued' ? 'warn' : 'ok', 7000);
   return w;
 }
@@ -433,8 +433,8 @@ function syncNow() {
 /* one step forward in the life of a wish (mockup control «Vorspulen») */
 function advanceWish(id) {
   const w = wishById(id); if (!w) return;
-  if (w.state === 'queued') { if (seerrState().k !== 'ok') { toast('Jellyseerr ist im Mockup noch nicht erreichbar. Stelle den Zustand auf «Verbunden».', 'warn'); return; } submitWish(w); save(); }
-  else if (w.state === 'pending') approveWish(id, 'in Jellyseerr');
+  if (w.state === 'queued') { if (seerrState().k !== 'ok') { toast('Seerr ist im Mockup noch nicht erreichbar. Stelle den Zustand auf «Verbunden».', 'warn'); return; } submitWish(w); save(); }
+  else if (w.state === 'pending') approveWish(id, 'in Seerr');
   else if (w.state === 'processing' || w.state === 'partial') arriveWish(id);
 }
 function switchProfile(pid) { const p = profile(pid); S.session = { accountId: p.accountId, profileId: p.id }; ui.hero = { i: 0, paused: false }; save(); applyAccent(); }

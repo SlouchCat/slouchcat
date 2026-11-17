@@ -89,7 +89,7 @@
 .adm .ab-ph i { flex: 0 0 34px; height: 50px; border-radius: 4px; background: var(--s3); border: 1px solid var(--line); }
 .adm .ab-ph i.big { flex: 1 1 auto; height: 72px; }
 
-/* Fassung 3: Jellyseerr-Benutzer je Konto, Limit, Profil-Tags */
+/* Fassung 3: Seerr-Benutzer je Konto, Limit, Profil-Tags */
 .adm .ab-help { color: var(--tx2); }
 .adm .ab-warnt { color: var(--warn); font-weight: 600; }
 .adm .ab-kv dd { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }

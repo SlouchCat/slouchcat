@@ -13,8 +13,8 @@ Grundlage: [Anhang H](anhang/H-nachtrag-17-november.md), Abschnitte 3.4 und 4.6 
 (Marcos zweite Rückmeldung, Regeln N-70 bis N-75), und [Anhang A](anhang/A-spotlight-startseite.md) (Bestand).
 Bestand mit Belegen: `01-bestandsanalyse.md` Abschnitte 2, 3 und 6. Wo und wie Zuschauer anfordern, beschreibt
 `02-funktionskonzept.md`. Gebaut wird das in Stufe 3 «Spotlight», die damit auf den Abgleich über TVDB und IMDb
-und die fehlenden Einträge in der Verwaltung schrumpft (Anhang H 8.7). Offen sind hier noch F-29 und F-34; F-8
-ist durch E-5 entschieden. Als Marcos Entscheid gilt nur, was Anhang H als seine Nachricht oder Antwort führt;
+und die fehlenden Einträge in der Verwaltung schrumpft (Anhang H 8.7). Offen ist hier noch F-29; F-8
+ist durch E-5 entschieden, F-34 durch E-10. Als Marcos Entscheid gilt nur, was Anhang H als seine Nachricht oder Antwort führt;
 alles andere ist Empfehlung der Redaktion.
 
 ## 1. Heute
@@ -51,29 +51,29 @@ Regel N-70 (Marco, Nachricht und E-5): Startseite (Bühne und Posterreihe) und S
 - **Ein erfüllter Wunsch** ist ein Titel der Bibliothek. Steht er in der Trakt-Liste, erscheint er im
   Spotlight wie jeder andere vorhandene Titel. Die Bühne trägt keinen Wunsch-Chip (N-70; Anhang H,
   Abschnitt 9, K-3). Der Chip «Dein Wunsch ist da» steht nur auf der Detailseite des Films (M-05) und in der
-  Startreihe «Erfüllte Wünsche». Diese Reihe ist eine eigene Reihe, nicht Teil des Spotlights (Empfehlung N-74,
-  offen als F-34; `02-funktionskonzept.md`, Abschnitt 5).
+  Startreihe «Erfüllte Wünsche». Diese Reihe ist eine eigene Reihe, nicht Teil des Spotlights (Marco, E-10;
+  N-74; `02-funktionskonzept.md`, Abschnitt 5).
 - **Vormalen, Vorladen, Bilder, Service Worker** und die Kosten von `getHome` bleiben unverändert, weil die Bühne
   weiter nur Titel der Bibliothek trägt (`01-bestandsanalyse.md`, Abschnitt 3). Neu sind nur die zusätzlichen
-  Treffer über TVDB und IMDb (Abschnitt 3); sie sind lokale Abfragen ohne Aufruf an TMDB oder Jellyseerr.
+  Treffer über TVDB und IMDb (Abschnitt 3); sie sind lokale Abfragen ohne Aufruf an TMDB oder Seerr.
 
 ## 3. Was sich ändert: Abgleich über TVDB-, TMDB- und IMDb-ID
 
-### 3.1 Benutzt Jellyseerr auch TVDB?
+### 3.1 Benutzt Seerr auch TVDB?
 
 Marco hat am 17. November 2026 gefragt: «Benutzt Seerr auch tvdb? Es soll konsistent sein.» Die Antwort aus dem
 Quellcode von Seerr 3.5.2 (Anhang H 3.4 und 4.6, nicht gegen Marcos Instanz geprüft):
 
-**Jellyseerr führt jeden Titel über die TMDB-ID. TVDB nutzt es für zwei Dinge: Es gibt die TVDB-ID an Sonarr
+**Seerr führt jeden Titel über die TMDB-ID. TVDB nutzt es für zwei Dinge: Es gibt die TVDB-ID an Sonarr
 weiter, und es kann die Staffelliste aus TVDB lesen, wenn man das einstellt.**
 
-- Die TVDB-ID einer Serie nimmt Jellyseerr aus TMDB (`external_ids.tvdb_id`) und gibt sie an Sonarr weiter.
-  Sonarr selbst arbeitet mit der TVDB-ID. Fehlt sie, löscht Jellyseerr den Request beim Senden (Anhang D 4).
+- Die TVDB-ID einer Serie nimmt Seerr aus TMDB (`external_ids.tvdb_id`) und gibt sie an Sonarr weiter.
+  Sonarr selbst arbeitet mit der TVDB-ID. Fehlt sie, löscht Seerr den Request beim Senden (Anhang D 4).
 - Seit Seerr 3.x gibt es die Einstellung «Metadaten-Anbieter» für Serien und Anime: `tmdb` (ab Werk) oder
-  `tvdb`. Mit `tvdb` lädt Jellyseerr die Serie weiter über die TMDB-ID, ersetzt aber die **Staffelliste** durch
+  `tvdb`. Mit `tvdb` lädt Seerr die Serie weiter über die TMDB-ID, ersetzt aber die **Staffelliste** durch
   die von TVDB (`GH:server/lib/settings/index.ts` Z. 111–118, 460–463; `GH:server/api/tvdb/index.ts`
   Z. 136–260).
-- Der Schlüssel in Jellyseerr bleibt also immer die TMDB-ID. Was sich unterscheiden kann, ist die
+- Der Schlüssel in Seerr bleibt also immer die TMDB-ID. Was sich unterscheiden kann, ist die
   **Staffelzählung**: TMDB und TVDB teilen manche Serien verschieden auf. Sonarr zählt nach TVDB, die Bibliothek
   von Slouchcat ordnet Serien TVDB-zuerst zu (`server/internal/metadata/tvdb.go:430-434`).
 
@@ -91,21 +91,21 @@ für eine vorhandene Serie «Anfordern» anböte.
 |---|---|---|
 | N-60 | Jeder Eintrag trägt drei IDs: TMDB, TVDB, IMDb. `spotlight_entries` speichert dafür zusätzlich `tvdb_id` und `imdb_id` aus Trakt `ids`. Quelle ist Trakt (liefert alle drei), sonst TMDB `external_ids`. | aus Fassung 2, unverändert |
 | N-61 | Abgleich mit der Bibliothek bei **Serien: TVDB zuerst**, dann TMDB, dann IMDb, so wie die Bibliothek Serien zuordnet. Bei **Filmen: TMDB, dann IMDb**. Ein Eintrag gilt als vorhanden, wenn ein Bibliothekstitel derselben Art in dieser Reihenfolge eine gleiche ID hat. Die Abfrage liegt in `visibility` (Regel 2). Fassung 2 nannte TMDB zuerst. | Empfehlung (Marco: «konsistent») |
-| N-62 | Liefert Trakt zu einem Eintrag nur die TVDB-ID, schlägt Slouchcat die TMDB-ID über TMDB «find by external id» nach. Gelingt das nicht, gilt der Eintrag **nicht** als fehlend, denn ohne TMDB-ID wäre er nicht anforderbar (Jellyseerr braucht sie als `mediaId`). Er steht in der Verwaltung unter den nicht zuordenbaren Einträgen. | Empfehlung |
-| N-63 | Die Staffeln im Dialog «Anfordern» kommen aus Jellyseerr (`GET /tv/{tmdbId}`): Angeboten wird genau, was Jellyseerr bestellen kann. | Empfehlung |
-| N-64 | **Empfehlung an Marco:** in Jellyseerr den Metadaten-Anbieter für Serien auf TVDB stellen. Dann zählen Jellyseerr, Sonarr und Slouchcat Staffeln gleich. Der Verbindungstest liest die Einstellung (`GET /settings/metadatas`) und zeigt einen Hinweis, wenn sie auf TMDB steht. Umstellen muss Marco in Jellyseerr selbst. | Empfehlung (F-29) |
-| N-65 | Der Wunsch geht immer mit `tvdbId` an Jellyseerr. | aus Fassung 2, unverändert |
+| N-62 | Liefert Trakt zu einem Eintrag nur die TVDB-ID, schlägt Slouchcat die TMDB-ID über TMDB «find by external id» nach. Gelingt das nicht, gilt der Eintrag **nicht** als fehlend, denn ohne TMDB-ID wäre er nicht anforderbar (Seerr braucht sie als `mediaId`). Er steht in der Verwaltung unter den nicht zuordenbaren Einträgen. | Empfehlung |
+| N-63 | Die Staffeln im Dialog «Anfordern» kommen aus Seerr (`GET /tv/{tmdbId}`): Angeboten wird genau, was Seerr bestellen kann. | Empfehlung |
+| N-64 | **Empfehlung an Marco:** in Seerr den Metadaten-Anbieter für Serien auf TVDB stellen. Dann zählen Seerr, Sonarr und Slouchcat Staffeln gleich. Der Verbindungstest liest die Einstellung (`GET /settings/metadatas`) und zeigt einen Hinweis, wenn sie auf TMDB steht. Umstellen muss Marco in Seerr selbst. | Empfehlung (F-29) |
+| N-65 | Der Wunsch geht immer mit `tvdbId` an Seerr. | aus Fassung 2, unverändert |
 
 **Wo die Abgleichsregel gilt:** auf der Startseite und in der Spotlight-Liste (mehr Treffer, sonst nichts
 Neues), auf der Seite Verwaltung › Spotlight (vorhanden oder fehlend), in der Suche, auf den Seiten im Bereich
 «Wünsche» (Entdecken, Filme, Serien, Suche; N-55) und bei der Erkennung «verfügbar» (`02-funktionskonzept.md`
 Ablauf 4.7, `06-benachrichtigungen.md` Abschnitt 3.1). Massgeblich ist immer der Abgleich von Slouchcat, nicht
-der Zustand `mediaInfo` aus Jellyseerr.
+der Zustand `mediaInfo` aus Seerr.
 
-**Was N-64 löst und was nicht.** Steht Jellyseerr auf TMDB, kann die Staffelliste im Dialog anders aussehen als
+**Was N-64 löst und was nicht.** Steht Seerr auf TMDB, kann die Staffelliste im Dialog anders aussehen als
 die Staffeln derselben Serie in der Bibliothek, etwa wenn TMDB eine Staffel teilt, die TVDB als eine führt. Weil
-der Dialog die Staffeln aus Jellyseerr zeigt (N-63), bestellt er trotzdem nie etwas, das Jellyseerr nicht kennt.
-Erst mit TVDB in Jellyseerr stimmen Dialog, Sonarr und Bibliothek überein.
+der Dialog die Staffeln aus Seerr zeigt (N-63), bestellt er trotzdem nie etwas, das Seerr nicht kennt.
+Erst mit TVDB in Seerr stimmen Dialog, Sonarr und Bibliothek überein.
 
 ## 4. Verwaltung «Spotlight»: was bleibt, was dazukommt
 
@@ -139,7 +139,7 @@ Fehlende Einträge der Liste erscheinen weder auf der Startseite noch in der Spo
 |---|---|
 | Satz zur Regel | «Die Startseite und die Spotlight-Liste zeigen nur Titel aus der Bibliothek. Einträge, die fehlen, siehst nur du hier in der Verwaltung. Profile fordern fehlende Titel unter «Wünsche» an.» |
 | Zählung | «7 Einträge der Liste fehlen in der Bibliothek, 3 davon sind angefordert.» |
-| Hinweis ohne Wünsche | ohne Jellyseerr oder mit «Wünsche aktiv» aus: «Anfordern geht erst, wenn Wünsche eingerichtet sind.» mit Link zu Medien › Wünsche › Einstellungen |
+| Hinweis ohne Wünsche | ohne Seerr oder mit «Wünsche aktiv» aus: «Anfordern geht erst, wenn Wünsche eingerichtet sind.» mit Link zu Medien › Wünsche › Einstellungen |
 
 **Band «Einträge der Liste»:** Spalten «Rang», «Titel», «Status», «Eigene Notiz», «Aktionen» bleiben. Neu
 (N-71):
@@ -161,8 +161,8 @@ Bibliothek über die TMDB-ID erkannt» oder «Trakt nennt nur die TVDB-ID, TMDB-
 sich nicht auflösen lassen (N-62), stehen mit «Nicht zuordenbar» und ohne «Anfordern» (Wortlaut Vorschlag).
 
 **Band «Abgleich über TMDB, TVDB und IMDb»** (neu, zugeklappt, nur Anzeige): nennt die Reihenfolge (Serien
-TVDB, TMDB, IMDb; Filme TMDB, IMDb), zählt die Einträge je Erkennungsweg und zeigt, woher Jellyseerr die
-Staffeln liest («Staffeln aus TMDB» oder «Staffeln aus TVDB») mit dem Hinweis aus N-64, wenn Jellyseerr auf
+TVDB, TMDB, IMDb; Filme TMDB, IMDb), zählt die Einträge je Erkennungsweg und zeigt, woher Seerr die
+Staffeln liest («Staffeln aus TMDB» oder «Staffeln aus TVDB») mit dem Hinweis aus N-64, wenn Seerr auf
 TMDB steht.
 
 **Band «Verwaiste Anpassungen»** und **Fussnote** bleiben unverändert.
@@ -185,14 +185,14 @@ Unter Medien › Wünsche › Einstellungen (M-25) gibt es keinen Schalter zum S
 - `spotlight_entries` bleibt eine flüchtige Kopie der Trakt-Liste. Wunschzustände hängen nie daran, sondern
   an `wishes`.
 
-## 6. Jellyseerr nicht erreichbar, Trakt-Abruf fehlgeschlagen
+## 6. Seerr nicht erreichbar, Trakt-Abruf fehlgeschlagen
 
 Für Zuschauer ändert keine dieser Lagen etwas am Spotlight, weil es nur Titel der Bibliothek zeigt.
 
 | Lage | Verwaltung › Spotlight |
 |---|---|
-| Jellyseerr kurz nicht erreichbar oder Schlüssel abgelehnt | Einträge und Zustände wie beim letzten Abgleich; «Anfordern» nimmt den Wunsch an (`queued`, «Wird übermittelt») |
-| «Jellyseerr verwenden» oder «Wünsche aktiv» aus | Einträge mit Poster bleiben sichtbar; «Anfordern» fehlt; das Band «Fehlende Einträge» nennt den Grund |
+| Seerr kurz nicht erreichbar oder Schlüssel abgelehnt | Einträge und Zustände wie beim letzten Abgleich; «Anfordern» nimmt den Wunsch an (`queued`, «Wird übermittelt») |
+| «Seerr verwenden» oder «Wünsche aktiv» aus | Einträge mit Poster bleiben sichtbar; «Anfordern» fehlt; das Band «Fehlende Einträge» nennt den Grund |
 | Trakt-Abruf fehlgeschlagen | die Tabelle ist leer, das Spotlight fehlt auf der Startseite ganz wie heute; offene Wünsche bleiben unberührt |
 
 ## 7. Verworfen

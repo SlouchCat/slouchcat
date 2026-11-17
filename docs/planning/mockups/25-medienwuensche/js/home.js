@@ -149,13 +149,13 @@ DIALOGS.wish = ({ key }) => {
   if (a.kind === 'wished' && !a.mine && film) {
     return { title: 'Schon angefordert', body: head + `<p class="lead">Dieser Film ist bereits angefordert (${STATE_LABEL[a.wish.state]}). Du kannst dich dazuschalten: Dann benachrichtigt dich Slouchcat ebenfalls, sobald er abspielbar ist.</p><div class="facts"><div class="f">${icon('bell', 16)}<span>Benachrichtigung über: ${wishChannels(p).join(', ')}</span></div></div>`, actions: `<button type="button" class="btn ghost" data-act="close" data-fid="wd:x">Abbrechen</button><button type="button" class="btn primary" data-act="confirmWish" data-fid="wd:ok" data-autofocus>${icon('bell')}Benachrichtige mich</button>` };
   }
-  facts.push(`<div class="f">${icon('user', 16)}<span>Wird als <b>${esc(u.name)}</b> an Jellyseerr übermittelt${su.via === 'profile' ? ' (eigener Benutzer des Profils)' : su.via === 'fallback' ? ' (Sammelbenutzer)' : ' (Benutzer des Kontos)'}.</span></div>`);
+  facts.push(`<div class="f">${icon('user', 16)}<span>Wird als <b>${esc(u.name)}</b> an Seerr übermittelt${su.via === 'profile' ? ' (eigener Benutzer des Profils)' : su.via === 'fallback' ? ' (Sammelbenutzer)' : ' (Benutzer des Kontos)'}.</span></div>`);
   facts.push(`<div class="f">${icon(u.autoApprove ? 'truck' : 'hourglass', 16)}<span>${u.autoApprove ? 'Wird sofort beschafft, eine Freigabe braucht es nicht.' : 'Braucht eine Freigabe. Den Stand siehst du unter «Meine Wünsche».'}</span></div>`);
   const lq = quotaFor(u), lk = film ? 'movie' : 'tv', lx = lq[lk];
   facts.push(`<div class="f">${icon('chart', 16)}<span>${lx.limit ? `Limit: <b>${quotaText(lx, lk)}</b> (${lx.limit} in ${lx.days} Tagen${lq.source === 'account' ? ', für alle Profile dieses Kontos gemeinsam' : ''}).` : lq.source === 'admin' ? 'Kein Limit: Administratoren fordern unbegrenzt an.' : 'Kein Limit.'}</span></div>`);
   facts.push(`<div class="f">${icon('bell', 16)}<span>Slouchcat meldet sich, sobald der Titel hier abspielbar ist: ${wishChannels(p).join(', ')}.</span></div>`);
   let body = head + `<div class="facts">${facts.join('')}</div>`;
-  if (ss.k !== 'ok') body += notice('warn', 'Jellyseerr ist gerade nicht erreichbar', 'Dein Wunsch wird vorgemerkt. Slouchcat übermittelt ihn, sobald Jellyseerr wieder antwortet.');
+  if (ss.k !== 'ok') body += notice('warn', 'Seerr ist gerade nicht erreichbar', 'Dein Wunsch wird vorgemerkt. Slouchcat übermittelt ihn, sobald Seerr wieder antwortet.');
   let n = 1, label = 'Anfordern', blocked = false;
   if (film) { const lc = limitCheck(p, t, 1); if (!lc.ok) { blocked = true; body += notice('bad', 'Limit erreicht', esc(lc.text) + ' Wünsche, die schon jemand gestellt hat, kannst du weiter mitverfolgen: Sie zählen nicht.'); } }
   if (!film) {
@@ -169,7 +169,7 @@ DIALOGS.wish = ({ key }) => {
     }).join('');
     const free = Object.keys(d.pick).map(Number);
     n = free.filter((x) => d.pick[x]).length;
-    body += `<div class="fld"><span class="lbl">Staffeln</span><div class="seasonpick"><label class="check all"><input type="checkbox" data-fid="wd:all" data-act="wishAll" ${n === free.length && n > 0 ? 'checked' : ''} ${free.length ? '' : 'disabled'}><span>Alle fehlenden Staffeln${free.length ? ` (${free.length})` : ''}</span></label>${rows}</div><span class="hint">Einzelne Folgen lassen sich nicht anfordern. Qualität und Zielordner bestimmt Jellyseerr. Bei schon angeforderten Staffeln wirst du mitbenachrichtigt.</span></div>`;
+    body += `<div class="fld"><span class="lbl">Staffeln</span><div class="seasonpick"><label class="check all"><input type="checkbox" data-fid="wd:all" data-act="wishAll" ${n === free.length && n > 0 ? 'checked' : ''} ${free.length ? '' : 'disabled'}><span>Alle fehlenden Staffeln${free.length ? ` (${free.length})` : ''}</span></label>${rows}</div><span class="hint">Einzelne Folgen lassen sich nicht anfordern. Qualität und Zielordner bestimmt Seerr. Bei schon angeforderten Staffeln wirst du mitbenachrichtigt.</span></div>`;
     const fresh = free.filter((x) => d.pick[x] && !openWish(t.key, x)).length;
     label = n === 0 ? 'Staffeln wählen' : fresh === 0 ? 'Benachrichtige mich' : n === 1 ? '1 Staffel anfordern' : `${n} Staffeln anfordern`;
     if (d.capped && fresh <= d.capped) body += notice('', 'Das Limit reicht nicht für alle Staffeln', `Noch ${d.capped} von ${lx.limit} Staffeln frei. Vorgewählt ${d.capped === 1 ? 'ist die erste fehlende Staffel' : 'sind die ersten ' + d.capped + ' fehlenden Staffeln'}; du kannst andere wählen.`);

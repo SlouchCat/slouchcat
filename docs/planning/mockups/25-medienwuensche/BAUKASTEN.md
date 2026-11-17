@@ -82,7 +82,7 @@ route('/admin/wishes', () => ({ type: 'admin', area: 'media', page: 'wishes', ti
   Felder eines Wunsches: `id, titleKey, media, seasons[], seasonState{}, state, detail, failReason, origin
   ('slouchcat'|'jellyseerr'), seerrUser, seerrRequestId, owner (Profil-ID oder null), joined[], created, closed, events[{at, k, t}]`.
   Konstanten: `STATE_LABEL`, `STATE_ICON`, `OPEN_STATES`, `FAIL_TEXT`, `EVENT_LABEL`, `CHANNEL_LABEL`.
-- Jellyseerr: `seerrState()` → `{k: 'ok'|'none'|'off'|'unreachable'|'badkey'|'csrf', label, chip, dot}`, `logSeerr(op, res, text)`.
+- Seerr: `seerrState()` → `{k: 'ok'|'none'|'off'|'unreachable'|'badkey'|'csrf', label, chip, dot}`, `logSeerr(op, res, text)`.
 - Benachrichtigungen: `S.notifications` (`profileId, kind, titleKey, wishId, season, at, read`), `notifText(n)` →
   `{title, ctx, href}`, `unread(p)`, `notify(profilId, art, wunsch, extra)`.
 
@@ -105,7 +105,7 @@ Verwaltung (`admin.css`, unter `.adm`): `.card` (+`.ch` mit `.ik` und `h2`, `.fo
 `.subtabs` (Unterreiter als Pillen, Zähler `.c`), `.kv` (Beschreibungsliste), `.checks` (Prüfliste `li.ok|.bad|.warn|.wait`),
 `.feed` (Protokoll mit `<time>`), `.savebar`, `.unchanged`, Knöpfe `.btn.primary` (Akzent), `.btn.quiet`, `.btn.dq` (ruhig rot).
 
-## Fassung 3 (`js/model2.js`, `css/wishhub.css`): Jellyseerr-Benutzer je Konto, Limit, Profil-Tags, Entdecken
+## Fassung 3 (`js/model2.js`, `css/wishhub.css`): Seerr-Benutzer je Konto, Limit, Profil-Tags, Entdecken
 
 Skriptreihenfolge neu: `data.js`, `data-discover.js`, `core.js`, `store.js`, `model2.js`, `shell.js`, `home.js`,
 `viewer-titles.js`, `viewer-pages.js`, `admin-a.js`, `admin-b.js`, `viewer-discover.js`, `viewer-account.js`, `mock.js`.
@@ -123,10 +123,10 @@ Skriptreihenfolge neu: `data.js`, `data-discover.js`, `core.js`, `store.js`, `mo
   `account.limit = { mode: 'default'|'custom'|'unlimited', movie?, tv? }`. `limitOf(acc)`, `quotaFor(seerrUser)` →
   `{ source: 'admin'|'account'|'seerr', unlimited, movie: {limit, days, used, remaining, restricted, nextFree, direct, entries[]}, tv: {…} }`,
   `quotaOfProfile(p)`, `limitCheck(p, t, einheiten)` → `{ok, text}`, `quotaText(x, 'movie'|'tv')`, `quotaMeter(x, kind)`,
-  `quotaPill(p)`, `whenFree(ts)`, `linkedAccount(seerrUser)`. Jellyseerr zählt: Filme einzeln, Serien je Staffel,
-  rollierend über `days` Tage, auch direkt in Jellyseerr gestellte Wünsche (`seerrUser.direct[]`); abgelehnte,
+  `quotaPill(p)`, `whenFree(ts)`, `linkedAccount(seerrUser)`. Seerr zählt: Filme einzeln, Serien je Staffel,
+  rollierend über `days` Tage, auch direkt in Seerr gestellte Wünsche (`seerrUser.direct[]`); abgelehnte,
   zurückgezogene und Mitwünsche zählen nicht; Administratoren haben kein Limit.
-- **Jellyseerr-Benutzer des Kontos:** `accSeerr(acc)` → `{ state: 'created'|'linked'|'manual'|'waiting'|'none', user, pw:
+- **Seerr-Benutzer des Kontos:** `accSeerr(acc)` → `{ state: 'created'|'linked'|'manual'|'waiting'|'none', user, pw:
   'synced'|'next_login'|'off'|'admin'|'external', at, pwAt, info: {label, chip}, pwInfo: {label, chip} }`. Aktionen:
   `provisionAccount(accId, {password})` (verknüpft bei gleicher E-Mail, sonst legt an), `provisionAll()`,
   `linkAccount(accId, userId)`, `unlinkAccount(accId)`, `syncRights(accId)` (nach Ändern des Wunschrechts), `pwChanged(accId)`

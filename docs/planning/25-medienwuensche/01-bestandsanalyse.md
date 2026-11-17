@@ -3,9 +3,9 @@
 > **Kurz gesagt.** Slouchcat kennt heute nur Titel, die in der eigenen Bibliothek stehen. Das Spotlight
 > holt zwar eine Trakt-Liste mit Titeln, die fehlen, zeigt diese aber nur in der Verwaltung. Es gibt kein
 > Wunschrecht, keine Freigabe für fehlende Titel, keinen Haken «neuer Film ist da» und keinen Weg ins
-> Heimnetz zu einem Dienst wie Jellyseerr. Jellyseerr selbst kann Wünsche im Namen eines Benutzers
-> anlegen, kennt aber keine Profile, keinen Änderungs-Feed und keinen Ablehnungsgrund. Für Fassung 3 ist
-> nachgelesen: Jellyseerr kann Benutzer mit Passwort anlegen, ihr Passwort und ihr Limit setzen, Discover-Listen
+> Heimnetz zu einem Dienst wie Seerr (bis Version 2.x «Jellyseerr»). Seerr selbst kann Wünsche im Namen eines
+> Benutzers anlegen, kennt aber keine Profile, keinen Änderungs-Feed und keinen Ablehnungsgrund. Für Fassung 3 ist
+> nachgelesen: Seerr kann Benutzer mit Passwort anlegen, ihr Passwort und ihr Limit setzen, Discover-Listen
 > und eine Suche liefern, führt jeden Titel über die TMDB-ID und kann keine Tags in Radarr oder Sonarr anlegen.
 > Lesend gegen Marcos Radarr und Sonarr geprüft: Beide melden von sich aus nur über einen Webhook; ihre API
 > beantwortet nur Fragen, liefert dafür aber die Warteschlange mit dem Download-Fortschritt. Die Webhook-Meldungen
@@ -13,14 +13,14 @@
 > zusammen, die das Konzept bestimmen.
 
 Stand: `main` `ba6efe31`, Vertrag 1.40.0 (`api/openapi.yaml:4`), letzte Migration 00065, gelesen am
-16. November 2026. Pfade gelten ab der Wurzel des Repos. Jellyseerr-Belege beziehen sich auf den
+16. November 2026. Pfade gelten ab der Wurzel des Repos. Seerr-Belege beziehen sich auf den
 Quellcode von Seerr v3.5.2 (Tag `v3.5.2`, Repo `seerr-team/seerr`), verglichen mit Jellyseerr v2.7.3.
 Die ausführlichen Analyseberichte liegen im Unterordner `anhang/`: [Anhang A](anhang/A-spotlight-startseite.md)
 (Spotlight und Startseite), [Anhang B](anhang/B-konten-benachrichtigungen.md) (Konten und Benachrichtigungen),
 [Anhang C](anhang/C-integrationen-jobs-regeln.md) (Integrationen, Jobs, Regeln) und
-[Anhang D](anhang/D-jellyseerr-api.md) (Jellyseerr-API). Was für Fassung 3 am 17. November 2026 dazu nachgelesen
+[Anhang D](anhang/D-jellyseerr-api.md) (Seerr-API). Was für Fassung 3 am 17. November 2026 dazu nachgelesen
 wurde, steht in [Anhang H](anhang/H-nachtrag-17-november.md), Abschnitte 3 und 8.3 (hier in den Abschnitten 7,
-10 und 17.4 bis 17.8). Dieses Papier fasst sie zusammen. Alles zu Jellyseerr ist im Quellcode nachgelesen, aber
+10 und 17.4 bis 17.8). Dieses Papier fasst sie zusammen. Alles zu Seerr ist im Quellcode nachgelesen, aber
 **nicht gegen eine laufende Instanz geprüft**. Radarr und Sonarr sind dagegen mit lesenden Aufrufen gegen Marcos
 Instanzen geprüft (Abschnitt 10.3).
 
@@ -43,7 +43,7 @@ nicht bauen, bevor Marco es im Entscheidungsprotokoll aufhebt.
 
 Was sich mit Frage 33 ändert, steht in `11-entscheide-und-adr.md`. Der Code verhindert das Vorhaben
 nicht, die Papiere schon. Fassung 3 braucht weitere, eng gefasste Ausnahmen (Anhang H 5 und 8.5): Benutzer in
-Jellyseerr anlegen und pflegen (E-Mail, Passwort, Rechte, Limit), in Radarr und Sonarr Tags setzen und die
+Seerr anlegen und pflegen (E-Mail, Passwort, Rechte, Limit), in Radarr und Sonarr Tags setzen und die
 Warteschlange lesen, und den Beschaffungsstand (Spec Zeile 67) beim Wunsch zeigen, nicht am Titel der Bibliothek
 und nicht in der Suche. S-4 (Zeile oben) bleibt ohne Ausnahme. Auch das ist nur Vorschlag; dieses Papier ändert
 keine Regel.
@@ -117,7 +117,7 @@ Abschnitt 4.
   «Sammlungen».
 - **Eine Seite «Entdecken» gibt es nicht.** Der Ordner `features/discover` hält Suche, Merkliste,
   Gesehen, Sammlungen und Benachrichtigungen. Fassung 3 schlägt einen Bereich «Wünsche» mit «Entdecken»,
-  «Filme», «Serien» und «Suche» vor; seine Daten kämen aus Jellyseerr (Abschnitt 17.6).
+  «Filme», «Serien» und «Suche» vor; seine Daten kämen aus Seerr (Abschnitt 17.6).
 - TMDB-Suche gibt es serverseitig nur für den Administrator (`searchMetadata`,
   `api/openapi.yaml:4963-4985`).
 
@@ -159,7 +159,7 @@ Abschnitt 4.
   jeder Anmeldung und bei `updateAccount` (eigenes Konto, `web/src/features/admin/accounts/OwnAccountForm.tsx`).
   (Anhang H 3.6).
 - **Mindestlänge** des Passworts: 10 Zeichen (`server/internal/auth/auth.go:40`).
-- Folge für Fassung 3: Will Slouchcat dasselbe Passwort in Jellyseerr setzen, geht das nur in diesen drei
+- Folge für Fassung 3: Will Slouchcat dasselbe Passwort in Seerr setzen, geht das nur in diesen drei
   Momenten. Dazwischen hat der Server das Passwort nicht.
 
 ## 8. Jugendschutz
@@ -249,8 +249,9 @@ Feldnamen und Anzahlen, keine Schlüssel und keine Pfade (Anhang H 8.3).
   eingelesen» (Umfang des Lesens Redaktion, Anhang H 9, K-5). Der Import in die Bibliothek kommt weiter über
   den Webhook; gelesen wird nur für die Anzeige am Wunsch. Beides ist eine Ausnahme von ADR 0010 (Anhang H 8.5).
 - Für schnelleres Einlesen braucht es keine neue Anbindung: Die Webhook-Meldung nennt schon Kennung und
-  Dateipfad (Abschnitt 10.2). Ob Slouchcat sie nutzt, ist ein Vorschlag der Redaktion und offen als F-33
-  (Anhang H, N-88).
+  Dateipfad (Abschnitt 10.2). Marco hat entschieden, dass Slouchcat sie nach einer Messung nutzt (E-11): Der
+  Sofort-Import ist ein eigener Schritt im Bauplan. Zuerst wird gemessen, wo heute die Zeit bleibt; zeigt die
+  Messung keinen Gewinn, entfällt der Schritt. Die Webhooks bleiben, wie sie sind (Anhang H, N-88, N-98).
 
 ## 11. Ausgehende Aufrufe und `netguard`
 
@@ -271,7 +272,7 @@ Feldnamen und Anzahlen, keine Schlüssel und keine Pfade (Anhang H 8.3).
   nennt nur Quelle und die letzten vier Zeichen (`settings.go:56,192-212`). Umgebung gewinnt.
 - Redaction-Liste (Regel 10) deckt `apikey` und damit `X-Api-Key` ab
   (`server/internal/logging/logging.go:43-56`).
-- Fassung 3 schickt Passwörter an Jellyseerr und liest die Schlüssel von Radarr und Sonarr aus Jellyseerr.
+- Fassung 3 schickt Passwörter an Seerr und liest die Schlüssel von Radarr und Sonarr aus Seerr.
   Anhang H 5 nennt dafür neue Schlüssel für die Redaction-Liste: `password`, `newPassword` und die Schlüssel von
   Radarr und Sonarr.
 
@@ -326,12 +327,12 @@ Regel des Umbaus: keine Funktion und keine Option darf verloren gehen (`docs/adr
   Einträge, 30 Tage); alles andere unter `/api` ist NetworkOnly (`web/vite.config.ts:141-161`).
   Regel 12: Der Client entscheidet keine Sichtbarkeit (`docs/planning/03-plan-v1.md:38`).
 
-## 17. Jellyseerr/Seerr: was die API wirklich kann
+## 17. Seerr: was die API wirklich kann
 
-**Jellyseerr** ist ein Dienst zum Wünschen von Filmen und Serien. Er reicht freigegebene Wünsche an
-**Radarr** (Filme) und **Sonarr** (Serien) weiter, die sie beschaffen. Seit Februar 2026 heisst das
-Projekt **Seerr** (3.x); das alte Repo leitet um, die Pfade bleiben unter `/api/v1`
-(`server/index.ts` Z. 264). Quelle für alles Folgende: Seerr v3.5.2.
+**Seerr** ist ein Dienst zum Wünschen von Filmen und Serien. Er reicht freigegebene Wünsche an
+**Radarr** (Filme) und **Sonarr** (Serien) weiter, die sie beschaffen. Bis Version 2.x hiess das
+Projekt **Jellyseerr**, seit Februar 2026 heisst es **Seerr** (3.x); das alte Repo leitet um, die Pfade
+bleiben unter `/api/v1` (`server/index.ts` Z. 264). Quelle für alles Folgende: Seerr v3.5.2.
 
 ### 17.1 Was geht
 
@@ -369,7 +370,7 @@ PENDING 2, PROCESSING 3, PARTIALLY_AVAILABLE 4, AVAILABLE 5, BLOCKLISTED 6, DELE
 | Einzelne Folgen anfordern | nur ganze Staffeln; Staffel 0 und leere Staffeln fallen bei `all` weg | `server/entity/MediaRequest.ts` Z. 383–439 |
 | Mehrere Webhook-Ziele, Signatur, Wiederholung, Benutzer-ID in der Nutzlast | Webhook taugt nur als Anstoss | `server/lib/notifications/agents/webhook.ts` Z. 17–64, 202–243; `server/routes/settings/notifications.ts` Z. 276–330 |
 | Schreiben bei eingeschaltetem CSRF-Schutz | alle POST/DELETE von Slouchcat scheitern | `server/index.ts` Z. 195–214 |
-| Route, um Tags in Radarr oder Sonarr anzulegen | Jellyseerr liest Tags nur; den Profil-Tag muss Slouchcat selbst in Radarr und Sonarr anlegen | `server/routes/service.ts` Z. 32–162 (Anhang H 3.5) |
+| Route, um Tags in Radarr oder Sonarr anzulegen | Seerr liest Tags nur; den Profil-Tag muss Slouchcat selbst in Radarr und Sonarr anlegen | `server/routes/service.ts` Z. 32–162 (Anhang H 3.5) |
 | Passwort von Benutzer 1 ohne sein altes Passwort setzen | Benutzer 1 bleibt beim Passwortabgleich aussen vor | `server/routes/user/usersettings.ts` Z. 222–232 (Anhang H 3.1) |
 
 ### 17.3 Fallen
@@ -390,7 +391,7 @@ PENDING 2, PROCESSING 3, PARTIALLY_AVAILABLE 4, AVAILABLE 5, BLOCKLISTED 6, DELE
   dann alles zurückschicken (Abschnitt 17.4).
 - **`tags` im Request ersetzen die Standard-Tags** des Servers und wirken nur mit `MANAGE_REQUESTS` oder
   `REQUEST_ADVANCED` (Abschnitt 17.8).
-- **Abweichende Staffelzählung:** Steht Jellyseerr auf TMDB, kann seine Staffelliste von der in Sonarr und in der
+- **Abweichende Staffelzählung:** Steht Seerr auf TMDB, kann seine Staffelliste von der in Sonarr und in der
   Bibliothek abweichen (Abschnitt 17.7).
 
 ### 17.4 Benutzer anlegen, Passwort, Rechte
@@ -399,10 +400,10 @@ Quelle Anhang H 3.1, `GH:` = Seerr v3.5.2.
 
 | Fakt | Beleg | Folge |
 |---|---|---|
-| `POST /user {email, username, password}` legt einen lokalen Benutzer an. Mit `password` braucht Jellyseerr kein SMTP. `permissions` im Body wird ignoriert, es gelten die Standardrechte. Gleiche E-Mail → 409. | Anhang D 7.2 | Slouchcat kann je Konto einen Benutzer eröffnen; 409 heisst «gibt es schon»: verknüpfen, wenn ein Administrator eröffnet; sonst nur ein Vorschlag (N-2a, `04-benutzer-profilmapping.md`, Abschnitt 12.5). |
-| `POST /user/{id}/settings/password {newPassword}`, mindestens 8 Zeichen. Mit `MANAGE_USERS` setzt man das Passwort eines **anderen** Benutzers ohne das alte. Das Passwort von Benutzer 1 ändert nur Benutzer 1, das eines Administrators nur er selbst oder Benutzer 1. Für das eigene Passwort verlangt Jellyseerr das alte. | `GH:server/routes/user/usersettings.ts` Z. 222–261 | Der Schlüssel handelt als Benutzer 1 (Anhang D 2.1): Slouchcat kann jedes Passwort setzen, **ausser das von Benutzer 1**. |
-| Slouchcat verlangt 10 Zeichen, Jellyseerr 8. | `server/internal/auth/auth.go:40` | Jedes Slouchcat-Passwort passt. |
-| `POST /user/{id}/settings/main` schreibt `username`, `email`, Sprache, Regionen und die vier Limit-Felder **immer alle** aus dem Body. Die Limit-Felder nimmt Jellyseerr nur an, wenn der Zielbenutzer **nicht** `MANAGE_USERS` hat und der Aufrufer nicht er selbst ist. | `usersettings.ts` Z. 77–150, 120–129 | Vorher `GET /user/{id}/settings/main`, übrige Felder unverändert zurückschicken. Administratoren bekommen kein Limit. |
+| `POST /user {email, username, password}` legt einen lokalen Benutzer an. Mit `password` braucht Seerr kein SMTP. `permissions` im Body wird ignoriert, es gelten die Standardrechte. Gleiche E-Mail → 409. | Anhang D 7.2 | Slouchcat kann je Konto einen Benutzer eröffnen; 409 heisst «gibt es schon»: Slouchcat verknüpft den bestehenden Benutzer sofort, auch beim Annehmen einer Einladung (Marco, E-8; `04-benutzer-profilmapping.md`, Abschnitt 12). |
+| `POST /user/{id}/settings/password {newPassword}`, mindestens 8 Zeichen. Mit `MANAGE_USERS` setzt man das Passwort eines **anderen** Benutzers ohne das alte. Das Passwort von Benutzer 1 ändert nur Benutzer 1, das eines Administrators nur er selbst oder Benutzer 1. Für das eigene Passwort verlangt Seerr das alte. | `GH:server/routes/user/usersettings.ts` Z. 222–261 | Der Schlüssel handelt als Benutzer 1 (Anhang D 2.1): Slouchcat kann jedes Passwort setzen, **ausser das von Benutzer 1**. |
+| Slouchcat verlangt 10 Zeichen, Seerr 8. | `server/internal/auth/auth.go:40` | Jedes Slouchcat-Passwort passt. |
+| `POST /user/{id}/settings/main` schreibt `username`, `email`, Sprache, Regionen und die vier Limit-Felder **immer alle** aus dem Body. Die Limit-Felder nimmt Seerr nur an, wenn der Zielbenutzer **nicht** `MANAGE_USERS` hat und der Aufrufer nicht er selbst ist. | `usersettings.ts` Z. 77–150, 120–129 | Vorher `GET /user/{id}/settings/main`, übrige Felder unverändert zurückschicken. Administratoren bekommen kein Limit. |
 | `POST /user/{id}/settings/permissions {permissions}` setzt die Rechte. | `usersettings.ts` Z. 763–808 | Rechte setzt ein zweiter Aufruf nach dem Anlegen. |
 | «Lokale Anmeldung» ist ab Werk an (`localLogin: true`) und steht in `GET /settings/public`. Ist sie aus, kann sich ein lokaler Benutzer nicht anmelden. | `GH:server/lib/settings/index.ts` Z. 423 | Der Verbindungstest muss sie prüfen. |
 
@@ -419,8 +420,8 @@ Quelle Anhang H 3.2, `GH:server/entity/User.ts` Z. 285–390.
 - `GET /user/{id}/quota` liefert je Art `days`, `limit`, `used`, `remaining`, `restricted` (Anhang D 7.2).
 - Ist das Limit erreicht, antwortet `POST /request` mit 403 `Movie Quota exceeded.` oder `Series Quota exceeded.`
   (Anhang D 3.4).
-- Folge: Jellyseerr zählt auch Wünsche, die jemand direkt in Jellyseerr stellt. Einen Zeitpunkt «nächster Platz
-  frei» liefert Jellyseerr nicht; Slouchcat muss ihn aus den Requests errechnen.
+- Folge: Seerr zählt auch Wünsche, die jemand direkt in Seerr stellt. Einen Zeitpunkt «nächster Platz
+  frei» liefert Seerr nicht; Slouchcat muss ihn aus den Requests errechnen.
 
 ### 17.6 Listen zum Stöbern und Suche
 
@@ -435,27 +436,27 @@ Quelle Anhang H 3.3, `GH:server/routes/discover.ts`.
 | Demnächst (Serien) | `GET /discover/tv/upcoming` (Z. 679) | `page`, `language` |
 | Genre-Kacheln | `GET /discover/genreslider/movie`, `/genreslider/tv` (Z. 855, 899) | `language` |
 
-- Jede Liste ist ein TMDB-Abruf; die Treffer tragen `mediaInfo` (Zustand in Jellyseerr).
-- Die Startseite von Jellyseerr zeigt ab Werk zwölf Reihen (`GH:server/constants/discover.ts`), darunter
-  «Recently Added», «Recent Requests», «Plex Watchlist», «Studios» und «Networks»; sie lassen sich in Jellyseerr
+- Jede Liste ist ein TMDB-Abruf; die Treffer tragen `mediaInfo` (Zustand in Seerr).
+- Die Startseite von Seerr zeigt ab Werk zwölf Reihen (`GH:server/constants/discover.ts`), darunter
+  «Recently Added», «Recent Requests», «Plex Watchlist», «Studios» und «Networks»; sie lassen sich in Seerr
   umstellen.
 - `GET /search?query=…` sucht bei TMDB, mit vier Präfixen: `tmdb:<id>`, `imdb:<tt…>`, `tvdb:<id>`,
   `year:<jjjj>` (`GH:server/lib/search.ts` Z. 46, 94, 132, 170). `tvdb:` löst über TMDB «find by external id»
   auf.
-- Folge: Eine Seite wie die Startseite von Jellyseerr lässt sich aus diesen Routen bauen. `mediaInfo` sagt nichts
+- Folge: Eine Seite wie die Startseite von Seerr lässt sich aus diesen Routen bauen. `mediaInfo` sagt nichts
   über die Bibliothek von Slouchcat; den Abgleich muss Slouchcat selbst machen. Freigaben liefern die Listen
   nicht je Treffer; für Profile mit Altersgrenze hilft `certificationLte` als Vorfilter.
 
-### 17.7 TVDB in Jellyseerr
+### 17.7 TVDB in Seerr
 
 Quelle Anhang H 3.4.
 
-- Jellyseerr führt jeden Titel über die **TMDB-ID**. Die TVDB-ID einer Serie nimmt es aus TMDB
+- Seerr führt jeden Titel über die **TMDB-ID**. Die TVDB-ID einer Serie nimmt es aus TMDB
   (`external_ids.tvdb_id`, `GH:server/api/tvdb/index.ts` Z. 550–552) und gibt sie an Sonarr weiter. Sonarr
-  arbeitet mit der TVDB-ID. Fehlt sie, löscht Jellyseerr den Request beim Senden (Abschnitt 17.3).
+  arbeitet mit der TVDB-ID. Fehlt sie, löscht Seerr den Request beim Senden (Abschnitt 17.3).
 - Seit 3.x gibt es die Einstellung «Metadaten-Anbieter» für Serien und Anime: `tmdb` (ab Werk) oder `tvdb`
   (`GH:server/lib/settings/index.ts` Z. 111–118, 460–463; Route `/settings/metadatas`). Mit `tvdb` lädt
-  Jellyseerr die Serie weiter über die TMDB-ID, ersetzt aber die **Staffelliste** durch die von TVDB
+  Seerr die Serie weiter über die TMDB-ID, ersetzt aber die **Staffelliste** durch die von TVDB
   (`GH:server/api/tvdb/index.ts` Z. 136–260; `GH:server/api/metadata.ts` Z. 8–39).
 - Folge: Der Schlüssel bleibt immer die TMDB-ID. Was sich unterscheiden kann, ist die Staffelzählung: TMDB und
   TVDB teilen manche Serien verschieden auf. Sonarr zählt nach TVDB, die Bibliothek von Slouchcat ordnet Serien
@@ -465,14 +466,14 @@ Quelle Anhang H 3.4.
 
 Quelle Anhang H 3.5.
 
-- `tags` im Body von `POST /request` sind numerische Tag-IDs von Radarr/Sonarr. Jellyseerr übernimmt sie nur,
+- `tags` im Body von `POST /request` sind numerische Tag-IDs von Radarr/Sonarr. Seerr übernimmt sie nur,
   wenn der **anfordernde** Benutzer `MANAGE_REQUESTS` oder `REQUEST_ADVANCED` hat
   (`GH:server/entity/MediaRequest.ts` Z. 265–294). Sie **ersetzen** dann die Standard-Tags des Servers
   (`GH:server/subscriber/MediaRequestSubscriber.ts` Z. 299–302, 706–707).
-- Jellyseerr kann selbst taggen: Mit «Tag Requests» am Radarr- oder Sonarr-Server legt es je anforderndem
+- Seerr kann selbst taggen: Mit «Tag Requests» am Radarr- oder Sonarr-Server legt es je anforderndem
   Benutzer den Tag `<Benutzer-ID>-<Anzeigename>` an und hängt ihn an (Z. 346–380). Das ist der Benutzer des
   Kontos, nicht das Profil.
-- Jellyseerr liest die Tag-Liste (`GET /service/radarr/{id}`, `/service/sonarr/{id}`,
+- Seerr liest die Tag-Liste (`GET /service/radarr/{id}`, `/service/sonarr/{id}`,
   `GH:server/routes/service.ts` Z. 32–162), bietet aber **keine Route, um Tags anzulegen**.
 - `GET /settings/radarr` und `/settings/sonarr` geben die Servereinträge vollständig zurück, mit `hostname`,
   `port`, `useSsl`, `baseUrl`, `apiKey`, `tags`, `tagRequests`, `isDefault`, `is4k`
@@ -484,7 +485,7 @@ Quelle Anhang H 3.5.
   **nicht geprüft**. Tag-Namen: nur Kleinbuchstaben, Ziffern, Bindestrich. Sonarr kennt Tags nur an der Serie,
   nicht an der Staffel.
 - Folge: Einen Tag je Profil kann nur Slouchcat selbst setzen, direkt in Radarr und Sonarr. Den Zugang dazu kann
-  es aus Jellyseerr lesen, ohne dass der Administrator einen Schlüssel eintippt. Docker-interne Adressen wie
+  es aus Seerr lesen, ohne dass der Administrator einen Schlüssel eintippt. Docker-interne Adressen wie
   `http://radarr:7878` sind von Slouchcat aus womöglich nicht erreichbar.
 
 ## 18. Anknüpfungspunkte
@@ -498,25 +499,25 @@ Quelle Anhang H 3.5.
 - `notify.Emit` mit Profilpräfix und Kanälen ist allgemein (`server/internal/notify/dispatch.go:74-121`).
 - Die Stelle des Hakens `WithRelink` nach dem Match ist der natürliche Auslöser für «Titel zugeordnet».
 - `acceptInvitation`, die Anmeldung und `updateAccount` sind die drei Stellen, an denen Slouchcat das Passwort an
-  Jellyseerr weitergeben kann (Abschnitt 7).
-- `GET /settings/radarr` und `/settings/sonarr` von Jellyseerr liefern den Zugang zu Radarr und Sonarr
+  Seerr weitergeben kann (Abschnitt 7).
+- `GET /settings/radarr` und `/settings/sonarr` von Seerr liefern den Zugang zu Radarr und Sonarr
   (Abschnitt 17.8). Derselbe Zugang liest die Warteschlange für den Download-Fortschritt (`GET /api/v3/queue`,
   Abschnitt 10.3).
 - Die Webhook-Meldungen von Radarr und Sonarr tragen schon Kennungen und Dateipfad (Abschnitt 10.2); heute liest
-  Slouchcat davon nur den Ordner.
+  Slouchcat davon nur den Ordner. Der Sofort-Import nutzt sie nach einer Messung (Marco, E-11).
 
 ## 19. Was dieses Papier nicht prüft
 
-Laufzeitverhalten (keine Tests, keine Instanz von Jellyseerr angesprochen), die Zahl der Serien ohne
+Laufzeitverhalten (keine Tests, keine Instanz von Seerr angesprochen), die Zahl der Serien ohne
 `tmdb_id` auf CT 190, die Sprache der Trakt-Titel und ob jede JSON-Antwort `Cache-Control: no-store` trägt.
 Für Fassung 3 ausserdem nicht geprüft: ob Marcos Instanz «Lokale Anmeldung» an hat, auf welchem
 Metadaten-Anbieter sie für Serien steht, ob «Tag Requests» an ist und ob Slouchcat die Adressen von Radarr und
-Sonarr aus Jellyseerr erreicht. Von Radarr und Sonarr sind nur lesende Aufrufe geprüft; die schreibenden Aufrufe
+Sonarr aus Seerr erreicht. Von Radarr und Sonarr sind nur lesende Aufrufe geprüft; die schreibenden Aufrufe
 für den Tag und die Felder einer Sonarr-Warteschlange mit Einträgen sind nicht geprüft (Abschnitt 10.3).
 
 ## 20. Technische Einschränkungen, die das Konzept bestimmen
 
-Die Einschränkungen heissen TE-1 bis TE-32. «E-1» bis «E-7» stehen in diesem Konzept nur für Marcos Antworten
+Die Einschränkungen heissen TE-1 bis TE-32. «E-1» bis «E-11» stehen in diesem Konzept nur für Marcos Antworten
 (Anhang H, Abschnitt 9, K-9).
 
 | Nr. | Einschränkung | Folge im Konzept |
@@ -531,25 +532,25 @@ Die Einschränkungen heissen TE-1 bis TE-32. «E-1» bis «E-7» stehen in diese
 | TE-8 | Kein Wunschrecht, keine Einzelschalter. | Neue Spalten `can_request` je Konto und Profil; Server liefert `canRequest` mit Grund. |
 | TE-9 | `netguard` sperrt das Heimnetz. | Eigener Client `internal/seerr` mit ausdrücklicher LAN-Erlaubnis, ohne Weiterleitungen. |
 | TE-10 | Kein Haken für neue Filme und Serien; Freigabe kommt erst nach dem Match. | Haken nach dem Match plus stündlicher Nachlauf `wishes.reconcile`. |
-| TE-11 | Die Webhook-Meldungen von Radarr und Sonarr tragen Kennungen und Dateipfad, Slouchcat liest heute nur Ereignis und Ordner (Abschnitt 10). | Verfügbarkeit weiter erst nach dem Match feststellen. Kennung und Pfad für einen schnellen Import zu nutzen, ist offen (F-33). |
+| TE-11 | Die Webhook-Meldungen von Radarr und Sonarr tragen Kennungen und Dateipfad, Slouchcat liest heute nur Ereignis und Ordner (Abschnitt 10). | Verfügbarkeit weiter erst nach dem Match feststellen. Kennung und Pfad nutzt ein eigener Schritt für den Sofort-Import, erst nach einer Messung (Marco, E-11). |
 | TE-12 | Eingang kennt nur `new_episode` mit Pflicht-`item_id`; Kanal-Ereignisse sind per CHECK fest. | Neubau von `notifications` und `deliveries` nach Vorlage; neue Arten und Ereignisse. |
 | TE-13 | Gewöhnliche Konten haben ab Werk keine Inhaltsmeldung auf Kanälen. | Standard für das neue Ereignis bewusst setzen (F-14). |
 | TE-14 | Externe Kanäle gehören dem Konto; jedes Gerät des Kontos sieht Titel aller Profile. | Regel für PIN-Profile ohne Titel (F-15). |
-| TE-15 | Jellyseerr kennt keine Profile, keine fremden Kennungen, keine Mitwünsche. | Profil und Mitwunsch lokal in Slouchcat; nach aussen zeigt ein Profil-Tag in Radarr und Sonarr das Profil. |
+| TE-15 | Seerr kennt keine Profile, keine fremden Kennungen, keine Mitwünsche. | Profil und Mitwunsch lokal in Slouchcat; nach aussen zeigt ein Profil-Tag in Radarr und Sonarr das Profil. |
 | TE-16 | Kein Änderungs-Feed, kein Sammelabruf, teures `GET /request`. | Abgleich alle 5 min mit `sort=modified` und Abbruch; Zeiger rückt je Seite vor; Erstabgleich ohne Seitengrenze im Hintergrund. |
-| TE-17 | Webhook von Jellyseerr: ein Ziel, keine Signatur, keine Benutzer-ID. | Nur Anstoss zum Abgleich, Stufe 4 (F-18). |
+| TE-17 | Webhook von Seerr: ein Ziel, keine Signatur, keine Benutzer-ID. | Nur Anstoss zum Abgleich, Stufe 4 (F-18). |
 | TE-18 | `X-API-User` ist undokumentiert. | Verbindungstest prüft es mit `GET /auth/me` (F-3). |
-| TE-19 | CSRF-Schutz in Jellyseerr verhindert Schreiben. | Verbindungstest meldet es. |
+| TE-19 | CSRF-Schutz in Seerr verhindert Schreiben. | Verbindungstest meldet es. |
 | TE-20 | `/api` ist im Service Worker NetworkOnly. | Wünsche nur online, kein Offline-Zustand. |
 | TE-21 | Regel 2: Titel-SQL nur in erlaubten Paketen. | `internal/wishes` fragt `items` nicht ab; `visibility` und `metadata` liefern die Antworten. |
-| TE-22 | Benutzer- und Request-IDs gelten nur in einer Jellyseerr-Instanz; eine neu aufgesetzte Instanz vergibt sie neu. | Fingerabdruck der Instanz; bei Abweichung halten Übermittlung und Abgleich an (`04-benutzer-profilmapping.md`, Abschnitt 8.4). |
+| TE-22 | Benutzer- und Request-IDs gelten nur in einer Seerr-Instanz; eine neu aufgesetzte Instanz vergibt sie neu. | Fingerabdruck der Instanz; bei Abweichung halten Übermittlung und Abgleich an (`04-benutzer-profilmapping.md`, Abschnitt 8.4). |
 | TE-23 | Die TMDB-Suche liefert keine Freigaben. | Für Profile unter 18 holt der Server je Treffer die Details (höchstens 20, zwischengespeichert in `external_titles`). |
-| TE-24 | Der Server sieht das Passwort nur beim Annehmen der Einladung, bei der Anmeldung und beim Ändern (Abschnitt 7). | Passwort nur in diesen Momenten an Jellyseerr; sonst Zufallspasswort und «bei der nächsten Anmeldung übernehmen» (`04-benutzer-profilmapping.md`, Abschnitt 13). |
+| TE-24 | Der Server sieht das Passwort nur beim Annehmen der Einladung, bei der Anmeldung und beim Ändern (Abschnitt 7). | Passwort nur in diesen Momenten an Seerr; sonst Zufallspasswort und «bei der nächsten Anmeldung übernehmen» (`04-benutzer-profilmapping.md`, Abschnitt 13). |
 | TE-25 | Das Passwort von Benutzer 1 lässt sich nicht ohne das alte setzen (Abschnitt 17.4). | Benutzer 1 bleibt beim Passwortabgleich aussen vor. |
 | TE-26 | `settings/main` schreibt alle Felder; Limit-Felder nur für Benutzer ohne `MANAGE_USERS` (Abschnitt 17.4). | Lesen vor Schreiben; Administratoren ohne Limit. |
-| TE-27 | Jellyseerr zählt das Limit selbst, rollierend, Staffeln einzeln, auch direkte Wünsche (Abschnitt 17.5). | Slouchcat stellt das Limit ein und zeigt den Stand; zählen lässt es Jellyseerr. |
-| TE-28 | Jellyseerr legt keine Tags an; `tags` im Request brauchen erweiterte Rechte und ersetzen die Standard-Tags (Abschnitt 17.8). | Profil-Tag direkt in Radarr und Sonarr; das braucht eine Ausnahme von ADR 0010 und Regel 11 (Anhang H 5). |
-| TE-29 | Jellyseerr führt Titel über die TMDB-ID; die Staffelliste kann aus TMDB oder TVDB kommen (Abschnitt 17.7). | Staffeln im Dialog aus Jellyseerr; Empfehlung, Jellyseerr auf TVDB zu stellen (F-29). |
-| TE-30 | Discover- und Suchrouten von Jellyseerr liefern TMDB-Listen mit dem Zustand in Jellyseerr, nicht in Slouchcat (Abschnitt 17.6). | Bereich «Wünsche» aus diesen Routen mit Zwischenspeicher; Abgleich mit der Bibliothek in Slouchcat. |
+| TE-27 | Seerr zählt das Limit selbst, rollierend, Staffeln einzeln, auch direkte Wünsche (Abschnitt 17.5). | Slouchcat stellt das Limit ein und zeigt den Stand; zählen lässt es Seerr. |
+| TE-28 | Seerr legt keine Tags an; `tags` im Request brauchen erweiterte Rechte und ersetzen die Standard-Tags (Abschnitt 17.8). | Profil-Tag direkt in Radarr und Sonarr; das braucht eine Ausnahme von ADR 0010 und Regel 11 (Anhang H 5). |
+| TE-29 | Seerr führt Titel über die TMDB-ID; die Staffelliste kann aus TMDB oder TVDB kommen (Abschnitt 17.7). | Staffeln im Dialog aus Seerr; Empfehlung, Seerr auf TVDB zu stellen (F-29). |
+| TE-30 | Discover- und Suchrouten von Seerr liefern TMDB-Listen mit dem Zustand in Seerr, nicht in Slouchcat (Abschnitt 17.6). | Bereich «Wünsche» aus diesen Routen mit Zwischenspeicher; Abgleich mit der Bibliothek in Slouchcat. |
 | TE-31 | Radarr und Sonarr melden von sich aus nur über einen Webhook; die API beantwortet nur Fragen (Abschnitt 10.3). | Webhooks bleiben wie heute (Marco, E-6); der Import kommt weiter über sie. Den Download-Fortschritt fragt Slouchcat im Takt ab: Warteschlange und Dateistand der gewünschten Titel (`queue`, `movie?tmdbId`, `series?tvdbId`), nur solange es Wünsche in Beschaffung gibt (Job `wishes.progress`, Anhang H N-81, N-84). |
 | TE-32 | Den Beschaffungsstand zeigt Slouchcat heute nirgends; er ist Nicht-Ziel (Spec Zeile 67). | Ausnahme nur beim Wunsch, nicht am Titel der Bibliothek und nicht in der Suche (Marco, E-7; Anhang H N-82). |

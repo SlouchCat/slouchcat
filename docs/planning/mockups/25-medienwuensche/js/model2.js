@@ -1,5 +1,5 @@
-/* Fassung 3 of the concept: the Jellyseerr user of an account (created on invitation, same login), the limit per
-   account (Jellyseerr counts), the profile tag in Radarr and Sonarr, and the titles of the pages «Entdecken»,
+/* Fassung 3 of the concept: the Seerr user of an account (created on invitation, same login), the limit per
+   account (Seerr counts), the profile tag in Radarr and Sonarr, and the titles of the pages «Entdecken»,
    «Filme», «Serien», «Suche». Simulated like everything else in this mockup. */
 'use strict';
 
@@ -15,11 +15,11 @@ function tagLabel(p) {
 }
 function wishPeople(w) { return [w.owner, ...w.joined].filter(Boolean); }
 function arrOf(w) { return w.media === 'movie' ? S.arr.radarr : S.arr.sonarr; }
-/* Slouchcat labels the title once Jellyseerr has passed it on; a joined profile gets its tag as well. Nothing else
+/* Slouchcat labels the title once Seerr has passed it on; a joined profile gets its tag as well. Nothing else
    is ever changed in Radarr or Sonarr. A tag that cannot be set does not touch the wish; the next sync tries again. */
 function applyTags(w) {
   const cfg = S.settings.wishes.tags;
-  /* a request that was placed directly in Jellyseerr has no profile of its own: no profile tag, even if it was assigned later */
+  /* a request that was placed directly in Seerr has no profile of its own: no profile tag, even if it was assigned later */
   if (!cfg || !cfg.enabled || w.origin === 'jellyseerr' || !w.seerrRequestId || !['processing', 'partial', 'available'].includes(w.state)) return;
   w.tagged = w.tagged || {};
   const arr = arrOf(w);
@@ -45,7 +45,7 @@ function tagChips(w) {
   return wishTags(w).map((x) => `<span class="chip ${x.state === 'set' ? 'outline' : x.state === 'fail' ? 'bad' : 'info'}" title="${x.state === 'set' ? 'Tag gesetzt' : x.state === 'fail' ? arrOf(w).name + ' war nicht erreichbar, der nächste Abgleich versucht es wieder' : 'Tag folgt, sobald der Titel in ' + arrOf(w).name + ' steht'}">${icon('pin', 12)}${esc(x.label)}${x.state === 'set' ? '' : ' · ' + TAG_STATE[x.state]}</span>`).join('');
 }
 
-/* ---------- limit per account: Slouchcat sets it, Jellyseerr counts ---------- */
+/* ---------- limit per account: Slouchcat sets it, Seerr counts ---------- */
 function wishUnits(w) { return w.media === 'movie' ? 1 : (w.seasons.length || airedSeasons(T[w.titleKey]).length || 1); }
 function linkedAccount(u) { const e = Object.entries(S.map.accounts).find(([, id]) => id === u.id); return e ? account(e[0]) : null; }
 /* effective limit of an account: { movie: { n, days }, tv: { n, days } } or null for «unbegrenzt» */
@@ -55,8 +55,8 @@ function limitOf(acc) {
   if (l.mode === 'custom') return { movie: l.movie, tv: l.tv };
   return S.settings.wishes.limit;
 }
-/* which limit Jellyseerr applies to this user: administrators have none, an account's user has the limit Slouchcat
-   wrote, any other user keeps what is set in Jellyseerr itself */
+/* which limit Seerr applies to this user: administrators have none, an account's user has the limit Slouchcat
+   wrote, any other user keeps what is set in Seerr itself */
 function quotaCfg(u) {
   if (u.admin) return { cfg: null, source: 'admin' };
   const acc = linkedAccount(u);
@@ -114,35 +114,31 @@ function quotaPill(p) {
   return `<div class="quota" aria-label="Limit dieses Kontos">${quotaMeter(q.movie, 'movie')}${quotaMeter(q.tv, 'tv')}</div>`;
 }
 
-/* ---------- the Jellyseerr user of an account ---------- */
+/* ---------- the Seerr user of an account ---------- */
 const SEERR_ACC = {
   created: { label: 'Von Slouchcat eröffnet', chip: 'ok' },
   linked: { label: 'Verknüpft über gleiche E-Mail', chip: 'ok' },
   manual: { label: 'Von Hand zugeordnet', chip: 'ok' },
-  waiting: { label: 'Wird eröffnet, sobald Jellyseerr erreichbar ist', chip: 'warn' },
-  suggested: { label: 'Verknüpfung vorgeschlagen, wartet auf den Administrator', chip: 'warn' },
+  waiting: { label: 'Wird eröffnet, sobald Seerr erreichbar ist', chip: 'warn' },
   none: { label: 'Nicht eröffnet', chip: 'outline' },
 };
 const PW_STATE = {
   synced: { label: 'Gleich wie in Slouchcat', chip: 'ok' },
   next_login: { label: 'Wird bei der nächsten Anmeldung in Slouchcat übernommen', chip: 'info' },
   off: { label: 'Wird nicht abgeglichen', chip: 'outline' },
-  admin: { label: 'Bleibt in Jellyseerr (Administrator)', chip: 'outline' },
+  admin: { label: 'Bleibt in Seerr (Administrator)', chip: 'outline' },
   external: { label: 'Anmeldung über Jellyfin oder Plex', chip: 'outline' },
 };
-/* state of an account in Jellyseerr: { state, user, pw, info, pwInfo } */
+/* state of an account in Seerr: { state, user, pw, info, pwInfo } */
 function accSeerr(acc) {
   const id = S.map.accounts[acc.id];
   const u = id ? seerrUser(id) : null;
   let st = acc.seerr || { state: 'none' };
-  if (u && ['none', 'waiting', 'suggested'].includes(st.state)) st = { state: 'manual', pw: 'off' };
-  if (!u && !['none', 'waiting', 'suggested'].includes(st.state)) st = { state: 'none' };
-  /* a match by e-mail that the account typed itself is only a proposal until the administrator confirms it */
-  const sug = st.state === 'suggested' ? seerrUser(st.userId) : null;
-  if (st.state === 'suggested' && (!sug || !seerrFree(sug))) st = { state: 'none' };
-  return { ...st, user: u, suggest: st.state === 'suggested' ? sug : null, info: SEERR_ACC[st.state], pwInfo: u ? PW_STATE[st.pw || 'off'] : null };
+  if (u && ['none', 'waiting'].includes(st.state)) st = { state: 'manual', pw: 'off' };
+  if (!u && !['none', 'waiting'].includes(st.state)) st = { state: 'none' };
+  return { ...st, user: u, info: SEERR_ACC[st.state], pwInfo: u ? PW_STATE[st.pw || 'off'] : null };
 }
-/* a Jellyseerr user belongs to one account at most: free means no account uses it and no profile sends as it */
+/* a Seerr user belongs to one account at most: free means no account uses it and no profile sends as it */
 function seerrFree(u) { return !u.gone && !Object.values(S.map.accounts).includes(u.id) && !Object.values(S.map.profiles).includes(u.id); }
 /* may this account take the user? Its own profiles may already send as it (exception). */
 function seerrFreeFor(u, accId) { return !u.gone && !Object.entries(S.map.accounts).some(([a, id]) => id === u.id && a !== accId) && !Object.entries(S.map.profiles).some(([pid, id]) => id === u.id && (profile(pid) || {}).accountId !== accId); }
@@ -152,10 +148,10 @@ function syncRights(accId) {
   if (!acc || !u || u.admin || u.origin !== 'slouchcat') return;
   u.canMovie = u.canShow = !!acc.canRequest;
 }
-/* open the account in Jellyseerr: link an existing user with the same e-mail, else create one.
+/* open the account in Seerr: link an existing user with the same e-mail, else create one.
    o.password: the password is at hand right now (invitation accepted, password changed, sign-in).
-   o.by === 'self': the account typed the e-mail itself (invitation, own e-mail change) and nobody verified it.
-   A match is then only proposed: no link, no password to the existing user, until the administrator confirms. */
+   o.by === 'self': the account typed the e-mail itself (invitation accepted). The owner decided on 17 Nov 2026
+   that an existing user with the same e-mail is linked at once in this case too; the administrators see a hint. */
 function provisionAccount(accId, o = {}) {
   const acc = account(accId);
   if (!acc || S.map.accounts[accId]) return accSeerr(acc);
@@ -166,15 +162,10 @@ function provisionAccount(accId, o = {}) {
   }
   const sync = S.settings.wishes.pwSync;
   const hit = S.seerrUsers.find((u) => seerrFree(u) && u.email.toLowerCase() === acc.email.toLowerCase());
-  if (hit && o.by === 'self') {
-    acc.seerr = { state: 'suggested', at: Date.now(), userId: hit.id };
-    logSeerr('Benutzer eröffnen', 'ok', `${acc.email}: Benutzer mit gleicher E-Mail gefunden. Verknüpft wird erst, wenn ein Administrator es bestätigt.`);
-    return accSeerr(acc);
-  }
   if (hit) {
     S.map.accounts[accId] = hit.id;
-    acc.seerr = { state: 'linked', at: Date.now(), pw: hit.admin ? 'admin' : hit.type !== 'Lokal' ? 'external' : !sync ? 'off' : o.password ? 'synced' : 'next_login', pwAt: o.password && sync && !hit.admin && hit.type === 'Lokal' ? Date.now() : null };
-    logSeerr('Benutzer eröffnen', 'ok', `${acc.email}: in Jellyseerr gab es «${hit.name}» schon, verknüpft`);
+    acc.seerr = { state: 'linked', at: Date.now(), by: o.by || 'admin', pw: hit.admin ? 'admin' : hit.type !== 'Lokal' ? 'external' : !sync ? 'off' : o.password ? 'synced' : 'next_login', pwAt: o.password && sync && !hit.admin && hit.type === 'Lokal' ? Date.now() : null };
+    logSeerr('Benutzer eröffnen', 'ok', `${acc.email}: in Seerr gab es «${hit.name}» schon, verknüpft`);
     return accSeerr(acc);
   }
   const id = Math.max(...S.seerrUsers.map((u) => u.id)) + 1;
@@ -186,20 +177,10 @@ function provisionAccount(accId, o = {}) {
   logSeerr('Benutzer eröffnen', 'ok', `${acc.email} als «${u.name}» angelegt, ${acc.seerr.pw === 'synced' ? 'Passwort übernommen' : acc.seerr.pw === 'next_login' ? 'Passwort folgt bei der nächsten Anmeldung' : 'ohne Passwortabgleich'}, ${lim ? `Limit ${lim.movie.n || '∞'} Filme / ${lim.tv.n || '∞'} Staffeln` : 'ohne Limit'}`);
   return accSeerr(acc);
 }
-/* «Alle eröffnen»: proposals stay proposals, each one needs its own confirmation */
-function provisionAll() { const list = S.accounts.filter((a) => !S.map.accounts[a.id] && accSeerr(a).state !== 'suggested'); list.forEach((a) => provisionAccount(a.id)); save(); return list.length; }
-/* the administrator confirms that account and Jellyseerr user are the same person */
-function confirmLink(accId) {
-  const acc = account(accId), st = accSeerr(acc);
-  if (!acc || st.state !== 'suggested' || !st.suggest) return null;
-  const u = st.suggest;
-  S.map.accounts[accId] = u.id;
-  acc.seerr = { state: 'linked', at: Date.now(), pw: u.admin ? 'admin' : u.type !== 'Lokal' ? 'external' : S.settings.wishes.pwSync ? 'next_login' : 'off' };
-  logSeerr('Benutzer eröffnen', 'ok', `${acc.email}: Verknüpfung mit «${u.name}» vom Administrator bestätigt`);
-  save();
-  return accSeerr(acc);
-}
-/* the administrator picks an existing Jellyseerr user by hand */
+function provisionAll() { const list = S.accounts.filter((a) => !S.map.accounts[a.id]); list.forEach((a) => provisionAccount(a.id)); save(); return list.length; }
+/* accounts that were linked to an existing Seerr user because the invitee typed the same e-mail (last 7 days) */
+function recentSelfLinks() { return S.accounts.filter((a) => { const st = accSeerr(a); return st.state === 'linked' && st.by === 'self' && Date.now() - (st.at || 0) < 7 * D; }); }
+/* the administrator picks an existing Seerr user by hand */
 function linkAccount(accId, userId) {
   const acc = account(accId), u = seerrUser(userId);
   if (!acc || !u) return;
@@ -208,7 +189,7 @@ function linkAccount(accId, userId) {
   logSeerr('Benutzer zuordnen', 'ok', `${acc.email} → «${u.name}»`);
   save();
 }
-/* the link goes, the user stays in Jellyseerr (deleting it there would delete its requests) */
+/* the link goes, the user stays in Seerr (deleting it there would delete its requests) */
 function unlinkAccount(accId) {
   const acc = account(accId);
   if (!acc) return;
@@ -240,7 +221,7 @@ function pwSetMode(accId, on) {
   acc.seerr.pw = on ? 'next_login' : 'off';
   save();
 }
-/* «Einladung annehmen»: the account with its main profile, and at the same moment its user in Jellyseerr */
+/* «Einladung annehmen»: the account with its main profile, and at the same moment its user in Seerr */
 function acceptInvitation(invId, d) {
   const inv = S.invitations.find((i) => i.id === invId);
   if (!inv || inv.state !== 'open') return null;

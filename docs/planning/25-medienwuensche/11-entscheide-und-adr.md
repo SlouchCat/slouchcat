@@ -1,13 +1,16 @@
 # Konzept 25 · Entscheide, Regeländerungen und ADR-Entwürfe
 
-> **Kurz gesagt.** Stand Fassung 3 vom 17. November 2026; sie umfasst beide Rückmeldungen von Marco an diesem Tag.
-> Marco hat sieben Fragen entschieden (E-1 bis E-7, Abschnitt 0): gleiches Passwort in Jellyseerr, Profil-Tag in
-> Radarr und Sonarr, Jellyseerr zählt das Limit, Verknüpfen über die E-Mail; fehlende Titel der Trakt-Liste
-> nirgends in der Zuschauer-App, Webhooks von Radarr und Sonarr wie heute, Download-Fortschritt bei Wünschen. Es gibt
-> die Fragen F-1 bis F-34; F-8 ist durch E-5 entschieden, F-20 durch F-34 ersetzt. Offen sind damit 32 Fragen und
-> zwei Teilfragen (T-1, T-2); wo E-1 bis E-7 eine davon in der Sache klären, steht es bei der Frage. Die Kritik an
-> Fassung 3 (Anhang H 9, K-1 bis K-23) ist mit Redaktionsentscheiden eingearbeitet, nicht mit Entscheiden von
-> Marco; der wichtigste: Über die E-Mail verknüpft nur ein Administrator (N-2a, Teil von F-24). Zu jeder steht hier, worum es geht, welche
+> **Kurz gesagt.** Stand Fassung 3 vom 17. November 2026; sie umfasst alle drei Rückmeldungen von Marco an diesem
+> Tag. Marco hat elf Fragen entschieden (E-1 bis E-11, Abschnitt 0): gleiches Passwort in Seerr, Profil-Tag in
+> Radarr und Sonarr, Seerr zählt das Limit, Verknüpfen über die E-Mail; fehlende Titel der Trakt-Liste
+> nirgends in der Zuschauer-App, Webhooks von Radarr und Sonarr wie heute, Download-Fortschritt bei Wünschen; bei
+> einer Einladung sofort verknüpfen, der Name «Seerr», die Startreihe «Erfüllte Wünsche», der Sofort-Import nach
+> einer Messung. Es gibt die Fragen F-1 bis F-34; entschieden sind F-8 (E-5), F-32 (E-9), F-33 (E-11) und F-34
+> (E-10), F-20 ist durch F-34 ersetzt, F-24 ist im Teil «Verknüpfen» durch E-8 entschieden. Offen sind damit
+> 29 Fragen und zwei Teilfragen (T-1, T-2); wo E-1 bis E-11 eine davon in der Sache klären, steht es bei der Frage.
+> Die Kritik an Fassung 3 (Anhang H 9, K-1 bis K-23) ist mit Redaktionsentscheiden eingearbeitet, nicht mit
+> Entscheiden von Marco; den wichtigsten (K-1: Verknüpfen nur durch einen Administrator, N-2a) hat Marco mit E-8
+> anders entschieden. Zu jeder steht hier, worum es geht, welche
 > Möglichkeiten es gibt, was empfohlen ist und was eine andere Wahl bedeutet. Wünschen ist heute ein Nicht-Ziel;
 > Abschnitt 2 listet jede Stelle in Spec, Plan, Protokoll, ADRs und `CLAUDE.md`, die sich mit einer Freigabe
 > ändert, und was ausdrücklich Nicht-Ziel bleibt. Abschnitt 3 ist der Entwurf für Frage 33 im
@@ -21,74 +24,85 @@
 > Entscheidungsprotokoll»). Die ADR-Dateien entstehen in Stufe 0 unter `docs/adr/`, nicht vorher.
 
 Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md) (Abschnitte 2, 8, 9, 10) und für Fassung 3
-[Anhang H](anhang/H-nachtrag-17-november.md) (Regeln N-1 bis N-88; Abschnitt 8 geht den Abschnitten 4 bis 7 vor). Wortlaute von heute sind im Worktree am Anker
+[Anhang H](anhang/H-nachtrag-17-november.md) (Regeln N-1 bis N-98; Abschnitt 10 geht den Abschnitten 4 bis 9 vor,
+Abschnitt 8 den Abschnitten 4 bis 7). Wortlaute von heute sind im Worktree am Anker
 `ba6efe31` nachgesehen. Die übrigen Papiere: `01-bestandsanalyse.md`, `02-funktionskonzept.md`,
 `03-architektur.md`, `04-benutzer-profilmapping.md`, `05-spotlight-integration.md`, `06-benachrichtigungen.md`,
 `07-administration.md`, `08-datenmodell-api.md`, `09-umsetzungsplan.md`, `10-abnahmekriterien.md`. Die
 Analyseberichte, die Kritik und Marcos Rückmeldung liegen in `anhang/`, [Anhang A](anhang/A-spotlight-startseite.md)
 bis [Anhang H](anhang/H-nachtrag-17-november.md). Abschnitte mit **Vorschlag** gehen über Anhang F hinaus.
 
-## 0. Am 17. November 2026 von Marco entschieden (E-1 bis E-7)
+## 0. Am 17. November 2026 von Marco entschieden (E-1 bis E-11)
 
 Marco hat Fassung 2 durchgesehen, vier Ergänzungen verlangt und danach vier Rückfragen beantwortet (Anhang H,
 Abschnitte 1 und 2). Danach hat er das Mockup der Fassung 3 angesehen, eine zweite Nachricht geschickt und drei
-weitere Rückfragen beantwortet (Anhang H, Abschnitte 8.1 und 8.2). Nur diese sieben Antworten und seine zwei
-Nachrichten sind Entscheide von Marco. Alles, was die Papiere daraus ableiten, ist Empfehlung der Redaktion und
-steht als Frage F-23 bis F-34 oder als **Vorschlag** zur Freigabe.
+weitere Rückfragen beantwortet (Anhang H, Abschnitte 8.1 und 8.2). Auf seine Frage «Hast du noch offene Fragen oder
+Unklarheiten?» hat er zuletzt vier Weichen entschieden (Anhang H, Abschnitt 10.1). Nur diese elf Antworten und
+seine zwei Nachrichten sind Entscheide von Marco. Alles, was die Papiere daraus ableiten, ist Empfehlung der Redaktion und
+steht als offene Frage F-23 bis F-31 oder als **Vorschlag** zur Freigabe.
 
 | Nr. | Frage | Marcos Antwort | Was er dazu gesehen hat (Anhang H 2) | Folge in Fassung 3 (Ausgestaltung: Redaktion) |
 |---|---|---|---|---|
 | E-1 | Sollen sich eingeladene Benutzer mit E-Mail und Passwort von Slouchcat auch direkt bei Seerr anmelden können? | **«Ja, gleiches Passwort»** | Beim Annehmen der Einladung legt Slouchcat den Seerr-Benutzer mit gleicher E-Mail und gleichem Passwort an; bei jeder Passwortänderung gleicht es ab; das Passwort geht dabei einmal im Klartext an Seerr; ändert jemand es direkt in Seerr, laufen die beiden auseinander | Eröffnen beim Annehmen, Passwort in drei Momenten, nie gespeichert (`03-architektur.md`, Abschnitt 18); Stufe 1 |
 | E-2 | Wo soll man sehen, welches Profil einen Titel angefordert hat? | **«Auch in Radarr/Sonarr»** | als Tag am Film oder an der Serie; Slouchcat müsste Radarr und Sonarr direkt ansprechen, das bricht die heutige Regel | Paket `internal/arr` für Tags und das Lesen des Fortschritts (E-7), Job `wishes.tag` (Redaktionsentscheid zu K-22); Ausnahme von ADR 0010 und vom Nicht-Ziel (Abschnitt 2); Stufe 4 |
-| E-3 | Das Limit gilt je Konto für alle Profile gemeinsam. Was soll dazu zählen? | **«Alles, Seerr zählt»** | Limit in Slouchcat einstellen, Slouchcat schreibt es in den Seerr-Benutzer; Seerr zählt rollierend, auch direkt dort gestellte Wünsche; abgelehnte Wünsche und Mitwünsche zählen nicht | Limit je Konto mit Vorgabe, Vorprüfung im Dialog, Stand aus Jellyseerr (`03-architektur.md`, Abschnitt 19); Stufe 1, Vorprüfung ab Stufe 2 |
-| E-4 | Was soll mit Konten und Seerr-Benutzern geschehen, die es heute schon gibt? | **«Über gleiche E-Mail verknüpfen»** | Gibt es in Seerr einen Benutzer mit derselben E-Mail, verknüpft Slouchcat ihn, statt einen zweiten anzulegen; für Konten ohne Treffer gibt es «In Seerr eröffnen» | automatisches Verknüpfen beim Eröffnen durch den Administrator; Knöpfe «In Jellyseerr eröffnen» und «Alle eröffnen» (`07-administration.md`, Abschnitt 6). Die Redaktion schränkt das für einen Fall ein (N-2a, K-1): Tippt das Konto die Adresse selbst ein (Einladung, eigene E-Mail geändert), entsteht nur ein Vorschlag, den ein Administrator bestätigt. E-4 fragte nach Konten und Benutzern, «die es heute schon gibt»; dort verknüpft weiter der Knopf |
+| E-3 | Das Limit gilt je Konto für alle Profile gemeinsam. Was soll dazu zählen? | **«Alles, Seerr zählt»** | Limit in Slouchcat einstellen, Slouchcat schreibt es in den Seerr-Benutzer; Seerr zählt rollierend, auch direkt dort gestellte Wünsche; abgelehnte Wünsche und Mitwünsche zählen nicht | Limit je Konto mit Vorgabe, Vorprüfung im Dialog, Stand aus Seerr (`03-architektur.md`, Abschnitt 19); Stufe 1, Vorprüfung ab Stufe 2 |
+| E-4 | Was soll mit Konten und Seerr-Benutzern geschehen, die es heute schon gibt? | **«Über gleiche E-Mail verknüpfen»** | Gibt es in Seerr einen Benutzer mit derselben E-Mail, verknüpft Slouchcat ihn, statt einen zweiten anzulegen; für Konten ohne Treffer gibt es «In Seerr eröffnen» | automatisches Verknüpfen beim Eröffnen; Knöpfe «In Seerr eröffnen» und «Alle eröffnen» (`07-administration.md`, Abschnitt 6). Die Einschränkung der Redaktion für selbst eingetippte Adressen (N-2a, K-1) hat Marco mit E-8 verworfen |
 | E-5 | Fehlende Titel erscheinen nicht mehr im Spotlight der Startseite. Sollen die fehlenden Titel der Trakt-Liste stattdessen unter Wünsche › Entdecken als eigene Reihe stehen? | **«Nein, nirgends»** | Fehlende Titel der Trakt-Liste sieht nur der Administrator in der Verwaltung; anfordern geht über Entdecken, Filme, Serien und Suche | Startseite und Spotlight-Liste nur mit Bibliothekstiteln, S-4 ohne Ausnahme; Verwaltung › Spotlight mit Band «Fehlende Einträge» ohne Schalter; F-8 entschieden; vom Spotlight bleibt der Abgleich über TVDB und IMDb (`03-architektur.md`, Abschnitt 5.1); Stufe 3 |
 | E-6 | Radarr und Sonarr melden von sich aus nur per Webhook; über die API muss Slouchcat nachfragen. Wie soll Slouchcat angebunden sein? | **«Webhooks wie heute»** (nicht «API und Webhook», nicht «Nur API, ohne Webhook») | Du richtest die Webhooks weiter von Hand ein; die API nutzt Slouchcat nur für die Profil-Tags | Webhook-Empfang und Seite «Webhooks von Radarr und Sonarr» unverändert; Slouchcat trägt in Radarr und Sonarr keinen Webhook ein (`03-architektur.md`, Abschnitt 10); «API und Webhook» und «Nur API» stehen in ADR 0037 unter «Verworfen» |
 | E-7 | Soll Slouchcat bei Wünschen den Download-Fortschritt aus Radarr und Sonarr zeigen, zum Beispiel «Wird heruntergeladen, 45 %, noch 12 Minuten»? | **«Ja, bei Wünschen»** | Unter «Meine Wünsche» und in der Verwaltung; die Anzeige des Beschaffungsstands ist heute ein Nicht-Ziel, das wäre eine weitere Ausnahme | Job `wishes.progress` liest die Warteschlange und den Dateistand der gewünschten Titel, Zwischenspeicher `wish_progress`, vier Anzeigen nur beim Wunsch (`03-architektur.md`, Abschnitt 22); Ausnahme von Spec `:67` nur beim Wunsch und von ADR 0010; Stufe 4 |
+| E-8 | Nimmt jemand eine Einladung an und tippt eine E-Mail ein, die es in Seerr schon gibt: Soll Slouchcat den bestehenden Seerr-Benutzer sofort verknüpfen oder erst nach deiner Bestätigung? | **«Sofort verknüpfen»** (nicht «Erst nach Bestätigung», das die Redaktion empfohlen hatte) | Wie in deiner früheren Antwort, auch bei Einladungen. Einfacher, aber wer eine fremde E-Mail eintippt, bekommt den Seerr-Benutzer dieser Person samt ihren Anfragen | N-2a ist zurückgezogen (N-90): kein Zustand «Verknüpfung vorgeschlagen», keine Aktion «Verknüpfung bestätigen», keine Operation dafür. Treffer werden sofort verknüpft, auch nach einer Einladung und nach einer E-Mail-Änderung (N-95); das Passwort geht an den Benutzer wie bei jedem anderen, nie an Benutzer 1, andere Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex (N-91). Das Risiko ist bekannte Grenze (N-92). Empfehlung der Redaktion dazu: Hinweis «Neu verknüpft» sieben Tage lang in der Übersicht und Eintrag im Protokoll (N-93), gleiche Meldung an das Konto in beiden Fällen (N-94) (`03-architektur.md`, Abschnitte 15.4 und 18); Stufe 1 |
+| E-9 | Wie soll der Dienst in der Oberfläche von Slouchcat heissen? | **«Seerr»** (nicht «Jellyseerr») | So heisst das Projekt seit Version 3, und so schreibst du es. Ich benenne Papiere und Mockup um | überall «Seerr»; «Jellyseerr» nur, wo eine Version 2.x gemeint ist, und in den eingefrorenen Anhängen A bis G; das Konzept heisst «Wünsche über Seerr» (N-96); F-32 entschieden |
+| E-10 | Die Startseite zeigt nur Vorhandenes. Was soll mit der neuen Startreihe für Wünsche geschehen? | **«Erfüllte Wünsche»** (nicht «Keine Reihe», nicht «Auch offene Wünsche») | Die Reihe zeigt nur Wünsche, die in den letzten 14 Tagen wahr wurden, also Titel der Bibliothek. Offene Wünsche stehen unter «Wünsche» | Reihe `wishes` «Erfüllte Wünsche» (N-74, N-97); `HomeRowKey` + `wishes`, Stufe 3 bleibt im Vertrag brechend; F-34 entschieden |
+| E-11 | Die Webhook-Meldung von Radarr und Sonarr nennt schon Dateipfad und Kennung. Soll Slouchcat das für einen Sofort-Import nutzen? | **«Ja, nach Messung»** (nicht «Ja, fest einplanen», nicht «Nein») | Kommt als eigener Schritt in den Bauplan. Zuerst wird gemessen, wo heute die Zeit bleibt. Die Webhooks selbst bleiben, wie sie sind | Schritt 6a im Bauplan (N-98): zuerst eine Messung in `docs/perf/`; zeigt sie keinen Gewinn, entfällt der Schritt; die Webhooks bleiben, wie sie sind (N-80); F-33 entschieden (`03-architektur.md`, Abschnitt 10.1; `09-umsetzungsplan.md`, Abschnitt 6a) |
 
 E-6 und E-7 zusammen heissen: Die API von Radarr und Sonarr dient genau zwei Dingen, dem Profil-Tag und dem Lesen
 des Download-Fortschritts (Anhang H 8.2, N-81). Gelesen werden dafür die Warteschlange und der Dateistand der
 gewünschten Titel (`queue`, `movie?tmdbId`, `series?tvdbId`; Umfang Redaktion, K-5).
 
-Aus Marcos Nachricht (Anhang H 1) stehen ausserdem fest: Profile brauchen in Jellyseerr kein Login, nur einen Tag
+Aus Marcos Nachricht (Anhang H 1) stehen ausserdem fest: Profile brauchen in Seerr kein Login, nur einen Tag
 oder Ähnliches; ein Limit je Konto, etwa 10 Filme und 5 Staffeln je Woche rollierend; eine Seite für Wünsche wie
 die Startseite von Seerr mit Discover, Movies, Series und Search; Serien sollen über TVDB «konsistent» abgeglichen
 werden; die Mockups sind zu ergänzen. Aus seiner zweiten Nachricht (Anhang H 8.1): Im Spotlight soll nicht
 angezeigt werden, was fehlt; nur vorhandene Filme und Serien gehören auf die Startseite; die Verwaltung ist «gut
 so»; er fragt, ob Radarr und Sonarr direkt angebunden werden sollen, damit der Import «rasendschnell» geht. Wie
 das im Einzelnen aussieht (Name des Tags, Vorgabe des Limits, Reihen auf «Entdecken», Reihenfolge des Abgleichs,
-Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», der Sofort-Import F-33), ist Redaktion.
+Stufe 5, die vier Anzeigen des Fortschritts, der Zuschnitt des Sofort-Imports, der Hinweis «Neu verknüpft»), ist
+Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung hat Marco mit E-10 und E-11 gewählt.
 
-**Was E-1 bis E-7 an offenen Fragen klären:**
+**Was E-1 bis E-11 an offenen Fragen klären:**
 
 | Frage | in der Sache geklärt | bleibt offen |
 |---|---|---|
-| F-2 Zuordnung | Standard ist ein Jellyseerr-Benutzer je Konto, mit demselben Login (E-1); Profile bekommen keinen eigenen Benutzer und kein Login (Nachricht); Möglichkeit (b) entfällt | ob die zugeklappte Ausnahme je Profil bleibt (F-27) |
-| F-4 Konten ohne Jellyseerr-Benutzer | jedes Konto bekommt seinen Benutzer über Eröffnen oder Verknüpfen (E-1, E-4); der Fall ist nur noch vorübergehend | ob es den Sammelbenutzer als Wahl weiter gibt |
+| F-2 Zuordnung | Standard ist ein Seerr-Benutzer je Konto, mit demselben Login (E-1); Profile bekommen keinen eigenen Benutzer und kein Login (Nachricht); Möglichkeit (b) entfällt | ob die zugeklappte Ausnahme je Profil bleibt (F-27) |
+| F-4 Konten ohne Seerr-Benutzer | jedes Konto bekommt seinen Benutzer über Eröffnen oder Verknüpfen (E-1, E-4); der Fall ist nur noch vorübergehend | ob es den Sammelbenutzer als Wahl weiter gibt |
 | F-21 Übernahme | verknüpfte Benutzer haben oft schon Requests; die Übernahme läuft nach jedem Verknüpfen | ob überhaupt übernommen wird (Empfehlung unverändert) |
 | F-8 Spotlight mit fehlenden Titeln | **entschieden durch E-5:** keine fehlenden Titel im Spotlight und nirgends in der Zuschauer-App | – |
-| F-20 Startreihe | die Reihe darf nach Marcos zweiter Nachricht nur Vorhandenes zeigen (Lesart der Redaktion) | als F-34 neu gestellt |
+| F-20 Startreihe | die Reihe darf nach Marcos zweiter Nachricht nur Vorhandenes zeigen | als F-34 neu gestellt, durch E-10 entschieden |
+| F-24 Passwort und wer verknüpft | **im Teil «wer verknüpft» entschieden durch E-8:** sofort, auch bei der Einladung | Passwort auch bei Konten, die ein Administrator nachträglich eröffnet oder verknüpft (K-11), und der Hinweis «Neu verknüpft» (N-93), beides Empfehlung |
+| F-32 Name | **entschieden durch E-9:** «Seerr» | – |
+| F-33 Sofort-Import | **entschieden durch E-11:** ja, nach Messung | – |
+| F-34 Startreihe | **entschieden durch E-10:** «Erfüllte Wünsche» | – |
 | T-1 | – | unverändert offen |
 
-## 1. Offene Entscheide F-1 bis F-34
+## 1. Fragen F-1 bis F-34 (offene und entschiedene)
 
 ### F-1 Begriffe «Wünsche» und «anfordern»
 
 - **Worum:** Wie heisst die Funktion in der Oberfläche? Ein Wort je Sache, überall gleich.
 - **Möglichkeiten:** (a) «Wünsche» für die Funktion und Seiten, «anfordern» auf Knöpfen; (b) «Anfragen» und
-  «anfragen» wie in Jellyseerr («Request»); (c) «Bestellen».
+  «anfragen» wie in Seerr («Request»); (c) «Bestellen».
 - **Empfehlung: (a).** «Wünschen» ist das alte Wort in Slouchcats Papieren (Frage 10), klingt nach Haushalt statt
   nach Behörde, und «Film anfordern» sagt auf dem Knopf genau, was passiert. «Bestellen» klingt nach Kauf.
 - **Andere Wahl:** Nur Texte und Mockups ändern sich; technisch nichts.
 
-### F-2 Zuordnung: ein Jellyseerr-Benutzer je Konto
+### F-2 Zuordnung: ein Seerr-Benutzer je Konto
 
-- **Worum:** Mit welchem Jellyseerr-Benutzer sendet Slouchcat den Wunsch eines Profils?
-- **In der Sache geklärt (Marco, 17. November 2026):** Jedes Konto hat seinen eigenen Jellyseerr-Benutzer mit
+- **Worum:** Mit welchem Seerr-Benutzer sendet Slouchcat den Wunsch eines Profils?
+- **In der Sache geklärt (Marco, 17. November 2026):** Jedes Konto hat seinen eigenen Seerr-Benutzer mit
   demselben Login (E-1); die Profile darunter brauchen kein Login, sondern nur einen Tag (Nachricht, E-2). Damit ist
   der Normalfall Möglichkeit (a), und (b) «je Profil ein Benutzer» entfällt.
 - **Möglichkeiten für den Rest:** (a) nur je Konto, ohne Ausnahme; (c) je Konto als Standard, einzelne Profile als
-  zugeklappte Ausnahme mit einem anderen, schon bestehenden Jellyseerr-Benutzer.
+  zugeklappte Ausnahme mit einem anderen, schon bestehenden Seerr-Benutzer.
 - **Empfehlung: (a) als Normalfall mit (c) als zugeklappter Ausnahme** (Redaktion, F-27). Nur so braucht der Wunsch
   eines Kinderprofils eine Freigabe, wenn das Konto selbst automatisch freigegeben wird. Vergleich in
   `04-benutzer-profilmapping.md`, Abschnitt 4.
@@ -97,26 +111,26 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 ### F-3 Wunsch als Benutzer über `X-API-User` oder über `userId`
 
-- **Worum:** Jellyseerr hat einen Schlüssel für alles. Wie sagt Slouchcat, für wen ein Wunsch ist?
+- **Worum:** Seerr hat einen Schlüssel für alles. Wie sagt Slouchcat, für wen ein Wunsch ist?
 - **Möglichkeiten:** (a) Header `X-API-User` (undokumentiert, steht seit Overseerr im Code); (b) Feld `userId` im
   Body (dokumentiert).
 - **Empfehlung: (a), mit Prüfung bei jedem Verbindungstest.** Nur so gelten Recht, Limit und Auto-Freigabe des
-  Benutzers. Mit `userId` prüft Jellyseerr die Auto-Freigabe am Aufrufer, also am Administrator: Jeder Wunsch
+  Benutzers. Mit `userId` prüft Seerr die Auto-Freigabe am Aufrufer, also am Administrator: Jeder Wunsch
   wäre sofort freigegeben ([Anhang D](anhang/D-jellyseerr-api.md) 3.3).
-- **Andere Wahl:** (b) schafft die Freigabe in Jellyseerr faktisch ab; Kinderwünsche gingen ungeprüft an Radarr
-  und Sonarr. Entfernt eine künftige Jellyseerr-Version den Header, meldet der Test es; ob «Wünsche aktiv» dann
+- **Andere Wahl:** (b) schafft die Freigabe in Seerr faktisch ab; Kinderwünsche gingen ungeprüft an Radarr
+  und Sonarr. Entfernt eine künftige Seerr-Version den Header, meldet der Test es; ob «Wünsche aktiv» dann
   sperrt, ist Teilfrage T-1. Danach ist neu zu entscheiden.
 
-### F-4 Konten ohne Jellyseerr-Benutzer
+### F-4 Konten ohne Seerr-Benutzer
 
-- **Worum:** Was passiert mit einem Konto, das (noch) keinen Jellyseerr-Benutzer hat?
+- **Worum:** Was passiert mit einem Konto, das (noch) keinen Seerr-Benutzer hat?
 - **In der Sache weitgehend geklärt:** Seit E-1 und E-4 bekommt jedes Konto einen Benutzer, durch Eröffnen beim
-  Einladen, über die E-Mail oder über «In Jellyseerr eröffnen». Ohne Benutzer bleibt ein Konto nur, solange es
-  «wartet» (Jellyseerr nicht erreichbar), solange «Neue Konten in Jellyseerr eröffnen» aus ist, oder bis der
+  Einladen, über die E-Mail oder über «In Seerr eröffnen». Ohne Benutzer bleibt ein Konto nur, solange es
+  «wartet» (Seerr nicht erreichbar), solange «Neue Konten in Seerr eröffnen» aus ist, oder bis der
   Administrator ein bestehendes Konto eröffnet.
 - **Möglichkeiten:** (a) es kann bis dahin nicht anfordern; (b) es sendet als gemeinsamer Sammelbenutzer.
 - **Empfehlung: (a) als Vorgabe, (b) als Wahl.** Ein Sammelbenutzer teilt Limit und Auto-Freigabe zwischen
-  Gästen, und in Jellyseerr sieht man nicht mehr, wer gewünscht hat. **Redaktion:** Die Wahl (b) bleibt vorerst,
+  Gästen, und in Seerr sieht man nicht mehr, wer gewünscht hat. **Redaktion:** Die Wahl (b) bleibt vorerst,
   weil sie den Übergang für bestehende Konten abdeckt; sie liesse sich streichen, wenn Marco es so will.
 - **Andere Wahl:** (b) als Vorgabe: wartende Konten können sofort anfordern, aber unter einem Namen und mit
   gemeinsamem Limit.
@@ -135,19 +149,19 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 ### F-6 Kinderprofile und Freigabe
 
 - **Worum:** Dürfen Kinderprofile anfordern, und wer gibt frei?
-- **Möglichkeiten:** (a) mit Recht ja, die Freigabe entscheidet Jellyseerr über die Auto-Freigabe des zugeordneten
+- **Möglichkeiten:** (a) mit Recht ja, die Freigabe entscheidet Seerr über die Auto-Freigabe des zugeordneten
   Benutzers; (b) Kinder nie; (c) eine eigene Freigabe in Slouchcat («Kind fragt Eltern»).
-- **Empfehlung: (a).** Jellyseerr hat die Freigabe schon; ein zweiter Ablauf in Slouchcat wäre doppelt und bleibt
+- **Empfehlung: (a).** Seerr hat die Freigabe schon; ein zweiter Ablauf in Slouchcat wäre doppelt und bleibt
   Nicht-Ziel (Spec Zeile 65).
 - **Andere Wahl:** (b) nimmt Kindern die Funktion ganz. (c) ist ein neuer, grosser Ablauf und hebt ein weiteres
   Nicht-Ziel auf.
 
 ### F-7 Schon angeforderter Titel
 
-- **Worum:** Ein zweites Profil will einen Titel, den schon jemand gewünscht hat. Jellyseerr sperrt Doppelte.
+- **Worum:** Ein zweites Profil will einen Titel, den schon jemand gewünscht hat. Seerr sperrt Doppelte.
 - **Möglichkeiten:** (a) Mitwünschen: das Profil hängt sich an und wird ebenfalls benachrichtigt; (b) nur den
   Zustand zeigen.
-- **Empfehlung: (a).** Das zweite Profil will vor allem wissen, wann es schauen kann. Slouchcat ruft Jellyseerr
+- **Empfehlung: (a).** Das zweite Profil will vor allem wissen, wann es schauen kann. Slouchcat ruft Seerr
   dafür nicht auf.
 - **Andere Wahl:** (b) das zweite Profil erfährt nichts, ausser es schaut selbst nach.
 
@@ -166,13 +180,13 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 - **Worum:** Sieht ein Profil, das nicht anfordern kann, fehlende Titel trotzdem (ohne Knopf)?
 - **Möglichkeiten:** (a) nein: fehlende Titel sieht nur, wer sie auch anfordern kann; (b) ja, ohne Knopf, mit Hinweis.
 - **Empfehlung: (a), eine Regel überall** (Redaktionsentscheid vom 17. November 2026). Fehlende Titel sieht ein
-  Profil nur, wenn alles zutrifft: Wünsche aktiv, Jellyseerr eingerichtet und eingeschaltet, Konto und Profil haben
-  das Recht, ein Jellyseerr-Benutzer ist vorhanden (des Kontos, die Ausnahme des Profils oder Sammelbenutzer), die Art ist erlaubt, die
+  Profil nur, wenn alles zutrifft: Wünsche aktiv, Seerr eingerichtet und eingeschaltet, Konto und Profil haben
+  das Recht, ein Seerr-Benutzer ist vorhanden (des Kontos, die Ausnahme des Profils oder Sammelbenutzer), die Art ist erlaubt, die
   Altersstufe passt. Sonst existieren sie für das Profil nicht (404), auch nicht mit «Hinweis statt Knopf». Einzige
   Ausnahme: Titel, zu denen das Profil selbst einen Wunsch hat (jeder Zustand), bleiben auf der Vorschauseite und
   unter «Meine Wünsche» sichtbar. Seit Fassung 3 gilt dieselbe Regel für die Seiten «Entdecken», «Filme», «Serien»
   und «Suche»: Ein Profil, das nicht anfordern kann, sieht im Bereich «Wünsche» höchstens «Meine Wünsche» (N-56). Ein Konto mit Recht, aber ohne Zuordnung bemerkt der Administrator in der
-  Verwaltung (Übersicht, Zuordnung, Konten), nicht der Zuschauer. Ist Jellyseerr nur vorübergehend nicht
+  Verwaltung (Übersicht, Zuordnung, Konten), nicht der Zuschauer. Ist Seerr nur vorübergehend nicht
   erreichbar oder lehnt den Schlüssel ab, bleiben fehlende Titel sichtbar, und Wünsche gehen ins Ausgangsfach.
   Ein Kind ohne Recht sähe sonst laufend Titel, die es nicht bekommen kann (`02-funktionskonzept.md`, Abschnitt 3;
   `04-benutzer-profilmapping.md`, Abschnitt 9).
@@ -182,42 +196,42 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 ### F-10 Bestätigungsdialog
 
 - **Worum:** Geht der Wunsch beim ersten Druck weg, oder erst nach einem Dialog?
-- **Möglichkeiten:** (a) ein Dialog mit Poster, Jellyseerr-Benutzer, Hinweis zur Freigabe, Staffelwahl und Stand des
+- **Möglichkeiten:** (a) ein Dialog mit Poster, Seerr-Benutzer, Hinweis zur Freigabe, Staffelwahl und Stand des
   Limits; (b) sofort mit «Rückgängig».
 - **Empfehlung: (a).** Der Dialog sagt vorher, ob der Wunsch sofort beschafft wird oder eine Freigabe braucht,
   trägt die Staffelwahl und zeigt seit Fassung 3, wie viel vom Limit frei ist; ist es erreicht, sperrt er den Knopf
   mit dem Zeitpunkt des nächsten freien Platzes (N-36).
-- **Andere Wahl:** (b) schneller, aber ohne Staffelwahl; ein versehentlicher Wunsch liegt schon in Jellyseerr.
+- **Andere Wahl:** (b) schneller, aber ohne Staffelwahl; ein versehentlicher Wunsch liegt schon in Seerr.
 
 ### F-11 Suche nach fehlenden Titeln
 
 - **Worum:** Woher kommen die Treffer fehlender Titel? Seit Fassung 3 gibt es zwei Stellen: den Abschnitt «Noch
   nicht in der Bibliothek» in der Bibliothekssuche (M-07) und die neue Seite «Suche» im Bereich «Wünsche» (M-34),
   die Marco verlangt hat (Anhang H 1). Welche Quelle die neue Seite nutzt, hat Marco nicht entschieden.
-- **Möglichkeiten:** (a) TMDB-Suche über Slouchcats eigenen Schlüssel; (b) Suche von Jellyseerr (`GET /search`).
+- **Möglichkeiten:** (a) TMDB-Suche über Slouchcats eigenen Schlüssel; (b) Suche von Seerr (`GET /search`).
 - **Empfehlung: (a) für die Bibliothekssuche wie in Fassung 2, (b) für die Seite «Suche»** (Redaktion, N-53, N-54).
-  Die Bibliothekssuche funktioniert so auch, wenn Jellyseerr nicht erreichbar ist. Die Seite «Suche» soll
-  zeigen, was Jellyseerr bestellen kann, und kennt die Präfixe `tmdb:`, `tvdb:`, `imdb:` (Anhang H 3.3); sie
+  Die Bibliothekssuche funktioniert so auch, wenn Seerr nicht erreichbar ist. Die Seite «Suche» soll
+  zeigen, was Seerr bestellen kann, und kennt die Präfixe `tmdb:`, `tvdb:`, `imdb:` (Anhang H 3.3); sie
   läuft über den Server mit Zwischenspeicher und derselben Jugendschutzregel.
 - **Andere Wahl:** (a) überall: eine Quelle weniger, aber ohne Suche nach Kennung ausser über eigenen Bau.
-  (b) überall: die Bibliothekssuche hinge an Jellyseerr, und jede Eingabe belastete es.
+  (b) überall: die Bibliothekssuche hinge an Seerr, und jede Eingabe belastete es.
 
 ### F-12 Serien und Staffeln
 
 - **Worum:** Wie fordert man Serien an?
 - **Möglichkeiten:** (a) «Alle fehlenden Staffeln» oder einzelne Staffeln, keine einzelnen Folgen, fehlende
   Staffeln auf der Serienseite; (b) nur ganze Serien.
-- **Empfehlung: (a).** So arbeitet Jellyseerr (staffelweise), und wer eine neue Staffel will, findet den Knopf auf
-  der Seite der Serie. Seit Fassung 3 kommen die Staffeln im Dialog aus Jellyseerr (N-63), damit genau das
-  angeboten wird, was Jellyseerr bestellen kann; zur Staffelzählung siehe F-29.
+- **Empfehlung: (a).** So arbeitet Seerr (staffelweise), und wer eine neue Staffel will, findet den Knopf auf
+  der Seite der Serie. Seit Fassung 3 kommen die Staffeln im Dialog aus Seerr (N-63), damit genau das
+  angeboten wird, was Seerr bestellen kann; zur Staffelzählung siehe F-29.
 - **Andere Wahl:** (b) Wünsche werden unnötig gross; fehlende Staffeln vorhandener Serien bleiben unsichtbar.
 
 ### F-13 Was «verfügbar» heisst
 
 - **Worum:** Wann bekommt das Profil «Dein Wunsch ist da»?
-- **Möglichkeiten:** (a) wenn Slouchcat den Titel für dieses Profil abspielen kann; (b) wenn Jellyseerr «verfügbar»
+- **Möglichkeiten:** (a) wenn Slouchcat den Titel für dieses Profil abspielen kann; (b) wenn Seerr «verfügbar»
   meldet.
-- **Empfehlung: (a).** Jellyseerr meldet «verfügbar» nach seinem Radarr- oder Sonarr-Scan (Vorgabe täglich
+- **Empfehlung: (a).** Seerr meldet «verfügbar» nach seinem Radarr- oder Sonarr-Scan (Vorgabe täglich
   04:00), oft Stunden nach dem Import; das sagt nichts darüber, ob Slouchcat die Datei schon eingelesen hat
   (Anhang D 11.1). Ein Kind ohne passende Freigabe sähe den Titel noch nicht. Bei Serien gilt eine Staffel erst als
   verfügbar, wenn sie vollständig abspielbar ist (`06-benachrichtigungen.md`, Abschnitt 3.3).
@@ -247,10 +261,10 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 ### F-16 Freigeben und Ablehnen in Slouchcat
 
-- **Worum:** Muss der Administrator für jede Freigabe in Jellyseerr wechseln?
-- **Möglichkeiten:** (a) Knöpfe «Freigeben» und «Ablehnen» in der Verwaltung, die an Jellyseerr durchreichen, in
-  Stufe 4; (b) nur in Jellyseerr.
-- **Empfehlung: (a).** Spart einen Wechsel; die Entscheidung bleibt in Jellyseerr gespeichert. Es ist kein eigener
+- **Worum:** Muss der Administrator für jede Freigabe in Seerr wechseln?
+- **Möglichkeiten:** (a) Knöpfe «Freigeben» und «Ablehnen» in der Verwaltung, die an Seerr durchreichen, in
+  Stufe 4; (b) nur in Seerr.
+- **Empfehlung: (a).** Spart einen Wechsel; die Entscheidung bleibt in Seerr gespeichert. Es ist kein eigener
   Freigabe-Ablauf, nur ein zweiter Knopf für dieselbe Aktion.
 - **Andere Wahl:** (b) etwas weniger Bau; der Administrator arbeitet in zwei Oberflächen.
 
@@ -258,22 +272,22 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 - **Worum:** Darf ein Profil einen Wunsch zurücknehmen?
 - **Möglichkeiten:** (a) ja, solange er nicht freigegeben ist; (b) nein.
-- **Empfehlung: (a).** Jellyseerr erlaubt das Löschen eigener offener Anfragen (Anhang D 8); danach beschafft
+- **Empfehlung: (a).** Seerr erlaubt das Löschen eigener offener Anfragen (Anhang D 8); danach beschafft
   Radarr schon.
 - **Andere Wahl:** (b) versehentliche Wünsche bleiben liegen, bis ein Administrator sie ablehnt.
 
-### F-18 Jellyseerr-Webhook
+### F-18 Seerr-Webhook
 
-- **Worum:** Slouchcat fragt alle 5 Minuten nach. Soll Jellyseerr zusätzlich sofort Bescheid geben?
+- **Worum:** Slouchcat fragt alle 5 Minuten nach. Soll Seerr zusätzlich sofort Bescheid geben?
 - **Möglichkeiten:** (a) Webhook als Anstoss in Stufe 4, Grundlage bleibt der Abgleich; (b) kein Webhook; (c)
   Webhook als Grundlage.
-- **Empfehlung: (a).** Der Webhook von Jellyseerr hat ein einziges Ziel, keine Signatur, keine Wiederholung und
+- **Empfehlung: (a).** Der Webhook von Seerr hat ein einziges Ziel, keine Signatur, keine Wiederholung und
   keine Benutzer-ID (Anhang D 9). Als Anstoss schadet ein Verlust nicht.
 - **Andere Wahl:** (b) bis zu 5 Minuten Verzug. (c) jede verlorene Meldung wäre ein verlorener Zustand.
 
 ### F-19 Ort in der Verwaltung
 
-- **Worum:** Wo stehen Verbindung, Anfragen und Jellyseerr-Benutzer (in Fassung 2 «Zuordnung»)?
+- **Worum:** Wo stehen Verbindung, Anfragen und Seerr-Benutzer (in Fassung 2 «Zuordnung»)?
 - **Möglichkeiten:** (a) Verbindung unter Integrationen, Seite «Wünsche» unter Medien; (b) alles unter
   Integrationen; (c) ein eigener Bereich.
 - **Empfehlung: (a).** Einrichten bei den anderen Diensten, tägliche Arbeit bei den Medien (`07-administration.md`,
@@ -282,22 +296,22 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 ### F-20 Startreihe für Wünsche
 
-- **Geändert, siehe F-34.** Fassung 3 vor der zweiten Rückmeldung empfahl eine Reihe mit offenen und kürzlich
+- **Ersetzt durch F-34, entschieden durch E-10.** Fassung 3 vor der zweiten Rückmeldung empfahl eine Reihe mit offenen und kürzlich
   erfüllten Wünschen. Marcos zweite Nachricht («Nur vorhandene Filme und Serien sollen auf der Startseite angezeigt
   werden») passt dazu nur, wenn die Reihe ausschliesslich Titel der Bibliothek zeigt. Die Frage steht darum neu als
   F-34.
 
 ### F-21 Bestehende Anfragen übernehmen
 
-- **Worum:** In Jellyseerr liegen oft schon Anfragen. Zeigt Slouchcat sie dem passenden Profil?
+- **Worum:** In Seerr liegen oft schon Anfragen. Zeigt Slouchcat sie dem passenden Profil?
 - **Möglichkeiten:** (a) ja, für zugeordnete Benutzer: dem Profil mit eigener Zuordnung, sonst dem Hauptprofil,
-  gekennzeichnet «In Jellyseerr angelegt»; (b) nein, nur Wünsche aus Slouchcat.
-- **Empfehlung: (a)**, in Stufe 4. Wer in Jellyseerr gewünscht hat, bekommt die Meldung «verfügbar» auch über
+  gekennzeichnet «In Seerr angelegt»; (b) nein, nur Wünsche aus Slouchcat.
+- **Empfehlung: (a)**, in Stufe 4. Wer in Seerr gewünscht hat, bekommt die Meldung «verfügbar» auch über
   Slouchcat. Anfragen nicht zugeordneter Benutzer bleiben «nicht zuordenbar». Die Übernahme läuft als eigener Job
   `wishes.import`, ausgelöst beim Setzen oder Ändern einer Zuordnung und von Hand
   (`GET /request?requestedBy=<Benutzer>` als Benutzer 1, `03-architektur.md`, Abschnitt 7.3). Seit E-4 löst auch
   jedes Verknüpfen über die E-Mail die Übernahme aus.
-- **Andere Wahl:** (b) Wünsche aus Jellyseerr bleiben in Slouchcat unsichtbar; doppelte Wünsche fängt der
+- **Andere Wahl:** (b) Wünsche aus Seerr bleiben in Slouchcat unsichtbar; doppelte Wünsche fängt der
   Mitwunsch trotzdem ab.
 
 ### F-22 Stufen
@@ -307,50 +321,50 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
   dazu Stufe 5 «Wünsche-Seiten»; (b) alles in einem Release.
 - **Empfehlung: (a)** mit Stufe 5 (Redaktion, Anhang H 4.7 und 8.7). Eröffnen, Passwortabgleich und Limit gehören
   zu Stufe 1, Profil-Tag und Download-Fortschritt zu Stufe 4. Stufe 3 schrumpft nach E-5 auf den Abgleich über TVDB
-  und IMDb, die fehlenden Einträge in der Verwaltung und die Reihe «Erfüllte Wünsche». F-33 wäre ein eigener Schritt
-  nach einer Messung (`09-umsetzungsplan.md`, Abschnitt 6a). Stufe 1 ändert für Zuschauer fast nichts und lässt Marco die
-  Jellyseerr-Benutzer in Ruhe einrichten; jede Stufe ist für sich nützlich und prüfbar.
+  und IMDb, die fehlenden Einträge in der Verwaltung und die Reihe «Erfüllte Wünsche». Der Sofort-Import ist nach
+  E-11 ein eigener Schritt nach einer Messung (`09-umsetzungsplan.md`, Abschnitt 6a). Stufe 1 ändert für Zuschauer fast nichts und lässt Marco die
+  Seerr-Benutzer in Ruhe einrichten; jede Stufe ist für sich nützlich und prüfbar.
 - **Andere Wahl:** (b) ein grosser Release mit langer Prüfung; Fehler in der Zuordnung zeigten sich erst am Ende.
 
-### F-23 Für wen Slouchcat einen Jellyseerr-Benutzer eröffnet
+### F-23 Für wen Slouchcat einen Seerr-Benutzer eröffnet
 
-- **Worum:** Marco will, dass eingeladene Konten in Jellyseerr eröffnet werden (E-1). Gilt das für jedes Konto oder
+- **Worum:** Marco will, dass eingeladene Konten in Seerr eröffnet werden (E-1). Gilt das für jedes Konto oder
   nur für Konten mit Wunschrecht?
-- **Möglichkeiten:** (a) für jedes Konto, ohne Wunschrecht ohne Rechte in Jellyseerr; (b) nur für Konten mit
+- **Möglichkeiten:** (a) für jedes Konto, ohne Wunschrecht ohne Rechte in Seerr; (b) nur für Konten mit
   Wunschrecht, beim Einschalten des Rechts.
 - **Empfehlung: (a)** (N-9). Ein Konto hat dann immer denselben Login in beiden Diensten; das Wunschrecht schaltet
-  nur die Rechte in Jellyseerr. **Wann eröffnet wird (Redaktionsentscheid zu K-15):** Jellyseerr einrichten
+  nur die Rechte in Seerr. **Wann eröffnet wird (Redaktionsentscheid zu K-15):** Seerr einrichten
   eröffnet bestehende Konten nicht von selbst. Bestehende Konten eröffnet der Administrator mit «Alle eröffnen»
-  oder einzeln, wie in E-4 beschrieben. Von selbst eröffnet nur das Annehmen einer Einladung, und auch dann
-  verknüpft Slouchcat nie über eine selbst eingetippte Adresse (N-2a, F-24).
-- **Andere Wahl:** (b) weniger Benutzer in Jellyseerr; dafür wird beim späteren Einschalten des Rechts eröffnet,
+  oder einzeln, wie in E-4 beschrieben. Von selbst eröffnet nur das Annehmen einer Einladung; gibt es die Adresse in Seerr schon,
+  verknüpft Slouchcat sofort (Marco, E-8; N-90).
+- **Andere Wahl:** (b) weniger Benutzer in Seerr; dafür wird beim späteren Einschalten des Rechts eröffnet,
   und das Passwort folgt erst bei der nächsten Anmeldung.
 
 ### F-24 Passwort bei verknüpften, schon bestehenden Benutzern, und wer verknüpft
 
-- **Worum:** Zwei Teile. (1) Verknüpft Slouchcat ein Konto mit einem Benutzer, den es in Jellyseerr schon gab
-  (E-4): Übernimmt es das Slouchcat-Passwort auch dorthin? (2) Wer darf eine solche Verknüpfung auslösen? Die
-  E-Mail beim Annehmen einer Einladung und beim Ändern des eigenen Kontos tippt das Konto frei ein; niemand prüft
-  sie. Verknüpfte Slouchcat dann von selbst und setzte das Passwort, übernähme das Konto einen fremden
-  Jellyseerr-Benutzer samt seinen Requests (Kritik an Fassung 3, K-1, Blocker).
-- **Möglichkeiten zu (1):** (a) ja, bei der nächsten Anmeldung (oder sofort, wenn es gerade im Speicher ist),
-  ausser bei Administratoren und bei Anmeldung über Jellyfin, Emby oder Plex; (b) nein, nur eröffnete Benutzer
-  gleichen ab.
-- **Möglichkeiten zu (2):** (c) nur ein Administrator: automatisch verknüpft wird, wenn er «In Jellyseerr
-  eröffnen» oder «Alle eröffnen» wählt oder einen Vorschlag bestätigt; tippt das Konto die Adresse selbst ein,
-  entsteht nur ein Vorschlag (Zustand «Verknüpfung vorgeschlagen»): keine Verknüpfung, kein Passwort an den
-  bestehenden Benutzer, kein Anfordern, bis ein Administrator unter «Jellyseerr-Benutzer» bestätigt; «Alle
-  eröffnen» bestätigt keinen Vorschlag; (d) wie in Fassung 3 vor der Kritik: jeder Treffer wird verknüpft.
-- **Empfehlung: (a) mit (c)** (N-4, N-6, N-2a). Teil (c) ist ein Redaktionsentscheid zu K-1, kein Entscheid von
-  Marco. Er schränkt E-4 für diesen einen Fall ein: E-4 fragte nach Konten und Benutzern, «die es heute schon
-  gibt», und dort verknüpft weiter der Knopf des Administrators. Das Konto erfährt nie, ob Jellyseerr die Adresse
-  kennt; die Antworten sind in beiden Fällen gleich.
-- **Lesart (K-11):** E-1 fragte nach **eingeladenen** Benutzern («Ja, gleiches Passwort»). Dass der
-  Passwortabgleich auch für nachträglich eröffnete und für verknüpfte Konten gilt, ist eine Lesart der Redaktion,
-  nicht Marcos Antwort.
-- **Andere Wahl:** (b) wer in Jellyseerr schon ein anderes Passwort hat, behält es; die beiden Logins bleiben
-  verschieden. (d) ein Gast mit der Adresse eines fremden Jellyseerr-Benutzers bekäme dessen Login und Requests;
-  die Redaktion rät davon ab.
+- **Teil «wer verknüpft»: entschieden durch E-8 (Marco).** Gibt es in Seerr schon einen Benutzer mit derselben
+  E-Mail, verknüpft Slouchcat ihn sofort, gleich ob ein Administrator handelt oder das Konto die Adresse beim
+  Annehmen einer Einladung oder beim Ändern der eigenen E-Mail selbst eingetippt hat (N-90, N-95). Mit der
+  Verknüpfung geht das Passwort an den Benutzer wie bei jedem anderen (N-91; folgt aus E-1 und E-8). Nie an
+  Benutzer 1, andere Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex (N-6,
+  Redaktion); ein Administrator von Seerr lässt sich so nicht übernehmen. Die frühere Empfehlung (c) der Redaktion
+  (Verknüpfung erst nach Bestätigung, N-2a, K-1) ist zurückgezogen.
+- **Bekannte Grenze (Marco, E-8; N-92).** Die Adresse prüft niemand. Wer eine Einladung hat und eine fremde
+  Adresse eintippt, bekommt den Seerr-Benutzer dieser Person samt ihren Anfragen. Marco kennt das Risiko und hat es
+  so gewählt. Einladungen stellt nur ein Administrator aus.
+- **Offen als Empfehlung der Redaktion:**
+  - (a) Passwort auch bei Konten übernehmen, die ein Administrator nachträglich eröffnet oder mit einem
+    bestehenden Benutzer verknüpft: bei der nächsten Anmeldung (oder sofort, wenn es gerade im Speicher ist),
+    ausser bei Administratoren und bei Anmeldung über Jellyfin, Emby oder Plex (N-4, N-6). **Lesart (K-11):**
+    E-1 fragte nach **eingeladenen** Benutzern («Ja, gleiches Passwort»); der Rest ist Lesart der Redaktion.
+    Andere Wahl (b): nur eröffnete und eingeladene Benutzer gleichen ab; wer in Seerr schon ein anderes Passwort
+    hat und vom Administrator verknüpft wird, behält es.
+  - Hinweis an die Administratoren (N-93): Die Übersicht zeigt sieben Tage lang «Neu verknüpft: {{Konto}} mit dem
+    bestehenden Seerr-Benutzer {{Name}}», mit Link auf «Seerr-Benutzer», wo sich die Verknüpfung lösen lässt; das
+    Protokoll hält sie fest. Andere Wahl: kein Hinweis; eine Verknüpfung nach einer Einladung fiele dann nur auf
+    der Seite «Seerr-Benutzer» auf.
+  - Das Konto erfährt nicht, ob Seerr die Adresse kannte; die Meldung nach dem Annehmen ist in beiden Fällen
+    «In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.» (N-94).
 
 ### F-25 Name des Profil-Tags
 
@@ -366,10 +380,10 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 - **Worum:** Welches Limit gilt für Konten mit «Standard»?
 - **Möglichkeiten:** (a) 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen (Marcos Beispiel); (b) ohne Limit ab Werk;
   (c) andere Werte.
-- **Empfehlung: (a)** (N-31). Administratoren haben in Jellyseerr ohnehin kein Limit (N-34); die Oberfläche sagt es.
-- **Andere Wahl:** (b) nach dem Update ändert sich in Jellyseerr nichts, bis Marco Werte setzt.
+- **Empfehlung: (a)** (N-31). Administratoren haben in Seerr ohnehin kein Limit (N-34); die Oberfläche sagt es.
+- **Andere Wahl:** (b) nach dem Update ändert sich in Seerr nichts, bis Marco Werte setzt.
 
-### F-27 Ausnahme «Profil sendet als anderer Jellyseerr-Benutzer»
+### F-27 Ausnahme «Profil sendet als anderer Seerr-Benutzer»
 
 - **Worum:** Fassung 2 hatte eine Zuordnung je Profil. Bleibt sie als zugeklappte Ausnahme?
 - **Möglichkeiten:** (a) ja, zugeklappt, nur bestehende Benutzer; (b) nein, alle Profile senden als Benutzer des
@@ -383,22 +397,22 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 - **Worum:** Welche Reihen zeigt die Seite «Entdecken», die Marco wie bei Seerr will?
 - **Möglichkeiten:** (a) sieben feste Reihen: Im Trend, Beliebte Filme, Film-Genres, Demnächst im Kino, Beliebte
-  Serien, Serien-Genres, Demnächst als Serie; (b) die Reihen-Einstellung von Jellyseerr (`/settings/discover`)
+  Serien, Serien-Genres, Demnächst als Serie; (b) die Reihen-Einstellung von Seerr (`/settings/discover`)
   übernehmen; (c) alle zwölf Reihen von Seerr.
 - **Empfehlung: (a)** (N-51). «Recently Added» und «Recent Requests» zeigt Slouchcat schon anders, «Plex Watchlist»
   gibt es hier nicht, «Studios» und «Networks» brauchen eigene Seiten.
-- **Andere Wahl:** (b) Marco stellt in Jellyseerr ein und Slouchcat folgt, aber mit Reihen, die hier nichts
+- **Andere Wahl:** (b) Marco stellt in Seerr ein und Slouchcat folgt, aber mit Reihen, die hier nichts
   bedeuten; (c) mehr Bau ohne Nutzen.
 
-### F-29 Jellyseerr auf TVDB-Staffeln umstellen
+### F-29 Seerr auf TVDB-Staffeln umstellen
 
-- **Worum:** Marco fragt, ob Seerr TVDB nutzt (Anhang H 1). Antwort: Jellyseerr führt jeden Titel über die TMDB-ID,
+- **Worum:** Marco fragt, ob Seerr TVDB nutzt (Anhang H 1). Antwort: Seerr führt jeden Titel über die TMDB-ID,
   gibt die TVDB-ID an Sonarr weiter und kann die Staffelliste aus TVDB lesen (Anhang H 4.6). Soll Marco das
   einstellen?
-- **Möglichkeiten:** (a) ja, in Jellyseerr den Metadaten-Anbieter für Serien auf TVDB stellen; der Verbindungstest
+- **Möglichkeiten:** (a) ja, in Seerr den Metadaten-Anbieter für Serien auf TVDB stellen; der Verbindungstest
   zeigt einen Hinweis, wenn er auf TMDB steht; (b) nein, TMDB lassen.
-- **Empfehlung: (a)** (N-64). Dann zählen Jellyseerr, Sonarr und die Slouchcat-Bibliothek Staffeln gleich. Das
-  stellt Marco in Jellyseerr selbst um; Slouchcat ändert die Einstellung nicht.
+- **Empfehlung: (a)** (N-64). Dann zählen Seerr, Sonarr und die Slouchcat-Bibliothek Staffeln gleich. Das
+  stellt Marco in Seerr selbst um; Slouchcat ändert die Einstellung nicht.
 - **Andere Wahl:** (b) bei Serien, die TMDB und TVDB verschieden aufteilen, passen Staffelnummern im Dialog und in
   der Bibliothek nicht zusammen.
 
@@ -406,60 +420,56 @@ Stufe 5, die vier Anzeigen des Fortschritts, die Reihe «Erfüllte Wünsche», d
 
 - **Worum:** Für den Profil-Tag (E-2) und den Download-Fortschritt (E-7) braucht Slouchcat Adresse und Schlüssel
   von Radarr und Sonarr.
-- **Möglichkeiten:** (a) aus Jellyseerr lesen (`GET /settings/radarr|sonarr`), eigene Adresse nur als Ausweg;
+- **Möglichkeiten:** (a) aus Seerr lesen (`GET /settings/radarr|sonarr`), eigene Adresse nur als Ausweg;
   (b) eigene Felder für Adresse und Schlüssel in Slouchcat.
 - **Empfehlung: (a)** (N-23). Der Administrator tippt keinen Schlüssel ein; die Schlüssel stehen nur im Speicher.
-  **Vorschlag** dazu: Eine Adresse aus Jellyseerr gilt erst nach einem «Testen» durch den Administrator
+  **Vorschlag** dazu: Eine Adresse aus Seerr gilt erst nach einem «Testen» durch den Administrator
   (`03-architektur.md`, Abschnitt 20.2).
 - **Andere Wahl:** (b) ein weiterer Ort für dieselben Schlüssel, der veraltet, wenn Marco sie in Radarr erneuert.
 
-### F-31 Jellyseerr-Benutzer eines gelöschten Kontos
+### F-31 Seerr-Benutzer eines gelöschten Kontos
 
-- **Worum:** Was geschieht in Jellyseerr, wenn der Administrator ein Konto in Slouchcat löscht?
+- **Worum:** Was geschieht in Seerr, wenn der Administrator ein Konto in Slouchcat löscht?
 - **Möglichkeiten:** (a) der Benutzer bleibt; ein eröffneter ohne Rechte, mit Zufallspasswort; (b) Slouchcat löscht ihn; (c) nichts.
-- **Empfehlung: (a), nur für eröffnete Benutzer** (N-10). Mit dem Benutzer löschte Jellyseerr seine Requests
+- **Empfehlung: (a), nur für eröffnete Benutzer** (N-10). Mit dem Benutzer löschte Seerr seine Requests
   (Anhang D 7.2). **Redaktionsentscheid zu K-2:** Nur einem Benutzer, den Slouchcat eröffnet hat
   (`origin = created`), nimmt Slouchcat die Rechte und setzt ein Zufallspasswort. Verknüpfte und von Hand gewählte
   Benutzer bleiben unverändert, wie N-9 («Rechte von Benutzern, die es schon gab, fasst Slouchcat nicht an»).
-  Ein offener Vorschlag fällt einfach weg.
-- **Andere Wahl:** (b) die Geschichte der Wünsche in Jellyseerr ginge verloren; (c) das alte Login funktionierte
-  in Jellyseerr weiter.
+- **Andere Wahl:** (b) die Geschichte der Wünsche in Seerr ginge verloren; (c) das alte Login funktionierte
+  in Seerr weiter.
 
-### F-32 Name in der Oberfläche: «Jellyseerr» oder «Seerr»
+### F-32 Name in der Oberfläche
 
-- **Worum:** Marco schreibt «Seerr»; das Projekt heisst seit 3.0 so (Anhang H 6).
-- **Möglichkeiten:** (a) «Seerr»; (b) «Jellyseerr»; (c) je nach erkannter Version.
-- **Empfehlung: (a).** Papiere und Mockup sagen bis zur Antwort weiter «Jellyseerr», damit sie einheitlich
-  bleiben; die Umstellung betrifft nur Texte in `web/src/locales/*.json`.
-- **Andere Wahl:** (b) vertraut für Nutzer von 2.x; (c) zwei Schreibweisen in Tests und Texten.
+- **Entschieden durch E-9 (Marco): «Seerr».** So heisst das Projekt seit Version 3 (Anhang H 6). Papiere und
+  Mockup sind umbenannt; «Jellyseerr» steht nur noch, wo eine Version 2.x gemeint ist, und in den eingefrorenen
+  Anhängen A bis G (N-96). Die Texte stehen in `web/src/locales/*.json`.
+- **Verworfen:** «Jellyseerr» (vertraut für Nutzer von 2.x) und ein Name je nach erkannter Version (zwei
+  Schreibweisen in Tests und Texten).
 
 ### F-33 Sofort-Import über Dateipfad und Kennung aus der Webhook-Meldung
 
-- **Worum:** Marco will, dass ein neuer Film oder eine neue Serie «rasendschnell» in Slouchcat ankommt, und fragt,
-  ob Radarr und Sonarr dafür direkt angebunden werden sollen (Anhang H 8.1). Mit E-6 bleiben die Webhooks, wie sie
-  sind. Die Meldung, die heute schon kommt, nennt aber den genauen Dateipfad (`movieFile.path`, `episodeFile.path`)
-  und die Kennungen (TMDB, IMDb, TVDB); Slouchcat liest davon nur `eventType` und den Ordner und scannt den ganzen
-  Ordner (Anhang H 8.3; `server/internal/model/integrations.go:45-51`).
-- **Möglichkeiten:** (a) erst messen, wo heute die Zeit bleibt; bringt es etwas, liest Slouchcat Dateipfad und
-  Kennung, liest nur diese Datei mit Vorrang ein, ordnet sie über die Kennung zu (ohne Titelsuche) und prüft sofort
-  die offenen Wünsche (N-88); (b) den Empfang lassen, wie er ist.
-- **Empfehlung: (a), nach einer Messung** (Redaktion, N-88; nicht Teil von E-6). Keine neue Anbindung, keine neue
-  Ausnahme von ADR 0010: Es ändert sich nur, was Slouchcat aus derselben Meldung liest. Einzelheiten
-  `03-architektur.md`, Abschnitt 10.1; Bauschritt `09-umsetzungsplan.md`, Abschnitt 6a.
-- **Andere Wahl:** (b) Import wie heute über den Ordner-Scan; die Zeit bis «Verfügbar» bleibt, wie sie ist.
+- **Entschieden durch E-11 (Marco): «Ja, nach Messung».** Marco will, dass ein neuer Film oder eine neue Serie
+  «rasendschnell» in Slouchcat ankommt (Anhang H 8.1). Die Meldung, die heute schon kommt, nennt den genauen
+  Dateipfad (`movieFile.path`, `episodeFile.path`) und die Kennungen (TMDB, IMDb, TVDB); Slouchcat liest davon heute
+  nur `eventType` und den Ordner und scannt den ganzen Ordner (Anhang H 8.3;
+  `server/internal/model/integrations.go:45-51`).
+- **Was gilt (N-98, N-88):** eigener Schritt im Bauplan. Zuerst wird gemessen, wo heute die Zeit bleibt
+  (`docs/perf/`). Zeigt die Messung keinen Gewinn, entfällt der Schritt. Sonst liest Slouchcat Dateipfad und
+  Kennung, liest nur diese Datei mit Vorrang ein, ordnet sie über die Kennung zu (ohne Titelsuche) und prüft
+  sofort die offenen Wünsche. Die Webhooks bleiben, wie sie sind (N-80): keine neue Anbindung, keine neue Ausnahme
+  von ADR 0010. Einzelheiten `03-architektur.md`, Abschnitt 10.1; Bauschritt `09-umsetzungsplan.md`, Abschnitt 6a.
+- **Empfehlung der Redaktion:** was als Gewinn zählt, schreibt der Messschritt 6a.1 fest, bevor gemessen wird.
+- **Verworfen:** «Ja, fest einplanen» (ohne Messung) und «Nein» (Empfang wie heute).
 
 ### F-34 Startreihe «Erfüllte Wünsche»
 
-- **Worum:** Fassung 3 sah vor der zweiten Rückmeldung eine Startreihe mit offenen und kürzlich erfüllten Wünschen vor (F-20).
-  Marco schreibt in der zweiten Nachricht: «Nur vorhandene Filme und Serien sollen auf der Startseite angezeigt
-  werden.» Offene Wünsche sind keine vorhandenen Titel.
-- **Möglichkeiten:** (a) Reihe «Erfüllte Wünsche»: nur Wünsche des Profils, die in den letzten 14 Tagen wahr wurden,
-  also Titel der Bibliothek; offene Wünsche stehen unter «Wünsche › Meine Wünsche», ihre Zahl am Eintrag «Wünsche»
-  der Seitenleiste; (b) die Reihe ganz weglassen; (c) die Reihe mit offenen Wünschen wie in Fassung 3.
-- **Empfehlung: (a)** (Redaktion, N-74; liest Marcos Satz auch für diese Reihe). Man sieht beim Öffnen, was angekommen
-  ist; die Reihe ist ausblendbar wie jede Reihe und erscheint leer nicht.
-- **Andere Wahl:** (b) Stufe 3 wäre im Vertrag nicht brechend (kein neuer `HomeRowKey`, `08-datenmodell-api.md`,
-  Abschnitt 4.6); Erfülltes sieht man nur über die Glocke und «Meine Wünsche». (c) widerspricht Marcos Satz.
+- **Entschieden durch E-10 (Marco): «Erfüllte Wünsche».** Die Reihe zeigt nur Wünsche des Profils, die in den
+  letzten 14 Tagen wahr wurden, also Titel der Bibliothek (N-74, N-97). Offene Wünsche stehen unter «Wünsche ›
+  Meine Wünsche», ihre Zahl am Eintrag «Wünsche» der Seitenleiste. Die Reihe ist ausblendbar wie jede Reihe und
+  erscheint leer nicht (Redaktion). Marcos Satz aus der zweiten Nachricht («Nur vorhandene Filme und Serien sollen
+  auf der Startseite angezeigt werden») gilt damit auch für diese Reihe.
+- **Verworfen:** «Keine Reihe» (Stufe 3 wäre im Vertrag nicht brechend, `08-datenmodell-api.md`, Abschnitt 4.6;
+  Erfülltes sähe man nur über die Glocke und «Meine Wünsche») und «Auch offene Wünsche» (widerspräche Marcos Satz).
 
 ### Teilfragen T-1 und T-2 (aus der ersten Kritik)
 
@@ -476,11 +486,11 @@ Befunde 30 und 40). Sie gehören zu F-3 bzw. F-17.
 
 Die Vorgabe «Wünsche aktiv = aus» ist ein Redaktionsentscheid vom 17. November 2026 und steht mit den übrigen Empfehlungen zur Freigabe.
 
-**T-2 Frist der Übermittlung, solange «Jellyseerr verwenden» aus ist (zu F-17 und zum Ausgangsfach).**
+**T-2 Frist der Übermittlung, solange «Seerr verwenden» aus ist (zu F-17 und zum Ausgangsfach).**
 
-- **Worum:** Wünsche `queued` scheitern nach 24 h. Zählt die Frist weiter, wenn der Administrator Jellyseerr
+- **Worum:** Wünsche `queued` scheitern nach 24 h. Zählt die Frist weiter, wenn der Administrator Seerr
   bewusst ausschaltet?
-- **Möglichkeiten:** (a) die Frist ruht, solange «Jellyseerr verwenden» aus ist; (b) beim Ausschalten werden alle
+- **Möglichkeiten:** (a) die Frist ruht, solange «Seerr verwenden» aus ist; (b) beim Ausschalten werden alle
   `queued`-Wünsche sofort `failed` mit Grund `disabled`.
 - **Empfehlung: (a).** Ausschalten ist eine Pause, kein Fehler; die Wünsche gehen nach dem Einschalten weiter.
 - **Andere Wahl:** (b) klarer Abschluss, aber die Profile müssten neu anfordern.
@@ -495,11 +505,11 @@ umgeschrieben; der neue Wortlaut gilt über Frage 33 und ADR 0037 (Vorgehen wie 
 
 | Stelle | Wortlaut heute | Neu (Vorschlag) |
 |---|---|---|
-| `:35` Statuszeile Integrationen | «Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt (Runden 12 und 20)» | Zusatz: «Ausnahme seit {{Datum}}: Wünsche über Jellyseerr (Frage 33, Konzept 25, ADR 0037)» |
-| `:46` Constraint | «Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20).» | «Wünsche verwaltet Jellyseerr. Slouchcat legt sie dort im Namen des zugeordneten Benutzers an, zeigt ihren Zustand und meldet die Verfügbarkeit (Frage 33); eine eigene Wunschverwaltung baut es nicht.» |
-| `:65` Non-Goal | «Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer.» | **bleibt.** Klarstellung in ADR 0037: Die Freigabe eines Wunsches entscheidet Jellyseerr; das Durchreichen von «Freigeben/Ablehnen» für Administratoren (F-16) ist kein Ablauf «Kind fragt Eltern». |
-| `:66` Non-Goal | «Eigene Wunschverwaltung und ein Bereich „Wünschen“ über die Seerr-API in Slouchcat; Wünsche entstehen direkt in Seerr (Runde 20).» | Zusatz: «Ausnahme seit {{Datum}}: Wünsche über Jellyseerr (Frage 33, ADR 0037). Jellyseerr bleibt die Wunschverwaltung; Slouchcat legt an, zeigt den Zustand, zieht zurück und reicht für Administratoren Freigeben und Ablehnen durch. Slouchcat eröffnet für jedes Konto einen Benutzer in Jellyseerr mit demselben Login und schreibt dessen Limit; die Seiten «Entdecken», «Filme», «Serien» und «Suche» zeigen Titel zum Anfordern.» |
-| `:67` Non-Goal | «Beschaffungsstatus aus Radarr/Sonarr am Titel und in der Suche („gewünscht“, „in Beschaffung“, „verfügbar“) sowie die Benachrichtigung bei Verfügbarkeit (Runde 20, Kandidaten für die Ideensammlung).» | Zusatz mit einer **eng gefassten Ausnahme nur beim Wunsch** (Marco, E-7; Anhang H 8.5): «Ausnahme seit {{Datum}}: der Zustand **eigener Wünsche** aus Jellyseerr, der Download-Fortschritt aus Radarr und Sonarr beim Wunsch («Meine Wünsche», Wunschkarte, Verwaltung) und die Benachrichtigung, wenn ein gewünschter Titel in Slouchcat abspielbar ist (Frage 33). Am Titel der Bibliothek, in Reihen und in der Suche bleibt ein Beschaffungsstatus Nicht-Ziel, ebenso der Suchfilter «in Beschaffung».» |
+| `:35` Statuszeile Integrationen | «Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt (Runden 12 und 20)» | Zusatz: «Ausnahme seit {{Datum}}: Wünsche über Seerr (Frage 33, Konzept 25, ADR 0037)» |
+| `:46` Constraint | «Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20).» | «Wünsche verwaltet Seerr. Slouchcat legt sie dort im Namen des zugeordneten Benutzers an, zeigt ihren Zustand und meldet die Verfügbarkeit (Frage 33); eine eigene Wunschverwaltung baut es nicht.» |
+| `:65` Non-Goal | «Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer.» | **bleibt.** Klarstellung in ADR 0037: Die Freigabe eines Wunsches entscheidet Seerr; das Durchreichen von «Freigeben/Ablehnen» für Administratoren (F-16) ist kein Ablauf «Kind fragt Eltern». |
+| `:66` Non-Goal | «Eigene Wunschverwaltung und ein Bereich „Wünschen“ über die Seerr-API in Slouchcat; Wünsche entstehen direkt in Seerr (Runde 20).» | Zusatz: «Ausnahme seit {{Datum}}: Wünsche über Seerr (Frage 33, ADR 0037). Seerr bleibt die Wunschverwaltung; Slouchcat legt an, zeigt den Zustand, zieht zurück und reicht für Administratoren Freigeben und Ablehnen durch. Slouchcat eröffnet für jedes Konto einen Benutzer in Seerr mit demselben Login und schreibt dessen Limit; die Seiten «Entdecken», «Filme», «Serien» und «Suche» zeigen Titel zum Anfordern.» |
+| `:67` Non-Goal | «Beschaffungsstatus aus Radarr/Sonarr am Titel und in der Suche („gewünscht“, „in Beschaffung“, „verfügbar“) sowie die Benachrichtigung bei Verfügbarkeit (Runde 20, Kandidaten für die Ideensammlung).» | Zusatz mit einer **eng gefassten Ausnahme nur beim Wunsch** (Marco, E-7; Anhang H 8.5): «Ausnahme seit {{Datum}}: der Zustand **eigener Wünsche** aus Seerr, der Download-Fortschritt aus Radarr und Sonarr beim Wunsch («Meine Wünsche», Wunschkarte, Verwaltung) und die Benachrichtigung, wenn ein gewünschter Titel in Slouchcat abspielbar ist (Frage 33). Am Titel der Bibliothek, in Reihen und in der Suche bleibt ein Beschaffungsstatus Nicht-Ziel, ebenso der Suchfilter «in Beschaffung».» |
 | `:68` Non-Goal | «Download-Fortschritt aus SABnzbd am Titel (Runde 20).» | **bleibt** |
 | `:69` Non-Goal | «Steuerung von Radarr, Sonarr, SABnzbd aus Slouchcat heraus (Qualitätsprofile, Warteschlangen).» | **bleibt mit einer eng gefassten Ausnahme** (Fassung 3, E-2): Zusatz «Ausnahme seit {{Datum}}: Slouchcat legt in Radarr und Sonarr Tags an und hängt sie an Titel, um zu zeigen, welches Profil gewünscht hat (Frage 33, ADR 0037). Warteschlange und Dateistand der gewünschten Titel liest es nur, für den Download-Fortschritt bei Wünschen (E-7), und ändert sie nie. Sonst nichts.» |
 | `:159` Hinweis | «I-1 bis I-4 und I-6 … sind in Runde 20 entfallen … Die Nummern bleiben unbesetzt» | bleibt; **Vorschlag:** neue Kriterien I-9 (Wunsch anlegen und Zustand, mit Download-Fortschritt), I-10 (Benachrichtigung bei Verfügbarkeit), I-11 (fehlende Titel in der Suche und auf den Wünsche-Seiten, nie auf der Startseite) in ADR 0037 |
@@ -510,21 +520,21 @@ umgeschrieben; der neue Wortlaut gilt über Frage 33 und ADR 0037 (Vorgehen wie 
 
 | Stelle | Wortlaut heute | Neu (Vorschlag) |
 |---|---|---|
-| `CLAUDE.md:57-59` Regel 11 | «… algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten …» | Abschnitt 6. Seit Fassung 3 mit **zwei eng gefassten Ausnahmen** von «Steuerung von Arr/Seerr»: Benutzer in Jellyseerr anlegen und pflegen (E-Mail, Passwort, Rechte, Limit) und Tags in Radarr und Sonarr setzen (Anhang H 5); dazu die Klarstellung, dass Slouchcat Warteschlange und Dateistand der gewünschten Titel für den Download-Fortschritt nur liest (E-7, K-5) |
+| `CLAUDE.md:57-59` Regel 11 | «… algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten …» | Abschnitt 6. Seit Fassung 3 mit **zwei eng gefassten Ausnahmen** von «Steuerung von Arr/Seerr»: Benutzer in Seerr anlegen und pflegen (E-Mail, Passwort, Rechte, Limit) und Tags in Radarr und Sonarr setzen (Anhang H 5); dazu die Klarstellung, dass Slouchcat Warteschlange und Dateistand der gewünschten Titel für den Download-Fortschritt nur liest (E-7, K-5) |
 | `CLAUDE.md` Regel 10 | «Keine Secrets in Logs … neue Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test» | bleibt; die Redaction-Liste (`server/internal/logging/logging.go:53-55`) und ihr Test bekommen `seerrapikey`, `newpassword`, `radarrapikey`, `sonarrapikey` (`password` steht schon drin). Regel 10 selbst braucht keinen neuen Wortlaut (Anhang H 5) |
-| `docs/planning/03-plan-v1.md:30` | «Nicht eingeplant …: … eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, …, Steuerung von Radarr/Sonarr/SABnzbd/Seerr …» | Zusatz «(Ausnahme seit {{Datum}}: Wünsche über Jellyseerr; Benutzer der Konten in Jellyseerr anlegen und pflegen; Profil-Tags in Radarr und Sonarr; Download-Fortschritt beim Wunsch; Frage 33, ADR 0037)» |
-| `docs/planning/03-plan-v1.md:286-292` 5.1 | «entfallen … Slouchcat bindet Seerr gar nicht an, weder über die API noch als Einbettung … AN-5 (Wunschrecht) und AN-16 (Kontozuordnung)» | Nachtrag: «Mit Frage 33 neu gefasst: Anbindung über die API ohne Einbettung; AN-5 lebt als Wunschrecht je Konto und Profil, AN-16 als Jellyseerr-Benutzer je Konto mit demselben Login (ADR 0037).» |
+| `docs/planning/03-plan-v1.md:30` | «Nicht eingeplant …: … eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, …, Steuerung von Radarr/Sonarr/SABnzbd/Seerr …» | Zusatz «(Ausnahme seit {{Datum}}: Wünsche über Seerr; Benutzer der Konten in Seerr anlegen und pflegen; Profil-Tags in Radarr und Sonarr; Download-Fortschritt beim Wunsch; Frage 33, ADR 0037)» |
+| `docs/planning/03-plan-v1.md:286-292` 5.1 | «entfallen … Slouchcat bindet Seerr gar nicht an, weder über die API noch als Einbettung … AN-5 (Wunschrecht) und AN-16 (Kontozuordnung)» | Nachtrag: «Mit Frage 33 neu gefasst: Anbindung über die API ohne Einbettung; AN-5 lebt als Wunschrecht je Konto und Profil, AN-16 als Seerr-Benutzer je Konto mit demselben Login (ADR 0037).» |
 | `docs/planning/03-plan-v1.md:308-310` 5.5 | «Ein Ereignis für ein Profil geht an die Kanäle des Kontos mit Profilname als Präfix … Vor dem Versand prüft `notify` über `visibility`, ob das Profil das Item sehen darf» | bleibt; Zusatz: «Bei Wünschen nennt die externe Nachricht eines PIN-Profils keinen Titel (F-15).» |
-| `docs/planning/03-plan-v1.md:312-316` 5.6 | «Der Webhook ist die einzige Verbindung zu den Arr-Diensten und rein eingehend.» | Nachtrag: «Zu Jellyseerr baut Slouchcat eine ausgehende Verbindung (ADR 0037). Zu Radarr und Sonarr kommt eine zweite, ausgehende Verbindung nur für Profil-Tags (Tag anlegen, Tag anhängen) und das Lesen von Warteschlange und Dateistand der gewünschten Titel (ADR 0037, Nachtrag ADR 0010). Der Webhook bleibt die einzige Meldung von Radarr und Sonarr an Slouchcat, bringt weiter den Import in die Bibliothek und wird weiter von Hand eingerichtet.» |
+| `docs/planning/03-plan-v1.md:312-316` 5.6 | «Der Webhook ist die einzige Verbindung zu den Arr-Diensten und rein eingehend.» | Nachtrag: «Zu Seerr baut Slouchcat eine ausgehende Verbindung (ADR 0037). Zu Radarr und Sonarr kommt eine zweite, ausgehende Verbindung nur für Profil-Tags (Tag anlegen, Tag anhängen) und das Lesen von Warteschlange und Dateistand der gewünschten Titel (ADR 0037, Nachtrag ADR 0010). Der Webhook bleibt die einzige Meldung von Radarr und Sonarr an Slouchcat, bringt weiter den Import in die Bibliothek und wird weiter von Hand eingerichtet.» |
 | `docs/planning/03-plan-v1.md:164` 3.4 Pkt. 5 | «Ereignis `item.available` an `notify`» (im Code nicht vorhanden) | **Vorschlag:** Hinweis, dass der Haken nach dem Match (`WithMatched`) diese Rolle für Wünsche übernimmt |
-| `docs/planning/04-entscheidungen.md:19` Frage 10 | Vorschlag damals «Profile des Hauptkontos ab FSK 12 dürfen wünschen, Gäste nicht; jedem Konto wird ein bestehender Seerr-Benutzer zugeordnet»; Antwort «… Statusanzeige und Wünschen als Kandidaten für die Ideensammlung» | bleibt als Geschichte; Frage 33 sagt, dass Wünschen damit aus der Ideensammlung übernommen ist. Webhooks: zur Art Radarr/Sonarr kommt in Stufe 4 die Art Jellyseerr. |
+| `docs/planning/04-entscheidungen.md:19` Frage 10 | Vorschlag damals «Profile des Hauptkontos ab FSK 12 dürfen wünschen, Gäste nicht; jedem Konto wird ein bestehender Seerr-Benutzer zugeordnet»; Antwort «… Statusanzeige und Wünschen als Kandidaten für die Ideensammlung» | bleibt als Geschichte; Frage 33 sagt, dass Wünschen damit aus der Ideensammlung übernommen ist. Webhooks: zur Art Radarr/Sonarr kommt in Stufe 4 die Art Seerr. |
 | `docs/planning/04-entscheidungen.md:37`, `:55` | Frage 5: «Wünschen über eigene Seite via Seerr-API ohne Einbettung»; M9: «I-1, I-2, I-3, I-4, I-6 … ersatzlos gestrichen» | bleiben als Geschichte |
 | S-4: `docs/planning/04-entscheidungen.md:20`, `docs/planning/05-plan-spotlight.md:84-85, 291, 1622`, `docs/adr/0011-spotlight.md:99` | «Titel ohne Bibliothekstreffer erscheinen **nie** auf der Startseite (Non-Goal «eigene Wunschverwaltung») …, in der **Verwaltung** aber schon»; ADR 0011 verwirft den Schalter «auch Titel ohne Bibliothekstreffer zeigen» | **bleibt ohne Ausnahme** (Marco, E-5; N-70): Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; fehlende Einträge der Trakt-Liste nur in der Verwaltung. ADR 0011 verwirft den Schalter weiter. ADR 0038 nennt S-4 und grenzt sich ab; Fassung 2 und Fassung 3 vor der zweiten Rückmeldung wollten S-4 für das Spotlight ablösen. Nachtrag in ADR 0011 nur: vorhandene Titel werden auch über TVDB- und IMDb-ID erkannt (N-73) |
 | `docs/adr/0009-administration-benachrichtigungen.md:36` und Nachtrag `:62-67` | Kanal-Ereignisse `new_content`, `errors`, `invitations`, `announcements`; `acquisition` entfiel, «ohne Erzeuger wäre der Kanal eine Schaltfläche ohne Wirkung» | Nachtrag: drei neue Ereignisse `wish_available`, `wish_status`, `wish_review` mit echtem Erzeuger (`wishes`); fünf neue Eingangsarten |
 | `docs/adr/0010-webhook-empfang.md:11-13`, `:64-65` | «M9 ist auf den eingehenden Webhook zusammengeschnitten (Frage 10)»; «Die CSRF-Ausnahme ist die erste ihrer Art …» | Nachtrag in Stufe 4: Art `jellyseerr` neben `radarr`/`sonarr` (CHECK in `webhook_integrations`), nur als Anstoss des Abgleichs. Dieselbe Route `/webhooks/{token}`, darum **keine** zweite CSRF-Ausnahme. |
 | ADR 0010, Satz «Slouchcat never calls Radarr or Sonarr and registers nothing there» (Anhang C 1) | Slouchcat ruft Radarr und Sonarr nie auf | **Zwei eng gefasste Ausnahmen** (E-2, E-7; Anhang H 8.5): Slouchcat legt Tags an und hängt sie an Titel (N-22), und es liest Warteschlange und Dateistand der gewünschten Titel für den Download-Fortschritt (`queue`, `movie?tmdbId`, `series?tvdbId`; N-81, K-5), beides über das Paket `internal/arr`. Der Import in die Bibliothek kommt weiter über den Webhook; gelesen wird nur für die Anzeige am Wunsch. «Registers nothing there» bleibt: Slouchcat trägt keinen Webhook ein (E-6, N-80). Der eingehende Teil von ADR 0010 (Route, Token, `scan.path`) bleibt unverändert. Nachtrag in Stufe 0 |
 | `docs/adr/0008-entdecken-suche-trakt.md:82` | «Offen: Filter «in Beschaffung» (M9) …» | veraltet; keine Änderung nötig |
-| `docs/ideas/README.md:31-37` (Index) | kein Eintrag zu Wünschen | **Vorschlag:** neue Zeile «06 Wünsche über Jellyseerr · Übernommen (Konzept 25, Frage 33, ADR 0037/0038)» |
+| `docs/ideas/README.md:31-37` (Index) | kein Eintrag zu Wünschen | **Vorschlag:** neue Zeile «06 Wünsche über Seerr · Übernommen (Konzept 25, Frage 33, ADR 0037/0038)» |
 | `server/internal/integrations/integrations.go:5-6`, Text `webhooks.intro` | «Slouchcat never calls Radarr or Sonarr …»; «… fragt die Dienste nie von sich aus ab.» | Der Code-Kommentar stimmt ab Stufe 4 nicht mehr wörtlich: **Vorschlag**, ihn in Stufe 4 auf «… except for profile tags and reading the queue and file state of wished titles (package arr)» zu ergänzen. Die Seite «Webhooks von Radarr und Sonarr» bleibt wörtlich, wie sie ist, auch der Text `webhooks.intro`: kein neuer Satz, auch nicht als Vorschlag (N-80, Redaktionsentscheid zu K-7; AK-196 prüft es streng). Der Text spricht vom Empfang, und der bleibt |
 
 ### 2.3 Was ausdrücklich Nicht-Ziel bleibt
@@ -537,37 +547,37 @@ umgeschrieben; der neue Wortlaut gilt über Frage 33 und ADR 0037 (Vorgehen wie 
 | Fehlende Titel auf der Startseite (Bühne, Posterreihe), in der Spotlight-Liste und als Reihe unter «Entdecken» | S-4, Marco E-5 |
 | Importe über Abfragen statt über den Webhook erkennen oder Webhooks selbst eintragen. Der Import in die Bibliothek kommt weiter über den Webhook; Slouchcat liest nur für die Anzeige am Wunsch (K-5) | Marco E-6 |
 | Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer als eigener Slouchcat-Ablauf | Spec `:65` |
-| In Jellyseerr: Benutzer löschen, Rechte von Benutzern ändern, die es schon gab, Administratoren anlegen, übrige Einstellungen ändern (Discover-Reihen, Metadaten-Anbieter, Radarr/Sonarr-Server). Ausgenommen sind nur das Anlegen und Pflegen der Benutzer der Konten (E-Mail, Passwort, Rechte, Limit) | neu in ADR 0037, Anhang H 5 |
-| Einbettung von Jellyseerr (iFrame) | Spec `:185` |
+| In Seerr: Benutzer löschen, Rechte von Benutzern ändern, die es schon gab, Administratoren anlegen, übrige Einstellungen ändern (Discover-Reihen, Metadaten-Anbieter, Radarr/Sonarr-Server). Ausgenommen sind nur das Anlegen und Pflegen der Benutzer der Konten (E-Mail, Passwort, Rechte, Limit) | neu in ADR 0037, Anhang H 5 |
+| Einbettung von Seerr (iFrame) | Spec `:185` |
 | Trakt-Login, Scrobbling, Wünsche aus Trakt-Merklisten | Spec Non-Goals, Regel 11 |
 | Algorithmische Empfehlungen: fehlende Titel kommen nur aus der Suche, den öffentlichen Ranglisten der Wünsche-Seiten und, nur für den Administrator, aus der Trakt-Liste des Spotlights | Spec Non-Goals |
 | Interaktion zwischen Profilen: kein «wer hat noch gewünscht» | Spec Non-Goals, ADR 0028 |
 | eigene Empfehlungen je Profil auf den Wünsche-Seiten; die Listen bleiben öffentliche TMDB-Ranglisten, für alle gleich (N-58). Die Seite «Entdecken» selbst ist seit Fassung 3 kein Nicht-Ziel mehr (Marco, Anhang H 1); Anhang F 2.14 ist überholt | Spec Non-Goals, Anhang H 4.5 |
-| Login je Profil in Jellyseerr | Marco, Anhang H 1 |
+| Login je Profil in Seerr | Marco, Anhang H 1 |
 | Wünsche offline | Anhang F 2.20 |
 
 ## 3. Entwurf: Eintrag Frage 33 im Entscheidungsprotokoll
 
 Zeile für die Tabelle «Weitere Entscheide während der Umsetzung» in `docs/planning/04-entscheidungen.md`
-(Spalten Datum, Entscheid, Begründung, Betrifft), im Stil der Zeile zu Frage 32. E-1 bis E-7 sind entschieden;
-für F-1 bis F-34 (ohne F-8) und T-1, T-2 nimmt der Entwurf an, dass Marco den Empfehlungen folgt; jede abweichende Antwort
-ersetzt ihren Satz. F-32 ist mit «Seerr» eingesetzt; bleibt es bei «Jellyseerr», entfällt der Satz.
+(Spalten Datum, Entscheid, Begründung, Betrifft), im Stil der Zeile zu Frage 32. E-1 bis E-11 sind entschieden,
+damit auch F-8, F-32, F-33, F-34 und bei F-24 der Teil «Verknüpfen»; für die 29 offenen Fragen und T-1, T-2 nimmt
+der Entwurf an, dass Marco den Empfehlungen folgt; jede abweichende Antwort ersetzt ihren Satz.
 
 ```text
-| {{Datum}} | **Konzept 25 «Wünsche über Jellyseerr» freigegeben: Zuschauer fordern fehlende Filme und Serien an, Jellyseerr bleibt die Wunschverwaltung, Slouchcat meldet die Verfügbarkeit** (Frage 33, `docs/planning/25-medienwuensche/`, Fassung {{n}}; PR #{{n}}; ADR 0037 und ADR 0038 reserviert, sie entstehen mit Stufe 0). **Vorab am 17. November 2026 entschieden: E-1** Eingeladene Konten bekommen in Jellyseerr einen Benutzer mit gleicher E-Mail und gleichem Passwort; **E-2** welches Profil angefordert hat, zeigt ein Tag in Radarr und Sonarr, dafür spricht Slouchcat diese direkt an; **E-3** das Limit je Konto stellt Slouchcat ein, Jellyseerr zählt alles, auch direkt dort gestellte Wünsche, abgelehnte Wünsche und Mitwünsche nicht; **E-4** bestehende Benutzer mit derselben E-Mail werden verknüpft, wenn ein Administrator es auslöst oder bestätigt; tippt ein Konto die Adresse selbst ein, entsteht nur ein Vorschlag; **E-5** fehlende Titel der Trakt-Liste erscheinen in der Zuschauer-App nirgends, nur in der Verwaltung; **E-6** die Webhooks von Radarr und Sonarr bleiben wie heute, von Hand eingerichtet; **E-7** bei Wünschen zeigt Slouchcat den Download-Fortschritt aus Radarr und Sonarr. **F-1:** Funktion und Seiten heissen «Wünsche», Knöpfe «anfordern». **F-2:** Jedes Konto hat einen Jellyseerr-Benutzer; Profile haben kein Login; ein Jellyseerr-Benutzer gehört höchstens einem Konto. **F-3:** Gesendet wird mit `X-API-User` und ohne `userId`; der Verbindungstest prüft es. **F-4:** Konten ohne Jellyseerr-Benutzer können nicht anfordern; Sammelbenutzer als Wahl, ab Werk aus. **F-5:** Wunschrecht je Konto (Administrator) als Deckel und je Profil (Hauptprofil); Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus. **F-6:** Kinderprofile mit Recht dürfen anfordern, die Freigabe entscheidet Jellyseerr. **F-7:** Ein zweites Profil wird Mitwünscher. **F-8:** entschieden durch E-5; Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; vorhandene Serien werden auch über TVDB und IMDb erkannt. **F-9:** Fehlende Titel und die Wünsche-Seiten sieht ein Profil nur, wenn es anfordern kann (Recht, Jellyseerr-Benutzer, Art, Alter); einzige Ausnahme sind Titel mit eigenem Wunsch. **T-1:** «Wünsche aktiv» lässt sich nur mit gelungenem Test einschalten; ab Werk aus. **T-2:** Die Frist der Übermittlung ruht, solange «Jellyseerr verwenden» aus ist. **F-10:** Anfordern über einen Dialog mit Stand des Limits. **F-11:** Bibliothekssuche über den eigenen TMDB-Schlüssel, Seite «Suche» über Jellyseerr. **F-12:** Serien staffelweise, Staffeln aus Jellyseerr, fehlende Staffeln auf der Serienseite. **F-13:** «Verfügbar» heisst: Slouchcat kann den Titel für das Profil abspielen. **F-14:** Kanal-Ereignisse `wish_available` (an), `wish_status` (aus), `wish_review` (an, nur Administratoren). **F-15:** Externe Nachrichten von PIN-Profilen ohne Titel. **F-16:** Freigeben und Ablehnen in der Verwaltung als Durchreichen, Stufe 4. **F-17:** Zurückziehen, solange nicht freigegeben. **F-18:** Jellyseerr-Webhook nur als Anstoss, Stufe 4; Abgleich alle 5 min bleibt die Grundlage. **F-19:** Verbindung unter Integrationen, Seite «Wünsche» unter Medien mit «Anfragen», «Jellyseerr-Benutzer», «Einstellungen». **F-20:** ersetzt durch F-34. **F-21:** Anfragen der Jellyseerr-Benutzer der Konten werden übernommen («In Jellyseerr angelegt»). **F-22:** sechs Stufen (0 bis 5), je ein Release. **F-23:** Jedes Konto bekommt einen Jellyseerr-Benutzer; von selbst beim Annehmen einer Einladung, bestehende Konten über «Alle eröffnen» oder einzeln; ohne Wunschrecht ohne Rechte. **F-24:** Auch verknüpfte Benutzer übernehmen das Passwort, ausser Administratoren und Anmeldung über Jellyfin, Emby oder Plex; über die E-Mail verknüpft nur ein Administrator, eine selbst eingetippte Adresse ergibt einen Vorschlag ohne Passwort und ohne Anfordern bis zur Bestätigung. **F-25:** Profil-Tag `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, nie entfernt. **F-26:** Limit ab Werk 10 Filme und 5 Staffeln in 7 Tagen. **F-27:** Ausnahme «Profil sendet als anderer Jellyseerr-Benutzer» bleibt zugeklappt. **F-28:** «Entdecken» mit sieben festen Reihen. **F-29:** Marco stellt Jellyseerr auf TVDB-Staffeln; der Test zeigt die Einstellung. **F-30:** Zugang zu Radarr und Sonarr aus Jellyseerr, eigene Adresse als Ausweg. **F-31:** Der Jellyseerr-Benutzer eines gelöschten Kontos bleibt; hat Slouchcat ihn eröffnet, ohne Rechte und mit Zufallspasswort, sonst unverändert. **F-32:** Die Oberfläche sagt «Seerr». **F-33:** Nach einer Messung liest Slouchcat Dateipfad und Kennung aus der Webhook-Meldung und liest nur diese Datei mit Vorrang ein. **F-34:** Startreihe «Erfüllte Wünsche» mit den in 14 Tagen erfüllten Wünschen. Damit fallen die Nicht-Ziele Spec Zeile 66 in den genannten Teilen und Zeile 67 nur beim Wunsch; Zeile 69 erhält die Ausnahme für Profil-Tags, Warteschlange und Dateistand der gewünschten Titel werden nur gelesen; Zeile 65 und 68 bleiben. S-4 aus Frage 11 bleibt ohne Ausnahme. CLAUDE.md Regel 11 nennt die Ausnahmen; ADR 0010 erhält den Nachtrag zu Tags und Warteschlange, der Webhook-Empfang bleibt. | Auftrag von Marco vom 16. November 2026 (Wünsche über Jellyseerr anbinden), zwei Rückmeldungen von Marco vom 17. November 2026 mit E-1 bis E-7, Analyseberichte, Kritik und Nachtrag in `docs/planning/25-medienwuensche/anhang/` (A bis H), Antworten auf F-1 bis F-34 und T-1, T-2, Freigabe von Konzept und Mockups | Frage 33, ADR 0037, ADR 0038; hebt Spec Non-Goals Zeile 66 in Teilen und Zeile 67 nur beim Wunsch auf, ergänzt Zeile 69 um eine Ausnahme, ändert Spec Zeilen 35 und 46; bestätigt S-4 (Frage 11, ADR 0011, `05-plan-spotlight.md`); Nachträge zu Frage 10, ADR 0009, ADR 0010, ADR 0011, Plan 5.1, 5.5, 5.6; Regeln 2, 3, 5, 6, 7, 8, 9, 10, 11, 12 |
+| {{Datum}} | **Konzept 25 «Wünsche über Seerr» freigegeben: Zuschauer fordern fehlende Filme und Serien an, Seerr bleibt die Wunschverwaltung, Slouchcat meldet die Verfügbarkeit** (Frage 33, `docs/planning/25-medienwuensche/`, Fassung {{n}}; PR #{{n}}; ADR 0037 und ADR 0038 reserviert, sie entstehen mit Stufe 0). **Vorab am 17. November 2026 entschieden: E-1** Eingeladene Konten bekommen in Seerr einen Benutzer mit gleicher E-Mail und gleichem Passwort; **E-2** welches Profil angefordert hat, zeigt ein Tag in Radarr und Sonarr, dafür spricht Slouchcat diese direkt an; **E-3** das Limit je Konto stellt Slouchcat ein, Seerr zählt alles, auch direkt dort gestellte Wünsche, abgelehnte Wünsche und Mitwünsche nicht; **E-4** bestehende Benutzer mit derselben E-Mail werden verknüpft; **E-5** fehlende Titel der Trakt-Liste erscheinen in der Zuschauer-App nirgends, nur in der Verwaltung; **E-6** die Webhooks von Radarr und Sonarr bleiben wie heute, von Hand eingerichtet; **E-7** bei Wünschen zeigt Slouchcat den Download-Fortschritt aus Radarr und Sonarr; **E-8** auch beim Annehmen einer Einladung und nach einer E-Mail-Änderung verknüpft Slouchcat einen bestehenden Benutzer mit derselben E-Mail sofort und setzt ihm das Passwort, ausser Administratoren von Seerr und Anmeldung über Jellyfin, Emby oder Plex; wer eine fremde Adresse eintippt, bekommt diesen Benutzer samt seinen Anfragen (bekannte Grenze); **E-9** der Dienst heisst in der Oberfläche «Seerr»; **E-10** die Startreihe «Erfüllte Wünsche» zeigt nur Wünsche, die in den letzten 14 Tagen erfüllt wurden; **E-11** ein Sofort-Import über Dateipfad und Kennung aus der Webhook-Meldung kommt als eigener Schritt nach einer Messung und entfällt, wenn die Messung keinen Gewinn zeigt. **F-1:** Funktion und Seiten heissen «Wünsche», Knöpfe «anfordern». **F-2:** Jedes Konto hat einen Seerr-Benutzer; Profile haben kein Login; ein Seerr-Benutzer gehört höchstens einem Konto. **F-3:** Gesendet wird mit `X-API-User` und ohne `userId`; der Verbindungstest prüft es. **F-4:** Konten ohne Seerr-Benutzer können nicht anfordern; Sammelbenutzer als Wahl, ab Werk aus. **F-5:** Wunschrecht je Konto (Administrator) als Deckel und je Profil (Hauptprofil); Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus. **F-6:** Kinderprofile mit Recht dürfen anfordern, die Freigabe entscheidet Seerr. **F-7:** Ein zweites Profil wird Mitwünscher. **F-8:** entschieden durch E-5; Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; vorhandene Serien werden auch über TVDB und IMDb erkannt. **F-9:** Fehlende Titel und die Wünsche-Seiten sieht ein Profil nur, wenn es anfordern kann (Recht, Seerr-Benutzer, Art, Alter); einzige Ausnahme sind Titel mit eigenem Wunsch. **T-1:** «Wünsche aktiv» lässt sich nur mit gelungenem Test einschalten; ab Werk aus. **T-2:** Die Frist der Übermittlung ruht, solange «Seerr verwenden» aus ist. **F-10:** Anfordern über einen Dialog mit Stand des Limits. **F-11:** Bibliothekssuche über den eigenen TMDB-Schlüssel, Seite «Suche» über Seerr. **F-12:** Serien staffelweise, Staffeln aus Seerr, fehlende Staffeln auf der Serienseite. **F-13:** «Verfügbar» heisst: Slouchcat kann den Titel für das Profil abspielen. **F-14:** Kanal-Ereignisse `wish_available` (an), `wish_status` (aus), `wish_review` (an, nur Administratoren). **F-15:** Externe Nachrichten von PIN-Profilen ohne Titel. **F-16:** Freigeben und Ablehnen in der Verwaltung als Durchreichen, Stufe 4. **F-17:** Zurückziehen, solange nicht freigegeben. **F-18:** Seerr-Webhook nur als Anstoss, Stufe 4; Abgleich alle 5 min bleibt die Grundlage. **F-19:** Verbindung unter Integrationen, Seite «Wünsche» unter Medien mit «Anfragen», «Seerr-Benutzer», «Einstellungen». **F-20:** ersetzt durch F-34. **F-21:** Anfragen der Seerr-Benutzer der Konten werden übernommen («In Seerr angelegt»). **F-22:** sechs Stufen (0 bis 5), je ein Release. **F-23:** Jedes Konto bekommt einen Seerr-Benutzer; von selbst beim Annehmen einer Einladung, bestehende Konten über «Alle eröffnen» oder einzeln; ohne Wunschrecht ohne Rechte. **F-24:** Verknüpfen entschieden durch E-8; auch Benutzer, die ein Administrator nachträglich eröffnet oder verknüpft, übernehmen das Passwort, ausser Administratoren und Anmeldung über Jellyfin, Emby oder Plex; die Übersicht zeigt eine Verknüpfung nach Einladung oder E-Mail-Änderung sieben Tage lang als «Neu verknüpft». **F-25:** Profil-Tag `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, nie entfernt. **F-26:** Limit ab Werk 10 Filme und 5 Staffeln in 7 Tagen. **F-27:** Ausnahme «Profil sendet als anderer Seerr-Benutzer» bleibt zugeklappt. **F-28:** «Entdecken» mit sieben festen Reihen. **F-29:** Marco stellt Seerr auf TVDB-Staffeln; der Test zeigt die Einstellung. **F-30:** Zugang zu Radarr und Sonarr aus Seerr, eigene Adresse als Ausweg. **F-31:** Der Seerr-Benutzer eines gelöschten Kontos bleibt; hat Slouchcat ihn eröffnet, ohne Rechte und mit Zufallspasswort, sonst unverändert. **F-32:** entschieden durch E-9. **F-33:** entschieden durch E-11. **F-34:** entschieden durch E-10. Damit fallen die Nicht-Ziele Spec Zeile 66 in den genannten Teilen und Zeile 67 nur beim Wunsch; Zeile 69 erhält die Ausnahme für Profil-Tags, Warteschlange und Dateistand der gewünschten Titel werden nur gelesen; Zeile 65 und 68 bleiben. S-4 aus Frage 11 bleibt ohne Ausnahme. CLAUDE.md Regel 11 nennt die Ausnahmen; ADR 0010 erhält den Nachtrag zu Tags und Warteschlange, der Webhook-Empfang bleibt. | Auftrag von Marco vom 16. November 2026 (Wünsche über Seerr anbinden), drei Rückmeldungen von Marco vom 17. November 2026 mit E-1 bis E-11, Analyseberichte, Kritik und Nachtrag in `docs/planning/25-medienwuensche/anhang/` (A bis H), Antworten auf die offenen Fragen F-1 bis F-31 und T-1, T-2, Freigabe von Konzept und Mockups | Frage 33, ADR 0037, ADR 0038; hebt Spec Non-Goals Zeile 66 in Teilen und Zeile 67 nur beim Wunsch auf, ergänzt Zeile 69 um eine Ausnahme, ändert Spec Zeilen 35 und 46; bestätigt S-4 (Frage 11, ADR 0011, `05-plan-spotlight.md`); Nachträge zu Frage 10, ADR 0009, ADR 0010, ADR 0011, Plan 5.1, 5.5, 5.6; Regeln 2, 3, 5, 6, 7, 8, 9, 10, 11, 12 |
 ```
 
-## 4. Entwurf ADR 0037 «Wünsche über Jellyseerr»
+## 4. Entwurf ADR 0037 «Wünsche über Seerr»
 
 ```markdown
-# ADR 0037: Wünsche über Jellyseerr
+# ADR 0037: Wünsche über Seerr
 
 - Status: Entwurf; angenommen mit Stufe 0 nach Freigabe (Frage 33). **Hebt die Spec-Nicht-Ziele Zeile 66
   in Teilen und Zeile 67 nur beim Wunsch auf und fasst Zeile 69 mit einer Ausnahme**; Zeile 65 und 68 bleiben.
   **Nachtrag zu ADR 0010** (zwei Ausnahmen: Profil-Tags setzen, Warteschlange und Dateistand der gewünschten Titel
   lesen; der Webhook-Empfang bleibt).
 - Quelle: Konzept `docs/planning/25-medienwuensche/` (Papiere 01 bis 11, Fassung 3), Marcos Entscheide E-1 bis
-  E-7 vom 17. November 2026, **Frage 33** in `docs/planning/04-entscheidungen.md` mit den Antworten F-1 bis F-34
+  E-11 vom 17. November 2026, **Frage 33** in `docs/planning/04-entscheidungen.md` mit den Antworten F-1 bis F-34
 - Vertrag und Migrationen: vergibt der Bau; Stufe 1 nicht brechend, Stufen 2 bis 4 brechend, Stufe 5 nicht
   brechend (`08-datenmodell-api.md`, Abschnitt 4.6)
 - Betroffene Spec-IDs: Spec A-6, Spec I-8; neu Spec I-9, Spec I-10, Spec I-11
@@ -577,76 +587,77 @@ ersetzt ihren Satz. F-32 ist mit «Seerr» eingesetzt; bleibt es bei «Jellyseer
 
 ## Kontext
 
-Bis 1.40 bindet Slouchcat Jellyseerr nicht an (Frage 10, Plan 5.1): Wer etwas sehen will, das fehlt, wünscht es
-in Jellyseerr. Marco will, dass Zuschauer fehlende Filme und Serien in Slouchcat anfordern, den Zustand sehen
-und über Slouchcats Kanäle erfahren, wann der Titel da ist. Jellyseerr soll die Wunschverwaltung bleiben:
+Bis 1.40 bindet Slouchcat Seerr nicht an (Frage 10, Plan 5.1): Wer etwas sehen will, das fehlt, wünscht es
+in Seerr. Marco will, dass Zuschauer fehlende Filme und Serien in Slouchcat anfordern, den Zustand sehen
+und über Slouchcats Kanäle erfahren, wann der Titel da ist. Seerr soll die Wunschverwaltung bleiben:
 Freigaben, Limits und die Übergabe an Radarr und Sonarr liegen dort. Nach der Durchsicht der zweiten Fassung
-verlangte Marco am 17. November 2026: Eingeladene Konten bekommen in Jellyseerr einen Benutzer mit denselben
+verlangte Marco am 17. November 2026: Eingeladene Konten bekommen in Seerr einen Benutzer mit denselben
 Login-Daten; Profile brauchen kein Login, nur einen Tag; ein Limit je Konto; eine Seite für Wünsche wie die
 Startseite von Seerr; Serien konsistent über TVDB. Nach der Durchsicht des Mockups fragte er, ob Radarr und Sonarr
 direkt angebunden werden sollen, damit ein neuer Titel «rasendschnell» in Slouchcat ankommt, und ob die Webhooks
 dafür wegfallen könnten. Radarr und Sonarr melden von sich aus nur per Webhook; ihre API ist rein abfragend.
 
-Zu entscheiden war: wie Slouchcat im Namen einer Person wünscht, obwohl Jellyseerr einen einzigen Schlüssel und
+Zu entscheiden war: wie Slouchcat im Namen einer Person wünscht, obwohl Seerr einen einzigen Schlüssel und
 keine Profile kennt; wie ein Wunsch einem Profil gehört; wann ein Titel als verfügbar gilt; wie ein Wunsch
-übersteht, dass Jellyseerr nicht erreichbar ist; wie ein Client im Heimnetz zu den Regeln für ausgehende
-Aufrufe passt; wie ein Passwort nach Jellyseerr kommt, ohne dass Slouchcat es speichert; wer das Limit zählt; und
+übersteht, dass Seerr nicht erreichbar ist; wie ein Client im Heimnetz zu den Regeln für ausgehende
+Aufrufe passt; wie ein Passwort nach Seerr kommt, ohne dass Slouchcat es speichert; wer das Limit zählt; und
 wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt.
 
 ## Entscheid
 
-1. **Ausnahme vom Nicht-Ziel nur für Wünsche über Jellyseerr, mit zwei eng gefassten Ausnahmen von «Steuerung
-   von Arr/Seerr».** Slouchcat legt Wünsche in Jellyseerr an, liest ihren Zustand, zeigt ihn, zieht zurück und
-   meldet die Verfügbarkeit. Es legt die Benutzer der Konten in Jellyseerr an und pflegt sie (E-Mail, Passwort,
+1. **Ausnahme vom Nicht-Ziel nur für Wünsche über Seerr, mit zwei eng gefassten Ausnahmen von «Steuerung
+   von Arr/Seerr».** Slouchcat legt Wünsche in Seerr an, liest ihren Zustand, zeigt ihn, zieht zurück und
+   meldet die Verfügbarkeit. Es legt die Benutzer der Konten in Seerr an und pflegt sie (E-Mail, Passwort,
    Rechte, Limit), und es setzt in Radarr und Sonarr Profil-Tags (anlegen, anhängen). Warteschlange und Dateistand
    der gewünschten Titel (`queue`, `movie?tmdbId`, `series?tvdbId`) liest es nur, für den Download-Fortschritt bei
    Wünschen (Entscheid 19). Der Import in die Bibliothek kommt weiter über den Webhook (Entscheid 20). Keine eigene Beschaffung,
    keine Qualitätsprofile oder Zielordner, keine Änderung der Warteschlange, kein Suchen, Hinzufügen oder Löschen in Radarr und
    Sonarr, kein Entfernen von Tags, kein eigener Freigabe-Ablauf. SABnzbd spricht Slouchcat nie an. Übrige
-   Einstellungen von Jellyseerr ändert es nicht; Benutzer löscht es nicht.
+   Einstellungen von Seerr ändert es nicht; Benutzer löscht es nicht.
 2. **Client `internal/seerr`** ohne Datenbank (Vorbild `internal/trakt`): `X-Api-Key` aus den verschlüsselten
    Einstellungen (AES-256-GCM, nie wieder angezeigt, letzte vier Zeichen), Zeitlimit 10 s, höchstens 5 Anfragen/s,
    **keine Weiterleitungen**, nur `http`/`https`. **Ausdrückliche LAN-Erlaubnis:** Der Client läuft nicht über
    `netguard`, weil der Administrator die Adresse setzt (Muster Podcast-Feed des Administrators und SMTP); es
    wird nur diese Adresse angesprochen, nie ein Wert aus einer Antwort.
-3. **Im Namen des Benutzers:** `POST /api/v1/request` mit `X-API-User: <Jellyseerr-Benutzer>` und ohne `userId`.
+3. **Im Namen des Benutzers:** `POST /api/v1/request` mit `X-API-User: <Seerr-Benutzer>` und ohne `userId`.
    So gelten Recht, Limit und Auto-Freigabe dieses Benutzers. Der Verbindungstest prüft den Header mit
    `GET /auth/me`; wirkt er nicht, lässt sich die Funktion nicht einschalten (T-1). Beim ersten erfolgreichen
    Test speichert Slouchcat einen Fingerabdruck der Instanz; weicht er später ab, halten Übermittlung und Abgleich
    an, bis der Administrator die Zuordnung bestätigt oder löscht.
-4. **Ein Jellyseerr-Benutzer je Konto (E-1, E-4):** Nimmt jemand eine Einladung an, eröffnet Slouchcat im selben
-   Zug den Benutzer in Jellyseerr mit gleicher E-Mail und gleichem Passwort (`wish_account_map` mit Herkunft
-   eröffnet, verknüpft oder von Hand). Für bestehende Konten gibt es «In Jellyseerr eröffnen» und «Alle
-   eröffnen»; das Einrichten von Jellyseerr eröffnet sie nicht von selbst. **Über die E-Mail verknüpft nur ein
-   Administrator:** automatisch, wenn er «In Jellyseerr eröffnen» oder «Alle eröffnen» wählt, sonst durch
-   Bestätigen eines Vorschlags. Findet Slouchcat beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des
-   Kontos einen Benutzer mit derselben Adresse, entsteht nur ein Vorschlag (`state = suggested`): keine
-   Verknüpfung, kein Passwort an den bestehenden Benutzer, kein Anfordern, bis ein Administrator ihn bestätigt.
-   «Alle eröffnen» bestätigt keinen Vorschlag; das Konto erfährt nie, ob Jellyseerr die Adresse kennt. Das
-   schränkt E-4 für diesen einen Fall ein (Redaktion, N-2a, F-24). Profile haben kein Login; sie senden
+4. **Ein Seerr-Benutzer je Konto (E-1, E-4):** Nimmt jemand eine Einladung an, eröffnet Slouchcat im selben
+   Zug den Benutzer in Seerr mit gleicher E-Mail und gleichem Passwort (`wish_account_map` mit Herkunft
+   eröffnet, verknüpft oder von Hand). Für bestehende Konten gibt es «In Seerr eröffnen» und «Alle
+   eröffnen»; das Einrichten von Seerr eröffnet sie nicht von selbst. **Über die E-Mail wird sofort verknüpft
+   (E-4, E-8):** Gibt es in Seerr einen Benutzer mit derselben Adresse, verknüpft Slouchcat ihn, gleich ob ein
+   Administrator «In Seerr eröffnen» oder «Alle eröffnen» wählt oder das Konto die Adresse beim Annehmen einer
+   Einladung oder beim Ändern seiner E-Mail selbst eintippt. Das Passwort geht an ihn wie an jeden anderen,
+   nie an Benutzer 1, andere Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex
+   (N-91). Den Auslöser hält `wish_account_map.linked_by` fest; eine Verknüpfung nach Einladung oder
+   E-Mail-Änderung zeigt die Übersicht sieben Tage lang als «Neu verknüpft» (Empfehlung, N-93). Das Konto erfährt
+   nie, ob Seerr die Adresse kannte (N-94). Profile haben kein Login; sie senden
    als Benutzer des Kontos. Eine zugeklappte Ausnahme je Profil (`wish_profile_map`) nutzt einen anderen,
    bestehenden Benutzer, damit ein Kinderprofil im Konto des Administrators eine Freigabe braucht. Ein
-   Jellyseerr-Benutzer gehört höchstens einem Konto. Je Wunsch speichert Slouchcat Konto, Profil,
-   Jellyseerr-Benutzer (eingefroren) und Request-ID, bei Serien je Staffel. Die Rechte eines eröffneten Benutzers
+   Seerr-Benutzer gehört höchstens einem Konto. Je Wunsch speichert Slouchcat Konto, Profil,
+   Seerr-Benutzer (eingefroren) und Request-ID, bei Serien je Staffel. Die Rechte eines eröffneten Benutzers
    folgen dem Wunschrecht (`REQUEST` oder keine); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
-   gelöscht, bleibt sein Jellyseerr-Benutzer bestehen; nur einem eröffneten nimmt Slouchcat die Rechte und setzt
+   gelöscht, bleibt sein Seerr-Benutzer bestehen; nur einem eröffneten nimmt Slouchcat die Rechte und setzt
    ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (N-10, F-31).
 5. **Wunschrecht** je Konto (`accounts.can_request`, Administrator) als Deckel und je Profil
    (`profiles.can_request`, Hauptprofil). Der Server liefert `canRequest` und einen Grund; der Client entscheidet
-   nichts. Konten ohne Jellyseerr-Benutzer können nicht anfordern, ausser ein Sammelbenutzer ist gewählt.
+   nichts. Konten ohne Seerr-Benutzer können nicht anfordern, ausser ein Sammelbenutzer ist gewählt.
    Fehlende Titel und die Wünsche-Seiten sieht ein Profil nur, wenn es anfordern kann (F-9).
 6. **Zustände** `queued`, `pending`, `processing`, `partial`, `available`, `declined`, `failed`, `withdrawn`,
-   abgeleitet aus Jellyseerr und der eigenen Bibliothek.
+   abgeleitet aus Seerr und der eigenen Bibliothek.
 7. **Verfügbar ist, was Slouchcat für das Profil abspielen kann.** Auslöser ist ein Haken nach dem
    Metadaten-Match (IDs geschrieben), dazu stündlich `wishes.reconcile`. Abgleich bei Filmen über TMDB-, dann
-   IMDb-ID, bei Serien wie die Bibliothek über TVDB-, dann TMDB-, dann IMDb-ID. «AVAILABLE» in Jellyseerr löst
+   IMDb-ID, bei Serien wie die Bibliothek über TVDB-, dann TMDB-, dann IMDb-ID. «AVAILABLE» in Seerr löst
    allein nichts aus. Ein Film ist verfügbar mit der ersten
    abspielbaren Datei; eine Staffel erst, wenn sie vollständig ist (abspielbare Folgen = Folgenzahl laut TMDB,
    bei laufenden Staffeln die bisher ausgestrahlten). Ob es den Titel gibt und wer ihn sehen darf, beantwortet
    `visibility`; `wishes` fragt `items` nicht ab (Regel 2).
 8. **Ausgangsfach:** `createWish` speichert lokal (`queued`), versucht sofort (3 s, ohne Vorprüfung) und sonst
    über `wishes.submit` mit eigener Wiederholungsleiter; nach 24 h `failed` und Fehlerereignis an
-   Administratoren. Ab dem zweiten Versuch prüft der Job vor dem Senden, ob der Wunsch in Jellyseerr schon
+   Administratoren. Ab dem zweiten Versuch prüft der Job vor dem Senden, ob der Wunsch in Seerr schon
    besteht; 409 «Request for this media already exists.» und 202 zählen als Erfolg. **Zurückziehen** setzt lokal
    `withdrawn`; der Job `wishes.withdraw` sucht einen eigenen Request des Benutzers und löscht ihn, solange er
    `PENDING` ist. Ist er schon freigegeben, bleibt er stehen und der Wunsch wird wieder geöffnet.
@@ -654,9 +665,9 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
    Zeiger rückt je Seite vor, ein abgebrochener Lauf setzt dort fort. Der erste Abgleich und der nach einem
    Instanzwechsel laufen als Erstabgleich ohne Seitengrenze im Hintergrund. Dazu `GET /request/{id}` für offene
    Wünsche ohne Änderung seit 24 h, höchstens einmal je 24 h je Wunsch. Die Übernahme bestehender Anfragen
-   (F-21) läuft als eigener Job `wishes.import`. Der Jellyseerr-Webhook ist nur ein Anstoss (Stufe 4).
+   (F-21) läuft als eigener Job `wishes.import`. Der Seerr-Webhook ist nur ein Anstoss (Stufe 4).
 10. **Mitwunsch:** In Slouchcat höchstens ein offener Wunsch je Film bzw. Serienstaffel. Ein weiteres Profil wird
-    Mitwünscher, ohne Aufruf an Jellyseerr, und wird ebenfalls benachrichtigt. Zuschauer sehen nie, wer sonst
+    Mitwünscher, ohne Aufruf an Seerr, und wird ebenfalls benachrichtigt. Zuschauer sehen nie, wer sonst
     gewünscht hat.
 11. **Benachrichtigungen** nur über Slouchcat: neue Eingangsarten `wish_available`, `wish_season_available`,
     `wish_approved`, `wish_declined`, `wish_failed`; neue Kanal-Ereignisse `wish_available`, `wish_status`,
@@ -666,32 +677,32 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
     Anforderer und Mitwünscher sichtbar. Externe Nachrichten von PIN-Profilen nennen keinen Titel.
 12. **Freigeben und Ablehnen** für Administratoren als Durchreichen an `POST /request/{id}/approve|decline`
     (Stufe 4). Das ist kein Ablauf «Kind fragt Eltern» (Spec Zeile 65 bleibt).
-13. **Verwaltung:** Integrationen › Jellyseerr (Verbindung, Test, Abgleich, Protokoll) und Medien › Wünsche
-    (Anfragen, Jellyseerr-Benutzer, Einstellungen); jede Einstellung genau ein Ort. Verwaltungsantworten tragen keine
+13. **Verwaltung:** Integrationen › Seerr (Verbindung, Test, Abgleich, Protokoll) und Medien › Wünsche
+    (Anfragen, Seerr-Benutzer, Einstellungen); jede Einstellung genau ein Ort. Verwaltungsantworten tragen keine
     `ItemRef`; `listAccountWishes` ist `scoped` und verlangt das Hauptprofil (Regel 7).
 14. **Nur online.** `/api` bleibt NetworkOnly; Wünsche haben keinen Offline-Zustand.
-15. **Passwort nur in drei Momenten (E-1).** Slouchcat gibt das Passwort an Jellyseerr weiter, wenn es der Server
+15. **Passwort nur in drei Momenten (E-1).** Slouchcat gibt das Passwort an Seerr weiter, wenn es der Server
     ohnehin sieht: beim Annehmen der Einladung, beim Ändern des Passworts und bei der Anmeldung (dann nur, wenn
     es noch aussteht). Es geht nur im Speicher weiter, nie über eine Job-Nutzlast, und Slouchcat speichert und
     protokolliert es nie. Geht es nicht sofort, bekommt der Benutzer ein Zufallspasswort, und das echte folgt bei
-    der nächsten Anmeldung. Benutzer 1, Administratoren von Jellyseerr und Benutzer mit Anmeldung über Jellyfin,
-    Emby oder Plex gleicht Slouchcat nicht ab. Ein Passwort, das jemand direkt in Jellyseerr ändert, bemerkt
-    Slouchcat nicht. An einen nur vorgeschlagenen Benutzer geht nie ein Passwort (Entscheid 4). Der
+    der nächsten Anmeldung. Benutzer 1, Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin,
+    Emby oder Plex gleicht Slouchcat nicht ab. Ein Passwort, das jemand direkt in Seerr ändert, bemerkt
+    Slouchcat nicht. Der
     Verbindungstest warnt bei ausgeschalteter «Lokaler Anmeldung» und bei `http` ausserhalb des eigenen Netzes.
 16. **Limit je Konto (E-3).** Je Konto ein Limit für Filme und eines für Staffeln, je Anzahl und Tage, rollierend,
     für alle Profile gemeinsam. Eingestellt wird in Slouchcat (Vorgabe, je Konto «Standard», «Eigenes»,
-    «Unbegrenzt»); Slouchcat schreibt es in den Jellyseerr-Benutzer, Jellyseerr zählt und setzt durch, auch für
+    «Unbegrenzt»); Slouchcat schreibt es in den Seerr-Benutzer, Seerr zählt und setzt durch, auch für
     Wünsche, die direkt dort gestellt werden. Abgelehnte Wünsche und Mitwünsche zählen nicht. Benutzer mit
     `MANAGE_USERS` haben kein Limit. Slouchcat prüft vor dem Anfordern mit dem zuletzt gelesenen Stand und sagt,
     wann der nächste Platz frei wird.
 17. **Profil-Tag in Radarr und Sonarr (E-2).** Ist ein Wunsch «In Beschaffung», legt Slouchcat in Radarr bzw.
     Sonarr den Tag des Profils an (`sc-<profilname>`) und hängt ihn an den Film bzw. die Serie, nachträglich auch
-    für Mitwünscher. Adresse und Schlüssel liest es aus Jellyseerr und hält die Schlüssel nur im Speicher, je
+    für Mitwünscher. Adresse und Schlüssel liest es aus Seerr und hält die Schlüssel nur im Speicher, je
     10 Minuten; neu gelesen wird nach Ablauf oder nach einer Antwort 401. Ein
     eigenes Paket `internal/arr` kennt nur diese Aufrufe. Fehler ändern nichts am Wunsch; Tags werden nie
     entfernt.
 18. **Wünsche-Seiten.** Unter «Wünsche» zeigen «Entdecken», «Filme», «Serien» und «Suche» Titel zum Anfordern. Die
-    Listen holt der Server über Jellyseerr im Namen des Benutzers, mit Zwischenspeicher; Altersstufe und
+    Listen holt der Server über Seerr im Namen des Benutzers, mit Zwischenspeicher; Altersstufe und
     Bibliotheksabgleich rechnet Slouchcat (ADR 0038).
 19. **Download-Fortschritt nur beim Wunsch (E-7).** Solange ein Wunsch «In Beschaffung» ist, liest der Job
     `wishes.progress` jede Minute die Warteschlange je Dienst (`GET /api/v3/queue`, alle Seiten) und den Dateistand
@@ -705,30 +716,31 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
 20. **Webhooks wie heute (E-6).** Neue Dateien meldet weiter der Webhook von Radarr und Sonarr, den der
     Administrator von Hand einrichtet. Slouchcat trägt dort keinen Webhook ein. Der Import in die Bibliothek kommt
     weiter über den Webhook; in Radarr und Sonarr liest Slouchcat nur für die Anzeige am Wunsch (Entscheid 19). Der eingehende Teil von ADR 0010 bleibt unverändert. Ob Slouchcat aus derselben Meldung Dateipfad und
-    Kennung liest, um schneller einzulesen, ist Frage F-33 und nicht Teil dieses Entscheids.
+    Kennung liest, um schneller einzulesen, entscheidet E-11: als eigener Schritt nach einer Messung, der
+    entfällt, wenn die Messung keinen Gewinn zeigt; die Webhooks selbst ändern sich dadurch nicht.
 
 ## Verworfen
 
 | Alternative | Grund |
 |---|---|
-| eigene Wunschverwaltung oder eigener Freigabe-Ablauf in Slouchcat | doppelt zu Jellyseerr; Spec Zeile 65 |
-| Radarr/Sonarr für mehr als Tags und das Lesen von Warteschlange und Dateistand der gewünschten Titel ansprechen | Spec Zeile 69; Jellyseerr kann es schon |
+| eigene Wunschverwaltung oder eigener Freigabe-Ablauf in Slouchcat | doppelt zu Seerr; Spec Zeile 65 |
+| Radarr/Sonarr für mehr als Tags und das Lesen von Warteschlange und Dateistand der gewünschten Titel ansprechen | Spec Zeile 69; Seerr kann es schon |
 | «API und Webhook»: Slouchcat trägt den Webhook in Radarr und Sonarr selbst ein und holt Verpasstes über `GET /api/v3/history/since` nach | Marco hat «Webhooks wie heute» gewählt (E-6). Slouchcat schriebe in die Einstellungen von Radarr und Sonarr, was «registers nothing there» aus ADR 0010 bricht |
 | «Nur API, ohne Webhook»: Radarr und Sonarr im Takt nach Importen abfragen | Marco hat «Webhooks wie heute» gewählt (E-6). Die API kann nicht von sich aus melden («Push»); Abfragen im Takt sind langsamer als die Sofortmeldung des Webhooks und erzeugen dauernde Grundlast (Anhang H 8.3, 8.4) |
 | Download-Fortschritt am Titel der Bibliothek, in Reihen und in der Suche | Marco: «bei Wünschen» (E-7); Spec Zeile 67 bleibt dort Nicht-Ziel |
 | Fortschritt im Seitenaufbau direkt bei Radarr und Sonarr lesen | jede Seite hinge an der Erreichbarkeit von Radarr und Sonarr; der Zwischenspeicher genügt |
-| Profil-Tag über `tags` im Body von `POST /request` | braucht `REQUEST_ADVANCED` für jeden Benutzer, ersetzt die Standard-Tags, kann einem Mitwunsch nichts nachreichen, und Jellyseerr legt keine Tags an (Anhang H 4.2) |
+| Profil-Tag über `tags` im Body von `POST /request` | braucht `REQUEST_ADVANCED` für jeden Benutzer, ersetzt die Standard-Tags, kann einem Mitwunsch nichts nachreichen, und Seerr legt keine Tags an (Anhang H 4.2) |
 | Passwort verschlüsselt in Slouchcat speichern, um es jederzeit nachzureichen | ein zweiter Ort für das Passwort; die drei Momente reichen |
-| Limit in Slouchcat zählen | Wünsche direkt in Jellyseerr zählten nicht mit (E-3) |
-| `userId` im Body statt `X-API-User` | jeder Wunsch wäre sofort freigegeben, weil Jellyseerr die Auto-Freigabe am Aufrufer prüft |
-| ein Jellyseerr-Benutzer je Konto ohne Ausnahme | Kinder im Konto des Administrators erben dessen Auto-Freigabe und sind ohne Limit (F-27) |
-| Jellyseerr als Iframe einbetten | entfiel schon in Runde 20; fremde Oberfläche, eigene Anmeldung |
-| Jellyseerr-Benutzer je Profil mit eigenem Login | Marco: Profile brauchen kein Login (Anhang H 1); künstliche E-Mail-Adressen; ein gelöschtes Profil nähme seine Anfragen mit |
-| Benutzer eines gelöschten Kontos in Jellyseerr löschen | Jellyseerr löschte seine Requests mit (Anhang D 7.2) |
-| jeden Treffer bei gleicher E-Mail sofort verknüpfen, auch nach einer Einladung oder E-Mail-Änderung | wer eine Adresse frei eintippt, übernähme einen fremden Jellyseerr-Benutzer samt Passwort und Requests (Kritik an Fassung 3, K-1); Redaktionsentscheid N-2a |
+| Limit in Slouchcat zählen | Wünsche direkt in Seerr zählten nicht mit (E-3) |
+| `userId` im Body statt `X-API-User` | jeder Wunsch wäre sofort freigegeben, weil Seerr die Auto-Freigabe am Aufrufer prüft |
+| ein Seerr-Benutzer je Konto ohne Ausnahme | Kinder im Konto des Administrators erben dessen Auto-Freigabe und sind ohne Limit (F-27) |
+| Seerr als Iframe einbetten | entfiel schon in Runde 20; fremde Oberfläche, eigene Anmeldung |
+| Seerr-Benutzer je Profil mit eigenem Login | Marco: Profile brauchen kein Login (Anhang H 1); künstliche E-Mail-Adressen; ein gelöschtes Profil nähme seine Anfragen mit |
+| Benutzer eines gelöschten Kontos in Seerr löschen | Seerr löschte seine Requests mit (Anhang D 7.2) |
+| «Verknüpfung erst nach Bestätigung»: nach einer Einladung oder E-Mail-Änderung nur ein Vorschlag, den ein Administrator bestätigt (N-2a) | von der Redaktion nach dem Befund K-1 der Kritik empfohlen; Marco hat «Sofort verknüpfen» gewählt (E-8). Das Risiko steht unter «Folgen» als bekannte Grenze |
 | Webhook als Grundlage | ein Ziel, keine Signatur, keine Wiederholung, keine Benutzer-ID |
-| «verfügbar» nach dem Zustand in Jellyseerr | Meldung vor der Datei in Slouchcat; Kinderprofile sähen den Titel noch nicht |
-| Wünsche über `netguard` | sperrt das Heimnetz, in dem Jellyseerr steht |
+| «verfügbar» nach dem Zustand in Seerr | Meldung vor der Datei in Slouchcat; Kinderprofile sähen den Titel noch nicht |
+| Wünsche über `netguard` | sperrt das Heimnetz, in dem Seerr steht |
 
 ## Folgen
 
@@ -741,28 +753,34 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
 - Neues Paket `internal/arr` für Tags und das Lesen von Warteschlange und Dateistand der gewünschten Titel; ADR 0010
   bekommt den Nachtrag zu beiden.
   Die Seite «Webhooks von Radarr und Sonarr» bleibt, wie sie ist.
-- Zwölf neue Jobarten; Abgleich und Prüfung belasten Jellyseerr alle 5 min mit wenigen Aufrufen; `wishes.progress`
+- Zwölf neue Jobarten; Abgleich und Prüfung belasten Seerr alle 5 min mit wenigen Aufrufen; `wishes.progress`
   ruft Radarr und Sonarr jede Minute einmal je Dienst auf, nur solange Wünsche in Beschaffung sind.
 - Die Felder der Sonarr-Warteschlange (`seriesId`, `episodeId`, `seasonNumber`) sind nicht gegen eine Instanz
   geprüft; fehlen sie, zeigt Slouchcat weniger, nie Falsches.
-- Das Passwort verlässt den Server im Klartext Richtung Jellyseerr; ändert jemand es direkt dort, laufen die beiden
+- Das Passwort verlässt den Server im Klartext Richtung Seerr; ändert jemand es direkt dort, laufen die beiden
   auseinander (Marco kannte die Folge, E-1).
-- Benutzerpflege, Passwort-Route und `settings/main` von Jellyseerr sind im Code von Seerr 3.5.2 belegt, aber nicht
+- Benutzerpflege, Passwort-Route und `settings/main` von Seerr sind im Code von Seerr 3.5.2 belegt, aber nicht
   dokumentiert; der Bau prüft sie gegen eine Instanz.
 - `X-API-User` ist undokumentiert. Fällt es in einer künftigen Version weg, meldet der Test es, und die Funktion
   bleibt aus, bis neu entschieden ist.
-- Jellyseerr verschickt weiter eigene Meldungen, wenn sie dort eingerichtet sind.
-- **Bekannte Grenze (Datenschutz, K-19):** Alle Profile eines Kontos teilen das Jellyseerr-Login des Kontos. Wer
-  sich damit in Jellyseerr anmeldet, sieht dort die Wünsche aller Profile, auch die eines Profils mit PIN. Die
-  PIN-Regel F-15 gilt nur für Slouchcats eigene Nachrichten. Jellyseerr verschickt zudem eigene E-Mails mit dem
-  Titel. Empfehlung: in Jellyseerr die eigenen Benachrichtigungen für eröffnete Benutzer ausgeschaltet lassen;
+- Seerr verschickt weiter eigene Meldungen, wenn sie dort eingerichtet sind.
+- **Bekannte Grenze (Datenschutz, K-19):** Alle Profile eines Kontos teilen das Seerr-Login des Kontos. Wer
+  sich damit in Seerr anmeldet, sieht dort die Wünsche aller Profile, auch die eines Profils mit PIN. Die
+  PIN-Regel F-15 gilt nur für Slouchcats eigene Nachrichten. Seerr verschickt zudem eigene E-Mails mit dem
+  Titel. Empfehlung: in Seerr die eigenen Benachrichtigungen für eröffnete Benutzer ausgeschaltet lassen;
   Wünsche › Einstellungen zeigt dazu einen Hinweis.
-- Ein Konto, das eine Adresse eintippt, die es in Jellyseerr schon gibt, kann erst anfordern, wenn ein
-  Administrator den Vorschlag bestätigt hat (Entscheid 4).
+- **Bekannte Grenze (Übernahme, E-8, N-92):** Die E-Mail beim Annehmen einer Einladung und beim Ändern des
+  eigenen Kontos prüft niemand. Wer eine Einladung hat und eine fremde Adresse eintippt, bekommt den
+  Seerr-Benutzer dieser Person samt ihren Anfragen. Marco kennt das Risiko und hat es so gewählt. Es begrenzen:
+  Einladungen stellt nur ein Administrator aus; Administratoren von Seerr und Benutzer mit Anmeldung über
+  Jellyfin, Emby oder Plex bekommen kein Passwort; die Übersicht zeigt die Verknüpfung sieben Tage lang, das
+  Protokoll hält sie fest, und sie lässt sich unter «Seerr-Benutzer» lösen (Empfehlung, N-93).
+- Den Sofort-Import gibt es nur, wenn die Messung vorher einen Gewinn zeigt (E-11); sonst bleibt der Empfang
+  der Webhooks, wie er ist.
 
 ## Spec-Wortlaut, der hier abgelöst wird (ohne die Spec umzuschreiben)
 
-- **Constraint Zeile 46** und **Non-Goal Zeile 66**: Wünsche entstehen auch aus Slouchcat, in Jellyseerr.
+- **Constraint Zeile 46** und **Non-Goal Zeile 66**: Wünsche entstehen auch aus Slouchcat, in Seerr.
 - **Non-Goal Zeile 69**: Ausnahme für Profil-Tags in Radarr und Sonarr.
 - **Non-Goal Zeile 67**: nur beim Wunsch erlaubt: Zustand eigener Wünsche, Download-Fortschritt und Benachrichtigung
   bei Verfügbarkeit; ein Beschaffungsstatus am Titel der Bibliothek, in Reihen und in der Suche und der Suchfilter
@@ -780,7 +798,7 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
   Bibliothekstreffer erscheinen nie auf der Startseite» (Frage 11, ADR 0011) gilt ohne Ausnahme (Marco, E-5).
   **Ergänzt ADR 0034** (Freigabeländer) um Titel ohne Eintrag in `items`.
 - Quelle: Konzept `docs/planning/25-medienwuensche/` (vor allem `02-funktionskonzept.md` und
-  `05-spotlight-integration.md`, Fassung 3), **Frage 33** (F-9, F-11, F-12, F-28, F-29, F-34; F-8 durch E-5
+  `05-spotlight-integration.md`, Fassung 3), **Frage 33** (F-9, F-11, F-12, F-28, F-29; F-8 durch E-5 und F-34 durch E-10
   entschieden); Marcos Rückmeldungen vom 17. November 2026 (Wünsche-Seiten, TVDB; keine fehlenden Titel im Spotlight)
 - Vertrag und Migrationen: vergibt der Bau
 - Betroffene Spec-IDs: Spec E-1, Spec E-4, Spec E-7
@@ -821,20 +839,20 @@ dürfte, und der Browser soll keine Bilder direkt bei TMDB holen.
    **Nie auf der Startseite** (Bühne, Posterreihe, Reihen) und nie in der Spotlight-Liste, auch nicht für Profile,
    die anfordern können, und nicht als Reihe unter «Entdecken» (E-5). Fehlende Einträge der Trakt-Liste sieht nur
    der Administrator unter Verwaltung › Spotlight, mit Poster, Zustand, IDs und «Anfordern». Die Startreihe
-   «Erfüllte Wünsche» zeigt nur Titel der Bibliothek (F-34).
+   «Erfüllte Wünsche» zeigt nur Titel der Bibliothek (E-10).
 6. **Abgleich über mehrere IDs, in fester Reihenfolge:** Filme über TMDB-, dann IMDb-ID; Serien wie die
    Bibliothek über TVDB-, dann TMDB-, dann IMDb-ID (Marco: «konsistent»). Trakt-Einträge speichern neu TVDB- und
    IMDb-ID; ein Eintrag nur mit TVDB-ID wird über TMDB «find» aufgelöst, sonst gilt er nicht als fehlend.
    Vorhandene Serien, die nur eine TVDB-ID haben, gelten so nicht fälschlich als fehlend. Der Schlüssel zu
-   Jellyseerr bleibt die TMDB-ID, bei Serien mit `tvdbId`.
+   Seerr bleibt die TMDB-ID, bei Serien mit `tvdbId`.
 7. **Suche:** Unter der Bibliothekssuche ein Abschnitt «Noch nicht in der Bibliothek» aus der TMDB-Suche über den
    eigenen Schlüssel, gefiltert nach Bibliothek, Freigabe und Wunschrecht, mit Verweis auf die Wunsch-Suche.
 8. **Wünsche-Seiten:** Unter «Wünsche» zeigen «Entdecken» (sieben feste Reihen), «Filme», «Serien» und «Suche»
-   Titel ausserhalb der Bibliothek. Die Listen kommen über Jellyseerr (Discover- und Suchrouten) mit einem
+   Titel ausserhalb der Bibliothek. Die Listen kommen über Seerr (Discover- und Suchrouten) mit einem
    Zwischenspeicher von 1 Stunde je Liste, Seite, Sprache und Altersstufe; Titeldaten und Freigaben bleiben in
    `external_titles`. Jeder Treffer läuft durch dieselbe Jugendschutzregel; für Profile mit Altersgrenze filtert
-   Jellyseerr mit `certificationLte` vor, Slouchcat prüft nach. Titel aus der Bibliothek erscheinen mit Marke und
-   Link; massgeblich ist der Abgleich von Slouchcat, nicht `mediaInfo` von Jellyseerr. Die Listen sind
+   Seerr mit `certificationLte` vor, Slouchcat prüft nach. Titel aus der Bibliothek erscheinen mit Marke und
+   Link; massgeblich ist der Abgleich von Slouchcat, nicht `mediaInfo` von Seerr. Die Listen sind
    öffentliche Ranglisten für alle und keine algorithmische Empfehlung. Auf der Startseite erscheinen sie nicht.
 9. **Serien in der Bibliothek:** `series_catalog` hält die Staffelliste laut TMDB, Status und nächste Folge; damit
    zeigt die Serienseite fehlende Staffeln und «2 von 4 Staffeln vorhanden».
@@ -845,9 +863,9 @@ dürfte, und der Browser soll keine Bilder direkt bei TMDB holen.
 | Alternative | Grund |
 |---|---|
 | fehlende Titel als Zeilen in `items` | bräche `visible_items`, Scans, Zählungen und alle Fremdschlüssel auf `items` |
-| Titeldaten über Jellyseerr (`GET /movie/{id}`) | jeder Aufruf geht ohnehin an TMDB; die Anzeige hinge an der Erreichbarkeit von Jellyseerr. Für die Listen der Wünsche-Seiten gilt das bewusst nicht: Sie sollen zeigen, was Jellyseerr anbietet, und haben einen Zwischenspeicher |
-| `mediaInfo` von Jellyseerr für «in der Bibliothek» | Jellyseerr setzt «verfügbar» nach seinem eigenen Scan, nicht nach dem Abgleich von Slouchcat (Anhang D 11.1) |
-| Reihen-Einstellung von Jellyseerr übernehmen | Reihen ohne Bedeutung in Slouchcat (Plex Watchlist, Studios, Networks), F-28 |
+| Titeldaten über Seerr (`GET /movie/{id}`) | jeder Aufruf geht ohnehin an TMDB; die Anzeige hinge an der Erreichbarkeit von Seerr. Für die Listen der Wünsche-Seiten gilt das bewusst nicht: Sie sollen zeigen, was Seerr anbietet, und haben einen Zwischenspeicher |
+| `mediaInfo` von Seerr für «in der Bibliothek» | Seerr setzt «verfügbar» nach seinem eigenen Scan, nicht nach dem Abgleich von Slouchcat (Anhang D 11.1) |
+| Reihen-Einstellung von Seerr übernehmen | Reihen ohne Bedeutung in Slouchcat (Plex Watchlist, Studios, Networks), F-28 |
 | Bilder direkt von `image.tmdb.org` im Browser | verrät dem Anbieter die Zuschauer, umgeht den Bild-Cache der App |
 | fehlende Titel ohne Freigabe zeigen | widerspricht AN-1 (unbekannt = gesperrt unter 18) |
 | fehlende Titel im Spotlight mit Schalter und Höchstzahl (Fassung 2, Fassung 3 vor der zweiten Rückmeldung) | Marco: «In Spotlight soll nicht angezeigt werden was fehlt» (E-5) |
@@ -859,14 +877,14 @@ dürfte, und der Browser soll keine Bilder direkt bei TMDB holen.
 - Neue Tabellen `external_titles`, `external_title_texts`, `external_title_images`, `series_catalog`,
   `wish_discover_pages`; `spotlight_entries` bekommt `tvdb_id` und `imdb_id`, damit vorhandene Titel auch über TVDB
   und IMDb erkannt werden; `spotlight_config` bleibt unverändert.
-- Die Wünsche-Seiten belasten Jellyseerr und TMDB; der Zwischenspeicher und der Job `wishes.discover` halten das klein.
+- Die Wünsche-Seiten belasten Seerr und TMDB; der Zwischenspeicher und der Job `wishes.discover` halten das klein.
 - Mehr TMDB-Aufrufe über den bestehenden Limiter; der Bildspeicher wächst um die fehlenden Einträge des Spotlights
   (nur für die Verwaltung) und die Treffer der Wünsche-Seiten.
 - **Vorschlag:** Einträge in `external_titles` ohne Bezug (nicht mehr im Spotlight, kein Wunsch, 30 Tage nicht
   gesucht) räumt `titles.refresh` weg.
 - Die Spotlight-Verwaltung zeigt für fehlende Einträge Poster, Zustand, IDs und «Anfordern»; im Spotlight ändert
   sich für Zuschauer nur, dass TVDB-zuerst-Serien erscheinen.
-- Die Startseite bekommt die neue Reihe «Erfüllte Wünsche» (F-34): Wünsche des Profils, die in den letzten 14 Tagen
+- Die Startseite bekommt die neue Reihe «Erfüllte Wünsche» (Marco, E-10): Wünsche des Profils, die in den letzten 14 Tagen
   erfüllt wurden, also nur Titel der Bibliothek (`ItemRef`). Die Titel-IDs liefert `wishes`, die Sichtbarkeit prüft
   `visibility`. Der neue Schlüssel in `HomeRowKey` macht Stufe 3 brechend; ohne die Reihe wäre sie es nicht.
 ```
@@ -879,10 +897,10 @@ Heute `CLAUDE.md:57-59`. Die Datei wird erst in Stufe 0 nach der Freigabe geänd
  11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,
 -    algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten,
 -    Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
-+    algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung (ausser Wünsche über Jellyseerr, Frage 33,
++    algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung (ausser Wünsche über Seerr, Frage 33,
 +    ADR 0037: anlegen, Zustand zeigen, zurückziehen, Verfügbarkeit melden; Freigeben/Ablehnen nur als Durchreichen
 +    für Administratoren), Steuerung von Arr/Seerr (zwei Ausnahmen nach ADR 0037: die Benutzer der Konten in
-+    Jellyseerr anlegen und pflegen, also E-Mail, Passwort, Rechte und Limit; in Radarr und Sonarr Warteschlange
++    Seerr anlegen und pflegen, also E-Mail, Passwort, Rechte und Limit; in Radarr und Sonarr Warteschlange
 +    und Dateistand der gewünschten Titel lesen (`queue`, `movie?tmdbId`, `series?tvdbId`) und den Profil-Tag
 +    setzen. Qualitätsprofile, Warteschlangen ändern, Webhooks eintragen, Suchen, Hinzufügen, Löschen und SABnzbd
 +    bleiben verboten), Mandanten, Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
@@ -913,14 +931,14 @@ andere in diesem Konzept und stehen zusammen mit F-1 bis F-34 und T-1, T-2 zur F
 | 1 | Blocker | `ItemRef` und scoped Bildadressen in Antworten, die nicht `scoped` sind (Regel 7) | eingearbeitet in `08-datenmodell-api.md` 4.2 (`AdminWishTitle`, `AdminWish` ohne `ItemRef`), 4.5 (`listAccountWishes` `scoped` mit Hauptprofil, `getAdminExternalTitleImage`), 4.6, 4.7; `03-architektur.md` 15.2, 16; `02-funktionskonzept.md` 5.3; `05-spotlight-integration.md` 4; `10-abnahmekriterien.md` AK-135, AK-136 |
 | 2 | Major | Sieht ein Profil mit Recht, aber ohne Zuordnung, fehlende Titel? Drei Fassungen | eingearbeitet **anders als vorgeschlagen** (Redaktionsentscheid): eine Regel überall, fehlende Titel nur bei Anfordern-Können, ohne Zuordnung nicht sichtbar; in `02-funktionskonzept.md` 3, 4.5, 5.1; `04-benutzer-profilmapping.md` 9, 10, 11; `03-architektur.md` 3; `07-administration.md` 2; F-8, F-9 in Abschnitt 1; AK-113, AK-114 |
 | 3 | Major | «Anfordern aus dem Spotlight» aus: keine fehlenden Titel oder nur «Details»? | eingearbeitet in Fassung 2; **seit E-5 gegenstandslos**: das Spotlight zeigt keine fehlenden Titel, der Schalter entfällt (N-72). Es bleiben «aus der Suche» und «auf Detailseiten» in `07-administration.md` 7; AK-129 entfällt |
-| 4 | Major | Wann ist eine Staffel «verfügbar»? Zwei Regeln | eingearbeitet nach Redaktionsentscheid (Staffel vollständig, Jellyseerr keine Bedingung) in `06-benachrichtigungen.md` 3.3; `03-architektur.md` 3, 8.1, 9.3; `02-funktionskonzept.md` 2, 4.7, 6; `08-datenmodell-api.md` 2.5, 2.9, 2.10; ADR 0037 Entscheid 7; AK-82, AK-125 |
+| 4 | Major | Wann ist eine Staffel «verfügbar»? Zwei Regeln | eingearbeitet nach Redaktionsentscheid (Staffel vollständig, Seerr keine Bedingung) in `06-benachrichtigungen.md` 3.3; `03-architektur.md` 3, 8.1, 9.3; `02-funktionskonzept.md` 2, 4.7, 6; `08-datenmodell-api.md` 2.5, 2.9, 2.10; ADR 0037 Entscheid 7; AK-82, AK-125 |
 | 5 | Major | «strengster Wert» widerspricht ADR 0034 und dem Code | eingearbeitet in `01-bestandsanalyse.md` 8; `02-funktionskonzept.md` 7; `03-architektur.md` 3, 8.3; `08-datenmodell-api.md` 2.9; ADR 0038 Entscheid 2; AK-28 |
 | 6 | Major | Wunschmeldungen ohne `item_id` verschwinden aus dem Eingang | eingearbeitet nach Redaktionsentscheid (sichtbar für Anforderer und Mitwünscher des Wunsches) in `06-benachrichtigungen.md` 8, 11; `08-datenmodell-api.md` 2.11; `03-architektur.md` 2.1, 12; `09-umsetzungsplan.md` 2.6; AK-133 |
 | 7 | Major | Abgleich kann sich festfahren (40-Seiten-Grenze ohne Fortschritt) | eingearbeitet **anders als vorgeschlagen** (Redaktionsentscheid: Zeiger je Seite, eigener Erstabgleich ohne Seitengrenze) in `03-architektur.md` 7.1, 7.2, 13; `08-datenmodell-api.md` 2.12; `09-umsetzungsplan.md` 2.5, 9; AK-52, AK-123 |
 | 8 | Major | Übernahme bestehender Anfragen (F-21) geht mit dem beschriebenen Abgleich nicht | eingearbeitet als Job `wishes.import` (Redaktionsentscheid) in `03-architektur.md` 2.3, 7.3, 13; `04-benutzer-profilmapping.md` 8.2; `07-administration.md` 6, 12; `08-datenmodell-api.md` 4.5, 5; `09-umsetzungsplan.md` 4.6; F-21; AK-88 |
-| 9 | Major | Serien: ein Wunsch kann mehrere Jellyseerr-Requests haben | eingearbeitet nach Redaktionsentscheid (`wish_seasons.seerr_request_id`, nicht eindeutig) in `08-datenmodell-api.md` 2.4, 2.5; `03-architektur.md` 6.2, 6.3, 6.4; `04-benutzer-profilmapping.md` 1; AK-122. Das vorgeschlagene UNIQUE (`seerr_request_id`, `season_number`) entfällt; es gibt nur einen Index |
+| 9 | Major | Serien: ein Wunsch kann mehrere Seerr-Requests haben | eingearbeitet nach Redaktionsentscheid (`wish_seasons.seerr_request_id`, nicht eindeutig) in `08-datenmodell-api.md` 2.4, 2.5; `03-architektur.md` 6.2, 6.3, 6.4; `04-benutzer-profilmapping.md` 1; AK-122. Das vorgeschlagene UNIQUE (`seerr_request_id`, `season_number`) entfällt; es gibt nur einen Index |
 | 10 | Major | Zurückziehen erzeugt Geisterbestellungen | eingearbeitet nach Redaktionsentscheid (Job `wishes.withdraw`, Sperre je Wunsch, Wiederöffnen) in `03-architektur.md` 2.3, 6.3, 6.6, 8.1, 8.2, 13, 14; `02-funktionskonzept.md` 4.8; `08-datenmodell-api.md` 2.4, 5; `07-administration.md` 5; `09-umsetzungsplan.md` 2.4; AK-116, AK-117 |
-| 11 | Major | Wechsel der Jellyseerr-Instanz weist Wünsche falschen Personen zu | eingearbeitet nach Redaktionsentscheid (Fingerabdruck als **Vorschlag**) in `04-benutzer-profilmapping.md` 8.4; `03-architektur.md` 7.4, 14, 15.1; `07-administration.md` 2, 4.1, 6, 13; `08-datenmodell-api.md` 2.1, 2.12, 4.2, 4.5; `09-umsetzungsplan.md` 1.5; AK-107 |
+| 11 | Major | Wechsel der Seerr-Instanz weist Wünsche falschen Personen zu | eingearbeitet nach Redaktionsentscheid (Fingerabdruck als **Vorschlag**) in `04-benutzer-profilmapping.md` 8.4; `03-architektur.md` 7.4, 14, 15.1; `07-administration.md` 2, 4.1, 6, 13; `08-datenmodell-api.md` 2.1, 2.12, 4.2, 4.5; `09-umsetzungsplan.md` 1.5; AK-107 |
 | 12 | Major | Datenschutz: das Hauptprofil liest die Wünsche von PIN-Profilen | **nicht übernommen**, weil das Hauptprofil das Konto verwaltet (PINs setzen und entfernen, Schauzeit und Einstellungen aller Profile) und darum bewusst die Wünsche aller Profile sieht; F-15 schützt externe Kanäle, die jedes Gerät erreichen. Begründung klargestellt in `06-benachrichtigungen.md` 8, `02-funktionskonzept.md` 5.3 und F-15 |
 | 13 | Major | Suche nach fehlenden Titeln: Altersprüfung braucht je Treffer einen Detailabruf | eingearbeitet in `03-architektur.md` 16; `02-funktionskonzept.md` 5.2; `08-datenmodell-api.md` 4.5; `01-bestandsanalyse.md` 20 (TE-23); ADR 0038 Entscheid 2; AK-115, AK-137 |
 | 14 | Minor | 403 «unbekannter Benutzer» und «falscher Schlüssel» nicht zu unterscheiden | eingearbeitet in `03-architektur.md` 6.4, 14; `04-benutzer-profilmapping.md` 8.1 |
@@ -934,14 +952,14 @@ andere in diesem Konzept und stehen zusammen mit F-1 bis F-34 und T-1, T-2 zur F
 | 22 | Minor | «aufheben» gegen «Ausnahme» bei Spec-Zeile 46 | eingearbeitet in `09-umsetzungsplan.md` 2 (Schritt 0.1), AK-1 |
 | 23 | Minor | «Erneut anfordern» nach `arr_failed` führt in eine Schleife | eingearbeitet in `03-architektur.md` 8.1; `02-funktionskonzept.md` 2; `07-administration.md` 5 |
 | 24 | Minor | Einzelprüfung trifft jeden Lauf dieselben Wünsche | eingearbeitet in `03-architektur.md` 7.1; `08-datenmodell-api.md` 2.4 (`checked_at`); AK-124 |
-| 25 | Minor | Sofortversuch mit zwei Jellyseerr-Aufrufen in 3 s | eingearbeitet in `03-architektur.md` 6.1, 6.3, 6.5, 9.1; `02-funktionskonzept.md` 4.4; ADR 0037 Entscheid 8 |
+| 25 | Minor | Sofortversuch mit zwei Seerr-Aufrufen in 3 s | eingearbeitet in `03-architektur.md` 6.1, 6.3, 6.5, 9.1; `02-funktionskonzept.md` 4.4; ADR 0037 Entscheid 8 |
 | 26 | Minor | Prioritäten gegen die Regel der Queue | eingearbeitet in `03-architektur.md` 13; `09-umsetzungsplan.md` 2.2, 4.1 |
 | 27 | Minor | Ort des Hakens `WithMatched` | eingearbeitet in `03-architektur.md` 11; `06-benachrichtigungen.md` 3.1; `09-umsetzungsplan.md` 2.5 |
 | 28 | Minor | Doppelschutz hängt an Zeilen, die nach 90 Tagen gelöscht werden | eingearbeitet in `06-benachrichtigungen.md` 3.2, 7, 11; `08-datenmodell-api.md` 2.5, 2.6; `03-architektur.md` 12; AK-126 |
 | 29 | Minor | Der «stündliche Test» hat keinen Job | eingearbeitet in `03-architektur.md` 7.1, 13, 14; AK-4 |
-| 30 | Minor | «Jellyseerr verwenden» aus lässt Wünsche nach 24 h scheitern | eingearbeitet als **Vorschlag** «Frist ruht» mit Teilfrage T-2 (Abschnitt 1) in `03-architektur.md` 6.3, 14; `07-administration.md` 4.6; `02-funktionskonzept.md` 4.4; AK-111 |
+| 30 | Minor | «Seerr verwenden» aus lässt Wünsche nach 24 h scheitern | eingearbeitet als **Vorschlag** «Frist ruht» mit Teilfrage T-2 (Abschnitt 1) in `03-architektur.md` 6.3, 14; `07-administration.md` 4.6; `02-funktionskonzept.md` 4.4; AK-111 |
 | 31 | Minor | Gespeicherter Schlüssel geht an eine neu eingetippte Adresse | eingearbeitet in `03-architektur.md` 15.3; `07-administration.md` 4.1; `08-datenmodell-api.md` 4.5; AK-105 |
-| 32 | Minor | Mindestversion «Jellyseerr ≥ 2.0», geprüft ist nur 2.7.3 | eingearbeitet in `03-architektur.md` 15.1; `07-administration.md` 4.1; `08-datenmodell-api.md` 4.2; AK-106 |
+| 32 | Minor | Mindestversion «Seerr ≥ 2.0», geprüft ist nur 2.7.3 | eingearbeitet in `03-architektur.md` 15.1; `07-administration.md` 4.1; `08-datenmodell-api.md` 4.2; AK-106 |
 | 33 | Minor | Unbelegte API-Details (`filter=all`, `externalIds.tvdbId`, `media.seasons[]`) | eingearbeitet in `03-architektur.md` 7.1 (`filter` weggelassen, «nicht verifiziert»); `08-datenmodell-api.md` 5 |
 | 34 | Minor | Gelöschtes Konto: «geschlossen» oder «nicht zuordenbar»? | eingearbeitet **anders als vorgeschlagen** (Redaktionsentscheid: Wünsche werden geschlossen): offene `failed` mit `account_deleted`, Request-IDs in den Verlauf, damit der Teilindex frei wird; in `04-benutzer-profilmapping.md` 10; `03-architektur.md` 8.1; `08-datenmodell-api.md` 2.4, 2.6; `07-administration.md` 8; AK-128 |
 | 35 | Minor | Gleichzeitiges Anfordern zweier Profile | eingearbeitet in `03-architektur.md` 6.1, 6.5; `09-umsetzungsplan.md` 2.4; AK-121 |
@@ -965,7 +983,7 @@ Papier.
 | 2.7 Jugendschutz | «Freigabeland-Reihenfolge nach ADR 0034, strengster Wert» | Länderreihenfolge nach ADR 0034, das erste Land mit bekanntem Wert gilt; strengster Wert nur innerhalb eines Lands über die Anbieter; unbekannt = 18 (`03-architektur.md`, Abschnitt 3). Der Wortlaut in Anhang F ist falsch |
 | 2.13, 3 Fehlende Titel sehen | «Profile ohne Wunschrecht sehen keine fehlenden Titel»; «Konto ohne Zuordnung» als Fall am Knopf; fehlende Titel im Spotlight | Fehlende Titel sieht nur, wer sie anfordern kann (auch Zuordnung, Art, Alter); kein Hinweis statt Knopf; Ausnahme eigene Wünsche (F-9). Im Spotlight und auf der Startseite gar nicht (E-5) |
 | 6 `listAccountWishes` | `account` | `scoped`, zusätzlich Hauptprofil; Verwaltungsantworten ohne `ItemRef`, eigene Admin-Bildroute |
-| 4 Version | Jellyseerr ≥ 2.0 | Jellyseerr ≥ 2.7 bzw. Seerr ≥ 3.0; ältere «nicht geprüft» |
+| 4 Version | Seerr ≥ 2.0 | Seerr ≥ 2.7 bzw. Seerr ≥ 3.0; ältere «nicht geprüft» |
 | 4 Hintergrundjobs | sechs Jobarten | acht: dazu `wishes.withdraw` und `wishes.import`; Erstabgleich als Lauf von `wishes.sync` |
 | 2.9 Abgleich | Abbruch beim Zeiger; Einzelprüfung offener Wünsche nach 24 h | Zeiger je Seite, Erstabgleich ohne Seitengrenze, Einzelprüfung höchstens einmal je 24 h je Wunsch |
 | 5 Datenmodell | `wishes.seerr_request_id` je Wunsch; keine Spalten für Doppelschutz und Instanz | Request-ID bei Serien je Staffel; neu `wish_seasons.tmdb_id`, `seerr_request_id`, `notified_at`; `wish_requesters.notified_at`; `wishes.withdraw_pending`, `checked_at`; `seerr_users.created_at`; Tabellen `seerr_log`, `external_title_images` |
@@ -977,7 +995,7 @@ Papier.
 ### 7.4 Fassung 3: Marcos erste Rückmeldung vom 17. November 2026
 
 **Was kam.** Marco hat Fassung 2 durchgesehen («Sieht schonmal sehr gut aus») und vier Ergänzungen verlangt:
-Konten in Jellyseerr mit denselben Login-Daten eröffnen, Profile nur mit Tag; ein Limit je Konto, rollierend;
+Konten in Seerr mit denselben Login-Daten eröffnen, Profile nur mit Tag; ein Limit je Konto, rollierend;
 eine Seite für Wünsche wie die Startseite von Seerr mit Discover, Movies, Series und Search; Serien über TVDB
 konsistent. Auf vier Rückfragen hat er E-1 bis E-4 geantwortet (Abschnitt 0). Wortlaut, neue Fakten aus dem Code
 von Seerr 3.5.2 und die abgeleiteten Regeln N-1 bis N-65 stehen in [Anhang H](anhang/H-nachtrag-17-november.md).
@@ -991,7 +1009,7 @@ Freigabe.
 
 | Thema | Regeln (Anhang H) | Papiere dieses Teils |
 |---|---|---|
-| Jellyseerr-Benutzer je Konto, eröffnen, verknüpfen, Passwort | N-1 bis N-12, E-1, E-4 | `03-architektur.md` 2.2, 2.3, 4, 14, 15, 18; `07-administration.md` 1.1, 2, 4.1, 4.7, 6, 7, 8; `08-datenmodell-api.md` 2.1, 2.2, 4.5, 4.6, 5; `09-umsetzungsplan.md` 1.5a, 1.5b; AK-139 bis AK-150 |
+| Seerr-Benutzer je Konto, eröffnen, verknüpfen, Passwort | N-1 bis N-12, E-1, E-4 | `03-architektur.md` 2.2, 2.3, 4, 14, 15, 18; `07-administration.md` 1.1, 2, 4.1, 4.7, 6, 7, 8; `08-datenmodell-api.md` 2.1, 2.2, 4.5, 4.6, 5; `09-umsetzungsplan.md` 1.5a, 1.5b; AK-139 bis AK-150 |
 | Limit | N-30 bis N-38, E-3 | `03-architektur.md` 6.1, 19; `07-administration.md` 5, 6, 7, 8; `08-datenmodell-api.md` 2.1, 2.13, 4.4; `09-umsetzungsplan.md` 1.5c, 2.4; AK-151 bis AK-155, AK-158 bis AK-165, AK-168 |
 | Profil-Tag in Radarr und Sonarr | N-20 bis N-28, E-2 | `03-architektur.md` 2.6, 20; `07-administration.md` 4.8, 5, 7; `08-datenmodell-api.md` 2.14, 6; `09-umsetzungsplan.md` 4.6a bis 4.6c; AK-171 bis AK-178 |
 | Ausnahme je Profil | N-40, N-41 | F-2, F-27; `07-administration.md` 6; `08-datenmodell-api.md` 2.2 |
@@ -1003,15 +1021,15 @@ Freigabe.
 
 | Stelle | Fassung 2 | Fassung 3 |
 |---|---|---|
-| Zuordnung | Zuordnung C «hybrid» empfohlen; der Administrator ordnet zu, Slouchcat schlägt bei gleicher E-Mail nur vor | ein Jellyseerr-Benutzer je Konto, eröffnet oder automatisch über die E-Mail verknüpft (E-1, E-4); die Zuordnung je Profil ist nur noch zugeklappte Ausnahme (F-27); Seite «Zuordnung» heisst «Jellyseerr-Benutzer» |
-| Benutzer in Jellyseerr anlegen | verworfen, Verwaltung von Jellyseerr Nicht-Ziel | Kern der Fassung (E-1); Ausnahme vom Nicht-Ziel, eng gefasst |
+| Zuordnung | Zuordnung C «hybrid» empfohlen; der Administrator ordnet zu, Slouchcat schlägt bei gleicher E-Mail nur vor | ein Seerr-Benutzer je Konto, eröffnet oder automatisch über die E-Mail verknüpft (E-1, E-4); die Zuordnung je Profil ist nur noch zugeklappte Ausnahme (F-27); Seite «Zuordnung» heisst «Seerr-Benutzer» |
+| Benutzer in Seerr anlegen | verworfen, Verwaltung von Seerr Nicht-Ziel | Kern der Fassung (E-1); Ausnahme vom Nicht-Ziel, eng gefasst |
 | Radarr und Sonarr | Slouchcat spricht sie nie an | nur für den Profil-Tag (E-2) und das Lesen des Download-Fortschritts (E-7); Webhooks wie heute (E-6); ADR 0010 mit Nachtrag |
 | Spotlight | fehlende Titel auf Bühne und in der Liste, mit Schalter | nur Bibliothekstitel wie heute (E-5); Abgleich über TVDB und IMDb; fehlende Einträge nur in der Verwaltung |
-| Kontingent | nur aus Jellyseerr gelesen und angezeigt | «Limit», in Slouchcat eingestellt und in Jellyseerr geschrieben, Vorprüfung beim Anfordern (E-3) |
+| Kontingent | nur aus Seerr gelesen und angezeigt | «Limit», in Slouchcat eingestellt und in Seerr geschrieben, Vorprüfung beim Anfordern (E-3) |
 | Seite «Entdecken» | Nicht-Ziel (Anhang F 2.14) | Bereich «Wünsche» mit vier neuen Reitern, Stufe 5 (Marcos Nachricht) |
 | Abgleich der Serien | TMDB, dann TVDB, dann IMDb | TVDB, dann TMDB, dann IMDb, wie die Bibliothek (N-61) |
-| Staffeln im Dialog | aus `external_titles` bzw. `series_catalog` (TMDB) | aus Jellyseerr (N-63); Rückfall TMDB |
-| Kein Aufruf an Jellyseerr im Seitenaufbau | ohne Ausnahme | Ausnahmen für die Wünsche-Seiten und die Staffelliste, mit Zwischenspeicher |
+| Staffeln im Dialog | aus `external_titles` bzw. `series_catalog` (TMDB) | aus Seerr (N-63); Rückfall TMDB |
+| Kein Aufruf an Seerr im Seitenaufbau | ohne Ausnahme | Ausnahmen für die Wünsche-Seiten und die Staffelliste, mit Zwischenspeicher |
 | Jobarten | acht | zwölf: dazu `seerr.provision`, `wishes.tag`, `wishes.discover`, `wishes.progress` |
 | Stufen | 0 bis 4 | 0 bis 5 |
 | Fragen | F-1 bis F-22 | F-1 bis F-34; F-2 und F-4 in der Sache weitgehend durch E-1, E-4 geklärt, F-8 durch E-5 entschieden, F-20 durch F-34 ersetzt, F-11 auf zwei Stellen erweitert, F-33 neu (Abschnitt 7.5) |
@@ -1028,10 +1046,10 @@ Freigabe.
 - **Passwort im Job.** Anhang H nennt den Job `seerr.provision` als Auslöser der Eröffnung. Weil die Queue
   Nutzlasten in der Datenbank hält, trägt der Job nie ein Passwort; die Übergabe in den drei Momenten läuft im
   Speicher (`03-architektur.md`, Abschnitt 18.3).
-- **«Unbegrenzt» in Jellyseerr.** Anhang H belegt nicht, welcher Wert in Jellyseerr «ohne Limit» heisst; als
+- **«Unbegrenzt» in Seerr.** Anhang H belegt nicht, welcher Wert in Seerr «ohne Limit» heisst; als
   Vorschlag steht 0, nicht verifiziert.
 - **Adresse von Radarr und Sonarr aus einer Antwort.** Fassung 2 ruft nie eine Adresse aus einer Antwort von
-  Jellyseerr auf; N-23 verlangt genau das. Gewählt: erlaubt, aber erst nach einer Bestätigung durch den
+  Seerr auf; N-23 verlangt genau das. Gewählt: erlaubt, aber erst nach einer Bestätigung durch den
   Administrator (Vorschlag).
 - **Grenzen des Limits** (Anzahl 0 bis 100, Tage 1 bis 90) stehen im Mockup, nicht in Anhang H; hier als Vorschlag
   übernommen.
@@ -1077,7 +1095,7 @@ Slouchcat liest davon nur `eventType` und den Ordner.
 | Wünsche › Einstellungen | Schalter «Anfordern aus dem Spotlight» | entfällt; neu «Download-Fortschritt zeigen» |
 | Startreihe | Reihe mit offenen und kürzlich erfüllten Wünschen (F-20) | «Erfüllte Wünsche», nur Bibliothekstitel (Empfehlung, F-34) |
 | Radarr und Sonarr | API nur für den Profil-Tag | API für Profil-Tag und Lesen von Warteschlange und Dateistand der gewünschten Titel (K-5); Webhooks unverändert |
-| Spec `:67` | Ausnahme nur für den Zustand eigener Wünsche aus Jellyseerr | dazu der Download-Fortschritt, nur beim Wunsch |
+| Spec `:67` | Ausnahme nur für den Zustand eigener Wünsche aus Seerr | dazu der Download-Fortschritt, nur beim Wunsch |
 | ADR 0010 | eine Ausnahme (Tag) | zwei Ausnahmen (Tag setzen; Warteschlange und Dateistand der gewünschten Titel lesen); Webhook-Empfang bleibt |
 | Stufe 3 | 5 Tage mit Mischregel der Bühne | 2,5 Tage: Abgleich über drei IDs, Verwaltung, Startreihe |
 | Stufe 4 | 9 Tage | 10,5 Tage mit dem Fortschritt; dazu wahlweise Schritt 6a (F-33) |
@@ -1102,12 +1120,17 @@ eingearbeitet.
 
 **Wer hat entschieden?** Die Entscheide zu K-1 bis K-23 hat die Redaktion getroffen; **Marco hat dazu nichts
 entschieden.** Sie sind Empfehlungen wie alles andere in diesem Konzept und stehen mit F-1 bis F-34 und T-1, T-2
-zur Freigabe. Wo ein Entscheid eine Antwort von Marco berührt, steht es dabei: K-1 schränkt E-4 für einen Fall
+zur Freigabe. Wo ein Entscheid eine Antwort von Marco berührt, steht es dabei: K-1 schränkte E-4 für einen Fall
 ein, K-11 trennt E-1 von der Lesart der Redaktion.
+
+**Nachtrag: K-1 hat Marco anders entschieden.** In der dritten Runde (Abschnitt 7.7, E-8) wählte Marco «Sofort
+verknüpfen» statt der empfohlenen Bestätigung. N-2a ist zurückgezogen (N-90). Die Einarbeitung von K-1 in der
+Tabelle unten ist damit überholt; was jetzt gilt, steht in 7.7. Ebenso überholt ist die Zählung in K-10 (jetzt
+29 offene Fragen, 7.7).
 
 | Nr. | Stufe | Befund (kurz) | Einarbeitung |
 |---|---|---|---|
-| K-1 | Blocker | Übernahme eines fremden Jellyseerr-Benutzers über eine frei eingetippte E-Mail (Einladung, E-Mail-Änderung); das Mockup verriet, ob die Adresse in Jellyseerr existiert | N-2a: über die E-Mail verknüpft nur ein Administrator, sonst Zustand «Verknüpfung vorgeschlagen» ohne Passwort und ohne Anfordern; schränkt E-4 für diesen Fall ein. `03-architektur.md` 14, 15.4, 18.1 bis 18.3; `07-administration.md` 2, 4.7, 6 (M-24), 7 (M-25), 8 (M-26), 12, 13, 14; `08-datenmodell-api.md` 2.2, 4.5 (`confirmSeerrAccountLink`), 4.6, 4.7; `09-umsetzungsplan.md` 3 (1.5a, 1.5b, 1.8), 10; AK-141, AK-142, AK-150, neu AK-213 bis AK-218; F-24; ADR 0037 Entscheid 4 und 15 |
+| K-1 | Blocker | Übernahme eines fremden Seerr-Benutzers über eine frei eingetippte E-Mail (Einladung, E-Mail-Änderung); das Mockup verriet, ob die Adresse in Seerr existiert | N-2a: über die E-Mail verknüpft nur ein Administrator, sonst Zustand «Verknüpfung vorgeschlagen» ohne Passwort und ohne Anfordern; schränkt E-4 für diesen Fall ein. `03-architektur.md` 14, 15.4, 18.1 bis 18.3; `07-administration.md` 2, 4.7, 6 (M-24), 7 (M-25), 8 (M-26), 12, 13, 14; `08-datenmodell-api.md` 2.2, 4.5 (`confirmSeerrAccountLink`), 4.6, 4.7; `09-umsetzungsplan.md` 3 (1.5a, 1.5b, 1.8), 10; AK-141, AK-142, AK-150, neu AK-213 bis AK-218; F-24; ADR 0037 Entscheid 4 und 15 |
 | K-2 | Major | Konto löschen: N-9 gegen N-10 | nur ein eröffneter Benutzer verliert Rechte und bekommt ein Zufallspasswort. `03-architektur.md` 18.4; `07-administration.md` 8, 14; `08-datenmodell-api.md` 2.2, 4.6 (`deleteAccount`); `09-umsetzungsplan.md` 1.5a (beide Fälle); AK-148, neu AK-219; F-31; ADR 0037 Entscheid 4 |
 | K-3 | Major | Chip «Dein Wunsch ist da» auf der Spotlight-Bühne | Bühne ohne Wunsch-Chip; Chip auf der Detailseite (M-05), erfüllte Wünsche in der Reihe «Erfüllte Wünsche». `10-abnahmekriterien.md` AK-131, M-01, M-05 |
 | K-4 | Major | Staffelliste für eine Serie der Bibliothek ohne Weg im Vertrag | `getWishSeasons` auch für eine vorhandene Serie mit fehlenden Staffeln, eigene 404-Fälle. `08-datenmodell-api.md` 4.5; `03-architektur.md` 6.2 |
@@ -1120,13 +1143,34 @@ ein, K-11 trennt E-1 von der Lesart der Redaktion.
 | K-11 | Minor | F-24 las E-1 als «gilt für alle Konten» | E-1 fragte nach eingeladenen Benutzern; der Rest ist Lesart der Redaktion. F-24 |
 | K-12 | Minor | `07` sagte «bei Abweichung gilt das Mockup» | Papier und Mockup sind angeglichen; bei Abweichung gilt das Papier. `07-administration.md` Stand |
 | K-13 | Minor | Routen des Bereichs | `/discover` für «Entdecken», «Filme», «Serien», «Suche», `/wishes` für «Meine Wünsche»; Teil des anderen Redaktionsstrangs (`02-funktionskonzept.md`) |
-| K-14 | Minor | «Bis dahin kann das Konto nicht anfordern» war unklar | Anfordern geht, sobald der Jellyseerr-Benutzer besteht; das Passwort spielt keine Rolle. Hauptort im anderen Redaktionsstrang (`02`, `04`); in `03-architektur.md` 15.4 und 18.1 hängt «kein Anfordern» nur am fehlenden Benutzer (Vorschlag nach N-2a), nie am Passwort |
-| K-15 | Minor | Eröffnet das Einrichten von Jellyseerr bestehende Konten? | nein; nur das Annehmen einer Einladung eröffnet von selbst. `07-administration.md` 7, 8, 14; F-23; ADR 0037 Entscheid 4; Abschnitt 3 |
+| K-14 | Minor | «Bis dahin kann das Konto nicht anfordern» war unklar | Anfordern geht, sobald der Seerr-Benutzer besteht; das Passwort spielt keine Rolle. Hauptort im anderen Redaktionsstrang (`02`, `04`); in `03-architektur.md` 15.4 und 18.1 hängt «kein Anfordern» nur am fehlenden Benutzer (Vorschlag nach N-2a), nie am Passwort |
+| K-15 | Minor | Eröffnet das Einrichten von Seerr bestehende Konten? | nein; nur das Annehmen einer Einladung eröffnet von selbst. `07-administration.md` 7, 8, 14; F-23; ADR 0037 Entscheid 4; Abschnitt 3 |
 | K-16 | Minor | Reihe «Erfüllte Wünsche» braucht Daten, die nur `wishes` lesen darf | Titel-IDs vom Dienst `wishes`, Sichtbarkeit über `visibility`. `03-architektur.md` 2.1; `09-umsetzungsplan.md` 3.4; ADR 0038 Folgen |
 | K-17 | Minor | AK-177 liess Mia ohne Wunschrecht mitwünschen | Beispiel mit Noah. AK-177 |
 | K-18 | Minor | gleiche Profilnamen: Tags werden nie umbenannt | N-21 genauer: das erste Profil behält `sc-kinder`, ein späteres bekommt `sc-kinder-grosseltern`. `03-architektur.md` 20.1; `08-datenmodell-api.md` 2.14; AK-178 |
-| K-19 | Minor | Datenschutz: geteiltes Jellyseerr-Login, eigene E-Mails von Jellyseerr | Hinweis in Wünsche › Einstellungen (`07-administration.md` 7); bekannte Grenze in ADR 0037 «Folgen» mit Empfehlung, die Benachrichtigungen von Jellyseerr für eröffnete Benutzer aus zu lassen; `04`, `06` im anderen Strang |
+| K-19 | Minor | Datenschutz: geteiltes Seerr-Login, eigene E-Mails von Seerr | Hinweis in Wünsche › Einstellungen (`07-administration.md` 7); bekannte Grenze in ADR 0037 «Folgen» mit Empfehlung, die Benachrichtigungen von Seerr für eröffnete Benutzer aus zu lassen; `04`, `06` im anderen Strang |
 | K-20 | Minor | ADR 0038 «Folgen» ohne die neue Startreihe | ergänzt (F-34) |
 | K-21 | Minor | zurückgezogener Wunsch mit fremdem Request pauschal «In Beschaffung» | Zustand folgt dem Request (`pending` oder `processing`). `03-architektur.md` 6.6 Schritt 6 |
 | K-22 | Minor | Abschnitt 0 nannte `internal/arr` «nur für Tags» | Tags und Lesen des Fortschritts. Abschnitt 0, Zeile E-2 |
-| K-23 | Minor | Schlüssel von Radarr und Sonarr jede Minute neu aus Jellyseerr | 10 Minuten im Speicher, neu nach Ablauf oder nach 401. `03-architektur.md` 2.6, 20.2, 20.3, 22.4; `08-datenmodell-api.md` 6; `09-umsetzungsplan.md` 4.6a, 10; ADR 0037 Entscheid 17 |
+| K-23 | Minor | Schlüssel von Radarr und Sonarr jede Minute neu aus Seerr | 10 Minuten im Speicher, neu nach Ablauf oder nach 401. `03-architektur.md` 2.6, 20.2, 20.3, 22.4; `08-datenmodell-api.md` 6; `09-umsetzungsplan.md` 4.6a, 10; ADR 0037 Entscheid 17 |
+
+### 7.7 Dritte Runde vom 17. November 2026 (E-8 bis E-11)
+
+Marco fragte nach Fassung 3: «Hast du noch offene Fragen oder Unklarheiten?» Vier Weichen wurden ihm vorgelegt;
+seine Antworten sind E-8 bis E-11 (Anhang H 10.1, Abschnitt 0 dieses Papiers). Anhang H 10 geht den Abschnitten 4
+bis 9 dort vor.
+
+| Nr. | Marcos Antwort | Regeln (Anhang H 10.2) | Eingearbeitet in |
+|---|---|---|---|
+| E-8 | «Sofort verknüpfen», auch bei Einladungen | N-90 (N-2a zurückgezogen, kein Zustand «Verknüpfung vorgeschlagen», keine Aktion und keine Operation zum Bestätigen), N-91 (Passwort an den verknüpften Benutzer, nicht bei N-6), N-92 (bekannte Grenze); Redaktion: N-93 (Hinweis «Neu verknüpft» sieben Tage, Protokoll), N-94 (gleiche Meldung in beiden Fällen), N-95 (E-Mail-Änderung) | `03-architektur.md` 7.4, 14, 15.4, 18.1 bis 18.4; `07-administration.md` Kurz gesagt, 2 (M-20), 4.7, 6 (M-24), 7 (M-25), 8 (M-26), 12, 13, 14; `08-datenmodell-api.md` 2.2 (`linked_by`, `linked_at`; ohne `suggested` und `suggested_seerr_user_id`), 4.5 (ohne `confirmSeerrAccountLink`; `provisionSeerrAccounts` antwortet `{link, create}`), 4.6, 4.7; `09-umsetzungsplan.md` 3 (1.5a, 1.5b, 1.8), 10; `10-abnahmekriterien.md` AK-141, AK-142, AK-216, AK-217 geändert, AK-213, AK-214, AK-215, AK-218 entfallen, neu AK-220 bis AK-225, M-20, M-24, M-25, M-35; F-23, F-24; Frage 33; ADR 0037 Entscheid 4 und 15, «Verworfen», «Folgen» |
+| E-9 | «Seerr» | N-96 | alle Papiere (Ersetzung durch die Redaktion); «Jellyseerr» nur bei Version 2.x und in den Anhängen A bis G; F-32 |
+| E-10 | «Erfüllte Wünsche» | N-97 | `03-architektur.md` 2.1; `07-administration.md` 10, 14; `08-datenmodell-api.md` 2.11, 4.6; `09-umsetzungsplan.md` 3.4; AK-78, AK-195; F-20, F-34; ADR 0038 |
+| E-11 | «Ja, nach Messung» | N-98 | `03-architektur.md` 2.1, 10.1; `08-datenmodell-api.md` 4.6; `09-umsetzungsplan.md` Kurz gesagt, 6a, 8, 9, 10; AK-104, AK-212, neu AK-226, AK-227; F-22, F-33; ADR 0037 Entscheid 20, «Folgen» |
+
+**Fragen danach (Anhang H 10.3).** Es gibt F-1 bis F-34. Entschieden sind F-8 (E-5), F-32 (E-9), F-33 (E-11) und
+F-34 (E-10); F-20 ist durch F-34 ersetzt. F-24 ist im Teil «Verknüpfen» durch E-8 entschieden; der Rest (Passwort
+auch bei nachträglich eröffneten und verknüpften Konten, K-11; Hinweis an die Administratoren, N-93) bleibt
+Empfehlung. Offen sind damit 29 Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2.
+
+**Wer hat entschieden?** E-8 bis E-11 sind Marcos Antworten. N-91 folgt aus E-1 und E-8; die Ausnahme N-6 darin,
+N-93, N-94, N-95 und der Zuschnitt von Schritt 6a (was als Gewinn zählt) sind Empfehlungen der Redaktion.

@@ -1,5 +1,5 @@
 /* M-35 «Einladung annehmen» (#/invite/:id): the account with its main profile, and at the same moment its user in
-   Jellyseerr with the same login. The password lives only in ui.draft.invite and is dropped after submit. Prefix va-. */
+   Seerr with the same login. The password lives only in ui.draft.invite and is dropped after submit. Prefix va-. */
 'use strict';
 
 function vaSeerrOn() { return !!(S.settings.wishes.provision && S.seerr.configured && S.seerr.enabled); }
@@ -27,7 +27,7 @@ route('/invite/:id', (pm) => {
   const ss = seerrState();
   const f = (k, label, type, auto, hint) => `<div class="fld"><label for="va:${k}">${label}</label><input id="va:${k}" class="inp" type="${type}" data-bind="ui.draft.invite.${k}" data-fid="va:${k}" value="${esc(d[k])}" autocomplete="${auto}" ${e[k] ? 'aria-invalid="true" aria-describedby="va:' + k + ':e"' : ''} ${k === 'email' ? 'data-autofocus' : ''}>${hint ? `<span class="hint">${hint}</span>` : ''}${e[k] ? `<span class="err" id="va:${k}:e">${e[k]}</span>` : ''}</div>`;
   const facts = `<ul class="va-facts" aria-label="Was diese Einladung erlaubt">${inv.note ? `<li>${icon('note', 16)}<span>«${esc(inv.note)}»</span></li>` : ''}<li>${icon('lock', 16)}<span>Altersstufe ${ageLabel(inv.maxRating)}</span></li><li>${icon(inv.canRequest ? 'wish' : 'ban', 16)}<span>${inv.canRequest ? `Darf Titel anfordern · Limit: ${vaLimitText(inv)}` : 'Darf keine Titel anfordern'}</span></li><li>${icon('clock', 16)}<span>Gültig bis ${fmtDate(inv.until)}</span></li></ul>`;
-  const seerr = vaSeerrOn() ? `<div class="va-seerr"><b>Dein Login gilt auch für Jellyseerr <span class="newtag">NEU</span></b><p>${ss.k === 'ok' ? 'Slouchcat eröffnet dir dort ein Konto mit derselben E-Mail-Adresse und demselben Passwort. Was du in Slouchcat anforderst, erscheint dort unter deinem Namen.' : 'Mit derselben E-Mail-Adresse und demselben Passwort. Jellyseerr ist gerade nicht erreichbar: Dein Konto dort folgt beim nächsten Abgleich, das Passwort bei deiner nächsten Anmeldung.'}</p></div>` : '';
+  const seerr = vaSeerrOn() ? `<div class="va-seerr"><b>Dein Login gilt auch für Seerr <span class="newtag">NEU</span></b><p>${ss.k === 'ok' ? 'Slouchcat eröffnet dir dort ein Konto mit derselben E-Mail-Adresse und demselben Passwort. Was du in Slouchcat anforderst, erscheint dort unter deinem Namen.' : 'Mit derselben E-Mail-Adresse und demselben Passwort. Seerr ist gerade nicht erreichbar: Dein Konto dort folgt beim nächsten Abgleich, das Passwort bei deiner nächsten Anmeldung.'}</p></div>` : '';
   const html = vaShell(`<h1 class="va-h1">Einladung annehmen</h1><p class="va-sub">Lege dein Konto an. Der Name wird dein erstes Profil; weitere Profile legst du später selbst an.</p>${facts}
     <div class="va-form">${f('email', 'E-Mail', 'email', 'email')}${f('name', 'Name des Profils', 'text', 'nickname')}${f('pw1', 'Passwort', 'password', 'new-password', 'Mindestens 10 Zeichen.')}${f('pw2', 'Passwort wiederholen', 'password', 'new-password')}</div>
     ${seerr}<div class="va-acts"><button type="button" class="btn primary lg" data-act="vaAccept" data-id="${inv.id}" data-fid="va:ok">Konto anlegen</button></div>`);
@@ -49,8 +49,8 @@ ACT.vaAccept = (dd) => {
   const st = accSeerr(account(res.accountId));
   switchProfile(res.profileId);
   go('#/');
-  const msg = st.state === 'created' ? 'In Jellyseerr hast du jetzt ein Konto mit derselben E-Mail und demselben Passwort.'
-    /* never tell the new account whether Jellyseerr already knows this e-mail address */
-    : st.state === 'waiting' || st.state === 'suggested' ? 'Dein Konto in Jellyseerr ist noch nicht bereit. Bis dahin kannst du noch keine Titel anfordern.' : '';
-  toast(`Willkommen, ${esc(name)}. Dein Konto ist angelegt.${msg ? ' ' + msg : ''}`, st.state === 'created' || !msg ? 'ok' : 'warn', 7000);
+  /* the same sentence whether the Seerr user is new or was linked: the page never says whether Seerr knew the address */
+  const msg = st.state === 'created' || st.state === 'linked' ? 'In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.'
+    : st.state === 'waiting' ? 'Dein Konto in Seerr ist noch nicht bereit. Bis dahin kannst du noch keine Titel anfordern.' : '';
+  toast(`Willkommen, ${esc(name)}. Dein Konto ist angelegt.${msg ? ' ' + msg : ''}`, st.state === 'waiting' ? 'warn' : 'ok', 7000);
 };

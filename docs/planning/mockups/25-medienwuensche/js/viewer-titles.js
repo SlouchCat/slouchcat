@@ -98,7 +98,7 @@ function vtStatusBlock(t, p) {
   const a = availability(p, t), cr = canRequest(p, t), lc = lastClosed(t.key, p);
   if (a.kind === 'wished' && a.mine) return vtWishCard(t, a.wish, p);
   if (!cr.ok) {
-    const acts = cr.reason === 'unmapped' && isAdmin() ? `<a class="btn secondary sm" href="#/admin/wishes/mapping" data-fid="pv:map">${icon('link', 16)}Jellyseerr-Benutzer öffnen</a>` : '';
+    const acts = cr.reason === 'unmapped' && isAdmin() ? `<a class="btn secondary sm" href="#/admin/wishes/mapping" data-fid="pv:map">${icon('link', 16)}Seerr-Benutzer öffnen</a>` : '';
     return notice('warn', 'Anfordern ist für dieses Profil nicht möglich', esc(cr.text), acts);
   }
   if (a.kind === 'wished') {
@@ -106,7 +106,7 @@ function vtStatusBlock(t, p) {
     return notice('', 'Bereits angefordert', `Ein anderes Profil hat ${t.kind === 'movie' ? 'diesen Film' : 'diese Serie'} schon angefordert (${esc(STATE_LABEL[a.wish.state])}). ${tail}`);
   }
   if (lc && lc.state !== 'available') {
-    const why = lc.state === 'failed' ? FAIL_TEXT[lc.failReason] || '' : lc.state === 'declined' ? 'Jellyseerr nennt keinen Grund.' : 'Du hast ihn zurückgezogen.';
+    const why = lc.state === 'failed' ? FAIL_TEXT[lc.failReason] || '' : lc.state === 'declined' ? 'Seerr nennt keinen Grund.' : 'Du hast ihn zurückgezogen.';
     return notice(lc.state === 'withdrawn' ? '' : 'warn', `Dein letzter Wunsch: ${STATE_LABEL[lc.state]}`, `${fmtDate(lc.closed || lc.created)}. ${esc(why)} Du kannst den Titel erneut anfordern.`);
   }
   return notice('', 'Noch nicht in der Bibliothek', 'Fordere den Titel an, Slouchcat meldet sich, sobald er abspielbar ist.');
@@ -229,7 +229,7 @@ ACT.vtDeleteOk = (d) => { closeDialog(); toast(`Löschen ist unverändert. «${e
 DIALOGS.vtWithdraw = ({ id }) => {
   const w = wishById(id), t = T[w.titleKey], p = curProfile();
   const joiner = w.owner !== p.id && w.joined.includes(p.id);
-  const text = joiner ? `Slouchcat benachrichtigt dich nicht mehr, wenn «${esc(t.title)}» verfügbar ist. Der Wunsch selbst bleibt bestehen.` : `Der Wunsch für «${esc(t.title)}» wird in Jellyseerr zurückgezogen. Du kannst den Titel später wieder anfordern.`;
+  const text = joiner ? `Slouchcat benachrichtigt dich nicht mehr, wenn «${esc(t.title)}» verfügbar ist. Der Wunsch selbst bleibt bestehen.` : `Der Wunsch für «${esc(t.title)}» wird in Seerr zurückgezogen. Du kannst den Titel später wieder anfordern.`;
   return { title: joiner ? 'Nicht mehr mitwünschen?' : 'Wunsch zurückziehen?', body: `<p class="lead">${text}</p>`, actions: `<button type="button" class="btn ghost" data-act="close" data-fid="vtw:x" data-autofocus>Abbrechen</button><button type="button" class="btn primary" data-act="vtWithdrawOk" data-id="${id}" data-fid="vtw:ok">${icon('undo')}${joiner ? 'Nicht mehr mitwünschen' : 'Zurückziehen'}</button>` };
 };
 ACT.vtWithdraw = (d) => openDialog('vtWithdraw', { id: d.id });

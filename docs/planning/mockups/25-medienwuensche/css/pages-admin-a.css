@@ -1,4 +1,4 @@
-/* Administration part A: overview, integrations, Jellyseerr, notifications, jobs. Colors only from app.css tokens. */
+/* Administration part A: overview, integrations, Seerr, notifications, jobs. Colors only from app.css tokens. */
 .aa-count { color: var(--tx2); }
 .aa-count b { color: var(--tx); }
 .aa-small { font-size: 12px; }
@@ -25,7 +25,7 @@
 .aa-once { border-color: color-mix(in srgb, var(--warn) 70%, transparent); }
 .aa-danger { border-top: 1px solid var(--line); padding-top: 12px; }
 
-/* Jellyseerr */
+/* Seerr */
 .aa-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; border: 1px solid var(--frame); border-radius: 12px; background: var(--elev); color: var(--tx2); }
 .aa-test { display: flex; flex-direction: column; gap: 12px; }
 .aa-steps { list-style: decimal; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; color: var(--tx2); border: 1px solid var(--frame); border-radius: 8px; padding: 12px 12px 12px 34px; background: var(--s1); }
@@ -106,7 +106,7 @@
   .aa-ja { grid-column: auto; justify-content: flex-end; max-width: 360px; }
 }
 
-/* Jellyseerr: link-styled buttons and the references of the band «Radarr und Sonarr» */
+/* Seerr: link-styled buttons and the references of the band «Radarr und Sonarr» */
 .adm button.lnk { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
 .aa-links-in { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .aa-links-in .lnk { overflow-wrap: anywhere; }

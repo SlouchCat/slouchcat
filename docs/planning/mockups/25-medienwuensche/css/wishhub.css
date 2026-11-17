@@ -27,3 +27,4 @@
 .dlb .dlh { display: flex; align-items: center; gap: 8px; color: var(--tx); }
 .dlb .bar { width: 100%; height: 8px; }
 .dlb p { margin: 0; font-size: 13px; color: var(--tx2); }
+.dl > span:last-child { min-width: 0; overflow-wrap: anywhere; }

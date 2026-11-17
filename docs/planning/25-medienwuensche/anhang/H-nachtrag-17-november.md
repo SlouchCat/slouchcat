@@ -167,13 +167,13 @@ diesem Abschnitt ist **belegt**, aber **nicht geprüft** gegen Marcos Instanz.
 | Nr. | Regel | Von |
 |---|---|---|
 | N-1 | Nimmt jemand eine Einladung an, legt Slouchcat im selben Zug den Seerr-Benutzer an: gleiche E-Mail, gleiches Passwort, `username` = Teil der E-Mail vor dem @. | Marco (Nachricht, E-1) |
-| N-2 | Gibt es in Seerr schon einen Benutzer mit derselben E-Mail (Vergleich ohne Gross-/Kleinschreibung), verknüpft Slouchcat ihn, statt einen zweiten anzulegen. Für Konten ohne Seerr-Benutzer gibt es «In Jellyseerr eröffnen» (einzeln) und «Alle eröffnen». Eingeschränkt durch N-2a (Abschnitt 9, K-1): Tippt das Konto die Adresse selbst ein, entsteht nur ein Vorschlag, den ein Administrator bestätigt. | Marco (E-4), Einschränkung Redaktion |
+| N-2 | Gibt es in Seerr schon einen Benutzer mit derselben E-Mail (Vergleich ohne Gross-/Kleinschreibung), verknüpft Slouchcat ihn, statt einen zweiten anzulegen. Für Konten ohne Seerr-Benutzer gibt es «In Seerr eröffnen» (einzeln) und «Alle eröffnen». Eingeschränkt durch N-2a (Abschnitt 9, K-1): Tippt das Konto die Adresse selbst ein, entsteht nur ein Vorschlag, den ein Administrator bestätigt. | Marco (E-4), Einschränkung Redaktion |
 | N-3 | Slouchcat speichert das Passwort **nie im Klartext**. Es gibt es nur in den drei Momenten weiter, in denen es der Server ohnehin sieht: Einladung annehmen, Passwort ändern oder zurücksetzen, Anmeldung. | Redaktion |
 | N-4 | Kann Slouchcat das Passwort nicht sofort weitergeben (Seerr nicht erreichbar, Konto bestand schon, Benutzer nachträglich eröffnet), bekommt der Seerr-Benutzer zuerst ein Zufallspasswort und den Vermerk «bei der nächsten Anmeldung übernehmen». Bei der nächsten Anmeldung in Slouchcat setzt Slouchcat das Passwort in Seerr. | Redaktion |
 | N-5 | Passwort ändern oder zurücksetzen in Slouchcat → sofort `POST /user/{id}/settings/password`. Schlägt das fehl, gilt N-4. E-Mail ändern in Slouchcat → auch in Seerr. | Marco (E-1), Ablauf Redaktion |
-| N-6 | Kein Abgleich bei: Benutzer 1 (technisch nicht möglich, 3.1), anderen Administratoren von Seerr (bewusst ausgenommen, «bleibt in Jellyseerr») und Benutzern, die sich über Jellyfin, Emby oder Plex anmelden. | Redaktion |
+| N-6 | Kein Abgleich bei: Benutzer 1 (technisch nicht möglich, 3.1), anderen Administratoren von Seerr (bewusst ausgenommen, «bleibt in Seerr») und Benutzern, die sich über Jellyfin, Emby oder Plex anmelden. | Redaktion |
 | N-7 | Ein Passwort, das jemand direkt in Seerr ändert, bemerkt Slouchcat nicht. Die Verwaltung bietet «Passwort bei der nächsten Anmeldung neu übernehmen». | Marco kannte die Folge (E-1), Knopf Redaktion |
-| N-8 | Schalter in Wünsche › Einstellungen: «Neue Konten in Jellyseerr eröffnen» und «Passwort abgleichen», beide ab Werk an, sobald Jellyseerr eingerichtet ist. | Redaktion |
+| N-8 | Schalter in Wünsche › Einstellungen: «Neue Konten in Seerr eröffnen» und «Passwort abgleichen», beide ab Werk an, sobald Seerr eingerichtet ist. | Redaktion |
 | N-9 | Rechte des eröffneten Benutzers: mit Wunschrecht des Kontos `REQUEST`, ohne Wunschrecht keine (`permissions = 0`). Ändert der Administrator das Wunschrecht, zieht Slouchcat die Rechte nach. Rechte von Benutzern, die es schon gab, fasst Slouchcat nicht an. | Redaktion |
 | N-10 | Löscht der Administrator ein Konto in Slouchcat, bleibt der Seerr-Benutzer (mit ihm würden seine Requests gelöscht, Anhang D 7.2). Hat Slouchcat ihn eröffnet, nimmt es ihm die Rechte und setzt ein Zufallspasswort; einen Benutzer, den es schon gab, lässt es unverändert (Abschnitt 9, K-2). | Redaktion |
 | N-11 | Voraussetzung «Lokale Anmeldung» in Seerr: Der Verbindungstest prüft sie und warnt. | Redaktion |
@@ -224,7 +224,7 @@ und Sonarr schon bestehen, weil Seerr keine Tags anlegt (3.5).
 | Nr. | Regel | Von |
 |---|---|---|
 | N-40 | Der Normalfall ist neu: Alle Profile senden als Benutzer des Kontos (Variante A aus `04`), das Profil steht am Wunsch und als Tag. | Marco (Nachricht) |
-| N-41 | Die Zuordnung «Profil sendet als anderer Jellyseerr-Benutzer» aus Fassung 2 bleibt als zugeklappte **Ausnahme**. Grund: Nur so braucht der Wunsch eines Kinderprofils eine Freigabe, wenn das Konto selbst automatisch freigegeben wird (etwa das Konto des Administrators). Für so ein Profil gelten Freigabe und Limit des Ausnahme-Benutzers. | Redaktion (Frage F-27) |
+| N-41 | Die Zuordnung «Profil sendet als anderer Seerr-Benutzer» aus Fassung 2 bleibt als zugeklappte **Ausnahme**. Grund: Nur so braucht der Wunsch eines Kinderprofils eine Freigabe, wenn das Konto selbst automatisch freigegeben wird (etwa das Konto des Administrators). Für so ein Profil gelten Freigabe und Limit des Ausnahme-Benutzers. | Redaktion (Frage F-27) |
 
 ### 4.5 Bereich «Wünsche» wie die Startseite von Seerr (Nachricht)
 
@@ -277,16 +277,16 @@ sind nur Vorschlag; dieses Konzept ändert keine Regel.
 
 | Nr. | Frage | Empfehlung |
 |---|---|---|
-| F-23 | Für wen eröffnet Slouchcat einen Seerr-Benutzer? | Für jedes Konto, sobald Jellyseerr eingerichtet ist; ohne Wunschrecht ohne Rechte in Seerr (N-9). |
+| F-23 | Für wen eröffnet Slouchcat einen Seerr-Benutzer? | Für jedes Konto, sobald Seerr eingerichtet ist; ohne Wunschrecht ohne Rechte in Seerr (N-9). |
 | F-24 | Passwort bei verknüpften, schon bestehenden Seerr-Benutzern übernehmen? | Ja, bei der nächsten Anmeldung, ausser bei Administratoren und bei Anmeldung über Jellyfin/Plex (N-4, N-6). |
 | F-25 | Name des Profil-Tags | `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar; Tags werden nie entfernt (N-21, N-26). |
 | F-26 | Vorgabe des Limits ab Werk | 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen; Administratoren ohne Limit (N-31, N-34). |
-| F-27 | Ausnahme «Profil sendet als anderer Jellyseerr-Benutzer» behalten? | Ja, zugeklappt. Sonst sind Kinderprofile im Konto des Administrators ohne Freigabe und ohne Limit (N-41). |
+| F-27 | Ausnahme «Profil sendet als anderer Seerr-Benutzer» behalten? | Ja, zugeklappt. Sonst sind Kinderprofile im Konto des Administrators ohne Freigabe und ohne Limit (N-41). |
 | F-28 | Reihen auf «Entdecken» | Die sieben aus N-51, fest. Nicht die Reihen-Einstellung von Seerr übernehmen. |
 | F-29 | Seerr auf TVDB-Staffeln umstellen? | Ja (N-64). Das stellt Marco in Seerr selbst um. |
 | F-30 | Radarr und Sonarr: Zugang aus Seerr lesen oder eigene Felder? | Aus Seerr lesen, eigene Adresse nur als Ausweg (N-23). |
 | F-31 | Was geschieht mit dem Seerr-Benutzer, wenn das Konto in Slouchcat gelöscht wird? | Bleibt, ohne Rechte, mit Zufallspasswort (N-10). |
-| F-32 | Name in der Oberfläche: «Jellyseerr» oder «Seerr»? Marco schreibt «Seerr», das Projekt heisst seit 3.0 so. | «Seerr». Papiere und Mockup sagen bis zur Antwort weiter «Jellyseerr», damit sie einheitlich bleiben. |
+| F-32 | Name in der Oberfläche: «Jellyseerr/Seerr»? Marco schreibt «Seerr», das Projekt heisst seit 3.0 so. | **Entschieden durch E-9 (Abschnitt 10):** «Seerr». Papiere und Mockup sind umbenannt. |
 
 ## 7. Neue und geänderte Mockup-Seiten
 
@@ -296,16 +296,16 @@ sind nur Vorschlag; dieses Konzept ändert keine Regel.
 | M-32 Wünsche · Filme (neu) | Raster, Filter, Sortierung, «Mehr laden» |
 | M-33 Wünsche · Serien (neu) | wie M-32 |
 | M-34 Wünsche · Suche (neu) | Suche, auch nach Kennung |
-| M-35 Einladung annehmen (heute vorhanden, im Mockup neu) | Hinweis «Dein Login gilt auch für Jellyseerr», Eröffnung beim Absenden |
+| M-35 Einladung annehmen (heute vorhanden, im Mockup neu) | Hinweis «Dein Login gilt auch für Seerr», Eröffnung beim Absenden |
 | M-08 Meine Wünsche | Reiter, Limit-Anzeige |
 | M-13 Dialog «Anfordern» | Limit: frei, erreicht, zu viele Staffeln |
 | M-07 Suche | Verweis auf die Wunsch-Suche |
 | M-20 Übersicht | Hinweise: Konto ohne Benutzer, Limit erreicht, Tag nicht gesetzt |
-| M-22 Integrationen › Jellyseerr | neue Prüfungen, Bänder «Benutzer und Limit», «Radarr und Sonarr (Profil-Tags)» |
+| M-22 Integrationen › Seerr | neue Prüfungen, Bänder «Benutzer und Limit», «Radarr und Sonarr (Profil-Tags)» |
 | M-23 Anfragen | Profil-Tag je Wunsch, Band «Limit je Konto» |
-| M-24 Jellyseerr-Benutzer (vorher «Zuordnung») | je Konto: Zustand, Passwort, Rechte, Limit; je Profil: Tag und Ausnahme |
-| M-25 Einstellungen | Limit ab Werk, Konten in Jellyseerr, Profil-Tag, Schalter für die neuen Seiten |
-| M-26 Konten | Limit je Konto, Jellyseerr-Benutzer, Einladung mit Limit, Passwortänderung |
+| M-24 Seerr-Benutzer (vorher «Zuordnung») | je Konto: Zustand, Passwort, Rechte, Limit; je Profil: Tag und Ausnahme |
+| M-25 Einstellungen | Limit ab Werk, Konten in Seerr, Profil-Tag, Schalter für die neuen Seiten |
+| M-26 Konten | Limit je Konto, Seerr-Benutzer, Einladung mit Limit, Passwortänderung |
 | M-27 Spotlight | IDs je Eintrag, Band «Abgleich über TMDB, TVDB und IMDb» |
 | M-30 Hintergrundjobs | `seerr.provision`, `wishes.tag`, `wishes.discover` |
 | M-00 Steuerung | Limit ausschöpfen, Radarr/Sonarr ausfallen lassen, Staffelquelle von Seerr, Einladung annehmen, Anmeldung spielen |
@@ -444,7 +444,7 @@ Radarr und Sonarr). F-33 wäre ein eigener Schritt nach der Messung.
 | M-01 Startseite | Spotlight nur mit Vorhandenem, wie heute; Reihe «Erfüllte Wünsche» |
 | M-02 Spotlight-Liste | unverändert gegenüber heute: nur Titel der Bibliothek |
 | M-08 Meine Wünsche, Wunschkarte auf M-03/M-04 | Download-Fortschritt |
-| M-22 Integrationen › Jellyseerr | Band «Radarr und Sonarr (Profil-Tags und Fortschritt)», Prüfungen umbenannt |
+| M-22 Integrationen › Seerr | Band «Radarr und Sonarr (Profil-Tags und Fortschritt)», Prüfungen umbenannt |
 | M-23 Anfragen | Fortschritt je Wunsch, Meldung von Radarr oder Sonarr in den Einzelheiten |
 | M-25 Einstellungen | Schalter «Aus dem Spotlight» entfällt; neu «Download-Fortschritt zeigen» |
 | M-27 Spotlight | Band «Fehlende Einträge» ohne Schalter; Einträge und IDs wie in Fassung 3 |
@@ -463,7 +463,7 @@ Marco berührt, steht es dabei.
 
 | Nr. | Schwere | Befund | Redaktionsentscheid |
 |---|---|---|---|
-| K-1 | Blocker | **Übernahme eines fremden Jellyseerr-Benutzers.** Wer eine Einladung annimmt, tippt seine E-Mail frei ein; niemand prüft sie. Mit N-2 würde Slouchcat einen bestehenden Jellyseerr-Benutzer mit dieser Adresse verknüpfen und ihm das neue Passwort setzen. Dasselbe ginge über eine geänderte E-Mail. Das Mockup verriet zudem, ob es die Adresse in Jellyseerr gibt. | **N-2a (neu):** Automatisch verknüpft wird nur, wenn ein Administrator handelt («In Jellyseerr eröffnen», «Alle eröffnen») oder bestätigt. Findet Slouchcat beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos einen Benutzer mit gleicher Adresse, entsteht nur ein **Vorschlag** (Zustand «Verknüpfung vorgeschlagen»). Bis ein Administrator ihn unter «Jellyseerr-Benutzer» bestätigt, gibt es keine Verknüpfung, kein Passwort an den bestehenden Benutzer und kein Anfordern. «Alle eröffnen» bestätigt keine Vorschläge. Das Konto erfährt nie, ob Jellyseerr die Adresse kennt. Das schränkt E-4 für diesen einen Fall ein; E-4 fragte nach Konten und Benutzern, «die es heute schon gibt», und dort verknüpft weiter der Knopf des Administrators. Offen als Teil von F-24. |
+| K-1 | Blocker (von Marco anders entschieden, siehe Abschnitt 10, E-8) | **Übernahme eines fremden Seerr-Benutzers.** Wer eine Einladung annimmt, tippt seine E-Mail frei ein; niemand prüft sie. Mit N-2 würde Slouchcat einen bestehenden Seerr-Benutzer mit dieser Adresse verknüpfen und ihm das neue Passwort setzen. Dasselbe ginge über eine geänderte E-Mail. Das Mockup verriet zudem, ob es die Adresse in Seerr gibt. | **N-2a (neu):** Automatisch verknüpft wird nur, wenn ein Administrator handelt («In Seerr eröffnen», «Alle eröffnen») oder bestätigt. Findet Slouchcat beim Annehmen einer Einladung oder nach einer E-Mail-Änderung des Kontos einen Benutzer mit gleicher Adresse, entsteht nur ein **Vorschlag** (Zustand «Verknüpfung vorgeschlagen»). Bis ein Administrator ihn unter «Seerr-Benutzer» bestätigt, gibt es keine Verknüpfung, kein Passwort an den bestehenden Benutzer und kein Anfordern. «Alle eröffnen» bestätigt keine Vorschläge. Das Konto erfährt nie, ob Seerr die Adresse kennt. Das schränkt E-4 für diesen einen Fall ein; E-4 fragte nach Konten und Benutzern, «die es heute schon gibt», und dort verknüpft weiter der Knopf des Administrators. Offen als Teil von F-24. |
 | K-2 | Major | Konto löschen: N-9 («Rechte von Benutzern, die es schon gab, fasst Slouchcat nicht an») gegen N-10. | N-9 gilt. **N-10 neu:** Nur einem Benutzer, den Slouchcat eröffnet hat, nimmt Slouchcat die Rechte und setzt ein Zufallspasswort. Verknüpfte und von Hand gewählte Benutzer bleiben unverändert. |
 | K-3 | Major | Der Chip «Dein Wunsch ist da» stand auch auf der Spotlight-Bühne. | N-70 gilt: Die Bühne bleibt wie heute, ohne Wunsch-Chip und ohne Staffelhinweis. Der Chip steht auf der Detailseite (M-05) und in der Reihe «Erfüllte Wünsche». |
 | K-4 | Major | Die Staffelliste für eine Serie der Bibliothek hatte keinen Weg im Vertrag. | `getWishSeasons` antwortet auch für eine vorhandene Serie mit fehlenden Staffeln; ihre 404-Fälle stehen eigens in `08`. |
@@ -476,13 +476,70 @@ Marco berührt, steht es dabei.
 | K-11 | Minor | F-24 las E-1 als «gilt für alle Konten». | E-1 fragte nach eingeladenen Benutzern. Dass der Abgleich auch für nachträglich eröffnete und verknüpfte Konten gilt, ist eine Lesart der Redaktion (F-24). |
 | K-12 | Minor | `07` sagte «bei Abweichung gilt das Mockup». | Papier und Mockup sind angeglichen; bei Abweichung gilt das Papier. |
 | K-13 | Minor | Routen des Bereichs. | Der Bereich liegt unter `/discover` («Entdecken», «Filme», «Serien», «Suche»); «Meine Wünsche» bleibt `/wishes`. |
-| K-14 | Minor | «Bis dahin kann das Konto nicht anfordern» war unklar. | Anfordern geht, sobald der Jellyseerr-Benutzer besteht. Das Passwort spielt dafür keine Rolle. |
-| K-15 | Minor | Eröffnet das Einrichten von Jellyseerr bestehende Konten von selbst? | Nein. Bestehende Konten eröffnet der Administrator mit «Alle eröffnen» oder einzeln (wie in E-4 beschrieben). Von selbst eröffnet nur das Annehmen einer Einladung. F-23 entsprechend. |
+| K-14 | Minor | «Bis dahin kann das Konto nicht anfordern» war unklar. | Anfordern geht, sobald der Seerr-Benutzer besteht. Das Passwort spielt dafür keine Rolle. |
+| K-15 | Minor | Eröffnet das Einrichten von Seerr bestehende Konten von selbst? | Nein. Bestehende Konten eröffnet der Administrator mit «Alle eröffnen» oder einzeln (wie in E-4 beschrieben). Von selbst eröffnet nur das Annehmen einer Einladung. F-23 entsprechend. |
 | K-16 | Minor | Die Reihe «Erfüllte Wünsche» braucht Daten aus den Wunsch-Tabellen, die nur `wishes` lesen darf. | Das Paket der Startseite bekommt die Titel-IDs vom Dienst `wishes` und prüft die Sichtbarkeit über `visibility` (Regel 2). |
 | K-17 | Minor | AK-177 liess Mia mitwünschen, obwohl sie kein Wunschrecht hat. | Beispiel mit einem Profil, das anfordern darf (Noah). |
 | K-18 | Minor | Zwei Profile mit gleichem Namen: Beide sollten einen Zusatz bekommen, aber Tags werden nie umbenannt. | **N-21 genauer:** Das erste Profil behält den einfachen Namen (`sc-kinder`), ein später angelegtes mit gleichem Namen bekommt den Kontonamen dazu (`sc-kinder-grosseltern`). |
-| K-19 | Minor | Datenschutz: Alle Profile teilen das Jellyseerr-Login des Kontos; wer sich dort anmeldet, sieht auch die Wünsche eines PIN-Profils. Jellyseerr verschickt zudem eigene E-Mails mit Titel. | Als bekannte Grenze in `04` und `06`, als Hinweis in Wünsche › Einstellungen. Empfehlung: in Jellyseerr die eigenen Benachrichtigungen für eröffnete Benutzer ausgeschaltet lassen. |
+| K-19 | Minor | Datenschutz: Alle Profile teilen das Seerr-Login des Kontos; wer sich dort anmeldet, sieht auch die Wünsche eines PIN-Profils. Seerr verschickt zudem eigene E-Mails mit Titel. | Als bekannte Grenze in `04` und `06`, als Hinweis in Wünsche › Einstellungen. Empfehlung: in Seerr die eigenen Benachrichtigungen für eröffnete Benutzer ausgeschaltet lassen. |
 | K-20 | Minor | ADR 0038 «Folgen» nannte die neue Startreihe nicht. | Ergänzt (F-34). |
 | K-21 | Minor | Ein zurückgezogener Wunsch, dessen Request einem anderen gehört, wurde pauschal «In Beschaffung». | Der Zustand folgt dem Request (`pending` oder `processing`). |
 | K-22 | Minor | `11` Abschnitt 0 nannte `internal/arr` «nur für Tags». | Tags und Lesen des Fortschritts. |
-| K-23 | Minor | Die Schlüssel von Radarr und Sonarr würden jede Minute neu aus Jellyseerr geholt. | Im Speicher 10 Minuten halten; neu lesen erst nach Ablauf oder nach einer Antwort 401. |
+| K-23 | Minor | Die Schlüssel von Radarr und Sonarr würden jede Minute neu aus Seerr geholt. | Im Speicher 10 Minuten halten; neu lesen erst nach Ablauf oder nach einer Antwort 401. |
+
+
+---
+
+## 10. Dritte Runde: vier Weichen (17. November 2026)
+
+Marco fragte nach Fassung 3: «Hast du noch offene Fragen oder Unklarheiten?» Vier Weichen wurden ihm
+vorgelegt. Dieser Abschnitt gilt vor den Abschnitten 4 bis 9, wo er ihnen widerspricht.
+
+### 10.1 Rückfragen und Marcos Antworten
+
+| Nr. | Frage | Zur Wahl standen | Marcos Antwort |
+|---|---|---|---|
+| E-8 | Nimmt jemand eine Einladung an und tippt eine E-Mail ein, die es in Seerr schon gibt: Soll Slouchcat den bestehenden Seerr-Benutzer sofort verknüpfen oder erst nach deiner Bestätigung? | «Erst nach Bestätigung» (empfohlen) · «Sofort verknüpfen» | **Sofort verknüpfen** |
+| E-9 | Wie soll der Dienst in der Oberfläche von Slouchcat heissen? | «Seerr» · «Jellyseerr» | **Seerr** |
+| E-10 | Die Startseite zeigt nur Vorhandenes. Was soll mit der neuen Startreihe für Wünsche geschehen? | «Erfüllte Wünsche» · «Keine Reihe» · «Auch offene Wünsche» | **Erfüllte Wünsche** |
+| E-11 | Die Webhook-Meldung von Radarr und Sonarr nennt schon Dateipfad und Kennung. Soll Slouchcat das für einen Sofort-Import nutzen? | «Ja, nach Messung» · «Ja, fest einplanen» · «Nein» | **Ja, nach Messung** |
+
+Die Beschreibungen der gewählten Antworten, wie Marco sie gesehen hat:
+
+- **E-8:** Wie in deiner früheren Antwort, auch bei Einladungen. Einfacher, aber wer eine fremde E-Mail
+  eintippt, bekommt den Seerr-Benutzer dieser Person samt ihren Anfragen.
+- **E-9:** So heisst das Projekt seit Version 3, und so schreibst du es. Ich benenne Papiere und Mockup um.
+- **E-10:** Die Reihe zeigt nur Wünsche, die in den letzten 14 Tagen wahr wurden, also Titel der Bibliothek.
+  Offene Wünsche stehen unter «Wünsche».
+- **E-11:** Kommt als eigener Schritt in den Bauplan. Zuerst wird gemessen, wo heute die Zeit bleibt. Die
+  Webhooks selbst bleiben, wie sie sind.
+
+### 10.2 Was gilt
+
+| Nr. | Regel | Von |
+|---|---|---|
+| N-90 | **N-2a (Abschnitt 9, K-1) ist zurückgezogen.** Gibt es in Seerr schon einen Benutzer mit derselben E-Mail, verknüpft Slouchcat ihn sofort, auch wenn das Konto die Adresse beim Annehmen einer Einladung selbst eingetippt hat. Den Zustand «Verknüpfung vorgeschlagen», die Aktion «Verknüpfung bestätigen» und die Operation dafür gibt es nicht. | Marco (E-8) |
+| N-91 | Mit der Verknüpfung geht das Passwort an den bestehenden Benutzer, wie bei jedem anderen (E-1, N-3 bis N-5). Ausgenommen bleiben Benutzer 1, andere Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex (N-6). Ein Administrator von Seerr lässt sich so also nicht übernehmen. | folgt aus E-1 und E-8; Ausnahme N-6 Redaktion |
+| N-92 | Das Risiko ist bekannt und von Marco so gewählt: Wer eine Einladung hat und eine fremde Adresse eintippt, bekommt den Seerr-Benutzer dieser Person samt ihren Anfragen. Einladungen stellt nur ein Administrator aus. Das Papier nennt das Risiko als bekannte Grenze. | Marco (E-8) |
+| N-93 | Damit so eine Verknüpfung nicht unbemerkt bleibt: Die Übersicht der Verwaltung zeigt sieben Tage lang den Hinweis «Neu verknüpft: {{Konto}} mit dem bestehenden Seerr-Benutzer {{Name}}», mit Link auf «Seerr-Benutzer», wo sich die Verknüpfung lösen lässt. Das Protokoll hält sie fest. | Redaktion (Empfehlung; rest von F-24) |
+| N-94 | Das neue Konto erfährt weiterhin nicht, ob Seerr die Adresse schon kannte: Die Meldung nach dem Annehmen ist in beiden Fällen dieselbe («In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.»). Sie nennt das Passwort nicht, weil Slouchcat es bei einem verknüpften Administrator oder bei Anmeldung über Jellyfin, Emby oder Plex nicht setzt (N-91). | Redaktion |
+| N-95 | Ändert ein Konto ohne Seerr-Benutzer seine E-Mail auf eine Adresse, die es in Seerr gibt, gilt dasselbe wie bei der Einladung: sofort verknüpfen. Hat das Konto schon einen Seerr-Benutzer, ändert Slouchcat dessen E-Mail; lehnt Seerr ab, weil die Adresse vergeben ist, meldet Slouchcat das und lässt den Benutzer, wie er ist. | Redaktion (folgt E-8) |
+| N-96 | In der Oberfläche heisst der Dienst «Seerr». Papiere und Mockup sind umbenannt. «Jellyseerr» steht nur noch, wo eine Version 2.x gemeint ist, und in den eingefrorenen Anhängen A bis G. Das Konzept heisst «Wünsche über Seerr». | Marco (E-9) |
+| N-97 | Die Startreihe heisst «Erfüllte Wünsche» und zeigt nur Wünsche, die in den letzten 14 Tagen wahr wurden (N-74). | Marco (E-10) |
+| N-98 | Der Sofort-Import (N-88) kommt als eigener Schritt in den Bauplan: Slouchcat liest Dateipfad und Kennung aus der Webhook-Meldung, liest nur diese Datei mit Vorrang ein und ordnet sie über die Kennung zu. Vorher wird gemessen, wo heute die Zeit bleibt (`docs/perf`); zeigt die Messung keinen Gewinn, entfällt der Schritt. Die Webhooks bleiben, wie sie sind (N-80). | Marco (E-11) |
+
+### 10.3 Fragen
+
+| Nr. | Stand |
+|---|---|
+| F-24 | Die Verknüpfung bei der Einladung ist durch E-8 entschieden: sofort. Offen bleibt als Empfehlung: Passwort auch bei nachträglich eröffneten und verknüpften Konten übernehmen (K-11) und der Hinweis an die Administratoren (N-93). |
+| F-32 | Entschieden durch E-9: «Seerr». |
+| F-33 | Entschieden durch E-11: ja, nach Messung. |
+| F-34 | Entschieden durch E-10: «Erfüllte Wünsche». |
+
+Offen sind damit 29 Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2.
+
+### 10.4 Mockup
+
+Der Zustand «Verknüpfung vorgeschlagen» ist entfernt; M-35 verknüpft sofort und zeigt in beiden Fällen dieselbe
+Meldung; M-20 zeigt den Hinweis «Neu verknüpft»; überall steht «Seerr».

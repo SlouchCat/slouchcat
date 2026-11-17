@@ -107,8 +107,8 @@ ACT.vpSearchReset = () => { ui.filter.search = vpSearchDefault(); render(); };
 const VP_CLOSED = ['declined', 'failed', 'withdrawn'];
 const VP_WFILTER = [['all', 'Alle', () => true], ['open', 'Offen', (w) => OPEN_STATES.includes(w.state)], ['available', 'Verfügbar', (w) => w.state === 'available'], ['closed', 'Abgeschlossen', (w) => VP_CLOSED.includes(w.state)]];
 const VP_NEXT = {
-  queued: ['An Jellyseerr übermitteln', 'Freigabe in Jellyseerr', 'Beschaffung durch Radarr oder Sonarr', 'In Slouchcat verfügbar'],
-  pending: ['Freigabe in Jellyseerr', 'Beschaffung durch Radarr oder Sonarr', 'In Slouchcat verfügbar'],
+  queued: ['An Seerr übermitteln', 'Freigabe in Seerr', 'Beschaffung durch Radarr oder Sonarr', 'In Slouchcat verfügbar'],
+  pending: ['Freigabe in Seerr', 'Beschaffung durch Radarr oder Sonarr', 'In Slouchcat verfügbar'],
   processing: ['Beschaffung durch Radarr oder Sonarr', 'In Slouchcat verfügbar'],
   partial: ['Weitere Staffeln treffen ein', 'Alle gewünschten Staffeln verfügbar'],
 };
@@ -124,11 +124,11 @@ function vpWishRow(w, p, all) {
   const tags = [wsChip(w.state)];
   { const dl = dlChip(w); if (dl) tags.push(dl); }
   if (w.joined.includes(p.id)) tags.push(`<span class="chip info">${icon('bell', 14)}Du wünschst mit</span>`);
-  if (w.origin === 'jellyseerr') tags.push(`<span class="chip blue">${icon('external', 14)}In Jellyseerr angelegt</span>`);
+  if (w.origin === 'jellyseerr') tags.push(`<span class="chip blue">${icon('external', 14)}In Seerr angelegt</span>`);
   let extra = '';
   if (w.state === 'queued' && w.detail) extra = `${esc(w.detail)}. Slouchcat versucht es weiter.`;
   else if (w.state === 'failed') extra = esc(FAIL_TEXT[w.failReason] || 'Die Beschaffung hat nicht geklappt.');
-  else if (w.state === 'pending') extra = 'Wartet auf die Freigabe in Jellyseerr.';
+  else if (w.state === 'pending') extra = 'Wartet auf die Freigabe in Seerr.';
   const seasons = w.media === 'show' && w.seasons.length ? `<div class="vp-seasons">${w.seasons.map((n) => `<span class="vp-ss">Staffel ${n}: ${wsChip(w.seasonState?.[n] || w.state)}</span>`).join('')}</div>` : '';
   const acts = [];
   if (w.state === 'available' || w.state === 'partial') {
@@ -182,7 +182,7 @@ DIALOGS.vpWithdraw = ({ id }) => {
   const w = wishById(id), t = T[w.titleKey];
   return {
     title: 'Wunsch zurückziehen?',
-    body: `<p class="lead">«${esc(t.title)}» wird nicht weiter angefordert. Slouchcat löscht die Anfrage in Jellyseerr, solange sie nicht freigegeben ist.</p>${w.joined.length ? notice('', 'Ein anderes Profil wünscht mit', 'Der Wunsch bleibt für dieses Profil bestehen; du wirst nicht mehr benachrichtigt.') : ''}`,
+    body: `<p class="lead">«${esc(t.title)}» wird nicht weiter angefordert. Slouchcat löscht die Anfrage in Seerr, solange sie nicht freigegeben ist.</p>${w.joined.length ? notice('', 'Ein anderes Profil wünscht mit', 'Der Wunsch bleibt für dieses Profil bestehen; du wirst nicht mehr benachrichtigt.') : ''}`,
     actions: `<button type="button" class="btn ghost" data-act="close" data-fid="wdd:x">Abbrechen</button><button type="button" class="btn primary" data-act="vpWithdrawOk" data-id="${id}" data-fid="wdd:ok" data-autofocus>${icon('undo')}Zurückziehen</button>`,
   };
 };
@@ -348,7 +348,7 @@ function vpProfCard(x) {
   if (dt.streams) chips.push(`<span class="chip info">${dt.streams} ${dt.streams === '1' ? 'Stream' : 'Streams'}</span>`);
   if (dt.watchLimit) chips.push(`<span class="chip info">${dt.watchLimit} min pro Tag</span>`);
   chips.push(x.canRequest && acc.canRequest ? `<span class="chip ok">${icon('wish', 12)}Darf anfordern</span>` : `<span class="chip outline">Darf nicht anfordern</span>`);
-  const send = su ? `Sendet als ${esc(seerrUser(su.id).name)} (${su.via === 'profile' ? 'eigener Jellyseerr-Benutzer' : su.via === 'account' ? 'Benutzer des Kontos' : 'Sammelbenutzer'})` : 'Kein Jellyseerr-Benutzer';
+  const send = su ? `Sendet als ${esc(seerrUser(su.id).name)} (${su.via === 'profile' ? 'eigener Seerr-Benutzer' : su.via === 'account' ? 'Benutzer des Kontos' : 'Sammelbenutzer'})` : 'Kein Seerr-Benutzer';
   const mid = 'vp-menu:' + x.id, rid = 'vp-rep:' + x.id, menu = isOpen(mid);
   return `<li class="vp-card">
     <div class="vp-ph"><span class="av lg" style="background:${esc(x.accent)};color:${esc(x.on)}">${esc(x.name[0])}</span>
@@ -411,7 +411,7 @@ DIALOGS.vpProf = () => {
     ${band('vp-pf-play', 'Wiedergabe', `<span>${playSum}</span>`, play, { viewer: true })}
     ${band('vp-pf-lim', 'Wiedergabe-Limits', `<span>${esc(limSum)}</span>`, lim, { viewer: true })}
     <fieldset class="vp-wishset"><legend>Wünsche ${vpNew()}</legend>
-      <div class="vp-chrow"><div><b>Darf Titel anfordern</b><span>Fordert fehlende Filme und Serien an. Was freigegeben wird, entscheidet Jellyseerr.</span></div>${sw(P + '.canRequest', 'Darf Titel anfordern', { disabled: !acc.canRequest })}</div>
+      <div class="vp-chrow"><div><b>Darf Titel anfordern</b><span>Fordert fehlende Filme und Serien an. Was freigegeben wird, entscheidet Seerr.</span></div>${sw(P + '.canRequest', 'Darf Titel anfordern', { disabled: !acc.canRequest })}</div>
       ${acc.canRequest ? '' : '<p class="sec vp-lock">' + icon('lock', 16) + 'Das Konto darf nicht anfordern. Das stellt der Administrator ein.</p>'}
     </fieldset>
     ${isNew ? `<div class="fld"><label for="vp-pf-pin">PIN (optional)</label><input class="inp" id="vp-pf-pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" data-bind="${P}.pin" data-fid="pfd:pin" value="${esc(dr.pin)}"><span class="hint">4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.</span></div>` : ''}

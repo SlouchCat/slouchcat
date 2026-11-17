@@ -23,7 +23,7 @@ function dcUi() {
   return d;
 }
 const dcOffline = () => seerrState().k !== 'ok';
-const dcStale = () => notice('warn', 'Jellyseerr ist nicht erreichbar', 'Jellyseerr ist nicht erreichbar. Du siehst den Stand vom letzten Abruf. Wünsche werden vorgemerkt.');
+const dcStale = () => notice('warn', 'Seerr ist nicht erreichbar', 'Seerr ist nicht erreichbar. Du siehst den Stand vom letzten Abruf. Wünsche werden vorgemerkt.');
 
 /* the pages exist only for a profile that may request; with own wishes it gets a pointer to «Meine Wünsche» */
 function dcGate(p) {
@@ -184,7 +184,7 @@ route('/discover/search', (pm, query) => {
   const off = dcOffline();
   let res = '';
   if (off) {
-    res = notice('warn', 'Jellyseerr ist nicht erreichbar', 'Die Suche fragt Jellyseerr direkt und geht erst wieder, wenn Jellyseerr antwortet. Die Reihen unter «Entdecken» zeigen den Stand vom letzten Abruf.', `<a class="btn secondary" href="#/discover" data-fid="dc:s:off">${icon('star')}Zu «Entdecken»</a>`);
+    res = notice('warn', 'Seerr ist nicht erreichbar', 'Die Suche fragt Seerr direkt und geht erst wieder, wenn Seerr antwortet. Die Reihen unter «Entdecken» zeigen den Stand vom letzten Abruf.', `<a class="btn secondary" href="#/discover" data-fid="dc:s:off">${icon('star')}Zu «Entdecken»</a>`);
   } else if (!q) {
     const sug = (discoverRow('trending', p).length ? discoverRow('trending', p) : DISC_ORDER.map((k) => T[k]).filter((t) => t && titleVisible(p, t))).slice(0, 6);
     res = `<p class="dc-status" role="status">Gib einen Titel ein. Gesucht wird in allem, was TMDB kennt, auch nach Originaltitel.</p>

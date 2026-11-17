@@ -103,7 +103,7 @@ route('/admin/x/:page', (pm) => {
 });
 DIALOGS.finder = () => {
   const q = (ui.q2 || '').toLowerCase();
-  const all = [['Übersicht', '#/admin'], ...AREAS.flatMap((a) => a.pages.map(([k, l]) => [`${a.label} › ${l}`, adminHref(k)])), ['Automatisierung › Integrationen › Jellyseerr', '#/admin/integrations/jellyseerr'], ['Medien › Wünsche › Jellyseerr-Benutzer', '#/admin/wishes/mapping'], ['Medien › Wünsche › Einstellungen', '#/admin/wishes/settings']];
+  const all = [['Übersicht', '#/admin'], ...AREAS.flatMap((a) => a.pages.map(([k, l]) => [`${a.label} › ${l}`, adminHref(k)])), ['Automatisierung › Integrationen › Seerr', '#/admin/integrations/jellyseerr'], ['Medien › Wünsche › Seerr-Benutzer', '#/admin/wishes/mapping'], ['Medien › Wünsche › Einstellungen', '#/admin/wishes/settings']];
   const hits = all.filter(([l]) => l.toLowerCase().includes(q));
   return { title: 'Bereich suchen', body: `<input class="inp" data-bind="ui.q2" data-live data-fid="finder:q" data-autofocus placeholder="Seite der Verwaltung" aria-label="Seite der Verwaltung" value="${esc(ui.q2 || '')}"><ul class="stack" style="gap:4px">${hits.map(([l, h]) => `<li><a class="btn ghost wide" style="justify-content:flex-start" href="${h}" data-act="close" data-fid="finder:${h}">${esc(l)}</a></li>`).join('') || '<li class="muted">Nichts gefunden.</li>'}</ul>`, actions: `<button type="button" class="btn secondary" data-act="close" data-fid="finder:x">Schliessen</button>` };
 };
