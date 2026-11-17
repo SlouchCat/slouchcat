@@ -208,7 +208,9 @@ func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrU
 	s.log.InfoContext(ctx, "seerr user of account set by hand", "account_id", accountID, "seerr_user_id", seerrUserID)
 	if seerrUserID != nil {
 		// The job writes the limit to the user (limit_written_at is empty after the choice).
-		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
+		// It only syncs that user: undone or changed before it runs, it does nothing (never a search
+		// by the email, never a new user).
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, Intent: intentSync, SeerrUser: *seerrUserID}, jobs.ManualPriority); err != nil {
 			s.log.WarnContext(ctx, "limit of the chosen user not queued", "account_id", accountID, "err", err)
 		}
 	}

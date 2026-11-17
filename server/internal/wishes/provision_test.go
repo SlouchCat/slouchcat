@@ -202,7 +202,7 @@ func TestProvisionConflictAndWait(t *testing.T) {
 		t.Errorf("waiting = %+v", w)
 	}
 	// The job fails, so the queue tries again.
-	if err := f.svc.handleProvision(f.ctx, &jobs.Job{Type: JobProvision, Payload: []byte(`{"accountId":1,"linkedBy":"admin"}`)}); err == nil {
+	if err := f.svc.handleProvision(f.ctx, &jobs.Job{Type: JobProvision, Payload: []byte(`{"accountId":1,"intent":"retry","linkedBy":"admin"}`)}); err == nil {
 		t.Error("the job did not fail while Seerr is unreachable")
 	}
 	f.fake.SetFailure("*", seerrtest.Failure{})
@@ -430,9 +430,92 @@ func TestProvisionPayloadWithoutPassword(t *testing.T) {
 			t.Fatal(err)
 		}
 		for k := range p {
-			if !slices.Contains([]string{"accountId", "linkedBy", "setBy", "shared", "closeSeerr"}, k) {
+			if !slices.Contains([]string{"accountId", "intent", "seerrUser", "linkedBy", "setBy", "shared", "closeSeerr"}, k) {
 				t.Errorf("payload key %s", k)
 			}
 		}
+	}
+}
+
+// The job that follows a hand choice only writes the limit to the chosen user: undone or changed
+// before it runs, it does nothing; it never searches by the email and never opens a user. A retry
+// does nothing once the mapping no longer waits, and an open job nothing once «Neue Konten in Seerr
+// eröffnen» is off.
+func TestProvisionJobOfHandChoiceNeverOpens(t *testing.T) {
+	f := newFixture(t)
+	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = true })
+	f.refresh()
+	f.runQueued(JobProvision) // the shared user the refresh queued
+	three, four := 3, 4
+	if _, err := f.svc.SetAccountMapping(f.ctx, 2, &three, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SetAccountMapping(f.ctx, 2, nil, 1); err != nil { // undone before the job runs
+		t.Fatal(err)
+	}
+	f.fake.ResetCalls()
+	if n := f.runQueued(JobProvision); n != 1 {
+		t.Fatalf("jobs = %d", n)
+	}
+	if n := len(f.fake.CallLog()); n != 0 {
+		t.Errorf("undone hand choice: %d calls to seerr, first %+v", n, f.fake.CallLog()[0])
+	}
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 2`); got != 0 {
+		t.Errorf("undone hand choice left a mapping")
+	}
+
+	// Changed to another user: the job of the first choice does nothing, the second one writes the
+	// limit to user 4 only.
+	if _, err := f.svc.SetAccountMapping(f.ctx, 2, &three, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SetAccountMapping(f.ctx, 2, &four, 1); err != nil {
+		t.Fatal(err)
+	}
+	f.fake.ResetCalls()
+	if n := f.runQueued(JobProvision); n != 2 {
+		t.Fatalf("jobs = %d", n)
+	}
+	for _, c := range f.fake.CallLog() {
+		if strings.Contains(c.Path, "/user/3") || c.Route == "POST /user" || c.Route == "GET /user" {
+			t.Errorf("changed hand choice: call %s %s", c.Route, c.Path)
+		}
+	}
+	if f.fake.Calls("POST /user/{id}/settings/main") != 1 {
+		t.Errorf("limit of user 4 written %d times", f.fake.Calls("POST /user/{id}/settings/main"))
+	}
+	if got := f.count(`SELECT count(*) FROM wish_account_map WHERE account_id = 2 AND seerr_user_id = 4 AND limit_written_at IS NOT NULL`); got != 1 {
+		t.Errorf("limit of the chosen user not recorded")
+	}
+
+	// A retry of a waiting account that was undone meanwhile does nothing.
+	f.fake.SetFailure("*", seerrtest.Failure{Status: 503})
+	if w, err := f.svc.ProvisionAccount(f.ctx, 1, 1); err != nil || w.State != StateWaiting {
+		t.Fatalf("waiting = %+v, %v", w, err)
+	}
+	f.fake.SetFailure("*", seerrtest.Failure{})
+	if err := f.svc.queueProvision(f.ctx, provisionPayload{AccountID: 1, Intent: intentRetry, LinkedBy: LinkedByAdmin}, provisionPriority); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SetAccountMapping(f.ctx, 1, nil, 1); err != nil {
+		t.Fatal(err)
+	}
+	f.fake.ResetCalls()
+	f.runQueued(JobProvision)
+	if n := f.fake.Calls("POST /user") + f.fake.Calls("GET /user"); n != 0 {
+		t.Errorf("undone waiting account: %d searches or creations", n)
+	}
+
+	// «Alle eröffnen», then the switch goes off before the jobs run: nobody is opened.
+	if _, _, err := f.svc.ProvisionAll(f.ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	f.cfg.set(func(c *fakeConfig) { c.wish.ProvisionAccounts = false })
+	f.fake.ResetCalls()
+	if n := f.runQueued(JobProvision); n == 0 {
+		t.Fatal("«Alle eröffnen» queued nothing")
+	}
+	if n := f.fake.Calls("POST /user") + f.fake.Calls("GET /user"); n != 0 {
+		t.Errorf("switched off: %d searches or creations", n)
 	}
 }

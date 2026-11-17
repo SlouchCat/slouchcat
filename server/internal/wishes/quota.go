@@ -84,7 +84,7 @@ func (s *Service) SetAccountLimit(ctx context.Context, accountID int64, mode str
 	}
 	s.log.InfoContext(ctx, "wish limit of account set", "account_id", accountID, "mode", mode)
 	if ready {
-		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, Intent: intentSync}, jobs.ManualPriority); err != nil {
 			s.log.WarnContext(ctx, "limit of account not queued", "account_id", accountID, "err", err)
 		}
 	}
@@ -246,7 +246,7 @@ func (s *Service) defaultLimitChanged(ctx context.Context) error {
 		return fmt.Errorf("clear limits: %w", err)
 	}
 	for _, id := range ids {
-		if err := s.queueProvision(ctx, provisionPayload{AccountID: id, LinkedBy: LinkedByAdmin}, provisionPriority); err != nil {
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: id, Intent: intentSync}, provisionPriority); err != nil {
 			return err
 		}
 	}

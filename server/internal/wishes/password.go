@@ -118,7 +118,7 @@ func syncable(state string) bool { return state == PasswordSynced || state == Pa
 func (s *Service) provisionInMemory(ctx context.Context, accountID int64, linkedBy, password string) error {
 	state, err := s.provision(ctx, accountID, linkedBy, password, 0)
 	if state == StateWaiting && err != nil {
-		if qerr := s.queueProvision(context.WithoutCancel(ctx), provisionPayload{AccountID: accountID, LinkedBy: linkedBy}, provisionPriority); qerr != nil {
+		if qerr := s.queueProvision(context.WithoutCancel(ctx), provisionPayload{AccountID: accountID, Intent: intentRetry, LinkedBy: linkedBy}, provisionPriority); qerr != nil {
 			return errors.Join(err, qerr)
 		}
 		return nil

@@ -51,9 +51,20 @@ const (
 	userSearchTake = 100
 )
 
+// Intents of an account job: what the trigger asked for. Only intentOpen and intentRetry may
+// search by the email and open a user; intentSync only brings a ready user in line (rights, limit,
+// quota) and does nothing when the mapping is gone or changed by the time the job runs.
+const (
+	intentOpen  = "open"  // «In Seerr eröffnen», «Alle eröffnen», an invitation
+	intentRetry = "retry" // a mapping that waits for Seerr; nothing when it no longer waits
+	intentSync  = "sync"  // a ready user after a hand choice, a new limit or a new request right
+)
+
 // provisionPayload is the payload of a seerr.provision job. It never carries a password.
 type provisionPayload struct {
 	AccountID   int64  `json:"accountId,omitempty"`
+	Intent      string `json:"intent,omitempty"`    // intentOpen, intentRetry or intentSync ("" counts as sync)
+	SeerrUser   int    `json:"seerrUser,omitempty"` // intentSync: the user the trigger saw; 0 = any ready user
 	LinkedBy    string `json:"linkedBy,omitempty"`
 	SetBy       int64  `json:"setBy,omitempty"`
 	Shared      bool   `json:"shared,omitempty"`      // make sure of the shared user
@@ -74,8 +85,10 @@ func (s *Service) handleProvision(ctx context.Context, j *jobs.Job) error {
 		err = s.ensureShared(ctx, p.SharedLimit)
 	case p.CloseSeerr > 0:
 		err = s.closeUser(ctx, p.CloseSeerr)
+	case p.AccountID > 0 && (p.Intent == intentOpen || p.Intent == intentRetry):
+		err = s.provisionJob(ctx, p)
 	case p.AccountID > 0:
-		_, err = s.provision(ctx, p.AccountID, p.LinkedBy, "", p.SetBy)
+		err = s.syncAccount(ctx, p.AccountID, p.SeerrUser)
 	}
 	switch {
 	case errors.Is(err, model.ErrNotFound), errors.Is(err, model.ErrSeerrNotConfigured), errors.Is(err, errDisabled),
@@ -93,6 +106,9 @@ func (s *Service) queueProvision(ctx context.Context, p provisionPayload, prio i
 	}
 	key := JobProvision + ":account:" + strconv.FormatInt(p.AccountID, 10)
 	switch {
+	case p.AccountID > 0 && p.Intent != intentOpen && p.Intent != intentRetry:
+		// A sync never swallows an open job, nor one for another user (a second hand choice).
+		key = JobProvision + ":sync:" + strconv.FormatInt(p.AccountID, 10) + ":" + strconv.Itoa(p.SeerrUser)
 	case p.Shared:
 		key = JobProvision + ":shared"
 	case p.CloseSeerr > 0:
@@ -110,6 +126,52 @@ func (s *Service) queueProvision(ctx context.Context, p provisionPayload, prio i
 		return fmt.Errorf("raise %s: %w", JobProvision, err)
 	}
 	return nil
+}
+
+// provisionJob runs an open or retry job: only while «Neue Konten in Seerr eröffnen» is on and the
+// connection is set up, and a retry only while the mapping still waits (an administrator may have
+// undone it or chosen a user by hand since).
+func (s *Service) provisionJob(ctx context.Context, p provisionPayload) error {
+	if err := s.provisionAllowed(ctx); err != nil {
+		return err
+	}
+	if p.Intent == intentRetry {
+		m, err := s.read.GetAccountMapping(ctx, p.AccountID)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && m.State != StateWaiting) {
+			s.log.InfoContext(ctx, "seerr provisioning dropped: mapping no longer waits", "account_id", p.AccountID)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("mapping: %w", err)
+		}
+	}
+	_, err := s.provision(ctx, p.AccountID, p.LinkedBy, "", p.SetBy)
+	return err
+}
+
+// syncAccount runs a sync job: it brings the ready user of the account in line and never searches
+// or opens a user. Nothing when the account has no ready user or, with seerrUser > 0, another one.
+func (s *Service) syncAccount(ctx context.Context, accountID int64, seerrUser int) error {
+	acc, err := s.read.GetProvisionAccount(ctx, accountID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("account: %w", err)
+	}
+	m, err := s.read.GetAccountMapping(ctx, accountID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("mapping: %w", err)
+	}
+	if err != nil || m.State != StateReady || !m.SeerrUserID.Valid || (seerrUser > 0 && int(m.SeerrUserID.Int64) != seerrUser) {
+		s.log.InfoContext(ctx, "seerr sync dropped: mapping gone or changed", "account_id", accountID)
+		return nil
+	}
+	admin, err := s.provisionSession(ctx)
+	if err != nil {
+		return err
+	}
+	return s.syncReady(ctx, admin, acc, m)
 }
 
 // ProvisionAccount is «In Seerr eröffnen» (provisionSeerrAccount): it opens or links the Seerr
@@ -148,7 +210,7 @@ func (s *Service) ProvisionAll(ctx context.Context, by int64) (link, create int,
 		default:
 			return 0, 0, fmt.Errorf("find seerr user: %w", err)
 		}
-		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.ID, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.ID, Intent: intentOpen, LinkedBy: LinkedByAdmin, SetBy: by}, jobs.ManualPriority); err != nil {
 			return 0, 0, err
 		}
 	}
@@ -236,8 +298,15 @@ func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, pass
 	if err != nil {
 		return s.wait(ctx, accountID, linkedBy, setBy, err)
 	}
-	if hit == nil && linkedBy == LinkedByEmailChange && !hasRow {
-		return "", nil // N-95: only a hit links an account that was never opened
+	if hit == nil && linkedBy == LinkedByEmailChange && (!hasRow || m.LinkedBy.String == LinkedByEmailChange) {
+		// N-95: only a hit links an account that was never opened, also when an earlier email
+		// change left it waiting.
+		if hasRow {
+			if _, err := s.write.DeleteAccountMapping(ctx, accountID); err != nil {
+				return "", fmt.Errorf("drop waiting mapping: %w", err)
+			}
+		}
+		return "", nil
 	}
 	if hit == nil {
 		u, created, err := s.createUser(ctx, admin, acc.Email, password, ws)
@@ -664,7 +733,7 @@ func (s *Service) queueAfterUsers(ctx context.Context) error {
 		return fmt.Errorf("list waiting: %w", err)
 	}
 	for _, r := range rows {
-		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.AccountID, LinkedBy: r.LinkedBy.String, SetBy: r.SetBy.Int64}, provisionPriority); err != nil {
+		if err := s.queueProvision(ctx, provisionPayload{AccountID: r.AccountID, Intent: intentRetry, LinkedBy: r.LinkedBy.String, SetBy: r.SetBy.Int64}, provisionPriority); err != nil {
 			return err
 		}
 	}
@@ -753,7 +822,7 @@ func (s *Service) RequestRightChanged(ctx context.Context, accountID int64) {
 	if err != nil || m.State != StateReady || m.Origin.String != OriginCreated {
 		return
 	}
-	if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, LinkedBy: LinkedByAdmin}, jobs.ManualPriority); err != nil {
+	if err := s.queueProvision(ctx, provisionPayload{AccountID: accountID, Intent: intentSync, SeerrUser: int(m.SeerrUserID.Int64)}, jobs.ManualPriority); err != nil {
 		s.log.WarnContext(ctx, "rights of seerr user not queued", "account_id", accountID, "err", err)
 	}
 }
