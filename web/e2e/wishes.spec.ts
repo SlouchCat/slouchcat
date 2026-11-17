@@ -63,13 +63,21 @@ test('the page by keyboard: the entry with its count, rows, history, withdraw as
       })
       .toBe(1);
 
-    // The entry «Wünsche» after «Gesehen», with the open count, leads to the page.
+    // The entry «Wünsche» after «Gesehen», with the open count, leads to «Entdecken» (concept
+    // 25, 5.4); its link «Meine Wünsche» with the same count to the page.
     await page.goto('/');
     const entry = nav(page).getByRole('link', { name: 'Wünsche, 1 offener Wunsch' });
     await expect(entry).toBeVisible();
     await tabTo(page, entry, 40);
     await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/discover$/);
+    const mine = page
+      .getByRole('navigation', { name: 'Bereiche unter Wünsche' })
+      .getByRole('link', { name: 'Meine Wünsche (1)' });
+    await tabTo(page, mine, 40);
+    await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/wishes$/);
+    await expect(mine).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { level: 1, name: 'Meine Wünsche' })).toBeVisible();
     await expect(page.getByText('1 offener Wunsch')).toBeVisible();
     await expect(page.getByText(/^Limit: Filme: \d von 5 in 7 Tagen/)).toBeVisible();

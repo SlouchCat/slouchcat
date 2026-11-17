@@ -722,6 +722,12 @@
     },
     "dialog": {
       "needsApproval": "Braucht eine Freigabe. Den Stand siehst du unter „Meine Wünsche“."
+    },
+    "discover": {
+      "gone": {
+        "body": "Deine bisherigen Wünsche findest du weiterhin unter „Meine Wünsche“.",
+        "action": "Zu „Meine Wünsche“"
+      }
     }
   }
 }

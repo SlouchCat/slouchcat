@@ -7055,6 +7055,45 @@
       "againLabel": "{{title}} erneut anfordern",
       "history": "Verlauf: {{last}}",
       "fromSeerr": "in Seerr angelegt"
+    },
+    "area": {
+      "label": "Bereiche unter Wünsche",
+      "discover": "Entdecken",
+      "movies": "Filme",
+      "series": "Serien",
+      "search": "Suche",
+      "mine": "Meine Wünsche",
+      "mineCount_one": "Meine Wünsche ({{count}})",
+      "mineCount_other": "Meine Wünsche ({{count}})"
+    },
+    "discover": {
+      "title": "Entdecken",
+      "intro": "Was gerade beliebt ist und was bald erscheint. Was noch nicht in der Bibliothek ist, kannst du anfordern.",
+      "searchLabel": "Film oder Serie suchen",
+      "searchAction": "Suchen",
+      "rows": {
+        "trending": "Im Trend",
+        "popular_movies": "Beliebte Filme",
+        "movie_genres": "Film-Genres",
+        "upcoming_movies": "Demnächst im Kino",
+        "popular_shows": "Beliebte Serien",
+        "show_genres": "Serien-Genres",
+        "upcoming_shows": "Demnächst als Serie"
+      },
+      "stale": "Seerr ist nicht erreichbar. Du siehst den Stand vom letzten Abruf.",
+      "empty": "Im Moment gibt es hier nichts zu entdecken.",
+      "inLibrary": "In der Bibliothek",
+      "requested": "Bereits angefordert",
+      "join": "{{title}}: Benachrichtige mich",
+      "gone": {
+        "title": "Entdecken gibt es für dieses Profil nicht",
+        "body": "Deine bisherigen Wünsche findest du weiterhin unter «Meine Wünsche».",
+        "action": "Zu «Meine Wünsche»"
+      },
+      "notFound": {
+        "title": "Seite nicht gefunden",
+        "body": "Diese Seite gibt es für dieses Profil nicht."
+      }
     }
   },
   "titles": {

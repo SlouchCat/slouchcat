@@ -354,7 +354,8 @@ export function AppLayout() {
   if (wishRights?.enabled && (wishRights.canRequest || wishTotal > 0)) {
     const open = wishCounts.data?.open ?? 0;
     nav.push({
-      href: paths.wishes,
+      // «Entdecken» while the server shows the area's pages, else «Meine Wünsche» (concept 25, 5.4).
+      href: wishRights.discover ? paths.discover : paths.wishes,
       label: t('nav.wishes'),
       icon: 'heart',
       ...(open > 0
@@ -363,7 +364,10 @@ export function AppLayout() {
             accessibleLabel: t('nav.wishesLabel', { name: t('nav.wishes'), count: open }),
           }
         : {}),
-      current: pathname.startsWith(paths.wishes) || pathname.startsWith('/titles/'),
+      current:
+        pathname.startsWith(paths.wishes) ||
+        pathname.startsWith(paths.discover) ||
+        pathname.startsWith('/titles/'),
     });
   }
   // Every profile has its downloads on this device (M5), where the browser can keep them (K13).

@@ -61,6 +61,37 @@ export const MOVIES = [
     genres: [{ id: 99, de: 'Dokumentarfilm', en: 'Documentary' }],
     color: [90, 150, 120],
   },
+  // The wishes area (concept 25 stage 5): further titles of the discover lists of seerr-server.mjs.
+  {
+    id: 9004,
+    de: 'Sternenfeld',
+    en: 'Star Field',
+    date: '2027-03-05',
+    runtime: 112,
+    cert: '12',
+    genres: [{ id: 12, de: 'Abenteuer', en: 'Adventure' }],
+    color: [40, 60, 120],
+  },
+  {
+    id: 9005,
+    de: 'Rotes Ufer',
+    en: 'Red Shore',
+    date: '2025-06-01',
+    runtime: 97,
+    cert: '12',
+    genres: [{ id: 18, de: 'Drama', en: 'Drama' }],
+    color: [150, 60, 60],
+  },
+  {
+    id: 9006,
+    de: 'Winterhaus',
+    en: 'Winter House',
+    date: '2024-11-20',
+    runtime: 105,
+    cert: '6',
+    genres: [{ id: 18, de: 'Drama', en: 'Drama' }],
+    color: [140, 160, 180],
+  },
 ];
 
 export const SHOWS = [
@@ -95,6 +126,18 @@ export const SHOWS = [
     ],
     genres: [{ id: 10765, de: 'Sci-Fi & Fantasy', en: 'Sci-Fi & Fantasy' }],
     color: [120, 90, 150],
+  },
+  {
+    id: 9102,
+    de: 'Lichtturm',
+    en: 'Light Tower',
+    date: '2027-02-01',
+    runtime: 50,
+    cert: '12',
+    tvdb: 79102,
+    seasons: [{ n: 1, episodes: 8, date: '2027-02-01' }],
+    genres: [{ id: 18, de: 'Drama', en: 'Drama' }],
+    color: [170, 150, 80],
   },
 ];
 

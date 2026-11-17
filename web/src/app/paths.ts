@@ -33,6 +33,11 @@ export const paths = {
   title: (media: 'movie' | 'show', tmdbId: number) => `/titles/${media}/${tmdbId}`,
   /** «Meine Wünsche» of the active profile (concept 25, 5.3). */
   wishes: '/wishes',
+  /** The wishes area (concept 25, 5.4): «Entdecken», «Filme», «Serien», «Suche». */
+  discover: '/discover',
+  discoverMovies: '/discover/movies',
+  discoverSeries: '/discover/series',
+  discoverSearch: '/discover/search',
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>
     `/play/${encodeURIComponent(id)}${file ? `?file=${encodeURIComponent(file)}` : ''}`,

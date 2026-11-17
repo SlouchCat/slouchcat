@@ -39,6 +39,7 @@ import {
 } from './queries';
 import { wishProblemMessage } from './state';
 import { WISH_FILTERS, type WishesParams } from './wishesParams';
+import { WishesNav } from './discover/WishesNav';
 import { WishRow, wishRowKey } from './WishRow';
 import styles from './Wishes.module.css';
 
@@ -118,6 +119,7 @@ export function WishesPage() {
   return (
     <SpatialPage defaultFocusKey={first ? wishRowKey(first) : BACK_KEY}>
       <main className={discover.page} aria-busy={list.isPending || undefined}>
+        <WishesNav current="mine" />
         <div className={discover.head}>
           <h1 className={discover.title}>{t('wishes.page.title')}</h1>
           {list.isSuccess && (

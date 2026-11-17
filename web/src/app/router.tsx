@@ -667,6 +667,16 @@ const wishesViewerRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/wishes/WishesPage'), 'WishesPage'),
 });
 
+// The wishes area (concept 25, 5.4): «Entdecken» with its seven rows.
+const discoverRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover',
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/DiscoverPage'),
+    'DiscoverPage',
+  ),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -846,6 +856,7 @@ export const routeTree = rootRoute.addChildren([
         // concept 25
         titleRoute,
         wishesViewerRoute,
+        discoverRoute,
       ]),
       playRoute,
       setupStepRoute,

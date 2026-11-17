@@ -7055,6 +7055,45 @@
       "againLabel": "Request {{title}} again",
       "history": "History: {{last}}",
       "fromSeerr": "made in Seerr"
+    },
+    "area": {
+      "label": "Areas under Wishes",
+      "discover": "Discover",
+      "movies": "Films",
+      "series": "Series",
+      "search": "Search",
+      "mine": "My wishes",
+      "mineCount_one": "My wishes ({{count}})",
+      "mineCount_other": "My wishes ({{count}})"
+    },
+    "discover": {
+      "title": "Discover",
+      "intro": "What is popular right now and what is coming soon. What is not in the library yet, you can request.",
+      "searchLabel": "Search for a film or series",
+      "searchAction": "Search",
+      "rows": {
+        "trending": "Trending",
+        "popular_movies": "Popular films",
+        "movie_genres": "Film genres",
+        "upcoming_movies": "Coming to cinemas",
+        "popular_shows": "Popular series",
+        "show_genres": "Series genres",
+        "upcoming_shows": "Upcoming series"
+      },
+      "stale": "Seerr cannot be reached. You see the state of the last fetch.",
+      "empty": "There is nothing to discover here right now.",
+      "inLibrary": "In the library",
+      "requested": "Already requested",
+      "join": "{{title}}: notify me",
+      "gone": {
+        "title": "Discover is not available for this profile",
+        "body": "Your wishes so far are still under “My wishes”.",
+        "action": "To “My wishes”"
+      },
+      "notFound": {
+        "title": "Page not found",
+        "body": "This page does not exist for this profile."
+      }
     }
   },
   "titles": {

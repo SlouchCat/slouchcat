@@ -29,6 +29,15 @@
 //                                    with the request; any other 500 «Request is not failed.»
 //   GET  /api/v1/movie/{id}, /tv/{id}  the titles of tmdb-server.mjs with mediaInfo and, for a
 //                                    series, the seasons Seerr can order (season 0 included)
+//   GET  /api/v1/discover/trending, /discover/movies, /discover/tv, /discover/movies/upcoming,
+//        /discover/tv/upcoming, /search    {page, totalPages, totalResults, results} (I-43) over the
+//                                    titles of tmdb-server.mjs and a few TMDB does not know
+//                                    (DISCOVER_UNKNOWN); only the parameters Seerr's validator
+//                                    knows on the route, any other 400 «Unknown query parameter»
+//                                    (I-44); `language` on /discover/movies|tv filters the original
+//                                    language (I-60); page above 500 answers 500 (I-67); 6 a page
+//   GET  /api/v1/discover/genreslider/movie|tv   [{id, name, backdrops}] (I-45)
+//   GET  /api/v1/genres/movie|tv     [{id, name}] (I-45)
 //   GET  /api/v1/user?take=&skip=    {pageInfo, results} (I-11)
 //   GET  /api/v1/user/{id}           one user, 404 {"message": "User not found."}
 //   POST /api/v1/user                a local user (201, without e-mail in the answer, I-12); the
@@ -200,6 +209,146 @@ const dvr = (id, name, port) => ({
   preventSearch: false,
 });
 
+// The wishes area (concept 25 stage 5): what the discover and search routes list. Titles of the
+// TMDB mock, in Seerr's order of popularity, with the votes the sort orders filter by (I-64,
+// I-65); `seerr` marks a title another Seerr user requested (mediaInfo, «Bereits angefordert»).
+const DISCOVER_FACTS = {
+  9001: { votes: 7.1, count: 900 },
+  9005: { votes: 6.4, count: 700, seerr: 2 },
+  9002: { votes: 6.9, count: 640 },
+  9006: { votes: 7.8, count: 820 },
+  9003: { votes: 8.2, count: 40 },
+  9004: { votes: 0, count: 0 },
+  9100: { votes: 7.4, count: 400 },
+  9101: { votes: 6.8, count: 260 },
+  9102: { votes: 0, count: 0 },
+};
+
+/** Titles TMDB does not know: Slouchcat keeps Seerr's text and has no image (the placeholder). */
+export const DISCOVER_UNKNOWN = [
+  { id: 9901, type: 'movie', name: 'Paper Lantern', date: '2023-04-14', votes: 6.1, count: 120 },
+  { id: 9902, type: 'movie', name: 'Iron Orchard', date: '2022-08-30', votes: 5.9, count: 80 },
+  { id: 9903, type: 'movie', name: 'Quiet Harbor', date: '2021-02-11', votes: 6.6, count: 300 },
+  { id: 9904, type: 'movie', name: 'Amber Road', date: '2027-05-21', votes: 0, count: 0 },
+  { id: 9951, type: 'tv', name: 'Copper Valley', date: '2020-10-02', votes: 7.0, count: 90 },
+];
+
+/** A person among the search hits, as Seerr lists them; Slouchcat never shows one (N-53). */
+const PERSON = { id: 7001, mediaType: 'person', name: 'Nora Nebelhaus', profilePath: null };
+
+const DISCOVER_PAGE = 6;
+
+/** The parameters Seerr's validator knows per route (server/internal/seerr/calls.go). */
+const DISCOVER_PARAMS = {
+  '/discover/trending': ['page', 'language', 'mediaType', 'timeWindow'],
+  '/discover/movies': [
+    'page',
+    'sortBy',
+    'genre',
+    'studio',
+    'keywords',
+    'language',
+    'primaryReleaseDateGte',
+    'primaryReleaseDateLte',
+    'withRuntimeGte',
+    'withRuntimeLte',
+    'voteAverageGte',
+    'voteAverageLte',
+    'voteCountGte',
+    'voteCountLte',
+    'watchProviders',
+    'watchRegion',
+    'certification',
+    'certificationGte',
+    'certificationLte',
+    'certificationCountry',
+  ],
+  '/discover/tv': [
+    'page',
+    'sortBy',
+    'genre',
+    'network',
+    'keywords',
+    'language',
+    'firstAirDateGte',
+    'firstAirDateLte',
+    'withRuntimeGte',
+    'withRuntimeLte',
+    'voteAverageGte',
+    'voteAverageLte',
+    'voteCountGte',
+    'voteCountLte',
+    'watchProviders',
+    'watchRegion',
+    'status',
+    'certification',
+    'certificationGte',
+    'certificationLte',
+    'certificationCountry',
+  ],
+  '/discover/movies/upcoming': ['page', 'language'],
+  '/discover/tv/upcoming': ['page', 'language'],
+  '/discover/genreslider/movie': ['language'],
+  '/discover/genreslider/tv': ['language'],
+  '/genres/movie': ['language'],
+  '/genres/tv': ['language'],
+  '/search': ['query', 'page', 'language'],
+};
+
+const GENRE_SLIDES = {
+  movie: [
+    { id: 18, de: 'Drama', en: 'Drama', backdrops: ['/movie-9001-backdrop.png'] },
+    { id: 12, de: 'Abenteuer', en: 'Adventure', backdrops: ['/movie-9002-backdrop.png'] },
+    { id: 99, de: 'Dokumentarfilm', en: 'Documentary', backdrops: [] },
+  ],
+  tv: [
+    { id: 80, de: 'Krimi', en: 'Crime', backdrops: ['/tv-9100-backdrop.png'] },
+    {
+      id: 10765,
+      de: 'Sci-Fi & Fantasy',
+      en: 'Sci-Fi & Fantasy',
+      backdrops: ['/tv-9101-backdrop.png'],
+    },
+  ],
+};
+
+const GENRES = {
+  movie: [
+    { id: 12, de: 'Abenteuer', en: 'Adventure' },
+    { id: 35, de: 'Komödie', en: 'Comedy' },
+    { id: 99, de: 'Dokumentarfilm', en: 'Documentary' },
+    { id: 18, de: 'Drama', en: 'Drama' },
+  ],
+  tv: [
+    { id: 18, de: 'Drama', en: 'Drama' },
+    { id: 80, de: 'Krimi', en: 'Crime' },
+    { id: 10765, de: 'Sci-Fi & Fantasy', en: 'Sci-Fi & Fantasy' },
+  ],
+};
+
+/** Every title the discover routes know, as `{type, id, name: {de, en}, date, genres, …}`. */
+const DISCOVER_TITLES = [
+  ...MOVIES.map((movie) => ({ type: 'movie', fixture: movie })),
+  ...SHOWS.map((show) => ({ type: 'tv', fixture: show })),
+]
+  .map(({ type, fixture }) => ({
+    type,
+    id: fixture.id,
+    names: { de: fixture.de, en: fixture.en },
+    date: fixture.date,
+    genres: fixture.genres.map((genre) => genre.id),
+    tvdb: fixture.tvdb,
+    ...DISCOVER_FACTS[fixture.id],
+  }))
+  .concat(
+    DISCOVER_UNKNOWN.map((title) => ({
+      ...title,
+      names: { de: title.name, en: title.name },
+      genres: [18],
+    })),
+  )
+  .toSorted((a, b) => b.count - a.count || a.id - b.id);
+
 /**
  * Starts the Seerr mock on 127.0.0.1:`port` (SLOUCHCAT_E2E_SEERR_PORT, default 8086); resolves
  * with its port and a `close` function.
@@ -269,6 +418,139 @@ export function startSeerrServer({
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   });
+
+  /** One result of a list (I-43): mediaInfo from the requests of the mock, else the fixture's. */
+  const resultOf = (title, language) => {
+    const request = mediaOf(title.type, title.id);
+    const mediaInfo =
+      request ??
+      (title.seerr ? { tmdbId: title.id, mediaType: title.type, status: title.seerr } : undefined);
+    const name = title.names[language] ?? title.names.en;
+    return {
+      id: title.id,
+      mediaType: title.type,
+      ...(title.type === 'movie'
+        ? { title: name, originalTitle: title.names.en, releaseDate: title.date }
+        : { name, originalName: title.names.en, firstAirDate: title.date }),
+      overview: '',
+      posterPath: `/${title.type}-${title.id}-poster.png`,
+      backdropPath: `/${title.type}-${title.id}-backdrop.png`,
+      genreIds: title.genres,
+      originalLanguage: 'en',
+      voteAverage: title.votes,
+      voteCount: title.count,
+      popularity: title.count / 10,
+      ...(mediaInfo ? { mediaInfo } : {}),
+    };
+  };
+
+  /** The discover and search routes (concept 25 stage 5, appendix I sections 4 and 4a). */
+  const discover = (path, url, response) => {
+    const query = url.searchParams;
+    for (const key of query.keys()) {
+      if (!DISCOVER_PARAMS[path].includes(key)) {
+        sendJson(response, 400, { message: `Unknown query parameter '${key}'` });
+        return;
+      }
+    }
+    const page = Number(query.get('page') ?? 1);
+    if (!Number.isInteger(page) || page < 1) {
+      sendJson(response, 400, { message: 'request/query/page must be >= 1' });
+      return;
+    }
+    if (page > 500) {
+      sendJson(response, 500, { status: 500, message: 'Unable to retrieve popular movies.' });
+      return;
+    }
+    const language = (query.get('language') ?? 'en').startsWith('de') ? 'de' : 'en';
+    const slider = /^\/discover\/genreslider\/(movie|tv)$/.exec(path);
+    if (slider) {
+      sendJson(
+        response,
+        200,
+        GENRE_SLIDES[slider[1]].map((genre) => ({
+          id: genre.id,
+          name: genre[language],
+          backdrops: genre.backdrops,
+        })),
+      );
+      return;
+    }
+    const genres = /^\/genres\/(movie|tv)$/.exec(path);
+    if (genres) {
+      sendJson(
+        response,
+        200,
+        GENRES[genres[1]].map((genre) => ({ id: genre.id, name: genre[language] })),
+      );
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    let list = DISCOVER_TITLES;
+    if (path === '/discover/trending') {
+      list = list.filter((title) => title.date <= today);
+    } else if (path === '/discover/movies/upcoming' || path === '/discover/tv/upcoming') {
+      const type = path.startsWith('/discover/movies') ? 'movie' : 'tv';
+      list = list.filter((title) => title.type === type && title.date > today);
+    } else if (path === '/discover/movies' || path === '/discover/tv') {
+      const type = path === '/discover/movies' ? 'movie' : 'tv';
+      list = list.filter((title) => title.type === type);
+      // `language` is a filter on the original language here, not the display language (I-60).
+      if (query.has('language')) list = list.filter(() => query.get('language') === 'en');
+      const genre = (query.get('genre') ?? '').split(',').filter(Boolean).map(Number);
+      list = list.filter((title) => genre.every((id) => title.genres.includes(id)));
+      const before = query.get(type === 'movie' ? 'primaryReleaseDateLte' : 'firstAirDateLte');
+      if (before) list = list.filter((title) => title.date <= before);
+      const votes = Number(query.get('voteCountGte') ?? 0);
+      list = list.filter((title) => title.count >= votes);
+      // An unknown order gives the list by popularity (I-68).
+      const sortBy = query.get('sortBy') ?? 'popularity.desc';
+      if (sortBy === 'primary_release_date.desc' || sortBy === 'first_air_date.desc') {
+        list = list.toSorted((a, b) => b.date.localeCompare(a.date));
+      } else if (sortBy === 'vote_average.desc') {
+        list = list.toSorted((a, b) => b.votes - a.votes);
+      }
+    } else if (path === '/search') {
+      const text = (query.get('query') ?? '').trim().toLowerCase();
+      const id = /^(tmdb|tvdb|imdb):(\S+)$/.exec(text);
+      const found = id
+        ? list.filter((title) =>
+            id[1] === 'tmdb'
+              ? String(title.id) === id[2]
+              : id[1] === 'tvdb'
+                ? String(title.tvdb ?? '') === id[2]
+                : `tt0${title.id}` === id[2],
+          )
+        : list.filter(
+            (title) =>
+              text !== '' &&
+              Object.values(title.names).some((name) => name.toLowerCase().includes(text)),
+          );
+      const person =
+        (id?.[1] === 'tmdb' && found.length > 0) ||
+        (text !== '' && PERSON.name.toLowerCase().includes(text));
+      const results = [
+        ...found.map((title) => resultOf(title, language)),
+        ...(person ? [PERSON] : []),
+      ];
+      sendJson(response, 200, {
+        page: 1,
+        totalPages: 1,
+        totalResults: results.length,
+        results: page === 1 ? results : [],
+      });
+      return;
+    }
+    const totalPages = Math.max(1, Math.ceil(list.length / DISCOVER_PAGE));
+    sendJson(response, 200, {
+      page,
+      totalPages,
+      totalResults: list.length,
+      results: list
+        .slice((page - 1) * DISCOVER_PAGE, page * DISCOVER_PAGE)
+        .map((title) => resultOf(title, language)),
+    });
+  };
 
   const routes = async (request, url, response) => {
     const path = url.pathname.replace(/^\/api\/v1/, '');
@@ -485,6 +767,10 @@ export function startSeerrServer({
         externalIds: { imdbId: `tt0${fixture.id}`, tvdbId: fixture.tvdb },
         ...(mediaInfo ? { mediaInfo } : {}),
       });
+      return;
+    }
+    if (method === 'GET' && path in DISCOVER_PARAMS) {
+      discover(path, url, response);
       return;
     }
     if (method === 'GET' && path === '/user') {
