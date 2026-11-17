@@ -69,6 +69,30 @@ Schlüssel, Adressen, Namen oder E-Mail-Adressen. Stand der Instanzen: Seerr 3.5
 `POST /request` wurde nicht aufgerufen (kein echter Wunsch). Die Antworten 201, 202, 409 und die 403-Texte beim
 Anfordern bleiben Annahme aus dem Quellcode (Anhang D).
 
+## 4a. Seerr: Entdecken, zweite Leseprobe nach dem Bau der Schritte 5.2 und 5.3
+
+Nur lesend, am 17. November 2026. Sie hat drei Annahmen des Baus widerlegt.
+
+| Nr. | Befund | Folge für den Bau |
+|---|---|---|
+| I-60 | Bei `/discover/movies` und `/discover/tv` ist `language` **kein Anzeigeparameter, sondern ein Filter auf die Originalsprache**: mit `language=de` kommen nur deutsche Produktionen. Ohne `language` kommt die internationale Liste | `language` an diese beiden Routen nie senden (N-115) |
+| I-61 | Die Anzeigesprache dieser beiden Routen ist die Sprache des handelnden Seerr-Benutzers, sonst die Vorgabe der Instanz (hier Englisch); sie lässt sich je Aufruf nicht wählen, auch nicht über `Accept-Language` | Titel und Poster dieser Listen kommen in Seerrs Sprache; Slouchcat ersetzt sie durch die eigenen Texte (N-116) |
+| I-62 | Bei `/discover/trending`, `/discover/movies/upcoming`, `/discover/tv/upcoming`, `/search`, `/discover/genreslider/*`, `/genres/*`, `/movie/{id}` und `/tv/{id}` ist `language` die Anzeigesprache und wirkt | dort weiter senden |
+| I-63 | `sortBy=title.asc` (Filme) und `name.asc` (Serien) werden übergangen: es kommt die Liste nach Beliebtheit. `original_title.asc` und `original_name.asc` wirken, beginnen aber mit Sonderzeichen-Titeln, auch mit einer Mindestzahl an Stimmen | Eine brauchbare Sortierung «Titel A–Z» gibt es über Seerr nicht (N-117) |
+| I-64 | `primary_release_date.desc` und `first_air_date.desc` beginnen mit Titeln, die erst in zwei Jahren erscheinen. Mit `primaryReleaseDateLte` bzw. `firstAirDateLte` = heute und `voteCountGte` (Filme 50, Serien 20) entsteht eine brauchbare Liste «Neueste zuerst» | so senden (N-117) |
+| I-65 | `vote_average.desc` braucht ebenfalls `voteCountGte` (geprüft mit 500), sonst führen Titel mit einer Handvoll Stimmen | – |
+| I-66 | Abdeckung des Vorfilters `certificationCountry` + `certificationLte` (international, Filme bis 12 bzw. PG-13): DE und US erreichen die Obergrenze der Liste, GB 17021 Treffer, **CH nur 3552**; AT ist ähnlich dünn. Serien: DE 7538, CH 2345, US 18205 | Für CH und AT mit DE vorfiltern (N-118) |
+| I-67 | `totalPages` kann 1001 sein, Seite 501 gibt aber **500** «Unable to retrieve popular movies.» | Seitenzahl auf 500 begrenzen |
+| I-68 | Ein unbekannter `sortBy`-Wert gibt 200 mit der Standardliste | Werte selbst prüfen |
+| I-69 | Trending liefert nur `movie` und `tv`; 12 von 20 Treffern trugen `mediaInfo` | – |
+
+| Nr. | Regel | Von |
+|---|---|---|
+| N-115 | An `/discover/movies` und `/discover/tv` sendet Slouchcat kein `language`. | Redaktion (I-60) |
+| N-116 | Titel, Poster und Hintergrund eines Treffers zeigt Slouchcat aus den eigenen Daten (`external_titles`, in der Sprache des Profils), sobald es den Titel kennt. Der stündliche Job holt die Einzelheiten für die erste Seite jeder Reihe; eine Reihen-, Raster- oder Suchseite holt sie für ihre höchstens 20 Treffer. Fehlt der eigene Eintrag, bleibt der Text aus Seerr. | Redaktion (I-61) |
+| N-117 | Die Raster «Filme» und «Serien» bieten die Sortierungen «Beliebtheit», «Neueste zuerst» (bis heute erschienen, mit Mindestzahl an Stimmen) und «Am besten bewertet» (mit Mindestzahl an Stimmen). «Titel A–Z» aus dem Mockup entfällt, weil Seerr sie nicht brauchbar liefert (I-63). | Redaktion (I-63 bis I-65); Abweichung vom Mockup, Marco wird sie gemeldet |
+| N-118 | Der Vorfilter nach Freigabe nimmt das gewählte Land (ADR 0034), für CH und AT aber DE, das nächste Land der Lesereihenfolge mit breiter Abdeckung. Über die Anzeige entscheidet weiter allein die Nachprüfung mit der Regel von Slouchcat. | Redaktion (I-66) |
+
 ## 5. Radarr und Sonarr: Tags und Warteschlange
 
 | Nr. | Befund | Folge für den Bau |
@@ -103,4 +127,4 @@ Daraus folgen diese Regeln. Sie gehen Anhang H und den Papieren 03, 04 und 08 vo
 | N-111 | **Sammelbenutzer (I-F2).** «slouchcat-gaeste» behält ebenfalls die Rechte aus `defaultPermissions`. Das ersetzt in N-101 «Recht `REQUEST`, keine automatische Freigabe». Ob ein Wunsch auf eine Freigabe wartet, entscheidet damit bei allen Benutzern allein Seerr. | Marco (I-F2) |
 | N-112 | **Limit beim Verknüpfen (I-F3).** Wird ein Konto mit einem bestehenden Seerr-Benutzer verknüpft (über die E-Mail, von Hand, beim Annehmen einer Einladung oder nach einer E-Mail-Änderung) und hat das Konto in Slouchcat noch kein eigenes Limit, liest Slouchcat die vier Limit-Felder des Benutzers: sind alle leer, gilt «Standard» und Slouchcat schreibt die Vorgabe; sind beide Limits 0, gilt «Unbegrenzt»; sonst gilt «Eigenes» mit den Werten aus Seerr, wobei ein leeres Feld den Wert der Vorgabe bekommt. Werte ausserhalb der Grenzen von Slouchcat (Limit 0 bis 100, Tage 1 bis 90) werden auf die Grenze gesetzt und in Seerr nachgeführt. Hat das Konto schon ein eigenes Limit in Slouchcat, gewinnt dieses. Für Benutzer mit `MANAGE_USERS` bleibt es bei «Kein Limit». Das ersetzt «verknüpfter Benutzer: alter Wert überschrieben» im Umsetzungsplan (DoD 1.5c). | Marco (I-F3), Einzelheiten Redaktion |
 | N-113 | **Name des Profil-Tags (I-52).** Der Tag wird aus Präfix und Profilname so gebildet, dass Radarr ihn annimmt: klein, ä → ae, ö → oe, ü → ue, scharfes S und ss → ss, andere Buchstaben mit Zeichen auf den Grundbuchstaben, alles ausser a–z und 0–9 wird `-`, mehrere `-` zu einem, kein `-` am Rand; bleibt nichts übrig, heisst der Tag `<präfix>profil-<id>`. Ein von Hand gesetzter Tag-Name je Profil (F-25) wird nach derselben Regel geprüft. | Redaktion |
-| N-114 | **Unbekannter Benutzer oder falscher Schlüssel (I-2, I-3).** Auf ein 403 «permission to access this endpoint» bei einem Aufruf im Namen eines Benutzers folgt ein Aufruf als Administrator; gelingt er, gilt der Benutzer als weg (`seerr_user_gone`), sonst der Schlüssel als ungültig. | Redaktion |
+| N-114 | **Unbekannter Benutzer oder falscher Schlüssel (I-2, I-3).** Auf ein 403 «permission to access this endpoint» bei einem Aufruf im Namen eines Benutzers folgt ein Aufruf als Administrator auf `GET /user/{id}`: 404 heisst, der Benutzer ist weg (`seerr_user_gone`); wird auch dieser Aufruf abgewiesen, ist der Schlüssel ungültig; gibt es den Benutzer, fehlt ihm das Recht. (So gebaut; ein gelungenes `GET /auth/me` allein hätte ein fehlendes Recht als gelöschten Benutzer gelesen, I-23.) | Redaktion |
