@@ -909,6 +909,45 @@ func (q *Queries) ListWishSeasonsByRequest(ctx context.Context, seerrRequestID s
 	return items, nil
 }
 
+const listWishTitlesInUse = `-- name: ListWishTitlesInUse :many
+SELECT media, tmdb_id,
+       CAST(state IN ('queued', 'pending', 'processing', 'partial') AS INTEGER) AS open
+FROM wishes
+WHERE state IN ('queued', 'pending', 'processing', 'partial') OR closed_at >= ?1
+ORDER BY open DESC, id
+`
+
+type ListWishTitlesInUseRow struct {
+	Media  string
+	TmdbID int64
+	Open   int64
+}
+
+// The titles of the open wishes and of the wishes closed since closed_since (titles.refresh keeps
+// them, migration 00074); open is 1 for an open wish.
+func (q *Queries) ListWishTitlesInUse(ctx context.Context, closedSince sql.NullInt64) ([]ListWishTitlesInUseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWishTitlesInUse, closedSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWishTitlesInUseRow{}
+	for rows.Next() {
+		var i ListWishTitlesInUseRow
+		if err := rows.Scan(&i.Media, &i.TmdbID, &i.Open); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const profileHasWish = `-- name: ProfileHasWish :one
 SELECT EXISTS (
     SELECT 1 FROM wish_requesters AS r JOIN wishes AS w ON w.id = r.wish_id

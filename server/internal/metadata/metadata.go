@@ -174,6 +174,8 @@ type Service struct {
 	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
+	// wishTitles names the titles the wishes hold (titles.refresh, WithWishTitles); nil: none.
+	wishTitles WishTitles
 	// matched hears of a film or series whose provider ids the match wrote (Service.WithMatched).
 	matched func(ctx context.Context, m MatchedTitle)
 
@@ -226,6 +228,7 @@ type options struct {
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
 	relink      func(ctx context.Context, itemID string) (bool, error)
+	wishTitles  WishTitles
 	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
 	// podcastChecked: see WithPodcastChecked.
@@ -456,6 +459,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		podcastSavable:  o.podcastSavable,
 		podcastStates:   o.podcastStates,
 		relink:          o.relink,
+		wishTitles:      o.wishTitles,
 		relinkSeries:    o.relinkSeries,
 		authorDisplay:   o.authorDisplay,
 		trakt:           newTraktConfig(o.traktID, o.trakt, o.now, o.feedAgent),

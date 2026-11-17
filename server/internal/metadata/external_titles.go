@@ -60,8 +60,13 @@ const (
 	titlesRefreshPriority = 7
 	titlesRefreshEvery    = 24 * time.Hour
 	// ExternalTitleMaxAge is the age after which titles.refresh fetches a row again.
-	ExternalTitleMaxAge   = 7 * 24 * time.Hour
-	titlesRefreshBatch    = 1000
+	ExternalTitleMaxAge = 7 * 24 * time.Hour
+	titlesRefreshBatch  = 1000
+	// ExternalTitleUnusedAge is how long a title may go unused before titles.refresh stops
+	// fetching it and removes it (migration 00074); a wish closed within it keeps its title too.
+	ExternalTitleUnusedAge = 30 * 24 * time.Hour
+	// externalUsedStep is how often a read moves used_at on: at most once a day per title.
+	externalUsedStep      = 24 * time.Hour
 	titlesRefreshFailures = 3
 	// externalMissAge is how long a title or image TMDB refused is not asked for again.
 	externalMissAge   = time.Hour
@@ -216,6 +221,15 @@ func (s *Service) ExternalTitle(ctx context.Context, media string, tmdbID int64)
 	t, err := externalTitleOf(row, texts)
 	if err != nil {
 		return ExternalTitle{}, err
+	}
+	if now := s.now(); !row.UsedAt.Valid || row.UsedAt.Int64 < now.Add(-externalUsedStep).UnixMilli() {
+		// In use (migration 00074): at most one write a day per title.
+		if err := externalq.New(s.db.Write).TouchExternalTitleUsed(ctx, externalq.TouchExternalTitleUsedParams{
+			Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, Media: media, TmdbID: tmdbID,
+			Before: sql.NullInt64{Int64: now.Add(-externalUsedStep).UnixMilli(), Valid: true},
+		}); err != nil {
+			return ExternalTitle{}, fmt.Errorf("touch external title %s: %w", externalKey(media, tmdbID), err)
+		}
 	}
 	sizes, err := q.ListExternalTitleImageSizes(ctx, externalq.ListExternalTitleImageSizesParams{Media: media, TmdbID: tmdbID})
 	if err != nil {
@@ -890,6 +904,96 @@ func (s *Service) recomputeExternalAges(ctx context.Context, country string) err
 	}
 }
 
+// refreshOrder lists the titles titles.refresh fetches again, at most titlesRefreshBatch: the
+// stored titles of open wishes older than ExternalTitleMaxAge first, then the other stale titles
+// in use (used within ExternalTitleUnusedAge or on the spotlight list), the oldest fetch first.
+func (s *Service) refreshOrder(ctx context.Context, now time.Time, open []TitleRef) ([]TitleRef, error) {
+	cutoff := now.Add(-ExternalTitleMaxAge).UnixMilli()
+	q := externalq.New(s.db.Read)
+	var rows []TitleRef
+	seen := map[TitleRef]bool{}
+	for _, r := range open {
+		at, err := q.GetExternalTitleFetchedAt(ctx, externalq.GetExternalTitleFetchedAtParams{Media: r.Media, TmdbID: r.TMDBID})
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			continue // never stored: the wish's pages fetch it
+		case err != nil:
+			return nil, fmt.Errorf("%s: fetch time: %w", JobTitlesRefresh, err)
+		}
+		if at < cutoff && !seen[r] && len(rows) < titlesRefreshBatch {
+			seen[r] = true
+			rows = append(rows, r)
+		}
+	}
+	stale, err := q.ListStaleExternalTitles(ctx, externalq.ListStaleExternalTitlesParams{
+		Cutoff: cutoff, UsedSince: sql.NullInt64{Int64: now.Add(-ExternalTitleUnusedAge).UnixMilli(), Valid: true}, LimitCount: titlesRefreshBatch,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s: list stale titles: %w", JobTitlesRefresh, err)
+	}
+	for _, r := range stale {
+		if ref := (TitleRef{Media: r.Media, TMDBID: r.TmdbID}); !seen[ref] && len(rows) < titlesRefreshBatch {
+			seen[ref] = true
+			rows = append(rows, ref)
+		}
+	}
+	return rows, nil
+}
+
+// removeUnusedExternal deletes the stored titles not used since ExternalTitleUnusedAge before now
+// that are not on the spotlight list and that no wish of open or recent holds, with their texts,
+// images and image files.
+func (s *Service) removeUnusedExternal(ctx context.Context, now time.Time, open, recent []TitleRef) error {
+	keep := map[TitleRef]bool{}
+	for _, r := range append(slices.Clone(open), recent...) {
+		keep[r] = true
+	}
+	rows, err := externalq.New(s.db.Read).ListUnusedExternalTitles(ctx, externalq.ListUnusedExternalTitlesParams{
+		UsedBefore: sql.NullInt64{Int64: now.Add(-ExternalTitleUnusedAge).UnixMilli(), Valid: true}, LimitCount: titlesRefreshBatch,
+	})
+	if err != nil {
+		return fmt.Errorf("%s: list unused titles: %w", JobTitlesRefresh, err)
+	}
+	removed := 0
+	for _, r := range rows {
+		if keep[TitleRef{Media: r.Media, TMDBID: r.TmdbID}] {
+			continue
+		}
+		rels, err := s.deleteExternal(ctx, r.Media, r.TmdbID)
+		if err != nil {
+			return fmt.Errorf("%s: %w", JobTitlesRefresh, err)
+		}
+		s.removeExternalFiles(rels)
+		removed++
+	}
+	if removed > 0 {
+		s.log.InfoContext(ctx, "unused external titles removed", "count", removed)
+	}
+	return nil
+}
+
+// deleteExternal removes one stored title with its texts and image rows in one transaction and
+// returns the image files to remove.
+func (s *Service) deleteExternal(ctx context.Context, media string, tmdbID int64) ([]string, error) {
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := externalq.New(tx)
+	rels, err := q.DeleteExternalTitleImageRows(ctx, externalq.DeleteExternalTitleImageRowsParams{Media: media, TmdbID: tmdbID})
+	if err != nil {
+		return nil, fmt.Errorf("delete images of external title %s: %w", externalKey(media, tmdbID), err)
+	}
+	if err := q.DeleteExternalTitleRow(ctx, externalq.DeleteExternalTitleRowParams{Media: media, TmdbID: tmdbID}); err != nil {
+		return nil, fmt.Errorf("delete external title %s: %w", externalKey(media, tmdbID), err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return rels, nil
+}
+
 // runTitlesRefresh is the Run of the schedule titles.refresh: one job under its key.
 func (s *Service) runTitlesRefresh(ctx context.Context, q *jobs.Queue, prio int) ([]int64, error) {
 	id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobTitlesRefresh, Priority: prio, IdempotencyKey: titlesRefreshKey})
@@ -902,21 +1006,51 @@ func (s *Service) runTitlesRefresh(ctx context.Context, q *jobs.Queue, prio int)
 	return []int64{id}, nil
 }
 
-// handleTitlesRefresh fetches the stored titles older than ExternalTitleMaxAge again.
+// TitleRef names a title outside the library.
+type TitleRef struct {
+	Media  string
+	TMDBID int64
+}
+
+// WishTitles names the titles the wishes hold (package wishes, wired in main.go; metadata does not
+// import it): open are those of open wishes, recent those of wishes closed since closedSince.
+type WishTitles func(ctx context.Context, closedSince time.Time) (open, recent []TitleRef, err error)
+
+// WithWishTitles sets the source of the titles the wishes hold (titles.refresh, migration 00074);
+// without it no title counts as wished.
+func WithWishTitles(fn WishTitles) Option {
+	return func(o *options) { o.wishTitles = fn }
+}
+
+// handleTitlesRefresh keeps the stored titles in use (migration 00074): it removes the titles not
+// used for ExternalTitleUnusedAge that no open or recently closed wish holds and that are not on
+// the spotlight list, then fetches again the titles of open wishes and the titles used within
+// ExternalTitleUnusedAge (or on the spotlight list) that are older than ExternalTitleMaxAge, the
+// open wishes first. Without a TMDB key it only removes.
 func (s *Service) handleTitlesRefresh(ctx context.Context, _ *jobs.Job) error {
+	now := s.now()
+	var open, recent []TitleRef
+	if s.wishTitles != nil {
+		var err error
+		if open, recent, err = s.wishTitles(ctx, now.Add(-ExternalTitleUnusedAge)); err != nil {
+			return fmt.Errorf("%s: titles of the wishes: %w", JobTitlesRefresh, err)
+		}
+	}
+	if err := s.removeUnusedExternal(ctx, now, open, recent); err != nil {
+		return err
+	}
 	if !s.tmdb.Configured(ctx) {
 		jobs.Skip(ctx) // without a TMDB key there is nothing to fetch
 		return nil
 	}
-	cutoff := s.now().Add(-ExternalTitleMaxAge).UnixMilli()
-	rows, err := externalq.New(s.db.Read).ListStaleExternalTitles(ctx, externalq.ListStaleExternalTitlesParams{Cutoff: cutoff, LimitCount: titlesRefreshBatch})
+	rows, err := s.refreshOrder(ctx, now, open)
 	if err != nil {
-		return fmt.Errorf("%s: list stale titles: %w", JobTitlesRefresh, err)
+		return err
 	}
 	failures := 0
 	for i, r := range rows {
 		jobs.Progress(ctx, int64(i), int64(len(rows)), "")
-		_, err := s.RefreshExternalTitle(ctx, r.Media, r.TmdbID)
+		_, err := s.RefreshExternalTitle(ctx, r.Media, r.TMDBID)
 		switch {
 		case err == nil, errors.Is(err, model.ErrNotFound):
 			failures = 0 // a title TMDB no longer has keeps its row until the next due date
@@ -926,7 +1060,7 @@ func (s *Service) handleTitlesRefresh(ctx context.Context, _ *jobs.Job) error {
 			return fmt.Errorf("%s: %w", JobTitlesRefresh, err)
 		default:
 			failures++
-			s.log.Warn("external title refresh failed", "media", r.Media, "tmdb_id", r.TmdbID, "err", err)
+			s.log.Warn("external title refresh failed", "media", r.Media, "tmdb_id", r.TMDBID, "err", err)
 			if failures >= titlesRefreshFailures {
 				return fmt.Errorf("%s: %d failures in a row: %w", JobTitlesRefresh, failures, err)
 			}

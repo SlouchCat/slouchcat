@@ -63,3 +63,20 @@ func TestRetryWish(t *testing.T) {
 		t.Errorf("unknown wish: %v", err)
 	}
 }
+
+// TitlesInUse names the titles of open wishes and of wishes closed since a time (titles.refresh,
+// migration 00074); an older closed wish names none.
+func TestTitlesInUse(t *testing.T) {
+	r := newRequestFixture(t)
+	res := r.create(r.marco, film(matrix))
+	r.exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, state, fail_reason, created_at, updated_at, closed_at)
+	        VALUES (801, 'movie', ?, 'Alien', 'slouchcat', 'failed', 'quota', 1, 1, ?), (802, 'show', 77, 'Alt', 'slouchcat', 'declined', NULL, 1, 1, 5)`,
+		alien, r.clock.now().UnixMilli())
+	open, recent, err := r.svc.TitlesInUse(r.ctx, r.clock.now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(open) != 1 || open[0].TMDBID != matrix || res.Wish == nil || len(recent) != 1 || recent[0].TMDBID != alien {
+		t.Errorf("open %v, recent %v", open, recent)
+	}
+}

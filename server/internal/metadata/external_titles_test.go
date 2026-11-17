@@ -296,8 +296,8 @@ func TestExternalTitleUnknownAtTMDB(t *testing.T) {
 	}
 }
 
-// titles.refresh fetches only the rows older than seven days; a title that vanished at TMDB keeps
-// its row, the run succeeds and the next run does not ask for it again (no retry storm).
+// titles.refresh fetches only the rows in use older than seven days; a title that vanished at TMDB
+// keeps its row, the run succeeds and the next run does not ask for it again (no retry storm).
 func TestExternalTitleRefreshJob(t *testing.T) {
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -310,8 +310,8 @@ func TestExternalTitleRefreshJob(t *testing.T) {
 	fresh := testNow.Add(-ExternalTitleMaxAge + time.Hour).UnixMilli()
 	mustExec(t, e.db.Write, `UPDATE external_titles SET fetched_at = ? WHERE tmdb_id = 550`, stale)
 	mustExec(t, e.db.Write, `UPDATE external_titles SET fetched_at = ? WHERE tmdb_id = 601`, fresh)
-	// Film 777 was stored once and has vanished at TMDB since.
-	mustExec(t, e.db.Write, `INSERT INTO external_titles (media, tmdb_id, min_age, fetched_at) VALUES ('movie', 777, 6, ?)`, stale)
+	// Film 777 was stored once, is in use and has vanished at TMDB since.
+	mustExec(t, e.db.Write, `INSERT INTO external_titles (media, tmdb_id, min_age, fetched_at, used_at) VALUES ('movie', 777, 6, ?, ?)`, stale, testNow.UnixMilli())
 	mustExec(t, e.db.Write, `INSERT INTO external_title_texts (media, tmdb_id, language, title) VALUES ('movie', 777, 'de', 'Verschwunden')`)
 	before550, before601 := e.tmdb.count("/3/movie/550"), e.tmdb.count("/3/movie/601")
 	run := func() {
@@ -370,7 +370,7 @@ func TestExternalTitleRefreshJobWithoutKey(t *testing.T) {
 		t.Errorf("requests without key = %d", n)
 	}
 	bad := newEnv(t, "rejected-token")
-	mustExec(t, bad.db.Write, `INSERT INTO external_titles (media, tmdb_id, fetched_at) VALUES ('movie', 550, 0)`)
+	mustExec(t, bad.db.Write, `INSERT INTO external_titles (media, tmdb_id, fetched_at, used_at) VALUES ('movie', 550, 0, ?)`, testNow.UnixMilli())
 	if err := bad.svc.handleTitlesRefresh(ctx, &jobs.Job{Type: JobTitlesRefresh}); !errors.Is(err, model.ErrTMDBKeyInvalid) {
 		t.Errorf("titles.refresh with a rejected key = %v, want ErrTMDBKeyInvalid", err)
 	}
@@ -393,4 +393,109 @@ func TestExternalTitleImageRefs(t *testing.T) {
 	if !slices.Equal(refs, want) {
 		t.Errorf("refs = %+v", refs)
 	}
+}
+
+// titles.refresh keeps only titles in use (migration 00074): a page read moves used_at on at most
+// once a day; the titles of open wishes are fetched first, then the stale titles used within 30
+// days or on the spotlight list; a title unused for 30 days goes with its texts, images and image
+// files unless an open or recently closed wish holds it or the spotlight list names it.
+func TestExternalTitleRefreshInUse(t *testing.T) {
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	for _, id := range []int64{550, 601, 602} {
+		if _, err := e.svc.EnsureExternalTitle(ctx, MediaMovie, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.svc.OpenExternalTitleImage(ctx, MediaMovie, 550, "poster", "w200", false); err != nil {
+		t.Fatalf("image: %v", err)
+	}
+	var rel string
+	if err := e.db.Read.QueryRow(`SELECT rel_path FROM external_title_images WHERE tmdb_id = 550 LIMIT 1`).Scan(&rel); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(e.cache, rel)
+	if _, err := os.Stat(file); err != nil {
+		t.Fatalf("image file: %v", err)
+	}
+	used := func(id int64) int64 {
+		t.Helper()
+		var at int64
+		if err := e.db.Read.QueryRow(`SELECT used_at FROM external_titles WHERE media = 'movie' AND tmdb_id = ?`, id).Scan(&at); err != nil {
+			t.Fatal(err)
+		}
+		return at
+	}
+	// A read within a day writes nothing; a read of a title last used a day ago moves it on.
+	day := 24 * time.Hour
+	mustExec(t, e.db.Write, `UPDATE external_titles SET used_at = ? WHERE tmdb_id = 601`, testNow.Add(-day+time.Minute).UnixMilli())
+	mustExec(t, e.db.Write, `UPDATE external_titles SET used_at = ? WHERE tmdb_id = 602`, testNow.Add(-day-time.Minute).UnixMilli())
+	for _, id := range []int64{601, 602} {
+		if _, err := e.svc.ExternalTitle(ctx, MediaMovie, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if used(601) != testNow.Add(-day+time.Minute).UnixMilli() || used(602) != testNow.UnixMilli() {
+		t.Errorf("used_at = %d, %d", used(601), used(602))
+	}
+	// 550: unused for 31 days, stale; 601: unused, held by an open wish; 602: unused, held by a wish
+	// closed recently; 603: used yesterday and stale; 604: unused but on the spotlight list.
+	old := testNow.Add(-31 * day).UnixMilli()
+	stale := testNow.Add(-ExternalTitleMaxAge - time.Hour).UnixMilli()
+	mustExec(t, e.db.Write, `UPDATE external_titles SET used_at = ?, fetched_at = ?`, old, stale)
+	mustExec(t, e.db.Write, `INSERT INTO external_titles (media, tmdb_id, fetched_at, used_at) VALUES ('movie', 603, ?, ?), ('movie', 604, ?, ?)`,
+		stale, testNow.Add(-day).UnixMilli(), stale, old)
+	mustExec(t, e.db.Write, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', 1, 604, 1)`)
+	e.svc.wishTitles = func(_ context.Context, since time.Time) ([]TitleRef, []TitleRef, error) {
+		if !since.Equal(testNow.Add(-ExternalTitleUnusedAge)) {
+			t.Errorf("closed since %v", since)
+		}
+		return []TitleRef{{MediaMovie, 601}}, []TitleRef{{MediaMovie, 602}}, nil
+	}
+	// The order: the open wish first, then the stale titles in use, the oldest fetch first; not 550
+	// (unused) and not 602 (only held by a closed wish, so kept but not fetched).
+	mustExec(t, e.db.Write, `UPDATE external_titles SET fetched_at = fetched_at - 1 WHERE tmdb_id = 604`)
+	order, err := e.svc.refreshOrder(ctx, testNow, []TitleRef{{MediaMovie, 601}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []TitleRef{{MediaMovie, 601}, {MediaMovie, 604}, {MediaMovie, 603}}; !slices.Equal(order, want) {
+		t.Errorf("order = %v, want %v", order, want)
+	}
+	before602 := e.tmdb.count("/3/movie/602")
+	if err := e.svc.handleTitlesRefresh(ctx, &jobs.Job{Type: JobTitlesRefresh}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.externalRow(t, MediaMovie, 550); ok {
+		t.Error("the unused title 550 was kept")
+	}
+	if n := countRows(t, e, `SELECT count(*) FROM external_title_texts WHERE tmdb_id = 550`) +
+		countRows(t, e, `SELECT count(*) FROM external_title_images WHERE tmdb_id = 550`); n != 0 {
+		t.Errorf("texts and images of 550 left: %d", n)
+	}
+	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("image file of 550: %v", err)
+	}
+	for _, id := range []int64{601, 602, 603, 604} {
+		if _, ok := e.externalRow(t, MediaMovie, id); !ok {
+			t.Errorf("title %d removed", id)
+		}
+	}
+	if n := e.tmdb.count("/3/movie/602"); n != before602 {
+		t.Errorf("the title of the closed wish was fetched again: %d requests", n-before602)
+	}
+	for _, id := range []int64{601, 603, 604} {
+		if r, _ := e.externalRow(t, MediaMovie, id); r.fetchedAt != testNow.UnixMilli() {
+			t.Errorf("title %d not fetched again: fetched_at %d", id, r.fetchedAt)
+		}
+	}
+}
+
+func countRows(t *testing.T, e *env, query string) int {
+	t.Helper()
+	var n int
+	if err := e.db.Read.QueryRow(query).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

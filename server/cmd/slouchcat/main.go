@@ -336,9 +336,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	podcastStates := func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error) {
 		return libSvc.PodcastStates(ctx, podcastID)
 	}
+	// The titles outside the library the wishes hold (concept 25, migration 00074): titles.refresh
+	// keeps them; metadata does not import wishes, the closure reads wishSvc when the job runs.
+	var wishSvc *wishes.Service
+	wishTitles := func(ctx context.Context, closedSince time.Time) (open, recent []metadata.TitleRef, err error) {
+		return wishSvc.TitlesInUse(ctx, closedSince)
+	}
 	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
 	// mode only.
-	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
+	metaOpts := []metadata.Option{metadata.WithWishTitles(wishTitles), metadata.WithTrailerAI(cfg.TrailerAI),
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/" + version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
@@ -383,7 +389,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	keys.admin = adminSvc
 	// Wishes through Seerr (concept 25): the connection and the settings come from the
 	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
-	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
+	wishSvc = wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
 		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc), wishes.WithNotifier(wishes.NotifyAdapter(notifySvc)))
 	adminSvc.WithSeerr(wishSvc)
 	// The match of a film or series reconciles the wishes of the title with the library (concept 25).

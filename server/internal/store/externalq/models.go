@@ -245,6 +245,7 @@ type ExternalTitle struct {
 	NextEpisode    sql.NullString
 	LastEpisode    sql.NullString
 	FetchedAt      int64
+	UsedAt         sql.NullInt64
 }
 
 type ExternalTitleImage struct {

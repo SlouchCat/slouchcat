@@ -19,6 +19,41 @@ func (q *Queries) DeleteExternalTitleImage(ctx context.Context, id int64) error 
 	return err
 }
 
+const deleteExternalTitleImageRows = `-- name: DeleteExternalTitleImageRows :many
+DELETE FROM external_title_images WHERE media = ?1 AND tmdb_id = ?2
+RETURNING rel_path
+`
+
+type DeleteExternalTitleImageRowsParams struct {
+	Media  string
+	TmdbID int64
+}
+
+// Every image row of a title before the title goes; returns the image files to
+// remove.
+func (q *Queries) DeleteExternalTitleImageRows(ctx context.Context, arg DeleteExternalTitleImageRowsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, deleteExternalTitleImageRows, arg.Media, arg.TmdbID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var rel_path string
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteExternalTitleImages = `-- name: DeleteExternalTitleImages :many
 DELETE FROM external_title_images
 WHERE media = ?1 AND tmdb_id = ?2 AND kind = ?3
@@ -55,6 +90,20 @@ func (q *Queries) DeleteExternalTitleImages(ctx context.Context, arg DeleteExter
 	return items, nil
 }
 
+const deleteExternalTitleRow = `-- name: DeleteExternalTitleRow :exec
+DELETE FROM external_titles WHERE media = ?1 AND tmdb_id = ?2
+`
+
+type DeleteExternalTitleRowParams struct {
+	Media  string
+	TmdbID int64
+}
+
+func (q *Queries) DeleteExternalTitleRow(ctx context.Context, arg DeleteExternalTitleRowParams) error {
+	_, err := q.db.ExecContext(ctx, deleteExternalTitleRow, arg.Media, arg.TmdbID)
+	return err
+}
+
 const deleteExternalTitleTexts = `-- name: DeleteExternalTitleTexts :exec
 DELETE FROM external_title_texts WHERE media = ?1 AND tmdb_id = ?2
 `
@@ -71,7 +120,7 @@ func (q *Queries) DeleteExternalTitleTexts(ctx context.Context, arg DeleteExtern
 
 const getExternalTitle = `-- name: GetExternalTitle :one
 
-SELECT media, tmdb_id, tvdb_id, imdb_id, original_title, year, release_date, runtime_minutes, genres, certifications, min_age, poster_path, backdrop_path, logo_path, trailers, status, seasons, next_episode, last_episode, fetched_at FROM external_titles WHERE media = ?1 AND tmdb_id = ?2
+SELECT media, tmdb_id, tvdb_id, imdb_id, original_title, year, release_date, runtime_minutes, genres, certifications, min_age, poster_path, backdrop_path, logo_path, trailers, status, seasons, next_episode, last_episode, fetched_at, used_at FROM external_titles WHERE media = ?1 AND tmdb_id = ?2
 `
 
 type GetExternalTitleParams struct {
@@ -106,8 +155,25 @@ func (q *Queries) GetExternalTitle(ctx context.Context, arg GetExternalTitlePara
 		&i.NextEpisode,
 		&i.LastEpisode,
 		&i.FetchedAt,
+		&i.UsedAt,
 	)
 	return i, err
+}
+
+const getExternalTitleFetchedAt = `-- name: GetExternalTitleFetchedAt :one
+SELECT fetched_at FROM external_titles WHERE media = ?1 AND tmdb_id = ?2
+`
+
+type GetExternalTitleFetchedAtParams struct {
+	Media  string
+	TmdbID int64
+}
+
+func (q *Queries) GetExternalTitleFetchedAt(ctx context.Context, arg GetExternalTitleFetchedAtParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getExternalTitleFetchedAt, arg.Media, arg.TmdbID)
+	var fetched_at int64
+	err := row.Scan(&fetched_at)
+	return fetched_at, err
 }
 
 const insertExternalTitleText = `-- name: InsertExternalTitleText :exec
@@ -334,14 +400,17 @@ func (q *Queries) ListExternalTitleTexts(ctx context.Context, arg ListExternalTi
 }
 
 const listStaleExternalTitles = `-- name: ListStaleExternalTitles :many
-SELECT media, tmdb_id FROM external_titles
-WHERE fetched_at < ?1
-ORDER BY fetched_at, media, tmdb_id
-LIMIT ?2
+SELECT t.media, t.tmdb_id FROM external_titles AS t
+WHERE t.fetched_at < ?1
+  AND (t.used_at >= ?2
+       OR EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id))
+ORDER BY t.fetched_at, t.media, t.tmdb_id
+LIMIT ?3
 `
 
 type ListStaleExternalTitlesParams struct {
 	Cutoff     int64
+	UsedSince  sql.NullInt64
 	LimitCount int64
 }
 
@@ -350,9 +419,11 @@ type ListStaleExternalTitlesRow struct {
 	TmdbID int64
 }
 
-// The rows fetched before cutoff, the oldest first.
+// The rows fetched before cutoff that are in use: used since used_since or an entry of the
+// spotlight list (its missing entries show their posters in the administration), the oldest first.
+// The titles of open wishes come first through the job (migration 00074).
 func (q *Queries) ListStaleExternalTitles(ctx context.Context, arg ListStaleExternalTitlesParams) ([]ListStaleExternalTitlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listStaleExternalTitles, arg.Cutoff, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listStaleExternalTitles, arg.Cutoff, arg.UsedSince, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +431,49 @@ func (q *Queries) ListStaleExternalTitles(ctx context.Context, arg ListStaleExte
 	items := []ListStaleExternalTitlesRow{}
 	for rows.Next() {
 		var i ListStaleExternalTitlesRow
+		if err := rows.Scan(&i.Media, &i.TmdbID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnusedExternalTitles = `-- name: ListUnusedExternalTitles :many
+SELECT t.media, t.tmdb_id FROM external_titles AS t
+WHERE coalesce(t.used_at, 0) < ?1
+  AND NOT EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id)
+ORDER BY coalesce(t.used_at, 0), t.media, t.tmdb_id
+LIMIT ?2
+`
+
+type ListUnusedExternalTitlesParams struct {
+	UsedBefore sql.NullInt64
+	LimitCount int64
+}
+
+type ListUnusedExternalTitlesRow struct {
+	Media  string
+	TmdbID int64
+}
+
+// The rows not used since used_before (or never) and not on the spotlight list, the oldest use
+// first; the job keeps those an open or recently closed wish refers to.
+func (q *Queries) ListUnusedExternalTitles(ctx context.Context, arg ListUnusedExternalTitlesParams) ([]ListUnusedExternalTitlesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUnusedExternalTitles, arg.UsedBefore, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnusedExternalTitlesRow{}
+	for rows.Next() {
+		var i ListUnusedExternalTitlesRow
 		if err := rows.Scan(&i.Media, &i.TmdbID); err != nil {
 			return nil, err
 		}
@@ -406,13 +520,36 @@ func (q *Queries) TouchExternalTitle(ctx context.Context, arg TouchExternalTitle
 	return err
 }
 
+const touchExternalTitleUsed = `-- name: TouchExternalTitleUsed :exec
+UPDATE external_titles SET used_at = ?1
+WHERE media = ?2 AND tmdb_id = ?3 AND (used_at IS NULL OR used_at < ?4)
+`
+
+type TouchExternalTitleUsedParams struct {
+	Now    sql.NullInt64
+	Media  string
+	TmdbID int64
+	Before sql.NullInt64
+}
+
+// A page read the title: used_at moves on at most once per used_step (migration 00074).
+func (q *Queries) TouchExternalTitleUsed(ctx context.Context, arg TouchExternalTitleUsedParams) error {
+	_, err := q.db.ExecContext(ctx, touchExternalTitleUsed,
+		arg.Now,
+		arg.Media,
+		arg.TmdbID,
+		arg.Before,
+	)
+	return err
+}
+
 const upsertExternalTitle = `-- name: UpsertExternalTitle :exec
 INSERT INTO external_titles (media, tmdb_id, tvdb_id, imdb_id, original_title, year, release_date,
     runtime_minutes, genres, certifications, min_age, poster_path, backdrop_path, logo_path, trailers,
-    status, seasons, next_episode, last_episode, fetched_at)
+    status, seasons, next_episode, last_episode, fetched_at, used_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
     ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
-    ?17, ?18, ?19, ?20)
+    ?17, ?18, ?19, ?20, ?20)
 ON CONFLICT (media, tmdb_id) DO UPDATE SET
     tvdb_id = excluded.tvdb_id, imdb_id = excluded.imdb_id, original_title = excluded.original_title,
     year = excluded.year, release_date = excluded.release_date, runtime_minutes = excluded.runtime_minutes,

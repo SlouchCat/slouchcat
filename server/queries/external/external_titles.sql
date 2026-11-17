@@ -8,10 +8,10 @@ SELECT * FROM external_titles WHERE media = @media AND tmdb_id = @tmdb_id;
 -- name: UpsertExternalTitle :exec
 INSERT INTO external_titles (media, tmdb_id, tvdb_id, imdb_id, original_title, year, release_date,
     runtime_minutes, genres, certifications, min_age, poster_path, backdrop_path, logo_path, trailers,
-    status, seasons, next_episode, last_episode, fetched_at)
+    status, seasons, next_episode, last_episode, fetched_at, used_at)
 VALUES (@media, @tmdb_id, @tvdb_id, @imdb_id, @original_title, @year, @release_date, @runtime_minutes,
     @genres, @certifications, @min_age, @poster_path, @backdrop_path, @logo_path, @trailers, @status,
-    @seasons, @next_episode, @last_episode, @fetched_at)
+    @seasons, @next_episode, @last_episode, @fetched_at, @fetched_at)
 ON CONFLICT (media, tmdb_id) DO UPDATE SET
     tvdb_id = excluded.tvdb_id, imdb_id = excluded.imdb_id, original_title = excluded.original_title,
     year = excluded.year, release_date = excluded.release_date, runtime_minutes = excluded.runtime_minutes,
@@ -26,11 +26,41 @@ ON CONFLICT (media, tmdb_id) DO UPDATE SET
 UPDATE external_titles SET fetched_at = @fetched_at WHERE media = @media AND tmdb_id = @tmdb_id;
 
 -- name: ListStaleExternalTitles :many
--- The rows fetched before cutoff, the oldest first.
-SELECT media, tmdb_id FROM external_titles
-WHERE fetched_at < @cutoff
-ORDER BY fetched_at, media, tmdb_id
+-- The rows fetched before cutoff that are in use: used since used_since or an entry of the
+-- spotlight list (its missing entries show their posters in the administration), the oldest first.
+-- The titles of open wishes come first through the job (migration 00074).
+SELECT t.media, t.tmdb_id FROM external_titles AS t
+WHERE t.fetched_at < @cutoff
+  AND (t.used_at >= @used_since
+       OR EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id))
+ORDER BY t.fetched_at, t.media, t.tmdb_id
 LIMIT @limit_count;
+
+-- name: GetExternalTitleFetchedAt :one
+SELECT fetched_at FROM external_titles WHERE media = @media AND tmdb_id = @tmdb_id;
+
+-- name: TouchExternalTitleUsed :exec
+-- A page read the title: used_at moves on at most once per used_step (migration 00074).
+UPDATE external_titles SET used_at = @now
+WHERE media = @media AND tmdb_id = @tmdb_id AND (used_at IS NULL OR used_at < @before);
+
+-- name: ListUnusedExternalTitles :many
+-- The rows not used since used_before (or never) and not on the spotlight list, the oldest use
+-- first; the job keeps those an open or recently closed wish refers to.
+SELECT t.media, t.tmdb_id FROM external_titles AS t
+WHERE coalesce(t.used_at, 0) < @used_before
+  AND NOT EXISTS (SELECT 1 FROM spotlight_entries AS e WHERE e.media = t.media AND e.tmdb_id = t.tmdb_id)
+ORDER BY coalesce(t.used_at, 0), t.media, t.tmdb_id
+LIMIT @limit_count;
+
+-- name: DeleteExternalTitleImageRows :many
+-- Every image row of a title before the title goes; returns the image files to
+-- remove.
+DELETE FROM external_title_images WHERE media = @media AND tmdb_id = @tmdb_id
+RETURNING rel_path;
+
+-- name: DeleteExternalTitleRow :exec
+DELETE FROM external_titles WHERE media = @media AND tmdb_id = @tmdb_id;
 
 -- name: ListExternalTitleAges :many
 -- The certifications and ages in key order after (media, tmdb_id), for the new ages after a change

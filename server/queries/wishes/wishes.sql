@@ -181,3 +181,12 @@ SELECT CAST(COALESCE(MAX(at), 0) AS INTEGER) AS at FROM wish_events WHERE wish_i
 -- name: CountProfileWishesSince :one
 -- The wishes a profile made or joined since a time (the limit of createWish per profile and hour).
 SELECT count(*) FROM wish_requesters WHERE profile_id = @profile_id AND created_at >= @since;
+
+-- name: ListWishTitlesInUse :many
+-- The titles of the open wishes and of the wishes closed since closed_since (titles.refresh keeps
+-- them, migration 00074); open is 1 for an open wish.
+SELECT media, tmdb_id,
+       CAST(state IN ('queued', 'pending', 'processing', 'partial') AS INTEGER) AS open
+FROM wishes
+WHERE state IN ('queued', 'pending', 'processing', 'partial') OR closed_at >= @closed_since
+ORDER BY open DESC, id;

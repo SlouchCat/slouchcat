@@ -33,6 +33,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -344,4 +345,28 @@ func nullInt(p *int) sql.NullInt64 {
 func nullString(s string) sql.NullString {
 	s = strings.TrimSpace(s)
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+// TitlesInUse names the titles outside the library the wishes hold (metadata.WithWishTitles, wired
+// in main.go; migration 00074): open those of open wishes, recent those of wishes closed since
+// closedSince. titles.refresh fetches the open ones first and removes neither.
+func (s *Service) TitlesInUse(ctx context.Context, closedSince time.Time) (open, recent []metadata.TitleRef, err error) {
+	rows, err := s.read.ListWishTitlesInUse(ctx, sql.NullInt64{Int64: closedSince.UnixMilli(), Valid: true})
+	if err != nil {
+		return nil, nil, fmt.Errorf("titles of the wishes: %w", err)
+	}
+	seen := map[metadata.TitleRef]bool{}
+	for _, r := range rows {
+		ref := metadata.TitleRef{Media: r.Media, TMDBID: r.TmdbID}
+		if seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		if r.Open == 1 {
+			open = append(open, ref)
+		} else {
+			recent = append(recent, ref)
+		}
+	}
+	return open, recent, nil
 }
