@@ -23,7 +23,8 @@ import (
 
 // WithdrawWish withdraws the profile from a wish (withdrawWish): model.ErrNotFound for a wish that
 // is not the profile's, *model.WishNotAllowedError (withdraw_disabled) when «Zurückziehen
-// erlauben» is off, model.ErrWishNotWithdrawable past the approval or for a closed wish.
+// erlauben» is off, model.ErrWishNotWithdrawable past the approval, for a closed wish and for a
+// wish the profile sees hidden (review m-3: its real state, available or partial, stays unknown).
 func (s *Service) WithdrawWish(ctx context.Context, p model.Profile, wishID int64) error {
 	ws, err := s.cfg.WishSettings(ctx)
 	if err != nil {
@@ -50,6 +51,11 @@ func (s *Service) WithdrawWish(ctx context.Context, p model.Profile, wishID int6
 			return fmt.Errorf("wish: %w", err)
 		}
 		if !isOpen(w.State) {
+			return model.ErrWishNotWithdrawable
+		}
+		if hidden, err := s.unseen().hides(ctx, p.ID, p.AccountID, w.State, w.ItemID); err != nil {
+			return err
+		} else if hidden {
 			return model.ErrWishNotWithdrawable
 		}
 		if r.Role == model.WishRoleJoined {

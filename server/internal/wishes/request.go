@@ -729,9 +729,11 @@ func asProcessing(state, detail *string, availableAt *sql.NullInt64, itemID *sql
 }
 
 // hideAvailability removes what tells a hidden wish is in the library: available seasons read
-// processing, and the events of the availability go.
+// processing, and the events of the availability go. A hidden wish is never withdrawn (review
+// m-3): its real state is available or partial, and WithdrawWish answers both alike.
 func hideAvailability(w *model.Wish) {
 	w.Hidden = true
+	w.CanWithdraw = false
 	for i := range w.Seasons {
 		if w.Seasons[i].State == model.WishAvailable {
 			w.Seasons[i].State = model.WishProcessing

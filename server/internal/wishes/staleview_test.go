@@ -196,3 +196,34 @@ func TestNextFreeFromRequestsInsideTheWindow(t *testing.T) {
 		t.Errorf("quota = %+v %+v", q, q.Movie)
 	}
 }
+
+// Review m-3: a co-wisher that reads a hidden wish as processing can not withdraw it, and the
+// answer is the same whether the real state is available or partial.
+func TestHiddenWishIsNotWithdrawn(t *testing.T) {
+	r := newRequestFixture(t)
+	lib := &scopedLib{fakeLib: r.lib, hidden: map[visibility.Scope]map[string]bool{}}
+	r.fixture.rebuild(WithLibrary(lib), WithTitles(r.titles), WithNotifier(r.note), WithClock(r.clock.now))
+	res := r.create(r.marco, show(got, 1, 2))
+	r.create(r.noah, show(got, 1, 2))
+	r.addTitle("show", got, itemGot, map[int]int{1: 10, 2: 10})
+	lib.hideFrom(r.noah, itemGot)
+	if err := r.svc.reconcile(r.ctx, reconcilePayload{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, state := range []string{model.WishAvailable, model.WishPartial} {
+		r.exec(`UPDATE wishes SET state = ?, item_id = ? WHERE id = ?`, state, itemGot, res.Wish.ID)
+		page, err := r.svc.ProfileWishes(r.ctx, r.noah, model.WishFilterAll, 0, 10)
+		if err != nil || len(page.Items) != 1 {
+			t.Fatalf("%s: page = %+v, %v", state, page, err)
+		}
+		if w := page.Items[0]; w.State != model.WishProcessing || !w.Hidden || w.CanWithdraw {
+			t.Errorf("%s: wish = %+v", state, w)
+		}
+		if err := r.svc.WithdrawWish(r.ctx, r.noah, res.Wish.ID); !errors.Is(err, model.ErrWishNotWithdrawable) {
+			t.Errorf("%s: withdraw = %v, want ErrWishNotWithdrawable", state, err)
+		}
+		if got := r.count(`SELECT count(*) FROM wish_requesters WHERE wish_id = ? AND profile_id = ?`, res.Wish.ID, r.noah.ID); got != 1 {
+			t.Errorf("%s: the co-wisher left the wish", state)
+		}
+	}
+}
