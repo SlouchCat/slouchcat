@@ -225,16 +225,20 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(within(first!).getByRole('button', { name: 'Dune anheften' })).toBeVisible();
     expect(within(first!).getByRole('button', { name: 'Dune ausblenden' })).toBeVisible();
     expect(within(first!).getByRole('button', { name: 'Notiz zu Dune' })).toBeVisible();
-    // Plan S-4: an entry without a library title is listed, says so and has no actions.
+    // N-60: every entry names its ids, a film without the TVDB id.
+    expect(within(first!).getByText('TMDB 7001 · IMDb –')).toBeVisible();
+    // Plan S-4, concept 25 N-71: an entry without a library title is listed and says so; it takes
+    // its overrides (they act once the title arrives), «Anfordern» only where the server allows.
     expect(within(second!).getByRole('rowheader')).toHaveTextContent('SeveranceSerie · 2022');
-    // Without a library hit there is no poster: the placeholder, never a broken image.
+    expect(within(second!).getByText('TMDB 7101 · TVDB – · IMDb –')).toBeVisible();
+    // Without a poster: the placeholder, never a broken image.
     expect(within(second!).getByRole('rowheader').querySelector('img')).toBeNull();
     expect(within(second!).getByRole('rowheader').querySelector('svg')).not.toBeNull();
-    expect(within(second!).getByText('Nicht in der Bibliothek')).toBeVisible();
-    expect(
-      within(second!).getByText('Nicht in der Bibliothek, erscheint nicht auf der Startseite'),
-    ).toBeVisible();
-    expect(within(second!).queryByRole('button')).toBeNull();
+    expect(within(second!).getByText('Noch nicht in der Bibliothek')).toBeVisible();
+    expect(within(second!).getByRole('button', { name: 'Severance anheften' })).toBeVisible();
+    expect(within(second!).queryByRole('button', { name: 'Severance anfordern' })).toBeNull();
+    // A list without the counts of missing entries (an older server) has no band for them.
+    expect(screen.queryByRole('region', { name: 'Fehlende Einträge' })).toBeNull();
     // SPO-5.
     expect(screen.getByRole('link', { name: 'Zur Seite «Startseite»' })).toHaveAttribute(
       'href',
@@ -916,6 +920,168 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(card.querySelector('[aria-hidden="true"][class~="skeleton"]')).toBeNull();
     expect(within(card).queryByText(/auf der Startseite$/i)).toBeNull();
     expect(within(card).getByRole('button', { name: 'Jetzt abrufen' })).toBeVisible();
+  });
+
+  it('«Fehlende Einträge»: folded with its counts, the missing titles with their wish, «Anfordern» as the profile', async () => {
+    const glass: SpotlightEntry = {
+      media: 'movie',
+      tmdbId: 9001,
+      imdbId: 'tt09001',
+      position: 3,
+      title: 'Glasvogel',
+      year: 2026,
+      hidden: false,
+      orphaned: false,
+      unmatched: false,
+      canOverride: true,
+      canRequest: true,
+      posterUrl: '/api/v1/admin/titles/movie/9001/images/poster/w200?v=1',
+    };
+    const fog: SpotlightEntry = {
+      media: 'show',
+      tmdbId: 9100,
+      tvdbId: 79100,
+      position: 4,
+      title: 'Nebelhafen',
+      hidden: false,
+      orphaned: false,
+      unmatched: false,
+      canOverride: true,
+      wish: { id: 5, state: 'processing' },
+    };
+    const harbour: SpotlightEntry = {
+      media: 'show',
+      tvdbId: 459812,
+      position: 5,
+      title: 'Hafen im Nordlicht',
+      hidden: false,
+      orphaned: false,
+      unmatched: true,
+      canOverride: false,
+    };
+    const matched: SpotlightEntry = {
+      ...severance,
+      itemId: '01J0000000000000000000000S',
+      match: 'tvdb',
+      tvdbId: 7101,
+    };
+    const entries = [dune, matched, glass, fog, harbour];
+    const missing = { entries: 2, requested: 1, unmatched: 1, canRequest: true };
+    const { calls } = spotlightApi({
+      'GET /admin/spotlight/entries': () =>
+        json({ listKey: 'trending', entries, orphans: [], missing }),
+      'GET /wishes/quota': () => json({ unlimited: true, reason: 'admin' }),
+      'POST /wishes': () =>
+        json(
+          {
+            id: 9,
+            media: 'movie',
+            tmdbId: 9001,
+            title: 'Glasvogel',
+            state: 'pending',
+            origin: 'slouchcat',
+            role: 'owner',
+            seasons: [],
+            canWithdraw: true,
+            canRequestAgain: false,
+            createdAt: '2026-11-17T09:00:00Z',
+            updatedAt: '2026-11-17T09:00:00Z',
+            events: [],
+          },
+          201,
+        ),
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+
+    const band = await screen.findByRole('region', { name: 'Fehlende Einträge' });
+    const toggle = within(band).getByRole('button', { name: 'Fehlende Einträge', expanded: false });
+    expect(within(band).getByText('2 fehlen · 1 angefordert · 1 nicht zuordenbar')).toBeVisible();
+    expect(within(band).queryByRole('table')).toBeNull();
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      within(band).getByText(/Profile fordern fehlende Titel unter «Wünsche» an/),
+    ).toBeVisible();
+    const table = within(band).getByRole('table', { name: 'Fehlende Einträge' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    // Only the missing ones: neither the library's titles nor the unmatched one.
+    expect(rows.map((row) => within(row).getByRole('rowheader').textContent)).toEqual([
+      expect.stringContaining('Glasvogel'),
+      expect.stringContaining('Nebelhafen'),
+    ]);
+    expect(within(rows[0]!).getByRole('rowheader').querySelector('img')).toHaveAttribute(
+      'src',
+      glass.posterUrl,
+    );
+    expect(within(rows[0]!).getByText('Noch nicht in der Bibliothek')).toBeVisible();
+    expect(within(rows[1]!).getByText('In Beschaffung')).toBeVisible();
+    expect(within(rows[1]!).queryByRole('button')).toBeNull();
+
+    // «Anfordern» opens the app's dialog; the wish comes from the administration.
+    const ask = within(rows[0]!).getByRole('button', { name: 'Glasvogel anfordern' });
+    await user.click(ask);
+    const dialog = await screen.findByRole('dialog', { name: /Glasvogel/ });
+    await user.click(within(dialog).getByRole('button', { name: /anfordern/i }));
+    expect(await screen.findByText('Glasvogel ist angefordert.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'POST' && call.path === '/wishes')?.body).toEqual({
+      media: 'movie',
+      tmdbId: 9001,
+      source: 'admin_spotlight',
+    });
+
+    // «Einträge der Liste»: the way a series was found, and the unmatched entry without actions.
+    const list = await entriesTable();
+    const series = within(list).getAllByRole('row')[2]!;
+    expect(within(series).getByText('In der Bibliothek über die TVDB-ID erkannt')).toBeVisible();
+    const lost = within(list).getAllByRole('row')[5]!;
+    expect(within(lost).getByText('Nicht zuordenbar')).toBeVisible();
+    expect(within(lost).getByText('Nur TVDB-ID bekannt, bei TMDB nicht gefunden')).toBeVisible();
+    expect(within(lost).getByText('TMDB – · TVDB 459812 · IMDb –')).toBeVisible();
+    expect(within(lost).queryByRole('button')).toBeNull();
+
+    // «Abgleich»: the counts by way and the list of the unmatched.
+    const matching = await region('Abgleich über TMDB, TVDB und IMDb');
+    expect(within(matching).getByText('Serien über die TVDB-ID')).toBeVisible();
+    expect(
+      within(within(matching).getByRole('table', { name: 'Nicht zuordenbar' })).getByText(
+        'Hafen im Nordlicht',
+      ),
+    ).toBeVisible();
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('without wishes set up the band says why «Anfordern» is missing and links the way there', async () => {
+    const glass: SpotlightEntry = {
+      media: 'movie',
+      tmdbId: 9001,
+      position: 3,
+      title: 'Glasvogel',
+      hidden: false,
+      orphaned: false,
+      unmatched: false,
+      canOverride: true,
+    };
+    spotlightApi({
+      'GET /admin/spotlight/entries': () =>
+        json({
+          listKey: 'trending',
+          entries: [dune, glass],
+          orphans: [],
+          missing: { entries: 1, requested: 0, unmatched: 0, canRequest: false },
+        }),
+    });
+    renderApp('/admin/spotlight');
+    const band = await region('Fehlende Einträge');
+    expect(within(band).getByText('Anfordern nicht möglich')).toBeVisible();
+    expect(
+      within(band).getByText('Anfordern geht erst, wenn Wünsche eingerichtet sind.'),
+    ).toBeVisible();
+    expect(
+      within(band).getByRole('link', { name: 'Zu den Einstellungen der Wünsche' }),
+    ).toHaveAttribute('href', '/admin/wishes?tab=einstellungen');
+    expect(within(band).queryByRole('button', { name: 'Glasvogel anfordern' })).toBeNull();
   });
 
   it('a guest gets the notice and no request', async () => {

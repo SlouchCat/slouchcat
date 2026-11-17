@@ -283,7 +283,17 @@
         "quoted": "„{{note}}“"
       },
       "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter „Startseite“ ein.",
-      "rowSettingsLink": "Zur Seite „Startseite“"
+      "rowSettingsLink": "Zur Seite „Startseite“",
+      "lacking": {
+        "intro": "Die Startseite und die Spotlight-Liste zeigen nur Titel aus der Bibliothek. Einträge, die fehlen, siehst nur du hier in der Verwaltung. Profile fordern fehlende Titel unter „Wünsche“ an.",
+        "asProfile": "„Anfordern“ handelt als aktives Profil ({{name}}).",
+        "noRequest": {
+          "body": "Dazu braucht es Seerr mit Adresse und Schlüssel, eingeschaltet, und „Wünsche aktiv“."
+        }
+      },
+      "matching": {
+        "allMatched": "Jeder Eintrag ließ sich zuordnen."
+      }
     },
     "nav": {
       "sheet": {

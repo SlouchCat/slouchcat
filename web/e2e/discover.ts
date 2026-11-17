@@ -103,6 +103,18 @@ export async function traktMockStatus(status: number): Promise<void> {
 }
 
 /**
+ * Adds the entries the library lacks (trakt-server.mjs TRAKT_MISSING) to every list of the Trakt
+ * mock, or takes them off again; the reset before every test takes them off too.
+ */
+export async function traktMockMissing(missing: boolean): Promise<void> {
+  const response = await fetch(`${TRAKT_BASE}/__control`, {
+    method: 'POST',
+    body: JSON.stringify({ missing }),
+  });
+  expect(response.status, 'trakt mock control').toBe(204);
+}
+
+/**
  * The Trakt mock answers normally again (fixtures.ts, before every test), so a test that left it
  * at 503 does not take the Trakt rows from the following ones. Only for the suite's own server:
  * against another one the mock may not run at all.

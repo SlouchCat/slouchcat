@@ -3295,12 +3295,15 @@
         "state": {
           "visible": "Visible",
           "hidden": "Hidden",
-          "missing": "Not in the library"
+          "missing": "Not in the library yet"
         },
         "pinned": "Pinned to place {{rank}}",
         "quoted": "“{{note}}”",
         "none": "–",
         "notInLibrary": "Not in the library, does not appear on the start page",
+        "unmatched": "Cannot be matched",
+        "unmatchedReason": "Only the TVDB id is known, TMDB does not find it",
+        "noAction": "No action: without a TMDB id it cannot be requested",
         "hide": "Hide",
         "hideLabel": "Hide {{title}}",
         "show": "Show",
@@ -3309,6 +3312,65 @@
         "shown": "{{title}} is shown again.",
         "count_one": "{{count}} entry",
         "count_other": "{{count}} entries"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Found in the library by its TVDB id",
+          "tmdb": "Found in the library by its TMDB id",
+          "imdb": "Found in the library by its IMDb id"
+        }
+      },
+      "request": {
+        "action": "Request",
+        "label": "Request {{title}}",
+        "done": "{{title}} is requested.",
+        "joined": "{{title}} was requested already; your profile joins the wish.",
+        "available": "{{title}} is in the library by now."
+      },
+      "lacking": {
+        "title": "Missing entries",
+        "missing_one": "{{count}} missing",
+        "missing_other": "{{count}} missing",
+        "requested_one": "{{count}} requested",
+        "requested_other": "{{count}} requested",
+        "unmatched_one": "{{count}} cannot be matched",
+        "unmatched_other": "{{count}} cannot be matched",
+        "intro": "The start page and the spotlight list show only titles of the library. Only you see the missing entries, here in the administration. Profiles request missing titles under “Wishes”.",
+        "asProfile": "“Request” acts as the active profile ({{name}}).",
+        "noRequestChip": "Requesting not possible",
+        "noRequest": {
+          "title": "Requesting works once wishes are set up.",
+          "body": "That takes Seerr with its address and key, switched on, and “Wishes on”.",
+          "settings": "To the settings of the wishes",
+          "connection": "To the connection with Seerr"
+        },
+        "empty": "Every entry of the list is in the library."
+      },
+      "matching": {
+        "title": "Matching by TMDB, TVDB and IMDb",
+        "hits_one": "{{count}} in the library",
+        "hits_other": "{{count}} in the library",
+        "intro": "Slouchcat matches films by TMDB, then IMDb. Series like the library: TVDB first, then TMDB, then IMDb. Seerr keeps every title by its TMDB id and passes the TVDB id of a series on to Sonarr.",
+        "waysTitle": "Found by",
+        "way": {
+          "movie": {
+            "tmdb": "Films by their TMDB id",
+            "imdb": "Films by their IMDb id"
+          },
+          "show": {
+            "tvdb": "Series by their TVDB id",
+            "tmdb": "Series by their TMDB id",
+            "imdb": "Series by their IMDb id"
+          }
+        },
+        "noHits": "No entry is in the library.",
+        "unmatchedTitle": "Cannot be matched",
+        "allMatched": "Every entry could be matched.",
+        "unmatchedNote": "Without a TMDB id an entry cannot be requested; it counts neither as present nor as missing."
       },
       "pin": {
         "action": "Pin",

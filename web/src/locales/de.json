@@ -3295,12 +3295,15 @@
         "state": {
           "visible": "Sichtbar",
           "hidden": "Ausgeblendet",
-          "missing": "Nicht in der Bibliothek"
+          "missing": "Noch nicht in der Bibliothek"
         },
         "pinned": "Angeheftet auf Platz {{rank}}",
         "quoted": "«{{note}}»",
         "none": "–",
         "notInLibrary": "Nicht in der Bibliothek, erscheint nicht auf der Startseite",
+        "unmatched": "Nicht zuordenbar",
+        "unmatchedReason": "Nur TVDB-ID bekannt, bei TMDB nicht gefunden",
+        "noAction": "Keine Aktion: ohne TMDB-ID nicht anforderbar",
         "hide": "Ausblenden",
         "hideLabel": "{{title}} ausblenden",
         "show": "Einblenden",
@@ -3309,6 +3312,65 @@
         "shown": "{{title}} wird wieder gezeigt.",
         "count_one": "{{count}} Eintrag",
         "count_other": "{{count}} Einträge"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "In der Bibliothek über die TVDB-ID erkannt",
+          "tmdb": "In der Bibliothek über die TMDB-ID erkannt",
+          "imdb": "In der Bibliothek über die IMDb-ID erkannt"
+        }
+      },
+      "request": {
+        "action": "Anfordern",
+        "label": "{{title}} anfordern",
+        "done": "{{title}} ist angefordert.",
+        "joined": "{{title}} war schon angefordert; dein Profil wünscht den Titel mit.",
+        "available": "{{title}} steht inzwischen in der Bibliothek."
+      },
+      "lacking": {
+        "title": "Fehlende Einträge",
+        "missing_one": "{{count}} fehlt",
+        "missing_other": "{{count}} fehlen",
+        "requested_one": "{{count}} angefordert",
+        "requested_other": "{{count}} angefordert",
+        "unmatched_one": "{{count}} nicht zuordenbar",
+        "unmatched_other": "{{count}} nicht zuordenbar",
+        "intro": "Die Startseite und die Spotlight-Liste zeigen nur Titel aus der Bibliothek. Einträge, die fehlen, siehst nur du hier in der Verwaltung. Profile fordern fehlende Titel unter «Wünsche» an.",
+        "asProfile": "«Anfordern» handelt als aktives Profil ({{name}}).",
+        "noRequestChip": "Anfordern nicht möglich",
+        "noRequest": {
+          "title": "Anfordern geht erst, wenn Wünsche eingerichtet sind.",
+          "body": "Dazu braucht es Seerr mit Adresse und Schlüssel, eingeschaltet, und «Wünsche aktiv».",
+          "settings": "Zu den Einstellungen der Wünsche",
+          "connection": "Zur Verbindung mit Seerr"
+        },
+        "empty": "Jeder Eintrag der Liste steht in der Bibliothek."
+      },
+      "matching": {
+        "title": "Abgleich über TMDB, TVDB und IMDb",
+        "hits_one": "{{count}} in der Bibliothek",
+        "hits_other": "{{count}} in der Bibliothek",
+        "intro": "Filme gleicht Slouchcat über TMDB, dann IMDb ab. Serien wie die Bibliothek: TVDB zuerst, dann TMDB, dann IMDb. Seerr führt jeden Titel über die TMDB-ID und gibt bei Serien die TVDB-ID an Sonarr weiter.",
+        "waysTitle": "Erkannt nach Weg",
+        "way": {
+          "movie": {
+            "tmdb": "Filme über die TMDB-ID",
+            "imdb": "Filme über die IMDb-ID"
+          },
+          "show": {
+            "tvdb": "Serien über die TVDB-ID",
+            "tmdb": "Serien über die TMDB-ID",
+            "imdb": "Serien über die IMDb-ID"
+          }
+        },
+        "noHits": "Kein Eintrag steht in der Bibliothek.",
+        "unmatchedTitle": "Nicht zuordenbar",
+        "allMatched": "Jeder Eintrag liess sich zuordnen.",
+        "unmatchedNote": "Ohne TMDB-ID ist ein Eintrag nicht anforderbar; er zählt weder als vorhanden noch als fehlend."
       },
       "pin": {
         "action": "Anheften",

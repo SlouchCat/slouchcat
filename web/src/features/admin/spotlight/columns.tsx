@@ -1,13 +1,44 @@
 import type { TFunction } from 'i18next';
+import { WishStateChip } from '@/features/wishes/state';
 import { StatusDot } from '@/ui';
 import { AriaButton, type DataColumn } from '@/ui/aria';
 import { PosterTitle } from '../PosterTitle';
 import type { SpotlightEntry } from '../queries';
 import styles from './Spotlight.module.css';
 
-/** The name of an entry: its Trakt title, else its TMDB id. */
+/** The name of an entry: its Trakt title, else its TMDB id (an unmatched one its TVDB id). */
 export const entryName = (t: TFunction, entry: SpotlightEntry) =>
-  entry.title ?? t('admin.spotlight.entries.untitled', { id: entry.tmdbId });
+  entry.title ??
+  (entry.tmdbId === undefined
+    ? t('admin.spotlight.ids.tvdb', { id: entry.tvdbId ?? t('admin.spotlight.ids.unknown') })
+    : t('admin.spotlight.entries.untitled', { id: entry.tmdbId }));
+
+/** An entry the library lacks that TMDB knows: missing, the band «Fehlende Einträge» lists it. */
+export const isMissing = (entry: SpotlightEntry) => entry.itemId === undefined && !entry.unmatched;
+
+/**
+ * «TMDB 7001 · TVDB – · IMDb tt0123»: the ids Trakt names (N-60), the TVDB id for a series only;
+ * an unknown one reads «–».
+ */
+export function idLine(t: TFunction, entry: SpotlightEntry): string {
+  const unknown = t('admin.spotlight.ids.unknown');
+  return [
+    t('admin.spotlight.ids.tmdb', { id: entry.tmdbId ?? unknown }),
+    ...(entry.media === 'show'
+      ? [t('admin.spotlight.ids.tvdb', { id: entry.tvdbId ?? unknown })]
+      : []),
+    t('admin.spotlight.ids.imdb', { id: entry.imdbId ?? unknown }),
+  ].join(t('admin.spotlight.state.separator'));
+}
+
+/**
+ * How the library title was found (N-61): for a series always, for a film only when it was not
+ * its TMDB id, the usual way.
+ */
+const matchText = (t: TFunction, entry: SpotlightEntry) =>
+  entry.match && (entry.media === 'show' || entry.match !== 'tmdb')
+    ? t(`admin.spotlight.ids.match.${entry.match}`)
+    : null;
 
 /** The key of an entry in the tables and in the dialogs' state (an unmatched one by its place). */
 export const entryKey = (entry: SpotlightEntry) =>
@@ -20,8 +51,17 @@ const pinnedText = (t: TFunction, entry: SpotlightEntry) =>
 
 const quoted = (t: TFunction, note: string) => t('admin.spotlight.entries.quoted', { note });
 
-/** Title and «Film · 2021» in two lines. */
-function TitleText({ t, entry }: { t: TFunction; entry: SpotlightEntry }) {
+/** Title and «Film · 2021» in two lines; with `ids` the ids and the way it was matched below. */
+function TitleText({
+  t,
+  entry,
+  ids = false,
+}: {
+  t: TFunction;
+  entry: SpotlightEntry;
+  ids?: boolean;
+}) {
+  const matched = ids ? matchText(t, entry) : null;
   return (
     <span className={styles.stack}>
       <span className={styles.title}>{entryName(t, entry)}</span>
@@ -33,7 +73,57 @@ function TitleText({ t, entry }: { t: TFunction; entry: SpotlightEntry }) {
             })
           : t(`admin.spotlight.entries.media.${entry.media}`)}
       </span>
+      {ids && <span className={styles.ids}>{idLine(t, entry)}</span>}
+      {matched && <span className={styles.muted}>{matched}</span>}
     </span>
+  );
+}
+
+/** «Nicht zuordenbar» with its reason in one line below (N-62). */
+function UnmatchedState({ t }: { t: TFunction }) {
+  return (
+    <span className={styles.stack}>
+      <span className={styles.dot}>
+        <StatusDot state="warning" />
+        {t('admin.spotlight.entries.unmatched')}
+      </span>
+      <span className={styles.muted}>{t('admin.spotlight.entries.unmatchedReason')}</span>
+    </span>
+  );
+}
+
+/** A missing entry: its wish's state, else «Noch nicht in der Bibliothek». */
+function MissingState({ t, entry }: { t: TFunction; entry: SpotlightEntry }) {
+  return entry.wish ? (
+    <span>
+      <WishStateChip state={entry.wish.state} detail={entry.wish.stateDetail} />
+    </span>
+  ) : (
+    <span className={styles.dot}>
+      <StatusDot state="warning" />
+      {t('admin.spotlight.entries.state.missing')}
+    </span>
+  );
+}
+
+/** «Anfordern» of a missing entry, as the active profile (concept 25, M-27). */
+function RequestButton({
+  t,
+  entry,
+  onRequest,
+}: {
+  t: TFunction;
+  entry: SpotlightEntry;
+  onRequest: (entry: SpotlightEntry) => void;
+}) {
+  return (
+    <AriaButton
+      icon="plus"
+      aria-label={t('admin.spotlight.request.label', { title: entryName(t, entry) })}
+      onPress={() => onRequest(entry)}
+    >
+      {t('admin.spotlight.request.action')}
+    </AriaButton>
   );
 }
 
@@ -41,16 +131,19 @@ export interface EntryActions {
   onPin: (entry: SpotlightEntry) => void;
   onNote: (entry: SpotlightEntry) => void;
   onChange: (entry: SpotlightEntry, body: { hidden?: boolean; pinnedRank?: null }) => void;
+  onRequest: (entry: SpotlightEntry) => void;
 }
 
 /**
- * The entries of the list (SPO-3): rank, poster and title, state, note and the actions. An entry
- * without a library title has no actions; it says why it never reaches the start page. The widths
- * keep the columns in place when an entry is hidden or pinned (K12-9); the note takes the rest.
+ * The entries of the list (SPO-3): rank, poster, title and ids, state, note and the actions. A
+ * missing entry takes its overrides too (they act once the title is in the library) and
+ * «Anfordern» where it can be requested; an unmatched one (N-62) takes nothing and says why. The
+ * widths keep the columns in place when an entry is hidden or pinned (K12-9); the note takes the
+ * rest.
  */
 export function entryColumns(
   t: TFunction,
-  { onPin, onNote, onChange }: EntryActions,
+  { onPin, onNote, onChange, onRequest }: EntryActions,
 ): DataColumn<SpotlightEntry>[] {
   return [
     {
@@ -69,7 +162,7 @@ export function entryColumns(
       // A hidden entry: the title muted, the poster at half strength (mockup Spo-A, Z-5).
       cell: (entry) => (
         <PosterTitle posterUrl={entry.posterUrl} className={entry.hidden ? styles.dimmed : ''}>
-          <TitleText t={t} entry={entry} />
+          <TitleText t={t} entry={entry} ids />
         </PosterTitle>
       ),
     },
@@ -78,19 +171,25 @@ export function entryColumns(
       width: '14%',
       header: t('admin.spotlight.entries.columns.status'),
       cell: (entry) => {
-        const [state, word] =
-          entry.itemId === undefined
-            ? (['warning', 'admin.spotlight.entries.state.missing'] as const)
-            : entry.hidden
-              ? (['pending', 'admin.spotlight.entries.state.hidden'] as const)
-              : (['success', 'admin.spotlight.entries.state.visible'] as const);
+        if (entry.unmatched) return <UnmatchedState t={t} />;
         const pinned = pinnedText(t, entry);
+        const hidden = (
+          <span className={styles.dot}>
+            <StatusDot state="pending" />
+            {t('admin.spotlight.entries.state.hidden')}
+          </span>
+        );
+        // A missing entry says so first; hidden is its second line then.
         return (
           <span className={styles.stack}>
-            <span className={styles.dot}>
-              <StatusDot state={state} />
-              {t(word)}
-            </span>
+            {entry.itemId === undefined && <MissingState t={t} entry={entry} />}
+            {entry.hidden && hidden}
+            {entry.itemId !== undefined && !entry.hidden && (
+              <span className={styles.dot}>
+                <StatusDot state="success" />
+                {t('admin.spotlight.entries.state.visible')}
+              </span>
+            )}
             {pinned && <span className={styles.muted}>{pinned}</span>}
           </span>
         );
@@ -105,7 +204,7 @@ export function entryColumns(
           <span className={entry.note === undefined ? styles.muted : styles.note}>
             {entry.note === undefined ? t('admin.spotlight.entries.none') : quoted(t, entry.note)}
           </span>
-          {entry.itemId !== undefined && (
+          {entry.canOverride && (
             <AriaButton
               variant="ghost"
               aria-label={t('admin.spotlight.note.label', { title: entryName(t, entry) })}
@@ -125,8 +224,8 @@ export function entryColumns(
       hideHeader: true,
       align: 'end',
       cell: (entry) => {
-        if (entry.itemId === undefined) {
-          return <span className={styles.muted}>{t('admin.spotlight.entries.notInLibrary')}</span>;
+        if (!entry.canOverride) {
+          return <span className={styles.muted}>{t('admin.spotlight.entries.noAction')}</span>;
         }
         const title = entryName(t, entry);
         // Pin and unpin share their place: the button that had the focus keeps it, renamed.
@@ -161,9 +260,76 @@ export function entryColumns(
             >
               {t(entry.hidden ? 'admin.spotlight.entries.show' : 'admin.spotlight.entries.hide')}
             </AriaButton>
+            {entry.canRequest && <RequestButton t={t} entry={entry} onRequest={onRequest} />}
           </span>
         );
       },
+    },
+  ];
+}
+
+/**
+ * The entries the library lacks (band «Fehlende Einträge», N-71): poster, title and ids, the state
+ * of the title's wish and «Anfordern» where it can be requested. Display only, nothing to set.
+ */
+export function missingColumns(
+  t: TFunction,
+  onRequest: (entry: SpotlightEntry) => void,
+): DataColumn<SpotlightEntry>[] {
+  return [
+    {
+      key: 'rank',
+      width: '5rem',
+      header: t('admin.spotlight.entries.columns.rank'),
+      align: 'end',
+      cell: (entry) => <span className={styles.rank}>{entry.position}</span>,
+    },
+    {
+      key: 'title',
+      header: t('admin.spotlight.entries.columns.title'),
+      rowHeader: true,
+      cell: (entry) => (
+        <PosterTitle posterUrl={entry.posterUrl}>
+          <TitleText t={t} entry={entry} ids />
+        </PosterTitle>
+      ),
+    },
+    {
+      key: 'status',
+      header: t('admin.spotlight.entries.columns.status'),
+      cell: (entry) => <MissingState t={t} entry={entry} />,
+    },
+    {
+      key: 'actions',
+      header: t('admin.spotlight.entries.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      cell: (entry) =>
+        entry.canRequest ? <RequestButton t={t} entry={entry} onRequest={onRequest} /> : null,
+    },
+  ];
+}
+
+/** The entries TMDB could not resolve (N-62), in the band «Abgleich über TMDB, TVDB und IMDb». */
+export function unmatchedColumns(t: TFunction): DataColumn<SpotlightEntry>[] {
+  return [
+    {
+      key: 'rank',
+      width: '5rem',
+      header: t('admin.spotlight.entries.columns.rank'),
+      align: 'end',
+      cell: (entry) => <span className={styles.rank}>{entry.position}</span>,
+    },
+    {
+      key: 'title',
+      header: t('admin.spotlight.entries.columns.title'),
+      rowHeader: true,
+      cell: (entry) => <TitleText t={t} entry={entry} ids />,
+    },
+    {
+      key: 'status',
+      header: t('admin.spotlight.entries.columns.status'),
+      cell: () => <UnmatchedState t={t} />,
     },
   ];
 }
