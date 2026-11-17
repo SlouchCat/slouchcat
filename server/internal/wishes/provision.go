@@ -279,6 +279,9 @@ func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, pass
 	if linkedBy == "" {
 		linkedBy = LinkedByAdmin
 	}
+	// An administrator's «In Seerr eröffnen» may link a privileged user; the account's own trigger
+	// (an invitation, an email change, a retry of one) may not (security review H-1).
+	auto := linkedBy != LinkedByAdmin
 	if hasRow && m.State == StateWaiting && m.LinkedBy.Valid && linkedBy != LinkedByEmailChange {
 		linkedBy = m.LinkedBy.String // an invitation stays the trigger of a later link
 	}
@@ -318,9 +321,12 @@ func (s *Service) provision(ctx context.Context, accountID int64, linkedBy, pass
 		}
 	}
 	if hit != nil {
-		if err := s.link(ctx, admin, acc, *hit, linkedBy, password, ws, setBy); err != nil {
-			if errors.Is(err, model.ErrSeerrUserTaken) {
-				return s.waitTaken(ctx, accountID, linkedBy, setBy)
+		if err := s.link(ctx, admin, acc, *hit, linkedBy, auto, password, ws, setBy); err != nil {
+			switch {
+			case errors.Is(err, model.ErrSeerrUserTaken):
+				return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserTaken)
+			case errors.Is(err, errUserPrivileged):
+				return s.waitTaken(ctx, accountID, linkedBy, setBy, ProvisionUserPrivileged)
 			}
 			return s.wait(ctx, accountID, linkedBy, setBy, err)
 		}
@@ -358,16 +364,31 @@ func (s *Service) wait(ctx context.Context, accountID int64, linkedBy string, se
 	return StateWaiting, cause
 }
 
-// waitTaken keeps the account waiting because its email belongs to a Seerr user of another account
-// or to the shared user: nothing to retry, the administrator chooses by hand.
-func (s *Service) waitTaken(ctx context.Context, accountID int64, linkedBy string, setBy int64) (string, error) {
+// Waiting reasons of an account whose email names a Seerr user Slouchcat may not take
+// (WishAccountMapping.provisionError): nothing to retry, the administrator chooses by hand.
+const (
+	// ProvisionUserTaken: the user belongs to another account or is the shared user.
+	ProvisionUserTaken = "seerr_user_taken"
+	// ProvisionUserPrivileged: the user is user 1 or holds a managing right (ADMIN, MANAGE_USERS,
+	// MANAGE_SETTINGS, MANAGE_REQUESTS); an invitation or an email change never takes it over
+	// (security review H-1). The administrator can still choose it by hand.
+	ProvisionUserPrivileged = "seerr_user_privileged"
+)
+
+// errUserPrivileged: an automatic link met a privileged user.
+var errUserPrivileged = errors.New("wishes: the seerr user of the email administers seerr")
+
+// waitTaken keeps the account waiting because its email names a user Slouchcat may not take
+// (reason ProvisionUserTaken or ProvisionUserPrivileged): nothing to retry, the administrator
+// chooses by hand.
+func (s *Service) waitTaken(ctx context.Context, accountID int64, linkedBy string, setBy int64, reason string) (string, error) {
 	if err := s.write.SetWaitingMapping(ctx, wishq.SetWaitingMappingParams{
-		AccountID: accountID, LinkedBy: nullString(linkedBy), ProvisionError: nullString("seerr_user_taken"),
+		AccountID: accountID, LinkedBy: nullString(linkedBy), ProvisionError: nullString(reason),
 		Now: s.now().UnixMilli(), SetBy: sql.NullInt64{Int64: setBy, Valid: setBy > 0},
 	}); err != nil {
 		return "", fmt.Errorf("waiting mapping: %w", err)
 	}
-	s.log.WarnContext(ctx, "seerr user of the email belongs to another account", "account_id", accountID)
+	s.log.WarnContext(ctx, "seerr user of the email may not be linked automatically", "account_id", accountID, "reason", reason)
 	return StateWaiting, nil
 }
 
@@ -470,8 +491,14 @@ func (s *Service) opened(ctx context.Context, admin seerr.Session, acc wishq.Get
 // and the time; its rights stay as they are (N-9). The password goes to it only after an
 // invitation or an email change, and never to an administrator or a user signing in through Plex,
 // Jellyfin or Emby (N-91, N-103, N-6); after a link by an administrator the state is off.
-// model.ErrSeerrUserTaken when the user belongs to another account or is the shared user.
-func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, linkedBy, password string, ws model.WishSettings, setBy int64) error {
+// model.ErrSeerrUserTaken when the user belongs to another account or is the shared user;
+// errUserPrivileged when an automatic link (auto: an invitation, an email change) meets user 1 or a user with a managing
+// right (security review H-1: only an administrator links such a user, by «In Seerr eröffnen» or
+// by hand).
+func (s *Service) link(ctx context.Context, admin seerr.Session, acc wishq.GetProvisionAccountRow, u seerr.User, linkedBy string, auto bool, password string, ws model.WishSettings, setBy int64) error {
+	if auto && privileged(int64(u.ID), u.Permissions) {
+		return errUserPrivileged
+	}
 	now := s.now().UnixMilli()
 	fallback := PasswordNextLogin
 	if linkedBy == LinkedByAdmin || !ws.SyncPassword {
@@ -537,12 +564,24 @@ func (s *Service) mirror(ctx context.Context, q *wishq.Queries, u seerr.User) er
 }
 
 // setPassword hands the password to the user and records the state: synced, or next_login when
-// Seerr refused or was not reached. The password is not kept.
+// Seerr refused or was not reached. It reads the user fresh first (security review L-2): user 1, a
+// managing right or a sign-in through Plex, Jellyfin or Emby keeps its password, and the state
+// becomes admin or external. The password is not kept.
 func (s *Service) setPassword(ctx context.Context, admin seerr.Session, accountID int64, seerrUserID int, password string) {
 	state, at := PasswordSynced, sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
-	if err := admin.SetPassword(ctx, seerrUserID, password); err != nil {
-		s.log.WarnContext(ctx, "seerr password not set", "account_id", accountID, "seerr_user_id", seerrUserID, "reason", errorClass(err))
+	u, err := admin.User(ctx, seerrUserID)
+	switch {
+	case err != nil:
+		s.log.WarnContext(ctx, "seerr user not read before the password", "account_id", accountID, "seerr_user_id", seerrUserID, "reason", errorClass(err))
 		state, at = PasswordNextLogin, sql.NullInt64{}
+	case guardedState(int64(u.ID), u.Permissions, u.UserType) != "":
+		state, at = guardedState(int64(u.ID), u.Permissions, u.UserType), sql.NullInt64{}
+		s.log.InfoContext(ctx, "seerr password stays in seerr", "account_id", accountID, "seerr_user_id", seerrUserID, "password_state", state)
+	default:
+		if err := admin.SetPassword(ctx, seerrUserID, password); err != nil {
+			s.log.WarnContext(ctx, "seerr password not set", "account_id", accountID, "seerr_user_id", seerrUserID, "reason", errorClass(err))
+			state, at = PasswordNextLogin, sql.NullInt64{}
+		}
 	}
 	if _, err := s.write.SetMappingPasswordState(ctx, wishq.SetMappingPasswordStateParams{PasswordState: state, PasswordSyncedAt: at, AccountID: accountID}); err != nil {
 		s.log.WarnContext(ctx, "seerr password state not stored", "account_id", accountID, "err", err)
@@ -682,14 +721,21 @@ func (s *Service) ensureShared(ctx context.Context, rewrite bool) error {
 		return err
 	}
 	var user seerr.User
+	takenOver := u != nil
 	if u != nil {
 		user = *u
 	} else {
-		created, _, err := s.createUser(ctx, admin, SharedEmail, "", model.WishSettings{})
+		created, isNew, err := s.createUser(ctx, admin, SharedEmail, "", model.WishSettings{})
 		if err != nil {
 			return err
 		}
-		user = created
+		user, takenOver = created, !isNew
+	}
+	if takenOver {
+		// Someone may know the password of a user that existed already (security review L-4).
+		if err := admin.SetPassword(ctx, user.ID, randomPassword()); err != nil {
+			return err
+		}
 	}
 	if err := s.inTx(ctx, func(q *wishq.Queries) error { return s.mirror(ctx, q, user) }); err != nil {
 		return err
@@ -697,7 +743,7 @@ func (s *Service) ensureShared(ctx context.Context, rewrite bool) error {
 	if err := s.MarkShared(ctx, user.ID); err != nil {
 		return err
 	}
-	s.log.InfoContext(ctx, "shared seerr user ready", "seerr_user_id", user.ID, "taken_over", u != nil)
+	s.log.InfoContext(ctx, "shared seerr user ready", "seerr_user_id", user.ID, "taken_over", takenOver)
 	if err := s.writeLimits(ctx, admin, user.ID, ws.DefaultLimit); err != nil {
 		return err
 	}

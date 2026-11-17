@@ -84,7 +84,8 @@ type Service struct {
 	titles   Titles   // titles outside the library through metadata
 	notifier Notifier // the messages; nil sends none
 
-	bg sync.WaitGroup // hand-overs of a password in flight (password.go)
+	bg           sync.WaitGroup // hand-overs of a password in flight (password.go)
+	accountLocks accountLocks   // one hand-over per account at a time (password.go)
 
 	locks   wishLocks    // one submission or withdrawal per wish at a time (submit.go)
 	seasons seasonsCache // the season lists of Seerr, 1 h (request.go)

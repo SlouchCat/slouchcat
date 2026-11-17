@@ -232,15 +232,37 @@ func (m *Mapping) SetAccountMapping(ctx context.Context, accountID int64, seerrU
 	return model.WishAccountMapping{}, model.ErrNotFound
 }
 
-// linkedPasswordState is the password state of a user Slouchcat did not open: 'admin' for an
-// administrator of Seerr (user 1 included), 'external' for a sign-in through Plex, Jellyfin or
-// Emby (N-6), else fallback.
-func linkedPasswordState(u wishq.SeerrUser, fallback string) string {
+// managing are the rights that administer a Seerr instance: whoever holds one of them can read
+// the keys of Seerr, Radarr and Sonarr or act for other users (security review H-1). Such a user
+// is never taken over automatically and never gets the account's password or email. The limit
+// exemption is narrower: Seerr exempts only MANAGE_USERS (ADMIN implies it), which is
+// seerr_users.is_admin («Kein Limit», N-34).
+const managing = seerr.PermAdmin | seerr.PermManageSettings | seerr.PermManageUsers | seerr.PermManageRequests
+
+// privileged reports whether a Seerr user administers the instance: user 1 or any managing right.
+func privileged(id int64, p seerr.Permission) bool { return id == 1 || p&managing != 0 }
+
+// guardedState is the password state of a user whose password and email stay in Seerr: 'admin'
+// for a privileged user, 'external' for a sign-in through Plex, Jellyfin or Emby (N-6), else "".
+func guardedState(id int64, p seerr.Permission, userType seerr.UserType) string {
 	switch {
-	case u.IsAdmin == 1 || u.SeerrID == 1:
+	case privileged(id, p):
 		return PasswordAdmin
-	case u.UserType != int64(seerr.UserLocal):
+	case userType != seerr.UserLocal:
 		return PasswordExternal
+	}
+	return ""
+}
+
+// linkedPasswordState is the password state of a user Slouchcat did not open: 'admin' for an
+// administrator of Seerr (user 1 and every managing right), 'external' for a sign-in through Plex,
+// Jellyfin or Emby (N-6), else fallback.
+func linkedPasswordState(u wishq.SeerrUser, fallback string) string {
+	if u.IsAdmin == 1 {
+		return PasswordAdmin
+	}
+	if st := guardedState(u.SeerrID, seerr.Permission(uint64(max(0, u.Permissions))), seerr.UserType(u.UserType)); st != "" {
+		return st
 	}
 	return fallback
 }

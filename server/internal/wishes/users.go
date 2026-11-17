@@ -207,7 +207,7 @@ func (s *Service) refreshUsers(ctx context.Context, admin seerr.Session) error {
 		if gone > 0 {
 			s.log.InfoContext(ctx, "seerr users gone", "count", gone)
 		}
-		return nil
+		return s.guardPasswords(ctx, q)
 	})
 	if err != nil {
 		return err
@@ -216,6 +216,45 @@ func (s *Service) refreshUsers(ctx context.Context, admin seerr.Session) error {
 		s.log.WarnContext(ctx, "seerr users with an unknown user type skipped", "count", skipped)
 	}
 	s.log.InfoContext(ctx, "seerr users refreshed", "count", len(users)-skipped)
+	return nil
+}
+
+// guardPasswords brings the password state of every ready mapping in line with the rights the
+// refresh just read (security review L-2): a user that became privileged or signs in through Plex,
+// Jellyfin or Emby gets 'admin' or 'external' and no password any more; a user that lost those
+// rights goes to 'off' («Wird nicht abgeglichen»), the administrator can switch the sync on again.
+func (s *Service) guardPasswords(ctx context.Context, q *wishq.Queries) error {
+	rows, err := q.ListAccountMappings(ctx)
+	if err != nil {
+		return fmt.Errorf("list mappings: %w", err)
+	}
+	for _, r := range rows {
+		if r.State.String != StateReady || !r.SeerrUserID.Valid {
+			continue
+		}
+		u, err := q.GetSeerrUser(ctx, r.SeerrUserID.Int64)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("seerr user: %w", err)
+		}
+		cur, want := r.PasswordState.String, linkedPasswordState(u, "")
+		switch {
+		case want != "":
+		case cur == PasswordAdmin || cur == PasswordExternal:
+			want = PasswordOff
+		default:
+			continue
+		}
+		if want == cur {
+			continue
+		}
+		if _, err := q.SetMappingPasswordState(ctx, wishq.SetMappingPasswordStateParams{PasswordState: want, AccountID: r.AccountID}); err != nil {
+			return fmt.Errorf("password state: %w", err)
+		}
+		s.log.InfoContext(ctx, "seerr password state follows the rights", "account_id", r.AccountID, "seerr_user_id", u.SeerrID, "from", cur, "to", want)
+	}
 	return nil
 }
 
@@ -253,7 +292,9 @@ func upsertParams(u seerr.User, fetched int64) (wishq.UpsertSeerrUserParams, boo
 	}
 	isAdmin := int64(0)
 	if u.Permissions.Has(seerr.PermManageUsers) {
-		isAdmin = 1 // ADMIN grants MANAGE_USERS too: no limit, no password sync (N-6, N-34)
+		// What Seerr exempts from the limit (ADMIN grants MANAGE_USERS too, N-34). The password and
+		// the email follow the wider rule privileged (every managing right, mapping.go).
+		isAdmin = 1
 	}
 	if u.Permissions > math.MaxInt64 {
 		return wishq.UpsertSeerrUserParams{}, false

@@ -217,11 +217,20 @@ func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+// reservedDomain is the domain of Slouchcat's own Seerr user «slouchcat-gaeste» (concept 25, N-101):
+// no account may carry an address of it, or it would be linked to that user (security review L-4).
+const reservedDomain = "slouchcat.invalid"
+
+// validEmail is the one check of an account's e-mail: the owner, an invitation and an e-mail
+// change all pass here.
 func validEmail(email string) bool {
 	if len(email) > maxEmailLen || strings.Count(email, "@") != 1 || strings.ContainsAny(email, " \t\r\n") {
 		return false
 	}
 	local, domain, _ := strings.Cut(email, "@")
+	if d := strings.ToLower(domain); d == reservedDomain || strings.HasSuffix(d, "."+reservedDomain) {
+		return false
+	}
 	return local != "" && strings.Contains(domain, ".") &&
 		!strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".") && !strings.Contains(domain, "..")
 }

@@ -368,10 +368,12 @@ func secureTransport(ctx context.Context, address string) bool {
 	return u.Scheme == "https" || netguard.LocalHost(ctx, address)
 }
 
+// sameHost reports whether two addresses name the same scheme, host and port: the key goes again
+// only to where it went before, never in clear text after https (security review L-5).
 func sameHost(a, b string) bool {
 	ua, errA := url.Parse(a)
 	ub, errB := url.Parse(b)
-	return errA == nil && errB == nil && strings.EqualFold(ua.Host, ub.Host)
+	return errA == nil && errB == nil && strings.EqualFold(ua.Scheme, ub.Scheme) && strings.EqualFold(ua.Host, ub.Host)
 }
 
 func sameAddress(a, b string) bool {

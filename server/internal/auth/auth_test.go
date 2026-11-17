@@ -227,6 +227,9 @@ func TestValidation(t *testing.T) {
 		{"a@b@c.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@localhost", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
+		// The domain of the shared Seerr user «slouchcat-gaeste» is reserved (concept 25, L-4).
+		{"slouchcat-gaeste@slouchcat.invalid", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
+		{"x@Mail.Slouchcat.Invalid", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{strings.Repeat("a", 250) + "@b.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@b.ch", strings.Repeat("x", 257), "de", []model.FieldError{{Field: "password", Code: "too_long"}}},
 		{"a@b.ch", "ääääääääää", "ar", []model.FieldError{{Field: "language", Code: "invalid_value"}}},

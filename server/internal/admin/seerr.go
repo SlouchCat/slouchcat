@@ -175,7 +175,7 @@ func (s *Service) UpdateSeerrSettings(ctx context.Context, upd model.SeerrSettin
 	case upd.Clear && (cur.URLSource == model.SourceEnv || cur.Key.Source == model.SourceEnv):
 		return model.SeerrSettings{}, &model.EnvWinsError{Field: "url"}
 	}
-	// A stored key never travels to another host: a new host needs the key again.
+	// A stored key never travels to another host or scheme: a new one needs the key again.
 	if urlChanged && newURL != "" && newKey == "" && cur.Key.Source == model.SourceStored && !sameSeerrHost(cur.URL, newURL) {
 		return model.SeerrSettings{}, model.ErrSeerrKeyRequired
 	}
@@ -229,11 +229,13 @@ func normalizeSeerrURL(raw string) (string, error) {
 	return seerr.NormalizeAddress(raw)
 }
 
-// sameSeerrHost reports whether two addresses name the same host and port.
+// sameSeerrHost reports whether two addresses name the same scheme, host and port: a stored key
+// goes only to where it went before, never in clear text after https (concept 25, security review
+// L-5).
 func sameSeerrHost(a, b string) bool {
 	ua, errA := url.Parse(a)
 	ub, errB := url.Parse(b)
-	return errA == nil && errB == nil && strings.EqualFold(ua.Host, ub.Host)
+	return errA == nil && errB == nil && strings.EqualFold(ua.Scheme, ub.Scheme) && strings.EqualFold(ua.Host, ub.Host)
 }
 
 // WishSettings returns the settings of the wishes; absent keys have their default.

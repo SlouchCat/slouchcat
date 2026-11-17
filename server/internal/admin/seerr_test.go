@@ -112,6 +112,10 @@ func TestSeerrSettingsAddressRules(t *testing.T) {
 	if _, err := f.svc.UpdateSeerrSettings(ctx, model.SeerrSettingsUpdate{URL: ptr("http://other.lan:5055")}); !errors.Is(err, model.ErrSeerrKeyRequired) {
 		t.Errorf("new host without key: %v, want ErrSeerrKeyRequired", err)
 	}
+	// The same host on another scheme would send the stored key in clear text (concept 25, L-5).
+	if _, err := f.svc.UpdateSeerrSettings(ctx, model.SeerrSettingsUpdate{URL: ptr("https://seerr.lan:5055")}); !errors.Is(err, model.ErrSeerrKeyRequired) {
+		t.Errorf("new scheme without key: %v, want ErrSeerrKeyRequired", err)
+	}
 	if st, _ := f.svc.SeerrSettings(ctx); st.URL != "http://seerr.lan:5055" {
 		t.Errorf("a refused save changed the address to %q", st.URL)
 	}

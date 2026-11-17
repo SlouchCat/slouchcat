@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -49,8 +50,42 @@ func (s *Service) PasswordSeen(ctx context.Context, accountID int64, email, pass
 	}()
 }
 
-// handOver does what the moment means for Seerr (architecture 18.3).
+// accountLocks holds one hand-over per account at a time (security review L-3): without it a
+// login that read next_login could finish after a password change and write the old password.
+type accountLocks struct {
+	mu   sync.Mutex
+	held map[int64]chan struct{}
+}
+
+// lock waits for the account's hand-over in flight, at most until ctx ends.
+func (l *accountLocks) lock(ctx context.Context, id int64) (func(), error) {
+	l.mu.Lock()
+	if l.held == nil {
+		l.held = map[int64]chan struct{}{}
+	}
+	ch, ok := l.held[id]
+	if !ok {
+		ch = make(chan struct{}, 1)
+		l.held[id] = ch
+	}
+	l.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// handOver does what the moment means for Seerr (architecture 18.3), under the lock of the
+// account; the mapping is read under the lock, so a login does nothing once a password change
+// synced the password.
 func (s *Service) handOver(ctx context.Context, accountID int64, email, password, moment string) error {
+	unlock, err := s.accountLocks.lock(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	cfg, err := s.cfg.SeerrConfig(ctx)
 	if err != nil || !cfg.Configured() || !cfg.Enabled {
 		return err
@@ -84,6 +119,9 @@ func (s *Service) handOver(ctx context.Context, accountID int64, email, password
 		}
 		if err := s.changeEmail(ctx, admin, accountID, int(m.SeerrUserID.Int64), email); err != nil {
 			return err
+		}
+		if m, err = s.read.GetAccountMapping(ctx, accountID); err != nil {
+			return fmt.Errorf("mapping: %w", err)
 		}
 		if syncable(m.PasswordState) && ws.SyncPassword {
 			s.setPassword(ctx, admin, accountID, int(m.SeerrUserID.Int64), password)
@@ -128,9 +166,23 @@ func (s *Service) provisionInMemory(ctx context.Context, accountID int64, linked
 
 // changeEmail writes the new email into settings/main of the user (N-5). Seerr refuses an email
 // of another user (INVALID_EMAIL): the user stays as it is and the account carries the hint
-// email_taken for the administration (N-95).
+// email_taken for the administration (N-95). The user is read fresh first: user 1, a managing
+// right or a sign-in through Plex, Jellyfin or Emby keeps its email, and the password state
+// becomes admin or external (security review H-1, L-2; Seerr's «forgot password» would hand the
+// user over otherwise).
 func (s *Service) changeEmail(ctx context.Context, admin seerr.Session, accountID int64, seerrUserID int, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
+	u, err := admin.User(ctx, seerrUserID)
+	if err != nil {
+		return err
+	}
+	if st := guardedState(int64(u.ID), u.Permissions, u.UserType); st != "" {
+		if _, err := s.write.SetMappingPasswordState(ctx, wishq.SetMappingPasswordStateParams{PasswordState: st, AccountID: accountID}); err != nil {
+			return fmt.Errorf("password state: %w", err)
+		}
+		s.log.InfoContext(ctx, "email of a seerr administrator or external user left alone", "account_id", accountID, "seerr_user_id", seerrUserID, "password_state", st)
+		return nil
+	}
 	set, err := admin.UserSettings(ctx, seerrUserID)
 	if err != nil {
 		return err

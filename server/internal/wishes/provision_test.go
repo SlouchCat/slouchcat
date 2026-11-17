@@ -234,8 +234,8 @@ func TestProvisionRefused(t *testing.T) {
 }
 
 // An invitation with an email Seerr knows links at once (linked_by invite) and hands over the
-// password, except to user 1, another administrator or a sign-in through Emby; the hint «Neu
-// verknüpft» stays seven days, never after a link by an administrator.
+// password, except to a sign-in through Emby; user 1 is never linked by an invitation (security
+// review H-1); the hint «Neu verknüpft» stays seven days, never after a link by an administrator.
 func TestProvisionInviteAndLinkedHint(t *testing.T) {
 	f := newFixture(t)
 	now := time.Now()
@@ -255,7 +255,7 @@ func TestProvisionInviteAndLinkedHint(t *testing.T) {
 	if r, err := f.svc.ForProfile(f.ctx, 2, 3); err != nil || !r.CanRequest {
 		t.Errorf("right after the invitation = %+v, %v", r, err)
 	}
-	// User 1 (an administrator) and an Emby user: linked, no password.
+	// User 1 (an administrator) waits for the administrator; an Emby user is linked without password.
 	f.exec(`UPDATE accounts SET email = 'admin@example.org' WHERE id = 1`)
 	f.fake.AddUser(seerrtest.User{ID: 9, Email: "grosseltern@example.test", JellyfinUsername: "oma", UserType: seerrtest.UserEmby, Permissions: seerrtest.PermRequest})
 	f.fake.UpdateUser(4, func(u *seerrtest.User) { u.Email = "other@example.test" })
@@ -265,7 +265,7 @@ func TestProvisionInviteAndLinkedHint(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if a := f.mapping(1); a.State != OriginLinked || a.PasswordState != PasswordAdmin {
+	if a := f.mapping(1); a.State != StateWaiting || a.SeerrUserID != nil || a.ProvisionError != ProvisionUserPrivileged {
 		t.Errorf("user 1 = %+v", a)
 	}
 	if a := f.mapping(3); a.State != OriginLinked || *a.SeerrUserID != 9 || a.PasswordState != PasswordExternal {
@@ -275,7 +275,7 @@ func TestProvisionInviteAndLinkedHint(t *testing.T) {
 		t.Errorf("password handed to an administrator or an emby user: %d", n)
 	}
 	hints, err := f.svc.RecentLinks(f.ctx)
-	if err != nil || len(hints) != 3 {
+	if err != nil || len(hints) != 2 {
 		t.Fatalf("hints = %+v, %v", hints, err)
 	}
 	for _, h := range hints {
@@ -289,7 +289,7 @@ func TestProvisionInviteAndLinkedHint(t *testing.T) {
 	if _, err := f.svc.ProvisionAccount(f.ctx, 3, 1); err != nil {
 		t.Fatal(err)
 	}
-	if hints, _ := f.svc.RecentLinks(f.ctx); len(hints) != 2 {
+	if hints, _ := f.svc.RecentLinks(f.ctx); len(hints) != 1 {
 		t.Errorf("hints after an administrator's link = %+v", hints)
 	}
 	now = now.Add(8 * 24 * time.Hour)
