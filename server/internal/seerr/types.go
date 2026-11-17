@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 )
 
@@ -365,12 +366,48 @@ type Title struct {
 	MediaInfo        *Media  `json:"mediaInfo"`
 }
 
+// MediaTypePerson is the media type of a person among the search hits; never a title.
+const MediaTypePerson = "person"
+
+// DisplayName is the title of a film or the name of a series.
+func (t Title) DisplayName() string {
+	if t.MediaType == MediaTypeMovie && t.Title != "" {
+		return t.Title
+	}
+	if t.Name != "" {
+		return t.Name
+	}
+	return t.Title
+}
+
+// Year is the year of the release (film) or the first air date (series); 0 when unknown.
+func (t Title) Year() int {
+	date := t.FirstAirDate
+	if t.MediaType == MediaTypeMovie {
+		date = t.ReleaseDate
+	}
+	if len(date) < 4 {
+		return 0
+	}
+	y, err := strconv.Atoi(date[:4])
+	if err != nil {
+		return 0
+	}
+	return y
+}
+
 // DiscoverPage is one page of a discover list or the search.
 type DiscoverPage struct {
 	Page         int     `json:"page"`
 	TotalPages   int     `json:"totalPages"`
 	TotalResults int     `json:"totalResults"`
 	Results      []Title `json:"results"`
+}
+
+// Genre is one genre of GET /genres/movie|tv (I-45).
+type Genre struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 // GenreSlide is one genre tile of GET /discover/genreslider/movie|tv.

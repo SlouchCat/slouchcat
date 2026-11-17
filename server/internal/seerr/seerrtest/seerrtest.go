@@ -147,8 +147,11 @@ type Title struct {
 	GenreIDs      []int
 	Popularity    float64
 	Certification string // an age, compared by certificationLte
-	Upcoming      bool
-	Seasons       []Season
+	// IgnoresCertification: the lists return the title whatever certificationLte says, like TMDB
+	// does for a title rated in another country only (the server checks every hit again, N-56).
+	IgnoresCertification bool
+	Upcoming             bool
+	Seasons              []Season
 }
 
 // Request is a request of the fake.
@@ -541,6 +544,8 @@ func (s *Server) routes() http.Handler {
 		{pattern: "GET /discover/tv/genre/{id}", query: pageLang, handle: discoverList("tv", false)},
 		{pattern: "GET /discover/genreslider/movie", query: []string{"language"}, handle: genreSlider("movie")},
 		{pattern: "GET /discover/genreslider/tv", query: []string{"language"}, handle: genreSlider("tv")},
+		{pattern: "GET /genres/movie", query: []string{"language"}, handle: genreList("movie")},
+		{pattern: "GET /genres/tv", query: []string{"language"}, handle: genreList("tv")},
 		{pattern: "GET /search", query: []string{"query", "page", "language"}, handle: (*Server).search},
 	} {
 		method, path, _ := strings.Cut(rt.pattern, " ")
@@ -1575,7 +1580,7 @@ func discoverList(mediaType string, upcoming bool) func(*Server, http.ResponseWr
 			if len(genres) > 0 && !slices.ContainsFunc(genres, func(g int) bool { return slices.Contains(t.GenreIDs, g) }) {
 				return false
 			}
-			if hasLte {
+			if hasLte && !t.IgnoresCertification {
 				c, err := strconv.Atoi(t.Certification)
 				return err == nil && c <= lte
 			}
@@ -1613,21 +1618,48 @@ func genreSlider(mediaType string) func(*Server, http.ResponseWriter, *http.Requ
 	}
 }
 
+// genreList answers GET /genres/movie|tv: every genre of the titles of the medium, by id.
+func genreList(mediaType string) func(*Server, http.ResponseWriter, *http.Request, *User, map[string]json.RawMessage) {
+	return func(s *Server, w http.ResponseWriter, _ *http.Request, _ *User, _ map[string]json.RawMessage) {
+		seen := map[int]bool{}
+		for _, t := range s.catalogue(func(t *Title) bool { return t.MediaType == mediaType }) {
+			for _, g := range t.GenreIDs {
+				seen[g] = true
+			}
+		}
+		ids := make([]int, 0, len(seen))
+		for g := range seen {
+			ids = append(ids, g)
+		}
+		sort.Ints(ids)
+		out := []map[string]any{}
+		for _, g := range ids {
+			name, ok := genreNames[g]
+			if !ok {
+				name = "Genre " + strconv.Itoa(g)
+			}
+			out = append(out, map[string]any{"id": g, "name": name})
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+}
+
 // search knows the prefixes tmdb:, tvdb:, imdb: and year: of lib/search.ts; otherwise it matches
-// the name case-insensitively.
+// the name case-insensitively. Like the real one (appendix I, I-42), tmdb: returns every title and
+// person with that TMDB id, whatever the media type, and a blank after the colon finds nothing.
 func (s *Server) search(w http.ResponseWriter, r *http.Request, _ *User, _ map[string]json.RawMessage) {
 	q := strings.TrimSpace(r.URL.Query().Get("query"))
 	lower := strings.ToLower(q)
 	var keep func(*Title) bool
 	switch {
 	case strings.HasPrefix(lower, "tmdb:"):
-		id, _ := strconv.Atoi(strings.TrimSpace(q[5:]))
-		keep = func(t *Title) bool { return t.TMDBID == id && t.MediaType != "person" }
+		id, _ := strconv.Atoi(q[5:])
+		keep = func(t *Title) bool { return t.TMDBID == id }
 	case strings.HasPrefix(lower, "tvdb:"):
-		id, _ := strconv.Atoi(strings.TrimSpace(q[5:]))
+		id, _ := strconv.Atoi(q[5:])
 		keep = func(t *Title) bool { return t.MediaType == "tv" && t.TVDBID == id }
 	case strings.HasPrefix(lower, "imdb:"):
-		id := strings.TrimSpace(q[5:])
+		id := q[5:]
 		keep = func(t *Title) bool { return t.IMDBID != "" && strings.EqualFold(t.IMDBID, id) }
 	case strings.HasPrefix(lower, "year:"):
 		rest := strings.TrimSpace(q[5:])

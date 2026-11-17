@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -386,8 +388,12 @@ func (s Session) TV(ctx context.Context, tmdbID int) (TVDetails, error) {
 	return out, err
 }
 
-// Discover and search (appendix H 3.3). Every list is a TMDB call inside Seerr. Each query type
-// carries only the parameters its route knows: Seerr's request validator refuses others with 400.
+// Discover and search (appendix H 3.3, appendix I section 4). Every list is a TMDB call inside
+// Seerr. The calls run only on behalf of a user (AsUser: X-API-User), so Seerr answers with that
+// user's language and request state; the administrator session refuses them with ErrInvalid. Each
+// query type carries only the parameters its route knows, and a guard (checkQuery) refuses every
+// other parameter before the request leaves: Seerr's request validator answers an unknown one
+// with 400 «Unknown query parameter» (appendix D 2.5, I-44: certification.lte is refused).
 
 // PageQuery is the query of the routes that know only page and language (upcoming, by genre).
 type PageQuery struct {
@@ -405,8 +411,8 @@ func (q PageQuery) values() url.Values {
 // TrendingQuery is the query of GET /discover/trending.
 type TrendingQuery struct {
 	PageQuery
-	MediaType  string // all, movie, tv
-	TimeWindow string // day, week
+	MediaType  string // all, movie, tv; "" = Seerr's default (all)
+	TimeWindow string // day, week; "" = Seerr's default (day)
 }
 
 // DiscoverQuery is the query of GET /discover/movies and /discover/tv.
@@ -414,60 +420,152 @@ type DiscoverQuery struct {
 	PageQuery
 	SortBy               string // for example popularity.desc
 	Genre                string // TMDB genre ids, comma separated
-	CertificationLte     string
-	CertificationCountry string
+	CertificationLte     string // a certificate of CertificationCountry, for example "12" (DE)
+	CertificationCountry string // ISO 3166-1 alpha-2
 }
 
-// Trending returns GET /discover/trending.
+// The discover and search routes and the query parameters Seerr's validator accepts on each
+// (GH:server/routes/discover.ts, search.ts; appendix H 3.3). The client sends a subset.
+const (
+	routeTrending       = "/discover/trending"
+	routeMovies         = "/discover/movies"
+	routeMoviesUpcoming = "/discover/movies/upcoming"
+	routeTV             = "/discover/tv"
+	routeTVUpcoming     = "/discover/tv/upcoming"
+	routeMoviesGenre    = "/discover/movies/genre/{id}"
+	routeTVGenre        = "/discover/tv/genre/{id}"
+	routeMovieSlider    = "/discover/genreslider/movie"
+	routeTVSlider       = "/discover/genreslider/tv"
+	routeMovieGenres    = "/genres/movie"
+	routeTVGenres       = "/genres/tv"
+	routeSearch         = "/search"
+)
+
+var (
+	pageLanguage   = []string{"page", "language"}
+	discoverFilter = []string{"page", "language", "sortBy", "genre", "studio", "keywords", "primaryReleaseDateGte",
+		"primaryReleaseDateLte", "withRuntimeGte", "withRuntimeLte", "voteAverageGte", "voteAverageLte", "voteCountGte",
+		"voteCountLte", "watchProviders", "watchRegion", "certification", "certificationGte", "certificationLte",
+		"certificationCountry"}
+	discoverTVFilter = append(slices.Clone(discoverFilter), "network", "firstAirDateGte", "firstAirDateLte", "status")
+
+	routeParams = map[string][]string{
+		routeTrending:       {"page", "language", "mediaType", "timeWindow"},
+		routeMovies:         discoverFilter,
+		routeMoviesUpcoming: pageLanguage,
+		routeTV:             discoverTVFilter,
+		routeTVUpcoming:     pageLanguage,
+		routeMoviesGenre:    pageLanguage,
+		routeTVGenre:        pageLanguage,
+		routeMovieSlider:    {"language"},
+		routeTVSlider:       {"language"},
+		routeMovieGenres:    {"language"},
+		routeTVGenres:       {"language"},
+		routeSearch:         {"query", "page", "language"},
+	}
+
+	// routeValues are the values a parameter may take where Seerr knows a fixed set.
+	routeValues = map[string][]string{
+		"mediaType":  {"all", MediaTypeMovie, MediaTypeTV},
+		"timeWindow": {"day", "week"},
+	}
+)
+
+// checkQuery is the guard of the discover and search routes: a session on behalf of a user, only
+// parameters Seerr's validator knows for route, only known values of the fixed sets.
+func (s Session) checkQuery(route string, v url.Values) error {
+	op := http.MethodGet + " " + route
+	if _, ok := s.UserID(); !ok {
+		return &Error{Op: op, classes: []error{ErrInvalid}, cause: errors.New("discover and search need a user session")}
+	}
+	known, ok := routeParams[route]
+	if !ok {
+		return &Error{Op: op, classes: []error{ErrInvalid}, cause: errors.New("unknown discover route")}
+	}
+	for k, vals := range v {
+		if !slices.Contains(known, k) {
+			return &Error{Op: op, classes: []error{ErrInvalid}, cause: fmt.Errorf("query parameter %q is not known to Seerr", k)}
+		}
+		if set, fixed := routeValues[k]; fixed {
+			for _, val := range vals {
+				if !slices.Contains(set, val) {
+					return &Error{Op: op, classes: []error{ErrInvalid}, cause: fmt.Errorf("value of %q is not known to Seerr", k)}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Trending returns GET /discover/trending. The route has no certification filter.
 func (s Session) Trending(ctx context.Context, q TrendingQuery) (DiscoverPage, error) {
 	v := q.values()
 	setString(v, "mediaType", q.MediaType)
 	setString(v, "timeWindow", q.TimeWindow)
-	return s.discover(ctx, "/discover/trending", v)
+	return s.discover(ctx, routeTrending, routeTrending, v)
 }
 
 // DiscoverMovies returns GET /discover/movies.
 func (s Session) DiscoverMovies(ctx context.Context, q DiscoverQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/movies", q.discoverValues())
+	return s.discover(ctx, routeMovies, routeMovies, q.discoverValues())
 }
 
 // DiscoverTV returns GET /discover/tv.
 func (s Session) DiscoverTV(ctx context.Context, q DiscoverQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/tv", q.discoverValues())
+	return s.discover(ctx, routeTV, routeTV, q.discoverValues())
 }
 
 // UpcomingMovies returns GET /discover/movies/upcoming.
 func (s Session) UpcomingMovies(ctx context.Context, q PageQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/movies/upcoming", q.values())
+	return s.discover(ctx, routeMoviesUpcoming, routeMoviesUpcoming, q.values())
 }
 
 // UpcomingTV returns GET /discover/tv/upcoming.
 func (s Session) UpcomingTV(ctx context.Context, q PageQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/tv/upcoming", q.values())
+	return s.discover(ctx, routeTVUpcoming, routeTVUpcoming, q.values())
 }
 
 // MoviesByGenre returns GET /discover/movies/genre/{id}.
 func (s Session) MoviesByGenre(ctx context.Context, genreID int, q PageQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/movies/genre/"+pathID(genreID), q.values())
+	return s.discover(ctx, routeMoviesGenre, "/discover/movies/genre/"+pathID(genreID), q.values())
 }
 
 // TVByGenre returns GET /discover/tv/genre/{id}.
 func (s Session) TVByGenre(ctx context.Context, genreID int, q PageQuery) (DiscoverPage, error) {
-	return s.discover(ctx, "/discover/tv/genre/"+pathID(genreID), q.values())
+	return s.discover(ctx, routeTVGenre, "/discover/tv/genre/"+pathID(genreID), q.values())
 }
 
-// MovieGenres returns GET /discover/genreslider/movie.
+// MovieGenres returns GET /discover/genreslider/movie: the genre tiles with a few backdrops.
 func (s Session) MovieGenres(ctx context.Context, language string) ([]GenreSlide, error) {
-	return s.genres(ctx, "/discover/genreslider/movie", language)
+	var out []GenreSlide
+	err := s.genres(ctx, routeMovieSlider, language, &out)
+	return out, err
 }
 
 // TVGenres returns GET /discover/genreslider/tv.
 func (s Session) TVGenres(ctx context.Context, language string) ([]GenreSlide, error) {
-	return s.genres(ctx, "/discover/genreslider/tv", language)
+	var out []GenreSlide
+	err := s.genres(ctx, routeTVSlider, language, &out)
+	return out, err
 }
 
-// SearchQuery is the query of GET /search. Query goes to Seerr as typed, so the prefixes tmdb:,
-// tvdb:, imdb: and year: work (GH:server/lib/search.ts).
+// MovieGenreList returns GET /genres/movie: every film genre with its name (I-45), for the genre
+// filter of «Filme».
+func (s Session) MovieGenreList(ctx context.Context, language string) ([]Genre, error) {
+	var out []Genre
+	err := s.genres(ctx, routeMovieGenres, language, &out)
+	return out, err
+}
+
+// TVGenreList returns GET /genres/tv.
+func (s Session) TVGenreList(ctx context.Context, language string) ([]Genre, error) {
+	var out []Genre
+	err := s.genres(ctx, routeTVGenres, language, &out)
+	return out, err
+}
+
+// SearchQuery is the query of GET /search. Query goes to Seerr as typed (space as %20), so the
+// prefixes tmdb:, tvdb:, imdb: and year: work (GH:server/lib/search.ts); SearchByID builds them.
 type SearchQuery struct {
 	PageQuery
 	Query string
@@ -480,7 +578,74 @@ func (s Session) Search(ctx context.Context, q SearchQuery) (DiscoverPage, error
 	}
 	v := q.values()
 	v.Set("query", q.Query)
-	return s.discover(ctx, "/search", v)
+	return s.discover(ctx, routeSearch, routeSearch, v)
+}
+
+// IDPrefix is a prefix of the search by id (N-53).
+type IDPrefix string
+
+// The prefixes of the search by id; year: is not offered (data model 4.5).
+const (
+	PrefixTMDB IDPrefix = "tmdb"
+	PrefixTVDB IDPrefix = "tvdb"
+	PrefixIMDB IDPrefix = "imdb"
+)
+
+var (
+	idDigits = regexp.MustCompile(`^[0-9]{1,10}$`)
+	idIMDb   = regexp.MustCompile(`^tt[0-9]{1,10}$`)
+)
+
+// ParseIDSearch reads a search text that names a title by id: tmdb:603, TMDB: 603, tvdb:121361,
+// imdb:tt0133093 (prefix case-insensitive, blanks around the id allowed; Seerr itself finds
+// nothing for "tmdb: 603", I-42). It returns the prefix and the normalised id, or false when the
+// text is no search by id or the id has the wrong form.
+func ParseIDSearch(q string) (IDPrefix, string, bool) {
+	head, id, ok := strings.Cut(strings.TrimSpace(q), ":")
+	if !ok {
+		return "", "", false
+	}
+	prefix := IDPrefix(strings.ToLower(strings.TrimSpace(head)))
+	id = strings.ToLower(strings.TrimSpace(id))
+	switch {
+	case (prefix == PrefixTMDB || prefix == PrefixTVDB) && idDigits.MatchString(id):
+		id = strings.TrimLeft(id, "0")
+		return prefix, id, id != ""
+	case prefix == PrefixIMDB && idIMDb.MatchString(id):
+		return prefix, id, true
+	}
+	return "", "", false
+}
+
+// SearchByID searches Seerr for the title with the id and keeps only the hits that are it:
+// tmdb:603 also finds the series and the person with that TMDB id (I-42), so the hits are
+// filtered by mediaType (MediaTypeMovie, MediaTypeTV, "" for both) and, for tmdb:, by the id;
+// tvdb: finds series only; persons never pass. ErrInvalid for an id of the wrong form.
+func (s Session) SearchByID(ctx context.Context, prefix IDPrefix, id, mediaType string, q PageQuery) (DiscoverPage, error) {
+	p, norm, ok := ParseIDSearch(string(prefix) + ":" + id)
+	if !ok || p != prefix || (mediaType != "" && mediaType != MediaTypeMovie && mediaType != MediaTypeTV) {
+		return DiscoverPage{}, fmt.Errorf("%w: search by id", ErrInvalid)
+	}
+	page, err := s.Search(ctx, SearchQuery{PageQuery: q, Query: string(p) + ":" + norm})
+	if err != nil {
+		return page, err
+	}
+	tmdbID, _ := strconv.Atoi(norm)
+	kept := page.Results[:0]
+	for _, t := range page.Results {
+		switch {
+		case t.MediaType != MediaTypeMovie && t.MediaType != MediaTypeTV:
+		case mediaType != "" && t.MediaType != mediaType:
+		case p == PrefixTMDB && t.ID != tmdbID:
+		case p == PrefixTVDB && t.MediaType != MediaTypeTV:
+		default:
+			kept = append(kept, t)
+		}
+	}
+	page.Results = kept
+	page.TotalResults = len(kept)
+	page.TotalPages = min(page.TotalPages, 1)
+	return page, nil
 }
 
 func (q DiscoverQuery) discoverValues() url.Values {
@@ -492,18 +657,22 @@ func (q DiscoverQuery) discoverValues() url.Values {
 	return v
 }
 
-func (s Session) discover(ctx context.Context, path string, v url.Values) (DiscoverPage, error) {
+func (s Session) discover(ctx context.Context, route, path string, v url.Values) (DiscoverPage, error) {
+	if err := s.checkQuery(route, v); err != nil {
+		return DiscoverPage{}, err
+	}
 	var out DiscoverPage
 	err := s.call(ctx, http.MethodGet, path, v, nil, &out)
 	return out, err
 }
 
-func (s Session) genres(ctx context.Context, path, language string) ([]GenreSlide, error) {
+func (s Session) genres(ctx context.Context, route, language string, out any) error {
 	v := url.Values{}
 	setString(v, "language", language)
-	var out []GenreSlide
-	err := s.call(ctx, http.MethodGet, path, v, nil, &out)
-	return out, err
+	if err := s.checkQuery(route, v); err != nil {
+		return err
+	}
+	return s.call(ctx, http.MethodGet, route, v, nil, out)
 }
 
 func setInt(v url.Values, key string, n int) {

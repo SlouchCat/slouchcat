@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1075,5 +1077,181 @@ func TestExplainRefusal(t *testing.T) {
 	}
 	if got := c.AsUser(weak).ExplainRefusal(ctx, nil); got != nil {
 		t.Errorf("nil = %v", got)
+	}
+}
+
+// The guard of the discover and search routes: never as the administrator, never a parameter or
+// value Seerr's validator does not know; nothing leaves in either case (appendix D 2.5, I-44).
+func TestDiscoverGuardRefusesBeforeSending(t *testing.T) {
+	f := seerrtest.New(t)
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 603, Name: "The Matrix", Certification: "16"})
+	uid := localUser(f, "ida@example.org", seerrtest.PermRequest)
+	ctx := context.Background()
+	c := newClient(t, f)
+	user := c.AsUser(uid)
+
+	for name, call := range map[string]func() error{
+		"trending as admin": func() error { _, err := c.AsAdmin().Trending(ctx, TrendingQuery{}); return err },
+		"movies as admin":   func() error { _, err := c.AsAdmin().DiscoverMovies(ctx, DiscoverQuery{}); return err },
+		"search as admin":   func() error { _, err := c.AsAdmin().Search(ctx, SearchQuery{Query: "matrix"}); return err },
+		"genres as admin":   func() error { _, err := c.AsAdmin().MovieGenreList(ctx, "de"); return err },
+		"slider as admin":   func() error { _, err := c.AsAdmin().TVGenres(ctx, "de"); return err },
+		"unknown media":     func() error { _, err := user.Trending(ctx, TrendingQuery{MediaType: "person"}); return err },
+		"unknown window":    func() error { _, err := user.Trending(ctx, TrendingQuery{TimeWindow: "month"}); return err },
+		"dotted parameter": func() error {
+			_, err := user.discover(ctx, routeMovies, routeMovies, url.Values{"certification.lte": {"12"}})
+			return err
+		},
+		"filter on upcoming": func() error {
+			_, err := user.discover(ctx, routeMoviesUpcoming, routeMoviesUpcoming, url.Values{"certificationLte": {"12"}})
+			return err
+		},
+		"unknown route": func() error {
+			_, err := user.discover(ctx, "/discover/keyword/1/movies", "/discover/keyword/1/movies", nil)
+			return err
+		},
+	} {
+		if err := call(); !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: %v, want ErrInvalid", name, err)
+		}
+	}
+	if log := f.CallLog(); len(log) != 0 {
+		t.Fatalf("calls reached Seerr: %+v", log)
+	}
+
+	// The fake answers an unknown parameter with 400 like the real validator: proof that the guard
+	// stands in front of a real refusal.
+	resp, err := http.Get(f.URL + "/api/v1/discover/movies?certification.lte=12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("fake answered %d for an unknown parameter, want 400", resp.StatusCode)
+	}
+}
+
+// The parameters of appendix H 3.3 arrive as sent, on behalf of the user (X-API-User), and the
+// genre lists of I-45 are typed.
+func TestDiscoverParametersAndUser(t *testing.T) {
+	f := seerrtest.New(t)
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 603, Name: "The Matrix", Year: 1999, GenreIDs: []int{28}, Certification: "16"})
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 604, Name: "Loud Film", Year: 2003, GenreIDs: []int{28}, Certification: "18", IgnoresCertification: true})
+	f.AddTitle(seerrtest.Title{MediaType: "tv", TMDBID: 1399, Name: "Game of Thrones", Year: 2011, GenreIDs: []int{18}, Certification: "16"})
+	uid := localUser(f, "ida@example.org", seerrtest.PermRequest)
+	ctx := context.Background()
+	user := newClient(t, f).AsUser(uid)
+
+	m, err := user.DiscoverMovies(ctx, DiscoverQuery{PageQuery: PageQuery{Page: 1, Language: "de"}, SortBy: "popularity.desc",
+		Genre: "28", CertificationLte: "12", CertificationCountry: "DE"})
+	// The fake ignores certificationLte for 604 the way TMDB does for a title rated elsewhere.
+	if err != nil || len(m.Results) != 1 || m.Results[0].ID != 604 {
+		t.Fatalf("movies = %+v, %v", m, err)
+	}
+	hit := m.Results[0]
+	if hit.MediaType != MediaTypeMovie || hit.DisplayName() != "Loud Film" || hit.Year() != 2003 || hit.PosterPath == "" {
+		t.Errorf("movie hit = %+v (%q, %d)", hit, hit.DisplayName(), hit.Year())
+	}
+	tv, err := user.DiscoverTV(ctx, DiscoverQuery{SortBy: "first_air_date.desc"})
+	if err != nil || len(tv.Results) != 1 || tv.Results[0].DisplayName() != "Game of Thrones" || tv.Results[0].Year() != 2011 {
+		t.Errorf("tv = %+v, %v", tv, err)
+	}
+	if g, err := user.MovieGenreList(ctx, "de"); err != nil || len(g) != 1 || g[0].ID != 28 || g[0].Name != "Action" {
+		t.Errorf("movie genre list = %+v, %v", g, err)
+	}
+	if g, err := user.TVGenreList(ctx, ""); err != nil || len(g) != 1 || g[0].ID != 18 {
+		t.Errorf("tv genre list = %+v, %v", g, err)
+	}
+
+	want := map[string]url.Values{
+		"GET /discover/movies": {"page": {"1"}, "language": {"de"}, "sortBy": {"popularity.desc"}, "genre": {"28"},
+			"certificationLte": {"12"}, "certificationCountry": {"DE"}},
+		"GET /discover/tv":  {"sortBy": {"first_air_date.desc"}},
+		"GET /genres/movie": {"language": {"de"}},
+		"GET /genres/tv":    {},
+	}
+	log := f.CallLog()
+	if len(log) != len(want) {
+		t.Fatalf("calls = %+v", log)
+	}
+	for _, call := range log {
+		if !call.HasAPIUser || call.APIUser != strconv.Itoa(uid) || !call.HasKey {
+			t.Errorf("%s: X-API-User %v %q, key %v", call.Route, call.HasAPIUser, call.APIUser, call.HasKey)
+		}
+		if w, ok := want[call.Route]; !ok || !maps.EqualFunc(call.Query, w, slices.Equal) {
+			t.Errorf("%s: query %v, want %v", call.Route, call.Query, w)
+		}
+	}
+}
+
+// The search by id: prefix without a blank, case-insensitive (I-42), and the hits filtered by
+// media type and id, since tmdb:603 also finds the series and the person with that id.
+func TestDiscoverSearchByID(t *testing.T) {
+	f := seerrtest.New(t)
+	f.AddTitle(seerrtest.Title{MediaType: "movie", TMDBID: 603, IMDBID: "tt0133093", Name: "The Matrix", Year: 1999})
+	f.AddTitle(seerrtest.Title{MediaType: "tv", TMDBID: 603, TVDBID: 70000, Name: "Some Show", Year: 2001})
+	f.AddTitle(seerrtest.Title{MediaType: "person", TMDBID: 603, Name: "Some Person"})
+	f.AddTitle(seerrtest.Title{MediaType: "tv", TMDBID: 1399, TVDBID: 121361, Name: "Game of Thrones"})
+	uid := localUser(f, "ida@example.org", seerrtest.PermRequest)
+	ctx := context.Background()
+	user := newClient(t, f).AsUser(uid)
+
+	for text, want := range map[string]struct {
+		prefix IDPrefix
+		id     string
+	}{
+		"tmdb:603": {PrefixTMDB, "603"}, "TMDB: 603": {PrefixTMDB, "603"}, " Tvdb:121361 ": {PrefixTVDB, "121361"},
+		"imdb:TT0133093": {PrefixIMDB, "tt0133093"}, "tmdb:0603": {PrefixTMDB, "603"},
+	} {
+		if p, id, ok := ParseIDSearch(text); !ok || p != want.prefix || id != want.id {
+			t.Errorf("ParseIDSearch(%q) = %q %q %v", text, p, id, ok)
+		}
+	}
+	for _, text := range []string{"matrix", "year:1999", "tmdb:", "tmdb:abc", "imdb:0133093", "tvdb:-1", "tmdb:0", "the: matrix"} {
+		if _, _, ok := ParseIDSearch(text); ok {
+			t.Errorf("ParseIDSearch(%q) accepted", text)
+		}
+	}
+
+	// Raw: Seerr finds film, series and person for tmdb:603, nothing with a blank.
+	if raw, err := user.Search(ctx, SearchQuery{Query: "tmdb:603"}); err != nil || raw.TotalResults != 3 {
+		t.Errorf("raw tmdb:603 = %+v, %v", raw, err)
+	}
+	if raw, err := user.Search(ctx, SearchQuery{Query: "tmdb: 603"}); err != nil || raw.TotalResults != 0 {
+		t.Errorf("raw with blank = %+v, %v", raw, err)
+	}
+	f.ResetCalls()
+	for _, c := range []struct {
+		prefix    IDPrefix
+		id, media string
+		want      []string
+	}{
+		{PrefixTMDB, " 603", MediaTypeMovie, []string{"movie 603"}},
+		{PrefixTMDB, "603", MediaTypeTV, []string{"tv 603"}},
+		{PrefixTMDB, "603", "", []string{"movie 603", "tv 603"}},
+		{PrefixTVDB, "121361", "", []string{"tv 1399"}},
+		{PrefixTVDB, "121361", MediaTypeMovie, nil},
+		{PrefixIMDB, "TT0133093", "", []string{"movie 603"}},
+	} {
+		page, err := user.SearchByID(ctx, c.prefix, c.id, c.media, PageQuery{Language: "de"})
+		var got []string
+		for _, r := range page.Results {
+			got = append(got, fmt.Sprint(r.MediaType, " ", r.ID))
+		}
+		if err != nil || !slices.Equal(got, c.want) || page.TotalResults != len(c.want) {
+			t.Errorf("SearchByID(%s, %q, %q) = %v (%d), %v; want %v", c.prefix, c.id, c.media, got, page.TotalResults, err, c.want)
+		}
+	}
+	for _, call := range f.CallLog() {
+		q := call.Query.Get("query")
+		if strings.Contains(q, " ") || (q != "tmdb:603" && q != "tvdb:121361" && q != "imdb:tt0133093") || call.APIUser != strconv.Itoa(uid) {
+			t.Errorf("search sent %q as %q", q, call.APIUser)
+		}
+	}
+	if _, err := user.SearchByID(ctx, PrefixTMDB, "tt1", "", PageQuery{}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("bad id: %v", err)
+	}
+	if _, err := user.SearchByID(ctx, PrefixTMDB, "1", "person", PageQuery{}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("bad media type: %v", err)
 	}
 }
