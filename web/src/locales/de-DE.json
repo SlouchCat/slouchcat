@@ -397,6 +397,9 @@
           "description": "Eröffnet oder verknüpft den Seerr-Benutzer eines Kontos, legt den Sammelbenutzer „slouchcat-gaeste“ an und nimmt dem Seerr-Benutzer eines gelöschten Kontos die Rechte.",
           "trigger": "„In Seerr eröffnen“, „Alle eröffnen“, Einladung angenommen, „Wünsche aktiv“ eingeschaltet, nach dem Laden der Seerr-Benutzer für wartende Konten, Konto gelöscht"
         },
+        "wishes_withdraw": {
+          "trigger": "„Zurückziehen“ in „Meine Wünsche“; nach dem Abgleich, solange Seerr nicht erreichbar war"
+        },
         "scan_library": {
           "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"
         },

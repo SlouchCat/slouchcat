@@ -382,7 +382,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	keys.admin = adminSvc
 	// Wishes through Seerr (concept 25): the connection and the settings come from the
 	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
-	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)))
+	wishSvc := wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
+		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc))
 	adminSvc.WithSeerr(wishSvc)
 	// A Seerr user Slouchcat opened loses its rights when its account is deleted (K-2).
 	authSvc.WithAccountDeleting(wishSvc.AccountDeleting)

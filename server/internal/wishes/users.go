@@ -41,6 +41,16 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Name: JobProvision, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
 		Priority: provisionPriority, Handler: s.handleProvision,
 	})
+	// The outbox and the withdrawal: a person waits (architecture 13). Their own ladder lives in
+	// wishes.next_attempt_at; a handler that waits returns jobs.RetryLater.
+	r.Register(jobs.Type{
+		Name: JobSubmit, Group: jobs.GroupDelivery, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: submitPrio, Handler: s.handleSubmit,
+	})
+	r.Register(jobs.Type{
+		Name: JobWithdraw, Group: jobs.GroupDelivery, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: submitPrio, Handler: s.handleWithdraw,
+	})
 }
 
 func (s *Service) runUsers(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {

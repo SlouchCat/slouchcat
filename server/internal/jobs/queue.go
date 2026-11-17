@@ -15,7 +15,8 @@
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
 //     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen"), the daily
 //     titles.refresh of the titles outside the library and the daily series.catalog sweep
-//     (metadata, concept 25)
+//     (metadata, concept 25), wishes.submit and wishes.withdraw (wishes, concept 25: a person
+//     waits for the request)
 //     6 scan.path
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
 //     (library, concept 13)

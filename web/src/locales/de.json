@@ -4651,6 +4651,16 @@
           "description": "Eröffnet oder verknüpft den Seerr-Benutzer eines Kontos, legt den Sammelbenutzer «slouchcat-gaeste» an und nimmt dem Seerr-Benutzer eines gelöschten Kontos die Rechte.",
           "trigger": "«In Seerr eröffnen», «Alle eröffnen», Einladung angenommen, «Wünsche aktiv» eingeschaltet, nach dem Laden der Seerr-Benutzer für wartende Konten, Konto gelöscht"
         },
+        "wishes_submit": {
+          "name": "Wünsche an Seerr senden",
+          "description": "Sendet einen Wunsch, der noch im Ausgangsfach wartet, an Seerr und hängt ihn an eine schon bestehende Anfrage an.",
+          "trigger": "nach dem Anfordern, wenn Seerr nicht gleich antwortet, mit wachsendem Abstand bis 24 Stunden; nach dem Abgleich für fällige Wünsche"
+        },
+        "wishes_withdraw": {
+          "name": "Zurückgezogene Wünsche in Seerr löschen",
+          "description": "Löscht die eigene, noch nicht freigegebene Anfrage eines zurückgezogenen Wunsches in Seerr. War sie schon freigegeben, bleibt sie, und der Wunsch wird wieder geöffnet.",
+          "trigger": "«Zurückziehen» in «Meine Wünsche»; nach dem Abgleich, solange Seerr nicht erreichbar war"
+        },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",

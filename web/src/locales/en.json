@@ -4651,6 +4651,16 @@
           "description": "Opens or links the Seerr user of an account, creates the shared user «slouchcat-gaeste» and takes the rights from the Seerr user of a deleted account.",
           "trigger": "«Open in Seerr», «Open all», invitation accepted, «Wishes active» switched on, after loading the Seerr users for waiting accounts, account deleted"
         },
+        "wishes_submit": {
+          "name": "Send wishes to Seerr",
+          "description": "Sends a wish that still waits in the outbox to Seerr and attaches it to a request that exists already.",
+          "trigger": "after a request when Seerr does not answer at once, at growing intervals for up to 24 hours; after the sync for wishes that are due"
+        },
+        "wishes_withdraw": {
+          "name": "Delete withdrawn wishes in Seerr",
+          "description": "Deletes the own request of a withdrawn wish in Seerr while it is not approved. An approved request stays, and the wish opens again.",
+          "trigger": "«Withdraw» in «My wishes»; after the sync while Seerr was unreachable"
+        },
         "segments_detect": {
           "name": "Detect intro and outro",
           "description": "Finds intro and outro of episodes for “Skip intro”.",

@@ -1,7 +1,9 @@
 // Package wishes is the service of the wishes through Seerr (concept 25, architecture 2.3). Stage 1
 // builds its foundation: the connection test and the fingerprint of the instance (connection.go),
 // the mirror of the Seerr users and the job seerr.users (users.go), the Seerr user of each account
-// (Mapping, mapping.go) and the request right of a profile (Rights, rights.go).
+// (Mapping, mapping.go) and the request right of a profile (Rights, rights.go). Stage 2 requests:
+// creating, co-wishing and the lists (request.go), the outbox wishes.submit (submit.go), the
+// withdrawal wishes.withdraw (withdraw.go).
 //
 // Rules of the package:
 //
@@ -74,7 +76,14 @@ type Service struct {
 	now   func() time.Time
 	opts  []seerr.Option
 
+	lib      Library  // the library through visibility (deps.go)
+	titles   Titles   // titles outside the library through metadata
+	notifier Notifier // the messages; nil sends none
+
 	bg sync.WaitGroup // hand-overs of a password in flight (password.go)
+
+	locks   wishLocks    // one submission or withdrawal per wish at a time (submit.go)
+	seasons seasonsCache // the season lists of Seerr, 1 h (request.go)
 
 	mu       sync.Mutex
 	client   *seerr.Client
