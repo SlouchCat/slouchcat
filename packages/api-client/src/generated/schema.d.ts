@@ -6527,6 +6527,14 @@ export interface components {
              *     the household does («FSK 12», «PG-13»); absent from older servers.
              */
             ratingSystem?: components["schemas"]["RatingSystem"];
+            /**
+             * @description Since contract 1.41.0 (concept 25, N-94): true when accepting also opens the account in
+             *     Seerr with the same email and password, so the page says «In Seerr hast du jetzt ein
+             *     Konto mit derselben E-Mail-Adresse.». True only while Seerr has an address and a key and
+             *     is switched on and the wish settings «Neue Konten in Seerr eröffnen» and «Passwort
+             *     abgleichen» are on. It says nothing about the guest's email or whether Seerr knows it.
+             */
+            seerrAccount?: boolean;
         };
         AcceptInvitationRequest: {
             /** Format: email */

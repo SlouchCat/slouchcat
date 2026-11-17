@@ -45,8 +45,6 @@ const (
 	provisionPriority = 5
 	// linkedHintDays is how long the overview shows «Neu verknüpft» (N-93).
 	linkedHintDays = 7
-	// maxProvisionError is the column limit of provision_error.
-	maxProvisionError = 500
 	// userSearchTake is the page of GET /user?q=<email>: the search also matches parts of names.
 	userSearchTake = 100
 )
@@ -351,7 +349,12 @@ func (s *Service) wait(ctx context.Context, accountID int64, linkedBy string, se
 	}); err != nil {
 		return "", fmt.Errorf("waiting mapping: %w", err)
 	}
-	s.log.InfoContext(ctx, "seerr user of account waits", "account_id", accountID, "reason", errorClass(cause))
+	var detail string
+	var se *seerr.Error
+	if errors.As(cause, &se) {
+		detail = se.Message
+	}
+	s.log.InfoContext(ctx, "seerr user of account waits", "account_id", accountID, "reason", provisionError(cause), "detail", detail)
 	return StateWaiting, cause
 }
 
@@ -368,21 +371,13 @@ func (s *Service) waitTaken(ctx context.Context, accountID int64, linkedBy strin
 	return StateWaiting, nil
 }
 
-// provisionError is the text of provision_error: the class of the error and Seerr's message,
-// never a body.
+// provisionError is the text of provision_error: only the class of the error, as the contract
+// describes it (WishAccountMapping.provisionError); Seerr's message goes to the log.
 func provisionError(err error) string {
-	text := errorClass(err)
 	if errors.Is(err, model.ErrInstanceChanged) {
-		text = "instance_changed"
+		return "instance_changed"
 	}
-	var se *seerr.Error
-	if errors.As(err, &se) && se.Message != "" {
-		text += ": " + se.Message
-	}
-	if r := []rune(text); len(r) > maxProvisionError {
-		text = string(r[:maxProvisionError])
-	}
-	return text
+	return errorClass(err)
 }
 
 // findUser searches the user with this email (any spelling) with GET /user?q=; nil without a hit.

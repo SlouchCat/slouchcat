@@ -326,3 +326,49 @@ func TestReconcileHiddenAndWaiting(t *testing.T) {
 		t.Errorf("available announced %d times", n)
 	}
 }
+
+// The sync reads the limit state anew (architecture 19.3): a user never read, and a user whose
+// requests the pass saw, also those made directly in Seerr. Before, the state waited for the daily
+// users job and the overview showed no «Limit erreicht» although the limit was used up in Seerr.
+func TestSyncReadsQuotaOfSeenUsers(t *testing.T) {
+	r := syncFixture(t)
+	r.fake.UpdateUser(3, func(u *seerrtest.User) { u.MovieQuotaLimit, u.MovieQuotaDays = ip(2), ip(7) })
+	r.exec(`INSERT INTO wish_account_limits (account_id, mode, movie_limit, movie_days, tv_limit, tv_days, set_at)
+	        VALUES (1, 'custom', 2, 7, 0, 7, 1)`)
+	reached := func() []model.WishQuotaHint {
+		t.Helper()
+		d, err := r.svc.DashboardWishes(r.ctx)
+		if err != nil || d == nil {
+			t.Fatalf("dashboard = %+v, %v", d, err)
+		}
+		return d.QuotaReached
+	}
+	r.setLastSync(r.fake.Now().Add(-10 * time.Minute))
+	r.sync(false) // nothing in the pass; the state of user 3 was never read
+	if q := r.mapping(1).Quota; q == nil || q.Movie == nil || q.Movie.Used != 0 {
+		t.Fatalf("never read: quota = %+v", q)
+	}
+	r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: matrix})
+	r.directRequest(3, seerr.NewRequest{MediaType: seerr.MediaTypeMovie, TMDBID: alien})
+	if got := reached(); len(got) != 0 {
+		t.Fatalf("reached before the sync = %+v", got)
+	}
+	r.fake.ResetCalls()
+	r.setLastSync(r.fake.Now().Add(-10 * time.Minute))
+	r.sync(false)
+	got := reached()
+	if len(got) != 1 || got[0].AccountID != 1 || got[0].Movie == nil || got[0].Movie.Used != 2 || got[0].Movie.Remaining != 0 {
+		t.Errorf("limit reached = %+v", got)
+	}
+	if n := r.fake.Calls("GET /user/{id}/quota"); n != 1 {
+		t.Errorf("quota read %d times, want once (user 3 only)", n)
+	}
+	// A pass without requests of the user and without open wishes reads nothing.
+	r.fake.ResetCalls()
+	r.clock.advance(time.Minute)
+	r.setLastSync(r.clock.now())
+	r.sync(false)
+	if n := r.fake.Calls("GET /user/{id}/quota"); n != 0 {
+		t.Errorf("quota read %d times without a reason", n)
+	}
+}

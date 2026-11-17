@@ -86,3 +86,19 @@ UPDATE seerr_users SET
     movie_quota_used = @movie_quota_used, tv_quota_used = @tv_quota_used,
     movie_next_free_at = @movie_next_free_at, tv_next_free_at = @tv_next_free_at, quota_at = @quota_at
 WHERE seerr_id = @seerr_id;
+
+-- name: ListQuotaSyncUsers :many
+-- The users whose limit state a wish sync reads anew (architecture 19.3): a ready user of an
+-- account or the shared user, without MANAGE_USERS, with an open wish or never read. The sync adds
+-- the users of the requests it saw in its pass, also those made directly in Seerr.
+SELECT u.seerr_id,
+       CAST(u.quota_at IS NULL OR EXISTS (
+           SELECT 1 FROM wishes AS w
+           WHERE w.seerr_user_id = u.seerr_id AND w.state IN ('queued', 'pending', 'processing', 'partial')
+       ) AS INTEGER) AS due
+FROM seerr_users AS u
+WHERE u.is_admin = 0 AND u.gone_at IS NULL
+  AND (u.is_shared = 1 OR EXISTS (
+      SELECT 1 FROM wish_account_map AS m WHERE m.seerr_user_id = u.seerr_id AND m.state = 'ready'
+  ))
+ORDER BY u.seerr_id;

@@ -55,7 +55,33 @@ func (s *server) GetInvitation(ctx context.Context, req gen.GetInvitationRequest
 			Name string `json:"name"`
 		}{Id: l.ID, Name: l.Name})
 	}
+	opens, err := s.invitationOpensSeerr(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out.SeerrAccount = &opens
 	return gen.GetInvitation200JSONResponse(out), nil
+}
+
+// invitationOpensSeerr says whether accepting also opens the account in Seerr with the same login
+// (InvitationPreview.seerrAccount, N-94): Seerr with address and key, switched on, and the wish
+// settings «Neue Konten in Seerr eröffnen» and «Passwort abgleichen» on. Nothing about the guest.
+func (s *server) invitationOpensSeerr(ctx context.Context) (bool, error) {
+	if s.opts.Admin == nil {
+		return false, nil
+	}
+	st, err := s.opts.Admin.SeerrSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !st.Enabled || st.URL == "" || st.Key.Source == "" || st.Key.Source == model.SourceNone {
+		return false, nil
+	}
+	ws, err := s.opts.Admin.WishSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return ws.ProvisionAccounts && ws.SyncPassword, nil
 }
 
 func (s *server) AcceptInvitation(ctx context.Context, req gen.AcceptInvitationRequestObject) (gen.AcceptInvitationResponseObject, error) {

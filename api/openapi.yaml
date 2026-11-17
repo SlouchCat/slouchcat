@@ -12449,6 +12449,14 @@ components:
           description: |
             Since contract 1.36.0: the rating country of the server, so the page names the ceiling as
             the household does («FSK 12», «PG-13»); absent from older servers.
+        seerrAccount:
+          type: boolean
+          description: |
+            Since contract 1.41.0 (concept 25, N-94): true when accepting also opens the account in
+            Seerr with the same email and password, so the page says «In Seerr hast du jetzt ein
+            Konto mit derselben E-Mail-Adresse.». True only while Seerr has an address and a key and
+            is switched on and the wish settings «Neue Konten in Seerr eröffnen» and «Passwort
+            abgleichen» are on. It says nothing about the guest's email or whether Seerr knows it.
 
     AcceptInvitationRequest:
       type: object

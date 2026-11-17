@@ -193,12 +193,13 @@ func TestProvisionConflictAndWait(t *testing.T) {
 		t.Errorf("after 409 = %+v, POST %d, GET %d", a, f.fake.Calls("POST /user"), f.fake.Calls("GET /user"))
 	}
 
-	f.fake.SetFailure("*", seerrtest.Failure{Status: 503})
+	f.fake.SetFailure("*", seerrtest.Failure{Status: 503, Message: "Something went wrong."})
 	w, err := f.svc.ProvisionAccount(f.ctx, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w.State != StateWaiting || w.SeerrUserID != nil || !strings.HasPrefix(w.ProvisionError, "server") {
+	// Only the class of the error, never Seerr's message (contract WishAccountMapping).
+	if w.State != StateWaiting || w.SeerrUserID != nil || w.ProvisionError != "server" {
 		t.Errorf("waiting = %+v", w)
 	}
 	// The job fails, so the queue tries again.

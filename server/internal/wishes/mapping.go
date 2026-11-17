@@ -99,7 +99,9 @@ func (m *Mapping) WishMappings(ctx context.Context) (model.WishMappings, error) 
 			a.PasswordSyncedAt = timeOf(r.PasswordSyncedAt)
 			a.LinkedBy = r.LinkedBy.String
 			a.LinkedAt = timeOf(r.LinkedAt)
-			a.ProvisionError = r.ProvisionError.String
+			// Rows written before the class-only rule carry "class: message"; only the class is
+			// sent.
+			a.ProvisionError, _, _ = strings.Cut(r.ProvisionError.String, ":")
 			if r.SeerrUserID.Valid {
 				id := int(r.SeerrUserID.Int64)
 				a.SeerrUserID = &id

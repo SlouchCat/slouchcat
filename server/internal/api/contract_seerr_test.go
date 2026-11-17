@@ -267,3 +267,68 @@ func TestContractSeerr(t *testing.T) {
 	code(http.MethodPost, "/admin/wishes/accounts/"+owner+"/provision", ``, http.StatusConflict, "provision_disabled")
 	code(http.MethodPost, "/admin/wishes/accounts/provision", ``, http.StatusConflict, "provision_disabled")
 }
+
+// InvitationPreview.seerrAccount (N-94): true only while Seerr is configured and switched on and
+// «Neue Konten in Seerr eröffnen» and «Passwort abgleichen» are on; the preview stays the same
+// otherwise and says nothing about the guest.
+func TestContractInvitationSeerrAccount(t *testing.T) {
+	pf := newProfileFixture(t)
+	fake := seerrtest.New(t)
+	admin := func(method, path, body string) {
+		t.Helper()
+		if rec := send(t, pf.h, method, BasePath+path, "p18", body, nil); rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
+			t.Fatalf("%s %s: %d %s", method, path, rec.Code, rec.Body.String())
+		}
+	}
+	rec := send(t, pf.h, http.MethodPost, BasePath+"/admin/invitations", "p18", `{"maxRating":12,"allLibraries":true}`, nil)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("invitation: %d %s", rec.Code, rec.Body.String())
+	}
+	var inv struct {
+		Token string `json:"token"`
+	}
+	decode(t, rec, &inv)
+	preview := func() (*bool, map[string]any) {
+		t.Helper()
+		rec := send(t, pf.h, http.MethodGet, BasePath+"/invitations/"+inv.Token, "", "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("preview: %d %s", rec.Code, rec.Body.String())
+		}
+		var all map[string]any
+		decode(t, rec, &all)
+		var p struct {
+			SeerrAccount *bool `json:"seerrAccount"`
+		}
+		decode(t, rec, &p)
+		return p.SeerrAccount, all
+	}
+	if got, _ := preview(); got == nil || *got {
+		t.Errorf("without Seerr: seerrAccount = %v", got)
+	}
+	admin(http.MethodPut, "/admin/seerr", `{"enabled":true,"url":"`+fake.URL+`/api/v1","apiKey":"`+seerrtest.APIKey+`"}`)
+	got, all := preview()
+	if got == nil || !*got {
+		t.Errorf("with Seerr and both settings on: seerrAccount = %v", got)
+	}
+	// Nothing beyond the flag: the same keys as the schema InvitationPreview, no Seerr data.
+	for k := range all {
+		switch k {
+		case "note", "maxRating", "allLibraries", "libraries", "expiresAt", "ratingSystem", "seerrAccount":
+		default:
+			t.Errorf("preview carries %q", k)
+		}
+	}
+	admin(http.MethodPut, "/admin/wishes/settings", `{"syncPassword":false}`)
+	if got, _ := preview(); got == nil || *got {
+		t.Errorf("password sync off: seerrAccount = %v", got)
+	}
+	admin(http.MethodPut, "/admin/wishes/settings", `{"syncPassword":true,"provisionAccounts":false}`)
+	if got, _ := preview(); got == nil || *got {
+		t.Errorf("provisioning off: seerrAccount = %v", got)
+	}
+	admin(http.MethodPut, "/admin/wishes/settings", `{"provisionAccounts":true}`)
+	admin(http.MethodPut, "/admin/seerr", `{"enabled":false}`)
+	if got, _ := preview(); got == nil || *got {
+		t.Errorf("Seerr off: seerrAccount = %v", got)
+	}
+}

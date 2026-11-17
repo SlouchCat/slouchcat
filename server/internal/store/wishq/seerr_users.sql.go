@@ -129,6 +129,51 @@ func (q *Queries) GetSharedSeerrUser(ctx context.Context) (SeerrUser, error) {
 	return i, err
 }
 
+const listQuotaSyncUsers = `-- name: ListQuotaSyncUsers :many
+SELECT u.seerr_id,
+       CAST(u.quota_at IS NULL OR EXISTS (
+           SELECT 1 FROM wishes AS w
+           WHERE w.seerr_user_id = u.seerr_id AND w.state IN ('queued', 'pending', 'processing', 'partial')
+       ) AS INTEGER) AS due
+FROM seerr_users AS u
+WHERE u.is_admin = 0 AND u.gone_at IS NULL
+  AND (u.is_shared = 1 OR EXISTS (
+      SELECT 1 FROM wish_account_map AS m WHERE m.seerr_user_id = u.seerr_id AND m.state = 'ready'
+  ))
+ORDER BY u.seerr_id
+`
+
+type ListQuotaSyncUsersRow struct {
+	SeerrID int64
+	Due     int64
+}
+
+// The users whose limit state a wish sync reads anew (architecture 19.3): a ready user of an
+// account or the shared user, without MANAGE_USERS, with an open wish or never read. The sync adds
+// the users of the requests it saw in its pass, also those made directly in Seerr.
+func (q *Queries) ListQuotaSyncUsers(ctx context.Context) ([]ListQuotaSyncUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listQuotaSyncUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListQuotaSyncUsersRow{}
+	for rows.Next() {
+		var i ListQuotaSyncUsersRow
+		if err := rows.Scan(&i.SeerrID, &i.Due); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSeerrUserCreatedAt = `-- name: ListSeerrUserCreatedAt :many
 SELECT seerr_id, created_at FROM seerr_users WHERE created_at IS NOT NULL
 `

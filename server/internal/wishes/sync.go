@@ -124,9 +124,13 @@ func (s *Service) sync(ctx context.Context, initial bool) error {
 		}
 	}
 	s.markRest(ctx, false)
-	err = s.syncRequests(ctx, admin, initial)
+	seen := map[int]bool{}
+	err = s.syncRequests(ctx, admin, initial, seen)
 	if err == nil {
 		err = s.checkWishes(ctx, admin)
+	}
+	if err == nil {
+		err = s.syncQuotas(ctx, admin, seen)
 	}
 	if serr := seerrErr(err); serr != nil || err == nil {
 		s.recordOutcome(ctx, serr)
@@ -142,8 +146,9 @@ func (s *Service) sync(ctx context.Context, initial bool) error {
 	return s.queueDue(ctx)
 }
 
-// syncRequests runs the pass in progress or a new one.
-func (s *Service) syncRequests(ctx context.Context, admin seerr.Session, initial bool) error {
+// syncRequests runs the pass in progress or a new one; seen collects the Seerr users of the
+// requests the pass read.
+func (s *Service) syncRequests(ctx context.Context, admin seerr.Session, initial bool, seen map[int]bool) error {
 	lastRaw, err := s.state(ctx, settingLastSync)
 	if err != nil {
 		return err
@@ -184,6 +189,9 @@ func (s *Service) syncRequests(ctx context.Context, admin seerr.Session, initial
 				break
 			}
 			todo = append(todo, r)
+			if r.RequestedBy != nil {
+				seen[r.RequestedBy.ID] = true
+			}
 		}
 		pass.Page++
 		if initial && page.PageInfo.Pages > 0 {
@@ -195,6 +203,33 @@ func (s *Service) syncRequests(ctx context.Context, admin seerr.Session, initial
 		if done {
 			s.log.InfoContext(ctx, "wish sync pass done", "pages", pass.Page, "initial", initial)
 			return nil
+		}
+	}
+	return nil
+}
+
+// syncQuotas reads the limit state anew for the users with open wishes, with requests in this pass
+// (also those made directly in Seerr) and for those never read (architecture 19.3). Without it the
+// state of a user who used up the limit in Seerr waited for the daily users job, and the overview
+// showed no «Limit erreicht». An unreachable Seerr or a refused key ends the run like the other
+// parts of the sync; the failure of one user is logged.
+func (s *Service) syncQuotas(ctx context.Context, admin seerr.Session, seen map[int]bool) error {
+	rows, err := s.read.ListQuotaSyncUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("quota users: %w", err)
+	}
+	for _, r := range rows {
+		id := int(r.SeerrID)
+		if r.Due == 0 && !seen[id] {
+			continue
+		}
+		err := s.refreshQuota(ctx, admin, id)
+		switch {
+		case err == nil:
+		case errors.Is(err, seerr.ErrUnreachable), errors.Is(err, seerr.ErrKeyInvalid), ctx.Err() != nil, seerrErr(err) == nil:
+			return err
+		default:
+			s.log.WarnContext(ctx, "seerr quota not read", "seerr_user_id", id, "reason", errorClass(err))
 		}
 	}
 	return nil
