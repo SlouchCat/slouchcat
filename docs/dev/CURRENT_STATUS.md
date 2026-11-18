@@ -1,5 +1,23 @@
 # Aktueller Stand
 
+## Patch 1.41.2: stehendes Videobild nach einem Hintergrund-Tab in Firefox (18. November 2026, Zweig `claude/video-wake`)
+
+Die Korrektur entstand am 14. November 2026 in einem eigenen Arbeitsbaum und blieb dort ohne Commit liegen. Marco
+hat am 18. November 2026 entschieden, sie als Patch fertigzustellen.
+
+- **Fehler:** Firefox decodiert das Bild eines Videos in einem Tab im Hintergrund nach 10 s nicht mehr
+  (`media.suspend-bkgnd-video.enabled`), der Ton läuft weiter. Kommt der Tab zurück, decodiert Firefox manchmal
+  nicht wieder: Uhr und Ton laufen, das Bild steht bis zum nächsten Spulen.
+- **Neu:** `useVideoWake` (`web/src/features/player/useVideoWake.ts`) im Video- und im Offline-Videoplayer. Wird
+  die Seite sichtbar, während das Video läuft, wartet der Hook 1,5 s. Ist die Uhr in dieser Zeit weitergelaufen,
+  ohne dass ein neues Bild kam (`requestVideoFrameCallback`, sonst die Zahl der gezeigten Bilder), springt er an
+  die aktuelle Stelle; das startet den Decoder neu. Ein pausiertes, wartendes, gerade gespultes oder Bilder
+  zeigendes Video bleibt unberührt.
+- **Test:** `useVideoWake.test.ts` (9 Fälle: stehendes Bild, wieder laufende Bilder, wartendes Video, Pause oder
+  erneut versteckte Seite während der Prüfung, Bildzählung ohne `requestVideoFrameCallback`, Aufräumen). Der Fehler selbst lässt sich in Playwright nicht nachstellen; geprüft ist
+  die Entscheidung des Hooks, nicht Firefox.
+- Keine Migration, Vertrag bleibt 1.41.0.
+
 ## Patch 1.41.1: übernommene Anfragen aus Seerr sperren das Anfordern nicht mehr (18. November 2026, veröffentlicht: PR #184 `6bbc481f`, Tag `v1.41.1`, Lauf 44327761066; CT 190 auf 1.41.1)
 
 Marcos Befund auf CT 190 nach dem Update auf 1.41.0: Nach «Anfragen aus Seerr übernehmen» meldete der Dialog
