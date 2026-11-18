@@ -32,7 +32,7 @@ vom Mockup stehen in `mockup-abdeckung.md`, Abschnitt 11.1. Nicht gebaut oder in
 
 | Teil | Stand |
 |---|---|
-| Schritt 6a (Sofort-Import, 6a.1 bis 6a.4) | nicht gebaut; die Messung 6a.1 braucht einen echten Import auf CT 190 (E-11: erst messen) |
+| Schritt 6a (Sofort-Import, 6a.1 bis 6a.4) | 6a.1 gemessen (`docs/perf/wuensche.md`, Abschnitt 5): Gewinn nur bei Sonarr über `episodeFile.path`; 6a.2 bis 6a.4 nicht gebaut (Marco, 18. November 2026: bleibt, wie es ist) |
 | Messungen der Stufen (2.11, 3.6, 5.7) | gemessen, `docs/perf/wuensche.md`: alle gemessenen Zielwerte halten ausser `createWish` in schneller Folge (594 ms p95 gegen 500 ms, AK-98; Grund ist das eigene Limit des Seerr-Clients von 5 Aufrufen je Sekunde, AK-103; mit 2 s Abstand 43 ms); die Messung eines Laufs von `wishes.progress` (AK-210) steht nicht in der Notiz |
 | 7a.1 eingefrorener Stand | gebaut: `testdata/db/wuensche.sql` mit `server/internal/store/frozen_wuensche_test.go` |
 | 7a.2 Status, Versionen, Release-Notiz | macht der Koordinator mit dem Versionscommit |
@@ -247,8 +247,10 @@ Schritt. Zuerst wird gemessen, wo heute die Zeit bleibt (6a.1). Zeigt die Messun
 Schritt: 6a.2 bis 6a.4 werden nicht gebaut, und der Webhook-Empfang bleibt, wie er ist. Die Webhooks selbst bleiben
 in jedem Fall, wie sie sind (N-80). Einzelheiten: `03-architektur.md`, Abschnitt 10.1.
 
-**Stand des Baus (18. November 2026):** Schritt 6a ist nicht gebaut. Die Messung 6a.1 braucht einen echten Import
-auf CT 190 und steht aus; erst danach entscheidet sich, ob 6a.2 bis 6a.4 kommen (E-11: erst messen).
+**Stand des Baus (18. November 2026):** Die Messung 6a.1 ist gemacht (`docs/perf/wuensche.md`, Abschnitt 5). Gewinn
+zeigt nur 6a.2 bei Sonarr (Ordner von `episodeFile.path` statt des Serienordners, rund 40 s); 6a.2 bei Radarr und
+6a.3 zeigen keinen. Marco hat am 18. November 2026 entschieden, dass es bleibt, wie es ist: 6a.2 bis 6a.4 werden
+nicht gebaut.
 
 **Wann es einen Gewinn gibt (Vorschlag der Redaktion):** Ordner-Scan und Titelsuche machen zusammen einen
 nennenswerten Teil der Zeit von der Webhook-Meldung bis «Verfügbar» aus. Die genaue Schwelle schreibt 6a.1 in
