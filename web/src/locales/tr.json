@@ -53,7 +53,10 @@
       "other": "Ek profil",
       "primary": "Ana profil",
       "admin": "Sunucu yöneticisi"
-    }
+    },
+    "wishes": "İstekler",
+    "wishesLabel_one": "{{name}}, {{count}} açık istek",
+    "wishesLabel_other": "{{name}}, {{count}} açık istek"
   },
   "system": {
     "server": {
@@ -226,7 +229,25 @@
       "deleting": "Şu an siliniyor.",
       "changed": "Bu arada bir şey değişti, lütfen tekrar denetleyin.",
       "stale": "Kitaplık bu arada başka bir yerde değiştirildi. Yeniden yükleyip bir kez daha kaydedin.",
-      "root_unlisted": "Kitaplığın bir klasörü istekte eksik. Kitaplığı yeniden yükleyin; hiçbir şey kaldırılmadı."
+      "root_unlisted": "Kitaplığın bir klasörü istekte eksik. Kitaplığı yeniden yükleyin; hiçbir şey kaldırılmadı.",
+      "seerr_key_required": "Başka bir makinedeki adres için API anahtarının yeniden girilmesi gerekir: kayıtlı anahtar hiçbir zaman başka bir adrese gönderilmez.",
+      "seerr_not_configured": "Önce Seerr’in adresini ve API anahtarını girin.",
+      "instance_unchanged": "Karar bekleyen başka bir Seerr örneği yok.",
+      "seerr_not_tested": "İstekler ancak kayıtlı bağlantının testi başarılı olduktan sonra açılabilir.",
+      "seerr_user_taken": "Bu Seerr kullanıcısı zaten başka bir hesaba ait, ortak kullanıcı ya da Seerr’de yok.",
+      "provision_disabled": "“Seerr’de yeni hesap oluştur” kapalı. İstekler › Ayarlar bölümünden açın.",
+      "password_not_syncable": "Slouchcat bu Seerr kullanıcısının şifresini eşitlemez: kullanıcı Seerr’de yönetici ya da Jellyfin, Emby veya Plex ile giriş yapıyor.",
+      "account_not_allowed": "Bu hesap içerik isteyemez. Yetkiyi bir yönetici Hesaplar bölümünden verir.",
+      "wish_not_allowed": "Bu profil içerik isteyemez.",
+      "quota_exceeded": "Sınır buna izin vermiyor.",
+      "already_available": "İçerik zaten kitaplıkta.",
+      "wish_not_withdrawable": "İstek zaten onaylandı ve artık geri çekilemez.",
+      "seerr_unreachable": "Seerr şu anda erişilemiyor.",
+      "wish_not_retryable": "Bu istek yeniden denenemez.",
+      "wish_not_pending": "Karar zaten verildi: bu istek Seerr’de artık onay beklemiyor. Eşitleme yeni durumu alır.",
+      "seerr_failed": "Seerr bir hatayla yanıt verdi.",
+      "seerr_instance_changed": "Başka bir Seerr örneği, Entegrasyonlar › Seerr bölümünde kararınızı bekliyor.",
+      "tag_name_taken": "Başka bir profilde bu etiket adı zaten var."
     },
     "field": {
       "required": "Zorunlu alan.",
@@ -257,7 +278,8 @@
       "local_address": "Bu adres yerel ağda. Kendi istasyonlarınız da internetten gelmelidir.",
       "not_own": "Bu yalnızca kendi istasyonlarınızda değiştirilebilir.",
       "not_matched": "Bu sesli kitap bir kaynakla eşleştirilmemiş.",
-      "not_found": "Kaynakta böyle bir kayıt yok."
+      "not_found": "Kaynakta böyle bir kayıt yok.",
+      "seerr_url_invalid": "http:// veya https:// ile başlayan bir adres girin; kullanıcı, şifre, sorgu ya da parça içermemelidir."
     }
   },
   "setup": {
@@ -653,7 +675,8 @@
       "released": "Yeni çıkanlar",
       "libraries": "Medyalarım",
       "library": "{{library}} kitaplığında yeni",
-      "radio": "İstasyonlarım"
+      "radio": "İstasyonlarım",
+      "wishes": "Karşılanan istekler"
     },
     "remaining": "{{time}} kaldı",
     "continue": {
@@ -796,7 +819,22 @@
     "seasons": "Sezonlar",
     "seasonWall": {
       "showAll": "Tüm {{total}} sezonu göster",
-      "showLess": "Daha az göster"
+      "showLess": "Daha az göster",
+      "season": "{{number}}. sezon",
+      "present_one": "{{count}} sezonun {{present}} tanesi mevcut",
+      "present_other": "{{count}} sezonun {{present}} tanesi mevcut",
+      "next": "Hâlâ devam ediyor, sonraki bölüm {{date}} tarihinde",
+      "running": "Hâlâ devam ediyor",
+      "state": {
+        "missing": "Eksik",
+        "requested": "İstendi",
+        "processing": "İşleniyor",
+        "announced": "Duyuruldu"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "{{title}} için istekte bulun",
+      "cardJoin": "{{title}}: zaten istendi, katıl",
+      "request": "Sezonları iste"
     },
     "episodes": {
       "title": "Bölümler",
@@ -3196,7 +3234,8 @@
         "genres": "Görünür içeriklerin türleri.",
         "libraries": "Profilin gördüğü kitaplıklar, radyo ve gösteriliyorsa koleksiyonlar ile kullanıcı önerileri için karolar; “Medyalarım” sayfası sıralarını ve gizlenmelerini belirler.",
         "library": "Bu kitaplığa en son eklenen içerikler; “Tümünü göster” kitaplığı “Son eklenenler” sıralamasıyla açar.",
-        "radio": "Profilin favori istasyonları karo olarak; şu an sunucu üzerinden çalan bir istasyon mevcut parçasını gösterir. Favori yoksa sıra gösterilmez."
+        "radio": "Profilin favori istasyonları karo olarak; şu an sunucu üzerinden çalan bir istasyon mevcut parçasını gösterir. Favori yoksa sıra gösterilmez.",
+        "wishes": "Profilin son 14 gün içinde karşılanan istekleri, yani kitaplıktaki içerikler. Açık istekler “İstekler › İsteklerim” altında yer alır. Sıra boşsa gösterilmez."
       },
       "pageLink": "“{{page}}” sayfasına git",
       "moved": "{{row}} artık {{position}}. konumda. Uygulamak için kaydedin.",
@@ -3303,6 +3342,9 @@
         "quoted": "“{{note}}”",
         "none": "–",
         "notInLibrary": "Kitaplıkta yok, ana sayfada görünmez",
+        "unmatched": "Eşleştirilemiyor",
+        "unmatchedReason": "Yalnızca TVDB kimliği biliniyor, TMDB’de bulunamadı",
+        "noAction": "İşlem yok: TMDB kimliği olmadan istenemez",
         "hide": "Gizle",
         "hideLabel": "{{title}} içeriğini gizle",
         "show": "Göster",
@@ -3311,6 +3353,65 @@
         "shown": "{{title}} yeniden gösteriliyor.",
         "count_one": "{{count}} kayıt",
         "count_other": "{{count}} kayıt"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Kitaplıkta TVDB kimliğiyle bulundu",
+          "tmdb": "Kitaplıkta TMDB kimliğiyle bulundu",
+          "imdb": "Kitaplıkta IMDb kimliğiyle bulundu"
+        }
+      },
+      "request": {
+        "action": "İste",
+        "label": "{{title}} için istekte bulun",
+        "done": "{{title}} istendi.",
+        "joined": "{{title}} zaten istenmişti; profiliniz bu isteğe katıldı.",
+        "available": "{{title}} artık kitaplıkta."
+      },
+      "lacking": {
+        "title": "Eksik öğeler",
+        "missing_one": "{{count}} eksik",
+        "missing_other": "{{count}} eksik",
+        "requested_one": "{{count}} istendi",
+        "requested_other": "{{count}} istendi",
+        "unmatched_one": "{{count}} eşleştirilemiyor",
+        "unmatched_other": "{{count}} eşleştirilemiyor",
+        "intro": "Ana sayfa ve Spotlight listesi yalnızca kitaplıktaki içerikleri gösterir. Eksik öğeleri yalnızca siz, burada Yönetim’de görürsünüz. Profiller eksik içerikleri “İstekler” bölümünden ister.",
+        "asProfile": "“İste”, etkin profil ({{name}}) adına işlem yapar.",
+        "noRequestChip": "İstek yapılamıyor",
+        "noRequest": {
+          "title": "İstek yapmak için önce isteklerin kurulması gerekir.",
+          "body": "Bunun için adresi ve anahtarı girilmiş, açık bir Seerr ile “İstekler etkin” seçeneği gerekir.",
+          "settings": "İstek ayarlarına git",
+          "connection": "Seerr bağlantısına git"
+        },
+        "empty": "Listedeki her öğe kitaplıkta var."
+      },
+      "matching": {
+        "title": "TMDB, TVDB ve IMDb ile eşleştirme",
+        "hits_one": "{{count}} öğe kitaplıkta",
+        "hits_other": "{{count}} öğe kitaplıkta",
+        "intro": "Slouchcat filmleri önce TMDB, sonra IMDb ile eşleştirir. Diziler kitaplıktaki gibi eşleşir: önce TVDB, sonra TMDB, sonra IMDb. Seerr her içeriği TMDB kimliğiyle tutar ve bir dizinin TVDB kimliğini Sonarr’a iletir.",
+        "waysTitle": "Bulunma yolu",
+        "way": {
+          "movie": {
+            "tmdb": "Filmler TMDB kimliğiyle",
+            "imdb": "Filmler IMDb kimliğiyle"
+          },
+          "show": {
+            "tvdb": "Diziler TVDB kimliğiyle",
+            "tmdb": "Diziler TMDB kimliğiyle",
+            "imdb": "Diziler IMDb kimliğiyle"
+          }
+        },
+        "noHits": "Hiçbir öğe kitaplıkta yok.",
+        "unmatchedTitle": "Eşleştirilemiyor",
+        "allMatched": "Tüm öğeler eşleştirilebildi.",
+        "unmatchedNote": "TMDB kimliği olmayan bir öğe istenemez; ne mevcut ne de eksik sayılır."
       },
       "pin": {
         "action": "Sabitle",
@@ -3465,6 +3566,9 @@
       },
       "server": {
         "title": "Sunucu"
+      },
+      "wishes": {
+        "title": "İstekler"
       }
     },
     "server": {
@@ -3715,6 +3819,50 @@
         "hanging_one": "Bir bağlama yanıt vermeyi bıraktı: {{count}} listeleme çekirdekte takılı kaldı ve iptal edilemiyor. Klasör tarayıcısı daha az yuvayla da olsa çalışıyor. Yeniden başlatma onları serbest bırakır.",
         "hanging_other": "Bir bağlama yanıt vermeyi bıraktı: {{count}} listeleme çekirdekte takılı kaldı ve iptal edilemiyor. Klasör tarayıcısı daha az yuvayla da olsa çalışıyor. Yeniden başlatma onları serbest bırakır.",
         "off": "Klasör tarayıcısının tüm yuvaları yanıt vermeyi bırakmış bir bağlamada takılı. Sunucu yeniden başlayana kadar hiçbir klasöre göz atılamaz; yolu elle yazmak yine de çalışır."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr erişilemiyor",
+          "key_invalid": "Seerr API anahtarını reddediyor",
+          "instance_changed": "Başka bir Seerr örneği algılandı"
+        },
+        "seerrStateBody": {
+          "unreachable": "Yeni istekler bekler ve Seerr yeniden yanıt verir vermez gönderilir.",
+          "key_invalid": "Anahtar doğru olana kadar Slouchcat istek göndermez ve hiçbir şeyi eşitlemez.",
+          "instance_changed": "Atamayı onaylayana ya da silene kadar gönderim ve eşitleme durur."
+        },
+        "toConnection": "Entegrasyonlar › Seerr’e git",
+        "unmapped_one": "Seerr kullanıcısı olmayan {{count}} hesap",
+        "unmapped_other": "Seerr kullanıcısı olmayan {{count}} hesap",
+        "unmappedFallback": "Bu hesaplar o zamana kadar slouchcat-gaeste ortak kullanıcısı üzerinden gönderir.",
+        "unmappedDeny": "“Seerr kullanıcısı olmayan hesaplar” seçeneği “İzin verme” olduğu sürece bu hesapların profilleri eksik içerik görmez.",
+        "unmappedWaiting": "Hesaplar bekler ve bir sonraki eşitlemede oluşturulur.",
+        "toUsers": "Seerr kullanıcılarına git",
+        "linked": "Yeni ilişkilendirme: {{account}} hesabı, mevcut Seerr kullanıcısı {{name}} ile",
+        "linkedBody": {
+          "invite": "Davet {{date}} tarihinde kabul edilirken, e-posta aynı olduğu için. Adresi hesap sahibi kendisi yazdı; kimse doğrulamadı.",
+          "email_change": "E-posta {{date}} tarihinde değiştirildikten sonra, e-posta aynı olduğu için. Adresi hesap sahibi kendisi yazdı; kimse doğrulamadı."
+        },
+        "toAccount": "İlişkilendirmeyi görüntüle",
+        "quotaReached": "Sınıra ulaşıldı: {{account}}",
+        "quotaNext": "{{used}}, bir sonraki hak {{date}} tarihinde açılır.",
+        "toLimit": "Sınırı görüntüle",
+        "gone_one": "{{count}} hesap: kullanıcı Seerr’de silinmiş",
+        "gone_other": "{{count}} hesap: kullanıcı Seerr’de silinmiş",
+        "goneBody": "Bu hesaplar için başka bir kullanıcı seçin ya da ilişkilendirmeyi kaldırın.",
+        "open_one": "{{count}} açık istek",
+        "open_other": "{{count}} açık istek",
+        "openQueued_one": "Bunlardan {{count}} tanesi Seerr’e gönderilmeyi bekliyor.",
+        "openQueued_other": "Bunlardan {{count}} tanesi Seerr’e gönderilmeyi bekliyor.",
+        "toRequests": "Taleplere git",
+        "stalled_one": "{{count}} indirme takıldı",
+        "stalled_other": "{{count}} indirme takıldı",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Takılan indirmeleri görüntüle",
+        "tagsFailed_one": "{{count}} etiket ayarlanamadı",
+        "tagsFailed_other": "{{count}} etiket ayarlanamadı",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Eksik etiketleri görüntüle"
       }
     },
     "integrations": {
@@ -3728,7 +3876,8 @@
         "email": "E-posta",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Güncelleme denetimi"
+        "updateCheck": "Güncelleme denetimi",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "deploy/.env içinde ayarlı",
@@ -3760,7 +3909,8 @@
         "email": "E-posta ile bildirim, davet ve duyuru gönderen sunucu.",
         "telegram": "Telegram ile bildirim gönderen bot.",
         "push": "Tarayıcıda ve yüklü uygulamada bildirimler.",
-        "server": "Güncelleme denetimi, herkese açık adres ve grafik yongası."
+        "server": "Güncelleme denetimi, herkese açık adres ve grafik yongası.",
+        "seerr": "Görüntüleyenlerin isteklerini Seerr’e iletir ve durumlarını eşitler. Hesaplar orada aynı girişe sahip bir kullanıcı alır."
       },
       "keys": {
         "title": "Sağlayıcı anahtarları",
@@ -3786,7 +3936,8 @@
         "neverSeen": "Henüz hiçbir şey bildirmedi.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Yeni entegrasyon",
@@ -3831,7 +3982,8 @@
           "acknowledged": "Test onaylandı",
           "ignored": "Etkisiz",
           "outside_roots": "Kitaplıkların dışında",
-          "invalid_payload": "Yolsuz"
+          "invalid_payload": "Yolsuz",
+          "sync_queued": "İstekler eşitleniyor"
         },
         "renew": {
           "action": "Belirteci yenile",
@@ -3979,6 +4131,233 @@
         "checkLabel": "{{name}} denetle",
         "rejected": "reddedildi",
         "savedRejected": "{{name}} kaydedildi ama sağlayıcı anahtarı reddediyor."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Seerr bağlantısı",
+        "version": "Sürüm {{version}}",
+        "lastSuccess": "Son erişim {{time}}",
+        "state": {
+          "not_configured": "Kurulmadı",
+          "disabled": "Kapalı",
+          "untested": "Test edilmedi",
+          "connected": "Bağlı",
+          "key_invalid": "Anahtar geçersiz",
+          "unreachable": "Erişilemiyor",
+          "instance_changed": "Başka örnek algılandı"
+        },
+        "stateHint": {
+          "not_configured": "Adresi ve anahtarı girin.",
+          "disabled": "Slouchcat, Seerr’i çağırmaz. İstekler kayıtlı kalır.",
+          "untested": "“İstekler etkin” seçeneğinin açılabilmesi için bağlantıyı test edin.",
+          "instance_changed": "Siz karar verene kadar Slouchcat istek göndermez ve hiçbir şeyi eşitlemez."
+        },
+        "connection": {
+          "title": "Bağlantı",
+          "noAddress": "Adres yok"
+        },
+        "enabled": "Seerr’i kullan",
+        "enabledHelp": "Kapalı: Slouchcat, Seerr’i çağırmaz. İstekler kayıtlı kalır.",
+        "url": "Adres",
+        "urlHelp": "Örneğin http://192.168.1.50:5055. Slouchcat yalnızca bu adresle konuşur. Ev ağındaki bir adrese izin verilir; Slouchcat yönlendirmeleri izlemez.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API anahtarı",
+        "apiKeyHelp": "Seerr’de: Ayarlar › Genel. Kayıtlı anahtarı korumak için boş bırakın. Başka bir makinedeki adres için anahtar yeniden girilmelidir.",
+        "clearBody": "Adres ve anahtar kaldırılır. İstekler kayıtlı kalır, ancak artık gönderilmez ve eşitlenmez.",
+        "test": {
+          "action": "Bağlantıyı test et",
+          "running": "Bağlantı denetleniyor…",
+          "listLabel": "Bağlantı testinin sonucu",
+          "passed": "Tüm denetimler başarılı.",
+          "passedWithHints_one": "Bağlı · {{count}} not",
+          "passedWithHints_other": "Bağlı · {{count}} not",
+          "hintsHelp": "Bir not hiçbir şeyi engellemez; Seerr’de neyin daha iyi ayarlanabileceğini söyler.",
+          "failed": "Test başarısız oldu: {{checks}}."
+        },
+        "level": {
+          "ok": "başarılı",
+          "warn": "not",
+          "fail": "başarısız"
+        },
+        "checks": {
+          "reachable": "Erişilebilir",
+          "version": "Sürüm",
+          "key_valid": "Anahtar geçerli",
+          "manage_users": "Kullanıcı oluşturma ve değiştirme",
+          "instance": "Örnek",
+          "act_as_user": "Kullanıcılar adına işlem yapma",
+          "csrf_off": "Seerr’de CSRF koruması kapalı",
+          "radarr": "Seerr’de Radarr",
+          "sonarr": "Seerr’de Sonarr",
+          "local_login": "Seerr’de yerel giriş",
+          "tvdb_seasons": "TVDB’den sezonlar",
+          "password_transport": "Şifre şifreli",
+          "radarr_tags": "Profil etiketleri için Radarr",
+          "sonarr_tags": "Profil etiketleri için Sonarr"
+        },
+        "checkOk": {
+          "reachable": "Seerr yanıt veriyor.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr anahtarı kabul ediyor.",
+          "manage_users": "Anahtar, Seerr’de hesap oluşturabilir; izinleri, sınırı ve şifreyi belirleyebilir.",
+          "instance": "Kurulum sırasındakiyle aynı örnek.",
+          "act_as_user": "İstekler, ilişkilendirilmiş kullanıcının izinleri, sınırı ve otomatik onayıyla geçerli olur.",
+          "csrf_off": "Yazma çağrıları ulaşıyor.",
+          "radarr_one": "Film istekleri Radarr’a gider ({{count}} sunucu).",
+          "radarr_other": "Film istekleri Radarr’a gider ({{count}} sunucu).",
+          "sonarr_one": "Dizi istekleri Sonarr’a gider ({{count}} sunucu).",
+          "sonarr_other": "Dizi istekleri Sonarr’a gider ({{count}} sunucu).",
+          "local_login": "Oluşturulan kullanıcılar Seerr’e Slouchcat’teki e-posta ve şifreyle giriş yapar.",
+          "tvdb_seasons": "Seerr, Sonarr ve Slouchcat kitaplığı sezonları aynı şekilde sayar.",
+          "password_transport": "Şifreler şifreli iletilir ya da ev ağında kalır.",
+          "radarr_tags": "Radarr, profil etiketleri ve indirme ilerlemesi için yanıt veriyor.",
+          "sonarr_tags": "Sonarr, profil etiketleri ve indirme ilerlemesi için yanıt veriyor."
+        },
+        "checkIssue": {
+          "notTested": "Denetlenmedi.",
+          "timeout": "Erişilemiyor: zaman aşımı.",
+          "refused": "Erişilemiyor: bağlantı reddedildi.",
+          "redirect": "Erişilemiyor: yönlendirmelere izin verilmiyor.",
+          "unreachable": "Erişilemiyor. Seerr çalışıyor mu ve adres doğru mu?",
+          "versionNotVerified": "Sürüm doğrulanmadı: Jellyseerr 2.7 ve Seerr 3.x test edilmiştir.",
+          "keyNotUserOne": "Anahtar, Seerr’in sahibine (1 numaralı kullanıcı) ait değil.",
+          "keyInvalid": "Seerr anahtarı reddediyor.",
+          "manageUsers": "Anahtar kullanıcı oluşturamaz: hesaplar oluşturulamaz.",
+          "instance": "Başka bir Seerr örneği algılandı.",
+          "notTestable": "Test edilemiyor: Seerr’de 1 numaralı kullanıcı dışında kullanıcı yok.",
+          "waiting": "Başka bir örnek kararınızı beklerken denetlenmez.",
+          "actAsUser": "Çalışmıyor: istekler yönetici olarak yapılırdı.",
+          "csrfOn": "Açık: yazma çağrıları başarısız olur. Seerr’in ağ ayarlarından kapatın.",
+          "noRadarr": "Seerr’de Radarr yok: film istekleri bekler.",
+          "noSonarr": "Seerr’de Sonarr yok: dizi istekleri bekler.",
+          "localLoginOff": "Oluşturulan kullanıcılar Seerr’de giriş yapamaz. Seerr’de Ayarlar › Kullanıcılar altında “Yerel giriş” seçeneğini açın.",
+          "noSeasonSource": "Seerr sezonların kaynağını belirtmiyor.",
+          "tmdbSeasons": "Seerr sezonları TMDB’den okuyor. Sonarr’da ve Slouchcat kitaplığında olduğu gibi TVDB önerilir; aksi hâlde sezon numaraları farklı çıkabilir.",
+          "passwordTransport": "Şifreler internet üzerinden şifrelenmeden giderdi. https kullanın.",
+          "arrNotConfirmed": "Seerr’den gelen adres henüz onaylanmadı: “Radarr ve Sonarr” bölümünde test edin.",
+          "arrUnreachable": "Erişilemiyor: profil etiketi ve indirme ilerlemesi yok.",
+          "csrfUnexpected": "Seerr boş bir isteği reddetmek yerine kabul etti. İstekler yine de gönderilir; Seerr sürümünü kontrol edin."
+        },
+        "instance": {
+          "title": "Başka bir Seerr örneği algılandı",
+          "body": "Bu adreste, kurulum sırasındakinden farklı bir Seerr örneği yanıt veriyor. Siz karar verene kadar Slouchcat istek göndermez ve hiçbir şeyi eşitlemez.",
+          "confirm": "Atamayı onayla",
+          "reset": "Atamayı sil",
+          "resetTitle": "Seerr ataması silinsin mi?",
+          "resetBody": "Tüm hesapların Seerr kullanıcıları ve yüklenmiş kullanıcı listesi kaldırılır. Ardından Slouchcat yeni örneğin kullanıcılarını yükler.",
+          "confirmed": "Yeni örnek devralındı. Hesapların Seerr kullanıcıları korunur.",
+          "resetDone": "Atama silindi. Slouchcat yeni örneğin kullanıcılarını yüklüyor."
+        },
+        "log": {
+          "title": "Kayıt",
+          "empty": "Henüz kayıt yok.",
+          "caption": "Seerr’e yapılan son çağrılar",
+          "at": "Zaman",
+          "call": "Çağrı",
+          "result": "Sonuç",
+          "duration": "Süre",
+          "error": "Hata",
+          "noAnswer": "Yanıt yok",
+          "ms": "{{ms}} ms",
+          "note": "Başlıklar ya da anahtar hiçbir zaman yazılmaz. En fazla 20 kayıt.",
+          "entries_one": "{{count}} kayıt",
+          "entries_other": "{{count}} kayıt",
+          "errors_one": "{{count}} hata",
+          "errors_other": "{{count}} hata"
+        },
+        "usersLink": "Hesapların Seerr kullanıcıları",
+        "sync": {
+          "title": "Eşitleme",
+          "summary_one": "{{count}} açık istek",
+          "summary_other": "{{count}} açık istek",
+          "open": "Açık istekler",
+          "queued": "Gönderilmeyi bekleyenler",
+          "last": "Seerr’e son erişim",
+          "never": "Hiç",
+          "every": "Slouchcat, istekleri Seerr ile her 5 dakikada bir eşitler.",
+          "requestsLink": "Taleplere git"
+        },
+        "arr": {
+          "title": "Radarr ve Sonarr (profil etiketleri ve ilerleme)",
+          "intro": "Slouchcat, Radarr ve Sonarr’da her profil için bir etiket oluşturur ve Seerr içeriği oraya ilettikten sonra etiketi içeriğe ekler. Bunun için istenen içeriklerin kuyruğunu ve dosya durumunu okur; böylece isteklerde indirme ilerlemesini gösterir. Bunun dışında Slouchcat, Radarr ve Sonarr’da hiçbir şeyi değiştirmez. Yeni içerikleri yine webhook bildirir.",
+          "offNotice": "Profil etiketleri ve indirme ilerlemesi kapalı. Slouchcat, Radarr ve Sonarr’ı çağırmaz.",
+          "summaryOff": "kapalı · profil etiketleri ve ilerleme kapalı",
+          "summaryTags_one": "{{count}} etiket açık",
+          "summaryTags_other": "{{count}} etiket açık",
+          "summaryProgress_one": "{{count}} indirme",
+          "summaryProgress_other": "{{count}} indirme",
+          "state": {
+            "none": "{{service}} Seerr’de yok",
+            "unconfirmed": "{{service}} “Test et” bekliyor",
+            "unreachable": "{{service}} erişilemiyor",
+            "reachable": "{{service}} erişilebilir",
+            "untested": "{{service}} henüz çağrılmadı"
+          },
+          "facts": {
+            "address": "Adres",
+            "state": "Durum",
+            "tagRequests": "Seerr’de Tag Requests",
+            "tags": "Profil etiketleri",
+            "progress": "İndirme ilerlemesi"
+          },
+          "address": {
+            "seerr": "Seerr’den: {{address}}",
+            "own": "Kendi adresi: {{address}}"
+          },
+          "addressNone": "Yok: Seerr’de {{service}} için varsayılan sunucu yok.",
+          "lastAt": "son: {{time}}",
+          "tagRequestsOn": "açık",
+          "tagRequestsOff": "kapalı · Önerilen: böylece her içerik hesabın etiketini de taşır.",
+          "tags": "{{set}} ayarlandı · {{pending}} açık · {{failed}} başarısız",
+          "progressOff": "kapalı · İstekler › Ayarlar altında",
+          "progressError": "İlerleme okunamadı: {{reason}}",
+          "progressOn_one": "açık · ilerlemesi olan {{count}} istek",
+          "progressOn_other": "açık · ilerlemesi olan {{count}} istek",
+          "progressAt_one": "açık · ilerlemesi olan {{count}} istek · son okuma {{time}}",
+          "progressAt_other": "açık · ilerlemesi olan {{count}} istek · son okuma {{time}}",
+          "test": {
+            "action": "Test et",
+            "label": "{{service}} test et",
+            "noHost": "adres",
+            "passed": "{{service}}, {{host}} üzerinde yanıt veriyor ve Seerr’den gelen anahtarı kabul ediyor. Adres onaylandı.",
+            "keyRefused": "{{service}}, {{host}} üzerinde yanıt veriyor ancak Seerr’den gelen anahtarı reddediyor.",
+            "unreachable": "{{service}}, {{host}} üzerinde erişilemiyor.",
+            "ownHint": "Slouchcat, Seerr’den gelen adrese erişemiyorsa, örneğin Docker içi adlarda, aşağıya kendi adresinizi girin.",
+            "notInSeerr": "Seerr’de {{service}} için varsayılan sunucu yok.",
+            "notInSeerrBody": "Seerr’de 4K olmayan bir varsayılan sunucu kurun. Bu olmadan Slouchcat etiket ayarlamaz ve ilerleme okumaz."
+          },
+          "own": "{{service}} için kendi adresi",
+          "ownHelp": "Boşsa: Seerr’den gelen adres. Yalnızca Slouchcat, Seerr’den gelen adrese erişemiyorsa gerekir, örneğin Docker içi adlarda. Anahtarı her zaman Seerr verir.",
+          "ownPlaceholder": "Seerr’deki adres",
+          "saveLabel": "Radarr ve Sonarr’ın kendi adreslerini kaydet",
+          "saved": "Kendi adresleri kaydedildi.",
+          "toSettings": "Önek ve indirme ilerlemesi · İstekler › Ayarlar",
+          "toUsers": "Profil başına etiket adları · Seerr kullanıcıları",
+          "toWebhooks": "Radarr ve Sonarr webhook’ları · değişmedi, elle kurulur"
+        },
+        "hook": {
+          "title": "Anlık sinyal",
+          "on": "Kuruldu",
+          "off": "Kapalı",
+          "intro": "Seerr, 5 dakikaya kadar beklemek yerine eşitlemeyi hemen başlatır. Eşitleme asıl yöntem olarak kalır.",
+          "name": "Seerr",
+          "create": "Adres oluştur",
+          "address": "Adres",
+          "last": "Son sinyal",
+          "never": "Henüz hiçbir şey bildirmedi.",
+          "single": "Seerr yalnızca tek bir webhook hedefi bilir. Bunu zaten başka bir şey için kullanıyorsanız bu adres onun yerine geçer.",
+          "where": "Seerr’de Ayarlar › Bildirimler › Webhook altında: adresi “Webhook URL”, bu şablonu “JSON Payload” alanına girin.",
+          "payload": "Seerr için JSON şablonu",
+          "copyPayload": "Şablonu kopyala",
+          "typesIntro": "Seerr’de şu bildirim türlerini işaretleyin:",
+          "types": "Seerr için bildirim türleri",
+          "copyTypes": "Türleri kopyala",
+          "copied": "Kopyalandı.",
+          "copyFailed": "Panoya erişilemiyor: metin seçildi, Ctrl+C ile kopyalayın.",
+          "log": "Son sinyaller"
+        },
+        "accounts_one": "Seerr kullanıcıları: {{count}} hesabın {{opened}} tanesi",
+        "accounts_other": "Seerr kullanıcıları: {{count}} hesabın {{opened}} tanesi"
       }
     },
     "accounts": {
@@ -3988,6 +4367,7 @@
       "columns": {
         "email": "E-posta",
         "role": "Rol",
+        "access": "Erişim",
         "profiles": "Profiller",
         "lastSeen": "Son görülme",
         "channels": "Kanallar",
@@ -4019,7 +4399,14 @@
         "currentPasswordHint": "Sizin olduğunuzu doğrular.",
         "wrongPassword": "Mevcut şifre hatalı.",
         "unchanged": "E-posta adresini değiştirin ya da yeni bir şifre girin.",
-        "saved": "Hesabınız kaydedildi."
+        "saved": "Hesabınız kaydedildi.",
+        "seerrPassword": {
+          "synced": "Yeni şifre Seerr’de de geçerli olur.",
+          "next_login": "Yeni şifre Seerr’de de geçerli olur.",
+          "off": "Seerr’deki şifreniz olduğu gibi kalır: eşitlenmez.",
+          "admin": "Seerr’deki şifreniz olduğu gibi kalır: orada yöneticisiniz.",
+          "external": "Seerr’deki şifreniz olduğu gibi kalır: oraya Jellyfin, Emby veya Plex ile giriş yapıyorsunuz."
+        }
       },
       "ownerBadge": "Sahip",
       "access": {
@@ -4030,7 +4417,8 @@
         "heading": "Erişim",
         "save": "Erişimi kaydet",
         "saved": "{{email}} erişimi kaydedildi.",
-        "adminHint": "Yönetici her zaman “18 yaş ve üzeri” seviyesine ve tüm kitaplıklara sahiptir; “Erişim” yalnızca yönetim yetkisi olmayan hesaplarda bulunur."
+        "adminHint": "Yönetici her zaman “18 yaş ve üzeri” seviyesine ve tüm kitaplıklara sahiptir; “Erişim” yalnızca yönetim yetkisi olmayan hesaplarda bulunur.",
+        "limitRefused": "Erişim kaydedildi, istek sınırı kaydedilmedi: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4099,7 +4487,8 @@
           "libraries": "Kitaplıklar",
           "detail": "Geçerlilik / kabul",
           "actions": "Eylemler"
-        }
+        },
+        "seerrHint": "Davet kabul edildiğinde Slouchcat hesabı Seerr’de de oluşturur: aynı e-posta, aynı şifre."
       },
       "discard": "Vazgeç",
       "status": {
@@ -4126,6 +4515,42 @@
         "mine": "Profillerim",
         "of": "{{email}} profilleri",
         "readOnly": "Profilleri her hesap kendisi yönetir."
+      },
+      "wishes": {
+        "title": "İstekler",
+        "of": "{{email}} hesabının istekleri",
+        "canRequest": "İçerik isteyebilir",
+        "canRequestHelp": "Tüm profiller için üst sınırdır. Hangi profillerin istekte bulunacağını hesabın ana profili seçer.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "İzinli",
+          "not_allowed": "İzinli değil",
+          "mapping_missing": "Seerr kullanıcısı yok"
+        },
+        "userLine": "Seerr kullanıcısı: {{user}}",
+        "noUser": "henüz yok",
+        "change": "Değiştir",
+        "userState": {
+          "created": "oluşturuldu",
+          "linked": "ilişkilendirildi",
+          "manual": "elle seçildi",
+          "waiting": "Seerr’i bekliyor"
+        },
+        "linkedBy": "{{by}} tarafından {{date}} tarihinde ilişkilendirildi",
+        "password": {
+          "synced": "şifre eşitlendi",
+          "next_login": "şifre bir sonraki girişte eşitlenecek",
+          "off": "şifre eşitlenmiyor",
+          "admin": "şifre Seerr’de kalır (yönetici)",
+          "external": "Jellyfin, Emby veya Plex ile giriş yapıyor"
+        },
+        "rightsFollow": "“{{name}}” kullanıcısının Seerr’deki izinleri uyarlanır.",
+        "rightsStay": "“{{name}}” kullanıcısını Slouchcat oluşturmadığı için Seerr’deki izinleri korunur.",
+        "adminLimit": "“{{name}}” Seerr’de yönetici. Seerr yöneticilere sınır koymaz.",
+        "limitLater": "Henüz Seerr kullanıcısı yok: Slouchcat sınırı, hesap orada oluşturulur oluşturulmaz ayarlar.",
+        "limitFixed": "Sınır: {{limit}}. Yöneticilerde burada değiştirilemez.",
+        "savedOn": "{{email}} artık içerik isteyebilir.",
+        "savedOff": "{{email}} artık içerik isteyemez."
       }
     },
     "backup": {
@@ -4660,6 +5085,57 @@
           "description": "Dosyaları bekleme süresinden uzun süredir eksik olan içerikleri kaldırır.",
           "trigger": "Saatlik zamanlama ve sunucu başlangıcı"
         },
+        "seerr_users": {
+          "name": "Seerr kullanıcılarını yükle",
+          "description": "Seerr’deki kullanıcıları izinleri ve sınırlarıyla birlikte okur ve Slouchcat’in hâlâ aynı Seerr örneğiyle konuşup konuşmadığını denetler.",
+          "trigger": "günlük, “Kullanıcı listesini yeniden yükle”, Seerr bağlantısı kaydedildikten sonra"
+        },
+        "seerr_provision": {
+          "name": "Seerr’de hesap oluştur",
+          "description": "Bir hesabın Seerr kullanıcısını oluşturur ya da ilişkilendirir, “slouchcat-gaeste” ortak kullanıcısını açar ve silinen bir hesabın Seerr kullanıcısının izinlerini alır.",
+          "trigger": "“Seerr’de oluştur”, “Tümünü oluştur”, davet kabul edildiğinde, “İstekler etkin” açıldığında, bekleyen hesaplar için Seerr kullanıcıları yüklendikten sonra, hesap silindiğinde"
+        },
+        "wishes_submit": {
+          "name": "İstekleri Seerr’e gönder",
+          "description": "Giden kutusunda bekleyen bir isteği Seerr’e gönderir ve zaten var olan bir talebe ekler.",
+          "trigger": "istek yapıldıktan sonra Seerr hemen yanıt vermezse, 24 saate kadar giderek artan aralıklarla; eşitlemeden sonra zamanı gelen istekler için"
+        },
+        "wishes_withdraw": {
+          "name": "Geri çekilen istekleri Seerr’de sil",
+          "description": "Geri çekilen bir isteğin henüz onaylanmamış kendi talebini Seerr’de siler. Talep zaten onaylanmışsa kalır ve istek yeniden açılır.",
+          "trigger": "“İsteklerim” içinde “Geri çek”; Seerr’e erişilemediyse eşitlemeden sonra"
+        },
+        "wishes_sync": {
+          "name": "İstekleri Seerr ile eşitle",
+          "description": "Seerr’de değişen talepleri okur, isteklerin durumunu günceller, uzun süredir değişmeyen istekleri tek tek denetler ve giden kutusundaki zamanı gelen istekleri yeniden gönderir. İlk eşitleme tüm talepleri okur.",
+          "trigger": "zamanlama her 5 dakikada bir, “Şimdi eşitle”, Seerr webhook’unun bildirimi",
+          "progress": "Okunan sayfa: {{done}} / {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "İstekleri kitaplıkla eşleştir",
+          "description": "Slouchcat bir profil için filmi ya da istenen tüm sezonları oynatabildiği anda isteği mevcut olarak bildirir.",
+          "trigger": "zamanlama saatlik, istenen bir içerik kitaplıkta tanındıktan sonra, Seerr ile eşitlemeden sonra"
+        },
+        "wishes_tag": {
+          "name": "Profil etiketlerini ayarla",
+          "description": "Radarr ve Sonarr’da, Slouchcat üzerinden istenen ve işlenmekte olan film ve dizilere profilin etiketini ekler. Etiketler hiçbir zaman kaldırılmaz.",
+          "trigger": "Seerr ile eşitlemeden sonra, her 15 dakikada bir ve elle"
+        },
+        "wishes_progress": {
+          "name": "İndirme ilerlemesini oku",
+          "description": "Radarr ve Sonarr kuyruğunu okur ve işlenmekte olan isteklerde içeriğin aranıyor, indiriliyor ya da içe aktarılıyor olduğunu gösterir. Radarr ve Sonarr’da hiçbir şeyi değiştirmez.",
+          "trigger": "istekler işlenirken ve indirme ilerlemesi açıkken her dakika"
+        },
+        "wishes_discover": {
+          "name": "İstek listelerini önceden yükle",
+          "description": "Keşfet sıralarını, istekte bulunabilen profillerin her dili ve yaş seviyesi için Seerr’den önbelleğe yükler ve bir günden eski listeleri kaldırır. Her sonuç profil için yeniden denetlenir.",
+          "trigger": "zamanlama saatlik, istekler etkin ve Keşfet, Filmler, Diziler ile Ara sayfaları açık olduğu sürece"
+        },
+        "wishes_import": {
+          "name": "Seerr’deki talepleri devral",
+          "description": "İlişkilendirilmiş bir Seerr kullanıcısının Seerr’de kendisinin yaptığı açık ve yakın zamanda mevcut olmuş talepleri, hesabının ana profilinin istekleri olarak devralır (“Seerr’de oluşturuldu”). Ortak kullanıcının talepleri dışarıda kalır. Hiçbir bildirim gönderilmez.",
+          "trigger": "bir hesabın Seerr kullanıcısı ilişkilendirildiğinde, seçildiğinde ya da değiştirildiğinde, “Talepleri devral”"
+        },
         "segments_detect": {
           "name": "Giriş ve jenerik algıla",
           "description": "“Girişi atla” için bölümlerin giriş ve jeneriğini bulur.",
@@ -4785,6 +5261,16 @@
           "description": "Bir bölümü sağlayıcısından yükler ve podcast’inin klasörüne dosya olarak koyar.",
           "trigger": "“Depola” ile planlayıcıdan, bölüm başına “Eksikleri yükle” ve “Yükle”; aynı anda sağlayıcı başına bir tane",
           "progress": "Bayt: {{total}} içinden {{done}}"
+        },
+        "series_catalog": {
+          "name": "Dizilerin sezon listelerini al",
+          "description": "Kitaplıktaki her dizinin sezonlarını bölüm sayılarıyla, durumunu ve sonraki bölümü TMDB’den okur; 7 gün sonra yeniden.",
+          "trigger": "zamanlama günlük, bir dizi eşleştirildikten sonra"
+        },
+        "titles_refresh": {
+          "name": "Eksik içerikleri yenile",
+          "description": "Kitaplıkta olmayan içeriklerin bilgilerini, yaş sınırlarını ve fragmanlarını 7 gün sonra TMDB’den yeniden okur.",
+          "trigger": "zamanlama günlük"
         },
         "trakt_refresh": {
           "name": "Spotlight listesini getir",
@@ -5210,6 +5696,492 @@
         "changed": "o yolda artık başka bir dosya var"
       },
       "changed": "Bu arada bir şey değişti, lütfen tekrar denetleyin. Aşağıdaki liste yeniden okundu; hiçbir şey silinmedi."
+    },
+    "wishes": {
+      "title": "İstekler",
+      "intro": "Her hesabın Seerr’de aynı girişe sahip kendi kullanıcısı vardır. Profilleri bu kullanıcı olarak istekte bulunur. İzinler, sınır ve onay bu kullanıcıdan gelir.",
+      "separator": " · ",
+      "tabs": {
+        "label": "İstek bölümleri",
+        "users": "Seerr kullanıcıları",
+        "settings": "Ayarlar",
+        "requests": "Talepler",
+        "openCount_one": "{{count}} açık istek",
+        "openCount_other": "{{count}} açık istek",
+        "withoutShort": "{{number}} eksik",
+        "withoutCount_one": "Seerr kullanıcısı olmayan {{count}} hesap",
+        "withoutCount_other": "Seerr kullanıcısı olmayan {{count}} hesap"
+      },
+      "strip": {
+        "label": "Özet",
+        "accounts": "Hesaplar",
+        "opened": "Seerr’de",
+        "openedNote": "oluşturuldu veya ilişkilendirildi",
+        "without": "Kullanıcısız",
+        "waiting_one": "{{count}} hesap Seerr’i bekliyor",
+        "waiting_other": "{{count}} hesap Seerr’i bekliyor",
+        "password": "Şifre bekliyor",
+        "passwordNote": "bir sonraki girişte eşitlenir"
+      },
+      "limit": {
+        "movie_one": "{{count}} film / {{days}} gün",
+        "movie_other": "{{count}} film / {{days}} gün",
+        "movieNone": "Filmlerde sınır yok",
+        "tv_one": "{{count}} sezon / {{days}} gün",
+        "tv_other": "{{count}} sezon / {{days}} gün",
+        "tvNone": "Sezonlarda sınır yok"
+      },
+      "settings": {
+        "atOnce": "Her değişiklik hemen geçerli olur.",
+        "refused": "Değiştirilmedi: {{reason}}",
+        "switchedOn": "“{{name}}” açık. Hemen geçerli olur.",
+        "switchedOff": "“{{name}}” kapalı. Hemen geçerli olur.",
+        "choiceSaved": "“{{name}}”: {{value}}. Hemen geçerli olur.",
+        "limitSaved": "Varsayılan sınır: {{limit}}. “Varsayılan” seçili tüm hesaplarda hemen geçerli olur.",
+        "basics": "Temel ayar",
+        "where": "Nereden istekte bulunulabilir",
+        "rules": "Kurallar",
+        "enabled": "İstekler etkin",
+        "enabledHelp": "İzni olan profiller eksik içerikleri isteyebilir. Kapalıyken kimse eksik içerikleri görmez; açık istekler Seerr’de devam eder.",
+        "enabledLocked": "Ancak kayıtlı bağlantının testi başarılı olduktan sonra açılabilir.",
+        "toConnection": "Bağlantıya git",
+        "allowMovies": "Filmlere izin ver",
+        "allowMoviesHelp": "Tüm profiller için geçerlidir. Kapalıyken “Film iste” görünmez.",
+        "allowShows": "Dizilere izin ver",
+        "allowShowsHelp": "Tüm profiller için geçerlidir. Kapalıyken “Dizi iste” ve “Sezonları iste” görünmez.",
+        "fromSearch": "Aramadan istekte bulunma",
+        "fromSearchHelp": "“Henüz kitaplıkta yok” bölümü. Kapalıyken bölüm görünmez.",
+        "fromDetail": "Ayrıntı sayfalarından istekte bulunma",
+        "fromDetailHelp": "Kitaplıktaki bir dizinin sayfasında eksik sezonlar. Kapalıyken dizi sayfası yalnızca mevcut olanı gösterir.",
+        "alreadyRequested": "Daha önce istenen içerikler",
+        "alreadyRequestedHelp": {
+          "join": "Katıl: ikinci bir profil açık isteğe katılır (“Haber ver”) ve o da bilgilendirilir. Seerr’e ikinci bir talep gitmez.",
+          "status": "Yalnızca durumu göster: ikinci bir profil “Zaten istendi” görür, ancak isteğe katılamaz ve bilgilendirilmez."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Katıl",
+          "status": "Yalnızca durumu göster"
+        },
+        "unmapped": "Seerr kullanıcısı olmayan hesaplar",
+        "unmappedHelp": {
+          "fallback": "Ortak kullanıcı: kendi kullanıcısı olmayan tüm hesaplar slouchcat-gaeste olarak istekte bulunur ve varsayılan sınırı paylaşır. Slouchcat bu kullanıcıyı Seerr’de kendisi oluşturur.",
+          "deny": "İzin verme: kendi kullanıcısı olmayan hesaplar, bir Seerr kullanıcısı edinene kadar hiçbir şey isteyemez."
+        },
+        "unmappedOptions": {
+          "fallback": "Ortak kullanıcı",
+          "deny": "İzin verme"
+        },
+        "newAccountsCanRequest": "Yeni hesaplar istekte bulunabilir",
+        "newAccountsCanRequestHelp": "“Hesap davet et” penceresindeki anahtarın varsayılanı. Mevcut hesapları değiştirmez.",
+        "allowWithdraw": "Geri çekmeye izin ver",
+        "allowWithdrawHelp": "İstek onaylanmadığı sürece. “İsteklerim” altındaki “Geri çek” düğmesi.",
+        "pinExternalHideTitle": "PIN’li profillerde dış mesajlarda içerik adı yok",
+        "pinExternalHideTitleHelp": "E-posta, Web Push ve Telegram bu durumda yalnızca profili belirtir, içeriği değil.",
+        "defaultLimit": "Varsayılan sınır",
+        "limitPerAccount": "Hesap başına sınır",
+        "limitPerAccountHelp": "Bir hesabın tüm profilleri için birlikte geçerlidir. Seerr kayan pencereyle sayar ve doğrudan orada yapılan istekleri de hesaba katar. Reddedilen istekler ve katılımlar sayılmaz. Yöneticilerin sınırı yoktur.",
+        "movieLimit": "Filmler: adet",
+        "movieDays": "Filmler: gün",
+        "tvLimit": "Sezonlar: adet",
+        "tvDays": "Sezonlar: gün",
+        "limitRange": "{{low}} ile {{high}} arasında bir tam sayı.",
+        "perAccount": "Hesaba göre farklı",
+        "perAccountHelp": "Bir hesabın sınırı “Hesaplar” altında farklı ayarlanabilir: kendi sınırı ya da sınırsız.",
+        "toAccounts": "Hesaplara git",
+        "accountsInSeerr": "Seerr’deki hesaplar",
+        "provisionOn": "Yeni hesapları oluştur",
+        "provisionOff": "Yeni hesapları oluşturma",
+        "syncOn": "Şifreyi eşitle",
+        "syncOff": "şifre eşitlenmez",
+        "provisionAccounts": "Seerr’de yeni hesap oluştur",
+        "provisionAccountsHelp": "Bir davet kabul edildiğinde Slouchcat hesabı Seerr’de de oluşturur: aynı e-posta, aynı şifre. Orada aynı e-postaya sahip bir kullanıcı varsa Slouchcat onu hemen ilişkilendirir. Adresi yeni hesap kendisi yazar; kimse denetlemez. Bu nedenle genel bakış, böyle her ilişkilendirmeyi yedi gün boyunca gösterir.",
+        "syncPassword": "Şifreyi eşitle",
+        "syncPasswordHelp": "Slouchcat, şifre belirlendiğinde, değiştirildiğinde ve Slouchcat’e girişte şifreyi Seerr’e iletir. Slouchcat şifreyi hiçbir zaman düz metin olarak saklamaz. Bunun için Seerr’de “Yerel giriş” gerekir. Seerr’de önceden bulunan ve bir yöneticinin ilişkilendirdiği kullanıcılar şifrelerini korur.",
+        "visibleInSeerr": "Bir hesabın girişiyle Seerr’e giren kişi, o hesabın tüm profillerinin isteklerini orada görür; PIN’li profilinkileri de. Seerr ayrıca içerik adını içeren kendi bildirimlerini gönderir; oluşturulan kullanıcılar için bunları Seerr’de kapalı tutun.",
+        "existing": "Mevcut hesaplar",
+        "existingHelp": "Her hesap için Seerr kullanıcısını seçin ya da ilişkilendirmeyi kaldırın.",
+        "toUsers": "Seerr kullanıcılarına git",
+        "links": "Bağlantılar",
+        "who": "Kimler istekte bulunabilir",
+        "whoHelp": "Kimlerin istekte bulunabileceğini Hesaplar altında hesap başına ayarlarsınız; profil başına ana profil karar verir.",
+        "connection": "Seerr bağlantısı",
+        "connectionHelp": "Adres, anahtar, test ve kayıt.",
+        "users": "Seerr kullanıcıları",
+        "usersHelp": "Hangi hesabın hangi Seerr kullanıcısı olarak istekte bulunduğu, şifre ve sınırla birlikte.",
+        "arr": "Radarr ve Sonarr: profil etiketi ve ilerleme",
+        "profileTags": "Radarr ve Sonarr’da profil etiketi ayarla",
+        "profileTagsHelp": "Seerr içeriği Radarr’a ya da Sonarr’a ilettikten sonra profilin etiketini içeriğe ekler ve ayarlanamamış etiketleri sonradan tamamlar. Radarr ve Sonarr’da başka hiçbir şeyi değiştirmez.",
+        "tagPrefix": "Önek",
+        "tagPrefixHelp": "Küçük harfler, rakamlar ve kısa çizgi. Örnek: sc-noah. Yeni etiketler için geçerlidir; mevcut etiketler olduğu gibi kalır. Tek bir profilin etiketini “Seerr kullanıcıları” altında değiştirirsiniz.",
+        "tagPrefixInvalid": "1 ile 10 karakter: yalnızca a–z küçük harfleri, 0–9 rakamları ve kısa çizgi. Kaydedilmedi.",
+        "tagPrefixSaved": "“{{prefix}}” öneki: yeni etiketler örneğin {{prefix}}noah adını alır. Ayarlanmış etiketler olduğu gibi kalır.",
+        "showProgress": "İndirme ilerlemesini göster",
+        "showProgressHelp": "İşlenmekte olan isteklerde içeriğin aranıyor, indiriliyor ya da içe aktarılıyor olduğunu gösterir. Bunun için Slouchcat, istekler işlenirken her dakika Radarr ve Sonarr kuyruğunu okur.",
+        "arrSummary": "Etiket {{tags}} · önek {{prefix}} · ilerleme {{progress}}",
+        "on": "açık",
+        "off": "kapalı",
+        "arrLinks": "Radarr ve Sonarr erişimi",
+        "arrLinksHelp": "Adres ve anahtar Seerr’den gelir; profil başına adlar Seerr kullanıcıları altındadır.",
+        "toArr": "Entegrasyonlar › Seerr",
+        "discoverPages": "Keşfet, Filmler, Diziler ve Ara sayfaları",
+        "discoverPagesHelp": "“İstekler” bölümündeki sekmeler. Kapalıyken yalnızca “İsteklerim”.",
+        "basicsSummary": "İstekler {{enabled}} · filmler {{movies}} · diziler {{shows}}",
+        "basicsSummaryLocked": "İstekler kapalı, test başarılı olana kadar · filmler {{movies}} · diziler {{shows}}",
+        "whereSummary": "Ara {{search}} · ayrıntı sayfaları {{detail}} · Keşfet {{discover}}",
+        "rulesSummary": "{{already}} · Seerr kullanıcısı yok: {{unmapped}} · geri çekme {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{count}} hesabın {{opened}} tanesi oluşturuldu",
+        "usersCount_other": "{{count}} hesabın {{opened}} tanesi oluşturuldu",
+        "limitHintCount": "{{low}} ile {{high}} arası; 0 sınır yok demektir.",
+        "limitHintDays": "{{low}} ile {{high}} gün arası."
+      },
+      "users": {
+        "caption": "Hesaplar ve Seerr kullanıcıları",
+        "columns": {
+          "account": "Hesap",
+          "user": "Seerr kullanıcısı",
+          "password": "Şifre",
+          "rights": "Seerr’deki izinler",
+          "email": "E-posta",
+          "type": "Tür",
+          "limit": "Sınır"
+        },
+        "noUser": "Yok",
+        "passwordFollows": "Kullanıcıyla birlikte gelir",
+        "rightsFollow": "İstek hakkını izler",
+        "gone": "Kullanıcı silindi",
+        "state": {
+          "created": "Slouchcat oluşturdu",
+          "linked": "Aynı e-postayla ilişkilendirildi",
+          "manual": "Elle ilişkilendirildi",
+          "waiting": "Seerr’e erişilir erişilmez oluşturulur",
+          "none": "Oluşturulmadı"
+        },
+        "password": {
+          "synced": "Slouchcat’tekiyle aynı",
+          "next_login": "Slouchcat’e bir sonraki girişte aktarılır",
+          "off": "Eşitlenmiyor",
+          "admin": "Seerr’de kalır (yönetici)",
+          "external": "Jellyfin, Emby veya Plex ile giriş yapıyor"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Yerel",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Yönetici",
+          "both": "Filmler ve diziler",
+          "movies": "Yalnızca filmler",
+          "shows": "Yalnızca diziler",
+          "none": "İzin yok"
+        },
+        "choose": "Kullanıcı seçin",
+        "chooseLabel": "{{email}} için Seerr kullanıcısı",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (mevcut)",
+        "optionGone": "{{option}} (Seerr’de silinmiş)",
+        "optionTaken": "{{option}} · {{email}} hesabına ait",
+        "facts": {
+          "user": "Seerr kullanıcısı",
+          "state": "Durum",
+          "password": "Şifre",
+          "rights": "Seerr’deki izinler",
+          "limit": "Sınır",
+          "right": "Hesabın istek hakkı"
+        },
+        "linkedBy": "{{by}} · {{date}} tarihinden beri",
+        "by": {
+          "admin": "bir yönetici tarafından",
+          "invite": "davet kabul edilirken",
+          "email_change": "e-posta değiştirildikten sonra"
+        },
+        "since": "{{date}} tarihinden beri",
+        "syncedAt": "{{time}} tarihinde eşitlendi",
+        "movies": "Filmler",
+        "shows": "Diziler",
+        "autoApproveOn": "Otomatik onay: evet",
+        "autoApproveOff": "Otomatik onay: hayır",
+        "followRightOn": "Hesabın istek hakkını izler: istekte bulunabilir",
+        "followRightOff": "Hesabın istek hakkını izler: istekte bulunamaz",
+        "noLimitAdmin": "Sınır yok (Seerr’de yönetici)",
+        "unlimited": "Sınırsız",
+        "mode": {
+          "default": "Varsayılan",
+          "custom": "Özel",
+          "unlimited": "Sınırsız"
+        },
+        "mayRequest": "İstekte bulunabilir",
+        "mayNotRequest": "İstekte bulunamaz",
+        "goneTitle": "“{{name}}” kullanıcısı bulunamadı",
+        "goneBody": "Seerr bu kullanıcıyı artık tanımıyor. Başka bir kullanıcı seçin ya da ilişkilendirmeyi kaldırın.",
+        "selfLinked": {
+          "invite": "Davet kabul edilirken, e-posta aynı olduğu için mevcut Seerr kullanıcısı {{name}} ile ilişkilendirildi. Bu kullanıcı bu hesaba ait değilse ilişkilendirmeyi kaldırın.",
+          "email_change": "E-posta değiştirildikten sonra, e-posta aynı olduğu için mevcut Seerr kullanıcısı {{name}} ile ilişkilendirildi. Bu kullanıcı bu hesaba ait değilse ilişkilendirmeyi kaldırın."
+        },
+        "warning": {
+          "nothing": "“{{name}}” Seerr’de hiçbir şey isteyemez. Her istek başarısız olur; Seerr’de kullanıcıya “Talepler” iznini verin ya da başka bir kullanıcı seçin.",
+          "noShows": "“{{name}}” dizi isteyemez. Dizi istekleri başarısız olur, filmler çalışır.",
+          "noMovies": "“{{name}}” film isteyemez. Film istekleri başarısız olur, diziler çalışır."
+        },
+        "change": "Seerr kullanıcısını değiştir",
+        "unlink": "İlişkilendirmeyi kaldır",
+        "chooseHelp": "Başka bir hesaba ait olmayan kullanıcılar seçilebilir. İzinler ve şifre Seerr’deki gibi kalır.",
+        "chooseHelpStale": "Başka bir hesaba ait olmayan kullanıcılar seçilebilir. Gösterilen, kullanıcı listesinin en son yüklenen hâlidir.",
+        "taken": "Bu Seerr kullanıcısı artık başka bir hesaba ait ya da seçilemiyor. Seçim sıfırlandı.",
+        "linked": "{{email}} artık “{{name}}” olarak istekte bulunuyor. İzinler ve onay bu kullanıcıdan gelir.",
+        "unlinked": "{{email}} ilişkilendirmesi kaldırıldı. “{{name}}” Seerr’de kalır.",
+        "reloading": "Kullanıcı listesi yeniden yükleniyor.",
+        "notConfigured": "Seerr kurulmadı",
+        "notConfiguredBody": "Bağlantı olmadan kullanıcı listesi yoktur. Tüm hesaplar şimdilik Seerr kullanıcısız kalır.",
+        "toConnection": "Entegrasyonlar › Seerr’e git",
+        "toDecision": "Karara git",
+        "instanceBody": "Entegrasyonlar › Seerr altında karar verene kadar Slouchcat istek göndermez ve hiçbir şeyi eşitlemez. Liste son durumu gösterir.",
+        "goneCount_one": "{{count}} hesap: kullanıcı Seerr’de silinmiş",
+        "goneCount_other": "{{count}} hesap: kullanıcı Seerr’de silinmiş",
+        "goneCountBody": "Bu hesaplar için başka bir kullanıcı seçin ya da ilişkilendirmeyi kaldırın.",
+        "withoutCount_one": "Seerr kullanıcısı olmayan {{count}} hesap",
+        "withoutCount_other": "Seerr kullanıcısı olmayan {{count}} hesap",
+        "withoutFallback": "Bu hesaplar o zamana kadar slouchcat-gaeste ortak kullanıcısı olarak istekte bulunur (“Seerr kullanıcısı olmayan hesaplar” kuralı).",
+        "withoutDeny": "“Seerr kullanıcısı olmayan hesaplar” seçeneği “İzin verme” olduğu sürece bu hesaplar hiçbir şey isteyemez.",
+        "toSettings": "Ayarlara git",
+        "newAccounts": "Yeni hesaplar: {{provision}} · Şifre: {{password}}",
+        "provisionOn": "Seerr’de oluşturulur",
+        "provisionOff": "oluşturulmaz",
+        "syncOn": "eşitlenir",
+        "syncOff": "eşitlenmez",
+        "changeSettings": "Değiştir",
+        "shared": "Ortak kullanıcı: {{name}}",
+        "sharedLater": "Ortak kullanıcı: istekler etkinleşir etkinleşmez oluşturulur",
+        "reload": "Kullanıcı listesini yeniden yükle",
+        "unlinkedTitle": "Hesabı olmayan Seerr kullanıcıları",
+        "unlinkedCount_one": "{{count}} kullanıcı",
+        "unlinkedCount_other": "{{count}} kullanıcı",
+        "unlinkedEmpty": "Her Seerr kullanıcısı bir hesaba ait.",
+        "noEmail": "e-posta yok",
+        "noLimit": "Sınır yok",
+        "limitOnOpen": "Hesap oluşturulurken ayarlanır: {{limit}}",
+        "limitChange": "Sınırı değiştir",
+        "quotaAt": "Seerr’deki durum {{time}}",
+        "provision": "Seerr’de oluştur",
+        "retry": "Tekrar dene",
+        "provisionOffHint": "“Seerr’de yeni hesap oluştur” kapalı.",
+        "sameEmailTitle": "Seerr’de zaten “{{name}}” var",
+        "sameEmailBody": "Aynı e-posta adresi: “Seerr’de oluştur”, ikinci bir kullanıcı açmak yerine bu kullanıcıyı ilişkilendirir.",
+        "waitingTitle": "Seerr’i bekliyor",
+        "waitReason": {
+          "unreachable": "Oluşturulurken Seerr’e erişilemedi. Bir sonraki eşitleme yeniden dener.",
+          "server": "Oluşturulurken Seerr bir hatayla yanıt verdi. Bir sonraki eşitleme yeniden dener.",
+          "timeout": "Oluşturulurken Seerr zamanında yanıt vermedi. Bir sonraki eşitleme yeniden dener.",
+          "key_invalid": "Seerr API anahtarını reddetti. Bağlantı yeniden düzeldiğinde bir sonraki eşitleme yeniden dener.",
+          "instance_changed": "Başka bir Seerr örneği kararınızı bekliyor. O zamana kadar Slouchcat hiçbir şey oluşturmaz.",
+          "seerr_user_taken": "Bu e-postaya sahip Seerr kullanıcısı zaten başka bir hesaba ait ya da ortak kullanıcı. Kullanıcıyı elle seçin.",
+          "other": "Oluşturma başarısız oldu ({{reason}}). Bir sonraki eşitleme yeniden dener.",
+          "seerr_user_privileged": "Bu Seerr kullanıcısı Seerr’i yönetiyor. Slouchcat onu kendiliğinden ilişkilendirmez: onay sorusundan sonra ilişkilendirin ya da başka bir kullanıcı seçin.",
+          "refused": "Seerr oluşturmayı reddetti. Bir sonraki eşitleme yeniden dener."
+        },
+        "emailTakenTitle": "Seerr yeni e-postayı reddetti",
+        "emailTakenBody": "Başka bir Seerr kullanıcısında bu adres zaten var. “{{name}}” Seerr’de önceki e-postasını korur; hesap bu kullanıcı olarak istekte bulunmaya devam eder.",
+        "provisioned": {
+          "created": "{{email}} Seerr’de oluşturuldu.",
+          "linked": "{{email}}, “{{name}}” Seerr kullanıcısıyla ilişkilendirildi.",
+          "waiting": "Henüz Seerr’de oluşturulmadı: {{email}} bekliyor, bir sonraki eşitleme yeniden dener.",
+          "privileged": "{{email}} bekliyor: bu e-postaya sahip Seerr kullanıcısı Seerr’i yönetiyor.",
+          "taken": "{{email}} bekliyor: bu e-postaya sahip Seerr kullanıcısı zaten başka bir hesaba ait. Kullanıcıyı elle seçin."
+        },
+        "passwordNext": "Şifreyi bir sonraki girişte yeniden aktar",
+        "passwordOff": "Şifreyi eşitleme",
+        "passwordNextDone": "{{email}} hesabının şifresi bir sonraki girişte Seerr’e gönderilir.",
+        "passwordOffDone": "{{email}} hesabının şifresi artık Seerr ile eşitlenmiyor.",
+        "passwordSyncOff": "Şifre eşitleme kapalı.",
+        "passwordNote": {
+          "admin": "Slouchcat şifreyi eşitlemez: “{{name}}” Seerr’de yönetici, şifresi orada olduğu gibi kalır.",
+          "external": "Slouchcat şifreyi eşitlemez: “{{name}}” kendi şifresiyle değil, Jellyfin, Emby veya Plex ile giriş yapıyor."
+        },
+        "provisionAll": "Tümünü oluştur",
+        "provisionAllTitle": "Tüm hesaplar Seerr’de oluşturulsun mu?",
+        "provisionAllBody": "Aynı e-postayla ilişkilendir: {{link}} · Seerr’de yeni oluştur: {{create}}.",
+        "provisionAllWaits": "Seerr şu anda bağlı değil: hesaplar bekler ve bir sonraki eşitlemede oluşturulur.",
+        "provisionAllQueued": "Oluşturma sürüyor: {{link}} ilişkilendirilecek, {{create}} yeni oluşturulacak.",
+        "profiles": {
+          "title": "Profiller ve etiketler",
+          "help": "Bir istek Radarr ve Sonarr’a ulaşır ulaşmaz her profil orada kendi etiketini taşır. Ayarlanmış bir etiket, ad değişse bile kalır.",
+          "none": "Hesabın profili yok.",
+          "custom": "özel ad",
+          "change": "Değiştir",
+          "changeLabel": "{{profile}} etiketini değiştir",
+          "field": "{{profile}} için etiket adı",
+          "fieldHelp": "Yalnızca a–z küçük harfleri, 0–9 rakamları ve kısa çizgi.",
+          "invalid": "Yalnızca a–z küçük harfleri, 0–9 rakamları ve kısa çizgi kullanılabilir, en fazla 64 karakter.",
+          "save": "Kaydet",
+          "saveLabel": "{{profile}} etiketini kaydet",
+          "cancel": "İptal",
+          "reset": "Sıfırla",
+          "resetLabel": "{{profile}} etiketini önekten gelen ada sıfırla",
+          "saved": "{{profile}}: etiket artık {{name}} adını taşıyor.",
+          "tagsOff": "Profil etiketleri kapalı (İstekler › Ayarlar)."
+        },
+        "takeOver": {
+          "title": "Seerr’deki talepler",
+          "help": "Doğrudan Seerr’de yapılan talepler, “Seerr’de oluşturuldu” notuyla ana profilin istekleri olur. Profil etiketi taşımazlar.",
+          "counting": "Seerr’deki talepler sayılıyor…",
+          "none": "Seerr’de talep yok.",
+          "action_one": "Seerr’den {{count}} talebi devral",
+          "action_other": "Seerr’den {{count}} talebi devral",
+          "queued_one": "{{name}} kullanıcısının {{count}} talebi devralınıyor.",
+          "queued_other": "{{name}} kullanıcısının {{count}} talebi devralınıyor.",
+          "running": "Talepler devralınıyor; sayı eşitlemeden sonra gelir."
+        },
+        "linkPrivileged": "Yine de ilişkilendir…",
+        "privilegedTitle": "Seerr yöneticisi {{name}} ilişkilendirilsin mi?",
+        "privilegedBody": "Bu Seerr kullanıcısı Seerr’i yönetiyor. {{email}} hesabının profilleri bundan sonra Seerr yöneticisi olarak, onaysız ve sınırsız istekte bulunur. Slouchcat bu kullanıcının şifresini eşitlemez.",
+        "privilegedConfirm": "Yine de ilişkilendir",
+        "provisionAllManual_one": "{{count}} hesap için elle seçim gerekiyor.",
+        "provisionAllManual_other": "{{count}} hesap için elle seçim gerekiyor.",
+        "waitingChoice": "Elle seçim bekliyor",
+        "waitingChoiceTitle": "Seçiminizi bekliyor",
+        "optionPrivileged": "{{option}} · Seerr’i yönetiyor"
+      },
+      "limitField": {
+        "label": "Sınır",
+        "help": {
+          "default": "İstekler › Ayarlar altındaki gibi: {{limit}}.",
+          "custom": "Bu hesaba özel sayılar.",
+          "unlimited": "Filmlerde ve sezonlarda sınır yok."
+        }
+      },
+      "requests": {
+        "caption": "Hanenin tüm istekleri",
+        "columns": {
+          "title": "Başlık",
+          "requesters": "İsteyen",
+          "state": "Durum",
+          "seerr": "Seerr’de",
+          "attempts": "Deneme",
+          "actions": "İşlemler"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (katıldı)",
+        "requesterClosed": "{{line}} (geri çekti)",
+        "noRequester": "Slouchcat’te kimse yok",
+        "noRequest": "Henüz yok",
+        "requestId": "Talep {{id}}",
+        "requestIds_one": "Talep {{ids}}",
+        "requestIds_other": "Talepler {{ids}}",
+        "filter": {
+          "label": "İstekleri duruma göre filtrele",
+          "all": "Tümü",
+          "open": "Açık",
+          "available": "Mevcut",
+          "closed": "Kapalı",
+          "count_one": "{{count}} istek",
+          "count_other": "{{count}} istek",
+          "stalled": "İndirme takıldı",
+          "untagged": "Etiket ayarlanmadı",
+          "countLoaded_one": "Yüklenenler arasında {{count}} istek",
+          "countLoaded_other": "Yüklenenler arasında {{count}} istek"
+        },
+        "sync": "Şimdi eşitle",
+        "syncQueued": "Seerr ile eşitleme sürüyor.",
+        "queued_one": "{{count}} istek Seerr’e gönderilmeyi bekliyor.",
+        "queued_other": "{{count}} istek Seerr’e gönderilmeyi bekliyor.",
+        "empty": "Henüz istek yok.",
+        "emptyFilter": "Bu durumda istek yok.",
+        "facts": {
+          "label": "İstek bilgileri",
+          "created": "İstendi",
+          "origin": "Kaynak",
+          "seerrUser": "Seerr kullanıcısı",
+          "failReason": "Neden"
+        },
+        "origin": {
+          "slouchcat": "Slouchcat’te istendi",
+          "seerr": "Seerr’de oluşturuldu"
+        },
+        "toItem": "Yönetim’deki içeriğe git",
+        "history": "Geçmiş",
+        "noHistory": "Henüz bir şey olmadı.",
+        "retry": "Tekrar dene",
+        "retryLabel": "{{title}}: tekrar dene",
+        "retried": "{{title}} yeniden deneniyor.",
+        "emptyStalled": "Takılan indirme yok.",
+        "emptyUntagged": "Her profil etiketi ayarlandı ya da henüz ayarlanacak.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Onayla",
+        "approveLabel": "{{title}} isteğini onayla",
+        "approved": "{{title}} onaylandı ve işleniyor.",
+        "decline": "Reddet",
+        "declineLabel": "{{title}} isteğini reddet",
+        "declineTitle": "{{title}} isteği reddedilsin mi?",
+        "declineBody": "Slouchcat reddi Seerr’e iletir. Seerr bir neden tutmaz: profiller yalnızca “Reddedildi” görür ve bilgilendirilir.",
+        "declined": "{{title}} reddedildi.",
+        "event": {
+          "approved_by_admin": "Yönetim’de onaylandı",
+          "declined_by_admin": "Yönetim’de reddedildi"
+        },
+        "progress": {
+          "search": "Aranıyor",
+          "download": "İndiriliyor",
+          "import": "İçe aktarılıyor",
+          "stalled": "İndirme takıldı",
+          "percent": "%{{percent}}",
+          "etaMinutes": "{{minutes}} dk kaldı",
+          "etaHours": "{{hours}} sa {{minutes}} dk kaldı",
+          "episodes": "{{total}} bölümün {{done}} tanesi hazır",
+          "unreadable": "İlerleme okunamıyor",
+          "unreadableAt": "İlerleme okunamıyor · son okuma {{time}}",
+          "notInService": "Henüz {{service}} içinde değil",
+          "incomplete": "Bölüm durumu yalnızca kısmen okunabiliyor.",
+          "etaWholeHours": "{{hours}} sa kaldı"
+        },
+        "progressBlock": {
+          "title": "İlerleme",
+          "service": "Hizmet",
+          "state": "Durum",
+          "unknown": "Henüz bilinen bir şey yok",
+          "readAt": "Son okuma",
+          "never": "Hiç",
+          "note": "Not",
+          "message": "{{service}} mesajı"
+        },
+        "tags": {
+          "title": "Profil etiketleri",
+          "set": "{{name}}",
+          "pending": "{{name}} · bekliyor",
+          "failed": "{{name}} · başarısız",
+          "setAt": "{{service}} içinde {{time}} tarihinde ayarlandı",
+          "setIn": "{{service}} içinde ayarlandı",
+          "pendingHelp": "İçerik {{service}} içine girer girmez etiket eklenir.",
+          "failedHelp": "{{service}} etiketi kabul etmedi."
+        },
+        "shown": "{{total}} istekten {{shown}} tanesi gösteriliyor.",
+        "searchedIn": "{{total}} açık istekten {{shown}} tanesinde arandı.",
+        "more": "Daha fazla yükle",
+        "toItemLabel": "{{title}}: Yönetim’deki içeriğe git",
+        "inSeerr": "Seerr’de aç",
+        "inSeerrLabel": "{{title}} içeriğini Seerr’de aç (yeni pencere)"
+      },
+      "arrError": {
+        "not_in_arr": "İçerik henüz {{service}} içinde değil.",
+        "tvdb_id_missing": "Dizinin TVDB kimliği yok.",
+        "not_confirmed": "Seerr’den gelen adres “Test et” bekliyor.",
+        "not_in_seerr": "Seerr’de {{service}} için varsayılan sunucu yok.",
+        "seerr_off": "Seerr kurulmadı ya da kapalı.",
+        "redirect": "{{service}} başka bir adrese yönlendiriyor.",
+        "timeout": "{{service}} zamanında yanıt vermedi.",
+        "unreachable": "{{service}} erişilemiyor.",
+        "key_invalid": "{{service}}, Seerr’den gelen anahtarı reddediyor.",
+        "not_found": "{{service}} bu içeriği tanımıyor.",
+        "validation": "{{service}} çağrıyı geçersiz diyerek reddetti.",
+        "server": "{{service}} bir hatayla yanıt verdi.",
+        "bad_request": "{{service}} çağrıyı reddetti.",
+        "invalid": "{{service}} beklenmedik bir yanıt verdi.",
+        "seerr": "Seerr, {{service}} için adres ve anahtarı iletmedi.",
+        "other": "Hata: {{error}}"
+      }
     }
   },
   "language": {
@@ -5312,7 +6284,11 @@
         "metadataLanguage": "Açıklamaların dili",
         "metadataLanguageHint": "Başlıklar, açıklamalar ve türler; arayüz yukarıdaki dili izler.",
         "likeUi": "Arayüz gibi",
-        "playback": "Oynatma"
+        "playback": "Oynatma",
+        "wishes": "İstekler",
+        "canRequest": "İçerik isteyebilir",
+        "canRequestHelp": "Profil, kitaplıkta olmayan içerikleri Seerr üzerinden isteyebilir.",
+        "canRequestCapped": "Bu hesap içerik isteyemez. Yetkiyi bir yönetici Hesaplar bölümünden verir."
       },
       "report": {
         "show": "İzleme süresini göster",
@@ -5356,7 +6332,8 @@
     "notFound": {
       "title": "Bağlantı bulunamadı",
       "body": "Bu davet bağlantısı yok. Tamamını kopyalayıp kopyalamadığınızı denetleyin."
-    }
+    },
+    "seerrAccount": "Girişiniz Seerr için de geçerli olur: daveti kabul ettiğinizde orada aynı e-posta adresi ve aynı şifreyle bir hesap oluşturulur."
   },
   "kind": {
     "movie": "Film",
@@ -5635,7 +6612,13 @@
     "empty": {
       "title": "Hiçbir şey bulunamadı",
       "body": "Başka bir terim ya da daha az filtre deneyin."
-    }
+    },
+    "missing": {
+      "title": "Henüz kitaplıkta yok",
+      "notHere": "Henüz yok",
+      "request": "{{title}} için istekte bulun"
+    },
+    "inWishes": "İsteklerde de ara"
   },
   "watchlist": {
     "title": "Listem",
@@ -5723,7 +6706,12 @@
     "empty": {
       "title": "Bildirim yok",
       "body": "Yeni bölümleri burada duymak için dizileri ya da podcast’leri listenize ekleyin."
-    }
+    },
+    "wish_available": "İsteğiniz hazır",
+    "wish_season_available": "İsteğinizin bir sezonu hazır",
+    "wish_approved": "İsteğiniz onaylandı",
+    "wish_declined": "İsteğiniz reddedildi",
+    "wish_failed": "İsteğiniz başarısız oldu"
   },
   "settings": {
     "playback": {
@@ -5800,6 +6788,9 @@
         "errors": "Hatalar",
         "invitations": "Davetler",
         "announcements": "Duyurular",
+        "wish_available": "İstekler: mevcut",
+        "wish_status": "İstekler: onaylandı, reddedildi, başarısız oldu",
+        "wish_review": "İstekler: onay gerekiyor",
         "help": "Hangi durumlarda ileti gelir.",
         "helpAdmin": "Hangi durumlarda ileti gelir. “Hatalar” yalnızca yöneticiler içindir."
       },
@@ -6185,6 +7176,296 @@
       "halfBody_other": "{{count}} bölümde izlendi işareti var. Tüm bölümler işaretlensin mi, yoksa tüm işaretler kaldırılsın mı? Kaldırma geri alınamaz.",
       "markAll": "Tüm bölümleri izlendi olarak işaretle",
       "removeAll": "Tüm işaretleri kaldır"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Filmler: {{days}} günde {{limit}} hakkın {{used}} tanesi kullanıldı",
+      "tv": "Sezonlar: {{days}} günde {{limit}} hakkın {{used}} tanesi kullanıldı",
+      "remaining_one": "{{count}} hak kaldı",
+      "remaining_other": "{{count}} hak kaldı",
+      "nextFree": "bir sonraki hak {{date}} tarihinde açılır",
+      "short": {
+        "movie": "Filmler {{used}}/{{limit}}",
+        "tv": "Sezonlar {{used}}/{{limit}}"
+      },
+      "movieNone": "Filmlerde sınır yok",
+      "tvNone": "Sezonlarda sınır yok"
+    },
+    "state": {
+      "queued": "Gönderiliyor",
+      "pending": "Onay bekliyor",
+      "processing": "İşleniyor",
+      "partial": "Kısmen mevcut",
+      "available": "Mevcut",
+      "declined": "Reddedildi",
+      "failed": "Başarısız",
+      "withdrawn": "Geri çekildi"
+    },
+    "detail": {
+      "importing": "okunuyor",
+      "not_found_in_library": "kitaplıkta henüz bulunamadı"
+    },
+    "fail": {
+      "quota": "Sınıra ulaşıldı: Seerr isteği kabul etmedi.",
+      "blocklisted": "İçerik Seerr’de engel listesinde.",
+      "no_permission": "Seerr kullanıcısının bu tür içeriği isteme izni yok.",
+      "arr_failed": "Seerr içeriği Radarr’a ya da Sonarr’a iletemedi. Bir yönetici isteği yeniden deneyebilir.",
+      "unreachable_24h": "Seerr 24 saat boyunca erişilemedi.",
+      "seerr_request_gone": "Talep Seerr’de silindi.",
+      "seerr_media_deleted": "İçerik Seerr’de kaldırıldı.",
+      "seerr_user_gone": "İlişkilendirilen Seerr kullanıcısı artık yok.",
+      "tvdb_id_missing": "Bu dizinin, Seerr’in gerek duyduğu TVDB kimliği yok.",
+      "account_deleted": "İsteği yapan hesap artık yok."
+    },
+    "reason": {
+      "disabled": "İstekler kapalı.",
+      "account_not_allowed": "Bu hesap içerik isteyemez.",
+      "profile_not_allowed": "Bu profil içerik isteyemez. Ana profil bunu “Profiller” altında etkinleştirebilir.",
+      "no_mapping": "Bu hesapla henüz bir Seerr kullanıcısı ilişkilendirilmedi. Bunu yönetici ayarlar.",
+      "seerr_user_gone": "İlişkilendirilen Seerr kullanıcısı artık yok. Bunu yönetici giderir.",
+      "movies_not_allowed": "Şu anda film istenemiyor.",
+      "shows_not_allowed": "Şu anda dizi istenemiyor.",
+      "status_only": "Başka bir profil bu içeriği zaten istedi. Hazır olduğunda kitaplıkta bulabilirsiniz.",
+      "already_requested": "Bu içeriği zaten istediniz.",
+      "source_not_allowed": "Şu anda buradan içerik istenemiyor.",
+      "tvdb_id_missing": "Bu dizinin, Seerr’in gerek duyduğu TVDB kimliği yok.",
+      "withdraw_disabled": "Şu anda istekler geri çekilemiyor."
+    },
+    "tmdbUnreachable": "TMDB şu anda erişilemiyor. Daha sonra tekrar deneyin.",
+    "kind": {
+      "movie": "Film",
+      "show": "Dizi"
+    },
+    "seasons_one": "Sezon {{list}}",
+    "seasons_other": "Sezonlar {{list}}",
+    "event": {
+      "created": "İstendi",
+      "submitted": "Seerr’e gönderildi",
+      "attached": "Seerr’de bulundu ve devralındı",
+      "joined": "Katıldı",
+      "withdrawn": "Geri çekildi",
+      "withdraw_deleted": "Seerr’de silindi",
+      "owner_changed": "Başka bir profil isteği sürdürüyor",
+      "reopened": "Zaten onaylanmıştı, istek sürüyor",
+      "season_available_one": "Sezon {{seasons}} mevcut",
+      "season_available_other": "Sezonlar {{seasons}} mevcut",
+      "changed": "Değişti"
+    },
+    "card": {
+      "title": "İsteğiniz",
+      "requestedOn": "{{date}} tarihinde istendi",
+      "joined": "siz de katıldınız",
+      "history": "Geçmiş",
+      "mine": "İsteklerime git"
+    },
+    "withdraw": {
+      "action": "Geri çek",
+      "actionJoined": "Ayrıl",
+      "title": "İstek geri çekilsin mi?",
+      "titleJoined": "İstekten ayrılınsın mı?",
+      "body": "“{{title}}” artık istenmeyecek; Slouchcat isteği Seerr’de de siler.",
+      "bodyJoined": "“{{title}}” hazır olduğunda artık bildirim almazsınız. Diğer profillerin istekleri kalır.",
+      "confirm": "Geri çek",
+      "confirmJoined": "Ayrıl"
+    },
+    "dialog": {
+      "titleMovie": "Film iste: {{title}}",
+      "titleShow": "Dizi iste: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Hemen işleme alınır, onay gerekmez.",
+      "needsApproval": "Onay gerekir. Durumu “İsteklerim” altında izleyebilirsiniz.",
+      "seasons": "Sezonlar",
+      "allSeasons": "Tüm eksik sezonlar ({{count}})",
+      "season": "{{number}}. sezon",
+      "episodes_one": "{{count}} bölüm",
+      "episodes_other": "{{count}} bölüm",
+      "seasonState": {
+        "requested": "zaten istendi, siz de bilgilendirileceksiniz",
+        "available": "mevcut"
+      },
+      "nothingLeft": {
+        "title": "İstenecek bir şey kalmadı",
+        "body": "Tüm sezonlar mevcut ya da zaten istendi."
+      },
+      "tooManySeasons_one": "{{limit}} sezonluk sınırdan 1 hak kaldı. En fazla 1 sezon seçin.",
+      "tooManySeasons_other": "{{limit}} sezonluk sınırdan {{count}} hak kaldı. En fazla {{count}} sezon seçin.",
+      "reached": {
+        "movie_one": "Sınıra ulaşıldı: {{days}} günde {{count}} film.",
+        "movie_other": "Sınıra ulaşıldı: {{days}} günde {{count}} film.",
+        "show_one": "Sınıra ulaşıldı: {{days}} günde {{count}} sezon.",
+        "show_other": "Sınıra ulaşıldı: {{days}} günde {{count}} sezon.",
+        "movie_date_one": "Sınıra ulaşıldı: {{days}} günde {{count}} film. Bir sonraki hak {{date}} tarihinde açılır.",
+        "movie_date_other": "Sınıra ulaşıldı: {{days}} günde {{count}} film. Bir sonraki hak {{date}} tarihinde açılır.",
+        "show_date_one": "Sınıra ulaşıldı: {{days}} günde {{count}} sezon. Bir sonraki hak {{date}} tarihinde açılır.",
+        "show_date_other": "Sınıra ulaşıldı: {{days}} günde {{count}} sezon. Bir sonraki hak {{date}} tarihinde açılır."
+      },
+      "submit": "İste",
+      "submitting": "İsteniyor…",
+      "chooseSeasons": "Sezon seçin",
+      "join": "Haber ver",
+      "submitSeasons_one": "{{count}} sezonu iste",
+      "submitSeasons_other": "{{count}} sezonu iste"
+    },
+    "page": {
+      "title": "İsteklerim",
+      "count_one": "{{count}} açık istek",
+      "count_other": "{{count}} açık istek",
+      "countAll_one": "{{count}} istek",
+      "countAll_other": "{{count}} istek",
+      "countAvailable_one": "{{count}} mevcut istek",
+      "countAvailable_other": "{{count}} mevcut istek",
+      "countClosed_one": "{{count}} kapalı istek",
+      "countClosed_other": "{{count}} kapalı istek",
+      "limit": "Sınır: {{limit}}",
+      "offline": "Yalnızca çevrimiçi kullanılabilir: istekler sunucuda tutulur.",
+      "filters": {
+        "label": "İstekleri filtrele",
+        "all": "Tümü",
+        "open": "Açık",
+        "available": "Mevcut",
+        "closed": "Kapalı"
+      },
+      "filter": "Durum",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Henüz istek yok.",
+        "body": "İstediğiniz içerikler durumlarıyla burada görünür."
+      },
+      "emptyFilter": {
+        "open": "Açık istek yok.",
+        "available": "Henüz mevcut bir istek yok.",
+        "closed": "Kapalı istek yok."
+      }
+    },
+    "row": {
+      "open": "İçeriğe git",
+      "withdrawLabel": "{{title}}: geri çek",
+      "withdrawJoinedLabel": "{{title}}: ayrıl",
+      "again": "Tekrar iste",
+      "againLabel": "{{title}} için tekrar istekte bulun",
+      "history": "Geçmiş: {{last}}",
+      "fromSeerr": "Seerr’de oluşturuldu"
+    },
+    "area": {
+      "label": "İstekler altındaki bölümler",
+      "discover": "Keşfet",
+      "movies": "Filmler",
+      "series": "Diziler",
+      "search": "Ara",
+      "mine": "İsteklerim",
+      "mineCount_one": "İsteklerim ({{count}})",
+      "mineCount_other": "İsteklerim ({{count}})"
+    },
+    "discover": {
+      "title": "Keşfet",
+      "intro": "Şu anda popüler olanlar ve yakında çıkacaklar. Henüz kitaplıkta olmayanları isteyebilirsiniz.",
+      "searchLabel": "Film veya dizi ara",
+      "searchAction": "Ara",
+      "rows": {
+        "trending": "Öne çıkanlar",
+        "popular_movies": "Popüler filmler",
+        "movie_genres": "Film türleri",
+        "upcoming_movies": "Yakında sinemalarda",
+        "popular_shows": "Popüler diziler",
+        "show_genres": "Dizi türleri",
+        "upcoming_shows": "Yakında gelecek diziler"
+      },
+      "stale": "Seerr’e erişilemiyor. Son alışın durumunu görüyorsunuz.",
+      "refreshFailed": "Liste güncellenemedi. Son alışın durumunu görüyorsunuz.",
+      "empty": "Şu anda burada keşfedilecek bir şey yok.",
+      "inLibrary": "Kitaplıkta",
+      "requested": "Zaten istendi",
+      "join": "{{title}}: Haber ver",
+      "gone": {
+        "title": "Bu profil için Keşfet yok",
+        "body": "Şimdiye kadarki isteklerinizi hâlâ “İsteklerim” altında bulabilirsiniz.",
+        "action": "“İsteklerim”e git"
+      },
+      "notFound": {
+        "title": "Sayfa bulunamadı",
+        "body": "Bu sayfa bu profil için yok."
+      }
+    },
+    "titles": {
+      "moviesIntro": "TMDB’nin bildiği tüm filmler, kitaplıkta olsun olmasın. Eksik olanları isteyebilirsiniz.",
+      "seriesIntro": "TMDB’nin bildiği tüm diziler, kitaplıkta olsun olmasın. Eksik olanları isteyebilirsiniz.",
+      "sort": "Sıralama",
+      "sorts": {
+        "popularity": "Popülerlik",
+        "newest": "Önce en yeniler",
+        "rating": "En yüksek puanlılar"
+      },
+      "filter": "Filtre: {{summary}}",
+      "filterLabel": "Filtre",
+      "genre": "Tür",
+      "allGenres": "Tüm türler",
+      "genreId": "Tür {{id}}",
+      "library": "Kitaplık",
+      "hide": "Mevcut olanları gizle",
+      "hideHelp": "Yalnızca henüz kitaplıkta olmayanları gösterir.",
+      "hidden": "Mevcut olanlar gizli",
+      "shown": "Mevcut olanlar görünür",
+      "clear": "Filtreleri sıfırla",
+      "apply": "Uygula",
+      "moviesEmpty": "Bu seçim için film yok.",
+      "seriesEmpty": "Bu seçim için dizi yok."
+    },
+    "search": {
+      "intro": "TMDB’nin bildiği her şeyde, henüz eksik olanlarda da arayın. tmdb:603, tvdb:121361 veya imdb:tt0133093 gibi kimliklerle de arayabilirsiniz.",
+      "placeholder": "Film veya dizi",
+      "start": "Bir başlık girin. Arama, TMDB’nin bildiği her şeyi kapsar, özgün başlıkları da.",
+      "tooShort": "En az iki karakter girin.",
+      "hits": "Sonuçlar",
+      "empty": {
+        "title": "“{{q}}” için sonuç bulunamadı",
+        "body": "Arama film ve dizi başlıklarını kapsar, kişileri değil. Başka bir terim ya da kimlik deneyin."
+      }
+    },
+    "progress": {
+      "search": "Aranıyor",
+      "download": "İndiriliyor",
+      "import": "İçe aktarılıyor",
+      "stalled": "İndirme takıldı",
+      "percent": "%{{percent}}",
+      "episodes_one": "{{count}} bölümün {{done}} tanesi hazır",
+      "episodes_other": "{{count}} bölümün {{done}} tanesi hazır",
+      "eta": "{{time}} kaldı"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "İçerik bulunamadı",
+      "body": "Bu içerik yok ya da bu profil onu göremiyor."
+    },
+    "loading": "İçerik",
+    "missing": "Henüz kitaplıkta yok",
+    "seasonCount_one": "{{count}} sezon",
+    "seasonCount_other": "{{count}} sezon",
+    "requestMovie": "Film iste",
+    "requestShow": "Dizi iste",
+    "done": {
+      "requested": "İstendi. Durumu “İsteklerim” altında izleyebilirsiniz.",
+      "joined": "İçerik hazır olur olmaz bilgilendirileceksiniz.",
+      "withdrawn": "İsteğiniz geri çekildi."
+    },
+    "alreadyRequested": "Zaten istendi",
+    "cannotRequest": "Bu profil içerik isteyemez",
+    "seasons": "Sezonlar",
+    "seasonRequested": "Zaten istendi",
+    "nextEpisode": "Hâlâ devam ediyor, sonraki bölüm {{date}} tarihinde",
+    "last": {
+      "title": "Son isteğiniz: {{state}}",
+      "why": {
+        "declined": "Seerr bir neden belirtmiyor. İçeriği yeniden isteyebilirsiniz.",
+        "withdrawn": "İsteği siz geri çektiniz."
+      }
+    },
+    "join": "Haber ver",
+    "shared": {
+      "title": "Zaten istendi · {{state}}",
+      "join": "Başka bir profil bu filmi zaten istedi. “Haber ver” ile Slouchcat, film oynatılabilir olur olmaz size de haber verir.",
+      "statusOnly": "Başka bir profil bu filmi zaten istedi. Film oynatılabilir olduğunda onu kitaplıkta bulabilirsiniz."
     }
   }
 }

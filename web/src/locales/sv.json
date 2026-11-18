@@ -53,7 +53,10 @@
       "other": "Extra profil",
       "primary": "Huvudprofil",
       "admin": "Serveradministratör"
-    }
+    },
+    "wishes": "Önskemål",
+    "wishesLabel_one": "{{name}}, {{count}} öppet önskemål",
+    "wishesLabel_other": "{{name}}, {{count}} öppna önskemål"
   },
   "system": {
     "server": {
@@ -226,7 +229,25 @@
       "deleting": "Det här tas bort just nu.",
       "changed": "Något har ändrats under tiden. Kontrollera igen.",
       "stale": "Biblioteket har under tiden ändrats på annat håll. Läs in det igen och spara en gång till.",
-      "root_unlisted": "En mapp i biblioteket saknas i begäran. Läs in biblioteket igen; ingenting har tagits bort."
+      "root_unlisted": "En mapp i biblioteket saknas i begäran. Läs in biblioteket igen; ingenting har tagits bort.",
+      "seerr_key_required": "En adress på en annan maskin kräver API-nyckeln på nytt: den sparade nyckeln skickas aldrig till en annan adress.",
+      "seerr_not_configured": "Ange först adress och API-nyckel för Seerr.",
+      "instance_unchanged": "Ingen annan Seerr-instans väntar på ett beslut.",
+      "seerr_not_tested": "Önskemål kan inte slås på förrän den sparade anslutningen har klarat ett test.",
+      "seerr_user_taken": "Den här Seerr-användaren tillhör redan ett annat konto, är den delade användaren eller saknas i Seerr.",
+      "provision_disabled": "”Skapa nya konton i Seerr” är avstängt. Slå på det under Önskemål › Inställningar.",
+      "password_not_syncable": "Slouchcat synkroniserar inte lösenordet för den här Seerr-användaren: den är administratör i Seerr eller loggar in via Jellyfin, Emby eller Plex.",
+      "account_not_allowed": "Kontot får inte begära titlar. Behörigheten ställs in av en administratör under Konton.",
+      "wish_not_allowed": "Den här profilen kan inte begära titlar.",
+      "quota_exceeded": "Gränsen räcker inte till för det.",
+      "already_available": "Titeln finns redan i biblioteket.",
+      "wish_not_withdrawable": "Önskemålet är redan godkänt och kan inte längre dras tillbaka.",
+      "seerr_unreachable": "Seerr kan inte nås just nu.",
+      "wish_not_retryable": "Det här önskemålet kan inte provas igen.",
+      "wish_not_pending": "Redan avgjort: det här önskemålet väntar inte längre på godkännande i Seerr. Synkroniseringen hämtar den nya statusen.",
+      "seerr_failed": "Seerr svarade med ett fel.",
+      "seerr_instance_changed": "En annan Seerr-instans väntar på ditt beslut under Integrationer › Seerr.",
+      "tag_name_taken": "En annan profil har redan det här taggnamnet."
     },
     "field": {
       "required": "Obligatoriskt.",
@@ -257,7 +278,8 @@
       "local_address": "Den här adressen finns i det lokala nätverket. Egna stationer måste gå att nå via internet också.",
       "not_own": "Bara en egen station kan ändra detta.",
       "not_matched": "Den här ljudboken är inte matchad mot någon källa.",
-      "not_found": "Källan har ingen sådan post."
+      "not_found": "Källan har ingen sådan post.",
+      "seerr_url_invalid": "Ange en adress med http:// eller https://, utan användare, lösenord, fråga eller fragment."
     }
   },
   "setup": {
@@ -653,7 +675,8 @@
       "released": "Nyligen utgivna",
       "libraries": "Mina medier",
       "library": "Nytt i {{library}}",
-      "radio": "Mina stationer"
+      "radio": "Mina stationer",
+      "wishes": "Uppfyllda önskemål"
     },
     "remaining": "{{time}} kvar",
     "continue": {
@@ -796,7 +819,22 @@
     "seasons": "Säsonger",
     "seasonWall": {
       "showAll": "Visa alla {{total}} säsonger",
-      "showLess": "Visa färre"
+      "showLess": "Visa färre",
+      "season": "Säsong {{number}}",
+      "present_one": "{{present}} av {{count}} säsong finns",
+      "present_other": "{{present}} av {{count}} säsonger finns",
+      "next": "Pågår fortfarande, nästa avsnitt den {{date}}",
+      "running": "Pågår fortfarande",
+      "state": {
+        "missing": "Saknas",
+        "requested": "Begärd",
+        "processing": "Bearbetas",
+        "announced": "Annonserad"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "Begär {{title}}",
+      "cardJoin": "{{title}}: redan begärd, gå med",
+      "request": "Begär säsonger"
     },
     "episodes": {
       "title": "Avsnitt",
@@ -3196,7 +3234,8 @@
         "genres": "De synliga titlarnas genrer.",
         "libraries": "Brickor för de bibliotek profilen ser, för radio och, när de visas, för samlingar och användartips. Sidan ”Mina medier” styr deras ordning och vilka som är dolda.",
         "library": "De titlar som senast kom in i det här biblioteket. ”Visa alla” öppnar biblioteket sorterat efter ”Nyligen tillagda”.",
-        "radio": "Profilens favoritstationer som brickor. En station som spelas via servern just nu visar sin aktuella titel. Utan favoriter utelämnas raden."
+        "radio": "Profilens favoritstationer som brickor. En station som spelas via servern just nu visar sin aktuella titel. Utan favoriter utelämnas raden.",
+        "wishes": "Profilens önskemål som har uppfyllts de senaste 14 dagarna, alltså titlar i biblioteket. Öppna önskemål finns under ”Önskemål › Mina önskemål”. En tom rad visas inte."
       },
       "pageLink": "Gå till ”{{page}}”",
       "moved": "{{row}} står nu på plats {{position}}. Spara för att tillämpa det.",
@@ -3303,6 +3342,9 @@
         "quoted": "”{{note}}”",
         "none": "–",
         "notInLibrary": "Finns inte i biblioteket, visas inte på startsidan",
+        "unmatched": "Ingen matchning",
+        "unmatchedReason": "Bara TVDB-ID är känt, hittas inte hos TMDB",
+        "noAction": "Ingen åtgärd: utan TMDB-ID kan titeln inte begäras",
         "hide": "Dölj",
         "hideLabel": "Dölj {{title}}",
         "show": "Visa",
@@ -3311,6 +3353,65 @@
         "shown": "{{title}} visas igen.",
         "count_one": "{{count}} post",
         "count_other": "{{count}} poster"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Hittad i biblioteket via TVDB-ID",
+          "tmdb": "Hittad i biblioteket via TMDB-ID",
+          "imdb": "Hittad i biblioteket via IMDb-ID"
+        }
+      },
+      "request": {
+        "action": "Begär",
+        "label": "Begär {{title}}",
+        "done": "{{title}} är begärd.",
+        "joined": "{{title}} var redan begärd; din profil har gått med i önskemålet.",
+        "available": "{{title}} finns numera i biblioteket."
+      },
+      "lacking": {
+        "title": "Saknade poster",
+        "missing_one": "{{count}} saknas",
+        "missing_other": "{{count}} saknas",
+        "requested_one": "{{count}} begärd",
+        "requested_other": "{{count}} begärda",
+        "unmatched_one": "{{count}} utan matchning",
+        "unmatched_other": "{{count}} utan matchning",
+        "intro": "Startsidan och Spotlight-listan visar bara titlar från biblioteket. Poster som saknas ser bara du här i administrationen. Profiler begär saknade titlar under ”Önskemål”.",
+        "asProfile": "”Begär” utförs som den aktiva profilen ({{name}}).",
+        "noRequestChip": "Kan inte begäras",
+        "noRequest": {
+          "title": "Begäran fungerar först när önskemål är konfigurerade.",
+          "body": "Det kräver Seerr med adress och nyckel, påslaget, samt ”Önskemål aktiva”.",
+          "settings": "Till inställningarna för önskemål",
+          "connection": "Till anslutningen till Seerr"
+        },
+        "empty": "Alla poster i listan finns i biblioteket."
+      },
+      "matching": {
+        "title": "Matchning via TMDB, TVDB och IMDb",
+        "hits_one": "{{count}} i biblioteket",
+        "hits_other": "{{count}} i biblioteket",
+        "intro": "Slouchcat matchar filmer via TMDB och sedan IMDb. Serier matchas som i biblioteket: först TVDB, sedan TMDB, sedan IMDb. Seerr hanterar varje titel via TMDB-ID och skickar TVDB-ID för en serie vidare till Sonarr.",
+        "waysTitle": "Hittad via",
+        "way": {
+          "movie": {
+            "tmdb": "Filmer via TMDB-ID",
+            "imdb": "Filmer via IMDb-ID"
+          },
+          "show": {
+            "tvdb": "Serier via TVDB-ID",
+            "tmdb": "Serier via TMDB-ID",
+            "imdb": "Serier via IMDb-ID"
+          }
+        },
+        "noHits": "Ingen post finns i biblioteket.",
+        "unmatchedTitle": "Ingen matchning",
+        "allMatched": "Alla poster kunde matchas.",
+        "unmatchedNote": "Utan TMDB-ID kan en post inte begäras; den räknas varken som tillgänglig eller som saknad."
       },
       "pin": {
         "action": "Fäst",
@@ -3465,6 +3566,9 @@
       },
       "server": {
         "title": "Server"
+      },
+      "wishes": {
+        "title": "Önskemål"
       }
     },
     "server": {
@@ -3715,6 +3819,50 @@
         "hanging_one": "En montering har slutat svara: {{count}} listning hänger sig i kärnan och går inte att avbryta. Mappläsaren fungerar fortfarande, med färre platser. En omstart frigör dem.",
         "hanging_other": "En montering har slutat svara: {{count}} listningar hänger sig i kärnan och går inte att avbryta. Mappläsaren fungerar fortfarande, med färre platser. En omstart frigör dem.",
         "off": "Varje plats i mappläsaren hänger på en montering som har slutat svara. Ingen mapp går att bläddra i förrän servern startas om. Att skriva en sökväg manuellt fungerar fortfarande."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr kan inte nås",
+          "key_invalid": "Seerr avvisar API-nyckeln",
+          "instance_changed": "En annan Seerr-instans upptäcktes"
+        },
+        "seerrStateBody": {
+          "unreachable": "Nya önskemål väntar och skickas så fort Seerr svarar igen.",
+          "key_invalid": "Slouchcat skickar inga önskemål och synkroniserar ingenting förrän nyckeln stämmer.",
+          "instance_changed": "Sändning och synkronisering stannar tills du bekräftar eller tar bort tilldelningen."
+        },
+        "toConnection": "Till Integrationer › Seerr",
+        "unmapped_one": "{{count}} konto utan Seerr-användare",
+        "unmapped_other": "{{count}} konton utan Seerr-användare",
+        "unmappedFallback": "Tills vidare skickar de via den delade användaren slouchcat-gaeste.",
+        "unmappedDeny": "Deras profiler ser inga saknade titlar så länge ”Konton utan Seerr-användare” är inställt på ”Tillåt inte”.",
+        "unmappedWaiting": "Kontona väntar och skapas vid nästa synkronisering.",
+        "toUsers": "Till Seerr-användarna",
+        "linked": "Nykopplad: {{account}} med den befintliga Seerr-användaren {{name}}",
+        "linkedBody": {
+          "invite": "När inbjudan godkändes den {{date}}, eftersom e-postadressen är densamma. Kontot skrev själv in adressen; ingen har kontrollerat den.",
+          "email_change": "Efter att e-postadressen ändrades den {{date}}, eftersom e-postadressen är densamma. Kontot skrev själv in adressen; ingen har kontrollerat den."
+        },
+        "toAccount": "Visa kopplingen",
+        "quotaReached": "Gränsen är nådd: {{account}}",
+        "quotaNext": "{{used}}, nästa plats blir ledig den {{date}}.",
+        "toLimit": "Visa gränsen",
+        "gone_one": "{{count}} konto: användaren är borttagen i Seerr",
+        "gone_other": "{{count}} konton: användaren är borttagen i Seerr",
+        "goneBody": "Välj en annan användare för de här kontona eller ta bort kopplingen.",
+        "open_one": "{{count}} öppet önskemål",
+        "open_other": "{{count}} öppna önskemål",
+        "openQueued_one": "{{count}} av dem väntar på att skickas till Seerr.",
+        "openQueued_other": "{{count}} av dem väntar på att skickas till Seerr.",
+        "toRequests": "Till förfrågningarna",
+        "stalled_one": "{{count}} nedladdning har fastnat",
+        "stalled_other": "{{count}} nedladdningar har fastnat",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Visa nedladdningar som har fastnat",
+        "tagsFailed_one": "{{count}} tagg sattes inte",
+        "tagsFailed_other": "{{count}} taggar sattes inte",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Visa saknade taggar"
       }
     },
     "integrations": {
@@ -3728,7 +3876,8 @@
         "email": "E-post",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Uppdateringskontroll"
+        "updateCheck": "Uppdateringskontroll",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Angiven i deploy/.env",
@@ -3760,7 +3909,8 @@
         "email": "Server för aviseringar, inbjudningar och meddelanden via e-post.",
         "telegram": "Bot för aviseringar via Telegram.",
         "push": "Aviseringar i webbläsaren och i den installerade appen.",
-        "server": "Uppdateringskontroll, publik adress och grafikkrets."
+        "server": "Uppdateringskontroll, publik adress och grafikkrets.",
+        "seerr": "Skicka tittarnas önskemål vidare till Seerr och håll deras status synkroniserad. Konton får en användare där med samma inloggning."
       },
       "keys": {
         "title": "Leverantörsnycklar",
@@ -3786,7 +3936,8 @@
         "neverSeen": "Har aldrig rapporterat något.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Ny integration",
@@ -3831,7 +3982,8 @@
           "acknowledged": "Test bekräftat",
           "ignored": "Ingen effekt",
           "outside_roots": "Utanför biblioteken",
-          "invalid_payload": "Utan sökväg"
+          "invalid_payload": "Utan sökväg",
+          "sync_queued": "Önskemål synkroniseras"
         },
         "renew": {
           "action": "Förnya token",
@@ -3979,6 +4131,233 @@
         "checkLabel": "Kontrollera {{name}}",
         "rejected": "avvisad",
         "savedRejected": "{{name}} har sparats, men leverantören avvisar nyckeln."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Anslutning till Seerr",
+        "version": "Version {{version}}",
+        "lastSuccess": "Senast nådd {{time}}",
+        "state": {
+          "not_configured": "Inte konfigurerad",
+          "disabled": "Avstängd",
+          "untested": "Inte testad",
+          "connected": "Ansluten",
+          "key_invalid": "Ogiltig nyckel",
+          "unreachable": "Kan inte nås",
+          "instance_changed": "Annan instans upptäckt"
+        },
+        "stateHint": {
+          "not_configured": "Ange adress och nyckel.",
+          "disabled": "Slouchcat anropar inte Seerr. Önskemålen ligger kvar sparade.",
+          "untested": "Testa anslutningen så att ”Önskemål aktiva” kan slås på.",
+          "instance_changed": "Tills du bestämmer dig skickar Slouchcat inga önskemål och synkroniserar ingenting."
+        },
+        "connection": {
+          "title": "Anslutning",
+          "noAddress": "Ingen adress"
+        },
+        "enabled": "Använd Seerr",
+        "enabledHelp": "Av: Slouchcat anropar inte Seerr. Önskemålen ligger kvar sparade.",
+        "url": "Adress",
+        "urlHelp": "Till exempel http://192.168.1.50:5055. Slouchcat kontaktar bara den här adressen. En adress i hemnätverket är tillåten; Slouchcat följer inte omdirigeringar.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API-nyckel",
+        "apiKeyHelp": "Från Seerr: Inställningar › Allmänt. Lämna tomt för att behålla den sparade nyckeln. En adress på en annan maskin kräver nyckeln på nytt.",
+        "clearBody": "Adressen och nyckeln tas bort. Önskemålen ligger kvar sparade, men skickas och synkroniseras inte längre.",
+        "test": {
+          "action": "Testa anslutning",
+          "running": "Kontrollerar anslutningen…",
+          "listLabel": "Resultat av anslutningstestet",
+          "passed": "Alla kontroller godkändes.",
+          "passedWithHints_one": "Ansluten · {{count}} anmärkning",
+          "passedWithHints_other": "Ansluten · {{count}} anmärkningar",
+          "hintsHelp": "En anmärkning stoppar ingenting; den säger vad som vore bättre att ställa in i Seerr.",
+          "failed": "Testet misslyckades: {{checks}}."
+        },
+        "level": {
+          "ok": "godkänd",
+          "warn": "anmärkning",
+          "fail": "misslyckades"
+        },
+        "checks": {
+          "reachable": "Nåbar",
+          "version": "Version",
+          "key_valid": "Giltig nyckel",
+          "manage_users": "Skapa och ändra användare",
+          "instance": "Instans",
+          "act_as_user": "Agera för användares räkning",
+          "csrf_off": "CSRF-skydd i Seerr av",
+          "radarr": "Radarr i Seerr",
+          "sonarr": "Sonarr i Seerr",
+          "local_login": "Lokal inloggning i Seerr",
+          "tvdb_seasons": "Säsonger från TVDB",
+          "password_transport": "Krypterat lösenord",
+          "radarr_tags": "Radarr för profiltaggar",
+          "sonarr_tags": "Sonarr för profiltaggar"
+        },
+        "checkOk": {
+          "reachable": "Seerr svarar.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr godtar nyckeln.",
+          "manage_users": "Nyckeln får skapa konton i Seerr och ställa in behörigheter, gräns och lösenord.",
+          "instance": "Samma instans som vid konfigurationen.",
+          "act_as_user": "Önskemål gäller med den kopplade användarens behörigheter, gräns och automatiska godkännande.",
+          "csrf_off": "Skrivande anrop går igenom.",
+          "radarr_one": "Filmönskemål går till Radarr ({{count}} server).",
+          "radarr_other": "Filmönskemål går till Radarr ({{count}} servrar).",
+          "sonarr_one": "Serieönskemål går till Sonarr ({{count}} server).",
+          "sonarr_other": "Serieönskemål går till Sonarr ({{count}} servrar).",
+          "local_login": "Skapade användare loggar in i Seerr med e-postadress och lösenord från Slouchcat.",
+          "tvdb_seasons": "Seerr, Sonarr och Slouchcat-biblioteket räknar säsonger på samma sätt.",
+          "password_transport": "Lösenord skickas krypterade eller stannar i hemnätverket.",
+          "radarr_tags": "Radarr svarar för profiltaggar och nedladdningsförlopp.",
+          "sonarr_tags": "Sonarr svarar för profiltaggar och nedladdningsförlopp."
+        },
+        "checkIssue": {
+          "notTested": "Inte kontrollerad.",
+          "timeout": "Kan inte nås: tidsgränsen överskreds.",
+          "refused": "Kan inte nås: anslutningen nekades.",
+          "redirect": "Kan inte nås: omdirigeringar är inte tillåtna.",
+          "unreachable": "Kan inte nås. Körs Seerr, och stämmer adressen?",
+          "versionNotVerified": "Versionen är inte verifierad: testade är Jellyseerr 2.7 och Seerr 3.x.",
+          "keyNotUserOne": "Nyckeln tillhör inte ägaren av Seerr (användare 1).",
+          "keyInvalid": "Seerr avvisar nyckeln.",
+          "manageUsers": "Nyckeln får inte skapa användare: konton kan inte skapas.",
+          "instance": "En annan Seerr-instans upptäcktes.",
+          "notTestable": "Kan inte testas: Seerr har ingen annan användare än användare 1.",
+          "waiting": "Inte kontrollerad så länge en annan instans väntar på ditt beslut.",
+          "actAsUser": "Fungerar inte: önskemål skulle ställas som administratören.",
+          "csrfOn": "På: skrivande anrop misslyckas. Slå av det i Seerrs nätverksinställningar.",
+          "noRadarr": "Ingen Radarr i Seerr: filmönskemål blir liggande.",
+          "noSonarr": "Ingen Sonarr i Seerr: serieönskemål blir liggande.",
+          "localLoginOff": "Skapade användare kan inte logga in i Seerr. Slå på ”Lokal inloggning” i Seerr under Inställningar › Användare.",
+          "noSeasonSource": "Seerr anger inte källan för sina säsonger.",
+          "tmdbSeasons": "Seerr läser säsonger från TMDB. TVDB rekommenderas, som i Sonarr och i Slouchcat-biblioteket; annars kan säsongsnummer avvika.",
+          "passwordTransport": "Lösenord skulle skickas okrypterade över internet. Använd https.",
+          "arrNotConfirmed": "Adressen från Seerr är ännu inte bekräftad: testa den under ”Radarr och Sonarr”.",
+          "arrUnreachable": "Kan inte nås: inga profiltaggar och inget nedladdningsförlopp.",
+          "csrfUnexpected": "Seerr godtog en tom förfrågan i stället för att avvisa den. Önskemål skickas ändå; kontrollera versionen av Seerr."
+        },
+        "instance": {
+          "title": "En annan Seerr-instans upptäcktes",
+          "body": "På adressen svarar en annan Seerr-instans än vid konfigurationen. Tills du bestämmer dig skickar Slouchcat inga önskemål och synkroniserar ingenting.",
+          "confirm": "Bekräfta tilldelningen",
+          "reset": "Ta bort tilldelningen",
+          "resetTitle": "Ta bort tilldelningen till Seerr?",
+          "resetBody": "Alla kontons Seerr-användare och den inlästa användarlistan tas bort. Därefter läser Slouchcat in användarna från den nya instansen.",
+          "confirmed": "Den nya instansen har tagits över. Kontonas Seerr-användare finns kvar.",
+          "resetDone": "Tilldelningen har tagits bort. Slouchcat läser in användarna från den nya instansen."
+        },
+        "log": {
+          "title": "Logg",
+          "empty": "Inga poster än.",
+          "caption": "De senaste anropen till Seerr",
+          "at": "Tid",
+          "call": "Anrop",
+          "result": "Resultat",
+          "duration": "Varaktighet",
+          "error": "Fel",
+          "noAnswer": "Inget svar",
+          "ms": "{{ms}} ms",
+          "note": "Aldrig med rubriker eller nyckel. Högst 20 poster.",
+          "entries_one": "{{count}} post",
+          "entries_other": "{{count}} poster",
+          "errors_one": "{{count}} fel",
+          "errors_other": "{{count}} fel"
+        },
+        "usersLink": "Kontonas Seerr-användare",
+        "sync": {
+          "title": "Synkronisering",
+          "summary_one": "{{count}} öppet önskemål",
+          "summary_other": "{{count}} öppna önskemål",
+          "open": "Öppna önskemål",
+          "queued": "Väntar på att skickas",
+          "last": "Seerr senast nådd",
+          "never": "Aldrig",
+          "every": "Slouchcat synkroniserar önskemålen med Seerr var 5:e minut.",
+          "requestsLink": "Till förfrågningarna"
+        },
+        "arr": {
+          "title": "Radarr och Sonarr (profiltaggar och förlopp)",
+          "intro": "Slouchcat skapar en tagg per profil i Radarr och Sonarr och sätter den på titeln så fort Seerr har lämnat över den dit. För det läser Slouchcat kön och filstatusen för de önskade titlarna, för att visa nedladdningsförloppet vid önskemål. I övrigt ändrar Slouchcat ingenting i Radarr och Sonarr. Nya titlar rapporteras fortfarande av webhooken.",
+          "offNotice": "Profiltaggar och nedladdningsförlopp är avstängda. Slouchcat anropar inte Radarr och Sonarr.",
+          "summaryOff": "av · profiltaggar och förlopp avstängda",
+          "summaryTags_one": "{{count}} tagg återstår",
+          "summaryTags_other": "{{count}} taggar återstår",
+          "summaryProgress_one": "{{count}} nedladdning",
+          "summaryProgress_other": "{{count}} nedladdningar",
+          "state": {
+            "none": "{{service}} finns inte i Seerr",
+            "unconfirmed": "{{service}} väntar på ”Testa”",
+            "unreachable": "{{service}} kan inte nås",
+            "reachable": "{{service}} kan nås",
+            "untested": "{{service}} har inte anropats än"
+          },
+          "facts": {
+            "address": "Adress",
+            "state": "Status",
+            "tagRequests": "Tag Requests in Seerr",
+            "tags": "Profiltaggar",
+            "progress": "Nedladdningsförlopp"
+          },
+          "address": {
+            "seerr": "Från Seerr: {{address}}",
+            "own": "Egen adress: {{address}}"
+          },
+          "addressNone": "Ingen: Seerr har ingen standardserver för {{service}}.",
+          "lastAt": "senast {{time}}",
+          "tagRequestsOn": "på",
+          "tagRequestsOff": "av · Rekommenderas: då bär varje titel också kontots tagg.",
+          "tags": "{{set}} satta · {{pending}} återstår · {{failed}} misslyckades",
+          "progressOff": "av · under Önskemål › Inställningar",
+          "progressError": "Förloppet kan inte läsas: {{reason}}",
+          "progressOn_one": "på · {{count}} önskemål med förlopp",
+          "progressOn_other": "på · {{count}} önskemål med förlopp",
+          "progressAt_one": "på · {{count}} önskemål med förlopp · senast läst {{time}}",
+          "progressAt_other": "på · {{count}} önskemål med förlopp · senast läst {{time}}",
+          "test": {
+            "action": "Testa",
+            "label": "Testa {{service}}",
+            "noHost": "adressen",
+            "passed": "{{service}} svarar på {{host}} och godtar nyckeln från Seerr. Adressen är bekräftad.",
+            "keyRefused": "{{service}} svarar på {{host}} men avvisar nyckeln från Seerr.",
+            "unreachable": "{{service}} kan inte nås på {{host}}.",
+            "ownHint": "Om Slouchcat inte når adressen från Seerr, till exempel vid namn som bara gäller internt i Docker, anger du en egen adress nedan.",
+            "notInSeerr": "Seerr har ingen standardserver för {{service}}.",
+            "notInSeerrBody": "Konfigurera en standardserver utan 4K i Seerr. Utan den sätter Slouchcat inga taggar och läser inget förlopp."
+          },
+          "own": "Egen adress för {{service}}",
+          "ownHelp": "Tomt: adressen från Seerr. Behövs bara om Slouchcat inte når adressen från Seerr, till exempel vid namn som bara gäller internt i Docker. Nyckeln kommer alltid från Seerr.",
+          "ownPlaceholder": "Adress från Seerr",
+          "saveLabel": "Spara de egna adresserna för Radarr och Sonarr",
+          "saved": "De egna adresserna har sparats.",
+          "toSettings": "Prefix och nedladdningsförlopp · Önskemål › Inställningar",
+          "toUsers": "Taggnamn per profil · Seerr-användare",
+          "toWebhooks": "Webhooks från Radarr och Sonarr · oförändrade, konfigurerade manuellt"
+        },
+        "hook": {
+          "title": "Direktsignal",
+          "on": "Konfigurerad",
+          "off": "Av",
+          "intro": "Seerr startar synkroniseringen direkt i stället för att vänta i upp till 5 minuter. Synkroniseringen är fortfarande grunden.",
+          "name": "Seerr",
+          "create": "Skapa adress",
+          "address": "Adress",
+          "last": "Senaste signal",
+          "never": "Har aldrig rapporterat något.",
+          "single": "Seerr har bara ett webhook-mål. Om du redan använder det till något annat ersätter den här adressen det.",
+          "where": "I Seerr under Inställningar › Aviseringar › Webhook: adressen som ”Webhook URL”, den här mallen som ”JSON Payload”.",
+          "payload": "JSON-mall för Seerr",
+          "copyPayload": "Kopiera mallen",
+          "typesIntro": "Kryssa i de här aviseringstyperna i Seerr:",
+          "types": "Aviseringstyper för Seerr",
+          "copyTypes": "Kopiera typerna",
+          "copied": "Kopierat.",
+          "copyFailed": "Ingen åtkomst till urklipp: texten är markerad, kopiera den med Ctrl+C.",
+          "log": "Senaste signaler"
+        },
+        "accounts_one": "Seerr-användare: {{opened}} av {{count}} konto",
+        "accounts_other": "Seerr-användare: {{opened}} av {{count}} konton"
       }
     },
     "accounts": {
@@ -3988,6 +4367,7 @@
       "columns": {
         "email": "E-post",
         "role": "Roll",
+        "access": "Åtkomst",
         "profiles": "Profiler",
         "lastSeen": "Senast sedd",
         "channels": "Kanaler",
@@ -4019,7 +4399,14 @@
         "currentPasswordHint": "Bekräftar att det är du.",
         "wrongPassword": "Det nuvarande lösenordet är fel.",
         "unchanged": "Ändra e-postadressen eller ange ett nytt lösenord.",
-        "saved": "Ditt konto har sparats."
+        "saved": "Ditt konto har sparats.",
+        "seerrPassword": {
+          "synced": "Det nya lösenordet gäller även i Seerr.",
+          "next_login": "Det nya lösenordet gäller även i Seerr.",
+          "off": "Ditt lösenord i Seerr förblir som det är: det synkroniseras inte.",
+          "admin": "Ditt lösenord i Seerr förblir som det är: du är administratör där.",
+          "external": "Ditt lösenord i Seerr förblir som det är: du loggar in där via Jellyfin, Emby eller Plex."
+        }
       },
       "ownerBadge": "Ägare",
       "access": {
@@ -4030,7 +4417,8 @@
         "heading": "Behörighet",
         "save": "Spara behörighet",
         "saved": "Behörigheten för {{email}} har sparats.",
-        "adminHint": "En administratör har alltid åldersgränsen ”Från 18 år” och alla bibliotek. ”Behörighet” finns bara för konton utan administration."
+        "adminHint": "En administratör har alltid åldersgränsen ”Från 18 år” och alla bibliotek. ”Behörighet” finns bara för konton utan administration.",
+        "limitRefused": "Åtkomsten har sparats, men inte gränsen för önskemål: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4099,7 +4487,8 @@
           "libraries": "Bibliotek",
           "detail": "Giltig till / godkänd",
           "actions": "Åtgärder"
-        }
+        },
+        "seerrHint": "När inbjudan godkänns skapar Slouchcat kontot även i Seerr: samma e-postadress, samma lösenord."
       },
       "discard": "Kasta",
       "status": {
@@ -4126,6 +4515,42 @@
         "mine": "Mina profiler",
         "of": "Profiler för {{email}}",
         "readOnly": "Varje konto hanterar sina egna profiler."
+      },
+      "wishes": {
+        "title": "Önskemål",
+        "of": "Önskemål från {{email}}",
+        "canRequest": "Får begära titlar",
+        "canRequestHelp": "Gäller som tak för alla profiler. Vilka profiler som får begära väljs av kontots huvudprofil.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Tillåtet",
+          "not_allowed": "Inte tillåtet",
+          "mapping_missing": "Utan Seerr-användare"
+        },
+        "userLine": "Seerr-användare: {{user}}",
+        "noUser": "ingen än",
+        "change": "Ändra",
+        "userState": {
+          "created": "skapad",
+          "linked": "kopplad",
+          "manual": "manuellt vald",
+          "waiting": "väntar på Seerr"
+        },
+        "linkedBy": "kopplad {{by}} den {{date}}",
+        "password": {
+          "synced": "lösenordet är synkroniserat",
+          "next_login": "lösenordet följer vid nästa inloggning",
+          "off": "lösenordet synkroniseras inte",
+          "admin": "lösenordet finns kvar i Seerr (administratör)",
+          "external": "inloggning via Jellyfin, Emby eller Plex"
+        },
+        "rightsFollow": "Behörigheterna för ”{{name}}” i Seerr anpassas.",
+        "rightsStay": "”{{name}}” behåller sina behörigheter i Seerr, eftersom Slouchcat inte har skapat användaren.",
+        "adminLimit": "”{{name}}” är administratör i Seerr. Seerr ger inte administratörer någon gräns.",
+        "limitLater": "Ingen Seerr-användare än: Slouchcat ställer in gränsen så fort kontot har skapats där.",
+        "limitFixed": "Gräns: {{limit}}. För administratörer kan den inte ändras här.",
+        "savedOn": "{{email}} får nu begära titlar.",
+        "savedOff": "{{email}} får inte längre begära titlar."
       }
     },
     "backup": {
@@ -4660,6 +5085,57 @@
           "description": "Tar bort titlar vars filer har saknats längre än respitperioden.",
           "trigger": "Schema varje timme och serverstart"
         },
+        "seerr_users": {
+          "name": "Läs in Seerr-användare",
+          "description": "Läser användarna från Seerr med deras behörigheter och gräns och kontrollerar att Slouchcat fortfarande talar med samma Seerr-instans.",
+          "trigger": "dagligen, ”Läs in användarlistan igen”, efter att anslutningen till Seerr har sparats"
+        },
+        "seerr_provision": {
+          "name": "Skapa konton i Seerr",
+          "description": "Skapar eller kopplar ett kontos Seerr-användare, skapar den delade användaren ”slouchcat-gaeste” och tar bort behörigheterna för Seerr-användaren till ett borttaget konto.",
+          "trigger": "”Skapa i Seerr”, ”Skapa alla”, inbjudan godkänd, ”Önskemål aktiva” påslaget, efter inläsning av Seerr-användare för väntande konton, konto borttaget"
+        },
+        "wishes_submit": {
+          "name": "Skicka önskemål till Seerr",
+          "description": "Skickar ett önskemål som fortfarande väntar i utkorgen till Seerr och kopplar det till en förfrågan som redan finns.",
+          "trigger": "efter begäran, om Seerr inte svarar direkt, med växande intervall i upp till 24 timmar; efter synkroniseringen för önskemål som är aktuella"
+        },
+        "wishes_withdraw": {
+          "name": "Ta bort tillbakadragna önskemål i Seerr",
+          "description": "Tar bort den egna, ännu inte godkända förfrågan för ett tillbakadraget önskemål i Seerr. Var den redan godkänd finns den kvar, och önskemålet öppnas igen.",
+          "trigger": "”Dra tillbaka” i ”Mina önskemål”; efter synkroniseringen, om Seerr inte kunde nås"
+        },
+        "wishes_sync": {
+          "name": "Synkronisera önskemål med Seerr",
+          "description": "Läser de ändrade förfrågningarna från Seerr, uppdaterar önskemålens status, kontrollerar önskemål som inte ändrats på länge ett i taget och skickar aktuella önskemål från utkorgen igen. Den första synkroniseringen läser alla förfrågningar.",
+          "trigger": "schema var 5:e minut, ”Synkronisera nu”, signal från Seerr-webhooken",
+          "progress": "Sidor lästa: {{done}} av {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Stäm av önskemål mot biblioteket",
+          "description": "Rapporterar ett önskemål som tillgängligt så fort Slouchcat kan spela upp filmen eller alla önskade säsonger för en profil.",
+          "trigger": "schema varje timme, efter att en önskad titel har känts igen i biblioteket, efter synkroniseringen med Seerr"
+        },
+        "wishes_tag": {
+          "name": "Sätt profiltaggar",
+          "description": "Sätter profilens tagg i Radarr och Sonarr på filmer och serier som har önskats via Slouchcat och som bearbetas. Taggar tas aldrig bort.",
+          "trigger": "efter synkroniseringen med Seerr, var 15:e minut och manuellt"
+        },
+        "wishes_progress": {
+          "name": "Läs nedladdningsförlopp",
+          "description": "Läser kön i Radarr och Sonarr och visar för önskemål som bearbetas om de söks, laddas ned eller importeras. Ändrar ingenting i Radarr och Sonarr.",
+          "trigger": "varje minut, så länge önskemål bearbetas och nedladdningsförloppet är påslaget"
+        },
+        "wishes_discover": {
+          "name": "Förladda önskelistor",
+          "description": "Läser in raderna i Upptäck från Seerr i cacheminnet för varje språk och åldersnivå hos de profiler som får begära, och tar bort listor som är äldre än en dag. Varje träff kontrolleras på nytt för profilen.",
+          "trigger": "schema varje timme, så länge önskemål är aktiva och sidorna Upptäck, Filmer, Serier och Sök är påslagna"
+        },
+        "wishes_import": {
+          "name": "Ta över förfrågningar från Seerr",
+          "description": "Tar över de öppna och nyligen tillgängliga förfrågningar som en kopplad Seerr-användare har gjort i Seerr själv som önskemål för huvudprofilen i användarens konto (”Skapad i Seerr”). Förfrågningar från den delade användaren lämnas utanför. Ingen avisering skickas.",
+          "trigger": "ett kontos Seerr-användare kopplad, vald eller ändrad, ”Ta över förfrågningar”"
+        },
         "segments_detect": {
           "name": "Hitta intro och eftertexter",
           "description": "Hittar intro och eftertexter i avsnitt för ”Hoppa över intro”.",
@@ -4785,6 +5261,16 @@
           "description": "Läser in ett avsnitt från dess värd och lägger det som en fil i poddens mapp.",
           "trigger": "Från planeraren med ”Lagra”, ”Läs in saknade” och ”Läs in” per avsnitt, ett per värd åt gången",
           "progress": "Byte: {{done}} av {{total}}"
+        },
+        "series_catalog": {
+          "name": "Hämta säsongslistor för serier",
+          "description": "Läser för varje serie i biblioteket säsongerna med antal avsnitt, status och nästa avsnitt från TMDB, på nytt efter 7 dagar.",
+          "trigger": "schema dagligen, efter att en serie har matchats"
+        },
+        "titles_refresh": {
+          "name": "Uppdatera saknade titlar",
+          "description": "Läser uppgifter, åldersgränser och trailers för titlar som inte finns i biblioteket på nytt från TMDB efter 7 dagar.",
+          "trigger": "schema dagligen"
         },
         "trakt_refresh": {
           "name": "Hämta Spotlight-lista",
@@ -5210,6 +5696,492 @@
         "changed": "en annan fil ligger nu på sökvägen"
       },
       "changed": "Något har ändrats under tiden, kontrollera igen. Listan nedan läses in på nytt. Inget har tagits bort."
+    },
+    "wishes": {
+      "title": "Önskemål",
+      "intro": "Varje konto har en egen användare i Seerr med samma inloggning. Kontots profiler begär som den användaren. Behörigheter, gräns och godkännande kommer från den användaren.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Delar av önskemålen",
+        "users": "Seerr-användare",
+        "settings": "Inställningar",
+        "requests": "Förfrågningar",
+        "openCount_one": "{{count}} öppet önskemål",
+        "openCount_other": "{{count}} öppna önskemål",
+        "withoutShort": "{{number}} utan",
+        "withoutCount_one": "{{count}} konto utan Seerr-användare",
+        "withoutCount_other": "{{count}} konton utan Seerr-användare"
+      },
+      "strip": {
+        "label": "Sammanfattning",
+        "accounts": "Konton",
+        "opened": "I Seerr",
+        "openedNote": "skapade eller kopplade",
+        "without": "Utan användare",
+        "waiting_one": "{{count}} väntar på Seerr",
+        "waiting_other": "{{count}} väntar på Seerr",
+        "password": "Lösenord återstår",
+        "passwordNote": "följer vid nästa inloggning"
+      },
+      "limit": {
+        "movie_one": "{{count}} film / {{days}} dagar",
+        "movie_other": "{{count}} filmer / {{days}} dagar",
+        "movieNone": "Filmer utan gräns",
+        "tv_one": "{{count}} säsong / {{days}} dagar",
+        "tv_other": "{{count}} säsonger / {{days}} dagar",
+        "tvNone": "Säsonger utan gräns"
+      },
+      "settings": {
+        "atOnce": "Varje ändring gäller direkt.",
+        "refused": "Inte ändrat: {{reason}}",
+        "switchedOn": "”{{name}}” är påslaget. Gäller direkt.",
+        "switchedOff": "”{{name}}” är avstängt. Gäller direkt.",
+        "choiceSaved": "”{{name}}”: {{value}}. Gäller direkt.",
+        "limitSaved": "Standardgräns: {{limit}}. Gäller direkt för alla konton med ”Standard”.",
+        "basics": "Grundinställning",
+        "where": "Var begäran erbjuds",
+        "rules": "Regler",
+        "enabled": "Önskemål aktiva",
+        "enabledHelp": "Profiler med behörighet kan begära saknade titlar. Av: ingen ser saknade titlar; öppna önskemål fortsätter i Seerr.",
+        "enabledLocked": "Kan bara slås på när den sparade anslutningen har klarat ett test.",
+        "toConnection": "Till anslutningen",
+        "allowMovies": "Tillåt filmer",
+        "allowMoviesHelp": "Gäller alla profiler. Av: ingen ”Begär film”.",
+        "allowShows": "Tillåt serier",
+        "allowShowsHelp": "Gäller alla profiler. Av: ingen ”Begär serie” och ingen ”Begär säsonger”.",
+        "fromSearch": "Begär från sökningen",
+        "fromSearchHelp": "Avsnittet ”Finns inte i biblioteket än”. Av: avsnittet visas inte.",
+        "fromDetail": "Begär på detaljsidor",
+        "fromDetailHelp": "Saknade säsonger på sidan för en serie som finns i biblioteket. Av: serien visar bara det som finns.",
+        "alreadyRequested": "Redan begärda titlar",
+        "alreadyRequestedHelp": {
+          "join": "Gå med: en andra profil ansluter sig till det öppna önskemålet (”Meddela mig”) och får också aviseringar. Seerr får ingen andra förfrågan.",
+          "status": "Visa bara status: en andra profil ser ”Redan begärd”, men kan inte gå med och får inga aviseringar."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Gå med",
+          "status": "Visa bara status"
+        },
+        "unmapped": "Konton utan Seerr-användare",
+        "unmappedHelp": {
+          "fallback": "Delad användare: alla konton utan egen användare begär som slouchcat-gaeste och delar standardgränsen. Slouchcat skapar den här användaren i Seerr själv.",
+          "deny": "Tillåt inte: konton utan egen användare kan inte begära något förrän de har en Seerr-användare."
+        },
+        "unmappedOptions": {
+          "fallback": "Delad användare",
+          "deny": "Tillåt inte"
+        },
+        "newAccountsCanRequest": "Nya konton får begära",
+        "newAccountsCanRequestHelp": "Förval för reglaget i dialogrutan ”Bjud in ett konto”. Ändrar inte befintliga konton.",
+        "allowWithdraw": "Tillåt att dra tillbaka",
+        "allowWithdrawHelp": "Så länge ett önskemål inte är godkänt. Knappen ”Dra tillbaka” under ”Mina önskemål”.",
+        "pinExternalHideTitle": "Externa meddelanden för profiler med pinkod utan titel",
+        "pinExternalHideTitleHelp": "E-post, Web Push och Telegram nämner då bara profilen, inte titeln.",
+        "defaultLimit": "Standardgräns",
+        "limitPerAccount": "Gräns per konto",
+        "limitPerAccountHelp": "Gäller för alla profiler i ett konto tillsammans. Seerr räknar löpande och räknar även med önskemål som görs direkt där. Avvisade önskemål och önskemål man gått med i räknas inte. Administratörer har ingen gräns.",
+        "movieLimit": "Filmer: antal",
+        "movieDays": "Filmer: dagar",
+        "tvLimit": "Säsonger: antal",
+        "tvDays": "Säsonger: dagar",
+        "limitRange": "Ett heltal från {{low}} till {{high}}.",
+        "perAccount": "Avvikande per konto",
+        "perAccountHelp": "Under ”Konton” kan ett kontos gräns ställas in annorlunda: egen gräns eller obegränsad.",
+        "toAccounts": "Till kontona",
+        "accountsInSeerr": "Konton i Seerr",
+        "provisionOn": "Skapa nya konton",
+        "provisionOff": "Skapa inte nya konton",
+        "syncOn": "Synkronisera lösenord",
+        "syncOff": "ingen lösenordssynkronisering",
+        "provisionAccounts": "Skapa nya konton i Seerr",
+        "provisionAccountsHelp": "När en inbjudan godkänns skapar Slouchcat kontot även i Seerr: samma e-postadress, samma lösenord. Finns där redan en användare med samma e-postadress kopplar Slouchcat den direkt. Adressen skriver det nya kontot in själv; ingen kontrollerar den. Därför visar översikten varje sådan koppling i sju dagar.",
+        "syncPassword": "Synkronisera lösenord",
+        "syncPasswordHelp": "Slouchcat skickar lösenordet vidare till Seerr när det anges eller ändras och vid inloggning i Slouchcat. Slouchcat lagrar det aldrig i klartext. För det behöver Seerr ”Lokal inloggning”. Användare som redan fanns i Seerr och som en administratör kopplar behåller sitt lösenord.",
+        "visibleInSeerr": "Den som loggar in i Seerr med ett kontos inloggning ser där önskemålen för alla profiler i det kontot, även de för en profil med pinkod. Seerr skickar dessutom egna aviseringar med titeln; låt dem vara avstängda i Seerr för skapade användare.",
+        "existing": "Befintliga konton",
+        "existingHelp": "Välj Seerr-användare per konto eller ta bort kopplingen.",
+        "toUsers": "Till Seerr-användarna",
+        "links": "Genvägar",
+        "who": "Vem som får begära",
+        "whoHelp": "Vem som får begära ställer du in per konto under Konton; per profil avgör huvudprofilen.",
+        "connection": "Anslutning till Seerr",
+        "connectionHelp": "Adress, nyckel, test och logg.",
+        "users": "Seerr-användare",
+        "usersHelp": "Vilket konto som begär som vilken Seerr-användare, med lösenord och gräns.",
+        "arr": "Radarr och Sonarr: profiltagg och förlopp",
+        "profileTags": "Sätt profiltaggen i Radarr och Sonarr",
+        "profileTagsHelp": "Sätter profilens tagg på titeln så fort Seerr har lämnat över den till Radarr eller Sonarr, och hämtar in taggar som inte kunde sättas. Ändrar inget annat i Radarr och Sonarr.",
+        "tagPrefix": "Prefix",
+        "tagPrefixHelp": "Gemener, siffror och bindestreck. Exempel: sc-noah. Gäller nya taggar; befintliga taggar förblir som de är. Taggen för en enskild profil ändrar du under ”Seerr-användare”.",
+        "tagPrefixInvalid": "1 till 10 tecken: bara gemener a–z, siffrorna 0–9 och bindestreck. Inte sparat.",
+        "tagPrefixSaved": "Prefix ”{{prefix}}”: nya taggar heter till exempel {{prefix}}noah. Redan satta taggar förblir som de är.",
+        "showProgress": "Visa nedladdningsförlopp",
+        "showProgressHelp": "Visar för önskemål som bearbetas om titeln söks, laddas ned eller importeras. För det läser Slouchcat kön i Radarr och Sonarr varje minut så länge önskemål bearbetas.",
+        "arrSummary": "Tagg {{tags}} · prefix {{prefix}} · förlopp {{progress}}",
+        "on": "på",
+        "off": "av",
+        "arrLinks": "Åtkomst till Radarr och Sonarr",
+        "arrLinksHelp": "Adress och nyckel kommer från Seerr; namn per profil finns under Seerr-användare.",
+        "toArr": "Integrationer › Seerr",
+        "discoverPages": "Sidorna Upptäck, Filmer, Serier och Sök",
+        "discoverPagesHelp": "Flikar i området ”Önskemål”. Av: bara ”Mina önskemål”.",
+        "basicsSummary": "Önskemål {{enabled}} · filmer {{movies}} · serier {{shows}}",
+        "basicsSummaryLocked": "Önskemål av, först efter ett godkänt test · filmer {{movies}} · serier {{shows}}",
+        "whereSummary": "Sök {{search}} · detaljsidor {{detail}} · Upptäck {{discover}}",
+        "rulesSummary": "{{already}} · utan Seerr-användare: {{unmapped}} · att dra tillbaka {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} av {{count}} konto skapade",
+        "usersCount_other": "{{opened}} av {{count}} konton skapade",
+        "limitHintCount": "{{low}} till {{high}}; 0 betyder ingen gräns.",
+        "limitHintDays": "{{low}} till {{high}} dagar."
+      },
+      "users": {
+        "caption": "Konton och deras Seerr-användare",
+        "columns": {
+          "account": "Konto",
+          "user": "Seerr-användare",
+          "password": "Lösenord",
+          "rights": "Behörigheter i Seerr",
+          "email": "E-post",
+          "type": "Typ",
+          "limit": "Gräns"
+        },
+        "noUser": "Ingen",
+        "passwordFollows": "Följer med användaren",
+        "rightsFollow": "Följer rätten att begära",
+        "gone": "Användaren är borttagen",
+        "state": {
+          "created": "Skapad av Slouchcat",
+          "linked": "Kopplad via samma e-postadress",
+          "manual": "Manuellt kopplad",
+          "waiting": "Skapas så fort Seerr kan nås",
+          "none": "Inte skapad"
+        },
+        "password": {
+          "synced": "Samma som i Slouchcat",
+          "next_login": "Tas över vid nästa inloggning i Slouchcat",
+          "off": "Synkroniseras inte",
+          "admin": "Finns kvar i Seerr (administratör)",
+          "external": "Inloggning via Jellyfin, Emby eller Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Lokal",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Administratör",
+          "both": "Filmer och serier",
+          "movies": "Bara filmer",
+          "shows": "Bara serier",
+          "none": "Inga behörigheter"
+        },
+        "choose": "Välj en användare",
+        "chooseLabel": "Seerr-användare för {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (nuvarande)",
+        "optionGone": "{{option}} (borttagen i Seerr)",
+        "optionTaken": "{{option}} · tillhör {{email}}",
+        "facts": {
+          "user": "Seerr-användare",
+          "state": "Status",
+          "password": "Lösenord",
+          "rights": "Behörigheter i Seerr",
+          "limit": "Gräns",
+          "right": "Kontots rätt att begära"
+        },
+        "linkedBy": "{{by}} · sedan {{date}}",
+        "by": {
+          "admin": "av en administratör",
+          "invite": "när inbjudan godkändes",
+          "email_change": "efter att e-postadressen ändrades"
+        },
+        "since": "sedan {{date}}",
+        "syncedAt": "synkroniserad {{time}}",
+        "movies": "Filmer",
+        "shows": "Serier",
+        "autoApproveOn": "Automatiskt godkännande: ja",
+        "autoApproveOff": "Automatiskt godkännande: nej",
+        "followRightOn": "Följer kontots rätt att begära: får begära",
+        "followRightOff": "Följer kontots rätt att begära: får inte begära",
+        "noLimitAdmin": "Ingen gräns (administratör i Seerr)",
+        "unlimited": "Obegränsad",
+        "mode": {
+          "default": "Standard",
+          "custom": "Egen",
+          "unlimited": "Obegränsad"
+        },
+        "mayRequest": "Får begära",
+        "mayNotRequest": "Får inte begära",
+        "goneTitle": "Användaren ”{{name}}” hittades inte",
+        "goneBody": "Seerr känner inte längre till den här användaren. Välj en annan användare eller ta bort kopplingen.",
+        "selfLinked": {
+          "invite": "Kopplad till den befintliga Seerr-användaren {{name}} när inbjudan godkändes, eftersom e-postadressen är densamma. Om användaren inte tillhör det här kontot, ta bort kopplingen.",
+          "email_change": "Kopplad till den befintliga Seerr-användaren {{name}} efter att e-postadressen ändrades, eftersom e-postadressen är densamma. Om användaren inte tillhör det här kontot, ta bort kopplingen."
+        },
+        "warning": {
+          "nothing": "”{{name}}” får inte begära något i Seerr. Varje önskemål misslyckas; ge användaren behörigheten ”Begär” i Seerr eller välj en annan.",
+          "noShows": "”{{name}}” får inte begära serier. Serieönskemål misslyckas, filmer fungerar.",
+          "noMovies": "”{{name}}” får inte begära filmer. Filmönskemål misslyckas, serier fungerar."
+        },
+        "change": "Ändra Seerr-användare",
+        "unlink": "Ta bort koppling",
+        "chooseHelp": "Du kan välja användare som inte tillhör något annat konto. Behörigheter och lösenord förblir som de är i Seerr.",
+        "chooseHelpStale": "Du kan välja användare som inte tillhör något annat konto. Listan visar den senast inlästa versionen av användarlistan.",
+        "taken": "Den här Seerr-användaren tillhör numera ett annat konto eller kan inte längre väljas. Valet har återställts.",
+        "linked": "{{email}} begär nu som ”{{name}}”. Behörigheter och godkännande kommer från den här användaren.",
+        "unlinked": "Kopplingen för {{email}} har tagits bort. ”{{name}}” finns kvar i Seerr.",
+        "reloading": "Användarlistan läses in igen.",
+        "notConfigured": "Seerr är inte konfigurerat",
+        "notConfiguredBody": "Utan anslutning finns ingen användarlista. Alla konton förblir tills vidare utan Seerr-användare.",
+        "toConnection": "Till Integrationer › Seerr",
+        "toDecision": "Till beslutet",
+        "instanceBody": "Tills du bestämmer dig under Integrationer › Seerr skickar Slouchcat inga önskemål och synkroniserar ingenting. Listan visar den senaste versionen.",
+        "goneCount_one": "{{count}} konto: användaren är borttagen i Seerr",
+        "goneCount_other": "{{count}} konton: användaren är borttagen i Seerr",
+        "goneCountBody": "Välj en annan användare för de här kontona eller ta bort kopplingen.",
+        "withoutCount_one": "{{count}} konto utan Seerr-användare",
+        "withoutCount_other": "{{count}} konton utan Seerr-användare",
+        "withoutFallback": "Tills vidare begär de som den delade användaren slouchcat-gaeste (regeln ”Konton utan Seerr-användare”).",
+        "withoutDeny": "De kan inte begära något så länge ”Konton utan Seerr-användare” är inställt på ”Tillåt inte”.",
+        "toSettings": "Till inställningarna",
+        "newAccounts": "Nya konton: {{provision}} · Lösenord: {{password}}",
+        "provisionOn": "skapas i Seerr",
+        "provisionOff": "skapas inte",
+        "syncOn": "synkroniseras",
+        "syncOff": "synkroniseras inte",
+        "changeSettings": "Ändra",
+        "shared": "Delad användare: {{name}}",
+        "sharedLater": "Delad användare: skapas så fort önskemål är aktiva",
+        "reload": "Läs in användarlistan igen",
+        "unlinkedTitle": "Seerr-användare utan konto",
+        "unlinkedCount_one": "{{count}} användare",
+        "unlinkedCount_other": "{{count}} användare",
+        "unlinkedEmpty": "Varje Seerr-användare tillhör ett konto.",
+        "noEmail": "ingen e-postadress",
+        "noLimit": "Ingen gräns",
+        "limitOnOpen": "Ställs in när kontot skapas: {{limit}}",
+        "limitChange": "Ändra gräns",
+        "quotaAt": "Status från Seerr {{time}}",
+        "provision": "Skapa i Seerr",
+        "retry": "Försök igen",
+        "provisionOffHint": "”Skapa nya konton i Seerr” är avstängt.",
+        "sameEmailTitle": "I Seerr finns redan ”{{name}}”",
+        "sameEmailBody": "Samma e-postadress: ”Skapa i Seerr” kopplar den här användaren i stället för att skapa en andra.",
+        "waitingTitle": "Väntar på Seerr",
+        "waitReason": {
+          "unreachable": "Seerr kunde inte nås när kontot skulle skapas. Nästa synkronisering försöker igen.",
+          "server": "Seerr svarade med ett fel när kontot skulle skapas. Nästa synkronisering försöker igen.",
+          "timeout": "Seerr svarade inte i tid när kontot skulle skapas. Nästa synkronisering försöker igen.",
+          "key_invalid": "Seerr avvisade API-nyckeln. Så fort anslutningen stämmer igen försöker nästa synkronisering på nytt.",
+          "instance_changed": "En annan Seerr-instans väntar på ditt beslut. Tills dess skapar Slouchcat ingenting.",
+          "seerr_user_taken": "Seerr-användaren med den här e-postadressen tillhör redan ett annat konto eller är den delade användaren. Välj användaren manuellt.",
+          "other": "Det gick inte att skapa kontot ({{reason}}). Nästa synkronisering försöker igen.",
+          "seerr_user_privileged": "Den här Seerr-användaren administrerar Seerr. Slouchcat kopplar den inte av sig själv: koppla den efter en bekräftelse eller välj en annan användare.",
+          "refused": "Seerr avvisade att skapa kontot. Nästa synkronisering försöker igen."
+        },
+        "emailTakenTitle": "Seerr avvisade den nya e-postadressen",
+        "emailTakenBody": "En annan Seerr-användare har redan den här adressen. ”{{name}}” behåller sin tidigare e-postadress i Seerr; kontot fortsätter begära som den här användaren.",
+        "provisioned": {
+          "created": "{{email}} har skapats i Seerr.",
+          "linked": "{{email}} är kopplad till Seerr-användaren ”{{name}}”.",
+          "waiting": "Inte skapat i Seerr än: {{email}} väntar, nästa synkronisering försöker igen.",
+          "privileged": "{{email}} väntar: Seerr-användaren med den här e-postadressen administrerar Seerr.",
+          "taken": "{{email}} väntar: Seerr-användaren med den här e-postadressen tillhör redan ett annat konto. Välj användaren manuellt."
+        },
+        "passwordNext": "Ta över lösenordet på nytt vid nästa inloggning",
+        "passwordOff": "Synkronisera inte lösenordet",
+        "passwordNextDone": "Lösenordet för {{email}} skickas till Seerr vid nästa inloggning.",
+        "passwordOffDone": "Lösenordet för {{email}} synkroniseras inte längre med Seerr.",
+        "passwordSyncOff": "Lösenordssynkroniseringen är avstängd.",
+        "passwordNote": {
+          "admin": "Slouchcat synkroniserar inte lösenordet: ”{{name}}” är administratör i Seerr, och lösenordet förblir som det är där.",
+          "external": "Slouchcat synkroniserar inte lösenordet: ”{{name}}” loggar in via Jellyfin, Emby eller Plex, inte med ett eget lösenord."
+        },
+        "provisionAll": "Skapa alla",
+        "provisionAllTitle": "Skapa alla konton i Seerr?",
+        "provisionAllBody": "Koppla via samma e-postadress: {{link}} · Skapa nya i Seerr: {{create}}.",
+        "provisionAllWaits": "Seerr är inte anslutet just nu: kontona väntar då och skapas vid nästa synkronisering.",
+        "provisionAllQueued": "Skapandet pågår: {{link}} att koppla, {{create}} att skapa.",
+        "profiles": {
+          "title": "Profiler och taggar",
+          "help": "Varje profil får en egen tagg i Radarr och Sonarr så fort ett önskemål kommer dit. En tagg som redan satts finns kvar, även om namnet ändras.",
+          "none": "Kontot har inga profiler.",
+          "custom": "eget namn",
+          "change": "Ändra",
+          "changeLabel": "Ändra taggen för {{profile}}",
+          "field": "Taggnamn för {{profile}}",
+          "fieldHelp": "Bara gemener a–z, siffrorna 0–9 och bindestreck.",
+          "invalid": "Endast gemener a–z, siffrorna 0–9 och bindestreck är tillåtna, högst 64 tecken.",
+          "save": "Spara",
+          "saveLabel": "Spara taggen för {{profile}}",
+          "cancel": "Avbryt",
+          "reset": "Nollställ",
+          "resetLabel": "Nollställ taggen för {{profile}} till namnet från prefixet",
+          "saved": "{{profile}}: taggen heter nu {{name}}.",
+          "tagsOff": "Profiltaggar är avstängda (Önskemål › Inställningar)."
+        },
+        "takeOver": {
+          "title": "Förfrågningar från Seerr",
+          "help": "Förfrågningar som har gjorts direkt i Seerr blir önskemål för huvudprofilen, märkta ”Skapad i Seerr”. De har ingen profiltagg.",
+          "counting": "Förfrågningar i Seerr räknas…",
+          "none": "Inga förfrågningar i Seerr.",
+          "action_one": "Ta över {{count}} förfrågan från Seerr",
+          "action_other": "Ta över {{count}} förfrågningar från Seerr",
+          "queued_one": "{{count}} förfrågan från {{name}} tas över.",
+          "queued_other": "{{count}} förfrågningar från {{name}} tas över.",
+          "running": "Förfrågningarna tas över; antalet följer efter synkroniseringen."
+        },
+        "linkPrivileged": "Koppla ändå…",
+        "privilegedTitle": "Koppla Seerr-administratören {{name}}?",
+        "privilegedBody": "Den här Seerr-användaren administrerar Seerr. Profilerna för {{email}} begär därefter som Seerr-administratör, utan godkännande och utan gräns. Slouchcat synkroniserar inte användarens lösenord.",
+        "privilegedConfirm": "Koppla ändå",
+        "provisionAllManual_one": "{{count}} konto behöver ett manuellt val.",
+        "provisionAllManual_other": "{{count}} konton behöver ett manuellt val.",
+        "waitingChoice": "Väntar på ett manuellt val",
+        "waitingChoiceTitle": "Väntar på ditt val",
+        "optionPrivileged": "{{option}} · administrerar Seerr"
+      },
+      "limitField": {
+        "label": "Gräns",
+        "help": {
+          "default": "Som under Önskemål › Inställningar: {{limit}}.",
+          "custom": "Egna tal för det här kontot.",
+          "unlimited": "Ingen gräns för filmer och säsonger."
+        }
+      },
+      "requests": {
+        "caption": "Alla hushållets önskemål",
+        "columns": {
+          "title": "Titel",
+          "requesters": "Önskad av",
+          "state": "Status",
+          "seerr": "I Seerr",
+          "attempts": "Försök",
+          "actions": "Åtgärder"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (har gått med)",
+        "requesterClosed": "{{line}} (tillbakadraget)",
+        "noRequester": "Ingen i Slouchcat",
+        "noRequest": "Inte än",
+        "requestId": "Förfrågan {{id}}",
+        "requestIds_one": "Förfrågan {{ids}}",
+        "requestIds_other": "Förfrågningar {{ids}}",
+        "filter": {
+          "label": "Filtrera önskemål efter status",
+          "all": "Alla",
+          "open": "Öppna",
+          "available": "Tillgängliga",
+          "closed": "Avslutade",
+          "count_one": "{{count}} önskemål",
+          "count_other": "{{count}} önskemål",
+          "stalled": "Nedladdningen har fastnat",
+          "untagged": "Taggen är inte satt",
+          "countLoaded_one": "{{count}} önskemål bland de inlästa",
+          "countLoaded_other": "{{count}} önskemål bland de inlästa"
+        },
+        "sync": "Synkronisera nu",
+        "syncQueued": "Synkroniseringen med Seerr pågår.",
+        "queued_one": "{{count}} önskemål väntar på att skickas till Seerr.",
+        "queued_other": "{{count}} önskemål väntar på att skickas till Seerr.",
+        "empty": "Inga önskemål än.",
+        "emptyFilter": "Inga önskemål med den här statusen.",
+        "facts": {
+          "label": "Uppgifter om önskemålet",
+          "created": "Begärd",
+          "origin": "Ursprung",
+          "seerrUser": "Seerr-användare",
+          "failReason": "Orsak"
+        },
+        "origin": {
+          "slouchcat": "Begärd i Slouchcat",
+          "seerr": "Skapad i Seerr"
+        },
+        "toItem": "Till titeln i administrationen",
+        "history": "Historik",
+        "noHistory": "Inget har hänt än.",
+        "retry": "Försök igen",
+        "retryLabel": "{{title}}: försök igen",
+        "retried": "{{title}} provas igen.",
+        "emptyStalled": "Ingen nedladdning har fastnat.",
+        "emptyUntagged": "Varje profiltagg är satt eller kommer snart.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Godkänn",
+        "approveLabel": "Godkänn {{title}}",
+        "approved": "{{title}} är godkänd och bearbetas.",
+        "decline": "Avvisa",
+        "declineLabel": "Avvisa {{title}}",
+        "declineTitle": "Avvisa {{title}}?",
+        "declineBody": "Slouchcat skickar avvisandet vidare till Seerr. Seerr har ingen orsak: profilerna ser bara ”Avvisad” och får en avisering.",
+        "declined": "{{title}} är avvisad.",
+        "event": {
+          "approved_by_admin": "Godkänd i administrationen",
+          "declined_by_admin": "Avvisad i administrationen"
+        },
+        "progress": {
+          "search": "Söks",
+          "download": "Laddas ned",
+          "import": "Importeras",
+          "stalled": "Nedladdningen har fastnat",
+          "percent": "{{percent}} %",
+          "etaMinutes": "{{minutes}} min kvar",
+          "etaHours": "{{hours}} tim {{minutes}} min kvar",
+          "episodes": "{{done}} av {{total}} avsnitt finns",
+          "unreadable": "Förloppet kan inte läsas",
+          "unreadableAt": "Förloppet kan inte läsas · senast läst {{time}}",
+          "notInService": "Finns inte i {{service}} än",
+          "incomplete": "Avsnittsläget kan bara läsas delvis.",
+          "etaWholeHours": "{{hours}} tim kvar"
+        },
+        "progressBlock": {
+          "title": "Förlopp",
+          "service": "Tjänst",
+          "state": "Läge",
+          "unknown": "Inget känt än",
+          "readAt": "Senast läst",
+          "never": "Aldrig",
+          "note": "Anmärkning",
+          "message": "Meddelande från {{service}}"
+        },
+        "tags": {
+          "title": "Profiltaggar",
+          "set": "{{name}}",
+          "pending": "{{name}} · väntar",
+          "failed": "{{name}} · misslyckades",
+          "setAt": "Satt i {{service}} den {{time}}",
+          "setIn": "Satt i {{service}}",
+          "pendingHelp": "Taggen följer så fort titeln finns i {{service}}.",
+          "failedHelp": "{{service}} godtog inte taggen."
+        },
+        "shown": "Visar {{shown}} av {{total}} önskemål.",
+        "searchedIn": "Sökte i {{shown}} av {{total}} öppna önskemål.",
+        "more": "Läs in fler",
+        "toItemLabel": "{{title}}: till titeln i administrationen",
+        "inSeerr": "Öppna i Seerr",
+        "inSeerrLabel": "Öppna {{title}} i Seerr (nytt fönster)"
+      },
+      "arrError": {
+        "not_in_arr": "Titeln finns inte i {{service}} än.",
+        "tvdb_id_missing": "Serien saknar TVDB-ID.",
+        "not_confirmed": "Adressen från Seerr väntar på ”Testa”.",
+        "not_in_seerr": "Seerr har ingen standardserver för {{service}}.",
+        "seerr_off": "Seerr är inte konfigurerat eller är avstängt.",
+        "redirect": "{{service}} omdirigerar till en annan adress.",
+        "timeout": "{{service}} svarade inte i tid.",
+        "unreachable": "{{service}} kan inte nås.",
+        "key_invalid": "{{service}} avvisar nyckeln från Seerr.",
+        "not_found": "{{service}} känner inte till titeln.",
+        "validation": "{{service}} avvisade anropet som ogiltigt.",
+        "server": "{{service}} svarade med ett fel.",
+        "bad_request": "{{service}} avvisade anropet.",
+        "invalid": "{{service}} svarade oväntat.",
+        "seerr": "Seerr lämnade inte ut adress och nyckel för {{service}}.",
+        "other": "Fel: {{error}}"
+      }
     }
   },
   "language": {
@@ -5312,7 +6284,11 @@
         "metadataLanguage": "Språk för beskrivningar",
         "metadataLanguageHint": "Titlar, beskrivningar och genrer. Gränssnittet följer språket ovan.",
         "likeUi": "Som gränssnittet",
-        "playback": "Uppspelning"
+        "playback": "Uppspelning",
+        "wishes": "Önskemål",
+        "canRequest": "Får begära titlar",
+        "canRequestHelp": "Profilen får begära saknade titlar via Seerr.",
+        "canRequestCapped": "Det här kontot får inte begära titlar. Behörigheten ställs in av en administratör under Konton."
       },
       "report": {
         "show": "Visa tittartid",
@@ -5356,7 +6332,8 @@
     "notFound": {
       "title": "Länken hittades inte",
       "body": "Den här inbjudningslänken finns inte. Kontrollera att du har kopierat hela länken."
-    }
+    },
+    "seerrAccount": "Din inloggning gäller även för Seerr: när du godkänner inbjudan skapas där ett konto med samma e-postadress och samma lösenord."
   },
   "kind": {
     "movie": "Film",
@@ -5635,7 +6612,13 @@
     "empty": {
       "title": "Inget hittades",
       "body": "Prova ett annat sökord eller färre filter."
-    }
+    },
+    "missing": {
+      "title": "Finns inte i biblioteket än",
+      "notHere": "Finns inte här än",
+      "request": "Begär {{title}}"
+    },
+    "inWishes": "Sök även bland önskemålen"
   },
   "watchlist": {
     "title": "Min lista",
@@ -5723,7 +6706,12 @@
     "empty": {
       "title": "Inga aviseringar",
       "body": "Lägg serier eller poddar i Min lista så får du veta om nya avsnitt här."
-    }
+    },
+    "wish_available": "Ditt önskemål är här",
+    "wish_season_available": "En säsong av ditt önskemål är här",
+    "wish_approved": "Ditt önskemål är godkänt",
+    "wish_declined": "Ditt önskemål har avvisats",
+    "wish_failed": "Ditt önskemål misslyckades"
   },
   "settings": {
     "playback": {
@@ -5800,6 +6788,9 @@
         "errors": "Fel",
         "invitations": "Inbjudningar",
         "announcements": "Meddelanden",
+        "wish_available": "Önskemål: tillgängliga",
+        "wish_status": "Önskemål: godkända, avvisade, misslyckade",
+        "wish_review": "Önskemål: godkännande krävs",
         "help": "Vad ett meddelande skickas för.",
         "helpAdmin": "Vad ett meddelande skickas för. ”Fel” är bara för administratörer."
       },
@@ -6185,6 +7176,296 @@
       "halfBody_other": "{{count}} avsnitt har markeringen. Markera varje avsnitt eller ta bort alla markeringar? Borttagning kan inte ångras.",
       "markAll": "Markera varje avsnitt som sett",
       "removeAll": "Ta bort alla markeringar"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Filmer: {{used}} av {{limit}} på {{days}} dagar",
+      "tv": "Säsonger: {{used}} av {{limit}} på {{days}} dagar",
+      "remaining_one": "{{count}} kvar",
+      "remaining_other": "{{count}} kvar",
+      "nextFree": "nästa plats blir ledig den {{date}}",
+      "short": {
+        "movie": "Filmer {{used}}/{{limit}}",
+        "tv": "Säsonger {{used}}/{{limit}}"
+      },
+      "movieNone": "Filmer utan gräns",
+      "tvNone": "Säsonger utan gräns"
+    },
+    "state": {
+      "queued": "Skickas",
+      "pending": "Väntar på godkännande",
+      "processing": "Bearbetas",
+      "partial": "Delvis tillgänglig",
+      "available": "Tillgänglig",
+      "declined": "Avvisad",
+      "failed": "Misslyckades",
+      "withdrawn": "Tillbakadragen"
+    },
+    "detail": {
+      "importing": "läses in",
+      "not_found_in_library": "hittas ännu inte i biblioteket"
+    },
+    "fail": {
+      "quota": "Gränsen är nådd: Seerr tog inte emot önskemålet.",
+      "blocklisted": "Titeln står på blockeringslistan i Seerr.",
+      "no_permission": "Seerr-användaren får inte begära den här typen av titel.",
+      "arr_failed": "Seerr kunde inte lämna över titeln till Radarr eller Sonarr. En administratör kan försöka med önskemålet igen.",
+      "unreachable_24h": "Seerr kunde inte nås på 24 timmar.",
+      "seerr_request_gone": "Förfrågan har tagits bort i Seerr.",
+      "seerr_media_deleted": "Titeln har tagits bort i Seerr.",
+      "seerr_user_gone": "Den kopplade Seerr-användaren finns inte längre.",
+      "tvdb_id_missing": "Den här serien saknar det TVDB-ID som Seerr behöver.",
+      "account_deleted": "Kontot som gjorde önskemålet finns inte längre."
+    },
+    "reason": {
+      "disabled": "Önskemål är avstängda.",
+      "account_not_allowed": "Det här kontot får inte begära titlar.",
+      "profile_not_allowed": "Den här profilen får inte begära titlar. Huvudprofilen kan tillåta det under ”Profiler”.",
+      "no_mapping": "Ingen Seerr-användare är kopplad till det här kontot än. Det ordnar administratören.",
+      "seerr_user_gone": "Den kopplade Seerr-användaren finns inte längre. Det rättar administratören till.",
+      "movies_not_allowed": "Filmer kan inte begäras just nu.",
+      "shows_not_allowed": "Serier kan inte begäras just nu.",
+      "status_only": "En annan profil har redan begärt titeln. När den är här hittar du den i biblioteket.",
+      "already_requested": "Du har redan begärt titeln.",
+      "source_not_allowed": "Titlar kan inte begäras härifrån just nu.",
+      "tvdb_id_missing": "Den här serien saknar det TVDB-ID som Seerr behöver.",
+      "withdraw_disabled": "Önskemål kan inte dras tillbaka just nu."
+    },
+    "tmdbUnreachable": "TMDB kan inte nås just nu. Försök igen senare.",
+    "kind": {
+      "movie": "Film",
+      "show": "Serie"
+    },
+    "seasons_one": "Säsong {{list}}",
+    "seasons_other": "Säsonger {{list}}",
+    "event": {
+      "created": "Begärd",
+      "submitted": "Skickad till Seerr",
+      "attached": "Hittad i Seerr och övertagen",
+      "joined": "Gick med",
+      "withdrawn": "Tillbakadragen",
+      "withdraw_deleted": "Borttagen i Seerr",
+      "owner_changed": "En annan profil önskar vidare",
+      "reopened": "Var redan godkänd, önskemålet fortsätter",
+      "season_available_one": "Säsong {{seasons}} tillgänglig",
+      "season_available_other": "Säsonger {{seasons}} tillgängliga",
+      "changed": "Ändrad"
+    },
+    "card": {
+      "title": "Ditt önskemål",
+      "requestedOn": "begärd den {{date}}",
+      "joined": "du har gått med",
+      "history": "Historik",
+      "mine": "Till Mina önskemål"
+    },
+    "withdraw": {
+      "action": "Dra tillbaka",
+      "actionJoined": "Lämna",
+      "title": "Dra tillbaka önskemålet?",
+      "titleJoined": "Lämna önskemålet?",
+      "body": "”{{title}}” begärs inte längre; Slouchcat tar bort önskemålet även i Seerr.",
+      "bodyJoined": "Du får inget meddelande längre när ”{{title}}” är här. De andra profilernas önskemål finns kvar.",
+      "confirm": "Dra tillbaka",
+      "confirmJoined": "Lämna"
+    },
+    "dialog": {
+      "titleMovie": "Begär film: {{title}}",
+      "titleShow": "Begär serie: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Bearbetas direkt, inget godkännande behövs.",
+      "needsApproval": "Kräver godkännande. Du kan följa statusen under ”Mina önskemål”.",
+      "seasons": "Säsonger",
+      "allSeasons": "Alla saknade säsonger ({{count}})",
+      "season": "Säsong {{number}}",
+      "episodes_one": "{{count}} avsnitt",
+      "episodes_other": "{{count}} avsnitt",
+      "seasonState": {
+        "requested": "redan begärd, du får också avisering",
+        "available": "tillgänglig"
+      },
+      "nothingLeft": {
+        "title": "Inget mer att begära",
+        "body": "Alla säsonger finns redan eller är redan begärda."
+      },
+      "tooManySeasons_one": "Bara 1 av {{limit}} säsonger kvar. Välj högst 1 säsong.",
+      "tooManySeasons_other": "Bara {{count}} av {{limit}} säsonger kvar. Välj högst {{count}} säsonger.",
+      "reached": {
+        "movie_one": "Gränsen är nådd: {{count}} film på {{days}} dagar.",
+        "movie_other": "Gränsen är nådd: {{count}} filmer på {{days}} dagar.",
+        "show_one": "Gränsen är nådd: {{count}} säsong på {{days}} dagar.",
+        "show_other": "Gränsen är nådd: {{count}} säsonger på {{days}} dagar.",
+        "movie_date_one": "Gränsen är nådd: {{count}} film på {{days}} dagar. Nästa plats blir ledig den {{date}}.",
+        "movie_date_other": "Gränsen är nådd: {{count}} filmer på {{days}} dagar. Nästa plats blir ledig den {{date}}.",
+        "show_date_one": "Gränsen är nådd: {{count}} säsong på {{days}} dagar. Nästa plats blir ledig den {{date}}.",
+        "show_date_other": "Gränsen är nådd: {{count}} säsonger på {{days}} dagar. Nästa plats blir ledig den {{date}}."
+      },
+      "submit": "Begär",
+      "submitting": "Begär…",
+      "chooseSeasons": "Välj säsonger",
+      "join": "Meddela mig",
+      "submitSeasons_one": "Begär {{count}} säsong",
+      "submitSeasons_other": "Begär {{count}} säsonger"
+    },
+    "page": {
+      "title": "Mina önskemål",
+      "count_one": "{{count}} öppet önskemål",
+      "count_other": "{{count}} öppna önskemål",
+      "countAll_one": "{{count}} önskemål",
+      "countAll_other": "{{count}} önskemål",
+      "countAvailable_one": "{{count}} tillgängligt önskemål",
+      "countAvailable_other": "{{count}} tillgängliga önskemål",
+      "countClosed_one": "{{count}} avslutat önskemål",
+      "countClosed_other": "{{count}} avslutade önskemål",
+      "limit": "Gräns: {{limit}}",
+      "offline": "Bara tillgängligt online: önskemålen finns på servern.",
+      "filters": {
+        "label": "Filtrera önskemål",
+        "all": "Alla",
+        "open": "Öppna",
+        "available": "Tillgängliga",
+        "closed": "Avslutade"
+      },
+      "filter": "Status",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Inga önskemål än.",
+        "body": "Det du begär visas här med sin status."
+      },
+      "emptyFilter": {
+        "open": "Inga öppna önskemål.",
+        "available": "Inget önskemål är tillgängligt än.",
+        "closed": "Inga avslutade önskemål."
+      }
+    },
+    "row": {
+      "open": "Till titeln",
+      "withdrawLabel": "{{title}}: dra tillbaka",
+      "withdrawJoinedLabel": "{{title}}: lämna",
+      "again": "Begär igen",
+      "againLabel": "Begär {{title}} igen",
+      "history": "Historik: {{last}}",
+      "fromSeerr": "skapad i Seerr"
+    },
+    "area": {
+      "label": "Delar under Önskemål",
+      "discover": "Upptäck",
+      "movies": "Filmer",
+      "series": "Serier",
+      "search": "Sök",
+      "mine": "Mina önskemål",
+      "mineCount_one": "Mina önskemål ({{count}})",
+      "mineCount_other": "Mina önskemål ({{count}})"
+    },
+    "discover": {
+      "title": "Upptäck",
+      "intro": "Det som är populärt just nu och det som snart kommer. Det som ännu inte finns i biblioteket kan du begära.",
+      "searchLabel": "Sök efter film eller serie",
+      "searchAction": "Sök",
+      "rows": {
+        "trending": "Trendar",
+        "popular_movies": "Populära filmer",
+        "movie_genres": "Filmgenrer",
+        "upcoming_movies": "Snart på bio",
+        "popular_shows": "Populära serier",
+        "show_genres": "Seriegenrer",
+        "upcoming_shows": "Kommande serier"
+      },
+      "stale": "Seerr kan inte nås. Du ser läget från den senaste hämtningen.",
+      "refreshFailed": "Listan kunde inte uppdateras. Du ser läget från den senaste hämtningen.",
+      "empty": "Just nu finns inget att upptäcka här.",
+      "inLibrary": "I biblioteket",
+      "requested": "Redan begärd",
+      "join": "{{title}}: meddela mig",
+      "gone": {
+        "title": "Upptäck finns inte för den här profilen",
+        "body": "Dina tidigare önskemål finns kvar under ”Mina önskemål”.",
+        "action": "Till ”Mina önskemål”"
+      },
+      "notFound": {
+        "title": "Sidan hittades inte",
+        "body": "Den här sidan finns inte för den här profilen."
+      }
+    },
+    "titles": {
+      "moviesIntro": "Alla filmer som TMDB känner till, oavsett om de redan finns i biblioteket eller inte. Det som saknas kan du begära.",
+      "seriesIntro": "Alla serier som TMDB känner till, oavsett om de redan finns i biblioteket eller inte. Det som saknas kan du begära.",
+      "sort": "Sortering",
+      "sorts": {
+        "popularity": "Popularitet",
+        "newest": "Nyast först",
+        "rating": "Bäst betyg"
+      },
+      "filter": "Filter: {{summary}}",
+      "filterLabel": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alla genrer",
+      "genreId": "Genre {{id}}",
+      "library": "Bibliotek",
+      "hide": "Dölj det som redan finns",
+      "hideHelp": "Visar bara det som ännu inte finns i biblioteket.",
+      "hidden": "Titlar i biblioteket dolda",
+      "shown": "Titlar i biblioteket visas",
+      "clear": "Återställ filter",
+      "apply": "Använd",
+      "moviesEmpty": "Inga filmer för det här urvalet.",
+      "seriesEmpty": "Inga serier för det här urvalet."
+    },
+    "search": {
+      "intro": "Sök bland allt som TMDB känner till, även det som ännu saknas. Du kan också söka med ID, till exempel tmdb:603, tvdb:121361 eller imdb:tt0133093.",
+      "placeholder": "Film eller serie",
+      "start": "Skriv en titel. Sökningen omfattar allt som TMDB känner till, även originaltitlar.",
+      "tooShort": "Skriv minst två tecken.",
+      "hits": "Träffar",
+      "empty": {
+        "title": "Hittade inget för ”{{q}}”",
+        "body": "Sökningen gäller film- och serietitlar, inte personer. Prova ett annat sökord eller ett ID."
+      }
+    },
+    "progress": {
+      "search": "Söks",
+      "download": "Laddas ned",
+      "import": "Importeras",
+      "stalled": "Nedladdningen har fastnat",
+      "percent": "{{percent}} %",
+      "episodes_one": "{{done}} av {{count}} avsnitt finns",
+      "episodes_other": "{{done}} av {{count}} avsnitt finns",
+      "eta": "{{time}} kvar"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Titeln hittades inte",
+      "body": "Titeln finns inte, eller så kan den här profilen inte se den."
+    },
+    "loading": "Titel",
+    "missing": "Finns inte i biblioteket än",
+    "seasonCount_one": "{{count}} säsong",
+    "seasonCount_other": "{{count}} säsonger",
+    "requestMovie": "Begär film",
+    "requestShow": "Begär serie",
+    "done": {
+      "requested": "Begärd. Du kan följa statusen under ”Mina önskemål”.",
+      "joined": "Du får en avisering så fort titeln är här.",
+      "withdrawn": "Ditt önskemål har dragits tillbaka."
+    },
+    "alreadyRequested": "Redan begärd",
+    "cannotRequest": "Den här profilen kan inte begära titlar",
+    "seasons": "Säsonger",
+    "seasonRequested": "Redan begärd",
+    "nextEpisode": "Pågår fortfarande, nästa avsnitt den {{date}}",
+    "last": {
+      "title": "Ditt senaste önskemål: {{state}}",
+      "why": {
+        "declined": "Seerr anger ingen orsak. Du kan begära titeln igen.",
+        "withdrawn": "Du drog tillbaka det."
+      }
+    },
+    "join": "Meddela mig",
+    "shared": {
+      "title": "Redan begärd · {{state}}",
+      "join": "En annan profil har redan begärt den här filmen. Med ”Meddela mig” hör Slouchcat av sig även till dig så fort den kan spelas upp.",
+      "statusOnly": "En annan profil har redan begärt den här filmen. Så fort den kan spelas upp hittar du den i biblioteket."
     }
   }
 }
