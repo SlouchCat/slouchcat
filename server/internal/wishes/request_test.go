@@ -468,6 +468,37 @@ func TestCreatePerHourOption(t *testing.T) {
 	r.create(r.noah, show(got, 1))
 }
 
+// The hourly limit counts what a profile asked for itself, a wish or a co-wish, and nothing the
+// server wrote for it (patch 1.41.1): 61 requests taken over from Seerr gave the main profile 61
+// requester rows within minutes, and the limit of 20 then refused every wish for an hour.
+func TestCreatePerHourCountsOwnWishesOnly(t *testing.T) {
+	r := newRequestFixture(t)
+	r.fixture.rebuild(WithLibrary(r.lib), WithTitles(r.titles), WithNotifier(r.note), WithClock(r.clock.now), WithCreatePerHour(2))
+	now := r.clock.now().UnixMilli()
+	// 25 requests taken over from Seerr just now: the take-over writes rows of the main profile
+	// with the time of the take-over and history entries of its own kind.
+	for i := 1; i <= 25; i++ {
+		r.exec(`INSERT INTO wishes (id, media, tmdb_id, title, origin, seerr_request_id, state, created_at, updated_at)
+			VALUES (?, 'movie', ?, 'Taken over', 'seerr', ?, 'processing', ?, ?)`, 900+i, 9000+i, 9000+i, now, now)
+		r.exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (?, 1, 1, 'owner', ?)`, 900+i, now)
+		r.exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (?, ?, 'imported', ?)`,
+			900+i, now, fmt.Sprintf(`{"requestId":%d,"profileId":1}`, 9000+i))
+	}
+	// The profile's own: a co-wish of the film another profile wished, then a new wish.
+	r.create(r.noah, film(matrix))
+	if res, err := r.svc.CreateWish(r.ctx, r.marco, film(matrix)); err != nil || res.Wish == nil || res.Wish.Role != model.WishRoleJoined {
+		t.Fatalf("co-wish after the take-over: %+v, %v", res, err)
+	}
+	r.create(r.marco, film(alien))
+	// Two of its own within the hour: the third is refused.
+	if _, err := r.svc.CreateWish(r.ctx, r.marco, show(got, 1)); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Errorf("third own wish within the hour: %v, want ErrTooManyAttempts", err)
+	}
+	// An hour later the own ones no longer count either.
+	r.clock.advance(time.Hour + time.Second)
+	r.create(r.marco, show(got, 1))
+}
+
 // Two profiles create the same film at the same moment: one wish, one co-wish, one request.
 func TestCreateAtTheSameMoment(t *testing.T) {
 	r := newRequestFixture(t)

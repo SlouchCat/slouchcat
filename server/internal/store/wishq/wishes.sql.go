@@ -12,17 +12,23 @@ import (
 )
 
 const countProfileWishesSince = `-- name: CountProfileWishesSince :one
-SELECT count(*) FROM wish_requesters WHERE profile_id = ?1 AND created_at >= ?2
+SELECT count(*) FROM wish_events
+WHERE kind IN ('created', 'joined') AND at >= ?1
+  AND CAST(detail ->> 'profileId' AS INTEGER) = CAST(?2 AS INTEGER)
 `
 
 type CountProfileWishesSinceParams struct {
-	ProfileID int64
 	Since     int64
+	ProfileID int64
 }
 
-// The wishes a profile made or joined since a time (the limit of createWish per profile and hour).
+// The wishes a profile made or joined itself since a time (the limit of createWish per profile and
+// hour): the history entries "created" and "joined" that createWish writes with the id of the profile.
+// A requester row is no measure: the take-over of existing Seerr requests, a retry and the move of
+// the wishes of a deleted profile write rows too, and 61 taken-over requests locked a profile for an
+// hour (patch 1.41.1). A full scan of wish_events; it holds a few entries per wish.
 func (q *Queries) CountProfileWishesSince(ctx context.Context, arg CountProfileWishesSinceParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countProfileWishesSince, arg.ProfileID, arg.Since)
+	row := q.db.QueryRowContext(ctx, countProfileWishesSince, arg.Since, arg.ProfileID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
