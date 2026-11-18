@@ -165,5 +165,55 @@ sind grösser und JPEG; ihre Zeit ist hier nicht gemessen.
 Für diese Messung wurde kein Code geändert. Für die Abnahme zu entscheiden: Das Ratenlimit des Seerr-Clients
 bestimmt die kalten Zeiten von `createWish` und Entdecken, nicht die Arbeit des Servers.
 
-Offen bleibt die Messung 6a.1 (Zeit vom Radarr-Import bis «Verfügbar», AK-104 und AK-212): Sie braucht einen
-echten Import auf dem Test-Container CT 190 und ist hier nicht gemessen.
+Die Messung 6a.1 (Zeit vom Import bis «Verfügbar», AK-104 und AK-212) steht in Abschnitt 5.
+
+## 5. Vom Import bis «Verfügbar» (Schritt 6a.1, 18. November 2026)
+
+**Aufbau.** Test-Container CT 190 mit Release 1.41.1, Bibliotheken auf dem NAS (SMB, Änderungen erkennt die
+Ordnerabfrage, Abstand mindestens 45 s). Echte Wünsche über Seerr, Download und Import durch Radarr und Sonarr.
+Gelesen wurde nur, aus der Datenbank (`webhook_events`, `jobs`, `wishes`, `wish_events`), ohne Code-Änderung und
+ohne eigene Instrumentierung. «Verfügbar» ist `wishes.available_at`.
+
+**Gemessene Imports.** Drei Filme um 14:51 (Heartland, Verity, Allen), ein Film um 15:23 (Resident Evil: Welcome to
+Raccoon City), alle vier vor dem Eintrag der Pfad-Umsetzung; eine Staffel mit vier Folgen um 15:56 (Resident Evil:
+Infinite Darkness), nach dem Eintrag.
+
+**Erster Befund, eine Einstellung:** Die Webhooks von Radarr und Sonarr hatten keine Pfad-Umsetzung. Radarr meldet
+`/mnt/medien/Filme/…`, die Wurzel in Slouchcat heisst `/media/nas/Filme`; jede Meldung endete mit `outside_roots`,
+und die Filme fand erst die Ordnerabfrage. Seit 15:31 steht bei beiden `/mnt/medien` → `/media/nas`.
+
+| Abschnitt | Film Heartland (ohne Pfad-Umsetzung) | Staffel, 4 Folgen (mit Pfad-Umsetzung) |
+|---|---|---|
+| Webhook «Download» empfangen | 14:51:21.006, `outside_roots` | 15:56:00.354, `scan_queued` |
+| Scan aus dem Webhook | keiner | 15:56:02.360 bis 02.624 auf dem Serienordner: findet nichts (liest keine Unterordner, die Folgen liegen in `Season 01/`) |
+| Warten auf die Ordnerabfrage | 40.6 s | 40.6 s |
+| Entprellung und Warteschlange | 2.1 s | 4.6 s |
+| Scan (`scan.path`) | 0.34 s | 0.79 s |
+| Zuordnung (`metadata.match`) | 0.33 s | 1.22 s |
+| Abgleich der Wünsche (`wishes.reconcile`) | 0.24 s | 0.27 s |
+| **Webhook bis «Verfügbar»** | **43.6 s** | **47.4 s** |
+
+Die anderen Filme: Verity 39.2 s, Allen 4.3 s, Resident Evil 10.8 s; je nachdem, wann die Ordnerabfrage nach dem
+Import lief. Ein Film mit Pfad-Umsetzung ist noch nicht gemessen: Der Webhook nennt bei Radarr den Ordner des Films,
+in dem die Datei liegt, also läuft der Scan gleich nach der Entprellung, erwartet sind rund 3 bis 4 s (wie der
+Anteil ab dem Scan-Auftrag oben). Die Messung 6a.4 holt das nach.
+
+**Schwelle für einen Gewinn.** Ein Teil von Schritt 6a lohnt sich, wenn er bei einem üblichen Import mindestens
+10 s oder mindestens ein Viertel der Zeit vom Webhook bis «Verfügbar» spart. Offen gesagt: Die Schwelle steht
+erst nach dem ersten Blick auf die Filmwerte fest, nicht davor, wie es 6a.1 verlangt; an der Bewertung unten
+ändert eine andere übliche Schwelle (5 s, 20 %) nichts.
+
+**Bewertung je Teil von Schritt 6a:**
+
+| Teil | spart | Gewinn |
+|---|---|---|
+| 6a.2 bei Sonarr: den Ordner von `episodeFile.path` scannen statt des Serienordners | rund 40 s von 47 s (das Warten auf die Ordnerabfrage) | **ja** |
+| 6a.2 bei Radarr: `movieFile.path` lesen | nichts; der Ordner des Films ist schon der Ordner der Datei, die Pfad-Umsetzung genügt | nein |
+| 6a.3: nur die eine Datei mit Vorrang einlesen und über die Kennung zuordnen | höchstens Scan und Zuordnung, 0.7 s (Film) bis 2.0 s (Staffel) | nein |
+
+**Empfehlung der Redaktion war:** Schritt 6a schmal bauen: Bei einer Meldung von Sonarr mit `episodeFile.path`
+scannt Slouchcat den Ordner dieser Datei; ohne Dateipfad bleibt es beim Serienordner. 6a.3 entfällt.
+
+**Entscheid von Marco (18. November 2026): Es bleibt, wie es ist.** Schritt 6a wird nicht gebaut, auch nicht schmal.
+Neue Folgen kommen weiter über die Ordnerabfrage an (rund 45 s nach dem Import), Filme mit Pfad-Umsetzung über den
+Webhook.
