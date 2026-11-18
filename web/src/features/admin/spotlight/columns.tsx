@@ -119,6 +119,7 @@ function RequestButton({
   return (
     <AriaButton
       icon="plus"
+      size="sm"
       aria-label={t('admin.spotlight.request.label', { title: entryName(t, entry) })}
       onPress={() => onRequest(entry)}
     >

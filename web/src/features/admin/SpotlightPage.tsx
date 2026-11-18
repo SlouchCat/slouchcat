@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
@@ -117,7 +118,8 @@ export function SpotlightPage() {
 }
 
 function SpotlightContent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const number = useMemo(() => new Intl.NumberFormat(intlLocale(i18n.language)), [i18n.language]);
   const queryClient = useQueryClient();
   const session = useActiveSession();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -327,7 +329,7 @@ function SpotlightContent() {
   const hits = list?.entries.filter((entry) => entry.itemId !== undefined) ?? [];
   const ways = WAYS.flatMap(([media, way, key]) => {
     const count = hits.filter((entry) => entry.media === media && entry.match === way).length;
-    return count > 0 ? [[t(key), String(count)] as const] : [];
+    return count > 0 ? [[t(key), number.format(count)] as const] : [];
   });
 
   return (
@@ -414,6 +416,7 @@ function SpotlightContent() {
               columns={missingCols}
               rows={lacking}
               rowKey={entryKey}
+              layout="fixed"
             />
           )}
         </BandPanel>
@@ -477,6 +480,7 @@ function SpotlightContent() {
                   columns={unmatchedCols}
                   rows={unmatched}
                   rowKey={entryKey}
+                  layout="fixed"
                 />
                 <Text tone="secondary">{t('admin.spotlight.matching.unmatchedNote')}</Text>
               </>
