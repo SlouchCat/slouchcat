@@ -83,8 +83,32 @@ function FixedForm({
   );
 }
 
-/** Lets the retry's timers run: it needs a few tasks, none of them waits. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+/**
+ * Lets the retry's chain of timers run to its end. Each step queues the next with `setTimeout(0)`,
+ * so each tick here, queued after the step before it, runs after that step; six cover the chain
+ * (press, decision, retry, check) with room to spare, whatever the load of the machine.
+ */
+async function ticks(count = 6) {
+  for (let tick = 0; tick < count; tick++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+}
+
+/** The SMTP form as a page with a mutation holds it: the answer goes when the request starts. */
+function SendingForm({ sent }: { sent: string[] }) {
+  const [answer, setAnswer] = useState<Record<string, string> | null>({ host: message });
+  return (
+    <SmtpForm
+      answer={answer}
+      onSend={(host) => {
+        sent.push(host);
+        setAnswer(null);
+      }}
+    />
+  );
+}
 
 /** Runs the pending timers one by one, each with its render, as the browser would. */
 function runTimers() {
@@ -180,12 +204,15 @@ describe('Form', () => {
     // drops the message (the unstable profile-tag test of 18 November 2026).
     const user = userEvent.setup();
     const sent: string[] = [];
-    render(<SmtpForm answer={{ host: message }} onSend={(host) => sent.push(host)} />);
+    render(<SendingForm sent={sent} />);
     expect(await screen.findByText(message)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
-
     await vi.waitFor(() => expect(sent).toEqual(['smtp.falsch']));
+    // The check after the retry has run: the request cleared the answer, so the message stays away.
+    await ticks();
+
+    expect(sent).toEqual(['smtp.falsch']);
     expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 
@@ -234,7 +261,7 @@ describe('Form', () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Prüfen' }));
-    await settle();
+    await ticks();
 
     expect(sent).toEqual([]);
     expect(screen.getByText(message)).toBeInTheDocument();
@@ -250,7 +277,7 @@ describe('Form', () => {
 
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     await vi.waitFor(() => expect(sent).toEqual(['sent']));
-    await settle();
+    await ticks();
 
     expect(screen.getByText(required)).toBeInTheDocument();
   });
@@ -266,7 +293,7 @@ describe('Form', () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
-    await settle();
+    await ticks();
 
     expect(sent).toEqual([]);
     expect(screen.getByText(message)).toBeInTheDocument();
