@@ -67,6 +67,17 @@ export const wishLimitsOf = (value: WishLimitNumbers): WishLimits => ({
   tv: { limit: Number(value.tvLimit), days: Number(value.tvDays) },
 });
 
+/**
+ * The server's names of the four numbers in a 422 (`<server>movie.limit`, …) as the names of the
+ * fields (`<name>.movieLimit`, …), for `formErrors`: so a refused number stands at its field.
+ */
+export const wishLimitFieldNames = (server: string, name: string): Record<string, string> => ({
+  [`${server}movie.limit`]: `${name}.movieLimit`,
+  [`${server}movie.days`]: `${name}.movieDays`,
+  [`${server}tv.limit`]: `${name}.tvLimit`,
+  [`${server}tv.days`]: `${name}.tvDays`,
+});
+
 /** The request of a draft: the numbers only with «Eigenes». */
 export const wishLimitRequestOf = (draft: WishLimitDraft): WishLimitRequest =>
   draft.mode === 'custom' ? { mode: 'custom', ...wishLimitsOf(draft) } : { mode: draft.mode };

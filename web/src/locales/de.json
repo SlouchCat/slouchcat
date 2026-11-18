@@ -5778,7 +5778,6 @@
         "connectionHelp": "Adresse, Schlüssel, Test und Protokoll.",
         "users": "Seerr-Benutzer",
         "usersHelp": "Welches Konto als welcher Seerr-Benutzer anfordert, mit Passwort und Limit.",
-        "usersCount": "{{opened}} von {{total}} Konten",
         "arr": "Radarr und Sonarr: Profil-Tag und Fortschritt",
         "profileTags": "Profil-Tag in Radarr und Sonarr setzen",
         "profileTagsHelp": "Hängt den Tag des Profils an den Titel, sobald Seerr ihn an Radarr oder Sonarr übergeben hat, und holt Tags nach, die nicht gesetzt werden konnten. Ändert sonst nichts in Radarr und Sonarr.",
@@ -5795,7 +5794,14 @@
         "arrLinksHelp": "Adresse und Schlüssel kommen aus Seerr; Namen je Profil stehen unter Seerr-Benutzer.",
         "toArr": "Integrationen › Seerr",
         "discoverPages": "Seiten Entdecken, Filme, Serien und Suche",
-        "discoverPagesHelp": "Reiter im Bereich «Wünsche». Aus: nur «Meine Wünsche»."
+        "discoverPagesHelp": "Reiter im Bereich «Wünsche». Aus: nur «Meine Wünsche».",
+        "basicsSummary": "Wünsche {{enabled}} · Filme {{movies}} · Serien {{shows}}",
+        "basicsSummaryLocked": "Wünsche aus, erst nach einem bestandenen Test · Filme {{movies}} · Serien {{shows}}",
+        "whereSummary": "Suche {{search}} · Detailseiten {{detail}} · Entdecken {{discover}}",
+        "rulesSummary": "{{already}} · ohne Seerr-Benutzer: {{unmapped}} · Zurückziehen {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} von {{count}} Konto eröffnet",
+        "usersCount_other": "{{opened}} von {{count}} Konten eröffnet"
       },
       "users": {
         "caption": "Konten und ihre Seerr-Benutzer",

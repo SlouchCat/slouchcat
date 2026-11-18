@@ -58,20 +58,10 @@ import {
   Outcome,
   SEERR_DRAFT,
   SEERR_KEY_DRAFT,
+  seerrStateTone,
   seerrValues,
   type SeerrValues,
 } from './shared';
-
-/** The chip of a state in the band «Verbindung». */
-const stateTone = {
-  not_configured: 'outline',
-  disabled: 'outline',
-  untested: 'warning',
-  connected: 'success',
-  key_invalid: 'danger',
-  unreachable: 'danger',
-  instance_changed: 'danger',
-} as const;
 
 /** States with something to fix: the band «Verbindung» opens with them (design rule 1.3). */
 const OPEN_STATES: readonly SeerrStatus['state'][] = [
@@ -566,7 +556,9 @@ export function SeerrView({
               {settings.url ?? t('admin.integrations.seerr.connection.noAddress')}
             </span>
             {state && (
-              <Chip tone={stateTone[state]}>{t(`admin.integrations.seerr.state.${state}`)}</Chip>
+              <Chip tone={seerrStateTone[state]}>
+                {t(`admin.integrations.seerr.state.${state}`)}
+              </Chip>
             )}
           </>
         }

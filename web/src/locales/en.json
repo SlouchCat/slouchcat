@@ -5778,7 +5778,6 @@
         "connectionHelp": "Address, key, test and log.",
         "users": "Seerr users",
         "usersHelp": "Which account requests as which Seerr user, with password and limit.",
-        "usersCount": "{{opened}} of {{total}} accounts",
         "arr": "Radarr and Sonarr: profile tag and progress",
         "profileTags": "Set the profile tag in Radarr and Sonarr",
         "profileTagsHelp": "Attaches the profile's tag to the title once Seerr has handed it to Radarr or Sonarr, and catches up on tags that could not be set. Changes nothing else in Radarr and Sonarr.",
@@ -5795,7 +5794,14 @@
         "arrLinksHelp": "Address and key come from Seerr; the names per profile are under Seerr users.",
         "toArr": "Integrations › Seerr",
         "discoverPages": "Pages Discover, Films, Series and Search",
-        "discoverPagesHelp": "Tabs in the area “Wishes”. Off: only “My wishes”."
+        "discoverPagesHelp": "Tabs in the area “Wishes”. Off: only “My wishes”.",
+        "basicsSummary": "Wishes {{enabled}} · films {{movies}} · series {{shows}}",
+        "basicsSummaryLocked": "Wishes off until a test passes · films {{movies}} · series {{shows}}",
+        "whereSummary": "Search {{search}} · detail pages {{detail}} · discover {{discover}}",
+        "rulesSummary": "{{already}} · without a Seerr user: {{unmapped}} · withdrawing {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} of {{count}} account opened",
+        "usersCount_other": "{{opened}} of {{count}} accounts opened"
       },
       "users": {
         "caption": "Accounts and their Seerr users",

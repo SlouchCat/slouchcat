@@ -497,6 +497,8 @@ describe('Wünsche › Einstellungen', () => {
     expect(band).toHaveAttribute('aria-expanded', 'false');
     expect(band).toHaveAccessibleDescription('Tag an · Präfix sc- · Fortschritt an');
     await user.click(band);
+    // The band «Woher angefordert werden darf» folds too: opened, its switch is there.
+    await user.click(screen.getByRole('button', { name: 'Woher angefordert werden darf' }));
     expect(
       screen.getByRole('switch', { name: 'Seiten Entdecken, Filme, Serien und Suche' }),
     ).toBeChecked();
@@ -587,6 +589,80 @@ describe('Wünsche › Einstellungen', () => {
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
       defaultLimit: { movie: { limit: 12, days: 7 }, tv: { limit: 5, days: 7 } },
     });
+  });
+
+  it('a field typed while the one before saves keeps what is typed', async () => {
+    let answer: (value: Response) => void = () => undefined;
+    mockApi(
+      routes({
+        'PUT /admin/wishes/settings': () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      }),
+    );
+    renderApp('/admin/wishes?tab=einstellungen');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Limit ab Werk' }));
+    const count = screen.getByRole('textbox', { name: 'Filme: Anzahl' });
+    await user.clear(count);
+    await user.type(count, '8');
+    await user.tab();
+    const days = screen.getByRole('textbox', { name: 'Filme: Tage' });
+    await user.clear(days);
+    await user.type(days, '14');
+    answer(
+      json(settings({ defaultLimit: { movie: { limit: 8, days: 7 }, tv: { limit: 5, days: 7 } } })),
+    );
+    expect(await screen.findByText(/Limit ab Werk: 8 Filme \/ 7 Tage/)).toBeVisible();
+    expect(days).toHaveValue('14');
+    expect(count).toHaveValue('8');
+  });
+
+  it('a number the server refuses stays in its field with the reason', async () => {
+    mockApi(
+      routes({
+        'PUT /admin/wishes/settings': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'defaultLimit.movie.days', code: 'out_of_range' }],
+          }),
+      }),
+    );
+    renderApp('/admin/wishes?tab=einstellungen');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Limit ab Werk' }));
+    const days = screen.getByRole('textbox', { name: 'Filme: Tage' });
+    await user.clear(days);
+    await user.type(days, '30');
+    await user.tab();
+    await waitFor(() => expect(days).toHaveAttribute('aria-invalid', 'true'));
+    expect(days).toHaveValue('30');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('every band folds with a summary of its values; «Grundsatz» stays open while the wishes are off', async () => {
+    mockApi(routes({ 'GET /admin/wishes/settings': () => json(settings({ enabled: true })) }));
+    renderApp('/admin/wishes?tab=einstellungen');
+    const basics = await screen.findByRole('button', { name: 'Grundsatz' });
+    expect(basics).toHaveAttribute('aria-expanded', 'false');
+    expect(basics).toHaveAccessibleDescription('Wünsche an · Filme an · Serien an');
+    expect(
+      screen.getByRole('button', { name: 'Woher angefordert werden darf' }),
+    ).toHaveAccessibleDescription('Suche an · Detailseiten an · Entdecken an');
+    expect(screen.getByRole('button', { name: 'Regeln' })).toHaveAccessibleDescription(
+      'Mitwünschen · ohne Seerr-Benutzer: Sammelbenutzer · Zurückziehen an',
+    );
+    expect(screen.getByRole('button', { name: 'Verweise' })).toHaveAccessibleDescription(
+      'Seerr: Verbunden · 0 von 1 Konto eröffnet',
+    );
+  });
+
+  it('«Grundsatz» is open while the wishes are off', async () => {
+    mockApi(routes());
+    renderApp('/admin/wishes?tab=einstellungen');
+    const basics = await screen.findByRole('button', { name: 'Grundsatz' });
+    await waitFor(() => expect(basics).toHaveAttribute('aria-expanded', 'true'));
+    expect(basics).toHaveAccessibleDescription('Wünsche aus · Filme an · Serien an');
   });
 });
 

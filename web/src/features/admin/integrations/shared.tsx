@@ -18,13 +18,24 @@ import {
   StatusRegion,
   type StatusMessage,
 } from '@/ui/aria';
-import { dashboardQuery, settingsQuery, updateSettings } from '../queries';
+import { dashboardQuery, settingsQuery, updateSettings, type SeerrStatus } from '../queries';
 import styles from './Integrations.module.css';
 
 // The parts the blocks of the integrations page share: draft ids, the save hooks, the source
 // chip, the band's state, the outcome line and the save/delete buttons.
 
 export type KeyName = keyof AdminSettings['keys'];
+
+/** The chip of Seerr's state, in the band «Verbindung» and on Wünsche › Einstellungen. */
+export const seerrStateTone = {
+  not_configured: 'outline',
+  disabled: 'outline',
+  untested: 'warning',
+  connected: 'success',
+  key_invalid: 'danger',
+  unreachable: 'danger',
+  instance_changed: 'danger',
+} as const satisfies Record<SeerrStatus['state'], string>;
 
 export const TLS_MODES = ['starttls', 'tls', 'none'] as const satisfies readonly SMTPTLS[];
 
