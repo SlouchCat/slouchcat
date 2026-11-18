@@ -21,6 +21,9 @@ type Library interface {
 	TitleByExternalIDs(ctx context.Context, ref visibility.ExternalRef) (itemID string, found bool, err error)
 	Visible(ctx context.Context, s visibility.Scope, itemID string) error
 	VisibleSeasons(ctx context.Context, s visibility.Scope, seriesID string) (map[int]int, error)
+	// HiddenSeasons are the library seasons of a series the profile can play none of; the request
+	// dialog does not offer them.
+	HiddenSeasons(ctx context.Context, s visibility.Scope, seriesID string) ([]int, error)
 	// CatalogSeasonTarget is the episode target of a season by series_catalog; found false sends
 	// the caller to the title outside the library.
 	CatalogSeasonTarget(ctx context.Context, seriesID string, season int) (visibility.SeasonTarget, bool, error)

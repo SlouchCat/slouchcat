@@ -53,7 +53,8 @@ type SeriesCatalog struct {
 	Status       string // TMDB status ("Returning Series", "Ended", ...); "" = unknown
 	InProduction bool
 	// Seasons in number order, without season 0: every season TMDB lists plus every season the
-	// profile can play that TMDB does not list.
+	// profile can play that TMDB does not list, less the library seasons it can play none of
+	// (HiddenSeasons: not listed, not counted, not requestable).
 	Seasons     []CatalogSeason
 	NextEpisode *CatalogEpisode // nil = none known («Läuft noch, nächste Folge am …»)
 	LastEpisode *CatalogEpisode
@@ -145,12 +146,19 @@ func (r *Reader) SeriesCatalog(ctx context.Context, s Scope, right RequestRight,
 	if err != nil || !found || len(c.seasons) == 0 {
 		return nil, err
 	}
+	hidden, err := r.hiddenSeasons(ctx, seriesID, visible)
+	if err != nil {
+		return nil, err
+	}
 	today := r.now().Format(time.DateOnly)
 	out := &SeriesCatalog{Status: c.row.Status.String, InProduction: c.row.InProduction == 1, NextEpisode: c.next,
 		LastEpisode: c.last, FetchedAt: time.UnixMilli(c.row.FetchedAt)}
 	listed := map[int]bool{}
 	for _, se := range c.seasons {
 		listed[se.Number] = true
+		if slices.Contains(hidden, se.Number) {
+			continue // a library season the profile cannot play is not listed at all (HiddenSeasons)
+		}
 		cs := CatalogSeason{Number: se.Number, EpisodeCount: se.EpisodeCount, AirDate: se.AirDate, Episodes: visible[se.Number]}
 		switch {
 		case cs.Episodes > 0:

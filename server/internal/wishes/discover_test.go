@@ -135,6 +135,10 @@ func (l *discoverLib) VisibleSeasons(context.Context, visibility.Scope, string) 
 	return map[int]int{}, nil
 }
 
+func (l *discoverLib) HiddenSeasons(context.Context, visibility.Scope, string) ([]int, error) {
+	return nil, nil
+}
+
 // The discover tests ask for no season target and no library summary.
 func (l *discoverLib) CatalogSeasonTarget(context.Context, string, int) (visibility.SeasonTarget, bool, error) {
 	return visibility.SeasonTarget{}, false, nil

@@ -99,7 +99,7 @@ func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.Wish
 	var wanted []int
 	tvdb := title.TVDBID
 	if in.Media == model.WishMediaShow {
-		offer, err := s.seasonOffer(ctx, title, place.visible)
+		offer, err := s.seasonOffer(ctx, title, place)
 		if err != nil {
 			return model.WishCreated{}, err
 		}
@@ -191,6 +191,7 @@ func requestRight(r model.WishRights) visibility.RequestRight {
 type place struct {
 	itemID  string
 	visible map[int]int // series of the library: playable episodes per season
+	hidden  []int       // and the library seasons the profile can play none of (never offered)
 }
 
 // placeOf asks visibility (rule 2) where the title stands for the profile. A film in the library
@@ -220,7 +221,11 @@ func (s *Service) placeOf(ctx context.Context, scope visibility.Scope, rights mo
 	if err != nil {
 		return place{}, err
 	}
-	return place{itemID: m[0].ItemID, visible: seasons}, nil
+	hidden, err := s.lib.HiddenSeasons(ctx, scope, m[0].ItemID)
+	if err != nil {
+		return place{}, err
+	}
+	return place{itemID: m[0].ItemID, visible: seasons, hidden: hidden}, nil
 }
 
 func refOf(t metadata.ExternalTitle) visibility.ExternalRef {
@@ -369,7 +374,7 @@ func (s *Service) seerrSeasons(ctx context.Context, tmdbID int64) (seasonsEntry,
 // seasonOffer is the season list of a series for a profile: Seerr's, else TMDB's
 // (tmdb_fallback), each season available (the profile plays every episode), requested (another
 // open wish holds it) or missing.
-func (s *Service) seasonOffer(ctx context.Context, t metadata.ExternalTitle, visible map[int]int) (offer, error) {
+func (s *Service) seasonOffer(ctx context.Context, t metadata.ExternalTitle, pl place) (offer, error) {
 	o := offer{source: model.WishSeasonsFromSeerr}
 	var list []model.WishSeasonOffer
 	if e, err := s.seerrSeasons(ctx, t.TMDBID); err == nil {
@@ -385,9 +390,12 @@ func (s *Service) seasonOffer(ctx context.Context, t metadata.ExternalTitle, vis
 	}
 	o.seasons = make([]model.WishSeasonOffer, 0, len(list))
 	for _, se := range list {
+		if slices.Contains(pl.hidden, se.Number) {
+			continue // not offered: a request would tell the profile the library has it
+		}
 		se.State = model.WishSeasonOfferMissing
 		switch _, err := s.read.GetOpenSeasonWish(ctx, wishq.GetOpenSeasonWishParams{TmdbID: t.TMDBID, SeasonNumber: int64(se.Number)}); {
-		case visible[se.Number] >= se.EpisodeCount:
+		case pl.visible[se.Number] >= se.EpisodeCount:
 			se.State = model.WishSeasonOfferAvailable
 		case err == nil:
 			se.State = model.WishSeasonOfferRequested
@@ -425,7 +433,7 @@ func (s *Service) WishSeasons(ctx context.Context, p model.Profile, tmdbID int64
 	if err != nil {
 		return model.WishSeasons{}, err
 	}
-	o, err := s.seasonOffer(ctx, t, pl.visible)
+	o, err := s.seasonOffer(ctx, t, pl)
 	if err != nil {
 		return model.WishSeasons{}, err
 	}

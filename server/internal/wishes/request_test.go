@@ -30,11 +30,13 @@ type fakeLib struct {
 	hidden  map[string]bool
 	seasons map[string]map[int]int
 	catalog map[string]map[int]visibility.SeasonTarget // series_catalog per series and season
+	// seasonsHidden: library seasons per series the profile can play none of (HiddenSeasons)
+	seasonsHidden map[string][]int
 }
 
 func newFakeLib() *fakeLib {
 	return &fakeLib{items: map[string]string{}, hidden: map[string]bool{}, seasons: map[string]map[int]int{},
-		catalog: map[string]map[int]visibility.SeasonTarget{}}
+		catalog: map[string]map[int]visibility.SeasonTarget{}, seasonsHidden: map[string][]int{}}
 }
 
 func refKey(media string, tmdb int64) string { return fmt.Sprintf("%s:%d", media, tmdb) }
@@ -96,6 +98,15 @@ func (l *fakeLib) VisibleSeasons(_ context.Context, _ visibility.Scope, seriesID
 		out[k] = v
 	}
 	return out, nil
+}
+
+func (l *fakeLib) HiddenSeasons(_ context.Context, _ visibility.Scope, seriesID string) ([]int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.hidden[seriesID] {
+		return nil, model.ErrNotFound
+	}
+	return slices.Clone(l.seasonsHidden[seriesID]), nil
 }
 
 func (l *fakeLib) CatalogSeasonTarget(_ context.Context, seriesID string, season int) (visibility.SeasonTarget, bool, error) {
@@ -828,5 +839,43 @@ func TestCreateRefusals(t *testing.T) {
 	}
 	if n := r.count(`SELECT count(*) FROM wishes`); n != 0 {
 		t.Errorf("wishes = %d", n)
+	}
+}
+
+// A library season the profile can play none of (rated above it) is neither offered nor
+// requestable: named, it answers season_not_offered like a season that does not exist; «all»
+// leaves it out (review of 18 Nov 2026, open question «hidden season reads as missing»).
+func TestHiddenLibrarySeasonNotOffered(t *testing.T) {
+	r := newRequestFixture(t)
+	r.lib.add("show", got, "series-got", map[int]int{1: 10})
+	r.lib.seasonsHidden["series-got"] = []int{2}
+	ws, err := r.svc.WishSeasons(r.ctx, r.marco, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var numbers []int
+	for _, se := range ws.Seasons {
+		numbers = append(numbers, se.Number)
+	}
+	if !slices.Equal(numbers, []int{1, 3}) {
+		t.Errorf("offered = %v, want [1 3]", numbers)
+	}
+	for _, n := range []int{2, 4} { // the hidden season and one that does not exist answer alike
+		_, err := r.svc.CreateWish(r.ctx, r.marco, show(got, n))
+		var verr *model.ValidationError
+		if !errors.As(err, &verr) || !strings.Contains(fmt.Sprint(verr.Fields), model.WishCodeSeasonNotOffered) {
+			t.Errorf("season %d: %v, want season_not_offered", n, err)
+		}
+	}
+	res, err := r.svc.CreateWish(r.ctx, r.marco, model.WishCreate{Media: model.WishMediaShow, TMDBID: got, AllSeasons: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wished []int
+	for _, se := range r.wish(res.Wish.ID).Seasons {
+		wished = append(wished, se.Number)
+	}
+	if !slices.Equal(wished, []int{3}) {
+		t.Errorf("all seasons = %v, want [3]", wished)
 	}
 }

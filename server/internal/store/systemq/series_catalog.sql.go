@@ -93,6 +93,43 @@ func (q *Queries) ListDueSeriesCatalog(ctx context.Context, arg ListDueSeriesCat
 	return items, nil
 }
 
+const listLibrarySeasonNumbers = `-- name: ListLibrarySeasonNumbers :many
+SELECT DISTINCT CAST(coalesce(e.season_number, se.season_number) AS INTEGER) AS season_number
+FROM items AS se
+JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+WHERE se.parent_id = ?1 AND se.kind = 'season'
+  AND e.deleted_at IS NULL AND e.available = 1
+  AND coalesce(e.season_number, se.season_number) >= 1
+ORDER BY 1
+`
+
+// The season numbers (1 or more) of a series with at least one live, available episode in the
+// library, for every profile alike: visibility leaves the seasons a profile cannot play out of
+// its catalog and its request dialog instead of reading them as missing (review of 18 Nov 2026).
+// The season number is the episode's, else its season's, as in ListVisibleSeasonEpisodes.
+func (q *Queries) ListLibrarySeasonNumbers(ctx context.Context, seriesID sql.NullString) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listLibrarySeasonNumbers, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var season_number int64
+		if err := rows.Scan(&season_number); err != nil {
+			return nil, err
+		}
+		items = append(items, season_number)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const touchSeriesCatalog = `-- name: TouchSeriesCatalog :exec
 INSERT INTO series_catalog (item_id, tmdb_id, fetched_at)
 VALUES (?1, ?2, ?3)

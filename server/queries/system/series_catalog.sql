@@ -42,3 +42,16 @@ WHERE i.kind = 'series' AND i.deleted_at IS NULL AND i.tmdb_id IS NOT NULL AND i
   AND (c.item_id IS NULL OR c.tmdb_id <> i.tmdb_id OR c.fetched_at < @cutoff)
 ORDER BY coalesce(c.fetched_at, 0), i.id
 LIMIT @limit_count;
+
+-- name: ListLibrarySeasonNumbers :many
+-- The season numbers (1 or more) of a series with at least one live, available episode in the
+-- library, for every profile alike: visibility leaves the seasons a profile cannot play out of
+-- its catalog and its request dialog instead of reading them as missing (review of 18 Nov 2026).
+-- The season number is the episode's, else its season's, as in ListVisibleSeasonEpisodes.
+SELECT DISTINCT CAST(coalesce(e.season_number, se.season_number) AS INTEGER) AS season_number
+FROM items AS se
+JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+WHERE se.parent_id = @series_id AND se.kind = 'season'
+  AND e.deleted_at IS NULL AND e.available = 1
+  AND coalesce(e.season_number, se.season_number) >= 1
+ORDER BY 1;

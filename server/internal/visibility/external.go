@@ -169,6 +169,33 @@ func (r *Reader) MissingTitle(ctx context.Context, s Scope, right RequestRight, 
 	return nil
 }
 
+// HiddenSeasons returns the season numbers (1 or more) of a series the profile sees that the
+// library has (a live, available episode) but the profile can play none of, for instance a
+// season rated above it. Its catalog and its request dialog leave them out: neither «fehlt» nor
+// «anfordern» tells it they exist. A series the profile does not see answers model.ErrNotFound.
+func (r *Reader) HiddenSeasons(ctx context.Context, s Scope, seriesID string) ([]int, error) {
+	visible, err := r.VisibleSeasons(ctx, s, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	return r.hiddenSeasons(ctx, seriesID, visible)
+}
+
+// hiddenSeasons are the library seasons of seriesID without an episode in visible.
+func (r *Reader) hiddenSeasons(ctx context.Context, seriesID string, visible map[int]int) ([]int, error) {
+	rows, err := r.sys.ListLibrarySeasonNumbers(ctx, sql.NullString{String: seriesID, Valid: true})
+	if err != nil {
+		return nil, fmt.Errorf("library seasons: %w", err)
+	}
+	var out []int
+	for _, n := range rows {
+		if visible[int(n)] == 0 {
+			out = append(out, int(n))
+		}
+	}
+	return out, nil
+}
+
 // VisibleSeasons returns, per season number of a series the profile sees, the number of episodes
 // it can play (an episode file with several episodes counts each). Seasons without such an episode
 // are absent; season 0 (specials) is included when it has one. A series the profile does not see

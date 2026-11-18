@@ -163,3 +163,36 @@ func TestSeriesCatalogSeasonTarget(t *testing.T) {
 		t.Errorf("series without row: found %v, %v", found, err)
 	}
 }
+
+// A library season the profile can play none of (season 1 rated 16, the series stays 12 through
+// its specials) is not part of its catalog: not listed, not counted, not requestable, while a
+// profile that plays it sees it present (review of 18 Nov 2026). HiddenSeasons names it.
+func TestSeriesCatalogLeavesOutHiddenLibrarySeasons(t *testing.T) {
+	t.Parallel()
+	f, r := catalogFixture(t)
+	ctx := context.Background()
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE items SET own_rating = 16 WHERE id = ?`, f.Show.Season.ID); err != nil {
+		t.Fatal(err)
+	}
+	if hidden, err := r.HiddenSeasons(ctx, Profile(f.P12), f.Show.Series.ID); err != nil || !slices.Equal(hidden, []int{1}) {
+		t.Errorf("hidden for P12 = %v, %v; want [1]", hidden, err)
+	}
+	if hidden, err := r.HiddenSeasons(ctx, Profile(f.P18), f.Show.Series.ID); err != nil || len(hidden) != 0 {
+		t.Errorf("hidden for P18 = %v, %v; want none", hidden, err)
+	}
+	if _, err := r.HiddenSeasons(ctx, Profile(f.P6), f.Show.Series.ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("hidden for P6 = %v, want ErrNotFound", err)
+	}
+	p12, err := r.SeriesCatalog(ctx, Profile(f.P12), canRequest, f.Show.Series.ID)
+	if err != nil || p12 == nil {
+		t.Fatalf("P12 = %v, %v", p12, err)
+	}
+	if slices.ContainsFunc(p12.Seasons, func(cs CatalogSeason) bool { return cs.Number == 1 }) ||
+		!slices.Equal(p12.Missing, []int{2, 3}) || p12.Present != 0 || p12.Total != 2 {
+		t.Errorf("P12 seasons %+v, missing %v, %d of %d; want no season 1, [2 3], 0 of 2", p12.Seasons, p12.Missing, p12.Present, p12.Total)
+	}
+	p18, err := r.SeriesCatalog(ctx, Profile(f.P18), canRequest, f.Show.Series.ID)
+	if err != nil || p18.Seasons[0].Number != 1 || p18.Seasons[0].State != SeasonPresent || p18.Total != 3 {
+		t.Errorf("P18 = %+v, %v", p18, err)
+	}
+}
