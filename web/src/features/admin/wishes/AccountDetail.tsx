@@ -405,6 +405,8 @@ export function AccountDetail({
             hideLabel
             value={chosen === null ? '' : String(chosen)}
             options={options}
+            // «In Seerr eröffnen» or the password mode of this account is on its way.
+            isDisabled={acting !== undefined}
             onChange={(value) => {
               const seerrUserId = value === '' ? null : Number(value);
               const next =

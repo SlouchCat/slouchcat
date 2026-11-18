@@ -333,6 +333,30 @@ describe('Wünsche › Seerr-Benutzer', () => {
     );
   });
 
+  it('the choice of a Seerr user waits while «In Seerr eröffnen» of the account is on its way', async () => {
+    let answer: (reply: Response) => void = () => undefined;
+    mockApi(
+      routes({
+        'POST /admin/wishes/accounts/1/provision': () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      }),
+    );
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
+    const user$ = userEvent.setup();
+    const choice = await screen.findByRole('combobox', {
+      name: 'Seerr-Benutzer für besitzer@example.org',
+    });
+    expect(choice).toBeEnabled();
+
+    await user$.click(screen.getByRole('button', { name: 'In Seerr eröffnen' }));
+    await waitFor(() => expect(choice).toBeDisabled());
+
+    answer(json(mapping({ state: 'waiting', provisionError: 'unreachable' }), 202));
+    await waitFor(() => expect(choice).toBeEnabled());
+  });
+
   it('a waiting account names its reason and offers «Erneut versuchen»', async () => {
     mockApi(
       routes({
@@ -1042,6 +1066,52 @@ describe('Wünsche › Anfragen (M-23)', () => {
     expect(await screen.findByText('2 von 3 Wünschen gezeigt.')).toBeVisible();
   });
 
+  it('reads the loaded pages again when the list moved before «Weitere laden»', async () => {
+    // Pages go by offset: a wish that left the list shifts the rest, and the one at the edge of
+    // the page would never show.
+    const wish = (id: number, title: string) =>
+      adminWish({ id, title: { media: 'movie', tmdbId: 9100 + id, title, posterUrl: '' } });
+    let list = [
+      wish(1, 'Erstlicht'),
+      wish(2, 'Zweitwind'),
+      wish(3, 'Drittstern'),
+      wish(4, 'Viertmond'),
+    ];
+    const fetched: { mock?: ReturnType<typeof mockApi>['fetchMock'] } = {};
+    const { fetchMock } = mockApi(
+      routes({
+        'GET /admin/wishes': () => {
+          const last = fetched.mock?.mock.calls.at(-1)?.[0];
+          const offset = Number(last ? (new URL(last.url).searchParams.get('offset') ?? '0') : '0');
+          return json({
+            items: list.slice(offset, offset + 2),
+            total: list.length,
+            counts: {
+              open: 0,
+              pending: 0,
+              processing: 0,
+              partial: 0,
+              available: 0,
+              closed: list.length,
+            },
+          });
+        },
+      }),
+    );
+    fetched.mock = fetchMock;
+    renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    expect(await within(table).findByRole('row', { name: /Erstlicht/ })).toBeVisible();
+
+    list = list.slice(1);
+    await user$.click(screen.getByRole('button', { name: 'Weitere laden' }));
+
+    expect(await within(table).findByRole('row', { name: /Drittstern/ })).toBeVisible();
+    expect(within(table).getByRole('row', { name: /Viertmond/ })).toBeVisible();
+    expect(within(table).queryByRole('row', { name: /Erstlicht/ })).toBeNull();
+  });
+
   it('two rows act on their own: a refused one reads the list again, the other keeps working', async () => {
     const first = adminWish({
       id: 21,
@@ -1168,6 +1238,9 @@ describe('Wünsche › Anfragen (M-23)', () => {
     );
     expect(seerrTitleHref('https://example.org/seerr/', show)).toBe(
       'https://example.org/seerr/tv/1399',
+    );
+    expect(seerrTitleHref('http://admin:geheim@seerr.lan:5055', film)).toBe(
+      'http://seerr.lan:5055/movie/9002',
     );
     expect(seerrTitleHref('javascript:alert(1)', film)).toBeUndefined();
     expect(seerrTitleHref('kein Link', film)).toBeUndefined();

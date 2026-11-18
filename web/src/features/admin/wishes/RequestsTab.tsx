@@ -86,6 +86,9 @@ export function seerrTitleHref(
     return undefined;
   }
   if (base.protocol !== 'http:' && base.protocol !== 'https:') return undefined;
+  // A user name and password in the stored address stay out of the page.
+  base.username = '';
+  base.password = '';
   const root = base.href.endsWith('/') ? base.href : `${base.href}/`;
   return new URL(`${title.media === 'show' ? 'tv' : 'movie'}/${title.tmdbId}`, root).href;
 }
@@ -619,7 +622,15 @@ export function RequestsTab() {
   const total = list.data?.pages.at(-1)?.total ?? 0;
   const queued = status.data?.counts.queued ?? 0;
   const more = () => {
+    const before = list.data?.pages.at(-1)?.total;
     void list.fetchNextPage().then((result) => {
+      // Pages go by offset over a list that moves (poll, approvals, sync). When the new page
+      // counts other wishes than the list had, a wish left or joined the filter, the rest
+      // shifted and one at the edge of a page would never show: every loaded page is read again,
+      // from the first. Still possible: a move that keeps the count (a wish of a later page whose
+      // change puts it first) hides that wish until the list is read again (the poll, the next
+      // visit, any change made here).
+      if (result.data?.pages.at(-1)?.total !== before) void list.refetch();
       // The button goes with the last page; the line that counts the wishes takes the focus.
       if (!result.hasNextPage) shownRef.current?.focus();
     });
