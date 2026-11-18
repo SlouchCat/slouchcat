@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Patch 1.41.1: übernommene Anfragen aus Seerr sperren das Anfordern nicht mehr (18. November 2026, Zweig `claude/patch-1.41.1`)
+## Patch 1.41.1: übernommene Anfragen aus Seerr sperren das Anfordern nicht mehr (18. November 2026, veröffentlicht: PR #184 `6bbc481f`, Tag `v1.41.1`, Lauf 44327761066; CT 190 auf 1.41.1)
 
 Marcos Befund auf CT 190 nach dem Update auf 1.41.0: Nach «Anfragen aus Seerr übernehmen» meldete der Dialog
 «Anfordern» beim Hauptprofil «Zu viele Versuche. Warte einen Moment und versuche es dann erneut.», obwohl in
@@ -20,6 +20,8 @@ Slouchcat noch kein Wunsch gestellt war.
   später geht er. Gegenprobe: Mit der alten Abfrage ist der Test rot.
 - **Nicht geändert:** Die Meldung beim Stundenlimit sagt «Warte einen Moment», gemeint ist bis zu einer Stunde.
   Mit der Korrektur trifft das Limit nur noch, wer selbst mehr als 20 Wünsche in einer Stunde stellt.
+- **Auf CT 190:** läuft auf 1.41.1; das Limit zählt für das Hauptprofil nur noch die eigenen Wünsche, die
+  übernommenen Anfragen nicht mehr. Offen bleibt die Abnahme von Konzept 25 mit echtem Seerr (Release 1.41.0).
 
 ## Release 1.41.0: Konzept 25 «Wünsche über Seerr» (18. November 2026, veröffentlicht: PR #182 `0f8c4a26`, Tag `v1.41.0`, Lauf 44302531941; Abnahme auf CT 190 offen)
 
