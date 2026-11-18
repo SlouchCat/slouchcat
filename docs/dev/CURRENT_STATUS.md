@@ -1,5 +1,106 @@
 # Aktueller Stand
 
+## Release 1.41.0: Konzept 25 «Wünsche über Seerr» (18. November 2026, Zweig `claude/k25-bau`, noch nicht veröffentlicht: Merge und Tag auf Marcos Wort)
+
+Marco am 17. November 2026: «Starte mit dem Bau mit Konzept 25. Mach alles in einem Zug und voll automatisch.»
+Alle Stufen erscheinen als ein Release (F-22, B-1). Grundlage: `docs/planning/25-medienwuensche/` (Papiere 02 bis
+11, Anhänge H und I), Frage 33 mit Nachträgen im Entscheidungsprotokoll, ADR 0037 und ADR 0038. Vertrag **1.41.0**
+(brechend: `Notification.kind`, `Notification.item` wird optional, `EventType`, `HomeRowKey` mit `wishes`,
+Webhook-Art `seerr`, Prüfpunkte von Radarr und Sonarr; 43 neue Operationen, keine entfernt), Migrationen **00066**
+bis **00081**.
+
+**Stufe 0: Papiere.** Frage 33, ADR 0037 («Wünsche über Seerr»), ADR 0038 («Titel ausserhalb der Bibliothek»),
+Nachtrag zu ADR 0010 (zwei eng gefasste Ausnahmen für Radarr und Sonarr), Regeln 10 und 11 in `CLAUDE.md`.
+
+**Stufe 1: Fundament.**
+
+- **Verbindung zu Seerr** unter Integrationen › Seerr: Adresse und Schlüssel (oder `SLOUCHCAT_SEERR_URL` und
+  `SLOUCHCAT_SEERR_API_KEY`), Verbindungstest mit Prüfpunkten (erreichbar, Schlüssel, Handeln im Namen, Instanz,
+  CSRF-Schutz, Benutzerpflege, lokale Anmeldung, Staffeln aus TVDB, Passwort unverschlüsselt), Erkennung einer
+  anderen Instanz. Ein gespeicherter Schlüssel geht nur an dasselbe Schema, denselben Host und Port.
+- **Seerr-Benutzer je Konto:** Slouchcat eröffnet ihn mit demselben Login oder verknüpft bei gleicher E-Mail
+  (E-1, E-4, E-8); Sammelbenutzer «slouchcat-gaeste» für Konten ohne eigenen Benutzer (F-4); Passwort und E-Mail
+  gehen an Seerr, ausser bei Benutzern, die Seerr verwalten oder sich nicht lokal anmelden. Ein Seerr-Benutzer,
+  der Seerr verwaltet (Benutzer 1, `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS`, `MANAGE_REQUESTS`), wird nie
+  automatisch verknüpft; von Hand nur nach einer Rückfrage.
+- **Limit je Konto** (E-3, ab Werk 10 Filme und 5 Staffeln in 7 Tagen), **Wunschrecht** je Konto und je Profil.
+
+**Stufe 2: Anfordern.**
+
+- Anfordern aus der Suche («Noch nicht in der Bibliothek»), auf der neuen Vorschauseite fehlender Titel und
+  (Stufe 4) auf der Serienseite; Dialog «Anfordern» mit Staffelwahl aus Seerr und Limit; «Benachrichtige mich»
+  als Mitwunsch ohne Limit (F-7).
+- Zustände eines Wunsches (Wird übermittelt, Freigabe ausstehend, In Beschaffung, Teilweise verfügbar,
+  Verfügbar, Abgelehnt, Fehlgeschlagen, Zurückgezogen), Ausgangsfach mit Wiederholung, Abgleich alle 5 Minuten,
+  Zurückziehen bis zur Freigabe, «Meine Wünsche».
+- Meldungen «verfügbar» im Eingang und über die Kanäle (F-14), ab Stufe 4 auch Staffeln, Freigabe, Ablehnung,
+  Fehlschlag und «Freigabe nötig» für Administratoren.
+
+**Stufe 3: Spotlight und Startseite.** Das Spotlight erkennt Titel der Bibliothek über TMDB, TVDB und IMDb; die
+Verwaltung zeigt das Band «Fehlende Einträge» mit «Anfordern». Neue Startreihe «Erfüllte Wünsche» (E-10), ab Werk
+direkt nach «Weiterschauen». Zuschauer sehen im Spotlight weiter nur Titel der Bibliothek (E-5).
+
+**Stufe 4: Serien und Komfort.**
+
+- Verwaltung › Medien › Wünsche mit «Anfragen» (Freigeben und Ablehnen als Durchreichen an Seerr, F-16;
+  «Erneut versuchen»), «Seerr-Benutzer» (eröffnen, verknüpfen, Passwortstand, Übernahme bestehender Anfragen,
+  F-21) und «Einstellungen».
+- Fehlende Staffeln auf der Serienseite (Staffelkatalog aus TMDB).
+- Profil-Tag in Radarr und Sonarr (E-2, `sc-<profil>`), Download-Fortschritt aus deren Warteschlange (E-7), Band
+  «Radarr und Sonarr» mit Adresse aus Seerr und «Testen».
+- Sofortmeldung: Webhook von Seerr als Anstoss des Abgleichs (F-18, Webhook-Art `seerr`).
+
+**Stufe 5: Bereich «Wünsche».** «Entdecken» mit sieben Reihen (F-28), «Filme» und «Serien» als Raster mit
+Sortierung und Genre, «Suche» über alles, was TMDB kennt, auch nach ID; dazu «Meine Wünsche».
+
+**Abweichungen** vom Konzept und vom Mockup stehen mit Grund in `docs/planning/25-medienwuensche/mockup-abdeckung.md`,
+Abschnitt 11.1. Die wichtigste ist die Sicherheitskorrektur zu E-8 (Redaktion, kein Entscheid von Marco; sie steht im
+Schlussbericht an ihn): Ein
+Seerr-Benutzer, der Seerr verwaltet, wird nie automatisch verknüpft (Nachtrag vom 18. November 2026 zu Frage 33).
+
+**Nicht gebaut:** Schritt 6a (Sofort-Import über die Webhook-Meldung) und seine Messung 6a.1, die einen echten
+Import auf CT 190 braucht (E-11: erst messen); die Filter «Tag nicht gesetzt» und «Download verzögert» im Server
+(die Verwaltung filtert die geladenen Zeilen); das Schliessen eines Wunsches nach 7 Tagen für ein Profil, das den
+Titel nicht sehen darf.
+
+**Bekannte Grenzen:** Eine Staffel, von der ein Profil nur einen Teil der Folgen sieht, bleibt anforderbar, und
+die Antwort kann verraten, dass es mehr Folgen gibt. Stürzt der Server zwischen dem Speichern eines Zustands und
+der Meldung ab, geht eine Zustandsmeldung verloren («verfügbar» wird nachgeholt). Nach dem Aufräumen des Eingangs
+(90 Tage) kann eine Staffelmeldung ein zweites Mal kommen.
+
+**Messwerte** (`docs/perf/wuensche.md`): Alle gemessenen Zielwerte halten ausser `createWish` in schneller Folge,
+594 ms p95 gegen 500 ms (AK-98). Grund ist das eigene Limit des Seerr-Clients (5 Aufrufe je Sekunde); mit 2 s
+Abstand zwischen zwei Wünschen sind es 43 ms p95.
+
+**Übersetzungen:** Die 1033 neuen Texte der Web-App und die 29 des Servers sind in die 20 übrigen Sprachen
+übersetzt, je Sprache von einem Übersetzer; `node scripts/i18n/check.ts --all --strict` meldet keinen Fehler und
+keinen fehlenden Text. Die Zweitlesung ist je Sprachgruppe gemacht.
+
+**Geprüft:** drei Prüfrunden des Servers, zwei Sicherheitsprüfungen, zwei Prüfungen der Web-App und zwei
+UI-Prüfungen gegen die Checklisten, jede mit einer Korrekturrunde danach. Eingefrorener Datenbankstand
+`testdata/db/wuensche.sql` mit `TestFrozenWuenscheStateCoversTheConcept`. An Marcos echtem Seerr, Radarr und
+Sonarr geprüft, so weit Anhang I es festhält (Verbindung, Benutzerpflege mit Testbenutzern, Limit, Titel, Suche,
+Entdecken, Lesen der Anfragen, Tags und Warteschlange von Radarr). **Nicht an echten Diensten geprüft**
+(`10-abnahmekriterien.md`, Abschnitt 9):
+
+- die Antworten von `POST /request` (201, 202, 409, 403-Texte) und 409 bei einer früheren FAILED-Anfrage;
+- `POST /request/{id}/retry`, Freigeben und Ablehnen;
+- der Body des Seerr-Webhooks;
+- die Abweisung der Passwort-Route für Benutzer 1 und andere Administratoren;
+- die Sonarr-Warteschlange, `PUT …/editor` mit `applyTags: "add"` und der Fortschritt gegen echtes Radarr und
+  Sonarr;
+- der Weg vom Job `series.catalog` zur Serienseite im Browser, die Reihe «Erfüllte Wünsche» mit einem echt
+  erfüllten Wunsch und Firefox für die neuen Seiten.
+
+**Für Marco nach dem Update:**
+
+1. Unter Integrationen › Seerr Adresse und Schlüssel eintragen, oder in `deploy/.env` `SLOUCHCAT_SEERR_URL` und
+   `SLOUCHCAT_SEERR_API_KEY` setzen (nicht `SEERR_URL` und `SEERR_API_KEY`, die nur die Prüfskripte lesen), dann
+   «Verbindung testen».
+2. In Seerr die Staffeln für Serien auf TVDB stellen (F-29; heute `tv = tmdb`).
+3. Unter Medien › Wünsche › Einstellungen «Wünsche aktiv» einschalten.
+4. Konten und Profilen das Recht zum Anfordern geben (Konten: Formular «Zugriff»; Profile: Hauptprofil des Kontos).
+
 ## Patch 1.40.1: Verwaltung › Startseite ohne die Reihe einer Bibliothek im Löschjob (16. November 2026, Zweig `claude/patch-1.40.1`)
 
 Der Befund stand seit Patch 1.39.1 offen («Nicht in diesem Patch»). Marco hat die Behebung am
