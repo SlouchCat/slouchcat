@@ -1,4 +1,4 @@
-import type { APIRequestContext, APIResponse, Page } from '@playwright/test';
+import type { APIRequestContext, APIResponse, Locator, Page } from '@playwright/test';
 import {
   acceptInvitation,
   anonymousApi,
@@ -513,6 +513,8 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
     expect(
       await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
     ).toBeLessThanOrEqual(0);
+    // Also with wider glyphs: the fonts of CI are wider than here (see sidewaysWithWideGlyphs).
+    expect(await sidewaysWithWideGlyphs(page, table)).toBeLessThanOrEqual(0);
     await expect(page.locator('#content')).not.toContainText('{{');
 
     // The filter's toolbar, then the row's toggle; Enter folds it out, the focus stays.
@@ -578,6 +580,29 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
     await closeWishes(owner, setup);
   }
 });
+
+/** How far the frame of a table scrolls sideways (0 = it fits). */
+const sideways = (table: Locator): Promise<number> =>
+  table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth);
+
+/**
+ * The same with every glyph 0.2em wider. The CI runners have neither Noto nor Inter and draw
+ * DejaVu Sans, whose texts are wider than on a developer's machine: two tables that fit here
+ * scrolled there (16 and 34 px). A table of the administration must not depend on the font of the
+ * machine (other languages run wider than German, too), so the wider glyphs show that fault on any
+ * machine. 0.12em was not enough: it left the requests table of stage 4 fitting where DejaVu
+ * made it scroll; 0.2em made both scroll (9 and 121 px) before their cells could wrap.
+ */
+async function sidewaysWithWideGlyphs(page: Page, table: Locator): Promise<number> {
+  const style = await page.addStyleTag({ content: '* { letter-spacing: 0.2em }' });
+  try {
+    return await sideways(table);
+  } finally {
+    await style.evaluate((element) => {
+      (element as Element).remove();
+    });
+  }
+}
 
 /** Where the coordinator's visual check finds the screenshots (SLOUCHCAT_E2E_SHOTS), if set. */
 const SHOTS = process.env.SLOUCHCAT_E2E_SHOTS;
@@ -713,6 +738,8 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
     expect(
       await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
     ).toBeLessThanOrEqual(0);
+    // Also with wider glyphs: the fonts of CI are wider than here (see sidewaysWithWideGlyphs).
+    expect(await sidewaysWithWideGlyphs(page, table)).toBeLessThanOrEqual(0);
     await expect(page.locator('#content')).not.toContainText('{{');
     await shot(page, 'anfragen-pending-desktop');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -898,6 +925,8 @@ test('profile tags, the take-over and the band of Radarr and Sonarr by keyboard 
     expect(
       await table.locator('xpath=..').evaluate((frame) => frame.scrollWidth - frame.clientWidth),
     ).toBeLessThanOrEqual(0);
+    // Also with wider glyphs: the fonts of CI are wider than here (see sidewaysWithWideGlyphs).
+    expect(await sidewaysWithWideGlyphs(page, table)).toBeLessThanOrEqual(0);
     const toggle = rowToggle(page, OWNER.email);
     await resetFocus(page);
     await tabTo(page, toggle, 60);
@@ -1118,6 +1147,8 @@ test('a Seerr user that administers Seerr is linked only after a question @keybo
         .locator('xpath=..')
         .evaluate((frame) => frame.scrollWidth - frame.clientWidth),
     ).toBeLessThanOrEqual(0);
+    // Also with wider glyphs: the fonts of CI are wider than here (see sidewaysWithWideGlyphs).
+    expect(await sidewaysWithWideGlyphs(page, usersTable)).toBeLessThanOrEqual(0);
     const link = page.getByRole('button', { name: 'Trotzdem verknüpfen …' });
     await tabTo(page, link, 10);
     await page.keyboard.press('Enter');

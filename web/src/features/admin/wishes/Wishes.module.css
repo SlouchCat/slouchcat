@@ -39,6 +39,20 @@
   white-space: nowrap;
 }
 
+/* A chip in a cell may take two lines instead of widening its column, as on «Konten»: with a
+   wider font (CI, other languages) one long chip would push the table past its frame. */
+.wrapChip > * {
+  padding-block: var(--sc-space-1);
+  line-height: var(--sc-font-line-height-snug);
+  white-space: normal;
+}
+
+/* An e-mail address or a Seerr user's name in a cell breaks anywhere rather than widen its
+   column. */
+.breakable {
+  overflow-wrap: anywhere;
+}
+
 /* The frame of a table with fold-outs, as on «Konten»: the fold-outs measure themselves against
    it, and its headers wrap between words so the title column keeps its room. */
 .tableFrame {

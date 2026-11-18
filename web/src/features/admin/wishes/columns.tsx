@@ -66,7 +66,7 @@ export function seerrUserColumns(
       key: 'account',
       header: t('admin.wishes.users.columns.account'),
       rowHeader: true,
-      cell: (mapping) => mapping.email,
+      cell: (mapping) => <span className={styles.breakable}>{mapping.email}</span>,
     },
     {
       key: 'user',
@@ -80,7 +80,9 @@ export function seerrUserColumns(
             ) : (
               <span className={styles.muted}>{t('admin.wishes.users.noUser')}</span>
             )}
-            <StateChip mapping={mapping} user={user} />
+            <span className={styles.wrapChip}>
+              <StateChip mapping={mapping} user={user} />
+            </span>
           </span>
         );
       },

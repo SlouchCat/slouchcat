@@ -192,7 +192,7 @@ function requestColumns(
               <span key={requester.profileId} className={styles.factStack}>
                 <span className={styles.clip}>{requesterLine(t, requester)}</span>
                 {requester.tag && (
-                  <span>
+                  <span className={styles.wrapChip}>
                     <TagChip tag={requester.tag} />
                   </span>
                 )}
@@ -210,7 +210,7 @@ function requestColumns(
         const user = seerrUserText(t, wish);
         return (
           <span className={styles.factStack}>
-            {user && <span className={styles.clip}>{user}</span>}
+            {user && <span className={styles.breakable}>{user}</span>}
             {ids.length === 0 ? (
               <span className={styles.muted}>{t('admin.wishes.requests.noRequest')}</span>
             ) : (
@@ -233,7 +233,7 @@ function requestColumns(
         const progress = progressText(t, wish.progress, language);
         return (
           <span className={styles.factStack}>
-            <span>
+            <span className={styles.wrapChip}>
               <WishStateChip state={wish.state} detail={wish.stateDetail} />
             </span>
             {progress && <span>{progress}</span>}
