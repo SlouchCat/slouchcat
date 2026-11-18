@@ -1046,14 +1046,26 @@ test('a Seerr user that administers Seerr is linked only after a question @keybo
   try {
     // Seerr has a user of that e-mail with the right to manage requests.
     await seerrControl({ privileged: ADMIN.email });
-    await send(owner, 'post', '/admin/wishes/mappings/users/refresh');
+    // Its id in Seerr: the server may still list the user of that e-mail an earlier run made
+    // (ids go on counting), so the poll waits for this one.
+    const seerrUsers = (await (
+      await fetch(`${SEERR_BASE}/api/v1/user?take=100&skip=0`, {
+        headers: { 'X-Api-Key': SEERR_API_KEY },
+      })
+    ).json()) as { results: { id: number; email: string }[] };
+    const seerrAdmin = seerrUsers.results.find((user) => user.email === ADMIN.email);
+    expect(seerrAdmin).toBeDefined();
+    // The refresh of connect() may still run, having read the users before this one: a refresh
+    // queued meanwhile joins it, so the poll queues one again until the user is there.
     await expect
       .poll(
-        async () =>
-          (await json<{ email?: string }[]>(owner, '/admin/wishes/mappings/users')).some(
-            (entry) => entry.email === ADMIN.email,
-          ),
-        { timeout: 15_000 },
+        async () => {
+          await send(owner, 'post', '/admin/wishes/mappings/users/refresh');
+          return (await json<{ id: number }[]>(owner, '/admin/wishes/mappings/users')).some(
+            (entry) => entry.id === seerrAdmin?.id,
+          );
+        },
+        { timeout: 15_000, intervals: [1000] },
       )
       .toBe(true);
     await send(owner, 'put', '/admin/wishes/settings', { provisionAccounts: true });
