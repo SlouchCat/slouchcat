@@ -30,7 +30,8 @@ import {
   wishSettingsQuery,
 } from './queries';
 import { tagDraft } from './wishes/ProfileTags';
-import { linkCandidate, SeerrUsersTab, withoutSeerrUser } from './wishes/SeerrUsersTab';
+import { linkCandidate, withoutSeerrUser } from './wishes/AccountDetail';
+import { SeerrUsersTab } from './wishes/SeerrUsersTab';
 import { RequestsTab } from './wishes/RequestsTab';
 import { SettingsTab } from './wishes/SettingsTab';
 
