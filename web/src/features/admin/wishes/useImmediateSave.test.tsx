@@ -19,7 +19,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('useImmediateSave', () => {
-  it('sends two changes of one control one after the other and keeps only the last answer', async () => {
+  it('sends two changes of one control one after the other and says only the last outcome', async () => {
     const answers = [deferred<string>(), deferred<string>()];
     const save = vi.fn((patch: string) => answers[patch === 'A' ? 0 : 1]!.promise);
     const saved = vi.fn((data: string) => `saved ${data}`);
@@ -30,23 +30,61 @@ describe('useImmediateSave', () => {
     expect(result.current.pending.get('switch')).toBe('B');
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
 
-    // A's answer arrives while B waits: the control keeps showing B.
+    // A's answer arrives while B waits: it reaches the query, the control keeps showing B.
     await act(async () => {
       answers[0]!.resolve('A');
       await Promise.resolve();
     });
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
     expect(result.current.pending.get('switch')).toBe('B');
-    expect(saved).not.toHaveBeenCalled();
+    expect(saved).toHaveBeenCalledWith('A', 'A', 'switch');
+    expect(result.current.message).toBeNull();
 
     await act(async () => {
       answers[1]!.resolve('B');
       await Promise.resolve();
     });
     await waitFor(() => expect(result.current.pending.has('switch')).toBe(false));
-    expect(saved).toHaveBeenCalledTimes(1);
-    expect(saved).toHaveBeenCalledWith('B', 'B', 'switch');
+    expect(saved).toHaveBeenCalledTimes(2);
+    expect(saved).toHaveBeenLastCalledWith('B', 'B', 'switch');
+    expect(result.current.message?.text).toBe('saved B');
     expect(result.current.failure).toBeNull();
+  });
+
+  it('an earlier change that went through reaches the query when a later one is refused', async () => {
+    // defaultLimit: A is stored, B is refused. The page must show A, what the server holds.
+    const answers = [deferred<string>(), deferred<string>()];
+    const save = vi.fn((patch: string) => answers[patch === 'A' ? 0 : 1]!.promise);
+    const stored: string[] = [];
+    const { result } = renderHook(
+      () =>
+        useImmediateSave({
+          save,
+          saved: (data: string) => {
+            stored.push(data);
+            return `saved ${data}`;
+          },
+        }),
+      { wrapper },
+    );
+
+    act(() => result.current.change('limit', 'A'));
+    act(() => result.current.change('limit', 'B'));
+    await act(async () => {
+      answers[0]!.resolve('A');
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    const refusal = new Error('refused');
+    await act(async () => {
+      answers[1]!.reject(refusal);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.pending.size).toBe(0));
+
+    expect(stored).toEqual(['A']);
+    expect(result.current.failure).toMatchObject({ key: 'limit', error: refusal });
+    expect(result.current.message).toBeNull();
   });
 
   it('a refusal of an earlier change does not stand beside a later one that went through', async () => {

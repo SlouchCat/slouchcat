@@ -7,7 +7,8 @@ interface ImmediateSaveOptions<TPatch, TData> {
   save: (patch: TPatch, key: string) => Promise<TData>;
   /**
    * After the server took the change: put its answer into the query client, and say in a short
-   * sentence what now applies (the outcome line).
+   * sentence what now applies (the outcome line). Called for every change the server took, also
+   * one a later change of the same control overtook; only the last change's sentence is shown.
    */
   saved: (data: TData, patch: TPatch, key: string) => Promise<string> | string;
 }
@@ -32,8 +33,8 @@ export interface ImmediateSave<TPatch> {
  * shows the new value while it travels, and a short message confirms it. A refused change rolls
  * the control back to what the server holds and keeps the server's reason for the page to show.
  * Each change resolves on its own, so two quick changes of different controls do not wait for
- * each other. Two quick changes of the same control go one after the other, and only the answer
- * to the last one counts: the control never falls back to an earlier answer while a later change
+ * each other. Two quick changes of the same control go one after the other, and only the outcome
+ * of the last one counts: the control never falls back to an earlier answer while a later change
  * travels, and a later change that goes through clears the refusal of an earlier one.
  */
 export function useImmediateSave<TPatch, TData>({
@@ -75,10 +76,13 @@ export function useImmediateSave<TPatch, TData>({
       const run = before.then(async () => {
         try {
           const data = await mutateAsync({ patch, key });
-          // A later change of this control is on its way: its answer is the one that counts.
-          if (!isLatest()) return;
           // The query holds the answer before the control lets go of its own value: no flicker.
-          say(await saved(data, patch, key));
+          // It gets every answer, also one a later change overtook: should the server refuse that
+          // later one, the page shows what the server holds, not the value from before.
+          const outcome = await saved(data, patch, key);
+          // A later change of this control is on its way: its outcome is the one that counts.
+          if (!isLatest()) return;
+          say(outcome);
           setFailure((current) => (current?.key === key ? null : current));
         } catch (error) {
           if (!isLatest()) return;
