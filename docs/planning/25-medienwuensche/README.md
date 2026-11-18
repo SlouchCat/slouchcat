@@ -1,11 +1,14 @@
 # Konzept 25 · Wünsche über Seerr
 
-- **Status: Bau läuft seit 17. November 2026.** Freigegeben am 17. November 2026 (Frage 33 in
+- **Status: gebaut.** Freigegeben am 17. November 2026 (Frage 33 in
   `docs/planning/04-entscheidungen.md`), Fassung 3 (nach Marcos drei Runden). Marco hat den Bau am 17. November 2026
   bestellt und alle offenen Fragen beantwortet ([Anhang H](anhang/H-nachtrag-17-november.md), Abschnitt 11;
-  Nachtrag zu Frage 33). Gebaut wird auf dem Zweig `claude/k25-bau`, ein Release am Schluss. Die Papiere `02` bis
-  `11` und `mockup-abdeckung.md` sind auf den Stand des Baus nachgeführt («so gebaut»); was die Prüfungen des Baus
-  an Regeln enger gefasst haben, zeigt Anhang H, Abschnitt 12. Der Vertrag der Stufen 4 und 5 ist noch in Arbeit. Fassung 2 arbeitete die 40 Befunde der ersten Kritik (Anhang G) und die Redaktionsentscheide vom
+  Nachtrag zu Frage 33). Gebaut sind alle Stufen auf dem Zweig `claude/k25-bau`; sie erscheinen am Schluss als ein
+  Release mit Vertrag 1.41.0. Merge und Tag warten auf Marcos Wort (B-2). Die Papiere `02` bis `11` und
+  `mockup-abdeckung.md` sind auf den Stand des Baus nachgeführt («so gebaut»); was die Prüfungen des Baus an Regeln
+  enger gefasst haben, zeigt Anhang H, Abschnitt 12; was noch offen ist, `09-umsetzungsplan.md` («Stand des
+  Baus») und `10-abnahmekriterien.md`, Abschnitt 9.
+  Fassung 2 arbeitete die 40 Befunde der ersten Kritik (Anhang G) und die Redaktionsentscheide vom
   17. November 2026 ein (`11-entscheide-und-adr.md`, Abschnitt 7). Fassung 3 umfasst drei Runden Marcos vom
   17. November 2026 mit seinen Antworten E-1 bis E-11 ([Anhang H](anhang/H-nachtrag-17-november.md)). Die
   erste: Seerr-Benutzer je Konto mit gleichem Login, Profil-Tag in Radarr und Sonarr, Limit je Konto,

@@ -302,8 +302,10 @@ Fehlerbilder: Adresse aus Seerr nicht erreichbar → gelber Punkt mit «Eigene A
 meldet einen anderen Host als den bestätigten → «Radarr-Adresse in Seerr geändert. Testen, um sie zu
 übernehmen.»; bis dahin halten `wishes.tag` und `wishes.progress` an.
 
-**So gebaut:** Das Band ist zugeklappt und öffnet sich von selbst, wenn ein Dienst auf «Testen» wartet oder nicht
-erreichbar ist.
+**So gebaut:** Das Band ist zugeklappt und öffnet sich von selbst, sobald ein Dienst neu Pflege braucht (er wartet
+auf «Testen» oder ist nicht erreichbar); schliesst der Leser es, bleibt es zu, bis ein Dienst wieder neu Pflege
+braucht. «Testen» läuft und meldet je Dienst für sich. Im Band «Sofortmeldung» verschwindet «Adresse erzeugen»,
+sobald der Knopf gedrückt ist.
 
 ## 5. Medien › Wünsche › Anfragen (M-23)
 
@@ -339,6 +341,18 @@ Zustand in Seerr. Freigeben und Ablehnen geschieht in Seerr (ab Stufe 4 auch hie
   Staffel antwortet der Server 409 `wish_not_pending`. Freigeben und Ablehnen laufen als Benutzer 1
   (`08-datenmodell-api.md`, Abschnitt 4.5). Ein kopfweites «Anfragen übernehmen» gibt es nicht; übernommen wird je
   Konto unter «Seerr-Benutzer» (Abschnitt 6).
+- **So gebaut nach der Korrekturrunde der Verwaltung (18. November 2026):**
+  - Die Liste lädt 100 Wünsche; «Weitere laden» holt die nächste Seite, darunter steht «n von m Wünschen gezeigt».
+  - Die Filter «Download verzögert» und «Tag nicht gesetzt» wirken weiter nur auf die geladenen Zeilen. Sind nicht
+    alle offenen Wünsche geladen, sagen sie «Gesucht in n von m offenen Wünschen», und ihre Zahl heisst «… unter
+    den geladenen».
+  - Der gewählte Filter steht in der Adresse (`?item=`) und übersteht ein Neuladen.
+  - Solange eine Zeile einen Download-Fortschritt zeigt, liest die Seite die Liste einmal je Minute neu.
+  - Weist der Server eine Aktion ab (409 `wish_not_pending`, `wish_not_retryable`), liest die Seite die Liste neu.
+  - Jede Zeile führt ihre eigene laufende Aktion und ihren eigenen Fehler.
+  - Die Aufklappzeile hat neben «Erneut versuchen» die Knöpfe «Zum Titel» und «In Seerr öffnen». «In Seerr
+    öffnen» öffnet ein neues Fenster und erscheint nur, wenn die gespeicherte Adresse von Seerr mit `http` oder
+    `https` beginnt.
 
 ## 6. Medien › Wünsche › Seerr-Benutzer (M-24)
 
@@ -386,6 +400,13 @@ nie, ob Seerr die Adresse kannte (N-94).
 **Eröffnen ausgeschaltet.** Ist unter Wünsche › Einstellungen «Neue Konten in Seerr eröffnen» aus, sind die Knöpfe «In Seerr eröffnen» und «Alle eröffnen» gesperrt. Daneben stehen der Grund «Neue Konten in Seerr eröffnen ist ausgeschaltet.» und ein Link auf die Einstellung (Wortlaut **Vorschlag**). Der Server lehnt beide Aufrufe dann mit 409 `provision_disabled` ab (`08-datenmodell-api.md`, Abschnitt 4.5).
 
 **Auswahl:** belegte Benutzer sind gesperrt mit «gehört zu {{Konto}}» (Form statt Blässe: Schloss und Text).
+**So gebaut:** Ein Seerr-Benutzer, der Seerr verwaltet (Feld `privileged` von `SeerrUser`, `08-datenmodell-api.md`
+Abschnitt 4.2), trägt in der Auswahl den Zusatz «verwaltet Seerr». Wählt ein Administrator ihn von Hand, fragt die
+Seite zuerst («Seerr-Administrator {{name}} verknüpfen?»: die Profile fordern danach ohne Freigabe und ohne Limit an,
+sein Passwort gleicht Slouchcat nicht ab). Die Rückfrage ist Sache der Seite; der Server weist die Handwahl nicht
+ab. Nach «übernehmen» weicht der Knopf einer Zeile, die sagt, dass die Übernahme läuft. Die Reiter tragen Zahlen:
+«Anfragen» die offenen Wünsche, «Seerr-Benutzer» «n ohne». Die Warnung zählt jedes Konto ohne Seerr-Benutzer, nicht
+nur die mit Wunschrecht.
 **Fakten je Benutzer:** «darf Filme anfordern», «darf Serien anfordern», «Auto-Freigabe Filme/Serien», «Limit
 5 Filme in 7 Tagen» oder «ohne Limit».
 
@@ -409,6 +430,13 @@ löschen».
 
 Schalter und Auswahlfelder, die **sofort** gelten (wie im Mockup); es gibt kein «Speichern» und kein
 «Verwerfen». Jede Änderung bestätigt sich mit einer kurzen Meldung. Bänder zugeklappt mit Zusammenfassung.
+
+**So gebaut:** Alle sieben Bänder («Grundsatz», «Woher angefordert werden darf», «Regeln», «Limit ab Werk», «Konten
+in Seerr», «Radarr und Sonarr: Profil-Tag und Fortschritt», «Verweise») sind klappbar, tragen eine Zusammenfassung
+im Kopf und starten zugeklappt. «Grundsatz» öffnet sich von selbst, solange die Wünsche aus sind oder sein
+Hauptschalter gesperrt ist. Änderungen wirken sofort; mehrere Änderungen desselben Feldes gehen nacheinander an den
+Server, und nur die Antwort auf die letzte zählt. Weist der Server eine Zahl oder den Präfix ab, bleibt das Getippte
+stehen, und der Grund steht am Feld.
 
 | Feld | Hilfe | Werte | Vorgabe | Wirkung |
 |---|---|---|---|---|
@@ -498,6 +526,7 @@ der Seite Spotlight an (Abschnitt 9).
 | Eigenes Konto, «Konto ändern» | Hinweis unter «Neues Passwort» (neu) | «Das neue Passwort gilt auch in Seerr.» Nach dem Speichern je nach Stand: «In Seerr folgt das neue Passwort bei deiner nächsten Anmeldung: Seerr ist gerade nicht erreichbar.» bzw. «Dein Passwort in Seerr bleibt, wie es ist: Du bist dort Administrator.» (N-5, N-6). Eine geänderte E-Mail geht ebenfalls an Seerr. Hat das Konto dort noch keinen Benutzer und gibt es die neue Adresse in Seerr schon, verknüpft Slouchcat ihn sofort, wie bei der Einladung (N-95). Hat das Konto schon einen Benutzer und lehnt Seerr die neue Adresse ab, weil sie vergeben ist, bleibt der Benutzer, wie er ist, und die Verwaltung sieht einen Hinweis am Konto (N-95). Die Meldung an das Konto ist in jedem Fall dieselbe und verrät nicht, ob Seerr die Adresse kennt (N-94) |
 | Eigenes Konto, «Meine Profile» | Profildialog mit Schalter «Darf Titel anfordern», Chip auf der Karte | wie `/settings/profiles` (M-11) |
 | Administratorkonten | Block «Wünsche» im Aufklappfeld mit Schalter «Darf Titel anfordern», Feld «Limit» und Zeile «Seerr-Benutzer» | Lücke in Anhang F, als Redaktionsentscheid vom 17. November 2026 gesetzt: Administratoren haben kein Formular «Zugriff» (`04-benutzer-profilmapping.md`, Abschnitt 9) |
+| Formular «Zugriff», Einladung, «Limit ab Werk» (so gebaut) | Grenzen und Fehler des Limits | unter jedem Feld des Limits stehen seine Grenzen; eine falsche Zahl sperrt das Absenden. Die Feldfehler des Servers (422) zum Limit erscheinen am Feld, im Formular «Zugriff», in der Einladung und bei «Limit ab Werk». Ist der Zugriff gespeichert und das Limit abgewiesen, sagt die Meldung: «Der Zugriff ist gespeichert, das Wunschlimit nicht: {{Grund}}» |
 | «Konto entfernen» | Zusatzsatz «Wünsche bleiben in Seerr bestehen. Der Seerr-Benutzer bleibt, verliert seine Rechte und bekommt ein neues Zufallspasswort.» nur bei einem Benutzer, den Slouchcat eröffnet hat (`origin = created`); bei einem verknüpften oder von Hand gewählten Benutzer «Der Seerr-Benutzer bleibt unverändert.» (Redaktionsentscheid zu K-2); die Wünsche des Kontos werden in Slouchcat geschlossen (`04-benutzer-profilmapping.md`, Abschnitt 10; N-10, F-31) | – |
 
 ## 9. Startseite › Spotlight (M-27)
