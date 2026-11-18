@@ -331,7 +331,9 @@ gilt dieser Nachtrag. Keiner der Punkte ist ein Entscheid von Marco; sie sind Re
    `provisionError: seerr_user_privileged`; mit Bestätigung verknüpft es (`linked_by = admin`,
    `password_state = admin`). «Alle eröffnen» verknüpft nie einen privilegierten Benutzer, lässt wartende Konten
    mit `seerr_user_taken` oder `seerr_user_privileged` aus und nennt ihre Zahl (`manual`). `provisionError` ist
-   eine feste Liste im Vertrag; ein unbekannter gespeicherter Wert geht als `failed` hinaus.
+   eine feste Liste im Vertrag; ein unbekannter gespeicherter Wert geht als `failed` hinaus. Auch die Wahl von Hand
+   fragt bei einem solchen Benutzer zuerst; dafür trägt `SeerrUser` das Feld `privileged` nach derselben Regel. Die
+   Rückfrage ist Sache der Verwaltung, der Server weist die Handwahl nicht ab.
 2. **Bremsen gegen Massenabrufe fehlender Titel.** Je Profil und zusätzlich je Konto (das Vierfache): Titel und
    Staffeln 60 je Minute (30 auf einmal), Bilder 600 (300), Seiten des Bereichs «Wünsche» 120 (60), die Suchen je
    30 je Minute, jede mit eigenem Topf; darüber 429 `too_many_attempts` mit `Retry-After: 60`. Der Topf des Profils
