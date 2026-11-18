@@ -66,7 +66,11 @@ Titel nicht sehen darf.
 **Bekannte Grenzen:** Eine Staffel, von der ein Profil nur einen Teil der Folgen sieht, bleibt anforderbar, und
 die Antwort kann verraten, dass es mehr Folgen gibt. Stürzt der Server zwischen dem Speichern eines Zustands und
 der Meldung ab, geht eine Zustandsmeldung verloren («verfügbar» wird nachgeholt). Nach dem Aufräumen des Eingangs
-(90 Tage) kann eine Staffelmeldung ein zweites Mal kommen.
+(90 Tage) kann eine Staffelmeldung ein zweites Mal kommen. Die aus Seerr gelesene Adresse von Radarr und Sonarr
+bleibt bis zu 10 Minuten im Speicher, auch wenn die Seerr-Verbindung geändert oder gelöscht wird; «Testen» liest
+sie sofort neu. Geht ein Profil, zählen seine Wünsche mit ihrer ursprünglichen Zeit zum Stundenlimit des
+Hauptprofils (20 neue Wünsche je Profil und Stunde). In «Anfragen» bleibt nach «Weitere laden» eine Verschiebung
+in der Liste, die die Anzahl nicht ändert, bis zum nächsten Lesen unbemerkt.
 
 **Messwerte** (`docs/perf/wuensche.md`): Alle gemessenen Zielwerte halten ausser `createWish` in schneller Folge,
 594 ms p95 gegen 500 ms (AK-98). Grund ist das eigene Limit des Seerr-Clients (5 Aufrufe je Sekunde); mit 2 s
@@ -77,7 +81,10 @@ Abstand zwischen zwei Wünschen sind es 43 ms p95.
 keinen fehlenden Text. Die Zweitlesung ist je Sprachgruppe gemacht.
 
 **Geprüft:** drei Prüfrunden des Servers, zwei Sicherheitsprüfungen, zwei Prüfungen der Web-App und zwei
-UI-Prüfungen gegen die Checklisten, jede mit einer Korrekturrunde danach. Eingefrorener Datenbankstand
+UI-Prüfungen gegen die Checklisten, jede mit einer Korrekturrunde danach. Eine Schlussprüfung der späten
+Änderungen (18. November 2026) fand zwei grössere und sechs kleinere Befunde, vor allem im gemeinsamen Formular
+(`web/src/ui/Form.tsx`) und beim Sofort-Speichern der Einstellungen; alle bis auf einen kosmetischen sind behoben,
+jeder mit einem Test, der vorher rot war. Eingefrorener Datenbankstand
 `testdata/db/wuensche.sql` mit `TestFrozenWuenscheStateCoversTheConcept`. An Marcos echtem Seerr, Radarr und
 Sonarr geprüft, so weit Anhang I es festhält (Verbindung, Benutzerpflege mit Testbenutzern, Limit, Titel, Suche,
 Entdecken, Lesen der Anfragen, Tags und Warteschlange von Radarr). **Nicht an echten Diensten geprüft**
@@ -89,8 +96,28 @@ Entdecken, Lesen der Anfragen, Tags und Warteschlange von Radarr). **Nicht an ec
 - die Abweisung der Passwort-Route für Benutzer 1 und andere Administratoren;
 - die Sonarr-Warteschlange, `PUT …/editor` mit `applyTags: "add"` und der Fortschritt gegen echtes Radarr und
   Sonarr;
-- der Weg vom Job `series.catalog` zur Serienseite im Browser, die Reihe «Erfüllte Wünsche» mit einem echt
-  erfüllten Wunsch und Firefox für die neuen Seiten.
+- der Weg vom Job `series.catalog` zur Serienseite im Browser und die Reihe «Erfüllte Wünsche» mit einem echt
+  erfüllten Wunsch.
+
+**Prüfungen vor dem Pull Request (18. November 2026).** `task ci` auf dem Endstand `576c0a7e`: Server (46
+Go-Pakete, Lint ohne Befund), Web (2308 Vitest-Tests, Lint, `i18n` ohne Fehler), Storybook (567) und Build grün.
+Die e2e-Suite (791 Tests in drei Teilen nebeneinander, Chromium und Firefox, lokal ohne Wiederholung) lief
+dreimal ganz:
+
+- **Erster Lauf (`bb96a3fc`): 785 bestanden, 6 rot,** alle sechs neue Specs im Firefox-Durchgang. Der läuft im
+  selben Teil nach Chromium auf demselben Server, und die neuen Specs vertrugen keinen zweiten Durchgang (Zeilen
+  und Zustände früherer Läufe, das Stundenlimit neuer Wünsche, ein Band, das sich nur beim ersten Mal öffnet). Das
+  betraf auch jede Wiederholung in der GitHub-CI. Behoben: Die Specs schliessen ihre offenen Wünsche selbst
+  (`declineOpenWishes`), finden ihre Zeilen über die Kennung des eigenen Wunsches, und der e2e-Server hebt das
+  Stundenlimit mit `SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR` (wirkt nur mit `--dev`, wie
+  `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP`; im Betrieb bleiben 20 je Profil und Stunde). Die Tastaturtests der
+  neuen Seiten laufen damit in Chromium und Firefox.
+- **Zweiter Lauf (`576c0a7e`): 789 bestanden, 2 rot** (`audio-offline.spec.ts:53`, `tracks.spec.ts:326`, beide
+  Firefox). **Dritter Lauf (`576c0a7e`): 790 bestanden, 1 rot** (`admin-radio.spec.ts:343`, Chromium). Jedes Mal
+  andere Tests, keiner aus Konzept 25, alle im Lauf davor grün; der Zweig ändert weder Player, Offline, Radio noch
+  diese Specs. Gezielt wiederholt bestehen alle drei 5 von 5 (`--repeat-each 5`). Befund: einzelne Wackler unter
+  der Last von drei Teilen nebeneinander, nicht behoben und nicht aus diesem Zweig. Die GitHub-CI wiederholt
+  einen roten Test einmal und prüft den Stand vollständig.
 
 **Für Marco nach dem Update:**
 
