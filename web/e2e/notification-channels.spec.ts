@@ -76,8 +76,9 @@ test('e-mail: the test message reaches the mail server; a refused login shows th
   const mail = card(page, 'E-Mail');
   await expect(mail.getByLabel('E-Mail-Adresse')).toHaveValue(OWNER.email);
   await expect(mail.getByRole('checkbox', { name: 'Fehler' })).toBeVisible();
-  // M9: the acquisition event is gone with its producer I-1, so four types are left.
-  await expect(mail.getByRole('checkbox')).toHaveCount(4);
+  // M9: the acquisition event is gone with its producer I-1. Concept 25 F-14 added the three of
+  // the wishes, offered whether the wishes are on or not: seven types for the owner.
+  await expect(mail.getByRole('checkbox')).toHaveCount(7);
   await expect(mail.getByRole('checkbox', { name: 'Beschaffungsstatus' })).toHaveCount(0);
   await switchOn(page, 'E-Mail');
 
