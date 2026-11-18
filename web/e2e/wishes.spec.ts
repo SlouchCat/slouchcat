@@ -79,7 +79,8 @@ test('the page by keyboard: the entry with its count, rows, history, withdraw as
     await expect(page).toHaveURL(/\/wishes$/);
     await expect(mine).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { level: 1, name: 'Meine Wünsche' })).toBeVisible();
-    await expect(page.getByText('1 offener Wunsch')).toBeVisible();
+    // The count line follows the list the filter shows: «Alle» holds the open and the declined one.
+    await expect(page.getByText('2 Wünsche', { exact: true })).toBeVisible();
     await expect(page.getByText(/^Limit: Filme: \d von 5 in 7 Tagen/)).toBeVisible();
     await expect(page.locator('#content')).not.toContainText('{{');
 
@@ -127,6 +128,7 @@ test('the page by keyboard: the entry with its count, rows, history, withdraw as
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/wishes\?state=open$/);
     await expect(row(page, 'Kupfermond')).toHaveCount(0);
+    await expect(page.getByText('1 offener Wunsch', { exact: true })).toBeVisible();
     await tabTo(page, withdraw, 10);
     await page.keyboard.press('Enter');
     await question.getByRole('button', { name: 'Zurückziehen' }).press('Enter');
