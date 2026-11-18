@@ -89,6 +89,8 @@ test('«Entdecken» by keyboard: the entry leads here, seven rows, arrows, plus,
     // Two genres have a backdrop (the JPEG of the TMDB mock), «Dokumentarfilm» none.
     const backdrops = row(page, 'Film-Genres').locator('img');
     await expect(backdrops).toHaveCount(2);
+    // The tiles load lazily: Firefox fetches an image only near the viewport, Chromium earlier.
+    await backdrops.first().scrollIntoViewIfNeeded();
     await expect
       .poll(() =>
         backdrops.evaluateAll((images) =>
