@@ -285,7 +285,13 @@ test('the settings take effect at once by keyboard; a refused change rolls back 
   await page.keyboard.press('Space');
   await expect(page.getByText('«Filme erlauben» ist eingeschaltet. Gilt sofort.')).toBeVisible();
 
-  // A choice: the arrows pick «Nicht erlauben» at once and back.
+  // A choice: the band «Regeln» folds with its summary; Enter opens it, the arrows pick
+  // «Nicht erlauben» at once and back.
+  const rules = page.getByRole('button', { name: 'Regeln' });
+  await expect(rules).toHaveAttribute('aria-expanded', 'false');
+  await tabTo(page, rules, 20);
+  await page.keyboard.press('Enter');
+  await expect(rules).toHaveAttribute('aria-expanded', 'true');
   const fallback = page.getByRole('radio', { name: 'Sammelbenutzer' });
   await expect(fallback).toBeChecked();
   await tabTo(page, fallback, 20);
@@ -541,7 +547,8 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
         { timeout: 30_000, intervals: [1000] },
       )
       .toBe('failed');
-    await page.reload();
+    // «Offen» stays in the address (?item=open) over a reload; the failed wish is under «Alle».
+    await page.goto('/admin/wishes');
     const failedRow = page
       .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
       .getByRole('row')
@@ -980,6 +987,11 @@ test('profile tags, the take-over and the band of Radarr and Sonarr by keyboard 
     await page.keyboard.press('Tab');
     await expect(page.getByText(/^Präfix «tag-»: Neue Tags heissen etwa tag-noah/)).toBeVisible();
     await expect(band).toHaveAccessibleDescription('Tag an · Präfix tag- · Fortschritt an');
+    // The switch of the wishes pages stands in the band «Woher angefordert werden darf».
+    const where = page.getByRole('button', { name: 'Woher angefordert werden darf' });
+    await where.focus();
+    await page.keyboard.press('Enter');
+    await expect(where).toHaveAttribute('aria-expanded', 'true');
     const pages = page.getByRole('switch', { name: 'Seiten Entdecken, Filme, Serien und Suche' });
     await pages.focus();
     await page.keyboard.press('Space');
