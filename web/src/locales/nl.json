@@ -53,7 +53,10 @@
       "other": "Extra profiel",
       "primary": "Hoofdprofiel",
       "admin": "Serverbeheerder"
-    }
+    },
+    "wishes": "Wensen",
+    "wishesLabel_one": "{{name}}, {{count}} openstaande wens",
+    "wishesLabel_other": "{{name}}, {{count}} openstaande wensen"
   },
   "system": {
     "server": {
@@ -226,7 +229,25 @@
       "deleting": "Wordt nu verwijderd.",
       "changed": "Er is intussen iets gewijzigd, controleer opnieuw.",
       "stale": "De bibliotheek is intussen elders gewijzigd. Laad de bibliotheek opnieuw en sla nog een keer op.",
-      "root_unlisted": "Een map van de bibliotheek ontbreekt in het verzoek. Laad de bibliotheek opnieuw; er is niets weggehaald."
+      "root_unlisted": "Een map van de bibliotheek ontbreekt in het verzoek. Laad de bibliotheek opnieuw; er is niets weggehaald.",
+      "seerr_key_required": "Een adres op een andere machine heeft de API-sleutel opnieuw nodig: de opgeslagen sleutel gaat nooit naar een ander adres.",
+      "seerr_not_configured": "Vul eerst het adres en de API-sleutel van Seerr in.",
+      "instance_unchanged": "Er wacht geen andere Seerr-instantie op een beslissing.",
+      "seerr_not_tested": "Wensen kunnen pas worden ingeschakeld na een geslaagde test van de opgeslagen verbinding.",
+      "seerr_user_taken": "Deze Seerr-gebruiker hoort al bij een ander account, is de gedeelde gebruiker of bestaat niet in Seerr.",
+      "provision_disabled": "“Nieuwe accounts aanmaken in Seerr” staat uit. Zet het aan onder Wensen › Instellingen.",
+      "password_not_syncable": "Slouchcat synchroniseert het wachtwoord van deze Seerr-gebruiker niet: de gebruiker is beheerder in Seerr of logt in via Jellyfin, Emby of Plex.",
+      "account_not_allowed": "Dit account mag geen titels aanvragen. Een beheerder stelt dit recht in onder Accounts.",
+      "wish_not_allowed": "Dit profiel kan geen titels aanvragen.",
+      "quota_exceeded": "De limiet laat dit niet toe.",
+      "already_available": "De titel staat al in de bibliotheek.",
+      "wish_not_withdrawable": "De wens is al goedgekeurd en kan niet meer worden ingetrokken.",
+      "seerr_unreachable": "Seerr is op dit moment niet bereikbaar.",
+      "wish_not_retryable": "Deze wens kan niet opnieuw worden geprobeerd.",
+      "wish_not_pending": "Al beslist: deze wens wacht in Seerr niet meer op goedkeuring. De synchronisatie haalt de nieuwe status op.",
+      "seerr_failed": "Seerr antwoordde met een fout.",
+      "seerr_instance_changed": "Een andere Seerr-instantie wacht op je beslissing onder Integraties › Seerr.",
+      "tag_name_taken": "Een ander profiel heeft al deze tagnaam."
     },
     "field": {
       "required": "Verplicht.",
@@ -257,7 +278,8 @@
       "local_address": "Dit adres staat in het lokale netwerk. Ook eigen zenders moeten via internet bereikbaar zijn.",
       "not_own": "Dit kan alleen bij eigen zenders worden gewijzigd.",
       "not_matched": "Dit luisterboek is niet aan een bron gekoppeld.",
-      "not_found": "De bron heeft zo’n item niet."
+      "not_found": "De bron heeft zo’n item niet.",
+      "seerr_url_invalid": "Vul een adres in met http:// of https://, zonder gebruiker, wachtwoord, query of fragment."
     }
   },
   "setup": {
@@ -653,7 +675,8 @@
       "released": "Recent uitgebracht",
       "libraries": "Mijn media",
       "library": "Nieuw in {{library}}",
-      "radio": "Mijn zenders"
+      "radio": "Mijn zenders",
+      "wishes": "Vervulde wensen"
     },
     "remaining": "Nog {{time}}",
     "continue": {
@@ -796,7 +819,22 @@
     "seasons": "Seizoenen",
     "seasonWall": {
       "showAll": "Alle {{total}} seizoenen tonen",
-      "showLess": "Minder tonen"
+      "showLess": "Minder tonen",
+      "season": "Seizoen {{number}}",
+      "present_one": "{{present}} van {{count}} seizoen beschikbaar",
+      "present_other": "{{present}} van {{count}} seizoenen beschikbaar",
+      "next": "Loopt nog, volgende aflevering op {{date}}",
+      "running": "Loopt nog",
+      "state": {
+        "missing": "Ontbreekt",
+        "requested": "Aangevraagd",
+        "processing": "Wordt verwerkt",
+        "announced": "Aangekondigd"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "{{title}} aanvragen",
+      "cardJoin": "{{title}}: al aangevraagd, sluit je aan",
+      "request": "Seizoenen aanvragen"
     },
     "episodes": {
       "title": "Afleveringen",
@@ -3196,7 +3234,8 @@
         "genres": "De genres van de zichtbare titels.",
         "libraries": "Tegels voor de bibliotheken die het profiel ziet, voor radio en, indien getoond, voor collecties en tips van gebruikers; de pagina “Mijn media” bepaalt de volgorde en wat verborgen is.",
         "library": "De titels die het laatst in deze bibliotheek zijn gekomen; “Alles tonen” opent de bibliotheek gesorteerd op “Recent toegevoegd”.",
-        "radio": "De favoriete zenders van het profiel als tegels; een zender die nu via de server speelt, toont zijn huidige titel. Zonder favorieten wordt de rij weggelaten."
+        "radio": "De favoriete zenders van het profiel als tegels; een zender die nu via de server speelt, toont zijn huidige titel. Zonder favorieten wordt de rij weggelaten.",
+        "wishes": "Wensen van het profiel die de afgelopen 14 dagen zijn vervuld, dus titels uit de bibliotheek. Openstaande wensen staan onder “Wensen › Mijn wensen”. Een lege rij wordt weggelaten."
       },
       "pageLink": "Naar “{{page}}”",
       "moved": "{{row}} staat nu op positie {{position}}. Sla op om dit toe te passen.",
@@ -3303,6 +3342,9 @@
         "quoted": "“{{note}}”",
         "none": "–",
         "notInLibrary": "Niet in de bibliotheek, verschijnt niet op de startpagina",
+        "unmatched": "Niet te herkennen",
+        "unmatchedReason": "Alleen de TVDB-id is bekend, TMDB vindt hem niet",
+        "noAction": "Geen actie: zonder TMDB-id kan het niet worden aangevraagd",
         "hide": "Verbergen",
         "hideLabel": "{{title}} verbergen",
         "show": "Tonen",
@@ -3311,6 +3353,65 @@
         "shown": "{{title}} wordt weer getoond.",
         "count_one": "{{count}} item",
         "count_other": "{{count}} items"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "In de bibliotheek herkend via de TVDB-id",
+          "tmdb": "In de bibliotheek herkend via de TMDB-id",
+          "imdb": "In de bibliotheek herkend via de IMDb-id"
+        }
+      },
+      "request": {
+        "action": "Aanvragen",
+        "label": "{{title}} aanvragen",
+        "done": "{{title}} is aangevraagd.",
+        "joined": "{{title}} was al aangevraagd; je profiel sluit zich aan bij de wens.",
+        "available": "{{title}} staat inmiddels in de bibliotheek."
+      },
+      "lacking": {
+        "title": "Ontbrekende items",
+        "missing_one": "{{count}} ontbreekt",
+        "missing_other": "{{count}} ontbreken",
+        "requested_one": "{{count}} aangevraagd",
+        "requested_other": "{{count}} aangevraagd",
+        "unmatched_one": "{{count}} niet te herkennen",
+        "unmatched_other": "{{count}} niet te herkennen",
+        "intro": "De startpagina en de spotlightlijst tonen alleen titels uit de bibliotheek. Items die ontbreken zie alleen jij, hier in het beheer. Profielen vragen ontbrekende titels aan onder “Wensen”.",
+        "asProfile": "“Aanvragen” gebeurt als het actieve profiel ({{name}}).",
+        "noRequestChip": "Aanvragen niet mogelijk",
+        "noRequest": {
+          "title": "Aanvragen kan pas zodra wensen zijn ingesteld.",
+          "body": "Daarvoor is Seerr nodig met adres en sleutel, ingeschakeld, en “Wensen actief”.",
+          "settings": "Naar de instellingen van de wensen",
+          "connection": "Naar de verbinding met Seerr"
+        },
+        "empty": "Elk item van de lijst staat in de bibliotheek."
+      },
+      "matching": {
+        "title": "Koppeling via TMDB, TVDB en IMDb",
+        "hits_one": "{{count}} in de bibliotheek",
+        "hits_other": "{{count}} in de bibliotheek",
+        "intro": "Slouchcat herkent films via TMDB en dan IMDb. Series net als de bibliotheek: eerst TVDB, dan TMDB, dan IMDb. Seerr bewaart elke titel onder zijn TMDB-id en geeft bij series de TVDB-id door aan Sonarr.",
+        "waysTitle": "Herkend via",
+        "way": {
+          "movie": {
+            "tmdb": "Films via hun TMDB-id",
+            "imdb": "Films via hun IMDb-id"
+          },
+          "show": {
+            "tvdb": "Series via hun TVDB-id",
+            "tmdb": "Series via hun TMDB-id",
+            "imdb": "Series via hun IMDb-id"
+          }
+        },
+        "noHits": "Geen enkel item staat in de bibliotheek.",
+        "unmatchedTitle": "Niet te herkennen",
+        "allMatched": "Alle items zijn herkend.",
+        "unmatchedNote": "Zonder TMDB-id kan een item niet worden aangevraagd; het telt niet als aanwezig en ook niet als ontbrekend."
       },
       "pin": {
         "action": "Vastzetten",
@@ -3465,6 +3566,9 @@
       },
       "server": {
         "title": "Server"
+      },
+      "wishes": {
+        "title": "Wensen"
       }
     },
     "server": {
@@ -3715,6 +3819,50 @@
         "hanging_one": "Een koppeling reageert niet meer: {{count}} lijst hangt in de kernel en kan niet worden geannuleerd. De mapbrowser werkt nog, met minder slots. Een herstart maakt ze vrij.",
         "hanging_other": "Een koppeling reageert niet meer: {{count}} lijsten hangen in de kernel en kunnen niet worden geannuleerd. De mapbrowser werkt nog, met minder slots. Een herstart maakt ze vrij.",
         "off": "Elk slot van de mapbrowser hangt aan een koppeling die niet meer reageert. Geen enkele map kan worden doorzocht totdat de server opnieuw start; een pad handmatig typen werkt nog wel."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr niet bereikbaar",
+          "key_invalid": "Seerr weigert de API-sleutel",
+          "instance_changed": "Andere Seerr-instantie gevonden"
+        },
+        "seerrStateBody": {
+          "unreachable": "Nieuwe wensen wachten en gaan weg zodra Seerr weer antwoordt.",
+          "key_invalid": "Slouchcat verzendt geen wensen en synchroniseert niets totdat de sleutel klopt.",
+          "instance_changed": "Verzenden en synchroniseren stoppen totdat je de toewijzing bevestigt of verwijdert."
+        },
+        "toConnection": "Naar Integraties › Seerr",
+        "unmapped_one": "{{count}} account zonder Seerr-gebruiker",
+        "unmapped_other": "{{count}} accounts zonder Seerr-gebruiker",
+        "unmappedFallback": "Tot die tijd verzenden ze via de gedeelde gebruiker slouchcat-gaeste.",
+        "unmappedDeny": "Hun profielen zien geen ontbrekende titels zolang “Accounts zonder Seerr-gebruiker” op “Niet toestaan” staat.",
+        "unmappedWaiting": "De accounts wachten en worden bij de volgende synchronisatie aangemaakt.",
+        "toUsers": "Naar de Seerr-gebruikers",
+        "linked": "Nieuw gekoppeld: {{account}} met de bestaande Seerr-gebruiker {{name}}",
+        "linkedBody": {
+          "invite": "Bij het accepteren van de uitnodiging op {{date}}, omdat het e-mailadres hetzelfde is. Het account heeft het adres zelf getypt; niemand heeft het gecontroleerd.",
+          "email_change": "Na de wijziging van het e-mailadres op {{date}}, omdat het e-mailadres hetzelfde is. Het account heeft het adres zelf getypt; niemand heeft het gecontroleerd."
+        },
+        "toAccount": "Koppeling bekijken",
+        "quotaReached": "Limiet bereikt: {{account}}",
+        "quotaNext": "{{used}}, de volgende plek komt vrij op {{date}}.",
+        "toLimit": "Limiet bekijken",
+        "gone_one": "{{count}} account: gebruiker in Seerr verwijderd",
+        "gone_other": "{{count}} accounts: gebruiker in Seerr verwijderd",
+        "goneBody": "Kies voor deze accounts een andere gebruiker of ontkoppel ze.",
+        "open_one": "{{count}} openstaande wens",
+        "open_other": "{{count}} openstaande wensen",
+        "openQueued_one": "Daarvan wacht {{count}} op verzending naar Seerr.",
+        "openQueued_other": "Daarvan wachten er {{count}} op verzending naar Seerr.",
+        "toRequests": "Naar de aanvragen",
+        "stalled_one": "{{count}} download vastgelopen",
+        "stalled_other": "{{count}} downloads vastgelopen",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Vastgelopen downloads bekijken",
+        "tagsFailed_one": "{{count}} tag niet gezet",
+        "tagsFailed_other": "{{count}} tags niet gezet",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Ontbrekende tags bekijken"
       }
     },
     "integrations": {
@@ -3728,7 +3876,8 @@
         "email": "E-mail",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Updatecontrole"
+        "updateCheck": "Updatecontrole",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Ingesteld in deploy/.env",
@@ -3760,7 +3909,8 @@
         "email": "Server voor meldingen, uitnodigingen en mededelingen per e-mail.",
         "telegram": "Bot voor meldingen via Telegram.",
         "push": "Meldingen in de browser en in de geïnstalleerde app.",
-        "server": "Updatecontrole, openbaar adres en grafische chip."
+        "server": "Updatecontrole, openbaar adres en grafische chip.",
+        "seerr": "Wensen van kijkers doorgeven aan Seerr en hun status synchroon houden. Accounts krijgen daar een gebruiker met dezelfde login."
       },
       "keys": {
         "title": "Sleutels van aanbieders",
@@ -3786,7 +3936,8 @@
         "neverSeen": "Heeft nog nooit iets gemeld.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Nieuwe integratie",
@@ -3831,7 +3982,8 @@
           "acknowledged": "Test bevestigd",
           "ignored": "Geen effect",
           "outside_roots": "Buiten de bibliotheken",
-          "invalid_payload": "Zonder pad"
+          "invalid_payload": "Zonder pad",
+          "sync_queued": "Wensen worden gesynchroniseerd"
         },
         "renew": {
           "action": "Token vernieuwen",
@@ -3979,6 +4131,233 @@
         "checkLabel": "{{name}} controleren",
         "rejected": "geweigerd",
         "savedRejected": "{{name}} opgeslagen, maar de aanbieder weigert de sleutel."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Verbinding met Seerr",
+        "version": "Versie {{version}}",
+        "lastSuccess": "Laatst bereikt {{time}}",
+        "state": {
+          "not_configured": "Niet ingesteld",
+          "disabled": "Uitgeschakeld",
+          "untested": "Niet getest",
+          "connected": "Verbonden",
+          "key_invalid": "Sleutel ongeldig",
+          "unreachable": "Niet bereikbaar",
+          "instance_changed": "Andere instantie gevonden"
+        },
+        "stateHint": {
+          "not_configured": "Vul het adres en de sleutel in.",
+          "disabled": "Slouchcat roept Seerr niet aan. Wensen blijven bewaard.",
+          "untested": "Test de verbinding, zodat “Wensen actief” kan worden ingeschakeld.",
+          "instance_changed": "Tot je beslist, verzendt Slouchcat geen wensen en synchroniseert het niets."
+        },
+        "connection": {
+          "title": "Verbinding",
+          "noAddress": "Geen adres"
+        },
+        "enabled": "Seerr gebruiken",
+        "enabledHelp": "Uit: Slouchcat roept Seerr niet aan. Wensen blijven bewaard.",
+        "url": "Adres",
+        "urlHelp": "Bijvoorbeeld http://192.168.1.50:5055. Slouchcat praat alleen met dit adres. Een adres in het thuisnetwerk is toegestaan; Slouchcat volgt geen omleidingen.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API-sleutel",
+        "apiKeyHelp": "Uit Seerr: Instellingen › Algemeen. Laat leeg om de opgeslagen sleutel te behouden. Een adres op een andere machine heeft de sleutel opnieuw nodig.",
+        "clearBody": "Het adres en de sleutel worden verwijderd. Wensen blijven bewaard, maar worden niet meer doorgegeven en gesynchroniseerd.",
+        "test": {
+          "action": "Verbinding testen",
+          "running": "Verbinding wordt gecontroleerd…",
+          "listLabel": "Resultaat van de verbindingstest",
+          "passed": "Alle controles geslaagd.",
+          "passedWithHints_one": "Verbonden · {{count}} tip",
+          "passedWithHints_other": "Verbonden · {{count}} tips",
+          "hintsHelp": "Een tip houdt niets tegen; hij zegt wat in Seerr beter anders kan worden ingesteld.",
+          "failed": "De test is mislukt: {{checks}}."
+        },
+        "level": {
+          "ok": "geslaagd",
+          "warn": "tip",
+          "fail": "mislukt"
+        },
+        "checks": {
+          "reachable": "Bereikbaar",
+          "version": "Versie",
+          "key_valid": "Sleutel geldig",
+          "manage_users": "Gebruikers aanmaken en wijzigen",
+          "instance": "Instantie",
+          "act_as_user": "Handelen namens gebruikers",
+          "csrf_off": "CSRF-beveiliging in Seerr uit",
+          "radarr": "Radarr in Seerr",
+          "sonarr": "Sonarr in Seerr",
+          "local_login": "Lokale aanmelding in Seerr",
+          "tvdb_seasons": "Seizoenen uit TVDB",
+          "password_transport": "Wachtwoord versleuteld",
+          "radarr_tags": "Radarr voor profieltags",
+          "sonarr_tags": "Sonarr voor profieltags"
+        },
+        "checkOk": {
+          "reachable": "Seerr antwoordt.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr accepteert de sleutel.",
+          "manage_users": "De sleutel mag accounts in Seerr aanmaken en rechten, limiet en wachtwoord instellen.",
+          "instance": "Dezelfde instantie als bij het instellen.",
+          "act_as_user": "Wensen gelden met de rechten, de limiet en de automatische goedkeuring van de gekoppelde gebruiker.",
+          "csrf_off": "Schrijvende aanroepen komen aan.",
+          "radarr_one": "Filmwensen gaan naar Radarr ({{count}} server).",
+          "radarr_other": "Filmwensen gaan naar Radarr ({{count}} servers).",
+          "sonarr_one": "Seriewensen gaan naar Sonarr ({{count}} server).",
+          "sonarr_other": "Seriewensen gaan naar Sonarr ({{count}} servers).",
+          "local_login": "Aangemaakte gebruikers loggen in bij Seerr met het e-mailadres en wachtwoord uit Slouchcat.",
+          "tvdb_seasons": "Seerr, Sonarr en de Slouchcat-bibliotheek tellen seizoenen op dezelfde manier.",
+          "password_transport": "Wachtwoorden gaan versleuteld of blijven in het thuisnetwerk.",
+          "radarr_tags": "Radarr antwoordt voor profieltags en downloadvoortgang.",
+          "sonarr_tags": "Sonarr antwoordt voor profieltags en downloadvoortgang."
+        },
+        "checkIssue": {
+          "notTested": "Niet gecontroleerd.",
+          "timeout": "Niet bereikbaar: time-out.",
+          "refused": "Niet bereikbaar: verbinding geweigerd.",
+          "redirect": "Niet bereikbaar: omleidingen zijn niet toegestaan.",
+          "unreachable": "Niet bereikbaar. Draait Seerr, en klopt het adres?",
+          "versionNotVerified": "Versie niet geverifieerd: getest zijn Jellyseerr 2.7 en Seerr 3.x.",
+          "keyNotUserOne": "De sleutel hoort niet bij de eigenaar van Seerr (gebruiker 1).",
+          "keyInvalid": "Seerr weigert de sleutel.",
+          "manageUsers": "De sleutel mag geen gebruikers aanmaken: accounts kunnen niet worden aangemaakt.",
+          "instance": "Andere Seerr-instantie gevonden.",
+          "notTestable": "Niet te testen: Seerr heeft naast gebruiker 1 geen enkele gebruiker.",
+          "waiting": "Niet gecontroleerd zolang een andere instantie op je beslissing wacht.",
+          "actAsUser": "Werkt niet: wensen zouden als beheerder worden ingediend.",
+          "csrfOn": "Aan: schrijvende aanroepen mislukken. Zet het uit in de netwerkinstellingen van Seerr.",
+          "noRadarr": "Geen Radarr in Seerr: filmwensen blijven liggen.",
+          "noSonarr": "Geen Sonarr in Seerr: seriewensen blijven liggen.",
+          "localLoginOff": "Aangemaakte gebruikers kunnen niet inloggen bij Seerr. Schakel in Seerr onder Instellingen › Gebruikers “Lokale aanmelding” in.",
+          "noSeasonSource": "Seerr noemt de bron van zijn seizoenen niet.",
+          "tmdbSeasons": "Seerr leest seizoenen uit TMDB. TVDB wordt aanbevolen, zoals in Sonarr en in de Slouchcat-bibliotheek; anders kunnen seizoennummers afwijken.",
+          "passwordTransport": "Wachtwoorden zouden onversleuteld over het internet gaan. Gebruik https.",
+          "arrNotConfirmed": "Het adres uit Seerr is nog niet bevestigd: test het onder “Radarr en Sonarr”.",
+          "arrUnreachable": "Niet bereikbaar: geen profieltags en geen downloadvoortgang.",
+          "csrfUnexpected": "Seerr accepteerde een leeg verzoek in plaats van het te weigeren. Wensen gaan toch weg; controleer de versie van Seerr."
+        },
+        "instance": {
+          "title": "Andere Seerr-instantie gevonden",
+          "body": "Op het adres antwoordt een andere Seerr-instantie dan bij het instellen. Tot je beslist, verzendt Slouchcat geen wensen en synchroniseert het niets.",
+          "confirm": "Toewijzing bevestigen",
+          "reset": "Toewijzing verwijderen",
+          "resetTitle": "Toewijzing aan Seerr verwijderen?",
+          "resetBody": "De Seerr-gebruikers van alle accounts en de geladen gebruikerslijst worden verwijderd. Daarna laadt Slouchcat de gebruikers van de nieuwe instantie.",
+          "confirmed": "Nieuwe instantie overgenomen. De Seerr-gebruikers van de accounts blijven.",
+          "resetDone": "Toewijzing verwijderd. Slouchcat laadt de gebruikers van de nieuwe instantie."
+        },
+        "log": {
+          "title": "Logboek",
+          "empty": "Nog geen items.",
+          "caption": "De laatste aanroepen naar Seerr",
+          "at": "Tijd",
+          "call": "Aanroep",
+          "result": "Resultaat",
+          "duration": "Duur",
+          "error": "Fout",
+          "noAnswer": "Geen antwoord",
+          "ms": "{{ms}} ms",
+          "note": "Nooit met headers of sleutel. Maximaal 20 items.",
+          "entries_one": "{{count}} item",
+          "entries_other": "{{count}} items",
+          "errors_one": "{{count}} fout",
+          "errors_other": "{{count}} fouten"
+        },
+        "usersLink": "Seerr-gebruikers van de accounts",
+        "sync": {
+          "title": "Synchronisatie",
+          "summary_one": "{{count}} openstaande wens",
+          "summary_other": "{{count}} openstaande wensen",
+          "open": "Openstaande wensen",
+          "queued": "Wachten op verzending",
+          "last": "Seerr laatst bereikt",
+          "never": "Nog nooit",
+          "every": "Slouchcat synchroniseert de wensen elke 5 minuten met Seerr.",
+          "requestsLink": "Naar de aanvragen"
+        },
+        "arr": {
+          "title": "Radarr en Sonarr (profieltags en voortgang)",
+          "intro": "Slouchcat maakt in Radarr en Sonarr per profiel een tag aan en hangt die aan de titel zodra Seerr hem daarheen heeft doorgegeven. Daarvoor leest het de wachtrij en de bestandsstatus van de gewenste titels, om bij wensen de downloadvoortgang te tonen. Verder wijzigt Slouchcat niets in Radarr en Sonarr. Nieuwe titels worden nog steeds door de webhook gemeld.",
+          "offNotice": "Profieltags en downloadvoortgang staan uit. Slouchcat roept Radarr en Sonarr niet aan.",
+          "summaryOff": "uit · profieltags en voortgang uitgeschakeld",
+          "summaryTags_one": "{{count}} tag open",
+          "summaryTags_other": "{{count}} tags open",
+          "summaryProgress_one": "{{count}} download",
+          "summaryProgress_other": "{{count}} downloads",
+          "state": {
+            "none": "{{service}} niet in Seerr",
+            "unconfirmed": "{{service}} wacht op “Testen”",
+            "unreachable": "{{service}} niet bereikbaar",
+            "reachable": "{{service}} bereikbaar",
+            "untested": "{{service}} nog niet aangeroepen"
+          },
+          "facts": {
+            "address": "Adres",
+            "state": "Status",
+            "tagRequests": "Tag Requests in Seerr",
+            "tags": "Profieltags",
+            "progress": "Downloadvoortgang"
+          },
+          "address": {
+            "seerr": "Uit Seerr: {{address}}",
+            "own": "Eigen adres: {{address}}"
+          },
+          "addressNone": "Geen: Seerr heeft geen standaardserver voor {{service}}.",
+          "lastAt": "laatst {{time}}",
+          "tagRequestsOn": "aan",
+          "tagRequestsOff": "uit · Aanbevolen: dan draagt elke titel ook de tag van het account.",
+          "tags": "{{set}} gezet · {{pending}} open · {{failed}} mislukt",
+          "progressOff": "uit · onder Wensen › Instellingen",
+          "progressError": "Voortgang niet leesbaar: {{reason}}",
+          "progressOn_one": "aan · {{count}} wens met voortgang",
+          "progressOn_other": "aan · {{count}} wensen met voortgang",
+          "progressAt_one": "aan · {{count}} wens met voortgang · laatst gelezen {{time}}",
+          "progressAt_other": "aan · {{count}} wensen met voortgang · laatst gelezen {{time}}",
+          "test": {
+            "action": "Testen",
+            "label": "{{service}} testen",
+            "noHost": "het adres",
+            "passed": "{{service}} antwoordt op {{host}} en accepteert de sleutel uit Seerr. Het adres is bevestigd.",
+            "keyRefused": "{{service}} antwoordt op {{host}}, maar weigert de sleutel uit Seerr.",
+            "unreachable": "{{service}} is op {{host}} niet bereikbaar.",
+            "ownHint": "Bereikt Slouchcat het adres uit Seerr niet, bijvoorbeeld bij namen die alleen binnen Docker gelden, vul dan hieronder een eigen adres in.",
+            "notInSeerr": "Seerr heeft geen standaardserver voor {{service}}.",
+            "notInSeerrBody": "Stel in Seerr een standaardserver zonder 4K in. Zonder die server zet Slouchcat geen tags en leest het geen voortgang."
+          },
+          "own": "Eigen adres voor {{service}}",
+          "ownHelp": "Leeg: het adres uit Seerr. Alleen nodig als Slouchcat het adres uit Seerr niet bereikt, bijvoorbeeld bij namen die alleen binnen Docker gelden. De sleutel komt altijd van Seerr.",
+          "ownPlaceholder": "Adres uit Seerr",
+          "saveLabel": "Eigen adressen van Radarr en Sonarr opslaan",
+          "saved": "Eigen adressen opgeslagen.",
+          "toSettings": "Voorvoegsel en downloadvoortgang · Wensen › Instellingen",
+          "toUsers": "Tagnamen per profiel · Seerr-gebruikers",
+          "toWebhooks": "Webhooks van Radarr en Sonarr · ongewijzigd, handmatig ingesteld"
+        },
+        "hook": {
+          "title": "Direct signaal",
+          "on": "Ingesteld",
+          "off": "Uit",
+          "intro": "Seerr start de synchronisatie meteen, in plaats van tot 5 minuten te wachten. De synchronisatie blijft de basis.",
+          "name": "Seerr",
+          "create": "Adres genereren",
+          "address": "Adres",
+          "last": "Laatste signaal",
+          "never": "Heeft nog nooit iets gemeld.",
+          "single": "Seerr kent maar één webhookdoel. Gebruik je het al voor iets anders, dan vervangt dit adres het.",
+          "where": "In Seerr onder Instellingen › Meldingen › Webhook: het adres als “Webhook URL”, deze sjabloon als “JSON Payload”.",
+          "payload": "JSON-sjabloon voor Seerr",
+          "copyPayload": "Sjabloon kopiëren",
+          "typesIntro": "Vink deze meldingstypen aan in Seerr:",
+          "types": "Meldingstypen voor Seerr",
+          "copyTypes": "Typen kopiëren",
+          "copied": "Gekopieerd.",
+          "copyFailed": "Geen toegang tot het klembord: de tekst is geselecteerd, kopieer hem met Ctrl+C.",
+          "log": "Laatste signalen"
+        },
+        "accounts_one": "Seerr-gebruikers: {{opened}} van {{count}} account",
+        "accounts_other": "Seerr-gebruikers: {{opened}} van {{count}} accounts"
       }
     },
     "accounts": {
@@ -3988,6 +4367,7 @@
       "columns": {
         "email": "E-mail",
         "role": "Rol",
+        "access": "Toegang",
         "profiles": "Profielen",
         "lastSeen": "Laatst gezien",
         "channels": "Kanalen",
@@ -4019,7 +4399,14 @@
         "currentPasswordHint": "Bevestigt dat jij het bent.",
         "wrongPassword": "Het huidige wachtwoord klopt niet.",
         "unchanged": "Wijzig het e-mailadres of voer een nieuw wachtwoord in.",
-        "saved": "Je account is opgeslagen."
+        "saved": "Je account is opgeslagen.",
+        "seerrPassword": {
+          "synced": "Het nieuwe wachtwoord geldt ook in Seerr.",
+          "next_login": "Het nieuwe wachtwoord geldt ook in Seerr.",
+          "off": "Je wachtwoord in Seerr blijft zoals het is: het wordt niet gesynchroniseerd.",
+          "admin": "Je wachtwoord in Seerr blijft zoals het is: je bent daar beheerder.",
+          "external": "Je wachtwoord in Seerr blijft zoals het is: je logt daar in via Jellyfin, Emby of Plex."
+        }
       },
       "ownerBadge": "Eigenaar",
       "access": {
@@ -4030,7 +4417,8 @@
         "heading": "Toegang",
         "save": "Toegang opslaan",
         "saved": "Toegang van {{email}} opgeslagen.",
-        "adminHint": "Een beheerder heeft altijd het niveau “Vanaf 18 jaar” en alle bibliotheken; “Toegang” bestaat alleen voor accounts zonder beheerrechten."
+        "adminHint": "Een beheerder heeft altijd het niveau “Vanaf 18 jaar” en alle bibliotheken; “Toegang” bestaat alleen voor accounts zonder beheerrechten.",
+        "limitRefused": "De toegang is opgeslagen, de wenslimiet niet: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4099,7 +4487,8 @@
           "libraries": "Bibliotheken",
           "detail": "Geldig tot / geaccepteerd",
           "actions": "Acties"
-        }
+        },
+        "seerrHint": "Bij het accepteren maakt Slouchcat het account ook aan in Seerr: hetzelfde e-mailadres, hetzelfde wachtwoord."
       },
       "discard": "Verwerpen",
       "status": {
@@ -4126,6 +4515,42 @@
         "mine": "Mijn profielen",
         "of": "Profielen van {{email}}",
         "readOnly": "Elk account beheert zijn eigen profielen."
+      },
+      "wishes": {
+        "title": "Wensen",
+        "of": "Wensen van {{email}}",
+        "canRequest": "Mag titels aanvragen",
+        "canRequestHelp": "Geldt als bovengrens voor alle profielen. Welke profielen aanvragen, bepaalt het hoofdprofiel van het account.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Toegestaan",
+          "not_allowed": "Niet toegestaan",
+          "mapping_missing": "Zonder Seerr-gebruiker"
+        },
+        "userLine": "Seerr-gebruiker: {{user}}",
+        "noUser": "nog geen",
+        "change": "Wijzigen",
+        "userState": {
+          "created": "aangemaakt",
+          "linked": "gekoppeld",
+          "manual": "handmatig gekozen",
+          "waiting": "wacht op Seerr"
+        },
+        "linkedBy": "gekoppeld {{by}} op {{date}}",
+        "password": {
+          "synced": "wachtwoord gesynchroniseerd",
+          "next_login": "wachtwoord volgt bij de volgende login",
+          "off": "wachtwoord wordt niet gesynchroniseerd",
+          "admin": "wachtwoord blijft in Seerr (beheerder)",
+          "external": "logt in via Jellyfin, Emby of Plex"
+        },
+        "rightsFollow": "De rechten van “{{name}}” in Seerr worden aangepast.",
+        "rightsStay": "“{{name}}” behoudt zijn rechten in Seerr, omdat Slouchcat de gebruiker niet heeft aangemaakt.",
+        "adminLimit": "“{{name}}” is beheerder in Seerr. Seerr geeft beheerders geen limiet.",
+        "limitLater": "Nog geen Seerr-gebruiker: Slouchcat stelt de limiet in zodra het account daar is aangemaakt.",
+        "limitFixed": "Limiet: {{limit}}. Bij beheerders kan die hier niet worden gewijzigd.",
+        "savedOn": "{{email}} mag nu titels aanvragen.",
+        "savedOff": "{{email}} mag geen titels meer aanvragen."
       }
     },
     "backup": {
@@ -4660,6 +5085,57 @@
           "description": "Verwijdert titels waarvan de bestanden langer dan de uitstelperiode ontbreken.",
           "trigger": "Schema elk uur en serverstart"
         },
+        "seerr_users": {
+          "name": "Seerr-gebruikers laden",
+          "description": "Leest de gebruikers van Seerr met hun rechten en limieten en controleert of Slouchcat nog met dezelfde Seerr-instantie praat.",
+          "trigger": "dagelijks, “Gebruikerslijst opnieuw laden”, nadat de verbinding met Seerr is opgeslagen"
+        },
+        "seerr_provision": {
+          "name": "Accounts aanmaken in Seerr",
+          "description": "Maakt de Seerr-gebruiker van een account aan of koppelt die, maakt de gedeelde gebruiker “slouchcat-gaeste” aan en haalt de rechten weg bij de Seerr-gebruiker van een verwijderd account.",
+          "trigger": "“In Seerr aanmaken”, “Alle aanmaken”, uitnodiging geaccepteerd, “Wensen actief” ingeschakeld, na het laden van de Seerr-gebruikers voor wachtende accounts, account verwijderd"
+        },
+        "wishes_submit": {
+          "name": "Wensen naar Seerr verzenden",
+          "description": "Verzendt een wens die nog in de postbus wacht naar Seerr en hangt hem aan een bestaande aanvraag.",
+          "trigger": "na het aanvragen als Seerr niet meteen antwoordt, met steeds grotere tussenpozen tot 24 uur; na de synchronisatie voor wensen die aan de beurt zijn"
+        },
+        "wishes_withdraw": {
+          "name": "Ingetrokken wensen in Seerr verwijderen",
+          "description": "Verwijdert in Seerr de eigen, nog niet goedgekeurde aanvraag van een ingetrokken wens. Een al goedgekeurde aanvraag blijft staan en de wens wordt weer geopend.",
+          "trigger": "“Intrekken” in “Mijn wensen”; na de synchronisatie als Seerr niet bereikbaar was"
+        },
+        "wishes_sync": {
+          "name": "Wensen synchroniseren met Seerr",
+          "description": "Leest de gewijzigde aanvragen uit Seerr, werkt de status van de wensen bij, controleert wensen die lang niet zijn gewijzigd stuk voor stuk en verzendt wensen uit de postbus die aan de beurt zijn opnieuw. De eerste synchronisatie leest alle aanvragen.",
+          "trigger": "schema elke 5 minuten, “Nu synchroniseren”, melding van de Seerr-webhook",
+          "progress": "Pagina’s gelezen: {{done}} van {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Wensen afstemmen op de bibliotheek",
+          "description": "Meldt een wens als beschikbaar zodra Slouchcat de film of alle gewenste seizoenen voor een profiel kan afspelen.",
+          "trigger": "schema elk uur, nadat een gewenste titel in de bibliotheek is herkend, na de synchronisatie met Seerr"
+        },
+        "wishes_tag": {
+          "name": "Profieltags zetten",
+          "description": "Hangt in Radarr en Sonarr de tag van het profiel aan films en series die via Slouchcat zijn gewenst en worden verwerkt. Tags worden nooit verwijderd.",
+          "trigger": "na de synchronisatie met Seerr, elke 15 minuten en handmatig"
+        },
+        "wishes_progress": {
+          "name": "Downloadvoortgang lezen",
+          "description": "Leest de wachtrij van Radarr en Sonarr en toont bij wensen die worden verwerkt of ze worden gezocht, gedownload of geïmporteerd. Wijzigt niets in Radarr en Sonarr.",
+          "trigger": "elke minuut zolang wensen worden verwerkt en de downloadvoortgang is ingeschakeld"
+        },
+        "wishes_discover": {
+          "name": "Wenslijsten vooraf laden",
+          "description": "Laadt de rijen van Ontdekken uit Seerr in de cache, voor elke taal en leeftijdsgrens van de profielen die mogen aanvragen, en verwijdert lijsten die ouder zijn dan een dag. Elke treffer wordt opnieuw gecontroleerd voor het profiel.",
+          "trigger": "Schema elk uur, zolang wensen actief zijn en de pagina’s Ontdekken, Films, Series en Zoeken zijn ingeschakeld"
+        },
+        "wishes_import": {
+          "name": "Aanvragen uit Seerr overnemen",
+          "description": "Neemt de openstaande en onlangs beschikbaar geworden aanvragen die een gekoppelde Seerr-gebruiker in Seerr zelf heeft gedaan over als wensen van het hoofdprofiel van zijn account (“Aangemaakt in Seerr”). Aanvragen van de gedeelde gebruiker blijven buiten beschouwing. Er gaat geen melding uit.",
+          "trigger": "Seerr-gebruiker van een account gekoppeld, gekozen of gewijzigd, “Aanvragen overnemen”"
+        },
         "segments_detect": {
           "name": "Intro en aftiteling herkennen",
           "description": "Vindt intro en aftiteling van afleveringen voor “Intro overslaan”.",
@@ -4785,6 +5261,16 @@
           "description": "Haalt een aflevering op bij zijn host en zet hem als bestand in de map van zijn podcast.",
           "trigger": "Vanuit de planner met “Opslaan”, “Ontbrekende binnenhalen” en “Binnenhalen” per aflevering; één per host tegelijk",
           "progress": "Bytes: {{done}} van {{total}}"
+        },
+        "series_catalog": {
+          "name": "Seizoenlijsten van series ophalen",
+          "description": "Leest voor elke serie in de bibliotheek de seizoenen met het aantal afleveringen, de status en de volgende aflevering uit TMDB, na 7 dagen opnieuw.",
+          "trigger": "Schema dagelijks, nadat een serie is herkend"
+        },
+        "titles_refresh": {
+          "name": "Ontbrekende titels vernieuwen",
+          "description": "Leest details, leeftijdsclassificaties en trailers van titels die niet in de bibliotheek staan na 7 dagen opnieuw uit TMDB.",
+          "trigger": "Schema dagelijks"
         },
         "trakt_refresh": {
           "name": "Spotlight-lijst ophalen",
@@ -5210,6 +5696,492 @@
         "changed": "er staat intussen een ander bestand op het pad"
       },
       "changed": "Er is intussen iets gewijzigd, controleer opnieuw. De onderstaande lijst wordt opnieuw ingelezen; er is niets verwijderd."
+    },
+    "wishes": {
+      "title": "Wensen",
+      "intro": "Elk account heeft in Seerr een eigen gebruiker met dezelfde login. De profielen vragen aan als die gebruiker. Rechten, limiet en goedkeuring komen van die gebruiker.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Onderdelen van de wensen",
+        "users": "Seerr-gebruikers",
+        "settings": "Instellingen",
+        "requests": "Aanvragen",
+        "openCount_one": "{{count}} openstaande wens",
+        "openCount_other": "{{count}} openstaande wensen",
+        "withoutShort": "{{number}} zonder",
+        "withoutCount_one": "{{count}} account zonder Seerr-gebruiker",
+        "withoutCount_other": "{{count}} accounts zonder Seerr-gebruiker"
+      },
+      "strip": {
+        "label": "Overzicht",
+        "accounts": "Accounts",
+        "opened": "In Seerr",
+        "openedNote": "aangemaakt of gekoppeld",
+        "without": "Zonder gebruiker",
+        "waiting_one": "{{count}} wacht op Seerr",
+        "waiting_other": "{{count}} wachten op Seerr",
+        "password": "Wachtwoord nog open",
+        "passwordNote": "volgt bij de volgende login"
+      },
+      "limit": {
+        "movie_one": "{{count}} film / {{days}} dagen",
+        "movie_other": "{{count}} films / {{days}} dagen",
+        "movieNone": "Films zonder limiet",
+        "tv_one": "{{count}} seizoen / {{days}} dagen",
+        "tv_other": "{{count}} seizoenen / {{days}} dagen",
+        "tvNone": "Seizoenen zonder limiet"
+      },
+      "settings": {
+        "atOnce": "Elke wijziging geldt direct.",
+        "refused": "Niet gewijzigd: {{reason}}",
+        "switchedOn": "“{{name}}” staat aan. Geldt direct.",
+        "switchedOff": "“{{name}}” staat uit. Geldt direct.",
+        "choiceSaved": "“{{name}}”: {{value}}. Geldt direct.",
+        "limitSaved": "Standaardlimiet: {{limit}}. Geldt direct voor alle accounts met “Standaard”.",
+        "basics": "Basis",
+        "where": "Waar aanvragen mogelijk is",
+        "rules": "Regels",
+        "enabled": "Wensen actief",
+        "enabledHelp": "Profielen met het recht kunnen ontbrekende titels aanvragen. Uit: niemand ziet ontbrekende titels; openstaande wensen lopen in Seerr door.",
+        "enabledLocked": "Kan pas worden ingeschakeld na een geslaagde test van de opgeslagen verbinding.",
+        "toConnection": "Naar de verbinding",
+        "allowMovies": "Films toestaan",
+        "allowMoviesHelp": "Geldt voor alle profielen. Uit: geen “Film aanvragen”.",
+        "allowShows": "Series toestaan",
+        "allowShowsHelp": "Geldt voor alle profielen. Uit: geen “Serie aanvragen” en geen “Seizoenen aanvragen”.",
+        "fromSearch": "Aanvragen vanuit zoeken",
+        "fromSearchHelp": "Sectie “Nog niet in de bibliotheek”. Uit: de sectie verdwijnt.",
+        "fromDetail": "Aanvragen op detailpagina’s",
+        "fromDetailHelp": "Ontbrekende seizoenen op de pagina van een serie in de bibliotheek. Uit: de seriepagina toont alleen wat er is.",
+        "alreadyRequested": "Al aangevraagde titels",
+        "alreadyRequestedHelp": {
+          "join": "Aansluiten: een tweede profiel sluit zich aan bij de openstaande wens (“Houd me op de hoogte”) en krijgt ook een melding. Seerr krijgt geen tweede aanvraag.",
+          "status": "Alleen de status tonen: een tweede profiel ziet “Al aangevraagd”, maar kan zich niet aansluiten en krijgt geen melding."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Aansluiten",
+          "status": "Alleen de status tonen"
+        },
+        "unmapped": "Accounts zonder Seerr-gebruiker",
+        "unmappedHelp": {
+          "fallback": "Gedeelde gebruiker: alle accounts zonder eigen gebruiker vragen aan als slouchcat-gaeste en delen de standaardlimiet. Slouchcat maakt deze gebruiker zelf aan in Seerr.",
+          "deny": "Niet toestaan: accounts zonder eigen gebruiker kunnen niets aanvragen totdat ze een Seerr-gebruiker hebben."
+        },
+        "unmappedOptions": {
+          "fallback": "Gedeelde gebruiker",
+          "deny": "Niet toestaan"
+        },
+        "newAccountsCanRequest": "Nieuwe accounts mogen aanvragen",
+        "newAccountsCanRequestHelp": "Standaardstand van de schakelaar in het venster “Account uitnodigen”. Wijzigt bestaande accounts niet.",
+        "allowWithdraw": "Intrekken toestaan",
+        "allowWithdrawHelp": "Zolang een wens niet is goedgekeurd. Knop “Intrekken” onder “Mijn wensen”.",
+        "pinExternalHideTitle": "Externe berichten bij profielen met pincode zonder titel",
+        "pinExternalHideTitleHelp": "E-mail, Web Push en Telegram noemen dan alleen het profiel, niet de titel.",
+        "defaultLimit": "Standaardlimiet",
+        "limitPerAccount": "Limiet per account",
+        "limitPerAccountHelp": "Geldt voor alle profielen van een account samen. Seerr telt voortschrijdend en telt ook wensen mee die rechtstreeks daar worden gedaan. Afgewezen wensen en aangesloten wensen tellen niet mee. Beheerders hebben geen limiet.",
+        "movieLimit": "Films: aantal",
+        "movieDays": "Films: dagen",
+        "tvLimit": "Seizoenen: aantal",
+        "tvDays": "Seizoenen: dagen",
+        "limitRange": "Een geheel getal van {{low}} tot {{high}}.",
+        "perAccount": "Afwijkend per account",
+        "perAccountHelp": "Onder “Accounts” kan de limiet van een account anders worden ingesteld: een eigen limiet of onbeperkt.",
+        "toAccounts": "Naar de accounts",
+        "accountsInSeerr": "Accounts in Seerr",
+        "provisionOn": "Nieuwe accounts aanmaken",
+        "provisionOff": "Nieuwe accounts niet aanmaken",
+        "syncOn": "Wachtwoord synchroniseren",
+        "syncOff": "geen wachtwoordsynchronisatie",
+        "provisionAccounts": "Nieuwe accounts aanmaken in Seerr",
+        "provisionAccountsHelp": "Wanneer een uitnodiging wordt geaccepteerd, maakt Slouchcat het account ook aan in Seerr: hetzelfde e-mailadres, hetzelfde wachtwoord. Bestaat daar al een gebruiker met hetzelfde e-mailadres, dan koppelt Slouchcat die meteen. Het nieuwe account typt het adres zelf in; niemand controleert het. Daarom toont het overzicht elke zo’n koppeling zeven dagen lang.",
+        "syncPassword": "Wachtwoord synchroniseren",
+        "syncPasswordHelp": "Slouchcat geeft het wachtwoord door aan Seerr wanneer het wordt ingesteld of gewijzigd en bij het inloggen bij Slouchcat. Slouchcat slaat het nooit als leesbare tekst op. Seerr heeft hiervoor “Lokale aanmelding” nodig. Gebruikers die al eerder in Seerr bestonden en door een beheerder worden gekoppeld, behouden hun wachtwoord.",
+        "visibleInSeerr": "Wie in Seerr inlogt met de login van een account, ziet daar de wensen van alle profielen van dat account, ook die van een profiel met pincode. Seerr verstuurt daarnaast eigen meldingen met de titel; laat die in Seerr uitgeschakeld voor aangemaakte gebruikers.",
+        "existing": "Bestaande accounts",
+        "existingHelp": "Kies per account de Seerr-gebruiker of ontkoppel.",
+        "toUsers": "Naar de Seerr-gebruikers",
+        "links": "Snelkoppelingen",
+        "who": "Wie mag aanvragen",
+        "whoHelp": "Wie mag aanvragen stel je per account in onder Accounts; per profiel beslist het hoofdprofiel.",
+        "connection": "Verbinding met Seerr",
+        "connectionHelp": "Adres, sleutel, test en logboek.",
+        "users": "Seerr-gebruikers",
+        "usersHelp": "Welk account aanvraagt als welke Seerr-gebruiker, met wachtwoord en limiet.",
+        "arr": "Radarr en Sonarr: profieltag en voortgang",
+        "profileTags": "Profieltag zetten in Radarr en Sonarr",
+        "profileTagsHelp": "Hangt de tag van het profiel aan de titel zodra Seerr hem aan Radarr of Sonarr heeft doorgegeven, en haalt tags in die niet gezet konden worden. Wijzigt verder niets in Radarr en Sonarr.",
+        "tagPrefix": "Voorvoegsel",
+        "tagPrefixHelp": "Kleine letters, cijfers en het koppelteken. Voorbeeld: sc-noah. Geldt voor nieuwe tags; bestaande tags blijven zoals ze zijn. De tag van één profiel wijzig je onder “Seerr-gebruikers”.",
+        "tagPrefixInvalid": "1 tot 10 tekens: alleen kleine letters a–z, cijfers 0–9 en het koppelteken. Niet opgeslagen.",
+        "tagPrefixSaved": "Voorvoegsel “{{prefix}}”: nieuwe tags heten bijvoorbeeld {{prefix}}noah. Al gezette tags blijven zoals ze zijn.",
+        "showProgress": "Downloadvoortgang tonen",
+        "showProgressHelp": "Toont bij wensen die worden verwerkt of de titel wordt gezocht, gedownload of geïmporteerd. Slouchcat leest hiervoor elke minuut de wachtrij van Radarr en Sonarr, zolang wensen worden verwerkt.",
+        "arrSummary": "Tag {{tags}} · voorvoegsel {{prefix}} · voortgang {{progress}}",
+        "on": "aan",
+        "off": "uit",
+        "arrLinks": "Toegang tot Radarr en Sonarr",
+        "arrLinksHelp": "Adres en sleutel komen uit Seerr; de namen per profiel staan onder Seerr-gebruikers.",
+        "toArr": "Integraties › Seerr",
+        "discoverPages": "Pagina’s Ontdekken, Films, Series en Zoeken",
+        "discoverPagesHelp": "Tabbladen in het onderdeel “Wensen”. Uit: alleen “Mijn wensen”.",
+        "basicsSummary": "Wensen {{enabled}} · films {{movies}} · series {{shows}}",
+        "basicsSummaryLocked": "Wensen uit tot een test slaagt · films {{movies}} · series {{shows}}",
+        "whereSummary": "Zoeken {{search}} · detailpagina’s {{detail}} · ontdekken {{discover}}",
+        "rulesSummary": "{{already}} · zonder Seerr-gebruiker: {{unmapped}} · intrekken {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} van {{count}} account aangemaakt",
+        "usersCount_other": "{{opened}} van {{count}} accounts aangemaakt",
+        "limitHintCount": "{{low}} tot {{high}}; 0 betekent geen limiet.",
+        "limitHintDays": "{{low}} tot {{high}} dagen."
+      },
+      "users": {
+        "caption": "Accounts en hun Seerr-gebruikers",
+        "columns": {
+          "account": "Account",
+          "user": "Seerr-gebruiker",
+          "password": "Wachtwoord",
+          "rights": "Rechten in Seerr",
+          "email": "E-mail",
+          "type": "Type",
+          "limit": "Limiet"
+        },
+        "noUser": "Geen",
+        "passwordFollows": "Volgt met de gebruiker",
+        "rightsFollow": "Volgen het aanvraagrecht",
+        "gone": "Gebruiker verwijderd",
+        "state": {
+          "created": "Aangemaakt door Slouchcat",
+          "linked": "Gekoppeld via hetzelfde e-mailadres",
+          "manual": "Handmatig gekoppeld",
+          "waiting": "Wordt aangemaakt zodra Seerr bereikbaar is",
+          "none": "Niet aangemaakt"
+        },
+        "password": {
+          "synced": "Hetzelfde als in Slouchcat",
+          "next_login": "Wordt bij de volgende login bij Slouchcat overgenomen",
+          "off": "Niet gesynchroniseerd",
+          "admin": "Blijft in Seerr (beheerder)",
+          "external": "Logt in via Jellyfin, Emby of Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Lokaal",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Beheerder",
+          "both": "Films en series",
+          "movies": "Alleen films",
+          "shows": "Alleen series",
+          "none": "Geen rechten"
+        },
+        "choose": "Kies een gebruiker",
+        "chooseLabel": "Seerr-gebruiker voor {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (huidige)",
+        "optionGone": "{{option}} (verwijderd in Seerr)",
+        "optionTaken": "{{option}} · hoort bij {{email}}",
+        "facts": {
+          "user": "Seerr-gebruiker",
+          "state": "Status",
+          "password": "Wachtwoord",
+          "rights": "Rechten in Seerr",
+          "limit": "Limiet",
+          "right": "Aanvraagrecht van het account"
+        },
+        "linkedBy": "{{by}} · sinds {{date}}",
+        "by": {
+          "admin": "door een beheerder",
+          "invite": "bij het accepteren van de uitnodiging",
+          "email_change": "na de wijziging van het e-mailadres"
+        },
+        "since": "sinds {{date}}",
+        "syncedAt": "gesynchroniseerd op {{time}}",
+        "movies": "Films",
+        "shows": "Series",
+        "autoApproveOn": "Automatische goedkeuring: ja",
+        "autoApproveOff": "Automatische goedkeuring: nee",
+        "followRightOn": "Volgt het aanvraagrecht van het account: mag aanvragen",
+        "followRightOff": "Volgt het aanvraagrecht van het account: mag niet aanvragen",
+        "noLimitAdmin": "Geen limiet (beheerder in Seerr)",
+        "unlimited": "Onbeperkt",
+        "mode": {
+          "default": "Standaard",
+          "custom": "Eigen",
+          "unlimited": "Onbeperkt"
+        },
+        "mayRequest": "Mag aanvragen",
+        "mayNotRequest": "Mag niet aanvragen",
+        "goneTitle": "Gebruiker “{{name}}” niet gevonden",
+        "goneBody": "Seerr kent deze gebruiker niet meer. Kies een andere gebruiker of ontkoppel.",
+        "selfLinked": {
+          "invite": "Bij het accepteren van de uitnodiging gekoppeld aan de bestaande Seerr-gebruiker {{name}}, omdat het e-mailadres hetzelfde is. Hoort die gebruiker niet bij dit account, ontkoppel dan.",
+          "email_change": "Na de wijziging van het e-mailadres gekoppeld aan de bestaande Seerr-gebruiker {{name}}, omdat het e-mailadres hetzelfde is. Hoort die gebruiker niet bij dit account, ontkoppel dan."
+        },
+        "warning": {
+          "nothing": "“{{name}}” mag in Seerr niets aanvragen. Elke wens mislukt; geef de gebruiker in Seerr het recht “Aanvragen” of kies een andere gebruiker.",
+          "noShows": "“{{name}}” mag geen series aanvragen. Seriewensen mislukken, films werken.",
+          "noMovies": "“{{name}}” mag geen films aanvragen. Filmwensen mislukken, series werken."
+        },
+        "change": "Seerr-gebruiker wijzigen",
+        "unlink": "Ontkoppelen",
+        "chooseHelp": "Te kiezen zijn gebruikers die bij geen ander account horen. Rechten en wachtwoord blijven zoals ze in Seerr zijn.",
+        "chooseHelpStale": "Te kiezen zijn gebruikers die bij geen ander account horen. Getoond wordt de laatst geladen versie van de gebruikerslijst.",
+        "taken": "Deze Seerr-gebruiker hoort inmiddels bij een ander account of kan niet meer worden gekozen. De keuze is teruggezet.",
+        "linked": "{{email}} vraagt nu aan als “{{name}}”. Rechten en goedkeuring komen van deze gebruiker.",
+        "unlinked": "Koppeling van {{email}} verbroken. “{{name}}” blijft in Seerr.",
+        "reloading": "De gebruikerslijst wordt opnieuw geladen.",
+        "notConfigured": "Seerr is niet ingesteld",
+        "notConfiguredBody": "Zonder verbinding is er geen gebruikerslijst. Alle accounts blijven voorlopig zonder Seerr-gebruiker.",
+        "toConnection": "Naar Integraties › Seerr",
+        "toDecision": "Naar de beslissing",
+        "instanceBody": "Tot je onder Integraties › Seerr beslist, verzendt Slouchcat geen wensen en synchroniseert het niets. De lijst toont de laatste stand.",
+        "goneCount_one": "{{count}} account: gebruiker in Seerr verwijderd",
+        "goneCount_other": "{{count}} accounts: gebruiker in Seerr verwijderd",
+        "goneCountBody": "Kies voor deze accounts een andere gebruiker of ontkoppel ze.",
+        "withoutCount_one": "{{count}} account zonder Seerr-gebruiker",
+        "withoutCount_other": "{{count}} accounts zonder Seerr-gebruiker",
+        "withoutFallback": "Tot die tijd vragen ze aan als de gedeelde gebruiker slouchcat-gaeste (regel “Accounts zonder Seerr-gebruiker”).",
+        "withoutDeny": "Ze kunnen niets aanvragen zolang “Accounts zonder Seerr-gebruiker” op “Niet toestaan” staat.",
+        "toSettings": "Naar de instellingen",
+        "newAccounts": "Nieuwe accounts: {{provision}} · Wachtwoord: {{password}}",
+        "provisionOn": "worden aangemaakt in Seerr",
+        "provisionOff": "worden niet aangemaakt",
+        "syncOn": "wordt gesynchroniseerd",
+        "syncOff": "wordt niet gesynchroniseerd",
+        "changeSettings": "Wijzigen",
+        "shared": "Gedeelde gebruiker: {{name}}",
+        "sharedLater": "Gedeelde gebruiker: wordt aangemaakt zodra wensen actief zijn",
+        "reload": "Gebruikerslijst opnieuw laden",
+        "unlinkedTitle": "Seerr-gebruikers zonder account",
+        "unlinkedCount_one": "{{count}} gebruiker",
+        "unlinkedCount_other": "{{count}} gebruikers",
+        "unlinkedEmpty": "Elke Seerr-gebruiker hoort bij een account.",
+        "noEmail": "geen e-mailadres",
+        "noLimit": "Geen limiet",
+        "limitOnOpen": "Wordt ingesteld wanneer het account wordt aangemaakt: {{limit}}",
+        "limitChange": "Limiet wijzigen",
+        "quotaAt": "Stand uit Seerr {{time}}",
+        "provision": "In Seerr aanmaken",
+        "retry": "Opnieuw proberen",
+        "provisionOffHint": "“Nieuwe accounts aanmaken in Seerr” staat uit.",
+        "sameEmailTitle": "Seerr heeft al “{{name}}”",
+        "sameEmailBody": "Hetzelfde e-mailadres: “In Seerr aanmaken” koppelt deze gebruiker in plaats van een tweede aan te maken.",
+        "waitingTitle": "Wacht op Seerr",
+        "waitReason": {
+          "unreachable": "Seerr was bij het aanmaken niet bereikbaar. De volgende synchronisatie probeert het opnieuw.",
+          "server": "Seerr antwoordde bij het aanmaken met een fout. De volgende synchronisatie probeert het opnieuw.",
+          "timeout": "Seerr antwoordde bij het aanmaken niet op tijd. De volgende synchronisatie probeert het opnieuw.",
+          "key_invalid": "Seerr weigerde de API-sleutel. Zodra de verbinding weer klopt, probeert de volgende synchronisatie het opnieuw.",
+          "instance_changed": "Een andere Seerr-instantie wacht op je beslissing. Tot die tijd maakt Slouchcat niets aan.",
+          "seerr_user_taken": "De Seerr-gebruiker met dit e-mailadres hoort al bij een ander account of is de gedeelde gebruiker. Kies de gebruiker handmatig.",
+          "other": "Aanmaken is niet gelukt ({{reason}}). De volgende synchronisatie probeert het opnieuw.",
+          "seerr_user_privileged": "Deze Seerr-gebruiker beheert Seerr. Slouchcat koppelt hem niet uit zichzelf: koppel hem na een bevestiging of kies een andere gebruiker.",
+          "refused": "Seerr weigerde het account aan te maken. De volgende synchronisatie probeert het opnieuw."
+        },
+        "emailTakenTitle": "Seerr weigerde het nieuwe e-mailadres",
+        "emailTakenBody": "Een andere Seerr-gebruiker heeft dit adres al. “{{name}}” behoudt in Seerr het vorige e-mailadres; het account blijft aanvragen als deze gebruiker.",
+        "provisioned": {
+          "created": "{{email}} is aangemaakt in Seerr.",
+          "linked": "{{email}} is gekoppeld aan de Seerr-gebruiker “{{name}}”.",
+          "waiting": "Nog niet aangemaakt in Seerr: {{email}} wacht, de volgende synchronisatie probeert het opnieuw.",
+          "privileged": "{{email}} wacht: de Seerr-gebruiker met dit e-mailadres beheert Seerr.",
+          "taken": "{{email}} wacht: de Seerr-gebruiker met dit e-mailadres hoort al bij een ander account. Kies de gebruiker handmatig."
+        },
+        "passwordNext": "Wachtwoord bij de volgende login opnieuw overnemen",
+        "passwordOff": "Wachtwoord niet synchroniseren",
+        "passwordNextDone": "Het wachtwoord van {{email}} gaat bij de volgende login naar Seerr.",
+        "passwordOffDone": "Het wachtwoord van {{email}} wordt niet meer met Seerr gesynchroniseerd.",
+        "passwordSyncOff": "Wachtwoordsynchronisatie staat uit.",
+        "passwordNote": {
+          "admin": "Slouchcat synchroniseert het wachtwoord niet: “{{name}}” is beheerder in Seerr, het wachtwoord blijft daar zoals het is.",
+          "external": "Slouchcat synchroniseert het wachtwoord niet: “{{name}}” logt in via Jellyfin, Emby of Plex, niet met een eigen wachtwoord."
+        },
+        "provisionAll": "Alle aanmaken",
+        "provisionAllTitle": "Alle accounts aanmaken in Seerr?",
+        "provisionAllBody": "Koppelen via hetzelfde e-mailadres: {{link}} · Nieuw aanmaken in Seerr: {{create}}.",
+        "provisionAllWaits": "Seerr is op dit moment niet verbonden: de accounts wachten dan en worden bij de volgende synchronisatie aangemaakt.",
+        "provisionAllQueued": "Aanmaken loopt: {{link}} te koppelen, {{create}} aan te maken.",
+        "profiles": {
+          "title": "Profielen en tags",
+          "help": "Elk profiel draagt in Radarr en Sonarr zijn eigen tag zodra een wens daar aankomt. Een tag die al is gezet, blijft, ook als de naam verandert.",
+          "none": "Het account heeft geen profielen.",
+          "custom": "eigen naam",
+          "change": "Wijzigen",
+          "changeLabel": "Tag van {{profile}} wijzigen",
+          "field": "Tagnaam voor {{profile}}",
+          "fieldHelp": "Alleen kleine letters a–z, cijfers 0–9 en het koppelteken.",
+          "invalid": "Toegestaan zijn alleen kleine letters a–z, cijfers 0–9 en het koppelteken, maximaal 64 tekens.",
+          "save": "Opslaan",
+          "saveLabel": "Tag van {{profile}} opslaan",
+          "cancel": "Annuleren",
+          "reset": "Herstellen",
+          "resetLabel": "Tag van {{profile}} terugzetten naar de naam uit het voorvoegsel",
+          "saved": "{{profile}}: de tag heet nu {{name}}.",
+          "tagsOff": "Profieltags staan uit (Wensen › Instellingen)."
+        },
+        "takeOver": {
+          "title": "Aanvragen uit Seerr",
+          "help": "Aanvragen die rechtstreeks in Seerr zijn gedaan, worden wensen van het hoofdprofiel met de aanduiding “Aangemaakt in Seerr”. Ze dragen geen profieltag.",
+          "counting": "Aanvragen in Seerr worden geteld…",
+          "none": "Geen aanvragen in Seerr.",
+          "action_one": "{{count}} aanvraag uit Seerr overnemen",
+          "action_other": "{{count}} aanvragen uit Seerr overnemen",
+          "queued_one": "{{count}} aanvraag van {{name}} wordt overgenomen.",
+          "queued_other": "{{count}} aanvragen van {{name}} worden overgenomen.",
+          "running": "De aanvragen worden overgenomen; het aantal volgt na de synchronisatie."
+        },
+        "linkPrivileged": "Toch koppelen…",
+        "privilegedTitle": "Seerr-beheerder {{name}} koppelen?",
+        "privilegedBody": "Deze Seerr-gebruiker beheert Seerr. De profielen van {{email}} vragen daarna aan als Seerr-beheerder, zonder goedkeuring en zonder limiet. Slouchcat synchroniseert zijn wachtwoord niet.",
+        "privilegedConfirm": "Toch koppelen",
+        "provisionAllManual_one": "{{count}} account heeft een handmatige keuze nodig.",
+        "provisionAllManual_other": "{{count}} accounts hebben een handmatige keuze nodig.",
+        "waitingChoice": "Wacht op een handmatige keuze",
+        "waitingChoiceTitle": "Wacht op je keuze",
+        "optionPrivileged": "{{option}} · beheert Seerr"
+      },
+      "limitField": {
+        "label": "Limiet",
+        "help": {
+          "default": "Zoals onder Wensen › Instellingen: {{limit}}.",
+          "custom": "Eigen aantallen voor dit account.",
+          "unlimited": "Geen limiet voor films en seizoenen."
+        }
+      },
+      "requests": {
+        "caption": "Alle wensen van het huishouden",
+        "columns": {
+          "title": "Titel",
+          "requesters": "Gewenst door",
+          "state": "Status",
+          "seerr": "In Seerr",
+          "attempts": "Pogingen",
+          "actions": "Acties"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (aangesloten)",
+        "requesterClosed": "{{line}} (ingetrokken)",
+        "noRequester": "Niemand in Slouchcat",
+        "noRequest": "Nog niet",
+        "requestId": "Aanvraag {{id}}",
+        "requestIds_one": "Aanvraag {{ids}}",
+        "requestIds_other": "Aanvragen {{ids}}",
+        "filter": {
+          "label": "Wensen filteren op status",
+          "all": "Alle",
+          "open": "Open",
+          "available": "Beschikbaar",
+          "closed": "Afgesloten",
+          "count_one": "{{count}} wens",
+          "count_other": "{{count}} wensen",
+          "stalled": "Download vastgelopen",
+          "untagged": "Tag niet gezet",
+          "countLoaded_one": "{{count}} wens onder de geladen wensen",
+          "countLoaded_other": "{{count}} wensen onder de geladen wensen"
+        },
+        "sync": "Nu synchroniseren",
+        "syncQueued": "De synchronisatie met Seerr loopt.",
+        "queued_one": "{{count}} wens wacht op verzending naar Seerr.",
+        "queued_other": "{{count}} wensen wachten op verzending naar Seerr.",
+        "empty": "Nog geen wensen.",
+        "emptyFilter": "Geen wensen met deze status.",
+        "facts": {
+          "label": "Gegevens van de wens",
+          "created": "Aangevraagd",
+          "origin": "Herkomst",
+          "seerrUser": "Seerr-gebruiker",
+          "failReason": "Reden"
+        },
+        "origin": {
+          "slouchcat": "Aangevraagd in Slouchcat",
+          "seerr": "Aangemaakt in Seerr"
+        },
+        "toItem": "Naar de titel in het beheer",
+        "history": "Geschiedenis",
+        "noHistory": "Er is nog niets gebeurd.",
+        "retry": "Opnieuw proberen",
+        "retryLabel": "{{title}}: opnieuw proberen",
+        "retried": "{{title}} wordt opnieuw geprobeerd.",
+        "emptyStalled": "Geen enkele download is vastgelopen.",
+        "emptyUntagged": "Elke profieltag is gezet of volgt nog.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Goedkeuren",
+        "approveLabel": "{{title}} goedkeuren",
+        "approved": "{{title}} is goedgekeurd en wordt verwerkt.",
+        "decline": "Afwijzen",
+        "declineLabel": "{{title}} afwijzen",
+        "declineTitle": "{{title}} afwijzen?",
+        "declineBody": "Slouchcat geeft de afwijzing door aan Seerr. Seerr kent geen reden: de profielen zien alleen “Afgewezen” en krijgen een melding.",
+        "declined": "{{title}} is afgewezen.",
+        "event": {
+          "approved_by_admin": "Goedgekeurd in het beheer",
+          "declined_by_admin": "Afgewezen in het beheer"
+        },
+        "progress": {
+          "search": "Wordt gezocht",
+          "download": "Wordt gedownload",
+          "import": "Wordt geïmporteerd",
+          "stalled": "Download vastgelopen",
+          "percent": "{{percent}}%",
+          "etaMinutes": "nog {{minutes}} min",
+          "etaHours": "nog {{hours}} u {{minutes}} min",
+          "episodes": "{{done}} van {{total}} afleveringen aanwezig",
+          "unreadable": "Voortgang niet leesbaar",
+          "unreadableAt": "Voortgang niet leesbaar · laatst gelezen {{time}}",
+          "notInService": "Nog niet in {{service}}",
+          "incomplete": "De afleveringen zijn maar gedeeltelijk te lezen.",
+          "etaWholeHours": "nog {{hours}} u"
+        },
+        "progressBlock": {
+          "title": "Voortgang",
+          "service": "Dienst",
+          "state": "Stand",
+          "unknown": "Nog niets bekend",
+          "readAt": "Laatst gelezen",
+          "never": "Nog nooit",
+          "note": "Opmerking",
+          "message": "Bericht van {{service}}"
+        },
+        "tags": {
+          "title": "Profieltags",
+          "set": "{{name}}",
+          "pending": "{{name}} · in afwachting",
+          "failed": "{{name}} · mislukt",
+          "setAt": "Gezet in {{service}} op {{time}}",
+          "setIn": "Gezet in {{service}}",
+          "pendingHelp": "De tag volgt zodra de titel in {{service}} staat.",
+          "failedHelp": "{{service}} heeft de tag niet geaccepteerd."
+        },
+        "shown": "{{shown}} van {{total}} wensen getoond.",
+        "searchedIn": "Gezocht in {{shown}} van {{total}} openstaande wensen.",
+        "more": "Meer laden",
+        "toItemLabel": "{{title}}: naar de titel in het beheer",
+        "inSeerr": "In Seerr openen",
+        "inSeerrLabel": "{{title}} in Seerr openen (nieuw venster)"
+      },
+      "arrError": {
+        "not_in_arr": "De titel staat nog niet in {{service}}.",
+        "tvdb_id_missing": "De serie heeft geen TVDB-id.",
+        "not_confirmed": "Het adres uit Seerr wacht op “Testen”.",
+        "not_in_seerr": "Seerr heeft geen standaardserver voor {{service}}.",
+        "seerr_off": "Seerr is niet ingesteld of uitgeschakeld.",
+        "redirect": "{{service}} verwijst door naar een ander adres.",
+        "timeout": "{{service}} antwoordde niet op tijd.",
+        "unreachable": "{{service}} is niet bereikbaar.",
+        "key_invalid": "{{service}} weigert de sleutel uit Seerr.",
+        "not_found": "{{service}} kent de titel niet.",
+        "validation": "{{service}} weigerde de aanroep als ongeldig.",
+        "server": "{{service}} antwoordde met een fout.",
+        "bad_request": "{{service}} weigerde de aanroep.",
+        "invalid": "{{service}} antwoordde onverwacht.",
+        "seerr": "Seerr heeft het adres en de sleutel van {{service}} niet doorgegeven.",
+        "other": "Fout: {{error}}"
+      }
     }
   },
   "language": {
@@ -5312,7 +6284,11 @@
         "metadataLanguage": "Taal van de beschrijvingen",
         "metadataLanguageHint": "Titels, beschrijvingen en genres; de interface volgt de taal hierboven.",
         "likeUi": "Zoals de interface",
-        "playback": "Afspelen"
+        "playback": "Afspelen",
+        "wishes": "Wensen",
+        "canRequest": "Mag titels aanvragen",
+        "canRequestHelp": "Het profiel mag ontbrekende titels aanvragen via Seerr.",
+        "canRequestCapped": "Dit account mag geen titels aanvragen. Een beheerder stelt dit recht in onder Accounts."
       },
       "report": {
         "show": "Kijktijd tonen",
@@ -5356,7 +6332,8 @@
     "notFound": {
       "title": "Link niet gevonden",
       "body": "Deze uitnodigingslink bestaat niet. Controleer of je hem helemaal hebt gekopieerd."
-    }
+    },
+    "seerrAccount": "Je login werkt ook voor Seerr: bij het accepteren wordt daar een account aangemaakt met hetzelfde e-mailadres en wachtwoord."
   },
   "kind": {
     "movie": "Film",
@@ -5635,7 +6612,13 @@
     "empty": {
       "title": "Niets gevonden",
       "body": "Probeer een andere zoekterm of minder filters."
-    }
+    },
+    "missing": {
+      "title": "Nog niet in de bibliotheek",
+      "notHere": "Nog niet hier",
+      "request": "{{title}} aanvragen"
+    },
+    "inWishes": "Ook in de wensen zoeken"
   },
   "watchlist": {
     "title": "Mijn lijst",
@@ -5723,7 +6706,12 @@
     "empty": {
       "title": "Geen meldingen",
       "body": "Zet series of podcasts op Mijn lijst om hier nieuwe afleveringen te zien."
-    }
+    },
+    "wish_available": "Je wens is er",
+    "wish_season_available": "Een seizoen van je wens is er",
+    "wish_approved": "Je wens is goedgekeurd",
+    "wish_declined": "Je wens is afgewezen",
+    "wish_failed": "Je wens is mislukt"
   },
   "settings": {
     "playback": {
@@ -5800,6 +6788,9 @@
         "errors": "Fouten",
         "invitations": "Uitnodigingen",
         "announcements": "Mededelingen",
+        "wish_available": "Wensen: beschikbaar",
+        "wish_status": "Wensen: goedgekeurd, afgewezen, mislukt",
+        "wish_review": "Wensen: goedkeuring nodig",
         "help": "Waarvoor een bericht wordt verstuurd.",
         "helpAdmin": "Waarvoor een bericht wordt verstuurd. “Fouten” is alleen voor beheerders."
       },
@@ -6185,6 +7176,296 @@
       "halfBody_other": "{{count}} afleveringen hebben het vinkje. Elke aflevering markeren of alle vinkjes weghalen? Weghalen kan niet ongedaan worden gemaakt.",
       "markAll": "Elke aflevering als bekeken markeren",
       "removeAll": "Alle vinkjes weghalen"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Films: {{used}} van {{limit}} in {{days}} dagen",
+      "tv": "Seizoenen: {{used}} van {{limit}} in {{days}} dagen",
+      "remaining_one": "nog {{count}} vrij",
+      "remaining_other": "nog {{count}} vrij",
+      "nextFree": "volgende plek vrij op {{date}}",
+      "short": {
+        "movie": "Films {{used}}/{{limit}}",
+        "tv": "Seizoenen {{used}}/{{limit}}"
+      },
+      "movieNone": "Films zonder limiet",
+      "tvNone": "Seizoenen zonder limiet"
+    },
+    "state": {
+      "queued": "Wordt verzonden",
+      "pending": "Wacht op goedkeuring",
+      "processing": "Wordt verwerkt",
+      "partial": "Gedeeltelijk beschikbaar",
+      "available": "Beschikbaar",
+      "declined": "Afgewezen",
+      "failed": "Mislukt",
+      "withdrawn": "Ingetrokken"
+    },
+    "detail": {
+      "importing": "wordt ingelezen",
+      "not_found_in_library": "nog niet gevonden in de bibliotheek"
+    },
+    "fail": {
+      "quota": "Limiet bereikt: Seerr heeft de wens niet geaccepteerd.",
+      "blocklisted": "De titel staat op de blokkeerlijst van Seerr.",
+      "no_permission": "De Seerr-gebruiker mag dit soort titel niet aanvragen.",
+      "arr_failed": "Seerr kon de titel niet doorgeven aan Radarr of Sonarr. Een beheerder kan de wens opnieuw proberen.",
+      "unreachable_24h": "Seerr was 24 uur lang niet bereikbaar.",
+      "seerr_request_gone": "De aanvraag is verwijderd in Seerr.",
+      "seerr_media_deleted": "De titel is verwijderd in Seerr.",
+      "seerr_user_gone": "De gekoppelde Seerr-gebruiker bestaat niet meer.",
+      "tvdb_id_missing": "Voor deze serie ontbreekt de TVDB-id die Seerr nodig heeft.",
+      "account_deleted": "Het account dat de wens deed, bestaat niet meer."
+    },
+    "reason": {
+      "disabled": "Wensen staan uit.",
+      "account_not_allowed": "Dit account mag geen titels aanvragen.",
+      "profile_not_allowed": "Dit profiel mag geen titels aanvragen. Het hoofdprofiel kan dit toestaan onder “Profielen”.",
+      "no_mapping": "Aan dit account is nog geen Seerr-gebruiker gekoppeld. De beheerder stelt dat in.",
+      "seerr_user_gone": "De gekoppelde Seerr-gebruiker bestaat niet meer. De beheerder lost dit op.",
+      "movies_not_allowed": "Films kunnen op dit moment niet worden aangevraagd.",
+      "shows_not_allowed": "Series kunnen op dit moment niet worden aangevraagd.",
+      "status_only": "Een ander profiel heeft deze titel al aangevraagd. Zodra hij er is, vind je hem in de bibliotheek.",
+      "already_requested": "Je hebt deze titel al aangevraagd.",
+      "source_not_allowed": "Vanaf hier kunnen op dit moment geen titels worden aangevraagd.",
+      "tvdb_id_missing": "Voor deze serie ontbreekt de TVDB-id die Seerr nodig heeft.",
+      "withdraw_disabled": "Wensen kunnen op dit moment niet worden ingetrokken."
+    },
+    "tmdbUnreachable": "TMDB is op dit moment niet bereikbaar. Probeer het later opnieuw.",
+    "kind": {
+      "movie": "Film",
+      "show": "Serie"
+    },
+    "seasons_one": "Seizoen {{list}}",
+    "seasons_other": "Seizoenen {{list}}",
+    "event": {
+      "created": "Aangevraagd",
+      "submitted": "Naar Seerr verzonden",
+      "attached": "In Seerr gevonden en overgenomen",
+      "joined": "Aangesloten",
+      "withdrawn": "Ingetrokken",
+      "withdraw_deleted": "Verwijderd in Seerr",
+      "owner_changed": "Een ander profiel blijft wensen",
+      "reopened": "Al goedgekeurd, de wens loopt door",
+      "season_available_one": "Seizoen {{seasons}} beschikbaar",
+      "season_available_other": "Seizoenen {{seasons}} beschikbaar",
+      "changed": "Gewijzigd"
+    },
+    "card": {
+      "title": "Je wens",
+      "requestedOn": "aangevraagd op {{date}}",
+      "joined": "je bent aangesloten",
+      "history": "Geschiedenis",
+      "mine": "Naar mijn wensen"
+    },
+    "withdraw": {
+      "action": "Intrekken",
+      "actionJoined": "Verlaten",
+      "title": "Wens intrekken?",
+      "titleJoined": "Wens verlaten?",
+      "body": "“{{title}}” wordt niet meer aangevraagd; Slouchcat verwijdert de wens ook in Seerr.",
+      "bodyJoined": "Je krijgt geen bericht meer wanneer “{{title}}” er is. De wensen van de andere profielen blijven.",
+      "confirm": "Intrekken",
+      "confirmJoined": "Verlaten"
+    },
+    "dialog": {
+      "titleMovie": "Film aanvragen: {{title}}",
+      "titleShow": "Serie aanvragen: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Wordt meteen verwerkt, goedkeuring is niet nodig.",
+      "needsApproval": "Heeft goedkeuring nodig. De status zie je onder “Mijn wensen”.",
+      "seasons": "Seizoenen",
+      "allSeasons": "Alle ontbrekende seizoenen ({{count}})",
+      "season": "Seizoen {{number}}",
+      "episodes_one": "{{count}} aflevering",
+      "episodes_other": "{{count}} afleveringen",
+      "seasonState": {
+        "requested": "al aangevraagd, je krijgt ook een melding",
+        "available": "beschikbaar"
+      },
+      "nothingLeft": {
+        "title": "Niets meer aan te vragen",
+        "body": "Elk seizoen is er al of al aangevraagd."
+      },
+      "tooManySeasons_one": "Nog 1 van {{limit}} seizoenen vrij. Kies maximaal 1 seizoen.",
+      "tooManySeasons_other": "Nog {{count}} van {{limit}} seizoenen vrij. Kies maximaal {{count}} seizoenen.",
+      "reached": {
+        "movie_one": "De limiet is bereikt: {{count}} film in {{days}} dagen.",
+        "movie_other": "De limiet is bereikt: {{count}} films in {{days}} dagen.",
+        "show_one": "De limiet is bereikt: {{count}} seizoen in {{days}} dagen.",
+        "show_other": "De limiet is bereikt: {{count}} seizoenen in {{days}} dagen.",
+        "movie_date_one": "De limiet is bereikt: {{count}} film in {{days}} dagen. De volgende plek komt vrij op {{date}}.",
+        "movie_date_other": "De limiet is bereikt: {{count}} films in {{days}} dagen. De volgende plek komt vrij op {{date}}.",
+        "show_date_one": "De limiet is bereikt: {{count}} seizoen in {{days}} dagen. De volgende plek komt vrij op {{date}}.",
+        "show_date_other": "De limiet is bereikt: {{count}} seizoenen in {{days}} dagen. De volgende plek komt vrij op {{date}}."
+      },
+      "submit": "Aanvragen",
+      "submitting": "Aanvragen…",
+      "chooseSeasons": "Seizoenen kiezen",
+      "join": "Houd me op de hoogte",
+      "submitSeasons_one": "{{count}} seizoen aanvragen",
+      "submitSeasons_other": "{{count}} seizoenen aanvragen"
+    },
+    "page": {
+      "title": "Mijn wensen",
+      "count_one": "{{count}} openstaande wens",
+      "count_other": "{{count}} openstaande wensen",
+      "countAll_one": "{{count}} wens",
+      "countAll_other": "{{count}} wensen",
+      "countAvailable_one": "{{count}} beschikbare wens",
+      "countAvailable_other": "{{count}} beschikbare wensen",
+      "countClosed_one": "{{count}} afgesloten wens",
+      "countClosed_other": "{{count}} afgesloten wensen",
+      "limit": "Limiet: {{limit}}",
+      "offline": "Alleen online beschikbaar: de wensen staan op de server.",
+      "filters": {
+        "label": "Wensen filteren",
+        "all": "Alle",
+        "open": "Open",
+        "available": "Beschikbaar",
+        "closed": "Afgesloten"
+      },
+      "filter": "Status",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Nog geen wensen.",
+        "body": "Wat je aanvraagt, verschijnt hier met zijn status."
+      },
+      "emptyFilter": {
+        "open": "Geen openstaande wensen.",
+        "available": "Nog geen enkele wens is beschikbaar.",
+        "closed": "Geen afgesloten wensen."
+      }
+    },
+    "row": {
+      "open": "Naar de titel",
+      "withdrawLabel": "{{title}}: intrekken",
+      "withdrawJoinedLabel": "{{title}}: verlaten",
+      "again": "Opnieuw aanvragen",
+      "againLabel": "{{title}} opnieuw aanvragen",
+      "history": "Geschiedenis: {{last}}",
+      "fromSeerr": "aangemaakt in Seerr"
+    },
+    "area": {
+      "label": "Onderdelen van Wensen",
+      "discover": "Ontdekken",
+      "movies": "Films",
+      "series": "Series",
+      "search": "Zoeken",
+      "mine": "Mijn wensen",
+      "mineCount_one": "Mijn wensen ({{count}})",
+      "mineCount_other": "Mijn wensen ({{count}})"
+    },
+    "discover": {
+      "title": "Ontdekken",
+      "intro": "Wat nu populair is en wat binnenkort uitkomt. Wat nog niet in de bibliotheek staat, kun je aanvragen.",
+      "searchLabel": "Zoek een film of serie",
+      "searchAction": "Zoeken",
+      "rows": {
+        "trending": "Trending",
+        "popular_movies": "Populaire films",
+        "movie_genres": "Filmgenres",
+        "upcoming_movies": "Binnenkort in de bioscoop",
+        "popular_shows": "Populaire series",
+        "show_genres": "Seriegenres",
+        "upcoming_shows": "Binnenkort als serie"
+      },
+      "stale": "Seerr is niet bereikbaar. Je ziet de stand van de laatste keer ophalen.",
+      "refreshFailed": "De lijst kon niet worden bijgewerkt. Je ziet de stand van de laatste keer ophalen.",
+      "empty": "Er is hier op dit moment niets te ontdekken.",
+      "inLibrary": "In de bibliotheek",
+      "requested": "Al aangevraagd",
+      "join": "{{title}}: houd me op de hoogte",
+      "gone": {
+        "title": "Ontdekken is er niet voor dit profiel",
+        "body": "Je tot nu toe gedane wensen vind je nog steeds onder “Mijn wensen”.",
+        "action": "Naar “Mijn wensen”"
+      },
+      "notFound": {
+        "title": "Pagina niet gevonden",
+        "body": "Deze pagina bestaat niet voor dit profiel."
+      }
+    },
+    "titles": {
+      "moviesIntro": "Alle films die TMDB kent, of ze nu al in de bibliotheek staan of niet. Wat ontbreekt, kun je aanvragen.",
+      "seriesIntro": "Alle series die TMDB kent, of ze nu al in de bibliotheek staan of niet. Wat ontbreekt, kun je aanvragen.",
+      "sort": "Sortering",
+      "sorts": {
+        "popularity": "Populariteit",
+        "newest": "Nieuwste eerst",
+        "rating": "Best beoordeeld"
+      },
+      "filter": "Filter: {{summary}}",
+      "filterLabel": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alle genres",
+      "genreId": "Genre {{id}}",
+      "library": "Bibliotheek",
+      "hide": "Aanwezige titels verbergen",
+      "hideHelp": "Toont alleen wat nog niet in de bibliotheek staat.",
+      "hidden": "Titels uit de bibliotheek verborgen",
+      "shown": "Titels uit de bibliotheek zichtbaar",
+      "clear": "Filters herstellen",
+      "apply": "Toepassen",
+      "moviesEmpty": "Geen films voor deze keuze.",
+      "seriesEmpty": "Geen series voor deze keuze."
+    },
+    "search": {
+      "intro": "Zoek in alles wat TMDB kent, ook in wat nog ontbreekt. Ook op id, zoals tmdb:603, tvdb:121361 of imdb:tt0133093.",
+      "placeholder": "Film of serie",
+      "start": "Vul een titel in. Er wordt gezocht in alles wat TMDB kent, ook op originele titel.",
+      "tooShort": "Vul minstens twee tekens in.",
+      "hits": "Resultaten",
+      "empty": {
+        "title": "Niets gevonden voor “{{q}}”",
+        "body": "De zoekopdracht zoekt naar film- en serietitels, niet naar personen. Probeer een andere term of een id."
+      }
+    },
+    "progress": {
+      "search": "Wordt gezocht",
+      "download": "Wordt gedownload",
+      "import": "Wordt geïmporteerd",
+      "stalled": "Download vastgelopen",
+      "percent": "{{percent}}%",
+      "episodes_one": "{{done}} van {{count}} aflevering aanwezig",
+      "episodes_other": "{{done}} van {{count}} afleveringen aanwezig",
+      "eta": "nog {{time}}"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Titel niet gevonden",
+      "body": "Deze titel bestaat niet, of dit profiel kan hem niet zien."
+    },
+    "loading": "Titel",
+    "missing": "Nog niet in de bibliotheek",
+    "seasonCount_one": "{{count}} seizoen",
+    "seasonCount_other": "{{count}} seizoenen",
+    "requestMovie": "Film aanvragen",
+    "requestShow": "Serie aanvragen",
+    "done": {
+      "requested": "Aangevraagd. De status zie je onder “Mijn wensen”.",
+      "joined": "Je krijgt een melding zodra de titel er is.",
+      "withdrawn": "Je wens is ingetrokken."
+    },
+    "alreadyRequested": "Al aangevraagd",
+    "cannotRequest": "Dit profiel kan geen titels aanvragen",
+    "seasons": "Seizoenen",
+    "seasonRequested": "Al aangevraagd",
+    "nextEpisode": "Loopt nog, volgende aflevering op {{date}}",
+    "last": {
+      "title": "Je laatste wens: {{state}}",
+      "why": {
+        "declined": "Seerr geeft geen reden. Je kunt de titel opnieuw aanvragen.",
+        "withdrawn": "Je hebt hem ingetrokken."
+      }
+    },
+    "join": "Houd me op de hoogte",
+    "shared": {
+      "title": "Al aangevraagd · {{state}}",
+      "join": "Een ander profiel heeft deze film al aangevraagd. Met “Houd me op de hoogte” laat Slouchcat het ook jou weten zodra hij kan worden afgespeeld.",
+      "statusOnly": "Een ander profiel heeft deze film al aangevraagd. Zodra hij kan worden afgespeeld, vind je hem in de bibliotheek."
     }
   }
 }

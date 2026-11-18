@@ -57,7 +57,11 @@
       "other": "Perfil adicional",
       "primary": "Perfil principal",
       "admin": "Administrador del servidor"
-    }
+    },
+    "wishes": "Peticiones",
+    "wishesLabel_one": "{{name}}, {{count}} petición abierta",
+    "wishesLabel_many": "{{name}}, {{count}} de peticiones abiertas",
+    "wishesLabel_other": "{{name}}, {{count}} peticiones abiertas"
   },
   "system": {
     "server": {
@@ -230,7 +234,25 @@
       "deleting": "Se está eliminando ahora mismo.",
       "changed": "Algo ha cambiado mientras tanto. Vuelve a comprobarlo.",
       "stale": "La biblioteca se ha modificado mientras tanto en otro sitio. Vuelve a cargarla y guarda de nuevo.",
-      "root_unlisted": "Falta una carpeta de la biblioteca en la solicitud. Vuelve a cargar la biblioteca; no se ha quitado nada."
+      "root_unlisted": "Falta una carpeta de la biblioteca en la solicitud. Vuelve a cargar la biblioteca; no se ha quitado nada.",
+      "seerr_key_required": "Una dirección en otro equipo necesita de nuevo la clave de API: la guardada nunca se envía a otra dirección.",
+      "seerr_not_configured": "Introduce primero la dirección y la clave de API de Seerr.",
+      "instance_unchanged": "Ninguna otra instancia de Seerr espera una decisión.",
+      "seerr_not_tested": "Las peticiones solo se pueden activar tras una prueba superada de la conexión guardada.",
+      "seerr_user_taken": "Este usuario de Seerr ya pertenece a otra cuenta, es el usuario compartido o no existe en Seerr.",
+      "provision_disabled": "«Crear cuentas nuevas en Seerr» está desactivado. Actívalo en Peticiones › Ajustes.",
+      "password_not_syncable": "Slouchcat no sincroniza la contraseña de este usuario de Seerr: es administrador en Seerr o inicia sesión a través de Jellyfin, Emby o Plex.",
+      "account_not_allowed": "La cuenta no puede solicitar títulos. Un administrador asigna el permiso en Cuentas.",
+      "wish_not_allowed": "Este perfil no puede solicitar títulos.",
+      "quota_exceeded": "El límite no lo permite.",
+      "already_available": "El título ya está en la biblioteca.",
+      "wish_not_withdrawable": "La petición ya está aprobada y no se puede retirar.",
+      "seerr_unreachable": "Seerr no está accesible en este momento.",
+      "wish_not_retryable": "Esta petición no se puede reintentar.",
+      "wish_not_pending": "Ya decidida: esta petición ya no espera una aprobación en Seerr. La sincronización recoge el nuevo estado.",
+      "seerr_failed": "Seerr ha respondido con un error.",
+      "seerr_instance_changed": "Otra instancia de Seerr espera tu decisión en Integraciones › Seerr.",
+      "tag_name_taken": "Otro perfil ya tiene este nombre de etiqueta."
     },
     "field": {
       "required": "Obligatorio.",
@@ -261,7 +283,8 @@
       "local_address": "Esta dirección está en la red local. Las emisoras propias también deben proceder de internet.",
       "not_own": "Solo se puede cambiar en emisoras propias.",
       "not_matched": "Este audiolibro no está asociado a ninguna fuente.",
-      "not_found": "Esa entrada no existe en la fuente."
+      "not_found": "Esa entrada no existe en la fuente.",
+      "seerr_url_invalid": "Introduce una dirección con http:// o https://, sin usuario, contraseña, consulta ni fragmento."
     }
   },
   "setup": {
@@ -674,7 +697,8 @@
       "released": "Estrenos recientes",
       "libraries": "Mi contenido",
       "library": "Novedades en {{library}}",
-      "radio": "Mis emisoras"
+      "radio": "Mis emisoras",
+      "wishes": "Peticiones cumplidas"
     },
     "remaining": "Quedan {{time}}",
     "continue": {
@@ -818,7 +842,23 @@
     "seasons": "Temporadas",
     "seasonWall": {
       "showAll": "Mostrar las {{total}} temporadas",
-      "showLess": "Mostrar menos"
+      "showLess": "Mostrar menos",
+      "season": "Temporada {{number}}",
+      "present_one": "{{present}} de {{count}} temporada disponible",
+      "present_many": "{{present}} de {{count}} de temporadas disponibles",
+      "present_other": "{{present}} de {{count}} temporadas disponibles",
+      "next": "Sigue en emisión, próximo episodio el {{date}}",
+      "running": "Sigue en emisión",
+      "state": {
+        "missing": "Falta",
+        "requested": "Solicitada",
+        "processing": "En proceso",
+        "announced": "Anunciada"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "Solicitar {{title}}",
+      "cardJoin": "{{title}}: ya solicitada, unirse",
+      "request": "Solicitar temporadas"
     },
     "episodes": {
       "title": "Episodios",
@@ -3320,7 +3360,8 @@
         "genres": "Los géneros de los títulos visibles.",
         "libraries": "Tarjetas de las bibliotecas que ve el perfil, de la radio y, si se muestran, de las colecciones y los elegidos por los usuarios; el orden y las entradas ocultas se ajustan en la página «Mi contenido».",
         "library": "Los títulos que han llegado más recientemente a esta biblioteca; «Ver todo» abre la biblioteca ordenada por «Añadidos recientemente».",
-        "radio": "Las emisoras favoritas del perfil como tarjetas; si una emisora suena ahora a través del servidor, con su tema actual. Sin favoritas, la fila no se muestra."
+        "radio": "Las emisoras favoritas del perfil como tarjetas; si una emisora suena ahora a través del servidor, con su tema actual. Sin favoritas, la fila no se muestra.",
+        "wishes": "Las peticiones del perfil cumplidas en los últimos 14 días, es decir, títulos de la biblioteca. Las peticiones abiertas están en «Peticiones › Mis peticiones». Si la fila está vacía, no aparece."
       },
       "pageLink": "Ir a «{{page}}»",
       "moved": "{{row}} está ahora en la posición {{position}}. Guarda para aplicarlo.",
@@ -3427,6 +3468,9 @@
         "quoted": "«{{note}}»",
         "none": "–",
         "notInLibrary": "No está en la biblioteca, no aparece en la página de inicio",
+        "unmatched": "Sin coincidencia",
+        "unmatchedReason": "Solo se conoce el ID de TVDB y TMDB no lo encuentra",
+        "noAction": "Sin acción: sin ID de TMDB no se puede solicitar",
         "hide": "Ocultar",
         "hideLabel": "Ocultar {{title}}",
         "show": "Mostrar",
@@ -3436,6 +3480,69 @@
         "count_one": "{{count}} entrada",
         "count_many": "{{count}} de entradas",
         "count_other": "{{count}} entradas"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Reconocido en la biblioteca por su ID de TVDB",
+          "tmdb": "Reconocido en la biblioteca por su ID de TMDB",
+          "imdb": "Reconocido en la biblioteca por su ID de IMDb"
+        }
+      },
+      "request": {
+        "action": "Solicitar",
+        "label": "Solicitar {{title}}",
+        "done": "{{title}} se ha solicitado.",
+        "joined": "{{title}} ya estaba solicitado; tu perfil se une a la petición.",
+        "available": "{{title}} ya está en la biblioteca."
+      },
+      "lacking": {
+        "title": "Entradas faltantes",
+        "missing_one": "{{count}} falta",
+        "missing_many": "{{count}} de faltan",
+        "missing_other": "{{count}} faltan",
+        "requested_one": "{{count}} solicitada",
+        "requested_many": "{{count}} de solicitadas",
+        "requested_other": "{{count}} solicitadas",
+        "unmatched_one": "{{count}} sin coincidencia",
+        "unmatched_many": "{{count}} de sin coincidencia",
+        "unmatched_other": "{{count}} sin coincidencia",
+        "intro": "El Inicio y la lista de Spotlight solo muestran títulos de la biblioteca. Las entradas que faltan solo las ves tú, aquí en la administración. Los perfiles solicitan los títulos que faltan en «Peticiones».",
+        "asProfile": "«Solicitar» actúa como el perfil activo ({{name}}).",
+        "noRequestChip": "No se puede solicitar",
+        "noRequest": {
+          "title": "Solo se puede solicitar cuando las peticiones están configuradas.",
+          "body": "Para ello hace falta Seerr con su dirección y su clave, activado, y «Peticiones activas».",
+          "settings": "A los ajustes de las peticiones",
+          "connection": "A la conexión con Seerr"
+        },
+        "empty": "Todas las entradas de la lista están en la biblioteca."
+      },
+      "matching": {
+        "title": "Coincidencia por TMDB, TVDB e IMDb",
+        "hits_one": "{{count}} en la biblioteca",
+        "hits_many": "{{count}} de en la biblioteca",
+        "hits_other": "{{count}} en la biblioteca",
+        "intro": "Slouchcat busca la coincidencia de las películas por TMDB y después por IMDb. Las series, igual que la biblioteca: primero TVDB, luego TMDB y luego IMDb. Seerr guarda cada título por su ID de TMDB y, en las series, pasa el ID de TVDB a Sonarr.",
+        "waysTitle": "Reconocido por",
+        "way": {
+          "movie": {
+            "tmdb": "Películas por su ID de TMDB",
+            "imdb": "Películas por su ID de IMDb"
+          },
+          "show": {
+            "tvdb": "Series por su ID de TVDB",
+            "tmdb": "Series por su ID de TMDB",
+            "imdb": "Series por su ID de IMDb"
+          }
+        },
+        "noHits": "Ninguna entrada está en la biblioteca.",
+        "unmatchedTitle": "Sin coincidencia",
+        "allMatched": "Se ha encontrado coincidencia para todas las entradas.",
+        "unmatchedNote": "Sin ID de TMDB una entrada no se puede solicitar; no cuenta ni como presente ni como faltante."
       },
       "pin": {
         "action": "Fijar",
@@ -3598,6 +3705,9 @@
       },
       "server": {
         "title": "Servidor"
+      },
+      "wishes": {
+        "title": "Peticiones"
       }
     },
     "server": {
@@ -3858,6 +3968,56 @@
         "hanging_many": "Un montaje ha dejado de responder: {{count}} de listados se han quedado colgados en el kernel y no se pueden cancelar. El explorador de carpetas sigue funcionando, con menos plazas. Un reinicio las libera.",
         "hanging_other": "Un montaje ha dejado de responder: {{count}} listados se han quedado colgados en el kernel y no se pueden cancelar. El explorador de carpetas sigue funcionando, con menos plazas. Un reinicio las libera.",
         "off": "Todas las plazas del explorador de carpetas están colgadas de un montaje que ha dejado de responder. No se puede explorar ninguna carpeta hasta que se reinicie el servidor; escribir una ruta a mano sigue funcionando."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr no está accesible",
+          "key_invalid": "Seerr rechaza la clave de API",
+          "instance_changed": "Se ha detectado otra instancia de Seerr"
+        },
+        "seerrStateBody": {
+          "unreachable": "Las peticiones nuevas esperan y se envían en cuanto Seerr vuelva a responder.",
+          "key_invalid": "Slouchcat no envía peticiones ni sincroniza nada hasta que la clave sea correcta.",
+          "instance_changed": "El envío y la sincronización se detienen hasta que confirmes o elimines la asignación."
+        },
+        "toConnection": "A Integraciones › Seerr",
+        "unmapped_one": "{{count}} cuenta sin usuario de Seerr",
+        "unmapped_many": "{{count}} de cuentas sin usuario de Seerr",
+        "unmapped_other": "{{count}} cuentas sin usuario de Seerr",
+        "unmappedFallback": "Hasta entonces envían a través del usuario compartido slouchcat-gaeste.",
+        "unmappedDeny": "Sus perfiles no ven los títulos que faltan mientras «Cuentas sin usuario de Seerr» esté en «No permitir».",
+        "unmappedWaiting": "Las cuentas esperan y se crean en la próxima sincronización.",
+        "toUsers": "A los usuarios de Seerr",
+        "linked": "Vinculada ahora: {{account}} con el usuario de Seerr existente {{name}}",
+        "linkedBody": {
+          "invite": "Al aceptar la invitación el {{date}}, porque el correo electrónico coincide. La cuenta escribió la dirección ella misma; nadie la ha comprobado.",
+          "email_change": "Tras cambiar el correo electrónico el {{date}}, porque el correo electrónico coincide. La cuenta escribió la dirección ella misma; nadie la ha comprobado."
+        },
+        "toAccount": "Ver la vinculación",
+        "quotaReached": "Límite alcanzado: {{account}}",
+        "quotaNext": "{{used}}, el próximo cupo queda libre el {{date}}.",
+        "toLimit": "Ver el límite",
+        "gone_one": "{{count}} cuenta: usuario eliminado en Seerr",
+        "gone_many": "{{count}} de cuentas: usuario eliminado en Seerr",
+        "gone_other": "{{count}} cuentas: usuario eliminado en Seerr",
+        "goneBody": "Elige otro usuario para estas cuentas o desvincúlalas.",
+        "open_one": "{{count}} petición abierta",
+        "open_many": "{{count}} de peticiones abiertas",
+        "open_other": "{{count}} peticiones abiertas",
+        "openQueued_one": "{{count}} de ellas espera a enviarse a Seerr.",
+        "openQueued_many": "{{count}} de ellas esperan a enviarse a Seerr.",
+        "openQueued_other": "{{count}} de ellas esperan a enviarse a Seerr.",
+        "toRequests": "A las solicitudes",
+        "stalled_one": "{{count}} descarga detenida",
+        "stalled_many": "{{count}} de descargas detenidas",
+        "stalled_other": "{{count}} descargas detenidas",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Ver las descargas detenidas",
+        "tagsFailed_one": "{{count}} etiqueta sin asignar",
+        "tagsFailed_many": "{{count}} de etiquetas sin asignar",
+        "tagsFailed_other": "{{count}} etiquetas sin asignar",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Ver las etiquetas que faltan"
       }
     },
     "integrations": {
@@ -3871,7 +4031,8 @@
         "email": "Correo electrónico",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Comprobación de actualizaciones"
+        "updateCheck": "Comprobación de actualizaciones",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Definido en deploy/.env",
@@ -3903,7 +4064,8 @@
         "email": "Servidor para notificaciones, invitaciones y anuncios por correo electrónico.",
         "telegram": "Bot para notificaciones por Telegram.",
         "push": "Notificaciones en el navegador y en la app instalada.",
-        "server": "Comprobación de actualizaciones, dirección pública y procesador gráfico."
+        "server": "Comprobación de actualizaciones, dirección pública y procesador gráfico.",
+        "seerr": "Transmitir a Seerr las peticiones de los espectadores y mantener sincronizado su estado. Las cuentas reciben allí un usuario con el mismo inicio de sesión."
       },
       "keys": {
         "title": "Claves de los proveedores",
@@ -3930,7 +4092,8 @@
         "neverSeen": "Todavía no ha avisado de nada.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Nueva integración",
@@ -3975,7 +4138,8 @@
           "acknowledged": "Prueba confirmada",
           "ignored": "Sin efecto",
           "outside_roots": "Fuera de las bibliotecas",
-          "invalid_payload": "Sin ruta"
+          "invalid_payload": "Sin ruta",
+          "sync_queued": "Peticiones en sincronización"
         },
         "renew": {
           "action": "Renovar token",
@@ -4123,6 +4287,244 @@
         "checkLabel": "Comprobar {{name}}",
         "rejected": "rechazada",
         "savedRejected": "{{name}} guardado, pero el proveedor rechaza la clave."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Conexión con Seerr",
+        "version": "Versión {{version}}",
+        "lastSuccess": "Última conexión {{time}}",
+        "state": {
+          "not_configured": "Sin configurar",
+          "disabled": "Desactivado",
+          "untested": "Sin probar",
+          "connected": "Conectado",
+          "key_invalid": "Clave no válida",
+          "unreachable": "No accesible",
+          "instance_changed": "Otra instancia detectada"
+        },
+        "stateHint": {
+          "not_configured": "Introduce la dirección y la clave.",
+          "disabled": "Slouchcat no llama a Seerr. Las peticiones siguen guardadas.",
+          "untested": "Prueba la conexión para poder activar «Peticiones activas».",
+          "instance_changed": "Hasta que decidas, Slouchcat no envía peticiones ni sincroniza nada."
+        },
+        "connection": {
+          "title": "Conexión",
+          "noAddress": "Sin dirección"
+        },
+        "enabled": "Usar Seerr",
+        "enabledHelp": "Desactivado: Slouchcat no llama a Seerr. Las peticiones siguen guardadas.",
+        "url": "Dirección",
+        "urlHelp": "Por ejemplo, http://192.168.1.50:5055. Slouchcat solo se comunica con esta dirección. Se permite una dirección de la red doméstica; Slouchcat no sigue redirecciones.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "Clave de API",
+        "apiKeyHelp": "En Seerr: Ajustes › General. Déjala vacía para conservar la guardada. Una dirección en otro equipo necesita la clave de nuevo.",
+        "clearBody": "Se quitan la dirección y la clave. Las peticiones siguen guardadas, pero ya no se envían ni se sincronizan.",
+        "test": {
+          "action": "Probar conexión",
+          "running": "Comprobando la conexión…",
+          "listLabel": "Resultado de la prueba de conexión",
+          "passed": "Todas las comprobaciones superadas.",
+          "passedWithHints_one": "Conectado · {{count}} aviso",
+          "passedWithHints_many": "Conectado · {{count}} de avisos",
+          "passedWithHints_other": "Conectado · {{count}} avisos",
+          "hintsHelp": "Un aviso no impide nada; indica qué convendría ajustar mejor en Seerr.",
+          "failed": "La prueba ha fallado: {{checks}}."
+        },
+        "level": {
+          "ok": "superada",
+          "warn": "aviso",
+          "fail": "fallida"
+        },
+        "checks": {
+          "reachable": "Accesible",
+          "version": "Versión",
+          "key_valid": "Clave válida",
+          "manage_users": "Crear y modificar usuarios",
+          "instance": "Instancia",
+          "act_as_user": "Actuar en nombre de los usuarios",
+          "csrf_off": "Protección CSRF desactivada en Seerr",
+          "radarr": "Radarr en Seerr",
+          "sonarr": "Sonarr en Seerr",
+          "local_login": "Inicio de sesión local en Seerr",
+          "tvdb_seasons": "Temporadas de TVDB",
+          "password_transport": "Contraseña cifrada",
+          "radarr_tags": "Radarr para etiquetas de perfil",
+          "sonarr_tags": "Sonarr para etiquetas de perfil"
+        },
+        "checkOk": {
+          "reachable": "Seerr responde.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr acepta la clave.",
+          "manage_users": "La clave puede crear cuentas en Seerr y establecer permisos, límite y contraseña.",
+          "instance": "La misma instancia que al configurar.",
+          "act_as_user": "Las peticiones se rigen por los permisos, el límite y la aprobación automática del usuario vinculado.",
+          "csrf_off": "Las llamadas de escritura llegan.",
+          "radarr_one": "Las peticiones de películas van a Radarr ({{count}} servidor).",
+          "radarr_many": "Las peticiones de películas van a Radarr ({{count}} de servidores).",
+          "radarr_other": "Las peticiones de películas van a Radarr ({{count}} servidores).",
+          "sonarr_one": "Las peticiones de series van a Sonarr ({{count}} servidor).",
+          "sonarr_many": "Las peticiones de series van a Sonarr ({{count}} de servidores).",
+          "sonarr_other": "Las peticiones de series van a Sonarr ({{count}} servidores).",
+          "local_login": "Los usuarios creados inician sesión en Seerr con el correo electrónico y la contraseña de Slouchcat.",
+          "tvdb_seasons": "Seerr, Sonarr y la biblioteca de Slouchcat cuentan las temporadas igual.",
+          "password_transport": "Las contraseñas viajan cifradas o no salen de la red doméstica.",
+          "radarr_tags": "Radarr responde para las etiquetas de perfil y el progreso de la descarga.",
+          "sonarr_tags": "Sonarr responde para las etiquetas de perfil y el progreso de la descarga."
+        },
+        "checkIssue": {
+          "notTested": "Sin comprobar.",
+          "timeout": "No accesible: tiempo de espera agotado.",
+          "refused": "No accesible: conexión rechazada.",
+          "redirect": "No accesible: no se permiten redirecciones.",
+          "unreachable": "No accesible. ¿Está Seerr en marcha y es correcta la dirección?",
+          "versionNotVerified": "Versión sin verificar: están probadas Jellyseerr 2.7 y Seerr 3.x.",
+          "keyNotUserOne": "La clave no pertenece al propietario de Seerr (usuario 1).",
+          "keyInvalid": "Seerr rechaza la clave.",
+          "manageUsers": "La clave no puede crear usuarios: no se pueden crear cuentas.",
+          "instance": "Se ha detectado otra instancia de Seerr.",
+          "notTestable": "No se puede comprobar: Seerr no tiene más usuario que el usuario 1.",
+          "waiting": "Sin comprobar mientras otra instancia espere tu decisión.",
+          "actAsUser": "No funciona: las peticiones se harían como administrador.",
+          "csrfOn": "Activada: las llamadas de escritura fallan. Desactívala en los ajustes de red de Seerr.",
+          "noRadarr": "No hay Radarr en Seerr: las peticiones de películas quedan sin tramitar.",
+          "noSonarr": "No hay Sonarr en Seerr: las peticiones de series quedan sin tramitar.",
+          "localLoginOff": "Los usuarios creados no pueden iniciar sesión en Seerr. Activa «Inicio de sesión local» en Seerr, en Ajustes › Usuarios.",
+          "noSeasonSource": "Seerr no indica el origen de sus temporadas.",
+          "tmdbSeasons": "Seerr lee las temporadas de TMDB. Se recomienda TVDB, como en Sonarr y en la biblioteca de Slouchcat; de lo contrario, los números de temporada pueden diferir.",
+          "passwordTransport": "Las contraseñas viajarían sin cifrar por internet. Usa https.",
+          "arrNotConfirmed": "La dirección de Seerr aún no está confirmada: pruébala en «Radarr y Sonarr».",
+          "arrUnreachable": "No accesible: sin etiquetas de perfil ni progreso de descarga.",
+          "csrfUnexpected": "Seerr ha aceptado una solicitud vacía en lugar de rechazarla. Las peticiones salen igualmente; revisa la versión de Seerr."
+        },
+        "instance": {
+          "title": "Se ha detectado otra instancia de Seerr",
+          "body": "En la dirección responde otra instancia de Seerr distinta de la de la configuración. Hasta que decidas, Slouchcat no envía peticiones ni sincroniza nada.",
+          "confirm": "Confirmar la asignación",
+          "reset": "Eliminar la asignación",
+          "resetTitle": "¿Eliminar la asignación a Seerr?",
+          "resetBody": "Se quitan los usuarios de Seerr de todas las cuentas y la lista de usuarios cargada. Después Slouchcat carga los usuarios de la nueva instancia.",
+          "confirmed": "Nueva instancia aceptada. Los usuarios de Seerr de las cuentas se mantienen.",
+          "resetDone": "Asignación eliminada. Slouchcat carga los usuarios de la nueva instancia."
+        },
+        "log": {
+          "title": "Registro",
+          "empty": "Todavía no hay entradas.",
+          "caption": "Las últimas llamadas a Seerr",
+          "at": "Hora",
+          "call": "Llamada",
+          "result": "Resultado",
+          "duration": "Duración",
+          "error": "Error",
+          "noAnswer": "Sin respuesta",
+          "ms": "{{ms}} ms",
+          "note": "Nunca con cabeceras ni clave. Como máximo 20 entradas.",
+          "entries_one": "{{count}} entrada",
+          "entries_many": "{{count}} de entradas",
+          "entries_other": "{{count}} entradas",
+          "errors_one": "{{count}} error",
+          "errors_many": "{{count}} de errores",
+          "errors_other": "{{count}} errores"
+        },
+        "usersLink": "Usuarios de Seerr de las cuentas",
+        "sync": {
+          "title": "Sincronización",
+          "summary_one": "{{count}} petición abierta",
+          "summary_many": "{{count}} de peticiones abiertas",
+          "summary_other": "{{count}} peticiones abiertas",
+          "open": "Peticiones abiertas",
+          "queued": "Esperando a enviarse",
+          "last": "Última conexión con Seerr",
+          "never": "Nunca",
+          "every": "Slouchcat sincroniza las peticiones con Seerr cada 5 minutos.",
+          "requestsLink": "A las solicitudes"
+        },
+        "arr": {
+          "title": "Radarr y Sonarr (etiquetas de perfil y progreso)",
+          "intro": "Slouchcat crea en Radarr y Sonarr una etiqueta por perfil y la asigna al título en cuanto Seerr se lo ha pasado. Para ello lee la cola y el estado de los archivos de los títulos pedidos, a fin de mostrar el progreso de la descarga en las peticiones. Por lo demás, Slouchcat no cambia nada en Radarr ni en Sonarr. Los títulos nuevos los sigue notificando el webhook.",
+          "offNotice": "Las etiquetas de perfil y el progreso de la descarga están desactivados. Slouchcat no llama a Radarr ni a Sonarr.",
+          "summaryOff": "desactivado · etiquetas de perfil y progreso desactivados",
+          "summaryTags_one": "{{count}} etiqueta pendiente",
+          "summaryTags_many": "{{count}} de etiquetas pendientes",
+          "summaryTags_other": "{{count}} etiquetas pendientes",
+          "summaryProgress_one": "{{count}} descarga",
+          "summaryProgress_many": "{{count}} de descargas",
+          "summaryProgress_other": "{{count}} descargas",
+          "state": {
+            "none": "{{service}} no está en Seerr",
+            "unconfirmed": "{{service}} espera a «Probar»",
+            "unreachable": "{{service}} no accesible",
+            "reachable": "{{service}} accesible",
+            "untested": "{{service}} sin llamar todavía"
+          },
+          "facts": {
+            "address": "Dirección",
+            "state": "Estado",
+            "tagRequests": "Tag Requests en Seerr",
+            "tags": "Etiquetas de perfil",
+            "progress": "Progreso de la descarga"
+          },
+          "address": {
+            "seerr": "De Seerr: {{address}}",
+            "own": "Dirección propia: {{address}}"
+          },
+          "addressNone": "Ninguna: Seerr no tiene un servidor predeterminado para {{service}}.",
+          "lastAt": "última {{time}}",
+          "tagRequestsOn": "activado",
+          "tagRequestsOff": "desactivado · Recomendado: así cada título lleva también la etiqueta de la cuenta.",
+          "tags": "{{set}} asignadas · {{pending}} pendientes · {{failed}} fallidas",
+          "progressOff": "desactivado · en Peticiones › Ajustes",
+          "progressError": "Progreso ilegible: {{reason}}",
+          "progressOn_one": "activado · {{count}} petición con progreso",
+          "progressOn_many": "activado · {{count}} de peticiones con progreso",
+          "progressOn_other": "activado · {{count}} peticiones con progreso",
+          "progressAt_one": "activado · {{count}} petición con progreso · última lectura {{time}}",
+          "progressAt_many": "activado · {{count}} de peticiones con progreso · última lectura {{time}}",
+          "progressAt_other": "activado · {{count}} peticiones con progreso · última lectura {{time}}",
+          "test": {
+            "action": "Probar",
+            "label": "Probar {{service}}",
+            "noHost": "la dirección",
+            "passed": "{{service}} responde en {{host}} y acepta la clave de Seerr. La dirección está confirmada.",
+            "keyRefused": "{{service}} responde en {{host}}, pero no acepta la clave de Seerr.",
+            "unreachable": "{{service}} no está accesible en {{host}}.",
+            "ownHint": "Si Slouchcat no llega a la dirección de Seerr, por ejemplo con nombres internos de Docker, introduce abajo una dirección propia.",
+            "notInSeerr": "Seerr no tiene un servidor predeterminado para {{service}}.",
+            "notInSeerrBody": "Configura en Seerr un servidor predeterminado sin 4K. Sin él, Slouchcat no asigna etiquetas ni lee el progreso."
+          },
+          "own": "Dirección propia para {{service}}",
+          "ownHelp": "Vacío: la dirección de Seerr. Solo hace falta si Slouchcat no llega a la dirección de Seerr, por ejemplo con nombres internos de Docker. La clave siempre la aporta Seerr.",
+          "ownPlaceholder": "Dirección de Seerr",
+          "saveLabel": "Guardar las direcciones propias de Radarr y Sonarr",
+          "saved": "Direcciones propias guardadas.",
+          "toSettings": "Prefijo y progreso de la descarga · Peticiones › Ajustes",
+          "toUsers": "Nombres de etiqueta por perfil · Usuarios de Seerr",
+          "toWebhooks": "Webhooks de Radarr y Sonarr · sin cambios, configurados manualmente"
+        },
+        "hook": {
+          "title": "Aviso inmediato",
+          "on": "Configurado",
+          "off": "Desactivado",
+          "intro": "Seerr lanza la sincronización al instante, en vez de esperar hasta 5 minutos. La sincronización sigue siendo la base.",
+          "name": "Seerr",
+          "create": "Generar dirección",
+          "address": "Dirección",
+          "last": "Último aviso",
+          "never": "Todavía no ha avisado de nada.",
+          "single": "Seerr solo admite un destino de webhook. Si ya lo usas para otra cosa, esta dirección lo sustituye.",
+          "where": "En Seerr, en Ajustes › Notificaciones › Webhook: la dirección como «Webhook URL» y esta plantilla como «JSON Payload».",
+          "payload": "Plantilla JSON para Seerr",
+          "copyPayload": "Copiar plantilla",
+          "typesIntro": "Marca estos tipos de notificación en Seerr:",
+          "types": "Tipos de notificación para Seerr",
+          "copyTypes": "Copiar tipos",
+          "copied": "Copiado.",
+          "copyFailed": "Sin acceso al portapapeles: el texto está seleccionado, cópialo con Ctrl+C.",
+          "log": "Últimos avisos"
+        },
+        "accounts_one": "Usuarios de Seerr: {{opened}} de {{count}} cuenta",
+        "accounts_many": "Usuarios de Seerr: {{opened}} de {{count}} de cuentas",
+        "accounts_other": "Usuarios de Seerr: {{opened}} de {{count}} cuentas"
       }
     },
     "accounts": {
@@ -4132,6 +4534,7 @@
       "columns": {
         "email": "Correo electrónico",
         "role": "Rol",
+        "access": "Acceso",
         "profiles": "Perfiles",
         "lastSeen": "Última conexión",
         "channels": "Canales",
@@ -4164,7 +4567,14 @@
         "currentPasswordHint": "Confirma que eres tú.",
         "wrongPassword": "La contraseña actual no es correcta.",
         "unchanged": "Cambia el correo electrónico o introduce una contraseña nueva.",
-        "saved": "Tu cuenta se ha guardado."
+        "saved": "Tu cuenta se ha guardado.",
+        "seerrPassword": {
+          "synced": "La nueva contraseña también vale en Seerr.",
+          "next_login": "La nueva contraseña también vale en Seerr.",
+          "off": "Tu contraseña en Seerr se queda como está: no se sincroniza.",
+          "admin": "Tu contraseña en Seerr se queda como está: allí eres administrador.",
+          "external": "Tu contraseña en Seerr se queda como está: allí inicias sesión a través de Jellyfin, Emby o Plex."
+        }
       },
       "ownerBadge": "Propietario",
       "access": {
@@ -4175,7 +4585,8 @@
         "heading": "Acceso",
         "save": "Guardar acceso",
         "saved": "Acceso de {{email}} guardado.",
-        "adminHint": "Un administrador siempre tiene el nivel «Desde 18 años» y todas las bibliotecas; «Acceso» solo existe para las cuentas sin administración."
+        "adminHint": "Un administrador siempre tiene el nivel «Desde 18 años» y todas las bibliotecas; «Acceso» solo existe para las cuentas sin administración.",
+        "limitRefused": "El acceso se ha guardado, pero el límite de peticiones no: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4244,7 +4655,8 @@
           "libraries": "Bibliotecas",
           "detail": "Válida hasta / aceptada",
           "actions": "Acciones"
-        }
+        },
+        "seerrHint": "Al aceptarla, Slouchcat crea la cuenta también en Seerr: mismo correo electrónico, misma contraseña."
       },
       "discard": "Descartar",
       "status": {
@@ -4274,6 +4686,42 @@
         "mine": "Mis perfiles",
         "of": "Perfiles de {{email}}",
         "readOnly": "Cada cuenta gestiona sus propios perfiles."
+      },
+      "wishes": {
+        "title": "Peticiones",
+        "of": "Peticiones de {{email}}",
+        "canRequest": "Puede solicitar títulos",
+        "canRequestHelp": "Es el tope para todos los perfiles. El perfil principal de la cuenta elige qué perfiles solicitan.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Permitido",
+          "not_allowed": "No permitido",
+          "mapping_missing": "Sin usuario de Seerr"
+        },
+        "userLine": "Usuario de Seerr: {{user}}",
+        "noUser": "ninguno todavía",
+        "change": "Cambiar",
+        "userState": {
+          "created": "creado",
+          "linked": "vinculado",
+          "manual": "elegido manualmente",
+          "waiting": "esperando a Seerr"
+        },
+        "linkedBy": "vinculado {{by}} el {{date}}",
+        "password": {
+          "synced": "contraseña sincronizada",
+          "next_login": "la contraseña se aplica en el próximo inicio de sesión",
+          "off": "la contraseña no se sincroniza",
+          "admin": "la contraseña se queda en Seerr (administrador)",
+          "external": "inicia sesión a través de Jellyfin, Emby o Plex"
+        },
+        "rightsFollow": "Se ajustan los permisos de «{{name}}» en Seerr.",
+        "rightsStay": "«{{name}}» conserva sus permisos en Seerr, porque Slouchcat no lo ha creado.",
+        "adminLimit": "«{{name}}» es administrador en Seerr. Seerr no pone límite a los administradores.",
+        "limitLater": "Todavía no hay usuario de Seerr: Slouchcat establece el límite en cuanto la cuenta se cree allí.",
+        "limitFixed": "Límite: {{limit}}. En el caso de los administradores no se puede cambiar aquí.",
+        "savedOn": "{{email}} ya puede solicitar títulos.",
+        "savedOff": "{{email}} ya no puede solicitar títulos."
       }
     },
     "backup": {
@@ -4829,6 +5277,57 @@
           "description": "Quita los títulos cuyos archivos faltan más allá del periodo de gracia.",
           "trigger": "Programación cada hora y arranque del servidor"
         },
+        "seerr_users": {
+          "name": "Cargar usuarios de Seerr",
+          "description": "Lee los usuarios de Seerr con sus permisos y su límite y comprueba que Slouchcat sigue hablando con la misma instancia de Seerr.",
+          "trigger": "a diario, «Recargar lista de usuarios», tras guardar la conexión con Seerr"
+        },
+        "seerr_provision": {
+          "name": "Crear cuentas en Seerr",
+          "description": "Crea o vincula el usuario de Seerr de una cuenta, crea el usuario compartido «slouchcat-gaeste» y retira los permisos al usuario de Seerr de una cuenta eliminada.",
+          "trigger": "«Crear en Seerr», «Crear todos», invitación aceptada, «Peticiones activas» activado, tras cargar los usuarios de Seerr para las cuentas en espera, cuenta eliminada"
+        },
+        "wishes_submit": {
+          "name": "Enviar peticiones a Seerr",
+          "description": "Envía a Seerr una petición que sigue esperando en la bandeja de salida y la añade a una solicitud que ya existe.",
+          "trigger": "tras solicitar, cuando Seerr no responde enseguida, a intervalos crecientes de hasta 24 horas; tras la sincronización, para las peticiones pendientes"
+        },
+        "wishes_withdraw": {
+          "name": "Eliminar en Seerr las peticiones retiradas",
+          "description": "Elimina en Seerr la solicitud propia, aún no aprobada, de una petición retirada. Si ya estaba aprobada, se queda y la petición vuelve a abrirse.",
+          "trigger": "«Retirar» en «Mis peticiones»; tras la sincronización, mientras Seerr no estaba accesible"
+        },
+        "wishes_sync": {
+          "name": "Sincronizar peticiones con Seerr",
+          "description": "Lee de Seerr las solicitudes modificadas, actualiza el estado de las peticiones, revisa una a una las peticiones que llevan mucho tiempo sin cambios y vuelve a enviar desde la bandeja de salida las peticiones pendientes. La primera sincronización lee todas las solicitudes.",
+          "trigger": "programación cada 5 minutos, «Sincronizar ahora», aviso del webhook de Seerr",
+          "progress": "Páginas leídas: {{done}} de {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Cotejar peticiones con la biblioteca",
+          "description": "Marca una petición como disponible en cuanto Slouchcat puede reproducir la película o todas las temporadas pedidas para un perfil.",
+          "trigger": "programación cada hora, tras reconocer en la biblioteca un título pedido, tras la sincronización con Seerr"
+        },
+        "wishes_tag": {
+          "name": "Asignar etiquetas de perfil",
+          "description": "En Radarr y Sonarr asigna la etiqueta del perfil a las películas y series pedidas a través de Slouchcat que están en proceso. Las etiquetas nunca se quitan.",
+          "trigger": "tras la sincronización con Seerr, cada 15 minutos y manualmente"
+        },
+        "wishes_progress": {
+          "name": "Leer el progreso de la descarga",
+          "description": "Lee la cola de Radarr y Sonarr y muestra, en las peticiones en proceso, si se está buscando, descargando o importando. No cambia nada en Radarr ni en Sonarr.",
+          "trigger": "cada minuto, mientras haya peticiones en proceso y el progreso de la descarga esté activado"
+        },
+        "wishes_discover": {
+          "name": "Precargar listas de peticiones",
+          "description": "Carga desde Seerr en la caché las filas de Descubrir para cada idioma y nivel de los perfiles que pueden solicitar, y elimina las listas de más de un día. Cada resultado se vuelve a comprobar para el perfil.",
+          "trigger": "programación cada hora, mientras las peticiones estén activas y las páginas Descubrir, Películas, Series y Buscar estén activadas"
+        },
+        "wishes_import": {
+          "name": "Incorporar solicitudes de Seerr",
+          "description": "Incorpora las solicitudes abiertas y las que han pasado a estar disponibles hace poco, hechas en el propio Seerr por un usuario de Seerr vinculado, como peticiones del perfil principal de su cuenta («Creado en Seerr»). Las solicitudes del usuario compartido se dejan fuera. No se envía ninguna notificación.",
+          "trigger": "usuario de Seerr de una cuenta vinculado, elegido o cambiado, «Incorporar solicitudes»"
+        },
         "segments_detect": {
           "name": "Detectar intro y créditos",
           "description": "Encuentra la intro y los créditos de los episodios para «Saltar intro».",
@@ -4954,6 +5453,16 @@
           "description": "Descarga un episodio del servidor del proveedor y lo guarda como archivo en la carpeta de su pódcast.",
           "trigger": "Desde el planificador con «Guardar», «Descargar los que faltan» y «Descargar» por episodio; una a la vez por proveedor",
           "progress": "Bytes: {{done}} de {{total}}"
+        },
+        "series_catalog": {
+          "name": "Obtener las listas de temporadas de las series",
+          "description": "Lee de TMDB, para cada serie de la biblioteca, las temporadas con su número de episodios, el estado y el siguiente episodio, y lo repite a los 7 días.",
+          "trigger": "programación diaria, tras reconocer una serie"
+        },
+        "titles_refresh": {
+          "name": "Actualizar los títulos que faltan",
+          "description": "Vuelve a leer de TMDB, a los 7 días, los datos, las clasificaciones y los tráileres de los títulos que no están en la biblioteca.",
+          "trigger": "programación diaria"
         },
         "trakt_refresh": {
           "name": "Consultar lista de Spotlight",
@@ -5395,6 +5904,508 @@
         "changed": "en esa ruta hay ahora otro archivo"
       },
       "changed": "Algo ha cambiado mientras tanto. Vuelve a comprobarlo. La lista de abajo se ha vuelto a leer; no se ha eliminado nada."
+    },
+    "wishes": {
+      "title": "Peticiones",
+      "intro": "Cada cuenta tiene en Seerr un usuario propio con el mismo inicio de sesión. Sus perfiles solicitan como ese usuario. Los permisos, el límite y la aprobación vienen de ese usuario.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Secciones de las peticiones",
+        "users": "Usuarios de Seerr",
+        "settings": "Ajustes",
+        "requests": "Solicitudes",
+        "openCount_one": "{{count}} petición abierta",
+        "openCount_many": "{{count}} de peticiones abiertas",
+        "openCount_other": "{{count}} peticiones abiertas",
+        "withoutShort": "{{number}} sin usuario",
+        "withoutCount_one": "{{count}} cuenta sin usuario de Seerr",
+        "withoutCount_many": "{{count}} de cuentas sin usuario de Seerr",
+        "withoutCount_other": "{{count}} cuentas sin usuario de Seerr"
+      },
+      "strip": {
+        "label": "Resumen",
+        "accounts": "Cuentas",
+        "opened": "En Seerr",
+        "openedNote": "creadas o vinculadas",
+        "without": "Sin usuario",
+        "waiting_one": "{{count}} espera a Seerr",
+        "waiting_many": "{{count}} de esperan a Seerr",
+        "waiting_other": "{{count}} esperan a Seerr",
+        "password": "Contraseña pendiente",
+        "passwordNote": "se aplica en el próximo inicio de sesión"
+      },
+      "limit": {
+        "movie_one": "{{count}} película / {{days}} días",
+        "movie_many": "{{count}} de películas / {{days}} días",
+        "movie_other": "{{count}} películas / {{days}} días",
+        "movieNone": "Películas sin límite",
+        "tv_one": "{{count}} temporada / {{days}} días",
+        "tv_many": "{{count}} de temporadas / {{days}} días",
+        "tv_other": "{{count}} temporadas / {{days}} días",
+        "tvNone": "Temporadas sin límite"
+      },
+      "settings": {
+        "atOnce": "Cada cambio se aplica al instante.",
+        "refused": "Sin cambios: {{reason}}",
+        "switchedOn": "«{{name}}» está activado. Se aplica al instante.",
+        "switchedOff": "«{{name}}» está desactivado. Se aplica al instante.",
+        "choiceSaved": "«{{name}}»: {{value}}. Se aplica al instante.",
+        "limitSaved": "Límite predeterminado: {{limit}}. Se aplica al instante a todas las cuentas con «Predeterminado».",
+        "basics": "Base",
+        "where": "Desde dónde se puede solicitar",
+        "rules": "Reglas",
+        "enabled": "Peticiones activas",
+        "enabledHelp": "Los perfiles con permiso pueden solicitar los títulos que faltan. Desactivado: nadie ve los títulos que faltan; las peticiones abiertas siguen su curso en Seerr.",
+        "enabledLocked": "Solo se puede activar tras una prueba superada de la conexión guardada.",
+        "toConnection": "A la conexión",
+        "allowMovies": "Permitir películas",
+        "allowMoviesHelp": "Vale para todos los perfiles. Desactivado: sin «Solicitar película».",
+        "allowShows": "Permitir series",
+        "allowShowsHelp": "Vale para todos los perfiles. Desactivado: sin «Solicitar serie» ni «Solicitar temporadas».",
+        "fromSearch": "Solicitar desde la búsqueda",
+        "fromSearchHelp": "Sección «Todavía no está en la biblioteca». Desactivado: la sección no aparece.",
+        "fromDetail": "Solicitar en las páginas de detalle",
+        "fromDetailHelp": "Temporadas que faltan en la página de una serie que ya está en la biblioteca. Desactivado: la página de la serie solo muestra lo que hay.",
+        "alreadyRequested": "Títulos ya solicitados",
+        "alreadyRequestedHelp": {
+          "join": "Unirse: un segundo perfil se suma a la petición abierta («Avisarme») y también recibe avisos. Seerr no recibe una segunda solicitud.",
+          "status": "Solo mostrar el estado: un segundo perfil ve «Ya solicitado», pero no puede sumarse y no recibe avisos."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Unirse",
+          "status": "Solo mostrar el estado"
+        },
+        "unmapped": "Cuentas sin usuario de Seerr",
+        "unmappedHelp": {
+          "fallback": "Usuario compartido: todas las cuentas sin usuario propio solicitan como slouchcat-gaeste y comparten el límite predeterminado. Slouchcat crea este usuario en Seerr por sí mismo.",
+          "deny": "No permitir: las cuentas sin usuario propio no pueden solicitar nada hasta que tengan un usuario de Seerr."
+        },
+        "unmappedOptions": {
+          "fallback": "Usuario compartido",
+          "deny": "No permitir"
+        },
+        "newAccountsCanRequest": "Las cuentas nuevas pueden solicitar",
+        "newAccountsCanRequestHelp": "Valor inicial del interruptor en el cuadro «Invitar a una cuenta». No cambia las cuentas existentes.",
+        "allowWithdraw": "Permitir retirar",
+        "allowWithdrawHelp": "Mientras una petición no esté aprobada. Botón «Retirar» en «Mis peticiones».",
+        "pinExternalHideTitle": "Mensajes externos de perfiles con PIN sin el título",
+        "pinExternalHideTitleHelp": "El correo electrónico, Web Push y Telegram solo nombran entonces el perfil, no el título.",
+        "defaultLimit": "Límite predeterminado",
+        "limitPerAccount": "Límite por cuenta",
+        "limitPerAccountHelp": "Vale para todos los perfiles de una cuenta en conjunto. Seerr cuenta de forma continua e incluye también las peticiones hechas directamente allí. Las peticiones rechazadas y las uniones no cuentan. Los administradores no tienen límite.",
+        "movieLimit": "Películas: cantidad",
+        "movieDays": "Películas: días",
+        "tvLimit": "Temporadas: cantidad",
+        "tvDays": "Temporadas: días",
+        "limitRange": "Un número entero de {{low}} a {{high}}.",
+        "perAccount": "Distinto por cuenta",
+        "perAccountHelp": "En «Cuentas» se puede fijar un límite distinto para una cuenta: un límite propio o ilimitado.",
+        "toAccounts": "A las cuentas",
+        "accountsInSeerr": "Cuentas en Seerr",
+        "provisionOn": "Crear cuentas nuevas",
+        "provisionOff": "No crear cuentas nuevas",
+        "syncOn": "Sincronizar contraseña",
+        "syncOff": "sin sincronizar contraseña",
+        "provisionAccounts": "Crear cuentas nuevas en Seerr",
+        "provisionAccountsHelp": "Al aceptar una invitación, Slouchcat crea la cuenta también en Seerr: mismo correo electrónico, misma contraseña. Si allí ya hay un usuario con el mismo correo electrónico, Slouchcat lo vincula al instante. La dirección la escribe la propia cuenta nueva; nadie la comprueba. Por eso el resumen muestra cada vinculación de este tipo durante siete días.",
+        "syncPassword": "Sincronizar contraseña",
+        "syncPasswordHelp": "Slouchcat pasa la contraseña a Seerr cuando se establece o se cambia y al iniciar sesión en Slouchcat. Slouchcat nunca la guarda en texto plano. Para ello Seerr necesita el «Inicio de sesión local». Los usuarios que ya existían en Seerr y que un administrador vincula conservan su contraseña.",
+        "visibleInSeerr": "Quien inicia sesión en Seerr con el acceso de una cuenta ve allí las peticiones de todos los perfiles de esa cuenta, también las de un perfil con PIN. Además, Seerr envía notificaciones propias con el título; déjalas desactivadas en Seerr para los usuarios creados.",
+        "existing": "Cuentas existentes",
+        "existingHelp": "Elige el usuario de Seerr de cada cuenta o desvincúlala.",
+        "toUsers": "A los usuarios de Seerr",
+        "links": "Enlaces",
+        "who": "Quién puede solicitar",
+        "whoHelp": "Quién puede solicitar se establece por cuenta en Cuentas; por perfil decide el perfil principal.",
+        "connection": "Conexión con Seerr",
+        "connectionHelp": "Dirección, clave, prueba y registro.",
+        "users": "Usuarios de Seerr",
+        "usersHelp": "Qué cuenta solicita como qué usuario de Seerr, con contraseña y límite.",
+        "arr": "Radarr y Sonarr: etiqueta de perfil y progreso",
+        "profileTags": "Asignar la etiqueta de perfil en Radarr y Sonarr",
+        "profileTagsHelp": "Asigna la etiqueta del perfil al título en cuanto Seerr se lo ha pasado a Radarr o Sonarr, y recupera las etiquetas que no se pudieron asignar. No cambia nada más en Radarr ni en Sonarr.",
+        "tagPrefix": "Prefijo",
+        "tagPrefixHelp": "Minúsculas, cifras y guion. Ejemplo: sc-noah. Vale para las etiquetas nuevas; las existentes se quedan como están. La etiqueta de un perfil concreto se cambia en «Usuarios de Seerr».",
+        "tagPrefixInvalid": "De 1 a 10 caracteres: solo minúsculas a–z, cifras 0–9 y guion. No guardado.",
+        "tagPrefixSaved": "Prefijo «{{prefix}}»: las etiquetas nuevas se llamarán, por ejemplo, {{prefix}}noah. Las etiquetas ya asignadas se quedan como están.",
+        "showProgress": "Mostrar el progreso de la descarga",
+        "showProgressHelp": "Muestra, en las peticiones en proceso, si el título se está buscando, descargando o importando. Para ello Slouchcat lee cada minuto la cola de Radarr y Sonarr mientras haya peticiones en proceso.",
+        "arrSummary": "Etiqueta {{tags}} · prefijo {{prefix}} · progreso {{progress}}",
+        "on": "activado",
+        "off": "desactivado",
+        "arrLinks": "Acceso a Radarr y Sonarr",
+        "arrLinksHelp": "La dirección y la clave vienen de Seerr; los nombres por perfil están en Usuarios de Seerr.",
+        "toArr": "Integraciones › Seerr",
+        "discoverPages": "Páginas Descubrir, Películas, Series y Buscar",
+        "discoverPagesHelp": "Pestañas del área «Peticiones». Desactivado: solo «Mis peticiones».",
+        "basicsSummary": "Peticiones {{enabled}} · películas {{movies}} · series {{shows}}",
+        "basicsSummaryLocked": "Peticiones desactivadas hasta superar una prueba · películas {{movies}} · series {{shows}}",
+        "whereSummary": "Búsqueda {{search}} · páginas de detalle {{detail}} · Descubrir {{discover}}",
+        "rulesSummary": "{{already}} · sin usuario de Seerr: {{unmapped}} · retirar {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} de {{count}} cuenta creada",
+        "usersCount_many": "{{opened}} de {{count}} de cuentas creadas",
+        "usersCount_other": "{{opened}} de {{count}} cuentas creadas",
+        "limitHintCount": "De {{low}} a {{high}}; 0 significa sin límite.",
+        "limitHintDays": "De {{low}} a {{high}} días."
+      },
+      "users": {
+        "caption": "Cuentas y sus usuarios de Seerr",
+        "columns": {
+          "account": "Cuenta",
+          "user": "Usuario de Seerr",
+          "password": "Contraseña",
+          "rights": "Permisos en Seerr",
+          "email": "Correo electrónico",
+          "type": "Tipo",
+          "limit": "Límite"
+        },
+        "noUser": "Ninguno",
+        "passwordFollows": "Sigue al usuario",
+        "rightsFollow": "Según el permiso para solicitar",
+        "gone": "Usuario eliminado",
+        "state": {
+          "created": "Creado por Slouchcat",
+          "linked": "Vinculado por el mismo correo electrónico",
+          "manual": "Vinculado manualmente",
+          "waiting": "Se creará en cuanto Seerr esté accesible",
+          "none": "No creado"
+        },
+        "password": {
+          "synced": "Igual que en Slouchcat",
+          "next_login": "Se incorpora en el próximo inicio de sesión en Slouchcat",
+          "off": "No se sincroniza",
+          "admin": "Se queda en Seerr (administrador)",
+          "external": "Inicia sesión a través de Jellyfin, Emby o Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Local",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Administrador",
+          "both": "Películas y series",
+          "movies": "Solo películas",
+          "shows": "Solo series",
+          "none": "Sin permisos"
+        },
+        "choose": "Elegir usuario",
+        "chooseLabel": "Usuario de Seerr para {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (actual)",
+        "optionGone": "{{option}} (eliminado en Seerr)",
+        "optionTaken": "{{option}} · pertenece a {{email}}",
+        "facts": {
+          "user": "Usuario de Seerr",
+          "state": "Estado",
+          "password": "Contraseña",
+          "rights": "Permisos en Seerr",
+          "limit": "Límite",
+          "right": "Permiso para solicitar de la cuenta"
+        },
+        "linkedBy": "{{by}} · desde {{date}}",
+        "by": {
+          "admin": "por un administrador",
+          "invite": "al aceptar la invitación",
+          "email_change": "tras cambiar el correo electrónico"
+        },
+        "since": "desde {{date}}",
+        "syncedAt": "sincronizado el {{time}}",
+        "movies": "Películas",
+        "shows": "Series",
+        "autoApproveOn": "Aprobación automática: sí",
+        "autoApproveOff": "Aprobación automática: no",
+        "followRightOn": "Según el permiso para solicitar de la cuenta: puede solicitar",
+        "followRightOff": "Según el permiso para solicitar de la cuenta: no puede solicitar",
+        "noLimitAdmin": "Sin límite (administrador en Seerr)",
+        "unlimited": "Ilimitado",
+        "mode": {
+          "default": "Predeterminado",
+          "custom": "Propio",
+          "unlimited": "Ilimitado"
+        },
+        "mayRequest": "Puede solicitar",
+        "mayNotRequest": "No puede solicitar",
+        "goneTitle": "No se encuentra al usuario «{{name}}»",
+        "goneBody": "Seerr ya no conoce a este usuario. Elige otro usuario o desvincula la cuenta.",
+        "selfLinked": {
+          "invite": "Vinculada al usuario de Seerr existente {{name}} al aceptar la invitación, porque el correo electrónico coincide. Si no pertenece a esta cuenta, desvincúlala.",
+          "email_change": "Vinculada al usuario de Seerr existente {{name}} tras cambiar el correo electrónico, porque el correo electrónico coincide. Si no pertenece a esta cuenta, desvincúlala."
+        },
+        "warning": {
+          "nothing": "«{{name}}» no puede solicitar nada en Seerr. Todas las peticiones fallan; da al usuario el permiso «Solicitar» en Seerr o elige otro.",
+          "noShows": "«{{name}}» no puede solicitar series. Las peticiones de series fallan; las de películas funcionan.",
+          "noMovies": "«{{name}}» no puede solicitar películas. Las peticiones de películas fallan; las de series funcionan."
+        },
+        "change": "Cambiar el usuario de Seerr",
+        "unlink": "Desvincular",
+        "chooseHelp": "Se pueden elegir los usuarios que no pertenecen a ninguna otra cuenta. Los permisos y la contraseña se quedan como están en Seerr.",
+        "chooseHelpStale": "Se pueden elegir los usuarios que no pertenecen a ninguna otra cuenta. Se muestra la última versión cargada de la lista de usuarios.",
+        "taken": "Este usuario de Seerr ya pertenece a otra cuenta o ya no se puede elegir. La selección se ha restablecido.",
+        "linked": "{{email}} ahora solicita como «{{name}}». Los permisos y la aprobación vienen de este usuario.",
+        "unlinked": "Se ha desvinculado {{email}}. «{{name}}» se queda en Seerr.",
+        "reloading": "Se está recargando la lista de usuarios.",
+        "notConfigured": "Seerr no está configurado",
+        "notConfiguredBody": "Sin conexión no hay lista de usuarios. Por ahora todas las cuentas siguen sin usuario de Seerr.",
+        "toConnection": "A Integraciones › Seerr",
+        "toDecision": "A la decisión",
+        "instanceBody": "Hasta que decidas en Integraciones › Seerr, Slouchcat no envía peticiones ni sincroniza nada. La lista muestra la última versión.",
+        "goneCount_one": "{{count}} cuenta: usuario eliminado en Seerr",
+        "goneCount_many": "{{count}} de cuentas: usuario eliminado en Seerr",
+        "goneCount_other": "{{count}} cuentas: usuario eliminado en Seerr",
+        "goneCountBody": "Elige otro usuario para estas cuentas o desvincúlalas.",
+        "withoutCount_one": "{{count}} cuenta sin usuario de Seerr",
+        "withoutCount_many": "{{count}} de cuentas sin usuario de Seerr",
+        "withoutCount_other": "{{count}} cuentas sin usuario de Seerr",
+        "withoutFallback": "Hasta entonces solicitan como el usuario compartido slouchcat-gaeste (regla «Cuentas sin usuario de Seerr»).",
+        "withoutDeny": "No pueden solicitar mientras «Cuentas sin usuario de Seerr» esté en «No permitir».",
+        "toSettings": "A los ajustes",
+        "newAccounts": "Cuentas nuevas: {{provision}} · Contraseña: {{password}}",
+        "provisionOn": "se crean en Seerr",
+        "provisionOff": "no se crean",
+        "syncOn": "se sincroniza",
+        "syncOff": "no se sincroniza",
+        "changeSettings": "Cambiar",
+        "shared": "Usuario compartido: {{name}}",
+        "sharedLater": "Usuario compartido: se crea en cuanto las peticiones estén activas",
+        "reload": "Recargar lista de usuarios",
+        "unlinkedTitle": "Usuarios de Seerr sin cuenta",
+        "unlinkedCount_one": "{{count}} usuario",
+        "unlinkedCount_many": "{{count}} de usuarios",
+        "unlinkedCount_other": "{{count}} usuarios",
+        "unlinkedEmpty": "Todos los usuarios de Seerr pertenecen a una cuenta.",
+        "noEmail": "sin correo electrónico",
+        "noLimit": "Sin límite",
+        "limitOnOpen": "Se establece al crear la cuenta: {{limit}}",
+        "limitChange": "Cambiar límite",
+        "quotaAt": "Estado de Seerr {{time}}",
+        "provision": "Crear en Seerr",
+        "retry": "Reintentar",
+        "provisionOffHint": "«Crear cuentas nuevas en Seerr» está desactivado.",
+        "sameEmailTitle": "En Seerr ya existe «{{name}}»",
+        "sameEmailBody": "Misma dirección de correo electrónico: «Crear en Seerr» vincula a este usuario en lugar de crear un segundo.",
+        "waitingTitle": "Esperando a Seerr",
+        "waitReason": {
+          "unreachable": "Seerr no estaba accesible al crear la cuenta. La próxima sincronización lo intentará de nuevo.",
+          "server": "Seerr respondió con un error al crear la cuenta. La próxima sincronización lo intentará de nuevo.",
+          "timeout": "Seerr no respondió a tiempo al crear la cuenta. La próxima sincronización lo intentará de nuevo.",
+          "key_invalid": "Seerr ha rechazado la clave de API. En cuanto la conexión vuelva a ser correcta, la próxima sincronización lo intentará de nuevo.",
+          "instance_changed": "Otra instancia de Seerr espera tu decisión. Hasta entonces, Slouchcat no crea nada.",
+          "seerr_user_taken": "El usuario de Seerr con este correo electrónico ya pertenece a otra cuenta o es el usuario compartido. Elige el usuario manualmente.",
+          "other": "No se ha podido crear la cuenta ({{reason}}). La próxima sincronización lo intentará de nuevo.",
+          "seerr_user_privileged": "Este usuario de Seerr administra Seerr. Slouchcat no lo vincula por su cuenta: vincúlalo tras confirmarlo o elige otro usuario.",
+          "refused": "Seerr ha rechazado crear la cuenta. La próxima sincronización lo intentará de nuevo."
+        },
+        "emailTakenTitle": "Seerr ha rechazado el nuevo correo electrónico",
+        "emailTakenBody": "Otro usuario de Seerr ya tiene esta dirección. «{{name}}» conserva en Seerr su correo electrónico anterior; la cuenta sigue solicitando como este usuario.",
+        "provisioned": {
+          "created": "{{email}} se ha creado en Seerr.",
+          "linked": "{{email}} se ha vinculado al usuario de Seerr «{{name}}».",
+          "waiting": "Todavía no se ha creado en Seerr: {{email}} espera y la próxima sincronización lo intentará de nuevo.",
+          "privileged": "{{email}} espera: el usuario de Seerr con este correo electrónico administra Seerr.",
+          "taken": "{{email}} espera: el usuario de Seerr con este correo electrónico ya pertenece a otra cuenta. Elige el usuario manualmente."
+        },
+        "passwordNext": "Volver a incorporar la contraseña en el próximo inicio de sesión",
+        "passwordOff": "No sincronizar la contraseña",
+        "passwordNextDone": "La contraseña de {{email}} se envía a Seerr en el próximo inicio de sesión.",
+        "passwordOffDone": "La contraseña de {{email}} ya no se sincroniza con Seerr.",
+        "passwordSyncOff": "La sincronización de contraseñas está desactivada.",
+        "passwordNote": {
+          "admin": "Slouchcat no sincroniza la contraseña: «{{name}}» es administrador en Seerr y su contraseña se queda allí como está.",
+          "external": "Slouchcat no sincroniza la contraseña: «{{name}}» inicia sesión a través de Jellyfin, Emby o Plex, no con una contraseña propia."
+        },
+        "provisionAll": "Crear todos",
+        "provisionAllTitle": "¿Crear todas las cuentas en Seerr?",
+        "provisionAllBody": "Vincular por el mismo correo electrónico: {{link}} · Crear nuevos en Seerr: {{create}}.",
+        "provisionAllWaits": "Seerr no está conectado en este momento: las cuentas esperan y se crean en la próxima sincronización.",
+        "provisionAllQueued": "Creación en curso: {{link}} por vincular, {{create}} por crear.",
+        "profiles": {
+          "title": "Perfiles y etiquetas",
+          "help": "Cada perfil lleva en Radarr y Sonarr su propia etiqueta en cuanto una petición llega allí. Una etiqueta ya asignada se mantiene, aunque cambie el nombre.",
+          "none": "La cuenta no tiene perfiles.",
+          "custom": "nombre propio",
+          "change": "Cambiar",
+          "changeLabel": "Cambiar la etiqueta de {{profile}}",
+          "field": "Nombre de etiqueta para {{profile}}",
+          "fieldHelp": "Solo minúsculas a–z, cifras 0–9 y guion.",
+          "invalid": "Solo se permiten minúsculas a–z, cifras 0–9 y guion, con un máximo de 64 caracteres.",
+          "save": "Guardar",
+          "saveLabel": "Guardar la etiqueta de {{profile}}",
+          "cancel": "Cancelar",
+          "reset": "Restablecer",
+          "resetLabel": "Restablecer la etiqueta de {{profile}} al nombre del prefijo",
+          "saved": "{{profile}}: la etiqueta se llama ahora {{name}}.",
+          "tagsOff": "Las etiquetas de perfil están desactivadas (Peticiones › Ajustes)."
+        },
+        "takeOver": {
+          "title": "Solicitudes de Seerr",
+          "help": "Las solicitudes hechas directamente en Seerr pasan a ser peticiones del perfil principal, con la nota «Creado en Seerr». No llevan etiqueta de perfil.",
+          "counting": "Contando las solicitudes de Seerr…",
+          "none": "No hay solicitudes en Seerr.",
+          "action_one": "Incorporar {{count}} solicitud de Seerr",
+          "action_many": "Incorporar {{count}} de solicitudes de Seerr",
+          "action_other": "Incorporar {{count}} solicitudes de Seerr",
+          "queued_one": "Se está incorporando {{count}} solicitud de {{name}}.",
+          "queued_many": "Se están incorporando {{count}} de solicitudes de {{name}}.",
+          "queued_other": "Se están incorporando {{count}} solicitudes de {{name}}.",
+          "running": "Se están incorporando las solicitudes; el número aparece tras la sincronización."
+        },
+        "linkPrivileged": "Vincular de todos modos…",
+        "privilegedTitle": "¿Vincular al administrador de Seerr {{name}}?",
+        "privilegedBody": "Este usuario de Seerr administra Seerr. Los perfiles de {{email}} solicitarán entonces como administrador de Seerr, sin aprobación y sin límite. Slouchcat no sincroniza su contraseña.",
+        "privilegedConfirm": "Vincular de todos modos",
+        "provisionAllManual_one": "{{count}} cuenta necesita una elección manual.",
+        "provisionAllManual_many": "{{count}} de cuentas necesitan una elección manual.",
+        "provisionAllManual_other": "{{count}} cuentas necesitan una elección manual.",
+        "waitingChoice": "Pendiente de una elección manual",
+        "waitingChoiceTitle": "Pendiente de tu elección",
+        "optionPrivileged": "{{option}} · administra Seerr"
+      },
+      "limitField": {
+        "label": "Límite",
+        "help": {
+          "default": "Como en Peticiones › Ajustes: {{limit}}.",
+          "custom": "Cifras propias para esta cuenta.",
+          "unlimited": "Sin límite para películas y temporadas."
+        }
+      },
+      "requests": {
+        "caption": "Todas las peticiones del hogar",
+        "columns": {
+          "title": "Título",
+          "requesters": "Pedido por",
+          "state": "Estado",
+          "seerr": "En Seerr",
+          "attempts": "Intentos",
+          "actions": "Acciones"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (unido)",
+        "requesterClosed": "{{line}} (retirada)",
+        "noRequester": "Nadie en Slouchcat",
+        "noRequest": "Todavía no",
+        "requestId": "Solicitud {{id}}",
+        "requestIds_one": "Solicitud {{ids}}",
+        "requestIds_many": "Solicitudes {{ids}}",
+        "requestIds_other": "Solicitudes {{ids}}",
+        "filter": {
+          "label": "Filtrar peticiones por estado",
+          "all": "Todas",
+          "open": "Abiertas",
+          "available": "Disponibles",
+          "closed": "Cerradas",
+          "count_one": "{{count}} petición",
+          "count_many": "{{count}} de peticiones",
+          "count_other": "{{count}} peticiones",
+          "stalled": "Descarga detenida",
+          "untagged": "Etiqueta sin asignar",
+          "countLoaded_one": "{{count}} petición entre las cargadas",
+          "countLoaded_many": "{{count}} de peticiones entre las cargadas",
+          "countLoaded_other": "{{count}} peticiones entre las cargadas"
+        },
+        "sync": "Sincronizar ahora",
+        "syncQueued": "La sincronización con Seerr está en curso.",
+        "queued_one": "{{count}} petición espera a enviarse a Seerr.",
+        "queued_many": "{{count}} de peticiones esperan a enviarse a Seerr.",
+        "queued_other": "{{count}} peticiones esperan a enviarse a Seerr.",
+        "empty": "Todavía no hay peticiones.",
+        "emptyFilter": "No hay peticiones en este estado.",
+        "facts": {
+          "label": "Datos de la petición",
+          "created": "Solicitada",
+          "origin": "Origen",
+          "seerrUser": "Usuario de Seerr",
+          "failReason": "Motivo"
+        },
+        "origin": {
+          "slouchcat": "Solicitada en Slouchcat",
+          "seerr": "Creado en Seerr"
+        },
+        "toItem": "Al título en la administración",
+        "history": "Historial",
+        "noHistory": "Todavía no ha pasado nada.",
+        "retry": "Reintentar",
+        "retryLabel": "{{title}}: reintentar",
+        "retried": "Se reintenta {{title}}.",
+        "emptyStalled": "Ninguna descarga está detenida.",
+        "emptyUntagged": "Todas las etiquetas de perfil están asignadas o están por llegar.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Aprobar",
+        "approveLabel": "Aprobar {{title}}",
+        "approved": "{{title}} está aprobado y en proceso.",
+        "decline": "Rechazar",
+        "declineLabel": "Rechazar {{title}}",
+        "declineTitle": "¿Rechazar {{title}}?",
+        "declineBody": "Slouchcat pasa el rechazo a Seerr. Seerr no guarda ningún motivo: los perfiles solo ven «Rechazado» y reciben una notificación.",
+        "declined": "{{title}} está rechazado.",
+        "event": {
+          "approved_by_admin": "Aprobada en la administración",
+          "declined_by_admin": "Rechazada en la administración"
+        },
+        "progress": {
+          "search": "Buscando",
+          "download": "Descargando",
+          "import": "Importando",
+          "stalled": "Descarga detenida",
+          "percent": "{{percent}} %",
+          "etaMinutes": "faltan {{minutes}} min",
+          "etaHours": "faltan {{hours}} h {{minutes}} min",
+          "episodes": "{{done}} de {{total}} episodios disponibles",
+          "unreadable": "Progreso ilegible",
+          "unreadableAt": "Progreso ilegible · última lectura {{time}}",
+          "notInService": "Todavía no está en {{service}}",
+          "incomplete": "Los episodios solo se pueden leer en parte.",
+          "etaWholeHours": "faltan {{hours}} h"
+        },
+        "progressBlock": {
+          "title": "Progreso",
+          "service": "Servicio",
+          "state": "Estado",
+          "unknown": "Todavía no se sabe nada",
+          "readAt": "Última lectura",
+          "never": "Nunca",
+          "note": "Nota",
+          "message": "Mensaje de {{service}}"
+        },
+        "tags": {
+          "title": "Etiquetas de perfil",
+          "set": "{{name}}",
+          "pending": "{{name}} · pendiente",
+          "failed": "{{name}} · fallida",
+          "setAt": "Asignada en {{service}} el {{time}}",
+          "setIn": "Asignada en {{service}}",
+          "pendingHelp": "La etiqueta llega en cuanto el título esté en {{service}}.",
+          "failedHelp": "{{service}} no ha aceptado la etiqueta."
+        },
+        "shown": "Se muestran {{shown}} de {{total}} peticiones.",
+        "searchedIn": "Búsqueda en {{shown}} de {{total}} peticiones abiertas.",
+        "more": "Cargar más",
+        "toItemLabel": "{{title}}: ir al título en la administración",
+        "inSeerr": "Abrir en Seerr",
+        "inSeerrLabel": "Abrir {{title}} en Seerr (ventana nueva)"
+      },
+      "arrError": {
+        "not_in_arr": "El título todavía no está en {{service}}.",
+        "tvdb_id_missing": "A la serie le falta el ID de TVDB.",
+        "not_confirmed": "La dirección de Seerr espera a «Probar».",
+        "not_in_seerr": "Seerr no tiene un servidor predeterminado para {{service}}.",
+        "seerr_off": "Seerr no está configurado o está desactivado.",
+        "redirect": "{{service}} redirige a otra dirección.",
+        "timeout": "{{service}} no ha respondido a tiempo.",
+        "unreachable": "{{service}} no está accesible.",
+        "key_invalid": "{{service}} rechaza la clave de Seerr.",
+        "not_found": "{{service}} no conoce el título.",
+        "validation": "{{service}} ha rechazado la llamada por no ser válida.",
+        "server": "{{service}} ha respondido con un error.",
+        "bad_request": "{{service}} ha rechazado la llamada.",
+        "invalid": "{{service}} ha respondido de forma inesperada.",
+        "seerr": "Seerr no ha entregado la dirección ni la clave de {{service}}.",
+        "other": "Error: {{error}}"
+      }
     }
   },
   "language": {
@@ -5497,7 +6508,11 @@
         "metadataLanguage": "Idioma de las sinopsis",
         "metadataLanguageHint": "Títulos, sinopsis y géneros; la interfaz sigue el idioma de arriba.",
         "likeUi": "Como la interfaz",
-        "playback": "Reproducción"
+        "playback": "Reproducción",
+        "wishes": "Peticiones",
+        "canRequest": "Puede solicitar títulos",
+        "canRequestHelp": "El perfil puede solicitar a través de Seerr los títulos que faltan.",
+        "canRequestCapped": "Esta cuenta no puede solicitar títulos. Un administrador asigna el permiso en Cuentas."
       },
       "report": {
         "show": "Mostrar tiempo de visualización",
@@ -5541,7 +6556,8 @@
     "notFound": {
       "title": "Enlace no encontrado",
       "body": "Este enlace de invitación no existe. Comprueba que lo hayas copiado entero."
-    }
+    },
+    "seerrAccount": "Tu inicio de sesión también vale para Seerr: al aceptar, se crea allí una cuenta con el mismo correo electrónico y la misma contraseña."
   },
   "kind": {
     "movie": "Película",
@@ -5826,7 +6842,13 @@
     "empty": {
       "title": "Sin resultados",
       "body": "Prueba con otro término o con menos filtros."
-    }
+    },
+    "missing": {
+      "title": "Todavía no está en la biblioteca",
+      "notHere": "Aún no está aquí",
+      "request": "Solicitar {{title}}"
+    },
+    "inWishes": "Buscar también en las peticiones"
   },
   "watchlist": {
     "title": "Mi lista",
@@ -5923,7 +6945,12 @@
     "empty": {
       "title": "No hay notificaciones",
       "body": "Añade series o pódcast a Mi lista y aquí te enterarás de los episodios nuevos."
-    }
+    },
+    "wish_available": "Tu petición ya está disponible",
+    "wish_season_available": "Una temporada de tu petición ya está disponible",
+    "wish_approved": "Tu petición está aprobada",
+    "wish_declined": "Tu petición ha sido rechazada",
+    "wish_failed": "Tu petición ha fallado"
   },
   "settings": {
     "playback": {
@@ -6000,6 +7027,9 @@
         "errors": "Errores",
         "invitations": "Invitaciones",
         "announcements": "Anuncios",
+        "wish_available": "Peticiones: disponible",
+        "wish_status": "Peticiones: aprobada, rechazada, fallida",
+        "wish_review": "Peticiones: requiere aprobación",
         "help": "Por qué se envía un mensaje.",
         "helpAdmin": "Por qué se envía un mensaje. «Errores» solo existe para administradores."
       },
@@ -6400,6 +7430,313 @@
       "halfBody_other": "{{count}} episodios tienen la marca de visto. ¿Marcar todos los episodios o quitar todas las marcas? Quitarlas no se puede deshacer.",
       "markAll": "Marcar todos los episodios como vistos",
       "removeAll": "Quitar todas las marcas"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Películas: {{used}} de {{limit}} en {{days}} días",
+      "tv": "Temporadas: {{used}} de {{limit}} en {{days}} días",
+      "remaining_one": "queda {{count}}",
+      "remaining_many": "quedan {{count}} de",
+      "remaining_other": "quedan {{count}}",
+      "nextFree": "próximo cupo libre el {{date}}",
+      "short": {
+        "movie": "Películas {{used}}/{{limit}}",
+        "tv": "Temporadas {{used}}/{{limit}}"
+      },
+      "movieNone": "Películas sin límite",
+      "tvNone": "Temporadas sin límite"
+    },
+    "state": {
+      "queued": "Enviando",
+      "pending": "Pendiente de aprobación",
+      "processing": "En proceso",
+      "partial": "Parcialmente disponible",
+      "available": "Disponible",
+      "declined": "Rechazada",
+      "failed": "Fallida",
+      "withdrawn": "Retirada"
+    },
+    "detail": {
+      "importing": "leyéndose",
+      "not_found_in_library": "aún no encontrado en la biblioteca"
+    },
+    "fail": {
+      "quota": "Límite alcanzado: Seerr no ha aceptado la petición.",
+      "blocklisted": "El título está en la lista de bloqueo de Seerr.",
+      "no_permission": "El usuario de Seerr no puede solicitar este tipo de título.",
+      "arr_failed": "Seerr no pudo pasar el título a Radarr o Sonarr. Un administrador puede repetir la petición.",
+      "unreachable_24h": "Seerr no estuvo accesible durante 24 horas.",
+      "seerr_request_gone": "La solicitud se eliminó en Seerr.",
+      "seerr_media_deleted": "El título se quitó en Seerr.",
+      "seerr_user_gone": "El usuario de Seerr vinculado ya no existe.",
+      "tvdb_id_missing": "A esta serie le falta el ID de TVDB que necesita Seerr.",
+      "account_deleted": "La cuenta que hizo la petición ya no existe."
+    },
+    "reason": {
+      "disabled": "Las peticiones están desactivadas.",
+      "account_not_allowed": "Esta cuenta no puede solicitar títulos.",
+      "profile_not_allowed": "Este perfil no puede solicitar títulos. El perfil principal puede permitirlo en «Perfiles».",
+      "no_mapping": "Esta cuenta todavía no tiene ningún usuario de Seerr vinculado. Lo configura el administrador.",
+      "seerr_user_gone": "El usuario de Seerr vinculado ya no existe. Lo resuelve el administrador.",
+      "movies_not_allowed": "Ahora mismo no se pueden solicitar películas.",
+      "shows_not_allowed": "Ahora mismo no se pueden solicitar series.",
+      "status_only": "Otro perfil ya ha solicitado este título. En cuanto esté disponible, lo encontrarás en la biblioteca.",
+      "already_requested": "Ya has solicitado este título.",
+      "source_not_allowed": "Ahora mismo no se pueden solicitar títulos desde aquí.",
+      "tvdb_id_missing": "A esta serie le falta el ID de TVDB que necesita Seerr.",
+      "withdraw_disabled": "Ahora mismo no se pueden retirar las peticiones."
+    },
+    "tmdbUnreachable": "TMDB no está accesible en este momento. Inténtalo de nuevo más tarde.",
+    "kind": {
+      "movie": "Película",
+      "show": "Serie"
+    },
+    "seasons_one": "Temporada {{list}}",
+    "seasons_many": "Temporadas {{list}}",
+    "seasons_other": "Temporadas {{list}}",
+    "event": {
+      "created": "Solicitada",
+      "submitted": "Enviada a Seerr",
+      "attached": "Encontrada en Seerr e incorporada",
+      "joined": "Unión a la petición",
+      "withdrawn": "Retirada",
+      "withdraw_deleted": "Eliminada en Seerr",
+      "owner_changed": "Otro perfil sigue con la petición",
+      "reopened": "Ya estaba aprobada, la petición continúa",
+      "season_available_one": "Temporada {{seasons}} disponible",
+      "season_available_many": "Temporadas {{seasons}} disponibles",
+      "season_available_other": "Temporadas {{seasons}} disponibles",
+      "changed": "Modificada"
+    },
+    "card": {
+      "title": "Tu petición",
+      "requestedOn": "solicitada el {{date}}",
+      "joined": "te has unido",
+      "history": "Historial",
+      "mine": "A mis peticiones"
+    },
+    "withdraw": {
+      "action": "Retirar",
+      "actionJoined": "Salir",
+      "title": "¿Retirar la petición?",
+      "titleJoined": "¿Salir de la petición?",
+      "body": "«{{title}}» dejará de solicitarse; Slouchcat también elimina la petición en Seerr.",
+      "bodyJoined": "Ya no recibirás ningún aviso cuando «{{title}}» esté disponible. Las peticiones de los demás perfiles se mantienen.",
+      "confirm": "Retirar",
+      "confirmJoined": "Salir"
+    },
+    "dialog": {
+      "titleMovie": "Solicitar película: {{title}}",
+      "titleShow": "Solicitar serie: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Se tramita al instante, no hace falta aprobación.",
+      "needsApproval": "Necesita aprobación. Puedes seguir su estado en «Mis peticiones».",
+      "seasons": "Temporadas",
+      "allSeasons": "Todas las temporadas faltantes ({{count}})",
+      "season": "Temporada {{number}}",
+      "episodes_one": "{{count}} episodio",
+      "episodes_many": "{{count}} de episodios",
+      "episodes_other": "{{count}} episodios",
+      "seasonState": {
+        "requested": "ya solicitada, también recibirás avisos",
+        "available": "disponible"
+      },
+      "nothingLeft": {
+        "title": "No queda nada por solicitar",
+        "body": "Todas las temporadas están disponibles o ya se han solicitado."
+      },
+      "tooManySeasons_one": "Queda 1 de {{limit}} temporadas. Elige como máximo 1 temporada.",
+      "tooManySeasons_many": "Quedan {{count}} de {{limit}} temporadas. Elige como máximo {{count}} de temporadas.",
+      "tooManySeasons_other": "Quedan {{count}} de {{limit}} temporadas. Elige como máximo {{count}} temporadas.",
+      "reached": {
+        "movie_one": "Se ha alcanzado el límite: {{count}} película en {{days}} días.",
+        "movie_many": "Se ha alcanzado el límite: {{count}} de películas en {{days}} días.",
+        "movie_other": "Se ha alcanzado el límite: {{count}} películas en {{days}} días.",
+        "show_one": "Se ha alcanzado el límite: {{count}} temporada en {{days}} días.",
+        "show_many": "Se ha alcanzado el límite: {{count}} de temporadas en {{days}} días.",
+        "show_other": "Se ha alcanzado el límite: {{count}} temporadas en {{days}} días.",
+        "movie_date_one": "Se ha alcanzado el límite: {{count}} película en {{days}} días. El próximo cupo queda libre el {{date}}.",
+        "movie_date_many": "Se ha alcanzado el límite: {{count}} de películas en {{days}} días. El próximo cupo queda libre el {{date}}.",
+        "movie_date_other": "Se ha alcanzado el límite: {{count}} películas en {{days}} días. El próximo cupo queda libre el {{date}}.",
+        "show_date_one": "Se ha alcanzado el límite: {{count}} temporada en {{days}} días. El próximo cupo queda libre el {{date}}.",
+        "show_date_many": "Se ha alcanzado el límite: {{count}} de temporadas en {{days}} días. El próximo cupo queda libre el {{date}}.",
+        "show_date_other": "Se ha alcanzado el límite: {{count}} temporadas en {{days}} días. El próximo cupo queda libre el {{date}}."
+      },
+      "submit": "Solicitar",
+      "submitting": "Solicitando…",
+      "chooseSeasons": "Elegir temporadas",
+      "join": "Avisarme",
+      "submitSeasons_one": "Solicitar {{count}} temporada",
+      "submitSeasons_many": "Solicitar {{count}} de temporadas",
+      "submitSeasons_other": "Solicitar {{count}} temporadas"
+    },
+    "page": {
+      "title": "Mis peticiones",
+      "count_one": "{{count}} petición abierta",
+      "count_many": "{{count}} de peticiones abiertas",
+      "count_other": "{{count}} peticiones abiertas",
+      "countAll_one": "{{count}} petición",
+      "countAll_many": "{{count}} de peticiones",
+      "countAll_other": "{{count}} peticiones",
+      "countAvailable_one": "{{count}} petición disponible",
+      "countAvailable_many": "{{count}} de peticiones disponibles",
+      "countAvailable_other": "{{count}} peticiones disponibles",
+      "countClosed_one": "{{count}} petición cerrada",
+      "countClosed_many": "{{count}} de peticiones cerradas",
+      "countClosed_other": "{{count}} peticiones cerradas",
+      "limit": "Límite: {{limit}}",
+      "offline": "Solo disponible con conexión: las peticiones están en el servidor.",
+      "filters": {
+        "label": "Filtrar peticiones",
+        "all": "Todas",
+        "open": "Abiertas",
+        "available": "Disponibles",
+        "closed": "Cerradas"
+      },
+      "filter": "Estado",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Todavía no hay peticiones.",
+        "body": "Lo que solicites aparecerá aquí con su estado."
+      },
+      "emptyFilter": {
+        "open": "No hay peticiones abiertas.",
+        "available": "Todavía no hay ninguna petición disponible.",
+        "closed": "No hay peticiones cerradas."
+      }
+    },
+    "row": {
+      "open": "Al título",
+      "withdrawLabel": "{{title}}: retirar",
+      "withdrawJoinedLabel": "{{title}}: salir",
+      "again": "Volver a solicitar",
+      "againLabel": "Volver a solicitar {{title}}",
+      "history": "Historial: {{last}}",
+      "fromSeerr": "creado en Seerr"
+    },
+    "area": {
+      "label": "Secciones de Peticiones",
+      "discover": "Descubrir",
+      "movies": "Películas",
+      "series": "Series",
+      "search": "Buscar",
+      "mine": "Mis peticiones",
+      "mineCount_one": "Mis peticiones ({{count}})",
+      "mineCount_many": "Mis peticiones ({{count}})",
+      "mineCount_other": "Mis peticiones ({{count}})"
+    },
+    "discover": {
+      "title": "Descubrir",
+      "intro": "Lo que está de moda ahora y lo que llega pronto. Lo que todavía no está en la biblioteca, puedes solicitarlo.",
+      "searchLabel": "Buscar una película o serie",
+      "searchAction": "Buscar",
+      "rows": {
+        "trending": "Tendencias",
+        "popular_movies": "Películas populares",
+        "movie_genres": "Géneros de películas",
+        "upcoming_movies": "Próximamente en cines",
+        "popular_shows": "Series populares",
+        "show_genres": "Géneros de series",
+        "upcoming_shows": "Próximamente en series"
+      },
+      "stale": "Seerr no está accesible. Ves la información de la última consulta.",
+      "refreshFailed": "No se ha podido actualizar la lista. Ves la información de la última consulta.",
+      "empty": "Ahora mismo no hay nada que descubrir aquí.",
+      "inLibrary": "En la biblioteca",
+      "requested": "Ya solicitado",
+      "join": "{{title}}: avisarme",
+      "gone": {
+        "title": "Descubrir no está disponible para este perfil",
+        "body": "Tus peticiones anteriores siguen en «Mis peticiones».",
+        "action": "A «Mis peticiones»"
+      },
+      "notFound": {
+        "title": "Página no encontrada",
+        "body": "Esta página no existe para este perfil."
+      }
+    },
+    "titles": {
+      "moviesIntro": "Todas las películas que conoce TMDB, estén ya en la biblioteca o no. Lo que falta, puedes solicitarlo.",
+      "seriesIntro": "Todas las series que conoce TMDB, estén ya en la biblioteca o no. Lo que falta, puedes solicitarlo.",
+      "sort": "Orden",
+      "sorts": {
+        "popularity": "Popularidad",
+        "newest": "Más recientes primero",
+        "rating": "Mejor valoradas"
+      },
+      "filter": "Filtro: {{summary}}",
+      "filterLabel": "Filtro",
+      "genre": "Género",
+      "allGenres": "Todos los géneros",
+      "genreId": "Género {{id}}",
+      "library": "Biblioteca",
+      "hide": "Ocultar los que ya están",
+      "hideHelp": "Muestra solo lo que todavía no está en la biblioteca.",
+      "hidden": "Títulos de la biblioteca ocultos",
+      "shown": "Títulos de la biblioteca visibles",
+      "clear": "Restablecer filtros",
+      "apply": "Aplicar",
+      "moviesEmpty": "No hay películas para esta selección.",
+      "seriesEmpty": "No hay series para esta selección."
+    },
+    "search": {
+      "intro": "Busca en todo lo que conoce TMDB, también en lo que aún falta. También por ID, como tmdb:603, tvdb:121361 o imdb:tt0133093.",
+      "placeholder": "Película o serie",
+      "start": "Escribe un título. La búsqueda abarca todo lo que conoce TMDB, también por título original.",
+      "tooShort": "Escribe al menos dos caracteres.",
+      "hits": "Resultados",
+      "empty": {
+        "title": "No se ha encontrado nada para «{{q}}»",
+        "body": "Se buscan títulos de películas y series, no personas. Prueba con otro término o un ID."
+      }
+    },
+    "progress": {
+      "search": "Buscando",
+      "download": "Descargando",
+      "import": "Importando",
+      "stalled": "Descarga detenida",
+      "percent": "{{percent}} %",
+      "episodes_one": "{{done}} de {{count}} episodio disponible",
+      "episodes_many": "{{done}} de {{count}} de episodios disponibles",
+      "episodes_other": "{{done}} de {{count}} episodios disponibles",
+      "eta": "faltan {{time}}"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Título no encontrado",
+      "body": "Este título no existe o este perfil no puede verlo."
+    },
+    "loading": "Título",
+    "missing": "Todavía no está en la biblioteca",
+    "seasonCount_one": "{{count}} temporada",
+    "seasonCount_many": "{{count}} de temporadas",
+    "seasonCount_other": "{{count}} temporadas",
+    "requestMovie": "Solicitar película",
+    "requestShow": "Solicitar serie",
+    "done": {
+      "requested": "Solicitado. Puedes seguir su estado en «Mis peticiones».",
+      "joined": "Recibirás un aviso en cuanto el título esté disponible.",
+      "withdrawn": "Tu petición se ha retirado."
+    },
+    "alreadyRequested": "Ya solicitado",
+    "cannotRequest": "Este perfil no puede solicitar títulos",
+    "seasons": "Temporadas",
+    "seasonRequested": "Ya solicitada",
+    "nextEpisode": "Sigue en emisión, próximo episodio el {{date}}",
+    "last": {
+      "title": "Tu última petición: {{state}}",
+      "why": {
+        "declined": "Seerr no indica ningún motivo. Puedes volver a solicitar el título.",
+        "withdrawn": "La retiraste."
+      }
+    },
+    "join": "Avisarme",
+    "shared": {
+      "title": "Ya solicitado · {{state}}",
+      "join": "Otro perfil ya ha solicitado esta película. Con «Avisarme», Slouchcat también te avisará a ti en cuanto se pueda reproducir.",
+      "statusOnly": "Otro perfil ya ha solicitado esta película. En cuanto se pueda reproducir, la encontrarás en la biblioteca."
     }
   }
 }
