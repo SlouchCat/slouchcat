@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, APIResponse, Page } from '@playwright/test';
 import {
   acceptInvitation,
   anonymousApi,
@@ -489,22 +489,25 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
       data: { media: 'show', tmdbId: 9100, seasons: [1, 2], source: 'detail' },
     });
     expect(series.status(), await series.text()).toBe(201);
+    // The rows of these two wishes by their ids: a run before on the same server (the other
+    // browser, a retry) left closed wishes of both titles in the list.
+    const rowOf = async (response: APIResponse) =>
+      page.locator(`tr[data-row-key="${((await response.json()) as { id: number }).id}"]`);
+    const filmRow = await rowOf(made);
+    const filmId = ((await made.json()) as { id: number }).id;
     await expect
       .poll(async () => (await seerrRequests()).filter((r) => r.mediaId === 9100).length, {
         timeout: 30_000,
       })
       .toBeGreaterThan(0);
     await page.goto('/admin/wishes');
-    const fog = page
-      .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
-      .getByRole('row')
-      .filter({ hasText: 'Nebelhafen' });
+    const fog = (await rowOf(series)).filter({ hasText: 'Nebelhafen' });
     await expect(fog).toContainText(/Anfragen? \d+/);
     await expect(fog).not.toContainText('Noch nicht');
     const requests = tabs(page).getByRole('tab', { name: 'Anfragen' });
     await expect(requests).toHaveAttribute('aria-selected', 'true');
     const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
-    const row = table.getByRole('row').filter({ hasText: 'Glasfabrik (2024)' });
+    const row = filmRow.filter({ hasText: 'Glasfabrik (2024)' });
     await expect(row.getByText(`${OWNER.email} · ${OWNER_PROFILE}`)).toBeVisible();
     // The table fits beside the sidebar at 1280 px: no sideways scroll in its frame.
     expect(
@@ -545,19 +548,16 @@ test('«Anfragen»: the default tab, a wish row folds out with its history, «Je
         async () => {
           await owner.post('/api/v1/admin/seerr/sync', { headers: CSRF });
           const list = (await (await owner.get('/api/v1/admin/wishes?limit=50')).json()) as {
-            items: { title: { tmdbId: number }; state: string }[];
+            items: { id: number; state: string }[];
           };
-          return list.items.find((wish) => wish.title.tmdbId === 9003)?.state;
+          return list.items.find((wish) => wish.id === filmId)?.state;
         },
         { timeout: 30_000, intervals: [1000] },
       )
       .toBe('failed');
     // «Offen» stays in the address (?item=open) over a reload; the failed wish is under «Alle».
     await page.goto('/admin/wishes');
-    const failedRow = page
-      .getByRole('table', { name: 'Alle Wünsche des Haushalts' })
-      .getByRole('row')
-      .filter({ hasText: 'Glasfabrik (2024)' });
+    const failedRow = filmRow.filter({ hasText: 'Glasfabrik (2024)' });
     const failedToggle = failedRow.getByRole('button', { name: /Glasfabrik \(2024\)/ });
     await resetFocus(page);
     await tabTo(page, failedToggle, 60);
@@ -639,6 +639,7 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
     // «Testen» confirms the hosts from Seerr before any job may call them.
     await testArr(owner, 'radarr');
     await testArr(owner, 'sonarr');
+    const made: Record<number, number> = {}; // tmdb id: the id of this test's wish
     for (const data of [
       { media: 'movie', tmdbId: 9001 },
       { media: 'movie', tmdbId: 9002 },
@@ -646,11 +647,12 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
       { media: 'show', tmdbId: 9100, seasons: [1] },
       { media: 'show', tmdbId: 9101, seasons: [1] },
     ]) {
-      const made = await owner.post('/api/v1/wishes', {
+      const response = await owner.post('/api/v1/wishes', {
         headers: CSRF,
         data: { ...data, source: 'detail' },
       });
-      expect(made.ok(), await made.text()).toBe(true);
+      expect(response.status(), await response.text()).toBe(201);
+      made[data.tmdbId] = ((await response.json()) as { id: number }).id;
     }
     await expect
       .poll(
@@ -684,13 +686,17 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
 
     await page.goto('/admin/wishes');
     const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
-    // An earlier test withdrew a wish of Nebelhafen and left Glasfabrik declined (closeWishes):
-    // their rows stay beside the open ones.
+    // The rows of this test's wishes by their ids: earlier tests and runs left closed wishes of
+    // the same titles beside them.
+    const TMDB: Record<string, number> = {
+      Glasvogel: 9001,
+      Kupfermond: 9002,
+      Glasfabrik: 9003,
+      Nebelhafen: 9100,
+      Glasküste: 9101,
+    };
     const row = (title: string) =>
-      table
-        .getByRole('row')
-        .filter({ hasText: title })
-        .filter({ hasNotText: /Zurückgezogen|Abgelehnt/ });
+      table.locator(`tr[data-row-key="${made[TMDB[title]]}"]`).filter({ hasText: title });
     await expect(
       row('Nebelhafen').getByRole('button', { name: 'Nebelhafen freigeben' }),
     ).toBeVisible();
@@ -757,9 +763,7 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
     await question.getByRole('button', { name: 'Ablehnen' }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByText('Glasküste ist abgelehnt.')).toBeVisible();
-    await expect(table.getByRole('row').filter({ hasText: 'Glasküste' })).toContainText(
-      'Abgelehnt',
-    );
+    await expect(row('Glasküste')).toContainText('Abgelehnt');
     const coast = (await seerrRequests()).filter((r) => r.mediaId === 9101);
     expect(coast).toHaveLength(1);
 

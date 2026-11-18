@@ -57,7 +57,7 @@ async function entryCount(api: APIRequestContext): Promise<number> {
 }
 
 interface Entries {
-  entries: { title?: string; posterUrl?: string }[];
+  entries: { title?: string; posterUrl?: string; wish?: { state: string } }[];
   missing?: { entries: number; requested: number; unmatched: number; canRequest: boolean };
 }
 
@@ -427,7 +427,19 @@ test('missing entries by keyboard: the band, «Anfordern» and its dialog, an un
     const glass = table
       .getByRole('row')
       .filter({ has: page.getByText('Glasvogel', { exact: true }) });
-    await expect(glass).toContainText('Noch nicht in der Bibliothek');
+    // A missing entry shows the title's newest wish. Glasvogel has none in the first run; in a
+    // second one on the same server (the other browser, a retry) the wish admin-wishes or this
+    // test made is still there, closed: its state shows instead (the wishes are never deleted).
+    const earlier = (await entriesOf(owner)).entries.find((entry) => entry.title === 'Glasvogel')
+      ?.wish?.state;
+    const CLOSED: Record<string, string> = {
+      declined: 'Abgelehnt',
+      failed: 'Fehlgeschlagen',
+      withdrawn: 'Zurückgezogen',
+    };
+    await expect(glass).toContainText(
+      earlier === undefined ? 'Noch nicht in der Bibliothek' : CLOSED[earlier],
+    );
     await expect(glass).toContainText('TMDB 9001 · IMDb tt09001');
     // The poster of a title outside the library through the admin image route, at table size.
     const poster = glass.getByRole('rowheader').locator('img');
