@@ -661,7 +661,11 @@ test.describe('the tab «Besetzung»', () => {
     // on a square-cornered ground.
     const portrait = person.locator('img');
     await expect(portrait).toBeVisible();
-    expect(await portrait.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(2);
+    // The element is visible before its file has arrived (the frame gives it its size), so the
+    // natural width is read until the image has loaded, not once.
+    await expect
+      .poll(() => portrait.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBe(2);
     const card = (await person.boundingBox())!;
     const frame = (await person.locator('span[aria-hidden="true"]').first().boundingBox())!;
     expect(Math.round(card.width)).toBe(112);
