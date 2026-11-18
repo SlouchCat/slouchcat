@@ -46,6 +46,8 @@ Ungarisch. Gilt mit dem Glossar und `README.md` in diesem Ordner.
   («{{name}}-ban» geht nicht). Die Endung an ein Nomen hängen: «a(z) {{name}} könyvtárban» oder
   «Könyvtár: {{name}}».
 - Gleiches gilt für Zahlen mit Endung («{{count}}-szor»): umformulieren.
+- **Namen mit Doppelkonsonant am Ende** («Seerr», «Radarr», «Sonarr») nehmen eine Endung mit Bindestrich:
+  «Seerr-rel», «Seerr-re», nie «Seerrel» oder «Seerrre».
 
 ## Länge
 

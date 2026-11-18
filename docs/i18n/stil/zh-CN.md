@@ -21,7 +21,9 @@ diesem Ordner. Nicht automatisch aus `zh-TW` umwandeln: Wortschatz unterscheidet
 - Satzzeichen in voller Breite: ，。：；！？（）. Nach ihnen kein Leerzeichen.
 - Auslassung im Ladezustand **…** wie in Apps üblich: «正在加载…».
 - **Leerzeichen zwischen Chinesisch und Latein, Ziffern oder Platzhaltern:** «共 {{count}} 部作品»,
-  «TMDB 密钥». Zwischen chinesischen Zeichen keine Leerzeichen.
+  «TMDB 密钥». Zwischen chinesischen Zeichen keine Leerzeichen. Füllt die App einen Platzhalter mit
+  chinesischen Wörtern (ein Zustand wie 已开启, eine Wendung wie 由管理员), steht davor und danach kein
+  Leerzeichen: «心愿{{enabled}}», «{{date}} {{by}}关联».
 
 ## Zahlen und Einheiten
 
