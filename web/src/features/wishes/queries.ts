@@ -106,11 +106,20 @@ function useWishSettled() {
     ]);
 }
 
-/** Requests a title, or joins the open wish of another profile (createWish). */
-export function useCreateWish() {
+/**
+ * Requests a title, or joins the open wish of another profile (createWish). The callbacks given
+ * here belong to the mutation, so they still run when the dialog that started it has closed
+ * (DownloadDialog does the same).
+ */
+export function useCreateWish(callbacks?: {
+  onSuccess?: (wish: Wish) => void;
+  onError?: (error: Error) => void;
+}) {
   const settled = useWishSettled();
   return useMutation({
     mutationFn: (body: WishCreate): Promise<Wish> => request(api.POST('/wishes', { body })),
+    onSuccess: callbacks?.onSuccess,
+    onError: callbacks?.onError,
     onSettled: settled,
   });
 }

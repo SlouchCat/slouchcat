@@ -7246,9 +7246,12 @@
         "movie_one": "Das Limit ist erreicht: {{count}} Film in {{days}} Tagen.",
         "movie_other": "Das Limit ist erreicht: {{count}} Filme in {{days}} Tagen.",
         "show_one": "Das Limit ist erreicht: {{count}} Staffel in {{days}} Tagen.",
-        "show_other": "Das Limit ist erreicht: {{count}} Staffeln in {{days}} Tagen."
+        "show_other": "Das Limit ist erreicht: {{count}} Staffeln in {{days}} Tagen.",
+        "movie_date_one": "Das Limit ist erreicht: {{count}} Film in {{days}} Tagen. Der nächste Platz wird am {{date}} frei.",
+        "movie_date_other": "Das Limit ist erreicht: {{count}} Filme in {{days}} Tagen. Der nächste Platz wird am {{date}} frei.",
+        "show_date_one": "Das Limit ist erreicht: {{count}} Staffel in {{days}} Tagen. Der nächste Platz wird am {{date}} frei.",
+        "show_date_other": "Das Limit ist erreicht: {{count}} Staffeln in {{days}} Tagen. Der nächste Platz wird am {{date}} frei."
       },
-      "nextFree": "Der nächste Platz wird am {{date}} frei.",
       "submit": "Anfordern",
       "submitting": "Wird angefordert …",
       "chooseSeasons": "Staffeln wählen",

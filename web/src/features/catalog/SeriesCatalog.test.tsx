@@ -115,6 +115,44 @@ describe('missing seasons on the series page', () => {
     expect(document.body.textContent).not.toContain('{{');
   });
 
+  it('names the chosen seasons instead of «all» when the dialog left an announced one out (M2)', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${seriesIds.show}`]: () => json(withCatalog),
+      [`GET /items/${seriesIds.season1}`]: () => json(season1Detail),
+      // Seerr lists season 4 as missing; the series page leaves the announced season out.
+      'GET /titles/show/9100/seasons': () =>
+        json({
+          source: 'seerr',
+          seasons: [
+            { number: 1, episodeCount: 3, state: 'available' },
+            { number: 2, episodeCount: 10, state: 'missing' },
+            { number: 3, episodeCount: 10, state: 'missing' },
+            { number: 4, episodeCount: 1, state: 'missing' },
+          ],
+        }),
+      'GET /wishes/quota': () => json({ unlimited: true, at: '2026-11-17T08:00:00Z' }),
+      'POST /wishes': () => json({}, 500),
+    });
+    renderApp(`/items/${seriesIds.show}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Staffeln anfordern' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      await within(dialog).findByRole('checkbox', { name: 'Alle fehlenden Staffeln (2)' }),
+    ).toBeChecked();
+    expect(within(dialog).queryByRole('checkbox', { name: 'Staffel 4' })).toBeNull();
+    await user.click(within(dialog).getByRole('button', { name: '2 Staffeln anfordern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        media: 'show',
+        tmdbId: 9100,
+        source: 'detail',
+        seasons: [2, 3],
+      }),
+    );
+  });
+
   it('shows the seasons without the request where the server does not allow it', async () => {
     mockApi({
       ...signedIn,

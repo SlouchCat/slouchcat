@@ -218,6 +218,46 @@ describe('preview page of a title outside the library (concept 25, 5.1)', () => 
     expect(within(dialog).getByRole('button', { name: 'Anfordern' })).toBeDisabled();
   });
 
+  it('says why the server refused the limit when the stored one still fits (M1)', async () => {
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () => json(film),
+      'GET /wishes/quota': () => json(film.request.quota),
+      'POST /wishes': () => problem(409, 'quota_exceeded', { needed: 1 } as never),
+    });
+    renderApp('/titles/movie/9001');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Film anfordern' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Anfordern' }));
+    expect(await within(dialog).findByText('Das Limit reicht dafür nicht.')).toBeVisible();
+  });
+
+  it('keeps the result of a request when the dialog closed on the way (m2)', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () => json(film),
+      'GET /wishes/quota': () => json(film.request.quota),
+      'GET /wishes': () => json({ items: [], total: 0, counts }),
+      'POST /wishes': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    renderApp('/titles/movie/9001');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Film anfordern' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Anfordern' }));
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    answer(json(wishOf(film), 201));
+    expect(
+      await screen.findByText('Angefordert. Den Stand siehst du unter «Meine Wünsche».'),
+    ).toBeVisible();
+  });
+
   it('opens the library title on 409 already_available and says «nicht gefunden» on 404', async () => {
     mockApi({
       ...withWishes,

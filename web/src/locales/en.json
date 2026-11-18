@@ -7246,9 +7246,12 @@
         "movie_one": "The limit is reached: {{count}} film in {{days}} days.",
         "movie_other": "The limit is reached: {{count}} films in {{days}} days.",
         "show_one": "The limit is reached: {{count}} season in {{days}} days.",
-        "show_other": "The limit is reached: {{count}} seasons in {{days}} days."
+        "show_other": "The limit is reached: {{count}} seasons in {{days}} days.",
+        "movie_date_one": "The limit is reached: {{count}} film in {{days}} days. The next place frees up on {{date}}.",
+        "movie_date_other": "The limit is reached: {{count}} films in {{days}} days. The next place frees up on {{date}}.",
+        "show_date_one": "The limit is reached: {{count}} season in {{days}} days. The next place frees up on {{date}}.",
+        "show_date_other": "The limit is reached: {{count}} seasons in {{days}} days. The next place frees up on {{date}}."
       },
-      "nextFree": "The next place frees up on {{date}}.",
       "submit": "Request",
       "submitting": "Requesting …",
       "chooseSeasons": "Choose seasons",

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formErrors } from '@/api/errors';
 import { quotaText } from '@/features/shared/quota';
 import { intlLocale } from '@/i18n';
 import { formatDate } from '@/lib/format';
@@ -58,8 +59,12 @@ function limitRefusal(
   if (part.remaining > 0) {
     return t('wishes.dialog.tooManySeasons', { count: part.remaining, limit: part.limit });
   }
-  const reached = t(`wishes.dialog.reached.${media}`, { count: part.limit, days: part.days });
-  return date ? `${reached} ${t('wishes.dialog.nextFree', { date })}` : reached;
+  return t(`wishes.dialog.reached.${media}`, {
+    count: part.limit,
+    days: part.days,
+    date,
+    context: date ? 'date' : undefined,
+  });
 }
 
 /**
@@ -85,7 +90,14 @@ export function RequestDialog({
   const series = title.media === 'show';
   const seasons = useQuery({ ...wishSeasonsQuery(title.tmdbId), enabled: series });
   const quotaRead = useQuery(wishQuotaQuery);
-  const create = useCreateWish();
+  // The result reaches the page also when the dialog was closed while the request was on its way.
+  const create = useCreateWish({
+    onSuccess: onDone,
+    onError: (error) => {
+      const item = availableItem(error);
+      if (item) onAvailable(item);
+    },
+  });
   const form = useRef<HTMLFormElement>(null);
   const offered: readonly Season[] = (seasons.data?.seasons ?? []).filter(
     (season) => !skip?.includes(season.number),
@@ -103,11 +115,15 @@ export function RequestDialog({
   const fresh = offered.filter(
     (season) => season.state === 'missing' && picked.includes(String(season.number)),
   ).length;
-  // A refused request names the limit as it stood then; otherwise the stored one.
+  // A refused request names the limit as it stood then and the places it needed (the server
+  // counts the seasons); otherwise the stored limit and the client's count.
   const refused = wishProblem(create.error);
-  const quota =
-    refused?.code === 'quota_exceeded' && refused.quota ? refused.quota : quotaRead.data;
-  const refusal = limitRefusal(t, language, title.media, quota, series ? fresh : 1);
+  const overQuota = refused?.code === 'quota_exceeded';
+  const quota = overQuota && refused.quota ? refused.quota : quotaRead.data;
+  const needed = overQuota && refused.needed !== undefined ? refused.needed : series ? fresh : 1;
+  const refusal = limitRefusal(t, language, title.media, quota, needed);
+  // «Alle fehlenden Staffeln» only while the dialog left no season out; else the chosen ones.
+  const allSeasons = all && offered.length === (seasons.data?.seasons.length ?? 0);
   const loaded = !series || seasons.data !== undefined;
 
   // The seasons arrive after the dialog opened: the focus goes to the first choice then
@@ -129,6 +145,8 @@ export function RequestDialog({
   }, [series, loaded, preselect]);
 
   const onChange = (next: string[]) => {
+    // A new choice: the refusal of the last one no longer speaks for it.
+    create.reset();
     const wasAll = picked.includes(ALL) || all;
     const nowAll = next.includes(ALL);
     if (nowAll !== wasAll) {
@@ -143,20 +161,16 @@ export function RequestDialog({
     if (create.isPending || refusal) return;
     const body: WishCreate = { media: title.media, tmdbId: title.tmdbId, source };
     if (series) {
-      if (all) body.allSeasons = true;
+      if (allSeasons) body.allSeasons = true;
       else body.seasons = picked.map(Number).sort((a, b) => a - b);
     }
-    create.mutate(body, {
-      onSuccess: onDone,
-      onError: (error) => {
-        const item = availableItem(error);
-        if (item) onAvailable(item);
-      },
-    });
+    create.mutate(body);
   };
 
-  const failure =
-    create.error && refused?.code !== 'quota_exceeded' ? wishProblemMessage(t, create.error) : null;
+  // A refused limit speaks through its warning; when the stored limit cannot say why, the
+  // server's message does. Field errors go to their field, as in the other form dialogs.
+  const errors = create.error && !(overQuota && refusal) ? formErrors(t, create.error) : null;
+  const failure = errors?.form ? wishProblemMessage(t, create.error) : null;
   const chosenCount = picked.length;
   let submit: string;
   if (create.isPending) submit = t('wishes.dialog.submitting');
@@ -200,16 +214,22 @@ export function RequestDialog({
         </div>
       )}
       {loaded && (
-        <Form ref={form} className={styles.form} onSubmit={onSubmit}>
+        <Form
+          ref={form}
+          className={styles.form}
+          onSubmit={onSubmit}
+          validationErrors={errors?.fields}
+        >
           {failure && <Notice tone="danger">{failure}</Notice>}
           {autoApprove !== undefined && (
-            <Text tone="secondary">
+            <Text tone="secondary" variant="caption">
               {t(autoApprove ? 'wishes.dialog.autoApprove' : 'wishes.dialog.needsApproval')}
             </Text>
           )}
           {series &&
             (choosable.length > 0 ? (
               <CheckboxGroup
+                name="seasons"
                 label={t('wishes.dialog.seasons')}
                 value={all ? [ALL, ...picked] : [...picked]}
                 onChange={onChange}
