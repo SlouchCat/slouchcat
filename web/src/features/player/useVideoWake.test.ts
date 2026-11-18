@@ -16,6 +16,8 @@ interface FakeVideo {
   /** The element shows a frame (calls the frame callbacks, counts it). */
   showFrame: () => void;
   set: (state: Partial<{ paused: boolean; ended: boolean; seeking: boolean }>) => void;
+  /** Frame callbacks requested and neither called nor cancelled. */
+  pendingFrameCallbacks: () => number;
 }
 
 function fakeVideo({ frameCallbacks = true } = {}): FakeVideo {
@@ -67,6 +69,7 @@ function fakeVideo({ frameCallbacks = true } = {}): FakeVideo {
       for (const callback of pending) callback();
     },
     set: (next) => Object.assign(state, next),
+    pendingFrameCallbacks: () => callbacks.size,
   };
 }
 
@@ -164,11 +167,27 @@ describe('useVideoWake', () => {
     expect(running.seeks).toEqual([]);
   });
 
+  it('leaves the old element alone when the player swapped its video during the check', () => {
+    const first = fakeVideo();
+    const second = fakeVideo();
+    const ref = { current: first.element as HTMLVideoElement | null };
+    renderHook(() => useVideoWake(ref));
+    setVisibility('visible');
+    ref.current = second.element;
+    first.run(1.5);
+    second.run(1.5);
+    vi.advanceTimersByTime(VIDEO_WAKE_CHECK_MS);
+    expect(first.seeks).toEqual([]);
+    expect(second.seeks).toEqual([]);
+  });
+
   it('stops listening when the player unmounts', () => {
     const video = fakeVideo();
     const { unmount } = wake(video);
     setVisibility('visible');
+    expect(video.pendingFrameCallbacks()).toBe(1);
     unmount();
+    expect(video.pendingFrameCallbacks()).toBe(0);
     video.run(1.5);
     vi.advanceTimersByTime(VIDEO_WAKE_CHECK_MS);
     setVisibility('visible');

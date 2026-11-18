@@ -13,9 +13,13 @@ hat am 18. November 2026 entschieden, sie als Patch fertigzustellen.
   ohne dass ein neues Bild kam (`requestVideoFrameCallback`, sonst die Zahl der gezeigten Bilder), springt er an
   die aktuelle Stelle; das startet den Decoder neu. Ein pausiertes, wartendes, gerade gespultes oder Bilder
   zeigendes Video bleibt unberührt.
-- **Test:** `useVideoWake.test.ts` (9 Fälle: stehendes Bild, wieder laufende Bilder, wartendes Video, Pause oder
-  erneut versteckte Seite während der Prüfung, Bildzählung ohne `requestVideoFrameCallback`, Aufräumen). Der Fehler selbst lässt sich in Playwright nicht nachstellen; geprüft ist
-  die Entscheidung des Hooks, nicht Firefox.
+- **Test:** `useVideoWake.test.ts` (10 Fälle: stehendes Bild, wieder laufende Bilder, wartendes Video, Pause oder
+  erneut versteckte Seite während der Prüfung, Bildzählung ohne `requestVideoFrameCallback`, ausgetauschtes
+  Videoelement, Aufräumen samt Bildrückruf). Geprüft ist die Entscheidung des Hooks, nicht Firefox: Der Fehler
+  lässt sich in Playwright nicht nachstellen, und in echtem Firefox ist die Korrektur nicht ausprobiert.
+- **Grenzen (Prüfbericht):** Braucht Firefox nach der Rückkehr selbst länger als 1,5 s für das erste Bild, springt
+  der Hook unnötig an dieselbe Stelle (kurzes Stocken des Tons). Meldet Firefox für das stehende Bild noch einen
+  Rahmen, greift der Hook nicht.
 - Keine Migration, Vertrag bleibt 1.41.0.
 
 ## Patch 1.41.1: übernommene Anfragen aus Seerr sperren das Anfordern nicht mehr (18. November 2026, veröffentlicht: PR #184 `6bbc481f`, Tag `v1.41.1`, Lauf 44327761066; CT 190 auf 1.41.1)
