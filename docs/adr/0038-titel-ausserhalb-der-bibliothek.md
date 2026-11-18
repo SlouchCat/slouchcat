@@ -110,9 +110,9 @@ Entscheid von Marco; sie sind Redaktion bzw. so gebaut.
 2. **Gebrauch und Aufräumen (zu den Folgen, «Vorschlag»).** `external_titles` hat die Spalte `used_at` (Migration
    00074), höchstens einmal am Tag nachgeführt, wenn eine Seite den Titel liest. `titles.refresh` frischt nur auf,
    was in Gebrauch ist, offene Wünsche zuerst, und löscht Einträge 30 Tage nach dem letzten Gebrauch samt Texten
-   und Bildern, wenn kein offener oder kürzlich geschlossener Wunsch und kein Spotlight-Eintrag auf sie zeigt. Eine
-   Obergrenze für den Bildspeicher fehlender Titel und Bremsen gegen Massenabrufe sind in Arbeit (Vertrag der
-   Stufen 4 und 5).
+   und Bildern, wenn kein offener oder kürzlich geschlossener Wunsch und kein Spotlight-Eintrag auf sie zeigt. Die
+   Obergrenze für den Bildspeicher fehlender Titel und die Bremsen gegen Massenabrufe stehen im Nachtrag vom
+   18. November 2026.
 3. **Spotlight-Einträge ohne TMDB-ID (zu Entscheid 5 und 6).** Nicht zuordenbare Einträge lassen sich in der
    Verwaltung weder anheften noch ausblenden noch kommentieren, weil die Anpassungen an der TMDB-ID hängen.
 4. **Wünsche-Seiten (zu Entscheid 8), Regeln N-115 bis N-118.** An `/discover/movies` und `/discover/tv` sendet
@@ -126,3 +126,21 @@ Entscheid von Marco; sie sind Redaktion bzw. so gebaut.
    über das Alter entscheidet weiter der Server.
 6. **Startreihe «Erfüllte Wünsche» (zu den Folgen).** Sie steht ab Werk sichtbar direkt nach «Weiterschauen»
    (Migration 00079); sind schon 15 Reihen sichtbar, startet sie ausgeblendet.
+
+## Nachtrag vom 18. November 2026: Bremsen und Bildspeicher
+
+Redaktion bzw. so gebaut, kein Entscheid von Marco. Jedes Profil mit Wunschrecht kann jede TMDB-ID nennen, und der
+Server holt, speichert und skaliert dann Titel und Bilder. Darum:
+
+1. **Bremsen (zu den Folgen).** Jede Operation, die den Server TMDB oder Seerr fragen lässt, nimmt ein Zeichen aus
+   dem Topf ihrer Gruppe, je Profil und zusätzlich je Konto mit dem Vierfachen: `getExternalTitle` und
+   `getWishSeasons` 60 je Minute (30 auf einmal), `getExternalTitleImage` und die Hintergründe der Genre-Kacheln
+   600 (300), die Seiten des Bereichs «Wünsche» und die Genre-Liste 120 (60), die beiden Suchen je 30. Ist ein Topf
+   leer, antwortet die Operation 429 `too_many_attempts` mit `Retry-After: 60`. Der Topf des Profils wird zuerst
+   geprüft, damit ein Profil in einer Schleife die anderen Profile des Kontos nicht aussperrt.
+2. **Obergrenze des Bildspeichers (zu Entscheid 3).** Die Bilder fehlender Titel belegen höchstens 2 GiB. Darüber
+   verlieren die am längsten nicht gebrauchten Titel (`used_at`) ihre Bilder, bis der Speicher wieder passt; der
+   eben geholte Titel bleibt, und sein Eintrag bleibt ohnehin. Die Hintergründe der Genre-Kacheln sind auf 200
+   Dateien begrenzt, die ältesten gehen zuerst.
+3. **Trailer (zu Entscheid 3).** Trailer fehlender Titel tragen `embedUrl`; der Server baut die Adresse wie bei
+   Titeln der Bibliothek, die Web-App baut keine eigene.

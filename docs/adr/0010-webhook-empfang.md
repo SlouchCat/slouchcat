@@ -75,7 +75,7 @@ Ausnahmen** (Marco, E-2 und E-7), beide über das Paket `internal/arr`:
    `series?tvdbId`) für den Download-Fortschritt beim Wunsch und ändert sie nie.
 
 «Registers nothing there» bleibt: Slouchcat trägt in Radarr und Sonarr keinen Webhook ein (E-6). Der Import in die
-Bibliothek kommt weiter über diesen Webhook; der eingehende Teil dieses ADR (Route, Token, `scan.path`, CSRF-Ausnahme)
-bleibt unverändert. Mit Stufe 4 von Konzept 25 kommt die Art `jellyseerr` neben `radarr` und `sonarr` dazu, nur als
-Anstoss des Abgleichs mit Seerr; sie nutzt dieselbe Route `/webhooks/{token}`, darum gibt es **keine** zweite
-CSRF-Ausnahme.
+Bibliothek kommt weiter über diesen Webhook; der eingehende Teil dieses ADR (Route, Token, `scan.path`,
+CSRF-Ausnahme) bleibt unverändert. Mit Stufe 4 von Konzept 25 kommt die Art `seerr` neben `radarr` und `sonarr` dazu
+(Migration 00080 `webhook_seerr`, Ergebnis `sync_queued`; im Entwurf `jellyseerr`), nur als Anstoss des Abgleichs
+mit Seerr; sie nutzt dieselbe Route `/webhooks/{token}`, darum gibt es **keine** zweite CSRF-Ausnahme.

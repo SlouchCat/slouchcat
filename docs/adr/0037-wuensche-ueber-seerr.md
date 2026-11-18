@@ -306,8 +306,7 @@ Papiere `03`, `04` und `08`, und Anhang H, Abschnitt 12.
    das Hauptprofil des Kontos. Der Index auf die Request-Nummer gilt nur für offene Wünsche (Migration 00081).
 7. **Herkunft und Webhook-Art.** Die Webhook-Art des Seerr-Webhooks heisst `seerr` (Migration 00080
    `webhook_seerr`), die Kachel der Verwaltung `?item=seerr`. Der Herkunftswert einer direkt in Seerr gestellten
-   Anfrage soll ebenfalls `seerr` heissen; im Code steht beim Stand dieses Nachtrags noch `jellyseerr`
-   (Migration 00069, Vertrag 1.41.0), die Umbenennung ist in Arbeit.
+   Anfrage heisst ebenfalls `seerr` (Migration 00069, Vertrag 1.41.0; im Entwurf `jellyseerr`).
 8. **Freigeben und Ablehnen (zu Entscheid 12)** laufen als Benutzer 1, ohne `X-API-User`.
 9. **Meldungen (zu Entscheid 11).** `notified_at` schreibt `notify` selbst, in derselben Transaktion wie den
    Eingangseintrag; übernommene Anfragen setzen es direkt, damit keine Meldung entsteht. Bekannte Grenzen: Nach dem
@@ -318,5 +317,33 @@ Papiere `03`, `04` und `08`, und Anhang H, Abschnitt 12.
     eine Kette an, jeder Lauf plant den nächsten nach einer Minute. Pfade in Meldungen von Radarr und Sonarr
     entfernt Slouchcat, bevor es etwas speichert oder zeigt.
 11. **Bremsen:** 20 Wünsche je Profil und Stunde, 30 Suchen je Profil und Minute (429 `too_many_attempts` mit
-    `Retry-After`). Bremsen gegen Massenabrufe fehlender Titel folgen mit dem Vertrag der Stufen 4 und 5 (in
-    Arbeit).
+    `Retry-After`). Die Bremsen gegen Massenabrufe fehlender Titel stehen im Nachtrag vom 18. November 2026.
+
+## Nachtrag vom 18. November 2026: nach den Korrekturrunden
+
+Die zweite und dritte Korrekturrunde des Baus ändern diese Punkte. Der Text oben bleibt stehen; wo er widerspricht,
+gilt dieser Nachtrag. Keiner der Punkte ist ein Entscheid von Marco; sie sind Redaktion bzw. so gebaut. Einzelheiten:
+`docs/planning/25-medienwuensche/03-architektur.md`, Abschnitte 6.2, 14, 15.4 und 18.
+
+1. **Privilegierte Benutzer auch von Hand nur nach Rückfrage (zu Punkt 1 des Nachtrags vom 17. November).**
+   «In Seerr eröffnen» verknüpft einen privilegierten Benutzer gleicher E-Mail nicht ohne Bestätigung: Ohne
+   `?allowPrivileged=true` antwortet `provisionSeerrAccount` 202 mit `state: waiting` und
+   `provisionError: seerr_user_privileged`; mit Bestätigung verknüpft es (`linked_by = admin`,
+   `password_state = admin`). «Alle eröffnen» verknüpft nie einen privilegierten Benutzer, lässt wartende Konten
+   mit `seerr_user_taken` oder `seerr_user_privileged` aus und nennt ihre Zahl (`manual`). `provisionError` ist
+   eine feste Liste im Vertrag; ein unbekannter gespeicherter Wert geht als `failed` hinaus.
+2. **Bremsen gegen Massenabrufe fehlender Titel.** Je Profil und zusätzlich je Konto (das Vierfache): Titel und
+   Staffeln 60 je Minute (30 auf einmal), Bilder 600 (300), Seiten des Bereichs «Wünsche» 120 (60), die Suchen je
+   30 je Minute, jede mit eigenem Topf; darüber 429 `too_many_attempts` mit `Retry-After: 60`. Der Topf des Profils
+   wird zuerst geprüft. Der Bildspeicher fehlender Titel ist auf 2 GiB begrenzt (ADR 0038, Nachtrag).
+3. **Konten ohne Wunschrecht (zu Entscheid 15).** Ein neu eröffneter Benutzer eines Kontos ohne Wunschrecht bekommt
+   zuerst ein Zufallspasswort; das echte geht erst bei der nächsten Anmeldung hinaus, nachdem seine Rechte in Seerr
+   auf 0 stehen. Lehnt Seerr das ab, geht nichts hinaus. Ein frisch erzeugter Benutzer, dessen ID Slouchcat schon
+   kennt, bekommt bestmöglich Rechte 0 und ein Zufallspasswort; Seerrs Benutzer löscht Slouchcat nie (K-2).
+4. **Was ein Profil nicht sehen darf (zu Entscheid 10).** Ein Wunsch, den ein Profil als «wird eingelesen» liest,
+   trägt keinen Fortschritt und lässt sich nicht zurückziehen (409 `wish_not_withdrawable`). Eine Staffel der
+   Bibliothek, von der das Profil keine Folge abspielen darf, steht nicht im Staffelkatalog und ist nicht
+   anforderbar (`season_not_offered`). Bekannte Grenze: Sieht das Profil nur einen Teil der Folgen einer Staffel,
+   bleibt sie anforderbar, und die Antwort kann verraten, dass es mehr Folgen gibt.
+5. **Verbindungstest.** Nimmt Seerr den leeren Prüfaufruf an (2xx), gilt das als unerwartet (Warnung
+   `unexpected_answer`), nie als «CSRF-Schutz aus».
