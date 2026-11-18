@@ -7263,6 +7263,12 @@
       "title": "Meine Wünsche",
       "count_one": "{{count}} offener Wunsch",
       "count_other": "{{count}} offene Wünsche",
+      "countAll_one": "{{count}} Wunsch",
+      "countAll_other": "{{count}} Wünsche",
+      "countAvailable_one": "{{count}} verfügbarer Wunsch",
+      "countAvailable_other": "{{count}} verfügbare Wünsche",
+      "countClosed_one": "{{count}} abgeschlossener Wunsch",
+      "countClosed_other": "{{count}} abgeschlossene Wünsche",
       "limit": "Limit: {{limit}}",
       "offline": "Nur online verfügbar: Die Wünsche liegen auf dem Server.",
       "filters": {
@@ -7286,7 +7292,6 @@
     },
     "row": {
       "open": "Zum Titel",
-      "play": "Abspielen",
       "withdrawLabel": "{{title}}: zurückziehen",
       "withdrawJoinedLabel": "{{title}}: nicht mehr mitwünschen",
       "again": "Erneut anfordern",

@@ -55,6 +55,13 @@ const WithdrawDialog = lazy(() =>
 
 const BACK_KEY = 'wishes-back';
 const FILTER_KEY = 'wishes-filter';
+/** The count line under the title, for the list the chosen filter shows. */
+const COUNT_KEYS = {
+  all: 'wishes.page.countAll',
+  open: 'wishes.page.count',
+  available: 'wishes.page.countAvailable',
+  closed: 'wishes.page.countClosed',
+} as const satisfies Record<WishStateFilter | 'all', string>;
 /** A row's expected height in px (poster, three lines and the actions). */
 const ROW_HEIGHT = 168;
 
@@ -123,8 +130,9 @@ export function WishesPage() {
         <div className={discover.head}>
           <h1 className={discover.title}>{t('wishes.page.title')}</h1>
           {list.isSuccess && (
+            // The count of the list the chosen filter shows, like «Gesehen» counts its list.
             <p className={discover.overview}>
-              {t('wishes.page.count', { count: counts?.open ?? 0 })}
+              {t(COUNT_KEYS[state ?? 'all'], { count: paged.total })}
             </p>
           )}
           {limit && <p className={discover.muted}>{t('wishes.page.limit', { limit })}</p>}
@@ -192,7 +200,10 @@ export function WishesPage() {
           ))}
 
         {online && paged.total > 0 && (
-          <section className={discover.section}>
+          <section className={discover.section} aria-labelledby="wishes-list">
+            <h2 id="wishes-list" className={discover.sectionTitle}>
+              {t(`wishes.page.filters.${state ?? 'all'}`)}
+            </h2>
             <VirtualList
               slots={paged.slots}
               virtual={paged.total > PAGED_LIST_VIRTUAL_FROM}
@@ -209,6 +220,7 @@ export function WishesPage() {
                   onWithdraw={setAsking}
                   onRequestAgain={(entry) => {
                     setRequested(false);
+                    withdraw.reset();
                     setAgain(entry);
                   }}
                 />

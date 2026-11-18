@@ -94,7 +94,9 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
     });
     renderApp('/wishes');
     expect(await screen.findByRole('heading', { level: 1, name: 'Meine Wünsche' })).toBeVisible();
-    expect(await screen.findByText('2 offene Wünsche')).toBeVisible();
+    // The count line follows the list the filter shows (UI check 6).
+    expect(await screen.findByText('3 Wünsche')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Alle' })).toBeVisible();
     expect(
       await screen.findByText(
         'Limit: Filme: 3 von 10 in 7 Tagen · noch 7 frei · Staffeln ohne Limit',
@@ -128,6 +130,8 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
     // The chips with their counts; «Offen» goes into the URL and the request.
     await user.click(screen.getByRole('button', { name: 'Offen (2)' }));
     await waitFor(() => expect(queryOf(fetchMock)).toContain('open'));
+    expect(await screen.findByText('3 offene Wünsche')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Offen' })).toBeVisible();
     expect(document.body.textContent).not.toContain('{{');
   });
 
@@ -165,6 +169,29 @@ describe('«Meine Wünsche» (concept 25, 5.3)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Zurückziehen' }));
     await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
     expect(await screen.findByText('Noch keine Wünsche.')).toBeVisible();
+  });
+
+  it('the notice of a withdrawal goes when «Erneut anfordern» starts (m1)', async () => {
+    let gone = false;
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () =>
+        json({ items: gone ? [failed] : [pending, failed], total: gone ? 1 : 2, counts }),
+      'GET /wishes/quota': () => json({ unlimited: true }),
+      'DELETE /wishes/1': () => {
+        gone = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/wishes');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Glasvogel: zurückziehen' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Zurückziehen' }));
+    expect(await screen.findByText('Dein Wunsch ist zurückgezogen.')).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Kupfermond erneut anfordern' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByText('Dein Wunsch ist zurückgezogen.')).toBeNull();
   });
 
   it('the side navigation shows «Wünsche» with the open count, only while the wishes are on', async () => {

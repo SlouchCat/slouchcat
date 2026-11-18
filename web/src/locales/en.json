@@ -7263,6 +7263,12 @@
       "title": "My wishes",
       "count_one": "{{count}} open wish",
       "count_other": "{{count}} open wishes",
+      "countAll_one": "{{count}} wish",
+      "countAll_other": "{{count}} wishes",
+      "countAvailable_one": "{{count}} available wish",
+      "countAvailable_other": "{{count}} available wishes",
+      "countClosed_one": "{{count}} closed wish",
+      "countClosed_other": "{{count}} closed wishes",
       "limit": "Limit: {{limit}}",
       "offline": "Only available online: the wishes live on the server.",
       "filters": {
@@ -7286,7 +7292,6 @@
     },
     "row": {
       "open": "To the title",
-      "play": "Play",
       "withdrawLabel": "Withdraw {{title}}",
       "withdrawJoinedLabel": "{{title}}: stop joining",
       "again": "Request again",

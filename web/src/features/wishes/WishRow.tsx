@@ -10,6 +10,9 @@ import { eventText, failText, seasonsText, WishStateChip } from './state';
 import { WishProgressLine } from './WishProgress';
 import styles from './Wishes.module.css';
 
+/** The poster's rendered width (`--sc-space-16`, `.row` in Wishes.module.css) for its `srcset`. */
+const POSTER_SIZES = '4rem';
+
 /** The focus key of a row's first control (its title link), for the page's start and its arrows. */
 export const wishRowKey = (wish: Wish) => `wish-${wish.id}`;
 
@@ -33,7 +36,11 @@ export function WishRow({ wish, onWithdraw, onRequestAgain, busy }: WishRowProps
   const [open, setOpen] = useState(false);
   const historyId = useId();
   const key = wishRowKey(wish);
-  const poster = wish.item?.images.poster ?? wish.external?.images.poster;
+  // The library title's poster, else the one of the title outside the library: w200 and w400.
+  const images = wish.item?.images ?? wish.external?.images;
+  const posterUrl = imageUrl(images?.poster);
+  const posterSmallUrl = imageUrl(images?.posterSmall);
+  const source = posterSmallUrl ?? posterUrl;
   const href = wish.item ? paths.item(wish.item.id) : paths.title(wish.media, wish.tmdbId);
   const when = wish.state === 'available' && wish.availableAt ? wish.availableAt : wish.updatedAt;
   const last = wish.events[0];
@@ -45,17 +52,29 @@ export function WishRow({ wish, onWithdraw, onRequestAgain, busy }: WishRowProps
   return (
     <article className={styles.row} aria-labelledby={`${historyId}-title`}>
       <span className={styles.rowPoster}>
-        {poster ? (
-          <img src={imageUrl(poster)} alt="" width={poster.width} height={poster.height} />
+        {source ? (
+          <img
+            src={source}
+            srcSet={
+              posterUrl && posterSmallUrl ? `${posterSmallUrl} 200w, ${posterUrl} 400w` : undefined
+            }
+            sizes={posterUrl && posterSmallUrl ? POSTER_SIZES : undefined}
+            alt=""
+            width={200}
+            height={300}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <PosterFallback />
         )}
       </span>
       <div className={styles.rowBody}>
-        <h2 id={`${historyId}-title`} className={styles.rowTitle}>
+        {/* Under the list's h2 (the chosen filter). */}
+        <h3 id={`${historyId}-title`} className={styles.rowTitle}>
           {wish.title}
           {wish.year ? <span className={styles.rowYear}>{wish.year}</span> : null}
-        </h2>
+        </h3>
         <p className={styles.line}>{facts.join(t('format.separator'))}</p>
         <p className={styles.rowState}>
           <WishStateChip state={wish.state} detail={wish.stateDetail} />
@@ -65,7 +84,7 @@ export function WishRow({ wish, onWithdraw, onRequestAgain, busy }: WishRowProps
         {wish.failReason && <p className={styles.line}>{failText(t, wish.failReason)}</p>}
         <SpatialGroup className={styles.actions}>
           <SpatialButtonLink focusKey={key} href={href} variant="secondary" size="sm">
-            {t(wish.item ? 'wishes.row.play' : 'wishes.row.open')}
+            {t('wishes.row.open')}
           </SpatialButtonLink>
           {wish.canWithdraw && (
             <SpatialButton
