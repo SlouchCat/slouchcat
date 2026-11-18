@@ -155,6 +155,36 @@ describe('profile settings page', () => {
     expect(within(dialog).getByText(/Dieses Konto darf keine Titel anfordern/)).toBeVisible();
   });
 
+  it('locks the switch when the server refuses the right of the account (m8)', async () => {
+    // The editor's session names a higher-ranked reason than the account's.
+    const wishes = {
+      enabled: true,
+      canRequest: false,
+      reason: 'profile_not_allowed',
+      movies: false,
+      shows: false,
+    };
+    mockApi({
+      ...manage,
+      'GET /auth/session': () => json({ ...session, wishes }),
+      'POST /profiles': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'canRequest', code: 'account_not_allowed' }],
+        }),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
+    await user.type(within(dialog).getByLabelText('Name'), 'Kind');
+    await user.click(right);
+    await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
+    await waitFor(() => expect(right).toBeDisabled());
+    expect(right).not.toBeChecked();
+    expect(within(dialog).getByText(/Dieses Konto darf keine Titel anfordern/)).toBeVisible();
+  });
+
   it('shows no request right while wishes are off', async () => {
     mockApi(manage);
     renderApp('/settings/profiles');

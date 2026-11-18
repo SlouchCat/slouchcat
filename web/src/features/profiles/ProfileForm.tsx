@@ -3,7 +3,7 @@ import { accentNames, type AccentName } from '@slouchcat/design-tokens';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
 import { type ActiveSession, refreshSession, useRatingSystem } from '@/app/session';
 import { currentLanguage, isLanguage, type Language } from '@/i18n';
@@ -84,8 +84,11 @@ export function ProfileForm({
   // account's right caps it (the server refuses a right above it, 422 account_not_allowed).
   const wishes = session.wishes;
   const showRequest = session.profile.isPrimary && wishes?.enabled === true;
-  const accountAllowed = wishes?.reason !== 'account_not_allowed';
   const [canRequest, setCanRequest] = useState(profile?.canRequest ?? false);
+  // The editor's own session may name a higher-ranked reason than the account's: the server's
+  // refusal of the right (422 canRequest account_not_allowed) also locks the switch.
+  const [accountRefused, setAccountRefused] = useState(false);
+  const accountAllowed = wishes?.reason !== 'account_not_allowed' && !accountRefused;
   // The playback preferences as the profile holds them. A new profile leaves them to the server
   // until they are changed: it starts them from the language chosen above (F-12), so the fields
   // follow that language meanwhile.
@@ -129,6 +132,12 @@ export function ProfileForm({
     },
   );
   const errors = save.error ? formErrors(t, save.error) : null;
+  const refusedRight =
+    isApiError(save.error) &&
+    (save.error.problem?.errors ?? []).some(
+      (error) => error.field === 'canRequest' && error.code === 'account_not_allowed',
+    );
+  if (refusedRight && !accountRefused) setAccountRefused(true);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
