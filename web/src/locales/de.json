@@ -5679,7 +5679,12 @@
         "label": "Bereiche der Wünsche",
         "users": "Seerr-Benutzer",
         "settings": "Einstellungen",
-        "requests": "Anfragen"
+        "requests": "Anfragen",
+        "openCount_one": "{{count}} offener Wunsch",
+        "openCount_other": "{{count}} offene Wünsche",
+        "withoutShort": "{{number}} ohne",
+        "withoutCount_one": "{{count}} Konto ohne Seerr-Benutzer",
+        "withoutCount_other": "{{count}} Konten ohne Seerr-Benutzer"
       },
       "strip": {
         "label": "Zusammenfassung",
@@ -5998,7 +6003,8 @@
           "action_one": "{{count}} Anfrage aus Seerr übernehmen",
           "action_other": "{{count}} Anfragen aus Seerr übernehmen",
           "queued_one": "{{count}} Anfrage von {{name}} wird übernommen.",
-          "queued_other": "{{count}} Anfragen von {{name}} werden übernommen."
+          "queued_other": "{{count}} Anfragen von {{name}} werden übernommen.",
+          "running": "Die Anfragen werden übernommen; die Zahl folgt nach dem Abgleich."
         },
         "linkPrivileged": "Trotzdem verknüpfen …",
         "privilegedTitle": "Seerr-Administrator {{name}} verknüpfen?",
@@ -6007,7 +6013,8 @@
         "provisionAllManual_one": "{{count}} Konto braucht eine Wahl von Hand.",
         "provisionAllManual_other": "{{count}} Konten brauchen eine Wahl von Hand.",
         "waitingChoice": "Wartet auf eine Wahl von Hand",
-        "waitingChoiceTitle": "Wartet auf deine Wahl"
+        "waitingChoiceTitle": "Wartet auf deine Wahl",
+        "optionPrivileged": "{{option}} · verwaltet Seerr"
       },
       "limitField": {
         "label": "Limit",

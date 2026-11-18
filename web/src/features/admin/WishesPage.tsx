@@ -30,7 +30,7 @@ import {
   wishSettingsQuery,
 } from './queries';
 import { tagDraft } from './wishes/ProfileTags';
-import { linkCandidate, SeerrUsersTab } from './wishes/SeerrUsersTab';
+import { linkCandidate, SeerrUsersTab, withoutSeerrUser } from './wishes/SeerrUsersTab';
 import { RequestsTab } from './wishes/RequestsTab';
 import { SettingsTab } from './wishes/SettingsTab';
 
@@ -117,7 +117,7 @@ function WishesContent() {
   }
 
   // What «Alle eröffnen» will do, by the last read users: link by the same e-mail, else open.
-  const todo = accounts.filter((mapping) => mapping.seerrUserId === undefined);
+  const todo = accounts.filter(withoutSeerrUser);
   const link = todo.filter((mapping) => linkCandidate(mapping, users.data ?? [])).length;
   const create = todo.length - link;
   const provisionAll = useMutation({
@@ -141,7 +141,7 @@ function WishesContent() {
     if (!open) void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   };
   const waiting = accounts.filter((mapping) => mapping.state === 'waiting').length;
-  const without = accounts.filter((mapping) => mapping.seerrUserId === undefined).length;
+  const without = todo.length;
   const passwordOpen = accounts.filter((mapping) => mapping.passwordState === 'next_login').length;
   const shown = (value: number) => (mappings.data ? number.format(value) : '–');
   const strip = (
@@ -187,11 +187,26 @@ function WishesContent() {
           {
             id: 'anfragen',
             label: t('admin.wishes.tabs.requests'),
+            // The open wishes, by Seerr's counters (M-27).
+            ...(status.data
+              ? {
+                  count: number.format(status.data.counts.open),
+                  countLabel: t('admin.wishes.tabs.openCount', { count: status.data.counts.open }),
+                }
+              : {}),
             content: <RequestsTab />,
           },
           {
             id: 'seerr-benutzer',
             label: t('admin.wishes.tabs.users'),
+            // «n ohne»: the accounts without a Seerr user.
+            ...(mappings.data
+              ? {
+                  count: t('admin.wishes.tabs.withoutShort', { number: number.format(without) }),
+                  countLabel: t('admin.wishes.tabs.withoutCount', { count: without }),
+                  ...(without > 0 ? { tone: 'warning' as const } : {}),
+                }
+              : {}),
             content: (
               <SeerrUsersTab
                 mappings={mappings}

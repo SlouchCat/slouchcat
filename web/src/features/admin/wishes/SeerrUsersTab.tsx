@@ -103,6 +103,18 @@ function waitText(t: TFunction, reason: string | undefined): string {
     : t('admin.wishes.users.waitReason.other', { reason });
 }
 
+/** The settings tab, where a locked action is unlocked. */
+const TO_SETTINGS = `${paths.adminWishes}?tab=einstellungen`;
+
+/**
+ * A Seerr user that administers Seerr, as far as the list tells: user 1 and `isAdmin` (MANAGE_USERS,
+ * which ADMIN implies). The server's rule is wider (every managing right) and asks again.
+ */
+export const administersSeerr = (user: SeerrUser) => user.id === 1 || user.isAdmin;
+
+/** An account without a Seerr user: the strip, the tab's count and the warning count the same. */
+export const withoutSeerrUser = (mapping: WishAccountMapping) => mapping.seerrUserId === undefined;
+
 /** The same e-mail in any spelling. */
 const sameEmail = (a: string | undefined, b: string) =>
   a !== undefined && a.toLowerCase() === b.toLowerCase();
@@ -150,8 +162,11 @@ function AccountDetail({
   stale: boolean;
   /** The tag names typed for the profiles (page drafts). */
   tagDrafts: Drafts<string>;
-  /** Asks before linking a Seerr user that administers Seerr. */
-  onLinkPrivileged: (mapping: WishAccountMapping) => void;
+  /**
+   * Asks before linking a Seerr user that administers Seerr: the one of the same e-mail
+   * («In Seerr eröffnen»), or `seerrUserId` chosen by hand.
+   */
+  onLinkPrivileged: (mapping: WishAccountMapping, seerrUserId?: number) => void;
 }) {
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
@@ -163,7 +178,6 @@ function AccountDetail({
   const actionFailure = actions.failure?.key === key ? actions.failure.error : null;
   const candidate = linkCandidate(mapping, users);
   const provisionOff = settings !== undefined && !settings.provisionAccounts;
-  const toSettings = `${paths.adminWishes}?tab=einstellungen`;
   const toAccount = `${paths.adminAccounts}?item=${mapping.accountId}`;
   const ready = user !== undefined && mapping.seerrUserId !== undefined;
   const password = ready ? mapping.passwordState : undefined;
@@ -186,13 +200,17 @@ function AccountDetail({
           name: candidate.displayName,
           id: candidate.id,
         });
+        // A user that administers Seerr is marked, and linking it asks first.
+        const named = administersSeerr(candidate)
+          ? t('admin.wishes.users.optionPrivileged', { option: base })
+          : base;
         const label = mine
-          ? t('admin.wishes.users.optionCurrent', { option: base })
+          ? t('admin.wishes.users.optionCurrent', { option: named })
           : candidate.gone
-            ? t('admin.wishes.users.optionGone', { option: base })
+            ? t('admin.wishes.users.optionGone', { option: named })
             : taken
-              ? t('admin.wishes.users.optionTaken', { option: base, email: owner.email })
-              : base;
+              ? t('admin.wishes.users.optionTaken', { option: named, email: owner.email })
+              : named;
         return { value: String(candidate.id), label, disabled: !mine && (taken || candidate.gone) };
       }),
   ];
@@ -419,9 +437,16 @@ function AccountDetail({
             hideLabel
             value={chosen === null ? '' : String(chosen)}
             options={options}
-            onChange={(value) =>
-              save.change(key, { seerrUserId: value === '' ? null : Number(value) })
-            }
+            onChange={(value) => {
+              const seerrUserId = value === '' ? null : Number(value);
+              const next =
+                seerrUserId === null ? undefined : users.find((u) => u.id === seerrUserId);
+              if (next && next.id !== mapping.seerrUserId && administersSeerr(next)) {
+                onLinkPrivileged(mapping, next.id);
+                return;
+              }
+              save.change(key, { seerrUserId });
+            }}
           />
           {mapping.seerrUserId !== undefined && (
             <AriaButton
@@ -459,7 +484,7 @@ function AccountDetail({
             <Icon name="lock" size="sm" />
             <span>
               {t('admin.wishes.users.provisionOffHint')}{' '}
-              <TextLink href={toSettings}>{t('admin.wishes.users.toSettings')}</TextLink>
+              <TextLink href={TO_SETTINGS}>{t('admin.wishes.users.toSettings')}</TextLink>
             </span>
           </p>
         )}
@@ -468,7 +493,7 @@ function AccountDetail({
             <Icon name="lock" size="sm" />
             <span>
               {t('admin.wishes.users.passwordSyncOff')}{' '}
-              <TextLink href={toSettings}>{t('admin.wishes.users.toSettings')}</TextLink>
+              <TextLink href={TO_SETTINGS}>{t('admin.wishes.users.toSettings')}</TextLink>
             </span>
           </p>
         )}
@@ -541,6 +566,18 @@ export function SeerrUsersTab({
   const userOf = (mapping: WishAccountMapping) =>
     mapping.seerrUserId === undefined ? undefined : byId.get(mapping.seerrUserId);
 
+  // The account's new mapping into the list, before the lists are read again.
+  const putMapping = (next: WishAccountMapping) =>
+    queryClient.setQueryData(
+      wishMappingsQuery.queryKey,
+      (current: WishMappings | undefined) =>
+        current && {
+          ...current,
+          accounts: current.accounts.map((entry) =>
+            entry.accountId === next.accountId ? next : entry,
+          ),
+        },
+    );
   const save = useImmediateSave<MappingChange, WishAccountMapping>({
     save: async ({ seerrUserId }, key) => {
       try {
@@ -553,16 +590,7 @@ export function SeerrUsersTab({
     },
     saved: async (next, { seerrUserId }) => {
       const before = mappings.data?.accounts.find((entry) => entry.accountId === next.accountId);
-      queryClient.setQueryData(
-        wishMappingsQuery.queryKey,
-        (current: WishMappings | undefined) =>
-          current && {
-            ...current,
-            accounts: current.accounts.map((entry) =>
-              entry.accountId === next.accountId ? next : entry,
-            ),
-          },
-      );
+      putMapping(next);
       await queryClient.invalidateQueries({ queryKey: wishKeys.all });
       const name = (id: number | undefined) =>
         (id === undefined ? undefined : byId.get(id)?.displayName) ?? '';
@@ -574,8 +602,17 @@ export function SeerrUsersTab({
         : t('admin.wishes.users.linked', { email: next.email, name: name(seerrUserId) });
     },
   });
-  // The account whose Seerr user of the same e-mail administers Seerr, while the question is open.
-  const [privileged, setPrivileged] = useState<WishAccountMapping | null>(null);
+  // The account whose Seerr user administers Seerr, while the question is open: the user of the
+  // same e-mail («In Seerr eröffnen»), or `seerrUserId` chosen by hand.
+  const [privileged, setPrivileged] = useState<{
+    mapping: WishAccountMapping;
+    seerrUserId?: number;
+  } | null>(null);
+  // The first question stays until it is answered; a later answer does not replace it.
+  const ask = (mapping: WishAccountMapping, seerrUserId?: number) =>
+    setPrivileged(
+      (current) => current ?? { mapping, ...(seerrUserId === undefined ? {} : { seerrUserId }) },
+    );
   const body = useRef<HTMLDivElement>(null);
   const actions = useImmediateSave<RowAction, WishAccountMapping>({
     save: (action, key) =>
@@ -583,16 +620,7 @@ export function SeerrUsersTab({
         ? provisionSeerrAccount(Number(key), action.allowPrivileged)
         : setSeerrPasswordMode(Number(key), action.mode),
     saved: async (next, action) => {
-      queryClient.setQueryData(
-        wishMappingsQuery.queryKey,
-        (current: WishMappings | undefined) =>
-          current && {
-            ...current,
-            accounts: current.accounts.map((entry) =>
-              entry.accountId === next.accountId ? next : entry,
-            ),
-          },
-      );
+      putMapping(next);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: wishKeys.all }),
         queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
@@ -607,7 +635,7 @@ export function SeerrUsersTab({
       }
       if (next.state === 'waiting' && next.provisionError === 'seerr_user_privileged') {
         // Seerr has a user of this e-mail that administers Seerr: ask before linking it.
-        setPrivileged(next);
+        ask(next);
         return t('admin.wishes.users.provisioned.privileged', { email: next.email });
       }
       if (next.state === 'waiting' && next.provisionError === 'seerr_user_taken') {
@@ -632,28 +660,24 @@ export function SeerrUsersTab({
     },
   });
 
-  /** The Seerr user of the same e-mail as the account, by the last read list. */
-  const linkCandidateName = (mapping: WishAccountMapping) =>
-    (users.data ?? []).find(
-      (user) => !user.shared && user.email?.toLowerCase() === mapping.email.toLowerCase(),
-    )?.displayName;
   const columns = seerrUserColumns(t, userOf);
   const configured = status !== undefined && status.state !== 'not_configured';
   const list = mappings.data;
   const accounts = list?.accounts ?? [];
   const gone = accounts.filter((mapping) => userOf(mapping)?.gone).length;
-  const without = accounts.filter(
-    (mapping) => mapping.canRequest && mapping.seerrUserId === undefined,
-  ).length;
+  const without = accounts.filter(withoutSeerrUser).length;
   const shared = list?.sharedUser;
-  const todo = accounts.filter((mapping) => mapping.seerrUserId === undefined).length;
+  const todo = without;
   const provisionOff = settings !== undefined && !settings.provisionAccounts;
-  const toSettings = `${paths.adminWishes}?tab=einstellungen`;
   const toConnection = `${paths.adminIntegrations}?item=seerr`;
   const stale = status !== undefined && status.state !== 'connected';
 
-  const linkPrivileged = (mapping: WishAccountMapping) => {
-    actions.change(String(mapping.accountId), { kind: 'provision', allowPrivileged: true });
+  const linkPrivileged = (mapping: WishAccountMapping, seerrUserId?: number) => {
+    if (seerrUserId === undefined) {
+      actions.change(String(mapping.accountId), { kind: 'provision', allowPrivileged: true });
+    } else {
+      save.change(String(mapping.accountId), { seerrUserId });
+    }
     // The buttons of a waiting account go once it is linked: the focus goes to its row's toggle.
     void afterDialogsClosed().then(async () => {
       await afterRender();
@@ -674,14 +698,20 @@ export function SeerrUsersTab({
           if (!open) setPrivileged(null);
         }}
         title={t('admin.wishes.users.privilegedTitle', {
-          name: (privileged && linkCandidateName(privileged)) ?? '',
+          name:
+            (privileged &&
+              (privileged.seerrUserId === undefined
+                ? linkCandidate(privileged.mapping, users.data ?? [])
+                : byId.get(privileged.seerrUserId)
+              )?.displayName) ??
+            '',
         })}
-        body={t('admin.wishes.users.privilegedBody', { email: privileged?.email ?? '' })}
+        body={t('admin.wishes.users.privilegedBody', { email: privileged?.mapping.email ?? '' })}
         confirmLabel={t('admin.wishes.users.privilegedConfirm')}
         cancelLabel={t('common.cancel')}
         tone="danger"
         onConfirm={() => {
-          if (privileged) linkPrivileged(privileged);
+          if (privileged) linkPrivileged(privileged.mapping, privileged.seerrUserId);
         }}
       />
       <StatusRegion message={save.failure ? null : save.message} />
@@ -713,7 +743,7 @@ export function SeerrUsersTab({
         <Notice
           tone="warning"
           title={t('admin.wishes.users.withoutCount', { count: without })}
-          actions={<TextLink href={toSettings}>{t('admin.wishes.users.toSettings')}</TextLink>}
+          actions={<TextLink href={TO_SETTINGS}>{t('admin.wishes.users.toSettings')}</TextLink>}
         >
           {t(
             settings.unmapped === 'fallback'
@@ -735,7 +765,7 @@ export function SeerrUsersTab({
                 settings.syncPassword ? 'admin.wishes.users.syncOn' : 'admin.wishes.users.syncOff',
               ),
             })}{' '}
-            <TextLink href={toSettings}>{t('admin.wishes.users.changeSettings')}</TextLink>
+            <TextLink href={TO_SETTINGS}>{t('admin.wishes.users.changeSettings')}</TextLink>
           </Text>
         )}
         {settings?.unmapped === 'fallback' && (
@@ -781,7 +811,7 @@ export function SeerrUsersTab({
           <Icon name="lock" size="sm" />
           <span>
             {t('admin.wishes.users.provisionOffHint')}{' '}
-            <TextLink href={toSettings}>{t('admin.wishes.users.toSettings')}</TextLink>
+            <TextLink href={TO_SETTINGS}>{t('admin.wishes.users.toSettings')}</TextLink>
           </span>
         </p>
       )}
@@ -807,7 +837,7 @@ export function SeerrUsersTab({
       {list && users.data && (
         <>
           {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
-          <div data-perf="first-work-row">
+          <div className={styles.tableFrame} data-perf="first-work-row">
             <DataTable
               caption={t('admin.wishes.users.caption')}
               columns={columns}
@@ -825,7 +855,7 @@ export function SeerrUsersTab({
                     configured={configured}
                     stale={stale}
                     tagDrafts={tagDrafts}
-                    onLinkPrivileged={setPrivileged}
+                    onLinkPrivileged={ask}
                   />
                 ),
                 expandedKeys: expanded,

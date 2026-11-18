@@ -1015,6 +1015,8 @@ export const setProfileTagName = (profileId: number, name: string | null) =>
 export const seerrRequestCountQuery = (seerrUserId: number) =>
   queryOptions({
     queryKey: [...wishKeys.all, 'requestCount', seerrUserId],
+    // Asked of Seerr: not again for every open row and every return to the window.
+    staleTime: 60_000,
     queryFn: ({ signal }) =>
       request(
         api.GET('/admin/wishes/mappings/users/{seerrUserId}/requests/count', {

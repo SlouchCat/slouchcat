@@ -71,6 +71,8 @@ function ProfileTag({ profile, drafts }: { profile: Profile; drafts: Drafts<stri
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Enter again while the name saves sends nothing a second time.
+    if (save.isPending) return;
     const name = value.trim();
     if (!TAG_NAME.test(name)) return;
     if (name === profile.tagName) {
@@ -200,11 +202,15 @@ export function TakeOver({ seerrUserId, name }: { seerrUserId: number; name: str
   const queryClient = useQueryClient();
   const count = useQuery(seerrRequestCountQuery(seerrUserId));
   const [message, say] = useStatusMessage();
+  const runningRef = useRef<HTMLParagraphElement>(null);
   const take = useMutation({
     mutationFn: () => importSeerrRequests(seerrUserId),
     onMutate: () => say(null),
     onSuccess: async () => {
       say(t('admin.wishes.users.takeOver.queued', { count: count.data?.count ?? 0, name }));
+      // The count stays Seerr's until the job ran: the button goes, the line says it runs.
+      await afterRender();
+      runningRef.current?.focus();
       await queryClient.invalidateQueries({ queryKey: wishKeys.all });
     },
   });
@@ -221,7 +227,12 @@ export function TakeOver({ seerrUserId, name }: { seerrUserId: number; name: str
       {count.data && count.data.count === 0 && (
         <Text tone="secondary">{t('admin.wishes.users.takeOver.none')}</Text>
       )}
-      {count.data && count.data.count > 0 && (
+      {take.isSuccess && (
+        <p ref={runningRef} tabIndex={-1} className={styles.summary}>
+          {t('admin.wishes.users.takeOver.running')}
+        </p>
+      )}
+      {count.data && count.data.count > 0 && !take.isSuccess && (
         <div className={styles.actions}>
           <AriaButton icon="download" isPending={take.isPending} onPress={() => take.mutate()}>
             {t('admin.wishes.users.takeOver.action', { count: count.data.count })}

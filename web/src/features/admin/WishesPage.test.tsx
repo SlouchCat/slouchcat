@@ -272,6 +272,38 @@ describe('Wünsche › Seerr-Benutzer', () => {
     expect(document.body.textContent).not.toContain('{{');
   });
 
+  it('a Seerr user that administers Seerr is marked in the choice and asks before it is linked by hand', async () => {
+    const admin = user(1, 'chef', { email: 'chef@example.org', isAdmin: true });
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes/mappings/users': () => json([...USERS, admin]),
+        'PUT /admin/wishes/mappings/accounts/1': () =>
+          json(mapping({ seerrUserId: 1, state: 'manual', passwordState: 'admin' })),
+      }),
+    );
+    renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
+    const user$ = userEvent.setup();
+    const select = await screen.findByRole('combobox', {
+      name: 'Seerr-Benutzer für besitzer@example.org',
+    });
+    expect(
+      within(select).getByRole('option', { name: 'chef (ID 1) · verwaltet Seerr' }),
+    ).toBeEnabled();
+    await user$.selectOptions(select, '1');
+    const question = await screen.findByRole('alertdialog', {
+      name: 'Seerr-Administrator chef verknüpfen?',
+    });
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    await user$.click(within(question).getByRole('button', { name: 'Abbrechen' }));
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+    await user$.selectOptions(select, '1');
+    const again = await screen.findByRole('alertdialog');
+    await user$.click(within(again).getByRole('button', { name: 'Trotzdem verknüpfen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ seerrUserId: 1 }),
+    );
+  });
+
   it('«In Seerr eröffnen» names the user of the same e-mail; Seerr away, the account waits', async () => {
     const same = user(4, 'besitzer', { email: 'Besitzer@example.org' });
     const { calls } = mockApi(
@@ -477,8 +509,12 @@ describe('Wünsche › Seerr-Benutzer', () => {
   it('names the accounts without a Seerr user and the rule that applies to them', async () => {
     mockApi(routes({ 'GET /admin/wishes/settings': () => json(settings({ unmapped: 'deny' })) }));
     renderApp('/admin/wishes?tab=seerr-benutzer');
-    expect(await screen.findByText('1 Konto ohne Seerr-Benutzer')).toBeVisible();
+    // The tab names the count too; the warning stands in the tab's panel.
+    const panel = await screen.findByRole('tabpanel');
+    expect(await within(panel).findByText('1 Konto ohne Seerr-Benutzer')).toBeVisible();
     expect(screen.getByText(/auf «Nicht erlauben» steht/)).toBeVisible();
+    const tab = screen.getByRole('tab', { name: /Seerr-Benutzer/ });
+    expect(tab).toHaveTextContent('1 ohne');
   });
 });
 

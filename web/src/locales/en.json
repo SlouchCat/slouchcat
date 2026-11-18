@@ -5679,7 +5679,12 @@
         "label": "Parts of the wishes",
         "users": "Seerr users",
         "settings": "Settings",
-        "requests": "Requests"
+        "requests": "Requests",
+        "openCount_one": "{{count}} open wish",
+        "openCount_other": "{{count}} open wishes",
+        "withoutShort": "{{number}} without",
+        "withoutCount_one": "{{count}} account without a Seerr user",
+        "withoutCount_other": "{{count}} accounts without a Seerr user"
       },
       "strip": {
         "label": "Summary",
@@ -5998,7 +6003,8 @@
           "action_one": "Take over {{count}} request from Seerr",
           "action_other": "Take over {{count}} requests from Seerr",
           "queued_one": "{{count}} request of {{name}} is being taken over.",
-          "queued_other": "{{count}} requests of {{name}} are being taken over."
+          "queued_other": "{{count}} requests of {{name}} are being taken over.",
+          "running": "The requests are being taken over; the count follows after the sync."
         },
         "linkPrivileged": "Link anyway …",
         "privilegedTitle": "Link the Seerr administrator {{name}}?",
@@ -6007,7 +6013,8 @@
         "provisionAllManual_one": "{{count}} account needs a choice by hand.",
         "provisionAllManual_other": "{{count}} accounts need a choice by hand.",
         "waitingChoice": "Waits for a choice by hand",
-        "waitingChoiceTitle": "Waits for your choice"
+        "waitingChoiceTitle": "Waits for your choice",
+        "optionPrivileged": "{{option}} · administers Seerr"
       },
       "limitField": {
         "label": "Limit",
