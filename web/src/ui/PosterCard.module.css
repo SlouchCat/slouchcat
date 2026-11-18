@@ -71,6 +71,10 @@
   cursor: pointer;
 }
 
+.button[aria-disabled='true'] {
+  cursor: default;
+}
+
 /* The chosen card of a row of buttons: a ring in the title's accent inside the frame. */
 .frame::after {
   position: absolute;

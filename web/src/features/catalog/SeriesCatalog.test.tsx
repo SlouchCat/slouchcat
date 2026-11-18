@@ -92,6 +92,13 @@ describe('missing seasons on the series page', () => {
     expect(items[0]).toHaveTextContent(/^Season 1/);
     expect(items[4]).toHaveTextContent(/^Specials/);
     expect(within(wall()).getByText('Fehlt')).toBeInTheDocument();
+    expect(within(wall()).getByRole('button', { name: 'Staffel 4: Angekündigt' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(within(wall()).getByRole('button', { name: 'Staffel 2 anfordern' })).not.toHaveAttribute(
+      'aria-disabled',
+    );
     expect(within(wall()).getByText('Angefordert')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Staffeln anfordern' })).toBeVisible();
 
@@ -161,7 +168,11 @@ describe('missing seasons on the series page', () => {
     });
     renderApp(`/items/${seriesIds.show}`);
     await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
-    expect(within(wall()).getByRole('button', { name: 'Staffel 2: Fehlt' })).toBeVisible();
+    // A season without an action says so and does nothing (UI check 15).
+    const card = within(wall()).getByRole('button', { name: 'Staffel 2: Fehlt' });
+    expect(card).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.setup().click(card);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Staffeln anfordern' })).not.toBeInTheDocument();
   });
 });

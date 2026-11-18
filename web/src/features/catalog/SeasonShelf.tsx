@@ -336,6 +336,9 @@ function MissingSeasonCard({
       label={label}
       dimmed
       tabIndex={-1}
+      // In procurement, announced, or no right: the card stays in the wall's arrow order and says
+      // it has no action, instead of a button that does nothing.
+      aria-disabled={requestable ? undefined : 'true'}
       onPress={requestable ? () => onRequest(season.number) : undefined}
     >
       <span className={styles.missingSeason} data-state={season.state} aria-hidden="true">
