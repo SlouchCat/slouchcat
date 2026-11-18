@@ -412,7 +412,9 @@ test('an account opened in Seerr, a waiting one tried again, the password mode a
 
     // The password mode switches at once, both ways.
     const passwordOff = page.getByRole('button', { name: 'Passwort nicht abgleichen' });
-    await tabTo(page, passwordOff, 10);
+    // From the top when «Erneut versuchen» went with its account: the warning about accounts
+    // without a Seerr user (every such account counts now) adds its link on the way.
+    await tabTo(page, passwordOff, 14);
     await page.keyboard.press('Enter');
     await expect(
       page.getByText(`Das Passwort von ${OWNER.email} wird nicht mehr mit Seerr abgeglichen.`),
