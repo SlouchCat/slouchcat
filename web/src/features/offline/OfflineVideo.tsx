@@ -22,6 +22,7 @@ import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
+import { useVideoWake } from '@/features/player/useVideoWake';
 import {
   AriaButton,
   focusOnMount,
@@ -144,6 +145,8 @@ export function OfflineVideo({
   const { t, i18n } = useTranslation();
   const language = intlLocale(i18n.language);
   const video = media as RefObject<HTMLVideoElement | null>;
+  // Firefox may leave the picture standing after a background tab comes back.
+  useVideoWake(video);
   const {
     panel,
     openPanel,

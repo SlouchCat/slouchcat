@@ -43,6 +43,7 @@ import { StreamInfo } from './StreamInfo';
 import { usePlayerTabs, type PlayerTabId } from './tabs/playerTabs';
 import { usePhoneTap } from './usePhoneTap';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
+import { useVideoWake } from './useVideoWake';
 import { useBoostedVolume } from './useBoostedVolume';
 import { useChapterChoice } from './useChapterChoice';
 import { useControlsVisibility } from './useControlsVisibility';
@@ -362,6 +363,9 @@ export function VideoPlayer({
     enabled: true,
     onProgress,
   });
+
+  // Firefox may leave the picture standing after a background tab comes back.
+  useVideoWake(video);
 
   // A fully buffered title makes no stream request that could answer 401 (concept 13, 11.13).
   usePlaybackStopWatch({
