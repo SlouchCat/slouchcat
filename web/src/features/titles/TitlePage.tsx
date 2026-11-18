@@ -131,6 +131,8 @@ function useOpenWish(wishId: number | undefined) {
       return null;
     },
     enabled: wishId !== undefined,
+    // Up to FIND_PAGES reads: not on every return to the window, only when the wish changed.
+    refetchOnWindowFocus: false,
   });
 }
 
