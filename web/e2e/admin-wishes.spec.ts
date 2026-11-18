@@ -941,8 +941,10 @@ test('profile tags, the take-over and the band of Radarr and Sonarr by keyboard 
     await expect(page.getByText(`${OWNER_PROFILE}: Der Tag heisst jetzt e2e-haupt.`)).toBeVisible();
     await expectFocusOn(page, change);
     await expect(page.getByText('eigener Name')).toBeVisible();
-    // «Zurücksetzen» goes back to the name from the prefix.
+    // «Zurücksetzen» goes back to the name from the prefix. «Ändern» puts the focus into the
+    // field once it shows; Tab starts from there.
     await page.keyboard.press('Enter');
+    await expectFocusOn(page, field);
     const reset = page.getByRole('button', {
       name: `Tag von ${OWNER_PROFILE} auf den Namen aus dem Präfix zurücksetzen`,
     });
