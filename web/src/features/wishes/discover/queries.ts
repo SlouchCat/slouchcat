@@ -5,8 +5,9 @@ import { wishKeys, type ExternalMedia } from '../queries';
 
 // The wishes area «Entdecken», «Filme», «Serien» and «Suche» (concept 25 stage 5). Every list is
 // read through the server, which asks Seerr on behalf of the profile and decides right and age
-// (rule 12); the pages show what it answers. The lists live under `wishKeys.titles`, so a new wish
-// refreshes their marks with the preview pages.
+// (rule 12); the pages show what it answers. The lists live under `wishKeys.discover`: a new wish
+// changes the entry in the cache and marks them stale (useWishSettled), without reading every
+// page again.
 
 export type WishDiscover = components['schemas']['WishDiscover'];
 export type DiscoverRow = components['schemas']['DiscoverRow'];
@@ -16,7 +17,7 @@ export type DiscoverGenreTile = components['schemas']['DiscoverGenreTile'];
 export type DiscoverPage = components['schemas']['DiscoverPage'];
 export type WishTitlesSort = 'popularity' | 'newest' | 'rating';
 
-const discoverKey = [...wishKeys.titles, 'discover'] as const;
+const discoverKey = wishKeys.discover;
 
 /** «Entdecken»: the seven rows with their first page (getWishDiscover). */
 export const wishDiscoverQuery = queryOptions({
@@ -49,6 +50,8 @@ export const wishTitlesQuery = (media: ExternalMedia, query: WishTitlesRequest) 
     initialPageParam: 1,
     getNextPageParam: nextPage,
     staleTime: 60_000,
+    // A refetch reads every page loaded so far: not on a mere return to the window.
+    refetchOnWindowFocus: false,
   });
 
 /** «Suche» over Seerr, page by page (searchWishTitles). */
@@ -60,6 +63,8 @@ export const wishSearchQuery = (q: string) =>
     initialPageParam: 1,
     getNextPageParam: nextPage,
     staleTime: 60_000,
+    // A refetch reads every page loaded so far: not on a mere return to the window.
+    refetchOnWindowFocus: false,
   });
 
 /** The genres of the filter of «Filme» and «Serien» (listWishGenres). */

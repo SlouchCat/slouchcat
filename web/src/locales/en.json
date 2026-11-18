@@ -7319,6 +7319,7 @@
         "upcoming_shows": "Upcoming series"
       },
       "stale": "Seerr cannot be reached. You see the state of the last fetch.",
+      "refreshFailed": "The list could not be updated. You see the state of the last fetch.",
       "empty": "There is nothing to discover here right now.",
       "inLibrary": "In the library",
       "requested": "Already requested",

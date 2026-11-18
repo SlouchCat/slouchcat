@@ -8,7 +8,16 @@ import { useBackFocus } from '@/features/catalog/useBackFocus';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import { Notice, Row, SearchField, Skeleton, SpatialButton, SpatialGroup, SpatialPage } from '@/ui';
+import {
+  Button,
+  Notice,
+  Row,
+  SearchField,
+  Skeleton,
+  SpatialButton,
+  SpatialGroup,
+  SpatialPage,
+} from '@/ui';
 import discover from '@/features/discover/Discover.module.css';
 import type { ExternalTitleRef } from '../queries';
 import { DiscoverCard, useWishRequest } from './DiscoverCard';
@@ -135,6 +144,17 @@ export function DiscoverPage() {
         )}
 
         {stale && <Notice tone="warning" title={t('wishes.discover.stale')} />}
+        {query.isRefetchError && (
+          <Notice
+            tone="warning"
+            title={t('wishes.discover.refreshFailed')}
+            actions={
+              <Button icon="refresh" onPress={() => void query.refetch()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        )}
         {requests.element}
 
         {query.isPending && <Skeleton shape="block" />}

@@ -7319,6 +7319,7 @@
         "upcoming_shows": "Demnächst als Serie"
       },
       "stale": "Seerr ist nicht erreichbar. Du siehst den Stand vom letzten Abruf.",
+      "refreshFailed": "Die Liste konnte nicht aktualisiert werden. Du siehst den Stand vom letzten Abruf.",
       "empty": "Im Moment gibt es hier nichts zu entdecken.",
       "inLibrary": "In der Bibliothek",
       "requested": "Bereits angefordert",

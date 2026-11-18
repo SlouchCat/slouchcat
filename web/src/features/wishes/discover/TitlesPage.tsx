@@ -9,6 +9,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
+  Button,
   ChoiceChips,
   FilterChips,
   Notice,
@@ -251,6 +252,17 @@ function TitlesView({ media, params, onParams }: TitlesViewProps) {
         )}
 
         {stale && <Notice tone="warning" title={t('wishes.discover.stale')} />}
+        {query.isRefetchError && (
+          <Notice
+            tone="warning"
+            title={t('wishes.discover.refreshFailed')}
+            actions={
+              <Button icon="refresh" onPress={() => void query.refetch()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        )}
         {requests.element}
 
         {query.isPending && <Skeleton shape="block" />}

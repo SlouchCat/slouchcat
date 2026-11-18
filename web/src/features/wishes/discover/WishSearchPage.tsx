@@ -8,7 +8,7 @@ import { PageRetry } from '@/features/discover/ItemGrid';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import { Notice, SearchField, Skeleton, SpatialGroup, SpatialPage, useNearEnd } from '@/ui';
+import { Button, Notice, SearchField, Skeleton, SpatialGroup, SpatialPage, useNearEnd } from '@/ui';
 import discover from '@/features/discover/Discover.module.css';
 import { DiscoverCard, useWishRequest } from './DiscoverCard';
 import { DiscoverProblem } from './DiscoverProblem';
@@ -110,6 +110,17 @@ export function WishSearchPage() {
 
         <div className={discover.results} aria-busy={(asked && query.isFetching) || undefined}>
           {requests.element}
+          {asked && query.isRefetchError && (
+            <Notice
+              tone="warning"
+              title={t('wishes.discover.refreshFailed')}
+              actions={
+                <Button icon="refresh" onPress={() => void query.refetch()}>
+                  {t('common.retry')}
+                </Button>
+              }
+            />
+          )}
           {asked && query.isPending && <Skeleton shape="block" />}
           {failed && <DiscoverProblem error={query.error} onRetry={() => void query.refetch()} />}
           {asked && query.isSuccess && entries.length === 0 && !hasNextPage && (
