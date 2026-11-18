@@ -5763,7 +5763,6 @@
         "tvLimit": "Staffeln: Anzahl",
         "tvDays": "Staffeln: Tage",
         "limitRange": "Eine ganze Zahl von {{low}} bis {{high}}.",
-        "limitZero": "Anzahl 0 heisst ohne Limit.",
         "perAccount": "Abweichend je Konto",
         "perAccountHelp": "Unter «Konten» lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
         "toAccounts": "Zu den Konten",
@@ -5810,7 +5809,9 @@
         "rulesSummary": "{{already}} · ohne Seerr-Benutzer: {{unmapped}} · Zurückziehen {{withdraw}}",
         "linksConnection": "Seerr: {{state}}",
         "usersCount_one": "{{opened}} von {{count}} Konto eröffnet",
-        "usersCount_other": "{{opened}} von {{count}} Konten eröffnet"
+        "usersCount_other": "{{opened}} von {{count}} Konten eröffnet",
+        "limitHintCount": "{{low}} bis {{high}}; 0 heisst ohne Limit.",
+        "limitHintDays": "{{low}} bis {{high}} Tage."
       },
       "users": {
         "caption": "Konten und ihre Seerr-Benutzer",

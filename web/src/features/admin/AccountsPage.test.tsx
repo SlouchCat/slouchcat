@@ -1161,4 +1161,33 @@ describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, ()
       wishLimit: { mode: 'unlimited' },
     });
   });
+
+  it('an invitation with a wrong own number stops at the field; a number the server refuses stands there', async () => {
+    const { calls } = mockApi(
+      wishRoutes({
+        'POST /admin/invitations': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'wishLimit.tv.days', code: 'out_of_range' }],
+          }),
+      }),
+    );
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    const invite = await screen.findByRole('button', { name: 'Konto einladen' });
+    await waitFor(() => expect(invite).toBeEnabled());
+    await user.click(invite);
+    const dialog = await screen.findByRole('dialog', { name: 'Konto einladen' });
+    await user.click(await within(dialog).findByRole('radio', { name: 'Eigenes' }));
+    const count = within(dialog).getByLabelText('Filme: Anzahl');
+    await fill(user, count, '500');
+    await user.click(within(dialog).getByRole('button', { name: 'Einladung erstellen' }));
+    // The form's validation stops it: the wrong field says why and takes the focus (m14).
+    await waitFor(() => expect(count).toHaveFocus());
+    expect(count).toHaveAttribute('aria-invalid', 'true');
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+    await fill(user, count, '5');
+    await user.click(within(dialog).getByRole('button', { name: 'Einladung erstellen' }));
+    const days = within(dialog).getByLabelText('Staffeln: Tage');
+    await waitFor(() => expect(days).toHaveAttribute('aria-invalid', 'true'));
+  });
 });

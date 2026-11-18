@@ -5763,7 +5763,6 @@
         "tvLimit": "Seasons: count",
         "tvDays": "Seasons: days",
         "limitRange": "A whole number from {{low}} to {{high}}.",
-        "limitZero": "A count of 0 means no limit.",
         "perAccount": "Different per account",
         "perAccountHelp": "Under “Accounts” the limit of an account can be set differently: its own limit or unlimited.",
         "toAccounts": "To the accounts",
@@ -5810,7 +5809,9 @@
         "rulesSummary": "{{already}} · without a Seerr user: {{unmapped}} · withdrawing {{withdraw}}",
         "linksConnection": "Seerr: {{state}}",
         "usersCount_one": "{{opened}} of {{count}} account opened",
-        "usersCount_other": "{{opened}} of {{count}} accounts opened"
+        "usersCount_other": "{{opened}} of {{count}} accounts opened",
+        "limitHintCount": "{{low}} to {{high}}; 0 means no limit.",
+        "limitHintDays": "{{low}} to {{high}} days."
       },
       "users": {
         "caption": "Accounts and their Seerr users",

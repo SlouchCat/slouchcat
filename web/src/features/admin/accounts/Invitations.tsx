@@ -28,6 +28,7 @@ import {
   type LibraryOption,
 } from '../../shared/useLibraryOptions';
 import {
+  wishLimitFieldNames,
   WishLimitFields,
   wishLimitDraftOf,
   wishLimitRequestOf,
@@ -133,7 +134,10 @@ function InvitationForm({
       await queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey });
     },
   );
-  const errors = create.error ? formErrors(t, create.error) : null;
+  // The server names the numbers `wishLimit.movie.limit` …; the fields are `invitationLimit.…`.
+  const errors = create.error
+    ? formErrors(t, create.error, wishLimitFieldNames('wishLimit.', 'invitationLimit'))
+    : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

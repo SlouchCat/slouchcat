@@ -96,7 +96,9 @@ export const limitSummary = (t: TFunction, limits: WishLimits): string =>
 
 /**
  * The four numbers of a wish limit (N-31): films and seasons, each a count and a period side by
- * side, with the reason under a wrong one. `onBlur` lets a form save when a field is left.
+ * side, each with its bounds below (as LimitFields) and the reason under a wrong one. Native
+ * validation as everywhere in the app: a wrong number stops the form's submit and takes the
+ * focus. `onBlur` lets a form save when a field is left.
  */
 export function WishLimitNumberFields({
   value,
@@ -122,10 +124,15 @@ export function WishLimitNumberFields({
         value={value[key]}
         onChange={(text) => onChange({ ...value, [key]: text })}
         onBlur={onBlur}
+        description={t(
+          key.endsWith('Days')
+            ? 'admin.wishes.settings.limitHintDays'
+            : 'admin.wishes.settings.limitHintCount',
+          { low, high },
+        )}
         validate={(text) =>
           within(text, BOUNDS[key]) ? null : t('admin.wishes.settings.limitRange', { low, high })
         }
-        validationBehavior="aria"
       />
     );
   };
@@ -139,9 +146,6 @@ export function WishLimitNumberFields({
         {field('tvLimit')}
         {field('tvDays')}
       </div>
-      <Text variant="caption" tone="secondary">
-        {t('admin.wishes.settings.limitZero')}
-      </Text>
     </div>
   );
 }
