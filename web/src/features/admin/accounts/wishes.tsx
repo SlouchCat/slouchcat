@@ -1,7 +1,6 @@
 import type { AdminAccount } from '@slouchcat/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { intlLocale } from '@/i18n';
@@ -9,7 +8,7 @@ import { formatDate } from '@/lib/format';
 import { Chip, Icon, Notice, Text, TextLink } from '@/ui';
 import { StatusRegion, Switch, useStatusMessage } from '@/ui/aria';
 import { limitSummary } from '../../shared/WishLimitFields';
-import { accountsQuery, dashboardQuery, wishKeys } from '../queries';
+import { accountsQuery, dashboardQuery, setAccountCanRequest, wishKeys } from '../queries';
 import styles from './Accounts.module.css';
 
 /** The chip of the column «Wünsche»: right and a Seerr user, no right, right without a user. */
@@ -92,13 +91,7 @@ export function AdminWishesBlock({ account }: { account: AdminAccount }) {
   const queryClient = useQueryClient();
   const [message, say] = useStatusMessage();
   const save = useMutation({
-    mutationFn: (canRequest: boolean) =>
-      request(
-        api.PATCH('/admin/accounts/{id}', {
-          params: { path: { id: account.id } },
-          body: { canRequest },
-        }),
-      ),
+    mutationFn: (canRequest: boolean) => setAccountCanRequest(account.id, canRequest),
     onMutate: () => say(null),
     onSuccess: async (_data, canRequest) => {
       await Promise.all([

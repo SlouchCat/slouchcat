@@ -4395,7 +4395,8 @@
         "heading": "Access",
         "save": "Save access",
         "saved": "Access of {{email}} saved.",
-        "adminHint": "An administrator always has rating 18 and all libraries; «Access» exists only for accounts without administration."
+        "adminHint": "An administrator always has rating 18 and all libraries; «Access» exists only for accounts without administration.",
+        "limitRefused": "The access is saved, the wish limit is not: {{reason}}"
       },
       "role": {
         "promote": {
@@ -6070,8 +6071,7 @@
           "created": "Requested",
           "origin": "Origin",
           "seerrUser": "Seerr user",
-          "failReason": "Reason",
-          "library": "Library"
+          "failReason": "Reason"
         },
         "origin": {
           "slouchcat": "Requested in Slouchcat",

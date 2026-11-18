@@ -88,6 +88,7 @@
   gap: var(--sc-space-3);
   min-width: 0;
   padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
 

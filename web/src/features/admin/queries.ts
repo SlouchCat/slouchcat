@@ -1080,6 +1080,10 @@ export const setSeerrPasswordMode = (
     }),
   );
 
+/** «Darf Titel anfordern» of an administrator's account, at once (Konten, block «Wünsche»). */
+export const setAccountCanRequest = (id: number, canRequest: boolean) =>
+  request(api.PATCH('/admin/accounts/{id}', { params: { path: { id } }, body: { canRequest } }));
+
 /** The wish limit of an account (Konten › Zugriff); Slouchcat writes it into the Seerr user. */
 export const setAccountWishLimit = (
   id: number,

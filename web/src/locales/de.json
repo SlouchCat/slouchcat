@@ -4395,7 +4395,8 @@
         "heading": "Zugriff",
         "save": "Zugriff speichern",
         "saved": "Zugriff von {{email}} gespeichert.",
-        "adminHint": "Ein Administrator hat immer die Stufe «ab 18» und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung."
+        "adminHint": "Ein Administrator hat immer die Stufe «ab 18» und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung.",
+        "limitRefused": "Der Zugriff ist gespeichert, das Wunschlimit nicht: {{reason}}"
       },
       "role": {
         "promote": {
@@ -6070,8 +6071,7 @@
           "created": "Angefordert",
           "origin": "Herkunft",
           "seerrUser": "Seerr-Benutzer",
-          "failReason": "Grund",
-          "library": "Bibliothek"
+          "failReason": "Grund"
         },
         "origin": {
           "slouchcat": "In Slouchcat angefordert",

@@ -1,5 +1,5 @@
 import type { AccountAccessUpdate, AdminAccount } from '@slouchcat/api-client';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
@@ -12,12 +12,19 @@ import { LibraryChoice } from '../../shared/LibraryChoice';
 import { LimitFields, limitsOf, limitValues, type LimitValues } from '../../shared/LimitFields';
 import { libraryIdsOf, type LibraryOption } from '../../shared/useLibraryOptions';
 import {
+  wishLimitFieldNames,
   WishLimitFields,
   wishLimitDraftOf,
   wishLimitRequestOf,
   type WishLimitDraft,
 } from '../../shared/WishLimitFields';
-import { setAccountWishLimit, wishSettingsQuery } from '../queries';
+import {
+  accountsQuery,
+  dashboardQuery,
+  setAccountWishLimit,
+  wishKeys,
+  wishSettingsQuery,
+} from '../queries';
 import { RequestRightHint, SeerrUserLine } from './wishes';
 import styles from './Accounts.module.css';
 
@@ -48,6 +55,13 @@ export const accessDraftOf = (account: AdminAccount): AccessDraft => ({
 /** The limit as sent: «Standard» and «Unbegrenzt» carry no numbers, so theirs are no change. */
 const limitKey = (draft: WishLimitDraft | undefined) =>
   draft && JSON.stringify(wishLimitRequestOf(draft));
+
+/** The access went through, the wish limit after it did not: only the limit is still to save. */
+class LimitRefused extends Error {
+  constructor(readonly reason: unknown) {
+    super('wish limit refused');
+  }
+}
 
 /**
  * With «Alle» the checklist does not count: it takes the stored ids, so an access that ends up
@@ -85,6 +99,7 @@ export function AccessForm({
 }) {
   const { t } = useTranslation();
   const ratingSystem = useRatingSystem();
+  const queryClient = useQueryClient();
   const saveButton = useRef<HTMLButtonElement>(null);
   const wishSettings = useQuery(wishSettingsQuery);
   const stored = accessDraftOf(account);
@@ -94,12 +109,30 @@ export function AccessForm({
         api.PATCH('/admin/accounts/{id}', { params: { path: { id: account.id } }, body }),
       );
       if (sent.wishLimit && limitKey(sent.wishLimit) !== limitKey(stored.wishLimit)) {
-        await setAccountWishLimit(account.id, wishLimitRequestOf(sent.wishLimit));
+        try {
+          await setAccountWishLimit(account.id, wishLimitRequestOf(sent.wishLimit));
+        } catch (error) {
+          throw new LimitRefused(error);
+        }
       }
     },
     onSuccess: (_data, { sent }) => onSaved(sent),
+    // The access is stored: the table and the fold-out show it, the draft keeps only the limit.
+    onError: async (error) => {
+      if (!(error instanceof LimitRefused)) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: wishKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+      ]);
+    },
   });
-  const errors = save.error ? formErrors(t, save.error) : null;
+  const limitRefused = save.error instanceof LimitRefused ? save.error.reason : null;
+  const errors = limitRefused
+    ? formErrors(t, limitRefused, wishLimitFieldNames('', 'wishLimit'))
+    : save.error
+      ? formErrors(t, save.error)
+      : null;
   const set = (patch: Partial<AccessDraft>) => {
     if (save.error) save.reset();
     onChange({ ...value, ...patch });
@@ -116,7 +149,8 @@ export function AccessForm({
         libraryIds: value.all ? [] : libraryIdsOf(value.ids),
         // W-8: bandwidth, quality and streams cap every profile of the account.
         limits: limitsOf(value.limits, false),
-        canRequest: value.canRequest,
+        // Only a change: an account the server names no right for keeps the one it has.
+        ...(value.canRequest !== stored.canRequest ? { canRequest: value.canRequest } : {}),
       },
       sent: value,
     });
@@ -130,7 +164,13 @@ export function AccessForm({
       <h3 className={styles.blockTitle}>{t('admin.accounts.access.heading')}</h3>
       <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
         <div className={styles.fields}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          {errors?.form && (
+            <Notice tone="danger">
+              {limitRefused
+                ? t('admin.accounts.access.limitRefused', { reason: errors.form })
+                : errors.form}
+            </Notice>
+          )}
           <div className={styles.columns}>
             <div className={styles.fields}>
               <RadioGroup

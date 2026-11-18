@@ -312,7 +312,6 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
       allLibraries: false,
       libraryIds: [1],
       limits: { maxHeight: 480, maxStreams: 2 },
-      canRequest: false,
     });
     // The draft is spent: «Verwerfen» goes, the focus stays on the save button.
     await waitFor(() =>
@@ -1059,6 +1058,42 @@ describe('admin accounts › wishes (concept 25, M-26)', { timeout: 15_000 }, ()
       movie: { limit: 3, days: 14 },
       tv: { limit: 5, days: 7 },
     });
+  });
+
+  it('a refused limit after a saved access names only the limit, at its field', async () => {
+    let stored = wishGuest;
+    const { calls } = mockApi(
+      wishRoutes({
+        'GET /admin/accounts': () => json([owner, stored]),
+        'PATCH /admin/accounts/7': () => {
+          stored = { ...stored, maxRating: 6 };
+          return new Response(null, { status: 204 });
+        },
+        'PUT /admin/accounts/7/wish-limit': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'movie.days', code: 'out_of_range' }],
+          }),
+      }),
+    );
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
+    const form = within(other).getByRole('region', { name: 'Zugriff von gast@example.test' });
+    await user.click(within(form).getByRole('radio', { name: 'FSK 6' }));
+    await user.click(within(form).getByRole('radio', { name: 'Eigenes' }));
+    await fill(user, within(form).getByLabelText('Filme: Tage'), '30');
+    await user.click(within(form).getByRole('button', { name: 'Zugriff speichern' }));
+    expect(
+      await within(form).findByText(/^Der Zugriff ist gespeichert, das Wunschlimit nicht:/),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(within(form).getByLabelText('Filme: Tage')).toHaveAttribute('aria-invalid', 'true'),
+    );
+    // The access is stored: the PATCH did not carry the unchanged request right.
+    expect(calls.find((call) => call.method === 'PATCH')?.body).not.toHaveProperty('canRequest');
+    await waitFor(() => expect(within(form).getByRole('radio', { name: 'FSK 6' })).toBeChecked());
+    expect(within(form).getByLabelText('Filme: Tage')).toHaveValue('30');
   });
 
   it('an administrator has only the request right, at once; the limit is fixed', async () => {
