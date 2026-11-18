@@ -80,7 +80,7 @@ export function TitlePage() {
   const { media, tmdbId } = route.useParams();
   const id = Number(tmdbId);
   const known = MEDIA.find((entry) => entry === media);
-  if (!known || !Number.isInteger(id) || id < 1) return <TitleMissing />;
+  if (!known || !Number.isSafeInteger(id) || id < 1) return <TitleMissing />;
   // One state (dialogs, notices) per title.
   return <TitleView key={`${known}-${id}`} media={known} tmdbId={id} />;
 }
@@ -94,6 +94,7 @@ function TitleMissing() {
   return (
     <main className={`${itemStyles.detail} ${itemStyles.message}`}>
       <Notice
+        tone="info"
         title={t('titles.notFound.title')}
         actions={
           <ButtonLink href={paths.home} variant="primary">
@@ -107,14 +108,29 @@ function TitleMissing() {
   );
 }
 
-/** The open wish of the profile with its history: «Meine Wünsche» holds it (no single read). */
+/** The pages of «Meine Wünsche» (100 each) read at most to find the open wish. */
+const FIND_PAGES = 5;
+const FIND_LIMIT = 100;
+
+/**
+ * The open wish of the profile with its history: «Meine Wünsche» holds it (listWishes has no
+ * filter by id or title), read page by page until it is found, at most FIND_PAGES pages; null when
+ * it is not among them.
+ */
 function useOpenWish(wishId: number | undefined) {
   const source = wishesSource('open');
   return useQuery({
-    queryKey: [...source.key, 'page', 0, 'wish', wishId],
-    queryFn: ({ signal }) => source.fetch(0, 100, signal),
+    queryKey: [...source.key, 'find', wishId],
+    queryFn: async ({ signal }): Promise<Wish | null> => {
+      for (let page = 0; page < FIND_PAGES; page++) {
+        const read = await source.fetch(page * FIND_LIMIT, FIND_LIMIT, signal);
+        const found = read.items.find((wish) => wish.id === wishId);
+        if (found) return found;
+        if ((page + 1) * FIND_LIMIT >= read.total) break;
+      }
+      return null;
+    },
     enabled: wishId !== undefined,
-    select: (page): Wish | undefined => page.items.find((wish) => wish.id === wishId),
   });
 }
 
@@ -158,7 +174,8 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
   }
 
   if (query.isError || !title) {
-    if (isApiError(query.error, 404)) return <TitleMissing />;
+    // An id the server cannot take (422) is as unknown as one it does not have.
+    if (isApiError(query.error, 404) || isApiError(query.error, 422)) return <TitleMissing />;
     return (
       <main className={`${itemStyles.detail} ${itemStyles.message}`}>
         <Notice
@@ -213,6 +230,7 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
         onPress={() => {
           if (join.isPending) return;
           setDone(null);
+          withdraw.reset();
           join.mutate(
             { media, tmdbId, source: 'detail' },
             {
@@ -241,6 +259,8 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
         icon="plus"
         onPress={() => {
           setDone(null);
+          join.reset();
+          withdraw.reset();
           setRequesting(true);
         }}
       >
@@ -268,9 +288,8 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
             title.originalTitle && title.originalTitle !== title.title ? [title.originalTitle] : []
           }
           facts={
-            <p className={itemStyles.muted}>
-              {facts.join(t('format.separator'))}
-              {facts.length > 0 && ' '}
+            <p className={`${itemStyles.muted} ${styles.facts}`}>
+              {facts.length > 0 && <span>{facts.join(t('format.separator'))}</span>}
               <Chip tone="outline">{t('titles.missing')}</Chip>
             </p>
           }
@@ -307,6 +326,24 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
         />
 
         <DetailBody>
+          {wish && openWish.isPending && (
+            <div className={itemStyles.block}>
+              <Skeleton shape="block" />
+            </div>
+          )}
+          {wish && openWish.isError && (
+            <div className={itemStyles.block}>
+              <Notice
+                tone="danger"
+                title={wishProblemMessage(t, openWish.error)}
+                actions={
+                  <Button icon="refresh" onPress={() => void openWish.refetch()}>
+                    {t('common.retry')}
+                  </Button>
+                }
+              />
+            </div>
+          )}
           {wish && openWish.data && (
             <div className={itemStyles.block}>
               <WishCard
@@ -401,6 +438,7 @@ function TitleView({ media, tmdbId }: { media: ExternalMedia; tmdbId: number }) 
                 const wishId = openWish.data?.id;
                 setWithdrawAsk(false);
                 setDone(null);
+                join.reset();
                 // The card goes with the wish: the focus waits on the big button.
                 setSpatialFocus(REQUEST_KEY);
                 if (wishId !== undefined) withdraw.mutate(wishId);

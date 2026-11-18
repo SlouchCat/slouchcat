@@ -258,6 +258,69 @@ describe('preview page of a title outside the library (concept 25, 5.1)', () => 
     ).toBeVisible();
   });
 
+  it('finds the own wish beyond the first 100 open ones, with a skeleton and a retry (M4)', async () => {
+    let fail = true;
+    let pagesRead = 0;
+    const others = Array.from({ length: 100 }, (_, index) =>
+      wishOf(film, { id: 1000 + index, tmdbId: 5000 + index }),
+    );
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () => json({ ...film, wish: { id: 41, state: 'pending' } }),
+      // The first page holds 100 other open wishes, the second the one of this title.
+      'GET /wishes': () => {
+        if (fail) return problem(503, 'internal');
+        const second = pagesRead++ % 2 === 1;
+        return json({ items: second ? [wishOf(film)] : others, total: 101, counts });
+      },
+    });
+    renderApp('/titles/movie/9001');
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    expect(screen.queryByRole('region', { name: 'Dein Wunsch' })).toBeNull();
+    fail = false;
+    const user = userEvent.setup();
+    await user.click(retry);
+    const card = await screen.findByRole('region', { name: 'Dein Wunsch' });
+    expect(within(card).getByRole('button', { name: 'Zurückziehen' })).toBeVisible();
+  });
+
+  it('clears the notice of a withdrawal when the next request starts (m1)', async () => {
+    let wished = true;
+    mockApi({
+      ...withWishes,
+      'GET /titles/movie/9001': () =>
+        json(wished ? { ...film, wish: { id: 41, state: 'pending' } } : film),
+      'GET /wishes/quota': () => json(film.request.quota),
+      'GET /wishes': () =>
+        json({ items: wished ? [wishOf(film)] : [], total: wished ? 1 : 0, counts }),
+      'DELETE /wishes/41': () => {
+        wished = false;
+        return json(wishOf(film, { state: 'withdrawn' }));
+      },
+    });
+    renderApp('/titles/movie/9001');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Zurückziehen' }));
+    const ask = await screen.findByRole('alertdialog');
+    await user.click(within(ask).getByRole('button', { name: 'Zurückziehen' }));
+    expect(await screen.findByText('Dein Wunsch ist zurückgezogen.')).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Film anfordern' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByText('Dein Wunsch ist zurückgezogen.')).toBeNull();
+  });
+
+  it('says «nicht gefunden» for an id out of range, from the client and on 422 (m3)', async () => {
+    const { calls } = mockApi({
+      ...withWishes,
+      'GET /titles/movie/123': () => problem(422, 'validation_failed'),
+    });
+    renderApp('/titles/movie/1e21');
+    expect(await screen.findByText('Titel nicht gefunden')).toBeVisible();
+    expect(calls.some((call) => call.path.startsWith('/titles/'))).toBe(false);
+    renderApp('/titles/movie/123');
+    await waitFor(() => expect(screen.getAllByText('Titel nicht gefunden')).toHaveLength(2));
+  });
+
   it('opens the library title on 409 already_available and says «nicht gefunden» on 404', async () => {
     mockApi({
       ...withWishes,
