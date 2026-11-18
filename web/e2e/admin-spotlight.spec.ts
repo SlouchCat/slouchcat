@@ -1,5 +1,6 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
+import { refreshSpotlight, traktMockMissing } from './discover';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -10,6 +11,7 @@ import {
 } from './keyboard';
 import { arrowTo } from './playback';
 import { adminEntry, areaTab } from './admin';
+import { closeWishes, openWishes, type WishesSetup } from './wishes';
 
 // /admin/spotlight (M11, ADR 0011; concept 12, variant A, mockup Spo-A) by keyboard (rule 8): the
 // page is reached through the admin navigation; the three bands fold by Enter on their title; in
@@ -52,6 +54,18 @@ async function entryCount(api: APIRequestContext): Promise<number> {
   const response = await api.get('/api/v1/admin/spotlight/entries');
   expect(response.status(), await response.text()).toBe(200);
   return ((await response.json()) as { entries: unknown[] }).entries.length;
+}
+
+interface Entries {
+  entries: { title?: string; posterUrl?: string; wish?: { state: string } }[];
+  missing?: { entries: number; requested: number; unmatched: number; canRequest: boolean };
+}
+
+/** The entries and the counts of the missing ones the server holds (admin API). */
+async function entriesOf(api: APIRequestContext): Promise<Entries> {
+  const response = await api.get('/api/v1/admin/spotlight/entries');
+  expect(response.status(), await response.text()).toBe(200);
+  return (await response.json()) as Entries;
 }
 
 const answer = (page: Page, method: string, path: string) =>
@@ -123,8 +137,9 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     // Tab stop is the next band. Space opens it, Enter folds it, the focus stays on the title.
     const source = region(page, 'Quelle');
     const sourceBand = source.getByRole('button', { name: 'Quelle' });
-    const entriesBand = region(page, 'Einträge der Liste').getByRole('button', {
-      name: 'Einträge der Liste',
+    // Concept 25: «Fehlende Einträge» follows the source, folded as well.
+    const nextBand = region(page, 'Fehlende Einträge').getByRole('button', {
+      name: 'Fehlende Einträge',
     });
     const show = source.getByRole('switch', { name: 'Auf der Startseite zeigen' });
     await tabTo(page, sourceBand, 5);
@@ -132,7 +147,7 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     await expect(show).toBeHidden();
     await expect(source).toContainText(/ · (Nur Filme|Nur Serien|Filme und Serien)/);
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, entriesBand);
+    await expectFocusOn(page, nextBand);
     await page.keyboard.press('Shift+Tab');
     await expectFocusOn(page, sourceBand);
     await page.keyboard.press('Space');
@@ -350,6 +365,178 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
     await restore(owner, settings);
     const reset = await owner.patch(`/api/v1${FILM_PATH}`, { headers: CSRF, data: {} });
     expect([200, 404], await reset.text()).toContain(reset.status());
+  }
+});
+
+// Concept 25 (M-27, N-70..N-72): the Trakt mock's lists with the entries the library lacks
+// (trakt-server.mjs TRAKT_MISSING), the wishes set up against the TMDB and Seerr mocks
+// (e2e/wishes.ts). The band «Fehlende Einträge» folds by keyboard and lists the film and the
+// series the library lacks with their poster in the size of the table; «Anfordern» opens the
+// app's dialog (a series with its seasons) and Escape gives the focus back to its button; a
+// request makes the wish of the active profile. The entry with only a TVDB id TMDB does not know
+// is «Nicht zuordenbar» without an action, and the band «Abgleich» lists it.
+test('missing entries by keyboard: the band, «Anfordern» and its dialog, an unmatched entry @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(150_000);
+  let setup: WishesSetup | undefined;
+  try {
+    setup = await openWishes(owner);
+    await traktMockMissing(true);
+    await refreshSpotlight(owner);
+    await expect
+      .poll(
+        async () => {
+          const held = await entriesOf(owner);
+          return [held.missing?.entries, held.missing?.unmatched];
+        },
+        { timeout: 60_000, intervals: [1000] },
+      )
+      .toEqual([2, 1]);
+    // The missing titles get their poster once titles.refresh stored them (TMDB mock); the fetch
+    // does not queue it, so the test runs it as «Jetzt ausführen» would.
+    const run = await owner.post('/api/v1/admin/job-types/titles.refresh/run', { headers: CSRF });
+    expect(run.ok(), await run.text()).toBe(true);
+    await expect
+      .poll(
+        async () =>
+          (await entriesOf(owner)).entries.find((entry) => entry.title === 'Glasvogel')?.posterUrl,
+        { timeout: 60_000, intervals: [1000] },
+      )
+      .toBeDefined();
+
+    await page.goto('/admin/spotlight');
+    const band = region(page, 'Fehlende Einträge');
+    const toggle = band.getByRole('button', { name: 'Fehlende Einträge', exact: true });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(band).toContainText('2 fehlen · 0 angefordert · 1 nicht zuordenbar');
+    // Space opens the band, Enter folds it, the focus stays on its title.
+    await tabToFromTop(page, toggle);
+    await page.keyboard.press('Space');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expectFocusOn(page, toggle);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expectFocusOn(page, toggle);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    const table = band.getByRole('table', { name: 'Fehlende Einträge' });
+    await expect(table.getByRole('rowheader')).toHaveCount(2);
+    const glass = table
+      .getByRole('row')
+      .filter({ has: page.getByText('Glasvogel', { exact: true }) });
+    // A missing entry shows the title's newest wish. Glasvogel has none in the first run; in a
+    // second one on the same server (the other browser, a retry) the wish admin-wishes or this
+    // test made is still there, closed: its state shows instead (the wishes are never deleted).
+    const earlier = (await entriesOf(owner)).entries.find((entry) => entry.title === 'Glasvogel')
+      ?.wish?.state;
+    const CLOSED: Record<string, string> = {
+      declined: 'Abgelehnt',
+      failed: 'Fehlgeschlagen',
+      withdrawn: 'Zurückgezogen',
+    };
+    await expect(glass).toContainText(
+      earlier === undefined ? 'Noch nicht in der Bibliothek' : CLOSED[earlier],
+    );
+    await expect(glass).toContainText('TMDB 9001 · IMDb tt09001');
+    // The poster of a title outside the library through the admin image route, at table size.
+    const poster = glass.getByRole('rowheader').locator('img');
+    await expect(poster).toHaveAttribute('src', /\/api\/v1\/admin\/titles\/movie\/9001\//);
+    await expect
+      .poll(() => poster.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0);
+    const box = await poster.boundingBox();
+    expect(box?.width).toBeLessThanOrEqual(48);
+    expect(box?.height).toBeLessThanOrEqual(72);
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // «Anfordern» of the film: the dialog, Escape back to the button, then the request.
+    const askGlass = table.getByRole('button', { name: 'Glasvogel anfordern' });
+    await tabTo(page, askGlass, 10);
+    await page.keyboard.press('Enter');
+    const movieDialog = page.getByRole('dialog', { name: 'Film anfordern: Glasvogel' });
+    await expect(movieDialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(movieDialog).toHaveCount(0);
+    await expectFocusOn(page, askGlass);
+
+    // The series offers its seasons from Seerr; Escape returns to its button too.
+    const askFog = table.getByRole('button', { name: 'Nebelhafen anfordern' });
+    await tabTo(page, askFog, 5);
+    await page.keyboard.press('Enter');
+    const showDialog = page.getByRole('dialog', { name: 'Serie anfordern: Nebelhafen' });
+    await expect(showDialog.getByRole('group', { name: 'Staffeln' })).toBeVisible();
+    await expect(
+      showDialog.getByRole('checkbox', { name: /Alle fehlenden Staffeln/ }),
+    ).toBeChecked();
+    await page.keyboard.press('Escape');
+    await expect(showDialog).toHaveCount(0);
+    await expectFocusOn(page, askFog);
+
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, askGlass);
+    await page.keyboard.press('Enter');
+    await expect(movieDialog).toBeVisible();
+    const made = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && response.url().endsWith('/api/v1/wishes'),
+    );
+    await movieDialog.getByRole('button', { name: 'Anfordern', exact: true }).press('Enter');
+    const wish = await made;
+    expect(wish.status()).toBe(201);
+    expect(wish.request().postDataJSON()).toEqual({
+      media: 'movie',
+      tmdbId: 9001,
+      source: 'admin_spotlight',
+    });
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Glasvogel ist angefordert.' }),
+    ).toBeVisible();
+    // The wish's state replaces «Anfordern»; the button is gone, so the h1 holds the focus.
+    await expect(askGlass).toHaveCount(0);
+    await expect(glass).toContainText('Freigabe ausstehend');
+    await expect(band).toContainText('2 fehlen · 1 angefordert · 1 nicht zuordenbar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeFocused();
+
+    // «Einträge der Liste»: the ids of the series, the unmatched entry without an action.
+    await openBand(page, 'Einträge der Liste');
+    const entries = page.getByRole('table', { name: 'Einträge der Liste' });
+    const fog = entries
+      .getByRole('row')
+      .filter({ has: page.getByText('Nebelhafen', { exact: true }) });
+    await expect(fog).toContainText('TMDB 9100 · TVDB 79100 · IMDb tt09100');
+    await expect(fog.getByRole('button', { name: 'Nebelhafen anfordern' })).toBeVisible();
+    const lost = entries
+      .getByRole('row')
+      .filter({ has: page.getByText('Hafen im Nordlicht', { exact: true }) });
+    await expect(lost).toContainText('Nicht zuordenbar');
+    await expect(lost).toContainText('Nur TVDB-ID bekannt, bei TMDB nicht gefunden');
+    await expect(lost).toContainText('Keine Aktion: ohne TMDB-ID nicht anforderbar');
+    await expect(lost.getByRole('button')).toHaveCount(0);
+
+    // «Abgleich über TMDB, TVDB und IMDb» opens by keyboard and lists the unmatched entry.
+    const matching = region(page, 'Abgleich über TMDB, TVDB und IMDb');
+    const matchingToggle = matching.getByRole('button', {
+      name: 'Abgleich über TMDB, TVDB und IMDb',
+      exact: true,
+    });
+    await tabToFromTop(page, matchingToggle);
+    await page.keyboard.press('Enter');
+    await expect(matchingToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      matching.getByRole('table', { name: 'Nicht zuordenbar' }).getByText('Hafen im Nordlicht'),
+    ).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+    await expectNoFocusTrap(page, TAB_MAX);
+  } finally {
+    await traktMockMissing(false);
+    await refreshSpotlight(owner);
+    await expect
+      .poll(async () => (await entriesOf(owner)).entries.length, { timeout: 60_000 })
+      .toBe(MOCK_ENTRIES);
+    await closeWishes(owner, setup);
   }
 });
 

@@ -100,6 +100,13 @@ func newFakeTrakt(t *testing.T) *fakeTrakt {
 	mux.HandleFunc("GET /shows/popular", serve(`[{"title": "Serie B", "ids": {"tmdb": 22}}, {"title": "Serie C", "year": 2001, "ids": {"tmdb": 23}}]`))
 	mux.HandleFunc("GET /movies/boxoffice", serve(`[{"revenue": 9000, "movie": {"title": "Ohne", "ids": {"slug": "ohne"}}},
 		{"revenue": 7000, "movie": {"title": "Film D", "year": 2026, "ids": {"tmdb": 31}}}]`))
+	// Concept 25 N-60, N-62: shows with all three ids, with a TVDB id TMDB knows (81189, the fake
+	// TMDB answers 900), with a TVDB id TMDB does not know, and with an IMDb id alone.
+	mux.HandleFunc("GET /shows/anticipated", serve(`[
+		{"list_count": 9, "show": {"title": "Alle drei", "year": 2015, "ids": {"tmdb": 51, "tvdb": 5101, "imdb": "tt0005101"}}},
+		{"list_count": 8, "show": {"title": "Nur TVDB", "year": 2016, "ids": {"tmdb": null, "tvdb": 81189, "imdb": "tt0005102"}}},
+		{"list_count": 7, "show": {"title": "Unbekannt", "ids": {"tvdb": 777}}},
+		{"list_count": 6, "show": {"title": "Nur IMDb", "ids": {"imdb": "tt0005104"}}}]`))
 	mux.HandleFunc("GET /users/jane-doe/lists/best-ever/items", serve(`[
 		{"rank": 1, "type": "movie", "movie": {"title": "Film L", "year": 2010, "ids": {"tmdb": 41}}},
 		{"rank": 2, "type": "season", "season": {"number": 1, "ids": {"tmdb": 4200}}, "show": {"title": "Serie S", "ids": {"tmdb": 42}}},
@@ -248,6 +255,27 @@ func TestTraktRefresh(t *testing.T) {
 	if got := e.fake.requests(); !slices.Equal(got, []string{"/movies/trending", "/shows/trending"}) {
 		t.Errorf("requests = %v, want the two trending lists only", got)
 	}
+	// The entries the library lacks queue titles.refresh once, under its key (posters for the
+	// administration, 05-spotlight-integration.md section 5); a second fetch adds no job.
+	titlesQueued := func() int {
+		t.Helper()
+		var n int
+		if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`,
+			JobTitlesRefresh, titlesRefreshKey).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := titlesQueued(); n != 1 {
+		t.Errorf("titles.refresh queued %d times after the fetch, want 1", n)
+	}
+	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := titlesQueued(); n != 1 {
+		t.Errorf("titles.refresh queued %d times after a second fetch, want 1", n)
+	}
+	e.fake.forget()
 	first := e.clock.now()
 	st := e.status(t)
 	if !st.Configured || st.ListKey != "trending" || st.Entries != 3 || st.LastError != "" ||
@@ -402,10 +430,18 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	} else if seed, err := lang.Seed(t.Context()); err != nil || seed.Enabled {
 		t.Errorf("metadata.original_language_backfill seed = %+v, %v, want the schedule off", seed, err)
 	}
+	if titles, ok := r.Lookup(JobTitlesRefresh); !ok || !titles.Scheduled() || titles.Run == nil || titles.Handler == nil ||
+		titles.Priority != 7 || titles.Every != 24*time.Hour || titles.StartDelay != nil || titles.Seed != nil {
+		t.Errorf("titles.refresh = %+v, want a daily schedule type at priority 7 with Run and handler (concept 25)", titles)
+	}
+	if catalog, ok := r.Lookup(JobSeriesCatalog); !ok || !catalog.Scheduled() || catalog.Run == nil || catalog.Handler == nil ||
+		catalog.Priority != 7 || catalog.Every != 24*time.Hour || catalog.StartDelay != nil || catalog.Seed != nil {
+		t.Errorf("series.catalog = %+v, want a daily schedule type at priority 7 with Run and handler (concept 25 step 4.1)", catalog)
+	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 13 {
-		t.Errorf("handlers attached = %v, want the twelve metadata types (metadata.ratings_reread since concept 22) with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 15 {
+		t.Errorf("handlers attached = %v, want the fourteen metadata types (metadata.ratings_reread since concept 22, titles.refresh and series.catalog since concept 25) with a handler plus jobs.prune", w.Handlers())
 	}
 }
 
@@ -714,5 +750,66 @@ func TestTraktRefreshUsesLimiter(t *testing.T) {
 	}
 	if gap := at[1].Sub(at[0]); gap < 900*time.Millisecond {
 		t.Errorf("requests %v apart, want about a second", gap)
+	}
+}
+
+// Concept 25 N-60, N-62 (step 3.1): a run keeps the TVDB and IMDb ids Trakt names next to the TMDB
+// id; a show Trakt names by its TVDB id only gets its TMDB id from TMDB's find by external id, and
+// one TMDB does not know is stored as unmatched (tmdb_id NULL) instead of being dropped. A show with
+// an IMDb id alone is skipped as before. Without a TMDB key every such show stays unmatched and the
+// run still succeeds.
+func TestTraktKeepsIDsAndResolvesTVDB(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, key string
+		rows      []string
+		finds     int
+	}{
+		{name: "with tmdb key", key: goodToken, finds: 2, rows: []string{
+			"1 51 5101 tt0005101", "2 900 81189 tt0005102", "3 unmatched 777 -"}},
+		{name: "without tmdb key", key: "", finds: 0, rows: []string{
+			"1 51 5101 tt0005101", "2 unmatched 81189 tt0005102", "3 unmatched 777 -"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newTraktEnv(t, traktTestID, staticKey(tc.key))
+			tm := newFakeTMDB(t)
+			e.svc = New(e.db, e.queue, staticKey(tc.key), t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler),
+				WithBaseURL(tm.srv.URL+"/3", tm.srv.URL+"/t/p"), WithHTTPClient(tm.srv.Client()),
+				WithTrakt(traktTestID, WithTraktBaseURL(e.fake.srv.URL), WithTraktHTTPClient(e.fake.srv.Client()),
+					WithTraktClock(e.clock.now), WithTraktLimiter(ratelimit.New("trakt-test", 1000, 100))))
+			e.configure(t, `list_key = 'anticipated', media = 'show'`)
+			ctx := context.Background()
+			if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
+				t.Fatal(err)
+			}
+			rs, err := e.db.Read.Query(`SELECT position || ' ' || COALESCE(CAST(tmdb_id AS TEXT), 'unmatched') || ' ' ||
+				COALESCE(CAST(tvdb_id AS TEXT), '-') || ' ' || COALESCE(imdb_id, '-')
+				FROM spotlight_entries WHERE list_key = 'anticipated' AND media = 'show' ORDER BY position`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rs.Close()
+			var got []string
+			for rs.Next() {
+				var row string
+				if err := rs.Scan(&row); err != nil {
+					t.Fatal(err)
+				}
+				got = append(got, row)
+			}
+			if err := rs.Err(); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got, tc.rows) {
+				t.Errorf("rows = %v, want %v", got, tc.rows)
+			}
+			if n := tm.count("/3/find/81189") + tm.count("/3/find/777"); n != tc.finds {
+				t.Errorf("find requests = %d, want %d", n, tc.finds)
+			}
+			if st := e.status(t); st.Entries != 3 || st.LastError != "" {
+				t.Errorf("status = %+v, want 3 entries and no error", st)
+			}
+		})
 	}
 }

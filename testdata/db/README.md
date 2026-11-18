@@ -463,3 +463,23 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Ständen). Dann `store.Dump`, kein neuer Pfad ausser `/media/frozen/TV2`.
   `TestFrozenOrdnerMetadatenStateCoversTheStage` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00065RootMetadata` prüft die Migration von diesem Stand aus.
+- `wuensche.sql`: Stand **nach** der letzten Migration von Konzept 25 «Wünsche über Seerr» (00066 bis
+  00081). Erzeugt am 18. November 2026 aus `ordner-metadaten.sql`: Stand eingespielt, mit `store.Open`
+  bis 00081 migriert, dann per SQL nur erfundene Daten (TMDB-Kennungen ab 900001, Adressen unter
+  `example.test`, kein Schlüssel und kein Token; der Hash des Webhooks ist ein Platzhalter): Seerr-
+  Verbindung und Wünsche eingeschaltet (`seerr.url` = `http://seerr.example.test:5055`, ohne
+  API-Schlüssel), vier Seerr-Benutzer (Eigentümer als Admin, genau ein gemeinsamer Benutzer, der eigene
+  Benutzer des Gastkontos mit Kontingenten, ein verschwundener), die Zuordnung beider Konten (verknüpft
+  und angelegt), ein eigenes Limit des Gastkontos, Wunschrechte für Gastkonto, Profil «Original» und
+  «Gast» sowie eine Einladung mit eigenem Limit, drei Zeilen im Seerr-Protokoll, vier Titel ausserhalb
+  der Bibliothek in `external_titles` mit Texten und einem skalierten Bild, acht Wünsche in allen acht
+  Zuständen (eine Serie teilweise da mit Staffel 1 verfügbar und Staffel 2 in Arbeit, die «Slouchcat
+  Test Download Show» verfügbar am Bibliothekstitel, ein Wunsch aus Seerr, ein Fehlschlag wegen
+  Kontingent), Anfragende mit Besitzer und Mitwünschenden, Ereignisse, Benachrichtigungen der fünf
+  Wunscharten und zwei Zustellungen, vier Spotlight-Einträge (TMDB, nur TVDB, mit IMDb), der
+  Serienkatalog der «Slouchcat Test Download Show», Profil-Tags (einer eigen) und Wunsch-Tags in drei
+  Zuständen, Fortschritt von Radarr und Sonarr, eine zwischengespeicherte Entdecken-Seite, die
+  Startseitenreihe «wishes» (von 00079) und ein Webhook der Art `seerr` mit einem Ereignis (Stichtag
+  17. November 2026, 12:00 UTC, in der Zählung der früheren Stände). Dann `store.Dump`, kein neuer Pfad
+  im Stand. `TestFrozenWuenscheStateCoversTheConcept` prüft, dass jede dieser Datenarten nach den
+  späteren Migrationen vorhanden ist, und zählt die Zeilen der Wunschtabellen.

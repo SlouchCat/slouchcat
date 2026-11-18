@@ -144,13 +144,15 @@ type Service struct {
 	keys   KeySource
 	cache  paths.Root
 	cacheE error // set when cacheDir is not usable as a root
-	runner transcode.Runner
-	log    *slog.Logger
-	client *Client
-	tmdb   *tmdbProvider
-	tvdb   *tvdbProvider
-	fanart *fanartProvider // Fanart.tv, the last image source (fanart.go)
-	now    func() time.Time
+	// externalImageCap bounds the images of titles outside the library (external_image_cache.go).
+	externalImageCap int64
+	runner           transcode.Runner
+	log              *slog.Logger
+	client           *Client
+	tmdb             *tmdbProvider
+	tvdb             *tvdbProvider
+	fanart           *fanartProvider // Fanart.tv, the last image source (fanart.go)
+	now              func() time.Time
 
 	anilist    *aniListProvider // AniList, a filler (ADR 0015; anilist.go)
 	animeLists *animeLists      // the mapping list of Fribb (anime_lists.go)
@@ -174,6 +176,10 @@ type Service struct {
 	podcastStates func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error)
 	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
 	relink func(ctx context.Context, itemID string) (bool, error)
+	// wishTitles names the titles the wishes hold (titles.refresh, WithWishTitles); nil: none.
+	wishTitles WishTitles
+	// matched hears of a film or series whose provider ids the match wrote (Service.WithMatched).
+	matched func(ctx context.Context, m MatchedTitle)
 
 	trakt traktConfig // Trakt lists (trakt.go)
 
@@ -187,6 +193,10 @@ type Service struct {
 
 	imageMu    sync.Mutex
 	imageLocks map[string]*imageLock // the image writers per title at work (lockItemImages)
+
+	externalMu     sync.Mutex
+	externalMisses map[string]time.Time // titles and images outside the library TMDB refused (external_titles.go)
+	externalSearch externalSearchCache  // raw TMDB hits of the search for missing titles (external_search.go)
 
 	feeds feedFetcher // podcast feeds (podcast.go)
 
@@ -220,6 +230,7 @@ type options struct {
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
 	relink      func(ctx context.Context, itemID string) (bool, error)
+	wishTitles  WishTitles
 	// podcastFetched: see WithPodcastFetched; podcastChanged, podcastSavable: WithPodcastSettingHooks.
 	podcastFetched func(ctx context.Context, podcastID string, newIDs []string) error
 	// podcastChecked: see WithPodcastChecked.
@@ -350,6 +361,31 @@ func WithRelink(fn func(ctx context.Context, itemID string) (bool, error)) Optio
 	return func(o *options) { o.relink = fn }
 }
 
+// MatchedTitle is a film or series of the library after its match: the provider ids it carries
+// now (0 and "" unknown). Kind is movie or series.
+type MatchedTitle struct {
+	ItemID string
+	Kind   string
+	TMDBID int64
+	TVDBID int64
+	IMDBID string
+}
+
+// WithMatched sets the hook a match calls once the provider ids of a film or series are written:
+// after the relink hook found no twin (also when the relink is skipped), for a series after its
+// seasons (concept 25, architecture 11: package wishes reconciles its wishes with the library).
+// A title with a twin gets no call; the twin's match makes it. The hook must not fail the match:
+// it logs its own errors. Set it before the workers start.
+func (s *Service) WithMatched(fn func(ctx context.Context, m MatchedTitle)) { s.matched = fn }
+
+// matchedHook calls the hook of WithMatched with the written ids of item.
+func (s *Service) matchedHook(ctx context.Context, item systemq.Item) {
+	if s.matched == nil {
+		return
+	}
+	s.matched(ctx, MatchedTitle{ItemID: item.ID, Kind: item.Kind, TMDBID: item.TmdbID.Int64, TVDBID: item.TvdbID.Int64, IMDBID: item.ImdbID.String})
+}
+
 // WithAudioSeriesRelink sets the function a book match calls inside its transaction after it wrote
 // the fields of a book (library.RelinkAudioSeries, concept 19 D4.4: a series name or author from a
 // source moves the book to the series of its new key). Without it no book is relinked.
@@ -403,13 +439,15 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		keys:   keys,
 		cache:  root,
 		cacheE: err,
-		runner: runner,
-		log:    log,
-		client: client,
-		tmdb:   &tmdbProvider{client: client, keys: keys},
-		tvdb:   tvdb,
-		fanart: fanart,
-		now:    o.now,
+
+		externalImageCap: ExternalImageCacheBytes,
+		runner:           runner,
+		log:              log,
+		client:           client,
+		tmdb:             &tmdbProvider{client: client, keys: keys},
+		tvdb:             tvdb,
+		fanart:           fanart,
+		now:              o.now,
 
 		anilist:    newAniListProvider(o.anilistBase, o.anilistImgs, o.http, o.anilistOn, log),
 		animeLists: newAnimeLists(o.animeLists, o.animeHTTP, root, o.now, log),
@@ -425,6 +463,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		podcastSavable:  o.podcastSavable,
 		podcastStates:   o.podcastStates,
 		relink:          o.relink,
+		wishTitles:      o.wishTitles,
 		relinkSeries:    o.relinkSeries,
 		authorDisplay:   o.authorDisplay,
 		trakt:           newTraktConfig(o.traktID, o.trakt, o.now, o.feedAgent),
@@ -498,7 +537,11 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // people.details (an event type with a time window of its own) fetches the facts of the person
 // page from TMDB (people_details.go, concept 21 P-8). metadata.ratings_reread (an event type,
 // ratings_reread.go, concept 22 section 4.11) reads the ratings anew once after the update and
-// after every change of the rating country.
+// after every change of the rating country. titles.refresh (a schedule type, daily, priority 7)
+// fetches the titles outside the library again that are older than ExternalTitleMaxAge
+// (external_titles.go, concept 25). series.catalog (a schedule type, daily, priority 7; the run of
+// one series is queued at priority 4 by QueueSeriesCatalog) stores the seasons of the series of the
+// library at TMDB (series_catalog.go, concept 25 step 4.1).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
@@ -535,6 +578,14 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobTraktRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: traktPriority, Handler: s.handleTraktRefresh, Run: s.runTrakt, Every: traktDefaultInterval, Seed: s.traktSeed,
+	})
+	r.Register(jobs.Type{
+		Name: JobTitlesRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: titlesRefreshPriority, Handler: s.handleTitlesRefresh, Run: s.runTitlesRefresh, Every: titlesRefreshEvery,
+	})
+	r.Register(jobs.Type{
+		Name: JobSeriesCatalog, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: seriesCatalogPriority, Handler: s.handleSeriesCatalog, Run: s.runSeriesCatalog, Every: seriesCatalogEvery,
 	})
 }
 

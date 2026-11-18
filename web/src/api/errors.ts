@@ -103,7 +103,53 @@ const problemKeys = {
   files_not_deletable: 'errors.code.files_not_deletable',
   deleting: 'errors.code.deleting',
   changed: 'errors.code.changed',
+  // Seerr (concept 25, contract 1.41.0): another host needs the key again, no address or key yet,
+  // no other instance waits for a decision.
+  seerr_key_required: 'errors.code.seerr_key_required',
+  seerr_not_configured: 'errors.code.seerr_not_configured',
+  instance_unchanged: 'errors.code.instance_unchanged',
+  // The wishes (concept 25): «Wünsche aktiv» before a passed test, a Seerr user taken meanwhile.
+  seerr_not_tested: 'errors.code.seerr_not_tested',
+  seerr_user_taken: 'errors.code.seerr_user_taken',
+  // Opening accounts in Seerr while «Neue Konten in Seerr eröffnen» is off, the password of a
+  // Seerr administrator or an outside sign-in, the right of a profile above its account's.
+  provision_disabled: 'errors.code.provision_disabled',
+  password_not_syncable: 'errors.code.password_not_syncable',
+  account_not_allowed: 'errors.code.account_not_allowed',
+  // Requesting a title (concept 25 stage 2): no right (the reason says which, see
+  // problemMessage), the limit, the title arrived in the library meanwhile, a wish past its
+  // approval, Seerr out of reach.
+  wish_not_allowed: 'errors.code.wish_not_allowed',
+  quota_exceeded: 'errors.code.quota_exceeded',
+  already_available: 'errors.code.already_available',
+  wish_not_withdrawable: 'errors.code.wish_not_withdrawable',
+  seerr_unreachable: 'errors.code.seerr_unreachable',
+  wish_not_retryable: 'errors.code.wish_not_retryable',
+  // The administration of the wishes (concept 25 stage 4): a choice Seerr made meanwhile, Seerr's
+  // error, another instance waiting for a decision, the tag name of another profile.
+  wish_not_pending: 'errors.code.wish_not_pending',
+  seerr_failed: 'errors.code.seerr_failed',
+  seerr_instance_changed: 'errors.code.seerr_instance_changed',
+  tag_name_taken: 'errors.code.tag_name_taken',
 } as const;
+
+/** The reasons of `wish_not_allowed` (createWish, withdrawWish), each with its own sentence. */
+const WISH_REASONS = [
+  'disabled',
+  'account_not_allowed',
+  'profile_not_allowed',
+  'no_mapping',
+  'seerr_user_gone',
+  'movies_not_allowed',
+  'shows_not_allowed',
+  'source_not_allowed',
+  'tvdb_id_missing',
+  'status_only',
+  'withdraw_disabled',
+] as const;
+
+const isWishReason = (reason: unknown): reason is (typeof WISH_REASONS)[number] =>
+  WISH_REASONS.some((known) => known === reason);
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
 const fieldKeys = {
@@ -157,6 +203,8 @@ const fieldKeys = {
   // only an own station has.
   local_address: 'errors.field.local_address',
   not_own: 'errors.field.not_own',
+  // The address of Seerr (concept 25): http or https without user info, query or fragment.
+  seerr_url_invalid: 'errors.field.seerr_url_invalid',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>
@@ -170,6 +218,11 @@ export function problemMessage(t: TFunction, error: unknown): string {
   const playing = error.problem?.playingProfiles ?? [];
   if (code === 'playing' && playing.length > 0) {
     return t('errors.code.playing_named', { names: playing.join(t('format.listSeparator')) });
+  }
+  // `wish_not_allowed` says why (WishProblem.reason).
+  const reason = (error.problem as { reason?: unknown } | null)?.reason;
+  if (code === 'wish_not_allowed' && isWishReason(reason)) {
+    return t(`wishes.reason.${reason}`);
   }
   return has(problemKeys, code) ? t(problemKeys[code]) : t('errors.code.unknown');
 }
@@ -201,6 +254,8 @@ const fieldOfCode: Record<string, string> = {
   passphrase_required: 'passphrase',
   passphrase_too_short: 'passphrase',
   passphrase_wrong: 'passphrase',
+  // The connection to Seerr: a new host needs the key again (concept 25).
+  seerr_key_required: 'apiKey',
 };
 
 export interface FormErrors {

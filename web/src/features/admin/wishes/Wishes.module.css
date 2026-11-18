@@ -1,0 +1,224 @@
+/* Medien › Wünsche (concept 25): what AdminPage, Tabs, BandPanel and DataTable do not lay out
+   themselves. The cells and the fold-out of the table «Seerr-Benutzer» as on «Konten», the limit
+   fields of «Einstellungen». */
+
+.tabBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+.secondary {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A name or a password state in a row: one line (S-5); the whole text is in the fold-out. As
+   narrow as on «Konten», so the table fits beside the sidebar at desktop width. */
+.clip {
+  display: block;
+  overflow: hidden;
+  max-width: 10rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A chip in a cell may take two lines instead of widening its column, as on «Konten»: with a
+   wider font (CI, other languages) one long chip would push the table past its frame. */
+.wrapChip > * {
+  padding-block: var(--sc-space-1);
+  line-height: var(--sc-font-line-height-snug);
+  white-space: normal;
+}
+
+/* An e-mail address or a Seerr user's name in a cell breaks anywhere rather than widen its
+   column. */
+.breakable {
+  overflow-wrap: anywhere;
+}
+
+/* The frame of a table with fold-outs, as on «Konten»: the fold-outs measure themselves against
+   it, and its headers wrap between words so the title column keeps its room. */
+.tableFrame {
+  container-type: inline-size;
+}
+
+.tableFrame th {
+  white-space: normal;
+}
+
+/* The line above the table: what applies to new accounts, the shared user, the reload. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+}
+
+.bar > :last-child {
+  margin-inline-start: auto;
+}
+
+/* The fold-out of a row, as on «Konten». It never widens the table (contain) and is never wider
+   than the table's frame: on a phone, where the table scrolls sideways, it stays on the screen and
+   in view while the row scrolls (sticky). */
+.detail {
+  position: sticky;
+  inset-inline-start: var(--sc-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  max-width: calc(100cqi - var(--sc-space-8) - 2px);
+  contain: inline-size;
+}
+
+.factStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-frame);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* The actions of the account's Seerr user on one line; narrow, they wrap. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* «Wünsche aktiv» before a passed test: the lock and the reason, not paleness (rule 1.3). */
+.locked {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+}
+
+/* A locked action's reason under it: the lock and the words, with the link to the setting. */
+.lockedLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The shared user and its limit state in the line above the table. */
+.sharedLine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* «Limit ab Werk»: films and seasons, each a count and a period side by side. */
+.limits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+/* «Anfragen»: the history of a wish in its fold-out, time and step side by side. */
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+}
+
+/* «Freigeben» and «Ablehnen» at the end of a row of «Anfragen»: side by side, wrapping when the
+   column is narrow. */
+.rowActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+/* The kind or the seasons below a wish's title: in the row header's button, yet not bold. */
+.subline {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+/* The profiles of an account with their tag names (stage 4): one line each, the field below. */
+.profiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.profileName {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.tagForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 28rem;
+}
+
+/* «n von m Wünschen gezeigt» beside «Weitere laden», as below the episodes of a podcast. */
+.summary {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

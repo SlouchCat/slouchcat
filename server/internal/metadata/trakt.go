@@ -272,6 +272,8 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+	} else if err := s.resolveTVDBOnly(ctx, entries); err != nil {
+		return err
 	}
 	ms := attempt.UnixMilli()
 	stamp := strconv.FormatInt(ms, 10)
@@ -290,8 +292,9 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 		}
 		for _, e := range entries {
 			if err := q.SpotlightInsertEntry(ctx, systemq.SpotlightInsertEntryParams{
-				ListKey: cfg.ListKey, Media: e.Media, Position: int64(e.Position), TmdbID: e.TMDBID,
-				Title: nullStr(e.Title), Year: positive(int64(e.Year)), Now: ms,
+				ListKey: cfg.ListKey, Media: e.Media, Position: int64(e.Position), TmdbID: positive(e.TMDBID),
+				TvdbID: positive(e.TVDBID), ImdbID: nullStr(e.IMDBID), Title: nullStr(e.Title),
+				Year: positive(int64(e.Year)), Now: ms,
 			}); err != nil {
 				return fmt.Errorf("store spotlight entry: %w", err)
 			}
@@ -314,6 +317,57 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 	}
 	s.log.InfoContext(ctx, "spotlight list refreshed", "list", spotlightListLabel(ref), "entries", len(entries),
 		"duration", s.trakt.now().Sub(attempt))
+	s.queueSpotlightTitles(ctx)
+	return nil
+}
+
+// queueSpotlightTitles queues titles.refresh once (under its key) when the list has missing
+// entries whose title is not stored yet, so the administration shows their posters without
+// waiting for the daily run (05-spotlight-integration.md section 5). A failure is only logged: the
+// daily run fetches them anyway.
+func (s *Service) queueSpotlightTitles(ctx context.Context) {
+	missing, err := systemq.New(s.db.Read).ListSpotlightTitlesToStore(ctx)
+	if err != nil || len(missing) == 0 || s.queue == nil {
+		if err != nil {
+			s.log.WarnContext(ctx, "spotlight titles to store not read", "err", err)
+		}
+		return
+	}
+	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTitlesRefresh, Priority: titlesRefreshPriority, IdempotencyKey: titlesRefreshKey}); err != nil {
+		s.log.WarnContext(ctx, "titles of the spotlight list not queued", "err", err)
+	}
+}
+
+// resolveTVDBOnly sets the TMDB id of every show Trakt names by its TVDB id only, through TMDB's
+// find by external id (concept 25 N-62). A show TMDB does not know keeps TMDB id 0 and is stored
+// as unmatched (tmdb_id NULL). The first failed lookup (no TMDB key, TMDB unreachable) ends the
+// lookups of this run: the remaining shows stay unmatched until the next run, which keeps the
+// refresh from waiting on a hundred failing requests. Only a context error is returned.
+func (s *Service) resolveTVDBOnly(ctx context.Context, entries []trakt.Entry) error {
+	unmatched := 0
+	var lookupErr error
+	for i := range entries {
+		e := &entries[i]
+		if e.TMDBID != 0 || e.Media != trakt.MediaShow || e.TVDBID == 0 {
+			continue
+		}
+		if lookupErr == nil {
+			e.TMDBID, lookupErr = s.tmdbIDOfTVDB(ctx, e.TVDBID)
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		}
+		if e.TMDBID == 0 {
+			unmatched++
+		}
+	}
+	if lookupErr != nil {
+		s.log.WarnContext(ctx, "spotlight: tmdb lookup of tvdb ids failed; entries stay unmatched",
+			"component", "trakt", "err", lookupErr)
+	}
+	if unmatched > 0 {
+		s.log.InfoContext(ctx, "spotlight entries without tmdb id", "component", "trakt", "unmatched", unmatched)
+	}
 	return nil
 }
 

@@ -53,7 +53,10 @@
       "other": "Ekstra profil",
       "primary": "Hovedprofil",
       "admin": "Serveradministrator"
-    }
+    },
+    "wishes": "Ønsker",
+    "wishesLabel_one": "{{name}}, {{count}} åbent ønske",
+    "wishesLabel_other": "{{name}}, {{count}} åbne ønsker"
   },
   "system": {
     "server": {
@@ -226,7 +229,25 @@
       "deleting": "Slettes lige nu.",
       "changed": "Noget er ændret i mellemtiden. Kontrollér igen.",
       "stale": "Biblioteket er i mellemtiden blevet ændret et andet sted. Indlæs det igen, og gem endnu en gang.",
-      "root_unlisted": "En mappe i biblioteket mangler i anmodningen. Indlæs biblioteket igen; der er ikke fjernet noget."
+      "root_unlisted": "En mappe i biblioteket mangler i anmodningen. Indlæs biblioteket igen; der er ikke fjernet noget.",
+      "seerr_key_required": "En adresse på en anden maskine kræver API-nøglen igen: den gemte nøgle sendes aldrig til en anden adresse.",
+      "seerr_not_configured": "Angiv først adressen og API-nøglen til Seerr.",
+      "instance_unchanged": "Ingen anden Seerr-instans venter på en beslutning.",
+      "seerr_not_tested": "Ønsker kan først slås til, når den gemte forbindelse er testet med succes.",
+      "seerr_user_taken": "Denne Seerr-bruger tilhører allerede en anden konto, er den delte bruger eller findes ikke i Seerr.",
+      "provision_disabled": "»Opret nye konti i Seerr« er slået fra. Slå det til under Ønsker › Indstillinger.",
+      "password_not_syncable": "Slouchcat synkroniserer ikke adgangskoden til denne Seerr-bruger: Brugeren er administrator i Seerr eller logger ind via Jellyfin, Emby eller Plex.",
+      "account_not_allowed": "Kontoen må ikke anmode om titler. En administrator giver tilladelsen under Konti.",
+      "wish_not_allowed": "Denne profil kan ikke anmode om titler.",
+      "quota_exceeded": "Grænsen tillader det ikke.",
+      "already_available": "Titlen findes allerede i biblioteket.",
+      "wish_not_withdrawable": "Ønsket er allerede godkendt og kan ikke længere trækkes tilbage.",
+      "seerr_unreachable": "Seerr kan ikke nås lige nu.",
+      "wish_not_retryable": "Dette ønske kan ikke forsøges igen.",
+      "wish_not_pending": "Allerede afgjort: Dette ønske venter ikke længere på godkendelse i Seerr. Synkroniseringen henter den nye status.",
+      "seerr_failed": "Seerr svarede med en fejl.",
+      "seerr_instance_changed": "En anden Seerr-instans venter på din beslutning under Integrationer › Seerr.",
+      "tag_name_taken": "En anden profil bruger allerede dette tagnavn."
     },
     "field": {
       "required": "Skal udfyldes.",
@@ -257,7 +278,8 @@
       "local_address": "Adressen ligger i det lokale netværk. Egne stationer skal også kunne nås fra internettet.",
       "not_own": "Det kan kun ændres på egne stationer.",
       "not_matched": "Denne lydbog er ikke knyttet til en kilde.",
-      "not_found": "Kilden har ingen sådan post."
+      "not_found": "Kilden har ingen sådan post.",
+      "seerr_url_invalid": "Angiv en adresse med http:// eller https://, uden bruger, adgangskode, forespørgsel eller anker."
     }
   },
   "setup": {
@@ -653,7 +675,8 @@
       "released": "Nyligt udgivet",
       "libraries": "Mine medier",
       "library": "Nyt i {{library}}",
-      "radio": "Mine stationer"
+      "radio": "Mine stationer",
+      "wishes": "Opfyldte ønsker"
     },
     "remaining": "{{time}} tilbage",
     "continue": {
@@ -796,7 +819,22 @@
     "seasons": "Sæsoner",
     "seasonWall": {
       "showAll": "Vis alle {{total}} sæsoner",
-      "showLess": "Vis færre"
+      "showLess": "Vis færre",
+      "season": "Sæson {{number}}",
+      "present_one": "{{present}} af {{count}} sæson tilgængelig",
+      "present_other": "{{present}} af {{count}} sæsoner tilgængelige",
+      "next": "Kører stadig, næste afsnit den {{date}}",
+      "running": "Kører stadig",
+      "state": {
+        "missing": "Mangler",
+        "requested": "Anmodet",
+        "processing": "Hentes",
+        "announced": "Annonceret"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "Anmod om {{title}}",
+      "cardJoin": "{{title}}: allerede anmodet, tilslut dig",
+      "request": "Anmod om sæsoner"
     },
     "episodes": {
       "title": "Afsnit",
@@ -3196,7 +3234,8 @@
         "genres": "De synlige titlers genrer.",
         "libraries": "Felter til de biblioteker, profilen ser, til radio og, når de vises, til samlinger og brugeranbefalinger; siden »Mine medier« bestemmer rækkefølge og skjulning.",
         "library": "De titler, der senest er kommet ind i dette bibliotek; »Vis alle« åbner biblioteket sorteret efter »Senest tilføjet«.",
-        "radio": "Profilens favoritstationer som felter; kører en station netop nu via serveren, vises dens aktuelle titel. Uden favoritter udelades rækken."
+        "radio": "Profilens favoritstationer som felter; kører en station netop nu via serveren, vises dens aktuelle titel. Uden favoritter udelades rækken.",
+        "wishes": "Profilens ønsker, der er opfyldt inden for de seneste 14 dage, altså titler i biblioteket. Åbne ønsker findes under »Ønsker › Mine ønsker«. En tom række vises ikke."
       },
       "pageLink": "Gå til »{{page}}«",
       "moved": "{{row}} står nu på plads {{position}}. Gem, for at det gælder.",
@@ -3303,6 +3342,9 @@
         "quoted": "»{{note}}«",
         "none": "–",
         "notInLibrary": "Ikke i biblioteket, vises ikke på startsiden",
+        "unmatched": "Ingen match",
+        "unmatchedReason": "Kun TVDB-id'et er kendt, TMDB finder den ikke",
+        "noAction": "Ingen handling: uden TMDB-id kan den ikke anmodes",
         "hide": "Skjul",
         "hideLabel": "Skjul {{title}}",
         "show": "Vis",
@@ -3311,6 +3353,65 @@
         "shown": "{{title}} vises igen.",
         "count_one": "{{count}} post",
         "count_other": "{{count}} poster"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Fundet i biblioteket via TVDB-id",
+          "tmdb": "Fundet i biblioteket via TMDB-id",
+          "imdb": "Fundet i biblioteket via IMDb-id"
+        }
+      },
+      "request": {
+        "action": "Anmod",
+        "label": "Anmod om {{title}}",
+        "done": "Der er anmodet om {{title}}.",
+        "joined": "Der var allerede anmodet om {{title}}. Din profil har sluttet sig til ønsket.",
+        "available": "{{title}} findes nu i biblioteket."
+      },
+      "lacking": {
+        "title": "Manglende poster",
+        "missing_one": "{{count}} mangler",
+        "missing_other": "{{count}} mangler",
+        "requested_one": "{{count}} anmodet",
+        "requested_other": "{{count}} anmodet",
+        "unmatched_one": "{{count}} uden match",
+        "unmatched_other": "{{count}} uden match",
+        "intro": "Startsiden og Spotlight-listen viser kun titler fra biblioteket. Poster, der mangler, kan kun du se her i administrationen. Profiler anmoder om manglende titler under »Ønsker«.",
+        "asProfile": "»Anmod« handler som den aktive profil ({{name}}).",
+        "noRequestChip": "Anmodning er ikke mulig",
+        "noRequest": {
+          "title": "Anmodning virker først, når ønsker er sat op.",
+          "body": "Det kræver Seerr med adresse og nøgle, slået til, samt »Ønsker aktiveret«.",
+          "settings": "Til indstillingerne for ønsker",
+          "connection": "Til forbindelsen til Seerr"
+        },
+        "empty": "Alle poster på listen findes i biblioteket."
+      },
+      "matching": {
+        "title": "Genkendelse via TMDB, TVDB og IMDb",
+        "hits_one": "{{count}} i biblioteket",
+        "hits_other": "{{count}} i biblioteket",
+        "intro": "Slouchcat matcher film via TMDB og derefter IMDb. Serier som biblioteket: først TVDB, så TMDB, så IMDb. Seerr fører hver titel via TMDB-id'et og giver for serier TVDB-id'et videre til Sonarr.",
+        "waysTitle": "Genkendt via",
+        "way": {
+          "movie": {
+            "tmdb": "Film via TMDB-id",
+            "imdb": "Film via IMDb-id"
+          },
+          "show": {
+            "tvdb": "Serier via TVDB-id",
+            "tmdb": "Serier via TMDB-id",
+            "imdb": "Serier via IMDb-id"
+          }
+        },
+        "noHits": "Ingen post findes i biblioteket.",
+        "unmatchedTitle": "Ingen match",
+        "allMatched": "Alle poster kunne matches.",
+        "unmatchedNote": "Uden TMDB-id kan en post ikke anmodes. Den tæller hverken som til stede eller som manglende."
       },
       "pin": {
         "action": "Fastgør",
@@ -3465,6 +3566,9 @@
       },
       "server": {
         "title": "Server"
+      },
+      "wishes": {
+        "title": "Ønsker"
       }
     },
     "server": {
@@ -3715,6 +3819,50 @@
         "hanging_one": "En montering svarer ikke længere: {{count}} oplistning hænger fast i kernen og kan ikke afbrydes. Mappebrowseren arbejder videre, men med færre pladser. En genstart frigiver dem.",
         "hanging_other": "En montering svarer ikke længere: {{count}} oplistninger hænger fast i kernen og kan ikke afbrydes. Mappebrowseren arbejder videre, men med færre pladser. En genstart frigiver dem.",
         "off": "Alle pladser i mappebrowseren hænger på en montering, der ikke svarer længere. Ingen mappe kan gennemses, før serveren genstarter; at skrive stier manuelt virker stadig."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr kan ikke nås",
+          "key_invalid": "Seerr afviser API-nøglen",
+          "instance_changed": "En anden Seerr-instans er opdaget"
+        },
+        "seerrStateBody": {
+          "unreachable": "Nye ønsker venter og sendes, så snart Seerr svarer igen.",
+          "key_invalid": "Slouchcat sender ingen ønsker og synkroniserer intet, før nøglen er rigtig.",
+          "instance_changed": "Afsendelse og synkronisering står stille, til du bekræfter eller sletter tildelingen."
+        },
+        "toConnection": "Til Integrationer › Seerr",
+        "unmapped_one": "{{count}} konto uden Seerr-bruger",
+        "unmapped_other": "{{count}} konti uden Seerr-bruger",
+        "unmappedFallback": "Indtil da sender de via den delte bruger slouchcat-gaeste.",
+        "unmappedDeny": "Deres profiler ser ingen manglende titler, så længe »Konti uden Seerr-bruger« står på »Tillad ikke«.",
+        "unmappedWaiting": "Kontoerne venter og oprettes ved næste synkronisering.",
+        "toUsers": "Til Seerr-brugerne",
+        "linked": "Nyligt tilknyttet: {{account}} med den eksisterende Seerr-bruger {{name}}",
+        "linkedBody": {
+          "invite": "Da invitationen blev accepteret den {{date}}, fordi e-mailadressen er den samme. Kontoen har selv skrevet adressen, og ingen har kontrolleret den.",
+          "email_change": "Efter at e-mailadressen blev ændret den {{date}}, fordi e-mailadressen er den samme. Kontoen har selv skrevet adressen, og ingen har kontrolleret den."
+        },
+        "toAccount": "Se tilknytningen",
+        "quotaReached": "Grænsen er nået: {{account}}",
+        "quotaNext": "{{used}}, næste plads bliver ledig den {{date}}.",
+        "toLimit": "Se grænsen",
+        "gone_one": "{{count}} konto: bruger slettet i Seerr",
+        "gone_other": "{{count}} konti: bruger slettet i Seerr",
+        "goneBody": "Vælg en anden bruger til disse konti, eller fjern tilknytningen.",
+        "open_one": "{{count}} åbent ønske",
+        "open_other": "{{count}} åbne ønsker",
+        "openQueued_one": "{{count}} af dem venter på at blive sendt til Seerr.",
+        "openQueued_other": "{{count}} af dem venter på at blive sendt til Seerr.",
+        "toRequests": "Til anmodningerne",
+        "stalled_one": "{{count}} download sidder fast",
+        "stalled_other": "{{count}} downloads sidder fast",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Se downloads, der sidder fast",
+        "tagsFailed_one": "{{count}} tag er ikke sat",
+        "tagsFailed_other": "{{count}} tags er ikke sat",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Se manglende tags"
       }
     },
     "integrations": {
@@ -3728,7 +3876,8 @@
         "email": "E-mail",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Opdateringskontrol"
+        "updateCheck": "Opdateringskontrol",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Sat i deploy/.env",
@@ -3760,7 +3909,8 @@
         "email": "Server til notifikationer, invitationer og meddelelser pr. e-mail.",
         "telegram": "Bot til notifikationer via Telegram.",
         "push": "Notifikationer i browseren og i den installerede app.",
-        "server": "Opdateringskontrol, offentlig adresse og grafikchip."
+        "server": "Opdateringskontrol, offentlig adresse og grafikchip.",
+        "seerr": "Giv seernes ønsker videre til Seerr og hold deres status synkroniseret. Konti får en bruger der med samme login."
       },
       "keys": {
         "title": "Udbydernes nøgler",
@@ -3786,7 +3936,8 @@
         "neverSeen": "Har aldrig meldt noget.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Ny integration",
@@ -3831,7 +3982,8 @@
           "acknowledged": "Test kvitteret",
           "ignored": "Uden virkning",
           "outside_roots": "Uden for bibliotekerne",
-          "invalid_payload": "Uden sti"
+          "invalid_payload": "Uden sti",
+          "sync_queued": "Ønsker synkroniseres"
         },
         "renew": {
           "action": "Forny token",
@@ -3979,6 +4131,233 @@
         "checkLabel": "Kontrollér {{name}}",
         "rejected": "afvist",
         "savedRejected": "{{name}} gemt, men udbyderen afviser nøglen."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Forbindelse til Seerr",
+        "version": "Version {{version}}",
+        "lastSuccess": "Sidst nået {{time}}",
+        "state": {
+          "not_configured": "Ikke sat op",
+          "disabled": "Slået fra",
+          "untested": "Ikke testet",
+          "connected": "Forbundet",
+          "key_invalid": "Ugyldig nøgle",
+          "unreachable": "Kan ikke nås",
+          "instance_changed": "Anden instans opdaget"
+        },
+        "stateHint": {
+          "not_configured": "Angiv adressen og nøglen.",
+          "disabled": "Slouchcat kalder ikke Seerr. Ønsker forbliver gemt.",
+          "untested": "Test forbindelsen, så »Ønsker aktiveret« kan slås til.",
+          "instance_changed": "Indtil du beslutter, sender Slouchcat ingen ønsker og synkroniserer intet."
+        },
+        "connection": {
+          "title": "Forbindelse",
+          "noAddress": "Ingen adresse"
+        },
+        "enabled": "Brug Seerr",
+        "enabledHelp": "Fra: Slouchcat kalder ikke Seerr. Ønsker forbliver gemt.",
+        "url": "Adresse",
+        "urlHelp": "For eksempel http://192.168.1.50:5055. Slouchcat taler kun med denne adresse. En adresse i hjemmenetværket er tilladt. Slouchcat følger ikke omdirigeringer.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API-nøgle",
+        "apiKeyHelp": "Fra Seerr: Indstillinger › Generelt. Lad feltet stå tomt for at beholde den gemte nøgle. En adresse på en anden maskine kræver nøglen igen.",
+        "clearBody": "Adressen og nøglen fjernes. Ønsker forbliver gemt, men sendes og synkroniseres ikke længere.",
+        "test": {
+          "action": "Test forbindelse",
+          "running": "Forbindelsen kontrolleres…",
+          "listLabel": "Resultat af forbindelsestesten",
+          "passed": "Alle kontroller er bestået.",
+          "passedWithHints_one": "Forbundet · {{count}} bemærkning",
+          "passedWithHints_other": "Forbundet · {{count}} bemærkninger",
+          "hintsHelp": "En bemærkning stopper intet. Den fortæller, hvad der med fordel kunne indstilles anderledes i Seerr.",
+          "failed": "Testen mislykkedes: {{checks}}."
+        },
+        "level": {
+          "ok": "bestået",
+          "warn": "bemærkning",
+          "fail": "mislykkedes"
+        },
+        "checks": {
+          "reachable": "Kan nås",
+          "version": "Version",
+          "key_valid": "Gyldig nøgle",
+          "manage_users": "Oprette og ændre brugere",
+          "instance": "Instans",
+          "act_as_user": "Handle på vegne af brugere",
+          "csrf_off": "CSRF-beskyttelse i Seerr slået fra",
+          "radarr": "Radarr i Seerr",
+          "sonarr": "Sonarr i Seerr",
+          "local_login": "Lokalt login i Seerr",
+          "tvdb_seasons": "Sæsoner fra TVDB",
+          "password_transport": "Adgangskode krypteret",
+          "radarr_tags": "Radarr til profiltags",
+          "sonarr_tags": "Sonarr til profiltags"
+        },
+        "checkOk": {
+          "reachable": "Seerr svarer.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr accepterer nøglen.",
+          "manage_users": "Nøglen må oprette konti i Seerr og angive tilladelser, grænse og adgangskode.",
+          "instance": "Samme instans som ved opsætningen.",
+          "act_as_user": "Ønsker gælder med tilladelser, grænse og automatisk godkendelse for den tilknyttede bruger.",
+          "csrf_off": "Skrivende kald kommer igennem.",
+          "radarr_one": "Ønsker om film går til Radarr ({{count}} server).",
+          "radarr_other": "Ønsker om film går til Radarr ({{count}} servere).",
+          "sonarr_one": "Ønsker om serier går til Sonarr ({{count}} server).",
+          "sonarr_other": "Ønsker om serier går til Sonarr ({{count}} servere).",
+          "local_login": "Oprettede brugere logger ind i Seerr med e-mailadressen og adgangskoden fra Slouchcat.",
+          "tvdb_seasons": "Seerr, Sonarr og Slouchcat-biblioteket tæller sæsoner på samme måde.",
+          "password_transport": "Adgangskoder sendes krypteret eller forbliver i hjemmenetværket.",
+          "radarr_tags": "Radarr svarer til profiltags og downloadfremskridt.",
+          "sonarr_tags": "Sonarr svarer til profiltags og downloadfremskridt."
+        },
+        "checkIssue": {
+          "notTested": "Ikke kontrolleret.",
+          "timeout": "Kan ikke nås: timeout.",
+          "refused": "Kan ikke nås: forbindelsen blev afvist.",
+          "redirect": "Kan ikke nås: omdirigeringer er ikke tilladt.",
+          "unreachable": "Kan ikke nås. Kører Seerr, og er adressen rigtig?",
+          "versionNotVerified": "Versionen er ikke kontrolleret: Testet er Jellyseerr 2.7 og Seerr 3.x.",
+          "keyNotUserOne": "Nøglen tilhører ikke ejeren af Seerr (bruger 1).",
+          "keyInvalid": "Seerr afviser nøglen.",
+          "manageUsers": "Nøglen må ikke oprette brugere: Konti kan ikke oprettes.",
+          "instance": "Anden Seerr-instans opdaget.",
+          "notTestable": "Kan ikke testes: Seerr har ingen anden bruger end bruger 1.",
+          "waiting": "Ikke kontrolleret, mens en anden instans venter på din beslutning.",
+          "actAsUser": "Virker ikke: Ønsker ville blive stillet som administrator.",
+          "csrfOn": "Slået til: skrivende kald mislykkes. Slå den fra i Seerrs netværksindstillinger.",
+          "noRadarr": "Ingen Radarr i Seerr: ønsker om film bliver liggende.",
+          "noSonarr": "Ingen Sonarr i Seerr: ønsker om serier bliver liggende.",
+          "localLoginOff": "Oprettede brugere kan ikke logge ind i Seerr. Slå »Lokalt login« til i Seerr under Indstillinger › Brugere.",
+          "noSeasonSource": "Seerr oplyser ikke kilden til sine sæsoner.",
+          "tmdbSeasons": "Seerr henter sæsoner fra TMDB. TVDB anbefales, som i Sonarr og i Slouchcat-biblioteket. Ellers kan sæsonnumrene afvige.",
+          "passwordTransport": "Adgangskoder ville blive sendt ukrypteret over internettet. Brug https.",
+          "arrNotConfirmed": "Adressen fra Seerr er endnu ikke bekræftet: Test den under »Radarr og Sonarr«.",
+          "arrUnreachable": "Kan ikke nås: ingen profiltags og intet downloadfremskridt.",
+          "csrfUnexpected": "Seerr accepterede en tom anmodning i stedet for at afvise den. Ønsker bliver stadig sendt. Kontrollér versionen af Seerr."
+        },
+        "instance": {
+          "title": "Anden Seerr-instans opdaget",
+          "body": "På adressen svarer en anden Seerr-instans end ved opsætningen. Indtil du beslutter, sender Slouchcat ingen ønsker og synkroniserer intet.",
+          "confirm": "Bekræft tildelingen",
+          "reset": "Slet tildelingen",
+          "resetTitle": "Slette tildelingen til Seerr?",
+          "resetBody": "Seerr-brugerne for alle konti og den indlæste brugerliste fjernes. Derefter indlæser Slouchcat brugerne fra den nye instans.",
+          "confirmed": "Den nye instans er overtaget. Kontoernes Seerr-brugere bevares.",
+          "resetDone": "Tildelingen er slettet. Slouchcat indlæser brugerne fra den nye instans."
+        },
+        "log": {
+          "title": "Log",
+          "empty": "Ingen poster endnu.",
+          "caption": "De seneste kald til Seerr",
+          "at": "Tidspunkt",
+          "call": "Kald",
+          "result": "Resultat",
+          "duration": "Varighed",
+          "error": "Fejl",
+          "noAnswer": "Intet svar",
+          "ms": "{{ms}} ms",
+          "note": "Aldrig med headere eller nøgle. Højst 20 poster.",
+          "entries_one": "{{count}} post",
+          "entries_other": "{{count}} poster",
+          "errors_one": "{{count}} fejl",
+          "errors_other": "{{count}} fejl"
+        },
+        "usersLink": "Kontoernes Seerr-brugere",
+        "sync": {
+          "title": "Synkronisering",
+          "summary_one": "{{count}} åbent ønske",
+          "summary_other": "{{count}} åbne ønsker",
+          "open": "Åbne ønsker",
+          "queued": "Venter på at blive sendt",
+          "last": "Seerr sidst nået",
+          "never": "Aldrig",
+          "every": "Slouchcat synkroniserer ønskerne med Seerr hvert 5. minut.",
+          "requestsLink": "Til anmodningerne"
+        },
+        "arr": {
+          "title": "Radarr og Sonarr (profiltags og fremskridt)",
+          "intro": "Slouchcat opretter ét tag pr. profil i Radarr og Sonarr og sætter det på titlen, så snart Seerr har afleveret den dér. Til det læser Slouchcat køen og filstatus for de ønskede titler for at vise downloadfremskridt ved ønskerne. Ellers ændrer Slouchcat intet i Radarr og Sonarr. Nye titler meldes stadig af webhooken.",
+          "offNotice": "Profiltags og downloadfremskridt er slået fra. Slouchcat kalder ikke Radarr og Sonarr.",
+          "summaryOff": "fra · profiltags og fremskridt slået fra",
+          "summaryTags_one": "{{count}} tag åbent",
+          "summaryTags_other": "{{count}} tags åbne",
+          "summaryProgress_one": "{{count}} download",
+          "summaryProgress_other": "{{count}} downloads",
+          "state": {
+            "none": "{{service}} er ikke i Seerr",
+            "unconfirmed": "{{service}} venter på »Test«",
+            "unreachable": "{{service}} kan ikke nås",
+            "reachable": "{{service}} kan nås",
+            "untested": "{{service}} er endnu ikke kaldt"
+          },
+          "facts": {
+            "address": "Adresse",
+            "state": "Status",
+            "tagRequests": "Tag Requests i Seerr",
+            "tags": "Profiltags",
+            "progress": "Downloadfremskridt"
+          },
+          "address": {
+            "seerr": "Fra Seerr: {{address}}",
+            "own": "Egen adresse: {{address}}"
+          },
+          "addressNone": "Ingen: Seerr har ingen standardserver til {{service}}.",
+          "lastAt": "sidst {{time}}",
+          "tagRequestsOn": "til",
+          "tagRequestsOff": "fra · Anbefalet: Så bærer hver titel også kontoens tag.",
+          "tags": "{{set}} sat · {{pending}} åbne · {{failed}} mislykkedes",
+          "progressOff": "fra · under Ønsker › Indstillinger",
+          "progressError": "Fremskridt kan ikke læses: {{reason}}",
+          "progressOn_one": "til · {{count}} ønske med fremskridt",
+          "progressOn_other": "til · {{count}} ønsker med fremskridt",
+          "progressAt_one": "til · {{count}} ønske med fremskridt · sidst læst {{time}}",
+          "progressAt_other": "til · {{count}} ønsker med fremskridt · sidst læst {{time}}",
+          "test": {
+            "action": "Test",
+            "label": "Test {{service}}",
+            "noHost": "adressen",
+            "passed": "{{service}} svarer på {{host}}, og nøglen fra Seerr gælder. Adressen er bekræftet.",
+            "keyRefused": "{{service}} svarer på {{host}}, men afviser nøglen fra Seerr.",
+            "unreachable": "{{service}} kan ikke nås på {{host}}.",
+            "ownHint": "Hvis Slouchcat ikke kan nå adressen fra Seerr, for eksempel ved Docker-interne navne, så angiv en egen adresse nedenfor.",
+            "notInSeerr": "Seerr har ingen standardserver til {{service}}.",
+            "notInSeerrBody": "Sæt en standardserver uden 4K op i Seerr. Uden den sætter Slouchcat ingen tags og læser intet fremskridt."
+          },
+          "own": "Egen adresse til {{service}}",
+          "ownHelp": "Tom: adressen fra Seerr. Kun nødvendig, hvis Slouchcat ikke kan nå adressen fra Seerr, for eksempel ved Docker-interne navne. Nøglen kommer altid fra Seerr.",
+          "ownPlaceholder": "Adresse fra Seerr",
+          "saveLabel": "Gem de egne adresser til Radarr og Sonarr",
+          "saved": "De egne adresser er gemt.",
+          "toSettings": "Præfiks og downloadfremskridt · Ønsker › Indstillinger",
+          "toUsers": "Tagnavne pr. profil · Seerr-brugere",
+          "toWebhooks": "Webhooks til Radarr og Sonarr · uændrede, sat op manuelt"
+        },
+        "hook": {
+          "title": "Øjeblikkeligt signal",
+          "on": "Sat op",
+          "off": "Fra",
+          "intro": "Seerr starter synkroniseringen med det samme i stedet for at vente op til 5 minutter. Synkroniseringen er stadig grundlaget.",
+          "name": "Seerr",
+          "create": "Opret adresse",
+          "address": "Adresse",
+          "last": "Seneste signal",
+          "never": "Har aldrig sendt noget signal.",
+          "single": "Seerr kender kun ét webhook-mål. Bruger du det allerede til noget andet, erstatter denne adresse det.",
+          "where": "I Seerr under Indstillinger › Notifikationer › Webhook: adressen som »Webhook URL«, denne skabelon som »JSON Payload«.",
+          "payload": "JSON-skabelon til Seerr",
+          "copyPayload": "Kopiér skabelon",
+          "typesIntro": "Sæt kryds ved disse notifikationstyper i Seerr:",
+          "types": "Notifikationstyper til Seerr",
+          "copyTypes": "Kopiér typer",
+          "copied": "Kopieret.",
+          "copyFailed": "Ingen adgang til udklipsholderen: Teksten er markeret, kopiér den med Ctrl+C.",
+          "log": "Seneste signaler"
+        },
+        "accounts_one": "Seerr-brugere: {{opened}} af {{count}} konto",
+        "accounts_other": "Seerr-brugere: {{opened}} af {{count}} konti"
       }
     },
     "accounts": {
@@ -3988,8 +4367,7 @@
       "columns": {
         "email": "E-mail",
         "role": "Rolle",
-        "rating": "Aldersgrænse",
-        "libraries": "Biblioteker",
+        "access": "Adgang",
         "profiles": "Profiler",
         "lastSeen": "Senest set",
         "channels": "Kanaler",
@@ -4021,7 +4399,14 @@
         "currentPasswordHint": "Bekræfter, at det er dig.",
         "wrongPassword": "Den nuværende adgangskode er forkert.",
         "unchanged": "Skift e-mailadressen, eller indtast en ny adgangskode.",
-        "saved": "Din konto er gemt."
+        "saved": "Din konto er gemt.",
+        "seerrPassword": {
+          "synced": "Den nye adgangskode gælder også i Seerr.",
+          "next_login": "Den nye adgangskode gælder også i Seerr.",
+          "off": "Din adgangskode i Seerr forbliver, som den er: Den synkroniseres ikke.",
+          "admin": "Din adgangskode i Seerr forbliver, som den er: Du er administrator dér.",
+          "external": "Din adgangskode i Seerr forbliver, som den er: Du logger ind dér via Jellyfin, Emby eller Plex."
+        }
       },
       "ownerBadge": "Ejer",
       "access": {
@@ -4032,7 +4417,8 @@
         "heading": "Adgang",
         "save": "Gem adgang",
         "saved": "Adgangen for {{email}} er gemt.",
-        "adminHint": "En administrator har altid niveauet »Fra 18 år« og alle biblioteker; »Adgang« findes kun for konti uden administration."
+        "adminHint": "En administrator har altid niveauet »Fra 18 år« og alle biblioteker; »Adgang« findes kun for konti uden administration.",
+        "limitRefused": "Adgangen er gemt, men ønskegrænsen er ikke: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4101,7 +4487,8 @@
           "libraries": "Biblioteker",
           "detail": "Gyldig til / accepteret",
           "actions": "Handlinger"
-        }
+        },
+        "seerrHint": "Ved accept opretter Slouchcat også kontoen i Seerr: samme e-mailadresse, samme adgangskode."
       },
       "discard": "Kassér",
       "status": {
@@ -4128,6 +4515,42 @@
         "mine": "Mine profiler",
         "of": "Profiler for {{email}}",
         "readOnly": "Hver konto administrerer selv sine profiler."
+      },
+      "wishes": {
+        "title": "Ønsker",
+        "of": "Ønsker fra {{email}}",
+        "canRequest": "Må anmode om titler",
+        "canRequestHelp": "Gælder som loft for alle profiler. Hvilke profiler der anmoder, vælges af kontoens hovedprofil.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Tilladt",
+          "not_allowed": "Ikke tilladt",
+          "mapping_missing": "Uden Seerr-bruger"
+        },
+        "userLine": "Seerr-bruger: {{user}}",
+        "noUser": "ingen endnu",
+        "change": "Skift",
+        "userState": {
+          "created": "oprettet",
+          "linked": "tilknyttet",
+          "manual": "valgt manuelt",
+          "waiting": "venter på Seerr"
+        },
+        "linkedBy": "tilknyttet {{by}} den {{date}}",
+        "password": {
+          "synced": "adgangskode synkroniseret",
+          "next_login": "adgangskoden følger ved næste login",
+          "off": "adgangskode synkroniseres ikke",
+          "admin": "adgangskoden forbliver i Seerr (administrator)",
+          "external": "logger ind via Jellyfin, Emby eller Plex"
+        },
+        "rightsFollow": "Tilladelserne for »{{name}}« i Seerr justeres.",
+        "rightsStay": "»{{name}}« beholder sine tilladelser i Seerr, fordi Slouchcat ikke har oprettet brugeren.",
+        "adminLimit": "»{{name}}« er administrator i Seerr. Seerr giver ikke administratorer nogen grænse.",
+        "limitLater": "Ingen Seerr-bruger endnu: Slouchcat sætter grænsen, så snart kontoen er oprettet dér.",
+        "limitFixed": "Grænse: {{limit}}. For administratorer kan den ikke ændres her.",
+        "savedOn": "{{email}} må nu anmode om titler.",
+        "savedOff": "{{email}} må ikke længere anmode om titler."
       }
     },
     "backup": {
@@ -4662,6 +5085,57 @@
           "description": "Fjerner titler, hvis filer har manglet ud over respitperioden.",
           "trigger": "Tidsplan hver time og serverstart"
         },
+        "seerr_users": {
+          "name": "Indlæs Seerr-brugere",
+          "description": "Læser brugerne fra Seerr med deres tilladelser og grænser og kontrollerer, at Slouchcat stadig taler med den samme Seerr-instans.",
+          "trigger": "dagligt, »Genindlæs brugerlisten«, efter at forbindelsen til Seerr er gemt"
+        },
+        "seerr_provision": {
+          "name": "Opret konti i Seerr",
+          "description": "Opretter eller tilknytter en kontos Seerr-bruger, opretter den delte bruger »slouchcat-gaeste« og fratager Seerr-brugeren for en slettet konto tilladelserne.",
+          "trigger": "»Opret i Seerr«, »Opret alle«, invitation accepteret, »Ønsker aktiveret« slået til, efter indlæsning af Seerr-brugerne til ventende konti, konto slettet"
+        },
+        "wishes_submit": {
+          "name": "Send ønsker til Seerr",
+          "description": "Sender et ønske, der stadig venter i udbakken, til Seerr og knytter det til en anmodning, der allerede findes.",
+          "trigger": "efter en anmodning, når Seerr ikke svarer med det samme, med voksende interval i op til 24 timer; efter synkroniseringen for ønsker, der er forfaldne"
+        },
+        "wishes_withdraw": {
+          "name": "Slet tilbagetrukne ønsker i Seerr",
+          "description": "Sletter den egne anmodning for et tilbagetrukket ønske i Seerr, så længe den ikke er godkendt. En godkendt anmodning består, og ønsket åbnes igen.",
+          "trigger": "»Træk tilbage« under »Mine ønsker«; efter synkroniseringen, hvis Seerr ikke kunne nås"
+        },
+        "wishes_sync": {
+          "name": "Synkroniser ønsker med Seerr",
+          "description": "Læser de ændrede anmodninger fra Seerr, opdaterer ønskernes status, kontrollerer ønsker, der længe ikke er ændret, enkeltvis og sender forfaldne ønsker fra udbakken igen. Den første synkronisering læser alle anmodninger.",
+          "trigger": "Tidsplan hvert 5. minut, »Synkroniser nu«, signal fra Seerr-webhooken",
+          "progress": "Sider læst: {{done}} af {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Afstem ønsker med biblioteket",
+          "description": "Melder et ønske som tilgængeligt, så snart Slouchcat kan afspille filmen eller alle ønskede sæsoner for en profil.",
+          "trigger": "Tidsplan hver time, efter at en ønsket titel er genkendt i biblioteket, efter synkroniseringen med Seerr"
+        },
+        "wishes_tag": {
+          "name": "Sæt profiltags",
+          "description": "Sætter profilens tag i Radarr og Sonarr på film og serier, der er ønsket via Slouchcat og hentes. Tags fjernes aldrig.",
+          "trigger": "efter synkroniseringen med Seerr, hvert 15. minut og manuelt"
+        },
+        "wishes_progress": {
+          "name": "Læs downloadfremskridt",
+          "description": "Læser køen i Radarr og Sonarr og viser for ønsker, der hentes, om der søges, downloades eller importeres. Ændrer intet i Radarr og Sonarr.",
+          "trigger": "hvert minut, mens ønsker hentes, og downloadfremskridt er slået til"
+        },
+        "wishes_discover": {
+          "name": "Forhåndsindlæs ønskelister",
+          "description": "Indlæser rækkerne fra Udforsk fra Seerr i mellemlageret for hvert sprog og hvert aldersniveau for de profiler, der må anmode, og fjerner lister, der er ældre end et døgn. Hvert resultat kontrolleres igen for profilen.",
+          "trigger": "Tidsplan hver time, så længe ønsker er aktive, og siderne Udforsk, Film, Serier og Søg er slået til"
+        },
+        "wishes_import": {
+          "name": "Overtag anmodninger fra Seerr",
+          "description": "Overtager de åbne og for nylig tilgængelige anmodninger, som en tilknyttet Seerr-bruger har stillet i Seerr selv, som ønsker for hovedprofilen på sin konto (»Oprettet i Seerr«). Anmodninger fra den delte bruger udelades. Der sendes ingen notifikation.",
+          "trigger": "Seerr-bruger for en konto tilknyttet, valgt eller ændret, »Overtag anmodninger«"
+        },
         "segments_detect": {
           "name": "Registrér intro og rulletekster",
           "description": "Finder intro og rulletekster i afsnit til »Spring intro over«.",
@@ -4787,6 +5261,16 @@
           "description": "Henter et afsnit fra udbyderen og lægger det som fil i podcastens mappe.",
           "trigger": "Fra planlæggeren ved »Gem«, »Hent manglende« og »Hent« pr. afsnit; ét pr. udbyder ad gangen",
           "progress": "Bytes: {{done}} af {{total}}"
+        },
+        "series_catalog": {
+          "name": "Hent seriernes sæsonlister",
+          "description": "Læser sæsonerne med antal afsnit, status og næste afsnit for hver serie i biblioteket fra TMDB, igen efter 7 dage.",
+          "trigger": "Tidsplan dagligt, efter at en serie er matchet"
+        },
+        "titles_refresh": {
+          "name": "Opdater manglende titler",
+          "description": "Læser oplysninger, aldersgrænser og trailere for de titler, der ikke findes i biblioteket, igen fra TMDB efter 7 dage.",
+          "trigger": "Tidsplan dagligt"
         },
         "trakt_refresh": {
           "name": "Hent Spotlight-liste",
@@ -5212,6 +5696,492 @@
         "changed": "der ligger nu en anden fil på stedet"
       },
       "changed": "Noget er ændret i mellemtiden. Kontrollér igen. Listen nedenfor er indlæst påny; intet blev slettet."
+    },
+    "wishes": {
+      "title": "Ønsker",
+      "intro": "Hver konto har sin egen bruger i Seerr med samme login. Kontoens profiler anmoder som denne bruger. Tilladelser, grænse og godkendelse kommer fra brugeren.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Dele af ønskerne",
+        "users": "Seerr-brugere",
+        "settings": "Indstillinger",
+        "requests": "Anmodninger",
+        "openCount_one": "{{count}} åbent ønske",
+        "openCount_other": "{{count}} åbne ønsker",
+        "withoutShort": "{{number}} uden",
+        "withoutCount_one": "{{count}} konto uden Seerr-bruger",
+        "withoutCount_other": "{{count}} konti uden Seerr-bruger"
+      },
+      "strip": {
+        "label": "Oversigt",
+        "accounts": "Konti",
+        "opened": "I Seerr",
+        "openedNote": "oprettet eller tilknyttet",
+        "without": "Uden bruger",
+        "waiting_one": "{{count}} venter på Seerr",
+        "waiting_other": "{{count}} venter på Seerr",
+        "password": "Adgangskode mangler",
+        "passwordNote": "følger ved næste login"
+      },
+      "limit": {
+        "movie_one": "{{count}} film / {{days}} dage",
+        "movie_other": "{{count}} film / {{days}} dage",
+        "movieNone": "Film uden grænse",
+        "tv_one": "{{count}} sæson / {{days}} dage",
+        "tv_other": "{{count}} sæsoner / {{days}} dage",
+        "tvNone": "Sæsoner uden grænse"
+      },
+      "settings": {
+        "atOnce": "Hver ændring gælder med det samme.",
+        "refused": "Ikke ændret: {{reason}}",
+        "switchedOn": "»{{name}}« er slået til. Gælder med det samme.",
+        "switchedOff": "»{{name}}« er slået fra. Gælder med det samme.",
+        "choiceSaved": "»{{name}}«: {{value}}. Gælder med det samme.",
+        "limitSaved": "Standardgrænse: {{limit}}. Gælder med det samme for alle konti med »Standard«.",
+        "basics": "Grundlag",
+        "where": "Hvor der kan anmodes",
+        "rules": "Regler",
+        "enabled": "Ønsker aktiveret",
+        "enabledHelp": "Profiler med tilladelsen kan anmode om manglende titler. Fra: Ingen ser manglende titler. Åbne ønsker kører videre i Seerr.",
+        "enabledLocked": "Kan først slås til, når den gemte forbindelse er testet med succes.",
+        "toConnection": "Til forbindelsen",
+        "allowMovies": "Tillad film",
+        "allowMoviesHelp": "Gælder for alle profiler. Fra: ingen »Anmod om film«.",
+        "allowShows": "Tillad serier",
+        "allowShowsHelp": "Gælder for alle profiler. Fra: ingen »Anmod om serie« og ingen »Anmod om sæsoner«.",
+        "fromSearch": "Anmod fra søgningen",
+        "fromSearchHelp": "Afsnittet »Endnu ikke i biblioteket«. Fra: Afsnittet udgår.",
+        "fromDetail": "Anmod på detaljesider",
+        "fromDetailHelp": "Manglende sæsoner på siden for en serie, der findes i biblioteket. Fra: Serieside viser kun det, der findes.",
+        "alreadyRequested": "Titler, der allerede er anmodet om",
+        "alreadyRequestedHelp": {
+          "join": "Tilslut dig: En anden profil slutter sig til det åbne ønske (»Giv mig besked«) og får også besked. Seerr får ikke en anden anmodning.",
+          "status": "Vis kun status: En anden profil ser »Allerede anmodet«, men kan ikke tilslutte sig og får ikke besked."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Tilslut dig",
+          "status": "Vis kun status"
+        },
+        "unmapped": "Konti uden Seerr-bruger",
+        "unmappedHelp": {
+          "fallback": "Delt bruger: Alle konti uden egen bruger anmoder som slouchcat-gaeste og deler standardgrænsen. Slouchcat opretter selv denne bruger i Seerr.",
+          "deny": "Tillad ikke: Konti uden egen bruger kan ikke anmode, før de har en Seerr-bruger."
+        },
+        "unmappedOptions": {
+          "fallback": "Delt bruger",
+          "deny": "Tillad ikke"
+        },
+        "newAccountsCanRequest": "Nye konti må anmode",
+        "newAccountsCanRequestHelp": "Standardværdi for kontakten i dialogen »Inviter en konto«. Ændrer ikke eksisterende konti.",
+        "allowWithdraw": "Tillad tilbagetrækning",
+        "allowWithdrawHelp": "Så længe et ønske ikke er godkendt. Knappen »Træk tilbage« under »Mine ønsker«.",
+        "pinExternalHideTitle": "Eksterne beskeder til profiler med pinkode uden titel",
+        "pinExternalHideTitleHelp": "E-mail, Web Push og Telegram nævner så kun profilen, ikke titlen.",
+        "defaultLimit": "Standardgrænse",
+        "limitPerAccount": "Grænse pr. konto",
+        "limitPerAccountHelp": "Gælder samlet for alle profiler på en konto. Seerr tæller løbende og medregner også ønsker, der stilles direkte dér. Afviste ønsker og ønsker, man har sluttet sig til, tæller ikke. Administratorer har ingen grænse.",
+        "movieLimit": "Film: antal",
+        "movieDays": "Film: dage",
+        "tvLimit": "Sæsoner: antal",
+        "tvDays": "Sæsoner: dage",
+        "limitRange": "Et helt tal fra {{low}} til {{high}}.",
+        "perAccount": "Afviger pr. konto",
+        "perAccountHelp": "Under »Konti« kan en kontos grænse sættes anderledes: egen grænse eller ubegrænset.",
+        "toAccounts": "Til kontoerne",
+        "accountsInSeerr": "Konti i Seerr",
+        "provisionOn": "Opret nye konti",
+        "provisionOff": "Opret ikke nye konti",
+        "syncOn": "Synkroniser adgangskode",
+        "syncOff": "ingen synkronisering af adgangskode",
+        "provisionAccounts": "Opret nye konti i Seerr",
+        "provisionAccountsHelp": "Når en invitation accepteres, opretter Slouchcat også kontoen i Seerr: samme e-mailadresse, samme adgangskode. Findes der dér allerede en bruger med samme e-mailadresse, tilknytter Slouchcat den med det samme. Den nye konto skriver selv adressen, og ingen kontrollerer den. Derfor viser oversigten hver sådan tilknytning i syv dage.",
+        "syncPassword": "Synkroniser adgangskode",
+        "syncPasswordHelp": "Slouchcat giver adgangskoden videre til Seerr, når den sættes eller ændres, og ved login i Slouchcat. Slouchcat gemmer den aldrig i klartekst. Seerr kræver »Lokalt login« til det. Brugere, der i forvejen fandtes i Seerr, og som en administrator tilknytter, beholder deres adgangskode.",
+        "visibleInSeerr": "Den, der logger ind i Seerr med en kontos login, ser dér ønskerne fra alle kontoens profiler, også fra en profil med pinkode. Seerr sender desuden egne notifikationer med titlen. Lad dem være slået fra i Seerr for oprettede brugere.",
+        "existing": "Eksisterende konti",
+        "existingHelp": "Vælg Seerr-brugeren pr. konto, eller fjern tilknytningen.",
+        "toUsers": "Til Seerr-brugerne",
+        "links": "Genveje",
+        "who": "Hvem der må anmode",
+        "whoHelp": "Hvem der må anmode, indstiller du pr. konto under Konti. Pr. profil afgør hovedprofilen.",
+        "connection": "Forbindelse til Seerr",
+        "connectionHelp": "Adresse, nøgle, test og log.",
+        "users": "Seerr-brugere",
+        "usersHelp": "Hvilken konto der anmoder som hvilken Seerr-bruger, med adgangskode og grænse.",
+        "arr": "Radarr og Sonarr: profiltag og fremskridt",
+        "profileTags": "Sæt profiltaget i Radarr og Sonarr",
+        "profileTagsHelp": "Sætter profilens tag på titlen, så snart Seerr har afleveret den til Radarr eller Sonarr, og indhenter tags, der ikke kunne sættes. Ændrer ellers intet i Radarr og Sonarr.",
+        "tagPrefix": "Præfiks",
+        "tagPrefixHelp": "Små bogstaver, cifre og bindestreg. Eksempel: sc-noah. Gælder for nye tags. Eksisterende tags forbliver, som de er. Et enkelt profils tag ændrer du under »Seerr-brugere«.",
+        "tagPrefixInvalid": "1 til 10 tegn: kun små bogstaver a–z, cifre 0–9 og bindestreg. Ikke gemt.",
+        "tagPrefixSaved": "Præfiks »{{prefix}}«: Nye tags hedder for eksempel {{prefix}}noah. Tags, der allerede er sat, forbliver, som de er.",
+        "showProgress": "Vis downloadfremskridt",
+        "showProgressHelp": "Viser for ønsker, der hentes, om titlen søges, downloades eller importeres. Til det læser Slouchcat køen i Radarr og Sonarr hvert minut, så længe der hentes ønsker.",
+        "arrSummary": "Tag {{tags}} · præfiks {{prefix}} · fremskridt {{progress}}",
+        "on": "til",
+        "off": "fra",
+        "arrLinks": "Adgang til Radarr og Sonarr",
+        "arrLinksHelp": "Adresse og nøgle kommer fra Seerr. Navnene pr. profil findes under Seerr-brugere.",
+        "toArr": "Integrationer › Seerr",
+        "discoverPages": "Siderne Udforsk, Film, Serier og Søg",
+        "discoverPagesHelp": "Faner i området »Ønsker«. Fra: kun »Mine ønsker«.",
+        "basicsSummary": "Ønsker {{enabled}} · film {{movies}} · serier {{shows}}",
+        "basicsSummaryLocked": "Ønsker fra, først efter en bestået test · film {{movies}} · serier {{shows}}",
+        "whereSummary": "Søgning {{search}} · detaljesider {{detail}} · udforsk {{discover}}",
+        "rulesSummary": "{{already}} · uden Seerr-bruger: {{unmapped}} · tilbagetrækning {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} af {{count}} konto oprettet",
+        "usersCount_other": "{{opened}} af {{count}} konti oprettet",
+        "limitHintCount": "{{low}} til {{high}}. 0 betyder ingen grænse.",
+        "limitHintDays": "{{low}} til {{high}} dage."
+      },
+      "users": {
+        "caption": "Konti og deres Seerr-brugere",
+        "columns": {
+          "account": "Konto",
+          "user": "Seerr-bruger",
+          "password": "Adgangskode",
+          "rights": "Tilladelser i Seerr",
+          "email": "E-mail",
+          "type": "Type",
+          "limit": "Grænse"
+        },
+        "noUser": "Ingen",
+        "passwordFollows": "Følger brugeren",
+        "rightsFollow": "Følger ønskeretten",
+        "gone": "Bruger slettet",
+        "state": {
+          "created": "Oprettet af Slouchcat",
+          "linked": "Tilknyttet via samme e-mailadresse",
+          "manual": "Tilknyttet manuelt",
+          "waiting": "Oprettes, så snart Seerr kan nås",
+          "none": "Ikke oprettet"
+        },
+        "password": {
+          "synced": "Samme som i Slouchcat",
+          "next_login": "Overtages ved næste login i Slouchcat",
+          "off": "Synkroniseres ikke",
+          "admin": "Forbliver i Seerr (administrator)",
+          "external": "Logger ind via Jellyfin, Emby eller Plex"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Lokal",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Administrator",
+          "both": "Film og serier",
+          "movies": "Kun film",
+          "shows": "Kun serier",
+          "none": "Ingen tilladelser"
+        },
+        "choose": "Vælg en bruger",
+        "chooseLabel": "Seerr-bruger til {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (nuværende)",
+        "optionGone": "{{option}} (slettet i Seerr)",
+        "optionTaken": "{{option}} · tilhører {{email}}",
+        "facts": {
+          "user": "Seerr-bruger",
+          "state": "Status",
+          "password": "Adgangskode",
+          "rights": "Tilladelser i Seerr",
+          "limit": "Grænse",
+          "right": "Kontoens ret til at anmode"
+        },
+        "linkedBy": "{{by}} · siden {{date}}",
+        "by": {
+          "admin": "af en administrator",
+          "invite": "da invitationen blev accepteret",
+          "email_change": "efter at e-mailadressen blev ændret"
+        },
+        "since": "siden {{date}}",
+        "syncedAt": "synkroniseret {{time}}",
+        "movies": "Film",
+        "shows": "Serier",
+        "autoApproveOn": "Automatisk godkendelse: ja",
+        "autoApproveOff": "Automatisk godkendelse: nej",
+        "followRightOn": "Følger kontoens ret til at anmode: må anmode",
+        "followRightOff": "Følger kontoens ret til at anmode: må ikke anmode",
+        "noLimitAdmin": "Ingen grænse (administrator i Seerr)",
+        "unlimited": "Ubegrænset",
+        "mode": {
+          "default": "Standard",
+          "custom": "Egen",
+          "unlimited": "Ubegrænset"
+        },
+        "mayRequest": "Må anmode",
+        "mayNotRequest": "Må ikke anmode",
+        "goneTitle": "Brugeren »{{name}}« blev ikke fundet",
+        "goneBody": "Seerr kender ikke længere denne bruger. Vælg en anden bruger, eller fjern tilknytningen.",
+        "selfLinked": {
+          "invite": "Tilknyttet den eksisterende Seerr-bruger {{name}}, da invitationen blev accepteret, fordi e-mailadressen er den samme. Hvis brugeren ikke hører til denne konto, så fjern tilknytningen.",
+          "email_change": "Tilknyttet den eksisterende Seerr-bruger {{name}}, efter at e-mailadressen blev ændret, fordi e-mailadressen er den samme. Hvis brugeren ikke hører til denne konto, så fjern tilknytningen."
+        },
+        "warning": {
+          "nothing": "»{{name}}« må ikke anmode om noget i Seerr. Hvert ønske mislykkes. Giv brugeren tilladelsen »Anmod« i Seerr, eller vælg en anden.",
+          "noShows": "»{{name}}« må ikke anmode om serier. Ønsker om serier mislykkes, film fungerer.",
+          "noMovies": "»{{name}}« må ikke anmode om film. Ønsker om film mislykkes, serier fungerer."
+        },
+        "change": "Skift Seerr-bruger",
+        "unlink": "Fjern tilknytning",
+        "chooseHelp": "Der kan vælges brugere, som ikke hører til en anden konto. Tilladelser og adgangskode forbliver, som de er i Seerr.",
+        "chooseHelpStale": "Der kan vælges brugere, som ikke hører til en anden konto. Listen viser den senest indlæste status.",
+        "taken": "Denne Seerr-bruger hører nu til en anden konto eller kan ikke længere vælges. Valget er nulstillet.",
+        "linked": "{{email}} anmoder nu som »{{name}}«. Tilladelser og godkendelse kommer fra denne bruger.",
+        "unlinked": "Tilknytningen for {{email}} er fjernet. »{{name}}« forbliver i Seerr.",
+        "reloading": "Brugerlisten genindlæses.",
+        "notConfigured": "Seerr er ikke sat op",
+        "notConfiguredBody": "Uden forbindelse er der ingen brugerliste. Alle konti forbliver indtil videre uden Seerr-bruger.",
+        "toConnection": "Til Integrationer › Seerr",
+        "toDecision": "Til beslutningen",
+        "instanceBody": "Indtil du beslutter under Integrationer › Seerr, sender Slouchcat ingen ønsker og synkroniserer intet. Listen viser den sidste status.",
+        "goneCount_one": "{{count}} konto: bruger slettet i Seerr",
+        "goneCount_other": "{{count}} konti: bruger slettet i Seerr",
+        "goneCountBody": "Vælg en anden bruger til disse konti, eller fjern tilknytningen.",
+        "withoutCount_one": "{{count}} konto uden Seerr-bruger",
+        "withoutCount_other": "{{count}} konti uden Seerr-bruger",
+        "withoutFallback": "Indtil da anmoder de som den delte bruger slouchcat-gaeste (reglen »Konti uden Seerr-bruger«).",
+        "withoutDeny": "De kan ikke anmode, så længe »Konti uden Seerr-bruger« står på »Tillad ikke«.",
+        "toSettings": "Til indstillingerne",
+        "newAccounts": "Nye konti: {{provision}} · Adgangskode: {{password}}",
+        "provisionOn": "oprettes i Seerr",
+        "provisionOff": "oprettes ikke",
+        "syncOn": "synkroniseres",
+        "syncOff": "synkroniseres ikke",
+        "changeSettings": "Skift",
+        "shared": "Delt bruger: {{name}}",
+        "sharedLater": "Delt bruger: oprettes, så snart ønsker er aktive",
+        "reload": "Genindlæs brugerlisten",
+        "unlinkedTitle": "Seerr-brugere uden konto",
+        "unlinkedCount_one": "{{count}} bruger",
+        "unlinkedCount_other": "{{count}} brugere",
+        "unlinkedEmpty": "Hver Seerr-bruger hører til en konto.",
+        "noEmail": "ingen e-mailadresse",
+        "noLimit": "Ingen grænse",
+        "limitOnOpen": "Sættes, når kontoen oprettes: {{limit}}",
+        "limitChange": "Skift grænse",
+        "quotaAt": "Status fra Seerr {{time}}",
+        "provision": "Opret i Seerr",
+        "retry": "Prøv igen",
+        "provisionOffHint": "»Opret nye konti i Seerr« er slået fra.",
+        "sameEmailTitle": "Seerr har allerede »{{name}}«",
+        "sameEmailBody": "Samme e-mailadresse: »Opret i Seerr« tilknytter denne bruger i stedet for at oprette en anden.",
+        "waitingTitle": "Venter på Seerr",
+        "waitReason": {
+          "unreachable": "Seerr kunne ikke nås ved oprettelsen. Næste synkronisering prøver igen.",
+          "server": "Seerr svarede med en fejl ved oprettelsen. Næste synkronisering prøver igen.",
+          "timeout": "Seerr svarede ikke i tide ved oprettelsen. Næste synkronisering prøver igen.",
+          "key_invalid": "Seerr afviste API-nøglen. Når forbindelsen igen er i orden, prøver næste synkronisering igen.",
+          "instance_changed": "En anden Seerr-instans venter på din beslutning. Indtil da opretter Slouchcat intet.",
+          "seerr_user_taken": "Seerr-brugeren med denne e-mailadresse hører allerede til en anden konto eller er den delte bruger. Vælg brugeren manuelt.",
+          "other": "Oprettelsen lykkedes ikke ({{reason}}). Næste synkronisering prøver igen.",
+          "seerr_user_privileged": "Denne Seerr-bruger administrerer Seerr. Slouchcat tilknytter den ikke af sig selv: Tilknyt den efter en bekræftelse, eller vælg en anden bruger.",
+          "refused": "Seerr afviste at oprette kontoen. Næste synkronisering prøver igen."
+        },
+        "emailTakenTitle": "Seerr afviste den nye e-mailadresse",
+        "emailTakenBody": "En anden Seerr-bruger har allerede denne adresse. »{{name}}« beholder sin tidligere e-mailadresse i Seerr. Kontoen fortsætter med at anmode som denne bruger.",
+        "provisioned": {
+          "created": "{{email}} er oprettet i Seerr.",
+          "linked": "{{email}} er tilknyttet Seerr-brugeren »{{name}}«.",
+          "waiting": "Endnu ikke oprettet i Seerr: {{email}} venter, næste synkronisering prøver igen.",
+          "privileged": "{{email}} venter: Seerr-brugeren med denne e-mailadresse administrerer Seerr.",
+          "taken": "{{email}} venter: Seerr-brugeren med denne e-mailadresse hører allerede til en anden konto. Vælg brugeren manuelt."
+        },
+        "passwordNext": "Overfør adgangskoden igen ved næste login",
+        "passwordOff": "Synkroniser ikke adgangskoden",
+        "passwordNextDone": "Adgangskoden for {{email}} sendes til Seerr ved næste login.",
+        "passwordOffDone": "Adgangskoden for {{email}} synkroniseres ikke længere med Seerr.",
+        "passwordSyncOff": "Synkronisering af adgangskode er slået fra.",
+        "passwordNote": {
+          "admin": "Slouchcat synkroniserer ikke adgangskoden: »{{name}}« er administrator i Seerr, og adgangskoden forbliver dér, som den er.",
+          "external": "Slouchcat synkroniserer ikke adgangskoden: »{{name}}« logger ind via Jellyfin, Emby eller Plex, ikke med en egen adgangskode."
+        },
+        "provisionAll": "Opret alle",
+        "provisionAllTitle": "Oprette alle konti i Seerr?",
+        "provisionAllBody": "Tilknyt via samme e-mailadresse: {{link}} · Opret nye i Seerr: {{create}}.",
+        "provisionAllWaits": "Seerr er ikke forbundet lige nu: Kontoerne venter så og oprettes ved næste synkronisering.",
+        "provisionAllQueued": "Oprettelsen kører: {{link}} skal tilknyttes, {{create}} skal oprettes.",
+        "profiles": {
+          "title": "Profiler og tags",
+          "help": "Hver profil har sit eget tag i Radarr og Sonarr, så snart et ønske når dertil. Et tag, der er sat, forbliver, også når navnet ændres.",
+          "none": "Kontoen har ingen profiler.",
+          "custom": "eget navn",
+          "change": "Skift",
+          "changeLabel": "Skift tagget for {{profile}}",
+          "field": "Tagnavn for {{profile}}",
+          "fieldHelp": "Kun små bogstaver a–z, cifre 0–9 og bindestreg.",
+          "invalid": "Kun små bogstaver a–z, cifre 0–9 og bindestreg er tilladt, højst 64 tegn.",
+          "save": "Gem",
+          "saveLabel": "Gem tagget for {{profile}}",
+          "cancel": "Annuller",
+          "reset": "Nulstil",
+          "resetLabel": "Nulstil tagget for {{profile}} til navnet fra præfikset",
+          "saved": "{{profile}}: Tagget hedder nu {{name}}.",
+          "tagsOff": "Profiltags er slået fra (Ønsker › Indstillinger)."
+        },
+        "takeOver": {
+          "title": "Anmodninger fra Seerr",
+          "help": "Anmodninger, der er stillet direkte i Seerr, bliver til ønsker for hovedprofilen med mærket »Oprettet i Seerr«. De har intet profiltag.",
+          "counting": "Anmodninger i Seerr tælles…",
+          "none": "Ingen anmodninger i Seerr.",
+          "action_one": "Overtag {{count}} anmodning fra Seerr",
+          "action_other": "Overtag {{count}} anmodninger fra Seerr",
+          "queued_one": "{{count}} anmodning fra {{name}} overtages.",
+          "queued_other": "{{count}} anmodninger fra {{name}} overtages.",
+          "running": "Anmodningerne overtages. Antallet følger efter synkroniseringen."
+        },
+        "linkPrivileged": "Tilknyt alligevel…",
+        "privilegedTitle": "Tilknytte Seerr-administratoren {{name}}?",
+        "privilegedBody": "Denne Seerr-bruger administrerer Seerr. Profilerne for {{email}} anmoder derefter som Seerr-administrator, uden godkendelse og uden grænse. Slouchcat synkroniserer ikke brugerens adgangskode.",
+        "privilegedConfirm": "Tilknyt alligevel",
+        "provisionAllManual_one": "{{count}} konto kræver et manuelt valg.",
+        "provisionAllManual_other": "{{count}} konti kræver et manuelt valg.",
+        "waitingChoice": "Venter på et manuelt valg",
+        "waitingChoiceTitle": "Venter på dit valg",
+        "optionPrivileged": "{{option}} · administrerer Seerr"
+      },
+      "limitField": {
+        "label": "Grænse",
+        "help": {
+          "default": "Som under Ønsker › Indstillinger: {{limit}}.",
+          "custom": "Egne tal for denne konto.",
+          "unlimited": "Ingen grænse for film og sæsoner."
+        }
+      },
+      "requests": {
+        "caption": "Alle husstandens ønsker",
+        "columns": {
+          "title": "Titel",
+          "requesters": "Ønsket af",
+          "state": "Status",
+          "seerr": "I Seerr",
+          "attempts": "Forsøg",
+          "actions": "Handlinger"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (med på ønsket)",
+        "requesterClosed": "{{line}} (trukket tilbage)",
+        "noRequester": "Ingen i Slouchcat",
+        "noRequest": "Endnu ikke",
+        "requestId": "Anmodning {{id}}",
+        "requestIds_one": "Anmodning {{ids}}",
+        "requestIds_other": "Anmodninger {{ids}}",
+        "filter": {
+          "label": "Filtrer ønsker efter status",
+          "all": "Alle",
+          "open": "Åbne",
+          "available": "Tilgængelige",
+          "closed": "Afsluttede",
+          "count_one": "{{count}} ønske",
+          "count_other": "{{count}} ønsker",
+          "stalled": "Download sidder fast",
+          "untagged": "Tag ikke sat",
+          "countLoaded_one": "{{count}} ønske blandt de indlæste",
+          "countLoaded_other": "{{count}} ønsker blandt de indlæste"
+        },
+        "sync": "Synkroniser nu",
+        "syncQueued": "Synkroniseringen med Seerr kører.",
+        "queued_one": "{{count}} ønske venter på at blive sendt til Seerr.",
+        "queued_other": "{{count}} ønsker venter på at blive sendt til Seerr.",
+        "empty": "Ingen ønsker endnu.",
+        "emptyFilter": "Ingen ønsker med denne status.",
+        "facts": {
+          "label": "Oplysninger om ønsket",
+          "created": "Anmodet",
+          "origin": "Oprindelse",
+          "seerrUser": "Seerr-bruger",
+          "failReason": "Årsag"
+        },
+        "origin": {
+          "slouchcat": "Anmodet i Slouchcat",
+          "seerr": "Oprettet i Seerr"
+        },
+        "toItem": "Til titlen i administrationen",
+        "history": "Historik",
+        "noHistory": "Der er endnu ikke sket noget.",
+        "retry": "Prøv igen",
+        "retryLabel": "{{title}}: prøv igen",
+        "retried": "{{title}} forsøges igen.",
+        "emptyStalled": "Ingen download sidder fast.",
+        "emptyUntagged": "Alle profiltags er sat eller følger endnu.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Godkend",
+        "approveLabel": "Godkend {{title}}",
+        "approved": "{{title}} er godkendt og hentes.",
+        "decline": "Afvis",
+        "declineLabel": "Afvis {{title}}",
+        "declineTitle": "Afvise {{title}}?",
+        "declineBody": "Slouchcat giver afvisningen videre til Seerr. Seerr gemmer ingen begrundelse: Profilerne ser kun »Afvist« og får besked.",
+        "declined": "{{title}} er afvist.",
+        "event": {
+          "approved_by_admin": "Godkendt i administrationen",
+          "declined_by_admin": "Afvist i administrationen"
+        },
+        "progress": {
+          "search": "Søges",
+          "download": "Downloades",
+          "import": "Importeres",
+          "stalled": "Download sidder fast",
+          "percent": "{{percent}} %",
+          "etaMinutes": "{{minutes}} min tilbage",
+          "etaHours": "{{hours}} t {{minutes}} min tilbage",
+          "episodes": "{{done}} af {{total}} afsnit er der",
+          "unreadable": "Fremskridt kan ikke læses",
+          "unreadableAt": "Fremskridt kan ikke læses · sidst læst {{time}}",
+          "notInService": "Endnu ikke i {{service}}",
+          "incomplete": "Afsnitsstatus kan kun læses delvist.",
+          "etaWholeHours": "{{hours}} t tilbage"
+        },
+        "progressBlock": {
+          "title": "Fremskridt",
+          "service": "Tjeneste",
+          "state": "Status",
+          "unknown": "Intet kendt endnu",
+          "readAt": "Sidst læst",
+          "never": "Aldrig",
+          "note": "Bemærkning",
+          "message": "Meddelelse fra {{service}}"
+        },
+        "tags": {
+          "title": "Profiltags",
+          "set": "{{name}}",
+          "pending": "{{name}} · afventer",
+          "failed": "{{name}} · mislykkedes",
+          "setAt": "Sat i {{service}} den {{time}}",
+          "setIn": "Sat i {{service}}",
+          "pendingHelp": "Tagget følger, så snart titlen er i {{service}}.",
+          "failedHelp": "{{service}} tog ikke imod tagget."
+        },
+        "shown": "Viser {{shown}} af {{total}} ønsker.",
+        "searchedIn": "Søgt i {{shown}} af {{total}} åbne ønsker.",
+        "more": "Indlæs flere",
+        "toItemLabel": "{{title}}: gå til titlen i administrationen",
+        "inSeerr": "Åbn i Seerr",
+        "inSeerrLabel": "Åbn {{title}} i Seerr (nyt vindue)"
+      },
+      "arrError": {
+        "not_in_arr": "Titlen er endnu ikke i {{service}}.",
+        "tvdb_id_missing": "Serien mangler et TVDB-id.",
+        "not_confirmed": "Adressen fra Seerr venter på »Test«.",
+        "not_in_seerr": "Seerr har ingen standardserver til {{service}}.",
+        "seerr_off": "Seerr er ikke sat op eller er slået fra.",
+        "redirect": "{{service}} omdirigerer til en anden adresse.",
+        "timeout": "{{service}} svarede ikke i tide.",
+        "unreachable": "{{service}} kan ikke nås.",
+        "key_invalid": "{{service}} afviser nøglen fra Seerr.",
+        "not_found": "{{service}} kender ikke titlen.",
+        "validation": "{{service}} afviste kaldet som ugyldigt.",
+        "server": "{{service}} svarede med en fejl.",
+        "bad_request": "{{service}} afviste kaldet.",
+        "invalid": "{{service}} svarede uventet.",
+        "seerr": "Seerr leverede ikke adressen og nøglen til {{service}}.",
+        "other": "Fejl: {{error}}"
+      }
     }
   },
   "language": {
@@ -5314,7 +6284,11 @@
         "metadataLanguage": "Beskrivelsernes sprog",
         "metadataLanguageHint": "Titler, beskrivelser og genrer; grænsefladen følger sproget ovenfor.",
         "likeUi": "Som grænsefladen",
-        "playback": "Afspilning"
+        "playback": "Afspilning",
+        "wishes": "Ønsker",
+        "canRequest": "Må anmode om titler",
+        "canRequestHelp": "Profilen må anmode om manglende titler via Seerr.",
+        "canRequestCapped": "Denne konto må ikke anmode om titler. En administrator giver tilladelsen under Konti."
       },
       "report": {
         "show": "Vis visningstid",
@@ -5358,7 +6332,8 @@
     "notFound": {
       "title": "Linket blev ikke fundet",
       "body": "Dette invitationslink findes ikke. Kontrollér, at du har kopieret det helt."
-    }
+    },
+    "seerrAccount": "Dit login gælder også for Seerr: Ved accept oprettes der dér en konto med samme e-mailadresse og samme adgangskode."
   },
   "kind": {
     "movie": "Film",
@@ -5637,7 +6612,13 @@
     "empty": {
       "title": "Intet fundet",
       "body": "Prøv et andet søgeord eller færre filtre."
-    }
+    },
+    "missing": {
+      "title": "Endnu ikke i biblioteket",
+      "notHere": "Ikke her endnu",
+      "request": "Anmod om {{title}}"
+    },
+    "inWishes": "Søg også i ønskerne"
   },
   "watchlist": {
     "title": "Min liste",
@@ -5725,7 +6706,12 @@
     "empty": {
       "title": "Ingen notifikationer",
       "body": "Sæt serier eller podcasts på Min liste for at høre om nye afsnit her."
-    }
+    },
+    "wish_available": "Dit ønske er her",
+    "wish_season_available": "En sæson af dit ønske er her",
+    "wish_approved": "Dit ønske er godkendt",
+    "wish_declined": "Dit ønske blev afvist",
+    "wish_failed": "Dit ønske mislykkedes"
   },
   "settings": {
     "playback": {
@@ -5802,6 +6788,9 @@
         "errors": "Fejl",
         "invitations": "Invitationer",
         "announcements": "Meddelelser",
+        "wish_available": "Ønsker: tilgængelige",
+        "wish_status": "Ønsker: godkendt, afvist, mislykkedes",
+        "wish_review": "Ønsker: godkendelse påkrævet",
         "help": "Hvad der udløser en besked.",
         "helpAdmin": "Hvad der udløser en besked. »Fejl« findes kun for administratorer."
       },
@@ -6187,6 +7176,296 @@
       "halfBody_other": "{{count}} afsnit har markeringen. Markér alle afsnit, eller fjern alle markeringer? Fjernelse kan ikke fortrydes.",
       "markAll": "Markér alle afsnit som set",
       "removeAll": "Fjern alle markeringer"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Film: {{used}} af {{limit}} på {{days}} dage",
+      "tv": "Sæsoner: {{used}} af {{limit}} på {{days}} dage",
+      "remaining_one": "{{count}} tilbage",
+      "remaining_other": "{{count}} tilbage",
+      "nextFree": "næste plads ledig den {{date}}",
+      "short": {
+        "movie": "Film {{used}}/{{limit}}",
+        "tv": "Sæsoner {{used}}/{{limit}}"
+      },
+      "movieNone": "Film uden grænse",
+      "tvNone": "Sæsoner uden grænse"
+    },
+    "state": {
+      "queued": "Sendes",
+      "pending": "Afventer godkendelse",
+      "processing": "Hentes",
+      "partial": "Delvis tilgængelig",
+      "available": "Tilgængelig",
+      "declined": "Afvist",
+      "failed": "Mislykkedes",
+      "withdrawn": "Trukket tilbage"
+    },
+    "detail": {
+      "importing": "indlæses",
+      "not_found_in_library": "endnu ikke fundet i biblioteket"
+    },
+    "fail": {
+      "quota": "Grænsen er nået: Seerr accepterede ikke ønsket.",
+      "blocklisted": "Titlen står på Seerrs blokeringsliste.",
+      "no_permission": "Seerr-brugeren må ikke anmode om denne type titel.",
+      "arr_failed": "Seerr kunne ikke give titlen videre til Radarr eller Sonarr. En administrator kan forsøge ønsket igen.",
+      "unreachable_24h": "Seerr kunne ikke nås i 24 timer.",
+      "seerr_request_gone": "Anmodningen blev slettet i Seerr.",
+      "seerr_media_deleted": "Titlen blev fjernet i Seerr.",
+      "seerr_user_gone": "Den tilknyttede Seerr-bruger findes ikke længere.",
+      "tvdb_id_missing": "Denne serie mangler det TVDB-id, som Seerr har brug for.",
+      "account_deleted": "Kontoen, der stillede ønsket, findes ikke længere."
+    },
+    "reason": {
+      "disabled": "Ønsker er slået fra.",
+      "account_not_allowed": "Denne konto må ikke anmode om titler.",
+      "profile_not_allowed": "Denne profil må ikke anmode om titler. Hovedprofilen kan tillade det under »Profiler«.",
+      "no_mapping": "Der er endnu ikke tilknyttet nogen Seerr-bruger til denne konto. Det sætter administratoren op.",
+      "seerr_user_gone": "Den tilknyttede Seerr-bruger findes ikke længere. Det retter administratoren.",
+      "movies_not_allowed": "Der kan i øjeblikket ikke anmodes om film.",
+      "shows_not_allowed": "Der kan i øjeblikket ikke anmodes om serier.",
+      "status_only": "En anden profil har allerede anmodet om denne titel. Når den er her, finder du den i biblioteket.",
+      "already_requested": "Du har allerede anmodet om denne titel.",
+      "source_not_allowed": "Der kan i øjeblikket ikke anmodes om titler herfra.",
+      "tvdb_id_missing": "Denne serie mangler det TVDB-id, som Seerr har brug for.",
+      "withdraw_disabled": "Ønsker kan i øjeblikket ikke trækkes tilbage."
+    },
+    "tmdbUnreachable": "TMDB kan ikke nås lige nu. Prøv igen senere.",
+    "kind": {
+      "movie": "Film",
+      "show": "Serie"
+    },
+    "seasons_one": "Sæson {{list}}",
+    "seasons_other": "Sæsoner {{list}}",
+    "event": {
+      "created": "Anmodet",
+      "submitted": "Sendt til Seerr",
+      "attached": "Fundet i Seerr og overtaget",
+      "joined": "Sluttede sig til ønsket",
+      "withdrawn": "Trukket tilbage",
+      "withdraw_deleted": "Slettet i Seerr",
+      "owner_changed": "En anden profil ønsker videre",
+      "reopened": "Var allerede godkendt, ønsket fortsætter",
+      "season_available_one": "Sæson {{seasons}} tilgængelig",
+      "season_available_other": "Sæsoner {{seasons}} tilgængelige",
+      "changed": "Ændret"
+    },
+    "card": {
+      "title": "Dit ønske",
+      "requestedOn": "anmodet den {{date}}",
+      "joined": "du er med på ønsket",
+      "history": "Historik",
+      "mine": "Til mine ønsker"
+    },
+    "withdraw": {
+      "action": "Træk tilbage",
+      "actionJoined": "Forlad ønsket",
+      "title": "Trække ønsket tilbage?",
+      "titleJoined": "Forlade ønsket?",
+      "body": "Der anmodes ikke længere om »{{title}}«. Slouchcat sletter også ønsket i Seerr.",
+      "bodyJoined": "Du får ikke længere besked, når »{{title}}« er her. De andre profilers ønsker består.",
+      "confirm": "Træk tilbage",
+      "confirmJoined": "Forlad ønsket"
+    },
+    "dialog": {
+      "titleMovie": "Anmod om film: {{title}}",
+      "titleShow": "Anmod om serie: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Hentes med det samme, ingen godkendelse nødvendig.",
+      "needsApproval": "Kræver godkendelse. Du kan følge den under »Mine ønsker«.",
+      "seasons": "Sæsoner",
+      "allSeasons": "Alle manglende sæsoner ({{count}})",
+      "season": "Sæson {{number}}",
+      "episodes_one": "{{count}} afsnit",
+      "episodes_other": "{{count}} afsnit",
+      "seasonState": {
+        "requested": "allerede anmodet, du får også besked",
+        "available": "tilgængelig"
+      },
+      "nothingLeft": {
+        "title": "Intet mere at anmode om",
+        "body": "Alle sæsoner er her eller allerede anmodet."
+      },
+      "tooManySeasons_one": "Der er 1 af {{limit}} sæsoner tilbage. Vælg højst 1 sæson.",
+      "tooManySeasons_other": "Der er {{count}} af {{limit}} sæsoner tilbage. Vælg højst {{count}} sæsoner.",
+      "reached": {
+        "movie_one": "Grænsen er nået: {{count}} film på {{days}} dage.",
+        "movie_other": "Grænsen er nået: {{count}} film på {{days}} dage.",
+        "show_one": "Grænsen er nået: {{count}} sæson på {{days}} dage.",
+        "show_other": "Grænsen er nået: {{count}} sæsoner på {{days}} dage.",
+        "movie_date_one": "Grænsen er nået: {{count}} film på {{days}} dage. Næste plads bliver ledig den {{date}}.",
+        "movie_date_other": "Grænsen er nået: {{count}} film på {{days}} dage. Næste plads bliver ledig den {{date}}.",
+        "show_date_one": "Grænsen er nået: {{count}} sæson på {{days}} dage. Næste plads bliver ledig den {{date}}.",
+        "show_date_other": "Grænsen er nået: {{count}} sæsoner på {{days}} dage. Næste plads bliver ledig den {{date}}."
+      },
+      "submit": "Anmod",
+      "submitting": "Anmoder…",
+      "chooseSeasons": "Vælg sæsoner",
+      "join": "Giv mig besked",
+      "submitSeasons_one": "Anmod om {{count}} sæson",
+      "submitSeasons_other": "Anmod om {{count}} sæsoner"
+    },
+    "page": {
+      "title": "Mine ønsker",
+      "count_one": "{{count}} åbent ønske",
+      "count_other": "{{count}} åbne ønsker",
+      "countAll_one": "{{count}} ønske",
+      "countAll_other": "{{count}} ønsker",
+      "countAvailable_one": "{{count}} tilgængeligt ønske",
+      "countAvailable_other": "{{count}} tilgængelige ønsker",
+      "countClosed_one": "{{count}} afsluttet ønske",
+      "countClosed_other": "{{count}} afsluttede ønsker",
+      "limit": "Grænse: {{limit}}",
+      "offline": "Kun tilgængelig online: Ønskerne ligger på serveren.",
+      "filters": {
+        "label": "Filtrer ønsker",
+        "all": "Alle",
+        "open": "Åbne",
+        "available": "Tilgængelige",
+        "closed": "Afsluttede"
+      },
+      "filter": "Status",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Ingen ønsker endnu.",
+        "body": "Det, du anmoder om, vises her med sin status."
+      },
+      "emptyFilter": {
+        "open": "Ingen åbne ønsker.",
+        "available": "Intet ønske er tilgængeligt endnu.",
+        "closed": "Ingen afsluttede ønsker."
+      }
+    },
+    "row": {
+      "open": "Til titlen",
+      "withdrawLabel": "Træk {{title}} tilbage",
+      "withdrawJoinedLabel": "Forlad ønsket om {{title}}",
+      "again": "Anmod igen",
+      "againLabel": "Anmod om {{title}} igen",
+      "history": "Historik: {{last}}",
+      "fromSeerr": "oprettet i Seerr"
+    },
+    "area": {
+      "label": "Områder under Ønsker",
+      "discover": "Udforsk",
+      "movies": "Film",
+      "series": "Serier",
+      "search": "Søg",
+      "mine": "Mine ønsker",
+      "mineCount_one": "Mine ønsker ({{count}})",
+      "mineCount_other": "Mine ønsker ({{count}})"
+    },
+    "discover": {
+      "title": "Udforsk",
+      "intro": "Hvad der er populært lige nu, og hvad der snart udkommer. Det, der endnu ikke findes i biblioteket, kan du anmode om.",
+      "searchLabel": "Søg efter en film eller serie",
+      "searchAction": "Søg",
+      "rows": {
+        "trending": "Trender",
+        "popular_movies": "Populære film",
+        "movie_genres": "Filmgenrer",
+        "upcoming_movies": "Snart i biografen",
+        "popular_shows": "Populære serier",
+        "show_genres": "Seriegenrer",
+        "upcoming_shows": "Kommer snart som serie"
+      },
+      "stale": "Seerr kan ikke nås. Du ser status fra den seneste hentning.",
+      "refreshFailed": "Listen kunne ikke opdateres. Du ser status fra den seneste hentning.",
+      "empty": "Der er ikke noget at udforske her lige nu.",
+      "inLibrary": "I biblioteket",
+      "requested": "Allerede anmodet",
+      "join": "{{title}}: giv mig besked",
+      "gone": {
+        "title": "Udforsk er ikke tilgængelig for denne profil",
+        "body": "Dine hidtidige ønsker finder du stadig under »Mine ønsker«.",
+        "action": "Til »Mine ønsker«"
+      },
+      "notFound": {
+        "title": "Siden blev ikke fundet",
+        "body": "Denne side findes ikke for denne profil."
+      }
+    },
+    "titles": {
+      "moviesIntro": "Alle film, som TMDB kender, uanset om de allerede er i biblioteket eller ej. Det, der mangler, kan du anmode om.",
+      "seriesIntro": "Alle serier, som TMDB kender, uanset om de allerede er i biblioteket eller ej. Det, der mangler, kan du anmode om.",
+      "sort": "Sortering",
+      "sorts": {
+        "popularity": "Popularitet",
+        "newest": "Nyeste først",
+        "rating": "Bedst bedømt"
+      },
+      "filter": "Filter: {{summary}}",
+      "filterLabel": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alle genrer",
+      "genreId": "Genre {{id}}",
+      "library": "Bibliotek",
+      "hide": "Skjul det, der findes",
+      "hideHelp": "Viser kun det, der endnu ikke er i biblioteket.",
+      "hidden": "Titler i biblioteket skjult",
+      "shown": "Titler i biblioteket vist",
+      "clear": "Nulstil filtre",
+      "apply": "Anvend",
+      "moviesEmpty": "Ingen film til dette valg.",
+      "seriesEmpty": "Ingen serier til dette valg."
+    },
+    "search": {
+      "intro": "Søg i alt, hvad TMDB kender, også i det, der stadig mangler. Også via id som tmdb:603, tvdb:121361 eller imdb:tt0133093.",
+      "placeholder": "Film eller serie",
+      "start": "Skriv en titel. Der søges i alt, hvad TMDB kender, også på originaltitel.",
+      "tooShort": "Skriv mindst to tegn.",
+      "hits": "Resultater",
+      "empty": {
+        "title": "Intet fundet for »{{q}}«",
+        "body": "Der søges efter titler på film og serier, ikke efter personer. Prøv et andet søgeord eller et id."
+      }
+    },
+    "progress": {
+      "search": "Søges",
+      "download": "Downloades",
+      "import": "Importeres",
+      "stalled": "Download sidder fast",
+      "percent": "{{percent}} %",
+      "episodes_one": "{{done}} af {{count}} afsnit er her",
+      "episodes_other": "{{done}} af {{count}} afsnit er her",
+      "eta": "{{time}} tilbage"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Titlen blev ikke fundet",
+      "body": "Denne titel findes ikke, eller denne profil kan ikke se den."
+    },
+    "loading": "Titel",
+    "missing": "Endnu ikke i biblioteket",
+    "seasonCount_one": "{{count}} sæson",
+    "seasonCount_other": "{{count}} sæsoner",
+    "requestMovie": "Anmod om film",
+    "requestShow": "Anmod om serie",
+    "done": {
+      "requested": "Anmodet. Du kan følge den under »Mine ønsker«.",
+      "joined": "Du får besked, så snart titlen er her.",
+      "withdrawn": "Dit ønske er trukket tilbage."
+    },
+    "alreadyRequested": "Allerede anmodet",
+    "cannotRequest": "Denne profil kan ikke anmode om titler",
+    "seasons": "Sæsoner",
+    "seasonRequested": "Allerede anmodet",
+    "nextEpisode": "Kører stadig, næste afsnit den {{date}}",
+    "last": {
+      "title": "Dit seneste ønske: {{state}}",
+      "why": {
+        "declined": "Seerr oplyser ingen årsag. Du kan anmode om titlen igen.",
+        "withdrawn": "Du trak det tilbage."
+      }
+    },
+    "join": "Giv mig besked",
+    "shared": {
+      "title": "Allerede anmodet · {{state}}",
+      "join": "En anden profil har allerede anmodet om denne film. Med »Giv mig besked« giver Slouchcat også dig besked, så snart den kan afspilles.",
+      "statusOnly": "En anden profil har allerede anmodet om denne film. Så snart den kan afspilles, finder du den i biblioteket."
     }
   }
 }

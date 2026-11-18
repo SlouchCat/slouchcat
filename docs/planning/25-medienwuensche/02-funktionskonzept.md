@@ -43,7 +43,7 @@ Marcos Ja.
 | **Erfüllte Wünsche** | Startreihe mit den Wünschen des Profils, die in den letzten 14 Tagen wahr wurden (Marco, E-10) |
 | **Wunschrecht** | ob ein Profil anfordern darf; Schalter je Konto (Administrator) und je Profil (Hauptprofil) |
 
-Die Begriffe sind offen als F-1. In der Oberfläche heisst der Dienst «Seerr» (Marco, E-9).
+Die Begriffe hat Marco mit F-1 so bestätigt (Anhang H 11.2). In der Oberfläche heisst der Dienst «Seerr» (Marco, E-9).
 
 ## 2. Zustände eines Wunsches
 
@@ -83,11 +83,11 @@ Ein Profil darf anfordern, wenn alles zutrifft:
 2. Das Konto hat das Wunschrecht (Administrator, Formular «Zugriff»; bei Administratorkonten der Block
    «Wünsche»). Vorgabe: Besitzerkonto an, neue Konten aus.
 3. Das Profil hat das Wunschrecht (Hauptprofil, Profildialog). Vorgabe: Hauptprofil an, weitere Profile aus.
-4. Das Konto hat einen Seerr-Benutzer (von Slouchcat eröffnet, verknüpft oder von Hand zugeordnet), das
-   Profil hat eine Ausnahme, oder der Sammelbenutzer greift. Konten ohne Seerr-Benutzer dürfen nicht
-   anfordern (Vorgabe; Sammelbenutzer als Wahl, F-4). Das gilt auch, solange ein Konto noch «wird eröffnet»
-   (Ablauf 4.9). Sobald der Benutzer besteht, geht das Anfordern;
-   das Passwort spielt dafür keine Rolle.
+4. Das Konto hat einen Seerr-Benutzer (von Slouchcat eröffnet, verknüpft oder von Hand zugeordnet), oder der
+   Sammelbenutzer «slouchcat-gaeste» greift. Konten ohne eigenen Seerr-Benutzer senden ab Werk über den
+   Sammelbenutzer (Marco, F-4; N-101), auch solange ein Konto noch «wird eröffnet» (Ablauf 4.9). Steht
+   «Konten ohne Seerr-Benutzer» auf «Nicht erlauben», können sie bis dahin nicht anfordern. Eine Ausnahme je
+   Profil gibt es nicht (Marco, F-27; N-100). Das Passwort spielt für das Anfordern keine Rolle.
 5. Die Medienart ist erlaubt («Filme erlauben», «Serien erlauben») und die Stelle ist erlaubt
    («Anfordern aus der Suche», «Anfordern auf Detailseiten», Schalter «Seiten Entdecken, Filme, Serien und
    Suche»). Einen Schalter für das Spotlight gibt es nicht, weil dort nichts anzufordern ist.
@@ -110,7 +110,7 @@ Dialog sperrt nur den Knopf (Abschnitt 4.10).
 Der Server liefert `canRequest`, einen Grund und den Stand des Limits; die App zeigt nur an (Regel 12). Recht,
 Limit und Auto-Freigabe in Seerr gelten so, als hätte der Seerr-Benutzer selbst geklickt
 (`X-API-User`, F-3). Seerr-Benutzer, Limit und Vorgaben im Einzelnen: `04-benutzer-profilmapping.md`
-(F-2, F-5, F-23 bis F-27).
+(F-2, F-4, F-5, F-23 bis F-27).
 
 ## 4. Abläufe
 
@@ -177,6 +177,10 @@ Alle Unterscheidungen bei Serien: Abschnitt 6.
 
 Steht «Bereits angeforderte Titel» auf «Nur Zustand zeigen», fehlt der Knopf; der Zustand bleibt sichtbar.
 
+So gebaut: «Benachrichtige mich» wünscht mit einem Druck mit, ohne Dialog und ohne Limit; der Hinweis nennt nie,
+wer gewünscht hat. Bei Serien bietet der Dialog eine Staffel, die schon der eigene offene Wunsch des Profils hält,
+nicht zum Mitwünschen an; sie zeigt nur ihren Zustand.
+
 ### 4.4 Seerr nicht erreichbar
 
 1. Das Profil fordert an wie in 4.1.
@@ -206,7 +210,7 @@ Seerr wieder erreichbar ist (Ablauf 4.9).
 |---|---|
 | Profil oder Konto ohne Wunschrecht | keine fehlenden Titel in der Suche, keine fehlenden Staffeln (F-9); im Bereich «Wünsche» keine Reiter «Entdecken», «Filme», «Serien», «Suche»; kein Eintrag «Wünsche» in der Seitenleiste, ausser es hat schon Wünsche (dann nur «Meine Wünsche») |
 | Profil ohne Wunschrecht öffnet eine Vorschauseite über einen Link | 404 «nicht gefunden»; Ausnahme: Das Profil hat selbst einen Wunsch zu diesem Titel, dann Seite ohne Anforderungsknopf |
-| Konto ohne Seerr-Benutzer (und kein Sammelbenutzer), auch solange es «wird eröffnet» | wie ohne Wunschrecht: keine fehlenden Titel. Der Administrator sieht den Fall in der Verwaltung (Übersicht «n Konten ohne Seerr-Benutzer», Seite «Seerr-Benutzer», Chip «Kein Seerr-Benutzer» bzw. «Wird in Seerr eröffnet» auf «Konten») |
+| Konto ohne Seerr-Benutzer, auch solange es «wird eröffnet», und «Konten ohne Seerr-Benutzer» steht auf «Nicht erlauben» (ab Werk «Sammelbenutzer», F-4) | wie ohne Wunschrecht: keine fehlenden Titel. Der Administrator sieht den Fall in der Verwaltung (Übersicht «n Konten ohne Seerr-Benutzer», Seite «Seerr-Benutzer», Chip «Kein Seerr-Benutzer» bzw. «Wird in Seerr eröffnet» auf «Konten») |
 | Medienart ausgeschaltet | keine fehlenden Titel dieser Art |
 | «Anfordern aus der Suche» aus | kein Abschnitt «Noch nicht in der Bibliothek» |
 | «Seiten Entdecken, Filme, Serien und Suche» aus | der Bereich «Wünsche» zeigt nur «Meine Wünsche» |
@@ -240,7 +244,8 @@ Seerr wieder erreichbar ist (Ablauf 4.9).
 3. Für jedes anfordernde Profil und jeden Mitwünscher prüft der Server, ob das Profil den Titel sehen darf.
 4. Erst dann wird der Wunsch für dieses Profil `available` und es bekommt den Eingangseintrag «Verfügbar:
    {{Titel}}» mit Link auf die Detailseite. Ist ein Profil (noch) nicht berechtigt, etwa weil die Freigabe
-   fehlt, wartet die Meldung für dieses Profil.
+   fehlt, wartet die Meldung für dieses Profil. So gebaut liest ein solches Profil den Wunsch bis dahin als «In Beschaffung · wird
+   eingelesen», ohne Zeitpunkt und ohne Verweis auf den Titel (`03-architektur.md`, Abschnitt 8.3).
 5. Kanäle des Kontos: E-Mail, Web-Push, Telegram mit `[Profilname]` im Betreff, wenn «Wünsche: verfügbar»
    gewählt ist (ab Werk an, F-14). Bei Profilen mit PIN nennt die Nachricht den Titel nicht (F-15).
 6. Bei Serien gilt eine Staffel erst als verfügbar, wenn sie vollständig ist: Slouchcat kann ihre Folgen
@@ -269,7 +274,8 @@ Einzelheiten zu Arten, Ereignissen und Doppelschutz: `06-benachrichtigungen.md`.
    Limit (Anhang H 3.2).
 5. War der Request inzwischen schon freigegeben oder gehört er jemand anderem, bleibt er in Seerr stehen.
    Der Wunsch wird wieder geöffnet («In Beschaffung»), und das Profil liest «War schon freigegeben».
-6. Ab `processing` geht Zurückziehen nicht mehr; der Knopf fehlt.
+6. Ab `processing` geht Zurückziehen nicht mehr; der Knopf fehlt. So gebaut fehlt er auch bei einem Wunsch, den
+   das Profil als «wird eingelesen» liest, weil es den Titel der Bibliothek nicht sehen darf (Abschnitt 4.7).
 7. **Vorschlag für Mitwünsche:** Ein Mitwünscher zieht nur sich selbst zurück, ohne Aufruf an Seerr.
    Zieht der erste Anforderer zurück, während Mitwünscher da sind, bleibt der Wunsch bestehen; der älteste
    Mitwünscher wird Anforderer. Erst wenn niemand mehr dranhängt, zieht Slouchcat in Seerr zurück.
@@ -281,7 +287,11 @@ Technik und Fehlerfälle: `03-architektur.md`, Abschnitt 6.6.
 Marco hat am 17. November 2026 verlangt, dass ein eingeladener Benutzer «auch in Seerr eröffnet» wird, «mit den
 gleichen Login Daten» (Nachricht), und dass er sich dort mit E-Mail und Passwort von Slouchcat anmelden kann
 (E-1), und dass ein bestehender Seerr-Benutzer mit gleicher E-Mail sofort verknüpft wird, auch bei Einladungen
-(E-8). Der Ablauf im Einzelnen ist Empfehlung (N-1 bis N-5, N-90 bis N-95):
+(E-8). Der Ablauf im Einzelnen ist Empfehlung (N-1 bis N-5, N-90 bis N-95).
+
+**Befund der Prüfung (Anhang I, I-10):** Auf Marcos Instanz ist der Medienserver Emby, und alle bestehenden Seerr-Benutzer melden sich über Emby an. Sie werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6); dasselbe Login gibt es dort nur für Benutzer, die Slouchcat neu eröffnet.
+
+Der Ablauf:
 
 1. Die eingeladene Person öffnet den Link (Seite M-35, heute `/invite/$token`). Neu steht dort der Hinweis «Dein
    Login gilt auch für Seerr».
@@ -298,20 +308,24 @@ gleichen Login Daten» (Nachricht), und dass er sich dort mit E-Mail und Passwor
 5. Das Limit aus der Einladung (oder die Vorgabe) schreibt Slouchcat in den neuen Benutzer.
 6. Ist Seerr gerade nicht erreichbar, entsteht das Konto trotzdem. Der Benutzer in Seerr folgt beim
    nächsten Abgleich mit einem Zufallspasswort; das richtige Passwort übernimmt Slouchcat bei der nächsten
-   Anmeldung (N-4). Bis der Seerr-Benutzer besteht, kann das Konto nicht anfordern. Sobald er besteht,
-   geht das Anfordern; das Passwort spielt dafür keine Rolle.
+   Anmeldung (N-4). Bis der Seerr-Benutzer besteht, sendet das Konto über den Sammelbenutzer (ab Werk, F-4;
+   N-101); steht «Konten ohne Seerr-Benutzer» auf «Nicht erlauben», kann es bis dahin nicht anfordern. Das
+   Passwort spielt dafür keine Rolle.
 7. **Was das Konto erfährt:** Ob Slouchcat den Benutzer neu eröffnet oder einen bestehenden verknüpft hat,
    die Seite sagt nach dem Absenden in beiden Fällen dasselbe: «In Seerr hast du jetzt ein Konto mit derselben
    E-Mail und demselben Passwort.» Das Konto erfährt so nie, ob Seerr die Adresse schon kannte (N-94,
-   Empfehlung). Ist Seerr nicht erreichbar, sagt die Seite: Der Zugang zu Seerr ist noch nicht bereit; bis
-   dahin kann das Konto nichts anfordern.
+   Empfehlung). Ist Seerr nicht erreichbar, sagt die Seite: Der Zugang zu Seerr ist noch nicht bereit. (Der
+   frühere Zusatz «bis dahin kann das Konto nichts anfordern» gilt nur noch bei «Nicht erlauben», F-4.)
 
 Ändert ein Konto ohne Seerr-Benutzer später seine E-Mail in Slouchcat auf eine Adresse, die Seerr schon
 kennt, gilt dasselbe wie bei der Einladung: Slouchcat verknüpft sofort. Hat das Konto schon einen
 Seerr-Benutzer, ändert Slouchcat dessen E-Mail; lehnt Seerr ab, weil die Adresse vergeben ist, meldet
 Slouchcat das und lässt den Benutzer, wie er ist (N-95, Empfehlung).
 
-Ändert die Person später ihr Passwort oder ihre E-Mail in Slouchcat, gleicht Slouchcat Seerr ab. Ändert sie
+Ändert die Person später ihr Passwort oder ihre E-Mail in Slouchcat, gleicht Slouchcat Seerr ab. Das Passwort
+gleicht es nur ab, wenn Slouchcat den Benutzer eröffnet oder bei Einladung oder E-Mail-Änderung verknüpft hat;
+ein Benutzer, den ein Administrator verknüpft, behält sein Passwort, bis der Abgleich für das Konto eingeschaltet
+wird (Marco, F-24; N-103). Ändert sie
 das Passwort direkt in Seerr, laufen die beiden auseinander (Marco kannte die Folge, E-1). Einzelheiten,
 Ausnahmen und Schalter: `04-benutzer-profilmapping.md`, Abschnitte 12 und 13.
 
@@ -337,8 +351,9 @@ zeigt, ist Empfehlung (N-35, N-36):
    und Staffeln gleich (Redaktionsentscheid, `mockup-abdeckung.md` Abschnitt 10.2, Nr. 28). Eine Benachrichtigung über das erreichte Limit gibt
    es nicht; der Dialog sagt es (`06-benachrichtigungen.md`, Abschnitt 4).
 
-Das Limit gilt für alle Profile eines Kontos gemeinsam; ein Teil-Limit je Profil gibt es nicht. Ein Profil mit
-Ausnahme hat das Limit seines Ausnahme-Benutzers (`04-benutzer-profilmapping.md`, Abschnitte 17 und 18).
+Das Limit gilt für alle Profile eines Kontos gemeinsam; ein Teil-Limit je Profil gibt es nicht. Für den
+Sammelbenutzer gilt das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4;
+`04-benutzer-profilmapping.md`, Abschnitt 17). Die Ausnahme je Profil entfällt (F-27; Abschnitt 18 dort).
 
 ### 4.11 Stöbern im Bereich «Wünsche»
 
@@ -346,7 +361,8 @@ Ausnahme hat das Limit seines Ausnahme-Benutzers (`04-benutzer-profilmapping.md`
 2. «Entdecken» zeigt Reihen wie Seerr: Im Trend, Beliebte Filme, Film-Genres, Demnächst im Kino, Beliebte
    Serien, Serien-Genres, Demnächst als Serie (Empfehlung N-51, F-28). Ein Suchfeld führt zu «Suche».
 3. «Filme» (M-32) und «Serien» (M-33) sind Posterraster mit Sortierung, Genre-Filter und «Vorhandene
-   ausblenden»; «Mehr laden» holt die nächste Seite.
+   ausblenden»; beim Scrollen lädt die nächste Seite nach (Redaktion: Muster der App, Konzept 18 C-3; einen Knopf
+   «Mehr laden» wie im Mockup gibt es nicht).
 4. Ein Poster eines fehlenden Titels öffnet die Vorschauseite, sein Plus-Knopf den Dialog. Ein Titel, der schon
    in der Bibliothek steht, trägt eine Marke und führt zur Detailseite.
 5. Angefordert wird wie in Ablauf 4.1 oder 4.2.
@@ -364,7 +380,7 @@ Aufbau der Seiten: Abschnitt 5.4.
 | Vorschauseite | `/titles/{movie\|show}/{tmdbId}` | neu | Aufbau wie Detailseite; Hauptknopf «Film anfordern» / «Serie anfordern» oder Zustand; Wunschkarte mit Zustand und Download-Fortschritt | M-03, M-04 |
 | Suche | `/search` | geändert | Abschnitt «Noch nicht in der Bibliothek» unter den Bibliothekstreffern; neu ein Verweis auf die Wunsch-Suche (N-57) | M-07 |
 | Wünsche · Entdecken | `/discover` (Redaktionsentscheid, wie im Mockup) | neu | Reihen wie auf der Startseite von Seerr, Genre-Kacheln, Suchfeld | M-31 |
-| Wünsche · Filme | `/discover/movies` | neu | Posterraster mit Sortierung, Genre-Filter, «Vorhandene ausblenden», «Mehr laden» | M-32 |
+| Wünsche · Filme | `/discover/movies` | neu | Posterraster mit Sortierung, Genre-Filter, «Vorhandene ausblenden», Nachladen beim Scrollen | M-32 |
 | Wünsche · Serien | `/discover/series` | neu | wie «Filme» | M-33 |
 | Wünsche · Suche | `/discover/search` | neu | Suche über alles, was TMDB kennt, auch nach Kennung `tmdb:`, `tvdb:`, `imdb:` | M-34 |
 | Wünsche · Meine Wünsche | `/wishes` | neu | fünfter Reiter des Bereichs; Liste, Filter, Verlauf je Wunsch, Download-Fortschritt, Zurückziehen, erneut anfordern, Anzeige des Limits | M-08 |
@@ -384,7 +400,8 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
 ### 5.1 Vorschauseite
 
 - Kopf wie die Detailseite: Hintergrund, Logo oder Titel, Metazeile (Jahr, Laufzeit oder Staffelzahl,
-  Genres, Freigabe) mit dem Chip «Noch nicht in der Bibliothek», Beschreibung.
+  Genres) mit dem Chip «Noch nicht in der Bibliothek», Beschreibung. Eine Altersfreigabe steht dort nicht, anders
+  als im Mockup: Zuschauer sehen keine Freigabe (Regel aus Konzept 17, F-10).
 - Knöpfe: Hauptknopf «Film anfordern» / «Serie anfordern» oder die Zustandsanzeige; «Trailer», wenn einer da ist.
 - **Wunschkarte:** Hat das Profil einen Wunsch zu diesem Titel, zeigt eine Karte unter dem Kopf Zustand, Datum
   und, solange der Wunsch «In Beschaffung» ist, den Download-Fortschritt, gleich wie «Meine Wünsche»
@@ -401,6 +418,8 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
   an Bibliothekstiteln.
 - **Vorschlag:** Steht der Titel inzwischen in der Bibliothek und darf das Profil ihn sehen, leitet die
   Vorschauseite auf die Detailseite `/items/{id}` weiter.
+- So gebaut: Kann die Seite die Wunschkarte nicht lesen, zeigt sie den Fehler mit «Erneut versuchen». Eine
+  ungültige Nummer in der Adresse zeigt «Titel nicht gefunden».
 
 ### 5.2 Suche
 
@@ -426,7 +445,9 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
 - Je Wunsch: Poster, Titel, bei Serien die Staffeln, Zustand mit Datum, aufklappbarer Verlauf (angefordert,
   übermittelt, freigegeben, verfügbar). Solange der Wunsch «In Beschaffung» ist, dazu der Download-Fortschritt
   (unten).
-- Aktionen je Zustand: «Zurückziehen», «Erneut anfordern», «Abspielen» bzw. «Zum Titel».
+- Aktionen je Zustand: «Zurückziehen», «Erneut anfordern», «Abspielen» bzw. «Zum Titel». So gebaut hat ein
+  verfügbarer Wunsch nur den Knopf «Zum Titel» (das Mockup zeigte «Abspielen» und «Zum Titel»). Die Zählzeile
+  folgt dem gewählten Filter.
 - Wünsche aus Seerr, die Slouchcat übernimmt (F-21, Stufe 4), tragen «In Seerr angelegt».
 - Das Hauptprofil sieht über `listAccountWishes` (`scoped`, nur mit Hauptprofil) auch die Wünsche aller
   Profile des Kontos. Das ist gewollt: Das Hauptprofil verwaltet das Konto, setzt und entfernt PINs und sieht
@@ -446,6 +467,7 @@ denselben Zugang wie für den Profil-Tag (E-6, N-81). Die Einzelheiten sind Empf
 | «Download verzögert» | die Warteschlange meldet eine Warnung oder einen Fehler |
 
 - Bei Serien steht dazu «x von y Folgen da».
+- So gebaut steht bei Zuschauern weder «Stand aus Radarr» noch ein Zeitpunkt; Zuschauer sehen den Dienst nie.
 - Der Fortschritt steht nur beim Wunsch: unter «Meine Wünsche», auf der Wunschkarte der Vorschauseite (M-03,
   M-04) und in der Verwaltung unter Anfragen. Nicht an Titeln der Bibliothek, nicht in Reihen, nicht in der
   Suche (N-82). Die Spec führt den Beschaffungsstand als Nicht-Ziel; das ist eine eng gefasste Ausnahme nur beim
@@ -472,7 +494,7 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 | Reiter | Inhalt | Mockup |
 |---|---|---|
 | «Entdecken» | Reihen wie Seerr: Im Trend, Beliebte Filme, Film-Genres (Kacheln), Demnächst im Kino, Beliebte Serien, Serien-Genres (Kacheln), Demnächst als Serie; dazu ein Suchfeld. Die Reihen «Recently Added», «Recent Requests», «Plex Watchlist», «Studios», «Networks» von Seerr entfallen (F-28). | M-31 |
-| «Filme» | Posterraster mit Sortierung (Beliebtheit, Neueste zuerst, Titel), Genre-Filter und «Vorhandene ausblenden»; der Filter ist zugeklappt und zeigt seine Wahl im Kopf; «Mehr laden» | M-32 |
+| «Filme» | Posterraster mit Sortierung («Beliebtheit», «Neueste zuerst», «Am besten bewertet»; «Titel A–Z» aus dem Mockup entfällt, weil Seerr sie nicht brauchbar liefert, Anhang I N-117), Genre-Filter und «Vorhandene ausblenden»; der Filter ist zugeklappt und zeigt seine Wahl im Kopf; Nachladen beim Scrollen statt «Mehr laden» | M-32 |
 | «Serien» | wie «Filme» | M-33 |
 | «Suche» | sucht in allem, was TMDB kennt, auch nach Kennung: `tmdb:`, `tvdb:`, `imdb:`. Personen zeigt sie nicht. | M-34 |
 | «Meine Wünsche» | eigene Wünsche (Abschnitt 5.3); fünfter Reiter ist Redaktionsentscheid, Marco nannte vier | M-08 |
@@ -488,7 +510,12 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 - **Wer den Bereich sieht:** Es gilt F-9 unverändert: «Entdecken», «Filme», «Serien» und «Suche» sieht nur ein
   Profil, das anfordern kann (Abschnitt 3). Alle anderen sehen höchstens «Meine Wünsche». Die Altersstufe gilt
   für jeden Titel, unbekannt zählt als 18; für Profile mit Altersgrenze fragt der Server Seerr mit
-  `certificationLte` und prüft jeden Treffer selbst nach (N-56).
+  `certificationLte` und prüft jeden Treffer selbst nach (N-56); für CH und AT nimmt dieser Vorfilter DE (Anhang I
+  N-118).
+- **Nach der Prüfung an Marcos Seerr (Anhang I, Abschnitt 4a; Redaktion):** Titel, Poster und Hintergrund kommen
+  aus Slouchcats eigenen Daten in der Sprache des Profils, sobald es den Titel kennt, sonst der Text aus Seerr
+  (N-116); an die Listen «Filme» und «Serien» geht kein Sprachparameter (N-115); es gibt höchstens 500 Seiten
+  (I-67).
 - **Schalter:** «Seiten Entdecken, Filme, Serien und Suche» unter Wünsche › Einstellungen (N-57).
 - **Kein Verstoss gegen das Nicht-Ziel «algorithmische Empfehlungen»:** Die Listen sind öffentliche
   TMDB-Ranglisten, für alle gleich. S-4 («Titel ohne Bibliothekstreffer nie auf der Startseite») bleibt ohne
@@ -496,6 +523,12 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 - **Keine Reihe aus dem Spotlight:** Fehlende Einträge der Trakt-Liste erscheinen auch unter «Entdecken» nicht
   (Marco, E-5).
 - **Seerr nicht erreichbar:** Listen vom letzten Abruf, Suche nicht möglich (Ablauf 4.4).
+- **So gebaut (Abweichungen vom Mockup, `mockup-abdeckung.md` Abschnitt 11.1):** Die Reiter des Bereichs stehen über
+  dem Seitenkopf, das Suchfeld von «Entdecken» hat einen Knopf «Suchen» (beides wie M-08 und M-31). «Suche» zeigt
+  die Treffer als ein Raster statt in Listen «Filme (n)» und «Serien (n)», ohne Trefferzahlen. Bibliothekskacheln
+  tragen kein «Gesehen» und kein «Merken». Die Reihen von «Entdecken» zeigen die erste Seite; die Raster laden beim
+  Scrollen nach. Nach einem Wunsch, Mitwunsch oder Rückzug ändert die Web-App die betroffene Kachel und liest die
+  Listen nicht sofort neu; «Filme», «Serien» und «Suche» laden bei Fensterfokus nicht nach.
 
 ### 5.5 Dialog «Anfordern» (M-13)
 
@@ -508,6 +541,10 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 
 Dazu wie bisher: Poster, Titel, «Wird als {{Seerr-Benutzer}} an Seerr übermittelt», «Wird sofort
 beschafft» oder «Braucht eine Freigabe», bei Serien die Staffelwahl aus Seerr (Abschnitt 6).
+
+So gebaut lässt sich der Dialog während der Anfrage schliessen; das Ergebnis kommt trotzdem an. Ein
+überschrittenes Limit zeigt immer eine Meldung. «Alle fehlenden Staffeln» sendet die Staffeln einzeln, sobald der
+Dialog eine Staffel ausgelassen hat (etwa eine, die der eigene Wunsch schon hält).
 
 ### 5.6 Einladung annehmen (M-35)
 
@@ -533,13 +570,17 @@ Empfehlung). Ob Seerr die eingetippte Adresse kannte, zeigt die Seite nie.
 | Staffel in Beschaffung | Wunschstaffel im Zustand `processing` | gedämpfte Karte «In Beschaffung» |
 | Staffel teilweise eingelesen | einige Folgen der Staffel da | Staffel wie heute schaubar; sie gilt für den Wunsch erst als verfügbar, wenn sie vollständig ist (Abschnitt 4.7); **Vorschlag:** die Karte zeigt «5 von 10 Folgen» |
 | Künftige Folgen | TMDB-Status «läuft», nächste Folge mit Datum | Zeile «Läuft noch, nächste Folge am …»; nichts anzufordern |
-| Künftige Staffel | angekündigt, aber ohne Folgen | nicht wählbar; **Vorschlag:** Karte «Angekündigt» ohne Knopf |
+| Künftige Staffel | angekündigt, aber ohne Folgen | nicht wählbar; **Vorschlag:** Karte «Angekündigt» ohne Knopf (so gebaut: nicht anforderbar) |
+| Staffel, die das Profil nicht sehen darf (so gebaut) | keine Folge der Staffel für das Profil abspielbar (strengere Freigabe je Staffel oder Folge) | steht nicht in der Staffelwand und zählt nicht mit; der Dialog bietet sie nicht an; «Alle fehlenden Staffeln» lässt sie aus. Sieht das Profil nur einen Teil der Folgen, bleibt die Staffel anforderbar (bekannte Grenze, `03-architektur.md` Abschnitt 14) |
 | Staffel 0 (Specials) | Staffelnummer 0 | nie wählbar |
 
 Einzelne Folgen lassen sich nicht anfordern (Seerr arbeitet staffelweise, F-12). Slouchcat schickt die
 TVDB-ID immer mit; ohne sie löscht Seerr den Wunsch beim Senden an Sonarr. Serien, die ganz fehlen,
 kennt die Vorschauseite aus `external_titles`; Serien in der Bibliothek ihre Staffelliste aus `series_catalog`.
-Die Staffelwand für fehlende Staffeln kommt mit Stufe 4.
+Die Staffelwand für fehlende Staffeln kommt mit Stufe 4. **So gebaut:** «Staffeln anfordern» steht unter der
+Staffelwand, nicht bei den runden Aktionen. Eine fehlende Staffel ist eine Karte mit gestricheltem Umriss ohne
+Bild (der Vertrag liefert keines). Eine Staffelkarte ohne Aktion (angekündigt, in Beschaffung) ist als nicht
+verfügbar markiert, mit den Pfeiltasten erreichbar, und Enter tut nichts.
 
 **Staffeln im Dialog kommen aus Seerr** (Empfehlung N-63): Der Dialog fragt `GET /tv/{tmdbId}` und bietet
 genau die Staffeln an, die Seerr bestellen kann. Seerr liest die Staffelliste ab Werk aus TMDB; auf
@@ -558,12 +599,12 @@ zählen Dialog, Sonarr und Bibliothek gleich (`05-spotlight-integration.md`, Abs
   Profil und Konto. **Unbekannte Freigabe zählt als 18.**
 - Ein Kinderprofil mit Wunschrecht darf anfordern (F-6). Ob der Wunsch eine Freigabe braucht, entscheidet die
   Auto-Freigabe des Seerr-Benutzers, als der es sendet. Im Normalfall ist das der Benutzer des Kontos; im
-  Konto des Administrators wäre der Wunsch damit sofort freigegeben und ohne Limit. Dafür gibt es die
-  zugeklappte Ausnahme «Profil sendet als anderer Seerr-Benutzer» (Empfehlung F-27,
-  `04-benutzer-profilmapping.md`, Abschnitt 18). Slouchcat baut keine eigene Freigabe.
-- Beispiel aus den Mockup-Daten: Noah (12) sendet mit einer Ausnahme als Seerr-Benutzer «kinder» (keine
-  Auto-Freigabe, eigenes Limit 5 Filme und 2 Staffeln je 7 Tage). Sein Wunsch zeigt «Freigabe ausstehend», bis
-  Marco ihn in Seerr freigibt. Mia (6) darf nicht anfordern und sieht keine fehlenden Titel.
+  Konto eines Seerr-Administrators ist der Wunsch damit sofort freigegeben und ohne Limit. Eine Ausnahme je
+  Profil gibt es nicht; Marco kennt die Folge und hat so gewählt (F-27; N-100). Begrenzen lässt sich das nur
+  über das Wunschrecht des Profils. Slouchcat baut keine eigene Freigabe.
+- Beispiel aus den Mockup-Daten: Mia (6) darf nicht anfordern und sieht keine fehlenden Titel. Das Mockup zeigt
+  noch Noah (12) mit einer Ausnahme als Seerr-Benutzer «kinder»; die entfällt (F-27, `mockup-abdeckung.md`,
+  Abschnitt «Abweichungen des Mockups»).
 - Die Benachrichtigung «verfügbar» kommt für ein Profil erst, wenn der Titel für **dieses** Profil sichtbar
   ist. Ein Erwachsener mit einem Mitwunsch kann also früher Bescheid bekommen als ein Kind.
 - Zuschauer sehen nie, wer sonst gewünscht hat. Die Verwaltung sieht alle Anforderer; in Radarr und Sonarr

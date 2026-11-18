@@ -33,10 +33,12 @@ const mixedList = `[
 // bodies are the answers of the mock per escaped request path, in the response shapes of Trakt.
 var bodies = map[string]string{
 	"/movies/trending": `[
-		{"watchers": 50, "movie": {"title": "Eins", "year": 2020, "ids": {"trakt": 1, "slug": "eins", "tmdb": 101}}},
-		{"watchers": 40, "movie": {"title": "Ohne", "year": 2021, "ids": {"trakt": 2, "slug": "ohne"}}},
+		{"watchers": 50, "movie": {"title": "Eins", "year": 2020, "ids": {"trakt": 1, "slug": "eins", "tmdb": 101, "imdb": "tt0000101"}}},
+		{"watchers": 40, "movie": {"title": "Ohne", "year": 2021, "ids": {"trakt": 2, "slug": "ohne", "imdb": "tt0000102"}}},
 		{"watchers": 30, "movie": {"title": "Drei", "year": null, "ids": {"trakt": 3, "tmdb": 103}}}]`,
-	"/shows/trending":                                  `[{"watchers": 9, "show": {"title": "Serie", "year": 2019, "ids": {"tmdb": 201, "tvdb": 7}}}]`,
+	"/shows/trending": `[{"watchers": 9, "show": {"title": "Serie", "year": 2019, "ids": {"tmdb": 201, "tvdb": 7, "imdb": "tt0000201"}}},
+		{"watchers": 8, "show": {"title": "Nur TVDB", "ids": {"tmdb": null, "tvdb": 8, "imdb": null}}},
+		{"watchers": 7, "show": {"title": "Nur IMDb", "ids": {"imdb": "tt0000203"}}}]`,
 	"/movies/popular":                                  `[{"title": "Pop", "year": 2001, "ids": {"tmdb": 301}}, {"title": "Null", "ids": {"tmdb": null}}]`,
 	"/shows/popular":                                   `[{"title": " Popserie ", "year": 2010, "ids": {"tmdb": 401}}]`,
 	"/movies/watched/weekly":                           `[{"watcher_count": 5, "play_count": 9, "collected_count": 2, "movie": {"title": "Gesehen", "ids": {"tmdb": 501}}}]`,
@@ -153,8 +155,8 @@ func TestFetchPathPerKind(t *testing.T) {
 		ids              []int64
 	}{
 		{KindTrending, MediaMovie, "", []string{"/movies/trending"}, []int64{101, 103}},
-		{KindTrending, MediaShow, "", []string{"/shows/trending"}, []int64{201}},
-		{KindTrending, MediaBoth, "", []string{"/movies/trending", "/shows/trending"}, []int64{101, 103, 201}},
+		{KindTrending, MediaShow, "", []string{"/shows/trending"}, []int64{201, 0}},
+		{KindTrending, MediaBoth, "", []string{"/movies/trending", "/shows/trending"}, []int64{101, 103, 201, 0}},
 		{KindPopular, MediaMovie, "", []string{"/movies/popular"}, []int64{301}},
 		{KindPopular, MediaShow, "", []string{"/shows/popular"}, []int64{401}},
 		{KindPopular, MediaBoth, "", []string{"/movies/popular", "/shows/popular"}, []int64{301, 401}},
@@ -200,9 +202,12 @@ func TestFetchShapes(t *testing.T) {
 		kind, media string
 		want        []Entry
 	}{
-		{KindTrending, MediaMovie, []Entry{{Media: "movie", Position: 1, TMDBID: 101, Title: "Eins", Year: 2020},
+		// A movie without a TMDB id is skipped even with an IMDb id; a show stays with a TVDB id alone
+		// (concept 25 N-62), not with an IMDb id alone.
+		{KindTrending, MediaMovie, []Entry{{Media: "movie", Position: 1, TMDBID: 101, IMDBID: "tt0000101", Title: "Eins", Year: 2020},
 			{Media: "movie", Position: 3, TMDBID: 103, Title: "Drei"}}},
-		{KindTrending, MediaShow, []Entry{{Media: "show", Position: 1, TMDBID: 201, Title: "Serie", Year: 2019}}},
+		{KindTrending, MediaShow, []Entry{{Media: "show", Position: 1, TMDBID: 201, TVDBID: 7, IMDBID: "tt0000201", Title: "Serie", Year: 2019},
+			{Media: "show", Position: 2, TVDBID: 8, Title: "Nur TVDB"}}},
 		{KindPopular, MediaMovie, []Entry{{Media: "movie", Position: 1, TMDBID: 301, Title: "Pop", Year: 2001}}},
 		{KindPopular, MediaShow, []Entry{{Media: "show", Position: 1, TMDBID: 401, Title: "Popserie", Year: 2010}}},
 		{KindPopular, MediaBoth, []Entry{{Media: "movie", Position: 1, TMDBID: 301, Title: "Pop", Year: 2001},

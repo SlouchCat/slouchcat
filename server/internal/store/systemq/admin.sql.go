@@ -1485,7 +1485,10 @@ func (q *Queries) AdminMoveNotificationParents(ctx context.Context, arg AdminMov
 }
 
 const adminMoveNotifications = `-- name: AdminMoveNotifications :exec
-UPDATE OR IGNORE notifications SET item_id = ?1 WHERE item_id = ?2
+UPDATE OR IGNORE notifications
+SET item_id = CAST(?1 AS TEXT),
+    dedupe_key = CASE kind WHEN 'new_episode' THEN 'episode:' || CAST(?1 AS TEXT) ELSE dedupe_key END
+WHERE item_id = CAST(?2 AS TEXT)
 `
 
 type AdminMoveNotificationsParams struct {
@@ -1493,6 +1496,8 @@ type AdminMoveNotificationsParams struct {
 	SourceID string
 }
 
+// An episode entry takes the dedupe key of its new item along (migration 00070), so a profile
+// that has entries for both keeps the target's one.
 func (q *Queries) AdminMoveNotifications(ctx context.Context, arg AdminMoveNotificationsParams) error {
 	_, err := q.db.ExecContext(ctx, adminMoveNotifications, arg.TargetID, arg.SourceID)
 	return err

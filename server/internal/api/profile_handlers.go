@@ -115,7 +115,7 @@ func (s *server) CreateProfile(ctx context.Context, req gen.CreateProfileRequest
 	b := deref(req.Body)
 	in := model.ProfileInput{
 		Name: &b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), Accent: accentPtr(b.Accent),
-		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, PIN: b.Pin, Limits: fromPlaybackLimits(b.Limits),
+		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, PIN: b.Pin, Limits: fromPlaybackLimits(b.Limits), CanRequest: b.CanRequest,
 		AudioLanguages: b.AudioLanguages, SubtitleMode: subtitleModePtr(b.SubtitleMode), SubtitleLanguages: b.SubtitleLanguages,
 	}
 	p, err := svc.CreateProfile(ctx, session, in)
@@ -133,7 +133,7 @@ func (s *server) UpdateProfile(ctx context.Context, req gen.UpdateProfileRequest
 	b := deref(req.Body)
 	in := model.ProfileInput{
 		Name: b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), MetadataLanguage: b.MetadataLanguage,
-		Accent: accentPtr(b.Accent), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits),
+		Accent: accentPtr(b.Accent), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits), CanRequest: b.CanRequest,
 		AudioLanguages: b.AudioLanguages, SubtitleMode: subtitleModePtr(b.SubtitleMode), SubtitleLanguages: b.SubtitleLanguages,
 	}
 	p, err := svc.UpdateProfile(ctx, session, req.Id, in)

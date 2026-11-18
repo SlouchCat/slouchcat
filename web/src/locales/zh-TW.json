@@ -49,7 +49,9 @@
       "other": "其他個人資料",
       "primary": "主個人資料",
       "admin": "伺服器管理員"
-    }
+    },
+    "wishes": "心願",
+    "wishesLabel_other": "{{name}}，{{count}} 個未完成的心願"
   },
   "system": {
     "server": {
@@ -222,7 +224,25 @@
       "deleting": "正在刪除中。",
       "changed": "內容在此期間已變更，請重新檢查。",
       "stale": "媒體庫在此期間已在其他地方變更。請重新載入後再儲存一次。",
-      "root_unlisted": "要求中缺少媒體庫的一個資料夾。請重新載入媒體庫；未移除任何內容。"
+      "root_unlisted": "要求中缺少媒體庫的一個資料夾。請重新載入媒體庫；未移除任何內容。",
+      "seerr_key_required": "位於其他電腦上的位址需要重新輸入 API 金鑰：已儲存的金鑰絕不會傳送到其他位址。",
+      "seerr_not_configured": "請先輸入 Seerr 的位址和 API 金鑰。",
+      "instance_unchanged": "沒有其他 Seerr 執行個體在等待決定。",
+      "seerr_not_tested": "已儲存的連線必須先通過測試，才能開啟心願功能。",
+      "seerr_user_taken": "這個 Seerr 使用者已屬於其他帳戶、是共用使用者，或在 Seerr 中不存在。",
+      "provision_disabled": "「在 Seerr 中建立新帳戶」已關閉。請在「心願 › 設定」中開啟。",
+      "password_not_syncable": "Slouchcat 不會同步這個 Seerr 使用者的密碼：此使用者是 Seerr 管理員，或透過 Jellyfin、Emby 或 Plex 登入。",
+      "account_not_allowed": "此帳戶無權請求作品。管理員可在「帳戶」中設定此權限。",
+      "wish_not_allowed": "這個個人資料無法請求作品。",
+      "quota_exceeded": "限額不足以進行此操作。",
+      "already_available": "這部作品已在媒體庫中。",
+      "wish_not_withdrawable": "這個心願已核准，無法再撤回。",
+      "seerr_unreachable": "目前無法連線到 Seerr。",
+      "wish_not_retryable": "這個心願無法重試。",
+      "wish_not_pending": "已有決定：這個心願在 Seerr 中已不再等待核准。同步後會取得新的狀態。",
+      "seerr_failed": "Seerr 回應了錯誤。",
+      "seerr_instance_changed": "另一個 Seerr 執行個體正在等待你的決定，請前往「整合 › Seerr」。",
+      "tag_name_taken": "其他個人資料已使用這個標籤名稱。"
     },
     "field": {
       "required": "必填。",
@@ -253,7 +273,8 @@
       "local_address": "這個網址位於區域網路中。自訂電台也必須來自網際網路。",
       "not_own": "只有自訂電台可以變更此項。",
       "not_matched": "這本有聲書尚未與任何來源比對。",
-      "not_found": "來源中沒有這個項目。"
+      "not_found": "來源中沒有這個項目。",
+      "seerr_url_invalid": "請輸入以 http:// 或 https:// 開頭的位址，不可包含使用者、密碼、查詢字串或錨點。"
     }
   },
   "setup": {
@@ -632,7 +653,8 @@
       "released": "近期發行",
       "libraries": "我的媒體",
       "library": "{{library}} 最新內容",
-      "radio": "我的電台"
+      "radio": "我的電台",
+      "wishes": "已實現的心願"
     },
     "remaining": "剩餘 {{time}}",
     "continue": {
@@ -774,7 +796,21 @@
     "seasons": "季",
     "seasonWall": {
       "showAll": "顯示全部 {{total}} 季",
-      "showLess": "顯示較少"
+      "showLess": "顯示較少",
+      "season": "第 {{number}} 季",
+      "present_other": "已有 {{present}} 季，共 {{count}} 季",
+      "next": "仍在播出，下一集將於 {{date}} 推出",
+      "running": "仍在播出",
+      "state": {
+        "missing": "缺少",
+        "requested": "已請求",
+        "processing": "取得中",
+        "announced": "即將推出"
+      },
+      "cardLabel": "{{title}}：{{state}}",
+      "cardRequest": "請求 {{title}}",
+      "cardJoin": "{{title}}：已請求，加入心願",
+      "request": "請求缺少的季"
     },
     "episodes": {
       "title": "單集",
@@ -3072,7 +3108,8 @@
         "genres": "可見作品的類型。",
         "libraries": "個人資料可看到的媒體庫、廣播，以及（若已顯示）合集和使用者推薦的圖塊；其順序和隱藏設定由「我的媒體」頁面決定。",
         "library": "最近加入這個媒體庫的作品；「顯示全部」會開啟依「最近新增」排序的媒體庫。",
-        "radio": "以圖塊顯示個人資料最愛的電台；目前透過伺服器播放的電台會顯示正在播放的曲目。沒有最愛電台時不會顯示這個欄目。"
+        "radio": "以圖塊顯示個人資料最愛的電台；目前透過伺服器播放的電台會顯示正在播放的曲目。沒有最愛電台時不會顯示這個欄目。",
+        "wishes": "個人資料在過去 14 天內實現的心願，也就是已在媒體庫中的作品。未完成的心願位於「心願 › 我的心願」。沒有內容時不會顯示此欄目。"
       },
       "pageLink": "前往「{{page}}」",
       "moved": "{{row}} 現在位於第 {{position}} 位。儲存後才會生效。",
@@ -3179,6 +3216,9 @@
         "quoted": "「{{note}}」",
         "none": "–",
         "notInLibrary": "不在媒體庫中，不會出現在首頁",
+        "unmatched": "無法比對",
+        "unmatchedReason": "只知道 TVDB ID，在 TMDB 上找不到",
+        "noAction": "無可用動作：沒有 TMDB ID 就無法請求",
         "hide": "隱藏",
         "hideLabel": "隱藏 {{title}}",
         "show": "顯示",
@@ -3186,6 +3226,61 @@
         "hidden": "已隱藏 {{title}}。",
         "shown": "已重新顯示 {{title}}。",
         "count_other": "{{count}} 個項目"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "已依 TVDB ID 在媒體庫中找到",
+          "tmdb": "已依 TMDB ID 在媒體庫中找到",
+          "imdb": "已依 IMDb ID 在媒體庫中找到"
+        }
+      },
+      "request": {
+        "action": "請求",
+        "label": "請求 {{title}}",
+        "done": "已請求 {{title}}。",
+        "joined": "{{title}} 先前已有人請求；你的個人資料已加入這個心願。",
+        "available": "{{title}} 現已在媒體庫中。"
+      },
+      "lacking": {
+        "title": "缺漏項目",
+        "missing_other": "缺少 {{count}} 個",
+        "requested_other": "已請求 {{count}} 個",
+        "unmatched_other": "{{count}} 個無法比對",
+        "intro": "首頁和焦點推薦清單只會顯示媒體庫中的作品。缺漏的項目只會在管理中顯示，而且只有你看得到。個人資料可在「心願」中請求缺少的作品。",
+        "asProfile": "「請求」會以目前的個人資料（{{name}}）執行。",
+        "noRequestChip": "無法請求",
+        "noRequest": {
+          "title": "必須先設定好心願功能，才能請求。",
+          "body": "需要已設定位址和金鑰並已開啟的 Seerr，以及「啟用心願」。",
+          "settings": "前往心願設定",
+          "connection": "前往 Seerr 連線"
+        },
+        "empty": "清單中的每個項目都已在媒體庫中。"
+      },
+      "matching": {
+        "title": "依 TMDB、TVDB 和 IMDb 比對",
+        "hits_other": "{{count}} 個在媒體庫中",
+        "intro": "Slouchcat 會先依 TMDB、再依 IMDb 比對電影。影集的比對方式與媒體庫相同：先 TVDB，再 TMDB，最後 IMDb。Seerr 以 TMDB ID 記錄每部作品，並將影集的 TVDB ID 轉交給 Sonarr。",
+        "waysTitle": "比對方式",
+        "way": {
+          "movie": {
+            "tmdb": "電影：依 TMDB ID",
+            "imdb": "電影：依 IMDb ID"
+          },
+          "show": {
+            "tvdb": "影集：依 TVDB ID",
+            "tmdb": "影集：依 TMDB ID",
+            "imdb": "影集：依 IMDb ID"
+          }
+        },
+        "noHits": "沒有任何項目在媒體庫中。",
+        "unmatchedTitle": "無法比對",
+        "allMatched": "每個項目都已比對成功。",
+        "unmatchedNote": "沒有 TMDB ID 的項目無法請求；它既不算已有，也不算缺少。"
       },
       "pin": {
         "action": "釘選",
@@ -3332,6 +3427,9 @@
       },
       "server": {
         "title": "伺服器"
+      },
+      "wishes": {
+        "title": "心願"
       }
     },
     "server": {
@@ -3572,6 +3670,44 @@
         "title": "資料夾瀏覽器已被阻塞",
         "hanging_other": "有個掛載點停止回應：{{count}} 個列出作業卡在核心中，無法取消。資料夾瀏覽器仍可使用，但可用的作業位置較少。重新啟動即可釋放。",
         "off": "資料夾瀏覽器的所有作業位置都卡在一個停止回應的掛載點上。在伺服器重新啟動之前無法瀏覽任何資料夾；仍可手動輸入路徑。"
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "無法連線到 Seerr",
+          "key_invalid": "Seerr 拒絕了 API 金鑰",
+          "instance_changed": "偵測到其他 Seerr 執行個體"
+        },
+        "seerrStateBody": {
+          "unreachable": "新的心願會先等待，Seerr 恢復回應後就會送出。",
+          "key_invalid": "在金鑰正確之前，Slouchcat 不會送出心願，也不會同步任何內容。",
+          "instance_changed": "在你確認或刪除指派之前，傳送和同步都會暫停。"
+        },
+        "toConnection": "前往「整合 › Seerr」",
+        "unmapped_other": "{{count}} 個帳戶沒有 Seerr 使用者",
+        "unmappedFallback": "在此之前，這些帳戶會透過共用使用者 slouchcat-gaeste 傳送。",
+        "unmappedDeny": "只要「沒有 Seerr 使用者的帳戶」設為「不允許」，這些帳戶的個人資料就看不到缺少的作品。",
+        "unmappedWaiting": "這些帳戶會等待，並在下次同步時建立。",
+        "toUsers": "前往 Seerr 使用者",
+        "linked": "新關聯：{{account}} 已與現有的 Seerr 使用者 {{name}} 關聯",
+        "linkedBody": {
+          "invite": "於 {{date}} 接受邀請時關聯，因為電子郵件地址相同。這個地址是帳戶自行輸入的，沒有人核對過。",
+          "email_change": "於 {{date}} 變更電子郵件地址後關聯，因為電子郵件地址相同。這個地址是帳戶自行輸入的，沒有人核對過。"
+        },
+        "toAccount": "查看關聯",
+        "quotaReached": "已達限額：{{account}}",
+        "quotaNext": "{{used}}，下一個名額將於 {{date}} 釋出。",
+        "toLimit": "查看限額",
+        "gone_other": "{{count}} 個帳戶：使用者已在 Seerr 中刪除",
+        "goneBody": "請為這些帳戶選擇其他使用者，或解除關聯。",
+        "open_other": "{{count}} 個未完成的心願",
+        "openQueued_other": "其中 {{count}} 個正在等待傳送到 Seerr。",
+        "toRequests": "前往請求",
+        "stalled_other": "{{count}} 個下載停滯",
+        "serviceTitle": "{{title}}（{{service}}）",
+        "toStalled": "查看停滯的下載",
+        "tagsFailed_other": "{{count}} 個標籤未設定",
+        "tagFailedEntry": "{{entry}}：{{reason}}",
+        "toUntagged": "查看缺少的標籤"
       }
     },
     "integrations": {
@@ -3585,7 +3721,8 @@
         "email": "電子郵件",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "更新檢查"
+        "updateCheck": "更新檢查",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "在 deploy/.env 中設定",
@@ -3617,7 +3754,8 @@
         "email": "用於透過電子郵件傳送通知、邀請和公告的伺服器。",
         "telegram": "透過 Telegram 傳送通知的機器人。",
         "push": "在瀏覽器和已安裝的應用程式中顯示通知。",
-        "server": "更新檢查、公開網址和顯示晶片。"
+        "server": "更新檢查、公開網址和顯示晶片。",
+        "seerr": "將觀眾的心願轉交給 Seerr，並同步其狀態。帳戶會在 Seerr 中取得登入資訊相同的使用者。"
       },
       "keys": {
         "title": "提供者金鑰",
@@ -3642,7 +3780,8 @@
         "neverSeen": "從未傳送過任何通知。",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "新增整合",
@@ -3687,7 +3826,8 @@
           "acknowledged": "已確認測試",
           "ignored": "無影響",
           "outside_roots": "在媒體庫之外",
-          "invalid_payload": "沒有路徑"
+          "invalid_payload": "沒有路徑",
+          "sync_queued": "正在同步心願"
         },
         "renew": {
           "action": "更新權杖",
@@ -3835,6 +3975,222 @@
         "checkLabel": "檢查 {{name}}",
         "rejected": "遭拒",
         "savedRejected": "已儲存 {{name}}，但提供者拒絕了這個金鑰。"
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Seerr 連線",
+        "version": "版本 {{version}}",
+        "lastSuccess": "上次連線成功：{{time}}",
+        "state": {
+          "not_configured": "未設定",
+          "disabled": "已關閉",
+          "untested": "未測試",
+          "connected": "已連線",
+          "key_invalid": "金鑰無效",
+          "unreachable": "無法連線",
+          "instance_changed": "偵測到其他執行個體"
+        },
+        "stateHint": {
+          "not_configured": "請輸入位址和金鑰。",
+          "disabled": "Slouchcat 不會呼叫 Seerr。心願仍會保留。",
+          "untested": "請測試連線，才能開啟「啟用心願」。",
+          "instance_changed": "在你做出決定之前，Slouchcat 不會送出心願，也不會同步任何內容。"
+        },
+        "connection": {
+          "title": "連線",
+          "noAddress": "沒有位址"
+        },
+        "enabled": "使用 Seerr",
+        "enabledHelp": "關閉：Slouchcat 不會呼叫 Seerr。心願仍會保留。",
+        "url": "位址",
+        "urlHelp": "例如 http://192.168.1.50:5055。Slouchcat 只會連線到這個位址。可以使用家用網路中的位址；Slouchcat 不會跟隨重新導向。",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API 金鑰",
+        "apiKeyHelp": "取自 Seerr：設定 › 一般。留空即可保留已儲存的金鑰。位於其他電腦上的位址需要重新輸入金鑰。",
+        "clearBody": "位址和金鑰將被移除。心願仍會保留，但不會再傳送和同步。",
+        "test": {
+          "action": "測試連線",
+          "running": "正在檢查連線…",
+          "listLabel": "連線測試結果",
+          "passed": "所有檢查皆通過。",
+          "passedWithHints_other": "已連線 · {{count}} 項提示",
+          "hintsHelp": "提示不會阻擋任何功能，只會指出 Seerr 中哪些設定可以更好。",
+          "failed": "測試失敗：{{checks}}。"
+        },
+        "level": {
+          "ok": "通過",
+          "warn": "提示",
+          "fail": "失敗"
+        },
+        "checks": {
+          "reachable": "可連線",
+          "version": "版本",
+          "key_valid": "金鑰有效",
+          "manage_users": "建立和變更使用者",
+          "instance": "執行個體",
+          "act_as_user": "代表使用者執行",
+          "csrf_off": "Seerr 的 CSRF 保護已關閉",
+          "radarr": "Seerr 中的 Radarr",
+          "sonarr": "Seerr 中的 Sonarr",
+          "local_login": "Seerr 的本機登入",
+          "tvdb_seasons": "來自 TVDB 的季資訊",
+          "password_transport": "密碼已加密",
+          "radarr_tags": "用於個人資料標籤的 Radarr",
+          "sonarr_tags": "用於個人資料標籤的 Sonarr"
+        },
+        "checkOk": {
+          "reachable": "Seerr 有回應。",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr 接受這個金鑰。",
+          "manage_users": "這個金鑰可以在 Seerr 中建立帳戶，並設定權限、限額和密碼。",
+          "instance": "與設定時的執行個體相同。",
+          "act_as_user": "心願會套用所關聯使用者的權限、限額和自動核准。",
+          "csrf_off": "寫入呼叫可以送達。",
+          "radarr_other": "電影心願會送到 Radarr（{{count}} 台伺服器）。",
+          "sonarr_other": "影集心願會送到 Sonarr（{{count}} 台伺服器）。",
+          "local_login": "建立的使用者會以 Slouchcat 的電子郵件地址和密碼登入 Seerr。",
+          "tvdb_seasons": "Seerr、Sonarr 和 Slouchcat 媒體庫計算季的方式相同。",
+          "password_transport": "密碼會加密傳輸，或只在家用網路中傳送。",
+          "radarr_tags": "Radarr 有回應，可提供個人資料標籤和下載進度。",
+          "sonarr_tags": "Sonarr 有回應，可提供個人資料標籤和下載進度。"
+        },
+        "checkIssue": {
+          "notTested": "未檢查。",
+          "timeout": "無法連線：逾時。",
+          "refused": "無法連線：連線遭拒。",
+          "redirect": "無法連線：不允許重新導向。",
+          "unreachable": "無法連線。Seerr 是否正在執行，位址是否正確？",
+          "versionNotVerified": "未驗證版本：已測試的是 Jellyseerr 2.7 和 Seerr 3.x。",
+          "keyNotUserOne": "這個金鑰不屬於 Seerr 的擁有者（使用者 1）。",
+          "keyInvalid": "Seerr 拒絕了這個金鑰。",
+          "manageUsers": "這個金鑰無權建立使用者：無法建立帳戶。",
+          "instance": "偵測到其他 Seerr 執行個體。",
+          "notTestable": "無法檢查：Seerr 除了使用者 1 之外沒有其他使用者。",
+          "waiting": "在其他執行個體等待你的決定期間不會檢查。",
+          "actAsUser": "無效：心願會以管理員的身分送出。",
+          "csrfOn": "開啟：寫入呼叫會失敗。請在 Seerr 的網路設定中關閉。",
+          "noRadarr": "Seerr 中沒有 Radarr：電影心願會停滯不前。",
+          "noSonarr": "Seerr 中沒有 Sonarr：影集心願會停滯不前。",
+          "localLoginOff": "建立的使用者無法登入 Seerr。請在 Seerr 的「設定 › 使用者」中開啟「本機登入」。",
+          "noSeasonSource": "Seerr 沒有提供季資訊的來源。",
+          "tmdbSeasons": "Seerr 從 TMDB 讀取季資訊。建議改用 TVDB，與 Sonarr 和 Slouchcat 媒體庫一致，否則季數編號可能不同。",
+          "passwordTransport": "密碼會以未加密的方式透過網際網路傳送。請使用 https。",
+          "arrNotConfirmed": "來自 Seerr 的位址尚未確認：請在「Radarr 和 Sonarr」中測試。",
+          "arrUnreachable": "無法連線：沒有個人資料標籤，也沒有下載進度。",
+          "csrfUnexpected": "Seerr 接受了一個空白請求，而不是拒絕它。心願仍會送出；請檢查 Seerr 的版本。"
+        },
+        "instance": {
+          "title": "偵測到其他 Seerr 執行個體",
+          "body": "這個位址上回應的 Seerr 執行個體與設定時不同。在你做出決定之前，Slouchcat 不會送出心願，也不會同步任何內容。",
+          "confirm": "確認指派",
+          "reset": "刪除指派",
+          "resetTitle": "要刪除與 Seerr 的指派嗎？",
+          "resetBody": "所有帳戶的 Seerr 使用者和已載入的使用者清單將被移除。之後 Slouchcat 會載入新執行個體的使用者。",
+          "confirmed": "已採用新的執行個體。帳戶的 Seerr 使用者會保留。",
+          "resetDone": "已刪除指派。Slouchcat 正在載入新執行個體的使用者。"
+        },
+        "log": {
+          "title": "記錄",
+          "empty": "尚無項目。",
+          "caption": "最近對 Seerr 的呼叫",
+          "at": "時間",
+          "call": "呼叫",
+          "result": "結果",
+          "duration": "時長",
+          "error": "錯誤",
+          "noAnswer": "沒有回應",
+          "ms": "{{ms}} 毫秒",
+          "note": "絕不包含標頭或金鑰。最多 20 個項目。",
+          "entries_other": "{{count}} 個項目",
+          "errors_other": "{{count}} 個錯誤"
+        },
+        "usersLink": "帳戶的 Seerr 使用者",
+        "sync": {
+          "title": "同步",
+          "summary_other": "{{count}} 個未完成的心願",
+          "open": "未完成的心願",
+          "queued": "等待傳送",
+          "last": "上次連線到 Seerr",
+          "never": "從未",
+          "every": "Slouchcat 每 5 分鐘與 Seerr 同步一次心願。",
+          "requestsLink": "前往請求"
+        },
+        "arr": {
+          "title": "Radarr 和 Sonarr（個人資料標籤和進度）",
+          "intro": "Slouchcat 會在 Radarr 和 Sonarr 中為每個個人資料建立一個標籤，並在 Seerr 將作品轉交過去後，把標籤加到該作品上。此外，它會讀取所許願作品的佇列和檔案狀態，以便在心願中顯示下載進度。除此之外，Slouchcat 不會變更 Radarr 和 Sonarr 中的任何內容。新作品仍由 Webhook 通知。",
+          "offNotice": "個人資料標籤和下載進度已關閉。Slouchcat 不會呼叫 Radarr 和 Sonarr。",
+          "summaryOff": "關閉 · 個人資料標籤和進度已關閉",
+          "summaryTags_other": "{{count}} 個標籤待設定",
+          "summaryProgress_other": "{{count}} 個下載",
+          "state": {
+            "none": "{{service}} 不在 Seerr 中",
+            "unconfirmed": "{{service}} 等待「測試」",
+            "unreachable": "無法連線到 {{service}}",
+            "reachable": "可連線到 {{service}}",
+            "untested": "尚未呼叫 {{service}}"
+          },
+          "facts": {
+            "address": "位址",
+            "state": "狀態",
+            "tagRequests": "Seerr 中的 Tag Requests",
+            "tags": "個人資料標籤",
+            "progress": "下載進度"
+          },
+          "address": {
+            "seerr": "取自 Seerr：{{address}}",
+            "own": "自訂位址：{{address}}"
+          },
+          "addressNone": "無：Seerr 沒有 {{service}} 的預設伺服器。",
+          "lastAt": "上次 {{time}}",
+          "tagRequestsOn": "開啟",
+          "tagRequestsOff": "關閉 · 建議開啟：這樣每部作品也會帶有帳戶的標籤。",
+          "tags": "已設定 {{set}} 個 · 待設定 {{pending}} 個 · 失敗 {{failed}} 個",
+          "progressOff": "關閉 · 位於「心願 › 設定」",
+          "progressError": "無法讀取進度：{{reason}}",
+          "progressOn_other": "開啟 · {{count}} 個心願有進度",
+          "progressAt_other": "開啟 · {{count}} 個心願有進度 · 上次讀取 {{time}}",
+          "test": {
+            "action": "測試",
+            "label": "測試 {{service}}",
+            "noHost": "該位址",
+            "passed": "{{service}} 在 {{host}} 有回應，且接受來自 Seerr 的金鑰。位址已確認。",
+            "keyRefused": "{{service}} 在 {{host}} 有回應，但不接受來自 Seerr 的金鑰。",
+            "unreachable": "無法在 {{host}} 連線到 {{service}}。",
+            "ownHint": "如果 Slouchcat 無法連線到來自 Seerr 的位址（例如 Docker 內部名稱），請在下方輸入自訂位址。",
+            "notInSeerr": "Seerr 沒有 {{service}} 的預設伺服器。",
+            "notInSeerrBody": "請在 Seerr 中設定一台非 4K 的預設伺服器。沒有它，Slouchcat 就不會設定標籤，也不會讀取進度。"
+          },
+          "own": "{{service}} 的自訂位址",
+          "ownHelp": "留空：使用來自 Seerr 的位址。只有在 Slouchcat 無法連線到來自 Seerr 的位址時才需要，例如 Docker 內部名稱。金鑰一律由 Seerr 提供。",
+          "ownPlaceholder": "來自 Seerr 的位址",
+          "saveLabel": "儲存 Radarr 和 Sonarr 的自訂位址",
+          "saved": "已儲存自訂位址。",
+          "toSettings": "前綴和下載進度 · 心願 › 設定",
+          "toUsers": "各個人資料的標籤名稱 · Seerr 使用者",
+          "toWebhooks": "Radarr 和 Sonarr 的 Webhook · 維持不變，需手動設定"
+        },
+        "hook": {
+          "title": "即時訊號",
+          "on": "已設定",
+          "off": "關閉",
+          "intro": "Seerr 會立即觸發同步，不必等待最多 5 分鐘。同步仍是基礎。",
+          "name": "Seerr",
+          "create": "產生位址",
+          "address": "位址",
+          "last": "最近的訊號",
+          "never": "從未傳來任何訊號。",
+          "single": "Seerr 只能設定一個 Webhook 目標。如果你已將它用於其他用途，這個位址會取代它。",
+          "where": "在 Seerr 的「設定 › 通知 › Webhook」中：將位址填入「Webhook URL」，將這個範本填入「JSON Payload」。",
+          "payload": "Seerr 的 JSON 範本",
+          "copyPayload": "複製範本",
+          "typesIntro": "請在 Seerr 中勾選以下通知類型：",
+          "types": "Seerr 的通知類型",
+          "copyTypes": "複製類型",
+          "copied": "已複製。",
+          "copyFailed": "無法存取剪貼簿：文字已選取，請按 Ctrl+C 複製。",
+          "log": "最近的訊號"
+        },
+        "accounts_other": "Seerr 使用者：{{opened}} / {{count}} 個帳戶"
       }
     },
     "accounts": {
@@ -3844,8 +4200,7 @@
       "columns": {
         "email": "電子郵件",
         "role": "角色",
-        "rating": "分級",
-        "libraries": "媒體庫",
+        "access": "存取權",
         "profiles": "個人資料",
         "lastSeen": "上次上線",
         "channels": "管道",
@@ -3876,7 +4231,14 @@
         "currentPasswordHint": "用來確認是你本人。",
         "wrongPassword": "目前的密碼錯誤。",
         "unchanged": "請變更電子郵件地址或輸入新密碼。",
-        "saved": "已儲存你的帳戶。"
+        "saved": "已儲存你的帳戶。",
+        "seerrPassword": {
+          "synced": "新密碼也會套用到 Seerr。",
+          "next_login": "新密碼也會套用到 Seerr。",
+          "off": "你在 Seerr 中的密碼維持不變：不會同步。",
+          "admin": "你在 Seerr 中的密碼維持不變：你是 Seerr 的管理員。",
+          "external": "你在 Seerr 中的密碼維持不變：你是透過 Jellyfin、Emby 或 Plex 登入 Seerr。"
+        }
       },
       "ownerBadge": "擁有者",
       "access": {
@@ -3887,7 +4249,8 @@
         "heading": "存取權限",
         "save": "儲存存取權限",
         "saved": "已儲存 {{email}} 的存取權限。",
-        "adminHint": "管理員一律擁有「18 歲以上」級別和所有媒體庫；「存取權限」只適用於沒有管理權限的帳戶。"
+        "adminHint": "管理員一律擁有「18 歲以上」級別和所有媒體庫；「存取權限」只適用於沒有管理權限的帳戶。",
+        "limitRefused": "存取權已儲存，但心願限額沒有：{{reason}}"
       },
       "role": {
         "promote": {
@@ -3956,7 +4319,8 @@
           "libraries": "媒體庫",
           "detail": "有效期限 / 已接受",
           "actions": "動作"
-        }
+        },
+        "seerrHint": "接受邀請時，Slouchcat 也會在 Seerr 中建立帳戶：電子郵件地址和密碼相同。"
       },
       "discard": "捨棄",
       "status": {
@@ -3980,6 +4344,42 @@
         "mine": "我的個人資料",
         "of": "{{email}} 的個人資料",
         "readOnly": "每個帳戶各自管理自己的個人資料。"
+      },
+      "wishes": {
+        "title": "心願",
+        "of": "{{email}} 的心願",
+        "canRequest": "可請求作品",
+        "canRequestHelp": "適用於所有個人資料的上限。哪些個人資料可以請求，由帳戶的主個人資料選擇。",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "允許",
+          "not_allowed": "不允許",
+          "mapping_missing": "沒有 Seerr 使用者"
+        },
+        "userLine": "Seerr 使用者：{{user}}",
+        "noUser": "尚無",
+        "change": "變更",
+        "userState": {
+          "created": "已建立",
+          "linked": "已關聯",
+          "manual": "手動選擇",
+          "waiting": "等待 Seerr"
+        },
+        "linkedBy": "{{date}} {{by}}關聯",
+        "password": {
+          "synced": "密碼已同步",
+          "next_login": "密碼將於下次登入時同步",
+          "off": "密碼不會同步",
+          "admin": "密碼保留在 Seerr 中（管理員）",
+          "external": "透過 Jellyfin、Emby 或 Plex 登入"
+        },
+        "rightsFollow": "「{{name}}」在 Seerr 中的權限會隨之調整。",
+        "rightsStay": "「{{name}}」在 Seerr 中保留原有權限，因為它不是由 Slouchcat 建立的。",
+        "adminLimit": "「{{name}}」是 Seerr 管理員。Seerr 不會為管理員設定限額。",
+        "limitLater": "尚無 Seerr 使用者：帳戶在 Seerr 中建立後，Slouchcat 就會設定限額。",
+        "limitFixed": "限額：{{limit}}。管理員的限額無法在這裡變更。",
+        "savedOn": "{{email}} 現在可以請求作品。",
+        "savedOff": "{{email}} 已無法再請求作品。"
       }
     },
     "backup": {
@@ -4493,6 +4893,57 @@
           "description": "移除檔案遺失超過寬限期的作品。",
           "trigger": "每小時的排程和伺服器啟動"
         },
+        "seerr_users": {
+          "name": "載入 Seerr 使用者",
+          "description": "從 Seerr 讀取使用者及其權限和限額，並檢查 Slouchcat 是否仍連線到同一個 Seerr 執行個體。",
+          "trigger": "每天、「重新載入使用者清單」、儲存 Seerr 連線後"
+        },
+        "seerr_provision": {
+          "name": "在 Seerr 中建立帳戶",
+          "description": "為帳戶建立或關聯 Seerr 使用者、建立共用使用者「slouchcat-gaeste」，並移除已刪除帳戶之 Seerr 使用者的權限。",
+          "trigger": "「在 Seerr 中建立」、「全部建立」、接受邀請、開啟「啟用心願」、為等待中的帳戶載入 Seerr 使用者後、刪除帳戶"
+        },
+        "wishes_submit": {
+          "name": "將心願傳送到 Seerr",
+          "description": "將仍在寄件匣中等待的心願傳送到 Seerr，並附加到已存在的請求上。",
+          "trigger": "請求後 Seerr 未立即回應時，以逐漸拉長的間隔重試，最長 24 小時；同步後處理到期的心願"
+        },
+        "wishes_withdraw": {
+          "name": "在 Seerr 中刪除已撤回的心願",
+          "description": "在 Seerr 中刪除已撤回心願尚未核准的自有請求。如果請求已核准，請求會保留，心願也會重新開啟。",
+          "trigger": "「我的心願」中的「撤回」；Seerr 無法連線期間撤回的，於同步後處理"
+        },
+        "wishes_sync": {
+          "name": "與 Seerr 同步心願",
+          "description": "從 Seerr 讀取有變更的請求、更新心願的狀態、逐一檢查長時間未變更的心願，並從寄件匣重新傳送到期的心願。第一次同步會讀取所有請求。",
+          "trigger": "每 5 分鐘的排程、「立即同步」、Seerr Webhook 的訊號",
+          "progress": "已讀取頁數：{{done}} / {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "與媒體庫比對心願",
+          "description": "當 Slouchcat 能為某個個人資料播放該電影或所有許願的季時，就將心願標示為可觀看。",
+          "trigger": "每小時的排程、在媒體庫中辨識出許願的作品後、與 Seerr 同步後"
+        },
+        "wishes_tag": {
+          "name": "設定個人資料標籤",
+          "description": "在 Radarr 和 Sonarr 中，將個人資料的標籤加到透過 Slouchcat 許願且正在取得的電影和影集上。標籤永遠不會被移除。",
+          "trigger": "與 Seerr 同步後、每 15 分鐘，以及手動執行"
+        },
+        "wishes_progress": {
+          "name": "讀取下載進度",
+          "description": "讀取 Radarr 和 Sonarr 的佇列，並為取得中的心願顯示目前是搜尋中、下載中還是匯入中。不會變更 Radarr 和 Sonarr 中的任何內容。",
+          "trigger": "有取得中的心願且下載進度已開啟時，每分鐘執行"
+        },
+        "wishes_discover": {
+          "name": "預先載入心願清單",
+          "description": "為可請求之個人資料的每種語言和年齡級別，從 Seerr 將「探索」的欄目載入快取，並移除超過一天的清單。每個結果都會針對個人資料再次檢查。",
+          "trigger": "心願已啟用且「探索」、「電影」、「影集」和「搜尋」頁面已開啟時，每小時的排程"
+        },
+        "wishes_import": {
+          "name": "從 Seerr 接管請求",
+          "description": "將已關聯的 Seerr 使用者在 Seerr 中自行提出、尚未完成或最近已可觀看的請求，接管為其帳戶主個人資料的心願（「在 Seerr 中請求」）。共用使用者的請求不包括在內。不會傳送任何通知。",
+          "trigger": "帳戶的 Seerr 使用者已關聯、選擇或變更、「接管請求」"
+        },
         "segments_detect": {
           "name": "偵測片頭和片尾",
           "description": "找出單集的片頭和片尾，以供「跳過片頭」使用。",
@@ -4618,6 +5069,16 @@
           "description": "從主機下載單集，並以檔案形式存放到其 Podcast 的資料夾。",
           "trigger": "由規劃程式在「儲存」、「下載缺少的單集」和每集「下載」時排入；每個主機一次一集",
           "progress": "位元組：{{done}} / {{total}}"
+        },
+        "series_catalog": {
+          "name": "取得影集的季清單",
+          "description": "從 TMDB 讀取媒體庫中每部影集的季及其集數、播出狀態和下一集，7 天後重新讀取。",
+          "trigger": "每天的排程、比對影集後"
+        },
+        "titles_refresh": {
+          "name": "更新缺少的作品",
+          "description": "7 天後從 TMDB 重新讀取不在媒體庫中之作品的資訊、年齡分級和預告片。",
+          "trigger": "每天的排程"
         },
         "trakt_refresh": {
           "name": "擷取焦點推薦清單",
@@ -5027,6 +5488,476 @@
         "changed": "該路徑現在已是另一個檔案"
       },
       "changed": "內容在此期間已變更，請重新檢查。下方清單已重新讀取；未刪除任何內容。"
+    },
+    "wishes": {
+      "title": "心願",
+      "intro": "每個帳戶在 Seerr 中都有自己的使用者，登入資訊相同。帳戶的個人資料會以這個使用者的身分請求。權限、限額和核准都取決於這個使用者。",
+      "separator": " · ",
+      "tabs": {
+        "label": "心願的各個部分",
+        "users": "Seerr 使用者",
+        "settings": "設定",
+        "requests": "請求",
+        "openCount_other": "{{count}} 個未完成的心願",
+        "withoutShort": "{{number}} 個未關聯",
+        "withoutCount_other": "{{count}} 個帳戶沒有 Seerr 使用者"
+      },
+      "strip": {
+        "label": "摘要",
+        "accounts": "帳戶",
+        "opened": "在 Seerr 中",
+        "openedNote": "已建立或已關聯",
+        "without": "沒有使用者",
+        "waiting_other": "{{count}} 個等待 Seerr",
+        "password": "密碼尚待同步",
+        "passwordNote": "將於下次登入時同步"
+      },
+      "limit": {
+        "movie_other": "{{count}} 部電影 / {{days}} 天",
+        "movieNone": "電影不限額",
+        "tv_other": "{{count}} 季 / {{days}} 天",
+        "tvNone": "季不限額"
+      },
+      "settings": {
+        "atOnce": "每項變更都會立即生效。",
+        "refused": "未變更：{{reason}}",
+        "switchedOn": "「{{name}}」已開啟。立即生效。",
+        "switchedOff": "「{{name}}」已關閉。立即生效。",
+        "choiceSaved": "「{{name}}」：{{value}}。立即生效。",
+        "limitSaved": "預設限額：{{limit}}。立即套用到所有設為「預設」的帳戶。",
+        "basics": "基本設定",
+        "where": "可在哪裡請求",
+        "rules": "規則",
+        "enabled": "啟用心願",
+        "enabledHelp": "有權限的個人資料可以請求缺少的作品。關閉：沒有人會看到缺少的作品，未完成的心願會在 Seerr 中繼續處理。",
+        "enabledLocked": "已儲存的連線必須先通過測試，才能開啟。",
+        "toConnection": "前往連線",
+        "allowMovies": "允許電影",
+        "allowMoviesHelp": "適用於所有個人資料。關閉：不顯示「請求電影」。",
+        "allowShows": "允許影集",
+        "allowShowsHelp": "適用於所有個人資料。關閉：不顯示「請求影集」和「請求缺少的季」。",
+        "fromSearch": "從搜尋請求",
+        "fromSearchHelp": "「尚未加入媒體庫」區段。關閉：不顯示此區段。",
+        "fromDetail": "在詳細資料頁面請求",
+        "fromDetailHelp": "在媒體庫中現有影集的頁面上顯示缺少的季。關閉：影集頁面只顯示已有的內容。",
+        "alreadyRequested": "已請求的作品",
+        "alreadyRequestedHelp": {
+          "join": "加入心願：第二個個人資料加入未完成的心願（「通知我」），也會收到通知。Seerr 不會收到第二個請求。",
+          "status": "只顯示狀態：第二個個人資料會看到「已請求」，但無法加入，也不會收到通知。"
+        },
+        "alreadyRequestedOptions": {
+          "join": "加入心願",
+          "status": "只顯示狀態"
+        },
+        "unmapped": "沒有 Seerr 使用者的帳戶",
+        "unmappedHelp": {
+          "fallback": "共用使用者：所有沒有自己使用者的帳戶都會以 slouchcat-gaeste 的身分請求，並共用預設限額。Slouchcat 會自行在 Seerr 中建立這個使用者。",
+          "deny": "不允許：沒有自己使用者的帳戶在取得 Seerr 使用者之前無法請求。"
+        },
+        "unmappedOptions": {
+          "fallback": "共用使用者",
+          "deny": "不允許"
+        },
+        "newAccountsCanRequest": "新帳戶可以請求",
+        "newAccountsCanRequestHelp": "「邀請帳戶」對話方塊中開關的預設值。不會變更現有帳戶。",
+        "allowWithdraw": "允許撤回",
+        "allowWithdrawHelp": "在心願核准之前。「我的心願」中的「撤回」按鈕。",
+        "pinExternalHideTitle": "PIN 碼個人資料的外部訊息不顯示作品",
+        "pinExternalHideTitleHelp": "電子郵件、Web Push 和 Telegram 只會提到個人資料，不會提到作品標題。",
+        "defaultLimit": "預設限額",
+        "limitPerAccount": "每個帳戶的限額",
+        "limitPerAccountHelp": "適用於帳戶所有個人資料的總和。Seerr 以滾動方式計算，也會計入直接在 Seerr 中提出的心願。遭拒絕的心願和加入的心願不計入。管理員沒有限額。",
+        "movieLimit": "電影：數量",
+        "movieDays": "電影：天數",
+        "tvLimit": "季：數量",
+        "tvDays": "季：天數",
+        "limitRange": "{{low}} 到 {{high}} 之間的整數。",
+        "perAccount": "依帳戶個別設定",
+        "perAccountHelp": "可在「帳戶」中為個別帳戶設定不同的限額：自訂限額或無限制。",
+        "toAccounts": "前往帳戶",
+        "accountsInSeerr": "Seerr 中的帳戶",
+        "provisionOn": "建立新帳戶",
+        "provisionOff": "不建立新帳戶",
+        "syncOn": "同步密碼",
+        "syncOff": "不同步密碼",
+        "provisionAccounts": "在 Seerr 中建立新帳戶",
+        "provisionAccountsHelp": "接受邀請時，Slouchcat 也會在 Seerr 中建立帳戶：電子郵件地址和密碼相同。如果 Seerr 中已有使用相同電子郵件地址的使用者，Slouchcat 會立即與其關聯。這個地址由新帳戶自行輸入，沒有人會核對。因此總覽會將每個這類關聯顯示七天。",
+        "syncPassword": "同步密碼",
+        "syncPasswordHelp": "密碼設定或變更時，以及登入 Slouchcat 時，Slouchcat 會將密碼轉交給 Seerr。Slouchcat 絕不會以明文儲存密碼。Seerr 需要開啟「本機登入」。原本就存在於 Seerr、並由管理員關聯的使用者會保留自己的密碼。",
+        "visibleInSeerr": "以帳戶的登入資訊登入 Seerr 的人，可以在那裡看到這個帳戶所有個人資料的心願，包括設有 PIN 碼的個人資料。Seerr 也會自行傳送含作品標題的通知；請在 Seerr 中為建立的使用者保持關閉。",
+        "existing": "現有帳戶",
+        "existingHelp": "為每個帳戶選擇 Seerr 使用者，或解除關聯。",
+        "toUsers": "前往 Seerr 使用者",
+        "links": "連結",
+        "who": "誰可以請求",
+        "whoHelp": "可在「帳戶」中依帳戶設定誰可以請求；各個人資料則由主個人資料決定。",
+        "connection": "Seerr 連線",
+        "connectionHelp": "位址、金鑰、測試和記錄。",
+        "users": "Seerr 使用者",
+        "usersHelp": "哪個帳戶以哪個 Seerr 使用者的身分請求，以及密碼和限額。",
+        "arr": "Radarr 和 Sonarr：個人資料標籤和進度",
+        "profileTags": "在 Radarr 和 Sonarr 中設定個人資料標籤",
+        "profileTagsHelp": "在 Seerr 將作品轉交給 Radarr 或 Sonarr 後，把個人資料的標籤加到該作品上，並補上先前無法設定的標籤。不會變更 Radarr 和 Sonarr 中的其他內容。",
+        "tagPrefix": "前綴",
+        "tagPrefixHelp": "小寫字母、數字和連字號。例如：sc-noah。適用於新標籤；現有標籤維持不變。個別個人資料的標籤可在「Seerr 使用者」中變更。",
+        "tagPrefixInvalid": "1 到 10 個字元：只能使用小寫字母 a–z、數字 0–9 和連字號。未儲存。",
+        "tagPrefixSaved": "前綴「{{prefix}}」：新標籤會像是 {{prefix}}noah。已設定的標籤維持不變。",
+        "showProgress": "顯示下載進度",
+        "showProgressHelp": "為取得中的心願顯示作品目前是搜尋中、下載中還是匯入中。為此，只要有取得中的心願，Slouchcat 就會每分鐘讀取 Radarr 和 Sonarr 的佇列。",
+        "arrSummary": "標籤 {{tags}} · 前綴 {{prefix}} · 進度 {{progress}}",
+        "on": "開啟",
+        "off": "關閉",
+        "arrLinks": "Radarr 和 Sonarr 的存取",
+        "arrLinksHelp": "位址和金鑰來自 Seerr；各個人資料的名稱位於「Seerr 使用者」。",
+        "toArr": "整合 › Seerr",
+        "discoverPages": "「探索」、「電影」、「影集」和「搜尋」頁面",
+        "discoverPagesHelp": "「心願」區域中的分頁。關閉：只有「我的心願」。",
+        "basicsSummary": "心願 {{enabled}} · 電影 {{movies}} · 影集 {{shows}}",
+        "basicsSummaryLocked": "心願已關閉，需先通過測試 · 電影 {{movies}} · 影集 {{shows}}",
+        "whereSummary": "搜尋 {{search}} · 詳細資料頁面 {{detail}} · 探索 {{discover}}",
+        "rulesSummary": "{{already}} · 沒有 Seerr 使用者：{{unmapped}} · 撤回 {{withdraw}}",
+        "linksConnection": "Seerr：{{state}}",
+        "usersCount_other": "已建立 {{opened}} / {{count}} 個帳戶",
+        "limitHintCount": "{{low}} 到 {{high}}；0 表示不限額。",
+        "limitHintDays": "{{low}} 到 {{high}} 天。"
+      },
+      "users": {
+        "caption": "帳戶及其 Seerr 使用者",
+        "columns": {
+          "account": "帳戶",
+          "user": "Seerr 使用者",
+          "password": "密碼",
+          "rights": "Seerr 中的權限",
+          "email": "電子郵件",
+          "type": "類型",
+          "limit": "限額"
+        },
+        "noUser": "無",
+        "passwordFollows": "隨使用者一起設定",
+        "rightsFollow": "依請求權限而定",
+        "gone": "使用者已刪除",
+        "state": {
+          "created": "由 Slouchcat 建立",
+          "linked": "依相同電子郵件地址關聯",
+          "manual": "手動關聯",
+          "waiting": "將於可連線到 Seerr 時建立",
+          "none": "未建立"
+        },
+        "password": {
+          "synced": "與 Slouchcat 相同",
+          "next_login": "將於下次登入 Slouchcat 時套用",
+          "off": "不同步",
+          "admin": "保留在 Seerr 中（管理員）",
+          "external": "透過 Jellyfin、Emby 或 Plex 登入"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "本機",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "管理員",
+          "both": "電影和影集",
+          "movies": "僅電影",
+          "shows": "僅影集",
+          "none": "無權限"
+        },
+        "choose": "選擇使用者",
+        "chooseLabel": "{{email}} 的 Seerr 使用者",
+        "option": "{{name}}（ID {{id}}）",
+        "optionCurrent": "{{option}}（目前）",
+        "optionGone": "{{option}}（已在 Seerr 中刪除）",
+        "optionTaken": "{{option}} · 屬於 {{email}}",
+        "facts": {
+          "user": "Seerr 使用者",
+          "state": "狀態",
+          "password": "密碼",
+          "rights": "Seerr 中的權限",
+          "limit": "限額",
+          "right": "帳戶的請求權限"
+        },
+        "linkedBy": "{{by}} · 自 {{date}} 起",
+        "by": {
+          "admin": "由管理員",
+          "invite": "接受邀請時",
+          "email_change": "變更電子郵件地址後"
+        },
+        "since": "自 {{date}} 起",
+        "syncedAt": "同步於 {{time}}",
+        "movies": "電影",
+        "shows": "影集",
+        "autoApproveOn": "自動核准：是",
+        "autoApproveOff": "自動核准：否",
+        "followRightOn": "依帳戶的請求權限而定：可以請求",
+        "followRightOff": "依帳戶的請求權限而定：不可請求",
+        "noLimitAdmin": "不限額（Seerr 管理員）",
+        "unlimited": "無限制",
+        "mode": {
+          "default": "預設",
+          "custom": "自訂",
+          "unlimited": "無限制"
+        },
+        "mayRequest": "可以請求",
+        "mayNotRequest": "不可請求",
+        "goneTitle": "找不到使用者「{{name}}」",
+        "goneBody": "Seerr 中已沒有這個使用者。請選擇其他使用者，或解除關聯。",
+        "selfLinked": {
+          "invite": "接受邀請時，因電子郵件地址相同，已與現有的 Seerr 使用者 {{name}} 關聯。如果此使用者不屬於這個帳戶，請解除關聯。",
+          "email_change": "變更電子郵件地址後，因電子郵件地址相同，已與現有的 Seerr 使用者 {{name}} 關聯。如果此使用者不屬於這個帳戶，請解除關聯。"
+        },
+        "warning": {
+          "nothing": "「{{name}}」在 Seerr 中無權請求任何內容。每個心願都會失敗；請在 Seerr 中授予此使用者「請求」權限，或選擇其他使用者。",
+          "noShows": "「{{name}}」無權請求影集。影集心願會失敗，電影則可以。",
+          "noMovies": "「{{name}}」無權請求電影。電影心願會失敗，影集則可以。"
+        },
+        "change": "變更 Seerr 使用者",
+        "unlink": "解除關聯",
+        "chooseHelp": "可選擇不屬於其他帳戶的使用者。權限和密碼會維持 Seerr 中的設定。",
+        "chooseHelpStale": "可選擇不屬於其他帳戶的使用者。顯示的是最後一次載入的使用者清單。",
+        "taken": "這個 Seerr 使用者現已屬於其他帳戶，或已無法選擇。選擇已重設。",
+        "linked": "{{email}} 現在會以「{{name}}」的身分請求。權限和核准取決於這個使用者。",
+        "unlinked": "已解除 {{email}} 的關聯。「{{name}}」仍保留在 Seerr 中。",
+        "reloading": "正在重新載入使用者清單。",
+        "notConfigured": "尚未設定 Seerr",
+        "notConfiguredBody": "沒有連線就沒有使用者清單。所有帳戶暫時都沒有 Seerr 使用者。",
+        "toConnection": "前往「整合 › Seerr」",
+        "toDecision": "前往決定",
+        "instanceBody": "在你於「整合 › Seerr」中做出決定之前，Slouchcat 不會送出心願，也不會同步任何內容。清單顯示的是最後的狀態。",
+        "goneCount_other": "{{count}} 個帳戶：使用者已在 Seerr 中刪除",
+        "goneCountBody": "請為這些帳戶選擇其他使用者，或解除關聯。",
+        "withoutCount_other": "{{count}} 個帳戶沒有 Seerr 使用者",
+        "withoutFallback": "在此之前，這些帳戶會以共用使用者 slouchcat-gaeste 的身分請求（規則「沒有 Seerr 使用者的帳戶」）。",
+        "withoutDeny": "只要「沒有 Seerr 使用者的帳戶」設為「不允許」，這些帳戶就無法請求。",
+        "toSettings": "前往設定",
+        "newAccounts": "新帳戶：{{provision}} · 密碼：{{password}}",
+        "provisionOn": "會在 Seerr 中建立",
+        "provisionOff": "不會建立",
+        "syncOn": "會同步",
+        "syncOff": "不會同步",
+        "changeSettings": "變更",
+        "shared": "共用使用者：{{name}}",
+        "sharedLater": "共用使用者：將於啟用心願後建立",
+        "reload": "重新載入使用者清單",
+        "unlinkedTitle": "沒有帳戶的 Seerr 使用者",
+        "unlinkedCount_other": "{{count}} 位使用者",
+        "unlinkedEmpty": "每個 Seerr 使用者都屬於某個帳戶。",
+        "noEmail": "沒有電子郵件地址",
+        "noLimit": "不限額",
+        "limitOnOpen": "將於建立時設定：{{limit}}",
+        "limitChange": "變更限額",
+        "quotaAt": "Seerr 的狀態，{{time}}",
+        "provision": "在 Seerr 中建立",
+        "retry": "重試",
+        "provisionOffHint": "「在 Seerr 中建立新帳戶」已關閉。",
+        "sameEmailTitle": "Seerr 中已有「{{name}}」",
+        "sameEmailBody": "電子郵件地址相同：「在 Seerr 中建立」會關聯這個使用者，而不是再建立一個。",
+        "waitingTitle": "等待 Seerr",
+        "waitReason": {
+          "unreachable": "建立時無法連線到 Seerr。下次同步時會再試一次。",
+          "server": "建立時 Seerr 回應了錯誤。下次同步時會再試一次。",
+          "timeout": "建立時 Seerr 未及時回應。下次同步時會再試一次。",
+          "key_invalid": "Seerr 拒絕了 API 金鑰。連線恢復正常後，下次同步時會再試一次。",
+          "instance_changed": "另一個 Seerr 執行個體正在等待你的決定。在此之前，Slouchcat 不會建立任何帳戶。",
+          "seerr_user_taken": "使用這個電子郵件地址的 Seerr 使用者已屬於其他帳戶，或是共用使用者。請手動選擇使用者。",
+          "other": "建立失敗（{{reason}}）。下次同步時會再試一次。",
+          "seerr_user_privileged": "這個 Seerr 使用者是 Seerr 管理員。Slouchcat 不會自動關聯：請在確認後關聯，或選擇其他使用者。",
+          "refused": "Seerr 拒絕建立帳戶。下次同步時會再試一次。"
+        },
+        "emailTakenTitle": "Seerr 拒絕了新的電子郵件地址",
+        "emailTakenBody": "另一個 Seerr 使用者已在使用這個地址。「{{name}}」在 Seerr 中會保留原本的電子郵件地址；帳戶仍會以這個使用者的身分請求。",
+        "provisioned": {
+          "created": "已在 Seerr 中建立 {{email}}。",
+          "linked": "{{email}} 已與 Seerr 使用者「{{name}}」關聯。",
+          "waiting": "尚未在 Seerr 中建立：{{email}} 等待中，下次同步時會再試一次。",
+          "privileged": "{{email}} 等待中：使用這個電子郵件地址的 Seerr 使用者是 Seerr 管理員。",
+          "taken": "{{email}} 等待中：使用這個電子郵件地址的 Seerr 使用者已屬於其他帳戶。請手動選擇使用者。"
+        },
+        "passwordNext": "下次登入時重新套用密碼",
+        "passwordOff": "不同步密碼",
+        "passwordNextDone": "{{email}} 的密碼將於下次登入時傳送到 Seerr。",
+        "passwordOffDone": "{{email}} 的密碼將不再與 Seerr 同步。",
+        "passwordSyncOff": "密碼同步已關閉。",
+        "passwordNote": {
+          "admin": "Slouchcat 不會同步密碼：「{{name}}」是 Seerr 管理員，其密碼在 Seerr 中維持不變。",
+          "external": "Slouchcat 不會同步密碼：「{{name}}」是透過 Jellyfin、Emby 或 Plex 登入，而不是使用自己的密碼。"
+        },
+        "provisionAll": "全部建立",
+        "provisionAllTitle": "要在 Seerr 中建立所有帳戶嗎？",
+        "provisionAllBody": "依相同電子郵件地址關聯：{{link}} · 在 Seerr 中新建立：{{create}}。",
+        "provisionAllWaits": "目前未連線到 Seerr：帳戶會先等待，並在下次同步時建立。",
+        "provisionAllQueued": "正在建立：關聯 {{link}} 個，新建立 {{create}} 個。",
+        "profiles": {
+          "title": "個人資料和標籤",
+          "help": "心願送達 Radarr 和 Sonarr 後，每個個人資料都會在那裡帶有自己的標籤。已設定的標籤會保留，即使名稱變更也一樣。",
+          "none": "這個帳戶沒有個人資料。",
+          "custom": "自訂名稱",
+          "change": "變更",
+          "changeLabel": "變更 {{profile}} 的標籤",
+          "field": "{{profile}} 的標籤名稱",
+          "fieldHelp": "只能使用小寫字母 a–z、數字 0–9 和連字號。",
+          "invalid": "只能使用小寫字母 a–z、數字 0–9 和連字號，最多 64 個字元。",
+          "save": "儲存",
+          "saveLabel": "儲存 {{profile}} 的標籤",
+          "cancel": "取消",
+          "reset": "重設",
+          "resetLabel": "將 {{profile}} 的標籤重設為依前綴產生的名稱",
+          "saved": "{{profile}}：標籤現在是 {{name}}。",
+          "tagsOff": "個人資料標籤已關閉（心願 › 設定）。"
+        },
+        "takeOver": {
+          "title": "來自 Seerr 的請求",
+          "help": "直接在 Seerr 中提出的請求會成為主個人資料的心願，並標示為「在 Seerr 中請求」。這些心願不帶有個人資料標籤。",
+          "counting": "正在計算 Seerr 中的請求…",
+          "none": "Seerr 中沒有請求。",
+          "action_other": "從 Seerr 接管 {{count}} 個請求",
+          "queued_other": "正在接管 {{name}} 的 {{count}} 個請求。",
+          "running": "正在接管請求；同步後會顯示數量。"
+        },
+        "linkPrivileged": "仍要關聯…",
+        "privilegedTitle": "要關聯 Seerr 管理員 {{name}} 嗎？",
+        "privilegedBody": "這個 Seerr 使用者是 Seerr 管理員。之後 {{email}} 的個人資料會以 Seerr 管理員的身分請求，不需核准，也不限額。Slouchcat 不會同步此使用者的密碼。",
+        "privilegedConfirm": "仍要關聯",
+        "provisionAllManual_other": "{{count}} 個帳戶需要手動選擇。",
+        "waitingChoice": "等待手動選擇",
+        "waitingChoiceTitle": "等待你的選擇",
+        "optionPrivileged": "{{option}} · 管理 Seerr"
+      },
+      "limitField": {
+        "label": "限額",
+        "help": {
+          "default": "與「心願 › 設定」相同：{{limit}}。",
+          "custom": "為這個帳戶自訂數量。",
+          "unlimited": "電影和季均不限額。"
+        }
+      },
+      "requests": {
+        "caption": "家庭的所有心願",
+        "columns": {
+          "title": "標題",
+          "requesters": "許願人",
+          "state": "狀態",
+          "seerr": "在 Seerr 中",
+          "attempts": "嘗試次數",
+          "actions": "動作"
+        },
+        "titleYear": "{{title}}（{{year}}）",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}}（已加入心願）",
+        "requesterClosed": "{{line}}（已撤回）",
+        "noRequester": "Slouchcat 中沒有人",
+        "noRequest": "尚未",
+        "requestId": "請求 {{id}}",
+        "requestIds_other": "請求 {{ids}}",
+        "filter": {
+          "label": "依狀態篩選心願",
+          "all": "全部",
+          "open": "未完成",
+          "available": "可觀看",
+          "closed": "已結束",
+          "count_other": "{{count}} 個心願",
+          "stalled": "下載停滯",
+          "untagged": "標籤未設定",
+          "countLoaded_other": "已載入的心願中有 {{count}} 個"
+        },
+        "sync": "立即同步",
+        "syncQueued": "正在與 Seerr 同步。",
+        "queued_other": "{{count}} 個心願正在等待傳送到 Seerr。",
+        "empty": "尚無心願。",
+        "emptyFilter": "沒有處於此狀態的心願。",
+        "facts": {
+          "label": "心願資訊",
+          "created": "請求時間",
+          "origin": "來源",
+          "seerrUser": "Seerr 使用者",
+          "failReason": "原因"
+        },
+        "origin": {
+          "slouchcat": "在 Slouchcat 中請求",
+          "seerr": "在 Seerr 中請求"
+        },
+        "toItem": "前往管理中的作品",
+        "history": "歷史記錄",
+        "noHistory": "尚無任何記錄。",
+        "retry": "重試",
+        "retryLabel": "{{title}}：重試",
+        "retried": "正在重試 {{title}}。",
+        "emptyStalled": "沒有停滯的下載。",
+        "emptyUntagged": "每個個人資料標籤都已設定或即將設定。",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}}（ID {{id}}）",
+        "approve": "核准",
+        "approveLabel": "核准 {{title}}",
+        "approved": "{{title}} 已核准，正在取得。",
+        "decline": "拒絕",
+        "declineLabel": "拒絕 {{title}}",
+        "declineTitle": "要拒絕 {{title}} 嗎？",
+        "declineBody": "Slouchcat 會將拒絕轉交給 Seerr。Seerr 不會記錄原因：個人資料只會看到「已拒絕」，並收到通知。",
+        "declined": "已拒絕 {{title}}。",
+        "event": {
+          "approved_by_admin": "已在管理中核准",
+          "declined_by_admin": "已在管理中拒絕"
+        },
+        "progress": {
+          "search": "搜尋中",
+          "download": "下載中",
+          "import": "匯入中",
+          "stalled": "下載停滯",
+          "percent": "{{percent}}%",
+          "etaMinutes": "剩餘 {{minutes}} 分鐘",
+          "etaHours": "剩餘 {{hours}} 小時 {{minutes}} 分鐘",
+          "episodes": "已有 {{done}} / {{total}} 集",
+          "unreadable": "無法讀取進度",
+          "unreadableAt": "無法讀取進度 · 上次讀取 {{time}}",
+          "notInService": "尚未加入 {{service}}",
+          "incomplete": "單集狀態只能部分讀取。",
+          "etaWholeHours": "剩餘 {{hours}} 小時"
+        },
+        "progressBlock": {
+          "title": "進度",
+          "service": "服務",
+          "state": "目前進度",
+          "unknown": "尚無資訊",
+          "readAt": "上次讀取",
+          "never": "從未",
+          "note": "附註",
+          "message": "來自 {{service}} 的訊息"
+        },
+        "tags": {
+          "title": "個人資料標籤",
+          "set": "{{name}}",
+          "pending": "{{name}} · 待設定",
+          "failed": "{{name}} · 失敗",
+          "setAt": "已於 {{time}} 在 {{service}} 中設定",
+          "setIn": "已在 {{service}} 中設定",
+          "pendingHelp": "作品加入 {{service}} 後就會設定標籤。",
+          "failedHelp": "{{service}} 未接受這個標籤。"
+        },
+        "shown": "顯示 {{shown}} / {{total}} 個心願。",
+        "searchedIn": "已在 {{shown}} / {{total}} 個未完成的心願中搜尋。",
+        "more": "載入更多",
+        "toItemLabel": "{{title}}：前往管理中的作品",
+        "inSeerr": "在 Seerr 中開啟",
+        "inSeerrLabel": "在 Seerr 中開啟 {{title}}（新視窗）"
+      },
+      "arrError": {
+        "not_in_arr": "作品尚未加入 {{service}}。",
+        "tvdb_id_missing": "這部影集沒有 TVDB ID。",
+        "not_confirmed": "來自 Seerr 的位址正在等待「測試」。",
+        "not_in_seerr": "Seerr 沒有 {{service}} 的預設伺服器。",
+        "seerr_off": "Seerr 尚未設定或已關閉。",
+        "redirect": "{{service}} 重新導向至其他位址。",
+        "timeout": "{{service}} 未及時回應。",
+        "unreachable": "無法連線到 {{service}}。",
+        "key_invalid": "{{service}} 拒絕了來自 Seerr 的金鑰。",
+        "not_found": "{{service}} 中找不到這部作品。",
+        "validation": "{{service}} 以無效為由拒絕了呼叫。",
+        "server": "{{service}} 回應了錯誤。",
+        "bad_request": "{{service}} 拒絕了呼叫。",
+        "invalid": "{{service}} 的回應不如預期。",
+        "seerr": "Seerr 未提供 {{service}} 的位址和金鑰。",
+        "other": "錯誤：{{error}}"
+      }
     }
   },
   "language": {
@@ -5129,7 +6060,11 @@
         "metadataLanguage": "簡介語言",
         "metadataLanguageHint": "標題、簡介和類型；介面會使用上方的語言。",
         "likeUi": "與介面相同",
-        "playback": "播放"
+        "playback": "播放",
+        "wishes": "心願",
+        "canRequest": "可請求作品",
+        "canRequestHelp": "這個個人資料可以透過 Seerr 請求缺少的作品。",
+        "canRequestCapped": "此帳戶無權請求作品。管理員可在「帳戶」中設定此權限。"
       },
       "report": {
         "show": "顯示觀看時長",
@@ -5173,7 +6108,8 @@
     "notFound": {
       "title": "找不到連結",
       "body": "這個邀請連結不存在。請確認你已完整複製連結。"
-    }
+    },
+    "seerrAccount": "你的登入資訊也適用於 Seerr：接受邀請後，會在 Seerr 中建立一個使用相同電子郵件地址和密碼的帳戶。"
   },
   "kind": {
     "movie": "電影",
@@ -5446,7 +6382,13 @@
     "empty": {
       "title": "找不到任何結果",
       "body": "試試其他字詞或減少篩選條件。"
-    }
+    },
+    "missing": {
+      "title": "尚未加入媒體庫",
+      "notHere": "尚未提供",
+      "request": "請求 {{title}}"
+    },
+    "inWishes": "同時搜尋心願"
   },
   "watchlist": {
     "title": "我的片單",
@@ -5525,7 +6467,12 @@
     "empty": {
       "title": "沒有通知",
       "body": "將影集或 Podcast 加入我的片單，就能在這裡得知新單集的消息。"
-    }
+    },
+    "wish_available": "你的心願已實現",
+    "wish_season_available": "你的心願有一季可觀看了",
+    "wish_approved": "你的心願已核准",
+    "wish_declined": "你的心願已被拒絕",
+    "wish_failed": "你的心願處理失敗"
   },
   "settings": {
     "playback": {
@@ -5602,6 +6549,9 @@
         "errors": "錯誤",
         "invitations": "邀請",
         "announcements": "公告",
+        "wish_available": "心願：可觀看",
+        "wish_status": "心願：已核准、已拒絕、失敗",
+        "wish_review": "心願：需要核准",
         "help": "要針對哪些事件傳送訊息。",
         "helpAdmin": "要針對哪些事件傳送訊息。「錯誤」僅限管理員。"
       },
@@ -5972,6 +6922,279 @@
       "halfBody_other": "有 {{count}} 集已標記為已觀看。要標記所有單集，還是移除所有標記？移除後無法復原。",
       "markAll": "將所有單集標記為已觀看",
       "removeAll": "移除所有標記"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "電影：{{days}} 天內已用 {{used}} / {{limit}}",
+      "tv": "季：{{days}} 天內已用 {{used}} / {{limit}}",
+      "remaining_other": "尚餘 {{count}} 個",
+      "nextFree": "下一個名額於 {{date}} 釋出",
+      "short": {
+        "movie": "電影 {{used}}/{{limit}}",
+        "tv": "季 {{used}}/{{limit}}"
+      },
+      "movieNone": "電影不限額",
+      "tvNone": "季不限額"
+    },
+    "state": {
+      "queued": "傳送中",
+      "pending": "待核准",
+      "processing": "取得中",
+      "partial": "部分可觀看",
+      "available": "可觀看",
+      "declined": "已拒絕",
+      "failed": "失敗",
+      "withdrawn": "已撤回"
+    },
+    "detail": {
+      "importing": "正在讀取",
+      "not_found_in_library": "尚未在媒體庫中找到"
+    },
+    "fail": {
+      "quota": "已達限額：Seerr 未接受這個心願。",
+      "blocklisted": "這部作品在 Seerr 的封鎖清單中。",
+      "no_permission": "這個 Seerr 使用者無權請求此類作品。",
+      "arr_failed": "Seerr 無法將作品轉交給 Radarr 或 Sonarr。管理員可以重試這個心願。",
+      "unreachable_24h": "已有 24 小時無法連線到 Seerr。",
+      "seerr_request_gone": "這個請求已在 Seerr 中刪除。",
+      "seerr_media_deleted": "這部作品已從 Seerr 中移除。",
+      "seerr_user_gone": "所關聯的 Seerr 使用者已不存在。",
+      "tvdb_id_missing": "這部影集缺少 Seerr 所需的 TVDB ID。",
+      "account_deleted": "提出這個心願的帳戶已不存在。"
+    },
+    "reason": {
+      "disabled": "心願功能已關閉。",
+      "account_not_allowed": "此帳戶無權請求作品。",
+      "profile_not_allowed": "這個個人資料無權請求作品。主個人資料可在「個人資料」中允許。",
+      "no_mapping": "此帳戶尚未關聯 Seerr 使用者。這需要由管理員設定。",
+      "seerr_user_gone": "所關聯的 Seerr 使用者已不存在。這需要由管理員處理。",
+      "movies_not_allowed": "目前無法請求電影。",
+      "shows_not_allowed": "目前無法請求影集。",
+      "status_only": "其他個人資料已請求這部作品。作品上架後，就能在媒體庫中找到。",
+      "already_requested": "你已請求過這部作品。",
+      "source_not_allowed": "目前無法從這裡請求作品。",
+      "tvdb_id_missing": "這部影集缺少 Seerr 所需的 TVDB ID。",
+      "withdraw_disabled": "目前無法撤回心願。"
+    },
+    "tmdbUnreachable": "目前無法連線到 TMDB。請稍後再試。",
+    "kind": {
+      "movie": "電影",
+      "show": "影集"
+    },
+    "seasons_other": "第 {{list}} 季",
+    "event": {
+      "created": "已請求",
+      "submitted": "已傳送到 Seerr",
+      "attached": "已在 Seerr 中找到並接管",
+      "joined": "已加入心願",
+      "withdrawn": "已撤回",
+      "withdraw_deleted": "已在 Seerr 中刪除",
+      "owner_changed": "由其他個人資料繼續許願",
+      "reopened": "先前已核准，心願繼續進行",
+      "season_available_other": "第 {{seasons}} 季可觀看",
+      "changed": "已變更"
+    },
+    "card": {
+      "title": "你的心願",
+      "requestedOn": "請求於 {{date}}",
+      "joined": "你已加入心願",
+      "history": "歷史記錄",
+      "mine": "前往我的心願"
+    },
+    "withdraw": {
+      "action": "撤回",
+      "actionJoined": "取消加入心願",
+      "title": "要撤回心願嗎？",
+      "titleJoined": "要取消加入這個心願嗎？",
+      "body": "將不再請求「{{title}}」；Slouchcat 也會在 Seerr 中刪除這個心願。",
+      "bodyJoined": "「{{title}}」上架時，你將不會再收到通知。其他個人資料的心願會保留。",
+      "confirm": "撤回",
+      "confirmJoined": "取消加入心願"
+    },
+    "dialog": {
+      "titleMovie": "請求電影：{{title}}",
+      "titleShow": "請求影集：{{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "會立即開始取得，不需要核准。",
+      "needsApproval": "需要核准。你可以在「我的心願」中查看進度。",
+      "seasons": "季",
+      "allSeasons": "所有缺少的季（{{count}}）",
+      "season": "第 {{number}} 季",
+      "episodes_other": "{{count}} 集",
+      "seasonState": {
+        "requested": "已請求，你也會收到通知",
+        "available": "可觀看"
+      },
+      "nothingLeft": {
+        "title": "沒有可請求的內容了",
+        "body": "所有季都已上架或已請求。"
+      },
+      "tooManySeasons_other": "{{limit}} 季中尚餘 {{count}} 季。最多只能選擇 {{count}} 季。",
+      "reached": {
+        "movie_other": "已達限額：{{days}} 天內 {{count}} 部電影。",
+        "show_other": "已達限額：{{days}} 天內 {{count}} 季。",
+        "movie_date_other": "已達限額：{{days}} 天內 {{count}} 部電影。下一個名額將於 {{date}} 釋出。",
+        "show_date_other": "已達限額：{{days}} 天內 {{count}} 季。下一個名額將於 {{date}} 釋出。"
+      },
+      "submit": "請求",
+      "submitting": "請求中…",
+      "chooseSeasons": "選擇季",
+      "join": "通知我",
+      "submitSeasons_other": "請求 {{count}} 季"
+    },
+    "page": {
+      "title": "我的心願",
+      "count_other": "{{count}} 個未完成的心願",
+      "countAll_other": "{{count}} 個心願",
+      "countAvailable_other": "{{count}} 個可觀看的心願",
+      "countClosed_other": "{{count}} 個已結束的心願",
+      "limit": "限額：{{limit}}",
+      "offline": "僅限連線時使用：心願儲存在伺服器上。",
+      "filters": {
+        "label": "篩選心願",
+        "all": "全部",
+        "open": "未完成",
+        "available": "可觀看",
+        "closed": "已結束"
+      },
+      "filter": "狀態",
+      "filterCount": "{{name}}（{{count}}）",
+      "empty": {
+        "title": "尚無心願。",
+        "body": "你請求的作品會連同進度顯示在這裡。"
+      },
+      "emptyFilter": {
+        "open": "沒有未完成的心願。",
+        "available": "還沒有可觀看的心願。",
+        "closed": "沒有已結束的心願。"
+      }
+    },
+    "row": {
+      "open": "前往作品",
+      "withdrawLabel": "撤回 {{title}}",
+      "withdrawJoinedLabel": "{{title}}：取消加入心願",
+      "again": "重新請求",
+      "againLabel": "重新請求 {{title}}",
+      "history": "歷史記錄：{{last}}",
+      "fromSeerr": "在 Seerr 中請求"
+    },
+    "area": {
+      "label": "心願下的區域",
+      "discover": "探索",
+      "movies": "電影",
+      "series": "影集",
+      "search": "搜尋",
+      "mine": "我的心願",
+      "mineCount_other": "我的心願（{{count}}）"
+    },
+    "discover": {
+      "title": "探索",
+      "intro": "目前的熱門作品和即將推出的作品。尚未加入媒體庫的作品，你可以提出請求。",
+      "searchLabel": "搜尋電影或影集",
+      "searchAction": "搜尋",
+      "rows": {
+        "trending": "熱門趨勢",
+        "popular_movies": "熱門電影",
+        "movie_genres": "電影類型",
+        "upcoming_movies": "即將上映",
+        "popular_shows": "熱門影集",
+        "show_genres": "影集類型",
+        "upcoming_shows": "即將推出的影集"
+      },
+      "stale": "無法連線到 Seerr。目前顯示的是上次取得的內容。",
+      "refreshFailed": "無法更新清單。目前顯示的是上次取得的內容。",
+      "empty": "目前這裡沒有可探索的內容。",
+      "inLibrary": "已在媒體庫中",
+      "requested": "已請求",
+      "join": "{{title}}：通知我",
+      "gone": {
+        "title": "這個個人資料無法使用「探索」",
+        "body": "你先前的心願仍可在「我的心願」中找到。",
+        "action": "前往「我的心願」"
+      },
+      "notFound": {
+        "title": "找不到頁面",
+        "body": "這個個人資料沒有這個頁面。"
+      }
+    },
+    "titles": {
+      "moviesIntro": "TMDB 收錄的所有電影，無論是否已在媒體庫中。缺少的作品，你可以提出請求。",
+      "seriesIntro": "TMDB 收錄的所有影集，無論是否已在媒體庫中。缺少的作品，你可以提出請求。",
+      "sort": "排序方式",
+      "sorts": {
+        "popularity": "熱門程度",
+        "newest": "最新優先",
+        "rating": "評分最高"
+      },
+      "filter": "篩選條件：{{summary}}",
+      "filterLabel": "篩選條件",
+      "genre": "類型",
+      "allGenres": "所有類型",
+      "genreId": "類型 {{id}}",
+      "library": "媒體庫",
+      "hide": "隱藏已有的作品",
+      "hideHelp": "只顯示尚未加入媒體庫的作品。",
+      "hidden": "已隱藏已有的作品",
+      "shown": "已顯示已有的作品",
+      "clear": "重設篩選條件",
+      "apply": "套用",
+      "moviesEmpty": "沒有符合條件的電影。",
+      "seriesEmpty": "沒有符合條件的影集。"
+    },
+    "search": {
+      "intro": "搜尋 TMDB 收錄的所有內容，包括尚未加入媒體庫的作品。也可以依 ID 搜尋，例如 tmdb:603、tvdb:121361 或 imdb:tt0133093。",
+      "placeholder": "電影或影集",
+      "start": "請輸入標題。搜尋範圍涵蓋 TMDB 收錄的所有內容，也包括原始標題。",
+      "tooShort": "請至少輸入兩個字元。",
+      "hits": "搜尋結果",
+      "empty": {
+        "title": "找不到「{{q}}」的結果",
+        "body": "搜尋的是電影和影集標題，而不是人物。請試試其他字詞或 ID。"
+      }
+    },
+    "progress": {
+      "search": "搜尋中",
+      "download": "下載中",
+      "import": "匯入中",
+      "stalled": "下載停滯",
+      "percent": "{{percent}}%",
+      "episodes_other": "已有 {{done}} / {{count}} 集",
+      "eta": "剩餘 {{time}}"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "找不到作品",
+      "body": "這部作品不存在，或這個個人資料無法查看。"
+    },
+    "loading": "作品",
+    "missing": "尚未加入媒體庫",
+    "seasonCount_other": "{{count}} 季",
+    "requestMovie": "請求電影",
+    "requestShow": "請求影集",
+    "done": {
+      "requested": "已請求。你可以在「我的心願」中查看進度。",
+      "joined": "作品上架後，你就會收到通知。",
+      "withdrawn": "你的心願已撤回。"
+    },
+    "alreadyRequested": "已請求",
+    "cannotRequest": "這個個人資料無法請求作品",
+    "seasons": "季",
+    "seasonRequested": "已請求",
+    "nextEpisode": "仍在播出，下一集將於 {{date}} 推出",
+    "last": {
+      "title": "你上次的心願：{{state}}",
+      "why": {
+        "declined": "Seerr 沒有提供原因。你可以重新請求這部作品。",
+        "withdrawn": "你已撤回。"
+      }
+    },
+    "join": "通知我",
+    "shared": {
+      "title": "已請求 · {{state}}",
+      "join": "其他個人資料已請求這部電影。按下「通知我」，電影可以播放時 Slouchcat 也會通知你。",
+      "statusOnly": "其他個人資料已請求這部電影。電影可以播放後，你就能在媒體庫中找到它。"
     }
   }
 }

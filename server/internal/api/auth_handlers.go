@@ -230,6 +230,7 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 	info.UpdateAvailable = s.updateNotice(ctx, session)
 	info.SetupPending = s.setupPending(ctx, session)
 	info.RatingSystem = s.ratingSystem(ctx)
+	info.Wishes = s.wishRights(ctx, session)
 	if s.opts.Profiles != nil {
 		// The metadata languages a profile may choose (ADR 0018), for the profile page of every
 		// account (the page is an account operation, so the list rides on the session).

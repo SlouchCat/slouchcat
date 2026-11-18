@@ -1328,3 +1328,51 @@ test('Enter on the skip link moves focus past the header', async ({ page }) => {
   expect(inHeader).toBe(false);
   await expectVisibleFocus(page);
 });
+
+// Concept 25 (E-10, N-97): «Erfüllte Wünsche» holds the profile's wishes fulfilled in the last 14
+// days; a profile without one has no such row (the real server). A fulfilled wish needs a library
+// title found by the id of the wish, and the e2e library's titles carry ids no wish can name
+// (createWish answers 409 already_available), so the row with a title comes from the real
+// answer of GET /home with the row put in, as the server would send it, holding a real library
+// title: the row component, its title and its keys, not the server's side of it.
+test('«Erfüllte Wünsche»: the row with a fulfilled title, by arrow keys; none without @keyboard', async ({
+  page,
+  owner,
+}) => {
+  expect(await homeRowKeys(owner)).not.toContain('wishes');
+  await page.goto('/');
+  await expect(recentRow(page)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Erfüllte Wünsche' })).toHaveCount(0);
+
+  let fulfilled = '';
+  await page.route(/\/api\/v1\/home(\?.*)?$/, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      rows: { id: string; key: string; items: { title: string }[] }[];
+    };
+    // A page of rows further down (`start`) without «Neu hinzugefügt» goes through unchanged.
+    const at = body.rows.findIndex((row) => row.key === 'recent');
+    const item = body.rows[at]?.items[0];
+    if (item) {
+      fulfilled = item.title;
+      body.rows.splice(at, 0, { id: 'wishes', key: 'wishes', items: [item] });
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto('/');
+  const row = page.getByRole('region', { name: 'Erfüllte Wünsche' });
+  await expect(row).toBeVisible();
+  const card = row.getByRole('link', { name: startsWith(fulfilled) });
+  await expect(card).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('{{');
+
+  // Down from the top until the card has the focus; Enter opens the title.
+  await resetFocus(page);
+  for (let presses = 0; presses < 10; presses += 1) {
+    if (await card.evaluate((link) => link === document.activeElement)) break;
+    await page.keyboard.press('ArrowDown');
+  }
+  await expectFocusOn(page, card);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/items\//);
+});

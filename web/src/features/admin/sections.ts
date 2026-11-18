@@ -30,6 +30,7 @@ export interface AdminSection {
     | 'libraries'
     | 'metadata'
     | 'maintenance'
+    | 'wishes'
     | 'podcasts'
     | 'radio'
     | 'audiobookSources'
@@ -66,6 +67,8 @@ export const adminSections: readonly AdminSection[] = [
     area: 'media',
     also: ['/admin/items'],
   },
+  // Wishes through Seerr, directly after «Pflege» (concept 25, administration 1.2).
+  { key: 'wishes', href: paths.adminWishes, icon: 'heart', area: 'media' },
   { key: 'podcasts', href: paths.adminPodcasts, icon: 'mic', area: 'media' },
   // Webradio (concept 16, section 11).
   { key: 'radio', href: paths.adminRadio, icon: 'radio', area: 'media' },

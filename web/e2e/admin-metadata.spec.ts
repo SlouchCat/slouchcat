@@ -259,6 +259,11 @@ test('a language is added, put on its place with several arrow steps, saved and 
   page,
   owner,
 }) => {
+  // About 355 key presses: seven walks by Tab from the top of the page (130 presses, 13 to 29
+  // each) and 225 arrow steps through the language list (105 + 60 + 60). Measured on 18 November
+  // 2026 on a developer's machine: 19.5 s in Firefox (8.2 s of Tab walks, 8.2 s of arrow steps),
+  // 20 s in Chromium; on the CI runner Chromium took 21.4 s and Firefox ran past 30 s.
+  test.setTimeout(60_000);
   const before = await settingsOf(owner);
   try {
     await openMetadata(page, '?item=languages');

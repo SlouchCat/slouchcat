@@ -23,6 +23,7 @@ type Account struct {
 	MaxBitrateKbps sql.NullInt64
 	MaxHeight      sql.NullInt64
 	MaxStreams     sql.NullInt64
+	CanRequest     int64
 }
 
 type AccountChannel struct {
@@ -223,6 +224,57 @@ type DownloadTombstone struct {
 	RemovedAt int64
 }
 
+type ExternalTitle struct {
+	Media          string
+	TmdbID         int64
+	TvdbID         sql.NullInt64
+	ImdbID         sql.NullString
+	OriginalTitle  sql.NullString
+	Year           sql.NullInt64
+	ReleaseDate    sql.NullString
+	RuntimeMinutes sql.NullInt64
+	Genres         string
+	Certifications string
+	MinAge         sql.NullInt64
+	PosterPath     sql.NullString
+	BackdropPath   sql.NullString
+	LogoPath       sql.NullString
+	Trailers       string
+	Status         sql.NullString
+	Seasons        string
+	NextEpisode    sql.NullString
+	LastEpisode    sql.NullString
+	FetchedAt      int64
+	UsedAt         sql.NullInt64
+}
+
+type ExternalTitleImage struct {
+	ID          int64
+	Media       string
+	TmdbID      int64
+	Kind        string
+	Size        string
+	Format      string
+	Lang        sql.NullString
+	SourceUrl   string
+	RelPath     string
+	ContentHash string
+	MediaType   string
+	Width       int64
+	Height      int64
+	Bytes       int64
+	FetchedAt   int64
+}
+
+type ExternalTitleText struct {
+	Media    string
+	TmdbID   int64
+	Language string
+	Title    string
+	Overview sql.NullString
+	Tagline  sql.NullString
+}
+
 type HomeRow struct {
 	ID        string
 	Key       string
@@ -259,17 +311,23 @@ type Image struct {
 }
 
 type Invitation struct {
-	ID           int64
-	TokenHash    string
-	Note         sql.NullString
-	MaxRating    int64
-	AllLibraries int64
-	CreatedBy    sql.NullInt64
-	CreatedAt    int64
-	ExpiresAt    int64
-	UsedAt       sql.NullInt64
-	UsedBy       sql.NullInt64
-	RevokedAt    sql.NullInt64
+	ID             int64
+	TokenHash      string
+	Note           sql.NullString
+	MaxRating      int64
+	AllLibraries   int64
+	CreatedBy      sql.NullInt64
+	CreatedAt      int64
+	ExpiresAt      int64
+	UsedAt         sql.NullInt64
+	UsedBy         sql.NullInt64
+	RevokedAt      sql.NullInt64
+	CanRequest     int64
+	WishLimitMode  string
+	WishMovieLimit sql.NullInt64
+	WishMovieDays  sql.NullInt64
+	WishTvLimit    sql.NullInt64
+	WishTvDays     sql.NullInt64
 }
 
 type InvitationLibrary struct {
@@ -548,8 +606,10 @@ type Notification struct {
 	ID        int64
 	ProfileID int64
 	Kind      string
-	ItemID    string
+	ItemID    sql.NullString
 	ParentID  sql.NullString
+	WishID    sql.NullInt64
+	DedupeKey string
 	CreatedAt int64
 	ReadAt    sql.NullInt64
 }
@@ -669,6 +729,7 @@ type Profile struct {
 	AudioLanguages    string
 	SubtitleMode      string
 	SubtitleLanguages string
+	CanRequest        int64
 }
 
 type ProfileLibrary struct {
@@ -922,6 +983,49 @@ type SearchIndex struct {
 	RefID  string
 }
 
+type SeerrLog struct {
+	ID         int64
+	At         int64
+	Method     string
+	Path       string
+	Status     sql.NullInt64
+	DurationMs int64
+	Error      sql.NullString
+}
+
+type SeerrUser struct {
+	SeerrID         int64
+	DisplayName     string
+	Email           sql.NullString
+	UserType        int64
+	Permissions     int64
+	MovieQuotaLimit sql.NullInt64
+	MovieQuotaDays  sql.NullInt64
+	TvQuotaLimit    sql.NullInt64
+	TvQuotaDays     sql.NullInt64
+	MovieQuotaUsed  sql.NullInt64
+	TvQuotaUsed     sql.NullInt64
+	MovieNextFreeAt sql.NullInt64
+	TvNextFreeAt    sql.NullInt64
+	QuotaAt         sql.NullInt64
+	IsAdmin         int64
+	IsShared        int64
+	CreatedAt       sql.NullInt64
+	FetchedAt       int64
+	GoneAt          sql.NullInt64
+}
+
+type SeriesCatalog struct {
+	ItemID       string
+	TmdbID       int64
+	Status       sql.NullString
+	InProduction int64
+	Seasons      string
+	NextEpisode  sql.NullString
+	LastEpisode  sql.NullString
+	FetchedAt    int64
+}
+
 type Session struct {
 	ID         int64
 	TokenHash  string
@@ -959,10 +1063,12 @@ type SpotlightEntry struct {
 	ListKey   string
 	Media     string
 	Position  int64
-	TmdbID    int64
+	TmdbID    sql.NullInt64
 	Title     sql.NullString
 	Year      sql.NullInt64
 	FetchedAt int64
+	TvdbID    sql.NullInt64
+	ImdbID    sql.NullString
 }
 
 type SpotlightOverride struct {
@@ -1047,4 +1153,131 @@ type WebhookIntegration struct {
 	LastSeenAt sql.NullInt64
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type Wish struct {
+	ID              int64
+	Media           string
+	TmdbID          int64
+	TvdbID          sql.NullInt64
+	ImdbID          sql.NullString
+	Title           string
+	Year            sql.NullInt64
+	Origin          string
+	SeerrRequestID  sql.NullInt64
+	SeerrMediaID    sql.NullInt64
+	SeerrUserID     sql.NullInt64
+	State           string
+	StateDetail     sql.NullString
+	FailReason      sql.NullString
+	Attempts        int64
+	NextAttemptAt   sql.NullInt64
+	WithdrawPending int64
+	CheckedAt       sql.NullInt64
+	ItemID          sql.NullString
+	CreatedAt       int64
+	UpdatedAt       int64
+	SubmittedAt     sql.NullInt64
+	ApprovedAt      sql.NullInt64
+	AvailableAt     sql.NullInt64
+	ClosedAt        sql.NullInt64
+	SeerrUpdatedAt  sql.NullInt64
+}
+
+type WishAccountLimit struct {
+	AccountID  int64
+	Mode       string
+	MovieLimit sql.NullInt64
+	MovieDays  sql.NullInt64
+	TvLimit    sql.NullInt64
+	TvDays     sql.NullInt64
+	SetAt      int64
+	SetBy      sql.NullInt64
+}
+
+type WishAccountMap struct {
+	AccountID        int64
+	SeerrUserID      sql.NullInt64
+	Origin           sql.NullString
+	State            string
+	LinkedBy         sql.NullString
+	LinkedAt         sql.NullInt64
+	PasswordState    string
+	PasswordSyncedAt sql.NullInt64
+	ProvisionError   sql.NullString
+	LimitWrittenAt   sql.NullInt64
+	SetAt            int64
+	SetBy            sql.NullInt64
+}
+
+type WishDiscoverPage struct {
+	CacheKey   string
+	Items      string
+	TotalPages sql.NullInt64
+	FetchedAt  int64
+}
+
+type WishEvent struct {
+	ID     int64
+	WishID int64
+	At     int64
+	Kind   string
+	Detail sql.NullString
+}
+
+type WishProfileTag struct {
+	ProfileID int64
+	Name      string
+	Custom    int64
+	SetAt     int64
+}
+
+type WishProgress struct {
+	WishID        int64
+	Service       string
+	ArrTitleID    sql.NullInt64
+	Stage         sql.NullString
+	Percent       sql.NullInt64
+	EtaSeconds    sql.NullInt64
+	EpisodesDone  sql.NullInt64
+	EpisodesTotal sql.NullInt64
+	AdminMessage  sql.NullString
+	Error         sql.NullString
+	HasFile       sql.NullInt64
+	TitleReadAt   sql.NullInt64
+	ReadAt        int64
+}
+
+type WishRequester struct {
+	WishID     int64
+	ProfileID  int64
+	AccountID  int64
+	Role       string
+	CreatedAt  int64
+	NotifiedAt sql.NullInt64
+	ClosedAt   sql.NullInt64
+}
+
+type WishSeason struct {
+	WishID         int64
+	SeasonNumber   int64
+	TmdbID         int64
+	SeerrRequestID sql.NullInt64
+	SeerrUpdatedAt sql.NullInt64
+	State          string
+	AvailableAt    sql.NullInt64
+	NotifiedAt     sql.NullInt64
+}
+
+type WishTag struct {
+	WishID     int64
+	ProfileID  int64
+	Service    string
+	TagName    string
+	ArrTagID   sql.NullInt64
+	ArrTitleID sql.NullInt64
+	State      string
+	Attempts   int64
+	LastError  sql.NullString
+	SetAt      sql.NullInt64
 }

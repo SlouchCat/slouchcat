@@ -94,6 +94,34 @@ describe('notifications', () => {
     ).toBe(true);
   });
 
+  it('entries about a wish: their context, the title when visible, else «Meine Wünsche» (concept 25)', async () => {
+    const wishes: Notification[] = [
+      {
+        id: 5,
+        kind: 'wish_available',
+        createdAt: '2026-11-17T08:00:00Z',
+        item: { ...show, id: seriesIds.show },
+        wish: { id: 41, media: 'show', title: 'Slouchcat Test Show', state: 'available' },
+      },
+      {
+        id: 4,
+        kind: 'wish_declined',
+        createdAt: '2026-11-16T08:00:00Z',
+        wish: { id: 42, media: 'movie', title: 'Glasvogel', state: 'declined' },
+      },
+    ];
+    mockApi({ ...signedIn, 'GET /notifications': () => json(inbox(wishes)) });
+    renderApp('/notifications');
+    const list = await screen.findByRole('list', { name: 'Benachrichtigungen' });
+    const available = within(list).getByRole('link', { name: /Slouchcat Test Show/ });
+    expect(within(available).getByText('Dein Wunsch ist da')).toBeVisible();
+    expect(available).toHaveAttribute('href', `/items/${seriesIds.show}`);
+    const declined = within(list).getByRole('link', { name: /Glasvogel/ });
+    expect(within(declined).getByText('Dein Wunsch wurde abgelehnt')).toBeVisible();
+    expect(declined).toHaveAttribute('href', '/wishes');
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
   it('marks all read and the badge goes away', async () => {
     let list = entries;
     const { calls } = mockApi({

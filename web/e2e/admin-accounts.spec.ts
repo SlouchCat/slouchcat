@@ -23,6 +23,7 @@ import {
 } from './keyboard';
 import { arrowBetweenRows, arrowTo } from './playback';
 import { areaTab } from './admin';
+import { connectSeerr, disconnectSeerr } from './seerr';
 
 // /admin/accounts (A-2, concept 12 variant C with KP-1) by keyboard (rule 8): the administrator
 // and an account in one table with rating, libraries, profiles and channels; each row folds out
@@ -112,7 +113,9 @@ test('A-2: the administrator and an account in one table, with the owner badge',
     await expect(guest).toContainText('FSK 12');
     await expect(guest).toContainText('Gast (Hauptprofil)');
     // Plan 5.2: an invited account gets announcements by e-mail unless it switches them off.
-    await expect(guest.getByRole('cell').nth(5)).toHaveText('E-Mail');
+    // The cells after the e-mail: role, access (rating, libraries, wishes), profiles, last seen,
+    // channels.
+    await expect(guest.getByRole('cell').nth(4)).toHaveText('E-Mail');
 
     // The own fold-out: «Konto ändern» and «Meine Profile»; neither a role action nor a removal,
     // the owner is protected (ADR 0014).
@@ -639,3 +642,136 @@ async function ownerAccountId(owner: APIRequestContext): Promise<number> {
   const session = (await (await owner.get('/api/v1/auth/session')).json()) as SessionData;
   return session.account.id;
 }
+
+test('concept 25: request right and limit in «Zugriff», the invitation and the Seerr user line by keyboard @keyboard', async ({
+  page,
+  owner,
+  playwright,
+  baseURL,
+  extraHTTPHeaders,
+}) => {
+  const anonymous = await anonymousApi(playwright, baseURL!, extraHTTPHeaders);
+  const before = await connectSeerr(owner);
+  try {
+    // The guest is opened in Seerr when it accepts (Neue Konten in Seerr eröffnen, ab Werk an).
+    await inviteGuest(owner, anonymous);
+    await openAccounts(page);
+    const row = accountRow(page, GUEST.email);
+    await expect(row.getByText(/^(Erlaubt|Nicht erlaubt|Ohne Seerr-Benutzer)$/)).toBeVisible();
+    const detail = await openRowByKeyboard(page, GUEST.email);
+    const access = detail.getByRole('region', { name: `Zugriff von ${GUEST.email}` });
+
+    // «Darf Titel anfordern» with Space; the limit's modes by arrows, «Eigenes» shows the numbers.
+    const right = access.getByRole('switch', { name: 'Darf Titel anfordern' });
+    await tabTo(page, right, 30);
+    const wasOn = await right.isChecked();
+    await page.keyboard.press('Space');
+    await expect(right).toBeChecked({ checked: !wasOn });
+    const standard = access.getByRole('radio', { name: 'Standard' });
+    await tabTo(page, standard, 5);
+    await expect(access.getByText(/Wie unter Wünsche › Einstellungen:/)).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(access.getByRole('radio', { name: 'Eigenes' })).toBeChecked();
+    const movies = access.getByRole('textbox', { name: 'Filme: Anzahl' });
+    await tabTo(page, movies, 3);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('4');
+    const save = access.getByRole('button', { name: 'Zugriff speichern' });
+    await tabTo(page, save, 10);
+    const limited = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && r.url().includes('/wish-limit'),
+    );
+    await page.keyboard.press('Enter');
+    expect((await limited).status()).toBe(200);
+    await expect(page.getByText(`Zugriff von ${GUEST.email} gespeichert.`)).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // The invitation dialog: the request right and the limit, with the hint about Seerr.
+    const invite = page.getByRole('button', { name: 'Konto einladen' });
+    await resetFocus(page);
+    await tabTo(page, invite, TAB_MAX);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Konto einladen' });
+    const inviteRight = dialog.getByRole('switch', { name: 'Darf Titel anfordern' });
+    await tabTo(page, inviteRight, 30);
+    await expectVisibleFocus(page);
+    await expect(
+      dialog.getByText(/Beim Annehmen eröffnet Slouchcat das Konto auch in Seerr/),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, invite);
+
+    // «Seerr-Benutzer: … · Ändern» leads to the account's row under Wünsche, open.
+    const change = access.getByRole('link', { name: 'Ändern' });
+    await change.focus();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    // The router keeps `?item=` as text (adminSearch), so the address may quote the number.
+    await expect(page).toHaveURL(/\/admin\/wishes\?tab=seerr-benutzer&item=(%22)?\d+(%22)?$/);
+    await expect(
+      page
+        .getByRole('table', { name: 'Konten und ihre Seerr-Benutzer' })
+        .getByRole('button', { name: GUEST.email, exact: true }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/accounts/);
+    await expectNoFocusTrap(page, 120);
+  } finally {
+    await disconnectSeerr(owner, before);
+    await revokeInvitations(owner);
+    await anonymous.dispose();
+  }
+});
+
+test.describe('at desktop width', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('the table and an opened row fit the frame at 1280 px; on a phone the fold-out fits the screen', async ({
+    page,
+    owner,
+    playwright,
+    baseURL,
+    extraHTTPHeaders,
+  }) => {
+    const anonymous = await anonymousApi(playwright, baseURL!, extraHTTPHeaders);
+    // With Seerr the row has the column «Wünsche» and «Zugriff» the request right and the limit.
+    const before = await connectSeerr(owner);
+    try {
+      await inviteGuest(owner, anonymous);
+      await openAccounts(page);
+      await accountToggle(page, GUEST.email).click();
+      const access = accountFoldOut(page, GUEST.email).getByRole('region', {
+        name: `Zugriff von ${GUEST.email}`,
+      });
+      const save = access.getByRole('button', { name: 'Zugriff speichern' });
+      await expect(save).toBeVisible();
+      // No sideways scroll in the table's frame, and the save button within the window.
+      const frame = page.getByRole('table', { name: 'Konten' }).locator('xpath=..');
+      expect(
+        await frame.evaluate((element) => element.scrollWidth - element.clientWidth),
+      ).toBeLessThanOrEqual(0);
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport({ ratio: 1 });
+      const box = (await save.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(1280);
+
+      // On a phone the table scrolls sideways in its frame; the open row's form does not: it is
+      // no wider than the screen and its save button stays on it.
+      await page.setViewportSize({ width: 390, height: 844 });
+      const form = accountFoldOut(page, GUEST.email).locator('td > div');
+      await expect
+        .poll(async () => {
+          const { x, width } = (await form.boundingBox())!;
+          return x + width;
+        })
+        .toBeLessThanOrEqual(390);
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport({ ratio: 1 });
+    } finally {
+      await disconnectSeerr(owner, before);
+      await revokeInvitations(owner);
+      await anonymous.dispose();
+    }
+  });
+});

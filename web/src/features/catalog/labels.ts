@@ -27,6 +27,7 @@ export const homeRowTitleKey = {
   libraries: 'home.rows.libraries',
   library: 'home.rows.library',
   radio: 'home.rows.radio',
+  wishes: 'home.rows.wishes',
 } as const satisfies Record<HomeRowKey, string>;
 
 /**

@@ -303,3 +303,97 @@
 .back {
   align-self: flex-start;
 }
+
+/* The check list of the Seerr test (concept 25, administration 4.1): a dot, the check point and
+   what it found, one line each. */
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.checkText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.checkLabel {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.checkDetail {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The address in the head of the band «Verbindung»: one line, cut with an ellipsis. */
+.clipMeta {
+  overflow: hidden;
+  max-width: 20rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A call of the Seerr log on one line; on a phone the table scrolls sideways in its frame. */
+.call {
+  font-family: var(--sc-font-family-mono);
+  white-space: nowrap;
+}
+
+/* A duration of the Seerr log: number and unit together. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Integrationen › Seerr, band «Radarr und Sonarr» (concept 25 stage 4): the two services side by
+   side, one below the other when narrow; a fact with a chip and its detail on one line. */
+.arrServices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--sc-space-3);
+}
+
+.arrService {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-frame);
+  border-radius: var(--sc-radius-md);
+}
+
+.factLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.factDetail {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The links of a band to the places that belong to it. */
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

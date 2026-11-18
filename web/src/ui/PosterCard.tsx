@@ -37,6 +37,12 @@ interface PosterCardProps {
   /** A card of such a row that is not the chosen one: the poster at reduced strength. */
   dimmed?: boolean;
   'aria-current'?: 'true';
+  /**
+   * A card of a row of buttons that has no action (a season that cannot be requested): it keeps
+   * its place in the arrow order and says it is unavailable, and a press does nothing — as
+   * RoundAction and WatchedToggle mark a control without an action. Only for a card without `href`.
+   */
+  'aria-disabled'?: 'true';
   /** Roving tabindex of a row of buttons: only the chosen card is a Tab stop. */
   tabIndex?: number;
   /** Return false to consume an arrow press (the ends of a row that must hold the focus). */
@@ -136,6 +142,7 @@ export function PosterCard({
   active = false,
   dimmed = false,
   'aria-current': ariaCurrent,
+  'aria-disabled': ariaDisabled,
   tabIndex,
   onArrowPress,
   children,
@@ -261,12 +268,13 @@ export function PosterCard({
         style={itemAccentStyle(accent)}
         aria-label={label}
         aria-current={ariaCurrent}
+        aria-disabled={ariaDisabled}
         tabIndex={tabIndex}
         onFocus={onFocus}
         // A press with the pointer chooses without taking the focus: the focus would scroll the
         // row to the card (spatial reveal) under the pointer and lose the click.
         onMouseDown={(event) => event.preventDefault()}
-        onClick={onPress}
+        onClick={ariaDisabled ? undefined : onPress}
       >
         {content}
       </button>

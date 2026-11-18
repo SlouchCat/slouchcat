@@ -49,7 +49,9 @@
       "other": "其他个人资料",
       "primary": "主个人资料",
       "admin": "服务器管理员"
-    }
+    },
+    "wishes": "心愿",
+    "wishesLabel_other": "{{name}}，{{count}} 个未完成的心愿"
   },
   "system": {
     "server": {
@@ -222,7 +224,25 @@
       "deleting": "正在删除。",
       "changed": "内容在此期间有变化，请重新检查。",
       "stale": "媒体库在此期间已在别处被更改。请重新加载后再保存一次。",
-      "root_unlisted": "请求中缺少媒体库的一个文件夹。请重新加载媒体库；未移除任何内容。"
+      "root_unlisted": "请求中缺少媒体库的一个文件夹。请重新加载媒体库；未移除任何内容。",
+      "seerr_key_required": "地址指向另一台机器时需要重新输入 API 密钥：已保存的密钥绝不会发送到其他地址。",
+      "seerr_not_configured": "请先填写 Seerr 的地址和 API 密钥。",
+      "instance_unchanged": "没有其他 Seerr 实例在等待决定。",
+      "seerr_not_tested": "已保存的连接测试通过后才能开启心愿。",
+      "seerr_user_taken": "此 Seerr 用户已属于另一个账户、是共享用户，或在 Seerr 中不存在。",
+      "provision_disabled": "“在 Seerr 中创建新账户”已关闭。请在“心愿 › 设置”中开启。",
+      "password_not_syncable": "Slouchcat 不同步此 Seerr 用户的密码：该用户是 Seerr 管理员，或通过 Jellyfin、Emby 或 Plex 登录。",
+      "account_not_allowed": "此账户不能请求作品。请由管理员在“账户”中授予权限。",
+      "wish_not_allowed": "此个人资料无法请求作品。",
+      "quota_exceeded": "限额不足。",
+      "already_available": "该作品已在媒体库中。",
+      "wish_not_withdrawable": "该心愿已获批准，无法再撤回。",
+      "seerr_unreachable": "暂时无法访问 Seerr。",
+      "wish_not_retryable": "此心愿无法重试。",
+      "wish_not_pending": "已有决定：此心愿在 Seerr 中已不再等待批准。同步会获取新的状态。",
+      "seerr_failed": "Seerr 返回了错误。",
+      "seerr_instance_changed": "另一个 Seerr 实例正在“集成 › Seerr”中等待你的决定。",
+      "tag_name_taken": "另一个个人资料已在使用此标签名称。"
     },
     "field": {
       "required": "必填。",
@@ -253,7 +273,8 @@
       "local_address": "此地址位于局域网。自定义电台也必须来自互联网。",
       "not_own": "只有自定义电台才能更改此项。",
       "not_matched": "此有声书未匹配到任何来源。",
-      "not_found": "该来源中没有此条目。"
+      "not_found": "该来源中没有此条目。",
+      "seerr_url_invalid": "请输入以 http:// 或 https:// 开头的地址，不含用户名、密码、查询参数或锚点。"
     }
   },
   "setup": {
@@ -632,7 +653,8 @@
       "released": "近期发行",
       "libraries": "我的媒体",
       "library": "{{library}} 新增",
-      "radio": "我的电台"
+      "radio": "我的电台",
+      "wishes": "已实现的心愿"
     },
     "remaining": "剩余 {{time}}",
     "continue": {
@@ -774,7 +796,21 @@
     "seasons": "季",
     "seasonWall": {
       "showAll": "显示全部 {{total}} 季",
-      "showLess": "收起"
+      "showLess": "收起",
+      "season": "第 {{number}} 季",
+      "present_other": "共 {{count}} 季，已有 {{present}} 季",
+      "next": "仍在更新，下一集 {{date}} 播出",
+      "running": "仍在更新",
+      "state": {
+        "missing": "缺失",
+        "requested": "已请求",
+        "processing": "正在获取",
+        "announced": "即将推出"
+      },
+      "cardLabel": "{{title}}：{{state}}",
+      "cardRequest": "请求 {{title}}",
+      "cardJoin": "{{title}}：已请求，加入心愿",
+      "request": "请求缺少的季"
     },
     "episodes": {
       "title": "单集",
@@ -3072,7 +3108,8 @@
         "genres": "可见作品的类型。",
         "libraries": "此个人资料可见的媒体库、广播，以及（显示时）合集和用户推荐的磁贴；顺序和隐藏由“我的媒体”页面设置。",
         "library": "最近加入此媒体库的作品；“显示全部”会打开按“最近添加”排序的媒体库。",
-        "radio": "此个人资料收藏的电台磁贴；正在通过服务器播放的电台会显示当前曲目。没有收藏时不显示此栏目。"
+        "radio": "此个人资料收藏的电台磁贴；正在通过服务器播放的电台会显示当前曲目。没有收藏时不显示此栏目。",
+        "wishes": "此个人资料在过去 14 天内实现的心愿，即已进入媒体库的作品。未完成的心愿在“心愿 › 我的心愿”中。栏目为空时不显示。"
       },
       "pageLink": "前往“{{page}}”",
       "moved": "{{row}} 现位于第 {{position}} 位。保存后生效。",
@@ -3179,6 +3216,9 @@
         "quoted": "“{{note}}”",
         "none": "–",
         "notInLibrary": "不在媒体库中，不会出现在首页",
+        "unmatched": "无法匹配",
+        "unmatchedReason": "只知道 TVDB ID，TMDB 中未找到",
+        "noAction": "无可用操作：没有 TMDB ID 无法请求",
         "hide": "隐藏",
         "hideLabel": "隐藏 {{title}}",
         "show": "显示",
@@ -3186,6 +3226,61 @@
         "hidden": "已隐藏 {{title}}。",
         "shown": "已重新显示 {{title}}。",
         "count_other": "{{count}} 个条目"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "已通过 TVDB ID 在媒体库中找到",
+          "tmdb": "已通过 TMDB ID 在媒体库中找到",
+          "imdb": "已通过 IMDb ID 在媒体库中找到"
+        }
+      },
+      "request": {
+        "action": "请求",
+        "label": "请求 {{title}}",
+        "done": "已请求 {{title}}。",
+        "joined": "{{title}} 已有人请求；你的个人资料已加入这个心愿。",
+        "available": "{{title}} 现已在媒体库中。"
+      },
+      "lacking": {
+        "title": "缺失条目",
+        "missing_other": "{{count}} 个缺失",
+        "requested_other": "{{count}} 个已请求",
+        "unmatched_other": "{{count}} 个无法匹配",
+        "intro": "首页和焦点推荐列表只显示媒体库中的作品。缺失的条目只有你能在管理中看到。个人资料可在“心愿”中请求缺失的作品。",
+        "asProfile": "“请求”以当前个人资料（{{name}}）的身份进行。",
+        "noRequestChip": "无法请求",
+        "noRequest": {
+          "title": "设置好心愿后才能请求。",
+          "body": "这需要已填写地址和密钥并已开启的 Seerr，以及“启用心愿”。",
+          "settings": "前往心愿设置",
+          "connection": "前往 Seerr 连接"
+        },
+        "empty": "列表中的每个条目都已在媒体库中。"
+      },
+      "matching": {
+        "title": "通过 TMDB、TVDB 和 IMDb 匹配",
+        "hits_other": "{{count}} 个在媒体库中",
+        "intro": "Slouchcat 先通过 TMDB、再通过 IMDb 匹配电影。剧集与媒体库相同：先 TVDB，再 TMDB，最后 IMDb。Seerr 以 TMDB ID 记录每部作品，并将剧集的 TVDB ID 传给 Sonarr。",
+        "waysTitle": "匹配方式",
+        "way": {
+          "movie": {
+            "tmdb": "电影，通过 TMDB ID",
+            "imdb": "电影，通过 IMDb ID"
+          },
+          "show": {
+            "tvdb": "剧集，通过 TVDB ID",
+            "tmdb": "剧集，通过 TMDB ID",
+            "imdb": "剧集，通过 IMDb ID"
+          }
+        },
+        "noHits": "没有条目在媒体库中。",
+        "unmatchedTitle": "无法匹配",
+        "allMatched": "所有条目均已匹配。",
+        "unmatchedNote": "没有 TMDB ID 的条目无法请求；它既不算已有，也不算缺失。"
       },
       "pin": {
         "action": "固定",
@@ -3332,6 +3427,9 @@
       },
       "server": {
         "title": "服务器"
+      },
+      "wishes": {
+        "title": "心愿"
       }
     },
     "server": {
@@ -3572,6 +3670,44 @@
         "title": "文件夹浏览器被阻塞",
         "hanging_other": "某个挂载点已停止响应：{{count}} 个列目录操作卡在内核中，无法取消。文件夹浏览器仍可使用，但可用位置减少。重启可释放它们。",
         "off": "文件夹浏览器的所有位置都卡在一个已停止响应的挂载点上。服务器重启之前无法浏览任何文件夹；仍可手动输入路径。"
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "无法访问 Seerr",
+          "key_invalid": "Seerr 拒绝了 API 密钥",
+          "instance_changed": "检测到另一个 Seerr 实例"
+        },
+        "seerrStateBody": {
+          "unreachable": "新的心愿会等待，Seerr 恢复响应后立即发送。",
+          "key_invalid": "密钥正确之前，Slouchcat 不会发送心愿，也不会同步任何内容。",
+          "instance_changed": "在你确认或删除分配之前，发送和同步都会暂停。"
+        },
+        "toConnection": "前往“集成 › Seerr”",
+        "unmapped_other": "{{count}} 个账户没有 Seerr 用户",
+        "unmappedFallback": "在此之前，它们通过共享用户 slouchcat-gaeste 发送。",
+        "unmappedDeny": "只要“没有 Seerr 用户的账户”设为“不允许”，这些账户的个人资料就看不到缺失的作品。",
+        "unmappedWaiting": "这些账户正在等待，将在下次同步时创建。",
+        "toUsers": "前往 Seerr 用户",
+        "linked": "新关联：{{account}} 与现有 Seerr 用户 {{name}}",
+        "linkedBody": {
+          "invite": "在 {{date}} 接受邀请时关联，因为电子邮件地址相同。该地址由账户自己输入，没有经过任何人核实。",
+          "email_change": "在 {{date}} 更改电子邮件地址后关联，因为电子邮件地址相同。该地址由账户自己输入，没有经过任何人核实。"
+        },
+        "toAccount": "查看关联",
+        "quotaReached": "已达到限额：{{account}}",
+        "quotaNext": "{{used}}，下一个名额将于 {{date}} 空出。",
+        "toLimit": "查看限额",
+        "gone_other": "{{count}} 个账户：用户已在 Seerr 中删除",
+        "goneBody": "请为这些账户选择其他用户，或取消关联。",
+        "open_other": "{{count}} 个未完成的心愿",
+        "openQueued_other": "其中 {{count}} 个正在等待发送到 Seerr。",
+        "toRequests": "前往请求",
+        "stalled_other": "{{count}} 个下载停滞",
+        "serviceTitle": "{{title}}（{{service}}）",
+        "toStalled": "查看停滞的下载",
+        "tagsFailed_other": "{{count}} 个标签未设置",
+        "tagFailedEntry": "{{entry}}：{{reason}}",
+        "toUntagged": "查看缺失的标签"
       }
     },
     "integrations": {
@@ -3585,7 +3721,8 @@
         "email": "电子邮件",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "更新检查"
+        "updateCheck": "更新检查",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "已在 deploy/.env 中设置",
@@ -3617,7 +3754,8 @@
         "email": "用于通过电子邮件发送通知、邀请和公告的服务器。",
         "telegram": "通过 Telegram 发送通知的机器人。",
         "push": "在浏览器和已安装的应用中显示通知。",
-        "server": "更新检查、公开地址和 GPU。"
+        "server": "更新检查、公开地址和 GPU。",
+        "seerr": "将观众的心愿转交给 Seerr，并同步其状态。账户会在 Seerr 中获得一个登录信息相同的用户。"
       },
       "keys": {
         "title": "提供商密钥",
@@ -3642,7 +3780,8 @@
         "neverSeen": "从未发送过通知。",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "新集成",
@@ -3687,7 +3826,8 @@
           "acknowledged": "已确认测试",
           "ignored": "无影响",
           "outside_roots": "不在媒体库中",
-          "invalid_payload": "无路径"
+          "invalid_payload": "无路径",
+          "sync_queued": "正在同步心愿"
         },
         "renew": {
           "action": "更新令牌",
@@ -3835,6 +3975,222 @@
         "checkLabel": "检查 {{name}}",
         "rejected": "已被拒绝",
         "savedRejected": "{{name}} 已保存，但提供商拒绝了此密钥。"
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Seerr 连接",
+        "version": "版本 {{version}}",
+        "lastSuccess": "上次连接成功 {{time}}",
+        "state": {
+          "not_configured": "未设置",
+          "disabled": "已关闭",
+          "untested": "未测试",
+          "connected": "已连接",
+          "key_invalid": "密钥无效",
+          "unreachable": "无法访问",
+          "instance_changed": "检测到其他实例"
+        },
+        "stateHint": {
+          "not_configured": "请填写地址和密钥。",
+          "disabled": "Slouchcat 不会调用 Seerr。心愿仍会保留。",
+          "untested": "请测试连接，之后才能开启“启用心愿”。",
+          "instance_changed": "在你做出决定之前，Slouchcat 不会发送心愿，也不会同步任何内容。"
+        },
+        "connection": {
+          "title": "连接",
+          "noAddress": "无地址"
+        },
+        "enabled": "使用 Seerr",
+        "enabledHelp": "关闭时：Slouchcat 不会调用 Seerr。心愿仍会保留。",
+        "url": "地址",
+        "urlHelp": "例如 http://192.168.1.50:5055。Slouchcat 只与此地址通信。可以使用家庭网络中的地址；Slouchcat 不会跟随重定向。",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API 密钥",
+        "apiKeyHelp": "在 Seerr 的“设置 › 常规”中获取。留空则保留已保存的密钥。地址指向另一台机器时需要重新输入密钥。",
+        "clearBody": "地址和密钥将被移除。心愿仍会保留，但不再发送和同步。",
+        "test": {
+          "action": "测试连接",
+          "running": "正在检查连接…",
+          "listLabel": "连接测试结果",
+          "passed": "所有检查均已通过。",
+          "passedWithHints_other": "已连接 · {{count}} 条提示",
+          "hintsHelp": "提示不会阻止任何操作，只是说明 Seerr 中哪些设置可以更好。",
+          "failed": "测试失败：{{checks}}。"
+        },
+        "level": {
+          "ok": "通过",
+          "warn": "提示",
+          "fail": "失败"
+        },
+        "checks": {
+          "reachable": "可访问",
+          "version": "版本",
+          "key_valid": "密钥有效",
+          "manage_users": "创建和更改用户",
+          "instance": "实例",
+          "act_as_user": "以用户身份操作",
+          "csrf_off": "Seerr 的 CSRF 保护已关闭",
+          "radarr": "Seerr 中的 Radarr",
+          "sonarr": "Seerr 中的 Sonarr",
+          "local_login": "Seerr 本地登录",
+          "tvdb_seasons": "季信息来自 TVDB",
+          "password_transport": "密码加密传输",
+          "radarr_tags": "Radarr 个人资料标签",
+          "sonarr_tags": "Sonarr 个人资料标签"
+        },
+        "checkOk": {
+          "reachable": "Seerr 有响应。",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr 接受此密钥。",
+          "manage_users": "此密钥可以在 Seerr 中创建账户，并设置权限、限额和密码。",
+          "instance": "与设置时为同一实例。",
+          "act_as_user": "心愿按所关联用户的权限、限额和自动批准生效。",
+          "csrf_off": "写入调用可以送达。",
+          "radarr_other": "电影心愿发往 Radarr（{{count}} 台服务器）。",
+          "sonarr_other": "剧集心愿发往 Sonarr（{{count}} 台服务器）。",
+          "local_login": "已创建的用户使用 Slouchcat 中的电子邮件地址和密码登录 Seerr。",
+          "tvdb_seasons": "Seerr、Sonarr 和 Slouchcat 媒体库的分季方式一致。",
+          "password_transport": "密码加密传输，或只在家庭网络内传输。",
+          "radarr_tags": "Radarr 可响应个人资料标签和下载进度请求。",
+          "sonarr_tags": "Sonarr 可响应个人资料标签和下载进度请求。"
+        },
+        "checkIssue": {
+          "notTested": "未检查。",
+          "timeout": "无法访问：超时。",
+          "refused": "无法访问：连接被拒绝。",
+          "redirect": "无法访问：不允许重定向。",
+          "unreachable": "无法访问。Seerr 是否在运行，地址是否正确？",
+          "versionNotVerified": "版本未经验证：已测试的是 Jellyseerr 2.7 和 Seerr 3.x。",
+          "keyNotUserOne": "此密钥不属于 Seerr 的所有者（用户 1）。",
+          "keyInvalid": "Seerr 拒绝了此密钥。",
+          "manageUsers": "此密钥不能创建用户：无法创建账户。",
+          "instance": "检测到另一个 Seerr 实例。",
+          "notTestable": "无法检查：Seerr 中除用户 1 外没有其他用户。",
+          "waiting": "另一个实例在等待你的决定，在此期间不检查。",
+          "actAsUser": "无效：心愿会以管理员身份提交。",
+          "csrfOn": "已开启：写入调用会失败。请在 Seerr 的网络设置中关闭。",
+          "noRadarr": "Seerr 中没有 Radarr：电影心愿会一直搁置。",
+          "noSonarr": "Seerr 中没有 Sonarr：剧集心愿会一直搁置。",
+          "localLoginOff": "已创建的用户无法登录 Seerr。请在 Seerr 的“设置 › 用户”中开启“本地登录”。",
+          "noSeasonSource": "Seerr 未说明季信息的来源。",
+          "tmdbSeasons": "Seerr 从 TMDB 读取季信息。建议与 Sonarr 和 Slouchcat 媒体库一样使用 TVDB，否则季编号可能不一致。",
+          "passwordTransport": "密码会以未加密的方式经互联网传输。请使用 https。",
+          "arrNotConfirmed": "来自 Seerr 的地址尚未确认：请在“Radarr 和 Sonarr”中测试。",
+          "arrUnreachable": "无法访问：没有个人资料标签，也没有下载进度。",
+          "csrfUnexpected": "Seerr 接受了一个空请求，而不是拒绝它。心愿仍会发出；请检查 Seerr 的版本。"
+        },
+        "instance": {
+          "title": "检测到另一个 Seerr 实例",
+          "body": "此地址上响应的 Seerr 实例与设置时不同。在你做出决定之前，Slouchcat 不会发送心愿，也不会同步任何内容。",
+          "confirm": "确认分配",
+          "reset": "删除分配",
+          "resetTitle": "要删除与 Seerr 的分配吗？",
+          "resetBody": "所有账户的 Seerr 用户和已加载的用户列表都将被移除。之后 Slouchcat 会加载新实例的用户。",
+          "confirmed": "已接管新实例。账户的 Seerr 用户保持不变。",
+          "resetDone": "已删除分配。Slouchcat 正在加载新实例的用户。"
+        },
+        "log": {
+          "title": "日志",
+          "empty": "暂无条目。",
+          "caption": "最近对 Seerr 的调用",
+          "at": "时间",
+          "call": "调用",
+          "result": "结果",
+          "duration": "耗时",
+          "error": "错误",
+          "noAnswer": "无响应",
+          "ms": "{{ms}} 毫秒",
+          "note": "从不记录请求头或密钥。最多 20 个条目。",
+          "entries_other": "{{count}} 个条目",
+          "errors_other": "{{count}} 个错误"
+        },
+        "usersLink": "账户的 Seerr 用户",
+        "sync": {
+          "title": "同步",
+          "summary_other": "{{count}} 个未完成的心愿",
+          "open": "未完成的心愿",
+          "queued": "等待发送",
+          "last": "上次连接 Seerr",
+          "never": "从未",
+          "every": "Slouchcat 每 5 分钟与 Seerr 同步一次心愿。",
+          "requestsLink": "前往请求"
+        },
+        "arr": {
+          "title": "Radarr 和 Sonarr（个人资料标签与进度）",
+          "intro": "Slouchcat 在 Radarr 和 Sonarr 中为每个个人资料创建一个标签，并在 Seerr 将作品转交过去后为其加上该标签。为此，它会读取所请求作品的队列和文件状态，以便在心愿中显示下载进度。除此之外，Slouchcat 不会更改 Radarr 和 Sonarr 中的任何内容。新作品仍由 Webhook 通知。",
+          "offNotice": "个人资料标签和下载进度已关闭。Slouchcat 不会调用 Radarr 和 Sonarr。",
+          "summaryOff": "已关闭 · 个人资料标签和进度已关闭",
+          "summaryTags_other": "{{count}} 个标签待设置",
+          "summaryProgress_other": "{{count}} 个下载",
+          "state": {
+            "none": "{{service}} 未在 Seerr 中",
+            "unconfirmed": "{{service}} 等待“测试”",
+            "unreachable": "无法访问 {{service}}",
+            "reachable": "{{service}} 可访问",
+            "untested": "尚未调用 {{service}}"
+          },
+          "facts": {
+            "address": "地址",
+            "state": "状态",
+            "tagRequests": "Seerr 中的 Tag Requests",
+            "tags": "个人资料标签",
+            "progress": "下载进度"
+          },
+          "address": {
+            "seerr": "来自 Seerr：{{address}}",
+            "own": "自定义地址：{{address}}"
+          },
+          "addressNone": "无：Seerr 中没有 {{service}} 的默认服务器。",
+          "lastAt": "上次 {{time}}",
+          "tagRequestsOn": "已开启",
+          "tagRequestsOff": "已关闭 · 建议开启：这样每部作品还会带上账户的标签。",
+          "tags": "{{set}} 个已设置 · {{pending}} 个待设置 · {{failed}} 个失败",
+          "progressOff": "已关闭 · 在“心愿 › 设置”中",
+          "progressError": "无法读取进度：{{reason}}",
+          "progressOn_other": "已开启 · {{count}} 个心愿有进度",
+          "progressAt_other": "已开启 · {{count}} 个心愿有进度 · 上次读取 {{time}}",
+          "test": {
+            "action": "测试",
+            "label": "测试 {{service}}",
+            "noHost": "该地址",
+            "passed": "{{service}} 在 {{host}} 上有响应，并接受来自 Seerr 的密钥。地址已确认。",
+            "keyRefused": "{{service}} 在 {{host}} 上有响应，但拒绝了来自 Seerr 的密钥。",
+            "unreachable": "无法通过 {{host}} 访问 {{service}}。",
+            "ownHint": "如果 Slouchcat 无法访问来自 Seerr 的地址（例如使用 Docker 内部名称时），请在下方填写自定义地址。",
+            "notInSeerr": "Seerr 中没有 {{service}} 的默认服务器。",
+            "notInSeerrBody": "请在 Seerr 中设置一个非 4K 的默认服务器。没有它，Slouchcat 不会设置标签，也不会读取进度。"
+          },
+          "own": "{{service}} 的自定义地址",
+          "ownHelp": "留空：使用来自 Seerr 的地址。仅当 Slouchcat 无法访问来自 Seerr 的地址（例如使用 Docker 内部名称时）才需要填写。密钥始终由 Seerr 提供。",
+          "ownPlaceholder": "来自 Seerr 的地址",
+          "saveLabel": "保存 Radarr 和 Sonarr 的自定义地址",
+          "saved": "已保存自定义地址。",
+          "toSettings": "前缀和下载进度 · 心愿 › 设置",
+          "toUsers": "每个个人资料的标签名称 · Seerr 用户",
+          "toWebhooks": "Radarr 和 Sonarr 的 Webhook · 保持不变，需手动设置"
+        },
+        "hook": {
+          "title": "即时信号",
+          "on": "已设置",
+          "off": "已关闭",
+          "intro": "Seerr 会立即触发同步，而不必等待最多 5 分钟。同步仍是基础。",
+          "name": "Seerr",
+          "create": "生成地址",
+          "address": "地址",
+          "last": "上次信号",
+          "never": "从未发出过信号。",
+          "single": "Seerr 只支持一个 Webhook 目标。如果你已将它用于其他用途，此地址会替换它。",
+          "where": "在 Seerr 的“设置 › 通知 › Webhook”中：将地址填入“Webhook URL”，将此模板填入“JSON Payload”。",
+          "payload": "Seerr 的 JSON 模板",
+          "copyPayload": "复制模板",
+          "typesIntro": "在 Seerr 中勾选以下通知类型：",
+          "types": "Seerr 的通知类型",
+          "copyTypes": "复制类型",
+          "copied": "已复制。",
+          "copyFailed": "无法访问剪贴板：文本已选中，请按 Ctrl+C 复制。",
+          "log": "最近的信号"
+        },
+        "accounts_other": "Seerr 用户：{{count}} 个账户中已创建 {{opened}} 个"
       }
     },
     "accounts": {
@@ -3844,8 +4200,7 @@
       "columns": {
         "email": "电子邮件",
         "role": "角色",
-        "rating": "分级",
-        "libraries": "媒体库",
+        "access": "访问权限",
         "profiles": "个人资料",
         "lastSeen": "最近活动",
         "channels": "渠道",
@@ -3876,7 +4231,14 @@
         "currentPasswordHint": "用于确认是你本人。",
         "wrongPassword": "当前密码错误。",
         "unchanged": "请更改电子邮件地址或输入新密码。",
-        "saved": "你的账户已保存。"
+        "saved": "你的账户已保存。",
+        "seerrPassword": {
+          "synced": "新密码也适用于 Seerr。",
+          "next_login": "新密码也适用于 Seerr。",
+          "off": "你在 Seerr 中的密码保持不变：它不会被同步。",
+          "admin": "你在 Seerr 中的密码保持不变：你是那里的管理员。",
+          "external": "你在 Seerr 中的密码保持不变：你在那里通过 Jellyfin、Emby 或 Plex 登录。"
+        }
       },
       "ownerBadge": "所有者",
       "access": {
@@ -3887,7 +4249,8 @@
         "heading": "访问权限",
         "save": "保存访问权限",
         "saved": "已保存 {{email}} 的访问权限。",
-        "adminHint": "管理员始终拥有“18 岁以上”级别和所有媒体库；“访问权限”仅适用于没有管理权限的账户。"
+        "adminHint": "管理员始终拥有“18 岁以上”级别和所有媒体库；“访问权限”仅适用于没有管理权限的账户。",
+        "limitRefused": "访问权限已保存，但心愿限额未保存：{{reason}}"
       },
       "role": {
         "promote": {
@@ -3956,7 +4319,8 @@
           "libraries": "媒体库",
           "detail": "有效期至 / 已接受",
           "actions": "操作"
-        }
+        },
+        "seerrHint": "接受邀请时，Slouchcat 也会在 Seerr 中创建该账户：电子邮件地址和密码相同。"
       },
       "discard": "放弃",
       "status": {
@@ -3980,6 +4344,42 @@
         "mine": "我的个人资料",
         "of": "{{email}} 的个人资料",
         "readOnly": "每个账户各自管理自己的个人资料。"
+      },
+      "wishes": {
+        "title": "心愿",
+        "of": "{{email}} 的心愿",
+        "canRequest": "可以请求作品",
+        "canRequestHelp": "这是所有个人资料的上限。哪些个人资料可以请求，由账户的主个人资料决定。",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "允许",
+          "not_allowed": "不允许",
+          "mapping_missing": "无 Seerr 用户"
+        },
+        "userLine": "Seerr 用户：{{user}}",
+        "noUser": "暂无",
+        "change": "更改",
+        "userState": {
+          "created": "已创建",
+          "linked": "已关联",
+          "manual": "手动选择",
+          "waiting": "等待 Seerr"
+        },
+        "linkedBy": "{{date}} {{by}}关联",
+        "password": {
+          "synced": "密码已同步",
+          "next_login": "密码将在下次登录时同步",
+          "off": "密码不同步",
+          "admin": "密码保留在 Seerr 中（管理员）",
+          "external": "通过 Jellyfin、Emby 或 Plex 登录"
+        },
+        "rightsFollow": "“{{name}}”在 Seerr 中的权限会相应调整。",
+        "rightsStay": "“{{name}}”在 Seerr 中保留原有权限，因为它不是由 Slouchcat 创建的。",
+        "adminLimit": "“{{name}}”是 Seerr 管理员。Seerr 不为管理员设置限额。",
+        "limitLater": "尚无 Seerr 用户：账户在 Seerr 中创建后，Slouchcat 会立即设置限额。",
+        "limitFixed": "限额：{{limit}}。管理员的限额无法在此更改。",
+        "savedOn": "{{email}} 现在可以请求作品。",
+        "savedOff": "{{email}} 不能再请求作品。"
       }
     },
     "backup": {
@@ -4493,6 +4893,57 @@
           "description": "移除文件缺失超过宽限期的作品。",
           "trigger": "每小时的计划和服务器启动"
         },
+        "seerr_users": {
+          "name": "加载 Seerr 用户",
+          "description": "读取 Seerr 中的用户及其权限和限额，并检查 Slouchcat 是否仍在与同一个 Seerr 实例通信。",
+          "trigger": "每天；“重新加载用户列表”；保存 Seerr 连接后"
+        },
+        "seerr_provision": {
+          "name": "在 Seerr 中创建账户",
+          "description": "为账户创建或关联 Seerr 用户，创建共享用户“slouchcat-gaeste”，并收回已删除账户所对应 Seerr 用户的权限。",
+          "trigger": "“在 Seerr 中创建”；“全部创建”；接受邀请；开启“启用心愿”；为等待中的账户加载 Seerr 用户后；删除账户"
+        },
+        "wishes_submit": {
+          "name": "将心愿发送到 Seerr",
+          "description": "将仍在发件箱中等待的心愿发送到 Seerr，并将其附加到已有的请求上。",
+          "trigger": "请求后 Seerr 未立即响应时，按逐渐增大的间隔重试，最长 24 小时；同步后处理到期的心愿"
+        },
+        "wishes_withdraw": {
+          "name": "在 Seerr 中删除已撤回的心愿",
+          "description": "在 Seerr 中删除已撤回心愿所对应、尚未批准的自有请求。如果请求已获批准，则保留该请求，心愿重新变为未完成。",
+          "trigger": "在“我的心愿”中点击“撤回”；Seerr 无法访问期间，在同步后执行"
+        },
+        "wishes_sync": {
+          "name": "与 Seerr 同步心愿",
+          "description": "从 Seerr 读取有变化的请求，更新心愿的状态，逐个检查长时间未变化的心愿，并重新发送发件箱中到期的心愿。首次同步会读取所有请求。",
+          "trigger": "计划每 5 分钟一次；“立即同步”；Seerr Webhook 的通知",
+          "progress": "已读取页数：{{done}} / {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "将心愿与媒体库核对",
+          "description": "一旦 Slouchcat 可以为某个个人资料播放该电影或所有请求的季，就将心愿标记为可观看。",
+          "trigger": "计划每小时一次；在媒体库中识别出所请求的作品后；与 Seerr 同步后"
+        },
+        "wishes_tag": {
+          "name": "设置个人资料标签",
+          "description": "在 Radarr 和 Sonarr 中，为通过 Slouchcat 许愿且正在获取的电影和剧集加上个人资料的标签。标签永远不会被移除。",
+          "trigger": "与 Seerr 同步后、每 15 分钟一次，以及手动"
+        },
+        "wishes_progress": {
+          "name": "读取下载进度",
+          "description": "读取 Radarr 和 Sonarr 的队列，并为正在获取的心愿显示正在搜索、下载还是导入。不会更改 Radarr 和 Sonarr 中的任何内容。",
+          "trigger": "有心愿正在获取且下载进度已开启时，每分钟一次"
+        },
+        "wishes_discover": {
+          "name": "预加载心愿列表",
+          "description": "为可以请求的个人资料的每种语言和年龄级别，从 Seerr 将“发现”中的栏目加载到缓存，并移除超过一天的列表。每个结果都会针对个人资料重新检查。",
+          "trigger": "计划每小时一次，只要心愿已启用，且“发现”“电影”“剧集”和“搜索”页面已开启"
+        },
+        "wishes_import": {
+          "name": "从 Seerr 接管请求",
+          "description": "将已关联的 Seerr 用户直接在 Seerr 中提交的未完成请求和最近变为可观看的请求，接管为其账户主个人资料的心愿（“在 Seerr 中请求”）。共享用户的请求不在其列。不会发送通知。",
+          "trigger": "关联、选择或更改账户的 Seerr 用户；“接管请求”"
+        },
         "segments_detect": {
           "name": "识别片头和片尾",
           "description": "为“跳过片头”查找单集的片头和片尾。",
@@ -4618,6 +5069,16 @@
           "description": "从提供方下载单集，并作为文件放入其播客的文件夹。",
           "trigger": "由规划器在“存储”、“下载缺失单集”和每集的“下载”时触发；每个提供方同时只下载一集",
           "progress": "字节：{{done}} / {{total}}"
+        },
+        "series_catalog": {
+          "name": "获取剧集的季列表",
+          "description": "从 TMDB 读取媒体库中每部剧集的各季及其集数、播出状态和下一集，7 天后重新读取。",
+          "trigger": "计划每天一次；剧集匹配后"
+        },
+        "titles_refresh": {
+          "name": "刷新缺失的作品",
+          "description": "7 天后从 TMDB 重新读取不在媒体库中的作品的详情、年龄分级和预告片。",
+          "trigger": "计划每天一次"
         },
         "trakt_refresh": {
           "name": "获取焦点推荐列表",
@@ -5027,6 +5488,476 @@
         "changed": "该路径下现在是另一个文件"
       },
       "changed": "内容在此期间有变化，请重新检查。下方列表已重新读取，未删除任何内容。"
+    },
+    "wishes": {
+      "title": "心愿",
+      "intro": "每个账户在 Seerr 中都有一个登录信息相同的专属用户。账户的个人资料以该用户的身份请求。权限、限额和批准都取决于该用户。",
+      "separator": " · ",
+      "tabs": {
+        "label": "心愿的各个部分",
+        "users": "Seerr 用户",
+        "settings": "设置",
+        "requests": "请求",
+        "openCount_other": "{{count}} 个未完成的心愿",
+        "withoutShort": "{{number}} 个未关联",
+        "withoutCount_other": "{{count}} 个账户没有 Seerr 用户"
+      },
+      "strip": {
+        "label": "概览",
+        "accounts": "账户",
+        "opened": "在 Seerr 中",
+        "openedNote": "已创建或已关联",
+        "without": "没有用户",
+        "waiting_other": "{{count}} 个等待 Seerr",
+        "password": "密码待同步",
+        "passwordNote": "将在下次登录时同步"
+      },
+      "limit": {
+        "movie_other": "{{count}} 部电影 / {{days}} 天",
+        "movieNone": "电影不限额",
+        "tv_other": "{{count}} 季 / {{days}} 天",
+        "tvNone": "季不限额"
+      },
+      "settings": {
+        "atOnce": "每项更改都会立即生效。",
+        "refused": "未更改：{{reason}}",
+        "switchedOn": "“{{name}}”已开启。立即生效。",
+        "switchedOff": "“{{name}}”已关闭。立即生效。",
+        "choiceSaved": "“{{name}}”：{{value}}。立即生效。",
+        "limitSaved": "默认限额：{{limit}}。立即对所有设为“默认”的账户生效。",
+        "basics": "基本设置",
+        "where": "可以从哪里请求",
+        "rules": "规则",
+        "enabled": "启用心愿",
+        "enabledHelp": "有权限的个人资料可以请求缺失的作品。关闭时：没有人能看到缺失的作品；未完成的心愿在 Seerr 中继续处理。",
+        "enabledLocked": "已保存的连接测试通过后才能开启。",
+        "toConnection": "前往连接",
+        "allowMovies": "允许电影",
+        "allowMoviesHelp": "适用于所有个人资料。关闭时：没有“请求电影”。",
+        "allowShows": "允许剧集",
+        "allowShowsHelp": "适用于所有个人资料。关闭时：没有“请求剧集”和“请求缺少的季”。",
+        "fromSearch": "从搜索中请求",
+        "fromSearchHelp": "“尚未在媒体库中”部分。关闭时：不显示该部分。",
+        "fromDetail": "在详情页上请求",
+        "fromDetailHelp": "在媒体库已有剧集的页面上显示缺少的季。关闭时：剧集页面只显示已有的内容。",
+        "alreadyRequested": "已请求的作品",
+        "alreadyRequestedHelp": {
+          "join": "加入心愿：第二个个人资料加入未完成的心愿（“通知我”），同样会收到通知。Seerr 不会收到第二个请求。",
+          "status": "只显示状态：第二个个人资料会看到“已请求”，但无法加入，也不会收到通知。"
+        },
+        "alreadyRequestedOptions": {
+          "join": "加入心愿",
+          "status": "只显示状态"
+        },
+        "unmapped": "没有 Seerr 用户的账户",
+        "unmappedHelp": {
+          "fallback": "共享用户：所有没有专属用户的账户都以 slouchcat-gaeste 的身份请求，并共用默认限额。Slouchcat 会自动在 Seerr 中创建该用户。",
+          "deny": "不允许：没有专属用户的账户在获得 Seerr 用户之前无法请求。"
+        },
+        "unmappedOptions": {
+          "fallback": "共享用户",
+          "deny": "不允许"
+        },
+        "newAccountsCanRequest": "新账户可以请求",
+        "newAccountsCanRequestHelp": "“邀请账户”对话框中开关的默认值。不会更改现有账户。",
+        "allowWithdraw": "允许撤回",
+        "allowWithdrawHelp": "仅在心愿尚未获批准时。“我的心愿”中的“撤回”按钮。",
+        "pinExternalHideTitle": "PIN 码个人资料的外部消息不含作品标题",
+        "pinExternalHideTitleHelp": "电子邮件、Web Push 和 Telegram 只提及个人资料，不提及作品标题。",
+        "defaultLimit": "默认限额",
+        "limitPerAccount": "每个账户的限额",
+        "limitPerAccountHelp": "适用于一个账户的所有个人资料总和。Seerr 按滚动周期计算，并包括直接在 Seerr 中提交的心愿。被拒绝的心愿和加入的心愿不计入。管理员没有限额。",
+        "movieLimit": "电影：数量",
+        "movieDays": "电影：天数",
+        "tvLimit": "季：数量",
+        "tvDays": "季：天数",
+        "limitRange": "{{low}} 到 {{high}} 之间的整数。",
+        "perAccount": "按账户单独设置",
+        "perAccountHelp": "可在“账户”中为某个账户单独设置限额：自定义限额或无限制。",
+        "toAccounts": "前往账户",
+        "accountsInSeerr": "Seerr 中的账户",
+        "provisionOn": "创建新账户",
+        "provisionOff": "不创建新账户",
+        "syncOn": "同步密码",
+        "syncOff": "不同步密码",
+        "provisionAccounts": "在 Seerr 中创建新账户",
+        "provisionAccountsHelp": "接受邀请时，Slouchcat 也会在 Seerr 中创建该账户：电子邮件地址和密码相同。如果 Seerr 中已有使用相同电子邮件地址的用户，Slouchcat 会立即与其关联。该地址由新账户自己输入，没有人核实。因此，概览会将每个此类关联显示七天。",
+        "syncPassword": "同步密码",
+        "syncPasswordHelp": "设置或更改密码时，以及登录 Slouchcat 时，Slouchcat 会将密码转交给 Seerr。Slouchcat 从不以明文保存密码。为此 Seerr 需要开启“本地登录”。Seerr 中原有、由管理员关联的用户保留自己的密码。",
+        "visibleInSeerr": "用某个账户的登录信息登录 Seerr 的人，可以在那里看到该账户所有个人资料的心愿，包括设有 PIN 码的个人资料。Seerr 还会自行发送带有作品标题的通知；请在 Seerr 中为已创建的用户关闭这些通知。",
+        "existing": "现有账户",
+        "existingHelp": "为每个账户选择 Seerr 用户，或取消关联。",
+        "toUsers": "前往 Seerr 用户",
+        "links": "相关链接",
+        "who": "谁可以请求",
+        "whoHelp": "谁可以请求，你在“账户”中按账户设置；每个个人资料则由主个人资料决定。",
+        "connection": "Seerr 连接",
+        "connectionHelp": "地址、密钥、测试和日志。",
+        "users": "Seerr 用户",
+        "usersHelp": "哪个账户以哪个 Seerr 用户的身份请求，以及密码和限额。",
+        "arr": "Radarr 和 Sonarr：个人资料标签与进度",
+        "profileTags": "在 Radarr 和 Sonarr 中设置个人资料标签",
+        "profileTagsHelp": "Seerr 将作品转交给 Radarr 或 Sonarr 后，为其加上个人资料的标签，并补设之前未能设置的标签。不会更改 Radarr 和 Sonarr 中的其他内容。",
+        "tagPrefix": "前缀",
+        "tagPrefixHelp": "小写字母、数字和连字符。例如：sc-noah。适用于新标签；现有标签保持不变。单个个人资料的标签可在“Seerr 用户”中更改。",
+        "tagPrefixInvalid": "1 到 10 个字符：只能使用小写字母 a–z、数字 0–9 和连字符。未保存。",
+        "tagPrefixSaved": "前缀“{{prefix}}”：新标签名称类似 {{prefix}}noah。已设置的标签保持不变。",
+        "showProgress": "显示下载进度",
+        "showProgressHelp": "为正在获取的心愿显示作品正在搜索、下载还是导入。为此，只要有心愿正在获取，Slouchcat 每分钟都会读取 Radarr 和 Sonarr 的队列。",
+        "arrSummary": "标签{{tags}} · 前缀 {{prefix}} · 进度{{progress}}",
+        "on": "已开启",
+        "off": "已关闭",
+        "arrLinks": "访问 Radarr 和 Sonarr",
+        "arrLinksHelp": "地址和密钥来自 Seerr；每个个人资料的名称在“Seerr 用户”中。",
+        "toArr": "集成 › Seerr",
+        "discoverPages": "“发现”“电影”“剧集”和“搜索”页面",
+        "discoverPagesHelp": "“心愿”区域中的标签页。关闭时：只有“我的心愿”。",
+        "basicsSummary": "心愿{{enabled}} · 电影{{movies}} · 剧集{{shows}}",
+        "basicsSummaryLocked": "心愿已关闭，需先通过测试 · 电影{{movies}} · 剧集{{shows}}",
+        "whereSummary": "搜索{{search}} · 详情页{{detail}} · 发现{{discover}}",
+        "rulesSummary": "{{already}} · 没有 Seerr 用户：{{unmapped}} · 撤回{{withdraw}}",
+        "linksConnection": "Seerr：{{state}}",
+        "usersCount_other": "{{count}} 个账户中已创建 {{opened}} 个",
+        "limitHintCount": "{{low}} 到 {{high}}；0 表示不限额。",
+        "limitHintDays": "{{low}} 到 {{high}} 天。"
+      },
+      "users": {
+        "caption": "账户及其 Seerr 用户",
+        "columns": {
+          "account": "账户",
+          "user": "Seerr 用户",
+          "password": "密码",
+          "rights": "Seerr 权限",
+          "email": "电子邮件",
+          "type": "类型",
+          "limit": "限额"
+        },
+        "noUser": "无",
+        "passwordFollows": "随用户一起同步",
+        "rightsFollow": "跟随请求权限",
+        "gone": "用户已删除",
+        "state": {
+          "created": "由 Slouchcat 创建",
+          "linked": "通过相同电子邮件地址关联",
+          "manual": "手动关联",
+          "waiting": "Seerr 可访问后创建",
+          "none": "未创建"
+        },
+        "password": {
+          "synced": "与 Slouchcat 相同",
+          "next_login": "将在下次登录 Slouchcat 时同步",
+          "off": "不同步",
+          "admin": "保留在 Seerr 中（管理员）",
+          "external": "通过 Jellyfin、Emby 或 Plex 登录"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "本地",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "管理员",
+          "both": "电影和剧集",
+          "movies": "仅电影",
+          "shows": "仅剧集",
+          "none": "无权限"
+        },
+        "choose": "选择用户",
+        "chooseLabel": "{{email}} 的 Seerr 用户",
+        "option": "{{name}}（ID {{id}}）",
+        "optionCurrent": "{{option}}（当前）",
+        "optionGone": "{{option}}（已在 Seerr 中删除）",
+        "optionTaken": "{{option}} · 属于 {{email}}",
+        "facts": {
+          "user": "Seerr 用户",
+          "state": "状态",
+          "password": "密码",
+          "rights": "Seerr 权限",
+          "limit": "限额",
+          "right": "账户的请求权限"
+        },
+        "linkedBy": "{{by}} · 自 {{date}} 起",
+        "by": {
+          "admin": "由管理员",
+          "invite": "接受邀请时",
+          "email_change": "更改电子邮件地址后"
+        },
+        "since": "自 {{date}} 起",
+        "syncedAt": "同步于 {{time}}",
+        "movies": "电影",
+        "shows": "剧集",
+        "autoApproveOn": "自动批准：是",
+        "autoApproveOff": "自动批准：否",
+        "followRightOn": "跟随账户的请求权限：可以请求",
+        "followRightOff": "跟随账户的请求权限：不能请求",
+        "noLimitAdmin": "不限额（Seerr 管理员）",
+        "unlimited": "无限制",
+        "mode": {
+          "default": "默认",
+          "custom": "自定义",
+          "unlimited": "无限制"
+        },
+        "mayRequest": "可以请求",
+        "mayNotRequest": "不能请求",
+        "goneTitle": "未找到用户“{{name}}”",
+        "goneBody": "Seerr 中已没有此用户。请选择其他用户，或取消关联。",
+        "selfLinked": {
+          "invite": "接受邀请时已与现有 Seerr 用户 {{name}} 关联，因为电子邮件地址相同。如果该用户不属于此账户，请取消关联。",
+          "email_change": "更改电子邮件地址后已与现有 Seerr 用户 {{name}} 关联，因为电子邮件地址相同。如果该用户不属于此账户，请取消关联。"
+        },
+        "warning": {
+          "nothing": "“{{name}}”在 Seerr 中不能请求任何内容。每个心愿都会失败；请在 Seerr 中为该用户授予“请求”权限，或选择其他用户。",
+          "noShows": "“{{name}}”不能请求剧集。剧集心愿会失败，电影可以正常请求。",
+          "noMovies": "“{{name}}”不能请求电影。电影心愿会失败，剧集可以正常请求。"
+        },
+        "change": "更改 Seerr 用户",
+        "unlink": "取消关联",
+        "chooseHelp": "可以选择不属于其他账户的用户。权限和密码保持 Seerr 中的设置不变。",
+        "chooseHelpStale": "可以选择不属于其他账户的用户。显示的是最近一次加载的用户列表。",
+        "taken": "此 Seerr 用户现在已属于另一个账户，或已无法选择。选择已重置。",
+        "linked": "{{email}} 现在以“{{name}}”的身份请求。权限和批准取决于该用户。",
+        "unlinked": "已取消 {{email}} 的关联。“{{name}}”仍保留在 Seerr 中。",
+        "reloading": "正在重新加载用户列表。",
+        "notConfigured": "尚未设置 Seerr",
+        "notConfiguredBody": "没有连接就没有用户列表。所有账户暂时都没有 Seerr 用户。",
+        "toConnection": "前往“集成 › Seerr”",
+        "toDecision": "前往决定",
+        "instanceBody": "在你于“集成 › Seerr”中做出决定之前，Slouchcat 不会发送心愿，也不会同步任何内容。列表显示的是上次的状态。",
+        "goneCount_other": "{{count}} 个账户：用户已在 Seerr 中删除",
+        "goneCountBody": "请为这些账户选择其他用户，或取消关联。",
+        "withoutCount_other": "{{count}} 个账户没有 Seerr 用户",
+        "withoutFallback": "在此之前，它们以共享用户 slouchcat-gaeste 的身份请求（规则“没有 Seerr 用户的账户”）。",
+        "withoutDeny": "只要“没有 Seerr 用户的账户”设为“不允许”，它们就无法请求。",
+        "toSettings": "前往设置",
+        "newAccounts": "新账户：{{provision}} · 密码：{{password}}",
+        "provisionOn": "会在 Seerr 中创建",
+        "provisionOff": "不会创建",
+        "syncOn": "会同步",
+        "syncOff": "不同步",
+        "changeSettings": "更改",
+        "shared": "共享用户：{{name}}",
+        "sharedLater": "共享用户：将在心愿启用后创建",
+        "reload": "重新加载用户列表",
+        "unlinkedTitle": "没有账户的 Seerr 用户",
+        "unlinkedCount_other": "{{count}} 个用户",
+        "unlinkedEmpty": "每个 Seerr 用户都属于一个账户。",
+        "noEmail": "无电子邮件",
+        "noLimit": "不限额",
+        "limitOnOpen": "创建账户时设置：{{limit}}",
+        "limitChange": "更改限额",
+        "quotaAt": "Seerr 数据，{{time}}",
+        "provision": "在 Seerr 中创建",
+        "retry": "重试",
+        "provisionOffHint": "“在 Seerr 中创建新账户”已关闭。",
+        "sameEmailTitle": "Seerr 中已有“{{name}}”",
+        "sameEmailBody": "电子邮件地址相同：“在 Seerr 中创建”会关联此用户，而不是再创建一个。",
+        "waitingTitle": "等待 Seerr",
+        "waitReason": {
+          "unreachable": "创建时无法访问 Seerr。下次同步时会重试。",
+          "server": "创建时 Seerr 返回了错误。下次同步时会重试。",
+          "timeout": "创建时 Seerr 未能及时响应。下次同步时会重试。",
+          "key_invalid": "Seerr 拒绝了 API 密钥。连接恢复正常后，下次同步时会重试。",
+          "instance_changed": "另一个 Seerr 实例正在等待你的决定。在此之前，Slouchcat 不会创建任何账户。",
+          "seerr_user_taken": "使用此电子邮件地址的 Seerr 用户已属于另一个账户，或是共享用户。请手动选择用户。",
+          "other": "创建未成功（{{reason}}）。下次同步时会重试。",
+          "seerr_user_privileged": "此 Seerr 用户管理 Seerr。Slouchcat 不会自动关联它：请在确认后关联，或选择其他用户。",
+          "refused": "Seerr 拒绝创建该账户。下次同步时会重试。"
+        },
+        "emailTakenTitle": "Seerr 拒绝了新的电子邮件地址",
+        "emailTakenBody": "另一个 Seerr 用户已在使用此地址。“{{name}}”在 Seerr 中保留原来的电子邮件地址；该账户继续以此用户的身份请求。",
+        "provisioned": {
+          "created": "已在 Seerr 中创建 {{email}}。",
+          "linked": "{{email}} 已与 Seerr 用户“{{name}}”关联。",
+          "waiting": "尚未在 Seerr 中创建：{{email}} 正在等待，下次同步时会重试。",
+          "privileged": "{{email}} 正在等待：使用此电子邮件地址的 Seerr 用户管理 Seerr。",
+          "taken": "{{email}} 正在等待：使用此电子邮件地址的 Seerr 用户已属于另一个账户。请手动选择用户。"
+        },
+        "passwordNext": "下次登录时重新同步密码",
+        "passwordOff": "不同步密码",
+        "passwordNextDone": "{{email}} 的密码将在下次登录时发送到 Seerr。",
+        "passwordOffDone": "{{email}} 的密码不再与 Seerr 同步。",
+        "passwordSyncOff": "密码同步已关闭。",
+        "passwordNote": {
+          "admin": "Slouchcat 不同步此密码：“{{name}}”是 Seerr 管理员，其密码在 Seerr 中保持不变。",
+          "external": "Slouchcat 不同步此密码：“{{name}}”通过 Jellyfin、Emby 或 Plex 登录，没有自己的密码。"
+        },
+        "provisionAll": "全部创建",
+        "provisionAllTitle": "要在 Seerr 中创建所有账户吗？",
+        "provisionAllBody": "通过相同电子邮件地址关联：{{link}} · 在 Seerr 中新建：{{create}}。",
+        "provisionAllWaits": "Seerr 当前未连接：这些账户会等待，并在下次同步时创建。",
+        "provisionAllQueued": "正在创建：{{link}} 个关联，{{create}} 个新建。",
+        "profiles": {
+          "title": "个人资料和标签",
+          "help": "心愿一到达 Radarr 和 Sonarr，每个个人资料就会在那里带上自己的标签。已设置的标签会保留，即使名称更改也是如此。",
+          "none": "此账户没有个人资料。",
+          "custom": "自定义名称",
+          "change": "更改",
+          "changeLabel": "更改 {{profile}} 的标签",
+          "field": "{{profile}} 的标签名称",
+          "fieldHelp": "只能使用小写字母 a–z、数字 0–9 和连字符。",
+          "invalid": "只能使用小写字母 a–z、数字 0–9 和连字符，最多 64 个字符。",
+          "save": "保存",
+          "saveLabel": "保存 {{profile}} 的标签",
+          "cancel": "取消",
+          "reset": "重置",
+          "resetLabel": "将 {{profile}} 的标签重置为按前缀生成的名称",
+          "saved": "{{profile}}：标签现在名为 {{name}}。",
+          "tagsOff": "个人资料标签已关闭（心愿 › 设置）。"
+        },
+        "takeOver": {
+          "title": "来自 Seerr 的请求",
+          "help": "直接在 Seerr 中提交的请求会成为主个人资料的心愿，并标注“在 Seerr 中请求”。它们不带个人资料标签。",
+          "counting": "正在统计 Seerr 中的请求…",
+          "none": "Seerr 中没有请求。",
+          "action_other": "从 Seerr 接管 {{count}} 个请求",
+          "queued_other": "正在接管 {{name}} 的 {{count}} 个请求。",
+          "running": "正在接管请求；同步后会显示数量。"
+        },
+        "linkPrivileged": "仍然关联…",
+        "privilegedTitle": "要关联 Seerr 管理员 {{name}} 吗？",
+        "privilegedBody": "此 Seerr 用户管理 Seerr。之后 {{email}} 的个人资料将以 Seerr 管理员的身份请求，无需批准，也不限额。Slouchcat 不会同步其密码。",
+        "privilegedConfirm": "仍然关联",
+        "provisionAllManual_other": "{{count}} 个账户需要手动选择。",
+        "waitingChoice": "等待手动选择",
+        "waitingChoiceTitle": "等待你的选择",
+        "optionPrivileged": "{{option}} · 管理 Seerr"
+      },
+      "limitField": {
+        "label": "限额",
+        "help": {
+          "default": "与“心愿 › 设置”中相同：{{limit}}。",
+          "custom": "为此账户单独设置数量。",
+          "unlimited": "电影和季均不限额。"
+        }
+      },
+      "requests": {
+        "caption": "家庭的所有心愿",
+        "columns": {
+          "title": "标题",
+          "requesters": "许愿人",
+          "state": "状态",
+          "seerr": "在 Seerr 中",
+          "attempts": "尝试次数",
+          "actions": "操作"
+        },
+        "titleYear": "{{title}}（{{year}}）",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}}（已加入心愿）",
+        "requesterClosed": "{{line}}（已撤回）",
+        "noRequester": "Slouchcat 中无人",
+        "noRequest": "尚未",
+        "requestId": "请求 {{id}}",
+        "requestIds_other": "请求 {{ids}}",
+        "filter": {
+          "label": "按状态筛选心愿",
+          "all": "全部",
+          "open": "未完成",
+          "available": "可观看",
+          "closed": "已结束",
+          "count_other": "{{count}} 个心愿",
+          "stalled": "下载停滞",
+          "untagged": "标签未设置",
+          "countLoaded_other": "已加载的心愿中有 {{count}} 个"
+        },
+        "sync": "立即同步",
+        "syncQueued": "正在与 Seerr 同步。",
+        "queued_other": "{{count}} 个心愿正在等待发送到 Seerr。",
+        "empty": "暂无心愿。",
+        "emptyFilter": "没有处于此状态的心愿。",
+        "facts": {
+          "label": "心愿详情",
+          "created": "请求时间",
+          "origin": "来源",
+          "seerrUser": "Seerr 用户",
+          "failReason": "原因"
+        },
+        "origin": {
+          "slouchcat": "在 Slouchcat 中请求",
+          "seerr": "在 Seerr 中请求"
+        },
+        "toItem": "前往管理中的该作品",
+        "history": "历史记录",
+        "noHistory": "尚无记录。",
+        "retry": "重试",
+        "retryLabel": "{{title}}：重试",
+        "retried": "正在重试 {{title}}。",
+        "emptyStalled": "没有停滞的下载。",
+        "emptyUntagged": "所有个人资料标签均已设置或即将设置。",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}}（ID {{id}}）",
+        "approve": "批准",
+        "approveLabel": "批准 {{title}}",
+        "approved": "{{title}} 已获批准，正在获取。",
+        "decline": "拒绝",
+        "declineLabel": "拒绝 {{title}}",
+        "declineTitle": "要拒绝 {{title}} 吗？",
+        "declineBody": "Slouchcat 会将拒绝转交给 Seerr。Seerr 不记录原因：个人资料只会看到“已拒绝”，并收到通知。",
+        "declined": "已拒绝 {{title}}。",
+        "event": {
+          "approved_by_admin": "已在管理中批准",
+          "declined_by_admin": "已在管理中拒绝"
+        },
+        "progress": {
+          "search": "正在搜索",
+          "download": "正在下载",
+          "import": "正在导入",
+          "stalled": "下载停滞",
+          "percent": "{{percent}}%",
+          "etaMinutes": "还剩 {{minutes}} 分钟",
+          "etaHours": "还剩 {{hours}} 小时 {{minutes}} 分钟",
+          "episodes": "已有 {{done}} / {{total}} 集",
+          "unreadable": "无法读取进度",
+          "unreadableAt": "无法读取进度 · 上次读取 {{time}}",
+          "notInService": "尚未进入 {{service}}",
+          "incomplete": "单集进度只能部分读取。",
+          "etaWholeHours": "还剩 {{hours}} 小时"
+        },
+        "progressBlock": {
+          "title": "进度",
+          "service": "服务",
+          "state": "进展",
+          "unknown": "暂无信息",
+          "readAt": "上次读取",
+          "never": "从未",
+          "note": "提示",
+          "message": "来自 {{service}} 的消息"
+        },
+        "tags": {
+          "title": "个人资料标签",
+          "set": "{{name}}",
+          "pending": "{{name}} · 待设置",
+          "failed": "{{name}} · 失败",
+          "setAt": "已于 {{time}} 在 {{service}} 中设置",
+          "setIn": "已在 {{service}} 中设置",
+          "pendingHelp": "作品进入 {{service}} 后会设置标签。",
+          "failedHelp": "{{service}} 未接受此标签。"
+        },
+        "shown": "显示 {{total}} 个心愿中的 {{shown}} 个。",
+        "searchedIn": "已在 {{total}} 个未完成心愿中的 {{shown}} 个里搜索。",
+        "more": "加载更多",
+        "toItemLabel": "{{title}}：前往管理中的该作品",
+        "inSeerr": "在 Seerr 中打开",
+        "inSeerrLabel": "在 Seerr 中打开 {{title}}（新窗口）"
+      },
+      "arrError": {
+        "not_in_arr": "该作品尚未进入 {{service}}。",
+        "tvdb_id_missing": "该剧集没有 TVDB ID。",
+        "not_confirmed": "来自 Seerr 的地址正在等待“测试”。",
+        "not_in_seerr": "Seerr 中没有 {{service}} 的默认服务器。",
+        "seerr_off": "Seerr 未设置或已关闭。",
+        "redirect": "{{service}} 重定向到了另一个地址。",
+        "timeout": "{{service}} 未能及时响应。",
+        "unreachable": "无法访问 {{service}}。",
+        "key_invalid": "{{service}} 拒绝了来自 Seerr 的密钥。",
+        "not_found": "{{service}} 中没有该作品。",
+        "validation": "{{service}} 以无效为由拒绝了调用。",
+        "server": "{{service}} 返回了错误。",
+        "bad_request": "{{service}} 拒绝了调用。",
+        "invalid": "{{service}} 返回了意外的响应。",
+        "seerr": "Seerr 未提供 {{service}} 的地址和密钥。",
+        "other": "错误：{{error}}"
+      }
     }
   },
   "language": {
@@ -5129,7 +6060,11 @@
         "metadataLanguage": "简介语言",
         "metadataLanguageHint": "标题、简介和类型；界面使用上方选择的语言。",
         "likeUi": "与界面相同",
-        "playback": "播放"
+        "playback": "播放",
+        "wishes": "心愿",
+        "canRequest": "可以请求作品",
+        "canRequestHelp": "此个人资料可以通过 Seerr 请求缺失的作品。",
+        "canRequestCapped": "此账户不能请求作品。请由管理员在“账户”中授予权限。"
       },
       "report": {
         "show": "显示观看时长",
@@ -5173,7 +6108,8 @@
     "notFound": {
       "title": "未找到链接",
       "body": "此邀请链接不存在。请检查是否完整复制了链接。"
-    }
+    },
+    "seerrAccount": "你的登录信息同样适用于 Seerr：接受邀请后，会在 Seerr 中创建一个电子邮件地址和密码相同的账户。"
   },
   "kind": {
     "movie": "电影",
@@ -5446,7 +6382,13 @@
     "empty": {
       "title": "未找到结果",
       "body": "请尝试其他搜索词或减少筛选条件。"
-    }
+    },
+    "missing": {
+      "title": "尚未在媒体库中",
+      "notHere": "暂未上架",
+      "request": "请求 {{title}}"
+    },
+    "inWishes": "同时搜索心愿"
   },
   "watchlist": {
     "title": "我的片单",
@@ -5525,7 +6467,12 @@
     "empty": {
       "title": "没有通知",
       "body": "将剧集或播客加入我的片单，有新单集时就会在这里收到通知。"
-    }
+    },
+    "wish_available": "你的心愿已可观看",
+    "wish_season_available": "你心愿中的一季已可观看",
+    "wish_approved": "你的心愿已获批准",
+    "wish_declined": "你的心愿已被拒绝",
+    "wish_failed": "你的心愿失败了"
   },
   "settings": {
     "playback": {
@@ -5602,6 +6549,9 @@
         "errors": "错误",
         "invitations": "邀请",
         "announcements": "公告",
+        "wish_available": "心愿：可观看",
+        "wish_status": "心愿：已批准、已拒绝、失败",
+        "wish_review": "心愿：待批准",
         "help": "在哪些情况下发送消息。",
         "helpAdmin": "在哪些情况下发送消息。“错误”仅适用于管理员。"
       },
@@ -5972,6 +6922,279 @@
       "halfBody_other": "{{count}} 集带有已观看标记。要标记所有单集，还是移除所有已观看标记？移除后无法撤销。",
       "markAll": "将所有单集标记为已观看",
       "removeAll": "移除所有已观看标记"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "电影：{{days}} 天内已用 {{used}} / {{limit}}",
+      "tv": "季：{{days}} 天内已用 {{used}} / {{limit}}",
+      "remaining_other": "还剩 {{count}} 个",
+      "nextFree": "下一个名额于 {{date}} 空出",
+      "short": {
+        "movie": "电影 {{used}}/{{limit}}",
+        "tv": "季 {{used}}/{{limit}}"
+      },
+      "movieNone": "电影不限额",
+      "tvNone": "季不限额"
+    },
+    "state": {
+      "queued": "正在发送",
+      "pending": "待批准",
+      "processing": "正在获取",
+      "partial": "部分可观看",
+      "available": "可观看",
+      "declined": "已拒绝",
+      "failed": "失败",
+      "withdrawn": "已撤回"
+    },
+    "detail": {
+      "importing": "正在读取",
+      "not_found_in_library": "尚未在媒体库中找到"
+    },
+    "fail": {
+      "quota": "已达到限额：Seerr 未接受此心愿。",
+      "blocklisted": "该作品在 Seerr 的屏蔽列表中。",
+      "no_permission": "该 Seerr 用户不能请求此类作品。",
+      "arr_failed": "Seerr 无法将作品转交给 Radarr 或 Sonarr。管理员可以重试此心愿。",
+      "unreachable_24h": "Seerr 已连续 24 小时无法访问。",
+      "seerr_request_gone": "该请求已在 Seerr 中删除。",
+      "seerr_media_deleted": "该作品已从 Seerr 中移除。",
+      "seerr_user_gone": "所关联的 Seerr 用户已不存在。",
+      "tvdb_id_missing": "此剧集缺少 Seerr 所需的 TVDB ID。",
+      "account_deleted": "提交此心愿的账户已不存在。"
+    },
+    "reason": {
+      "disabled": "心愿功能已关闭。",
+      "account_not_allowed": "此账户不能请求作品。",
+      "profile_not_allowed": "此个人资料不能请求作品。主个人资料可在“个人资料”中允许。",
+      "no_mapping": "此账户尚未关联 Seerr 用户。这由管理员设置。",
+      "seerr_user_gone": "所关联的 Seerr 用户已不存在。这由管理员处理。",
+      "movies_not_allowed": "目前无法请求电影。",
+      "shows_not_allowed": "目前无法请求剧集。",
+      "status_only": "另一个个人资料已请求此作品。上架后，你就能在媒体库中找到它。",
+      "already_requested": "你已请求过此作品。",
+      "source_not_allowed": "目前无法从这里请求作品。",
+      "tvdb_id_missing": "此剧集缺少 Seerr 所需的 TVDB ID。",
+      "withdraw_disabled": "目前无法撤回心愿。"
+    },
+    "tmdbUnreachable": "暂时无法访问 TMDB。请稍后重试。",
+    "kind": {
+      "movie": "电影",
+      "show": "剧集"
+    },
+    "seasons_other": "第 {{list}} 季",
+    "event": {
+      "created": "已请求",
+      "submitted": "已发送到 Seerr",
+      "attached": "已在 Seerr 中找到并接管",
+      "joined": "已加入心愿",
+      "withdrawn": "已撤回",
+      "withdraw_deleted": "已在 Seerr 中删除",
+      "owner_changed": "另一个个人资料继续保留此心愿",
+      "reopened": "已获批准，心愿继续",
+      "season_available_other": "第 {{seasons}} 季可观看",
+      "changed": "已更改"
+    },
+    "card": {
+      "title": "你的心愿",
+      "requestedOn": "请求于 {{date}}",
+      "joined": "你已加入",
+      "history": "历史记录",
+      "mine": "前往我的心愿"
+    },
+    "withdraw": {
+      "action": "撤回",
+      "actionJoined": "取消加入心愿",
+      "title": "要撤回此心愿吗？",
+      "titleJoined": "要取消加入此心愿吗？",
+      "body": "将不再请求“{{title}}”；Slouchcat 也会在 Seerr 中删除此心愿。",
+      "bodyJoined": "“{{title}}”上架时你将不会再收到消息。其他个人资料的心愿保持不变。",
+      "confirm": "撤回",
+      "confirmJoined": "取消加入心愿"
+    },
+    "dialog": {
+      "titleMovie": "请求电影：{{title}}",
+      "titleShow": "请求剧集：{{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "将立即开始获取，无需批准。",
+      "needsApproval": "需要批准。你可以在“我的心愿”中查看进展。",
+      "seasons": "季",
+      "allSeasons": "所有缺少的季（{{count}}）",
+      "season": "第 {{number}} 季",
+      "episodes_other": "{{count}} 集",
+      "seasonState": {
+        "requested": "已请求，你也会收到通知",
+        "available": "可观看"
+      },
+      "nothingLeft": {
+        "title": "没有可以请求的内容了",
+        "body": "所有季都已存在或已请求。"
+      },
+      "tooManySeasons_other": "{{limit}} 季的名额还剩 {{count}} 个。最多选择 {{count}} 季。",
+      "reached": {
+        "movie_other": "已达到限额：{{days}} 天内 {{count}} 部电影。",
+        "show_other": "已达到限额：{{days}} 天内 {{count}} 季。",
+        "movie_date_other": "已达到限额：{{days}} 天内 {{count}} 部电影。下一个名额将于 {{date}} 空出。",
+        "show_date_other": "已达到限额：{{days}} 天内 {{count}} 季。下一个名额将于 {{date}} 空出。"
+      },
+      "submit": "请求",
+      "submitting": "正在请求…",
+      "chooseSeasons": "选择季",
+      "join": "通知我",
+      "submitSeasons_other": "请求 {{count}} 季"
+    },
+    "page": {
+      "title": "我的心愿",
+      "count_other": "{{count}} 个未完成的心愿",
+      "countAll_other": "{{count}} 个心愿",
+      "countAvailable_other": "{{count}} 个可观看的心愿",
+      "countClosed_other": "{{count}} 个已结束的心愿",
+      "limit": "限额：{{limit}}",
+      "offline": "仅在线可用：心愿保存在服务器上。",
+      "filters": {
+        "label": "筛选心愿",
+        "all": "全部",
+        "open": "未完成",
+        "available": "可观看",
+        "closed": "已结束"
+      },
+      "filter": "状态",
+      "filterCount": "{{name}}（{{count}}）",
+      "empty": {
+        "title": "暂无心愿。",
+        "body": "你请求的作品会连同进展显示在这里。"
+      },
+      "emptyFilter": {
+        "open": "没有未完成的心愿。",
+        "available": "暂无可观看的心愿。",
+        "closed": "没有已结束的心愿。"
+      }
+    },
+    "row": {
+      "open": "前往作品",
+      "withdrawLabel": "撤回 {{title}}",
+      "withdrawJoinedLabel": "{{title}}：取消加入心愿",
+      "again": "重新请求",
+      "againLabel": "重新请求 {{title}}",
+      "history": "历史记录：{{last}}",
+      "fromSeerr": "在 Seerr 中请求"
+    },
+    "area": {
+      "label": "心愿下的区域",
+      "discover": "发现",
+      "movies": "电影",
+      "series": "剧集",
+      "search": "搜索",
+      "mine": "我的心愿",
+      "mineCount_other": "我的心愿（{{count}}）"
+    },
+    "discover": {
+      "title": "发现",
+      "intro": "当下热门和即将推出的作品。尚未在媒体库中的，你可以请求。",
+      "searchLabel": "搜索电影或剧集",
+      "searchAction": "搜索",
+      "rows": {
+        "trending": "热门趋势",
+        "popular_movies": "热门电影",
+        "movie_genres": "电影类型",
+        "upcoming_movies": "即将上映",
+        "popular_shows": "热门剧集",
+        "show_genres": "剧集类型",
+        "upcoming_shows": "即将开播的剧集"
+      },
+      "stale": "无法访问 Seerr。显示的是上次获取的内容。",
+      "refreshFailed": "无法更新列表。显示的是上次获取的内容。",
+      "empty": "目前这里没有可发现的内容。",
+      "inLibrary": "已在媒体库中",
+      "requested": "已请求",
+      "join": "{{title}}：通知我",
+      "gone": {
+        "title": "此个人资料无法使用“发现”",
+        "body": "你之前的心愿仍在“我的心愿”中。",
+        "action": "前往“我的心愿”"
+      },
+      "notFound": {
+        "title": "未找到页面",
+        "body": "此个人资料没有这个页面。"
+      }
+    },
+    "titles": {
+      "moviesIntro": "TMDB 收录的所有电影，无论是否已在媒体库中。缺少的，你可以请求。",
+      "seriesIntro": "TMDB 收录的所有剧集，无论是否已在媒体库中。缺少的，你可以请求。",
+      "sort": "排序",
+      "sorts": {
+        "popularity": "热度",
+        "newest": "最新优先",
+        "rating": "评分最高"
+      },
+      "filter": "筛选：{{summary}}",
+      "filterLabel": "筛选",
+      "genre": "类型",
+      "allGenres": "所有类型",
+      "genreId": "类型 {{id}}",
+      "library": "媒体库",
+      "hide": "隐藏已有作品",
+      "hideHelp": "只显示尚未在媒体库中的作品。",
+      "hidden": "已隐藏已有作品",
+      "shown": "已显示已有作品",
+      "clear": "重置筛选",
+      "apply": "应用",
+      "moviesEmpty": "没有符合条件的电影。",
+      "seriesEmpty": "没有符合条件的剧集。"
+    },
+    "search": {
+      "intro": "在 TMDB 收录的所有作品中搜索，包括尚未在媒体库中的作品。也可以按 ID 搜索，例如 tmdb:603、tvdb:121361 或 imdb:tt0133093。",
+      "placeholder": "电影或剧集",
+      "start": "请输入标题。搜索范围涵盖 TMDB 收录的所有作品，也包括原标题。",
+      "tooShort": "请至少输入两个字符。",
+      "hits": "搜索结果",
+      "empty": {
+        "title": "未找到与“{{q}}”相关的结果",
+        "body": "搜索的是电影和剧集标题，不包括人物。请尝试其他关键词或 ID。"
+      }
+    },
+    "progress": {
+      "search": "正在搜索",
+      "download": "正在下载",
+      "import": "正在导入",
+      "stalled": "下载停滞",
+      "percent": "{{percent}}%",
+      "episodes_other": "已有 {{done}} / {{count}} 集",
+      "eta": "还剩 {{time}}"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "未找到作品",
+      "body": "此作品不存在，或此个人资料无法查看。"
+    },
+    "loading": "作品",
+    "missing": "尚未在媒体库中",
+    "seasonCount_other": "{{count}} 季",
+    "requestMovie": "请求电影",
+    "requestShow": "请求剧集",
+    "done": {
+      "requested": "已请求。你可以在“我的心愿”中查看进展。",
+      "joined": "作品上架后会立即通知你。",
+      "withdrawn": "你的心愿已撤回。"
+    },
+    "alreadyRequested": "已请求",
+    "cannotRequest": "此个人资料无法请求作品",
+    "seasons": "季",
+    "seasonRequested": "已请求",
+    "nextEpisode": "仍在更新，下一集 {{date}} 播出",
+    "last": {
+      "title": "你上一次的心愿：{{state}}",
+      "why": {
+        "declined": "Seerr 不提供原因。你可以重新请求此作品。",
+        "withdrawn": "你已撤回。"
+      }
+    },
+    "join": "通知我",
+    "shared": {
+      "title": "已请求 · {{state}}",
+      "join": "另一个个人资料已请求这部电影。点击“通知我”，它可以播放时 Slouchcat 也会通知你。",
+      "statusOnly": "另一个个人资料已请求这部电影。它可以播放后，你就能在媒体库中找到它。"
     }
   }
 }

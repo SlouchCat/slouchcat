@@ -59,10 +59,10 @@ const free = (port, host) =>
 
 // The offsets a run really uses below its app port (env.ts, start-server.mjs): feed 2, Trakt 3,
 // SMTP 4, push 5, Telegram 6, update manifest 7, SMTP mailbox 8, radio catalog and test station 9,
-// book sources 10. One below is free on purpose: 8096 next to the default 8097 is the development
+// book sources 10, Seerr 11, TMDB 12, Radarr 13, Sonarr 14. One below is free on purpose: 8096 next to the default 8097 is the development
 // server, which must not stop `task ci`.
 // -5 is five above: the fresh server of setup.spec.ts (fresh-server.ts).
-const USED_OFFSETS = [-5, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const USED_OFFSETS = [-5, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
 const ports = Array.from({ length: count }, (_, index) => base + 20 * index);
 const busy = [];

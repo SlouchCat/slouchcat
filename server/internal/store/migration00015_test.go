@@ -60,16 +60,17 @@ func TestMigration00015IndexesFrozenData(t *testing.T) {
 	if got := count(`SELECT count(DISTINCT item_id) FROM search_index WHERE search_index MATCH '"sl"*'`); got != want {
 		t.Errorf(`prefix "sl"* finds %d titles, want %d`, got, want)
 	}
-	if got := count(`SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio')`); got != 8 {
-		t.Errorf("home_rows = %d, want 8 besides the rows of 00035 and 00039", got)
+	if got := count(`SELECT count(*) FROM home_rows WHERE key NOT IN ('libraries', 'library', 'radio', 'wishes')`); got != 8 {
+		t.Errorf("home_rows = %d, want 8 besides the rows of 00035, 00039 and 00079", got)
 	}
 	if got := count(`SELECT count(*) FROM home_rows WHERE key = 'spotlight' AND position = 0`); got != 1 {
 		t.Error("spotlight is not the first row")
 	}
 	// After the full run (00021, ADR 0011) the eight positions are exactly 0 to 7, in the default
 	// order: released directly behind recent; 00035 puts «Meine Medien» and one row per library
-	// behind them (concept 15 P-7), 00039 «Meine Sender» at the end (concept 16 stage 2).
-	defaultOrder := []string{"spotlight", "picks", "continue", "recent", "released", "watchlist", "collections", "genres", "libraries"}
+	// behind them (concept 15 P-7), 00039 «Meine Sender» at the end (concept 16 stage 2), 00079
+	// «Erfüllte Wünsche» right behind «Weiterschauen» (concept 25).
+	defaultOrder := []string{"spotlight", "picks", "continue", "wishes", "recent", "released", "watchlist", "collections", "genres", "libraries"}
 	for range count(`SELECT count(*) FROM libraries`) {
 		defaultOrder = append(defaultOrder, "library")
 	}

@@ -51,16 +51,51 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/certq
               desc: item_certifications is read and written only by package metadata (concept 22 section 4.11)
+        externalq:
+          # external_titles and its texts and images (concept 25 section 2.9): only package metadata
+          # fetches and stores titles outside the library; the itemsaccess analyzer does not cover them.
+          files:
+            - $all
+            - "!**/internal/metadata/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/externalq
+              desc: external_titles is read and written only by package metadata (concept 25 section 2.9)
+        wishq:
+          # The wish tables (concept 25, architecture 2.3): only package wishes reads and writes the
+          # Seerr users, the mapping, the limits and the call log; the others ask its services.
+          files:
+            - $all
+            - "!**/internal/wishes/**"
+            - "!**/internal/store/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/wishq
+              desc: the wish tables are read and written only by package wishes (concept 25, architecture 2.3)
+        arr:
+          # Radarr and Sonarr (concept 25 section 2.6, CLAUDE.md rule 11): only package wishes sets
+          # the profile tag and reads the download progress; nothing else of the server calls them.
+          files:
+            - $all
+            - "!$test"
+            - "!**/internal/wishes/**"
+            - "!**/internal/arr/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/arr
+              desc: Radarr and Sonarr are called only by package wishes (concept 25 section 2.6, CLAUDE.md rule 11)
         test-helpers:
           # storetest and vistest open template databases and seed fixtures for tests. Code that
           # ships must never reach them; vistest builds on storetest, so the two may import each
-          # other. radiotest is the webradio test station (concept 16, build plan S4).
+          # other. radiotest is the webradio test station (concept 16, build plan S4). seerrtest is
+          # the fake Seerr (concept 25, build step 1.1), arrtest the fake Radarr and Sonarr (build
+          # step 4.6a).
           files:
             - $all
             - "!$test"
             - "!**/internal/store/storetest/**"
             - "!**/internal/visibility/vistest/**"
             - "!**/internal/radio/radiotest/**"
+            - "!**/internal/seerr/seerrtest/**"
+            - "!**/internal/arr/arrtest/**"
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/storetest
               desc: test helper; import it only from _test.go files
@@ -68,6 +103,10 @@ linters:
               desc: test helper; import it only from _test.go files
             - pkg: github.com/slouchcat/slouchcat/server/internal/radio/radiotest
               desc: test station; import it only from _test.go files
+            - pkg: github.com/slouchcat/slouchcat/server/internal/seerr/seerrtest
+              desc: fake Seerr; import it only from _test.go files
+            - pkg: github.com/slouchcat/slouchcat/server/internal/arr/arrtest
+              desc: fake Radarr and Sonarr; import it only from _test.go files
         browse:
           # The folder browser (idea 02) is the first code that lists directories. It gets its own
           # boundary instead of a place in internal/admin, which may read titles unfiltered: a

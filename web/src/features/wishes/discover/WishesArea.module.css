@@ -1,0 +1,93 @@
+/* The area «Wünsche» (concept 25 stage 5): its links, the search field of «Entdecken», the genre
+   tiles and the state chip on a poster. Pages, heads, grids and filters come from
+   features/discover/Discover.module.css; this file lays out only what the area adds. */
+
+/* The links «Entdecken» … «Meine Wünsche» over the head, the limit under them. */
+.navBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-self: stretch;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+/* The search field of «Entdecken» with its button. */
+.search {
+  max-width: 48rem;
+}
+
+.searchRow {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.searchRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The rows of «Entdecken», out to the page edges (each row brings its gutter). */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+}
+
+/* The state of the profile's own wish on the poster, bottom left. */
+.state {
+  position: absolute;
+  inset-block-end: var(--sc-space-2);
+  inset-inline-start: var(--sc-space-2);
+  max-width: calc(100% - 2 * var(--sc-space-2));
+}
+
+/* A genre tile: its backdrop at 16:9 with the name on a scrim, no frame. */
+.genre {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: calc(1.5 * var(--sc-size-poster-md));
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+  text-decoration: none;
+  outline-offset: var(--sc-focus-ring-offset);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.genre:focus-visible {
+  transform: scale(var(--sc-focus-scale));
+}
+
+.genreImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.genreName {
+  position: relative;
+  width: 100%;
+  padding: var(--sc-space-6) var(--sc-space-3) var(--sc-space-2);
+  background: linear-gradient(to top, var(--sc-color-scrim-strong), var(--sc-color-scrim-clear));
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+@media (hover: hover) {
+  .genre:hover {
+    background-color: var(--sc-color-surface-3);
+  }
+}

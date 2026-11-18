@@ -14,6 +14,8 @@ export const paths = {
   playbackSettings: '/settings/playback',
   adminLibraries: '/admin/libraries',
   adminMaintenance: '/admin/maintenance',
+  /** Wishes through Seerr (concept 25): the Seerr users of the accounts and the settings. */
+  adminWishes: '/admin/wishes',
   adminDevices: '/admin/devices',
   adminStreams: '/admin/streams',
   /** Downloads of the active profile on this device (M5). */
@@ -27,6 +29,15 @@ export const paths = {
   offlinePlay: (downloadId: string, from?: 'session') =>
     `/offline/play/${encodeURIComponent(downloadId)}${from ? `?as=${from}` : ''}`,
   item: (id: string) => `/items/${encodeURIComponent(id)}`,
+  /** The preview page of a title outside the library (concept 25, 5.1). */
+  title: (media: 'movie' | 'show', tmdbId: number) => `/titles/${media}/${tmdbId}`,
+  /** «Meine Wünsche» of the active profile (concept 25, 5.3). */
+  wishes: '/wishes',
+  /** The wishes area (concept 25, 5.4): «Entdecken», «Filme», «Serien», «Suche». */
+  discover: '/discover',
+  discoverMovies: '/discover/movies',
+  discoverSeries: '/discover/series',
+  discoverSearch: '/discover/search',
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>
     `/play/${encodeURIComponent(id)}${file ? `?file=${encodeURIComponent(file)}` : ''}`,

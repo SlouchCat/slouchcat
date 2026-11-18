@@ -243,6 +243,8 @@ type DashboardAttention struct {
 	MinimumAgeNotice bool
 	// RatingsRereading: the job «Freigaben neu lesen» is queued or running (concept 22 F-16).
 	RatingsRereading bool
+	// Wishes are the hints of the wishes (concept 25); nil while Seerr is not set up.
+	Wishes *DashboardWishes
 }
 
 // AbortedScan is a library whose last scan the loss protection aborted.
@@ -708,6 +710,7 @@ type AdminAccount struct {
 	CreatedAt    time.Time
 	Channels     []ChannelSummary
 	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
+	CanRequest   bool           // the request right (concept 25)
 }
 
 // ProfileRef is a profile in the account overview.

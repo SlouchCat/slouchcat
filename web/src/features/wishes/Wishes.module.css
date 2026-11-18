@@ -1,0 +1,202 @@
+/* Wishes through Seerr (concept 25 stage 2): the request dialog, the wish card of the preview page
+   and the rows of «Meine Wünsche». Pages and sections come from Discover.module.css and
+   ItemPage.module.css; this file lays out only what the wishes add. */
+
+/* The request dialog's form. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  justify-content: flex-end;
+}
+
+/* The wish card under the head of the preview page (M-03): state, seasons and date, the steps
+   that happened, the actions. A surface of its own, no frame. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: var(--sc-size-form-max);
+  padding: var(--sc-space-4);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.line {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/*
+ * The download progress of a wish in procurement (concept 25, 5.3): its words with a mark, under
+ * them a bar while it downloads. A display only.
+ */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: var(--sc-size-form-max);
+}
+
+.progressLine {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.progress[data-stage='stalled'] .progressLine > svg {
+  color: var(--sc-color-state-warning);
+}
+
+/* The history of a wish, newest first: time and what happened. */
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+.events[hidden] {
+  display: none;
+}
+
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+}
+
+.eventTime {
+  color: var(--sc-color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+/* The facts of the preview's head with the chip «Noch nicht in der Bibliothek» beside them. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* The seasons of a series on its preview page: one line each, its state beside it. */
+.seasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.season {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+}
+
+.seasonName {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* «Meine Wünsche» (M-08): one row per wish, the poster without a frame beside the words. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: 56rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--sc-space-16) minmax(0, 1fr);
+  gap: var(--sc-space-4);
+  align-items: start;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.rowPoster {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+}
+
+.rowPoster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.rowTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.rowYear {
+  margin-inline-start: var(--sc-space-2);
+  color: var(--sc-color-text-secondary);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+.rowState {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

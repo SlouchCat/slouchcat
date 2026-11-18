@@ -1,5 +1,5 @@
 import type { Invitation, InvitationCreated, InvitationRequest } from '@slouchcat/api-client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
   Form,
   FormDialog,
   RadioGroup,
+  Switch,
   TextField,
   type DataColumn,
 } from '@/ui/aria';
@@ -26,7 +27,15 @@ import {
   libraryIdsOf,
   type LibraryOption,
 } from '../../shared/useLibraryOptions';
-import { invitationsQuery } from '../queries';
+import {
+  wishLimitFieldNames,
+  WishLimitFields,
+  wishLimitDraftOf,
+  wishLimitRequestOf,
+  wishNumbersValid,
+  type WishLimitDraft,
+} from '../../shared/WishLimitFields';
+import { invitationsQuery, seerrStatusQuery, wishSettingsQuery } from '../queries';
 import styles from './Accounts.module.css';
 import { intlLocale } from '@/i18n';
 
@@ -105,6 +114,16 @@ function InvitationForm({
   const queryClient = useQueryClient();
   const [rating, setRating] = useState('18');
   const [selection, setSelection] = useState<LibrarySelection>({ all: true, ids: [] });
+  // The wishes (concept 25): only once Seerr is set up; the switch starts from «Neue Konten
+  // dürfen anfordern», the limit from «Standard».
+  const seerr = useQuery(seerrStatusQuery);
+  const wishSettings = useQuery(wishSettingsQuery);
+  const wishes =
+    seerr.data && seerr.data.state !== 'not_configured' ? wishSettings.data : undefined;
+  const [canRequest, setCanRequest] = useState<boolean | undefined>(undefined);
+  const [wishLimit, setWishLimit] = useState<WishLimitDraft | undefined>(undefined);
+  const requestRight = canRequest ?? wishes?.newAccountsCanRequest ?? false;
+  const limit = wishLimit ?? (wishes && wishLimitDraftOf(undefined, wishes.defaultLimit));
 
   // The answer holds the one-time link: it must not stay in the mutation cache.
   const create = useTransientMutation(
@@ -115,17 +134,24 @@ function InvitationForm({
       await queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey });
     },
   );
-  const errors = create.error ? formErrors(t, create.error) : null;
+  // The server names the numbers `wishLimit.movie.limit` …; the fields are `invitationLimit.…`.
+  const errors = create.error
+    ? formErrors(t, create.error, wishLimitFieldNames('wishLimit.', 'invitationLimit'))
+    : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const note = formText(data, 'note');
+    if (wishes && limit?.mode === 'custom' && !wishNumbersValid(limit)) return;
     void create.run({
       ...(note ? { note } : {}),
       maxRating: ratingOf(rating),
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
+      ...(wishes && limit
+        ? { canRequest: requestRight, wishLimit: wishLimitRequestOf(limit) }
+        : {}),
     });
   };
 
@@ -153,6 +179,23 @@ function InvitationForm({
           onChange={setSelection}
           options={options}
         />
+        {wishes && limit && (
+          <fieldset className={styles.fieldset}>
+            <legend>{t('admin.accounts.wishes.title')}</legend>
+            <Switch name="canRequest" isSelected={requestRight} onChange={setCanRequest}>
+              {t('admin.accounts.wishes.canRequest')}
+            </Switch>
+            <WishLimitFields
+              value={limit}
+              onChange={setWishLimit}
+              defaults={wishes.defaultLimit}
+              name="invitationLimit"
+            />
+            {wishes.provisionAccounts && (
+              <Notice live={false}>{t('admin.accounts.invitations.seerrHint')}</Notice>
+            )}
+          </fieldset>
+        )}
         <div className={styles.dialogActions}>
           <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>
             {create.isPending

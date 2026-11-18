@@ -6,12 +6,13 @@
 
 -- name: ChannelEnsureDefaults :exec
 -- The three channel rows of an account with the defaults of 5.2 (e-mail on for accounts that
--- administer nothing, with announcements; everything else off); existing rows stay as they are.
+-- administer nothing, with announcements; everything else off) and of concept 25 F-14 (wish
+-- available on every channel, wish review for administrators); existing rows stay as they are.
 INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
 SELECT a.id, c.channel,
        CASE WHEN c.channel = 'email' AND a.role = 'user' THEN 1 ELSE 0 END,
-       CASE WHEN a.role = 'user' THEN '["announcements"]'
-            ELSE '["new_content","errors","invitations","announcements"]' END,
+       CASE WHEN a.role = 'user' THEN '["announcements","wish_available"]'
+            ELSE '["new_content","errors","invitations","announcements","wish_available","wish_review"]' END,
        '{}', @now
 FROM accounts AS a
 JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c
@@ -23,8 +24,8 @@ WHERE a.id = @account_id;
 INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
 SELECT a.id, c.channel,
        CASE WHEN c.channel = 'email' AND a.role = 'user' THEN 1 ELSE 0 END,
-       CASE WHEN a.role = 'user' THEN '["announcements"]'
-            ELSE '["new_content","errors","invitations","announcements"]' END,
+       CASE WHEN a.role = 'user' THEN '["announcements","wish_available"]'
+            ELSE '["new_content","errors","invitations","announcements","wish_available","wish_review"]' END,
        '{}', @now
 FROM accounts AS a
 JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c;

@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -21,21 +20,27 @@ const (
 	maxBuckets = 10_000
 )
 
-// argonSlots bounds concurrent argon2id runs; argonRuns counts the runs started (tests).
-var (
-	argonSlots = make(chan struct{}, maxArgonRuns)
-	argonRuns  atomic.Int64
-)
+// argonSlots bounds concurrent argon2id runs of the process.
+var argonSlots = make(chan struct{}, maxArgonRuns)
 
 // acquireArgon waits for an argon2id slot or for ctx; the caller runs release when done.
 func acquireArgon(ctx context.Context) (release func(), err error) {
 	select {
 	case argonSlots <- struct{}{}:
-		argonRuns.Add(1)
 		return func() { <-argonSlots }, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// acquireArgon is acquireArgon of the service, which counts its own runs (argonRuns): tests that
+// run in parallel do not see each other's runs.
+func (s *Service) acquireArgon(ctx context.Context) (release func(), err error) {
+	release, err = acquireArgon(ctx)
+	if err == nil {
+		s.argonRuns.Add(1)
+	}
+	return release, err
 }
 
 // Limiter is a token bucket per client address: perMin tokens refill per minute, up to burst.

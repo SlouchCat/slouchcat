@@ -1,6 +1,9 @@
 package metadata
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // ratingFallback is the order in which the certifications of further countries are read when
 // the rating country has none (AN-8, decision 6 as amended by ADR 0034): Germany first (F-12),
@@ -71,6 +74,31 @@ var certificationAges = map[string]map[string]int{
 	"JP": {"G": 0, "PG12": 12, "R15": 15, "R18": 18},
 	"KR": {"ALL": 0, "7": 7, "12": 12, "15": 15, "18": 18, "19": 18, "RESTRICTED SCREENING": 18},
 	"TW": {"0": 0, "6": 6, "12": 12, "15": 15, "18": 18},
+}
+
+// CertificationAtMost returns the certificate of country with the highest age not above age, for
+// the pre-filter certificationLte of the discover lists (concept 25, N-56): the bare number when
+// the country certifies by number, else the certificate with that age that sorts last. US films
+// take the MPA certificates, US series the TV parental guidelines. false when the country is not
+// in the table or has no certificate up to age; the server checks every hit again, the
+// certificate only narrows what Seerr returns.
+func CertificationAtMost(country string, age int, tv bool) (string, bool) {
+	certs, ok := certificationAges[country]
+	if !ok {
+		return "", false
+	}
+	best, bestAge := "", -1
+	for cert, a := range certs {
+		if a > age || (country == "US" && strings.HasPrefix(cert, "TV-") != tv) {
+			continue
+		}
+		bare := cert == strconv.Itoa(a)
+		switch {
+		case a > bestAge, a == bestAge && bare, a == bestAge && best != strconv.Itoa(a) && cert > best:
+			best, bestAge = cert, a
+		}
+	}
+	return best, bestAge >= 0
 }
 
 // TMDB release types that carry the certification of the main release: theatrical, digital and

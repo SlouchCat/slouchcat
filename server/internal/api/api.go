@@ -101,6 +101,10 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + radioCoverPath:        "scoped",
 	"GET " + BasePath + adminRadioImagePath:   "admin",
 	"PUT " + BasePath + radioLogoUploadPath:   "admin",
+
+	"GET " + BasePath + externalImagePath:      "scoped",
+	"GET " + BasePath + adminExternalImagePath: "admin",
+	"GET " + BasePath + genreBackdropPath:      "scoped",
 }
 
 // Options configure NewHandler.
@@ -124,6 +128,9 @@ type Options struct {
 	// Radio is the webradio (concept 16, contract 1.17.0); nil answers 501 on the JSON operations,
 	// the station images and the logo upload, and 401 on the live routes (radioAuth).
 	Radio RadioService
+	// Wishes is the Seerr test, state, instance, users and mapping (concept 25, contract 1.41.0);
+	// nil answers 501 on them.
+	Wishes WishesService
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
@@ -147,7 +154,7 @@ func NewHandler(o Options) http.Handler {
 		visibility[route] = vis
 	}
 	authorize := p.authorize(o.Auth, visibility)
-	s := &server{opts: o, p: p}
+	s := &server{opts: o, p: p, limits: newWishLimiters()}
 
 	r := chi.NewRouter()
 	r.Use(securityHeaders, requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
@@ -200,6 +207,9 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(radioCoverPath, s.getRadioCover)
 		r.With(authorize).Get(adminRadioImagePath, s.getAdminRadioImage)
 		r.With(authorize).Put(radioLogoUploadPath, s.uploadRadioStationLogo)
+		r.With(authorize).Get(externalImagePath, s.getExternalTitleImage)
+		r.With(authorize).Get(adminExternalImagePath, s.getAdminExternalTitleImage)
+		r.With(authorize).Get(genreBackdropPath, s.getWishGenreBackdrop)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a
@@ -212,8 +222,9 @@ func NewHandler(o Options) http.Handler {
 // server implements the generated strict server interface; the handlers live in one file per
 // feature (auth_handlers.go, admin_handlers.go, item_handlers.go, …).
 type server struct {
-	opts Options
-	p    problems
+	opts   Options
+	p      problems
+	limits wishLimiters // titles outside the library, per profile (wish_limits.go)
 }
 
 var _ gen.StrictServerInterface = (*server)(nil)

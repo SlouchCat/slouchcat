@@ -46,6 +46,7 @@ export { dismissPosterPrepaint, PosterCard } from './PosterCard';
 export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
+export { RequestMark } from './RequestMark';
 export { RoundAction } from './RoundAction';
 export { Row, RowList, RowTitle } from './Row';
 export { SearchField } from './SearchField';

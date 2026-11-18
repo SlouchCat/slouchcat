@@ -66,7 +66,7 @@ func (s *Service) UpdateAccount(ctx context.Context, session model.Session, upd 
 	}
 	hash := ""
 	if upd.NewPassword != nil {
-		release, err := acquireArgon(ctx)
+		release, err := s.acquireArgon(ctx)
 		if err != nil {
 			return model.Session{}, err
 		}
@@ -114,5 +114,13 @@ func (s *Service) UpdateAccount(ctx context.Context, session model.Session, upd 
 	}
 	s.log.InfoContext(ctx, "account updated", "account_id", acc.ID, "email_changed", emailChanged,
 		"password_changed", hash != "", "sessions_revoked", revoked)
+	switch {
+	case emailChanged && upd.NewPassword != nil:
+		s.seen(ctx, acc.ID, email, *upd.NewPassword, PasswordMomentEmailChange)
+	case emailChanged:
+		s.seen(ctx, acc.ID, email, upd.CurrentPassword, PasswordMomentEmailChange)
+	case upd.NewPassword != nil:
+		s.seen(ctx, acc.ID, acc.Email, *upd.NewPassword, PasswordMomentPasswordChange)
+	}
 	return session, nil
 }

@@ -49,7 +49,9 @@
       "other": "追加プロフィール",
       "primary": "メインプロフィール",
       "admin": "サーバー管理者"
-    }
+    },
+    "wishes": "リクエスト",
+    "wishesLabel_other": "{{name}}、未完了のリクエスト{{count}}件"
   },
   "system": {
     "server": {
@@ -222,7 +224,25 @@
       "deleting": "現在削除中です。",
       "changed": "その間に変更がありました。もう一度確認してください。",
       "stale": "このライブラリは、その間にほかの場所で変更されました。再読み込みしてから、もう一度保存してください。",
-      "root_unlisted": "リクエストにライブラリのフォルダーが含まれていません。ライブラリを再読み込みしてください。何も外されていません。"
+      "root_unlisted": "リクエストにライブラリのフォルダーが含まれていません。ライブラリを再読み込みしてください。何も外されていません。",
+      "seerr_key_required": "別のマシン上のアドレスには、APIキーを入力し直す必要があります。保存済みのキーが別のアドレスに送られることはありません。",
+      "seerr_not_configured": "先にSeerrのアドレスとAPIキーを入力してください。",
+      "instance_unchanged": "判断を待っている別のSeerrインスタンスはありません。",
+      "seerr_not_tested": "リクエストは、保存済みの接続のテストに成功してからオンにできます。",
+      "seerr_user_taken": "このSeerrユーザーは、すでに別のアカウントに紐付けられているか、共有ユーザーであるか、Seerrに存在しません。",
+      "provision_disabled": "「新しいアカウントをSeerrで作成」がオフになっています。リクエスト › 設定でオンにしてください。",
+      "password_not_syncable": "このSeerrユーザーのパスワードはSlouchcatでは同期しません。Seerrの管理者であるか、Jellyfin、Emby、Plexでログインするユーザーです。",
+      "account_not_allowed": "このアカウントには作品をリクエストする権限がありません。権限は管理者が「アカウント」で設定します。",
+      "wish_not_allowed": "このプロフィールではリクエストできません。",
+      "quota_exceeded": "上限に達しているため、リクエストできません。",
+      "already_available": "この作品はすでにライブラリにあります。",
+      "wish_not_withdrawable": "このリクエストはすでに承認されているため、取り下げできません。",
+      "seerr_unreachable": "現在Seerrに接続できません。",
+      "wish_not_retryable": "このリクエストは再試行できません。",
+      "wish_not_pending": "判断済みです。このリクエストはSeerrで承認待ちではなくなりました。同期すると新しい状態を取得します。",
+      "seerr_failed": "Seerrからエラーが返されました。",
+      "seerr_instance_changed": "別のSeerrインスタンスが、連携 › Seerrで判断を待っています。",
+      "tag_name_taken": "このタグ名はすでに別のプロフィールで使われています。"
     },
     "field": {
       "required": "必須項目です。",
@@ -253,7 +273,8 @@
       "local_address": "このアドレスはローカルネットワーク内にあります。独自のラジオ局もインターネット上のものである必要があります。",
       "not_own": "これは独自のラジオ局でのみ変更できます。",
       "not_matched": "このオーディオブックはソースと照合されていません。",
-      "not_found": "ソースにそのような項目はありません。"
+      "not_found": "ソースにそのような項目はありません。",
+      "seerr_url_invalid": "http://またはhttps://で始まるアドレスを入力してください。ユーザー名、パスワード、クエリ、フラグメントは含めないでください。"
     }
   },
   "setup": {
@@ -632,7 +653,8 @@
       "released": "最新リリース",
       "libraries": "マイメディア",
       "library": "{{library}}の新着",
-      "radio": "マイラジオ局"
+      "radio": "マイラジオ局",
+      "wishes": "届いたリクエスト"
     },
     "remaining": "残り{{time}}",
     "continue": {
@@ -774,7 +796,21 @@
     "seasons": "シーズン",
     "seasonWall": {
       "showAll": "全{{total}}シーズンを表示",
-      "showLess": "表示を減らす"
+      "showLess": "表示を減らす",
+      "season": "シーズン{{number}}",
+      "present_other": "全{{count}}シーズン中{{present}}シーズンあり",
+      "next": "放送中、次のエピソードは{{date}}",
+      "running": "放送中",
+      "state": {
+        "missing": "未取得",
+        "requested": "リクエスト済み",
+        "processing": "処理中",
+        "announced": "発表済み"
+      },
+      "cardLabel": "{{title}}：{{state}}",
+      "cardRequest": "{{title}}をリクエスト",
+      "cardJoin": "{{title}}：リクエスト済み、参加する",
+      "request": "シーズンをリクエスト"
     },
     "episodes": {
       "title": "エピソード",
@@ -3072,7 +3108,8 @@
         "genres": "表示可能な作品のジャンルです。",
         "libraries": "プロフィールが見られるライブラリ、ラジオ、および表示設定時のコレクションとユーザーのおすすめのタイルです。順番と非表示は「マイメディア」ページで設定します。",
         "library": "このライブラリに最近追加された作品です。「すべて表示」を押すと、「最近追加」順に並べたライブラリが開きます。",
-        "radio": "プロフィールのお気に入りのラジオ局をタイルで表示します。サーバー経由で再生中のラジオ局には、再生中の曲が表示されます。お気に入りがない場合、この行は表示されません。"
+        "radio": "プロフィールのお気に入りのラジオ局をタイルで表示します。サーバー経由で再生中のラジオ局には、再生中の曲が表示されます。お気に入りがない場合、この行は表示されません。",
+        "wishes": "このプロフィールのリクエストのうち、過去14日間に届いたもの（ライブラリの作品）です。未完了のリクエストは「リクエスト › マイリクエスト」にあります。空の行は表示されません。"
       },
       "pageLink": "「{{page}}」へ",
       "moved": "{{row}}は{{position}}番目になりました。適用するには保存してください。",
@@ -3179,6 +3216,9 @@
         "quoted": "「{{note}}」",
         "none": "–",
         "notInLibrary": "ライブラリにないため、ホームには表示されません",
+        "unmatched": "一致なし",
+        "unmatchedReason": "TVDBのIDしか分からず、TMDBで見つかりません",
+        "noAction": "操作なし：TMDBのIDがないとリクエストできません",
         "hide": "非表示",
         "hideLabel": "{{title}}を非表示",
         "show": "表示",
@@ -3186,6 +3226,61 @@
         "hidden": "{{title}}を非表示にしました。",
         "shown": "{{title}}を再び表示しました。",
         "count_other": "{{count}}件"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "TVDBのIDでライブラリ内に見つかりました",
+          "tmdb": "TMDBのIDでライブラリ内に見つかりました",
+          "imdb": "IMDbのIDでライブラリ内に見つかりました"
+        }
+      },
+      "request": {
+        "action": "リクエスト",
+        "label": "{{title}}をリクエスト",
+        "done": "{{title}}をリクエストしました。",
+        "joined": "{{title}}はすでにリクエストされていました。このプロフィールもリクエストに参加しました。",
+        "available": "{{title}}はすでにライブラリにあります。"
+      },
+      "lacking": {
+        "title": "ライブラリにない作品",
+        "missing_other": "{{count}}件が未取得",
+        "requested_other": "{{count}}件をリクエスト済み",
+        "unmatched_other": "{{count}}件が一致なし",
+        "intro": "ホームとスポットライトのリストには、ライブラリの作品だけが表示されます。ライブラリにない作品は、この管理画面で管理者にだけ表示されます。プロフィールは、ライブラリにない作品を「リクエスト」からリクエストします。",
+        "asProfile": "「リクエスト」は現在のプロフィール（{{name}}）として実行されます。",
+        "noRequestChip": "リクエスト不可",
+        "noRequest": {
+          "title": "リクエストは、リクエスト機能をセットアップすると使えるようになります。",
+          "body": "それには、アドレスとキーを設定してオンにしたSeerrと、「リクエストを有効化」が必要です。",
+          "settings": "リクエストの設定へ",
+          "connection": "Seerrとの接続へ"
+        },
+        "empty": "リストのすべての項目がライブラリにあります。"
+      },
+      "matching": {
+        "title": "TMDB、TVDB、IMDbによる照合",
+        "hits_other": "ライブラリ内に{{count}}件",
+        "intro": "Slouchcatは映画をTMDB、次にIMDbで照合します。TV番組はライブラリと同じく、TVDB、TMDB、IMDbの順です。Seerrはすべての作品をTMDBのIDで管理し、TV番組についてはTVDBのIDをSonarrに渡します。",
+        "waysTitle": "照合の方法",
+        "way": {
+          "movie": {
+            "tmdb": "TMDBのIDで照合した映画",
+            "imdb": "IMDbのIDで照合した映画"
+          },
+          "show": {
+            "tvdb": "TVDBのIDで照合したTV番組",
+            "tmdb": "TMDBのIDで照合したTV番組",
+            "imdb": "IMDbのIDで照合したTV番組"
+          }
+        },
+        "noHits": "ライブラリにある項目はありません。",
+        "unmatchedTitle": "一致なし",
+        "allMatched": "すべての項目を照合できました。",
+        "unmatchedNote": "TMDBのIDがない項目はリクエストできず、ライブラリにある作品にも、ない作品にも数えられません。"
       },
       "pin": {
         "action": "固定",
@@ -3332,6 +3427,9 @@
       },
       "server": {
         "title": "サーバー"
+      },
+      "wishes": {
+        "title": "リクエスト"
       }
     },
     "server": {
@@ -3572,6 +3670,44 @@
         "title": "フォルダーブラウザーがブロック中",
         "hanging_other": "マウントが応答しなくなりました。{{count}}件の一覧取得がカーネル内で停止しており、キャンセルできません。フォルダーブラウザーは引き続き使えますが、利用できる枠が減っています。再起動すると解放されます。",
         "off": "フォルダーブラウザーのすべての枠が、応答しなくなったマウントで停止しています。サーバーを再起動するまでフォルダーを参照できません。パスを手動で入力することはできます。"
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerrに接続できません",
+          "key_invalid": "SeerrがAPIキーを拒否しています",
+          "instance_changed": "別のSeerrインスタンスを検出しました"
+        },
+        "seerrStateBody": {
+          "unreachable": "新しいリクエストは待機し、Seerrが再び応答するとすぐに送信されます。",
+          "key_invalid": "キーが正しくなるまで、Slouchcatはリクエストを送信せず、同期もしません。",
+          "instance_changed": "割り当てを確定または削除するまで、送信と同期は停止します。"
+        },
+        "toConnection": "連携 › Seerrへ",
+        "unmapped_other": "Seerrユーザーのないアカウントが{{count}}件",
+        "unmappedFallback": "それまでは共有ユーザーslouchcat-gaesteで送信します。",
+        "unmappedDeny": "「Seerrユーザーのないアカウント」が「許可しない」になっている間、これらのプロフィールにはライブラリにない作品が表示されません。",
+        "unmappedWaiting": "これらのアカウントは待機中で、次回の同期でSeerrに作成されます。",
+        "toUsers": "Seerrユーザーへ",
+        "linked": "新しく紐付けました：{{account}}と既存のSeerrユーザー{{name}}",
+        "linkedBody": {
+          "invite": "{{date}}に招待を承諾した際、メールアドレスが一致したためです。アドレスはアカウント本人が入力したもので、確認はされていません。",
+          "email_change": "{{date}}にメールアドレスを変更した後、アドレスが一致したためです。アドレスはアカウント本人が入力したもので、確認はされていません。"
+        },
+        "toAccount": "紐付けを表示",
+        "quotaReached": "上限に達しました：{{account}}",
+        "quotaNext": "{{used}}。次の枠は{{date}}に空きます。",
+        "toLimit": "上限を表示",
+        "gone_other": "{{count}}件のアカウント：Seerrでユーザーが削除されました",
+        "goneBody": "これらのアカウントに別のユーザーを選ぶか、紐付けを解除してください。",
+        "open_other": "未完了のリクエスト{{count}}件",
+        "openQueued_other": "そのうち{{count}}件がSeerrへの送信を待っています。",
+        "toRequests": "リクエスト一覧へ",
+        "stalled_other": "{{count}}件のダウンロードが停滞",
+        "serviceTitle": "{{title}}（{{service}}）",
+        "toStalled": "停滞中のダウンロードを表示",
+        "tagsFailed_other": "{{count}}件のタグが未設定",
+        "tagFailedEntry": "{{entry}}：{{reason}}",
+        "toUntagged": "未設定のタグを表示"
       }
     },
     "integrations": {
@@ -3585,7 +3721,8 @@
         "email": "メール",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "アップデートの確認"
+        "updateCheck": "アップデートの確認",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "deploy/.envで設定",
@@ -3617,7 +3754,8 @@
         "email": "通知、招待、お知らせをメールで送るためのサーバー。",
         "telegram": "Telegramで通知を送るボット。",
         "push": "ブラウザーとインストールしたアプリでの通知。",
-        "server": "アップデートの確認、公開アドレス、GPU。"
+        "server": "アップデートの確認、公開アドレス、GPU。",
+        "seerr": "視聴者のリクエストをSeerrに渡し、状態を同期します。アカウントには、同じログイン情報のユーザーがSeerrに作成されます。"
       },
       "keys": {
         "title": "プロバイダーのキー",
@@ -3642,7 +3780,8 @@
         "neverSeen": "まだ通知はありません。",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "新しい連携",
@@ -3687,7 +3826,8 @@
           "acknowledged": "テストを確認",
           "ignored": "影響なし",
           "outside_roots": "ライブラリ外",
-          "invalid_payload": "パスなし"
+          "invalid_payload": "パスなし",
+          "sync_queued": "リクエストを同期中"
         },
         "renew": {
           "action": "トークンを更新",
@@ -3835,6 +3975,222 @@
         "checkLabel": "{{name}}を確認",
         "rejected": "拒否",
         "savedRejected": "{{name}}を保存しましたが、プロバイダーがキーを拒否しています。"
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Seerrとの接続",
+        "version": "バージョン{{version}}",
+        "lastSuccess": "最終接続：{{time}}",
+        "state": {
+          "not_configured": "未設定",
+          "disabled": "オフ",
+          "untested": "未テスト",
+          "connected": "接続済み",
+          "key_invalid": "キーが無効",
+          "unreachable": "接続できません",
+          "instance_changed": "別のインスタンスを検出"
+        },
+        "stateHint": {
+          "not_configured": "アドレスとキーを入力してください。",
+          "disabled": "SlouchcatはSeerrを呼び出しません。リクエストは保存されたままです。",
+          "untested": "「リクエストを有効化」をオンにできるよう、接続をテストしてください。",
+          "instance_changed": "判断するまで、Slouchcatはリクエストを送信せず、同期もしません。"
+        },
+        "connection": {
+          "title": "接続",
+          "noAddress": "アドレスなし"
+        },
+        "enabled": "Seerrを使用",
+        "enabledHelp": "オフ：SlouchcatはSeerrを呼び出しません。リクエストは保存されたままです。",
+        "url": "アドレス",
+        "urlHelp": "例：http://192.168.1.50:5055。Slouchcatはこのアドレスにのみ接続します。ホームネットワーク内のアドレスも使えます。リダイレクトには従いません。",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "APIキー",
+        "apiKeyHelp": "Seerrの「設定 › 一般」で確認できます。保存済みのキーを維持するには空欄のままにしてください。別のマシン上のアドレスでは、キーを入力し直す必要があります。",
+        "clearBody": "アドレスとキーが削除されます。リクエストは保存されたままですが、送信も同期もされなくなります。",
+        "test": {
+          "action": "接続をテスト",
+          "running": "接続を確認中…",
+          "listLabel": "接続テストの結果",
+          "passed": "すべてのチェックに合格しました。",
+          "passedWithHints_other": "接続済み · ヒント{{count}}件",
+          "hintsHelp": "ヒントがあっても動作は止まりません。Seerrで設定を見直すとよい点を示しています。",
+          "failed": "テストに失敗しました：{{checks}}。"
+        },
+        "level": {
+          "ok": "合格",
+          "warn": "ヒント",
+          "fail": "失敗"
+        },
+        "checks": {
+          "reachable": "接続",
+          "version": "バージョン",
+          "key_valid": "キーの有効性",
+          "manage_users": "ユーザーの作成と変更",
+          "instance": "インスタンス",
+          "act_as_user": "ユーザーとしての操作",
+          "csrf_off": "SeerrのCSRF保護がオフ",
+          "radarr": "Seerr内のRadarr",
+          "sonarr": "Seerr内のSonarr",
+          "local_login": "Seerrのローカルログイン",
+          "tvdb_seasons": "TVDBのシーズン情報",
+          "password_transport": "パスワードの暗号化",
+          "radarr_tags": "プロフィールタグ用のRadarr",
+          "sonarr_tags": "プロフィールタグ用のSonarr"
+        },
+        "checkOk": {
+          "reachable": "Seerrが応答しています。",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerrがキーを受け付けました。",
+          "manage_users": "このキーで、Seerrにアカウントを作成し、権限、上限、パスワードを設定できます。",
+          "instance": "セットアップ時と同じインスタンスです。",
+          "act_as_user": "リクエストには、紐付けたユーザーの権限、上限、自動承認が適用されます。",
+          "csrf_off": "書き込みの呼び出しが届きます。",
+          "radarr_other": "映画のリクエストはRadarr（{{count}}台のサーバー）に送られます。",
+          "sonarr_other": "TV番組のリクエストはSonarr（{{count}}台のサーバー）に送られます。",
+          "local_login": "作成されたユーザーは、SlouchcatのメールアドレスとパスワードでSeerrにログインします。",
+          "tvdb_seasons": "Seerr、Sonarr、Slouchcatのライブラリで、シーズンの数え方が同じです。",
+          "password_transport": "パスワードは暗号化して送られるか、ホームネットワーク内にとどまります。",
+          "radarr_tags": "Radarrがプロフィールタグとダウンロードの進行状況に応答しています。",
+          "sonarr_tags": "Sonarrがプロフィールタグとダウンロードの進行状況に応答しています。"
+        },
+        "checkIssue": {
+          "notTested": "未確認です。",
+          "timeout": "接続できません：タイムアウトしました。",
+          "refused": "接続できません：接続が拒否されました。",
+          "redirect": "接続できません：リダイレクトは許可されていません。",
+          "unreachable": "接続できません。Seerrが起動しているか、アドレスが正しいか確認してください。",
+          "versionNotVerified": "未検証のバージョンです。テスト済みはJellyseerr 2.7とSeerr 3.xです。",
+          "keyNotUserOne": "このキーはSeerrのオーナー（ユーザー1）のものではありません。",
+          "keyInvalid": "Seerrがキーを拒否しました。",
+          "manageUsers": "このキーではユーザーを作成できないため、アカウントをSeerrで作成できません。",
+          "instance": "別のSeerrインスタンスを検出しました。",
+          "notTestable": "確認できません：Seerrにユーザー1以外のユーザーがいません。",
+          "waiting": "別のインスタンスが判断を待っている間は確認しません。",
+          "actAsUser": "機能していません：リクエストが管理者として出されてしまいます。",
+          "csrfOn": "オン：書き込みの呼び出しが失敗します。Seerrのネットワーク設定でオフにしてください。",
+          "noRadarr": "SeerrにRadarrがありません：映画のリクエストが処理されません。",
+          "noSonarr": "SeerrにSonarrがありません：TV番組のリクエストが処理されません。",
+          "localLoginOff": "作成されたユーザーがSeerrにログインできません。Seerrの「設定 › ユーザー」で「ローカルログイン」をオンにしてください。",
+          "noSeasonSource": "Seerrがシーズン情報の取得元を示していません。",
+          "tmdbSeasons": "SeerrはシーズンをTMDBから読み込んでいます。SonarrやSlouchcatのライブラリと同じくTVDBを推奨します。そうしないと、シーズン番号がずれることがあります。",
+          "passwordTransport": "パスワードが暗号化されずにインターネットを通ります。httpsを使ってください。",
+          "arrNotConfirmed": "Seerrから取得したアドレスはまだ確認されていません。「RadarrとSonarr」でテストしてください。",
+          "arrUnreachable": "接続できません：プロフィールタグもダウンロードの進行状況も使えません。",
+          "csrfUnexpected": "Seerrが空の要求を拒否せずに受け付けました。リクエストは送信されますが、Seerrのバージョンを確認してください。"
+        },
+        "instance": {
+          "title": "別のSeerrインスタンスを検出しました",
+          "body": "このアドレスで、セットアップ時とは別のSeerrインスタンスが応答しています。判断するまで、Slouchcatはリクエストを送信せず、同期もしません。",
+          "confirm": "割り当てを確定",
+          "reset": "割り当てを削除",
+          "resetTitle": "Seerrへの割り当てを削除しますか？",
+          "resetBody": "すべてのアカウントのSeerrユーザーと、読み込んだユーザー一覧が削除されます。その後、Slouchcatは新しいインスタンスのユーザーを読み込みます。",
+          "confirmed": "新しいインスタンスに切り替えました。アカウントのSeerrユーザーはそのままです。",
+          "resetDone": "割り当てを削除しました。Slouchcatは新しいインスタンスのユーザーを読み込みます。"
+        },
+        "log": {
+          "title": "ログ",
+          "empty": "まだ記録はありません。",
+          "caption": "Seerrへの最近の呼び出し",
+          "at": "時刻",
+          "call": "呼び出し",
+          "result": "結果",
+          "duration": "所要時間",
+          "error": "エラー",
+          "noAnswer": "応答なし",
+          "ms": "{{ms}} ms",
+          "note": "ヘッダーやキーは記録しません。最大20件です。",
+          "entries_other": "{{count}}件",
+          "errors_other": "エラー{{count}}件"
+        },
+        "usersLink": "アカウントのSeerrユーザー",
+        "sync": {
+          "title": "同期",
+          "summary_other": "未完了のリクエスト{{count}}件",
+          "open": "未完了のリクエスト",
+          "queued": "送信待ち",
+          "last": "Seerrへの最終接続",
+          "never": "なし",
+          "every": "Slouchcatは5分ごとにリクエストをSeerrと同期します。",
+          "requestsLink": "リクエスト一覧へ"
+        },
+        "arr": {
+          "title": "RadarrとSonarr（プロフィールタグと進行状況）",
+          "intro": "Slouchcatは、RadarrとSonarrにプロフィールごとのタグを作成し、Seerrが作品を引き渡した時点でその作品にタグを付けます。また、リクエストにダウンロードの進行状況を表示するため、リクエストされた作品のキューとファイルの状態を読み取ります。それ以外にRadarrとSonarrで変更することはありません。新しい作品は引き続きWebhookが通知します。",
+          "offNotice": "プロフィールタグとダウンロードの進行状況はオフです。SlouchcatはRadarrとSonarrを呼び出しません。",
+          "summaryOff": "オフ · プロフィールタグと進行状況はオフ",
+          "summaryTags_other": "未設定のタグ{{count}}件",
+          "summaryProgress_other": "ダウンロード{{count}}件",
+          "state": {
+            "none": "{{service}}はSeerrにありません",
+            "unconfirmed": "{{service}}は「テスト」待ち",
+            "unreachable": "{{service}}に接続できません",
+            "reachable": "{{service}}に接続できます",
+            "untested": "{{service}}はまだ呼び出していません"
+          },
+          "facts": {
+            "address": "アドレス",
+            "state": "状態",
+            "tagRequests": "SeerrのTag Requests",
+            "tags": "プロフィールタグ",
+            "progress": "ダウンロードの進行状況"
+          },
+          "address": {
+            "seerr": "Seerrから取得：{{address}}",
+            "own": "独自のアドレス：{{address}}"
+          },
+          "addressNone": "なし：Seerrに{{service}}の既定のサーバーがありません。",
+          "lastAt": "最終：{{time}}",
+          "tagRequestsOn": "オン",
+          "tagRequestsOff": "オフ · 推奨：オンにすると、すべての作品にアカウントのタグも付きます。",
+          "tags": "設定済み{{set}} · 未設定{{pending}} · 失敗{{failed}}",
+          "progressOff": "オフ · リクエスト › 設定で変更",
+          "progressError": "進行状況を読み取れません：{{reason}}",
+          "progressOn_other": "オン · 進行状況のあるリクエスト{{count}}件",
+          "progressAt_other": "オン · 進行状況のあるリクエスト{{count}}件 · 最終読み取り{{time}}",
+          "test": {
+            "action": "テスト",
+            "label": "{{service}}をテスト",
+            "noHost": "このアドレス",
+            "passed": "{{service}}が{{host}}で応答し、Seerrのキーが有効です。アドレスを確認しました。",
+            "keyRefused": "{{service}}は{{host}}で応答していますが、Seerrのキーを受け付けません。",
+            "unreachable": "{{host}}の{{service}}に接続できません。",
+            "ownHint": "Docker内部の名前などで、SlouchcatがSeerrのアドレスに接続できない場合は、下に独自のアドレスを入力してください。",
+            "notInSeerr": "Seerrに{{service}}の既定のサーバーがありません。",
+            "notInSeerrBody": "Seerrで4Kではない既定のサーバーをセットアップしてください。それがないと、Slouchcatはタグを付けず、進行状況も読み取りません。"
+          },
+          "own": "{{service}}の独自のアドレス",
+          "ownHelp": "空欄：Seerrのアドレスを使います。Docker内部の名前などで、SlouchcatがSeerrのアドレスに接続できない場合にのみ必要です。キーは常にSeerrから取得します。",
+          "ownPlaceholder": "Seerrのアドレス",
+          "saveLabel": "RadarrとSonarrの独自のアドレスを保存",
+          "saved": "独自のアドレスを保存しました。",
+          "toSettings": "プレフィックスとダウンロードの進行状況 · リクエスト › 設定",
+          "toUsers": "プロフィールごとのタグ名 · Seerrユーザー",
+          "toWebhooks": "RadarrとSonarrのWebhook · 変更なし、手動でセットアップ"
+        },
+        "hook": {
+          "title": "即時シグナル",
+          "on": "セットアップ済み",
+          "off": "オフ",
+          "intro": "最大5分待たずに、Seerrがすぐに同期を開始させます。同期が基本であることに変わりはありません。",
+          "name": "Seerr",
+          "create": "アドレスを生成",
+          "address": "アドレス",
+          "last": "最新のシグナル",
+          "never": "まだ一度もシグナルを受け取っていません。",
+          "single": "SeerrのWebhookの送信先は1つだけです。すでに別の用途に使っている場合は、このアドレスで置き換えられます。",
+          "where": "Seerrの「設定 › 通知 › Webhook」で、このアドレスを「Webhook URL」に、このテンプレートを「JSON Payload」に入力します。",
+          "payload": "Seerr用のJSONテンプレート",
+          "copyPayload": "テンプレートをコピー",
+          "typesIntro": "Seerrで次の通知の種類にチェックを入れてください：",
+          "types": "Seerrの通知の種類",
+          "copyTypes": "種類をコピー",
+          "copied": "コピーしました。",
+          "copyFailed": "クリップボードにアクセスできません。テキストを選択したので、Ctrl+Cでコピーしてください。",
+          "log": "最近のシグナル"
+        },
+        "accounts_other": "Seerrユーザー：{{count}}件のアカウント中{{opened}}件"
       }
     },
     "accounts": {
@@ -3844,8 +4200,7 @@
       "columns": {
         "email": "メール",
         "role": "役割",
-        "rating": "年齢区分",
-        "libraries": "ライブラリ",
+        "access": "アクセス",
         "profiles": "プロフィール",
         "lastSeen": "最終利用",
         "channels": "チャンネル",
@@ -3876,7 +4231,14 @@
         "currentPasswordHint": "本人確認に使用します。",
         "wrongPassword": "現在のパスワードが正しくありません。",
         "unchanged": "メールアドレスを変更するか、新しいパスワードを入力してください。",
-        "saved": "アカウントを保存しました。"
+        "saved": "アカウントを保存しました。",
+        "seerrPassword": {
+          "synced": "新しいパスワードはSeerrでも有効です。",
+          "next_login": "新しいパスワードはSeerrでも有効です。",
+          "off": "Seerrのパスワードは同期されないため、変わりません。",
+          "admin": "Seerrの管理者であるため、Seerrのパスワードは変わりません。",
+          "external": "SeerrにはJellyfin、Emby、Plexでログインしているため、Seerrのパスワードは変わりません。"
+        }
       },
       "ownerBadge": "オーナー",
       "access": {
@@ -3887,7 +4249,8 @@
         "heading": "アクセス権",
         "save": "アクセス権を保存",
         "saved": "{{email}}のアクセス権を保存しました。",
-        "adminHint": "管理者の区分は常に「18歳以上」で、すべてのライブラリを利用できます。「アクセス権」は管理権限のないアカウントにのみあります。"
+        "adminHint": "管理者の区分は常に「18歳以上」で、すべてのライブラリを利用できます。「アクセス権」は管理権限のないアカウントにのみあります。",
+        "limitRefused": "アクセスは保存しましたが、リクエストの上限は保存できませんでした：{{reason}}"
       },
       "role": {
         "promote": {
@@ -3956,7 +4319,8 @@
           "libraries": "ライブラリ",
           "detail": "有効期限／承諾",
           "actions": "操作"
-        }
+        },
+        "seerrHint": "招待が承諾されると、Slouchcatは同じメールアドレスとパスワードでSeerrにもアカウントを作成します。"
       },
       "discard": "破棄",
       "status": {
@@ -3980,6 +4344,42 @@
         "mine": "自分のプロフィール",
         "of": "{{email}}のプロフィール",
         "readOnly": "プロフィールは各アカウントが管理します。"
+      },
+      "wishes": {
+        "title": "リクエスト",
+        "of": "{{email}}のリクエスト",
+        "canRequest": "作品のリクエストを許可",
+        "canRequestHelp": "すべてのプロフィールに対する上限となる設定です。どのプロフィールがリクエストできるかは、アカウントのメインプロフィールが選びます。",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "許可",
+          "not_allowed": "不許可",
+          "mapping_missing": "Seerrユーザーなし"
+        },
+        "userLine": "Seerrユーザー：{{user}}",
+        "noUser": "まだなし",
+        "change": "変更",
+        "userState": {
+          "created": "作成済み",
+          "linked": "紐付け済み",
+          "manual": "手動で選択",
+          "waiting": "Seerr待ち"
+        },
+        "linkedBy": "紐付け：{{by}}（{{date}}）",
+        "password": {
+          "synced": "パスワード同期済み",
+          "next_login": "パスワードは次回ログイン時に反映",
+          "off": "パスワードは同期しません",
+          "admin": "パスワードはSeerrのまま（管理者）",
+          "external": "Jellyfin、Emby、Plexでログイン"
+        },
+        "rightsFollow": "Seerrでの「{{name}}」の権限が調整されます。",
+        "rightsStay": "「{{name}}」はSlouchcatが作成したユーザーではないため、Seerrでの権限はそのままです。",
+        "adminLimit": "「{{name}}」はSeerrの管理者です。Seerrでは管理者に上限はありません。",
+        "limitLater": "まだSeerrユーザーがありません。Seerrにアカウントが作成されると、Slouchcatが上限を設定します。",
+        "limitFixed": "上限：{{limit}}。管理者の上限はここでは変更できません。",
+        "savedOn": "{{email}}は作品をリクエストできるようになりました。",
+        "savedOff": "{{email}}は作品をリクエストできなくなりました。"
       }
     },
     "backup": {
@@ -4493,6 +4893,57 @@
           "description": "猶予期間を過ぎてもファイルが見つからない作品を削除します。",
           "trigger": "1時間ごとのスケジュールとサーバー起動時"
         },
+        "seerr_users": {
+          "name": "Seerrユーザーを読み込む",
+          "description": "Seerrのユーザーを権限と上限とともに読み込み、Slouchcatが引き続き同じSeerrインスタンスに接続しているか確認します。",
+          "trigger": "毎日、「ユーザー一覧を再読み込み」、Seerrとの接続を保存した後"
+        },
+        "seerr_provision": {
+          "name": "Seerrでアカウントを作成",
+          "description": "アカウントのSeerrユーザーを作成または紐付けし、共有ユーザー「slouchcat-gaeste」を作成し、削除されたアカウントのSeerrユーザーから権限を外します。",
+          "trigger": "「Seerrで作成」、「すべて作成」、招待の承諾、「リクエストを有効化」をオンにしたとき、待機中のアカウント向けにSeerrユーザーを読み込んだ後、アカウントの削除"
+        },
+        "wishes_submit": {
+          "name": "リクエストをSeerrに送信",
+          "description": "送信トレイで待機中のリクエストをSeerrに送信し、既存のSeerrのリクエストがあればそれに追加します。",
+          "trigger": "リクエスト後にSeerrがすぐに応答しない場合、間隔を広げながら最大24時間；同期の後、期限が来たリクエストについて"
+        },
+        "wishes_withdraw": {
+          "name": "取り下げたリクエストをSeerrで削除",
+          "description": "取り下げたリクエストについて、まだ承認されていない自分のSeerrのリクエストを削除します。すでに承認されていた場合はそのまま残り、リクエストは再び未完了に戻ります。",
+          "trigger": "「マイリクエスト」での「取り下げ」；Seerrに接続できなかった間は同期の後"
+        },
+        "wishes_sync": {
+          "name": "リクエストをSeerrと同期",
+          "description": "変更されたリクエストをSeerrから読み込んでリクエストの状態を更新し、長く変化のないリクエストを個別に確認し、期限が来たリクエストを送信トレイから再送信します。初回の同期ではすべてのリクエストを読み込みます。",
+          "trigger": "5分ごとのスケジュール、「今すぐ同期」、SeerrのWebhookからのシグナル",
+          "progress": "読み込んだページ：{{total}}中{{done}}"
+        },
+        "wishes_reconcile": {
+          "name": "リクエストをライブラリと照合",
+          "description": "プロフィールで映画、またはリクエストしたすべてのシーズンを再生できるようになると、すぐにリクエストを視聴可能として通知します。",
+          "trigger": "1時間ごとのスケジュール、リクエストされた作品をライブラリで認識した後、Seerrとの同期の後"
+        },
+        "wishes_tag": {
+          "name": "プロフィールタグを付ける",
+          "description": "Slouchcatからリクエストされ、処理中の映画とTV番組に、RadarrとSonarrでプロフィールのタグを付けます。タグが外されることはありません。",
+          "trigger": "Seerrとの同期の後、15分ごと、手動"
+        },
+        "wishes_progress": {
+          "name": "ダウンロードの進行状況を読み取る",
+          "description": "RadarrとSonarrのキューを読み取り、処理中のリクエストについて、検索中、ダウンロード中、インポート中のいずれかを表示します。RadarrとSonarrでは何も変更しません。",
+          "trigger": "処理中のリクエストがあり、ダウンロードの進行状況がオンの間、1分ごと"
+        },
+        "wishes_discover": {
+          "name": "リクエスト用リストを事前読み込み",
+          "description": "リクエストできるプロフィールの言語と年齢区分ごとに、「見つける」の行をSeerrからキャッシュに読み込み、1日より古いリストを削除します。各作品はプロフィールごとに改めて確認されます。",
+          "trigger": "1時間ごとのスケジュール、リクエストが有効で、「見つける」「映画」「TV番組」「検索」のページがオンの間"
+        },
+        "wishes_import": {
+          "name": "Seerrのリクエストを取り込む",
+          "description": "紐付けたSeerrユーザーがSeerrで直接出した、未完了のリクエストと最近視聴可能になったリクエストを、そのアカウントのメインプロフィールのリクエストとして取り込みます（「Seerrで作成済み」）。共有ユーザーのリクエストは対象外です。通知は送信されません。",
+          "trigger": "アカウントのSeerrユーザーの紐付け、選択、変更、「リクエストを取り込む」"
+        },
         "segments_detect": {
           "name": "イントロとエンディングを検出",
           "description": "「イントロをスキップ」のために、エピソードのイントロとエンディングを検出します。",
@@ -4618,6 +5069,16 @@
           "description": "エピソードを配信元から読み込み、ファイルとしてポッドキャストのフォルダーに保存します。",
           "trigger": "「保存」設定時の計画、「不足分を読み込む」、エピソードごとの「読み込む」から。配信元ごとに一度に1件",
           "progress": "バイト：{{done}} / {{total}}"
+        },
+        "series_catalog": {
+          "name": "TV番組のシーズン一覧を取得",
+          "description": "ライブラリの各TV番組について、シーズンとエピソード数、放送状況、次のエピソードをTMDBから読み込みます。7日後に再読み込みします。",
+          "trigger": "毎日のスケジュール、TV番組の照合後"
+        },
+        "titles_refresh": {
+          "name": "ライブラリにない作品を更新",
+          "description": "ライブラリにない作品の詳細、年齢区分、予告編を、7日後にTMDBから再読み込みします。",
+          "trigger": "毎日のスケジュール"
         },
         "trakt_refresh": {
           "name": "スポットライトのリストを取得",
@@ -5027,6 +5488,476 @@
         "changed": "このパスには現在、別のファイルがあります"
       },
       "changed": "その間に変更がありました。もう一度確認してください。下のリストを再読み込みしました。何も削除されていません。"
+    },
+    "wishes": {
+      "title": "リクエスト",
+      "intro": "各アカウントには、同じログイン情報の専用ユーザーがSeerrにあります。そのアカウントのプロフィールは、このユーザーとしてリクエストします。権限、上限、承認はこのユーザーの設定に従います。",
+      "separator": " · ",
+      "tabs": {
+        "label": "リクエストのセクション",
+        "users": "Seerrユーザー",
+        "settings": "設定",
+        "requests": "リクエスト一覧",
+        "openCount_other": "未完了のリクエスト{{count}}件",
+        "withoutShort": "未設定{{number}}件",
+        "withoutCount_other": "Seerrユーザーのないアカウントが{{count}}件"
+      },
+      "strip": {
+        "label": "概要",
+        "accounts": "アカウント",
+        "opened": "Seerrにあり",
+        "openedNote": "作成済みまたは紐付け済み",
+        "without": "ユーザーなし",
+        "waiting_other": "{{count}}件がSeerr待ち",
+        "password": "パスワード未反映",
+        "passwordNote": "次回ログイン時に反映"
+      },
+      "limit": {
+        "movie_other": "{{count}}本 / {{days}}日",
+        "movieNone": "映画は上限なし",
+        "tv_other": "{{count}}シーズン / {{days}}日",
+        "tvNone": "シーズンは上限なし"
+      },
+      "settings": {
+        "atOnce": "変更はすぐに反映されます。",
+        "refused": "変更されていません：{{reason}}",
+        "switchedOn": "「{{name}}」をオンにしました。すぐに反映されます。",
+        "switchedOff": "「{{name}}」をオフにしました。すぐに反映されます。",
+        "choiceSaved": "「{{name}}」：{{value}}。すぐに反映されます。",
+        "limitSaved": "既定の上限：{{limit}}。「既定」のすべてのアカウントにすぐに反映されます。",
+        "basics": "基本",
+        "where": "リクエストできる場所",
+        "rules": "ルール",
+        "enabled": "リクエストを有効化",
+        "enabledHelp": "権限のあるプロフィールが、ライブラリにない作品をリクエストできます。オフ：ライブラリにない作品は誰にも表示されず、未完了のリクエストはSeerrで引き続き処理されます。",
+        "enabledLocked": "保存済みの接続のテストに成功してからオンにできます。",
+        "toConnection": "接続へ",
+        "allowMovies": "映画を許可",
+        "allowMoviesHelp": "すべてのプロフィールに適用されます。オフ：「映画をリクエスト」が表示されません。",
+        "allowShows": "TV番組を許可",
+        "allowShowsHelp": "すべてのプロフィールに適用されます。オフ：「TV番組をリクエスト」と「シーズンをリクエスト」が表示されません。",
+        "fromSearch": "検索からリクエスト",
+        "fromSearchHelp": "「ライブラリにない作品」のセクションです。オフ：このセクションは表示されません。",
+        "fromDetail": "詳細ページからリクエスト",
+        "fromDetailHelp": "ライブラリにあるTV番組のページに、未取得のシーズンを表示します。オフ：TV番組のページには、ライブラリにあるものだけが表示されます。",
+        "alreadyRequested": "リクエスト済みの作品",
+        "alreadyRequestedHelp": {
+          "join": "参加：別のプロフィールが未完了のリクエストに参加し（「通知を受け取る」）、同じく通知を受け取ります。Seerrに2件目のリクエストは送られません。",
+          "status": "状態のみ表示：別のプロフィールには「リクエスト済み」と表示されますが、参加できず、通知も受け取りません。"
+        },
+        "alreadyRequestedOptions": {
+          "join": "参加",
+          "status": "状態のみ表示"
+        },
+        "unmapped": "Seerrユーザーのないアカウント",
+        "unmappedHelp": {
+          "fallback": "共有ユーザー：専用ユーザーのないアカウントはすべてslouchcat-gaesteとしてリクエストし、既定の上限を共有します。このユーザーはSlouchcatがSeerrに自動で作成します。",
+          "deny": "許可しない：専用ユーザーのないアカウントは、Seerrユーザーができるまでリクエストできません。"
+        },
+        "unmappedOptions": {
+          "fallback": "共有ユーザー",
+          "deny": "許可しない"
+        },
+        "newAccountsCanRequest": "新しいアカウントにリクエストを許可",
+        "newAccountsCanRequestHelp": "「アカウントを招待」ダイアログのスイッチの初期値です。既存のアカウントは変わりません。",
+        "allowWithdraw": "取り下げを許可",
+        "allowWithdrawHelp": "リクエストが承認されるまでの間、「マイリクエスト」に「取り下げ」ボタンを表示します。",
+        "pinExternalHideTitle": "PINプロフィールの外部メッセージで作品名を伏せる",
+        "pinExternalHideTitleHelp": "メール、Web Push、Telegramでは、作品名を出さずにプロフィール名だけを伝えます。",
+        "defaultLimit": "既定の上限",
+        "limitPerAccount": "アカウントごとの上限",
+        "limitPerAccountHelp": "アカウントのすべてのプロフィールの合計に適用されます。Seerrは直近の期間で数え、Seerrで直接出したリクエストも含めます。却下されたリクエストと、参加しただけのリクエストは数えません。管理者に上限はありません。",
+        "movieLimit": "映画：本数",
+        "movieDays": "映画：日数",
+        "tvLimit": "シーズン：数",
+        "tvDays": "シーズン：日数",
+        "limitRange": "{{low}}から{{high}}までの整数を入力してください。",
+        "perAccount": "アカウントごとに変更",
+        "perAccountHelp": "「アカウント」で、アカウントごとに独自の上限または無制限を設定できます。",
+        "toAccounts": "アカウントへ",
+        "accountsInSeerr": "Seerrのアカウント",
+        "provisionOn": "新しいアカウントを作成",
+        "provisionOff": "新しいアカウントを作成しない",
+        "syncOn": "パスワードを同期",
+        "syncOff": "パスワードを同期しない",
+        "provisionAccounts": "新しいアカウントをSeerrで作成",
+        "provisionAccountsHelp": "招待が承諾されると、Slouchcatは同じメールアドレスとパスワードでSeerrにもアカウントを作成します。同じメールアドレスのユーザーがすでにSeerrにいる場合は、すぐに紐付けます。メールアドレスは新しいアカウント本人が入力するもので、確認はされません。そのため、概要にはこうした紐付けが7日間表示されます。",
+        "syncPassword": "パスワードを同期",
+        "syncPasswordHelp": "パスワードの設定時や変更時、Slouchcatへのログイン時に、SlouchcatはパスワードをSeerrに渡します。平文で保存することはありません。これにはSeerrの「ローカルログイン」が必要です。もともとSeerrにいて、管理者が紐付けたユーザーは、自分のパスワードのままです。",
+        "visibleInSeerr": "アカウントのログイン情報でSeerrにログインすると、そのアカウントのすべてのプロフィールのリクエストが、PIN付きのプロフィールのものも含めて表示されます。また、Seerrは作品名入りの通知を独自に送信します。作成されたユーザーについては、Seerrでその通知をオフにしておいてください。",
+        "existing": "既存のアカウント",
+        "existingHelp": "アカウントごとにSeerrユーザーを選ぶか、紐付けを解除します。",
+        "toUsers": "Seerrユーザーへ",
+        "links": "関連ページ",
+        "who": "リクエストできるユーザー",
+        "whoHelp": "リクエストできるかどうかは「アカウント」でアカウントごとに設定します。プロフィールごとの設定はメインプロフィールが決めます。",
+        "connection": "Seerrとの接続",
+        "connectionHelp": "アドレス、キー、テスト、ログ。",
+        "users": "Seerrユーザー",
+        "usersHelp": "どのアカウントがどのSeerrユーザーとしてリクエストするか、パスワードと上限も含めて。",
+        "arr": "RadarrとSonarr：プロフィールタグと進行状況",
+        "profileTags": "RadarrとSonarrでプロフィールタグを付ける",
+        "profileTagsHelp": "SeerrがRadarrまたはSonarrに作品を引き渡した時点で、その作品にプロフィールのタグを付け、付けられなかったタグも後から付けます。RadarrとSonarrでそれ以外の変更はしません。",
+        "tagPrefix": "プレフィックス",
+        "tagPrefixHelp": "英小文字、数字、ハイフンが使えます。例：sc-noah。新しいタグに適用され、既存のタグはそのままです。個々のプロフィールのタグは「Seerrユーザー」で変更します。",
+        "tagPrefixInvalid": "1～10文字で、英小文字a–z、数字0–9、ハイフンのみ使えます。保存されていません。",
+        "tagPrefixSaved": "プレフィックス「{{prefix}}」：新しいタグは{{prefix}}noahのようになります。付けたタグはそのままです。",
+        "showProgress": "ダウンロードの進行状況を表示",
+        "showProgressHelp": "処理中のリクエストについて、作品が検索中、ダウンロード中、インポート中のいずれかを表示します。そのため、処理中のリクエストがある間、SlouchcatはRadarrとSonarrのキューを1分ごとに読み取ります。",
+        "arrSummary": "タグ：{{tags}} · プレフィックス：{{prefix}} · 進行状況：{{progress}}",
+        "on": "オン",
+        "off": "オフ",
+        "arrLinks": "RadarrとSonarrへのアクセス",
+        "arrLinksHelp": "アドレスとキーはSeerrから取得します。プロフィールごとの名前は「Seerrユーザー」にあります。",
+        "toArr": "連携 › Seerr",
+        "discoverPages": "「見つける」「映画」「TV番組」「検索」のページ",
+        "discoverPagesHelp": "「リクエスト」エリアのタブです。オフ：「マイリクエスト」のみ表示されます。",
+        "basicsSummary": "リクエスト：{{enabled}} · 映画：{{movies}} · TV番組：{{shows}}",
+        "basicsSummaryLocked": "リクエスト：テストに合格するまでオフ · 映画：{{movies}} · TV番組：{{shows}}",
+        "whereSummary": "検索：{{search}} · 詳細ページ：{{detail}} · 見つける：{{discover}}",
+        "rulesSummary": "{{already}} · Seerrユーザーなし：{{unmapped}} · 取り下げ：{{withdraw}}",
+        "linksConnection": "Seerr：{{state}}",
+        "usersCount_other": "{{count}}件のアカウント中{{opened}}件を作成済み",
+        "limitHintCount": "{{low}}～{{high}}。0は上限なしです。",
+        "limitHintDays": "{{low}}～{{high}}日。"
+      },
+      "users": {
+        "caption": "アカウントとそのSeerrユーザー",
+        "columns": {
+          "account": "アカウント",
+          "user": "Seerrユーザー",
+          "password": "パスワード",
+          "rights": "Seerrでの権限",
+          "email": "メールアドレス",
+          "type": "種類",
+          "limit": "上限"
+        },
+        "noUser": "なし",
+        "passwordFollows": "ユーザー作成時に設定",
+        "rightsFollow": "リクエスト権限に連動",
+        "gone": "ユーザー削除済み",
+        "state": {
+          "created": "Slouchcatが作成",
+          "linked": "同じメールアドレスで紐付け",
+          "manual": "手動で紐付け",
+          "waiting": "Seerrに接続でき次第作成",
+          "none": "未作成"
+        },
+        "password": {
+          "synced": "Slouchcatと同じ",
+          "next_login": "次回Slouchcatにログインしたときに反映",
+          "off": "同期しない",
+          "admin": "Seerrのまま（管理者）",
+          "external": "Jellyfin、Emby、Plexでログイン"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "ローカル",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "管理者",
+          "both": "映画とTV番組",
+          "movies": "映画のみ",
+          "shows": "TV番組のみ",
+          "none": "権限なし"
+        },
+        "choose": "ユーザーを選択",
+        "chooseLabel": "{{email}}のSeerrユーザー",
+        "option": "{{name}}（ID {{id}}）",
+        "optionCurrent": "{{option}}（現在）",
+        "optionGone": "{{option}}（Seerrで削除済み）",
+        "optionTaken": "{{option}} · {{email}}に紐付け済み",
+        "facts": {
+          "user": "Seerrユーザー",
+          "state": "状態",
+          "password": "パスワード",
+          "rights": "Seerrでの権限",
+          "limit": "上限",
+          "right": "アカウントのリクエスト権限"
+        },
+        "linkedBy": "{{by}} · {{date}}から",
+        "by": {
+          "admin": "管理者による",
+          "invite": "招待の承諾時",
+          "email_change": "メールアドレスの変更後"
+        },
+        "since": "{{date}}から",
+        "syncedAt": "{{time}}に同期",
+        "movies": "映画",
+        "shows": "TV番組",
+        "autoApproveOn": "自動承認：あり",
+        "autoApproveOff": "自動承認：なし",
+        "followRightOn": "アカウントのリクエスト権限に連動：リクエスト可",
+        "followRightOff": "アカウントのリクエスト権限に連動：リクエスト不可",
+        "noLimitAdmin": "上限なし（Seerrの管理者）",
+        "unlimited": "無制限",
+        "mode": {
+          "default": "既定",
+          "custom": "独自",
+          "unlimited": "無制限"
+        },
+        "mayRequest": "リクエスト可",
+        "mayNotRequest": "リクエスト不可",
+        "goneTitle": "ユーザー「{{name}}」が見つかりません",
+        "goneBody": "このユーザーはSeerrにもう存在しません。別のユーザーを選ぶか、紐付けを解除してください。",
+        "selfLinked": {
+          "invite": "招待の承諾時に、メールアドレスが一致したため既存のSeerrユーザー{{name}}と紐付けました。このアカウントのものでない場合は、紐付けを解除してください。",
+          "email_change": "メールアドレスの変更後に、アドレスが一致したため既存のSeerrユーザー{{name}}と紐付けました。このアカウントのものでない場合は、紐付けを解除してください。"
+        },
+        "warning": {
+          "nothing": "「{{name}}」にはSeerrでリクエストする権限がありません。すべてのリクエストが失敗します。Seerrでこのユーザーに「リクエスト」の権限を与えるか、別のユーザーを選んでください。",
+          "noShows": "「{{name}}」はTV番組をリクエストできません。TV番組のリクエストは失敗しますが、映画は問題ありません。",
+          "noMovies": "「{{name}}」は映画をリクエストできません。映画のリクエストは失敗しますが、TV番組は問題ありません。"
+        },
+        "change": "Seerrユーザーを変更",
+        "unlink": "紐付けを解除",
+        "chooseHelp": "ほかのアカウントに紐付けられていないユーザーを選べます。権限とパスワードはSeerrの設定のままです。",
+        "chooseHelpStale": "ほかのアカウントに紐付けられていないユーザーを選べます。表示されているのは最後に読み込んだユーザー一覧です。",
+        "taken": "このSeerrユーザーは、すでに別のアカウントに紐付けられたか、選択できなくなりました。選択をリセットしました。",
+        "linked": "{{email}}は今後「{{name}}」としてリクエストします。権限と承認はこのユーザーの設定に従います。",
+        "unlinked": "{{email}}の紐付けを解除しました。「{{name}}」はSeerrに残ります。",
+        "reloading": "ユーザー一覧を再読み込みしています。",
+        "notConfigured": "Seerrが未設定です",
+        "notConfiguredBody": "接続がないため、ユーザー一覧はありません。当面、すべてのアカウントにSeerrユーザーはありません。",
+        "toConnection": "連携 › Seerrへ",
+        "toDecision": "判断する",
+        "instanceBody": "連携 › Seerrで判断するまで、Slouchcatはリクエストを送信せず、同期もしません。一覧には最後の状態が表示されています。",
+        "goneCount_other": "{{count}}件のアカウント：Seerrでユーザーが削除されました",
+        "goneCountBody": "これらのアカウントに別のユーザーを選ぶか、紐付けを解除してください。",
+        "withoutCount_other": "Seerrユーザーのないアカウントが{{count}}件",
+        "withoutFallback": "それまでは共有ユーザーslouchcat-gaesteとしてリクエストします（ルール「Seerrユーザーのないアカウント」）。",
+        "withoutDeny": "「Seerrユーザーのないアカウント」が「許可しない」になっている間は、リクエストできません。",
+        "toSettings": "設定へ",
+        "newAccounts": "新しいアカウント：{{provision}} · パスワード：{{password}}",
+        "provisionOn": "Seerrで作成する",
+        "provisionOff": "作成しない",
+        "syncOn": "同期する",
+        "syncOff": "同期しない",
+        "changeSettings": "変更",
+        "shared": "共有ユーザー：{{name}}",
+        "sharedLater": "共有ユーザー：リクエストが有効になると作成",
+        "reload": "ユーザー一覧を再読み込み",
+        "unlinkedTitle": "アカウントのないSeerrユーザー",
+        "unlinkedCount_other": "{{count}}人のユーザー",
+        "unlinkedEmpty": "すべてのSeerrユーザーがアカウントに紐付けられています。",
+        "noEmail": "メールアドレスなし",
+        "noLimit": "上限なし",
+        "limitOnOpen": "アカウント作成時に設定：{{limit}}",
+        "limitChange": "上限を変更",
+        "quotaAt": "Seerrから取得した状態（{{time}}）",
+        "provision": "Seerrで作成",
+        "retry": "再試行",
+        "provisionOffHint": "「新しいアカウントをSeerrで作成」がオフになっています。",
+        "sameEmailTitle": "Seerrにはすでに「{{name}}」がいます",
+        "sameEmailBody": "メールアドレスが同じです。「Seerrで作成」を押すと、2人目を作成せずにこのユーザーと紐付けます。",
+        "waitingTitle": "Seerr待ち",
+        "waitReason": {
+          "unreachable": "作成時にSeerrに接続できませんでした。次回の同期で再試行します。",
+          "server": "作成時にSeerrからエラーが返されました。次回の同期で再試行します。",
+          "timeout": "作成時にSeerrが時間内に応答しませんでした。次回の同期で再試行します。",
+          "key_invalid": "SeerrがAPIキーを拒否しました。接続が正しくなると、次回の同期で再試行します。",
+          "instance_changed": "別のSeerrインスタンスが判断を待っています。それまで、Slouchcatはアカウントを作成しません。",
+          "seerr_user_taken": "このメールアドレスのSeerrユーザーは、すでに別のアカウントに紐付けられているか、共有ユーザーです。ユーザーを手動で選んでください。",
+          "other": "作成できませんでした（{{reason}}）。次回の同期で再試行します。",
+          "seerr_user_privileged": "このSeerrユーザーはSeerrを管理しています。Slouchcatが自動で紐付けることはありません。確認のうえで紐付けるか、別のユーザーを選んでください。",
+          "refused": "Seerrがアカウントの作成を拒否しました。次回の同期で再試行します。"
+        },
+        "emailTakenTitle": "Seerrが新しいメールアドレスを拒否しました",
+        "emailTakenBody": "このアドレスは、すでに別のSeerrユーザーが使っています。「{{name}}」のSeerrでのメールアドレスは以前のままで、アカウントは引き続きこのユーザーとしてリクエストします。",
+        "provisioned": {
+          "created": "{{email}}をSeerrで作成しました。",
+          "linked": "{{email}}をSeerrユーザー「{{name}}」と紐付けました。",
+          "waiting": "まだSeerrで作成されていません。{{email}}は待機中で、次回の同期で再試行します。",
+          "privileged": "{{email}}は待機中です。このメールアドレスのSeerrユーザーはSeerrを管理しています。",
+          "taken": "{{email}}は待機中です。このメールアドレスのSeerrユーザーは、すでに別のアカウントに紐付けられています。ユーザーを手動で選んでください。"
+        },
+        "passwordNext": "次回ログイン時にパスワードを再反映",
+        "passwordOff": "パスワードを同期しない",
+        "passwordNextDone": "{{email}}のパスワードは、次回ログイン時にSeerrに送られます。",
+        "passwordOffDone": "{{email}}のパスワードはSeerrと同期されなくなりました。",
+        "passwordSyncOff": "パスワードの同期はオフです。",
+        "passwordNote": {
+          "admin": "パスワードは同期しません。「{{name}}」はSeerrの管理者で、そのパスワードはSeerrのままです。",
+          "external": "パスワードは同期しません。「{{name}}」は独自のパスワードではなく、Jellyfin、Emby、Plexでログインしています。"
+        },
+        "provisionAll": "すべて作成",
+        "provisionAllTitle": "すべてのアカウントをSeerrで作成しますか？",
+        "provisionAllBody": "同じメールアドレスで紐付け：{{link}} · Seerrで新規作成：{{create}}。",
+        "provisionAllWaits": "現在Seerrに接続されていません。アカウントは待機し、次回の同期で作成されます。",
+        "provisionAllQueued": "作成を実行中：紐付け{{link}}件、新規作成{{create}}件。",
+        "profiles": {
+          "title": "プロフィールとタグ",
+          "help": "リクエストがRadarrとSonarrに届くと、各プロフィールに独自のタグが付きます。付けたタグは、名前が変わってもそのままです。",
+          "none": "このアカウントにはプロフィールがありません。",
+          "custom": "独自の名前",
+          "change": "変更",
+          "changeLabel": "{{profile}}のタグを変更",
+          "field": "{{profile}}のタグ名",
+          "fieldHelp": "英小文字a–z、数字0–9、ハイフンのみ使えます。",
+          "invalid": "使えるのは英小文字a–z、数字0–9、ハイフンのみで、最大64文字です。",
+          "save": "保存",
+          "saveLabel": "{{profile}}のタグを保存",
+          "cancel": "キャンセル",
+          "reset": "リセット",
+          "resetLabel": "{{profile}}のタグをプレフィックスによる名前にリセット",
+          "saved": "{{profile}}：タグは{{name}}になりました。",
+          "tagsOff": "プロフィールタグはオフです（リクエスト › 設定）。"
+        },
+        "takeOver": {
+          "title": "Seerrのリクエスト",
+          "help": "Seerrで直接出されたリクエストは、「Seerrで作成済み」の印が付いたメインプロフィールのリクエストになります。プロフィールタグは付きません。",
+          "counting": "Seerrのリクエストを数えています…",
+          "none": "Seerrにリクエストはありません。",
+          "action_other": "Seerrのリクエスト{{count}}件を取り込む",
+          "queued_other": "{{name}}のリクエスト{{count}}件を取り込んでいます。",
+          "running": "リクエストを取り込んでいます。件数は同期の後に表示されます。"
+        },
+        "linkPrivileged": "このまま紐付ける…",
+        "privilegedTitle": "Seerr管理者{{name}}を紐付けますか？",
+        "privilegedBody": "このSeerrユーザーはSeerrを管理しています。紐付けると、{{email}}のプロフィールはSeerr管理者として、承認なし・上限なしでリクエストします。このユーザーのパスワードはSlouchcatでは同期しません。",
+        "privilegedConfirm": "このまま紐付ける",
+        "provisionAllManual_other": "{{count}}件のアカウントで手動での選択が必要です。",
+        "waitingChoice": "手動での選択待ち",
+        "waitingChoiceTitle": "選択待ち",
+        "optionPrivileged": "{{option}} · Seerrを管理"
+      },
+      "limitField": {
+        "label": "上限",
+        "help": {
+          "default": "リクエスト › 設定と同じ：{{limit}}。",
+          "custom": "このアカウント独自の数値です。",
+          "unlimited": "映画とシーズンに上限はありません。"
+        }
+      },
+      "requests": {
+        "caption": "世帯のすべてのリクエスト",
+        "columns": {
+          "title": "タイトル",
+          "requesters": "リクエストした人",
+          "state": "状態",
+          "seerr": "Seerr",
+          "attempts": "試行回数",
+          "actions": "操作"
+        },
+        "titleYear": "{{title}}（{{year}}）",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}}（参加）",
+        "requesterClosed": "{{line}}（取り下げ済み）",
+        "noRequester": "Slouchcatにはなし",
+        "noRequest": "まだなし",
+        "requestId": "リクエスト{{id}}",
+        "requestIds_other": "リクエスト{{ids}}",
+        "filter": {
+          "label": "リクエストを状態で絞り込む",
+          "all": "すべて",
+          "open": "未完了",
+          "available": "視聴可能",
+          "closed": "完了",
+          "count_other": "{{count}}件のリクエスト",
+          "stalled": "ダウンロード停滞",
+          "untagged": "タグ未設定",
+          "countLoaded_other": "読み込み済みのうち{{count}}件のリクエスト"
+        },
+        "sync": "今すぐ同期",
+        "syncQueued": "Seerrとの同期を実行中です。",
+        "queued_other": "{{count}}件のリクエストがSeerrへの送信を待っています。",
+        "empty": "まだリクエストはありません。",
+        "emptyFilter": "この状態のリクエストはありません。",
+        "facts": {
+          "label": "リクエストの詳細",
+          "created": "リクエスト日",
+          "origin": "作成元",
+          "seerrUser": "Seerrユーザー",
+          "failReason": "理由"
+        },
+        "origin": {
+          "slouchcat": "Slouchcatでリクエスト",
+          "seerr": "Seerrで作成済み"
+        },
+        "toItem": "管理画面の作品へ",
+        "history": "履歴",
+        "noHistory": "まだ何も起きていません。",
+        "retry": "再試行",
+        "retryLabel": "{{title}}：再試行",
+        "retried": "{{title}}を再試行しています。",
+        "emptyStalled": "停滞しているダウンロードはありません。",
+        "emptyUntagged": "すべてのプロフィールタグが設定済みか、これから設定されます。",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}}（ID {{id}}）",
+        "approve": "承認",
+        "approveLabel": "{{title}}を承認",
+        "approved": "{{title}}を承認しました。処理を開始します。",
+        "decline": "却下",
+        "declineLabel": "{{title}}を却下",
+        "declineTitle": "{{title}}を却下しますか？",
+        "declineBody": "Slouchcatは却下をSeerrに伝えます。Seerrには理由が記録されないため、プロフィールには「却下」とだけ表示され、通知が送られます。",
+        "declined": "{{title}}を却下しました。",
+        "event": {
+          "approved_by_admin": "管理画面で承認",
+          "declined_by_admin": "管理画面で却下"
+        },
+        "progress": {
+          "search": "検索中",
+          "download": "ダウンロード中",
+          "import": "インポート中",
+          "stalled": "ダウンロード停滞",
+          "percent": "{{percent}}%",
+          "etaMinutes": "残り{{minutes}}分",
+          "etaHours": "残り{{hours}}時間{{minutes}}分",
+          "episodes": "{{total}}話中{{done}}話取得済み",
+          "unreadable": "進行状況を読み取れません",
+          "unreadableAt": "進行状況を読み取れません · 最終読み取り{{time}}",
+          "notInService": "まだ{{service}}にありません",
+          "incomplete": "エピソードの状況は一部しか読み取れません。",
+          "etaWholeHours": "残り{{hours}}時間"
+        },
+        "progressBlock": {
+          "title": "進行状況",
+          "service": "サービス",
+          "state": "状況",
+          "unknown": "まだ情報がありません",
+          "readAt": "最終読み取り",
+          "never": "なし",
+          "note": "メモ",
+          "message": "{{service}}からのメッセージ"
+        },
+        "tags": {
+          "title": "プロフィールタグ",
+          "set": "{{name}}",
+          "pending": "{{name}} · 設定待ち",
+          "failed": "{{name}} · 失敗",
+          "setAt": "{{time}}に{{service}}で設定",
+          "setIn": "{{service}}で設定済み",
+          "pendingHelp": "作品が{{service}}に入ると、タグが付きます。",
+          "failedHelp": "{{service}}がタグを受け付けませんでした。"
+        },
+        "shown": "{{total}}件中{{shown}}件のリクエストを表示しています。",
+        "searchedIn": "未完了のリクエスト{{total}}件中{{shown}}件を検索しました。",
+        "more": "さらに読み込む",
+        "toItemLabel": "{{title}}：管理画面の作品へ",
+        "inSeerr": "Seerrで開く",
+        "inSeerrLabel": "{{title}}をSeerrで開く（新しいウィンドウ）"
+      },
+      "arrError": {
+        "not_in_arr": "作品はまだ{{service}}にありません。",
+        "tvdb_id_missing": "このTV番組にはTVDBのIDがありません。",
+        "not_confirmed": "Seerrから取得したアドレスは「テスト」待ちです。",
+        "not_in_seerr": "Seerrに{{service}}の既定のサーバーがありません。",
+        "seerr_off": "Seerrが未設定か、オフになっています。",
+        "redirect": "{{service}}が別のアドレスにリダイレクトしています。",
+        "timeout": "{{service}}が時間内に応答しませんでした。",
+        "unreachable": "{{service}}に接続できません。",
+        "key_invalid": "{{service}}がSeerrのキーを拒否しています。",
+        "not_found": "{{service}}にこの作品がありません。",
+        "validation": "{{service}}が呼び出しを無効として拒否しました。",
+        "server": "{{service}}からエラーが返されました。",
+        "bad_request": "{{service}}が呼び出しを拒否しました。",
+        "invalid": "{{service}}から予期しない応答がありました。",
+        "seerr": "Seerrから{{service}}のアドレスとキーが渡されませんでした。",
+        "other": "エラー：{{error}}"
+      }
     }
   },
   "language": {
@@ -5129,7 +6060,11 @@
         "metadataLanguage": "あらすじの言語",
         "metadataLanguageHint": "タイトル、あらすじ、ジャンルに使われます。アプリの表示は上の言語に従います。",
         "likeUi": "表示言語と同じ",
-        "playback": "再生"
+        "playback": "再生",
+        "wishes": "リクエスト",
+        "canRequest": "作品のリクエストを許可",
+        "canRequestHelp": "このプロフィールは、ライブラリにない作品をSeerrでリクエストできます。",
+        "canRequestCapped": "このアカウントには作品をリクエストする権限がありません。権限は管理者が「アカウント」で設定します。"
       },
       "report": {
         "show": "視聴時間を表示",
@@ -5173,7 +6108,8 @@
     "notFound": {
       "title": "リンクが見つかりません",
       "body": "この招待リンクは存在しません。リンクをすべてコピーしたか確認してください。"
-    }
+    },
+    "seerrAccount": "このログイン情報はSeerrでも使えます。招待を承諾すると、同じメールアドレスとパスワードでSeerrにもアカウントが作成されます。"
   },
   "kind": {
     "movie": "映画",
@@ -5446,7 +6382,13 @@
     "empty": {
       "title": "見つかりませんでした",
       "body": "別のキーワードを試すか、絞り込み条件を減らしてください。"
-    }
+    },
+    "missing": {
+      "title": "ライブラリにない作品",
+      "notHere": "まだありません",
+      "request": "{{title}}をリクエスト"
+    },
+    "inWishes": "リクエストも検索"
   },
   "watchlist": {
     "title": "マイリスト",
@@ -5525,7 +6467,12 @@
     "empty": {
       "title": "通知はありません",
       "body": "TV番組やポッドキャストをマイリストに追加すると、新しいエピソードがここで通知されます。"
-    }
+    },
+    "wish_available": "リクエストした作品が届きました",
+    "wish_season_available": "リクエストしたシーズンが届きました",
+    "wish_approved": "リクエストが承認されました",
+    "wish_declined": "リクエストが却下されました",
+    "wish_failed": "リクエストが失敗しました"
   },
   "settings": {
     "playback": {
@@ -5602,6 +6549,9 @@
         "errors": "エラー",
         "invitations": "招待",
         "announcements": "お知らせ",
+        "wish_available": "リクエスト：視聴可能",
+        "wish_status": "リクエスト：承認、却下、失敗",
+        "wish_review": "リクエスト：承認が必要",
         "help": "メッセージを送信するイベントです。",
         "helpAdmin": "メッセージを送信するイベントです。「エラー」は管理者のみが対象です。"
       },
@@ -5972,6 +6922,279 @@
       "halfBody_other": "{{count}}話に視聴済みマークが付いています。すべてのエピソードにマークを付けますか、それともすべてのマークを外しますか？マークを外す操作は元に戻せません。",
       "markAll": "すべてのエピソードを視聴済みにする",
       "removeAll": "すべてのマークを外す"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "映画：{{days}}日間で{{limit}}本中{{used}}本",
+      "tv": "シーズン：{{days}}日間で{{limit}}シーズン中{{used}}シーズン",
+      "remaining_other": "残り{{count}}",
+      "nextFree": "次の枠は{{date}}に空きます",
+      "short": {
+        "movie": "映画 {{used}}/{{limit}}",
+        "tv": "シーズン {{used}}/{{limit}}"
+      },
+      "movieNone": "映画は上限なし",
+      "tvNone": "シーズンは上限なし"
+    },
+    "state": {
+      "queued": "送信中",
+      "pending": "承認待ち",
+      "processing": "処理中",
+      "partial": "一部視聴可能",
+      "available": "視聴可能",
+      "declined": "却下",
+      "failed": "失敗",
+      "withdrawn": "取り下げ済み"
+    },
+    "detail": {
+      "importing": "ライブラリへ読み込み中",
+      "not_found_in_library": "まだライブラリで見つかりません"
+    },
+    "fail": {
+      "quota": "上限に達したため、Seerrがリクエストを受け付けませんでした。",
+      "blocklisted": "この作品はSeerrのブロックリストに載っています。",
+      "no_permission": "このSeerrユーザーには、この種類の作品をリクエストする権限がありません。",
+      "arr_failed": "SeerrがRadarrまたはSonarrに作品を引き渡せませんでした。管理者がリクエストを再試行できます。",
+      "unreachable_24h": "24時間にわたりSeerrに接続できませんでした。",
+      "seerr_request_gone": "Seerrのリクエストが削除されました。",
+      "seerr_media_deleted": "作品がSeerrから削除されました。",
+      "seerr_user_gone": "紐付けられていたSeerrユーザーが存在しなくなりました。",
+      "tvdb_id_missing": "このTV番組には、Seerrが必要とするTVDBのIDがありません。",
+      "account_deleted": "リクエストしたアカウントが存在しなくなりました。"
+    },
+    "reason": {
+      "disabled": "リクエストはオフになっています。",
+      "account_not_allowed": "このアカウントには作品をリクエストする権限がありません。",
+      "profile_not_allowed": "このプロフィールには作品をリクエストする権限がありません。メインプロフィールが「プロフィール」で許可できます。",
+      "no_mapping": "このアカウントにはまだSeerrユーザーが紐付けられていません。管理者が設定します。",
+      "seerr_user_gone": "紐付けられていたSeerrユーザーが存在しなくなりました。管理者が対応します。",
+      "movies_not_allowed": "現在、映画はリクエストできません。",
+      "shows_not_allowed": "現在、TV番組はリクエストできません。",
+      "status_only": "この作品は別のプロフィールがすでにリクエストしています。届いたらライブラリに表示されます。",
+      "already_requested": "この作品はすでにリクエストしています。",
+      "source_not_allowed": "現在、ここからは作品をリクエストできません。",
+      "tvdb_id_missing": "このTV番組には、Seerrが必要とするTVDBのIDがありません。",
+      "withdraw_disabled": "現在、リクエストは取り下げできません。"
+    },
+    "tmdbUnreachable": "現在TMDBに接続できません。しばらくしてからもう一度お試しください。",
+    "kind": {
+      "movie": "映画",
+      "show": "TV番組"
+    },
+    "seasons_other": "シーズン{{list}}",
+    "event": {
+      "created": "リクエスト",
+      "submitted": "Seerrに送信",
+      "attached": "Seerrで見つけて取り込み",
+      "joined": "参加",
+      "withdrawn": "取り下げ",
+      "withdraw_deleted": "Seerrで削除",
+      "owner_changed": "別のプロフィールが引き継ぎ",
+      "reopened": "承認済みのため、リクエストを継続",
+      "season_available_other": "シーズン{{seasons}}が視聴可能",
+      "changed": "変更"
+    },
+    "card": {
+      "title": "リクエストの状況",
+      "requestedOn": "{{date}}にリクエスト",
+      "joined": "参加中",
+      "history": "履歴",
+      "mine": "マイリクエストへ"
+    },
+    "withdraw": {
+      "action": "取り下げ",
+      "actionJoined": "参加をやめる",
+      "title": "リクエストを取り下げますか？",
+      "titleJoined": "参加をやめますか？",
+      "body": "「{{title}}」のリクエストを取り下げます。Slouchcatは、Seerrのリクエストも削除します。",
+      "bodyJoined": "「{{title}}」が届いても通知されなくなります。ほかのプロフィールのリクエストはそのままです。",
+      "confirm": "取り下げ",
+      "confirmJoined": "参加をやめる"
+    },
+    "dialog": {
+      "titleMovie": "映画をリクエスト：{{title}}",
+      "titleShow": "TV番組をリクエスト：{{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "承認は不要で、すぐに処理されます。",
+      "needsApproval": "承認が必要です。状況は「マイリクエスト」で確認できます。",
+      "seasons": "シーズン",
+      "allSeasons": "未取得のシーズンすべて（{{count}}）",
+      "season": "シーズン{{number}}",
+      "episodes_other": "{{count}}話",
+      "seasonState": {
+        "requested": "リクエスト済み、通知も届きます",
+        "available": "視聴可能"
+      },
+      "nothingLeft": {
+        "title": "リクエストできるものはありません",
+        "body": "すべてのシーズンがライブラリにあるか、リクエスト済みです。"
+      },
+      "tooManySeasons_other": "{{limit}}シーズン中、残りは{{count}}シーズンです。選べるのは最大{{count}}シーズンです。",
+      "reached": {
+        "movie_other": "上限に達しました：{{days}}日間で{{count}}本。",
+        "show_other": "上限に達しました：{{days}}日間で{{count}}シーズン。",
+        "movie_date_other": "上限に達しました：{{days}}日間で{{count}}本。次の枠は{{date}}に空きます。",
+        "show_date_other": "上限に達しました：{{days}}日間で{{count}}シーズン。次の枠は{{date}}に空きます。"
+      },
+      "submit": "リクエスト",
+      "submitting": "リクエスト中…",
+      "chooseSeasons": "シーズンを選択",
+      "join": "通知を受け取る",
+      "submitSeasons_other": "{{count}}シーズンをリクエスト"
+    },
+    "page": {
+      "title": "マイリクエスト",
+      "count_other": "未完了のリクエスト{{count}}件",
+      "countAll_other": "{{count}}件のリクエスト",
+      "countAvailable_other": "視聴可能なリクエスト{{count}}件",
+      "countClosed_other": "完了したリクエスト{{count}}件",
+      "limit": "上限：{{limit}}",
+      "offline": "オンライン時のみ利用できます。リクエストはサーバーにあります。",
+      "filters": {
+        "label": "リクエストを絞り込む",
+        "all": "すべて",
+        "open": "未完了",
+        "available": "視聴可能",
+        "closed": "完了"
+      },
+      "filter": "状態",
+      "filterCount": "{{name}}（{{count}}）",
+      "empty": {
+        "title": "まだリクエストはありません。",
+        "body": "リクエストした作品が、状況とともにここに表示されます。"
+      },
+      "emptyFilter": {
+        "open": "未完了のリクエストはありません。",
+        "available": "視聴可能なリクエストはまだありません。",
+        "closed": "完了したリクエストはありません。"
+      }
+    },
+    "row": {
+      "open": "作品へ",
+      "withdrawLabel": "{{title}}を取り下げ",
+      "withdrawJoinedLabel": "{{title}}：参加をやめる",
+      "again": "再リクエスト",
+      "againLabel": "{{title}}を再リクエスト",
+      "history": "履歴：{{last}}",
+      "fromSeerr": "Seerrで作成済み"
+    },
+    "area": {
+      "label": "リクエストのエリア",
+      "discover": "見つける",
+      "movies": "映画",
+      "series": "TV番組",
+      "search": "検索",
+      "mine": "マイリクエスト",
+      "mineCount_other": "マイリクエスト（{{count}}）"
+    },
+    "discover": {
+      "title": "見つける",
+      "intro": "いま人気の作品と、もうすぐ公開の作品です。ライブラリにない作品はリクエストできます。",
+      "searchLabel": "映画やTV番組を検索",
+      "searchAction": "検索",
+      "rows": {
+        "trending": "トレンド",
+        "popular_movies": "人気の映画",
+        "movie_genres": "映画のジャンル",
+        "upcoming_movies": "近日公開の映画",
+        "popular_shows": "人気のTV番組",
+        "show_genres": "TV番組のジャンル",
+        "upcoming_shows": "近日配信のTV番組"
+      },
+      "stale": "Seerrに接続できません。前回取得した時点の内容を表示しています。",
+      "refreshFailed": "リストを更新できませんでした。前回取得した時点の内容を表示しています。",
+      "empty": "現在、ここに表示できる作品はありません。",
+      "inLibrary": "ライブラリにあり",
+      "requested": "リクエスト済み",
+      "join": "{{title}}：通知を受け取る",
+      "gone": {
+        "title": "このプロフィールでは「見つける」を利用できません",
+        "body": "これまでのリクエストは、引き続き「マイリクエスト」で確認できます。",
+        "action": "「マイリクエスト」へ"
+      },
+      "notFound": {
+        "title": "ページが見つかりません",
+        "body": "このプロフィールにはこのページはありません。"
+      }
+    },
+    "titles": {
+      "moviesIntro": "TMDBにあるすべての映画です。ライブラリにあるかどうかにかかわらず表示され、ライブラリにない作品はリクエストできます。",
+      "seriesIntro": "TMDBにあるすべてのTV番組です。ライブラリにあるかどうかにかかわらず表示され、ライブラリにない作品はリクエストできます。",
+      "sort": "並べ替え",
+      "sorts": {
+        "popularity": "人気順",
+        "newest": "新しい順",
+        "rating": "評価の高い順"
+      },
+      "filter": "フィルター：{{summary}}",
+      "filterLabel": "フィルター",
+      "genre": "ジャンル",
+      "allGenres": "すべてのジャンル",
+      "genreId": "ジャンル{{id}}",
+      "library": "ライブラリ",
+      "hide": "ライブラリにある作品を非表示",
+      "hideHelp": "ライブラリにない作品だけを表示します。",
+      "hidden": "ライブラリの作品を非表示中",
+      "shown": "ライブラリの作品を表示中",
+      "clear": "フィルターをリセット",
+      "apply": "適用",
+      "moviesEmpty": "この条件に合う映画はありません。",
+      "seriesEmpty": "この条件に合うTV番組はありません。"
+    },
+    "search": {
+      "intro": "ライブラリにない作品も含め、TMDBにあるすべての作品を検索します。tmdb:603、tvdb:121361、imdb:tt0133093のようなIDでも検索できます。",
+      "placeholder": "映画またはTV番組",
+      "start": "タイトルを入力してください。原題も含め、TMDBにあるすべての作品から検索します。",
+      "tooShort": "2文字以上入力してください。",
+      "hits": "検索結果",
+      "empty": {
+        "title": "「{{q}}」に一致する作品は見つかりませんでした",
+        "body": "検索対象は映画とTV番組のタイトルで、人物は含まれません。別のキーワードかIDでお試しください。"
+      }
+    },
+    "progress": {
+      "search": "検索中",
+      "download": "ダウンロード中",
+      "import": "インポート中",
+      "stalled": "ダウンロード停滞",
+      "percent": "{{percent}}%",
+      "episodes_other": "{{count}}話中{{done}}話取得済み",
+      "eta": "残り{{time}}"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "作品が見つかりません",
+      "body": "この作品は存在しないか、このプロフィールでは表示できません。"
+    },
+    "loading": "作品",
+    "missing": "ライブラリにない作品",
+    "seasonCount_other": "{{count}}シーズン",
+    "requestMovie": "映画をリクエスト",
+    "requestShow": "TV番組をリクエスト",
+    "done": {
+      "requested": "リクエストしました。状況は「マイリクエスト」で確認できます。",
+      "joined": "作品が届いたらお知らせします。",
+      "withdrawn": "リクエストを取り下げました。"
+    },
+    "alreadyRequested": "リクエスト済み",
+    "cannotRequest": "このプロフィールではリクエストできません",
+    "seasons": "シーズン",
+    "seasonRequested": "リクエスト済み",
+    "nextEpisode": "放送中、次のエピソードは{{date}}",
+    "last": {
+      "title": "前回のリクエスト：{{state}}",
+      "why": {
+        "declined": "Seerrからは理由が示されません。もう一度リクエストできます。",
+        "withdrawn": "取り下げました。"
+      }
+    },
+    "join": "通知を受け取る",
+    "shared": {
+      "title": "リクエスト済み · {{state}}",
+      "join": "この映画は別のプロフィールがすでにリクエストしています。「通知を受け取る」を選ぶと、再生できるようになったときにSlouchcatからお知らせします。",
+      "statusOnly": "この映画は別のプロフィールがすでにリクエストしています。再生できるようになると、ライブラリに表示されます。"
     }
   }
 }

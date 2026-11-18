@@ -305,7 +305,12 @@ INSERT OR IGNORE INTO collection_items (collection_id, item_id, position, create
 SELECT ci.collection_id, @target_id, ci.position, ci.created_at FROM collection_items AS ci WHERE ci.item_id = @source_id;
 
 -- name: AdminMoveNotifications :exec
-UPDATE OR IGNORE notifications SET item_id = @target_id WHERE item_id = @source_id;
+-- An episode entry takes the dedupe key of its new item along (migration 00070), so a profile
+-- that has entries for both keeps the target's one.
+UPDATE OR IGNORE notifications
+SET item_id = CAST(@target_id AS TEXT),
+    dedupe_key = CASE kind WHEN 'new_episode' THEN 'episode:' || CAST(@target_id AS TEXT) ELSE dedupe_key END
+WHERE item_id = CAST(@source_id AS TEXT);
 
 -- name: AdminMoveNotificationParents :exec
 UPDATE notifications SET parent_id = @target_id WHERE parent_id = @source_id;

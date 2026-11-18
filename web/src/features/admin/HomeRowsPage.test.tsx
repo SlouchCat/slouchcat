@@ -373,6 +373,32 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(spotlight).toHaveAttribute('aria-expanded', 'true');
   });
 
+  it('«Erfüllte Wünsche» (concept 25, M-28): placed like every row, its fold-out leads to «Wünsche», the preview shows it', async () => {
+    const rows: HomeRowSetting[] = [
+      ...defaultRows.slice(0, 3),
+      { id: 'wishes', key: 'wishes', position: 3, hidden: false },
+      ...defaultRows.slice(3).map((row) => ({ ...row, position: row.position + 1 })),
+    ];
+    mockApi(storingRoutes(rows));
+    renderApp('/admin/home-rows');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    const wishes = within(table()).getByRole('button', { name: 'Erfüllte Wünsche' });
+    expect(within(table()).getAllByRole('rowheader')[3]).toHaveTextContent('Erfüllte Wünsche');
+    expect(
+      within(table()).getByRole('checkbox', { name: 'Erfüllte Wünsche ausblenden' }),
+    ).not.toBeChecked();
+    wishes.focus();
+    await user.keyboard('{Enter}');
+    const detail = document.getElementById(wishes.getAttribute('aria-controls') ?? '')!;
+    expect(detail).toHaveTextContent(/in den letzten 14 Tagen erfüllt wurden/);
+    expect(within(detail).getByRole('link', { name: 'Zur Seite «Wünsche»' })).toHaveAttribute(
+      'href',
+      '/admin/wishes',
+    );
+    expect(previewNames()).toContain('4. Erfüllte Wünsche');
+  });
+
   it('asks before leaving the page with unsaved changes (S-13)', async () => {
     mockApi(storingRoutes());
     const { router } = renderApp('/admin/home-rows');

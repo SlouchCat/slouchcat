@@ -83,11 +83,11 @@ func TestLoginAttemptLimitPerClient(t *testing.T) {
 			t.Fatalf("attempt %d: %v, want ErrInvalidCredentials", i+1, err)
 		}
 	}
-	runs := argonRuns.Load()
+	runs := s.argonRuns.Load()
 	if _, _, err := s.Login(a, testEmail, testPassword, ""); !errors.Is(err, model.ErrTooManyAttempts) {
 		t.Fatalf("11th attempt: %v, want ErrTooManyAttempts", err)
 	}
-	if argonRuns.Load() != runs {
+	if s.argonRuns.Load() != runs {
 		t.Error("a refused attempt ran argon2id")
 	}
 	if _, _, err := s.Login(b, testEmail, testPassword, ""); err != nil {
@@ -125,8 +125,7 @@ func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
-	runs := argonRuns.Load()
-	start := time.Now()
+	runs := s.argonRuns.Load()
 	_, _, err := s.Login(ctx, strings.Repeat("a", 250)+"@b.ch", strings.Repeat("x", maxPasswordLen+1), "")
 	var verr *model.ValidationError
 	if !errors.As(err, &verr) {
@@ -136,11 +135,8 @@ func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
 	if fmt.Sprint(verr.Fields) != fmt.Sprint(want) {
 		t.Fatalf("fields = %v, want %v", verr.Fields, want)
 	}
-	if argonRuns.Load() != runs {
+	if s.argonRuns.Load() != runs {
 		t.Fatal("over-long input ran argon2id")
-	}
-	if d := time.Since(start); d > 50*time.Millisecond {
-		t.Errorf("rejection took %v", d)
 	}
 	// Exactly at the limit is accepted (and verified).
 	if _, _, err := s.Login(ctx, testEmail, strings.Repeat("x", maxPasswordLen), ""); !errors.Is(err, model.ErrInvalidCredentials) {

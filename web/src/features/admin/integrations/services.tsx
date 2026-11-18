@@ -1,4 +1,5 @@
 import type { Dashboard, IntegrationStatus } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
@@ -9,7 +10,15 @@ import styles from './Integrations.module.css';
  * The services of the integrations page (mockup: one tile each, each with a view of its own),
  * in their order. `?item=` names the open one; without it the page shows the tiles.
  */
-export const SERVICES = ['keys', 'webhooks', 'email', 'telegram', 'push', 'server'] as const;
+export const SERVICES = [
+  'keys',
+  'webhooks',
+  'seerr',
+  'email',
+  'telegram',
+  'push',
+  'server',
+] as const;
 export type Service = (typeof SERVICES)[number];
 
 /** The address of a service's view: the deep link of its tile. */
@@ -18,16 +27,18 @@ export const serviceHref = (service: Service) => `${paths.adminIntegrations}?ite
 export const SERVICE_ICON = {
   keys: 'lock',
   webhooks: 'plug',
+  seerr: 'heart',
   email: 'megaphone',
   telegram: 'external',
   push: 'bell',
   server: 'server',
 } as const satisfies Record<Service, IconName>;
 
-/** The dashboard's integration keys each service stands for (`getDashboard`, eight keys). */
+/** The dashboard's integration keys each service stands for (`getDashboard`, nine keys). */
 const STATUS_KEYS = {
   keys: ['tmdb', 'tvdb', 'youtube', 'trakt'],
   webhooks: [],
+  seerr: ['seerr'],
   email: ['email'],
   telegram: ['telegram'],
   push: ['push'],
@@ -50,6 +61,20 @@ const integrationDot = {
   error: 'danger',
   disabled: 'pending',
 } as const satisfies Record<IntegrationStatus['state'], StatusDotState>;
+
+/**
+ * The reason of a state in words: the other integrations send a sentence, Seerr a code
+ * (`key_invalid`, `unreachable`, `instance_changed`, `untested`) named like its connection states.
+ */
+export function integrationDetail(
+  t: TFunction,
+  integration: IntegrationStatus,
+): string | undefined {
+  if (integration.key !== 'seerr' || !integration.detail) return integration.detail;
+  return t(`admin.integrations.seerr.state.${integration.detail}`, {
+    defaultValue: integration.detail,
+  });
+}
 
 /**
  * The state of a service as the dashboard knows it (build plan 7.2): each of its integrations
@@ -100,7 +125,9 @@ export function ServiceStatus({ service, dashboard }: { service: Service; dashbo
               state: t(`admin.home.integrations.state.${integration.state}`),
             })}
           </span>
-          {integration.detail && <span className={styles.statusDetail}>{integration.detail}</span>}
+          {integration.detail && (
+            <span className={styles.statusDetail}>{integrationDetail(t, integration)}</span>
+          )}
         </li>
       ))}
     </ul>

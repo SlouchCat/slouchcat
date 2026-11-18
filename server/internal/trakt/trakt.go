@@ -181,12 +181,16 @@ func ParseListURL(raw string) (user, slug string, err error) {
 	return seg[1], seg[3], nil
 }
 
-// Entry is one title of a list. Position is the rank in the Trakt list (1-based); entries without
-// a TMDB id are skipped, so positions can have gaps.
+// Entry is one title of a list. Position is the rank in the Trakt list (1-based). TMDBID, TVDBID
+// and IMDBID are the ids Trakt names (0 or "" when it names none); an entry without a TMDB id is
+// skipped, except a show with a TVDB id (concept 25 N-62: package metadata looks its TMDB id up),
+// so positions can have gaps.
 type Entry struct {
 	Media    string // movie, show
 	Position int
 	TMDBID   int64
+	TVDBID   int64
+	IMDBID   string
 	Title    string
 	Year     int
 }
@@ -267,9 +271,11 @@ func sameOrigin(req *http.Request, via []*http.Request) error {
 	return nil
 }
 
-// ids are the ids of a title; only tmdb is used.
+// ids are the ids of a title; trakt and slug are not used.
 type ids struct {
-	TMDB *int64 `json:"tmdb"`
+	TMDB *int64  `json:"tmdb"`
+	TVDB *int64  `json:"tvdb"`
+	IMDB *string `json:"imdb"`
 }
 
 type title struct {
@@ -389,16 +395,31 @@ func (c *Client) list(ctx context.Context, path, label, flat string, want []stri
 			break
 		}
 		t, media, ok := r.pick(flat)
-		if !ok || !slices.Contains(want, media) || t.IDs.TMDB == nil || *t.IDs.TMDB <= 0 {
+		if !ok || !slices.Contains(want, media) {
 			continue
 		}
-		e := Entry{Media: media, Position: i + 1, TMDBID: *t.IDs.TMDB, Title: strings.TrimSpace(t.Title)}
+		e := Entry{Media: media, Position: i + 1, TMDBID: positiveID(t.IDs.TMDB), TVDBID: positiveID(t.IDs.TVDB),
+			Title: strings.TrimSpace(t.Title)}
+		if t.IDs.IMDB != nil {
+			e.IMDBID = strings.TrimSpace(*t.IDs.IMDB)
+		}
+		if e.TMDBID == 0 && (media != MediaShow || e.TVDBID == 0) {
+			continue
+		}
 		if t.Year != nil {
 			e.Year = *t.Year
 		}
 		out = append(out, e)
 	}
 	return out, nil
+}
+
+// positiveID returns *id, or 0 for a missing or non-positive id.
+func positiveID(id *int64) int64 {
+	if id == nil || *id <= 0 {
+		return 0
+	}
+	return *id
 }
 
 // statusError maps a non-2xx answer to an error; the body is drained by the caller's Close.

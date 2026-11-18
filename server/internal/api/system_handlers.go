@@ -56,6 +56,7 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 			RejectedKeys:     append([]string{}, d.Attention.RejectedKeys...),
 			MinimumAgeNotice: trueOrNil(d.Attention.MinimumAgeNotice),
 			RatingsRereading: trueOrNil(d.Attention.RatingsRereading),
+			Wishes:           toDashboardWishes(d.Attention.Wishes),
 		},
 		Counts: gen.DashboardCounts{
 			Titles: d.Counts.Titles, Accounts: d.Counts.Accounts, MaintenanceOpen: d.Counts.MaintenanceOpen,

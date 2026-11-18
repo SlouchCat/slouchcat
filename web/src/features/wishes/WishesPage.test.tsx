@@ -1,0 +1,278 @@
+import type { components } from '@slouchcat/api-client';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { json, mockApi, renderApp, session } from '@/test/api';
+
+type Wish = components['schemas']['Wish'];
+
+const rights = { enabled: true, canRequest: true, movies: true, shows: true };
+const withWishes = (wishes = rights) => ({
+  'GET /auth/session': () => json({ ...session, wishes }),
+});
+
+const base: Pick<
+  Wish,
+  | 'origin'
+  | 'role'
+  | 'canWithdraw'
+  | 'canRequestAgain'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'events'
+  | 'seasons'
+> = {
+  origin: 'slouchcat',
+  role: 'owner',
+  canWithdraw: false,
+  canRequestAgain: false,
+  createdAt: '2026-11-10T09:00:00Z',
+  updatedAt: '2026-11-12T09:00:00Z',
+  events: [],
+  seasons: [],
+};
+
+const pending: Wish = {
+  ...base,
+  id: 1,
+  media: 'movie',
+  tmdbId: 9001,
+  title: 'Glasvogel',
+  year: 2026,
+  state: 'pending',
+  canWithdraw: true,
+  events: [
+    { at: '2026-11-12T09:00:00Z', kind: 'submitted' },
+    { at: '2026-11-12T08:59:00Z', kind: 'created' },
+  ],
+};
+const partial: Wish = {
+  ...base,
+  id: 2,
+  media: 'show',
+  tmdbId: 9100,
+  title: 'Nebelhafen',
+  state: 'partial',
+  role: 'joined',
+  seasons: [
+    { number: 1, state: 'available' },
+    { number: 2, state: 'processing' },
+  ],
+};
+const failed: Wish = {
+  ...base,
+  id: 3,
+  media: 'movie',
+  tmdbId: 9002,
+  title: 'Kupfermond',
+  state: 'failed',
+  failReason: 'quota',
+  canRequestAgain: true,
+};
+
+const counts = { open: 2, pending: 1, processing: 0, partial: 1, available: 0, closed: 1 };
+
+const queryOf = (fetchMock: ReturnType<typeof mockApi>['fetchMock']) =>
+  fetchMock.mock.calls
+    .map(([request]) => new URL(request.url))
+    .filter((url) => url.pathname === '/api/v1/wishes' && url.searchParams.get('limit') !== '1')
+    .map((url) => url.searchParams.get('state'));
+
+describe('«Meine Wünsche» (concept 25, 5.3)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('lists the wishes with state, seasons, history and actions; the chips filter by state', async () => {
+    const { fetchMock } = mockApi({
+      ...withWishes(),
+      'GET /wishes': () => json({ items: [pending, partial, failed], total: 3, counts }),
+      'GET /wishes/quota': () =>
+        json({
+          unlimited: false,
+          movie: { limit: 10, days: 7, used: 3, queued: 0, remaining: 7 },
+          at: '2026-11-17T08:00:00Z',
+        }),
+    });
+    renderApp('/wishes');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Meine Wünsche' })).toBeVisible();
+    // The count line follows the list the filter shows (UI check 6).
+    expect(await screen.findByText('3 Wünsche')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Alle' })).toBeVisible();
+    expect(
+      await screen.findByText(
+        'Limit: Filme: 3 von 10 in 7 Tagen · noch 7 frei · Staffeln ohne Limit',
+      ),
+    ).toBeVisible();
+
+    const glass = screen.getByRole('article', { name: /Glasvogel/ });
+    expect(within(glass).getByText('Freigabe ausstehend')).toBeVisible();
+    expect(within(glass).getByRole('link', { name: 'Zum Titel' })).toHaveAttribute(
+      'href',
+      '/titles/movie/9001',
+    );
+    expect(within(glass).getByRole('button', { name: 'Glasvogel: zurückziehen' })).toBeVisible();
+    // The history is folded, its last step in the toggle.
+    const history = within(glass).getByRole('button', { name: 'Verlauf: An Seerr übermittelt' });
+    expect(history).toHaveAttribute('aria-expanded', 'false');
+    const user = userEvent.setup();
+    await user.click(history);
+    expect(within(glass).getByRole('list', { name: 'Verlauf' })).toBeVisible();
+
+    const fog = screen.getByRole('article', { name: /Nebelhafen/ });
+    expect(within(fog).getByText('Staffeln 1, 2 · du wünschst mit')).toBeVisible();
+    const copper = screen.getByRole('article', { name: /Kupfermond/ });
+    expect(
+      within(copper).getByText('Limit erreicht: Seerr hat den Wunsch nicht angenommen.'),
+    ).toBeVisible();
+    expect(
+      within(copper).getByRole('button', { name: 'Kupfermond erneut anfordern' }),
+    ).toBeVisible();
+
+    // The chips with their counts; «Offen» goes into the URL and the request.
+    await user.click(screen.getByRole('button', { name: 'Offen (2)' }));
+    await waitFor(() => expect(queryOf(fetchMock)).toContain('open'));
+    expect(await screen.findByText('3 offene Wünsche')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Offen' })).toBeVisible();
+    expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('a limit never read from Seerr (no `at`) claims nothing, not «ohne Limit»', async () => {
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () => json({ items: [pending], total: 1, counts }),
+      'GET /wishes/quota': () => json({ unlimited: false }),
+    });
+    renderApp('/wishes');
+    expect(await screen.findByRole('article', { name: /Glasvogel/ })).toBeVisible();
+    expect(screen.queryByText(/ohne Limit|^Limit:/)).toBeNull();
+  });
+
+  it('asks before it withdraws, then calls withdrawWish', async () => {
+    let gone = false;
+    const { calls } = mockApi({
+      ...withWishes(),
+      'GET /wishes': () =>
+        json({
+          items: gone ? [] : [pending],
+          total: gone ? 0 : 1,
+          counts: { ...counts, open: gone ? 0 : 1 },
+        }),
+      'GET /wishes/quota': () => json({ unlimited: true }),
+      'DELETE /wishes/1': () => {
+        gone = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/wishes');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Glasvogel: zurückziehen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Wunsch zurückziehen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Zurückziehen' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
+    expect(await screen.findByText('Noch keine Wünsche.')).toBeVisible();
+  });
+
+  it('the notice of a withdrawal goes when «Erneut anfordern» starts (m1)', async () => {
+    let gone = false;
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () =>
+        json({ items: gone ? [failed] : [pending, failed], total: gone ? 1 : 2, counts }),
+      'GET /wishes/quota': () => json({ unlimited: true }),
+      'DELETE /wishes/1': () => {
+        gone = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/wishes');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Glasvogel: zurückziehen' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Zurückziehen' }));
+    expect(await screen.findByText('Dein Wunsch ist zurückgezogen.')).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Kupfermond erneut anfordern' }));
+    await screen.findByRole('dialog');
+    expect(screen.queryByText('Dein Wunsch ist zurückgezogen.')).toBeNull();
+  });
+
+  it('the side navigation shows «Wünsche» with the open count, only while the wishes are on', async () => {
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () => json({ items: [pending], total: 1, counts }),
+      'GET /wishes/quota': () => json({ unlimited: true }),
+    });
+    const { unmount } = renderApp('/wishes');
+    const nav = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
+    expect(
+      await within(nav).findByRole('link', { name: 'Wünsche, 2 offene Wünsche' }),
+    ).toHaveAttribute('aria-current', 'page');
+    unmount();
+    vi.unstubAllGlobals();
+
+    mockApi({ ...withWishes({ ...rights, enabled: false }) });
+    renderApp('/watched');
+    const other = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
+    expect(await within(other).findByRole('link', { name: 'Gesehen' })).toBeVisible();
+    expect(within(other).queryByRole('link', { name: /Wünsche/ })).toBeNull();
+  });
+  it('shows the download progress of the wishes in procurement, nothing without it (E-7)', async () => {
+    const procuring = (
+      id: number,
+      title: string,
+      progress: Wish['progress'],
+      extra: Partial<Wish> = {},
+    ): Wish => ({
+      ...base,
+      id,
+      media: 'movie',
+      tmdbId: 9000 + id,
+      title,
+      state: 'processing',
+      progress,
+      ...extra,
+    });
+    const readAt = '2026-11-17T09:00:00Z';
+    mockApi({
+      ...withWishes(),
+      'GET /wishes': () =>
+        json({
+          items: [
+            procuring(11, 'Sternenfeld', { stage: 'search', readAt }),
+            procuring(12, 'Rotes Ufer', {
+              stage: 'download',
+              percent: 45,
+              etaSeconds: 720,
+              readAt,
+            }),
+            procuring(13, 'Winterhaus', { stage: 'import', readAt }),
+            procuring(
+              14,
+              'Lichtturm',
+              { stage: 'stalled', episodes: { done: 3, total: 8 }, readAt },
+              { media: 'show', seasons: [{ number: 1, state: 'processing' }] },
+            ),
+            procuring(15, 'Glasküste', undefined),
+          ],
+          total: 5,
+          counts: { ...counts, open: 5 },
+        }),
+      'GET /wishes/quota': () => json({ unlimited: true, at: readAt }),
+    });
+    renderApp('/wishes');
+    const row = (name: string) => screen.findByRole('article', { name: new RegExp(name) });
+    expect(within(await row('Sternenfeld')).getByText('Wird gesucht')).toBeVisible();
+    const download = await row('Rotes Ufer');
+    expect(within(download).getByText('Wird heruntergeladen · 45 % · noch 12 min')).toBeVisible();
+    expect(
+      within(download).getByRole('progressbar', {
+        name: 'Wird heruntergeladen · 45 % · noch 12 min',
+      }),
+    ).toHaveAttribute('aria-valuenow', '45');
+    expect(within(await row('Winterhaus')).getByText('Wird eingelesen')).toBeVisible();
+    const stalled = await row('Lichtturm');
+    expect(within(stalled).getByText('Download verzögert · 3 von 8 Folgen da')).toBeVisible();
+    expect(within(stalled).queryByRole('progressbar')).toBeNull();
+    const without = await row('Glasküste');
+    expect(within(without).queryByText(/Wird |Download/)).toBeNull();
+    expect(document.body.textContent).not.toContain('{{');
+  });
+});

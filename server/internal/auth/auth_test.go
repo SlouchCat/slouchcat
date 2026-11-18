@@ -74,7 +74,7 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if acc.Email != "marco@example.ch" || acc.Role != model.RoleAdmin || !acc.IsOwner {
 		t.Fatalf("account = %+v", acc)
 	}
-	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true,
+	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true, CanRequest: true, // the owner's primary profile may request (concept 25)
 		Prefs: model.PlaybackPrefs{AudioLanguages: []string{"en"}, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: []string{"en"}}}
 	if !reflect.DeepEqual(prof, want) {
 		t.Fatalf("profile = %+v, want %+v", prof, want)
@@ -227,6 +227,9 @@ func TestValidation(t *testing.T) {
 		{"a@b@c.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@localhost", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
+		// The domain of the shared Seerr user «slouchcat-gaeste» is reserved (concept 25, L-4).
+		{"slouchcat-gaeste@slouchcat.invalid", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
+		{"x@Mail.Slouchcat.Invalid", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{strings.Repeat("a", 250) + "@b.ch", testPassword, "de", []model.FieldError{{Field: "email", Code: "invalid_email"}}},
 		{"a@b.ch", strings.Repeat("x", 257), "de", []model.FieldError{{Field: "password", Code: "too_long"}}},
 		{"a@b.ch", "ääääääääää", "ar", []model.FieldError{{Field: "language", Code: "invalid_value"}}},

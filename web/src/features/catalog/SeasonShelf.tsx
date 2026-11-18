@@ -8,15 +8,19 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { offlineSupported } from '@/features/offline/support';
-import { formatRuntime } from '@/lib/format';
+import { intlLocale } from '@/i18n';
+import { formatDate, formatRuntime } from '@/lib/format';
 import {
   Button,
   EpisodeListItem,
+  Icon,
   Notice,
   PosterCard,
   Skeleton,
   SpatialButton,
   SpatialGroup,
+  setSpatialFocus,
+  type IconName,
 } from '@/ui';
 import { CoverPen, EditMetadata } from './EditMetadata';
 import { episodeCode } from './labels';
@@ -31,10 +35,64 @@ const DownloadAction = lazy(() =>
     default: module.DownloadAction,
   })),
 );
+// The request dialog needs react-aria, which the browsing pages do not load up front (P-10).
+const RequestDialog = lazy(() =>
+  import('@/features/wishes/RequestDialog').then((module) => ({ default: module.RequestDialog })),
+);
 
 type NextUp = NonNullable<ItemDetail['nextUp']>;
+type Catalog = NonNullable<ItemDetail['catalog']>;
+type CatalogSeason = Catalog['seasons'][number];
+type MissingState = Exclude<CatalogSeason['state'], 'present'>;
+
+/** The series a wall belongs to, as far as its missing seasons need it (concept 25 M-06). */
+export type ShelfSeries = Pick<
+  ItemDetail,
+  'id' | 'title' | 'year' | 'tmdbId' | 'catalog' | 'canRequestSeasons'
+>;
+
+/** A cover of the wall: a season of the library, or one the catalog lists as not playable. */
+export type WallEntry =
+  | { id: string; season: ItemRef; missing?: undefined }
+  | { id: string; season?: undefined; missing: CatalogSeason & { state: MissingState } };
 
 const seasonKey = (season: ItemRef) => `season-${season.id}`;
+const missingKey = (number: number) => `season-missing-${number}`;
+/** «Staffeln anfordern» under the wall. */
+const REQUEST_KEY = 'detail-seasons-request';
+
+/** The mark on the cover of a season the profile cannot play (form, not paleness alone). */
+const MISSING_ICON = {
+  missing: 'plus',
+  requested: 'bell',
+  processing: 'download',
+  announced: 'info',
+} as const satisfies Record<MissingState, IconName>;
+
+const isMissing = (season: CatalogSeason): season is CatalogSeason & { state: MissingState } =>
+  season.state !== 'present';
+
+/**
+ * The covers of the wall: the seasons of the library and, with a catalog (concept 25 M-06, only
+ * for a profile that may request series), the seasons it lists as missing, requested, in
+ * procurement or announced, in the order of their numbers. Seasons without a number (specials)
+ * stay where the server put them, after the numbered ones.
+ */
+export function wallEntries(seasons: readonly ItemRef[], catalog?: Catalog): WallEntry[] {
+  const library: WallEntry[] = seasons.map((season) => ({ id: season.id, season }));
+  if (!catalog) return library;
+  const numbered = (entry: WallEntry) =>
+    entry.missing ? entry.missing.number : (entry.season.seasonNumber ?? 0);
+  const present = new Set(seasons.map((season) => season.seasonNumber));
+  const missing: WallEntry[] = catalog.seasons
+    .filter(isMissing)
+    .filter((season) => !present.has(season.number))
+    .map((season) => ({ id: missingKey(season.number), missing: season }));
+  const regular = [...library.filter((entry) => numbered(entry) > 0), ...missing];
+  // A stable sort: two library seasons of one number keep their order.
+  regular.sort((a, b) => numbered(a) - numbered(b));
+  return [...regular, ...library.filter((entry) => numbered(entry) <= 0)];
+}
 
 /** "2004 · 24 Folgen · 3 gesehen": the facts of a season (E-13, E-15). */
 export function seasonFacts(t: TFunction, season: ItemRef): string[] {
@@ -219,12 +277,12 @@ function gridColumns(grid: Element | null | undefined): number {
  * in place of the last one when it would lie further down (concept 21 P-6). All of them unfolded,
  * or while the columns are not known.
  */
-export function foldedSeasons(
-  seasons: readonly ItemRef[],
+export function foldedSeasons<T extends { id: string }>(
+  seasons: readonly T[],
   chosenId: string,
   columns: number,
   unfolded: boolean,
-): readonly ItemRef[] {
+): readonly T[] {
   const limit = columns * 2;
   if (unfolded || limit === 0 || seasons.length <= limit) return seasons;
   const index = seasons.findIndex((season) => season.id === chosenId);
@@ -233,16 +291,87 @@ export function foldedSeasons(
   return [...first.slice(0, limit - 1), seasons[index]!];
 }
 
+/** «2 von 4 Staffeln vorhanden · Läuft noch, nächste Folge am 4. Dez. 2026» over the wall. */
+function catalogLine(t: TFunction, language: string, catalog: Catalog): string {
+  const parts = [t('item.seasonWall.present', { present: catalog.present, count: catalog.total })];
+  const next = catalog.nextEpisode?.airDate;
+  if (next) parts.push(t('item.seasonWall.next', { date: formatDate(next, language) }));
+  else if (catalog.inProduction) parts.push(t('item.seasonWall.running'));
+  return parts.join(t('format.separator'));
+}
+
+/**
+ * The cover of a season the profile cannot play (concept 25 M-06): no picture, a dashed outline
+ * and a mark with the state «Fehlt», «Angefordert», «In Beschaffung» or «Angekündigt», so it reads
+ * apart from the dimmed covers of the seasons that are there. A missing or requested season opens
+ * the request dialog with it chosen, where the server allows the profile to request seasons.
+ */
+function MissingSeasonCard({
+  season,
+  onRequest,
+}: {
+  season: CatalogSeason & { state: MissingState };
+  onRequest?: (number: number) => void;
+}) {
+  const { t } = useTranslation();
+  const title = t('item.seasonWall.season', { number: season.number });
+  const state = t(`item.seasonWall.state.${season.state}`);
+  const caption = [
+    season.airDate ? season.airDate.slice(0, 4) : undefined,
+    season.episodeCount > 0 ? t('item.season.episodes', { count: season.episodeCount }) : undefined,
+  ].filter((part): part is string => part !== undefined);
+  const requestable = onRequest && (season.state === 'missing' || season.state === 'requested');
+  let label = t('item.seasonWall.cardLabel', { title, state });
+  if (requestable) {
+    label = t(
+      season.state === 'missing' ? 'item.seasonWall.cardRequest' : 'item.seasonWall.cardJoin',
+      { title },
+    );
+  }
+  return (
+    <PosterCard
+      focusKey={missingKey(season.number)}
+      title={title}
+      caption={caption.join(t('format.separator'))}
+      label={label}
+      dimmed
+      tabIndex={-1}
+      // In procurement, announced, or no right: the card stays in the wall's arrow order and says
+      // it has no action, instead of a button that does nothing.
+      aria-disabled={requestable ? undefined : 'true'}
+      onPress={requestable ? () => onRequest(season.number) : undefined}
+    >
+      <span className={styles.missingSeason} data-state={season.state} aria-hidden="true">
+        <Icon name={MISSING_ICON[season.state]} size="lg" />
+        <span className={styles.missingState}>{state}</span>
+      </span>
+    </PosterCard>
+  );
+}
+
 /**
  * The seasons of a series as a wall of covers over the whole width (concept 21 P-6, variant A;
  * before a shelf, concept 17 D-1): each with "2004 · 24 Folgen", a bar of the watched episodes and
  * the check mark of the season; the pen shows with the pointer or the focus. First two rows, then
  * «Alle N Staffeln anzeigen»; the chosen season (first the one of the `nextUp` episode) always
  * stands in the wall and shows its text and episodes underneath. ↓ from the wall leads to the
- * episodes (O-11), over the button when there is one.
+ * episodes (O-11), over the buttons when there are some.
+ *
+ * With the series' catalog (concept 25 M-06, only for a profile that may request series) the wall
+ * also shows the seasons the profile cannot play, a line «n von m Staffeln vorhanden» and, where
+ * the server allows it (`canRequestSeasons`), «Staffeln anfordern»; a press on a missing season
+ * opens the same dialog with that season chosen. Without a catalog the wall is as before.
  */
-export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; nextUp?: NextUp }) {
-  const { t } = useTranslation();
+export function SeasonShelf({
+  seasons,
+  nextUp,
+  series,
+}: {
+  seasons: readonly ItemRef[];
+  nextUp?: NextUp;
+  series?: ShelfSeries;
+}) {
+  const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const queryClient = useQueryClient();
   // The pen on a season's cover (concept 20 P-3), as on every other cover.
@@ -251,7 +380,11 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
   const [chosen, setChosen] = useState<string | null>(null);
   const [unfolded, setUnfolded] = useState(false);
   const [columns, setColumns] = useState(0);
+  // The request dialog: the seasons chosen at first (none: every missing one), its result.
+  const [requesting, setRequesting] = useState<{ preselect?: readonly number[] } | null>(null);
+  const [requested, setRequested] = useState<'requested' | 'joined' | null>(null);
   const wall = useRef<HTMLDivElement>(null);
+  const opener = useRef<string>(REQUEST_KEY);
   const wallId = useId();
   const hasSeasons = seasons.length > 0;
   // The columns follow the width of the page (auto-fill); measured before the first paint.
@@ -271,8 +404,21 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
     seasons.find((season) => season.id === nextUp?.episode.parentId) ??
     seasons[0];
   if (!current) return null;
-  const shown = foldedSeasons(seasons, current.id, columns, unfolded);
-  const foldable = columns > 0 && seasons.length > columns * 2;
+  const catalog = series?.catalog;
+  const tmdbId = series?.tmdbId;
+  // Only with the server's word and a TMDB id to request by (rule 12).
+  const canRequest = Boolean(series?.canRequestSeasons && catalog && tmdbId);
+  const entries = wallEntries(seasons, catalog);
+  const shown = foldedSeasons(entries, current.id, columns, unfolded);
+  const foldable = columns > 0 && entries.length > columns * 2;
+  const announced = (catalog?.seasons ?? [])
+    .filter((season) => season.state === 'announced')
+    .map((season) => season.number);
+  const request = (preselect?: readonly number[]) => {
+    opener.current = preselect ? missingKey(preselect[0]!) : REQUEST_KEY;
+    setRequested(null);
+    setRequesting({ preselect });
+  };
   return (
     // One group for the wall and the episodes, as wide as the page: ↓ from the actions in the head
     // enters it at the wall (by geometry the episode list could win over the wall).
@@ -286,6 +432,11 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
       <h2 id="item-seasons-heading" className={`${styles.sectionTitle} ${styles.gutter}`}>
         {t('item.seasons')}
       </h2>
+      {catalog && (
+        <p className={`${styles.muted} ${styles.gutter}`}>
+          {catalogLine(t, intlLocale(i18n.language), catalog)}
+        </p>
+      )}
       <div ref={wall} className={styles.gutter}>
         <SpatialGroup
           focusKey="detail-seasons"
@@ -296,7 +447,18 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
           preferredChildFocusKey={seasonKey(current)}
           rememberLastChild={false}
         >
-          {shown.map((season) => {
+          {shown.map((entry) => {
+            if (entry.missing) {
+              return (
+                <li key={entry.id}>
+                  <MissingSeasonCard
+                    season={entry.missing}
+                    onRequest={canRequest ? (number) => request([number]) : undefined}
+                  />
+                </li>
+              );
+            }
+            const season = entry.season;
             const active = season.id === current.id;
             const total = season.childCount ?? 0;
             const watched = Math.min(season.watchedCount ?? 0, total);
@@ -342,22 +504,41 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
           })}
         </SpatialGroup>
       </div>
-      {foldable && (
+      {(foldable || canRequest) && (
         // A group as wide as the page: by geometry ↑ from the episodes reaches it, not the wall.
         <SpatialGroup className={`${styles.wallToggle} ${styles.gutter}`}>
-          <SpatialButton
-            focusKey="detail-seasons-fold"
-            variant="secondary"
-            icon={unfolded ? 'chevronUp' : 'chevronDown'}
-            aria-expanded={unfolded}
-            aria-controls={wallId}
-            onPress={() => setUnfolded((value) => !value)}
-          >
-            {unfolded
-              ? t('item.seasonWall.showLess')
-              : t('item.seasonWall.showAll', { total: seasons.length })}
-          </SpatialButton>
+          {foldable && (
+            <SpatialButton
+              focusKey="detail-seasons-fold"
+              variant="secondary"
+              icon={unfolded ? 'chevronUp' : 'chevronDown'}
+              aria-expanded={unfolded}
+              aria-controls={wallId}
+              onPress={() => setUnfolded((value) => !value)}
+            >
+              {unfolded
+                ? t('item.seasonWall.showLess')
+                : t('item.seasonWall.showAll', { total: entries.length })}
+            </SpatialButton>
+          )}
+          {canRequest && (
+            <SpatialButton
+              focusKey={REQUEST_KEY}
+              variant="secondary"
+              icon="plus"
+              onPress={() => request()}
+            >
+              {t('item.seasonWall.request')}
+            </SpatialButton>
+          )}
         </SpatialGroup>
+      )}
+      {requested && (
+        <div className={styles.gutter}>
+          <Notice
+            title={t(requested === 'joined' ? 'titles.done.joined' : 'titles.done.requested')}
+          />
+        </div>
       )}
       <div className={`${styles.season} ${styles.gutter}`}>
         <ChosenSeason key={current.id} season={current} nextUp={nextUp} />
@@ -386,6 +567,28 @@ export function SeasonShelf({ seasons, nextUp }: { seasons: readonly ItemRef[]; 
             }
           }}
         />
+      )}
+      {requesting && series && tmdbId && (
+        <Suspense fallback={null}>
+          <RequestDialog
+            title={{ media: 'show', tmdbId, title: series.title, year: series.year }}
+            source="detail"
+            preselect={requesting.preselect}
+            skip={announced}
+            onClose={() => setRequesting(null)}
+            onDone={(made) => {
+              setRequesting(null);
+              setRequested(made.role === 'joined' ? 'joined' : 'requested');
+              // The covers show the new states; the focus stays where the dialog came from.
+              void queryClient.invalidateQueries({ queryKey: ['item', series.id] });
+              setSpatialFocus(opener.current);
+            }}
+            onAvailable={() => {
+              setRequesting(null);
+              void queryClient.invalidateQueries({ queryKey: ['item', series.id] });
+            }}
+          />
+        </Suspense>
       )}
     </SpatialGroup>
   );

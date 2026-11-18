@@ -275,7 +275,7 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
 	var d gen.Dashboard
 	decode(t, rec, &d)
-	if rec.Code != http.StatusOK || len(d.Integrations) != 8 || d.Jobs.RecentFailed == nil || d.Errors == nil || d.Streams == nil ||
+	if rec.Code != http.StatusOK || len(d.Integrations) != 9 || d.Jobs.RecentFailed == nil || d.Errors == nil || d.Streams == nil ||
 		d.Storage.Cache.TotalBytes <= 0 || !d.Update.Enabled || !strings.Contains(rec.Body.String(), `"rejectedKeys":[]`) {
 		t.Errorf("dashboard = %d %s", rec.Code, rec.Body.String())
 	}

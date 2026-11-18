@@ -270,7 +270,8 @@
     "homeRows": {
       "rows": {
         "libraries": "Kacheln für die Bibliotheken, die das Profil sieht, für Radio und, wenn eingeblendet, für Sammlungen und User-Empfehlungen; Reihenfolge und Ausblenden regelt die Seite „Meine Medien“.",
-        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; „Alle anzeigen“ führt zur Bibliothek, sortiert nach „Zuletzt hinzugefügt“."
+        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; „Alle anzeigen“ führt zur Bibliothek, sortiert nach „Zuletzt hinzugefügt“.",
+        "wishes": "Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden, also Titel der Bibliothek. Offene Wünsche stehen unter „Wünsche › Meine Wünsche“. Leer erscheint die Reihe nicht."
       },
       "pageLink": "Zur Seite „{{page}}“",
       "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter „Spotlight“.",
@@ -282,7 +283,17 @@
         "quoted": "„{{note}}“"
       },
       "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter „Startseite“ ein.",
-      "rowSettingsLink": "Zur Seite „Startseite“"
+      "rowSettingsLink": "Zur Seite „Startseite“",
+      "lacking": {
+        "intro": "Die Startseite und die Spotlight-Liste zeigen nur Titel aus der Bibliothek. Einträge, die fehlen, siehst nur du hier in der Verwaltung. Profile fordern fehlende Titel unter „Wünsche“ an.",
+        "asProfile": "„Anfordern“ handelt als aktives Profil ({{name}}).",
+        "noRequest": {
+          "body": "Dazu braucht es Seerr mit Adresse und Schlüssel, eingeschaltet, und „Wünsche aktiv“."
+        }
+      },
+      "matching": {
+        "allMatched": "Jeder Eintrag ließ sich zuordnen."
+      }
     },
     "nav": {
       "sheet": {
@@ -302,6 +313,9 @@
       "hints": {
         "scan": "Scan der Bibliothek „{{name}}“ abgebrochen",
         "minimumAgeBody": "Slouchcat speichert seit diesem Update das echte Mindestalter jeder Freigabe: PG-13 ist „ab 13“ statt FSK 12, R ist „ab 17“ statt FSK 16. Profile „ab 12“ und „ab 16“ sehen dadurch weniger amerikanische Titel. Wer das nicht will, stellt das Profil höher."
+      },
+      "wishes": {
+        "unmappedDeny": "Ihre Profile sehen keine fehlenden Titel, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht."
       }
     },
     "integrations": {
@@ -339,6 +353,25 @@
           "help": "Ein Schlüssel der „Books API“ aus der Google Cloud Console. Welcher Ordner die Quelle nutzt, steht unter „Hörbücher: Quellen“."
         },
         "envNote": "Der Wert kommt aus deploy/.env und lässt sich nur dort ändern. „Prüfen“ fragt den Anbieter trotzdem."
+      },
+      "seerr": {
+        "stateHint": {
+          "untested": "Teste die Verbindung, damit sich „Wünsche aktiv“ einschalten lässt."
+        },
+        "checkIssue": {
+          "notTestable": "Nicht prüfbar: Seerr hat außer Benutzer 1 keinen Benutzer.",
+          "localLoginOff": "Eröffnete Benutzer können sich in Seerr nicht anmelden. In Seerr unter Einstellungen › Benutzer „Lokale Anmeldung“ einschalten.",
+          "arrNotConfirmed": "Die Adresse aus Seerr ist noch nicht bestätigt: Teste sie unter „Radarr und Sonarr“."
+        },
+        "arr": {
+          "state": {
+            "unconfirmed": "{{service}} wartet auf „Testen“"
+          }
+        },
+        "hook": {
+          "intro": "Seerr stößt den Abgleich sofort an, statt bis zu 5 Minuten zu warten. Der Abgleich bleibt die Grundlage.",
+          "where": "In Seerr unter Einstellungen › Benachrichtigungen › Webhook: die Adresse als „Webhook URL“, diese Vorlage als „JSON Payload“."
+        }
       }
     },
     "accounts": {
@@ -354,6 +387,11 @@
         "promote": {
           "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf „ab 18“ und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen."
         }
+      },
+      "wishes": {
+        "rightsFollow": "Die Rechte von „{{name}}“ in Seerr werden angepasst.",
+        "rightsStay": "„{{name}}“ behält in Seerr seine Rechte, weil Slouchcat ihn nicht eröffnet hat.",
+        "adminLimit": "„{{name}}“ ist in Seerr Administrator. Seerr gibt Administratoren kein Limit."
       }
     },
     "backup": {
@@ -389,6 +427,23 @@
         },
         "radio_wikidata_sync": {
           "trigger": "wöchentlich ab 06:30, nach „Übernehmen“ mit neuen Sendern (höchstens einmal am Tag), beim Einschalten von „Wikidata verwenden“"
+        },
+        "seerr_users": {
+          "trigger": "täglich, „Benutzerliste neu laden“, nach dem Speichern der Verbindung zu Seerr"
+        },
+        "seerr_provision": {
+          "description": "Eröffnet oder verknüpft den Seerr-Benutzer eines Kontos, legt den Sammelbenutzer „slouchcat-gaeste“ an und nimmt dem Seerr-Benutzer eines gelöschten Kontos die Rechte.",
+          "trigger": "„In Seerr eröffnen“, „Alle eröffnen“, Einladung angenommen, „Wünsche aktiv“ eingeschaltet, nach dem Laden der Seerr-Benutzer für wartende Konten, Konto gelöscht"
+        },
+        "wishes_withdraw": {
+          "trigger": "„Zurückziehen“ in „Meine Wünsche“; nach dem Abgleich, solange Seerr nicht erreichbar war"
+        },
+        "wishes_sync": {
+          "trigger": "Zeitplan alle 5 Minuten, „Jetzt abgleichen“, Meldung des Seerr-Webhooks"
+        },
+        "wishes_import": {
+          "description": "Übernimmt die offenen und kürzlich verfügbar gewordenen Anfragen, die ein verknüpfter Seerr-Benutzer in Seerr selbst gestellt hat, als Wünsche des Hauptprofils seines Kontos („In Seerr angelegt“). Anfragen des Sammelbenutzers bleiben außen vor. Es geht keine Benachrichtigung hinaus.",
+          "trigger": "Seerr-Benutzer eines Kontos verknüpft, gewählt oder geändert, „Anfragen übernehmen“"
         },
         "scan_library": {
           "trigger": "Zeitplan alle 6 h und Start des Servers, „Scannen“ auf der Bibliotheksseite, Webhook, Dateiwächter"
@@ -533,6 +588,64 @@
         "kept_one": "„{{title}}“: {{count}} Datei gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten.",
         "kept_other": "„{{title}}“: {{count}} Dateien gelöscht ({{size}}); der Titel bleibt mit den Dateien, die nicht gelöscht werden konnten."
       }
+    },
+    "wishes": {
+      "settings": {
+        "switchedOn": "„{{name}}“ ist eingeschaltet. Gilt sofort.",
+        "switchedOff": "„{{name}}“ ist ausgeschaltet. Gilt sofort.",
+        "choiceSaved": "„{{name}}“: {{value}}. Gilt sofort.",
+        "limitSaved": "Limit ab Werk: {{limit}}. Gilt sofort für alle Konten mit „Standard“.",
+        "allowMoviesHelp": "Gilt für alle Profile. Aus: kein „Film anfordern“.",
+        "allowShowsHelp": "Gilt für alle Profile. Aus: kein „Serie anfordern“ und keine „Staffeln anfordern“.",
+        "fromSearchHelp": "Abschnitt „Noch nicht in der Bibliothek“. Aus: Der Abschnitt fehlt.",
+        "alreadyRequestedHelp": {
+          "join": "Mitwünschen: Ein zweites Profil hängt sich an den offenen Wunsch („Benachrichtige mich“) und wird ebenfalls benachrichtigt. Seerr bekommt keine zweite Anfrage.",
+          "status": "Nur Zustand zeigen: Ein zweites Profil sieht „Bereits angefordert“, kann sich aber nicht dazuschalten und wird nicht benachrichtigt."
+        },
+        "newAccountsCanRequestHelp": "Vorgabe des Schalters im Dialog „Konto einladen“. Ändert bestehende Konten nicht.",
+        "allowWithdrawHelp": "Solange ein Wunsch nicht freigegeben ist. Knopf „Zurückziehen“ unter „Meine Wünsche“.",
+        "perAccountHelp": "Unter „Konten“ lässt sich das Limit eines Kontos abweichend setzen: eigenes Limit oder unbegrenzt.",
+        "syncPasswordHelp": "Slouchcat gibt das Passwort an Seerr weiter, wenn es gesetzt oder geändert wird und bei der Anmeldung in Slouchcat. Slouchcat speichert es nie im Klartext. Dafür braucht Seerr die „Lokale Anmeldung“. Benutzer, die es in Seerr schon gab und die ein Administrator verknüpft, behalten ihr Passwort.",
+        "tagPrefixHelp": "Kleinbuchstaben, Ziffern und Bindestrich. Beispiel: sc-noah. Gilt für neue Tags; bestehende Tags bleiben, wie sie sind. Den Tag eines einzelnen Profils änderst du unter „Seerr-Benutzer“.",
+        "tagPrefixSaved": "Präfix „{{prefix}}“: Neue Tags heißen etwa {{prefix}}noah. Gesetzte Tags bleiben, wie sie sind.",
+        "discoverPagesHelp": "Reiter im Bereich „Wünsche“. Aus: nur „Meine Wünsche“.",
+        "limitHintCount": "{{low}} bis {{high}}; 0 heißt ohne Limit."
+      },
+      "users": {
+        "goneTitle": "Benutzer „{{name}}“ nicht gefunden",
+        "warning": {
+          "nothing": "„{{name}}“ darf in Seerr nichts anfordern. Jeder Wunsch scheitert; gib dem Benutzer in Seerr das Recht „Anfragen“ oder wähle einen anderen.",
+          "noShows": "„{{name}}“ darf keine Serien anfordern. Serienwünsche scheitern, Filme gehen.",
+          "noMovies": "„{{name}}“ darf keine Filme anfordern. Filmwünsche scheitern, Serien gehen."
+        },
+        "linked": "{{email}} fordert jetzt als „{{name}}“ an. Rechte und Freigabe kommen von diesem Benutzer.",
+        "unlinked": "Verknüpfung von {{email}} gelöst. „{{name}}“ bleibt in Seerr.",
+        "withoutFallback": "Sie fordern bis dahin als Sammelbenutzer slouchcat-gaeste an (Regel „Konten ohne Seerr-Benutzer“).",
+        "withoutDeny": "Sie können nichts anfordern, solange „Konten ohne Seerr-Benutzer“ auf „Nicht erlauben“ steht.",
+        "provisionOffHint": "„Neue Konten in Seerr eröffnen“ ist ausgeschaltet.",
+        "sameEmailTitle": "In Seerr gibt es schon „{{name}}“",
+        "sameEmailBody": "Gleiche E-Mail-Adresse: „In Seerr eröffnen“ verknüpft diesen Benutzer, statt einen zweiten anzulegen.",
+        "emailTakenBody": "Ein anderer Seerr-Benutzer hat diese Adresse schon. „{{name}}“ behält in Seerr seine bisherige E-Mail; das Konto fordert weiter als dieser Benutzer an.",
+        "provisioned": {
+          "linked": "{{email}} ist mit dem Seerr-Benutzer „{{name}}“ verknüpft."
+        },
+        "passwordNote": {
+          "admin": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ ist in Seerr Administrator, sein Passwort bleibt dort, wie es ist.",
+          "external": "Das Passwort gleicht Slouchcat nicht ab: „{{name}}“ meldet sich über Jellyfin, Emby oder Plex an, nicht mit einem eigenen Passwort."
+        },
+        "profiles": {
+          "saved": "{{profile}}: Der Tag heißt jetzt {{name}}."
+        },
+        "takeOver": {
+          "help": "Anfragen, die direkt in Seerr gestellt wurden, werden Wünsche des Hauptprofils mit dem Vermerk „In Seerr angelegt“. Sie tragen keinen Profil-Tag."
+        }
+      },
+      "requests": {
+        "declineBody": "Slouchcat gibt die Ablehnung an Seerr weiter. Seerr kennt keinen Grund: Die Profile sehen nur „Abgelehnt“ und werden benachrichtigt."
+      },
+      "arrError": {
+        "not_confirmed": "Die Adresse aus Seerr wartet auf „Testen“."
+      }
     }
   },
   "invite": {
@@ -574,7 +687,7 @@
     },
     "notifications": {
       "events": {
-        "helpAdmin": "Wofür eine Nachricht kommt. „Fehler“ gibt es nur für Administratoren."
+        "helpAdmin": "Wofür eine Nachricht kommt. „Fehler“ und „Wünsche: Freigabe nötig“ gibt es nur für Administratoren."
       },
       "push": {
         "ios": "Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü „Zum Home-Bildschirm“ wählen und Slouchcat von dort öffnen."
@@ -611,6 +724,42 @@
     "ask": {
       "removeTitle": "„{{title}}“ als ungesehen markieren?",
       "halfTitle": "„{{title}}“ ist teilweise gesehen"
+    }
+  },
+  "errors": {
+    "code": {
+      "provision_disabled": "„Neue Konten in Seerr eröffnen“ ist ausgeschaltet. Schalte es unter Wünsche › Einstellungen ein."
+    }
+  },
+  "titles": {
+    "done": {
+      "requested": "Angefordert. Den Stand siehst du unter „Meine Wünsche“."
+    },
+    "shared": {
+      "join": "Ein anderes Profil hat diesen Film schon angefordert. Mit „Benachrichtige mich“ meldet sich Slouchcat auch bei dir, sobald er abspielbar ist."
+    }
+  },
+  "wishes": {
+    "reason": {
+      "profile_not_allowed": "Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter „Profile“ erlauben."
+    },
+    "withdraw": {
+      "body": "„{{title}}“ wird nicht mehr angefordert; Slouchcat löscht den Wunsch auch in Seerr.",
+      "bodyJoined": "Du bekommst keine Nachricht mehr, wenn „{{title}}“ da ist. Die Wünsche der anderen Profile bleiben."
+    },
+    "dialog": {
+      "needsApproval": "Braucht eine Freigabe. Den Stand siehst du unter „Meine Wünsche“."
+    },
+    "discover": {
+      "gone": {
+        "body": "Deine bisherigen Wünsche findest du weiterhin unter „Meine Wünsche“.",
+        "action": "Zu „Meine Wünsche“"
+      }
+    },
+    "search": {
+      "empty": {
+        "title": "Nichts gefunden für „{{q}}“"
+      }
     }
   }
 }

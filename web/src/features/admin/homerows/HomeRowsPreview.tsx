@@ -22,6 +22,7 @@ const SHAPE = {
   libraries: 'wide',
   library: 'poster',
   radio: 'square',
+  wishes: 'poster',
 } as const satisfies Record<HomeRowKey, Shape>;
 
 /** Number of placeholders per shape. */

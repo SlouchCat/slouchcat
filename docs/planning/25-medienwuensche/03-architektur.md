@@ -7,7 +7,8 @@
 > Slouchcat legt Wünsche mit `X-Api-Key` und `X-API-User` im Namen des zugeordneten Seerr-Benutzers an,
 > speichert sie zuerst lokal (Ausgangsfach) und gleicht alle 5 Minuten ab. «Verfügbar» meldet Slouchcat erst,
 > wenn die eigene Bibliothek den Titel für das Profil abspielen kann, nie allein auf Grund von Seerr.
-> Neu in Fassung 3: Jedes Konto bekommt in Seerr einen eigenen Benutzer mit demselben Login; Slouchcat
+> Neu in Fassung 3: Jedes Konto bekommt in Seerr einen eigenen Benutzer mit demselben Login (auf Marcos Instanz
+> nur für neu eröffnete Benutzer: alle bestehenden melden sich über Emby an, Anhang I, I-10); Slouchcat
 > gibt das Passwort nur in den drei Momenten weiter, in denen der Server es ohnehin sieht, und speichert es nie.
 > Slouchcat schreibt das Limit je Konto in diesen Benutzer, Seerr zählt. Ein kleines Paket `internal/arr`
 > spricht Radarr und Sonarr für genau zwei Dinge an: den Profil-Tag setzen und für den Download-Fortschritt die
@@ -52,7 +53,7 @@ Was über Anhang F hinausgeht, ist als **Vorschlag** gekennzeichnet. Datenmodell
 | `internal/visibility` | neue Funktionen: Titel zu externen IDs, «fehlt für dieses Profil», Altersprüfung fehlender Titel, sichtbare Staffeln; Spotlight-Abfrage erkennt Bibliothekstitel auch über TVDB und IMDb (Abschnitt 5.1) | 2, 3, 4 |
 | `internal/metadata` | neuer Haken `WithMatched` neben `WithRelink` (`server/internal/metadata/metadata.go:344-349`, `match.go:312-330`); TMDB-Abruf für `external_titles` und `series_catalog`; Trakt-Abruf liest `tvdb` und `imdb` (`server/internal/trakt/trakt.go:270-273`) | 2, 3, 4 |
 | `internal/notify` | neue Eingangsarten und Kanal-Ereignisse; neuer Leseweg für Einträge ohne `item_id` über `wish_id` (Details in `06-benachrichtigungen.md`, Abschnitte 8 und 11) | 2, 4 |
-| `internal/integrations` | `receiveWebhook` kennt die Art `jellyseerr` als reinen Anstoss; der Empfang von Radarr und Sonarr bleibt unverändert (Abschnitt 10); der Sofort-Import (Abschnitt 10.1, Marco, E-11) liest neu Dateipfad und Kennung aus der Meldung, nur wenn die Messung einen Gewinn zeigt | 4, 6a |
+| `internal/integrations` | `receiveWebhook` kennt die Art `seerr` als reinen Anstoss (so gebaut, Migration 00080 `webhook_seerr`); der Empfang von Radarr und Sonarr bleibt unverändert (Abschnitt 10); der Sofort-Import (Abschnitt 10.1, Marco, E-11) liest neu Dateipfad und Kennung aus der Meldung, nur wenn die Messung einen Gewinn zeigt | 4, 6a |
 | `internal/discover` | Reihe `wishes` «Erfüllte Wünsche»: nur Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden, also Bibliothekstitel als `ItemRef` (N-74, N-97; Marco, E-10). Die Titel-IDs der erfüllten Wünsche liefert der Dienst `wishes` (nur er liest die Wunsch-Tabellen); ob das Profil sie sieht, prüft `discover` über `visibility` (Regel 2; Redaktionsentscheid zu K-16). Das Spotlight mischt nichts ein und zeigt weiter nur Bibliothekstitel | 3 |
 | `internal/logging` | neue Schlüsselnamen in der Redaction-Liste und im Test (Regel 10; Abschnitt 4.3) | 1, 4 |
 | `cmd/slouchcat/main.go` | Verdrahtung von `seerr`, `arr`, `wishes`, Haken und Jobarten (`main.go:418-443`; heutige Haken von `auth` an `main.go:292`) | 1 bis 5 |
@@ -113,13 +114,13 @@ Der Dienst für alles, was Wünsche betrifft.
 | `Service.Tag` | Handler `wishes.tag`: Profil-Tag über `internal/arr` setzen und nachholen (Abschnitt 20) |
 | `Service.Progress` | Handler `wishes.progress`: Warteschlange und Dateistand der gewünschten Titel in Radarr und Sonarr über `internal/arr` lesen, Einträge den Wünschen zuordnen, Zwischenspeicher `wish_progress` schreiben (Abschnitt 22) |
 | `Discover` | Leseweg der Seiten «Entdecken», «Filme», «Serien», «Suche» und Handler `wishes.discover` (Abschnitt 21) |
-| `Mapping` | Seerr-Benutzer je Konto (eröffnet, verknüpft, von Hand), Ausnahme je Profil (F-27) |
+| `Mapping` | Seerr-Benutzer je Konto (eröffnet, verknüpft, von Hand) und Sammelbenutzer «slouchcat-gaeste» (F-4, Abschnitt 18.5); keine Ausnahme je Profil (F-27, N-100) |
 | `Rights` | `canRequest` und Grund je Sitzung, je Titel, je Medienart, je Stelle |
 
 SQL liegt in einem eigenen Abfrageordner, nur für dieses Paket (**Vorschlag:** `server/queries/wishes/` →
 `store/wishq`, eine depguard-Regel nach dem Muster `certq` in `server/.golangci.yml`). Das Paket fragt nur
 die Wunsch-Tabellen (`wishes`, `wish_seasons`, `wish_requesters`, `wish_events`, `seerr_users`,
-`wish_account_map`, `wish_profile_map`, `seerr_log`, neu `wish_account_limits`, `wish_profile_tags`, `wish_tags`,
+`wish_account_map`, `seerr_log`, neu `wish_account_limits`, `wish_profile_tags`, `wish_tags`,
 `wish_progress`, `wish_discover_pages`) und lesend `accounts`/`profiles` ab, nie `items`, `media_files` oder `tracks`, und
 importiert `store/systemq` nicht. Ob ein Treffer aus Entdecken oder Suche in der Bibliothek steht, fragt es
 `visibility` (Abschnitt 21.3).
@@ -211,7 +212,7 @@ gewünschten Titel für den Download-Fortschritt (`queue`, `movie?tmdbId`, `seri
 | Zeitlimit, Rate-Limit | **Vorschlag:** 10 s, 2 Anfragen/s je Dienst | Tags sind selten; die Warteschlange liest `wishes.progress` höchstens einmal je Minute und Dienst |
 | Antwortgrösse | **Vorschlag:** höchstens 4 MiB je Antwort wie `seerr` | die Warteschlange kann viele Einträge tragen |
 | `os/exec` | keins (Regel 3) | – |
-| Tag-Namen | nur `a–z`, `0–9`, `-` (Radarr und Sonarr, Anhang H 3.5); `arr` prüft den Namen vor dem Senden | N-21 |
+| Tag-Namen | nur `a–z`, `0–9`, `-` (Radarr lehnt alles andere mit 400 ab, Sonarr nicht; Anhang I, I-52); Bildung nach N-113 (Abschnitt 20.1); `arr` prüft den Namen vor dem Senden | N-21, N-113 |
 
 Sonarr kennt Tags nur an der Serie, nicht an der Staffel (Anhang H 3.5). Ein Staffelwunsch bekommt darum den Tag
 an der ganzen Serie.
@@ -420,7 +421,15 @@ flowchart LR
   ohne Aufruf an Seerr. Nur die übrigen Staffeln bilden einen neuen Wunsch mit eigener
   `wish_seasons`-Liste. Seerr legt für weitere Staffeln ohnehin einen eigenen Request an (Anhang D 4).
   **Vorschlag:** Antwort 201 mit dem neuen Wunsch und Feld `joined` mit den Wünschen, an die sich das Profil
-  gehängt hat; sind alle gewählten Staffeln schon gewünscht, Antwort 200 nur mit `joined`.
+  gehängt hat; sind alle gewählten Staffeln schon gewünscht, Antwort 200 nur mit `joined`. **So gebaut:** Eine
+  Staffel, die schon der eigene offene Wunsch des Profils hält, zeigt ihren Zustand, ist aber nicht
+  mitwünschbar; fehlen nur solche Staffeln, meldet `getItem` `canRequestSeasons` falsch.
+- **Staffeln, die das Profil nicht sehen darf (so gebaut).** Darf das Profil von einer Staffel der Bibliothek
+  keine Folge abspielen (strengere Freigabe je Staffel oder Folge), steht sie nicht im Katalog der Serienseite
+  (nicht gelistet, nicht gezählt), und der Dialog bietet sie nicht an. Nennt eine Anfrage sie trotzdem, antwortet
+  der Server wie bei einer Staffel, die es nicht gibt (422 `validation_failed` mit `season_not_offered`); «Alle
+  fehlenden Staffeln» lässt sie aus. Sieht das Profil nur einen Teil der Folgen, bleibt die Staffel anforderbar
+  (bekannte Grenze, Abschnitt 14).
 - **Request-ID je Staffel.** Ein Serienwunsch kann in Seerr auf mehrere Requests verteilt sein: Seerr
   filtert schon angefragte Staffeln still heraus und legt für den Rest einen eigenen Request an (Anhang D 4).
   Darum trägt jede Zeile in `wish_seasons` ihre eigene `seerr_request_id`; `wishes.seerr_request_id` gilt nur
@@ -477,7 +486,7 @@ herausgefiltert, weil schon angefragt), sucht der Job sie mit `GET /tv/{tmdbId}`
 | 403 `Movie Quota exceeded.` / `Series Quota exceeded.` | Limit erreicht (Seerr zählt auch Wünsche, die direkt dort gestellt wurden) | `failed`, `fail_reason = quota`; Stand des Limits neu lesen (Abschnitt 19) |
 | 403 `This media is blocklisted.` / `…blacklisted.` | Sperrliste (3.x / 2.x) | `failed`, `fail_reason = blocklisted` |
 | 403 `You do not have permission to make … requests.` | Benutzer darf das nicht | `failed`, `fail_reason = no_permission`; Warnung auf der Seite Seerr-Benutzer |
-| 403 ohne bekannte Meldung (auch «You do not have permission to access this endpoint») | Schlüssel ungültig **oder** `X-API-User` unbekannt; Seerr meldet beides gleich (Anhang D 2.1) | `GET /auth/me` ohne Header. Antwortet es 200, ist der Schlüssel gut und der Benutzer fehlt: `failed`, `fail_reason = seerr_user_gone` (wie Abschnitt 14 und `04-benutzer-profilmapping.md`, Abschnitt 8.1). Sonst ist der Schlüssel ungültig: Wunsch bleibt `queued`, Verbindung «Schlüssel ungültig» |
+| 403 ohne bekannte Meldung (auch «You do not have permission to access this endpoint») | Schlüssel ungültig **oder** `X-API-User` unbekannt; Seerr meldet beides gleich (Anhang D 2.1) | `GET /auth/me` ohne Header. Antwortet es 200, ist der Schlüssel gut und der Benutzer fehlt: `failed`, `fail_reason = seerr_user_gone` (wie Abschnitt 14 und `04-benutzer-profilmapping.md`, Abschnitt 8.1). Sonst ist der Schlüssel ungültig: Wunsch bleibt `queued`, Verbindung «Schlüssel ungültig». An der echten Instanz bestätigt: beide Fälle antworten gleich, der Text steht im Feld `error` (Anhang I, I-2, I-3; N-114) |
 | 401 `You must be logged in…` | Schlüssel ungültig | bleibt `queued`, Zustand der Verbindung |
 | 500 | meist TMDB-Fehler in Seerr (`MediaRequest.ts` Z. 169–172) | wie nicht erreichbar: später erneut |
 | 3xx | Weiterleitung | wie nicht erreichbar; Diagnose «Adresse leitet weiter» |
@@ -528,6 +537,9 @@ und ein laufender POST lässt sich nicht abbrechen. Darum:
 | nicht erreichbar, 5xx | – | Merker bleibt, Wiederholung nach der Leiter (6.3); keine 24-h-Grenze, der Merker bleibt bis zum Erfolg |
 
 - Ab `processing`: nicht möglich (Anhang F 1, F-17).
+- **So gebaut:** Ein Wunsch, den das Profil als «wird eingelesen» liest, weil es den Titel der Bibliothek nicht
+  sehen darf (8.3), zeigt kein «Zurückziehen»; der Versuch antwortet 409 `wish_not_withdrawable`, gleich ob der
+  Wunsch in Wahrheit verfügbar oder teilweise verfügbar ist.
 - **Vorschlag:** Ein Mitwünscher zieht nur sich selbst zurück (Zeile in `wish_requesters` löschen, kein Aufruf).
   Zieht der Besitzer zurück, während andere mitwünschen, geht die Besitzerrolle an den ältesten Mitwünscher;
   der Request in Seerr bleibt.
@@ -604,24 +616,31 @@ Sync():
 Der inkrementelle Abgleich sieht alte Requests eines **neu** zugeordneten Benutzers nie, weil er beim ersten
 älteren `updatedAt` abbricht. Darum gibt es einen eigenen Job.
 
-- **Auslöser:** Verknüpfen über die E-Mail, Setzen oder Ändern einer Zuordnung (Konto oder Ausnahme des Profils) und von Hand («Anfragen übernehmen» auf
+- **Auslöser:** Verknüpfen über die E-Mail, Setzen oder Ändern der Zuordnung eines Kontos und von Hand («Anfragen übernehmen» auf
   der Seite Seerr-Benutzer; auch nach dem Verknüpfen über die E-Mail, Abschnitt 18.2). Schlüssel `wishes.import:<seerrUserId>`.
 - **Abruf:** `GET /request?requestedBy=<seerrUserId>&take=50&skip=n` seitenweise, ohne `X-API-User`, also als
   Benutzer 1. Der Filter `requestedBy` braucht beim Aufrufer `MANAGE_REQUESTS` oder `REQUEST_VIEW` (Anhang D
-  6.1); Benutzer 1 hat `ADMIN`. Der Job speichert seinen Stand je Seite wie der Abgleich.
+  6.1); Benutzer 1 hat `ADMIN`. Der Job speichert seinen Stand je Seite wie der Abgleich. **So gebaut:** mit
+  `sort=added&sortDirection=asc`, also älteste zuerst; eine neue Anfrage kommt ans Ende und verschiebt nichts.
+  Jede Seite beginnt 5 Einträge vor dem Ende der letzten (Überlappung). Das setzt `sortDirection` an
+  `GET /request` voraus: geprüft mit Seerr 3.5.1 (Anhang I, I-70), ältere Stände (Jellyseerr 2.x) nicht.
 - **Zahl für die Rückfrage:** Vor dem Speichern einer Zuordnung zählt die Verwaltung mit demselben Aufruf und
   `take=1` (`pageInfo.results`) und nennt die Zahl: «3 Anfragen von grosseltern werden übernommen».
 - **Regeln** (wie `04-benutzer-profilmapping.md`, Abschnitt 8.2):
   - Request eines **zugeordneten** Seerr-Benutzers ohne lokalen Wunsch: neuer Wunsch mit `origin =
-    jellyseerr`, Besitzer ist das Profil mit eigener Zuordnung zu diesem Benutzer, sonst das Hauptprofil des
-    Kontos. Kennzeichen «In Seerr angelegt» (F-21). **Vorschlag:** Haben mehrere Profile desselben Kontos
-    denselben eigenen Benutzer, gewinnt das Hauptprofil, sonst das älteste dieser Profile.
+    seerr`, Besitzer ist das Hauptprofil des Kontos (eine Zuordnung je Profil gibt es nicht, F-27).
+    Kennzeichen «In Seerr angelegt» (F-21). Anfragen des Sammelbenutzers übernimmt der Job nicht (N-102).
   - Schon geführter Wunsch **ohne** Zeile in `wish_requesters` («nicht zuordenbar»): bekommt das Zielprofil als
     Besitzer; Zustand und Verlauf bleiben.
-  - **Vorschlag:** Übernommen werden nur offene und in den letzten 30 Tagen verfügbar gewordene Requests; für
-    übernommene, schon verfügbare Titel kommt keine Benachrichtigung.
+  - **So gebaut:** Übernommen werden nur offene und in den letzten 30 Tagen verfügbar gewordene Requests;
+    abgelehnte, fehlgeschlagene und 4K-Requests nicht. Für übernommene Anfragen kommt keine Benachrichtigung:
+    `notified_at` wird beim Übernehmen direkt gesetzt (`06-benachrichtigungen.md`, Abschnitt 11).
+  - **So gebaut:** Anfragen des Sammelbenutzers übergehen Übernahme und Abgleich ganz; sie werden auch nicht als
+    «nicht zuordenbar» geführt.
+  - **So gebaut:** Der Abgleich reiht nach jedem Lauf die Übernahme für jeden Seerr-Benutzer ein, der seit seiner
+    letzten Übernahme gesetzt wurde. Nach dem Upgrade läuft sie damit einmal für alle verknüpften Benutzer.
 - Request eines **nicht zugeordneten** Benutzers (Beispiel `wohnzimmer-tv`, Anhang F 11), gefunden vom Abgleich
-  oder Erstabgleich: **Vorschlag:** Wunsch mit `origin = jellyseerr` ohne Zeile in `wish_requesters`, nur in der
+  oder Erstabgleich: **So gebaut:** Wunsch mit `origin = seerr` ohne Zeile in `wish_requesters`, nur in der
   Verwaltung sichtbar (Filter «Nicht zuordenbar»). Er sperrt wie in Seerr den Titel für Doppelbestellungen;
   fordert ein Profil denselben Titel an, wird es Mitwünscher. Er löst keine Benachrichtigung aus.
 - Vor Stufe 4 aktualisiert der Abgleich nur bekannte Wünsche; unbekannte Requests zählt er nur.
@@ -704,7 +723,11 @@ anderen gehört, wird wieder `processing` (Abschnitt 6.6).
 Wünsche des Kontos werden geschlossen: Offene bekommen `failed` mit `fail_reason = account_deleted`, alle
 bekommen `closed_at`, und ihre Request-IDs wandern in den Verlauf. Slouchcat verfolgt sie nicht weiter; in
 Seerr bleiben die Requests und erscheinen ab Stufe 4 als «nicht zuordenbar» (`04-benutzer-profilmapping.md`,
-Abschnitt 10).
+Abschnitt 10). So gebaut: Ein noch nicht übermittelter Wunsch, der an einen Mitwünscher geht, wird als dessen
+Seerr-Benutzer gesendet.
+
+**Profil gelöscht (so gebaut):** Die Wünsche, die das Profil besitzt, gehen an das Hauptprofil seines Kontos; wo
+das Profil nur Mitwünscher war, fällt es weg. Umhängen und Löschen des Profils laufen in einer Transaktion.
 
 ### 8.2 Diagramm (d): Zustandsautomat
 
@@ -760,7 +783,10 @@ in `wish_events`.
 Sichtbarkeit für dieses Profil. **Vorschlag** für eine Lücke in Anhang F: Kommt der Titel in die Bibliothek, ist
 für einen Mitwünscher aber zu hoch eingestuft, zeigt «Meine Wünsche» diesem Profil «In Beschaffung · wird eingelesen», bis die Freigabe
 passt; nach 7 Tagen schliesst Slouchcat den Wunsch für dieses Profil als «Fehlgeschlagen» mit dem Text «Für
-dieses Profil nicht freigegeben». Der Titel selbst bleibt für das Profil 404. Fehlende Titel und
+dieses Profil nicht freigegeben». Der Titel selbst bleibt für das Profil 404. **So gebaut (Sicherheitsprüfung):**
+Ein solches Profil liest einen verfügbaren oder teilweise verfügbaren Wunsch als «In Beschaffung · wird
+eingelesen», in allen Listen und auf der Vorschauseite, ohne Zeitpunkt und ohne Verweis auf den Titel der
+Bibliothek; der Zustand des Wunsches selbst bleibt. Das Schliessen nach 7 Tagen ist nicht gebaut. Fehlende Titel und
 Bibliothekstitel lesen die TMDB-Freigabe mit derselben Funktion (Abschnitt 3). Der Fall bleibt trotzdem
 möglich, weil die Bibliothek strengere Quellen kennt: NFO, TVDB, eine Freigabe von Hand oder die
 Standardstufe der Bibliothek.
@@ -906,7 +932,8 @@ fängt den Rest.
   Seerr kennt nur **ein** Webhook-Ziel (Anhang D 9.4): Slouchcat richtet es nicht selbst ein, sondern zeigt
   Adresse und JSON-Vorlage zum Kopieren (Anhang F 4, Band «Sofortmeldung»).
 - Die Webhook-Route `POST /webhooks/{token}` hat schon die CSRF-Ausnahme (`server/internal/api/webhook_handlers.go:45-54`);
-  ein neuer Wert `jellyseerr` in `webhook_integrations.kind` braucht einen Tabellenneubau (CHECK, `server/migrations/00017_integrations.sql:24`).
+  der neue Wert `seerr` in `webhook_integrations.kind` braucht einen Tabellenneubau (CHECK, `server/migrations/00017_integrations.sql:24`;
+  so gebaut als Migration 00080 `webhook_seerr`, mit dem neuen Ergebnis `sync_queued` in `webhook_events`).
   Ratenbegrenzung 10/s je Integration gilt weiter (`receive.go:17-19`).
 
 ### 10.1 Sofort-Import über Pfad und Kennung aus der Webhook-Meldung (E-11, nach Messung)
@@ -978,7 +1005,9 @@ Seerr setzt «AVAILABLE» auch über den Radarr- und Sonarr-Scan, ohne Medienser
 die Sichtbarkeit je Empfänger, schreibt den Eingang mit eindeutigem Schlüssel (`wish:<id>:available`,
 `wish:<id>:season:<n>` …) und reiht die Kanäle ein (Anhang F 2.16, 2.17). Massgeblich gegen doppelte Meldungen
 ist `wish_requesters.notified_at` (bei Staffeln `wish_seasons.notified_at`); der Schlüssel schützt nur gegen
-gleichzeitige Läufe, denn gelesene Eingangseinträge räumt Slouchcat nach 90 Tagen weg. Eingangseinträge ohne
+gleichzeitige Läufe, denn gelesene Eingangseinträge räumt Slouchcat nach 90 Tagen weg. So gebaut: `notified_at`
+schreibt `notify` selbst, in derselben Transaktion wie den Eingangseintrag (`06-benachrichtigungen.md`,
+Abschnitt 11); übernommene Anfragen (7.3) setzen es direkt, damit keine Meldung entsteht. Eingangseinträge ohne
 `item_id` (abgelehnt, fehlgeschlagen, freigegeben zu einem noch fehlenden Titel) liest `notify` über den Wunsch
 (`wish_id`): sichtbar, wenn das Profil Anforderer oder Mitwünscher ist. Empfänger, Texte, PIN-Regel (F-15),
 Leseweg und Kanalvorgaben (F-14): `06-benachrichtigungen.md`.
@@ -996,10 +1025,10 @@ in die Leiter von `server/internal/jobs/queue.go:11-29` (9 hoch … 0 tief).
 | `wishes.import` | `system`, `general` | Ereignis: Seerr-Benutzer verknüpft, von Hand gesetzt oder geändert; von Hand («Anfragen übernehmen») | – | 5, von Hand 7 | `wishes.import:<seerrUserId>` | Queue-Backoff; Stand je Seite (7.3); ab Stufe 4 |
 | `wishes.reconcile` | `system`, `general` | Zeitplan; Haken `WithMatched`; Sync | 1 h | 5 | `wishes.reconcile` (alle) bzw. `wishes.reconcile:item:<itemId>` | Queue-Backoff |
 | `seerr.users` | `system`, `general` | Zeitplan; «Benutzerliste neu laden»; nach Speichern der Verbindung | 24 h | 4, manuell 7 | `seerr.users` | Queue-Backoff |
-| `seerr.provision` | `system`, `general` | Ereignis: Einladung angenommen (wenn der Versuch direkt danach scheiterte), «In Seerr eröffnen», «Alle eröffnen», Wunschrecht oder Limit des Kontos geändert, Konto gelöscht; `wishes.sync` für Konten im Zustand «wartet» | – | 7 (ein Mensch wartet), aus dem Abgleich 5 | `seerr.provision:<accountId>` | Queue-Backoff; Seerr nicht erreichbar → Zustand bleibt «wartet». Die Nutzlast trägt **nie** ein Passwort (18.3) |
+| `seerr.provision` | `system`, `general` | Ereignis: Einladung angenommen (wenn der Versuch direkt danach scheiterte), «In Seerr eröffnen», «Alle eröffnen», Wunschrecht oder Limit des Kontos geändert, Konto gelöscht; `wishes.sync` für Konten im Zustand «wartet» | – | 7 (ein Mensch wartet), aus dem Abgleich 5 | `seerr.provision:<accountId>` | Queue-Backoff; Seerr nicht erreichbar → Zustand bleibt «wartet». Die Nutzlast trägt **nie** ein Passwort (18.3), aber die Absicht des Laufs (`open`, `retry`, `sync`, so gebaut; 18.2) |
 | `wishes.tag` | `system`, `general` | nach jedem Lauf von `wishes.sync`; Ereignis: Wunsch wird `processing`, Mitwunsch kommt dazu; «Profil-Tag setzen» | mit dem Abgleich | 4, manuell 7 | `wishes.tag` | Queue-Backoff; einzelne Fehler stehen in `wish_tags` und werden beim nächsten Lauf nachgeholt (20.3) |
 | `wishes.discover` | `metadata`, `general` | Zeitplan; Wechsel der Seiten an | 1 h | 4 | `wishes.discover` | Queue-Backoff; wärmt den Zwischenspeicher vor (21.2) |
-| `wishes.progress` | `system`, `general` | Zeitplan; läuft nur, solange es Wünsche «In Beschaffung» gibt und «Download-Fortschritt zeigen» an ist | 1 min | 4 | `wishes.progress` | keine Wiederholung über die Queue (der nächste Lauf kommt in 1 min); Fehler je Dienst in `wish_progress` (22.4) |
+| `wishes.progress` | `system`, `general` | Zeitplan; läuft nur, solange es Wünsche «In Beschaffung» gibt und «Download-Fortschritt zeigen» an ist | 1 min (so gebaut als Kette: der Zeitplan mit 5 min, dem kleinsten Takt des Planers, stösst sie an, jeder Lauf plant den nächsten nach 1 min) | 4 | `wishes.progress` | keine Wiederholung über die Queue (der nächste Lauf kommt in 1 min); Fehler je Dienst in `wish_progress` (22.4) |
 | `titles.refresh` | `metadata`, `general` | Zeitplan nach `trakt.refresh`; offene Wünsche | 24 h | 7 (täglicher Lauf über den Massensprossen) | `titles.refresh` | Queue-Backoff, TMDB-Limiter |
 | `series.catalog` | `metadata`, `general` | Ereignis nach Match einer Serie; Zeitplan | 7 d | Zeitplanlauf 7, Ereignisläufe 4 | `series.catalog:<itemId>` bzw. `series.catalog` | Queue-Backoff |
 
@@ -1022,14 +1051,14 @@ es damit ohne Zusatzarbeit.
 | «Seerr verwenden» aus | Einstellung `seerr.enabled = 0` | kein Aufruf; Wünsche bleiben gespeichert; die 24-h-Frist der `queued`-Wünsche ruht (**Vorschlag**, T-2); Zuschauer sehen keine fehlenden Titel (`07-administration.md`, Abschnitt 4.6) | Zustand «Ausgeschaltet» |
 | Andere Seerr-Instanz | Fingerabdruck weicht ab (7.4) | Übermittlung und Abgleich halten an; neue Wünsche bleiben `queued` | «Andere Seerr-Instanz erkannt»; Zuordnung bestätigen oder löschen |
 | 403 Limit | Text `Movie Quota exceeded.` / `Series Quota exceeded.` | `failed`, `quota`; Stand neu lesen | Klartext im Dialog und in «Meine Wünsche»; Übersicht «Limit erreicht» |
-| 403 Sperrliste | `This media is blocklisted.` / `blacklisted.` | `failed`, `blocklisted` | «In Seerr gesperrt» |
+| 403 Sperrliste | `This media is blocklisted.` / `blacklisted.` | `failed`, `blocklisted` | «In Seerr gesperrt» (so gebaut: «Der Titel steht in Seerr auf der Sperrliste.») |
 | 403 kein Recht | `You do not have permission to make … requests.` | `failed`, `no_permission`; Seite Seerr-Benutzer warnt | Klartext; Seerr-Benutzer «darf nicht anfordern» |
 | 409 Duplikat | Text | Erfolg, anhängen (6.4) | normaler Zustand |
 | 202 keine Staffeln | Status 202 | anhängen bzw. «wird eingelesen» (6.4) | normaler Zustand |
 | 500 TMDB in Seerr | 500 | wie nicht erreichbar, Diagnose mit Text | Verwaltung: Diagnose |
-| CSRF-Schutz in Seerr an | schreibende Aufrufe scheitern (Anhang D 2.4) | Verbindungstest prüft es (15.1); Wünsche bleiben `queued` | Test «CSRF-Schutz aus: nein» mit Hinweis |
+| CSRF-Schutz in Seerr an | schreibende Aufrufe scheitern (Anhang D 2.4) | Verbindungstest prüft es (15.1); Wünsche bleiben `queued` | Test «CSRF-Schutz aus: nein» mit Hinweis; nimmt Seerr den leeren Prüfaufruf an (2xx), so gebaut eine Warnung `unexpected_answer`, nie «Schutz aus» |
 | Benutzer in Seerr gelöscht | `seerr.users` findet ihn nicht mehr; `X-API-User` liefert 403 und `GET /auth/me` ohne Header 200 (6.4) | `seerr_users.gone_at` setzen; Zuordnung bleibt, Profile verlieren `canRequest` (Grund `seerr_user_gone`); seine Requests löscht Seerr mit (CASCADE, Anhang D 7.2) → offene Wünsche über 404 `failed`, `seerr_request_gone`; noch nicht übermittelte Wünsche `failed`, `seerr_user_gone` (`04-benutzer-profilmapping.md`, Abschnitt 8.1) | Seerr-Benutzer «Benutzer in Seerr gelöscht» |
-| Request in Seerr gelöscht | Einzelprüfung `GET /request/{id}` liefert 404 | `failed`, `fail_reason = seerr_request_gone`; der Wunsch ist geschlossen, das Profil kann erneut anfordern | Zustand «Fehlgeschlagen» mit Grund |
+| Request in Seerr gelöscht | Einzelprüfung `GET /request/{id}` liefert 404 | `failed`, `fail_reason = seerr_request_gone`; der Wunsch ist geschlossen, das Profil kann erneut anfordern | Zustand «Fehlgeschlagen» mit Grund «Die Anfrage wurde in Seerr gelöscht.» |
 | `DELETE /request/{id}` beim Zurückziehen scheitert | 401, 403, 404 | Tabelle in 6.6 | Hinweis «War schon freigegeben» bei 401 |
 | TVDB-ID fehlt | `external_titles.tvdb_id` leer | Serie nicht anforderbar | Vorschauseite: Hinweis |
 | Radarr/Sonarr in Seerr nicht eingerichtet | `GET /service/radarr|sonarr` leer | Wünsche bleiben nach der Freigabe `processing` (Anhang D 10) | Verbindungstest warnt; Verwaltung: Hinweis am Wunsch |
@@ -1050,6 +1079,18 @@ es damit ohne Zusatzarbeit.
 | Fortschritt: Titel in Radarr oder Sonarr nicht gefunden | `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` leer | keine Zeile in `wish_progress`; der Wunsch bleibt «In Beschaffung» ohne Zusatz; der Abgleich mit Seerr läuft unverändert | Verwaltung: «In Radarr noch nicht gefunden» |
 | Fortschritt: Feld der Warteschlange fehlt | `size`, `sizeleft` oder bei Sonarr `seriesId`, `episodeId` fehlen (Sonarr-Felder nicht geprüft, Anhang H 8.3) | Eintrag ohne Zuordnung wird übergangen; ohne `size`/`sizeleft` «Wird heruntergeladen» ohne Prozent, ohne `timeleft` ohne Restzeit | Verwaltung: «Fortschritt unvollständig» in der Diagnose |
 | Seite des Bereichs «Wünsche» ohne Seerr | Netzfehler, Zeitlimit beim Laden einer Liste | Liste aus dem Zwischenspeicher, auch wenn älter als 1 h; ohne Eintrag Hinweis statt Liste (21.2) | «Seerr ist gerade nicht erreichbar. Stand von {{Zeit}}.» |
+| Seerr-Benutzer gehört inzwischen einem anderen Konto oder ist privilegiert (so gebaut) | vor dem Senden eines wartenden Wunsches | der Wunsch wird nicht gesendet: `failed`, `fail_reason = seerr_user_gone`, Einzelheit `mapping_changed` (15.4) | Zustand «Fehlgeschlagen» mit Grund |
+
+**Bekannte Grenzen (so gebaut, keine Fehler):**
+
+- Wartet ein Kinderprofil noch auf einen Titel, den es noch nicht sehen darf (8.3), kann ein anderes Profil nach
+  dem Aufräumen des Eingangs (90 Tage, Abschnitt 12) dieselbe Staffelmeldung noch einmal bekommen.
+- Stürzt der Server zwischen dem Speichern eines Zustands und der Meldung ab, geht eine Zustandsmeldung
+  (freigegeben, abgelehnt, fehlgeschlagen) verloren. «Verfügbar» wird nachgeholt.
+- Sieht ein Profil von einer Staffel der Bibliothek nur einen Teil der Folgen (strengere Freigabe einzelner
+  Folgen), bleibt die Staffel anforderbar; die Antwort kann verraten, dass es mehr Folgen gibt. Eine Staffel, von
+  der das Profil keine Folge abspielen darf, behandelt der Server dagegen wie eine Staffel, die es nicht gibt
+  (Abschnitt 6.2).
 
 ## 15. Sicherheit und Berechtigungen
 
@@ -1062,7 +1103,7 @@ es damit ohne Zusatzarbeit.
 | Schlüssel gültig | `GET /auth/me` ohne `X-API-User` | 200, `id = 1` |
 | Handeln im Namen | `GET /auth/me` mit `X-API-User` (4.1) | `id` wie gesendet |
 | Instanz | `GET /auth/me` ohne Header: E-Mail und `createdAt` von Benutzer 1 | beim ersten Erfolg Fingerabdruck speichern, danach gleich (7.4) |
-| CSRF-Schutz aus | **Vorschlag:** `POST /request` mit leerem Body `{}` | 400 vom Validator heisst aus; 403 mit CSRF-Text heisst an. Abgeleitet: `csurf` läuft vor dem Validator (`GH:server/index.ts` Z. 195–214 vor Z. 239–244); nicht gegen eine Instanz geprüft |
+| CSRF-Schutz aus | **Vorschlag:** `POST /request` mit leerem Body `{}` | 400 vom Validator heisst aus; 403 mit CSRF-Text heisst an. Abgeleitet: `csurf` läuft vor dem Validator (`GH:server/index.ts` Z. 195–214 vor Z. 239–244); nicht gegen eine Instanz geprüft. So gebaut: eine Antwort 2xx gilt als unerwartet (Warnung, `detail = unexpected_answer`), nie als «aus» |
 | Radarr und Sonarr | `GET /service/radarr`, `GET /service/sonarr` | je mindestens ein Eintrag (Warnung, kein Fehler) |
 | Benutzer anlegen und ändern (neu) | `GET /auth/me` ohne Header: Rechte von Benutzer 1; `GET /user` | `ADMIN` oder `MANAGE_USERS` (Benutzer 1 hat `ADMIN`); sonst Fehler, weil Eröffnen, Passwort, Rechte und Limit scheitern |
 | Lokale Anmeldung in Seerr (neu) | `GET /settings/public` | `localLogin = true`; sonst **Warnung**: eröffnete Benutzer können sich in Seerr nicht anmelden (N-11) |
@@ -1106,7 +1147,8 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 - Die Adresse ändert nur `updateSeerrSettings` (`admin`, mit Hauptprofil); der Test läuft nur gegen die
   gespeicherte oder gerade eingegebene Adresse.
 - **Kein gespeicherter Schlüssel an eine neue Adresse.** Weicht der Host der eingegebenen Adresse vom
-  gespeicherten ab, verlangt der Test den Schlüssel neu; ein leeres Schlüsselfeld sendet den gespeicherten
+  gespeicherten ab, verlangt der Test den Schlüssel neu; so gebaut vergleicht «gleicher Host» Schema, Host und
+  Port, ein Wechsel von `https` auf `http` verlangt den Schlüssel also auch neu; ein leeres Schlüsselfeld sendet den gespeicherten
   Schlüssel dann nicht. Bei `http` zu einer Adresse ausserhalb des Heimnetzes warnt die Prüfliste («Schlüssel
   ginge unverschlüsselt ins Internet»).
 - Die Antwort des Tests nennt nur Prüfpunkte und Version, nie Antwortinhalte (kein Port-Scanner).
@@ -1116,11 +1158,30 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 
 - CSRF in Slouchcat: `createWish` und `withdrawWish` brauchen `X-Requested-With: Slouchcat` wie jede Mutation
   (`api/openapi.yaml:33-35`).
-- Rate-Limit je Profil für `createWish`: **Vorschlag:** 20 neue Wünsche je Stunde, Burst 5; darüber 429
-  `too_many_attempts` mit `Retry-After` (wie im Vertrag, `api/openapi.yaml:261`). Mitwünsche zählen mit,
-  idempotente Wiederholungen nicht.
-- `searchExternalTitles` und `searchWishTitles`: **Vorschlag:** 30 Suchen je Minute und Profil, dazu der
-  TMDB-Limiter bzw. der Limiter von `seerr`.
+- Rate-Limit je Profil für `createWish`: **so gebaut:** 20 Wünsche je Profil und Stunde, gezählt aus
+  `wish_requesters` (übersteht einen Neustart), ohne eigenen Burst; darüber 429 `too_many_attempts` mit
+  `Retry-After` (wie im Vertrag, `api/openapi.yaml:261`). Mitwünsche zählen mit, idempotente Wiederholungen nicht.
+- `searchExternalTitles` und `searchWishTitles`: **so gebaut:** 30 Suchen je Profil und Minute (429
+  `too_many_attempts`, `Retry-After`), dazu der TMDB-Limiter bzw. der Limiter von `seerr`. Jede der beiden Suchen
+  hat ihren eigenen Topf.
+- **Bremsen gegen Massenabrufe fehlender Titel (so gebaut,** `server/internal/api/wish_limits.go`**).** Jedes
+  Profil mit Wunschrecht kann jede TMDB-ID nennen, und der Server holt, speichert und skaliert dann Titel und
+  Bilder. Darum nimmt jede dieser Operationen ein Zeichen aus einem Topf ihrer Gruppe; ist er leer, antwortet sie
+  429 `too_many_attempts` mit `Retry-After: 60`:
+
+  | Gruppe | Operationen | je Minute | auf einmal |
+  |---|---|---|---|
+  | Titel | `getExternalTitle`, `getWishSeasons` | 60 | 30 |
+  | Bilder | `getExternalTitleImage`, `getWishGenreBackdrop` | 600 | 300 |
+  | Seiten | `getWishDiscover`, `listWishDiscoverRow`, `listWishTitles`, `listWishGenres` | 120 | 60 |
+  | Suche | `searchWishTitles`; eigener Topf für `searchExternalTitles` | 30 | 30 |
+
+  Jeder Topf gilt je Profil und zusätzlich je Konto mit dem Vierfachen (ein Haushalt hat bis zu zehn Profile).
+  Der Topf des Profils wird zuerst geprüft: Was er abweist, nimmt dem Konto kein Zeichen, so sperrt ein Profil in
+  einer Schleife die anderen nicht aus. `createWish` hat seine eigene Grenze (oben).
+- **Obergrenze des Bildspeichers fehlender Titel (so gebaut,**
+  `server/internal/metadata/external_image_cache.go`**):** 2 GiB; darüber verlieren die am längsten nicht
+  gebrauchten Titel ihre Bilder. Hintergründe der Genre-Kacheln: höchstens 200 Dateien, die ältesten gehen zuerst.
 - Das Passwort im Body an Seerr: nur über die eingetragene Adresse, nie über eine Weiterleitung; bei `http`
   ausserhalb des eigenen Netzes warnt der Test (15.1). Antworten von `acceptInvitation`, `login` und
   `updateAccount` sagen nie, ob es einen Benutzer mit dieser E-Mail in Seerr gibt.
@@ -1134,6 +1195,38 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
   - Die Übersicht zeigt jede solche Verknüpfung sieben Tage lang als «Neu verknüpft», mit Link auf
     «Seerr-Benutzer», wo sie sich lösen lässt; das Protokoll hält sie fest (N-93, Empfehlung der Redaktion).
   - Das Konto erfährt nicht, ob Seerr die Adresse kannte (N-94).
+- **Nach der Sicherheitsprüfung des Baus (17. November 2026; Redaktion, Marco ist informiert).** Die Zusage aus
+  N-91, dass sich ein Administrator von Seerr so nicht übernehmen lässt, hielt nur für das Passwort, nicht für die
+  Verknüpfung samt Anfragen. So gebaut:
+  1. **Kein automatisches Verknüpfen privilegierter Benutzer.** Beim Annehmen einer Einladung und nach einer
+     E-Mail-Änderung (auch in einem späteren Lauf für ein wartendes Konto aus diesen Anlässen) verknüpft
+     Slouchcat einen gefundenen Seerr-Benutzer nicht, wenn er Benutzer 1 ist oder eines der Rechte `ADMIN`,
+     `MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS` hat. Das Konto wartet mit dem Grund
+     `seerr_user_privileged`. Ein Administrator kann den Benutzer über «In Seerr eröffnen» oder von Hand wählen,
+     dann ohne Passwort- und E-Mail-Abgleich. Das engt E-8 («sofort verknüpfen») für diese Benutzer ein; die
+     Korrektur stammt von der Redaktion, nicht von Marco (Anhang H, Abschnitt 12). **So gebaut nach der zweiten
+     Korrekturrunde:** Auch «In Seerr eröffnen» verknüpft einen privilegierten Benutzer gleicher E-Mail nicht
+     ohne Rückfrage: Ohne Bestätigung antwortet `provisionSeerrAccount` 202 mit `state: waiting` und
+     `provisionError: seerr_user_privileged`; die Verwaltung fragt nach («Dieser Seerr-Benutzer verwaltet Seerr …»)
+     und ruft mit `?allowPrivileged=true` erneut auf. Dann verknüpft Slouchcat (`linked_by = admin`,
+     `password_state = admin`). «Alle eröffnen» verknüpft nie einen privilegierten Benutzer, lässt Konten aus, die
+     mit `seerr_user_taken` oder `seerr_user_privileged` warten, und nennt ihre Zahl (`manual`). Als privilegiert
+     gilt Benutzer 1 oder ein Benutzer mit `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS`.
+  2. **Jedes Verwaltungsrecht zählt als «Administrator».** Für Passwort und E-Mail gilt ein Benutzer mit einem
+     der vier Rechte aus Punkt 1 als Administrator (`password_state = admin`), nicht nur einer mit
+     `MANAGE_USERS`. «Kein Limit» bleibt an `MANAGE_USERS` gebunden, weil Seerr so rechnet (Abschnitt 19).
+  3. **Frische Prüfung vor jedem Setzen.** Vor jedem Setzen von Passwort oder E-Mail liest Slouchcat den
+     Seerr-Benutzer frisch (`GET /user/{id}`, Anhang I, I-72) und lässt es bei Benutzer 1, einem Verwaltungsrecht
+     oder einer Anmeldung, die nicht lokal ist. Der Lauf `seerr.users` führt den Passwortstand danach nach.
+  4. **Eine Übergabe je Konto zugleich.** Passwort und E-Mail gehen je Konto unter einer Sperre an Seerr; ein
+     altes Passwort kann ein neueres nicht überholen.
+  5. **Domain `slouchcat.invalid` gesperrt.** Kein Konto darf eine Adresse dieser Domain tragen (Besitzer,
+     Einladung, E-Mail-Änderung), weil sie dem Sammelbenutzer gehört. Übernimmt Slouchcat einen schon
+     vorhandenen Benutzer als Sammelbenutzer, setzt es ihm ein neues Zufallspasswort (18.5).
+  6. **Gleicher Host heisst gleiches Schema** (15.3).
+  7. **Kein Senden als fremder Benutzer.** Ein wartender Wunsch wird nie als ein Seerr-Benutzer gesendet, der
+     inzwischen einem anderen Konto gehört oder privilegiert ist; er scheitert mit `seerr_user_gone`
+     (Einzelheit `mapping_changed`, Abschnitt 14).
 - Keine Secrets in Logs (Abschnitt 4.3). Fehlertexte an den Client nennen keinen Host und keinen Schlüssel.
 - Zuschauer sehen nie, wer sonst gewünscht hat (Anhang F 2.11); die Antwort `createWish` mit 200 sagt nur «schon
   gewünscht», nicht von wem.
@@ -1148,9 +1241,9 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 | Entdecken für Profile mit Altersgrenze | Seerr filtert mit `certificationLte`; Slouchcat prüft jeden Treffer nach. Für Treffer ohne Eintrag in `external_titles` holt der Server die Details wie bei der Suche (höchstens 20 je Seite, Zeitlimit 3 s); was nicht kam, fehlt diesen Profilen (21.4) |
 | Wunschzustand am Titel | ein Teilindex auf offene Wünsche je (`media`, `tmdb_id`); Abfrage je Seite gebündelt |
 | Spotlight | nur Bibliothekstitel wie heute; der Abgleich über `tvdb_id` und `imdb_id` braucht Indizes auf `spotlight_entries` (`08-datenmodell-api.md`, Abschnitt 2.11), sonst nichts. Prepaint und Vorladen bleiben unverändert (`server/internal/api/preload.go`) |
-| TMDB-Abrufe | über den bestehenden TMDB-Limiter (≤ 20/s, `docs/planning/03-plan-v1.md:115`); `titles.refresh` holt höchstens die fehlenden Einträge des Spotlights (für die Verwaltung) und offene Wünsche; **Vorschlag:** Vorschauseite ohne Cache-Eintrag holt einmal synchron (Zeitlimit 5 s) und speichert; Einträge älter als 7 Tage frischt der Job auf |
+| TMDB-Abrufe | über den bestehenden TMDB-Limiter (≤ 20/s, `docs/planning/03-plan-v1.md:115`); `titles.refresh` holt höchstens die fehlenden Einträge des Spotlights (für die Verwaltung) und offene Wünsche; **Vorschlag:** Vorschauseite ohne Cache-Eintrag holt einmal synchron (Zeitlimit 5 s) und speichert; Einträge älter als 7 Tage frischt der Job auf. **So gebaut** (Migration 00074, Spalte `external_titles.used_at`): aufgefrischt wird nur, was in Gebrauch ist, offene Wünsche zuerst; ein Lesen rückt `used_at` höchstens einmal am Tag vor; nach 30 Tagen ohne Gebrauch löscht `titles.refresh` den Eintrag samt Bildern (ein in dieser Zeit geschlossener Wunsch hält seinen Titel) |
 | Suche | TMDB-Suche live; **Vorschlag:** rohe TMDB-Treffer 10 min im Speicher je (Begriff, Sprache); der Filter nach Bibliothek, Recht und Alter läuft danach je Profil. Die Suchantwort von TMDB trägt keine Freigaben. Für Profile unter 18 holt der Server je Treffer ohne Eintrag in `external_titles` die Details (höchstens die ersten 20 Treffer, parallel unter dem TMDB-Limiter, Zeitlimit 3 s) und speichert sie in `external_titles`. Was im Zeitlimit nicht kam oder keine bekannte Freigabe hat, gilt als 18 und fehlt diesen Profilen. Für Profile ab 18 genügt die Suchantwort |
-| Bilder | eigene Route `/titles/{media}/{tmdbId}/images/{kind}/{size}` (`scoped`) und für die Verwaltung `/admin/titles/{media}/{tmdbId}/images/{kind}/{size}` (`admin`); Bild beim ersten Abruf von TMDB in den Bildspeicher, danach lokal; `Cache-Control` wie Titelbilder. **Vorschlag:** Service Worker nimmt die neue Route in den Bild-Cache auf (`web/vite.config.ts:141-156`) |
+| Bilder | so gebaut kommen Bilder fehlender Titel als `ImageRef` wie Bibliotheksbilder (Poster `w200`, `w400`, `w800`; Hintergrund `w780`, `w1280`, `w1920`; Logo `w400`) über Slouchcats eigene Route `/titles/{media}/{tmdbId}/images/{kind}/{size}` (`scoped`) und für die Verwaltung `/admin/titles/{media}/{tmdbId}/images/{kind}/{size}` (`admin`); Bild beim ersten Abruf von TMDB in den Bildspeicher, danach lokal; `Cache-Control` wie Titelbilder. **Vorschlag:** Service Worker nimmt die neue Route in den Bild-Cache auf (`web/vite.config.ts:141-156`) |
 | Abgleich | ein `GET /request`-Aufruf mit 50 Einträgen deckt im Haushalt fast immer alles; Seerr fragt dabei Radarr/Sonarr ab, darum nicht öfter als alle 5 min |
 | Messgrössen | in `10-abnahmekriterien.md` (Abschnitt Performance) |
 
@@ -1194,6 +1287,10 @@ eröffnen», «Alle eröffnen») oder das Konto selbst (Einladung angenommen, ei
 Verknüpfung geht das Passwort an den bestehenden Benutzer wie bei jedem anderen (N-91), nie an Benutzer 1, andere
 Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex (N-6). Die frühere Regel N-2a
 (Verknüpfung erst nach Bestätigung durch einen Administrator, Redaktionsentscheid zu K-1) ist zurückgezogen.
+**Ausnahme nach der Sicherheitsprüfung (Redaktion, Marco ist informiert; 15.4):** Löst das Konto selbst aus
+(Einladung, E-Mail-Änderung), verknüpft Slouchcat Benutzer 1 und Benutzer mit `ADMIN`, `MANAGE_USERS`,
+`MANAGE_SETTINGS` oder `MANAGE_REQUESTS` nicht; das Konto wartet mit dem Grund `seerr_user_privileged`, bis ein
+Administrator den Benutzer wählt.
 
 **Bekannte Grenze (Marco, E-8; N-92).** Die E-Mail beim Annehmen einer Einladung und beim Ändern des eigenen
 Kontos tippt das Konto frei ein; niemand prüft sie. Wer eine Einladung hat und eine fremde Adresse eintippt,
@@ -1205,11 +1302,13 @@ Was es begrenzt, steht in Abschnitt 15.4.
 | eröffnet | Slouchcat hat den Benutzer mit `POST /user` angelegt; Slouchcat führt seine Rechte (N-9) | `origin = created`, `state = ready` |
 | verknüpft | es gab ihn schon (gleiche E-Mail oder 409), sofort verknüpft, gleich ob ein Administrator gehandelt oder das Konto die Adresse eingetippt hat (N-90, N-95); Rechte fasst Slouchcat nicht an | `origin = linked`, `state = ready`; Auslöser in `linked_by` (`admin`, `invite`, `email_change`), Zeit in `linked_at` (**Vorschlag** für N-93) |
 | von Hand | der Administrator hat ihn auf der Seite Seerr-Benutzer gewählt | `origin = manual`, `state = ready` |
-| wartet | Eröffnen ist ausgelöst, Seerr war nicht erreichbar | `state = waiting`, `seerr_user_id` leer |
+| wartet | Eröffnen ist ausgelöst, Seerr war nicht erreichbar; oder (so gebaut) der Benutzer der E-Mail gehört schon einem anderen Konto bzw. ist der Sammelbenutzer (`seerr_user_taken`) oder ist privilegiert (`seerr_user_privileged`, 15.4): dann wählt ein Administrator von Hand | `state = waiting`, `seerr_user_id` leer, Grund in `provision_error` |
 | nicht eröffnet | keine Zeile; nur Anzeige | – |
 
 Stand des Passworts (`password_state`): `synced` (gleich wie in Slouchcat, Zeit in `password_synced_at`),
-`next_login` (folgt bei der nächsten Anmeldung), `off` (Abgleich für dieses Konto aus), `admin` (Benutzer 1 oder
+`next_login` (folgt bei der nächsten Anmeldung), `off` («Wird nicht abgeglichen»: Abgleich für dieses Konto aus;
+ab Werk für Konten, die ein Administrator mit einem bestehenden Seerr-Benutzer verknüpft, Marco F-24, N-103;
+je Konto umschaltbar mit `setSeerrPasswordMode`), `admin` (Benutzer 1 oder
 Administrator in Seerr, «bleibt in Seerr», N-6), `external` (Benutzer meldet sich über Jellyfin, Emby oder
 Plex an, `user_type` ≠ 2, N-6).
 
@@ -1219,20 +1318,39 @@ Ausgelöst durch die Einladung, durch «In Seerr eröffnen» bzw. «Alle eröffn
 wartende Konten (Anhang H 4.1). Die Schalter «Neue Konten in Seerr eröffnen» und «Passwort abgleichen»
 stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Seerr eingerichtet ist (N-8).
 
+**Absicht des Jobs (so gebaut).** Jeder Lauf von `seerr.provision` trägt seine Absicht: `open` (Einladung,
+«In Seerr eröffnen», «Alle eröffnen»), `retry` (Konto im Zustand «wartet»; wartet es nicht mehr, tut der Lauf
+nichts) und `sync` (Benutzer nach einer Handzuordnung, neues Limit, neues Wunschrecht). `sync` sucht nie über die
+E-Mail und legt nie einen Benutzer an; die Schritte 1 und 2 gelten nur für `open` und `retry`.
+
 1. `GET /user?q=<E-Mail>`; exakter Treffer ohne Gross-/Kleinschreibung → sofort verknüpfen (N-2, N-90), gleich
-   wer auslöst; weiter bei 4. `linked_by` hält den Auslöser fest: `admin` («In Seerr eröffnen», «Alle eröffnen»),
+   wer auslöst, ausser der Treffer ist privilegiert und das Konto hat selbst ausgelöst (15.4: dann wartet es mit
+   `seerr_user_privileged`); weiter bei 4. `linked_by` hält den Auslöser fest: `admin` («In Seerr eröffnen», «Alle eröffnen»),
    `invite` (Einladung angenommen, auch wenn der Lauf später für ein wartendes Konto kommt), `email_change`
    (eigene E-Mail geändert, N-95).
-   Das Passwort geht an den verknüpften Benutzer (N-91): sofort, wenn es im Speicher ist (Einladung, 18.3), sonst
-   bei der nächsten Anmeldung (`password_state = next_login`). Dass dies auch für Konten gilt, die ein
-   Administrator nachträglich eröffnet oder verknüpft, bleibt Empfehlung zu F-24 (K-11). Nie bei Benutzer 1,
-   anderen Administratoren und Anmeldung über Jellyfin, Emby oder Plex (N-6): Verknüpft wird auch dann, das
-   Passwort bleibt in Seerr (`password_state = admin` bzw. `external`).
+   **Passwort (Marco, F-24; N-103):** Bei `linked_by` = `invite` oder `email_change` geht das Passwort an den
+   verknüpften Benutzer (E-8, N-91): sofort, wenn es im Speicher ist (Einladung, 18.3), sonst bei der nächsten
+   Anmeldung (`password_state = next_login`). Bei `linked_by = admin` («In Seerr eröffnen», «Alle eröffnen») und
+   bei einem von Hand gewählten Benutzer (`origin = manual`) behält der Benutzer sein Passwort:
+   `password_state = off` («Wird nicht abgeglichen»); der Administrator kann den Abgleich je Konto einschalten
+   (`setSeerrPasswordMode`, dann `next_login`; Schalter Redaktion). Nie bei Benutzer 1, anderen Administratoren
+   und Anmeldung über Jellyfin, Emby oder Plex (N-6): Verknüpft wird auch dann, das Passwort bleibt in Seerr
+   (`password_state = admin` bzw. `external`).
 2. Sonst `POST /user {email, username, password}`; `username` = Teil der E-Mail vor dem @ (N-1). Passwort: das
    echte, wenn es gerade im Speicher ist (18.3), sonst ein Zufallspasswort und `password_state = next_login` (N-4).
+   Das gilt für jeden Benutzer, den Slouchcat eröffnet, auch über «In Seerr eröffnen» und «Alle eröffnen» (N-103).
    409 → wie ein Treffer: neu lesen (`GET /user?q=<E-Mail>`) und verknüpfen.
-3. `POST /user/{id}/settings/permissions`: mit Wunschrecht des Kontos `REQUEST` (32), ohne `0` (N-9). Nur für
-   `origin = created`.
+3. Rechte (Marco, I-F1; N-110): Mit Wunschrecht des Kontos behält der neue Benutzer die Rechte, die Seerr ihm beim
+   Anlegen gibt (`defaultPermissions`; auf Marcos Instanz `REQUEST` + `AUTO_APPROVE` + `MANAGE_ISSUES`, Anhang I
+   I-13); Slouchcat schreibt nichts darüber. Ohne Wunschrecht `POST /user/{id}/settings/permissions` mit `0`
+   (N-9). Nur für `origin = created`. **So gebaut:** Ein Konto ohne Wunschrecht (etwa aus einer Einladung ohne
+   dieses Recht) eröffnet seinen Benutzer zuerst mit einem Zufallspasswort (`password_state = next_login`), weil
+   Seerr ihm bis zum Setzen der Rechte `defaultPermissions` gibt. Das echte Passwort geht erst bei der nächsten
+   Anmeldung hinaus, nachdem die Rechte in Seerr auf 0 stehen; lehnt Seerr das Setzen ab, geht nichts hinaus.
+   Kennt Slouchcat die ID eines frisch erzeugten Benutzers schon (Rest einer alten Instanz), setzt es ihm,
+   soweit Seerr das annimmt, die Rechte auf 0 und ein Zufallspasswort, schreibt eine Warnung ins Log (ohne
+   Geheimnisse), und das Konto wartet mit `seerr_user_taken`. Seerrs Benutzer löscht Slouchcat nie; der Client
+   hat dafür keinen Aufruf (K-2).
 4. `GET /user/{id}/settings/main`, dann `POST /user/{id}/settings/main` mit allen gelesenen Feldern unverändert und
    den vier Limit-Feldern (Abschnitt 19). Seerr schreibt **alle** Felder aus dem Body und leert fehlende
    (Anhang H 3.1, `usersettings.ts` Z. 77–150). Nur für Benutzer ohne `MANAGE_USERS`.
@@ -1246,7 +1364,8 @@ stehen in Wünsche › Einstellungen, beide ab Werk an, sobald Seerr eingerichte
 `updateAccount` ist in allen Fällen gleich; sie verrät nie, ob Seerr die Adresse schon kannte. Nach dem Annehmen
 sagt die Seite in beiden Fällen «In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.»
 
-Ein Profil bekommt nie einen eigenen Benutzer, ausser über die zugeklappte Ausnahme (N-41, F-27).
+Ein Profil bekommt nie einen eigenen Benutzer und sendet immer als Benutzer des Kontos, sonst als Sammelbenutzer;
+eine Ausnahme je Profil gibt es nicht (Marco, F-27; N-100).
 
 ```mermaid
 sequenceDiagram
@@ -1268,21 +1387,25 @@ sequenceDiagram
   W->>S: im Hintergrund, Passwort nur im Speicher
   alt Seerr erreichbar
     S->>J: GET /user mit q gleich E-Mail
-    alt Treffer
+    alt Treffer ist Benutzer 1 oder hat ein Verwaltungsrecht
+      J-->>S: Benutzer 1 oder Administrator
+      W->>W: nicht verknüpfen, wartet mit seerr_user_privileged
+      Note over W: ein Administrator wählt von Hand
+    else Treffer
       J-->>S: Benutzer 4
       W->>W: sofort verknüpfen, origin linked, linked_by invite
-      alt Benutzer 4 ist kein Administrator und meldet sich lokal an
+      alt Benutzer 4 meldet sich lokal an
+        S->>J: GET /user/4 frisch lesen
         S->>J: POST settings/password mit newPassword
         W->>W: Passwort synced
-      else Administrator oder Anmeldung über Jellyfin, Emby, Plex
-        W->>W: password_state admin oder external
+      else Anmeldung über Jellyfin, Emby, Plex
+        W->>W: password_state external
       end
       S->>J: GET und POST settings/main mit Limit
       W->>W: Hinweis Neu verknüpft für sieben Tage, Eintrag im Protokoll
     else kein Treffer
       S->>J: POST /user mit email, username, password
-      J-->>S: 201 Benutzer 6
-      S->>J: POST settings/permissions REQUEST
+      J-->>S: 201 Benutzer 6 mit Seerrs Standardrechten
       W->>W: eröffnet
       S->>J: GET und POST settings/main mit Limit
       W->>W: Passwort synced
@@ -1359,7 +1482,8 @@ sequenceDiagram
 
 - **Rechte folgen dem Wunschrecht (N-9).** Ändert der Administrator `accounts.can_request` über
   `updateAccountAccess` (`server/internal/auth/accounts.go:20`), reiht `wishes` `seerr.provision` ein, das die
-  Rechte nachzieht. Nur für `origin = created`.
+  Rechte nachzieht: ohne Recht `0`, mit Recht der aktuelle Wert von `defaultPermissions` aus `GET /settings/main`
+  (N-110). Nur für `origin = created`.
 - **Konto löschen (N-10, F-31).** `DeleteAccount` (`server/internal/auth/accounts.go:113`) ruft heute einen
   Abschluss `end` auf. Darüber nimmt `wishes` nur einem Benutzer, den Slouchcat eröffnet hat (`origin = created`),
   die Rechte (`permissions = 0`) und setzt ein Zufallspasswort. Verknüpfte (`linked`) und von Hand gewählte
@@ -1367,7 +1491,34 @@ sequenceDiagram
   Fall bestehen, weil mit ihm seine Requests gelöscht würden (Anhang D 7.2). Die Rückfrage vor dem Löschen nennt, was mit dem Benutzer geschieht.
 - **Ausgeschaltet.** Mit «Neue Konten in Seerr eröffnen» aus eröffnet die Einladung nichts; mit «Passwort
   abgleichen» aus geht kein Passwort weiter (`password_state = off` für alle). Für ein Konto ohne
-  Seerr-Benutzer gilt F-4.
+  Seerr-Benutzer gilt F-4 (Abschnitt 18.5).
+- **Handwahl und laufende Eröffnung (so gebaut).** Wählt ein Administrator den Seerr-Benutzer eines Kontos von
+  Hand, während ein Lauf von `seerr.provision` dieses Konto eröffnet oder verknüpft, wartet die Handwahl auf das
+  Ende des Laufs (Sperre je Konto) und gilt danach.
+
+### 18.5 Sammelbenutzer «slouchcat-gaeste» (F-4)
+
+Marco hat am 17. November 2026 den Sammelbenutzer ab Werk gewählt (F-4, Anhang H 11.2). Einzelheiten wie E-Mail
+und Zeitpunkt sind Redaktion (N-101, N-102).
+
+- **Anlegen.** Sobald Seerr eingerichtet und «Wünsche aktiv» an ist, legt `seerr.provision` in Seerr den lokalen
+  Benutzer «slouchcat-gaeste» an: E-Mail `slouchcat-gaeste@slouchcat.invalid`, Zufallspasswort (nie gespeichert,
+  niemand meldet sich damit an) mit den Rechten aus `defaultPermissions`, auf Marcos Instanz also mit automatischer
+  Freigabe (Marco, I-F2; N-111 ersetzt hier «Recht `REQUEST`, keine automatische Freigabe» aus N-101). Dazu schreibt es das Standard-Limit
+  (Abschnitt 19). **So gebaut:** Gibt es die Adresse in Seerr schon (409 oder Treffer), übernimmt Slouchcat diesen
+  Benutzer und setzt ihm ein neues Zufallspasswort (15.4). Den Sammelbenutzer kennzeichnet der Merker
+  `seerr_users.is_shared` (höchstens eine Zeile, `08-datenmodell-api.md`, Abschnitt 2.1); eine Einstellung
+  `wishes.shared_seerr_user` gibt es nicht. Der Administrator wählt keinen anderen Benutzer.
+- **Wer über ihn sendet.** Konten mit Wunschrecht ohne eigenen Seerr-Benutzer (Zustand «nicht eröffnet» oder
+  «wartet»), solange `wishes.unmapped = fallback` («Konten ohne Seerr-Benutzer» = «Sammelbenutzer», ab Werk). Mit
+  «Nicht erlauben» (`deny`) können diese Konten nicht anfordern.
+- **Limit.** Für ihn gilt das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4).
+- **Wünsche (N-102).** Slouchcat merkt sich einen Wunsch über den Sammelbenutzer wie jeden anderen mit Konto und
+  Profil; `wishes.seerr_user_id` friert den Sammelbenutzer ein, in Seerr steht «slouchcat-gaeste». Bekommt das
+  Konto später einen eigenen Benutzer, bleiben seine alten Wünsche beim Sammelbenutzer. Anfragen des
+  Sammelbenutzers übernimmt `wishes.import` nicht (F-21).
+- **Passwort.** Das Passwort eines Kontos geht nie an den Sammelbenutzer (er ist nicht der Benutzer eines Kontos,
+  N-103).
 
 ## 19. Limit je Konto (Stufe 1, Vorprüfung ab Stufe 2)
 
@@ -1381,11 +1532,12 @@ und Mitwünsche zählen nicht (E-3). Regeln N-30 bis N-38 in Anhang H 4.3. Was d
 |---|---|
 | Einstellen | Vorgabe in Wünsche › Einstellungen; je Konto unter Konten «Standard», «Eigenes» oder «Unbegrenzt» (N-31) |
 | Vorgabe ab Werk | 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen (Marcos Beispiel); 0 heisst ohne Limit (N-31, F-26) |
-| Schreiben | Slouchcat schreibt die vier Felder `movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays` in den Seerr-Benutzer (18.2, Schritt 4), bei jeder Änderung und beim Eröffnen; für einen verknüpften Benutzer überschreibt es den Wert, der dort stand (N-37) |
-| «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. **Nicht verifiziert**, dass Seerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
+| Schreiben | Slouchcat schreibt die vier Felder `movieQuotaLimit`, `movieQuotaDays`, `tvQuotaLimit`, `tvQuotaDays` in den Seerr-Benutzer (18.2, Schritt 4), bei jeder Änderung und beim Eröffnen. Beim Verknüpfen übernimmt es ein bestehendes Limit des Benutzers als eigenes Limit des Kontos, wenn das Konto noch keines hat (Marco, I-F3; N-112, ersetzt N-37): alle vier Felder leer → «Standard»; beide Limits 0 → «Unbegrenzt»; sonst «Eigenes» mit den Werten aus Seerr, leere Felder aus der Vorgabe, Werte ausserhalb 0 bis 100 bzw. 1 bis 90 Tage auf die Grenze gesetzt und in Seerr nachgeführt. Ein schon eigenes Limit in Slouchcat gewinnt |
+| «Unbegrenzt» | **Vorschlag:** Limit 0 schreiben. An der Instanz bestätigt: 0 heisst unbegrenzt, `remaining` fehlt dann (Anhang I, I-31); früher hiess es: nicht verifiziert, dass Seerr 0 als unbegrenzt liest; Anhang H 3.2 belegt nur, dass ein fehlendes Feld die Vorgabe der Seerr-Einstellungen übernimmt. Der Bau prüft es gegen eine Instanz |
 | Zählen | Seerr: rollierend, Requests mit `createdAt` in den letzten `…Days` Tagen; Filme nach Anzahl, Serien nach Summe der Staffeln; `DECLINED` zählt nicht, `FAILED` zählt (Anhang H 3.2) |
 | Ausgenommen | Benutzer mit `MANAGE_USERS` (also auch Administratoren) haben in Seerr kein Limit; Seerr nimmt die Felder für sie auch nicht an (N-34) |
-| Je Profil | kein Teil-Limit (N-38); ein Profil mit Ausnahme-Benutzer (F-27) hat das Limit dieses Benutzers |
+| Je Profil | kein Teil-Limit (N-38); eine Ausnahme je Profil gibt es nicht (F-27, N-100) |
+| Sammelbenutzer | das Standard-Limit, gemeinsam für alle Konten, die über ihn senden (Marco, F-4; Abschnitt 18.5) |
 
 ### 19.2 Vorprüfung beim Anfordern
 
@@ -1439,11 +1591,11 @@ Tag; er wusste, dass das die heutige Regel bricht (Anhang H 2, E-2). Regeln N-20
 | Punkt | Festlegung |
 |---|---|
 | Profile | kein eigener Seerr-Benutzer, kein Login; das Profil steht am Wunsch und als Tag (N-20, N-40) |
-| Name | Präfix + Profilname in Kleinbuchstaben, nur `a–z`, `0–9`, `-`; Präfix ab Werk `sc-`, einstellbar; haben zwei Profile denselben Namen, behält das erste den einfachen Namen (`sc-kinder`) und das später angelegte bekommt den Kontonamen dazu (`sc-kinder-grosseltern`), weil Tags nie umbenannt werden (N-21, Redaktionsentscheid zu K-18); je Profil überschreibbar (F-25) |
+| Name | Präfix + Profilname nach N-113 (Anhang I, I-52: Radarr nimmt nur `^[a-z0-9-]+$` an): klein, ä → ae, ö → oe, ü → ue, scharfes S → ss, andere Buchstaben mit Zeichen auf den Grundbuchstaben, alles andere ausser `a–z`, `0–9` wird `-`, mehrere `-` zu einem, kein `-` am Rand, leer geworden `<präfix>profil-<id>` (Redaktion); ein von Hand gesetzter Name wird nach derselben Regel geprüft; Präfix ab Werk `sc-`, einstellbar; haben zwei Profile denselben Namen, behält das erste den einfachen Namen (`sc-kinder`) und das später angelegte bekommt den Kontonamen dazu (`sc-kinder-grosseltern`), weil Tags nie umbenannt werden (N-21, Redaktionsentscheid zu K-18); so gebaut ist der «Kontoname» dabei der Name des Hauptprofils des Kontos, und der Name wird beim ersten Tag eines Profils festgeschrieben; je Profil überschreibbar (F-25) |
 | Zeitpunkt | sobald der Wunsch «In Beschaffung» ist, also Seerr den Titel an Radarr oder Sonarr übergeben hat; ein Mitwunsch bekommt seinen Tag nachträglich (N-24) |
 | Fehler | ändern nichts am Wunsch; «Tag noch nicht gesetzt», der nächste Lauf holt es nach (N-25) |
 | Entfernen | nie, auch nicht beim Zurückziehen oder Löschen (N-26) |
-| Direkt in Seerr gestellt | kein Profil-Tag, auch wenn `wishes.import` den Wunsch später einem Profil zuordnet; massgeblich ist `origin` = `jellyseerr` (N-27, Redaktionsentscheid) |
+| Direkt in Seerr gestellt | kein Profil-Tag, auch wenn `wishes.import` den Wunsch später einem Profil zuordnet; massgeblich ist `origin` = `seerr` (N-27, Redaktionsentscheid; im Entwurf `jellyseerr`) |
 | Tag des Kontos | ergänzend empfohlen: «Tag Requests» in Seerr; dann trägt jeder Titel auch `<Benutzer-ID>-<Anzeigename>` des Kontos. Der Test zeigt, ob es an ist (N-28) |
 | Verworfen | `tags` im Body von `POST /request`: braucht `REQUEST_ADVANCED` für jeden Benutzer, ersetzt die Standard-Tags, kann einem Mitwunsch nichts nachreichen, und Seerr legt keine Tags an (Anhang H 3.5, 4.2) |
 
@@ -1523,6 +1675,12 @@ markiert ist, ist Empfehlung der Redaktion.
   (**Vorschlag**); ist Seerr nicht erreichbar, gilt der ältere Eintrag, sonst der Hinweis (Abschnitt 14).
 - `mediaInfo` aus Seerr nutzt Slouchcat nur für den Zustand in Seerr («angefragt»), nie für «in der
   Bibliothek» (N-55).
+- **Nach der zweiten Leseprobe (Anhang I, Abschnitt 4a; Redaktion):** An `/discover/movies` und `/discover/tv`
+  geht kein `language`, weil es dort die Originalsprache filtert (N-115). Titel, Poster und Hintergrund eines
+  Treffers zeigt Slouchcat aus `external_titles` in der Sprache des Profils, sobald es den Titel kennt (N-116).
+  Die Raster «Filme» und «Serien» sortieren nach «Beliebtheit», «Neueste zuerst» und «Am besten bewertet», die
+  beiden letzten mit Mindestzahl an Stimmen; «Titel A–Z» entfällt (N-117). Der Vorfilter nach Freigabe nimmt für
+  CH und AT das Land DE (N-118). Seerr liefert höchstens 500 Seiten; Slouchcat fragt keine spätere ab (I-67).
 
 ```mermaid
 sequenceDiagram
@@ -1631,6 +1789,9 @@ gespeichert: Slouchcat zeigt nie den Fortschritt eines Titels, den niemand über
 
 - **Takt:** jede Minute, nur solange es Wünsche «In Beschaffung» gibt und der Schalter an ist (N-84). Ohne solche
   Wünsche reiht der Zeitplan den Lauf nicht ein bzw. der Lauf endet sofort ohne Aufruf.
+  So gebaut als Kette: Der Planer lässt keinen kürzeren Takt als 5 min zu; der Zeitplan (5 min) stösst die Kette
+  an, und jeder Lauf plant den nächsten nach 1 min. Kommt ein Lauf weniger als 45 s nach dem letzten, endet er
+  ohne Aufruf (Zeitplan und Kette können sich treffen).
 - **Je Lauf:** die Warteschlange je Dienst, für den es Wünsche gibt; dazu die Suchaufrufe aus 22.3 nur für
   Wünsche ohne gemerkte ID. **Vorschlag:** `GET /api/v3/movie?tmdbId=` bzw. `series?tvdbId=` für `hasFile` und
   `statistics` höchstens alle 5 min je Wunsch.
@@ -1649,6 +1810,8 @@ gespeichert: Slouchcat zeigt nie den Fortschritt eines Titels, den niemand über
 - **Aufräumen:** Wird der Wunsch `available`, `declined`, `failed` oder `withdrawn`, löscht `wishes` die Zeile.
 - **Kein Protokoll von Inhalten:** Antworten von Radarr und Sonarr erscheinen nur als Methode, Pfad, Status und
   Dauer im Protokoll; Pfade aus der Warteschlange oder aus `movieFile.path` liest und speichert Slouchcat nicht.
+  So gebaut: Aus den Meldungen von Radarr und Sonarr (`errorMessage`, `statusMessages`) entfernt Slouchcat jeden
+  Pfad (jedes Wort mit `/` oder `\`, auch Adressen), bevor es etwas speichert oder zeigt.
 
 ```mermaid
 sequenceDiagram
@@ -1694,3 +1857,9 @@ sequenceDiagram
 | Meldung von Radarr oder Sonarr | nie | in der Aufklappzeile «Diagnose» (`errorMessage`, `statusMessages`, Download-Programm), ohne Pfade |
 | Radarr oder Sonarr nicht erreichbar | nichts Zusätzliches; der Wunsch bleibt «In Beschaffung» (N-85) | «Fortschritt nicht lesbar» mit Zeit des letzten Lesens |
 | Schalter aus | keine Anzeige | keine Anzeige; Hinweis im Band «Radarr und Sonarr (Profil-Tags und Fortschritt)» |
+
+**So gebaut:** Ein Wunsch, den ein Profil als «wird eingelesen» liest, weil es den Titel der Bibliothek nicht sehen
+darf (8.3), trägt für dieses Profil keinen Fortschritt (Merker `Hidden` im Server, kein Feld des Vertrags).
+Zuschauer sehen im Verlauf (`WishEvent.detail`) nur die Staffeln, den Grund und den neuen Zustand (`seasons`,
+`reason`, `to` bzw. `state`), sonst nichts, also weder Dienst noch Meldung aus Radarr oder Sonarr
+(`viewerEventKeys` in `server/internal/api/wish_titles_handlers.go`).

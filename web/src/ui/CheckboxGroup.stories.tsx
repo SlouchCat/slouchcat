@@ -50,3 +50,20 @@ export const WithDescriptionsCompact: Story = {
   ...WithDescriptions,
   globals: { density: 'compact' },
 };
+
+/**
+ * One choice locked (concept 25, the request dialog's seasons): a season that is already there
+ * keeps a dashed box and says why; Tab passes it by.
+ */
+export const DisabledOption: Story = {
+  tags: ['press:Tab'],
+  args: {
+    label: 'Staffeln',
+    defaultValue: ['2'],
+    options: [
+      { value: '1', label: 'Staffel 1', description: '8 Folgen · verfügbar', isDisabled: true },
+      { value: '2', label: 'Staffel 2', description: '10 Folgen' },
+      { value: '3', label: 'Staffel 3', description: '10 Folgen · bereits angefordert' },
+    ],
+  },
+};

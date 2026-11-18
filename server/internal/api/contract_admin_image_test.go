@@ -186,7 +186,7 @@ func TestAdminImageURLsCarryNoProfileID(t *testing.T) {
 		t.Fatalf("spotlight entries %s", rec.Body.String())
 	}
 	for _, e := range entries.Entries {
-		switch e.TmdbId {
+		switch deref(e.TmdbId) {
 		case 1002:
 			if e.ItemId == nil || *e.ItemId != film.ID || e.PosterUrl == nil {
 				t.Errorf("hit with poster: %+v", e)
@@ -195,7 +195,7 @@ func TestAdminImageURLsCarryNoProfileID(t *testing.T) {
 			checkAdminPosterURL(t, pf, "spotlight 1002", film.ID, *e.PosterUrl)
 		default:
 			if e.PosterUrl != nil {
-				t.Errorf("entry %d without poster has posterUrl %q", e.TmdbId, *e.PosterUrl)
+				t.Errorf("entry %d without poster has posterUrl %q", deref(e.TmdbId), *e.PosterUrl)
 			}
 		}
 	}

@@ -11,6 +11,9 @@ export const EVENTS: readonly EventType[] = [
   'errors',
   'invitations',
   'announcements',
+  'wish_available',
+  'wish_status',
+  'wish_review',
 ];
 
 /** The icon in each channel's band, as on the integrations page. */

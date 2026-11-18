@@ -274,8 +274,8 @@ func TestMergeMovesDiscoverRows(t *testing.T) {
 		f.P18.ID, source.ID, f.P16.ID, source.ID, f.P16.ID, target.ID)
 	m.exec(t, `INSERT INTO collections (id, source, name, created_at, updated_at) VALUES ('01J9000000000000000000COLL', 'manual', 'Mix', 1, 1)`)
 	m.exec(t, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES ('01J9000000000000000000COLL', ?, 5, 1)`, source.ID)
-	m.exec(t, `INSERT INTO notifications (profile_id, kind, item_id, parent_id, created_at) VALUES (?, 'new_episode', ?, ?, 1)`,
-		f.P18.ID, source.ID, source.ID)
+	m.exec(t, `INSERT INTO notifications (profile_id, kind, item_id, parent_id, dedupe_key, created_at) VALUES (?, 'new_episode', ?, ?, 'episode:' || ?, 1)`,
+		f.P18.ID, source.ID, source.ID, source.ID)
 	m.exec(t, `DELETE FROM user_picks`)
 	m.exec(t, `INSERT INTO user_picks (item_id, profile_id, created_at) VALUES (?, ?, 5), (?, ?, 3), (?, ?, 4)`,
 		source.ID, f.P18.ID, target.ID, f.P18.ID, source.ID, f.P16.ID)

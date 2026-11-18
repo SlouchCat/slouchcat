@@ -115,8 +115,45 @@
 
 .rowActions {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: var(--sc-space-2);
   justify-content: flex-end;
+}
+
+/* The ids of an entry (N-60): one line that wraps between the ids where it has to. */
+.ids {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* On a phone the tables size their columns from the content (DataTable): a title with its ids
+   keeps a readable width there and the table scrolls sideways in its frame instead. */
+@media (width < 768px) {
+  .named {
+    min-width: 10rem;
+  }
+}
+
+/* A part of a band with its own small heading (the bands «Fehlende Einträge» and «Abgleich»). */
+.part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.partTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
 }
 
 .dialogActions {

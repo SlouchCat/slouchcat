@@ -390,6 +390,14 @@ type AdminService interface {
 	SetIntegrationPathMap(ctx context.Context, id int64, pairs []model.PathMapping) (model.Integration, error)
 	DeleteIntegration(ctx context.Context, id int64) error
 	IntegrationEvents(ctx context.Context, id int64) ([]model.IntegrationEvent, error)
+
+	// Seerr and the wishes (concept 25, contract 1.41.0): the connection without its key and the
+	// settings of the wishes. UpdateSeerrSettings: *model.ValidationError, model.EnvWinsError,
+	// model.ErrSeerrKeyRequired; SetWishSettings: *model.ValidationError, model.ErrSeerrNotTested.
+	SeerrSettings(ctx context.Context) (model.SeerrSettings, error)
+	UpdateSeerrSettings(ctx context.Context, upd model.SeerrSettingsUpdate) (model.SeerrSettings, error)
+	WishSettings(ctx context.Context) (model.WishSettings, error)
+	SetWishSettings(ctx context.Context, upd model.WishSettingsUpdate) (model.WishSettings, error)
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer

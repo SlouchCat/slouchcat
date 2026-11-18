@@ -53,7 +53,10 @@
       "other": "Lisäprofiili",
       "primary": "Pääprofiili",
       "admin": "Palvelimen ylläpitäjä"
-    }
+    },
+    "wishes": "Toiveet",
+    "wishesLabel_one": "{{name}}, {{count}} avoin toive",
+    "wishesLabel_other": "{{name}}, {{count}} avointa toivetta"
   },
   "system": {
     "server": {
@@ -226,7 +229,25 @@
       "deleting": "Tätä poistetaan parhaillaan.",
       "changed": "Jokin muuttui sillä välin. Tarkista uudelleen.",
       "stale": "Kirjastoa on muutettu sillä välin muualla. Lataa kirjasto uudelleen ja tallenna vielä kerran.",
-      "root_unlisted": "Kirjaston kansio puuttuu pyynnöstä. Lataa kirjasto uudelleen; mitään ei poistettu."
+      "root_unlisted": "Kirjaston kansio puuttuu pyynnöstä. Lataa kirjasto uudelleen; mitään ei poistettu.",
+      "seerr_key_required": "Toisella koneella oleva osoite vaatii API-avaimen uudelleen: tallennettua avainta ei koskaan lähetetä toiseen osoitteeseen.",
+      "seerr_not_configured": "Anna ensin Seerr-palvelun osoite ja API-avain.",
+      "instance_unchanged": "Mikään toinen Seerr-instanssi ei odota päätöstä.",
+      "seerr_not_tested": "Toiveet voi ottaa käyttöön vasta, kun tallennetun yhteyden testi on onnistunut.",
+      "seerr_user_taken": "Tämä Seerr-käyttäjä kuuluu jo toiselle tilille, on yhteinen käyttäjä tai puuttuu Seerristä.",
+      "provision_disabled": "”Luo uudet tilit Seerriin” on pois päältä. Ota se käyttöön kohdassa Toiveet › Asetukset.",
+      "password_not_syncable": "Slouchcat ei synkronoi tämän Seerr-käyttäjän salasanaa: hän on Seerrissä ylläpitäjä tai kirjautuu sisään Jellyfinin, Embyn tai Plexin kautta.",
+      "account_not_allowed": "Tili ei saa pyytää nimikkeitä. Ylläpitäjä asettaa oikeuden kohdassa Tilit.",
+      "wish_not_allowed": "Tämä profiili ei voi pyytää nimikkeitä.",
+      "quota_exceeded": "Raja ei salli tätä.",
+      "already_available": "Nimike on jo kirjastossa.",
+      "wish_not_withdrawable": "Toive on jo hyväksytty, eikä sitä voi enää perua.",
+      "seerr_unreachable": "Seerr ei ole juuri nyt tavoitettavissa.",
+      "wish_not_retryable": "Tätä toivetta ei voi yrittää uudelleen.",
+      "wish_not_pending": "Päätös on jo tehty: tämä toive ei enää odota hyväksyntää Seerrissä. Synkronointi hakee uuden tilan.",
+      "seerr_failed": "Seerr vastasi virheellä.",
+      "seerr_instance_changed": "Toinen Seerr-instanssi odottaa päätöstäsi kohdassa Integraatiot › Seerr.",
+      "tag_name_taken": "Toisella profiililla on jo tämä tunnisteen nimi."
     },
     "field": {
       "required": "Pakollinen.",
@@ -257,7 +278,8 @@
       "local_address": "Osoite on paikallisessa verkossa. Omien asemien on oltava tavoitettavissa myös internetistä.",
       "not_own": "Vain oman aseman tietoja voi muuttaa.",
       "not_matched": "Tätä äänikirjaa ei ole yhdistetty lähteeseen.",
-      "not_found": "Lähteessä ei ole tällaista kohdetta."
+      "not_found": "Lähteessä ei ole tällaista kohdetta.",
+      "seerr_url_invalid": "Anna osoite, joka alkaa http:// tai https://, ilman käyttäjää, salasanaa, kyselyä tai ankkuria."
     }
   },
   "setup": {
@@ -653,7 +675,8 @@
       "released": "Äskettäin julkaistut",
       "libraries": "Omat mediat",
       "library": "Uutta: {{library}}",
-      "radio": "Omat asemat"
+      "radio": "Omat asemat",
+      "wishes": "Toteutuneet toiveet"
     },
     "remaining": "{{time}} jäljellä",
     "continue": {
@@ -796,7 +819,22 @@
     "seasons": "Kaudet",
     "seasonWall": {
       "showAll": "Näytä kaikki {{total}} kautta",
-      "showLess": "Näytä vähemmän"
+      "showLess": "Näytä vähemmän",
+      "season": "Kausi {{number}}",
+      "present_one": "{{present}} / {{count}} kaudesta saatavilla",
+      "present_other": "{{present}} / {{count}} kaudesta saatavilla",
+      "next": "Jatkuu vielä, seuraava jakso {{date}}",
+      "running": "Jatkuu vielä",
+      "state": {
+        "missing": "Puuttuu",
+        "requested": "Pyydetty",
+        "processing": "Hankinnassa",
+        "announced": "Julkistettu"
+      },
+      "cardLabel": "{{title}}: {{state}}",
+      "cardRequest": "Pyydä: {{title}}",
+      "cardJoin": "{{title}}: jo pyydetty, liity",
+      "request": "Pyydä kausia"
     },
     "episodes": {
       "title": "Jaksot",
@@ -3196,7 +3234,8 @@
         "genres": "Näkyvien nimikkeiden lajityypit.",
         "libraries": "Ruudut profiilin näkemille kirjastoille, radiolle ja, kun ne näytetään, kokoelmille ja käyttäjien suosikeille; sivu ”Omat mediat” määrittää niiden järjestyksen ja piilotuksen.",
         "library": "Tähän kirjastoon viimeksi tulleet nimikkeet; ”Näytä kaikki” avaa kirjaston lajiteltuna kohdan ”Äskettäin lisätyt” mukaan.",
-        "radio": "Profiilin suosikkiasemat ruutuina; palvelimen kautta parhaillaan soiva asema näyttää nykyisen kappaleensa. Ilman suosikkeja rivi jätetään pois."
+        "radio": "Profiilin suosikkiasemat ruutuina; palvelimen kautta parhaillaan soiva asema näyttää nykyisen kappaleensa. Ilman suosikkeja rivi jätetään pois.",
+        "wishes": "Profiilin toiveet, jotka on toteutettu viimeisten 14 päivän aikana, eli kirjaston nimikkeet. Avoimet toiveet näkyvät kohdassa ”Toiveet › Omat toiveet”. Tyhjää riviä ei näytetä."
       },
       "pageLink": "Siirry kohtaan ”{{page}}”",
       "moved": "{{row}} on nyt sijalla {{position}}. Tallenna ottaaksesi sen käyttöön.",
@@ -3303,6 +3342,9 @@
         "quoted": "”{{note}}”",
         "none": "–",
         "notInLibrary": "Ei kirjastossa, ei näy etusivulla",
+        "unmatched": "Ei vastinetta",
+        "unmatchedReason": "Vain TVDB-tunnus tiedossa, TMDB ei löydä sitä",
+        "noAction": "Ei toimintoa: ilman TMDB-tunnusta ei voi pyytää",
         "hide": "Piilota",
         "hideLabel": "Piilota {{title}}",
         "show": "Näytä",
@@ -3311,6 +3353,65 @@
         "shown": "{{title}} näytetään taas.",
         "count_one": "{{count}} kohde",
         "count_other": "{{count}} kohdetta"
+      },
+      "ids": {
+        "tmdb": "TMDB {{id}}",
+        "tvdb": "TVDB {{id}}",
+        "imdb": "IMDb {{id}}",
+        "unknown": "–",
+        "match": {
+          "tvdb": "Tunnistettu kirjastosta TVDB-tunnuksella",
+          "tmdb": "Tunnistettu kirjastosta TMDB-tunnuksella",
+          "imdb": "Tunnistettu kirjastosta IMDb-tunnuksella"
+        }
+      },
+      "request": {
+        "action": "Pyydä",
+        "label": "Pyydä: {{title}}",
+        "done": "{{title}} on pyydetty.",
+        "joined": "{{title}} oli jo pyydetty; profiilisi liittyy toiveeseen.",
+        "available": "{{title}} on nyt kirjastossa."
+      },
+      "lacking": {
+        "title": "Puuttuvat kohteet",
+        "missing_one": "{{count}} puuttuu",
+        "missing_other": "{{count}} puuttuu",
+        "requested_one": "{{count}} pyydetty",
+        "requested_other": "{{count}} pyydetty",
+        "unmatched_one": "{{count}} ilman vastinetta",
+        "unmatched_other": "{{count}} ilman vastinetta",
+        "intro": "Etusivu ja Spotlight-lista näyttävät vain kirjaston nimikkeet. Puuttuvat kohteet näet vain sinä, täällä hallinnassa. Profiilit pyytävät puuttuvia nimikkeitä kohdassa ”Toiveet”.",
+        "asProfile": "”Pyydä” toimii aktiivisena profiilina ({{name}}).",
+        "noRequestChip": "Pyytäminen ei onnistu",
+        "noRequest": {
+          "title": "Pyytäminen onnistuu vasta, kun toiveet on otettu käyttöön.",
+          "body": "Se vaatii Seerr-palvelun osoitteineen ja avaimineen, käyttöön otettuna, sekä asetuksen ”Toiveet käytössä”.",
+          "settings": "Toiveiden asetuksiin",
+          "connection": "Seerr-yhteyteen"
+        },
+        "empty": "Jokainen listan kohde on kirjastossa."
+      },
+      "matching": {
+        "title": "Täsmäys TMDB:n, TVDB:n ja IMDb:n avulla",
+        "hits_one": "{{count}} kirjastossa",
+        "hits_other": "{{count}} kirjastossa",
+        "intro": "Slouchcat täsmää elokuvat ensin TMDB:llä, sitten IMDb:llä. Sarjat kuten kirjasto: ensin TVDB, sitten TMDB, sitten IMDb. Seerr pitää kirjaa jokaisesta nimikkeestä TMDB-tunnuksella ja välittää sarjan TVDB-tunnuksen Sonarrille.",
+        "waysTitle": "Tunnistustapa",
+        "way": {
+          "movie": {
+            "tmdb": "Elokuvat TMDB-tunnuksella",
+            "imdb": "Elokuvat IMDb-tunnuksella"
+          },
+          "show": {
+            "tvdb": "Sarjat TVDB-tunnuksella",
+            "tmdb": "Sarjat TMDB-tunnuksella",
+            "imdb": "Sarjat IMDb-tunnuksella"
+          }
+        },
+        "noHits": "Yksikään kohde ei ole kirjastossa.",
+        "unmatchedTitle": "Ei vastinetta",
+        "allMatched": "Jokaiselle kohteelle löytyi vastine.",
+        "unmatchedNote": "Ilman TMDB-tunnusta kohdetta ei voi pyytää; se ei lasketa kirjastossa olevaksi eikä puuttuvaksi."
       },
       "pin": {
         "action": "Kiinnitä",
@@ -3465,6 +3566,9 @@
       },
       "server": {
         "title": "Palvelin"
+      },
+      "wishes": {
+        "title": "Toiveet"
       }
     },
     "server": {
@@ -3715,6 +3819,50 @@
         "hanging_one": "Liitos lakkasi vastaamasta: {{count}} listaus jumittaa ytimessä, eikä sitä voi peruuttaa. Kansioselain toimii yhä, mutta vähemmillä paikoilla. Uudelleenkäynnistys vapauttaa ne.",
         "hanging_other": "Liitos lakkasi vastaamasta: {{count}} listausta jumittaa ytimessä, eikä niitä voi peruuttaa. Kansioselain toimii yhä, mutta vähemmillä paikoilla. Uudelleenkäynnistys vapauttaa ne.",
         "off": "Kaikki kansioselaimen paikat jumittavat liitoksessa, joka lakkasi vastaamasta. Kansioita ei voi selata, ennen kuin palvelin käynnistyy uudelleen; polun kirjoittaminen käsin toimii yhä."
+      },
+      "wishes": {
+        "seerrState": {
+          "unreachable": "Seerr ei ole tavoitettavissa",
+          "key_invalid": "Seerr hylkää API-avaimen",
+          "instance_changed": "Toinen Seerr-instanssi havaittu"
+        },
+        "seerrStateBody": {
+          "unreachable": "Uudet toiveet odottavat ja lähtevät, kun Seerr vastaa taas.",
+          "key_invalid": "Slouchcat ei lähetä toiveita eikä synkronoi mitään, ennen kuin avain on oikea.",
+          "instance_changed": "Lähetys ja synkronointi pysähtyvät, kunnes vahvistat tai poistat määrityksen."
+        },
+        "toConnection": "Integraatiot › Seerr",
+        "unmapped_one": "{{count}} tili ilman Seerr-käyttäjää",
+        "unmapped_other": "{{count}} tiliä ilman Seerr-käyttäjää",
+        "unmappedFallback": "Siihen asti ne lähettävät yhteisen käyttäjän (slouchcat-gaeste) kautta.",
+        "unmappedDeny": "Niiden profiilit eivät näe puuttuvia nimikkeitä, kun asetus ”Tilit ilman Seerr-käyttäjää” on arvossa ”Älä salli”.",
+        "unmappedWaiting": "Tilit odottavat ja luodaan seuraavassa synkronoinnissa.",
+        "toUsers": "Seerr-käyttäjiin",
+        "linked": "Uusi linkitys: {{account}} ja olemassa oleva Seerr-käyttäjä {{name}}",
+        "linkedBody": {
+          "invite": "Kutsun hyväksymisen yhteydessä {{date}}, koska sähköpostiosoite on sama. Tili kirjoitti osoitteen itse; kukaan ei ole tarkistanut sitä.",
+          "email_change": "Sähköpostiosoitteen vaihtumisen jälkeen {{date}}, koska sähköpostiosoite on sama. Tili kirjoitti osoitteen itse; kukaan ei ole tarkistanut sitä."
+        },
+        "toAccount": "Näytä linkitys",
+        "quotaReached": "Raja täynnä: {{account}}",
+        "quotaNext": "{{used}}, seuraava paikka vapautuu {{date}}.",
+        "toLimit": "Näytä raja",
+        "gone_one": "{{count}} tili: käyttäjä poistettu Seerristä",
+        "gone_other": "{{count}} tiliä: käyttäjä poistettu Seerristä",
+        "goneBody": "Valitse näille tileille toinen käyttäjä tai poista linkitys.",
+        "open_one": "{{count}} avoin toive",
+        "open_other": "{{count}} avointa toivetta",
+        "openQueued_one": "Niistä {{count}} odottaa lähetystä Seerriin.",
+        "openQueued_other": "Niistä {{count}} odottaa lähetystä Seerriin.",
+        "toRequests": "Pyyntöihin",
+        "stalled_one": "{{count}} lataus jumissa",
+        "stalled_other": "{{count}} latausta jumissa",
+        "serviceTitle": "{{title}} ({{service}})",
+        "toStalled": "Näytä jumissa olevat lataukset",
+        "tagsFailed_one": "{{count}} tunnistetta ei asetettu",
+        "tagsFailed_other": "{{count}} tunnistetta ei asetettu",
+        "tagFailedEntry": "{{entry}}: {{reason}}",
+        "toUntagged": "Näytä puuttuvat tunnisteet"
       }
     },
     "integrations": {
@@ -3728,7 +3876,8 @@
         "email": "Sähköposti",
         "push": "Web Push",
         "telegram": "Telegram",
-        "updateCheck": "Päivitysten tarkistus"
+        "updateCheck": "Päivitysten tarkistus",
+        "seerr": "Seerr"
       },
       "source": {
         "env": "Asetettu tiedostossa deploy/.env",
@@ -3760,7 +3909,8 @@
         "email": "Palvelin ilmoitusten, kutsujen ja tiedotteiden lähettämiseen sähköpostilla.",
         "telegram": "Botti Telegram-ilmoituksiin.",
         "push": "Ilmoitukset selaimessa ja asennetussa sovelluksessa.",
-        "server": "Päivitystarkistus, julkinen osoite ja näytönohjain."
+        "server": "Päivitystarkistus, julkinen osoite ja näytönohjain.",
+        "seerr": "Välitä katsojien toiveet Seerrille ja pidä niiden tila ajan tasalla. Tileille luodaan siellä käyttäjä samalla kirjautumisella."
       },
       "keys": {
         "title": "Lähteiden avaimet",
@@ -3786,7 +3936,8 @@
         "neverSeen": "Ei ole koskaan ilmoittanut mitään.",
         "kind": {
           "radarr": "Radarr",
-          "sonarr": "Sonarr"
+          "sonarr": "Sonarr",
+          "seerr": "Seerr"
         },
         "form": {
           "title": "Uusi integraatio",
@@ -3831,7 +3982,8 @@
           "acknowledged": "Testi kuitattu",
           "ignored": "Ei vaikutusta",
           "outside_roots": "Kirjastojen ulkopuolella",
-          "invalid_payload": "Ilman polkua"
+          "invalid_payload": "Ilman polkua",
+          "sync_queued": "Toiveet synkronoidaan"
         },
         "renew": {
           "action": "Uusi tunnus",
@@ -3979,6 +4131,233 @@
         "checkLabel": "Tarkista {{name}}",
         "rejected": "hylätty",
         "savedRejected": "{{name}} tallennettu, mutta lähde hylkää avaimen."
+      },
+      "seerr": {
+        "title": "Seerr",
+        "name": "Seerr-yhteys",
+        "version": "Versio {{version}}",
+        "lastSuccess": "Viimeksi tavoitettu {{time}}",
+        "state": {
+          "not_configured": "Ei määritetty",
+          "disabled": "Pois päältä",
+          "untested": "Ei testattu",
+          "connected": "Yhdistetty",
+          "key_invalid": "Avain virheellinen",
+          "unreachable": "Ei tavoitettavissa",
+          "instance_changed": "Toinen instanssi havaittu"
+        },
+        "stateHint": {
+          "not_configured": "Anna osoite ja avain.",
+          "disabled": "Slouchcat ei kutsu Seerr-palvelua. Toiveet säilyvät tallessa.",
+          "untested": "Testaa yhteys, jotta ”Toiveet käytössä” voidaan ottaa käyttöön.",
+          "instance_changed": "Kunnes päätät, Slouchcat ei lähetä toiveita eikä synkronoi mitään."
+        },
+        "connection": {
+          "title": "Yhteys",
+          "noAddress": "Ei osoitetta"
+        },
+        "enabled": "Käytä Seerriä",
+        "enabledHelp": "Pois: Slouchcat ei kutsu Seerr-palvelua. Toiveet säilyvät tallessa.",
+        "url": "Osoite",
+        "urlHelp": "Esimerkiksi http://192.168.1.50:5055. Slouchcat on yhteydessä vain tähän osoitteeseen. Kotiverkon osoite on sallittu; Slouchcat ei seuraa uudelleenohjauksia.",
+        "urlPlaceholder": "http://192.168.1.50:5055",
+        "apiKey": "API-avain",
+        "apiKeyHelp": "Seerristä: Asetukset › Yleiset. Jätä tyhjäksi, jos haluat säilyttää tallennetun avaimen. Toisella koneella oleva osoite vaatii avaimen uudelleen.",
+        "clearBody": "Osoite ja avain poistetaan. Toiveet säilyvät tallessa, mutta niitä ei enää välitetä eikä synkronoida.",
+        "test": {
+          "action": "Testaa yhteys",
+          "running": "Tarkistetaan yhteyttä…",
+          "listLabel": "Yhteystestin tulos",
+          "passed": "Kaikki tarkistukset läpäisty.",
+          "passedWithHints_one": "Yhdistetty · {{count}} huomautus",
+          "passedWithHints_other": "Yhdistetty · {{count}} huomautusta",
+          "hintsHelp": "Huomautus ei estä mitään; se kertoo, mikä olisi parempi asettaa Seerrissä toisin.",
+          "failed": "Testi epäonnistui: {{checks}}."
+        },
+        "level": {
+          "ok": "läpäisty",
+          "warn": "huomautus",
+          "fail": "epäonnistui"
+        },
+        "checks": {
+          "reachable": "Tavoitettavissa",
+          "version": "Versio",
+          "key_valid": "Avain kelvollinen",
+          "manage_users": "Käyttäjien luonti ja muokkaus",
+          "instance": "Instanssi",
+          "act_as_user": "Toiminta käyttäjien puolesta",
+          "csrf_off": "Seerrin CSRF-suojaus pois",
+          "radarr": "Radarr Seerrissä",
+          "sonarr": "Sonarr Seerrissä",
+          "local_login": "Paikallinen kirjautuminen Seerrissä",
+          "tvdb_seasons": "Kaudet TVDB:stä",
+          "password_transport": "Salasana salattu",
+          "radarr_tags": "Radarr profiilitunnisteille",
+          "sonarr_tags": "Sonarr profiilitunnisteille"
+        },
+        "checkOk": {
+          "reachable": "Seerr vastaa.",
+          "version": "Seerr {{version}}",
+          "key_valid": "Seerr hyväksyy avaimen.",
+          "manage_users": "Avaimella voi luoda tilejä Seerriin sekä asettaa oikeudet, rajan ja salasanan.",
+          "instance": "Sama instanssi kuin käyttöönotettaessa.",
+          "act_as_user": "Toiveet noudattavat linkitetyn käyttäjän oikeuksia, rajaa ja automaattista hyväksyntää.",
+          "csrf_off": "Kirjoittavat kutsut menevät läpi.",
+          "radarr_one": "Elokuvatoiveet menevät Radarrille ({{count}} palvelin).",
+          "radarr_other": "Elokuvatoiveet menevät Radarrille ({{count}} palvelinta).",
+          "sonarr_one": "Sarjatoiveet menevät Sonarrille ({{count}} palvelin).",
+          "sonarr_other": "Sarjatoiveet menevät Sonarrille ({{count}} palvelinta).",
+          "local_login": "Luodut käyttäjät kirjautuvat Seerriin Slouchcatin sähköpostiosoitteella ja salasanalla.",
+          "tvdb_seasons": "Seerr, Sonarr ja Slouchcatin kirjasto laskevat kaudet samalla tavalla.",
+          "password_transport": "Salasanat kulkevat salattuina tai pysyvät kotiverkossa.",
+          "radarr_tags": "Radarr vastaa profiilitunnisteille ja latauksen edistymiselle.",
+          "sonarr_tags": "Sonarr vastaa profiilitunnisteille ja latauksen edistymiselle."
+        },
+        "checkIssue": {
+          "notTested": "Ei tarkistettu.",
+          "timeout": "Ei tavoitettavissa: aikakatkaisu.",
+          "refused": "Ei tavoitettavissa: yhteys evätty.",
+          "redirect": "Ei tavoitettavissa: uudelleenohjaukset eivät ole sallittuja.",
+          "unreachable": "Ei tavoitettavissa. Onko Seerr käynnissä ja onko osoite oikein?",
+          "versionNotVerified": "Versiota ei ole tarkistettu: testattu on Jellyseerr 2.7 ja Seerr 3.x.",
+          "keyNotUserOne": "Avain ei kuulu Seerrin omistajalle (käyttäjä 1).",
+          "keyInvalid": "Seerr hylkää avaimen.",
+          "manageUsers": "Avaimella ei voi luoda käyttäjiä: tilejä ei voi luoda.",
+          "instance": "Toinen Seerr-instanssi havaittu.",
+          "notTestable": "Ei testattavissa: Seerrissä ei ole muuta käyttäjää kuin käyttäjä 1.",
+          "waiting": "Ei tarkistettu, kun toinen instanssi odottaa päätöstäsi.",
+          "actAsUser": "Ei toimi: toiveet tehtäisiin ylläpitäjänä.",
+          "csrfOn": "Päällä: kirjoittavat kutsut epäonnistuvat. Kytke pois Seerrin verkkoasetuksista.",
+          "noRadarr": "Seerrissä ei ole Radarria: elokuvatoiveet jäävät odottamaan.",
+          "noSonarr": "Seerrissä ei ole Sonarria: sarjatoiveet jäävät odottamaan.",
+          "localLoginOff": "Luodut käyttäjät eivät voi kirjautua Seerriin. Ota Seerrissä käyttöön ”Paikallinen kirjautuminen” kohdassa Asetukset › Käyttäjät.",
+          "noSeasonSource": "Seerr ei kerro kausien lähdettä.",
+          "tmdbSeasons": "Seerr lukee kaudet TMDB:stä. Suositeltu on TVDB, kuten Sonarrissa ja Slouchcatin kirjastossa; muuten kausien numerot voivat poiketa toisistaan.",
+          "passwordTransport": "Salasanat kulkisivat salaamattomina internetin yli. Käytä https-yhteyttä.",
+          "arrNotConfirmed": "Seerristä saatua osoitetta ei ole vielä vahvistettu: testaa se kohdassa ”Radarr ja Sonarr”.",
+          "arrUnreachable": "Ei tavoitettavissa: ei profiilitunnisteita eikä latauksen edistymistä.",
+          "csrfUnexpected": "Seerr hyväksyi tyhjän pyynnön sen sijaan, että olisi hylännyt sen. Toiveet lähtevät silti; tarkista Seerrin versio."
+        },
+        "instance": {
+          "title": "Toinen Seerr-instanssi havaittu",
+          "body": "Osoitteessa vastaa eri Seerr-instanssi kuin käyttöönotettaessa. Kunnes päätät, Slouchcat ei lähetä toiveita eikä synkronoi mitään.",
+          "confirm": "Vahvista määritys",
+          "reset": "Poista määritys",
+          "resetTitle": "Poistetaanko Seerr-määritys?",
+          "resetBody": "Kaikkien tilien Seerr-käyttäjät ja ladattu käyttäjälista poistetaan. Sen jälkeen Slouchcat lataa uuden instanssin käyttäjät.",
+          "confirmed": "Uusi instanssi otettu käyttöön. Tilien Seerr-käyttäjät säilyvät.",
+          "resetDone": "Määritys poistettu. Slouchcat lataa uuden instanssin käyttäjät."
+        },
+        "log": {
+          "title": "Loki",
+          "empty": "Ei vielä merkintöjä.",
+          "caption": "Viimeisimmät Seerr-kutsut",
+          "at": "Aika",
+          "call": "Kutsu",
+          "result": "Tulos",
+          "duration": "Kesto",
+          "error": "Virhe",
+          "noAnswer": "Ei vastausta",
+          "ms": "{{ms}} ms",
+          "note": "Ei koskaan otsakkeita tai avainta. Enintään 20 merkintää.",
+          "entries_one": "{{count}} merkintä",
+          "entries_other": "{{count}} merkintää",
+          "errors_one": "{{count}} virhe",
+          "errors_other": "{{count}} virhettä"
+        },
+        "usersLink": "Tilien Seerr-käyttäjät",
+        "sync": {
+          "title": "Synkronointi",
+          "summary_one": "{{count}} avoin toive",
+          "summary_other": "{{count}} avointa toivetta",
+          "open": "Avoimet toiveet",
+          "queued": "Odottaa lähetystä",
+          "last": "Seerr viimeksi tavoitettu",
+          "never": "Ei vielä koskaan",
+          "every": "Slouchcat synkronoi toiveet Seerrin kanssa 5 minuutin välein.",
+          "requestsLink": "Pyyntöihin"
+        },
+        "arr": {
+          "title": "Radarr ja Sonarr (profiilitunnisteet ja edistyminen)",
+          "intro": "Slouchcat luo Radarriin ja Sonarriin yhden tunnisteen profiilia kohden ja liittää sen nimikkeeseen, kun Seerr on luovuttanut sen sinne. Sitä varten se lukee toivottujen nimikkeiden jonon ja tiedostotilan, jotta latauksen edistyminen näkyy toiveiden kohdalla. Muuten Slouchcat ei muuta Radarrissa eikä Sonarrissa mitään. Uusista nimikkeistä ilmoittaa edelleen webhook.",
+          "offNotice": "Profiilitunnisteet ja latauksen edistyminen ovat pois päältä. Slouchcat ei kutsu Radarria eikä Sonarria.",
+          "summaryOff": "pois · profiilitunnisteet ja edistyminen pois päältä",
+          "summaryTags_one": "{{count}} tunniste avoinna",
+          "summaryTags_other": "{{count}} tunnistetta avoinna",
+          "summaryProgress_one": "{{count}} lataus",
+          "summaryProgress_other": "{{count}} latausta",
+          "state": {
+            "none": "{{service}} ei ole Seerrissä",
+            "unconfirmed": "{{service}} odottaa toimintoa ”Testaa”",
+            "unreachable": "{{service}} ei tavoitettavissa",
+            "reachable": "{{service}} tavoitettavissa",
+            "untested": "{{service}}: ei vielä kutsuttu"
+          },
+          "facts": {
+            "address": "Osoite",
+            "state": "Tila",
+            "tagRequests": "Tag Requests Seerrissä",
+            "tags": "Profiilitunnisteet",
+            "progress": "Latauksen edistyminen"
+          },
+          "address": {
+            "seerr": "Seerristä: {{address}}",
+            "own": "Oma osoite: {{address}}"
+          },
+          "addressNone": "Ei mitään: Seerrissä ei ole oletuspalvelinta kohteelle {{service}}.",
+          "lastAt": "viimeksi {{time}}",
+          "tagRequestsOn": "päällä",
+          "tagRequestsOff": "pois · Suositus: silloin jokaisella nimikkeellä on myös tilin tunniste.",
+          "tags": "{{set}} asetettu · {{pending}} avoinna · {{failed}} epäonnistunut",
+          "progressOff": "pois · kohdassa Toiveet › Asetukset",
+          "progressError": "Edistymistä ei voi lukea: {{reason}}",
+          "progressOn_one": "päällä · {{count}} toive, jolla on edistyminen",
+          "progressOn_other": "päällä · {{count}} toivetta, joilla on edistyminen",
+          "progressAt_one": "päällä · {{count}} toive, jolla on edistyminen · viimeksi luettu {{time}}",
+          "progressAt_other": "päällä · {{count}} toivetta, joilla on edistyminen · viimeksi luettu {{time}}",
+          "test": {
+            "action": "Testaa",
+            "label": "Testaa {{service}}",
+            "noHost": "(tuntematon)",
+            "passed": "{{service}} vastaa osoitteessa {{host}} ja hyväksyy Seerristä saadun avaimen. Osoite on vahvistettu.",
+            "keyRefused": "{{service}} vastaa osoitteessa {{host}}, mutta hylkää Seerristä saadun avaimen.",
+            "unreachable": "{{service}} ei ole tavoitettavissa osoitteessa {{host}}.",
+            "ownHint": "Jos Slouchcat ei tavoita Seerristä saatua osoitetta, esimerkiksi Dockerin sisäisillä nimillä, anna oma osoite alla.",
+            "notInSeerr": "Seerrissä ei ole oletuspalvelinta kohteelle {{service}}.",
+            "notInSeerrBody": "Määritä Seerrissä oletuspalvelin ilman 4K:ta. Ilman sitä Slouchcat ei aseta tunnisteita eikä lue edistymistä."
+          },
+          "own": "Oma osoite: {{service}}",
+          "ownHelp": "Tyhjä: Seerristä saatu osoite. Tarvitaan vain, kun Slouchcat ei tavoita Seerristä saatua osoitetta, esimerkiksi Dockerin sisäisillä nimillä. Avain tulee aina Seerristä.",
+          "ownPlaceholder": "Seerristä saatu osoite",
+          "saveLabel": "Tallenna Radarrin ja Sonarrin omat osoitteet",
+          "saved": "Omat osoitteet tallennettu.",
+          "toSettings": "Etuliite ja latauksen edistyminen · Toiveet › Asetukset",
+          "toUsers": "Tunnisteiden nimet profiileittain · Seerr-käyttäjät",
+          "toWebhooks": "Radarrin ja Sonarrin webhookit · ennallaan, otetaan käyttöön käsin"
+        },
+        "hook": {
+          "title": "Pikasignaali",
+          "on": "Otettu käyttöön",
+          "off": "Pois",
+          "intro": "Seerr käynnistää synkronoinnin heti sen sijaan, että odottaisi enintään 5 minuuttia. Synkronointi pysyy perustana.",
+          "name": "Seerr",
+          "create": "Luo osoite",
+          "address": "Osoite",
+          "last": "Viimeisin signaali",
+          "never": "Ei ole koskaan ilmoittanut mitään.",
+          "single": "Seerr tuntee vain yhden webhook-kohteen. Jos käytät sitä jo johonkin muuhun, tämä osoite korvaa sen.",
+          "where": "Seerrissä kohdassa Asetukset › Ilmoitukset › Webhook: osoite kenttään ”Webhook URL”, tämä malli kenttään ”JSON Payload”.",
+          "payload": "JSON-malli Seerrille",
+          "copyPayload": "Kopioi malli",
+          "typesIntro": "Valitse Seerrissä nämä ilmoitustyypit:",
+          "types": "Seerrin ilmoitustyypit",
+          "copyTypes": "Kopioi tyypit",
+          "copied": "Kopioitu.",
+          "copyFailed": "Leikepöytään ei ole pääsyä: teksti on valittuna, kopioi se näppäilyllä Ctrl+C.",
+          "log": "Viimeisimmät signaalit"
+        },
+        "accounts_one": "Seerr-käyttäjät: {{opened}} / {{count}} tilistä",
+        "accounts_other": "Seerr-käyttäjät: {{opened}} / {{count}} tilistä"
       }
     },
     "accounts": {
@@ -3988,8 +4367,7 @@
       "columns": {
         "email": "Sähköposti",
         "role": "Rooli",
-        "rating": "Ikäraja",
-        "libraries": "Kirjastot",
+        "access": "Käyttöoikeus",
         "profiles": "Profiilit",
         "lastSeen": "Viimeksi nähty",
         "channels": "Kanavat",
@@ -4021,7 +4399,14 @@
         "currentPasswordHint": "Vahvistaa henkilöllisyyden.",
         "wrongPassword": "Nykyinen salasana on väärä.",
         "unchanged": "Muuta sähköpostiosoitetta tai anna uusi salasana.",
-        "saved": "Tilisi on tallennettu."
+        "saved": "Tilisi on tallennettu.",
+        "seerrPassword": {
+          "synced": "Uusi salasana on voimassa myös Seerrissä.",
+          "next_login": "Uusi salasana on voimassa myös Seerrissä.",
+          "off": "Salasanasi Seerrissä pysyy ennallaan: sitä ei synkronoida.",
+          "admin": "Salasanasi Seerrissä pysyy ennallaan: olet siellä ylläpitäjä.",
+          "external": "Salasanasi Seerrissä pysyy ennallaan: kirjaudut sinne Jellyfinin, Embyn tai Plexin kautta."
+        }
       },
       "ownerBadge": "Omistaja",
       "access": {
@@ -4032,7 +4417,8 @@
         "heading": "Käyttöoikeudet",
         "save": "Tallenna käyttöoikeudet",
         "saved": "Käyttöoikeudet tallennettu: {{email}}.",
-        "adminHint": "Ylläpitäjällä on aina taso 18+ ja kaikki kirjastot; ”Käyttöoikeudet” on vain tileillä, joilla ei ole hallintaoikeuksia."
+        "adminHint": "Ylläpitäjällä on aina taso 18+ ja kaikki kirjastot; ”Käyttöoikeudet” on vain tileillä, joilla ei ole hallintaoikeuksia.",
+        "limitRefused": "Käyttöoikeus on tallennettu, toiverajaa ei: {{reason}}"
       },
       "role": {
         "promote": {
@@ -4101,7 +4487,8 @@
           "libraries": "Kirjastot",
           "detail": "Voimassa asti / hyväksytty",
           "actions": "Toiminnot"
-        }
+        },
+        "seerrHint": "Hyväksyttäessä Slouchcat luo tilin myös Seerriin: sama sähköpostiosoite, sama salasana."
       },
       "discard": "Hylkää",
       "status": {
@@ -4128,6 +4515,42 @@
         "mine": "Omat profiilini",
         "of": "Profiilit: {{email}}",
         "readOnly": "Jokainen tili hallinnoi omia profiilejaan."
+      },
+      "wishes": {
+        "title": "Toiveet",
+        "of": "Toiveet: {{email}}",
+        "canRequest": "Saa pyytää nimikkeitä",
+        "canRequestHelp": "Yläraja kaikille profiileille. Pyytävät profiilit valitaan tilin pääprofiilissa.",
+        "notSetUp": "–",
+        "state": {
+          "allowed": "Sallittu",
+          "not_allowed": "Ei sallittu",
+          "mapping_missing": "Ei Seerr-käyttäjää"
+        },
+        "userLine": "Seerr-käyttäjä: {{user}}",
+        "noUser": "ei vielä",
+        "change": "Vaihda",
+        "userState": {
+          "created": "luotu",
+          "linked": "linkitetty",
+          "manual": "valittu manuaalisesti",
+          "waiting": "odottaa Seerriä"
+        },
+        "linkedBy": "linkitetty {{by}} {{date}}",
+        "password": {
+          "synced": "salasana synkronoitu",
+          "next_login": "salasana päivittyy seuraavassa kirjautumisessa",
+          "off": "salasanaa ei synkronoida",
+          "admin": "salasana pysyy Seerrissä (ylläpitäjä)",
+          "external": "kirjautuu Jellyfinin, Embyn tai Plexin kautta"
+        },
+        "rightsFollow": "Käyttäjän ”{{name}}” oikeudet Seerrissä mukautetaan.",
+        "rightsStay": "Käyttäjä ”{{name}}” säilyttää oikeutensa Seerrissä, koska Slouchcat ei luonut sitä.",
+        "adminLimit": "Käyttäjä ”{{name}}” on Seerrissä ylläpitäjä. Seerr ei aseta ylläpitäjille rajaa.",
+        "limitLater": "Ei vielä Seerr-käyttäjää: Slouchcat asettaa rajan heti, kun tili on luotu sinne.",
+        "limitFixed": "Raja: {{limit}}. Ylläpitäjillä sitä ei voi muuttaa täällä.",
+        "savedOn": "{{email}} saa nyt pyytää nimikkeitä.",
+        "savedOff": "{{email}} ei enää saa pyytää nimikkeitä."
       }
     },
     "backup": {
@@ -4662,6 +5085,57 @@
           "description": "Poistaa nimikkeet, joiden tiedostot ovat puuttuneet armonajan yli.",
           "trigger": "Aikataulu tunnin välein ja palvelimen käynnistys"
         },
+        "seerr_users": {
+          "name": "Lataa Seerr-käyttäjät",
+          "description": "Lukee Seerrin käyttäjät oikeuksineen ja rajoineen ja tarkistaa, että Slouchcat on yhä yhteydessä samaan Seerr-instanssiin.",
+          "trigger": "päivittäin, ”Lataa käyttäjälista uudelleen”, Seerr-yhteyden tallennuksen jälkeen"
+        },
+        "seerr_provision": {
+          "name": "Luo tilit Seerriin",
+          "description": "Luo tai linkittää tilin Seerr-käyttäjän, luo yhteisen käyttäjän ”slouchcat-gaeste” ja siirtää poistetun tilin Seerr-käyttäjän oikeudet.",
+          "trigger": "”Luo Seerriin”, ”Luo kaikki”, kutsu hyväksytty, ”Toiveet käytössä” otettu käyttöön, odottavien tilien kohdalla Seerr-käyttäjien latauksen jälkeen, tili poistettu"
+        },
+        "wishes_submit": {
+          "name": "Lähetä toiveet Seerriin",
+          "description": "Lähettää Seerriin toiveen, joka odottaa vielä lähtevien jonossa, ja liittää sen jo olemassa olevaan pyyntöön.",
+          "trigger": "pyynnön jälkeen, jos Seerr ei vastaa heti, kasvavin välein enintään 24 tunnin ajan; synkronoinnin jälkeen erääntyneille toiveille"
+        },
+        "wishes_withdraw": {
+          "name": "Poista perutut toiveet Seerristä",
+          "description": "Poistaa perutun toiveen oman pyynnön Seerristä, kunhan sitä ei ole hyväksytty. Hyväksytty pyyntö säilyy, ja toive avautuu uudelleen.",
+          "trigger": "”Peru” kohdassa ”Omat toiveet”; synkronoinnin jälkeen, jos Seerr ei ollut tavoitettavissa"
+        },
+        "wishes_sync": {
+          "name": "Synkronoi toiveet Seerrin kanssa",
+          "description": "Lukee muuttuneet pyynnöt Seerristä, päivittää toiveiden tilan, tarkistaa pitkään muuttumattomat toiveet yksitellen ja lähettää erääntyneet toiveet uudelleen lähtevien jonosta. Ensimmäinen synkronointi lukee kaikki pyynnöt.",
+          "trigger": "aikataulu 5 minuutin välein, ”Synkronoi nyt”, Seerr-webhookin ilmoitus",
+          "progress": "Sivuja luettu: {{done}} / {{total}}"
+        },
+        "wishes_reconcile": {
+          "name": "Täsmää toiveet kirjastoon",
+          "description": "Ilmoittaa toiveen saatavilla heti, kun Slouchcat voi toistaa elokuvan tai jokaisen toivotun kauden profiilille.",
+          "trigger": "tuntiaikataulu, kun toivottu nimike on tunnistettu kirjastosta, Seerr-synkronoinnin jälkeen"
+        },
+        "wishes_tag": {
+          "name": "Aseta profiilitunnisteet",
+          "description": "Liittää profiilin tunnisteen Radarrissa ja Sonarrissa niihin Slouchcatin kautta toivottuihin elokuviin ja sarjoihin, jotka ovat hankinnassa. Tunnisteita ei koskaan poisteta.",
+          "trigger": "Seerr-synkronoinnin jälkeen, 15 minuutin välein ja käsin"
+        },
+        "wishes_progress": {
+          "name": "Lue latauksen edistyminen",
+          "description": "Lukee Radarrin ja Sonarrin jonon ja näyttää hankinnassa oleville toiveille, haetaanko, ladataanko vai tuodaanko niitä. Ei muuta mitään Radarrissa eikä Sonarrissa.",
+          "trigger": "joka minuutti, kun toiveita on hankinnassa ja latauksen edistyminen on käytössä"
+        },
+        "wishes_discover": {
+          "name": "Lataa toivelistat etukäteen",
+          "description": "Lataa Löydä-rivit Seerristä välimuistiin jokaiselle pyytämään oikeutettujen profiilien kielelle ja ikärajalle ja poistaa yli vuorokauden vanhat listat. Jokainen osuma tarkistetaan uudelleen profiilia varten.",
+          "trigger": "Aikataulu tunnin välein, kun toiveet ovat käytössä ja sivut Löydä, Elokuvat, Sarjat ja Haku ovat päällä"
+        },
+        "wishes_import": {
+          "name": "Siirrä pyynnöt Seerristä",
+          "description": "Siirtää avoimet ja äskettäin saatavilla olleet pyynnöt, jotka linkitetty Seerr-käyttäjä teki Seerrissä itsessään, tilinsä pääprofiilin toiveiksi (”Luotu Seerrissä”). Yhteisen käyttäjän pyynnöt jätetään pois. Ilmoitusta ei lähetetä.",
+          "trigger": "tilin Seerr-käyttäjä linkitetty, valittu tai vaihdettu, ”Siirrä pyynnöt”"
+        },
         "segments_detect": {
           "name": "Tunnista alku- ja lopputekstit",
           "description": "Löytää jaksojen alku- ja lopputekstit toimintoa ”Ohita alkutekstit” varten.",
@@ -4787,6 +5261,16 @@
           "description": "Lataa jakson julkaisijalta ja sijoittaa sen tiedostona podcastin kansioon.",
           "trigger": "Suunnittelijalta asetuksella ”Tallenna”, ”Lataa puuttuvat” ja ”Lataa” jaksoa kohti; yksi julkaisijaa kohti kerrallaan",
           "progress": "Tavuja: {{done}} / {{total}}"
+        },
+        "series_catalog": {
+          "name": "Hae sarjojen kausilistat",
+          "description": "Lukee TMDB:stä jokaisen kirjaston sarjan kaudet jaksomäärineen, tilan ja seuraavan jakson, uudelleen 7 päivän kuluttua.",
+          "trigger": "Aikataulu päivittäin, kun sarja on täsmätty"
+        },
+        "titles_refresh": {
+          "name": "Päivitä puuttuvat nimikkeet",
+          "description": "Lukee TMDB:stä uudelleen 7 päivän kuluttua niiden nimikkeiden tiedot, arvostelut ja trailerit, jotka eivät ole kirjastossa.",
+          "trigger": "Aikataulu päivittäin"
         },
         "trakt_refresh": {
           "name": "Hae Spotlight-lista",
@@ -5212,6 +5696,492 @@
         "changed": "polussa on sillä välin toinen tiedosto"
       },
       "changed": "Jokin muuttui sillä välin. Tarkista uudelleen. Alla oleva lista luetaan uudelleen; mitään ei poistettu."
+    },
+    "wishes": {
+      "title": "Toiveet",
+      "intro": "Jokaisella tilillä on Seerrissä oma käyttäjä samalla kirjautumisella. Sen profiilit pyytävät tuona käyttäjänä. Oikeudet, raja ja hyväksyntä tulevat tältä käyttäjältä.",
+      "separator": " · ",
+      "tabs": {
+        "label": "Toiveiden osiot",
+        "users": "Seerr-käyttäjät",
+        "settings": "Asetukset",
+        "requests": "Pyynnöt",
+        "openCount_one": "{{count}} avoin toive",
+        "openCount_other": "{{count}} avointa toivetta",
+        "withoutShort": "{{number}} ilman",
+        "withoutCount_one": "{{count}} tili ilman Seerr-käyttäjää",
+        "withoutCount_other": "{{count}} tiliä ilman Seerr-käyttäjää"
+      },
+      "strip": {
+        "label": "Yhteenveto",
+        "accounts": "Tilit",
+        "opened": "Seerrissä",
+        "openedNote": "luotu tai linkitetty",
+        "without": "Ilman käyttäjää",
+        "waiting_one": "{{count}} odottaa Seerriä",
+        "waiting_other": "{{count}} odottaa Seerriä",
+        "password": "Salasana odottaa",
+        "passwordNote": "päivittyy seuraavassa kirjautumisessa"
+      },
+      "limit": {
+        "movie_one": "{{count}} elokuva / {{days}} pv",
+        "movie_other": "{{count}} elokuvaa / {{days}} pv",
+        "movieNone": "Elokuvat ilman rajaa",
+        "tv_one": "{{count}} kausi / {{days}} pv",
+        "tv_other": "{{count}} kautta / {{days}} pv",
+        "tvNone": "Kaudet ilman rajaa"
+      },
+      "settings": {
+        "atOnce": "Jokainen muutos tulee voimaan heti.",
+        "refused": "Ei muutettu: {{reason}}",
+        "switchedOn": "”{{name}}” on päällä. Tulee voimaan heti.",
+        "switchedOff": "”{{name}}” on pois päältä. Tulee voimaan heti.",
+        "choiceSaved": "”{{name}}”: {{value}}. Tulee voimaan heti.",
+        "limitSaved": "Oletusraja: {{limit}}. Tulee voimaan heti jokaisella tilillä, jolla on ”Oletus”.",
+        "basics": "Perusasetukset",
+        "where": "Missä pyytäminen on tarjolla",
+        "rules": "Säännöt",
+        "enabled": "Toiveet käytössä",
+        "enabledHelp": "Oikeuden omaavat profiilit voivat pyytää puuttuvia nimikkeitä. Pois: kukaan ei näe puuttuvia nimikkeitä; avoimet toiveet etenevät Seerrissä.",
+        "enabledLocked": "Voi ottaa käyttöön vasta, kun tallennetun yhteyden testi on onnistunut.",
+        "toConnection": "Yhteyteen",
+        "allowMovies": "Salli elokuvat",
+        "allowMoviesHelp": "Koskee kaikkia profiileja. Pois: ei toimintoa ”Pyydä elokuva”.",
+        "allowShows": "Salli sarjat",
+        "allowShowsHelp": "Koskee kaikkia profiileja. Pois: ei toimintoja ”Pyydä sarja” eikä ”Pyydä kausia”.",
+        "fromSearch": "Pyytäminen haussa",
+        "fromSearchHelp": "Osio ”Ei vielä kirjastossa”. Pois: osiota ei ole.",
+        "fromDetail": "Pyytäminen tietosivuilla",
+        "fromDetailHelp": "Puuttuvat kaudet kirjaston sarjan sivulla. Pois: sarjan sivu näyttää vain sen, mitä on.",
+        "alreadyRequested": "Jo pyydetyt nimikkeet",
+        "alreadyRequestedHelp": {
+          "join": "Liity: toinen profiili liittyy avoimeen toiveeseen (”Ilmoita minulle”) ja saa myös ilmoituksen. Seerr ei saa toista pyyntöä.",
+          "status": "Näytä vain tila: toinen profiili näkee tekstin ”Jo pyydetty”, mutta ei voi liittyä eikä saa ilmoitusta."
+        },
+        "alreadyRequestedOptions": {
+          "join": "Liity",
+          "status": "Näytä vain tila"
+        },
+        "unmapped": "Tilit ilman Seerr-käyttäjää",
+        "unmappedHelp": {
+          "fallback": "Yhteinen käyttäjä: jokainen tili, jolla ei ole omaa käyttäjää, pyytää käyttäjänä slouchcat-gaeste ja jakaa oletusrajan. Slouchcat luo tämän käyttäjän Seerriin itse.",
+          "deny": "Älä salli: tilit ilman omaa käyttäjää eivät voi pyytää, ennen kuin niillä on Seerr-käyttäjä."
+        },
+        "unmappedOptions": {
+          "fallback": "Yhteinen käyttäjä",
+          "deny": "Älä salli"
+        },
+        "newAccountsCanRequest": "Uudet tilit saavat pyytää",
+        "newAccountsCanRequestHelp": "Kytkimen oletusarvo valintaikkunassa ”Kutsu tili”. Ei muuta olemassa olevia tilejä.",
+        "allowWithdraw": "Salli peruminen",
+        "allowWithdrawHelp": "Kun toivetta ei ole hyväksytty. Painike ”Peru” kohdassa ”Omat toiveet”.",
+        "pinExternalHideTitle": "PIN-profiilien ulkoiset viestit ilman nimikettä",
+        "pinExternalHideTitleHelp": "Sähköposti, Web Push ja Telegram mainitsevat silloin vain profiilin, eivät nimikettä.",
+        "defaultLimit": "Oletusraja",
+        "limitPerAccount": "Raja tiliä kohden",
+        "limitPerAccountHelp": "Koskee tilin kaikkia profiileja yhdessä. Seerr laskee liukuvasti ja ottaa mukaan siellä suoraan tehdyt toiveet. Hylättyjä ja liittymällä tehtyjä toiveita ei lasketa. Ylläpitäjillä ei ole rajaa.",
+        "movieLimit": "Elokuvat: määrä",
+        "movieDays": "Elokuvat: päivät",
+        "tvLimit": "Kaudet: määrä",
+        "tvDays": "Kaudet: päivät",
+        "limitRange": "Kokonaisluku väliltä {{low}}–{{high}}.",
+        "perAccount": "Tilikohtainen",
+        "perAccountHelp": "Kohdassa ”Tilit” tilin rajan voi asettaa toisin: oma raja tai rajaton.",
+        "toAccounts": "Tileihin",
+        "accountsInSeerr": "Tilit Seerrissä",
+        "provisionOn": "Luo uudet tilit",
+        "provisionOff": "Älä luo uusia tilejä",
+        "syncOn": "Synkronoi salasana",
+        "syncOff": "ei salasanan synkronointia",
+        "provisionAccounts": "Luo uudet tilit Seerriin",
+        "provisionAccountsHelp": "Kun kutsu hyväksytään, Slouchcat luo tilin myös Seerriin: sama sähköpostiosoite, sama salasana. Jos siellä on jo käyttäjä samalla sähköpostiosoitteella, Slouchcat linkittää sen heti. Uusi tili kirjoittaa osoitteen itse; kukaan ei tarkista sitä. Siksi yleiskuva näyttää jokaisen tällaisen linkityksen seitsemän päivän ajan.",
+        "syncPassword": "Synkronoi salasana",
+        "syncPasswordHelp": "Slouchcat välittää salasanan Seerrille, kun se asetetaan tai vaihdetaan, sekä Slouchcatiin kirjauduttaessa. Slouchcat ei koskaan tallenna sitä selkotekstinä. Seerr tarvitsee siihen asetuksen ”Paikallinen kirjautuminen”. Käyttäjät, jotka olivat Seerrissä jo aiemmin ja jotka ylläpitäjä linkittää, säilyttävät salasanansa.",
+        "visibleInSeerr": "Kuka tahansa, joka kirjautuu Seerriin tilin tunnuksilla, näkee siellä tilin kaikkien profiilien toiveet, myös PIN-koodilla suojatun profiilin toiveet. Seerr lähettää myös omia ilmoituksia nimikkeen kanssa; pidä ne pois päältä Seerrissä luoduilta käyttäjiltä.",
+        "existing": "Olemassa olevat tilit",
+        "existingHelp": "Valitse Seerr-käyttäjä tiliä kohden tai poista linkitys.",
+        "toUsers": "Seerr-käyttäjiin",
+        "links": "Linkit",
+        "who": "Kuka saa pyytää",
+        "whoHelp": "Kuka saa pyytää, asetetaan tilikohtaisesti kohdassa Tilit; profiilikohtaisesti päättää pääprofiili.",
+        "connection": "Seerr-yhteys",
+        "connectionHelp": "Osoite, avain, testi ja loki.",
+        "users": "Seerr-käyttäjät",
+        "usersHelp": "Mikä tili pyytää minäkin Seerr-käyttäjänä, salasanoineen ja rajoineen.",
+        "arr": "Radarr ja Sonarr: profiilitunniste ja edistyminen",
+        "profileTags": "Aseta profiilitunniste Radarrissa ja Sonarrissa",
+        "profileTagsHelp": "Liittää profiilin tunnisteen nimikkeeseen, kun Seerr on luovuttanut sen Radarrille tai Sonarrille, ja korjaa tunnisteet, joita ei voitu asettaa. Ei muuta mitään muuta Radarrissa eikä Sonarrissa.",
+        "tagPrefix": "Etuliite",
+        "tagPrefixHelp": "Pieniä kirjaimia, numeroita ja yhdysmerkki. Esimerkki: sc-noah. Koskee uusia tunnisteita; olemassa olevat pysyvät ennallaan. Yksittäisen profiilin tunnisteen voit vaihtaa kohdassa ”Seerr-käyttäjät”.",
+        "tagPrefixInvalid": "1–10 merkkiä: vain pieniä kirjaimia a–z, numeroita 0–9 ja yhdysmerkki. Ei tallennettu.",
+        "tagPrefixSaved": "Etuliite ”{{prefix}}”: uusien tunnisteiden nimi on esimerkiksi {{prefix}}noah. Jo asetetut tunnisteet pysyvät ennallaan.",
+        "showProgress": "Näytä latauksen edistyminen",
+        "showProgressHelp": "Näyttää hankinnassa oleville toiveille, haetaanko, ladataanko vai tuodaanko nimikettä. Sitä varten Slouchcat lukee Radarrin ja Sonarrin jonon joka minuutti, kun toiveita on hankinnassa.",
+        "arrSummary": "Tunniste {{tags}} · etuliite {{prefix}} · edistyminen {{progress}}",
+        "on": "päällä",
+        "off": "pois",
+        "arrLinks": "Pääsy Radarriin ja Sonarriin",
+        "arrLinksHelp": "Osoite ja avain tulevat Seerristä; profiilikohtaiset nimet ovat kohdassa Seerr-käyttäjät.",
+        "toArr": "Integraatiot › Seerr",
+        "discoverPages": "Sivut Löydä, Elokuvat, Sarjat ja Haku",
+        "discoverPagesHelp": "Välilehdet alueella ”Toiveet”. Pois: vain ”Omat toiveet”.",
+        "basicsSummary": "Toiveet {{enabled}} · elokuvat {{movies}} · sarjat {{shows}}",
+        "basicsSummaryLocked": "Toiveet pois, kunnes testi läpäistään · elokuvat {{movies}} · sarjat {{shows}}",
+        "whereSummary": "Haku {{search}} · tietosivut {{detail}} · löydä {{discover}}",
+        "rulesSummary": "{{already}} · ilman Seerr-käyttäjää: {{unmapped}} · peruminen {{withdraw}}",
+        "linksConnection": "Seerr: {{state}}",
+        "usersCount_one": "{{opened}} / {{count}} tilistä luotu",
+        "usersCount_other": "{{opened}} / {{count}} tilistä luotu",
+        "limitHintCount": "{{low}}–{{high}}; 0 tarkoittaa ei rajaa.",
+        "limitHintDays": "{{low}}–{{high}} päivää."
+      },
+      "users": {
+        "caption": "Tilit ja niiden Seerr-käyttäjät",
+        "columns": {
+          "account": "Tili",
+          "user": "Seerr-käyttäjä",
+          "password": "Salasana",
+          "rights": "Oikeudet Seerrissä",
+          "email": "Sähköposti",
+          "type": "Tyyppi",
+          "limit": "Raja"
+        },
+        "noUser": "Ei mitään",
+        "passwordFollows": "Tulee käyttäjän mukana",
+        "rightsFollow": "Seuraa pyyntöoikeutta",
+        "gone": "Käyttäjä poistettu",
+        "state": {
+          "created": "Slouchcatin luoma",
+          "linked": "Linkitetty saman sähköpostiosoitteen perusteella",
+          "manual": "Linkitetty manuaalisesti",
+          "waiting": "Luodaan, kun Seerr on tavoitettavissa",
+          "none": "Ei luotu"
+        },
+        "password": {
+          "synced": "Sama kuin Slouchcatissa",
+          "next_login": "Siirretään seuraavassa Slouchcat-kirjautumisessa",
+          "off": "Ei synkronoida",
+          "admin": "Pysyy Seerrissä (ylläpitäjä)",
+          "external": "Kirjautuu Jellyfinin, Embyn tai Plexin kautta"
+        },
+        "type": {
+          "plex": "Plex",
+          "local": "Paikallinen",
+          "jellyfin": "Jellyfin",
+          "emby": "Emby"
+        },
+        "rights": {
+          "admin": "Ylläpitäjä",
+          "both": "Elokuvat ja sarjat",
+          "movies": "Vain elokuvat",
+          "shows": "Vain sarjat",
+          "none": "Ei oikeuksia"
+        },
+        "choose": "Valitse käyttäjä",
+        "chooseLabel": "Seerr-käyttäjä: {{email}}",
+        "option": "{{name}} (ID {{id}})",
+        "optionCurrent": "{{option}} (nykyinen)",
+        "optionGone": "{{option}} (poistettu Seerristä)",
+        "optionTaken": "{{option}} · kuuluu tilille {{email}}",
+        "facts": {
+          "user": "Seerr-käyttäjä",
+          "state": "Tila",
+          "password": "Salasana",
+          "rights": "Oikeudet Seerrissä",
+          "limit": "Raja",
+          "right": "Tilin pyyntöoikeus"
+        },
+        "linkedBy": "{{by}} · {{date}} alkaen",
+        "by": {
+          "admin": "ylläpitäjän toimesta",
+          "invite": "kutsun hyväksymisen yhteydessä",
+          "email_change": "sähköpostiosoitteen vaihtumisen jälkeen"
+        },
+        "since": "{{date}} alkaen",
+        "syncedAt": "synkronoitu {{time}}",
+        "movies": "Elokuvat",
+        "shows": "Sarjat",
+        "autoApproveOn": "Automaattinen hyväksyntä: kyllä",
+        "autoApproveOff": "Automaattinen hyväksyntä: ei",
+        "followRightOn": "Seuraa tilin pyyntöoikeutta: saa pyytää",
+        "followRightOff": "Seuraa tilin pyyntöoikeutta: ei saa pyytää",
+        "noLimitAdmin": "Ei rajaa (ylläpitäjä Seerrissä)",
+        "unlimited": "Rajaton",
+        "mode": {
+          "default": "Oletus",
+          "custom": "Oma",
+          "unlimited": "Rajaton"
+        },
+        "mayRequest": "Saa pyytää",
+        "mayNotRequest": "Ei saa pyytää",
+        "goneTitle": "Käyttäjää ”{{name}}” ei löydy",
+        "goneBody": "Seerr ei enää tunne tätä käyttäjää. Valitse toinen käyttäjä tai poista linkitys.",
+        "selfLinked": {
+          "invite": "Linkitetty olemassa olevaan Seerr-käyttäjään {{name}} kutsun hyväksymisen yhteydessä, koska sähköpostiosoite on sama. Jos käyttäjä ei kuulu tälle tilille, poista linkitys.",
+          "email_change": "Linkitetty olemassa olevaan Seerr-käyttäjään {{name}} sähköpostiosoitteen vaihtumisen jälkeen, koska sähköpostiosoite on sama. Jos käyttäjä ei kuulu tälle tilille, poista linkitys."
+        },
+        "warning": {
+          "nothing": "Käyttäjä ”{{name}}” ei saa pyytää Seerrissä mitään. Jokainen toive epäonnistuu; anna käyttäjälle Seerrissä oikeus ”Pyydä” tai valitse toinen käyttäjä.",
+          "noShows": "Käyttäjä ”{{name}}” ei saa pyytää sarjoja. Sarjatoiveet epäonnistuvat, elokuvat toimivat.",
+          "noMovies": "Käyttäjä ”{{name}}” ei saa pyytää elokuvia. Elokuvatoiveet epäonnistuvat, sarjat toimivat."
+        },
+        "change": "Vaihda Seerr-käyttäjä",
+        "unlink": "Poista linkitys",
+        "chooseHelp": "Valittavissa ovat käyttäjät, jotka eivät kuulu millekään toiselle tilille. Oikeudet ja salasana pysyvät Seerrissä ennallaan.",
+        "chooseHelpStale": "Valittavissa ovat käyttäjät, jotka eivät kuulu millekään toiselle tilille. Näkyvä lista on viimeksi ladattu.",
+        "taken": "Tämä Seerr-käyttäjä kuuluu nyt toiselle tilille tai ei ole enää valittavissa. Valinta nollataan.",
+        "linked": "{{email}} pyytää nyt käyttäjänä ”{{name}}”. Oikeudet ja hyväksyntä tulevat tältä käyttäjältä.",
+        "unlinked": "Tilin {{email}} linkitys poistettu. Käyttäjä ”{{name}}” säilyy Seerrissä.",
+        "reloading": "Käyttäjälistaa ladataan uudelleen.",
+        "notConfigured": "Seerriä ei ole määritetty",
+        "notConfiguredBody": "Ilman yhteyttä käyttäjälistaa ei ole. Jokainen tili on toistaiseksi ilman Seerr-käyttäjää.",
+        "toConnection": "Integraatiot › Seerr",
+        "toDecision": "Päätökseen",
+        "instanceBody": "Kunnes päätät kohdassa Integraatiot › Seerr, Slouchcat ei lähetä toiveita eikä synkronoi mitään. Lista näyttää viimeisimmän tilan.",
+        "goneCount_one": "{{count}} tili: käyttäjä poistettu Seerristä",
+        "goneCount_other": "{{count}} tiliä: käyttäjä poistettu Seerristä",
+        "goneCountBody": "Valitse näille tileille toinen käyttäjä tai poista linkitys.",
+        "withoutCount_one": "{{count}} tili ilman Seerr-käyttäjää",
+        "withoutCount_other": "{{count}} tiliä ilman Seerr-käyttäjää",
+        "withoutFallback": "Siihen asti ne pyytävät yhteisenä käyttäjänä slouchcat-gaeste (sääntö ”Tilit ilman Seerr-käyttäjää”).",
+        "withoutDeny": "Ne eivät voi pyytää, kun ”Tilit ilman Seerr-käyttäjää” on arvossa ”Älä salli”.",
+        "toSettings": "Asetuksiin",
+        "newAccounts": "Uudet tilit: {{provision}} · Salasana: {{password}}",
+        "provisionOn": "luodaan Seerriin",
+        "provisionOff": "ei luoda",
+        "syncOn": "synkronoidaan",
+        "syncOff": "ei synkronoida",
+        "changeSettings": "Muuta",
+        "shared": "Yhteinen käyttäjä: {{name}}",
+        "sharedLater": "Yhteinen käyttäjä: luodaan, kun toiveet otetaan käyttöön",
+        "reload": "Lataa käyttäjälista uudelleen",
+        "unlinkedTitle": "Seerr-käyttäjät ilman tiliä",
+        "unlinkedCount_one": "{{count}} käyttäjä",
+        "unlinkedCount_other": "{{count}} käyttäjää",
+        "unlinkedEmpty": "Jokainen Seerr-käyttäjä kuuluu jollekin tilille.",
+        "noEmail": "ei sähköpostia",
+        "noLimit": "Ei rajaa",
+        "limitOnOpen": "Asetetaan, kun tili luodaan: {{limit}}",
+        "limitChange": "Muuta rajaa",
+        "quotaAt": "Tila Seerristä {{time}}",
+        "provision": "Luo Seerriin",
+        "retry": "Yritä uudelleen",
+        "provisionOffHint": "”Luo uudet tilit Seerriin” on pois päältä.",
+        "sameEmailTitle": "Seerrissä on jo ”{{name}}”",
+        "sameEmailBody": "Sama sähköpostiosoite: ”Luo Seerriin” linkittää tämän käyttäjän eikä luo toista.",
+        "waitingTitle": "Odottaa Seerriä",
+        "waitReason": {
+          "unreachable": "Seerr ei ollut tavoitettavissa luotaessa. Seuraava synkronointi yrittää uudelleen.",
+          "server": "Seerr vastasi luotaessa virheellä. Seuraava synkronointi yrittää uudelleen.",
+          "timeout": "Seerr ei vastannut luotaessa ajoissa. Seuraava synkronointi yrittää uudelleen.",
+          "key_invalid": "Seerr hylkäsi API-avaimen. Kun yhteys on taas kunnossa, seuraava synkronointi yrittää uudelleen.",
+          "instance_changed": "Toinen Seerr-instanssi odottaa päätöstäsi. Siihen asti Slouchcat ei luo mitään.",
+          "seerr_user_taken": "Tällä sähköpostiosoitteella oleva Seerr-käyttäjä kuuluu jo toiselle tilille tai on yhteinen käyttäjä. Valitse käyttäjä käsin.",
+          "other": "Luominen ei onnistunut ({{reason}}). Seuraava synkronointi yrittää uudelleen.",
+          "seerr_user_privileged": "Tämä Seerr-käyttäjä hallinnoi Seerriä. Slouchcat ei linkitä sitä itse: linkitä se kysymyksen jälkeen tai valitse toinen käyttäjä.",
+          "refused": "Seerr kieltäytyi luomasta tiliä. Seuraava synkronointi yrittää uudelleen."
+        },
+        "emailTakenTitle": "Seerr hylkäsi uuden sähköpostiosoitteen",
+        "emailTakenBody": "Toisella Seerr-käyttäjällä on jo tämä osoite. Käyttäjä ”{{name}}” säilyttää aiemman sähköpostiosoitteensa Seerrissä; tili pyytää edelleen tänä käyttäjänä.",
+        "provisioned": {
+          "created": "{{email}} on luotu Seerriin.",
+          "linked": "{{email}} on linkitetty Seerr-käyttäjään ”{{name}}”.",
+          "waiting": "Ei vielä luotu Seerriin: {{email}} odottaa, seuraava synkronointi yrittää uudelleen.",
+          "privileged": "{{email}} odottaa: tämän sähköpostiosoitteen Seerr-käyttäjä hallinnoi Seerriä.",
+          "taken": "{{email}} odottaa: tämän sähköpostiosoitteen Seerr-käyttäjä kuuluu jo toiselle tilille. Valitse käyttäjä käsin."
+        },
+        "passwordNext": "Siirrä salasana uudelleen seuraavassa kirjautumisessa",
+        "passwordOff": "Älä synkronoi salasanaa",
+        "passwordNextDone": "Tilin {{email}} salasana siirtyy Seerriin seuraavassa kirjautumisessa.",
+        "passwordOffDone": "Tilin {{email}} salasanaa ei enää synkronoida Seerrin kanssa.",
+        "passwordSyncOff": "Salasanan synkronointi on pois päältä.",
+        "passwordNote": {
+          "admin": "Slouchcat ei synkronoi salasanaa: ”{{name}}” on Seerrissä ylläpitäjä, ja sen salasana pysyy siellä ennallaan.",
+          "external": "Slouchcat ei synkronoi salasanaa: ”{{name}}” kirjautuu Jellyfinin, Embyn tai Plexin kautta, ei omalla salasanalla."
+        },
+        "provisionAll": "Luo kaikki",
+        "provisionAllTitle": "Luodaanko kaikki tilit Seerriin?",
+        "provisionAllBody": "Linkitys saman sähköpostiosoitteen perusteella: {{link}} · Luo uusi Seerriin: {{create}}.",
+        "provisionAllWaits": "Seerr ei ole juuri nyt yhdistetty: tilit odottavat ja luodaan seuraavassa synkronoinnissa.",
+        "provisionAllQueued": "Luonti käynnissä: {{link}} linkitettävää, {{create}} luotavaa.",
+        "profiles": {
+          "title": "Profiilit ja tunnisteet",
+          "help": "Jokaisella profiililla on oma tunnisteensa Radarrissa ja Sonarrissa, kun toive saapuu sinne. Jo asetettu tunniste säilyy, vaikka nimi muuttuisi.",
+          "none": "Tilillä ei ole profiileja.",
+          "custom": "oma nimi",
+          "change": "Muuta",
+          "changeLabel": "Muuta profiilin {{profile}} tunnistetta",
+          "field": "Tunnisteen nimi: {{profile}}",
+          "fieldHelp": "Vain pieniä kirjaimia a–z, numeroita 0–9 ja yhdysmerkki.",
+          "invalid": "Sallittuja ovat vain pienet kirjaimet a–z, numerot 0–9 ja yhdysmerkki, enintään 64 merkkiä.",
+          "save": "Tallenna",
+          "saveLabel": "Tallenna profiilin {{profile}} tunniste",
+          "cancel": "Peruuta",
+          "reset": "Palauta",
+          "resetLabel": "Palauta profiilin {{profile}} tunniste etuliitteen mukaiseen nimeen",
+          "saved": "{{profile}}: tunnisteen nimi on nyt {{name}}.",
+          "tagsOff": "Profiilitunnisteet ovat pois päältä (Toiveet › Asetukset)."
+        },
+        "takeOver": {
+          "title": "Pyynnöt Seerristä",
+          "help": "Suoraan Seerrissä tehdyistä pyynnöistä tulee pääprofiilin toiveita, jotka merkitään ”Luotu Seerrissä”. Niillä ei ole profiilitunnistetta.",
+          "counting": "Lasketaan Seerrin pyyntöjä…",
+          "none": "Ei pyyntöjä Seerrissä.",
+          "action_one": "Siirrä {{count}} pyyntö Seerristä",
+          "action_other": "Siirrä {{count}} pyyntöä Seerristä",
+          "queued_one": "{{count}} käyttäjän {{name}} pyyntö siirretään.",
+          "queued_other": "{{count}} käyttäjän {{name}} pyyntöä siirretään.",
+          "running": "Pyyntöjä siirretään; määrä päivittyy synkronoinnin jälkeen."
+        },
+        "linkPrivileged": "Linkitä silti…",
+        "privilegedTitle": "Linkitetäänkö Seerr-ylläpitäjä {{name}}?",
+        "privilegedBody": "Tämä Seerr-käyttäjä hallinnoi Seerriä. Tilin {{email}} profiilit pyytävät silloin Seerr-ylläpitäjänä, ilman hyväksyntää ja ilman rajaa. Slouchcat ei synkronoi sen salasanaa.",
+        "privilegedConfirm": "Linkitä silti",
+        "provisionAllManual_one": "{{count}} tili tarvitsee käsin tehtävän valinnan.",
+        "provisionAllManual_other": "{{count}} tiliä tarvitsee käsin tehtävän valinnan.",
+        "waitingChoice": "Odottaa käsin tehtävää valintaa",
+        "waitingChoiceTitle": "Odottaa valintaasi",
+        "optionPrivileged": "{{option}} · hallinnoi Seerriä"
+      },
+      "limitField": {
+        "label": "Raja",
+        "help": {
+          "default": "Kuten kohdassa Toiveet › Asetukset: {{limit}}.",
+          "custom": "Tälle tilille omat luvut.",
+          "unlimited": "Ei rajaa elokuville eikä kausille."
+        }
+      },
+      "requests": {
+        "caption": "Kotitalouden kaikki toiveet",
+        "columns": {
+          "title": "Nimike",
+          "requesters": "Toivonut",
+          "state": "Tila",
+          "seerr": "Seerrissä",
+          "attempts": "Yritykset",
+          "actions": "Toiminnot"
+        },
+        "titleYear": "{{title}} ({{year}})",
+        "requester": "{{account}} · {{profile}}",
+        "requesterJoined": "{{line}} (liittynyt)",
+        "requesterClosed": "{{line}} (peruttu)",
+        "noRequester": "Ei ketään Slouchcatissa",
+        "noRequest": "Ei vielä",
+        "requestId": "Pyyntö {{id}}",
+        "requestIds_one": "Pyyntö {{ids}}",
+        "requestIds_other": "Pyynnöt {{ids}}",
+        "filter": {
+          "label": "Suodata toiveet tilan mukaan",
+          "all": "Kaikki",
+          "open": "Avoimet",
+          "available": "Saatavilla",
+          "closed": "Suljetut",
+          "count_one": "{{count}} toive",
+          "count_other": "{{count}} toivetta",
+          "stalled": "Lataus jumissa",
+          "untagged": "Tunniste puuttuu",
+          "countLoaded_one": "{{count}} toive ladatuista",
+          "countLoaded_other": "{{count}} toivetta ladatuista"
+        },
+        "sync": "Synkronoi nyt",
+        "syncQueued": "Synkronointi Seerrin kanssa on käynnissä.",
+        "queued_one": "{{count}} toive odottaa lähetystä Seerriin.",
+        "queued_other": "{{count}} toivetta odottaa lähetystä Seerriin.",
+        "empty": "Ei vielä toiveita.",
+        "emptyFilter": "Ei toiveita tässä tilassa.",
+        "facts": {
+          "label": "Tietoja toiveesta",
+          "created": "Pyydetty",
+          "origin": "Alkuperä",
+          "seerrUser": "Seerr-käyttäjä",
+          "failReason": "Syy"
+        },
+        "origin": {
+          "slouchcat": "Pyydetty Slouchcatissa",
+          "seerr": "Luotu Seerrissä"
+        },
+        "toItem": "Nimikkeeseen hallinnassa",
+        "history": "Historia",
+        "noHistory": "Mitään ei ole vielä tapahtunut.",
+        "retry": "Yritä uudelleen",
+        "retryLabel": "{{title}}: yritä uudelleen",
+        "retried": "{{title}}: yritetään uudelleen.",
+        "emptyStalled": "Mikään lataus ei ole jumissa.",
+        "emptyUntagged": "Jokainen profiilitunniste on asetettu tai tulossa.",
+        "seerrUserId": "ID {{id}}",
+        "seerrUserFull": "{{name}} (ID {{id}})",
+        "approve": "Hyväksy",
+        "approveLabel": "Hyväksy: {{title}}",
+        "approved": "{{title}} on hyväksytty ja hankinnassa.",
+        "decline": "Hylkää",
+        "declineLabel": "Hylkää: {{title}}",
+        "declineTitle": "Hylätäänkö {{title}}?",
+        "declineBody": "Slouchcat välittää hylkäyksen Seerrille. Seerr ei tallenna syytä: profiilit näkevät vain tilan ”Hylätty” ja saavat ilmoituksen.",
+        "declined": "{{title}} on hylätty.",
+        "event": {
+          "approved_by_admin": "Hyväksytty hallinnassa",
+          "declined_by_admin": "Hylätty hallinnassa"
+        },
+        "progress": {
+          "search": "Haetaan",
+          "download": "Lataus käynnissä",
+          "import": "Tuodaan",
+          "stalled": "Lataus jumissa",
+          "percent": "{{percent}} %",
+          "etaMinutes": "{{minutes}} min jäljellä",
+          "etaHours": "{{hours}} h {{minutes}} min jäljellä",
+          "episodes": "{{done}} / {{total}} jaksoa saatavilla",
+          "unreadable": "Edistymistä ei voi lukea",
+          "unreadableAt": "Edistymistä ei voi lukea · viimeksi luettu {{time}}",
+          "notInService": "Ei vielä kohteessa {{service}}",
+          "incomplete": "Jaksot voi lukea vain osittain.",
+          "etaWholeHours": "{{hours}} h jäljellä"
+        },
+        "progressBlock": {
+          "title": "Edistyminen",
+          "service": "Palvelu",
+          "state": "Tila",
+          "unknown": "Ei vielä tietoa",
+          "readAt": "Viimeksi luettu",
+          "never": "Ei koskaan",
+          "note": "Huomautus",
+          "message": "Viesti palvelusta {{service}}"
+        },
+        "tags": {
+          "title": "Profiilitunnisteet",
+          "set": "{{name}}",
+          "pending": "{{name}} · odottaa",
+          "failed": "{{name}} · epäonnistui",
+          "setAt": "Asetettu palvelussa {{service}} {{time}}",
+          "setIn": "Asetettu palvelussa {{service}}",
+          "pendingHelp": "Tunniste lisätään, kun nimike on palvelussa {{service}}.",
+          "failedHelp": "{{service}} ei hyväksynyt tunnistetta."
+        },
+        "shown": "Näytetään {{shown}} / {{total}} toivetta.",
+        "searchedIn": "Haettu {{shown}} / {{total}} avoimesta toiveesta.",
+        "more": "Lataa lisää",
+        "toItemLabel": "{{title}}: siirry nimikkeeseen hallinnassa",
+        "inSeerr": "Avaa Seerrissä",
+        "inSeerrLabel": "Avaa {{title}} Seerrissä (uusi ikkuna)"
+      },
+      "arrError": {
+        "not_in_arr": "Nimike ei ole vielä palvelussa {{service}}.",
+        "tvdb_id_missing": "Sarjalla ei ole TVDB-tunnusta.",
+        "not_confirmed": "Seerristä saatu osoite odottaa toimintoa ”Testaa”.",
+        "not_in_seerr": "Seerrissä ei ole oletuspalvelinta kohteelle {{service}}.",
+        "seerr_off": "Seerriä ei ole määritetty tai se on pois päältä.",
+        "redirect": "{{service}} ohjaa toiseen osoitteeseen.",
+        "timeout": "{{service}} ei vastannut ajoissa.",
+        "unreachable": "{{service}} ei ole tavoitettavissa.",
+        "key_invalid": "{{service}} hylkää Seerristä saadun avaimen.",
+        "not_found": "{{service}} ei tunne nimikettä.",
+        "validation": "{{service}} hylkäsi kutsun virheellisenä.",
+        "server": "{{service}} vastasi virheellä.",
+        "bad_request": "{{service}} hylkäsi kutsun.",
+        "invalid": "{{service}} vastasi odottamattomasti.",
+        "seerr": "Seerr ei luovuttanut palvelun {{service}} osoitetta ja avainta.",
+        "other": "Virhe: {{error}}"
+      }
     }
   },
   "language": {
@@ -5314,7 +6284,11 @@
         "metadataLanguage": "Kuvausten kieli",
         "metadataLanguageHint": "Nimet, kuvaukset ja lajityypit; käyttöliittymä noudattaa yllä valittua kieltä.",
         "likeUi": "Kuten käyttöliittymä",
-        "playback": "Toisto"
+        "playback": "Toisto",
+        "wishes": "Toiveet",
+        "canRequest": "Saa pyytää nimikkeitä",
+        "canRequestHelp": "Profiili saa pyytää puuttuvia nimikkeitä Seerrin kautta.",
+        "canRequestCapped": "Tämä tili ei saa pyytää nimikkeitä. Ylläpitäjä asettaa oikeuden kohdassa Tilit."
       },
       "report": {
         "show": "Näytä katseluaika",
@@ -5358,7 +6332,8 @@
     "notFound": {
       "title": "Linkkiä ei löytynyt",
       "body": "Tätä kutsulinkkiä ei ole. Tarkista, että kopioit sen kokonaan."
-    }
+    },
+    "seerrAccount": "Kirjautumistunnukset toimivat myös Seerrissä: hyväksyminen luo sinne tilin samalla sähköpostiosoitteella ja salasanalla."
   },
   "kind": {
     "movie": "Elokuva",
@@ -5637,7 +6612,13 @@
     "empty": {
       "title": "Mitään ei löytynyt",
       "body": "Kokeile toista hakusanaa tai vähemmän suodattimia."
-    }
+    },
+    "missing": {
+      "title": "Ei vielä kirjastossa",
+      "notHere": "Ei vielä täällä",
+      "request": "Pyydä: {{title}}"
+    },
+    "inWishes": "Hae myös toiveista"
   },
   "watchlist": {
     "title": "Oma lista",
@@ -5725,7 +6706,12 @@
     "empty": {
       "title": "Ei ilmoituksia",
       "body": "Lisää sarjoja tai podcasteja omalle listallesi, niin saat tänne tiedon uusista jaksoista."
-    }
+    },
+    "wish_available": "Toive on nyt saatavilla",
+    "wish_season_available": "Toiveen kausi on nyt saatavilla",
+    "wish_approved": "Toive on hyväksytty",
+    "wish_declined": "Toive on hylätty",
+    "wish_failed": "Toive epäonnistui"
   },
   "settings": {
     "playback": {
@@ -5802,6 +6788,9 @@
         "errors": "Virheet",
         "invitations": "Kutsut",
         "announcements": "Tiedotteet",
+        "wish_available": "Toiveet: saatavilla",
+        "wish_status": "Toiveet: hyväksytty, hylätty, epäonnistunut",
+        "wish_review": "Toiveet: hyväksyntää tarvitaan",
         "help": "Mistä viesti lähetetään.",
         "helpAdmin": "Mistä viesti lähetetään. ”Virheet” on tarkoitettu vain ylläpitäjille."
       },
@@ -6187,6 +7176,296 @@
       "halfBody_other": "{{count}} jaksossa on merkintä. Merkitäänkö jokainen jakso vai poistetaanko kaikki merkinnät? Poistamista ei voi perua.",
       "markAll": "Merkitse jokainen jakso katsotuksi",
       "removeAll": "Poista kaikki merkinnät"
+    }
+  },
+  "wishes": {
+    "quota": {
+      "movie": "Elokuvat: {{used}} / {{limit}} {{days}} päivän aikana",
+      "tv": "Kaudet: {{used}} / {{limit}} {{days}} päivän aikana",
+      "remaining_one": "{{count}} jäljellä",
+      "remaining_other": "{{count}} jäljellä",
+      "nextFree": "seuraava paikka vapautuu {{date}}",
+      "short": {
+        "movie": "Elokuvat {{used}}/{{limit}}",
+        "tv": "Kaudet {{used}}/{{limit}}"
+      },
+      "movieNone": "Elokuvat ilman rajaa",
+      "tvNone": "Kaudet ilman rajaa"
+    },
+    "state": {
+      "queued": "Lähetetään",
+      "pending": "Odottaa hyväksyntää",
+      "processing": "Hankinnassa",
+      "partial": "Osittain saatavilla",
+      "available": "Saatavilla",
+      "declined": "Hylätty",
+      "failed": "Epäonnistui",
+      "withdrawn": "Peruttu"
+    },
+    "detail": {
+      "importing": "luetaan",
+      "not_found_in_library": "ei vielä löydy kirjastosta"
+    },
+    "fail": {
+      "quota": "Raja täynnä: Seerr ei hyväksynyt toivetta.",
+      "blocklisted": "Nimike on Seerr-palvelun estolistalla.",
+      "no_permission": "Seerr-käyttäjä ei saa pyytää tällaista nimikettä.",
+      "arr_failed": "Seerr ei voinut luovuttaa nimikettä Radarrille tai Sonarrille. Ylläpitäjä voi yrittää toivetta uudelleen.",
+      "unreachable_24h": "Seerr ei ollut tavoitettavissa 24 tuntiin.",
+      "seerr_request_gone": "Pyyntö poistettiin Seerristä.",
+      "seerr_media_deleted": "Nimike poistettiin Seerristä.",
+      "seerr_user_gone": "Linkitettyä Seerr-käyttäjää ei ole enää olemassa.",
+      "tvdb_id_missing": "Sarjalta puuttuu TVDB-tunnus, jota Seerr tarvitsee.",
+      "account_deleted": "Toiveen tehnyttä tiliä ei ole enää olemassa."
+    },
+    "reason": {
+      "disabled": "Toiveet ovat pois päältä.",
+      "account_not_allowed": "Tämä tili ei saa pyytää nimikkeitä.",
+      "profile_not_allowed": "Tämä profiili ei saa pyytää nimikkeitä. Pääprofiili voi sallia sen kohdassa ”Profiilit”.",
+      "no_mapping": "Tälle tilille ei ole vielä linkitetty Seerr-käyttäjää. Ylläpitäjä määrittää sen.",
+      "seerr_user_gone": "Linkitettyä Seerr-käyttäjää ei ole enää olemassa. Ylläpitäjä korjaa asian.",
+      "movies_not_allowed": "Elokuvia ei voi tällä hetkellä pyytää.",
+      "shows_not_allowed": "Sarjoja ei voi tällä hetkellä pyytää.",
+      "status_only": "Toinen profiili on jo pyytänyt tätä nimikettä. Kun se on saatavilla, se löytyy kirjastosta.",
+      "already_requested": "Tämä nimike on jo pyydetty.",
+      "source_not_allowed": "Nimikkeitä ei voi tällä hetkellä pyytää täältä.",
+      "tvdb_id_missing": "Sarjalta puuttuu TVDB-tunnus, jota Seerr tarvitsee.",
+      "withdraw_disabled": "Toiveita ei voi tällä hetkellä perua."
+    },
+    "tmdbUnreachable": "TMDB ei ole juuri nyt tavoitettavissa. Yritä myöhemmin uudelleen.",
+    "kind": {
+      "movie": "Elokuva",
+      "show": "Sarja"
+    },
+    "seasons_one": "Kausi {{list}}",
+    "seasons_other": "Kaudet {{list}}",
+    "event": {
+      "created": "Pyydetty",
+      "submitted": "Lähetetty Seerriin",
+      "attached": "Löytyi Seerristä ja siirretty",
+      "joined": "Liittynyt",
+      "withdrawn": "Peruttu",
+      "withdraw_deleted": "Poistettu Seerristä",
+      "owner_changed": "Toinen profiili jatkaa toivomista",
+      "reopened": "Jo hyväksytty, toive jatkuu",
+      "season_available_one": "Kausi {{seasons}} saatavilla",
+      "season_available_other": "Kaudet {{seasons}} saatavilla",
+      "changed": "Muuttunut"
+    },
+    "card": {
+      "title": "Toive",
+      "requestedOn": "pyydetty {{date}}",
+      "joined": "liittynyt mukaan",
+      "history": "Historia",
+      "mine": "Omiin toiveisiin"
+    },
+    "withdraw": {
+      "action": "Peru",
+      "actionJoined": "Peru liittyminen",
+      "title": "Perutaanko toive?",
+      "titleJoined": "Perutaanko liittyminen?",
+      "body": "Nimikettä ”{{title}}” ei enää pyydetä; Slouchcat poistaa toiveen myös Seerristä.",
+      "bodyJoined": "Viestiä ei tule, kun ”{{title}}” on saatavilla. Muiden profiilien toiveet säilyvät.",
+      "confirm": "Peru",
+      "confirmJoined": "Peru liittyminen"
+    },
+    "dialog": {
+      "titleMovie": "Pyydä elokuva: {{title}}",
+      "titleShow": "Pyydä sarja: {{title}}",
+      "intro": "{{year}} · {{kind}}",
+      "autoApprove": "Hankitaan heti, hyväksyntää ei tarvita.",
+      "needsApproval": "Tarvitsee hyväksynnän. Etenemistä voi seurata kohdassa ”Omat toiveet”.",
+      "seasons": "Kaudet",
+      "allSeasons": "Kaikki puuttuvat kaudet ({{count}})",
+      "season": "Kausi {{number}}",
+      "episodes_one": "{{count}} jakso",
+      "episodes_other": "{{count}} jaksoa",
+      "seasonState": {
+        "requested": "jo pyydetty, ilmoitus tulee myös tälle profiilille",
+        "available": "saatavilla"
+      },
+      "nothingLeft": {
+        "title": "Ei mitään pyydettävää",
+        "body": "Jokainen kausi on jo täällä tai pyydetty."
+      },
+      "tooManySeasons_one": "Jäljellä 1 / {{limit}} kaudesta. Valitse enintään 1 kausi.",
+      "tooManySeasons_other": "Jäljellä {{count}} / {{limit}} kaudesta. Valitse enintään {{count}} kautta.",
+      "reached": {
+        "movie_one": "Raja on täynnä: {{count}} elokuva {{days}} päivän aikana.",
+        "movie_other": "Raja on täynnä: {{count}} elokuvaa {{days}} päivän aikana.",
+        "show_one": "Raja on täynnä: {{count}} kausi {{days}} päivän aikana.",
+        "show_other": "Raja on täynnä: {{count}} kautta {{days}} päivän aikana.",
+        "movie_date_one": "Raja on täynnä: {{count}} elokuva {{days}} päivän aikana. Seuraava paikka vapautuu {{date}}.",
+        "movie_date_other": "Raja on täynnä: {{count}} elokuvaa {{days}} päivän aikana. Seuraava paikka vapautuu {{date}}.",
+        "show_date_one": "Raja on täynnä: {{count}} kausi {{days}} päivän aikana. Seuraava paikka vapautuu {{date}}.",
+        "show_date_other": "Raja on täynnä: {{count}} kautta {{days}} päivän aikana. Seuraava paikka vapautuu {{date}}."
+      },
+      "submit": "Pyydä",
+      "submitting": "Pyydetään…",
+      "chooseSeasons": "Valitse kaudet",
+      "join": "Ilmoita minulle",
+      "submitSeasons_one": "Pyydä {{count}} kausi",
+      "submitSeasons_other": "Pyydä {{count}} kautta"
+    },
+    "page": {
+      "title": "Omat toiveet",
+      "count_one": "{{count}} avoin toive",
+      "count_other": "{{count}} avointa toivetta",
+      "countAll_one": "{{count}} toive",
+      "countAll_other": "{{count}} toivetta",
+      "countAvailable_one": "{{count}} saatavilla oleva toive",
+      "countAvailable_other": "{{count}} saatavilla olevaa toivetta",
+      "countClosed_one": "{{count}} suljettu toive",
+      "countClosed_other": "{{count}} suljettua toivetta",
+      "limit": "Raja: {{limit}}",
+      "offline": "Vain verkossa: toiveet ovat palvelimella.",
+      "filters": {
+        "label": "Suodata toiveet",
+        "all": "Kaikki",
+        "open": "Avoimet",
+        "available": "Saatavilla",
+        "closed": "Suljetut"
+      },
+      "filter": "Tila",
+      "filterCount": "{{name}} ({{count}})",
+      "empty": {
+        "title": "Ei vielä toiveita.",
+        "body": "Pyydetyt nimikkeet näkyvät täällä tiloineen."
+      },
+      "emptyFilter": {
+        "open": "Ei avoimia toiveita.",
+        "available": "Yksikään toive ei ole vielä saatavilla.",
+        "closed": "Ei suljettuja toiveita."
+      }
+    },
+    "row": {
+      "open": "Nimikkeeseen",
+      "withdrawLabel": "Peru: {{title}}",
+      "withdrawJoinedLabel": "{{title}}: peru liittyminen",
+      "again": "Pyydä uudelleen",
+      "againLabel": "Pyydä uudelleen: {{title}}",
+      "history": "Historia: {{last}}",
+      "fromSeerr": "luotu Seerrissä"
+    },
+    "area": {
+      "label": "Toiveiden alueet",
+      "discover": "Löydä",
+      "movies": "Elokuvat",
+      "series": "Sarjat",
+      "search": "Haku",
+      "mine": "Omat toiveet",
+      "mineCount_one": "Omat toiveet ({{count}})",
+      "mineCount_other": "Omat toiveet ({{count}})"
+    },
+    "discover": {
+      "title": "Löydä",
+      "intro": "Mikä on juuri nyt suosittua ja mikä on tulossa. Sen, mitä kirjastossa ei vielä ole, voi pyytää.",
+      "searchLabel": "Hae elokuvaa tai sarjaa",
+      "searchAction": "Hae",
+      "rows": {
+        "trending": "Nousussa",
+        "popular_movies": "Suositut elokuvat",
+        "movie_genres": "Elokuvien lajityypit",
+        "upcoming_movies": "Tulossa elokuvateattereihin",
+        "popular_shows": "Suositut sarjat",
+        "show_genres": "Sarjojen lajityypit",
+        "upcoming_shows": "Tulevat sarjat"
+      },
+      "stale": "Seerr ei ole tavoitettavissa. Näkyvillä on viimeisimmän haun tila.",
+      "refreshFailed": "Listaa ei voitu päivittää. Näkyvillä on viimeisimmän haun tila.",
+      "empty": "Täällä ei ole juuri nyt mitään löydettävää.",
+      "inLibrary": "Kirjastossa",
+      "requested": "Jo pyydetty",
+      "join": "{{title}}: ilmoita minulle",
+      "gone": {
+        "title": "”Löydä” ei ole tämän profiilin käytettävissä",
+        "body": "Aiemmat toiveet ovat edelleen kohdassa ”Omat toiveet”.",
+        "action": "Kohtaan ”Omat toiveet”"
+      },
+      "notFound": {
+        "title": "Sivua ei löytynyt",
+        "body": "Tätä sivua ei ole tälle profiilille."
+      }
+    },
+    "titles": {
+      "moviesIntro": "Kaikki TMDB:n tuntemat elokuvat, kirjastossa tai ei. Sen, mikä puuttuu, voi pyytää.",
+      "seriesIntro": "Kaikki TMDB:n tuntemat sarjat, kirjastossa tai ei. Sen, mikä puuttuu, voi pyytää.",
+      "sort": "Järjestys",
+      "sorts": {
+        "popularity": "Suosituimmat",
+        "newest": "Uusimmat ensin",
+        "rating": "Parhaiten arvioidut"
+      },
+      "filter": "Suodatin: {{summary}}",
+      "filterLabel": "Suodatin",
+      "genre": "Lajityyppi",
+      "allGenres": "Kaikki lajityypit",
+      "genreId": "Lajityyppi {{id}}",
+      "library": "Kirjasto",
+      "hide": "Piilota kirjastossa olevat",
+      "hideHelp": "Näyttää vain ne, joita ei vielä ole kirjastossa.",
+      "hidden": "Kirjaston nimikkeet piilotettu",
+      "shown": "Kirjaston nimikkeet näytetään",
+      "clear": "Nollaa suodattimet",
+      "apply": "Käytä",
+      "moviesEmpty": "Ei elokuvia tällä valinnalla.",
+      "seriesEmpty": "Ei sarjoja tällä valinnalla."
+    },
+    "search": {
+      "intro": "Hae kaikkea, minkä TMDB tuntee, myös sitä, mikä vielä puuttuu. Myös tunnuksella, kuten tmdb:603, tvdb:121361 tai imdb:tt0133093.",
+      "placeholder": "Elokuva tai sarja",
+      "start": "Kirjoita nimike. Haku kattaa kaiken, minkä TMDB tuntee, myös alkuperäiset nimet.",
+      "tooShort": "Kirjoita vähintään kaksi merkkiä.",
+      "hits": "Tulokset",
+      "empty": {
+        "title": "Haulla ”{{q}}” ei löytynyt mitään",
+        "body": "Haku etsii elokuvien ja sarjojen nimikkeitä, ei henkilöitä. Kokeile toista hakusanaa tai tunnusta."
+      }
+    },
+    "progress": {
+      "search": "Haetaan",
+      "download": "Lataus käynnissä",
+      "import": "Tuodaan",
+      "stalled": "Lataus jumissa",
+      "percent": "{{percent}} %",
+      "episodes_one": "{{done}} / {{count}} jaksosta saatavilla",
+      "episodes_other": "{{done}} / {{count}} jaksosta saatavilla",
+      "eta": "{{time}} jäljellä"
+    }
+  },
+  "titles": {
+    "notFound": {
+      "title": "Nimikettä ei löytynyt",
+      "body": "Tätä nimikettä ei ole tai tämä profiili ei näe sitä."
+    },
+    "loading": "Nimike",
+    "missing": "Ei vielä kirjastossa",
+    "seasonCount_one": "{{count}} kausi",
+    "seasonCount_other": "{{count}} kautta",
+    "requestMovie": "Pyydä elokuva",
+    "requestShow": "Pyydä sarja",
+    "done": {
+      "requested": "Pyydetty. Etenemistä voi seurata kohdassa ”Omat toiveet”.",
+      "joined": "Ilmoitus tulee heti, kun nimike on saatavilla.",
+      "withdrawn": "Toive on peruttu."
+    },
+    "alreadyRequested": "Jo pyydetty",
+    "cannotRequest": "Tämä profiili ei voi pyytää nimikkeitä",
+    "seasons": "Kaudet",
+    "seasonRequested": "Jo pyydetty",
+    "nextEpisode": "Jatkuu vielä, seuraava jakso {{date}}",
+    "last": {
+      "title": "Viimeisin toive: {{state}}",
+      "why": {
+        "declined": "Seerr ei anna syytä. Nimikettä voi pyytää uudelleen.",
+        "withdrawn": "Toive peruttiin."
+      }
+    },
+    "join": "Ilmoita minulle",
+    "shared": {
+      "title": "Jo pyydetty · {{state}}",
+      "join": "Toinen profiili on jo pyytänyt tätä elokuvaa. Toiminnolla ”Ilmoita minulle” Slouchcat ilmoittaa myös tälle profiilille heti, kun elokuva on toistettavissa.",
+      "statusOnly": "Toinen profiili on jo pyytänyt tätä elokuvaa. Kun se on toistettavissa, se löytyy kirjastosta."
     }
   }
 }

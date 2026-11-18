@@ -2,9 +2,9 @@
 
 > **Kurz gesagt.** Jedes Kriterium nennt Voraussetzung, Handlung, erwartetes Ergebnis und wie es geprüft wird:
 > mit einem automatischen Test («Test») oder von Hand auf CT 190 mit echtem Seerr («Hand»). Die
-> Kriterien sind nach Stufe und Bereich gruppiert und durchnummeriert (AK-1 …). Eine Stufe gilt als
-> abgenommen, wenn alle ihre Kriterien erfüllt sind und `task ci` grün ist. Am Schluss steht, was Marco am
-> Mockup prüft, bevor gebaut wird.
+> Kriterien sind nach Stufe und Bereich gruppiert und durchnummeriert (AK-1 …). Weil alle Stufen als ein Release
+> erscheinen (Marco, F-22 und B-1), wird einmal abgenommen: wenn alle Kriterien erfüllt sind und `task ci` auf dem
+> fertigen Zweig grün ist. Am Schluss steht, was Marco am Mockup geprüft hat.
 
 Grundlage: [Anhang F](anhang/F-entscheid-blatt.md), `03-architektur.md`, `08-datenmodell-api.md`, `09-umsetzungsplan.md`. Beispieldaten
 nach Anhang F Abschnitt 11 (Konten marco, grosseltern, gast; Profile Marco, Sandra mit PIN, Noah 12, Mia 6;
@@ -18,16 +18,25 @@ Fassung 3 (Anhang H Abschnitt 9, Redaktionsentscheide) tragen die Nummern AK-213
 dritter Rückmeldung (E-8 bis E-11, Anhang H Abschnitt 10) tragen die Nummern AK-220 bis AK-227. Kriterien, die fehlende Titel
 auf der Startseite oder in der Spotlight-Liste prüften, sind nicht umnummeriert, sondern als «entfällt (E-5)»
 markiert; ebenso die Kriterien zum zurückgezogenen Vorschlag einer Verknüpfung (N-2a) als «entfällt (E-8)».
-Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tragen den Zusatz «geändert (E-8)». «Mock-Arr» heisst Mock-Radarr/Sonarr `arrtest`.
+Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tragen den Zusatz «geändert (E-8)».
+Kriterien aus Marcos Antworten auf die offenen Fragen (Anhang H Abschnitt 11, N-100 bis N-104) tragen die Nummern
+AK-228 bis AK-232; ältere Kriterien, die nur für die Ausnahme je Profil galten, sind als «entfällt (F-27)»
+markiert, umgeschriebene tragen «geändert (F-4)», «geändert (F-24)» oder «geändert (F-27)». «Mock-Arr» heisst Mock-Radarr/Sonarr `arrtest`.
+Kriterien aus den Prüfungen des Baus vom 17. November 2026 (Sicherheitsprüfung, Redaktion; `03-architektur.md`
+Abschnitt 15.4) tragen die Nummern AK-233 bis AK-239; umgeschriebene tragen «geändert (Sicherheitsprüfung)».
+Kriterien zu den Bremsen gegen Massenabrufe fehlender Titel, zur Obergrenze des Bildspeichers und zu den
+Korrekturrunden des Baus vom 18. November 2026 (Redaktion) tragen die Nummern AK-240 bis AK-244. Was davon an der
+echten Instanz geprüft ist und was nicht, steht in Abschnitt 9.
 
 ## 1. Stufe 0: Papiere
 
 | Nr. | Voraussetzung | Handlung | Erwartet | Prüfung |
 |---|---|---|---|---|
-| AK-1 | Marco hat die 29 offenen Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2 beantwortet; E-1 bis E-11 stehen schon fest | Frage 33, ADR 0037, ADR 0038 lesen | Frage 33 nennt E-1 bis E-11 mit Datum, ändert Spec `:35` und `:46`, hebt `:66` in Teilen und `:67` nur beim Wunsch auf, bestätigt `:65` und `:68`, fasst `:69` mit der Ausnahme Profil-Tag; S-4 bleibt ohne Ausnahme; beide ADR verweisen darauf | Hand (Marco) |
+| AK-1 | Marco hat die 29 offenen Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2 beantwortet (17. November 2026, Anhang H 11); E-1 bis E-11 stehen schon fest | Frage 33 mit Nachtrag, ADR 0037, ADR 0038 lesen | Frage 33 nennt E-1 bis E-11 mit Datum, der Nachtrag die Antworten auf alle Fragen und B-1 bis B-4 mit den vier Abweichungen F-4, F-22, F-24, F-27, ändert Spec `:35` und `:46`, hebt `:66` in Teilen und `:67` nur beim Wunsch auf, bestätigt `:65` und `:68`, fasst `:69` mit der Ausnahme Profil-Tag; S-4 bleibt ohne Ausnahme; beide ADR verweisen darauf | Hand (Marco) |
 | AK-2 | AK-1 | CLAUDE.md Regel 11 lesen | Wortlaut erlaubt Wünsche über Seerr nach ADR 0037 und genau zwei Ausnahmen von «Steuerung von Arr/Seerr»: Benutzer in Seerr anlegen und pflegen (E-Mail, Passwort, Rechte, Limit) und Tags in Radarr und Sonarr setzen; Qualitätsprofile, Warteschlangen, Suchen und Löschen bleiben verboten | Hand |
 | AK-138 | AK-1 | ADR 0010 und Regel 10 lesen | ADR 0010 hat den Nachtrag mit zwei eng gefassten Ausnahmen «Slouchcat legt Tags an und hängt sie an Titel» und «Slouchcat liest die Warteschlange für den Download-Fortschritt»; der Webhook-Empfang bleibt unverändert; Regel 10 bzw. die Redaction-Liste nennt `password`, `newPassword` und die Schlüssel von Radarr und Sonarr | Hand |
 | AK-211 | AK-1 | ADR 0037, ADR 0038, Frage 33 lesen | ADR 0037 nennt «API und Webhook» und «Nur API» unter «Verworfen» mit dem Grund, dass Marco «Webhooks wie heute» gewählt hat; ADR 0038 löst S-4 nicht ab und schliesst fehlende Titel auf der Startseite aus; F-33 und F-34 sind beantwortet, F-8 steht als «entschieden durch E-5» | Hand (Marco) |
+| AK-232 | Zweig mit allen Stufen fertig | Pull Request, Versionen und `testdata/db/` lesen | ein Zweig, ein Pull Request, eine Version für alle Stufen; genau ein neuer eingefrorener Datenbankstand am Schluss; Merge und Tag erst auf Marcos Wort (F-22, B-1, B-2; N-104) | Hand |
 
 ## 2. Stufe 1: Fundament
 
@@ -47,18 +56,20 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 | AK-106 | Jellyseerr 2.6 im Mock | Test | Prüfpunkt Version als Warnung «nicht geprüft», kein Fehler | Test |
 | AK-107 | Verbindung eingerichtet, Fingerabdruck gespeichert | Adresse zeigt auf eine andere Instanz (Mock 2) | «Andere Seerr-Instanz erkannt»; kein `POST`, kein `DELETE`, kein Abgleich bis «Zuordnung bestätigen» oder «Zuordnung löschen»; neue Wünsche bleiben `queued`; nach «Bestätigen» läuft ein Erstabgleich | Test |
 
-### 2.2 Seerr-Benutzer der Konten und Ausnahme je Profil
+### 2.2 Seerr-Benutzer der Konten und Sammelbenutzer (Ausnahme je Profil entfällt, F-27)
 
 | Nr. | Voraussetzung | Handlung | Erwartet | Prüfung |
 |---|---|---|---|---|
 | AK-11 | Verbindung steht | «Benutzerliste neu laden» | fünf Benutzer mit Rechten, Auto-Freigabe, Limit | Hand; Test |
-| AK-12 | Konto grosseltern, Benutzer 4 mit gleicher E-Mail (andere Gross-/Kleinschreibung), Zustand «Nicht eröffnet» | Reiter «Seerr-Benutzer», «In Seerr eröffnen» | Konto ist mit Benutzer 4 **verknüpft**, Zustand «Verknüpft», kein `POST /user`; Meldung «grosseltern in Seerr verknüpft.» (E-4, Fassung 2 sah nur einen Vorschlag vor) | Test |
+| AK-12 | Konto grosseltern, Benutzer 4 mit gleicher E-Mail (andere Gross-/Kleinschreibung), Zustand «Nicht eröffnet» | Reiter «Seerr-Benutzer», «In Seerr eröffnen» | Konto ist mit Benutzer 4 **verknüpft**, Zustand «Verknüpft», kein `POST /user`; Meldung «grosseltern in Seerr verknüpft.» (E-4, Fassung 2 sah nur einen Vorschlag vor). Geändert (F-24): kein `…/settings/password`, Passwort «Wird nicht abgeglichen» (N-103) | Test |
 | AK-13 | Benutzer 1 gehört Konto marco | Benutzer 1 einem anderen Konto zuordnen | Auswahl gesperrt; API 409 `seerr_user_taken` | Test |
-| AK-14 | Profil Noah «Eigener Benutzer» kinder | Wunsch-Benutzer auflösen | `kinder`; Profil Marco «Wie Konto» → `marco` | Test |
+| AK-14 | – | – | entfällt (F-27): prüfte die Ausnahme je Profil; dass jedes Profil als Benutzer des Kontos sendet, prüft AK-228 | – |
 | AK-15 | Benutzer in Seerr gelöscht | `seerr.users` laufen lassen | Warnung «Benutzer in Seerr gelöscht»; betroffene Profile `canRequest = false`, Grund `seerr_user_gone` | Test |
 | AK-16 | drei Konten «Nicht eröffnet», eines mit gleicher E-Mail in Seerr | «Alle eröffnen», bestätigen | Rückfrage nennt «1 verknüpfen, 2 neu anlegen»; danach alle drei mit Seerr-Benutzer; ersetzt «Alle Vorschläge übernehmen» aus Fassung 2 | Test |
-| AK-108 | Profil Noah mit Ausnahme «kinder», 2 offene Wünsche | Noah im Auswahlfeld der Ausnahme auf «Wie Konto» stellen | sofort wirksam, Meldung «Benutzer geändert. 2 offene Wünsche bleiben bei kinder.»; die offenen Wünsche behalten `seerr_user_id` 3; ein neuer Wunsch geht als marco | Test |
-| AK-109 | «Konten ohne Seerr-Benutzer» = Sammelbenutzer wohnzimmer-tv | Gast (Konto mit Recht, ohne Seerr-Benutzer) fordert an | gesendet als wohnzimmer-tv; das Konto sieht fehlende Titel; ohne Sammelbenutzer sieht es keine | Test |
+| AK-108 | – | – | entfällt (F-27): prüfte das Umstellen der Ausnahme; das Einfrieren des Benutzers je Wunsch prüft AK-231 | – |
+| AK-109 | geändert (F-4): «Konten ohne Seerr-Benutzer» ab Werk = «Sammelbenutzer», Sammelbenutzer «slouchcat-gaeste» angelegt (AK-229) | Gast (Konto mit Recht, ohne Seerr-Benutzer) fordert an | gesendet als slouchcat-gaeste (`X-API-User` dessen ID); das Konto sieht fehlende Titel; mit «Nicht erlauben» sieht es keine (Grund `no_mapping`) | Test |
+| AK-228 | Konto marco mit Benutzer 1; Profile Marco, Sandra, Noah mit Wunschrecht | jedes Profil fordert an | alle Wünsche gehen mit `X-API-User: 1`; es gibt keine Tabelle `wish_profile_map`, keine Operation `setProfileWishMapping` und kein Auswahlfeld «Sendet als» (F-27, N-100) | Test (Vertrag, Migration) |
+| AK-229 | Seerr eingerichtet, kein Benutzer `slouchcat-gaeste@slouchcat.invalid` in Seerr | «Wünsche aktiv» einschalten; danach ein zweites Mal ein- und ausschalten | genau ein `POST /user` mit dieser E-Mail und Zufallspasswort, Rechte aus `defaultPermissions` der Instanz, kein Aufruf `…/settings/permissions` (geändert I-F2, N-111), Standard-Limit über `…/settings/main` (10/7, 5/7); Merker `seerr_users.is_shared` gesetzt (so gebaut statt `wishes.shared_seerr_user`); beim zweiten Mal kein weiterer Benutzer; die Seite «Einstellungen» zeigt «Sammelbenutzer» und «Nicht erlauben», keine Auswahl eines Benutzers (F-4, N-101) | Test (Mock); Hand auf CT 190 (B-3: Testbenutzer danach löschen) |
 
 ### 2.3 Wunschrecht und Einstellungen
 
@@ -84,7 +95,7 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 
 | Nr. | Voraussetzung | Handlung | Erwartet | Prüfung |
 |---|---|---|---|---|
-| AK-139 | «Neue Konten in Seerr eröffnen» an, Einladung mit «Darf Titel anfordern» an, keine E-Mail `gast@…` in Seerr | Gast nimmt die Einladung an | in Seerr ein lokaler Benutzer mit derselben E-Mail, `username` = Teil vor dem @, Rechte `REQUEST`; Zustand «Eröffnet», Passwort «Abgeglichen»; der Gast meldet sich in Seerr mit E-Mail und Passwort aus Slouchcat an (N-1) | Test (Mock); Hand auf CT 190 |
+| AK-139 | «Neue Konten in Seerr eröffnen» an, Einladung mit «Darf Titel anfordern» an, keine E-Mail `gast@…` in Seerr | Gast nimmt die Einladung an | in Seerr ein lokaler Benutzer mit derselben E-Mail, `username` = Teil vor dem @, Rechte wie `defaultPermissions` der Instanz, kein `…/settings/permissions` (I-F1, N-110); Zustand «Eröffnet», Passwort «Abgeglichen»; der Gast meldet sich in Seerr mit E-Mail und Passwort aus Slouchcat an (N-1) | Test (Mock); Hand auf CT 190 |
 | AK-140 | wie AK-139, Einladung ohne Wunschrecht | annehmen | Benutzer eröffnet mit `permissions = 0` (N-9, F-23) | Test |
 | AK-141 | in Seerr gibt es `Gast@…` schon (lokaler Benutzer ohne Administratorrechte) | Gast nimmt die Einladung an | geändert (E-8): **sofort verknüpft**, Zustand «Verknüpft», kein zweiter Benutzer, Passwort gesetzt, Rechte unverändert; das Konto kann anfordern (N-90, N-91; Einzelheiten AK-220 bis AK-224) | Test |
 | AK-142 | `GET /user?q=` findet nichts, `POST /user` antwortet 409 | Gast nimmt die Einladung an; danach dasselbe über «In Seerr eröffnen» | geändert (E-8): in beiden Fällen neu gelesen und verknüpft; beim Annehmen `linked_by = invite`, auf Knopfdruck `linked_by = admin` (N-2, N-90) | Test (Mock) |
@@ -92,7 +103,7 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 | AK-144 | Konto mit eröffnetem Benutzer | eigenes Passwort in «Konto ändern» ändern; E-Mail ändern | sofort `POST /user/{id}/settings/password` mit dem neuen Passwort; neue E-Mail über `settings/main`, alle übrigen Felder unverändert zurückgeschickt; Meldung «Das neue Passwort gilt auch in Seerr.» (N-5) | Test |
 | AK-145 | AK-139, AK-143 und AK-144 durchlaufen | Volltextsuche nach dem Testpasswort über alle Tabellen (auch `jobs`), alle Protokolle und alle API-Antworten | kein Treffer; in Slouchcat nur der Argon2id-Hash wie heute (N-3, N-12) | Test |
 | AK-146 | Konto marco ist mit Benutzer 1 verknüpft; Konto grosseltern mit einem Administrator von Seerr; Konto gast mit einem Jellyfin-Benutzer | Passwort ändern, anmelden | kein Aufruf der Passwort-Route; Stand «Bleibt in Seerr (Administrator)» bzw. «Anmeldung über Jellyfin» (N-6) | Test |
-| AK-147 | eröffneter Benutzer, Konto mit Wunschrecht | Administrator nimmt das Wunschrecht weg, dann gibt er es zurück | Rechte in Seerr `0`, dann `REQUEST`; bei einem verknüpften Benutzer kein Aufruf und der Hinweis «… behält in Seerr seine Rechte» (N-9) | Test |
+| AK-147 | eröffneter Benutzer, Konto mit Wunschrecht | Administrator nimmt das Wunschrecht weg, dann gibt er es zurück | Rechte in Seerr `0`, dann der aktuelle Wert von `defaultPermissions` (geändert I-F1, N-110); bei einem verknüpften Benutzer kein Aufruf und der Hinweis «… behält in Seerr seine Rechte» (N-9) | Test |
 | AK-148 | Konto mit eröffnetem Benutzer (`origin = created`) und zwei Requests in Seerr | «Konto entfernen» | Benutzer bleibt in Seerr samt Requests, Rechte `0`, neues Zufallspasswort; kein `DELETE /user`; Rückfrage nennt es (N-10, F-31). Den Fall eines verknüpften Benutzers prüft AK-219 | Test |
 | AK-149 | Stand «Abgeglichen», Passwort in Seerr direkt geändert | «Passwort bei der nächsten Anmeldung neu übernehmen», dann in Slouchcat anmelden | bei der Anmeldung setzt Slouchcat das Slouchcat-Passwort in Seerr; «Passwort nicht abgleichen» → kein Aufruf mehr (N-7) | Test |
 | AK-150 | Seerr antwortet 10 s nicht | `acceptInvitation`, `login`, `updateAccount` | Antwortzeit und Antwortinhalt wie ohne Seerr (Abweichung p95 ≤ 50 ms, **Vorschlag**); die Antworten verraten nicht, ob die E-Mail in Seerr existiert (mit gleicher Adresse in Seerr: AK-216) | Test |
@@ -100,15 +111,17 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 | AK-214 | – | – | entfällt (E-8): prüfte den Vorschlag nach einer E-Mail-Änderung; ersetzt durch AK-225 | – |
 | AK-215 | – | – | entfällt (E-8): prüfte, dass ein vorgeschlagener Benutzer kein Passwort bekommt; den Zustand gibt es nicht mehr. Das Passwort prüfen AK-221 und AK-222 | – |
 | AK-216 | zwei Durchläufe: in Seerr gibt es die Adresse, und es gibt sie nicht | `acceptInvitation` und `updateAccount` mit dieser Adresse; danach die Seiten des Kontos in der Zuschauer-App | geändert (E-8): Antworten byte-gleich, Antwortzeit gleich (Abweichung p95 ≤ 50 ms, **Vorschlag**); keine Meldung, kein Feld und kein Text verrät, ob Seerr die Adresse kannte (N-94; Meldung nach dem Annehmen: AK-223) | Test (Vertrag); e2e |
-| AK-217 | ein Konto «Nicht eröffnet» mit gleicher Adresse in Seerr, ein Konto «Nicht eröffnet» ohne | «Alle eröffnen» | geändert (E-8): Rückfrage nennt «1 verknüpfen, 1 neu anlegen»; danach das erste Konto verknüpft (`linked_by = admin`), das zweite eröffnet; kein Hinweis «Neu verknüpft» in der Übersicht (N-2, N-93); Antwort `{link: 1, create: 1}` | Test; e2e |
+| AK-217 | ein Konto «Nicht eröffnet» mit gleicher Adresse in Seerr, ein Konto «Nicht eröffnet» ohne | «Alle eröffnen» | geändert (E-8): Rückfrage nennt «1 verknüpfen, 1 neu anlegen»; danach das erste Konto verknüpft (`linked_by = admin`, Passwort «Wird nicht abgeglichen», geändert F-24), das zweite eröffnet (Passwort «Folgt bei der nächsten Anmeldung»); kein Hinweis «Neu verknüpft» in der Übersicht (N-2, N-93); Antwort `{link: 1, create: 1}` | Test; e2e |
 | AK-218 | – | – | entfällt (E-8): prüfte «Verknüpfung bestätigen» (`confirmSeerrAccountLink`); die Aktion und die Operation gibt es nicht mehr (N-90) | – |
 | AK-219 | Konto mit verknüpftem Benutzer (`origin = linked`); zweites Konto mit von Hand gewähltem Benutzer (`manual`) | «Konto entfernen» bei beiden | kein Aufruf an `…/settings/permissions` und `…/settings/password`; Rechte und Passwort beider Benutzer unverändert; die Benutzer bleiben samt Requests; die Rückfrage sagt «Der Seerr-Benutzer bleibt unverändert.» (N-10, Redaktionsentscheid zu K-2) | Test |
 | AK-220 | in Seerr gibt es einen lokalen Benutzer `nachbar@…` ohne Administratorrechte mit zwei Requests; «Neue Konten in Seerr eröffnen» an; Einladung mit Wunschrecht | ein Gast nimmt die Einladung mit der Adresse `Nachbar@…` an | sofort verknüpft: Zustand «Verknüpft», `origin = linked`, `linked_by = invite`, `linked_at` gesetzt; kein `POST /user`, kein `…/settings/permissions` (Rechte unverändert, N-9); Limit über `…/settings/main` geschrieben; `canRequest` wahr; ab Stufe 4 reiht `wishes.import` die zwei Requests ein (N-90) | Test (Mock); e2e |
 | AK-221 | wie AK-220 | Gast nimmt die Einladung an; danach meldet er sich in Seerr mit E-Mail und Passwort aus Slouchcat an | ein `POST /user/{id}/settings/password` mit dem eingegebenen Passwort; Stand «Abgeglichen»; die Anmeldung in Seerr gelingt; Volltextsuche nach dem Testpasswort wie AK-145 ohne Treffer (N-91, N-3) | Test (Mock); Hand auf CT 190 |
-| AK-222 | drei Durchläufe: die Adresse gehört in Seerr Benutzer 1, einem anderen Administrator, einem Benutzer mit Anmeldung über Jellyfin | Gast nimmt die Einladung mit dieser Adresse an; meldet sich später in Slouchcat an | verknüpft, aber **kein** Aufruf der Passwort-Route, weder beim Annehmen noch bei der Anmeldung; Stand «Bleibt in Seerr (Administrator)» bzw. «Anmeldung über Jellyfin»; Rechte unverändert; ein Administrator von Seerr bekommt so kein neues Passwort (N-91, N-6) | Test (Mock) |
+| AK-222 | geändert (Sicherheitsprüfung): drei Durchläufe: die Adresse gehört in Seerr Benutzer 1, einem anderen Administrator, einem Benutzer mit Anmeldung über Jellyfin | Gast nimmt die Einladung mit dieser Adresse an; meldet sich später in Slouchcat an | Benutzer 1 und Administrator: **nicht verknüpft**, Zustand «Wartet» mit Grund `seerr_user_privileged`, kein Aufruf der Passwort-Route, Rechte unverändert (AK-233). Jellyfin-Benutzer: verknüpft, aber **kein** Aufruf der Passwort-Route, weder beim Annehmen noch bei der Anmeldung; Stand «Anmeldung über Jellyfin» (N-91, N-6) | Test (Mock) |
 | AK-223 | zwei Durchläufe: in Seerr gibt es die Adresse, und es gibt sie nicht | Gast nimmt die Einladung an | die Seite zeigt in beiden Fällen denselben Text «In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.»; kein anderer Text, kein Feld und keine Antwortzeit unterscheidet die Fälle (N-94, AK-216) | e2e; Test (Vertrag) |
 | AK-224 | AK-220 durchlaufen; Uhr-Mock | Administrator öffnet die Übersicht am selben Tag, nach 6 Tagen und nach 8 Tagen; folgt dem Link | am selben Tag und nach 6 Tagen der Hinweis «Neu verknüpft: gast mit dem bestehenden Seerr-Benutzer nachbar», nach 8 Tagen nicht mehr; der Link öffnet Wünsche › Seerr-Benutzer mit dem Band dieses Kontos, das Auslöser und Datum nennt; «Verknüpfung lösen» geht dort; das Protokoll hat einen Eintrag mit Konto-ID, Seerr-ID und Auslöser, ohne E-Mail und Passwort. Nach einer Verknüpfung durch einen Administrator (AK-12, AK-217) erscheint kein Hinweis (N-93, Empfehlung der Redaktion) | Test (Uhr-Mock); e2e |
 | AK-225 | Konto gast ohne Seerr-Benutzer («Wartet» bzw. «Nicht eröffnet»); zweites Konto oma mit eröffnetem Benutzer; in Seerr gibt es `nachbar@…` | gast ändert in «Konto ändern» seine E-Mail auf `nachbar@…`; oma ändert ihre E-Mail ebenfalls auf `nachbar@…`, Seerr lehnt ab | gast: sofort verknüpft, `linked_by = email_change`, Hinweis «Neu verknüpft» wie AK-224; das Passwort folgt bei der nächsten Anmeldung. oma: ihr Seerr-Benutzer bleibt, wie er ist, keine zweite Verknüpfung; die Verwaltung zeigt am Konto, dass die Adresse in Seerr vergeben ist. Beide Antworten an das Konto wie ohne Treffer (N-95, N-94) | Test (Mock) |
+| AK-230 | Konto gast mit bestehendem Seerr-Benutzer, vom Administrator verknüpft («In Seerr eröffnen» mit gleicher E-Mail oder «Anderen Benutzer wählen»); Stand «Wird nicht abgeglichen» | gast ändert sein Passwort, meldet sich an; danach schaltet der Administrator «Passwort bei der nächsten Anmeldung neu übernehmen» ein, gast meldet sich wieder an | zuerst kein Aufruf der Passwort-Route; nach dem Einschalten (`setSeerrPasswordMode next_login`) bei der Anmeldung genau ein `…/settings/password`, Stand «Abgeglichen» (F-24, N-103). Beim Annehmen einer Einladung mit bestehender Adresse wird das Passwort dagegen gesetzt (AK-221) | Test (Mock) |
+| AK-231 | Konto gast ohne Seerr-Benutzer hat über den Sammelbenutzer zwei offene Wünsche | «In Seerr eröffnen» für gast; danach fordert Profil Gast einen neuen Titel an; `wishes.import` läuft | die zwei Wünsche behalten `seerr_user_id` des Sammelbenutzers und bleiben in «Meine Wünsche» des Profils; der neue Wunsch geht als Benutzer von gast; Anfragen des Sammelbenutzers übernimmt der Import nicht (N-102) | Test |
 | AK-226 | Bau von Schritt 6a | Reihenfolge der Commits lesen | der Commit 6a.1 mit der Messung in `docs/perf/` und der festgeschriebenen Schwelle für einen Gewinn liegt vor dem ersten Commit von 6a.2 (N-98) | Hand |
 | AK-227 | Messung 6a.1 zeigt keinen Gewinn | Zweig nach Schritt 6a lesen | 6a.2 bis 6a.4 fehlen; `docs/perf/` hat eine Notiz mit dem Grund; `receiveWebhook`, `model.WebhookPayload` und der Vertrag sind unverändert; die Webhooks von Radarr und Sonarr verhalten sich wie heute (N-98, N-80) | Hand; `git diff` |
 
@@ -118,7 +131,7 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 |---|---|---|---|---|
 | AK-151 | Vorgabe ab Werk, neues Konto eröffnet | `settings/main` im Mock ansehen | `movieQuotaLimit 10`, `movieQuotaDays 7`, `tvQuotaLimit 5`, `tvQuotaDays 7`; alle zuvor gelesenen Felder (Name, E-Mail, Sprache, Regionen) unverändert im Body (N-31, Anhang H 3.1) | Test |
 | AK-152 | Konto grosseltern | Formular «Zugriff»: Limit «Eigenes» 3 Filme in 7 Tagen, 2 Staffeln in 14 Tagen; danach «Unbegrenzt»; danach «Standard» | Werte jeweils in Seerr geschrieben; «Standard» schreibt wieder die Vorgabe; die Vorgabe zu ändern ändert alle Konten mit «Standard» (N-31) | Test |
-| AK-153 | verknüpfter Benutzer hatte in Seerr 20 Filme in 30 Tagen | verknüpfen | Slouchcat überschreibt mit dem Limit aus Slouchcat (N-37) | Test |
+| AK-153 | geändert (I-F3): verknüpfter Benutzer hatte in Seerr 20 Filme in 30 Tagen, Konto ohne eigenes Limit; zweiter Fall: beide Limits 0; dritter Fall: alle Felder leer; vierter Fall: Konto hat schon ein eigenes Limit | verknüpfen | 1: «Eigenes» 20 Filme in 30 Tagen, Staffeln aus der Vorgabe; 2: «Unbegrenzt»; 3: «Standard», Vorgabe geschrieben; 4: das Limit aus Slouchcat gewinnt und wird geschrieben (N-112) | Test |
 | AK-154 | Benutzer mit `MANAGE_USERS` (Benutzer 1 von Konto marco) | Limit setzen | keine Limit-Felder geschrieben; Konten und Seerr-Benutzer zeigen «Kein Limit (Administrator)»; Feld gesperrt (N-34) | Test; e2e |
 | AK-155 | Anzahl 101 oder Tage 0 | speichern | 422 `validation_failed`, Feld markiert | Test |
 
@@ -149,12 +162,12 @@ Kriterien, die unter derselben Nummer auf die neue Regel umgeschrieben sind, tra
 | Nr. | Voraussetzung | Handlung | Erwartet | Prüfung |
 |---|---|---|---|---|
 | AK-29 | Profil Marco, Seerr erreichbar | «Film anfordern», Dialog bestätigen | Dialog nennt «Wird als marco an Seerr übermittelt» und «Wird sofort beschafft»; Zustand «In Beschaffung»; in Seerr ein Request von marco | Hand; Test (Mock) |
-| AK-30 | Profil Noah | anfordern | Hinweis «Braucht eine Freigabe»; Zustand «Freigabe ausstehend»; Request in Seerr gehört **kinder**, Status PENDING | Hand; Test |
+| AK-30 | geändert (F-27): Profil Oma & Opa (Konto grosseltern, Benutzer ohne Auto-Freigabe) | anfordern | Hinweis «Braucht eine Freigabe»; Zustand «Freigabe ausstehend»; Request in Seerr gehört **grosseltern**, Status PENDING. Profil Noah im Konto marco: «Wird sofort beschafft», Request gehört marco (N-100) | Hand; Test |
 | AK-31 | Mock | Anfrage mitschneiden | `POST /request` mit `X-API-User`, **ohne** `userId`; bei Serien `tvdbId` und Zahlenliste `seasons` | Test |
 | AK-32 | Seerr gestoppt | anfordern | Antwort ≤ 3,5 s, Zustand «Wird übermittelt»; nach dem Start von Seerr wird der Wunsch ohne Zutun übermittelt | Test (Uhr-Mock); Hand |
 | AK-33 | Seerr 24 h weg | Uhr vorstellen | `failed`, `unreachable_24h`; Ereignis `errors` an Administratoren | Test |
 | AK-34 | erster POST kam an, Antwort ging verloren | Job erneut ausführen | kein zweiter Request in Seerr; Wunsch hängt am ersten | Test |
-| AK-35 | Limit von kinder erreicht, Stand in Slouchcat noch alt (Mock 403) | Noah fordert an | «Fehlgeschlagen» mit «Limit erreicht: Seerr hat den Wunsch nicht angenommen.»; Stand danach neu gelesen | Test |
+| AK-35 | geändert (F-27): Limit von grosseltern erreicht, Stand in Slouchcat noch alt (Mock 403) | Oma & Opa fordert an | «Fehlgeschlagen» mit «Limit erreicht: Seerr hat den Wunsch nicht angenommen.»; Stand danach neu gelesen | Test |
 | AK-36 | Titel in Seerr gesperrt | anfordern | «Fehlgeschlagen», Grund Sperrliste; für 2.x und 3.x Text erkannt | Test |
 | AK-37 | Titel in Seerr schon von wohnzimmer-tv angefordert (409) | Marco fordert an | Erfolg, Wunsch hängt am bestehenden Request | Test |
 | AK-38 | Serie, alle Staffeln in Seerr schon angefragt (202) | anfordern | Erfolg, angehängt bzw. «wird eingelesen» | Test |
@@ -340,7 +353,7 @@ Die Nummer 5a hält die Nummern der folgenden Abschnitte stabil, auf die andere 
 | AK-182 | Film X steht in der Bibliothek und ist für Marco sichtbar; Film Y steht dort, ist für Noah zu hoch; Mock meldet für Z `mediaInfo` «verfügbar», Slouchcat hat Z nicht | «Entdecken» für Marco und Noah | X mit Marke «In der Bibliothek» und Link `/items/{id}`; Y fehlt für Noah; Z erscheint als fehlend mit «Film anfordern» (N-55) | Test |
 | AK-183 | Serie in der Bibliothek nur mit TVDB-ID | erscheint in «Serien» | als vorhanden markiert (Abgleich TVDB zuerst) | Test |
 | AK-184 | – | Suche nach `tvdb:81189`, `imdb:tt0903747`, `tmdb:1396` und nach einem Personennamen | die drei Kennungen finden den Titel; Personen erscheinen nicht (N-53) | Test (Mock) |
-| AK-185 | «Filme» geöffnet | Sortierung «Neueste zuerst», Genre «Drama», «Vorhandene ausblenden» | Liste entsprechend; der Filter ist zugeklappt und zeigt die Wahl im Kopf; «Mehr laden» holt Seite 2 (N-52) | e2e |
+| AK-185 | «Filme» geöffnet | Sortierung «Neueste zuerst», Genre «Drama», «Vorhandene ausblenden» | geändert (Anhang I N-117): Liste entsprechend, «Neueste zuerst» nur bis heute erschienene Titel mit Mindestzahl an Stimmen; zur Wahl stehen «Beliebtheit», «Neueste zuerst», «Am besten bewertet», nicht «Titel A–Z»; der Filter ist zugeklappt und zeigt die Wahl im Kopf; beim Scrollen lädt Seite 2 nach, einen Knopf «Mehr laden» gibt es nicht (N-52; `mockup-abdeckung.md` Abschnitt 11) | e2e |
 | AK-186 | Liste in den letzten 60 min geladen | gleiche Liste, gleiche Sprache, gleiche Altersstufe erneut; dann mit Profil Noah | kein Aufruf an Seerr; für Noah ein eigener Eintrag; Seerr gestoppt → älterer Eintrag mit «Stand von {{Zeit}}» (N-54) | Test (Mock zählt) |
 | AK-187 | «Seiten Entdecken, Filme, Serien und Suche» aus | Seitenleiste, Bibliothekssuche | nur «Meine Wünsche»; die Bibliothekssuche verweist nicht auf die Wunsch-Suche; `wishes.discover` ruht (N-57) | e2e |
 | AK-188 | neue Seiten | Tastatur | Tastaturtest je Seite (Pfeiltasten in Reihen und Raster, Tab, Enter, Zurück, sichtbarer Fokus, keine Fokusfalle im Filter; Regel 8) | e2e |
@@ -356,6 +369,19 @@ Die Nummer 5a hält die Nummern der folgenden Abschnitte stabil, auf die andere 
 | AK-94 | Administratorseite | Antworten durchsuchen | Schlüssel nie in einer Antwort | Test |
 | AK-135 | Verwaltungsantworten der Wünsche (`listAdminWishes`, `getSpotlightEntries`) | Antwort prüfen | keine `ItemRef`, keine scoped Adresse; Poster über `getAdminExternalTitleImage` bzw. `getAdminItemImage` | Test (Vertrag) |
 | AK-136 | weiteres Profil (Noah) | `listAccountWishes` | 403 `primary_profile_required`; die Operation ist `scoped` | Test (Vertrag) |
+| AK-233 | in Seerr gehört `chef@…` einem Benutzer mit nur `MANAGE_REQUESTS` (dazu je ein Durchlauf mit `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS` und mit Benutzer 1) | Gast nimmt eine Einladung mit `chef@…` an; ein zweites Konto ändert seine E-Mail auf `chef@…` | in keinem Fall verknüpft; Zustand «Wartet», Grund `seerr_user_privileged`; kein Aufruf an `…/settings/password` und `…/settings/main`; kein Hinweis «Neu verknüpft». Danach wählt ein Administrator den Benutzer von Hand: verknüpft, Passwortstand «Bleibt in Seerr (Administrator)», kein Passwort- und E-Mail-Abgleich (Redaktion, Sicherheitsprüfung) | Test (Mock) |
+| AK-234 | Konto mit verknüpftem lokalem Benutzer, Stand «Abgeglichen»; im Mock bekommt der Benutzer danach `MANAGE_USERS` bzw. wechselt auf Anmeldung über Jellyfin | Konto ändert Passwort und E-Mail | Slouchcat liest den Benutzer vorher frisch (`GET /user/{id}`) und ruft weder die Passwort-Route noch `…/settings/main` auf; der nächste Lauf von `seerr.users` setzt den Passwortstand auf «Bleibt in Seerr (Administrator)» bzw. «Anmeldung über Jellyfin» | Test (Mock) |
+| AK-235 | Konto mit eröffnetem Benutzer | zwei Passwortänderungen kurz nacheinander, die erste Übergabe an Seerr verzögert | in Seerr gilt am Ende das zweite Passwort; die Übergaben eines Kontos laufen nacheinander | Test (Mock) |
+| AK-236 | – | Besitzer anlegen, Einladung annehmen und E-Mail ändern, je mit einer Adresse `…@slouchcat.invalid` | abgewiesen wie eine ungültige E-Mail-Adresse; kein Konto trägt die Domain des Sammelbenutzers. Gibt es «slouchcat-gaeste» in Seerr schon, übernimmt Slouchcat ihn und setzt ein neues Zufallspasswort | Test |
+| AK-237 | Seerr gespeichert unter `https://seerr.example:5055` | «Verbindung testen» mit `http://seerr.example:5055` und leerem Schlüssel | 422 `seerr_key_required`; der gespeicherte Schlüssel geht nicht an die neue Adresse | Test |
+| AK-238 | wartender Wunsch (`queued`) eines Kontos; danach gehört sein Seerr-Benutzer einem anderen Konto bzw. bekommt `ADMIN` | Ausgangsfach sendet | kein `POST /request`; Wunsch `failed` mit `seerr_user_gone`, Einzelheit `mapping_changed` | Test (Mock) |
+| AK-239 | Wunsch zweier Profile; der Titel kommt mit Freigabe 16, das Mitwünscher-Profil hat Altersstufe 12 | «Meine Wünsche», Vorschauseite und Liste des Hauptprofils für das Profil mit 12 | «In Beschaffung · wird eingelesen», ohne Zeitpunkt und ohne Verweis auf den Titel der Bibliothek; der Titel bleibt für dieses Profil 404 (`03-architektur.md`, Abschnitt 8.3) | Test |
+
+| AK-240 | Profil mit Wunschrecht | mehr als 60 Aufrufe von `getExternalTitle` und `getWishSeasons` in einer Minute (30 auf einmal); ebenso Bilder (600, 300), Seiten des Bereichs (120, 60) und die Suchen (30) | 429 `too_many_attempts` mit `Retry-After: 60`; ein zweites Profil desselben Kontos kann weiter; der Topf des Kontos (das Vierfache) bremst erst, wenn mehrere Profile zusammen darüber gehen; ein Aufruf, den der Topf des Profils abweist, nimmt dem Konto nichts (Redaktion, `03-architektur.md` Abschnitt 15.4) | Test (`TestContractWishLimits`, `TestWishLimitPerAccount`, `TestWishLimitProfileFirst`, `TestContractExternalSearchPerAccount`) |
+| AK-241 | Bildspeicher fehlender Titel über 2 GiB | ein weiteres Bild wird geholt | die am längsten nicht gebrauchten Titel verlieren ihre Bilder, bis der Speicher wieder passt; der eben geholte Titel bleibt; Hintergründe der Genre-Kacheln höchstens 200 Dateien | Test (`TestExternalImageCacheBound`) |
+| AK-242 | privilegierter Seerr-Benutzer mit der E-Mail eines Kontos | «In Seerr eröffnen» ohne und mit Bestätigung; «Alle eröffnen» | ohne Bestätigung 202 `waiting`, `seerr_user_privileged`; mit `?allowPrivileged=true` verknüpft, `linkedBy: admin`, `passwordState: admin`; «Alle eröffnen» verknüpft ihn nie und nennt die Zahl der Konten, die eine Wahl von Hand brauchen (`manual`) | Test (`TestAutomaticLinkNeverTakesPrivilegedUser`, `TestProvisionAllNeverTakesPrivilegedUser`) |
+| AK-243 | Serie der Bibliothek; von einer Staffel darf das Profil keine Folge abspielen (strengere Freigabe je Staffel oder Folge) | Serienseite, Dialog, `createWish` mit dieser Staffel, «Alle fehlenden Staffeln» | die Staffel fehlt in Wand und Zahl und im Dialog; `createWish` antwortet 422 mit `season_not_offered`; «Alle fehlenden Staffeln» lässt sie aus | Test (`TestHiddenLibrarySeasonNotOffered`) |
+| AK-244 | Wunsch, den ein Profil als «wird eingelesen» liest (AK-239) | Zurückziehen | kein Knopf; der Aufruf antwortet 409 `wish_not_withdrawable`, gleich ob der Wunsch verfügbar oder teilweise verfügbar ist | Test (`TestHiddenWishIsNotWithdrawn`) |
 
 ## 7. Performance
 
@@ -376,6 +402,15 @@ Die Nummer 5a hält die Nummern der folgenden Abschnitte stabil, auf die andere 
 | AK-190 | `getWishDiscover` | kalt, Profil 12 (Vorfilter und Nachprüfung) | Serverzeit p95 ≤ 5 s (Zeitlimit, **Vorschlag**); höchstens 20 TMDB-Detailabrufe je Seite | Messung; Test (Mock zählt) |
 | AK-210 | Lauf von `wishes.progress` | 20 Wünsche in Beschaffung, Warteschlange mit 50 Einträgen | Laufzeit p95 ≤ 2 s, höchstens 2 Aufrufe `GET /api/v3/queue` und keine Titelsuche, sobald die IDs bekannt sind (**Vorschlag**) | Messung `docs/perf/` |
 | AK-212 | Schritt 6a wird gebaut, weil die Messung 6a.1 einen Gewinn zeigt (E-11) | Zeit von der Webhook-Meldung bis «Verfügbar», Film und Folge, vor und nach Schritt 6a | Messung vorher liegt in `docs/perf/`, bevor 6a.2 beginnt (AK-226); nachher kürzer als vorher, sonst bleibt der Empfang wie heute (N-98) | Messung |
+
+**Ergebnis der Messung (18. November 2026, `docs/perf/wuensche.md`).** Alle gemessenen Zielwerte halten, ausser
+AK-98: `createWish` in schneller Folge braucht 594 ms p95 gegen 500 ms. Die Zeit ist die Wartezeit im eigenen
+Limit des Seerr-Clients (5 Aufrufe je Sekunde, AK-103); mit 2 s Abstand zwischen zwei Wünschen sind es 43 ms p95.
+Ob das genügt, entscheidet die Abnahme. Eine kalte Seite «Entdecken» braucht mit vollem Eimer 0,62 s (AK-190:
+höchstens 5 s). Nicht in der Form gemessen, die das Kriterium nennt: AK-190 (gemessen mit Stufe 18 statt 12),
+AK-137 (der Nachbau liefert 1 bis 3 Treffer statt 20), AK-100 (gemessen mit 200 statt 500 Wünschen). Nicht in
+der Notiz: AK-210 (Lauf von `wishes.progress`). AK-104 und AK-212 hängen an der Messung 6a.1, die einen echten
+Import auf CT 190 braucht und offen ist.
 
 ## 8. Abnahme der Mockups
 
@@ -400,7 +435,7 @@ lokal in `img/`; ohne sie zeigt das Mockup Platzhalter mit Titel.
 | M-21, M-22 | siebte Kachel «Seerr» nach «Webhooks von Radarr und Sonarr» mit Hinweisen im Zustand, Zeile oben mit neun Statusschlüsseln; Bänder «Verbindung» (Prüfliste mit den neuen Prüfpunkten, Warnungen gelb, Test trotzdem gelungen), «Abgleich» (mit dem Fakt zum Fortschritt), «Benutzer und Limit», «Radarr und Sonarr (Profil-Tags und Fortschritt)» mit Adresse aus Seerr, eigener Adresse, «Testen», «Tag Requests», Fakt «Download-Fortschritt» und Link auf die unveränderte Seite «Webhooks von Radarr und Sonarr», Prüfpunkte «Radarr/Sonarr für Profil-Tags und Fortschritt», «Sofortmeldung», «Protokoll» (Route `#/admin/integrations/jellyseerr`); die Seite «Webhooks von Radarr und Sonarr» unverändert |
 | M-23 | «Anfragen»: Kennzahlen, Filter (auch «Tag nicht gesetzt» und «Download verzögert»), Tabelle mit Profil-Tag je Wunsch und Zustand samt Fortschritt, Aufklappzeile mit der Meldung von Radarr oder Sonarr, Aktionen, Band «Limit je Konto» |
 | M-23 | Route `#/admin/wishes`, Reiter «Wünsche» im Bereich Medien direkt nach «Pflege» |
-| M-24 | «Seerr-Benutzer» (vorher «Zuordnung», `#/admin/wishes/mapping`): je Konto ein zugeklapptes Band (keine Tabelle), im Kopf E-Mail, Rolle, Zustands-Chip, Benutzername und Limit kurz; aufgeklappt Benutzer mit Name und ID, Zustand («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail», «Von Hand zugeordnet», «Wird eröffnet, sobald Seerr erreichbar ist», «Nicht eröffnet»; bei «Verknüpft» der Auslöser mit Datum), Passwort, Rechte in Seerr, Limit inklusive direkter Wünsche in Seerr, Aktionen «In Seerr eröffnen», «Alle eröffnen», wählen, lösen, Passwortmodus; neutraler Hinweis bei einem Konto, das beim Annehmen der Einladung verknüpft wurde (N-93); kein Zustand «Verknüpfung vorgeschlagen» und keine Aktion «Verknüpfung bestätigen» (E-8); bei ausgeschaltetem Eröffnen beide Eröffnen-Knöpfe gesperrt mit Grund und Link; je Profil Tag-Name und zugeklappt die Ausnahme; Liste der Seerr-Benutzer ohne Konto; sofort wirksam |
+| M-24 | «Seerr-Benutzer» (vorher «Zuordnung», `#/admin/wishes/mapping`): je Konto ein zugeklapptes Band (keine Tabelle), im Kopf E-Mail, Rolle, Zustands-Chip, Benutzername und Limit kurz; aufgeklappt Benutzer mit Name und ID, Zustand («Von Slouchcat eröffnet», «Verknüpft über gleiche E-Mail», «Von Hand zugeordnet» (so gebaut: «Von Hand verknüpft»), «Wird eröffnet, sobald Seerr erreichbar ist», «Nicht eröffnet»; bei «Verknüpft» der Auslöser mit Datum), Passwort, Rechte in Seerr, Limit inklusive direkter Wünsche in Seerr, Aktionen «In Seerr eröffnen», «Alle eröffnen», wählen, lösen, Passwortmodus; neutraler Hinweis bei einem Konto, das beim Annehmen der Einladung verknüpft wurde (N-93); kein Zustand «Verknüpfung vorgeschlagen» und keine Aktion «Verknüpfung bestätigen» (E-8); bei ausgeschaltetem Eröffnen beide Eröffnen-Knöpfe gesperrt mit Grund und Link; je Profil Tag-Name und zugeklappt die Ausnahme; Liste der Seerr-Benutzer ohne Konto; sofort wirksam |
 | M-25 | «Einstellungen» (`#/admin/wishes/settings`): alle Schalter aus Anhang F 4, sofort wirksam ohne «Speichern»; «Wünsche aktiv» steht im Mockup zur Vorführung an, ab Werk ist es aus; neu die Bänder «Limit ab Werk», «Konten in Seerr» (Hilfe zu «Neue Konten in Seerr eröffnen»: bei gleicher E-Mail sofort verknüpft, die Adresse tippt das neue Konto selbst ein, die Übersicht zeigt jede solche Verknüpfung sieben Tage lang), «Radarr und Sonarr: Profil-Tag und Fortschritt» mit dem Schalter «Download-Fortschritt zeigen» und der Schalter für die Seiten Entdecken, Filme, Serien und Suche; **kein** Schalter «Aus dem Spotlight» und kein Verweis auf fehlende Titel im Spotlight |
 | M-26 | Konten: Spalte «Wünsche», Formular «Zugriff» mit Schalter, Limit («Standard», «Eigenes», «Unbegrenzt») und Zeile «Seerr-Benutzer»; Einladung mit Limit und Hinweis auf dasselbe Login; Passwortänderung mit Hinweis auf Seerr; Rückfrage beim Löschen (Rechte und Zufallspasswort nur bei eröffneten Benutzern, sonst «bleibt unverändert», K-2); alle heutigen Felder vorhanden |
 | M-27 | Spotlight: Band «Fehlende Einträge» ohne Schalter; Einträge mit Poster, Zustand, IDs und «Anfordern» wie in Fassung 3; Band «Abgleich über TMDB, TVDB und IMDb»; alle elf Felder des Bands «Quelle» ohne neue Hinweise |
@@ -408,11 +443,45 @@ lokal in `img/`; ohne sie zeigt das Mockup Platzhalter mit Titel.
 | M-29 | Benachrichtigungen der Verwaltung: neue Ereignisse |
 | M-30 | Hintergrundjobs: zwölf neue Jobarten mit Takt (neu `seerr.provision`, `wishes.tag`, `wishes.discover`, `wishes.progress` jede Minute); Erstabgleich mit Fortschritt |
 | M-31 | Wünsche · Entdecken (neu): Reihen, Genre-Kacheln, Suchfeld; Bibliothekstitel mit Marke |
-| M-32 | Wünsche · Filme (neu): Raster, Filter zugeklappt mit Wahl im Kopf, Sortierung, «Vorhandene ausblenden», «Mehr laden» |
+| M-32 | Wünsche · Filme (neu): Raster, Filter zugeklappt mit Wahl im Kopf, Sortierung, «Vorhandene ausblenden», «Mehr laden» (Abweichungen des Baus: `mockup-abdeckung.md` Abschnitt 11) |
 | M-33 | Wünsche · Serien (neu): wie M-32 |
 | M-34 | Wünsche · Suche (neu): Suche, auch nach Kennung `tmdb:`, `tvdb:`, `imdb:`; keine Personen |
 | M-35 | Einladung annehmen (heute vorhanden, im Mockup neu): Hinweis «Dein Login gilt auch für Seerr», Eröffnung beim Absenden; über dem Formular die Fakten der Einladung (Notiz, Altersstufe, ob das Konto Titel anfordern darf und mit welchem Limit, gültig bis), darunter der Hinweis «Dein Login gilt auch für Seerr»; nach dem Absenden in beiden Fällen (Adresse in Seerr neu oder schon vorhanden) dieselbe Meldung «In Seerr hast du jetzt ein Konto mit derselben E-Mail-Adresse.»; das Mockup verknüpft eine vorhandene Adresse sofort (E-8, N-94) |
 
+Seit Marcos Antworten vom 17. November 2026 baut der Bau an drei Stellen anders, als das Mockup zeigt: keine
+Ausnahme je Profil in M-24 (F-27), Sammelbenutzer «slouchcat-gaeste» ab Werk ohne Auswahl in M-25 (F-4), Passwort
+«Wird nicht abgeglichen» bei vom Administrator verknüpften Konten in M-24 und M-26 (F-24). Das Mockup bleibt
+unverändert; die Liste steht in `mockup-abdeckung.md`, Abschnitt «Abweichungen des Mockups». Was der Bau ohne
+Antwort von Marco anders macht als das Mockup, steht dort in Abschnitt 11.1 (Redaktion bzw. so gebaut).
+
 Für alle Seiten gilt: Gestaltung nach Marcos Regeln vom 16. November 2026 (Klappbares zugeklappt, genug
 Kontrast, ein Formular), Texte in Schweizer Schreibweise, keine Funktion der heutigen Seiten fehlt (ADR 0035:21-22),
 Handy- und Desktopansicht bedienbar.
+
+## 9. Stand der Prüfung (18. November 2026)
+
+Redaktion. Was an Marcos echten Instanzen geprüft ist (Seerr 3.5.1 an Emby, Radarr 6.4.4, Sonarr 4.0.20), was nur
+gegen die Nachbauten der Tests (Mock-Seerr `seerrtest`, Mock-Arr `arrtest`, für die Browsertests
+`web/e2e/seerr-server.mjs`, `web/e2e/tmdb-server.mjs`, `web/e2e/arr-server.mjs`) und was gar nicht.
+
+| Stand | Was |
+|---|---|
+| an der echten Instanz geprüft | Verbindung und Anmeldung, Benutzer anlegen und pflegen (mit Testbenutzern), Limit, Titel, Suche, Entdecken, Lesen der Anfragen, Tags und Warteschlange von Radarr: [Anhang I](anhang/I-pruefung-echte-instanzen.md), Abschnitte 1 bis 6, 4a und 4b |
+| Mindeststand | Übernahme bestehender Anfragen und «nächster Platz frei» setzen `sortDirection` an `GET /request` voraus: geprüft mit Seerr 3.5.1 (I-70), ältere Stände (Jellyseerr 2.x) nicht |
+| nur gegen die Nachbauten | Antworten von `POST /request` (201, 202, 409, die 403-Texte); 409 bei einer früheren Anfrage im Zustand FAILED; `POST /request/{id}/retry`; Freigeben und Ablehnen; der Body des Seerr-Webhooks; die Abweisung der Passwort-Route für Benutzer 1 und andere Administratoren (I-20); die Felder der Sonarr-Warteschlange (I-57); `PUT …/editor` mit `applyTags: "add"`; der Fortschritt gegen Radarr und Sonarr |
+| nur im Browsertest mit den Nachbauten | die Korrekturrunde der Verwaltung vom 18. November 2026: «Anfragen» mit «Weitere laden», Filter in der Adresse, Fehler je Zeile; die zugeklappten Bänder der Einstellungen; Kennzeichen und Rückfrage bei privilegierten Seerr-Benutzern; Grenzen und Feldfehler des Limits (`07-administration.md`, Abschnitte 4.8 bis 8). Der Tastaturtest «profile tags, the take-over and the band of Radarr and Sonarr by keyboard» in `web/e2e/admin-wishes.spec.ts` schlug in rund der Hälfte der Läufe fehl; Ursache war das gemeinsame Formular (`web/src/ui/Form.tsx`), das ein zweites Absenden nach einer Abweisung des Servers ohne Änderung im Browser stoppte. Seit der Korrektur lief er 10 von 10 Mal (`--repeat-each 10`) |
+| nicht geprüft | der Weg vom Job `series.catalog` zur Serienseite im Browser; die Reihe «Erfüllte Wünsche» mit einem echt erfüllten Wunsch; Schritt 6a und seine Messung 6a.1 (nicht gebaut, braucht einen echten Import auf CT 190, E-11) |
+| in Chromium und Firefox geprüft | die Tastaturtests der neuen Seiten: `task ci` vom 18. November 2026 lässt sie in beiden Browsern laufen, je Teil auf demselben Server nacheinander; dafür schliessen die Specs ihre offenen Wünsche selbst und der e2e-Server hebt das Stundenlimit neuer Wünsche (`SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR`, nur mit `--dev`) |
+| Messungen | `docs/perf/wuensche.md`, Ergebnis in Abschnitt 7; offen ist 6a.1 |
+| Einstellung in Seerr | Seerr zählt die Staffeln auf Marcos Instanz heute nach TMDB (`tv = tmdb`, `anime = tmdb`, I-8); auf TVDB-Staffeln stellt Marco Seerr selbst um (F-29) |
+
+**Bekannte Grenzen (so gebaut, keine Fehler):**
+
+- Sieht ein Profil von einer Staffel der Bibliothek nur einen Teil der Folgen, bleibt die Staffel anforderbar; die
+  Antwort kann verraten, dass es mehr Folgen gibt (`03-architektur.md`, Abschnitt 14).
+- Wartet ein Kinderprofil noch auf einen Titel, den es noch nicht sehen darf, kann ein anderes Profil nach dem
+  Aufräumen des Eingangs (90 Tage) dieselbe Staffelmeldung noch einmal bekommen.
+- Stürzt der Server zwischen dem Speichern eines Zustands und der Meldung ab, geht eine Zustandsmeldung
+  (freigegeben, abgelehnt, fehlgeschlagen) verloren; «Verfügbar» wird nachgeholt.
+- Das Schliessen eines Wunsches nach 7 Tagen für ein Profil, das den Titel nicht sehen darf, ist nicht gebaut; das
+  Profil liest den Wunsch weiter als «In Beschaffung · wird eingelesen» (`03-architektur.md`, Abschnitt 8.3).

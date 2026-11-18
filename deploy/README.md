@@ -118,7 +118,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.40.1`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.41.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -193,6 +193,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TEST_UPDATER_DIR` | leer (`/run/slouchcat-updater`) | Anderer geteilter Ordner des Updaters (`token`, `state.json`, `server.json`); gilt nur mit `--dev` (Tests), sonst Warnung im Log |
 | `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
 | `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP` | leer (eine Minute) | Kürzere Sperre zwischen zwei manuellen Spotlight-Abrufen, z. B. `2s`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die Minute bleibt |
+| `SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR` | leer (20) | Höhere Grenze neuer Wünsche je Profil und Stunde, z. B. `1000`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die 20 bleiben |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
 

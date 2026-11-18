@@ -55,7 +55,33 @@ func (s *server) GetInvitation(ctx context.Context, req gen.GetInvitationRequest
 			Name string `json:"name"`
 		}{Id: l.ID, Name: l.Name})
 	}
+	opens, err := s.invitationOpensSeerr(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out.SeerrAccount = &opens
 	return gen.GetInvitation200JSONResponse(out), nil
+}
+
+// invitationOpensSeerr says whether accepting also opens the account in Seerr with the same login
+// (InvitationPreview.seerrAccount, N-94): Seerr with address and key, switched on, and the wish
+// settings «Neue Konten in Seerr eröffnen» and «Passwort abgleichen» on. Nothing about the guest.
+func (s *server) invitationOpensSeerr(ctx context.Context) (bool, error) {
+	if s.opts.Admin == nil {
+		return false, nil
+	}
+	st, err := s.opts.Admin.SeerrSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !st.Enabled || st.URL == "" || st.Key.Source == "" || st.Key.Source == model.SourceNone {
+		return false, nil
+	}
+	ws, err := s.opts.Admin.WishSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return ws.ProvisionAccounts && ws.SyncPassword, nil
 }
 
 func (s *server) AcceptInvitation(ctx context.Context, req gen.AcceptInvitationRequestObject) (gen.AcceptInvitationResponseObject, error) {
@@ -104,6 +130,7 @@ func (s *server) CreateInvitation(ctx context.Context, req gen.CreateInvitationR
 	b := deref(req.Body)
 	inv, err := svc.CreateInvitation(ctx, session.Account, model.InvitationRequest{
 		Note: deref(b.Note), MaxRating: b.MaxRating, AllLibraries: b.AllLibraries, LibraryIDs: deref(b.LibraryIds),
+		CanRequest: b.CanRequest, WishLimit: fromInvitationWishLimit(b.WishLimit),
 	})
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -143,10 +170,39 @@ func toInvitation(inv model.Invitation) gen.Invitation {
 		Id: inv.ID, Note: optString(inv.Note), State: gen.InvitationState(inv.State), MaxRating: inv.MaxRating,
 		AllLibraries: inv.AllLibraries, LibraryIds: nonNil(inv.LibraryIDs),
 		CreatedAt: inv.CreatedAt.UTC(), ExpiresAt: inv.ExpiresAt.UTC(), UsedAt: utc(inv.UsedAt),
+		CanRequest: &inv.CanRequest, WishLimit: toInvitationWishLimit(inv.WishLimit),
 	}
 	if inv.UsedByEmail != "" {
 		e := openapi_types.Email(inv.UsedByEmail)
 		out.UsedByEmail = &e
+	}
+	return out
+}
+
+func fromInvitationWishLimit(l *gen.InvitationWishLimit) *model.InvitationWishLimit {
+	if l == nil {
+		return nil
+	}
+	out := &model.InvitationWishLimit{Mode: string(l.Mode)}
+	if m := l.Movie; m != nil {
+		out.Movie = &model.WishLimit{Limit: m.Limit, Days: m.Days}
+	}
+	if t := l.Tv; t != nil {
+		out.TV = &model.WishLimit{Limit: t.Limit, Days: t.Days}
+	}
+	return out
+}
+
+func toInvitationWishLimit(l model.InvitationWishLimit) *gen.InvitationWishLimit {
+	if l.Mode == "" {
+		return nil
+	}
+	out := &gen.InvitationWishLimit{Mode: gen.InvitationWishLimitMode(l.Mode)}
+	if m := l.Movie; m != nil {
+		out.Movie = &gen.WishLimit{Limit: m.Limit, Days: m.Days}
+	}
+	if t := l.TV; t != nil {
+		out.Tv = &gen.WishLimit{Limit: t.Limit, Days: t.Days}
 	}
 	return out
 }

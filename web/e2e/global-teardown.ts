@@ -10,6 +10,9 @@ import {
 } from './env';
 import { scanLog, scannedLines } from './log-scan';
 import { pushSubscriptionSecrets } from './mocks';
+import { ARR_API_KEY } from './arr-server.mjs';
+import { SEERR_API_KEY } from './seerr-server.mjs';
+import { TMDB_API_KEY } from './tmdb-server.mjs';
 import { SMTP_PASSWORD } from './smtp-server.mjs';
 import { TELEGRAM_BOT_TOKEN } from './telegram-server.mjs';
 
@@ -56,6 +59,9 @@ export default async function globalTeardown(): Promise<void> {
     guestPassword: GUEST_PASSWORD,
     youtubeKey: YOUTUBE_KEY,
     backupPassphrase: BACKUP_PASSPHRASE,
+    seerrApiKey: SEERR_API_KEY,
+    arrApiKey: ARR_API_KEY,
+    tmdbApiKey: TMDB_API_KEY,
   };
   for (const [index, cookie] of sessionCookies().entries()) {
     secrets[`sessionCookie${index}`] = cookie;

@@ -8,7 +8,7 @@ import { languageName } from './labels';
 import { trailersQuery } from './queries';
 
 /** Adds autoplay to the embed URL: the dialog opens because the viewer asked for the trailer. */
-function autoplay(embedUrl: string): string {
+export function autoplay(embedUrl: string): string {
   try {
     const url = new URL(embedUrl);
     url.searchParams.set('autoplay', '1');

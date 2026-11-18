@@ -20,7 +20,7 @@ services:
     # update check only says that there is one. The optional updater companion
     # (compose.updater.yaml, ADR 0024) takes that step on a click in the administration.
     # `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.40.1}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.41.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -52,6 +52,9 @@ services:
       SLOUCHCAT_FANART_API_KEY: ${SLOUCHCAT_FANART_API_KEY:-}
       SLOUCHCAT_FANART_CLIENT_KEY: ${SLOUCHCAT_FANART_CLIENT_KEY:-}
       SLOUCHCAT_GOOGLEBOOKS_API_KEY: ${SLOUCHCAT_GOOGLEBOOKS_API_KEY:-}
+      # Seerr for wishes (concept 25): address and api key; they win over the administration.
+      SLOUCHCAT_SEERR_URL: ${SLOUCHCAT_SEERR_URL:-}
+      SLOUCHCAT_SEERR_API_KEY: ${SLOUCHCAT_SEERR_API_KEY:-}
       SLOUCHCAT_YOUTUBE_API_KEY: ${SLOUCHCAT_YOUTUBE_API_KEY:-}
       SLOUCHCAT_TRAILER_AI: ${SLOUCHCAT_TRAILER_AI:-off}
       # Trakt client id (M7): the public lists the spotlight row draws from; empty = row hidden.

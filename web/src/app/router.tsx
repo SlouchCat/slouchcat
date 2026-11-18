@@ -18,6 +18,11 @@ import { validateHomeListSearch } from '@/features/catalog/homeListParams';
 import { validateCollectionsParams } from '@/features/discover/collectionsParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { validateWatchedParams } from '@/features/discover/watchedParams';
+import {
+  validateTitlesParams,
+  validateWishSearchParams,
+} from '@/features/wishes/discover/wishesAreaParams';
+import { validateWishesParams } from '@/features/wishes/wishesParams';
 import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -407,6 +412,14 @@ const maintenanceRoute = createRoute({
   ),
 });
 
+const wishesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/wishes',
+  // `?tab=` selects «Seerr-Benutzer» or «Einstellungen» (concept 25).
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/WishesPage'), 'WishesPage'),
+});
+
 const devicesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/devices',
@@ -643,6 +656,63 @@ const downloadsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/offline/DownloadsPage'), 'DownloadsPage'),
 });
 
+// concept 25: the preview page of a title outside the library and «Meine Wünsche».
+const titleRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/titles/$media/$tmdbId',
+  component: lazyRouteComponent(() => import('@/features/titles/TitlePage'), 'TitlePage'),
+});
+
+const wishesViewerRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/wishes',
+  // state (open, available, closed); anything else is dropped.
+  validateSearch: validateWishesParams,
+  component: lazyRouteComponent(() => import('@/features/wishes/WishesPage'), 'WishesPage'),
+});
+
+// The wishes area (concept 25, 5.4): «Entdecken» with its seven rows.
+const discoverRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover',
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/DiscoverPage'),
+    'DiscoverPage',
+  ),
+});
+
+// «Filme» and «Serien»: sort, genre and «Vorhandene ausblenden» in the URL.
+const discoverMoviesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/movies',
+  validateSearch: validateTitlesParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/TitlesPage'),
+    'WishMoviesPage',
+  ),
+});
+
+const discoverSeriesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/series',
+  validateSearch: validateTitlesParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/TitlesPage'),
+    'WishSeriesPage',
+  ),
+});
+
+// «Suche» of the wishes area: the text in the URL.
+const discoverSearchRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/discover/search',
+  validateSearch: validateWishSearchParams,
+  component: lazyRouteComponent(
+    () => import('@/features/wishes/discover/WishSearchPage'),
+    'WishSearchPage',
+  ),
+});
+
 // discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
 const searchRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -787,6 +857,7 @@ export const routeTree = rootRoute.addChildren([
           metadataRoute,
           audiobookSourcesRoute,
           maintenanceRoute,
+          wishesRoute,
           devicesRoute,
           streamsRoute,
           adminItemRoute,
@@ -818,6 +889,13 @@ export const routeTree = rootRoute.addChildren([
         audioSeriesRoute,
         // concept 16
         radioRoute,
+        // concept 25
+        titleRoute,
+        wishesViewerRoute,
+        discoverRoute,
+        discoverMoviesRoute,
+        discoverSeriesRoute,
+        discoverSearchRoute,
       ]),
       playRoute,
       setupStepRoute,

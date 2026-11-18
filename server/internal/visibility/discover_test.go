@@ -396,6 +396,68 @@ func TestSpotlightRowIntersection(t *testing.T) {
 	}
 }
 
+// Concept 25 N-61, N-70, N-73 (step 3.2): the spotlight recognises library titles by TVDB and IMDb
+// id as well, in the order of the library: a show by TVDB, then TMDB, then IMDb; a film by TMDB,
+// then IMDb. An entry keeps the hits of its best rung only, every title appears at most once, the
+// kind still has to fit, and an entry without a library title (matched or unmatched) never shows,
+// for no profile.
+func TestSpotlightRowMatchesByTVDBAndIMDb(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	series := f.Show.Series.ID
+	// The series is matched TVDB first: it has a TVDB id and no TMDB id. Three films carry IMDb ids.
+	exec(t, f, `UPDATE items SET tmdb_id = NULL, tvdb_id = 5020, imdb_id = 'tt0005020' WHERE id = ?`, series)
+	exec(t, f, `UPDATE items SET imdb_id = 'tt0001000' WHERE id = ?`, f.Rated(0).ID)
+	exec(t, f, `UPDATE items SET imdb_id = 'tt0001006' WHERE id = ?`, f.Rated(6).ID)
+	exec(t, f, `UPDATE items SET imdb_id = 'tt0001016' WHERE id = ?`, f.Rated(16).ID)
+	exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, tvdb_id, imdb_id, fetched_at) VALUES
+	            ('trending', 'movie', 1, 1000, NULL, NULL, ?1),
+	            ('trending', 'movie', 2, 424242, NULL, 'tt0001000', ?1),
+	            ('trending', 'movie', 3, 9999, NULL, 'tt0001006', ?1),
+	            ('trending', 'movie', 4, 1002, NULL, 'tt0001016', ?1),
+	            ('trending', 'movie', 5, 424243, NULL, 'tt0424243', ?1),
+	            ('trending', 'movie', 6, 424244, NULL, 'tt0005020', ?1),
+	            ('trending', 'show', 1, 1020, 5020, NULL, ?1),
+	            ('trending', 'show', 2, NULL, 7777, NULL, ?1),
+	            ('trending', 'show', 3, NULL, 5020, NULL, ?1),
+	            ('trending', 'show', 4, 424245, 7778, 'tt0424245', ?1)`, fetched.UnixMilli())
+	// movie 1: film 0 by TMDB. show 1: the series by TVDB (its stale TMDB id matches nothing).
+	// movie 2: film 0 again by IMDb, left out. show 2: unmatched and not in the library, never.
+	// movie 3: film 6 by IMDb alone. show 3: the series again (unmatched entry, TVDB hit), left out.
+	// movie 4: film 12 by TMDB; its IMDb id names film 16, a weaker rung, which does not ride along.
+	// movie 5 and show 4: missing, never. movie 6: the IMDb id of the series, but a film entry.
+	for _, tc := range []struct {
+		p    model.Profile
+		want []string
+	}{
+		{f.P18, []string{f.Rated(0).ID, series, f.Rated(6).ID, f.Rated(12).ID}},
+		{f.P12, []string{f.Rated(0).ID, series, f.Rated(6).ID, f.Rated(12).ID}},
+		// Films 12 and 16 and the series (rated 12) are invisible to P6: movie 4 has no hit left.
+		{f.P6, []string{f.Rated(0).ID, f.Rated(6).ID}},
+		{f.P0, []string{f.Rated(0).ID}},
+	} {
+		got, hits, err := r.SpotlightRow(ctx, Profile(tc.p), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(got), tc.want) || hits != len(tc.want) {
+			t.Errorf("%s trending = %v (%d hits), want %v", tc.p.Name, ids(got), hits, tc.want)
+		}
+	}
+	// The spotlight list (/lists/spotlight) reads the same rows: no missing entry, no title twice.
+	exec(t, f, `UPDATE spotlight_config SET min_hits = 0`)
+	got, total, ok, err := r.SpotlightPage(ctx, Profile(f.P18), "", 0, MaxLibraryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{f.Rated(0).ID, series, f.Rated(6).ID, f.Rated(12).ID}; !ok || !slices.Equal(ids(got), want) || total != len(want) {
+		t.Errorf("P18 spotlight page = %v (%d, %v), want %v", ids(got), total, ok, want)
+	}
+}
+
 // E-7, AN-3: the spotlight row shows at most the first 20 library hits in list order, even when
 // more of the list is in the library and the caller asks for more.
 func TestSpotlightRowAtMostTwenty(t *testing.T) {

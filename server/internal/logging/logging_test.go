@@ -187,3 +187,65 @@ func TestRedactRadioToken(t *testing.T) {
 		}
 	}
 }
+
+// Concept 25 (rule 10, build plan 1.3): the key of Seerr under every name it travels by and the
+// password of Seerr's user routes never reach the log; X-API-User is a user number and stays.
+func TestRedactSeerrKeys(t *testing.T) {
+	for _, key := range []string{"seerr.api_key", "seerrApiKey", "seerrapikey", "SLOUCHCAT_SEERR_API_KEY", "X-Api-Key",
+		"newPassword", "newpassword", "new_password", "password"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"X-API-User", "seerr.url", "seerr_user_id", "password_state"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("seerr", "seerr.api_key", "seerr-FAKE-key", "seerrApiKey", "seerr-FAKE-key2", "newPassword", "seerr-FAKE-pw",
+		"password", "seerr-FAKE-pw2", "X-API-User", "4242")
+	out := buf.String()
+	for _, secret := range []string{"seerr-FAKE-key", "seerr-FAKE-key2", "seerr-FAKE-pw", "seerr-FAKE-pw2"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, "4242") {
+		t.Errorf("output lost X-API-User: %s", out)
+	}
+}
+
+// Concept 25 stage 4 (rule 10, build step 4.6b): the keys of Radarr and Sonarr, read from Seerr,
+// never reach the log under their own names.
+func TestRedactArrKeys(t *testing.T) {
+	for _, key := range []string{"radarrApiKey", "radarrapikey", "radarr_api_key", "sonarrApiKey", "sonarrapikey", "sonarr.api_key"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"radarr_url", "sonarr_host", "arr_title_id"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("arr", "radarrApiKey", "radarr-FAKE-key", "sonarrApiKey", "sonarr-FAKE-key", "radarr_url", "http://192.0.2.7:7878")
+	out := buf.String()
+	for _, secret := range []string{"radarr-FAKE-key", "sonarr-FAKE-key"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, "192.0.2.7") {
+		t.Errorf("output lost the address: %s", out)
+	}
+}

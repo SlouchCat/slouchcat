@@ -165,3 +165,11 @@ bestehende Pakete hält Regel 2 unberührt.
 4. **Trennung von «Neu hinzugefügt» und «Kürzlich veröffentlicht»** über ein Zeitfenster auf
    `added_at`, falls die Überlappung stört.
 5. **Mehr als 20 Titel je Reihe**: eigener Plan mit Messung über alle Reihen, die `clamp` begrenzt.
+
+## Nachtrag vom 17. November 2026 (Konzept 25, Frage 33, ADR 0038)
+
+S-4 bleibt ohne Ausnahme (Marco, E-5): Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; der
+Schalter «auch Titel ohne Bibliothekstreffer zeigen» bleibt verworfen. Neu erkennt das Spotlight vorhandene Titel
+auch über die TVDB- und die IMDb-ID (Filme über TMDB, dann IMDb; Serien über TVDB, dann TMDB, dann IMDb), damit
+Serien, die in der Bibliothek nur eine TVDB-ID haben, nicht fälschlich fehlen. Fehlende Einträge der Trakt-Liste
+zeigt weiter nur die Verwaltung, neu mit Poster, Zustand und «Anfordern».

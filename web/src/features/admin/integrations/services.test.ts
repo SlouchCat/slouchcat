@@ -13,6 +13,7 @@ describe('integrationHref', () => {
       telegram: '/admin/integrations?item=telegram',
       push: '/admin/integrations?item=push',
       updateCheck: '/admin/integrations?item=server',
+      seerr: '/admin/integrations?item=seerr',
     };
     for (const [key, href] of Object.entries(expected)) {
       expect(integrationHref(key as IntegrationStatus['key']), key).toBe(href);

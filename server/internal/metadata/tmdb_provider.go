@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 // tmdbProvider implements Provider on top of Client with the key of the KeySource, read per
@@ -251,12 +250,7 @@ func (p *tmdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		byLang[l] = tv
 	}
 	tv := byLang[main]
-	certs := map[string]string{}
-	for _, r := range tv.ContentRatings.Results {
-		if code, rating := strings.ToUpper(strings.TrimSpace(r.Country)), strings.TrimSpace(r.Rating); rating != "" {
-			certs[code] = rating
-		}
-	}
+	certs := tvCertifications(tv)
 	runtime := 0
 	for _, rt := range tv.EpisodeRunTime {
 		if rt > 0 {

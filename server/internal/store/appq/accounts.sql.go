@@ -41,7 +41,7 @@ func (q *Queries) ListAccountLibrariesAll(ctx context.Context) ([]AccountLibrary
 const listAccountsAdmin = `-- name: ListAccountsAdmin :many
 
 SELECT id, email, role, is_owner, max_rating, all_libraries, created_at, last_seen_at,
-       max_bitrate_kbps, max_height, max_streams
+       max_bitrate_kbps, max_height, max_streams, can_request
 FROM accounts
 ORDER BY is_owner DESC, role = 'user', created_at DESC, id DESC
 `
@@ -58,6 +58,7 @@ type ListAccountsAdminRow struct {
 	MaxBitrateKbps sql.NullInt64
 	MaxHeight      sql.NullInt64
 	MaxStreams     sql.NullInt64
+	CanRequest     int64
 }
 
 // Accounts as the administration and the account owner see them (M8, A-2; packages auth and
@@ -85,6 +86,7 @@ func (q *Queries) ListAccountsAdmin(ctx context.Context) ([]ListAccountsAdminRow
 			&i.MaxBitrateKbps,
 			&i.MaxHeight,
 			&i.MaxStreams,
+			&i.CanRequest,
 		); err != nil {
 			return nil, err
 		}

@@ -40,6 +40,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // Child-profile contract test (plan 10.2) for every scoped operation of api/openapi.yaml. It runs the
@@ -739,6 +740,51 @@ var profileRegistry = map[string]profileCall{
 		}},
 	// M7 inbox (E-8): the fixture has no entries; contract_notify_test.go covers the visibility of
 	// the entries and the foreign-entry 404.
+	// Concept 25 stage 2 (contract 1.41.0): wishes are off in the fixture, so no profile may request
+	// and no title outside the library exists for it (F-9: 404, the search section empty, createWish
+	// 403 wish_not_allowed disabled). TestContractWishes covers them with Seerr and stored titles.
+	"searchExternalTitles": {contract: "GET /titles/search", path: "/titles/search?q=Fi",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			if !strings.Contains(rec.Body.String(), `"items":[]`) {
+				t.Errorf("%s: search section without the right = %s", token, rec.Body.String())
+			}
+		}},
+	"getExternalTitle": {contract: "GET /titles/{media}/{tmdbId}", path: "/titles/movie/603",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"getExternalTitleImage": {contract: "GET /titles/{media}/{tmdbId}/images/{kind}/{size}", path: "/titles/movie/603/images/poster/w400",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"getWishSeasons": {contract: "GET /titles/show/{tmdbId}/seasons", path: "/titles/show/1399/seasons",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	// Stage 5 (contract 1.41.0): no profile may request in the fixture, so the pages of the wishes
+	// area do not exist (404, F-9); TestContractWishDiscover covers them with a fake Seerr.
+	"getWishDiscover": {contract: "GET /wishes/discover", path: "/wishes/discover",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listWishDiscoverRow": {contract: "GET /wishes/discover/{row}", path: "/wishes/discover/trending?page=2",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listWishTitles": {contract: "GET /wishes/titles/{media}", path: "/wishes/titles/movie?sort=rating",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listWishGenres": {contract: "GET /wishes/genres/{media}", path: "/wishes/genres/show",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"getWishGenreBackdrop": {contract: "GET /wishes/genres/{media}/{genreId}/backdrop", path: "/wishes/genres/movie/28/backdrop",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"searchWishTitles": {contract: "GET /wishes/search", path: "/wishes/search?q=Matrix",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listWishes": {contract: "GET /wishes", path: "/wishes",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"createWish": {contract: "POST /wishes", path: "/wishes", body: `{"media":"movie","tmdbId":603}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusForbidden }},
+	"getWishQuota": {contract: "GET /wishes/quota", path: "/wishes/quota",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
+	"listAccountWishes": {contract: "GET /account/wishes", path: "/account/wishes",
+		want: func(_ *vistest.Fixture, p model.Profile) int {
+			if p.IsPrimary {
+				return http.StatusOK
+			}
+			return http.StatusForbidden
+		}},
+	"withdrawWish": {contract: "DELETE /wishes/{id}", path: "/wishes/9999",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"markNotificationRead": {contract: "PUT /notifications/{id}/read", path: "/notifications/1/read",
@@ -1226,6 +1272,8 @@ type profileFixture struct {
 
 	integrations *integrations.Service // M9 webhook receiver
 
+	wishes *wishes.Service // concept 25: Seerr test, state, users and mapping (no Seerr configured)
+
 	// restarts counts the calls of the fake restart function (restore and restartServer, concept
 	// 11): no test restarts the process.
 	restarts *atomic.Int32
@@ -1329,6 +1377,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)
+	pf.wishes = wishes.New(f.DB, adm, pf.queue, log, wishes.WithLibrary(visibility.New(f.DB, log)), wishes.WithTitles(pods))
+	adm.WithSeerr(pf.wishes)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
@@ -1339,6 +1389,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		Radio:    pf.radio,
 
 		Integrations: pf.integrations,
+		Wishes:       pf.wishes,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf

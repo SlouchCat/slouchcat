@@ -20,7 +20,8 @@ import (
 // EventType).
 var (
 	channelNames = []string{model.ChannelEmail, model.ChannelPush, model.ChannelTelegram}
-	eventNames   = []string{model.EventNewContent, model.EventErrors, model.EventInvitations, model.EventAnnouncements}
+	eventNames   = []string{model.EventNewContent, model.EventErrors, model.EventInvitations, model.EventAnnouncements,
+		model.EventWishAvailable, model.EventWishStatus, model.EventWishReview}
 )
 
 const maxEmailLen = 254
@@ -51,7 +52,8 @@ func parseEvents(raw string) []string {
 
 // EnsureDefaults creates the three channel rows of a new account with the defaults of plan 5.2:
 // e-mail on with announcements for a guest, everything off for the main account (with new content,
-// errors, invitations and announcements chosen). Existing rows stay. auth calls it after CreateOwner
+// errors, invitations and announcements chosen); every account chooses wish available, an
+// administrator also wish review (concept 25 F-14). Existing rows stay. auth calls it after CreateOwner
 // and AcceptInvitation.
 func (s *Service) EnsureDefaults(ctx context.Context, accountID int64) error {
 	if err := s.write.ChannelEnsureDefaults(ctx, systemq.ChannelEnsureDefaultsParams{Now: s.now().UnixMilli(), AccountID: accountID}); err != nil {
@@ -173,7 +175,7 @@ func (s *Service) setting(ctx context.Context, session model.Session, r systemq.
 // e-mail, the recipient (nil or the account's own address = the account's e-mail, also after it
 // changes). Errors: model.ErrPrimaryProfileRequired
 // (requireManager), model.ErrNotFound (unknown channel), *model.ValidationError (unknown event,
-// invalid address), model.ErrEventNotAllowed (errors on a guest account),
+// invalid address), model.ErrEventNotAllowed (errors or wish_review on a guest account),
 // model.ErrChannelUnavailable (switching on a channel the server lacks; switching off is always
 // allowed).
 func (s *Service) UpdateChannel(ctx context.Context, session model.Session, channel string, upd model.ChannelSettingUpdate) (model.ChannelSetting, error) {
@@ -203,7 +205,7 @@ func (s *Service) UpdateChannel(ctx context.Context, session model.Session, chan
 	if verr != nil {
 		return model.ChannelSetting{}, verr
 	}
-	if slices.Contains(events, model.EventErrors) && !session.IsAdmin() {
+	if (slices.Contains(events, model.EventErrors) || slices.Contains(events, model.EventWishReview)) && !session.IsAdmin() {
 		return model.ChannelSetting{}, model.ErrEventNotAllowed
 	}
 	srv := s.serverState(ctx)

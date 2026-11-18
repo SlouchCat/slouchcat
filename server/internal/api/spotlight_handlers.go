@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -66,6 +68,7 @@ func (s *server) GetSpotlightEntries(ctx context.Context, _ gen.GetSpotlightEntr
 	for _, e := range list.Orphans {
 		out.Orphans = append(out.Orphans, toSpotlightEntry(e))
 	}
+	out.Missing = &gen.SpotlightMissing{Entries: list.Missing, Requested: list.Requested, Unmatched: list.Unmatched, CanRequest: list.CanRequest}
 	return gen.GetSpotlightEntries200JSONResponse(out), nil
 }
 
@@ -113,10 +116,31 @@ func toSpotlightConfig(c model.SpotlightConfig) gen.SpotlightConfig {
 }
 
 func toSpotlightEntry(e model.SpotlightEntry) gen.SpotlightEntry {
-	return gen.SpotlightEntry{
-		Media: gen.SpotlightEntryMedia(e.Media), TmdbId: e.TmdbID, Position: e.Position,
+	out := gen.SpotlightEntry{
+		Media: gen.SpotlightEntryMedia(e.Media), Position: e.Position,
 		Title: optString(e.Title), Year: e.Year, ItemId: optString(e.ItemID), ItemTitle: optString(e.ItemTitle),
 		Hidden: e.Hidden, PinnedRank: e.PinnedRank, Note: optString(e.Note), Orphaned: e.Orphaned,
-		PosterUrl: adminPosterURL(e.ItemID, e.PosterHash),
+		PosterUrl: adminPosterURL(e.ItemID, e.PosterHash), ImdbId: optString(e.IMDBID),
+		Unmatched: e.Unmatched, CanOverride: !e.Unmatched, Wish: toWishMark(e.Wish),
 	}
+	if !e.Unmatched {
+		out.TmdbId = &e.TmdbID
+	}
+	if e.TVDBID > 0 {
+		out.TvdbId = &e.TVDBID
+	}
+	if e.Match != "" {
+		m := gen.SpotlightEntryMatch(e.Match)
+		out.Match = &m
+	}
+	if e.CanRequest {
+		out.CanRequest = &e.CanRequest
+	}
+	// A missing entry shows the poster of its stored title outside the library (N-71).
+	if e.ItemID == "" && !e.Unmatched && e.ExternalPoster != "" {
+		u := BasePath + "/admin/titles/" + e.Media + "/" + strconv.FormatInt(e.TmdbID, 10) + "/images/poster/" +
+			model.AdminPosterSize + "?v=" + url.QueryEscape(e.ExternalPoster)
+		out.PosterUrl = &u
+	}
+	return out
 }

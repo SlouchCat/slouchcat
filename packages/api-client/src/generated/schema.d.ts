@@ -4292,6 +4292,30 @@ export interface paths {
         patch: operations["updateAccountAccess"];
         trace?: never;
     };
+    "/admin/accounts/{id}/wish-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the wish limit of an account (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. `default` («Standard») follows the default of the wish settings,
+         *     `custom` («Eigenes») needs `movie` and `tv` (limit 0 to 100, 0 = no limit for that half; days
+         *     1 to 90), `unlimited` («Unbegrenzt») writes limit 0. Slouchcat writes the numbers into the
+         *     four limit fields of the account's Seerr user (job `seerr.provision`), never for a Seerr user
+         *     with MANAGE_USERS (`seerrAdmin`, «Kein Limit»).
+         */
+        put: operations["setAccountWishLimit"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/accounts/{id}/role": {
         parameters: {
             query?: never;
@@ -4654,6 +4678,897 @@ export interface paths {
          *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
          */
         delete: operations["deletePushSubscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The connection to Seerr without its key (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0 (concept 25, wishes through Seerr). The address and the api key of Seerr
+         *     (formerly Jellyseerr); the key is write-only and shows its last four characters. Values of the
+         *     environment (`SLOUCHCAT_SEERR_URL`, `SLOUCHCAT_SEERR_API_KEY`) win and cannot be changed here.
+         */
+        get: operations["getSeerrSettings"];
+        /**
+         * Save the connection to Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Absent fields stay; an empty `apiKey` keeps the stored key; `clear`
+         *     removes the stored address and key. The address is `http` or `https` without user info, query
+         *     or fragment; a trailing `/api/v1` is dropped. An address on another host needs the key again
+         *     (`seerr_key_required`): the stored key never travels to another address. A new address or key
+         *     voids the last connection test, so «Wünsche aktiv» needs a new one; saving queues the refresh of
+         *     the Seerr users.
+         */
+        put: operations["updateSeerrSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the connection to Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Runs the check list against the saved connection or against an address
+         *     and key not saved yet. A host other than the saved one needs `apiKey` (`seerr_key_required`).
+         *     The test never creates or changes anything in Seerr; a warning never fails it (`ok` is false
+         *     only with a failed check). Only a test of the saved values counts for «Wünsche aktiv» and
+         *     compares the instance.
+         */
+        post: operations["testSeerrConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State of the connection to Seerr and its call log (concept 25, contract 1.41.0) */
+        get: operations["getSeerrStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/instance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide about another Seerr instance (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. While another instance is detected under the address no call runs on
+         *     behalf of a user. `confirm` takes over the new instance and keeps every Seerr user of the
+         *     accounts; `reset` removes them and the list of the Seerr users. Both queue the refresh of the
+         *     users.
+         */
+        post: operations["confirmSeerrInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/arr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State of Radarr and Sonarr for the profile tags and the progress (concept 25 stage 4)
+         * @description Since contract 1.41.0 (band «Radarr und Sonarr» of Integrationen › Seerr, data model 4.2
+         *     `ArrStatus`). Reading it may ask Seerr for the addresses (at most every 10 minutes); it never
+         *     calls Radarr or Sonarr and never carries a key.
+         */
+        get: operations["getArrStatus"];
+        /**
+         * Own addresses of Radarr and Sonarr (concept 25 stage 4)
+         * @description Since contract 1.41.0. An own address replaces the one from Seerr for the tags and the
+         *     progress; an empty string goes back to the address from Seerr. An absent field stays. The key
+         *     always comes from Seerr.
+         */
+        put: operations["updateArrSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/arr/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Radarr or Sonarr and confirm its host (concept 25 stage 4)
+         * @description Since contract 1.41.0 («Testen» in the band «Radarr und Sonarr»). Reads address and key from
+         *     Seerr anew (or the own address), asks the tag list of the service and, when it answers with the
+         *     key, confirms the host: only a confirmed host is called by the jobs. Failures of the service
+         *     are in the answer (200); failures of Seerr are problems.
+         */
+        post: operations["testArrConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to enter in Seerr for the instant notice (concept 25 stage 4, F-18)
+         * @description Since contract 1.41.0 (band «Sofortmeldung»). The JSON payload and the notification types to
+         *     tick under Settings › Notifications › Webhook in Seerr. The address is the one an integration of
+         *     the kind `seerr` shows once when it is created or renewed (`createIntegration`); a notice only
+         *     triggers the sync of the wishes.
+         */
+        get: operations["getSeerrWebhookSetup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Seerr user of every account (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Every account with its Seerr user, password state and limit, the Seerr
+         *     users without an account and the shared user «slouchcat-gaeste». Never a key or a password.
+         */
+        get: operations["getWishMappings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The users of Seerr as Slouchcat last read them (concept 25, contract 1.41.0) */
+        get: operations["listSeerrUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reload the users of Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Queues the job `seerr.users` with manual priority.
+         */
+        post: operations["refreshSeerrUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take over the requests made directly in Seerr (concept 25 stage 4, F-21)
+         * @description Since contract 1.41.0 («Anfragen übernehmen»). Queues the job `wishes.import` for one Seerr
+         *     user, or without `seerrUserId` for every user linked to an account. A request of a linked user
+         *     becomes a wish of the origin `seerr` of the account's primary profile.
+         */
+        post: operations["importSeerrRequests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/users/{seerrUserId}/requests/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Number of requests of a Seerr user (concept 25 stage 4)
+         * @description Since contract 1.41.0. For the message after a mapping («3 Anfragen von grosseltern werden
+         *     übernommen»): every request of the user in Seerr, also those the take-over leaves out. The
+         *     shared user counts 0.
+         */
+        get: operations["countSeerrRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/profiles/{profileId}/tag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Tag name of a profile in Radarr and Sonarr (concept 25 stage 4, N-113)
+         * @description Since contract 1.41.0. `null` or an empty name goes back to the name from the prefix and the
+         *     profile name. Only `a–z`, `0–9` and `-`; the name of another profile is refused. A tag already
+         *     set in Radarr or Sonarr stays there (Slouchcat never removes a tag).
+         */
+        put: operations["setProfileTagName"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/mappings/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose the Seerr user of an account by hand, or unlink it (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. A Seerr user chosen by hand keeps its password in Seerr (password state
+         *     `off`, `admin` for an administrator of Seerr, `external` for a sign-in through Plex, Jellyfin
+         *     or Emby) and its rights. `null` unlinks; the user stays in Seerr.
+         */
+        put: operations["setAccountWishMapping"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/accounts/{accountId}/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or link the Seerr user of an account («In Seerr eröffnen», concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. A Seerr user with the same email (any spelling) is linked at once
+         *     (`linked`, `linkedBy: admin`) and keeps its password (`passwordState: off`) and its rights;
+         *     otherwise Slouchcat opens a local user (`created`) with the rights Seerr gives a new user,
+         *     none without the request right of the account, and a random password the account's own
+         *     replaces at its next sign-in (`next_login`). 200 when it is done, 202 with `state: waiting`
+         *     when Seerr was not reached (the job `seerr.provision` tries again) or when the user of the
+         *     same email is not taken on its own (`provisionError` `seerr_user_taken` or
+         *     `seerr_user_privileged`). A privileged user (user 1 or a managing right) is linked only
+         *     with `allowPrivileged=true`, after the administrator confirmed «Dieser Seerr-Benutzer
+         *     verwaltet Seerr»; the job and «Alle eröffnen» never link one.
+         */
+        post: operations["provisionSeerrAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/accounts/{accountId}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch the password sync of one account with Seerr (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. `next_login` («Passwort bei der nächsten Anmeldung neu übernehmen»)
+         *     hands the account's password to its Seerr user at the next sign-in, also for an account an
+         *     administrator linked to an existing user (state `off`, N-103); `off` («Passwort nicht
+         *     abgleichen») never. An administrator of Seerr and a user signing in through Plex, Jellyfin or
+         *     Emby keep their password in Seerr (`password_not_syncable`).
+         */
+        put: operations["setSeerrPasswordMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/accounts/provision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or link the Seerr user of every account without one («Alle eröffnen», concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Queues the job `seerr.provision` for every account without a ready
+         *     Seerr user and says how many of them the last read users link by the email (`link`), how
+         *     many get a new user (`create`) and how many need a choice by hand (`manual`). It never links
+         *     a privileged Seerr user (user 1 or a managing right) and leaves out the accounts that wait
+         *     with `seerr_user_taken` or `seerr_user_privileged`; a privileged user of the same email
+         *     found now makes the account wait with `seerr_user_privileged`. The other rules are those
+         *     of `provisionSeerrAccount`.
+         */
+        post: operations["provisionSeerrAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Settings of the wishes (concept 25, contract 1.41.0) */
+        get: operations["getWishSettings"];
+        /**
+         * Change settings of the wishes (concept 25, contract 1.41.0)
+         * @description Since contract 1.41.0. Absent fields stay; every change applies at once. `enabled` goes on only
+         *     after a successful test of the saved connection (`seerr_not_tested`).
+         */
+        put: operations["setWishSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/seerr/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync the wishes with Seerr now (concept 25 stage 2)
+         * @description Queues the job `wishes.sync` at once (Medien › Wünsche, band «Abgleich»); the answer does not
+         *     wait for it.
+         */
+        post: operations["syncWishesNow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every wish of the household (concept 25 stage 2, Medien › Wünsche › Anfragen)
+         * @description Newest change first, with the requesters (account and profile) and the history. No `ItemRef` and
+         *     no scoped address: a title of the library is named by its `itemId`, its poster comes from
+         *     `getAdminExternalTitleImage` (the stored title outside the library of every wish). `counts`
+         *     count every wish, whatever the filter.
+         */
+        get: operations["listAdminWishes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed wish (concept 25 stage 2, Medien › Wünsche › Anfragen)
+         * @description Since contract 1.41.0 (architecture 8.1, 8.2). Only a wish in the state `failed`, and not one
+         *     that failed because its account was deleted (`account_deleted`). A wish whose request Seerr
+         *     reports as failed (`failReason` `arr_failed`) is retried in Seerr (`POST /request/{id}/retry`)
+         *     and is `processing` again; every other failure goes back to the outbox as `queued` and gets
+         *     24 h anew. 409 `wish_not_retryable` also when another open wish holds the title now or Seerr no
+         *     longer reports the request as failed.
+         */
+        post: operations["retryWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a pending wish in Seerr (concept 25 stage 4, F-16)
+         * @description Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+         *     wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+         *     nothing itself: the state follows Seerr's answer (an approved wish is `processing`). The history names the acting account
+         *     (from the session).
+         */
+        post: operations["approveWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/wishes/{id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a pending wish in Seerr (concept 25 stage 4, F-16)
+         * @description Since contract 1.41.0. Passes the administrator's choice on to Seerr for every request of the
+         *     wish that waits for an approval (the film, or the pending seasons of a series). Slouchcat decides
+         *     nothing itself: the state follows Seerr's answer (a declined wish is closed as `declined`). The history names the acting account
+         *     (from the session).
+         */
+        post: operations["declineWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/titles/{media}/{tmdbId}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a title outside the library for the administration (binary, system-wide)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getAdminItemImage`: without a profile
+         *     check, for the lists of the administration (Anfragen, Spotlight). Sizes and formats as
+         *     `getExternalTitleImage`. 404 for a title Slouchcat has not stored or without such an image.
+         */
+        get: operations["getAdminExternalTitleImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Entdecken» of the wishes area (concept 25 stage 5, N-50, N-51)
+         * @description Since contract 1.41.0. The seven rows in their fixed order with the first page of each, read from
+         *     Seerr on behalf of the Seerr user the profile sends as and cached for an hour (N-54). A row Seerr
+         *     could not read and nothing cached is `stale` and empty; when no row could be read at all the
+         *     answer is 503. Every entry is checked through the visibility with Slouchcat's own age: a
+         *     library title the profile may not see and a missing title above its age never appear.
+         */
+        get: operations["getWishDiscover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/discover/{row}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One page of a row of «Entdecken» (concept 25 stage 5)
+         * @description Since contract 1.41.0. A further page of a title row, or the titles of a genre: `genre` (a TMDB
+         *     genre id from a genre tile) is required on `movie_genres` and `show_genres` and allowed on
+         *     `popular_movies` and `popular_shows`.
+         */
+        get: operations["listWishDiscoverRow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/titles/{media}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The pages «Filme» and «Serien» of the wishes area (concept 25 stage 5, N-52, N-117)
+         * @description Since contract 1.41.0. Films or series by `popularity` (default), `newest` or `rating`
+         *     («Am besten bewertet»), narrowed to a genre; `hideAvailable` («Vorhandene ausblenden») leaves
+         *     out the titles of the library. At most 500 pages (Seerr's limit).
+         */
+        get: operations["listWishTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/genres/{media}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The genres of films or series for the filter of «Filme» and «Serien» (concept 25 stage 5)
+         * @description Since contract 1.41.0. TMDB's genres in the profile's language, cached like a list.
+         */
+        get: operations["listWishGenres"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/genres/{media}/{genreId}/backdrop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The image of a genre tile (concept 25 stage 5)
+         * @description Since contract 1.41.0 (binary, CLAUDE.md rule 6). The backdrop Seerr names for the genre tile of
+         *     «Film-Genres» or «Serien-Genres», fetched from TMDB in w780 on its first request and kept in the
+         *     cache. The server takes the TMDB path only from its own cached genre row of the profile, never
+         *     from the request: a genre without a backdrop or one the row does not list is 404.
+         */
+        get: operations["getWishGenreBackdrop"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The page «Suche» of the wishes area (concept 25 stage 5, N-53)
+         * @description Since contract 1.41.0. Searches over Seerr: any text TMDB knows, or a title by id with `tmdb:`,
+         *     `tvdb:` or `imdb:` (case-insensitive, a blank after the colon allowed). Persons never appear.
+         *     Kept 10 minutes in memory; never `stale`.
+         */
+        get: operations["searchWishTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search section «Noch nicht in der Bibliothek» (concept 25 stage 2, F-11)
+         * @description The titles outside the library that match `q` at TMDB (Slouchcat's own key), as the active profile
+         *     may see them: only for a profile with the request right for the medium and with «Anfordern aus der
+         *     Suche» on, otherwise an empty list (F-9). TMDB's search carries no ratings: the server fetches the
+         *     details of the first 20 hits that are missing or of unknown age (within 3 s) and asks the
+         *     visibility again; a hit whose rating stays unknown counts as 18 and is missing for profiles below
+         *     18. Titles of the library are not part of this list (`search` finds them). The raw hits of TMDB
+         *     are kept 10 minutes. A hit whose details were not fetched has no images and no `minAge`.
+         */
+        get: operations["searchExternalTitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/{media}/{tmdbId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview page of a title outside the library with its wish card (concept 25 stage 2)
+         * @description The title as TMDB describes it (fetched and stored on the first call) with the wish of the active
+         *     profile (`wish`, open, own or joined) or its last closed one (`lastWish`), what it can request now
+         *     (`canRequest`, `requestReason`) and the limit of the Seerr user it sends as (`request.quota`).
+         *     404 when the profile may not see the title as a missing one: rated over its ceiling, unknown rating
+         *     for a profile below 18, no request right for the medium, «Anfordern aus der Suche» and «Anfordern
+         *     auf Detailseiten» both off, unknown at TMDB, or a library title the profile may not see; a profile
+         *     always sees a title it wished for itself (F-9). A library title the profile sees answers 409
+         *     `already_available` with its `item`; the client opens `/items/{id}`.
+         */
+        get: operations["getExternalTitle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/{media}/{tmdbId}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a title outside the library (binary, concept 25 stage 2)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`. The handler checks the
+         *     title like `getExternalTitle` (404 when the profile may not see it, also for a library title,
+         *     whose images come from `getItemImage`) without asking TMDB for the title; the image itself is
+         *     fetched from TMDB and scaled on its first request (never sent from TMDB to the browser). Sizes:
+         *     posters `w200`, `w400`, `w800`; backdrops `w780`, `w1280`, `w1920`; logos `w400`, `w800`. WebP when
+         *     `Accept` lists `image/webp`, else JPEG (a logo PNG), `Vary: Accept`. The address carries no
+         *     content hash: the answer has an `ETag` and `Cache-Control: private, max-age=86400`.
+         */
+        get: operations["getExternalTitleImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/titles/show/{tmdbId}/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons of a series the request dialog offers (concept 25 stage 2, N-63)
+         * @description The seasons Seerr can order (`GET /tv/{tmdbId}`, kept one hour), or TMDB's when Seerr does not
+         *     answer within 3 s (`source` `tmdb_fallback`); season 0 is never offered. Each season is `missing`
+         *     (the profile can request it), `requested` (another open wish holds it: choosing it joins that
+         *     wish) or `available` (the profile plays every episode). For a series of the library only with its
+         *     seasons; 404 without the request right for series, for a missing series the profile may not see
+         *     (rating), a library series it may not see and an unknown TMDB id.
+         */
+        get: operations["getWishSeasons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * «Meine Wünsche» of the active profile (concept 25 stage 2)
+         * @description The wishes of the active profile, its own and those it joined (`role`), newest first. `item` is
+         *     the library title of a fulfilled wish, only when the profile may see it; `external` is the title
+         *     outside the library (its images through `getExternalTitleImage`). `counts` count every wish of
+         *     the profile, whatever the filter.
+         */
+        get: operations["listWishes"];
+        put?: never;
+        /**
+         * Request a title, or join the open wish of another profile (concept 25 stage 2, F-7, F-10)
+         * @description A new wish (201) waits in the outbox and gets one attempt of at most 3 s at once; the state says
+         *     where it stands (`queued`, `pending`, `processing`, or `failed` with `failReason`). The same
+         *     profile asking again or joining an open wish answers 200 (`role` `joined`); a co-wish never
+         *     calls Seerr and never counts against the limit. A series names its `seasons` or sets
+         *     `allSeasons` («Alle fehlenden Staffeln»); when every chosen season joins other wishes, the answer
+         *     is the first of them. 403 `wish_not_allowed` concerns the right to request, not the visibility of
+         *     the title (with `reason`). 409 `quota_exceeded`: the free places of the limit do not reach the film
+         *     or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
+         */
+        post: operations["createWish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/wishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The wishes of every profile of the account (concept 25 stage 2)
+         * @description Since contract 1.41.0. Needs the account's primary profile to be active. One entry per profile
+         *     and wish, newest first, with `profileName`; `item` and `external` as the active (primary)
+         *     profile sees them, so the answer carries `ItemRef` and is scoped. `canWithdraw` and
+         *     `canRequestAgain` are true only on entries of the active profile. `counts` count every entry,
+         *     whatever the filter.
+         */
+        get: operations["listAccountWishes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Limit of the Seerr user the active profile sends as (concept 25 stage 2)
+         * @description From the stored state, without a call to Seerr; `queued` counts the wishes waiting in the outbox
+         *     and `remaining` is what is left after them. Without `at` while Seerr's state was never read. 404
+         *     for a profile without the request right.
+         */
+        get: operations["getWishQuota"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wishes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw a wish (concept 25 stage 2, F-17)
+         * @description A profile that joined withdraws only itself; the owner withdraws the wish while it is not
+         *     approved yet (`queued`, `pending`); Seerr's request goes with it in the background.
+         */
+        delete: operations["withdrawWish"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5670,6 +6585,13 @@ export interface components {
              *     the client prints every age as «ab N»).
              */
             ratingSystem?: components["schemas"]["RatingSystem"];
+            /**
+             * @description Since contract 1.41.0 (concept 25): what the active profile may request through Seerr. The
+             *     server decides (rule 12); with `canRequest` false the client offers no missing titles and no
+             *     request, and shows the entry «Wünsche» only when the profile already has wishes (then only
+             *     «Meine Wünsche», F-9, concept 4.5). Absent without an active profile.
+             */
+            wishes?: components["schemas"]["WishRights"];
         };
         Account: {
             /** Format: int64 */
@@ -5737,6 +6659,12 @@ export interface components {
             subtitleMode: components["schemas"]["SubtitleMode"];
             /** @description The subtitle languages of the profile in order of preference (since contract 1.11.0). */
             subtitleLanguages: components["schemas"]["PlaybackLanguages"];
+            /**
+             * @description Since contract 1.41.0 (concept 25): the request right of the profile, set by the primary
+             *     profile; it applies only when the account has the right too (the cap). Primary profiles
+             *     start with it, further profiles without.
+             */
+            canRequest?: boolean;
         };
         /** @description A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set. */
         ProfileSummary: {
@@ -5781,6 +6709,11 @@ export interface components {
             subtitleMode?: components["schemas"]["SubtitleMode"];
             /** @description The subtitle languages in order of preference (since contract 1.11.0). */
             subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
+            /**
+             * @description Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
+             *     account has no right is refused (422 `canRequest` `account_not_allowed`).
+             */
+            canRequest?: boolean;
         };
         /** @description Partial update; every field is optional and only sent fields change. */
         ProfileUpdate: {
@@ -5806,6 +6739,11 @@ export interface components {
             subtitleMode?: components["schemas"]["SubtitleMode"];
             /** @description The subtitle languages in order of preference (since contract 1.11.0). */
             subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
+            /**
+             * @description Since contract 1.41.0 (concept 25): the request right of the profile. `true` while the
+             *     account has no right is refused (422 `canRequest` `account_not_allowed`).
+             */
+            canRequest?: boolean;
         };
         /**
          * @description A language of the playback preferences as an ISO 639-1 code (`de`, `en`), like `Profile.language`
@@ -5907,6 +6845,13 @@ export interface components {
             allLibraries: boolean;
             /** @description Libraries the guest may see when `allLibraries` is false. */
             libraryIds?: number[];
+            /**
+             * @description Since contract 1.41.0 (concept 25): the request right the new account gets; absent = the
+             *     setting «Neue Konten dürfen anfordern».
+             */
+            canRequest?: boolean;
+            /** @description Since contract 1.41.0. The wish limit the new account gets; absent = `default`. */
+            wishLimit?: components["schemas"]["InvitationWishLimit"];
         };
         /** @enum {string} */
         InvitationState: "open" | "used" | "expired" | "revoked";
@@ -5929,6 +6874,9 @@ export interface components {
              * @description E-mail of the guest account that accepted the link, while that account exists.
              */
             usedByEmail?: string;
+            /** @description Since contract 1.41.0. The request right the account of this invitation gets. */
+            canRequest?: boolean;
+            wishLimit?: components["schemas"]["InvitationWishLimit"];
         };
         InvitationCreated: components["schemas"]["Invitation"] & {
             /**
@@ -5956,6 +6904,14 @@ export interface components {
              *     the household does («FSK 12», «PG-13»); absent from older servers.
              */
             ratingSystem?: components["schemas"]["RatingSystem"];
+            /**
+             * @description Since contract 1.41.0 (concept 25, N-94): true when accepting also opens the account in
+             *     Seerr with the same email and password, so the page says «In Seerr hast du jetzt ein
+             *     Konto mit derselben E-Mail-Adresse.». True only while Seerr has an address and a key and
+             *     is switched on and the wish settings «Neue Konten in Seerr eröffnen» and «Passwort
+             *     abgleichen» are on. It says nothing about the guest's email or whether Seerr knows it.
+             */
+            seerrAccount?: boolean;
         };
         AcceptInvitationRequest: {
             /** Format: email */
@@ -5977,6 +6933,12 @@ export interface components {
              *     replaces all three at once: a field left out clears that limit.
              */
             limits?: components["schemas"]["PlaybackLimits"];
+            /**
+             * @description Since contract 1.41.0 (concept 25): the request right of the account, the cap of all its
+             *     profiles. The only field an administrator account takes (block «Wünsche»); the rights of a
+             *     Seerr user Slouchcat opened follow it.
+             */
+            canRequest?: boolean;
         };
         ItemRatingRequest: {
             /** @description New own rating, or null to drop the manual override. */
@@ -6349,6 +7311,17 @@ export interface components {
             cast?: components["schemas"]["CastMember"][];
             /** @description Trailers known for the title (`getItemTrailers`). */
             trailerCount?: number;
+            /**
+             * @description Since contract 1.41.0 (concept 25 stage 4): the season catalog of a series, only for a
+             *     profile that may request series (F-9) and only when TMDB's seasons are stored.
+             */
+            catalog?: components["schemas"]["SeriesCatalog"];
+            /**
+             * @description Since contract 1.41.0: the profile can request a missing season of this series from its
+             *     page (it may request series, «Anfordern auf Detailseiten» is on, and a missing season is
+             *     free or held by a wish it may join). Absent outside series and without `catalog`.
+             */
+            canRequestSeasons?: boolean;
         };
         /**
          * @description The episode of a series (or of one season) the detail page offers to play next (concept 17
@@ -6499,10 +7472,12 @@ export interface components {
          *     by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
          *     added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
          *     15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
-         *     («Meine Sender», concept 16 stage 2).
+         *     («Meine Sender», concept 16 stage 2). Contract 1.41.0 added `wishes` («Erfüllte Wünsche»,
+         *     concept 25 E-10): the active profile's wishes, own and joined, fulfilled within the last 14
+         *     days, newest first, as `ItemRef` of library titles the profile sees; left out when empty.
          * @enum {string}
          */
-        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio" | "wishes";
         /**
          * @description The rows of the start page whose title leads to a list of its own (`listHomeRow`, contract
          *     1.31.0, concept 20 P-7).
@@ -9347,17 +10322,24 @@ export interface components {
             offset: number;
             limit: number;
         };
+        /**
+         * @description Since contract 1.41.0 (concept 25, breaking): `kind` has the wish kinds and `item` is optional.
+         *     `wish_available` names the film or series in `item`, `wish_season_available` the season;
+         *     `wish_approved`, `wish_declined` and `wish_failed` have `item` only while the library has the
+         *     title and the profile sees it; every wish entry carries `wish`.
+         */
         Notification: {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            kind: "new_episode";
+            kind: "new_episode" | "wish_available" | "wish_season_available" | "wish_approved" | "wish_declined" | "wish_failed";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             readAt?: string;
-            /** @description The new episode. */
-            item: components["schemas"]["ItemRef"];
+            /** @description The new episode, or the title of a wish when the profile sees it. */
+            item?: components["schemas"]["ItemRef"];
+            wish?: components["schemas"]["NotificationWish"];
             /** @description The series or podcast on the watchlist, when still visible. */
             parent?: components["schemas"]["ItemRef"];
         };
@@ -9592,22 +10574,46 @@ export interface components {
             entries: components["schemas"]["SpotlightEntry"][];
             /** @description Overrides of this list whose title is not among the fetched entries any more. */
             orphans: components["schemas"]["SpotlightEntry"][];
+            missing?: components["schemas"]["SpotlightMissing"];
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25, band «Fehlende Einträge»): `entries` counts the entries
+         *     the library lacks (with a TMDB id), `requested` those of them with an open wish, `unmatched`
+         *     the entries TMDB could not resolve (no TMDB id, N-62). `canRequest`: the wishes are set up
+         *     (Seerr with address and key, switched on, «Wünsche aktiv»), so a missing entry can be
+         *     requested (`createWish` of the active profile, `source` `admin_spotlight`). The start page
+         *     and the spotlight list never show missing entries (N-70).
+         */
+        SpotlightMissing: {
+            entries: number;
+            requested: number;
+            unmatched: number;
+            canRequest: boolean;
         };
         /**
          * @description One entry of the fetched list with its library hit and its override. Not an `ItemRef`: the
-         *     administration is system-wide and names the library title by id and title only.
+         *     administration is system-wide and names the library title by id and title only. Since
+         *     contract 1.41.0 an entry carries its TVDB and IMDb ids, and an entry TMDB could not resolve
+         *     (`unmatched`) has no `tmdbId`.
          */
         SpotlightEntry: {
             /** @enum {string} */
             media: "movie" | "show";
-            /** Format: int64 */
-            tmdbId: number;
+            /**
+             * Format: int64
+             * @description Absent on an unmatched entry.
+             */
+            tmdbId?: number;
             /** @description The 1-based rank in the fetched list; 0 for an orphaned override. */
             position: number;
             /** @description The title as Trakt names it. */
             title?: string;
             year?: number;
-            /** @description The library title matched by TMDB id; absent when the library has no such title (never on the start page, S-4). */
+            /**
+             * @description The library title, matched like the start page (concept 25 N-61): a film by TMDB id, then
+             *     IMDb id; a show by TVDB id, then TMDB id, then IMDb id (`match`). Absent when the library
+             *     has no such title: a missing entry, never on the start page (S-4, N-70).
+             */
             itemId?: components["schemas"]["ItemID"];
             itemTitle?: string;
             hidden: boolean;
@@ -9616,8 +10622,41 @@ export interface components {
             note?: string;
             /** @description The override has no entry in the fetched list. */
             orphaned: boolean;
-            /** @description The poster (`w200`) of the library hit through `getAdminItemImage`; absent without hit or poster. */
+            /**
+             * @description The poster (`w200`): of the library hit through `getAdminItemImage`, of a missing entry
+             *     through `getAdminExternalTitleImage` (the stored title outside the library); absent
+             *     without poster.
+             */
             posterUrl?: string;
+            /**
+             * Format: int64
+             * @description The TVDB id Trakt names; absent without.
+             */
+            tvdbId?: number;
+            /** @description The IMDb id Trakt names (`tt…`); absent without. */
+            imdbId?: string;
+            /**
+             * @description The id the library title was found by; absent without hit.
+             * @enum {string}
+             */
+            match?: "tvdb" | "tmdb" | "imdb";
+            /**
+             * @description Trakt names only a TVDB id and TMDB could not resolve it (N-62): «Nicht zuordenbar». Such
+             *     an entry is neither missing nor requestable, and takes no override (`canOverride` false).
+             */
+            unmatched: boolean;
+            /**
+             * @description «Anheften», «Ausblenden» and «Notiz» (`setSpotlightEntryOverride`) apply: false only for
+             *     an unmatched entry, because overrides are kept by TMDB id.
+             */
+            canOverride: boolean;
+            /** @description A missing entry's wish of the title (the open one, else the newest); absent without any. */
+            wish?: components["schemas"]["WishMark"];
+            /**
+             * @description A missing entry can be requested from the administration: the wishes are set up and no open
+             *     wish holds the title. Absent (false) on entries of the library and unmatched ones.
+             */
+            canRequest?: boolean;
         };
         /**
          * @description The override of one entry. A field that is absent keeps its value; `null` clears it. An
@@ -9963,6 +11002,7 @@ export interface components {
              *     of a failed fill per title.
              */
             rejectedKeys: string[];
+            wishes?: components["schemas"]["DashboardWishes"];
         };
         AbortedScan: {
             /** Format: int64 */
@@ -10265,8 +11305,14 @@ export interface components {
             freeBytes: number;
         };
         IntegrationStatus: {
-            /** @enum {string} */
-            key: "tmdb" | "tvdb" | "youtube" | "trakt" | "email" | "push" | "telegram" | "updateCheck";
+            /**
+             * @description `seerr` since contract 1.41.0 (concept 25): `missing` without address or key, `disabled`
+             *     when switched off, `error` when the key is refused, Seerr is unreachable or another
+             *     instance waits for a decision (`detail` `key_invalid`, `unreachable`, `instance_changed`),
+             *     else `configured` (`detail` `untested` before a test or job reached Seerr).
+             * @enum {string}
+             */
+            key: "tmdb" | "tvdb" | "youtube" | "trakt" | "email" | "push" | "telegram" | "updateCheck" | "seerr";
             /**
              * @description `configured` (set and, where checked, working), `missing` (not set), `error` (the last use
              *     failed, see `detail`), `disabled` (switched off, the update check).
@@ -10418,6 +11464,1067 @@ export interface components {
          * @enum {string}
          */
         SettingSource: "env" | "stored" | "none";
+        /** @description Since contract 1.41.0 (concept 25). The connection to Seerr; the key never leaves the server. */
+        SeerrSettings: {
+            /** @description «Seerr verwenden»; off, Slouchcat makes no call to Seerr (the test excepted). */
+            enabled: boolean;
+            /** @description The address, for example `http://192.168.1.50:5055`; absent while none is set. */
+            url?: string;
+            urlSource: components["schemas"]["SettingSource"];
+            apiKey: components["schemas"]["KeyState"];
+        };
+        /** @description Since contract 1.41.0. Absent fields stay. */
+        SeerrSettingsUpdate: {
+            enabled?: boolean;
+            /** @description The new address; an empty string removes it. */
+            url?: string;
+            /** @description The new key; empty keeps the stored one. */
+            apiKey?: string;
+            /** @description Remove the stored address and key («Löschen …»). */
+            clear?: boolean;
+        };
+        /** @description Since contract 1.41.0. Values not saved yet; absent ones are the saved values. */
+        SeerrTestRequest: {
+            url?: string;
+            apiKey?: string;
+        };
+        SeerrCheck: {
+            /**
+             * @description The check (architecture 15.1): `manage_users` judges the rights of the key's user (it never
+             *     creates a user); `password_transport` appears only as a warning, for `http` outside the
+             *     household's network. `radarr_tags` and `sonarr_tags` (stage 4) read the tag list and the
+             *     queue of the service for the profile tags and the progress; warnings at most, `not_confirmed`
+             *     while the address from Seerr waits for «Testen», an `ok` detail says `tag_requests_on` or
+             *     `tag_requests_off`.
+             * @enum {string}
+             */
+            key: "reachable" | "version" | "key_valid" | "manage_users" | "instance" | "act_as_user" | "csrf_off" | "radarr" | "sonarr" | "local_login" | "tvdb_seasons" | "password_transport" | "radarr_tags" | "sonarr_tags";
+            /**
+             * @description A warning never fails the test.
+             * @enum {string}
+             */
+            level: "ok" | "warn" | "fail";
+            /**
+             * @description The version (`version`), the number of servers (`radarr`, `sonarr`), the source of the seasons
+             *     (`tvdb_seasons`), or a code: `not_verified` (a version below Jellyseerr 2.7 or Seerr 3.0),
+             *     `not_testable` (no user besides user 1), `instance_changed`, `not_user_one`, `not_available`,
+             *     `off`, `timeout`, `refused`, `redirect`, `unexpected_answer` (Seerr accepted the empty
+             *     request of the CSRF probe) or an error class.
+             */
+            detail?: string;
+        };
+        SeerrTestResult: {
+            /** @description No check failed. */
+            ok: boolean;
+            version?: string;
+            checks: components["schemas"]["SeerrCheck"][];
+        };
+        /** @description Since contract 1.41.0. The state of the connection, without any key. */
+        SeerrStatus: {
+            /**
+             * @description `untested`: configured, but no test or job reached Seerr yet. `instance_changed`: another
+             *     instance answers under the address; no call runs on behalf of a user until
+             *     `confirmSeerrInstance`.
+             * @enum {string}
+             */
+            state: "not_configured" | "disabled" | "untested" | "connected" | "key_invalid" | "unreachable" | "instance_changed";
+            version?: string;
+            /** Format: date-time */
+            lastSuccess?: string;
+            /** Format: date-time */
+            lastAttempt?: string;
+            /** @description The class of the last error (`unreachable`, `key_invalid`, `redirect`, `timeout`, `server`, …). */
+            lastError?: string;
+            instanceChanged: boolean;
+            /** @description The last test of the saved connection passed; «Wünsche aktiv» may go on. */
+            tested: boolean;
+            counts: {
+                /** @description Open wishes (from stage 2; 0 before). */
+                open: number;
+                /** @description Wishes waiting for the transfer (from stage 2; 0 before). */
+                queued: number;
+                /** @description Accounts that may request without a Seerr user. */
+                unmapped: number;
+            };
+            log: components["schemas"]["SeerrLogEntry"][];
+        };
+        /** @description One call to Seerr; never a header, a body, a key or the host. */
+        SeerrLogEntry: {
+            /** Format: date-time */
+            at: string;
+            method: string;
+            /** @description The path below `/api/v1`, without query. */
+            path: string;
+            /** @description Absent without an answer. */
+            status?: number;
+            /** Format: int64 */
+            durationMs: number;
+            error?: string;
+        };
+        SeerrInstanceDecision: {
+            /** @enum {string} */
+            action: "confirm" | "reset";
+        };
+        /**
+         * @description The limit fields of the user as Seerr holds them: absent = the default of the Seerr instance,
+         *     0 = no limit.
+         */
+        SeerrUserQuota: {
+            movieLimit?: number;
+            movieDays?: number;
+            tvLimit?: number;
+            tvDays?: number;
+        };
+        /** @description Since contract 1.41.0. A user of Seerr; rights derived by the server. */
+        SeerrUser: {
+            id: number;
+            displayName: string;
+            email?: string;
+            /**
+             * @description 1 Plex, 2 local, 3 Jellyfin, 4 Emby; only a local user gets a password from Slouchcat.
+             * @enum {integer}
+             */
+            userType: 1 | 2 | 3 | 4;
+            /** @description ADMIN or MANAGE_USERS in Seerr; no limit, no password sync. */
+            isAdmin: boolean;
+            /**
+             * @description The user administers Seerr («verwaltet Seerr»): user 1 or a user with one of the managing
+             *     rights ADMIN, MANAGE_SETTINGS, MANAGE_USERS or MANAGE_REQUESTS, the rule of the automatic
+             *     linking. The administration marks such a user and asks before it links one by hand; the
+             *     server does not refuse that choice. `isAdmin` stays the narrower limit exemption.
+             */
+            privileged: boolean;
+            canRequestMovies: boolean;
+            canRequestShows: boolean;
+            autoApprove: boolean;
+            /** @description The shared user «slouchcat-gaeste» of the accounts without a Seerr user. */
+            shared: boolean;
+            /** @description Missing in Seerr at the last refresh. */
+            gone: boolean;
+            quota: components["schemas"]["SeerrUserQuota"];
+            mappedTo?: {
+                /** Format: int64 */
+                accountId: number;
+                email: string;
+            };
+        };
+        /**
+         * @description Since contract 1.41.0. A title outside the library is a TMDB film or series.
+         * @enum {string}
+         */
+        ExternalMedia: "movie" | "show";
+        /**
+         * @description Since contract 1.41.0. `queued` waits for the outbox, `pending` waits for an approval in Seerr,
+         *     `processing` is approved and on its way (`stateDetail` `importing`: Seerr has it, Slouchcat reads
+         *     it in), `partial` a series with some wished seasons playable, `available` playable for the
+         *     profile (F-13); closed are `available`, `declined`, `failed` (with `failReason`) and `withdrawn`.
+         * @enum {string}
+         */
+        WishState: "queued" | "pending" | "processing" | "partial" | "available" | "declined" | "failed" | "withdrawn";
+        /**
+         * @description `importing` «Wird eingelesen» (Seerr reports the title available, Slouchcat cannot play it yet);
+         *     `not_found_in_library` Seerr reports it available for long without a library title.
+         * @enum {string}
+         */
+        WishStateDetail: "importing" | "not_found_in_library";
+        /** @enum {string} */
+        WishFailReason: "quota" | "blocklisted" | "no_permission" | "arr_failed" | "unreachable_24h" | "seerr_request_gone" | "seerr_media_deleted" | "seerr_user_gone" | "tvdb_id_missing" | "account_deleted";
+        /**
+         * @description Why `canRequest` is false: the reasons of `WishRights`, films or series not allowed, `status_only`
+         *     («Bereits angeforderte Titel: Nur Zustand zeigen» and another profile's wish holds it),
+         *     `already_requested` (the profile has an open wish for it, or every season is requested).
+         * @enum {string}
+         */
+        WishRequestReason: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone" | "movies_not_allowed" | "shows_not_allowed" | "status_only" | "already_requested";
+        /**
+         * @description The images of a title outside the library as `ImageRef`, like `ItemImages`: Slouchcat's
+         *     addresses (`getExternalTitleImage`, never TMDB's) with the cache-busting `v` and the profile
+         *     id `p`; a kind without image is absent. TMDB's image is scaled on its first request: until
+         *     then every size of the kind is offered with the nominal height (poster 2:3, backdrop 16:9,
+         *     logo 4:1) and `v` names the fetch of the title; afterwards only the stored sizes (never wider
+         *     than the original) with their real width, height and content hash.
+         */
+        ExternalTitleImages: {
+            /** @description Poster in w400. */
+            poster?: components["schemas"]["ImageRef"];
+            /** @description Poster in w200. */
+            posterSmall?: components["schemas"]["ImageRef"];
+            /** @description Poster in w800. */
+            posterLarge?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w1280. */
+            backdrop?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w780. */
+            backdropSmall?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w1920. */
+            backdropLarge?: components["schemas"]["ImageRef"];
+            /** @description Logo in w400 (PNG or WebP with transparency). */
+            logo?: components["schemas"]["ImageRef"];
+        };
+        /** @description The open wish of the active profile on a title (own or joined). */
+        WishMark: {
+            /** Format: int64 */
+            id: number;
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            /** @description Only on the wish card of `getExternalTitle`. */
+            progress?: components["schemas"]["WishProgress"];
+        };
+        /**
+         * @description Since contract 1.41.0. A title outside the library as it appears in lists (search section, «Meine
+         *     Wünsche»). Never part of the start page or the spotlight (N-70).
+         */
+        ExternalTitleRef: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description In the profile's metadata language, else its interface language, else any. */
+            title: string;
+            year?: number;
+            /** @description The age by the rating countries (ADR 0034); absent when unknown (counts as 18). */
+            minAge?: number;
+            images: components["schemas"]["ExternalTitleImages"];
+            hasTrailer: boolean;
+            wish?: components["schemas"]["WishMark"];
+            /** @description The profile can request it now, or join the open wish of another profile. */
+            canRequest: boolean;
+            requestReason?: components["schemas"]["WishRequestReason"];
+        };
+        ExternalTitlePage: {
+            items: components["schemas"]["ExternalTitleRef"][];
+            total: number;
+        };
+        ExternalTitleSeason: {
+            number: number;
+            episodeCount: number;
+            /** Format: date */
+            airDate?: string;
+            /**
+             * @description `requested`: an open wish of the household holds the season.
+             * @enum {string}
+             */
+            state: "missing" | "requested";
+        };
+        /**
+         * @description Since contract 1.41.0. The preview page of a title outside the library: everything of
+         *     `ExternalTitleRef` and the details, the seasons of a series (season 0 left out), the trailers
+         *     (YouTube keys), the wish card (`request`) and the last closed wish of the profile while it has
+         *     no open one.
+         */
+        ExternalTitle: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            title: string;
+            year?: number;
+            minAge?: number;
+            images: components["schemas"]["ExternalTitleImages"];
+            hasTrailer: boolean;
+            wish?: components["schemas"]["WishMark"];
+            canRequest: boolean;
+            requestReason?: components["schemas"]["WishRequestReason"];
+            originalTitle?: string;
+            overview?: string;
+            tagline?: string;
+            /**
+             * Format: date
+             * @description Release of a film, first air date of a series.
+             */
+            releaseDate?: string;
+            runtimeMinutes?: number;
+            genres: string[];
+            /** @description TMDB's status as delivered (`Returning Series`, `Ended`, `Released` …). */
+            status?: string;
+            seasons: components["schemas"]["ExternalTitleSeason"][];
+            nextEpisode?: components["schemas"]["ExternalEpisode"];
+            trailers: components["schemas"]["ExternalTrailer"][];
+            request: components["schemas"]["WishRequestCard"];
+            lastWish?: components["schemas"]["WishLast"];
+        };
+        ExternalEpisode: {
+            season: number;
+            episode: number;
+            /** Format: date */
+            airDate?: string;
+        };
+        ExternalTrailer: {
+            /** @description YouTube key. */
+            key: string;
+            /** @description The IFrame player URL (youtube-nocookie.com), built as for `Trailer.embedUrl`. */
+            embedUrl: string;
+            lang?: string;
+        };
+        /** @description The wish card of the request dialog. */
+        WishRequestCard: {
+            canRequest: boolean;
+            reason?: components["schemas"]["WishRequestReason"];
+            /** @description Seerr approves the requests of the user the profile sends as at once. */
+            autoApprove: boolean;
+            quota?: components["schemas"]["WishQuota"];
+            /** @description A film only, while the profile has no open wish of its own on it. */
+            shared?: components["schemas"]["WishShared"];
+        };
+        /** @description The newest closed wish of the profile on the title. */
+        WishLast: {
+            /** Format: int64 */
+            id: number;
+            state: components["schemas"]["WishState"];
+            /** Format: date-time */
+            at: string;
+            reason?: components["schemas"]["WishFailReason"];
+        };
+        WishCreate: {
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description The chosen seasons of a series (1 or more); not with a film. */
+            seasons?: number[];
+            /** @description «Alle fehlenden Staffeln» of a series, instead of `seasons`. */
+            allSeasons?: boolean;
+            /**
+             * @description Where the request comes from; `search` and `detail` follow «Anfordern aus der Suche» and
+             *     «Anfordern auf Detailseiten» (`wish_not_allowed` `source_not_allowed` when off).
+             * @enum {string}
+             */
+            source?: "search" | "detail" | "list" | "admin_spotlight";
+        };
+        WishEvent: {
+            /** Format: date-time */
+            at: string;
+            /** @description `created`, `submitted`, `state_changed`, `season_available`, `joined`, `withdrawn` … */
+            kind: string;
+            /** @description JSON details of the event, no secrets. */
+            detail?: string;
+        };
+        WishSeasonState: {
+            number: number;
+            state: components["schemas"]["WishState"];
+        };
+        /** @description Since contract 1.41.0. A wish as the active profile sees it. */
+        Wish: {
+            /** @description The profile of the entry; only in `listAccountWishes`. */
+            profileName?: string;
+            /** Format: int64 */
+            id: number;
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description The title at the time of the wish. */
+            title: string;
+            year?: number;
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            failReason?: components["schemas"]["WishFailReason"];
+            /**
+             * @description `seerr`: taken over from a request made directly in Seerr («In Seerr angelegt», stage 4).
+             * @enum {string}
+             */
+            origin: "slouchcat" | "seerr";
+            /** @enum {string} */
+            role: "owner" | "joined";
+            seasons: components["schemas"]["WishSeasonState"][];
+            external?: components["schemas"]["ExternalTitleRef"];
+            /** @description The library title of the wish, only when the profile may see it. */
+            item?: components["schemas"]["ItemRef"];
+            canWithdraw: boolean;
+            canRequestAgain: boolean;
+            /**
+             * @description `already_approved`: withdrawn too late, Seerr had approved it; the wish goes on.
+             * @enum {string}
+             */
+            hint?: "already_approved";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            availableAt?: string;
+            /** @description Newest first, at most 20. */
+            events: components["schemas"]["WishEvent"][];
+            progress?: components["schemas"]["WishProgress"];
+        };
+        WishCounts: {
+            open: number;
+            pending: number;
+            processing: number;
+            partial: number;
+            available: number;
+            closed: number;
+        };
+        WishPage: {
+            items: components["schemas"]["Wish"][];
+            total: number;
+            counts: components["schemas"]["WishCounts"];
+        };
+        WishSeasons: {
+            /** @enum {string} */
+            source: "seerr" | "tmdb_fallback";
+            seasons: components["schemas"]["WishSeasonOffer"][];
+        };
+        WishSeasonOffer: {
+            number: number;
+            episodeCount: number;
+            /** @enum {string} */
+            state: "missing" | "requested" | "available";
+        };
+        /**
+         * @description Since contract 1.41.0. A problem of the wish operations with its extension: `reason` for
+         *     `wish_not_allowed`, `item` for `already_available`, `quota` and `needed` for `quota_exceeded`.
+         */
+        WishProblem: {
+            /** Format: uri-reference */
+            type: string;
+            title: string;
+            status: number;
+            detail?: string;
+            /** Format: uri-reference */
+            instance?: string;
+            code: string;
+            reason?: string;
+            item?: components["schemas"]["ItemRef"];
+            quota?: components["schemas"]["WishQuota"];
+            needed?: number;
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25 stage 4, N-83). The download progress of a wish in procurement
+         *     as viewers see it: no message of Radarr or Sonarr, no service, no path. Absent when there is
+         *     nothing to show (not found, not readable, older than 5 minutes, «Download-Fortschritt zeigen» off).
+         */
+        WishProgress: {
+            /**
+             * @description «Wird gesucht», «Wird heruntergeladen», «Wird eingelesen», «Download verzögert».
+             * @enum {string}
+             */
+            stage: "search" | "download" | "import" | "stalled";
+            /** @description Only with `download`. */
+            percent?: number;
+            /** @description Only with `download`, when the service knows it. */
+            etaSeconds?: number;
+            episodes?: components["schemas"]["WishProgressEpisodes"];
+            /**
+             * Format: date-time
+             * @description When the queue was read.
+             */
+            readAt: string;
+        };
+        /** @description «x von y Folgen da» of a series wish. */
+        WishProgressEpisodes: {
+            done: number;
+            total: number;
+        };
+        /**
+         * @description Since contract 1.41.0. The progress for the administration: the viewers' fields plus the service,
+         *     its message (shortened, without paths) and the error. `stage` is absent while nothing is known;
+         *     `stale` says «Fortschritt nicht lesbar» (the last read is older than 5 minutes).
+         */
+        AdminWishProgress: {
+            /** @enum {string} */
+            stage?: "search" | "download" | "import" | "stalled";
+            percent?: number;
+            etaSeconds?: number;
+            episodes?: components["schemas"]["WishProgressEpisodes"];
+            /** Format: date-time */
+            readAt?: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @description The message of Radarr or Sonarr (for example the reason of a stalled download). */
+            message?: string;
+            /** @enum {string} */
+            error?: "unreachable" | "not_found" | "incomplete";
+            stale: boolean;
+        };
+        /**
+         * @description Since contract 1.41.0. The profile tag of a requester in Radarr or Sonarr: `set`, `pending` (waits
+         *     for the title in the service) or `failed` with the class of the error. A wish placed directly in
+         *     Seerr has none (N-27).
+         */
+        WishRequesterTag: {
+            /** @example sc-noah */
+            name: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @enum {string} */
+            state: "pending" | "set" | "failed";
+            /** @description The class of the last error (for example `unreachable`, `not_found`), never an address or a key. */
+            lastError?: string;
+            /** Format: date-time */
+            setAt?: string;
+        };
+        /**
+         * @description Since contract 1.41.0 (F-7 «Mitwünschen», functional concept 4.3). The open wish of another
+         *     profile on a film: its state, never who wished it. `canJoin` is true when the profile may
+         *     join it («Benachrichtige mich», no limit used); false with «Bereits angeforderte Titel: Nur
+         *     Zustand zeigen» or without the right for films.
+         */
+        WishShared: {
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            canJoin: boolean;
+        };
+        /** @description A wish of a hint of the overview with its service («Dune (Radarr)»). */
+        WishServiceHint: {
+            /** Format: int64 */
+            wishId: number;
+            title: string;
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+            /** @description Only for a tag that could not be set; the class of the error. */
+            error?: string;
+        };
+        /** @description A profile of the account with its tag name in Radarr and Sonarr (N-113). */
+        WishProfileTag: {
+            /** Format: int64 */
+            profileId: number;
+            /** @description The name of the profile. */
+            name: string;
+            /**
+             * @description The tag name the profile has, or would get at its first tag.
+             * @example sc-noah
+             */
+            tagName: string;
+            /** @description Set by the administrator (`setProfileTagName`). */
+            tagNameCustom: boolean;
+        };
+        ProfileTagRequest: {
+            /** @description The tag name; `null` or empty takes the name from the prefix and the profile name. */
+            name: string | null;
+        };
+        ProfileTag: {
+            /** Format: int64 */
+            profileId: number;
+            name: string;
+            custom: boolean;
+        };
+        /** @description Since contract 1.41.0. Radarr and Sonarr for the profile tags and the progress; never a key. */
+        ArrStatus: {
+            radarr: components["schemas"]["ArrServiceStatus"];
+            sonarr: components["schemas"]["ArrServiceStatus"];
+        };
+        ArrServiceStatus: {
+            /**
+             * @description The address comes from Seerr, is an own one, or there is none.
+             * @enum {string}
+             */
+            source: "seerr" | "own" | "none";
+            /** @description The address the jobs use; absent with `none`. */
+            address?: string;
+            /**
+             * @description The jobs may call it: an own address, or the address from Seerr is the host a test
+             *     confirmed. A new host from Seerr stops the calls until «Testen» confirms it.
+             */
+            confirmed: boolean;
+            /** @description Outcome of the last call; absent before the first. */
+            reachable?: boolean;
+            /** @description «Tag Requests» of the server in Seerr. */
+            tagRequests?: boolean;
+            /** @description The class of the last error of a call or of reading Seerr. */
+            lastError?: string;
+            /** Format: date-time */
+            lastAt?: string;
+            /** @description The tag rows of the service per state. */
+            counts: {
+                set: number;
+                pending: number;
+                failed: number;
+            };
+            progress: {
+                /** @description «Download-Fortschritt zeigen». */
+                enabled: boolean;
+                /** Format: date-time */
+                lastReadAt?: string;
+                /** @description `unreachable` while the queue could not be read. */
+                error?: string;
+                /** @description Wishes with a progress to show. */
+                tracked: number;
+            };
+        };
+        /** @description Absent fields stay; an empty string goes back to the address from Seerr. */
+        ArrSettingsUpdate: {
+            /** @example http://192.168.1.60:7878 */
+            radarrUrl?: string;
+            sonarrUrl?: string;
+        };
+        ArrTestRequest: {
+            /** @enum {string} */
+            service: "radarr" | "sonarr";
+        };
+        /** @description The outcome of testing a service; never a key. */
+        ArrTestResult: {
+            reachable: boolean;
+            keyValid: boolean;
+            /** @description «Tag Requests» of the server in Seerr; absent with an own address. */
+            tagRequests?: boolean;
+            /** @description Scheme and host the test reached; confirmed when `reachable` and `keyValid`. */
+            host?: string;
+            /** @enum {string} */
+            source: "seerr" | "own";
+            /** @description The class of the error when not both are true. */
+            error?: string;
+        };
+        /** @description Since contract 1.41.0. What the administrator enters in Seerr for the instant notice. */
+        SeerrWebhookSetup: {
+            /** @description The template for «JSON Payload»; it sends no name or address of a person. */
+            jsonPayload: string;
+            /** @description Seerr's bit mask of the notification types to tick. */
+            types: number;
+            /**
+             * @description The same types by Seerr's names, in the order of Seerr's list.
+             * @example [
+             *       "MEDIA_PENDING",
+             *       "MEDIA_APPROVED"
+             *     ]
+             */
+            typeNames: string[];
+        };
+        SeerrImportRequest: {
+            /** @description One Seerr user; absent for every user linked to an account. */
+            seerrUserId?: number;
+        };
+        SeerrImportQueued: {
+            /** @description The users whose requests are taken over. */
+            queued: number;
+        };
+        SeerrRequestCount: {
+            count: number;
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25 stage 4, M-06). The seasons of a series of the library as the
+         *     active profile may request them: every season TMDB lists (season 0 never) plus every season the
+         *     profile can play. `missing` has aired and the profile can play none of it; `requested` and
+         *     `processing` are missing seasons an open wish holds («Bereits angefordert», «In Beschaffung»);
+         *     `announced` has not aired yet.
+         */
+        SeriesCatalog: {
+            /** @description TMDB's status («Returning Series», «Ended»). */
+            status?: string;
+            inProduction: boolean;
+            seasons: components["schemas"]["SeriesCatalogSeason"][];
+            nextEpisode?: components["schemas"]["SeriesCatalogEpisode"];
+            lastEpisode?: components["schemas"]["SeriesCatalogEpisode"];
+            /** @description «present von total Staffeln vorhanden». */
+            present: number;
+            /** @description Present plus missing seasons (announced ones do not count). */
+            total: number;
+        };
+        SeriesCatalogSeason: {
+            number: number;
+            /** @description Episodes by TMDB; 0 = unknown. */
+            episodeCount: number;
+            /** Format: date */
+            airDate?: string;
+            /** @description Episodes the profile can play. */
+            episodes: number;
+            /** @enum {string} */
+            state: "present" | "missing" | "announced" | "requested" | "processing";
+        };
+        SeriesCatalogEpisode: {
+            season: number;
+            episode: number;
+            /** Format: date */
+            airDate?: string;
+        };
+        /**
+         * @description The rows of «Entdecken» (N-51), in this order.
+         * @enum {string}
+         */
+        DiscoverRowKey: "trending" | "popular_movies" | "movie_genres" | "upcoming_movies" | "popular_shows" | "show_genres" | "upcoming_shows";
+        /**
+         * @description Since contract 1.41.0. One tile of the wishes area. `title` is the title as Slouchcat knows it
+         *     (its own text and images in the profile's language when it has the title stored; an entry it
+         *     does not know yet has no images and the page shows its placeholder). `item` is the library
+         *     title the profile sees («In der Bibliothek»); `title.wish` is the own open wish («Angefordert»);
+         *     `seerrRequested` says Seerr knows a request for it.
+         */
+        DiscoverEntry: {
+            title: components["schemas"]["ExternalTitleRef"];
+            item?: components["schemas"]["ItemRef"];
+            seerrRequested: boolean;
+        };
+        DiscoverGenreTile: {
+            /** @description The TMDB genre id (`genre` of `listWishDiscoverRow`). */
+            id: number;
+            name: string;
+            /** @description Through `getWishGenreBackdrop`; absent when Seerr names none. */
+            backdrop?: components["schemas"]["ImageRef"];
+        };
+        DiscoverRow: {
+            key: components["schemas"]["DiscoverRowKey"];
+            /** @description The first page of a title row; empty on the genre rows. */
+            entries: components["schemas"]["DiscoverEntry"][];
+            /** @description The tiles of `movie_genres` and `show_genres`; empty otherwise. */
+            genres: components["schemas"]["DiscoverGenreTile"][];
+            /** @description The page `listWishDiscoverRow` continues with; absent without one. */
+            nextPage?: number;
+            /** @description Older than an hour because Seerr did not answer, or empty because nothing was cached. */
+            stale: boolean;
+            /** Format: date-time */
+            fetchedAt?: string;
+        };
+        WishDiscover: {
+            rows: components["schemas"]["DiscoverRow"][];
+        };
+        DiscoverPage: {
+            entries: components["schemas"]["DiscoverEntry"][];
+            page: number;
+            /** @description Absent when unknown; at most 500. */
+            totalPages?: number;
+            stale: boolean;
+            /** Format: date-time */
+            fetchedAt: string;
+        };
+        WishGenreList: {
+            items: {
+                id: number;
+                name: string;
+            }[];
+        };
+        AdminWishTitle: {
+            /** @description The library title once found (no `ItemRef`). */
+            itemId?: string;
+            media: components["schemas"]["ExternalMedia"];
+            /** Format: int64 */
+            tmdbId: number;
+            /** Format: int64 */
+            tvdbId?: number;
+            imdbId?: string;
+            title: string;
+            year?: number;
+            /** @description `getAdminExternalTitleImage` in `w200`. */
+            posterUrl: string;
+        };
+        /** @description Since contract 1.41.0. A wish in the administration; no `ItemRef`. */
+        AdminWish: {
+            /** Format: int64 */
+            id: number;
+            title: components["schemas"]["AdminWishTitle"];
+            state: components["schemas"]["WishState"];
+            stateDetail?: components["schemas"]["WishStateDetail"];
+            failReason?: components["schemas"]["WishFailReason"];
+            /** @enum {string} */
+            origin: "slouchcat" | "seerr";
+            seasons: components["schemas"]["AdminWishSeason"][];
+            requesters: components["schemas"]["AdminWishRequester"][];
+            /** @description The Seerr user the wish went out as. */
+            seerrUserId?: number;
+            /** @description Its display name from the stored list of Seerr users; absent when unknown. */
+            seerrUserName?: string;
+            /** @description The request of a film; a series has its requests in `seasons[].seerrRequestId`. */
+            seerrRequestId?: number;
+            progress?: components["schemas"]["AdminWishProgress"];
+            /** @description Attempts of the outbox. */
+            attempts: number;
+            events: components["schemas"]["WishEvent"][];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            availableAt?: string;
+        };
+        AdminWishSeason: {
+            number: number;
+            state: components["schemas"]["WishState"];
+            seerrRequestId?: number;
+        };
+        AdminWishRequester: {
+            /** Format: int64 */
+            accountId: number;
+            accountEmail: string;
+            /** Format: int64 */
+            profileId: number;
+            profileName: string;
+            /** @enum {string} */
+            role: "owner" | "joined";
+            /** @description The profile withdrew itself. */
+            closed: boolean;
+            tag?: components["schemas"]["WishRequesterTag"];
+        };
+        AdminWishPage: {
+            items: components["schemas"]["AdminWish"][];
+            total: number;
+            counts: components["schemas"]["WishCounts"];
+        };
+        /** @description The wish of an inbox entry about a wish (concept 25, contract 1.41.0). */
+        NotificationWish: {
+            /** Format: int64 */
+            id: number;
+            media: components["schemas"]["ExternalMedia"];
+            /** @description The title at the time of the wish. */
+            title: string;
+            state: components["schemas"]["WishState"];
+        };
+        WishLimit: {
+            /** @description Titles (films) or seasons (series); 0 = no limit. */
+            limit: number;
+            days: number;
+        };
+        WishLimits: {
+            movie: components["schemas"]["WishLimit"];
+            tv: components["schemas"]["WishLimit"];
+        };
+        /** @description The limit of an account; `effective` is the one that applies. */
+        AccountWishLimit: {
+            /** @enum {string} */
+            mode: "default" | "custom" | "unlimited";
+            movie?: components["schemas"]["WishLimit"];
+            tv?: components["schemas"]["WishLimit"];
+            effective: components["schemas"]["WishLimits"];
+            /** @description The Seerr user is an administrator and has no limit in Seerr. */
+            seerrAdmin: boolean;
+        };
+        /** @description Since contract 1.41.0. The request right of a profile (concept 25, users and profiles 9). */
+        WishRights: {
+            /** @description Wishes are switched on and Seerr is set up. */
+            enabled: boolean;
+            canRequest: boolean;
+            /**
+             * @description Why `canRequest` is false.
+             * @enum {string}
+             */
+            reason?: "disabled" | "account_not_allowed" | "profile_not_allowed" | "no_mapping" | "seerr_user_gone";
+            /** @description Films may be requested («Filme erlauben» and the right of the Seerr user). */
+            movies: boolean;
+            shows: boolean;
+            /**
+             * @description Since contract 1.41.0 (stage 5): the pages «Entdecken», «Filme», «Serien» and «Suche» of the
+             *     wishes area are visible (the profile may request and the pages are on, N-56, N-57).
+             */
+            discover?: boolean;
+        };
+        /** @description Since contract 1.41.0. The wish limit an invitation hands to its account. */
+        InvitationWishLimit: {
+            /** @enum {string} */
+            mode: "default" | "custom" | "unlimited";
+            movie?: components["schemas"]["WishLimit"];
+            tv?: components["schemas"]["WishLimit"];
+        };
+        /** @description Since contract 1.41.0. The Seerr user of an account as the account list shows it. */
+        AccountSeerrUser: {
+            id?: number;
+            displayName?: string;
+            /** @enum {string} */
+            state: "created" | "linked" | "manual" | "waiting";
+            /** @enum {string} */
+            passwordState?: "synced" | "next_login" | "off" | "admin" | "external";
+            /** @enum {string} */
+            linkedBy?: "admin" | "invite" | "email_change";
+            /** Format: date-time */
+            linkedAt?: string;
+        };
+        /**
+         * @description Since contract 1.41.0 (concept 25, administration 2): the hints of the wishes; absent while
+         *     Seerr is not set up. Every list is empty instead of absent.
+         */
+        DashboardWishes: {
+            /** @description Open wishes of the household («Offene Wünsche», stage 2). */
+            open: number;
+            /** @description Of them, the wishes still waiting for the outbox. */
+            queued: number;
+            /**
+             * @description «Seerr nicht erreichbar» or «Andere Seerr-Instanz erkannt»; absent when Seerr answers.
+             * @enum {string}
+             */
+            seerrState?: "key_invalid" | "unreachable" | "instance_changed";
+            /** @description Accounts with the request right and no ready Seerr user («n Konten ohne Seerr-Benutzer»). */
+            unmapped: number;
+            /** @description They send through the shared user meanwhile («Konten ohne Seerr-Benutzer» = «Sammelbenutzer»). */
+            unmappedFallback: boolean;
+            /** @description «Neu verknüpft» for seven days after an invitation or an email change (N-93), newest first. */
+            linked: components["schemas"]["WishLinkHint"][];
+            /** @description Accounts whose limit for films or seasons is used up, by the last state of Seerr. */
+            quotaReached: components["schemas"]["WishQuotaHint"][];
+            /** @description Accounts whose Seerr user is gone from Seerr. */
+            goneUsers: number;
+            /**
+             * @description «n Wünsche ohne Profil-Tag» (stage 4): tags that could not be set, once per wish and service,
+             *     newest first, at most 20; a tag that waits for the title does not count.
+             */
+            tagsFailed: components["schemas"]["WishServiceHint"][];
+            /**
+             * @description «n Downloads verzögert» (stage 4): wishes whose download Radarr or Sonarr reports stalled by a
+             *     read of the last 5 minutes, newest first, at most 20; without the message of the service.
+             */
+            downloadsStalled: components["schemas"]["WishServiceHint"][];
+        };
+        WishLinkHint: {
+            /** Format: int64 */
+            accountId: number;
+            accountEmail: string;
+            seerrUserId: number;
+            seerrDisplayName: string;
+            /** @enum {string} */
+            linkedBy: "invite" | "email_change";
+            /** Format: date-time */
+            linkedAt: string;
+        };
+        WishQuotaHint: {
+            /** Format: int64 */
+            accountId: number;
+            accountEmail: string;
+            movie?: components["schemas"]["WishQuotaPart"];
+            tv?: components["schemas"]["WishQuotaPart"];
+        };
+        /** @description Since contract 1.41.0. The limit an administrator sets for an account. */
+        AccountWishLimitRequest: {
+            /** @enum {string} */
+            mode: "default" | "custom" | "unlimited";
+            movie?: components["schemas"]["WishLimit"];
+            tv?: components["schemas"]["WishLimit"];
+        };
+        WishQuotaPart: {
+            limit: number;
+            days: number;
+            /** @description Counted by Seerr in the window, also requests made directly in Seerr. */
+            used: number;
+            /** @description Wishes still waiting for the outbox (from stage 2; 0 before). */
+            queued: number;
+            remaining: number;
+            /**
+             * Format: date-time
+             * @description When the next place is free; only when at most one place is left.
+             */
+            nextFreeAt?: string;
+        };
+        /**
+         * @description Since contract 1.41.0. The limit state of a Seerr user as Seerr last reported it. `unlimited`
+         *     with `reason` `admin` («Kein Limit», MANAGE_USERS) or `no_limit` («Unbegrenzt»); a half with
+         *     limit 0 is absent.
+         */
+        WishQuota: {
+            unlimited: boolean;
+            /** @enum {string} */
+            reason?: "admin" | "no_limit";
+            movie?: components["schemas"]["WishQuotaPart"];
+            tv?: components["schemas"]["WishQuotaPart"];
+            /** Format: date-time */
+            at?: string;
+        };
+        /** @description Since contract 1.41.0. The Seerr user of one account. */
+        WishAccountMapping: {
+            /** Format: int64 */
+            accountId: number;
+            email: string;
+            /** @description The cap of the account. */
+            canRequest: boolean;
+            seerrUserId?: number;
+            /**
+             * @description Opened by Slouchcat, linked by the same email, chosen by hand, waiting for Seerr, not opened.
+             * @enum {string}
+             */
+            state: "created" | "linked" | "manual" | "waiting" | "none";
+            /** @enum {string} */
+            passwordState?: "synced" | "next_login" | "off" | "admin" | "external";
+            /** Format: date-time */
+            passwordSyncedAt?: string;
+            /** @enum {string} */
+            linkedBy?: "admin" | "invite" | "email_change";
+            /** Format: date-time */
+            linkedAt?: string;
+            /**
+             * @description Why the account waits: the class of the error while Seerr was not reached or refused
+             *     (`redirect` … `failed`, `instance_changed`), or a Seerr user of the same email that
+             *     Slouchcat does not take on its own: `seerr_user_taken` (it belongs to another account
+             *     or is the shared user) or `seerr_user_privileged` (user 1 or a user with a managing
+             *     right: ADMIN, MANAGE_USERS, MANAGE_SETTINGS, MANAGE_REQUESTS). Both wait for the
+             *     administrator: the choice by hand, or for `seerr_user_privileged` also
+             *     `provisionSeerrAccount` with `allowPrivileged`. On a ready user `email_taken`: Seerr
+             *     refused the account's new email because another Seerr user has it; the user stayed
+             *     unchanged.
+             * @enum {string}
+             */
+            provisionError?: "redirect" | "unreachable" | "key_invalid" | "access_denied" | "csrf" | "quota" | "no_permission" | "forbidden" | "not_found" | "conflict" | "server" | "bad_request" | "timeout" | "failed" | "instance_changed" | "seerr_user_taken" | "seerr_user_privileged" | "email_taken";
+            limit: components["schemas"]["AccountWishLimit"];
+            quota?: components["schemas"]["WishQuota"];
+            /** @description The profiles of the account with their tag names (stage 4, F-27, N-113). */
+            profiles?: components["schemas"]["WishProfileTag"][];
+        };
+        WishMappings: {
+            accounts: components["schemas"]["WishAccountMapping"][];
+            /** @description Seerr users without an account, the shared user excepted. */
+            unlinkedUsers: components["schemas"]["SeerrUser"][];
+            sharedUser?: components["schemas"]["SeerrUser"];
+            sharedQuota?: components["schemas"]["WishQuota"];
+            /** @description Accounts with a ready Seerr user. */
+            opened: number;
+            total: number;
+        };
+        SeerrPasswordModeRequest: {
+            /** @enum {string} */
+            mode: "next_login" | "off";
+        };
+        /** @description Since contract 1.41.0. The answer of «Alle eröffnen». */
+        ProvisionSeerrAccountsResult: {
+            /** @description Accounts a Seerr user with the same email is linked to. */
+            link: number;
+            /** @description Accounts that get a new Seerr user. */
+            create: number;
+            /**
+             * @description Accounts whose Seerr user of the same email is taken or privileged: they need a choice
+             *     by hand («n Konten brauchen eine Wahl von Hand»); not queued when they wait already.
+             */
+            manual: number;
+        };
+        AccountWishMappingRequest: {
+            /** @description The Seerr user; `null` unlinks. */
+            seerrUserId: number | null;
+        };
+        /** @description Since contract 1.41.0 (data model 2.12). The settings of Medien › Wünsche › Einstellungen. */
+        WishSettings: {
+            /** @description «Wünsche aktiv»; off by default, on only after a successful test. */
+            enabled: boolean;
+            allowMovies: boolean;
+            allowShows: boolean;
+            fromSearch: boolean;
+            fromDetail: boolean;
+            /** @enum {string} */
+            alreadyRequested: "join" | "status";
+            /**
+             * @description Accounts without a Seerr user send as the shared user «slouchcat-gaeste» (`fallback`, the default) or not at all.
+             * @enum {string}
+             */
+            unmapped: "fallback" | "deny";
+            newAccountsCanRequest: boolean;
+            allowWithdraw: boolean;
+            pinExternalHideTitle: boolean;
+            /** @description «Neue Konten in Seerr eröffnen». */
+            provisionAccounts: boolean;
+            /** @description «Passwort abgleichen». */
+            syncPassword: boolean;
+            defaultLimit: components["schemas"]["WishLimits"];
+            /** @description «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default). */
+            profileTags: boolean;
+            /** @description «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`. */
+            tagPrefix: string;
+            /** @description «Download-Fortschritt zeigen» (stage 4, on by default, N-86). */
+            showProgress: boolean;
+            /** @description «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57). */
+            discoverPages: boolean;
+        };
+        /** @description Since contract 1.41.0. Absent fields stay. */
+        WishSettingsUpdate: {
+            enabled?: boolean;
+            allowMovies?: boolean;
+            allowShows?: boolean;
+            fromSearch?: boolean;
+            fromDetail?: boolean;
+            /** @enum {string} */
+            alreadyRequested?: "join" | "status";
+            /** @enum {string} */
+            unmapped?: "fallback" | "deny";
+            newAccountsCanRequest?: boolean;
+            allowWithdraw?: boolean;
+            pinExternalHideTitle?: boolean;
+            provisionAccounts?: boolean;
+            syncPassword?: boolean;
+            defaultLimit?: components["schemas"]["WishLimits"];
+            /** @description «Profil-Tag in Radarr und Sonarr setzen» (stage 4, on by default). */
+            profileTags?: boolean;
+            /** @description «Präfix» of the tag names (stage 4, default `sc-`, N-21); another value is `validation_failed` on `tagPrefix`. */
+            tagPrefix?: string;
+            /** @description «Download-Fortschritt zeigen» (stage 4, on by default, N-86). */
+            showProgress?: boolean;
+            /** @description «Seiten Entdecken, Filme, Serien und Suche» (stage 5, N-57). */
+            discoverPages?: boolean;
+        };
         KeyState: {
             source: components["schemas"]["SettingSource"];
             /** @description The last four characters of a stored key; absent for keys from the environment. */
@@ -10662,6 +12769,17 @@ export interface components {
              *     profile of the account. `watchLimitMinutes` is a profile setting and always absent here.
              */
             limits: components["schemas"]["PlaybackLimits"];
+            /** @description Since contract 1.41.0. The request right of the account (concept 25). */
+            canRequest?: boolean;
+            /**
+             * @description Since contract 1.41.0. The chip of the account: `allowed` (right and a ready Seerr user),
+             *     `not_allowed` (no right), `mapping_missing` (right, but no ready Seerr user: it sends through
+             *     the shared user or, with «Nicht erlauben», cannot request). Absent while Seerr is not set up.
+             * @enum {string}
+             */
+            wishState?: "allowed" | "not_allowed" | "mapping_missing";
+            seerrUser?: components["schemas"]["AccountSeerrUser"];
+            wishLimit?: components["schemas"]["AccountWishLimit"];
         };
         /**
          * @description The role an account should have (`setAccountRole`). There is no field for the owner badge:
@@ -10692,9 +12810,13 @@ export interface components {
          *     prefixed with the profile name);
          *     `errors`: failures the main user should see (main account only); `invitations`: an
          *     invitation was accepted; `announcements`: the main user published an announcement.
+         *     Since contract 1.41.0 (concept 25, F-14; breaking): `wish_available` a wish of a profile can be
+         *     played (per profile, on by default), `wish_status` Seerr approved or declined a wish or it
+         *     failed (per profile, off by default), `wish_review` a wish waits for an approval in Seerr
+         *     (administrators only, like `errors`; `event_not_allowed` for others).
          * @enum {string}
          */
-        EventType: "new_content" | "errors" | "invitations" | "announcements";
+        EventType: "new_content" | "errors" | "invitations" | "announcements" | "wish_available" | "wish_status" | "wish_review";
         ChannelSettings: {
             /** @description email, push and telegram, in this order. */
             channels: components["schemas"]["ChannelSetting"][];
@@ -10890,10 +13012,24 @@ export interface components {
             watchedMs: number;
         };
         /**
-         * @description The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
-         *     is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+         * @description The body Radarr, Sonarr or Seerr sends. Only `eventType`, the directory and Seerr's
+         *     `notification_type` are read; every other field is accepted and ignored, so a new field of a
+         *     later version breaks nothing (I-8). Seerr's default payload (`media`, `request`, `extra` …) and
+         *     the template of `getSeerrWebhookSetup` both pass; a Seerr notice only triggers the wish sync,
+         *     nothing of its body decides a state.
          */
         WebhookPayload: {
+            /**
+             * @description Seerr's notification type (`MEDIA_PENDING`, `TEST_NOTIFICATION` …); it names the log entry.
+             * @example MEDIA_APPROVED
+             */
+            notification_type?: string;
+            /** @description Seerr's media object (any shape, not read). */
+            media?: unknown;
+            /** @description Seerr's request object (any shape, not read). */
+            request?: unknown;
+            /** @description Seerr's extra fields (any shape, not read). */
+            extra?: unknown;
             /**
              * @description The event as the service names it: `Download`, `Rename`, `MovieFileDelete`,
              *     `EpisodeFileDelete`, `MovieDelete`, `SeriesDelete`, `Test`, `Grab`, `Health` …
@@ -10927,10 +13063,11 @@ export interface components {
         WebhookResult: {
             /**
              * @description `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
-             *     event of Radarr or Sonarr; `ignored`: an event without an effect here.
+             *     event of Radarr or Sonarr or the test notification of Seerr; `ignored`: an event without an
+             *     effect here; `sync_queued`: a notification of Seerr queued (or joined) a run of the wish sync.
              * @enum {string}
              */
-            result: "scan_queued" | "acknowledged" | "ignored";
+            result: "scan_queued" | "acknowledged" | "ignored" | "sync_queued";
             /**
              * @description The directory that is scanned, after the path mapping; only with `scan_queued`.
              * @example /media/Filme/Dune (2021)
@@ -10943,8 +13080,11 @@ export interface components {
             id: number;
             /** @example Radarr */
             name: string;
-            /** @enum {string} */
-            kind: "radarr" | "sonarr";
+            /**
+             * @description `seerr`: the instant notice of Seerr (stage 4, F-18), a trigger of the wish sync only.
+             * @enum {string}
+             */
+            kind: "radarr" | "sonarr" | "seerr";
             /** @description Last four characters of the token, so an address can be recognised in a list. */
             tokenTail: string;
             /** @description Prefix pairs, longest match wins; empty by default. */
@@ -10974,7 +13114,7 @@ export interface components {
         IntegrationRequest: {
             name: string;
             /** @enum {string} */
-            kind: "radarr" | "sonarr";
+            kind: "radarr" | "sonarr" | "seerr";
         };
         /** @description Translates a prefix of the reported path into a prefix on this server. */
         PathMapping: {
@@ -11009,11 +13149,12 @@ export interface components {
             resolvedPath?: string;
             /**
              * @description `scan_queued`: a targeted scan runs; `acknowledged`: the Test event; `ignored`: no effect;
+             *     `sync_queued`: a notification of Seerr queued the wish sync;
              *     `outside_roots`: the mapped path lies under no library root; `invalid_payload`: an acting
              *     event without a directory.
              * @enum {string}
              */
-            result: "scan_queued" | "acknowledged" | "ignored" | "outside_roots" | "invalid_payload";
+            result: "scan_queued" | "acknowledged" | "ignored" | "outside_roots" | "invalid_payload" | "sync_queued";
         };
         /** @description The "Webhooks" tile of the dashboard (A-3, decision 5.6). */
         WebhookTileStatus: {
@@ -11832,6 +13973,18 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Film (`movie`) or series (`show`) of TMDB. */
+        ExternalMediaPath: components["schemas"]["ExternalMedia"];
+        TmdbIdPath: number;
+        ExternalImageKindPath: components["schemas"]["ImageKind"];
+        ExternalImageSizePath: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920";
+        /**
+         * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+         *     or `all` (the default).
+         */
+        WishStateFilter: "open" | "available" | "closed" | "all";
+        WishPageOffset: number;
+        WishPageLimit: number;
         ProfileID: number;
         AccountID: number;
         InvitationID: number;
@@ -19680,6 +21833,52 @@ export interface operations {
             };
         };
     };
+    setAccountWishLimit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountWishLimitRequest"];
+            };
+        };
+        responses: {
+            /** @description The limit of the account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountWishLimit"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     setAccountRole: {
         parameters: {
             query?: never;
@@ -20150,7 +22349,7 @@ export interface operations {
             };
             /**
              * @description `channel_unavailable` (the server has the channel not configured; switching it off is always
-             *     allowed), `event_not_allowed` (`errors` on a guest account), `validation_failed`
+             *     allowed), `event_not_allowed` (`errors` or `wish_review` on an account that is no administrator), `validation_failed`
              *     (`email.address` `invalid_email`, an unknown event).
              */
             422: {
@@ -20375,6 +22574,2091 @@ export interface operations {
             403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown or of another account (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateSeerrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The saved connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `validation_failed` (field `url` with code `seerr_url_invalid`, `apiKey` too long),
+             *     `seerr_key_required` (another host without a key) or `env_wins` (the value comes from the
+             *     environment; the field names it).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testSeerrConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SeerrTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The check list, also when single checks failed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `seerr_not_configured` (no address or key), `seerr_key_required` or `validation_failed`
+             *     (field `url`, code `seerr_url_invalid`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state, the counters and the last 20 calls. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    confirmSeerrInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrInstanceDecision"];
+            };
+        };
+        responses: {
+            /** @description The state after the decision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No other instance waits for a decision (`instance_unchanged`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getArrStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Both services. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateArrSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArrSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The state after saving. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description An address that is no http(s) URL or carries user details (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testArrConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArrTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The outcome of the test. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArrTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Another Seerr instance waits for a decision (`seerr_instance_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown service (`validation_failed`) or Seerr has no address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSeerrWebhookSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings for Seerr. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrWebhookSetup"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    getWishMappings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The mappings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishMappings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listSeerrUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every known Seerr user, by id. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrUser"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    refreshSeerrUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    importSeerrRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SeerrImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrImportQueued"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The Seerr user belongs to no account, or is the shared user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    countSeerrRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                seerrUserId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The number. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeerrRequestCount"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Another Seerr instance waits for a decision (`seerr_instance_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setProfileTagName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileTagRequest"];
+            };
+        };
+        responses: {
+            /** @description The tag name the profile has now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileTag"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Another profile has this tag name (`tag_name_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A name with other characters or too long (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setAccountWishMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountWishMappingRequest"];
+            };
+        };
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account or Seerr user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The Seerr user belongs to another account, is the shared user or is gone from Seerr
+             *     (`seerr_user_taken`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    provisionSeerrAccount: {
+        parameters: {
+            query?: {
+                /** @description Link the user of the same email also when it administers Seerr (confirmed by the administrator). */
+                allowPrivileged?: boolean;
+            };
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            /**
+             * @description The account waits (state `waiting`, `provisionError`): Seerr was not reached, or the user
+             *     of the same email is taken or privileged.
+             */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description «Neue Konten in Seerr eröffnen» is off (`provision_disabled`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setSeerrPasswordMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeerrPasswordModeRequest"];
+            };
+        };
+        responses: {
+            /** @description The account with its Seerr user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishAccountMapping"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account or no ready Seerr user (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The password of this Seerr user is not synced (`password_not_syncable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    provisionSeerrAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionSeerrAccountsResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description «Neue Konten in Seerr eröffnen» is off (`provision_disabled`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setWishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description «Wünsche aktiv» needs a successful test of the saved connection (`seerr_not_tested`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; counts 0 to 100, days 1 to 90). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    syncWishesNow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The job type is paused (`job_type_paused`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr is not set up (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                /**
+                 * @description Only the wishes without a requester in Slouchcat (taken over from Seerr, or whose profiles are
+                 *     gone).
+                 */
+                unmapped?: boolean;
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    retryWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish is retried (in Seerr, or queued in the outbox). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The wish cannot be retried (`wish_not_retryable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr has no address or key (`seerr_not_configured`; only for `arr_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Seerr did not answer, is switched off or waits for a confirmed instance (`seerr_unreachable`;
+             *     only for `arr_failed`).
+             */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    approveWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish as the administration sees it after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The wish is not pending, or Seerr says none of its requests is pending any more
+             *     (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer or is switched off (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    declineWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wish as the administration sees it after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown wish (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The wish is not pending, or Seerr says none of its requests is pending any more
+             *     (`wish_not_pending`); or another Seerr instance waits for a decision (`seerr_instance_changed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No address or key (`seerr_not_configured`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr answered with an error (`seerr_failed`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer or is switched off (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminExternalTitleImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+                kind: components["parameters"]["ExternalImageKindPath"];
+                size: components["parameters"]["ExternalImageSizePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description The image did not change (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such title or image (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishDiscover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishDiscover"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishDiscoverRow: {
+        parameters: {
+            query?: {
+                page?: number;
+                genre?: number;
+            };
+            header?: never;
+            path: {
+                row: components["schemas"]["DiscoverRowKey"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57), or the row is unknown (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A genre where the row takes none, a missing genre, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishTitles: {
+        parameters: {
+            query?: {
+                sort?: "popularity" | "newest" | "rating";
+                genre?: number;
+                hideAvailable?: boolean;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description An unknown sort, a genre below 1, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishGenres: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The genres. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishGenreList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishGenreBackdrop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media: components["schemas"]["ExternalMedia"];
+                genreId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image (JPEG), `Cache-Control` private for a day with an ETag. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description Not modified (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57), or the genre has no backdrop (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 600 a minute (300 at once, shared with `getExternalTitleImage`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr or TMDB did not answer and nothing is cached (`seerr_unreachable`, `tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchWishTitles: {
+        parameters: {
+            query: {
+                q: string;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No active profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The profile cannot request (F-9) or «Seiten Entdecken, Filme, Serien und Suche» is off (N-56,
+             *     N-57) (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `q` shorter than 2 or longer than 100 characters, a page out of range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 30 a minute of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seerr did not answer and nothing is cached (`seerr_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchExternalTitles: {
+        parameters: {
+            query: {
+                q: string;
+                media?: components["schemas"]["ExternalMedia"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The missing titles, TMDB's order, films first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalTitlePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Validation failed (`validation_failed`; `q` `too_short` or `too_long`, `media` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description More than 30 searches of the profile within a minute (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getExternalTitle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalTitle"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description In the library and visible (`already_available`, with `item`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /**
+             * @description More than 60 a minute (30 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getExternalTitleImage: {
+        parameters: {
+            query?: {
+                /** @description The version of the image (`ExternalTitleImages`) for cache busting; ignored by the server. */
+                v?: string;
+                /** @description The profile id, so a browser cache never serves one profile's image to another; ignored by the server. */
+                p?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Film (`movie`) or series (`show`) of TMDB. */
+                media: components["parameters"]["ExternalMediaPath"];
+                tmdbId: components["parameters"]["TmdbIdPath"];
+                kind: components["parameters"]["ExternalImageKindPath"];
+                size: components["parameters"]["ExternalImageSizePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description The image did not change (`If-None-Match`). */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, or no such image (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 600 a minute (300 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description TMDB did not deliver the image for now (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishSeasons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tmdbId: components["parameters"]["TmdbIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The seasons. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishSeasons"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Not visible or not requestable (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description More than 60 a minute (30 at once, shared with `getExternalTitle`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
+             *     in seconds. A person browsing never reaches it.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Neither Seerr nor TMDB answered (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WishCreate"];
+            };
+        };
+        responses: {
+            /** @description The wish existed (asked again, or joined). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wish"];
+                };
+            };
+            /** @description The new wish. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wish"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description No right to request this (`wish_not_allowed`, `reason`: `disabled`, `account_not_allowed`,
+             *     `profile_not_allowed`, `no_mapping`, `seerr_user_gone`, `movies_not_allowed`, `shows_not_allowed`,
+             *     `source_not_allowed`, `tvdb_id_missing`, `status_only`).
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /** @description Unknown at TMDB or not visible to the profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `already_available` (in the library and visible, with `item`) or `quota_exceeded` (with `quota`
+             *     and `needed`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `media` `invalid_value`, `tmdbId` `out_of_range`,
+             *     `seasons` `required`, `not_allowed` (a film), `invalid_value` (with `allSeasons`),
+             *     `out_of_range` (season 0), `season_not_offered`, `no_season`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description More than 20 wishes made or joined by the profile within the last hour (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAccountWishes: {
+        parameters: {
+            query?: {
+                /**
+                 * @description `open` (queued, pending, processing, partial), `available`, `closed` (declined, failed, withdrawn)
+                 *     or `all` (the default).
+                 */
+                state?: components["parameters"]["WishStateFilter"];
+                offset?: components["parameters"]["WishPageOffset"];
+                limit?: components["parameters"]["WishPageLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of wishes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description Validation failed (`validation_failed`; `state` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getWishQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The limit. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WishQuota"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The profile cannot request (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    withdrawWish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Withdrawing is switched off (`wish_not_allowed`, `reason` `withdraw_disabled`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WishProblem"];
+                };
+            };
+            /** @description Unknown or not a wish of the profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Past the approval (`wish_not_withdrawable`). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -183,6 +183,7 @@ type Account struct {
 	AllLibraries bool
 	LibraryIDs   []int64        // libraries of the account; empty when AllLibraries
 	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
+	CanRequest   bool           // may request titles through Seerr: the cap of its profiles (concept 25)
 }
 
 // Role values of Account.Role. The owner is not a third value: it is an administrator with
@@ -209,6 +210,7 @@ type Profile struct {
 	HasPin           bool
 	HasOfflinePin    bool // a separate offline PIN is set (AN-19)
 	IsPrimary        bool // the account's primary profile: manages profiles, cannot be deleted
+	CanRequest       bool // the request right of the profile; effective only with the account's (concept 25)
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits
@@ -298,6 +300,7 @@ type ProfileInput struct {
 	LibraryIDs       *[]int64
 	PIN              *string         // create only
 	Limits           *PlaybackLimits // replaces all limits at once; nil keeps them
+	CanRequest       *bool           // the request right (concept 25); never above the account's
 	// The playback preferences (concept 13); each nil field keeps its value (update) or takes the
 	// column default (create).
 	AudioLanguages    *[]string
@@ -312,6 +315,7 @@ type AccountAccessUpdate struct {
 	AllLibraries *bool
 	LibraryIDs   *[]int64
 	Limits       *PlaybackLimits // replaces the three W-8 caps at once; nil keeps them
+	CanRequest   *bool           // the request right (concept 25); the only field an administrator account takes
 }
 
 // InvitationRequest creates an invitation link.
@@ -320,6 +324,15 @@ type InvitationRequest struct {
 	MaxRating    int
 	AllLibraries bool
 	LibraryIDs   []int64
+	CanRequest   *bool                // nil: the setting «Neue Konten dürfen anfordern» (concept 25)
+	WishLimit    *InvitationWishLimit // nil: the default limit
+}
+
+// InvitationWishLimit is the wish limit an invitation hands to its account: mode default, custom
+// (with Movie and TV) or unlimited (concept 25, data model 2.3).
+type InvitationWishLimit struct {
+	Mode      string
+	Movie, TV *WishLimit
 }
 
 // Invitation is an invitation link with its state (open, used, expired, revoked). Token and URL
@@ -336,6 +349,8 @@ type Invitation struct {
 	UsedAt       *time.Time
 	UsedByEmail  string
 	Token        string
+	CanRequest   bool
+	WishLimit    InvitationWishLimit
 }
 
 // InvitationPreview is what the invited person sees before accepting.
@@ -1011,12 +1026,13 @@ const (
 	RowLibraries   = "libraries" // «Meine Medien», concept 15 P-7
 	RowLibrary     = "library"   // «Neu in …», one row per library
 	RowRadio       = "radio"     // «Meine Sender», concept 16 stage 2
+	RowWishes      = "wishes"    // «Erfüllte Wünsche», concept 25 E-10
 )
 
 // HomeRowKeys lists every row key: the eight fixed rows in the default order, then the two kinds
-// of concept 15 P-7 and «Meine Sender» of concept 16.
+// of concept 15 P-7, «Meine Sender» of concept 16 and «Erfüllte Wünsche» of concept 25.
 var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
-	RowLibraries, RowLibrary, RowRadio}
+	RowLibraries, RowLibrary, RowRadio, RowWishes}
 
 // Keys of the entries of «Meine Medien» (concept 21 P-11, table my_media).
 const (
@@ -1162,11 +1178,21 @@ type Collection struct {
 type Notification struct {
 	ID        int64
 	ProfileID int64
-	Kind      string // new_episode
+	Kind      string // new_episode, wish_available (concept 25)
 	CreatedAt time.Time
 	ReadAt    *time.Time
-	Item      ItemSummary  // the new episode
+	Item      ItemSummary  // the new episode, the title of a wish; zero for a wish entry without a title
 	Parent    *ItemSummary // the followed series or podcast, nil when not visible
+	Wish      *NotificationWish
+}
+
+// NotificationWish is the wish of an inbox entry about a wish (concept 25, 06-benachrichtigungen.md
+// section 8): nil for a new episode.
+type NotificationWish struct {
+	ID    int64
+	Media string // movie, show
+	Title string // the title at the time of the wish
+	State string // wishes.state
 }
 
 // AdminUserPick is a title of the user picks in the administration (concept 18 part B, 14.7, ADR
@@ -1292,6 +1318,12 @@ type SpotlightEntries struct {
 	ListKey string
 	Entries []SpotlightEntry
 	Orphans []SpotlightEntry
+	// Missing counts the entries the library lacks (concept 25, band «Fehlende Einträge»):
+	// matched to TMDB, not in the library; Requested those of them with an open wish; Unmatched
+	// the entries TMDB could not resolve (N-62). CanRequest: the wishes are set up, so the
+	// administration may request a missing entry (createWish, source admin_spotlight).
+	Missing, Requested, Unmatched int
+	CanRequest                    bool
 }
 
 // SpotlightEntry is one fetched entry with its library hit (ItemID "" = no hit, never on the start
@@ -1309,6 +1341,18 @@ type SpotlightEntry struct {
 	Note       string
 	Orphaned   bool
 	PosterHash string // content hash of the hit's AdminPosterSize poster; "" = no hit or none stored
+	// Concept 25 step 3.3: the TVDB and IMDb ids from Trakt, the rung the library title was
+	// matched by (tvdb, tmdb, imdb; "" without hit) and Unmatched for an entry without TMDB id
+	// (N-62), which takes no override. A missing entry (no hit, TMDB id known) carries the wish of
+	// its title (open first, else the newest), whether the administration can request it, and the
+	// version of the stored poster of the title outside the library ("" = none stored yet).
+	TVDBID         int64
+	IMDBID         string
+	Match          string
+	Unmatched      bool
+	Wish           *WishMark
+	CanRequest     bool
+	ExternalPoster string
 }
 
 // SpotlightOverrideUpdate is the body of setSpotlightEntryOverride: a nil pointer keeps the value,

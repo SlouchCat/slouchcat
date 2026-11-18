@@ -5,6 +5,8 @@ import { useSpatialItem } from './spatial';
 export interface SelectOption<T extends string> {
   value: T;
   label: string;
+  /** Shown but not choosable; the label says why (a Seerr user that belongs to another account). */
+  disabled?: boolean;
 }
 
 /** A labelled group of options (`<optgroup>`): the facets of a tag rule. */
@@ -22,10 +24,12 @@ interface SelectFieldProps<T extends string> {
   options: readonly (SelectOption<T> | SelectGroup<T>)[];
   onChange: (value: T) => void;
   focusKey?: string;
+  /** No choice while something else of the same thing is on its way. */
+  isDisabled?: boolean;
 }
 
 const optionOf = <T extends string>(option: SelectOption<T>) => (
-  <option key={option.value} value={option.value}>
+  <option key={option.value} value={option.value} disabled={option.disabled}>
     {option.label}
   </option>
 );
@@ -41,6 +45,7 @@ export function SelectField<T extends string>({
   options,
   onChange,
   focusKey,
+  isDisabled = false,
 }: SelectFieldProps<T>) {
   const id = useId();
   const { ref, onFocus } = useSpatialItem<HTMLSelectElement>({
@@ -60,6 +65,7 @@ export function SelectField<T extends string>({
         aria-label={hideLabel ? label : undefined}
         className={styles.select}
         value={value}
+        disabled={isDisabled}
         onFocus={onFocus}
         onKeyDown={(event) => {
           // A closed select would change its value on ← and → as well; here they move the focus.

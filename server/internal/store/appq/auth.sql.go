@@ -56,7 +56,7 @@ func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1
+SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request FROM accounts WHERE id = ?1
 `
 
 func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
@@ -77,12 +77,13 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.MaxBitrateKbps,
 		&i.MaxHeight,
 		&i.MaxStreams,
+		&i.CanRequest,
 	)
 	return i, err
 }
 
 const getAccountByEmail = `-- name: GetAccountByEmail :one
-SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE email = ?1
+SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request FROM accounts WHERE email = ?1
 `
 
 func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account, error) {
@@ -103,12 +104,13 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account,
 		&i.MaxBitrateKbps,
 		&i.MaxHeight,
 		&i.MaxStreams,
+		&i.CanRequest,
 	)
 	return i, err
 }
 
 const getDefaultProfile = `-- name: GetDefaultProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
 `
 
 func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profile, error) {
@@ -137,12 +139,13 @@ func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profi
 		&i.AudioLanguages,
 		&i.SubtitleMode,
 		&i.SubtitleLanguages,
+		&i.CanRequest,
 	)
 	return i, err
 }
 
 const getProfile = `-- name: GetProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE id = ?1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request FROM profiles WHERE id = ?1
 `
 
 func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
@@ -171,6 +174,7 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
 		&i.AudioLanguages,
 		&i.SubtitleMode,
 		&i.SubtitleLanguages,
+		&i.CanRequest,
 	)
 	return i, err
 }
@@ -214,9 +218,9 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 }
 
 const insertAccount = `-- name: InsertAccount :one
-INSERT INTO accounts (email, password_hash, role, is_owner, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?5)
-RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
+INSERT INTO accounts (email, password_hash, role, is_owner, can_request, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?4, ?5, ?5)
+RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams, can_request
 `
 
 type InsertAccountParams struct {
@@ -229,6 +233,7 @@ type InsertAccountParams struct {
 
 // The setup wizard's account is the owner; every other account comes from an invitation and is
 // inserted by InsertInvitedAccount, which writes its role as a literal (ADR 0014).
+// The owner may request titles from the start (concept 25, F-5): can_request follows is_owner.
 func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (Account, error) {
 	row := q.db.QueryRowContext(ctx, insertAccount,
 		arg.Email,
@@ -253,18 +258,19 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (A
 		&i.MaxBitrateKbps,
 		&i.MaxHeight,
 		&i.MaxStreams,
+		&i.CanRequest,
 	)
 	return i, err
 }
 
 const insertProfile = `-- name: InsertProfile :one
-INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash,
+INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, can_request, pin_hash,
                       max_bitrate_kbps, max_height, max_streams, watch_limit_minutes,
                       audio_languages, subtitle_mode, subtitle_languages, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8,
         ?9, ?10, ?11, ?12,
         ?13, ?14, ?15, ?16, ?16)
-RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages
+RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages, can_request
 `
 
 type InsertProfileParams struct {
@@ -286,6 +292,8 @@ type InsertProfileParams struct {
 	Now               int64
 }
 
+// A primary profile may request titles, a further one not until the primary profile says so
+// (concept 25, F-5): can_request follows is_default.
 func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (Profile, error) {
 	row := q.db.QueryRowContext(ctx, insertProfile,
 		arg.AccountID,
@@ -329,6 +337,7 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		&i.AudioLanguages,
 		&i.SubtitleMode,
 		&i.SubtitleLanguages,
+		&i.CanRequest,
 	)
 	return i, err
 }

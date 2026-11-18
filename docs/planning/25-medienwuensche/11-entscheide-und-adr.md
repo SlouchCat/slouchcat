@@ -6,8 +6,11 @@
 > nirgends in der Zuschauer-App, Webhooks von Radarr und Sonarr wie heute, Download-Fortschritt bei Wünschen; bei
 > einer Einladung sofort verknüpfen, der Name «Seerr», die Startreihe «Erfüllte Wünsche», der Sofort-Import nach
 > einer Messung. Es gibt die Fragen F-1 bis F-34; entschieden sind F-8 (E-5), F-32 (E-9), F-33 (E-11) und F-34
-> (E-10), F-20 ist durch F-34 ersetzt, F-24 ist im Teil «Verknüpfen» durch E-8 entschieden. Offen sind damit
-> 29 Fragen und zwei Teilfragen (T-1, T-2); wo E-1 bis E-11 eine davon in der Sache klären, steht es bei der Frage.
+> (E-10), F-20 ist durch F-34 ersetzt, F-24 war im Teil «Verknüpfen» durch E-8 entschieden. Die übrigen
+> 29 Fragen und die Teilfragen T-1, T-2 hat Marco am 17. November 2026 mit dem Bauauftrag beantwortet (Anhang H
+> 11.2): meist nach Empfehlung, **gegen die Empfehlung** bei F-4 (Sammelbenutzer ab Werk), F-22 (ein Release),
+> F-24 (Passwort nur für eingeladene und eröffnete Benutzer) und F-27 (keine Ausnahme je Profil). Jede Frage
+> trägt die Antwort als ersten Punkt. Keine Frage ist mehr offen.
 > Die Kritik an Fassung 3 (Anhang H 9, K-1 bis K-23) ist mit Redaktionsentscheiden eingearbeitet, nicht mit
 > Entscheiden von Marco; den wichtigsten (K-1: Verknüpfen nur durch einen Administrator, N-2a) hat Marco mit E-8
 > anders entschieden. Zu jeder steht hier, worum es geht, welche
@@ -22,10 +25,12 @@
 > `docs/planning/04-entscheidungen.md`. Damit gelten die Ausnahmen aus Abschnitt 2, soweit Frage 33 sie nennt
 > (`docs/ideas/README.md:11-12`: «der Non-Goal fällt erst mit einem Eintrag im Entscheidungsprotokoll»). Der
 > Wortlaut von `CLAUDE.md` Regel 11 (Abschnitt 6) und der Nachtrag zu ADR 0010 werden in Stufe 0 nachgeführt; die
-> ADR-Dateien entstehen ebenfalls in Stufe 0 unter `docs/adr/`. Gebaut wird erst auf Marcos ausdrückliches Wort.
+> ADR-Dateien entstehen ebenfalls in Stufe 0 unter `docs/adr/`. Marco hat den Bau am 17. November 2026 bestellt
+> und alle Fragen beantwortet (Nachtrag zu Frage 33, Anhang H 11). Die Entwürfe in den Abschnitten 4 und 5 sind
+> auf diese Antworten nachgeführt; massgeblich sind die angenommenen ADR-Dateien.
 
 Grundlage ist [Anhang F](anhang/F-entscheid-blatt.md) (Abschnitte 2, 8, 9, 10) und für Fassung 3
-[Anhang H](anhang/H-nachtrag-17-november.md) (Regeln N-1 bis N-98; Abschnitt 10 geht den Abschnitten 4 bis 9 vor,
+[Anhang H](anhang/H-nachtrag-17-november.md) (Regeln N-1 bis N-104; Abschnitt 11 geht allen früheren vor, Abschnitt 10 den Abschnitten 4 bis 9,
 Abschnitt 8 den Abschnitten 4 bis 7). Wortlaute von heute sind im Worktree am Anker
 `ba6efe31` nachgesehen. Die übrigen Papiere: `01-bestandsanalyse.md`, `02-funktionskonzept.md`,
 `03-architektur.md`, `04-benutzer-profilmapping.md`, `05-spotlight-integration.md`, `06-benachrichtigungen.md`,
@@ -40,7 +45,8 @@ Abschnitte 1 und 2). Danach hat er das Mockup der Fassung 3 angesehen, eine zwei
 weitere Rückfragen beantwortet (Anhang H, Abschnitte 8.1 und 8.2). Auf seine Frage «Hast du noch offene Fragen oder
 Unklarheiten?» hat er zuletzt vier Weichen entschieden (Anhang H, Abschnitt 10.1). Nur diese elf Antworten und
 seine zwei Nachrichten sind Entscheide von Marco. Alles, was die Papiere daraus ableiten, ist Empfehlung der Redaktion und
-steht als offene Frage F-23 bis F-31 oder als **Vorschlag** zur Freigabe.
+stand als offene Frage F-23 bis F-31 oder als **Vorschlag** zur Freigabe. Die offenen Fragen hat Marco am selben
+Tag beantwortet (Abschnitt 1, Anhang H 11.2).
 
 | Nr. | Frage | Marcos Antwort | Was er dazu gesehen hat (Anhang H 2) | Folge in Fassung 3 (Ausgestaltung: Redaktion) |
 |---|---|---|---|---|
@@ -55,6 +61,12 @@ steht als offene Frage F-23 bis F-31 oder als **Vorschlag** zur Freigabe.
 | E-9 | Wie soll der Dienst in der Oberfläche von Slouchcat heissen? | **«Seerr»** (nicht «Jellyseerr») | So heisst das Projekt seit Version 3, und so schreibst du es. Ich benenne Papiere und Mockup um | überall «Seerr»; «Jellyseerr» nur, wo eine Version 2.x gemeint ist, und in den eingefrorenen Anhängen A bis G; das Konzept heisst «Wünsche über Seerr» (N-96); F-32 entschieden |
 | E-10 | Die Startseite zeigt nur Vorhandenes. Was soll mit der neuen Startreihe für Wünsche geschehen? | **«Erfüllte Wünsche»** (nicht «Keine Reihe», nicht «Auch offene Wünsche») | Die Reihe zeigt nur Wünsche, die in den letzten 14 Tagen wahr wurden, also Titel der Bibliothek. Offene Wünsche stehen unter «Wünsche» | Reihe `wishes` «Erfüllte Wünsche» (N-74, N-97); `HomeRowKey` + `wishes`, Stufe 3 bleibt im Vertrag brechend; F-34 entschieden |
 | E-11 | Die Webhook-Meldung von Radarr und Sonarr nennt schon Dateipfad und Kennung. Soll Slouchcat das für einen Sofort-Import nutzen? | **«Ja, nach Messung»** (nicht «Ja, fest einplanen», nicht «Nein») | Kommt als eigener Schritt in den Bauplan. Zuerst wird gemessen, wo heute die Zeit bleibt. Die Webhooks selbst bleiben, wie sie sind | Schritt 6a im Bauplan (N-98): zuerst eine Messung in `docs/perf/`; zeigt sie keinen Gewinn, entfällt der Schritt; die Webhooks bleiben, wie sie sind (N-80); F-33 entschieden (`03-architektur.md`, Abschnitt 10.1; `09-umsetzungsplan.md`, Abschnitt 6a) |
+
+**Nach den Prüfungen des Baus (17. November 2026):** Die Sicherheitsprüfung hat E-8 für privilegierte Seerr-Benutzer
+eingeengt: Bei Einladung und E-Mail-Änderung verknüpft Slouchcat Benutzer 1 und Benutzer mit `ADMIN`,
+`MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS` nicht; ein Administrator wählt sie von Hand. Das ist eine
+Sicherheitskorrektur der Redaktion, nicht Marcos Entscheid; Marco ist informiert (Anhang H, Abschnitt 12;
+`03-architektur.md`, Abschnitt 15.4; ADR 0037, Nachtrag).
 
 E-6 und E-7 zusammen heissen: Die API von Radarr und Sonarr dient genau zwei Dingen, dem Profil-Tag und dem Lesen
 des Download-Fortschritts (Anhang H 8.2, N-81). Gelesen werden dafür die Warteschlange und der Dateistand der
@@ -74,21 +86,22 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 | Frage | in der Sache geklärt | bleibt offen |
 |---|---|---|
-| F-2 Zuordnung | Standard ist ein Seerr-Benutzer je Konto, mit demselben Login (E-1); Profile bekommen keinen eigenen Benutzer und kein Login (Nachricht); Möglichkeit (b) entfällt | ob die zugeklappte Ausnahme je Profil bleibt (F-27) |
-| F-4 Konten ohne Seerr-Benutzer | jedes Konto bekommt seinen Benutzer über Eröffnen oder Verknüpfen (E-1, E-4); der Fall ist nur noch vorübergehend | ob es den Sammelbenutzer als Wahl weiter gibt |
-| F-21 Übernahme | verknüpfte Benutzer haben oft schon Requests; die Übernahme läuft nach jedem Verknüpfen | ob überhaupt übernommen wird (Empfehlung unverändert) |
+| F-2 Zuordnung | Standard ist ein Seerr-Benutzer je Konto, mit demselben Login (E-1); Profile bekommen keinen eigenen Benutzer und kein Login (Nachricht); Möglichkeit (b) entfällt | beantwortet (F-27): keine Ausnahme |
+| F-4 Konten ohne Seerr-Benutzer | jedes Konto bekommt seinen Benutzer über Eröffnen oder Verknüpfen (E-1, E-4); der Fall ist nur noch vorübergehend | beantwortet (F-4): Sammelbenutzer «slouchcat-gaeste» ab Werk |
+| F-21 Übernahme | verknüpfte Benutzer haben oft schon Requests; die Übernahme läuft nach jedem Verknüpfen | beantwortet (F-21): ja, nach Empfehlung |
 | F-8 Spotlight mit fehlenden Titeln | **entschieden durch E-5:** keine fehlenden Titel im Spotlight und nirgends in der Zuschauer-App | – |
 | F-20 Startreihe | die Reihe darf nach Marcos zweiter Nachricht nur Vorhandenes zeigen | als F-34 neu gestellt, durch E-10 entschieden |
-| F-24 Passwort und wer verknüpft | **im Teil «wer verknüpft» entschieden durch E-8:** sofort, auch bei der Einladung | Passwort auch bei Konten, die ein Administrator nachträglich eröffnet oder verknüpft (K-11), und der Hinweis «Neu verknüpft» (N-93), beides Empfehlung |
+| F-24 Passwort und wer verknüpft | **im Teil «wer verknüpft» entschieden durch E-8:** sofort, auch bei der Einladung | beantwortet (F-24): Passwort nur für eingeladene und von Slouchcat eröffnete Benutzer; vom Administrator verknüpfte behalten ihres. Der Hinweis «Neu verknüpft» (N-93) bleibt Redaktion |
 | F-32 Name | **entschieden durch E-9:** «Seerr» | – |
 | F-33 Sofort-Import | **entschieden durch E-11:** ja, nach Messung | – |
 | F-34 Startreihe | **entschieden durch E-10:** «Erfüllte Wünsche» | – |
-| T-1 | – | unverändert offen |
+| T-1 | – | beantwortet: nach Empfehlung (a) |
 
-## 1. Fragen F-1 bis F-34 (offene und entschiedene)
+## 1. Fragen F-1 bis F-34 (alle beantwortet am 17. November 2026)
 
 ### F-1 Begriffe «Wünsche» und «anfordern»
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** «Wünsche» für die Funktion, «anfordern» auf Knöpfen.
 - **Worum:** Wie heisst die Funktion in der Oberfläche? Ein Wort je Sache, überall gleich.
 - **Möglichkeiten:** (a) «Wünsche» für die Funktion und Seiten, «anfordern» auf Knöpfen; (b) «Anfragen» und
   «anfragen» wie in Seerr («Request»); (c) «Bestellen».
@@ -98,6 +111,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-2 Zuordnung: ein Seerr-Benutzer je Konto
 
+- **Beantwortet am 17. November 2026:** in der Sache durch Marcos Nachricht und E-1 entschieden; mit F-27 (Marco, gegen die Empfehlung) gilt (a) ohne Ausnahme (N-100). Anhang H 11.2 führt F-2 nicht eigens auf.
 - **Worum:** Mit welchem Seerr-Benutzer sendet Slouchcat den Wunsch eines Profils?
 - **In der Sache geklärt (Marco, 17. November 2026):** Jedes Konto hat seinen eigenen Seerr-Benutzer mit
   demselben Login (E-1); die Profile darunter brauchen kein Login, sondern nur einen Tag (Nachricht, E-2). Damit ist
@@ -112,6 +126,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-3 Wunsch als Benutzer über `X-API-User` oder über `userId`
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Slouchcat handelt als der Benutzer (`X-API-User`), der Verbindungstest prüft es.
 - **Worum:** Seerr hat einen Schlüssel für alles. Wie sagt Slouchcat, für wen ein Wunsch ist?
 - **Möglichkeiten:** (a) Header `X-API-User` (undokumentiert, steht seit Overseerr im Code); (b) Feld `userId` im
   Body (dokumentiert).
@@ -124,6 +139,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-4 Konten ohne Seerr-Benutzer
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Sammelbenutzer ab Werk.** Slouchcat legt in Seerr den Benutzer «slouchcat-gaeste» an (ohne Anmeldung, ohne automatische Freigabe; die Freigabe hat Marco danach mit I-F2 anders beantwortet: Rechte wie Seerrs Vorgabe, Anhang I 6, N-111); über ihn senden Konten ohne eigenen Seerr-Benutzer. Für ihn gilt das Standard-Limit, gemeinsam für alle diese Konten.
 - **Worum:** Was passiert mit einem Konto, das (noch) keinen Seerr-Benutzer hat?
 - **In der Sache weitgehend geklärt:** Seit E-1 und E-4 bekommt jedes Konto einen Benutzer, durch Eröffnen beim
   Einladen, über die E-Mail oder über «In Seerr eröffnen». Ohne Benutzer bleibt ein Konto nur, solange es
@@ -138,6 +154,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-5 Wunschrecht je Konto und je Profil
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Wunschrecht je Konto (Administrator, Deckel) und je Profil (Hauptprofil); ab Werk Besitzerkonto und Hauptprofile an, neue Konten und weitere Profile aus.
 - **Worum:** Wer darf überhaupt Titel anfordern, und wer stellt das ein?
 - **Möglichkeiten:** (a) Schalter je Konto (Administrator) als Deckel und je Profil (Hauptprofil); (b) nur je Konto;
   (c) feste Regel wie in Frage 10 vorgeschlagen («Profile des Hauptkontos ab FSK 12, Gäste nicht»).
@@ -149,6 +166,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-6 Kinderprofile und Freigabe
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Kinderprofile mit Recht dürfen anfordern; die Freigabe entscheidet Seerr am Benutzer des Kontos.
 - **Worum:** Dürfen Kinderprofile anfordern, und wer gibt frei?
 - **Möglichkeiten:** (a) mit Recht ja, die Freigabe entscheidet Seerr über die Auto-Freigabe des zugeordneten
   Benutzers; (b) Kinder nie; (c) eine eigene Freigabe in Slouchcat («Kind fragt Eltern»).
@@ -159,6 +177,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-7 Schon angeforderter Titel
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Mitwünschen.
 - **Worum:** Ein zweites Profil will einen Titel, den schon jemand gewünscht hat. Seerr sperrt Doppelte.
 - **Möglichkeiten:** (a) Mitwünschen: das Profil hängt sich an und wird ebenfalls benachrichtigt; (b) nur den
   Zustand zeigen.
@@ -178,6 +197,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-9 Wer fehlende Titel sieht
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Wer nicht anfordern darf, sieht fehlende Titel und den Bereich «Wünsche» gar nicht; Ausnahme eigene Wünsche.
 - **Worum:** Sieht ein Profil, das nicht anfordern kann, fehlende Titel trotzdem (ohne Knopf)?
 - **Möglichkeiten:** (a) nein: fehlende Titel sieht nur, wer sie auch anfordern kann; (b) ja, ohne Knopf, mit Hinweis.
 - **Empfehlung: (a), eine Regel überall** (Redaktionsentscheid vom 17. November 2026). Fehlende Titel sieht ein
@@ -196,6 +216,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-10 Bestätigungsdialog
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Anfordern über einen Dialog.
 - **Worum:** Geht der Wunsch beim ersten Druck weg, oder erst nach einem Dialog?
 - **Möglichkeiten:** (a) ein Dialog mit Poster, Seerr-Benutzer, Hinweis zur Freigabe, Staffelwahl und Stand des
   Limits; (b) sofort mit «Rückgängig».
@@ -206,6 +227,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-11 Suche nach fehlenden Titeln
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Bibliothekssuche über TMDB mit eigenem Schlüssel, Seite «Suche» über Seerr.
 - **Worum:** Woher kommen die Treffer fehlender Titel? Seit Fassung 3 gibt es zwei Stellen: den Abschnitt «Noch
   nicht in der Bibliothek» in der Bibliothekssuche (M-07) und die neue Seite «Suche» im Bereich «Wünsche» (M-34),
   die Marco verlangt hat (Anhang H 1). Welche Quelle die neue Seite nutzt, hat Marco nicht entschieden.
@@ -219,6 +241,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-12 Serien und Staffeln
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Serien staffelweise.
 - **Worum:** Wie fordert man Serien an?
 - **Möglichkeiten:** (a) «Alle fehlenden Staffeln» oder einzelne Staffeln, keine einzelnen Folgen, fehlende
   Staffeln auf der Serienseite; (b) nur ganze Serien.
@@ -229,6 +252,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-13 Was «verfügbar» heisst
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** «Verfügbar» heisst: Slouchcat kann den Titel für das Profil abspielen.
 - **Worum:** Wann bekommt das Profil «Dein Wunsch ist da»?
 - **Möglichkeiten:** (a) wenn Slouchcat den Titel für dieses Profil abspielen kann; (b) wenn Seerr «verfügbar»
   meldet.
@@ -240,6 +264,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-14 Kanal-Ereignisse und Vorgaben
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Drei eigene Kanal-Ereignisse: «verfügbar» (an), «freigegeben, abgelehnt, fehlgeschlagen» (aus), «Freigabe nötig» (an, nur Administratoren).
 - **Worum:** Welche Häkchen gibt es auf der Kanalseite, und was ist ab Werk an?
 - **Möglichkeiten:** (a) drei Ereignisse: «verfügbar» (an), «freigegeben, abgelehnt, fehlgeschlagen» (aus),
   «Freigabe nötig» (an, nur Administratoren); (b) `new_content` wiederverwenden; (c) ein Ereignis für alles.
@@ -249,6 +274,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-15 PIN-Profile in externen Nachrichten
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Externe Nachrichten von PIN-Profilen ohne Titel, abschaltbar.
 - **Worum:** E-Mail, Telegram und Push gehen an das Konto, Push an alle Geräte. Soll ein PIN-geschütztes Profil dort
   seinen Titel zeigen?
 - **Möglichkeiten:** (a) ohne Titel («[Sandra] Ein Wunsch ist jetzt verfügbar.»); (b) mit Titel wie heute bei
@@ -262,6 +288,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-16 Freigeben und Ablehnen in Slouchcat
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** «Freigeben» und «Ablehnen» in der Verwaltung, als Durchreichen an Seerr.
 - **Worum:** Muss der Administrator für jede Freigabe in Seerr wechseln?
 - **Möglichkeiten:** (a) Knöpfe «Freigeben» und «Ablehnen» in der Verwaltung, die an Seerr durchreichen, in
   Stufe 4; (b) nur in Seerr.
@@ -271,6 +298,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-17 Zurückziehen
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Zurückziehen, solange nicht freigegeben.
 - **Worum:** Darf ein Profil einen Wunsch zurücknehmen?
 - **Möglichkeiten:** (a) ja, solange er nicht freigegeben ist; (b) nein.
 - **Empfehlung: (a).** Seerr erlaubt das Löschen eigener offener Anfragen (Anhang D 8); danach beschafft
@@ -279,6 +307,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-18 Seerr-Webhook
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Seerr-Webhook als Anstoss; der Abgleich alle 5 Minuten bleibt die Grundlage.
 - **Worum:** Slouchcat fragt alle 5 Minuten nach. Soll Seerr zusätzlich sofort Bescheid geben?
 - **Möglichkeiten:** (a) Webhook als Anstoss in Stufe 4, Grundlage bleibt der Abgleich; (b) kein Webhook; (c)
   Webhook als Grundlage.
@@ -288,6 +317,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-19 Ort in der Verwaltung
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Verbindung unter Integrationen, tägliche Arbeit unter Medien › Wünsche.
 - **Worum:** Wo stehen Verbindung, Anfragen und Seerr-Benutzer (in Fassung 2 «Zuordnung»)?
 - **Möglichkeiten:** (a) Verbindung unter Integrationen, Seite «Wünsche» unter Medien; (b) alles unter
   Integrationen; (c) ein eigener Bereich.
@@ -304,6 +334,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-21 Bestehende Anfragen übernehmen
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Bestehende Anfragen verknüpfter Seerr-Benutzer übernehmen («In Seerr angelegt»).
 - **Worum:** In Seerr liegen oft schon Anfragen. Zeigt Slouchcat sie dem passenden Profil?
 - **Möglichkeiten:** (a) ja, für zugeordnete Benutzer: dem Profil mit eigener Zuordnung, sonst dem Hauptprofil,
   gekennzeichnet «In Seerr angelegt»; (b) nein, nur Wünsche aus Slouchcat.
@@ -317,7 +348,9 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-22 Stufen
 
-- **Worum:** In welcher Reihenfolge wird gebaut, mit je einem Release?
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Ein Release am Schluss** (B-1).
+- **Worum:** In welcher Reihenfolge wird gebaut, mit je einem Release? (Die Stufen bleiben die Reihenfolge des
+  Baus; veröffentlicht wird einmal, N-104.)
 - **Möglichkeiten:** (a) Stufen: Fundament, Anfordern, Spotlight, Serien und Komfort (Anhang F 10), seit Fassung 3
   dazu Stufe 5 «Wünsche-Seiten»; (b) alles in einem Release.
 - **Empfehlung: (a)** mit Stufe 5 (Redaktion, Anhang H 4.7 und 8.7). Eröffnen, Passwortabgleich und Limit gehören
@@ -329,6 +362,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-23 Für wen Slouchcat einen Seerr-Benutzer eröffnet
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Für jedes Konto ein Seerr-Benutzer; ohne Wunschrecht ohne Rechte; bestehende Konten über «Alle eröffnen».
 - **Worum:** Marco will, dass eingeladene Konten in Seerr eröffnet werden (E-1). Gilt das für jedes Konto oder
   nur für Konten mit Wunschrecht?
 - **Möglichkeiten:** (a) für jedes Konto, ohne Wunschrecht ohne Rechte in Seerr; (b) nur für Konten mit
@@ -343,6 +377,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-24 Passwort bei verknüpften, schon bestehenden Benutzern, und wer verknüpft
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Passwort nur für eingeladene und von Slouchcat eröffnete Benutzer.** Ein bestehender Seerr-Benutzer, den ein Administrator verknüpft, behält sein Passwort. (Die Verknüpfung beim Annehmen einer Einladung bleibt E-8: sofort, mit Passwort.).
 - **Teil «wer verknüpft»: entschieden durch E-8 (Marco).** Gibt es in Seerr schon einen Benutzer mit derselben
   E-Mail, verknüpft Slouchcat ihn sofort, gleich ob ein Administrator handelt oder das Konto die Adresse beim
   Annehmen einer Einladung oder beim Ändern der eigenen E-Mail selbst eingetippt hat (N-90, N-95). Mit der
@@ -353,7 +388,8 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 - **Bekannte Grenze (Marco, E-8; N-92).** Die Adresse prüft niemand. Wer eine Einladung hat und eine fremde
   Adresse eintippt, bekommt den Seerr-Benutzer dieser Person samt ihren Anfragen. Marco kennt das Risiko und hat es
   so gewählt. Einladungen stellt nur ein Administrator aus.
-- **Offen als Empfehlung der Redaktion:**
+- **Bis zur Antwort offen als Empfehlung der Redaktion** (Marco hat Andere Wahl (b) gewählt, siehe erster Punkt;
+  N-103):
   - (a) Passwort auch bei Konten übernehmen, die ein Administrator nachträglich eröffnet oder mit einem
     bestehenden Benutzer verknüpft: bei der nächsten Anmeldung (oder sofort, wenn es gerade im Speicher ist),
     ausser bei Administratoren und bei Anmeldung über Jellyfin, Emby oder Plex (N-4, N-6). **Lesart (K-11):**
@@ -369,6 +405,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-25 Name des Profil-Tags
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Tag `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, nie entfernt.
 - **Worum:** Wie heisst der Tag, den Slouchcat in Radarr und Sonarr je Profil setzt (E-2)?
 - **Möglichkeiten:** (a) `sc-<profilname>`, Präfix einstellbar, je Profil überschreibbar, bei gleichen Namen mit
   Kontoname; (b) nur der Profilname; (c) `<konto>-<profil>`.
@@ -378,6 +415,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-26 Vorgabe des Limits ab Werk
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Limit ab Werk: 10 Filme und 5 Staffeln je 7 Tage.
 - **Worum:** Welches Limit gilt für Konten mit «Standard»?
 - **Möglichkeiten:** (a) 10 Filme in 7 Tagen, 5 Staffeln in 7 Tagen (Marcos Beispiel); (b) ohne Limit ab Werk;
   (c) andere Werte.
@@ -386,6 +424,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-27 Ausnahme «Profil sendet als anderer Seerr-Benutzer»
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), gegen die Empfehlung:** **Keine Ausnahme je Profil.** Alle Profile senden als Benutzer des Kontos. Die Einstellung «Profil sendet als anderer Seerr-Benutzer» wird nicht gebaut.
 - **Worum:** Fassung 2 hatte eine Zuordnung je Profil. Bleibt sie als zugeklappte Ausnahme?
 - **Möglichkeiten:** (a) ja, zugeklappt, nur bestehende Benutzer; (b) nein, alle Profile senden als Benutzer des
   Kontos.
@@ -396,6 +435,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-28 Reihen auf «Entdecken»
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** «Entdecken» mit sieben festen Reihen.
 - **Worum:** Welche Reihen zeigt die Seite «Entdecken», die Marco wie bei Seerr will?
 - **Möglichkeiten:** (a) sieben feste Reihen: Im Trend, Beliebte Filme, Film-Genres, Demnächst im Kino, Beliebte
   Serien, Serien-Genres, Demnächst als Serie; (b) die Reihen-Einstellung von Seerr (`/settings/discover`)
@@ -407,6 +447,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-29 Seerr auf TVDB-Staffeln umstellen
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Marco stellt Seerr auf TVDB-Staffeln um; Slouchcat ändert die Einstellung nie, der Test zeigt einen Hinweis.
 - **Worum:** Marco fragt, ob Seerr TVDB nutzt (Anhang H 1). Antwort: Seerr führt jeden Titel über die TMDB-ID,
   gibt die TVDB-ID an Sonarr weiter und kann die Staffelliste aus TVDB lesen (Anhang H 4.6). Soll Marco das
   einstellen?
@@ -419,6 +460,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-30 Zugang zu Radarr und Sonarr
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Zugang zu Radarr und Sonarr aus Seerr lesen; die Adresse gilt nach einem «Testen», eigene Adresse als Ausweg.
 - **Worum:** Für den Profil-Tag (E-2) und den Download-Fortschritt (E-7) braucht Slouchcat Adresse und Schlüssel
   von Radarr und Sonarr.
 - **Möglichkeiten:** (a) aus Seerr lesen (`GET /settings/radarr|sonarr`), eigene Adresse nur als Ausweg;
@@ -430,6 +472,7 @@ Redaktion. Die Reihe «Erfüllte Wünsche» und den Sofort-Import nach Messung h
 
 ### F-31 Seerr-Benutzer eines gelöschten Kontos
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Der Seerr-Benutzer eines gelöschten Kontos bleibt; ein eröffneter ohne Rechte und mit Zufallspasswort, ein verknüpfter unverändert.
 - **Worum:** Was geschieht in Seerr, wenn der Administrator ein Konto in Slouchcat löscht?
 - **Möglichkeiten:** (a) der Benutzer bleibt; ein eröffneter ohne Rechte, mit Zufallspasswort; (b) Slouchcat löscht ihn; (c) nichts.
 - **Empfehlung: (a), nur für eröffnete Benutzer** (N-10). Mit dem Benutzer löschte Seerr seine Requests
@@ -479,6 +522,7 @@ Befunde 30 und 40). Sie gehören zu F-3 bzw. F-17.
 
 **T-1 «Wünsche aktiv» nur mit wirksamem `X-API-User` (zu F-3).**
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** «Wünsche aktiv» lässt sich nur nach einem gelungenen Test einschalten; ab Werk aus.
 - **Worum:** Darf der Administrator «Wünsche aktiv» einschalten, wenn der letzte Verbindungstest nicht gelang oder
   «Handeln im Namen von Benutzern» nicht wirkt?
 - **Möglichkeiten:** (a) nein, der Schalter ist gesperrt, bis der Test gelingt; (b) ja, der Test warnt nur.
@@ -489,6 +533,7 @@ Die Vorgabe «Wünsche aktiv = aus» ist ein Redaktionsentscheid vom 17. Novembe
 
 **T-2 Frist der Übermittlung, solange «Seerr verwenden» aus ist (zu F-17 und zum Ausgangsfach).**
 
+- **Beantwortet am 17. November 2026 (Marco, Anhang H 11.2), nach Empfehlung:** Die Frist der Übermittlung ruht, solange Seerr in Slouchcat ausgeschaltet ist.
 - **Worum:** Wünsche `queued` scheitern nach 24 h. Zählt die Frist weiter, wenn der Administrator Seerr
   bewusst ausschaltet?
 - **Möglichkeiten:** (a) die Frist ruht, solange «Seerr verwenden» aus ist; (b) beim Ausschalten werden alle
@@ -532,7 +577,7 @@ umgeschrieben; der neue Wortlaut gilt über Frage 33 und ADR 0037 (Vorgehen wie 
 | `docs/planning/04-entscheidungen.md:37`, `:55` | Frage 5: «Wünschen über eigene Seite via Seerr-API ohne Einbettung»; M9: «I-1, I-2, I-3, I-4, I-6 … ersatzlos gestrichen» | bleiben als Geschichte |
 | S-4: `docs/planning/04-entscheidungen.md:20`, `docs/planning/05-plan-spotlight.md:84-85, 291, 1622`, `docs/adr/0011-spotlight.md:99` | «Titel ohne Bibliothekstreffer erscheinen **nie** auf der Startseite (Non-Goal «eigene Wunschverwaltung») …, in der **Verwaltung** aber schon»; ADR 0011 verwirft den Schalter «auch Titel ohne Bibliothekstreffer zeigen» | **bleibt ohne Ausnahme** (Marco, E-5; N-70): Startseite und Spotlight-Liste zeigen nur Titel der Bibliothek; fehlende Einträge der Trakt-Liste nur in der Verwaltung. ADR 0011 verwirft den Schalter weiter. ADR 0038 nennt S-4 und grenzt sich ab; Fassung 2 und Fassung 3 vor der zweiten Rückmeldung wollten S-4 für das Spotlight ablösen. Nachtrag in ADR 0011 nur: vorhandene Titel werden auch über TVDB- und IMDb-ID erkannt (N-73) |
 | `docs/adr/0009-administration-benachrichtigungen.md:36` und Nachtrag `:62-67` | Kanal-Ereignisse `new_content`, `errors`, `invitations`, `announcements`; `acquisition` entfiel, «ohne Erzeuger wäre der Kanal eine Schaltfläche ohne Wirkung» | Nachtrag: drei neue Ereignisse `wish_available`, `wish_status`, `wish_review` mit echtem Erzeuger (`wishes`); fünf neue Eingangsarten |
-| `docs/adr/0010-webhook-empfang.md:11-13`, `:64-65` | «M9 ist auf den eingehenden Webhook zusammengeschnitten (Frage 10)»; «Die CSRF-Ausnahme ist die erste ihrer Art …» | Nachtrag in Stufe 4: Art `jellyseerr` neben `radarr`/`sonarr` (CHECK in `webhook_integrations`), nur als Anstoss des Abgleichs. Dieselbe Route `/webhooks/{token}`, darum **keine** zweite CSRF-Ausnahme. |
+| `docs/adr/0010-webhook-empfang.md:11-13`, `:64-65` | «M9 ist auf den eingehenden Webhook zusammengeschnitten (Frage 10)»; «Die CSRF-Ausnahme ist die erste ihrer Art …» | Nachtrag in Stufe 4: Art `seerr` (so gebaut, Migration 00080; im Entwurf `jellyseerr`) neben `radarr`/`sonarr` (CHECK in `webhook_integrations`), nur als Anstoss des Abgleichs. Dieselbe Route `/webhooks/{token}`, darum **keine** zweite CSRF-Ausnahme. |
 | ADR 0010, Satz «Slouchcat never calls Radarr or Sonarr and registers nothing there» (Anhang C 1) | Slouchcat ruft Radarr und Sonarr nie auf | **Zwei eng gefasste Ausnahmen** (E-2, E-7; Anhang H 8.5): Slouchcat legt Tags an und hängt sie an Titel (N-22), und es liest Warteschlange und Dateistand der gewünschten Titel für den Download-Fortschritt (`queue`, `movie?tmdbId`, `series?tvdbId`; N-81, K-5), beides über das Paket `internal/arr`. Der Import in die Bibliothek kommt weiter über den Webhook; gelesen wird nur für die Anzeige am Wunsch. «Registers nothing there» bleibt: Slouchcat trägt keinen Webhook ein (E-6, N-80). Der eingehende Teil von ADR 0010 (Route, Token, `scan.path`) bleibt unverändert. Nachtrag in Stufe 0 |
 | `docs/adr/0008-entdecken-suche-trakt.md:82` | «Offen: Filter «in Beschaffung» (M9) …» | veraltet; keine Änderung nötig |
 | `docs/ideas/README.md:31-37` (Index) | kein Eintrag zu Wünschen | **Vorschlag:** neue Zeile «06 Wünsche über Seerr · Übernommen (Konzept 25, Frage 33, ADR 0037/0038)» |
@@ -573,18 +618,24 @@ Der Eintrag hält fest:
 - **Ausnahmen von Nicht-Zielen:** wie in Abschnitt 2 beschrieben. S-4 bleibt ohne Ausnahme.
 - **Bau:** sechs Stufen nach `09-umsetzungsplan.md`, erst auf Marcos ausdrückliches Wort.
 
+**Nachtrag vom 17. November 2026.** Marco hat den Bau bestellt und alle offenen Fragen beantwortet. Der Nachtrag zu
+Frage 33 im Entscheidungsprotokoll nennt die Antworten, die vier Abweichungen von der Empfehlung (F-4, F-22, F-24,
+F-27) und B-1 bis B-4 (Anhang H 11). Er schreibt Marco nur zu, was in Anhang H 11.1 und 11.2 steht; die Folgen
+N-100 bis N-104 sind, wo Anhang H es sagt, Redaktion.
+
 ## 4. Entwurf ADR 0037 «Wünsche über Seerr»
 
 ```markdown
 # ADR 0037: Wünsche über Seerr
 
-- Status: Entwurf; angenommen mit Stufe 0 nach Freigabe (Frage 33). **Hebt die Spec-Nicht-Ziele Zeile 66
+- Status: Entwurf, nachgeführt auf Marcos Antworten vom 17. November 2026 (Anhang H 11); angenommen mit Stufe 0
+  (Frage 33). **Hebt die Spec-Nicht-Ziele Zeile 66
   in Teilen und Zeile 67 nur beim Wunsch auf und fasst Zeile 69 mit einer Ausnahme**; Zeile 65 und 68 bleiben.
   **Nachtrag zu ADR 0010** (zwei Ausnahmen: Profil-Tags setzen, Warteschlange und Dateistand der gewünschten Titel
   lesen; der Webhook-Empfang bleibt).
 - Quelle: Konzept `docs/planning/25-medienwuensche/` (Papiere 01 bis 11, Fassung 3), Marcos Entscheide E-1 bis
   E-11 vom 17. November 2026, **Frage 33** in `docs/planning/04-entscheidungen.md` mit den Antworten F-1 bis F-34
-- Vertrag und Migrationen: vergibt der Bau; Stufe 1 nicht brechend, Stufen 2 bis 4 brechend, Stufe 5 nicht
+- Vertrag und Migrationen: vergibt der Bau; ein Release für alle Stufen (F-22, B-1), der Vertrag steigt einmal,
   brechend (`08-datenmodell-api.md`, Abschnitt 4.6)
 - Betroffene Spec-IDs: Spec A-6, Spec I-8; neu Spec I-9, Spec I-10, Spec I-11
 - Harte Regeln: 2 (Titelabfragen nur über `visibility`), 3 (kein `os/exec` in `seerr` und `arr`), 5 (Migrationen
@@ -636,21 +687,24 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
    eröffnen»; das Einrichten von Seerr eröffnet sie nicht von selbst. **Über die E-Mail wird sofort verknüpft
    (E-4, E-8):** Gibt es in Seerr einen Benutzer mit derselben Adresse, verknüpft Slouchcat ihn, gleich ob ein
    Administrator «In Seerr eröffnen» oder «Alle eröffnen» wählt oder das Konto die Adresse beim Annehmen einer
-   Einladung oder beim Ändern seiner E-Mail selbst eintippt. Das Passwort geht an ihn wie an jeden anderen,
+   Einladung oder beim Ändern seiner E-Mail selbst eintippt. Das Passwort geht an ihn nur nach einer Einladung
+   oder E-Mail-Änderung (E-8); verknüpft ein Administrator, behält der Benutzer sein Passwort (F-24, N-103);
    nie an Benutzer 1, andere Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin, Emby oder Plex
    (N-91). Den Auslöser hält `wish_account_map.linked_by` fest; eine Verknüpfung nach Einladung oder
    E-Mail-Änderung zeigt die Übersicht sieben Tage lang als «Neu verknüpft» (Empfehlung, N-93). Das Konto erfährt
    nie, ob Seerr die Adresse kannte (N-94). Profile haben kein Login; sie senden
-   als Benutzer des Kontos. Eine zugeklappte Ausnahme je Profil (`wish_profile_map`) nutzt einen anderen,
-   bestehenden Benutzer, damit ein Kinderprofil im Konto des Administrators eine Freigabe braucht. Ein
+   als Benutzer des Kontos. Eine Ausnahme je Profil gibt es nicht (F-27, N-100). Konten ohne eigenen Benutzer
+   senden über den Sammelbenutzer «slouchcat-gaeste», den Slouchcat anlegt (F-4, N-101, N-102). Ein
    Seerr-Benutzer gehört höchstens einem Konto. Je Wunsch speichert Slouchcat Konto, Profil,
    Seerr-Benutzer (eingefroren) und Request-ID, bei Serien je Staffel. Die Rechte eines eröffneten Benutzers
-   folgen dem Wunschrecht (`REQUEST` oder keine); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
+   folgen dem Wunschrecht: mit Recht Seerrs Vorgabe für neue Benutzer (`defaultPermissions`), ohne Recht keine
+   (Marco, I-F1; N-110); die eines verknüpften fasst Slouchcat nicht an. Wird ein Konto
    gelöscht, bleibt sein Seerr-Benutzer bestehen; nur einem eröffneten nimmt Slouchcat die Rechte und setzt
    ein Zufallspasswort, verknüpfte und von Hand gewählte bleiben unverändert (N-10, F-31).
 5. **Wunschrecht** je Konto (`accounts.can_request`, Administrator) als Deckel und je Profil
    (`profiles.can_request`, Hauptprofil). Der Server liefert `canRequest` und einen Grund; der Client entscheidet
-   nichts. Konten ohne Seerr-Benutzer können nicht anfordern, ausser ein Sammelbenutzer ist gewählt.
+   nichts. Konten ohne Seerr-Benutzer senden ab Werk über den Sammelbenutzer; mit «Nicht erlauben» können sie
+   nicht anfordern (F-4).
    Fehlende Titel und die Wünsche-Seiten sieht ein Profil nur, wenn es anfordern kann (F-9).
 6. **Zustände** `queued`, `pending`, `processing`, `partial`, `available`, `declined`, `failed`, `withdrawn`,
    abgeleitet aus Seerr und der eigenen Bibliothek.
@@ -689,7 +743,8 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
 14. **Nur online.** `/api` bleibt NetworkOnly; Wünsche haben keinen Offline-Zustand.
 15. **Passwort nur in drei Momenten (E-1).** Slouchcat gibt das Passwort an Seerr weiter, wenn es der Server
     ohnehin sieht: beim Annehmen der Einladung, beim Ändern des Passworts und bei der Anmeldung (dann nur, wenn
-    es noch aussteht). Es geht nur im Speicher weiter, nie über eine Job-Nutzlast, und Slouchcat speichert und
+    es noch aussteht), und nur für Benutzer, die Slouchcat eröffnet oder nach Einladung oder E-Mail-Änderung
+    verknüpft hat (F-24, N-103). Es geht nur im Speicher weiter, nie über eine Job-Nutzlast, und Slouchcat speichert und
     protokolliert es nie. Geht es nicht sofort, bekommt der Benutzer ein Zufallspasswort, und das echte folgt bei
     der nächsten Anmeldung. Benutzer 1, Administratoren von Seerr und Benutzer mit Anmeldung über Jellyfin,
     Emby oder Plex gleicht Slouchcat nicht ab. Ein Passwort, das jemand direkt in Seerr ändert, bemerkt
@@ -739,7 +794,7 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
 | Passwort verschlüsselt in Slouchcat speichern, um es jederzeit nachzureichen | ein zweiter Ort für das Passwort; die drei Momente reichen |
 | Limit in Slouchcat zählen | Wünsche direkt in Seerr zählten nicht mit (E-3) |
 | `userId` im Body statt `X-API-User` | jeder Wunsch wäre sofort freigegeben, weil Seerr die Auto-Freigabe am Aufrufer prüft |
-| ein Seerr-Benutzer je Konto ohne Ausnahme | Kinder im Konto des Administrators erben dessen Auto-Freigabe und sind ohne Limit (F-27) |
+| Ausnahme je Profil «Profil sendet als anderer Seerr-Benutzer» (`wish_profile_map`) | von der Redaktion empfohlen; Marco hat abgelehnt (F-27). Folge: Kinder im Konto des Administrators erben dessen Auto-Freigabe und sind ohne Limit |
 | Seerr als Iframe einbetten | entfiel schon in Runde 20; fremde Oberfläche, eigene Anmeldung |
 | Seerr-Benutzer je Profil mit eigenem Login | Marco: Profile brauchen kein Login (Anhang H 1); künstliche E-Mail-Adressen; ein gelöschtes Profil nähme seine Anfragen mit |
 | Benutzer eines gelöschten Kontos in Seerr löschen | Seerr löschte seine Requests mit (Anhang D 7.2) |
@@ -800,7 +855,7 @@ wie weit Slouchcat Radarr und Sonarr anfassen darf und wie es von ihnen erfährt
 ```markdown
 # ADR 0038: Titel ausserhalb der Bibliothek
 
-- Status: Entwurf; angenommen mit Stufe 0 nach Freigabe (Frage 33). **Löst S-4 nicht ab**: «Titel ohne
+- Status: Entwurf, nachgeführt auf Marcos Antworten vom 17. November 2026; angenommen mit Stufe 0 (Frage 33). **Löst S-4 nicht ab**: «Titel ohne
   Bibliothekstreffer erscheinen nie auf der Startseite» (Frage 11, ADR 0011) gilt ohne Ausnahme (Marco, E-5).
   **Ergänzt ADR 0034** (Freigabeländer) um Titel ohne Eintrag in `items`.
 - Quelle: Konzept `docs/planning/25-medienwuensche/` (vor allem `02-funktionskonzept.md` und
@@ -1176,7 +1231,40 @@ bis 9 dort vor.
 **Fragen danach (Anhang H 10.3).** Es gibt F-1 bis F-34. Entschieden sind F-8 (E-5), F-32 (E-9), F-33 (E-11) und
 F-34 (E-10); F-20 ist durch F-34 ersetzt. F-24 ist im Teil «Verknüpfen» durch E-8 entschieden; der Rest (Passwort
 auch bei nachträglich eröffneten und verknüpften Konten, K-11; Hinweis an die Administratoren, N-93) bleibt
-Empfehlung. Offen sind damit 29 Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2.
+Empfehlung. Offen waren damit 29 Fragen (F-1 bis F-34 ohne F-8, F-20, F-32, F-33, F-34) und T-1, T-2; beantwortet
+hat Marco sie mit dem Bauauftrag (Abschnitt 7.8).
 
 **Wer hat entschieden?** E-8 bis E-11 sind Marcos Antworten. N-91 folgt aus E-1 und E-8; die Ausnahme N-6 darin,
 N-93, N-94, N-95 und der Zuschnitt von Schritt 6a (was als Gewinn zählt) sind Empfehlungen der Redaktion.
+
+### 7.8 Bauauftrag und Antworten vom 17. November 2026 (Anhang H 11)
+
+Marco hat den Bau bestellt und alle 29 offenen Fragen sowie T-1, T-2 beantwortet (Anhang H 11.2), dazu B-1 bis
+B-4 zum Ablauf (Anhang H 11.1). Abschnitt 11 dort geht allen früheren vor.
+
+| Frage | Marcos Antwort | Regel (Anhang H 11.3) | Eingearbeitet in |
+|---|---|---|---|
+| F-27 | keine Ausnahme je Profil | N-100 | `02` 3, 4.10, 6; `03` 2.1, 7.3, 18.2, 19.1; `04` Kurz gesagt, 1, 4, 5, 6, 6.1, 6.2, 8, 9, 10, 11, 13.6, 17.7, 18 (entfällt), 19; `07` 1, 6, 14; `08` 1, 1.2, 2.2, 3.2, 4.2, 4.5; `09` 1.8, 11; `10` AK-14, AK-108 entfallen, AK-30, AK-35 geändert, neu AK-228; ADR 0037 |
+| F-4 | Sammelbenutzer «slouchcat-gaeste» ab Werk | N-101, N-102 | `02` 3, 4.9, 4.10; `03` 2.1, 18.4, 18.5 (neu), 19.1; `04` 6 (Regel 8), 10, 12.3, 17.1; `07` 2, 4, 7, 14; `08` 2.12, 4.2; `09` 1.3, 1.5a, 1.8; `10` AK-109 geändert, neu AK-229, AK-231; ADR 0037 |
+| F-24 | Passwort nur für eingeladene und von Slouchcat eröffnete Benutzer | N-103 | `02` 4.9; `03` 18.1, 18.2; `04` 7, 11, 12.1, 12.2, 13, 13.2, 13.4; `07` 4, 6, 14; `08` 2.2, 4.5; `09` 1.5a, 1.5b; `10` AK-12, AK-217 geändert, neu AK-230; ADR 0037 |
+| F-22 | ein Release am Schluss (B-1) | N-104 | README; `08` Kurz gesagt, 3.1, 4.6; `09` Kurz gesagt, 1, 1.1, 1.10, 2.11, 3.6, 4.8, 5.7, 7a (neu), 9, 10; `10` Kurz gesagt, neu AK-232; ADR 0037 |
+| übrige | nach Empfehlung | – | Antwort als erster Punkt jeder Frage in Abschnitt 1; `04` 19, `06` 13, `07` 14 |
+
+Das Mockup bleibt unverändert; wo es den alten Stand zeigt, steht in `mockup-abdeckung.md`, Abschnitt 11.
+
+### 7.9 Prüfung an den echten Instanzen (Anhang I)
+
+Vor dem Bau der Benutzerpflege wurden Seerr, Radarr und Sonarr geprüft (Anhang I). Drei Fragen daraus hat Marco
+am 17. November 2026 beantwortet; die Regeln N-110 bis N-114 gehen Anhang H und den Papieren vor.
+
+| Nr. | Marcos Antwort | Regel | Eingearbeitet in |
+|---|---|---|---|
+| I-F1 | eröffnete Benutzer bekommen die Rechte aus Seerrs Vorgabe | N-110 | `03` 18.2, 18.4; `04` 14; `09` 1.5a; `10` AK-139, AK-147; ADR 0037 Entscheid 4 |
+| I-F2 | «slouchcat-gaeste» ebenso, also mit automatischer Freigabe, wenn Seerrs Vorgabe sie hat | N-111 (ersetzt einen Teil von N-101) | README; `03` 18.5; `04` 6; `09` 1.5a; `10` AK-229; ADR 0037 Entscheid 21 |
+| I-F3 | ein bestehendes Limit wird beim Verknüpfen als eigenes Limit des Kontos übernommen | N-112 (ersetzt N-37) | `03` 19.1; `04` 7, 17.2; `09` 1.5c; `10` AK-153; ADR 0037 Entscheid 16 |
+| – | Redaktion: Tag-Name nach N-113, Unterscheidung Benutzer weg oder Schlüssel ungültig nach N-114 | N-113, N-114 | `03` 2.6, 6.4, 20.1; `08` 2.14; `09` 4.6b; ADR 0037 Entscheid 17 |
+
+Befund I-10 (kein Entscheid): Auf Marcos Instanz melden sich alle bestehenden Seerr-Benutzer über Emby an; sie
+werden verknüpft, bekommen aber nie ein Passwort (N-91, N-6). Dasselbe Login gibt es dort nur für neu eröffnete
+Benutzer.
+

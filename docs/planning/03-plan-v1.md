@@ -27,7 +27,7 @@ Slouchcat ist ein eigenständiger, selbst gehosteter Media-Server für einen Hau
 
 Harte Rahmenbedingungen (Spec "Constraints"): nur Docker Compose auf Linux, GPU optional; genau ein Client (PWA); Medientypen Filme, Serien, Hörbücher, Podcasts; Solo mit Claude Code und oh-my-claudecode, keine Deadline; erster Meilenstein vertikaler Durchstich "innerhalb der ersten Wochen"; Stack nach "sehr stabil, läuft überall gut, performant" mit Klartext-Begründung.
 
-Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion (Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen, Frage 25, Konzept 18 Teil B, ADR 0028), Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, SABnzbd-Fortschritt, Steuerung von Radarr/Sonarr/SABnzbd/Seerr, eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
+Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion (Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen, Frage 25, Konzept 18 Teil B, ADR 0028), Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, SABnzbd-Fortschritt, Steuerung von Radarr/Sonarr/SABnzbd/Seerr (Ausnahme seit 17. November 2026: Wünsche über Seerr; Benutzer der Konten und Sammelbenutzer in Seerr anlegen und pflegen; Profil-Tags in Radarr und Sonarr; Download-Fortschritt beim Wunsch; Frage 33, Konzept 25, ADR 0037), eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
 
 ---
 
@@ -293,6 +293,11 @@ Der frühere Entscheid lautete: eigener Bereich "Wünschen" mit Slouchcat-Oberfl
 iFrame-Einbettung, Kontozuordnung durch den Admin. Er wurde nie umgesetzt und ist mit dem Zuschnitt von M9
 hinfällig geworden.
 
+**Nachtrag vom 17. November 2026 (Frage 33, Konzept 25, ADR 0037):** Mit Frage 33 neu gefasst: Anbindung über die
+API ohne Einbettung; AN-5 lebt als Wunschrecht je Konto und Profil, AN-16 als Seerr-Benutzer je Konto mit demselben
+Login; Konten ohne eigenen Benutzer senden über den Sammelbenutzer «slouchcat-gaeste». Seerr bleibt die
+Wunschverwaltung; die Einbettung bleibt entfallen.
+
 ### 5.2 Ankündigungskanäle (Spec "Offene Punkte" 2, A-7)
 
 **Entscheid:** Dieselben Kanäle wie A-6 (In-App, E-Mail, Web-Push, Telegram). Jedes Konto wählt den Ereignistyp "Ankündigungen" je Kanal; Standard: In-App immer, E-Mail für Gastkonten an, übrige aus. **Begründung:** Der Dispatcher aus A-6 existiert ohnehin (M8).
@@ -309,11 +314,20 @@ Native Player senden keinen Bearer-Header. Der Stream-Start (`POST /playback/ses
 
 Kanäle gehören dem Konto (A-6), Favoriten dem Profil (E-8). Ein Ereignis für ein Profil geht an die Kanäle des Kontos mit Profilname als Präfix ("[Lena] Neue Folge …") und in den In-App-Eingang nur dieses Profils. Vor dem Versand prüft `notify` über `visibility`, ob das Profil das Item sehen darf; sonst entfällt die Benachrichtigung.
 
+**Nachtrag vom 17. November 2026 (Frage 33, ADR 0037):** Bei Wünschen nennt die externe Nachricht eines PIN-Profils
+keinen Titel (F-15).
+
 ### 5.6 Radarr/Sonarr-Webhooks (Critic, offene Frage 3; erweitert am 22. Oktober 2026, I-8)
 
 Slouchcat registriert keine Webhooks selbst (Steuerung ist Non-Goal) und ruft Radarr/Sonarr auch nicht ab —
 seit dem Wegfall von I-1 gibt es kein Polling mehr. Der Webhook ist die einzige Verbindung zu den Arr-Diensten
 und rein eingehend.
+
+**Nachtrag vom 17. November 2026 (Frage 33, ADR 0037, Nachtrag ADR 0010):** Zu Seerr baut Slouchcat eine
+ausgehende Verbindung. Zu Radarr und Sonarr kommt eine zweite, ausgehende Verbindung nur für Profil-Tags (Tag
+anlegen, Tag anhängen) und das Lesen von Warteschlange und Dateistand der gewünschten Titel. Der Webhook bleibt die
+einzige Meldung von Radarr und Sonarr an Slouchcat, bringt weiter den Import in die Bibliothek und wird weiter von
+Hand eingerichtet.
 
 - **Adresse je Integration:** Der Admin legt eine Integration an (Name, Typ Radarr oder Sonarr). Slouchcat
   erzeugt ein 256-Bit-Token und zeigt die vollständige Adresse `POST {BasePath}/webhooks/{token}` **einmal**

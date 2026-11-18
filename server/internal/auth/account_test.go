@@ -43,6 +43,7 @@ func TestUpdateAccount(t *testing.T) {
 	}{
 		"nothing to change":  {upd: model.AccountUpdate{CurrentPassword: testPassword}, field: "email:required"},
 		"invalid e-mail":     {upd: model.AccountUpdate{CurrentPassword: testPassword, Email: ptr("not-an-email")}, field: "email:invalid_email"},
+		"reserved domain":    {upd: model.AccountUpdate{CurrentPassword: testPassword, Email: ptr("slouchcat-gaeste@slouchcat.invalid")}, field: "email:invalid_email"},
 		"short password":     {upd: model.AccountUpdate{CurrentPassword: testPassword, NewPassword: ptr("short")}, field: "newPassword:too_short"},
 		"no current":         {upd: model.AccountUpdate{NewPassword: ptr("a long new password")}, field: "currentPassword:required"},
 		"wrong current":      {upd: model.AccountUpdate{CurrentPassword: "wrong password", Email: ptr("new@example.ch")}, want: model.ErrInvalidCredentials},

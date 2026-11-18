@@ -72,9 +72,10 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   «Teststufen» weiter unten. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`):
   `go vet` und `go test` ohne `-race` für die geänderten Pakete und ihre direkten Abnehmer.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
-  `E2E_PORT`, `+20`, `+40` … (Standard 8097) samt den Mocks auf den zehn Ports darunter. Ab 8097
-  bleiben höchstens 5 Shards unter 8197; ein zweiter Lauf daneben beginnt auf 8297 oder höher. Jeder
-  Shard hat einen eigenen Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`,
+  `E2E_PORT`, `+20`, `+40` … (Standard 8097) samt den Mocks auf den vierzehn Ports darunter (einer davon
+  bleibt frei, `web/e2e/parallel.mjs`). Ab 8097 bleiben höchstens 5 Shards unter 8197; ein zweiter Lauf
+  daneben beginnt auf 8297 oder höher. Jeder Shard hat einen eigenen Artefaktordner
+  (`web/node_modules/.playwright-parallel/shard-<i>/`,
   Protokoll `run.log`) und eine Kopie von `testdata/media` aus harten Links, weil Specs dort Dateien
   anlegen. Belegte Ports
   brechen den Lauf vor dem Start ab. Am Ende steht ein zusammengeführter HTML-Bericht in
@@ -90,6 +91,28 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   eine Umgebungsvariable schaltet das im normalen Build nie frei (Konzept 16, Plan 3.8). Katalog und
   Teststation liefert `web/e2e/radio-server.mjs` neun Ports unter dem App-Port (Standard 8088) aus
   `testdata/radio/catalog.json`. Das Docker-Image und `bin/slouchcat` tragen das Tag nie.
+- Für die Wünsche (Konzept 25) startet `web/e2e/start-server.mjs` vier weitere Nachbauten im selben Prozess:
+  `web/e2e/seerr-server.mjs` (Seerr, elf Ports unter dem App-Port) mit den Antworten, die Seerr 3.5.1 bei der
+  Prüfung der echten Instanzen gab (Benutzerpflege, Limit, Anfragen, Titel). Der Testserver bekommt keine
+  Variable `SLOUCHCAT_SEERR_*`, weil sie das Formular sperren würde; die Specs tragen Adresse und Schlüssel
+  in der Verwaltung ein. `web/e2e/tmdb-server.mjs` (TMDB, zwölf Ports darunter) liefert die Titel ausserhalb der
+  Bibliothek. Der Server fragt ihn nur über `SLOUCHCAT_TEST_TMDB_BASE_URL` (und
+  `SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL`) und nur im Entwicklungsmodus (`--dev`); ohne `--dev` übergeht er die
+  Variablen mit einer Warnung. Weil die Suite ohne TMDB-Schlüssel läuft, legen die Specs der Wünsche ihn über die
+  Verwaltung an und entfernen ihn danach (`web/e2e/wishes.ts`). `web/e2e/arr-server.mjs` spielt Radarr (13 Ports
+  darunter) und Sonarr (14 Ports darunter) für Profil-Tags und Warteschlange; der Seerr-Nachbau nennt sie als
+  Server von Seerr. Gesteuert werden die Nachbauten über `POST /__control` (Seerr, Radarr, Sonarr). Die Helfer
+  stehen in `web/e2e/wishes.ts` (`openWishes`, `closeWishes`, dazu Zustände von Anfragen im Seerr-Nachbau) und
+  `web/e2e/arr.ts` (`arrControl`, `arrReset`, `testArr`, `runJob`). Alle lassen sich einzeln starten
+  (`node e2e/seerr-server.mjs`, `node e2e/tmdb-server.mjs`, `node e2e/arr-server.mjs`).
+- **Jobs der Wünsche in Specs.** Eine Spec wartet nicht auf den Zeitplan: Zuerst bestätigt
+  `POST /api/v1/admin/seerr/arr/test` je Dienst den Host (`testArr`), dann startet
+  `POST /api/v1/admin/job-types/wishes.tag/run` bzw. `…/wishes.progress/run` den Job (`runJob`), und zwar innerhalb
+  von `expect.poll`: Der Server überspringt eine Lesung des Fortschritts, die weniger als 45 s nach der letzten
+  kommt (`server/internal/wishes/progress.go`), darum läuft der Job im Poll, bis die Zeilen da sind.
+- Specs, die Antworten mit `page.route` einspeisen, sperren den Service Worker
+  (`test.use({ serviceWorkers: 'block' })`): Der Service Worker schickt jede GET-Anfrage unter `/api` selbst ans
+  Netz, wo die Routen der Seite sie nicht sehen.
 - `SLOUCHCAT_E2E_ARTEFACTS` und `SLOUCHCAT_E2E_MEDIA` verlegen Artefakte und Testmedien eines
   einzelnen Laufs (`web/e2e/env.ts`); `ci:e2e:parallel` setzt beide selbst.
 
@@ -153,7 +176,9 @@ einen roten Lauf zu einem Befund statt zu einem Würfelwurf.
   (ein Abruf pro Minute) läuft im e2e-Server mit 2 s (`SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP`, nur mit
   `--dev` wirksam); die echte Minute prüft genau ein Go-Test (`TestSpotlightRefresh`). Eine neue
   Sperre bekommt dasselbe Muster: Test-Einstellung nur im Entwicklungsmodus, Go-Test, dass sie ohne
-  ihn nicht greift.
+  ihn nicht greift. Ebenso die Grenze von 20 neuen Wünschen je Profil und Stunde: im e2e-Server 1000
+  (`SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR`), weil die Specs in zwei Browsern auf einem Server laufen
+  und der Zähler gespeichert bleibt; die echte Zahl prüft `contract_wishes_test.go`.
 - **Medienverhalten in beiden Engines, Bedienung einmal je Seite.** Wiedergabe, Audio, Offline,
   Anmeldung und Einrichtung laufen in Chromium und Firefox (`FIREFOX_WHOLE_SPECS` in
   `web/playwright.config.ts`). Von jeder anderen Seite läuft genau ein Tastaturtest auch in Firefox:

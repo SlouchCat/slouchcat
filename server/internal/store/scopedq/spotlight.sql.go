@@ -11,20 +11,43 @@ import (
 )
 
 const listSpotlightRow = `-- name: ListSpotlightRow :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating, i.root_id, o.pinned_rank, o.note FROM spotlight_entries AS e
-JOIN items AS i ON i.tmdb_id = e.tmdb_id
-               AND i.kind = CASE e.media WHEN 'movie' THEN 'movie' ELSE 'series' END
-               AND i.deleted_at IS NULL
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-LEFT JOIN spotlight_overrides AS o ON o.list_key = e.list_key AND o.media = e.media AND o.tmdb_id = e.tmdb_id
-WHERE e.list_key = ?2 AND e.fetched_at >= ?3 AND coalesce(o.hidden, 0) = 0
-ORDER BY e.position, e.media, i.id
+WITH entries AS (
+    SELECT e.list_key, e.media, e.position, e.tmdb_id, e.tvdb_id, e.imdb_id,
+           CASE e.media WHEN 'movie' THEN 'movie' ELSE 'series' END AS kind
+    FROM spotlight_entries AS e
+    WHERE e.list_key = ?1 AND e.fetched_at >= ?2
+), hits AS (
+    SELECT e.list_key, e.media, e.position, e.tmdb_id, 1 AS rung, i.id AS item_id
+    FROM entries AS e
+    JOIN items AS i ON i.tvdb_id = e.tvdb_id AND i.kind = e.kind AND i.deleted_at IS NULL
+    JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?3
+    WHERE e.media = 'show'
+    UNION ALL
+    SELECT e.list_key, e.media, e.position, e.tmdb_id, 2 AS rung, i.id AS item_id
+    FROM entries AS e
+    JOIN items AS i ON i.tmdb_id = e.tmdb_id AND i.kind = e.kind AND i.deleted_at IS NULL
+    JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?3
+    UNION ALL
+    SELECT e.list_key, e.media, e.position, e.tmdb_id, 3 AS rung, i.id AS item_id
+    FROM entries AS e
+    JOIN items AS i ON i.imdb_id = e.imdb_id AND i.kind = e.kind AND i.deleted_at IS NULL
+    JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?3
+), best AS (
+    SELECT h.list_key, h.media, h.position, h.tmdb_id, h.item_id
+    FROM hits AS h
+    WHERE h.rung = (SELECT min(b.rung) FROM hits AS b WHERE b.media = h.media AND b.position = h.position)
+)
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, i.publisher, i.isbn, i.asin, i.audio_series_id, i.author_display, i.book_match_state, i.book_match_provider, i.book_match_id, i.book_match_region, i.book_matched_at, i.book_match_score, i.book_match_error, i.book_match_manual, i.removed_at, i.own_rating, i.effective_rating, i.min_child_rating, i.root_id, o.pinned_rank, o.note FROM best AS h
+JOIN items AS i ON i.id = h.item_id
+LEFT JOIN spotlight_overrides AS o ON o.list_key = h.list_key AND o.media = h.media AND o.tmdb_id = h.tmdb_id
+WHERE coalesce(o.hidden, 0) = 0
+ORDER BY h.position, h.media, i.id
 `
 
 type ListSpotlightRowParams struct {
-	ProfileID  int64
 	ListKey    string
 	MinFetched int64
+	ProfileID  int64
 }
 
 type ListSpotlightRowRow struct {
@@ -33,15 +56,22 @@ type ListSpotlightRowRow struct {
 	Note       sql.NullString
 }
 
-// The spotlight list (M11, ADR 0011) intersected with the visible library titles by TMDB id, in
-// list order, with the curation of the main user: hidden entries are filtered here (filtering in
-// Go would eat into a window), pinned_rank and note travel along. There is no LIMIT on purpose
-// (plan 5.3): a pinned entry far down the list must reach the caller, which deduplicates, places
-// the pinned entries by rank and cuts to item_count. The cache holds at most 100 rows per medium.
-// A title held twice (as film and as show) appears twice. Entries fetched before min_fetched are
-// stale (no successful run for two intervals) and left out.
+// The spotlight list (M11, ADR 0011) intersected with the visible library titles, in list order,
+// with the curation of the main user: hidden entries are filtered here (filtering in Go would eat
+// into a window), pinned_rank and note travel along. There is no LIMIT on purpose (plan 5.3): a
+// pinned entry far down the list must reach the caller, which deduplicates, places the pinned
+// entries by rank and cuts to item_count. The cache holds at most 100 rows per medium. A title held
+// twice (as film and as show) appears twice. Entries fetched before min_fetched are stale (no
+// successful run for two intervals) and left out.
+//
+// Matching (concept 25 N-61, like the library): a film by TMDB id, then IMDb id; a show by TVDB
+// id, then TMDB id, then IMDb id. Each branch uses its index on items (items_tvdb, items_tmdb,
+// items_imdb) and joins visible_items, so the ladder runs over the titles this profile sees only:
+// an invisible title never decides the match. An entry keeps the hits of its best rung only, so a
+// title that shares a weaker id with the entry does not ride along. An entry without any visible
+// hit, matched or not (unmatched: tmdb_id NULL, migration 00071), yields no row.
 func (q *Queries) ListSpotlightRow(ctx context.Context, arg ListSpotlightRowParams) ([]ListSpotlightRowRow, error) {
-	rows, err := q.db.QueryContext(ctx, listSpotlightRow, arg.ProfileID, arg.ListKey, arg.MinFetched)
+	rows, err := q.db.QueryContext(ctx, listSpotlightRow, arg.ListKey, arg.MinFetched, arg.ProfileID)
 	if err != nil {
 		return nil, err
 	}

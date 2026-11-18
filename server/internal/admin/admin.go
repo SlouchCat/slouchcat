@@ -187,6 +187,9 @@ type Metadata interface {
 	// KeyRejected reports whether TMDB or TVDB rejects its configured key now (concept 21 P-2; in
 	// memory, false after a restart until the provider rejects it again).
 	KeyRejected(ctx context.Context, provider string) bool
+	// ExternalPosterVersion is the version of the stored poster of a title outside the library
+	// (getAdminExternalTitleImage, concept 25 step 3.3); "" when none is stored.
+	ExternalPosterVersion(ctx context.Context, media string, tmdbID int64) (string, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired
@@ -236,6 +239,7 @@ type Service struct {
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
+	seerr         SeerrHooks    // nil until WithSeerr (concept 25)
 	counts        countsCache   // the counts of the admin sidebar (concept 11, dashboard.go)
 	setupMu       sync.Mutex    // serialises the read-modify-write of the guided wizard (setup_wizard.go)
 }

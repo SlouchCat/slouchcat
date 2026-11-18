@@ -14,7 +14,7 @@ import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { intlLocale } from '@/i18n';
-import { formatBytes, formatDateTime, formatPlayerTime } from '@/lib/format';
+import { formatBytes, formatDate, formatDateTime, formatPlayerTime } from '@/lib/format';
 import {
   Notice,
   StatusDot,
@@ -37,10 +37,11 @@ import {
 import { composeCommand, SYSCTL_COMMAND } from '../../shared/SystemState';
 import { useHealth } from '../../system/useHealth';
 import { PROVIDERS } from '../integrations/ProviderCard';
-import { integrationHref, serviceHref } from '../integrations/services';
+import { integrationDetail, integrationHref, serviceHref } from '../integrations/services';
 import { formatSeconds, typeName } from '../jobsFormat';
 import { dashboardQuery } from '../queries';
 import { reloadPage, RESTART_POLL_MS, restartedSince } from '../restart';
+import { arrErrorText, serviceName } from '../wishes/progress';
 import styles from './Server.module.css';
 
 // The parts the overview (`/admin`) and the page «Server» (`/admin/server`) share (redesign,
@@ -321,8 +322,11 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
   }
   // An integration with an error, with its reason (the dashboard's `detail`), and the webhooks
   // gone quiet for a week: the whole list stands on «Integrationen» (build plan 7.2).
+  const wishes = data.attention.wishes;
   for (const integration of data.integrations) {
     if (integration.state !== 'error') continue;
+    // Seerr's state has a hint of its own among the wishes' below.
+    if (integration.key === 'seerr' && wishes?.seerrState) continue;
     hints.push({
       key: `integration-${integration.key}`,
       place: 'overview',
@@ -331,13 +335,173 @@ export function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[
         name: t(`admin.integrations.names.${integration.key}`),
         state: t('admin.home.integrations.state.error'),
       }),
-      body: integration.detail,
+      body: integrationDetail(t, integration),
       action: (
         <TextLink href={integrationHref(integration.key)}>
           {t('admin.home.integrations.manage')}
         </TextLink>
       ),
     });
+  }
+  // The wishes (concept 25, administration 2): Seerr's state, accounts without a Seerr user,
+  // links made by an invitation or an e-mail change, used-up limits and users gone from Seerr.
+  if (wishes) {
+    const users = `${paths.adminWishes}?tab=seerr-benutzer`;
+    const usersAt = (accountId: number) => `${users}&item=${accountId}`;
+    // Open wishes of the household, those waiting for the transfer named (stage 2, M-20).
+    if (wishes.open > 0) {
+      hints.push({
+        key: 'wishes-open',
+        place: 'overview',
+        tone: 'active',
+        title: t('admin.home.wishes.open', { count: wishes.open }),
+        ...(wishes.queued > 0
+          ? { body: t('admin.home.wishes.openQueued', { count: wishes.queued }) }
+          : {}),
+        action: (
+          <TextLink href={`${paths.adminWishes}?tab=anfragen`}>
+            {t('admin.home.wishes.toRequests')}
+          </TextLink>
+        ),
+      });
+    }
+    if (wishes.seerrState) {
+      hints.push({
+        key: 'wishes-seerr',
+        place: 'overview',
+        tone: 'danger',
+        title: t(`admin.home.wishes.seerrState.${wishes.seerrState}`),
+        body: t(`admin.home.wishes.seerrStateBody.${wishes.seerrState}`),
+        action: (
+          <TextLink href={serviceHref('seerr')}>{t('admin.home.wishes.toConnection')}</TextLink>
+        ),
+      });
+    }
+    if (wishes.unmapped > 0) {
+      const body = [
+        t(
+          wishes.unmappedFallback
+            ? 'admin.home.wishes.unmappedFallback'
+            : 'admin.home.wishes.unmappedDeny',
+        ),
+        ...(wishes.seerrState === 'unreachable' ? [t('admin.home.wishes.unmappedWaiting')] : []),
+      ].join(' ');
+      hints.push({
+        key: 'wishes-unmapped',
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.unmapped', { count: wishes.unmapped }),
+        body,
+        action: <TextLink href={users}>{t('admin.home.wishes.toUsers')}</TextLink>,
+      });
+    }
+    for (const linked of wishes.linked) {
+      hints.push({
+        key: `wishes-linked-${linked.accountId}`,
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.linked', {
+          account: linked.accountEmail,
+          name: linked.seerrDisplayName,
+        }),
+        body: t(`admin.home.wishes.linkedBody.${linked.linkedBy}`, {
+          date: formatDate(linked.linkedAt, intlLocale(i18n.language)),
+        }),
+        action: (
+          <TextLink href={usersAt(linked.accountId)}>{t('admin.home.wishes.toAccount')}</TextLink>
+        ),
+      });
+    }
+    for (const reached of wishes.quotaReached) {
+      const halves = (['movie', 'tv'] as const).flatMap((kind) => {
+        const part = reached[kind];
+        if (!part || part.remaining > 0) return [];
+        const used = t(`wishes.quota.${kind}`, {
+          used: part.used,
+          limit: part.limit,
+          days: part.days,
+        });
+        return [
+          part.nextFreeAt
+            ? t('admin.home.wishes.quotaNext', {
+                used,
+                date: formatDate(part.nextFreeAt, intlLocale(i18n.language)),
+              })
+            : used,
+        ];
+      });
+      hints.push({
+        key: `wishes-quota-${reached.accountId}`,
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.quotaReached', { account: reached.accountEmail }),
+        body: halves.join(' '),
+        action: (
+          <TextLink href={`${paths.adminAccounts}?item=${reached.accountId}`}>
+            {t('admin.home.wishes.toLimit')}
+          </TextLink>
+        ),
+      });
+    }
+    if (wishes.goneUsers > 0) {
+      hints.push({
+        key: 'wishes-gone',
+        place: 'overview',
+        tone: 'danger',
+        title: t('admin.home.wishes.gone', { count: wishes.goneUsers }),
+        body: t('admin.home.wishes.goneBody'),
+        action: <TextLink href={users}>{t('admin.home.wishes.toUsers')}</TextLink>,
+      });
+    }
+    // Radarr and Sonarr (stage 4): stalled downloads and tags that could not be set, each with
+    // its titles and service; the links open «Anfragen» with the matching filter.
+    const requests = `${paths.adminWishes}?tab=anfragen`;
+    if (wishes.downloadsStalled.length > 0) {
+      hints.push({
+        key: 'wishes-stalled',
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.stalled', { count: wishes.downloadsStalled.length }),
+        body: wishes.downloadsStalled
+          .map((hint) =>
+            t('admin.home.wishes.serviceTitle', {
+              title: hint.title,
+              service: serviceName(t, hint.service),
+            }),
+          )
+          .join(t('format.listSeparator')),
+        action: (
+          <TextLink href={`${requests}&item=stalled`}>{t('admin.home.wishes.toStalled')}</TextLink>
+        ),
+      });
+    }
+    if (wishes.tagsFailed.length > 0) {
+      hints.push({
+        key: 'wishes-tags',
+        place: 'overview',
+        tone: 'warning',
+        title: t('admin.home.wishes.tagsFailed', { count: wishes.tagsFailed.length }),
+        body: wishes.tagsFailed
+          .map((hint) => {
+            const entry = t('admin.home.wishes.serviceTitle', {
+              title: hint.title,
+              service: serviceName(t, hint.service),
+            });
+            return hint.error
+              ? t('admin.home.wishes.tagFailedEntry', {
+                  entry,
+                  reason: arrErrorText(t, hint.error, hint.service),
+                })
+              : entry;
+          })
+          .join(' '),
+        action: (
+          <TextLink href={`${requests}&item=untagged`}>
+            {t('admin.home.wishes.toUntagged')}
+          </TextLink>
+        ),
+      });
+    }
   }
   if (data.webhooks.silent.length > 0) {
     hints.push({

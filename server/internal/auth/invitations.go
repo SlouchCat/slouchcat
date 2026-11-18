@@ -69,8 +69,17 @@ func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, r
 	if !req.AllLibraries && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
 	}
+	wl, verr := invitationWishLimit(req.WishLimit, verr)
 	if verr != nil {
 		return model.Invitation{}, verr
+	}
+	canRequest := false
+	if req.CanRequest != nil {
+		canRequest = *req.CanRequest
+	} else if v, err := s.read.GetSetting(ctx, settingNewAccountsCanRequest); err == nil {
+		canRequest = v == "1" // «Neue Konten dürfen anfordern», off by default (concept 25, F-5)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return model.Invitation{}, fmt.Errorf("read %s: %w", settingNewAccountsCanRequest, err)
 	}
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
@@ -89,6 +98,9 @@ func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, r
 		TokenHash: hashToken(token), Note: sql.NullString{String: note, Valid: note != ""}, MaxRating: int64(req.MaxRating),
 		AllLibraries: boolInt(req.AllLibraries), CreatedBy: sql.NullInt64{Int64: creator.ID, Valid: creator.ID != 0},
 		Now: now.UnixMilli(), ExpiresAt: now.Add(InvitationLifetime).UnixMilli(),
+		CanRequest: boolInt(canRequest), WishLimitMode: wl.Mode,
+		WishMovieLimit: limitPart(wl.Movie, true), WishMovieDays: limitPart(wl.Movie, false),
+		WishTvLimit: limitPart(wl.TV, true), WishTvDays: limitPart(wl.TV, false),
 	})
 	if err != nil {
 		return model.Invitation{}, fmt.Errorf("insert invitation: %w", err)
@@ -105,6 +117,49 @@ func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, r
 	inv := toInvitation(row, libs, "", now)
 	inv.Token = token
 	return inv, nil
+}
+
+// settingNewAccountsCanRequest is the setting of package admin «Neue Konten dürfen anfordern».
+const settingNewAccountsCanRequest = "wishes.new_accounts_can_request"
+
+// invitationWishLimit checks the wish limit of an invitation (concept 25, data model 2.3): mode
+// default (also for nil), custom with both halves (limit 0 to 100, days 1 to 90) or unlimited.
+func invitationWishLimit(in *model.InvitationWishLimit, verr *model.ValidationError) (model.InvitationWishLimit, *model.ValidationError) {
+	if in == nil {
+		return model.InvitationWishLimit{Mode: model.WishLimitDefault}, verr
+	}
+	check := func(field string, l *model.WishLimit) {
+		switch {
+		case l == nil:
+			verr = verr.Add(field, "required")
+		case l.Limit < 0 || l.Limit > 100:
+			verr = verr.Add(field+".limit", "out_of_range")
+		case l.Days < 1 || l.Days > 90:
+			verr = verr.Add(field+".days", "out_of_range")
+		}
+	}
+	switch in.Mode {
+	case model.WishLimitCustom:
+		check("wishLimit.movie", in.Movie)
+		check("wishLimit.tv", in.TV)
+		return *in, verr
+	case model.WishLimitDefault, model.WishLimitUnlimited:
+		if in.Movie != nil || in.TV != nil {
+			verr = verr.Add("wishLimit", "invalid_value")
+		}
+		return model.InvitationWishLimit{Mode: in.Mode}, verr
+	}
+	return model.InvitationWishLimit{Mode: model.WishLimitDefault}, verr.Add("wishLimit.mode", "invalid_value")
+}
+
+func limitPart(l *model.WishLimit, limit bool) sql.NullInt64 {
+	switch {
+	case l == nil:
+		return sql.NullInt64{}
+	case limit:
+		return sql.NullInt64{Int64: int64(l.Limit), Valid: true}
+	}
+	return sql.NullInt64{Int64: int64(l.Days), Valid: true}
 }
 
 // guestLibraries validates the library choice of an invitation or a guest account: with all
@@ -149,6 +204,11 @@ func toInvitation(row appq.Invitation, libs []int64, usedByEmail string, now tim
 		ID: row.ID, Note: row.Note.String, State: invitationState(row, now), MaxRating: int(row.MaxRating),
 		AllLibraries: row.AllLibraries == 1, LibraryIDs: libs, CreatedAt: time.UnixMilli(row.CreatedAt),
 		ExpiresAt: time.UnixMilli(row.ExpiresAt), UsedByEmail: usedByEmail,
+		CanRequest: row.CanRequest == 1, WishLimit: model.InvitationWishLimit{Mode: row.WishLimitMode},
+	}
+	if row.WishLimitMode == model.WishLimitCustom {
+		inv.WishLimit.Movie = &model.WishLimit{Limit: int(row.WishMovieLimit.Int64), Days: int(row.WishMovieDays.Int64)}
+		inv.WishLimit.TV = &model.WishLimit{Limit: int(row.WishTvLimit.Int64), Days: int(row.WishTvDays.Int64)}
 	}
 	if row.UsedAt.Valid {
 		t := time.UnixMilli(row.UsedAt.Int64)
@@ -272,7 +332,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return model.Session{}, "", err
 	}
@@ -303,7 +363,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	}
 	acc, err := q.InsertInvitedAccount(ctx, appq.InsertInvitedAccountParams{
 		Email: email, PasswordHash: hash, MaxRating: inv.MaxRating, AllLibraries: inv.AllLibraries,
-		InvitedBy: inv.CreatedBy, Now: now,
+		CanRequest: inv.CanRequest, InvitedBy: inv.CreatedBy, Now: now,
 	})
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("insert guest account: %w", err)
@@ -344,6 +404,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 			s.log.WarnContext(ctx, "invitation accepted hook failed", "invitation_id", inv.ID, "err", err)
 		}
 	}
+	s.seen(ctx, acc.ID, email, in.Password, PasswordMomentInvitation)
 	account := toAccount(acc, libs)
 	return s.StartSession(ctx, account, toProfile(prof, nil, account.Limits), userAgent)
 }

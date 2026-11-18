@@ -640,6 +640,11 @@ func TestInvitationLifecycle(t *testing.T) {
 	if _, _, err := s.AcceptInvitation(fresh(), bad, "ua"); !slices.Equal(validationCodes(err), []string{"email:invalid_email", "password:too_short", "profileName:required", "language:invalid_value"}) {
 		t.Errorf("validation: %v", err)
 	}
+	// The domain of the shared Seerr user is reserved (concept 25, security review L-4).
+	reserved := model.AcceptInvitation{Token: inv.Token, Email: "slouchcat-gaeste@slouchcat.invalid", Password: testPassword, ProfileName: "Gast"}
+	if _, _, err := s.AcceptInvitation(fresh(), reserved, "ua"); !slices.Equal(validationCodes(err), []string{"email:invalid_email"}) {
+		t.Errorf("reserved domain: %v", err)
+	}
 	// The owner's e-mail is taken (any case) and the link stays open.
 	taken := model.AcceptInvitation{Token: inv.Token, Email: strings.ToUpper(testEmail), Password: "oma-password-1", ProfileName: "Oma"}
 	if _, _, err := s.AcceptInvitation(fresh(), taken, "ua"); !slices.Equal(validationCodes(err), []string{"email:already_exists"}) {

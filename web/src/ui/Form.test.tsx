@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { useRef, useState, type ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import { AriaButton } from './AriaButton';
 import { Form } from './Form';
 import { RadioGroup } from './RadioGroup';
@@ -16,12 +16,21 @@ import { TextField } from './TextField';
  * `answer` is what the mutation reports: `null` while the request runs, otherwise the field
  * messages of the server's answer.
  */
-function SmtpForm({ answer }: { answer: Record<string, string> | null }) {
+function SmtpForm({
+  answer,
+  onSend,
+}: {
+  answer: Record<string, string> | null;
+  onSend?: (host: string) => void;
+}) {
   const [host, setHost] = useState('smtp.falsch');
   return (
     <Form
       validationErrors={answer === null ? undefined : { ...answer }}
-      onSubmit={(event) => event.preventDefault()}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSend?.(host);
+      }}
     >
       <TextField name="host" label="Server" value={host} onChange={setHost} />
       <TextField name="port" label="Port" defaultValue="587" />
@@ -41,6 +50,74 @@ function SmtpForm({ answer }: { answer: Record<string, string> | null }) {
 
 const message = 'Dieser Wert ist ungültig.';
 const required = 'Pflichtfeld.';
+
+/**
+ * A form whose messages never change, as a page holds them between two answers; `check` is a
+ * button that only asks the form whether it is valid, as the announcement page does before it
+ * publishes.
+ */
+function FixedForm({
+  errors,
+  sent,
+  children,
+}: {
+  errors: Record<string, string>;
+  sent: string[];
+  children?: ReactNode;
+}) {
+  const form = useRef<HTMLFormElement>(null);
+  return (
+    <Form
+      ref={form}
+      validationErrors={{ ...errors }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        sent.push('sent');
+      }}
+    >
+      <TextField name="host" label="Server" defaultValue="smtp.falsch" />
+      {children}
+      <AriaButton onPress={() => form.current?.reportValidity()}>Prüfen</AriaButton>
+      <AriaButton type="submit">Speichern</AriaButton>
+    </Form>
+  );
+}
+
+/**
+ * Lets the retry's chain of timers run to its end. Each step queues the next with `setTimeout(0)`,
+ * so each tick here, queued after the step before it, runs after that step; six cover the chain
+ * (press, decision, retry, check) with room to spare, whatever the load of the machine.
+ */
+async function ticks(count = 6) {
+  for (let tick = 0; tick < count; tick++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+}
+
+/** The SMTP form as a page with a mutation holds it: the answer goes when the request starts. */
+function SendingForm({ sent }: { sent: string[] }) {
+  const [answer, setAnswer] = useState<Record<string, string> | null>({ host: message });
+  return (
+    <SmtpForm
+      answer={answer}
+      onSend={(host) => {
+        sent.push(host);
+        setAnswer(null);
+      }}
+    />
+  );
+}
+
+/** Runs the pending timers one by one, each with its render, as the browser would. */
+function runTimers() {
+  for (let step = 0; step < 10; step++) {
+    act(() => {
+      vi.advanceTimersToNextTimer();
+    });
+  }
+}
 
 describe('Form', () => {
   it('keeps every character the reader types', async () => {
@@ -120,6 +197,49 @@ describe('Form', () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
   });
 
+  it('sends the same value again when the reader retries after a refusal', async () => {
+    // The server's message stands in the field's native validity, so the browser stopped the
+    // next submit by itself: a name refused because another profile had it could not be sent
+    // again after that profile was renamed, and Enter right after typing raced the mark that
+    // drops the message (the unstable profile-tag test of 18 November 2026).
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(<SendingForm sent={sent} />);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await vi.waitFor(() => expect(sent).toEqual(['smtp.falsch']));
+    // The check after the retry has run: the request cleared the answer, so the message stays away.
+    await ticks();
+
+    expect(sent).toEqual(['smtp.falsch']);
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
+  it('still stops a submit the field itself refuses', async () => {
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(
+      <Form
+        validationErrors={{ host: message }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          sent.push('sent');
+        }}
+      >
+        <TextField name="host" label="Server" isRequired defaultValue="" />
+        <AriaButton type="submit">Speichern</AriaButton>
+      </Form>,
+    );
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(sent).toEqual([]);
+    expect(screen.getByLabelText(/Server/)).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('clears the message when the next answer carries none', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<SmtpForm answer={{ host: message }} />);
@@ -130,5 +250,85 @@ describe('Form', () => {
     rerender(<SmtpForm answer={{}} />);
 
     expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
+  it('does not send when the page only asks whether the form is valid', async () => {
+    // `reportValidity()` fires `invalid` like a refused submit: the announcement page's
+    // «Veröffentlichen» saved the draft instead and hid the reason it stayed unpublished.
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(<FixedForm errors={{ host: message }} sent={sent} />);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Prüfen' }));
+    await ticks();
+
+    expect(sent).toEqual([]);
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it('shows a message the page made itself again when the retry sent nothing', async () => {
+    // The spotlight dialog says «Pflichtfeld» while no place is chosen; its submit handler sends
+    // nothing then, so the message must not vanish on the second press.
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(<FixedForm errors={{ host: required }} sent={sent} />);
+    expect(await screen.findByText(required)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await vi.waitFor(() => expect(sent).toEqual(['sent']));
+    await ticks();
+
+    expect(screen.getByText(required)).toBeInTheDocument();
+  });
+
+  it('keeps the server messages while another field fails its own rule', async () => {
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(
+      <FixedForm errors={{ host: message }} sent={sent}>
+        <TextField name="port" label="Port" isRequired defaultValue="" />
+      </FixedForm>,
+    );
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await ticks();
+
+    expect(sent).toEqual([]);
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it('sends once for two quick presses', () => {
+    vi.useFakeTimers();
+    try {
+      const sent: string[] = [];
+      render(<FixedForm errors={{ host: message }} sent={sent} />);
+      const save = screen.getByRole('button', { name: 'Speichern' });
+
+      fireEvent.click(save);
+      fireEvent.click(save);
+      runTimers();
+
+      expect(sent).toEqual(['sent']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends nothing once the form is gone before its retry', () => {
+    vi.useFakeTimers();
+    try {
+      const sent: string[] = [];
+      const { unmount } = render(<FixedForm errors={{ host: message }} sent={sent} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      unmount();
+      runTimers();
+
+      expect(sent).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -43,6 +43,7 @@ const resultTone = {
   ignored: 'neutral',
   outside_roots: 'warning',
   invalid_payload: 'warning',
+  sync_queued: 'success',
 } as const satisfies Record<IntegrationEvent['result'], string>;
 
 /**
@@ -63,7 +64,7 @@ const stored = (pairs: PathMapping[]) => JSON.stringify(pairs);
  * this panel is gone the address cannot be recovered — only the token's last four characters
  * stay (plan 3.8 point 2).
  */
-function CreatedAddress({
+export function CreatedAddress({
   created,
   onDismiss,
 }: {
@@ -325,7 +326,7 @@ function PathMapForm({
 }
 
 /** The newest 20 reports of one integration. */
-function EventLog({ integration }: { integration: Integration }) {
+export function EventLog({ integration }: { integration: Integration }) {
   const { t, i18n } = useTranslation();
   const events = useQuery(integrationEventsQuery(integration.id));
 
@@ -376,7 +377,7 @@ function EventLog({ integration }: { integration: Integration }) {
 }
 
 /** Renew and delete of one integration, each after a confirmation. */
-function RowActions({
+export function RowActions({
   integration,
   onRenewed,
   onRemoved,

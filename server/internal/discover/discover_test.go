@@ -1064,6 +1064,8 @@ func rowsFixture(t *testing.T, load func(ctx context.Context, i int, setting mod
 	}
 	exec(t, f, `UPDATE home_rows SET hidden = 0, position = position * 10`)
 	exec(t, f, `UPDATE home_rows SET position = (SELECT position FROM home_rows WHERE id = 'watchlist') + 5 WHERE id = 'spotlight'`)
+	// «Erfüllte Wünsche» (migration 00079) behind every other row, so the indexes of the cases hold.
+	exec(t, f, `UPDATE home_rows SET position = (SELECT max(position) FROM home_rows) + 10 WHERE id = 'wishes'`)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	order, err := s.rowOrder(context.Background())
 	if err != nil {

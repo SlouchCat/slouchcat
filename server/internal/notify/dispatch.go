@@ -67,8 +67,8 @@ type target struct {
 
 // Emit records an event for the channels (design 3.2): one row in deliveries and one job
 // notify.deliver per switched-on channel that chose the event and that the server can send on.
-// Recipients: errors the main account (once per Source and hour), announcements every account, the
-// other events the event's account. ProfileID prefixes the subject with "[<profile name>] ".
+// Recipients: errors the administrators (once per Source and hour), wish_review the
+// administrators, announcements every account, the other events the event's account. ProfileID prefixes the subject with "[<profile name>] ".
 // Without a queue (WithQueue) it does nothing. A failure to queue one delivery marks it failed and
 // is returned after the others.
 func (s *Service) Emit(ctx context.Context, ev model.Event) error {
@@ -124,7 +124,7 @@ func (s *Service) Emit(ctx context.Context, ev model.Event) error {
 func (s *Service) targets(ctx context.Context, ev model.Event) ([]target, error) {
 	var out []target
 	switch ev.Type {
-	case model.EventErrors:
+	case model.EventErrors, model.EventWishReview:
 		rows, err := s.write.ChannelTargetsAdmins(ctx, ev.Type)
 		if err != nil {
 			return nil, fmt.Errorf("recipients of %s: %w", ev.Type, err)

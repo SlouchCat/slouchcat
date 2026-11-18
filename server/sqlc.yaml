@@ -47,3 +47,27 @@ sql:
         package: certq
         out: internal/store/certq
         emit_empty_slices: true
+
+  # Titles outside the library (package store/externalq, concept 25 section 2.9). Importing it is
+  # allowed only in package metadata (depguard rule "externalq").
+  - engine: sqlite
+    schema: migrations
+    queries: queries/external
+    gen:
+      go:
+        package: externalq
+        out: internal/store/externalq
+        emit_empty_slices: true
+
+  # Wishes through Seerr (package store/wishq, concept 25, architecture 2.3): the Seerr users, the
+  # Seerr user of each account, the limits, the call log and the state settings of package wishes.
+  # Importing it is allowed only in package wishes (depguard rule "wishq"); it never touches items,
+  # media_files or tracks (CLAUDE.md rule 2).
+  - engine: sqlite
+    schema: migrations
+    queries: queries/wishes
+    gen:
+      go:
+        package: wishq
+        out: internal/store/wishq
+        emit_empty_slices: true

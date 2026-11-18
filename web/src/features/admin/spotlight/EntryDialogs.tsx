@@ -7,7 +7,7 @@ import { formText } from '@/lib/form';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import {
-  setSpotlightEntryOverride,
+  overrideEntry,
   spotlightEntriesQuery,
   type SpotlightEntry,
   type SpotlightEntryOverride,
@@ -31,8 +31,7 @@ function useOverride(
   onError?: (error: unknown) => void,
 ) {
   return useMutation({
-    mutationFn: (body: SpotlightEntryOverride) =>
-      setSpotlightEntryOverride(entry.media, entry.tmdbId, body),
+    mutationFn: (body: SpotlightEntryOverride) => overrideEntry(entry, body),
     onSuccess: onSaved,
     onError,
   });

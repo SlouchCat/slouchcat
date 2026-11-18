@@ -534,7 +534,7 @@ function AccountsContent() {
                   )}
                   {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
                   {accounts.data && (
-                    <div data-perf="first-work-row">
+                    <div className={styles.tableFrame} data-perf="first-work-row">
                       <DataTable
                         caption={t('admin.accounts.list')}
                         columns={columns}

@@ -48,6 +48,9 @@ type WebhookPayload struct {
 	Event      string // eventType
 	MoviePath  string // movie.folderPath (Radarr)
 	SeriesPath string // series.path (Sonarr)
+	// Notification is notification_type of a Seerr notification (MEDIA_PENDING, TEST_NOTIFICATION,
+	// …); it only names the entry in the log, nothing is read from it (concept 25, F-18).
+	Notification string
 }
 
 // WebhookReceipt is the outcome of one received webhook.
@@ -72,4 +75,21 @@ type WebhookStatus struct {
 	Total         int      // configured integrations
 	EventsLast24h int      // webhooks received in the last 24 hours
 	Silent        []string // names that reported nothing for seven days
+}
+
+// The Seerr webhook (concept 25 stage 4, F-18; architecture 10): a notification of Seerr only
+// queues a run of the sync wishes.sync; its content is never read for a state.
+const (
+	IntegrationSeerr = "seerr"       // kind of the integration Seerr calls
+	ResultSyncQueued = "sync_queued" // a Seerr notification queued, or joined, a run of the sync
+)
+
+// SeerrWebhookSetup is what the administrator enters in Seerr under Settings › Notifications ›
+// Webhook (band «Sofortmeldung», administration 4.3): the address of the integration (shown once,
+// Integration.URL), the JSON payload and the notification types. Seerr knows one webhook target
+// only; this address replaces another one there.
+type SeerrWebhookSetup struct {
+	JSONPayload string   // the template to paste into «JSON Payload»
+	Types       int      // Seerr's bit mask of the notification types to tick
+	TypeNames   []string // the same types by Seerr's names, in the order of Seerr's list
 }

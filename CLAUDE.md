@@ -53,10 +53,18 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    die Sprachnamen in `web/src/i18n/languages.ts` und die Freigabebezeichnungen in
    `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
-    Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test.
+    Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test (seit Konzept 25 auch `seerrapikey`,
+    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin).
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,
-    algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten,
-    Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
+    algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung (Seerr bleibt die Wunschverwaltung;
+    erlaubt sind nur Wünsche über Seerr nach Frage 33 und ADR 0037: anlegen, Zustand zeigen, zurückziehen,
+    Verfügbarkeit melden, Freigeben/Ablehnen nur als Durchreichen für Administratoren), Steuerung von Arr/Seerr
+    (zwei Ausnahmen nach ADR 0037: in Seerr die Benutzer der Konten und den Sammelbenutzer anlegen und pflegen,
+    also E-Mail, Passwort, Rechte und Limit; in Radarr und Sonarr den Profil-Tag anlegen und anhängen und
+    Warteschlange und Dateistand der gewünschten Titel nur lesen (`queue`, `movie?tmdbId`, `series?tvdbId`).
+    Qualitätsprofile, Warteschlangen ändern, Webhooks eintragen, Suchen, Hinzufügen, Löschen, Tags entfernen
+    und SABnzbd bleiben verboten), Mandanten, Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein
+    vorziehen.
 12. **Entscheid im Server, offline nur Nachschlagen.** Der Client implementiert keine Sichtbarkeits- oder
     Altersregel (Plan 2.1, Prinzip 1).
 

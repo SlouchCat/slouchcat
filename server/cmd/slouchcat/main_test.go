@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,5 +113,27 @@ func TestShutdownCutsLingeringStreamsOnRestart(t *testing.T) {
 	}
 	if _, err := io.ReadAll(resp.Body); err == nil {
 		t.Error("the client's stream ended cleanly, want a cut connection")
+	}
+}
+
+// The TMDB mock of the e2e suite is honoured with --dev only; without it the server warns and
+// keeps TMDB, and unset nothing changes.
+func TestTMDBTestBaseOnlyInDev(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&buf, nil))
+	cfg := config.Config{TestTMDBBaseURL: "http://127.0.0.1:9/tmdb", TestTMDBImageBaseURL: "http://127.0.0.1:9/img"}
+	if opts := tmdbTestBase(cfg, log); opts != nil {
+		t.Errorf("without --dev: %d options", len(opts))
+	}
+	if !strings.Contains(buf.String(), "ignored without --dev") {
+		t.Errorf("no warning without --dev: %q", buf.String())
+	}
+	cfg.Dev = true
+	if opts := tmdbTestBase(cfg, log); len(opts) != 1 {
+		t.Errorf("with --dev: %d options, want 1", len(opts))
+	}
+	buf.Reset()
+	if opts := tmdbTestBase(config.Config{Dev: true}, log); opts != nil || buf.Len() != 0 {
+		t.Errorf("unset: %d options, log %q", len(opts), buf.String())
 	}
 }

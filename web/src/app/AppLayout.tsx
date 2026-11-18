@@ -19,6 +19,7 @@ import type { AdminFinder as AdminFinderType } from '@/features/admin/AdminFinde
 import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
 import { currentSection, firstSectionOf } from '@/features/admin/sections';
 import { offlineSupported } from '@/features/offline/support';
+import { wishCountsQuery } from '@/features/wishes/queries';
 import { useWideScreen } from '@/lib/useWideScreen';
 import {
   AppHeader,
@@ -270,6 +271,13 @@ export function AppLayout() {
   // it hid here, and never hold up the shell; without them (offline, an error) the group says so
   // and points to the downloads.
   const myMedia = useQuery(myMediaQuery);
+  // «Wünsche» (concept 25, 5): its count of open wishes, read only while the server says the
+  // wishes are on; the entry shows for a profile that may request or has wishes.
+  const wishRights = session.wishes;
+  const wishCounts = useQuery({ ...wishCountsQuery, enabled: wishRights?.enabled === true });
+  const wishTotal = wishCounts.data
+    ? wishCounts.data.open + wishCounts.data.available + wishCounts.data.closed
+    : 0;
   const mediaEntry = (entry: MyMediaEntry): SideNavEntry => {
     const { count } = entry;
     if (entry.library) {
@@ -343,6 +351,25 @@ export function AppLayout() {
       current: pathname.startsWith(paths.watched),
     },
   ];
+  if (wishRights?.enabled && (wishRights.canRequest || wishTotal > 0)) {
+    const open = wishCounts.data?.open ?? 0;
+    nav.push({
+      // «Entdecken» while the server shows the area's pages, else «Meine Wünsche» (concept 25, 5.4).
+      href: wishRights.discover ? paths.discover : paths.wishes,
+      label: t('nav.wishes'),
+      icon: 'heart',
+      ...(open > 0
+        ? {
+            count: open,
+            accessibleLabel: t('nav.wishesLabel', { name: t('nav.wishes'), count: open }),
+          }
+        : {}),
+      current:
+        pathname.startsWith(paths.wishes) ||
+        pathname.startsWith(paths.discover) ||
+        pathname.startsWith('/titles/'),
+    });
+  }
   // Every profile has its downloads on this device (M5), where the browser can keep them (K13).
   if (offlineSupported()) {
     nav.push({

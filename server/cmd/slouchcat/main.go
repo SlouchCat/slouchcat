@@ -48,11 +48,13 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/radio"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
+	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // The radio service implements the API's webradio (package radio must not import api).
@@ -301,6 +303,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
 	}
+	// The e2e suite's raised limit of new wishes (wishes.WithCreatePerHour); without --dev 20 hold.
+	if !cfg.Dev && cfg.TestWishCreatePerHour != "" {
+		log.Warn("SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR is ignored without --dev")
+	}
 	if !cfg.Dev && cfg.TestUpdaterDir != "" {
 		log.Warn("SLOUCHCAT_TEST_UPDATER_DIR is ignored without --dev")
 	}
@@ -334,9 +340,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	podcastStates := func(ctx context.Context, podcastID string) (map[string]model.PodcastState, error) {
 		return libSvc.PodcastStates(ctx, podcastID)
 	}
+	// The titles outside the library the wishes hold (concept 25, migration 00074): titles.refresh
+	// keeps them; metadata does not import wishes, the closure reads wishSvc when the job runs.
+	var wishSvc *wishes.Service
+	wishTitles := func(ctx context.Context, closedSince time.Time) (open, recent []metadata.TitleRef, err error) {
+		return wishSvc.TitlesInUse(ctx, closedSince)
+	}
 	// The audiobook sources (concept 19 D6): the e2e suite points them at a mock, in development
 	// mode only.
-	metaOpts := []metadata.Option{metadata.WithTrailerAI(cfg.TrailerAI),
+	metaOpts := []metadata.Option{metadata.WithWishTitles(wishTitles), metadata.WithTrailerAI(cfg.TrailerAI),
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/" + version),
 		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)),
@@ -349,6 +361,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	} else if cfg.TestBooksBaseURL != "" {
 		log.Warn("SLOUCHCAT_TEST_BOOKS_BASE_URL is ignored without --dev")
 	}
+	metaOpts = append(metaOpts, tmdbTestBase(cfg, log)...)
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metaOpts...)
 	// Trickplay runs one ffmpeg instead of two while a transcode keeps the CPU busy (concept 18).
 	var load library.TrickplayLoad
@@ -378,6 +391,24 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, hw, zoneName, started)
 	keys.admin = adminSvc
+	// Wishes through Seerr (concept 25): the connection and the settings come from the
+	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
+	wishSvc = wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
+		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc), wishes.WithNotifier(wishes.NotifyAdapter(notifySvc)),
+		wishes.WithCreatePerHour(cfg.WishCreatePerHour())) // 0 outside --dev: createPerHour holds
+	adminSvc.WithSeerr(wishSvc)
+	// The match of a film or series reconciles the wishes of the title with the library (concept 25).
+	metaSvc.WithMatched(wishSvc.TitleMatched)
+	// A deleted account hands over or closes its wishes, and a Seerr user Slouchcat opened loses its
+	// rights (K-2, AK-128); a deleted profile's wishes go to the primary profile.
+	authSvc.WithAccountDeleting(wishSvc.AccountDeleting).WithProfileDeleting(wishSvc.ProfileDeleting)
+	// The password goes to Seerr in the three moments the server sees it (architecture 18.3), in the
+	// background and only in memory.
+	authSvc.WithPasswordSeen(wishSvc.PasswordSeen).WithRequestRightChanged(wishSvc.RequestRightChanged)
+	// A new account: the default channels (M8) and the wish limit of its invitation (concept 25).
+	authSvc.WithAccountCreated(func(ctx context.Context, accountID int64) error {
+		return errors.Join(notifySvc.EnsureDefaults(ctx, accountID), wishSvc.AccountCreated(ctx, accountID))
+	})
 	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
 	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
 	// cleans it up. A restore swapped in at this start is recorded in the restored database.
@@ -402,7 +433,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			return ""
 		}
 		return u + api.BasePath
-	}))
+	}), integrations.WithSeerrSync(wishSvc)) // the Seerr webhook triggers the wish sync (F-18)
 	adminSvc.WithIntegrations(integrationSvc)
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
@@ -441,6 +472,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	offlineSvc.RegisterTypes(registry)
 	notifySvc.RegisterTypes(registry)
 	radioSvc.RegisterTypes(registry)
+	wishSvc.RegisterTypes(registry)
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
 	}
@@ -547,11 +579,13 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
 			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
 			// -1 draws (concept 08, F-2); the row «Meine Sender» reads the radio (concept 16, 10.2).
-			Catalog:  discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart), discover.WithRadio(radioSvc)),
+			Catalog: discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart), discover.WithRadio(radioSvc),
+				discover.WithFulfilledWishes(wishSvc.FulfilledItems)),
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
 			Radio:    radioSvc,
+			Wishes:   wishSvc,
 
 			Integrations: integrationSvc,
 		}),
@@ -762,4 +796,25 @@ func recordRestored(ctx context.Context, record func(context.Context, model.Acti
 // recordStarted records server_started with the version once the server listens (concept 11).
 func recordStarted(ctx context.Context, record func(context.Context, model.ActivityEvent), version string) {
 	record(ctx, model.ActivityEvent{Kind: model.ActivityServerStarted, Detail: model.ActivityDetail{Version: version}})
+}
+
+// tmdbTestBase points TMDB at the mock of the e2e suite (SLOUCHCAT_TEST_TMDB_BASE_URL and
+// SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL), in development mode only; without --dev the addresses are
+// ignored with a warning, and unset nothing changes.
+func tmdbTestBase(cfg config.Config, log *slog.Logger) []metadata.Option {
+	if cfg.TestTMDBBaseURL == "" && cfg.TestTMDBImageBaseURL == "" {
+		return nil
+	}
+	if !cfg.Dev {
+		log.Warn("SLOUCHCAT_TEST_TMDB_BASE_URL and SLOUCHCAT_TEST_TMDB_IMAGE_BASE_URL are ignored without --dev")
+		return nil
+	}
+	api, images := cfg.TestTMDBBaseURL, cfg.TestTMDBImageBaseURL
+	if api == "" {
+		api = metadata.DefaultAPIBase
+	}
+	if images == "" {
+		images = metadata.DefaultImageBase
+	}
+	return []metadata.Option{metadata.WithBaseURL(api, images)}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -490,5 +492,75 @@ func TestSpotlightRefreshGap(t *testing.T) {
 	sf.now = sf.now.Add(time.Second)
 	if err := sf.svc.RefreshSpotlight(sf.ctx); err != nil {
 		t.Errorf("after the gap: %v", err)
+	}
+}
+
+// Concept 25 step 3.3 (N-60 to N-62, N-71): every entry carries its three ids; a series the library
+// holds by its TVDB id only is present (match tvdb), a film by its IMDb id (match imdb); a missing
+// entry carries the wish of its title, can be requested while the wishes are set up and no open
+// wish holds it, and shows the poster of its stored title outside the library; an unmatched entry
+// (TVDB id only, no TMDB id) is listed, counted apart, and neither missing nor requestable.
+func TestSpotlightEntriesWithIDsAndWishes(t *testing.T) {
+	sf := newSpotlightFixture(t)
+	hooks := &fakeSeerrHooks{canRequest: true, titleWishes: map[model.TitleKey]model.WishMark{
+		{Media: "movie", TMDBID: 9001}: {ID: 7, State: model.WishProcessing},
+		{Media: "movie", TMDBID: 9002}: {ID: 8, State: model.WishDeclined},
+	}}
+	meta := &fakeMetadata{posters: map[model.TitleKey]string{{Media: "movie", TMDBID: 9002}: "hash9002"}}
+	sf.svc.WithSeerr(hooks).WithMetadata(meta)
+	if err := storetest.AddBareTitle(sf.ctx, sf.f.DB, "01J9SPOTLIGHTSERIESTVDB001", "series"); err != nil {
+		t.Fatal(err)
+	}
+	sf.exec(t, `UPDATE items SET tmdb_id = NULL, tvdb_id = 121361, title = 'Thrones' WHERE id = '01J9SPOTLIGHTSERIESTVDB001'`)
+	sf.exec(t, `UPDATE items SET imdb_id = 'tt0008002' WHERE id = (SELECT id FROM items WHERE tmdb_id = 8002 AND kind = 'movie')`)
+	for _, e := range []struct {
+		media    string
+		position int64
+		tmdb     any
+		tvdb     any
+		imdb     any
+	}{
+		{"show", 1, 1399, 121361, nil},       // TVDB first: present although TMDB 1399 is not in the library
+		{"movie", 1, 5555, nil, "tt0008002"}, // only the IMDb id hits
+		{"movie", 2, 9001, nil, nil},         // missing, an open wish
+		{"movie", 3, 9002, nil, nil},         // missing, a declined wish, a stored poster
+		{"show", 2, nil, 777, nil},           // unmatched
+	} {
+		sf.exec(t, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, tvdb_id, imdb_id, title, fetched_at) VALUES ('trending', ?, ?, ?, ?, ?, 'X', 1)`,
+			e.media, e.position, e.tmdb, e.tvdb, e.imdb)
+	}
+	got, err := sf.svc.SpotlightEntries(sf.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string]model.SpotlightEntry{}
+	for _, e := range got.Entries {
+		by[fmt.Sprintf("%s/%d", e.Media, e.Position)] = e
+	}
+	if e := by["show/1"]; e.ItemID != "01J9SPOTLIGHTSERIESTVDB001" || e.Match != "tvdb" || e.TVDBID != 121361 || e.TmdbID != 1399 || e.CanRequest || e.Wish != nil {
+		t.Errorf("TVDB-first series = %+v", e)
+	}
+	if e := by["movie/1"]; e.ItemID == "" || e.Match != "imdb" || e.IMDBID != "tt0008002" {
+		t.Errorf("IMDb film = %+v", e)
+	}
+	if e := by["movie/2"]; e.ItemID != "" || e.Wish == nil || e.Wish.State != model.WishProcessing || e.CanRequest || e.ExternalPoster != "" {
+		t.Errorf("missing with an open wish = %+v", e)
+	}
+	if e := by["movie/3"]; e.ItemID != "" || e.Wish == nil || e.Wish.State != model.WishDeclined || !e.CanRequest || e.ExternalPoster != "hash9002" {
+		t.Errorf("missing with a declined wish = %+v", e)
+	}
+	if e := by["show/2"]; !e.Unmatched || e.TmdbID != 0 || e.TVDBID != 777 || e.CanRequest || e.Wish != nil || e.ItemID != "" {
+		t.Errorf("unmatched = %+v", e)
+	}
+	if got.Missing != 2 || got.Requested != 1 || got.Unmatched != 1 || !got.CanRequest {
+		t.Errorf("counts missing %d requested %d unmatched %d canRequest %v", got.Missing, got.Requested, got.Unmatched, got.CanRequest)
+	}
+	if !slices.Equal(hooks.askedTitles, []model.TitleKey{{Media: "movie", TMDBID: 9001}, {Media: "movie", TMDBID: 9002}}) {
+		t.Errorf("wishes asked for %v, want the missing entries only", hooks.askedTitles)
+	}
+	// Without the wishes set up nothing can be requested.
+	hooks.canRequest = false
+	if got, _ := sf.svc.SpotlightEntries(sf.ctx); got.CanRequest || slices.ContainsFunc(got.Entries, func(e model.SpotlightEntry) bool { return e.CanRequest }) {
+		t.Errorf("requestable without the wishes: %+v", got)
 	}
 }

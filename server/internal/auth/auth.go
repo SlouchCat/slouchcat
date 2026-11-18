@@ -19,6 +19,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -46,12 +47,14 @@ const (
 
 // Service implements api.AuthService and creates the owner account for the setup wizard.
 type Service struct {
-	db     *sql.DB // writer, for transactions
-	write  *appq.Queries
-	read   *appq.Queries
-	log    *slog.Logger
-	now    func() time.Time
-	params argonParams
+	db    *sql.DB // writer, for transactions
+	write *appq.Queries
+	read  *appq.Queries
+	log   *slog.Logger
+	now   func() time.Time
+	// argonRuns counts the argon2id runs this service started (tests read it).
+	argonRuns atomic.Int64
+	params    argonParams
 
 	attempts Limiter
 	pinMu    sync.Mutex // serialises PIN checks (pin.go)
@@ -62,6 +65,18 @@ type Service struct {
 	// Hooks of package notify (M8), set before the service runs; nil = none.
 	accountCreated     func(ctx context.Context, accountID int64) error
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
+	// accountDeleting runs before an account is deleted, in the transaction that deletes it (package
+	// wishes, concept 25 K-2), and returns what runs after the commit; nil = none.
+	accountDeleting func(ctx context.Context, accountID int64, tx *sql.Tx) (func(context.Context), error)
+	// profileDeleting runs before a profile is deleted (package wishes: its wishes go to the primary
+	// profile, concept 25); an error stops the deletion.
+	profileDeleting func(ctx context.Context, accountID, profileID int64, tx *sql.Tx) error
+	// passwordSeen gets the password in the three moments the server sees it in clear text (package
+	// wishes, concept 25 architecture 18.3); it must return at once. nil = none.
+	passwordSeen func(ctx context.Context, accountID int64, email, password, moment string)
+	// requestRightChanged runs after an administrator changed the request right of an account
+	// (package wishes: the rights of a Seerr user Slouchcat opened follow it, N-110). nil = none.
+	requestRightChanged func(ctx context.Context, accountID int64)
 
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
 	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
@@ -122,6 +137,55 @@ func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAcc
 	return s
 }
 
+// WithAccountDeleting runs fn before DeleteAccount deletes an account, while its rows still exist
+// and in the same transaction (review Minor 1: a failed deletion leaves the wishes as they were),
+// and the function it returns after the commit (wishes.AccountDeleting: the wishes are handed over
+// or closed, the Seerr user Slouchcat opened loses its rights, concept 25 K-2). An error of fn
+// stops the deletion. It returns the receiver.
+func (s *Service) WithAccountDeleting(fn func(ctx context.Context, accountID int64, tx *sql.Tx) (func(context.Context), error)) *Service {
+	s.accountDeleting = fn
+	return s
+}
+
+// WithProfileDeleting runs fn before DeleteProfile deletes a profile, while its rows still exist
+// and in the same transaction (review m-6: a failed deletion leaves the wishes as they were;
+// wishes.ProfileDeleting: its wishes go to the primary profile, concept 25). An error of fn stops
+// the deletion. It returns the receiver.
+func (s *Service) WithProfileDeleting(fn func(ctx context.Context, accountID, profileID int64, tx *sql.Tx) error) *Service {
+	s.profileDeleting = fn
+	return s
+}
+
+// Moments of WithPasswordSeen.
+const (
+	PasswordMomentInvitation     = "invitation"      // an invitation was accepted
+	PasswordMomentLogin          = "login"           // the password was checked at a sign-in
+	PasswordMomentPasswordChange = "password_change" // the account set a new password
+	PasswordMomentEmailChange    = "email_change"    // the account changed its email (with a new password or the current one)
+)
+
+// WithPasswordSeen runs fn with the clear-text password after AcceptInvitation and UpdateAccount
+// committed and after Login checked it (wishes.PasswordSeen hands it to Seerr in the background,
+// concept 25 architecture 18.3). fn must not block: the answer to the browser waits for it. The
+// password goes nowhere else. It returns the receiver.
+func (s *Service) WithPasswordSeen(fn func(ctx context.Context, accountID int64, email, password, moment string)) *Service {
+	s.passwordSeen = fn
+	return s
+}
+
+// WithRequestRightChanged runs fn after UpdateAccountAccess changed the request right of an account
+// (wishes.RequestRightChanged) and returns the receiver.
+func (s *Service) WithRequestRightChanged(fn func(ctx context.Context, accountID int64)) *Service {
+	s.requestRightChanged = fn
+	return s
+}
+
+func (s *Service) seen(ctx context.Context, accountID int64, email, password, moment string) {
+	if s.passwordSeen != nil {
+		s.passwordSeen(ctx, accountID, email, password, moment)
+	}
+}
+
 // created runs the account hook.
 func (s *Service) created(ctx context.Context, accountID int64) {
 	if s.accountCreated == nil {
@@ -170,11 +234,20 @@ func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+// reservedDomain is the domain of Slouchcat's own Seerr user «slouchcat-gaeste» (concept 25, N-101):
+// no account may carry an address of it, or it would be linked to that user (security review L-4).
+const reservedDomain = "slouchcat.invalid"
+
+// validEmail is the one check of an account's e-mail: the owner, an invitation and an e-mail
+// change all pass here.
 func validEmail(email string) bool {
 	if len(email) > maxEmailLen || strings.Count(email, "@") != 1 || strings.ContainsAny(email, " \t\r\n") {
 		return false
 	}
 	local, domain, _ := strings.Cut(email, "@")
+	if d := strings.ToLower(domain); d == reservedDomain || strings.HasSuffix(d, "."+reservedDomain) {
+		return false
+	}
 	return local != "" && strings.Contains(domain, ".") &&
 		!strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".") && !strings.Contains(domain, "..")
 }
@@ -212,7 +285,7 @@ func (s *Service) CreateOwnerProfile(ctx context.Context, email, password, langu
 	if verr != nil {
 		return model.Account{}, model.Profile{}, verr
 	}
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return model.Account{}, model.Profile{}, err
 	}
@@ -332,13 +405,18 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 			return model.Session{}, "", err
 		}
 	}
-	return s.StartSession(ctx, account, profile, userAgent)
+	sess, token, err := s.StartSession(ctx, account, profile, userAgent)
+	if err != nil {
+		return model.Session{}, "", err
+	}
+	s.seen(ctx, acc.ID, acc.Email, password, PasswordMomentLogin)
+	return sess, token, nil
 }
 
 // verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id
 // slot.
 func (s *Service) verify(ctx context.Context, password, encoded string) (bool, error) {
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -561,7 +639,7 @@ func toAccount(a appq.Account, libs []int64) model.Account {
 	}
 	return model.Account{
 		ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating),
-		AllLibraries: a.AllLibraries == 1, LibraryIDs: libs, Limits: AccountLimits(a),
+		AllLibraries: a.AllLibraries == 1, LibraryIDs: libs, Limits: AccountLimits(a), CanRequest: a.CanRequest == 1,
 	}
 }
 
@@ -576,7 +654,7 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
 		MetadataLanguage: p.MetadataLanguage.String,
 		AllLibraries:     p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
-		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
+		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1, CanRequest: p.CanRequest == 1,
 		Limits: limits, Effective: limits.Cap(account), Prefs: prefsOf(p),
 	}
 }

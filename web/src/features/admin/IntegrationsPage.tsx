@@ -23,6 +23,8 @@ import {
   providerSource,
 } from './integrations/ProviderCard';
 import { PushBlock } from './integrations/PushBlock';
+import { ownAddress } from './integrations/SeerrArrBand';
+import { SeerrView } from './integrations/SeerrView';
 import { ServerBlock } from './integrations/ServerBlock';
 import {
   SERVICE_ICON,
@@ -38,17 +40,31 @@ import {
   keyDraft,
   PASSWORD_DRAFT,
   PUBLIC_URL_DRAFT,
+  SEERR_DRAFT,
+  SEERR_KEY_DRAFT,
+  seerrValues,
   TELEGRAM_DRAFT,
   type EmailValues,
+  type SeerrValues,
 } from './integrations/shared';
 import { TelegramForm } from './integrations/TelegramForm';
-import { dashboardQuery, integrationsQuery, settingsQuery, systemQuery } from './queries';
+import {
+  dashboardQuery,
+  integrationsQuery,
+  seerrSettingsQuery,
+  seerrStatusQuery,
+  arrStatusQuery,
+  settingsQuery,
+  systemQuery,
+  wishMappingsQuery,
+} from './queries';
 import { WebhooksSection, type PathMapDraft } from './WebhooksSection';
 import styles from './integrations/Integrations.module.css';
 
 /**
- * Integrations (A-2, M7's key page; concept 12, variant A; admin redesign): six services
- * (provider keys, the incoming webhooks of Radarr and Sonarr, the e-mail server with a test mail,
+ * Integrations (A-2, M7's key page; concept 12, variant A; admin redesign): seven services
+ * (provider keys, the incoming webhooks of Radarr and Sonarr, Seerr for the wishes (concept 25),
+ * the e-mail server with a test mail,
  * the Telegram bot, the Web Push keys, and the server's update check, public address and
  * graphics chip). Without `?item=` the page shows a tile per service with what is set up and its
  * state from the dashboard (build plan 7.2); `?item=<service>` shows that service's view. All
@@ -66,6 +82,11 @@ export function IntegrationsPage() {
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
   const integrations = useQuery({ ...integrationsQuery, enabled: allowed });
   const system = useQuery({ ...systemQuery, enabled: allowed });
+  const seerr = useQuery({ ...seerrSettingsQuery, enabled: allowed });
+  const seerrStatus = useQuery({ ...seerrStatusQuery, enabled: allowed });
+  const seerrConfigured = seerr.data !== undefined && seerr.data.urlSource !== 'none';
+  const mappings = useQuery({ ...wishMappingsQuery, enabled: allowed && seerrConfigured });
+  const arrStatus = useQuery({ ...arrStatusQuery, enabled: allowed && seerrConfigured });
   // The states of the integrations and webhooks (build plan 7.2): the dashboard the admin shell
   // asks every 30 s; this page reads it along without a poll of its own. Without it the page
   // works all the same and shows no states.
@@ -88,6 +109,13 @@ export function IntegrationsPage() {
       [data],
     ),
   );
+  const seerrData = seerr.data;
+  const seerrDrafts = useDrafts<SeerrValues>(
+    useCallback(
+      (id: string) => (seerrData && id === SEERR_DRAFT ? seerrValues(seerrData) : undefined),
+      [seerrData],
+    ),
+  );
   const list = integrations.data;
   const pathMaps = useDrafts<PathMapDraft>(
     useCallback(
@@ -102,7 +130,17 @@ export function IntegrationsPage() {
   // the same, so leaving the page asks for it too (S-13).
   const [newName, setNewName] = useState('');
   const webhooksDirty = pathMaps.dirty || newName.trim() !== '';
-  const unsaved = useUnsavedChanges(fields.dirty || email.dirty || webhooksDirty);
+  // The own addresses of Radarr and Sonarr (stage 4), drafted against the stored ones.
+  const arrData = arrStatus.data;
+  const arrDrafts = useDrafts<string>(
+    useCallback(
+      (id: string) =>
+        arrData && (id === 'radarr' || id === 'sonarr') ? ownAddress(arrData[id]) : undefined,
+      [arrData],
+    ),
+  );
+  const seerrDirty = seerrDrafts.dirty || fields.isDirty(SEERR_KEY_DRAFT) || arrDrafts.dirty;
+  const unsaved = useUnsavedChanges(fields.dirty || email.dirty || webhooksDirty || seerrDirty);
   const keysDirty = PROVIDER_KEYS.some((keyName) => fields.isDirty(keyDraft(keyName)));
   // A provider counts as set up by its main key (concept 20, P-12).
   const keysSet = data
@@ -112,10 +150,17 @@ export function IntegrationsPage() {
   const webhooksCount = list
     ? t('admin.integrations.webhooks.count', { count: list.length })
     : undefined;
+  const seerrCount = mappings.data
+    ? t('admin.integrations.seerr.accounts', {
+        opened: mappings.data.opened,
+        count: mappings.data.total,
+      })
+    : undefined;
   /** What a tile says is set up: the same as its view's band. */
   const tileMeta = (service: Service) => {
     if (service === 'keys') return { count: keysCount };
     if (service === 'webhooks') return { count: webhooksCount };
+    if (service === 'seerr') return { count: seerrCount, source: seerrData?.urlSource };
     if (service === 'email') return { source: data?.email.source };
     if (service === 'telegram') return { source: data?.telegram.source };
     if (service === 'push' && data?.push.configured) {
@@ -127,6 +172,7 @@ export function IntegrationsPage() {
   const unsavedOf: Record<Service, boolean> = {
     keys: keysDirty,
     webhooks: webhooksDirty,
+    seerr: seerrDirty,
     email: email.dirty || fields.isDirty(PASSWORD_DRAFT),
     telegram: fields.isDirty(TELEGRAM_DRAFT),
     push: false,
@@ -265,6 +311,33 @@ export function IntegrationsPage() {
                   onNewNameChange={setNewName}
                   onRemoved={() => titleRef.current?.focus()}
                 />,
+              )}
+              {view(
+                'seerr',
+                t('admin.integrations.seerr.title'),
+                <BandMeta unsaved={seerrDirty} count={seerrCount} source={seerrData?.urlSource} />,
+                seerr.isError ? (
+                  <Notice
+                    tone="danger"
+                    title={problemMessage(t, seerr.error)}
+                    actions={
+                      <AriaButton icon="refresh" onPress={() => void seerr.refetch()}>
+                        {t('common.retry')}
+                      </AriaButton>
+                    }
+                  />
+                ) : seerrData ? (
+                  <SeerrView
+                    settings={seerrData}
+                    status={seerrStatus}
+                    drafts={seerrDrafts}
+                    fields={fields}
+                    arrDrafts={arrDrafts}
+                    onFocusLost={() => titleRef.current?.focus()}
+                  />
+                ) : (
+                  <Skeleton shape="block" />
+                ),
               )}
               {view(
                 'email',

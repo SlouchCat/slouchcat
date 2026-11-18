@@ -178,6 +178,11 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if err != nil {
 		return model.Profile{}, fmt.Errorf("insert profile: %w", err)
 	}
+	if in.CanRequest != nil {
+		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, *in.CanRequest, p.Now); err != nil {
+			return model.Profile{}, err
+		}
+	}
 	if salt.Valid {
 		if err := q.SetProfilePinSalt(ctx, appq.SetProfilePinSaltParams{ID: row.ID, PinSalt: salt}); err != nil {
 			return model.Profile{}, fmt.Errorf("set pin salt: %w", err)
@@ -269,6 +274,11 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	if err := q.UpdateProfile(ctx, p); err != nil {
 		return model.Profile{}, fmt.Errorf("update profile: %w", err)
 	}
+	if in.CanRequest != nil {
+		if row.CanRequest, err = s.setProfileCanRequest(ctx, q, acc.ID, row.ID, *in.CanRequest, p.Now); err != nil {
+			return model.Profile{}, err
+		}
+	}
 	if err := q.DeleteProfileLibraries(ctx, row.ID); err != nil {
 		return model.Profile{}, fmt.Errorf("replace profile libraries: %w", err)
 	}
@@ -285,6 +295,25 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	row.MaxBitrateKbps, row.MaxHeight, row.MaxStreams, row.WatchLimitMinutes = p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes
 	row.AudioLanguages, row.SubtitleMode, row.SubtitleLanguages = p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages
 	return toProfile(row, libs, acc.Limits), nil
+}
+
+// setProfileCanRequest writes the request right of a profile inside the transaction. The cap rule
+// (concept 25, users and profiles 9): a profile never gets the right its account does not have
+// (*model.ValidationError canRequest account_not_allowed); taking it away always works.
+func (s *Service) setProfileCanRequest(ctx context.Context, q *appq.Queries, accountID, profileID int64, on bool, now int64) (int64, error) {
+	if on {
+		acc, err := q.GetAccount(ctx, accountID)
+		if err != nil {
+			return 0, notFoundOr(err, "get account")
+		}
+		if acc.CanRequest != 1 {
+			return 0, (&model.ValidationError{}).Add("canRequest", "account_not_allowed")
+		}
+	}
+	if err := q.SetProfileCanRequest(ctx, appq.SetProfileCanRequestParams{CanRequest: boolInt(on), Now: now, ID: profileID}); err != nil {
+		return 0, fmt.Errorf("set request right: %w", err)
+	}
+	return boolInt(on), nil
 }
 
 // applyInput validates the scalar fields of in and writes the accepted values through the
@@ -510,8 +539,21 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 			return err
 		}
 	}
-	if err := s.write.DeleteProfile(ctx, row.ID); err != nil {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if s.profileDeleting != nil {
+		if err := s.profileDeleting(ctx, session.Account.ID, row.ID, tx); err != nil {
+			return err
+		}
+	}
+	if err := s.write.WithTx(tx).DeleteProfile(ctx, row.ID); err != nil {
 		return fmt.Errorf("delete profile: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	// The activity log keeps nothing of the profile (concept 11); see DeleteAccount.
 	if end != nil { // a stream opened by a request that was already past its checks

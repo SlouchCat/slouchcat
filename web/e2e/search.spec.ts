@@ -5,6 +5,7 @@ import { createCollection, deleteCollection } from './curation';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
 import { arrowTo, itemIdByTitle } from './playback';
+import { closeWishes, openWishes, type WishesSetup } from './wishes';
 
 // E-4: search from the second character over titles, people and collections, with filters. The
 // e2e server has no TMDB key: titles carry no genres and no cast, so the person section and the
@@ -261,4 +262,51 @@ test.describe('the people of a search as round portrait cards (concept 17 D-5)',
     await expect(anna).toBeVisible();
     await page.unrouteAll({ behavior: 'ignoreErrors' });
   });
+});
+
+// Concept 25 stage 2, 5.2 (M-07): titles outside the library under the library's hits, from the
+// TMDB mock (openWishes stores the key for this test only, e2e/wishes.ts).
+test('the section «Noch nicht in der Bibliothek»: cards to the preview, the plus by keyboard, the kind filter maps', async ({
+  page,
+  owner,
+}) => {
+  let setup: WishesSetup | undefined;
+  try {
+    setup = await openWishes(owner);
+    await page.goto('/search?q=Glas');
+    const missing = page.getByRole('region', { name: 'Noch nicht in der Bibliothek' });
+    await expect(missing.getByRole('link')).toHaveCount(3);
+    await expect(page.getByText('Nichts gefunden')).toHaveCount(0);
+    const bird = missing.getByRole('link', { name: /Glasvogel/ });
+    await expect(bird).toHaveAttribute('href', '/titles/movie/9001');
+    await expect(missing.getByText('2026 · Noch nicht da')).toBeVisible();
+    await expect(page.locator('#content')).not.toContainText('{{');
+
+    // Tab from the card reaches its plus; Enter opens the dialog, Escape returns.
+    await bird.focus();
+    await page.keyboard.press('Tab');
+    const plus = missing.getByRole('button', { name: 'Glasvogel anfordern' });
+    await expectFocusOn(page, plus);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Film anfordern: Glasvogel' });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, plus);
+    // Requested from here: the caption names the state, the plus goes.
+    await page.keyboard.press('Enter');
+    await dialog.getByRole('button', { name: 'Anfordern', exact: true }).press('Enter');
+    await expect(dialog).toHaveCount(0);
+    await expect(missing.getByText('2026 · Freigabe ausstehend')).toBeVisible();
+    await expect(plus).toHaveCount(0);
+    await expectVisibleFocus(page);
+
+    // Films only: the series «Glasküste» leaves the section.
+    await page.goto('/search?q=Glas&type=movie');
+    await expect(missing.getByRole('link')).toHaveCount(2);
+    await expect(missing.getByRole('link', { name: /Glasküste/ })).toHaveCount(0);
+    await expectNoFocusTrap(page);
+  } finally {
+    await closeWishes(owner, setup);
+  }
 });

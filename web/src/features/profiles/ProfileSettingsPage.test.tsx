@@ -111,6 +111,89 @@ describe('profile settings page', () => {
     });
   });
 
+  it('the primary profile sets «Darf Titel anfordern» while wishes are on; the account caps it', async () => {
+    const wishes = { enabled: true, canRequest: true, movies: true, shows: true };
+    const { calls } = mockApi({
+      ...manage,
+      'GET /auth/session': () => json({ ...session, wishes }),
+      'POST /profiles': () => json({ ...profiles[1]!, id: 7, name: 'Kind' }, 201),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
+    // A further profile starts without the right.
+    expect(right).not.toBeChecked();
+    await user.type(within(dialog).getByLabelText('Name'), 'Kind');
+    await user.click(right);
+    await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({ canRequest: true });
+  });
+
+  it('locks «Darf Titel anfordern» with the reason when the account has no right', async () => {
+    mockApi({
+      ...manage,
+      'GET /auth/session': () =>
+        json({
+          ...session,
+          wishes: {
+            enabled: true,
+            canRequest: false,
+            reason: 'account_not_allowed',
+            movies: false,
+            shows: false,
+          },
+        }),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    expect(within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' })).toBeDisabled();
+    expect(within(dialog).getByText(/Dieses Konto darf keine Titel anfordern/)).toBeVisible();
+  });
+
+  it('locks the switch when the server refuses the right of the account (m8)', async () => {
+    // The editor's session names a higher-ranked reason than the account's.
+    const wishes = {
+      enabled: true,
+      canRequest: false,
+      reason: 'profile_not_allowed',
+      movies: false,
+      shows: false,
+    };
+    mockApi({
+      ...manage,
+      'GET /auth/session': () => json({ ...session, wishes }),
+      'POST /profiles': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'canRequest', code: 'account_not_allowed' }],
+        }),
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    const right = within(dialog).getByRole('switch', { name: 'Darf Titel anfordern' });
+    await user.type(within(dialog).getByLabelText('Name'), 'Kind');
+    await user.click(right);
+    await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
+    await waitFor(() => expect(right).toBeDisabled());
+    expect(right).not.toBeChecked();
+    expect(within(dialog).getByText(/Dieses Konto darf keine Titel anfordern/)).toBeVisible();
+  });
+
+  it('shows no request right while wishes are off', async () => {
+    mockApi(manage);
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Profil hinzufügen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
+    expect(within(dialog).queryByRole('switch', { name: 'Darf Titel anfordern' })).toBeNull();
+  });
+
   it('offers only ratings up to the ceiling of a guest account', async () => {
     mockApi({
       ...manage,

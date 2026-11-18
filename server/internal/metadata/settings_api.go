@@ -84,6 +84,10 @@ func (s *Service) UpdateMetadataSettings(ctx context.Context, m model.MetadataSe
 		return model.MetadataSettings{}, err
 	}
 	if before.RatingCountry != m.RatingCountry {
+		// The titles outside the library keep their certificates: their ages follow at once.
+		if err := s.recomputeExternalAges(ctx, m.RatingCountry); err != nil {
+			return model.MetadataSettings{}, err
+		}
 		_, err = s.QueueRatingsReread(ctx)
 	} else {
 		_, err = s.QueueRatingsRereadPending(ctx)

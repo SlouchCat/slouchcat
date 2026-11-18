@@ -200,3 +200,23 @@ func deref(p *int) any {
 	}
 	return *p
 }
+
+func TestCertificationAtMost(t *testing.T) {
+	for _, tc := range []struct {
+		country string
+		age     int
+		tv      bool
+		want    string
+		ok      bool
+	}{
+		{"DE", 12, false, "12", true}, {"DE", 15, false, "12", true}, {"DE", 0, true, "0", true},
+		{"US", 12, false, "PG", true}, {"US", 13, false, "PG-13", true}, {"US", 16, true, "TV-14", true},
+		{"US", 0, true, "TV-Y", true}, {"GB", 12, false, "12", true}, {"GB", 14, false, "12", true},
+		{"JP", 11, false, "G", true}, {"PT", -1, false, "", false}, {"XX", 12, false, "", false}, {"SE", 18, false, "15", true},
+	} {
+		got, ok := CertificationAtMost(tc.country, tc.age, tc.tv)
+		if got != tc.want || ok != tc.ok {
+			t.Errorf("CertificationAtMost(%s, %d, %v) = %q %v, want %q %v", tc.country, tc.age, tc.tv, got, ok, tc.want, tc.ok)
+		}
+	}
+}

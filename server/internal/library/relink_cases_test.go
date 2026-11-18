@@ -445,7 +445,7 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 
 	dead := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
 	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 1, 1)`, dead)
-	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 1)`, dead)
+	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, dedupe_key, created_at) VALUES (1, 'new_episode', ?, 'episode:' || ?, 1)`, dead, dead)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 100, 1)`, dead)
 	e.progress(1, dead, 500, false)
 	e.exec(`UPDATE progress SET watched_at = 7 WHERE item_id = ?`, dead)
@@ -455,7 +455,7 @@ func TestRelinkMergesConflictingUserData(t *testing.T) {
 
 	c := e.addFilm(dir, lib.ID, "Heat Copy/Heat.mkv", 949)
 	e.exec(`INSERT INTO watchlist (profile_id, item_id, created_at, follow_since) VALUES (1, ?, 2, 2), (2, ?, 2, 2)`, c, c)
-	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at) VALUES (1, 'new_episode', ?, 2), (2, 'new_episode', ?, 2)`, c, c)
+	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, dedupe_key, created_at) VALUES (1, 'new_episode', ?, 'episode:' || ?, 2), (2, 'new_episode', ?, 'episode:' || ?, 2)`, c, c, c, c)
 	e.exec(`INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays) VALUES (1, ?, '', 10, 50, 2), (1, ?, '', 11, 7, 1)`, c, c)
 	e.exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
 	        VALUES (1, ?, 900, 1000000, 0, 1.5, 2)`, c)

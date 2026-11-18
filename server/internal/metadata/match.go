@@ -184,13 +184,14 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item, relink bool
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
 	rec.Fanart = s.fanartImages(ctx, item.ID, "movie", rec.TMDBID)
-	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
+	written, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
 		return err
 	}
 	if twin, err := s.relinkQueued(ctx, item.ID, relink); err != nil || twin {
 		return err
 	}
+	s.matchedHook(ctx, written)
 	if err := s.enqueueImages(ctx, item.ID, imageFetchPriority); err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
@@ -303,7 +304,11 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item, relink boo
 	if err := s.matchSeasons(ctx, series, prov, rec, langs); err != nil {
 		return err
 	}
+	s.matchedHook(ctx, series)
 	if err := s.enqueueFill(ctx, item.ID); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
+	if err := s.QueueSeriesCatalog(ctx, item.ID); err != nil { // the seasons at TMDB (series_catalog.go)
 		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)

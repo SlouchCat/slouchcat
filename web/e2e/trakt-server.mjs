@@ -19,7 +19,10 @@
 //                                     [{rank, type, movie | show}], the films, then the series,
 //                                     then one "season" entry the server's post-filter must drop
 //   POST /__control                   {"status": 503} answers every list with that status ("Trakt
-//                                     is down"), {"status": 200} serves the lists again
+//                                     is down"), {"status": 200} serves the lists again;
+//                                     {"missing": true} adds TRAKT_MISSING to every list (concept
+//                                     25, «Fehlende Einträge»). Every call without `missing` takes
+//                                     them off again, so the reset before each test does too.
 //
 // Every list request must carry `trakt-api-key` (the e2e client id `e2e`) and `trakt-api-version:
 // 2`, as the real API wants; otherwise 401.
@@ -48,17 +51,36 @@ export const TRAKT_ENTRIES = {
   ],
 };
 
+/**
+ * Entries the library lacks (concept 25, M-27), behind `{"missing": true}`: a film and a series
+ * the TMDB mock knows (tmdb-server.mjs, ids from 9000 up, with their IMDb and TVDB ids), and a
+ * series with only a TVDB id that TMDB «find» does not know (N-62: «Nicht zuordenbar»).
+ */
+export const TRAKT_MISSING = {
+  movies: [{ tmdb: 9001, imdb: 'tt09001', title: 'Glasvogel' }],
+  shows: [
+    { tmdb: 9100, tvdb: 79100, imdb: 'tt09100', title: 'Nebelhafen' },
+    { tvdb: 459812, title: 'Hafen im Nordlicht' },
+  ],
+};
+
 /** The public user list the mock serves (https://trakt.tv/users/e2e/lists/best-ever). */
 export const TRAKT_USER_LIST = { user: 'e2e', slug: 'best-ever' };
 
-/** The title object of a list entry. */
+/** The title object of a list entry; an entry without a TMDB, TVDB or IMDb id names none. */
 function titleOf(entry, index) {
-  return {
-    title: entry.title,
-    year: 2024,
-    ids: { trakt: 900 + index, slug: `slouchcat-test-${index}`, tmdb: entry.tmdb },
-  };
+  const ids = { trakt: 900 + index, slug: `slouchcat-test-${index}` };
+  if (entry.tmdb !== undefined) ids.tmdb = entry.tmdb;
+  if (entry.tvdb !== undefined) ids.tvdb = entry.tvdb;
+  if (entry.imdb !== undefined) ids.imdb = entry.imdb;
+  return { title: entry.title, year: 2024, ids };
 }
+
+/** The entries of a medium: the library's, with `missing` those it lacks behind them. */
+const listed = (media, missing) => [
+  ...TRAKT_ENTRIES[media],
+  ...(missing ? TRAKT_MISSING[media] : []),
+];
 
 /** The fields next to the wrapped title, per list (popular lists the title flat). */
 const WRAPPERS = {
@@ -70,8 +92,8 @@ const WRAPPERS = {
 };
 
 /** A path list: `media` is movies or shows, `list` a key of WRAPPERS or popular. */
-function entries(media, list) {
-  return TRAKT_ENTRIES[media].map((entry, index) => {
+function entries(media, list, missing) {
+  return listed(media, missing).map((entry, index) => {
     const title = titleOf(entry, index);
     const wrap = WRAPPERS[list];
     return wrap ? { ...wrap(index), [media === 'movies' ? 'movie' : 'show']: title } : title;
@@ -82,13 +104,16 @@ function entries(media, list) {
  * The user list: every entry names its type; the films and series rank 1 to 7, then a season of
  * the intro show, which carries its show and must not count as one.
  */
-function userListEntries() {
+function userListEntries(missing) {
   const titles = [
-    ...TRAKT_ENTRIES.movies.map((entry, index) => ({
+    ...listed('movies', missing).map((entry, index) => ({
       type: 'movie',
       movie: titleOf(entry, index),
     })),
-    ...TRAKT_ENTRIES.shows.map((entry, index) => ({ type: 'show', show: titleOf(entry, index) })),
+    ...listed('shows', missing).map((entry, index) => ({
+      type: 'show',
+      show: titleOf(entry, index),
+    })),
   ];
   const intro = TRAKT_ENTRIES.shows[1];
   titles.push({
@@ -100,15 +125,15 @@ function userListEntries() {
 }
 
 /** The response body for a list path, or undefined for an unknown path. */
-function listBody(pathname) {
+function listBody(pathname, missing) {
   if (pathname === `/users/${TRAKT_USER_LIST.user}/lists/${TRAKT_USER_LIST.slug}/items`) {
-    return userListEntries();
+    return userListEntries(missing);
   }
   const match =
     /^\/(movies|shows)\/(trending|popular|watched\/weekly|collected\/monthly|anticipated)$/.exec(
       pathname,
     ) ?? /^\/(movies)\/(boxoffice)$/.exec(pathname);
-  return match ? entries(match[1], match[2]) : undefined;
+  return match ? entries(match[1], match[2], missing) : undefined;
 }
 
 function readBody(request) {
@@ -131,17 +156,20 @@ export function startTraktServer({
   port = Number(process.env.SLOUCHCAT_E2E_TRAKT_PORT ?? 8094),
 } = {}) {
   let status = 200;
+  let missing = false;
 
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`);
     void (async () => {
       if (request.method === 'POST' && url.pathname === '/__control') {
         const body = JSON.parse((await readBody(request)) || '{}');
-        if (!Number.isInteger(body.status) || body.status < 200 || body.status > 599) {
+        const known = body.status === undefined || Number.isInteger(body.status);
+        if (!known || body.status < 200 || body.status > 599) {
           response.writeHead(400).end();
           return;
         }
-        status = body.status;
+        if (body.status !== undefined) status = body.status;
+        missing = body.missing === true;
         response.writeHead(204).end();
         return;
       }
@@ -149,7 +177,7 @@ export function startTraktServer({
         response.writeHead(405).end();
         return;
       }
-      const body = listBody(url.pathname);
+      const body = listBody(url.pathname, missing);
       if (!body) {
         response.writeHead(404).end();
         return;

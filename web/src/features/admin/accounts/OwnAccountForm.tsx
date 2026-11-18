@@ -50,6 +50,7 @@ function accountErrors(t: TFunction, error: unknown): FormErrors {
  */
 export function OwnAccountForm({
   email,
+  seerrPassword,
   value,
   dirty,
   onChange,
@@ -58,6 +59,8 @@ export function OwnAccountForm({
 }: {
   /** The e-mail the server holds. */
   email: string;
+  /** The password state of the account's Seerr user (concept 25): what a new password does there. */
+  seerrPassword?: 'synced' | 'next_login' | 'off' | 'admin' | 'external';
   value: OwnAccountDraft;
   dirty: boolean;
   onChange: (next: OwnAccountDraft) => void;
@@ -129,7 +132,13 @@ export function OwnAccountForm({
             name="newPassword"
             type="password"
             label={t('admin.accounts.edit.newPassword')}
-            description={t('admin.accounts.edit.newPasswordHint')}
+            description={
+              seerrPassword
+                ? `${t('admin.accounts.edit.newPasswordHint')} ${t(
+                    `admin.accounts.edit.seerrPassword.${seerrPassword}`,
+                  )}`
+                : t('admin.accounts.edit.newPasswordHint')
+            }
             autoComplete="new-password"
             value={value.newPassword}
             onChange={(next) => set({ newPassword: next })}

@@ -254,6 +254,49 @@ func TestNotifyConfig(t *testing.T) {
 	}
 }
 
+// The raised limit of new wishes of the e2e suite takes effect in development mode only: a
+// production server keeps 20 wishes per profile and hour even with the variable in its environment.
+func TestWishCreatePerHourNeedsDevMode(t *testing.T) {
+	env := map[string]string{"SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR": "1000"}
+	cfg, err := Load(nil, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.WishCreatePerHour(); got != 0 {
+		t.Errorf("without --dev: limit %d, want 0 (the default)", got)
+	}
+	if logged := cfg.LogValue().String(); !strings.Contains(logged, "wish_create_per_hour=0") {
+		t.Errorf("LogValue without --dev: %s", logged)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.WishCreatePerHour(); got != 1000 {
+		t.Errorf("with --dev: limit %d, want 1000", got)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.WishCreatePerHour(); got != 0 {
+		t.Errorf("--dev without the variable: limit %d, want 0", got)
+	}
+	// A broken value stops a development server, not a production one: there it is ignored.
+	for _, bad := range []string{"many", "0", "-1", "1.5"} {
+		env := envMap(map[string]string{"SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR": bad})
+		if _, err := Load([]string{"--dev"}, env); err == nil {
+			t.Errorf("--dev with limit %q: expected an error", bad)
+		}
+		cfg, err := Load(nil, env)
+		if err != nil {
+			t.Errorf("without --dev, limit %q: %v; want it ignored", bad, err)
+		} else if got := cfg.WishCreatePerHour(); got != 0 {
+			t.Errorf("without --dev, limit %q: %d, want 0", bad, got)
+		}
+	}
+}
+
 // The shortened spotlight limit of the e2e suite takes effect in development mode only: a
 // production server keeps one manual fetch a minute even with the variable in its environment.
 func TestSpotlightRefreshGapNeedsDevMode(t *testing.T) {

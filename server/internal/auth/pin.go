@@ -66,7 +66,7 @@ func lockDuration(failures int64) time.Duration {
 
 // hashPIN hashes a validated PIN in an argon2id slot.
 func (s *Service) hashPIN(ctx context.Context, pin string) (string, error) {
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +150,7 @@ func (s *Service) checkPIN(ctx context.Context, device string, profile appq.Prof
 	if pin == "" {
 		return model.ErrPinRequired
 	}
-	release, err := acquireArgon(ctx)
+	release, err := s.acquireArgon(ctx)
 	if err != nil {
 		return err
 	}

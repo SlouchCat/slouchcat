@@ -49,11 +49,16 @@ const (
 // the spotlight user list (list_url): it can carry a Trakt user name (plan 8.4). Concept 10 adds
 // the personal key of Fanart.tv (client_key, also as query parameter); the keys go as headers,
 // so this is a second line of defence. Concept 15 P-8 (ADR 0024): the token of the updater
-// companion (updater_token, authorization) is covered by "token" and "authorization".
+// companion (updater_token, authorization) is covered by "token" and "authorization". Concept 25
+// adds the key of Seerr (seerr.api_key, SLOUCHCAT_SEERR_API_KEY) and the body field newPassword of
+// Seerr's password route; "apikey" and "password" already cover them, rule 10 wants them listed.
+// Stage 4 of concept 25 adds the keys of Radarr and Sonarr that Slouchcat reads from Seerr
+// (radarrApiKey, sonarrApiKey); they are held in memory only.
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
 	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
-	"listurl", "deviceid", "clientkey"}
+	"listurl", "deviceid", "clientkey",
+	"seerrapikey", "newpassword", "radarrapikey", "sonarrapikey"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5), rt (radio listen token, concept 16) and the credentials of private podcast feeds and their

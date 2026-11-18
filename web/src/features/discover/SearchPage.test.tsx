@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, heat, ids } from '@/test/fixtures';
-import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { json, mockApi, problem, renderApp, session, signedIn, type Call } from '@/test/api';
 
 const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
 
@@ -300,5 +300,66 @@ describe('search page', () => {
     fail = true;
     await userEvent.setup().type(screen.getByRole('searchbox', { name: 'Suchbegriff' }), 'x');
     expect(await screen.findByRole('alert')).toBeVisible();
+  });
+
+  it('lists titles outside the library after the library hits, with the plus (concept 25)', async () => {
+    const { calls, fetchMock } = mockApi({
+      ...routes(() => json(result({ items: [], total: 0, people: [], collections: [] }))),
+      'GET /auth/session': () =>
+        json({
+          ...session,
+          wishes: { enabled: true, canRequest: true, movies: true, shows: true },
+        }),
+      'GET /titles/search': () =>
+        json({
+          items: [
+            {
+              media: 'movie',
+              tmdbId: 9001,
+              title: 'Glasvogel',
+              year: 2026,
+              images: {},
+              hasTrailer: false,
+              canRequest: true,
+            },
+            {
+              media: 'show',
+              tmdbId: 9100,
+              title: 'Nebelhafen',
+              year: 2025,
+              images: {},
+              hasTrailer: false,
+              canRequest: true,
+              wish: { id: 4, state: 'pending' },
+            },
+          ],
+          total: 2,
+        }),
+    });
+    renderApp('/search?q=Glas&type=movie');
+    const missing = await screen.findByRole('region', { name: 'Noch nicht in der Bibliothek' });
+    expect(within(missing).getByRole('link', { name: /Glasvogel/ })).toHaveAttribute(
+      'href',
+      '/titles/movie/9001',
+    );
+    expect(within(missing).getByText('2026 · Noch nicht da')).toBeVisible();
+    expect(within(missing).getByText('2025 · Freigabe ausstehend')).toBeVisible();
+    expect(within(missing).getByRole('button', { name: 'Glasvogel anfordern' })).toBeVisible();
+    expect(within(missing).queryByRole('button', { name: 'Nebelhafen anfordern' })).toBeNull();
+    // Missing titles count: no «Nichts gefunden» above them.
+    expect(screen.queryByText('Nichts gefunden')).toBeNull();
+    // The kind filter maps (films only); the request carries it.
+    const asked = fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .find((url) => url.pathname.endsWith('/titles/search'));
+    expect(asked?.searchParams.get('media')).toBe('movie');
+    expect(calls.some((call) => call.path === '/titles/search')).toBe(true);
+  });
+
+  it('asks for no title outside the library when the profile cannot request', async () => {
+    const { calls } = mockApi(routes(() => json(result())));
+    renderApp('/search?q=Glas');
+    await screen.findByRole('region', { name: 'Titel' });
+    expect(calls.some((call) => call.path === '/titles/search')).toBe(false);
   });
 });

@@ -20,6 +20,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/wishes"
 )
 
 // Session cookie and CSRF header (plan 3.8 point 7, contract description).
@@ -318,6 +319,7 @@ func toProfile(p model.Profile) gen.Profile {
 		Id: p.ID, Name: p.Name, MaxRating: p.MaxRating, Language: gen.Language(p.Language),
 		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, HasOfflinePin: p.HasOfflinePin,
 		IsPrimary: p.IsPrimary, Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
+		CanRequest:     &p.CanRequest,
 		AudioLanguages: nonNilStrings(p.Prefs.AudioLanguages), SubtitleMode: gen.SubtitleMode(p.Prefs.SubtitleMode),
 		SubtitleLanguages: nonNilStrings(p.Prefs.SubtitleLanguages),
 	}
@@ -515,6 +517,24 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "rating_below_library_default", "A title of an audio library may only be rated stricter than the library default.")
 	case errors.Is(err, model.ErrEnclosureUnavailable):
 		p.write(w, r, http.StatusBadGateway, "enclosure_unavailable", "The podcast host did not deliver the episode.")
+	case errors.As(err, new(*model.WishNotAllowedError)):
+		p.write(w, r, http.StatusForbidden, "wish_not_allowed", "The profile may not request this.")
+	case errors.Is(err, errTMDBDown):
+		p.write(w, r, http.StatusServiceUnavailable, "tmdb_unreachable", "TMDB did not answer; try again later.")
+	case errors.Is(err, model.ErrWishNotRetryable):
+		p.write(w, r, http.StatusConflict, "wish_not_retryable", "Only a failed wish of an existing account can be retried, and only while no other open wish holds the title.")
+	case errors.Is(err, model.ErrSeerrUnreachable):
+		p.write(w, r, http.StatusServiceUnavailable, "seerr_unreachable", "Seerr did not answer; try again later.")
+	case errors.Is(err, model.ErrSeerrFailed):
+		p.write(w, r, http.StatusBadGateway, "seerr_failed", "Seerr answered with an error.")
+	case errors.Is(err, model.ErrWishNotPending):
+		p.write(w, r, http.StatusConflict, "wish_not_pending", "The wish does not wait for an approval in Seerr any more.")
+	case errors.Is(err, wishes.ErrDiscoverUnreachable):
+		p.write(w, r, http.StatusServiceUnavailable, "seerr_unreachable", "Seerr did not answer and nothing is cached; try again later.")
+	case errors.Is(err, wishes.ErrTagNameTaken):
+		p.write(w, r, http.StatusConflict, "tag_name_taken", "Another profile has this tag name.")
+	case errors.Is(err, model.ErrWishNotWithdrawable):
+		p.write(w, r, http.StatusConflict, "wish_not_withdrawable", "The wish is past the approval and cannot be withdrawn.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.Is(err, model.ErrEnvWins), errors.Is(err, model.ErrSendFailed), errors.Is(err, model.ErrEmailSendFailed):
@@ -581,6 +601,22 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusNotFound, "push_unavailable", "Web Push is not set up on this server.")
 	case errors.Is(err, model.ErrAnnouncementPublished):
 		p.write(w, r, http.StatusConflict, "announcement_published", "A published announcement cannot be changed.")
+	case errors.Is(err, model.ErrSeerrNotConfigured):
+		p.write(w, r, http.StatusUnprocessableEntity, "seerr_not_configured", "Seerr has no address or no api key.")
+	case errors.Is(err, model.ErrSeerrKeyRequired):
+		p.write(w, r, http.StatusUnprocessableEntity, "seerr_key_required", "An address on another host needs the api key again.")
+	case errors.Is(err, model.ErrSeerrNotTested):
+		p.write(w, r, http.StatusConflict, "seerr_not_tested", "Wishes go on only after a successful test of the saved connection to Seerr.")
+	case errors.Is(err, model.ErrSeerrUserTaken):
+		p.write(w, r, http.StatusConflict, "seerr_user_taken", "The Seerr user belongs to another account, is the shared user or is gone from Seerr.")
+	case errors.Is(err, model.ErrPasswordNotSyncable):
+		p.write(w, r, http.StatusConflict, "password_not_syncable", "The Seerr user is an administrator or signs in through Plex, Jellyfin or Emby; its password stays in Seerr.")
+	case errors.Is(err, model.ErrProvisionDisabled):
+		p.write(w, r, http.StatusConflict, "provision_disabled", "Opening accounts in Seerr is switched off.")
+	case errors.Is(err, model.ErrInstanceUnchanged):
+		p.write(w, r, http.StatusConflict, "instance_unchanged", "No other Seerr instance waits for a decision.")
+	case errors.Is(err, model.ErrInstanceChanged):
+		p.write(w, r, http.StatusConflict, "seerr_instance_changed", "Another Seerr instance answers; confirm or reset the mapping first.")
 	case errors.As(err, &verr):
 		p.writeValidation(w, r, verr)
 	case errors.Is(err, context.Canceled):

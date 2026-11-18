@@ -13,12 +13,19 @@
 //     current when one moves):
 //     9 probe.keyframes of a playback that fell back to transcoding (library.QueueKeyframesForPlayback)
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
-//     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
+//     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen"), the daily
+//     titles.refresh of the titles outside the library and the daily series.catalog sweep
+//     (metadata, concept 25), wishes.submit and wishes.withdraw (wishes, concept 25: a person
+//     waits for the request)
 //     6 scan.path
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
-//     (library, concept 13)
+//     (library, concept 13), wishes.sync and wishes.reconcile (wishes, concept 25; «Jetzt
+//     abgleichen» at 7)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
-//     library.relink, the daily radio.catalog.sync and the weekly radio.wikidata.sync (radio)
+//     library.relink, the daily radio.catalog.sync and the weekly radio.wikidata.sync (radio),
+//     series.catalog of one series after its match (metadata, concept 25), wishes.tag
+//     (wishes, concept 25; a manual run at 7), wishes.progress (every minute while wishes are
+//     in procurement) and wishes.discover (the lists of the wishes area, every hour)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh, podcast.download of the planner (pool podcast)

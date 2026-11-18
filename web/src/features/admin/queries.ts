@@ -431,6 +431,15 @@ export const setSpotlightEntryOverride = (
     }),
   );
 
+/** The override of an entry; an unmatched entry (concept 25 N-62, no TMDB id) takes none. */
+export const overrideEntry = (
+  entry: SpotlightEntry,
+  body: SpotlightEntryOverride,
+): Promise<SpotlightEntry> =>
+  entry.tmdbId === undefined
+    ? Promise.reject(new TypeError('unmatched spotlight entry'))
+    : setSpotlightEntryOverride(entry.media, entry.tmdbId, body);
+
 /** Queues the spotlight fetch out of schedule ("Jetzt abrufen"); at most once a minute (429). */
 export const refreshSpotlight = () => request(api.POST('/admin/spotlight/refresh'));
 
@@ -853,3 +862,241 @@ export async function applyRadioOfferNow(steps: RadioOfferStep[]): Promise<Radio
     return applyRadioOffer(again.version, steps);
   }
 }
+
+// Wishes through Seerr (concept 25, contract 1.41.0): the connection under Integrationen › Seerr,
+// the Seerr users and the settings under Medien › Wünsche. The api key is write-only: it goes out
+// with a save or a test and never comes back.
+
+export type SeerrSettings = components['schemas']['SeerrSettings'];
+export type SeerrSettingsUpdate = components['schemas']['SeerrSettingsUpdate'];
+export type SeerrTestRequest = components['schemas']['SeerrTestRequest'];
+export type SeerrTestResult = components['schemas']['SeerrTestResult'];
+export type SeerrCheck = components['schemas']['SeerrCheck'];
+export type SeerrStatus = components['schemas']['SeerrStatus'];
+export type SeerrLogEntry = components['schemas']['SeerrLogEntry'];
+export type SeerrUser = components['schemas']['SeerrUser'];
+export type WishMappings = components['schemas']['WishMappings'];
+export type WishAccountMapping = components['schemas']['WishAccountMapping'];
+export type WishLimits = components['schemas']['WishLimits'];
+export type WishQuota = components['schemas']['WishQuota'];
+export type WishQuotaPart = components['schemas']['WishQuotaPart'];
+export type ProvisionSeerrAccountsResult = components['schemas']['ProvisionSeerrAccountsResult'];
+export type SeerrPasswordMode = components['schemas']['SeerrPasswordModeRequest']['mode'];
+export type WishSettings = components['schemas']['WishSettings'];
+export type WishSettingsUpdate = components['schemas']['WishSettingsUpdate'];
+
+export const seerrKeys = { all: ['admin', 'seerr'] as const };
+
+export const seerrSettingsQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'settings'],
+  queryFn: ({ signal }): Promise<SeerrSettings> => request(api.GET('/admin/seerr', { signal })),
+});
+
+/** The state of the connection, the counters and the last 20 calls. */
+export type AdminWish = components['schemas']['AdminWish'];
+export type AdminWishPage = components['schemas']['AdminWishPage'];
+export type AdminWishProgress = components['schemas']['AdminWishProgress'];
+export type WishRequesterTag = components['schemas']['WishRequesterTag'];
+/** The filter of «Anfragen» (listAdminWishes `state`). */
+export type AdminWishFilter = 'all' | 'open' | 'available' | 'closed';
+
+/** The contract's most wishes per page (`WishPageLimit`). */
+export const ADMIN_WISH_PAGE = 100;
+
+/**
+ * Medien › Wünsche › Anfragen (concept 25 stage 2): the wishes of the household, newest change
+ * first, page by page («Weitere laden»); `counts` whatever the filter.
+ */
+export const adminWishesQuery = (state: AdminWishFilter) =>
+  infiniteQueryOptions({
+    queryKey: ['admin', 'wishes', 'requests', state],
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }): Promise<AdminWishPage> =>
+      request(
+        api.GET('/admin/wishes', {
+          params: { query: { state, offset: pageParam, limit: ADMIN_WISH_PAGE } },
+          signal,
+        }),
+      ),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
+      return last.items.length > 0 && loaded < last.total ? loaded : undefined;
+    },
+  });
+
+/** «Jetzt abgleichen»: queues the sync of the wishes with Seerr (syncWishesNow). */
+export const syncWishesNow = () => request(api.POST('/admin/seerr/sync'));
+
+/** «Erneut versuchen» of a failed wish (retryWish). */
+export const retryWish = (id: number) =>
+  request(api.POST('/admin/wishes/{id}/retry', { params: { path: { id } } }));
+
+/** «Freigeben»: passes the approval of a pending wish on to Seerr; the wish as it is now. */
+export const approveWish = (id: number): Promise<AdminWish> =>
+  request(api.POST('/admin/wishes/{id}/approve', { params: { path: { id } } }));
+
+/** «Ablehnen»: passes the refusal of a pending wish on to Seerr; the wish as it is now. */
+export const declineWish = (id: number): Promise<AdminWish> =>
+  request(api.POST('/admin/wishes/{id}/decline', { params: { path: { id } } }));
+
+export const seerrStatusQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'status'],
+  queryFn: ({ signal }): Promise<SeerrStatus> =>
+    request(api.GET('/admin/seerr/status', { signal })),
+});
+
+/** Saving runs no test; a new host needs the key again (`seerr_key_required`). */
+export const updateSeerrSettings = (body: SeerrSettingsUpdate): Promise<SeerrSettings> =>
+  request(api.PUT('/admin/seerr', { body }));
+
+/** The check list against the saved connection, or against values not saved yet. */
+export const testSeerrConnection = (body: SeerrTestRequest): Promise<SeerrTestResult> =>
+  request(api.POST('/admin/seerr/test', { body }));
+
+/** «Zuordnung bestätigen» (`confirm`) or «Zuordnung löschen» (`reset`) of another instance. */
+export const confirmSeerrInstance = (action: 'confirm' | 'reset'): Promise<SeerrStatus> =>
+  request(api.POST('/admin/seerr/instance', { body: { action } }));
+
+// Radarr and Sonarr for the profile tags and the progress (concept 25 stage 4, M-22): address and
+// key come from Seerr, an own address replaces the address; never a key in an answer.
+export type ArrStatus = components['schemas']['ArrStatus'];
+export type ArrServiceStatus = components['schemas']['ArrServiceStatus'];
+export type ArrSettingsUpdate = components['schemas']['ArrSettingsUpdate'];
+export type ArrTestResult = components['schemas']['ArrTestResult'];
+export type ArrService = components['schemas']['ArrTestRequest']['service'];
+export type SeerrWebhookSetup = components['schemas']['SeerrWebhookSetup'];
+
+export const arrStatusQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'arr'],
+  queryFn: ({ signal }): Promise<ArrStatus> => request(api.GET('/admin/seerr/arr', { signal })),
+});
+
+/** The own addresses; an empty one goes back to the address from Seerr. */
+export const updateArrSettings = (body: ArrSettingsUpdate): Promise<ArrStatus> =>
+  request(api.PUT('/admin/seerr/arr', { body }));
+
+/** «Testen»: reachable, key valid, and the host confirmed for the jobs. */
+export const testArrConnection = (service: ArrService): Promise<ArrTestResult> =>
+  request(api.POST('/admin/seerr/arr/test', { body: { service } }));
+
+/** What the administrator enters in Seerr for the instant notice (F-18). */
+export const seerrWebhookQuery = queryOptions({
+  queryKey: [...seerrKeys.all, 'webhook'],
+  queryFn: ({ signal }): Promise<SeerrWebhookSetup> =>
+    request(api.GET('/admin/seerr/webhook', { signal })),
+});
+
+export const wishKeys = { all: ['admin', 'wishes'] as const };
+
+/** Every account with its Seerr user, the Seerr users without an account, the shared user. */
+export const wishMappingsQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'mappings'],
+  queryFn: ({ signal }): Promise<WishMappings> =>
+    request(api.GET('/admin/wishes/mappings', { signal })),
+});
+
+/** Every Seerr user as Slouchcat last read them, the taken and the shared one included. */
+export const seerrUsersQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'users'],
+  queryFn: ({ signal }): Promise<SeerrUser[]> =>
+    request(api.GET('/admin/wishes/mappings/users', { signal })),
+});
+
+/** The tag name of a profile in Radarr and Sonarr; `null` goes back to the name from the prefix. */
+export const setProfileTagName = (profileId: number, name: string | null) =>
+  request(
+    api.PUT('/admin/wishes/profiles/{profileId}/tag', {
+      params: { path: { profileId } },
+      body: { name },
+    }),
+  );
+
+/** Every request of a Seerr user in Seerr, before «Anfragen übernehmen» (stage 4, F-21). */
+export const seerrRequestCountQuery = (seerrUserId: number) =>
+  queryOptions({
+    queryKey: [...wishKeys.all, 'requestCount', seerrUserId],
+    // Asked of Seerr: not again for every open row and every return to the window.
+    staleTime: 60_000,
+    queryFn: ({ signal }) =>
+      request(
+        api.GET('/admin/wishes/mappings/users/{seerrUserId}/requests/count', {
+          params: { path: { seerrUserId } },
+          signal,
+        }),
+      ),
+  });
+
+/** «Anfragen übernehmen»: queues the job `wishes.import` for one Seerr user (202). */
+export const importSeerrRequests = (seerrUserId: number) =>
+  request(api.POST('/admin/wishes/mappings/import', { body: { seerrUserId } }));
+
+/** Queues the job `seerr.users`; the list changes once it ran. */
+export const refreshSeerrUsers = (): Promise<void> =>
+  request(api.POST('/admin/wishes/mappings/users/refresh'));
+
+/** The Seerr user of an account by hand; `null` unlinks (the user stays in Seerr). */
+export const setAccountWishMapping = (
+  accountId: number,
+  seerrUserId: number | null,
+): Promise<WishAccountMapping> =>
+  request(
+    api.PUT('/admin/wishes/mappings/accounts/{accountId}', {
+      params: { path: { accountId } },
+      body: { seerrUserId },
+    }),
+  );
+
+/**
+ * «In Seerr eröffnen»: links a Seerr user with the same e-mail or opens a new one; when Seerr is
+ * not reached the account comes back `waiting` (202) and a job tries again.
+ */
+export const provisionSeerrAccount = (
+  accountId: number,
+  allowPrivileged = false,
+): Promise<WishAccountMapping> =>
+  request(
+    api.POST('/admin/wishes/accounts/{accountId}/provision', {
+      params: {
+        path: { accountId },
+        // Only after the administrator confirmed linking a user that administers Seerr.
+        ...(allowPrivileged ? { query: { allowPrivileged: true } } : {}),
+      },
+    }),
+  );
+
+/** «Alle eröffnen»: queues every account without a ready Seerr user; says how many link or open. */
+export const provisionSeerrAccounts = (): Promise<ProvisionSeerrAccountsResult> =>
+  request(api.POST('/admin/wishes/accounts/provision'));
+
+/** The password sync of one account: at the next sign-in (`next_login`) or never (`off`). */
+export const setSeerrPasswordMode = (
+  accountId: number,
+  mode: SeerrPasswordMode,
+): Promise<WishAccountMapping> =>
+  request(
+    api.PUT('/admin/wishes/accounts/{accountId}/password', {
+      params: { path: { accountId } },
+      body: { mode },
+    }),
+  );
+
+/** «Darf Titel anfordern» of an administrator's account, at once (Konten, block «Wünsche»). */
+export const setAccountCanRequest = (id: number, canRequest: boolean) =>
+  request(api.PATCH('/admin/accounts/{id}', { params: { path: { id } }, body: { canRequest } }));
+
+/** The wish limit of an account (Konten › Zugriff); Slouchcat writes it into the Seerr user. */
+export const setAccountWishLimit = (
+  id: number,
+  body: components['schemas']['AccountWishLimitRequest'],
+): Promise<components['schemas']['AccountWishLimit']> =>
+  request(api.PUT('/admin/accounts/{id}/wish-limit', { params: { path: { id } }, body }));
+
+export const wishSettingsQuery = queryOptions({
+  queryKey: [...wishKeys.all, 'settings'],
+  queryFn: ({ signal }): Promise<WishSettings> =>
+    request(api.GET('/admin/wishes/settings', { signal })),
+});
+
+/** Every change applies at once; «Wünsche aktiv» goes on only after a passed test. */
+export const setWishSettings = (body: WishSettingsUpdate): Promise<WishSettings> =>
+  request(api.PUT('/admin/wishes/settings', { body }));

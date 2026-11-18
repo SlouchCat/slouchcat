@@ -16,7 +16,8 @@ import (
 //   - every operation whose responses reference the schema ItemRef, directly or through any
 //     chain of $ref, is scoped;
 //   - every operation whose path contains /images/ has the path parameter {id}, so no image is
-//     delivered without the item whose visibility decides it.
+//     delivered without the item whose visibility decides it; a title outside the library
+//     (concept 25) is named by /titles/{media}/{tmdbId}, whose visibility decides the same way.
 
 var (
 	visibilities = []string{"public", "account", "scoped", "system", "admin", "owner"}
@@ -49,7 +50,7 @@ func checkContract(doc map[string]any) []string {
 			if vis != "scoped" && references(doc, op["responses"], itemRefPointer, map[string]bool{}) {
 				problems = append(problems, fmt.Sprintf("%s: responses contain ItemRef, x-visibility must be scoped, is %q", name, vis))
 			}
-			if strings.Contains(path, "/images/") && !strings.Contains(path, "{id}") {
+			if strings.Contains(path, "/images/") && !strings.Contains(path, "{id}") && !strings.Contains(path, "/titles/{media}/{tmdbId}/") {
 				problems = append(problems, name+": image path without the item path parameter {id}")
 			}
 		}
