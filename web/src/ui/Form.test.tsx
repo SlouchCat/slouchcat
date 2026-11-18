@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AriaButton } from './AriaButton';
 import { Form } from './Form';
 import { RadioGroup } from './RadioGroup';
@@ -16,12 +16,21 @@ import { TextField } from './TextField';
  * `answer` is what the mutation reports: `null` while the request runs, otherwise the field
  * messages of the server's answer.
  */
-function SmtpForm({ answer }: { answer: Record<string, string> | null }) {
+function SmtpForm({
+  answer,
+  onSend,
+}: {
+  answer: Record<string, string> | null;
+  onSend?: (host: string) => void;
+}) {
   const [host, setHost] = useState('smtp.falsch');
   return (
     <Form
       validationErrors={answer === null ? undefined : { ...answer }}
-      onSubmit={(event) => event.preventDefault()}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSend?.(host);
+      }}
     >
       <TextField name="host" label="Server" value={host} onChange={setHost} />
       <TextField name="port" label="Port" defaultValue="587" />
@@ -118,6 +127,46 @@ describe('Form', () => {
     rerender(<SmtpForm answer={{ host: message }} />);
 
     expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
+  it('sends the same value again when the reader retries after a refusal', async () => {
+    // The server's message stands in the field's native validity, so the browser stopped the
+    // next submit by itself: a name refused because another profile had it could not be sent
+    // again after that profile was renamed, and Enter right after typing raced the mark that
+    // drops the message (the unstable profile-tag test of 18 November 2026).
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(<SmtpForm answer={{ host: message }} onSend={(host) => sent.push(host)} />);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    await vi.waitFor(() => expect(sent).toEqual(['smtp.falsch']));
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+  });
+
+  it('still stops a submit the field itself refuses', async () => {
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    render(
+      <Form
+        validationErrors={{ host: message }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          sent.push('sent');
+        }}
+      >
+        <TextField name="host" label="Server" isRequired defaultValue="" />
+        <AriaButton type="submit">Speichern</AriaButton>
+      </Form>,
+    );
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(sent).toEqual([]);
+    expect(screen.getByLabelText(/Server/)).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('clears the message when the next answer carries none', async () => {

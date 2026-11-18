@@ -57,7 +57,7 @@ export function Form({
 }: FormProps & { ref?: Ref<HTMLFormElement> }) {
   const form = useRef<HTMLFormElement>(null);
   const given = validationErrors ?? none;
-  const { round } = useAnswer(given);
+  const { key, round } = useAnswer(given);
   const [marked, setMarked] = useState({ round, fields: nothing });
 
   const attach = useCallback(
@@ -99,14 +99,41 @@ export function Form({
       });
       timers.add(timer);
     };
+    // react-aria writes a server message into the field's native validity, so the browser stops
+    // the next submit by itself and nothing is sent: a reader who retries the same value (the name
+    // another profile had until it was renamed) got no save, and neither did one who pressed Enter
+    // before the mark above landed -- Chromium runs timers after queued input, so the mark can
+    // wait until after the key. A submit the server's message alone stops is the reader trying
+    // again: every message of that answer goes, and the form submits once more in a task of its
+    // own (the browser ignores a submit started while it still handles the one it stopped), where
+    // only the fields' own rules decide. Once per answer, so a message that stays cannot loop.
+    const answer = JSON.parse(key) as ServerErrors;
+    let retried = false;
+    const refused = (event: Event) => {
+      const input = event.target as { name?: string; validationMessage?: string } | null;
+      const name = input?.name;
+      if (retried || !name || !(name in answer)) return;
+      const server = answer[name];
+      if (input.validationMessage !== (Array.isArray(server) ? server.join(' ') : server)) return;
+      retried = true;
+      setMarked({ round, fields: Object.keys(answer) });
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        element.requestSubmit();
+      });
+      timers.add(timer);
+    };
     element.addEventListener('input', changed);
     element.addEventListener('change', changed);
+    // `invalid` does not bubble; the form sees it in the capture phase.
+    element.addEventListener('invalid', refused, true);
     return () => {
       element.removeEventListener('input', changed);
       element.removeEventListener('change', changed);
+      element.removeEventListener('invalid', refused, true);
       for (const timer of timers) clearTimeout(timer);
     };
-  }, [round]);
+  }, [key, round]);
 
   const corrected = marked.round === round ? marked.fields : nothing;
   const shown: ServerErrors = {};
