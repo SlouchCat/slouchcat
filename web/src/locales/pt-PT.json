@@ -852,7 +852,7 @@
       "state": {
         "missing": "Em falta",
         "requested": "Pedida",
-        "processing": "Em processamento",
+        "processing": "A caminho",
         "announced": "Anunciada"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -3495,7 +3495,7 @@
       "request": {
         "action": "Pedir",
         "label": "Pedir {{title}}",
-        "done": "{{title}} foi pedido.",
+        "done": "Pedido de {{title}} registado.",
         "joined": "{{title}} já tinha sido pedido; o seu perfil junta-se ao pedido.",
         "available": "{{title}} já está na biblioteca."
       },
@@ -4469,7 +4469,7 @@
             "own": "Endereço próprio: {{address}}"
           },
           "addressNone": "Nenhum: o Seerr não tem servidor predefinido para {{service}}.",
-          "lastAt": "último {{time}}",
+          "lastAt": "último contacto {{time}}",
           "tagRequestsOn": "ativado",
           "tagRequestsOff": "desativado · Recomendado: assim, cada título também leva a etiqueta da conta.",
           "tags": "{{set}} definidas · {{pending}} pendentes · {{failed}} falhadas",
@@ -5300,28 +5300,28 @@
         "wishes_sync": {
           "name": "Sincronizar pedidos com o Seerr",
           "description": "Lê do Seerr as solicitações alteradas, atualiza o estado dos pedidos, verifica um a um os pedidos que não mudam há muito tempo e volta a enviar os pedidos pendentes da caixa de saída. A primeira sincronização lê todas as solicitações.",
-          "trigger": "agenda de 5 em 5 minutos, «Sincronizar agora», aviso do webhook do Seerr",
+          "trigger": "agendamento de 5 em 5 minutos, «Sincronizar agora», aviso do webhook do Seerr",
           "progress": "Páginas lidas: {{done}} de {{total}}"
         },
         "wishes_reconcile": {
           "name": "Conciliar pedidos com a biblioteca",
           "description": "Assinala um pedido como disponível assim que o Slouchcat consegue reproduzir o filme ou todas as temporadas pedidas para um perfil.",
-          "trigger": "agenda de hora a hora, depois de um título pedido ser reconhecido na biblioteca, depois da sincronização com o Seerr"
+          "trigger": "agendamento de hora a hora, depois de um título pedido ser reconhecido na biblioteca, depois da sincronização com o Seerr"
         },
         "wishes_tag": {
           "name": "Definir etiquetas de perfil",
-          "description": "Associa, no Radarr e no Sonarr, a etiqueta do perfil aos filmes e séries pedidos através do Slouchcat que estão em processamento. As etiquetas nunca são removidas.",
+          "description": "Associa, no Radarr e no Sonarr, a etiqueta do perfil aos filmes e séries pedidos através do Slouchcat que estão a caminho. As etiquetas nunca são removidas.",
           "trigger": "depois da sincronização com o Seerr, de 15 em 15 minutos e manualmente"
         },
         "wishes_progress": {
           "name": "Ler o progresso da transferência",
-          "description": "Lê a fila do Radarr e do Sonarr e mostra, nos pedidos em processamento, se estão a ser procurados, transferidos ou importados. Não altera nada no Radarr nem no Sonarr.",
-          "trigger": "a cada minuto, enquanto houver pedidos em processamento e o progresso da transferência estiver ativado"
+          "description": "Lê a fila do Radarr e do Sonarr e mostra, nos pedidos a caminho, se estão a ser procurados, transferidos ou importados. Não altera nada no Radarr nem no Sonarr.",
+          "trigger": "a cada minuto, enquanto houver pedidos a caminho e o progresso da transferência estiver ativado"
         },
         "wishes_discover": {
           "name": "Pré-carregar listas de pedidos",
           "description": "Carrega do Seerr para a memória intermédia as filas de Descobrir, para cada idioma e escalão etário dos perfis que podem pedir, e remove as listas com mais de um dia. Cada resultado é verificado de novo para o perfil.",
-          "trigger": "agenda de hora a hora, enquanto os pedidos estiverem ativos e as páginas Descobrir, Filmes, Séries e Pesquisar estiverem ativadas"
+          "trigger": "agendamento de hora a hora, enquanto os pedidos estiverem ativos e as páginas Descobrir, Filmes, Séries e Pesquisar estiverem ativadas"
         },
         "wishes_import": {
           "name": "Incorporar solicitações do Seerr",
@@ -5457,12 +5457,12 @@
         "series_catalog": {
           "name": "Obter as listas de temporadas das séries",
           "description": "Lê do TMDB, para cada série da biblioteca, as temporadas com o número de episódios, o estado e o próximo episódio, e repete a leitura após 7 dias.",
-          "trigger": "agenda diária, depois de uma série ser associada"
+          "trigger": "Agendamento diário, depois de uma série ser associada"
         },
         "titles_refresh": {
           "name": "Atualizar títulos em falta",
           "description": "Volta a ler do TMDB, após 7 dias, os dados, as classificações e os trailers dos títulos que não estão na biblioteca.",
-          "trigger": "agenda diária"
+          "trigger": "Agendamento diário"
         },
         "trakt_refresh": {
           "name": "Obter lista do Spotlight",
@@ -5951,7 +5951,7 @@
         "switchedOff": "«{{name}}» está desativado. Aplica-se de imediato.",
         "choiceSaved": "«{{name}}»: {{value}}. Aplica-se de imediato.",
         "limitSaved": "Limite predefinido: {{limit}}. Aplica-se de imediato a todas as contas com «Predefinido».",
-        "basics": "Princípio",
+        "basics": "Básico",
         "where": "Onde é possível pedir",
         "rules": "Regras",
         "enabled": "Pedidos ativos",
@@ -6014,7 +6014,7 @@
         "existing": "Contas existentes",
         "existingHelp": "Escolha o utilizador do Seerr para cada conta ou desfaça a associação.",
         "toUsers": "Ir para os utilizadores do Seerr",
-        "links": "Ligações",
+        "links": "Atalhos",
         "who": "Quem pode pedir",
         "whoHelp": "Quem pode pedir define-se por conta, em Contas; por perfil, decide o perfil principal.",
         "connection": "Ligação ao Seerr",
@@ -6029,8 +6029,8 @@
         "tagPrefixInvalid": "1 a 10 carateres: apenas letras minúsculas a–z, algarismos 0–9 e hífen. Não guardado.",
         "tagPrefixSaved": "Prefixo «{{prefix}}»: as novas etiquetas chamam-se, por exemplo, {{prefix}}noah. As etiquetas já definidas mantêm-se como estão.",
         "showProgress": "Mostrar o progresso da transferência",
-        "showProgressHelp": "Mostra, nos pedidos em processamento, se o título está a ser procurado, transferido ou importado. Para isso, o Slouchcat lê a fila do Radarr e do Sonarr a cada minuto, enquanto houver pedidos em processamento.",
-        "arrSummary": "Etiqueta {{tags}} · prefixo {{prefix}} · progresso {{progress}}",
+        "showProgressHelp": "Mostra, nos pedidos a caminho, se o título está a ser procurado, transferido ou importado. Para isso, o Slouchcat lê a fila do Radarr e do Sonarr a cada minuto, enquanto houver pedidos a caminho.",
+        "arrSummary": "Etiqueta: {{tags}} · prefixo: {{prefix}} · progresso: {{progress}}",
         "on": "ativado",
         "off": "desativado",
         "arrLinks": "Acesso ao Radarr e ao Sonarr",
@@ -6038,10 +6038,10 @@
         "toArr": "Integrações › Seerr",
         "discoverPages": "Páginas Descobrir, Filmes, Séries e Pesquisar",
         "discoverPagesHelp": "Separadores na área «Pedidos». Desativado: apenas «Os meus pedidos».",
-        "basicsSummary": "Pedidos {{enabled}} · filmes {{movies}} · séries {{shows}}",
-        "basicsSummaryLocked": "Pedidos desativados até um teste ser bem-sucedido · filmes {{movies}} · séries {{shows}}",
-        "whereSummary": "Pesquisa {{search}} · páginas de detalhe {{detail}} · descobrir {{discover}}",
-        "rulesSummary": "{{already}} · sem utilizador do Seerr: {{unmapped}} · retirar {{withdraw}}",
+        "basicsSummary": "Pedidos: {{enabled}} · filmes: {{movies}} · séries: {{shows}}",
+        "basicsSummaryLocked": "Pedidos desativados até um teste ser bem-sucedido · filmes: {{movies}} · séries: {{shows}}",
+        "whereSummary": "Pesquisa: {{search}} · páginas de detalhe: {{detail}} · Descobrir: {{discover}}",
+        "rulesSummary": "{{already}} · sem utilizador do Seerr: {{unmapped}} · retirar: {{withdraw}}",
         "linksConnection": "Seerr: {{state}}",
         "usersCount_one": "{{opened}} de {{count}} conta criada",
         "usersCount_many": "{{opened}} de {{count}} de contas criadas",
@@ -6073,7 +6073,7 @@
         },
         "password": {
           "synced": "Igual à do Slouchcat",
-          "next_login": "Incorporada no próximo início de sessão no Slouchcat",
+          "next_login": "Enviada no próximo início de sessão no Slouchcat",
           "off": "Não sincronizada",
           "admin": "Fica no Seerr (administrador)",
           "external": "Inicia sessão através do Jellyfin, Emby ou Plex"
@@ -6207,7 +6207,7 @@
           "privileged": "{{email}} aguarda: o utilizador do Seerr com este e-mail administra o Seerr.",
           "taken": "{{email}} aguarda: o utilizador do Seerr com este e-mail já pertence a outra conta. Escolha o utilizador manualmente."
         },
-        "passwordNext": "Incorporar de novo a palavra-passe no próximo início de sessão",
+        "passwordNext": "Enviar de novo a palavra-passe no próximo início de sessão",
         "passwordOff": "Não sincronizar a palavra-passe",
         "passwordNextDone": "A palavra-passe de {{email}} segue para o Seerr no próximo início de sessão.",
         "passwordOffDone": "A palavra-passe de {{email}} deixou de ser sincronizada com o Seerr.",
@@ -6218,7 +6218,7 @@
         },
         "provisionAll": "Criar todos",
         "provisionAllTitle": "Criar todas as contas no Seerr?",
-        "provisionAllBody": "Associar pelo mesmo e-mail: {{link}} · Criar de novo no Seerr: {{create}}.",
+        "provisionAllBody": "Associar pelo mesmo e-mail: {{link}} · Criar novos no Seerr: {{create}}.",
         "provisionAllWaits": "O Seerr não está ligado neste momento: as contas aguardam e são criadas na próxima sincronização.",
         "provisionAllQueued": "A criação está em curso: {{link}} a associar, {{create}} a criar.",
         "profiles": {
@@ -6329,19 +6329,19 @@
         "noHistory": "Ainda não aconteceu nada.",
         "retry": "Tentar novamente",
         "retryLabel": "{{title}}: tentar novamente",
-        "retried": "{{title}} vai ser tentado novamente.",
+        "retried": "Nova tentativa para {{title}}.",
         "emptyStalled": "Nenhuma transferência está parada.",
         "emptyUntagged": "Todas as etiquetas de perfil estão definidas ou ainda vão ser.",
         "seerrUserId": "ID {{id}}",
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Aprovar",
         "approveLabel": "Aprovar {{title}}",
-        "approved": "{{title}} foi aprovado e está em processamento.",
+        "approved": "O pedido de {{title}} foi aprovado e está a caminho.",
         "decline": "Recusar",
         "declineLabel": "Recusar {{title}}",
         "declineTitle": "Recusar {{title}}?",
         "declineBody": "O Slouchcat transmite a recusa ao Seerr. O Seerr não guarda motivo: os perfis só veem «Recusado» e recebem uma notificação.",
-        "declined": "{{title}} foi recusado.",
+        "declined": "O pedido de {{title}} foi recusado.",
         "event": {
           "approved_by_admin": "Aprovado na administração",
           "declined_by_admin": "Recusado na administração"
@@ -6365,7 +6365,7 @@
           "title": "Progresso",
           "service": "Serviço",
           "state": "Situação",
-          "unknown": "Ainda nada conhecido",
+          "unknown": "Ainda sem informações",
           "readAt": "Última leitura",
           "never": "Nunca",
           "note": "Nota",
@@ -7450,7 +7450,7 @@
     "state": {
       "queued": "A enviar",
       "pending": "A aguardar aprovação",
-      "processing": "Em processamento",
+      "processing": "A caminho",
       "partial": "Parcialmente disponível",
       "available": "Disponível",
       "declined": "Recusado",
@@ -7518,19 +7518,19 @@
     },
     "withdraw": {
       "action": "Retirar",
-      "actionJoined": "Deixar",
+      "actionJoined": "Deixar de participar",
       "title": "Retirar o pedido?",
       "titleJoined": "Deixar de participar no pedido?",
       "body": "«{{title}}» deixa de ser pedido; o Slouchcat elimina o pedido também no Seerr.",
       "bodyJoined": "Deixará de receber mensagem quando «{{title}}» estiver disponível. Os pedidos dos outros perfis mantêm-se.",
       "confirm": "Retirar",
-      "confirmJoined": "Deixar"
+      "confirmJoined": "Deixar de participar"
     },
     "dialog": {
       "titleMovie": "Pedir filme: {{title}}",
       "titleShow": "Pedir série: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Fica logo em processamento, não precisa de aprovação.",
+      "autoApprove": "Fica logo a caminho, não precisa de aprovação.",
       "needsApproval": "Precisa de aprovação. Pode acompanhar o estado em «Os meus pedidos».",
       "seasons": "Temporadas",
       "allSeasons": "Todas as temporadas em falta ({{count}})",

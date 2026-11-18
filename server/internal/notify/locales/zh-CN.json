@@ -42,7 +42,7 @@
   "wish_season_aired_subject": "{{title}}：第 {{season}} 季目前已播出的单集都已上架",
   "wish_season_aired_body": "新单集会通过我的片单通知你。",
   "wish_approved_subject": "已批准：{{title}}",
-  "wish_approved_body": "此心愿现在正在处理中。",
+  "wish_approved_body": "现在开始获取作品。",
   "wish_declined_subject": "已拒绝：{{title}}",
   "wish_declined_body": "Seerr 不提供原因。",
   "wish_failed_subject": "失败：{{title}}",

@@ -247,7 +247,7 @@
       "wish_not_pending": "Al beslist: deze wens wacht in Seerr niet meer op goedkeuring. De synchronisatie haalt de nieuwe status op.",
       "seerr_failed": "Seerr antwoordde met een fout.",
       "seerr_instance_changed": "Een andere Seerr-instantie wacht op je beslissing onder Integraties › Seerr.",
-      "tag_name_taken": "Een ander profiel heeft al deze tagnaam."
+      "tag_name_taken": "Een ander profiel heeft deze tagnaam al."
     },
     "field": {
       "required": "Verplicht.",
@@ -828,7 +828,7 @@
       "state": {
         "missing": "Ontbreekt",
         "requested": "Aangevraagd",
-        "processing": "Wordt verwerkt",
+        "processing": "Wordt opgehaald",
         "announced": "Aangekondigd"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -4169,14 +4169,14 @@
           "running": "Verbinding wordt gecontroleerd…",
           "listLabel": "Resultaat van de verbindingstest",
           "passed": "Alle controles geslaagd.",
-          "passedWithHints_one": "Verbonden · {{count}} tip",
-          "passedWithHints_other": "Verbonden · {{count}} tips",
-          "hintsHelp": "Een tip houdt niets tegen; hij zegt wat in Seerr beter anders kan worden ingesteld.",
+          "passedWithHints_one": "Verbonden · {{count}} opmerking",
+          "passedWithHints_other": "Verbonden · {{count}} opmerkingen",
+          "hintsHelp": "Een opmerking houdt niets tegen; ze zegt wat in Seerr beter anders kan worden ingesteld.",
           "failed": "De test is mislukt: {{checks}}."
         },
         "level": {
           "ok": "geslaagd",
-          "warn": "tip",
+          "warn": "opmerking",
           "fail": "mislukt"
         },
         "checks": {
@@ -5097,7 +5097,7 @@
         },
         "wishes_submit": {
           "name": "Wensen naar Seerr verzenden",
-          "description": "Verzendt een wens die nog in de postbus wacht naar Seerr en hangt hem aan een bestaande aanvraag.",
+          "description": "Verzendt een wens die nog in het postvak Uit wacht naar Seerr en hangt hem aan een bestaande aanvraag.",
           "trigger": "na het aanvragen als Seerr niet meteen antwoordt, met steeds grotere tussenpozen tot 24 uur; na de synchronisatie voor wensen die aan de beurt zijn"
         },
         "wishes_withdraw": {
@@ -5107,7 +5107,7 @@
         },
         "wishes_sync": {
           "name": "Wensen synchroniseren met Seerr",
-          "description": "Leest de gewijzigde aanvragen uit Seerr, werkt de status van de wensen bij, controleert wensen die lang niet zijn gewijzigd stuk voor stuk en verzendt wensen uit de postbus die aan de beurt zijn opnieuw. De eerste synchronisatie leest alle aanvragen.",
+          "description": "Leest de gewijzigde aanvragen uit Seerr, werkt de status van de wensen bij, controleert wensen die lang niet zijn gewijzigd stuk voor stuk en verzendt wensen uit het postvak Uit die aan de beurt zijn opnieuw. De eerste synchronisatie leest alle aanvragen.",
           "trigger": "schema elke 5 minuten, “Nu synchroniseren”, melding van de Seerr-webhook",
           "progress": "Pagina’s gelezen: {{done}} van {{total}}"
         },
@@ -5118,13 +5118,13 @@
         },
         "wishes_tag": {
           "name": "Profieltags zetten",
-          "description": "Hangt in Radarr en Sonarr de tag van het profiel aan films en series die via Slouchcat zijn gewenst en worden verwerkt. Tags worden nooit verwijderd.",
+          "description": "Hangt in Radarr en Sonarr de tag van het profiel aan films en series die via Slouchcat zijn gewenst en worden opgehaald. Tags worden nooit verwijderd.",
           "trigger": "na de synchronisatie met Seerr, elke 15 minuten en handmatig"
         },
         "wishes_progress": {
           "name": "Downloadvoortgang lezen",
-          "description": "Leest de wachtrij van Radarr en Sonarr en toont bij wensen die worden verwerkt of ze worden gezocht, gedownload of geïmporteerd. Wijzigt niets in Radarr en Sonarr.",
-          "trigger": "elke minuut zolang wensen worden verwerkt en de downloadvoortgang is ingeschakeld"
+          "description": "Leest de wachtrij van Radarr en Sonarr en toont bij wensen die worden opgehaald of ze worden gezocht, gedownload of geïmporteerd. Wijzigt niets in Radarr en Sonarr.",
+          "trigger": "elke minuut zolang wensen worden opgehaald en de downloadvoortgang is ingeschakeld"
         },
         "wishes_discover": {
           "name": "Wenslijsten vooraf laden",
@@ -5772,7 +5772,7 @@
           "deny": "Niet toestaan"
         },
         "newAccountsCanRequest": "Nieuwe accounts mogen aanvragen",
-        "newAccountsCanRequestHelp": "Standaardstand van de schakelaar in het venster “Account uitnodigen”. Wijzigt bestaande accounts niet.",
+        "newAccountsCanRequestHelp": "Standaardstand van de schakelaar in het venster “Een account uitnodigen”. Wijzigt bestaande accounts niet.",
         "allowWithdraw": "Intrekken toestaan",
         "allowWithdrawHelp": "Zolang een wens niet is goedgekeurd. Knop “Intrekken” onder “Mijn wensen”.",
         "pinExternalHideTitle": "Externe berichten bij profielen met pincode zonder titel",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1 tot 10 tekens: alleen kleine letters a–z, cijfers 0–9 en het koppelteken. Niet opgeslagen.",
         "tagPrefixSaved": "Voorvoegsel “{{prefix}}”: nieuwe tags heten bijvoorbeeld {{prefix}}noah. Al gezette tags blijven zoals ze zijn.",
         "showProgress": "Downloadvoortgang tonen",
-        "showProgressHelp": "Toont bij wensen die worden verwerkt of de titel wordt gezocht, gedownload of geïmporteerd. Slouchcat leest hiervoor elke minuut de wachtrij van Radarr en Sonarr, zolang wensen worden verwerkt.",
+        "showProgressHelp": "Toont bij wensen die worden opgehaald of de titel wordt gezocht, gedownload of geïmporteerd. Slouchcat leest hiervoor elke minuut de wachtrij van Radarr en Sonarr, zolang wensen worden opgehaald.",
         "arrSummary": "Tag {{tags}} · voorvoegsel {{prefix}} · voortgang {{progress}}",
         "on": "aan",
         "off": "uit",
@@ -6017,7 +6017,7 @@
           "save": "Opslaan",
           "saveLabel": "Tag van {{profile}} opslaan",
           "cancel": "Annuleren",
-          "reset": "Herstellen",
+          "reset": "Terugzetten",
           "resetLabel": "Tag van {{profile}} terugzetten naar de naam uit het voorvoegsel",
           "saved": "{{profile}}: de tag heet nu {{name}}.",
           "tagsOff": "Profieltags staan uit (Wensen › Instellingen)."
@@ -6112,7 +6112,7 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Goedkeuren",
         "approveLabel": "{{title}} goedkeuren",
-        "approved": "{{title}} is goedgekeurd en wordt verwerkt.",
+        "approved": "{{title}} is goedgekeurd en wordt opgehaald.",
         "decline": "Afwijzen",
         "declineLabel": "{{title}} afwijzen",
         "declineTitle": "{{title}} afwijzen?",
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Wordt verzonden",
       "pending": "Wacht op goedkeuring",
-      "processing": "Wordt verwerkt",
+      "processing": "Wordt opgehaald",
       "partial": "Gedeeltelijk beschikbaar",
       "available": "Beschikbaar",
       "declined": "Afgewezen",
@@ -7246,7 +7246,7 @@
       "joined": "Aangesloten",
       "withdrawn": "Ingetrokken",
       "withdraw_deleted": "Verwijderd in Seerr",
-      "owner_changed": "Een ander profiel blijft wensen",
+      "owner_changed": "Een ander profiel neemt de wens over",
       "reopened": "Al goedgekeurd, de wens loopt door",
       "season_available_one": "Seizoen {{seasons}} beschikbaar",
       "season_available_other": "Seizoenen {{seasons}} beschikbaar",
@@ -7255,25 +7255,25 @@
     "card": {
       "title": "Je wens",
       "requestedOn": "aangevraagd op {{date}}",
-      "joined": "je bent aangesloten",
+      "joined": "je hebt je aangesloten",
       "history": "Geschiedenis",
       "mine": "Naar mijn wensen"
     },
     "withdraw": {
       "action": "Intrekken",
-      "actionJoined": "Verlaten",
+      "actionJoined": "Niet meer meedoen",
       "title": "Wens intrekken?",
-      "titleJoined": "Wens verlaten?",
+      "titleJoined": "Niet meer meedoen aan deze wens?",
       "body": "“{{title}}” wordt niet meer aangevraagd; Slouchcat verwijdert de wens ook in Seerr.",
       "bodyJoined": "Je krijgt geen bericht meer wanneer “{{title}}” er is. De wensen van de andere profielen blijven.",
       "confirm": "Intrekken",
-      "confirmJoined": "Verlaten"
+      "confirmJoined": "Niet meer meedoen"
     },
     "dialog": {
       "titleMovie": "Film aanvragen: {{title}}",
       "titleShow": "Serie aanvragen: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Wordt meteen verwerkt, goedkeuring is niet nodig.",
+      "autoApprove": "Wordt meteen opgehaald, goedkeuring is niet nodig.",
       "needsApproval": "Heeft goedkeuring nodig. De status zie je onder “Mijn wensen”.",
       "seasons": "Seizoenen",
       "allSeasons": "Alle ontbrekende seizoenen ({{count}})",
@@ -7286,7 +7286,7 @@
       },
       "nothingLeft": {
         "title": "Niets meer aan te vragen",
-        "body": "Elk seizoen is er al of al aangevraagd."
+        "body": "Alle seizoenen zijn er al of zijn al aangevraagd."
       },
       "tooManySeasons_one": "Nog 1 van {{limit}} seizoenen vrij. Kies maximaal 1 seizoen.",
       "tooManySeasons_other": "Nog {{count}} van {{limit}} seizoenen vrij. Kies maximaal {{count}} seizoenen.",
@@ -7334,14 +7334,14 @@
       },
       "emptyFilter": {
         "open": "Geen openstaande wensen.",
-        "available": "Nog geen enkele wens is beschikbaar.",
+        "available": "Er is nog geen wens beschikbaar.",
         "closed": "Geen afgesloten wensen."
       }
     },
     "row": {
       "open": "Naar de titel",
       "withdrawLabel": "{{title}}: intrekken",
-      "withdrawJoinedLabel": "{{title}}: verlaten",
+      "withdrawJoinedLabel": "{{title}}: niet meer meedoen",
       "again": "Opnieuw aanvragen",
       "againLabel": "{{title}} opnieuw aanvragen",
       "history": "Geschiedenis: {{last}}",
@@ -7371,15 +7371,15 @@
         "show_genres": "Seriegenres",
         "upcoming_shows": "Binnenkort als serie"
       },
-      "stale": "Seerr is niet bereikbaar. Je ziet de stand van de laatste keer ophalen.",
-      "refreshFailed": "De lijst kon niet worden bijgewerkt. Je ziet de stand van de laatste keer ophalen.",
+      "stale": "Seerr is niet bereikbaar. Je ziet de stand van het laatste ophalen.",
+      "refreshFailed": "De lijst kon niet worden bijgewerkt. Je ziet de stand van het laatste ophalen.",
       "empty": "Er is hier op dit moment niets te ontdekken.",
       "inLibrary": "In de bibliotheek",
       "requested": "Al aangevraagd",
       "join": "{{title}}: houd me op de hoogte",
       "gone": {
         "title": "Ontdekken is er niet voor dit profiel",
-        "body": "Je tot nu toe gedane wensen vind je nog steeds onder “Mijn wensen”.",
+        "body": "Je eerdere wensen vind je nog steeds onder “Mijn wensen”.",
         "action": "Naar “Mijn wensen”"
       },
       "notFound": {
@@ -7406,7 +7406,7 @@
       "hideHelp": "Toont alleen wat nog niet in de bibliotheek staat.",
       "hidden": "Titels uit de bibliotheek verborgen",
       "shown": "Titels uit de bibliotheek zichtbaar",
-      "clear": "Filters herstellen",
+      "clear": "Filters wissen",
       "apply": "Toepassen",
       "moviesEmpty": "Geen films voor deze keuze.",
       "seriesEmpty": "Geen series voor deze keuze."
@@ -7419,7 +7419,7 @@
       "hits": "Resultaten",
       "empty": {
         "title": "Niets gevonden voor “{{q}}”",
-        "body": "De zoekopdracht zoekt naar film- en serietitels, niet naar personen. Probeer een andere term of een id."
+        "body": "Er wordt gezocht naar film- en serietitels, niet naar personen. Probeer een andere term of een id."
       }
     },
     "progress": {

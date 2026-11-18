@@ -804,7 +804,7 @@
       "state": {
         "missing": "缺少",
         "requested": "已請求",
-        "processing": "處理中",
+        "processing": "取得中",
         "announced": "即將推出"
       },
       "cardLabel": "{{title}}：{{state}}",
@@ -3250,7 +3250,7 @@
         "missing_other": "缺少 {{count}} 個",
         "requested_other": "已請求 {{count}} 個",
         "unmatched_other": "{{count}} 個無法比對",
-        "intro": "首頁和焦點推薦清單只會顯示媒體庫中的作品。缺漏的項目只有你能在管理中的這裡看到。個人資料可在「心願」中請求缺少的作品。",
+        "intro": "首頁和焦點推薦清單只會顯示媒體庫中的作品。缺漏的項目只會在管理中顯示，而且只有你看得到。個人資料可在「心願」中請求缺少的作品。",
         "asProfile": "「請求」會以目前的個人資料（{{name}}）執行。",
         "noRequestChip": "無法請求",
         "noRequest": {
@@ -4926,22 +4926,22 @@
         },
         "wishes_tag": {
           "name": "設定個人資料標籤",
-          "description": "在 Radarr 和 Sonarr 中，將個人資料的標籤加到透過 Slouchcat 許願且正在處理中的電影和影集上。標籤永遠不會被移除。",
+          "description": "在 Radarr 和 Sonarr 中，將個人資料的標籤加到透過 Slouchcat 許願且正在取得的電影和影集上。標籤永遠不會被移除。",
           "trigger": "與 Seerr 同步後、每 15 分鐘，以及手動執行"
         },
         "wishes_progress": {
           "name": "讀取下載進度",
-          "description": "讀取 Radarr 和 Sonarr 的佇列，並為處理中的心願顯示目前是搜尋中、下載中還是匯入中。不會變更 Radarr 和 Sonarr 中的任何內容。",
-          "trigger": "有處理中的心願且下載進度已開啟時，每分鐘執行"
+          "description": "讀取 Radarr 和 Sonarr 的佇列，並為取得中的心願顯示目前是搜尋中、下載中還是匯入中。不會變更 Radarr 和 Sonarr 中的任何內容。",
+          "trigger": "有取得中的心願且下載進度已開啟時，每分鐘執行"
         },
         "wishes_discover": {
           "name": "預先載入心願清單",
-          "description": "為可請求之個人資料的每種語言和級別，從 Seerr 將「探索」的欄目載入快取，並移除超過一天的清單。每個結果都會針對個人資料再次檢查。",
+          "description": "為可請求之個人資料的每種語言和年齡級別，從 Seerr 將「探索」的欄目載入快取，並移除超過一天的清單。每個結果都會針對個人資料再次檢查。",
           "trigger": "心願已啟用且「探索」、「電影」、「影集」和「搜尋」頁面已開啟時，每小時的排程"
         },
         "wishes_import": {
           "name": "從 Seerr 接管請求",
-          "description": "將已關聯的 Seerr 使用者在 Seerr 中自行提出、尚未完成或最近已可觀看的請求，接管為其帳戶主個人資料的心願（「由 Seerr 建立」）。共用使用者的請求不包括在內。不會傳送任何通知。",
+          "description": "將已關聯的 Seerr 使用者在 Seerr 中自行提出、尚未完成或最近已可觀看的請求，接管為其帳戶主個人資料的心願（「在 Seerr 中請求」）。共用使用者的請求不包括在內。不會傳送任何通知。",
           "trigger": "帳戶的 Seerr 使用者已關聯、選擇或變更、「接管請求」"
         },
         "segments_detect": {
@@ -5499,7 +5499,7 @@
         "settings": "設定",
         "requests": "請求",
         "openCount_other": "{{count}} 個未完成的心願",
-        "withoutShort": "{{number}} 個沒有",
+        "withoutShort": "{{number}} 個未關聯",
         "withoutCount_other": "{{count}} 個帳戶沒有 Seerr 使用者"
       },
       "strip": {
@@ -5603,7 +5603,7 @@
         "tagPrefixInvalid": "1 到 10 個字元：只能使用小寫字母 a–z、數字 0–9 和連字號。未儲存。",
         "tagPrefixSaved": "前綴「{{prefix}}」：新標籤會像是 {{prefix}}noah。已設定的標籤維持不變。",
         "showProgress": "顯示下載進度",
-        "showProgressHelp": "為處理中的心願顯示作品目前是搜尋中、下載中還是匯入中。為此，只要有處理中的心願，Slouchcat 就會每分鐘讀取 Radarr 和 Sonarr 的佇列。",
+        "showProgressHelp": "為取得中的心願顯示作品目前是搜尋中、下載中還是匯入中。為此，只要有取得中的心願，Slouchcat 就會每分鐘讀取 Radarr 和 Sonarr 的佇列。",
         "arrSummary": "標籤 {{tags}} · 前綴 {{prefix}} · 進度 {{progress}}",
         "on": "開啟",
         "off": "關閉",
@@ -5807,7 +5807,7 @@
         },
         "takeOver": {
           "title": "來自 Seerr 的請求",
-          "help": "直接在 Seerr 中提出的請求會成為主個人資料的心願，並標示為「由 Seerr 建立」。這些心願不帶有個人資料標籤。",
+          "help": "直接在 Seerr 中提出的請求會成為主個人資料的心願，並標示為「在 Seerr 中請求」。這些心願不帶有個人資料標籤。",
           "counting": "正在計算 Seerr 中的請求…",
           "none": "Seerr 中沒有請求。",
           "action_other": "從 Seerr 接管 {{count}} 個請求",
@@ -5874,7 +5874,7 @@
         },
         "origin": {
           "slouchcat": "在 Slouchcat 中請求",
-          "seerr": "由 Seerr 建立"
+          "seerr": "在 Seerr 中請求"
         },
         "toItem": "前往管理中的作品",
         "history": "歷史記錄",
@@ -5888,7 +5888,7 @@
         "seerrUserFull": "{{name}}（ID {{id}}）",
         "approve": "核准",
         "approveLabel": "核准 {{title}}",
-        "approved": "{{title}} 已核准，正在處理中。",
+        "approved": "{{title}} 已核准，正在取得。",
         "decline": "拒絕",
         "declineLabel": "拒絕 {{title}}",
         "declineTitle": "要拒絕 {{title}} 嗎？",
@@ -6940,7 +6940,7 @@
     "state": {
       "queued": "傳送中",
       "pending": "待核准",
-      "processing": "處理中",
+      "processing": "取得中",
       "partial": "部分可觀看",
       "available": "可觀看",
       "declined": "已拒絕",
@@ -7004,19 +7004,19 @@
     },
     "withdraw": {
       "action": "撤回",
-      "actionJoined": "退出心願",
+      "actionJoined": "取消加入心願",
       "title": "要撤回心願嗎？",
-      "titleJoined": "要退出心願嗎？",
+      "titleJoined": "要取消加入這個心願嗎？",
       "body": "將不再請求「{{title}}」；Slouchcat 也會在 Seerr 中刪除這個心願。",
       "bodyJoined": "「{{title}}」上架時，你將不會再收到通知。其他個人資料的心願會保留。",
       "confirm": "撤回",
-      "confirmJoined": "退出心願"
+      "confirmJoined": "取消加入心願"
     },
     "dialog": {
       "titleMovie": "請求電影：{{title}}",
       "titleShow": "請求影集：{{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "會立即處理，不需要核准。",
+      "autoApprove": "會立即開始取得，不需要核准。",
       "needsApproval": "需要核准。你可以在「我的心願」中查看進度。",
       "seasons": "季",
       "allSeasons": "所有缺少的季（{{count}}）",
@@ -7073,11 +7073,11 @@
     "row": {
       "open": "前往作品",
       "withdrawLabel": "撤回 {{title}}",
-      "withdrawJoinedLabel": "{{title}}：退出心願",
+      "withdrawJoinedLabel": "{{title}}：取消加入心願",
       "again": "重新請求",
       "againLabel": "重新請求 {{title}}",
       "history": "歷史記錄：{{last}}",
-      "fromSeerr": "由 Seerr 建立"
+      "fromSeerr": "在 Seerr 中請求"
     },
     "area": {
       "label": "心願下的區域",
@@ -7136,7 +7136,7 @@
       "hide": "隱藏已有的作品",
       "hideHelp": "只顯示尚未加入媒體庫的作品。",
       "hidden": "已隱藏已有的作品",
-      "shown": "顯示已有的作品",
+      "shown": "已顯示已有的作品",
       "clear": "重設篩選條件",
       "apply": "套用",
       "moviesEmpty": "沒有符合條件的電影。",

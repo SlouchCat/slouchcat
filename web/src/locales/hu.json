@@ -828,7 +828,7 @@
       "state": {
         "missing": "Hiányzik",
         "requested": "Kérve",
-        "processing": "Feldolgozás alatt",
+        "processing": "Beszerzés alatt",
         "announced": "Bejelentve"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -3837,7 +3837,7 @@
         "unmappedFallback": "Addig a slouchcat-gaeste közös felhasználón keresztül küldenek.",
         "unmappedDeny": "Profiljaik nem látnak hiányzó címeket, amíg a „Seerr-felhasználó nélküli fiókok” beállítás értéke „Nem engedélyezett”.",
         "unmappedWaiting": "A fiókok várakoznak, és a következő szinkronizáláskor jönnek létre.",
-        "toUsers": "A Seerr-felhasználók",
+        "toUsers": "A Seerr-felhasználókhoz",
         "linked": "Újonnan összekapcsolva: {{account}} a meglévő Seerr-felhasználóval: {{name}}",
         "linkedBody": {
           "invite": "A meghívó elfogadásakor, {{date}}, mert az e-mail-cím megegyezik. A címet maga a fiók gépelte be; senki nem ellenőrizte.",
@@ -3854,7 +3854,7 @@
         "open_other": "{{count}} nyitott kívánság",
         "openQueued_one": "Ebből {{count}} még a Seerrnek való elküldésre vár.",
         "openQueued_other": "Ebből {{count}} még a Seerrnek való elküldésre vár.",
-        "toRequests": "A kérések",
+        "toRequests": "A kérésekhez",
         "stalled_one": "{{count}} letöltés elakadt",
         "stalled_other": "{{count}} letöltés elakadt",
         "serviceTitle": "{{title}} ({{service}})",
@@ -4134,7 +4134,7 @@
       },
       "seerr": {
         "title": "Seerr",
-        "name": "Kapcsolat a Seerrel",
+        "name": "Kapcsolat a Seerr-rel",
         "version": "Verzió: {{version}}",
         "lastSuccess": "Utoljára elérve: {{time}}",
         "state": {
@@ -4202,7 +4202,7 @@
           "manage_users": "A kulccsal fiókokat lehet létrehozni a Seerrben, és jogokat, korlátot és jelszót lehet beállítani.",
           "instance": "Ugyanaz a példány, mint a beállításkor.",
           "act_as_user": "A kívánságok az összekapcsolt felhasználó jogaival, korlátjával és automatikus jóváhagyásával érvényesek.",
-          "csrf_off": "Az író hívások átmennek.",
+          "csrf_off": "Az írási hívások átjutnak.",
           "radarr_one": "A filmkívánságok a Radarrhoz kerülnek ({{count}} szerver).",
           "radarr_other": "A filmkívánságok a Radarrhoz kerülnek ({{count}} szerver).",
           "sonarr_one": "A sorozatkívánságok a Sonarrhoz kerülnek ({{count}} szerver).",
@@ -4259,7 +4259,7 @@
           "error": "Hiba",
           "noAnswer": "Nincs válasz",
           "ms": "{{ms}} ms",
-          "note": "Fejlécek és kulcs nélkül, soha. Legfeljebb 20 bejegyzés.",
+          "note": "Soha nem tartalmaz fejlécet vagy kulcsot. Legfeljebb 20 bejegyzés.",
           "entries_one": "{{count}} bejegyzés",
           "entries_other": "{{count}} bejegyzés",
           "errors_one": "{{count}} hiba",
@@ -4274,8 +4274,8 @@
           "queued": "Küldésre várnak",
           "last": "A Seerr utoljára elérve",
           "never": "Még soha",
-          "every": "A Slouchcat 5 percenként szinkronizálja a kívánságokat a Seerrel.",
-          "requestsLink": "A kérések"
+          "every": "A Slouchcat 5 percenként szinkronizálja a kívánságokat a Seerr-rel.",
+          "requestsLink": "A kérésekhez"
         },
         "arr": {
           "title": "Radarr és Sonarr (profilcímkék és állapot)",
@@ -4318,7 +4318,7 @@
           "test": {
             "action": "Tesztelés",
             "label": "{{service}} tesztelése",
-            "noHost": "a cím",
+            "noHost": "(ismeretlen)",
             "passed": "A {{service}} válaszol itt: {{host}}, és a Seerrtől kapott kulcs érvényes. A cím megerősítve.",
             "keyRefused": "A {{service}} válaszol itt: {{host}}, de nem fogadja el a Seerrtől kapott kulcsot.",
             "unreachable": "A {{service}} nem érhető el itt: {{host}}.",
@@ -4534,7 +4534,7 @@
           "created": "létrehozva",
           "linked": "összekapcsolva",
           "manual": "kézzel választva",
-          "waiting": "a Seerrre vár"
+          "waiting": "a Seerr-re vár"
         },
         "linkedBy": "összekapcsolva {{by}} ({{date}})",
         "password": {
@@ -5106,7 +5106,7 @@
           "trigger": "„Visszavonás” a „Kívánságaim” oldalon; a szinkronizálás után, ha a Seerr nem volt elérhető"
         },
         "wishes_sync": {
-          "name": "Kívánságok szinkronizálása a Seerrel",
+          "name": "Kívánságok szinkronizálása a Seerr-rel",
           "description": "Beolvassa a Seerr módosult kéréseit, frissíti a kívánságok állapotát, egyenként ellenőrzi a régóta változatlan kívánságokat, és újra elküldi a kimenő sor esedékes kívánságait. Az első szinkronizálás minden kérést beolvas.",
           "trigger": "ütemezés 5 percenként, „Szinkronizálás most”, a Seerr webhookjának jelzése",
           "progress": "Beolvasott oldalak: {{done}} / {{total}}"
@@ -5114,17 +5114,17 @@
         "wishes_reconcile": {
           "name": "Kívánságok egyeztetése a könyvtárral",
           "description": "Elérhetőnek jelent egy kívánságot, amint a Slouchcat le tudja játszani a filmet vagy az összes kívánt évadot egy profil számára.",
-          "trigger": "óránkénti ütemezés, egy kívánt cím könyvtárban való felismerése után, a Seerrrel való szinkronizálás után"
+          "trigger": "óránkénti ütemezés, egy kívánt cím könyvtárban való felismerése után, a Seerr-rel való szinkronizálás után"
         },
         "wishes_tag": {
           "name": "Profilcímkék beállítása",
-          "description": "A Radarrban és a Sonarrban hozzárendeli a profil címkéjét azokhoz a filmekhez és sorozatokhoz, amelyeket a Slouchcaton keresztül kívántak, és feldolgozás alatt állnak. A címkék soha nem törlődnek.",
-          "trigger": "a Seerrrel való szinkronizálás után, 15 percenként és kézzel"
+          "description": "A Radarrban és a Sonarrban hozzárendeli a profil címkéjét azokhoz a filmekhez és sorozatokhoz, amelyeket a Slouchcaton keresztül kívántak, és beszerzés alatt állnak. A címkék soha nem törlődnek.",
+          "trigger": "a Seerr-rel való szinkronizálás után, 15 percenként és kézzel"
         },
         "wishes_progress": {
           "name": "Letöltési állapot beolvasása",
-          "description": "Beolvassa a Radarr és a Sonarr várólistáját, és a feldolgozás alatt álló kívánságoknál megmutatja, hogy keresés, letöltés vagy importálás zajlik-e. A Radarrban és a Sonarrban semmit nem módosít.",
-          "trigger": "percenként, amíg kívánságok vannak feldolgozás alatt, és a letöltési állapot be van kapcsolva"
+          "description": "Beolvassa a Radarr és a Sonarr várólistáját, és a beszerzés alatt álló kívánságoknál megmutatja, hogy keresés, letöltés vagy importálás zajlik-e. A Radarrban és a Sonarrban semmit nem módosít.",
+          "trigger": "percenként, amíg kívánságok vannak beszerzés alatt, és a letöltési állapot be van kapcsolva"
         },
         "wishes_discover": {
           "name": "Kívánságlisták előtöltése",
@@ -5708,7 +5708,7 @@
         "requests": "Kérések",
         "openCount_one": "{{count}} nyitott kívánság",
         "openCount_other": "{{count}} nyitott kívánság",
-        "withoutShort": "{{number}} felhasználó nélkül",
+        "withoutShort": "{{number}} hiányzik",
         "withoutCount_one": "{{count}} fiók Seerr-felhasználó nélkül",
         "withoutCount_other": "{{count}} fiók Seerr-felhasználó nélkül"
       },
@@ -5718,8 +5718,8 @@
         "opened": "A Seerrben",
         "openedNote": "létrehozva vagy összekapcsolva",
         "without": "Felhasználó nélkül",
-        "waiting_one": "{{count}} a Seerrre vár",
-        "waiting_other": "{{count}} a Seerrre vár",
+        "waiting_one": "{{count}} a Seerr-re vár",
+        "waiting_other": "{{count}} a Seerr-re vár",
         "password": "Jelszó még függőben",
         "passwordNote": "a következő bejelentkezéskor követi"
       },
@@ -5804,7 +5804,7 @@
         "links": "Hivatkozások",
         "who": "Ki kérhet",
         "whoHelp": "Hogy ki kérhet, azt fiókonként a Fiókok oldalon állíthatja be; profilonként a főprofil dönt.",
-        "connection": "Kapcsolat a Seerrel",
+        "connection": "Kapcsolat a Seerr-rel",
         "connectionHelp": "Cím, kulcs, teszt és napló.",
         "users": "Seerr-felhasználók",
         "usersHelp": "Melyik fiók melyik Seerr-felhasználóként kér, jelszóval és korláttal.",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1–10 karakter: csak kisbetűk a–z, számjegyek 0–9 és kötőjel. Nincs elmentve.",
         "tagPrefixSaved": "„{{prefix}}” előtag: az új címkék neve például {{prefix}}noah. A már beállított címkék változatlanok maradnak.",
         "showProgress": "Letöltési állapot megjelenítése",
-        "showProgressHelp": "A feldolgozás alatt álló kívánságoknál megmutatja, hogy a címet keresik, töltik le vagy importálják-e. Ehhez a Slouchcat percenként beolvassa a Radarr és a Sonarr várólistáját, amíg kívánságok vannak feldolgozás alatt.",
+        "showProgressHelp": "A beszerzés alatt álló kívánságoknál megmutatja, hogy a címet keresik, töltik le vagy importálják-e. Ehhez a Slouchcat percenként beolvassa a Radarr és a Sonarr várólistáját, amíg kívánságok vannak beszerzés alatt.",
         "arrSummary": "Címke {{tags}} · előtag {{prefix}} · állapot {{progress}}",
         "on": "be",
         "off": "ki",
@@ -5847,7 +5847,7 @@
           "limit": "Korlát"
         },
         "noUser": "Nincs",
-        "passwordFollows": "A felhasználóval együtt változik",
+        "passwordFollows": "A felhasználóval együtt érkezik",
         "rightsFollow": "Követik a kérési jogot",
         "gone": "A felhasználó törölve",
         "state": {
@@ -5969,7 +5969,7 @@
         "provisionOffHint": "Az „Új fiókok létrehozása a Seerrben” ki van kapcsolva.",
         "sameEmailTitle": "A Seerrben már van „{{name}}”",
         "sameEmailBody": "Azonos e-mail-cím: a „Létrehozás a Seerrben” ezt a felhasználót kapcsolja össze, ahelyett hogy másodikat hozna létre.",
-        "waitingTitle": "A Seerrre vár",
+        "waitingTitle": "A Seerr-re vár",
         "waitReason": {
           "unreachable": "A Seerr nem volt elérhető a létrehozáskor. A következő szinkronizálás újra megpróbálja.",
           "server": "A Seerr hibával válaszolt a létrehozáskor. A következő szinkronizálás újra megpróbálja.",
@@ -5993,7 +5993,7 @@
         "passwordNext": "Jelszó újbóli átvétele a következő bejelentkezéskor",
         "passwordOff": "Jelszó szinkronizálásának leállítása",
         "passwordNextDone": "{{email}} jelszava a következő bejelentkezéskor átkerül a Seerrbe.",
-        "passwordOffDone": "{{email}} jelszava többé nincs szinkronizálva a Seerrel.",
+        "passwordOffDone": "{{email}} jelszava többé nincs szinkronizálva a Seerr-rel.",
         "passwordSyncOff": "A jelszószinkronizálás ki van kapcsolva.",
         "passwordNote": {
           "admin": "A Slouchcat nem szinkronizálja a jelszót: „{{name}}” rendszergazda a Seerrben, a jelszava ott marad, ahogy van.",
@@ -6084,7 +6084,7 @@
           "countLoaded_other": "{{count}} kívánság a betöltöttek között"
         },
         "sync": "Szinkronizálás most",
-        "syncQueued": "A Seerrel való szinkronizálás folyamatban van.",
+        "syncQueued": "A Seerr-rel való szinkronizálás folyamatban van.",
         "queued_one": "{{count}} kívánság a Seerrnek való elküldésre vár.",
         "queued_other": "{{count}} kívánság a Seerrnek való elküldésre vár.",
         "empty": "Még nincsenek kívánságok.",
@@ -6112,7 +6112,7 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Jóváhagyás",
         "approveLabel": "{{title}} jóváhagyása",
-        "approved": "{{title}} jóváhagyva, és feldolgozás alatt áll.",
+        "approved": "{{title}} jóváhagyva, és beszerzés alatt áll.",
         "decline": "Elutasítás",
         "declineLabel": "{{title}} elutasítása",
         "declineTitle": "Elutasítja ezt: {{title}}?",
@@ -6711,7 +6711,7 @@
     "wish_season_available": "A kívánt sorozat egyik évada megérkezett",
     "wish_approved": "A kívánsága jóváhagyva",
     "wish_declined": "A kívánságát elutasították",
-    "wish_failed": "A kívánsága sikertelen"
+    "wish_failed": "A kívánsága meghiúsult"
   },
   "settings": {
     "playback": {
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Küldés alatt",
       "pending": "Jóváhagyásra vár",
-      "processing": "Feldolgozás alatt",
+      "processing": "Beszerzés alatt",
       "partial": "Részben elérhető",
       "available": "Elérhető",
       "declined": "Elutasítva",
@@ -7261,19 +7261,19 @@
     },
     "withdraw": {
       "action": "Visszavonás",
-      "actionJoined": "Kilépés",
+      "actionJoined": "Visszalépés",
       "title": "Visszavonja a kívánságot?",
-      "titleJoined": "Kilép a kívánságból?",
+      "titleJoined": "Visszalép a kívánságtól?",
       "body": "„{{title}}” kérése megszűnik; a Slouchcat a kívánságot a Seerrben is törli.",
       "bodyJoined": "Nem kap több értesítést, amikor megérkezik: „{{title}}”. A többi profil kívánságai megmaradnak.",
       "confirm": "Visszavonás",
-      "confirmJoined": "Kilépés"
+      "confirmJoined": "Visszalépés"
     },
     "dialog": {
       "titleMovie": "Film kérése: {{title}}",
       "titleShow": "Sorozat kérése: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Azonnal feldolgozásra kerül, jóváhagyás nem szükséges.",
+      "autoApprove": "Azonnal megkezdődik a beszerzése, jóváhagyás nem szükséges.",
       "needsApproval": "Jóváhagyás szükséges. Az állapotát a „Kívánságaim” oldalon követheti.",
       "seasons": "Évadok",
       "allSeasons": "Az összes hiányzó évad ({{count}})",
@@ -7341,9 +7341,9 @@
     "row": {
       "open": "A címhez",
       "withdrawLabel": "{{title}}: visszavonás",
-      "withdrawJoinedLabel": "{{title}}: kilépés a kívánságból",
-      "again": "Újra kérés",
-      "againLabel": "{{title}} újbóli kérése",
+      "withdrawJoinedLabel": "{{title}}: visszalépés",
+      "again": "Ismételt kérés",
+      "againLabel": "{{title}} ismételt kérése",
       "history": "Előzmények: {{last}}",
       "fromSeerr": "a Seerrben létrehozva"
     },
@@ -7450,7 +7450,7 @@
       "withdrawn": "A kívánsága vissza lett vonva."
     },
     "alreadyRequested": "Már kérték",
-    "cannotRequest": "Ez a profil nem kérhet",
+    "cannotRequest": "Ez a profil nem kérhet címeket",
     "seasons": "Évadok",
     "seasonRequested": "Már kérték",
     "nextEpisode": "Még fut, a következő epizód: {{date}}",

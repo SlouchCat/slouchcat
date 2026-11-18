@@ -828,7 +828,7 @@
       "state": {
         "missing": "Puuttuu",
         "requested": "Pyydetty",
-        "processing": "Käsittelyssä",
+        "processing": "Hankinnassa",
         "announced": "Julkistettu"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -4296,7 +4296,7 @@
           "facts": {
             "address": "Osoite",
             "state": "Tila",
-            "tagRequests": "Pyyntöjen tunnisteet Seerrissä",
+            "tagRequests": "Tag Requests Seerrissä",
             "tags": "Profiilitunnisteet",
             "progress": "Latauksen edistyminen"
           },
@@ -4318,7 +4318,7 @@
           "test": {
             "action": "Testaa",
             "label": "Testaa {{service}}",
-            "noHost": "osoite",
+            "noHost": "(tuntematon)",
             "passed": "{{service}} vastaa osoitteessa {{host}} ja hyväksyy Seerristä saadun avaimen. Osoite on vahvistettu.",
             "keyRefused": "{{service}} vastaa osoitteessa {{host}}, mutta hylkää Seerristä saadun avaimen.",
             "unreachable": "{{service}} ei ole tavoitettavissa osoitteessa {{host}}.",
@@ -5118,13 +5118,13 @@
         },
         "wishes_tag": {
           "name": "Aseta profiilitunnisteet",
-          "description": "Liittää profiilin tunnisteen Radarrissa ja Sonarrissa niihin Slouchcatin kautta toivottuihin elokuviin ja sarjoihin, joita parhaillaan haetaan. Tunnisteita ei koskaan poisteta.",
+          "description": "Liittää profiilin tunnisteen Radarrissa ja Sonarrissa niihin Slouchcatin kautta toivottuihin elokuviin ja sarjoihin, jotka ovat hankinnassa. Tunnisteita ei koskaan poisteta.",
           "trigger": "Seerr-synkronoinnin jälkeen, 15 minuutin välein ja käsin"
         },
         "wishes_progress": {
           "name": "Lue latauksen edistyminen",
-          "description": "Lukee Radarrin ja Sonarrin jonon ja näyttää käsittelyssä oleville toiveille, haetaanko, ladataanko vai tuodaanko niitä. Ei muuta mitään Radarrissa eikä Sonarrissa.",
-          "trigger": "joka minuutti, kun toiveita käsitellään ja latauksen edistyminen on käytössä"
+          "description": "Lukee Radarrin ja Sonarrin jonon ja näyttää hankinnassa oleville toiveille, haetaanko, ladataanko vai tuodaanko niitä. Ei muuta mitään Radarrissa eikä Sonarrissa.",
+          "trigger": "joka minuutti, kun toiveita on hankinnassa ja latauksen edistyminen on käytössä"
         },
         "wishes_discover": {
           "name": "Lataa toivelistat etukäteen",
@@ -5801,7 +5801,7 @@
         "existing": "Olemassa olevat tilit",
         "existingHelp": "Valitse Seerr-käyttäjä tiliä kohden tai poista linkitys.",
         "toUsers": "Seerr-käyttäjiin",
-        "links": "Linkitykset",
+        "links": "Linkit",
         "who": "Kuka saa pyytää",
         "whoHelp": "Kuka saa pyytää, asetetaan tilikohtaisesti kohdassa Tilit; profiilikohtaisesti päättää pääprofiili.",
         "connection": "Seerr-yhteys",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1–10 merkkiä: vain pieniä kirjaimia a–z, numeroita 0–9 ja yhdysmerkki. Ei tallennettu.",
         "tagPrefixSaved": "Etuliite ”{{prefix}}”: uusien tunnisteiden nimi on esimerkiksi {{prefix}}noah. Jo asetetut tunnisteet pysyvät ennallaan.",
         "showProgress": "Näytä latauksen edistyminen",
-        "showProgressHelp": "Näyttää käsittelyssä oleville toiveille, haetaanko, ladataanko vai tuodaanko nimikettä. Sitä varten Slouchcat lukee Radarrin ja Sonarrin jonon joka minuutti, kun toiveita käsitellään.",
+        "showProgressHelp": "Näyttää hankinnassa oleville toiveille, haetaanko, ladataanko vai tuodaanko nimikettä. Sitä varten Slouchcat lukee Radarrin ja Sonarrin jonon joka minuutti, kun toiveita on hankinnassa.",
         "arrSummary": "Tunniste {{tags}} · etuliite {{prefix}} · edistyminen {{progress}}",
         "on": "päällä",
         "off": "pois",
@@ -5847,13 +5847,13 @@
           "limit": "Raja"
         },
         "noUser": "Ei mitään",
-        "passwordFollows": "Seuraa käyttäjää",
+        "passwordFollows": "Tulee käyttäjän mukana",
         "rightsFollow": "Seuraa pyyntöoikeutta",
         "gone": "Käyttäjä poistettu",
         "state": {
           "created": "Slouchcatin luoma",
           "linked": "Linkitetty saman sähköpostiosoitteen perusteella",
-          "manual": "Linkitetty käsin",
+          "manual": "Linkitetty manuaalisesti",
           "waiting": "Luodaan, kun Seerr on tavoitettavissa",
           "none": "Ei luotu"
         },
@@ -6055,7 +6055,7 @@
         "caption": "Kotitalouden kaikki toiveet",
         "columns": {
           "title": "Nimike",
-          "requesters": "Toivoja",
+          "requesters": "Toivonut",
           "state": "Tila",
           "seerr": "Seerrissä",
           "attempts": "Yritykset",
@@ -6112,7 +6112,7 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Hyväksy",
         "approveLabel": "Hyväksy: {{title}}",
-        "approved": "{{title}} on hyväksytty, ja sitä haetaan.",
+        "approved": "{{title}} on hyväksytty ja hankinnassa.",
         "decline": "Hylkää",
         "declineLabel": "Hylkää: {{title}}",
         "declineTitle": "Hylätäänkö {{title}}?",
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Lähetetään",
       "pending": "Odottaa hyväksyntää",
-      "processing": "Käsittelyssä",
+      "processing": "Hankinnassa",
       "partial": "Osittain saatavilla",
       "available": "Saatavilla",
       "declined": "Hylätty",
@@ -7261,19 +7261,19 @@
     },
     "withdraw": {
       "action": "Peru",
-      "actionJoined": "Poistu",
+      "actionJoined": "Peru liittyminen",
       "title": "Perutaanko toive?",
-      "titleJoined": "Poistutaanko toiveesta?",
+      "titleJoined": "Perutaanko liittyminen?",
       "body": "Nimikettä ”{{title}}” ei enää pyydetä; Slouchcat poistaa toiveen myös Seerristä.",
       "bodyJoined": "Viestiä ei tule, kun ”{{title}}” on saatavilla. Muiden profiilien toiveet säilyvät.",
       "confirm": "Peru",
-      "confirmJoined": "Poistu"
+      "confirmJoined": "Peru liittyminen"
     },
     "dialog": {
       "titleMovie": "Pyydä elokuva: {{title}}",
       "titleShow": "Pyydä sarja: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Haetaan heti, hyväksyntää ei tarvita.",
+      "autoApprove": "Hankitaan heti, hyväksyntää ei tarvita.",
       "needsApproval": "Tarvitsee hyväksynnän. Etenemistä voi seurata kohdassa ”Omat toiveet”.",
       "seasons": "Kaudet",
       "allSeasons": "Kaikki puuttuvat kaudet ({{count}})",
@@ -7341,7 +7341,7 @@
     "row": {
       "open": "Nimikkeeseen",
       "withdrawLabel": "Peru: {{title}}",
-      "withdrawJoinedLabel": "{{title}}: poistu",
+      "withdrawJoinedLabel": "{{title}}: peru liittyminen",
       "again": "Pyydä uudelleen",
       "againLabel": "Pyydä uudelleen: {{title}}",
       "history": "Historia: {{last}}",
@@ -7378,7 +7378,7 @@
       "requested": "Jo pyydetty",
       "join": "{{title}}: ilmoita minulle",
       "gone": {
-        "title": "Löydä ei ole tämän profiilin käytettävissä",
+        "title": "”Löydä” ei ole tämän profiilin käytettävissä",
         "body": "Aiemmat toiveet ovat edelleen kohdassa ”Omat toiveet”.",
         "action": "Kohtaan ”Omat toiveet”"
       },

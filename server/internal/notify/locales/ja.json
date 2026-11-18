@@ -1,8 +1,8 @@
 {
   "new_episode": "新しいエピソード：{{title}}",
   "new_podcast_episode": "ポッドキャストの新しいエピソード：{{title}}",
-  "invitation_subject": "招待が承認されました",
-  "invitation_body": "{{email}}が招待を承認し、アカウントを作成しました。",
+  "invitation_subject": "招待が承諾されました",
+  "invitation_body": "{{email}}が招待を承諾し、アカウントを作成しました。",
   "job_failed_subject": "エラー：ジョブ{{job}}",
   "job_failed_body": "ジョブ{{job}}は{{attempts}}回試行した後に失敗しました。\n\n{{reason}}",
   "scan_aborted_subject": "スキャン中止：{{library}}",

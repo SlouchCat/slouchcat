@@ -245,10 +245,10 @@
       "instance_unchanged": "Na rozhodnutí nečeká žádná jiná instance Seerr.",
       "seerr_not_tested": "Přání lze zapnout až po úspěšném otestování uloženého připojení.",
       "seerr_user_taken": "Tento uživatel Seerr už patří k jinému účtu, je sdíleným uživatelem, nebo v Seerr chybí.",
-      "provision_disabled": "Volba „Zakládat nové účty v Seerr“ je vypnutá. Zapnete ji v části Přání › Nastavení.",
+      "provision_disabled": "Volba „Zakládat nové účty v Seerr“ je vypnutá. Zapněte ji v části Přání › Nastavení.",
       "password_not_syncable": "Slouchcat heslo tohoto uživatele Seerr nesynchronizuje: v Seerr je správcem nebo se přihlašuje přes Jellyfin, Emby nebo Plex.",
-      "account_not_allowed": "Účet nesmí vyžadovat tituly. Oprávnění nastaví správce v části Účty.",
-      "wish_not_allowed": "Tento profil nemůže vyžadovat tituly.",
+      "account_not_allowed": "Účet nesmí žádat o tituly. Oprávnění nastaví správce v části Účty.",
+      "wish_not_allowed": "Tento profil nemůže žádat o tituly.",
       "quota_exceeded": "Limit to nedovoluje.",
       "already_available": "Titul už v knihovně je.",
       "wish_not_withdrawable": "Přání už je schváleno a nelze ho vzít zpět.",
@@ -3640,7 +3640,7 @@
         "unmatched_few": "bez shody: {{count}}",
         "unmatched_many": "bez shody: {{count}}",
         "unmatched_other": "bez shody: {{count}}",
-        "intro": "Úvodní stránka a seznam Spotlight zobrazují jen tituly z knihovny. Chybějící položky vidíte jen vy, tady ve správě. Profily vyžadují chybějící tituly v části „Přání“.",
+        "intro": "Úvodní stránka a seznam Spotlight zobrazují jen tituly z knihovny. Chybějící položky vidíte jen vy, tady ve správě. Profily žádají o chybějící tituly v části „Přání“.",
         "asProfile": "Tlačítko „Vyžádat“ jedná jako aktivní profil ({{name}}).",
         "noRequestChip": "Vyžádání není možné",
         "noRequest": {
@@ -4624,7 +4624,7 @@
           "facts": {
             "address": "Adresa",
             "state": "Stav",
-            "tagRequests": "Tag Requests in Seerr",
+            "tagRequests": "Tag Requests v Seerr",
             "tags": "Štítky profilů",
             "progress": "Průběh stahování"
           },
@@ -4861,8 +4861,8 @@
       "wishes": {
         "title": "Přání",
         "of": "Přání účtu {{email}}",
-        "canRequest": "Smí vyžadovat tituly",
-        "canRequestHelp": "Platí jako horní hranice pro všechny profily. Které profily vyžadují, určuje hlavní profil účtu.",
+        "canRequest": "Smí žádat o tituly",
+        "canRequestHelp": "Platí jako horní hranice pro všechny profily. Které profily smějí žádat, určuje hlavní profil účtu.",
         "notSetUp": "–",
         "state": {
           "allowed": "Povoleno",
@@ -4891,8 +4891,8 @@
         "adminLimit": "Uživatel „{{name}}“ je v Seerr správce. Seerr správcům žádný limit nedává.",
         "limitLater": "Zatím žádný uživatel Seerr: Slouchcat limit nastaví, jakmile se tam účet založí.",
         "limitFixed": "Limit: {{limit}}. U správců ho zde nelze změnit.",
-        "savedOn": "{{email}} nyní smí vyžadovat tituly.",
-        "savedOff": "{{email}} už nesmí vyžadovat tituly."
+        "savedOn": "{{email}} nyní smí žádat o tituly.",
+        "savedOff": "{{email}} už nesmí žádat o tituly."
       }
     },
     "backup": {
@@ -5482,7 +5482,7 @@
         "wishes_submit": {
           "name": "Odeslání přání do Seerr",
           "description": "Odešle do Seerr přání, které ještě čeká ve frontě k odeslání, a připojí ho k již existující žádosti.",
-          "trigger": "po vyžádání, když Seerr hned neodpoví, s rostoucími odstupy až 24 hodin, po synchronizaci pro splatná přání"
+          "trigger": "po vyžádání, když Seerr hned neodpoví, s rostoucími odstupy až 24 hodin; po synchronizaci pro přání, která jsou na řadě"
         },
         "wishes_withdraw": {
           "name": "Smazání vzatých přání v Seerr",
@@ -5511,8 +5511,8 @@
           "trigger": "každou minutu, dokud se přání zpracovávají a průběh stahování je zapnutý"
         },
         "wishes_discover": {
-          "name": "Předběžné načtení seznamů přání",
-          "description": "Načte řádky stránky Objevit ze Seerr do mezipaměti pro každý jazyk a věkovou úroveň profilů, které smějí vyžadovat tituly, a odstraní seznamy starší než jeden den. Každý nález se pro profil znovu ověří.",
+          "name": "Přednačtení seznamů přání",
+          "description": "Načte řádky stránky Objevit ze Seerr do mezipaměti pro každý jazyk a věkovou úroveň profilů, které smějí žádat o tituly, a odstraní seznamy starší než jeden den. Každý nález se pro profil znovu ověří.",
           "trigger": "plán každou hodinu, dokud jsou přání aktivní a stránky Objevit, Filmy, Seriály a Hledat zapnuté"
         },
         "wishes_import": {
@@ -6115,7 +6115,7 @@
     },
     "wishes": {
       "title": "Přání",
-      "intro": "Každý účet má v Seerr vlastního uživatele se stejným přihlášením. Jeho profily vyžadují tituly jako tento uživatel. Oprávnění, limit a schvalování se berou od tohoto uživatele.",
+      "intro": "Každý účet má v Seerr vlastního uživatele se stejným přihlášením. Jeho profily žádají o tituly jako tento uživatel. Oprávnění, limit a schvalování se berou od tohoto uživatele.",
       "separator": " · ",
       "tabs": {
         "label": "Části přání",
@@ -6165,10 +6165,10 @@
         "choiceSaved": "Volba „{{name}}“: {{value}}. Platí okamžitě.",
         "limitSaved": "Výchozí limit: {{limit}}. Platí okamžitě pro všechny účty s volbou „Výchozí“.",
         "basics": "Základ",
-        "where": "Kde lze vyžadovat",
+        "where": "Kde lze žádat o tituly",
         "rules": "Pravidla",
         "enabled": "Přání aktivní",
-        "enabledHelp": "Profily s oprávněním mohou vyžadovat chybějící tituly. Vypnuto: nikdo chybějící tituly nevidí, otevřená přání se ve Seerr vyřizují dál.",
+        "enabledHelp": "Profily s oprávněním mohou žádat o chybějící tituly. Vypnuto: nikdo chybějící tituly nevidí, otevřená přání se v Seerr vyřizují dál.",
         "enabledLocked": "Zapnout lze až po úspěšném otestování uloženého připojení.",
         "toConnection": "Na připojení",
         "allowMovies": "Povolit filmy",
@@ -6190,14 +6190,14 @@
         },
         "unmapped": "Účty bez uživatele Seerr",
         "unmappedHelp": {
-          "fallback": "Sdílený uživatel: všechny účty bez vlastního uživatele vyžadují tituly jako slouchcat-gaeste a sdílejí výchozí limit. Tohoto uživatele si Slouchcat v Seerr vytvoří sám.",
-          "deny": "Nepovolit: účty bez vlastního uživatele nemohou nic vyžadovat, dokud nemají uživatele Seerr."
+          "fallback": "Sdílený uživatel: všechny účty bez vlastního uživatele žádají o tituly jako slouchcat-gaeste a sdílejí výchozí limit. Tohoto uživatele si Slouchcat v Seerr vytvoří sám.",
+          "deny": "Nepovolit: účty bez vlastního uživatele nemohou o nic žádat, dokud nemají uživatele Seerr."
         },
         "unmappedOptions": {
           "fallback": "Sdílený uživatel",
           "deny": "Nepovolit"
         },
-        "newAccountsCanRequest": "Nové účty smějí vyžadovat tituly",
+        "newAccountsCanRequest": "Nové účty smějí žádat o tituly",
         "newAccountsCanRequestHelp": "Výchozí poloha přepínače v dialogu „Pozvat účet“. Stávající účty se nemění.",
         "allowWithdraw": "Povolit vzetí zpět",
         "allowWithdrawHelp": "Dokud není přání schváleno. Tlačítko „Vzít zpět“ v části „Moje přání“.",
@@ -6228,12 +6228,12 @@
         "existingHelp": "Vyberte pro každý účet uživatele Seerr, nebo propojení zrušte.",
         "toUsers": "Na uživatele Seerr",
         "links": "Odkazy",
-        "who": "Kdo smí vyžadovat",
-        "whoHelp": "Kdo smí vyžadovat, nastavíte pro každý účet v části Účty, u profilů rozhoduje hlavní profil.",
+        "who": "Kdo smí žádat o tituly",
+        "whoHelp": "Kdo smí žádat o tituly, nastavíte pro každý účet v části Účty, u profilů rozhoduje hlavní profil.",
         "connection": "Připojení k Seerr",
         "connectionHelp": "Adresa, klíč, test a protokol.",
         "users": "Uživatelé Seerr",
-        "usersHelp": "Který účet vyžaduje tituly jako který uživatel Seerr, s heslem a limitem.",
+        "usersHelp": "Který účet žádá o tituly jako který uživatel Seerr, s heslem a limitem.",
         "arr": "Radarr a Sonarr: štítek profilu a průběh",
         "profileTags": "Nastavovat štítek profilu v Radarr a Sonarr",
         "profileTagsHelp": "Připojí štítek profilu k titulu, jakmile ho Seerr předal do Radarr nebo Sonarr, a doplní štítky, které se nepodařilo nastavit. Jinak v Radarr a Sonarr nic nemění.",
@@ -6331,8 +6331,8 @@
         "shows": "Seriály",
         "autoApproveOn": "Automatické schválení: ano",
         "autoApproveOff": "Automatické schválení: ne",
-        "followRightOn": "Řídí se právem účtu vyžádat: smí vyžadovat",
-        "followRightOff": "Řídí se právem účtu vyžádat: nesmí vyžadovat",
+        "followRightOn": "Řídí se právem účtu vyžádat: smí žádat",
+        "followRightOff": "Řídí se právem účtu vyžádat: nesmí žádat",
         "noLimitAdmin": "Bez limitu (správce v Seerr)",
         "unlimited": "Neomezeno",
         "mode": {
@@ -6340,8 +6340,8 @@
           "custom": "Vlastní",
           "unlimited": "Neomezeno"
         },
-        "mayRequest": "Smí vyžadovat",
-        "mayNotRequest": "Nesmí vyžadovat",
+        "mayRequest": "Smí žádat",
+        "mayNotRequest": "Nesmí žádat",
         "goneTitle": "Uživatel „{{name}}“ nenalezen",
         "goneBody": "Seerr tohoto uživatele už nezná. Vyberte jiného uživatele, nebo propojení zrušte.",
         "selfLinked": {
@@ -6349,16 +6349,16 @@
           "email_change": "Po změně e-mailu propojeno s existujícím uživatelem Seerr {{name}}, protože e-mail je stejný. Pokud nepatří k tomuto účtu, propojení zrušte."
         },
         "warning": {
-          "nothing": "Uživatel „{{name}}“ nesmí v Seerr nic vyžadovat. Každé přání selže; dejte uživateli v Seerr oprávnění „Požádat“, nebo vyberte jiného.",
-          "noShows": "Uživatel „{{name}}“ nesmí vyžadovat seriály. Přání seriálů selžou, filmy fungují.",
-          "noMovies": "Uživatel „{{name}}“ nesmí vyžadovat filmy. Přání filmů selžou, seriály fungují."
+          "nothing": "Uživatel „{{name}}“ nesmí v Seerr o nic žádat. Každé přání selže; dejte uživateli v Seerr oprávnění „Požádat“, nebo vyberte jiného.",
+          "noShows": "Uživatel „{{name}}“ nesmí žádat o seriály. Přání seriálů selžou, filmy fungují.",
+          "noMovies": "Uživatel „{{name}}“ nesmí žádat o filmy. Přání filmů selžou, seriály fungují."
         },
         "change": "Změnit uživatele Seerr",
         "unlink": "Zrušit propojení",
         "chooseHelp": "Vybrat lze uživatele, kteří nepatří k žádnému jinému účtu. Oprávnění a heslo zůstávají, jaké jsou v Seerr.",
         "chooseHelpStale": "Vybrat lze uživatele, kteří nepatří k žádnému jinému účtu. Zobrazen je naposledy načtený stav seznamu uživatelů.",
-        "taken": "Tento uživatel Seerr mezitím patří k jinému účtu, nebo už nelze vybrat. Výběr byl vrácen.",
-        "linked": "{{email}} nyní vyžaduje tituly jako „{{name}}“. Oprávnění a schvalování se berou od tohoto uživatele.",
+        "taken": "Tento uživatel Seerr mezitím patří k jinému účtu, nebo ho už nelze vybrat. Výběr byl zrušen.",
+        "linked": "{{email}} nyní žádá o tituly jako „{{name}}“. Oprávnění a schvalování se berou od tohoto uživatele.",
         "unlinked": "Propojení účtu {{email}} zrušeno. Uživatel „{{name}}“ v Seerr zůstává.",
         "reloading": "Seznam uživatelů se načítá znovu.",
         "notConfigured": "Seerr není nastaven",
@@ -6375,8 +6375,8 @@
         "withoutCount_few": "{{count}} účty bez uživatele Seerr",
         "withoutCount_many": "{{count}} účtu bez uživatele Seerr",
         "withoutCount_other": "{{count}} účtů bez uživatele Seerr",
-        "withoutFallback": "Do té doby vyžadují tituly jako sdílený uživatel slouchcat-gaeste (pravidlo „Účty bez uživatele Seerr“).",
-        "withoutDeny": "Nemohou nic vyžadovat, dokud je volba „Účty bez uživatele Seerr“ nastavena na „Nepovolit“.",
+        "withoutFallback": "Do té doby žádají o tituly jako sdílený uživatel slouchcat-gaeste (pravidlo „Účty bez uživatele Seerr“).",
+        "withoutDeny": "Nemohou o nic žádat, dokud je volba „Účty bez uživatele Seerr“ nastavena na „Nepovolit“.",
         "toSettings": "Na nastavení",
         "newAccounts": "Nové účty: {{provision}} · Heslo: {{password}}",
         "provisionOn": "se zakládají v Seerr",
@@ -6416,7 +6416,7 @@
           "refused": "Seerr založení odmítl. Další synchronizace to zkusí znovu."
         },
         "emailTakenTitle": "Seerr odmítl nový e-mail",
-        "emailTakenBody": "Jiný uživatel Seerr už tuto adresu má. Uživatel „{{name}}“ si v Seerr ponechá dosavadní e-mail, účet dál vyžaduje tituly jako tento uživatel.",
+        "emailTakenBody": "Jiný uživatel Seerr už tuto adresu má. Uživatel „{{name}}“ si v Seerr ponechá dosavadní e-mail, účet dál žádá o tituly jako tento uživatel.",
         "provisioned": {
           "created": "{{email}} je založen v Seerr.",
           "linked": "{{email}} je propojen s uživatelem Seerr „{{name}}“.",
@@ -6473,7 +6473,7 @@
         },
         "linkPrivileged": "Přesto propojit…",
         "privilegedTitle": "Propojit správce Seerr {{name}}?",
-        "privilegedBody": "Tento uživatel Seerr spravuje Seerr. Profily účtu {{email}} pak budou vyžadovat tituly jako správce Seerr, bez schvalování a bez limitu. Jeho heslo Slouchcat nesynchronizuje.",
+        "privilegedBody": "Tento uživatel Seerr spravuje Seerr. Profily účtu {{email}} pak budou žádat o tituly jako správce Seerr, bez schvalování a bez limitu. Jeho heslo Slouchcat nesynchronizuje.",
         "privilegedConfirm": "Přesto propojit",
         "provisionAllManual_one": "{{count}} účet vyžaduje ruční výběr.",
         "provisionAllManual_few": "{{count}} účty vyžadují ruční výběr.",
@@ -6589,7 +6589,7 @@
           "title": "Průběh",
           "service": "Služba",
           "state": "Stav",
-          "unknown": "Zatím nic nenalezeno",
+          "unknown": "Zatím nic není známo",
           "readAt": "Naposledy načteno",
           "never": "Nikdy",
           "note": "Poznámka",
@@ -6734,9 +6734,9 @@
         "likeUi": "Jako rozhraní",
         "playback": "Přehrávání",
         "wishes": "Přání",
-        "canRequest": "Smí vyžadovat tituly",
-        "canRequestHelp": "Profil smí vyžadovat chybějící tituly přes Seerr.",
-        "canRequestCapped": "Tento účet nesmí vyžadovat tituly. Oprávnění nastaví správce v části Účty."
+        "canRequest": "Smí žádat o tituly",
+        "canRequestHelp": "Profil smí přes Seerr žádat o chybějící tituly.",
+        "canRequestCapped": "Tento účet nesmí žádat o tituly. Oprávnění nastaví správce v části Účty."
       },
       "report": {
         "show": "Zobrazit dobu sledování",
@@ -7719,7 +7719,7 @@
     "fail": {
       "quota": "Limit dosažen: Seerr přání nepřijal.",
       "blocklisted": "Titul je v Seerr na seznamu blokovaných.",
-      "no_permission": "Uživatel Seerr nesmí vyžadovat tento druh titulu.",
+      "no_permission": "Uživatel Seerr nesmí žádat o tento druh titulu.",
       "arr_failed": "Seerr nemohl titul předat do Radarr nebo Sonarr. Správce může přání zkusit znovu.",
       "unreachable_24h": "Seerr byl 24 hodin nedostupný.",
       "seerr_request_gone": "Žádost byla v Seerr smazána.",
@@ -7730,15 +7730,15 @@
     },
     "reason": {
       "disabled": "Přání jsou vypnutá.",
-      "account_not_allowed": "Tento účet nesmí vyžadovat tituly.",
-      "profile_not_allowed": "Tento profil nesmí vyžadovat tituly. Hlavní profil to může povolit v části „Profily“.",
+      "account_not_allowed": "Tento účet nesmí žádat o tituly.",
+      "profile_not_allowed": "Tento profil nesmí žádat o tituly. Hlavní profil to může povolit v části „Profily“.",
       "no_mapping": "S tímto účtem zatím není propojen žádný uživatel Seerr. Nastaví to správce.",
       "seerr_user_gone": "Propojený uživatel Seerr už neexistuje. Opraví to správce.",
-      "movies_not_allowed": "Filmy teď nelze vyžadovat.",
-      "shows_not_allowed": "Seriály teď nelze vyžadovat.",
+      "movies_not_allowed": "O filmy teď nelze žádat.",
+      "shows_not_allowed": "O seriály teď nelze žádat.",
       "status_only": "Tento titul už vyžádal jiný profil. Jakmile bude k dispozici, najdete ho v knihovně.",
       "already_requested": "Tento titul už je od vás vyžádán.",
-      "source_not_allowed": "Odsud teď nelze tituly vyžadovat.",
+      "source_not_allowed": "Odsud teď nelze o tituly žádat.",
       "tvdb_id_missing": "Tomuto seriálu chybí ID z TVDB, které Seerr potřebuje.",
       "withdraw_disabled": "Přání teď nelze vzít zpět."
     },
@@ -7771,17 +7771,17 @@
       "requestedOn": "vyžádáno {{date}}",
       "joined": "sdílíte toto přání",
       "history": "Historie",
-      "mine": "Na moje přání"
+      "mine": "Zobrazit moje přání"
     },
     "withdraw": {
       "action": "Vzít zpět",
-      "actionJoined": "Odejít",
+      "actionJoined": "Zrušit účast",
       "title": "Vzít přání zpět?",
-      "titleJoined": "Odejít z přání?",
-      "body": "Titul „{{title}}“ se už nebude vyžadovat. Slouchcat přání smaže i v Seerr.",
+      "titleJoined": "Zrušit účast na přání?",
+      "body": "O titul „{{title}}“ už nebudete žádat. Slouchcat přání smaže i v Seerr.",
       "bodyJoined": "Až bude titul „{{title}}“ k dispozici, nedostanete už žádné upozornění. Přání ostatních profilů zůstávají.",
       "confirm": "Vzít zpět",
-      "confirmJoined": "Odejít"
+      "confirmJoined": "Zrušit účast"
     },
     "dialog": {
       "titleMovie": "Vyžádat film: {{title}}",
@@ -7802,7 +7802,7 @@
       },
       "nothingLeft": {
         "title": "Není co vyžádat",
-        "body": "Každá řada je k dispozici, nebo už vyžádána."
+        "body": "Všechny řady jsou k dispozici, nebo už vyžádané."
       },
       "tooManySeasons_one": "Zbývá 1 z {{limit}} řad. Vyberte nejvýše 1 řadu.",
       "tooManySeasons_few": "Zbývají {{count}} z {{limit}} řad. Vyberte nejvýše {{count}} řady.",
@@ -7877,7 +7877,7 @@
     "row": {
       "open": "K titulu",
       "withdrawLabel": "{{title}}: vzít zpět",
-      "withdrawJoinedLabel": "{{title}}: odejít z přání",
+      "withdrawJoinedLabel": "{{title}}: zrušit účast",
       "again": "Vyžádat znovu",
       "againLabel": "Vyžádat znovu: {{title}}",
       "history": "Historie: {{last}}",
@@ -7918,7 +7918,7 @@
       "gone": {
         "title": "Stránka Objevit pro tento profil není k dispozici",
         "body": "Dosavadní přání najdete dál v části „Moje přání“.",
-        "action": "Na „Moje přání“"
+        "action": "Přejít na „Moje přání“"
       },
       "notFound": {
         "title": "Stránka nenalezena",
@@ -7992,7 +7992,7 @@
       "withdrawn": "Vaše přání bylo vzato zpět."
     },
     "alreadyRequested": "Již vyžádáno",
-    "cannotRequest": "Tento profil nemůže vyžadovat tituly",
+    "cannotRequest": "Tento profil nemůže žádat o tituly",
     "seasons": "Řady",
     "seasonRequested": "Již vyžádáno",
     "nextEpisode": "Stále vychází, další díl {{date}}",
@@ -8000,7 +8000,7 @@
       "title": "Vaše poslední přání: {{state}}",
       "why": {
         "declined": "Seerr důvod neuvádí. Titul můžete vyžádat znovu.",
-        "withdrawn": "Vzato zpět vámi."
+        "withdrawn": "Přání bylo vzato zpět na váš pokyn."
       }
     },
     "join": "Upozornit mě",

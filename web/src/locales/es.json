@@ -852,7 +852,7 @@
       "state": {
         "missing": "Falta",
         "requested": "Solicitada",
-        "processing": "En proceso",
+        "processing": "En camino",
         "announced": "Anunciada"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -3502,13 +3502,13 @@
       "lacking": {
         "title": "Entradas faltantes",
         "missing_one": "{{count}} falta",
-        "missing_many": "{{count}} de faltan",
+        "missing_many": "{{count}} faltan",
         "missing_other": "{{count}} faltan",
         "requested_one": "{{count}} solicitada",
-        "requested_many": "{{count}} de solicitadas",
+        "requested_many": "{{count}} solicitadas",
         "requested_other": "{{count}} solicitadas",
         "unmatched_one": "{{count}} sin coincidencia",
-        "unmatched_many": "{{count}} de sin coincidencia",
+        "unmatched_many": "{{count}} sin coincidencia",
         "unmatched_other": "{{count}} sin coincidencia",
         "intro": "El Inicio y la lista de Spotlight solo muestran títulos de la biblioteca. Las entradas que faltan solo las ves tú, aquí en la administración. Los perfiles solicitan los títulos que faltan en «Peticiones».",
         "asProfile": "«Solicitar» actúa como el perfil activo ({{name}}).",
@@ -3524,7 +3524,7 @@
       "matching": {
         "title": "Coincidencia por TMDB, TVDB e IMDb",
         "hits_one": "{{count}} en la biblioteca",
-        "hits_many": "{{count}} de en la biblioteca",
+        "hits_many": "{{count}} en la biblioteca",
         "hits_other": "{{count}} en la biblioteca",
         "intro": "Slouchcat busca la coincidencia de las películas por TMDB y después por IMDb. Las series, igual que la biblioteca: primero TVDB, luego TMDB y luego IMDb. Seerr guarda cada título por su ID de TMDB y, en las series, pasa el ID de TVDB a Sonarr.",
         "waysTitle": "Reconocido por",
@@ -4469,7 +4469,7 @@
             "own": "Dirección propia: {{address}}"
           },
           "addressNone": "Ninguna: Seerr no tiene un servidor predeterminado para {{service}}.",
-          "lastAt": "última {{time}}",
+          "lastAt": "última conexión {{time}}",
           "tagRequestsOn": "activado",
           "tagRequestsOff": "desactivado · Recomendado: así cada título lleva también la etiqueta de la cuenta.",
           "tags": "{{set}} asignadas · {{pending}} pendientes · {{failed}} fallidas",
@@ -5310,13 +5310,13 @@
         },
         "wishes_tag": {
           "name": "Asignar etiquetas de perfil",
-          "description": "En Radarr y Sonarr asigna la etiqueta del perfil a las películas y series pedidas a través de Slouchcat que están en proceso. Las etiquetas nunca se quitan.",
+          "description": "En Radarr y Sonarr asigna la etiqueta del perfil a las películas y series pedidas a través de Slouchcat que están en camino. Las etiquetas nunca se quitan.",
           "trigger": "tras la sincronización con Seerr, cada 15 minutos y manualmente"
         },
         "wishes_progress": {
           "name": "Leer el progreso de la descarga",
-          "description": "Lee la cola de Radarr y Sonarr y muestra, en las peticiones en proceso, si se está buscando, descargando o importando. No cambia nada en Radarr ni en Sonarr.",
-          "trigger": "cada minuto, mientras haya peticiones en proceso y el progreso de la descarga esté activado"
+          "description": "Lee la cola de Radarr y Sonarr y muestra, en las peticiones en camino, si se está buscando, descargando o importando. No cambia nada en Radarr ni en Sonarr.",
+          "trigger": "cada minuto, mientras haya peticiones en camino y el progreso de la descarga esté activado"
         },
         "wishes_discover": {
           "name": "Precargar listas de peticiones",
@@ -5457,12 +5457,12 @@
         "series_catalog": {
           "name": "Obtener las listas de temporadas de las series",
           "description": "Lee de TMDB, para cada serie de la biblioteca, las temporadas con su número de episodios, el estado y el siguiente episodio, y lo repite a los 7 días.",
-          "trigger": "programación diaria, tras reconocer una serie"
+          "trigger": "Programación diaria, tras asociar una serie"
         },
         "titles_refresh": {
           "name": "Actualizar los títulos que faltan",
           "description": "Vuelve a leer de TMDB, a los 7 días, los datos, las clasificaciones y los tráileres de los títulos que no están en la biblioteca.",
-          "trigger": "programación diaria"
+          "trigger": "Programación diaria"
         },
         "trakt_refresh": {
           "name": "Consultar lista de Spotlight",
@@ -5929,7 +5929,7 @@
         "openedNote": "creadas o vinculadas",
         "without": "Sin usuario",
         "waiting_one": "{{count}} espera a Seerr",
-        "waiting_many": "{{count}} de esperan a Seerr",
+        "waiting_many": "{{count}} esperan a Seerr",
         "waiting_other": "{{count}} esperan a Seerr",
         "password": "Contraseña pendiente",
         "passwordNote": "se aplica en el próximo inicio de sesión"
@@ -6029,8 +6029,8 @@
         "tagPrefixInvalid": "De 1 a 10 caracteres: solo minúsculas a–z, cifras 0–9 y guion. No guardado.",
         "tagPrefixSaved": "Prefijo «{{prefix}}»: las etiquetas nuevas se llamarán, por ejemplo, {{prefix}}noah. Las etiquetas ya asignadas se quedan como están.",
         "showProgress": "Mostrar el progreso de la descarga",
-        "showProgressHelp": "Muestra, en las peticiones en proceso, si el título se está buscando, descargando o importando. Para ello Slouchcat lee cada minuto la cola de Radarr y Sonarr mientras haya peticiones en proceso.",
-        "arrSummary": "Etiqueta {{tags}} · prefijo {{prefix}} · progreso {{progress}}",
+        "showProgressHelp": "Muestra, en las peticiones en camino, si el título se está buscando, descargando o importando. Para ello Slouchcat lee cada minuto la cola de Radarr y Sonarr mientras haya peticiones en camino.",
+        "arrSummary": "Etiqueta: {{tags}} · prefijo: {{prefix}} · progreso: {{progress}}",
         "on": "activado",
         "off": "desactivado",
         "arrLinks": "Acceso a Radarr y Sonarr",
@@ -6038,10 +6038,10 @@
         "toArr": "Integraciones › Seerr",
         "discoverPages": "Páginas Descubrir, Películas, Series y Buscar",
         "discoverPagesHelp": "Pestañas del área «Peticiones». Desactivado: solo «Mis peticiones».",
-        "basicsSummary": "Peticiones {{enabled}} · películas {{movies}} · series {{shows}}",
-        "basicsSummaryLocked": "Peticiones desactivadas hasta superar una prueba · películas {{movies}} · series {{shows}}",
-        "whereSummary": "Búsqueda {{search}} · páginas de detalle {{detail}} · Descubrir {{discover}}",
-        "rulesSummary": "{{already}} · sin usuario de Seerr: {{unmapped}} · retirar {{withdraw}}",
+        "basicsSummary": "Peticiones: {{enabled}} · películas: {{movies}} · series: {{shows}}",
+        "basicsSummaryLocked": "Peticiones desactivadas hasta superar una prueba · películas: {{movies}} · series: {{shows}}",
+        "whereSummary": "Búsqueda: {{search}} · páginas de detalle: {{detail}} · Descubrir: {{discover}}",
+        "rulesSummary": "{{already}} · sin usuario de Seerr: {{unmapped}} · retirar: {{withdraw}}",
         "linksConnection": "Seerr: {{state}}",
         "usersCount_one": "{{opened}} de {{count}} cuenta creada",
         "usersCount_many": "{{opened}} de {{count}} de cuentas creadas",
@@ -6073,7 +6073,7 @@
         },
         "password": {
           "synced": "Igual que en Slouchcat",
-          "next_login": "Se incorpora en el próximo inicio de sesión en Slouchcat",
+          "next_login": "Se envía en el próximo inicio de sesión en Slouchcat",
           "off": "No se sincroniza",
           "admin": "Se queda en Seerr (administrador)",
           "external": "Inicia sesión a través de Jellyfin, Emby o Plex"
@@ -6207,7 +6207,7 @@
           "privileged": "{{email}} espera: el usuario de Seerr con este correo electrónico administra Seerr.",
           "taken": "{{email}} espera: el usuario de Seerr con este correo electrónico ya pertenece a otra cuenta. Elige el usuario manualmente."
         },
-        "passwordNext": "Volver a incorporar la contraseña en el próximo inicio de sesión",
+        "passwordNext": "Volver a enviar la contraseña en el próximo inicio de sesión",
         "passwordOff": "No sincronizar la contraseña",
         "passwordNextDone": "La contraseña de {{email}} se envía a Seerr en el próximo inicio de sesión.",
         "passwordOffDone": "La contraseña de {{email}} ya no se sincroniza con Seerr.",
@@ -6241,7 +6241,7 @@
         },
         "takeOver": {
           "title": "Solicitudes de Seerr",
-          "help": "Las solicitudes hechas directamente en Seerr pasan a ser peticiones del perfil principal, con la nota «Creado en Seerr». No llevan etiqueta de perfil.",
+          "help": "Las solicitudes hechas directamente en Seerr pasan a ser peticiones del perfil principal, con la nota «Creada en Seerr». No llevan etiqueta de perfil.",
           "counting": "Contando las solicitudes de Seerr…",
           "none": "No hay solicitudes en Seerr.",
           "action_one": "Incorporar {{count}} solicitud de Seerr",
@@ -6322,7 +6322,7 @@
         },
         "origin": {
           "slouchcat": "Solicitada en Slouchcat",
-          "seerr": "Creado en Seerr"
+          "seerr": "Creada en Seerr"
         },
         "toItem": "Al título en la administración",
         "history": "Historial",
@@ -6336,12 +6336,12 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Aprobar",
         "approveLabel": "Aprobar {{title}}",
-        "approved": "{{title}} está aprobado y en proceso.",
+        "approved": "Se ha aprobado {{title}} y ya está en camino.",
         "decline": "Rechazar",
         "declineLabel": "Rechazar {{title}}",
         "declineTitle": "¿Rechazar {{title}}?",
-        "declineBody": "Slouchcat pasa el rechazo a Seerr. Seerr no guarda ningún motivo: los perfiles solo ven «Rechazado» y reciben una notificación.",
-        "declined": "{{title}} está rechazado.",
+        "declineBody": "Slouchcat pasa el rechazo a Seerr. Seerr no guarda ningún motivo: los perfiles solo ven «Rechazada» y reciben una notificación.",
+        "declined": "Se ha rechazado {{title}}.",
         "event": {
           "approved_by_admin": "Aprobada en la administración",
           "declined_by_admin": "Rechazada en la administración"
@@ -7437,7 +7437,7 @@
       "movie": "Películas: {{used}} de {{limit}} en {{days}} días",
       "tv": "Temporadas: {{used}} de {{limit}} en {{days}} días",
       "remaining_one": "queda {{count}}",
-      "remaining_many": "quedan {{count}} de",
+      "remaining_many": "quedan {{count}}",
       "remaining_other": "quedan {{count}}",
       "nextFree": "próximo cupo libre el {{date}}",
       "short": {
@@ -7450,7 +7450,7 @@
     "state": {
       "queued": "Enviando",
       "pending": "Pendiente de aprobación",
-      "processing": "En proceso",
+      "processing": "En camino",
       "partial": "Parcialmente disponible",
       "available": "Disponible",
       "declined": "Rechazada",
@@ -7518,19 +7518,19 @@
     },
     "withdraw": {
       "action": "Retirar",
-      "actionJoined": "Salir",
+      "actionJoined": "Dejar de participar",
       "title": "¿Retirar la petición?",
-      "titleJoined": "¿Salir de la petición?",
+      "titleJoined": "¿Dejar de participar en la petición?",
       "body": "«{{title}}» dejará de solicitarse; Slouchcat también elimina la petición en Seerr.",
       "bodyJoined": "Ya no recibirás ningún aviso cuando «{{title}}» esté disponible. Las peticiones de los demás perfiles se mantienen.",
       "confirm": "Retirar",
-      "confirmJoined": "Salir"
+      "confirmJoined": "Dejar de participar"
     },
     "dialog": {
       "titleMovie": "Solicitar película: {{title}}",
       "titleShow": "Solicitar serie: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Se tramita al instante, no hace falta aprobación.",
+      "autoApprove": "Se pone en camino al instante, no hace falta aprobación.",
       "needsApproval": "Necesita aprobación. Puedes seguir su estado en «Mis peticiones».",
       "seasons": "Temporadas",
       "allSeasons": "Todas las temporadas faltantes ({{count}})",
@@ -7609,11 +7609,11 @@
     "row": {
       "open": "Al título",
       "withdrawLabel": "{{title}}: retirar",
-      "withdrawJoinedLabel": "{{title}}: salir",
+      "withdrawJoinedLabel": "{{title}}: dejar de participar",
       "again": "Volver a solicitar",
       "againLabel": "Volver a solicitar {{title}}",
       "history": "Historial: {{last}}",
-      "fromSeerr": "creado en Seerr"
+      "fromSeerr": "creada en Seerr"
     },
     "area": {
       "label": "Secciones de Peticiones",

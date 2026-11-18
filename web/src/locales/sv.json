@@ -279,7 +279,7 @@
       "not_own": "Bara en egen station kan ändra detta.",
       "not_matched": "Den här ljudboken är inte matchad mot någon källa.",
       "not_found": "Källan har ingen sådan post.",
-      "seerr_url_invalid": "Ange en adress med http:// eller https://, utan användare, lösenord, fråga eller fragment."
+      "seerr_url_invalid": "Ange en adress med http:// eller https://, utan användare, lösenord, frågesträng eller fragment."
     }
   },
   "setup": {
@@ -828,7 +828,7 @@
       "state": {
         "missing": "Saknas",
         "requested": "Begärd",
-        "processing": "Bearbetas",
+        "processing": "Hämtas",
         "announced": "Annonserad"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -5118,13 +5118,13 @@
         },
         "wishes_tag": {
           "name": "Sätt profiltaggar",
-          "description": "Sätter profilens tagg i Radarr och Sonarr på filmer och serier som har önskats via Slouchcat och som bearbetas. Taggar tas aldrig bort.",
+          "description": "Sätter profilens tagg i Radarr och Sonarr på filmer och serier som har önskats via Slouchcat och som hämtas. Taggar tas aldrig bort.",
           "trigger": "efter synkroniseringen med Seerr, var 15:e minut och manuellt"
         },
         "wishes_progress": {
           "name": "Läs nedladdningsförlopp",
-          "description": "Läser kön i Radarr och Sonarr och visar för önskemål som bearbetas om de söks, laddas ned eller importeras. Ändrar ingenting i Radarr och Sonarr.",
-          "trigger": "varje minut, så länge önskemål bearbetas och nedladdningsförloppet är påslaget"
+          "description": "Läser kön i Radarr och Sonarr och visar för önskemål som hämtas om de söks, laddas ned eller importeras. Ändrar ingenting i Radarr och Sonarr.",
+          "trigger": "varje minut, så länge önskemål hämtas och nedladdningsförloppet är påslaget"
         },
         "wishes_discover": {
           "name": "Förladda önskelistor",
@@ -5739,7 +5739,7 @@
         "choiceSaved": "”{{name}}”: {{value}}. Gäller direkt.",
         "limitSaved": "Standardgräns: {{limit}}. Gäller direkt för alla konton med ”Standard”.",
         "basics": "Grundinställning",
-        "where": "Var begäran erbjuds",
+        "where": "Var titlar kan begäras",
         "rules": "Regler",
         "enabled": "Önskemål aktiva",
         "enabledHelp": "Profiler med behörighet kan begära saknade titlar. Av: ingen ser saknade titlar; öppna önskemål fortsätter i Seerr.",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1 till 10 tecken: bara gemener a–z, siffrorna 0–9 och bindestreck. Inte sparat.",
         "tagPrefixSaved": "Prefix ”{{prefix}}”: nya taggar heter till exempel {{prefix}}noah. Redan satta taggar förblir som de är.",
         "showProgress": "Visa nedladdningsförlopp",
-        "showProgressHelp": "Visar för önskemål som bearbetas om titeln söks, laddas ned eller importeras. För det läser Slouchcat kön i Radarr och Sonarr varje minut så länge önskemål bearbetas.",
+        "showProgressHelp": "Visar för önskemål som hämtas om titeln söks, laddas ned eller importeras. För det läser Slouchcat kön i Radarr och Sonarr varje minut så länge önskemål hämtas.",
         "arrSummary": "Tagg {{tags}} · prefix {{prefix}} · förlopp {{progress}}",
         "on": "på",
         "off": "av",
@@ -5928,7 +5928,7 @@
         "change": "Ändra Seerr-användare",
         "unlink": "Ta bort koppling",
         "chooseHelp": "Du kan välja användare som inte tillhör något annat konto. Behörigheter och lösenord förblir som de är i Seerr.",
-        "chooseHelpStale": "Du kan välja användare som inte tillhör något annat konto. Listan visar den senast inlästa versionen av användarlistan.",
+        "chooseHelpStale": "Du kan välja användare som inte tillhör något annat konto. Listan visar användarlistan som den senast lästes in.",
         "taken": "Den här Seerr-användaren tillhör numera ett annat konto eller kan inte längre väljas. Valet har återställts.",
         "linked": "{{email}} begär nu som ”{{name}}”. Behörigheter och godkännande kommer från den här användaren.",
         "unlinked": "Kopplingen för {{email}} har tagits bort. ”{{name}}” finns kvar i Seerr.",
@@ -5937,7 +5937,7 @@
         "notConfiguredBody": "Utan anslutning finns ingen användarlista. Alla konton förblir tills vidare utan Seerr-användare.",
         "toConnection": "Till Integrationer › Seerr",
         "toDecision": "Till beslutet",
-        "instanceBody": "Tills du bestämmer dig under Integrationer › Seerr skickar Slouchcat inga önskemål och synkroniserar ingenting. Listan visar den senaste versionen.",
+        "instanceBody": "Tills du bestämmer dig under Integrationer › Seerr skickar Slouchcat inga önskemål och synkroniserar ingenting. Listan visar det senast kända läget.",
         "goneCount_one": "{{count}} konto: användaren är borttagen i Seerr",
         "goneCount_other": "{{count}} konton: användaren är borttagen i Seerr",
         "goneCountBody": "Välj en annan användare för de här kontona eller ta bort kopplingen.",
@@ -6112,7 +6112,7 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Godkänn",
         "approveLabel": "Godkänn {{title}}",
-        "approved": "{{title}} är godkänd och bearbetas.",
+        "approved": "{{title}} är godkänd och hämtas.",
         "decline": "Avvisa",
         "declineLabel": "Avvisa {{title}}",
         "declineTitle": "Avvisa {{title}}?",
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Skickas",
       "pending": "Väntar på godkännande",
-      "processing": "Bearbetas",
+      "processing": "Hämtas",
       "partial": "Delvis tillgänglig",
       "available": "Tillgänglig",
       "declined": "Avvisad",
@@ -7246,7 +7246,7 @@
       "joined": "Gick med",
       "withdrawn": "Tillbakadragen",
       "withdraw_deleted": "Borttagen i Seerr",
-      "owner_changed": "En annan profil önskar vidare",
+      "owner_changed": "En annan profil tar över önskemålet",
       "reopened": "Var redan godkänd, önskemålet fortsätter",
       "season_available_one": "Säsong {{seasons}} tillgänglig",
       "season_available_other": "Säsonger {{seasons}} tillgängliga",
@@ -7261,19 +7261,19 @@
     },
     "withdraw": {
       "action": "Dra tillbaka",
-      "actionJoined": "Lämna",
+      "actionJoined": "Sluta delta",
       "title": "Dra tillbaka önskemålet?",
-      "titleJoined": "Lämna önskemålet?",
+      "titleJoined": "Sluta delta i önskemålet?",
       "body": "”{{title}}” begärs inte längre; Slouchcat tar bort önskemålet även i Seerr.",
-      "bodyJoined": "Du får inget meddelande längre när ”{{title}}” är här. De andra profilernas önskemål finns kvar.",
+      "bodyJoined": "Du får inte längre något meddelande när ”{{title}}” är här. De andra profilernas önskemål finns kvar.",
       "confirm": "Dra tillbaka",
-      "confirmJoined": "Lämna"
+      "confirmJoined": "Sluta delta"
     },
     "dialog": {
       "titleMovie": "Begär film: {{title}}",
       "titleShow": "Begär serie: {{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "Bearbetas direkt, inget godkännande behövs.",
+      "autoApprove": "Hämtas direkt, inget godkännande behövs.",
       "needsApproval": "Kräver godkännande. Du kan följa statusen under ”Mina önskemål”.",
       "seasons": "Säsonger",
       "allSeasons": "Alla saknade säsonger ({{count}})",
@@ -7341,7 +7341,7 @@
     "row": {
       "open": "Till titeln",
       "withdrawLabel": "{{title}}: dra tillbaka",
-      "withdrawJoinedLabel": "{{title}}: lämna",
+      "withdrawJoinedLabel": "{{title}}: sluta delta",
       "again": "Begär igen",
       "againLabel": "Begär {{title}} igen",
       "history": "Historik: {{last}}",
@@ -7363,7 +7363,7 @@
       "searchLabel": "Sök efter film eller serie",
       "searchAction": "Sök",
       "rows": {
-        "trending": "Trendar",
+        "trending": "Trendar nu",
         "popular_movies": "Populära filmer",
         "movie_genres": "Filmgenrer",
         "upcoming_movies": "Snart på bio",
@@ -7406,7 +7406,7 @@
       "hideHelp": "Visar bara det som ännu inte finns i biblioteket.",
       "hidden": "Titlar i biblioteket dolda",
       "shown": "Titlar i biblioteket visas",
-      "clear": "Återställ filter",
+      "clear": "Rensa filter",
       "apply": "Använd",
       "moviesEmpty": "Inga filmer för det här urvalet.",
       "seriesEmpty": "Inga serier för det här urvalet."

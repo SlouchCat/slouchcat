@@ -828,7 +828,7 @@
       "state": {
         "missing": "Mangler",
         "requested": "Bedt om",
-        "processing": "Behandles",
+        "processing": "Hentes",
         "announced": "Annonsert"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -3385,7 +3385,7 @@
         "noRequestChip": "Kan ikke be om",
         "noRequest": {
           "title": "Du kan be om titler først når ønsker er satt opp.",
-          "body": "Det krever Seerr med adresse og nøkkel, slått på, og «Ønsker aktive».",
+          "body": "Det krever Seerr med adresse og nøkkel, slått på, og «Ønsker aktivert».",
           "settings": "Til innstillingene for ønsker",
           "connection": "Til tilkoblingen til Seerr"
         },
@@ -4149,7 +4149,7 @@
         "stateHint": {
           "not_configured": "Skriv inn adresse og nøkkel.",
           "disabled": "Slouchcat kaller ikke Seerr. Ønsker blir lagret.",
-          "untested": "Test tilkoblingen, slik at «Ønsker aktive» kan slås på.",
+          "untested": "Test tilkoblingen, slik at «Ønsker aktivert» kan slås på.",
           "instance_changed": "Til du bestemmer deg, sender Slouchcat ingen ønsker og synkroniserer ingenting."
         },
         "connection": {
@@ -4296,7 +4296,7 @@
           "facts": {
             "address": "Adresse",
             "state": "Tilstand",
-            "tagRequests": "Tag Requests in Seerr",
+            "tagRequests": "Tag Requests i Seerr",
             "tags": "Profiltagger",
             "progress": "Nedlastingsfremdrift"
           },
@@ -5093,7 +5093,7 @@
         "seerr_provision": {
           "name": "Opprett kontoer i Seerr",
           "description": "Oppretter eller kobler Seerr-brukeren til en konto, oppretter den delte brukeren «slouchcat-gaeste» og tar tillatelsene fra Seerr-brukeren til en slettet konto.",
-          "trigger": "«Opprett i Seerr», «Opprett alle», invitasjon akseptert, «Ønsker aktive» slått på, etter innlasting av Seerr-brukerne for ventende kontoer, konto slettet"
+          "trigger": "«Opprett i Seerr», «Opprett alle», invitasjon akseptert, «Ønsker aktivert» slått på, etter innlasting av Seerr-brukerne for ventende kontoer, konto slettet"
         },
         "wishes_submit": {
           "name": "Send ønsker til Seerr",
@@ -5108,28 +5108,28 @@
         "wishes_sync": {
           "name": "Synkroniser ønsker med Seerr",
           "description": "Leser de endrede forespørslene fra Seerr, oppdaterer tilstanden til ønskene, sjekker ønsker som ikke har endret seg på lenge ett for ett og sender forfalte ønsker fra utboksen på nytt. Den første synkroniseringen leser alle forespørsler.",
-          "trigger": "tidsplan hvert 5. minutt, «Synkroniser nå», melding fra Seerr-webhooken",
+          "trigger": "Tidsplan hvert 5. minutt, «Synkroniser nå», melding fra Seerr-webhooken",
           "progress": "Sider lest: {{done}} av {{total}}"
         },
         "wishes_reconcile": {
           "name": "Synkroniser ønsker med biblioteket",
           "description": "Melder et ønske som tilgjengelig så snart Slouchcat kan spille av filmen eller alle ønskede sesonger for en profil.",
-          "trigger": "tidsplan hver time, etter at en ønsket tittel ble gjenkjent i biblioteket, etter synkroniseringen med Seerr"
+          "trigger": "Tidsplan hver time, etter at en ønsket tittel ble gjenkjent i biblioteket, etter synkroniseringen med Seerr"
         },
         "wishes_tag": {
           "name": "Sett profiltagger",
-          "description": "Knytter profilens tagg i Radarr og Sonarr til filmer og serier som er ønsket via Slouchcat og som behandles. Tagger fjernes aldri.",
+          "description": "Knytter profilens tagg i Radarr og Sonarr til filmer og serier som er ønsket via Slouchcat og som hentes. Tagger fjernes aldri.",
           "trigger": "etter synkroniseringen med Seerr, hvert 15. minutt og for hånd"
         },
         "wishes_progress": {
           "name": "Les nedlastingsfremdrift",
-          "description": "Leser køen i Radarr og Sonarr og viser ved ønsker som behandles om det søkes, lastes ned eller importeres. Endrer ingenting i Radarr og Sonarr.",
-          "trigger": "hvert minutt så lenge ønsker behandles og nedlastingsfremdriften er slått på"
+          "description": "Leser køen i Radarr og Sonarr og viser ved ønsker som hentes, om det søkes, lastes ned eller importeres. Endrer ingenting i Radarr og Sonarr.",
+          "trigger": "hvert minutt så lenge ønsker hentes og nedlastingsfremdriften er slått på"
         },
         "wishes_discover": {
           "name": "Forhåndslast ønskelister",
           "description": "Laster radene i Utforsk fra Seerr inn i hurtigbufferen for hvert språk og hvert aldersnivå til profilene som kan be om titler, og fjerner lister som er eldre enn ett døgn. Hver treff sjekkes på nytt for profilen.",
-          "trigger": "tidsplan hver time, så lenge ønsker er aktive og sidene Utforsk, Filmer, Serier og Søk er slått på"
+          "trigger": "Tidsplan hver time, så lenge ønsker er aktive og sidene Utforsk, Filmer, Serier og Søk er slått på"
         },
         "wishes_import": {
           "name": "Overta forespørsler fra Seerr",
@@ -5265,12 +5265,12 @@
         "series_catalog": {
           "name": "Hent sesonglistene til serier",
           "description": "Leser for hver serie i biblioteket sesongene med antall episoder, statusen og neste episode fra TMDB, på nytt etter 7 dager.",
-          "trigger": "tidsplan daglig, etter at en serie er koblet til en oppføring"
+          "trigger": "Tidsplan daglig, etter at en serie er koblet til en oppføring"
         },
         "titles_refresh": {
           "name": "Oppdater manglende titler",
           "description": "Leser opplysninger, aldersgrenser og trailere for titler som ikke finnes i biblioteket, på nytt fra TMDB etter 7 dager.",
-          "trigger": "tidsplan daglig"
+          "trigger": "Tidsplan daglig"
         },
         "trakt_refresh": {
           "name": "Hent Spotlight-listen",
@@ -5741,7 +5741,7 @@
         "basics": "Hovedregel",
         "where": "Hvor det kan bes om titler",
         "rules": "Regler",
-        "enabled": "Ønsker aktive",
+        "enabled": "Ønsker aktivert",
         "enabledHelp": "Profiler med tillatelse kan be om manglende titler. Av: Ingen ser manglende titler, åpne ønsker går videre i Seerr.",
         "enabledLocked": "Kan først slås på etter en vellykket test av den lagrede tilkoblingen.",
         "toConnection": "Til tilkoblingen",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1 til 10 tegn: bare små bokstaver a–z, sifre 0–9 og bindestrek. Ikke lagret.",
         "tagPrefixSaved": "Prefiks «{{prefix}}»: Nye tagger heter for eksempel {{prefix}}noah. Tagger som allerede er satt, forblir som de er.",
         "showProgress": "Vis nedlastingsfremdrift",
-        "showProgressHelp": "Viser ved ønsker som behandles om tittelen søkes, lastes ned eller importeres. Slouchcat leser da hvert minutt køen i Radarr og Sonarr, så lenge ønsker behandles.",
+        "showProgressHelp": "Viser ved ønsker som hentes, om tittelen søkes, lastes ned eller importeres. Slouchcat leser da hvert minutt køen i Radarr og Sonarr, så lenge ønsker hentes.",
         "arrSummary": "Tagg {{tags}} · prefiks {{prefix}} · fremdrift {{progress}}",
         "on": "på",
         "off": "av",
@@ -5990,7 +5990,7 @@
           "privileged": "{{email}} venter: Seerr-brukeren med denne e-postadressen administrerer Seerr.",
           "taken": "{{email}} venter: Seerr-brukeren med denne e-postadressen hører allerede til en annen konto. Velg brukeren manuelt."
         },
-        "passwordNext": "Overta passordet på nytt ved neste pålogging",
+        "passwordNext": "Overfør passordet på nytt ved neste pålogging",
         "passwordOff": "Ikke synkroniser passordet",
         "passwordNextDone": "Passordet til {{email}} sendes til Seerr ved neste pålogging.",
         "passwordOffDone": "Passordet til {{email}} synkroniseres ikke lenger med Seerr.",
@@ -6074,7 +6074,7 @@
           "label": "Filtrer ønsker etter tilstand",
           "all": "Alle",
           "open": "Åpne",
-          "available": "Tilgjengelig",
+          "available": "Tilgjengelige",
           "closed": "Avsluttede",
           "count_one": "{{count}} ønske",
           "count_other": "{{count}} ønsker",
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Sendes",
       "pending": "Venter på godkjenning",
-      "processing": "Behandles",
+      "processing": "Hentes",
       "partial": "Delvis tilgjengelig",
       "available": "Tilgjengelig",
       "declined": "Avslått",
@@ -7261,13 +7261,13 @@
     },
     "withdraw": {
       "action": "Trekk tilbake",
-      "actionJoined": "Forlat",
+      "actionJoined": "Forlat ønsket",
       "title": "Trekke tilbake ønsket?",
       "titleJoined": "Forlate ønsket?",
       "body": "Det bes ikke lenger om «{{title}}»; Slouchcat sletter ønsket også i Seerr.",
       "bodyJoined": "Du får ikke lenger beskjed når «{{title}}» er her. Ønskene til de andre profilene blir stående.",
       "confirm": "Trekk tilbake",
-      "confirmJoined": "Forlat"
+      "confirmJoined": "Forlat ønsket"
     },
     "dialog": {
       "titleMovie": "Be om film: {{title}}",
@@ -7323,7 +7323,7 @@
         "label": "Filtrer ønsker",
         "all": "Alle",
         "open": "Åpne",
-        "available": "Tilgjengelig",
+        "available": "Tilgjengelige",
         "closed": "Avsluttede"
       },
       "filter": "Tilstand",
@@ -7341,7 +7341,7 @@
     "row": {
       "open": "Til tittelen",
       "withdrawLabel": "Trekk tilbake {{title}}",
-      "withdrawJoinedLabel": "{{title}}: forlat",
+      "withdrawJoinedLabel": "{{title}}: forlat ønsket",
       "again": "Be om igjen",
       "againLabel": "Be om {{title}} igjen",
       "history": "Historikk: {{last}}",

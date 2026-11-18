@@ -49,7 +49,7 @@
   "wish_failed_body": "Seerr přání nepřijal.",
   "wish_failed_quota": "Limit dosažen: Seerr přání nepřijal.",
   "wish_failed_blocklisted": "Titul je v Seerr na seznamu blokovaných.",
-  "wish_failed_no_permission": "V Seerr tento účet nesmí vyžadovat tituly.",
+  "wish_failed_no_permission": "V Seerr tento účet nesmí žádat o tituly.",
   "wish_failed_arr_failed": "Radarr nebo Sonarr titul nepřevzal.",
   "wish_failed_unreachable_24h": "Seerr byl 24 hodin nedostupný.",
   "wish_failed_seerr_request_gone": "Žádost byla v Seerr smazána.",

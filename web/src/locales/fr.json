@@ -4452,7 +4452,7 @@
           "summaryProgress_other": "{{count}} téléchargements",
           "state": {
             "none": "{{service}} absent de Seerr",
-            "unconfirmed": "{{service}} attend le « Test »",
+            "unconfirmed": "{{service}} attend un clic sur « Tester »",
             "unreachable": "{{service}} injoignable",
             "reachable": "{{service}} joignable",
             "untested": "{{service}} pas encore appelé"
@@ -4484,7 +4484,7 @@
           "test": {
             "action": "Tester",
             "label": "Tester {{service}}",
-            "noHost": "l’adresse",
+            "noHost": "(inconnue)",
             "passed": "{{service}} répond à l’adresse {{host}} et accepte la clé de Seerr. L’adresse est confirmée.",
             "keyRefused": "{{service}} répond à l’adresse {{host}}, mais refuse la clé de Seerr.",
             "unreachable": "{{service}} est injoignable à l’adresse {{host}}.",
@@ -4704,7 +4704,7 @@
         "userState": {
           "created": "créé",
           "linked": "associé",
-          "manual": "choisi à la main",
+          "manual": "choisi manuellement",
           "waiting": "en attente de Seerr"
         },
         "linkedBy": "associé {{by}} le {{date}}",
@@ -5300,13 +5300,13 @@
         "wishes_sync": {
           "name": "Synchroniser les souhaits avec Seerr",
           "description": "Lit les demandes modifiées dans Seerr, met à jour l’état des souhaits, vérifie un à un les souhaits inchangés depuis longtemps et renvoie depuis la boîte d’envoi les souhaits arrivés à échéance. La première synchronisation lit toutes les demandes.",
-          "trigger": "planning toutes les 5 minutes, « Synchroniser maintenant », signal du webhook Seerr",
+          "trigger": "Planification toutes les 5 minutes, « Synchroniser maintenant », signal du webhook Seerr",
           "progress": "Pages lues : {{done}} sur {{total}}"
         },
         "wishes_reconcile": {
           "name": "Rapprocher les souhaits de la bibliothèque",
           "description": "Déclare un souhait disponible dès que Slouchcat peut lire le film ou toutes les saisons souhaitées pour un profil.",
-          "trigger": "planning toutes les heures, après la reconnaissance d’un titre souhaité dans la bibliothèque, après la synchronisation avec Seerr"
+          "trigger": "Planification toutes les heures, après la reconnaissance d’un titre souhaité dans la bibliothèque, après la synchronisation avec Seerr"
         },
         "wishes_tag": {
           "name": "Poser les étiquettes de profil",
@@ -5321,7 +5321,7 @@
         "wishes_discover": {
           "name": "Précharger les listes de souhaits",
           "description": "Charge depuis Seerr dans le cache les rangées de Découvrir pour chaque langue et chaque niveau des profils autorisés à demander, et supprime les listes de plus d’un jour. Chaque résultat est revérifié pour le profil.",
-          "trigger": "planning toutes les heures, tant que les souhaits sont activés et que les pages Découvrir, Films, Séries et Recherche sont activées"
+          "trigger": "Planification toutes les heures, tant que les souhaits sont activés et que les pages Découvrir, Films, Séries et Recherche sont activées"
         },
         "wishes_import": {
           "name": "Reprendre les demandes de Seerr",
@@ -5457,12 +5457,12 @@
         "series_catalog": {
           "name": "Récupérer les listes de saisons des séries",
           "description": "Lit sur TMDB, pour chaque série de la bibliothèque, les saisons avec leur nombre d’épisodes, l’état et le prochain épisode, puis à nouveau après 7 jours.",
-          "trigger": "planning quotidien, après la reconnaissance d’une série"
+          "trigger": "Planification quotidienne, après la reconnaissance d’une série"
         },
         "titles_refresh": {
           "name": "Actualiser les titres manquants",
           "description": "Relit sur TMDB, après 7 jours, les informations, classifications et bandes-annonces des titres qui ne sont pas dans la bibliothèque.",
-          "trigger": "planning quotidien"
+          "trigger": "Planification quotidienne"
         },
         "trakt_refresh": {
           "name": "Récupérer la liste Spotlight",
@@ -5951,7 +5951,7 @@
         "switchedOff": "« {{name}} » est désactivé. S’applique immédiatement.",
         "choiceSaved": "« {{name}} » : {{value}}. S’applique immédiatement.",
         "limitSaved": "Limite par défaut : {{limit}}. S’applique immédiatement à tous les comptes réglés sur « Par défaut ».",
-        "basics": "Principe",
+        "basics": "Général",
         "where": "Où la demande est proposée",
         "rules": "Règles",
         "enabled": "Souhaits activés",
@@ -6030,7 +6030,7 @@
         "tagPrefixSaved": "Préfixe « {{prefix}} » : les nouvelles étiquettes s’appelleront par exemple {{prefix}}noah. Les étiquettes déjà posées restent telles quelles.",
         "showProgress": "Afficher la progression du téléchargement",
         "showProgressHelp": "Indique, pour les souhaits en cours de traitement, si le titre est recherché, téléchargé ou importé. Pour cela, Slouchcat lit chaque minute la file d’attente de Radarr et Sonarr tant que des souhaits sont en cours de traitement.",
-        "arrSummary": "Étiquette {{tags}} · préfixe {{prefix}} · progression {{progress}}",
+        "arrSummary": "Étiquettes : {{tags}} · préfixe : {{prefix}} · progression : {{progress}}",
         "on": "activé",
         "off": "désactivé",
         "arrLinks": "Accès à Radarr et Sonarr",
@@ -6038,10 +6038,10 @@
         "toArr": "Intégrations › Seerr",
         "discoverPages": "Pages Découvrir, Films, Séries et Recherche",
         "discoverPagesHelp": "Onglets de la section « Souhaits ». Désactivé : seulement « Mes souhaits ».",
-        "basicsSummary": "Souhaits {{enabled}} · films {{movies}} · séries {{shows}}",
-        "basicsSummaryLocked": "Souhaits désactivés, tant qu’un test n’est pas réussi · films {{movies}} · séries {{shows}}",
-        "whereSummary": "Recherche {{search}} · pages de détail {{detail}} · Découvrir {{discover}}",
-        "rulesSummary": "{{already}} · sans utilisateur Seerr : {{unmapped}} · retrait {{withdraw}}",
+        "basicsSummary": "Souhaits : {{enabled}} · films : {{movies}} · séries : {{shows}}",
+        "basicsSummaryLocked": "Souhaits désactivés, tant qu’un test n’est pas réussi · films : {{movies}} · séries : {{shows}}",
+        "whereSummary": "Recherche : {{search}} · pages de détail : {{detail}} · Découvrir : {{discover}}",
+        "rulesSummary": "{{already}} · sans utilisateur Seerr : {{unmapped}} · retrait : {{withdraw}}",
         "linksConnection": "Seerr : {{state}}",
         "usersCount_one": "{{opened}} compte créé sur {{count}}",
         "usersCount_many": "{{opened}} comptes créés sur {{count}} de comptes",
@@ -6073,7 +6073,7 @@
         },
         "password": {
           "synced": "Identique à Slouchcat",
-          "next_login": "Repris à la prochaine connexion à Slouchcat",
+          "next_login": "Transmis à la prochaine connexion à Slouchcat",
           "off": "Non synchronisé",
           "admin": "Reste dans Seerr (administrateur)",
           "external": "Connexion via Jellyfin, Emby ou Plex"
@@ -6207,7 +6207,7 @@
           "privileged": "{{email}} patiente : l’utilisateur Seerr portant cette adresse e-mail administre Seerr.",
           "taken": "{{email}} patiente : l’utilisateur Seerr portant cette adresse e-mail appartient déjà à un autre compte. Choisissez l’utilisateur à la main."
         },
-        "passwordNext": "Reprendre à nouveau le mot de passe à la prochaine connexion",
+        "passwordNext": "Retransmettre le mot de passe à la prochaine connexion",
         "passwordOff": "Ne pas synchroniser le mot de passe",
         "passwordNextDone": "Le mot de passe de {{email}} sera transmis à Seerr à la prochaine connexion.",
         "passwordOffDone": "Le mot de passe de {{email}} n’est plus synchronisé avec Seerr.",
@@ -6283,7 +6283,7 @@
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
-        "requesterJoined": "{{line}} (s’est joint)",
+        "requesterJoined": "{{line}} (participe)",
         "requesterClosed": "{{line}} (retiré)",
         "noRequester": "Personne dans Slouchcat",
         "noRequest": "Pas encore",
@@ -6391,7 +6391,7 @@
       "arrError": {
         "not_in_arr": "Le titre n’est pas encore dans {{service}}.",
         "tvdb_id_missing": "Il manque l’ID TVDB à la série.",
-        "not_confirmed": "L’adresse issue de Seerr attend le « Test ».",
+        "not_confirmed": "L’adresse issue de Seerr attend un clic sur « Tester ».",
         "not_in_seerr": "Seerr n’a pas de serveur par défaut pour {{service}}.",
         "seerr_off": "Seerr n’est pas configuré ou est désactivé.",
         "redirect": "{{service}} redirige vers une autre adresse.",
@@ -7512,19 +7512,19 @@
     "card": {
       "title": "Votre souhait",
       "requestedOn": "demandé le {{date}}",
-      "joined": "vous vous êtes joint",
+      "joined": "vous participez à ce souhait",
       "history": "Historique",
       "mine": "Voir mes souhaits"
     },
     "withdraw": {
       "action": "Retirer",
-      "actionJoined": "Quitter",
+      "actionJoined": "Ne plus participer",
       "title": "Retirer le souhait ?",
-      "titleJoined": "Quitter ce souhait ?",
+      "titleJoined": "Ne plus participer à ce souhait ?",
       "body": "« {{title}} » ne sera plus demandé ; Slouchcat supprime aussi le souhait dans Seerr.",
       "bodyJoined": "Vous ne recevrez plus de message lorsque « {{title}} » sera disponible. Les souhaits des autres profils sont conservés.",
       "confirm": "Retirer",
-      "confirmJoined": "Quitter"
+      "confirmJoined": "Ne plus participer"
     },
     "dialog": {
       "titleMovie": "Demander un film : {{title}}",
@@ -7539,7 +7539,7 @@
       "episodes_many": "{{count}} d’épisodes",
       "episodes_other": "{{count}} épisodes",
       "seasonState": {
-        "requested": "déjà demandée, vous serez prévenu aussi",
+        "requested": "déjà demandée, vous recevrez aussi une notification",
         "available": "disponible"
       },
       "nothingLeft": {
@@ -7609,7 +7609,7 @@
     "row": {
       "open": "Aller au titre",
       "withdrawLabel": "{{title}} : retirer",
-      "withdrawJoinedLabel": "{{title}} : quitter",
+      "withdrawJoinedLabel": "{{title}} : ne plus participer",
       "again": "Redemander",
       "againLabel": "Redemander {{title}}",
       "history": "Historique : {{last}}",
@@ -7698,7 +7698,7 @@
       "stalled": "Téléchargement bloqué",
       "percent": "{{percent}} %",
       "episodes_one": "{{done}} épisode sur {{count}} présent",
-      "episodes_many": "{{done}} épisodes sur {{count}} d’épisodes présents",
+      "episodes_many": "{{done}} épisodes sur {{count}} présents",
       "episodes_other": "{{done}} épisodes sur {{count}} présents",
       "eta": "encore {{time}}"
     }
@@ -7717,7 +7717,7 @@
     "requestShow": "Demander une série",
     "done": {
       "requested": "Demandé. Vous pouvez suivre l’avancement sous « Mes souhaits ».",
-      "joined": "Vous serez prévenu dès que le titre sera disponible.",
+      "joined": "Vous recevrez une notification dès que le titre sera disponible.",
       "withdrawn": "Votre souhait a été retiré."
     },
     "alreadyRequested": "Déjà demandé",

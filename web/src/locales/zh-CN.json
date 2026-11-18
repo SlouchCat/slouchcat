@@ -804,13 +804,13 @@
       "state": {
         "missing": "缺失",
         "requested": "已请求",
-        "processing": "处理中",
+        "processing": "正在获取",
         "announced": "即将推出"
       },
       "cardLabel": "{{title}}：{{state}}",
       "cardRequest": "请求 {{title}}",
       "cardJoin": "{{title}}：已请求，加入心愿",
-      "request": "请求季"
+      "request": "请求缺少的季"
     },
     "episodes": {
       "title": "单集",
@@ -4084,7 +4084,7 @@
           "body": "此地址上响应的 Seerr 实例与设置时不同。在你做出决定之前，Slouchcat 不会发送心愿，也不会同步任何内容。",
           "confirm": "确认分配",
           "reset": "删除分配",
-          "resetTitle": "要删除到 Seerr 的分配吗？",
+          "resetTitle": "要删除与 Seerr 的分配吗？",
           "resetBody": "所有账户的 Seerr 用户和已加载的用户列表都将被移除。之后 Slouchcat 会加载新实例的用户。",
           "confirmed": "已接管新实例。账户的 Seerr 用户保持不变。",
           "resetDone": "已删除分配。Slouchcat 正在加载新实例的用户。"
@@ -4926,13 +4926,13 @@
         },
         "wishes_tag": {
           "name": "设置个人资料标签",
-          "description": "在 Radarr 和 Sonarr 中，为通过 Slouchcat 许愿且正在处理中的电影和剧集加上个人资料的标签。标签永远不会被移除。",
+          "description": "在 Radarr 和 Sonarr 中，为通过 Slouchcat 许愿且正在获取的电影和剧集加上个人资料的标签。标签永远不会被移除。",
           "trigger": "与 Seerr 同步后、每 15 分钟一次，以及手动"
         },
         "wishes_progress": {
           "name": "读取下载进度",
-          "description": "读取 Radarr 和 Sonarr 的队列，并为处理中的心愿显示正在搜索、下载还是导入。不会更改 Radarr 和 Sonarr 中的任何内容。",
-          "trigger": "有心愿处理中且下载进度已开启时，每分钟一次"
+          "description": "读取 Radarr 和 Sonarr 的队列，并为正在获取的心愿显示正在搜索、下载还是导入。不会更改 Radarr 和 Sonarr 中的任何内容。",
+          "trigger": "有心愿正在获取且下载进度已开启时，每分钟一次"
         },
         "wishes_discover": {
           "name": "预加载心愿列表",
@@ -4941,7 +4941,7 @@
         },
         "wishes_import": {
           "name": "从 Seerr 接管请求",
-          "description": "将已关联的 Seerr 用户直接在 Seerr 中提交的未完成请求和最近变为可观看的请求，接管为其账户主个人资料的心愿（“由 Seerr 创建”）。共享用户的请求不在其列。不会发送通知。",
+          "description": "将已关联的 Seerr 用户直接在 Seerr 中提交的未完成请求和最近变为可观看的请求，接管为其账户主个人资料的心愿（“在 Seerr 中请求”）。共享用户的请求不在其列。不会发送通知。",
           "trigger": "关联、选择或更改账户的 Seerr 用户；“接管请求”"
         },
         "segments_detect": {
@@ -5499,7 +5499,7 @@
         "settings": "设置",
         "requests": "请求",
         "openCount_other": "{{count}} 个未完成的心愿",
-        "withoutShort": "{{number}} 个没有",
+        "withoutShort": "{{number}} 个未关联",
         "withoutCount_other": "{{count}} 个账户没有 Seerr 用户"
       },
       "strip": {
@@ -5535,7 +5535,7 @@
         "allowMovies": "允许电影",
         "allowMoviesHelp": "适用于所有个人资料。关闭时：没有“请求电影”。",
         "allowShows": "允许剧集",
-        "allowShowsHelp": "适用于所有个人资料。关闭时：没有“请求剧集”和“请求季”。",
+        "allowShowsHelp": "适用于所有个人资料。关闭时：没有“请求剧集”和“请求缺少的季”。",
         "fromSearch": "从搜索中请求",
         "fromSearchHelp": "“尚未在媒体库中”部分。关闭时：不显示该部分。",
         "fromDetail": "在详情页上请求",
@@ -5603,7 +5603,7 @@
         "tagPrefixInvalid": "1 到 10 个字符：只能使用小写字母 a–z、数字 0–9 和连字符。未保存。",
         "tagPrefixSaved": "前缀“{{prefix}}”：新标签名称类似 {{prefix}}noah。已设置的标签保持不变。",
         "showProgress": "显示下载进度",
-        "showProgressHelp": "为处理中的心愿显示作品正在搜索、下载还是导入。为此，只要有心愿处理中，Slouchcat 每分钟都会读取 Radarr 和 Sonarr 的队列。",
+        "showProgressHelp": "为正在获取的心愿显示作品正在搜索、下载还是导入。为此，只要有心愿正在获取，Slouchcat 每分钟都会读取 Radarr 和 Sonarr 的队列。",
         "arrSummary": "标签{{tags}} · 前缀 {{prefix}} · 进度{{progress}}",
         "on": "已开启",
         "off": "已关闭",
@@ -5807,7 +5807,7 @@
         },
         "takeOver": {
           "title": "来自 Seerr 的请求",
-          "help": "直接在 Seerr 中提交的请求会成为主个人资料的心愿，并标注“由 Seerr 创建”。它们不带个人资料标签。",
+          "help": "直接在 Seerr 中提交的请求会成为主个人资料的心愿，并标注“在 Seerr 中请求”。它们不带个人资料标签。",
           "counting": "正在统计 Seerr 中的请求…",
           "none": "Seerr 中没有请求。",
           "action_other": "从 Seerr 接管 {{count}} 个请求",
@@ -5874,7 +5874,7 @@
         },
         "origin": {
           "slouchcat": "在 Slouchcat 中请求",
-          "seerr": "由 Seerr 创建"
+          "seerr": "在 Seerr 中请求"
         },
         "toItem": "前往管理中的该作品",
         "history": "历史记录",
@@ -5888,7 +5888,7 @@
         "seerrUserFull": "{{name}}（ID {{id}}）",
         "approve": "批准",
         "approveLabel": "批准 {{title}}",
-        "approved": "{{title}} 已获批准，正在处理中。",
+        "approved": "{{title}} 已获批准，正在获取。",
         "decline": "拒绝",
         "declineLabel": "拒绝 {{title}}",
         "declineTitle": "要拒绝 {{title}} 吗？",
@@ -6940,7 +6940,7 @@
     "state": {
       "queued": "正在发送",
       "pending": "待批准",
-      "processing": "处理中",
+      "processing": "正在获取",
       "partial": "部分可观看",
       "available": "可观看",
       "declined": "已拒绝",
@@ -7004,19 +7004,19 @@
     },
     "withdraw": {
       "action": "撤回",
-      "actionJoined": "退出心愿",
+      "actionJoined": "取消加入心愿",
       "title": "要撤回此心愿吗？",
-      "titleJoined": "要退出此心愿吗？",
+      "titleJoined": "要取消加入此心愿吗？",
       "body": "将不再请求“{{title}}”；Slouchcat 也会在 Seerr 中删除此心愿。",
       "bodyJoined": "“{{title}}”上架时你将不会再收到消息。其他个人资料的心愿保持不变。",
       "confirm": "撤回",
-      "confirmJoined": "退出心愿"
+      "confirmJoined": "取消加入心愿"
     },
     "dialog": {
       "titleMovie": "请求电影：{{title}}",
       "titleShow": "请求剧集：{{title}}",
       "intro": "{{year}} · {{kind}}",
-      "autoApprove": "将立即处理，无需批准。",
+      "autoApprove": "将立即开始获取，无需批准。",
       "needsApproval": "需要批准。你可以在“我的心愿”中查看进展。",
       "seasons": "季",
       "allSeasons": "所有缺少的季（{{count}}）",
@@ -7073,11 +7073,11 @@
     "row": {
       "open": "前往作品",
       "withdrawLabel": "撤回 {{title}}",
-      "withdrawJoinedLabel": "{{title}}：退出心愿",
+      "withdrawJoinedLabel": "{{title}}：取消加入心愿",
       "again": "重新请求",
       "againLabel": "重新请求 {{title}}",
       "history": "历史记录：{{last}}",
-      "fromSeerr": "由 Seerr 创建"
+      "fromSeerr": "在 Seerr 中请求"
     },
     "area": {
       "label": "心愿下的区域",

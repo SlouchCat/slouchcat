@@ -5838,7 +5838,7 @@
           "requesters": "신청자",
           "state": "상태",
           "seerr": "Seerr",
-          "attempts": "시도",
+          "attempts": "시도 횟수",
           "actions": "작업"
         },
         "titleYear": "{{title}} ({{year}})",

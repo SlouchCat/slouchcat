@@ -42,7 +42,7 @@
   "wish_season_aired_subject": "{{title}}: {{season}}. évad: az eddig megjelent epizódok megérkeztek",
   "wish_season_aired_body": "Az új epizódokról a Saját lista értesít.",
   "wish_approved_subject": "Jóváhagyva: {{title}}",
-  "wish_approved_body": "A kívánság feldolgozása most megkezdődik.",
+  "wish_approved_body": "A kívánság beszerzése most megkezdődik.",
   "wish_declined_subject": "Elutasítva: {{title}}",
   "wish_declined_body": "A Seerr nem közöl indokot.",
   "wish_failed_subject": "Sikertelen: {{title}}",

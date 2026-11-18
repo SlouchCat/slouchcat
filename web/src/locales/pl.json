@@ -867,15 +867,15 @@
       "showAll": "Pokaż wszystkie sezony ({{total}})",
       "showLess": "Pokaż mniej",
       "season": "Sezon {{number}}",
-      "present_one": "{{present}} z {{count}} sezonu dostępne",
-      "present_few": "{{present}} z {{count}} sezonów dostępne",
-      "present_many": "{{present}} z {{count}} sezonów dostępne",
-      "present_other": "{{present}} z {{count}} sezonu dostępne",
+      "present_one": "Dostępne: {{present}} z {{count}} sezonu",
+      "present_few": "Dostępne: {{present}} z {{count}} sezonów",
+      "present_many": "Dostępne: {{present}} z {{count}} sezonów",
+      "present_other": "Dostępne: {{present}} z {{count}} sezonu",
       "next": "Wciąż trwa, następny odcinek: {{date}}",
       "running": "Wciąż trwa",
       "state": {
         "missing": "Brak",
-        "requested": "Zgłoszono prośbę",
+        "requested": "Prośba wysłana",
         "processing": "W realizacji",
         "announced": "Zapowiedziany"
       },
@@ -4166,7 +4166,7 @@
         "stalled_many": "{{count}} pobrań utknęło",
         "stalled_other": "{{count}} pobrania utknęło",
         "serviceTitle": "{{title}} ({{service}})",
-        "toStalled": "Zobacz wstrzymane pobierania",
+        "toStalled": "Zobacz pobierania, które utknęły",
         "tagsFailed_one": "{{count}} tag nie został ustawiony",
         "tagsFailed_few": "{{count}} tagi nie zostały ustawione",
         "tagsFailed_many": "{{count}} tagów nie zostało ustawionych",
@@ -4448,7 +4448,7 @@
         "title": "Seerr",
         "name": "Połączenie z Seerr",
         "version": "Wersja {{version}}",
-        "lastSuccess": "Ostatnio osiągnięto {{time}}",
+        "lastSuccess": "Ostatni kontakt {{time}}",
         "state": {
           "not_configured": "Nie skonfigurowano",
           "disabled": "Wyłączone",
@@ -4596,7 +4596,7 @@
           "summary_other": "{{count}} otwartej prośby",
           "open": "Otwarte prośby",
           "queued": "Czekają na wysłanie",
-          "last": "Seerr ostatnio osiągnięty",
+          "last": "Ostatni kontakt z Seerr",
           "never": "Nigdy",
           "every": "Slouchcat synchronizuje prośby z Seerr co 5 minut.",
           "requestsLink": "Do zgłoszeń"
@@ -4606,10 +4606,10 @@
           "intro": "Slouchcat tworzy w Radarr i Sonarr po jednym tagu na profil i dołącza go do tytułu, gdy tylko Seerr przekaże tytuł do tych usług. W tym celu odczytuje kolejkę i stan plików tytułów, o które poproszono, aby pokazywać przy prośbach postęp pobierania. Poza tym Slouchcat niczego w Radarr i Sonarr nie zmienia. O nowych tytułach nadal informuje webhook.",
           "offNotice": "Tagi profili i postęp pobierania są wyłączone. Slouchcat nie wywołuje Radarr ani Sonarr.",
           "summaryOff": "wyłączone · tagi profili i postęp wyłączone",
-          "summaryTags_one": "{{count}} tag otwarty",
-          "summaryTags_few": "{{count}} tagi otwarte",
-          "summaryTags_many": "{{count}} tagów otwartych",
-          "summaryTags_other": "{{count}} tagu otwartego",
+          "summaryTags_one": "{{count}} tag oczekuje",
+          "summaryTags_few": "{{count}} tagi oczekują",
+          "summaryTags_many": "{{count}} tagów oczekuje",
+          "summaryTags_other": "{{count}} tagu oczekuje",
           "summaryProgress_one": "{{count}} pobieranie",
           "summaryProgress_few": "{{count}} pobierania",
           "summaryProgress_many": "{{count}} pobrań",
@@ -4650,7 +4650,7 @@
           "test": {
             "action": "Testuj",
             "label": "Testuj {{service}}",
-            "noHost": "adres",
+            "noHost": "podanym",
             "passed": "{{service}} odpowiada pod adresem {{host}} i przyjmuje klucz z Seerr. Adres został potwierdzony.",
             "keyRefused": "{{service}} odpowiada pod adresem {{host}}, ale odrzuca klucz z Seerr.",
             "unreachable": "{{service}} jest niedostępny pod adresem {{host}}.",
@@ -5472,7 +5472,7 @@
         "seerr_users": {
           "name": "Wczytaj użytkowników Seerr",
           "description": "Odczytuje użytkowników Seerr wraz z ich uprawnieniami i limitami oraz sprawdza, czy Slouchcat nadal łączy się z tą samą instancją Seerr.",
-          "trigger": "codziennie, „Wczytaj listę ponownie”, po zapisaniu połączenia z Seerr"
+          "trigger": "codziennie, „Wczytaj listę użytkowników ponownie”, po zapisaniu połączenia z Seerr"
         },
         "seerr_provision": {
           "name": "Utwórz konta w Seerr",
@@ -5511,13 +5511,13 @@
           "trigger": "co minutę, dopóki prośby są w realizacji i postęp pobierania jest włączony"
         },
         "wishes_discover": {
-          "name": "Wczytaj z wyprzedzeniem listy do próśb",
+          "name": "Wczytaj listy próśb",
           "description": "Wczytuje z Seerr do pamięci podręcznej rzędy sekcji Odkrywaj dla każdego języka i poziomu wiekowego profili, które mogą prosić o tytuły, i usuwa listy starsze niż jeden dzień. Każdy wynik jest ponownie sprawdzany dla profilu.",
           "trigger": "harmonogram co godzinę, dopóki prośby są aktywne, a strony Odkrywaj, Filmy, Seriale i Szukaj są włączone"
         },
         "wishes_import": {
           "name": "Przejmij zgłoszenia z Seerr",
-          "description": "Przejmuje otwarte i niedawno udostępnione zgłoszenia, które powiązany użytkownik Seerr złożył w samym Seerr, jako prośby profilu głównego jego konta („Utworzone w Seerr”). Zgłoszenia wspólnego użytkownika są pomijane. Nie jest wysyłane żadne powiadomienie.",
+          "description": "Przejmuje otwarte i niedawno udostępnione zgłoszenia, które powiązany użytkownik Seerr złożył w samym Seerr, jako prośby profilu głównego jego konta („Utworzona w Seerr”). Zgłoszenia wspólnego użytkownika są pomijane. Nie jest wysyłane żadne powiadomienie.",
           "trigger": "powiązanie, wybór lub zmiana użytkownika Seerr konta, „Przejmij zgłoszenia”"
         },
         "segments_detect": {
@@ -6142,7 +6142,7 @@
         "waiting_few": "{{count}} czekają na Seerr",
         "waiting_many": "{{count}} czeka na Seerr",
         "waiting_other": "{{count}} czeka na Seerr",
-        "password": "Hasło jeszcze oczekuje",
+        "password": "Hasło oczekuje",
         "passwordNote": "zostanie zsynchronizowane przy następnym logowaniu"
       },
       "limit": {
@@ -6186,7 +6186,7 @@
         },
         "alreadyRequestedOptions": {
           "join": "Dołącz",
-          "status": "Tylko pokaż stan"
+          "status": "Pokaż tylko stan"
         },
         "unmapped": "Konta bez użytkownika Seerr",
         "unmappedHelp": {
@@ -6389,7 +6389,7 @@
         "reload": "Wczytaj listę użytkowników ponownie",
         "unlinkedTitle": "Użytkownicy Seerr bez konta",
         "unlinkedCount_one": "{{count}} użytkownik",
-        "unlinkedCount_few": "{{count}} użytkowników",
+        "unlinkedCount_few": "{{count}} użytkownicy",
         "unlinkedCount_many": "{{count}} użytkowników",
         "unlinkedCount_other": "{{count}} użytkownika",
         "unlinkedEmpty": "Każdy użytkownik Seerr należy do jakiegoś konta.",
@@ -6458,7 +6458,7 @@
         },
         "takeOver": {
           "title": "Zgłoszenia z Seerr",
-          "help": "Zgłoszenia złożone bezpośrednio w Seerr stają się prośbami profilu głównego z adnotacją „Utworzone w Seerr”. Nie mają tagu profilu.",
+          "help": "Zgłoszenia złożone bezpośrednio w Seerr stają się prośbami profilu głównego z adnotacją „Utworzona w Seerr”. Nie mają tagu profilu.",
           "counting": "Liczenie zgłoszeń w Seerr…",
           "none": "Brak zgłoszeń w Seerr.",
           "action_one": "Przejmij {{count}} zgłoszenie z Seerr",
@@ -6503,7 +6503,7 @@
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
-        "requesterJoined": "{{line}} (dołączył)",
+        "requesterJoined": "{{line}} (dołącza)",
         "requesterClosed": "{{line}} (wycofano)",
         "noRequester": "Nikt w Slouchcat",
         "noRequest": "Jeszcze nie",
@@ -7075,7 +7075,7 @@
     },
     "missing": {
       "title": "Jeszcze nie w bibliotece",
-      "notHere": "Jeszcze go tu nie ma",
+      "notHere": "Jeszcze tego tu nie ma",
       "request": "Poproś o: {{title}}"
     },
     "inWishes": "Szukaj także w prośbach"
@@ -7267,7 +7267,7 @@
         "invitations": "Zaproszenia",
         "announcements": "Ogłoszenia",
         "wish_available": "Prośby: dostępne",
-        "wish_status": "Prośby: zatwierdzone, odrzucone, z niepowodzeniem",
+        "wish_status": "Prośby: zatwierdzone, odrzucone, nieudane",
         "wish_review": "Prośby: wymagają zatwierdzenia",
         "help": "Z jakich powodów przychodzi wiadomość.",
         "helpAdmin": "Z jakich powodów przychodzi wiadomość. „Błędy” są tylko dla administratorów."
@@ -7691,7 +7691,7 @@
       "movie": "Filmy: {{used}} z {{limit}} w ciągu {{days}} dni",
       "tv": "Sezony: {{used}} z {{limit}} w ciągu {{days}} dni",
       "remaining_one": "zostało {{count}}",
-      "remaining_few": "zostało {{count}}",
+      "remaining_few": "zostały {{count}}",
       "remaining_many": "zostało {{count}}",
       "remaining_other": "zostało {{count}}",
       "nextFree": "następne miejsce wolne {{date}}",
@@ -7804,7 +7804,7 @@
         "title": "Nie ma już o co prosić",
         "body": "Każdy sezon jest dostępny lub prośba o niego została już wysłana."
       },
-      "tooManySeasons_one": "Zostało 1 z {{limit}} sezonów. Wybierz najwyżej 1 sezon.",
+      "tooManySeasons_one": "Został 1 z {{limit}} sezonów. Wybierz najwyżej 1 sezon.",
       "tooManySeasons_few": "Zostały {{count}} z {{limit}} sezonów. Wybierz najwyżej {{count}} sezony.",
       "tooManySeasons_many": "Zostało {{count}} z {{limit}} sezonów. Wybierz najwyżej {{count}} sezonów.",
       "tooManySeasons_other": "Zostało {{count}} z {{limit}} sezonów. Wybierz najwyżej {{count}} sezonu.",
@@ -7907,7 +7907,7 @@
         "upcoming_movies": "Wkrótce w kinach",
         "popular_shows": "Popularne seriale",
         "show_genres": "Gatunki seriali",
-        "upcoming_shows": "Wkrótce: seriale"
+        "upcoming_shows": "Nadchodzące seriale"
       },
       "stale": "Seerr jest niedostępny. Widzisz stan z ostatniego pobrania.",
       "refreshFailed": "Nie udało się zaktualizować listy. Widzisz stan z ostatniego pobrania.",
@@ -7916,7 +7916,7 @@
       "requested": "Prośba już wysłana",
       "join": "{{title}}: powiadom mnie",
       "gone": {
-        "title": "Odkrywaj nie jest dostępne dla tego profilu",
+        "title": "Strona Odkrywaj nie jest dostępna dla tego profilu",
         "body": "Dotychczasowe prośby nadal znajdziesz w sekcji „Moje prośby”.",
         "action": "Do „Moje prośby”"
       },
@@ -7988,7 +7988,7 @@
     "requestShow": "Poproś o serial",
     "done": {
       "requested": "Prośba wysłana. Jej stan sprawdzisz w sekcji „Moje prośby”.",
-      "joined": "Powiadomimy Cię, gdy tylko tytuł będzie dostępny.",
+      "joined": "Otrzymasz powiadomienie, gdy tylko tytuł będzie dostępny.",
       "withdrawn": "Twoja prośba została wycofana."
     },
     "alreadyRequested": "Prośba już wysłana",

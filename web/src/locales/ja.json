@@ -5505,7 +5505,7 @@
       "strip": {
         "label": "概要",
         "accounts": "アカウント",
-        "opened": "Seerrあり",
+        "opened": "Seerrにあり",
         "openedNote": "作成済みまたは紐付け済み",
         "without": "ユーザーなし",
         "waiting_other": "{{count}}件がSeerr待ち",
@@ -5906,7 +5906,7 @@
           "percent": "{{percent}}%",
           "etaMinutes": "残り{{minutes}}分",
           "etaHours": "残り{{hours}}時間{{minutes}}分",
-          "episodes": "{{total}}エピソード中{{done}}エピソード取得済み",
+          "episodes": "{{total}}話中{{done}}話取得済み",
           "unreadable": "進行状況を読み取れません",
           "unreadableAt": "進行状況を読み取れません · 最終読み取り{{time}}",
           "notInService": "まだ{{service}}にありません",
@@ -5926,7 +5926,7 @@
         "tags": {
           "title": "プロフィールタグ",
           "set": "{{name}}",
-          "pending": "{{name}} · 保留中",
+          "pending": "{{name}} · 設定待ち",
           "failed": "{{name}} · 失敗",
           "setAt": "{{time}}に{{service}}で設定",
           "setIn": "{{service}}で設定済み",
@@ -6986,7 +6986,7 @@
     "event": {
       "created": "リクエスト",
       "submitted": "Seerrに送信",
-      "attached": "Seerrで見つかり、取り込み",
+      "attached": "Seerrで見つけて取り込み",
       "joined": "参加",
       "withdrawn": "取り下げ",
       "withdraw_deleted": "Seerrで削除",
@@ -7021,7 +7021,7 @@
       "seasons": "シーズン",
       "allSeasons": "未取得のシーズンすべて（{{count}}）",
       "season": "シーズン{{number}}",
-      "episodes_other": "{{count}}エピソード",
+      "episodes_other": "{{count}}話",
       "seasonState": {
         "requested": "リクエスト済み、通知も届きます",
         "available": "視聴可能"
@@ -7159,7 +7159,7 @@
       "import": "インポート中",
       "stalled": "ダウンロード停滞",
       "percent": "{{percent}}%",
-      "episodes_other": "{{count}}エピソード中{{done}}エピソード取得済み",
+      "episodes_other": "{{count}}話中{{done}}話取得済み",
       "eta": "残り{{time}}"
     }
   },

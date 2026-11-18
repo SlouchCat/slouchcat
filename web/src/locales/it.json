@@ -845,7 +845,7 @@
       "showLess": "Mostra meno",
       "season": "Stagione {{number}}",
       "present_one": "{{present}} stagione disponibile su {{count}}",
-      "present_many": "{{present}} stagioni disponibili su {{count}} di stagioni",
+      "present_many": "{{present}} stagioni disponibili su {{count}}",
       "present_other": "{{present}} stagioni disponibili su {{count}}",
       "next": "Ancora in corso, prossimo episodio il {{date}}",
       "running": "Ancora in corso",
@@ -3502,13 +3502,13 @@
       "lacking": {
         "title": "Voci mancanti",
         "missing_one": "{{count}} mancante",
-        "missing_many": "{{count}} di mancanti",
+        "missing_many": "{{count}} di voci mancanti",
         "missing_other": "{{count}} mancanti",
         "requested_one": "{{count}} richiesto",
-        "requested_many": "{{count}} di richiesti",
+        "requested_many": "{{count}} di voci richieste",
         "requested_other": "{{count}} richiesti",
         "unmatched_one": "{{count}} non abbinabile",
-        "unmatched_many": "{{count}} di non abbinabili",
+        "unmatched_many": "{{count}} di voci non abbinabili",
         "unmatched_other": "{{count}} non abbinabili",
         "intro": "La Home e l’elenco Spotlight mostrano solo titoli della libreria. Le voci mancanti le vedi solo tu, qui in Amministrazione. I profili richiedono i titoli mancanti in «Desideri».",
         "asProfile": "«Richiedi» agisce come il profilo attivo ({{name}}).",
@@ -4484,10 +4484,10 @@
           "test": {
             "action": "Verifica",
             "label": "Verifica {{service}}",
-            "noHost": "l’indirizzo",
-            "passed": "{{service}} risponde a {{host}} e la chiave di Seerr è valida. L’indirizzo è confermato.",
-            "keyRefused": "{{service}} risponde a {{host}}, ma non accetta la chiave di Seerr.",
-            "unreachable": "{{service}} non è raggiungibile a {{host}}.",
+            "noHost": "(sconosciuto)",
+            "passed": "{{service}} risponde all’indirizzo {{host}} e la chiave di Seerr è valida. L’indirizzo è confermato.",
+            "keyRefused": "{{service}} risponde all’indirizzo {{host}}, ma non accetta la chiave di Seerr.",
+            "unreachable": "{{service}} non è raggiungibile all’indirizzo {{host}}.",
             "ownHint": "Se Slouchcat non raggiunge l’indirizzo ricevuto da Seerr, ad esempio con nomi interni a Docker, inserisci qui sotto un indirizzo proprio.",
             "notInSeerr": "Seerr non ha un server predefinito per {{service}}.",
             "notInSeerrBody": "Configura in Seerr un server predefinito senza 4K. Senza, Slouchcat non imposta tag e non legge l’avanzamento."
@@ -5300,13 +5300,13 @@
         "wishes_sync": {
           "name": "Sincronizza i desideri con Seerr",
           "description": "Legge da Seerr le richieste modificate, aggiorna lo stato dei desideri, controlla uno per uno i desideri rimasti a lungo invariati e invia di nuovo dalla coda di invio quelli da inviare. La prima sincronizzazione legge tutte le richieste.",
-          "trigger": "pianificazione ogni 5 minuti, «Sincronizza ora», segnalazione del webhook di Seerr",
+          "trigger": "Pianificazione ogni 5 minuti, «Sincronizza ora», segnalazione del webhook di Seerr",
           "progress": "Pagine lette: {{done}} su {{total}}"
         },
         "wishes_reconcile": {
           "name": "Allinea i desideri con la libreria",
           "description": "Segnala un desiderio come disponibile non appena Slouchcat può riprodurre per un profilo il film o tutte le stagioni desiderate.",
-          "trigger": "pianificazione oraria, dopo il riconoscimento di un titolo desiderato nella libreria, dopo la sincronizzazione con Seerr"
+          "trigger": "Pianificazione oraria, dopo il riconoscimento di un titolo desiderato nella libreria, dopo la sincronizzazione con Seerr"
         },
         "wishes_tag": {
           "name": "Imposta i tag dei profili",
@@ -5951,7 +5951,7 @@
         "switchedOff": "«{{name}}» è disattivato. Ha effetto subito.",
         "choiceSaved": "«{{name}}»: {{value}}. Ha effetto subito.",
         "limitSaved": "Limite predefinito: {{limit}}. Ha effetto subito per tutti gli account con «Predefinito».",
-        "basics": "Principio di base",
+        "basics": "Generale",
         "where": "Dove si può richiedere",
         "rules": "Regole",
         "enabled": "Desideri attivi",
@@ -5985,7 +5985,7 @@
           "deny": "Non consentire"
         },
         "newAccountsCanRequest": "I nuovi account possono richiedere",
-        "newAccountsCanRequestHelp": "Valore iniziale dell’interruttore nella finestra «Invita account». Non modifica gli account esistenti.",
+        "newAccountsCanRequestHelp": "Valore iniziale dell’interruttore nella finestra «Invita un account». Non modifica gli account esistenti.",
         "allowWithdraw": "Consenti di ritirare",
         "allowWithdrawHelp": "Finché un desiderio non è approvato. Pulsante «Ritira» in «I miei desideri».",
         "pinExternalHideTitle": "Messaggi esterni dei profili con PIN senza il titolo",
@@ -6030,7 +6030,7 @@
         "tagPrefixSaved": "Prefisso «{{prefix}}»: i nuovi tag si chiameranno ad esempio {{prefix}}noah. I tag già impostati restano come sono.",
         "showProgress": "Mostra l’avanzamento del download",
         "showProgressHelp": "Per i desideri in elaborazione mostra se il titolo è in ricerca, in download o in importazione. A questo scopo Slouchcat legge ogni minuto la coda di Radarr e Sonarr, finché ci sono desideri in elaborazione.",
-        "arrSummary": "Tag {{tags}} · prefisso {{prefix}} · avanzamento {{progress}}",
+        "arrSummary": "Tag: {{tags}} · prefisso: {{prefix}} · avanzamento: {{progress}}",
         "on": "attivo",
         "off": "disattivato",
         "arrLinks": "Accesso a Radarr e Sonarr",
@@ -6038,10 +6038,10 @@
         "toArr": "Integrazioni › Seerr",
         "discoverPages": "Pagine Scopri, Film, Serie e Cerca",
         "discoverPagesHelp": "Schede nell’area «Desideri». Disattivato: solo «I miei desideri».",
-        "basicsSummary": "Desideri {{enabled}} · film {{movies}} · serie {{shows}}",
-        "basicsSummaryLocked": "Desideri disattivati, fino a una verifica riuscita · film {{movies}} · serie {{shows}}",
-        "whereSummary": "Ricerca {{search}} · pagine di dettaglio {{detail}} · Scopri {{discover}}",
-        "rulesSummary": "{{already}} · senza utente Seerr: {{unmapped}} · ritiro {{withdraw}}",
+        "basicsSummary": "Desideri: {{enabled}} · film: {{movies}} · serie: {{shows}}",
+        "basicsSummaryLocked": "Desideri disattivati, fino a una verifica riuscita · film: {{movies}} · serie: {{shows}}",
+        "whereSummary": "Ricerca: {{search}} · pagine di dettaglio: {{detail}} · Scopri: {{discover}}",
+        "rulesSummary": "{{already}} · senza utente Seerr: {{unmapped}} · ritiro: {{withdraw}}",
         "linksConnection": "Seerr: {{state}}",
         "usersCount_one": "{{opened}} account su {{count}} creato",
         "usersCount_many": "{{opened}} account su {{count}} di account creati",
@@ -6073,7 +6073,7 @@
         },
         "password": {
           "synced": "Uguale a quella di Slouchcat",
-          "next_login": "Verrà acquisita al prossimo accesso a Slouchcat",
+          "next_login": "Verrà trasferita al prossimo accesso a Slouchcat",
           "off": "Non sincronizzata",
           "admin": "Resta in Seerr (amministratore)",
           "external": "Accede tramite Jellyfin, Emby o Plex"
@@ -6117,8 +6117,8 @@
         "shows": "Serie",
         "autoApproveOn": "Approvazione automatica: sì",
         "autoApproveOff": "Approvazione automatica: no",
-        "followRightOn": "Segue il permesso di richiesta dell’account: può richiedere",
-        "followRightOff": "Segue il permesso di richiesta dell’account: non può richiedere",
+        "followRightOn": "Seguono il permesso di richiesta dell’account: può richiedere",
+        "followRightOff": "Seguono il permesso di richiesta dell’account: non può richiedere",
         "noLimitAdmin": "Nessun limite (amministratore in Seerr)",
         "unlimited": "Illimitato",
         "mode": {
@@ -6131,7 +6131,7 @@
         "goneTitle": "Utente «{{name}}» non trovato",
         "goneBody": "Seerr non conosce più questo utente. Scegli un altro utente oppure scollega.",
         "selfLinked": {
-          "invite": "Collegato all’accettazione dell’invito con l’utente Seerr esistente {{name}}, perché l’e-mail è la stessa. Se non appartiene a questo account, scollega.",
+          "invite": "Collegato all’accettazione dell’invito con l’utente Seerr esistente {{name}}, perché l’e-mail è la stessa. Se non appartiene a questo account, scollegalo.",
           "email_change": "Collegato dopo la modifica dell’e-mail con l’utente Seerr esistente {{name}}, perché l’e-mail è la stessa. Se non appartiene a questo account, scollega."
         },
         "warning": {
@@ -6207,7 +6207,7 @@
           "privileged": "{{email}} è in attesa: l’utente Seerr con questa e-mail amministra Seerr.",
           "taken": "{{email}} è in attesa: l’utente Seerr con questa e-mail appartiene già a un altro account. Scegli l’utente manualmente."
         },
-        "passwordNext": "Acquisisci di nuovo la password al prossimo accesso",
+        "passwordNext": "Trasferisci di nuovo la password al prossimo accesso",
         "passwordOff": "Non sincronizzare la password",
         "passwordNextDone": "La password di {{email}} verrà inviata a Seerr al prossimo accesso.",
         "passwordOffDone": "La password di {{email}} non viene più sincronizzata con Seerr.",
@@ -6283,7 +6283,7 @@
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
-        "requesterJoined": "{{line}} (si è unito)",
+        "requesterJoined": "{{line}} (ha aderito)",
         "requesterClosed": "{{line}} (ritirato)",
         "noRequester": "Nessuno in Slouchcat",
         "noRequest": "Non ancora",
@@ -7518,13 +7518,13 @@
     },
     "withdraw": {
       "action": "Ritira",
-      "actionJoined": "Abbandona",
+      "actionJoined": "Annulla adesione",
       "title": "Ritirare il desiderio?",
-      "titleJoined": "Abbandonare il desiderio?",
+      "titleJoined": "Annullare l’adesione al desiderio?",
       "body": "«{{title}}» non verrà più richiesto; Slouchcat elimina il desiderio anche in Seerr.",
       "bodyJoined": "Non riceverai più messaggi quando «{{title}}» arriva. I desideri degli altri profili restano.",
       "confirm": "Ritira",
-      "confirmJoined": "Abbandona"
+      "confirmJoined": "Annulla adesione"
     },
     "dialog": {
       "titleMovie": "Richiedi film: {{title}}",
@@ -7547,7 +7547,7 @@
         "body": "Tutte le stagioni sono presenti o già richieste."
       },
       "tooManySeasons_one": "Resta 1 stagione su {{limit}}. Scegline al massimo 1.",
-      "tooManySeasons_many": "Restano {{count}} di stagioni su {{limit}}. Scegline al massimo {{count}} di stagioni.",
+      "tooManySeasons_many": "Restano {{count}} di stagioni su {{limit}}. Scegline al massimo {{count}}.",
       "tooManySeasons_other": "Restano {{count}} stagioni su {{limit}}. Scegline al massimo {{count}}.",
       "reached": {
         "movie_one": "Il limite è stato raggiunto: {{count}} film in {{days}} giorni.",
@@ -7609,7 +7609,7 @@
     "row": {
       "open": "Al titolo",
       "withdrawLabel": "{{title}}: ritira",
-      "withdrawJoinedLabel": "{{title}}: abbandona",
+      "withdrawJoinedLabel": "{{title}}: annulla adesione",
       "again": "Richiedi di nuovo",
       "againLabel": "Richiedi di nuovo {{title}}",
       "history": "Cronologia: {{last}}",
@@ -7648,7 +7648,7 @@
       "join": "{{title}}: avvisami",
       "gone": {
         "title": "Scopri non è disponibile per questo profilo",
-        "body": "I tuoi desideri finora si trovano ancora in «I miei desideri».",
+        "body": "I tuoi desideri precedenti restano in «I miei desideri».",
         "action": "A «I miei desideri»"
       },
       "notFound": {
@@ -7698,7 +7698,7 @@
       "stalled": "Download bloccato",
       "percent": "{{percent}}%",
       "episodes_one": "{{done}} episodio su {{count}} presente",
-      "episodes_many": "{{done}} episodi su {{count}} di episodi presenti",
+      "episodes_many": "{{done}} episodi su {{count}} presenti",
       "episodes_other": "{{done}} episodi su {{count}} presenti",
       "eta": "ancora {{time}}"
     }

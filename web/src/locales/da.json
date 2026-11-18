@@ -828,7 +828,7 @@
       "state": {
         "missing": "Mangler",
         "requested": "Anmodet",
-        "processing": "Behandles",
+        "processing": "Hentes",
         "announced": "Annonceret"
       },
       "cardLabel": "{{title}}: {{state}}",
@@ -3392,7 +3392,7 @@
         "empty": "Alle poster på listen findes i biblioteket."
       },
       "matching": {
-        "title": "Synkronisering via TMDB, TVDB og IMDb",
+        "title": "Genkendelse via TMDB, TVDB og IMDb",
         "hits_one": "{{count}} i biblioteket",
         "hits_other": "{{count}} i biblioteket",
         "intro": "Slouchcat matcher film via TMDB og derefter IMDb. Serier som biblioteket: først TVDB, så TMDB, så IMDb. Seerr fører hver titel via TMDB-id'et og giver for serier TVDB-id'et videre til Sonarr.",
@@ -4296,7 +4296,7 @@
           "facts": {
             "address": "Adresse",
             "state": "Status",
-            "tagRequests": "Tag anmodninger i Seerr",
+            "tagRequests": "Tag Requests i Seerr",
             "tags": "Profiltags",
             "progress": "Downloadfremskridt"
           },
@@ -5108,23 +5108,23 @@
         "wishes_sync": {
           "name": "Synkroniser ønsker med Seerr",
           "description": "Læser de ændrede anmodninger fra Seerr, opdaterer ønskernes status, kontrollerer ønsker, der længe ikke er ændret, enkeltvis og sender forfaldne ønsker fra udbakken igen. Den første synkronisering læser alle anmodninger.",
-          "trigger": "tidsplan hvert 5. minut, »Synkroniser nu«, signal fra Seerr-webhooken",
+          "trigger": "Tidsplan hvert 5. minut, »Synkroniser nu«, signal fra Seerr-webhooken",
           "progress": "Sider læst: {{done}} af {{total}}"
         },
         "wishes_reconcile": {
           "name": "Afstem ønsker med biblioteket",
           "description": "Melder et ønske som tilgængeligt, så snart Slouchcat kan afspille filmen eller alle ønskede sæsoner for en profil.",
-          "trigger": "tidsplan hver time, efter at en ønsket titel er genkendt i biblioteket, efter synkroniseringen med Seerr"
+          "trigger": "Tidsplan hver time, efter at en ønsket titel er genkendt i biblioteket, efter synkroniseringen med Seerr"
         },
         "wishes_tag": {
           "name": "Sæt profiltags",
-          "description": "Sætter profilens tag i Radarr og Sonarr på film og serier, der er ønsket via Slouchcat og er under behandling. Tags fjernes aldrig.",
+          "description": "Sætter profilens tag i Radarr og Sonarr på film og serier, der er ønsket via Slouchcat og hentes. Tags fjernes aldrig.",
           "trigger": "efter synkroniseringen med Seerr, hvert 15. minut og manuelt"
         },
         "wishes_progress": {
           "name": "Læs downloadfremskridt",
-          "description": "Læser køen i Radarr og Sonarr og viser for ønsker under behandling, om der søges, downloades eller importeres. Ændrer intet i Radarr og Sonarr.",
-          "trigger": "hvert minut, mens ønsker er under behandling, og downloadfremskridt er slået til"
+          "description": "Læser køen i Radarr og Sonarr og viser for ønsker, der hentes, om der søges, downloades eller importeres. Ændrer intet i Radarr og Sonarr.",
+          "trigger": "hvert minut, mens ønsker hentes, og downloadfremskridt er slået til"
         },
         "wishes_discover": {
           "name": "Forhåndsindlæs ønskelister",
@@ -5753,7 +5753,7 @@
         "fromSearchHelp": "Afsnittet »Endnu ikke i biblioteket«. Fra: Afsnittet udgår.",
         "fromDetail": "Anmod på detaljesider",
         "fromDetailHelp": "Manglende sæsoner på siden for en serie, der findes i biblioteket. Fra: Serieside viser kun det, der findes.",
-        "alreadyRequested": "Titler, der allerede er anmodet",
+        "alreadyRequested": "Titler, der allerede er anmodet om",
         "alreadyRequestedHelp": {
           "join": "Tilslut dig: En anden profil slutter sig til det åbne ønske (»Giv mig besked«) og får også besked. Seerr får ikke en anden anmodning.",
           "status": "Vis kun status: En anden profil ser »Allerede anmodet«, men kan ikke tilslutte sig og får ikke besked."
@@ -5779,7 +5779,7 @@
         "pinExternalHideTitleHelp": "E-mail, Web Push og Telegram nævner så kun profilen, ikke titlen.",
         "defaultLimit": "Standardgrænse",
         "limitPerAccount": "Grænse pr. konto",
-        "limitPerAccountHelp": "Gælder for alle en kontos profiler samlet. Seerr tæller løbende og medregner også ønsker, der stilles direkte dér. Afviste ønsker og tilsluttede ønsker tæller ikke. Administratorer har ingen grænse.",
+        "limitPerAccountHelp": "Gælder samlet for alle profiler på en konto. Seerr tæller løbende og medregner også ønsker, der stilles direkte dér. Afviste ønsker og ønsker, man har sluttet sig til, tæller ikke. Administratorer har ingen grænse.",
         "movieLimit": "Film: antal",
         "movieDays": "Film: dage",
         "tvLimit": "Sæsoner: antal",
@@ -5816,7 +5816,7 @@
         "tagPrefixInvalid": "1 til 10 tegn: kun små bogstaver a–z, cifre 0–9 og bindestreg. Ikke gemt.",
         "tagPrefixSaved": "Præfiks »{{prefix}}«: Nye tags hedder for eksempel {{prefix}}noah. Tags, der allerede er sat, forbliver, som de er.",
         "showProgress": "Vis downloadfremskridt",
-        "showProgressHelp": "Viser for ønsker under behandling, om titlen søges, downloades eller importeres. Til det læser Slouchcat køen i Radarr og Sonarr hvert minut, så længe ønsker er under behandling.",
+        "showProgressHelp": "Viser for ønsker, der hentes, om titlen søges, downloades eller importeres. Til det læser Slouchcat køen i Radarr og Sonarr hvert minut, så længe der hentes ønsker.",
         "arrSummary": "Tag {{tags}} · præfiks {{prefix}} · fremskridt {{progress}}",
         "on": "til",
         "off": "fra",
@@ -5990,7 +5990,7 @@
           "privileged": "{{email}} venter: Seerr-brugeren med denne e-mailadresse administrerer Seerr.",
           "taken": "{{email}} venter: Seerr-brugeren med denne e-mailadresse hører allerede til en anden konto. Vælg brugeren manuelt."
         },
-        "passwordNext": "Overtag adgangskoden igen ved næste login",
+        "passwordNext": "Overfør adgangskoden igen ved næste login",
         "passwordOff": "Synkroniser ikke adgangskoden",
         "passwordNextDone": "Adgangskoden for {{email}} sendes til Seerr ved næste login.",
         "passwordOffDone": "Adgangskoden for {{email}} synkroniseres ikke længere med Seerr.",
@@ -6063,7 +6063,7 @@
         },
         "titleYear": "{{title}} ({{year}})",
         "requester": "{{account}} · {{profile}}",
-        "requesterJoined": "{{line}} (tilsluttet)",
+        "requesterJoined": "{{line}} (med på ønsket)",
         "requesterClosed": "{{line}} (trukket tilbage)",
         "noRequester": "Ingen i Slouchcat",
         "noRequest": "Endnu ikke",
@@ -6112,7 +6112,7 @@
         "seerrUserFull": "{{name}} (ID {{id}})",
         "approve": "Godkend",
         "approveLabel": "Godkend {{title}}",
-        "approved": "{{title}} er godkendt og behandles.",
+        "approved": "{{title}} er godkendt og hentes.",
         "decline": "Afvis",
         "declineLabel": "Afvis {{title}}",
         "declineTitle": "Afvise {{title}}?",
@@ -7195,7 +7195,7 @@
     "state": {
       "queued": "Sendes",
       "pending": "Afventer godkendelse",
-      "processing": "Behandles",
+      "processing": "Hentes",
       "partial": "Delvis tilgængelig",
       "available": "Tilgængelig",
       "declined": "Afvist",
@@ -7243,7 +7243,7 @@
       "created": "Anmodet",
       "submitted": "Sendt til Seerr",
       "attached": "Fundet i Seerr og overtaget",
-      "joined": "Tilsluttet",
+      "joined": "Sluttede sig til ønsket",
       "withdrawn": "Trukket tilbage",
       "withdraw_deleted": "Slettet i Seerr",
       "owner_changed": "En anden profil ønsker videre",
@@ -7255,19 +7255,19 @@
     "card": {
       "title": "Dit ønske",
       "requestedOn": "anmodet den {{date}}",
-      "joined": "du har sluttet dig til",
+      "joined": "du er med på ønsket",
       "history": "Historik",
       "mine": "Til mine ønsker"
     },
     "withdraw": {
       "action": "Træk tilbage",
-      "actionJoined": "Forlad",
+      "actionJoined": "Forlad ønsket",
       "title": "Trække ønsket tilbage?",
       "titleJoined": "Forlade ønsket?",
       "body": "Der anmodes ikke længere om »{{title}}«. Slouchcat sletter også ønsket i Seerr.",
       "bodyJoined": "Du får ikke længere besked, når »{{title}}« er her. De andre profilers ønsker består.",
       "confirm": "Træk tilbage",
-      "confirmJoined": "Forlad"
+      "confirmJoined": "Forlad ønsket"
     },
     "dialog": {
       "titleMovie": "Anmod om film: {{title}}",
@@ -7388,8 +7388,8 @@
       }
     },
     "titles": {
-      "moviesIntro": "Alle film, som TMDB kender, uanset om de allerede er i biblioteket. Det, der mangler, kan du anmode om.",
-      "seriesIntro": "Alle serier, som TMDB kender, uanset om de allerede er i biblioteket. Det, der mangler, kan du anmode om.",
+      "moviesIntro": "Alle film, som TMDB kender, uanset om de allerede er i biblioteket eller ej. Det, der mangler, kan du anmode om.",
+      "seriesIntro": "Alle serier, som TMDB kender, uanset om de allerede er i biblioteket eller ej. Det, der mangler, kan du anmode om.",
       "sort": "Sortering",
       "sorts": {
         "popularity": "Popularitet",
