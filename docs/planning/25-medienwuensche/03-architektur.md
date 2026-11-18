@@ -1051,14 +1051,14 @@ es damit ohne Zusatzarbeit.
 | «Seerr verwenden» aus | Einstellung `seerr.enabled = 0` | kein Aufruf; Wünsche bleiben gespeichert; die 24-h-Frist der `queued`-Wünsche ruht (**Vorschlag**, T-2); Zuschauer sehen keine fehlenden Titel (`07-administration.md`, Abschnitt 4.6) | Zustand «Ausgeschaltet» |
 | Andere Seerr-Instanz | Fingerabdruck weicht ab (7.4) | Übermittlung und Abgleich halten an; neue Wünsche bleiben `queued` | «Andere Seerr-Instanz erkannt»; Zuordnung bestätigen oder löschen |
 | 403 Limit | Text `Movie Quota exceeded.` / `Series Quota exceeded.` | `failed`, `quota`; Stand neu lesen | Klartext im Dialog und in «Meine Wünsche»; Übersicht «Limit erreicht» |
-| 403 Sperrliste | `This media is blocklisted.` / `blacklisted.` | `failed`, `blocklisted` | «In Seerr gesperrt» |
+| 403 Sperrliste | `This media is blocklisted.` / `blacklisted.` | `failed`, `blocklisted` | «In Seerr gesperrt» (so gebaut: «Der Titel steht in Seerr auf der Sperrliste.») |
 | 403 kein Recht | `You do not have permission to make … requests.` | `failed`, `no_permission`; Seite Seerr-Benutzer warnt | Klartext; Seerr-Benutzer «darf nicht anfordern» |
 | 409 Duplikat | Text | Erfolg, anhängen (6.4) | normaler Zustand |
 | 202 keine Staffeln | Status 202 | anhängen bzw. «wird eingelesen» (6.4) | normaler Zustand |
 | 500 TMDB in Seerr | 500 | wie nicht erreichbar, Diagnose mit Text | Verwaltung: Diagnose |
 | CSRF-Schutz in Seerr an | schreibende Aufrufe scheitern (Anhang D 2.4) | Verbindungstest prüft es (15.1); Wünsche bleiben `queued` | Test «CSRF-Schutz aus: nein» mit Hinweis; nimmt Seerr den leeren Prüfaufruf an (2xx), so gebaut eine Warnung `unexpected_answer`, nie «Schutz aus» |
 | Benutzer in Seerr gelöscht | `seerr.users` findet ihn nicht mehr; `X-API-User` liefert 403 und `GET /auth/me` ohne Header 200 (6.4) | `seerr_users.gone_at` setzen; Zuordnung bleibt, Profile verlieren `canRequest` (Grund `seerr_user_gone`); seine Requests löscht Seerr mit (CASCADE, Anhang D 7.2) → offene Wünsche über 404 `failed`, `seerr_request_gone`; noch nicht übermittelte Wünsche `failed`, `seerr_user_gone` (`04-benutzer-profilmapping.md`, Abschnitt 8.1) | Seerr-Benutzer «Benutzer in Seerr gelöscht» |
-| Request in Seerr gelöscht | Einzelprüfung `GET /request/{id}` liefert 404 | `failed`, `fail_reason = seerr_request_gone`; der Wunsch ist geschlossen, das Profil kann erneut anfordern | Zustand «Fehlgeschlagen» mit Grund |
+| Request in Seerr gelöscht | Einzelprüfung `GET /request/{id}` liefert 404 | `failed`, `fail_reason = seerr_request_gone`; der Wunsch ist geschlossen, das Profil kann erneut anfordern | Zustand «Fehlgeschlagen» mit Grund «Die Anfrage wurde in Seerr gelöscht.» |
 | `DELETE /request/{id}` beim Zurückziehen scheitert | 401, 403, 404 | Tabelle in 6.6 | Hinweis «War schon freigegeben» bei 401 |
 | TVDB-ID fehlt | `external_titles.tvdb_id` leer | Serie nicht anforderbar | Vorschauseite: Hinweis |
 | Radarr/Sonarr in Seerr nicht eingerichtet | `GET /service/radarr|sonarr` leer | Wünsche bleiben nach der Freigabe `processing` (Anhang D 10) | Verbindungstest warnt; Verwaltung: Hinweis am Wunsch |

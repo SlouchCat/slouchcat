@@ -531,7 +531,7 @@ Empfehlung).
 |---|---|
 | «Von Slouchcat eröffnet» | Slouchcat hat den Benutzer angelegt |
 | «Verknüpft über gleiche E-Mail» | den Benutzer gab es schon; Slouchcat hat ihn verknüpft, auf Knopf des Administrators oder sofort beim Annehmen einer Einladung (E-4, E-8) |
-| «Von Hand zugeordnet» | der Administrator hat mit «Anderen Benutzer wählen» einen Benutzer gewählt |
+| «Von Hand verknüpft» | der Administrator hat mit «Anderen Benutzer wählen» einen Benutzer gewählt |
 | «Wird eröffnet, sobald Seerr erreichbar ist» | der Job wartet auf Seerr |
 | «Wartet» mit Grund (so gebaut) | der Benutzer der E-Mail gehört schon einem anderen Konto oder ist der Sammelbenutzer (`seerr_user_taken`), oder er ist privilegiert (`seerr_user_privileged`, Abschnitt 12.2: nach Einladung oder E-Mail-Änderung, und nach «In Seerr eröffnen» ohne Bestätigung); ein Administrator wählt von Hand oder verknüpft nach der Rückfrage |
 | «Nicht eröffnet» | kein Benutzer; auf «Konten» trägt das Konto den Chip «Kein Seerr-Benutzer» |
