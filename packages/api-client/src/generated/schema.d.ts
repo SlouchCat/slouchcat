@@ -12039,7 +12039,7 @@ export interface components {
         };
         /** @description Absent fields stay; an empty string goes back to the address from Seerr. */
         ArrSettingsUpdate: {
-            /** @example http://192.168.1.125:7878 */
+            /** @example http://192.168.1.60:7878 */
             radarrUrl?: string;
             sonarrUrl?: string;
         };

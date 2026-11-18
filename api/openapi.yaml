@@ -21503,7 +21503,7 @@ components:
         radarrUrl:
           type: string
           maxLength: 2048
-          examples: ["http://192.168.1.125:7878"]
+          examples: ["http://192.168.1.60:7878"]
         sonarrUrl:
           type: string
           maxLength: 2048

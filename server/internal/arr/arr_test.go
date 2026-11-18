@@ -52,7 +52,7 @@ func TestNewRefusesBadAddresses(t *testing.T) {
 		t.Errorf("unknown kind: %v", err)
 	}
 	for raw, want := range map[string]string{
-		"http://192.168.1.125:7878/":         "http://192.168.1.125:7878",
+		"http://192.168.1.60:7878/":         "http://192.168.1.60:7878",
 		"https://media.example.org/sonarr/":  "https://media.example.org/sonarr",
 		"http://radarr.lan:7878/api/v3":      "http://radarr.lan:7878",
 		" https://media.example.org/api/v3/": "https://media.example.org",

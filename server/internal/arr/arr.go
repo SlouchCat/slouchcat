@@ -117,7 +117,7 @@ func WithUserAgent(agent string) Option {
 }
 
 // New returns a client of the Radarr or Sonarr instance (kind) at baseURL (for example
-// "http://192.168.1.125:7878" or "https://media.example.org/sonarr") that authenticates with
+// "http://192.168.1.60:7878" or "https://media.example.org/sonarr") that authenticates with
 // apiKey. Errors (ErrInvalid) never quote the address, which could carry credentials.
 func New(kind Kind, baseURL string, apiKey Secret, opts ...Option) (*Client, error) {
 	if kind != Radarr && kind != Sonarr {
