@@ -440,6 +440,9 @@ func TestContractWishes(t *testing.T) {
 		      VALUES (?, 'movie', ?, 'Viele', 'slouchcat', 'available', 1, 1, 1, 1)`, 921+i, 100+i)
 		exec(`INSERT INTO wish_requesters (wish_id, profile_id, account_id, role, created_at) VALUES (?, ?, ?, 'owner', ?)`,
 			921+i, f.P16.ID, f.P16.AccountID, time.Now().UnixMilli())
+		// What the limit counts (patch 1.41.1): the history entry createWish writes with the profile.
+		exec(`INSERT INTO wish_events (wish_id, at, kind, detail) VALUES (?, ?, 'created', ?)`,
+			921+i, time.Now().UnixMilli(), fmt.Sprintf(`{"profileId":%d}`, f.P16.ID))
 	}
 	rec = send(t, h, http.MethodPost, BasePath+"/wishes", "p16", `{"media":"movie","tmdbId":9000}`, nil)
 	if rec.Code != http.StatusTooManyRequests || problemCode(t, rec) != "too_many_attempts" || rec.Header().Get("Retry-After") == "" {

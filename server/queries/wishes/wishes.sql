@@ -193,8 +193,14 @@ SELECT detail FROM wish_events WHERE wish_id = @wish_id AND kind = @kind ORDER B
 SELECT CAST(COALESCE(MAX(at), 0) AS INTEGER) AS at FROM wish_events WHERE wish_id = @wish_id AND kind = @kind;
 
 -- name: CountProfileWishesSince :one
--- The wishes a profile made or joined since a time (the limit of createWish per profile and hour).
-SELECT count(*) FROM wish_requesters WHERE profile_id = @profile_id AND created_at >= @since;
+-- The wishes a profile made or joined itself since a time (the limit of createWish per profile and
+-- hour): the history entries "created" and "joined" that createWish writes with the id of the profile.
+-- A requester row is no measure: the take-over of existing Seerr requests, a retry and the move of
+-- the wishes of a deleted profile write rows too, and 61 taken-over requests locked a profile for an
+-- hour (patch 1.41.1). A full scan of wish_events; it holds a few entries per wish.
+SELECT count(*) FROM wish_events
+WHERE kind IN ('created', 'joined') AND at >= @since
+  AND CAST(detail ->> 'profileId' AS INTEGER) = CAST(@profile_id AS INTEGER);
 
 -- name: ListWishTitlesInUse :many
 -- The titles of the open wishes and of the wishes closed since closed_since (titles.refresh keeps
