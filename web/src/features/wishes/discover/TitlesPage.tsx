@@ -24,7 +24,7 @@ import {
 import discover from '@/features/discover/Discover.module.css';
 import library from '@/features/catalog/LibraryPage.module.css';
 import type { ExternalMedia } from '../queries';
-import { DiscoverCard, useWishRequest } from './DiscoverCard';
+import { DiscoverCard, GridSkeleton, useWishRequest } from './DiscoverCard';
 import { DiscoverProblem } from './DiscoverProblem';
 import { entriesOf, entryId, wishGenresQuery, wishTitlesQuery } from './queries';
 import { TITLE_SORTS, type TitleSort, type TitlesParams } from './wishesAreaParams';
@@ -90,6 +90,9 @@ function TitlesView({ media, params, onParams }: TitlesViewProps) {
   const [open, setOpen] = useState(false);
 
   const sort: TitleSort = params.sort ?? 'popularity';
+  // useInfiniteQuery with useNearEnd, not PagedSource with usePagedList: Seerr's pages carry no
+  // total of titles (only of pages, at most 500) and may hold fewer entries than asked or repeat a
+  // title, so the list cannot reserve its places ahead.
   const query = useInfiniteQuery(
     wishTitlesQuery(media, {
       ...(params.sort ? { sort: params.sort } : {}),
@@ -265,7 +268,7 @@ function TitlesView({ media, params, onParams }: TitlesViewProps) {
         )}
         {requests.element}
 
-        {query.isPending && <Skeleton shape="block" />}
+        {query.isPending && <GridSkeleton />}
         {failed && <DiscoverProblem error={query.error} onRetry={() => void query.refetch()} />}
         {query.isSuccess && entries.length === 0 && !hasNextPage && (
           <Notice

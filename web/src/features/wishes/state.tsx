@@ -21,6 +21,12 @@ import type {
 
 type ChipTone = NonNullable<ComponentProps<typeof Chip>['tone']>;
 
+/**
+ * How long a tile whose plus went with its request waits for the list to come back before it
+ * gives up taking the focus (the search section, the wishes area).
+ */
+export const REFOCUS_MS = 5000;
+
 /** One tone per state, on every page (preview, search, «Meine Wünsche», administration). */
 export const wishTone = {
   queued: 'neutral',

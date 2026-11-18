@@ -18,17 +18,26 @@ import {
   SpatialGroup,
   SpatialPage,
 } from '@/ui';
+import home from '@/features/catalog/HomePage.module.css';
 import discover from '@/features/discover/Discover.module.css';
 import type { ExternalTitleRef } from '../queries';
 import { DiscoverCard, useWishRequest } from './DiscoverCard';
 import { DiscoverProblem } from './DiscoverProblem';
 import { GenreTile } from './GenreTile';
-import { entryId, wishDiscoverQuery, type DiscoverRow, type DiscoverRowKey } from './queries';
+import {
+  entriesOf,
+  entryId,
+  wishDiscoverQuery,
+  type DiscoverRow,
+  type DiscoverRowKey,
+} from './queries';
 import { searchHref, titlesHref } from './wishesAreaParams';
 import { WishesNav } from './WishesNav';
 import styles from './WishesArea.module.css';
 
 const SEARCH_KEY = 'discover-search';
+/** Placeholder cards of a row while the rows load (as the start page's HomeSkeleton). */
+const SKELETON_CARDS = 7;
 /** The first cards of the first row load at once; every other poster lazily. */
 const EAGER_POSTERS = 6;
 
@@ -101,7 +110,8 @@ export function DiscoverPage() {
     }
     return (
       <Row key={row.key} title={title} focusKey={`discover-${row.key}`} href={ROW_HREF[row.key]}>
-        {row.entries.map((entry, position) => (
+        {/* Seerr may repeat a title within a row: each once (entriesOf), so keys stay unique. */}
+        {entriesOf([row]).map((entry, position) => (
           <DiscoverCard
             key={entryId(entry)}
             entry={entry}
@@ -157,7 +167,19 @@ export function DiscoverPage() {
         )}
         {requests.element}
 
-        {query.isPending && <Skeleton shape="block" />}
+        {query.isPending && (
+          <div className={`${discover.bleed} ${home.skeleton}`} aria-hidden="true">
+            {[0, 1].map((row) => (
+              <div key={row} className={home.skeletonRow}>
+                {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+                  <span key={index} className={home.skeletonCard}>
+                    <Skeleton shape="poster" />
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
         {failed && <DiscoverProblem error={query.error} onRetry={() => void query.refetch()} />}
         {query.isSuccess && shown.length === 0 && <Notice title={t('wishes.discover.empty')} />}
         {shown.length > 0 && (

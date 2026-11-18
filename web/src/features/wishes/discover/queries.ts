@@ -79,8 +79,10 @@ export const wishGenresQuery = (media: ExternalMedia) =>
 /** An entry's identity in a list: Seerr's pages may repeat a title when the list moved. */
 export const entryId = (entry: DiscoverEntry) => `${entry.title.media}-${entry.title.tmdbId}`;
 
-/** The entries of all pages read so far, each title once. */
-export function entriesOf(pages: readonly DiscoverPage[] | undefined): DiscoverEntry[] {
+/** The entries of all pages read so far (or of one row), each title once. */
+export function entriesOf(
+  pages: readonly { entries: readonly DiscoverEntry[] }[] | undefined,
+): DiscoverEntry[] {
   const seen = new Set<string>();
   const out: DiscoverEntry[] = [];
   for (const page of pages ?? []) {

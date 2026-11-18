@@ -15,7 +15,7 @@ import {
   type ExternalTitleRef,
   type Wish,
 } from './queries';
-import { externalPoster, wishProblemMessage, wishStateText } from './state';
+import { externalPoster, REFOCUS_MS, wishProblemMessage, wishStateText } from './state';
 
 const RequestDialog = lazy(() =>
   import('./RequestDialog').then((module) => ({ default: module.RequestDialog })),
@@ -53,6 +53,7 @@ export function SearchMissing({ query }: { query: UseQueryResult<ExternalTitlePa
   const [done, setDone] = useState<Wish | null>(null);
   // The card whose plus went with its request: it takes the focus once the plus is gone.
   const refocus = useRef<string | null>(null);
+  const expire = useRef<number | undefined>(undefined);
   const hits = query.data?.items ?? [];
   useEffect(() => {
     const card = refocus.current;
@@ -62,6 +63,8 @@ export function SearchMissing({ query }: { query: UseQueryResult<ExternalTitlePa
     refocus.current = null;
     setSpatialFocus(card);
   }, [query.data]);
+  // A refocus the list never answered is dropped (see useWishRequest).
+  useEffect(() => () => window.clearTimeout(expire.current), []);
   if (!query.isError && hits.length === 0) return null;
 
   const caption = (title: ExternalTitleRef) =>
@@ -79,7 +82,7 @@ export function SearchMissing({ query }: { query: UseQueryResult<ExternalTitlePa
       </h2>
       {query.isError && <Notice tone="danger" title={wishProblemMessage(t, query.error)} />}
       {hits.length > 0 && (
-        <SpatialGroup as="ul" className={discover.grid} aria-label={t('search.missing.title')}>
+        <SpatialGroup as="ul" className={discover.grid} aria-labelledby="search-missing">
           {hits.map((title) => (
             <li key={cardKey(title)} className={discover.cell}>
               <PosterCard
@@ -118,6 +121,10 @@ export function SearchMissing({ query }: { query: UseQueryResult<ExternalTitlePa
             onClose={() => setRequesting(null)}
             onDone={(wish) => {
               refocus.current = cardKey(requesting);
+              window.clearTimeout(expire.current);
+              expire.current = window.setTimeout(() => {
+                refocus.current = null;
+              }, REFOCUS_MS);
               setRequesting(null);
               setDone(wish);
             }}

@@ -6,11 +6,15 @@ import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { useOnline } from '@/lib/useOnline';
-import { Notice, PosterCard, RequestMark, setSpatialFocus } from '@/ui';
+import { Notice, PosterCard, RequestMark, setSpatialFocus, Skeleton } from '@/ui';
+import discover from '@/features/discover/Discover.module.css';
 import type { ExternalTitleRef, Wish } from '../queries';
-import { externalPoster, WishStateChip } from '../state';
+import { externalPoster, REFOCUS_MS, WishStateChip } from '../state';
 import type { DiscoverEntry } from './queries';
 import styles from './WishesArea.module.css';
+
+/** Placeholder cards while a grid's first page loads: about two rows on a wide screen. */
+const SKELETON_CARDS = 12;
 
 // Dialogs need react-aria, which the browsing pages do not load up front (P-10).
 const RequestDialog = lazy(() =>
@@ -94,6 +98,8 @@ export function DiscoverCard({ entry, focusKey, onRequest, eager }: DiscoverCard
       eager={eager}
       mark={mark}
     >
+      {/* Placed by hand: PosterCard's `badge` takes a neutral text only (and holds «In der
+          Bibliothek» on library tiles), `mark` the plus; the state needs its tone (wishTone). */}
       {title.wish && (
         <span className={styles.state}>
           <WishStateChip state={title.wish.state} detail={title.wish.stateDetail} />
@@ -116,6 +122,7 @@ export function useWishRequest(refreshed: unknown) {
   );
   const [done, setDone] = useState<Wish | null>(null);
   const refocus = useRef<string | null>(null);
+  const expire = useRef<number | undefined>(undefined);
   // Once the list came back with the new state: the tile takes the focus the plus held.
   useEffect(() => {
     const card = refocus.current;
@@ -125,6 +132,9 @@ export function useWishRequest(refreshed: unknown) {
     refocus.current = null;
     setSpatialFocus(card);
   }, [refreshed]);
+  // A refocus the list never answered is dropped, so it cannot move the focus at a later,
+  // unrelated change of the data.
+  useEffect(() => () => window.clearTimeout(expire.current), []);
   const element = (
     <>
       {done && (
@@ -140,6 +150,10 @@ export function useWishRequest(refreshed: unknown) {
             onClose={() => setRequesting(null)}
             onDone={(wish) => {
               refocus.current = requesting.card;
+              window.clearTimeout(expire.current);
+              expire.current = window.setTimeout(() => {
+                refocus.current = null;
+              }, REFOCUS_MS);
               setRequesting(null);
               setDone(wish);
             }}
@@ -156,4 +170,17 @@ export function useWishRequest(refreshed: unknown) {
     },
     element,
   };
+}
+
+/** The grid while its first page loads: poster placeholders in the grid's cells (as LibraryGrid). */
+export function GridSkeleton() {
+  return (
+    <ul className={discover.grid} aria-hidden="true">
+      {Array.from({ length: SKELETON_CARDS }, (_, index) => (
+        <li key={index} className={discover.cell}>
+          <Skeleton shape="poster" />
+        </li>
+      ))}
+    </ul>
+  );
 }

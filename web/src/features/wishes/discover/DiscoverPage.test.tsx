@@ -184,6 +184,20 @@ describe('«Entdecken» (concept 25, 5.4, M-31)', () => {
     renderApp('/discover');
     expect(await screen.findByText('Seite nicht gefunden')).toBeVisible();
     expect(screen.queryByText('Entdecken gibt es für dieses Profil nicht')).toBeNull();
+    await waitFor(() => expect(document.title).toBe('Seite nicht gefunden · Slouchcat'));
+  });
+
+  it('shows a title Seerr repeats within a row once', async () => {
+    mockApi({
+      ...withRights(),
+      ...wishList(),
+      'GET /wishes/discover': () =>
+        json({ rows: [row('trending', { entries: [entries[0]!, entries[0]!, entries[3]!] })] }),
+    });
+    renderApp('/discover');
+    const trend = await screen.findByRole('region', { name: 'Im Trend' });
+    expect(within(trend).getAllByRole('link', { name: /Glasvogel/ })).toHaveLength(1);
+    expect(within(trend).getAllByRole('link', { name: /Rotes Ufer/ })).toHaveLength(1);
   });
 
   it('Seerr out of reach with nothing kept: the error with a retry', async () => {
@@ -196,6 +210,8 @@ describe('«Entdecken» (concept 25, 5.4, M-31)', () => {
     });
     renderApp('/discover');
     expect(await screen.findByText('Seerr ist gerade nicht erreichbar.')).toBeVisible();
+    // Another problem than 404 keeps the page's tab title (m6).
+    expect(document.title).toBe('Entdecken · Slouchcat');
     down = false;
     await userEvent.setup().click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     expect(await screen.findByRole('region', { name: 'Im Trend' })).toBeVisible();

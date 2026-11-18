@@ -9,6 +9,15 @@ import { wishCountsQuery } from '../queries';
 import { wishProblemMessage } from '../state';
 
 /**
+ * The notice's title that also names the tab: only a page that is not there renames it; on any
+ * other problem the tab keeps the page's own title.
+ */
+function GoneTitle({ title }: { title: string }) {
+  useDocumentTitle(title);
+  return null;
+}
+
+/**
  * What a page of the area shows when its list could not be read (concept 25, 5.4, M-31):
  * 404 (no right, or the pages are off) is «Entdecken gibt es für dieses Profil nicht» with the way
  * to «Meine Wünsche» for a profile that has wishes, and «not found» for any other; every other
@@ -26,11 +35,6 @@ export function DiscoverProblem({ error, onRetry }: { error: unknown; onRetry: (
   const hasWishes = counts.data
     ? counts.data.open + counts.data.available + counts.data.closed > 0
     : false;
-  useDocumentTitle(
-    gone
-      ? t(hasWishes ? 'wishes.discover.gone.title' : 'wishes.discover.notFound.title')
-      : undefined,
-  );
   if (!gone) {
     return (
       <Notice
@@ -47,28 +51,36 @@ export function DiscoverProblem({ error, onRetry }: { error: unknown; onRetry: (
   if (counts.isPending && counts.fetchStatus !== 'idle') return <Skeleton shape="block" />;
   if (hasWishes) {
     return (
-      <Notice
-        title={t('wishes.discover.gone.title')}
-        actions={
-          <ButtonLink href={paths.wishes} variant="primary" icon="heart">
-            {t('wishes.discover.gone.action')}
-          </ButtonLink>
-        }
-      >
-        {t('wishes.discover.gone.body')}
-      </Notice>
+      <>
+        <GoneTitle title={t('wishes.discover.gone.title')} />
+        <Notice
+          tone="info"
+          title={t('wishes.discover.gone.title')}
+          actions={
+            <ButtonLink href={paths.wishes} variant="primary" icon="heart">
+              {t('wishes.discover.gone.action')}
+            </ButtonLink>
+          }
+        >
+          {t('wishes.discover.gone.body')}
+        </Notice>
+      </>
     );
   }
   return (
-    <Notice
-      title={t('wishes.discover.notFound.title')}
-      actions={
-        <ButtonLink href={paths.home} variant="primary">
-          {t('item.notFound.action')}
-        </ButtonLink>
-      }
-    >
-      {t('wishes.discover.notFound.body')}
-    </Notice>
+    <>
+      <GoneTitle title={t('wishes.discover.notFound.title')} />
+      <Notice
+        tone="info"
+        title={t('wishes.discover.notFound.title')}
+        actions={
+          <ButtonLink href={paths.home} variant="primary">
+            {t('item.notFound.action')}
+          </ButtonLink>
+        }
+      >
+        {t('wishes.discover.notFound.body')}
+      </Notice>
+    </>
   );
 }

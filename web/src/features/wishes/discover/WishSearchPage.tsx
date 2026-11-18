@@ -8,9 +8,9 @@ import { PageRetry } from '@/features/discover/ItemGrid';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import { Button, Notice, SearchField, Skeleton, SpatialGroup, SpatialPage, useNearEnd } from '@/ui';
+import { Button, Notice, SearchField, SpatialGroup, SpatialPage, useNearEnd } from '@/ui';
 import discover from '@/features/discover/Discover.module.css';
-import { DiscoverCard, useWishRequest } from './DiscoverCard';
+import { DiscoverCard, GridSkeleton, useWishRequest } from './DiscoverCard';
 import { DiscoverProblem } from './DiscoverProblem';
 import { entriesOf, entryId, wishSearchQuery } from './queries';
 import { WishesNav } from './WishesNav';
@@ -19,7 +19,10 @@ const route = getRouteApi('/_authed/_active/_chrome/discover/search');
 
 const FIELD_KEY = 'wish-search-field';
 const PREFIX = 'wish-search';
-/** Typing waits this long before the URL (and with it the request) follows. */
+/**
+ * Typing waits this long before the URL (and with it the request) follows: longer than the
+ * library search (200 ms), as the server allows a profile 30 Seerr searches a minute.
+ */
 const DEBOUNCE_MS = 300;
 
 /**
@@ -59,6 +62,8 @@ export function WishSearchPage() {
   }, [text, params.q, navigate]);
 
   const q = (params.q ?? '').trim();
+  // useInfiniteQuery with useNearEnd, not PagedSource with usePagedList: Seerr's pages carry no
+  // total of titles and may hold fewer entries than asked, so the list cannot reserve its places.
   const query = useInfiniteQuery({ ...wishSearchQuery(q), enabled: q.length >= 2 });
   const requests = useWishRequest(query.data);
   const entries = entriesOf(query.data?.pages);
@@ -121,7 +126,7 @@ export function WishSearchPage() {
               }
             />
           )}
-          {asked && query.isPending && <Skeleton shape="block" />}
+          {asked && query.isPending && <GridSkeleton />}
           {failed && <DiscoverProblem error={query.error} onRetry={() => void query.refetch()} />}
           {asked && query.isSuccess && entries.length === 0 && !hasNextPage && (
             <Notice title={t('wishes.search.empty.title', { q })}>
