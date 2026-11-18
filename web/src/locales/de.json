@@ -6039,7 +6039,9 @@
           "count_one": "{{count}} Wunsch",
           "count_other": "{{count}} Wünsche",
           "stalled": "Download verzögert",
-          "untagged": "Tag nicht gesetzt"
+          "untagged": "Tag nicht gesetzt",
+          "countLoaded_one": "{{count}} Wunsch unter den geladenen",
+          "countLoaded_other": "{{count}} Wünsche unter den geladenen"
         },
         "sync": "Jetzt abgleichen",
         "syncQueued": "Der Abgleich mit Seerr läuft.",
@@ -6093,7 +6095,8 @@
           "unreadable": "Fortschritt nicht lesbar",
           "unreadableAt": "Fortschritt nicht lesbar · zuletzt gelesen {{time}}",
           "notInService": "Noch nicht in {{service}}",
-          "incomplete": "Der Folgenstand ist nur teilweise lesbar."
+          "incomplete": "Der Folgenstand ist nur teilweise lesbar.",
+          "etaWholeHours": "noch {{hours}} h"
         },
         "progressBlock": {
           "title": "Fortschritt",
@@ -6114,7 +6117,13 @@
           "setIn": "In {{service}} gesetzt",
           "pendingHelp": "Der Tag folgt, sobald der Titel in {{service}} ist.",
           "failedHelp": "{{service}} hat den Tag nicht angenommen."
-        }
+        },
+        "shown": "{{shown}} von {{total}} Wünschen gezeigt.",
+        "searchedIn": "Gesucht in {{shown}} von {{total}} offenen Wünschen.",
+        "more": "Weitere laden",
+        "toItemLabel": "{{title}}: zum Titel in der Verwaltung",
+        "inSeerr": "In Seerr öffnen",
+        "inSeerrLabel": "{{title}} in Seerr öffnen (neues Fenster)"
       },
       "arrError": {
         "not_in_arr": "Der Titel ist noch nicht in {{service}}.",

@@ -90,7 +90,7 @@ export function seerrUserColumns(
       header: t('admin.wishes.users.columns.password'),
       cell: (mapping) =>
         mapping.passwordState && userOf(mapping) ? (
-          <span className={`${styles.clip} ${styles.narrow}`}>
+          <span className={styles.clip}>
             {t(`admin.wishes.users.password.${mapping.passwordState}`)}
           </span>
         ) : (

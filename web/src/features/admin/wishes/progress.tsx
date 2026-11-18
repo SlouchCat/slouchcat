@@ -14,14 +14,13 @@ type Service = AdminWishProgress['service'];
 export const serviceName = (t: TFunction, service: Service) =>
   t(`admin.integrations.webhooks.kind.${service}`);
 
-/** «noch 12 min», «noch 2 h 5 min». */
-function etaText(t: TFunction, seconds: number): string {
+/** «noch 12 min», «noch 2 h 5 min», «noch 2 h». */
+export function etaText(t: TFunction, seconds: number): string {
   const minutes = Math.max(1, Math.ceil(seconds / 60));
   if (minutes < 60) return t('admin.wishes.requests.progress.etaMinutes', { minutes });
-  return t('admin.wishes.requests.progress.etaHours', {
-    hours: Math.floor(minutes / 60),
-    minutes: minutes % 60,
-  });
+  const hours = Math.floor(minutes / 60);
+  if (minutes % 60 === 0) return t('admin.wishes.requests.progress.etaWholeHours', { hours });
+  return t('admin.wishes.requests.progress.etaHours', { hours, minutes: minutes % 60 });
 }
 
 /** The progress can be shown: read recently and the service answered. */

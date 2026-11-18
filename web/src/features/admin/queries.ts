@@ -900,15 +900,28 @@ export type WishRequesterTag = components['schemas']['WishRequesterTag'];
 /** The filter of «Anfragen» (listAdminWishes `state`). */
 export type AdminWishFilter = 'all' | 'open' | 'available' | 'closed';
 
+/** The contract's most wishes per page (`WishPageLimit`). */
+export const ADMIN_WISH_PAGE = 100;
+
 /**
  * Medien › Wünsche › Anfragen (concept 25 stage 2): the wishes of the household, newest change
- * first; one page of the contract's most (100), `counts` whatever the filter.
+ * first, page by page («Weitere laden»); `counts` whatever the filter.
  */
 export const adminWishesQuery = (state: AdminWishFilter) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: ['admin', 'wishes', 'requests', state],
-    queryFn: ({ signal }): Promise<AdminWishPage> =>
-      request(api.GET('/admin/wishes', { params: { query: { state, limit: 100 } }, signal })),
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }): Promise<AdminWishPage> =>
+      request(
+        api.GET('/admin/wishes', {
+          params: { query: { state, offset: pageParam, limit: ADMIN_WISH_PAGE } },
+          signal,
+        }),
+      ),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
+      return last.items.length > 0 && loaded < last.total ? loaded : undefined;
+    },
   });
 
 /** «Jetzt abgleichen»: queues the sync of the wishes with Seerr (syncWishesNow). */

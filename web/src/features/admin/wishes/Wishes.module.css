@@ -29,19 +29,24 @@
   white-space: nowrap;
 }
 
-/* A name or a password state in a row: one line (S-5); the whole text is in the fold-out. */
+/* A name or a password state in a row: one line (S-5); the whole text is in the fold-out. As
+   narrow as on «Konten», so the table fits beside the sidebar at desktop width. */
 .clip {
   display: block;
   overflow: hidden;
-  max-width: 16rem;
+  max-width: 10rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* The password state is the longest cell: narrower, so the limit column fits beside it at
-   desktop width; the whole text stands in the fold-out. */
-.narrow {
-  max-width: 9rem;
+/* The frame of a table with fold-outs, as on «Konten»: the fold-outs measure themselves against
+   it, and its headers wrap between words so the title column keeps its room. */
+.tableFrame {
+  container-type: inline-size;
+}
+
+.tableFrame th {
+  white-space: normal;
 }
 
 /* The line above the table: what applies to new accounts, the shared user, the reload. */
@@ -56,12 +61,18 @@
   margin-inline-start: auto;
 }
 
-/* The fold-out of an account. */
+/* The fold-out of a row, as on «Konten». It never widens the table (contain) and is never wider
+   than the table's frame: on a phone, where the table scrolls sideways, it stays on the screen and
+   in view while the row scrolls (sticky). */
 .detail {
+  position: sticky;
+  inset-inline-start: var(--sc-space-4);
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-3);
   min-width: 0;
+  max-width: calc(100cqi - var(--sc-space-8) - 2px);
+  contain: inline-size;
 }
 
 .factStack {
@@ -77,6 +88,7 @@
   gap: var(--sc-space-3);
   min-width: 0;
   padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-frame);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
 }
@@ -188,4 +200,11 @@
   flex-direction: column;
   gap: var(--sc-space-2);
   max-width: 28rem;
+}
+
+/* «n von m Wünschen gezeigt» beside «Weitere laden», as below the episodes of a podcast. */
+.summary {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
 }

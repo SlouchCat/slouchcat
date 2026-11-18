@@ -9,6 +9,7 @@ import type {
   WishAccountMapping,
   WishSettings,
 } from './queries';
+import { seerrTitleHref } from './wishes/RequestsTab';
 
 // Medien › Wünsche (concept 25, M-24 and M-25): the tabs «Seerr-Benutzer» and «Einstellungen»;
 // the Seerr user of an account chosen by hand at once (409 at the row), the settings that take
@@ -854,5 +855,240 @@ describe('Wünsche › Anfragen (M-23)', () => {
     expect(within(table).getByRole('row', { name: /Kupfermond/ })).toBeVisible();
     expect(within(table).queryByRole('row', { name: /Altlicht/ })).toBeNull();
     expect(document.body.textContent).not.toContain('{{');
+  });
+
+  it('loads further wishes with the offset and says how many are shown; the client filters say what they saw', async () => {
+    const stalledProgress = {
+      stage: 'stalled' as const,
+      service: 'radarr' as const,
+      stale: false,
+      readAt: '2026-11-17T10:00:00Z',
+    };
+    const wish = (id: number, title: string, stalled: boolean) =>
+      adminWish({
+        id,
+        title: { media: 'movie', tmdbId: 9000 + id, title, posterUrl: '' },
+        state: 'processing',
+        failReason: undefined,
+        ...(stalled ? { progress: stalledProgress } : {}),
+      });
+    const pages: Record<string, AdminWish[]> = {
+      '0': [wish(1, 'Erstlicht', true), wish(2, 'Zweitwind', false)],
+      '2': [wish(3, 'Drittstern', true)],
+    };
+    const fetched: { mock?: ReturnType<typeof mockApi>['fetchMock'] } = {};
+    const offsetOf = () => {
+      const last = fetched.mock?.mock.calls.at(-1)?.[0];
+      return last ? (new URL(last.url).searchParams.get('offset') ?? '0') : '0';
+    };
+    const { fetchMock } = mockApi(
+      routes({
+        'GET /admin/wishes': () =>
+          json({
+            items: pages[offsetOf()] ?? [],
+            total: 3,
+            counts: { open: 3, pending: 0, processing: 3, partial: 0, available: 0, closed: 0 },
+          }),
+      }),
+    );
+    fetched.mock = fetchMock;
+    renderApp('/admin/wishes?item=stalled');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    expect(within(table).getByRole('row', { name: /Erstlicht/ })).toBeVisible();
+    // Only two of three open wishes are loaded: the filter says it searched those.
+    expect(screen.getByText('Gesucht in 2 von 3 offenen Wünschen.')).toBeVisible();
+    const filter = screen.getByRole('toolbar', { name: 'Wünsche nach Zustand filtern' });
+    expect(
+      within(filter).getByRole('button', { name: /Download verzögert/ }).textContent,
+    ).toContain('1');
+    expect(within(filter).getByText('1 Wunsch unter den geladenen')).toBeInTheDocument();
+
+    await user$.click(screen.getByRole('button', { name: 'Weitere laden' }));
+    expect(await within(table).findByRole('row', { name: /Drittstern/ })).toBeVisible();
+    const asked = fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .filter((url) => url.pathname === '/api/v1/admin/wishes')
+      .map((url) => url.searchParams.get('offset'));
+    expect(asked).toContain('2');
+    const line = screen.getByText('Gesucht in 3 von 3 offenen Wünschen.');
+    expect(screen.queryByRole('button', { name: 'Weitere laden' })).toBeNull();
+    // The button went with the last page: the line that counts takes the focus.
+    await waitFor(() => expect(line).toHaveFocus());
+
+    // «Alle»: the server's filter, «n von m gezeigt».
+    await user$.click(within(filter).getByRole('button', { name: /^Alle/ }));
+    expect(await screen.findByText('2 von 3 Wünschen gezeigt.')).toBeVisible();
+  });
+
+  it('two rows act on their own: a refused one reads the list again, the other keeps working', async () => {
+    const first = adminWish({
+      id: 21,
+      title: { media: 'movie', tmdbId: 9021, title: 'Morgenrot', posterUrl: '' },
+      state: 'pending',
+      failReason: undefined,
+    });
+    const second = adminWish({
+      id: 22,
+      title: { media: 'movie', tmdbId: 9022, title: 'Abendblau', posterUrl: '' },
+      state: 'pending',
+      failReason: undefined,
+    });
+    let decided = false;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/wishes': () =>
+          json({
+            items: [first, decided ? { ...second, state: 'processing' } : second],
+            total: 2,
+            counts: { open: 2, pending: 2, processing: 0, partial: 0, available: 0, closed: 0 },
+          }),
+        // The first approval hangs; the second was decided in Seerr meanwhile.
+        'POST /admin/wishes/21/approve': () => new Promise<Response>(() => undefined),
+        'POST /admin/wishes/22/approve': () => {
+          decided = true;
+          return problem(409, 'wish_not_pending');
+        },
+      }),
+    );
+    renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    await user$.click(within(table).getByRole('button', { name: 'Morgenrot freigeben' }));
+    const reads = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/admin/wishes').length;
+    const before = reads();
+    await user$.click(within(table).getByRole('button', { name: 'Abendblau freigeben' }));
+    const refused = await screen.findByText(/Schon entschieden/);
+    expect(within(table).getByRole('button', { name: /Abendblau/, expanded: true })).toBeVisible();
+    // The list is read again: the decided wish loses its buttons.
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(within(table).queryByRole('button', { name: 'Abendblau freigeben' })).toBeNull(),
+    );
+    expect(table).toContainElement(refused);
+    // The first one still works on its own and keeps its buttons locked.
+    expect(within(table).getByRole('button', { name: 'Morgenrot freigeben' })).toHaveAttribute(
+      'data-pending',
+      'true',
+    );
+    expect(within(table).getByRole('button', { name: 'Morgenrot ablehnen' })).toBeDisabled();
+  });
+
+  it('the question of «Ablehnen» stays while the list is read again', async () => {
+    const pending = adminWish({
+      id: 31,
+      title: { media: 'movie', tmdbId: 9031, title: 'Sternbach', posterUrl: '' },
+      state: 'pending',
+      failReason: undefined,
+    });
+    let gone = false;
+    mockApi(
+      routes({
+        'GET /admin/wishes': () =>
+          json({
+            items: [gone ? { ...pending, state: 'processing' } : pending],
+            total: 1,
+            counts: { open: 1, pending: 1, processing: 0, partial: 0, available: 0, closed: 0 },
+          }),
+        'POST /admin/wishes/31/decline': () => problem(409, 'wish_not_pending'),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    await user$.click(within(table).getByRole('button', { name: 'Sternbach ablehnen' }));
+    const question = await screen.findByRole('alertdialog', { name: 'Sternbach ablehnen?' });
+    // Approved in Seerr meanwhile: the row has no buttons any more, the question stays.
+    gone = true;
+    await queryClient.invalidateQueries();
+    await waitFor(() =>
+      expect(within(table).queryByRole('button', { name: 'Sternbach ablehnen' })).toBeNull(),
+    );
+    expect(question).toBeVisible();
+    await user$.click(within(question).getByRole('button', { name: 'Ablehnen' }));
+    expect(await screen.findByText(/Schon entschieden/)).toBeVisible();
+  });
+
+  it('the filter follows a link while the tab is open', async () => {
+    mockApi(
+      routes({
+        'GET /admin/wishes': () =>
+          json({
+            items: [],
+            total: 0,
+            counts: { open: 0, pending: 0, processing: 0, partial: 0, available: 0, closed: 0 },
+          }),
+      }),
+    );
+    const { router } = renderApp('/admin/wishes?item=stalled');
+    const filter = await screen.findByRole('toolbar', { name: 'Wünsche nach Zustand filtern' });
+    await waitFor(() =>
+      expect(within(filter).getByRole('button', { name: /^Download verzögert/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    await router.navigate({ to: '/admin/wishes', search: { item: 'untagged' } as never });
+    await waitFor(() =>
+      expect(within(filter).getByRole('button', { name: /^Tag nicht gesetzt/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    expect(screen.getByText('Jeder Profil-Tag ist gesetzt oder folgt noch.')).toBeVisible();
+  });
+
+  it("«In Seerr öffnen» goes to Seerr's page of the title, only from an http or https address", () => {
+    const film = adminWish().title;
+    const show = { ...film, media: 'show' as const, tmdbId: 1399 };
+    expect(seerrTitleHref('http://192.168.1.50:5055', film)).toBe(
+      'http://192.168.1.50:5055/movie/9002',
+    );
+    expect(seerrTitleHref('https://example.org/seerr/', show)).toBe(
+      'https://example.org/seerr/tv/1399',
+    );
+    expect(seerrTitleHref('javascript:alert(1)', film)).toBeUndefined();
+    expect(seerrTitleHref('kein Link', film)).toBeUndefined();
+    expect(seerrTitleHref(undefined, film)).toBeUndefined();
+  });
+
+  it('a wish folds out «Zum Titel» and «In Seerr öffnen» in a new window', async () => {
+    mockApi(
+      routes({
+        'GET /admin/seerr': () =>
+          json({
+            enabled: true,
+            url: 'http://seerr.example.org:5055',
+            urlSource: 'stored',
+            apiKey: 'set',
+          }),
+        'GET /admin/wishes': () =>
+          json({
+            items: [
+              adminWish({
+                state: 'available',
+                failReason: undefined,
+                title: { ...adminWish().title, itemId: 'abc' },
+              }),
+            ],
+            total: 1,
+            counts: { open: 0, pending: 0, processing: 0, partial: 0, available: 1, closed: 0 },
+          }),
+      }),
+    );
+    renderApp('/admin/wishes');
+    const user$ = userEvent.setup();
+    const table = await screen.findByRole('table', { name: 'Alle Wünsche des Haushalts' });
+    await user$.click(within(table).getByRole('button', { name: /Kupfermond/ }));
+    const seerr = await screen.findByRole('link', {
+      name: 'Kupfermond in Seerr öffnen (neues Fenster)',
+    });
+    expect(seerr).toHaveAttribute('href', 'http://seerr.example.org:5055/movie/9002');
+    expect(seerr).toHaveAttribute('target', '_blank');
+    expect(seerr).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(
+      screen.getByRole('link', { name: 'Kupfermond: zum Titel in der Verwaltung' }),
+    ).toHaveAttribute('href', '/admin/items/abc');
   });
 });

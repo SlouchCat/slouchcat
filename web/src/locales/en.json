@@ -6039,7 +6039,9 @@
           "count_one": "{{count}} wish",
           "count_other": "{{count}} wishes",
           "stalled": "Download delayed",
-          "untagged": "Tag not set"
+          "untagged": "Tag not set",
+          "countLoaded_one": "{{count}} wish among those loaded",
+          "countLoaded_other": "{{count}} wishes among those loaded"
         },
         "sync": "Sync now",
         "syncQueued": "The sync with Seerr is running.",
@@ -6093,7 +6095,8 @@
           "unreadable": "Progress not readable",
           "unreadableAt": "Progress not readable · last read {{time}}",
           "notInService": "Not in {{service}} yet",
-          "incomplete": "The episodes can only partly be read."
+          "incomplete": "The episodes can only partly be read.",
+          "etaWholeHours": "{{hours}} h left"
         },
         "progressBlock": {
           "title": "Progress",
@@ -6114,7 +6117,13 @@
           "setIn": "Set in {{service}}",
           "pendingHelp": "The tag follows once the title is in {{service}}.",
           "failedHelp": "{{service}} did not take the tag."
-        }
+        },
+        "shown": "Showing {{shown}} of {{total}} wishes.",
+        "searchedIn": "Searched {{shown}} of {{total}} open wishes.",
+        "more": "Load more",
+        "toItemLabel": "{{title}}: go to the title in the administration",
+        "inSeerr": "Open in Seerr",
+        "inSeerrLabel": "Open {{title}} in Seerr (new window)"
       },
       "arrError": {
         "not_in_arr": "The title is not in {{service}} yet.",
