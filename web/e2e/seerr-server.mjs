@@ -66,6 +66,8 @@
 //                                    user's limit has used
 //                                    {"servers": false|true} answers /settings/radarr and
 //                                    /settings/sonarr without or with their one server
+//                                    {"arrHost": "127.0.0.1"|"localhost"} the host name of both
+//                                    servers (one the server has not confirmed yet, stage 4)
 //                                    {"request": {"id": n, "status": 1..5}} sets a request's
 //                                    status (approve 2, decline 3, fail 4, complete 5)
 //   GET  /__requests                 every request, for the specs' checks
@@ -202,10 +204,10 @@ function userOf(user, other) {
   };
 }
 
-const dvr = (id, name, port) => ({
+const dvr = (id, name, port, hostname) => ({
   id,
   name,
-  hostname: '127.0.0.1',
+  hostname,
   port,
   apiKey: ARR_API_KEY,
   useSsl: false,
@@ -378,6 +380,7 @@ export function startSeerrServer({
   let failCreate = false;
   /** Radarr and Sonarr are named under /settings (the control takes them away). */
   let servers = true;
+  let arrHost = '127.0.0.1';
   /** What each user's limit has used, by id. */
   let used = {};
   /** The requests made through the mock (concept 25 stage 2). */
@@ -632,11 +635,11 @@ export function startSeerrServer({
       return;
     }
     if (method === 'GET' && path === '/settings/radarr') {
-      sendJson(response, 200, servers ? [dvr(0, 'Radarr', radarrPort)] : []);
+      sendJson(response, 200, servers ? [dvr(0, 'Radarr', radarrPort, arrHost)] : []);
       return;
     }
     if (method === 'GET' && path === '/settings/sonarr') {
-      sendJson(response, 200, servers ? [dvr(0, 'Sonarr', sonarrPort)] : []);
+      sendJson(response, 200, servers ? [dvr(0, 'Sonarr', sonarrPort, arrHost)] : []);
       return;
     }
     if (method === 'POST' && path === '/request') {
@@ -985,6 +988,7 @@ export function startSeerrServer({
           nextId += 1;
         }
         if (typeof body.servers === 'boolean') servers = body.servers;
+        if (body.arrHost === '127.0.0.1' || body.arrHost === 'localhost') arrHost = body.arrHost;
         if (body.used && typeof body.used === 'object') used = { ...used, ...body.used };
         if (body.request && typeof body.request === 'object') {
           const found = requests.find((r) => r.id === Number(body.request.id));
@@ -1009,6 +1013,7 @@ export function startSeerrServer({
         // among them), and a new user with an old id would collide with them.
         failCreate = false;
         servers = true;
+        arrHost = '127.0.0.1';
         used = {};
         // Request ids go on counting, as Seerr's do: the server keeps the ids of earlier wishes.
         requests = [];

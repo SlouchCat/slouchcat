@@ -44,6 +44,44 @@ async function seerrServers(servers: boolean): Promise<void> {
   expect(response.status).toBe(204);
 }
 
+/**
+ * Makes the address of Radarr from Seerr one the server has not confirmed: a «Testen» of an earlier
+ * run (this test, or admin-wishes) stored the host for good, so the mock then names the other
+ * loopback name. Returns the addresses Seerr names now.
+ */
+async function unconfirmedArrHost(
+  api: APIRequestContext,
+): Promise<{ radarr: string; sonarr: string }> {
+  const status = (await (await api.get('/api/v1/admin/seerr/arr')).json()) as {
+    radarr: { confirmed: boolean };
+  };
+  const host = status.radarr.confirmed ? 'localhost' : '127.0.0.1';
+  const control = async (body: object) => {
+    const response = await fetch(`${SEERR_BASE}/__control`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(204);
+  };
+  await control({ arrHost: host });
+  if (host === 'localhost') {
+    // The server holds the address it read from Seerr for 10 minutes; a «Testen» drops it. One
+    // while Seerr names no server confirms nothing and keeps nothing, so the next read names the
+    // new host.
+    await control({ servers: false });
+    for (const service of ['radarr', 'sonarr']) {
+      const response = await api.post('/api/v1/admin/seerr/arr/test', {
+        headers: CSRF,
+        data: { service },
+      });
+      expect(response.ok(), await response.text()).toBe(true);
+    }
+    await control({ servers: true });
+  }
+  const named = (base: string) => base.replace('127.0.0.1', host);
+  return { radarr: named(RADARR_BASE), sonarr: named(SONARR_BASE) };
+}
+
 async function send(api: APIRequestContext, method: 'put' | 'post', path: string, data: object) {
   const response = await api[method](`/api/v1${path}`, { headers: CSRF, data });
   expect(response.ok(), await response.text()).toBe(true);
@@ -314,6 +352,7 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
   await page.setViewportSize({ width: 1280, height: 900 });
   await arrReset();
   await connect(owner);
+  const base = await unconfirmedArrHost(owner);
   try {
     await page.goto('/admin/integrations?item=seerr');
     const seerr = region(page, 'Seerr');
@@ -325,7 +364,7 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
     const radarr = seerr.getByRole('region', { name: 'Radarr', exact: true });
     const sonarr = seerr.getByRole('region', { name: 'Sonarr', exact: true });
     await expect(radarr.getByText('Radarr wartet auf «Testen»')).toBeVisible();
-    await expect(radarr.getByText(`Aus Seerr: ${RADARR_BASE}`)).toBeVisible();
+    await expect(radarr.getByText(`Aus Seerr: ${base.radarr}`)).toBeVisible();
     // Never a key.
     await expect(page.locator('#content')).not.toContainText(ARR_API_KEY);
 
@@ -336,7 +375,7 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
     await page.keyboard.press('Enter');
     await expect(
       radarr.getByText(
-        `Radarr antwortet unter ${RADARR_BASE}, der Schlüssel aus Seerr gilt. Die Adresse ist bestätigt.`,
+        `Radarr antwortet unter ${base.radarr}, der Schlüssel aus Seerr gilt. Die Adresse ist bestätigt.`,
       ),
     ).toBeVisible();
     await expect(radarr.getByText('Radarr erreichbar', { exact: true })).toBeVisible();
@@ -366,7 +405,7 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
     await own.fill('');
     await save.focus();
     await page.keyboard.press('Enter');
-    await expect(sonarr.getByText(`Aus Seerr: ${SONARR_BASE}`)).toBeVisible();
+    await expect(sonarr.getByText(`Aus Seerr: ${base.sonarr}`)).toBeVisible();
 
     // Seerr without a Radarr server: the test says so.
     await seerrServers(false);
@@ -379,6 +418,9 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
         .filter({ hasText: /^Seerr hat keinen Standardserver für Radarr\.$/ }),
     ).toBeVisible();
     await seerrServers(true);
+    // The outcome shows before the test settles (it reads the state anew): a press while the
+    // button is pending does nothing.
+    await expect(testRadarr).not.toHaveAttribute('data-pending');
     await page.keyboard.press('Enter');
     await expect(radarr.getByText(/^Radarr antwortet unter /)).toBeVisible();
     expect(await textOutsideCode(page)).not.toContain('{{');
@@ -432,6 +474,14 @@ test('Radarr and Sonarr: test, own address, not in Seerr; the instant notice by 
     await expectNoFocusTrap(page, 120);
   } finally {
     await seerrServers(true);
+    expect(
+      (
+        await fetch(`${SEERR_BASE}/__control`, {
+          method: 'POST',
+          body: JSON.stringify({ arrHost: '127.0.0.1' }),
+        })
+      ).status,
+    ).toBe(204);
     await deleteSeerrHooks(owner);
     await send(owner, 'put', '/admin/seerr/arr', { radarrUrl: '', sonarrUrl: '' });
     await arrReset();
