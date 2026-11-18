@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Release 1.41.0: Konzept 25 «Wünsche über Seerr» (18. November 2026, Zweig `claude/k25-bau`, noch nicht veröffentlicht: Merge und Tag auf Marcos Wort)
+## Release 1.41.0: Konzept 25 «Wünsche über Seerr» (18. November 2026, veröffentlicht: PR #182 `0f8c4a26`, Tag `v1.41.0`, Lauf 44302531941; Abnahme auf CT 190 offen)
 
 Marco am 17. November 2026: «Starte mit dem Bau mit Konzept 25. Mach alles in einem Zug und voll automatisch.»
 Alle Stufen erscheinen als ein Release (F-22, B-1). Grundlage: `docs/planning/25-medienwuensche/` (Papiere 02 bis
@@ -118,6 +118,19 @@ dreimal ganz:
   diese Specs. Gezielt wiederholt bestehen alle drei 5 von 5 (`--repeat-each 5`). Befund: einzelne Wackler unter
   der Last von drei Teilen nebeneinander, nicht behoben und nicht aus diesem Zweig. Die GitHub-CI wiederholt
   einen roten Test einmal und prüft den Stand vollständig.
+- **GitHub-CI auf dem Pull Request #182:** grün im dritten Anlauf (Lauf 44297688487 auf `8e301ced`, 20
+  Prüfungen). Der erste Anlauf scheiterte am Server-Lint: Beim Ersetzen einer Beispieladresse im Vertrag (die
+  Adresse eines echten Heimnetzes stand als Beispiel für Radarr da) war eine Zeile eines Go-Tests nicht mehr
+  nach `gofmt` ausgerichtet (`task check:fast` prüft das nicht). Der zweite zeigte drei e2e-Fehler, die lokal
+  nicht auftraten: Die Tabellen «Anfragen» und «Seerr-Benutzer» liefen bei 1280 px um 16 und 34 Pixel über, weil
+  die CI-Rechner eine breitere Schrift haben (DejaVu Sans). Das war ein Mangel der Seiten, nicht des Tests:
+  Chips und E-Mail-Adressen dürfen jetzt umbrechen, und die Specs messen jede der vier Stellen zusätzlich mit
+  breiteren Glyphen (`letter-spacing: 0.2em`), damit der Fehler künftig auf jedem Rechner auffällt. Der dritte
+  Fehler war der lange Tastaturtest der Metadaten-Sprachen (`admin-metadata.spec.ts:258`, 355 Tastendrücke), der
+  in Firefox auf dem CI-Rechner die 30 Sekunden überschritt; er hat jetzt 60 Sekunden, mit Begründung im Test.
+  Der Zweig hat ihn nicht verlangsamt (kein zusätzlicher Tab-Halt).
+- **Nach dem Merge:** Die CI auf `main` (Lauf 44302489499) übernahm das Ergebnis des Pull Requests. Marco gab
+  Merge und Tag am 18. November 2026 frei («Mergen + taggen»).
 
 **Für Marco nach dem Update:**
 

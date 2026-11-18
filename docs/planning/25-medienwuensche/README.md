@@ -1,10 +1,11 @@
 # Konzept 25 · Wünsche über Seerr
 
-- **Status: gebaut.** Freigegeben am 17. November 2026 (Frage 33 in
+- **Status: gebaut und als Release 1.41.0 veröffentlicht** (18. November 2026, Pull Request #182, Tag `v1.41.0`);
+  die Abnahme auf CT 190 steht aus. Freigegeben am 17. November 2026 (Frage 33 in
   `docs/planning/04-entscheidungen.md`), Fassung 3 (nach Marcos drei Runden). Marco hat den Bau am 17. November 2026
   bestellt und alle offenen Fragen beantwortet ([Anhang H](anhang/H-nachtrag-17-november.md), Abschnitt 11;
-  Nachtrag zu Frage 33). Gebaut sind alle Stufen auf dem Zweig `claude/k25-bau`; sie erscheinen am Schluss als ein
-  Release mit Vertrag 1.41.0. Merge und Tag warten auf Marcos Wort (B-2). Die Papiere `02` bis `11` und
+  Nachtrag zu Frage 33). Gebaut sind alle Stufen auf dem Zweig `claude/k25-bau`, erschienen als ein
+  Release mit Vertrag 1.41.0; Merge und Tag hat Marco am 18. November 2026 freigegeben (B-2). Die Papiere `02` bis `11` und
   `mockup-abdeckung.md` sind auf den Stand des Baus nachgeführt («so gebaut»); was die Prüfungen des Baus an Regeln
   enger gefasst haben, zeigt Anhang H, Abschnitt 12; was noch offen ist, `09-umsetzungsplan.md` («Stand des
   Baus») und `10-abnahmekriterien.md`, Abschnitt 9.
