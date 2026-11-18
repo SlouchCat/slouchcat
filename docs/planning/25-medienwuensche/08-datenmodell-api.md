@@ -50,7 +50,7 @@ den Abschnitten 4 bis 7). Grundlage: [Anhang F](anhang/F-entscheid-blatt.md) Abs
 | `spotlight_entries` (+ `tvdb_id`, `imdb_id`) | Spalten | 3 | `metadata` |
 | `home_rows` (CHECK + `wishes`, Reihe «Erfüllte Wünsche») | Neubau | 3 | `admin` |
 | `series_catalog` | neu | 4 | `metadata` |
-| `webhook_integrations` (CHECK + `jellyseerr`) | Neubau | 4 | `integrations` |
+| `webhook_integrations` (CHECK + `seerr`, so gebaut; im Entwurf `jellyseerr`) | Neubau | 4 | `integrations` |
 | `wish_profile_tags`, `wish_tags` | neu | 4 | `wishes` |
 | `wish_progress` (Download-Fortschritt, **Vorschlag**) | neu | 4 | `wishes` (Job `wishes.progress`) |
 | `wish_discover_pages` | neu | 5 | `wishes` |
@@ -268,7 +268,7 @@ Seerr; ein Serienwunsch kann auf mehrere Requests verteilt sein (je Staffel in `
 | `imdb_id` | TEXT | NULL |
 | `title` | TEXT | NOT NULL (Titel zum Zeitpunkt des Wunsches, Sprache des Besitzers) |
 | `year` | INTEGER | NULL |
-| `origin` | TEXT | NOT NULL, CHECK IN ('slouchcat', 'jellyseerr'). Der Wert `jellyseerr` für eine direkt in Seerr gestellte Anfrage soll `seerr` heissen (wie die Webhook-Art `seerr`, Migration 00080); im Code steht beim Stand dieses Papiers noch `jellyseerr` (Migration 00069, Vertrag), die Umbenennung ist in Arbeit |
+| `origin` | TEXT | NOT NULL, CHECK IN ('slouchcat', 'seerr') (so gebaut, Migration 00069; im Entwurf `jellyseerr`). `seerr` heisst: direkt in Seerr gestellt, wie die Webhook-Art `seerr` (Migration 00080) |
 | `seerr_request_id` | INTEGER | NULL; nur bei Filmen (CHECK `media = 'movie' OR seerr_request_id IS NULL`); Serien führen die Request-ID je Staffel |
 | `seerr_media_id` | INTEGER | NULL (interne Media-ID von Seerr, nicht TMDB, Anhang D 11.3) |
 | `seerr_user_id` | INTEGER | NULL, → `seerr_users(seerr_id)` ON DELETE SET NULL |
@@ -436,7 +436,7 @@ Schreibt `metadata` (`series.catalog`), liest `visibility`. Serien ohne `tmdb_id
 | `account_channels` | `events` JSON: Vorgaben nach F-14 (`wish_available` an ab Stufe 2; `wish_review` an für Administratoren ab Stufe 4, wenn es einen Erzeuger hat) | Datenmigration je Stufe für **bestehende** Konten, `ChannelEnsureDefaults` für neue; Einzelheiten `06-benachrichtigungen.md`, Abschnitt 6 | 2, 4 |
 | `spotlight_entries` | `tvdb_id INTEGER`, `imdb_id TEXT`; Indizes (`media`, `tvdb_id`) und (`media`, `imdb_id`) | `ADD COLUMN` (Tabelle wird bei jedem Abruf ersetzt, `metadata/trakt.go:278-313`). Zweck: vorhandene Titel auch über TVDB und IMDb erkennen (`ListSpotlightRow` vergleicht heute nur `tmdb_id`, `server/queries/scoped/spotlight.sql:10`) und der Verwaltung die IDs je Eintrag zeigen (N-71, N-73) | 3 |
 | `home_rows` | `key` CHECK + 'wishes'; neue Zeile `wishes` («Erfüllte Wünsche») | Neubau wie 00035/00039; neue Zeile direkt nach «Weiterschauen» (wie im Mockup); **Vorschlag:** ausgeblendet, wenn schon 15 Reihen sichtbar sind (wie `07-administration.md`, Abschnitt 10). Inhaltsregel: nur Wünsche des Profils, die in den letzten 14 Tagen erfüllt wurden (`wishes.available_at`), also nur Bibliothekstitel als `ItemRef` (N-74, N-97; Marco, E-10) | 3 |
-| `webhook_integrations` | `kind` CHECK + 'jellyseerr' | Neubau; `webhook_events` bleibt | 4 |
+| `webhook_integrations` | `kind` CHECK + 'seerr' (so gebaut; im Entwurf 'jellyseerr') | Neubau; `webhook_events` bekommt das Ergebnis `sync_queued` (Migration 00080) | 4 |
 
 **Vorschlag** (Abweichung von der Reihenfolge der Stufen, aber nicht von Anhang F): Der CHECK von `notifications` und
 `deliveries` nimmt schon in Stufe 2 alle Arten auf, auch die erst in Stufe 4 erzeugten. So braucht es nur einen
@@ -532,7 +532,7 @@ Redaktionsentscheid zu K-18).
 
 PK (`wish_id`, `profile_id`). Teilindex `wish_tags_open` (`state`) WHERE `state <> 'set'` für `wishes.tag`.
 Eine Zeile entsteht für Besitzer und Mitwünscher, sobald der Wunsch `processing` ist; Wünsche mit `origin =
-'jellyseerr'` bekommen keine, auch wenn `wishes.import` sie einem Profil zugeordnet hat (N-27).
+'seerr'` bekommen keine, auch wenn `wishes.import` sie einem Profil zugeordnet hat (N-27).
 
 ### 2.15 `wish_discover_pages` (Stufe 5)
 
@@ -630,7 +630,9 @@ Der Plan vor dem Bau:
 
 Eingefrorene Stände (**Vorschlag** für Namen): `testdata/db/wuensche1.sql` nach Stufe 1, `wuensche2.sql`,
 `wuensche3.sql`, `wuensche4.sql`, `wuensche5.sql`, je mit Konten, Profilen, Seerr-Benutzern in allen
-Zuständen (eröffnet, verknüpft, von Hand, wartet), Limits und Wünschen in allen Zuständen.
+Zuständen (eröffnet, verknüpft, von Hand, wartet), Limits und Wünschen in allen Zuständen. **So gebaut:** Weil
+alle Stufen als ein Release erscheinen (F-22, B-1), gibt es einen einzigen Stand am Schluss,
+`testdata/db/wuensche.sql` (AK-232; `09-umsetzungsplan.md`, Schritt 7a.1).
 
 ## 4. API
 
@@ -649,7 +651,7 @@ steht im Vertragstest (Abschnitt 4.7). Bestehende gemeinsame Antworten (`Unauthe
 | Schema | Felder (Auswahl) |
 |---|---|
 | `ExternalTitleRef` | `media`, `tmdbId`, `title`, `year?`, `minAge?`, `images {poster?, backdrop?, logo?}` (so gebaut als `ExternalTitleImages` mit `ImageRef` wie Bibliotheksbilder: Poster `w200`, `w400`, `w800`; Hintergrund `w780`, `w1280`, `w1920`; Logo `w400`; Adressen von Slouchcat), `hasTrailer`, `wish? {id, state, stateDetail?, progress?}`, `canRequest`, `requestReason?`. Kommt nie in Antworten der Startseite oder der Spotlight-Liste vor (N-70) |
-| `ExternalTitle` | alles aus `ExternalTitleRef` + `originalTitle?`, `overview?`, `tagline?`, `releaseDate?`, `runtimeMinutes?`, `genres[]`, `status?`, `seasons[] {number, episodeCount, airDate?, state}`, `nextEpisode?`, `trailers[]`, `request {canRequest, reason?, seerrUser?, autoApprove?, quota? (WishQuota)}` |
+| `ExternalTitle` | alles aus `ExternalTitleRef` + `originalTitle?`, `overview?`, `tagline?`, `releaseDate?`, `runtimeMinutes?`, `genres[]`, `status?`, `seasons[] {number, episodeCount, airDate?, state}`, `nextEpisode?`, `trailers[]`, `request {canRequest, reason?, seerrUser?, autoApprove?, quota? (WishQuota)}`. So gebaut: `trailers[]` als `ExternalTrailer {key, embedUrl, lang?}`; `embedUrl` ist Pflicht, der Server baut die Adresse wie bei Bibliothekstiteln, die Web-App baut keine eigene. `request.shared?` (`WishShared {state, stateDetail?, canJoin}`) nennt den offenen Wunsch eines anderen Profils an einem Film, nie wer gewünscht hat; dazu `lastWish?` |
 | `Wish` | `id`, `media`, `tmdbId`, `title`, `year?`, `state`, `stateDetail?`, `failReason?`, `failText?`, `origin`, `role` (`owner`/`joined`), `seasons[] {number, state}`, `external?` (`ExternalTitleRef`), `item?` (`ItemRef`), `canWithdraw`, `canRequestAgain`, `hint?` (z. B. `already_approved` nach einem zu späten Zurückziehen), `createdAt`, `updatedAt`, `availableAt?`, `events[]` (höchstens 20), ab Stufe 4 `progress?` (`WishProgress`). Nur in scoped Antworten |
 | `WishPage` | `items[]`, `total`, `counts {open, pending, processing, partial, available, closed}` |
 | `WishCreate` | `media`, `tmdbId`, `seasons?` (`"all"` oder Zahlenliste; so gebaut: `seasons[]` als Zahlenliste oder `allSeasons: true` für «Alle fehlenden Staffeln»), `source?` (**Vorschlag**: `search`, `detail`, `list`, `admin_spotlight` für «Anfordern» in Verwaltung › Spotlight, ab Stufe 5 `discover`) |
@@ -659,20 +661,23 @@ steht im Vertragstest (Abschnitt 4.7). Bestehende gemeinsame Antworten (`Unauthe
 | `WishQuota` (neu) | `unlimited`, `reason?` (`admin`, `no_limit`), `movie? {limit, days, used, queued, remaining, nextFreeAt?}`, `tv? {…}` (bei `tv` zählen Staffeln), `at` (Stand). `used` zählt auch Wünsche, die direkt in Seerr gestellt wurden (E-3); `queued` sind Wünsche, die noch auf die Übermittlung warten (N-35) |
 | `WishSeasons` (neu) | `source` (`seerr`, `tmdb_fallback`), `seasons[] {number, episodeCount, state}` (Staffeln aus Seerr, N-63) |
 | `DiscoverEntry` (neu) | `title: ExternalTitleRef`, `item?` (`ItemRef`, wenn der Titel in der Bibliothek steht und sichtbar ist, N-55), `seerrRequested?` (in Seerr angefragt) |
-| `DiscoverRow` (neu) | `key` (`trending`, `popular_movies`, `movie_genres`, `upcoming_movies`, `popular_shows`, `show_genres`, `upcoming_shows`, N-51), `entries[]` bzw. `genres[] {id, name, backdrop?}`, `nextPage?` |
+| `DiscoverRow` (neu) | `key` (`trending`, `popular_movies`, `movie_genres`, `upcoming_movies`, `popular_shows`, `show_genres`, `upcoming_shows`, N-51), `entries[]` bzw. `genres[] {id, name, backdrop?}`, `nextPage?`; so gebaut dazu `stale` und `fetchedAt?` |
 | `DiscoverPage` (neu) | `entries[]` (`DiscoverEntry`), `page`, `totalPages?`, `stale` (Stand älter als 1 h, Seerr nicht erreichbar), `fetchedAt` |
 | `SeerrSettings` | `enabled`, `url`, `apiKey` (`writeOnly`), `apiKeyHint?`, `source` (`env`/`stored`/`none`) |
 | `SeerrStatus` | `state` (`not_configured`, `connected`, `key_invalid`, `unreachable`, `instance_changed`, `disabled`), `version?`, `lastSync?`, `nextSync?`, `initialSync? {page, pages}`, `counts {open, queued, unmapped}`, `log[]` (20) |
 | `SeerrTestResult` | `checks[] {key, level, detail?}` mit `level` IN (`ok`, `warn`, `fail`) und `key` IN (`reachable`, `key_valid`, `version`, `act_as_user`, `instance`, `csrf_off`, `radarr`, `sonarr`, neu `manage_users`, `local_login`, `tvdb_seasons`, `password_transport`, ab Stufe 4 `radarr_tags`, `sonarr_tags`); `version` mit `warn` und `detail = not_verified` bei Versionen unter Jellyseerr 2.7 bzw. Seerr 3.0. Ein `warn` lässt den Test nicht scheitern (`07-administration.md`, Abschnitt 4.1) |
 | `SeerrUser` | `id`, `displayName`, `email?`, `userType`, `isAdmin`, `canRequestMovies`, `canRequestShows`, `autoApprove`, `quota?` (`WishQuota`), `gone`, `mappedTo? {accountId, email}` |
-| `WishMappings` | `accounts[]` je Konto: `accountId`, `email`, `canRequest`, `seerrUserId?`, `state` (`created`, `linked`, `manual`, `waiting`, `none`), `passwordState?`, `passwordSyncedAt?`, `rights?` (`request`, `none`, `external`), `limit` (`AccountWishLimit`), `quota?` (`WishQuota`), `provisionError?`, `profiles[] {profileId, name, tagName, tagNameCustom}` (ohne `seerrUserId` und `mode`, F-27); `sharedUser? {seerrUserId, displayName, quota?}` (Sammelbenutzer, F-4; **Vorschlag**); dazu `unlinkedUsers[]` (`SeerrUser` ohne Konto), `opened`, `total` |
-| `ArrStatus` (neu, Stufe 4) | je `radarr` und `sonarr`: `source` (`seerr`, `own`, `none`), `address?`, `confirmed`, `reachable?`, `tagRequests?`, `lastError?`, `counts {set, pending, failed}`, `progress {enabled, lastReadAt?, error?, tracked}` (`tracked` = Wünsche mit Fortschritt). **Nie** ein Schlüssel |
+| `WishMappings` | `accounts[]` je Konto: `accountId`, `email`, `canRequest`, `seerrUserId?`, `state` (`created`, `linked`, `manual`, `waiting`, `none`), `passwordState?`, `passwordSyncedAt?`, `rights?` (`request`, `none`, `external`), `limit` (`AccountWishLimit`), `quota?` (`WishQuota`), `provisionError?` (so gebaut eine feste Liste: `redirect`, `unreachable`, `key_invalid`, `access_denied`, `csrf`, `quota`, `no_permission`, `forbidden`, `not_found`, `conflict`, `server`, `bad_request`, `timeout`, `failed`, `instance_changed`, `seerr_user_taken`, `seerr_user_privileged`, `email_taken`; ein unbekannter gespeicherter Wert geht als `failed` hinaus), `linkedBy?`, `linkedAt?`, `profiles[] {profileId, name, tagName, tagNameCustom}` (ohne `seerrUserId` und `mode`, F-27); `sharedUser? {seerrUserId, displayName, quota?}` (Sammelbenutzer, F-4; **Vorschlag**); dazu `unlinkedUsers[]` (`SeerrUser` ohne Konto), `opened`, `total` |
+| `ArrStatus` (neu, Stufe 4) | je `radarr` und `sonarr`: `source` (`seerr`, `own`, `none`), `address?`, `confirmed`, `reachable?`, `tagRequests?`, `lastError?`, `lastAt?`, `counts {set, pending, failed}`, `progress {enabled, lastReadAt?, error?, tracked}` (`tracked` = Wünsche mit Fortschritt). **Nie** ein Schlüssel |
 | `AccountWishLimit` (neu) | `mode` (`default`, `custom`, `unlimited`), `movie? {limit, days}`, `tv? {limit, days}`, `effective` (wirksames Limit), `seerrAdmin` (kein Limit in Seerr) |
 | `AdminWishTitle` | `itemId?` (Zeichenkette, keine `ItemRef`), `media`, `tmdbId`, `tvdbId?`, `imdbId?`, `title`, `year?`, `posterUrl?` (fehlender Titel: `getAdminExternalTitleImage`; vorhandener: `getAdminItemImage`) |
 | `AdminWish` | `id`, `title: AdminWishTitle`, `state`, `stateDetail?`, `failReason?`, `origin`, `seasons[] {number, state, seerrRequestId?}`, `requesters[] {accountEmail, profileName, role, tag? {name, state, lastError?}}` (`tag` ab Stufe 4), `seerrUser?`, `seerrRequestId?`, `diagnosis?`, `seerrLink?`, `progress?` (`AdminWishProgress`, ab Stufe 4), `events[]`, `createdAt`, `updatedAt`. **Keine** `ItemRef` und keine scoped Adresse (Regel 7, Muster `adminCurationAnswer`) |
 | `WishProblem` (so gebaut) | Problem der Zuschauer-Operationen der Wünsche mit den Erweiterungen `reason` (bei `wish_not_allowed`), `item` (`ItemRef`, bei `already_available`), `quota` (`WishQuota`) und `needed` (bei `quota_exceeded`) |
 | `AccountWishLimitRequest` (so gebaut) | Anfrage von `setAccountWishLimit`: `mode` (`default`, `custom`, `unlimited`), `movie?`, `tv?` (je `{limit, days}`); die Antwort bleibt `AccountWishLimit` |
-| `WishSettings` | alle `wishes.*` aus 2.12, mit dem Limit ab Werk als `defaultLimit {movie {limit, days}, tv {limit, days}}`; ab Stufe 4 `showProgress`; kein Schalter für das Spotlight (N-72) |
+| `WishSettings` | alle `wishes.*` aus 2.12, mit dem Limit ab Werk als `defaultLimit {movie {limit, days}, tv {limit, days}}`; ab Stufe 4 `showProgress`; kein Schalter für das Spotlight (N-72). So gebaut sind `profileTags`, `tagPrefix`, `showProgress` und `discoverPages` Pflichtfelder; ein ungültiger Präfix (nicht `^[a-z0-9-]{1,10}$`) gibt 422 mit dem Fehler an `tagPrefix` |
+| `SeriesCatalog` (so gebaut, Stufe 4) | `status?`, `inProduction`, `seasons[] {number, episodeCount, airDate?, episodes, state}` mit `state` IN (`present`, `missing`, `announced`, `requested`, `processing`), `nextEpisode?`, `lastEpisode? {season, episode, airDate?}`, `present`, `total`. Staffeln, von denen das Profil keine Folge sehen darf, fehlen in Liste und Zahl (`03-architektur.md`, Abschnitt 6.2) |
+| `SeerrWebhookSetup` (so gebaut, Stufe 4) | `jsonPayload` (Vorlage für Seerrs «JSON Payload», ohne Namen und Adressen von Personen), `types` (Bitmaske der Benachrichtigungsarten), `typeNames[]` |
+| `ProvisionSeerrAccountsResult` (so gebaut) | `link`, `create`, `manual` (Konten, die eine Wahl von Hand brauchen) |
 
 ### 4.3 Beispiel `ExternalTitleRef` (Beispielwerte)
 
@@ -780,26 +785,29 @@ direkt dort angefordert), bleibt es bei 201 mit dem Wunsch im Zustand `failed`, 
 | `getExternalTitleImage` | GET `/titles/{media}/{tmdbId}/images/{kind}/{size}` | scoped | `kind` = `ImageKind`, `size` wie `getItemImage` (w200 … w3840) | 200 Bild; 404 (auch nicht sichtbar oder ohne Recht, ausser bei eigenem Wunsch); 503 | 2 |
 | `getAdminExternalTitleImage` | GET `/admin/titles/{media}/{tmdbId}/images/{kind}/{size}` | admin | wie oben | 200 Bild; 404; 503. Bild fehlender Titel für die Verwaltung (Anfragen, Spotlight), ohne Profilbezug, Muster `getAdminItemImage` | 2 |
 | `listAdminWishes` | GET `/admin/wishes?state=&unmapped=&q=&offset=&limit=` | admin | Filter | 200 `{items: AdminWish[], total, counts}` | 2 |
-| `retryWish` | POST `/admin/wishes/{id}/retry` | admin | – | 202; 404; 409 `wish_not_retryable`. So gebaut nur für fehlgeschlagene Wünsche (nicht für abgelehnte und nicht bei `account_deleted`); Zuschauer stellen einen neuen Wunsch | 2 |
+| `retryWish` | POST `/admin/wishes/{id}/retry` | admin | – | 202; 404; 409 `wish_not_retryable`; so gebaut bei `arr_failed` auch 422 `seerr_not_configured` und 503 `seerr_unreachable`. So gebaut nur für fehlgeschlagene Wünsche (nicht für abgelehnte und nicht bei `account_deleted`); Zuschauer stellen einen neuen Wunsch | 2 |
 | `confirmSeerrInstance` | POST `/admin/seerr/instance` | admin | `{action: confirm\|reset}` | 200 `SeerrStatus`; 409 `instance_unchanged`. Bestätigt den neuen Fingerabdruck (Erstabgleich folgt) oder löscht alle Zuordnungen (**Vorschlag**, `03-architektur.md`, Abschnitt 7.4) | 1 |
 | `importSeerrRequests` | POST `/admin/wishes/mappings/import` | admin | `{seerrUserId?}` (leer: alle zugeordneten) | 202; 422 `seerr_not_configured`. Reiht `wishes.import` ein (F-21) | 4 |
 | `countSeerrRequests` | GET `/admin/wishes/mappings/users/{seerrUserId}/requests/count` | admin | – | 200 `{count}` aus `GET /request?requestedBy=…&take=1` (`pageInfo.results`), für die Meldung nach einer Zuordnung (**Vorschlag**) | 4 |
-| `approveWish` | POST `/admin/wishes/{id}/approve` | admin | – | 200 `AdminWish`; 409 `wish_not_pending`; 502 `seerr_failed`; 503 `seerr_unreachable` | 4 |
+| `approveWish` | POST `/admin/wishes/{id}/approve` | admin | – | 200 `AdminWish`; 404; 409 `wish_not_pending` oder `seerr_instance_changed`; 422 `seerr_not_configured`; 502 `seerr_failed`; 503 `seerr_unreachable`. So gebaut auch für ausstehende Staffeln einer Serie, deren Wunsch `processing` oder `partial` ist | 4 |
 | `declineWish` | POST `/admin/wishes/{id}/decline` | admin | – | wie `approveWish` | 4 |
-| `provisionSeerrAccount` (neu) | POST `/admin/wishes/accounts/{accountId}/provision` | admin | – | 202 (`seerr.provision` eingereiht) mit `state` `waiting`; 200 `WishMappings`-Eintrag, wenn sofort fertig; 404; 409 `provision_disabled` («Neue Konten in Seerr eröffnen» aus); 422 `seerr_not_configured`. Verknüpft bei gleicher E-Mail (N-2), `linked_by = 'admin'` | 1 |
-| `provisionSeerrAccounts` (neu) | POST `/admin/wishes/accounts/provision` | admin | – | 202 mit `{link, create}` (Zahl der Konten, die verknüpft bzw. neu angelegt werden); 409 `provision_disabled`; 422 `seerr_not_configured`. «Alle eröffnen»; `linked_by = 'admin'` | 1 |
+| `provisionSeerrAccount` (neu) | POST `/admin/wishes/accounts/{accountId}/provision` | admin | so gebaut Query `allowPrivileged` (Wahrheitswert, ab Werk falsch) | 202 (`seerr.provision` eingereiht) mit `state` `waiting`; 200 `WishMappings`-Eintrag, wenn sofort fertig; 404; 409 `provision_disabled` («Neue Konten in Seerr eröffnen» aus); 422 `seerr_not_configured`. Verknüpft bei gleicher E-Mail (N-2), `linked_by = 'admin'`. So gebaut: Ist der Benutzer gleicher E-Mail privilegiert, antwortet es ohne `allowPrivileged` 202 mit `state: waiting` und `provisionError: seerr_user_privileged`; mit `allowPrivileged=true` verknüpft es (200, `passwordState: admin`). Ein belegter Benutzer antwortet 202 mit `seerr_user_taken` | 1 |
+| `provisionSeerrAccounts` (neu) | POST `/admin/wishes/accounts/provision` | admin | – | 202 mit `{link, create}` (Zahl der Konten, die verknüpft bzw. neu angelegt werden), so gebaut dazu `manual` (Konten, die eine Wahl von Hand brauchen); 409 `provision_disabled`; 422 `seerr_not_configured`. «Alle eröffnen»; `linked_by = 'admin'`. So gebaut verknüpft es nie einen privilegierten Benutzer und lässt Konten aus, die mit `seerr_user_taken` oder `seerr_user_privileged` warten | 1 |
 | `setSeerrPasswordMode` (neu) | PUT `/admin/wishes/accounts/{accountId}/password` | admin | `{mode: next_login\|off}` | 200; 404; 409 `password_not_syncable` (Administrator oder Anmeldung über Jellyfin, Emby, Plex). «Passwort bei der nächsten Anmeldung neu übernehmen» bzw. «nicht abgleichen» (N-7). Schaltet auch den Stand «Wird nicht abgeglichen» eines vom Administrator verknüpften Kontos ein (N-103) | 1 |
 | `setAccountWishLimit` (neu) | PUT `/admin/accounts/{accountId}/wish-limit` | admin | `AccountWishLimitRequest` (so gebaut, eigenes Schema) | 200 `AccountWishLimit`; 404; 422 `validation_failed` (Anzahl 0–100, Tage 1–90). Schreibt `wish_account_limits` und reiht `seerr.provision` ein | 1 |
 | `getWishQuota` (neu) | GET `/wishes/quota` | scoped | – | 200 `WishQuota` für den Benutzer, als den das Profil anfordert; aus dem Zwischenspeicher, kein Aufruf an Seerr; so gebaut 404 ohne Recht | 2 |
 | `setProfileTagName` (neu) | PUT `/admin/wishes/profiles/{profileId}/tag` | admin | `{name: string\|null}` (leer = aus Präfix und Profilname) | 200; 404; 409 `tag_name_taken`; 422 `validation_failed` (nur `a–z`, `0–9`, `-`) | 4 |
 | `getArrStatus` (neu) | GET `/admin/seerr/arr` | admin | – | 200 `ArrStatus` | 4 |
 | `updateArrSettings` (neu) | PUT `/admin/seerr/arr` | admin | `{radarrUrl?, sonarrUrl?}` (eigene Adressen, leer = aus Seerr) | 200 `ArrStatus`; 422 `validation_failed` (Schema, Benutzerangaben) | 4 |
-| `testArrConnection` (neu) | POST `/admin/seerr/arr/test` | admin | `{service: radarr\|sonarr}` | 200 `{reachable, keyValid, tagRequests?, host}`; bestätigt den Host (`arr.*_host`, **Vorschlag**) | 4 |
+| `testArrConnection` (neu) | POST `/admin/seerr/arr/test` | admin | `{service: radarr\|sonarr}` | 200 `{reachable, keyValid, tagRequests?, host?, source, error?}` (so gebaut; hat Seerr keinen Standardserver für den Dienst, 200 mit `error: not_in_seerr`); 409 `seerr_instance_changed`; 422; 503 `seerr_unreachable`; bestätigt den Host (`arr.*_host`, **Vorschlag**) | 4 |
 | `getWishSeasons` (neu) | GET `/titles/show/{tmdbId}/seasons` | scoped | – | so gebaut 404 ohne Recht für Serien; 200 `WishSeasons` (aus Seerr `GET /tv/{tmdbId}`, 1 h zwischengespeichert, sonst `tmdb_fallback`; N-63). Antwortet für eine fehlende Serie und ebenso für eine Serie der Bibliothek mit fehlenden Staffeln, wenn `getItem` für das Profil `canRequestSeasons` meldet (Redaktionsentscheid zu K-4); bei der Serie der Bibliothek nur mit den Staffeln, die dem Profil fehlen. 404-Fälle eigens (nicht wie `getExternalTitle`, das bei einem Bibliothekstitel 409 `already_available` antwortet): kein Recht für Serien und kein eigener Wunsch zur Serie; Freigabe der fehlenden Serie über der Grenze des Profils; Serie der Bibliothek, die das Profil nicht sehen darf (404-Regel); Serie der Bibliothek ohne fehlende Staffeln oder mit «Anfordern auf Detailseiten» aus (`canRequestSeasons` falsch); fehlende Serie mit allen drei Stellen aus; TMDB-ID unbekannt. 503 `tmdb_unreachable`, wenn weder Seerr noch Zwischenspeicher noch TMDB antworten | 2 |
 | `getWishDiscover` (neu) | GET `/wishes/discover` | scoped | – | 200 `{rows: DiscoverRow[]}` mit der ersten Seite jeder Reihe; 404, wenn das Profil nicht anfordern kann oder die Seiten aus sind (F-9, N-56) | 5 |
 | `listWishDiscoverRow` (neu) | GET `/wishes/discover/{row}?page=&genre=` | scoped | `row` = Schlüssel aus `DiscoverRow` | 200 `DiscoverPage`; 404 wie oben | 5 |
-| `listWishTitles` (neu) | GET `/wishes/titles/{media}?sort=&genre=&hideAvailable=&page=` | scoped | `media` `movie`/`show`; `sort` `popularity`, `newest`, `title` (N-52); nach Anhang I N-117 entfällt `title`, dazu kommt «Am besten bewertet»; die Werte im Vertrag sind in Arbeit | 200 `DiscoverPage`; 404 wie oben | 5 |
-| `searchWishTitles` (neu) | GET `/wishes/search?q=&page=` | scoped | `q` 2–100 Zeichen, auch `tmdb:`, `tvdb:`, `imdb:` (N-53, Anhang H 3.3); `year:` **Vorschlag** nicht angeboten | 200 `DiscoverPage` ohne Personen; 404 wie oben; 429 | 5 |
+| `listWishTitles` (neu) | GET `/wishes/titles/{media}?sort=&genre=&hideAvailable=&page=` | scoped | `media` `movie`/`show`; `sort` `popularity`, `newest`, `title` (N-52); nach Anhang I N-117 entfällt `title`; so gebaut `sort` IN (`popularity`, `newest`, `rating`), ab Werk `popularity` | 200 `DiscoverPage`; 404 wie oben; 422 bei falscher Sortierung, Seite oder Genre; 429; 503 `seerr_unreachable` ohne Zwischenspeicher | 5 |
+| `searchWishTitles` (neu) | GET `/wishes/search?q=&page=` | scoped | `q` 2–100 Zeichen, auch `tmdb:`, `tvdb:`, `imdb:` (N-53, Anhang H 3.3); `year:` **Vorschlag** nicht angeboten | 200 `DiscoverPage` ohne Personen; 404 wie oben; 422; 429; 503 | 5 |
+| `listWishGenres` (so gebaut) | GET `/wishes/genres/{media}` | scoped | – | 200 `{items[] {id, name}}`; 404 wie oben; 429; 503 | 5 |
+| `getWishGenreBackdrop` (so gebaut) | GET `/wishes/genres/{media}/{genreId}/backdrop` | scoped | – | 200 JPEG (`http.Handler`, Regel 6), 304; 404; 429; 503 | 5 |
+| `getSeerrWebhookSetup` (so gebaut) | GET `/admin/seerr/webhook` | admin | – | 200 `SeerrWebhookSetup` (Vorlage und Arten für die Sofortmeldung, `07-administration.md` 4.3) | 4 |
 
 Pfade für Stufe 1 folgen Anhang F («`/admin/seerr…`», «`/admin/wishes/mappings…`»); die genaue Form ist ein
 **Vorschlag**, ebenso alle Operationen mit «(neu)» aus Fassung 3. Verknüpfen von Hand und Lösen bleiben
@@ -814,11 +822,13 @@ die Schalter gehen über `setWishSettings`. `getExternalTitleImage` ist ein `htt
 Seerr-Benutzers, der dem handelnden Administratorkonto zugeordnet ist, wenn er `MANAGE_REQUESTS` oder
 `ADMIN` hat; sonst ohne Header (Benutzer 1). **So gebaut:** immer ohne Header, also als Benutzer 1.
 
-**Stand des Vertrags (17. November 2026).** Die Operationen der Stufen 1 bis 3 stehen im Vertrag 1.41.0. Der
-Vertrag der Stufen 4 und 5 ist in Arbeit: Staffelkatalog in `getItem`, `approveWish` und `declineWish`, Profil-Tag,
-Fortschritt, die Operationen des Bereichs «Wünsche» und die neuen Bremsen (429 gegen Massenabrufe fehlender
-Titel, Obergrenze des Bildspeichers). Wo die Tabellen oben Formen dieser Operationen nennen, ist das der Plan;
-massgeblich wird `api/openapi.yaml`.
+**Stand des Vertrags (18. November 2026).** Alle Operationen der Stufen 1 bis 5 stehen im Vertrag 1.41.0:
+Staffelkatalog in `getItem`, `approveWish` und `declineWish`, Profil-Tag, Fortschritt, die Operationen des Bereichs
+«Wünsche» und die Bremsen gegen Massenabrufe fehlender Titel (429 `too_many_attempts` mit `Retry-After: 60`, auch
+aus dem Topf des Kontos; Zahlen in `03-architektur.md`, Abschnitt 15.4). Wo die Tabellen oben eine Form als
+«so gebaut» nennen, folgt sie dem Vertrag; sonst ist es die Form des Plans. Massgeblich ist `api/openapi.yaml`.
+Nicht gebaut sind die Filter `progress=stalled` und «Tag nicht gesetzt» im Server: Die Verwaltung filtert die
+geladenen Zeilen (`07-administration.md`, Abschnitt 5).
 
 ### 4.6 Erweiterte Operationen
 
@@ -833,7 +843,7 @@ massgeblich wird `api/openapi.yaml`.
 | `updateAccount` | Seiteneffekt: neues Passwort und neue E-Mail gehen an einen bestehenden Seerr-Benutzer des Kontos (`state = ready`). Hat das Konto noch keinen (`waiting` oder keine Zeile) und gibt es die neue Adresse in Seerr, verknüpft Slouchcat sofort (`linked_by = email_change`), Passwort wie bei der Einladung (N-95). Hat es schon einen und lehnt Seerr die neue Adresse ab, weil sie vergeben ist, bleibt der Benutzer, wie er ist; die Verwaltung sieht einen Hinweis am Konto (N-95). Antwort neu mit optionalem `seerr? {passwordState}`, damit die Seite «Das neue Passwort gilt auch in Seerr» bzw. «folgt bei der nächsten Anmeldung» sagen kann (**Vorschlag**); ohne Benutzer fehlt das Feld; nach einer sofortigen Verknüpfung trägt es denselben Stand wie nach einem neu eröffneten Benutzer, damit die Antwort nicht verrät, ob Seerr die Adresse kannte (N-94) | 1 | nein (optionales Feld) |
 | `deleteAccount` | Seiteneffekt nur bei einem Benutzer, den Slouchcat eröffnet hat (`origin = created`): Rechte weg (`permissions = 0`), Zufallspasswort. Verknüpfte (`linked`) und von Hand gewählte (`manual`) Benutzer bleiben unverändert. Der Seerr-Benutzer bleibt in jedem Fall (N-10, Redaktionsentscheid zu K-2) | 1 | nein |
 | `listAccounts`, `updateAccountAccess` | zusätzlich `wishLimit` (`AccountWishLimit`), `seerrUser? {id, displayName, state, passwordState, origin, linkedBy?, linkedAt?}` (nur Verwaltung; `linkedBy`, `linkedAt` für N-93, **Vorschlag**) | 1 | nein (optionale Felder) |
-| `getDashboard` | Kennzahl «Offene Wünsche», Hinweise, Integrationsstatus `seerr`; Hinweis «Neu verknüpft» je Konto mit `linked_by` `invite` oder `email_change` und `linked_at` in den letzten sieben Tagen (`{accountId, accountName, seerrUserId, seerrDisplayName, linkedBy, linkedAt}`, N-93, **Vorschlag**) | 1/2 | Enum des Integrationsschlüssels: ja, nur Verwaltung |
+| `getDashboard` | Kennzahl «Offene Wünsche», Hinweise, Integrationsstatus `seerr`; Hinweis «Neu verknüpft» je Konto mit `linked_by` `invite` oder `email_change` und `linked_at` in den letzten sieben Tagen (`{accountId, accountName, seerrUserId, seerrDisplayName, linkedBy, linkedAt}`, N-93, **Vorschlag**); so gebaut ab Stufe 4 in `DashboardWishes` zwei Pflichtlisten `tagsFailed[]` und `downloadsStalled[]` aus `WishServiceHint {wishId, title, service, error?}`, je höchstens 20 | 1/2, 4 | Enum des Integrationsschlüssels: ja, nur Verwaltung |
 | `listNotifications` | `Notification.kind` + `wish_available` (2), weitere in 4; `item` wird optional, neu `wish` | 2, 4 | **ja** (`item` ist heute Pflicht, `api/openapi.yaml:16683`) |
 | Kanal-Ereignisse (`EventType`) | + `wish_available` (2), `wish_status`, `wish_review` (4, wie `06-benachrichtigungen.md`, Abschnitt 2) | 2, 4 | **ja** (Enum in Antworten) |
 | `getHome`, `listHomeRow` | Reihe `wishes` («Erfüllte Wünsche») liefert nur `ItemRef` (Wünsche des Profils, in den letzten 14 Tagen erfüllt; Marco, E-10; N-97). Kein Feld für fehlende Titel: Bühne, Posterreihe und Spotlight-Liste bleiben reine `ItemRef`-Listen (N-70) | 3 | nein (nur ein neuer Reihenschlüssel, siehe nächste Zeile) |
@@ -841,10 +851,10 @@ massgeblich wird `api/openapi.yaml`.
 | `getSpotlightConfig`, `setSpotlightConfig` | unverändert; keine Felder für fehlende Titel (N-72) | – | – |
 | `getSpotlightEntries`, `setSpotlightEntryOverride` | `SpotlightEntry.itemId` (heute «matched by TMDB id», `api/openapi.yaml:17154`) findet den Bibliothekstitel neu auch über TVDB und IMDb; je Eintrag neu `tvdbId?`, `imdbId?`, `unmatched?` (nur TVDB-ID, bei TMDB nicht gefunden, N-62); fehlende Einträge mit `posterUrl` über `getAdminExternalTitleImage` (heute nur mit Bibliothekstreffer, Z. 17171) und `wish?` ohne `ItemRef`; Zähler für das Band «Fehlende Einträge». Aktion «Anfordern» über `createWish` des aktiven Profils (= Hauptprofil, `source: admin_spotlight`) | 3 | nein (optionale Felder) |
 | `listWishes`, `listAccountWishes`, `getExternalTitle` | `Wish.progress?` bzw. `wish.progress?` (`WishProgress`) aus `wish_progress` | 4 | nein (optionales Feld eines neuen Schemas) |
-| `listAdminWishes` | `AdminWish.progress?` (`AdminWishProgress`); Filter **Vorschlag** `progress=stalled` («Download verzögert») | 4 | nein (optionales Feld, neuer Filterwert) |
+| `listAdminWishes` | `AdminWish.progress?` (`AdminWishProgress`); Filter **Vorschlag** `progress=stalled` («Download verzögert»), so gebaut nicht im Server (die Verwaltung filtert die geladenen Zeilen) | 4 | nein (optionales Feld) |
 | `getWishSettings`, `setWishSettings` | `showProgress` | 4 | nein (optionales Feld) |
 | `search` | unverändert; fehlende Titel über `searchExternalTitles` | – | – |
-| `getItem` | `ItemDetail.catalog? {seasons[] {number, episodeCount, state}, status, nextEpisode?}`, `canRequestSeasons` | 4 | nein |
+| `getItem` | `ItemDetail.catalog? {seasons[] {number, episodeCount, state}, status, nextEpisode?}`, `canRequestSeasons`; so gebaut `catalog` als `SeriesCatalog` (4.2), beide nur mit Recht für Serien (F-9) und gespeicherten Staffeln | 4 | nein |
 | `createWish` | neue Antwort 409 `quota_exceeded` (4.4); `WishCreate.source` + `discover` | 2 (mit der Operation) bzw. 5 | nein (Teil der neuen Operation; ein neuer Wert in einem Anfrage-Enum bricht keinen Client) |
 | `getSeerrStatus`, `testSeerrConnection` | neue Prüfpunkte `manage_users`, `local_login`, `tvdb_seasons`, `password_transport` (1), `radarr_tags`, `sonarr_tags` (4; prüfen Tag-Liste und Warteschlange) | 1, 4 | Stufe 1 nein (neue Operation); Stufe 4 Enum `key` in einer Antwort: ja, nur Verwaltung |
 | `getWishMappings`, `listAdminWishes` | Felder aus 4.2 (Zustand, Passwort, Limit, Tags) | 1, 4 | Stufe 4 `requesters[].tag` optional: nein |
@@ -893,7 +903,7 @@ Jede neue Operation bekommt einen Eintrag in `TestContractCoversEveryOperation`
 | Startseite nur Bibliothek (neu) | `getHome`, `listHomeRow` (Spotlight, Reihe `wishes`), auch für Profile, die anfordern können: nur `ItemRef`, nie ein `ExternalTitleRef` (N-70) |
 | Fortschritt ohne Meldung (neu, Stufe 4) | `listWishes`, `listAccountWishes`, `getExternalTitle`: `progress` ohne `message`, `service`, `error` und ohne Pfade; `listAdminWishes` mit `message` (N-83) |
 | scoped-Fälle | `listWishes`, `createWish`, `withdrawWish`, `getExternalTitle`, `searchExternalTitles`, `getExternalTitleImage`, `listAccountWishes`, neu `getWishQuota`, `getWishSeasons`, `getWishDiscover`, `listWishDiscoverRow`, `listWishTitles`, `searchWishTitles` (dazu: Bibliothekstreffer als `ItemRef` nur, wenn sichtbar; Profil ohne Recht 404 auf alle vier Wunsch-Seiten): ohne Profil 403 `profile_required`, fremder Wunsch 404, zu hohe Freigabe 404, Profil ohne Recht 404 (ausser bei eigenem Wunsch); `listAccountWishes` mit weiterem Profil 403 `primary_profile_required` |
-| `TestContractPublicOperations` (Z. 747) | `receiveWebhook` mit Art `jellyseerr` (Stufe 4) |
+| `TestContractPublicOperations` (Z. 747) | `receiveWebhook` mit Art `seerr` (Stufe 4; im Entwurf `jellyseerr`) |
 | Altersfälle (Muster `TestContractRatingChange`, Z. 798) | fehlender Titel mit `min_age` 16 für Profil 12: 404 bei `getExternalTitle`, Bild, `createWish`; unbekannte Freigabe für Profil 12: 404 |
 
 ## 5. Seerr-Endpunkte (streng nach Anhang D und Anhang H)

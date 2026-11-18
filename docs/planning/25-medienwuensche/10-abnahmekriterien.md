@@ -24,8 +24,9 @@ AK-228 bis AK-232; ältere Kriterien, die nur für die Ausnahme je Profil galten
 markiert, umgeschriebene tragen «geändert (F-4)», «geändert (F-24)» oder «geändert (F-27)». «Mock-Arr» heisst Mock-Radarr/Sonarr `arrtest`.
 Kriterien aus den Prüfungen des Baus vom 17. November 2026 (Sicherheitsprüfung, Redaktion; `03-architektur.md`
 Abschnitt 15.4) tragen die Nummern AK-233 bis AK-239; umgeschriebene tragen «geändert (Sicherheitsprüfung)».
-Die Bremsen gegen Massenabrufe fehlender Titel und die Obergrenze des Bildspeichers sind in Arbeit; ihre Kriterien
-folgen mit dem Vertrag der Stufen 4 und 5.
+Kriterien zu den Bremsen gegen Massenabrufe fehlender Titel, zur Obergrenze des Bildspeichers und zu den
+Korrekturrunden des Baus vom 18. November 2026 (Redaktion) tragen die Nummern AK-240 bis AK-244. Was davon an der
+echten Instanz geprüft ist und was nicht, steht in Abschnitt 9.
 
 ## 1. Stufe 0: Papiere
 
@@ -376,6 +377,12 @@ Die Nummer 5a hält die Nummern der folgenden Abschnitte stabil, auf die andere 
 | AK-238 | wartender Wunsch (`queued`) eines Kontos; danach gehört sein Seerr-Benutzer einem anderen Konto bzw. bekommt `ADMIN` | Ausgangsfach sendet | kein `POST /request`; Wunsch `failed` mit `seerr_user_gone`, Einzelheit `mapping_changed` | Test (Mock) |
 | AK-239 | Wunsch zweier Profile; der Titel kommt mit Freigabe 16, das Mitwünscher-Profil hat Altersstufe 12 | «Meine Wünsche», Vorschauseite und Liste des Hauptprofils für das Profil mit 12 | «In Beschaffung · wird eingelesen», ohne Zeitpunkt und ohne Verweis auf den Titel der Bibliothek; der Titel bleibt für dieses Profil 404 (`03-architektur.md`, Abschnitt 8.3) | Test |
 
+| AK-240 | Profil mit Wunschrecht | mehr als 60 Aufrufe von `getExternalTitle` und `getWishSeasons` in einer Minute (30 auf einmal); ebenso Bilder (600, 300), Seiten des Bereichs (120, 60) und die Suchen (30) | 429 `too_many_attempts` mit `Retry-After: 60`; ein zweites Profil desselben Kontos kann weiter; der Topf des Kontos (das Vierfache) bremst erst, wenn mehrere Profile zusammen darüber gehen; ein Aufruf, den der Topf des Profils abweist, nimmt dem Konto nichts (Redaktion, `03-architektur.md` Abschnitt 15.4) | Test (`TestContractWishLimits`, `TestWishLimitPerAccount`, `TestWishLimitProfileFirst`, `TestContractExternalSearchPerAccount`) |
+| AK-241 | Bildspeicher fehlender Titel über 2 GiB | ein weiteres Bild wird geholt | die am längsten nicht gebrauchten Titel verlieren ihre Bilder, bis der Speicher wieder passt; der eben geholte Titel bleibt; Hintergründe der Genre-Kacheln höchstens 200 Dateien | Test (`TestExternalImageCacheBound`) |
+| AK-242 | privilegierter Seerr-Benutzer mit der E-Mail eines Kontos | «In Seerr eröffnen» ohne und mit Bestätigung; «Alle eröffnen» | ohne Bestätigung 202 `waiting`, `seerr_user_privileged`; mit `?allowPrivileged=true` verknüpft, `linkedBy: admin`, `passwordState: admin`; «Alle eröffnen» verknüpft ihn nie und nennt die Zahl der Konten, die eine Wahl von Hand brauchen (`manual`) | Test (`TestAutomaticLinkNeverTakesPrivilegedUser`, `TestProvisionAllNeverTakesPrivilegedUser`) |
+| AK-243 | Serie der Bibliothek; von einer Staffel darf das Profil keine Folge abspielen (strengere Freigabe je Staffel oder Folge) | Serienseite, Dialog, `createWish` mit dieser Staffel, «Alle fehlenden Staffeln» | die Staffel fehlt in Wand und Zahl und im Dialog; `createWish` antwortet 422 mit `season_not_offered`; «Alle fehlenden Staffeln» lässt sie aus | Test (`TestHiddenLibrarySeasonNotOffered`) |
+| AK-244 | Wunsch, den ein Profil als «wird eingelesen» liest (AK-239) | Zurückziehen | kein Knopf; der Aufruf antwortet 409 `wish_not_withdrawable`, gleich ob der Wunsch verfügbar oder teilweise verfügbar ist | Test (`TestHiddenWishIsNotWithdrawn`) |
+
 ## 7. Performance
 
 | Nr. | Messgrösse | Bedingung | Zielwert | Prüfung |
@@ -395,6 +402,15 @@ Die Nummer 5a hält die Nummern der folgenden Abschnitte stabil, auf die andere 
 | AK-190 | `getWishDiscover` | kalt, Profil 12 (Vorfilter und Nachprüfung) | Serverzeit p95 ≤ 5 s (Zeitlimit, **Vorschlag**); höchstens 20 TMDB-Detailabrufe je Seite | Messung; Test (Mock zählt) |
 | AK-210 | Lauf von `wishes.progress` | 20 Wünsche in Beschaffung, Warteschlange mit 50 Einträgen | Laufzeit p95 ≤ 2 s, höchstens 2 Aufrufe `GET /api/v3/queue` und keine Titelsuche, sobald die IDs bekannt sind (**Vorschlag**) | Messung `docs/perf/` |
 | AK-212 | Schritt 6a wird gebaut, weil die Messung 6a.1 einen Gewinn zeigt (E-11) | Zeit von der Webhook-Meldung bis «Verfügbar», Film und Folge, vor und nach Schritt 6a | Messung vorher liegt in `docs/perf/`, bevor 6a.2 beginnt (AK-226); nachher kürzer als vorher, sonst bleibt der Empfang wie heute (N-98) | Messung |
+
+**Ergebnis der Messung (18. November 2026, `docs/perf/wuensche.md`).** Alle gemessenen Zielwerte halten, ausser
+AK-98: `createWish` in schneller Folge braucht 594 ms p95 gegen 500 ms. Die Zeit ist die Wartezeit im eigenen
+Limit des Seerr-Clients (5 Aufrufe je Sekunde, AK-103); mit 2 s Abstand zwischen zwei Wünschen sind es 43 ms p95.
+Ob das genügt, entscheidet die Abnahme. Eine kalte Seite «Entdecken» braucht mit vollem Eimer 0,62 s (AK-190:
+höchstens 5 s). Nicht in der Form gemessen, die das Kriterium nennt: AK-190 (gemessen mit Stufe 18 statt 12),
+AK-137 (der Nachbau liefert 1 bis 3 Treffer statt 20), AK-100 (gemessen mit 200 statt 500 Wünschen). Nicht in
+der Notiz: AK-210 (Lauf von `wishes.progress`). AK-104 und AK-212 hängen an der Messung 6a.1, die einen echten
+Import auf CT 190 braucht und offen ist.
 
 ## 8. Abnahme der Mockups
 
@@ -435,8 +451,35 @@ lokal in `img/`; ohne sie zeigt das Mockup Platzhalter mit Titel.
 Seit Marcos Antworten vom 17. November 2026 baut der Bau an drei Stellen anders, als das Mockup zeigt: keine
 Ausnahme je Profil in M-24 (F-27), Sammelbenutzer «slouchcat-gaeste» ab Werk ohne Auswahl in M-25 (F-4), Passwort
 «Wird nicht abgeglichen» bei vom Administrator verknüpften Konten in M-24 und M-26 (F-24). Das Mockup bleibt
-unverändert; die Liste steht in `mockup-abdeckung.md`, Abschnitt «Abweichungen des Mockups».
+unverändert; die Liste steht in `mockup-abdeckung.md`, Abschnitt «Abweichungen des Mockups». Was der Bau ohne
+Antwort von Marco anders macht als das Mockup, steht dort in Abschnitt 11.1 (Redaktion bzw. so gebaut).
 
 Für alle Seiten gilt: Gestaltung nach Marcos Regeln vom 16. November 2026 (Klappbares zugeklappt, genug
 Kontrast, ein Formular), Texte in Schweizer Schreibweise, keine Funktion der heutigen Seiten fehlt (ADR 0035:21-22),
 Handy- und Desktopansicht bedienbar.
+
+## 9. Stand der Prüfung (18. November 2026)
+
+Redaktion. Was an Marcos echten Instanzen geprüft ist (Seerr 3.5.1 an Emby, Radarr 6.4.4, Sonarr 4.0.20), was nur
+gegen die Nachbauten der Tests (Mock-Seerr `seerrtest`, Mock-Arr `arrtest`, für die Browsertests
+`web/e2e/seerr-server.mjs`, `web/e2e/tmdb-server.mjs`, `web/e2e/arr-server.mjs`) und was gar nicht.
+
+| Stand | Was |
+|---|---|
+| an der echten Instanz geprüft | Verbindung und Anmeldung, Benutzer anlegen und pflegen (mit Testbenutzern), Limit, Titel, Suche, Entdecken, Lesen der Anfragen, Tags und Warteschlange von Radarr: [Anhang I](anhang/I-pruefung-echte-instanzen.md), Abschnitte 1 bis 6, 4a und 4b |
+| Mindeststand | Übernahme bestehender Anfragen und «nächster Platz frei» setzen `sortDirection` an `GET /request` voraus: geprüft mit Seerr 3.5.1 (I-70), ältere Stände (Jellyseerr 2.x) nicht |
+| nur gegen die Nachbauten | Antworten von `POST /request` (201, 202, 409, die 403-Texte); 409 bei einer früheren Anfrage im Zustand FAILED; `POST /request/{id}/retry`; Freigeben und Ablehnen; der Body des Seerr-Webhooks; die Abweisung der Passwort-Route für Benutzer 1 und andere Administratoren (I-20); die Felder der Sonarr-Warteschlange (I-57); `PUT …/editor` mit `applyTags: "add"`; der Fortschritt gegen Radarr und Sonarr |
+| nicht geprüft | der Weg vom Job `series.catalog` zur Serienseite im Browser; die Reihe «Erfüllte Wünsche» mit einem echt erfüllten Wunsch; Firefox für die neuen Seiten (die schnellen Browsertests laufen in Chromium, `task ci` prüft Firefox); Schritt 6a und seine Messung 6a.1 (nicht gebaut, braucht einen echten Import auf CT 190, E-11) |
+| Messungen | `docs/perf/wuensche.md`, Ergebnis in Abschnitt 7; offen ist 6a.1 |
+| Einstellung in Seerr | Seerr zählt die Staffeln auf Marcos Instanz heute nach TMDB (`tv = tmdb`, `anime = tmdb`, I-8); auf TVDB-Staffeln stellt Marco Seerr selbst um (F-29) |
+
+**Bekannte Grenzen (so gebaut, keine Fehler):**
+
+- Sieht ein Profil von einer Staffel der Bibliothek nur einen Teil der Folgen, bleibt die Staffel anforderbar; die
+  Antwort kann verraten, dass es mehr Folgen gibt (`03-architektur.md`, Abschnitt 14).
+- Wartet ein Kinderprofil noch auf einen Titel, den es noch nicht sehen darf, kann ein anderes Profil nach dem
+  Aufräumen des Eingangs (90 Tage) dieselbe Staffelmeldung noch einmal bekommen.
+- Stürzt der Server zwischen dem Speichern eines Zustands und der Meldung ab, geht eine Zustandsmeldung
+  (freigegeben, abgelehnt, fehlgeschlagen) verloren; «Verfügbar» wird nachgeholt.
+- Das Schliessen eines Wunsches nach 7 Tagen für ein Profil, das den Titel nicht sehen darf, ist nicht gebaut; das
+  Profil liest den Wunsch weiter als «In Beschaffung · wird eingelesen» (`03-architektur.md`, Abschnitt 8.3).

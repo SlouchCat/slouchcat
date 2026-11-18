@@ -313,7 +313,7 @@ mit `userId` (Anhang D 8). Slouchcat hängt nie um.
 
 Seerr enthält oft schon Anfragen, die Personen dort selbst gestellt haben. Mit F-21 übernimmt der eigene
 Job `wishes.import` die Anfragen von Benutzern, die zu einem Konto gehören, als Wünsche mit `origin` =
-`jellyseerr`. Der regelmässige Abgleich kann das nicht: Er bricht beim ersten `updatedAt` vor dem Zeiger ab und
+`seerr`. Der regelmässige Abgleich kann das nicht: Er bricht beim ersten `updatedAt` vor dem Zeiger ab und
 sieht alte Anfragen eines neu verknüpften Benutzers nie (`03-architektur.md`, Abschnitt 7.3).
 
 1. Gehört der Benutzer einem Konto, wird der Wunsch dem **Hauptprofil** dieses Kontos zugeordnet.
@@ -341,7 +341,7 @@ sieht alte Anfragen eines neu verknüpften Benutzers nie (`03-architektur.md`, A
 
 Anfragen von Seerr-Benutzern, die zu keinem Konto gehören (Beispiel «wohnzimmer-tv»), gehören keinem
 Profil. **Vorschlag** (wie `03-architektur.md`, Abschnitt 7.3): Slouchcat führt sie als Wunsch mit `origin` =
-`jellyseerr` und `seerr_user_id` = «wohnzimmer-tv», aber ohne Zeile in `wish_requesters`. Die Verwaltung zeigt
+`seerr` und `seerr_user_id` = «wohnzimmer-tv», aber ohne Zeile in `wish_requesters`. Die Verwaltung zeigt
 sie unter «Anfragen» mit dem Filter «Nicht zuordenbar» und auf der Seite «Seerr-Benutzer» im Band
 «Seerr-Benutzer ohne Konto» als Zähler beim Benutzer. Zuschauer sehen sie nie, und sie lösen keine
 Benachrichtigung aus. Fordert ein Profil denselben Titel an, wird es Mitwünscher dieses Wunsches; Seerr
@@ -508,7 +508,10 @@ einem neuen Wunschrecht). `sync` sucht nie über die E-Mail und legt nie an; die
    der Rechte `ADMIN`, `MANAGE_USERS`, `MANAGE_SETTINGS` oder `MANAGE_REQUESTS`, verknüpft Slouchcat ihn nicht.
    Das Konto wartet mit dem Grund `seerr_user_privileged` (Abschnitt 12.3). Ein Administrator kann den Benutzer
    über «In Seerr eröffnen» oder von Hand wählen, dann ohne Passwort- und E-Mail-Abgleich. Das engt E-8 für diese
-   Benutzer ein (`03-architektur.md`, Abschnitt 15.4; Anhang H, Abschnitt 12).
+   Benutzer ein (`03-architektur.md`, Abschnitt 15.4; Anhang H, Abschnitt 12). So gebaut verknüpft auch «In Seerr
+   eröffnen» einen privilegierten Benutzer erst nach einer Rückfrage (`?allowPrivileged=true`, dann
+   `linked_by = admin`, Passwortstand «Bleibt in Seerr (Administrator)»); «Alle eröffnen» verknüpft ihn nie und
+   nennt die Zahl der Konten, die eine Wahl von Hand brauchen.
 2. Sonst `POST /user {email, username, password}`. Meldet Seerr 409 (E-Mail schon vergeben), behandelt
    Slouchcat das wie einen Treffer.
 3. Rechte: Ein neuer Benutzer behält Seerrs Standardrechte (`defaultPermissions`); nur ohne Wunschrecht des
@@ -530,7 +533,7 @@ Empfehlung).
 | «Verknüpft über gleiche E-Mail» | den Benutzer gab es schon; Slouchcat hat ihn verknüpft, auf Knopf des Administrators oder sofort beim Annehmen einer Einladung (E-4, E-8) |
 | «Von Hand zugeordnet» | der Administrator hat mit «Anderen Benutzer wählen» einen Benutzer gewählt |
 | «Wird eröffnet, sobald Seerr erreichbar ist» | der Job wartet auf Seerr |
-| «Wartet» mit Grund (so gebaut) | der Benutzer der E-Mail gehört schon einem anderen Konto oder ist der Sammelbenutzer (`seerr_user_taken`), oder er ist privilegiert und das Konto hat selbst ausgelöst (`seerr_user_privileged`, Abschnitt 12.2); ein Administrator wählt von Hand |
+| «Wartet» mit Grund (so gebaut) | der Benutzer der E-Mail gehört schon einem anderen Konto oder ist der Sammelbenutzer (`seerr_user_taken`), oder er ist privilegiert (`seerr_user_privileged`, Abschnitt 12.2: nach Einladung oder E-Mail-Änderung, und nach «In Seerr eröffnen» ohne Bestätigung); ein Administrator wählt von Hand oder verknüpft nach der Rückfrage |
 | «Nicht eröffnet» | kein Benutzer; auf «Konten» trägt das Konto den Chip «Kein Seerr-Benutzer» |
 
 Solange ein Konto keinen Benutzer hat (auch «wird eröffnet»), sendet es über den Sammelbenutzer (ab Werk, Marco
@@ -746,7 +749,7 @@ Sonarr and registers nothing there», Anhang C 1). Die Umsetzung ist Empfehlung 
 - Ein Mitwünscher bekommt seinen Tag nachträglich.
 - Wünsche, die direkt in Seerr gestellt wurden, bekommen keinen Profil-Tag (N-27). Das gilt auch, wenn
   `wishes.import` sie später einem Profil zuordnet (Abschnitt 8.2; Redaktionsentscheid, `mockup-abdeckung.md`
-  Abschnitt 10.2, Nr. 10). Massgeblich ist die Herkunft `origin` = `jellyseerr`, nicht das Profil.
+  Abschnitt 10.2, Nr. 10). Massgeblich ist die Herkunft `origin` = `seerr`, nicht das Profil.
 
 ### 16.4 Zugang zu Radarr und Sonarr
 

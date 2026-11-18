@@ -121,6 +121,11 @@ Hinweis zu den Prüfskripten: Sie lesen Adresse und Schlüssel aus `deploy/.env`
 Namen `SEERR_URL` und `SEERR_API_KEY` (Anhang H 11.1, B-3). Der Server selbst liest die Umgebungsvariablen
 `SLOUCHCAT_SEERR_URL` und `SLOUCHCAT_SEERR_API_KEY` (`07-administration.md`, Abschnitt Seerr-Verbindung).
 
+Nachtrag vom 18. November 2026 (Redaktion, so gebaut): Die Übernahme bestehender Anfragen (`wishes.import`) liest
+mit `sortDirection=asc`, älteste zuerst, in Seiten mit 5 Einträgen Überlappung (`03-architektur.md`, Abschnitt 7.3).
+Übernahme und «nächster Platz frei» setzen damit `sortDirection` voraus; belegt ist das nur für Seerr 3.5.1 (I-70),
+nicht für ältere Stände wie Jellyseerr 2.x.
+
 ## 5. Radarr und Sonarr: Tags und Warteschlange
 
 | Nr. | Befund | Folge für den Bau |

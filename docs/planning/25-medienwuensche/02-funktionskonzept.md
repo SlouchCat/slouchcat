@@ -177,6 +177,10 @@ Alle Unterscheidungen bei Serien: Abschnitt 6.
 
 Steht «Bereits angeforderte Titel» auf «Nur Zustand zeigen», fehlt der Knopf; der Zustand bleibt sichtbar.
 
+So gebaut: «Benachrichtige mich» wünscht mit einem Druck mit, ohne Dialog und ohne Limit; der Hinweis nennt nie,
+wer gewünscht hat. Bei Serien bietet der Dialog eine Staffel, die schon der eigene offene Wunsch des Profils hält,
+nicht zum Mitwünschen an; sie zeigt nur ihren Zustand.
+
 ### 4.4 Seerr nicht erreichbar
 
 1. Das Profil fordert an wie in 4.1.
@@ -270,7 +274,8 @@ Einzelheiten zu Arten, Ereignissen und Doppelschutz: `06-benachrichtigungen.md`.
    Limit (Anhang H 3.2).
 5. War der Request inzwischen schon freigegeben oder gehört er jemand anderem, bleibt er in Seerr stehen.
    Der Wunsch wird wieder geöffnet («In Beschaffung»), und das Profil liest «War schon freigegeben».
-6. Ab `processing` geht Zurückziehen nicht mehr; der Knopf fehlt.
+6. Ab `processing` geht Zurückziehen nicht mehr; der Knopf fehlt. So gebaut fehlt er auch bei einem Wunsch, den
+   das Profil als «wird eingelesen» liest, weil es den Titel der Bibliothek nicht sehen darf (Abschnitt 4.7).
 7. **Vorschlag für Mitwünsche:** Ein Mitwünscher zieht nur sich selbst zurück, ohne Aufruf an Seerr.
    Zieht der erste Anforderer zurück, während Mitwünscher da sind, bleibt der Wunsch bestehen; der älteste
    Mitwünscher wird Anforderer. Erst wenn niemand mehr dranhängt, zieht Slouchcat in Seerr zurück.
@@ -413,6 +418,8 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
   an Bibliothekstiteln.
 - **Vorschlag:** Steht der Titel inzwischen in der Bibliothek und darf das Profil ihn sehen, leitet die
   Vorschauseite auf die Detailseite `/items/{id}` weiter.
+- So gebaut: Kann die Seite die Wunschkarte nicht lesen, zeigt sie den Fehler mit «Erneut versuchen». Eine
+  ungültige Nummer in der Adresse zeigt «Titel nicht gefunden».
 
 ### 5.2 Suche
 
@@ -438,7 +445,9 @@ nicht anfordern kann, aber Wünsche hat, sieht dort nur «Meine Wünsche».
 - Je Wunsch: Poster, Titel, bei Serien die Staffeln, Zustand mit Datum, aufklappbarer Verlauf (angefordert,
   übermittelt, freigegeben, verfügbar). Solange der Wunsch «In Beschaffung» ist, dazu der Download-Fortschritt
   (unten).
-- Aktionen je Zustand: «Zurückziehen», «Erneut anfordern», «Abspielen» bzw. «Zum Titel».
+- Aktionen je Zustand: «Zurückziehen», «Erneut anfordern», «Abspielen» bzw. «Zum Titel». So gebaut hat ein
+  verfügbarer Wunsch nur den Knopf «Zum Titel» (das Mockup zeigte «Abspielen» und «Zum Titel»). Die Zählzeile
+  folgt dem gewählten Filter.
 - Wünsche aus Seerr, die Slouchcat übernimmt (F-21, Stufe 4), tragen «In Seerr angelegt».
 - Das Hauptprofil sieht über `listAccountWishes` (`scoped`, nur mit Hauptprofil) auch die Wünsche aller
   Profile des Kontos. Das ist gewollt: Das Hauptprofil verwaltet das Konto, setzt und entfernt PINs und sieht
@@ -458,6 +467,7 @@ denselben Zugang wie für den Profil-Tag (E-6, N-81). Die Einzelheiten sind Empf
 | «Download verzögert» | die Warteschlange meldet eine Warnung oder einen Fehler |
 
 - Bei Serien steht dazu «x von y Folgen da».
+- So gebaut steht bei Zuschauern weder «Stand aus Radarr» noch ein Zeitpunkt; Zuschauer sehen den Dienst nie.
 - Der Fortschritt steht nur beim Wunsch: unter «Meine Wünsche», auf der Wunschkarte der Vorschauseite (M-03,
   M-04) und in der Verwaltung unter Anfragen. Nicht an Titeln der Bibliothek, nicht in Reihen, nicht in der
   Suche (N-82). Die Spec führt den Beschaffungsstand als Nicht-Ziel; das ist eine eng gefasste Ausnahme nur beim
@@ -513,6 +523,12 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 - **Keine Reihe aus dem Spotlight:** Fehlende Einträge der Trakt-Liste erscheinen auch unter «Entdecken» nicht
   (Marco, E-5).
 - **Seerr nicht erreichbar:** Listen vom letzten Abruf, Suche nicht möglich (Ablauf 4.4).
+- **So gebaut (Abweichungen vom Mockup, `mockup-abdeckung.md` Abschnitt 11.1):** Die Reiter des Bereichs stehen über
+  dem Seitenkopf, das Suchfeld von «Entdecken» hat einen Knopf «Suchen» (beides wie M-08 und M-31). «Suche» zeigt
+  die Treffer als ein Raster statt in Listen «Filme (n)» und «Serien (n)», ohne Trefferzahlen. Bibliothekskacheln
+  tragen kein «Gesehen» und kein «Merken». Die Reihen von «Entdecken» zeigen die erste Seite; die Raster laden beim
+  Scrollen nach. Nach einem Wunsch, Mitwunsch oder Rückzug ändert die Web-App die betroffene Kachel und liest die
+  Listen nicht sofort neu; «Filme», «Serien» und «Suche» laden bei Fensterfokus nicht nach.
 
 ### 5.5 Dialog «Anfordern» (M-13)
 
@@ -525,6 +541,10 @@ Discover, Movies, Series und Search» (Nachricht). Der Aufbau ist Empfehlung (N-
 
 Dazu wie bisher: Poster, Titel, «Wird als {{Seerr-Benutzer}} an Seerr übermittelt», «Wird sofort
 beschafft» oder «Braucht eine Freigabe», bei Serien die Staffelwahl aus Seerr (Abschnitt 6).
+
+So gebaut lässt sich der Dialog während der Anfrage schliessen; das Ergebnis kommt trotzdem an. Ein
+überschrittenes Limit zeigt immer eine Meldung. «Alle fehlenden Staffeln» sendet die Staffeln einzeln, sobald der
+Dialog eine Staffel ausgelassen hat (etwa eine, die der eigene Wunsch schon hält).
 
 ### 5.6 Einladung annehmen (M-35)
 
@@ -550,13 +570,17 @@ Empfehlung). Ob Seerr die eingetippte Adresse kannte, zeigt die Seite nie.
 | Staffel in Beschaffung | Wunschstaffel im Zustand `processing` | gedämpfte Karte «In Beschaffung» |
 | Staffel teilweise eingelesen | einige Folgen der Staffel da | Staffel wie heute schaubar; sie gilt für den Wunsch erst als verfügbar, wenn sie vollständig ist (Abschnitt 4.7); **Vorschlag:** die Karte zeigt «5 von 10 Folgen» |
 | Künftige Folgen | TMDB-Status «läuft», nächste Folge mit Datum | Zeile «Läuft noch, nächste Folge am …»; nichts anzufordern |
-| Künftige Staffel | angekündigt, aber ohne Folgen | nicht wählbar; **Vorschlag:** Karte «Angekündigt» ohne Knopf |
+| Künftige Staffel | angekündigt, aber ohne Folgen | nicht wählbar; **Vorschlag:** Karte «Angekündigt» ohne Knopf (so gebaut: nicht anforderbar) |
+| Staffel, die das Profil nicht sehen darf (so gebaut) | keine Folge der Staffel für das Profil abspielbar (strengere Freigabe je Staffel oder Folge) | steht nicht in der Staffelwand und zählt nicht mit; der Dialog bietet sie nicht an; «Alle fehlenden Staffeln» lässt sie aus. Sieht das Profil nur einen Teil der Folgen, bleibt die Staffel anforderbar (bekannte Grenze, `03-architektur.md` Abschnitt 14) |
 | Staffel 0 (Specials) | Staffelnummer 0 | nie wählbar |
 
 Einzelne Folgen lassen sich nicht anfordern (Seerr arbeitet staffelweise, F-12). Slouchcat schickt die
 TVDB-ID immer mit; ohne sie löscht Seerr den Wunsch beim Senden an Sonarr. Serien, die ganz fehlen,
 kennt die Vorschauseite aus `external_titles`; Serien in der Bibliothek ihre Staffelliste aus `series_catalog`.
-Die Staffelwand für fehlende Staffeln kommt mit Stufe 4.
+Die Staffelwand für fehlende Staffeln kommt mit Stufe 4. **So gebaut:** «Staffeln anfordern» steht unter der
+Staffelwand, nicht bei den runden Aktionen. Eine fehlende Staffel ist eine Karte mit gestricheltem Umriss ohne
+Bild (der Vertrag liefert keines). Eine Staffelkarte ohne Aktion (angekündigt, in Beschaffung) ist als nicht
+verfügbar markiert, mit den Pfeiltasten erreichbar, und Enter tut nichts.
 
 **Staffeln im Dialog kommen aus Seerr** (Empfehlung N-63): Der Dialog fragt `GET /tv/{tmdbId}` und bietet
 genau die Staffeln an, die Seerr bestellen kann. Seerr liest die Staffelliste ab Werk aus TMDB; auf
