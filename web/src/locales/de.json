@@ -4179,7 +4179,7 @@
           "key_valid": "Seerr nimmt den Schlüssel an.",
           "manage_users": "Der Schlüssel darf Konten in Seerr eröffnen und Rechte, Limit und Passwort setzen.",
           "instance": "Gleiche Instanz wie beim Einrichten.",
-          "act_as_user": "Wünsche gelten mit Rechten, Limit und Auto-Freigabe des zugeordneten Benutzers.",
+          "act_as_user": "Wünsche gelten mit Rechten, Limit und Auto-Freigabe des verknüpften Benutzers.",
           "csrf_off": "Schreibende Aufrufe kommen an.",
           "radarr_one": "Film-Wünsche gehen an Radarr ({{count}} Server).",
           "radarr_other": "Film-Wünsche gehen an Radarr ({{count}} Server).",
@@ -5831,7 +5831,7 @@
         "state": {
           "created": "Von Slouchcat eröffnet",
           "linked": "Verknüpft über gleiche E-Mail",
-          "manual": "Von Hand zugeordnet",
+          "manual": "Von Hand verknüpft",
           "waiting": "Wird eröffnet, sobald Seerr erreichbar ist",
           "none": "Nicht eröffnet"
         },
@@ -7190,24 +7190,24 @@
       "no_permission": "Der Seerr-Benutzer darf diese Art von Titel nicht anfordern.",
       "arr_failed": "Seerr konnte den Titel nicht an Radarr oder Sonarr übergeben. Ein Administrator kann den Wunsch wiederholen.",
       "unreachable_24h": "Seerr war 24 Stunden lang nicht erreichbar.",
-      "seerr_request_gone": "Der Wunsch wurde in Seerr gelöscht.",
+      "seerr_request_gone": "Die Anfrage wurde in Seerr gelöscht.",
       "seerr_media_deleted": "Der Titel wurde in Seerr entfernt.",
-      "seerr_user_gone": "Den zugeordneten Seerr-Benutzer gibt es nicht mehr.",
-      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-Kennung, die Seerr braucht.",
+      "seerr_user_gone": "Den verknüpften Seerr-Benutzer gibt es nicht mehr.",
+      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-ID, die Seerr braucht.",
       "account_deleted": "Das Konto, das den Wunsch gestellt hat, gibt es nicht mehr."
     },
     "reason": {
       "disabled": "Wünsche sind ausgeschaltet.",
       "account_not_allowed": "Dieses Konto darf keine Titel anfordern.",
       "profile_not_allowed": "Dieses Profil darf keine Titel anfordern. Das Hauptprofil kann es unter «Profile» erlauben.",
-      "no_mapping": "Diesem Konto ist noch kein Seerr-Benutzer zugeordnet. Das richtet der Administrator ein.",
-      "seerr_user_gone": "Den zugeordneten Seerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.",
+      "no_mapping": "Mit diesem Konto ist noch kein Seerr-Benutzer verknüpft. Das richtet der Administrator ein.",
+      "seerr_user_gone": "Den verknüpften Seerr-Benutzer gibt es nicht mehr. Das behebt der Administrator.",
       "movies_not_allowed": "Filme können zurzeit nicht angefordert werden.",
       "shows_not_allowed": "Serien können zurzeit nicht angefordert werden.",
       "status_only": "Ein anderes Profil hat den Titel schon angefordert. Sobald er da ist, findest du ihn in der Bibliothek.",
       "already_requested": "Du hast den Titel schon angefordert.",
       "source_not_allowed": "Von hier aus lassen sich zurzeit keine Titel anfordern.",
-      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-Kennung, die Seerr braucht.",
+      "tvdb_id_missing": "Für diese Serie fehlt die TVDB-ID, die Seerr braucht.",
       "withdraw_disabled": "Wünsche lassen sich zurzeit nicht zurückziehen."
     },
     "tmdbUnreachable": "TMDB ist gerade nicht erreichbar. Versuche es später erneut.",
@@ -7390,14 +7390,14 @@
       "seriesEmpty": "Keine Serien für diese Auswahl."
     },
     "search": {
-      "intro": "Suche in allem, was TMDB kennt, auch in dem, was noch fehlt. Auch nach Kennung wie tmdb:603, tvdb:121361 oder imdb:tt0133093.",
+      "intro": "Suche in allem, was TMDB kennt, auch in dem, was noch fehlt. Auch nach ID wie tmdb:603, tvdb:121361 oder imdb:tt0133093.",
       "placeholder": "Film oder Serie",
       "start": "Gib einen Titel ein. Gesucht wird in allem, was TMDB kennt, auch nach Originaltitel.",
       "tooShort": "Gib mindestens zwei Zeichen ein.",
       "hits": "Treffer",
       "empty": {
         "title": "Nichts gefunden für «{{q}}»",
-        "body": "Gesucht wird nach Film- und Serientiteln, nicht nach Personen. Versuche einen anderen Begriff oder eine Kennung."
+        "body": "Gesucht wird nach Film- und Serientiteln, nicht nach Personen. Versuche einen anderen Begriff oder eine ID."
       }
     },
     "progress": {

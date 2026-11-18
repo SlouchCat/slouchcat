@@ -185,7 +185,7 @@ test('tabs, a row that folds out and a Seerr user chosen and unlinked by keyboar
     .getByRole('table', { name: 'Konten und ihre Seerr-Benutzer' })
     .getByRole('row')
     .filter({ has: page.getByRole('button', { name: OWNER.email, exact: true }) });
-  await expect(row.getByText('Von Hand zugeordnet')).toBeVisible();
+  await expect(row.getByText('Von Hand verknüpft')).toBeVisible();
   await expect(row.getByText('Anmeldung über Jellyfin, Emby oder Plex')).toBeVisible();
   await expect(select).toHaveValue(String(wohnzimmer.id));
   // No text shows a placeholder its call did not fill.

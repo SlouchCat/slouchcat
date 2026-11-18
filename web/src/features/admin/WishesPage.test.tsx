@@ -125,7 +125,7 @@ describe('Wünsche › Seerr-Benutzer', () => {
     const row = screen
       .getAllByRole('row')
       .find((entry) => within(entry).queryByText('besitzer@example.org'))!;
-    expect(await within(row).findByText('Von Hand zugeordnet')).toBeVisible();
+    expect(await within(row).findByText('Von Hand verknüpft')).toBeVisible();
     // The limit: films and seasons on a line each, the mode apart; no placeholder left unfilled.
     expect(screen.getByText('10 Filme / 7 Tage')).toBeVisible();
     expect(screen.getByText('5 Staffeln / 7 Tage')).toBeVisible();
