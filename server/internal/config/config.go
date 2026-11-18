@@ -124,6 +124,12 @@ type Config struct {
 	// honoured in development mode only (SpotlightRefreshGap); without --dev it is not even read
 	// as a duration, main only warns that it is ignored. Empty = the administration's default.
 	TestSpotlightRefreshGap string
+	// TestWishCreatePerHour raises the limit of new wishes per profile and hour (createWish, 20)
+	// for the e2e suite: its specs run in two browsers on one server, and the count is stored, so
+	// the owner's primary profile would reach it. The raw value of
+	// SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR, validated and honoured in development mode only
+	// (WishCreatePerHour) like TestSpotlightRefreshGap. Empty = the default.
+	TestWishCreatePerHour string
 }
 
 // DefaultUpdateManifestURL is the release manifest the update check reads (M8, A-5).
@@ -166,6 +172,17 @@ func (c Config) SpotlightRefreshGap() time.Duration {
 	}
 	d, _ := time.ParseDuration(c.TestSpotlightRefreshGap) // validated by Load in development mode
 	return d
+}
+
+// WishCreatePerHour returns the limit of new wishes per profile and hour that the e2e suite asks
+// for (TestWishCreatePerHour) in development mode, else 0, which means the default of package
+// wishes. A production server never runs with another limit, whatever its environment says.
+func (c Config) WishCreatePerHour() int {
+	if !c.Dev || c.TestWishCreatePerHour == "" {
+		return 0
+	}
+	n, _ := strconv.Atoi(c.TestWishCreatePerHour) // validated by Load in development mode
+	return n
 }
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
@@ -266,13 +283,20 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 
 	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev,
 		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers, HeroStart: *heroStart,
-		TestSpotlightRefreshGap: strings.TrimSpace(env("TEST_SPOTLIGHT_REFRESH_GAP", ""))}
+		TestSpotlightRefreshGap: strings.TrimSpace(env("TEST_SPOTLIGHT_REFRESH_GAP", "")),
+		TestWishCreatePerHour:   strings.TrimSpace(env("TEST_WISH_CREATE_PER_HOUR", ""))}
 	// A test setting: checked only where it counts. A production server with a stray value in its
 	// environment starts and ignores it (main warns), instead of refusing to start over it.
 	if cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		if d, err := time.ParseDuration(cfg.TestSpotlightRefreshGap); err != nil || d <= 0 {
 			return Config{}, fmt.Errorf("%sTEST_SPOTLIGHT_REFRESH_GAP: want a positive duration such as 1s, got %q",
 				EnvPrefix, cfg.TestSpotlightRefreshGap)
+		}
+	}
+	if cfg.Dev && cfg.TestWishCreatePerHour != "" {
+		if n, err := strconv.Atoi(cfg.TestWishCreatePerHour); err != nil || n <= 0 {
+			return Config{}, fmt.Errorf("%sTEST_WISH_CREATE_PER_HOUR: want a positive whole number such as 1000, got %q",
+				EnvPrefix, cfg.TestWishCreatePerHour)
 		}
 	}
 	if cfg.FFmpeg == "" || cfg.FFprobe == "" {
@@ -388,6 +412,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("updater_dir", c.UpdaterDir()),
 		slog.Int("hero_start", c.HeroStart),
 		slog.Duration("spotlight_refresh_gap", c.SpotlightRefreshGap()),
+		slog.Int("wish_create_per_hour", c.WishCreatePerHour()),
 	)
 }
 

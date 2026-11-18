@@ -56,7 +56,8 @@ const (
 // A co-wish never calls Seerr and never counts against the limit. A new wish gets one attempt of
 // at most 3 s without pre-check; without an answer it stays queued for wishes.submit.
 // createPerHour is the limit of createWish: wishes a profile makes or joins per hour (data model
-// 4.4, Vorschlag 20/h); counted from wish_requesters, so it survives a restart.
+// 4.4, Vorschlag 20/h); counted from wish_requesters, so it survives a restart. WithCreatePerHour
+// replaces it for the e2e suite (development mode only).
 const createPerHour = 20
 
 func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.WishCreate) (model.WishCreated, error) {
@@ -84,7 +85,7 @@ func (s *Service) CreateWish(ctx context.Context, p model.Profile, in model.Wish
 		ProfileID: p.ID, Since: s.now().Add(-time.Hour).UnixMilli(),
 	}); err != nil {
 		return model.WishCreated{}, fmt.Errorf("wishes of the hour: %w", err)
-	} else if n >= createPerHour {
+	} else if n >= int64(s.createLimit) {
 		return model.WishCreated{}, model.ErrTooManyAttempts
 	}
 	title, err := s.titles.EnsureExternalTitle(ctx, in.Media, in.TMDBID)

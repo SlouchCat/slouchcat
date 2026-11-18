@@ -193,6 +193,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TEST_UPDATER_DIR` | leer (`/run/slouchcat-updater`) | Anderer geteilter Ordner des Updaters (`token`, `state.json`, `server.json`); gilt nur mit `--dev` (Tests), sonst Warnung im Log |
 | `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
 | `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP` | leer (eine Minute) | Kürzere Sperre zwischen zwei manuellen Spotlight-Abrufen, z. B. `2s`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die Minute bleibt |
+| `SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR` | leer (20) | Höhere Grenze neuer Wünsche je Profil und Stunde, z. B. `1000`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die 20 bleiben |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
 

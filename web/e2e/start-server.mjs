@@ -170,6 +170,10 @@ const server = spawn(
       // the specs that refresh twice waited the minute out, up to 60 s per test and browser. The
       // server honours it with --dev only; the full minute is checked by TestSpotlightRefresh.
       SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP: '2s',
+      // 1000 new wishes per profile and hour instead of 20: the specs make their wishes as the
+      // owner's primary profile, in two browsers (and a retry) on one server, and the server keeps
+      // the count in its database. --dev only; the 20 are checked by contract_wishes_test.go.
+      SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR: '1000',
     },
   },
 );

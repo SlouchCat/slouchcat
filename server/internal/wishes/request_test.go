@@ -447,6 +447,27 @@ func TestCreateCoWishWithoutSeerr(t *testing.T) {
 	}
 }
 
+// The limit of new wishes per profile and hour: createPerHour by default (0 keeps it), the e2e
+// suite's WithCreatePerHour otherwise; the wish past it answers ErrTooManyAttempts (429).
+func TestCreatePerHourOption(t *testing.T) {
+	r := newRequestFixture(t)
+	if r.svc.createLimit != createPerHour {
+		t.Fatalf("default limit = %d, want %d", r.svc.createLimit, createPerHour)
+	}
+	r.fixture.rebuild(WithLibrary(r.lib), WithTitles(r.titles), WithNotifier(r.note), WithClock(r.clock.now), WithCreatePerHour(0))
+	if r.svc.createLimit != createPerHour {
+		t.Fatalf("limit with 0 = %d, want %d", r.svc.createLimit, createPerHour)
+	}
+	r.fixture.rebuild(WithLibrary(r.lib), WithTitles(r.titles), WithNotifier(r.note), WithClock(r.clock.now), WithCreatePerHour(2))
+	r.create(r.marco, film(matrix))
+	r.create(r.marco, film(alien))
+	if _, err := r.svc.CreateWish(r.ctx, r.marco, show(got, 1)); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Errorf("third wish within the hour: %v, want ErrTooManyAttempts", err)
+	}
+	// Another profile has its own count.
+	r.create(r.noah, show(got, 1))
+}
+
 // Two profiles create the same film at the same moment: one wish, one co-wish, one request.
 func TestCreateAtTheSameMoment(t *testing.T) {
 	r := newRequestFixture(t)

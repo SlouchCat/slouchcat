@@ -303,6 +303,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
 	}
+	// The e2e suite's raised limit of new wishes (wishes.WithCreatePerHour); without --dev 20 hold.
+	if !cfg.Dev && cfg.TestWishCreatePerHour != "" {
+		log.Warn("SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR is ignored without --dev")
+	}
 	if !cfg.Dev && cfg.TestUpdaterDir != "" {
 		log.Warn("SLOUCHCAT_TEST_UPDATER_DIR is ignored without --dev")
 	}
@@ -390,7 +394,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Wishes through Seerr (concept 25): the connection and the settings come from the
 	// administration, which asks the service before «Wünsche aktiv» goes on (T-1).
 	wishSvc = wishes.New(db, adminSvc, queue, log, wishes.WithClientOptions(seerr.WithUserAgent("Slouchcat/"+version)),
-		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc), wishes.WithNotifier(wishes.NotifyAdapter(notifySvc)))
+		wishes.WithLibrary(visibility.New(db, log)), wishes.WithTitles(metaSvc), wishes.WithNotifier(wishes.NotifyAdapter(notifySvc)),
+		wishes.WithCreatePerHour(cfg.WishCreatePerHour())) // 0 outside --dev: createPerHour holds
 	adminSvc.WithSeerr(wishSvc)
 	// The match of a film or series reconciles the wishes of the title with the library (concept 25).
 	metaSvc.WithMatched(wishSvc.TitleMatched)

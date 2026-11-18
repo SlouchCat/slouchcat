@@ -99,6 +99,8 @@ type Service struct {
 	discover searchCache // the search of the wishes area, 10 minutes (discover.go)
 
 	searchLimit *auth.Limiter // searchExternalTitles per profile (preview.go)
+
+	createLimit int // new wishes per profile and hour (request.go); createPerHour by default
 }
 
 // Option configures New.
@@ -106,6 +108,16 @@ type Option func(*Service)
 
 // WithClock replaces time.Now (tests).
 func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
+
+// WithCreatePerHour replaces the limit of new wishes per profile and hour (createPerHour) when n is
+// above 0: the e2e suite's SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR, development mode only.
+func WithCreatePerHour(n int) Option {
+	return func(s *Service) {
+		if n > 0 {
+			s.createLimit = n
+		}
+	}
+}
 
 // WithClientOptions adds options to every Seerr client (tests: a short time-out).
 func WithClientOptions(opts ...seerr.Option) Option {
@@ -115,7 +127,7 @@ func WithClientOptions(opts ...seerr.Option) Option {
 // New returns the service. queue may be nil in tests that do not queue jobs.
 func New(db *store.DB, cfg Config, queue Enqueuer, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{db: db, read: wishq.New(db.Read), write: wishq.New(db.Write), cfg: cfg, queue: queue, log: log, now: time.Now,
-		searchLimit: auth.NewLimiter(searchPerMin, searchPerMin)}
+		searchLimit: auth.NewLimiter(searchPerMin, searchPerMin), createLimit: createPerHour}
 	for _, o := range opts {
 		o(s)
 	}

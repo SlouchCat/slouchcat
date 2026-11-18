@@ -176,7 +176,9 @@ einen roten Lauf zu einem Befund statt zu einem Würfelwurf.
   (ein Abruf pro Minute) läuft im e2e-Server mit 2 s (`SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP`, nur mit
   `--dev` wirksam); die echte Minute prüft genau ein Go-Test (`TestSpotlightRefresh`). Eine neue
   Sperre bekommt dasselbe Muster: Test-Einstellung nur im Entwicklungsmodus, Go-Test, dass sie ohne
-  ihn nicht greift.
+  ihn nicht greift. Ebenso die Grenze von 20 neuen Wünschen je Profil und Stunde: im e2e-Server 1000
+  (`SLOUCHCAT_TEST_WISH_CREATE_PER_HOUR`), weil die Specs in zwei Browsern auf einem Server laufen
+  und der Zähler gespeichert bleibt; die echte Zahl prüft `contract_wishes_test.go`.
 - **Medienverhalten in beiden Engines, Bedienung einmal je Seite.** Wiedergabe, Audio, Offline,
   Anmeldung und Einrichtung laufen in Chromium und Firefox (`FIREFOX_WHOLE_SPECS` in
   `web/playwright.config.ts`). Von jeder anderen Seite läuft genau ein Tastaturtest auch in Firefox:
