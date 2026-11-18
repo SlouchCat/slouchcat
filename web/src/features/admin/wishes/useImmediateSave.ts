@@ -32,7 +32,9 @@ export interface ImmediateSave<TPatch> {
  * shows the new value while it travels, and a short message confirms it. A refused change rolls
  * the control back to what the server holds and keeps the server's reason for the page to show.
  * Each change resolves on its own, so two quick changes of different controls do not wait for
- * each other.
+ * each other. Two quick changes of the same control go one after the other, and only the answer
+ * to the last one counts: the control never falls back to an earlier answer while a later change
+ * travels, and a later change that goes through clears the refusal of an earlier one.
  */
 export function useImmediateSave<TPatch, TData>({
   save,
@@ -43,6 +45,10 @@ export function useImmediateSave<TPatch, TData>({
   const [failure, setFailure] = useState<{ key: string; error: unknown; id: number } | null>(null);
   // Counts the refusals, also across a cleared failure: an id is never used twice.
   const refusals = useRef(0);
+  // Per control: the save on its way (the next one waits for it) and the number of the last change.
+  const chains = useRef(new Map<string, Promise<void>>());
+  const latest = useRef(new Map<string, number>());
+  const changes = useRef(0);
   const { mutateAsync } = useMutation({
     mutationFn: ({ patch, key }: { patch: TPatch; key: string }) => save(patch, key),
   });
@@ -61,18 +67,31 @@ export function useImmediateSave<TPatch, TData>({
       say(null);
       setFailure(null);
       setPending((current) => new Map(current).set(key, patch));
-      void (async () => {
+      changes.current += 1;
+      const id = changes.current;
+      latest.current.set(key, id);
+      const isLatest = () => latest.current.get(key) === id;
+      const before = chains.current.get(key) ?? Promise.resolve();
+      const run = before.then(async () => {
         try {
           const data = await mutateAsync({ patch, key });
+          // A later change of this control is on its way: its answer is the one that counts.
+          if (!isLatest()) return;
           // The query holds the answer before the control lets go of its own value: no flicker.
           say(await saved(data, patch, key));
+          setFailure((current) => (current?.key === key ? null : current));
         } catch (error) {
+          if (!isLatest()) return;
           refusals.current += 1;
           setFailure({ key, error, id: refusals.current });
         } finally {
-          settle(key);
+          if (isLatest()) {
+            chains.current.delete(key);
+            settle(key);
+          }
         }
-      })();
+      });
+      chains.current.set(key, run);
     },
     [mutateAsync, saved, say, settle],
   );

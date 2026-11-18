@@ -170,7 +170,14 @@ export function SettingsTab({
   const save = useImmediateSave<WishSettingsUpdate, WishSettings>({
     save: setWishSettings,
     saved: (next, patch, key) => {
-      queryClient.setQueryData(wishSettingsQuery.queryKey, next);
+      // Only the fields of this change: the whole answer may predate the change of another
+      // control that is still on its way.
+      const touched = Object.fromEntries(
+        Object.keys(patch).map((field) => [field, next[field as keyof WishSettings]]),
+      );
+      queryClient.setQueryData(wishSettingsQuery.queryKey, (current: WishSettings | undefined) =>
+        current ? { ...current, ...touched } : next,
+      );
       return savedText(t, key, patch);
     },
   });
