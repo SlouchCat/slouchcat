@@ -7,7 +7,14 @@ import { intlLocale } from '@/i18n';
 import { formatDateTime } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, FactList, Notice, Skeleton, Text } from '@/ui';
-import { afterDialogsClosed, AriaButton, CodeBlock, DisclosureGroup, focusLost } from '@/ui/aria';
+import {
+  afterDialogsClosed,
+  afterRender,
+  AriaButton,
+  CodeBlock,
+  DisclosureGroup,
+  focusLost,
+} from '@/ui/aria';
 import { CreatedAddress, EventLog, RowActions } from '../WebhooksSection';
 import {
   createIntegration,
@@ -74,7 +81,8 @@ export function SeerrHookBand() {
         {integrations.isError && (
           <Notice tone="danger">{problemMessage(t, integrations.error)}</Notice>
         )}
-        {integrations.data && !hook && (
+        {/* Gone once pressed: a second press would make a second address the band never shows. */}
+        {integrations.data && !hook && created === null && (
           <div className={styles.actions}>
             <AriaButton
               ref={createRef}
@@ -114,8 +122,11 @@ export function SeerrHookBand() {
               onRenewed={shown}
               onRemoved={() => {
                 setCreated(null);
-                // The buttons went with the integration: the focus goes to «Adresse erzeugen».
-                void afterDialogsClosed().then(() => {
+                // The buttons went with the integration: the focus goes to «Adresse erzeugen»,
+                // which shows once the list no longer holds it.
+                void afterDialogsClosed().then(async () => {
+                  await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
+                  await afterRender();
                   if (focusLost()) createRef.current?.focus();
                 });
               }}

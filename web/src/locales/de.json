@@ -4113,7 +4113,6 @@
       "seerr": {
         "title": "Seerr",
         "name": "Verbindung zu Seerr",
-        "accounts": "Seerr-Benutzer: {{opened}} von {{total}} Konten",
         "version": "Version {{version}}",
         "lastSuccess": "Zuletzt erreicht {{time}}",
         "state": {
@@ -4229,8 +4228,6 @@
         },
         "log": {
           "title": "Protokoll",
-          "summary_one": "{{count}} Eintrag · {{errors}} Fehler",
-          "summary_other": "{{count}} Einträge · {{errors}} Fehler",
           "empty": "Noch keine Einträge.",
           "caption": "Die letzten Aufrufe an Seerr",
           "at": "Zeit",
@@ -4240,7 +4237,11 @@
           "error": "Fehler",
           "noAnswer": "Keine Antwort",
           "ms": "{{ms}} ms",
-          "note": "Nie mit Kopfzeilen oder Schlüssel. Höchstens 20 Einträge."
+          "note": "Nie mit Kopfzeilen oder Schlüssel. Höchstens 20 Einträge.",
+          "entries_one": "{{count}} Eintrag",
+          "entries_other": "{{count}} Einträge",
+          "errors_one": "{{count}} Fehler",
+          "errors_other": "{{count}} Fehler"
         },
         "usersLink": "Seerr-Benutzer der Konten",
         "sync": {
@@ -4332,7 +4333,9 @@
           "copied": "Kopiert.",
           "copyFailed": "Kein Zugriff auf die Zwischenablage: Der Text ist markiert, kopiere ihn mit Strg+C.",
           "log": "Letzte Meldungen"
-        }
+        },
+        "accounts_one": "Seerr-Benutzer: {{opened}} von {{count}} Konto",
+        "accounts_other": "Seerr-Benutzer: {{opened}} von {{count}} Konten"
       }
     },
     "accounts": {

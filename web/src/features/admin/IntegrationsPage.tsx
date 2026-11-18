@@ -153,7 +153,7 @@ export function IntegrationsPage() {
   const seerrCount = mappings.data
     ? t('admin.integrations.seerr.accounts', {
         opened: mappings.data.opened,
-        total: mappings.data.total,
+        count: mappings.data.total,
       })
     : undefined;
   /** What a tile says is set up: the same as its view's band. */

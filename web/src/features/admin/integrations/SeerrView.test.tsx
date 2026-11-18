@@ -302,7 +302,67 @@ describe('Integrationen › Seerr (concept 25)', () => {
     expect(within(table).getByText('200')).toBeVisible();
     expect(within(table).getByText('Keine Antwort')).toBeVisible();
     expect(within(table).getByText('timeout')).toBeVisible();
-    expect(within(table).getByText('10003 ms')).toBeVisible();
+    // Through the locale's number format (n3).
+    expect(
+      within(table).getByText(`${new Intl.NumberFormat('de-CH').format(10003)} ms`),
+    ).toBeVisible();
+  });
+
+  it('two calls alike in one second both stand in the call log', async () => {
+    const call = {
+      at: '2026-11-17T10:00:00Z',
+      method: 'GET',
+      path: '/request',
+      status: 200,
+      durationMs: 5,
+    };
+    mockApi(
+      routes({
+        'GET /admin/seerr/status': () => json(status({ state: 'connected', log: [call, call] })),
+      }),
+    );
+    renderApp('/admin/integrations?item=seerr');
+    const user = userEvent.setup();
+    const seerr = await view();
+    await user.click(within(seerr).getByRole('button', { name: 'Protokoll' }));
+    const table = within(seerr).getByRole('table', { name: 'Die letzten Aufrufe an Seerr' });
+    expect(within(table).getAllByText('GET /request')).toHaveLength(2);
+  });
+
+  it('«Testen» of one service keeps its own spinner and error', async () => {
+    const service = {
+      source: 'seerr' as const,
+      address: 'http://arr.lan',
+      confirmed: false,
+      counts: { set: 0, pending: 0, failed: 0 },
+      progress: { enabled: true, tracked: 0 },
+    };
+    mockApi(
+      routes({
+        'GET /admin/seerr': () =>
+          json(settings({ enabled: true, urlSource: 'stored', url: 'http://seerr.lan' })),
+        'GET /admin/seerr/status': () => json(status({ state: 'connected', tested: true })),
+        'GET /admin/seerr/arr': () => json({ radarr: service, sonarr: service }),
+        'GET /admin/wishes/settings': () => json({ profileTags: true, showProgress: true }),
+        'POST /admin/seerr/arr/test': (sent) =>
+          (sent.body as { service: string }).service === 'radarr'
+            ? new Promise<Response>(() => undefined)
+            : problem(503, 'seerr_unreachable'),
+      }),
+    );
+    renderApp('/admin/integrations?item=seerr');
+    const user = userEvent.setup();
+    const seerr = await view();
+    const radarr = await within(seerr).findByRole('region', { name: 'Radarr' });
+    const sonarr = within(seerr).getByRole('region', { name: 'Sonarr' });
+    await user.click(within(radarr).getByRole('button', { name: 'Radarr testen' }));
+    await user.click(within(sonarr).getByRole('button', { name: 'Sonarr testen' }));
+    await waitFor(() => expect(within(sonarr).getByRole('alert')).toBeVisible());
+    expect(within(radarr).queryByRole('alert')).toBeNull();
+    expect(within(radarr).getByRole('button', { name: 'Radarr testen' })).toHaveAttribute(
+      'data-pending',
+      'true',
+    );
   });
 
   it('Radarr and Sonarr: where the address comes from, «Testen», an own address; never a key', async () => {
@@ -463,6 +523,8 @@ describe('Integrationen › Seerr (concept 25)', () => {
       (call) => call.method === 'POST' && call.path === '/admin/integrations',
     );
     expect(post?.body).toEqual({ name: 'Seerr', kind: 'seerr' });
+    // Pressed once: no second address while the list does not show the first one yet (m5).
+    expect(within(seerr).queryByRole('button', { name: 'Adresse erzeugen' })).toBeNull();
     expect(within(seerr).getByRole('button', { name: 'Vorlage kopieren' })).toBeVisible();
     expect(within(seerr).getByRole('button', { name: 'Arten kopieren' })).toBeVisible();
   });

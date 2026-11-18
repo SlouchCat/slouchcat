@@ -37,7 +37,6 @@ import {
 import {
   confirmSeerrInstance,
   dashboardQuery,
-  syncWishesNow,
   seerrKeys,
   seerrSettingsQuery,
   testSeerrConnection,
@@ -50,6 +49,7 @@ import {
   type SeerrTestResult,
 } from '../queries';
 import styles from './Integrations.module.css';
+import { useSyncWishes } from '../wishes/useSyncWishes';
 import { SeerrArrBand } from './SeerrArrBand';
 import { SeerrHookBand } from './SeerrHookBand';
 import {
@@ -103,25 +103,18 @@ function stateDetail(t: TFunction, status: SeerrStatus, language: string): strin
  */
 function SyncBand({ status }: { status: SeerrStatus }) {
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   const [message, say] = useStatusMessage();
-  const sync = useMutation({
-    mutationFn: syncWishesNow,
+  const sync = useSyncWishes({
     onMutate: () => say(null),
-    onSuccess: async () => {
-      say(t('admin.wishes.requests.syncQueued'));
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: seerrKeys.all }),
-        queryClient.invalidateQueries({ queryKey: wishKeys.all }),
-      ]);
-    },
+    onQueued: () => say(t('admin.wishes.requests.syncQueued')),
   });
   return (
     <div className={styles.stack}>
       <FactList
         facts={[
-          [t('admin.integrations.seerr.sync.open'), String(status.counts.open)],
-          [t('admin.integrations.seerr.sync.queued'), String(status.counts.queued)],
+          [t('admin.integrations.seerr.sync.open'), number.format(status.counts.open)],
+          [t('admin.integrations.seerr.sync.queued'), number.format(status.counts.queued)],
           [
             t('admin.integrations.seerr.sync.last'),
             status.lastSuccess
@@ -262,9 +255,14 @@ function TestSummary({ result }: { result: SeerrTestResult }) {
   );
 }
 
+/** The chip of a call's answer: below 300 it went through. */
+const resultTone = (status: number | undefined) =>
+  status === undefined || status >= 300 ? 'danger' : 'success';
+
 /** The last 20 calls to Seerr: never a header, a body, a key or the host. */
 function CallLog({ status }: { status: SeerrStatus }) {
   const { t, i18n } = useTranslation();
+  const number = new Intl.NumberFormat(intlLocale(i18n.language));
   if (status.log.length === 0) {
     return <Text tone="secondary">{t('admin.integrations.seerr.log.empty')}</Text>;
   }
@@ -272,8 +270,9 @@ function CallLog({ status }: { status: SeerrStatus }) {
     <div className={styles.stack}>
       <DataTable
         caption={t('admin.integrations.seerr.log.caption')}
-        rows={status.log}
-        rowKey={(entry) => `${entry.at}-${entry.method}-${entry.path}`}
+        // Two calls of one second may be alike: the place in the list keeps them apart.
+        rows={status.log.map((entry, index) => ({ ...entry, index }))}
+        rowKey={(entry) => `${entry.index}-${entry.at}-${entry.method}-${entry.path}`}
         columns={[
           {
             key: 'at',
@@ -289,12 +288,13 @@ function CallLog({ status }: { status: SeerrStatus }) {
           {
             key: 'result',
             header: t('admin.integrations.seerr.log.result'),
-            cell: (entry) =>
-              entry.status === undefined ? (
-                <Chip tone="danger">{t('admin.integrations.seerr.log.noAnswer')}</Chip>
-              ) : (
-                <Chip tone={entry.status < 300 ? 'success' : 'danger'}>{String(entry.status)}</Chip>
-              ),
+            cell: (entry) => (
+              <Chip tone={resultTone(entry.status)}>
+                {entry.status === undefined
+                  ? t('admin.integrations.seerr.log.noAnswer')
+                  : String(entry.status)}
+              </Chip>
+            ),
           },
           {
             key: 'duration',
@@ -302,7 +302,7 @@ function CallLog({ status }: { status: SeerrStatus }) {
             align: 'end',
             cell: (entry) => (
               <span className={styles.nowrap}>
-                {t('admin.integrations.seerr.log.ms', { ms: entry.durationMs })}
+                {t('admin.integrations.seerr.log.ms', { ms: number.format(entry.durationMs) })}
               </span>
             ),
           },
@@ -355,13 +355,18 @@ function InstanceNotice({ onDecided }: { onDecided: (message: string) => void })
             <AriaButton
               variant="primary"
               isPending={decide.isPending && decide.variables === 'confirm'}
+              isDisabled={decide.isPending && decide.variables !== 'confirm'}
               onPress={() => decide.mutate('confirm')}
             >
               {t('admin.integrations.seerr.instance.confirm')}
             </AriaButton>
             <ConfirmDialog
               trigger={
-                <AriaButton variant="dangerQuiet">
+                <AriaButton
+                  variant="dangerQuiet"
+                  isPending={decide.isPending && decide.variables === 'reset'}
+                  isDisabled={decide.isPending && decide.variables !== 'reset'}
+                >
                   {t('admin.integrations.seerr.instance.reset')}
                 </AriaButton>
               }
@@ -611,7 +616,8 @@ export function SeerrView({
                   label={t('admin.integrations.seerr.apiKey')}
                   hideLabel
                   mono
-                  autoComplete="off"
+                  // A saved password of the browser never fills the key.
+                  autoComplete="new-password"
                   spellCheck="false"
                   aria-describedby={keyHelpId}
                   placeholder={keyPlaceholder}
@@ -682,10 +688,9 @@ export function SeerrView({
         meta={
           status.data && (
             <span>
-              {t('admin.integrations.seerr.log.summary', {
-                count: status.data.log.length,
-                errors: errorCount ?? 0,
-              })}
+              {`${t('admin.integrations.seerr.log.entries', { count: status.data.log.length })}${t(
+                'format.separator',
+              )}${t('admin.integrations.seerr.log.errors', { count: errorCount ?? 0 })}`}
             </span>
           )
         }

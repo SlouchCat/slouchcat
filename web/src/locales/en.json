@@ -4113,7 +4113,6 @@
       "seerr": {
         "title": "Seerr",
         "name": "Connection to Seerr",
-        "accounts": "Seerr users: {{opened}} of {{total}} accounts",
         "version": "Version {{version}}",
         "lastSuccess": "Last reached {{time}}",
         "state": {
@@ -4229,8 +4228,6 @@
         },
         "log": {
           "title": "Log",
-          "summary_one": "{{count}} entry · {{errors}} errors",
-          "summary_other": "{{count}} entries · {{errors}} errors",
           "empty": "No entries yet.",
           "caption": "The latest calls to Seerr",
           "at": "Time",
@@ -4240,7 +4237,11 @@
           "error": "Error",
           "noAnswer": "No answer",
           "ms": "{{ms}} ms",
-          "note": "Never with headers or key. At most 20 entries."
+          "note": "Never with headers or key. At most 20 entries.",
+          "entries_one": "{{count}} entry",
+          "entries_other": "{{count}} entries",
+          "errors_one": "{{count}} error",
+          "errors_other": "{{count}} errors"
         },
         "usersLink": "Seerr users of the accounts",
         "sync": {
@@ -4332,7 +4333,9 @@
           "copied": "Copied.",
           "copyFailed": "No access to the clipboard: the text is selected, copy it with Ctrl+C.",
           "log": "Latest notices"
-        }
+        },
+        "accounts_one": "Seerr users: {{opened}} of {{count}} account",
+        "accounts_other": "Seerr users: {{opened}} of {{count}} accounts"
       }
     },
     "accounts": {

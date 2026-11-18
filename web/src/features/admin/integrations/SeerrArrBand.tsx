@@ -186,12 +186,15 @@ function ServiceBlock({
   status,
   result,
   testing,
+  error,
   onTest,
 }: {
   service: ArrService;
   status: ArrServiceStatus;
   result: ArrTestResult | undefined;
   testing: boolean;
+  /** Why the last «Testen» of this service failed. */
+  error: unknown;
   onTest: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -213,6 +216,7 @@ function ServiceBlock({
         </AriaButton>
       </div>
       {result && <TestOutcome service={service} result={result} />}
+      {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
     </section>
   );
 }
@@ -237,31 +241,45 @@ export function SeerrArrBand({ drafts }: { drafts: Drafts<string> }) {
   const [formKey, setFormKey] = useState(0);
   const saveRef = useRef<HTMLButtonElement>(null);
   const status = arr.data;
-  if (open === undefined && status !== undefined) setOpen(needsCare(status));
+  // Opens whenever a service newly needs care (waits for «Testen» or did not answer); the reader
+  // may close it again.
+  const care = status !== undefined && needsCare(status);
+  const [cared, setCared] = useState(false);
+  if (care !== cared) {
+    setCared(care);
+    if (care) setOpen(true);
+  }
+  if (open === undefined && status !== undefined) setOpen(care);
 
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: seerrKeys.all }),
       queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
     ]);
-  const test = useMutation({
-    mutationFn: testArrConnection,
-    onMutate: (service) => {
+  // One «Testen» per service: the second test neither hides the first one's spinner nor its error.
+  const testOf = (service: ArrService) => ({
+    mutationFn: () => testArrConnection(service),
+    onMutate: () => {
       setMessage(null);
       setResults((current) => ({ ...current, [service]: undefined }));
     },
-    onSuccess: async (result, service) => {
+    onSuccess: async (result: ArrTestResult) => {
       setResults((current) => ({ ...current, [service]: result }));
       await refresh();
     },
   });
+  const tests = { radarr: useMutation(testOf('radarr')), sonarr: useMutation(testOf('sonarr')) };
   const save = useMutation({
     mutationFn: updateArrSettings,
     onMutate: () => setMessage(null),
     onSuccess: async (next, body) => {
       queryClient.setQueryData(arrStatusQuery.queryKey, next);
+      // What was typed while the save ran stays a draft (as in the band «Verbindung»).
       for (const service of SERVICES) {
-        if (body[`${service}Url`] !== undefined) drafts.discard(service);
+        const sent = body[`${service}Url`];
+        if (sent !== undefined && (drafts.valueOf(service) ?? '').trim() === sent) {
+          drafts.discard(service);
+        }
       }
       setMessage(t('admin.integrations.seerr.arr.saved'));
       await refresh();
@@ -353,12 +371,12 @@ export function SeerrArrBand({ drafts }: { drafts: Drafts<string> }) {
                   service={service}
                   status={status[service]}
                   result={results[service]}
-                  testing={test.isPending && test.variables === service}
-                  onTest={() => test.mutate(service)}
+                  testing={tests[service].isPending}
+                  error={tests[service].error}
+                  onTest={() => tests[service].mutate()}
                 />
               ))}
             </div>
-            {test.error ? <Notice tone="danger">{problemMessage(t, test.error)}</Notice> : null}
             <Form key={formKey} onSubmit={onSubmit} validationErrors={errors?.fields}>
               {SERVICES.map((service) => {
                 const name = serviceName(t, service);
