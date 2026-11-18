@@ -1158,9 +1158,12 @@ Administrators, `server/internal/netguard/netguard.go:113-128`, und SMTP). Gegen
 
 - CSRF in Slouchcat: `createWish` und `withdrawWish` brauchen `X-Requested-With: Slouchcat` wie jede Mutation
   (`api/openapi.yaml:33-35`).
-- Rate-Limit je Profil für `createWish`: **so gebaut:** 20 Wünsche je Profil und Stunde, gezählt aus
-  `wish_requesters` (übersteht einen Neustart), ohne eigenen Burst; darüber 429 `too_many_attempts` mit
-  `Retry-After` (wie im Vertrag, `api/openapi.yaml:261`). Mitwünsche zählen mit, idempotente Wiederholungen nicht.
+- Rate-Limit je Profil für `createWish`: **so gebaut:** 20 Wünsche je Profil und Stunde, gezählt aus den
+  Verlaufseinträgen «created» und «joined» des Profils in `wish_events` (übersteht einen Neustart), ohne eigenen
+  Burst; darüber 429 `too_many_attempts` mit `Retry-After` (wie im Vertrag, `api/openapi.yaml:261`). Mitwünsche
+  zählen mit, idempotente Wiederholungen nicht. Nicht mit zählt, was der Server für ein Profil schreibt: übernommene
+  Anfragen aus Seerr, ein erneuter Versuch, der Umzug der Wünsche eines gelöschten Profils. Bis Patch 1.41.1 zählte
+  der Server die Zeilen in `wish_requesters`; die Übernahme von 61 Anfragen sperrte darum das Hauptprofil eine Stunde.
 - `searchExternalTitles` und `searchWishTitles`: **so gebaut:** 30 Suchen je Profil und Minute (429
   `too_many_attempts`, `Retry-After`), dazu der TMDB-Limiter bzw. der Limiter von `seerr`. Jede der beiden Suchen
   hat ihren eigenen Topf.

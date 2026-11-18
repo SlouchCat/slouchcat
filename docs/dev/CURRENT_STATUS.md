@@ -1,5 +1,26 @@
 # Aktueller Stand
 
+## Patch 1.41.1: übernommene Anfragen aus Seerr sperren das Anfordern nicht mehr (18. November 2026, Zweig `claude/patch-1.41.1`)
+
+Marcos Befund auf CT 190 nach dem Update auf 1.41.0: Nach «Anfragen aus Seerr übernehmen» meldete der Dialog
+«Anfordern» beim Hauptprofil «Zu viele Versuche. Warte einen Moment und versuche es dann erneut.», obwohl in
+Slouchcat noch kein Wunsch gestellt war.
+
+- **Ursache:** Das Stundenlimit von `createWish` (20 neue Wünsche je Profil und Stunde) zählte die Zeilen in
+  `wish_requesters` der letzten Stunde. Die Übernahme schreibt für jede übernommene Anfrage eine solche Zeile mit
+  der Zeit der Übernahme: 61 Anfragen gaben dem Hauptprofil 61 Zeilen (13:47 bis 13:50 Uhr), und jedes Anfordern
+  war eine Stunde lang gesperrt. Dasselbe galt für einen erneuten Versuch und für die Wünsche eines gelöschten
+  Profils, die zum Hauptprofil umziehen. Die e2e-Tests übernahmen nur zwei Anfragen und fanden es nicht.
+- **Neu:** Das Limit zählt die Verlaufseinträge «created» und «joined», die `createWish` mit der Id des Profils
+  schreibt (`CountProfileWishesSince` in `server/queries/wishes/wishes.sql`). Was das Profil selbst angefordert
+  oder mitgewünscht hat, zählt wie bisher; was der Server für es geschrieben hat, nicht. Keine Migration, Vertrag
+  bleibt 1.41.0.
+- **Test:** `TestCreatePerHourCountsOwnWishesOnly` (`server/internal/wishes/request_test.go`): 25 übernommene
+  Anfragen, danach ein Mitwunsch und ein Wunsch, der dritte eigene in der Stunde wird abgelehnt, eine Stunde
+  später geht er. Gegenprobe: Mit der alten Abfrage ist der Test rot.
+- **Nicht geändert:** Die Meldung beim Stundenlimit sagt «Warte einen Moment», gemeint ist bis zu einer Stunde.
+  Mit der Korrektur trifft das Limit nur noch, wer selbst mehr als 20 Wünsche in einer Stunde stellt.
+
 ## Release 1.41.0: Konzept 25 «Wünsche über Seerr» (18. November 2026, veröffentlicht: PR #182 `0f8c4a26`, Tag `v1.41.0`, Lauf 44302531941; Abnahme auf CT 190 offen)
 
 Marco am 17. November 2026: «Starte mit dem Bau mit Konzept 25. Mach alles in einem Zug und voll automatisch.»
@@ -68,8 +89,7 @@ die Antwort kann verraten, dass es mehr Folgen gibt. Stürzt der Server zwischen
 der Meldung ab, geht eine Zustandsmeldung verloren («verfügbar» wird nachgeholt). Nach dem Aufräumen des Eingangs
 (90 Tage) kann eine Staffelmeldung ein zweites Mal kommen. Die aus Seerr gelesene Adresse von Radarr und Sonarr
 bleibt bis zu 10 Minuten im Speicher, auch wenn die Seerr-Verbindung geändert oder gelöscht wird; «Testen» liest
-sie sofort neu. Geht ein Profil, zählen seine Wünsche mit ihrer ursprünglichen Zeit zum Stundenlimit des
-Hauptprofils (20 neue Wünsche je Profil und Stunde). In «Anfragen» bleibt nach «Weitere laden» eine Verschiebung
+sie sofort neu. In «Anfragen» bleibt nach «Weitere laden» eine Verschiebung
 in der Liste, die die Anzahl nicht ändert, bis zum nächsten Lesen unbemerkt.
 
 **Messwerte** (`docs/perf/wuensche.md`): Alle gemessenen Zielwerte halten ausser `createWish` in schneller Folge,
