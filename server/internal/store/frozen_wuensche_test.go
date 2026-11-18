@@ -45,8 +45,8 @@ func TestFrozenWuenscheStateCoversTheConcept(t *testing.T) {
 		"a wish from Seerr":                         `SELECT count(*) FROM wishes WHERE origin = 'seerr'`,
 		"an available wish on a library title":      `SELECT count(*) FROM wishes WHERE state = 'available' AND item_id IN (SELECT id FROM items)`,
 		"a failed wish with its reason":             `SELECT count(*) FROM wishes WHERE state = 'failed' AND fail_reason IS NOT NULL`,
-		"a partial show with seasons in two states": `SELECT count(*) FROM wish_seasons WHERE wish_id IN (SELECT id FROM wishes WHERE state = 'partial') GROUP BY wish_id HAVING count(DISTINCT state) = 2`,
-		"an owner and a joined requester":           `SELECT count(*) FROM wish_requesters GROUP BY wish_id HAVING count(DISTINCT role) = 2`,
+		"a partial show with seasons in two states": `SELECT count(*) FROM (SELECT wish_id FROM wish_seasons WHERE wish_id IN (SELECT id FROM wishes WHERE state = 'partial') GROUP BY wish_id HAVING count(DISTINCT state) = 2)`,
+		"an owner and a joined requester":           `SELECT count(*) FROM (SELECT wish_id FROM wish_requesters GROUP BY wish_id HAVING count(DISTINCT role) = 2)`,
 		"wish events":                               `SELECT count(*) FROM wish_events`,
 		"notifications of wishes":                   `SELECT count(DISTINCT kind) = 5 FROM notifications WHERE wish_id IS NOT NULL`,
 		"a delivery of a wish":                      `SELECT count(*) FROM deliveries WHERE event IN ('wish_available', 'wish_review')`,
@@ -63,7 +63,8 @@ func TestFrozenWuenscheStateCoversTheConcept(t *testing.T) {
 	} {
 		var n int
 		if err := db.Read.QueryRow(query).Scan(&n); err != nil {
-			t.Fatalf("%s: %v", what, err)
+			t.Errorf("%s: %v", what, err)
+			continue
 		}
 		if n == 0 {
 			t.Errorf("frozen wuensche state has no %s", what)
