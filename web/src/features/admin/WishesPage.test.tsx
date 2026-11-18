@@ -51,6 +51,7 @@ const user = (id: number, name: string, overrides: Partial<SeerrUser> = {}): See
   email: `${name}@example.org`,
   userType: 4,
   isAdmin: false,
+  privileged: false,
   canRequestMovies: true,
   canRequestShows: true,
   autoApprove: true,
@@ -221,7 +222,11 @@ describe('Wünsche › Seerr-Benutzer', () => {
   });
 
   it('a Seerr user that administers Seerr is linked only after a question that says what it means', async () => {
-    const admin = user(4, 'besitzer', { email: 'besitzer@example.org', isAdmin: true });
+    const admin = user(4, 'besitzer', {
+      email: 'besitzer@example.org',
+      isAdmin: true,
+      privileged: true,
+    });
     let current = mapping();
     let posts = 0;
     const { calls } = mockApi(
@@ -273,12 +278,13 @@ describe('Wünsche › Seerr-Benutzer', () => {
   });
 
   it('a Seerr user that administers Seerr is marked in the choice and asks before it is linked by hand', async () => {
-    const admin = user(1, 'chef', { email: 'chef@example.org', isAdmin: true });
+    // Privileged without the limit exemption (only MANAGE_REQUESTS): the mark follows privileged.
+    const admin = user(5, 'chef', { email: 'chef@example.org', privileged: true });
     const { calls } = mockApi(
       routes({
         'GET /admin/wishes/mappings/users': () => json([...USERS, admin]),
         'PUT /admin/wishes/mappings/accounts/1': () =>
-          json(mapping({ seerrUserId: 1, state: 'manual', passwordState: 'admin' })),
+          json(mapping({ seerrUserId: 5, state: 'manual', passwordState: 'admin' })),
       }),
     );
     renderApp('/admin/wishes?tab=seerr-benutzer&item=1');
@@ -287,20 +293,20 @@ describe('Wünsche › Seerr-Benutzer', () => {
       name: 'Seerr-Benutzer für besitzer@example.org',
     });
     expect(
-      within(select).getByRole('option', { name: 'chef (ID 1) · verwaltet Seerr' }),
+      within(select).getByRole('option', { name: 'chef (ID 5) · verwaltet Seerr' }),
     ).toBeEnabled();
-    await user$.selectOptions(select, '1');
+    await user$.selectOptions(select, '5');
     const question = await screen.findByRole('alertdialog', {
       name: 'Seerr-Administrator chef verknüpfen?',
     });
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
     await user$.click(within(question).getByRole('button', { name: 'Abbrechen' }));
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
-    await user$.selectOptions(select, '1');
+    await user$.selectOptions(select, '5');
     const again = await screen.findByRole('alertdialog');
     await user$.click(within(again).getByRole('button', { name: 'Trotzdem verknüpfen' }));
     await waitFor(() =>
-      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ seerrUserId: 1 }),
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ seerrUserId: 5 }),
     );
   });
 
@@ -445,7 +451,10 @@ describe('Wünsche › Seerr-Benutzer', () => {
             total: 2,
           }),
         'GET /admin/wishes/mappings/users': () =>
-          json([user(2, 'wohnzimmer', { userType: 2 }), user(3, 'chef', { isAdmin: true })]),
+          json([
+            user(2, 'wohnzimmer', { userType: 2 }),
+            user(3, 'chef', { isAdmin: true, privileged: true }),
+          ]),
       }),
     );
     renderApp('/admin/wishes?tab=seerr-benutzer&item=1');

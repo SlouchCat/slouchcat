@@ -20735,7 +20735,7 @@ components:
     SeerrUser:
       type: object
       description: Since contract 1.41.0. A user of Seerr; rights derived by the server.
-      required: [id, displayName, userType, isAdmin, canRequestMovies, canRequestShows, autoApprove, shared, gone, quota]
+      required: [id, displayName, userType, isAdmin, privileged, canRequestMovies, canRequestShows, autoApprove, shared, gone, quota]
       properties:
         id:
           type: integer
@@ -20750,6 +20750,13 @@ components:
         isAdmin:
           type: boolean
           description: ADMIN or MANAGE_USERS in Seerr; no limit, no password sync.
+        privileged:
+          type: boolean
+          description: |
+            The user administers Seerr («verwaltet Seerr»): user 1 or a user with one of the managing
+            rights ADMIN, MANAGE_SETTINGS, MANAGE_USERS or MANAGE_REQUESTS, the rule of the automatic
+            linking. The administration marks such a user and asks before it links one by hand; the
+            server does not refuse that choice. `isAdmin` stays the narrower limit exemption.
         canRequestMovies:
           type: boolean
         canRequestShows:

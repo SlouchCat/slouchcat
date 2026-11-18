@@ -11587,6 +11587,13 @@ export interface components {
             userType: 1 | 2 | 3 | 4;
             /** @description ADMIN or MANAGE_USERS in Seerr; no limit, no password sync. */
             isAdmin: boolean;
+            /**
+             * @description The user administers Seerr («verwaltet Seerr»): user 1 or a user with one of the managing
+             *     rights ADMIN, MANAGE_SETTINGS, MANAGE_USERS or MANAGE_REQUESTS, the rule of the automatic
+             *     linking. The administration marks such a user and asks before it links one by hand; the
+             *     server does not refuse that choice. `isAdmin` stays the narrower limit exemption.
+             */
+            privileged: boolean;
             canRequestMovies: boolean;
             canRequestShows: boolean;
             autoApprove: boolean;

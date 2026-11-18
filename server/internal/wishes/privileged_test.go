@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/seerr"
 	"github.com/slouchcat/slouchcat/server/internal/seerr/seerrtest"
+	"github.com/slouchcat/slouchcat/server/internal/store/wishq"
 )
 
 // Security review H-1, L-2 to L-5: a Seerr user that administers the instance is never taken over
@@ -17,6 +19,29 @@ import (
 var managingRights = map[string]uint64{
 	"ADMIN": seerrtest.PermAdmin, "MANAGE_USERS": seerrtest.PermManageUsers,
 	"MANAGE_SETTINGS": seerrtest.PermManageSettings, "MANAGE_REQUESTS": seerrtest.PermManageRequests,
+}
+
+// A stored user says privileged by the rule of the automatic linking (user 1 or a managing
+// right), wider than isAdmin, the limit exemption (MANAGE_USERS).
+func TestSeerrUserPrivileged(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		id         int64
+		perm       seerr.Permission
+		privileged bool
+	}{
+		{"user 1 without rights", 1, 0, true},
+		{"only MANAGE_REQUESTS", 7, seerr.PermManageRequests, true},
+		{"only MANAGE_SETTINGS", 8, seerr.PermManageSettings, true},
+		{"plain requester", 9, seerr.PermRequest, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := toSeerrUser(wishq.SeerrUser{SeerrID: tc.id, DisplayName: "x", UserType: 2, Permissions: int64(tc.perm)})
+			if u.Privileged != tc.privileged || u.IsAdmin {
+				t.Errorf("privileged = %v, isAdmin = %v; want %v, false", u.Privileged, u.IsAdmin, tc.privileged)
+			}
+		})
+	}
 }
 
 // An invitation and an email change never link user 1 or a user with a managing right: the

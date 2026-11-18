@@ -283,7 +283,7 @@ func (s *server) RefreshSeerrUsers(ctx context.Context, _ gen.RefreshSeerrUsersR
 func toSeerrUser(u model.SeerrUser) gen.SeerrUser {
 	out := gen.SeerrUser{
 		Id: u.ID, DisplayName: u.DisplayName, Email: optString(u.Email), UserType: gen.SeerrUserUserType(u.UserType),
-		IsAdmin: u.IsAdmin, CanRequestMovies: u.CanRequestMovies, CanRequestShows: u.CanRequestShows,
+		IsAdmin: u.IsAdmin, Privileged: u.Privileged, CanRequestMovies: u.CanRequestMovies, CanRequestShows: u.CanRequestShows,
 		AutoApprove: u.AutoApprove, Shared: u.Shared, Gone: u.Gone,
 		Quota: gen.SeerrUserQuota{MovieLimit: u.Quota.MovieLimit, MovieDays: u.Quota.MovieDays, TvLimit: u.Quota.TVLimit, TvDays: u.Quota.TVDays},
 	}

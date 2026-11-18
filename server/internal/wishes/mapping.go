@@ -326,7 +326,7 @@ func toSeerrUser(r wishq.SeerrUser) model.SeerrUser {
 	p := seerr.Permission(uint64(max(0, r.Permissions)))
 	return model.SeerrUser{
 		ID: int(r.SeerrID), DisplayName: r.DisplayName, Email: r.Email.String, UserType: int(r.UserType),
-		IsAdmin: r.IsAdmin == 1, Shared: r.IsShared == 1, Gone: r.GoneAt.Valid,
+		IsAdmin: r.IsAdmin == 1, Privileged: privileged(r.SeerrID, p), Shared: r.IsShared == 1, Gone: r.GoneAt.Valid,
 		CanRequestMovies: p.Has(seerr.PermRequest) || p.Has(seerr.PermRequestMovie),
 		CanRequestShows:  p.Has(seerr.PermRequest) || p.Has(seerr.PermRequestTV),
 		AutoApprove:      p.Has(seerr.PermManageRequests) || p.Has(seerr.PermAutoApprove),

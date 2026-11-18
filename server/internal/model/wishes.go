@@ -215,6 +215,7 @@ type SeerrUser struct {
 	Email            string
 	UserType         int // 1 Plex, 2 local, 3 Jellyfin, 4 Emby
 	IsAdmin          bool
+	Privileged       bool // user 1 or a managing right: administers Seerr («verwaltet Seerr»)
 	CanRequestMovies bool
 	CanRequestShows  bool
 	AutoApprove      bool

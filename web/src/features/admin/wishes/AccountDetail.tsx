@@ -75,10 +75,10 @@ function waitText(t: TFunction, reason: string | undefined): string {
 export const TO_SETTINGS = `${paths.adminWishes}?tab=einstellungen`;
 
 /**
- * A Seerr user that administers Seerr, as far as the list tells: user 1 and `isAdmin` (MANAGE_USERS,
- * which ADMIN implies). The server's rule is wider (every managing right) and asks again.
+ * A Seerr user that administers Seerr: the server's `privileged` (user 1 or any managing right).
+ * Wider than `isAdmin`, which is only the limit exemption.
  */
-export const administersSeerr = (user: SeerrUser) => user.id === 1 || user.isAdmin;
+export const administersSeerr = (user: SeerrUser) => user.privileged;
 
 /** An account without a Seerr user: the strip, the tab's count and the warning count the same. */
 export const withoutSeerrUser = (mapping: WishAccountMapping) => mapping.seerrUserId === undefined;
