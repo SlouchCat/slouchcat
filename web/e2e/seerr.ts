@@ -33,11 +33,53 @@ export async function connectSeerr(
   return before;
 }
 
-/** Unlinks every account, puts the wish settings back and deletes the connection. */
+/**
+ * Closes every open wish of the household, of every profile as the administration lists them. A
+ * wish Seerr approved cannot be withdrawn, and without Seerr it would stay open for the rest of the
+ * run and turn a later spec's new wish of its title into a join. So the mock declines the wish's
+ * requests and the sync closes the wish as declined; a wish still in the outbox is sent by the
+ * sync first and declined on a later round.
+ */
+export async function declineOpenWishes(api: APIRequestContext): Promise<void> {
+  const openWishes = async () =>
+    (
+      (await (await api.get('/api/v1/admin/wishes?state=open&limit=100')).json()) as {
+        items?: {
+          id: number;
+          state: string;
+          seerrRequestId?: number;
+          seasons: { seerrRequestId?: number }[];
+        }[];
+      }
+    ).items ?? [];
+  if ((await openWishes()).length === 0) return;
+  await expect(async () => {
+    const open = await openWishes();
+    for (const wish of open) {
+      const ids = [wish.seerrRequestId, ...wish.seasons.map((season) => season.seerrRequestId)];
+      for (const id of ids) {
+        if (id === undefined) continue;
+        await fetch(`${SEERR_BASE}/__control`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ request: { id, status: 3 } }),
+        });
+      }
+    }
+    if (open.length > 0) await send(api, 'post', '/admin/seerr/sync');
+    expect(open.map((wish) => `${wish.id} ${wish.state}`)).toEqual([]);
+  }).toPass({ intervals: [1000], timeout: 30_000 });
+}
+
+/**
+ * Closes the open wishes (declineOpenWishes), unlinks every account, puts the wish settings back
+ * and deletes the connection.
+ */
 export async function disconnectSeerr(
   api: APIRequestContext,
   settingsBefore: Record<string, unknown> | undefined,
 ): Promise<void> {
+  await declineOpenWishes(api);
   const mappings = (await (await api.get('/api/v1/admin/wishes/mappings')).json()) as {
     accounts?: { accountId: number; seerrUserId?: number }[];
   };

@@ -213,9 +213,7 @@ test('without the right: with wishes the entry leads to «Meine Wünsche» and �
       headers: CSRF,
       data: { media: 'movie', tmdbId: 9003, source: 'detail' },
     });
-    // 201 for a new wish; 200 when another spec of the same run left an open wish of this title
-    // (the profile then joins it): either way the profile has a wish of its own now.
-    expect([200, 201], await made.text()).toContain(made.status());
+    expect(made.status(), await made.text()).toBe(201);
     await allowRequests(owner, profile.id, false);
 
     await page.goto('/wishes');

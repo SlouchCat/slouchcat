@@ -69,7 +69,8 @@ export async function openWishes(
 
 /** Everything back: the wishes' limit, Seerr's connection and requests, the TMDB key. */
 export async function closeWishes(api: APIRequestContext, setup: WishesSetup | undefined) {
-  // The profile's open wishes go (those not approved yet; the others stay closed off by Seerr).
+  // The profile's open wishes go (those not approved yet); disconnectSeerr has Seerr decline the
+  // others, of every profile.
   const open = (await (await api.get('/api/v1/wishes?state=open&limit=100')).json()) as {
     items?: { id: number }[];
   };

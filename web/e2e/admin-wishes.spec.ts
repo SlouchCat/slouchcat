@@ -17,6 +17,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { declineOpenWishes } from './seerr';
 import { SEERR_API_KEY, USERS } from './seerr-server.mjs';
 import {
   closeWishes,
@@ -120,6 +121,8 @@ test.beforeEach(async ({ owner }) => {
 
 test.afterEach(async ({ owner }) => {
   await provisionSettled(owner);
+  // The wishes a test took over from Seerr are not the owner's to withdraw: Seerr declines them.
+  await declineOpenWishes(owner);
   for (const mapping of await mappings(owner)) {
     if (mapping.seerrUserId !== undefined) {
       await send(owner, 'put', `/admin/wishes/mappings/accounts/${mapping.accountId}`, {
@@ -612,8 +615,7 @@ const wishOf = (items: ListedWish[], tmdbId: number) =>
 // M-23 stage 4: «Freigeben» and «Ablehnen» passed on to Seerr, the download progress and the
 // profile tags read from the Radarr mock (arr-server.mjs) by the jobs, which the test runs at once
 // (`runJob`) instead of waiting for their schedule; the two filters of the client and the
-// overview's two hints. Glasfabrik may still be in procurement from the test before; it is
-// approved here if not, and waits for Radarr either way.
+// overview's two hints. Glasfabrik waits for Radarr.
 test('«Anfragen» stage 4: approve, decline behind a question, progress and tags by keyboard @keyboard', async ({
   page,
   owner,
@@ -654,14 +656,14 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
       .poll(
         async () => {
           const items = await listed(owner);
-          return [9001, 9002, 9100, 9101].map((id) => wishOf(items, id)?.state);
+          return [9001, 9002, 9003, 9100, 9101].map((id) => wishOf(items, id)?.state);
         },
         { timeout: 30_000 },
       )
-      .toEqual(['pending', 'pending', 'pending', 'pending']);
+      .toEqual(['pending', 'pending', 'pending', 'pending', 'pending']);
     for (const tmdbId of [9001, 9002, 9003]) {
       const wish = wishOf(await listed(owner), tmdbId);
-      if (wish?.state === 'pending') await send(owner, 'post', `/admin/wishes/${wish.id}/approve`);
+      await send(owner, 'post', `/admin/wishes/${wish?.id}/approve`);
     }
     // The jobs read Radarr; a read within 45 s of the last one does nothing, so the poll runs
     // them until the rows are there.
@@ -682,9 +684,13 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
 
     await page.goto('/admin/wishes');
     const table = page.getByRole('table', { name: 'Alle Wünsche des Haushalts' });
-    // An earlier test withdrew a wish of Nebelhafen: its row stays beside the open one.
+    // An earlier test withdrew a wish of Nebelhafen and left Glasfabrik declined (closeWishes):
+    // their rows stay beside the open ones.
     const row = (title: string) =>
-      table.getByRole('row').filter({ hasText: title }).filter({ hasNotText: 'Zurückgezogen' });
+      table
+        .getByRole('row')
+        .filter({ hasText: title })
+        .filter({ hasNotText: /Zurückgezogen|Abgelehnt/ });
     await expect(
       row('Nebelhafen').getByRole('button', { name: 'Nebelhafen freigeben' }),
     ).toBeVisible();
@@ -751,7 +757,9 @@ test('«Anfragen» stage 4: approve, decline behind a question, progress and tag
     await question.getByRole('button', { name: 'Ablehnen' }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByText('Glasküste ist abgelehnt.')).toBeVisible();
-    await expect(row('Glasküste')).toContainText('Abgelehnt');
+    await expect(table.getByRole('row').filter({ hasText: 'Glasküste' })).toContainText(
+      'Abgelehnt',
+    );
     const coast = (await seerrRequests()).filter((r) => r.mediaId === 9101);
     expect(coast).toHaveLength(1);
 
