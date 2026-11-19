@@ -1,11 +1,13 @@
 # Konzept: Native Android-Handy-App – stöbern, abspielen, Downloads, Fernseher verbinden
 
-- **Status: Entwurf, Fassung 3 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
+- **Status: Entwurf, Fassung 4 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor), Fassung 3
   die zweite Lesung (REVISE nahe an der Annahme, 0 Blocker, 1 Major, 13 Minor); beides in
   Abschnitt 19. Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,
-  7 Minor; Abschnitt 18). Die Einarbeitung der zweiten Lesung hat er nicht mehr gegengelesen.
-  Gebaut wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+  7 Minor; Abschnitt 18). **Fassung 4** trägt vier Punkte nach, die die dritte Lesung von
+  Konzept 26 diesem Papier zugewiesen hat (19.2). Die Einarbeitung der zweiten Lesung und
+  Fassung 4 hat kein Kritiker gegengelesen. Gebaut wird erst nach Marcos Freigabe und auf seinen
+  eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
   dieser App den QR Code auf dem TV scannen und auf dem TV wird alles eingerichtet (sofern mit
@@ -17,8 +19,8 @@
   Entscheidungsprotokoll **33**. Der Zweig dieses Papiers sitzt auf `879d1a7f` («Merge pull
   request #189», Seitenleiste der Verwaltung); gegenüber dem Anker ändert das weder Vertrag noch
   Server, CI, letzte ADR oder letzte Frage. Konzept 26 liegt auf dem Zweig
-  `claude/konzept-android-tv` (Stand `b3296ee6`), nicht in `main`; Verweise «K26 4.3» meinen
-  dessen Abschnitte.
+  `claude/konzept-android-tv` (Fassung 5, Stand `88c85bfb`), nicht in `main`; Verweise «K26 4.3»
+  meinen dessen Abschnitte.
 - **Nummern:** Dieses Papier ist **Konzept 27** und reserviert **Frage 35** sowie **ADR 0043**
   («Native Android-Handy-App: Offline und Abruf im Hintergrund») und **ADR 0044** («Push an die
   Handy-App über einen Weiterleitungsdienst»). Konzept 26 hat Frage 34 und ADR 0039 bis 0042
@@ -81,7 +83,9 @@ Die Folgen standen in den Fragen:
 - **Zu E-15:** «Ein verlorenes Handy behält den Zugang, bis es jemand unter ‹Meine Geräte›
   abmeldet.»
 - **Zu E-16:** «Wer bloss ein Browser-Cookie erbeutet, kann kein dauerhaftes Gerät anhängen.
-  iPhone-Nutzer richten den Fernseher von Hand ein.»
+  iPhone-Nutzer richten den Fernseher von Hand ein.» Die Frage war, wer per QR-Scan verbinden
+  darf. Dass es daneben keinen dritten Weg über einen Code im Browser gibt (K26 F-3), ist daraus
+  abgeleitet und nicht eigens entschieden.
 - **Zu E-17:** «Du betreibst dauerhaft einen weiteren Dienst, über den jede Meldung aller Nutzer
   läuft (verschlüsselt).» Die abgelehnte Empfehlung hätte keinen eigenen Dienst gebraucht, war
   aber «für native Apps wenig verbreitet». Die Option sprach von einem «zweiten Dienst»; dass
@@ -496,8 +500,16 @@ Gerätesitzung sie aufrufen darf. Mit zwei Bearer-Arten wird daraus eine Liste, 
   sie für `admin` und `owner`. Jede neue Operation muss die Frage also beantworten.
 - Die Middleware liest die Angabe zur Laufzeit aus dem Vertrag, wie heute `x-visibility`
   (`visibilityOf`). Für die Streaming-Routen steht sie in `binaryRoutes`.
-- `app` steht an allen 24 `account`- und 92 `scoped`-Operationen von heute. `tv` steht nur an
-  denen aus K26 4.5; K26 muss sie je Operation aufzählen (Abschnitt 18).
+- `app` steht an allen 24 `account`- und 92 `scoped`-Operationen von heute. `tv` steht an 93
+  davon; K26 Anhang B zählt alle 116 je Operation auf (93 ja, 23 nein; von der Redaktion gegen
+  den Vertrag nachgezählt).
+- **Eingetragen wird `tv` in Stufe 1 dieses Konzepts,** nicht erst mit der TV-App. Stufe 1
+  schafft die Gerätesitzung und den Test unten. Ohne die Angabe bekäme ein Fernseher auf alles
+  403, auch auf `selectProfile`, und das Prüfprogramm, das einen Fernseher spielt, käme nicht
+  bis zur Profilwahl.
+- Was in Anhang B nicht Marcos Entscheid ist, sondern Vorschlag: die Gruppen Empfehlen,
+  Benachrichtigungen, Ankündigungen und Vorlieben der Wiedergabe (ja) sowie Kontodaten,
+  Sehbericht und Meldekanäle (nein, K26 F-18). F-18 wird damit vor Stufe 1 fällig.
 - **Der Test:** Er ruft jede Operation mit einem App-Token und einem TV-Token des
   **Besitzerkontos mit aktivem Hauptprofil** auf. Wo die Art fehlt, erwartet er 403 mit einem
   eigenen Fehlercode (Vorschlag `client_not_allowed`). Mit einem gewöhnlichen Konto bewiese der
@@ -558,7 +570,8 @@ alle Konten.
 - **Verlorenes Handy:** Es behält den Zugang zum Nutzerbereich aller Profile ohne PIN. Schutz
   bieten die Bildschirmsperre des Handys, die PINs der Profile und «Meine Geräte».
 - **E-9 gilt auch hier:** Hat das Hauptprofil keine PIN, kann jeder mit dem entsperrten Handy
-  Profile ändern und PINs entfernen. Im Browser ist das heute genauso.
+  Profile ändern und PINs entfernen. Im Browser ist das heute genauso. Ob die Handy-App und die
+  Web-App dabei dieselbe PIN-Empfehlung zeigen wie der Fernseher, ist Frage F-19 aus K26.
 
 ## 5. Das gemeinsame Fundament `android/`
 
@@ -785,8 +798,10 @@ Pfade unter `/v1`):
   Handy-App verschlüsselt es mit HPKE (RFC 9180) für den Schlüssel des Fernsehers; die Kennung
   des Treffpunkts geht als gebundene Zusatzangabe ein, damit ein Paket nicht an einen anderen
   Treffpunkt passt.
-- **Einlösen:** Der Fernseher schickt Gutschein und öffentlichen Schlüssel direkt an den Server
-  des Nutzers. Der Server prüft, dass der Gutschein an genau diesen Schlüssel gebunden ist (K-3),
+- **Einlösen:** Der Fernseher schickt Gutschein, öffentlichen Schlüssel, seinen Gerätenamen und
+  die Fassung seines Systems direkt an den Server des Nutzers; die Art `tv` steckt im Gutschein.
+  Ohne Namen hätte die Gerätezeile nichts für «Meine Geräte» und für die Meldung aus K-7. Der
+  Server prüft, dass der Gutschein an genau diesen Schlüssel gebunden ist (K-3),
   und antwortet mit dem Gerätetoken, **verschlüsselt für diesen Schlüssel**. Lesen kann es nur,
   wer den privaten Schlüssel hat. Das ersetzt den «Schlüsselnachweis» aus K26 4.3 Schritt 6 ohne
   zweite Anfrage und ohne zweites Schlüsselpaar zum Unterschreiben. Läuft der Server ohne TLS,
@@ -1138,11 +1153,16 @@ Seite der Handy-App:
 4. Nach dem Ja holt die App beim Server den **Kopplungsgutschein** für den Schlüssel aus dem
    QR-Code.
 5. Die App verschlüsselt Serveradresse und Gutschein und legt das Paket beim Dienst ab (7.2).
-6. Die App wartet, bis das neue Gerät unter «Meine Geräte» erscheint, und zeigt «Verbunden» mit
-   dem Namen des Fernsehers. Nach 2 Minuten ohne Einlösen meldet sie, dass es nicht geklappt hat.
+   **Antwortet der Dienst mit 409, liegt dort schon ein Paket.** Das ist der Fall
+   «untergeschobenes Paket» (7.2). Die App warnt dann: Der Fernseher ist womöglich schon mit
+   einem fremden Server verbunden; am Fernseher stehen Server und Konto, mit denen er verbunden
+   ist. Den eigenen Gutschein lässt sie verfallen.
+6. Sonst wartet die App, bis das neue Gerät unter «Meine Geräte» erscheint, und zeigt
+   «Verbunden» mit dem Namen des Fernsehers. Nach 2 Minuten ohne Einlösen meldet sie, dass es
+   nicht geklappt hat.
 
 **Der Gutschein** (K-3): 256 Bit Zufall, im Server nur als Hash, gültig 2 Minuten, einmal
-verwendbar, an den Schlüssel des Fernsehers gebunden.
+verwendbar, an den Schlüssel des Fernsehers gebunden. Er trägt die Art des Geräts (`tv`).
 
 - **Ausstellen darf ihn nur eine App-Sitzung** (E-16). Eine Browser-Sitzung und eine
   Gerätesitzung bekommen 403.
@@ -1263,10 +1283,10 @@ des Dienstes; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
 | Stufe | Inhalt | Beleg | Braucht |
 |---|---|---|---|
 | **0 Messung** | Wegwerf-App mit eigenem Paketnamen, kein Eingriff ins Produkt (Anmeldung mit Cookie wie `apicheck`). Misst: Generator für den Kotlin-Client am echten Vertrag; Direktwiedergabe und HLS in ExoPlayer; Download-Datei lokal abspielen und spulen; Abruf von 20 GB im Hintergrund samt Wegwischen und Neustart; Abruf ohne offene App in kurzen Läufen; Verschlüsselung zwischen Go und Android; Push durch einen Probe-Dienst (Satzgrösse, Verzögerung, Verhalten von Googles Bibliothek); Generatoren für Texte und Farben; Laufzeit eines CI-Jobs | Bericht `docs/perf/K27-android-handy.md` mit Entscheid je Punkt | Frage 35 im Entscheidungsprotokoll und die Ausnahme in Regel 11 (Abschnitt 14); Firebase-Projekt für die Push-Probe |
-| **1 Server** | alles aus Abschnitt 15.1: Bearer-Weg, drei Sitzungsarten mit `x-clients`, «App anmelden», Gerätekennung im Kopf, Sitzungen ohne Ablauf samt Aufräumung, «Meine Geräte» (Operationen und Seite der Web-App), Gutschein ausstellen und einlösen, Meldung «Neues Gerät», Push-Anpassungen, Vertragsfassung in `getHealth`, Redaktionsliste | Vertragstest samt dem Test aus 4.4; ein Prüfprogramm nach Art von `apicheck`, das ein Handy und einen Fernseher spielt; Tastaturtest für «Meine Geräte»; Abnahme auf CT 190 | **Stufe 0** (Bibliothek für die Verschlüsselung, Satzgrösse für Push); F-23, F-24, F-38 |
+| **1 Server** | alles aus Abschnitt 15.1: Bearer-Weg, drei Sitzungsarten mit `x-clients`, `tv` an den 93 Operationen aus K26 Anhang B, «App anmelden», Gerätekennung im Kopf, Sitzungen ohne Ablauf samt Aufräumung, «Meine Geräte» (Operationen und Seite der Web-App), Gutschein ausstellen und einlösen, Meldung «Neues Gerät», Push-Anpassungen, Vertragsfassung in `getHealth`, Redaktionsliste | Vertragstest samt dem Test aus 4.4; ein Prüfprogramm nach Art von `apicheck`, das ein Handy und einen Fernseher spielt; Tastaturtest für «Meine Geräte»; Abnahme auf CT 190 | **Stufe 0** (Bibliothek für die Verschlüsselung, Satzgrösse für Push); F-18, F-23, F-24, F-38 |
 | **2 Dienst** | `relay/` mit Vermittlung und Push-Weiterleitung, Container-Image, Betriebsanleitung, Überwachung; läuft bei Marco | Tests des Dienstes; zwei Prüfprogramme koppeln über den laufenden Dienst; eine Push-Probe kommt an; ein abgeschalteter Dienst löst die Meldung an Marco aus | Stufe 0; F-37; Firebase-Projekt |
 | **3 Gerüst** | Projekt `android/`, Werkzeuge, CI-Jobs, Generatoren und Wächter; Serveradresse mit Warnung (E-18), Anmelden, Profilwahl mit PIN, Meine Geräte, Abmelden | App per ADB auf dem Handy: anmelden, Profil wählen, Gerät erscheint unter «Meine Geräte»; gemessene Laufzeit der CI in `docs/perf/` | Stufe 1; F-1, F-13, F-33 |
-| **4 Stöbern** | Start, Bibliothek, Detailseiten, Person, Suche, Listen, Profile verwalten | Oberflächentest je Seite; Abnahme: blättern ohne Abspielen | freigegebenes Mockup (F-22) |
+| **4 Stöbern** | Start, Bibliothek, Detailseiten, Person, Suche, Listen, Profile verwalten | Oberflächentest je Seite; Abnahme: blättern ohne Abspielen | freigegebenes Mockup (F-22); F-19 |
 | **5 Videoplayer** | Player vollständig, Einstellungen der Wiedergabe | Abnahmeliste auf dem Handy; **erste Ausgabe über die interne Testspur** | nutzbares Entwicklerkonto; F-11 |
 | **6 Downloads** | Download-Dialog, Seite «Downloads», Abruf im Hintergrund, Offline-Bibliothek, Offline-Player, Offline-PIN, Schauzeit, Abgleich, Widerruf, Auto-Downloads | Gerätecheckliste M5 für Android im Flugmodus; Abruf von 20 GB über Nacht; Entzug eines Kontos löscht die Dateien beim nächsten Kontakt | F-25, F-26, F-34 |
 | **7 Ton** | Hörbücher, Podcasts, Webradio, Wiedergabe im Hintergrund, Downloads von Hörbüchern und Folgen | Abnahme: eine Stunde Hörbuch bei ausgeschaltetem Bildschirm, Fortschritt stimmt | |
@@ -1329,13 +1349,13 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | Bearer: der Server liest `Authorization`, auch auf den Streaming-Routen; kein `Set-Cookie` auf diesem Weg; die Art steht in der Sitzung, der Träger muss passen (4.1) | `server/internal/api/session.go`, `api.go` | neu |
 | Stellen ausserhalb der Middleware, die das Cookie setzen: `logout` (`loggedOut` löscht das Cookie und setzt `Clear-Site-Data`) antwortet einer Bearer-Sitzung ohne beides. Das Vorladen der Web-Hülle (`preload.go`) bleibt beim Cookie | `server/internal/api` | Verhalten ändert sich für Bearer |
 | Sitzungsart je Sitzung; «läuft nicht ab» als Ablauf weit in der Zukunft; `TouchSession` verschiebt ihn bei diesen Arten nicht | `server/internal/auth`, `server/queries/app`, Migration | neu |
-| Erlaubnisliste `x-clients` im Vertrag samt Schema-Test und dem Test aus 4.4 mit eigenem Fehlercode | `api/openapi.yaml`, Middleware, `binaryRoutes` | neu |
+| Erlaubnisliste `x-clients` im Vertrag: `app` an allen 116 Operationen des Nutzerbereichs, `tv` an den 93 aus K26 Anhang B; samt Schema-Test und dem Test aus 4.4 mit eigenem Fehlercode | `api/openapi.yaml`, Middleware, `binaryRoutes` | neu |
 | «App anmelden»: Token, Gerätezeile mit Name und Art sofort; Gerätekennung vom Server, fremde und reservierte Kennung abgewiesen; Abgleich des Passworts mit Seerr wie bei `login`; Name bleibt beim Abspielstart | Vertrag, `auth`, `playback` | neu |
 | Gerätekennung im Kopf für Anfragen ohne Sitzung | `session.go`, `offline_handlers.go` | neu |
 | Aufräumung verschont Geräte mit lebender Sitzung ohne Ablauf und deren Einträge der Widerrufsliste; ein verschwundenes Gerät ist für diese Arten ein Fehler (Sitzung entzogen, 401) | `auth` (`DeleteStaleDevices`, `loadSession`), `offline` (`tombstoneKeep`) | Verhalten ändert sich |
 | Meine Geräte: Liste (Sitzungen oder Downloads des Kontos) und Abmelden; Seite in der Web-App mit Tastaturtest; Texte in allen Sprachen | Vertrag, `web/src` | neu |
 | Abmelden räumt auf: Push-Abos, Downloads und Regeln für Auto-Downloads des Kontos auf dem Gerät; dasselbe für Push-Abos bei `logout` einer App-Sitzung, bei `deleteDevice` (vor der Gerätezeile) und bei einer Passwortänderung (nur Handys und Fernseher) | `auth`, `admin`, `notify`, `offline` | Verhalten ändert sich |
-| Kopplung: Gutschein ausstellen (nur App-Sitzung) und einlösen (Token verschlüsselt für den Schlüssel des Geräts) | Vertrag, `auth`, Migration | neu |
+| Kopplung: Gutschein ausstellen (nur App-Sitzung, trägt die Art `tv`) und einlösen (mit Gerätename und Systemfassung; Token verschlüsselt für den Schlüssel des Geräts) | Vertrag, `auth`, Migration | neu |
 | Meldung «Neues Gerät verbunden» über die Kanäle des Kontos: neue Art von Ereignis, Texte des Servers in allen Sprachen, wo nötig eine Migration der Arten | `server/internal/notify`, `notify/locales`, Migration | neu |
 | Push: Adresse des Dienstes im Server eingebaut und einstellbar; kleinere Satzgrösse und gekürzter Text für Adressen mit diesem Ursprung; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt bei App-Sitzungen das alte | `notify`, `notify/push`, `config` | Verhalten ändert sich |
 | «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38): Schlüsselpaar des Servers, öffentlicher Schlüssel in `getHealth`, öffentliche Operation mit Ratenbegrenzung und Eintrag im Register des Vertragstests | Vertrag, `auth` | neu, falls F-38 ja |
@@ -1380,7 +1400,7 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 | R-16 | Die TV-App wartet (E-12) | späterer Start der TV-App | TV-App kann nach Stufe 3 beginnen (Abschnitt 13) |
 | R-17 | Die Verträglichkeitsregel deckt den ganzen Nutzerbereich (11.5) | jede brechende Änderung an einer Zuschauer-Operation braucht eine Übergangszeit; der Server wird langsamer änderbar | Regel erst mit der öffentlichen Stufe verbindlich; bis dahin üben |
 | R-18 | Auto-Downloads ohne offene App (9.3) | neue Folgen kommen erst beim Öffnen der App | Stufe 0 misst den Abruf in kurzen Läufen; sonst Abruf beim Öffnen wie in der PWA |
-| R-19 | Untergeschobenes Paket beim Einrichten per Scan (7.2) | ein Fernseher wird mit einem fremden Server verbunden | Abholgeheimnis, Anzeige von Server und Konto nach dem Einlösen |
+| R-19 | Untergeschobenes Paket beim Einrichten per Scan (7.2) | ein Fernseher wird mit einem fremden Server verbunden | Abholgeheimnis, Anzeige von Server und Konto nach dem Einlösen, Warnung der Handy-App, wenn am Treffpunkt schon ein Paket liegt (Abschnitt 10) |
 
 ## 17. Fragen
 
@@ -1391,6 +1411,7 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | Nr. | Frage | Empfehlung | Fällig vor |
 |---|---|---|---|
 | F-1 | App im selben Repo (`android/`) oder in einem eigenen? | selbes Repo | Stufe 3 |
+| F-3 | Bestätigung im Browser per Code als dritter Weg neben Scan und Eintippen? | **Abgeleitet, nicht entschieden: nein** (K26 F-3). E-16 fragte, wer per QR-Scan verbinden darf, nicht nach einem Code im Browser | Marcos Freigabe |
 | F-6 | Unverschlüsseltes HTTP zum Server erlauben? | **Für die Handy-App beantwortet: «HTTP überall mit Warnung» (E-18).** Für die TV-App stellt K26 die Frage | – |
 | F-7 | Paketname der App | **Beantwortet: `com.slouchcat.app`, eine App (E-20)** | – |
 | F-9 | Übergangszeit für brechende Änderungen an Operationen mit `x-clients` | 90 Tage, und 30 Tage nach einer App-Version, die das Neue kann (11.5); K26 empfahl zwei Minor-Releases | Stufe 10, empfohlen ab Stufe 3 |
@@ -1398,6 +1419,8 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-11 | Hochladen in den Play Store von Hand oder aus der CI? | von Hand, solange privat | Stufe 5 |
 | F-12 | FFmpeg in der App? | nein; der Server rechnet um | Stufe 5 |
 | F-13 | Kleinste Android-Version der Handy-App | Android 9 (API 28). Android 14 und neuer bekommen den Abruf ohne Zeitgrenze, ältere den Vordergrunddienst. Wie viele Geräte das ausschliesst, ist unbelegt | Stufe 3 |
+| F-18 | Meldekanäle, Sehbericht und Kontodaten auch am Fernseher? | nein (K26); die Antwort bestimmt, an welchen Operationen `tv` steht (4.4) | Stufe 1 |
+| F-19 | PIN-Empfehlung aus E-9 auch in der Web-App und der Handy-App zeigen? | ja, gleicher Hinweis an gleicher Stelle; betrifft «Profile verwalten» | Stufe 4 |
 | F-20 | Wo läuft der Dienst, und wer merkt einen Ausfall? | **Ort beantwortet (E-19).** Überwachung: Prüfung von aussen mit Meldung an Marco (7.5) | Stufe 2 |
 | F-21 | Adresse des Dienstes in den Apps änderbar? | für die Vermittlung ja, in den erweiterten Einstellungen; für Push nein (7.5) | Stufe 9 |
 
@@ -1427,9 +1450,13 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 
 ## 18. Was sich in Konzept 26 ändern muss
 
-Konzept 26 liegt auf seinem eigenen Zweig und wird hier nicht angefasst. Sobald dieses Papier
-freigegeben ist, braucht es dort die Änderungen aus 18.1. Der Kritiker hat ausserdem Abschnitt 4
-von Konzept 26 erstmals gelesen; seine Befunde stehen in 18.2.
+**Erledigt.** Konzept 26 hat mit seiner Fassung 4 alle 20 Punkte aus 18.1 und alle neun Befunde
+aus 18.2 eingearbeitet; seine Fassung 5 (Stand `88c85bfb`) arbeitet eine dritte Lesung ein
+(REVISE, 0 Blocker, 1 Major, 8 Minor). Was diese Lesung diesem Papier zugewiesen hat, steht in
+19.2. Die Listen bleiben als Nachweis stehen; sie beschreiben Konzept 26 im Stand `b3296ee6`.
+
+Konzept 26 liegt auf seinem eigenen Zweig und wird hier nicht angefasst. Der Kritiker hat
+Abschnitt 4 von Konzept 26 mit diesem Papier erstmals gelesen; seine Befunde stehen in 18.2.
 
 ### 18.1 Folgen aus diesem Konzept
 
@@ -1605,6 +1632,26 @@ Zu Befund 1: Der Kritiker hat als stärkere Fassung das Schlüsselpaar des Serve
 bleiben, stehen dort und im Text von F-38; gegen das Mitlesen hilft nur HTTPS.
 
 Die Einarbeitung der zweiten Lesung hat der Kritiker nicht mehr gegengelesen.
+
+### 19.2 Nachtrag aus der dritten Lesung von Konzept 26 (Fassung 4)
+
+Ein Kritiker hat Konzept 26 in dessen Fassung 4 gegen den Vertrag und gegen dieses Papier
+gelesen (REVISE, 0 Blocker, 1 Major, 8 Minor; K26 Abschnitt 14, vierter Nachtrag). Vier Befunde
+betreffen dieses Papier. Marco hat die Weitergabe freigegeben («Ja, weitergeben»); ein neuer
+Entscheid ist keiner davon. Die Redaktion hat Anhang B von Konzept 26 gegen den Vertrag
+nachgezählt: 116 Operationen, jede genau einmal, 93 mit `tv`, 23 ohne.
+
+| Nr. | Stufe dort | Befund | Eingearbeitet in |
+|---|---|---|---|
+| 1 | Major | Niemand trug `tv` an den 93 Operationen ein, bevor es die Gerätesitzung gibt. Stufe 1 hier schafft und testet sie; ohne die Angabe bekäme ein Fernseher auf alles 403. F-18 aus K26 wird damit vor Stufe 1 fällig | 4.4, 13 (Stufe 1), 15.1, F-18 |
+| 2 | Minor | Das Einlösen trug keinen Gerätenamen; die Gerätezeile hätte keinen Namen für «Meine Geräte» und die Meldung aus K-7 | 7.2, Abschnitt 10, 15.1 |
+| 3 | Minor | Antwortet der Dienst beim Ablegen mit 409, ist das der Fall «untergeschobenes Paket»; die Handy-App meldete nur nach zwei Minuten «nicht geklappt» | Abschnitt 10, R-19 |
+| 4 | Minor | F-19 aus K26 (PIN-Empfehlung auch in Web-App und Handy-App) betrifft die Seite «Profile verwalten» und wird mit Stufe 4 fällig | 4.6, 13 (Stufe 4), F-19 |
+
+Dazu zwei Kleinigkeiten: Kopf und Abschnitt 18 nennen jetzt den Stand von Konzept 26
+(Fassung 5), und F-3 steht hier wie dort als «abgeleitet, nicht entschieden» (1.2, Abschnitt 17).
+
+Diesen Nachtrag hat kein Kritiker gelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
