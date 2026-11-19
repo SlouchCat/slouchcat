@@ -12,6 +12,17 @@ import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 type User = ReturnType<typeof userEvent.setup>;
 
+/**
+ * Follows a page's link in the admin sidebar's tree (from 768 px), opening its area first when it
+ * is closed.
+ */
+async function followAdminPage(user: User, area: string, page: string) {
+  const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
+  const branch = within(nav).getByRole('button', { name: new RegExp(`^${area}(,|$)`) });
+  if (branch.getAttribute('aria-expanded') === 'false') await user.click(branch);
+  await user.click(within(nav).getByRole('link', { name: new RegExp(`^${page}(,|$)`) }));
+}
+
 /** The row of a library: the toggle's table row. */
 const rowOf = (name: string) => screen.getByRole('button', { name }).closest('tr')!;
 
@@ -693,7 +704,6 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
-    const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
 
     const dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
@@ -711,7 +721,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toHaveFocus(),
     );
-    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
     expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   });
 
@@ -1208,22 +1218,21 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
-    const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
 
     // Opened and closed untouched: no draft, no question.
     let dialog = await openAdd(user);
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
     expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
-    await user.click(within(nav()).getByRole('link', { name: /^Medien/ }));
+    await followAdminPage(user, 'Medien', 'Bibliotheken');
 
     // A typed name is a draft: leaving asks, staying keeps it.
     dialog = await openAdd(user);
     await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
     const leave = await screen.findByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
     });
@@ -1237,7 +1246,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await user.clear(within(dialog).getByLabelText('Name'));
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await user.click(within(nav()).getByRole('link', { name: /^Automatisierung/ }));
+    await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
     expect(await screen.findByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   });
 

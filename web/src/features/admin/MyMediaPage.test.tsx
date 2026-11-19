@@ -92,7 +92,9 @@ describe('admin «Meine Medien» (concept 21 P-11)', () => {
     expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
       'Meine Medien',
     );
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // The column's tree marks the page and its area «Startseite».
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Meine Medien');
+    expect(nav.querySelector('[aria-current="true"]')).toHaveTextContent('Startseite');
     expect(rowNames()).toEqual(names);
     expect(
       within(table())

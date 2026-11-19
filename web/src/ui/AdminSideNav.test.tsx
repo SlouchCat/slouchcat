@@ -2,32 +2,84 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { accentNames, tokens, type AccentName } from '@slouchcat/design-tokens';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { AdminSideNav, type AdminSideNavEntry, type AdminSideNavProps } from './AdminSideNav';
+import {
+  AdminSideNav,
+  type AdminSideNavBranch,
+  type AdminSideNavEntry,
+  type AdminSideNavProps,
+} from './AdminSideNav';
 import { LinkRouterProvider } from './AppLink';
 
-/** The column (build plan 2.2): back, the heading «Verwaltung» with the overview and the areas. */
+/**
+ * The column (build plan 2.2; Explorer tree): back, the heading «Verwaltung» with the overview and
+ * the areas as branches: «Medien» open with the current page, «Automatisierung» closed, «System»
+ * open.
+ */
 const props = (overrides: Partial<AdminSideNavProps> = {}): AdminSideNavProps => ({
   label: 'Verwaltung',
   top: [{ href: '/', label: 'Zurück zur App', icon: 'back' }],
   heading: 'Verwaltung',
-  entries: [
-    { href: '/admin', label: 'Übersicht', icon: 'grid' },
+  entries: [{ href: '/admin', label: 'Übersicht', icon: 'grid' }],
+  branches: [
     {
-      href: '/admin/libraries',
+      id: 'media',
       label: 'Medien',
       icon: 'folder',
       current: true,
+      expanded: true,
       alarm: { value: '12', tone: 'warning' },
       accessibleLabel: 'Medien, 12 Titel brauchen Pflege',
+      entries: [
+        {
+          href: '/admin/libraries',
+          label: 'Bibliotheken',
+          icon: 'folder',
+          count: '2.318',
+          accessibleLabel: 'Bibliotheken, 2.318 Titel',
+        },
+        {
+          href: '/admin/maintenance',
+          label: 'Pflege',
+          icon: 'wrench',
+          current: true,
+          alarm: { value: '12', tone: 'warning' },
+          accessibleLabel: 'Pflege, 12 Titel brauchen Pflege',
+        },
+      ],
     },
-    { href: '/admin/jobs', label: 'Automatisierung', icon: 'refresh' },
-    { href: '/admin/stats', label: 'System', icon: 'server' },
+    {
+      id: 'automation',
+      label: 'Automatisierung',
+      icon: 'refresh',
+      expanded: false,
+      entries: [
+        { href: '/admin/jobs', label: 'Hintergrundjobs', icon: 'refresh' },
+        { href: '/admin/integrations', label: 'Integrationen', icon: 'plug' },
+      ],
+    },
+    {
+      id: 'system',
+      label: 'System',
+      icon: 'server',
+      expanded: true,
+      entries: [
+        { href: '/admin/stats', label: 'Statistiken', icon: 'chart' },
+        { href: '/admin/backup', label: 'Sicherung', icon: 'archive' },
+      ],
+    },
   ],
   profile: { name: 'Marco', role: 'Server-Admin' },
   ...overrides,
+});
+
+/** The column's branches with «Medien» closed: its current page is hidden. */
+const mediaClosed = (): Partial<AdminSideNavProps> => ({
+  branches: props().branches?.map((branch) =>
+    branch.id === 'media' ? { ...branch, expanded: false } : branch,
+  ),
 });
 
 /** The sheet's shape: the areas as bands with their pages. */
@@ -38,6 +90,7 @@ const grouped: Partial<AdminSideNavProps> = {
   ],
   heading: undefined,
   entries: undefined,
+  branches: undefined,
   groups: [
     {
       label: 'Medien',
@@ -73,31 +126,104 @@ const grouped: Partial<AdminSideNavProps> = {
 
 const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
 const links = () => within(nav()).getAllByRole('link');
+const branch = (name: RegExp | string) => within(nav()).getByRole('button', { name });
+/** Every link and branch button of the column in DOM order, hidden ones too. */
+const items = () => [...nav().querySelectorAll<HTMLElement>('a, button')];
 
 describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
-  it('lists back, then the overview and the areas under the heading, without headings', () => {
+  it('lists back, then the overview and the areas as a tree under the heading, without headings', () => {
     render(<AdminSideNav {...props()} />);
     expect(within(nav()).queryAllByRole('heading')).toEqual([]);
     const main = within(nav()).getByRole('list', { name: 'Verwaltung' });
     const heading = document.getElementById(main.getAttribute('aria-labelledby') ?? '');
     expect(heading?.tagName).toBe('SPAN');
+    // The overview, then one branch per area, each a button followed by the list of its pages.
+    const rows = [...main.children].map((row) =>
+      [...row.children].map((child) => child.tagName).join(' '),
+    );
+    expect(rows).toEqual(['A', 'BUTTON UL', 'BUTTON UL', 'BUTTON UL']);
+    expect(
+      within(main)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent),
+    ).toEqual(['Medien, 12 Titel brauchen Pflege', 'Automatisierung', 'System']);
+    // The links of the closed «Automatisierung» are hidden.
+    expect(links().map((link) => link.getAttribute('aria-label') ?? link.textContent)).toEqual([
+      'Zurück zur App',
+      'Übersicht',
+      'Bibliotheken, 2.318 Titel',
+      'Pflege, 12 Titel brauchen Pflege',
+      'Statistiken',
+      'Sicherung',
+    ]);
     expect(
       within(main)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Übersicht', 'Medien12', 'Automatisierung', 'System']);
-    expect(links().map((link) => link.getAttribute('aria-label') ?? link.textContent)).toEqual([
-      'Zurück zur App',
-      'Übersicht',
-      'Medien, 12 Titel brauchen Pflege',
-      'Automatisierung',
-      'System',
-    ]);
-    expect(screen.getByRole('link', { name: 'Medien, 12 Titel brauchen Pflege' })).toHaveAttribute(
+    ).toEqual(['Übersicht', 'Bibliotheken2.318', 'Pflege12', 'Statistiken', 'Sicherung']);
+    expect(screen.getByRole('link', { name: 'Pflege, 12 Titel brauchen Pflege' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(links().filter((link) => link.hasAttribute('aria-current'))).toHaveLength(1);
+    expect(nav().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+
+  it('gives each branch aria-expanded and aria-controls on the list of its pages, named by the area', () => {
+    render(<AdminSideNav {...props()} />);
+    for (const [name, list, expanded] of [
+      [/^Medien/, 'Medien', true],
+      ['Automatisierung', 'Automatisierung', false],
+      ['System', 'System', true],
+    ] as const) {
+      const button = branch(name);
+      expect(button).toHaveAttribute('type', 'button');
+      expect(button).toHaveAttribute('aria-expanded', String(expanded));
+      const pages = document.getElementById(button.getAttribute('aria-controls') ?? '');
+      expect(pages?.tagName).toBe('UL');
+      expect(pages).toHaveAttribute('aria-label', list);
+      expect(pages?.hidden).toBe(!expanded);
+      expect(button.nextElementSibling).toBe(pages);
+    }
+    expect(within(nav()).getByRole('list', { name: 'Medien' })).toBeVisible();
+    expect(within(nav()).queryByRole('list', { name: 'Automatisierung' })).toBeNull();
+    expect(within(nav()).queryByRole('link', { name: 'Hintergrundjobs' })).toBeNull();
+    // The pill stays short on screen; the button's name spells it out.
+    expect(branch(/^Medien/)).toHaveTextContent('Medien12');
+    expect(within(branch(/^Medien/)).getByText('12')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('marks the current page’s branch, open or closed, and keeps exactly one current page', () => {
+    const { rerender } = render(<AdminSideNav {...props()} />);
+    expect(branch(/^Medien/)).toHaveAttribute('aria-current', 'true');
+    expect(branch('Automatisierung')).not.toHaveAttribute('aria-current');
+    expect(branch('System')).not.toHaveAttribute('aria-current');
+    rerender(<AdminSideNav {...props(mediaClosed())} />);
+    expect(branch(/^Medien/)).toHaveAttribute('aria-current', 'true');
+    expect(within(nav()).queryByRole('link', { name: /^Pflege/ })).toBeNull();
+    const current = nav().querySelectorAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAttribute('href', '/admin/maintenance');
+  });
+
+  it('opens and closes a branch with a click, Enter and Space, without following a link', async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    const onToggleBranch = vi.fn();
+    render(
+      <LinkRouterProvider navigate={navigate}>
+        <AdminSideNav {...props({ onToggleBranch })} />
+      </LinkRouterProvider>,
+    );
+    await user.click(branch('Automatisierung'));
+    expect(onToggleBranch).toHaveBeenLastCalledWith('automation');
+    expect(branch('Automatisierung')).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(onToggleBranch).toHaveBeenLastCalledWith('automation');
+    await user.keyboard('{ArrowDown} ');
+    expect(branch('System')).toHaveFocus();
+    expect(onToggleBranch).toHaveBeenLastCalledWith('system');
+    expect(onToggleBranch).toHaveBeenCalledTimes(3);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('shows the active profile with its role at the foot, outside the navigation', () => {
@@ -125,6 +251,17 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
     );
   });
 
+  it('draws the current page’s arrow in the sheet but not in the tree', () => {
+    const { unmount } = render(<AdminSideNav {...props()} />);
+    // Only the page's icon: an arrow at its end would read as a disclosure arrow.
+    expect(screen.getByRole('link', { name: /^Pflege/ }).querySelectorAll('svg')).toHaveLength(1);
+    // Each branch: its icon and the disclosure arrow.
+    expect(branch(/^Medien/).querySelectorAll('svg')).toHaveLength(2);
+    unmount();
+    render(<AdminSideNav {...props(grouped)} />);
+    expect(screen.getByRole('link', { name: /^Pflege/ }).querySelectorAll('svg')).toHaveLength(2);
+  });
+
   it('is a single Tab stop on the current entry; Tab leaves the column', async () => {
     const user = userEvent.setup();
     render(
@@ -133,37 +270,62 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
         <button type="button">Inhalt</button>
       </>,
     );
-    expect(links().filter((link) => link.tabIndex === 0)).toEqual([
-      screen.getByRole('link', { name: /^Medien/ }),
+    expect(items().filter((item) => item.tabIndex === 0)).toEqual([
+      screen.getByRole('link', { name: /^Pflege/ }),
     ]);
     await user.tab();
-    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveFocus();
+    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveFocus();
     await user.tab();
     expect(screen.getByRole('button', { name: 'Inhalt' })).toHaveFocus();
     await user.tab({ shift: true });
-    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveFocus();
+    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveFocus();
   });
 
-  it('moves with ArrowDown and ArrowUp across the heading, wrapping, and with Home and End', async () => {
+  it('puts the Tab stop on the branch’s button while the current page is folded away', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<AdminSideNav {...props(mediaClosed())} />);
+    expect(items().filter((item) => item.tabIndex === 0)).toEqual([branch(/^Medien/)]);
+    await user.tab();
+    expect(branch(/^Medien/)).toHaveFocus();
+    // Open again, the page takes the Tab stop back once the focus left the column.
+    rerender(<AdminSideNav {...props()} />);
+    act(() => (document.activeElement as HTMLElement).blur());
+    expect(items().filter((item) => item.tabIndex === 0)).toEqual([
+      screen.getByRole('link', { name: /^Pflege/ }),
+    ]);
+    // Closed while a page of it holds the Tab stop: the stop falls back to the branch's button.
+    await user.tab();
+    await user.keyboard('{ArrowUp}');
+    expect(screen.getByRole('link', { name: /^Bibliotheken/ })).toHaveFocus();
+    rerender(<AdminSideNav {...props(mediaClosed())} />);
+    expect(items().filter((item) => item.tabIndex === 0)).toEqual([branch(/^Medien/)]);
+  });
+
+  it('moves with ArrowDown and ArrowUp over the shown items, wrapping, and with Home and End', async () => {
     const user = userEvent.setup();
     render(<AdminSideNav {...props()} />);
     await user.tab();
+    // The pages of the closed «Automatisierung» are skipped, those of the open «System» not.
     await user.keyboard('{ArrowDown}');
-    expect(screen.getByRole('link', { name: 'Automatisierung' })).toHaveFocus();
-    await user.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}');
+    expect(branch('Automatisierung')).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(branch('System')).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('link', { name: 'Statistiken' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}');
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
     await user.keyboard('{ArrowUp}');
-    expect(screen.getByRole('link', { name: 'System' })).toHaveFocus();
-    await user.keyboard('{ArrowDown}');
-    expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
-    await user.keyboard('{End}');
-    expect(screen.getByRole('link', { name: 'System' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Sicherung' })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(branch(/^Medien/)).toHaveFocus();
+    await user.keyboard('{End}');
+    expect(screen.getByRole('link', { name: 'Sicherung' })).toHaveFocus();
     // The moved focus carries the Tab stop; leaving the column puts it back on the current page.
-    expect(links().filter((link) => link.tabIndex === 0)).toHaveLength(1);
+    expect(items().filter((item) => item.tabIndex === 0)).toHaveLength(1);
     await user.tab();
-    expect(screen.getByRole('link', { name: /^Medien/ })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('link', { name: /^Pflege/ })).toHaveAttribute('tabindex', '0');
   });
 
   it('moves across the bands of the sheet in the same way', async () => {
@@ -186,8 +348,8 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
       </LinkRouterProvider>,
     );
     await user.tab();
-    await user.keyboard('{ArrowDown}{Enter}');
-    expect(navigate).toHaveBeenCalledWith('/admin/jobs');
+    await user.keyboard('{ArrowUp}{Enter}');
+    expect(navigate).toHaveBeenCalledWith('/admin/libraries');
   });
 
   it('carries the focused entry over to the next page’s copy (focusCarry)', async () => {
@@ -197,18 +359,38 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
     await user.tab();
     await user.keyboard('{ArrowDown}');
     unmount();
-    expect(focusCarry.current).toBe(3);
+    // Every item counts, hidden ones too: back, overview, Medien and its two pages, Automatisierung.
+    expect(focusCarry.current).toBe(5);
     render(<AdminSideNav {...props({ focusCarry })} />);
-    expect(screen.getByRole('link', { name: 'Automatisierung' })).toHaveFocus();
+    expect(branch('Automatisierung')).toHaveFocus();
     expect(focusCarry.current).toBeNull();
+  });
+
+  it('carries the focus to the overview at index 1 and to a hidden page’s branch', () => {
+    const focusCarry = { current: 1 as number | null };
+    const { unmount } = render(<AdminSideNav {...props({ focusCarry })} />);
+    expect(screen.getByRole('link', { name: 'Übersicht' })).toHaveFocus();
+    unmount();
+    // «Hintergrundjobs» in the closed «Automatisierung».
+    focusCarry.current = 6;
+    render(<AdminSideNav {...props({ focusCarry })} />);
+    expect(items()[6]).toHaveAttribute('href', '/admin/jobs');
+    expect(branch('Automatisierung')).toHaveFocus();
   });
 
   it('scrolls the current entry into view in the column', () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
     render(<AdminSideNav {...props()} />);
     expect(scroll).toHaveBeenCalledOnce();
-    expect(scroll.mock.contexts[0]).toBe(screen.getByRole('link', { name: /^Medien/ }));
+    expect(scroll.mock.contexts[0]).toBe(screen.getByRole('link', { name: /^Pflege/ }));
     expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    scroll.mockRestore();
+  });
+
+  it('scrolls nothing while the current page is folded away', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<AdminSideNav {...props(mediaClosed())} />);
+    expect(scroll).not.toHaveBeenCalled();
     scroll.mockRestore();
   });
 
@@ -219,12 +401,22 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
     // @ts-expect-error The same for an alarm pill.
     entry({ href: '/a', label: 'A', icon: 'grid', alarm: { value: '3', tone: 'danger' } });
     expect(entry({ href: '/a', label: 'A', icon: 'grid' }).label).toBe('A');
+    const area = (value: AdminSideNavBranch) => value;
+    const base = { id: 'a', label: 'A', icon: 'grid', entries: [], expanded: false } as const;
+    // @ts-expect-error A branch's pill needs a spoken name as well.
+    area({ ...base, alarm: { value: '3', tone: 'danger' } });
+    // @ts-expect-error And its badge.
+    area({ ...base, badge: 'Update' });
+    expect(area(base).label).toBe('A');
   });
 
   it('puts the Tab stop on the first entry when no page is current', () => {
     render(
       <AdminSideNav
-        {...props({ entries: [{ href: '/admin', label: 'Übersicht', icon: 'grid' }] })}
+        {...props({
+          entries: [{ href: '/admin', label: 'Übersicht', icon: 'grid' }],
+          branches: [],
+        })}
       />,
     );
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveAttribute('tabindex', '0');
@@ -315,6 +507,14 @@ const currentCases: [string, readonly number[], readonly number[], number][] = a
   ],
 );
 
+/** The current page's area in the tree: its name in the accent, straight on the column. */
+const branchCases: [string, readonly number[], readonly number[], number][] = accentNames.map(
+  (name): [string, number[], number[], number] => {
+    const accent = channels(tokens.color.accent[name].base);
+    return [`current branch ${name}`, accent, accent, 0];
+  },
+);
+
 /** The initial of the profile at the foot: the accent on its tint. */
 const avatarCases: [string, readonly number[], readonly number[], number][] = accentNames.map(
   (name): [string, number[], number[], number] => {
@@ -331,7 +531,7 @@ describe('band, pill and current entry contrast for every profile accent (F-9, F
     expect(AVATAR_TINT).toBe(16);
   });
 
-  it.each([...cases, ...currentCases, ...avatarCases])(
+  it.each([...cases, ...currentCases, ...branchCases, ...avatarCases])(
     '%s meets 4.5:1 over bg-elevated',
     (_, text, tone, percent) => {
       const ratio = contrast(text, tint(tone, percent, ground));

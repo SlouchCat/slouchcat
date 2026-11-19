@@ -1,13 +1,14 @@
 import type { Dashboard } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from '@tanstack/react-router';
-import type { RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import {
   AdminSideNav,
   AdminSideNavMenu,
+  type AdminSideNavBranchData,
   type AdminSideNavEntry,
   type AdminSideNavGroup,
   type AdminSideNavProps,
@@ -19,7 +20,6 @@ import {
   adminAreaIcons,
   adminAreas,
   currentSection,
-  firstSectionOf,
   sectionsOf,
   type AdminArea,
   type AdminSection,
@@ -37,8 +37,13 @@ type SpokenCount =
 
 /** What the admin frame needs: the column, the sheet, the area's tabs and where the page stands. */
 interface AdminNav {
-  /** The column from 768 px: back, then the overview and the five areas, the profile at the foot. */
-  column: Omit<AdminSideNavProps, 'focusCarry'>;
+  /**
+   * The column from 768 px: back, then the overview and the five areas as a tree with their pages,
+   * the profile at the foot. Which areas are open the column keeps itself (AdminShellNav).
+   */
+  column: Omit<AdminSideNavProps, 'focusCarry' | 'branches' | 'onToggleBranch'> & {
+    branches: readonly AdminSideNavBranchData[];
+  };
   /** The sheet on a phone: back, the overview and the areas with all their pages. */
   sheet: Omit<AdminSideNavProps, 'focusCarry'>;
   /** The tabs of the current page's area; none on the overview. */
@@ -178,17 +183,18 @@ export function useAdminNav(): AdminNav {
       }
     : overviewLink;
   const back: AdminSideNavEntry = { href: paths.home, label: t('admin.nav.back'), icon: 'back' };
-  const areas = adminAreas.map((area): AdminSideNavEntry => {
+  const areas = adminAreas.map((area): AdminSideNavBranchData => {
     const label = areaName(area);
-    const link = {
-      href: firstSectionOf(area).href,
+    const branch = {
+      id: area,
       label,
       icon: adminAreaIcons[area],
+      entries: sectionsOf(area).map(pageEntry),
       current: current?.area === area,
     };
-    if (area === 'system' && update) return { ...link, ...updateBadge(label, update.version) };
+    if (area === 'system' && update) return { ...branch, ...updateBadge(label, update.version) };
     const numbers = dashboard.data && areaFigure(area, label, dashboard.data);
-    return numbers ? { ...link, ...numbers } : link;
+    return numbers ? { ...branch, ...numbers } : branch;
   });
   const groups: AdminSideNavGroup[] = adminAreas.map((area) => ({
     label: areaName(area),
@@ -201,7 +207,8 @@ export function useAdminNav(): AdminNav {
       label,
       top: [back],
       heading: label,
-      entries: [overview, ...areas],
+      entries: [overview],
+      branches: areas,
       // Only an administrator's primary profile has the admin frame (AdminLayout).
       profile: { name: session.profile.name, role: t('nav.profileRole.admin') },
     },
@@ -219,10 +226,38 @@ export function useAdminNav(): AdminNav {
 /**
  * The administration's sidebar in the shell's column (AppLayout, from 768 px). The shell keeps it
  * between the admin pages; `focusCarry` brings the focused entry back when it mounts again.
+ *
+ * It keeps which areas of the tree are open, in memory, as long as it stays mounted: at first the
+ * current page's area (none on the overview); whenever the current page changes, its area opens as
+ * well, while every other area stays as the viewer left it.
  */
 export function AdminShellNav({ focusCarry }: { focusCarry: RefObject<number | null> }) {
   const { column } = useAdminNav();
-  return <AdminSideNav {...column} focusCarry={focusCarry} />;
+  const { pathname } = useLocation();
+  const section = currentSection(pathname);
+  const [open, setOpen] = useState<ReadonlySet<string>>(
+    () => new Set(section ? [section.area] : []),
+  );
+  // Another page (not another path of the same page): its area opens, during render.
+  const [seen, setSeen] = useState(section?.key);
+  if (section?.key !== seen) {
+    setSeen(section?.key);
+    if (section && !open.has(section.area)) setOpen(new Set([...open, section.area]));
+  }
+  const toggle = (id: string) =>
+    setOpen((was) => {
+      const next = new Set(was);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  return (
+    <AdminSideNav
+      {...column}
+      branches={column.branches.map((branch) => ({ ...branch, expanded: open.has(branch.id) }))}
+      onToggleBranch={toggle}
+      focusCarry={focusCarry}
+    />
+  );
 }
 
 /**

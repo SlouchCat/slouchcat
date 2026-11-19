@@ -711,16 +711,20 @@ describe('admin overview (concept 11, A-3; build plan 3)', () => {
   });
 });
 
-/** The column (build plan 2.2): back, the overview and the five areas, each to its first page. */
+/**
+ * The column (build plan 2.2; Explorer tree) on «Geräte»: back, the overview and the five areas,
+ * of which only «Nutzer & Geräte», the current page's, is open with its pages.
+ */
 const SIDEBAR = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
-  ['Medien', '/admin/libraries'],
-  ['Nutzer & Geräte', '/admin/accounts'],
-  ['Startseite', '/admin/home-rows'],
-  ['Automatisierung', '/admin/jobs'],
-  ['System', '/admin/stats'],
+  ['Konten', '/admin/accounts'],
+  ['Geräte', '/admin/devices'],
+  ['Streams', '/admin/streams'],
 ] as const;
+
+/** The areas of the column's tree, each a button that folds its pages in and out. */
+const AREAS = ['Medien', 'Nutzer & Geräte', 'Startseite', 'Automatisierung', 'System'] as const;
 
 /**
  * Every page of the administration in the order of the sheet on a phone (build plan 1, 2.3):
@@ -767,57 +771,289 @@ const stubPhone = () =>
     removeEventListener: () => undefined,
   }));
 
+/** An area's button in the column's tree; a pill or badge may follow in its spoken name. */
+const areaButton = (nav: HTMLElement, name: string) =>
+  within(nav).getByRole('button', { name: new RegExp(`^${name}(,|$)`) });
+
+/** The visible name of a link or button, without its number, pill or badge. */
+const shown = (element: Element) => element.querySelector('span')?.textContent;
+
+/** The areas whose pages are shown, in their order. */
+const openAreas = (nav: HTMLElement) =>
+  within(nav)
+    .getAllByRole('button')
+    .filter((button) => button.getAttribute('aria-expanded') === 'true')
+    .map(shown);
+
+/** Every link and button of the column in DOM order, hidden ones too. */
+const items = (nav: HTMLElement) => [...nav.querySelectorAll<HTMLElement>('a, button')];
+
+/** The one current page of the column, also when its area is closed. */
+const currentPage = (nav: HTMLElement) => {
+  const current = nav.querySelectorAll('[aria-current="page"]');
+  expect(current).toHaveLength(1);
+  return current[0]?.getAttribute('href');
+};
+
+/** The area marked as the current page's. */
+const currentArea = (nav: HTMLElement) =>
+  within(nav)
+    .getAllByRole('button')
+    .filter((button) => button.getAttribute('aria-current') === 'true')
+    .map(shown);
+
+/** Opens every closed area of the column. */
+async function openAll(user: ReturnType<typeof userEvent.setup>, nav: HTMLElement) {
+  for (const button of within(nav).getAllByRole('button', { expanded: false })) {
+    await user.click(button);
+  }
+}
+
 describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
   });
 
-  it('stands in the column with 7 entries and the areas’ pills; ↑ ↓ Home End move, one Tab stop', async () => {
+  it('stands in the column as a tree with the current area open and the areas’ pills; ↑ ↓ Home End move, one Tab stop', async () => {
     mockApi(routes({ 'GET /admin/devices': () => json([]) }));
     const { nav } = await renderAdminPage('/admin/devices');
     const links = within(nav).getAllByRole('link');
     expect(links.map((link) => link.getAttribute('href'))).toEqual(SIDEBAR.map(([, href]) => href));
-    expect(links.map((link) => link.querySelector('span')?.textContent)).toEqual(
-      SIDEBAR.map(([name]) => name),
-    );
+    expect(links.map(shown)).toEqual(SIDEBAR.map(([name]) => name));
     expect(within(nav).getByRole('list', { name: 'Verwaltung' })).toBeVisible();
+    expect(within(nav).getAllByRole('button').map(shown)).toEqual(AREAS);
+    // A deep link opens the page's area only; its page and the area are marked.
+    expect(openAreas(nav)).toEqual(['Nutzer & Geräte']);
+    expect(within(nav).getByRole('list', { name: 'Nutzer & Geräte' })).toBeVisible();
+    expect(within(nav).queryByRole('list', { name: 'Medien' })).toBeNull();
+    expect(currentPage(nav)).toBe('/admin/devices');
+    expect(currentArea(nav)).toEqual(['Nutzer & Geräte']);
     // Build plan 1: an area shows only what needs a look, with the spoken name of the number.
     expect(
-      await within(nav).findByRole('link', { name: 'Medien, 4 Titel brauchen Pflege' }),
+      await within(nav).findByRole('button', { name: 'Medien, 4 Titel brauchen Pflege' }),
     ).toHaveTextContent('4');
     expect(
-      within(nav).getByRole('link', { name: 'Automatisierung, 1 fehlgeschlagen' }),
+      within(nav).getByRole('button', { name: 'Automatisierung, 1 fehlgeschlagen' }),
     ).toBeVisible();
-    expect(within(nav).getByRole('link', { name: 'System' })).toBeVisible();
+    expect(within(nav).getByRole('button', { name: 'System' })).toBeVisible();
     // The active profile with its role at the foot of the column.
     expect(screen.getByText('Server-Admin')).toBeVisible();
 
-    const people = within(nav).getByRole('link', { name: 'Nutzer & Geräte, 1 läuft' });
-    expect(people).toHaveAttribute('aria-current', 'page');
-    // Roving tabIndex: only the current area's link is in the Tab order.
-    expect(links.filter((link) => link.tabIndex === 0)).toEqual([people]);
+    const people = within(nav).getByRole('button', { name: 'Nutzer & Geräte, 1 läuft' });
+    expect(people).toHaveAttribute('aria-current', 'true');
+    const devices = within(nav).getByRole('link', { name: 'Geräte' });
+    expect(devices).toHaveAttribute('aria-current', 'page');
+    // Roving tabIndex: only the current page's link is in the Tab order.
+    expect(items(nav).filter((item) => item.tabIndex === 0)).toEqual([devices]);
 
-    people.focus();
-    fireEvent.keyDown(people, { key: 'ArrowDown' });
-    const home = within(nav).getByRole('link', { name: 'Startseite' });
-    expect(home).toHaveFocus();
-    expect(home.tabIndex).toBe(0);
-    expect(people.tabIndex).toBe(-1);
-    fireEvent.keyDown(home, { key: 'ArrowUp' });
-    expect(people).toHaveFocus();
-    fireEvent.keyDown(people, { key: 'End' });
-    expect(within(nav).getByRole('link', { name: 'System' })).toHaveFocus();
+    devices.focus();
+    fireEvent.keyDown(devices, { key: 'ArrowDown' });
+    const streams = within(nav).getByRole('link', { name: 'Streams, 1 läuft' });
+    expect(streams).toHaveFocus();
+    expect(streams.tabIndex).toBe(0);
+    expect(devices.tabIndex).toBe(-1);
+    fireEvent.keyDown(streams, { key: 'ArrowDown' });
+    expect(areaButton(nav, 'Startseite')).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(devices).toHaveFocus();
+    // End goes to «System», whose pages are folded away.
+    fireEvent.keyDown(devices, { key: 'End' });
+    expect(areaButton(nav, 'System')).toHaveFocus();
     // The arrows wrap, like the old navigation.
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
     expect(within(nav).getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
-    expect(within(nav).getByRole('link', { name: 'System' })).toHaveFocus();
+    expect(areaButton(nav, 'System')).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
     expect(within(nav).getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(areaButton(nav, 'Medien')).toHaveFocus();
     // Leaving the column puts the Tab stop back on the current page.
     act(() => (document.activeElement as HTMLElement).blur());
-    expect(people.tabIndex).toBe(0);
+    expect(devices.tabIndex).toBe(0);
+  });
+
+  it('opens on the overview with every area closed', async () => {
+    mockApi(routes());
+    const { nav } = await renderAdminPage('/admin');
+    expect(openAreas(nav)).toEqual([]);
+    expect(currentArea(nav)).toEqual([]);
+    expect(currentPage(nav)).toBe('/admin');
+    expect(within(nav).getAllByRole('link').map(shown)).toEqual(['Zurück zur App', 'Übersicht']);
+    expect(within(nav).getByRole('link', { name: /^Übersicht/ }).tabIndex).toBe(0);
+  });
+
+  it('opens and closes an area on a press; closed, the current page keeps its marks', async () => {
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { nav, router } = await renderAdminPage('/admin/devices');
+    const user = userEvent.setup();
+    await user.click(areaButton(nav, 'Startseite'));
+    expect(areaButton(nav, 'Startseite')).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      within(within(nav).getByRole('list', { name: 'Startseite' }))
+        .getAllByRole('link')
+        .map(shown),
+    ).toEqual([
+      'Startseite',
+      'Spotlight',
+      'User-Empfehlungen',
+      'Sammlungen',
+      'Meine Medien',
+      'Ankündigungen',
+    ]);
+    expect(openAreas(nav)).toEqual(['Nutzer & Geräte', 'Startseite']);
+    await user.click(areaButton(nav, 'Startseite'));
+    expect(within(nav).queryByRole('list', { name: 'Startseite' })).toBeNull();
+    expect(areaButton(nav, 'Startseite')).toHaveFocus();
+
+    // The current page's area can be closed: the page stays marked in the DOM, the area too.
+    await user.click(areaButton(nav, 'Nutzer & Geräte'));
+    expect(openAreas(nav)).toEqual([]);
+    expect(within(nav).queryByRole('link', { name: 'Geräte' })).toBeNull();
+    expect(currentPage(nav)).toBe('/admin/devices');
+    expect(currentArea(nav)).toEqual(['Nutzer & Geräte']);
+    // A press never follows a link.
+    expect(router.state.location.pathname).toBe('/admin/devices');
+    // The Tab stop falls back to the closed area's button.
+    act(() => (document.activeElement as HTMLElement).blur());
+    expect(items(nav).filter((item) => item.tabIndex === 0)).toEqual([
+      areaButton(nav, 'Nutzer & Geräte'),
+    ]);
+  });
+
+  it('opens the area of every page it comes to and leaves the others as the viewer left them', async () => {
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { nav, router } = await renderAdminPage('/admin/devices');
+    const user = userEvent.setup();
+    await user.click(areaButton(nav, 'Startseite'));
+    await act(() => router.navigate({ to: '/admin/jobs' }));
+    expect(openAreas(nav)).toEqual(['Nutzer & Geräte', 'Startseite', 'Automatisierung']);
+    expect(currentPage(nav)).toBe('/admin/jobs');
+    expect(currentArea(nav)).toEqual(['Automatisierung']);
+
+    // A tab of the same area: the closed «Nutzer & Geräte» stays closed.
+    await user.click(areaButton(nav, 'Nutzer & Geräte'));
+    await user.click(
+      await within(areaTabs('Automatisierung')).findByRole('link', { name: /^Integrationen/ }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/integrations'));
+    expect(openAreas(nav)).toEqual(['Startseite', 'Automatisierung']);
+    expect(currentPage(nav)).toBe('/admin/integrations');
+
+    // Another path of the same page («Pflege» on a title page) changes nothing.
+    await act(() => router.navigate({ to: '/admin/maintenance' }));
+    expect(openAreas(nav)).toEqual(['Medien', 'Startseite', 'Automatisierung']);
+    await user.click(areaButton(nav, 'Medien'));
+    await act(() => router.navigate({ to: '/admin/items/$itemId', params: { itemId: 'x1' } }));
+    expect(openAreas(nav)).toEqual(['Startseite', 'Automatisierung']);
+    expect(currentPage(nav)).toBe('/admin/maintenance');
+    expect(currentArea(nav)).toEqual(['Medien']);
+    // Another page opens its area again.
+    await act(() => router.navigate({ to: '/admin/libraries' }));
+    expect(openAreas(nav)).toEqual(['Medien', 'Startseite', 'Automatisierung']);
+    // The overview opens nothing and closes nothing.
+    await act(() => router.navigate({ to: '/admin' }));
+    expect(openAreas(nav)).toEqual(['Medien', 'Startseite', 'Automatisierung']);
+    expect(currentArea(nav)).toEqual([]);
+    expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBe(nav);
+  });
+
+  it('moves its marks with the browser’s back and forward', async () => {
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { nav, router } = await renderAdminPage('/admin/devices');
+    await act(() => router.navigate({ to: '/admin/jobs' }));
+    expect(currentPage(nav)).toBe('/admin/jobs');
+    act(() => router.history.back());
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/devices'));
+    await waitFor(() => expect(currentPage(nav)).toBe('/admin/devices'));
+    expect(currentArea(nav)).toEqual(['Nutzer & Geräte']);
+    expect(within(nav).getByRole('link', { name: 'Geräte' })).toBeVisible();
+    expect(openAreas(nav)).toEqual(['Nutzer & Geräte', 'Automatisierung']);
+    act(() => router.history.forward());
+    await waitFor(() => expect(currentPage(nav)).toBe('/admin/jobs'));
+    expect(currentArea(nav)).toEqual(['Automatisierung']);
+  });
+
+  it('carries the numbers on the areas and on their pages, from the same entries as the sheet', async () => {
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { nav } = await renderAdminPage('/admin/devices');
+    const user = userEvent.setup();
+    await within(nav).findByRole('button', { name: 'Medien, 4 Titel brauchen Pflege' });
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent),
+    ).toEqual([
+      'Medien, 4 Titel brauchen Pflege',
+      'Nutzer & Geräte, 1 läuft',
+      'Startseite',
+      'Automatisierung, 1 fehlgeschlagen',
+      'System',
+    ]);
+    await openAll(user, nav);
+    // Every page in its area, in the order of the sheet.
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(SHEET.map(([, href]) => href));
+    expect(links.map(shown)).toEqual(SHEET.map(([name]) => name));
+    expect(
+      within(nav).getByRole('link', { name: `Bibliotheken, ${swiss(1200)} Titel` }),
+    ).toHaveTextContent(swiss(1200));
+    expect(
+      within(nav).getByRole('link', { name: 'Pflege, 4 Titel brauchen Pflege' }),
+    ).toHaveTextContent('Pflege4');
+    expect(within(nav).getByRole('link', { name: 'Konten, 3 Konten' })).toHaveTextContent(
+      'Konten3',
+    );
+    expect(within(nav).getByRole('link', { name: 'Streams, 1 läuft' })).toHaveTextContent(
+      'Streams1',
+    );
+    expect(
+      within(nav).getByRole('link', { name: 'Hintergrundjobs, 1 fehlgeschlagen' }),
+    ).toHaveTextContent('1');
+    expect(within(nav).getByRole('link', { name: 'Integrationen, 1 Webhook still' })).toBeVisible();
+  });
+
+  it('puts a silent webhook on «Automatisierung» when no job failed; its page counts running jobs', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            quiet({
+              jobs: { ...quiet().jobs, running: 2 },
+              webhooks: { total: 1, eventsLast24h: 0, silent: ['Sonarr'] },
+            }),
+          ),
+        'GET /admin/jobs': () => json([]),
+      }),
+    );
+    const { nav } = await renderAdminPage('/admin/jobs');
+    expect(
+      await within(nav).findByRole('button', { name: 'Automatisierung, 1 Webhook still' }),
+    ).toHaveTextContent('Automatisierung1');
+    expect(within(nav).getByRole('button', { name: 'Medien' })).toHaveTextContent(/^Medien$/);
+    expect(within(nav).getByRole('link', { name: 'Hintergrundjobs, 2 laufen' })).toHaveTextContent(
+      '2',
+    );
+    expect(within(nav).getByRole('link', { name: 'Integrationen, 1 Webhook still' })).toBeVisible();
+  });
+
+  it('counts set-up integrations on their page in the tree', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () => json(quiet()),
+        'GET /admin/jobs': () => json([]),
+      }),
+    );
+    const { nav } = await renderAdminPage('/admin/jobs');
+    expect(
+      await within(nav).findByRole('link', { name: 'Integrationen, 1 von 2 eingerichtet' }),
+    ).toHaveTextContent('1 / 2');
+    expect(within(nav).getByRole('button', { name: 'Automatisierung' })).toHaveTextContent(
+      /^Automatisierung$/,
+    );
   });
 
   it('puts the area’s pages as tabs above the page, with their numbers', async () => {
@@ -879,7 +1115,13 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
       expect(queryClient.getQueryState(['admin', 'dashboard'])?.status).toBe('error'),
     );
     expect(within(nav).getAllByRole('link')).toHaveLength(SIDEBAR.length);
-    expect(within(nav).getByRole('link', { name: 'Medien' })).toHaveTextContent(/^Medien$/);
+    for (const area of AREAS) {
+      expect(within(nav).getByRole('button', { name: area })).toHaveTextContent(
+        new RegExp(`^${area}$`),
+      );
+    }
+    expect(within(nav).getByRole('link', { name: 'Konten' })).toHaveTextContent(/^Konten$/);
+    expect(within(nav).getByRole('link', { name: 'Streams' })).toHaveTextContent(/^Streams$/);
     expect(
       within(areaTabs('Nutzer & Geräte')).getByRole('link', { name: 'Konten' }),
     ).toHaveTextContent(/^Konten$/);
@@ -925,17 +1167,21 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
     expect(
       await within(areaTabs('Nutzer & Geräte')).findByRole('link', { name: /^Streams/ }),
     ).toHaveAttribute('aria-current', 'page');
-    expect(within(nav).getByRole('link', { name: /^Nutzer & Geräte/ })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: /^Streams/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
+    expect(areaButton(nav, 'Nutzer & Geräte')).toHaveAttribute('aria-current', 'true');
     // The shell keeps the same sidebar between the admin pages.
     expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBe(nav);
     await act(() => router.navigate({ to: '/admin/items/$itemId', params: { itemId: 'x1' } }));
-    expect(within(nav).getByRole('link', { name: /^Medien/ })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(
+      within(within(nav).getByRole('list', { name: 'Medien' })).getByRole('link', {
+        name: /^Pflege/,
+      }),
+    ).toHaveAttribute('aria-current', 'page');
+    expect(currentPage(nav)).toBe('/admin/maintenance');
+    expect(currentArea(nav)).toEqual(['Medien']);
   });
 
   it('replaces the app column on /admin/*, also when it is hidden; the menu opens the app drawer', async () => {
@@ -1040,9 +1286,14 @@ describe('update badge (A-5)', () => {
       name: 'Übersicht, Update auf Version 0.9.1 verfügbar',
     });
     expect(badge).toHaveTextContent('Update');
-    // The same badge on the area «System» and its tab «Server» (build plan 1).
+    // The same badge on the area «System» and its page «Server» (build plan 1).
+    const area = within(nav).getByRole('button', {
+      name: 'System, Update auf Version 0.9.1 verfügbar',
+    });
+    expect(area).toHaveTextContent('Update');
+    await user.click(area);
     expect(
-      within(nav).getByRole('link', { name: 'System, Update auf Version 0.9.1 verfügbar' }),
+      within(nav).getByRole('link', { name: 'Server, Update auf Version 0.9.1 verfügbar' }),
     ).toHaveTextContent('Update');
     await user.click(badge);
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));

@@ -2,31 +2,16 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { CSSProperties } from 'react';
 import {
   AdminSideNav,
+  type AdminSideNavBranch,
   type AdminSideNavEntry,
   type AdminSideNavGroup,
   type AdminSideNavProps,
 } from './AdminSideNav';
 
 // The administration's sidebar (concept 11, 11.1; redesign, build plan 2.2) at 1280 px: back to
-// the app, the heading «Verwaltung» with the overview and the five areas, the active profile at the
-// foot. The sheet on a phone, with every page of every area, has stories of its own
-// (AdminSideNavMenu.stories.tsx).
-
-const areas: AdminSideNavEntry[] = [
-  { href: '#media', label: 'Medien', icon: 'folder' },
-  { href: '#people', label: 'Nutzer & Geräte', icon: 'users' },
-  { href: '#home-page', label: 'Startseite', icon: 'star' },
-  { href: '#automation', label: 'Automatisierung', icon: 'refresh' },
-  { href: '#system', label: 'System', icon: 'server' },
-];
-
-export const adminSideNavArgs: AdminSideNavProps = {
-  label: 'Verwaltung',
-  top: [{ href: '#home', label: 'Zurück zur App', icon: 'back' }],
-  heading: 'Verwaltung',
-  entries: [{ href: '#admin', label: 'Übersicht', icon: 'grid', current: true }, ...areas],
-  profile: { name: 'Marco', role: 'Server-Admin' },
-};
+// the app, the heading «Verwaltung» with the overview and the five areas as a tree (Explorer), each
+// folding its pages in and out, the active profile at the foot. The sheet on a phone, with every
+// page of every area, has stories of its own (AdminSideNavMenu.stories.tsx).
 
 /** The sheet's entries: back, the overview, the five areas with all their pages. */
 const groups: AdminSideNavGroup[] = [
@@ -137,6 +122,39 @@ export const adminSheetArgs: AdminSideNavProps = {
 
 export { groups as adminSheetGroups };
 
+/** The ids of the areas, also the keys of their numbers. */
+const areaIds = ['#media', '#people', '#home-page', '#automation', '#system'];
+
+/**
+ * The column's tree: the sheet's areas as branches, those in `open` expanded; `current` is the
+ * open page, `numbered` adds the numbers.
+ */
+const tree = (current: string, open: readonly string[], numbered: boolean): AdminSideNavBranch[] =>
+  groups.map((group, index) => {
+    const id = areaIds[index] ?? group.label;
+    const entries = group.entries.map((entry) =>
+      numbered ? withNumbers(current)(entry) : { ...entry, current: entry.href === current },
+    );
+    const branch = {
+      ...group,
+      id,
+      entries,
+      expanded: open.includes(id),
+      current: entries.some((entry) => entry.current),
+    };
+    const extra = numbered ? numbers[id] : undefined;
+    return extra ? { ...branch, ...extra } : branch;
+  });
+
+export const adminSideNavArgs: AdminSideNavProps = {
+  label: 'Verwaltung',
+  top: [{ href: '#home', label: 'Zurück zur App', icon: 'back' }],
+  heading: 'Verwaltung',
+  entries: [{ href: '#admin', label: 'Übersicht', icon: 'grid', current: true }],
+  branches: tree('#admin', [], false),
+  profile: { name: 'Marco', role: 'Server-Admin' },
+};
+
 const meta = {
   title: 'UI/AdminSideNav',
   excludeStories: ['adminSideNavArgs', 'adminSheetArgs', 'adminSheetGroups', 'withNumbers'],
@@ -148,20 +166,30 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The overview is current; no numbers (loading, or the dashboard could not be read). */
+/**
+ * The overview is current, every area closed; no numbers (loading, or the dashboard could not be
+ * read).
+ */
 export const Default: Story = {};
 
-/** An area is current; its pills and the update badge on the overview. */
+/**
+ * «Hintergrundjobs» is current in the open «Automatisierung», «Medien» is open too: the areas'
+ * pills, the pages' numbers and the update badge on the overview.
+ */
 export const Counts: Story = {
   args: {
-    entries: adminSideNavArgs.entries?.map(withNumbers('#media')),
+    entries: adminSideNavArgs.entries?.map(withNumbers('#jobs')),
+    branches: tree('#jobs', ['#media', '#automation'], true),
   },
 };
 
-/** Tab lands on the current entry, ArrowDown moves to the next one. */
+/** Tab lands on the current entry, ArrowDown moves to the next one (the first area). */
 export const ArrowKeys: Story = { tags: ['press:Tab+ArrowDown'] };
 
-/** Two profile colours: the current entry's tint, stroke and icon follow the accent. */
+/**
+ * Two profile colours: the current entry's tint, stroke and icon and the current area's name
+ * follow the accent.
+ */
 export const Accents: Story = {
   args: { ...Counts.args },
   render: (args) => (

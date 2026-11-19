@@ -176,7 +176,9 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
       expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toHaveFocus(),
     );
     expect(within(saveBar()).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // The column's tree marks the page and its area «Startseite».
+    expect(nav.querySelector('[aria-current="page"]')).toHaveAttribute('href', '/admin/home-rows');
+    expect(nav.querySelector('[aria-current="true"]')).toHaveTextContent('Startseite');
   });
 
   it('«Speichern» without a change sends nothing and keeps the focus', async () => {

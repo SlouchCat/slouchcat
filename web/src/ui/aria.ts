@@ -15,6 +15,8 @@ export { TaskRow } from './TaskRow';
 export {
   AdminSideNav,
   AdminSideNavContent,
+  type AdminSideNavBranch,
+  type AdminSideNavBranchData,
   type AdminSideNavEntry,
   type AdminSideNavGroup,
   type AdminSideNavProfile,

@@ -164,7 +164,9 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
       'Spotlight',
     );
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // The column's tree marks the page and its area «Startseite».
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Spotlight');
+    expect(nav.querySelector('[aria-current="true"]')).toHaveTextContent('Startseite');
     // Build plan 2.6: the intro stands open below the title, without a help button.
     const intro = screen.getByText(/Eine öffentliche Trakt-Liste als Reihe der Startseite/);
     expect(intro).toBeVisible();
