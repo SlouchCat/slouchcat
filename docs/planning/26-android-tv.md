@@ -1,13 +1,16 @@
 # Konzept: Android-TV-App – native App für den Fernseher mit eigenem Player, Einrichten per Scan und Mehrkanalton
 
-- **Status: Entwurf, Fassung 4 (19. November 2026). Nicht freigegeben.** Fassung 2 und 3 haben
+- **Status: Entwurf, Fassung 5 (19. November 2026). Nicht freigegeben.** Fassung 2 und 3 haben
   zwei Kritiker-Lesungen eingearbeitet (Abschnitt 14). Danach hat Marco mit E-10 bis E-12 die
   Anmeldung und die Reihenfolge neu festgelegt: Einrichten per Scan mit einer nativen Handy-App
   über einen Dienst im Internet, die Handy-App wird zuerst gebaut. **Fassung 4 gleicht dieses
   Papier an Konzept 27 «Native Android-Handy-App» an** (dort Fassung 3, Zweig
   `claude/konzept-android-handy`, Stand `b468ee57`, ebenfalls nicht freigegeben) und arbeitet die
-  Befunde ein, die der Kritiker dort zu Abschnitt 4 dieses Papiers hatte (2 Major, 7 Minor). Die
-  Einarbeitung ist nicht gegengelesen. Verweise «K27 4.2» meinen Abschnitte von Konzept 27. Gebaut
+  Befunde ein, die der Kritiker dort zu Abschnitt 4 dieses Papiers hatte (2 Major, 7 Minor).
+  **Fassung 5** arbeitet die dritte Lesung dieses Papiers ein (REVISE, 0 Blocker, 1 Major,
+  8 Minor; Abschnitt 14). Der Kritiker hat dabei Anhang B gegen den Vertrag geprüft: alle 116
+  Operationen stehen genau einmal und mit der richtigen Sichtbarkeit darin. Die Einarbeitung der
+  dritten Lesung ist nicht gegengelesen. Verweise «K27 4.2» meinen Abschnitte von Konzept 27. Gebaut
   wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
@@ -138,7 +141,8 @@ Bearer-Token vor.
 - **Benachrichtigungen** gehören zu einem Profil, nicht zum Konto, und jede Art verlangt einen
   Titel oder einen Wunsch (CHECK in Migration `00070`). Eine Meldung «beim Konto» gibt es nicht.
 - **Adresse des Aufrufers:** Ohne eingetragene `TrustedProxies` sieht der Server hinter einem
-  Reverse-Proxy nur die Adresse des Proxys.
+  Reverse-Proxy nur die Adresse des Proxys. Das zählt für alles, was je Adresse begrenzt wird,
+  zum Beispiel die Fehlversuche beim Anmelden (4.4).
 
 Ein Client ohne Browser kann sich schon heute anmelden: Der Vertragstest
 (`server/cmd/apicheck/client.go`) tut das mit einem Cookie-Speicher und dem CSRF-Kopf.
@@ -290,7 +294,7 @@ es an. Für die TV-App heisst das:
 | Person | `/people/$id` | 2b |
 | Suche | `/search` | 2b |
 | Merkliste, Gesehen, Sammlungen, Listen, Empfehlungen | `/watchlist`, `/watched`, `/collections`, `/lists/$key`, `/picks` | 2b |
-| Profile verwalten: anlegen, ändern, löschen, PIN setzen und entfernen (E-8) | `/settings/profiles` | 2b |
+| Profile verwalten: anlegen, ändern, löschen, PIN setzen und entfernen (E-8). Ohne Sehbericht (Frage F-18) und ohne Offline-PIN (E-8), die die Web-Seite an derselben Stelle zeigt | `/settings/profiles` | 2b |
 | Einstellungen der Wiedergabe | `/settings/playback` | 3 |
 | Videoplayer | `/play/$itemId` | 3 |
 | Hörbuch, Hörbuch-Reihe, Podcast, Tonplayer | `/libraries/$id/series/$sid`, Tonplayer | 4 |
@@ -312,15 +316,16 @@ Wer das braucht, nimmt den Browser.
 - Alles mit Steuerkreuz, OK und Zurück. Zurück schliesst zuerst Menüs, dann die Seite, auf der
   Startseite die App (Vorgabe von Google).
 - Der Fokus ist immer sichtbar. Jede Reihe merkt sich ihre letzte Kachel.
-- Texteingabe nur an drei Stellen: Serveradresse, Anmeldung mit Passwort, Suche. Die Suche bekommt
-  zusätzlich die Spracheingabe des Geräts, wo sie vorhanden ist.
+- Texteingabe nur an vier Stellen: Serveradresse und Anmeldung beim Einrichten von Hand, Suche,
+  Namen beim Verwalten der Profile. Die Suche bekommt zusätzlich die Spracheingabe des Geräts, wo
+  sie vorhanden ist.
 - Vorschlag: Marcos Gestaltungsregeln vom 16. November 2026 für die Web-App auch hier anwenden.
   Klappbares ist zu, Kontrast hoch (Rahmen mindestens 3:1, gedämpfter Text mindestens 8:1).
 - Schrift und Abstände für Sofa-Abstand: eigene Tokens für den Fernseher, keine Zahl im Code.
 
 **Mockup vor dem Bau (Frage F-2):** Vorschlag ist ein klickbares Mockup in 1920 × 1080, mit den
-Pfeiltasten bedienbar, für Anmeldung, Profilwahl, Start, Bibliothek, Detailseite und
-Player-Bedienung. Marco gibt es frei, bevor Stufe 2b beginnt.
+Pfeiltasten bedienbar, für Einrichten per Scan und von Hand, Profilwahl, Profile verwalten, Start,
+Bibliothek, Detailseite und Player-Bedienung. Marco gibt es frei, bevor Stufe 2b beginnt.
 
 ### 3.5 Texte und Farben (Regel 9)
 
@@ -354,7 +359,8 @@ Es gibt zwei Wege:
 | **Von Hand** (Ausweichweg) | Serveradresse, E-Mail und Passwort am Fernseher eintippen | nichts weiter |
 
 Die Bestätigung im Browser über eine Seite `/link` mit abgetipptem Code, wie sie die Fassungen 1
-bis 3 vorsahen, entfällt: Seit E-16 darf nur die Handy-App einen Fernseher verbinden.
+bis 3 vorsahen, entfällt. Das ist aus E-10 und E-16 abgeleitet, nicht eigens entschieden
+(Frage F-3).
 
 ### 4.1 Serveradresse
 
@@ -412,7 +418,8 @@ Gerätekennung stehen in K27 4.1 bis 4.3. Für den Fernseher gilt:
    Gutschein für diesen Schlüssel und legt das Paket beim Dienst ab (K27 Abschnitt 10 und 7.2).
 5. Der Fernseher fragt beim Dienst nach, holt das Paket mit dem Abholgeheimnis ab und
    entschlüsselt es.
-6. Er schickt Gutschein und öffentlichen Schlüssel **direkt an den Server**. Der Server prüft,
+6. Er schickt Gutschein, öffentlichen Schlüssel, seinen Gerätenamen und die Fassung seines
+   Systems **direkt an den Server**; die Art `tv` steckt im Gutschein. Der Server prüft,
    dass der Gutschein an genau diesen Schlüssel gebunden ist, und antwortet mit dem Gerätetoken,
    verschlüsselt für diesen Schlüssel. Lesen kann es nur der Fernseher.
 7. Der Fernseher zeigt die Profilwahl und dabei **Serveradresse und Konto**, mit denen er
@@ -509,6 +516,9 @@ Bekannte Grenzen:
   fotografiert, und der Dienst selbst. Er kann dem Fernseher ein eigenes Paket unterschieben,
   bevor das echte Handy seines ablegt, und ihn so mit einem **fremden** Server und Konto
   verbinden. Lesen kann er dabei nichts. K-9 macht es sichtbar; verhindern lässt es sich nicht.
+  Der Dienst meldet dem echten Handy in diesem Fall, dass am Treffpunkt schon ein Paket liegt.
+  Vorschlag für K27: Die Handy-App warnt dann, dass der Fernseher womöglich schon mit einem
+  fremden Server verbunden ist, und verweist auf die Anzeige am Fernseher.
 - **HTTP und ein Token ohne Ablauf:** Läuft der Server ohne TLS, reist das Gerätetoken nach dem
   Einlösen in jeder Anfrage offen. Wer mitliest, hat ein Token, das gilt, bis jemand den
   Fernseher abmeldet oder das Passwort ändert. Die Meldung aus K-7 schlägt dabei nicht an, weil
@@ -533,11 +543,11 @@ Alles Weitere steht in K27 Abschnitt 7 und wird dort gebaut. Für die TV-App zä
 - Der Dienst hat inzwischen zwei Aufgaben: die Vermittlung beim Einrichten (E-11) und die
   Weiterleitung von Push-Meldungen an die Handy-App (E-17). Die TV-App braucht nur die
   Vermittlung.
-- Er läuft vorläufig auf Marcos eigener Hardware, später auf einem Mietserver (E-19), unter einem
-  festen Namen, der in den Apps eingebaut ist.
-- Die Adresse der Vermittlung ist in den erweiterten Einstellungen änderbar. Handy und Fernseher
-  müssen dann denselben Dienst eingestellt haben, weil die Handy-App einen QR-Code mit einem
-  anderen Dienst ablehnt.
+- Er läuft vorläufig auf Marcos eigener Hardware, später auf einem Mietserver (E-19).
+- Vorschlag aus K27, dort noch offene Fragen: Der Dienst hat einen festen Namen, der in den Apps
+  eingebaut ist (K27 F-37), und die Adresse der Vermittlung ist in den erweiterten Einstellungen
+  änderbar (K27 F-21). Handy und Fernseher müssen dann denselben Dienst eingestellt haben, weil
+  die Handy-App einen QR-Code mit einem anderen Dienst ablehnt.
 - Was der Dienst sieht, steht in K27 7.6; was bei einem Ausfall bleibt, in K27 7.7. Für den
   Fernseher bleibt das Einrichten von Hand. Eingerichtete Fernseher merken von einem Ausfall
   nichts.
@@ -659,11 +669,15 @@ Der Serverteil für Anmeldung, Sitzungsarten, Kopplung, «Meine Geräte», Meldu
 Vertragsfassung in `getHealth` und Redaktionsliste wird mit **Stufe 1 von Konzept 27** gebaut
 (K27 15.1), der Dienst mit dessen Stufe 2. Die TV-App findet beides fertig vor.
 
+**Dazu gehört die Angabe `tv` an den 93 Operationen aus Anhang B.** K27 Stufe 1 schafft die
+Gerätesitzung und den Test, der jede Operation mit einem TV-Token aufruft. Ohne die Angabe bekäme
+eine Gerätesitzung auf alles 403, auch auf die Profilwahl, und der Test hätte nichts zu prüfen.
+Anhang B ist darum die Vorlage für K27 Stufe 1, und Frage F-18 wird dort fällig.
+
 Bei der TV-App bleibt:
 
 | Was | Wo | Art |
 |---|---|---|
-| `x-clients`: `tv` an den Operationen aus Anhang B | Vertrag | Angabe; die Mechanik baut K27 |
 | `PlaybackCapabilities`: drei Ergänzungen (5.2), Beschreibung von `hls` | Vertrag, `playback/decide.go` | zusätzlich |
 | Ton: richtige Codec-Angabe in der HLS-Liste, Kopieren von Dolby Digital (Plus) beim Transcode samt Bandbreitenrechnung mit echter Bitrate, Mehrkanal beim Neu-Kodieren | `playback/decide.go`, `playback/quality.go`, `transcode/plan.go`, `transcode/pipeline.go` | Verhalten ändert sich nur für Clients, die diese Formate oder Kanäle melden; die Codec-Angabe wird für alle richtig |
 
@@ -723,7 +737,7 @@ Die Regeln stehen in K27 11.5 und gelten für die TV-App gleich:
 | Unit | Zustände der Seiten, Fähigkeitsprofil, Fehlerbilder | Vitest der Web-App |
 | Oberfläche | je Seite ein Test mit Tastenereignissen des Steuerkreuzes: jeder Knopf erreichbar, Fokus sichtbar, Zurück führt hinaus, keine Fokusfalle | Regel 8 |
 | Vertrag | die App gegen einen echten Server mit Testdaten, wie die e2e-Läufe | `apicheck` |
-| Server | Entscheid-Tests für die neuen Fähigkeiten und den Ton; `tv` in `x-clients` nach Anhang B. Die Tests für Sitzungsarten, Kopplung und die Erlaubnisliste baut K27 (dort Abschnitt 12) | wie heute |
+| Server | Entscheid-Tests für die neuen Fähigkeiten und den Ton. Die Tests für Sitzungsarten, Kopplung und die Erlaubnisliste samt `tv` nach Anhang B baut K27 (dort Abschnitt 12) | wie heute |
 | Geräte | Abnahme durch Marco auf Chromecast, Shield und Fernseher, je Stufe eine Liste | Abnahme auf CT 190 |
 
 Die Teststufen aus `CLAUDE.md` gelten weiter. Ob die Oberflächentests in der CI auf einem
@@ -746,7 +760,7 @@ ist jede Stufe eine Ausgabe der TV-App.
 | **1 Server: Ton und Fähigkeiten** | Abschnitt 7: drei Ergänzungen am Fähigkeitsprofil, Codec-Angabe, Tonkopie beim Transcode, Mehrkanal beim Neu-Kodieren | Entscheid-Tests; ein Prüfprogramm startet die Wiedergabe mit einem Mehrkanal-Profil; Abnahme auf CT 190 | Ergebnisse aus Stufe 0 (Tonformat, PGS) |
 | **2a Gerüst** | Modul `app-tv`: Einrichten per Scan (QR-Code zeigen, Paket holen, einlösen), Einrichten von Hand, Profilwahl mit PIN | App per ADB auf dem Fernseher: von Hand einrichten und Profil wählen; per Scan mit der Handy-App | K27 Stufen 1 bis 3, für den Scan auch 2 und 9; F-6 |
 | **2b Seiten** | Start, Bibliothek, Detailseiten, Person, Suche, Listen, Profile verwalten | Steuerkreuz-Test je Seite; Abnahme auf den drei Geräten: blättern ohne Abspielen | freigegebenes Mockup (F-2) |
-| **3 Videoplayer** | Player vollständig, Mehrkanalton, HDR, Einstellungen der Wiedergabe | Abnahmeliste je Gerät und Tonanlage; **Vorab-Ausgabe** für Familie und Freunde über die interne Testspur | Stufe 1; Testspur und Paketname stehen aus K27; F-8 |
+| **3 Videoplayer** | Player vollständig, Mehrkanalton, HDR, Einstellungen der Wiedergabe | Abnahmeliste je Gerät und Tonanlage; **Vorab-Ausgabe** für Familie und Freunde über die interne Testspur | Stufe 1; K27 Stufe 5 (erstes Hochladen: Paketname und Testspur stehen erst dann); F-8 |
 | **4 Ton** | Hörbücher, Podcasts, Webradio | Abnahme auf den Geräten | |
 | **5 Wünsche** | Bereich «Wünsche», Benachrichtigungen, Ankündigungen | Abnahme mit echtem Seerr; **erste Ausgabe nach E-5 vollständig** | |
 | **6 Öffentlich** | TV-Geräteart mit eigener Veröffentlichungsspur, TV-Prüfung, Banner und Bildschirmfotos | TV-App im Play Store | geschlossener Test und Vorführserver aus K27 Stufe 10 laufen oder sind erledigt; F-10 |
@@ -778,7 +792,7 @@ der Zusammenhang sichtbar bleibt.
 | `CLAUDE.md` Werkzeuge | Go, Node, pnpm, `task` | dazu JDK, Android-SDK, Gradle |
 | Plan 3.8 Punkt 7 | «Fremd-Clients per Bearer» (nie gebaut) | gebaut für die App-Sitzung des Handys und die Gerätesitzung des Fernsehers (K27 4.1) |
 | ADR 0005 | eine Sitzungsart | Nachtrag: drei Sitzungsarten, die Art an den Träger gebunden (ADR 0040) |
-| Regel «Vertrag = Tag» | ein Tag je Vertragsfassung | bleibt; daneben neu die Übergangszeit für Operationen der Gerätesitzung (8.4, ADR 0039) |
+| Regel «Vertrag = Tag» | ein Tag je Vertragsfassung | bleibt; daneben neu die Übergangszeit für alle Operationen mit `x-clients`, also den ganzen Nutzerbereich (8.4, K27 11.5) |
 | Nicht-Ziel «Cloud» (Spec, `CLAUDE.md` Regel 11) | kein Dienst ausserhalb des eigenen Servers | benannte Ausnahme: der Dienst im Internet für das Einrichten per Scan (E-11) und für Push an die Handy-App (E-17), ADR 0042. Er hält keine Nutzerdaten und sieht keine Inhalte |
 
 ## 12. Risiken
@@ -793,7 +807,7 @@ der Zusammenhang sichtbar bleibt.
 | R-6 | Google lehnt die App ab oder verlangt mehr | öffentliche Stufe verzögert sich | private Verteilung hängt nicht davon ab |
 | R-7 | Identitätsprüfung bei Google dauert | interne Testspur später | bis dahin ADB |
 | R-8 | 12 Tester über 14 Tage | öffentliche Stufe braucht Mitmacher | Familie und Freunde aus der privaten Stufe |
-| R-9 | Zweite Werkzeugkette (JDK, Android-SDK, Gradle) | längere CI, mehr Pflege | Laufzeit in Stufe 2a messen, danach über einen Pfadfilter entscheiden |
+| R-9 | Zweite Werkzeugkette (JDK, Android-SDK, Gradle) | längere CI, mehr Pflege | Stufe 3 von K27 misst die Laufzeit; danach Entscheid über einen Pfadfilter |
 | R-10 | Texte in 22 Sprachen auch für die TV-App | mehr Übersetzungsarbeit je Funktion | eine Quelle, ein Übersetzungsweg (3.5) |
 | R-11 | Bearer im Server ist ein neuer Anmeldeweg für alle Operationen | Fehler dort träfe mehr als die Apps | Bearer nur für App-Sitzung und Gerätesitzung, `x-clients` im Vertrag, Test über alle Operationen (K27 4.4) |
 | R-12 | Vermittlungsdienst als dauernde Betriebspflicht (E-11) | Ausfall: kein Einrichten per Scan, für alle Nutzer; Missbrauch; Pflicht zur Datenschutzerklärung | Einrichten von Hand bleibt; Dienst hält nichts dauerhaft; Überwachung (F-20) |
@@ -804,7 +818,8 @@ der Zusammenhang sichtbar bleibt.
 ## 13. Fragen
 
 Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihrer Stufe vor.
-Beantwortet sind F-3, F-4, F-7, F-15, F-16 und F-20. F-1, F-9, F-11, F-12, F-13 und F-21 betreffen das
+Beantwortet sind F-4, F-7, F-15, F-16 und F-20; F-3 ist abgeleitet und wartet auf Marcos
+Bestätigung. F-1, F-9, F-11, F-12, F-13 und F-21 betreffen das
 gemeinsame Fundament; sie stehen jetzt in Konzept 27 und werden dort beantwortet. Offen für die
 TV-App sind F-2, F-5, F-6, F-8, F-10, F-14, F-17, F-18 und F-19.
 
@@ -812,7 +827,7 @@ TV-App sind F-2, F-5, F-6, F-8, F-10, F-14, F-17, F-18 und F-19.
 |---|---|---|---|
 | F-1 | App im selben Repo (`android/`) oder in einem eigenen? | steht in K27 (dort Empfehlung: selbes Repo) | K27 |
 | F-2 | Klickbares Mockup der TV-Oberfläche vor dem Bau? | ja | Stufe 2b |
-| F-3 | Soll es neben Scan und Passwort die Bestätigung im Browser per Code geben? | **Beantwortet durch E-16 in K27:** «Nur die Handy-App» verbindet Fernseher. Nutzer ohne Android-Handy richten von Hand ein | – |
+| F-3 | Soll es neben Scan und Passwort die Bestätigung im Browser per Code geben? | **Abgeleitet, nicht entschieden:** nein. Marco hatte bei E-4 «Code und Passwort» gewählt, danach mit E-10 den Scan mit der Handy-App beschrieben und bei E-16 «Nur die Handy-App» gewählt. E-16 fragte, wer per QR-Scan verbinden darf, nicht ob es daneben einen Code im Browser gibt | Marcos Freigabe |
 | F-4 | Wie lange bleibt ein gekoppelter Fernseher ohne Benutzung angemeldet? | **Beantwortet: «Unbegrenzt»** (Empfehlung war 400 Tage) | – |
 | F-5 | Serveradresse: zusätzlich zu Scan und Eingabe von Hand eine Suche im Heimnetz? | nein | Stufe 2a |
 | F-6 | Unverschlüsseltes HTTP zum Server auch am Fernseher? Für die Handy-App gilt «HTTP überall mit Warnung» (E-18). | wie am Handy, damit derselbe Server an beiden Geräten geht | Stufe 2a |
@@ -827,8 +842,8 @@ TV-App sind F-2, F-5, F-6, F-8, F-10, F-14, F-17, F-18 und F-19.
 | F-15 | «Meine Geräte» für jedes Konto (sehen und abmelden), nicht nur in der Verwaltung? | **Beantwortet: «Ja»** | – |
 | F-16 | Darf eine Gerätesitzung Wünsche anlegen? | **Beantwortet: «Ja»** | – |
 | F-17 | Fire TV | eigenes Konzept nach Stufe 6. Neue Fire-TV-Geräte mit Vega OS führen keine Android-Apps aus | – |
-| F-18 | Meldekanäle (E-Mail, Telegram), Sehbericht und Kontodaten auch in der TV-App? | nein, Browser; die Meldekanäle bleiben einer Gerätesitzung verwehrt, damit die Meldung aus K-7 nicht umgeleitet werden kann | Stufe 1 |
-| F-19 | PIN-Empfehlung aus E-9 auch in der Web-App und der Handy-App zeigen? | ja, gleicher Hinweis an gleicher Stelle | Stufe 2b |
+| F-18 | Meldekanäle (E-Mail, Telegram), Sehbericht und Kontodaten auch in der TV-App? | nein, Browser; die Meldekanäle bleiben einer Gerätesitzung verwehrt, damit die Meldung aus K-7 nicht umgeleitet werden kann | K27 Stufe 1 (dort wird die Erlaubnisliste gebaut) |
+| F-19 | PIN-Empfehlung aus E-9 auch in der Web-App und der Handy-App zeigen? | ja, gleicher Hinweis an gleicher Stelle | K27 Stufe 4 |
 | F-20 | Vermittlungsdienst: Wo läuft er? | **Beantwortet in K27** (E-19): vorläufig auf eigener Hardware, später auf einem Mietserver | – |
 | F-21 | Adresse des Vermittlungsdienstes in den Apps änderbar? | steht in K27 (dort Empfehlung: ja, nur für die Vermittlung) | K27 |
 
@@ -911,6 +926,29 @@ Die Einarbeitung und Anhang B hat kein Kritiker gegengelesen. In Anhang B sind d
 «Empfehlen», «Benachrichtigungen», «Ankündigungen» und «Vorlieben der Wiedergabe» Vorschlag der
 Redaktion; der Kritiker hatte zwei davon ausdrücklich als offen genannt.
 
+**Vierter Nachtrag (Fassung 5): dritte Lesung dieses Papiers.** Derselbe Kritiker wie in Runde 1
+und 2 hat Fassung 4 gegen den Vertrag und gegen Konzept 27 gelesen: **REVISE, 0 Blocker, 1 Major,
+8 Minor.** Bestätigt hat er: Anhang B nennt alle 24 `account`- und 92 `scoped`-Operationen genau
+einmal und mit der richtigen Sichtbarkeit (93 ja, 23 nein), die Streaming-Routen stimmen mit
+`binaryRoutes` überein, und alle neun Befunde aus K27 18.2 sind in 4.2 bis 4.7 behoben.
+
+| Nr. | Stufe | Befund | Eingearbeitet in |
+|---|---|---|---|
+| 1 | Major | Niemand trug `tv` an den 93 Operationen ein, bevor es die Gerätesitzung gibt: K27 Stufe 1 schafft sie und testet sie, dieses Papier hatte die Angabe aber bei der TV-App | Abschnitt 7, F-18; **muss in K27 Stufe 1** |
+| 2 | Minor | Das Einlösen trug keinen Gerätenamen | 4.3 Schritt 6; **muss in K27 7.2** |
+| 3 | Minor | Der Fehler des Dienstes bei einem schon liegenden Paket wird nicht als Warnung genutzt | 4.6; **muss in K27 Abschnitt 10** |
+| 4 | Minor | Anhang B.3 führte öffentliche Operationen unter `x-clients`; «Server weist sich aus» fehlte | Anhang B.3 |
+| 5 | Minor | Stufe 3: Paketname und Testspur stehen erst nach K27 Stufe 5 | Abschnitt 10 |
+| 6 | Minor | Reste des alten Entwurfs: Texteingabe, Liste des Mockups, R-9, Übergangszeit in Abschnitt 11, Fälligkeit von F-19 | 3.4, Abschnitte 11 bis 13 |
+| 7 | Minor | Die Profilseite am Fernseher lässt Sehbericht und Offline-PIN weg, ohne es zu sagen | 3.3 |
+| 8 | Minor | Zuschreibung: fester Name und änderbare Adresse des Dienstes sind in K27 offene Fragen; F-3 «beantwortet durch E-16» war ein Schluss, kein Entscheid | 4.7, F-3 |
+
+**Was Konzept 27 davon übernehmen muss** (dessen Zweig wird hier nicht angefasst): die Angabe
+`tv` nach Anhang B und Frage F-18 in seiner Stufe 1; Gerätename und Systemfassung im Einlösen
+(K27 7.2); die Warnung der Handy-App, wenn am Treffpunkt schon ein Paket liegt (K27 Abschnitt 10);
+F-19 in seiner Stufe 4. Ausserdem nennt K27 dieses Papier noch mit dem Stand `b3296ee6`; sein
+Abschnitt 18 ist mit Fassung 4 und 5 erledigt.
+
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
 - TV-Qualitätsliste: <https://developer.android.com/docs/quality-guidelines/tv-app-quality>
@@ -968,12 +1006,16 @@ aufrufen und 23 nicht. Wo «Vorschlag» steht, hat Marco nicht entschieden.
 
 ### B.3 Neue Operationen aus Konzept 27
 
-| Operation | Fernseher | Grund |
-|---|---|---|
-| «App anmelden» mit Art `tv` (`public`) | ja | Einrichten von Hand (4.4) |
-| Gutschein einlösen (`public`) | ja | Einrichten per Scan (4.3) |
-| Kopplungsgutschein ausstellen | nein | E-16: nur die App-Sitzung des Handys |
-| Meine Geräte: Liste und Abmelden | nein | 4.5 |
+| Operation | Sichtbarkeit | Fernseher | Grund |
+|---|---|---|---|
+| «App anmelden» mit Art `tv` | `public` | ruft sie auf | Einrichten von Hand (4.4) |
+| Gutschein einlösen | `public` | ruft sie auf | Einrichten per Scan (4.3) |
+| «Server weist sich aus» | `public` | ruft sie auf | nur falls K27 F-38 mit Ja beantwortet wird (4.6) |
+| Kopplungsgutschein ausstellen | `account` | nein | E-16: nur die App-Sitzung des Handys |
+| Meine Geräte: Liste und Abmelden | `account` | nein | 4.5 |
+
+Öffentliche Operationen tragen kein `x-clients`; die Angabe gibt es nur für `account` und `scoped`
+(K27 4.4).
 
 Jede Operation, die später dazukommt, muss die Frage neu beantworten; der Schema-Test verlangt
 die Angabe (K27 4.4).
