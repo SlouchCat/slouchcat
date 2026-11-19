@@ -539,6 +539,13 @@ describe('band, pill and current entry contrast for every profile accent (F-9, F
     },
   );
 
+  // Hovered, the current area's button keeps the accent over the entry's hover surface.
+  it.each(accentNames)('the current branch in %s meets 4.5:1 over its hover surface', (name) => {
+    const accent = channels(tokens.color.accent[name].base);
+    const ratio = contrast(accent, channels(tokens.color.surface[2]));
+    expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(MIN_RATIO);
+  });
+
   it.each(accentNames)('the current entry’s icon in %s meets 3:1 on its tint', (name) => {
     const accent = channels(tokens.color.accent[name].base);
     const ratio = contrast(accent, tint(accent, CURRENT_TINT, ground));

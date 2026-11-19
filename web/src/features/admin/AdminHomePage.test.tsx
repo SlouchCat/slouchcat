@@ -887,7 +887,7 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
   });
 
   it('opens and closes an area on a press; closed, the current page keeps its marks', async () => {
-    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { calls } = mockApi(routes({ 'GET /admin/devices': () => json([]) }));
     const { nav, router } = await renderAdminPage('/admin/devices');
     const user = userEvent.setup();
     await user.click(areaButton(nav, 'Startseite'));
@@ -915,8 +915,14 @@ describe('admin sidebar (A-2, concept 11; build plan 1, 2)', () => {
     expect(within(nav).queryByRole('link', { name: 'Geräte' })).toBeNull();
     expect(currentPage(nav)).toBe('/admin/devices');
     expect(currentArea(nav)).toEqual(['Nutzer & Geräte']);
-    // A press never follows a link.
+    // Enter and Space on the focused button do the same as a press.
+    await user.keyboard('{Enter}');
+    expect(openAreas(nav)).toEqual(['Nutzer & Geräte']);
+    await user.keyboard(' ');
+    expect(openAreas(nav)).toEqual([]);
+    // A press never follows a link and never writes: the server only got reads.
     expect(router.state.location.pathname).toBe('/admin/devices');
+    expect(calls.filter((call) => call.method !== 'GET')).toEqual([]);
     // The Tab stop falls back to the closed area's button.
     act(() => (document.activeElement as HTMLElement).blur());
     expect(items(nav).filter((item) => item.tabIndex === 0)).toEqual([
