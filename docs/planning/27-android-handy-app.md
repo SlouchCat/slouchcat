@@ -1,10 +1,11 @@
 # Konzept: Native Android-Handy-App – stöbern, abspielen, Downloads, Fernseher verbinden
 
-- **Status: Entwurf, Fassung 2 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
-  Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor;
-  Abschnitt 19). Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,
-  7 Minor; Abschnitt 18). Die Einarbeitung hat er nicht gegengelesen. Gebaut wird erst nach
-  Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+- **Status: Entwurf, Fassung 3 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
+  Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor), Fassung 3
+  die zweite Lesung (REVISE nahe an der Annahme, 0 Blocker, 1 Major, 13 Minor); beides in
+  Abschnitt 19. Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,
+  7 Minor; Abschnitt 18). Die Einarbeitung der zweiten Lesung hat er nicht mehr gegengelesen.
+  Gebaut wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
   dieser App den QR Code auf dem TV scannen und auf dem TV wird alles eingerichtet (sofern mit
@@ -147,9 +148,10 @@ Die PWA bleibt. Die native App ersetzt sie nicht; iPhone-Nutzer haben weiterhin 
 - Das **Gerät** ist heute das Cookie `slouchcat_device` (32 Hex-Zeichen, 400 Tage). Die Sitzung
   merkt sich das Gerät (`sessions.device_id`); `ensureDeviceCookie` gibt dem Gerät der Sitzung
   Vorrang vor dem Cookie.
-- Am Gerät hängen: die PIN-Zähler (`pin_attempts`), die Downloads (`downloads.device_id`,
-  `ON DELETE CASCADE`) und die Widerrufsliste. `checkOfflineRevocations` ist `public` und erkennt
-  das Gerät **nur am Cookie** (`CheckOfflineRevocations`, `offline_handlers.go`).
+- Am Gerät hängen die PIN-Zähler (`pin_attempts`) und die Downloads (`downloads.device_id`),
+  beide mit `ON DELETE CASCADE`. Die Widerrufsliste führt die Kennung des Geräts ohne
+  Fremdschlüssel. `checkOfflineRevocations` ist `public` und erkennt das Gerät **nur am
+  Cookie** (`CheckOfflineRevocations`, `offline_handlers.go`).
 - Name und Typ eines Geräts (`desktop`, `phone`, `tablet`, `tv`, `other`) schreibt der Server
   bei jedem Abspielstart aus `PlaybackCapabilities` (`RecordDeviceProfile`); ein gemeldeter Name
   ersetzt den alten. `devices.account_id` nennt nur das Konto des letzten Abspielstarts.
@@ -215,15 +217,20 @@ Einzelheiten, die für eine native App zählen:
   schickt an jede Adresse, die mit `https` beginnt (`CheckEndpoint`) und nicht auf eine private
   oder lokale Adresse zeigt (`netguard.RefuseLocal`). Antwortet die Gegenstelle mit 404 oder
   410, löscht der Server das Abo.
-- Die Nutzlast ist `{title, body, url}`; `url` ist eine vollständige Adresse der Web-App. Jede
-  Meldung geht an **alle** Abos des Kontos (`sendPush`), mit dem Profilnamen vorangestellt
-  (`Emit`).
+- Die Nutzlast ist `{title, body, url}`. `url` ist eine vollständige Adresse der Web-App, wenn
+  der Server seine öffentliche Adresse kennt, sonst nur ein Pfad (`absolute`,
+  `server/internal/notify/texts.go`). Jede Meldung geht an **alle** Abos des Kontos
+  (`sendPush`), mit dem Profilnamen vorangestellt (`Emit`).
+- Ein Kanal sendet nur, wenn er eingeschaltet ist; einschalten darf ihn nur das Hauptprofil
+  (`updateMyChannel`).
 - **Jeder verschlüsselte Körper ist genau 4096 Byte gross.** Die Bibliothek füllt auf die
   Satzgrösse auf, und der Server setzt sie nicht (`webpush.Options` ohne `RecordSize`).
 - **Ein Abo überlebt jede Abmeldung.** `push_subscriptions.device_id` ist `ON DELETE SET NULL`;
-  weder `logout` noch `deleteDevice` noch eine Passwortänderung löscht ein Abo. Nur
-  `deletePushSubscription` (Hauptprofil) und ein neuer VAPID-Schlüssel tun es (`RotateVAPID`
-  löscht alle).
+  weder `logout` noch `deleteDevice` noch eine Passwortänderung löscht ein Abo. Ein Abo fällt
+  nur auf vier Wegen: die Gegenstelle antwortet 404 oder 410, das Konto wird gelöscht,
+  `deletePushSubscription` (Hauptprofil) oder ein neuer VAPID-Schlüssel (`RotateVAPID` löscht
+  alle). Ein Browser trägt sich danach nicht von selbst neu ein; die Web-App bietet dafür einen
+  Knopf (`PushDevices.tsx`).
 - Administratoren bekommen über ihre Kanäle auch Fehlermeldungen und Wünsche zur Freigabe
   (`ChannelTargetsAdmins`), mit Zielen unter `/admin`.
 
@@ -348,8 +355,9 @@ Die App bildet den Nutzerbereich der Web-App ab. Die Spalte «Stufe» verweist a
 
 **Nicht in der App:**
 
-- nach Marcos Entscheid: die Verwaltung (`/admin/*`, E-14). Das schliesst das Freigeben und
-  Ablehnen von Wünschen ein; es bleibt im Browser.
+- nach Marcos Entscheid: die Verwaltung (`/admin/*`, E-14).
+- als Folgerung der Redaktion daraus: Auch das Freigeben und Ablehnen von Wünschen bleibt im
+  Browser, weil es Operationen der Verwaltung sind.
 - als Vorschlag: Ersteinrichtung (`/setup/*`), Einladung annehmen (`/invite/$token`),
   Sehbericht der Profile. Wer das braucht, nimmt den Browser. Kontodaten (E-Mail, Passwort)
   lassen sich in der App ändern, weil die Operation das aktuelle Passwort ohnehin verlangt.
@@ -428,10 +436,10 @@ vorgesehen; es ist eine Operation mit einer Angabe zur Art.
   Abspielstart. Das Gerät steht damit gleich unter «Meine Geräte». Der Name aus der Anmeldung
   bleibt; der Abspielstart überschreibt ihn bei App- und Gerätesitzungen nicht mehr (2.3).
 - **Die Gerätekennung vergibt der Server.** Eine mitgebrachte Kennung nimmt er nur an, wenn
-  keine lebende Sitzung eines **anderen** Kontos sie hält und sie nicht die reservierte ist
-  (2.3); sonst vergibt er eine neue. Wer eine fremde Kennung kennt, könnte sich sonst an das
-  fremde Gerät hängen, es umbenennen und dessen Downloads blockieren (`downloads` ist je Gerät
-  und Titel eindeutig).
+  kein **anderes** Konto auf dem Gerät eine lebende Sitzung oder Downloads hat (dieselbe Prüfung
+  wie in 4.5) und sie nicht die reservierte ist (2.3); sonst vergibt er eine neue. Wer eine
+  fremde Kennung kennt, könnte sich sonst an das fremde Gerät hängen, es umbenennen und dessen
+  Downloads blockieren (`downloads` ist je Gerät und Titel eindeutig).
 - Die Operation teilt sich den Topf für Fehlversuche mit `login` (2.3). Er zählt je Adresse des
   Aufrufers; Handys hinter demselben Mobilfunk-Ausgang teilen ihn sich.
 - Der Abgleich des Passworts mit Seerr läuft wie bei `login` (2.3).
@@ -473,7 +481,8 @@ Dazu kommt, was Abschnitt 2.3 am Code zeigt und K26 noch nicht nennt:
   Kontakt seit 400 Tagen verlöre seine Downloads im Server und bekäme eine neue Kennung. Der
   nächste Abgleich fände unter der neuen Kennung keinen Widerruf, und die Dateien blieben auf
   dem Handy liegen, ohne dass der Server sie noch kennt. Für App- und Gerätesitzungen ist ein
-  verschwundenes Gerät darum ein Fehler und kein Anlass für eine neue Kennung.
+  verschwundenes Gerät darum ein Fehler und kein Anlass für eine neue Kennung: Der Server
+  entzieht die Sitzung und antwortet mit 401; das Gerät meldet sich neu an.
 
 ### 4.4 Die Erlaubnisliste im Vertrag
 
@@ -514,7 +523,14 @@ Handy-App:
     Handy bekäme sonst weiter jede Meldung des Kontos, auch «Neues Gerät verbunden».
   - die Regeln für Auto-Downloads auf diesem Gerät
 - Dasselbe Aufräumen der Push-Abos gilt für `logout` einer App-Sitzung, für `deleteDevice` der
-  Verwaltung und für eine Passwortänderung.
+  Verwaltung und für eine Passwortänderung. Drei Einzelheiten dazu:
+  - `deleteDevice` löscht die Abos **vor** der Gerätezeile. Danach ist die Kennung im Abo leer
+    (2.5) und das Abo nicht mehr zu finden.
+  - Das Aufräumen bei der Passwortänderung trifft nur Handys und Fernseher; die App trägt ihr
+    Abo bei der nächsten Anmeldung von selbst neu ein. Für Browser bleibt es beim heutigen
+    Verhalten, weil ein Browser sich nicht von selbst neu einträgt (Frage F-40).
+  - Abos ohne Gerätekennung, die es heute schon gibt, räumt niemand auf. Das bleibt eine
+    bekannte Grenze.
 - Lesen darf jedes Profil, abmelden nur eine Sitzung ohne aktives Profil oder mit dem
   Hauptprofil. Das ist die Regel der Meldekanäle (2.5).
 - Einer Gerätesitzung sind beide Operationen verwehrt (K26 4.5).
@@ -533,8 +549,10 @@ alle Konten.
   `http://192.168.0.10` gilt als Heimnetz und löst keine Warnung aus. Ist das Handy in einem
   fremden WLAN mit demselben Adressbereich, schickt die App ihr Token samt jeder Bildanfrage an
   das Gerät, das dort diese Adresse hat. Dafür muss niemand mitlesen und der Nutzer nichts
-  antippen. Diese Folge stand nicht in der Frage zu E-18. Abschnitt 6 schlägt vor, dass der
-  Server sich ausweist, bevor die App das Token sendet.
+  antippen. Dasselbe gilt für die Medien-Adressen mit `dt`, `st` und `rt`, die der Abruf im
+  Hintergrund gerade nach einem Netzwechsel anfragt. Diese Folge stand nicht in der Frage zu
+  E-18. Abschnitt 6 schlägt vor, dass der Server sich ausweist, bevor die App irgendetwas
+  Geheimes sendet.
 - Die Gerätekennung für die Widerrufsliste (4.3) reist über HTTP ebenfalls offen. Mit der Regel
   aus 4.2 gibt sie allein keinen Zugang.
 - **Verlorenes Handy:** Es behält den Zugang zum Nutzerbereich aller Profile ohne PIN. Schutz
@@ -678,15 +696,33 @@ entsteht beim Bau der App, nicht bei `task gen`.
   das dauerhaft an, auch im Heimnetz. Ob eine Adresse im Heimnetz liegt, entscheidet die App an
   der aufgelösten Adresse (die Bereiche aus 2.7).
 - **Der Server weist sich aus (Vorschlag, Frage F-38).** Gegen das fremde Netz mit denselben
-  Adressen (4.6) hilft keine Warnung. Vorschlag für Server über HTTP: Bevor die App nach dem
-  Start oder nach einem Netzwechsel ihr Token sendet, schickt sie eine Zufallszahl und eine
-  nicht geheime Kennung ihrer Sitzung. Der Server antwortet mit einem Wert, den nur berechnen
-  kann, wer den gespeicherten Hash des Tokens kennt. Stimmt er nicht, sendet die App nichts und
-  meldet «Server nicht erreichbar». Das kostet eine kleine öffentliche Operation im Server. Es
-  schützt nicht vor jemandem, der im richtigen Netz auf dem Weg mitliest; diese Folge von E-18
-  bleibt.
-- Verworfen: das WLAN am Namen oder an der Gegenstelle wiederzuerkennen. Android gibt beides nur
-  mit der Standort-Berechtigung her.
+  Adressen (4.6) hilft keine Warnung. Vorschlag für Server über HTTP:
+  - Der Server bekommt ein eigenes Schlüsselpaar und nennt den öffentlichen Schlüssel in
+    `getHealth`. Die App merkt ihn sich beim Einrichten (Vertrauen beim ersten Kontakt).
+  - In jedem neuen Netz schickt die App zuerst eine Zufallszahl, und der Server unterschreibt
+    sie. Passt die Unterschrift nicht zum gemerkten Schlüssel, sendet die App nichts und meldet
+    «Server nicht erreichbar».
+  - **Die Sperre sitzt im gemeinsamen OkHttp-Client und gilt je Netz.** Sie hält jede Anfrage
+    zurück, bis das Netz geprüft ist: API, Bilder, Player und Abruf im Hintergrund. Damit
+    schützt sie alles, was geheim ist, nicht nur das Token: die Medien-Adressen mit `dt`, `st`
+    und `rt`, die Gerätekennung für die Widerrufsliste und das Passwort bei einer neuen
+    Anmeldung.
+  - Der Schlüssel kann im Paket der Kopplung mitreisen (7.2); der Fernseher prüft dann von
+    Anfang an.
+  - Im Server kostet das eine öffentliche Operation mit Ratenbegrenzung.
+- **Was das nicht leistet:**
+  - Es schützt nicht vor jemandem, der im richtigen Netz auf dem Weg mitliest. Diese Folge von
+    E-18 bleibt.
+  - Ist der echte Server auch aus dem Internet erreichbar, kann ein fremdes Gerät die Prüfung an
+    ihn weiterreichen, bestehen und danach mitlesen. Dagegen hilft nur HTTPS.
+  - Wer eine Sicherung des Servers mit dem privaten Schlüssel erbeutet, kann sich als der Server
+    ausgeben.
+- Eine kleinere Fassung ohne Schlüsselpaar stand in Fassung 2: Der Server beweist, dass er den
+  gespeicherten Hash des Tokens kennt. Sie deckt weder die neue Anmeldung noch die
+  Widerrufsliste und ist darum nicht mehr der Vorschlag.
+- Verworfen: das WLAN wiederzuerkennen. Den Namen des WLAN und den Zugangspunkt gibt Android nur
+  mit der Standort-Berechtigung her, die Hardware-Adresse der Gegenstelle seit Android 10 gar
+  nicht (Kenntnis der Redaktion und des Kritikers, unbelegt).
 - **Heimnetz und Android 17:** Sobald die App auf API 37 zielt, braucht sie die Berechtigung
   `ACCESS_LOCAL_NETWORK`, um einen Server im Heimnetz zu erreichen. Die App erklärt sie vor der
   Frage des Systems und erkennt den Fall «verweigert» (Timeout bei einer lokalen Adresse), statt
@@ -744,7 +780,8 @@ Pfade unter `/v1`):
   Skript auf der Seite den Teil hinter dem `#` lesen könnte.
 - **Die Handy-App nimmt den Code nur aus ihrem eigenen Scanner an,** nie als Link von aussen.
   Sonst würde aus «Bild scannen» ein Antippen (K26 4.6, bekannte Grenze).
-- **Das Paket** enthält die Serveradresse, den Kopplungsgutschein und die Fassungsnummer. Die
+- **Das Paket** enthält die Serveradresse, den Kopplungsgutschein und die Fassungsnummer, dazu
+  den öffentlichen Schlüssel des Servers, falls F-38 mit Ja beantwortet wird (Abschnitt 6). Die
   Handy-App verschlüsselt es mit HPKE (RFC 9180) für den Schlüssel des Fernsehers; die Kennung
   des Treffpunkts geht als gebundene Zusatzangabe ein, damit ein Paket nicht an einen anderen
   Treffpunkt passt.
@@ -790,10 +827,11 @@ und braucht dann keinen neuen Sendeweg, wohl aber vier Anpassungen (unten).
    Schlüssel, auf den Empfänger (`aud` ist die eigene Adresse des Dienstes) und auf den Ablauf.
    Dann reicht er den Geheimtext als Datennachricht an Google weiter und übersetzt dabei
    Haltedauer und Dringlichkeit.
-6. Die App entschlüsselt und zeigt die Meldung an. Ein Tippen öffnet das Ziel: Die App übersetzt
-   die Web-Adresse aus `url` in ihre eigene Seite. Sieht das aktive Profil den Titel nicht,
-   antwortet der Server mit 404 wie sonst. Ziele der Verwaltung (`/admin…`, 2.5) öffnet die App
-   im Browser.
+6. Die App entschlüsselt und zeigt die Meldung an. Ein Tippen öffnet das Ziel: Die App nimmt
+   aus `url` nur den Pfad und übersetzt ihn in ihre eigene Seite; einen fremden Rechnernamen
+   öffnet sie nie. Sieht das aktive Profil den Titel nicht, antwortet der Server mit 404 wie
+   sonst. Ziele der Verwaltung (`/admin…`, 2.5) öffnet die App im Browser, unter der Adresse
+   ihres eigenen Servers.
 
 **Was der Server dafür ändern muss:**
 
@@ -802,11 +840,18 @@ und braucht dann keinen neuen Sendeweg, wohl aber vier Anpassungen (unten).
   zu gross, nicht nur eine lange. Der Server setzt für Adressen des Dienstes eine kleinere
   Satzgrösse und kürzt den Text entsprechend (`maxBody` ist heute 4000 Zeichen). Den Wert misst
   Stufe 0.
+- **Der Server erkennt Adressen des Dienstes** am Ursprung: Die Adresse des Dienstes ist im
+  Server eingebaut und einstellbar. Nur für sie gilt die kleinere Satzgrösse.
 - **Eine App-Sitzung verwaltet ihr eigenes Abo immer:** anlegen, erneuern, löschen. Heute
   verlangt schon das erste Eintragen das Hauptprofil oder kein Profil (2.5).
-- **Ein neues Google-Token ersetzt das alte Abo des Geräts.** Sonst bleibt die alte Zeile
-  stehen, weil die Adresse eine andere ist.
+- **Ein neues Google-Token ersetzt das alte Abo des Geräts,** bei App-Sitzungen. Sonst bleibt
+  die alte Zeile stehen, weil die Adresse eine andere ist.
 - **Abmelden löscht das Abo** (4.5).
+
+**Was gleich bleibt:** Ob das Konto überhaupt Push bekommt, entscheidet weiter das Hauptprofil
+über den Kanal (2.5). Die App trägt ihr Abo immer ein; ist der Kanal aus, zeigt sie das an und
+sagt, dass das Hauptprofil ihn einschalten muss. Ein Handy, auf dem nur ein Kinderprofil benutzt
+wird, bekommt sonst ein Abo und trotzdem keine Meldung.
 
 Die App prüft beim Start, ob ihr Abo noch besteht und der VAPID-Schlüssel des Servers noch
 derselbe ist; ein neuer VAPID-Schlüssel löscht im Server alle Abos (2.5), und die App trägt sich
@@ -975,8 +1020,9 @@ Bildspeicher und alle gemerkten Listen beim Profilwechsel und beim Abmelden.
 ### 9.1 Grundsatz
 
 Die App nutzt die Offline-Endpunkte, wie sie sind (2.4). Der Server bereitet vor, das Gerät holt
-ab, der Abgleich hält beide gleich. Am Server ändert sich für Offline nur, was Abschnitt 4.3
-nennt: die Gerätekennung im Kopf und die Aufräumung.
+ab, der Abgleich hält beide gleich. Neue Offline-Operationen braucht die App nicht. Am Server
+ändert sich für Offline dreierlei: die Gerätekennung im Kopf und die Aufräumung (4.3) sowie das
+Aufräumen von Downloads und Regeln beim Abmelden unter «Meine Geräte» (4.5).
 
 Die PWA und die native App auf demselben Handy sind **zwei Geräte** mit getrennten Downloads.
 
@@ -1201,9 +1247,9 @@ Regel mit der öffentlichen Stufe; sie von Anfang an einzuhalten, kostet am weni
 |---|---|---|
 | Unit | Zustände der Seiten; Offline-Logik (Abgleich anwenden, PIN, Schauzeit, Ereignisse) mit den Fällen aus `sync.test.ts`, `pin.test.ts` und `engine.test.ts` | Vitest der Web-App |
 | Oberfläche | je Seite ein Compose-Test: jedes Bedienelement erreichbar und beschriftet, Zurück führt hinaus, zwei Breiten | Regel 8 |
-| Generatoren | Texte: alle 23 Sprachen ohne Abbruch; Farben und Masse: Stichproben gegen die CSS-Ausgabe | `gen:check` |
+| Generatoren | Texte: alle 22 Sprachen und die Ergänzung `de-DE` ohne Abbruch; Farben und Masse: Stichproben gegen die CSS-Ausgabe | `gen:check` |
 | Vertrag | der Client der App gegen einen echten Server mit Testdaten: anmelden, Profil wählen, Abspielstart, Download bestellen und holen, Abgleich | `apicheck` |
-| Server | Vertragstest mit jeder Sitzungsart, die neuen öffentlichen Operationen im Register; der Test aus 4.4 (Besitzerkonto, jede Bearer-Art, eigener Fehlercode); falscher Träger je Art wird abgelehnt; Sitzungen ohne Ablauf und ihre Geräte überleben die Aufräumung; Widerrufsliste über den Kopf; fremde und reservierte Gerätekennung; Gutschein abgelaufen, doppelt, falscher Schlüssel; Abmelden löscht Push-Abos | `TestContractCoversEveryOperation` |
+| Server | Vertragstest mit jeder Sitzungsart, die neuen öffentlichen Operationen im Register; der Test aus 4.4 (Besitzerkonto, jede Bearer-Art, eigener Fehlercode); falscher Träger je Art wird abgelehnt; Sitzungen ohne Ablauf und ihre Geräte überleben die Aufräumung; Widerrufsliste über den Kopf; fremde und reservierte Gerätekennung; Gutschein abgelaufen, doppelt, falscher Schlüssel; Abmelden löscht Push-Abos; «Server weist sich aus»: richtige und falsche Unterschrift, Ratenbegrenzung | `TestContractCoversEveryOperation` |
 | Dienst | Ablauf, Grössen, Raten, Abholgeheimnis, VAPID-Prüfung; gemeinsamer Testvektor für die Verschlüsselung in Go und Kotlin | wie Server |
 | Gerät | Abnahme durch Marco auf seinem Handy, je Stufe eine Liste; für Offline die Zeile «Android» der Gerätecheckliste M5 | Abnahme auf CT 190 |
 
@@ -1286,13 +1332,13 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | Erlaubnisliste `x-clients` im Vertrag samt Schema-Test und dem Test aus 4.4 mit eigenem Fehlercode | `api/openapi.yaml`, Middleware, `binaryRoutes` | neu |
 | «App anmelden»: Token, Gerätezeile mit Name und Art sofort; Gerätekennung vom Server, fremde und reservierte Kennung abgewiesen; Abgleich des Passworts mit Seerr wie bei `login`; Name bleibt beim Abspielstart | Vertrag, `auth`, `playback` | neu |
 | Gerätekennung im Kopf für Anfragen ohne Sitzung | `session.go`, `offline_handlers.go` | neu |
-| Aufräumung verschont Geräte mit lebender Sitzung ohne Ablauf und deren Einträge der Widerrufsliste; ein verschwundenes Gerät ist für diese Arten ein Fehler | `auth` (`DeleteStaleDevices`, `loadSession`), `offline` (`tombstoneKeep`) | Verhalten ändert sich |
+| Aufräumung verschont Geräte mit lebender Sitzung ohne Ablauf und deren Einträge der Widerrufsliste; ein verschwundenes Gerät ist für diese Arten ein Fehler (Sitzung entzogen, 401) | `auth` (`DeleteStaleDevices`, `loadSession`), `offline` (`tombstoneKeep`) | Verhalten ändert sich |
 | Meine Geräte: Liste (Sitzungen oder Downloads des Kontos) und Abmelden; Seite in der Web-App mit Tastaturtest; Texte in allen Sprachen | Vertrag, `web/src` | neu |
-| Abmelden räumt auf: Push-Abos, Downloads und Regeln für Auto-Downloads des Kontos auf dem Gerät; dasselbe für Push-Abos bei `logout` einer App-Sitzung, `deleteDevice` und Passwortänderung | `auth`, `admin`, `notify`, `offline` | Verhalten ändert sich |
+| Abmelden räumt auf: Push-Abos, Downloads und Regeln für Auto-Downloads des Kontos auf dem Gerät; dasselbe für Push-Abos bei `logout` einer App-Sitzung, bei `deleteDevice` (vor der Gerätezeile) und bei einer Passwortänderung (nur Handys und Fernseher) | `auth`, `admin`, `notify`, `offline` | Verhalten ändert sich |
 | Kopplung: Gutschein ausstellen (nur App-Sitzung) und einlösen (Token verschlüsselt für den Schlüssel des Geräts) | Vertrag, `auth`, Migration | neu |
 | Meldung «Neues Gerät verbunden» über die Kanäle des Kontos: neue Art von Ereignis, Texte des Servers in allen Sprachen, wo nötig eine Migration der Arten | `server/internal/notify`, `notify/locales`, Migration | neu |
-| Push: kleinere Satzgrösse und gekürzter Text für Adressen des Dienstes; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt das alte | `notify`, `notify/push` | Verhalten ändert sich |
-| «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38) | Vertrag, `auth` | neu, falls F-38 ja |
+| Push: Adresse des Dienstes im Server eingebaut und einstellbar; kleinere Satzgrösse und gekürzter Text für Adressen mit diesem Ursprung; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt bei App-Sitzungen das alte | `notify`, `notify/push`, `config` | Verhalten ändert sich |
+| «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38): Schlüsselpaar des Servers, öffentlicher Schlüssel in `getHealth`, öffentliche Operation mit Ratenbegrenzung und Eintrag im Register des Vertragstests | Vertrag, `auth` | neu, falls F-38 ja |
 | `getHealth`: Feld mit der Vertragsfassung; Fehler «App zu alt» | Vertrag | zusätzlich |
 | Geräteliste der Verwaltung zeigt die Sitzungsart | Vertrag, `web/src/features/admin` | zusätzlich |
 | Register des Vertragstests (`publicRegistry` und die anderen) und `apicheck` für die neuen Operationen | `server/internal/api/contract_access_test.go`, `server/cmd/apicheck` | Regel 7 |
@@ -1328,7 +1374,7 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 | R-10 | Google lehnt die App ab oder verlangt mehr | öffentliche Stufe verzögert sich | private Verteilung hängt nicht davon ab; neutraler Store-Text; Vorführserver |
 | R-11 | 12 Tester über 14 Tage; Identitätsprüfung dauert | öffentliche Stufe und interne Testspur später | bis dahin ADB; Test früh beginnen (11.3) |
 | R-12 | Zweite Werkzeugkette und zwei neue CI-Jobs | längere CI, mehr Pflege | Laufzeit in Stufe 3 messen, danach Pfadfilter |
-| R-13 | Texte in 23 Sprachen auch für die App | mehr Übersetzungsarbeit je Funktion | eine Quelle, ein Übersetzungsweg; nur benötigte Namensräume |
+| R-13 | Texte in 22 Sprachen auch für die App | mehr Übersetzungsarbeit je Funktion | eine Quelle, ein Übersetzungsweg; nur benötigte Namensräume |
 | R-14 | Offline zweimal gebaut (PWA und App) | Abweichungen im Verhalten | dieselben Testfälle (Abschnitt 12), ein Vertrag |
 | R-15 | Öffentlicher Entwicklername | Marcos bürgerlicher Name und Land stehen im Store | vor Stufe 10 bewusst entscheiden; ein Firmenkonto wäre der andere Weg |
 | R-16 | Die TV-App wartet (E-12) | späterer Start der TV-App | TV-App kann nach Stufe 3 beginnen (Abschnitt 13) |
@@ -1375,8 +1421,9 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-35 | Wer sind die 12 Tester für den geschlossenen Test? | Familie und Freunde aus der internen Testspur; früh anfragen | Stufe 10 |
 | F-36 | Datenschutzerklärung: wer schreibt sie, wo steht sie? | Entwurf durch die Bau-Session, Prüfung durch Marco, Seite auf der Website des Projekts. Das Papier ersetzt keine Rechtsberatung | Stufe 10 |
 | F-37 | Name des Dienstes | eine eigene Subdomain von `slouchcat.com`, fest in den Apps | Stufe 2 |
-| F-38 | Soll die App bei einem Server über HTTP zuerst prüfen, dass es der richtige ist, bevor sie ihr Token sendet (Abschnitt 6)? Sonst geht das Token in einem fremden Netz mit denselben Adressen ohne Zutun an ein fremdes Gerät (4.6). Die Frage zu E-18 nannte diese Folge nicht. | ja | Stufe 1 |
+| F-38 | Soll die App bei einem Server über HTTP in jedem neuen Netz zuerst prüfen, dass es der richtige ist, bevor sie Token, Medien-Adressen, Gerätekennung oder Passwort sendet (Abschnitt 6)? Sonst gehen sie in einem fremden Netz mit denselben Adressen ohne Zutun an ein fremdes Gerät (4.6). Die Frage zu E-18 nannte diese Folge nicht. **Die Prüfung schützt nicht** vor Mitlesen im richtigen Netz und nicht, wenn der echte Server auch aus dem Internet erreichbar ist; dagegen hilft nur HTTPS. | ja | Stufe 1 |
 | F-39 | Der Dienst: ein Programm mit zwei Teilen oder zwei getrennte Programme (Vermittlung, Push)? | ein Programm, Teile einzeln schaltbar | Stufe 2 |
+| F-40 | Sollen beim Abmelden und bei einer Passwortänderung auch die Push-Abos von **Browsern** fallen? Heute überleben sie; ein Browser trägt sich nicht von selbst neu ein. | ja, zusammen mit einem Neu-Eintragen der Web-App nach der Anmeldung; nicht in Stufe 1 | nach Stufe 1 |
 
 ## 18. Was sich in Konzept 26 ändern muss
 
@@ -1401,7 +1448,9 @@ von Konzept 26 erstmals gelesen; seine Befunde stehen in 18.2.
 4. **3.5:** «Android Lint meldet festen Text als Fehler» steht dort als Tatsache; für Compose
    ist das unbelegt (hier 5.6).
 5. **4.2 und 4.5:** drei Sitzungsarten statt zwei (hier 4.1), die Art an den Träger gebunden;
-   die Angabe im Vertrag ist eine Liste `x-clients` statt eines Ja oder Nein (hier 4.4).
+   die Angabe im Vertrag ist eine Liste `x-clients` statt eines Ja oder Nein (hier 4.4). Der
+   letzte Punkt von 4.2 («eine Spalte oder eine eigene Regel je Sitzungsart») ist entschieden:
+   ein Ablauf weit in der Zukunft, den `TouchSession` nicht verschiebt (hier 4.3).
 6. **4.2, Aufräumung:** Ein Fernseher ohne Kontakt seit 400 Tagen wird nicht abgemeldet, aber
    seine Gerätezeile wird gelöscht und die Sitzung bekommt eine neue Kennung (hier 2.3). Das
    behebt Stufe 1 von Konzept 27 (hier 4.3).
@@ -1440,6 +1489,11 @@ von Konzept 26 erstmals gelesen; seine Befunde stehen in 18.2.
     Handy-App zuerst fällig.
 18. **Neu für die TV-App:** Mit Ziel-API 37 braucht auch sie die Berechtigung für das lokale
     Netz (hier 2.7).
+19. **5.2:** Der Name aus `PlaybackCapabilities` («Chromecast · Android TV 14») überschreibt den
+    Gerätenamen nicht mehr (hier 4.2). Es bleibt der Name, den der Fernseher beim Einrichten
+    nennt.
+20. **4.6:** Falls F-38 mit Ja beantwortet wird, prüft auch die TV-App den Server, bevor sie
+    etwas Geheimes sendet; der Schlüssel reist im Paket der Kopplung mit (hier Abschnitt 6).
 
 ### 18.2 Befunde des Kritikers zu Abschnitt 4 von Konzept 26
 
@@ -1519,7 +1573,38 @@ Tokens und Texte; die Auslöser des Abgleichs in der PWA.
 Wegwischen und Neustart übersteht (Stufe 0). Zur kleinsten Android-Version: Handy- und TV-App
 sind zwei Artefakte und können je eine eigene haben.
 
-Die Einarbeitung hat der Kritiker nicht gegengelesen.
+### 19.1 Zweite Lesung (Fassung 2)
+
+Derselbe Kritiker hat Fassung 2 am 19. November 2026 gegengelesen: **REVISE, nahe an der
+Annahme mit Vorbehalt; 0 Blocker, 1 Major, 13 Minor.** Von den 25 Befunden der ersten Lesung
+galten 19 als erledigt und sechs als nur teilweise (Nr. 4, 11, 12, 13, 15, 20). Nummerierung,
+Querverweise, die neuen Aussagen über den Code und die Wiedergabe seiner Befunde zu Konzept 26
+(18.2) hat er bestätigt. Die Redaktion hat die drei neuen Fundstellen am Code nachgeprüft
+(`absolute` in `notify/texts.go`, die Prüfung «Kanal eingeschaltet» in `deliver.go`, der Knopf
+in `PushDevices.tsx`).
+
+| Nr. | Stufe | Befund | Eingearbeitet in |
+|---|---|---|---|
+| 1 | Major | «Der Server weist sich aus» deckte nur das Bearer-Token: nicht die Medien-Adressen mit `dt`, `st` und `rt`, nicht die Gerätekennung, nicht das Passwort bei neuer Anmeldung; die Prüfung «nach dem Start oder Netzwechsel» war zu grob; ein fremdes Gerät kann die Prüfung an den echten Server weiterreichen; die neue Operation braucht Ratenbegrenzung und Test; eine erbeutete Sicherung erlaubt, sich als Server auszugeben | 4.6, 6 (Schlüsselpaar des Servers, Sperre im gemeinsamen Client je Netz, was es nicht leistet), 12, 15.1, F-38 neu gefasst |
+| 2 | Minor | Unbelegte Aussage zu Android (Standort-Berechtigung) ohne Kennzeichen und ungenau | 6 |
+| 3 | Minor | 9.1 widersprach 4.5, 9.7 und 15.1: Auch das Abmelden ändert den Server für Offline | 9.1 |
+| 4 | Minor | 2.5 nannte zwei Wege, auf denen ein Abo fällt; es sind vier | 2.5 |
+| 5 | Minor | Aufräumen der Push-Abos: Reihenfolge bei `deleteDevice`, Abos ohne Gerätekennung, Folge für Browser bei der Passwortänderung, Ersetzen nur bei App-Sitzungen | 4.5, 7.3, 15.1, F-40 |
+| 6 | Minor | 15.1: woran der Server eine Adresse des Dienstes erkennt; Ratenbegrenzung und Register für F-38; was ein verschwundenes Gerät für die Sitzung heisst | 4.3, 7.3, 15.1 |
+| 7 | Minor | 7.3: Die App nimmt aus `url` nur den Pfad und öffnet nie einen fremden Rechnernamen | 7.3 |
+| 8 | Minor | 18.1 fehlten zwei Punkte: Ablauf weit in der Zukunft (K26 4.2), Gerätename gegen Fähigkeitsname (K26 5.2) | 18.1 Punkt 5 und 19 |
+| 9 | Minor | 3.1: Die Folgerung zu Wünschen stand unter Marcos Entscheid | 3.1 |
+| zu 11 | Minor | 2.3 sagte noch, die Widerrufsliste hänge am Gerät | 2.3 |
+| zu 12 | Minor | `url` ist nur mit öffentlicher Adresse des Servers vollständig | 2.5, 7.3 |
+| zu 13 | Minor | Den Kanal Push einzuschalten bleibt dem Hauptprofil vorbehalten; ein Abo allein bringt keine Meldung | 2.5, 7.3 |
+| zu 15 | Minor | Mitgebrachte Gerätekennung: Prüfung auf Sitzungen **oder Downloads** eines anderen Kontos | 4.2 |
+| zu 20 | Minor | «23 Sprachen» stand noch an zwei Stellen | 12, R-13 |
+
+Zu Befund 1: Der Kritiker hat als stärkere Fassung das Schlüsselpaar des Servers vorgeschlagen
+(Vertrauen beim ersten Kontakt). Sie ist jetzt der Vorschlag in Abschnitt 6. Die Grenzen, die
+bleiben, stehen dort und im Text von F-38; gegen das Mitlesen hilft nur HTTPS.
+
+Die Einarbeitung der zweiten Lesung hat der Kritiker nicht mehr gegengelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
