@@ -163,12 +163,90 @@
 }
 
 /*
+ * The column's tree (Explorer): each area a section under a hairline, its button folding the
+ * pages in and out below it.
+ */
+.branch {
+  padding-top: var(--sc-space-1);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+/*
+ * An area's button: the entry's line, without the look of a button. Its pill and arrow stand
+ * closer together than an entry's parts, so «Automatisierung» with a pill of three digits stays on
+ * one line in the column's width; the name keeps the place of the entries' names.
+ */
+.toggle {
+  gap: var(--sc-space-2);
+  padding-right: var(--sc-space-2);
+  border: 0;
+  background-color: transparent;
+  font: inherit;
+  font-size: calc((var(--sc-font-size-xs) + var(--sc-font-size-sm)) / 2);
+  font-weight: var(--sc-font-weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * The area of the current page, open or closed: its name and icon in the profile's accent. The
+ * tint and the stroke stay the current page's. AdminSideNav.test.tsx checks the contrast.
+ */
+.toggle[aria-current='true'],
+.toggle[aria-current='true'] > svg {
+  color: var(--sc-accent);
+}
+
+/* The disclosure arrow at the end of an area's button, turned down while it is open (BandPanel). */
+.disclosure {
+  display: inline-flex;
+  flex: none;
+  margin-left: auto;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.badge + .disclosure,
+.pill + .disclosure,
+.count + .disclosure {
+  margin-left: 0;
+}
+
+.toggle[aria-expanded='true'] > .disclosure {
+  transform: rotate(90deg);
+}
+
+/* An area's pages: indented below the centre of its icon, with a guide line at their left. */
+.children {
+  margin: 0 0 var(--sc-space-2) var(--sc-space-5);
+  padding-left: var(--sc-space-2);
+  border-left: 1px solid var(--sc-color-border-subtle);
+}
+
+/* `.list` sets a display of its own, which the attribute alone would not win against. */
+.children[hidden] {
+  display: none;
+}
+
+/* A page in the tree: smaller and tighter, so «Hintergrundjobs» with its pill fits the line. */
+.child {
+  gap: var(--sc-space-2);
+  padding-inline: var(--sc-space-2);
+  font-size: var(--sc-font-size-xs);
+}
+
+/*
  * A long label wraps onto a second line rather than losing its end («Tarefas em segundo plano»
  * in pt-BR): the entry grows, its icon stays centred.
  */
 .label {
   min-width: 0;
   overflow-wrap: break-word;
+}
+
+/* An area's name stands where the entries' names stand, despite the button's tighter gap. */
+.toggle > .label {
+  margin-left: var(--sc-space-1);
 }
 
 .count {

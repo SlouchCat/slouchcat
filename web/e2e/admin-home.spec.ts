@@ -10,7 +10,8 @@ import {
 
 // The administration (concept 11, A-2, A-3; redesign, build plan 2): the app column has one entry
 // "Verwaltung"; on every /admin page the administration's sidebar stands in its place (back, the
-// overview and the five areas: one Tab stop, ↑ ↓ Home End, wrapping), on a phone a button opens
+// overview and the five areas as a tree whose buttons fold their pages in and out: one Tab stop,
+// ↑ ↓ Home End, wrapping; admin-shell.spec checks the tree in full), on a phone a button opens
 // every page as a sheet. The pages of an area are tabs above each of its pages (admin-shell.spec).
 // The overview (build plan 3) shows the real server's dashboard, polled every 5 s: the band, four
 // key figures, what needs attention, what is active, the areas and the server in short. The
@@ -20,10 +21,8 @@ const adminNav = (page: Page) => page.getByRole('navigation', { name: 'Verwaltun
 const appNav = (page: Page) => page.getByRole('navigation', { name: 'Hauptnavigation' });
 const card = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
 
-/** The sidebar's entries, in their order, with their paths: back, the overview, the areas. */
-const NAV_ENTRIES = [
-  ['Zurück zur App', '/'],
-  ['Übersicht', '/admin'],
+/** The five areas in the sidebar's order, each with the path of its first page. */
+const NAV_AREAS = [
   ['Medien', '/admin/libraries'],
   ['Nutzer & Geräte', '/admin/accounts'],
   ['Startseite', '/admin/home-rows'],
@@ -31,7 +30,7 @@ const NAV_ENTRIES = [
   ['System', '/admin/stats'],
 ] as const;
 
-/** The first page of every area: the heading its sidebar entry leads to. */
+/** The first page of every area: its name in the tree and its heading. */
 const AREA_HEADINGS: Record<string, string> = {
   Medien: 'Bibliotheken',
   'Nutzer & Geräte': 'Konten',
@@ -51,12 +50,28 @@ const SHEET_LINKS = 24;
 const entry = (page: Page, name: string) =>
   adminNav(page).getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
 
-/** The labels and paths of the sidebar's links, as shown (without their numbers). */
+/** An area's button in the sidebar's tree; a pill may follow in its spoken name. */
+const area = (page: Page, name: string) =>
+  adminNav(page).getByRole('button', { name: new RegExp(`^${name}(,|$)`) });
+
+/**
+ * The sidebar's shown items in their order, as shown (without their numbers): a link with its
+ * path, an area's button with its state ("open" or "closed"). Links in a closed area are left out.
+ */
 const shownEntries = (nav: Locator) =>
   nav
-    .getByRole('link')
-    .evaluateAll((links) =>
-      links.map((link) => [link.querySelector('span')?.textContent, link.getAttribute('href')]),
+    .locator('a, button')
+    .evaluateAll((items) =>
+      items
+        .filter((item) => !item.closest('[hidden]'))
+        .map((item) => [
+          item.querySelector('span')?.textContent,
+          item instanceof HTMLButtonElement
+            ? item.getAttribute('aria-expanded') === 'true'
+              ? 'open'
+              : 'closed'
+            : item.getAttribute('href'),
+        ]),
     );
 
 async function openOverview(page: Page) {
@@ -65,9 +80,12 @@ async function openOverview(page: Page) {
   await expect(entry(page, 'Übersicht')).toHaveAttribute('aria-current', 'page');
 }
 
-/** Presses ↓ in the sidebar until `link` has the focus. */
+/**
+ * Presses ↓ in the sidebar until `link` has the focus. The guard is the most items the column can
+ * show: back, the overview, the five areas and their 22 pages.
+ */
 async function arrowTo(page: Page, link: Locator): Promise<void> {
-  for (let presses = 0; presses < NAV_ENTRIES.length; presses += 1) {
+  for (let presses = 0; presses < 29; presses += 1) {
     if (await link.evaluate((element) => element === document.activeElement)) break;
     await page.keyboard.press('ArrowDown');
   }
@@ -126,52 +144,79 @@ test('the focus stays on «Übersicht» after entering the administration with E
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 });
 
-test('admin sidebar: 7 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('admin sidebar: back, the overview, five areas as a tree; one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');
   await expect(page.getByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
   const nav = adminNav(page);
-  await expect.poll(() => shownEntries(nav)).toEqual(NAV_ENTRIES.map((pair) => [...pair]));
-  // The area of the open page is current.
-  const people = entry(page, 'Nutzer & Geräte');
-  await expect(people).toHaveAttribute('aria-current', 'page');
+  // The open page's area is open and shows its three pages; the other areas are closed.
+  await expect
+    .poll(() => shownEntries(nav))
+    .toEqual([
+      ['Zurück zur App', '/'],
+      ['Übersicht', '/admin'],
+      ['Medien', 'closed'],
+      ['Nutzer & Geräte', 'open'],
+      ['Konten', '/admin/accounts'],
+      ['Geräte', '/admin/devices'],
+      ['Streams', '/admin/streams'],
+      ['Startseite', 'closed'],
+      ['Automatisierung', 'closed'],
+      ['System', 'closed'],
+    ]);
+  // The open page and its area are current.
+  const people = area(page, 'Nutzer & Geräte');
+  const devices = entry(page, 'Geräte');
+  await expect(people).toHaveAttribute('aria-current', 'true');
+  await expect(devices).toHaveAttribute('aria-current', 'page');
 
-  // From the top: the header, then the sidebar's current area.
+  // From the top: the header, then the sidebar's current page.
   await resetFocus(page);
-  await tabTo(page, people);
+  await tabTo(page, devices);
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, entry(page, 'Startseite'));
+  await expectFocusOn(page, entry(page, 'Streams'));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, area(page, 'Startseite'));
+  for (let presses = 0; presses < 4; presses += 1) await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, people);
   await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'Medien'));
+  await expectFocusOn(page, area(page, 'Medien'));
   await page.keyboard.press('End');
-  await expectFocusOn(page, entry(page, 'System'));
+  await expectFocusOn(page, area(page, 'System'));
   // The arrows wrap around.
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
   await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'System'));
+  await expectFocusOn(page, area(page, 'System'));
   await page.keyboard.press('Home');
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 
-  // Tab leaves the sidebar at once (one Tab stop), Shift+Tab comes back to the current area.
+  // Tab leaves the sidebar at once (one Tab stop), Shift+Tab comes back to the current page.
   await page.keyboard.press('Tab');
   await expect(nav.locator(':focus')).toHaveCount(0);
   await page.keyboard.press('Shift+Tab');
-  await expectFocusOn(page, people);
+  await expectFocusOn(page, devices);
 
-  // Enter follows a link to the area's first page; the sidebar stays and keeps the focus; the
-  // browser's Back returns.
+  // Enter on «Startseite» folds its pages out, Enter on its first page follows the link; the
+  // sidebar stays and keeps the focus; the browser's Back returns.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, area(page, 'Startseite'));
+  await page.keyboard.press('Enter');
+  await expect(area(page, 'Startseite')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page).toHaveURL(/\/admin\/devices$/);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
   await expect(entry(page, 'Startseite')).toHaveAttribute('aria-current', 'page');
+  await expect(area(page, 'Startseite')).toHaveAttribute('aria-current', 'true');
   await expectFocusOn(page, entry(page, 'Startseite'));
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/devices$/);
-  await expect(people).toHaveAttribute('aria-current', 'page');
+  await expect(people).toHaveAttribute('aria-current', 'true');
+  await expect(devices).toHaveAttribute('aria-current', 'page');
   await expectNoFocusTrap(page);
 });
 
@@ -180,9 +225,16 @@ test('every area is reached through the sidebar (A-2)', async ({ page }) => {
   await openOverview(page);
   await resetFocus(page);
   await tabTo(page, entry(page, 'Übersicht'));
-  for (const [name, path] of NAV_ENTRIES.slice(2)) {
-    const link = entry(page, name);
-    await arrowTo(page, link);
+  for (const [name, path] of NAV_AREAS) {
+    // Enter on the area's button folds its pages out, Enter on the first page follows it.
+    const button = area(page, name);
+    await arrowTo(page, button);
+    await page.keyboard.press('Enter');
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('ArrowDown');
+    const link = entry(page, AREA_HEADINGS[name] ?? '');
+    await expectFocusOn(page, link);
+    await expect(link).toHaveAttribute('href', path);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     // Every area opens its first page; the sidebar keeps the focus on the followed link.
@@ -190,6 +242,7 @@ test('every area is reached through the sidebar (A-2)', async ({ page }) => {
       page.getByRole('heading', { level: 1, name: AREA_HEADINGS[name], exact: true }),
     ).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
+    await expect(button).toHaveAttribute('aria-current', 'true');
     await expectFocusOn(page, link);
   }
 });

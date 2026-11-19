@@ -363,9 +363,18 @@ describe('admin devices (W-7)', () => {
   it('links devices and streams in the admin navigation', async () => {
     mockApi({ ...signedIn, ...adminShell, 'GET /admin/devices': () => json([]) });
     const { nav } = await renderAdminPage('/admin/devices');
-    expect(within(nav).getByRole('link', { name: 'Nutzer & Geräte' })).toHaveAttribute(
+    // The column's tree opens the area «Nutzer & Geräte» with the page marked in it.
+    const area = within(nav).getByRole('button', { name: 'Nutzer & Geräte' });
+    expect(area).toHaveAttribute('aria-current', 'true');
+    expect(area).toHaveAttribute('aria-expanded', 'true');
+    const pages = within(nav).getByRole('list', { name: 'Nutzer & Geräte' });
+    expect(within(pages).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
       'aria-current',
       'page',
+    );
+    expect(within(pages).getByRole('link', { name: 'Streams' })).toHaveAttribute(
+      'href',
+      '/admin/streams',
     );
     const tabs = await findAdminTabs();
     expect(within(tabs).getByRole('link', { name: 'Geräte' })).toHaveAttribute(

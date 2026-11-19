@@ -40,11 +40,15 @@ test('the page by keyboard: the entry with its count, rows, history, withdraw as
   let setup: WishesSetup | undefined;
   try {
     setup = await openWishes(owner, { limit: 5 });
-    // A profile of its own that may request: no other spec's wishes in its list.
+    // A profile of its own that may request: no other spec's wishes in its list. It has an age
+    // step of its own (16) as well: the server keeps the lists of «Entdecken» for an hour per
+    // language and age step (N-54), with Seerr's state of each title. This test opens «Entdecken»
+    // while «Glasvogel» is requested; at the owner's step (18) that row would tell every later
+    // test on the same server «Bereits angefordert» (wishes-discover.spec.ts expects the plus).
     const profile = await useFreshProfile(page, owner, 'E2E Meine Wünsche');
     const allowed = await owner.patch(`/api/v1/profiles/${profile.id}`, {
       headers: CSRF,
-      data: { canRequest: true },
+      data: { canRequest: true, maxRating: 16 },
     });
     expect(allowed.status(), await allowed.text()).toBe(200);
     await wish(page.request, 9001);

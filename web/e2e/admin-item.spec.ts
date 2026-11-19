@@ -170,9 +170,10 @@ test('an invalid YouTube link is reported at the field', async ({ page }) => {
 test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The admin sidebar's Tab stop is its current area, and the area's tabs' the current page: a
-  // title's page belongs to "Medien", to "Pflege".
-  await tabTo(page, adminEntry(page, 'Medien'));
+  // The admin sidebar's Tab stop is the current page's link in its tree, and the area's tabs' the
+  // current page: a title's page belongs to "Medien", to "Pflege".
+  await tabTo(page, adminEntry(page, 'Pflege'));
+  await expect(adminEntry(page, 'Pflege')).toHaveAttribute('aria-current', 'page');
   await tabTo(page, areaTab(page, 'Pflege'), 2);
   await expect(areaTab(page, 'Pflege')).toHaveAttribute('aria-current', 'page');
   await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);

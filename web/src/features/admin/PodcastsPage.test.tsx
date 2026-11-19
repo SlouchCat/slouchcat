@@ -110,7 +110,9 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
       'Podcasts',
     );
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Medien');
+    // The column's tree marks the page and its area «Medien».
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Podcasts');
+    expect(nav.querySelector('[aria-current="true"]')).toHaveTextContent('Medien');
   });
 
   it('marks podcasts from folders and keeps their feed, which the folder decides', async () => {

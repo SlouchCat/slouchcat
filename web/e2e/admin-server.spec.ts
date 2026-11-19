@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { adminEntry, areaTab } from './admin';
+import { adminArea, adminEntry, areaTab } from './admin';
 import { refreshSpotlight, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
@@ -36,8 +36,10 @@ test('the server page: state, updates with the restart, both storage paths, acti
 }) => {
   await openServer(page);
   await expect(page.getByText('Live, alle 5 Sekunden')).toBeVisible();
-  // The area «System» is current in the sidebar; «Nach Updates suchen» is the header's action.
-  await expect(adminEntry(page, 'System')).toHaveAttribute('aria-current', 'page');
+  // The area «System» and its page «Server» are current in the sidebar's tree; «Nach Updates
+  // suchen» is the header's action.
+  await expect(adminArea(page, 'System')).toHaveAttribute('aria-current', 'true');
+  await expect(adminEntry(page, 'Server')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('button', { name: 'Nach Updates suchen' })).toBeVisible();
   const state = card(page, 'Serverzustand');
   await expect(state.getByText('Version', { exact: true })).toBeVisible();

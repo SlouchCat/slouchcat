@@ -16,6 +16,17 @@ const manualId = '01JB8Z6Q4M7N9P2R3S5T7V9X1A';
 const tmdbId = '01JB8Z6Q4M7N9P2R3S5T7V9X2B';
 const episodeId = '01JB8Z6Q4M7N9P2R3S5T7V9X3C';
 
+/**
+ * Follows a page's link in the admin sidebar's tree (from 768 px), opening its area first when it
+ * is closed.
+ */
+async function followAdminPage(user: UserEvent, area: string, page: string) {
+  const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
+  const branch = within(nav).getByRole('button', { name: new RegExp(`^${area}(,|$)`) });
+  if (branch.getAttribute('aria-expanded') === 'false') await user.click(branch);
+  await user.click(within(nav).getByRole('link', { name: new RegExp(`^${page}(,|$)`) }));
+}
+
 const manual: AdminCollection = {
   id: manualId,
   source: 'manual',
@@ -129,7 +140,9 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     expect((await findAdminTabs()).querySelector('[aria-current="page"]')).toHaveTextContent(
       'Sammlungen',
     );
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+    // The column's tree marks the page and its area «Startseite».
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Sammlungen');
+    expect(nav.querySelector('[aria-current="true"]')).toHaveTextContent('Startseite');
     // The intro stands open below the title (build plan 2.6).
     expect(screen.getByText(/entstehen beim Abgleich/)).toBeVisible();
 
@@ -442,11 +455,7 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     ]);
 
     // Leaving the page with the draft asks; staying keeps it.
-    await user.click(
-      within(await screen.findByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-        name: /^Automatisierung/,
-      }),
-    );
+    await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
     const leave = await screen.findByRole('alertdialog', {
       name: 'Seite mit ungespeicherten Änderungen verlassen?',
     });
@@ -617,11 +626,7 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
       expect(within(rowOf('Filmabend')).getByText('geändert')).toBeVisible();
 
       // The leave question holds the page too, also for a folded draft.
-      await user.click(
-        within(await screen.findByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-          name: /^Automatisierung/,
-        }),
-      );
+      await followAdminPage(user, 'Automatisierung', 'Hintergrundjobs');
       const leave = await screen.findByRole('alertdialog', {
         name: 'Seite mit ungespeicherten Änderungen verlassen?',
       });

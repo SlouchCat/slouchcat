@@ -514,9 +514,13 @@ test('KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete b
   await page.goto('/admin/accounts?item=me#meine-profile');
   await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-  // The area's tab marks «Konten», the sidebar its area «Nutzer & Geräte».
+  // The area's tab marks «Konten», the sidebar's tree the page and its area «Nutzer & Geräte».
   await expect(areaTab(page, 'Konten')).toHaveAttribute('aria-current', 'page');
-  const entry = nav.getByRole('link', { name: /^Nutzer & Geräte/ });
+  await expect(nav.getByRole('button', { name: /^Nutzer & Geräte/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  const entry = nav.getByRole('link', { name: /^Konten(,|$)/ });
   await expect(entry).toHaveAttribute('aria-current', 'page');
   await expect(accountToggle(page, OWNER.email)).toHaveAttribute('aria-expanded', 'true');
   const mine = accountFoldOut(page, OWNER.email).getByRole('region', { name: 'Meine Profile' });
@@ -619,7 +623,7 @@ test('KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete b
   await expectNoFocusTrap(page, 120);
 
   // ALL-3: `/settings/profiles` stays for an administrator too. From «Konten» by keyboard: the
-  // sidebar's current entry, ↑ to «Zurück zur App», then the app column's «Profile»; no
+  // sidebar's current page in its tree, ↑ to «Zurück zur App», then the app column's «Profile»; no
   // redirect, the same list.
   const back = nav.getByRole('link', { name: 'Zurück zur App' });
   await resetFocus(page);

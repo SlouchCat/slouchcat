@@ -56,10 +56,14 @@ test.describe('with a mouse from 768 px', () => {
     // The h1 is as high as its 30 px title (line height 1.1), not an h1's own 2em line.
     expect(await height(page.getByRole('heading', { level: 1 }))).toBeLessThanOrEqual(34);
 
-    // Outside #content: the app header and the administration's sidebar.
+    // Outside #content: the app header and the administration's sidebar, both an area's button
+    // and a page's link in its tree.
     expect(await height(menu(page))).toBe(44);
     const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
-    const entry = sidebar.getByRole('link', { name: /^Automatisierung(,|$)/ });
+    const area = sidebar.getByRole('button', { name: /^Automatisierung(,|$)/ });
+    const entry = sidebar.getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
+    await expect(entry).toBeVisible();
+    expect(await height(area)).toBeGreaterThanOrEqual(44);
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 

@@ -405,8 +405,9 @@ test('a newer release in the manifest shows the update badge; switching the chec
     expect(checked.status(), await checked.text()).toBe(200);
     expect(((await checked.json()) as { available: boolean }).available).toBe(true);
 
-    // On the admin pages the badge sits on the sidebar's «Übersicht» (concept 11), whose one Tab
-    // stop is the current area: the arrows go up to it.
+    // On the admin pages the badge sits on the sidebar's «Übersicht» (concept 11), on the area
+    // «System» and on its page «Server» in the tree; the sidebar's one Tab stop is the current
+    // page: the arrows go up to the overview.
     await page.goto('/admin/integrations');
     const nav = page.getByRole('navigation', { name: 'Verwaltung' });
     const badge = nav.getByRole('link', {
@@ -415,8 +416,14 @@ test('a newer release in the manifest shows the update badge; switching the chec
     await expect(badge).toBeVisible();
     await expect(badge).toHaveText(/Update/);
     await expect(badge).toHaveAttribute('href', '/admin');
+    const system = nav.getByRole('button', { name: 'System, Update auf Version 99.0.0 verfügbar' });
+    await expect(system).toHaveText(/Update/);
+    await system.click();
+    await expect(
+      nav.getByRole('link', { name: 'Server, Update auf Version 99.0.0 verfügbar' }),
+    ).toHaveAttribute('href', '/admin/server');
     await resetFocus(page);
-    await tabTo(page, nav.getByRole('link', { name: /^Automatisierung(,|$)/ }), 20);
+    await tabTo(page, nav.getByRole('link', { name: /^Integrationen(,|$)/ }), 20);
     await page.keyboard.press('Home');
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, badge);

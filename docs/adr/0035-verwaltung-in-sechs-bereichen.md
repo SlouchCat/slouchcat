@@ -69,3 +69,47 @@ sind behoben und nachgeprüft; der Stand steht in `docs/design/admin-redesign/fu
 - **Neue Adressen je Bereich (`/admin/media/libraries`):** hätte Verweise, Lesezeichen und Tests
   gebrochen, ohne Nutzen für die Bedienung.
 - **Das neue Aussehen in den Bauteilen selbst:** hätte die Zuschauerseiten verändert.
+
+## Nachtrag vom 19. November 2026: die Seitenleiste als aufklappbarer Baum («Explorer»)
+
+- Quelle: Auftrag des Auftraggebers vom 19. November 2026 mit dem klickbaren Mockup
+  `Slouchcat_Variante_1_Explorer.html` (Variante 01 von sechs Navigationsvarianten); Nachtrag zu
+  **Frage 31** in `docs/planning/04-entscheidungen.md`. Zweig `claude/admin-explorer-nav`.
+- Der Auftrag gilt nur der Seitenleiste. Seiteninhalte, Seitenköpfe, Bereichsreiter, Brotkrumen,
+  Suchpalette, Adressen, Kopfzeile, Tokens, Server und Vertrag bleiben, wie sie sind.
+
+### Entscheid
+
+Die Zeile «Navigationsmodell» der Tabelle oben gilt für die Seitenleiste ab 768 px neu so:
+
+| Thema | Entscheid |
+|---|---|
+| **Aufbau** | «Zurück zur App», darunter unter «Verwaltung» der Verweis «Übersicht» und die fünf Bereiche. Ein Bereich ist ein Knopf (`aria-expanded`, `aria-controls`); seine Seiten stehen eingerückt in einer Liste darunter. Die Seiten kommen aus derselben Quelle wie Bereichsreiter und Blatt (`sectionsOf` in `web/src/features/admin/sections.ts`); es gibt keine zweite Liste. |
+| **Auf und zu** | Ein Klick, Enter oder die Leertaste auf einem Bereich klappt nur auf oder zu und führt nirgends hin. Mehrere Bereiche können offen sein. Zugeklappte Seiten bleiben im Dokument (`hidden`). |
+| **Zustand** | Beim Aufruf einer Seite ist ihr Bereich offen, die anderen sind zu; auf «Übersicht» sind alle zu (Frage 32, P-3: Klappbares startet zu, die aktuelle Wahl öffnet sich). Wechselt die Seite (Verweis, Bereichsreiter, Brotkrumen, Palette, Zurück und Vorwärts des Browsers), öffnet sich ihr Bereich; alles andere bleibt, wie der Betrachter es gelassen hat. Ein Bereich lässt sich schliessen, während eine seiner Seiten offen ist, und bleibt zu bis zum nächsten Seitenwechsel. Der Zustand lebt im Speicher von `AdminShellNav`, solange die Seitenleiste steht; ein Neuladen oder der Weg über die App beginnt wieder mit dem Bereich der Seite. |
+| **Markierung** | Die offene Seite trägt `aria-current="page"` mit Tönung und Strich wie bisher. Ihr Bereich trägt `aria-current="true"` und steht in der Profilfarbe, offen wie zu. Der Pfeil am Ende eines Bereichs dreht beim Öffnen um 90° (wie `BandPanel` und `DisclosureGroup`); der bisherige Pfeil am aktuellen Eintrag entfällt in der Spalte, weil er wie ein Aufklapper läse. |
+| **Zahlen** | Die Zahlen und Hinweise der Seiten (Titel, Pflegefälle, Konten, Streams, Jobs, Integrationen, «Update» an «Server») stehen an ihren Einträgen im Baum und weiter an den Bereichsreitern. Der Bereich zeigt wie bisher nur, was einen Blick braucht, «Übersicht» und «System» das Abzeichen «Update». |
+| **Tastatur** | Die Spalte bleibt ein Tab-Halt über die sichtbaren Einträge (Verweise und Bereichsknöpfe): ↑ und ↓ laufen um, Pos1 und Ende, Enter folgt einem Verweis. Ist die offene Seite zugeklappt, liegt der Tab-Halt auf ihrem Bereich. |
+| **Handy** | Unverändert: Das Blatt zeigt schon alle Seiten nach Bereichen, immer offen. |
+| **Bereichsreiter** | Bleiben über jeder Seite. Ob sie mit dem Baum entfallen, entscheidet der Auftraggeber getrennt. |
+
+### Mockup gegen Bestand
+
+Wo das Mockup vom Produkt abweicht, gilt das Produkt (Auftrag, Abschnitt 2):
+
+| Mockup | Gebaut | Grund |
+|---|---|---|
+| Spalte 277 px breit | 240 px (`--sc-size-sidenav-width`) | eine breitere Spalte verschöbe jede Seite der Verwaltung |
+| Bereich 39 px, Seite 32 px hoch | beide 44 px (`--sc-size-control-height`) | Mindestmass der Bedienflächen; `admin-density.spec.ts` prüft es |
+| «Medien» ist von Anfang an offen, auch auf «Übersicht» | offen ist nur der Bereich der Seite | Frage 32, P-3 |
+| Pfeil des Bereichs dreht nicht | dreht um 90° | Konvention der übrigen Aufklapper; «offen» ist sonst nur an den Seiten zu erkennen |
+| eigene Farben, Schrift 12 px im ganzen Baum | Tokens; Bereich 13 px wie die Einträge, Seiten 12 px | Regel 9 |
+| auf dem Handy derselbe Baum als Schublade | das bestehende Blatt | Auftrag: mobile Navigation nur anpassen, soweit nötig |
+
+### Folgen
+
+- Die verworfene Wahl «Alle Seiten weiter in der Seitenleiste» gilt damit in der Form eines
+  aufklappbaren Baums; der Weg in eine Seite eines anderen Bereichs ist ein Aufklappen und ein Klick.
+- Sind alle Bereiche offen, ist die Spalte höher als das Fenster und rollt für sich (wie bisher
+  vorgesehen); der Eintrag der offenen Seite wird in den sichtbaren Teil gerollt.
+- Seiten und Bereichsreiter zeigen dieselbe Liste zweimal, bis über die Bereichsreiter entschieden ist.

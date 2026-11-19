@@ -65,16 +65,19 @@ async function cancelWaiting(api: APIRequestContext, type: string): Promise<void
   expect(response.status(), await response.text()).toBe(200);
 }
 
-/** Presses ↓ in the admin sidebar until `name` has the focus. */
-async function navTo(page: Page, name: string): Promise<void> {
-  const link = page
+/**
+ * Presses ↓ in the admin sidebar until `name` has the focus: a page's link, or with `role`
+ * 'button' an area's button in the tree.
+ */
+async function navTo(page: Page, name: string, role: 'link' | 'button' = 'link'): Promise<void> {
+  const item = page
     .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
+    .getByRole(role, { name: new RegExp(`^${name}(,|$)`) });
   for (let presses = 0; presses < 20; presses += 1) {
-    if (await link.evaluate((element) => element === document.activeElement)) break;
+    if (await item.evaluate((element) => element === document.activeElement)) break;
     await page.keyboard.press('ArrowDown');
   }
-  await expectFocusOn(page, link);
+  await expectFocusOn(page, item);
 }
 
 /** The fold-out of a job type's row: the cell its toggle controls. */
@@ -132,8 +135,8 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await resumeAll(owner);
   await restoreSweep(owner);
 
-  // From the overview through the admin sidebar's «Automatisierung»; the card «Gerade aktiv»
-  // links the page.
+  // From the overview through the admin sidebar's tree: «Automatisierung» opens, «Hintergrundjobs»
+  // follows; the card «Gerade aktiv» links the page.
   await page.goto('/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
   await expect(
@@ -144,7 +147,13 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
   await resetFocus(page);
   await tabTo(page, nav.getByRole('link', { name: 'Übersicht' }), TAB_MAX);
-  await navTo(page, 'Automatisierung');
+  await navTo(page, 'Automatisierung', 'button');
+  await page.keyboard.press('Enter');
+  await expect(nav.getByRole('button', { name: /^Automatisierung(,|$)/ })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await navTo(page, 'Hintergrundjobs');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();

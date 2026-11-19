@@ -10,7 +10,7 @@ import {
   tabTo,
 } from './keyboard';
 import { arrowTo } from './playback';
-import { adminEntry, areaTab } from './admin';
+import { adminArea, adminEntry, areaTab } from './admin';
 import { closeWishes, openWishes, type WishesSetup } from './wishes';
 
 // /admin/spotlight (M11, ADR 0011; concept 12, variant A, mockup Spo-A) by keyboard (rule 8): the
@@ -112,12 +112,18 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @
   test.setTimeout(120_000);
   const settings = await storedSettings(owner);
   try {
-    // From the overview through the admin sidebar's «Startseite» and the area's tabs; Back
-    // returns to «Startseite» at the end.
+    // From the overview through the admin sidebar's tree (the area «Startseite» opens, its page
+    // «Startseite» follows) and the area's tabs; Back returns to «Startseite» at the end.
     await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
     await tabToFromTop(page, adminEntry(page, 'Übersicht'));
-    await arrowTo(page, adminEntry(page, 'Startseite'), 'ArrowDown', 10);
+    const area = adminArea(page, 'Startseite');
+    await arrowTo(page, area, 'ArrowDown', 10);
+    await expectFocusOn(page, area);
+    await page.keyboard.press('Enter');
+    await expect(area).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, adminEntry(page, 'Startseite'));
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/home-rows$/);
     await navTo(page, 'Startseite', 'Spotlight');
