@@ -24,7 +24,7 @@
   es ändert selbst keine Regel.
 
 > **Dieses Papier ändert keine Zeile Code.** Marcos Entscheide stehen in Abschnitt 1 (E-1 bis
-> E-6) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
+> E-7) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
 > Aussagen über den Code stammen vom Anker, Aussagen über Android und Google Play aus einer
 > Recherche vom 19. November 2026 (Anhang A). Was dort nicht belegt werden konnte, heisst im Text
 > «unbelegt» und wird in Stufe 0 auf echten Geräten gemessen.
@@ -42,9 +42,14 @@ gewählte Antwort wörtlich.
 | E-4 | Wie meldet man sich am Fernseher an? | «Code und Passwort» | Code und Passwort |
 | E-5 | Was kann die erste Ausgabe ausser Filmen und Serien? | «Hörbücher und Podcasts», «Webradio», «Wünsche über Seerr» | keine |
 | E-6 | Mehrkanalton unverändert an eine Tonanlage weitergeben? | «Ja, von Anfang an» | Ja, von Anfang an |
+| E-7 | (ohne Frage, von Marco selbst) | «Die AndroidTV App braucht auch kein Admin Bereich. Nur der Nutzer Bereich» | – |
 
-Zu E-5: Die Frage hat vorgegeben, dass Filme und Serien gesetzt sind und die Verwaltung im Browser
-bleibt. Marco hat das nicht eigens gewählt, aber auch nicht widersprochen.
+Zu E-5: Die Frage hat vorgegeben, dass Filme und Serien gesetzt sind. Dass die Verwaltung im
+Browser bleibt, war zuerst ebenfalls Vorgabe der Frage; Marco hat es danach mit E-7 selbst
+festgelegt.
+
+Dazu Marcos Hinweis vom selben Tag: «Da dies für alle verfügbar sein soll, muss ja auch irgendwo
+der Server eingetragen werden können.» Das ist Abschnitt 4.1.
 
 Stand der Konten am selben Tag: Für das Projekt gibt es ein eigenes Google-Konto und darauf ein
 Entwicklerkonto in der Google Play Console (privates Konto). Google prüft die Identität noch; bis
@@ -257,8 +262,9 @@ Gerätesitzung aufrufen darf (Abschnitt 4.5).
 | Wünsche, Entdecken, Titel ausserhalb der Bibliothek | `/wishes`, `/discover…`, `/titles/$media/$tmdbId` | 5 |
 | Benachrichtigungen (nur die Liste) | `/notifications` | 5 |
 
-**Nicht in der App:** die Verwaltung (`/admin/*`), Ersteinrichtung und Einladungen, Profile anlegen
-und ändern, Meldekanäle, Downloads und Offline, Web-Push. Wer das braucht, nimmt den Browser.
+**Nicht in der App:** die Verwaltung (`/admin/*`, E-7), Ersteinrichtung und Einladungen, Profile
+anlegen und ändern, Meldekanäle, Downloads und Offline, Web-Push. Wer das braucht, nimmt den
+Browser. Die Verwaltung auszuschliessen ist Marcos Entscheid; die übrigen Punkte sind Vorschlag.
 
 ### 3.4 Bedienung und Gestaltung
 
