@@ -1,8 +1,9 @@
 # Konzept: Android-TV-App – native App für den Fernseher mit eigenem Player, Kopplung per Code und Mehrkanalton
 
-- **Status: Entwurf, Fassung 2 (19. November 2026). Nicht freigegeben.** Fassung 2 arbeitet das
-  Kritiker-Review der Fassung 1 ein (REVISE, 0 Blocker, 9 Major, 8 Minor; Abschnitt 14). Gebaut
-  wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+- **Status: Entwurf, Fassung 3 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
+  Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 9 Major, 8 Minor), Fassung 3
+  die zweite Lesung (REVISE, 0 Blocker, 2 Major, 6 Minor); beides in Abschnitt 14. Gebaut wird
+  erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
   die Rückfrage, was damit gemeint ist, hat er «Konzept starten» gewählt.
@@ -117,8 +118,10 @@ Ein Client ohne Browser kann sich schon heute anmelden: Der Vertragstest
     andere wird neu kodiert.
   - Neu kodierter Ton neben einem Videobild ist immer Stereo-AAC (`outputChannels`,
     `server/internal/transcode/pipeline.go`), mit der Bitrate für Stereo.
-  - Die Codec-Angabe in der HLS-Liste nennt für jede Tonspur AAC (`mp4a.40.2`,
-    `server/internal/transcode/plan.go`), auch für kopiertes DTS oder TrueHD.
+  - Die Codec-Angabe in der HLS-Liste (`server/internal/transcode/plan.go`) stimmt für AAC und
+    für kopiertes Dolby Digital und Dolby Digital Plus. Für kopiertes DTS, TrueHD, FLAC und Opus
+    nennt sie fälschlich AAC (`mp4a.40.2`).
+  - Die Rechnung für die Bandbreite geht von 160 kbit/s Ton aus.
   - Eine Kanalzahl kann der Client nicht melden.
 - **Tonspur wechseln:** Eine andere als die Standardspur führt zu einem Remux (Grund
   `audio_track`). Die HLS-Ausgabe trägt immer genau eine Tonspur.
@@ -320,6 +323,17 @@ Die TV-App bekommt nie eine volle Sitzung. Sie bekommt ein **Gerätetoken**:
 - Es öffnet eine **Gerätesitzung** mit eingeschränkten Rechten (Abschnitt 4.5).
 - Auch Bilder, Trickplay-Bögen und der Radio-Start nehmen das Token an.
 
+Regeln für den Bearer-Weg im Server, damit er den Cookie-Weg nicht stört:
+
+- Eine Anfrage mit Bearer bekommt nie ein `Set-Cookie`, weder für die Sitzung noch für das
+  Gerät, und ein 401 löscht kein Cookie. Heute tut die Middleware alle drei Dinge für jede
+  Anfrage.
+- Kommen Cookie und Bearer zusammen, lehnt der Server ab. Kein echter Client sendet beides.
+- Der CSRF-Kopf `X-Requested-With: Slouchcat` bleibt Pflicht für jede schreibende Anfrage; die
+  App sendet ihn. Es gibt keine Ausnahme für Bearer.
+- Die Gültigkeit steht je Sitzung in der Tabelle. Heute gilt ein fester Wert für alle
+  (`SessionLifetime`); eine eigene Dauer für Gerätesitzungen (Frage F-4) braucht eine Spalte.
+
 Ein Gerätetoken entsteht auf zwei Wegen: durch die Kopplung (4.3) oder durch Anmelden mit
 Passwort in der TV-App (4.4).
 
@@ -350,11 +364,21 @@ Neue Operationen (Namen legt der Bau fest):
 
 Die Web-Seiten `/link` und «Meine Geräte» sind neu und bekommen ihren Tastaturtest (Regel 8).
 
+«Kopplung beginnen» ist öffentlich und schreibt trotzdem in die Datenbank. Darum gilt:
+
+- Die Kennung des Geräts vergibt der Server beim Beginnen und bindet sie an die Kopplung. Sie
+  kommt nicht aus einem Cookie.
+- Läuft eine Kopplung ab oder wird sie abgelehnt, löscht der Server ihre Gerätezeile wieder.
+- Die Obergrenze aus K-4 zählt diese Zeilen mit.
+
 ### 4.4 E-Mail und Passwort
 
 Die TV-App ruft dafür nicht `login` auf, sondern eine neue Operation «Gerät mit Passwort
-anmelden»: E-Mail, Passwort und Gerätename hinein, Gerätetoken heraus, mit denselben
-Ratenbegrenzungen wie `login`. So hält der Fernseher auch auf diesem Weg nur ein Gerätetoken.
+anmelden»: E-Mail, Passwort und Gerätename hinein, Gerätetoken heraus. Sie teilt sich **denselben
+Zähler** für Fehlversuche mit `login`; ein eigener Zähler würde die Zahl der Rateversuche
+verdoppeln. (Der Zähler von `login` hängt heute nur an der Adresse des Aufrufers, eine Sperre je
+Konto gibt es nicht; `docs/dev/SICHERHEITSREVIEW-1.0.md`.) So hält der Fernseher auch auf diesem
+Weg nur ein Gerätetoken.
 
 Ehrlich gesagt: Das ist eine Entscheidung der App, keine Schranke des Servers. Wer das Passwort
 kennt, kann sich mit jedem Programm über `login` voll anmelden. Die Einschränkung der
@@ -373,10 +397,18 @@ Server mit 403.
 - **Erlaubt mit Profil:** die `scoped`-Operationen zum Schauen, Hören, Suchen, Merken und Wünschen.
 - **Nicht erlaubt:** alles mit `admin` und `owner`; `updateAccount`; die Profilpflege samt PINs;
   die Meldekanäle samt Telegram und Web-Push; `getWatchReport`; Downloads und Offline.
+- **Ebenfalls nicht erlaubt, und das ist wesentlich:** «Kopplung ansehen», «Kopplung bestätigen
+  oder ablehnen» und «Meine Geräte». Sonst könnte ein gekoppeltes Gerät das nächste freigeben
+  oder die echten Fernseher abmelden.
 - **Wo die Liste steht:** Vorschlag ist eine zweite Angabe je Operation im Vertrag, neben
   `x-visibility`, die sagt, ob eine Gerätesitzung die Operation aufrufen darf. Fehlt sie, gilt
   nein. Der Schema-Test verlangt sie für jede `account`- und `scoped`-Operation, damit jede neue
-  Operation die Frage beantworten muss.
+  Operation die Frage beantworten muss. Machbar ist das: Die Middleware liest die Sichtbarkeit
+  schon heute zur Laufzeit aus dem Vertrag, und der Codegenerator übergeht solche Angaben.
+- **Streaming-Routen:** Bilder, Trickplay, Personen-, Sammlungs- und Radiobilder nehmen ihre
+  Sichtbarkeit nicht aus dem Vertrag, sondern aus einer von Hand gepflegten Tabelle
+  (`binaryRoutes`, `server/internal/api/api.go`). Die Angabe muss auch dort stehen, und der
+  403-Test aus Abschnitt 9 muss diese Routen einschliessen.
 
 **Meine Geräte:** Jedes Konto sieht in seinen Einstellungen im Browser die eigenen gekoppelten
 Geräte (Name, Typ, Herkunft der Kopplung, letzter Kontakt) und kann jedes abmelden. Heute kann das
@@ -405,9 +437,23 @@ Die Kopplung ist ein neuer Weg zu einer Sitzung und damit der heikelste Teil die
 | K-9 | Jede bestätigte Kopplung geht als Meldung über den Kanal des Kontos hinaus (E-Mail, Telegram; `notify`) und steht in «Meine Geräte» | unbemerkte Kopplung |
 | K-10 | `devicecode`, `usercode` und das Gerätetoken kommen in die Redaktionsliste der Logs (Regel 10) | Geheimnisse in Logs |
 
-Zu K-5 bis K-7: «Heimnetz» erkennt der Server an einer privaten Adresse des Aufrufers. Hinter
-einem Reverse-Proxy ohne eingetragene `TrustedProxies` sieht er nur den Proxy. In diesem Fall gilt
-die Herkunft als unbekannt und wird wie «Internet» behandelt; die Seite sagt das.
+Zu K-5 bis K-7: Eine private Adresse allein beweist kein Heimnetz. Hinter einem Reverse-Proxy
+ohne eingetragene `TrustedProxies` (zum Beispiel Caddy in Docker, der beschriebene Weg zu HTTPS)
+kommt **jede** Anfrage von der privaten Adresse des Proxys, auch die aus dem Internet; und mit
+der Voreinstellung `private` kann ein Gerät im LAN über `X-Forwarded-For` jede Adresse
+vortäuschen. Als «Heimnetz» gilt eine Anfrage darum nur, wenn drei Dinge zusammen stimmen:
+
+1. Die Adresse des Aufrufers ist privat.
+2. Die Anfrage trägt keinen Weiterleitungskopf (`X-Forwarded-For`, `Forwarded`) von einer
+   Gegenstelle, die nicht als Proxy eingetragen ist.
+3. Die Adresse liegt in einem Bereich, den der Administrator ausdrücklich als Heimnetz
+   eingetragen hat.
+
+Sonst gilt die Herkunft als unbekannt und wird wie «Internet» behandelt; die Seite sagt das.
+Ohne eingetragenen Heimnetz-Bereich gibt es also kein «Heimnetz». Der Server warnt beim Start,
+wenn der Schalter aus K-7 an ist und kein Bereich eingetragen ist. Dies wäre die erste Stelle im
+Server, die dem lokalen Netz vertraut (`docs/dev/SICHERHEITSREVIEW-1.0.md`); ADR 0040 hält das
+fest.
 
 Zu K-9: Die Meldung muss ausserhalb der App ankommen. Benachrichtigungen in der App gehören zu
 einem Profil, und die gekoppelte Sitzung könnte sie als gelesen markieren. Hat ein Konto keinen
@@ -443,6 +489,10 @@ Der Wert `mse` trifft das Verhalten, das ein ExoPlayer braucht (HEVC direkt, HEV
 `native` bleibt Safari auf dem iPhone vorbehalten. Die Beschreibung des Feldes im Vertrag wird
 entsprechend ergänzt, sein Verhalten nicht.
 
+Die App muss auch `containers` senden, mit den Namen, die der Server kennt (`mp4`, `mkv`, `webm`,
+`ts`, `m2ts`, `avi`; `server/internal/library/probe.go`). Ohne diese Liste spielt der Server nur
+MP4 direkt.
+
 Der Vertrag braucht drei Ergänzungen. Alle sind zusätzlich; ein Client, der sie nicht sendet,
 bekommt das heutige Verhalten.
 
@@ -463,12 +513,16 @@ durchreicht. Drei Fälle:
 | Fall | Heute | Neu |
 |---|---|---|
 | **Direktwiedergabe** | Ton bleibt, wie er ist | unverändert; im Server nichts zu tun |
-| **Remux** (Video kopiert) | gemeldeter Ton wird kopiert, aber die HLS-Liste nennt ihn AAC | Codec-Angabe in der HLS-Liste richtigstellen |
+| **Remux** (Video kopiert) | gemeldeter Ton wird kopiert; für DTS, TrueHD, FLAC und Opus nennt die HLS-Liste fälschlich AAC | Codec-Angabe in der HLS-Liste richtigstellen |
 | **Transcode** (Video neu kodiert) | nur AAC wird kopiert, alles andere wird Stereo-AAC | (a) gemeldetes Dolby Digital und Dolby Digital Plus neben dem neuen Video **kopieren**; (b) was neu kodiert werden muss, bei 6 gemeldeten Kanälen in 5.1 kodieren, mit passender Bitrate |
 
 Zu (a): Das hält den Originalton für die Tonanlage, ohne dass der Server einen neuen Encoder
 braucht. Welche Formate die HLS-Ausgabe (fMP4) tragen kann und ExoPlayer daraus abspielt, misst
-Stufe 0; sicher erwartet werden AAC, Dolby Digital und Dolby Digital Plus.
+Stufe 0; erwartet werden AAC, Dolby Digital und Dolby Digital Plus. Im Server sind zwei Stellen
+zu ändern: die Bedingung für die Tonkopie beim Transcode (`audio == "aac" && audioOK` in
+`decide.go`) und die Bandbreitenrechnung. Sie geht von 160 kbit/s Ton aus; kopiertes Dolby
+Digital Plus kann 640 kbit/s haben und würde die Grenzen eines Profils sonst unbemerkt
+überschreiten. Die Rechnung muss die echte Bitrate der kopierten Spur nehmen.
 
 Zu (b): Vorschlag für das Format ist Dolby Digital (AC-3), wenn das Gerät es meldet, weil es
 Soundbars und Receiver auch über den Rückkanal des Fernsehers (ARC) erreicht; sonst AAC 5.1.
@@ -529,9 +583,10 @@ Browser, weil eine Gerätesitzung keine Verwaltungsrechte hat (4.5).
 | Meine Geräte: Liste und Abmelden je Konto, Seite in den Einstellungen | Vertrag, `web/src` | neu |
 | Web-Seite `/link`, Texte in allen Sprachen, Tastaturtests | `web/src` | neu |
 | Meldung «Neues Gerät gekoppelt» über den Kanal des Kontos | `notify` | neu |
-| Schalter «Kopplung nur aus dem Heimnetz» | Verwaltung | neu |
+| Schalter «Kopplung nur aus dem Heimnetz», Eintrag des Heimnetz-Bereichs, Warnung beim Start | Verwaltung, `config` | neu |
 | `PlaybackCapabilities`: drei Ergänzungen (5.2), Beschreibung von `hls` | Vertrag, `playback/decide.go` | zusätzlich |
-| Ton: richtige Codec-Angabe in der HLS-Liste, Kopieren von Dolby Digital (Plus) beim Transcode, Mehrkanal beim Neu-Kodieren | `playback/decide.go`, `transcode/plan.go`, `transcode/pipeline.go` | Verhalten ändert sich nur für Clients, die diese Formate oder Kanäle melden; die Codec-Angabe wird für alle richtig |
+| Ton: richtige Codec-Angabe in der HLS-Liste, Kopieren von Dolby Digital (Plus) beim Transcode samt Bandbreitenrechnung mit echter Bitrate, Mehrkanal beim Neu-Kodieren | `playback/decide.go`, `playback/quality.go`, `transcode/plan.go`, `transcode/pipeline.go` | Verhalten ändert sich nur für Clients, die diese Formate oder Kanäle melden; die Codec-Angabe wird für alle richtig |
+| Sitzungen: Gültigkeit je Sitzung statt eines festen Werts; Bearer-Weg ohne `Set-Cookie` | `auth`, Middleware, Migration | neu |
 | `getHealth`: Feld für die Vertragsfassung | Vertrag | zusätzlich |
 | Redaktionsliste der Logs | `internal/logging` | Regel 10 |
 
@@ -617,7 +672,10 @@ Jede Stufe ist ein eigener Auftrag von Marco. Stufe 1 und alle Stufen der App si
 | **6 Öffentlich** | Geschlossener Test, TV-Prüfung, Store-Eintrag, Vorführserver, Verträglichkeitsregel verbindlich | App im Play Store | F-9, F-10 |
 
 Reihenfolge: Stufe 0 kommt vor Stufe 1, weil Stufe 1 das Tonformat und die Untertitel-Angabe
-baut, über die Stufe 0 entscheidet. Das Mockup entsteht neben Stufe 1 oder 2a.
+baut, über die Stufe 0 entscheidet. Der Server liefert Dolby Digital und AAC 5.1 in HLS erst
+nach Stufe 1; Stufe 0 misst darum mit Proben, die von Hand mit ffmpeg und den Schaltern der
+heutigen Pipeline (`server/internal/transcode/pipeline.go`) erzeugt werden. Das Mockup entsteht
+neben Stufe 1 oder 2a.
 
 ## 11. Änderungen an früheren Entscheiden und Regeln
 
@@ -660,7 +718,7 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 |---|---|---|---|
 | F-1 | App im selben Repo (`android/`) oder in einem eigenen? | selbes Repo | Stufe 2a |
 | F-2 | Klickbares Mockup der TV-Oberfläche vor dem Bau? | ja | Stufe 2b |
-| F-3 | Kopplung aus dem Internet: erlauben? Und darf der QR-Code den Benutzercode mitbringen? | ab Werk nur aus dem Heimnetz, in der Verwaltung umschaltbar; der QR-Code bringt den Code nur im Heimnetz mit. Wer hinter einem Reverse-Proxy ohne `TrustedProxies` sitzt, meldet den Fernseher bis dahin mit Passwort an | Stufe 1 |
+| F-3 | Kopplung aus dem Internet: erlauben? Und darf der QR-Code den Benutzercode mitbringen? | ab Werk nur aus dem Heimnetz, in der Verwaltung umschaltbar; der QR-Code bringt den Code nur im Heimnetz mit. Folge: Der Administrator muss den Adressbereich seines Heimnetzes einmal eintragen (4.6). Bis dahin meldet man den Fernseher mit Passwort an | Stufe 1 |
 | F-4 | Wie lange bleibt ein gekoppelter Fernseher ohne Benutzung angemeldet? Sitzungen im Browser: 30 Tage gleitend. | 400 Tage gleitend, wie das Geräte-Cookie | Stufe 1 |
 | F-5 | Serveradresse nur von Hand oder auch Suche im Heimnetz? | erste Ausgabe von Hand | Stufe 2a |
 | F-6 | Unverschlüsseltes HTTP zum Server erlauben? | ja, mit Hinweis, wenn die Adresse nicht im Heimnetz liegt | Stufe 2a |
@@ -703,7 +761,22 @@ Benachrichtigungen, Liste der `account`-Operationen) und alle Befunde eingearbei
 | 16 | Minor | Einzelheiten der Umwandlung von Texten und Tokens fehlten | 3.5 |
 | 17 | Minor | Bildspeicher beim Profilwechsel; ein HDR-Schalter für drei Verfahren | 5.5, 5.7, F-8 |
 
-Eine zweite Lesung der Fassung 2 steht aus.
+**Zweite Lesung (Fassung 2), derselbe Kritiker: REVISE, 0 Blocker, 2 Major, 6 Minor.** 14 der
+17 Befunde galten als erledigt, drei als nur teilweise (Nr. 1, 5, 7); sie stecken in den neuen
+Befunden. Die Zuschreibung an Marco war sauber.
+
+| Nr. | Stufe | Befund | Eingearbeitet in |
+|---|---|---|---|
+| 1 | Major | Die Erkennung «Heimnetz» versagt hinter einem Reverse-Proxy: dort kommt jede Anfrage von einer privaten Adresse | 4.6: drei Bedingungen, eingetragener Heimnetz-Bereich, Warnung beim Start; F-3 |
+| 2 | Major | Erlaubnisliste: Kopplung bestätigen und «Meine Geräte» müssen einer Gerätesitzung verwehrt sein; die Streaming-Routen nehmen ihre Sichtbarkeit aus `binaryRoutes` | 4.5 |
+| 3 | Minor | Bearer-Weg: kein `Set-Cookie`, Vorrang bei Cookie und Bearer, CSRF-Kopf, Gültigkeit je Sitzung | 4.2, Abschnitt 7 |
+| 4 | Minor | «Kopplung beginnen» schreibt ohne Anmeldung eine Gerätezeile | 4.3 |
+| 5 | Minor | Die App muss `containers` senden, sonst nur MP4 direkt | 5.2 |
+| 6 | Minor | Kopiertes Dolby Digital (Plus) sprengt die Bandbreitenrechnung; die Codec-Angabe dafür stimmt schon | 2.3, 5.3, Abschnitt 7 |
+| 7 | Minor | Stufe 0 bekommt Mehrkanal-HLS noch nicht vom Server | Abschnitt 10 |
+| 8 | Minor | Anmelden mit Passwort braucht denselben Zähler wie `login` | 4.4 |
+
+Die Einarbeitung der zweiten Lesung hat der Kritiker nicht mehr gegengelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
