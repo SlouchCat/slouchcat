@@ -3,7 +3,7 @@ import { CSRF } from './catalog';
 import { OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
-import { adminEntry, areaTab } from './admin';
+import { adminArea, adminEntry, areaTab } from './admin';
 
 // /admin/radio (concept 16, 11, variant A «Reiter») by keyboard (rule 8): arrow keys across the
 // tabs with `?tab=` in the URL, Tab through the stations table, Enter opens the editor in
@@ -50,10 +50,12 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   };
   // SLOUCHCAT_TEST_RADIO_DISK_BUFFER (start-server.mjs): the disk buffer counts as a tmpfs.
   expect(config.bufferMode).toBe('tmpfs');
-  // Reached from the overview through «Medien», so Back has a page to return to.
+  // Reached from the overview through «Medien» › «Bibliotheken» in the sidebar's tree, so Back has
+  // a page to return to.
   await page.goto('/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Alles im Blick' })).toBeVisible();
-  await adminEntry(page, 'Medien').click();
+  await adminArea(page, 'Medien').click();
+  await adminEntry(page, 'Bibliotheken').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
   const navLink = areaTab(page, 'Radio');
   await navLink.click();

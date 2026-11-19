@@ -168,8 +168,8 @@ test('tabs by kind with the arrow keys, counts and the tab in the address', asyn
 test('Tab reaches header, the add dialog and its fields in order; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The admin sidebar is one Tab stop: its current area.
-  await tabTo(page, adminEntry(page, 'Medien'));
+  // The admin sidebar is one Tab stop: the current page's link in its tree.
+  await tabTo(page, adminEntry(page, 'Bibliotheken'));
   // Then the area's tabs, one Tab stop on the current page (build plan 2.5).
   await page.keyboard.press('Tab');
   await expectFocusOn(page, areaTab(page, 'Bibliotheken'));

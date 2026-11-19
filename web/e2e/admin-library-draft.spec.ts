@@ -6,7 +6,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { adminEntry, TABS_TO_PAGE_ACTION } from './admin';
+import { adminArea, adminEntry, TABS_TO_PAGE_ACTION } from './admin';
 
 // The kept draft of «Bibliothek hinzufügen» on the page "Bibliotheken" (concept 20, P-11, 13.2;
 // CLAUDE.md rule 8). Step 0 retraces Marco's sequence: a name typed in the add dialog, the dialog
@@ -34,8 +34,19 @@ const leaveQuestion = (page: Page) =>
 const band = (page: Page) => page.getByText(BAND);
 const continueButton = (page: Page) => page.getByRole('button', { name: 'Weiter bearbeiten' });
 const discardButton = (page: Page) => page.getByRole('button', { name: 'Entwurf verwerfen' });
-/** The sidebar's «Automatisierung»: it leads to «Hintergrundjobs». */
-const jobsLink = (page: Page) => adminEntry(page, 'Automatisierung');
+/** The link «Hintergrundjobs» in the sidebar's tree, below the area «Automatisierung». */
+const jobsLink = (page: Page) => adminEntry(page, 'Hintergrundjobs');
+
+/**
+ * Clicks «Hintergrundjobs» in the sidebar's tree, opening «Automatisierung» first while it is
+ * closed (opening an area is no navigation and asks nothing).
+ */
+async function clickJobs(page: Page): Promise<void> {
+  const area = adminArea(page, 'Automatisierung');
+  if ((await area.getAttribute('aria-expanded')) !== 'true') await area.click();
+  await expect(area).toHaveAttribute('aria-expanded', 'true');
+  await jobsLink(page).click();
+}
 
 /**
  * Opens «Bearbeiten» of Filme, puts a new card in, takes it out and cancels: the form holds no
@@ -73,7 +84,7 @@ test('step 0: a cancelled draft is what asks on leaving, and the band now shows 
 
   // «Bearbeiten» keeps no draft; the question on leaving is the add draft's.
   await touchFolders(page);
-  await jobsLink(page).click();
+  await clickJobs(page);
   await expect(leaveQuestion(page)).toBeVisible();
   await leaveQuestion(page).getByRole('button', { name: 'Auf der Seite bleiben' }).click();
   await expect(leaveQuestion(page)).toHaveCount(0);
@@ -82,7 +93,7 @@ test('step 0: a cancelled draft is what asks on leaving, and the band now shows 
   // Discarded from the band, leaving does not ask any more.
   await discardButton(page).click();
   await expect(band(page)).toHaveCount(0);
-  await jobsLink(page).click();
+  await clickJobs(page);
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await expect(leaveQuestion(page)).toHaveCount(0);
 });
@@ -90,7 +101,7 @@ test('step 0: a cancelled draft is what asks on leaving, and the band now shows 
 test('step 0 control: «Bearbeiten» alone leaves no draft (P-11)', async ({ page }) => {
   await touchFolders(page);
   await expect(band(page)).toHaveCount(0);
-  await jobsLink(page).click();
+  await clickJobs(page);
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await expect(leaveQuestion(page)).toHaveCount(0);
 });

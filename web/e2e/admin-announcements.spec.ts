@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 import { deleteAnnouncements } from './mocks';
-import { adminEntry } from './admin';
+import { adminArea, adminEntry } from './admin';
 
 // /admin/announcements (A-7; concept 12, variant B) by keyboard (rule 8): write a draft in place,
 // change it, publish it (the active profile then has it among its unread announcements), move
@@ -254,10 +254,15 @@ test('A-7: a new announcement can go out at once @keyboard', async ({ page }) =>
   // h1, below the sidebar, and headless Firefox does not wrap around to it.
   await expect(heading(page)).toBeFocused();
 
-  // Back (rule 8): the sidebar's «Automatisierung» leads to «Hintergrundjobs», the browser's Back
-  // returns to the announcement in the address.
+  // Back (rule 8): in the sidebar's tree «Automatisierung» opens and «Hintergrundjobs» follows,
+  // the browser's Back returns to the announcement in the address.
   const here = page.url();
-  await arrowTo(page, adminEntry(page, 'Startseite'), adminEntry(page, 'Automatisierung'));
+  const automation = adminArea(page, 'Automatisierung');
+  await arrowTo(page, adminEntry(page, 'Ankündigungen'), automation);
+  await page.keyboard.press('Enter');
+  await expect(automation).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, adminEntry(page, 'Hintergrundjobs'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await page.goBack();
@@ -276,10 +281,16 @@ test('A-7: leaving with an unsaved text asks first', async ({ page, owner }) => 
   await expectFocusOn(page, form.getByRole('textbox', { name: 'Titel' }));
   await page.keyboard.type('Kinoabend');
 
-  // The sidebar link waits for the question; Escape stays on the page with the text.
-  const current = adminEntry(page, 'Startseite');
-  const jobs = adminEntry(page, 'Automatisierung');
-  await arrowTo(page, current, jobs);
+  // The sidebar link waits for the question; Escape stays on the page with the text. Opening
+  // «Automatisierung» in the tree is no navigation and asks nothing.
+  const current = adminEntry(page, 'Ankündigungen');
+  const automation = adminArea(page, 'Automatisierung');
+  const jobs = adminEntry(page, 'Hintergrundjobs');
+  await arrowTo(page, current, automation);
+  await page.keyboard.press('Enter');
+  await expect(automation).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, jobs);
   await page.keyboard.press('Enter');
   const leave = page.getByRole('alertdialog', {
     name: 'Seite mit ungespeicherten Änderungen verlassen?',
@@ -291,7 +302,7 @@ test('A-7: leaving with an unsaved text asks first', async ({ page, owner }) => 
   await expect(page).toHaveURL(/\/admin\/announcements/);
   await expect(form.getByRole('textbox', { name: 'Titel' })).toHaveValue('Kinoabend');
 
-  // «Verwerfen und verlassen» goes; nothing was saved.
+  // «Verwerfen und verlassen» goes; nothing was saved. «Automatisierung» stayed open.
   await arrowTo(page, current, jobs);
   await page.keyboard.press('Enter');
   await expectFocusOn(page, stay);

@@ -355,8 +355,13 @@ test('admin: the page stays in the administration, compact, with the link to the
   await page.goto('/admin/notifications');
   await expect(pageTitle(page)).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-  // The sidebar marks the area «Automatisierung», its tabs the page (build plan 2.5).
-  await expect(nav.getByRole('link', { name: /^Automatisierung(,|$)/ })).toHaveAttribute(
+  // The sidebar's tree marks the area «Automatisierung» and the page, its tabs the page (build
+  // plan 2.5).
+  await expect(nav.getByRole('button', { name: /^Automatisierung(,|$)/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+  await expect(nav.getByRole('link', { name: /^Benachrichtigungen(,|$)/ })).toHaveAttribute(
     'aria-current',
     'page',
   );
