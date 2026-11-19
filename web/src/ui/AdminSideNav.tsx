@@ -383,7 +383,9 @@ export function AdminSideNavContent({
  */
 export function AdminSideNav({ profile, ...props }: AdminSideNavProps) {
   return (
-    <div className={styles.column}>
+    // With an area open the column can be higher than the window and scrolls; Firefox would make
+    // the scrolling box a Tab stop of its own before the entries (as SideNav's bar, tabIndex -1).
+    <div className={styles.column} tabIndex={-1}>
       <AdminSideNavContent {...props} revealCurrent />
       {profile && (
         <div className={styles.profile}>

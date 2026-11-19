@@ -226,6 +226,11 @@ describe('admin sidebar (concept 11, 11.6; build plan 2.2)', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('keeps the scrolling column itself out of the Tab order (Firefox focuses a scrolling box)', () => {
+    render(<AdminSideNav {...props()} />);
+    expect(nav().parentElement).toHaveAttribute('tabindex', '-1');
+  });
+
   it('shows the active profile with its role at the foot, outside the navigation', () => {
     render(<AdminSideNav {...props()} />);
     expect(screen.getByText('Marco')).toBeVisible();
