@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Verwaltung: Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, Zweig `claude/admin-explorer-nav`, Pull Request offen, nicht gemergt)
+## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, Zweig `claude/admin-explorer-nav`, PR #189)
 
 Marcos Auftrag vom 19. November 2026 mit dem klickbaren Mockup `Slouchcat_Variante_1_Explorer.html` (Variante 01):
 die linke Seitenleiste der Verwaltung durch die Explorer-Navigation ersetzen, **ausschliesslich** die Seitenleiste.
@@ -23,7 +23,8 @@ Entscheid: Nachtrag zu Frage 31 im Entscheidungsprotokoll, Nachtrag in ADR 0035.
   Leertaste klappen. Die rollende Spalte selbst ist kein Tab-Halt (`tabIndex -1`; Firefox machte sie sonst zu einem
   zweiten, gefunden von `admin-folder-browser.spec.ts` und `admin-library-draft.spec.ts`).
 - **Unverändert:** Seiteninhalte, Seitenköpfe, Bereichsreiter, Brotkrumen, Suchpalette, alle Adressen, das Blatt
-  auf dem Handy, Kopfzeile, Tokens, Texte, Server. Keine Migration, Vertrag bleibt 1.41.0, keine Version vergeben.
+  auf dem Handy, Kopfzeile, Tokens, Texte, Server. Keine Migration, Vertrag bleibt 1.41.0. Marco hat am
+  19. November 2026 «Mergen + Patch 1.41.3» gewählt; der Versionscommit liegt auf demselben Zweig.
 - **Abweichungen vom Mockup (Bestand gilt, Auftrag Abschnitt 2):** Spalte 240 px statt 277 px; Zeilen 44 px statt
   32 und 39 px; auf «Übersicht» kein Bereich offen (im Mockup «Medien»); der Pfeil dreht; Handy behält das Blatt.
   Tabelle im Nachtrag von ADR 0035.
