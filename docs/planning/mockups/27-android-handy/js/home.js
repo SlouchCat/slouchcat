@@ -40,7 +40,7 @@ route('/', () => {
   })).join('');
   const dot = unread ? '<span style="position:absolute;top:10px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--accent)"></span>' : '';
   const html = `
-    <header class="bar over"><span class="wordmark">Slouch<i>cat</i></span>
+    <header class="bar over">${menuBtn()}<span class="wordmark">Slouch<i>cat</i></span>
       <a class="ib" href="#/notifications" aria-label="Benachrichtigungen${unread ? `, ${unread} neu` : ''}" style="position:relative">${icon('bell')}${dot}</a>
       <a class="ib" href="#/profiles" aria-label="Profil wechseln, aktiv: ${esc(p.name)}">${avatar(p)}</a></header>
     ${hero()}

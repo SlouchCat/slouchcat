@@ -103,6 +103,20 @@ nach einer Zustandsänderung `commit()` (speichern und zeichnen).
 - Tonwiedergabe: `S.playing = { title, sub, img, href, paused }` zeigt den kleinen Player über der
   Navigation (`drawMini()` zeichnet ihn).
 
+## Medienauswahl links
+
+Marco, 19. November 2026: «Ich möchte jeweils auf der Linken Seite die Medienauswahl. Kann auch mit
+hereinwischen kommen». Auf die Rückfrage hat er «Menü links, Leiste bleibt» gewählt.
+
+- **Handy:** ein Menü, das von links hereinwischt (`openDrawer()`, `closeDrawer()`, `ACT.drawer`), mit
+  den Bibliotheken, Webradio und «Meine Medien» (Merkliste, Gesehen, Sammlungen). Es öffnet sich über
+  den Menü-Knopf oben links und durch Wischen vom linken Rand (`#edge`). `bar(titel, {back: false})`
+  zeigt den Menü-Knopf von selbst; die Startseite setzt ihn mit `menuBtn()`. Die untere Leiste bleibt.
+- **Tablet:** dieselbe Auswahl steht fest in der linken Spalte unter den fünf Zielen (`mediaNav()` in
+  `#rail`). Markiert ist immer nur ein Eintrag.
+- Auf einem echten Android-Handy mit Gestensteuerung gehört das Wischen vom linken Rand dem System
+  (Zurück). In der App öffnet dann der Menü-Knopf das Menü; das ist beim Bau zu berücksichtigen.
+
 ## Bauteile (`app.css`)
 
 `bar(titel, {back, end, over})`, `.ib` (runder Knopf mit Symbol), `.btn` (`primary`, `accent`, `secondary`,

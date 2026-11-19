@@ -139,8 +139,40 @@ function current() {
 }
 const NAV = [
   ['start', 'Start', 'home', '#/'], ['search', 'Suche', 'search', '#/search'], ['downloads', 'Downloads', 'download', '#/downloads'],
-  ['wishes', 'Wünsche', 'wish', '#/wishes'], ['more', 'Mehr', 'more', '#/more'],
+  ['wishes', 'Wünsche', 'wish', '#/wishes'], ['more', 'Mehr', 'dots', '#/more'],
 ];
+
+/* ---------- media selection: drawer on the left (phone), permanent panel (tablet) ---------- */
+function mediaNav() {
+  const path = (location.hash.slice(1) || '/').split('?')[0];
+  const it = (h, ic, label, end) => { const on = path === h.slice(1); return `<a class="dn${on ? ' on' : ''}" href="${h}"${on ? ' aria-current="page"' : ''} data-fid="dn${h}"><span class="dn-i">${icon(ic, 22)}</span><span class="dn-t">${esc(label)}</span>${end !== '' && end != null ? `<span class="dn-e">${end}</span>` : ''}</a>`; };
+  return `<div class="dn-sec">Medien</div>${LIBS.map(l => it('#/library/' + l.key, l.icon, l.name, l.count.toLocaleString('de-CH'))).join('')}${it('#/radio', 'radio', 'Webradio', DATA.radio.length)}
+    <div class="dn-sec">Meine Medien</div>${it('#/watchlist', 'bookmark', 'Merkliste', S.watch.length)}${it('#/watched', 'eye', 'Gesehen', S.seen.length || '')}${it('#/collections', 'grid', 'Sammlungen', DATA.col.length)}`;
+}
+const railShown = () => getComputedStyle($('#rail')).display !== 'none';
+function openDrawer() {
+  if (railShown() || document.body.classList.contains('full')) return;
+  const p = me(); const d = $('#drawer');
+  d.innerHTML = `<div class="dr-scrim" data-act="drawerClose"></div><aside class="dr-panel" role="dialog" aria-modal="true" aria-label="Medienauswahl">
+    <a class="dr-head" href="#/profiles">${avatar(p, 44)}<span class="tx"><b>${esc(p.name)}</b><small>Profil wechseln</small></span>${icon('right', 18)}</a>
+    <nav class="dr-nav" aria-label="Medienauswahl">${mediaNav()}</nav></aside>`;
+  void d.offsetWidth; /* start from the closed position so the panel slides in */
+  d.classList.add('open'); const f = $('.dr-nav a', d); if (f) f.focus({ preventScroll: true });
+}
+function closeDrawer() { const d = $('#drawer'); if (d) d.classList.remove('open'); }
+const drawerOpen = () => $('#drawer').classList.contains('open');
+(function drawerSetup() {
+  const dev = $('#device');
+  const d = document.createElement('div'); d.id = 'drawer'; dev.appendChild(d);
+  const edge = document.createElement('div'); edge.id = 'edge'; edge.setAttribute('aria-hidden', 'true'); dev.appendChild(edge);
+  const scale = () => dev.getBoundingClientRect().width / dev.offsetWidth;
+  let st = null;
+  edge.addEventListener('pointerdown', e => { if (railShown()) return; st = { x: e.clientX, sc: scale() }; edge.setPointerCapture(e.pointerId); });
+  edge.addEventListener('pointermove', e => { if (st && (e.clientX - st.x) / st.sc > 32) { st = null; openDrawer(); } });
+  d.addEventListener('pointerdown', e => { if (drawerOpen()) st = { x: e.clientX, sc: scale(), close: true }; });
+  d.addEventListener('pointermove', e => { if (st && st.close && (e.clientX - st.x) / st.sc < -40) { st = null; closeDrawer(); } });
+  ['pointerup', 'pointercancel'].forEach(n => { edge.addEventListener(n, () => { st = null; }); d.addEventListener(n, () => { st = null; }); });
+})();
 let lastPath = null;
 function render() {
   let c = current();
@@ -155,7 +187,10 @@ function render() {
   $('#view').innerHTML = v.html || '';
   const navHtml = NAV.map(([k, label, ic, h]) => `<a href="${h}"${v.nav === k ? ' aria-current="page"' : ''}><span class="pill">${icon(ic, 22)}</span>${label}</a>`).join('');
   $('#tabs').innerHTML = navHtml;
-  $('#rail').innerHTML = `<div class="brand">S</div>${navHtml}`;
+  /* in the wide column only one entry is marked: a media entry wins over «Start» */
+  const mediaOn = /^\/(library\/|radio$|watchlist$|watched$|collections$)/.test(c.path);
+  const railNav = (mediaOn ? navHtml.replace(/ aria-current="page"/g, '') : navHtml).replace(/<a /g, '<a class="rn" ');
+  $('#rail').innerHTML = `<div class="brand"><span>S</span><b>Slouch<i>cat</i></b></div>${railNav}<div class="rail-media">${mediaNav()}</div>`;
   scroll.scrollTop = keep; lastPath = c.path;
   if (fid) { const el = document.querySelector(`[data-fid="${fid}"]`); if (el) el.focus({ preventScroll: true }); }
   drawMini();
@@ -163,7 +198,7 @@ function render() {
   const j = $('#jump'); if (j) j.value = PAGES.some(p => p[0] === location.hash) ? location.hash : '';
 }
 const commit = () => { save(); render(); };
-window.addEventListener('hashchange', () => { closeSheet(true); render(); });
+window.addEventListener('hashchange', () => { closeSheet(true); closeDrawer(); render(); });
 
 /* ---------- actions ---------- */
 const ACT = {};
@@ -197,10 +232,13 @@ function closeSheet(silent) { const o = $('#overlays'); const sn = $('.snack', o
 ACT.scrim = (d, el, e) => { if (e.target === el) closeSheet(); };
 let snackT;
 function toast(msg) { const o = $('#overlays'); const old = $('.snack', o); if (old) old.remove(); const n = document.createElement('div'); n.className = 'snack'; n.setAttribute('role', 'status'); n.textContent = msg; o.appendChild(n); clearTimeout(snackT); snackT = setTimeout(() => n.remove(), 2600); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#overlays .scrim')) closeSheet(); else history.back(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (drawerOpen()) closeDrawer(); else if ($('#overlays .scrim')) closeSheet(); else history.back(); } });
+ACT.drawer = () => openDrawer();
+ACT.drawerClose = () => closeDrawer();
 
 /* ---------- shared page parts ---------- */
-const bar = (title, opts) => { const o = opts || {}; return `<header class="bar${o.over ? ' over' : ''}">${o.back === false ? '' : `<button type="button" class="ib back" data-act="back" aria-label="Zurück">${icon('back')}</button>`}<h1>${esc(title)}</h1>${o.end || ''}</header>`; };
+const menuBtn = () => `<button type="button" class="ib menu" data-act="drawer" aria-label="Medienauswahl öffnen" data-fid="menu">${icon('more')}</button>`;
+const bar = (title, opts) => { const o = opts || {}; return `<header class="bar${o.over ? ' over' : ''}">${o.back === false ? menuBtn() : `<button type="button" class="ib back" data-act="back" aria-label="Zurück">${icon('back')}</button>`}<h1>${esc(title)}</h1>${o.end || ''}</header>`; };
 const li = (ic, title, sub, end, attrs) => `<${attrs && attrs.includes('href=') ? 'a' : 'button type="button"'} class="li" ${attrs || ''}><span class="lead">${typeof ic === 'string' && ic.startsWith('<') ? ic : icon(ic, 22)}</span><span class="tx"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="end">${end ?? icon('right', 18)}</span></${attrs && attrs.includes('href=') ? 'a' : 'button'}>`;
 const sw = (scope, path, label, sub) => { const p = path.split('.'); let t = scope === 'S' ? S : ui; for (const k of p) t = t ? t[k] : undefined; return `<button type="button" class="li" role="switch" aria-checked="${!!t}" data-act="toggle" data-scope="${scope}" data-path="${path}" data-fid="sw-${path}"><span class="tx"><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="sw" aria-checked="${!!t}"></span></button>`; };
 const avatar = (p, size) => `<span class="avatar" style="background:${p.color};${size ? `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px` : ''}">${esc(p.name[0])}</span>`;

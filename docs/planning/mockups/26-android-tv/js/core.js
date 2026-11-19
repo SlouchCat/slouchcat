@@ -189,12 +189,18 @@ const NAV = [
   ['start', 'Start', 'home', '#/'], ['search', 'Suche', 'search', '#/search'], ['libs', 'Bibliotheken', 'grid', null],
   ['wishes', 'Wünsche', 'wish', '#/wishes'], ['settings', 'Einstellungen', 'settings', '#/settings'],
 ];
+/* The rail carries the media selection itself (Marco, 19 November 2026): every library and the radio
+   are entries of the left rail, no extra panel in between. */
 function drawRail(nav) {
-  const p = me(); const known = NAV.some(n => n[0] === nav) || nav === 'profiles';
-  $('#rail').innerHTML = `<div class="r-brand"><span class="r-logo">S</span><span class="r-lb">${wordmark()}</span></div><div class="r-items">${NAV.map(([k, label, ic, h]) => {
-    const cur = nav === k || (!known && k === 'start');
-    return `<a class="r-it" ${h ? `href="${h}"` : 'href="#" data-act="libs"'} data-f="r-${k}"${nav === k ? ' aria-current="page"' : ''}${cur ? ' data-default' : ''}><span class="r-ic">${icon(ic, 38)}</span><span class="r-lb">${label}</span></a>`;
-  }).join('')}</div><a class="r-it r-prof" href="#/profiles" data-f="r-prof"${nav === 'profiles' ? ' aria-current="page"' : ''}>${avatar(p, 54)}<span class="r-lb"><b>${esc(p.name)}</b><small>Profil wechseln</small></span></a>`;
+  const p = me(); const path = (location.hash.slice(1) || '/').split('?')[0];
+  const media = [...LIBS.map(l => ['lib-' + l.key, l.name, l.icon, '#/library/' + l.key]), ['radio', 'Webradio', 'radio', '#/radio']];
+  const mediaCur = media.find(m => path === m[3].slice(1)) || null;
+  const main = ['start', 'search', 'wishes', 'settings'];
+  const fallback = !mediaCur && !main.includes(nav) && nav !== 'profiles';
+  const item = ([k, label, ic, h], cur, def, cls) => `<a class="r-it${cls || ''}" href="${h}" data-f="r-${k}"${cur ? ' aria-current="page"' : ''}${def ? ' data-default' : ''}><span class="r-ic">${icon(ic, cls ? 32 : 38)}</span><span class="r-lb">${label}</span></a>`;
+  const plain = keys => NAV.filter(n => keys.includes(n[0])).map(n => { const cur = !mediaCur && nav === n[0]; return item(n, cur, cur || (fallback && n[0] === 'start')); }).join('');
+  const med = media.map(m => item(m, mediaCur === m, mediaCur === m, ' r-med')).join('');
+  $('#rail').innerHTML = `<div class="r-brand"><span class="r-logo">S</span><span class="r-lb">${wordmark()}</span></div><div class="r-items">${plain(['start', 'search'])}<div class="r-sec"><span class="r-lb">Medien</span></div>${med}<div class="r-sec"></div>${plain(['wishes', 'settings'])}</div><a class="r-it r-prof" href="#/profiles" data-f="r-prof"${nav === 'profiles' ? ' aria-current="page"' : ''}>${avatar(p, 54)}<span class="r-lb"><b>${esc(p.name)}</b><small>Profil wechseln</small></span></a>`;
 }
 
 /* page memory: MEM[path] = { f, top, left: {row: scrollLeft}, rows: {row: data-f} } */

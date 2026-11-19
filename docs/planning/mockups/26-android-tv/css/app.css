@@ -380,3 +380,12 @@ body.remote-off #remote { display: none; }
 @keyframes bumpL { 50% { translate: -10px 0; } } @keyframes bumpR { 50% { translate: 10px 0; } }
 @keyframes bumpU { 50% { translate: 0 -10px; } } @keyframes bumpD { 50% { translate: 0 10px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* ---------- media selection inside the rail: libraries and radio as their own entries ---------- */
+.r-items { gap: 6px; }
+.r-it { height: 68px; }
+.r-it.r-med { height: 58px; }
+.r-it.r-med .r-lb { font-weight: 500; }
+.r-sec { height: 30px; display: flex; align-items: flex-end; padding: 0 0 4px calc(var(--safe-x) + 2px); }
+.r-sec .r-lb { font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); }
+.r-it[aria-current="page"]::before { top: 18px; bottom: 18px; }

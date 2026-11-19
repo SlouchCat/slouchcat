@@ -80,6 +80,48 @@ body.full.dark-status #status { color: #fff; }
   #tabs { display: none; }
 }
 
+/* ---------- media selection: drawer from the left (phone), permanent column (tablet) ---------- */
+#edge { position: absolute; left: 0; top: 96px; bottom: 96px; width: 18px; z-index: 60; touch-action: none; }
+body.full #edge { display: none; }
+#drawer { position: absolute; inset: 0; z-index: 75; pointer-events: none; }
+#drawer .dr-scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity 0.2s; }
+#drawer .dr-panel { position: absolute; left: 0; top: 0; bottom: 0; width: min(312px, 82%); display: flex; flex-direction: column; padding: 44px 0 22px; background: var(--elev); border-right: 1px solid var(--line); border-radius: 0 26px 26px 0; box-shadow: 18px 0 50px rgba(0, 0, 0, 0.55); transform: translateX(-104%); transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1); overflow-y: auto; scrollbar-width: none; touch-action: pan-y; }
+#drawer.open { pointer-events: auto; }
+#drawer.open .dr-scrim { opacity: 1; }
+#drawer.open .dr-panel { transform: none; }
+.dr-head { display: flex; align-items: center; gap: 12px; margin: 0 12px 6px; padding: 10px 12px; border-radius: 18px; color: var(--tx3); }
+.dr-head:hover { background: rgba(255, 255, 255, 0.06); }
+.dr-head .tx { flex: 1; min-width: 0; }
+.dr-head b { display: block; font-size: 17px; color: var(--tx); }
+.dr-head small { display: block; font-size: 13px; color: var(--tx3); }
+.dn-sec { padding: 16px 26px 6px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx3); }
+.dn { display: flex; align-items: center; gap: 14px; min-height: 52px; margin: 0 12px; padding: 0 14px; border-radius: 26px; color: var(--tx2); font-size: 15.5px; font-weight: 500; }
+.dn:hover { background: rgba(255, 255, 255, 0.06); }
+.dn.on { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.dn-i { display: grid; place-items: center; flex: none; }
+.dn-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dn-e { font-size: 13px; color: var(--tx3); font-variant-numeric: tabular-nums; }
+.dn.on .dn-e { color: var(--on-accent); }
+.ib.menu + h1, .ib.menu + .wordmark { padding-left: 2px; }
+#rail .brand b { display: none; }
+#rail .rail-media { display: none; }
+@container app (min-width: 700px) {
+  #rail { width: 236px; align-items: stretch; gap: 2px; padding: 18px 0 16px; overflow-y: auto; scrollbar-width: none; }
+  #rail .brand { width: auto; height: auto; margin: 0 0 12px 22px; background: none; display: flex; align-items: center; gap: 12px; }
+  #rail .brand span { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-weight: 800; font-size: 21px; }
+  #rail .brand b { display: block; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--tx); }
+  #rail .brand b i { font-style: normal; color: var(--accent); }
+  #rail a.rn { flex-direction: row; justify-content: flex-start; gap: 14px; width: auto; height: 52px; margin: 0 12px; padding: 0 14px; border-radius: 26px; font-size: 15.5px; color: var(--tx2); }
+  #rail a.rn .pill { width: auto; height: auto; border-radius: 0; background: none; color: inherit; }
+  #rail a.rn[aria-current='page'] { background: var(--accent); color: var(--on-accent); }
+  #rail a.rn[aria-current='page'] .pill { background: none; color: inherit; }
+  #rail .rail-media { display: block; margin-top: 6px; border-top: 1px solid var(--line); }
+  #rail a.dn { flex-direction: row; justify-content: flex-start; gap: 14px; width: auto; height: auto; min-height: 48px; font-size: 15px; font-weight: 500; }
+  #rail a.dn.on { font-weight: 700; }
+  .ib.menu { display: none; }
+  .ib.menu + h1, .ib.menu + .wordmark { padding-left: 12px; }
+}
+
 /* ---------- app bar ---------- */
 .bar { position: sticky; top: 0; z-index: 20; height: 60px; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 4px; background: var(--bg); }
 .bar.over { position: absolute; left: 0; right: 0; background: linear-gradient(#000a, #0000); }
