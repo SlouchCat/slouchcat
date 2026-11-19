@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slouchcat Handy-App · Mockup Konzept 27</title>
+<link rel="stylesheet" href="css/app.css?v=2">
+<link rel="stylesheet" href="css/setup.css?v=2">
+<link rel="stylesheet" href="css/browse.css?v=2">
+<link rel="stylesheet" href="css/media.css?v=2">
+</head>
+<body>
+<header id="tools" aria-label="Mockup-Leiste">
+  <span class="mk">Mockup</span>
+  <strong>Slouchcat · Handy-App</strong>
+  <div class="seg" role="group" aria-label="Gerät">
+    <button type="button" data-tool="view" data-v="phone">Handy</button>
+    <button type="button" data-tool="view" data-v="tablet">Tablet</button>
+  </div>
+  <div class="seg" role="group" aria-label="Ausrichtung">
+    <button type="button" data-tool="rot" data-v="p">Hochformat</button>
+    <button type="button" data-tool="rot" data-v="l">Querformat</button>
+  </div>
+  <label class="jump">Seite
+    <select id="jump" aria-label="Zu einer Seite springen"></select>
+  </label>
+  <button type="button" class="tbtn" data-tool="reset">Neu starten</button>
+</header>
+<main id="stage">
+  <div id="fit">
+    <div id="device">
+      <div id="cam" aria-hidden="true"></div>
+      <div id="status" aria-hidden="true"><span id="clock">16:55</span><span class="sico"></span></div>
+      <div id="app">
+        <nav id="rail" aria-label="Navigation"></nav>
+        <div id="col">
+          <div id="scroll"><div id="view"></div></div>
+          <div id="mini"></div>
+          <nav id="tabs" aria-label="Navigation"></nav>
+        </div>
+      </div>
+      <div id="overlays"></div>
+      <div id="gesture" aria-hidden="true"></div>
+    </div>
+  </div>
+</main>
+<script src="js/data.js?v=2"></script>
+<script src="js/core.js?v=2"></script>
+<script src="js/home.js?v=2"></script>
+<script src="js/setup.js?v=2"></script>
+<script src="js/browse.js?v=2"></script>
+<script src="js/media.js?v=2"></script>
+<script src="js/boot.js?v=2"></script>
+</body>
+</html>
