@@ -3,8 +3,11 @@
 - **Status: Entwurf, Fassung 3 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 9 Major, 8 Minor), Fassung 3
   die zweite Lesung (REVISE, 0 Blocker, 2 Major, 6 Minor); beides in Abschnitt 14. Danach
-  nachgetragen: Marcos Entscheide E-7 bis E-9 (kein Admin-Bereich, Profile verwalten am
-  Fernseher). Gebaut wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+  nachgetragen: Marcos Entscheide E-7 bis E-12 und seine Antworten auf F-4, F-15 und F-16.
+  **E-10 bis E-12 ändern die Anmeldung und die Reihenfolge grundlegend** (Einrichten per Scan mit
+  einer nativen Handy-App über einen Dienst im Internet; die Handy-App wird zuerst gebaut).
+  Abschnitt 4 ist dafür neu geschrieben und **noch nicht vom Kritiker gelesen**. Gebaut wird erst
+  nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
   die Rückfrage, was damit gemeint ist, hat er «Konzept starten» gewählt.
@@ -14,8 +17,9 @@
   Entscheidungsprotokoll **33**.
 - **Nummern:** Dieses Papier ist **Konzept 26** und reserviert **Frage 34** sowie **ADR 0039**
   («Android-TV-App als nativer Client im selben Repo»), **ADR 0040** («Gerätekopplung und
-  Gerätesitzung») und **ADR 0041** («Ton- und Spurfähigkeiten des Geräts in der
-  Wiedergabe-Entscheidung»). Die ADR entstehen mit dem Bau. Migrations- und Versionsnummern
+  Gerätesitzung»), **ADR 0041** («Ton- und Spurfähigkeiten des Geräts in der
+  Wiedergabe-Entscheidung») und **ADR 0042** («Vermittlungsdienst für das Einrichten per Scan»).
+  Die native Android-Handy-App wird **Konzept 27**. Die ADR entstehen mit dem Bau. Migrations- und Versionsnummern
   vergibt der Bau.
 - Pfade ohne Präfix liegen unter `web/src/` oder `server/`. **Nach Namen suchen, nicht nach
   Zeile**; Zeilen beziehen sich auf den Anker.
@@ -25,7 +29,7 @@
   es ändert selbst keine Regel.
 
 > **Dieses Papier ändert keine Zeile Code.** Marcos Entscheide stehen in Abschnitt 1 (E-1 bis
-> E-9) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
+> E-12) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
 > Aussagen über den Code stammen vom Anker, Aussagen über Android und Google Play aus einer
 > Recherche vom 19. November 2026 (Anhang A). Was dort nicht belegt werden konnte, heisst im Text
 > «unbelegt» und wird in Stufe 0 auf echten Geräten gemessen.
@@ -46,6 +50,9 @@ gewählte Antwort wörtlich.
 | E-7 | (ohne Frage, von Marco selbst) | «Die AndroidTV App braucht auch kein Admin Bereich. Nur der Nutzer Bereich» | – |
 | E-8 | (ohne Frage, von Marco selbst) | «Profile verwalten sollte die App können. Einladungen ebenfalls nicht und Downloads auch nicht. Downloads ist nur wichtig für die Handy Apps.» | Vorschlag war: Profile nur im Browser |
 | E-9 | Wie sichert die TV-App das Verwalten der Profile ab (PINs entfernen, Altersfreigaben ändern)? | **«Nur das Hauptprofil das Profile erstellen oder ändern. Falls ein Kinder Profil ist, soll lediglich ein Pin empfohlen werden. Jedes Gerät darf jedoch Profil verwalten (nur mit dem Hauptprofil)»** | Mit PIN des Hauptprofils als Pflicht |
+| E-10 | (von Marco selbst) Danach: Welche App am Handy soll scannen? | «Eigentlich möchte ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit dieser App den QR Code auf dem TV scannen und auf dem TV wird alles eingerichtet (sofern mit Internet verbunden).» Auf die Frage: **«Neue native Android-App»** | Bestehende Web-App |
+| E-11 | Wie kommen Serveradresse und Anmeldung nach dem Scan auf den Fernseher? | **«Über einen Dienst im Internet»** | Direkt im selben WLAN |
+| E-12 | In welcher Reihenfolge wird gebaut? | **«Volle Handy-App zuerst»** | Kleine Begleit-App zusammen mit der TV-App |
 
 Zu E-5: Die Frage hat vorgegeben, dass Filme und Serien gesetzt sind. Dass die Verwaltung im
 Browser bleibt, war zuerst ebenfalls Vorgabe der Frage; Marco hat es danach mit E-7 selbst
@@ -54,8 +61,15 @@ festgelegt.
 Dazu Marcos Hinweis vom selben Tag: «Da dies für alle verfügbar sein soll, muss ja auch irgendwo
 der Server eingetragen werden können.» Das ist Abschnitt 4.1.
 
-Zu E-8: Marco spricht von «Handy Apps». Native Apps für Handy und Tablet bleiben in diesem Papier
-ein Nicht-Ziel (Abschnitt 11); der Satz ist als Hinweis auf später festgehalten, nicht als Auftrag.
+Zu E-8: Marco spricht von «Handy Apps». Mit E-10 und E-12 hat er die native Android-Handy-App
+danach selbst zum Ziel gemacht; sie bekommt ein eigenes Konzept 27 und wird vor der TV-App gebaut.
+
+Zu E-10 bis E-12: Die Folgen standen in den Fragen. Zur Handy-App: «heute ein Nicht-Ziel und wäre
+ein zweites grosses Projekt mit eigenem Konzept», «iPhone-Nutzer hätten nichts davon». Zum Dienst:
+«Du müsstest diesen Dienst für alle Slouchcat-Nutzer dauerhaft betreiben», «Cloud ist heute ein
+Nicht-Ziel», «Fällt er aus, kann niemand per Scan einrichten». Zur Reihenfolge: «Längster Weg bis
+zu einer App auf deinem Fernseher». Marcos erster Satz des Tages, «Wir starten mit AndroidTV»,
+ist damit überholt.
 
 Zu E-9: Marco hat die Folge gekannt; sie stand in der Frage («Hat das Hauptprofil keine PIN, kann
 jeder am Fernseher und jedes fälschlich gekoppelte Gerät PINs entfernen und Altersfreigaben
@@ -256,8 +270,8 @@ Gerätesitzung aufrufen darf (Abschnitt 4.5).
 
 | TV-Seite | Vorbild in der Web-App | Stufe |
 |---|---|---|
-| Serveradresse | neu | 2a |
-| Anmelden (Code, QR, E-Mail und Passwort) | `/login` | 2a |
+| Einrichten per Scan: QR-Code für die Handy-App (E-10) | neu | 2a |
+| Einrichten von Hand: Serveradresse, E-Mail und Passwort | `/login` | 2a |
 | Profilwahl mit PIN | `/profiles` | 2a |
 | Start (Spotlight, Reihen) | `/` | 2b |
 | Bibliothek (Raster, Filter, Sortierung) | `/libraries/$libraryId` | 2b |
@@ -317,18 +331,33 @@ Player-Bedienung. Marco gibt es frei, bevor Stufe 2b beginnt.
 - **Regel 12 gilt unverändert:** Die App entscheidet nichts über Sichtbarkeit oder Alter. Sie zeigt,
   was der Server liefert; nicht sichtbar heisst 404.
 
-## 4. Anmeldung (E-4)
+## 4. Anmeldung (E-4, E-10, E-11)
+
+Marco hat die Anmeldung am 19. November 2026 neu festgelegt (E-10 bis E-12): Der Nutzer richtet
+zuerst die **Android-Handy-App** ein und scannt damit den QR-Code am Fernseher; der Fernseher
+richtet sich danach selbst ein. Dieser Abschnitt beschreibt den Weg aus Sicht der TV-App. Die
+Handy-App selbst ist nicht Teil dieses Papiers (Konzept 27, Abschnitt 10).
+
+Es gibt zwei Wege:
+
+| Weg | Was der Nutzer tut | Braucht |
+|---|---|---|
+| **Per Scan** (Hauptweg, E-10) | QR-Code am Fernseher mit der Handy-App scannen, bestätigen | Handy-App, Vermittlungsdienst, Internet an beiden Geräten |
+| **Von Hand** (Ausweichweg) | Serveradresse, E-Mail und Passwort am Fernseher eintippen | nichts weiter |
+
+Die Bestätigung im Browser über eine Seite `/link` mit abgetipptem Code, wie sie die Fassungen 1
+bis 3 vorsahen, entfällt als Vorschlag der Redaktion (Frage F-3).
 
 ### 4.1 Serveradresse
 
-Beim ersten Start fragt die App nach der Adresse des Servers, prüft sie mit `getHealth` und zeigt
-Adresse und Version. Die Adresse bleibt gespeichert; wechseln geht in den Einstellungen.
+- **Per Scan:** Die Handy-App kennt den Server und gibt die Adresse beim Scan mit. Am Fernseher
+  tippt man nichts.
+- **Von Hand:** Die TV-App fragt nach der Adresse, prüft sie mit `getHealth` und zeigt Adresse und
+  Version.
 
-- Eine automatische Suche im Heimnetz ist nicht Teil der ersten Ausgabe (Frage F-5): Der Server
-  läuft in Docker, dort kommen die üblichen Suchverfahren ohne Zusatzeinrichtung nicht aus dem
-  Container heraus.
-- Android blockiert unverschlüsseltes HTTP ab Werk. Viele Heimserver laufen ohne TLS im LAN. Die
-  App muss HTTP darum ausdrücklich erlauben (Frage F-6).
+Die Adresse bleibt gespeichert; wechseln geht in den Einstellungen. Android blockiert
+unverschlüsseltes HTTP ab Werk. Viele Heimserver laufen ohne TLS im LAN; die App muss HTTP darum
+ausdrücklich erlauben (Frage F-6).
 
 ### 4.2 Das Gerätetoken
 
@@ -339,11 +368,14 @@ Die TV-App bekommt nie eine volle Sitzung. Sie bekommt ein **Gerätetoken**:
 - Die App sendet es als `Authorization: Bearer`. Damit wird das Schema `bearerToken` des Vertrags
   erstmals benutzt, so wie Plan 3.8 Punkt 7 und ADR 0005 es vorgesehen haben: Das Token hängt an
   der Sitzungstabelle und erbt die Profilwahl.
-- Es gehört zu genau einem Gerät. Der Server legt die Gerätezeile mit Name und Typ `tv` an, sobald
-  die Kopplung beginnt, nicht erst beim ersten Abspielstart. PIN-Sperre und «Gerät vergessen»
-  treffen so den Fernseher und nicht das Handy, mit dem bestätigt wurde.
+- Es gehört zu genau einem Gerät. Der Server legt die Gerätezeile mit Name und Typ `tv` an, wenn
+  er das Token ausgibt, nicht erst beim ersten Abspielstart. PIN-Sperre und «Gerät vergessen»
+  treffen so den Fernseher und nicht das Handy.
 - Es öffnet eine **Gerätesitzung** mit eingeschränkten Rechten (Abschnitt 4.5).
 - Auch Bilder, Trickplay-Bögen und der Radio-Start nehmen das Token an.
+- **Es läuft nicht ab** (Marcos Antwort auf F-4: «Unbegrenzt»). Ein Fernseher bleibt angemeldet,
+  bis ihn jemand unter «Meine Geräte» oder in der Verwaltung abmeldet. Ein verkaufter oder
+  verschenkter Fernseher behält den Zugang bis dahin.
 
 Regeln für den Bearer-Weg im Server, damit er den Cookie-Weg nicht stört:
 
@@ -354,60 +386,59 @@ Regeln für den Bearer-Weg im Server, damit er den Cookie-Weg nicht stört:
 - Der CSRF-Kopf `X-Requested-With: Slouchcat` bleibt Pflicht für jede schreibende Anfrage; die
   App sendet ihn. Es gibt keine Ausnahme für Bearer.
 - Die Gültigkeit steht je Sitzung in der Tabelle. Heute gilt ein fester Wert für alle
-  (`SessionLifetime`); eine eigene Dauer für Gerätesitzungen (Frage F-4) braucht eine Spalte.
+  (`SessionLifetime`); «läuft nicht ab» für Gerätesitzungen braucht eine Spalte oder eine eigene
+  Regel je Sitzungsart.
 
-Ein Gerätetoken entsteht auf zwei Wegen: durch die Kopplung (4.3) oder durch Anmelden mit
-Passwort in der TV-App (4.4).
+### 4.3 Einrichten per Scan (E-10, E-11)
 
-### 4.3 Kopplung per Code
+Der Fernseher kennt beim ersten Start weder Server noch Konto. Handy und Fernseher finden über
+einen **Vermittlungsdienst** im Internet zueinander (4.7).
 
-Ablauf, angelehnt an RFC 8628 («Device Authorization Grant»):
+1. Die TV-App erzeugt ein Schlüsselpaar, meldet sich beim Vermittlungsdienst und bekommt eine
+   **Treffpunkt-Kennung**, gültig 5 Minuten.
+2. Der Fernseher zeigt einen QR-Code. Er enthält die Adresse des Dienstes, die Kennung und den
+   öffentlichen Schlüssel des Fernsehers. Daneben steht: «Öffne die Slouchcat-App am Handy und
+   wähle Fernseher verbinden».
+3. Der Nutzer scannt den Code in der Handy-App. Die App fragt: «Diesen Fernseher mit deinem Konto
+   verbinden? Tu das nur, wenn der Code auf deinem eigenen Fernseher steht.»
+4. Nach dem Ja holt die Handy-App beim Server des Nutzers einen **Kopplungsgutschein**: kurzlebig,
+   einmal verwendbar, an den Schlüssel des Fernsehers gebunden.
+5. Die Handy-App verschlüsselt Serveradresse und Gutschein für den Schlüssel des Fernsehers und
+   legt das Paket unter der Kennung beim Vermittlungsdienst ab.
+6. Der Fernseher holt das Paket ab, entschlüsselt es und löst den Gutschein **direkt beim Server**
+   ein. Er weist dabei nach, dass er den passenden privaten Schlüssel hat, und bekommt das
+   Gerätetoken.
+7. Der Fernseher zeigt die Profilwahl.
 
-1. Der Fernseher bittet den Server um eine Kopplung und nennt seinen Gerätenamen.
-2. Der Server antwortet mit einem **Gerätecode** (lang, geheim, bleibt im Fernseher) und einem
-   **Benutzercode** (kurz, steht am Bildschirm), gültig 10 Minuten.
-3. Der Fernseher zeigt den Benutzercode gross an, dazu einen QR-Code auf die neue Web-Seite
-   `/link` des Servers.
-4. Marco öffnet die Seite am Handy. Ist er dort nicht angemeldet, meldet er sich zuerst an. Die
-   Seite zeigt, woher die Anfrage kommt, und fragt: «Diesen Fernseher anmelden?»
-5. Der Fernseher fragt alle 5 Sekunden nach. Nach der Bestätigung bekommt er auf seine eigene
-   Nachfrage hin das Gerätetoken und zeigt die Profilwahl.
+Der Vermittlungsdienst reicht nur ein verschlüsseltes Paket weiter. Er kennt weder die
+Serveradresse noch den Gutschein und spricht nie mit dem Server des Nutzers.
 
-Neue Operationen (Namen legt der Bau fest):
+Neue Operationen am Server (Namen legt der Bau fest):
 
 | Operation | `x-visibility` | Zweck |
 |---|---|---|
-| Kopplung beginnen | `public` | Gerätezeile anlegen, Gerätecode und Benutzercode ausgeben |
-| Kopplung abholen | `public` | mit dem Gerätecode nachfragen; liefert nach der Bestätigung einmal das Gerätetoken |
-| Kopplung ansehen | `account` | Herkunft, Alter und gemeldeten Namen zum Benutzercode zeigen |
-| Kopplung bestätigen oder ablehnen | `account` | das Gerätetoken freigeben |
+| Kopplungsgutschein ausstellen | `account` | für einen genannten Geräteschlüssel; einer Gerätesitzung verwehrt |
+| Gutschein einlösen | `public` | Gutschein und Schlüsselnachweis hinein, Gerätetoken heraus; legt die Gerätezeile an |
 | Gerät mit Passwort anmelden | `public` | 4.4 |
-| Meine Geräte: Liste und Abmelden | `account` | 4.5 |
+| Meine Geräte: Liste und Abmelden | `account` | 4.5; einer Gerätesitzung verwehrt |
 
-Die Web-Seiten `/link` und «Meine Geräte» sind neu und bekommen ihren Tastaturtest (Regel 8).
+Welche Sitzungen einen Gutschein ausstellen dürfen (die Handy-App, auch der Browser?), legt
+Konzept 27 fest. Fest steht nur: eine Gerätesitzung nie.
 
-«Kopplung beginnen» ist öffentlich und schreibt trotzdem in die Datenbank. Darum gilt:
+### 4.4 Einrichten von Hand
 
-- Die Kennung des Geräts vergibt der Server beim Beginnen und bindet sie an die Kopplung. Sie
-  kommt nicht aus einem Cookie.
-- Läuft eine Kopplung ab oder wird sie abgelehnt, löscht der Server ihre Gerätezeile wieder.
-- Die Obergrenze aus K-4 zählt diese Zeilen mit.
+Die TV-App fragt Serveradresse, E-Mail und Passwort ab. Sie ruft dafür nicht `login` auf, sondern
+eine neue Operation «Gerät mit Passwort anmelden»: E-Mail, Passwort und Gerätename hinein,
+Gerätetoken heraus. Sie teilt sich **denselben Zähler** für Fehlversuche mit `login`; ein eigener
+Zähler würde die Zahl der Rateversuche verdoppeln. (Der Zähler von `login` hängt heute nur an der
+Adresse des Aufrufers, eine Sperre je Konto gibt es nicht; `docs/dev/SICHERHEITSREVIEW-1.0.md`.)
 
-### 4.4 E-Mail und Passwort
+Dieser Weg braucht keine Handy-App und keinen Vermittlungsdienst. Er ist der Ausweichweg, wenn
+der Dienst ausfällt, für Nutzer ohne Android-Handy und für Googles Prüfer (Abschnitt 8.2).
 
-Die TV-App ruft dafür nicht `login` auf, sondern eine neue Operation «Gerät mit Passwort
-anmelden»: E-Mail, Passwort und Gerätename hinein, Gerätetoken heraus. Sie teilt sich **denselben
-Zähler** für Fehlversuche mit `login`; ein eigener Zähler würde die Zahl der Rateversuche
-verdoppeln. (Der Zähler von `login` hängt heute nur an der Adresse des Aufrufers, eine Sperre je
-Konto gibt es nicht; `docs/dev/SICHERHEITSREVIEW-1.0.md`.) So hält der Fernseher auch auf diesem
-Weg nur ein Gerätetoken.
-
-Ehrlich gesagt: Das ist eine Entscheidung der App, keine Schranke des Servers. Wer das Passwort
-kennt, kann sich mit jedem Programm über `login` voll anmelden. Die Einschränkung der
-Gerätesitzung schützt gegen eine untergeschobene Kopplung und gegen einen Fernseher, der in
-fremde Hände kommt, nicht gegen ein bekanntes Passwort.
-
-Googles Prüfer brauchen diesen Weg später (Abschnitt 8.2).
+Ehrlich gesagt: Dass die TV-App hier nur ein Gerätetoken holt, ist eine Entscheidung der App,
+keine Schranke des Servers. Wer das Passwort kennt, kann sich mit jedem Programm über `login`
+voll anmelden.
 
 ### 4.5 Gerätesitzung
 
@@ -420,13 +451,14 @@ Server mit 403.
   `updateProfile`, `deleteProfile`, `setProfilePin`, `removeProfilePin`), auf jedem Gerät, unter
   derselben Bedingung wie im Browser: Das Hauptprofil muss aktiv sein. Der Server prüft das schon
   heute; für die Gerätesitzung kommt keine zusätzliche Hürde dazu.
-- **Erlaubt mit Profil:** die `scoped`-Operationen zum Schauen, Hören, Suchen, Merken und Wünschen.
+- **Erlaubt mit Profil:** die `scoped`-Operationen zum Schauen, Hören, Suchen, Merken und
+  Wünschen. Wünsche anlegen ist erlaubt (Marcos Antwort auf F-16: «Ja»).
 - **Nicht erlaubt:** alles mit `admin` und `owner` (E-7); Downloads und Offline samt
   `setOfflinePin` und `removeOfflinePin` (E-8); als Vorschlag ausserdem `updateAccount`, die
   Meldekanäle samt Telegram und Web-Push und `getWatchReport` (Frage F-18).
-- **Ebenfalls nicht erlaubt, und das ist wesentlich:** «Kopplung ansehen», «Kopplung bestätigen
-  oder ablehnen» und «Meine Geräte». Sonst könnte ein gekoppeltes Gerät das nächste freigeben
-  oder die echten Fernseher abmelden.
+- **Ebenfalls nicht erlaubt, und das ist wesentlich:** «Kopplungsgutschein ausstellen» und «Meine
+  Geräte». Sonst könnte ein gekoppeltes Gerät das nächste freigeben oder die echten Fernseher
+  abmelden.
 - **Wo die Liste steht:** Vorschlag ist eine zweite Angabe je Operation im Vertrag, neben
   `x-visibility`, die sagt, ob eine Gerätesitzung die Operation aufrufen darf. Fehlt sie, gilt
   nein. Der Schema-Test verlangt sie für jede `account`- und `scoped`-Operation, damit jede neue
@@ -437,11 +469,10 @@ Server mit 403.
   (`binaryRoutes`, `server/internal/api/api.go`). Die Angabe muss auch dort stehen, und der
   403-Test aus Abschnitt 9 muss diese Routen einschliessen.
 
-**Meine Geräte:** Jedes Konto sieht in seinen Einstellungen im Browser die eigenen gekoppelten
-Geräte (Name, Typ, Herkunft der Kopplung, letzter Kontakt) und kann jedes abmelden. Heute kann das
-nur die Verwaltung (Frage F-15).
-
-**Gültigkeit:** Wie lange ein Gerätetoken ohne Benutzung gültig bleibt, ist Frage F-4.
+**Meine Geräte** (Marcos Antwort auf F-15: «Ja»): Jedes Konto sieht in seinen Einstellungen die
+eigenen gekoppelten Geräte (Name, Typ, Zeitpunkt der Kopplung, letzter Kontakt) und kann jedes
+abmelden. Heute kann das nur die Verwaltung. Weil Gerätetoken nicht ablaufen (F-4), ist diese
+Seite der einzige Weg, ein altes Gerät loszuwerden.
 
 **PIN-Empfehlung (E-9):** Gibt es im Konto ein Profil mit Altersgrenze und hat das Hauptprofil
 keine PIN, empfiehlt die App beim Verwalten der Profile, dem Hauptprofil eine PIN zu geben. Sie
@@ -451,7 +482,7 @@ Freigeben richtigstellen. Ob die Web-App denselben Hinweis bekommt, ist Frage F-
 
 **Restrisiko, damit es benannt ist:** Eine Gerätesitzung kann alles ansehen, was die Profile des
 Kontos ohne PIN dürfen, und sie kann Wünsche anlegen. Ein Wunsch löst über Seerr einen echten
-Download aus; das Limit je Konto aus Konzept 25 begrenzt die Menge (Frage F-16).
+Download aus; das Limit je Konto aus Konzept 25 begrenzt die Menge.
 
 **Bekannte Grenze nach E-9:** Hat das Hauptprofil keine PIN, kann jeder mit der Fernbedienung
 und jedes fälschlich gekoppelte Gerät ins Hauptprofil wechseln und dort Profile anlegen, ändern
@@ -466,43 +497,52 @@ Die Kopplung ist ein neuer Weg zu einer Sitzung und damit der heikelste Teil die
 
 | Nr. | Regel | Schützt gegen |
 |---|---|---|
-| K-1 | Benutzercode: 8 Zeichen aus 20 Buchstaben ohne Vokale und ohne verwechselbare Zeichen (Muster aus RFC 8628), Anzeige `XXXX-XXXX` | Tippfehler, anstössige Wörter |
-| K-2 | Gerätecode und Gerätetoken: 256 Bit Zufall, im Server nur gehasht gespeichert | Auslesen der Datenbank |
-| K-3 | Kopplung gültig 10 Minuten, einmal verwendbar; das Gerätetoken wird genau einmal ausgegeben | Wiederverwendung |
-| K-4 | Obergrenze für offene Kopplungen, gesamt und je Aufrufer; das Abholen antwortet mit «langsamer», wenn zu oft gefragt wird | Überfluten der Tabelle über die öffentliche Operation |
-| K-5 | Die Seite `/link` bestätigt nie von selbst. Sie zeigt die **Herkunft der Anfrage** («aus deinem Heimnetz» oder «aus dem Internet», mit Adresse), ihr Alter und den Namen, den das Gerät **selbst angibt**, dazu den Satz «Bestätige nur, wenn dieser Code jetzt auf deinem eigenen Fernseher steht.» | untergeschobene Links |
-| K-6 | Der QR-Code bringt den Benutzercode nur mit, wenn die Kopplung aus dem Heimnetz begonnen wurde. Sonst muss man den Code abtippen und sieht eine Warnung (Frage F-3) | Phishing mit einem Klick |
-| K-7 | Schalter in der Verwaltung «Kopplung nur aus dem Heimnetz» (Frage F-3) | Kopplung durch Fremde aus dem Internet |
-| K-8 | Gerätesitzung nur mit Erlaubnisliste (4.5) | Schaden, falls doch ein fremdes Gerät gekoppelt wird |
-| K-9 | Jede bestätigte Kopplung geht als Meldung über den Kanal des Kontos hinaus (E-Mail, Telegram; `notify`) und steht in «Meine Geräte» | unbemerkte Kopplung |
-| K-10 | `devicecode`, `usercode` und das Gerätetoken kommen in die Redaktionsliste der Logs (Regel 10) | Geheimnisse in Logs |
+| K-1 | Treffpunkt-Kennung: mindestens 128 Bit Zufall, steht nur im QR-Code, gültig 5 Minuten, nach dem Abholen verbraucht | Raten, Wiederverwendung |
+| K-2 | Das Paket ist für den Schlüssel des Fernsehers verschlüsselt. Der Vermittlungsdienst sieht nur Geheimtext, dazu Adressen und Zeitpunkt der beiden Geräte | Mitlesen durch den Dienst oder auf dem Weg |
+| K-3 | Kopplungsgutschein: 256 Bit Zufall, im Server nur gehasht, gültig 2 Minuten, einmal verwendbar, an den Schlüssel des Fernsehers gebunden; einlösen kann nur, wer den privaten Schlüssel hat | abgefangene Gutscheine |
+| K-4 | Vermittlungsdienst: Paketgrösse begrenzt, Obergrenze für offene Treffpunkte gesamt und je Aufrufer, kein Konto, keine Datenbank, nichts bleibt nach Abholen oder Ablauf | Missbrauch als Speicher, Überfluten |
+| K-5 | Die Handy-App fragt vor dem Verbinden nach und warnt (Text in 4.3) | untergeschobene QR-Codes |
+| K-6 | Gerätesitzung nur mit Erlaubnisliste (4.5) | Schaden, falls doch ein fremdes Gerät gekoppelt wird |
+| K-7 | Jede Kopplung geht als Meldung über den Kanal des Kontos hinaus (E-Mail, Telegram; `notify`) und steht in «Meine Geräte» | unbemerkte Kopplung |
+| K-8 | Gutschein, Gerätetoken und Treffpunkt-Kennung kommen in die Redaktionsliste der Logs (Regel 10) | Geheimnisse in Logs |
 
-Zu K-5 bis K-7: Eine private Adresse allein beweist kein Heimnetz. Hinter einem Reverse-Proxy
-ohne eingetragene `TrustedProxies` (zum Beispiel Caddy in Docker, der beschriebene Weg zu HTTPS)
-kommt **jede** Anfrage von der privaten Adresse des Proxys, auch die aus dem Internet; und mit
-der Voreinstellung `private` kann ein Gerät im LAN über `X-Forwarded-For` jede Adresse
-vortäuschen. Als «Heimnetz» gilt eine Anfrage darum nur, wenn drei Dinge zusammen stimmen:
-
-1. Die Adresse des Aufrufers ist privat.
-2. Die Anfrage trägt keinen Weiterleitungskopf (`X-Forwarded-For`, `Forwarded`) von einer
-   Gegenstelle, die nicht als Proxy eingetragen ist.
-3. Die Adresse liegt in einem Bereich, den der Administrator ausdrücklich als Heimnetz
-   eingetragen hat.
-
-Sonst gilt die Herkunft als unbekannt und wird wie «Internet» behandelt; die Seite sagt das.
-Ohne eingetragenen Heimnetz-Bereich gibt es also kein «Heimnetz». Der Server warnt beim Start,
-wenn der Schalter aus K-7 an ist und kein Bereich eingetragen ist. Dies wäre die erste Stelle im
-Server, die dem lokalen Netz vertraut (`docs/dev/SICHERHEITSREVIEW-1.0.md`); ADR 0040 hält das
-fest.
-
-Zu K-9: Die Meldung muss ausserhalb der App ankommen. Benachrichtigungen in der App gehören zu
+Zu K-7: Die Meldung muss ausserhalb der App ankommen. Benachrichtigungen in der App gehören zu
 einem Profil, und die gekoppelte Sitzung könnte sie als gelesen markieren. Hat ein Konto keinen
 Kanal eingerichtet, bleibt «Meine Geräte» der einzige Ort; das Papier nennt das als Grenze.
 
-**Bekannte Grenze:** Ein Angreifer kann eine Kopplung auf seinem eigenen Gerät beginnen und einem
-angemeldeten Kontoinhaber Link oder Code schicken. Bestätigt dieser trotz K-5 und K-6, schaut der
-Angreifer mit (Restrisiko in 4.5). K-8 und K-9 begrenzen den Schaden und machen ihn sichtbar, sie
-verhindern ihn nicht. Dieses Muster ist bei jeder Kopplung per Code so.
+**Bekannte Grenze:** Ein Angreifer kann auf seinem eigenen Gerät einen QR-Code erzeugen und ihn
+einem Kontoinhaber als Bild schicken. Scannt dieser ihn in der Handy-App und bestätigt trotz K-5,
+schaut der Angreifer mit (Restrisiko in 4.5). K-6 und K-7 begrenzen den Schaden und machen ihn
+sichtbar, sie verhindern ihn nicht. Die Hürde ist höher als bei einem Link: Man muss die
+Funktion «Fernseher verbinden» selbst öffnen und ein Bild scannen.
+
+Weggefallen gegenüber Fassung 3: die Erkennung «Heimnetz» samt Schalter und eingetragenem
+Adressbereich. Sie gehörte zur Bestätigung im Browser und hat beim Scan über das Internet keinen
+Sinn mehr.
+
+### 4.7 Der Vermittlungsdienst (E-11)
+
+Marco hat am 19. November 2026 «Über einen Dienst im Internet» gewählt, in Kenntnis der Folgen
+aus der Frage: Er betreibt den Dienst dauerhaft für alle Slouchcat-Nutzer, «Cloud» ist heute ein
+Nicht-Ziel, und fällt der Dienst aus, kann niemand per Scan einrichten. Die Frage nannte ausserdem
+«er sieht ihre Serveradressen»; mit der Verschlüsselung aus K-2 sieht er sie nicht.
+
+Vorschlag zur Ausgestaltung:
+
+- Ein kleines Go-Programm im selben Repo (`relay/`), offen wie der Rest. Es kann genau zwei
+  Dinge: einen Treffpunkt anlegen und ein Paket ablegen oder abholen.
+- Es hält die Pakete nur im Arbeitsspeicher, höchstens 5 Minuten. Keine Datenbank, keine Konten.
+- Es läuft unter einer Adresse auf `slouchcat.com`. Diese Adresse ist in beiden Apps eingebaut und
+  in den Einstellungen änderbar, damit jemand einen eigenen Dienst nutzen kann (Frage F-21).
+- **Was er sieht:** die Internet-Adressen von Fernseher und Handy und den Zeitpunkt. Das gehört in
+  die Datenschutzerklärung, die der Store-Eintrag ohnehin verlangt.
+- **Was er nicht kann:** auf einen Slouchcat-Server zugreifen, Inhalte sehen, ein Konto übernehmen.
+- **Fällt er aus,** bleibt das Einrichten von Hand (4.4). Bereits eingerichtete Fernseher merken
+  nichts; der Dienst wird nur beim Einrichten gebraucht.
+- Wo er läuft und wer ihn überwacht, ist Frage F-20.
+
+Der Dienst ist eine benannte Ausnahme vom Nicht-Ziel «Cloud» (Abschnitt 11) und bekommt eine
+eigene ADR.
 
 ## 5. Wiedergabe
 
@@ -618,20 +658,20 @@ Browser, weil eine Gerätesitzung keine Verwaltungsrechte hat (4.5).
 |---|---|---|
 | Bearer: der Server liest `Authorization`, auch für Bilder, Trickplay und Radio-Start | Sitzungs-Middleware | neu |
 | Gerätetoken und Gerätesitzung mit Erlaubnisliste; Angabe je Operation im Vertrag samt Schema-Test | Vertrag, Middleware, Migration | neu |
-| Kopplung: beginnen, abholen, ansehen, bestätigen/ablehnen; Tabelle für offene Kopplungen; Gerätezeile mit Name und Typ schon bei der Kopplung | Vertrag, `auth`, Migration | neu |
+| Kopplung: Gutschein ausstellen und einlösen (4.3); Gerätezeile mit Name und Typ beim Einlösen | Vertrag, `auth`, Migration | neu |
 | Gerät mit Passwort anmelden | Vertrag, `auth` | neu |
-| Meine Geräte: Liste und Abmelden je Konto, Seite in den Einstellungen | Vertrag, `web/src` | neu |
-| Web-Seite `/link`, Texte in allen Sprachen, Tastaturtests | `web/src` | neu |
+| Meine Geräte: Liste und Abmelden je Konto, Seite in den Einstellungen der Web-App mit Tastaturtest, Texte in allen Sprachen | Vertrag, `web/src` | neu |
 | Meldung «Neues Gerät gekoppelt» über den Kanal des Kontos | `notify` | neu |
-| Schalter «Kopplung nur aus dem Heimnetz», Eintrag des Heimnetz-Bereichs, Warnung beim Start | Verwaltung, `config` | neu |
 | `PlaybackCapabilities`: drei Ergänzungen (5.2), Beschreibung von `hls` | Vertrag, `playback/decide.go` | zusätzlich |
 | Ton: richtige Codec-Angabe in der HLS-Liste, Kopieren von Dolby Digital (Plus) beim Transcode samt Bandbreitenrechnung mit echter Bitrate, Mehrkanal beim Neu-Kodieren | `playback/decide.go`, `playback/quality.go`, `transcode/plan.go`, `transcode/pipeline.go` | Verhalten ändert sich nur für Clients, die diese Formate oder Kanäle melden; die Codec-Angabe wird für alle richtig |
-| Sitzungen: Gültigkeit je Sitzung statt eines festen Werts; Bearer-Weg ohne `Set-Cookie` | `auth`, Middleware, Migration | neu |
+| Sitzungen: Gerätesitzungen laufen nicht ab (F-4); Bearer-Weg ohne `Set-Cookie` | `auth`, Middleware, Migration | neu |
+| Vermittlungsdienst (4.7) | neues Programm `relay/`, Betrieb auf `slouchcat.com` | neu, ausserhalb des Servers |
 | `getHealth`: Feld für die Vertragsfassung | Vertrag | zusätzlich |
 | Redaktionsliste der Logs | `internal/logging` | Regel 10 |
 
-Alles zusammen ist eine zusätzliche Vertragsänderung (keine brechende). Sie wird mit Stufe 1
-gebaut, bevor die App sie braucht.
+Alles zusammen ist eine zusätzliche Vertragsänderung (keine brechende). Gerätetoken, Gutschein,
+«Meine Geräte» und der Vermittlungsdienst werden nach E-12 zuerst für die Handy-App gebraucht und
+darum voraussichtlich mit Konzept 27 gebaut; die Ton-Ergänzungen bleiben bei der TV-App.
 
 ## 8. Verteilung (E-2)
 
@@ -698,12 +738,23 @@ Emulator laufen können und wie lange das dauert, misst Stufe 2a und schreibt es
 
 ## 10. Stufen
 
+**Neue Reihenfolge (E-12).** Zuerst entsteht die native Android-Handy-App als eigenes Konzept 27
+(stöbern, abspielen, Downloads, Fernseher verbinden), danach die TV-App. Folgen für dieses Papier:
+
+- Die Handy-App legt das gemeinsame Fundament: den Serverteil (Gerätetoken, Gutschein, «Meine
+  Geräte»), den Vermittlungsdienst und das Projekt `android/` mit gemeinsamen Bausteinen (Client,
+  Anmeldung, Player, Tokens, Texte). Stufe 1 und Stufe 2a dieses Papiers wandern darum
+  voraussichtlich ganz oder teilweise in Konzept 27.
+- **Die Tabelle unten ist vorläufig.** Sie wird neu geschnitten, sobald Konzept 27 freigegeben ist.
+- Stufe 0 (Messung auf den Fernsehern) hängt nicht an der Handy-App und kann jederzeit laufen.
+- Mehrere Fragen aus Abschnitt 13 werden zuerst für die Handy-App fällig und dort gestellt.
+
 Jede Stufe ist ein eigener Auftrag von Marco. Stufe 1 und alle Stufen der App sind je ein Release.
 
 | Stufe | Inhalt | Beleg | Braucht |
 |---|---|---|---|
 | **0 Messung** | Wegwerf-App mit eigenem Paketnamen, per ADB auf den drei Geräten, kein Eingriff ins Produkt. Misst: Direktwiedergabe (MKV, HEVC, HDR, Dolby-Vision-Datei auf HDR10-Gerät), Tonformate und Durchreichen je Gerät, Dolby Digital und AAC 5.1 in fMP4-HLS, PGS und ASS, Tempo von Compose auf dem schwächsten Gerät, Generator für den Kotlin-Client. | Bericht `docs/perf/K26-android-tv.md` mit Entscheid je Punkt | Entwickleroptionen auf den Geräten |
-| **1 Server** | alles aus Abschnitt 7 | Vertragstest; ein Prüfprogramm nach Art von `apicheck`, das einen Fernseher spielt (koppeln, abholen, Profil wählen, Abspielstart mit Mehrkanal-Profil); Tastaturtests für `/link` und «Meine Geräte»; Abnahme der Kopplung auf CT 190 mit dem Prüfprogramm | Ergebnisse aus Stufe 0 (Tonformat, PGS); F-3, F-4, F-15, F-16 |
+| **1 Server** | alles aus Abschnitt 7 | Vertragstest; ein Prüfprogramm nach Art von `apicheck`, das einen Fernseher spielt (Gutschein einlösen, Profil wählen, Abspielstart mit Mehrkanal-Profil); Tastaturtest für «Meine Geräte»; Abnahme der Kopplung auf CT 190 mit dem Prüfprogramm | Ergebnisse aus Stufe 0 (Tonformat, PGS); F-3, F-4, F-15, F-16 |
 | **2a Gerüst** | Projekt `android/`, Werkzeuge, CI-Job, Generatoren für Client, Tokens und Texte, Serveradresse, Anmeldung auf beiden Wegen, Profilwahl mit PIN | App per ADB auf dem Fernseher: koppeln und Profil wählen; gemessene Laufzeit des CI-Jobs | Stufe 1; F-1, F-5, F-6, F-13 |
 | **2b Seiten** | Start, Bibliothek, Detailseiten, Person, Suche, Listen | Steuerkreuz-Test je Seite; Abnahme auf den drei Geräten: blättern ohne Abspielen | freigegebenes Mockup (F-2) |
 | **3 Videoplayer** | Player vollständig, Mehrkanalton, HDR, Einstellungen der Wiedergabe | Abnahmeliste je Gerät und Tonanlage; **Vorab-Ausgabe** für Familie und Freunde über die interne Testspur | bestätigte Identität bei Google; F-7, F-8, F-11 |
@@ -723,7 +774,7 @@ Alle erst mit dem Bau und auf Marcos Wort, nicht mit diesem Papier.
 
 | Stelle | Heute | Neu |
 |---|---|---|
-| Spec «Non-Goals» und Übersichtstabelle («zurückgestellt») | TV-Apps (Android TV, Apple TV, webOS, Tizen) und native Apps sind Nicht-Ziel | Android TV ist Ziel (Frage 34). Apple TV, webOS, Tizen, Fire TV und native Apps für Handy und Tablet bleiben Nicht-Ziele |
+| Spec «Non-Goals» und Übersichtstabelle («zurückgestellt») | TV-Apps (Android TV, Apple TV, webOS, Tizen) und native Apps sind Nicht-Ziel | Android TV ist Ziel (Frage 34). Apple TV, webOS, Tizen, Fire TV und native iOS-Apps bleiben Nicht-Ziele; die native Android-Handy-App wird Ziel und bekommt Konzept 27 (E-10, E-12) |
 | Plan Abschnitt 1 («Nicht eingeplant») | TV-Apps, native Apps | Android TV herausgenommen |
 | `CLAUDE.md` Regel 11 | «TV-Apps, native Apps» in der Liste der Nicht-Ziele | benannte Ausnahme: die Android-TV-App nach Frage 34 und ADR 0039 |
 | `CLAUDE.md` Regel 7 | jede Operation trägt `x-visibility` | dazu: jede `account`- und `scoped`-Operation sagt, ob eine Gerätesitzung sie aufrufen darf |
@@ -733,6 +784,7 @@ Alle erst mit dem Bau und auf Marcos Wort, nicht mit diesem Papier.
 | Plan 3.8 Punkt 7 | «Fremd-Clients per Bearer» (nie gebaut) | gebaut, aber nur als Gerätetoken für Gerätesitzungen |
 | ADR 0005 | eine Sitzungsart | Nachtrag: Gerätesitzung mit Erlaubnisliste (ADR 0040) |
 | Regel «Vertrag = Tag» | ein Tag je Vertragsfassung | bleibt; daneben neu die Übergangszeit für Operationen der Gerätesitzung (8.4, ADR 0039) |
+| Nicht-Ziel «Cloud» (Spec, `CLAUDE.md` Regel 11) | kein Dienst ausserhalb des eigenen Servers | benannte Ausnahme: der Vermittlungsdienst für das Einrichten per Scan (E-11, ADR 0042). Er hält keine Nutzerdaten und sieht keine Inhalte |
 
 ## 12. Risiken
 
@@ -741,7 +793,7 @@ Alle erst mit dem Bau und auf Marcos Wort, nicht mit diesem Papier.
 | R-1 | Zweite Oberfläche | jede Zuschauer-Funktion doppelt, dauerhaft | TV-Teil als fester Abschnitt in jedem künftigen Konzept |
 | R-2 | Schwache Sticks | ruckelnde Oberfläche | Stufe 0 misst auf dem schwächsten Gerät; Bildgrössen vom Server passend anfordern |
 | R-3 | Tonformate je Gerät verschieden | kein Ton oder Stereo trotz Tonanlage | Schalter «Ton» (5.3), Messung je Gerät |
-| R-4 | Kopplung als neuer Weg zur Sitzung | Mitschauen und Wünschen durch untergeschobenen Code; ohne PIN am Hauptprofil auch Profile ändern (bekannte Grenze nach E-9) | K-1 bis K-10, Erlaubnisliste, «Meine Geräte», PIN-Empfehlung |
+| R-4 | Kopplung als neuer Weg zur Sitzung | Mitschauen und Wünschen durch untergeschobenen Code; ohne PIN am Hauptprofil auch Profile ändern (bekannte Grenze nach E-9) | K-1 bis K-8, Erlaubnisliste, «Meine Geräte», PIN-Empfehlung |
 | R-5 | Vertrag bricht eine installierte App | App auf dem Fernseher geht nicht mehr | Verträglichkeitsregel (8.4) |
 | R-6 | Google lehnt die App ab oder verlangt mehr | öffentliche Stufe verzögert sich | private Verteilung hängt nicht davon ab |
 | R-7 | Identitätsprüfung bei Google dauert | interne Testspur später | bis dahin ADB |
@@ -749,18 +801,25 @@ Alle erst mit dem Bau und auf Marcos Wort, nicht mit diesem Papier.
 | R-9 | Zweite Werkzeugkette (JDK, Android-SDK, Gradle) | längere CI, mehr Pflege | Laufzeit in Stufe 2a messen, danach über einen Pfadfilter entscheiden |
 | R-10 | Texte in 23 Sprachen auch für die TV-App | mehr Übersetzungsarbeit je Funktion | eine Quelle, ein Übersetzungsweg (3.5) |
 | R-11 | Bearer im Server ist ein neuer Anmeldeweg für alle Operationen | Fehler dort träfe mehr als die TV-App | Bearer nur für Gerätetoken, Erlaubnisliste im Vertrag, Test über alle Operationen (Abschnitt 9) |
+| R-12 | Vermittlungsdienst als dauernde Betriebspflicht (E-11) | Ausfall: kein Einrichten per Scan, für alle Nutzer; Missbrauch; Pflicht zur Datenschutzerklärung | Einrichten von Hand bleibt; Dienst hält nichts dauerhaft; Überwachung (F-20) |
+| R-13 | Die TV-App wartet auf die Handy-App (E-12) | deutlich späterer Start der TV-App | Stufe 0 schon vorher; gemeinsames Fundament wird nur einmal gebaut |
+| R-14 | Scan nur mit Android-Handy | iPhone-Nutzer tippen am Fernseher | Einrichten von Hand; Bestätigung im Browser als spätere Möglichkeit (F-3) |
+| R-15 | Gerätetoken laufen nie ab (F-4) | vergessene oder weitergegebene Geräte behalten Zugang | «Meine Geräte», Meldung bei jeder Kopplung |
 
 ## 13. Fragen
 
 Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihrer Stufe vor.
+Beantwortet sind F-4, F-15 und F-16 (19. November 2026). F-1, F-6, F-7, F-9, F-11, F-12 und F-13
+betreffen das gemeinsame Fundament und werden nach E-12 zuerst für die Handy-App fällig; Konzept 27
+stellt sie.
 
 | Nr. | Frage | Empfehlung | Fällig vor |
 |---|---|---|---|
 | F-1 | App im selben Repo (`android/`) oder in einem eigenen? | selbes Repo | Stufe 2a |
 | F-2 | Klickbares Mockup der TV-Oberfläche vor dem Bau? | ja | Stufe 2b |
-| F-3 | Kopplung aus dem Internet: erlauben? Und darf der QR-Code den Benutzercode mitbringen? | ab Werk nur aus dem Heimnetz, in der Verwaltung umschaltbar; der QR-Code bringt den Code nur im Heimnetz mit. Folge: Der Administrator muss den Adressbereich seines Heimnetzes einmal eintragen (4.6). Bis dahin meldet man den Fernseher mit Passwort an | Stufe 1 |
-| F-4 | Wie lange bleibt ein gekoppelter Fernseher ohne Benutzung angemeldet? Sitzungen im Browser: 30 Tage gleitend. | 400 Tage gleitend, wie das Geräte-Cookie | Stufe 1 |
-| F-5 | Serveradresse nur von Hand oder auch Suche im Heimnetz? | erste Ausgabe von Hand | Stufe 2a |
+| F-3 | Soll es neben Scan und Passwort die Bestätigung im Browser per Code geben, für Nutzer ohne Android-Handy? | nicht in der ersten Ausgabe; diese Nutzer richten von Hand ein | Stufe 1 |
+| F-4 | Wie lange bleibt ein gekoppelter Fernseher ohne Benutzung angemeldet? | **Beantwortet: «Unbegrenzt»** (Empfehlung war 400 Tage) | – |
+| F-5 | Serveradresse: zusätzlich zu Scan und Eingabe von Hand eine Suche im Heimnetz? | nein | Stufe 2a |
 | F-6 | Unverschlüsseltes HTTP zum Server erlauben? | ja, mit Hinweis, wenn die Adresse nicht im Heimnetz liegt | Stufe 2a |
 | F-7 | Paketname der App (unveränderlich nach dem ersten Hochladen) | `com.slouchcat.app`, neutral, falls später eine Handy-App denselben Store-Eintrag nutzen soll | erstes Hochladen (Stufe 3) |
 | F-8 | Dolby Vision Profil 5 und 7, getrennte Meldung für HDR10, HLG und Dolby Vision, Umschalten der Bildfrequenz in der ersten Ausgabe? | nein, spätere Stufe; ausser Stufe 0 zeigt ein Problem mit dem einen HDR-Schalter | Stufe 3 |
@@ -770,11 +829,13 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-12 | FFmpeg in der App, um Tonformate selbst zu dekodieren? | nein; der Server rechnet um, was das Gerät nicht kann | Stufe 3 |
 | F-13 | Kleinste Android-Version (`minSdk`) | nach Stufe 0 aus den drei Geräten ableiten | Stufe 2a |
 | F-14 | Reihe «Weiterschauen» auf dem Startbildschirm von Google TV? Sie zeigt Titel ausserhalb der App, für alle im Raum sichtbar. | nicht in der ersten Ausgabe | nach Stufe 5 |
-| F-15 | «Meine Geräte» für jedes Konto (sehen und abmelden), nicht nur in der Verwaltung? | ja, mit Stufe 1 | Stufe 1 |
-| F-16 | Darf eine Gerätesitzung Wünsche anlegen? Ein untergeschobenes Gerät könnte bis zum Limit des Kontos Downloads auslösen. | ja, E-5 verlangt Wünsche am Fernseher; das Limit je Konto begrenzt den Schaden | Stufe 1 |
+| F-15 | «Meine Geräte» für jedes Konto (sehen und abmelden), nicht nur in der Verwaltung? | **Beantwortet: «Ja»** | – |
+| F-16 | Darf eine Gerätesitzung Wünsche anlegen? | **Beantwortet: «Ja»** | – |
 | F-17 | Fire TV | eigenes Konzept nach Stufe 6. Neue Fire-TV-Geräte mit Vega OS führen keine Android-Apps aus | – |
-| F-18 | Meldekanäle (E-Mail, Telegram), Sehbericht und Kontodaten auch in der TV-App? | nein, Browser; die Meldekanäle bleiben einer Gerätesitzung verwehrt, damit die Meldung aus K-9 nicht umgeleitet werden kann | Stufe 1 |
+| F-18 | Meldekanäle (E-Mail, Telegram), Sehbericht und Kontodaten auch in der TV-App? | nein, Browser; die Meldekanäle bleiben einer Gerätesitzung verwehrt, damit die Meldung aus K-7 nicht umgeleitet werden kann | Stufe 1 |
 | F-19 | PIN-Empfehlung aus E-9 auch in der Web-App zeigen? | ja, gleicher Hinweis an gleicher Stelle | Stufe 2b |
+| F-20 | Vermittlungsdienst: Wo läuft er, und wer merkt, wenn er ausfällt? | eigener kleiner Dienst auf einem Server im Internet, getrennt vom Heimnetz, mit einfacher Erreichbarkeitsprüfung und Meldung an Marco | vor dem ersten Einrichten per Scan |
+| F-21 | Adresse des Vermittlungsdienstes in den Apps änderbar? | ja, in den erweiterten Einstellungen; ab Werk der Dienst auf `slouchcat.com` | Konzept 27 |
 
 ## 14. Kritiker-Review (Fassung 1)
 
@@ -825,6 +886,14 @@ Profilpflege unter der Bedingung des Browsers. Das nimmt die Sperre aus Befund 1
 Runde für die Profilpflege bewusst zurück; die Folge steht als bekannte Grenze in Abschnitt 4.5.
 Für Meldekanäle, Sehbericht, Kontodaten, Offline, Kopplung und «Meine Geräte» bleibt die Sperre.
 Dieser Nachtrag ist nicht vom Kritiker gelesen.
+
+**Zweiter Nachtrag (E-10 bis E-12):** Abschnitt 4 ist neu geschrieben: Einrichten per Scan mit
+der Handy-App über einen Vermittlungsdienst, Gutschein statt Benutzercode, keine Seite `/link`.
+Damit sind aus der zweiten Lesung Befund 1 (Heimnetz-Erkennung) und Befund 4 (öffentliches
+Beginnen schreibt eine Gerätezeile) gegenstandslos; Befund 2, 3 und 8 gelten weiter und stehen in
+4.2, 4.4 und 4.5. **Neu und ungeprüft** sind der Vermittlungsdienst, die Verschlüsselung des
+Pakets, der Gutschein mit Schlüsselnachweis und die Abhängigkeit von Konzept 27. Vor der Freigabe
+braucht das eine neue Lesung durch den Kritiker.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
