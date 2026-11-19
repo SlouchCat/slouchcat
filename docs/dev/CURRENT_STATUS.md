@@ -39,6 +39,16 @@ Entscheid: Nachtrag zu Frage 31 im Entscheidungsprotokoll, Nachtrag in ADR 0035.
   an den Baumeinträgen sind in Vitest geprüft, im e2e nur, soweit der Testserver sie zeigt. Die Klick-Tests des
   Baums laufen im e2e nur in Chromium (Firefox fährt die `@keyboard`-Tests). Bekannte Flake, nicht vom Baum:
   `admin-folder-browser.spec.ts:156` fällt unter `--repeat-each=8` auch auf dem Stand von `main` (5 von 8).
+- **CI-Befund am Pull Request (Lauf 44534675595, e2e Shard 5):** `wishes-discover.spec.ts:44` in Firefox fand
+  das Plus an «Glasvogel» nicht. Ursache ist kein Fehler des Baums: Der Server hält die Listen von «Entdecken»
+  eine Stunde je Sprache und Altersstufe (N-54), samt Seerrs Zustand je Titel. `wishes.spec.ts` öffnet
+  «Entdecken», während «Glasvogel» angefordert ist; läuft danach `wishes-discover.spec.ts` auf demselben Server,
+  liest es «Bereits angefordert». Die neuen Tests des Baums haben die Shard-Aufteilung verschoben und die beiden
+  Dateien erstmals in dieser Reihenfolge zusammengebracht (lokal mit vier Dateien nachgestellt). Korrektur nur im
+  Test: Das Wegwerf-Profil von `wishes.spec.ts` hat die Altersstufe 16 und damit eigene Cache-Zeilen.
+  **Offen fürs Produkt (nicht geändert):** Nach einem zurückgezogenen Wunsch zeigt «Entdecken» bis zu einer Stunde
+  «Bereits angefordert» mit der Glocke statt des Plus. Dieselbe Kopplung ist zwischen anderen Wunsch-Specs denkbar
+  (Suche hält ihre Treffer 10 Minuten im Speicher).
 
 ## Patch 1.41.2: stehendes Videobild nach einem Hintergrund-Tab in Firefox (18. November 2026, Zweig `claude/video-wake`)
 
