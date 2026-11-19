@@ -171,8 +171,14 @@
   border-top: 1px solid var(--sc-color-border-subtle);
 }
 
-/* An area's button: the entry's line, without the look of a button. */
+/*
+ * An area's button: the entry's line, without the look of a button. Its pill and arrow stand
+ * closer together than an entry's parts, so «Automatisierung» with a pill of three digits stays on
+ * one line in the column's width; the name keeps the place of the entries' names.
+ */
 .toggle {
+  gap: var(--sc-space-2);
+  padding-right: var(--sc-space-2);
   border: 0;
   background-color: transparent;
   font: inherit;
@@ -236,6 +242,11 @@
 .label {
   min-width: 0;
   overflow-wrap: break-word;
+}
+
+/* An area's name stands where the entries' names stand, despite the button's tighter gap. */
+.toggle > .label {
+  margin-left: var(--sc-space-1);
 }
 
 .count {
