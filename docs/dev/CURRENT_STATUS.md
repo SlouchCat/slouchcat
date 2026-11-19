@@ -1,5 +1,45 @@
 # Aktueller Stand
 
+## Verwaltung: Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, Zweig `claude/admin-explorer-nav`, Pull Request offen, nicht gemergt)
+
+Marcos Auftrag vom 19. November 2026 mit dem klickbaren Mockup `Slouchcat_Variante_1_Explorer.html` (Variante 01):
+die linke Seitenleiste der Verwaltung durch die Explorer-Navigation ersetzen, **ausschliesslich** die Seitenleiste.
+Entscheid: Nachtrag zu Frage 31 im Entscheidungsprotokoll, Nachtrag in ADR 0035.
+
+- **Neu (ab 768 px):** «Zurück zur App», «Übersicht» und die fünf Bereiche als Knöpfe, die ihre Seiten eingerückt
+  darunter auf- und zuklappen (`web/src/ui/AdminSideNav.tsx`, `AdminSideNav.module.css`). Ein Klick, Enter oder
+  die Leertaste auf einem Bereich klappt nur auf oder zu. Die Seiten kommen aus derselben Quelle wie die
+  Bereichsreiter und das Blatt (`sectionsOf` in `web/src/features/admin/sections.ts`, unverändert).
+- **Zustand** (`AdminShellNav` in `web/src/features/admin/AdminShellNav.tsx`, im Speicher): Beim Aufruf einer Seite
+  ist ihr Bereich offen, die anderen sind zu; auf «Übersicht» sind alle zu. Wechselt die Seite (Verweis,
+  Bereichsreiter, Brotkrumen, Palette, Zurück und Vorwärts des Browsers), öffnet sich ihr Bereich; alles andere
+  bleibt. Ein Bereich lässt sich schliessen, während seine Seite offen ist. Ein Neuladen beginnt wieder mit dem
+  Bereich der Seite.
+- **Markierung:** offene Seite `aria-current="page"` mit Tönung und Strich wie bisher; ihr Bereich
+  `aria-current="true"` in der Profilfarbe, offen wie zu. Der Pfeil eines Bereichs dreht beim Öffnen um 90°.
+- **Zahlen:** Zahlen, Hinweise und «Update» der Seiten stehen an ihren Einträgen im Baum und weiter an den
+  Bereichsreitern; der Bereich zeigt wie bisher nur, was einen Blick braucht.
+- **Tastatur:** ein Tab-Halt über die sichtbaren Einträge, ↑ ↓ laufen um, Pos1 und Ende, Enter folgt, Enter und
+  Leertaste klappen. Die rollende Spalte selbst ist kein Tab-Halt (`tabIndex -1`; Firefox machte sie sonst zu einem
+  zweiten, gefunden von `admin-folder-browser.spec.ts` und `admin-library-draft.spec.ts`).
+- **Unverändert:** Seiteninhalte, Seitenköpfe, Bereichsreiter, Brotkrumen, Suchpalette, alle Adressen, das Blatt
+  auf dem Handy, Kopfzeile, Tokens, Texte, Server. Keine Migration, Vertrag bleibt 1.41.0, keine Version vergeben.
+- **Abweichungen vom Mockup (Bestand gilt, Auftrag Abschnitt 2):** Spalte 240 px statt 277 px; Zeilen 44 px statt
+  32 und 39 px; auf «Übersicht» kein Bereich offen (im Mockup «Medien»); der Pfeil dreht; Handy behält das Blatt.
+  Tabelle im Nachtrag von ADR 0035.
+- **Tests:** `AdminSideNav.test.tsx` (Baum, Tastatur, Tab-Halt, `focusCarry`, Kontraste der Profilfarben auch über
+  der Schwebefläche), `AdminHomePage.test.tsx` (Zustand, Seitenwechsel, Zurück und Vorwärts, Zahlen, kein
+  schreibender Aufruf beim Klappen), angepasste Seitentests. e2e: `admin-shell.spec.ts` mit zehn neuen Tests (alle
+  22 Seiten per Adresse und per Tastatur durch den Baum, Adressen mit Suchparametern und Anker, Klappen und
+  Zustand, Zurück und Vorwärts, Zahlen wie an den Reitern, Tablet 768 px, Handy), 13 weitere Specs an den Baum
+  angepasst, keine entfernt oder gelockert. Vier Storybook-Baselines `ui-adminsidenav--*` neu; die des Blatts
+  unverändert.
+- **Offen:** Ob die Bereichsreiter mit dem Baum entfallen, entscheidet Marco getrennt. Sind alle Bereiche offen,
+  rollt die Spalte (29 Zeilen zu 44 px). Zahlen für laufende Streams, stille Webhooks und fehlgeschlagene Jobs
+  an den Baumeinträgen sind in Vitest geprüft, im e2e nur, soweit der Testserver sie zeigt. Die Klick-Tests des
+  Baums laufen im e2e nur in Chromium (Firefox fährt die `@keyboard`-Tests). Bekannte Flake, nicht vom Baum:
+  `admin-folder-browser.spec.ts:156` fällt unter `--repeat-each=8` auch auf dem Stand von `main` (5 von 8).
+
 ## Patch 1.41.2: stehendes Videobild nach einem Hintergrund-Tab in Firefox (18. November 2026, Zweig `claude/video-wake`)
 
 Die Korrektur entstand am 14. November 2026 in einem eigenen Arbeitsbaum und blieb dort ohne Commit liegen. Marco
