@@ -2,8 +2,9 @@
 
 - **Status: Entwurf, Fassung 3 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 9 Major, 8 Minor), Fassung 3
-  die zweite Lesung (REVISE, 0 Blocker, 2 Major, 6 Minor); beides in Abschnitt 14. Gebaut wird
-  erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
+  die zweite Lesung (REVISE, 0 Blocker, 2 Major, 6 Minor); beides in Abschnitt 14. Danach
+  nachgetragen: Marcos Entscheide E-7 bis E-9 (kein Admin-Bereich, Profile verwalten am
+  Fernseher). Gebaut wird erst nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026: «Kannst du mir ein slouchcat überall Accounts erstellen
   welche ich für die künftige AndroidTV App benötige?» und danach «Wir starten mit AndroidTV». Auf
   die Rückfrage, was damit gemeint ist, hat er «Konzept starten» gewählt.
@@ -24,7 +25,7 @@
   es ändert selbst keine Regel.
 
 > **Dieses Papier ändert keine Zeile Code.** Marcos Entscheide stehen in Abschnitt 1 (E-1 bis
-> E-7) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
+> E-9) und nur dort. Alles andere ist Vorschlag der Redaktion, auch wo es nicht eigens dabeisteht.
 > Aussagen über den Code stammen vom Anker, Aussagen über Android und Google Play aus einer
 > Recherche vom 19. November 2026 (Anhang A). Was dort nicht belegt werden konnte, heisst im Text
 > «unbelegt» und wird in Stufe 0 auf echten Geräten gemessen.
@@ -43,6 +44,8 @@ gewählte Antwort wörtlich.
 | E-5 | Was kann die erste Ausgabe ausser Filmen und Serien? | «Hörbücher und Podcasts», «Webradio», «Wünsche über Seerr» | keine |
 | E-6 | Mehrkanalton unverändert an eine Tonanlage weitergeben? | «Ja, von Anfang an» | Ja, von Anfang an |
 | E-7 | (ohne Frage, von Marco selbst) | «Die AndroidTV App braucht auch kein Admin Bereich. Nur der Nutzer Bereich» | – |
+| E-8 | (ohne Frage, von Marco selbst) | «Profile verwalten sollte die App können. Einladungen ebenfalls nicht und Downloads auch nicht. Downloads ist nur wichtig für die Handy Apps.» | Vorschlag war: Profile nur im Browser |
+| E-9 | Wie sichert die TV-App das Verwalten der Profile ab (PINs entfernen, Altersfreigaben ändern)? | **«Nur das Hauptprofil das Profile erstellen oder ändern. Falls ein Kinder Profil ist, soll lediglich ein Pin empfohlen werden. Jedes Gerät darf jedoch Profil verwalten (nur mit dem Hauptprofil)»** | Mit PIN des Hauptprofils als Pflicht |
 
 Zu E-5: Die Frage hat vorgegeben, dass Filme und Serien gesetzt sind. Dass die Verwaltung im
 Browser bleibt, war zuerst ebenfalls Vorgabe der Frage; Marco hat es danach mit E-7 selbst
@@ -50,6 +53,13 @@ festgelegt.
 
 Dazu Marcos Hinweis vom selben Tag: «Da dies für alle verfügbar sein soll, muss ja auch irgendwo
 der Server eingetragen werden können.» Das ist Abschnitt 4.1.
+
+Zu E-8: Marco spricht von «Handy Apps». Native Apps für Handy und Tablet bleiben in diesem Papier
+ein Nicht-Ziel (Abschnitt 11); der Satz ist als Hinweis auf später festgehalten, nicht als Auftrag.
+
+Zu E-9: Marco hat die Folge gekannt; sie stand in der Frage («Hat das Hauptprofil keine PIN, kann
+jeder am Fernseher und jedes fälschlich gekoppelte Gerät PINs entfernen und Altersfreigaben
+ändern»). Sie steht als bekannte Grenze in Abschnitt 4.5.
 
 Stand der Konten am selben Tag: Für das Projekt gibt es ein eigenes Google-Konto und darauf ein
 Entwicklerkonto in der Google Play Console (privates Konto). Google prüft die Identität noch; bis
@@ -255,6 +265,7 @@ Gerätesitzung aufrufen darf (Abschnitt 4.5).
 | Person | `/people/$id` | 2b |
 | Suche | `/search` | 2b |
 | Merkliste, Gesehen, Sammlungen, Listen, Empfehlungen | `/watchlist`, `/watched`, `/collections`, `/lists/$key`, `/picks` | 2b |
+| Profile verwalten: anlegen, ändern, löschen, PIN setzen und entfernen (E-8) | `/settings/profiles` | 2b |
 | Einstellungen der Wiedergabe | `/settings/playback` | 3 |
 | Videoplayer | `/play/$itemId` | 3 |
 | Hörbuch, Hörbuch-Reihe, Podcast, Tonplayer | `/libraries/$id/series/$sid`, Tonplayer | 4 |
@@ -262,9 +273,14 @@ Gerätesitzung aufrufen darf (Abschnitt 4.5).
 | Wünsche, Entdecken, Titel ausserhalb der Bibliothek | `/wishes`, `/discover…`, `/titles/$media/$tmdbId` | 5 |
 | Benachrichtigungen (nur die Liste) | `/notifications` | 5 |
 
-**Nicht in der App:** die Verwaltung (`/admin/*`, E-7), Ersteinrichtung und Einladungen, Profile
-anlegen und ändern, Meldekanäle, Downloads und Offline, Web-Push. Wer das braucht, nimmt den
-Browser. Die Verwaltung auszuschliessen ist Marcos Entscheid; die übrigen Punkte sind Vorschlag.
+**Nicht in der App:**
+
+- nach Marcos Entscheid: die Verwaltung (`/admin/*`, E-7), Einladungen und Downloads samt Offline
+  (E-8)
+- als Vorschlag: Ersteinrichtung, Meldekanäle samt Telegram und Web-Push, Sehbericht,
+  Kontodaten ändern (Frage F-18)
+
+Wer das braucht, nimmt den Browser.
 
 ### 3.4 Bedienung und Gestaltung
 
@@ -400,9 +416,14 @@ Server mit 403.
 
 - **Erlaubt auf Kontoebene:** `logout`, `getSession`, `listMyProfiles`, `selectProfile`,
   `listAccountLibraries`.
+- **Erlaubt auf Kontoebene nach E-8 und E-9:** die Profilpflege (`listProfiles`, `createProfile`,
+  `updateProfile`, `deleteProfile`, `setProfilePin`, `removeProfilePin`), auf jedem Gerät, unter
+  derselben Bedingung wie im Browser: Das Hauptprofil muss aktiv sein. Der Server prüft das schon
+  heute; für die Gerätesitzung kommt keine zusätzliche Hürde dazu.
 - **Erlaubt mit Profil:** die `scoped`-Operationen zum Schauen, Hören, Suchen, Merken und Wünschen.
-- **Nicht erlaubt:** alles mit `admin` und `owner`; `updateAccount`; die Profilpflege samt PINs;
-  die Meldekanäle samt Telegram und Web-Push; `getWatchReport`; Downloads und Offline.
+- **Nicht erlaubt:** alles mit `admin` und `owner` (E-7); Downloads und Offline samt
+  `setOfflinePin` und `removeOfflinePin` (E-8); als Vorschlag ausserdem `updateAccount`, die
+  Meldekanäle samt Telegram und Web-Push und `getWatchReport` (Frage F-18).
 - **Ebenfalls nicht erlaubt, und das ist wesentlich:** «Kopplung ansehen», «Kopplung bestätigen
   oder ablehnen» und «Meine Geräte». Sonst könnte ein gekoppeltes Gerät das nächste freigeben
   oder die echten Fernseher abmelden.
@@ -422,9 +443,22 @@ nur die Verwaltung (Frage F-15).
 
 **Gültigkeit:** Wie lange ein Gerätetoken ohne Benutzung gültig bleibt, ist Frage F-4.
 
+**PIN-Empfehlung (E-9):** Gibt es im Konto ein Profil mit Altersgrenze und hat das Hauptprofil
+keine PIN, empfiehlt die App beim Verwalten der Profile, dem Hauptprofil eine PIN zu geben. Sie
+verlangt es nicht. Deutung der Redaktion: Marcos «ein Pin empfohlen» meint die PIN des
+Hauptprofils, weil nur sie verhindert, dass ein Kind ins Hauptprofil wechselt; Marco kann das beim
+Freigeben richtigstellen. Ob die Web-App denselben Hinweis bekommt, ist Frage F-19.
+
 **Restrisiko, damit es benannt ist:** Eine Gerätesitzung kann alles ansehen, was die Profile des
 Kontos ohne PIN dürfen, und sie kann Wünsche anlegen. Ein Wunsch löst über Seerr einen echten
 Download aus; das Limit je Konto aus Konzept 25 begrenzt die Menge (Frage F-16).
+
+**Bekannte Grenze nach E-9:** Hat das Hauptprofil keine PIN, kann jeder mit der Fernbedienung
+und jedes fälschlich gekoppelte Gerät ins Hauptprofil wechseln und dort Profile anlegen, ändern
+und löschen, PINs anderer Profile entfernen und Altersfreigaben heben. Im Browser ist das heute
+genauso. Der Kritiker hatte dafür eine Sperre verlangt (Abschnitt 14, Runde 1, Befund 1); Marco
+hat sich am 19. November 2026 in Kenntnis der Folge dagegen entschieden. Schutz bietet allein
+eine PIN am Hauptprofil.
 
 ### 4.6 Sicherheit der Kopplung
 
@@ -707,7 +741,7 @@ Alle erst mit dem Bau und auf Marcos Wort, nicht mit diesem Papier.
 | R-1 | Zweite Oberfläche | jede Zuschauer-Funktion doppelt, dauerhaft | TV-Teil als fester Abschnitt in jedem künftigen Konzept |
 | R-2 | Schwache Sticks | ruckelnde Oberfläche | Stufe 0 misst auf dem schwächsten Gerät; Bildgrössen vom Server passend anfordern |
 | R-3 | Tonformate je Gerät verschieden | kein Ton oder Stereo trotz Tonanlage | Schalter «Ton» (5.3), Messung je Gerät |
-| R-4 | Kopplung als neuer Weg zur Sitzung | Mitschauen und Wünschen durch untergeschobenen Code | K-1 bis K-10, Erlaubnisliste, «Meine Geräte» |
+| R-4 | Kopplung als neuer Weg zur Sitzung | Mitschauen und Wünschen durch untergeschobenen Code; ohne PIN am Hauptprofil auch Profile ändern (bekannte Grenze nach E-9) | K-1 bis K-10, Erlaubnisliste, «Meine Geräte», PIN-Empfehlung |
 | R-5 | Vertrag bricht eine installierte App | App auf dem Fernseher geht nicht mehr | Verträglichkeitsregel (8.4) |
 | R-6 | Google lehnt die App ab oder verlangt mehr | öffentliche Stufe verzögert sich | private Verteilung hängt nicht davon ab |
 | R-7 | Identitätsprüfung bei Google dauert | interne Testspur später | bis dahin ADB |
@@ -739,6 +773,8 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-15 | «Meine Geräte» für jedes Konto (sehen und abmelden), nicht nur in der Verwaltung? | ja, mit Stufe 1 | Stufe 1 |
 | F-16 | Darf eine Gerätesitzung Wünsche anlegen? Ein untergeschobenes Gerät könnte bis zum Limit des Kontos Downloads auslösen. | ja, E-5 verlangt Wünsche am Fernseher; das Limit je Konto begrenzt den Schaden | Stufe 1 |
 | F-17 | Fire TV | eigenes Konzept nach Stufe 6. Neue Fire-TV-Geräte mit Vega OS führen keine Android-Apps aus | – |
+| F-18 | Meldekanäle (E-Mail, Telegram), Sehbericht und Kontodaten auch in der TV-App? | nein, Browser; die Meldekanäle bleiben einer Gerätesitzung verwehrt, damit die Meldung aus K-9 nicht umgeleitet werden kann | Stufe 1 |
+| F-19 | PIN-Empfehlung aus E-9 auch in der Web-App zeigen? | ja, gleicher Hinweis an gleicher Stelle | Stufe 2b |
 
 ## 14. Kritiker-Review (Fassung 1)
 
@@ -783,6 +819,12 @@ Befunden. Die Zuschreibung an Marco war sauber.
 | 8 | Minor | Anmelden mit Passwort braucht denselben Zähler wie `login` | 4.4 |
 
 Die Einarbeitung der zweiten Lesung hat der Kritiker nicht mehr gegengelesen.
+
+**Nachtrag nach den Lesungen:** Marcos Entscheide E-8 und E-9 erlauben einer Gerätesitzung die
+Profilpflege unter der Bedingung des Browsers. Das nimmt die Sperre aus Befund 1 der ersten
+Runde für die Profilpflege bewusst zurück; die Folge steht als bekannte Grenze in Abschnitt 4.5.
+Für Meldekanäle, Sehbericht, Kontodaten, Offline, Kopplung und «Meine Geräte» bleibt die Sperre.
+Dieser Nachtrag ist nicht vom Kritiker gelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
