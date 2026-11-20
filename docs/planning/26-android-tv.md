@@ -540,10 +540,19 @@ Nicht-Ziel, und fällt der Dienst aus, kann niemand per Scan einrichten. Die Fra
 
 Alles Weitere steht in K27 Abschnitt 7 und wird dort gebaut. Für die TV-App zählt:
 
-- Der Dienst hat inzwischen zwei Aufgaben: die Vermittlung beim Einrichten (E-11) und die
+- Es sind zwei getrennt betriebene Dienste: die Vermittlung beim Einrichten (E-11) und die
   Weiterleitung von Push-Meldungen an die Handy-App (E-17). Die TV-App braucht nur die
   Vermittlung.
-- Er läuft vorläufig auf Marcos eigener Hardware, später auf einem Mietserver (E-19).
+- Marco am 20. November 2026, sinngemäss (das Repo ist öffentlich, darum ohne Ortsangaben): Die
+  zwei Dienste sollen vorerst auf zwei eigenen Containern bei ihm laufen und sich ohne Mühe auf
+  zwei Mietserver verschieben lassen. Jeder Dienst läuft also vorläufig auf einem eigenen
+  Container zu Hause und später auf einem eigenen Mietserver (E-19). Zu Hause sind sie über seinen vorhandenen Reverse-Proxy
+  erreichbar; so hat er es am selben Tag gewählt, gegen die Empfehlung eines Tunnels. Wie der
+  Aufbau den Umzug einfach hält (dasselbe Image und dieselbe Compose-Datei an beiden Orten, kein
+  Zustand auf der Platte, feste Namen mit kurzer DNS-Lebensdauer), beschreibt K27 7.5.
+- Folge für die TV-App: Während ein Dienst umzieht, können Handy und Fernseher für kurze Zeit bei
+  verschiedenen Instanzen der Vermittlung landen. Eine Kopplung scheitert dann einmal; der
+  Fernseher zeigt einen neuen Code (4.3).
 - Vorschlag aus K27, dort noch offene Fragen: Der Dienst hat einen festen Namen, der in den Apps
   eingebaut ist (K27 F-37), und die Adresse der Vermittlung ist in den erweiterten Einstellungen
   änderbar (K27 F-21). Handy und Fernseher müssen dann denselben Dienst eingestellt haben, weil
