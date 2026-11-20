@@ -1,15 +1,16 @@
 # Konzept: Native Android-Handy-App – stöbern, abspielen, Downloads, Fernseher verbinden
 
-- **Status: Entwurf, Fassung 5 (20. November 2026). Nicht freigegeben.** Fassung 2 hat das
+- **Status: Entwurf, Fassung 6 (20. November 2026). Nicht freigegeben.** Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor), Fassung 3
   die zweite Lesung (REVISE nahe an der Annahme, 0 Blocker, 1 Major, 13 Minor); beides in
   Abschnitt 19. Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,
   7 Minor; Abschnitt 18). **Fassung 4** trägt vier Punkte nach, die die dritte Lesung von
   Konzept 26 diesem Papier zugewiesen hat (19.2). **Fassung 5** arbeitet Marcos Entscheide E-21
   und E-22 vom 20. November 2026 ein: zwei getrennt betriebene Dienste, die sich ohne Mühe
-  umziehen lassen (1.3, Abschnitt 7, 19.3). Die Einarbeitung der zweiten Lesung, Fassung 4 und
-  Fassung 5 hat kein Kritiker gegengelesen. Gebaut wird erst nach Marcos Freigabe und auf seinen
-  eigenen Auftrag je Stufe.
+  umziehen lassen (1.3, Abschnitt 7, 19.3). **Fassung 6** arbeitet die dritte Lesung ein, die
+  Fassung 3 bis 5 geprüft hat (Annahme mit Vorbehalt, 0 Blocker, 0 Major, 13 Minor; 19.4). Die
+  Einarbeitung dieser dritten Lesung hat der Kritiker nicht mehr gegengelesen. Gebaut wird erst
+  nach Marcos Freigabe und auf seinen eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
   dieser App den QR Code auf dem TV scannen und auf dem TV wird alles eingerichtet (sofern mit
@@ -21,14 +22,15 @@
   Entscheidungsprotokoll **33**. Der Zweig dieses Papiers sitzt auf `879d1a7f` («Merge pull
   request #189», Seitenleiste der Verwaltung); gegenüber dem Anker ändert das weder Vertrag noch
   Server, CI, letzte ADR oder letzte Frage. Konzept 26 liegt auf dem Zweig
-  `claude/konzept-android-tv` (Fassung 5, Stand `88c85bfb`), nicht in `main`; Verweise «K26 4.3»
+  `claude/konzept-android-tv` (Fassung 5, Stand `82c21a63`), nicht in `main`; Verweise «K26 4.3»
   meinen dessen Abschnitte.
 - **Nummern:** Dieses Papier ist **Konzept 27** und reserviert **Frage 35** sowie **ADR 0043**
   («Native Android-Handy-App: Offline und Abruf im Hintergrund») und **ADR 0044** («Push an die
   Handy-App über einen Weiterleitungsdienst»). Konzept 26 hat Frage 34 und ADR 0039 bis 0042
   reserviert. Drei davon beschreiben das gemeinsame Fundament und entstehen darum mit dem Bau
   dieses Konzepts: ADR 0039 (native Clients im selben Repo), ADR 0040 (Sitzungsarten, Kopplung),
-  ADR 0042 (Dienst im Internet). ADR 0041 (Ton- und Spurfähigkeiten) bleibt bei der TV-App.
+  ADR 0042 (Vermittlung im Internet; Betrieb und Umzug der zwei Dienste). ADR 0041 (Ton- und
+  Spurfähigkeiten) bleibt bei der TV-App.
   Migrations- und Versionsnummern vergibt der Bau.
 - Pfade ohne Präfix liegen unter `web/src/` oder `server/`. **Nach Namen suchen, nicht nach
   Zeile**; Zeilen beziehen sich auf den Anker.
@@ -714,7 +716,8 @@ entsteht beim Bau der App, nicht bei `task gen`.
   jeder Pull Request an der App durch alle Jobs des Servers und umgekehrt.
 - **Releases:** Tags `app-v1.0.0` für die Handy-App, `tv-v1.0.0` für die TV-App (K26),
   `relay-v1.0.0` für die zwei Dienste. Keiner trifft das Release-Workflow des Servers
-  (`v*.*.*`), und keiner berührt die Regel «Vertrag = Tag».
+  (`v*.*.*`), und keiner berührt die Regel «Vertrag = Tag». Die zwei Images der Dienste baut
+  ein eigenes Release-Workflow; heute gibt es nur das des Servers.
 - **Lizenz:** Das Repo steht unter AGPL-3.0, die App und die Dienste damit auch. Der
   Store-Eintrag verweist auf den Quellcode.
 
@@ -747,6 +750,12 @@ entsteht beim Bau der App, nicht bei `task gen`.
   - Der Schlüssel kann im Paket der Kopplung mitreisen (7.2); der Fernseher prüft dann von
     Anfang an.
   - Im Server kostet das eine öffentliche Operation mit Ratenbegrenzung.
+- **Wechselt der Schlüssel des Servers,** erkennt die App ihren Server nicht mehr. Das geschieht
+  nach einer Neuinstallation und nach einer Wiederherstellung aus einer Sicherung ohne
+  Geheimnisse: Der Schlüssel liegt beim Geheimnis des Servers (`secret.key`), und das nimmt eine
+  Sicherung nur auf Wunsch mit. Die App meldet dann nicht «Server nicht erreichbar», sondern «Der
+  Server hat einen neuen Schlüssel». Nach einer neuen Anmeldung mit dem Passwort bestätigt der
+  Nutzer den neuen Schlüssel; die App sagt dazu, dass er das nur im eigenen Netz tun soll.
 - **Was das nicht leistet:**
   - Es schützt nicht vor jemandem, der im richtigen Netz auf dem Weg mitliest. Diese Folge von
     E-18 bleibt.
@@ -765,7 +774,7 @@ entsteht beim Bau der App, nicht bei `task gen`.
   Frage des Systems und erkennt den Fall «verweigert» (Timeout bei einer lokalen Adresse), statt
   «Server nicht erreichbar» zu melden. Die erste Ausgabe zielt auf API 36, wie Google es
   verlangt; die Berechtigung wird mit dem Wechsel auf 37 fällig.
-- Die Adresse des Vermittlungsdienstes ist davon getrennt: Er ist immer über HTTPS erreichbar.
+- Die zwei Dienste aus Abschnitt 7 sind davon getrennt: Beide sind immer über HTTPS erreichbar.
 
 ## 7. Die zwei Dienste im Internet: `relay/` (E-11, E-17, E-19, E-21, E-22)
 
@@ -800,8 +809,8 @@ Pfade unter `/v1`):
 | Schritt | Wer | Anfrage | Antwort |
 |---|---|---|---|
 | Treffpunkt anlegen | Fernseher | `POST /v1/pair` mit dem Hash eines Abholgeheimnisses | Kennung, Ablaufzeit |
-| Paket ablegen | Handy | `PUT /v1/pair/{Kennung}` mit dem verschlüsselten Paket | 204; 409, wenn schon eines liegt; 404 nach Ablauf |
-| Paket abholen | Fernseher | `GET /v1/pair/{Kennung}` mit dem Abholgeheimnis | 200 mit dem Paket, danach ist der Treffpunkt weg; 204, solange keines liegt |
+| Paket ablegen | Handy | `PUT /v1/pair/{Kennung}` mit dem verschlüsselten Paket | 204; 409, wenn schon eines liegt; 410, wenn schon eines abgeholt wurde; 404, wenn die Kennung unbekannt oder abgelaufen ist |
+| Paket abholen | Fernseher | `GET /v1/pair/{Kennung}` mit dem Abholgeheimnis | 200 mit dem Paket, danach ist der Treffpunkt verbraucht; 204, solange keines liegt |
 | Abbrechen | Fernseher | `DELETE /v1/pair/{Kennung}` mit dem Abholgeheimnis | 204 |
 | Erreichbarkeit | Überwachung | `GET /v1/healthz` | 200 |
 
@@ -810,6 +819,9 @@ Pfade unter `/v1`):
   Fernseher nie; im QR-Code steht es nicht. Wer den QR-Code fotografiert, kann das Paket darum
   weder abholen noch den Treffpunkt vor dem Fernseher verbrauchen.
 - Das Paket ist höchstens 4 KB gross. Der Dienst hält es nur im Arbeitsspeicher.
+- Nach dem Abholen merkt sich der Dienst bis zum Ablauf nur noch, dass der Treffpunkt verbraucht
+  ist. So kann er dem Handy «schon abgeholt» antworten statt «unbekannt»; die Handy-App braucht
+  den Unterschied für ihre Warnung (Abschnitt 10).
 - Grenzen: Obergrenze für offene Treffpunkte gesamt und je Aufrufer-Adresse, Ratenbegrenzung je
   Adresse (K-4).
 - Der Fernseher fragt alle 2 Sekunden nach oder hält die Anfrage offen; das legt der Bau fest.
@@ -865,8 +877,8 @@ und braucht dann keinen neuen Sendeweg, wohl aber vier Anpassungen (unten).
 1. Die App holt beim Start ihr Google-Token und erzeugt ein Schlüsselpaar für Web-Push.
 2. Die App meldet sich beim Dienst an: Google-Token und der öffentliche VAPID-Schlüssel ihres
    Servers (`getPushPublicKey`) hinein, eine **Push-Adresse** heraus. Die Adresse enthält das
-   Google-Token und den VAPID-Schlüssel, vom Dienst versiegelt. Der Dienst braucht dafür keine
-   Datenbank.
+   Google-Token und den VAPID-Schlüssel, vom Dienst versiegelt, und nennt die Fassung des
+   Schlüssels, mit dem versiegelt wurde. Der Dienst braucht dafür keine Datenbank.
 3. Die App trägt die Push-Adresse mit ihrem Web-Push-Schlüssel beim Server ein
    (`createPushSubscription`).
 4. Der Server schickt eine Meldung wie an einen Browser: verschlüsselt für den Schlüssel der App
@@ -901,9 +913,10 @@ und braucht dann keinen neuen Sendeweg, wohl aber vier Anpassungen (unten).
 sagt, dass das Hauptprofil ihn einschalten muss. Ein Handy, auf dem nur ein Kinderprofil benutzt
 wird, bekommt sonst ein Abo und trotzdem keine Meldung.
 
-Die App prüft beim Start, ob ihr Abo noch besteht und der VAPID-Schlüssel des Servers noch
-derselbe ist; ein neuer VAPID-Schlüssel löscht im Server alle Abos (2.5), und die App trägt sich
-dann neu ein.
+Die App prüft beim Start und beim Abgleich im Hintergrund (9.6), ob ihr Abo noch besteht und der
+VAPID-Schlüssel des Servers noch derselbe ist; ein neuer VAPID-Schlüssel löscht im Server alle
+Abos (2.5), und die App trägt sich dann neu ein. Nur beim Start zu prüfen reicht nicht: Android
+startet eine App unter Umständen tagelang nicht neu.
 
 Was das bringt:
 
@@ -911,7 +924,13 @@ Was das bringt:
   App.
 - Nur der Server, dessen VAPID-Schlüssel in der Adresse steckt, kann an dieses Handy senden.
 - Meldet Google «Token unbekannt», antwortet der Dienst mit 410, und der Server löscht das Abo
-  von selbst (2.5).
+  von selbst (2.5). **Nur dann.** Kann der Dienst eine Adresse nicht öffnen (fehlender oder
+  falscher Schlüssel, unbekannte Fassung), antwortet er mit 503. Der Server versucht es dann
+  erneut (`deliverAttempts`, fünf Versuche), statt das Abo zu löschen. Sonst löschte eine einzige
+  falsche Schlüsseldatei beim Dienst binnen Minuten die Abos aller Server, die gerade senden
+  (D-10).
+- Die Fassung in der Adresse erlaubt später, den Schlüssel zum Versiegeln zu wechseln, ohne
+  dass alle Adressen auf einmal ungültig werden.
 - Die bestehende Regel bleibt: Push gehört zum Konto. Eine Meldung geht an alle Geräte des Kontos,
   mit dem Profilnamen vorangestellt, auch wenn auf dem Handy gerade ein anderes Profil aktiv ist.
   Das ist heute im Browser genauso und steht hier als bekannte Grenze.
@@ -935,7 +954,7 @@ einzuspielen statt einzuchecken.
 | Nr. | Regel | Schützt gegen |
 |---|---|---|
 | D-1 | Keine Konten, keine Datenbank, kein Zustand auf der Platte. Treffpunkte leben im Arbeitsspeicher, höchstens 5 Minuten; Push-Nachrichten werden durchgereicht und nicht gespeichert | Datenabfluss bei einem Einbruch; macht den Umzug leicht (7.5) |
-| D-2 | Grössengrenze je Paket und je Push, Ratenbegrenzung je Aufrufer-Adresse und je Push-Adresse, Obergrenze für offene Treffpunkte | Missbrauch als Speicher oder Versandweg, Überfluten |
+| D-2 | Grössengrenze je Paket und je Push, Ratenbegrenzung je Aufrufer-Adresse und je Push-Adresse, Obergrenze für offene Treffpunkte. Aufrufer mit IPv6 zählen je Netz (/64), nicht je Adresse | Missbrauch als Speicher oder Versandweg, Überfluten |
 | D-3 | Abholen nur mit Abholgeheimnis (7.1) | Abgreifen oder Verbrauchen eines Treffpunkts |
 | D-4 | Push nur mit gültiger VAPID-Unterschrift des Servers, der in der Adresse steht, ausgestellt für diesen Dienst und nicht abgelaufen | fremde Meldungen an ein Handy, Wiederverwendung einer Unterschrift |
 | D-5 | Die Dienste schreiben keine Adressen von Aufrufern in Logs; für die Ratenbegrenzung halten sie sie nur im Arbeitsspeicher. Dasselbe gilt für den Proxy davor (7.5) | Bewegungsprofile |
@@ -943,6 +962,7 @@ einzuspielen statt einzuchecken.
 | D-7 | Nach aussen nur HTTPS mit gültigem Zertifikat. TLS nimmt der Proxy vor dem Dienst ab (7.5) | Mitlesen und Verändern auf dem Weg |
 | D-8 | Eigene Fassungsnummer in den Pfaden (`/v1`); alte Apps bleiben bedient, bis sie niemand mehr benutzt | Bruch installierter Apps |
 | D-9 | Die Adresse des Aufrufers nimmt ein Dienst aus dem Weiterleitungskopf, aber nur, wenn die Anfrage von einer eingetragenen Proxy-Adresse kommt (7.5) | Grenzen, die alle Anfragen auf den Proxy zählen; Aufrufer, die sich eine Adresse aussuchen |
+| D-10 | Die Push-Weiterleitung antwortet nur dann mit 410, wenn Google das Token nicht mehr kennt. Jeder eigene Fehler ist 503 (7.3) | Massenlöschung von Abos durch einen Fehler beim Dienst |
 
 **Was ein Einbruch anrichten kann,** je Dienst:
 
@@ -952,6 +972,12 @@ einzuspielen statt einzuchecken.
 - **Push-Weiterleitung:** Der Angreifer kann Meldungen unterdrücken und mit dem
   Firebase-Schlüssel über Googles Push-Dienst **Nachrichten an alle Handys mit der App**
   schicken.
+
+- **Der Proxy vor den Diensten (7.5):** Er nimmt TLS für beide Namen ab. Wer ihn übernimmt, kann
+  dasselbe wie bei der Vermittlung, dazu Meldungen unterdrücken und Google-Token und Adressen
+  von Servern mitlesen. An den Firebase-Schlüssel kommt er nicht, und eine versiegelte
+  Push-Adresse kann er nicht fälschen. Auf eigener Hardware teilt dieser Proxy sein Schicksal
+  mit allem, was sonst hinter ihm steht.
 
 In keinem Fall kann er eine Meldung lesen, einen Slouchcat-Server erreichen oder ein Konto
 übernehmen. Bei den Nachrichten sind zwei Fälle zu unterscheiden:
@@ -978,10 +1004,13 @@ Dienst:
 - **Dasselbe Image und dieselbe Compose-Datei an beiden Orten.** Was sich unterscheidet, steht
   in einer Umgebungsdatei und einem Compose-Profil, nirgends sonst. Das Muster gibt es im Repo
   schon: Der Server hat das Profil `https` mit eigenem TLS-Abschluss und die Einstellung
-  `SLOUCHCAT_TRUSTED_PROXIES` (`deploy/compose.yaml`).
-- **Kein Zustand auf der Platte (D-1).** Die Vermittlung hält alles im Arbeitsspeicher. Die
+  `SLOUCHCAT_TRUSTED_PROXIES` (`deploy/compose.yaml`). Anders als beim Server steht auch in der
+  Umgebungsdatei, an welche Adresse der Dienst seinen Port bindet; der Server braucht dafür
+  heute eine zweite Compose-Datei (`compose.https-only.yaml`).
+- **Kein Zustand, der umziehen muss (D-1).** Die Vermittlung hält alles im Arbeitsspeicher. Die
   Push-Weiterleitung hat nur ihre zwei Geheimnisse als Dateien. Ausser diesen Dateien gibt es
-  nichts zu sichern und nichts zu übertragen.
+  nichts zu sichern und nichts zu übertragen. Auf dem Mietserver legt der TLS-Abschluss seine
+  Zertifikate auf die Platte; sie lassen sich neu ausstellen und ziehen nicht um.
 - **Ein fester Name je Dienst** unter `slouchcat.com`, von Anfang an mit kurzer Lebensdauer im
   DNS (Frage F-37). Apps und Server tragen die Namen eingebaut. Beim Umzug ändert sich nur der
   DNS-Eintrag.
@@ -992,7 +1021,8 @@ Dienst:
 | | Auf eigener Hardware (vorläufig) | Auf dem Mietserver (später) |
 |---|---|---|
 | TLS | nimmt der vorhandene Reverse-Proxy ab und reicht an den Container weiter (E-22) | ein Compose-Profil startet einen eigenen TLS-Abschluss im selben Stack, mit eigenem Zertifikat |
-| Adresse des Aufrufers (D-9) | aus dem Weiterleitungskopf, wenn die Anfrage von der eingetragenen Adresse des Reverse-Proxys kommt | ebenso; eingetragen ist der TLS-Abschluss im selben Stack |
+| Adresse des Aufrufers (D-9) | aus dem Weiterleitungskopf, wenn die Anfrage von der eingetragenen Adresse des Reverse-Proxys kommt; eingetragen ist diese eine Adresse, kein ganzer Bereich | ebenso; eingetragen ist das Netz des TLS-Abschlusses im selben Stack |
+| Port des Dienstes | nur für den Reverse-Proxy erreichbar | nicht am Host veröffentlicht; nur der TLS-Abschluss erreicht ihn |
 | Von aussen erreichbar | Port 443 am eigenen Anschluss; der Name zeigt auf diesen Anschluss | Port 443 am Mietserver |
 | Dazwischen | kein Dritter | kein Dritter |
 
@@ -1000,7 +1030,10 @@ Zu D-9: Hinter einem Proxy kommt jede Anfrage von dessen Adresse. Ohne die Regel
 Grenzen je Aufrufer (D-2) alle Anfragen auf den Proxy, und der Dienst wäre nach wenigen
 Kopplungen für alle gesperrt. Glaubte der Dienst den Kopf von jedem, könnte sich jeder Aufrufer
 eine Adresse aussuchen. Der Server löst dasselbe mit `clientIP` und den vertrauten Proxys
-(`server/internal/api/session.go`); die Dienste übernehmen die Regel.
+(`server/internal/api/session.go`); die Dienste übernehmen die Regel: Der Kopf ist
+`X-Forwarded-For`, gelesen von hinten, und es zählt der erste Eintrag, der kein eingetragener
+Proxy ist. Was ein Aufrufer selbst in den Kopf schreibt, steht weiter vorn und wird nicht
+geglaubt.
 
 **Bekannte Folgen von E-22,** solange ein Dienst auf eigener Hardware läuft:
 
@@ -1011,7 +1044,8 @@ eine Adresse aussuchen. Der Server löst dasselbe mit `clientIP` und den vertrau
 - Fällt der Anschluss aus, fallen beide Dienste für alle Nutzer aus.
 - Ein Slouchcat-Server im selben Netz muss die Push-Weiterleitung über deren **öffentliche**
   Adresse erreichen. Löst der Name dort auf eine private Adresse auf, weigert sich der Server zu
-  senden (2.5).
+  senden (2.5). Leitet der Router Anfragen von innen an die eigene öffentliche Adresse nicht
+  zurück, erreicht dieser Server die Push-Weiterleitung gar nicht.
 - Der Reverse-Proxy sieht denselben Verkehr wie die Dienste (7.6). Für die zwei Namen schreibt
   er keine Adressen von Aufrufern in seine Logs (D-5).
 - Zwischen Reverse-Proxy und Container läuft der Verkehr ohne TLS im eigenen Netz. Pakete und
@@ -1022,12 +1056,27 @@ eine Adresse aussuchen. Der Server löst dasselbe mit `clientIP` und den vertrau
 1. Den Mietserver vorbereiten.
 2. Compose-Datei, Umgebungsdatei und, bei der Push-Weiterleitung, die Geheimnisse kopieren; mit
    dem TLS-Profil starten.
-3. Unter einem Probenamen prüfen: Erreichbarkeit, dazu eine Probe-Kopplung oder ein Probe-Push.
-   Der Dienst kennt seine Namen aus der Umgebungsdatei; für die Probe steht dort zusätzlich der
-   Probename, weil die Push-Weiterleitung die Unterschrift gegen den eigenen Namen prüft (D-4).
+3. Unter einem Probenamen prüfen: Erreichbarkeit, dazu eine Probe-Kopplung oder ein Probe-Push
+   mit den Prüfprogrammen aus Stufe 2. Die echte App und ein echter Server taugen dafür nicht:
+   Die App kennt nur den festen Namen der Push-Weiterleitung, und ein Server sendet nur an ihn
+   mit der kleinen Satzgrösse (7.3). Der Dienst kennt seine Namen aus der Umgebungsdatei; für
+   die Probe steht dort zusätzlich der Probename, weil die Push-Weiterleitung die Unterschrift
+   gegen den eigenen Namen prüft (D-4).
 4. Den DNS-Eintrag des festen Namens umstellen.
 5. Warten, bis am alten Ort nichts mehr ankommt.
 6. Den Eintrag im Reverse-Proxy und den Container am alten Ort entfernen.
+
+**Das Zertifikat beim Umschalten (Frage F-41).** Für den festen Namen bekommt der Mietserver
+auf dem üblichen Weg erst ein Zertifikat, wenn der DNS-Eintrag auf ihn zeigt, also nach
+Schritt 4. Schritt 3 beweist nur den Probenamen. Zwei Wege:
+
+- **Die kurze Lücke hinnehmen (Vorschlag).** Nach dem Umstellen holt der TLS-Abschluss das
+  Zertifikat selbst; bis dahin scheitern Verbindungen. Eine Kopplung braucht dann einen neuen
+  Code, und der Server wiederholt eine Meldung von sich aus. Dass das Ausstellen auf dieser
+  Maschine klappt, zeigt Schritt 3.
+- **Das Zertifikat vorab ausstellen,** über einen Nachweis im DNS. Das schliesst die Lücke,
+  verlangt aber ein weiteres Geheimnis auf dem Mietserver: einen Zugang zum DNS, beschränkt auf
+  diesen einen Namen.
 
 Solange alte und neue Adresse nebeneinander gelten:
 
@@ -1035,8 +1084,8 @@ Solange alte und neue Adresse nebeneinander gelten:
   scheitert dann einmal und klappt mit einem neuen Code.
 - **Push-Weiterleitung:** Beide Instanzen arbeiten nebeneinander, **wenn der Schlüssel zum
   Versiegeln mit umgezogen ist.** Ohne ihn kann die neue Instanz die Push-Adressen der alten
-  nicht öffnen. Sie antwortet dann mit 410, der Server löscht das Abo, und die App trägt sich
-  beim nächsten Start neu ein (7.3). Das heilt sich selbst, kostet aber Meldungen.
+  nicht öffnen. Sie antwortet dann mit 503 und löscht nichts (D-10); die Meldungen bleiben aus,
+  bis der Schlüssel am Ort ist.
 
 **Auslieferung:** je Dienst ein Container-Image aus dem Repo; ein Tag `relay-v*` baut beide.
 
@@ -1255,10 +1304,11 @@ die Seite der Handy-App:
 4. Nach dem Ja holt die App beim Server den **Kopplungsgutschein** für den Schlüssel aus dem
    QR-Code.
 5. Die App verschlüsselt Serveradresse und Gutschein und legt das Paket bei der Vermittlung ab
-   (7.2). **Antwortet sie mit 409, liegt dort schon ein Paket.** Das ist der Fall
-   «untergeschobenes Paket» (7.2). Die App warnt dann: Der Fernseher ist womöglich schon mit
-   einem fremden Server verbunden; am Fernseher stehen Server und Konto, mit denen er verbunden
-   ist. Den eigenen Gutschein lässt sie verfallen.
+   (7.2). **Antwortet sie mit 409 (es liegt schon ein Paket) oder 410 (es wurde schon eines
+   abgeholt), war jemand schneller.** Das ist der Fall «untergeschobenes Paket» (7.2); 410 ist
+   dabei der häufigere, weil der Fernseher alle paar Sekunden nachfragt. Die App warnt dann:
+   Der Fernseher ist womöglich schon mit einem fremden Server verbunden; am Fernseher stehen
+   Server und Konto, mit denen er verbunden ist. Den eigenen Gutschein lässt sie verfallen.
 6. Sonst wartet die App, bis das neue Gerät unter «Meine Geräte» erscheint, und zeigt
    «Verbunden» mit dem Namen des Fernsehers. Nach 2 Minuten ohne Einlösen meldet sie, dass es
    nicht geklappt hat.
@@ -1372,8 +1422,8 @@ Regel mit der öffentlichen Stufe; sie von Anfang an einzuhalten, kostet am weni
 | Oberfläche | je Seite ein Compose-Test: jedes Bedienelement erreichbar und beschriftet, Zurück führt hinaus, zwei Breiten | Regel 8 |
 | Generatoren | Texte: alle 22 Sprachen und die Ergänzung `de-DE` ohne Abbruch; Farben und Masse: Stichproben gegen die CSS-Ausgabe | `gen:check` |
 | Vertrag | der Client der App gegen einen echten Server mit Testdaten: anmelden, Profil wählen, Abspielstart, Download bestellen und holen, Abgleich | `apicheck` |
-| Server | Vertragstest mit jeder Sitzungsart, die neuen öffentlichen Operationen im Register; der Test aus 4.4 (Besitzerkonto, jede Bearer-Art, eigener Fehlercode); falscher Träger je Art wird abgelehnt; Sitzungen ohne Ablauf und ihre Geräte überleben die Aufräumung; Widerrufsliste über den Kopf; fremde und reservierte Gerätekennung; Gutschein abgelaufen, doppelt, falscher Schlüssel; Abmelden löscht Push-Abos; «Server weist sich aus»: richtige und falsche Unterschrift, Ratenbegrenzung | `TestContractCoversEveryOperation` |
-| Dienste | Ablauf, Grössen, Raten, Abholgeheimnis, VAPID-Prüfung; Adresse des Aufrufers nur aus dem Kopf eines eingetragenen Proxys (D-9); gemeinsamer Testvektor für die Verschlüsselung in Go und Kotlin | wie Server |
+| Server | Vertragstest mit jeder Sitzungsart, die neuen öffentlichen Operationen im Register; der Test aus 4.4 (Besitzerkonto, jede Bearer-Art, eigener Fehlercode); falscher Träger je Art wird abgelehnt; Sitzungen ohne Ablauf und ihre Geräte überleben die Aufräumung; Widerrufsliste über den Kopf; fremde und reservierte Gerätekennung; Gutschein abgelaufen, doppelt, falscher Schlüssel; Abmelden löscht Push-Abos; «Server weist sich aus»: richtige und falsche Unterschrift, Ratenbegrenzung, neuer Schlüssel verlangt die Bestätigung | `TestContractCoversEveryOperation` |
+| Dienste | Ablauf, Grössen, Raten, Abholgeheimnis, die drei Antworten beim Ablegen (409, 410, 404), VAPID-Prüfung; 503 statt 410 bei falschem Schlüssel (D-10); Adresse des Aufrufers nur aus dem Kopf eines eingetragenen Proxys (D-9); gemeinsamer Testvektor für die Verschlüsselung in Go und Kotlin | wie Server |
 | Gerät | Abnahme durch Marco auf seinem Handy, je Stufe eine Liste; für Offline die Zeile «Android» der Gerätecheckliste M5 | Abnahme auf CT 190 |
 
 Die Teststufen aus `CLAUDE.md` gelten weiter.
@@ -1387,7 +1437,7 @@ der zwei Dienste; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
 |---|---|---|---|
 | **0 Messung** | Wegwerf-App mit eigenem Paketnamen, kein Eingriff ins Produkt (Anmeldung mit Cookie wie `apicheck`). Misst: Generator für den Kotlin-Client am echten Vertrag; Direktwiedergabe und HLS in ExoPlayer; Download-Datei lokal abspielen und spulen; Abruf von 20 GB im Hintergrund samt Wegwischen und Neustart; Abruf ohne offene App in kurzen Läufen; Verschlüsselung zwischen Go und Android; Push durch einen Probe-Dienst (Satzgrösse, Verzögerung, Verhalten von Googles Bibliothek); Generatoren für Texte und Farben; Laufzeit eines CI-Jobs | Bericht `docs/perf/K27-android-handy.md` mit Entscheid je Punkt | Frage 35 im Entscheidungsprotokoll und die Ausnahme in Regel 11 (Abschnitt 14); Firebase-Projekt für die Push-Probe |
 | **1 Server** | alles aus Abschnitt 15.1: Bearer-Weg, drei Sitzungsarten mit `x-clients`, `tv` an den 93 Operationen aus K26 Anhang B, «App anmelden», Gerätekennung im Kopf, Sitzungen ohne Ablauf samt Aufräumung, «Meine Geräte» (Operationen und Seite der Web-App), Gutschein ausstellen und einlösen, Meldung «Neues Gerät», Push-Anpassungen, Vertragsfassung in `getHealth`, Redaktionsliste | Vertragstest samt dem Test aus 4.4; ein Prüfprogramm nach Art von `apicheck`, das ein Handy und einen Fernseher spielt; Tastaturtest für «Meine Geräte»; Abnahme auf CT 190 | **Stufe 0** (Bibliothek für die Verschlüsselung, Satzgrösse für Push); F-18, F-23, F-24, F-38 |
-| **2 Dienste** | `relay/` mit den zwei Diensten Vermittlung und Push-Weiterleitung (E-21): zwei Images, je Dienst eine Compose-Datei mit Umgebungsdatei und TLS-Profil, Betriebsanleitung samt Umzug, Überwachung. Die zwei Container entstehen hier; beide laufen hinter dem vorhandenen Reverse-Proxy (E-22) | Tests der Dienste; zwei Prüfprogramme koppeln über die laufende Vermittlung; eine Push-Probe kommt an; ein abgeschalteter Dienst löst die Meldung an Marco aus; **Umzugsprobe:** ein Dienst startet unter einem Probenamen auf einer zweiten Maschine mit dem TLS-Profil und übernimmt nach dem Umschalten | Stufe 0; F-37, F-39; Firebase-Projekt |
+| **2 Dienste** | `relay/` mit den zwei Diensten Vermittlung und Push-Weiterleitung (E-21): zwei Images, je Dienst eine Compose-Datei mit Umgebungsdatei und TLS-Profil, Betriebsanleitung samt Umzug, Release-Workflow für `relay-v*`, Überwachung. Die zwei Container entstehen hier; beide laufen hinter dem vorhandenen Reverse-Proxy (E-22) | Tests der Dienste; zwei Prüfprogramme koppeln über die laufende Vermittlung; eine Push-Probe kommt an; ein abgeschalteter Dienst löst die Meldung an Marco aus; **Umzugsprobe:** ein Dienst startet unter einem Probenamen auf einer zweiten Maschine mit dem TLS-Profil und übernimmt nach dem Umschalten | Stufe 0; F-37, F-39, F-41; Firebase-Projekt; für die Umzugsprobe eine zweite, von aussen erreichbare Maschine (Port 443 der eigenen Hardware gehört dem vorhandenen Reverse-Proxy) |
 | **3 Gerüst** | Projekt `android/`, Werkzeuge, CI-Jobs, Generatoren und Wächter; Serveradresse mit Warnung (E-18), Anmelden, Profilwahl mit PIN, Meine Geräte, Abmelden | App per ADB auf dem Handy: anmelden, Profil wählen, Gerät erscheint unter «Meine Geräte»; gemessene Laufzeit der CI in `docs/perf/` | Stufe 1; F-1, F-13, F-33 |
 | **4 Stöbern** | Start, Bibliothek, Detailseiten, Person, Suche, Listen, Profile verwalten | Oberflächentest je Seite; Abnahme: blättern ohne Abspielen | freigegebenes Mockup (F-22); F-19 |
 | **5 Videoplayer** | Player vollständig, Einstellungen der Wiedergabe | Abnahmeliste auf dem Handy; **erste Ausgabe über die interne Testspur** | nutzbares Entwicklerkonto; F-11 |
@@ -1431,7 +1481,7 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | `CLAUDE.md` Regel 7 | jede Operation trägt `x-visibility` | dazu: jede `account`- und `scoped`-Operation nennt in `x-clients`, welche Bearer-Arten sie aufrufen dürfen |
 | `CLAUDE.md` Regel 8 | Playwright-Tastaturtest je neuer Seite | dazu: je Seite der Handy-App ein Oberflächentest (Abschnitt 12) |
 | `CLAUDE.md` Regel 9 | Farben aus Tokens, Texte aus `web/src/locales`, gemeinsame Bauteile aus `web/src/ui` | gilt für `android/` mit erzeugten Farben und Texten; der Satz zu `web/src/ui` gilt nur für die Web-App |
-| `CLAUDE.md` Regel 10 | Redaktionsliste der Logs | dazu die Schlüsselnamen für Gerätetoken, Gutschein, Gerätekennung und Google-Token, im Server und im Dienst |
+| `CLAUDE.md` Regel 10 | Redaktionsliste der Logs | dazu die Schlüsselnamen für Gerätetoken, Gutschein, Gerätekennung und Google-Token, im Server und in den zwei Diensten |
 | `CLAUDE.md` Regel 12 | Entscheid im Server | unverändert; die zwei erklärten Ausnahmen gelten für die native App wie für die PWA |
 | `CLAUDE.md` Werkzeuge | Go, Node, pnpm, `task` | dazu JDK, Android-SDK, Gradle und ein zweites Go-Modul `relay/` |
 | Plan 3.8 Punkt 7 | «Fremd-Clients per Bearer» (nie gebaut) | gebaut als App-Sitzung und Gerätesitzung |
@@ -1462,7 +1512,7 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | Kopplung: Gutschein ausstellen (nur App-Sitzung, trägt die Art `tv`) und einlösen (mit Gerätename und Systemfassung; Token verschlüsselt für den Schlüssel des Geräts) | Vertrag, `auth`, Migration | neu |
 | Meldung «Neues Gerät verbunden» über die Kanäle des Kontos: neue Art von Ereignis, Texte des Servers in allen Sprachen, wo nötig eine Migration der Arten | `server/internal/notify`, `notify/locales`, Migration | neu |
 | Push: Adresse der Push-Weiterleitung im Server eingebaut und einstellbar; kleinere Satzgrösse und gekürzter Text für Adressen mit diesem Ursprung; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt bei App-Sitzungen das alte | `notify`, `notify/push`, `config` | Verhalten ändert sich |
-| «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38): Schlüsselpaar des Servers, öffentlicher Schlüssel in `getHealth`, öffentliche Operation mit Ratenbegrenzung und Eintrag im Register des Vertragstests | Vertrag, `auth` | neu, falls F-38 ja |
+| «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38): Schlüsselpaar des Servers beim Geheimnis des Servers, öffentlicher Schlüssel in `getHealth`, öffentliche Operation mit Ratenbegrenzung und Eintrag im Register des Vertragstests | Vertrag, `auth` | neu, falls F-38 ja |
 | `getHealth`: Feld mit der Vertragsfassung; Fehler «App zu alt» | Vertrag | zusätzlich |
 | Geräteliste der Verwaltung zeigt die Sitzungsart | Vertrag, `web/src/features/admin` | zusätzlich |
 | Register des Vertragstests (`publicRegistry` und die anderen) und `apicheck` für die neuen Operationen | `server/internal/api/contract_access_test.go`, `server/cmd/apicheck` | Regel 7 |
@@ -1479,7 +1529,7 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 | Android-Projekt mit gemeinsamen Bausteinen und der Handy-App | `android/` | 3 bis 9 |
 | drittes Ausgabeformat der Design-Tokens | `packages/design-tokens` | 3 |
 | Namensraum für App-Texte in allen Sprachen | `web/src/locales` | 3 bis 9 |
-| CI-Jobs `android` und `relay`, Tasks, Werkzeuge | `.github/workflows/ci.yml`, `Taskfile.yml`, `docs/dev/SETUP.md` | 2 und 3 |
+| CI-Jobs `android` und `relay`, Release-Workflow für `relay-v*` (zwei Images), Tasks, Werkzeuge | `.github/workflows/`, `Taskfile.yml`, `docs/dev/SETUP.md` | 2 und 3 |
 | Hilfeseite für den QR-Code und Datenschutzerklärung | Website des Projekts | 9 und 10 |
 
 ## 16. Risiken
@@ -1504,8 +1554,8 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 | R-16 | Die TV-App wartet (E-12) | späterer Start der TV-App | TV-App kann nach Stufe 3 beginnen (Abschnitt 13) |
 | R-17 | Die Verträglichkeitsregel deckt den ganzen Nutzerbereich (11.5) | jede brechende Änderung an einer Zuschauer-Operation braucht eine Übergangszeit; der Server wird langsamer änderbar | Regel erst mit der öffentlichen Stufe verbindlich; bis dahin üben |
 | R-18 | Auto-Downloads ohne offene App (9.3) | neue Folgen kommen erst beim Öffnen der App | Stufe 0 misst den Abruf in kurzen Läufen; sonst Abruf beim Öffnen wie in der PWA |
-| R-20 | Umschalten beim Umzug (7.5) | eine Kopplung scheitert einmal; ohne den Schlüssel zum Versiegeln verlieren alle Handys ihr Push-Abo, bis die App neu startet | kurze Lebensdauer im DNS von Anfang an; der Schlüssel zieht mit um; Umzugsprobe in Stufe 2 |
-| R-19 | Untergeschobenes Paket beim Einrichten per Scan (7.2) | ein Fernseher wird mit einem fremden Server verbunden | Abholgeheimnis, Anzeige von Server und Konto nach dem Einlösen, Warnung der Handy-App, wenn am Treffpunkt schon ein Paket liegt (Abschnitt 10) |
+| R-19 | Untergeschobenes Paket beim Einrichten per Scan (7.2) | ein Fernseher wird mit einem fremden Server verbunden | Abholgeheimnis, Anzeige von Server und Konto nach dem Einlösen, Warnung der Handy-App, wenn am Treffpunkt schon ein Paket liegt oder schon eines abgeholt wurde (Abschnitt 10) |
+| R-20 | Umschalten beim Umzug (7.5) | eine Kopplung scheitert einmal; bis das Zertifikat steht, scheitern Verbindungen kurz; ohne den Schlüssel zum Versiegeln bleiben Meldungen aus | kurze Lebensdauer im DNS von Anfang an; der Schlüssel zieht mit um; 503 statt 410 bei falschem Schlüssel (D-10); Umzugsprobe in Stufe 2 |
 
 ## 17. Fragen
 
@@ -1549,16 +1599,20 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-35 | Wer sind die 12 Tester für den geschlossenen Test? | Familie und Freunde aus der internen Testspur; früh anfragen | Stufe 10 |
 | F-36 | Datenschutzerklärung: wer schreibt sie, wo steht sie? | Entwurf durch die Bau-Session, Prüfung durch Marco, Seite auf der Website des Projekts. Das Papier ersetzt keine Rechtsberatung | Stufe 10 |
 | F-37 | Namen der zwei Dienste | je eine eigene Subdomain von `slouchcat.com`, fest in Apps und Server, von Anfang an mit kurzer Lebensdauer im DNS (7.5) | Stufe 2 |
-| F-38 | Soll die App bei einem Server über HTTP in jedem neuen Netz zuerst prüfen, dass es der richtige ist, bevor sie Token, Medien-Adressen, Gerätekennung oder Passwort sendet (Abschnitt 6)? Sonst gehen sie in einem fremden Netz mit denselben Adressen ohne Zutun an ein fremdes Gerät (4.6). Die Frage zu E-18 nannte diese Folge nicht. **Die Prüfung schützt nicht** vor Mitlesen im richtigen Netz und nicht, wenn der echte Server auch aus dem Internet erreichbar ist; dagegen hilft nur HTTPS. | ja | Stufe 1 |
+| F-38 | Soll die App bei einem Server über HTTP in jedem neuen Netz zuerst prüfen, dass es der richtige ist, bevor sie Token, Medien-Adressen, Gerätekennung oder Passwort sendet (Abschnitt 6)? Sonst gehen sie in einem fremden Netz mit denselben Adressen ohne Zutun an ein fremdes Gerät (4.6). Die Frage zu E-18 nannte diese Folge nicht. **Die Prüfung schützt nicht** vor Mitlesen im richtigen Netz und nicht, wenn der echte Server auch aus dem Internet erreichbar ist; dagegen hilft nur HTTPS. Wechselt der Schlüssel des Servers (Neuinstallation, Wiederherstellung ohne Geheimnisse), muss der Nutzer ihn in der App neu bestätigen. | ja | Stufe 1 |
 | F-39 | Der getrennte Betrieb auf zwei Maschinen ist entschieden (E-21). Offen: zwei Programme, oder ein Programm, das je Maschine nur einen Teil einschaltet? | zwei Programme aus einem Go-Modul, zwei Images (Abschnitt 7); bis Fassung 4 war ein Programm empfohlen | Stufe 2 |
 | F-40 | Sollen beim Abmelden und bei einer Passwortänderung auch die Push-Abos von **Browsern** fallen? Heute überleben sie; ein Browser trägt sich nicht von selbst neu ein. | ja, zusammen mit einem Neu-Eintragen der Web-App nach der Anmeldung; nicht in Stufe 1 | nach Stufe 1 |
+| F-41 | Zertifikat beim Umzug eines Dienstes: die kurze Lücke nach dem Umstellen hinnehmen, oder das Zertifikat vorab über einen Nachweis im DNS ausstellen (ein weiteres Geheimnis auf dem Mietserver)? | die Lücke hinnehmen (7.5) | Stufe 2 |
 
 ## 18. Was sich in Konzept 26 ändern muss
 
 **Erledigt.** Konzept 26 hat mit seiner Fassung 4 alle 20 Punkte aus 18.1 und alle neun Befunde
 aus 18.2 eingearbeitet; seine Fassung 5 (Stand `88c85bfb`) arbeitet eine dritte Lesung ein
 (REVISE, 0 Blocker, 1 Major, 8 Minor). Was diese Lesung diesem Papier zugewiesen hat, steht in
-19.2. Die Listen bleiben als Nachweis stehen; sie beschreiben Konzept 26 im Stand `b3296ee6`.
+19.2. Mit dem Stand `82c21a63` hat Konzept 26 auch die zwei Dienste aus 18.3 übernommen. Die
+Listen bleiben als Nachweis stehen; 18.1 und 18.2 beschreiben Konzept 26 im Stand `b3296ee6`.
+Offen ist dort nur noch: Der Kopf von Konzept 26 nennt dieses Papier mit einem älteren Stand,
+und es führt die Entscheide vom 20. November noch ohne die Nummern E-21 und E-22.
 
 Konzept 26 liegt auf seinem eigenen Zweig und wird hier nicht angefasst. Der Kritiker hat
 Abschnitt 4 von Konzept 26 mit diesem Papier erstmals gelesen; seine Befunde stehen in 18.2.
@@ -1568,7 +1622,8 @@ Abschnitt 4 von Konzept 26 mit diesem Papier erstmals gelesen; seine Befunde ste
 1. **Kopf und Titel:** Verweis auf Konzept 27; «Kopplung per Code» im Titel ist seit E-10
    überholt. ADR 0039, 0040 und 0042 entstehen mit dem Bau von Konzept 27 und bekommen weitere
    Titel: «Android-Apps als native Clients im selben Repo», «Sitzungsarten für native Apps und
-   Gerätekopplung», «Dienst im Internet für Vermittlung und Push».
+   Gerätekopplung», «Vermittlung im Internet; Betrieb und Umzug der zwei Dienste». Die
+   Push-Weiterleitung beschreibt ADR 0044.
 2. **2.6 und 8.1, 8.2:** Ziel-API für Handy 36, für TV 34. Der Test mit 12 Testern fällt mit der
    Handy-App an; ob er für die TV-Geräteart erneut anfällt, ist unbelegt. Die TV-Geräteart
    bekommt eine eigene Veröffentlichungsspur; die Wahl ist unumkehrbar. 2.6 nennt die interne
@@ -1647,7 +1702,7 @@ nachzutragen.
 
 ### 18.3 Nachtrag vom 20. November 2026: was Konzept 26 zu den zwei Diensten nachzieht
 
-Aus E-21 und E-22 (1.3) folgt für K26 4.7:
+Aus E-21 und E-22 (1.3) folgt für K26 4.7 (dort mit dem Stand `82c21a63` nachgezogen):
 
 1. Es sind zwei getrennt betriebene Dienste. Der Fernseher spricht nur mit der Vermittlung; die
    Push-Weiterleitung betrifft ihn nicht.
@@ -1788,7 +1843,49 @@ die Liste der vertrauten Proxys nicht leer. Dort steht der TLS-Abschluss im selb
 Dienst; er ist der eine eingetragene Proxy.
 
 Der Satz aus Fassung 4, der DNS-Eintrag solle nicht auf einen privaten Anschluss zeigen, ist
-gestrichen: Mit E-22 zeigt er vorläufig dorthin. Diesen Nachtrag hat kein Kritiker gelesen.
+gestrichen: Mit E-22 zeigt er vorläufig dorthin.
+
+### 19.4 Dritte Lesung (Fassung 3 bis 5)
+
+Auf Marcos Wort («Lass die Fassung 5 durch einen Kritiker lesen») hat derselbe Kritiker am
+20. November 2026 Fassung 5 gelesen und dabei auch die Einarbeitungen aus Fassung 3 und 4
+geprüft, die bis dahin niemand gegengelesen hatte: **Annahme mit Vorbehalt; 0 Blocker,
+0 Major, 13 Minor.** Sein Urteil: Alle drei Überarbeitungen halten gegen den Code, kein Befund
+öffnet eine Frage des Entwurfs neu, die Aufteilung in zwei Dienste trägt. Die Schwächen lagen im
+Betrieb.
+
+Bestätigt hat er:
+
+- 13 der 14 Befunde der zweiten Lesung sind erledigt; F-38 war bis auf den Schlüsselwechsel
+  vollständig.
+- Die Wiedergabe von E-21 und E-22 in 1.3 ist treu; die zitierten Folgen stehen in den Optionen;
+  ausserhalb von Abschnitt 1 liest sich nichts als Marcos Entscheid.
+- Auf dem Mietserver ist die Liste der vertrauten Proxys nicht leer (19.3).
+- Anhang B von Konzept 26: 116 Operationen, 93 mit `tv`, 23 ohne, keine fehlt oder steht doppelt.
+- Im Papier steht kein Container, kein Anbieter, kein Name eines Proxy-Produkts und keine
+  Adresse. «Der Name zeigt auf den eigenen Anschluss» hält er für vertretbar, weil sich der Name
+  ohnehin auflösen lässt, sobald er lebt.
+
+Die Redaktion hat seine Fundstellen am Code nachgeprüft (`compose.https-only.yaml`, den Ordner
+für Zertifikate in `deploy/compose.yaml`, `secret.key` in der Sicherung, `deliverAttempts`).
+
+| Nr. | Befund | Eingearbeitet in |
+|---|---|---|
+| 1 | «Kein Zustand auf der Platte» stimmte auf dem Mietserver nicht (Zertifikate); für den festen Namen gibt es erst nach dem Umstellen ein Zertifikat | 7.5 (Zertifikat beim Umschalten), F-41, R-20 |
+| 2 | Eine falsche Schlüsseldatei bei der Push-Weiterleitung hätte über 410 die Abos aller sendenden Server gelöscht; «heilt sich selbst» war wahr, aber langsam | 7.3 (Fassung des Schlüssels, 503 statt 410, Prüfung auch beim Abgleich), D-10, 7.5, R-20 |
+| 3 | D-9: Name des Kopfes und Leserichtung; der Port des Dienstes darf auf dem Mietserver nicht am Host liegen; eine Adresse statt eines Bereichs; IPv6 je Netz | 7.4 (D-2), 7.5 |
+| 4 | Leitet der Router Anfragen von innen an die eigene öffentliche Adresse nicht zurück, erreicht der eigene Server die Push-Weiterleitung nicht | 7.5 |
+| 5 | Die Probe unter einem Probenamen kann kein echter Push von Ende zu Ende sein | 7.5 Schritt 3 |
+| 6 | Die Warnung bei 409 verfehlte den häufigsten Ablauf: Das untergeschobene Paket ist meist schon abgeholt, das Handy bekam 404 | 7.1 (410 «schon abgeholt»), Abschnitt 10, 12, R-19 |
+| 7 | Ein Einbruch in den Proxy vor den Diensten war nicht betrachtet | 7.4 |
+| 8 | Die Umzugsprobe braucht eine zweite, von aussen erreichbare Maschine | 13 (Stufe 2) |
+| 9 | F-38: Nach einem Schlüsselwechsel des Servers wäre jede App für immer ausgesperrt | 6, 12, 15.1, F-38 |
+| 10 | Ein Tag `relay-v*` braucht ein eigenes Release-Workflow | 5.7, 13, 15.2 |
+| 11 | Veraltete Verweise auf Konzept 26 | Kopf, Abschnitt 18 |
+| 12 | Reste von «der Dienst» in der Einzahl | Kopf, 6, 14, 18.1 |
+| 13 | R-20 stand vor R-19 | 16 |
+
+Die Einarbeitung der dritten Lesung hat der Kritiker nicht mehr gegengelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
