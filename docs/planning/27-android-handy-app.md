@@ -1,12 +1,14 @@
 # Konzept: Native Android-Handy-App – stöbern, abspielen, Downloads, Fernseher verbinden
 
-- **Status: Entwurf, Fassung 4 (19. November 2026). Nicht freigegeben.** Fassung 2 hat das
+- **Status: Entwurf, Fassung 5 (20. November 2026). Nicht freigegeben.** Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor), Fassung 3
   die zweite Lesung (REVISE nahe an der Annahme, 0 Blocker, 1 Major, 13 Minor); beides in
   Abschnitt 19. Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,
   7 Minor; Abschnitt 18). **Fassung 4** trägt vier Punkte nach, die die dritte Lesung von
-  Konzept 26 diesem Papier zugewiesen hat (19.2). Die Einarbeitung der zweiten Lesung und
-  Fassung 4 hat kein Kritiker gegengelesen. Gebaut wird erst nach Marcos Freigabe und auf seinen
+  Konzept 26 diesem Papier zugewiesen hat (19.2). **Fassung 5** arbeitet Marcos Entscheide E-21
+  und E-22 vom 20. November 2026 ein: zwei getrennt betriebene Dienste, die sich ohne Mühe
+  umziehen lassen (1.3, Abschnitt 7, 19.3). Die Einarbeitung der zweiten Lesung, Fassung 4 und
+  Fassung 5 hat kein Kritiker gegengelesen. Gebaut wird erst nach Marcos Freigabe und auf seinen
   eigenen Auftrag je Stufe.
 - **Auslöser:** Marco am 19. November 2026 im Konzept 26 «Android-TV-App»: «Eigentlich möchte
   ich es so: User lädt sich die Android App herunter und konfiguriert alles. Danach kann er mit
@@ -88,19 +90,41 @@ Die Folgen standen in den Fragen:
   abgeleitet und nicht eigens entschieden.
 - **Zu E-17:** «Du betreibst dauerhaft einen weiteren Dienst, über den jede Meldung aller Nutzer
   läuft (verschlüsselt).» Die abgelehnte Empfehlung hätte keinen eigenen Dienst gebraucht, war
-  aber «für native Apps wenig verbreitet». Die Option sprach von einem «zweiten Dienst»; dass
-  er ein Teil desselben Programms wie die Vermittlung wird, ist Vorschlag der Redaktion
-  (Abschnitt 7, Frage F-39).
+  aber «für native Apps wenig verbreitet». Die Option sprach von einem «zweiten Dienst»; mit
+  E-21 (1.3) hat Marco das bestätigt: Es sind zwei getrennt betriebene Dienste.
 - **Zu E-18:** «In fremden Netzen kann jemand Passwort und Anmeldung mitlesen und den Zugang
   übernehmen.» Zusammen mit E-15 heisst das: Ein mitgelesenes Anmeldetoken gilt, bis das Gerät
   abgemeldet wird. **Nicht in der Frage stand,** was der Kritiker gefunden hat: Auch eine Adresse
   im Heimnetz ist betroffen, sobald das Handy in einem fremden Netz mit denselben Adressen ist.
   Das steht in Abschnitt 4.6 und ist Frage F-38.
-- **Zu E-19:** Marco hat keine der drei Optionen gewählt, sondern selbst geantwortet.
-  Abschnitt 7.5 nennt, was der vorläufige Ort verlangt.
+- **Zu E-19:** Marco hat keine der drei Optionen gewählt, sondern selbst geantwortet. E-21 und
+  E-22 (1.3) führen den Entscheid fort; Abschnitt 7.5 nennt, was der vorläufige Ort verlangt.
 - **Zu E-20:** Der Fragetext nannte: «Der Paketname der App im Play Store lässt sich nach dem
   ersten Hochladen nie mehr ändern.» Die Option nannte: «Der Test mit 12 Testern fällt
   voraussichtlich nur einmal an (von Google nicht ausdrücklich bestätigt).»
+
+### 1.3 Nachtrag vom 20. November 2026: die zwei Dienste
+
+Marco hat am 20. November 2026 in der Sitzung zu Konzept 26 zum Dienst im Internet entschieden;
+diese Sitzung hat seine Worte und die gewählten Optionen wörtlich übermittelt. Wie bei E-19 steht
+hier der Sinn und nicht der Wortlaut, weil das Repo öffentlich ist: Die Antworten nennen
+Maschinen, einen Anbieter und ein Produkt in Marcos eigenem Netz.
+
+| Nr. | Frage | Marcos Wahl (sinngemäss) | Empfehlung war |
+|---|---|---|---|
+| E-21 | (von Marco selbst) | **Zwei Dienste. Vorläufig läuft jeder auf einem eigenen Container auf eigener Hardware; sie sollen sich ohne Mühe auf zwei Mietserver verschieben lassen.** Auf die Rückfrage, was jetzt zu tun ist: «Ins Konzept schreiben»; die Container entstehen erst mit dem Bau der Dienste | – |
+| E-22 | Wie sind die zwei Dienste aus dem Internet erreichbar, solange sie auf eigener Hardware laufen? | **Über den Reverse-Proxy, der dort schon steht** | ein Tunnel eines Dritten |
+
+Die Folgen standen in den Optionen zu E-22. Zur gewählten: Port 443 am eigenen Anschluss, der
+Name der Dienste zeigt auf diesen Anschluss, der Umzug hat «zwei Schritte mehr», dafür steht
+«kein Dritter dazwischen». Zur abgelehnten: kein offener Port und kein Name auf dem eigenen
+Anschluss, dafür steht der Anbieter des Tunnels «dauerhaft dazwischen und sieht Adressen und
+Zeitpunkte».
+
+**Was E-21 entscheidet und was nicht:** Entschieden ist der getrennte Betrieb auf zwei Maschinen
+und dass der Umzug leicht sein muss. Nicht entschieden ist, ob es zwei Programme sind oder ein
+Programm, das je Maschine nur einen Teil einschaltet (Frage F-39), und wie der Aufbau im
+Einzelnen aussieht; Abschnitt 7.5 ist Vorschlag der Redaktion.
 
 Was Marco nicht entschieden hat, steht als Frage mit Empfehlung in Abschnitt 17.
 
@@ -591,7 +615,7 @@ android/
   core/strings/      erzeugte Texte
   core/pairing/      Paket für die Kopplung, Verschlüsselung
   tools/             Generatoren für Texte und Tokens
-relay/               der Dienst im Internet (Go, eigenes Modul)
+relay/               die zwei Dienste im Internet (Go, eigenes Modul, zwei Programme)
 ```
 
 Beide Apps tragen denselben Paketnamen (E-20) und sind zwei Artefakte mit eigenen
@@ -681,7 +705,7 @@ entsteht beim Bau der App, nicht bei `task gen`.
 - `relay/` ist ein zweites Go-Modul mit `task relay:check` und `task relay:test`. Die Regeln für
   Go gelten dort gleich (golangci-lint, `slog` mit Redaktion). Das Paket
   `server/internal/logging` kann ein zweites Modul nicht einbinden (Go sperrt `internal` nach
-  aussen); der Dienst bekommt eine eigene kleine Fassung des Redaktions-Handlers.
+  aussen); die Dienste bekommen eine eigene kleine Fassung des Redaktions-Handlers.
 - CI: zwei neue Jobs `android` und `relay`, beide in der `needs`-Liste des Gates `ci` und in der
   Regel, nach der `main` schon Geprüftes überspringt (2.6).
   GitHub-Runner können einen Android-Emulator mit Hardware-Beschleunigung starten; ob die
@@ -689,10 +713,10 @@ entsteht beim Bau der App, nicht bei `task gen`.
   Danach entscheidet sich, ob `android/` und `relay/` eigene Pfadfilter bekommen. Heute liefe
   jeder Pull Request an der App durch alle Jobs des Servers und umgekehrt.
 - **Releases:** Tags `app-v1.0.0` für die Handy-App, `tv-v1.0.0` für die TV-App (K26),
-  `relay-v1.0.0` für den Dienst. Keiner trifft das Release-Workflow des Servers (`v*.*.*`), und
-  keiner berührt die Regel «Vertrag = Tag».
-- **Lizenz:** Das Repo steht unter AGPL-3.0, die App und der Dienst damit auch. Der Store-Eintrag
-  verweist auf den Quellcode.
+  `relay-v1.0.0` für die zwei Dienste. Keiner trifft das Release-Workflow des Servers
+  (`v*.*.*`), und keiner berührt die Regel «Vertrag = Tag».
+- **Lizenz:** Das Repo steht unter AGPL-3.0, die App und die Dienste damit auch. Der
+  Store-Eintrag verweist auf den Quellcode.
 
 ## 6. Serveradresse und unverschlüsseltes HTTP (E-18)
 
@@ -743,21 +767,30 @@ entsteht beim Bau der App, nicht bei `task gen`.
   verlangt; die Berechtigung wird mit dem Wechsel auf 37 fällig.
 - Die Adresse des Vermittlungsdienstes ist davon getrennt: Er ist immer über HTTPS erreichbar.
 
-## 7. Der Dienst im Internet: `relay/` (E-11, E-17, E-19)
+## 7. Die zwei Dienste im Internet: `relay/` (E-11, E-17, E-19, E-21, E-22)
 
-Marco betreibt für alle Slouchcat-Nutzer einen Dienst mit zwei Aufgaben:
+Marco betreibt für alle Slouchcat-Nutzer **zwei Dienste**, getrennt voneinander und je auf einer
+eigenen Maschine (E-21):
 
-| Aufgabe | Wofür | Entscheid |
-|---|---|---|
-| **Vermittlung** | Handy und Fernseher finden beim Einrichten per Scan zueinander | E-11 |
-| **Push-Weiterleitung** | Meldungen der Slouchcat-Server gehen an Googles Push-Dienst | E-17 |
+| Dienst | Wofür | Hält an Geheimnissen | Entscheid |
+|---|---|---|---|
+| **Vermittlung** | Handy und Fernseher finden beim Einrichten per Scan zueinander | nichts | E-11 |
+| **Push-Weiterleitung** | Meldungen der Slouchcat-Server gehen an Googles Push-Dienst | Firebase-Schlüssel, Schlüssel zum Versiegeln (7.3) | E-17 |
 
-Vorschlag (Frage F-39): **ein Programm, zwei getrennt schaltbare Teile**, ein Go-Modul `relay/`
-im selben Repo, offen wie der Rest. Ein Programm heisst für Marco eine Installation, ein Update
-und eine Überwachung. Der Teil Push hält ein Geheimnis (7.3), der Teil Vermittlung keines; wer
-nur die Vermittlung selbst betreiben will, schaltet Push ab. Die Frage zu E-17 sprach von einem
-«zweiten Dienst»; zwei getrennte Programme sind die andere Möglichkeit. Sie trennen das
-Geheimnis von der Vermittlung, kosten aber zwei Installationen.
+Entschieden ist der getrennte Betrieb. **Nicht entschieden** ist, ob das zwei Programme sind
+oder ein Programm, das je Maschine nur einen Teil einschaltet (Frage F-39). Vorschlag: **ein
+Go-Modul `relay/` im selben Repo mit zwei Programmen und zwei Images,** offen wie der Rest.
+
+- Gemeinsam ist, was beide brauchen: die Grenzen je Aufrufer, die Adresse des Aufrufers hinter
+  einem Proxy, Logs mit Redaktion, die Erreichbarkeitsprüfung.
+- Getrennt ist alles andere. Das Image der Vermittlung enthält keinen Code, der mit dem
+  Firebase-Schlüssel umgeht, und lässt sich nicht versehentlich mit Push starten.
+- Bis Fassung 4 stand hier ein Programm mit zwei schaltbaren Teilen, begründet mit «eine
+  Installation, ein Update». Mit zwei Maschinen fällt dieser Grund weg.
+
+Jeder Dienst hat einen eigenen festen Namen (7.5). Wer nur die Vermittlung selbst betreiben
+will, braucht die Push-Weiterleitung nicht. In 7.1 und 7.2 heisst «der Dienst» die Vermittlung,
+in 7.3 die Push-Weiterleitung.
 
 ### 7.1 Vermittlung: das Protokoll
 
@@ -897,23 +930,30 @@ Dienstschlüssel dieses Projekts liegt nur beim Dienst, nie im Repo. Die Konfigu
 App für Firebase gilt nach Googles Angaben nicht als geheim; Vorschlag ist trotzdem, sie beim Bau
 einzuspielen statt einzuchecken.
 
-### 7.4 Regeln für den Dienst
+### 7.4 Regeln für die Dienste
 
 | Nr. | Regel | Schützt gegen |
 |---|---|---|
-| D-1 | Keine Konten, keine Datenbank. Treffpunkte leben im Arbeitsspeicher, höchstens 5 Minuten; Push-Nachrichten werden durchgereicht und nicht gespeichert | Datenabfluss bei einem Einbruch |
+| D-1 | Keine Konten, keine Datenbank, kein Zustand auf der Platte. Treffpunkte leben im Arbeitsspeicher, höchstens 5 Minuten; Push-Nachrichten werden durchgereicht und nicht gespeichert | Datenabfluss bei einem Einbruch; macht den Umzug leicht (7.5) |
 | D-2 | Grössengrenze je Paket und je Push, Ratenbegrenzung je Aufrufer-Adresse und je Push-Adresse, Obergrenze für offene Treffpunkte | Missbrauch als Speicher oder Versandweg, Überfluten |
 | D-3 | Abholen nur mit Abholgeheimnis (7.1) | Abgreifen oder Verbrauchen eines Treffpunkts |
 | D-4 | Push nur mit gültiger VAPID-Unterschrift des Servers, der in der Adresse steht, ausgestellt für diesen Dienst und nicht abgelaufen | fremde Meldungen an ein Handy, Wiederverwendung einer Unterschrift |
-| D-5 | Der Dienst schreibt keine Adressen von Aufrufern in Logs; für die Ratenbegrenzung hält er sie nur im Arbeitsspeicher | Bewegungsprofile |
-| D-6 | Der Firebase-Schlüssel und der Schlüssel zum Versiegeln liegen als Dateien ausserhalb des Images und in der Redaktionsliste der Logs | Geheimnisse in Logs und Images |
-| D-7 | Nur HTTPS mit gültigem Zertifikat | Mitlesen und Verändern auf dem Weg |
+| D-5 | Die Dienste schreiben keine Adressen von Aufrufern in Logs; für die Ratenbegrenzung halten sie sie nur im Arbeitsspeicher. Dasselbe gilt für den Proxy davor (7.5) | Bewegungsprofile |
+| D-6 | Der Firebase-Schlüssel und der Schlüssel zum Versiegeln liegen nur bei der Push-Weiterleitung, als Dateien ausserhalb des Images und in der Redaktionsliste der Logs. Die Vermittlung hat kein Geheimnis | Geheimnisse in Logs und Images |
+| D-7 | Nach aussen nur HTTPS mit gültigem Zertifikat. TLS nimmt der Proxy vor dem Dienst ab (7.5) | Mitlesen und Verändern auf dem Weg |
 | D-8 | Eigene Fassungsnummer in den Pfaden (`/v1`); alte Apps bleiben bedient, bis sie niemand mehr benutzt | Bruch installierter Apps |
+| D-9 | Die Adresse des Aufrufers nimmt ein Dienst aus dem Weiterleitungskopf, aber nur, wenn die Anfrage von einer eingetragenen Proxy-Adresse kommt (7.5) | Grenzen, die alle Anfragen auf den Proxy zählen; Aufrufer, die sich eine Adresse aussuchen |
 
-**Was ein Einbruch in den Dienst anrichten kann:** Der Angreifer kann Treffpunkte stören,
-einem Fernseher beim Einrichten ein eigenes Paket unterschieben (7.2), Meldungen unterdrücken
-und mit dem Firebase-Schlüssel über Googles Push-Dienst **Nachrichten an alle Handys mit der
-App** schicken. Er kann keine Meldung lesen, keinen Slouchcat-Server erreichen und kein Konto
+**Was ein Einbruch anrichten kann,** je Dienst:
+
+- **Vermittlung:** Der Angreifer kann Treffpunkte stören und einem Fernseher beim Einrichten ein
+  eigenes Paket unterschieben (7.2). An Push kommt er nicht: Der Firebase-Schlüssel liegt auf
+  der anderen Maschine. Das ist der Gewinn aus E-21.
+- **Push-Weiterleitung:** Der Angreifer kann Meldungen unterdrücken und mit dem
+  Firebase-Schlüssel über Googles Push-Dienst **Nachrichten an alle Handys mit der App**
+  schicken.
+
+In keinem Fall kann er eine Meldung lesen, einen Slouchcat-Server erreichen oder ein Konto
 übernehmen. Bei den Nachrichten sind zwei Fälle zu unterscheiden:
 
 - Eine Datennachricht verarbeitet die App selbst. Sie zeigt nur an, was sich mit ihrem
@@ -924,30 +964,89 @@ App** schicken. Er kann keine Meldung lesen, keinen Slouchcat-Server erreichen u
   es). So käme ein irreführender Text auf den Bildschirm. Die App folgt darum nie einem Ziel aus
   einer Meldung, die sie nicht selbst entschlüsselt hat; ein Tippen öffnet dann nur die App.
 
-### 7.5 Betrieb (E-19)
+### 7.5 Betrieb und Umzug (E-19, E-21, E-22)
 
-Marco betreibt den Dienst vorläufig auf eigener Hardware und später auf einem Mietserver (E-19).
+Marco betreibt die zwei Dienste vorläufig je auf einem eigenen Container auf eigener Hardware
+und später je auf einem eigenen Mietserver (E-19, E-21). Solange sie auf eigener Hardware
+laufen, sind sie über den Reverse-Proxy erreichbar, der dort schon steht (E-22). Die Container
+entstehen mit dem Bau der Dienste in Stufe 2, nicht vorher. Alles Weitere in diesem Abschnitt
+ist Vorschlag der Redaktion.
 
-- **Ein fester Name von Anfang an.** Die Apps tragen die Adresse des Dienstes eingebaut. Zieht
-  der Dienst um, ändert sich nur der DNS-Eintrag. Vorschlag: eine eigene Subdomain von
-  `slouchcat.com` nur für den Dienst (Frage F-37).
-- **Solange der Dienst nicht in einem Rechenzentrum läuft,** verlangt das:
-  - Die Maschine ist vom Internet aus erreichbar und gehört darum vom übrigen Netz getrennt.
-  - Der DNS-Eintrag soll nicht auf einen privaten Anschluss zeigen. Ein vorgeschalteter Proxy
-    oder ein Tunnel vermeidet das.
-  - Fällt der Anschluss aus, fällt der Dienst für alle Nutzer aus.
-  - Ein Slouchcat-Server im selben Netz muss den Dienst über dessen **öffentliche** Adresse
-    erreichen. Löst der Name dort auf eine private Adresse auf, weigert sich der Server zu
-    senden (2.5).
-- **Auslieferung:** ein Container-Image aus dem Repo (`relay-v*`), gestartet mit zwei Dateien
-  für die Geheimnisse. Der Umzug auf den Mietserver ist dasselbe Image an anderem Ort.
-- **Überwachung:** eine Erreichbarkeitsprüfung auf `/v1/healthz` mit Meldung an Marco. Vorschlag:
-  von ausserhalb des Netzes, in dem der Dienst läuft, weil sie sonst mit ihm ausfällt.
-- **Adresse in den Apps änderbar (Frage F-21):** Für die Vermittlung ja, in den erweiterten
-  Einstellungen von Handy- und TV-App; beide Geräte müssen dann denselben Dienst eingestellt
-  haben, weil die Handy-App einen QR-Code mit einem anderen Dienst ablehnt (Abschnitt 10). Für
-  Push hilft ein eigener Dienst nicht: Er bräuchte den Firebase-Schlüssel der veröffentlichten
-  App.
+**Anforderung aus E-21: Der Umzug besteht nur aus Starten und Umschalten.** Dafür gilt je
+Dienst:
+
+- **Dasselbe Image und dieselbe Compose-Datei an beiden Orten.** Was sich unterscheidet, steht
+  in einer Umgebungsdatei und einem Compose-Profil, nirgends sonst. Das Muster gibt es im Repo
+  schon: Der Server hat das Profil `https` mit eigenem TLS-Abschluss und die Einstellung
+  `SLOUCHCAT_TRUSTED_PROXIES` (`deploy/compose.yaml`).
+- **Kein Zustand auf der Platte (D-1).** Die Vermittlung hält alles im Arbeitsspeicher. Die
+  Push-Weiterleitung hat nur ihre zwei Geheimnisse als Dateien. Ausser diesen Dateien gibt es
+  nichts zu sichern und nichts zu übertragen.
+- **Ein fester Name je Dienst** unter `slouchcat.com`, von Anfang an mit kurzer Lebensdauer im
+  DNS (Frage F-37). Apps und Server tragen die Namen eingebaut. Beim Umzug ändert sich nur der
+  DNS-Eintrag.
+- **Die zwei Dienste ziehen unabhängig voneinander um.**
+
+**Die zwei Orte:**
+
+| | Auf eigener Hardware (vorläufig) | Auf dem Mietserver (später) |
+|---|---|---|
+| TLS | nimmt der vorhandene Reverse-Proxy ab und reicht an den Container weiter (E-22) | ein Compose-Profil startet einen eigenen TLS-Abschluss im selben Stack, mit eigenem Zertifikat |
+| Adresse des Aufrufers (D-9) | aus dem Weiterleitungskopf, wenn die Anfrage von der eingetragenen Adresse des Reverse-Proxys kommt | ebenso; eingetragen ist der TLS-Abschluss im selben Stack |
+| Von aussen erreichbar | Port 443 am eigenen Anschluss; der Name zeigt auf diesen Anschluss | Port 443 am Mietserver |
+| Dazwischen | kein Dritter | kein Dritter |
+
+Zu D-9: Hinter einem Proxy kommt jede Anfrage von dessen Adresse. Ohne die Regel zählten die
+Grenzen je Aufrufer (D-2) alle Anfragen auf den Proxy, und der Dienst wäre nach wenigen
+Kopplungen für alle gesperrt. Glaubte der Dienst den Kopf von jedem, könnte sich jeder Aufrufer
+eine Adresse aussuchen. Der Server löst dasselbe mit `clientIP` und den vertrauten Proxys
+(`server/internal/api/session.go`); die Dienste übernehmen die Regel.
+
+**Bekannte Folgen von E-22,** solange ein Dienst auf eigener Hardware läuft:
+
+- Der Name des Dienstes zeigt auf den eigenen Anschluss, und dort ist Port 443 offen. Die Frage
+  nannte das.
+- Die zwei Container sind vom Internet aus erreichbar und gehören darum vom übrigen Netz
+  getrennt. Mit E-22 wiegt das schwerer als zuvor.
+- Fällt der Anschluss aus, fallen beide Dienste für alle Nutzer aus.
+- Ein Slouchcat-Server im selben Netz muss die Push-Weiterleitung über deren **öffentliche**
+  Adresse erreichen. Löst der Name dort auf eine private Adresse auf, weigert sich der Server zu
+  senden (2.5).
+- Der Reverse-Proxy sieht denselben Verkehr wie die Dienste (7.6). Für die zwei Namen schreibt
+  er keine Adressen von Aufrufern in seine Logs (D-5).
+- Zwischen Reverse-Proxy und Container läuft der Verkehr ohne TLS im eigenen Netz. Pakete und
+  Meldungen sind dabei weiter Ende-zu-Ende verschlüsselt.
+
+**Der Umzug eines Dienstes:**
+
+1. Den Mietserver vorbereiten.
+2. Compose-Datei, Umgebungsdatei und, bei der Push-Weiterleitung, die Geheimnisse kopieren; mit
+   dem TLS-Profil starten.
+3. Unter einem Probenamen prüfen: Erreichbarkeit, dazu eine Probe-Kopplung oder ein Probe-Push.
+   Der Dienst kennt seine Namen aus der Umgebungsdatei; für die Probe steht dort zusätzlich der
+   Probename, weil die Push-Weiterleitung die Unterschrift gegen den eigenen Namen prüft (D-4).
+4. Den DNS-Eintrag des festen Namens umstellen.
+5. Warten, bis am alten Ort nichts mehr ankommt.
+6. Den Eintrag im Reverse-Proxy und den Container am alten Ort entfernen.
+
+Solange alte und neue Adresse nebeneinander gelten:
+
+- **Vermittlung:** Handy und Fernseher können bei verschiedenen Instanzen landen. Eine Kopplung
+  scheitert dann einmal und klappt mit einem neuen Code.
+- **Push-Weiterleitung:** Beide Instanzen arbeiten nebeneinander, **wenn der Schlüssel zum
+  Versiegeln mit umgezogen ist.** Ohne ihn kann die neue Instanz die Push-Adressen der alten
+  nicht öffnen. Sie antwortet dann mit 410, der Server löscht das Abo, und die App trägt sich
+  beim nächsten Start neu ein (7.3). Das heilt sich selbst, kostet aber Meldungen.
+
+**Auslieferung:** je Dienst ein Container-Image aus dem Repo; ein Tag `relay-v*` baut beide.
+
+**Überwachung:** je Dienst eine Erreichbarkeitsprüfung auf `/v1/healthz` mit Meldung an Marco.
+Vorschlag: von ausserhalb des Netzes, in dem der Dienst läuft, weil sie sonst mit ihm ausfällt.
+
+**Adresse in den Apps änderbar (Frage F-21):** Für die Vermittlung ja, in den erweiterten
+Einstellungen von Handy- und TV-App; beide Geräte müssen dann dieselbe Vermittlung eingestellt
+haben, weil die Handy-App einen QR-Code mit einer anderen ablehnt (Abschnitt 10). Für Push hilft
+ein eigener Dienst nicht: Er bräuchte den Firebase-Schlüssel der veröffentlichten App.
 
 ### 7.6 Datenschutz
 
@@ -955,12 +1054,14 @@ Marco betreibt den Dienst vorläufig auf eigener Hardware und später auf einem 
 |---|---|---|
 | Vermittlung | Internet-Adressen von Fernseher und Handy, Zeitpunkt, Geheimtext | Serveradresse, Gutschein, Konto |
 | Push-Weiterleitung | Internet-Adresse des **Slouchcat-Servers**, Zeitpunkt und Häufigkeit der Meldungen, Google-Token des Handys, Geheimtext | Titel und Text der Meldung, Konto |
+| Der Proxy vor einem Dienst (7.5) | dasselbe wie der Dienst dahinter | dasselbe wie der Dienst dahinter |
 | Google (Push) | Google-Token, Zeitpunkt, Geheimtext | Titel und Text, Serveradresse |
 
 Die Push-Weiterleitung sieht mehr als die Vermittlung: Jede Meldung zeigt ihr die Adresse eines
-Heimservers, und das wiederholt. Gespeichert wird davon nichts (D-1, D-5). Das gehört in die
-Datenschutzerklärung, die der Store-Eintrag verlangt, und in die Angaben zur Datensicherheit
-(11.4).
+Heimservers, und das wiederholt. Gespeichert wird davon nichts (D-1, D-5). Der Proxy vor einem
+Dienst ist an beiden Orten Marcos eigener; ein Dritter steht nicht dazwischen (E-22). Das gehört
+in die Datenschutzerklärung, die der Store-Eintrag verlangt, und in die Angaben zur
+Datensicherheit (11.4).
 
 ### 7.7 Ausfall
 
@@ -968,10 +1069,11 @@ Datenschutzerklärung, die der Store-Eintrag verlangt, und in die Angaben zur Da
 |---|---|---|
 | Vermittlung | niemand kann einen Fernseher per Scan einrichten | Einrichten von Hand am Fernseher (K26 4.4); eingerichtete Geräte merken nichts |
 | Push-Weiterleitung | keine Meldungen bei geschlossener App; der Server versucht es wie bei jedem Kanal erneut | die Liste in der App, E-Mail und Telegram |
-| Googles Push-Dienst | wie oben | wie oben |
+| Der eigene Anschluss, solange beide Dienste dort laufen | beides zugleich | wie oben |
+| Googles Push-Dienst | wie bei der Push-Weiterleitung | wie dort |
 
-Die App selbst braucht den Dienst für nichts anderes. Stöbern, Abspielen und Downloads laufen
-ohne ihn.
+Die zwei Dienste fallen sonst unabhängig voneinander aus. Die App selbst braucht sie für nichts
+anderes: Stöbern, Abspielen und Downloads laufen ohne sie.
 
 ## 8. Wiedergabe
 
@@ -1142,18 +1244,18 @@ denselben Browser teilen können; die App kennt ein Konto je Gerät (Frage F-31)
 
 ## 10. Fernseher verbinden (E-10, E-16)
 
-Der Ablauf aus Sicht des Fernsehers steht in K26 4.3, der Dienst in Abschnitt 7. Dies ist die
-Seite der Handy-App:
+Der Ablauf aus Sicht des Fernsehers steht in K26 4.3, die Vermittlung in Abschnitt 7. Dies ist
+die Seite der Handy-App:
 
 1. «Mehr › Fernseher verbinden» öffnet den Scanner.
-2. Die App liest den QR-Code und prüft Fassung und Adresse des Dienstes. Nennt der Code einen
-   anderen Dienst als den eingestellten, lehnt sie ab.
+2. Die App liest den QR-Code und prüft Fassung und Adresse der Vermittlung. Nennt der Code eine
+   andere als die eingestellte, lehnt sie ab.
 3. Die App zeigt Konto und Server und fragt: «Diesen Fernseher mit deinem Konto verbinden? Tu
    das nur, wenn der Code auf deinem eigenen Fernseher steht.» (K-5)
 4. Nach dem Ja holt die App beim Server den **Kopplungsgutschein** für den Schlüssel aus dem
    QR-Code.
-5. Die App verschlüsselt Serveradresse und Gutschein und legt das Paket beim Dienst ab (7.2).
-   **Antwortet der Dienst mit 409, liegt dort schon ein Paket.** Das ist der Fall
+5. Die App verschlüsselt Serveradresse und Gutschein und legt das Paket bei der Vermittlung ab
+   (7.2). **Antwortet sie mit 409, liegt dort schon ein Paket.** Das ist der Fall
    «untergeschobenes Paket» (7.2). Die App warnt dann: Der Fernseher ist womöglich schon mit
    einem fremden Server verbunden; am Fernseher stehen Server und Konto, mit denen er verbunden
    ist. Den eigenen Gutschein lässt sie verfallen.
@@ -1217,11 +1319,12 @@ Tester sind, ist Frage F-35.
 
 ### 11.4 Was der Store-Eintrag verlangt
 
-- **Datenschutzerklärung** unter einer HTTPS-Adresse (Frage F-36). Sie nennt den Dienst aus
-  Abschnitt 7 und was er sieht (7.6).
+- **Datenschutzerklärung** unter einer HTTPS-Adresse (Frage F-36). Sie nennt die zwei Dienste
+  aus Abschnitt 7 und was sie sehen (7.6).
 - **Angaben zur Datensicherheit.** Vorschlag, vorbehaltlich Googles Formular: Die App erhebt
-  selbst nichts; Inhalte und Konto gehen nur an den Server des Nutzers; der Dienst sieht
-  Internet-Adressen und das Google-Token und speichert sie nicht. Wie Google die ersten beiden
+  selbst nichts; Inhalte und Konto gehen nur an den Server des Nutzers; die zwei Dienste sehen
+  Internet-Adressen, die Push-Weiterleitung auch das Google-Token, und speichern nichts davon
+  (7.6). Wie Google die ersten beiden
   Punkte einordnet, ist unbelegt.
 - **Zugang für die Prüfer:** ein erreichbarer Vorführserver mit Testzugang und frei lizenzierten
   Testfilmen (K26 F-10; wird mit der Handy-App zuerst fällig).
@@ -1270,7 +1373,7 @@ Regel mit der öffentlichen Stufe; sie von Anfang an einzuhalten, kostet am weni
 | Generatoren | Texte: alle 22 Sprachen und die Ergänzung `de-DE` ohne Abbruch; Farben und Masse: Stichproben gegen die CSS-Ausgabe | `gen:check` |
 | Vertrag | der Client der App gegen einen echten Server mit Testdaten: anmelden, Profil wählen, Abspielstart, Download bestellen und holen, Abgleich | `apicheck` |
 | Server | Vertragstest mit jeder Sitzungsart, die neuen öffentlichen Operationen im Register; der Test aus 4.4 (Besitzerkonto, jede Bearer-Art, eigener Fehlercode); falscher Träger je Art wird abgelehnt; Sitzungen ohne Ablauf und ihre Geräte überleben die Aufräumung; Widerrufsliste über den Kopf; fremde und reservierte Gerätekennung; Gutschein abgelaufen, doppelt, falscher Schlüssel; Abmelden löscht Push-Abos; «Server weist sich aus»: richtige und falsche Unterschrift, Ratenbegrenzung | `TestContractCoversEveryOperation` |
-| Dienst | Ablauf, Grössen, Raten, Abholgeheimnis, VAPID-Prüfung; gemeinsamer Testvektor für die Verschlüsselung in Go und Kotlin | wie Server |
+| Dienste | Ablauf, Grössen, Raten, Abholgeheimnis, VAPID-Prüfung; Adresse des Aufrufers nur aus dem Kopf eines eingetragenen Proxys (D-9); gemeinsamer Testvektor für die Verschlüsselung in Go und Kotlin | wie Server |
 | Gerät | Abnahme durch Marco auf seinem Handy, je Stufe eine Liste; für Offline die Zeile «Android» der Gerätecheckliste M5 | Abnahme auf CT 190 |
 
 Die Teststufen aus `CLAUDE.md` gelten weiter.
@@ -1278,20 +1381,20 @@ Die Teststufen aus `CLAUDE.md` gelten weiter.
 ## 13. Stufen
 
 Jede Stufe ist ein eigener Auftrag von Marco. Stufe 1 ist ein Release des Servers, Stufe 2 eines
-des Dienstes; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
+der zwei Dienste; ab Stufe 3 ist jede Stufe eine Ausgabe der App.
 
 | Stufe | Inhalt | Beleg | Braucht |
 |---|---|---|---|
 | **0 Messung** | Wegwerf-App mit eigenem Paketnamen, kein Eingriff ins Produkt (Anmeldung mit Cookie wie `apicheck`). Misst: Generator für den Kotlin-Client am echten Vertrag; Direktwiedergabe und HLS in ExoPlayer; Download-Datei lokal abspielen und spulen; Abruf von 20 GB im Hintergrund samt Wegwischen und Neustart; Abruf ohne offene App in kurzen Läufen; Verschlüsselung zwischen Go und Android; Push durch einen Probe-Dienst (Satzgrösse, Verzögerung, Verhalten von Googles Bibliothek); Generatoren für Texte und Farben; Laufzeit eines CI-Jobs | Bericht `docs/perf/K27-android-handy.md` mit Entscheid je Punkt | Frage 35 im Entscheidungsprotokoll und die Ausnahme in Regel 11 (Abschnitt 14); Firebase-Projekt für die Push-Probe |
 | **1 Server** | alles aus Abschnitt 15.1: Bearer-Weg, drei Sitzungsarten mit `x-clients`, `tv` an den 93 Operationen aus K26 Anhang B, «App anmelden», Gerätekennung im Kopf, Sitzungen ohne Ablauf samt Aufräumung, «Meine Geräte» (Operationen und Seite der Web-App), Gutschein ausstellen und einlösen, Meldung «Neues Gerät», Push-Anpassungen, Vertragsfassung in `getHealth`, Redaktionsliste | Vertragstest samt dem Test aus 4.4; ein Prüfprogramm nach Art von `apicheck`, das ein Handy und einen Fernseher spielt; Tastaturtest für «Meine Geräte»; Abnahme auf CT 190 | **Stufe 0** (Bibliothek für die Verschlüsselung, Satzgrösse für Push); F-18, F-23, F-24, F-38 |
-| **2 Dienst** | `relay/` mit Vermittlung und Push-Weiterleitung, Container-Image, Betriebsanleitung, Überwachung; läuft bei Marco | Tests des Dienstes; zwei Prüfprogramme koppeln über den laufenden Dienst; eine Push-Probe kommt an; ein abgeschalteter Dienst löst die Meldung an Marco aus | Stufe 0; F-37; Firebase-Projekt |
+| **2 Dienste** | `relay/` mit den zwei Diensten Vermittlung und Push-Weiterleitung (E-21): zwei Images, je Dienst eine Compose-Datei mit Umgebungsdatei und TLS-Profil, Betriebsanleitung samt Umzug, Überwachung. Die zwei Container entstehen hier; beide laufen hinter dem vorhandenen Reverse-Proxy (E-22) | Tests der Dienste; zwei Prüfprogramme koppeln über die laufende Vermittlung; eine Push-Probe kommt an; ein abgeschalteter Dienst löst die Meldung an Marco aus; **Umzugsprobe:** ein Dienst startet unter einem Probenamen auf einer zweiten Maschine mit dem TLS-Profil und übernimmt nach dem Umschalten | Stufe 0; F-37, F-39; Firebase-Projekt |
 | **3 Gerüst** | Projekt `android/`, Werkzeuge, CI-Jobs, Generatoren und Wächter; Serveradresse mit Warnung (E-18), Anmelden, Profilwahl mit PIN, Meine Geräte, Abmelden | App per ADB auf dem Handy: anmelden, Profil wählen, Gerät erscheint unter «Meine Geräte»; gemessene Laufzeit der CI in `docs/perf/` | Stufe 1; F-1, F-13, F-33 |
 | **4 Stöbern** | Start, Bibliothek, Detailseiten, Person, Suche, Listen, Profile verwalten | Oberflächentest je Seite; Abnahme: blättern ohne Abspielen | freigegebenes Mockup (F-22); F-19 |
 | **5 Videoplayer** | Player vollständig, Einstellungen der Wiedergabe | Abnahmeliste auf dem Handy; **erste Ausgabe über die interne Testspur** | nutzbares Entwicklerkonto; F-11 |
 | **6 Downloads** | Download-Dialog, Seite «Downloads», Abruf im Hintergrund, Offline-Bibliothek, Offline-Player, Offline-PIN, Schauzeit, Abgleich, Widerruf, Auto-Downloads | Gerätecheckliste M5 für Android im Flugmodus; Abruf von 20 GB über Nacht; Entzug eines Kontos löscht die Dateien beim nächsten Kontakt | F-25, F-26, F-34 |
 | **7 Ton** | Hörbücher, Podcasts, Webradio, Wiedergabe im Hintergrund, Downloads von Hörbüchern und Folgen | Abnahme: eine Stunde Hörbuch bei ausgeschaltetem Bildschirm, Fortschritt stimmt | |
 | **8 Wünsche und Meldungen** | Bereich «Wünsche», Benachrichtigungen, Ankündigungen, Meldekanäle, Push | Abnahme mit echtem Seerr; eine Meldung kommt bei geschlossener App an | Stufe 2 |
-| **9 Fernseher verbinden** | Scanner und Kopplung in der App | Kopplung vom Handy über den Dienst gegen CT 190 mit dem Prüfprogramm als Fernseher; **erste Ausgabe nach E-13 vollständig** | Stufe 1 und 2 |
+| **9 Fernseher verbinden** | Scanner und Kopplung in der App | Kopplung vom Handy über die Vermittlung gegen CT 190 mit dem Prüfprogramm als Fernseher; **erste Ausgabe nach E-13 vollständig** | Stufe 1 und 2 |
 | **10 Öffentlich** | Geschlossener Test, Antrag, Store-Eintrag, Datenschutzerklärung, Vorführserver, Verträglichkeitsregel verbindlich | App im Play Store | F-9, F-10, F-35, F-36 |
 
 Zur Reihenfolge:
@@ -1304,7 +1407,8 @@ Zur Reihenfolge:
   Push-Anpassungen, über deren Einzelheiten Stufe 0 entscheidet.
 - Stufe 1 baut die Kopplung im Server schon mit, obwohl die App sie erst in Stufe 9 nutzt: Die
   Sitzungsarten werden so nur einmal angefasst, und die TV-App findet den Serverteil fertig vor.
-- Stufe 2 kann neben Stufe 3 bis 7 laufen. Gebraucht wird der Dienst erst in Stufe 8.
+- Stufe 2 kann neben Stufe 3 bis 7 laufen. Gebraucht wird die Push-Weiterleitung in Stufe 8,
+  die Vermittlung in Stufe 9.
 - Das Mockup entsteht neben Stufe 1 bis 3.
 - Die TV-App (K26) kann nach Stufe 3 beginnen: Dann stehen Serverteil, Projekt, Client, Texte
   und Farben. Für das Einrichten per Scan braucht sie Stufe 2 und 9.
@@ -1323,7 +1427,7 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | Spec «Non-Goals» und Übersichtstabelle | native iOS- und Android-Apps sind Nicht-Ziel | die native Android-Handy-App ist Ziel (Frage 35). Native iOS-Apps bleiben Nicht-Ziel |
 | Plan Abschnitt 1 («Nicht eingeplant») | native Apps | Android-Handy-App herausgenommen |
 | `CLAUDE.md` Regel 11, «native Apps» | Nicht-Ziel | benannte Ausnahme: die Android-Handy-App nach Frage 35 und die Android-TV-App nach Frage 34 |
-| `CLAUDE.md` Regel 11, «Cloud» | Nicht-Ziel | zwei benannte Ausnahmen: die Vermittlung für das Einrichten per Scan (E-11) und die Push-Weiterleitung (E-17), beide im Dienst `relay/`. Der Dienst hält keine Konten und keine Inhalte und sieht Meldungen nur verschlüsselt |
+| `CLAUDE.md` Regel 11, «Cloud» | Nicht-Ziel | zwei benannte Ausnahmen: die Vermittlung für das Einrichten per Scan (E-11) und die Push-Weiterleitung (E-17), zwei getrennt betriebene Dienste aus dem Modul `relay/` (E-21). Sie halten keine Konten und keine Inhalte und sehen Pakete und Meldungen nur verschlüsselt |
 | `CLAUDE.md` Regel 7 | jede Operation trägt `x-visibility` | dazu: jede `account`- und `scoped`-Operation nennt in `x-clients`, welche Bearer-Arten sie aufrufen dürfen |
 | `CLAUDE.md` Regel 8 | Playwright-Tastaturtest je neuer Seite | dazu: je Seite der Handy-App ein Oberflächentest (Abschnitt 12) |
 | `CLAUDE.md` Regel 9 | Farben aus Tokens, Texte aus `web/src/locales`, gemeinsame Bauteile aus `web/src/ui` | gilt für `android/` mit erzeugten Farben und Texten; der Satz zu `web/src/ui` gilt nur für die Web-App |
@@ -1357,7 +1461,7 @@ gilt die Fassung hier, weil dieses Konzept zuerst gebaut wird.
 | Abmelden räumt auf: Push-Abos, Downloads und Regeln für Auto-Downloads des Kontos auf dem Gerät; dasselbe für Push-Abos bei `logout` einer App-Sitzung, bei `deleteDevice` (vor der Gerätezeile) und bei einer Passwortänderung (nur Handys und Fernseher) | `auth`, `admin`, `notify`, `offline` | Verhalten ändert sich |
 | Kopplung: Gutschein ausstellen (nur App-Sitzung, trägt die Art `tv`) und einlösen (mit Gerätename und Systemfassung; Token verschlüsselt für den Schlüssel des Geräts) | Vertrag, `auth`, Migration | neu |
 | Meldung «Neues Gerät verbunden» über die Kanäle des Kontos: neue Art von Ereignis, Texte des Servers in allen Sprachen, wo nötig eine Migration der Arten | `server/internal/notify`, `notify/locales`, Migration | neu |
-| Push: Adresse des Dienstes im Server eingebaut und einstellbar; kleinere Satzgrösse und gekürzter Text für Adressen mit diesem Ursprung; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt bei App-Sitzungen das alte | `notify`, `notify/push`, `config` | Verhalten ändert sich |
+| Push: Adresse der Push-Weiterleitung im Server eingebaut und einstellbar; kleinere Satzgrösse und gekürzter Text für Adressen mit diesem Ursprung; eine App-Sitzung verwaltet ihr eigenes Abo; ein neues Abo des Geräts ersetzt bei App-Sitzungen das alte | `notify`, `notify/push`, `config` | Verhalten ändert sich |
 | «Server weist sich aus» für Verbindungen über HTTP (Abschnitt 6, F-38): Schlüsselpaar des Servers, öffentlicher Schlüssel in `getHealth`, öffentliche Operation mit Ratenbegrenzung und Eintrag im Register des Vertragstests | Vertrag, `auth` | neu, falls F-38 ja |
 | `getHealth`: Feld mit der Vertragsfassung; Fehler «App zu alt» | Vertrag | zusätzlich |
 | Geräteliste der Verwaltung zeigt die Sitzungsart | Vertrag, `web/src/features/admin` | zusätzlich |
@@ -1371,7 +1475,7 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 
 | Was | Wo | Stufe |
 |---|---|---|
-| Dienst mit Vermittlung und Push-Weiterleitung | `relay/` | 2 |
+| Zwei Dienste, Vermittlung und Push-Weiterleitung: ein Go-Modul, zwei Programme, zwei Images, je Dienst eine Compose-Datei mit Umgebungsdatei und TLS-Profil, Betriebsanleitung samt Umzug | `relay/` | 2 |
 | Android-Projekt mit gemeinsamen Bausteinen und der Handy-App | `android/` | 3 bis 9 |
 | drittes Ausgabeformat der Design-Tokens | `packages/design-tokens` | 3 |
 | Namensraum für App-Texte in allen Sprachen | `web/src/locales` | 3 bis 9 |
@@ -1384,8 +1488,8 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 |---|---|---|---|
 | R-1 | Dritte Oberfläche neben Web und TV | jede Zuschauer-Funktion dreifach, dauerhaft | App-Teil als fester Abschnitt in jedem künftigen Konzept; gemeinsame Bausteine in `android/core` |
 | R-2 | Token ohne Ablauf über offenes HTTP (E-15, E-18) | mitgelesenes Token gilt, bis das Gerät abgemeldet wird; in einem fremden Netz mit denselben Adressen geht es ohne Zutun an ein fremdes Gerät (4.6) | Warnung, dauerhafte Anzeige «unverschlüsselt», «Meine Geräte», Passwort ändern (F-24); der Server weist sich aus (F-38) |
-| R-3 | Dienst als dauernde Betriebspflicht, vorläufig auf eigener Hardware (E-17, E-19) | Ausfall trifft alle Nutzer; die Maschine ist vom Internet erreichbar | fester Name, Trennung vom übrigen Netz, Überwachung von aussen, Umzug auf den Mietserver ohne Änderung an den Apps |
-| R-4 | Firebase-Schlüssel beim Dienst | wer ihn erbeutet, schickt Nachrichten an alle Handys mit der App | Schlüssel nur als Datei beim Dienst; die App folgt nur selbst entschlüsselten Meldungen (7.4) |
+| R-3 | Zwei Dienste als dauernde Betriebspflicht, vorläufig auf eigener Hardware hinter dem vorhandenen Reverse-Proxy (E-17, E-19, E-21, E-22) | Ausfall trifft alle Nutzer; am eigenen Anschluss ist ein Port offen, und die Namen der Dienste zeigen auf ihn (bekannte Folge von E-22) | Trennung der zwei Container vom übrigen Netz, feste Namen, Überwachung von aussen, Umzug auf Mietserver ohne Änderung an Apps und Server (7.5) |
+| R-4 | Firebase-Schlüssel bei der Push-Weiterleitung | wer ihn erbeutet, schickt Nachrichten an alle Handys mit der App | Schlüssel nur als Datei und nur auf der Maschine der Push-Weiterleitung, nicht bei der Vermittlung (E-21); die App folgt nur selbst entschlüsselten Meldungen (7.4) |
 | R-5 | Abhängigkeit von Googles Push-Dienst und Bibliotheken | kein Push ohne Google-Dienste; Lizenzfrage offen | Bauart `foss` (F-33); Liste in der App, E-Mail und Telegram bleiben |
 | R-6 | Vertrag bricht eine installierte App | App geht nach einem Update des Servers nicht mehr | Verträglichkeitsregel (11.5), Feld in `getHealth`, Test über `x-clients` |
 | R-7 | Bearer im Server ist ein neuer Anmeldeweg | ein Fehler dort trifft alle Operationen | Erlaubnisliste im Vertrag, Test über alle Operationen je Sitzungsart, Rollen `admin` und `owner` für Bearer gesperrt |
@@ -1400,6 +1504,7 @@ Spur-Ergänzungen aus K26 5.2 und 5.3 gehören nicht dazu; sie bleiben bei der T
 | R-16 | Die TV-App wartet (E-12) | späterer Start der TV-App | TV-App kann nach Stufe 3 beginnen (Abschnitt 13) |
 | R-17 | Die Verträglichkeitsregel deckt den ganzen Nutzerbereich (11.5) | jede brechende Änderung an einer Zuschauer-Operation braucht eine Übergangszeit; der Server wird langsamer änderbar | Regel erst mit der öffentlichen Stufe verbindlich; bis dahin üben |
 | R-18 | Auto-Downloads ohne offene App (9.3) | neue Folgen kommen erst beim Öffnen der App | Stufe 0 misst den Abruf in kurzen Läufen; sonst Abruf beim Öffnen wie in der PWA |
+| R-20 | Umschalten beim Umzug (7.5) | eine Kopplung scheitert einmal; ohne den Schlüssel zum Versiegeln verlieren alle Handys ihr Push-Abo, bis die App neu startet | kurze Lebensdauer im DNS von Anfang an; der Schlüssel zieht mit um; Umzugsprobe in Stufe 2 |
 | R-19 | Untergeschobenes Paket beim Einrichten per Scan (7.2) | ein Fernseher wird mit einem fremden Server verbunden | Abholgeheimnis, Anzeige von Server und Konto nach dem Einlösen, Warnung der Handy-App, wenn am Treffpunkt schon ein Paket liegt (Abschnitt 10) |
 
 ## 17. Fragen
@@ -1421,8 +1526,8 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-13 | Kleinste Android-Version der Handy-App | Android 9 (API 28). Android 14 und neuer bekommen den Abruf ohne Zeitgrenze, ältere den Vordergrunddienst. Wie viele Geräte das ausschliesst, ist unbelegt | Stufe 3 |
 | F-18 | Meldekanäle, Sehbericht und Kontodaten auch am Fernseher? | nein (K26); die Antwort bestimmt, an welchen Operationen `tv` steht (4.4) | Stufe 1 |
 | F-19 | PIN-Empfehlung aus E-9 auch in der Web-App und der Handy-App zeigen? | ja, gleicher Hinweis an gleicher Stelle; betrifft «Profile verwalten» | Stufe 4 |
-| F-20 | Wo läuft der Dienst, und wer merkt einen Ausfall? | **Ort beantwortet (E-19).** Überwachung: Prüfung von aussen mit Meldung an Marco (7.5) | Stufe 2 |
-| F-21 | Adresse des Dienstes in den Apps änderbar? | für die Vermittlung ja, in den erweiterten Einstellungen; für Push nein (7.5) | Stufe 9 |
+| F-20 | Wo läuft der Dienst, und wer merkt einen Ausfall? | **Ort und Zugang beantwortet (E-19, E-21, E-22).** Überwachung: je Dienst eine Prüfung von aussen mit Meldung an Marco (7.5) | Stufe 2 |
+| F-21 | Adresse der Vermittlung in den Apps änderbar? | für die Vermittlung ja, in den erweiterten Einstellungen; für Push nein (7.5) | Stufe 9 |
 
 **Neu in diesem Konzept:**
 
@@ -1443,9 +1548,9 @@ Bis zur Antwort gilt die Empfehlung. Die Bau-Session legt offene Fragen vor ihre
 | F-34 | Wie oft gleicht die App im Hintergrund ab, damit Auto-Downloads auch bei geschlossener App kommen? | etwa alle 6 Stunden, nur mit Netz | Stufe 6 |
 | F-35 | Wer sind die 12 Tester für den geschlossenen Test? | Familie und Freunde aus der internen Testspur; früh anfragen | Stufe 10 |
 | F-36 | Datenschutzerklärung: wer schreibt sie, wo steht sie? | Entwurf durch die Bau-Session, Prüfung durch Marco, Seite auf der Website des Projekts. Das Papier ersetzt keine Rechtsberatung | Stufe 10 |
-| F-37 | Name des Dienstes | eine eigene Subdomain von `slouchcat.com`, fest in den Apps | Stufe 2 |
+| F-37 | Namen der zwei Dienste | je eine eigene Subdomain von `slouchcat.com`, fest in Apps und Server, von Anfang an mit kurzer Lebensdauer im DNS (7.5) | Stufe 2 |
 | F-38 | Soll die App bei einem Server über HTTP in jedem neuen Netz zuerst prüfen, dass es der richtige ist, bevor sie Token, Medien-Adressen, Gerätekennung oder Passwort sendet (Abschnitt 6)? Sonst gehen sie in einem fremden Netz mit denselben Adressen ohne Zutun an ein fremdes Gerät (4.6). Die Frage zu E-18 nannte diese Folge nicht. **Die Prüfung schützt nicht** vor Mitlesen im richtigen Netz und nicht, wenn der echte Server auch aus dem Internet erreichbar ist; dagegen hilft nur HTTPS. | ja | Stufe 1 |
-| F-39 | Der Dienst: ein Programm mit zwei Teilen oder zwei getrennte Programme (Vermittlung, Push)? | ein Programm, Teile einzeln schaltbar | Stufe 2 |
+| F-39 | Der getrennte Betrieb auf zwei Maschinen ist entschieden (E-21). Offen: zwei Programme, oder ein Programm, das je Maschine nur einen Teil einschaltet? | zwei Programme aus einem Go-Modul, zwei Images (Abschnitt 7); bis Fassung 4 war ein Programm empfohlen | Stufe 2 |
 | F-40 | Sollen beim Abmelden und bei einer Passwortänderung auch die Push-Abos von **Browsern** fallen? Heute überleben sie; ein Browser trägt sich nicht von selbst neu ein. | ja, zusammen mit einem Neu-Eintragen der Web-App nach der Anmeldung; nicht in Stufe 1 | nach Stufe 1 |
 
 ## 18. Was sich in Konzept 26 ändern muss
@@ -1539,6 +1644,18 @@ nachzutragen.
 | 7 | Minor | 4.6, K-7: Die Meldung nennt einen Gerätenamen, den der Angreifer wählt | hier Abschnitt 10 |
 | 8 | Minor | 4.7: «in beiden Apps änderbar» verträgt sich nicht damit, dass die Handy-App einen fremden Dienst im QR-Code ablehnt, und nicht mit Push | hier 7.5 |
 | 9 | Minor | 4.3: Das Format des QR-Codes ist nicht beschrieben | hier 7.2 |
+
+### 18.3 Nachtrag vom 20. November 2026: was Konzept 26 zu den zwei Diensten nachzieht
+
+Aus E-21 und E-22 (1.3) folgt für K26 4.7:
+
+1. Es sind zwei getrennt betriebene Dienste. Der Fernseher spricht nur mit der Vermittlung; die
+   Push-Weiterleitung betrifft ihn nicht.
+2. Der QR-Code nennt die Adresse der Vermittlung. «Adresse änderbar» (K26 F-21, hier 7.5) meint
+   nur sie.
+3. Betrieb, Umzug und die bekannten Folgen von E-22 stehen hier in 7.5; K26 verweist darauf.
+4. Beim Umschalten eines Umzugs kann eine Kopplung einmal scheitern (hier 7.5). K26 4.3 deckt
+   das schon: Der Fernseher zeigt dann einen neuen Code.
 
 ## 19. Kritiker-Review (Fassung 1)
 
@@ -1652,6 +1769,26 @@ Dazu zwei Kleinigkeiten: Kopf und Abschnitt 18 nennen jetzt den Stand von Konzep
 (Fassung 5), und F-3 steht hier wie dort als «abgeleitet, nicht entschieden» (1.2, Abschnitt 17).
 
 Diesen Nachtrag hat kein Kritiker gelesen.
+
+### 19.3 Nachtrag vom 20. November 2026: zwei Dienste (Fassung 5)
+
+Marco hat am 20. November 2026 E-21 und E-22 entschieden (1.3). Eingearbeitet:
+
+| Was | Wo |
+|---|---|
+| Zwei getrennt betriebene Dienste statt eines Programms mit zwei Teilen; die Empfehlung zu F-39 hat sich umgekehrt | Abschnitt 7, 5.1, 5.7, 15.2, F-39 |
+| Umzug als Anforderung an den Aufbau: dasselbe Image und dieselbe Compose-Datei an beiden Orten, kein Zustand auf der Platte, ein fester Name je Dienst, Liste der Schritte, Folgen beim Umschalten | 7.5, D-1, R-20 |
+| Betrieb hinter dem vorhandenen Reverse-Proxy: Adresse des Aufrufers nur aus dem Kopf eines eingetragenen Proxys; der Name zeigt auf den eigenen Anschluss (bekannte Folge von E-22) | 7.4 (D-5, D-7, D-9), 7.5, 7.6, R-3 |
+| Einbruch je Dienst getrennt betrachtet; der Firebase-Schlüssel liegt nur bei der Push-Weiterleitung | 7.4, D-6, R-4 |
+| Stufe 2 baut beide Dienste und die zwei Container; Umzugsprobe als Beleg | 13 |
+| Was Konzept 26 nachzieht | 18.3 |
+
+Abweichung von der Vorlage der Hauptsession, von der Redaktion so gefasst: Auf dem Mietserver ist
+die Liste der vertrauten Proxys nicht leer. Dort steht der TLS-Abschluss im selben Stack vor dem
+Dienst; er ist der eine eingetragene Proxy.
+
+Der Satz aus Fassung 4, der DNS-Eintrag solle nicht auf einen privaten Anschluss zeigen, ist
+gestrichen: Mit E-22 zeigt er vorläufig dorthin. Diesen Nachtrag hat kein Kritiker gelesen.
 
 ## Anhang A. Quellen der Recherche (19. November 2026)
 
