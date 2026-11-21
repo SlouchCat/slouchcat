@@ -188,8 +188,11 @@ class PlaybackSettingsBackTest {
         accountStore = FakeAccounts(EMAIL, PRIMARY),
     )
 
-    private fun waitFor(matcher: androidx.compose.ui.test.SemanticsMatcher) =
-        compose.waitUntil(5_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+    /** The state after the main looper is idle (fakes answer on the main thread): no clock. */
+    private fun waitFor(matcher: androidx.compose.ui.test.SemanticsMatcher) {
+        compose.waitForIdle()
+        assertTrue("not shown: $matcher", compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty())
+    }
 
     private fun back() = compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 
