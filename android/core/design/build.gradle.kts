@@ -17,6 +17,7 @@ val generateTokens = tasks.register<GenerateTokens>("generateTokens") {
     script.set(tokensPackage.file("build-kotlin.mjs"))
     tokens.from(tokensPackage.dir("tokens").asFileTree.matching { include("**/*.json") })
     packageDir.set(tokensPackage)
+    lockfile.set(rootProject.layout.projectDirectory.file("../pnpm-lock.yaml"))
     node.set(providers.environmentVariable("SLOUCHCAT_NODE").orElse("node"))
     outputDir.set(layout.buildDirectory.dir("generated/slouchcat/tokens"))
 }

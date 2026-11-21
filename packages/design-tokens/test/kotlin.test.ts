@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { tokensCss } from './css.js';
 
@@ -12,7 +13,10 @@ let dir = '';
 
 beforeAll(() => {
   dir = mkdtempSync(path.join(tmpdir(), 'tokens-kotlin-'));
-  execFileSync(process.execPath, [new URL('../build-kotlin.mjs', import.meta.url).pathname, dir]);
+  execFileSync(process.execPath, [
+    fileURLToPath(new URL('../build-kotlin.mjs', import.meta.url)),
+    dir,
+  ]);
   kotlin = readFileSync(path.join(dir, 'com/slouchcat/core/design/SlouchcatTokens.kt'), 'utf8');
 });
 
@@ -80,6 +84,8 @@ describe('Kotlin tokens', () => {
     expect(kt(['Size', 'Poster', 'Sm'])).toBe('136.dp');
     expect(css('font-size-md')).toBe('1rem');
     expect(kt(['Font', 'Size', 'Md'])).toBe('16.sp');
+    // A component token that refers to a font size follows the user's font size as well.
+    expect(kt(['Control', 'FontSize'])).toBe('16.sp');
   });
 
   it('writes durations, curves, weights and numbers', () => {
