@@ -36,6 +36,7 @@ func checks() []check {
 		{"Abspielstart mit Fähigkeitsprofil", checkPlaybackStart},
 		{"Abruf Direct Play/HLS mit Stream-Token", checkStreams},
 		{"Spur- und Untertitelwahl", checkTracks},
+		{"Fernseher mit Mehrkanalton (K26)", checkTVPlayback},
 		{"Fortschritt melden", checkProgress},
 		{"Download vorbereiten und abrufen", checkDownload},
 		{"Offline-Ereignisse hochladen", checkOfflineEvents},

@@ -93,6 +93,10 @@ type run struct {
 	killed  bool
 	exited  chan struct{}
 	stderr  *tailWriter
+	// split is the reading position of a run in the split layout (delayedInit), nil otherwise;
+	// exitOK is set before the last collect when ffmpeg exited without an error.
+	split  *splitState
+	exitOK bool
 }
 
 // Plan returns the segment plan of the session.
@@ -314,6 +318,9 @@ func (s *Session) startLocked(i int) error {
 		return err
 	}
 	r := &run{start: i, next: i, dir: dir, cmd: cmd, cancel: cancel, exited: make(chan struct{}), stderr: tail}
+	if delayedInit(s.src.Probe, s.plan.Target) {
+		r.split = newSplitState(i)
+	}
 	s.log.Debug("ffmpeg started", "session", s.id, "segment", i, "pid", cmd.Process.Pid)
 	s.err = nil
 	s.run = r
@@ -357,6 +364,7 @@ func (s *Session) releaseLocked() {
 // watch polls the segment list of a run until the process exits.
 func (s *Session) watch(r *run, logf *os.File) {
 	err := pollUntilExit(r.cmd, func() { s.collect(r, false) })
+	r.exitOK = err == nil
 	s.collect(r, true)
 	s.finish(r, err)
 	if logf != nil {
@@ -370,6 +378,10 @@ func (s *Session) watch(r *run, logf *os.File) {
 // incompleteWait (or at once when the process has exited: final). The disk I/O runs outside mu;
 // pub keeps publishers of different runs apart.
 func (s *Session) collect(r *run, final bool) {
+	if r.split != nil {
+		s.collectSplit(r, final)
+		return
+	}
 	data, err := os.ReadFile(filepath.Join(r.dir, segmentList))
 	if err != nil {
 		return
@@ -428,6 +440,68 @@ func (s *Session) collect(r *run, final bool) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.pauseLocked(r)
+}
+
+// collectSplit publishes the init and the segments of a run in the split layout (delayedInit,
+// split.go) that are complete since the last call.
+func (s *Session) collectSplit(r *run, final bool) {
+	cut := transcodeCutDelta
+	if s.plan.Target.VideoCopy {
+		cut = remuxCutDelta
+	}
+	s.pub.Lock()
+	defer s.pub.Unlock()
+	for {
+		s.mu.Lock()
+		stop := r.killed || s.closed
+		s.mu.Unlock()
+		if stop {
+			return
+		}
+		ev, err := r.split.next(r.dir, s.plan, cut, final, r.exitOK)
+		if errors.Is(err, errSplitWait) {
+			break
+		}
+		k := ev.segment
+		s.mu.Lock()
+		needInit := ev.init != nil && !s.initReady
+		write := k >= 0 && k < len(s.done) && !s.done[k]
+		s.mu.Unlock()
+		if err == nil && needInit {
+			err = writeFileAtomic(filepath.Join(s.dir, initName), ev.init)
+		}
+		if err == nil && write {
+			err = writeParts(r.dir, s.segmentPath(k), ev.parts)
+		}
+		r.split.cleanup(r.dir)
+		s.mu.Lock()
+		if err != nil {
+			if !r.killed && !s.closed {
+				s.log.Error("publish segment", "session", s.id, "segment", k, "err", err)
+				s.err = err
+				s.killLocked(r, false)
+			}
+			s.mu.Unlock()
+			return
+		}
+		s.initReady = s.initReady || needInit
+		if k >= 0 && k < len(s.done) {
+			s.done[k] = true
+			r.next = k + 1
+			delete(s.failures, r.start)
+		}
+		s.broadcastLocked()
+		s.mu.Unlock()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pauseLocked(r)
+}
+
+// pauseLocked stops the run r after a collect when it reached segments an earlier run wrote or
+// ran far enough ahead of the player.
+func (s *Session) pauseLocked(r *run) {
 	if r.killed || s.closed || s.run != r {
 		return
 	}

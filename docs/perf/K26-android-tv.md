@@ -412,3 +412,41 @@ liegt im Notizordner `k26-stufe0/` (`LIESMICH.md`).
    bevor Stufe 2b weitergeht.
 10. **Ergebnis:** je Gerät eine Zeile in diesem Bericht ergänzen (Gerät, Android, Ton direkt und an
     der Anlage, AC-3 oder AAC 5.1, HDR, Bildrate).
+
+## Stufe 1: Ton in der Pipeline (21. November 2026)
+
+Gebaut auf `claude/k26-stufe1-a` (ADR 0041). Rechner wie oben (28 Kerne), ffmpeg 6.1.1 des
+Rechners, Software-Backend. Quelle: Testdatei «Slouchcat Test Multi Audio» aus
+`testdata/generate-media.sh` (H.264 1080p, 20 s, AAC 2.0 als Standard, AC-3 5.1 384 kbit/s).
+Gemessen ist die Zeit vom Start der Sitzung (`Manager.Start`) bis init und Segment 0 gelesen sind,
+und bis Segment 1, je 7 Läufe, Median (Wegwerf-Test, nicht eingecheckt).
+
+| Ausgabe | Segment 0 Median (min–max) | Segment 1 Median |
+|---|---|---|
+| Remux, AAC kopiert (bisheriger Weg) | 42 ms (41–52) | 43 ms |
+| Remux, AC-3 kopiert (neu; vorher Abbruch mit 234) | 46 ms (43–52) | 47 ms |
+| Transcode 1080p, AAC Stereo neu (bisheriger Weg) | 504 ms (404–554) | 703 ms |
+| Transcode 1080p, AC-3 kopiert (neu) | 603 ms (552–704) | 604 ms |
+| Transcode 1080p, AC-3 5.1 neu kodiert (neu) | 604 ms (603–704) | 606 ms |
+
+Ein «vorher» gibt es für AC-3 nicht: Der Remux brach ab. Mit `+delay_moov+frag_keyframe` kommt
+Segment 0 eines Transcodes etwa 100 ms später als beim bisherigen Weg, weil sein Fragment erst mit
+dem ersten Bild von Segment 1 geschrieben wird (Abfrage alle 50 ms); Segment 1 ist dafür sofort
+danach da. Beim Remux ist der Unterschied unter der Messgenauigkeit.
+
+**Prüfung der Segmente** (`server/internal/transcode/hls_audio_test.go`, echter ffmpeg, Clip mit
+Keyframes bei 0, 2, 5, 7, 9, 13, 14, 18 s, also ein Segment mit zwei und eines mit einem Keyframe):
+Remux mit kopiertem AC-3 und E-AC-3 5.1 vom Anfang und nach Neustarts (Segment 4, zurück zu 3, 1,
+2); Transcode mit kopiertem E-AC-3, AC-3 5.1 aus AAC 5.1, AAC 5.1 aus AC-3, AAC 7.1 aus FLAC 7.1,
+je vom Anfang (ein Lauf) und mit vier Läufen. `ffprobe` an init + Segmenten: Codec und Kanalzahl
+wie geplant, jedes Segment beginnt mit einem Keyframe am geplanten Start (±2 ms), 480 Bilder
+dekodiert, Tonspur ohne Lücke über 1 ms innerhalb eines Laufs und über die Nähte des Remux. An den
+Nähten eines Transcode-Neustarts fehlen wie bisher bis drei Tonrahmen (AAC Stereo 53 ms wie vor
+dieser Stufe, E-AC-3 kopiert 96 ms); das ist nicht Teil dieser Stufe. Ohne den neuen Schalter
+scheitern dieselben Tests an «exit status 234» (Gegenprobe).
+
+**Prüfprogramm** (`task apicheck`, Zeile «Fernseher mit Mehrkanalton (K26)»): Profil `type: tv`,
+`hls: mse`, `audio` aac/ac3/eac3, `maxAudioChannels: 6`, `selectsTracks: true`,
+`subtitles: [pgs, ass]`. MKV mit der AC-3-Spur → `direct`; nur MP4 → `remux`, CODECS
+`avc1.640028,ac-3`, init 1242 Bytes, Segmente 0 und 1 mit 1 170 590 und 1 194 867 Bytes;
+Qualität 480p → `transcode`, CODECS `avc1.640029,ac-3`, Segmente 1 056 457 und 1 073 138 Bytes.

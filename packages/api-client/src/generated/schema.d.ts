@@ -7935,13 +7935,40 @@ export interface components {
             containers?: string[];
             /** @description Decodable video codecs, ffprobe names (`h264`, `hevc`, `av1`, `vp9`). */
             video: string[];
-            /** @description Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`, `dts`, `truehd`). */
+            /** @description Audio codecs the device decodes or passes through to the sound system, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`, `dts`, `truehd`). */
             audio: string[];
             /**
-             * @description `native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS.
+             * @description `native`: the media element plays HLS itself (Safari on the iPhone); `mse`: through hls.js, and
+             *     also the value of a native player with its own HLS player (the Android apps, ExoPlayer): HEVC
+             *     plays directly, HEVC HDR in a remux; `none`: no HLS.
              * @enum {string}
              */
             hls: "native" | "mse" | "none";
+            /**
+             * @description Highest channel count of the audio output (since contract 1.43.0, concept 26 5.3): 2, 6 or 8. With
+             *     6 or 8 the server encodes audio that it cannot copy with up to that many channels (never more than
+             *     the source): AC-3 5.1 at 640 kbit/s when `audio` lists `ac3`, else AAC 5.1 at 384 kbit/s; with 8
+             *     and a source above 6 channels AAC 7.1 at 512 kbit/s. A transcode then also copies reported AC-3 and
+             *     E-AC-3 next to the encoded video. Absent: stereo AAC and only AAC copied next to encoded video, as
+             *     before.
+             * @enum {integer}
+             */
+            maxAudioChannels?: 2 | 6 | 8;
+            /**
+             * @description The player chooses the audio and subtitle track in the original file itself (since contract
+             *     1.43.0). Only for direct play: another than the default audio track no longer forces a remux. HLS
+             *     outputs carry exactly one audio track and are decided as before. Absent or false: as before.
+             */
+            selectsTracks?: boolean;
+            /**
+             * @description Subtitle formats the player draws itself from the file, ffprobe names (`subrip`, `ass`, `webvtt`,
+             *     `hdmv_pgs_subtitle`, `dvd_subtitle`; `srt`, `pgs` and `vobsub` are read as these), since contract
+             *     1.43.0. Only for direct play and embedded tracks: such a track is not burned in and gets no WebVTT
+             *     file; `selection` names it with `subtitleTrack` and without `subtitleDelivery`, and the player shows
+             *     it from the file. An explicit `subtitleDelivery` (`text`, `burn`) and every HLS output are decided
+             *     as before. Absent: as before.
+             */
+            subtitles?: string[];
             /** @description Screen width in device pixels (CSS width × devicePixelRatio). */
             maxWidth?: number;
             /** @description Screen height in device pixels; a device under 1080 gets at most the 720p rung (phone profile, plan 3.5). */
