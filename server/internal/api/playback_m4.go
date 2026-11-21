@@ -84,6 +84,10 @@ func (s *server) ListDevices(ctx context.Context, _ gen.ListDevicesRequestObject
 			typ := gen.AdminDeviceType(d.Type)
 			dev.Type = &typ
 		}
+		if d.SessionKind != "" {
+			kind := gen.SessionKind(d.SessionKind)
+			dev.SessionKind = &kind
+		}
 		if c := d.Capabilities; c != nil {
 			caps := toCapabilities(*c)
 			dev.Capabilities = &caps

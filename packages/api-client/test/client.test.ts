@@ -11,7 +11,13 @@ describe('createApiClient', () => {
   });
 
   it('calls getHealth on /healthz below the base URL and returns typed data', async () => {
-    const health: Health = { status: 'ok', version: '0.1.0+abc1234', uptimeSeconds: 42 };
+    const health: Health = {
+      status: 'ok',
+      version: '0.1.0+abc1234',
+      contractVersion: '1.42.0',
+      serverKey: 'c2VydmVyLWtleQ',
+      uptimeSeconds: 42,
+    };
     const fetchMock = vi.fn(async (_request: Request) => jsonResponse(health, 200));
     vi.stubGlobal('fetch', fetchMock);
 

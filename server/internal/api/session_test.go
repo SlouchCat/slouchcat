@@ -26,6 +26,9 @@ func (fakeAuth) SetupRequired(context.Context) (bool, error) { return false, nil
 func (fakeAuth) Login(context.Context, string, string, string) (model.Session, string, error) {
 	return model.Session{}, "", model.ErrInvalidCredentials
 }
+func (fakeAuth) AppLogin(context.Context, string, string, string, string, string, string) (model.Session, string, error) {
+	return model.Session{}, "", model.ErrInvalidCredentials
+}
 func (fakeAuth) Logout(context.Context, int64) error { return nil }
 func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	switch token {

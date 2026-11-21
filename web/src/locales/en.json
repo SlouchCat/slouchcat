@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Films, series, audiobooks and podcasts for your household."
+    "tagline": "Films, series, audiobooks and podcasts for your household.",
+    "setup": {
+      "tagline": "Your films, series, audiobooks and podcasts from your own server.",
+      "title": "Connect to your server",
+      "addressLabel": "Server address",
+      "addressExample": "https://media.example.org",
+      "addressHint": "The same address you open Slouchcat with in the browser.",
+      "connect": "Connect",
+      "connecting": "Connecting …",
+      "found": "Found",
+      "address": "Address",
+      "version": "Version",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Connection encrypted",
+      "notEncrypted": "Connection not encrypted",
+      "next": "Continue",
+      "otherAddress": "Other address",
+      "error": {
+        "empty": "Enter the address of your server.",
+        "invalid": "That does not look like an address. Example: {{example}}",
+        "unreachable": "The server does not answer. Check the address and whether your device is on the right network.",
+        "notSlouchcat": "No Slouchcat server answers at this address.",
+        "tooOld": "This server (Slouchcat {{server}}) is too old. The app needs Slouchcat {{required}} or newer. Please update the server."
+      },
+      "insecure": {
+        "title": "Unencrypted connection",
+        "body": "This connection is not encrypted. On other networks someone can read your password and take over your access.",
+        "cancel": "Cancel",
+        "confirm": "Connect anyway"
+      }
+    },
+    "connected": {
+      "title": "Connected to {{host}}",
+      "change": "Change address"
+    },
+    "state": {
+      "loading": "Loading …",
+      "offline": "The server does not answer. Check the connection.",
+      "notFound": "This is not here, or not any more.",
+      "notAllowed": "This is not possible with this sign-in.",
+      "failed": "Something went wrong.",
+      "retry": "Try again"
+    },
+    "update": {
+      "title": "Please update the app",
+      "body": "Your server needs a newer version of the app.",
+      "close": "Close"
+    },
+    "connectedState": {
+      "empty": "No server set up yet.",
+      "setUp": "Set up server"
+    },
+    "tls": {
+      "userCertificate": "Encrypted with a certificate you installed",
+      "httpsRequired": "The server requires an encrypted connection. The address is now {{address}}, connect again."
+    }
   },
   "common": {
     "back": "Back",
@@ -13,6 +68,7 @@
     "saving": "Saving …"
   },
   "nav": {
+    "devices": "My devices",
     "main": "Main navigation",
     "home": "Home",
     "logout": "Sign out",
@@ -2535,6 +2591,7 @@
       "empty": "No devices yet.",
       "columns": {
         "name": "Device",
+        "session": "Sign-in",
         "owner": "Owner",
         "lastSeen": "Last contact",
         "containers": "Containers",
@@ -2544,6 +2601,12 @@
         "hdr": "HDR",
         "streams": "Streams",
         "actions": "Actions"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "TV app",
+        "none": "Signed out"
       },
       "unnamed": "Unknown device",
       "owner": "{{email}} · {{profile}}",
@@ -6188,6 +6251,11 @@
     "loadFailed": "The libraries could not be loaded."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "A PIN for the primary profile is recommended",
+      "body": "This account has profiles with an age rating. Without a PIN on the primary profile, anyone can switch to it and change the ratings.",
+      "action": "Set PIN"
+    },
     "picker": {
       "title": "Who's watching?",
       "intro": "Choose your profile.",
@@ -6692,6 +6760,47 @@
     "wish_failed": "Your wish failed"
   },
   "settings": {
+    "devices": {
+      "title": "My devices",
+      "intro": "Every device this account is signed in on or has downloads on. Signing a device out removes everything this account has there.",
+      "list": "Devices of this account",
+      "none": "No device holds a sign-in or downloads of this account.",
+      "thisDevice": "This device",
+      "unnamed": "Unknown device",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Phone",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Other device"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Phone app",
+        "device": "TV app"
+      },
+      "signedIn": "{{kind}}, signed in on {{date}}",
+      "downloadsOnly": "Signed out, still holds downloads of this account",
+      "lastSeen": "Last contact: {{date}}",
+      "lastSeenWithDownloads_one": "Last contact: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_other": "Last contact: {{date}} · {{count}} downloads",
+      "downloads_one": "{{count}} download",
+      "downloads_other": "{{count}} downloads",
+      "signOut": {
+        "action": "Sign out",
+        "label": "Sign out {{name}}",
+        "title": "Sign out \"{{name}}\"?",
+        "body": "The device loses this account's sign-in, and playback there stops. This account's downloads, notifications and automatic downloads on the device are deleted. Other accounts on the device stay.",
+        "current": "This is the device you are using: you are signed out here right away.",
+        "bodyCurrent": "The device loses this account's sign-in, and playback there stops. This account's downloads, notifications and automatic downloads on the device are deleted. Other accounts on the device stay. This is the device you are using: you are signed out here right away.",
+        "confirm": "Sign out device"
+      },
+      "signedOut": "\"{{name}}\" signed out.",
+      "onlyPrimary": {
+        "title": "Signing out in the primary profile only",
+        "body": "You sign devices out in this account's primary profile. Here you see the list."
+      }
+    },
     "playback": {
       "title": "Settings",
       "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",

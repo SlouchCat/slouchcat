@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt."
+    "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt.",
+    "setup": {
+      "tagline": "Deine Filme, Serien, Hörbücher und Podcasts vom eigenen Server.",
+      "title": "Mit deinem Server verbinden",
+      "addressLabel": "Adresse des Servers",
+      "addressExample": "https://medien.example.org",
+      "addressHint": "Dieselbe Adresse, unter der du Slouchcat im Browser öffnest.",
+      "connect": "Verbinden",
+      "connecting": "Verbinde …",
+      "found": "Gefunden",
+      "address": "Adresse",
+      "version": "Version",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Verbindung verschlüsselt",
+      "notEncrypted": "Verbindung nicht verschlüsselt",
+      "next": "Weiter",
+      "otherAddress": "Andere Adresse",
+      "error": {
+        "empty": "Gib die Adresse deines Servers ein.",
+        "invalid": "Das sieht nicht nach einer Adresse aus. Beispiel: {{example}}",
+        "unreachable": "Der Server antwortet nicht. Prüfe die Adresse und ob dein Gerät im richtigen Netz ist.",
+        "notSlouchcat": "Unter dieser Adresse antwortet kein Slouchcat-Server.",
+        "tooOld": "Dieser Server (Slouchcat {{server}}) ist zu alt. Die App braucht Slouchcat {{required}} oder neuer. Bitte aktualisiere den Server."
+      },
+      "insecure": {
+        "title": "Unverschlüsselte Verbindung",
+        "body": "Diese Verbindung ist nicht verschlüsselt. In fremden Netzen kann jemand dein Passwort mitlesen und deinen Zugang übernehmen.",
+        "cancel": "Abbrechen",
+        "confirm": "Trotzdem verbinden"
+      }
+    },
+    "connected": {
+      "title": "Verbunden mit {{host}}",
+      "change": "Adresse ändern"
+    },
+    "state": {
+      "loading": "Lädt …",
+      "offline": "Der Server antwortet nicht. Prüfe die Verbindung.",
+      "notFound": "Das gibt es hier nicht oder nicht mehr.",
+      "notAllowed": "Das geht mit dieser Anmeldung nicht.",
+      "failed": "Etwas ist schiefgegangen.",
+      "retry": "Erneut versuchen"
+    },
+    "update": {
+      "title": "Bitte die App aktualisieren",
+      "body": "Dein Server braucht eine neuere Version der App.",
+      "close": "Schliessen"
+    },
+    "connectedState": {
+      "empty": "Noch kein Server eingerichtet.",
+      "setUp": "Server einrichten"
+    },
+    "tls": {
+      "userCertificate": "Verschlüsselt mit einem selbst installierten Zertifikat",
+      "httpsRequired": "Der Server verlangt eine verschlüsselte Verbindung. Die Adresse lautet jetzt {{address}}, verbinde dich erneut."
+    }
   },
   "common": {
     "back": "Zurück",
@@ -13,6 +68,7 @@
     "saving": "Wird gespeichert …"
   },
   "nav": {
+    "devices": "Meine Geräte",
     "main": "Hauptnavigation",
     "home": "Start",
     "logout": "Abmelden",
@@ -2535,6 +2591,7 @@
       "empty": "Noch keine Geräte.",
       "columns": {
         "name": "Gerät",
+        "session": "Anmeldung",
         "owner": "Eigentümer",
         "lastSeen": "Letzter Kontakt",
         "containers": "Container",
@@ -2544,6 +2601,12 @@
         "hdr": "HDR",
         "streams": "Streams",
         "actions": "Aktionen"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "TV-App",
+        "none": "Abgemeldet"
       },
       "unnamed": "Unbekanntes Gerät",
       "owner": "{{email}} · {{profile}}",
@@ -6188,6 +6251,11 @@
     "loadFailed": "Die Bibliotheken konnten nicht geladen werden."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "PIN für das Hauptprofil empfohlen",
+      "body": "In diesem Konto gibt es Profile mit Altersfreigabe. Ohne PIN im Hauptprofil kann jeder ins Hauptprofil wechseln und die Freigaben ändern.",
+      "action": "PIN setzen"
+    },
     "picker": {
       "title": "Wer schaut?",
       "intro": "Wähle dein Profil.",
@@ -6692,6 +6760,47 @@
     "wish_failed": "Dein Wunsch ist fehlgeschlagen"
   },
   "settings": {
+    "devices": {
+      "title": "Meine Geräte",
+      "intro": "Alle Geräte, auf denen dieses Konto angemeldet ist oder Downloads hat. Meldest du ein Gerät ab, verliert es alles, was dieses Konto dort hat.",
+      "list": "Geräte dieses Kontos",
+      "none": "Kein Gerät hält eine Anmeldung oder Downloads dieses Kontos.",
+      "thisDevice": "Dieses Gerät",
+      "unnamed": "Unbekanntes Gerät",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "Fernseher",
+        "other": "Anderes Gerät"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Handy-App",
+        "device": "TV-App"
+      },
+      "signedIn": "{{kind}}, angemeldet am {{date}}",
+      "downloadsOnly": "Abgemeldet, hält noch Downloads dieses Kontos",
+      "lastSeen": "Letzter Kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Letzter Kontakt: {{date}} · {{count}} Download",
+      "lastSeenWithDownloads_other": "Letzter Kontakt: {{date}} · {{count}} Downloads",
+      "downloads_one": "{{count}} Download",
+      "downloads_other": "{{count}} Downloads",
+      "signOut": {
+        "action": "Abmelden",
+        "label": "{{name}} abmelden",
+        "title": "„{{name}}“ abmelden?",
+        "body": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben.",
+        "current": "Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
+        "bodyCurrent": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben. Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
+        "confirm": "Gerät abmelden"
+      },
+      "signedOut": "„{{name}}“ abgemeldet.",
+      "onlyPrimary": {
+        "title": "Abmelden nur im Hauptprofil",
+        "body": "Geräte abmelden kannst du im Hauptprofil dieses Kontos. Hier siehst du die Liste."
+      }
+    },
     "playback": {
       "title": "Einstellungen",
       "intro": "Ton und Untertitel für das Profil {{name}}, auf jedem Gerät. Was du im Player von Hand wählst, geht vor.",

@@ -34,6 +34,61 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     dem vorhandenen Reverse-Proxy, DNS-Einträge, Firebase-Projekt und echte Push-Probe, Meldung der
     Überwachung, Umzugsprobe auf einer zweiten Maschine. Die Stufe gilt erst mit diesen Belegen als
     abgeschlossen.
+- **Konzept 27, Stufe 1 «Server» (Release 1.42.0, Vertrag 1.42.0, Migrationen 00082 bis 00085, ADR 0040):**
+  der Serverteil für beide Apps. Alles zusätzlich, nichts Brechendes; die Web-App verhält sich wie bisher.
+  - **Drei Sitzungsarten** (`sessions.kind`): Browser (Cookie, 30 Tage gleitend), App (Bearer, Handy und
+    Tablet) und Gerät (Bearer, Fernseher). App- und Gerätesitzungen laufen nicht ab (E-15, F-4). Die Art
+    steht in der Sitzung, der Träger muss passen; `admin` und `owner` sind für Bearer immer gesperrt.
+  - **Erlaubnisliste `x-clients`** je Operation im Vertrag: `app` an allen Operationen des Nutzerbereichs,
+    `tv` an den 93 aus Konzept 26 Anhang B; sonst 403 `client_not_allowed`. Ein Test ruft jede Operation
+    mit einem App- und einem TV-Token des Besitzers auf.
+  - **«App anmelden»** (`appLogin`): Token, Gerätezeile mit Name und Art sofort, Gerätekennung vom Server.
+    Gerätekennung im Kopf `X-Slouchcat-Device` für Anfragen ohne Sitzung. Die Aufräumung nach 400 Tagen
+    verschont Geräte mit einer Sitzung ohne Ablauf.
+  - **«Meine Geräte»** für jedes Konto: Liste und Abmelden (`listMyDevices`, `signOutMyDevice`), neue Seite
+    «Meine Geräte» in den Einstellungen der Web-App. Abmelden räumt Sitzungen, Downloads, Push-Abos und
+    Regeln für Auto-Downloads dieses Kontos auf dem Gerät weg; Push-Abos fallen jetzt auch bei `logout`
+    einer App, bei «Gerät vergessen» und bei einer Passwortänderung.
+  - **Kopplung eines Fernsehers:** Gutschein ausstellen (nur App-Sitzung mit Hauptprofil, 2 Minuten, an den
+    Schlüssel des Fernsehers und an die ausstellende Sitzung gebunden) und einlösen (Gerätetoken
+    HPKE-versiegelt für den Fernseher, vom Server unterschrieben). Meldung **«Neues Gerät verbunden»**
+    als Sicherheitsmeldung über E-Mail, Telegram und Push, unabhängig von den Schaltern der Kanäle.
+  - **«Server weist sich aus»** (F-38): Ed25519-Schlüssel aus dem Geheimnis des Servers,
+    `getHealth.serverKey`, Operation `proveServer`. Schützt vor einem fremden Gerät unter derselben
+    Heimnetz-Adresse, nicht vor Mitlesen; dagegen hilft nur HTTPS.
+  - **Push an die Handy-App** über die Push-Weiterleitung (`SLOUCHCAT_PUSH_RELAY`): kleinere Satzgrösse,
+    nur 410 löscht ein Abo, Wiederholung je Abo, eine App-Sitzung verwaltet ihr eigenes Abo.
+  - **Verträglichkeit:** `getHealth.contractVersion`; die Apps nennen sich im Kopf `X-Slouchcat-Client`,
+    eine zu alte App bekommt 426 `app_too_old` (heute wird keine abgewiesen).
+  - PIN-Empfehlung auf «Profile verwalten» (E-9, F-19); Sitzungsart in der Geräteliste der Verwaltung;
+    `task devicecheck` spielt ein Handy und einen Fernseher gegen einen Server, wahlweise über eine
+    laufende Vermittlung.
+  - **Geprüft:** Go-Suite unter `-race`, Vertragstests, vier getrennte Reviews (Code und Sicherheit je für
+    Teil 1 und Teil 2/3) mit zwei Korrekturrunden, Verifier, e2e der neuen Seite in beiden Browsern.
+    **Nur gegen Prüfprogramme und Nachbauten geprüft:** Noch keine echte App und kein echter Fernseher
+    hat sich angemeldet oder gekoppelt, und Push lief nie über Googles Dienst.
+  - **Bekannte Grenzen** (ADR 0040): Ein Token ohne Ablauf über unverschlüsseltes HTTP gilt, bis das Gerät
+    abgemeldet oder das Passwort geändert wird; hinter einem Reverse-Proxy ohne eingetragene vertraute
+    Proxys teilen sich alle Clients die Grenzen je Adresse; Push-Abos ohne Gerätekennung räumt niemand auf.
+- **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
+  Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
+  - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.
+  - **Erzeugt beim Bau, nie eingecheckt:** der Kotlin-Client (Vorlauf `TrimOpenApi` schneidet den Vertrag
+    nach `x-clients` zu, dann openapi-generator), die Texte (`strings.xml` je Sprache aus
+    `web/src/locales` nach `android/strings-namespaces.txt`; App-Texte im Namensraum `app`), Farben und
+    Masse (drittes Ausgabeformat von `packages/design-tokens`).
+  - **Wächter:** drei eigene Lint-Regeln (fester Text, feste Farbe, direkter Log-Aufruf), in allen Modulen.
+  - Gemeinsamer Netz-Client (Köpfe, HTTP nach E-18, Bearer und Gerätekennung nur an den eigenen Server),
+    Logger mit Redaktion, Ergebnis-Muster `ApiResult` für alle Seiten.
+  - Thema und Bausteine nach dem Mockup; erste Seite **«Serveradresse»** mit Warnung bei unverschlüsselter
+    Verbindung ausserhalb des Heimnetzes, in zwei Breiten.
+  - `task android:check`, `android:test` (162 JVM-Tests mit Robolectric), `android:contract` (Client gegen
+    einen echten Server), `android:apk`; CI-Job `android` im Gate; `scripts/install-android-tools.sh`;
+    ADR 0039; `CLAUDE.md` Regeln 8, 9 und Werkzeuge.
+  - **Geprüft:** Tests, getrenntes Code-Review mit Korrekturrunde (5 Major, 34 Minor), Seite im Emulator
+    an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» folgen mit
+    Teil 2 (braucht den Serverteil aus Stufe 1). Die Texte des Namensraums `app` gibt es erst in Deutsch
+    und Englisch.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 

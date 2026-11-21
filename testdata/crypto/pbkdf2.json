@@ -1,0 +1,31 @@
+{
+  "format": "slouchcat-crypto-vectors-v1",
+  "kind": "pbkdf2-hmac-sha256",
+  "generator": "go go1.27.2",
+  "cases": [
+    {
+      "name": "offline PIN 6 digits",
+      "input": {
+        "iterations": 600000,
+        "length": 32,
+        "password": "MjQ2ODEw",
+        "salt": "-9Ry8MPNZfkkTHEbNs2gkA"
+      },
+      "expected": {
+        "hash": "_a7eAUXtQM6rQu6_4yQaGV1kKrYbQTUHp5rted5U8_4"
+      }
+    },
+    {
+      "name": "offline PIN 4 digits",
+      "input": {
+        "iterations": 600000,
+        "length": 32,
+        "password": "MTIzNA",
+        "salt": "-9Ry8MPNZfkkTHEbNs2gkA"
+      },
+      "expected": {
+        "hash": "uBkkwAXLybZtW9CIxvq8145ygx_2FaEJtfCo_FERvy4"
+      }
+    }
+  ]
+}

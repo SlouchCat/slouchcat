@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "リクエストの状態が変わりました。",
   "wish_review_subject": "承認が必要：{{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}}がこの映画をリクエストしました。Seerrで承認を待っています。",
-  "wish_review_show_body": "{{account}} · {{profile}}がこのTV番組をリクエストしました。Seerrで承認を待っています。"
+  "wish_review_show_body": "{{account}} · {{profile}}がこのTV番組をリクエストしました。Seerrで承認を待っています。",
+  "device_linked_subject": "新しいデバイスが接続されました",
+  "device_linked_body": "{{time}}に、{{kind}}がアカウントに接続されました。デバイス名は「{{name}}」（{{system}}）で、この情報はデバイス自身から送られたものです。心当たりがない場合は、「マイデバイス」でデバイスをログアウトし、パスワードを変更してください。",
+  "device_kind_tv": "テレビ"
 }

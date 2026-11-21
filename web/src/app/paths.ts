@@ -12,6 +12,8 @@ export const paths = {
    * active profile (concept 13 11.4).
    */
   playbackSettings: '/settings/playback',
+  /** «Meine Geräte»: the devices of the account and their sign-out (concept 27 4.5). */
+  myDevices: '/settings/devices',
   adminLibraries: '/admin/libraries',
   adminMaintenance: '/admin/maintenance',
   /** Wishes through Seerr (concept 25): the Seerr users of the accounts and the settings. */

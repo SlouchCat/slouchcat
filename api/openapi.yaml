@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.41.0
+  version: 1.43.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -35,6 +35,25 @@ info:
     `X-Requested-With: Slouchcat`, otherwise the server answers 403 `csrf_header_missing`.
     `account`, `scoped` and `admin` operations without a valid session answer 401 `unauthenticated`.
     The cookie `slouchcat_device` identifies the browser (PIN lock per profile and device, AN-11).
+
+    Android apps (concept 27 and 26, contract 1.42.0, ADR 0040; additive): `appLogin` starts an app
+    session (phone, tablet) or a device session (TV). Both travel as `Authorization: Bearer`, never
+    expire and never set a cookie; the kind is stored with the session and the carrier must match it (a
+    browser token as bearer, an app token in the cookie, and cookie and bearer together all count as no
+    session, the last one answers 401 `unauthenticated` on every route). The header
+    `X-Requested-With: Slouchcat` stays mandatory for state-changing requests. Every `account` and
+    `scoped` operation names in the extension `x-clients` the bearer kinds that may call it (`app`,
+    `tv`); a bearer session calling an operation whose list lacks its kind, or any `admin` or `owner`
+    operation, gets 403 `client_not_allowed`. The media URLs keep their own tokens (`st`, `dt`, `rt`).
+    An app names its device in the header `X-Slouchcat-Device` where a request has no session
+    (`checkOfflineRevocations`), and itself in `X-Slouchcat-Client` (`mobile/1.2.3`, `tv/1.2.3`); an app
+    older than the server accepts gets 426 `app_too_old` (response `AppTooOld`, no `Upgrade` header) on every
+    operation except `getHealth`, whose `contractVersion` tells the app whether the server is new enough,
+    `checkOfflineRevocations` and `logout`; routes with their own token (`st`, `dt`, `rt`) do not check it. A phone pairs a TV with a voucher
+    (`createPairingVoucher`, app sessions only) that the TV redeems for a device token sealed with HPKE
+    for its one-time key (`redeemPairingVoucher`); every pairing goes out as the message `device_linked`
+    on the account's channels. `getHealth.serverKey` and `proveServer` let an app check over HTTP that it
+    talks to its own server (F-38).
 
     Errors use RFC 9457 problem details (`application/problem+json`) with the extra member `code`,
     a stable machine-readable identifier such as `not_found` or `validation_failed`.
@@ -204,6 +223,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /server/prove:
+    post:
+      operationId: proveServer
+      summary: Prove the server's identity by signing a nonce (concept 27 section 6, F-38)
+      description: |
+        Contract 1.42.0 (ADR 0040, «Server weist sich aus»). The server signs the UTF-8 prefix
+        `slouchcat-server-proof-v1:` followed by the 32 bytes of `nonce` with its Ed25519 key, whose
+        public half `getHealth.serverKey` names. An app remembers the key on first contact and checks a
+        fresh nonce in every new network before it sends anything else. The key is derived from the
+        server's secret (`secret.key`): it stays the same across restarts and changes with a new secret.
+        Calls count per client address (`too_many_attempts`).
+      tags: [system]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerProofRequest"
+      responses:
+        "200":
+          description: The signature over prefix and nonce, with the key that made it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerProof"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; field `nonce`, not 32 bytes in base64url).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "426":
+          description: The app is older than the server accepts (`app_too_old`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many proofs from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /setup:
     get:
       operationId: getSetupStatus
@@ -340,15 +415,213 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /auth/app-login:
+    post:
+      operationId: appLogin
+      summary: Sign an Android app in with e-mail and password (concept 27, 4.2)
+      description: |
+        The app counterpart of `login` (contract 1.42.0, ADR 0040). It answers a bearer token instead of
+        the cookie: `kind` `phone` and `tablet` start an app session, `tv` a device session. Neither
+        expires, neither may call `admin` or `owner` operations, and a device session may call only the
+        operations whose `x-clients` names `tv`. The token is 256 random bits; the server keeps only its
+        hash, and this answer is the only place it appears.
+
+        The server writes the device right away with `deviceName` and `kind`; a playback start of the
+        session keeps them. The server hands out the device id: a `deviceId` the app brings along is kept
+        only when no other account holds a living session or a download on that device and it is not the
+        reserved id, otherwise the answer carries a fresh one. Attempts count in the same pot as `login`,
+        per client address. The answer never sets a cookie.
+      tags: [auth]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppLoginRequest"
+      responses:
+        "200":
+          description: "Signed in; `token` goes into `Authorization: Bearer` of every further request."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppLogin"
+        "401":
+          description: Unknown e-mail or wrong password (`invalid_credentials`). The message is the same for both.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; fields `email`, `password`, `deviceName`, `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "426":
+          description: The app is older than the server accepts (`app_too_old`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /account/pairing-vouchers:
+    post:
+      operationId: createPairingVoucher
+      summary: Issue the voucher that pairs a TV with the account (concept 27 section 10, K-3)
+      description: |
+        Contract 1.42.0 (ADR 0040, «Kopplung»). Only an app session (the phone app) may issue a voucher:
+        a browser session gets 403 `app_session_required`, a device session 403 `client_not_allowed`.
+        Only without an active profile or with the account's primary profile (`primary_profile_required`,
+        F-23). The voucher is 256 random bits, valid for 2 minutes and once, bound to the TV's one-time
+        X25519 key `tvKey`, and pairs a device of kind `tv`; the server keeps only its hash. An account
+        has at most one open voucher: a new one replaces the older. Vouchers count per account
+        (`too_many_attempts`). The phone seals the voucher with the server address for `tvKey` and hands
+        it to the TV through the pairing relay; the TV redeems it (`redeemPairingVoucher`).
+      tags: [auth]
+      x-visibility: account
+      x-clients: [app]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PairingVoucherRequest"
+      responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
+        "201":
+          description: The voucher; it appears only in this answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingVoucher"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: |
+            Not an app session (`app_session_required`), a device session (`client_not_allowed`), another
+            profile than the primary one is active (`primary_profile_required`) or the CSRF header is missing.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; field `tvKey`, not an X25519 key of 32 bytes in base64url).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many vouchers for this account (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/pairing/redeem:
+    post:
+      operationId: redeemPairingVoucher
+      summary: Redeem a pairing voucher and receive the device token sealed for the TV (concept 27 section 7.2)
+      description: |
+        Contract 1.42.0 (ADR 0040, «Kopplung»). The TV sends the voucher it took from the packet, its
+        one-time X25519 key, its name and its system version. The server checks that the voucher is open,
+        unexpired, bound to exactly this key and issued by an app session that still lives, uses it up
+        (also against concurrent requests), starts a
+        device session with the device row named right away, tells the account through its channels (event
+        `device_linked`, K-7) and answers the token sealed for the key: `sealedToken` is HPKE (RFC 9180,
+        base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info `slouchcat-redeem-v1`, empty
+        aad) as `enc` followed by the ciphertext, in base64url; its plaintext is
+        `{"token":"…","deviceId":"…","accountEmail":"…"}`. Only the holder of the private key can read it;
+        the e-mail is what the TV shows next to the server address (K-9). `signature` signs the sealed answer
+        with the server's key. An unknown, expired, used or differently bound voucher, and one whose issuing
+        session ended, answers the same 410 `voucher_invalid`; the TV then shows a new code. Every attempt counts
+        per client address (`too_many_attempts`). The answer never sets a cookie.
+      tags: [auth]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PairingRedeemRequest"
+      responses:
+        "200":
+          description: Paired; the token is sealed for `tvKey`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingRedeemed"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: The voucher is unknown, expired, used or bound to another key (`voucher_invalid`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; fields `voucher`, `tvKey`, `deviceName`, `systemVersion`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "426":
+          description: The app is older than the server accepts (`app_too_old`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /auth/logout:
     post:
       operationId: logout
       summary: End the current session
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "204":
-          description: Session revoked and cookie cleared. Also 204 without a session.
+          description: |
+            Session revoked and cookie cleared. Also 204 without a session. With a bearer token (app or
+            device session) the session is revoked, the account's push subscriptions of its device are
+            removed, and the answer sets no cookie and no `Clear-Site-Data`.
           headers:
             Clear-Site-Data:
               description: '`"cache"`: the browser drops cached images of the signed-out profile.'
@@ -367,7 +640,10 @@ paths:
       summary: Account and active profile of the current session
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The current session.
           content:
@@ -387,9 +663,13 @@ paths:
       summary: Change the e-mail or the password of the signed-in account (A-2)
       description: |
         Every change needs the current password. A new password revokes every other session of the
-        account; the calling session stays. Works without an active profile (`account`).
+        account, app and device sessions included; the calling session stays. Since contract 1.42.0 it
+        also removes the account's push subscriptions of the devices whose app or device session it
+        revokes (an app subscribes again at its next sign-in); those of browsers stay. Works without an
+        active profile (`account`).
       tags: [account]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -397,6 +677,8 @@ paths:
             schema:
               $ref: "#/components/schemas/AccountUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session with the changed account.
           content:
@@ -450,7 +732,10 @@ paths:
         Works before a profile is selected (`account`).
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Profiles of the account, primary profile first.
           content:
@@ -474,6 +759,7 @@ paths:
         carries `Clear-Site-Data: "cache"`.
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -483,6 +769,8 @@ paths:
             schema:
               $ref: "#/components/schemas/SelectProfileRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session now runs as this profile.
           headers:
@@ -535,7 +823,10 @@ paths:
       description: Profile management of the own account (K-2); needs the account's primary profile to be active.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Profiles, primary profile first.
           content:
@@ -553,6 +844,7 @@ paths:
       summary: Create a profile in the signed-in account
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -560,6 +852,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProfileRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: Created.
           content:
@@ -590,6 +884,7 @@ paths:
       description: Only the fields sent change. Lowering `maxRating` or removing a library right takes effect with the next request of that profile.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -599,6 +894,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProfileUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Updated.
           content:
@@ -627,9 +924,12 @@ paths:
       description: The primary profile cannot be deleted (409 `primary_profile`). Sessions that had the profile active fall back to the profile picker; their playback sessions are revoked.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Deleted.
         "401":
@@ -655,6 +955,7 @@ paths:
       summary: Set or replace the PIN of a profile
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -664,6 +965,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PinRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: PIN stored (argon2id); the lock counters of the profile are reset.
         "401":
@@ -687,9 +990,12 @@ paths:
       summary: Remove the PIN of a profile
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: PIN removed. Also 204 when the profile had none.
         "401":
@@ -715,6 +1021,7 @@ paths:
         PIN keeps guarding the profile. Only the account's primary profile may set it.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -724,6 +1031,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflinePinRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Offline PIN stored.
         "401":
@@ -748,9 +1057,12 @@ paths:
       description: Offline the profile is then guarded by its normal PIN again (if it has one).
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Offline PIN removed. Also 204 when the profile had none.
         "401":
@@ -774,6 +1086,7 @@ paths:
         primary profile may read it, like every profile setting.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
         - name: days
@@ -785,6 +1098,8 @@ paths:
             maximum: 90
             default: 30
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Report.
           content:
@@ -811,7 +1126,10 @@ paths:
         allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Libraries, by name.
           content:
@@ -838,7 +1156,10 @@ paths:
         this is `scoped`: it describes what the profile sees.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The visible libraries, administration order.
           content:
@@ -865,7 +1186,10 @@ paths:
         navigation: the titles stay in the search and the rows.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The entries shown in the side navigation, in the stored order.
           content:
@@ -909,6 +1233,7 @@ paths:
         404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - name: content
@@ -992,6 +1317,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the library with its facets.
           content:
@@ -1036,6 +1363,7 @@ paths:
         library the profile may not see answers 404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - name: genre
@@ -1076,6 +1404,8 @@ paths:
               $ref: "#/components/schemas/LibraryItemStatus"
           description: Several values are combined with OR.
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The series and audiobook collections of the library, by name.
           content:
@@ -1113,10 +1443,13 @@ paths:
         404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - $ref: "#/components/parameters/AudioSeriesID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The series with its visible volumes.
           content:
@@ -1282,6 +1615,7 @@ paths:
         values from refetches.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: start
           in: query
@@ -1293,6 +1627,8 @@ paths:
             Repeat an earlier draw of `heroStart` (from `data-start` of the app shell). Clamped to
             the stage row; a value outside it or without a stage is ignored and the server draws.
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Start page rows.
           content:
@@ -1325,6 +1661,7 @@ paths:
         episodes. Every title passed the visibility layer of the active profile.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: key
           in: path
@@ -1353,6 +1690,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the list.
           content:
@@ -1386,6 +1725,7 @@ paths:
         navigation and behind «show all» at the row; `total` is the number of the side navigation.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -1403,6 +1743,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the recommendations.
           content:
@@ -1418,9 +1760,12 @@ paths:
       summary: Detail of a title
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The title with its media files and the resume position of the active profile.
           content:
@@ -1457,6 +1802,7 @@ paths:
         width. Logos come in `w400` and `w800` (ADR 0018).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: kind
@@ -1477,6 +1823,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -1529,6 +1877,7 @@ paths:
         older URL is never shown for a new probe.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: idx
@@ -1551,6 +1900,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The chapter image.
           content:
@@ -1590,6 +1941,7 @@ paths:
         write.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -1599,6 +1951,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preview set of the file.
           content:
@@ -1636,6 +1990,7 @@ paths:
         `Cache-Control: private, no-cache`.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: sheet
@@ -1658,6 +2013,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The sheet.
           content:
@@ -1690,9 +2047,12 @@ paths:
         An invisible title answers 404 like every other ID endpoint.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Trailers, profile language first; empty when none is known.
           content:
@@ -1724,6 +2084,7 @@ paths:
         roles in an FSK-6 and an FSK-18 film shows only the FSK-6 role to a 6-rated profile).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -1733,6 +2094,8 @@ paths:
             format: int64
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The person and the visible credits.
           content:
@@ -1767,6 +2130,7 @@ paths:
         (profile id) serve cache busting only.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -1788,6 +2152,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The portrait.
           content:
@@ -1826,6 +2192,7 @@ paths:
         itself (`canPlayType`).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -1835,6 +2202,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PlaybackRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Playback description.
           content:
@@ -1900,6 +2269,7 @@ paths:
         within the watcher latency without restarting the playback. Without `mediaFileId` the primary file.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -1909,6 +2279,8 @@ paths:
             type: string
             maxLength: 64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Tracks of the file.
           content:
@@ -1938,6 +2310,7 @@ paths:
         through all of them.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: offset
@@ -1956,6 +2329,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of episodes.
           content:
@@ -1990,6 +2365,7 @@ paths:
         this device for a movie or episode, when there is one.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -1999,6 +2375,8 @@ paths:
             type: string
             maxLength: 64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Download options.
           content:
@@ -2035,6 +2413,7 @@ paths:
         may see the title (plan 3.3).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -2044,6 +2423,8 @@ paths:
             schema:
               $ref: "#/components/schemas/DownloadRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The downloads of the request, new or existing.
           content:
@@ -2091,6 +2472,7 @@ paths:
         closes the connection within a second.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2103,6 +2485,8 @@ paths:
             type: string
             examples: ["bytes=0-"]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Whole file.
           content:
@@ -2154,6 +2538,7 @@ paths:
         Positions at or beyond 90 % of the duration mark the title as completed.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -2163,6 +2548,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ProgressEvent"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Merged progress after the event.
           content:
@@ -2205,9 +2592,12 @@ paths:
         sessions of the browser session.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Playback session ended.
         "401":
@@ -2251,9 +2641,12 @@ paths:
         401 if the playback ended.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The state of the playback session.
           content:
@@ -2298,12 +2691,15 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Master playlist.
           content:
@@ -2330,12 +2726,15 @@ paths:
         anywhere at once (plan 3.5).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media playlist.
           content:
@@ -2358,12 +2757,15 @@ paths:
       description: Implemented as an `http.Handler`, authorised by `st`. `ftyp` and `moov` of the HLS output.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Initialisation segment.
           content:
@@ -2390,6 +2792,7 @@ paths:
         it; a seek further away restarts the encoder at that segment (plan 3.5).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2403,6 +2806,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media segment.
           content:
@@ -2435,6 +2840,7 @@ paths:
         answer and leaves the subtitle request alone.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2449,6 +2855,8 @@ paths:
             minimum: 1
         - $ref: "#/components/parameters/StreamToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: WebVTT file.
           content:
@@ -2474,9 +2882,12 @@ paths:
         Any other download, a download of another account or an unknown id → 404.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Deleted.
         "401":
@@ -2510,9 +2921,12 @@ paths:
         `download_evicted` (the next sync prepares it again while the device lacks the file).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Manifest.
           content:
@@ -2556,6 +2970,7 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2568,6 +2983,8 @@ paths:
             type: string
             examples: ["bytes=0-8388607"]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Whole file.
           content:
@@ -2605,6 +3022,7 @@ paths:
         Any other track → 404. `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2619,6 +3037,8 @@ paths:
             minimum: 1
         - $ref: "#/components/parameters/DownloadToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: WebVTT file.
           content:
@@ -2643,6 +3063,7 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2656,6 +3077,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/DownloadToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The sheet.
           content:
@@ -2688,6 +3111,7 @@ paths:
         `allowedProfileIds` (plan principle 1).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -2695,6 +3119,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflineSyncRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: State of the device's downloads.
           content:
@@ -2728,7 +3154,10 @@ paths:
       summary: Auto-download rule of the active profile on this device (O-3)
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored rule, or the default rule (disabled).
           content:
@@ -2754,6 +3183,7 @@ paths:
         the profile listened to in the last 60 days (M6, O-3).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -2761,6 +3191,8 @@ paths:
             schema:
               $ref: "#/components/schemas/DownloadRules"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Stored rule.
           content:
@@ -2797,7 +3229,8 @@ paths:
         401. The device then reports the download ids it holds here, identified only by its device cookie
         `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
         administration, a revoked account or a forgotten device). The answer contains nothing but ids the
-        device named; without the cookie the list is empty.
+        device named; without the cookie the list is empty. An Android app names its device with the
+        header `X-Slouchcat-Device` instead (contract 1.42.0); the cookie wins when both are sent.
       tags: [offline]
       x-visibility: public
       requestBody:
@@ -2843,6 +3276,7 @@ paths:
         id and sequence number again is a `duplicate`. Results come in the order of the events.
       tags: [offline]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -2850,6 +3284,8 @@ paths:
             schema:
               $ref: "#/components/schemas/OfflineEventBatch"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Result per event.
           content:
@@ -5429,7 +5865,8 @@ paths:
       operationId: deleteDevice
       summary: Forget a device
       description: |
-        Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+        Revokes the sessions of the device, ends its running streams, deletes its push subscriptions (of
+        every account, since contract 1.42.0), its PIN counters and its row.
         The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
         name, capabilities and owner until its next playback start). The reserved device of the per-profile
         PIN ceiling is not listed and answers 404.
@@ -5522,6 +5959,7 @@ paths:
         form an object and the walk of the contract test covers POST operations too.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -5529,6 +5967,8 @@ paths:
             schema:
               $ref: "#/components/schemas/SearchRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Matches for the active profile.
           content:
@@ -5557,7 +5997,10 @@ paths:
         at most 20; the search page offers them as filter values and the start page row `genres` shows them.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Genres with the number of visible titles.
           content:
@@ -5586,7 +6029,10 @@ paths:
         collections.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The collections, by name.
           content:
@@ -5610,6 +6056,7 @@ paths:
         members, the part to play next (`next`, `nextPart`) and the TMDB description (O-18).
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
         - name: offset
@@ -5628,6 +6075,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The collection.
           content:
@@ -5656,6 +6105,7 @@ paths:
         whole series). A collection without a visible member answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
       requestBody:
@@ -5665,6 +6115,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ItemWatchedRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: The check marks are set or removed.
         "401":
@@ -5692,6 +6144,7 @@ paths:
         `Collection.image` point here; `v` and `p` serve cache busting only.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
         - name: v
@@ -5707,6 +6160,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The poster.
           content:
@@ -5734,6 +6189,7 @@ paths:
       description: Newest entry first; entries whose title became invisible are omitted.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -5751,6 +6207,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the watchlist.
           content:
@@ -5782,6 +6240,7 @@ paths:
         playbacks only. An invisible or unknown title answers 404.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -5791,6 +6250,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ItemWatchedRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: The check mark is set or removed.
         "401":
@@ -5814,6 +6275,7 @@ paths:
         removed or while it is invisible for the profile. Only visible episodes count.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: content
           in: query
@@ -5842,6 +6304,8 @@ paths:
             maximum: 100
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the list.
           content:
@@ -5868,9 +6332,12 @@ paths:
         see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: On the watchlist.
         "401":
@@ -5893,9 +6360,12 @@ paths:
       description: Idempotent; an invisible or unknown title answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Not on the watchlist (any more).
         "401":
@@ -5918,9 +6388,12 @@ paths:
         An invisible or unknown title, a season, an extra and a profile of another account answer 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Recommended.
           content:
@@ -5943,9 +6416,12 @@ paths:
         picks unless another profile recommended it. 404 as for `recommendItem`.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Not recommended by the active profile (any more).
         "401":
@@ -5966,6 +6442,7 @@ paths:
         visible to the profile is omitted (5.5). Channels (e-mail, push, Telegram) follow in M8.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -5983,6 +6460,8 @@ paths:
             maximum: 200
             default: 50
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of the inbox.
           content:
@@ -5999,6 +6478,7 @@ paths:
       description: Idempotent; a notification of another profile answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -6007,6 +6487,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Read.
         "401":
@@ -6024,7 +6506,10 @@ paths:
       summary: Mark every notification of the active profile as read
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: All read.
         "401":
@@ -8341,7 +8826,10 @@ paths:
       description: Newest first, at most 20; the client shows them one after the other at the start.
       tags: [announcements]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The open announcements.
           content:
@@ -8361,9 +8849,12 @@ paths:
       description: Idempotent.
       tags: [announcements]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/AnnouncementID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Acknowledged.
         "401":
@@ -8385,7 +8876,10 @@ paths:
         audio and subtitle track of a start from them (rule 12).
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preferences of the active profile.
           content:
@@ -8406,6 +8900,7 @@ paths:
       description: All three fields are replaced at once.
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -8413,6 +8908,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PlaybackPrefs"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored preferences.
           content:
@@ -8447,7 +8944,10 @@ paths:
         ("Meine Wiedergabe", concept 13 11.3). Nothing to delete is no error.
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Forgotten.
         "401":
@@ -8470,7 +8970,10 @@ paths:
         active profile or with the account's primary profile may change them (ADR 0005).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The three channels.
           content:
@@ -8491,6 +8994,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ChannelName"
       requestBody:
@@ -8500,6 +9004,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ChannelSettingUpdate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored channel.
           content:
@@ -8536,9 +9042,12 @@ paths:
         (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ChannelName"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Sent; for push, every subscription of the account was handed to its push service.
         "401":
@@ -8590,7 +9099,10 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The Telegram channel with the code.
           content:
@@ -8616,7 +9128,10 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Unlinked.
         "401":
@@ -8631,7 +9146,10 @@ paths:
       description: The browser subscribes with it (`applicationServerKey`).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The public key.
           content:
@@ -8656,8 +9174,14 @@ paths:
         and its keys are capability secrets; they are never returned and never logged.
         Only a session without an active profile or with the account's primary profile may change
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+        An app session (contract 1.42.0, concept 27 7.3) always registers its own subscription, also with
+        another profile active, and its new subscription replaces every older one of its device (one per
+        device); whether the account gets push stays the primary profile's choice (`updateMyChannel`). An
+        endpoint of the push relay (`https://push.slouchcat.com`, `SLOUCHCAT_PUSH_RELAY`) gets messages of
+        at most 2700 bytes (record size 2700, body cut to 350 characters).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -8665,6 +9189,8 @@ paths:
             schema:
               $ref: "#/components/schemas/PushSubscriptionRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The subscription.
           content:
@@ -8694,12 +9220,16 @@ paths:
       summary: Remove a push subscription of the account
       description: |
         Only a session without an active profile or with the account's primary profile may change
-        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them. An app
+        session may always remove the subscription of its own device (contract 1.42.0).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/PushSubscriptionID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Removed.
         "401":
@@ -9782,7 +10312,10 @@ paths:
         library title the profile may not see and a missing title above its age never appear.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The rows.
           content:
@@ -9834,6 +10367,7 @@ paths:
         `popular_movies` and `popular_shows`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: row
           in: path
@@ -9855,6 +10389,8 @@ paths:
             type: integer
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -9912,6 +10448,7 @@ paths:
         out the titles of the library. At most 500 pages (Seerr's limit).
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -9946,6 +10483,8 @@ paths:
             maximum: 500
             default: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -10000,6 +10539,7 @@ paths:
       description: Since contract 1.41.0. TMDB's genres in the profile's language, cached like a list.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -10007,6 +10547,8 @@ paths:
           schema:
             $ref: "#/components/schemas/ExternalMedia"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The genres.
           content:
@@ -10059,6 +10601,7 @@ paths:
         from the request: a genre without a backdrop or one the row does not list is 404.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -10072,6 +10615,8 @@ paths:
             type: integer
             minimum: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image (JPEG), `Cache-Control` private for a day with an ETag.
           content:
@@ -10126,6 +10671,7 @@ paths:
         Kept 10 minutes in memory; never `stale`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: q
           in: query
@@ -10143,6 +10689,8 @@ paths:
             maximum: 500
             default: 1
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page.
           content:
@@ -10204,6 +10752,7 @@ paths:
         are kept 10 minutes. A hit whose details were not fetched has no images and no `minAge`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: q
           in: query
@@ -10227,6 +10776,8 @@ paths:
             maximum: 50
             default: 20
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The missing titles, TMDB's order, films first.
           content:
@@ -10273,10 +10824,13 @@ paths:
         `already_available` with its `item`; the client opens `/items/{id}`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ExternalMediaPath"
         - $ref: "#/components/parameters/TmdbIdPath"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The title.
           content:
@@ -10330,6 +10884,7 @@ paths:
         content hash: the answer has an `ETag` and `Cache-Control: private, max-age=86400`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ExternalMediaPath"
         - $ref: "#/components/parameters/TmdbIdPath"
@@ -10349,6 +10904,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -10406,9 +10963,12 @@ paths:
         (rating), a library series it may not see and an unknown TMDB id.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/TmdbIdPath"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The seasons.
           content:
@@ -10453,11 +11013,14 @@ paths:
         the profile, whatever the filter.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/WishStateFilter"
         - $ref: "#/components/parameters/WishPageOffset"
         - $ref: "#/components/parameters/WishPageLimit"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of wishes.
           content:
@@ -10486,6 +11049,7 @@ paths:
         or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -10493,6 +11057,8 @@ paths:
             schema:
               $ref: "#/components/schemas/WishCreate"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The wish existed (asked again, or joined).
           content:
@@ -10556,6 +11122,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /account/devices:
+    get:
+      operationId: listMyDevices
+      summary: The devices of the own account («Meine Geräte», concept 27 4.5)
+      description: |
+        Since contract 1.42.0. Every device that holds a living session or a download of the session's
+        account, last contact first. The account of the session or the download decides, not the owner of
+        the device's last playback start: a browser whose session expired stays in the list while it holds
+        downloads of the account (`sessionKind` and `signedInAt` are then absent). Every profile of the
+        account may read the list. A device session (TV) gets 403 `client_not_allowed`.
+      tags: [account]
+      x-visibility: account
+      x-clients: [app]
+      responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
+        "200":
+          description: The devices, last contact first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyDevice"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /account/devices/{deviceId}:
+    delete:
+      operationId: signOutMyDevice
+      summary: Sign the own account out of a device
+      description: |
+        Since contract 1.42.0. Removes everything the session's account has on the device and nothing of
+        another account: its sessions (their running streams end), its downloads (the device learns it from
+        the revocation list of `syncOffline` and `checkOfflineRevocations`), the push subscriptions of the
+        device and the auto-download rules of the account's profiles on the device. The device itself stays
+        (the administration forgets it with `deleteDevice`, for every account). Signing out the own device
+        ends the calling session; a browser then gets its session cookie cleared. Only a session without an
+        active profile or with the account's primary profile may sign out (`primary_profile_required`
+        otherwise, like the notification channels). A device session (TV) gets 403 `client_not_allowed`.
+      tags: [account]
+      x-visibility: account
+      x-clients: [app]
+      parameters:
+        - $ref: "#/components/parameters/MyDeviceID"
+      responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
+        "204":
+          description: Signed out.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: The device holds no session and no download of the account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /account/wishes:
     get:
       operationId: listAccountWishes
@@ -10568,11 +11195,14 @@ paths:
         whatever the filter.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/WishStateFilter"
         - $ref: "#/components/parameters/WishPageOffset"
         - $ref: "#/components/parameters/WishPageLimit"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of wishes.
           content:
@@ -10600,7 +11230,10 @@ paths:
         for a profile without the request right.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The limit.
           content:
@@ -10625,6 +11258,7 @@ paths:
         approved yet (`queued`, `pending`); Seerr's request goes with it in the background.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -10633,6 +11267,8 @@ paths:
             type: integer
             format: int64
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Withdrawn.
         "401":
@@ -10921,6 +11557,7 @@ paths:
         `radio_catalog_loading`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioQ"
         - $ref: "#/components/parameters/RadioCountry"
@@ -10953,6 +11590,8 @@ paths:
             maximum: 120
             default: 60
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: One page of stations.
           content:
@@ -10982,6 +11621,7 @@ paths:
         Before the first sync 503 `radio_catalog_loading`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioQ"
         - $ref: "#/components/parameters/RadioCountry"
@@ -10994,6 +11634,8 @@ paths:
         - $ref: "#/components/parameters/RadioTitles"
         - $ref: "#/components/parameters/RadioFavorites"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The facets.
           content:
@@ -11021,9 +11663,12 @@ paths:
         the offer answers 404.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The station.
           content:
@@ -11045,7 +11690,10 @@ paths:
         its favourite marks with it (F-18).
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The favourites, first first.
           content:
@@ -11064,6 +11712,7 @@ paths:
         `listRadioFavorites` returns them; another set (a station missing, added or twice) answers 422.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -11071,6 +11720,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioFavoriteOrder"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Stored.
         "401":
@@ -11089,9 +11740,12 @@ paths:
       description: Since contract 1.17.0. Idempotent; a new favourite goes to the end of the order.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Marked.
         "401":
@@ -11104,9 +11758,12 @@ paths:
       description: Since contract 1.17.0. Idempotent, also for a station that is no longer reachable.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Removed.
         "401":
@@ -11127,9 +11784,12 @@ paths:
         limits (F-19). A broken station may be started; a success clears its broken mark.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "201":
           description: The listen session.
           content:
@@ -11178,6 +11838,7 @@ paths:
         remaining watch time.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioListenID"
       requestBody:
@@ -11187,6 +11848,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioHeartbeatRequest"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The session is open.
           content:
@@ -11223,9 +11886,12 @@ paths:
         `RadioConfig.graceSeconds` after its last listener left.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioListenID"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "204":
           description: Ended.
         "401":
@@ -11250,6 +11916,7 @@ paths:
         runs; `entries` is then empty.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
         - name: since
@@ -11261,6 +11928,8 @@ paths:
             format: int64
             minimum: 0
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The timeline.
           content:
@@ -11281,7 +11950,10 @@ paths:
         the country of the server's time zone (fallback: the rating country of the metadata settings).
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The preferences.
           content:
@@ -11296,6 +11968,7 @@ paths:
       description: Since contract 1.17.0. Replaces all three; absent `lastFilter` and `lastSort` clear them.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -11303,6 +11976,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RadioPreferences"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The stored preferences.
           content:
@@ -11332,6 +12007,7 @@ paths:
         ended or expired session and a missing token answer 401.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11345,6 +12021,8 @@ paths:
             type: string
             enum: ["YES", v2]
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Live playlist.
           content:
@@ -11366,6 +12044,7 @@ paths:
         generation behind an `EXT-X-DISCONTINUITY`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11379,6 +12058,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/RadioToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Initialisation segment.
           content:
@@ -11402,6 +12083,7 @@ paths:
         heartbeat said `playing: false`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11416,6 +12098,8 @@ paths:
             minimum: 0
         - $ref: "#/components/parameters/RadioToken"
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: Media segment.
           content:
@@ -11441,6 +12125,7 @@ paths:
         the initials. A station outside the offer answers 404.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioImageStationID"
         - $ref: "#/components/parameters/RadioImageKind"
@@ -11452,6 +12137,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -11486,6 +12173,7 @@ paths:
         the station logo.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: trackId
           in: path
@@ -11502,6 +12190,8 @@ paths:
           schema:
             type: string
       responses:
+        "426":
+          $ref: "#/components/responses/AppTooOld"
         "200":
           description: The image.
           content:
@@ -12170,6 +12860,16 @@ paths:
 
 components:
   responses:
+    AppTooOld:
+      description: |
+        The app is older than the server accepts (`app_too_old`, header `X-Slouchcat-Client`, contract 1.42.0).
+        Every operation an app may call can answer it, except `getHealth`, `checkOfflineRevocations` and
+        `logout`; the app then asks to update itself. No `Upgrade` header: the remedy is a newer app, not
+        another protocol.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     Unauthenticated:
       description: No valid session (`unauthenticated`).
       content:
@@ -12295,7 +12995,9 @@ components:
     bearerToken:
       type: http
       scheme: bearer
-      description: Bearer token for third-party clients. Added in M2.
+      description: |
+        Token of an app or device session from `appLogin` (contract 1.42.0, ADR 0040). Only for the
+        operations whose `x-clients` names the kind of the session; never together with the session cookie.
     streamToken:
       type: apiKey
       in: query
@@ -12434,6 +13136,14 @@ components:
       schema:
         type: string
         pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+    MyDeviceID:
+      name: deviceId
+      in: path
+      required: true
+      description: Device id (32 characters) from `listMyDevices`.
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{32}$"
     DeviceID:
       name: id
       in: path
@@ -12687,7 +13397,7 @@ components:
   schemas:
     Health:
       type: object
-      required: [status, version, uptimeSeconds]
+      required: [status, version, contractVersion, serverKey, uptimeSeconds]
       properties:
         status:
           type: string
@@ -12697,6 +13407,18 @@ components:
           type: string
           description: Server version as built, for example `0.1.0+abc1234`.
           examples: ["0.1.0+abc1234"]
+        contractVersion:
+          type: string
+          description: |
+            `info.version` of the contract the server implements (contract 1.42.0). An app compares it with
+            the least version it needs and otherwise asks to update the server.
+          examples: ["1.42.0"]
+        serverKey:
+          type: string
+          description: |
+            The server's Ed25519 public key in base64url (32 bytes, contract 1.42.0, F-38). An app remembers
+            it on first contact and checks it with `proveServer`; it changes only with the server's secret.
+          examples: ["mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4"]
         uptimeSeconds:
           type: integer
           format: int64
@@ -12815,6 +13537,143 @@ components:
         accent:
           $ref: "#/components/schemas/Accent"
           description: Accent colour of the first profile; absent, none.
+
+    AppLoginRequest:
+      type: object
+      description: Sign-in of an Android app (`appLogin`, concept 27 4.2).
+      required: [email, password, deviceName, kind]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          maxLength: 256
+          writeOnly: true
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: The name the device shows under «Meine Geräte» and in the administration, for example «Pixel 9».
+        kind:
+          type: string
+          enum: [phone, tablet, tv]
+          description: '`phone` and `tablet` start an app session, `tv` a device session.'
+        deviceId:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          writeOnly: true
+          description: |
+            The device id the app already holds (a former sign-in). The server keeps it only when no other
+            account holds a living session or a download on the device; the answer names the id that counts.
+
+    AppLogin:
+      type: object
+      description: Answer of `appLogin`. `token` and `deviceId` are secrets of the app; the server shows them nowhere else.
+      required: [token, deviceId, session]
+      properties:
+        token:
+          type: string
+          description: Bearer token of the session, 256 random bits as base64url (43 characters).
+        deviceId:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: The device id the server keeps for this app; it goes into `X-Slouchcat-Device` where a request has no session.
+        session:
+          $ref: "#/components/schemas/SessionInfo"
+
+    ServerProofRequest:
+      type: object
+      required: [nonce]
+      properties:
+        nonce:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: 32 random bytes of the app in base64url without padding.
+
+    ServerProof:
+      type: object
+      required: [signature, serverKey]
+      properties:
+        signature:
+          type: string
+          description: Ed25519 signature (64 bytes, base64url) over `slouchcat-server-proof-v1:` followed by the nonce bytes.
+        serverKey:
+          type: string
+          description: The public key that made the signature (base64url), the same as `getHealth.serverKey`.
+
+    PairingVoucherRequest:
+      type: object
+      required: [tvKey]
+      properties:
+        tvKey:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: The TV's one-time X25519 public key from the QR code (32 bytes, base64url).
+
+    PairingVoucher:
+      type: object
+      description: A pairing voucher (`createPairingVoucher`); a secret of the phone until it is sealed for the TV.
+      required: [voucher, expiresAt]
+      properties:
+        voucher:
+          type: string
+          description: 256 random bits in base64url (43 characters).
+        expiresAt:
+          type: string
+          format: date-time
+          description: Two minutes after the issue.
+
+    PairingRedeemRequest:
+      type: object
+      required: [voucher, tvKey, deviceName, systemVersion]
+      properties:
+        voucher:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          writeOnly: true
+        tvKey:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: The same X25519 public key the QR code carried (32 bytes, base64url).
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: The name the TV gives itself; «Meine Geräte» and the message `device_linked` show it as the device's claim.
+        systemVersion:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: The system version of the TV, for example `Android TV 14`.
+
+    PairingRedeemed:
+      type: object
+      required: [sealedToken, signature]
+      properties:
+        sealedToken:
+          type: string
+          description: |
+            HPKE `enc` followed by the ciphertext (base64url) for `tvKey`, info `slouchcat-redeem-v1`;
+            plaintext `{"token":"…","deviceId":"…","accountEmail":"…"}`: the bearer token of the device
+            session, its device id and the account the TV is now paired with, which the TV shows with the
+            server address (K-9). Only the TV reads the e-mail.
+        signature:
+          type: string
+          description: |
+            Ed25519 signature (base64url) of the server's key (`getHealth.serverKey`, the `serverKey` of the
+            packet) over UTF-8 `slouchcat-redeem-signature-v1:` followed by the bytes of `sealedToken`. The TV
+            checks it before it opens the token, so nobody on the way can swap in a token sealed for its
+            public key.
+
+    SessionKind:
+      type: string
+      enum: [browser, app, device]
+      description: |
+        Kind of a session (ADR 0040): `browser` (cookie, 30 days sliding), `app` (the phone app, bearer, no
+        expiry) or `device` (the TV app, bearer, no expiry, only the operations whose `x-clients` names `tv`).
 
     LoginRequest:
       type: object
@@ -15412,6 +16271,41 @@ components:
         activeStreams:
           type: integer
           minimum: 0
+        sessionKind:
+          $ref: "#/components/schemas/SessionKind"
+          description: Kind of the device's living session with the latest contact (contract 1.42.0); absent without one.
+
+    MyDevice:
+      type: object
+      description: A device of the own account in «Meine Geräte» (contract 1.42.0, concept 27 4.5); not an `ItemRef`.
+      required: [id, lastSeenAt, downloads, current]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: The name the app reported at its sign-in or the client with its last playback start.
+        type:
+          type: string
+          enum: [desktop, phone, tablet, tv, other]
+        sessionKind:
+          $ref: "#/components/schemas/SessionKind"
+          description: Kind of the account's living session on the device with the latest contact; absent when only downloads hold the device.
+        signedInAt:
+          type: string
+          format: date-time
+          description: Start of that session; absent with `sessionKind`.
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: Last request of any session of the device (±1 min).
+        downloads:
+          type: integer
+          minimum: 0
+          description: Downloads of the account on the device.
+        current:
+          type: boolean
+          description: The device of the calling session.
 
     AdminStream:
       type: object

@@ -23,6 +23,10 @@ includes:
     taskfile: ./relay/Taskfile.yml
     dir: ./relay
     optional: true
+  android:
+    taskfile: ./android/Taskfile.yml
+    dir: ./android
+    optional: true
 
 tasks:
   default:
@@ -113,8 +117,10 @@ tasks:
   # The fast checks of a change before a commit: the web half here, the server half in
   # server/Taskfile.yml (`server:check:fast`). Not a replacement for `task ci`.
   check:fast:
-    desc: Fast checks of what changed, web, server and relay side by side (web:check:fast, server:check:fast, relay:check:fast)
-    deps: [web:check:fast, server:check:fast, relay:check:fast]
+    desc: >-
+      Fast checks of what changed, web, server, relay and the Android apps side by side
+      (web:check:fast, server:check:fast, relay:check:fast, android:check:fast)
+    deps: [web:check:fast, server:check:fast, relay:check:fast, android:check:fast]
 
   apicheck:
     desc: >-
@@ -122,6 +128,13 @@ tasks:
       server/cmd/apicheck against a freshly started server; not part of `task ci`
     cmds:
       - task: server:apicheck
+
+  devicecheck:
+    desc: >-
+      Concept 27 stage 1: a phone pairs a TV against a freshly started server (apicheck -devices);
+      `-- -relay <URL>` hands the packet over through a running pairing relay
+    cmds:
+      - task: server:devicecheck
 
   # The one local command that builds and checks everything (plan section 4). It runs the same
   # checks as CI, in an order that makes sense on one machine; CI runs the ci:* tasks below in
@@ -132,6 +145,7 @@ tasks:
     cmds:
       - task: ci:server
       - task: ci:relay
+      - task: ci:android
       - task: ci:web
       - task: ci:storybook
       - task: build
@@ -154,6 +168,15 @@ tasks:
     cmds:
       - task: relay:check
       - task: relay:test
+
+  # The Android apps (concept 27 section 5.7): builds of both flavours, lint with the own rules,
+  # the generators and the JVM tests. Needs JDK 21 and the Android SDK
+  # (scripts/install-android-tools.sh), Node for the tokens. A job of its own in CI, "android".
+  ci:android:
+    desc: The Android half of `task ci` (CI job "android"); android:check and android:test
+    cmds:
+      - task: android:check
+      - task: android:test
 
   ci:web:
     desc: The web linters and unit tests of `task ci` (CI job "web")

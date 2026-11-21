@@ -15,8 +15,10 @@ Status: Version 1.0. Die Meilensteine M0 bis M10 sind umgesetzt; der Nachweis je
 api/openapi.yaml          Vertrag (Quelle für Server und Web-Client)
 server/                   Go-Server (cmd/slouchcat, internal/<modul>, migrations/, queries/, tools/)
 web/                      React-PWA (Vite)
-packages/design-tokens/   Design-Tokens (DTCG) → CSS Custom Properties und TypeScript
+packages/design-tokens/   Design-Tokens (DTCG) → CSS Custom Properties, TypeScript und Kotlin
 packages/api-client/      generierter TypeScript-Client
+android/                  native Android-Apps (Gradle; Handy-App, gemeinsame Module, Generatoren)
+relay/                    die zwei Dienste im Internet für die Apps (Vermittlung, Push-Weiterleitung)
 deploy/                   Dockerfile, compose.yaml und GPU-Overrides
 testdata/                 Generator für Test-Medien, DB-Stände
 docs/spec/                Anforderungen (Deep-Interview-Spec, 64 Abnahmekriterien)

@@ -66,6 +66,13 @@ func (s *Service) SetAccountRole(ctx context.Context, id int64, role string) err
 		return model.ErrNotFound
 	}
 	if demotion {
+		// The push subscriptions of the phones and TVs whose sessions go, as with a new password
+		// (security review L-5 of stage 1); KeepID 0 keeps none. Browsers keep theirs (F-40).
+		if _, err := q.DeleteOtherAppDevicePushSubscriptions(ctx, appq.DeleteOtherAppDevicePushSubscriptionsParams{
+			AccountID: acc.ID, KeepID: 0, Now: now,
+		}); err != nil {
+			return fmt.Errorf("delete push subscriptions: %w", err)
+		}
 		if _, err := q.RevokeAccountSessions(ctx, appq.RevokeAccountSessionsParams{AccountID: acc.ID, Now: nullInt(now)}); err != nil {
 			return fmt.Errorf("revoke sessions: %w", err)
 		}

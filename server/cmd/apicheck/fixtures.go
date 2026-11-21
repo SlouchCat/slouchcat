@@ -58,6 +58,9 @@ type state struct {
 
 	// downloadID is set by the download check and used by the offline events that follow it.
 	downloadID string
+	// relay is the base URL of a running pairing relay for the device check; empty hands the packet
+	// over in memory.
+	relay string
 }
 
 // mediaDir is the directory of the generated test media. The server resolves library paths on its

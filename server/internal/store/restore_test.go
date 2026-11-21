@@ -386,6 +386,15 @@ func TestCheckRestorable(t *testing.T) {
 
 // Snapshot reads through its own read-only connection: it neither waits for an open write
 // transaction nor sees its rows.
+//
+// The proof does not hang on the wall clock. The writer holds its transaction open from before the
+// snapshot starts until after it returns, and commits only then: a snapshot that waited for the
+// writer could not return in between (the writer is this goroutine) and would end with SQLITE_BUSY
+// after its busy timeout of five seconds, an error the test reports. The copy must lack the open
+// transaction's row, the database must have it after the commit. The deadline of two minutes is
+// only an emergency brake against a real hang: under -race on a loaded machine the copy itself took
+// more than the three seconds an earlier version allowed (4.1 s measured in a full package run on
+// 21 November 2026), which was CPU time, not waiting.
 func TestSnapshotDoesNotWaitForWriters(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -407,10 +416,21 @@ func TestSnapshotDoesNotWaitForWriters(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst := filepath.Join(t.TempDir(), "copy.db")
-	snapCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	brake, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	if err := Snapshot(snapCtx, db.Read, dst); err != nil {
+	if err := Snapshot(brake, db.Read, dst); err != nil {
 		t.Fatalf("snapshot while a write transaction is open: %v", err)
+	}
+	// The transaction was open the whole time: it still writes and commits now, after the snapshot.
+	if _, err := tx.Exec("INSERT INTO settings (key, value, updated_at) VALUES ('after', '1', 1)"); err != nil {
+		t.Fatalf("the write transaction after the snapshot: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit after the snapshot: %v", err)
+	}
+	var live int
+	if err := db.Read.QueryRow("SELECT count(*) FROM settings WHERE key IN ('uncommitted', 'after')").Scan(&live); err != nil || live != 2 {
+		t.Fatalf("the database after the commit holds %d of the transaction's rows, %v; want 2", live, err)
 	}
 	cp, err := OpenFile(ctx, dst)
 	if err != nil {

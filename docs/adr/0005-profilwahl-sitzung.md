@@ -63,3 +63,19 @@ Zwei Zeilen der Entscheidtabelle oben sind abgelöst, der Rest gilt wörtlich we
 - **«Gastkonten» heissen nur noch «Konten».** Der Rollenwert `'guest'` entfällt; die Zeile
   «Gastkonten» oben beschreibt unverändert, was ein Konto ist und wie der Entzug greift (K-7), nur
   ohne das Wort «Gast».
+
+## Nachtrag vom 21. November 2026 (Android-Apps, ADR 0040)
+
+Die Sitzung, die dieses ADR beschreibt, ist ab Vertrag 1.42.0 die **Browser-Sitzung**. Daneben gibt es
+zwei weitere Arten, beide mit derselben Profilwahl und denselben Stufen:
+
+- **Drei Sitzungsarten** in der Spalte `sessions.kind`: `browser` (Cookie, 30 Tage gleitend wie oben),
+  `app` (die Handy-App) und `device` (die TV-App). App und Gerät tragen ihr Token in
+  `Authorization: Bearer`, nie im Cookie; die Art steht in der Sitzung, der Träger muss dazu passen.
+- **Ablauf:** App- und Gerätesitzungen laufen nicht ab (Marcos Entscheide E-15 und F-4). Der Server setzt
+  dafür ein Ablaufdatum weit in der Zukunft (`9999-12-31`), keinen leeren Wert, und die Benutzung
+  verschiebt es nicht.
+- **Aufräumung der Geräte:** «400 Tage unbenutzt» gilt nicht für ein Gerät mit einer lebenden App- oder
+  Gerätesitzung, und auch nicht für dessen Einträge in der Widerrufsliste.
+- **Stufen:** `admin` und `owner` bleiben für App und Gerät immer gesperrt; `account` und `scoped` nur,
+  wo `x-clients` die Art nennt (403 `client_not_allowed`).

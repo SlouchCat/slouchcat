@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Et ønske har fått en ny tilstand.",
   "wish_review_subject": "Godkjenning nødvendig: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} ønsker seg filmen. Den venter på godkjenning i Seerr.",
-  "wish_review_show_body": "{{account}} · {{profile}} ønsker seg serien. Den venter på godkjenning i Seerr."
+  "wish_review_show_body": "{{account}} · {{profile}} ønsker seg serien. Den venter på godkjenning i Seerr.",
+  "device_linked_subject": "Ny enhet koblet til",
+  "device_linked_body": "Den {{time}} ble en {{kind}} koblet til kontoen din. Enheten kaller seg «{{name}}» ({{system}}); opplysningene kommer fra enheten selv. Var det ikke deg, logg ut enheten under «Mine enheter» og bytt passord.",
+  "device_kind_tv": "TV"
 }

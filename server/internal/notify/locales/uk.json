@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Стан заявки змінився.",
   "wish_review_subject": "Потрібне схвалення: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} замовляє фільм. У Seerr він очікує схвалення.",
-  "wish_review_show_body": "{{account}} · {{profile}} замовляє серіал. У Seerr він очікує схвалення."
+  "wish_review_show_body": "{{account}} · {{profile}} замовляє серіал. У Seerr він очікує схвалення.",
+  "device_linked_subject": "Підключено новий пристрій",
+  "device_linked_body": "{{time}} до вашого акаунта підключено {{kind}}. Пристрій називає себе «{{name}}» ({{system}}); ці дані повідомив сам пристрій. Якщо це були не ви, від’єднайте пристрій у розділі «Мої пристрої» та змініть пароль.",
+  "device_kind_tv": "телевізор"
 }
