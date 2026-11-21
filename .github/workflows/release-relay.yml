@@ -1,0 +1,129 @@
+# Publishes the two relay services of concept 27 (section 7.5): the image of the meeting point
+# service (ghcr.io/<owner>/relay-pair) and the image of the push forwarder
+# (ghcr.io/<owner>/relay-push), both for linux/amd64 and linux/arm64. Runs only for a tag
+# `relay-vX.Y.Z`; the server's release workflow (`v*.*.*`) does not match such a tag, and this one
+# does not match a server tag. The tag `relay-v1.0.0` gives the images the tag `1.0.0`.
+#
+# It creates NO GitHub release, on purpose. The update check of every Slouchcat server reads
+#   https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json
+# and a release of the services would become "latest" there and break that check. The tag itself
+# and the image labels are the record; the notes belong in the tag message.
+#
+# The packages are private after their first push, like the server's were. Make each one public
+# once by hand (package page -> Package settings -> Change visibility), as the comment at the top of
+# release.yml describes.
+name: release-relay
+
+on:
+  push:
+    tags: ["relay-v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Image names in lower case: github.repository_owner keeps the owner's spelling.
+      - name: Read the version out of the tag
+        id: version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#relay-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::tag $tag is not relay-vX.Y.Z" >&2
+            exit 1
+          fi
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "pair_image=ghcr.io/$owner/relay-pair" >> "$GITHUB_OUTPUT"
+          echo "push_image=ghcr.io/$owner/relay-push" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: relay/go.mod
+          cache-dependency-path: |
+            relay/go.mod
+            server/go.sum
+
+      - uses: ./.github/actions/task
+
+      # Nothing is published from a commit whose relay checks are red.
+      - run: task ci:relay
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The binaries are cross-compiled and the base is empty: neither image needs QEMU.
+      - name: Build and push the meeting point image
+        id: pair
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/relay/pair/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: true
+          tags: ${{ steps.version.outputs.pair_image }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=relay-pair
+          cache-to: type=gha,mode=max,scope=relay-pair
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest the build provenance of the meeting point image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.version.outputs.pair_image }}
+          subject-digest: ${{ steps.pair.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Build and push the push forwarder image
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/relay/push/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: true
+          tags: ${{ steps.version.outputs.push_image }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=relay-push
+          cache-to: type=gha,mode=max,scope=relay-push
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest the build provenance of the push forwarder image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.version.outputs.push_image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Summary
+        env:
+          PAIR: ${{ steps.version.outputs.pair_image }}:${{ steps.version.outputs.version }}@${{ steps.pair.outputs.digest }}
+          PUSH: ${{ steps.version.outputs.push_image }}:${{ steps.version.outputs.version }}@${{ steps.push.outputs.digest }}
+        run: |
+          {
+            echo "### Relay ${GITHUB_REF_NAME}"
+            echo
+            echo "- \`$PAIR\`"
+            echo "- \`$PUSH\`"
+            echo
+            echo "No GitHub release: the server's update check reads releases/latest."
+          } >> "$GITHUB_STEP_SUMMARY"
