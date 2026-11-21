@@ -12,6 +12,8 @@ wird ohne Root unter `~/.local` installiert; die gepinnten Versionen stehen in `
 | pnpm | `npm install -g pnpm`, Link `~/.local/bin/pnpm` | |
 | task | `go install github.com/go-task/task/v3/cmd/task@latest`, Link `~/.local/bin/task` | |
 | sqlc, goose, oapi-codegen, golangci-lint | `go tool` aus `server/go.mod` | keine Installation nötig |
+| JDK 21, Android-SDK, Emulatoren | `~/.local/share/jdk`, `~/.local/share/android-sdk`, `~/.android/avd` | `scripts/install-android-tools.sh` (Abschnitt «Die Android-Apps») |
+| Gradle | Wrapper in `android/` | keine Installation nötig |
 
 Go-Upgrade: neues Tarball nach `~/.local/share/go` entpacken, `go.mod` und `.tool-versions` anpassen.
 
@@ -82,6 +84,60 @@ relay/bin/pushcheck -url http://127.0.0.1:8181 -fcmfake http://127.0.0.1:8190
 
 Images, Compose-Dateien und Betrieb: `deploy/relay/`, `docs/relay/BETRIEB.md`. Releases mit dem Tag
 `relay-vX.Y.Z` (Workflow `release-relay.yml`, ohne GitHub-Release).
+
+## Die Android-Apps: `android/`
+
+Ein Gradle-Projekt neben Server und Web-App (Konzept 27 Abschnitt 5, ADR 0039). Vertrag, Texte und
+Tokens liest es aus diesem Repo; Kotlin-Client, Texte (`strings.xml`) und Farben entstehen beim Bau
+im Bauordner und werden nie eingecheckt. Wer nur Server oder Web-App ändert, braucht kein JDK.
+
+**Installation** (ohne sudo, alles unter `~/.local/share`):
+
+```bash
+scripts/install-android-tools.sh   # JDK 21 (Temurin), Android-SDK, vier Emulatoren
+```
+
+Das Skript fragt einmal nach Googles SDK-Lizenz. Danach liegen `jdk/current` und `android-sdk`
+unter `~/.local/share`. Die Task-Ziele finden beide von selbst; wer Gradle direkt aufruft, setzt
+`JAVA_HOME=~/.local/share/jdk/current` und `ANDROID_HOME=~/.local/share/android-sdk`. Für die
+Texte und Tokens braucht der Bau Node und einmal `pnpm install` im Repo.
+
+**Aufbau:** `app-mobile` (die Handy-App, Bauarten `play` und `foss`, Typ `debug` mit Paket
+`com.slouchcat.app.dev`), `core/api` (erzeugter Client, gemeinsamer OkHttp-Client, Logger),
+`core/session` (Serveradresse, Heimnetz, Verträglichkeit), `core/design` (Tokens, Thema,
+Bausteine des Mockups), `core/strings` (Texte), `lint` (eigene Regeln für Regel 9 und 10),
+`build-logic` (Konventionen), `tools` (Generatoren). Versionen: `android/gradle/libs.versions.toml`,
+Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App kommen, steht in
+`android/strings-namespaces.txt`.
+
+```bash
+task android:check        # beide Bauarten in debug, Lint mit eigenen Regeln, Generatoren (CI-Job «android»)
+task android:test         # alle JVM-Tests: Robolectric-Oberflächentests, ViewModels, Lint-Regeln, Generatoren
+task android:contract     # erzeugter Client gegen einen frisch gestarteten Server (Port 8597, CONTRACT_PORT)
+task android:apk          # Debug-APKs nach android/app-mobile/build/outputs/apk
+task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
+```
+
+**Speicher:** Die Maschine teilen sich mehrere Läufe. `android/gradle.properties` begrenzt den
+Gradle-Daemon auf 3 GB, den Kotlin-Daemon auf 2 GB und Gradle auf sechs Worker; jeder Gradle-Lauf
+der Task-Ziele wartet auf einen Platz (`scripts/heavy-slot.sh`). Nach einem grösseren Lauf die
+Daemons stoppen: `cd android && ./gradlew --stop`. Höchstens **ein** Emulator zugleich; vor dem Start
+`pgrep -fa qemu-system` und `free -g` ansehen (unter 6 GB verfügbar: warten).
+
+**Emulatoren** (headless, je eigener Port):
+
+```bash
+emulator -avd sc_phone -port 5580 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect &
+adb -s emulator-5580 wait-for-device
+adb -s emulator-5580 install -r android/app-mobile/build/outputs/apk/play/debug/app-mobile-play-debug.apk
+adb -s emulator-5580 shell am start -n com.slouchcat.app.dev/com.slouchcat.app.mobile.MainActivity
+adb -s emulator-5580 exec-out screencap -p > shot.png
+adb -s emulator-5580 emu kill
+```
+
+`sc_phone` (5580, 412 dp), `sc_tablet` (5582, 1280 × 800 dp), `sc_tv` (5584), `sc_phone28` (5586).
+Der Emulator erreicht einen Testserver des Rechners unter `http://10.0.2.2:<Port>` (Ports ab 8597,
+nie 8096). Deutsch: `adb shell cmd locale set-app-locales com.slouchcat.app.dev --locales de-CH`.
 
 ## Schnelle Läufe beim Arbeiten
 
