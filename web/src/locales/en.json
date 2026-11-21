@@ -8056,6 +8056,13 @@
       "letters": "abc",
       "hitsFor": "{{hits}} for “{{query}}”",
       "libraries": "Libraries"
+    },
+    "lists": {
+      "removeHint": "OK on a title takes it off the watchlist.",
+      "unwatchHint": "OK on a title removes its check mark.",
+      "removed": "Removed from the watchlist: {{title}}",
+      "unwatched": "Check mark removed: {{title}}",
+      "listed": "Added {{count}} to the watchlist"
     }
   }
 }

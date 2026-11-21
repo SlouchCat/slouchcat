@@ -8056,6 +8056,13 @@
       "letters": "abc",
       "hitsFor": "{{hits}} für «{{query}}»",
       "libraries": "Bibliotheken"
+    },
+    "lists": {
+      "removeHint": "OK auf einem Titel nimmt ihn von der Merkliste.",
+      "unwatchHint": "OK auf einem Titel entfernt seinen Haken.",
+      "removed": "Von der Merkliste entfernt: {{title}}",
+      "unwatched": "Haken entfernt: {{title}}",
+      "listed": "{{count}} Titel gemerkt"
     }
   }
 }
