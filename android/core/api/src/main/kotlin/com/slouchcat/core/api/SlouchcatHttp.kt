@@ -39,7 +39,9 @@ interface SessionCredentials {
  * - `X-Slouchcat-Client` on every request (the server can turn an app away that is too old, 426).
  * - `X-Requested-With: Slouchcat` on every request that changes something (the CSRF header of the
  *   server for everything but GET, HEAD and OPTIONS).
- * - `Authorization: Bearer` and `X-Slouchcat-Device` from [SessionCredentials], only to its server.
+ * - `Authorization: Bearer` and `X-Slouchcat-Device` from [SessionCredentials], only to its server:
+ *   a network interceptor decides per hop, so a redirect to another host, port or scheme never
+ *   carries them, and redirects from https to http are not followed at all.
  * - Plain HTTP is allowed (E-18); on Android the network security config of the app permits it.
  * - No logging interceptor: headers and addresses carry the token and stream tokens (rule 10).
  */
@@ -61,23 +63,34 @@ object SlouchcatHttp {
         .connectTimeout(CONNECT_TIMEOUT)
         .readTimeout(READ_TIMEOUT)
         .writeTimeout(WRITE_TIMEOUT)
-        .addInterceptor(Headers(identity, credentials))
+        .followSslRedirects(false)
+        .addInterceptor(Headers(identity))
+        .addNetworkInterceptor(Credentials(credentials))
         .build()
 
-    /** Adds the headers of [SlouchcatHttp]; public for tests of other modules. */
-    class Headers(
-        private val identity: ClientIdentity,
-        private val credentials: SessionCredentials,
-    ) : Interceptor {
+    /** The headers every request carries, whatever host it reaches. */
+    class Headers(private val identity: ClientIdentity) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request()
             val builder = request.newBuilder().header(HEADER_CLIENT, identity.header)
             if (request.method !in SAFE_METHODS) builder.header(HEADER_REQUESTED_WITH, REQUESTED_WITH)
+            return chain.proceed(builder.build())
+        }
+    }
+
+    /**
+     * Bearer and device id, set per network hop and only towards [SessionCredentials.server]. As a
+     * network interceptor it sees every redirect on its own; the application request never holds
+     * the values, so OkHttp cannot copy them into a redirect.
+     */
+    class Credentials(private val credentials: SessionCredentials) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request()
             val server = credentials.server
-            if (server != null && sameOrigin(server, request.url)) {
-                credentials.bearerToken?.let { builder.header("Authorization", "Bearer $it") }
-                credentials.deviceId?.let { builder.header(HEADER_DEVICE, it) }
-            }
+            if (server == null || !sameOrigin(server, request.url)) return chain.proceed(request)
+            val builder = request.newBuilder()
+            credentials.bearerToken?.let { builder.header("Authorization", "Bearer $it") }
+            credentials.deviceId?.let { builder.header(HEADER_DEVICE, it) }
             return chain.proceed(builder.build())
         }
     }

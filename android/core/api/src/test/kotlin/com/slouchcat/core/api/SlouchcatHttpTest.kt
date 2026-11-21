@@ -72,6 +72,43 @@ class SlouchcatHttpTest {
     }
 
     @Test
+    fun aRedirectToAnotherServerCarriesNoCredentials() {
+        val other = MockWebServer().apply { start() }
+        other.use {
+            val http = SlouchcatHttp.client(identity, credentials(server.url("/")))
+            server.enqueue(MockResponse(code = 302, headers = okhttp3.Headers.headersOf("Location", other.url("/elsewhere").toString())))
+            other.enqueue(MockResponse(body = "{}"))
+            http.newCall(Request.Builder().url(server.url("/api/v1/items/1/image")).build()).execute().use {
+                assertEquals(200, it.code)
+            }
+            val first = server.takeRequest()
+            assertEquals("Bearer secret-token", first.headers["Authorization"])
+            val second = other.takeRequest()
+            assertEquals("/elsewhere", second.url.encodedPath)
+            assertNull(second.headers["Authorization"])
+            assertNull(second.headers[SlouchcatHttp.HEADER_DEVICE])
+            assertEquals("mobile/1.2.3", second.headers[SlouchcatHttp.HEADER_CLIENT])
+        }
+    }
+
+    @Test
+    fun aRedirectWithinTheServerKeepsThem() {
+        val http = SlouchcatHttp.client(identity, credentials(server.url("/")))
+        server.enqueue(MockResponse(code = 302, headers = okhttp3.Headers.headersOf("Location", "/api/v1/next")))
+        server.enqueue(MockResponse(body = "{}"))
+        http.newCall(Request.Builder().url(server.url("/api/v1/first")).build()).execute().close()
+        server.takeRequest()
+        val second = server.takeRequest()
+        assertEquals("/api/v1/next", second.url.encodedPath)
+        assertEquals("device-1", second.headers[SlouchcatHttp.HEADER_DEVICE])
+    }
+
+    @Test
+    fun httpsDoesNotFollowRedirectsToHttp() {
+        assertEquals(false, SlouchcatHttp.client(identity).followSslRedirects)
+    }
+
+    @Test
     fun theBasePathFollowsTheServerAddress() {
         assertEquals("https://media.example.test/api/v1", SlouchcatApi.basePath("https://media.example.test/".toHttpUrl()))
         assertEquals("https://media.example.test/api/v1", SlouchcatApi.basePath("https://media.example.test".toHttpUrl()))
