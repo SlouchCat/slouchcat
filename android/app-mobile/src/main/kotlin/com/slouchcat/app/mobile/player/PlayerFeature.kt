@@ -28,6 +28,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -103,6 +104,7 @@ class PlayerFeature(
                     metered = MeteredNetwork.of(context),
                     finalScope = graph.scope,
                     clock = SystemClock::elapsedRealtime,
+                    saved = createSavedStateHandle(),
                 )
             }
             vm.leave = app.navigator::back

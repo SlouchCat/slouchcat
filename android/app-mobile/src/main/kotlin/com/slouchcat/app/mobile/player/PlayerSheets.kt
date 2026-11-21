@@ -198,13 +198,14 @@ private fun Info(state: PlayerState) {
             .border(BorderStroke(1.dp, c.line), RoundedCornerShape(14.dp)),
     ) {
         rows.forEachIndexed { n, (label, value) ->
+            val said = stringResource(R.string.app_player_infoRow, label, value)
             if (n > 0) HorizontalDivider(color = c.line, modifier = Modifier.padding(horizontal = 16.dp))
             Row(
                 Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 44.dp)
                     .padding(horizontal = 16.dp, vertical = 10.dp)
-                    .semantics(mergeDescendants = true) { contentDescription = "$label: $value" },
+                    .semantics(mergeDescendants = true) { contentDescription = said },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {

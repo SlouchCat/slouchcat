@@ -1,5 +1,7 @@
 package com.slouchcat.app.mobile.player
 
+import android.content.Context
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -47,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -56,6 +61,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
@@ -113,7 +119,17 @@ val SPEEDS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 /** The controls hide after this long while the video plays (mockup `hideAt`). */
 const val CONTROLS_HIDE_MS = 4_000L
 
-private const val JUMP_MS = 10_000L
+private const val JUMP_SECONDS = 10
+private const val JUMP_MS = JUMP_SECONDS * 1000L
+
+/** Whether TalkBack (or another screen reader) explores by touch: then the controls never hide. */
+@Composable
+private fun touchExploration(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager)?.isTouchExplorationEnabled == true
+    }
+}
 
 /**
  * The video player (mockup `/play/:i`, reference photos handy 29 to 31 and 52 to 59): the picture
@@ -124,7 +140,9 @@ private const val JUMP_MS = 10_000L
  * and the card of the next episode sit bottom right. Errors cover the picture with their own text.
  *
  * [surface] draws the video (the feature puts Media3's view there; tests leave it empty),
- * [thumbnail] one trickplay tile, [images] the stills of the episode list.
+ * [thumbnail] one trickplay tile, [images] the stills of the episode list. With a screen reader
+ * ([screenReader], TalkBack's touch exploration) the controls stay; without, the picture itself is
+ * a control «Bedienung einblenden».
  */
 @Composable
 fun PlayerScreen(
@@ -136,6 +154,7 @@ fun PlayerScreen(
     thumbnail: @Composable (TrickplayTile, Modifier) -> Unit = { _, _ -> },
     initialSheet: PlayerSheet? = null,
     initialControls: Boolean = true,
+    screenReader: Boolean = touchExploration(),
 ) {
     val c = SlouchcatTheme.colors
     var controls by rememberSaveable { mutableStateOf(initialControls) }
@@ -143,7 +162,7 @@ fun PlayerScreen(
     var wake by remember { mutableIntStateOf(0) }
     var dragging by remember { mutableStateOf<Float?>(null) }
     var tap by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
-    val idle = state.playing && sheet == null && dragging == null && state.error == null && state.countdown == null
+    val idle = !screenReader && state.playing && sheet == null && dragging == null && state.error == null && state.countdown == null
     LaunchedEffect(controls, wake, idle) {
         if (controls && idle) {
             delay(CONTROLS_HIDE_MS)
@@ -157,15 +176,29 @@ fun PlayerScreen(
         }
     }
     val poke: () -> Unit = { wake++ }
+    val showLabel = stringResource(R.string.app_player_showControls)
 
     Box(modifier.fillMaxSize().background(c.bg)) {
         surface()
         // Taps on the picture: show or hide the controls; a double tap jumps (left back, right forward).
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val half = with(LocalDensity.current) { maxWidth.toPx() / 2 }
+            val hidden = !(controls || !state.playing)
             Box(
                 Modifier
                     .fillMaxSize()
+                    // While the controls are hidden the picture is the one control: a screen reader
+                    // finds it and brings them back.
+                    .semantics {
+                        if (hidden && state.error == null) {
+                            contentDescription = showLabel
+                            onClick(label = showLabel) {
+                                controls = true
+                                poke()
+                                true
+                            }
+                        }
+                    }
                     .pointerInput(half) {
                         detectTapGestures(
                             onTap = {
@@ -183,7 +216,7 @@ fun PlayerScreen(
         }
         tap?.let { (back, _) ->
             Text(
-                stringResource(if (back) R.string.player_chrome_tapBack else R.string.player_chrome_tapForward, "10"),
+                stringResource(if (back) R.string.player_chrome_tapBack else R.string.player_chrome_tapForward, JUMP_SECONDS.toString()),
                 style = SlouchcatType.strong,
                 color = c.tx,
                 modifier = Modifier
@@ -312,7 +345,7 @@ private fun JumpButton(back: Boolean, onClick: () -> Unit) {
             tint = c.tx,
         )
         // The number inside the arrow (`.vp-jump span`); the icon's description says it already.
-        Text("10", style = SlouchcatType.badge.copy(fontSize = 11.sp, fontWeight = FontWeight.ExtraBold), color = c.tx, modifier = Modifier.padding(top = 4.dp).clearAndSetSemantics {})
+        Text(stringResource(R.string.app_player_jumpSeconds, JUMP_SECONDS.toString()), style = SlouchcatType.badge.copy(fontSize = 11.sp, fontWeight = FontWeight.ExtraBold), color = c.tx, modifier = Modifier.padding(top = 4.dp).clearAndSetSemantics {})
     }
 }
 
@@ -353,7 +386,7 @@ private fun BottomBar(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(timecode(shown), style = SlouchcatType.label, color = c.tx2, modifier = Modifier.widthIn(min = 52.dp))
             SeekBar(state, dragging, onDrag, events, thumbnail, Modifier.weight(1f))
-            Text("-" + timecode(duration - shown), style = SlouchcatType.label, color = c.tx2, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 52.dp))
+            Text(stringResource(R.string.app_player_remaining, timecode(duration - shown)), style = SlouchcatType.label, color = c.tx2, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 52.dp))
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Tool(SlouchcatIcon.Audio, stringResource(R.string.player_tracks_audio), on = state.audio.firstOrNull()?.selected == false) { onSheet(PlayerSheet.Audio) }
@@ -415,7 +448,7 @@ private fun SeekBar(
     val density = LocalDensity.current
     Box(
         modifier
-            .height(40.dp)
+            .height(48.dp)
             .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
             .pointerInput(duration) {
                 detectTapGestures { offset -> events.onSeekTo(((offset.x / width).coerceIn(0f, 1f) * duration).toLong()) }
@@ -505,6 +538,7 @@ private fun SkipButton(label: String, onClick: () -> Unit) {
 }
 
 /** `.vp-next`: the still of the next episode with the ring, the countdown, «Jetzt abspielen» and «Abbrechen». */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NextCard(countdown: com.slouchcat.core.player.Countdown, images: ServerImages?, events: PlayerEvents) {
     val c = SlouchcatTheme.colors
@@ -536,7 +570,13 @@ private fun NextCard(countdown: com.slouchcat.core.player.Countdown, images: Ser
                 color = c.accent,
             )
             Text(titleLine(next), style = SlouchcatType.strong.copy(fontSize = 15.sp), color = c.tx, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The words of a button never break (long languages, large font): a button that does not
+            // fit moves to the next line, the card grows.
+            FlowRow(
+                Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 SlouchcatButton(stringResource(R.string.app_player_playNow), onClick = events::onNext, small = true, leadingIcon = SlouchcatIcon.Play)
                 SlouchcatButton(stringResource(R.string.player_next_cancel), onClick = events::onCancelCountdown, small = true, kind = ButtonKind.Ghost)
             }
@@ -556,13 +596,14 @@ private fun ErrorPicture(error: PlayerError, events: PlayerEvents) {
         PlayerError.SignedOut -> stringResource(R.string.player_ended_title) to stringResource(R.string.player_ended_body)
         is PlayerError.Network -> stringResource(R.string.app_player_error_networkTitle) to
             stringResource(if (error.retrying) R.string.app_player_error_networkRetrying else R.string.app_player_error_networkBody)
-        PlayerError.Busy -> stringResource(R.string.player_busy_title) to stringResource(R.string.player_busy_body)
+        is PlayerError.Busy -> stringResource(R.string.player_busy_title) to
+            stringResource(if (error.retrying) R.string.player_busy_body else R.string.player_error_body)
         PlayerError.Unplayable -> stringResource(R.string.app_player_error_unplayableTitle) to stringResource(R.string.app_player_error_unplayableBody)
         PlayerError.Failed -> stringResource(R.string.player_error_title) to stringResource(R.string.player_error_body)
     }
-    val waits = error == PlayerError.Busy || (error is PlayerError.Network && error.retrying)
+    val waits = (error is PlayerError.Busy && error.retrying) || (error is PlayerError.Network && error.retrying)
     val retry = error == PlayerError.StreamLimit || error == PlayerError.StoppedElsewhere || error == PlayerError.Failed ||
-        (error is PlayerError.Network && !error.retrying)
+        (error is PlayerError.Network && !error.retrying) || (error is PlayerError.Busy && !error.retrying)
     Box(Modifier.fillMaxSize().background(c.scrim).windowInsetsPadding(WindowInsets.safeDrawing)) {
         SlouchcatIconButton(SlouchcatIcon.Back, stringResource(R.string.app_player_close), events::onBack, modifier = Modifier.padding(8.dp))
         Column(

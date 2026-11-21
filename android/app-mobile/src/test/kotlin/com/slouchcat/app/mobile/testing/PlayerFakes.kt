@@ -20,7 +20,7 @@ import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.api.generated.models.TrackList
 import com.slouchcat.core.api.generated.models.TrackSelection
 import com.slouchcat.core.api.generated.models.Trickplay
-import com.slouchcat.core.player.EngineEvent
+import com.slouchcat.core.player.EngineSignal
 import com.slouchcat.core.player.EngineMedia
 import com.slouchcat.core.player.PlaybackPrefsRepository
 import com.slouchcat.core.player.PlaybackServer
@@ -33,15 +33,17 @@ import java.time.OffsetDateTime
 
 /** A player that only records: no picture, no time. */
 class FakePlayerEngine : PlayerEngine {
-    val flow = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 16)
+    val flow = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 16)
     override val events = flow
+    private var counter = 0L
     val loads = mutableListOf<EngineMedia>()
     var released = false
     override val positionMs: Long = 0
     override val durationMs: Long = 0
     override val bufferedMs: Long = 0
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean) {
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean): Long {
         loads += media
+        return ++counter
     }
     override fun play() = Unit
     override fun pause() = Unit

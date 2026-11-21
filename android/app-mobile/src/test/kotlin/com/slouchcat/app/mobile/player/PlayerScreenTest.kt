@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile.player
 
 import android.content.Context
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
@@ -28,6 +29,7 @@ import com.slouchcat.core.player.PlayerError
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.player.SeasonEpisodes
 import com.slouchcat.core.strings.R
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -69,8 +71,8 @@ class PlayerScreenTest {
         override fun onEpisodesOpened() { events += "episodes" }
     }
 
-    private fun show(state: PlayerState, sheet: PlayerSheet? = null) = compose.setContent {
-        SlouchcatTheme { PlayerScreen(state, recorder, initialSheet = sheet) }
+    private fun show(state: PlayerState, sheet: PlayerSheet? = null, controls: Boolean = true, screenReader: Boolean = false) = compose.setContent {
+        SlouchcatTheme { PlayerScreen(state, recorder, initialSheet = sheet, initialControls = controls, screenReader = screenReader) }
     }
 
     private fun button(label: String) = compose.onNode((hasText(label) or hasContentDescription(label)) and hasClickAction())
@@ -79,7 +81,7 @@ class PlayerScreenTest {
         show(filmState())
         compose.onNode(hasText("Night Train") and isHeading()).assertIsDisplayed()
         compose.onNodeWithText("0:01").assertIsDisplayed()
-        compose.onNodeWithText("-2:24:59").assertIsDisplayed()
+        compose.onNodeWithText("−2:24:59").assertIsDisplayed()
         for (tool in listOf(R.string.player_tracks_audio, R.string.player_tracks_subtitles, R.string.player_settings_quality, R.string.player_settings_speed)) {
             button(s(tool)).assertIsDisplayed()
         }
@@ -266,4 +268,49 @@ class PlayerScreenTest {
 
     @Test @Config(qualifiers = PHONE)
     fun unplayable() = error(PlayerError.Unplayable, R.string.app_player_error_unplayableTitle, s(R.string.app_player_error_unplayableBody), retry = false)
+
+    @Test @Config(qualifiers = PHONE)
+    fun busyAfterTheLastAttemptOffersRetry() =
+        error(PlayerError.Busy(retrying = false), R.string.player_busy_title, s(R.string.player_error_body), retry = true)
+
+    @Test @Config(qualifiers = PHONE)
+    fun busyWhileItAsksAgainWaits() =
+        error(PlayerError.Busy(retrying = true), R.string.player_busy_title, s(R.string.player_busy_body), retry = false)
+
+    /** TalkBack: with the controls hidden the picture is a control that brings them back. */
+    @Test @Config(qualifiers = PHONE)
+    fun hiddenControlsCanBeBroughtBack() {
+        show(filmState().copy(playing = true), controls = false)
+        button(s(R.string.app_player_close)).assertDoesNotExist()
+        // The controls hide again after 4 s of playing: the clock stands while the test looks.
+        compose.mainClock.autoAdvance = false
+        compose.onNode(hasContentDescription(s(R.string.app_player_showControls)) and hasClickAction()).performClick()
+        compose.mainClock.advanceTimeBy(500)
+        button(s(R.string.app_player_close)).assertIsDisplayed()
+        // Shown, the picture is no control of its own any more.
+        compose.onNode(hasContentDescription(s(R.string.app_player_showControls))).assertDoesNotExist()
+    }
+
+    /** With a screen reader the controls never hide while it plays. */
+    @Test @Config(qualifiers = PHONE)
+    fun aScreenReaderKeepsTheControls() {
+        show(filmState().copy(playing = true), screenReader = true)
+        compose.mainClock.advanceTimeBy(CONTROLS_HIDE_MS * 3)
+        button(s(R.string.app_player_close)).assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun withoutAScreenReaderTheControlsHide() {
+        show(filmState().copy(playing = true))
+        compose.mainClock.advanceTimeBy(CONTROLS_HIDE_MS * 3)
+        compose.waitForIdle()
+        button(s(R.string.app_player_close)).assertDoesNotExist()
+    }
+
+    /** The seek bar is a touch target of at least 48 dp. */
+    @Test @Config(qualifiers = PHONE)
+    fun theSeekBarIsTallEnough() {
+        show(filmState())
+        compose.onNodeWithContentDescription(s(R.string.player_seek)).assertHeightIsAtLeast(48.dp)
+    }
 }
