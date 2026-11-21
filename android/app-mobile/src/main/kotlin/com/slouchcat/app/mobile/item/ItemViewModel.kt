@@ -71,6 +71,12 @@ data class ItemUiState(
             if (d.kind == ItemKind.SEASON) return item
             return seasonId?.let { seasons[it] ?: Loadable.Loading }
         }
+
+    /**
+     * The check mark of [season] under its series: from the season's own page once it is loaded
+     * (it counts its episodes), else from its reference in the series' list.
+     */
+    fun seasonMark(season: ItemRef): WatchedMark = (seasons[season.id] as? Loadable.Ready)?.value?.watchedMark ?: season.watchedMark
 }
 
 /** What the detail page can be asked to do; the ViewModel does it, tests record it. */
@@ -224,7 +230,7 @@ class ItemViewModel(
     override fun onSeasonWatched() {
         val season = currentSeason() ?: return
         if (ItemAction.SeasonWatched in _state.value.busy) return
-        when (season.watchedMark) {
+        when (_state.value.seasonMark(season)) {
             WatchedMark.None -> setSeasonWatched(true)
             WatchedMark.Full -> ask(season.title, season.kind, season.watchedCount ?: 0, half = false, season = true)
             WatchedMark.Half -> ask(season.title, season.kind, season.watchedCount ?: 0, half = true, season = true)

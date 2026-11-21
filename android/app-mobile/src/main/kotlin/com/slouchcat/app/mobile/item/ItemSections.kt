@@ -238,7 +238,7 @@ private fun Episodes(item: ItemDetail, state: ItemUiState, images: ServerImages,
                 }
             }
             season?.let { s ->
-                val mark = s.watchedMark
+                val mark = state.seasonMark(s)
                 SlouchcatButton(
                     stringResource(if (mark == WatchedMark.Full) R.string.app_item_seasonUnwatched else R.string.app_item_seasonWatched),
                     onClick = events::onSeasonWatched,

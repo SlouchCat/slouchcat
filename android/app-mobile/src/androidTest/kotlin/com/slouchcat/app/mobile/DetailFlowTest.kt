@@ -226,12 +226,12 @@ class DetailFlowTest {
 
         // The season as watched, then the question before its checks go.
         button(s(R.string.app_item_seasonWatched)).performScrollTo().performClick()
-        waitFor(hasText(s(R.string.app_item_seasonUnwatched)) and hasClickAction())
+        waitForText(s(R.string.app_item_seasonUnwatched))
         button(s(R.string.app_item_seasonUnwatched)).performScrollTo().performClick()
         waitForText(s(R.string.watched_ask_removeAll))
         shot("b08-season-watched-sheet")
         button(s(R.string.watched_ask_removeAll)).performClick()
-        waitFor(hasText(s(R.string.app_item_seasonWatched)) and hasClickAction())
+        waitForText(s(R.string.app_item_seasonWatched))
 
         // A title that is not there (or not for this profile): the calm state, no retry.
         jump("item/01J0000000000000000000ZZZZ")
