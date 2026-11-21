@@ -48,6 +48,8 @@ data class LibraryQuery(
     val status: List<LibraryItemStatus> = emptyList(),
     /** One content kind of a library with several (the chips «Filme», «Serien»). */
     val content: RootContent? = null,
+    /** Lowers the profile's ceiling for this page (`maxRating`; the server takes the minimum). */
+    val maxRating: Int? = null,
 )
 
 /** One page of a library with what it may filter by. */
@@ -93,6 +95,7 @@ class ApiLibraryRepository(private val api: ApiCaller, private val http: Call.Fa
             genre = query.genre,
             yearFrom = query.yearFrom,
             yearTo = query.yearTo,
+            maxRating = query.maxRating,
             status = query.status.takeIf { it.isNotEmpty() },
             offset = offset,
             limit = limit,

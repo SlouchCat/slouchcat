@@ -41,8 +41,10 @@ data class LibraryFilters(
     val genre: String? = null,
     val decade: Decade? = null,
     val content: RootContent? = null,
+    /** The age rating filter: titles up to this minimum age (`maxRating`). */
+    val maxRating: Int? = null,
 ) {
-    val active: Boolean get() = unseen || genre != null || decade != null || content != null
+    val active: Boolean get() = unseen || genre != null || decade != null || content != null || maxRating != null
 
     fun query(): LibraryQuery = LibraryQuery(
         sort = sort,
@@ -51,11 +53,12 @@ data class LibraryFilters(
         yearTo = decade?.to,
         status = if (unseen) listOf(LibraryItemStatus.UNWATCHED) else emptyList(),
         content = content,
+        maxRating = maxRating,
     )
 }
 
 /** Which sheet of the page is open. */
-enum class LibrarySheet { Sort, Genre, Year }
+enum class LibrarySheet { Sort, Genre, Year, Rating }
 
 data class LibraryUiState(
     /** The library from `listVisibleLibraries` (name, kind, count); `null` while unknown. */
@@ -64,7 +67,11 @@ data class LibraryUiState(
     val items: Paged<MediaItem> = Paged(),
     /** The genres of the library with their counts (`facets.genres`, rule 12: only what the server names). */
     val genres: List<GenreRef> = emptyList(),
+    /** The age ratings present in the library below the profile's ceiling (`facets.ratings`). */
+    val ratings: List<Int> = emptyList(),
     val sheet: LibrarySheet? = null,
+    /** The list view instead of the grid (mockup button «Als Liste zeigen»). */
+    val list: Boolean = false,
 ) {
     val audio: Boolean get() = library?.kind == LibraryKind.AUDIOBOOKS || library?.kind == LibraryKind.PODCASTS
     val podcasts: Boolean get() = library?.kind == LibraryKind.PODCASTS
@@ -110,7 +117,7 @@ class LibraryViewModel(
     private val pager = PageLoader<ItemRef, MediaItem>(viewModelScope, map = { MediaItem.from(it, images()) }) { offset, limit ->
         val server = session.server ?: return@PageLoader ApiResult.Offline
         repository.items(server, libraryId, _state.value.filters.query(), offset, limit).map { page ->
-            if (offset == 0) _state.update { it.copy(genres = page.facets.genres) }
+            if (offset == 0) _state.update { it.copy(genres = page.facets.genres, ratings = page.facets.ratings) }
             Page(page.items, page.total)
         }
     }
@@ -135,7 +142,7 @@ class LibraryViewModel(
 
     fun onSort(sort: LibrarySort) = change { it.copy(sort = sort) }
 
-    fun onAll() = change { it.copy(unseen = false, genre = null, decade = null, content = null) }
+    fun onAll() = change { it.copy(unseen = false, genre = null, decade = null, content = null, maxRating = null) }
 
     fun onUnseen() = change { it.copy(unseen = !it.unseen) }
 
@@ -144,6 +151,11 @@ class LibraryViewModel(
     fun onDecade(decade: Decade?) = change { it.copy(decade = decade) }
 
     fun onContent(content: RootContent?) = change { it.copy(content = content) }
+
+    fun onRating(rating: Int?) = change { it.copy(maxRating = rating) }
+
+    /** Grid or list; the filters and the loaded titles stay. */
+    fun onView() = _state.update { it.copy(list = !it.list) }
 
     private fun change(transform: (LibraryFilters) -> LibraryFilters) {
         val before = _state.value.filters

@@ -105,7 +105,14 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch {
+            var shown: Long? = null
             session.state.map { (it as? SessionState.Ready)?.profile }.distinctUntilChanged().collect { profile ->
+                // Another profile loads afresh; a change of the same profile (its colour) only redraws.
+                if (profile?.id == shown) {
+                    _state.update { it.copy(profile = profile) }
+                    return@collect
+                }
+                shown = profile?.id
                 _state.update { HomeUiState(profile = profile) }
                 if (profile != null) load()
             }

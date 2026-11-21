@@ -63,6 +63,8 @@ class LibraryScreenTest {
         unseen = { events += "unseen" },
         genre = { events += "genre:$it" },
         decade = { events += "decade:${it?.start}" },
+        rating = { events += "rating:$it" },
+        view = { events += "view" },
         item = { events += "item:${it.title}" },
         search = { events += "search" },
     )
@@ -121,6 +123,53 @@ class LibraryScreenTest {
 
     @Test @Config(qualifiers = TABLET)
     fun yearSheetTablet() = sheets(LibrarySheet.Year, R.string.app_browse_yearTitle, s(R.string.app_browse_decade, "2010"), "decade:2010")
+
+    private fun listView() {
+        show(ready.copy(list = true, ratings = listOf(0, 12, 16), items = Paged(Loadable.Ready(films), total = 1846)))
+        compose.assertEveryControlLabelledAndTappable()
+        // The number in the format of the language, the plural after the number.
+        compose.onNodeWithText("1,846", substring = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription(s(R.string.app_browse_showGrid)).performClick()
+        compose.onNodeWithText(s(R.string.library_filters_rating)).performClick()
+        compose.onNodeWithContentDescription("Film 3", substring = true).performClick()
+        assertEquals(listOf("view", "sheet:Rating", "item:Film 3"), events)
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun listViewPhone() = listView()
+
+    @Test @Config(qualifiers = TABLET)
+    fun listViewTablet() = listView()
+
+    @Test @Config(qualifiers = PHONE, fontScale = 2f)
+    fun listViewPhoneLargeFont() = listView()
+
+    @Test @Config(qualifiers = TABLET, fontScale = 2f)
+    fun listViewTabletLargeFont() = listView()
+
+    /** «1’846 Titel» in Swiss German: the separator of the language, not a bare «1846». */
+    @Test @Config(qualifiers = "de-rCH-w412dp-h915dp")
+    fun theCountHasTheThousandsSeparatorOfTheLanguage() {
+        show(ready.copy(items = Paged(Loadable.Ready(films), total = 1846)))
+        val number = java.text.NumberFormat.getIntegerInstance(java.util.Locale.forLanguageTag("de-CH")).format(1846)
+        compose.onNodeWithText("$number Titel").assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun ratingSheetPhone() {
+        show(ready.copy(ratings = listOf(0, 12, 16), sheet = LibrarySheet.Rating))
+        compose.onNode(hasText(s(R.string.rating_upTo, "12")) and hasClickAction()).performScrollTo().performClick()
+        compose.onNode(hasText(s(R.string.library_filters_anyRating)) and hasClickAction()).performScrollTo().performClick()
+        compose.onNodeWithText(s(R.string.common_close)).performScrollTo().performClick()
+        assertEquals(listOf("rating:12", "rating:null", "sheet:null"), events)
+    }
+
+    @Test @Config(qualifiers = TABLET)
+    fun ratingSheetTablet() {
+        show(ready.copy(ratings = listOf(0, 12, 16), sheet = LibrarySheet.Rating))
+        compose.onNode(hasText(s(R.string.rating_upTo, "16")) and hasClickAction()).performScrollTo().performClick()
+        assertEquals(listOf("rating:16"), events)
+    }
 
     @Test @Config(qualifiers = PHONE)
     fun nothingMatchesOffersTheReset() {

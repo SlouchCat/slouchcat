@@ -35,6 +35,8 @@ import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaGrid
 import com.slouchcat.app.mobile.media.MediaItem
+import com.slouchcat.app.mobile.media.MediaListRow
+import com.slouchcat.app.mobile.media.pluralCount
 import com.slouchcat.app.mobile.media.PagingFooter
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.app.mobile.media.titleCount
@@ -54,7 +56,6 @@ import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.strings.R
-import java.text.NumberFormat
 
 /** What the library page does on a tap; a `null` target has no page yet. */
 data class LibraryActions(
@@ -68,6 +69,8 @@ data class LibraryActions(
     val genre: (String?) -> Unit = {},
     val decade: (Decade?) -> Unit = {},
     val content: (RootContent?) -> Unit = {},
+    val rating: (Int?) -> Unit = {},
+    val view: () -> Unit = {},
     val item: ((MediaItem) -> Unit)? = null,
     val search: (() -> Unit)? = null,
 )
@@ -89,6 +92,11 @@ fun LibraryScreen(state: LibraryUiState, actions: LibraryActions, modifier: Modi
             onNavigation = actions.back,
             actions = {
                 actions.search?.let { SlouchcatIconButton(SlouchcatIcon.Search, contentDescription = stringResource(R.string.nav_search), onClick = it) }
+                SlouchcatIconButton(
+                    if (state.list) SlouchcatIcon.Grid else SlouchcatIcon.List,
+                    contentDescription = stringResource(if (state.list) R.string.app_browse_showGrid else R.string.app_browse_showList),
+                    onClick = actions.view,
+                )
             },
         )
         val grid = rememberLazyGridState()
@@ -97,6 +105,7 @@ fun LibraryScreen(state: LibraryUiState, actions: LibraryActions, modifier: Modi
             key = { it.id },
             state = grid,
             onNearEnd = actions.nearEnd,
+            list = state.list,
             modifier = Modifier.fillMaxSize(),
             header = {
                 // One cell: the grid's gap stays between the head and the cards, not inside the head.
@@ -124,13 +133,18 @@ fun LibraryScreen(state: LibraryUiState, actions: LibraryActions, modifier: Modi
             },
             footer = { fullWidth("more") { PagingFooter(items.more, onRetry = actions.nearEnd) } },
         ) { item ->
-            MediaCard(item, onClick = actions.item?.let { { it(item) } }, tag = watchedTag(item), width = null)
+            if (state.list) {
+                MediaListRow(item, onClick = actions.item?.let { { it(item) } })
+            } else {
+                MediaCard(item, onClick = actions.item?.let { { it(item) } }, tag = watchedTag(item), width = null)
+            }
         }
     }
     when (state.sheet) {
         LibrarySheet.Sort -> SortSheet(state, actions)
         LibrarySheet.Genre -> GenreSheet(state, actions)
         LibrarySheet.Year -> YearSheet(state, actions)
+        LibrarySheet.Rating -> RatingSheet(state, actions)
         null -> Unit
     }
 }
@@ -168,6 +182,17 @@ private fun Chips(state: LibraryUiState, actions: LibraryActions) {
         if (!state.podcasts) {
             item {
                 SlouchcatChip(f.decade?.let { decadeName(it) } ?: stringResource(R.string.library_filters_year), selected = f.decade != null, onClick = { actions.sheet(LibrarySheet.Year) }, trailingIcon = SlouchcatIcon.Down)
+            }
+        }
+        // The age ratings the server names for this library (facets, rule 12); none: no chip.
+        if (state.ratings.size > 1 || f.maxRating != null) {
+            item {
+                SlouchcatChip(
+                    f.maxRating?.let { stringResource(R.string.rating_upTo, it.toString()) } ?: stringResource(R.string.library_filters_rating),
+                    selected = f.maxRating != null,
+                    onClick = { actions.sheet(LibrarySheet.Rating) },
+                    trailingIcon = SlouchcatIcon.Down,
+                )
             }
         }
     }
@@ -222,14 +247,14 @@ private fun Tools(state: LibraryUiState, actions: LibraryActions) {
     val total = state.items.total
     val count = when {
         state.items.items !is Loadable.Ready -> null
-        state.filters.active -> pluralStringResource(R.plurals.app_browse_matches, total, total)
+        state.filters.active -> pluralCount(R.plurals.app_browse_matches, total)
         else -> {
             val noun = when (state.library?.kind) {
                 LibraryKind.AUDIOBOOKS -> pluralStringResource(R.plurals.library_page_noun_audiobooks, total)
                 LibraryKind.PODCASTS -> pluralStringResource(R.plurals.library_page_noun_podcasts, total)
                 else -> pluralStringResource(R.plurals.library_page_noun_video, total)
             }
-            pluralStringResource(R.plurals.library_page_count, total, total, noun).replace(total.toString(), NumberFormat.getIntegerInstance().format(total))
+            pluralCount(R.plurals.library_page_count, total, noun)
         }
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -307,6 +332,17 @@ private fun GenreSheet(state: LibraryUiState, actions: LibraryActions) {
         SheetHead(title)
         Option(stringResource(R.string.library_filters_allGenres), state.filters.genre == null, { actions.genre(null) }, state.library?.itemCount?.let { titleCount(it) })
         for (genre in state.genres) Option(genre.name, state.filters.genre == genre.name, { actions.genre(genre.name) }, titleCount(genre.count))
+        SheetClose(actions)
+    }
+}
+
+@Composable
+private fun RatingSheet(state: LibraryUiState, actions: LibraryActions) {
+    val title = stringResource(R.string.library_filters_rating)
+    SlouchcatSheet(title, onDismiss = { actions.sheet(null) }) {
+        SheetHead(title)
+        Option(stringResource(R.string.library_filters_anyRating), state.filters.maxRating == null, { actions.rating(null) })
+        for (age in state.ratings) Option(stringResource(R.string.rating_upTo, age.toString()), state.filters.maxRating == age, { actions.rating(age) })
         SheetClose(actions)
     }
 }

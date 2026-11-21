@@ -141,7 +141,24 @@ class SignInFlowTest {
         waitFor(hasContentDescription(s(R.string.app_browse_sortLabel, "").trim(), substring = true))
     }
 
-    private fun waitForStart() = waitFor(hasText(s(R.string.home_rows_recent)) or hasText(s(R.string.home_empty_title)), 30_000)
+    /**
+     * The start page with its content: a row or the empty state, no spinner, and (with libraries,
+     * on the phone) the menu button of the media choice. Checked twice: after the profile choice a
+     * new session epoch may still replace the page that was already there.
+     */
+    private fun waitForStart() {
+        val content = hasText(s(R.string.home_rows_recent)) or hasText(s(R.string.home_empty_title))
+        val loading = hasContentDescription(s(R.string.app_state_loading))
+        val phone = context.resources.configuration.screenWidthDp < 700
+        repeat(2) {
+            compose.waitUntil(30_000) {
+                compose.onAllNodes(content, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() &&
+                    compose.onAllNodes(loading, useUnmergedTree = true).fetchSemanticsNodes().isEmpty() &&
+                    (!phone || libraries.isEmpty() || compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen))).fetchSemanticsNodes().isNotEmpty())
+            }
+            compose.waitForIdle()
+        }
+    }
 
     /**
      * Stage 4 (concept 27, 13): the start page; with the test media of `task testdata:media` (the

@@ -34,7 +34,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
+import androidx.annotation.PluralsRes
+import androidx.compose.ui.platform.LocalResources
+import java.text.NumberFormat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -83,6 +85,7 @@ fun MediaImage(
     contentScale: ContentScale = ContentScale.Crop,
     placeholder: Boolean = true,
     surface: Boolean = true,
+    alignment: Alignment = Alignment.Center,
 ) {
     val c = SlouchcatTheme.colors
     BoxWithConstraints(if (surface) modifier.background(c.s2) else modifier) {
@@ -108,9 +111,9 @@ fun MediaImage(
             val loader = LocalMediaImageLoader.current
             val image = Modifier.fillMaxSize().then(if (loaded) Modifier.testTag(IMAGE_LOADED_TAG) else Modifier)
             if (loader != null) {
-                AsyncImage(model = url, contentDescription = null, imageLoader = loader, contentScale = contentScale, modifier = image, onState = { state = it })
+                AsyncImage(model = url, contentDescription = null, imageLoader = loader, contentScale = contentScale, alignment = alignment, modifier = image, onState = { state = it })
             } else {
-                AsyncImage(model = url, contentDescription = null, contentScale = contentScale, modifier = image, onState = { state = it })
+                AsyncImage(model = url, contentDescription = null, contentScale = contentScale, alignment = alignment, modifier = image, onState = { state = it })
             }
         }
     }
@@ -289,4 +292,17 @@ private const val MIN_PROGRESS = 0.04f
 
 /** «12 Titel», the count line of a list (`home.list.count`). */
 @Composable
-fun titleCount(count: Int): String = pluralStringResource(R.plurals.home_list_count, count, count)
+fun titleCount(count: Int): String = pluralCount(R.plurals.home_list_count, count)
+
+/**
+ * A plural text whose `{{count}}` (`%1$d`) shows the number in the format of the language
+ * («1’846 Titel» in Swiss German); the plural form still follows the number. [more] fill the
+ * placeholders after the count (`%2$s` …).
+ */
+@Composable
+fun pluralCount(@PluralsRes id: Int, count: Int, vararg more: Any): String {
+    val resources = LocalResources.current
+    val locale = resources.configuration.locales[0]
+    val template = resources.getQuantityText(id, count).toString().replace("%1\$d", "%1\$s")
+    return String.format(locale, template, NumberFormat.getIntegerInstance(locale).format(count), *more)
+}

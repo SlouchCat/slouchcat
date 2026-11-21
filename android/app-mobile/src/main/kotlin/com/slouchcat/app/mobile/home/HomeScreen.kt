@@ -384,6 +384,7 @@ private fun Slide(item: MediaItem, links: HomeLinks, onWatchlist: (MediaItem) ->
                     contentScale = ContentScale.Fit,
                     placeholder = false,
                     surface = false,
+                    alignment = if (wide) Alignment.CenterStart else Alignment.Center,
                 )
             } else {
                 Text(

@@ -199,7 +199,9 @@
         "youngest": "Ab 0 zuerst"
       },
       "noMatch": "Keine Titel",
-      "reset": "Filter zurücksetzen"
+      "reset": "Filter zurücksetzen",
+      "showList": "Als Liste zeigen",
+      "showGrid": "Als Raster zeigen"
     },
     "search": {},
     "player": {},

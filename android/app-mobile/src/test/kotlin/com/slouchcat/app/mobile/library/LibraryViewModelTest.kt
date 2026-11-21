@@ -119,6 +119,26 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun theAgeRatingFilterAndTheListViewKeepTheTitles() = runTest(dispatcher) {
+        val vm = LibraryViewModel(session(backgroundScope), repository, 4, libraries)
+        settle()
+        // The ratings of the facets (rule 12: only what the server names).
+        assertEquals(listOf(0, 12, 16), vm.state.value.ratings)
+        vm.onRating(12)
+        settle()
+        assertEquals(12, repository.queries.last().first.maxRating)
+        assertTrue(vm.state.value.filters.active)
+        val asked = repository.queries.size
+        vm.onView()
+        settle()
+        assertTrue(vm.state.value.list)
+        assertEquals("the view asks nothing", asked, repository.queries.size)
+        vm.onAll()
+        settle()
+        assertNull(repository.queries.last().first.maxRating)
+    }
+
+    @Test
     fun aFailureCanBeTriedAgain() = runTest(dispatcher) {
         repository.all = ApiResult.Offline
         val vm = LibraryViewModel(session(backgroundScope), repository, 4, libraries)

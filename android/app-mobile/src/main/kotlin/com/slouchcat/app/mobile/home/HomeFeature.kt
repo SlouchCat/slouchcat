@@ -4,6 +4,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -11,10 +12,8 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.slouchcat.app.mobile.browse.ApiHomeRepository
-import com.slouchcat.app.mobile.browse.ApiItemRepository
-import com.slouchcat.app.mobile.browse.ApiLibraryRepository
 import com.slouchcat.app.mobile.browse.CollectionRoute
+import com.slouchcat.app.mobile.browse.browse
 import com.slouchcat.app.mobile.browse.CollectionsRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.LibraryRoute
@@ -76,7 +75,7 @@ object HomeFeature : Feature {
         val graph = app.graph
         val navigator = app.navigator
         composable<HomeRoute> {
-            val vm = viewModel { HomeViewModel(graph.session, ApiHomeRepository(graph.api, graph.http), ApiItemRepository(graph.api, graph.http)) }
+            val vm = viewModel { HomeViewModel(graph.session, graph.browse.home, graph.browse.items) }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
             val resources = LocalResources.current
@@ -118,6 +117,7 @@ object HomeFeature : Feature {
                 onRowEnd = vm::onRowEnd,
                 onWatchlist = vm::onWatchlist,
                 snackbar = snackbar,
+                rotate = motionAllowed(LocalContext.current),
             )
         }
         composable<LibraryRoute> { entry ->
@@ -125,7 +125,7 @@ object HomeFeature : Feature {
             val vm = viewModel {
                 LibraryViewModel(
                     graph.session,
-                    ApiLibraryRepository(graph.api, graph.http),
+                    graph.browse.library,
                     route.id,
                     graph.librariesSource.libraries,
                     initialSort = LibrarySort.entries.firstOrNull { it.value == route.sort },
@@ -144,6 +144,8 @@ object HomeFeature : Feature {
                     genre = vm::onGenre,
                     decade = vm::onDecade,
                     content = vm::onContent,
+                    rating = vm::onRating,
+                    view = vm::onView,
                     item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
                     search = navigator.opener(SearchRoute()),
                 )
@@ -152,7 +154,7 @@ object HomeFeature : Feature {
         }
         composable<ListRoute> { entry ->
             val key = entry.toRoute<ListRoute>().key
-            val vm = viewModel { ListViewModel(graph.session, ApiHomeRepository(graph.api, graph.http), key) }
+            val vm = viewModel { ListViewModel(graph.session, graph.browse.home, key) }
             val state by vm.state.collectAsStateWithLifecycle()
             ListScreen(
                 kind = vm.kind,
@@ -165,3 +167,10 @@ object HomeFeature : Feature {
         }
     }
 }
+
+/**
+ * Whether the stage may move on by itself: not when the system turned animations off (a
+ * setting for reduced motion, also what the emulator flows set).
+ */
+private fun motionAllowed(context: android.content.Context): Boolean =
+    android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
