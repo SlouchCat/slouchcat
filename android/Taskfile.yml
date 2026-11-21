@@ -13,7 +13,7 @@ env:
 tasks:
   check:
     desc: >-
-      Debug builds of both flavours (play, foss), lint of every module with the own rules, the
+      Debug and unsigned release builds (R8) of both flavours (play, foss), lint of every module with the own rules, the
       generators of client, texts and tokens (CI job "android")
     cmds:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheck
@@ -24,9 +24,9 @@ tasks:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain ciTest
 
   apk:
-    desc: Debug APKs of both flavours into app-mobile/build/outputs/apk (install with adb install -r)
+    desc: Debug APKs and unsigned release APKs (R8) of both flavours into app-mobile/build/outputs/apk
     cmds:
-      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease
       - find app-mobile/build/outputs/apk -name '*.apk' -print
 
   # The generated client against a real server: the server of this repository with empty data on

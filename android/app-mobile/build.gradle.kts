@@ -19,7 +19,20 @@ android {
     flavorDimensions += "distribution"
     productFlavors {
         create("play") { dimension = "distribution" }
-        create("foss") { dimension = "distribution" }
+        // Its own id, so both builds can sit side by side on one device.
+        create("foss") {
+            dimension = "distribution"
+            applicationIdSuffix = ".foss"
+        }
+    }
+    // R8 from the start, so a page that needs a keep rule shows it in `task android:apk` and
+    // not first in the store build. Unsigned here; signing comes with the release (11.2).
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
 }
 

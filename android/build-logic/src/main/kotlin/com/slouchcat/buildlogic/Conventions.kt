@@ -39,9 +39,16 @@ internal fun Project.configureLint(lint: Lint) {
     dependencies.add("lintChecks", project(":lint"))
 }
 
+/** One test JVM at a time in the whole build: Robolectric needs 1.5 GB each (gradle.properties). */
+abstract class TestSlot : org.gradle.api.services.BuildService<org.gradle.api.services.BuildServiceParameters.None>
+
 /** JVM tests: Robolectric needs memory, but not more than the machine can give several builds. */
 internal fun Project.configureTests() {
+    val slot = gradle.sharedServices.registerIfAbsent("slouchcatTestSlot", TestSlot::class.java) {
+        maxParallelUsages.set(1)
+    }
     tasks.withType<Test>().configureEach {
+        usesService(slot)
         maxHeapSize = "1536m"
         testLogging {
             events("failed")

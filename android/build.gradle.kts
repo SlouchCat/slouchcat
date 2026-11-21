@@ -15,8 +15,9 @@ plugins {
 // module's own build file.
 tasks.register("ciCheck") {
     group = "verification"
-    description = "Debug builds of both flavours, lint of every module, the generators (task android:check)"
+    description = "Debug and unsigned release builds (R8) of both flavours, lint of every module, the generators (task android:check)"
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:assembleFossDebug")
+    dependsOn(":app-mobile:assemblePlayRelease", ":app-mobile:assembleFossRelease")
     dependsOn(":app-mobile:lintPlayDebug", ":app-mobile:lintFossDebug")
     dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug")
 }
