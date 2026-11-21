@@ -123,6 +123,13 @@ tasks:
     cmds:
       - task: server:apicheck
 
+  devicecheck:
+    desc: >-
+      Concept 27 stage 1: a phone pairs a TV against a freshly started server (apicheck -devices);
+      `-- -relay <URL>` hands the packet over through a running pairing relay
+    cmds:
+      - task: server:devicecheck
+
   # The one local command that builds and checks everything (plan section 4). It runs the same
   # checks as CI, in an order that makes sense on one machine; CI runs the ci:* tasks below in
   # parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too -- that

@@ -144,8 +144,11 @@ tasks:
           exit 1
         }
         # The same throw-away setup the Playwright suite uses (web/e2e/start-server.mjs): own
-        # config and cache directory, own port, no TMDB key, development mode.
-        SLOUCHCAT_TMDB_API_KEY= bin/slouchcat serve \
+        # config and cache directory, own port, no TMDB key, development mode. New library folders
+        # must lie below a browsable root (idea 02, E14), and the default /media is on no test
+        # machine: the root is the test media, as in the e2e suite.
+        if [ ! -d ../testdata/media ]; then echo "Keine Testmedien: zuerst task testdata:media." >&2; exit 1; fi
+        SLOUCHCAT_TMDB_API_KEY= SLOUCHCAT_BROWSE_ROOTS="$(cd ../testdata/media && pwd)" bin/slouchcat serve \
           --listen "127.0.0.1:$port" \
           --config-dir "$root/config" --cache-dir "$root/cache" \
           --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -162,6 +165,16 @@ tasks:
           -spec ../api/openapi.yaml -testdata ../testdata "$@" \
           || fail "Der Fremd-Client-Test ist fehlgeschlagen."
         APICHECK
+
+  devicecheck:
+    desc: >-
+      The device check of concept 27 (stage 1): apicheck with -devices plays a phone that pairs a TV
+      against a freshly started server. Arguments after `--` go to the client, for example
+      `-relay http://127.0.0.1:8180` for a running pairing relay (`task relay:build`, relay/bin/pair).
+    cmds:
+      - task: apicheck
+        vars:
+          CLI_ARGS: '-devices {{.CLI_ARGS}}'
 
   vuln:
     desc: Check dependencies for known vulnerabilities (needs network access)

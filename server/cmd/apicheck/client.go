@@ -125,6 +125,16 @@ func (c *client) send(ctx context.Context, method, path string, query url.Values
 // Bearer (none for appLogin), the app's name in X-Slouchcat-Client and no cookie jar, so the
 // browser cookies of the other checks never travel along.
 func (c *client) sendApp(ctx context.Context, method, path, token string, body any) (*response, error) {
+	return c.sendAs(ctx, "mobile/1.0.0", method, path, token, body)
+}
+
+// sendTV is sendApp of the TV app (X-Slouchcat-Client tv/1.0.0).
+func (c *client) sendTV(ctx context.Context, method, path, token string, body any) (*response, error) {
+	return c.sendAs(ctx, "tv/1.0.0", method, path, token, body)
+}
+
+// sendAs is sendApp with the app name and version of X-Slouchcat-Client.
+func (c *client) sendAs(ctx context.Context, app, method, path, token string, body any) (*response, error) {
 	op, err := c.contract.lookup(method, path)
 	if err != nil {
 		return nil, err
@@ -149,7 +159,7 @@ func (c *client) sendApp(ctx context.Context, method, path, token string, body a
 		return nil, fmt.Errorf("build request %s: %w", op.id, err)
 	}
 	req.Header.Set("Accept", "application/json, application/problem+json")
-	req.Header.Set("X-Slouchcat-Client", "mobile/1.0.0")
+	req.Header.Set("X-Slouchcat-Client", app)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

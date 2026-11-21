@@ -11,6 +11,9 @@
 //
 //	apicheck -base http://127.0.0.1:8099 -spec ../api/openapi.yaml -testdata ../testdata
 //
+// With -devices it runs only the device check, which plays a phone and a TV (concept 27, stage 1;
+// `task devicecheck`); -relay names a running pairing relay for the hand-over of the packet.
+//
 // The output is the evidence of the acceptance: one line per viewer function with "ok" or
 // "fehlgeschlagen", the operations it used and what the server answered. The exit code is 0 only
 // when every line is ok. With -report the same table is written as Markdown.
@@ -23,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -49,9 +53,11 @@ func main() {
 	wait := flag.Duration("wait", time.Minute, "how long to wait for the server to become healthy")
 	timeout := flag.Duration("timeout", 2*time.Minute, "timeout of a single HTTP request")
 	budget := flag.Duration("budget", 30*time.Minute, "time budget of the whole run")
+	relay := flag.String("relay", "", "base URL of a running pairing relay for the device check (empty: hand the packet over in memory)")
+	devices := flag.Bool("devices", false, "run only the device check: a phone pairs a TV (task devicecheck)")
 	flag.Parse()
 
-	if err := run(*base, *spec, *data, *report, *wait, *timeout, *budget); err != nil {
+	if err := run(*base, *spec, *data, *report, strings.TrimRight(*relay, "/"), *devices, *wait, *timeout, *budget); err != nil {
 		fmt.Fprintf(os.Stderr, "apicheck: %v\n", err)
 		os.Exit(2)
 	}
@@ -59,7 +65,7 @@ func main() {
 
 // run builds the client, prepares the data and walks the checks. It returns an error only when
 // the run itself could not happen; a failed check ends the process with exit code 1.
-func run(base, spec, data, report string, wait, timeout, budget time.Duration) error {
+func run(base, spec, data, report, relay string, devicesOnly bool, wait, timeout, budget time.Duration) error {
 	contract, err := loadContract(spec)
 	if err != nil {
 		return err
@@ -83,15 +89,19 @@ func run(base, spec, data, report string, wait, timeout, budget time.Duration) e
 		feed.stop(stopCtx)
 	}()
 
-	s := &state{c: c, testdata: data, feed: feed}
+	s := &state{c: c, testdata: data, feed: feed, relay: relay}
 	started := time.Now()
 	if err := prepareAll(ctx, s, wait); err != nil {
 		return err
 	}
 
-	results := make([]result, 0, len(checks()))
+	list := checks()
+	if devicesOnly {
+		list = slices.DeleteFunc(list, func(c check) bool { return c.name != deviceCheckName })
+	}
+	results := make([]result, 0, len(list))
 	failed := 0
-	for _, check := range checks() {
+	for _, check := range list {
 		c.begin()
 		start := time.Now()
 		detail, err := check.run(ctx, s)

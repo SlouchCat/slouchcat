@@ -45,6 +45,7 @@ func checks() []check {
 		{"Hörbuch-Kapitel", checkAudiobookChapters},
 		{"Podcast-Episoden", checkPodcastEpisodes},
 		{"App anmelden (Bearer)", checkAppLogin},
+		{deviceCheckName, checkDevices},
 	}
 }
 
