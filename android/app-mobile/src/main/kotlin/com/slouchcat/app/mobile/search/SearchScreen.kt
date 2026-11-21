@@ -170,7 +170,7 @@ fun SearchScreen(
                         modifier = Modifier.padding(horizontal = gutter()),
                     )
                 }
-                is Loadable.Ready -> results(found.value, state.query, images, onItem, onPerson, onCollection, onMore)
+                is Loadable.Ready -> results(found.value, found.value.query, images, onItem, onPerson, onCollection, onMore)
                 else -> item("state") { LoadableContent(found, onRetry = onRetry, modifier = Modifier.padding(horizontal = gutter())) {} }
             }
             if (state.hits != null && state.query.length >= 2) item("missing") { missing(state.query) }

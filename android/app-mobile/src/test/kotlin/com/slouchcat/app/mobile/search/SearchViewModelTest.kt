@@ -85,6 +85,20 @@ class SearchViewModelTest {
         assertEquals(4, hits.count)
     }
 
+    /** A space more asks nothing new; the hits mark the text they were found for (code review L-3). */
+    @Test
+    fun aSpaceMoreAsksNothingNewAndTheHitsKeepTheirText() = runTest(dispatcher) {
+        val repository = films()
+        val vm = model(repository)
+        vm.onText("spi")
+        settle()
+        val asked = repository.asked.size
+        vm.onText("spi ")
+        settle()
+        assertEquals(asked, repository.asked.size)
+        assertEquals("spi", (vm.state.value.hits as Loadable.Ready).value.query)
+    }
+
     @Test
     fun aNewTextCancelsTheRequestUnderWay() = runTest(dispatcher) {
         val repository = films()

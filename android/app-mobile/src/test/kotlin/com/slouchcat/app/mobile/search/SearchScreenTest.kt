@@ -101,6 +101,7 @@ class SearchScreenTest {
             total = 1,
             people = listOf(personRef(7, "Spike Lee")),
             collections = listOf(collectionRef("c1", "Spider Collection", 3)),
+            query = "sp",
         )
         show(SearchUiState(text = "sp", hits = Loadable.Ready(hits)))
         compose.onNodeWithText(q(R.plurals.app_search_hits, 3, 3)).assertIsDisplayed()

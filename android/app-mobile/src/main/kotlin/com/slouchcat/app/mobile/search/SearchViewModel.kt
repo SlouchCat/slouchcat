@@ -30,6 +30,8 @@ data class SearchHits(
     val people: List<PersonRef>,
     val collections: List<CollectionRef>,
     val more: MoreState = MoreState.Idle,
+    /** The text these hits were found for: the marks follow it, not the text typed since (code review L-3). */
+    val query: String = "",
 ) {
     /** Everything found, the line «3 Treffer». */
     val count: Int get() = total + people.size + collections.size
@@ -83,8 +85,10 @@ class SearchViewModel(
 
     fun onText(text: String) {
         if (text == _state.value.text) return
+        val same = text.trim() == _state.value.query
         _state.update { it.copy(text = text) }
-        search(debounce = true)
+        // A space more or less asks nothing new (code review L-3).
+        if (!same) search(debounce = true)
     }
 
     fun onClear() = onText("")
@@ -149,7 +153,7 @@ class SearchViewModel(
             val result = repository.search(server, query, 0, PAGE_SIZE)
             val hits = when (result) {
                 is ApiResult.Ok -> result.value.let { page ->
-                    val found = SearchHits(page.items.map { MediaItem.from(it, ServerImages(server)) }, page.total, page.people, page.collections)
+                    val found = SearchHits(page.items.map { MediaItem.from(it, ServerImages(server)) }, page.total, page.people, page.collections, query = query.text.orEmpty())
                     if (found.count == 0) Loadable.Empty else Loadable.Ready(found)
                 }
                 else -> result.toLoadable().let { it as? Loadable.Failed ?: Loadable.Failed(LoadError.Failed) }
