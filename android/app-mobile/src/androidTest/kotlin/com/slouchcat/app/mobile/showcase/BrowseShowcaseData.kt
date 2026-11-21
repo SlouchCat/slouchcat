@@ -36,9 +36,9 @@ import java.time.OffsetDateTime
  */
 object BrowseShowcaseData {
     private var n = 0
-    private fun id(): String = "01JSHOWCASE00000000000" + (++n).toString().padStart(5, '0')
+    fun id(): String = "01JSHOWCASE00000000000" + (++n).toString().padStart(5, '0')
 
-    private fun image(id: String, kind: String, size: String, width: Int, height: Int) =
+    fun image(id: String, kind: String, size: String, width: Int, height: Int) =
         ImageRef("/api/v1/items/$id/images/$kind/$size?v=showcase&p=${SHOWCASE_PROFILE.id}", width, height)
 
     private fun images(id: String, logo: Boolean, square: Boolean) = ItemImages(
@@ -50,7 +50,7 @@ object BrowseShowcaseData {
         logo = if (logo) image(id, "logo", "w400", 400, 150) else null,
     )
 
-    private fun progress(percent: Int, minutes: Int) = Progress(
+    fun progress(percent: Int, minutes: Int) = Progress(
         positionMs = minutes * 60_000L * percent / 100,
         durationMs = minutes * 60_000L,
         percent = BigDecimal(percent),
@@ -98,7 +98,7 @@ object BrowseShowcaseData {
     )
 
     /** An episode of [series] that «Weiterschauen» shows as its series. */
-    private val episode: ItemRef = series[1].let { s ->
+    val episode: ItemRef = series[1].let { s ->
         val id = id()
         ItemRef(
             id, ItemKind.EPISODE, "Signal aus der Tiefe", inWatchlist = false,

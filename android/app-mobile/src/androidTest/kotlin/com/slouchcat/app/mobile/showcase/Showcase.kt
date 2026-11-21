@@ -22,6 +22,8 @@ import com.slouchcat.core.session.LibrariesRepository
 import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.StoredCredentials
+import com.slouchcat.core.session.AuthRepository
+import com.slouchcat.core.session.DevicesRepository
 import com.slouchcat.core.session.TokenStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +74,9 @@ class Showcase(
     private val features: List<Feature>,
     private val libraries: List<LibraryNav>,
     private val images: ShowcaseImages,
+    /** The account's side (profile choice, «Mehr») and «Meine Geräte»; `null`: the server's (never asked by stage 4). */
+    private val auth: AuthRepository? = null,
+    private val devices: DevicesRepository? = null,
     private val install: (AppGraph) -> Unit,
 ) {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -85,7 +90,7 @@ class Showcase(
             override suspend fun libraries(server: HttpUrl): ApiResult<List<LibraryNav>> = ApiResult.Ok(libraries)
         }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository)
+            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices)
             install(graph)
         }
         val loader = images.loader(context)

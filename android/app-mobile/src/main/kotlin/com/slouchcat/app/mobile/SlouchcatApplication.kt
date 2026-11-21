@@ -71,6 +71,10 @@ class AppGraph(
     accountStore: AccountStore = DataStoreAccountStore(context.applicationContext),
     /** The libraries of the media choice; tests bring their own. `null`: from the server. */
     librariesRepository: LibrariesRepository? = null,
+    /** Sign-in, profiles and account; the showcase brings its own. `null`: from the server. */
+    authRepository: AuthRepository? = null,
+    /** «Meine Geräte»; the showcase brings its own. `null`: from the server. */
+    devicesRepository: DevicesRepository? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -105,8 +109,8 @@ class AppGraph(
 
     val serverProbe: ServerProbe = HealthServerProbe(publicClient, AndroidTrustInspector())
     val serverRepository: ServerRepository = ApiServerRepository(api, http)
-    val auth: AuthRepository = ApiAuthRepository(api, http)
-    val devices: DevicesRepository = ApiDevicesRepository(api, http)
+    val auth: AuthRepository = authRepository ?: ApiAuthRepository(api, http)
+    val devices: DevicesRepository = devicesRepository ?: ApiDevicesRepository(api, http)
     val libraries: LibrariesRepository = librariesRepository ?: ApiLibrariesRepository(api, http)
     val hostResolver: HostResolver = HostResolver.System
 
