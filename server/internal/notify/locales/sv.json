@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Ett önskemål har fått en ny status.",
   "wish_review_subject": "Godkännande krävs: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} önskar sig filmen. I Seerr väntar den på godkännande.",
-  "wish_review_show_body": "{{account}} · {{profile}} önskar sig serien. I Seerr väntar den på godkännande."
+  "wish_review_show_body": "{{account}} · {{profile}} önskar sig serien. I Seerr väntar den på godkännande.",
+  "device_linked_subject": "Ny enhet ansluten",
+  "device_linked_body": "Den {{time}} anslöts en {{kind}} till ditt konto. Enheten kallar sig ”{{name}}” ({{system}}); uppgifterna kommer från enheten själv. Om det inte var du, logga ut enheten under ”Mina enheter” och byt lösenord.",
+  "device_kind_tv": "TV"
 }

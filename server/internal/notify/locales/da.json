@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Et ønske har fået en ny status.",
   "wish_review_subject": "Godkendelse påkrævet: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} ønsker filmen. Den venter på godkendelse i Seerr.",
-  "wish_review_show_body": "{{account}} · {{profile}} ønsker serien. Den venter på godkendelse i Seerr."
+  "wish_review_show_body": "{{account}} · {{profile}} ønsker serien. Den venter på godkendelse i Seerr.",
+  "device_linked_subject": "Ny enhed forbundet",
+  "device_linked_body": "Den {{time}} blev et {{kind}} forbundet med din konto. Enheden kalder sig »{{name}}« ({{system}}); oplysningerne kommer fra enheden selv. Hvis det ikke var dig, så log enheden ud under »Mine enheder«, og skift din adgangskode.",
+  "device_kind_tv": "tv"
 }

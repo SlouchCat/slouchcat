@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmy, seriale, audiobooki i podcasty dla Twojego domu."
+    "tagline": "Filmy, seriale, audiobooki i podcasty dla Twojego domu.",
+    "setup": {
+      "tagline": "Twoje filmy, seriale, audiobooki i podcasty z własnego serwera.",
+      "title": "Połącz się ze swoim serwerem",
+      "addressLabel": "Adres serwera",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Ten sam adres, pod którym otwierasz Slouchcat w przeglądarce.",
+      "connect": "Połącz",
+      "connecting": "Łączenie…",
+      "found": "Znaleziono",
+      "address": "Adres",
+      "version": "Wersja",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Połączenie szyfrowane",
+      "notEncrypted": "Połączenie nieszyfrowane",
+      "next": "Dalej",
+      "otherAddress": "Inny adres",
+      "error": {
+        "empty": "Wpisz adres swojego serwera.",
+        "invalid": "To nie wygląda na adres. Przykład: {{example}}",
+        "unreachable": "Serwer nie odpowiada. Sprawdź adres i to, czy urządzenie jest w odpowiedniej sieci.",
+        "notSlouchcat": "Pod tym adresem nie odpowiada żaden serwer Slouchcat.",
+        "tooOld": "Ten serwer (Slouchcat {{server}}) jest za stary. Aplikacja wymaga Slouchcat {{required}} lub nowszego. Zaktualizuj serwer."
+      },
+      "insecure": {
+        "title": "Nieszyfrowane połączenie",
+        "body": "To połączenie nie jest szyfrowane. W obcych sieciach ktoś może odczytać Twoje hasło i przejąć dostęp.",
+        "cancel": "Anuluj",
+        "confirm": "Połącz mimo to"
+      }
+    },
+    "connected": {
+      "title": "Połączono z {{host}}",
+      "change": "Zmień adres"
+    },
+    "state": {
+      "loading": "Ładowanie…",
+      "offline": "Serwer nie odpowiada. Sprawdź połączenie.",
+      "notFound": "Tego tu nie ma albo już nie ma.",
+      "notAllowed": "Na tym koncie nie jest to możliwe.",
+      "failed": "Coś poszło nie tak.",
+      "retry": "Spróbuj ponownie"
+    },
+    "update": {
+      "title": "Zaktualizuj aplikację",
+      "body": "Twój serwer wymaga nowszej wersji aplikacji.",
+      "close": "Zamknij"
+    },
+    "connectedState": {
+      "empty": "Nie skonfigurowano jeszcze serwera.",
+      "setUp": "Skonfiguruj serwer"
+    },
+    "tls": {
+      "userCertificate": "Szyfrowane certyfikatem zainstalowanym przez Ciebie",
+      "httpsRequired": "Serwer wymaga szyfrowanego połączenia. Adres to teraz {{address}}, połącz się ponownie."
+    }
   },
   "common": {
     "back": "Wstecz",
@@ -13,6 +68,7 @@
     "saving": "Zapisywanie…"
   },
   "nav": {
+    "devices": "Moje urządzenia",
     "main": "Nawigacja główna",
     "home": "Strona główna",
     "logout": "Wyloguj się",
@@ -2769,6 +2825,7 @@
       "empty": "Brak urządzeń.",
       "columns": {
         "name": "Urządzenie",
+        "session": "Sesja",
         "owner": "Właściciel",
         "lastSeen": "Ostatni kontakt",
         "containers": "Kontenery",
@@ -2778,6 +2835,12 @@
         "hdr": "HDR",
         "streams": "Strumienie",
         "actions": "Działania"
+      },
+      "sessionKinds": {
+        "browser": "Przeglądarka",
+        "app": "Aplikacja",
+        "device": "Aplikacja TV",
+        "none": "Wylogowane"
       },
       "unnamed": "Nieznane urządzenie",
       "owner": "{{email}} · {{profile}}",
@@ -6658,6 +6721,11 @@
     "loadFailed": "Nie udało się wczytać bibliotek."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Zalecany PIN dla profilu głównego",
+      "body": "To konto ma profile z kategorią wiekową. Bez kodu PIN w profilu głównym każdy może się na niego przełączyć i zmienić kategorie wiekowe.",
+      "action": "Ustaw PIN"
+    },
     "picker": {
       "title": "Kto ogląda?",
       "intro": "Wybierz profil.",
@@ -7192,6 +7260,51 @@
     "wish_failed": "Twoja prośba zakończyła się niepowodzeniem"
   },
   "settings": {
+    "devices": {
+      "title": "Moje urządzenia",
+      "intro": "Wszystkie urządzenia, na których to konto jest zalogowane lub ma pobrane pliki. Wylogowane urządzenie traci wszystko, co to konto na nim ma.",
+      "list": "Urządzenia tego konta",
+      "none": "Żadne urządzenie nie ma logowania ani pobranych plików tego konta.",
+      "thisDevice": "To urządzenie",
+      "unnamed": "Nieznane urządzenie",
+      "types": {
+        "desktop": "Komputer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "Telewizor",
+        "other": "Inne urządzenie"
+      },
+      "kinds": {
+        "browser": "Przeglądarka",
+        "app": "Aplikacja na telefon",
+        "device": "Aplikacja TV"
+      },
+      "signedIn": "{{kind}}, zalogowano {{date}}",
+      "downloadsOnly": "Wylogowane, nadal ma pobrane pliki tego konta",
+      "lastSeen": "Ostatni kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Ostatni kontakt: {{date}} · {{count}} pobranie",
+      "lastSeenWithDownloads_few": "Ostatni kontakt: {{date}} · {{count}} pobrania",
+      "lastSeenWithDownloads_many": "Ostatni kontakt: {{date}} · {{count}} pobrań",
+      "lastSeenWithDownloads_other": "Ostatni kontakt: {{date}} · {{count}} pobrania",
+      "downloads_one": "{{count}} pobranie",
+      "downloads_few": "{{count}} pobrania",
+      "downloads_many": "{{count}} pobrań",
+      "downloads_other": "{{count}} pobrania",
+      "signOut": {
+        "action": "Wyloguj",
+        "label": "Wyloguj {{name}}",
+        "title": "Wylogować „{{name}}”?",
+        "body": "Urządzenie traci logowanie tego konta, a trwające odtwarzanie się kończy. Pobrane pliki, powiadomienia i automatyczne pobieranie tego konta na urządzeniu zostaną usunięte. Inne konta na urządzeniu pozostają.",
+        "current": "To urządzenie, z którego właśnie korzystasz: nastąpi tu natychmiastowe wylogowanie.",
+        "bodyCurrent": "Urządzenie traci logowanie tego konta, a trwające odtwarzanie się kończy. Pobrane pliki, powiadomienia i automatyczne pobieranie tego konta na urządzeniu zostaną usunięte. Inne konta na urządzeniu pozostają. To urządzenie, z którego właśnie korzystasz: nastąpi tu natychmiastowe wylogowanie.",
+        "confirm": "Wyloguj urządzenie"
+      },
+      "signedOut": "Wylogowano „{{name}}”.",
+      "onlyPrimary": {
+        "title": "Wylogowanie tylko w profilu głównym",
+        "body": "Urządzenia wylogujesz w profilu głównym tego konta. Tutaj widzisz listę."
+      }
+    },
     "playback": {
       "title": "Ustawienia",
       "intro": "Dźwięk i napisy dla profilu {{name}}, na każdym urządzeniu. To, co wybierzesz ręcznie w odtwarzaczu, ma pierwszeństwo.",

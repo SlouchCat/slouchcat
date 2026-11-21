@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Bir isteğin durumu değişti.",
   "wish_review_subject": "Onay gerekiyor: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} filmi istiyor. Film Seerr’de onay bekliyor.",
-  "wish_review_show_body": "{{account}} · {{profile}} diziyi istiyor. Dizi Seerr’de onay bekliyor."
+  "wish_review_show_body": "{{account}} · {{profile}} diziyi istiyor. Dizi Seerr’de onay bekliyor.",
+  "device_linked_subject": "Yeni cihaz bağlandı",
+  "device_linked_body": "{{time}} tarihinde hesabınıza bir {{kind}} bağlandı. Cihaz kendini “{{name}}” ({{system}}) olarak tanıtıyor; bu bilgiler cihazın kendisinden geliyor. Bu siz değilseniz cihazın oturumunu “Cihazlarım” bölümünden kapatın ve şifrenizi değiştirin.",
+  "device_kind_tv": "TV"
 }
