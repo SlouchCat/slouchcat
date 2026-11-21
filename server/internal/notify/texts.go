@@ -56,6 +56,10 @@ type message struct {
 	Body    string
 	Link    string
 	Lang    string
+	// Security marks the message device_linked: it goes out on switched-off channels too, by
+	// e-mail to the account's own address.
+	Security bool
+	pushed   *pushProgress // push: the subscriptions reached so far; nil = none kept (test messages)
 }
 
 // absolute returns the link as an absolute URL on the public address, "" without one.

@@ -180,7 +180,7 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
+SELECT id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at, kind FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
 `
 
 type GetSessionByTokenHashParams struct {
@@ -202,6 +202,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, arg GetSessionByTok
 		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }
@@ -343,9 +344,9 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 }
 
 const insertSession = `-- name: InsertSession :one
-INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
-RETURNING id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at
+INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, kind)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8)
+RETURNING id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at, kind
 `
 
 type InsertSessionParams struct {
@@ -356,8 +357,11 @@ type InsertSessionParams struct {
 	UserAgent sql.NullString
 	Now       int64
 	ExpiresAt int64
+	Kind      string
 }
 
+// kind: browser (cookie, sliding expiry), app or device (bearer, an expiry far in the future that
+// TouchSession never moves; ADR 0040).
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (Session, error) {
 	row := q.db.QueryRowContext(ctx, insertSession,
 		arg.TokenHash,
@@ -367,6 +371,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		arg.UserAgent,
 		arg.Now,
 		arg.ExpiresAt,
+		arg.Kind,
 	)
 	var i Session
 	err := row.Scan(
@@ -380,6 +385,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }
@@ -399,6 +405,51 @@ func (q *Queries) RevokeAccountSessions(ctx context.Context, arg RevokeAccountSe
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const revokeOlderBearerSessionsOnDevice = `-- name: RevokeOlderBearerSessionsOnDevice :many
+UPDATE sessions SET revoked_at = ?1
+WHERE account_id = ?2 AND device_id = ?3 AND kind <> 'browser' AND id <> ?4
+  AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeOlderBearerSessionsOnDeviceParams struct {
+	Now       sql.NullInt64
+	AccountID int64
+	DeviceID  sql.NullString
+	KeepID    int64
+}
+
+// A new app or device session of an account on a device ends the older app and device sessions of
+// the same account on the same device (concept 27, code review m-5): a lost token dies with the
+// next sign-in.
+func (q *Queries) RevokeOlderBearerSessionsOnDevice(ctx context.Context, arg RevokeOlderBearerSessionsOnDeviceParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, revokeOlderBearerSessionsOnDevice,
+		arg.Now,
+		arg.AccountID,
+		arg.DeviceID,
+		arg.KeepID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeSession = `-- name: RevokeSession :execrows

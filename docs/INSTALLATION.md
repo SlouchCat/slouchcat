@@ -335,6 +335,10 @@ er glauben darf. Trag das Docker-Netz von Caddy ein — `docker network inspect 
 zeigt es, meistens `172.18.0.0/16`. Der Wert `private` tut es auch, vertraut aber jedem Gerät in
 deinem Heimnetz; der Server warnt dann beim Start.
 
+Ohne diese Angabe sieht der Server alle Anfragen von der Adresse des Proxys. Dann teilen sich alle
+Geräte die Bremsen gegen zu viele Versuche (Anmelden, das Prüfen des Servers durch die Android-Apps,
+das Koppeln eines Fernsehers): wer aus dem Internet viele Anfragen schickt, sperrt dann alle aus.
+
 Dann:
 
 ```bash

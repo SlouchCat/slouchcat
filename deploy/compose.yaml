@@ -68,6 +68,7 @@ services:
       SLOUCHCAT_SMTP_TLS: ${SLOUCHCAT_SMTP_TLS:-}
       SLOUCHCAT_TELEGRAM_BOT_TOKEN: ${SLOUCHCAT_TELEGRAM_BOT_TOKEN:-}
       SLOUCHCAT_PUBLIC_URL: ${SLOUCHCAT_PUBLIC_URL:-}
+      SLOUCHCAT_PUSH_RELAY: ${SLOUCHCAT_PUSH_RELAY:-}
       # Folders the folder browser of the library form may list, and below which a new library
       # folder must lie (idea 02); comma-separated. Empty = /media, the mount above. Never "/":
       # the browser would show the whole container, including /config with the database, the

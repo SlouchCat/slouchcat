@@ -33,6 +33,51 @@ import (
 // subscription, the server deletes it.
 var ErrSubscriptionGone = errors.New("push subscription gone")
 
+// The push relay of the Android app (concept 27 section 7.3, ADR 0044): it hands the encrypted body
+// on to Google, whose data message holds at most 4096 bytes and whose field takes the body in
+// base64. A record of RelayRecordSize bytes fits (stage 0: 3602 bytes in base64); a payload of at
+// most RelayMaxPayload bytes fits into such a record (86 bytes header, 16 bytes tag, 1 delimiter).
+const (
+	DefaultRelayOrigin = "https://push.slouchcat.com"
+	RelayRecordSize    = 2700
+	RelayMaxPayload    = RelayRecordSize - 103
+)
+
+// IsRelay reports whether endpoint lies on one of origins, a comma-separated list of origins of the
+// push relay (several while the relay moves, ADR 0044): same scheme, host name and port, the port
+// defaulting to the scheme's (https://push.slouchcat.com:443 is https://push.slouchcat.com). An
+// empty list matches nothing.
+func IsRelay(endpoint, origins string) bool {
+	e, err := url.Parse(endpoint)
+	if err != nil || e.Host == "" {
+		return false
+	}
+	for origin := range strings.SplitSeq(origins, ",") {
+		o, err := url.Parse(strings.TrimSpace(origin))
+		if err != nil || o.Host == "" {
+			continue
+		}
+		if strings.EqualFold(e.Scheme, o.Scheme) && strings.EqualFold(e.Hostname(), o.Hostname()) && port(e) == port(o) {
+			return true
+		}
+	}
+	return false
+}
+
+// port is the port of u, or the default port of its scheme.
+func port(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	}
+	return ""
+}
+
 // Timeout bounds one request to a push service.
 const Timeout = 30 * time.Second
 
@@ -52,11 +97,12 @@ type VAPID struct {
 }
 
 // Sender sends with one VAPID pair. AllowPrivate (development mode, tests) accepts http endpoints
-// and private addresses.
+// and private addresses. RelayOrigin is the origin of the push relay (IsRelay); empty = none.
 type Sender struct {
 	VAPID        VAPID
 	AllowPrivate bool
 	HTTP         *http.Client // nil = the package client for AllowPrivate
+	RelayOrigin  string
 }
 
 // GenerateVAPID returns a new VAPID key pair (base64url).
@@ -100,10 +146,21 @@ func decodeKey(s string) ([]byte, error) {
 }
 
 // Send encrypts payload for the subscription and hands it to its push service, which keeps it for
-// ttl while the browser is offline. 404 and 410 return ErrSubscriptionGone.
+// ttl while the browser is offline. 404 and 410 return ErrSubscriptionGone. An endpoint of the push
+// relay gets a record of RelayRecordSize bytes (a payload above RelayMaxPayload is an error), and
+// there only 410 returns ErrSubscriptionGone: the relay answers 410 only when Google no longer
+// knows the app's token, and every other answer, 404 included, is a failure to retry (ADR 0044).
 func (s Sender) Send(ctx context.Context, sub Subscription, payload []byte, ttl time.Duration) error {
 	if err := CheckEndpoint(sub.Endpoint, s.AllowPrivate); err != nil {
 		return fmt.Errorf("push endpoint: %w", err)
+	}
+	relay := IsRelay(sub.Endpoint, s.RelayOrigin)
+	var recordSize uint32
+	if relay {
+		if len(payload) > RelayMaxPayload {
+			return fmt.Errorf("push payload of %d bytes, the relay takes at most %d", len(payload), RelayMaxPayload)
+		}
+		recordSize = RelayRecordSize
 	}
 	client := s.HTTP
 	if client == nil {
@@ -115,6 +172,7 @@ func (s Sender) Send(ctx context.Context, sub Subscription, payload []byte, ttl 
 		Endpoint: sub.Endpoint, Keys: webpush.Keys{P256dh: sub.P256dh, Auth: sub.Auth},
 	}, &webpush.Options{
 		HTTPClient: client, Subscriber: s.VAPID.Subscriber, TTL: int(ttl / time.Second), Urgency: webpush.UrgencyNormal,
+		RecordSize:     recordSize,
 		VAPIDPublicKey: s.VAPID.PublicKey, VAPIDPrivateKey: s.VAPID.PrivateKey,
 	})
 	if err != nil {
@@ -127,7 +185,7 @@ func (s Sender) Send(ctx context.Context, sub Subscription, payload []byte, ttl 
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		return nil
-	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone:
+	case resp.StatusCode == http.StatusGone, resp.StatusCode == http.StatusNotFound && !relay:
 		return ErrSubscriptionGone
 	default:
 		return fmt.Errorf("push service answered %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))

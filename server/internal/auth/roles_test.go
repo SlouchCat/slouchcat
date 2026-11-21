@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -253,4 +254,56 @@ func accountLibs(t *testing.T, s *Service, id int64) []int64 {
 		t.Fatal(err)
 	}
 	return libs
+}
+
+// Demoting an administrator ends its sessions and, as with a new password, the push subscriptions
+// of its phones and TVs (security review L-5 of concept 27 stage 1); a browser keeps its own.
+func TestDemotionDropsAppPushSubscriptions(t *testing.T) {
+	t.Parallel()
+	s, _ := newService(t)
+	owner(t, s)
+	ctx := context.Background()
+	second := addGuestAccount(t, s, "zweiter@example.ch", 12, true, nil)
+	if err := s.SetAccountRole(ctx, second.ID, model.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`INSERT INTO devices (id, created_at, last_seen_at) VALUES ('0123456789abcdef0123456789abcdef', 1, 1), ('fedcba9876543210fedcba9876543210', 1, 1)`,
+		`INSERT INTO sessions (token_hash, account_id, device_id, created_at, last_seen_at, expires_at, kind) VALUES
+		   ('h-app', ?, '0123456789abcdef0123456789abcdef', 1, 1, 253402214400000, 'app'),
+		   ('h-browser', ?, 'fedcba9876543210fedcba9876543210', 1, 1, 253402214400000, 'browser')`,
+		`INSERT INTO push_subscriptions (account_id, device_id, endpoint, p256dh, auth, created_at) VALUES
+		   (?, '0123456789abcdef0123456789abcdef', 'https://push.slouchcat.com/v1/push/1.a', 'p', 'a', 1),
+		   (?, 'fedcba9876543210fedcba9876543210', 'https://push.example.test/b', 'p', 'a', 1)`,
+	} {
+		args := []any{}
+		for range strings.Count(q, "?") {
+			args = append(args, second.ID)
+		}
+		if _, err := s.db.ExecContext(ctx, q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.SetAccountRole(ctx, second.ID, model.RoleUser); err != nil {
+		t.Fatal(err)
+	}
+	var endpoints []string
+	rows, err := s.db.QueryContext(ctx, `SELECT endpoint FROM push_subscriptions WHERE account_id = ?`, second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var e string
+		if err := rows.Scan(&e); err != nil {
+			t.Fatal(err)
+		}
+		endpoints = append(endpoints, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(endpoints) != 1 || endpoints[0] != "https://push.example.test/b" {
+		t.Errorf("subscriptions after the demotion %v, want only the browser's", endpoints)
+	}
 }

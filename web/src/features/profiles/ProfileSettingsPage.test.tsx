@@ -58,6 +58,30 @@ describe('profile settings page', () => {
     expect(within(menu).getByText('Gefahr')).toBeVisible();
   });
 
+  it('recommends a PIN for the primary profile while a profile has an age limit (E-9)', async () => {
+    mockApi(manage);
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    // Marco (primary) has no PIN, Lena is FSK 12.
+    expect(await screen.findByText('PIN für das Hauptprofil empfohlen')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'PIN setzen' }));
+    expect(await screen.findByRole('dialog', { name: 'PIN für Marco' })).toBeVisible();
+  });
+
+  it('recommends no PIN when the primary profile has one or no profile has an age limit', async () => {
+    for (const list of [
+      profiles.map((p) => (p.isPrimary ? { ...p, hasPin: true } : p)),
+      profiles.map((p) => ({ ...p, maxRating: 18 })),
+    ]) {
+      mockApi({ ...manage, 'GET /profiles': () => json(list) });
+      const { unmount } = renderApp('/settings/profiles');
+      expect(await screen.findByRole('article', { name: 'Marco' })).toBeVisible();
+      expect(screen.queryByText('PIN für das Hauptprofil empfohlen')).toBeNull();
+      unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('gives a non-primary profile a notice instead of the management', async () => {
     const { calls } = mockApi({
       ...signedIn,

@@ -74,12 +74,24 @@ func (q *Queries) DeleteAccountDownload(ctx context.Context, arg DeleteAccountDo
 
 const deleteOldTombstones = `-- name: DeleteOldTombstones :execrows
 DELETE FROM download_tombstones
-WHERE id IN (SELECT t.id FROM download_tombstones AS t WHERE t.removed_at < ?1 LIMIT 500)
+WHERE id IN (SELECT t.id FROM download_tombstones AS t
+             WHERE t.removed_at < ?1
+               AND NOT EXISTS (SELECT 1 FROM sessions AS s
+                               WHERE s.device_id = t.device_id AND s.kind <> 'browser'
+                                 AND s.revoked_at IS NULL AND s.expires_at > ?2)
+             LIMIT 500)
 `
 
-// Tombstones older than 400 days go, like devices (at most 500 per batch).
-func (q *Queries) DeleteOldTombstones(ctx context.Context, before int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteOldTombstones, before)
+type DeleteOldTombstonesParams struct {
+	Before int64
+	Now    int64
+}
+
+// Tombstones older than 400 days go, like devices (at most 500 per batch), except those of a device
+// with a living app or device session: it keeps its id however long it was silent and must still
+// learn what to delete (ADR 0040).
+func (q *Queries) DeleteOldTombstones(ctx context.Context, arg DeleteOldTombstonesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOldTombstones, arg.Before, arg.Now)
 	if err != nil {
 		return 0, err
 	}

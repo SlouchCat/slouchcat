@@ -115,15 +115,52 @@ func (s sessionSwitched) VisitSelectProfileResponse(w http.ResponseWriter) error
 	return err
 }
 
-// loggedOut clears the cookie and answers 204.
-type loggedOut struct{ r *http.Request }
+// loggedOut clears the cookie and answers 204. An app (bearer) gets neither a cookie nor
+// Clear-Site-Data (concept 27 4.3).
+type loggedOut struct {
+	r   *http.Request
+	app bool
+}
 
 func (l loggedOut) VisitLogoutResponse(w http.ResponseWriter) error {
-	dropSessionCookie(w.Header()) // a cookie refreshed by the middleware must not survive the logout
-	clearSessionCookie(w, l.r)
-	w.Header().Set("Clear-Site-Data", clearSiteDataCache)
+	if !l.app {
+		dropSessionCookie(w.Header()) // a cookie refreshed by the middleware must not survive the logout
+		clearSessionCookie(w, l.r)
+		w.Header().Set("Clear-Site-Data", clearSiteDataCache)
+	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+func (e serviceProblem) VisitAppLoginResponse(w http.ResponseWriter) error { return e.visit(w) }
+
+// AppLogin signs an Android app in (ADR 0040). The device id the app holds comes from the body or,
+// without it, from DeviceHeader; the answer carries the token and the device id the server kept.
+// The middleware drops every cookie of this route.
+func (s *server) AppLogin(ctx context.Context, req gen.AppLoginRequestObject) (gen.AppLoginResponseObject, error) {
+	body := deref(req.Body)
+	device := deref(body.DeviceId)
+	if device == "" {
+		if r := requestFrom(ctx); r != nil {
+			device = appDeviceID(r)
+		}
+	}
+	session, token, err := s.opts.Auth.AppLogin(model.WithClientIP(ctx, s.clientAddr(ctx)), string(body.Email), deref(body.Password),
+		body.DeviceName, string(body.Kind), device, userAgent(ctx))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	info := toSessionInfo(session)
+	info.UpdateAvailable, info.RatingSystem = s.updateNotice(ctx, session), s.ratingSystem(ctx)
+	return appLoggedIn{body: gen.AppLogin{Token: token, DeviceId: session.DeviceID, Session: info}}, nil
+}
+
+// appLoggedIn answers appLogin with Cache-Control: no-store (the body carries the token).
+type appLoggedIn struct{ body gen.AppLogin }
+
+func (a appLoggedIn) VisitAppLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Cache-Control", "no-store")
+	return gen.AppLogin200JSONResponse(a.body).VisitAppLoginResponse(w)
 }
 
 func userAgent(ctx context.Context) string {
@@ -199,7 +236,8 @@ func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 }
 
 func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
-	if session, ok := sessionFrom(ctx); ok {
+	session, ok := sessionFrom(ctx)
+	if ok {
 		// Playback first: it revokes the stream tokens and stops their HLS output; auth then
 		// revokes the browser session (and, in the same transaction, any playback left).
 		if s.opts.Playback != nil {
@@ -217,7 +255,7 @@ func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.Log
 			return s.problem(ctx, err), nil
 		}
 	}
-	return loggedOut{r: requestFrom(ctx)}, nil
+	return loggedOut{r: requestFrom(ctx), app: session.IsBearer()}, nil
 }
 
 func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) (gen.GetSessionResponseObject, error) {

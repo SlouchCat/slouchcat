@@ -68,6 +68,19 @@ export function deviceColumns(
   return [
     nameColumn(t),
     {
+      // The kind of the device's living session (contract 1.42.0, ADR 0040): browser, phone app or
+      // TV app; a device without one is signed out.
+      key: 'session',
+      width: '9rem',
+      header: t('admin.devices.columns.session'),
+      cell: (device) =>
+        device.sessionKind ? (
+          t(`admin.devices.sessionKinds.${device.sessionKind}`)
+        ) : (
+          <span className={styles.muted}>{t('admin.devices.sessionKinds.none')}</span>
+        ),
+    },
+    {
       key: 'owner',
       header: t('admin.devices.columns.owner'),
       cell: (device) =>

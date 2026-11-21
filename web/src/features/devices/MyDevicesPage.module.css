@@ -1,0 +1,32 @@
+/* The devices of the account, like the push devices of the notification channels. */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding: var(--sc-space-2) 0;
+}
+
+.device + .device {
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A long device name wraps, so the whole name stays readable without hovering. */
+.name {
+  overflow-wrap: anywhere;
+}

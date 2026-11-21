@@ -87,6 +87,31 @@ var (
 	ErrInvitationGone         = errors.New("invitation gone")          // 410 invitation_gone
 )
 
+// Pairing errors (concept 27 section 10, ADR 0040).
+var (
+	// ErrAppSessionRequired: only the phone app's session may issue a pairing voucher (403
+	// app_session_required); a device session is refused before by x-clients.
+	ErrAppSessionRequired = errors.New("app session required")
+	// ErrVoucherInvalid: the voucher is unknown, expired, used or bound to another key (410
+	// voucher_invalid); the answer does not tell which.
+	ErrVoucherInvalid = errors.New("voucher invalid")
+)
+
+// PairingVoucher is an issued pairing voucher; Voucher exists only in the answer of the issue.
+type PairingVoucher struct {
+	Voucher   string
+	ExpiresAt time.Time
+}
+
+// PairingRedeemed is the result of a redeemed voucher: the device session, its token sealed for the
+// TV's key together with the device id and the account's e-mail the TV shows (SealedToken, HPKE,
+// ADR 0040), and the server's Ed25519 signature over the sealed answer (empty without identity).
+type PairingRedeemed struct {
+	Session     Session
+	SealedToken []byte
+	Signature   []byte
+}
+
 // Role errors (ADR 0014). They are conflicts, not permission questions: the caller has the right,
 // the state forbids the step. Who may call at all is the visibility level owner, enforced in the
 // middleware (403 owner_required).
@@ -133,6 +158,21 @@ func WithDeviceID(ctx context.Context, id string) context.Context {
 func DeviceID(ctx context.Context) string {
 	id, _ := ctx.Value(deviceIDKey{}).(string)
 	return id
+}
+
+type carrierKey struct{}
+
+// WithCarrier records how a session token travels: as Authorization: Bearer (bearer true) or in
+// the session cookie. Resolving a token whose session kind does not fit the carrier then fails
+// before the session is touched (ADR 0040); without it every kind resolves.
+func WithCarrier(ctx context.Context, bearer bool) context.Context {
+	return context.WithValue(ctx, carrierKey{}, bearer)
+}
+
+// Carrier returns the carrier recorded by WithCarrier and whether one was recorded.
+func Carrier(ctx context.Context) (bearer, known bool) {
+	bearer, known = ctx.Value(carrierKey{}).(bool)
+	return bearer, known
 }
 
 type clientIPKey struct{}
@@ -263,15 +303,35 @@ func (l PlaybackLimits) Cap(other PlaybackLimits) PlaybackLimits {
 	}
 }
 
-// Session is a resolved browser session. A session without an active profile (signed in, profile
-// not chosen yet) has the zero Profile; HasProfile tells them apart.
+// Kinds of session (ADR 0040, concept 27 4.1): the kind is stored with the session, and the carrier
+// of the token must match it.
+const (
+	// SessionBrowser is a browser session: the cookie slouchcat_session, 30 days sliding.
+	SessionBrowser = "browser"
+	// SessionApp is a session of the phone app: Authorization: Bearer, never expires, never admin
+	// or owner.
+	SessionApp = "app"
+	// SessionDevice is a session of the TV app: Authorization: Bearer, never expires, only the
+	// operations whose x-clients names tv.
+	SessionDevice = "device"
+)
+
+// Session is a resolved session. A session without an active profile (signed in, profile not
+// chosen yet) has the zero Profile; HasProfile tells them apart.
 type Session struct {
 	ID        int64
 	Account   Account
 	Profile   Profile
 	DeviceID  string // device the session started on (PIN locks count per profile and device)
 	ExpiresAt time.Time
+	// Kind is SessionBrowser, SessionApp or SessionDevice; empty counts as SessionBrowser. The session
+	// inside a PlaybackGrant (the stream token st) carries no kind: nothing behind the token routes may
+	// ask IsBearer (code review m-7 of concept 27 stage 1).
+	Kind string
 }
+
+// IsBearer reports whether the session travels as Authorization: Bearer (app or device session).
+func (s Session) IsBearer() bool { return s.Kind == SessionApp || s.Kind == SessionDevice }
 
 // IsAdmin reports whether the session's account administers the server (ADR 0014). Together with
 // IsPrimary it is what the middleware checks for x-visibility admin.
@@ -2350,6 +2410,20 @@ type AdminDevice struct {
 	Capabilities   *PlaybackCapabilities
 	CapabilitiesAt *time.Time
 	ActiveStreams  int
+	SessionKind    string // kind of the living session with the latest contact; empty without one (ADR 0040)
+}
+
+// MyDevice is a device of the own account in «Meine Geräte» (concept 27, 4.5): it holds a living
+// session or a download of the account.
+type MyDevice struct {
+	ID          string
+	Name        string
+	Type        string
+	SessionKind string     // kind of the account's living session with the latest contact; empty when only downloads hold the device
+	SignedInAt  *time.Time // start of that session; nil without one
+	LastSeenAt  time.Time
+	Downloads   int  // downloads of the account on the device
+	Current     bool // the device of the calling session
 }
 
 // AdminStream is a running playback session as the administration sees it (W-6).

@@ -57,6 +57,7 @@ export type PlaybackPrefs = components['schemas']['PlaybackPrefs'];
 export type SubtitleMode = components['schemas']['SubtitleMode'];
 export type EffectiveLimits = components['schemas']['EffectiveLimits'];
 export type AdminDevice = components['schemas']['AdminDevice'];
+export type MyDevice = components['schemas']['MyDevice'];
 export type AdminStream = components['schemas']['AdminStream'];
 export type ProgressEvent = components['schemas']['ProgressEvent'];
 export type Progress = components['schemas']['Progress'];

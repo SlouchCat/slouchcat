@@ -31,10 +31,10 @@
         "mode": 0,
         "recipientPrivateKey": "6YaelMWm3MCYja39ZMDUVyGYyk0CJUeYsXzQLknh7KA",
         "recipientPublicKey": "QCYdnDrDMuTaRSfMmHi3L0lWboCDrMRS8Qe0vcuBxnk",
-        "sealed": "Fea_vaN0ZSemFBqyCt560QKz5JHSq62h-W2r2HfQzw0vXcW-kYW4yiTlcGlTzcjdpX6icYmWCnIo8OXIkfv8_SKivDKg0hWbJm17n5fLsucDirtgrK-TXAWXGrL3_J0NDfiBSkKtN16eS6aCYfw7DkyXr7M"
+        "sealed": "NGME9CoKCgssTBNEmX9F8OmL5Pl6_btn6F1s5dz7SjH46GU_N9sYfcp6-cXB7wwQnboridieufSTMJcap6eWy2ULeBijsiVkhsrZk9ReLfnuJM674-ZmoH0-7-0xbNBSNRzZOv62w34FZR_DjZh9O_tha56LbvfUPm9Fu89Dum7VIPVYxpjNYMrrfXoIJDa8yAy7HdwOvhI"
       },
       "expected": {
-        "plaintext": "eyJkZXZpY2VJZCI6ImRldl9leGFtcGxlIiwidG9rZW4iOiJleGFtcGxlLWRldmljZS10b2tlbi0wMTIzNDU2Nzg5In0"
+        "plaintext": "eyJhY2NvdW50RW1haWwiOiJvd25lckBleGFtcGxlLnRlc3QiLCJkZXZpY2VJZCI6ImRldl9leGFtcGxlIiwidG9rZW4iOiJleGFtcGxlLWRldmljZS10b2tlbi0wMTIzNDU2Nzg5In0"
       }
     },
     {

@@ -25,6 +25,9 @@ func (preloadAuth) SetupRequired(context.Context) (bool, error) { return false, 
 func (preloadAuth) Login(context.Context, string, string, string) (model.Session, string, error) {
 	return model.Session{}, "", model.ErrInvalidCredentials
 }
+func (preloadAuth) AppLogin(context.Context, string, string, string, string, string, string) (model.Session, string, error) {
+	return model.Session{}, "", model.ErrInvalidCredentials
+}
 func (preloadAuth) Logout(context.Context, int64) error { return nil }
 func (a preloadAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	if s, ok := a.sessions[token]; ok {

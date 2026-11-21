@@ -207,7 +207,8 @@ func (s *server) SetDownloadRules(ctx context.Context, req gen.SetDownloadRulesR
 
 // CheckOfflineRevocations answers the revocation list of the device named by the cookie
 // slouchcat_device (public): a device whose sessions are gone (guest revoked) still learns which
-// of its downloads to delete. Without the cookie the list is empty.
+// of its downloads to delete. An Android app names the device in DeviceHeader instead (ADR 0040).
+// Without either the list is empty.
 func (s *server) CheckOfflineRevocations(ctx context.Context, req gen.CheckOfflineRevocationsRequestObject) (gen.CheckOfflineRevocationsResponseObject, error) {
 	if s.opts.Offline == nil {
 		return nil, errNoOffline
@@ -217,8 +218,14 @@ func (s *server) CheckOfflineRevocations(ctx context.Context, req gen.CheckOffli
 	}
 	device := ""
 	if r := requestFrom(ctx); r != nil {
-		if c, err := r.Cookie(DeviceCookie); err == nil && deviceIDPattern.MatchString(c.Value) {
+		session, ok := sessionFrom(ctx)
+		switch c, err := r.Cookie(DeviceCookie); {
+		case ok && session.IsBearer():
+			device = session.DeviceID // with a bearer session the device is the session's (ADR 0040)
+		case err == nil && deviceIDPattern.MatchString(c.Value):
 			device = c.Value
+		default:
+			device = appDeviceID(r) // an Android app without session names its device in the header
 		}
 	}
 	revoked, err := s.opts.Offline.Revocations(ctx, device, req.Body.Ids)

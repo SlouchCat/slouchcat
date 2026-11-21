@@ -86,7 +86,26 @@ UPDATE sessions SET device_id = @device_id WHERE id = @id AND device_id IS NULL;
 UPDATE profiles SET max_rating = @max_rating, updated_at = @now WHERE account_id = @account_id AND max_rating > @max_rating;
 
 -- name: DeleteStaleDevices :execrows
-DELETE FROM devices WHERE last_seen_at < @before;
+-- A device with a living app or device session stays however long it was silent: those sessions
+-- never expire, and losing the device would drop its downloads and give it a new id (ADR 0040).
+DELETE FROM devices
+WHERE devices.last_seen_at < @before
+  AND NOT EXISTS (SELECT 1 FROM sessions AS s
+                  WHERE s.device_id = devices.id AND s.kind <> 'browser' AND s.revoked_at IS NULL AND s.expires_at > @now);
+
+-- name: DeviceHeldByOtherAccount :one
+-- Whether another account than @account_id holds a living session or a download on the device:
+-- then a device id a client brings along to appLogin is not taken (concept 27, 4.2).
+SELECT EXISTS (SELECT 1 FROM sessions AS s
+               WHERE s.device_id = @id AND s.account_id <> @account_id AND s.revoked_at IS NULL AND s.expires_at > @now)
+    OR EXISTS (SELECT 1 FROM downloads AS d WHERE d.device_id = @id AND d.account_id <> @account_id);
+
+-- name: UpsertNamedDevice :exec
+-- The device of an appLogin with the name and type the app reported; a later playback start of an
+-- app or device session keeps them (RecordDeviceProfile is called without name and type).
+INSERT INTO devices (id, user_agent, created_at, last_seen_at, name, type)
+VALUES (@id, sqlc.narg('user_agent'), @now, @now, @name, @type)
+ON CONFLICT (id) DO UPDATE SET last_seen_at = excluded.last_seen_at, name = excluded.name, type = excluded.type;
 
 -- name: DeleteStalePinAttempts :execrows
 DELETE FROM pin_attempts WHERE updated_at < @before;
@@ -152,8 +171,13 @@ RETURNING id;
 -- name: ListDevicesAdmin :many
 -- Devices, last contact first, with the owner of the last playback start and the number of running
 -- streams (the activity window of CountActivePlaybackSessions).
+-- session_kind is the kind of the device's living session with the latest contact, '' without one
+-- (ADR 0040).
 SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
        a.email AS owner_email, p.name AS owner_profile,
+       CAST(COALESCE((SELECT s.kind FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > @now
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
        (SELECT count(*) FROM playback_sessions AS ps
         JOIN sessions AS s ON s.id = ps.session_id
         WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > @now
@@ -172,6 +196,89 @@ DELETE FROM pin_attempts WHERE device_id = @device_id;
 
 -- name: DeleteDevice :execrows
 DELETE FROM devices WHERE id = @id;
+
+-- name: DeleteDevicePushSubscriptions :execrows
+-- The push subscriptions of a device, of every account: deleteDevice removes them before the device
+-- row, whose deletion would only clear their device_id (concept 27, 4.5).
+DELETE FROM push_subscriptions WHERE device_id = @device_id;
+
+-- My devices (concept 27, 4.5, ADR 0040): the devices of an account and its sign-out. The
+-- account of a session or a download decides, never devices.account_id (the owner of the last
+-- playback start).
+
+-- name: ListMyDevices :many
+-- The devices that hold a living session or a download of the account, last contact first, with the
+-- kind and start of the account's living session with the latest contact ('' and 0 without one) and
+-- the account's downloads on the device. last_seen_at is the account's own last contact on the
+-- device (its sessions, else its newest download), not the device's: on a shared device an account
+-- does not learn when another one used it (code review m-3 of stage 1).
+SELECT d.id, d.name, d.type,
+       CAST(COALESCE((SELECT max(s.last_seen_at) FROM sessions AS s WHERE s.device_id = d.id AND s.account_id = @account_id),
+                     (SELECT max(dl.created_at) FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = @account_id),
+                     d.created_at) AS INTEGER) AS last_seen_at,
+       CAST(COALESCE((SELECT s.kind FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
+       CAST(COALESCE((SELECT s.created_at FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), 0) AS INTEGER) AS signed_in_at,
+       (SELECT count(*) FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = @account_id) AS downloads
+FROM devices AS d
+WHERE EXISTS (SELECT 1 FROM sessions AS s
+              WHERE s.device_id = d.id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now)
+   OR EXISTS (SELECT 1 FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = @account_id)
+ORDER BY last_seen_at DESC, d.id;
+
+-- name: DeviceHeldByAccount :one
+-- Whether the account holds a living session or a download on the device (signOutMyDevice: 404 otherwise).
+SELECT EXISTS (SELECT 1 FROM sessions AS s
+               WHERE s.device_id = @id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now)
+    OR EXISTS (SELECT 1 FROM downloads AS d WHERE d.device_id = @id AND d.account_id = @account_id);
+
+-- name: ListAccountDeviceSessions :many
+-- The unrevoked sessions of the account on the device: their streams end before the sign-out.
+SELECT id FROM sessions WHERE device_id = @device_id AND account_id = @account_id AND revoked_at IS NULL ORDER BY id;
+
+-- name: RevokeAccountDeviceSessions :execrows
+UPDATE sessions SET revoked_at = @now WHERE device_id = @device_id AND account_id = @account_id AND revoked_at IS NULL;
+
+-- name: RevokePlaybackSessionsByAccountDevice :exec
+-- Any playback left of the account's sessions on the device, in the transaction of the sign-out.
+UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
+WHERE revoked_at IS NULL
+  AND session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = @device_id AND s.account_id = @account_id);
+
+-- name: DeleteAccountDevicePushSubscriptions :execrows
+DELETE FROM push_subscriptions WHERE device_id = @device_id AND account_id = @account_id;
+
+-- name: DeleteAccountDeviceRules :execrows
+-- The auto-download rules of the account's profiles on the device.
+DELETE FROM download_rules
+WHERE download_rules.device_id = @device_id AND download_rules.profile_id IN (SELECT p.id FROM profiles AS p WHERE p.account_id = @account_id);
+
+-- name: DeleteAccountDeviceDownloads :execrows
+-- The account's downloads on the device; the trigger downloads_tombstone writes their tombstones,
+-- which the device reads from the revocation list. Their files go with the next cleanup of package
+-- offline (directories without a download row, every 10 minutes), as after deleteDevice.
+DELETE FROM downloads WHERE device_id = @device_id AND account_id = @account_id;
+
+-- name: DeleteSessionPushSubscriptions :execrows
+-- logout of an app or device session: the account's push subscriptions of the session's device go
+-- with it (concept 27, 4.5). A browser session keeps them (a browser does not subscribe again by
+-- itself, F-40).
+DELETE FROM push_subscriptions
+WHERE push_subscriptions.device_id = (SELECT s.device_id FROM sessions AS s WHERE s.id = @session_id AND s.kind <> 'browser')
+  AND push_subscriptions.account_id = (SELECT s.account_id FROM sessions AS s WHERE s.id = @session_id);
+
+-- name: DeleteOtherAppDevicePushSubscriptions :execrows
+-- A new password: the account's push subscriptions of the devices whose app or device session it
+-- revokes (every living one but the calling session's device). Browsers keep theirs (F-40).
+DELETE FROM push_subscriptions
+WHERE push_subscriptions.account_id = @account_id
+  AND push_subscriptions.device_id IN (SELECT s.device_id FROM sessions AS s
+                    WHERE s.account_id = @account_id AND s.id <> @keep_id AND s.kind <> 'browser'
+                      AND s.revoked_at IS NULL AND s.expires_at > @now AND s.device_id IS NOT NULL)
+  AND push_subscriptions.device_id NOT IN (SELECT s.device_id FROM sessions AS s WHERE s.id = @keep_id AND s.device_id IS NOT NULL);
 
 -- name: InsertInvitation :one
 INSERT INTO invitations (token_hash, note, max_rating, all_libraries, can_request, wish_limit_mode,
