@@ -55,7 +55,7 @@ fun SlouchcatTextField(
     val shape = RoundedCornerShape(SlouchcatDimens.radiusField)
     val borderColor = when {
         error != null -> c.danger
-        focused -> c.tx
+        focused && !readOnly -> c.tx
         else -> c.ctl
     }
     Column(modifier.fillMaxWidth()) {
@@ -83,7 +83,7 @@ fun SlouchcatTextField(
                     modifier = Modifier
                         .clip(shape)
                         .background(if (readOnly) c.bg else c.s1)
-                        .border(BorderStroke(if (focused) 2.dp else 1.dp, borderColor), shape)
+                        .border(BorderStroke(if (focused && !readOnly) 2.dp else 1.dp, borderColor), shape)
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
