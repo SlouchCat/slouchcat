@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 enum class RemoteKey { PlayPause, Play, Pause, Stop, Next, Previous, FastForward, Rewind }
 
 /**
- * The media keys of the remote as events (review N-13): the activity hands every key to
- * [dispatch] before Compose; a page subscribes with [OnRemoteKey]. Keys go to the page that is
+ * The media keys of the remote as events (review N-13): the activity hands every key Compose did
+ * not take (`onKeyDown`/`onKeyUp`) to [dispatch]; a page subscribes with [OnRemoteKey]. Keys go to the page that is
  * seen (its lifecycle started) whatever has the focus. A key nobody takes goes on to the system
  * (later a `MediaSession` for sound in the background, stage 4).
  */

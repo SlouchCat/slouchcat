@@ -18,6 +18,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** The media keys go to the page that takes them ([com.slouchcat.app.tv.ui.OnRemoteKey]) before Compose. */
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean = graph.remoteKeys.dispatch(event) || super.dispatchKeyEvent(event)
+    /** The media keys Compose did not take go to the page that takes them ([com.slouchcat.app.tv.ui.OnRemoteKey]). */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean = graph.remoteKeys.dispatch(event) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean = graph.remoteKeys.dispatch(event) || super.onKeyUp(keyCode, event)
 }
