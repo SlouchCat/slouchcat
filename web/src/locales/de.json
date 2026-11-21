@@ -7141,7 +7141,7 @@
         "bodyCurrent": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben. Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
         "confirm": "Gerät abmelden"
       },
-      "signedOut": "«{{name}}» abgemeldet.",
+      "signedOut": "„{{name}}“ abgemeldet.",
       "onlyPrimary": {
         "title": "Abmelden nur im Hauptprofil",
         "body": "Geräte abmelden kannst du im Hauptprofil dieses Kontos. Hier siehst du die Liste."
