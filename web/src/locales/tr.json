@@ -32,10 +32,6 @@
         "confirm": "Yine de bağlan"
       }
     },
-    "connected": {
-      "title": "{{host}} sunucusuna bağlanıldı",
-      "change": "Adresi değiştir"
-    },
     "state": {
       "loading": "Yükleniyor…",
       "offline": "Sunucu yanıt vermiyor. Bağlantıyı denetleyin.",
@@ -48,10 +44,6 @@
       "title": "Lütfen uygulamayı güncelleyin",
       "body": "Sunucunuz uygulamanın daha yeni bir sürümünü gerektiriyor.",
       "close": "Kapat"
-    },
-    "connectedState": {
-      "empty": "Henüz bir sunucu ayarlanmadı.",
-      "setUp": "Sunucu ayarla"
     },
     "tls": {
       "userCertificate": "Kendi yüklediğiniz bir sertifikayla şifreli",

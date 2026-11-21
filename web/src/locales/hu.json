@@ -32,10 +32,6 @@
         "confirm": "Csatlakozás mindenképp"
       }
     },
-    "connected": {
-      "title": "Csatlakozva: {{host}}",
-      "change": "Cím módosítása"
-    },
     "state": {
       "loading": "Betöltés…",
       "offline": "A kiszolgáló nem válaszol. Ellenőrizze a kapcsolatot.",
@@ -48,10 +44,6 @@
       "title": "Frissítse az alkalmazást",
       "body": "A kiszolgálóhoz az alkalmazás újabb verziója szükséges.",
       "close": "Bezárás"
-    },
-    "connectedState": {
-      "empty": "Még nincs beállított kiszolgáló.",
-      "setUp": "Kiszolgáló beállítása"
     },
     "tls": {
       "userCertificate": "Saját telepítésű tanúsítvánnyal titkosítva",

@@ -32,10 +32,6 @@
         "confirm": "Yhdistä silti"
       }
     },
-    "connected": {
-      "title": "Yhdistetty: {{host}}",
-      "change": "Vaihda osoite"
-    },
     "state": {
       "loading": "Ladataan…",
       "offline": "Palvelin ei vastaa. Tarkista yhteys.",
@@ -48,10 +44,6 @@
       "title": "Päivitä sovellus",
       "body": "Palvelin tarvitsee sovelluksesta uudemman version.",
       "close": "Sulje"
-    },
-    "connectedState": {
-      "empty": "Palvelinta ei ole vielä määritetty.",
-      "setUp": "Määritä palvelin"
     },
     "tls": {
       "userCertificate": "Salattu itse asennetulla varmenteella",
