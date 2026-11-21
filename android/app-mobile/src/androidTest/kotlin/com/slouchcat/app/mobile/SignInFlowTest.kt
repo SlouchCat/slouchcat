@@ -19,6 +19,7 @@ import com.slouchcat.core.api.ClientIdentity
 import com.slouchcat.core.api.SessionCredentials
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
+import com.slouchcat.core.api.generated.apis.AccountApi
 import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
@@ -29,6 +30,7 @@ import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.strings.R
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,18 +69,23 @@ class SignInFlowTest {
         val plain = SlouchcatHttp.client(identity)
         val setup = SlouchcatApi.create(::SetupApi, server, plain)
         if (setup.getSetupStatus()!!.setupRequired) setup.runSetup(SetupRequest(email = email, password = password))
-        val login = SlouchcatApi.create(::AuthApi, server, plain)
-            .appLogin(AppLoginRequest(email, password, TV_NAME, AppLoginRequest.Kind.TV))!!
+        val http = signedIn(TV_NAME, password)
+        val auth = SlouchcatApi.create(::AuthApi, server, http)
+        val primary = auth.listMyProfiles()!!.single { it.isPrimary }
+        auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
+        SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
+    }
+
+    /** A client of another device (a TV) signed in to the account. */
+    private fun signedIn(name: String, secret: String, kind: AppLoginRequest.Kind = AppLoginRequest.Kind.TV): okhttp3.OkHttpClient {
+        val login = SlouchcatApi.create(::AuthApi, server, SlouchcatHttp.client(identity))
+            .appLogin(AppLoginRequest(email, secret, name, kind))!!
         val credentials = object : SessionCredentials {
             override val server = this@SignInFlowTest.server
             override val bearerToken = login.token
             override val deviceId: String? = null
         }
-        val http = SlouchcatHttp.client(identity, credentials)
-        val auth = SlouchcatApi.create(::AuthApi, server, http)
-        val primary = auth.listMyProfiles()!!.single { it.isPrimary }
-        auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
-        SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
+        return SlouchcatHttp.client(identity, credentials)
     }
 
     private fun waitFor(matcher: SemanticsMatcher, timeout: Long = 20_000) {
@@ -180,7 +187,16 @@ class SignInFlowTest {
         button(s(R.string.app_account_password)).performClick()
         waitForText(s(R.string.app_account_passwordWarning))
         shot("13-account-password-sheet")
-        button(s(R.string.common_cancel)).performScrollTo().performClick()
+        // A new password and back: this session stays signed in (code review minor 32).
+        val changed = password + "-new"
+        for ((old, new) in listOf(password to changed, changed to password)) {
+            if (old == changed) button(s(R.string.app_account_password)).performClick()
+            field(s(R.string.app_account_currentPassword)).performTextInput(old)
+            field(s(R.string.app_account_newPassword)).performTextInput(new)
+            field(s(R.string.app_account_repeatPassword)).performTextInput(new)
+            button(s(R.string.app_account_save)).performScrollTo().performClick()
+            waitForText(s(R.string.app_account_passwordChanged))
+        }
         button(email).performClick()
         waitForText(s(R.string.app_account_newEmail))
         shot("14-account-email-sheet")
@@ -195,8 +211,14 @@ class SignInFlowTest {
         button(s(R.string.nav_logout)).performClick()
         waitFor(hasText(s(R.string.login_title)) and isHeading())
         waitForText(server.host)
+        waitForText(s(R.string.app_signOut_done))
         shot("16-signed-out")
         scenario.close()
+
+        // The server ended the session of this phone: another device no longer lists it
+        // (a tablet session: a TV may not read the device list).
+        val devices = SlouchcatApi.create(::AccountApi, server, signedIn("E2E check", password, AppLoginRequest.Kind.TABLET)).listMyDevices()!!
+        assertTrue("the phone is still signed in", devices.none { it.name == describeDevice(context).name })
     }
 
     private companion object {

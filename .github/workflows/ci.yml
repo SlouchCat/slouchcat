@@ -406,6 +406,7 @@ jobs:
           path: |
             android/app-mobile/build/reports/androidTests/
             android/app-mobile/build/outputs/androidTest-results/
+            android/app-mobile/build/e2e-logs/
             android/core/api/build/reports/tests/contractTest/
           if-no-files-found: ignore
 
