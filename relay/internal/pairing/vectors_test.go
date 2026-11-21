@@ -3,224 +3,148 @@ package pairing
 import (
 	"bytes"
 	"crypto/ecdh"
-	"crypto/rand"
-	"crypto/sha256"
+	"crypto/hpke"
 	"encoding/json"
-	"flag"
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
-	"testing/cryptotest"
 )
 
-// The shared test vectors of the TV set-up (concept 27 sections 7.2 and 12): Go writes them once,
-// Go and Kotlin both read them in CI. `go test ./internal/pairing -run TestVectors -update`
-// writes the file anew; the content is deterministic, so a rerun changes nothing.
+// The shared test vectors (format slouchcat-crypto-vectors-v1, concept 27 sections 7.2 and 12):
+// written once by the stage 0 generator and fixed since, because HPKE seals at random. Go reads
+// them here, Kotlin reads the same files in the app's tests. hpke.json carries the two cases of
+// the protocol and the RFC 9180 vector A.1.1, which checks the implementation against values it
+// did not produce itself (security review L-7).
 
-var update = flag.Bool("update", false, "write testdata/crypto/pairing-v1.json")
-
-const vectorFile = "../../../testdata/crypto/pairing-v1.json"
-
-type vectorSuite struct {
-	KEM    string `json:"kem"`
-	KEMID  int    `json:"kemId"`
-	KDF    string `json:"kdf"`
-	KDFID  int    `json:"kdfId"`
-	AEAD   string `json:"aead"`
-	AEADID int    `json:"aeadId"`
-	Mode   string `json:"mode"`
+type vectorFile struct {
+	Format string `json:"format"`
+	Kind   string `json:"kind"`
+	Cases  []struct {
+		Name     string         `json:"name"`
+		Input    map[string]any `json:"input"`
+		Expected map[string]any `json:"expected"`
+	} `json:"cases"`
 }
 
-type vectorCase struct {
-	Name                string `json:"name"`
-	TVPrivateKey        string `json:"tvPrivateKey"`
-	TVPublicKey         string `json:"tvPublicKey"`
-	MeetingPointID      string `json:"meetingPointId,omitempty"`
-	Info                string `json:"info"`
-	AAD                 string `json:"aad"`
-	Plaintext           string `json:"plaintext"`
-	EphemeralPrivateKey string `json:"ephemeralPrivateKey"`
-	Enc                 string `json:"enc"`
-	Sealed              string `json:"sealed"`
-}
-
-type vectorPickup struct {
-	Secret string `json:"secret"`
-	Hash   string `json:"hash"`
-}
-
-type vectorFileT struct {
-	Description string       `json:"description"`
-	Encoding    string       `json:"encoding"`
-	Suite       vectorSuite  `json:"suite"`
-	Pickup      vectorPickup `json:"pickup"`
-	Cases       []vectorCase `json:"cases"`
-}
-
-func fixed(label string, n int) []byte {
-	sum := sha256.Sum256([]byte("slouchcat test vector " + label))
-	return sum[:n]
-}
-
-// sealDeterministic seals with the global random source fixed to seed and returns the sealed
-// message and the ephemeral private key HPKE drew from that source.
-func sealDeterministic(t *testing.T, seed uint64, pub, info, plain []byte) (sealed, eph []byte) {
+func readVectors(t *testing.T, name, kind string) vectorFile {
 	t.Helper()
-	var out []byte
-	t.Run("seal", func(t *testing.T) {
-		cryptotest.SetGlobalRandom(t, seed)
-		var err error
-		out, err = Seal(pub, info, plain)
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-	t.Run("ephemeral", func(t *testing.T) {
-		cryptotest.SetGlobalRandom(t, seed)
-		eph = make([]byte, 32)
-		_, _ = rand.Read(eph)
-	})
-	k, err := ecdh.X25519().NewPrivateKey(eph)
+	data, err := os.ReadFile("../../../testdata/crypto/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(k.PublicKey().Bytes(), out[:32]) {
-		t.Fatal("the ephemeral key drawn from the fixed random source does not match enc")
-	}
-	return out, eph
-}
-
-func writeVectors(t *testing.T) {
-	tv, err := ecdh.X25519().NewPrivateKey(fixed("tv key v1", 32))
-	if err != nil {
-		t.Fatal(err)
-	}
-	id := B64.EncodeToString(fixed("meeting point id v1", 16))
-	packet, err := json.Marshal(Packet{
-		V: 1, Server: "https://media.example.test", Voucher: B64.EncodeToString(fixed("voucher v1", 32)),
-		ServerKey: B64.EncodeToString(fixed("server key v1", 32)),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	redeem, err := json.Marshal(RedeemAnswer{Token: "sc_" + B64.EncodeToString(fixed("device token v1", 32)), DeviceID: "dev_" + B64.EncodeToString(fixed("device id v1", 12))})
-	if err != nil {
-		t.Fatal(err)
-	}
-	secret := B64.EncodeToString(fixed("pickup secret v1", 32))
-	hash, err := PickupHash(secret)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f := vectorFileT{
-		Description: "Concept 27 section 7.2: the packet of the TV set-up and the sealed token of the redeem answer. " +
-			"Open each sealed value with tvPrivateKey and info and compare with plaintext. " +
-			"A library that takes a fixed ephemeral key can also reproduce sealed from ephemeralPrivateKey.",
-		Encoding: "every key, id and sealed value is base64url without padding; plaintext and info are UTF-8 text",
-		Suite: vectorSuite{
-			KEM: "DHKEM(X25519, HKDF-SHA256)", KEMID: 0x20, KDF: "HKDF-SHA256", KDFID: 1,
-			AEAD: "AES-256-GCM", AEADID: 2, Mode: "base",
-		},
-		Pickup: vectorPickup{Secret: secret, Hash: hash},
-	}
-	for i, c := range []struct {
-		name, id, info string
-		plain          []byte
-	}{
-		{"packet", id, PacketInfoPrefix + id, packet},
-		{"redeem", "", RedeemInfo, redeem},
-	} {
-		sealed, eph := sealDeterministic(t, uint64(27+i), tv.PublicKey().Bytes(), []byte(c.info), c.plain)
-		f.Cases = append(f.Cases, vectorCase{
-			Name: c.name, TVPrivateKey: B64.EncodeToString(tv.Bytes()), TVPublicKey: B64.EncodeToString(tv.PublicKey().Bytes()),
-			MeetingPointID: c.id, Info: c.info, AAD: "", Plaintext: string(c.plain),
-			EphemeralPrivateKey: B64.EncodeToString(eph), Enc: B64.EncodeToString(sealed[:32]), Sealed: B64.EncodeToString(sealed),
-		})
-	}
-	data, err := json.MarshalIndent(f, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(vectorFile), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(vectorFile, append(data, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestVectors(t *testing.T) {
-	if *update {
-		writeVectors(t)
-	}
-	data, err := os.ReadFile(vectorFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var f vectorFileT
+	var f vectorFile
 	if err := json.Unmarshal(data, &f); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := PickupHash(f.Pickup.Secret); err != nil || got != f.Pickup.Hash {
-		t.Fatalf("pickup hash = %q, %v; want %q", got, err, f.Pickup.Hash)
+	if f.Format != "slouchcat-crypto-vectors-v1" || f.Kind != kind || len(f.Cases) == 0 {
+		t.Fatalf("%s: format %q, kind %q, %d cases", name, f.Format, f.Kind, len(f.Cases))
 	}
-	if len(f.Cases) != 2 {
-		t.Fatalf("%d cases, want 2", len(f.Cases))
+	return f
+}
+
+func raw(t *testing.T, v any) []byte {
+	t.Helper()
+	s, ok := v.(string)
+	if !ok {
+		t.Fatalf("%v is not a base64url string", v)
 	}
+	b, err := B64.DecodeString(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func num(t *testing.T, v any) uint16 {
+	t.Helper()
+	f, ok := v.(float64)
+	if !ok {
+		t.Fatalf("%v is not a number", v)
+	}
+	return uint16(f)
+}
+
+func TestHPKEVectors(t *testing.T) {
+	f := readVectors(t, "hpke.json", "hpke-base-single-shot")
+	var protocol, rfc int
 	for _, c := range f.Cases {
 		t.Run(c.Name, func(t *testing.T) {
-			raw := func(s string) []byte {
-				b, err := B64.DecodeString(s)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return b
+			in := c.Input
+			if num(t, in["mode"]) != 0 {
+				t.Fatal("only the base mode is used")
 			}
-			tv, err := ecdh.X25519().NewPrivateKey(raw(c.TVPrivateKey))
+			kem, err := hpke.NewKEM(num(t, in["kem"]))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(tv.PublicKey().Bytes(), raw(c.TVPublicKey)) {
-				t.Fatal("tvPublicKey does not belong to tvPrivateKey")
-			}
-			sealed := raw(c.Sealed)
-			if !bytes.Equal(sealed[:32], raw(c.Enc)) {
-				t.Fatal("sealed does not start with enc")
-			}
-			eph, err := ecdh.X25519().NewPrivateKey(raw(c.EphemeralPrivateKey))
+			kdf, err := hpke.NewKDF(num(t, in["kdf"]))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(eph.PublicKey().Bytes(), raw(c.Enc)) {
-				t.Fatal("enc is not the public key of ephemeralPrivateKey")
-			}
-			plain, err := Open(tv, []byte(c.Info), sealed)
+			aead, err := hpke.NewAEAD(num(t, in["aead"]))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(plain) != c.Plaintext {
-				t.Fatalf("plaintext = %s, want %s", plain, c.Plaintext)
+			sk, err := kem.NewPrivateKey(raw(t, in["recipientPrivateKey"]))
+			if err != nil {
+				t.Fatal(err)
 			}
-			switch c.Name {
-			case "packet":
-				if c.Info != PacketInfoPrefix+c.MeetingPointID {
-					t.Fatalf("info %q does not name the meeting point", c.Info)
-				}
-				p, err := OpenPacket(tv, c.MeetingPointID, sealed)
+			if pub := sk.PublicKey().Bytes(); !bytes.Equal(pub, raw(t, in["recipientPublicKey"])) {
+				t.Fatal("recipientPublicKey does not belong to recipientPrivateKey")
+			}
+			sealed := raw(t, in["sealed"])
+			r, err := hpke.NewRecipient(sealed[:32], sk, kdf, aead, raw(t, in["info"]))
+			if err != nil {
+				t.Fatal(err)
+			}
+			plain, err := r.Open(raw(t, in["aad"]), sealed[32:])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := raw(t, c.Expected["plaintext"]); !bytes.Equal(plain, want) {
+				t.Fatalf("plaintext = %q, want %q", plain, want)
+			}
+			// The protocol cases also open through the package's own functions.
+			info := string(raw(t, in["info"]))
+			tv, err := ecdh.X25519().NewPrivateKey(raw(t, in["recipientPrivateKey"]))
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch {
+			case strings.HasPrefix(info, PacketInfoPrefix):
+				protocol++
+				id := strings.TrimPrefix(info, PacketInfoPrefix)
+				p, err := OpenPacket(tv, id, sealed)
 				if err != nil || p.Server == "" || p.Voucher == "" {
 					t.Fatalf("OpenPacket = %+v, %v", p, err)
 				}
-				// Bound to its meeting point: another id does not open it.
-				if _, err := OpenPacket(tv, c.MeetingPointID+"x", sealed); err == nil {
+				if _, err := OpenPacket(tv, id+"x", sealed); err == nil {
 					t.Fatal("the packet opened for another meeting point")
 				}
-			case "redeem":
+			case info == RedeemInfo && len(plain) > 0:
+				protocol++
 				a, err := OpenRedeem(tv, sealed)
 				if err != nil || a.Token == "" || a.DeviceID == "" {
 					t.Fatalf("OpenRedeem = %+v, %v", a, err)
 				}
+			case strings.HasPrefix(c.Name, "RFC 9180"):
+				rfc++
 			}
 		})
+	}
+	if protocol != 2 || rfc != 1 {
+		t.Fatalf("%d protocol cases and %d RFC cases, want 2 and 1", protocol, rfc)
+	}
+}
+
+func TestPickupVectors(t *testing.T) {
+	f := readVectors(t, "pickup.json", "pickup-sha256")
+	for _, c := range f.Cases {
+		secret, _ := c.Input["secret"].(string)
+		want, _ := c.Expected["hash"].(string)
+		if got, err := PickupHash(secret); err != nil || got != want {
+			t.Fatalf("%s: PickupHash = %q, %v; want %q", c.Name, got, err, want)
+		}
 	}
 }
 

@@ -77,8 +77,9 @@ schaltbaren Teilen sind (F-39), und wie Betrieb und Umzug im Einzelnen aussehen.
 
 - Die Vermittlung hat kein Geheimnis. Ein Einbruch dort kann Treffpunkte stören und einem
   Fernseher ein Paket unterschieben (R-19), aber nicht an Push.
-- Der Fernseher und die Handy-App bauen gegen das Protokoll aus Entscheid 2; der gemeinsame
-  Testvektor `testdata/crypto/pairing-v1.json` belegt die Verschlüsselung in Go und Kotlin.
+- Der Fernseher und die Handy-App bauen gegen das Protokoll aus Entscheid 2; die gemeinsamen
+  Testvektoren `testdata/crypto/hpke.json` und `pickup.json` (Format `slouchcat-crypto-vectors-v1`,
+  mit dem Vektor A.1.1 aus RFC 9180) belegen die Verschlüsselung in Go und Kotlin.
 - Die Dienste laufen als eigene Betriebspflicht (R-3); Anleitung in `docs/relay/BETRIEB.md`.
 - CI: Job `relay` im Gate `ci`; `task ci` ruft `task ci:relay`.
 - Die echte Umzugsprobe auf einer zweiten, von aussen erreichbaren Maschine steht aus; in Stufe 2

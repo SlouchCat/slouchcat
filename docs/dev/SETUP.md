@@ -65,7 +65,6 @@ task relay:check        # Bau, go vet, golangci-lint (CI-Job «relay», mit rela
 task relay:test         # alle Tests unter -race (wartet lokal auf einen Platz)
 task relay:check:fast   # go vet und go test ohne -race, Teil von `task check:fast`
 task relay:build        # alle Programme nach relay/bin
-task relay:vectors      # testdata/crypto/pairing-v1.json neu schreiben (gleicher Inhalt)
 ```
 
 Lokal starten, ohne Container:

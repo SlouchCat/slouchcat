@@ -8,7 +8,7 @@
 // meeting point; the info of the redeem answer is "slouchcat-redeem-v1".
 //
 // The meeting point service never imports this package: it sees only ciphertext. paircheck and
-// the test vectors in testdata/crypto/pairing-v1.json use it, and the server and the apps
+// the test vectors in testdata/crypto/hpke.json and pickup.json check it, and the server and the apps
 // implement the same.
 package pairing
 

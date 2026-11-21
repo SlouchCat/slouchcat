@@ -43,8 +43,3 @@ tasks:
     cmds:
       - for: [pair, push, paircheck, pushcheck, watch, fcmfake]
         cmd: go build -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o bin/{{.ITEM}} ./cmd/{{.ITEM}}
-
-  vectors:
-    desc: Write testdata/crypto/pairing-v1.json anew (deterministic; a rerun changes nothing)
-    cmds:
-      - go test ./internal/pairing -run '^TestVectors$' -count=1 -update
