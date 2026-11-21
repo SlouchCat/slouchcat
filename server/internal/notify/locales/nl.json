@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Een wens heeft een nieuwe status.",
   "wish_review_subject": "Goedkeuring nodig: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} wenst de film. Hij wacht in Seerr op goedkeuring.",
-  "wish_review_show_body": "{{account}} · {{profile}} wenst de serie. Ze wacht in Seerr op goedkeuring."
+  "wish_review_show_body": "{{account}} · {{profile}} wenst de serie. Ze wacht in Seerr op goedkeuring.",
+  "device_linked_subject": "Nieuw apparaat verbonden",
+  "device_linked_body": "Op {{time}} is een {{kind}} met je account verbonden. Het apparaat noemt zich “{{name}}” ({{system}}); deze gegevens komen van het apparaat zelf. Was jij dit niet, log het apparaat dan uit onder “Mijn apparaten” en wijzig je wachtwoord.",
+  "device_kind_tv": "tv"
 }

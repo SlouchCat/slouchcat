@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -49,7 +49,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.41.3
+SLOUCHCAT_VERSION=1.42.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -121,7 +121,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -144,7 +144,7 @@ sein. Alle anderen Medien bleiben nur lesbar. Dafür gibt es eine Zusatzdatei, d
 für den Grafikchip dazunimmst:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/compose.podcasts.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/compose.podcasts.yaml
 ```
 
 In `.env` trägst du drei Zeilen ein (mit Grafikchip kommt `compose.podcasts.yaml` hinten an deine
@@ -306,6 +306,24 @@ nicht auf das Ende warten.
 
 Eine Installation, die schon vor Version 1.35 eingerichtet war, sieht den Assistenten nicht.
 
+### Meldungen an die Android-App: die Push-Weiterleitung
+
+Die Android-App bekommt Push-Meldungen nicht direkt vom Server, sondern über die Push-Weiterleitung des
+Projekts unter `https://push.slouchcat.com`. Sie reicht die verschlüsselten Meldungen an Google weiter
+und liest sie nicht. Der Server erkennt ihre Push-Adressen am Ursprung und schickt dorthin kürzere
+Meldungen (höchstens 350 Zeichen Text); nur wenn die Weiterleitung meldet, dass das Handy die App nicht
+mehr hat, löscht er das Abo, jeden anderen Fehler versucht er erneut. Dafür steht in `.env`:
+
+```bash
+# Ursprung der Push-Weiterleitung; leer = https://push.slouchcat.com.
+SLOUCHCAT_PUSH_RELAY=
+```
+
+Ändern musst du den Wert nur, wenn du eine eigene Push-Weiterleitung betreibst oder das Projekt sie
+umzieht; dann für die Zeit des Umzugs alte und neue Adresse durch Komma getrennt. Der Server muss die
+Weiterleitung über deren **öffentliche Adresse** im Internet erreichen, auch wenn die Handys im Heimnetz
+sind: Ein Server ohne Zugang nach draussen kann der App keine Meldungen schicken.
+
 ## 6. Von aussen erreichbar machen (HTTPS)
 
 Im Heimnetz reicht `http://…:8096`. Von unterwegs brauchst du HTTPS: Browser verlangen es für die
@@ -316,8 +334,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:
@@ -424,7 +442,7 @@ Wer das nicht will, lässt den Begleiter weg; alles andere bleibt gleich.
 
 ```bash
 cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.41.3/deploy/compose.updater.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.42.0/deploy/compose.updater.yaml
 mkdir -p updater
 echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
 ```

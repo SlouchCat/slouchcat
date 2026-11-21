@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Um pedido tem um novo estado.",
   "wish_review_subject": "Aprovação necessária: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} pede o filme. Aguarda aprovação no Seerr.",
-  "wish_review_show_body": "{{account}} · {{profile}} pede a série. Aguarda aprovação no Seerr."
+  "wish_review_show_body": "{{account}} · {{profile}} pede a série. Aguarda aprovação no Seerr.",
+  "device_linked_subject": "Novo dispositivo ligado",
+  "device_linked_body": "A {{time}}, foi ligado um {{kind}} à sua conta. O dispositivo identifica-se como «{{name}}» ({{system}}); estas informações vêm do próprio dispositivo. Se não reconhece esta ligação, termine a sessão do dispositivo em «Os meus dispositivos» e altere a sua palavra-passe.",
+  "device_kind_tv": "televisor"
 }

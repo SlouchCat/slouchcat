@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Přání má nový stav.",
   "wish_review_subject": "Nutné schválení: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} si přeje tento film. V Seerr čeká na schválení.",
-  "wish_review_show_body": "{{account}} · {{profile}} si přeje tento seriál. V Seerr čeká na schválení."
+  "wish_review_show_body": "{{account}} · {{profile}} si přeje tento seriál. V Seerr čeká na schválení.",
+  "device_linked_subject": "Připojeno nové zařízení",
+  "device_linked_body": "Dne {{time}} byla k vašemu účtu připojena {{kind}}. Zařízení se představuje jako „{{name}}“ ({{system}}); tyto údaje pocházejí přímo ze zařízení. Pokud jste to nebyli vy, odhlaste zařízení v části „Moje zařízení“ a změňte si heslo.",
+  "device_kind_tv": "televize"
 }

@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "신청 상태가 바뀌었어요.",
   "wish_review_subject": "승인 필요: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}}이(가) 이 영화를 신청했어요. Seerr에서 승인을 기다리고 있어요.",
-  "wish_review_show_body": "{{account}} · {{profile}}이(가) 이 시리즈를 신청했어요. Seerr에서 승인을 기다리고 있어요."
+  "wish_review_show_body": "{{account}} · {{profile}}이(가) 이 시리즈를 신청했어요. Seerr에서 승인을 기다리고 있어요.",
+  "device_linked_subject": "새 기기가 연결되었어요",
+  "device_linked_body": "{{time}}에 계정에 {{kind}} 기기가 연결되었어요. 기기 이름은 “{{name}}”({{system}})이며, 이 정보는 기기에서 직접 보낸 것이에요. 본인이 아니라면 “내 기기”에서 기기를 로그아웃하고 비밀번호를 변경하세요.",
+  "device_kind_tv": "TV"
 }

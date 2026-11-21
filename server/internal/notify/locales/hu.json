@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Egy kívánság állapota megváltozott.",
   "wish_review_subject": "Jóváhagyás szükséges: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} kéri a filmet. A Seerrben jóváhagyásra vár.",
-  "wish_review_show_body": "{{account}} · {{profile}} kéri a sorozatot. A Seerrben jóváhagyásra vár."
+  "wish_review_show_body": "{{account}} · {{profile}} kéri a sorozatot. A Seerrben jóváhagyásra vár.",
+  "device_linked_subject": "Új eszköz csatlakoztatva",
+  "device_linked_body": "{{time}} időpontban egy {{kind}} csatlakozott a fiókjához. Az eszköz saját megadása szerint „{{name}}” ({{system}}); ezek az adatok magától az eszköztől származnak. Ha nem ismeri fel ezt a csatlakozást, jelentkeztesse ki az eszközt az „Eszközeim” oldalon, és változtassa meg a jelszavát.",
+  "device_kind_tv": "TV"
 }
