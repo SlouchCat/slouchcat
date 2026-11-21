@@ -1,28 +1,21 @@
 package store
 
-import (
-	"context"
-	"io"
-	"log/slog"
-	"testing"
-)
+import "testing"
 
 // The frozen state after concept 27 stage 1 (migrations 00082 to 00085; testdata/db/android.sql) is
 // wuensche.sql migrated to 00085 with the rows of the Android apps: sessions of all three kinds (the
 // browser sessions of before, an app session of a phone and a device session of a TV, both without
 // expiry, with named devices), an open pairing voucher of the phone's session, the phone's push
 // subscription through the push relay and the message device_linked by e-mail and by push with
-// pushed_to. TestFrozenStatesMigrate replays it like every state; this test checks that each of
-// those is really in it after the later migrations.
-func TestFrozenAndroidStateCoversTheStage(t *testing.T) {
-	t.Parallel()
-	cfg := t.TempDir()
-	replay(t, cfg+"/"+FileName, frozenState(t, "android.sql"))
-	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "frozen-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+// pushed_to. TestFrozenStatesMigrate replays and migrates it like every state and then runs
+// frozenCoverage on that database: each of those rows must really be in it after the later
+// migrations (no second replay and migration of its own, which only cost time in the package).
+var frozenCoverage = map[string]func(*testing.T, *DB){
+	"android.sql": frozenAndroidCoversTheStage,
+}
+
+func frozenAndroidCoversTheStage(t *testing.T, db *DB) {
+	t.Helper()
 	for what, query := range map[string]string{
 		"migration 00085 recorded as applied":       `SELECT count(*) FROM goose_db_version WHERE version_id = 85 AND is_applied = 1`,
 		"sessions of all three kinds":               `SELECT count(DISTINCT kind) = 3 FROM sessions`,

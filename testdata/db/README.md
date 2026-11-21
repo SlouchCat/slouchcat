@@ -488,5 +488,5 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   (`Wohnzimmer`, Gerätesitzung), beide ohne Ablauf und mit benannter Gerätezeile, neben den Browser-Sitzungen
   von vorher; ein offener Kopplungsgutschein der App-Sitzung (nur der Hash); das Push-Abo des Handys über die
   Push-Weiterleitung und die Meldung `device_linked` per E-Mail und per Push mit `pushed_to` (Stichtag
-  21. November 2026, 12:00 UTC). Dann `store.Dump`. `TestFrozenAndroidStateCoversTheStage` prüft, dass jede
+  21. November 2026, 12:00 UTC). Dann `store.Dump`. `TestFrozenStatesMigrate` prüft mit `frozenAndroidCoversTheStage`, dass jede
   dieser Datenarten nach den späteren Migrationen vorhanden ist.
