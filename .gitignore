@@ -11,6 +11,10 @@ web/dist/
 web/storybook-static/
 packages/*/dist/
 server/bin/
+relay/bin/
+# Secrets of a local push forwarder run (deploy/relay/push/secrets/), never committed
+deploy/relay/push/secrets/*
+!deploy/relay/push/secrets/.gitkeep
 # `go build ./cmd/<name>` inside server/ without -o leaves the binary here
 /server/updater
 /server/slouchcat

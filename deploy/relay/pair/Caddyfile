@@ -1,0 +1,35 @@
+# TLS front end of the meeting point service on a rented server (compose profile "tls", concept 27
+# section 7.5). On own hardware the existing reverse proxy terminates TLS instead.
+#
+# Environment (from .env and compose.yaml):
+#   RELAY_NAMES     the names this instance answers to, comma-separated: the fixed name, and during
+#                   a move the probe name ("pair.slouchcat.com, pair-probe.example.test").
+#   RELAY_TLS       an e-mail address: certificates from Let's Encrypt via ACME (ports 80 and 443
+#                   must be reachable); "internal": certificates from Caddy's own local CA (tests
+#                   and the local move rehearsal).
+#   RELAY_UPSTREAM  the service, 127.0.0.1:RELAY_PORT (the front end runs in the host's network).
+#   RELAY_TLS_HTTP_PORT, RELAY_TLS_HTTPS_PORT  80 and 443, other ports for a local rehearsal.
+{
+	# No admin endpoint: in the host's network it would listen on the host's loopback.
+	admin off
+	http_port {$RELAY_TLS_HTTP_PORT}
+	https_port {$RELAY_TLS_HTTPS_PORT}
+	# D-5: no caller addresses in logs. Caddy writes no access log unless a site asks for one;
+	# its error log, the reverse proxy's log and the standard library's TLS messages carry the
+	# remote address, so they are left out.
+	log default {
+		exclude http.log.error http.log.access http.handlers.reverse_proxy http.stdlib
+	}
+}
+
+{$RELAY_NAMES} {
+	tls {$RELAY_TLS}
+	header -Server
+	header Strict-Transport-Security "max-age=31536000"
+	request_body {
+		max_size 16KB
+	}
+	# Caddy replaces X-Forwarded-For with the caller's address; the service believes it from the
+	# network gateway only (RELAY_TRUSTED_PROXIES, D-9).
+	reverse_proxy {$RELAY_UPSTREAM}
+}

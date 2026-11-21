@@ -1,0 +1,6 @@
+# BuildKit reads <Dockerfile>.dockerignore next to the Dockerfile; the build context is the
+# repository root. The relay images need only relay/ and LICENSE.
+*
+!relay/
+!LICENSE
+relay/bin
