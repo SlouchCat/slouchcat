@@ -35,7 +35,8 @@ class Navigator(
     val selected: MutableState<String?> = mutableStateOf(null),
 ) {
     /**
-     * A page within the current target, opened by a tap. Not again when it is the page shown (the
+     * A page within the current target, opened by a tap (only for taps: a call from the program while
+     * a page comes in is dropped too, code review L-5 of part a). Not again when it is the page shown (the
      * same route with the same arguments: a double tap, the same media entry, a repeated jump), and
      * not while the shown page is still coming in (a tap during the transition, code review M-1).
      * Another title from a title is a new page: `ItemRoute(b)` above `ItemRoute(a)`, with its own
@@ -76,6 +77,21 @@ class Navigator(
     fun opener(route: Any): (() -> Unit)? = if (canOpen(route::class)) ({ navigate(route) }) else null
 
     /**
+     * [route] as the first page of the target [key] (the search of a genre from the start page,
+     * code review M-2 of part a): the target is marked, the current target keeps its pages, and the
+     * target's last pages make way for the new question.
+     */
+    fun openTarget(key: String, route: Any) {
+        val top = nav.currentBackStackEntry
+        if (top != null && !top.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        if (registry.destination(key) == null) return
+        selected.value = key
+        nav.navigate(route) {
+            popUpTo(registry.home.route) { saveState = true }
+        }
+    }
+
+    /**
      * The click of a target of the bar from a page (the search of a title or a library): the target
      * itself, not a page of the current one (code review M-2); `null` while no feature has it.
      */
@@ -107,7 +123,9 @@ class Navigator(
         val top = nav.currentBackStackEntry
         // A tap while a page comes in, or on the entry shown: nothing (code review M-1).
         if (top != null && !top.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
-        if (selected.value == target.key && shows(top, entry.route)) return
+        // The entry's own test first: «Neu in Filme › Alle» is the library with its order (code review m-7 of part a).
+        val current = top != null && (entry.isCurrent?.invoke(top) ?: shows(top, entry.route))
+        if (selected.value == target.key && current) return
         if (selected.value != target.key || registry.targetOf(top, nav.previousBackStackEntry) != target) {
             selected.value = target.key
             nav.navigate(target.route) {

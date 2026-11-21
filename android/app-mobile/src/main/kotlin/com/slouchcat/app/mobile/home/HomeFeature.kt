@@ -20,7 +20,6 @@ import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.browse.WatchlistRoute
-import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.library.LibraryActions
 import com.slouchcat.app.mobile.library.LibraryScreen
 import com.slouchcat.app.mobile.library.LibraryViewModel
@@ -99,7 +98,7 @@ object HomeFeature : Feature {
                     },
                     collection = if (navigator.canOpen(CollectionRoute::class)) ({ navigator.navigate(CollectionRoute(it.id)) }) else null,
                     collections = navigator.opener(CollectionsRoute),
-                    genre = if (navigator.canOpen(SearchRoute::class)) ({ navigator.navigate(SearchRoute(genre = it)) }) else null,
+                    genre = if (navigator.canOpen(SearchRoute::class)) ({ navigator.openTarget(SEARCH_TARGET, SearchRoute(genre = it)) }) else null,
                     library = { navigator.navigate(LibraryRoute(it.id)) },
                     notifications = navigator.opener(NotificationsRoute),
                     profiles = navigator::toProfiles,

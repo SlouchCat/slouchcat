@@ -41,13 +41,14 @@ class ProfileSettingsViewModelTest {
     fun reset() = Dispatchers.resetMain()
 
     private val saved = mutableListOf<Profile>()
+    private val partlies = mutableListOf<Boolean>()
 
     private fun fake() = FakeProfileSettings(profile(1, "Primary", primary = true), profile(2, "Child", rating = 12, hasPin = true))
 
     private fun TestScope.model(repository: FakeProfileSettings, primary: Boolean = true): ProfileSettingsViewModel {
         val s = if (primary) session(backgroundScope) else session(backgroundScope, profile = CHILD)
         settle()
-        return ProfileSettingsViewModel(s, repository) { _, it -> saved += it }.also { settle() }
+        return ProfileSettingsViewModel(s, repository) { _, it, partly -> saved += it; partlies += partly }.also { settle() }
     }
 
     private fun ProfileSettingsViewModel.list() = (state.value.profiles as Loadable.Ready).value
@@ -231,6 +232,8 @@ class ProfileSettingsViewModelTest {
         vm.onSave()
         settle()
         assertEquals(ProfileMessage.Partly, messages.single())
+        // The profile in use: the result goes with the change, past a new epoch (code review m-2 of part a).
+        assertEquals(listOf(true), partlies)
     }
 
     @Test

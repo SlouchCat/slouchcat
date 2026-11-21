@@ -17,6 +17,7 @@ import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.HomeListKey
 import com.slouchcat.core.api.generated.models.HomePage
 import com.slouchcat.core.api.generated.models.HomeRowKey
+import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MoreState
@@ -164,6 +165,30 @@ class HomeViewModelTest {
         settle()
         assertEquals(HomeMessage.WatchlistFailed, failed.await())
         assertTrue("back to the state before", (rows(vm)[0] as HomeSection.Spotlight).items[0].inWatchlist)
+    }
+
+    /** A second tap while «Merken» is on its way sends nothing; the count moves once (code review m-4 of part a). */
+    @Test
+    fun aDoubleTapOnMerkenSendsOneRequest() = runTest(dispatcher) {
+        val count = LiveCount().apply { set(3) }
+        val vm = HomeViewModel(session(backgroundScope), home, items, count)
+        settle()
+        val first = (rows(vm)[0] as HomeSection.Spotlight).items[0]
+        val gate = CompletableDeferred<Unit>()
+        items.gate = gate
+        vm.onWatchlist(first)
+        vm.onWatchlist(first)
+        settle()
+        gate.complete(Unit)
+        settle()
+        assertEquals(listOf(first.id to true), items.watchlistCalls)
+        assertEquals(4, count.count.value)
+        // The next tap reads the page's state: off again.
+        items.gate = null
+        vm.onWatchlist(first)
+        settle()
+        assertEquals(listOf(first.id to true, first.id to false), items.watchlistCalls)
+        assertEquals(3, count.count.value)
     }
 
     @Test

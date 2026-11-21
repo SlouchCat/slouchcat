@@ -27,8 +27,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.slouchcat.app.mobile.common.DetailRows
 import com.slouchcat.app.mobile.common.KeyCheckSheet
-import com.slouchcat.app.mobile.common.ServerUnconfirmedNote
 import com.slouchcat.app.mobile.common.RowGroup
+import com.slouchcat.app.mobile.common.ServerUnconfirmedNote
 import com.slouchcat.app.mobile.common.StaticRow
 import com.slouchcat.app.mobile.shell.MoreSection
 import com.slouchcat.app.mobile.shell.ShellTopBar
@@ -167,7 +167,9 @@ private fun ProfileCard(state: MoreUiState, onSwitchProfile: () -> Unit) {
         Avatar(profile.name, profile.accent, size = 56.dp)
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
             Text(profile.name, style = SlouchcatType.strong.copy(fontSize = SlouchcatType.barTitle.fontSize), color = c.tx, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.app_more_profileLine, role, state.email), style = SlouchcatType.caption, color = c.tx2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            // Role and address each on a line of their own: next to «Profil wechseln» the address is not cut.
+            Text(role, style = SlouchcatType.caption, color = c.tx2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (state.email.isNotEmpty()) Text(state.email, style = SlouchcatType.caption, color = c.tx2, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         SlouchcatButton(
             stringResource(R.string.app_more_switchProfile),

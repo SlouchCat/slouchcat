@@ -1,0 +1,100 @@
+package com.slouchcat.app.mobile.home
+
+import android.content.Context
+import android.view.accessibility.AccessibilityManager
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.test.core.app.ApplicationProvider
+import com.slouchcat.app.mobile.testing.SERVER_IMAGES
+import com.slouchcat.app.mobile.testing.itemRef
+import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.strings.R
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+
+/**
+ * The stage moves on by itself, but holds still for a screen reader and while it has the focus
+ * (WCAG 2.2.2, code review m-5 of part a).
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36], qualifiers = "w412dp-h915dp")
+class StageRotationTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+
+    private fun card(n: Int, title: String) = MediaItem.from(itemRef(n, title = title, runtimeMinutes = 100), SERVER_IMAGES)
+
+    private val stage = HomeSection.Spotlight("spotlight", listOf(card(1, "Stage One"), card(2, "Stage Two")), start = 0, intervalSeconds = 7)
+
+    private fun show() = compose.setContent {
+        SlouchcatTheme {
+            HomeScreen(HomeUiState(Loadable.Ready(listOf(stage))), HomeLinks(), onRetry = {}, onRefresh = {}, onRowEnd = {}, onWatchlist = {}, rotate = true)
+        }
+    }
+
+    /** [title] on the screen, not on the page of the stage beside it. */
+    private fun shown(title: String): Boolean {
+        val width = compose.onRoot().fetchSemanticsNode().size.width
+        return compose.onAllNodes(hasText(title)).fetchSemanticsNodes().any { node ->
+            val bounds = node.boundsInRoot
+            bounds.width > 0f && bounds.left >= 0f && bounds.right <= width
+        }
+    }
+
+    /** Past the interval and the animation of the change. */
+    private fun waitAnInterval() {
+        compose.mainClock.advanceTimeBy(8_000)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun theStageMovesOnByItself() {
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.waitForIdle()
+        assertTrue(shown("Stage One"))
+        waitAnInterval()
+        assertTrue(shown("Stage Two"))
+    }
+
+    @Test
+    fun aScreenReaderHoldsTheStage() {
+        shadowOf(context.getSystemService(AccessibilityManager::class.java)).setTouchExplorationEnabled(true)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.waitForIdle()
+        waitAnInterval()
+        assertTrue(shown("Stage One"))
+        assertFalse(shown("Stage Two"))
+    }
+
+    @Test
+    fun theFocusOnTheStageHoldsIt() {
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.waitForIdle()
+        compose.onAllNodes(hasText(context.getString(R.string.item_watchlist_add)) and hasClickAction()).onFirst()
+            .performSemanticsAction(SemanticsActions.RequestFocus)
+        compose.waitForIdle()
+        waitAnInterval()
+        assertTrue(shown("Stage One"))
+        assertFalse(shown("Stage Two"))
+    }
+}

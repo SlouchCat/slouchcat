@@ -147,10 +147,14 @@ class FakeItems(var detail: ApiResult<ItemDetail> = ApiResult.NotFound) : ItemRe
     var watchlist: ApiResult<Unit> = ApiResult.Ok(Unit)
     val watchlistCalls = mutableListOf<Pair<String, Boolean>>()
 
+    /** Holds every watchlist change until a test completes it. */
+    var gate: CompletableDeferred<Unit>? = null
+
     override suspend fun item(server: HttpUrl, id: String) = detail
 
     override suspend fun setWatchlist(server: HttpUrl, id: String, on: Boolean): ApiResult<Unit> {
         watchlistCalls += id to on
+        gate?.await()
         return watchlist
     }
 }

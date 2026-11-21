@@ -29,7 +29,6 @@ import com.slouchcat.app.mobile.testing.ulid
 import com.slouchcat.core.player.DeviceFacts
 import com.slouchcat.core.player.DisplayInfo
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
-import kotlin.coroutines.EmptyCoroutineContext
 import com.slouchcat.core.session.StoredCredentials
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
@@ -39,6 +38,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * «Zurück führt hinaus» (rule 8) through the real NavHost: «Weiterschauen» of a film opens the

@@ -16,7 +16,6 @@ import com.slouchcat.app.mobile.browse.CollectionRoute
 import com.slouchcat.app.mobile.browse.CollectionsRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
-import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.testing.SUB_DE
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
@@ -29,7 +30,6 @@ import com.slouchcat.core.player.PlayerError
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.player.SeasonEpisodes
 import com.slouchcat.core.strings.R
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule

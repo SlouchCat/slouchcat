@@ -19,17 +19,15 @@ import com.slouchcat.core.media.data.PersonRepository
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.media.data.SearchRepository
 import okhttp3.Call
-import java.util.WeakHashMap
 
 /**
  * Everything a page of the phone or the TV app reads about titles, people, lists and profiles: the
  * repositories over the generated client and the counts the shell shows next to its entries. One
  * per app graph ([of]); the repositories are stateless, the counts live as long as the graph.
  *
- * A page never builds a repository itself; it takes the one of its graph
- * (`MediaData.of(graph) { MediaData.api(graph.api, graph.http) }`, in the apps behind an extension
- * such as `graph.media`). A test or the showcase of androidTest puts others in place with [install]
- * before the page is drawn (`MediaData.install(graph, MediaData.api(api, http).copy(home = FakeHome()))`).
+ * A page never builds a repository itself; it takes the one of its graph (`graph.media`: the app
+ * graph holds one, built on first use from [api] or from what a test gave the graph's constructor,
+ * `MediaData.api(api, http).copy(home = FakeHome())`).
  * Every answer passed the visibility layer of the active profile on the server; not visible is 404
  * (`ApiResult.NotFound`, rules 2 and 12).
  */
@@ -60,8 +58,6 @@ data class MediaData(
     }
 
     companion object {
-        private val installed = WeakHashMap<Any, MediaData>()
-
         /** The repositories over the generated client of one app graph. */
         fun api(api: ApiCaller, http: Call.Factory): MediaData {
             val detail = ApiDetailRepository(api, http)
@@ -77,11 +73,5 @@ data class MediaData(
                 profiles = ApiProfileSettingsRepository(api, http),
             )
         }
-
-        /** What [graph] reads through: what [install] put in place, else [create] once. */
-        fun of(graph: Any, create: () -> MediaData): MediaData = synchronized(installed) { installed.getOrPut(graph, create) }
-
-        /** For tests: [graph] reads [data] instead of the server. */
-        fun install(graph: Any, data: MediaData) = synchronized(installed) { installed[graph] = data }
     }
 }

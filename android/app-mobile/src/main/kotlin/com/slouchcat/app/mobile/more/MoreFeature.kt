@@ -18,6 +18,7 @@ import com.slouchcat.app.mobile.BuildConfig
 import com.slouchcat.app.mobile.account.AccountMessage
 import com.slouchcat.app.mobile.account.AccountScreen
 import com.slouchcat.app.mobile.account.AccountViewModel
+import com.slouchcat.app.mobile.browse.MORE_TARGET
 import com.slouchcat.app.mobile.devices.DevicesScreen
 import com.slouchcat.app.mobile.devices.DevicesViewModel
 import com.slouchcat.app.mobile.shell.AppScope
@@ -45,7 +46,7 @@ data object AccountRoute
  * the page. Later stages add their rows to [more] of their own feature.
  */
 object MoreFeature : Feature {
-    override val destinations = listOf(TopDestination("more", 50, MoreRoute, R.string.app_more_title, SlouchcatIcon.Dots))
+    override val destinations = listOf(TopDestination(MORE_TARGET, 50, MoreRoute, R.string.app_more_title, SlouchcatIcon.Dots))
 
     override val more = listOf(
         MoreEntry("devices", MoreSection.Devices, 20, R.string.nav_devices, SlouchcatIcon.Phone, DevicesRoute, subtitle = { devicesSubtitle(it) }),
