@@ -7997,7 +7997,10 @@
       "connected": "Connected to {{host}}"
     },
     "profiles": {
-      "connected": "Connected to {{host}} · {{email}}"
+      "connected": "Connected to {{host}} · {{email}}",
+      "pane": "Add, change and delete profiles, set PINs and age ratings.",
+      "pinSet": "PIN set",
+      "addHint": "for example for children, with an age rating"
     },
     "pin": {
       "prompt": "Enter the PIN, 4 to 8 digits."

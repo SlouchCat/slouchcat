@@ -7997,7 +7997,10 @@
       "connected": "Verbunden mit {{host}}"
     },
     "profiles": {
-      "connected": "Verbunden mit {{host}} · {{email}}"
+      "connected": "Verbunden mit {{host}} · {{email}}",
+      "pane": "Profile anlegen, ändern und löschen, PINs und Altersfreigaben festlegen.",
+      "pinSet": "PIN gesetzt",
+      "addHint": "zum Beispiel für Kinder, mit Altersfreigabe"
     },
     "pin": {
       "prompt": "Gib die PIN ein, 4 bis 8 Ziffern."
