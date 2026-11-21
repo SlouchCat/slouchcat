@@ -266,6 +266,64 @@ jobs:
           cache-to: type=gha,mode=max,scope=relay-push
 
   # ---------------------------------------------------------------------------------------------
+  # Android: the phone app and its modules (concept 27 section 5.7). Debug builds of both flavours,
+  # lint with the own rules, the generators (client from the contract, texts from the locales,
+  # tokens through Node) and the JVM tests with Robolectric; `task ci:android` is the same locally.
+  # JDK 21 is the runner's own (JAVA_HOME_21_X64), the SDK the runner's with the packages the build
+  # needs added; no third-party action. The debug APKs stay with the run. Emulator tests: part 2.
+  # ---------------------------------------------------------------------------------------------
+  android:
+    name: android (builds, lint, generators, tests)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # pnpm and the workspace: the tokens (style-dictionary) for core/design.
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - name: JDK 21 and the Android SDK packages
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" > /dev/null
+
+      - name: Gradle caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - run: task ci:android
+
+      - name: Keep the debug APKs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-debug-apks
+          path: android/app-mobile/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: Keep the lint and test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-reports
+          path: |
+            android/**/build/reports/
+            android/**/build/test-results/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
   # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
   # checks in another. The two need nothing from each other, and together they were the longest
   # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
@@ -549,7 +607,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [changes, server-lint, server-groups, server-test, relay, web, storybook, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, relay, android, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -632,6 +690,7 @@ jobs:
           check server-groups '${{ needs.server-groups.result }}'
           check server-test   '${{ needs.server-test.result }}'
           check relay         '${{ needs.relay.result }}'
+          check android       '${{ needs.android.result }}'
           check web           '${{ needs.web.result }}'
           check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'
