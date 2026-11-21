@@ -8042,6 +8042,20 @@
     "item": {
       "more": "Mehr Infos",
       "recommended": "Empfohlen. Der Titel steht jetzt bei den User-Empfehlungen."
+    },
+    "person": {
+      "kind": "Person"
+    },
+    "search": {
+      "voice": "Spracheingabe",
+      "hint": "Tippen geht auch mit einer Tastatur am Fernseher.",
+      "space": "Leerzeichen",
+      "clear": "Leeren",
+      "delete": "Zeichen löschen",
+      "symbols": "#+=",
+      "letters": "abc",
+      "hitsFor": "{{hits}} für «{{query}}»",
+      "libraries": "Bibliotheken"
     }
   }
 }

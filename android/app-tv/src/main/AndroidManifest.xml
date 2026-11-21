@@ -14,6 +14,15 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- The search asks whether the TV offers voice input (concept 26, 3.4): visible to the app
+         only with this query (package visibility, Android 11+). No permission: the system's
+         recognizer records, the app gets only the text. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <!-- Plain HTTP as on the phone (F-6, E-18): the warning comes on the setup page outside the home
          network; «Server weist sich aus» guards every request to a server over HTTP. -->
     <application

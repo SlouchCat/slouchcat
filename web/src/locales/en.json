@@ -8042,6 +8042,20 @@
     "item": {
       "more": "More info",
       "recommended": "Recommended. The title is now among the user picks."
+    },
+    "person": {
+      "kind": "Person"
+    },
+    "search": {
+      "voice": "Voice input",
+      "hint": "You can also type with a keyboard on the TV.",
+      "space": "Space",
+      "clear": "Clear",
+      "delete": "Delete character",
+      "symbols": "#+=",
+      "letters": "abc",
+      "hitsFor": "{{hits}} for “{{query}}”",
+      "libraries": "Libraries"
     }
   }
 }
