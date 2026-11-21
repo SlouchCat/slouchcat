@@ -52,6 +52,7 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.player.ApiPlaybackServer
 import com.slouchcat.core.player.CapabilityRules
 import com.slouchcat.core.player.DataStoreDeviceSettingsStore
+import com.slouchcat.core.player.DeviceFacts
 import com.slouchcat.core.player.DeviceFactsReader
 import com.slouchcat.core.player.DeviceSettingsStore
 import com.slouchcat.core.player.DeviceType
@@ -63,6 +64,7 @@ import com.slouchcat.core.player.TrickplayTile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The video player of stage 5 (concept 27 8.1, mockup `/play/:i`): a page without the shell
@@ -77,6 +79,10 @@ class PlayerFeature(
     private val engine: (Context, AppGraph) -> PlayerEngine = { context, graph -> Media3Engine(context, graph.http) },
     private val server: (AppGraph) -> PlaybackServer = { graph -> ApiPlaybackServer(graph.api, graph.http) { graph.session.server } },
     private val settings: (Context) -> DeviceSettingsStore = { DataStoreDeviceSettingsStore(it) },
+    /** The device's decoders, outputs and display; tests bring fixed facts. */
+    private val facts: (Context, DeviceType) -> DeviceFacts = { context, type -> DeviceFactsReader(context).read(type) },
+    /** Where the facts are read (`MediaCodecList` takes a moment); tests stay on the main thread. */
+    private val background: CoroutineContext = Dispatchers.Default,
 ) : Feature {
     override val fullScreen = setOf(PlayerRoute::class)
 
@@ -88,7 +94,6 @@ class PlayerFeature(
             val tablet = LocalConfiguration.current.smallestScreenWidthDp >= TABLET_DP
             val vm = viewModel {
                 val store = settings(context)
-                val reader = DeviceFactsReader(context)
                 PlayerViewModel(
                     itemId = route.itemId,
                     startAtMs = route.startAtMs.takeIf { it >= 0 },
@@ -96,8 +101,8 @@ class PlayerFeature(
                     engine = engine(context, graph),
                     server = server(graph),
                     capabilities = { narrowing ->
-                        withContext(Dispatchers.Default) {
-                            CapabilityRules.build(reader.read(if (tablet) DeviceType.Tablet else DeviceType.Phone), store.settings.first().audio, narrowing)
+                        withContext(background) {
+                            CapabilityRules.build(facts(context, if (tablet) DeviceType.Tablet else DeviceType.Phone), store.settings.first().audio, narrowing)
                         }
                     },
                     settings = store.settings,
