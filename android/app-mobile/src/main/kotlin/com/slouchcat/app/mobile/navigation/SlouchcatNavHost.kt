@@ -23,12 +23,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.slouchcat.app.mobile.AppGraph
+import com.slouchcat.app.mobile.browse.MORE_TARGET
 import com.slouchcat.app.mobile.browse.ProfilesSettingsRoute
 import com.slouchcat.app.mobile.common.SessionEventHandler
 import com.slouchcat.app.mobile.profiles.ProfilesScreen
 import com.slouchcat.app.mobile.profiles.ProfilesViewModel
 import com.slouchcat.app.mobile.setup.SetupScreen
 import com.slouchcat.app.mobile.setup.SetupViewModel
+import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.AppShell
 import com.slouchcat.app.mobile.shell.Navigator
@@ -110,7 +112,9 @@ fun SlouchcatNavHost(graph: AppGraph) {
                 }
             }
             AppShell(
-                frame = graph.registry.frame(current, selected.value, media, nav.previousBackStackEntry).copy(badges = if (profile == null) emptyMap() else badges),
+                // Without a chosen profile no target leads anywhere: no bar, no side column (code review M-3 of part a).
+                frame = graph.registry.frame(current, selected.value, media, nav.previousBackStackEntry)
+                    .let { if (profile == null) it.copy(targets = emptyList(), badges = emptyMap()) else it.copy(badges = badges) },
                 profile = profile,
                 onTarget = navigator::openTop,
                 onMedia = navigator::openMedia,
@@ -199,7 +203,10 @@ private fun NavGraphBuilder.signInDestination(graph: AppGraph, navigator: Naviga
 
 private fun NavGraphBuilder.profilesDestination(graph: AppGraph, navigator: Navigator) {
     composable<ProfilesRoute> {
-        val vm = viewModel { ProfilesViewModel(graph.session, graph.auth, graph.sessionActions) }
+        // «Profile verwalten» needs the primary profile active: the picker chooses it (with its PIN), then the
+        // jump opens the page in the new epoch (mockup su-manage, code review M-3 of part a).
+        val manage = navigator.opener(ProfilesSettingsRoute)?.let { { graph.links.request(AppLink(MORE_TARGET, listOf(ProfilesSettingsRoute))) } }
+        val vm = viewModel { ProfilesViewModel(graph.session, graph.auth, graph.sessionActions, manage = manage) }
         val state by vm.state.collectAsStateWithLifecycle()
         // A chosen profile and a sign-out start a new epoch: SlouchcatNavHost opens the next page.
         ProfilesScreen(
@@ -211,7 +218,7 @@ private fun NavGraphBuilder.profilesDestination(graph: AppGraph, navigator: Navi
             onCancelPin = vm::onCancelPin,
             onRetry = vm::retry,
             onSignOut = vm::onSignOut,
-            onManage = navigator.opener(ProfilesSettingsRoute),
+            onManage = if (manage != null) vm::onManage else null,
         )
     }
 }

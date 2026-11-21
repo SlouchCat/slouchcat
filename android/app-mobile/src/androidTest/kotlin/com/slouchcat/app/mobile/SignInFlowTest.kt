@@ -27,9 +27,9 @@ import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
-import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.generated.infrastructure.ClientError
 import com.slouchcat.core.api.generated.infrastructure.ClientException
+import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.PinRequest
@@ -38,6 +38,7 @@ import com.slouchcat.core.api.generated.models.SetupRequest
 import com.slouchcat.core.strings.R
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -158,21 +159,19 @@ class SignInFlowTest {
 
     /**
      * The start page with its content: a row or the empty state, no spinner, and (with libraries,
-     * on the phone) the menu button of the media choice. Checked twice: after the profile choice a
-     * new session epoch may still replace the page that was already there.
+     * on the phone) the menu button of the media choice. Once: the profile choice starts exactly one
+     * session epoch (checked where the PIN is entered, code review of part a, open question).
      */
     private fun waitForStart() {
         val content = hasText(s(R.string.home_rows_recent)) or hasText(s(R.string.home_empty_title))
         val loading = hasContentDescription(s(R.string.app_state_loading))
         val phone = context.resources.configuration.screenWidthDp < 700
-        repeat(2) {
-            compose.waitUntil(30_000) {
-                compose.onAllNodes(content, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() &&
-                    compose.onAllNodes(loading, useUnmergedTree = true).fetchSemanticsNodes().isEmpty() &&
-                    (!phone || libraries.isEmpty() || compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen))).fetchSemanticsNodes().isNotEmpty())
-            }
-            compose.waitForIdle()
+        compose.waitUntil(30_000) {
+            compose.onAllNodes(content, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodes(loading, useUnmergedTree = true).fetchSemanticsNodes().isEmpty() &&
+                (!phone || libraries.isEmpty() || compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen))).fetchSemanticsNodes().isNotEmpty())
         }
+        compose.waitForIdle()
     }
 
     /**
@@ -287,10 +286,14 @@ class SignInFlowTest {
         waitForText(s(R.string.profiles_pin_invalid))
         shot("06-pin-wrong")
         pin.forEach { button(it.toString()).performClick() }
+        val session = (context.applicationContext as SlouchcatApplication).graph.session
+        val before = session.epoch.value
         compose.onAllNodes(hasContentDescription(s(R.string.profiles_pin_submit))).onLast().performClick()
 
         // Stage 4: the start page, a library with filter and order, the list behind a row.
         browse()
+        // The profile choice started one epoch, not two: no page was built twice.
+        assertEquals(before + 1, session.epoch.value)
 
         // «Mehr», the server sheet. With more targets than «Mehr» (stage 4) the app lands on the first one, and a
         // row scrolled to the bottom edge lies under the bar: rows of «Mehr» get their own action, not a tap.

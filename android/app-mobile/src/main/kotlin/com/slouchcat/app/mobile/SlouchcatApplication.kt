@@ -26,6 +26,7 @@ import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.media.LibrariesSource
+import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AndroidTrustInspector
 import com.slouchcat.core.session.ApiAuthRepository
@@ -75,6 +76,8 @@ class AppGraph(
     authRepository: AuthRepository? = null,
     /** «Meine Geräte»; the showcase brings its own. `null`: from the server. */
     devicesRepository: DevicesRepository? = null,
+    /** The data of the pages (`:core:media`); tests and the showcase bring their own. `null`: from the server. */
+    private val mediaData: ((AppGraph) -> MediaData)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -138,6 +141,14 @@ class AppGraph(
 
     /** In-app jumps to a page (stage 8: a notification opens a title). */
     val links = AppLinks(registry)
+
+    /**
+     * The repositories and counts of the pages (`:core:media`), the same way for the app and its tests
+     * (code review m-6, L-1): built once, the counts forget themselves with the profile.
+     */
+    val media: MediaData by lazy {
+        (mediaData?.invoke(this) ?: MediaData.api(api, http)).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
+    }
 
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())

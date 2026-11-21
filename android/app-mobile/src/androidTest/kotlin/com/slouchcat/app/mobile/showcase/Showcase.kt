@@ -16,14 +16,15 @@ import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.ActiveProfile
+import com.slouchcat.core.session.AuthRepository
+import com.slouchcat.core.session.DevicesRepository
 import com.slouchcat.core.session.LibrariesRepository
 import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.StoredCredentials
-import com.slouchcat.core.session.AuthRepository
-import com.slouchcat.core.session.DevicesRepository
 import com.slouchcat.core.session.TokenStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +37,7 @@ import java.io.File
  * with made-up data and pictures drawn in the test instead of a server, to photograph them against
  * the mockup (the test server has no covers, no spotlight, nothing started). Nothing of this goes
  * into the app. Every area brings its data in a file of its own (`BrowseShowcaseData.kt` for
- * stage 4) and installs it on the graph (`MediaData.install`); [Showcase] does the rest.
+ * stage 4) and gives it to the graph (`AppGraph(mediaData = …)`, the way the app builds its own); [Showcase] does the rest.
  */
 
 /** The made-up server: an address of the documentation range, never asked (the pictures come from [ShowcaseImages]). */
@@ -67,7 +68,7 @@ private class Accounts : AccountStore {
 /**
  * Starts [MainActivity] and replaces its content with [SlouchcatNavHost] over a graph of
  * [features], signed in with [SHOWCASE_PROFILE], the [libraries] in the media choice, and the
- * pictures of [images]. [install] puts each area's data on the graph before the first page draws.
+ * pictures of [images]. [media] gives the graph the data of every area.
  */
 class Showcase(
     private val compose: ComposeTestRule,
@@ -77,7 +78,7 @@ class Showcase(
     /** The account's side (profile choice, «Mehr») and «Meine Geräte»; `null`: the server's (never asked by stage 4). */
     private val auth: AuthRepository? = null,
     private val devices: DevicesRepository? = null,
-    private val install: (AppGraph) -> Unit,
+    private val media: (AppGraph) -> MediaData,
 ) {
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
     lateinit var graph: AppGraph
@@ -90,8 +91,7 @@ class Showcase(
             override suspend fun libraries(server: HttpUrl): ApiResult<List<LibraryNav>> = ApiResult.Ok(libraries)
         }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices)
-            install(graph)
+            graph = AppGraph(context, features, Servers(), Tokens(), Accounts(), librariesRepository = repository, authRepository = auth, devicesRepository = devices, mediaData = media)
         }
         val loader = images.loader(context)
         scenario = ActivityScenario.launch(MainActivity::class.java)

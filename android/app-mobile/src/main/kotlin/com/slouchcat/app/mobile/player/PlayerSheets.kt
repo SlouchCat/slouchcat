@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.core.media.ServerImages
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.core.api.generated.models.Quality
 import com.slouchcat.core.design.ButtonKind
@@ -47,6 +46,7 @@ import com.slouchcat.core.design.SlouchcatSheet
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.strings.R
 

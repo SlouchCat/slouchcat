@@ -91,6 +91,18 @@ class SessionManagerTest {
         assertEquals(renamed, accounts.profile)
     }
 
+    /** A profile choice is one epoch, not two: the pages are built once (code review of part a, open question). */
+    @Test
+    fun aProfileChoiceIsOneEpoch() = runTest(StandardTestDispatcher()) {
+        val accounts = Accounts("a@example.test", null)
+        val session = manager(Servers(http), Tokens(StoredCredentials("token-1", "device-1")), accounts)
+        session.ready()
+        val before = session.epoch.value
+        session.profileChosen(primary)
+        assertEquals(before + 1, session.epoch.value)
+        assertEquals(SessionState.Ready(http, "a@example.test", primary), session.state.value)
+    }
+
     /** A new rating, other libraries or language of the profile in use: a new epoch, every page reads again. */
     @Test
     fun anEditedProfileInUseWithOtherContentStartsANewEpoch() = runTest(StandardTestDispatcher()) {

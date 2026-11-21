@@ -176,10 +176,17 @@ class HomeViewModel(
     /** «Merken» of a title of the stage; the stage shows the new state at once and returns on a failure. */
     fun onWatchlist(item: MediaItem) {
         val server = session.server ?: return
-        val on = !item.inWatchlist
+        // One request per title at a time; the state from the page, not from the card's last drawing (code review m-4 of part a).
+        if (!pending.add(item.id)) return
+        val on = !(shown(item.id)?.inWatchlist ?: item.inWatchlist)
         mark(item.id, on)
         viewModelScope.launch {
-            when (items.setWatchlist(server, item.id, on)) {
+            val result = try {
+                items.setWatchlist(server, item.id, on)
+            } finally {
+                pending.remove(item.id)
+            }
+            when (result) {
                 is ApiResult.Ok -> {
                     watchlistCount?.adjust(if (on) 1 else -1)
                     _messages.send(HomeMessage.Watchlist(item.title, on))
@@ -189,6 +196,18 @@ class HomeViewModel(
                     _messages.send(HomeMessage.WatchlistFailed)
                 }
             }
+        }
+    }
+
+    /** Titles whose «Merken» is on its way. */
+    private val pending = mutableSetOf<String>()
+
+    /** The title [id] as the page shows it now. */
+    private fun shown(id: String): MediaItem? = ((_state.value.rows as? Loadable.Ready)?.value ?: emptyList()).firstNotNullOfOrNull { row ->
+        when (row) {
+            is HomeSection.Spotlight -> row.items.firstOrNull { it.id == id }
+            is HomeSection.Cards -> row.items.firstOrNull { it.id == id }
+            else -> null
         }
     }
 
@@ -260,6 +279,7 @@ class HomeViewModel(
             val cover = collection.cover?.let { MediaItem.from(it, images) }
             return MediaItem(
                 id = collection.id,
+                // Only for the shape of the card: a collection has no kind of its own.
                 kind = ItemKind.MOVIE,
                 title = collection.name,
                 poster = image.or(cover?.poster ?: image),

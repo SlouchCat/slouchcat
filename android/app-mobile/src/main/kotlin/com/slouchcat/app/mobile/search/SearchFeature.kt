@@ -14,7 +14,6 @@ import com.slouchcat.app.mobile.browse.LibraryRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.SearchRoute
-import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.TopDestination
@@ -26,7 +25,8 @@ import com.slouchcat.core.strings.R
 
 /**
  * «Suche» of stage 4 (mockup `/search`): the target «Suche» of the bar (order 20) and the page
- * behind `SearchRoute(genre)`, which a library page opens with its genre. [repository]: tests
+ * behind `SearchRoute(genre)`, which the genres of the start page open as the target with its
+ * genre (`Navigator.openTarget`). [repository]: tests
  * bring a fake.
  */
 class SearchFeature(

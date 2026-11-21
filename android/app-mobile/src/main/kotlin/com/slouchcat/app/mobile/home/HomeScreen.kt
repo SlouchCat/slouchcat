@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.home
 
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,18 +31,25 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -82,6 +90,7 @@ import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
 import com.slouchcat.core.media.CardShape
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.media.MoreState
 import com.slouchcat.core.session.ActiveProfile
@@ -129,18 +138,18 @@ fun HomeScreen(
     Box(modifier.fillMaxSize().background(SlouchcatTheme.colors.bg)) {
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             val rows = state.rows
-            val stageLeads = (rows as? com.slouchcat.core.media.Loadable.Ready)?.value?.firstOrNull() is HomeSection.Spotlight
+            val stageLeads = (rows as? Loadable.Ready)?.value?.firstOrNull() is HomeSection.Spotlight
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (!stageLeads) item(key = "bar") { HomeBar(state.profile, links, overlay = false) }
                 when (rows) {
-                    is com.slouchcat.core.media.Loadable.Ready -> rows.value.forEachIndexed { index, section ->
+                    is Loadable.Ready -> rows.value.forEachIndexed { index, section ->
                         item(key = section.id) {
                             HomeRow(section, links, onRowEnd, onWatchlist, rotate, bar = if (index == 0 && stageLeads) ({ HomeBar(state.profile, links, overlay = true) }) else null)
                         }
                     }
                     else -> item(key = "state") {
                         LoadableContent(rows, onRetry = onRetry, modifier = Modifier.padding(horizontal = gutter())) {}
-                        if (rows is com.slouchcat.core.media.Loadable.Empty) {
+                        if (rows is Loadable.Empty) {
                             MediaEmpty(stringResource(R.string.home_empty_title), body = stringResource(R.string.home_empty_body), icon = SlouchcatIcon.Film)
                         }
                     }
@@ -338,16 +347,33 @@ private fun Spotlight(section: HomeSection.Spotlight, links: HomeLinks, onWatchl
     val wide = isWideLayout()
     val pager = rememberPagerState(initialPage = section.start) { section.items.size }
     val scope = rememberCoroutineScope()
-    if (rotate && section.items.size > 1) {
-        LaunchedEffect(pager, section.intervalSeconds) {
-            while (true) {
-                delay(section.intervalSeconds * 1_000L)
-                if (!pager.isScrollInProgress) pager.animateScrollToPage((pager.currentPage + 1) % section.items.size)
-            }
+    // The stage holds still while a screen reader explores, while it has the focus and while a finger
+    // rests on it (WCAG 2.2.2, code review m-5 of part a); after each change of title the time starts again.
+    val exploring = touchExploration()
+    var focused by remember { mutableStateOf(false) }
+    var pressed by remember { mutableStateOf(false) }
+    if (rotate && section.items.size > 1 && !exploring && !focused && !pressed) {
+        LaunchedEffect(pager, section.intervalSeconds, pager.currentPage) {
+            delay(section.intervalSeconds * 1_000L)
+            // The number of titles now, not of the first drawing (code review L-6 of part a).
+            if (!pager.isScrollInProgress && pager.pageCount > 0) pager.animateScrollToPage((pager.currentPage + 1) % pager.pageCount)
         }
     }
     val region = stringResource(R.string.home_rows_spotlight)
-    Box(Modifier.fillMaxWidth().semantics { contentDescription = region }) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = region }
+            .onFocusChanged { focused = it.hasFocus }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        pressed = event.changes.any { it.pressed }
+                    }
+                }
+            },
+    ) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth(), key = { section.items[it].id }) { page ->
             Slide(section.items[page], links, onWatchlist, wide)
         }
@@ -425,6 +451,19 @@ private fun Slide(item: MediaItem, links: HomeLinks, onWatchlist: (MediaItem) ->
             }
         }
     }
+}
+
+/** Whether a screen reader explores by touch (TalkBack), following its changes. */
+@Composable
+private fun touchExploration(): Boolean {
+    val manager = LocalContext.current.getSystemService(AccessibilityManager::class.java) ?: return false
+    var on by remember { mutableStateOf(manager.isTouchExplorationEnabled) }
+    DisposableEffect(manager) {
+        val listener = AccessibilityManager.TouchExplorationStateChangeListener { on = it }
+        manager.addTouchExplorationStateChangeListener(listener)
+        onDispose { manager.removeTouchExplorationStateChangeListener(listener) }
+    }
+    return on
 }
 
 /** The dots under the stage: one per title, the current one long; each jumps to its title. */
