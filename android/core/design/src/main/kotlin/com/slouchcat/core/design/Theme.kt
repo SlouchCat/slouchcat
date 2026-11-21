@@ -9,7 +9,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -156,7 +157,8 @@ fun SlouchcatTheme(content: @Composable () -> Unit) {
 
 /** Whether the window is wide enough for the two-column layouts of the mockup (from 700 dp). */
 @Composable
-fun isWideLayout(): Boolean = LocalConfiguration.current.screenWidthDp.dp >= SlouchcatDimens.WIDE
+fun isWideLayout(): Boolean =
+    with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= SlouchcatDimens.WIDE
 
 /** Side margin of a page for the current width. */
 @Composable
