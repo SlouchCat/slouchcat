@@ -7025,7 +7025,7 @@
       "title": "I miei dispositivi",
       "intro": "Tutti i dispositivi su cui questo account ha effettuato l’accesso o ha dei download. Se disconnetti un dispositivo, perde tutto ciò che questo account ha lì.",
       "list": "Dispositivi di questo account",
-      "none": "Nessun dispositivo ha un accesso o dei download di questo account.",
+      "none": "Nessun dispositivo ha un accesso né download di questo account.",
       "thisDevice": "Questo dispositivo",
       "unnamed": "Dispositivo sconosciuto",
       "types": {
@@ -7061,7 +7061,7 @@
       "signedOut": "«{{name}}» disconnesso.",
       "onlyPrimary": {
         "title": "Disconnessione solo nel profilo principale",
-        "body": "I dispositivi si disconnettono nel profilo principale di questo account. Qui vedi l’elenco."
+        "body": "Puoi disconnettere i dispositivi dal profilo principale di questo account. Qui vedi l’elenco."
       }
     },
     "playback": {

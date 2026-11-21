@@ -7,7 +7,7 @@
       "title": "Conecte-se ao seu servidor",
       "addressLabel": "Endereço do servidor",
       "addressExample": "https://media.example.org",
-      "addressHint": "O mesmo endereço com que você abre o Slouchcat no navegador.",
+      "addressHint": "O mesmo endereço que você usa para abrir o Slouchcat no navegador.",
       "connect": "Conectar",
       "connecting": "Conectando…",
       "found": "Encontrado",
@@ -39,7 +39,7 @@
     "state": {
       "loading": "Carregando…",
       "offline": "O servidor não responde. Verifique a conexão.",
-      "notFound": "Isto não está aqui, ou não está mais.",
+      "notFound": "Isto não existe ou não está mais disponível.",
       "notAllowed": "Isso não é possível com este login.",
       "failed": "Algo deu errado.",
       "retry": "Tentar novamente"
@@ -7054,14 +7054,14 @@
         "label": "Desconectar {{name}}",
         "title": "Desconectar “{{name}}”?",
         "body": "O dispositivo perde o login desta conta, e as reproduções em andamento terminam. Os downloads, as notificações e os downloads automáticos desta conta no dispositivo são excluídos. As outras contas no dispositivo continuam.",
-        "current": "Este é o dispositivo que você está usando: você sai daqui imediatamente.",
-        "bodyCurrent": "O dispositivo perde o login desta conta, e as reproduções em andamento terminam. Os downloads, as notificações e os downloads automáticos desta conta no dispositivo são excluídos. As outras contas no dispositivo continuam. Este é o dispositivo que você está usando: você sai daqui imediatamente.",
+        "current": "Este é o dispositivo que você está usando: sua sessão aqui será encerrada imediatamente.",
+        "bodyCurrent": "O dispositivo perde o login desta conta, e as reproduções em andamento terminam. Os downloads, as notificações e os downloads automáticos desta conta no dispositivo são excluídos. As outras contas no dispositivo continuam. Este é o dispositivo que você está usando: sua sessão aqui será encerrada imediatamente.",
         "confirm": "Desconectar dispositivo"
       },
       "signedOut": "“{{name}}” desconectado.",
       "onlyPrimary": {
-        "title": "Desconectar só no perfil principal",
-        "body": "Você desconecta dispositivos no perfil principal desta conta. Aqui você vê a lista."
+        "title": "Desconexão só no perfil principal",
+        "body": "Você pode desconectar dispositivos no perfil principal desta conta. Aqui você vê a lista."
       }
     },
     "playback": {

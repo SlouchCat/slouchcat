@@ -39,7 +39,7 @@
     "state": {
       "loading": "Ladataan…",
       "offline": "Palvelin ei vastaa. Tarkista yhteys.",
-      "notFound": "Tätä ei ole täällä, tai ei enää.",
+      "notFound": "Tätä ei ole tai ei enää ole.",
       "notAllowed": "Tämä ei onnistu tällä kirjautumisella.",
       "failed": "Jokin meni pieleen.",
       "retry": "Yritä uudelleen"

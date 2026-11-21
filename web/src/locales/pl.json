@@ -27,7 +27,7 @@
       },
       "insecure": {
         "title": "Nieszyfrowane połączenie",
-        "body": "To połączenie nie jest szyfrowane. W obcych sieciach ktoś może odczytać Twoje hasło i przejąć Twój dostęp.",
+        "body": "To połączenie nie jest szyfrowane. W obcych sieciach ktoś może odczytać Twoje hasło i przejąć dostęp.",
         "cancel": "Anuluj",
         "confirm": "Połącz mimo to"
       }
@@ -40,7 +40,7 @@
       "loading": "Ładowanie…",
       "offline": "Serwer nie odpowiada. Sprawdź połączenie.",
       "notFound": "Tego tu nie ma albo już nie ma.",
-      "notAllowed": "Przy tym logowaniu nie jest to możliwe.",
+      "notAllowed": "Na tym koncie nie jest to możliwe.",
       "failed": "Coś poszło nie tak.",
       "retry": "Spróbuj ponownie"
     },
@@ -2840,7 +2840,7 @@
         "browser": "Przeglądarka",
         "app": "Aplikacja",
         "device": "Aplikacja TV",
-        "none": "Wylogowano"
+        "none": "Wylogowane"
       },
       "unnamed": "Nieznane urządzenie",
       "owner": "{{email}} · {{profile}}",
@@ -7280,7 +7280,7 @@
         "device": "Aplikacja TV"
       },
       "signedIn": "{{kind}}, zalogowano {{date}}",
-      "downloadsOnly": "Wylogowano, nadal ma pobrane pliki tego konta",
+      "downloadsOnly": "Wylogowane, nadal ma pobrane pliki tego konta",
       "lastSeen": "Ostatni kontakt: {{date}}",
       "lastSeenWithDownloads_one": "Ostatni kontakt: {{date}} · {{count}} pobranie",
       "lastSeenWithDownloads_few": "Ostatni kontakt: {{date}} · {{count}} pobrania",

@@ -39,8 +39,8 @@
     "state": {
       "loading": "Laden…",
       "offline": "De server reageert niet. Controleer de verbinding.",
-      "notFound": "Dit is hier niet, of niet meer.",
-      "notAllowed": "Dit kan niet met deze inlog.",
+      "notFound": "Dit bestaat niet (meer).",
+      "notAllowed": "Dit kan niet met dit account.",
       "failed": "Er ging iets mis.",
       "retry": "Opnieuw proberen"
     },

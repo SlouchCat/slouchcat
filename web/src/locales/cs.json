@@ -39,7 +39,7 @@
     "state": {
       "loading": "Načítání…",
       "offline": "Server neodpovídá. Zkontrolujte připojení.",
-      "notFound": "Tohle tu není, nebo už není.",
+      "notFound": "Tohle neexistuje, nebo už ne.",
       "notAllowed": "S tímto přihlášením to nejde.",
       "failed": "Něco se nepovedlo.",
       "retry": "Zkusit znovu"
@@ -7293,13 +7293,13 @@
       "signOut": {
         "action": "Odhlásit",
         "label": "Odhlásit {{name}}",
-        "title": "Odhlásit „{{name}}“?",
+        "title": "Odhlásit zařízení „{{name}}“?",
         "body": "Zařízení přijde o přihlášení tohoto účtu a probíhající přehrávání skončí. Stažené položky, upozornění a automatická stahování tohoto účtu v zařízení budou smazány. Ostatní účty v zařízení zůstanou.",
         "current": "Toto je zařízení, které právě používáte: budete zde okamžitě odhlášeni.",
         "bodyCurrent": "Zařízení přijde o přihlášení tohoto účtu a probíhající přehrávání skončí. Stažené položky, upozornění a automatická stahování tohoto účtu v zařízení budou smazány. Ostatní účty v zařízení zůstanou. Toto je zařízení, které právě používáte: budete zde okamžitě odhlášeni.",
         "confirm": "Odhlásit zařízení"
       },
-      "signedOut": "„{{name}}“ odhlášeno.",
+      "signedOut": "Zařízení „{{name}}“ odhlášeno.",
       "onlyPrimary": {
         "title": "Odhlášení jen v hlavním profilu",
         "body": "Zařízení odhlásíte v hlavním profilu tohoto účtu. Zde vidíte seznam."

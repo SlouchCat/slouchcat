@@ -39,7 +39,7 @@
     "state": {
       "loading": "A carregar…",
       "offline": "O servidor não responde. Verifique a ligação.",
-      "notFound": "Isto não existe aqui, ou já não existe.",
+      "notFound": "Isto não existe ou já não está disponível.",
       "notAllowed": "Isto não é possível com esta sessão.",
       "failed": "Algo correu mal.",
       "retry": "Tentar novamente"
@@ -7056,12 +7056,12 @@
         "body": "O dispositivo perde a sessão desta conta e as reproduções em curso terminam. As transferências, as notificações e as transferências automáticas desta conta no dispositivo são eliminadas. As outras contas no dispositivo mantêm-se.",
         "current": "Este é o dispositivo que está a usar: a sua sessão aqui termina de imediato.",
         "bodyCurrent": "O dispositivo perde a sessão desta conta e as reproduções em curso terminam. As transferências, as notificações e as transferências automáticas desta conta no dispositivo são eliminadas. As outras contas no dispositivo mantêm-se. Este é o dispositivo que está a usar: a sua sessão aqui termina de imediato.",
-        "confirm": "Terminar sessão do dispositivo"
+        "confirm": "Terminar a sessão do dispositivo"
       },
       "signedOut": "Sessão de «{{name}}» terminada.",
       "onlyPrimary": {
         "title": "Terminar sessão só no perfil principal",
-        "body": "A sessão dos dispositivos termina-se no perfil principal desta conta. Aqui vê a lista."
+        "body": "Pode terminar a sessão de dispositivos no perfil principal desta conta. Aqui vê a lista."
       }
     },
     "playback": {

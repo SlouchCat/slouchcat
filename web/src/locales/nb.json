@@ -39,7 +39,7 @@
     "state": {
       "loading": "Laster inn…",
       "offline": "Serveren svarer ikke. Sjekk tilkoblingen.",
-      "notFound": "Dette finnes ikke her, eller ikke lenger.",
+      "notFound": "Dette finnes ikke, eller ikke lenger.",
       "notAllowed": "Det er ikke mulig med denne påloggingen.",
       "failed": "Noe gikk galt.",
       "retry": "Prøv igjen"

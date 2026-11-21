@@ -39,7 +39,7 @@
     "state": {
       "loading": "Yükleniyor…",
       "offline": "Sunucu yanıt vermiyor. Bağlantıyı denetleyin.",
-      "notFound": "Bu burada yok ya da artık yok.",
+      "notFound": "Bu mevcut değil ya da artık yok.",
       "notAllowed": "Bu oturumla bu mümkün değil.",
       "failed": "Bir şeyler ters gitti.",
       "retry": "Tekrar dene"

@@ -4,12 +4,12 @@
     "tagline": "Films, séries, livres audio et podcasts pour votre foyer.",
     "setup": {
       "tagline": "Vos films, séries, livres audio et podcasts depuis votre propre serveur.",
-      "title": "Se connecter à votre serveur",
+      "title": "Connexion à votre serveur",
       "addressLabel": "Adresse du serveur",
       "addressExample": "https://media.example.org",
-      "addressHint": "La même adresse que celle avec laquelle vous ouvrez Slouchcat dans le navigateur.",
-      "connect": "Se connecter",
-      "connecting": "Connexion…",
+      "addressHint": "L’adresse que vous utilisez pour ouvrir Slouchcat dans le navigateur.",
+      "connect": "Connecter",
+      "connecting": "Connexion au serveur…",
       "found": "Trouvé",
       "address": "Adresse",
       "version": "Version",
@@ -21,7 +21,7 @@
       "error": {
         "empty": "Saisissez l’adresse de votre serveur.",
         "invalid": "Cela ne ressemble pas à une adresse. Exemple : {{example}}",
-        "unreachable": "Le serveur ne répond pas. Vérifiez l’adresse et que votre appareil est connecté au bon réseau.",
+        "unreachable": "Le serveur ne répond pas. Vérifiez l’adresse et assurez-vous que votre appareil est sur le bon réseau.",
         "notSlouchcat": "Aucun serveur Slouchcat ne répond à cette adresse.",
         "tooOld": "Ce serveur (Slouchcat {{server}}) est trop ancien. L’app nécessite Slouchcat {{required}} ou une version plus récente. Veuillez mettre le serveur à jour."
       },
@@ -29,7 +29,7 @@
         "title": "Connexion non chiffrée",
         "body": "Cette connexion n’est pas chiffrée. Sur d’autres réseaux, quelqu’un peut lire votre mot de passe et prendre le contrôle de votre accès.",
         "cancel": "Annuler",
-        "confirm": "Se connecter quand même"
+        "confirm": "Connecter quand même"
       }
     },
     "connected": {
@@ -39,7 +39,7 @@
     "state": {
       "loading": "Chargement…",
       "offline": "Le serveur ne répond pas. Vérifiez la connexion.",
-      "notFound": "Ce contenu n’existe pas ici, ou plus.",
+      "notFound": "Ce contenu n’existe pas ou plus.",
       "notAllowed": "Ce n’est pas possible avec cette session.",
       "failed": "Une erreur s’est produite.",
       "retry": "Réessayer"
@@ -6499,7 +6499,7 @@
   "profiles": {
     "pinAdvice": {
       "title": "Code PIN recommandé pour le profil principal",
-      "body": "Ce compte comporte des profils avec une classification. Sans code PIN sur le profil principal, n’importe qui peut passer sur ce profil et modifier les classifications.",
+      "body": "Ce compte comporte des profils avec une classification. Sans code PIN sur le profil principal, n’importe qui peut passer au profil principal et modifier les classifications.",
       "action": "Définir un code PIN"
     },
     "picker": {
@@ -7040,7 +7040,7 @@
         "app": "App mobile",
         "device": "App TV"
       },
-      "signedIn": "{{kind}}, connecté le {{date}}",
+      "signedIn": "{{kind}}, connexion le {{date}}",
       "downloadsOnly": "Déconnecté, contient encore des téléchargements de ce compte",
       "lastSeen": "Dernier contact : {{date}}",
       "lastSeenWithDownloads_one": "Dernier contact : {{date}} · {{count}} téléchargement",
@@ -7052,16 +7052,16 @@
       "signOut": {
         "action": "Déconnecter",
         "label": "Déconnecter {{name}}",
-        "title": "Déconnecter « {{name}} » ?",
+        "title": "Déconnecter l’appareil « {{name}} » ?",
         "body": "L’appareil perd la session de ce compte et les lectures en cours s’arrêtent. Les téléchargements, les notifications et les téléchargements automatiques de ce compte sur l’appareil sont supprimés. Les autres comptes de l’appareil sont conservés.",
-        "current": "C’est l’appareil que vous utilisez : vous êtes déconnecté ici immédiatement.",
-        "bodyCurrent": "L’appareil perd la session de ce compte et les lectures en cours s’arrêtent. Les téléchargements, les notifications et les téléchargements automatiques de ce compte sur l’appareil sont supprimés. Les autres comptes de l’appareil sont conservés. C’est l’appareil que vous utilisez : vous êtes déconnecté ici immédiatement.",
+        "current": "Vous utilisez cet appareil en ce moment : il sera déconnecté immédiatement.",
+        "bodyCurrent": "L’appareil perd la session de ce compte et les lectures en cours s’arrêtent. Les téléchargements, les notifications et les téléchargements automatiques de ce compte sur l’appareil sont supprimés. Les autres comptes de l’appareil sont conservés. Vous utilisez cet appareil en ce moment : il sera déconnecté immédiatement.",
         "confirm": "Déconnecter l’appareil"
       },
-      "signedOut": "« {{name}} » déconnecté.",
+      "signedOut": "Appareil « {{name}} » déconnecté.",
       "onlyPrimary": {
         "title": "Déconnexion uniquement dans le profil principal",
-        "body": "Vous déconnectez les appareils dans le profil principal de ce compte. Ici, vous voyez la liste."
+        "body": "Vous pouvez déconnecter les appareils depuis le profil principal de ce compte. Ici, vous voyez la liste."
       }
     },
     "playback": {

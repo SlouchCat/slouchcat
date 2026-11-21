@@ -39,7 +39,7 @@
     "state": {
       "loading": "Läser in…",
       "offline": "Servern svarar inte. Kontrollera anslutningen.",
-      "notFound": "Det här finns inte här, eller inte längre.",
+      "notFound": "Det här finns inte, eller inte längre.",
       "notAllowed": "Det går inte med den här inloggningen.",
       "failed": "Något gick fel.",
       "retry": "Försök igen"

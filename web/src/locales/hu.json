@@ -29,7 +29,7 @@
         "title": "Titkosítatlan kapcsolat",
         "body": "Ez a kapcsolat nem titkosított. Idegen hálózatokon valaki elolvashatja a jelszavát, és átveheti a hozzáférését.",
         "cancel": "Mégse",
-        "confirm": "Csatlakozás mégis"
+        "confirm": "Csatlakozás mindenképp"
       }
     },
     "connected": {
@@ -39,7 +39,7 @@
     "state": {
       "loading": "Betöltés…",
       "offline": "A kiszolgáló nem válaszol. Ellenőrizze a kapcsolatot.",
-      "notFound": "Ez nincs itt, vagy már nincs.",
+      "notFound": "Ez nem létezik, vagy már nem.",
       "notAllowed": "Ezzel a bejelentkezéssel ez nem lehetséges.",
       "failed": "Valami hiba történt.",
       "retry": "Újrapróbálás"

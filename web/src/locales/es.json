@@ -39,7 +39,7 @@
     "state": {
       "loading": "Cargando…",
       "offline": "El servidor no responde. Comprueba la conexión.",
-      "notFound": "Esto no está aquí, o ya no está.",
+      "notFound": "Esto no existe o ya no está disponible.",
       "notAllowed": "Esto no es posible con esta sesión.",
       "failed": "Algo ha salido mal.",
       "retry": "Reintentar"
@@ -7056,11 +7056,11 @@
         "body": "El dispositivo pierde la sesión de esta cuenta y se detienen las reproducciones en curso. Se eliminan las descargas, las notificaciones y las descargas automáticas de esta cuenta en el dispositivo. Las demás cuentas del dispositivo se mantienen.",
         "current": "Es el dispositivo que estás usando: aquí se cerrará tu sesión al instante.",
         "bodyCurrent": "El dispositivo pierde la sesión de esta cuenta y se detienen las reproducciones en curso. Se eliminan las descargas, las notificaciones y las descargas automáticas de esta cuenta en el dispositivo. Las demás cuentas del dispositivo se mantienen. Es el dispositivo que estás usando: aquí se cerrará tu sesión al instante.",
-        "confirm": "Cerrar sesión del dispositivo"
+        "confirm": "Cerrar la sesión del dispositivo"
       },
       "signedOut": "Sesión de «{{name}}» cerrada.",
       "onlyPrimary": {
-        "title": "Cerrar sesión solo en el perfil principal",
+        "title": "Cierre de sesión solo desde el perfil principal",
         "body": "Las sesiones de los dispositivos se cierran en el perfil principal de esta cuenta. Aquí ves la lista."
       }
     },
