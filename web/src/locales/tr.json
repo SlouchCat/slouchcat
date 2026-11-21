@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Haneniz için filmler, diziler, sesli kitaplar ve podcast’ler."
+    "tagline": "Haneniz için filmler, diziler, sesli kitaplar ve podcast’ler.",
+    "setup": {
+      "tagline": "Kendi sunucunuzdan filmleriniz, dizileriniz, sesli kitaplarınız ve podcast’leriniz.",
+      "title": "Sunucunuza bağlanın",
+      "addressLabel": "Sunucu adresi",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Slouchcat’i tarayıcıda açtığınız adresin aynısı.",
+      "connect": "Bağlan",
+      "connecting": "Bağlanılıyor…",
+      "found": "Bulundu",
+      "address": "Adres",
+      "version": "Sürüm",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Bağlantı şifreli",
+      "notEncrypted": "Bağlantı şifresiz",
+      "next": "Devam",
+      "otherAddress": "Başka adres",
+      "error": {
+        "empty": "Sunucunuzun adresini girin.",
+        "invalid": "Bu bir adrese benzemiyor. Örnek: {{example}}",
+        "unreachable": "Sunucu yanıt vermiyor. Adresi ve cihazınızın doğru ağda olup olmadığını denetleyin.",
+        "notSlouchcat": "Bu adreste yanıt veren bir Slouchcat sunucusu yok.",
+        "tooOld": "Bu sunucu (Slouchcat {{server}}) çok eski. Uygulama Slouchcat {{required}} veya daha yeni bir sürüm gerektiriyor. Lütfen sunucuyu güncelleyin."
+      },
+      "insecure": {
+        "title": "Şifrelenmemiş bağlantı",
+        "body": "Bu bağlantı şifrelenmemiş. Başka ağlarda biri şifrenizi okuyabilir ve erişiminizi ele geçirebilir.",
+        "cancel": "İptal",
+        "confirm": "Yine de bağlan"
+      }
+    },
+    "connected": {
+      "title": "{{host}} sunucusuna bağlanıldı",
+      "change": "Adresi değiştir"
+    },
+    "state": {
+      "loading": "Yükleniyor…",
+      "offline": "Sunucu yanıt vermiyor. Bağlantıyı denetleyin.",
+      "notFound": "Bu burada yok ya da artık yok.",
+      "notAllowed": "Bu oturumla bu mümkün değil.",
+      "failed": "Bir şeyler ters gitti.",
+      "retry": "Tekrar dene"
+    },
+    "update": {
+      "title": "Lütfen uygulamayı güncelleyin",
+      "body": "Sunucunuz uygulamanın daha yeni bir sürümünü gerektiriyor.",
+      "close": "Kapat"
+    },
+    "connectedState": {
+      "empty": "Henüz bir sunucu ayarlanmadı.",
+      "setUp": "Sunucu ayarla"
+    },
+    "tls": {
+      "userCertificate": "Kendi yüklediğiniz bir sertifikayla şifreli",
+      "httpsRequired": "Sunucu şifreli bir bağlantı gerektiriyor. Adres artık {{address}}, yeniden bağlanın."
+    }
   },
   "common": {
     "back": "Geri",
@@ -13,6 +68,7 @@
     "saving": "Kaydediliyor…"
   },
   "nav": {
+    "devices": "Cihazlarım",
     "main": "Ana gezinme",
     "home": "Ana Sayfa",
     "logout": "Çıkış yap",
@@ -2557,6 +2613,7 @@
       "empty": "Henüz cihaz yok.",
       "columns": {
         "name": "Cihaz",
+        "session": "Oturum",
         "owner": "Sahip",
         "lastSeen": "Son bağlantı",
         "containers": "Kapsayıcılar",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Yayınlar",
         "actions": "Eylemler"
+      },
+      "sessionKinds": {
+        "browser": "Tarayıcı",
+        "app": "Uygulama",
+        "device": "TV uygulaması",
+        "none": "Oturum kapalı"
       },
       "unnamed": "Bilinmeyen cihaz",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "Kitaplıklar yüklenemedi."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Ana profil için PIN önerilir",
+      "body": "Bu hesapta yaş sınırı olan profiller var. Ana profilde PIN yoksa herkes ana profile geçip yaş sınırlarını değiştirebilir.",
+      "action": "PIN ayarla"
+    },
     "picker": {
       "title": "Kim izliyor?",
       "intro": "Profilinizi seçin.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "İsteğiniz başarısız oldu"
   },
   "settings": {
+    "devices": {
+      "title": "Cihazlarım",
+      "intro": "Bu hesabın oturum açtığı ya da indirmelerinin bulunduğu tüm cihazlar. Bir cihazın oturumunu kapattığınızda, cihazdaki bu hesaba ait her şey silinir.",
+      "list": "Bu hesabın cihazları",
+      "none": "Hiçbir cihazda bu hesabın oturumu ya da indirmesi yok.",
+      "thisDevice": "Bu cihaz",
+      "unnamed": "Bilinmeyen cihaz",
+      "types": {
+        "desktop": "Bilgisayar",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Diğer cihaz"
+      },
+      "kinds": {
+        "browser": "Tarayıcı",
+        "app": "Mobil uygulama",
+        "device": "TV uygulaması"
+      },
+      "signedIn": "{{kind}}, oturum açma: {{date}}",
+      "downloadsOnly": "Oturum kapalı, bu hesabın indirmeleri hâlâ cihazda",
+      "lastSeen": "Son bağlantı: {{date}}",
+      "lastSeenWithDownloads_one": "Son bağlantı: {{date}} · {{count}} indirme",
+      "lastSeenWithDownloads_other": "Son bağlantı: {{date}} · {{count}} indirme",
+      "downloads_one": "{{count}} indirme",
+      "downloads_other": "{{count}} indirme",
+      "signOut": {
+        "action": "Oturumu kapat",
+        "label": "{{name}} oturumunu kapat",
+        "title": "“{{name}}” cihazının oturumu kapatılsın mı?",
+        "body": "Cihazda bu hesabın oturumu kapanır ve süren oynatmalar durur. Bu hesabın cihazdaki indirmeleri, bildirimleri ve otomatik indirmeleri silinir. Cihazdaki diğer hesaplar kalır.",
+        "current": "Şu an kullandığınız cihaz bu: burada oturumunuz hemen kapanır.",
+        "bodyCurrent": "Cihazda bu hesabın oturumu kapanır ve süren oynatmalar durur. Bu hesabın cihazdaki indirmeleri, bildirimleri ve otomatik indirmeleri silinir. Cihazdaki diğer hesaplar kalır. Şu an kullandığınız cihaz bu: burada oturumunuz hemen kapanır.",
+        "confirm": "Cihazın oturumunu kapat"
+      },
+      "signedOut": "“{{name}}” cihazının oturumu kapatıldı.",
+      "onlyPrimary": {
+        "title": "Oturum kapatma yalnızca ana profilde",
+        "body": "Cihazların oturumunu bu hesabın ana profilinde kapatabilirsiniz. Burada listeyi görürsünüz."
+      }
+    },
     "playback": {
       "title": "Ayarlar",
       "intro": "{{name}} profili için ses ve altyazı, her cihazda. Oynatıcıda elle seçtiğiniz önceliklidir.",
