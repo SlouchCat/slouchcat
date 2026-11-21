@@ -289,9 +289,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
 	}
 	notifySvc := notify.New(db, visibility.New(db, log), log, notify.WithQueue(queue), notify.WithDevPush(cfg.Dev),
+		notify.WithPushRelay(cfg.PushRelay),
 		notify.WithSenders(notify.Senders{Telegram: &telegram.Client{BaseURL: cfg.TelegramAPIBase()}}),
 		notify.WithAttemptLimit(authSvc.AllowAttempt))
 	authSvc.WithAccountCreated(notifySvc.EnsureDefaults).WithInvitationAccepted(notifySvc.InvitationAccepted)
+	// The pairing of a TV and the proof of the server (concept 27, ADR 0040): the key follows secret.key.
+	authSvc.WithServerIdentity(keyring.Derive("server-identity")).WithDeviceLinked(notifySvc.DeviceLinked)
 	// The Trakt base URL points the lists at a mock; it is honoured in development mode only.
 	traktBase := ""
 	if cfg.Dev {
@@ -577,7 +580,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	srv := &http.Server{
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
-			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
+			Auth: authSvc, Profiles: authSvc, Access: authSvc, Pairing: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
 			// -1 draws (concept 08, F-2); the row «Meine Sender» reads the radio (concept 16, 10.2).
 			Catalog: discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart), discover.WithRadio(radioSvc),
 				discover.WithFulfilledWishes(wishSvc.FulfilledItems)),

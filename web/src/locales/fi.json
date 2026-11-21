@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Elokuvia, sarjoja, äänikirjoja ja podcasteja koko kotitaloudelle."
+    "tagline": "Elokuvia, sarjoja, äänikirjoja ja podcasteja koko kotitaloudelle.",
+    "setup": {
+      "tagline": "Elokuvasi, sarjasi, äänikirjasi ja podcastisi omalta palvelimeltasi.",
+      "title": "Yhdistä palvelimeesi",
+      "addressLabel": "Palvelimen osoite",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Sama osoite, jolla Slouchcat avataan selaimessa.",
+      "connect": "Yhdistä",
+      "connecting": "Yhdistetään…",
+      "found": "Löytyi",
+      "address": "Osoite",
+      "version": "Versio",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Salattu yhteys",
+      "notEncrypted": "Salaamaton yhteys",
+      "next": "Seuraava",
+      "otherAddress": "Muu osoite",
+      "error": {
+        "empty": "Anna palvelimen osoite.",
+        "invalid": "Tämä ei näytä osoitteelta. Esimerkki: {{example}}",
+        "unreachable": "Palvelin ei vastaa. Tarkista osoite ja se, että laite on oikeassa verkossa.",
+        "notSlouchcat": "Tässä osoitteessa ei vastaa Slouchcat-palvelin.",
+        "tooOld": "Tämä palvelin (Slouchcat {{server}}) on liian vanha. Sovellus vaatii Slouchcat-version {{required}} tai uudemman. Päivitä palvelin."
+      },
+      "insecure": {
+        "title": "Salaamaton yhteys",
+        "body": "Tätä yhteyttä ei ole salattu. Muissa verkoissa joku voi lukea salasanan ja ottaa käyttöoikeuden haltuunsa.",
+        "cancel": "Peruuta",
+        "confirm": "Yhdistä silti"
+      }
+    },
+    "connected": {
+      "title": "Yhdistetty: {{host}}",
+      "change": "Vaihda osoite"
+    },
+    "state": {
+      "loading": "Ladataan…",
+      "offline": "Palvelin ei vastaa. Tarkista yhteys.",
+      "notFound": "Tätä ei ole tai ei enää ole.",
+      "notAllowed": "Tämä ei onnistu tällä kirjautumisella.",
+      "failed": "Jokin meni pieleen.",
+      "retry": "Yritä uudelleen"
+    },
+    "update": {
+      "title": "Päivitä sovellus",
+      "body": "Palvelin tarvitsee sovelluksesta uudemman version.",
+      "close": "Sulje"
+    },
+    "connectedState": {
+      "empty": "Palvelinta ei ole vielä määritetty.",
+      "setUp": "Määritä palvelin"
+    },
+    "tls": {
+      "userCertificate": "Salattu itse asennetulla varmenteella",
+      "httpsRequired": "Palvelin vaatii salatun yhteyden. Osoite on nyt {{address}}, yhdistä uudelleen."
+    }
   },
   "common": {
     "back": "Takaisin",
@@ -13,6 +68,7 @@
     "saving": "Tallennetaan…"
   },
   "nav": {
+    "devices": "Omat laitteet",
     "main": "Päävalikko",
     "home": "Etusivu",
     "logout": "Kirjaudu ulos",
@@ -2557,6 +2613,7 @@
       "empty": "Ei vielä laitteita.",
       "columns": {
         "name": "Laite",
+        "session": "Istunto",
         "owner": "Omistaja",
         "lastSeen": "Viimeisin yhteys",
         "containers": "Säiliöt",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Suoratoistot",
         "actions": "Toiminnot"
+      },
+      "sessionKinds": {
+        "browser": "Selain",
+        "app": "Sovellus",
+        "device": "TV-sovellus",
+        "none": "Kirjautunut ulos"
       },
       "unnamed": "Tuntematon laite",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "Kirjastoja ei voitu ladata."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Pääprofiilille suositellaan PIN-koodia",
+      "body": "Tällä tilillä on profiileja, joilla on ikäraja. Ilman pääprofiilin PIN-koodia kuka tahansa voi vaihtaa pääprofiiliin ja muuttaa ikärajoja.",
+      "action": "Aseta PIN-koodi"
+    },
     "picker": {
       "title": "Kuka katsoo?",
       "intro": "Valitse profiili.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "Toive epäonnistui"
   },
   "settings": {
+    "devices": {
+      "title": "Omat laitteet",
+      "intro": "Kaikki laitteet, joilla tämä tili on kirjautuneena tai joilla on tämän tilin latauksia. Kun laite kirjataan ulos, siltä poistuu kaikki, mitä tällä tilillä on siinä.",
+      "list": "Tämän tilin laitteet",
+      "none": "Millään laitteella ei ole tämän tilin kirjautumista eikä latauksia.",
+      "thisDevice": "Tämä laite",
+      "unnamed": "Tuntematon laite",
+      "types": {
+        "desktop": "Tietokone",
+        "phone": "Puhelin",
+        "tablet": "Tabletti",
+        "tv": "TV",
+        "other": "Muu laite"
+      },
+      "kinds": {
+        "browser": "Selain",
+        "app": "Puhelinsovellus",
+        "device": "TV-sovellus"
+      },
+      "signedIn": "{{kind}}, kirjautunut {{date}}",
+      "downloadsOnly": "Kirjautunut ulos, laitteella on yhä tämän tilin latauksia",
+      "lastSeen": "Viimeisin yhteys: {{date}}",
+      "lastSeenWithDownloads_one": "Viimeisin yhteys: {{date}} · {{count}} lataus",
+      "lastSeenWithDownloads_other": "Viimeisin yhteys: {{date}} · {{count}} latausta",
+      "downloads_one": "{{count}} lataus",
+      "downloads_other": "{{count}} latausta",
+      "signOut": {
+        "action": "Kirjaa ulos",
+        "label": "Kirjaa ulos {{name}}",
+        "title": "Kirjataanko ”{{name}}” ulos?",
+        "body": "Laitteelta poistuu tämän tilin kirjautuminen, ja käynnissä olevat toistot päättyvät. Tämän tilin lataukset, ilmoitukset ja automaattiset lataukset poistetaan laitteelta. Laitteen muut tilit säilyvät.",
+        "current": "Tämä on käyttämäsi laite: uloskirjautuminen tapahtuu täällä heti.",
+        "bodyCurrent": "Laitteelta poistuu tämän tilin kirjautuminen, ja käynnissä olevat toistot päättyvät. Tämän tilin lataukset, ilmoitukset ja automaattiset lataukset poistetaan laitteelta. Laitteen muut tilit säilyvät. Tämä on käyttämäsi laite: uloskirjautuminen tapahtuu täällä heti.",
+        "confirm": "Kirjaa laite ulos"
+      },
+      "signedOut": "”{{name}}” kirjattu ulos.",
+      "onlyPrimary": {
+        "title": "Uloskirjaus vain pääprofiilissa",
+        "body": "Laitteet kirjataan ulos tämän tilin pääprofiilissa. Täällä näkyy luettelo."
+      }
+    },
     "playback": {
       "title": "Asetukset",
       "intro": "Ääni ja tekstitys profiilille {{name}}, kaikilla laitteilla. Se, minkä valitset käsin soittimessa, on etusijalla.",

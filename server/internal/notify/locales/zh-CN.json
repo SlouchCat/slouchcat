@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "有一个心愿的状态已更新。",
   "wish_review_subject": "待批准：{{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} 想看这部电影。它正在 Seerr 中等待批准。",
-  "wish_review_show_body": "{{account}} · {{profile}} 想看这部剧集。它正在 Seerr 中等待批准。"
+  "wish_review_show_body": "{{account}} · {{profile}} 想看这部剧集。它正在 Seerr 中等待批准。",
+  "device_linked_subject": "新设备已连接",
+  "device_linked_body": "{{time}}，一台{{kind}}连接到了你的账户。该设备自称“{{name}}”（{{system}}）；这些信息来自设备本身。如果这不是你本人的操作，请在“我的设备”中将该设备退出登录，并更改密码。",
+  "device_kind_tv": "电视"
 }

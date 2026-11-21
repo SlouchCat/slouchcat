@@ -30,6 +30,7 @@ const devices: AdminDevice[] = [
       hdr: true,
     },
     activeStreams: 1,
+    sessionKind: 'browser',
   },
   {
     id: 'dev-2',
@@ -89,6 +90,7 @@ describe('admin devices (W-7)', () => {
     const computers = screen.getByRole('table', { name: 'Geräte: Computer' });
     expect(headersOf(computers)).toEqual([
       'Gerät',
+      'Anmeldung',
       'Eigentümer',
       'Letzter Kontakt',
       'Streams',
@@ -99,7 +101,10 @@ describe('admin devices (W-7)', () => {
         .getAllByRole('rowheader')
         .map((cell) => cell.textContent),
     ).toEqual(['Chrome 156 · Linux', 'Firefox 140 · Windows']);
+    // The kind of the living session (contract 1.42.0); without one the device is signed out.
+    expect(cellsOf(rowOf('Firefox 140 · Windows'))[0]).toBe('Abgemeldet');
     expect(cellsOf(rowOf('Chrome 156 · Linux'))).toEqual([
+      'Browser',
       'owner@example.test · Marco',
       expect.stringMatching(/2026/) as string,
       '1',
@@ -281,7 +286,7 @@ describe('admin devices (W-7)', () => {
     ).toEqual(['Unbekanntes Gerät', 'Uhr']);
     expect(screen.getByRole('button', { name: 'Unbekannt 2 Geräte' })).toBeVisible();
     // The missing profile is a dash on screen and a word for screen readers.
-    expect(cellsOf(rowOf('Uhr'))[0]).toBe('gast@example.test · –gast@example.test · unbekannt');
+    expect(cellsOf(rowOf('Uhr'))[1]).toBe('gast@example.test · –gast@example.test · unbekannt');
   });
 
   it('does not refetch on window focus while the confirmation is open', async () => {

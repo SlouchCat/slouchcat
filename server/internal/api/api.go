@@ -24,8 +24,8 @@ import (
 const BasePath = "/api/v1"
 
 // Binary endpoints are excluded from the generated server (oapi-codegen.yaml) and therefore from
-// the embedded spec, so their x-visibility is repeated here; the contract test checks that these
-// values match api/openapi.yaml.
+// the embedded spec, so their x-visibility and x-clients are repeated here; the contract test checks
+// that these values match api/openapi.yaml.
 const (
 	binaryImagePath  = "/items/{id}/images/{kind}/{size}"
 	binaryStreamPath = "/items/{id}/stream"
@@ -72,39 +72,51 @@ const (
 	downloadTrickplaySheetPath = "/downloads/{id}/trickplay/{sheet}"
 )
 
-var binaryRoutes = map[string]string{
-	"GET " + BasePath + binaryImagePath:     "scoped",
-	"GET " + BasePath + chapterImagePath:    "scoped",
-	"GET " + BasePath + trickplaySheetPath:  "scoped",
-	"GET " + BasePath + personImagePath:     "scoped",
-	"GET " + BasePath + collectionImagePath: "scoped",
-	"GET " + BasePath + binaryStreamPath:    "scoped",
-	"GET " + BasePath + hlsMasterPath:       "scoped",
-	"GET " + BasePath + hlsMediaPath:        "scoped",
-	"GET " + BasePath + hlsInitPath:         "scoped",
-	"GET " + BasePath + hlsSegmentPath:      "scoped",
-	"GET " + BasePath + subtitlePath:        "scoped",
+// binaryRoute is the x-visibility and the x-clients of a binary route.
+type binaryRoute struct {
+	vis     string
+	clients []string
+}
 
-	"GET " + BasePath + downloadFilePath:           "scoped",
-	"GET " + BasePath + downloadSubtitlePath:       "scoped",
-	"GET " + BasePath + downloadTrickplaySheetPath: "scoped",
+// x-clients lists of the binary routes (ADR 0040, concept 26 appendix B).
+var (
+	appAndTV = []string{clientApp, clientTV}
+	appOnly  = []string{clientApp}
+)
 
-	"GET " + BasePath + backupDownloadPath:   "admin",
-	"GET " + BasePath + adminImagePath:       "admin",
-	"GET " + BasePath + candidatePreviewPath: "admin",
-	"PUT " + BasePath + itemImageUploadPath:  "admin",
+var binaryRoutes = map[string]binaryRoute{
+	"GET " + BasePath + binaryImagePath:     {"scoped", appAndTV},
+	"GET " + BasePath + chapterImagePath:    {"scoped", appAndTV},
+	"GET " + BasePath + trickplaySheetPath:  {"scoped", appAndTV},
+	"GET " + BasePath + personImagePath:     {"scoped", appAndTV},
+	"GET " + BasePath + collectionImagePath: {"scoped", appAndTV},
+	"GET " + BasePath + binaryStreamPath:    {"scoped", appAndTV},
+	"GET " + BasePath + hlsMasterPath:       {"scoped", appAndTV},
+	"GET " + BasePath + hlsMediaPath:        {"scoped", appAndTV},
+	"GET " + BasePath + hlsInitPath:         {"scoped", appAndTV},
+	"GET " + BasePath + hlsSegmentPath:      {"scoped", appAndTV},
+	"GET " + BasePath + subtitlePath:        {"scoped", appAndTV},
 
-	"GET " + BasePath + radioLivePlaylistPath: "scoped",
-	"GET " + BasePath + radioLiveInitPath:     "scoped",
-	"GET " + BasePath + radioLiveSegmentPath:  "scoped",
-	"GET " + BasePath + radioImagePath:        "scoped",
-	"GET " + BasePath + radioCoverPath:        "scoped",
-	"GET " + BasePath + adminRadioImagePath:   "admin",
-	"PUT " + BasePath + radioLogoUploadPath:   "admin",
+	"GET " + BasePath + downloadFilePath:           {"scoped", appOnly},
+	"GET " + BasePath + downloadSubtitlePath:       {"scoped", appOnly},
+	"GET " + BasePath + downloadTrickplaySheetPath: {"scoped", appOnly},
 
-	"GET " + BasePath + externalImagePath:      "scoped",
-	"GET " + BasePath + adminExternalImagePath: "admin",
-	"GET " + BasePath + genreBackdropPath:      "scoped",
+	"GET " + BasePath + backupDownloadPath:   {"admin", nil},
+	"GET " + BasePath + adminImagePath:       {"admin", nil},
+	"GET " + BasePath + candidatePreviewPath: {"admin", nil},
+	"PUT " + BasePath + itemImageUploadPath:  {"admin", nil},
+
+	"GET " + BasePath + radioLivePlaylistPath: {"scoped", appAndTV},
+	"GET " + BasePath + radioLiveInitPath:     {"scoped", appAndTV},
+	"GET " + BasePath + radioLiveSegmentPath:  {"scoped", appAndTV},
+	"GET " + BasePath + radioImagePath:        {"scoped", appAndTV},
+	"GET " + BasePath + radioCoverPath:        {"scoped", appAndTV},
+	"GET " + BasePath + adminRadioImagePath:   {"admin", nil},
+	"PUT " + BasePath + radioLogoUploadPath:   {"admin", nil},
+
+	"GET " + BasePath + externalImagePath:      {"scoped", appAndTV},
+	"GET " + BasePath + adminExternalImagePath: {"admin", nil},
+	"GET " + BasePath + genreBackdropPath:      {"scoped", appAndTV},
 }
 
 // Options configure NewHandler.
@@ -118,6 +130,9 @@ type Options struct {
 	Auth     AuthService
 	Profiles ProfileService // Profile picker, PIN and profile management (account operations).
 	Access   AccessService  // Invitations and guest accounts.
+	// Pairing is the pairing of a TV and proveServer (ADR 0040); nil answers 501 on them and an
+	// empty getHealth.serverKey.
+	Pairing  PairingService
 	Admin    AdminService
 	Catalog  CatalogService
 	Playback PlaybackService
@@ -136,6 +151,10 @@ type Options struct {
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
 	TrustedProxies []netip.Prefix
 
+	// MinClientVersions is the least version per app (ClientHeader: mobile, tv) the server accepts;
+	// nil is DefaultMinClientVersions. Tests set a high one.
+	MinClientVersions map[string]string
+
 	now func() time.Time // Overrides the clock in tests.
 }
 
@@ -149,12 +168,15 @@ func NewHandler(o Options) http.Handler {
 	if err != nil {
 		panic(err) // the embedded contract is generated from api/openapi.yaml and always parses
 	}
-	visibility := visibilityOf(spec, BasePath)
-	for route, vis := range binaryRoutes {
-		visibility[route] = vis
+	visibility, clients := visibilityOf(spec, BasePath), clientsOf(spec, BasePath)
+	for route, b := range binaryRoutes {
+		visibility[route], clients[route] = b.vis, b.clients
 	}
-	authorize := p.authorize(o.Auth, visibility)
-	s := &server{opts: o, p: p, limits: newWishLimiters()}
+	if o.MinClientVersions == nil {
+		o.MinClientVersions = DefaultMinClientVersions
+	}
+	authorize := p.authorize(o.Auth, visibility, clients, o.MinClientVersions)
+	s := &server{opts: o, p: p, limits: newWishLimiters(), contractVersion: spec.Info.Version}
 
 	r := chi.NewRouter()
 	r.Use(securityHeaders, requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
@@ -225,6 +247,8 @@ type server struct {
 	opts   Options
 	p      problems
 	limits wishLimiters // titles outside the library, per profile (wish_limits.go)
+	// contractVersion is info.version of the embedded contract (getHealth).
+	contractVersion string
 }
 
 var _ gen.StrictServerInterface = (*server)(nil)
@@ -232,9 +256,15 @@ var _ gen.StrictServerInterface = (*server)(nil)
 // GetHealth reports liveness. The server only listens after the database is open and
 // migrated, so a response always means ready.
 func (s *server) GetHealth(context.Context, gen.GetHealthRequestObject) (gen.GetHealthResponseObject, error) {
+	key := ""
+	if s.opts.Pairing != nil {
+		key = s.opts.Pairing.ServerKey()
+	}
 	return gen.GetHealth200JSONResponse{
-		Status:        gen.HealthStatusOk,
-		Version:       s.opts.Version,
-		UptimeSeconds: max(int64(s.opts.now().Sub(s.opts.Started).Seconds()), 0),
+		Status:          gen.HealthStatusOk,
+		Version:         s.opts.Version,
+		ContractVersion: s.contractVersion,
+		ServerKey:       key,
+		UptimeSeconds:   max(int64(s.opts.now().Sub(s.opts.Started).Seconds()), 0),
 	}, nil
 }

@@ -134,9 +134,16 @@ SELECT id FROM downloads WHERE id IN (sqlc.slice('ids'));
 SELECT id FROM download_tombstones WHERE device_id = @device_id AND id IN (sqlc.slice('ids')) ORDER BY id;
 
 -- name: DeleteOldTombstones :execrows
--- Tombstones older than 400 days go, like devices (at most 500 per batch).
+-- Tombstones older than 400 days go, like devices (at most 500 per batch), except those of a device
+-- with a living app or device session: it keeps its id however long it was silent and must still
+-- learn what to delete (ADR 0040).
 DELETE FROM download_tombstones
-WHERE id IN (SELECT t.id FROM download_tombstones AS t WHERE t.removed_at < @before LIMIT 500);
+WHERE id IN (SELECT t.id FROM download_tombstones AS t
+             WHERE t.removed_at < @before
+               AND NOT EXISTS (SELECT 1 FROM sessions AS s
+                               WHERE s.device_id = t.device_id AND s.kind <> 'browser'
+                                 AND s.revoked_at IS NULL AND s.expires_at > @now)
+             LIMIT 500);
 
 -- name: CountOpenAutoDownloads :one
 -- Auto-downloads of a profile on a device that the profile has not finished watching (O-3); a

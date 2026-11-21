@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +67,214 @@ func visibilityOf(spec *openapi3.T, base string) map[string]string {
 	return out
 }
 
+// clientsOf maps "METHOD pattern" to the x-clients list of the contract: the bearer kinds (app, tv)
+// that may call the operation (ADR 0040). An operation without the list admits no bearer session.
+func clientsOf(spec *openapi3.T, base string) map[string][]string {
+	out := map[string][]string{}
+	for path, item := range spec.Paths.Map() {
+		for method, op := range item.Operations() {
+			list, _ := op.Extensions["x-clients"].([]any)
+			for _, c := range list {
+				if name, ok := c.(string); ok {
+					out[method+" "+base+path] = append(out[method+" "+base+path], name)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// Headers of the Android apps (ADR 0040).
+const (
+	// DeviceHeader names the device of a request without a session (checkOfflineRevocations,
+	// appLogin); with a bearer session the device comes from the session.
+	DeviceHeader = "X-Slouchcat-Device"
+	// ClientHeader names the app and its version, mobile/1.2.3 or tv/1.2.3 (clientTooOld).
+	ClientHeader = "X-Slouchcat-Client"
+)
+
+// Names in x-clients of the bearer kinds of session.
+const (
+	clientApp = "app"
+	clientTV  = "tv"
+)
+
+// clientOf is the x-clients name of a bearer session's kind; "" for a browser session.
+func clientOf(kind string) string {
+	switch kind {
+	case model.SessionApp:
+		return clientApp
+	case model.SessionDevice:
+		return clientTV
+	default:
+		return ""
+	}
+}
+
+// requestAuth is what the session middleware learnt about the caller.
+type requestAuth struct {
+	session  model.Session
+	token    string
+	extended bool // a browser session whose expiry moved (the cookie is renewed)
+	ok       bool // a session of the right carrier
+	// app marks a request of an Android app: it carries Authorization or X-Slouchcat-Device, or it is
+	// appLogin. Such a request never gets a cookie, and a 401 clears none.
+	app bool
+	// conflict: the session cookie and Authorization came together (refused on every route).
+	conflict bool
+}
+
+// resolveRequest finds the session of a request. A bearer token (Authorization) counts only for an
+// app or device session, the cookie only for a browser session (concept 27 4.1): the kind is
+// stored with the session, the server never derives it from the carrier.
+//
+// Only the scheme Bearer enters the bearer way. Any other Authorization (Basic of a reverse proxy
+// in front of the web app) counts as no header: the browser keeps its cookie (code review M-1).
+func resolveRequest(ctx context.Context, auth AuthService, r *http.Request, appRoute bool) requestAuth {
+	scheme, token, _ := strings.Cut(strings.TrimSpace(r.Header.Get("Authorization")), " ")
+	hasBearer := strings.EqualFold(scheme, "Bearer")
+	token = strings.TrimSpace(token) // RFC 6750: 1*SP after the scheme
+	_, hasDevice := r.Header[DeviceHeader]
+	out := requestAuth{app: hasBearer || hasDevice || appRoute}
+	if !hasBearer {
+		out.session, out.token, out.extended, out.ok = resolveSession(ctx, auth, r)
+		return out
+	}
+	if c, err := r.Cookie(SessionCookie); err == nil && c.Value != "" {
+		out.conflict = true
+		return out
+	}
+	if auth == nil || token == "" {
+		return out
+	}
+	s, _, err := auth.Resolve(model.WithCarrier(ctx, true), token)
+	if err != nil || !s.IsBearer() {
+		return out // a browser token as bearer is refused like an unknown one
+	}
+	out.session, out.token, out.ok = s, token, true
+	return out
+}
+
+// appDeviceID is the device id an app names in DeviceHeader; "" when absent or malformed.
+func appDeviceID(r *http.Request) string {
+	if id := r.Header.Get(DeviceHeader); deviceIDPattern.MatchString(id) {
+		return id
+	}
+	return ""
+}
+
+// noCookies is the ResponseWriter of an app request: it drops every Set-Cookie a handler or a
+// middleware further in writes (concept 27 4.3: a bearer request never gets a cookie).
+type noCookies struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (w *noCookies) WriteHeader(code int) {
+	if !w.wrote {
+		w.wrote = true
+		w.Header().Del("Set-Cookie")
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *noCookies) Write(b []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+// Flush passes on to the wrapped writer when it can flush.
+func (w *noCookies) Flush() {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// dropUnwritten removes Set-Cookie when nothing was written yet (the headers still go out).
+func (w *noCookies) dropUnwritten() {
+	if !w.wrote {
+		w.Header().Del("Set-Cookie")
+	}
+}
+
+// Unwrap lets http.ResponseController reach the wrapped writer.
+func (w *noCookies) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// clientVersion is a parsed ClientHeader: the app ("mobile" or "tv") and its version.
+type clientVersion struct {
+	app   string
+	parts [3]int
+}
+
+// parseClient reads ClientHeader; ok is false for an absent or malformed value, which the server
+// ignores (only the Android apps send it).
+func parseClient(v string) (clientVersion, bool) {
+	app, version, found := strings.Cut(strings.TrimSpace(v), "/")
+	if !found || app == "" {
+		return clientVersion{}, false
+	}
+	version, _, _ = strings.Cut(version, "-") // a build suffix such as 1.2.3-dev does not count
+	version, _, _ = strings.Cut(version, "+")
+	fields := strings.Split(version, ".")
+	if len(fields) != 3 {
+		return clientVersion{}, false
+	}
+	out := clientVersion{app: app}
+	for i, f := range fields {
+		n, err := strconv.Atoi(f)
+		if err != nil || n < 0 {
+			return clientVersion{}, false
+		}
+		out.parts[i] = n
+	}
+	return out, true
+}
+
+// less reports whether c is older than the version min ("1.2.3").
+func (c clientVersion) less(min string) bool {
+	m, ok := parseClient(c.app + "/" + min)
+	if !ok {
+		return false
+	}
+	for i := range c.parts {
+		if c.parts[i] != m.parts[i] {
+			return c.parts[i] < m.parts[i]
+		}
+	}
+	return false
+}
+
+// DefaultMinClientVersions is the least version of each app the server accepts (concept 27 11.5):
+// an older app gets 426 app_too_old. Today every version passes.
+var DefaultMinClientVersions = map[string]string{"mobile": "0.0.0", "tv": "0.0.0"}
+
+// clientTooOld reports whether the request names an app older than min allows.
+func clientTooOld(r *http.Request, min map[string]string) bool {
+	c, ok := parseClient(r.Header.Get(ClientHeader))
+	if !ok {
+		return false
+	}
+	least, known := min[c.app]
+	return known && c.less(least)
+}
+
+// healthRoute is getHealth: an app too old for the server still reads contractVersion there.
+const healthRoute = http.MethodGet + " " + BasePath + "/healthz"
+
+// tooOldExempt are the routes an app older than the server accepts may still call (code review
+// m-1): getHealth (contractVersion), checkOfflineRevocations (a revoked download must stop playing
+// offline) and logout (the app can still sign out).
+var tooOldExempt = map[string]bool{
+	healthRoute: true,
+	http.MethodPost + " " + BasePath + "/offline/revocations": true,
+	http.MethodPost + " " + BasePath + "/auth/logout":         true,
+}
+
 // csrfOK accepts safe methods and state-changing requests that carry the custom header. Browsers
 // never add it to cross-site form posts, so together with SameSite=Lax the cookie cannot be
 // replayed from another origin. Checked after routing, so unknown routes still answer 404/405.
@@ -86,27 +295,58 @@ func csrfOK(r *http.Request) bool {
 // cookie is read for every operation, so a public operation can still see who is logged in. A
 // request without a valid device cookie gets one (PIN locks count per profile and device); with a
 // session, the cookie follows the session's device and is renewed whenever the session is.
-func (p problems) authorize(auth AuthService, visibility map[string]string) func(http.Handler) http.Handler {
+//
+// Android apps (ADR 0040) send Authorization: Bearer with the token of an app or device session.
+// Such a request never gets a cookie; the device comes from the session, or from DeviceHeader
+// without one. A bearer session may call an account or scoped operation only when its x-clients
+// (clients) names the session's kind, and never an admin or owner operation (403
+// client_not_allowed). An app older than minClients allows gets 426 app_too_old on every route but
+// the routes of tooOldExempt.
+func (p problems) authorize(auth AuthService, visibility map[string]string, clients map[string][]string, minClients map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			pattern := chi.RouteContext(r.Context()).RoutePattern()
-			if !csrfOK(r) && !csrfExemptRoutes[r.Method+" "+pattern] {
+			route := r.Method + " " + pattern
+			if !tooOldExempt[route] && clientTooOld(r, minClients) {
+				p.write(w, r, http.StatusUpgradeRequired, "app_too_old", "This app is older than the server accepts; update the app.")
+				return
+			}
+			if !csrfOK(r) && !csrfExemptRoutes[route] {
 				p.write(w, r, http.StatusForbidden, "csrf_header_missing",
 					"State-changing requests need the header "+CSRFHeader+": "+CSRFHeaderValue+".")
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
-			session, token, extended, hasSession := resolveSession(ctx, auth, r)
-			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r, session.DeviceID, extended))
+			ra := resolveRequest(ctx, auth, r, appRoutes[route])
+			session, hasSession := ra.session, ra.ok
+			if ra.app {
+				nc := &noCookies{ResponseWriter: w}
+				// A handler that writes nothing leaves the headers to net/http, which sends them after
+				// the handler returned: drop a cookie set on the way there too (code review m-9).
+				defer nc.dropUnwritten()
+				w = nc
+			}
+			if ra.conflict {
+				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "Send either the session cookie or a bearer token, not both.")
+				return
+			}
+			switch {
+			case hasSession && ra.app:
+				ctx = model.WithDeviceID(ctx, session.DeviceID)
+			case ra.app:
+				ctx = model.WithDeviceID(ctx, appDeviceID(r))
+			default:
+				ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r, session.DeviceID, ra.extended))
+			}
 			if hasSession {
 				ctx = context.WithValue(ctx, sessionKey{}, session)
 			}
-			if extended {
+			if ra.extended && !ra.app {
 				// Sliding expiry: the browser keeps the cookie as long as the server keeps the session.
-				setSessionCookie(w, r, token, session.ExpiresAt)
+				setSessionCookie(w, r, ra.token, session.ExpiresAt)
 			}
 			r = r.WithContext(ctx)
-			vis, known := visibility[r.Method+" "+pattern]
+			vis, known := visibility[route]
 			switch {
 			case known && vis == "public":
 			case !known || vis == "system" || !validVisibility[vis]:
@@ -114,8 +354,14 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "")
 				return
 			case !hasSession:
-				clearSessionCookie(w, r)
+				if !ra.app {
+					clearSessionCookie(w, r)
+				}
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "A valid session is required.")
+				return
+			case session.IsBearer() && !slices.Contains(clients[route], clientOf(session.Kind)):
+				// admin and owner operations carry no x-clients, so they land here for every bearer kind.
+				p.write(w, r, http.StatusForbidden, "client_not_allowed", "This kind of session may not call this operation.")
 				return
 			case vis == "admin" && (!session.IsAdmin() || !session.IsPrimary()):
 				p.write(w, r, http.StatusForbidden, "forbidden", "Only an administrator with the primary profile may do this.")
@@ -173,7 +419,9 @@ func ensureDeviceCookie(w http.ResponseWriter, r *http.Request, sessionDevice st
 	return id
 }
 
-// resolveSession returns the session of the cookie with its token and whether Resolve extended it.
+// resolveSession returns the browser session of the cookie with its token and whether Resolve
+// extended it. The token of an app or device session in the cookie counts as no session (concept 27
+// 4.1: it would get a sliding expiry and a Set-Cookie).
 func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (session model.Session, token string, extended, ok bool) {
 	if auth == nil {
 		return model.Session{}, "", false, false
@@ -182,11 +430,19 @@ func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (ses
 	if err != nil || c.Value == "" {
 		return model.Session{}, "", false, false
 	}
-	s, extended, err := auth.Resolve(ctx, c.Value)
-	if err != nil {
+	s, extended, err := auth.Resolve(model.WithCarrier(ctx, false), c.Value)
+	if err != nil || s.IsBearer() {
 		return model.Session{}, "", false, false
 	}
 	return s, c.Value, extended, true
+}
+
+// appRoutes are the public operations only the Android apps call (appLogin, redeemPairingVoucher,
+// proveServer): their answers never set a cookie, also without an app header.
+var appRoutes = map[string]bool{
+	http.MethodPost + " " + BasePath + "/auth/app-login":      true,
+	http.MethodPost + " " + BasePath + "/auth/pairing/redeem": true,
+	http.MethodPost + " " + BasePath + "/server/prove":        true,
 }
 
 // clientIP is the address the attempt limits count. Without trusted proxies it is the host of
@@ -394,6 +650,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrAdminLimitsFixed):
 		p.write(w, r, http.StatusConflict, "admin_limits_fixed",
 			"An administrator always sees every library up to FSK 18; take the role away first.")
+	case errors.Is(err, model.ErrAppSessionRequired):
+		p.write(w, r, http.StatusForbidden, "app_session_required", "Only the phone app may pair a TV.")
+	case errors.Is(err, model.ErrVoucherInvalid):
+		p.write(w, r, http.StatusGone, "voucher_invalid", "The pairing code is unknown, expired or already used; show a new code.")
 	case errors.Is(err, model.ErrInvitationGone):
 		p.write(w, r, http.StatusGone, "invitation_gone", "The invitation link was used, has expired or was revoked.")
 	case errors.Is(err, model.ErrSetupDone):

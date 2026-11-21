@@ -1356,6 +1356,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
 	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)
 	adm.WithAnnouncements(pf.notifySvc)
+	// Concept 27: the pairing of a TV and the proof of the server, as in main.
+	a.WithServerIdentity(ring.Derive("server-identity")).WithDeviceLinked(pf.notifySvc.DeviceLinked)
 	// Concept 09: the registry and scheduler of the fixture (download.prepare, notify.deliver, the
 	// metadata types), started once so job_types and job_schedules have their rows.
 	registry := jobs.NewRegistry(pf.queue, log)
@@ -1381,7 +1383,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	adm.WithSeerr(pf.wishes)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
-		Auth: pa, Profiles: a, Access: a, Admin: adm,
+		Auth: pa, Profiles: a, Access: a, Pairing: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log, discover.WithRadio(pf.radio)), // «Meine Sender» (concept 16)
 		Playback: pf.pb,
 		Offline:  pf.off,

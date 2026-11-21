@@ -22,6 +22,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/notify/email"
+	"github.com/slouchcat/slouchcat/server/internal/notify/push"
 	"github.com/slouchcat/slouchcat/server/internal/updater"
 )
 
@@ -115,6 +116,10 @@ type Config struct {
 	// PublicURL is the address of the server for links in e-mails and messages (M8); it wins over the
 	// stored setting. Empty = the setting or no links.
 	PublicURL string
+	// PushRelay is the origin of the push relay of the Android app (concept 27 7.3, ADR 0044): its
+	// push endpoints get the smaller record and only 410 deletes them. Default
+	// push.DefaultRelayOrigin (SLOUCHCAT_PUSH_RELAY; scheme and host only).
+	PushRelay string
 	// HeroStart is the fixed start index of the spotlight stage for tests (concept 08, F-2; the e2e
 	// suite sets 0); -1 = a random start per page view.
 	HeroStart int
@@ -407,6 +412,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("smtp_tls", c.SMTPTLS),
 		slog.Bool("telegram_configured", c.TelegramBotToken != ""),
 		slog.String("public_url", c.PublicURL),
+		slog.String("push_relay", c.PushRelay),
 		slog.Bool("update_manifest_default", c.ManifestURL() == DefaultUpdateManifestURL),
 		slog.String("updater_url", c.UpdaterURL),
 		slog.String("updater_dir", c.UpdaterDir()),
@@ -466,6 +472,16 @@ func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
 			return fmt.Errorf("%sPUBLIC_URL: want an http or https URL without query, fragment or credentials", EnvPrefix)
 		}
 	}
+	// One origin or several, comma-separated (the old and the new while the relay moves, ADR 0044).
+	var origins []string
+	for o := range strings.SplitSeq(env("PUSH_RELAY", push.DefaultRelayOrigin), ",") {
+		o = strings.TrimRight(strings.TrimSpace(o), "/")
+		if u, err := url.Parse(o); err != nil || !httpURL(o) || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return fmt.Errorf("%sPUSH_RELAY: want origins of the push relay, comma-separated, for example %s", EnvPrefix, push.DefaultRelayOrigin)
+		}
+		origins = append(origins, o)
+	}
+	cfg.PushRelay = strings.Join(origins, ",")
 	return nil
 }
 

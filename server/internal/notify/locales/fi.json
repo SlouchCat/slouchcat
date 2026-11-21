@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Toiveen tila on muuttunut.",
   "wish_review_subject": "Hyväksyntää tarvitaan: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} toivoo elokuvaa. Se odottaa hyväksyntää Seerrissä.",
-  "wish_review_show_body": "{{account}} · {{profile}} toivoo sarjaa. Se odottaa hyväksyntää Seerrissä."
+  "wish_review_show_body": "{{account}} · {{profile}} toivoo sarjaa. Se odottaa hyväksyntää Seerrissä.",
+  "device_linked_subject": "Uusi laite yhdistetty",
+  "device_linked_body": "{{time}} tiliisi yhdistettiin {{kind}}. Laite kutsuu itseään nimellä ”{{name}}” ({{system}}); tiedot ovat peräisin laitteelta itseltään. Jos et tehnyt tätä itse, kirjaa laite ulos kohdassa ”Omat laitteet” ja vaihda salasanasi.",
+  "device_kind_tv": "televisio"
 }

@@ -15,7 +15,8 @@ import (
 // Cleanup of the download directory (AN-20, M5 design 3.3): server copies 24 h after the device
 // fetched them and 7 days after they were ready without a fetch (evicted; the next sync of the
 // device prepares them again while it lacks the file), the partial files of failed preparations,
-// directories without a download row and tombstones older than 400 days. The copy on the device
+// directories without a download row and tombstones older than 400 days (except those of a device
+// with a living app or device session, ADR 0040). The copy on the device
 // has no expiry (O-6). The same pass deletes read inbox entries (M7 notifications) older than 90
 // days, so the inbox does not grow without bound.
 
@@ -99,7 +100,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		return err
 	}
 	for {
-		n, err := s.write.DeleteOldTombstones(ctx, ms(now.Add(-tombstoneKeep)))
+		n, err := s.write.DeleteOldTombstones(ctx, systemq.DeleteOldTombstonesParams{Before: ms(now.Add(-tombstoneKeep)), Now: ms(now)})
 		if err != nil {
 			return fmt.Errorf("delete old tombstones: %w", err)
 		}

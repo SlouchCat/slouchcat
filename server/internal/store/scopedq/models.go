@@ -159,6 +159,7 @@ type Delivery struct {
 	LastError sql.NullString
 	CreatedAt int64
 	SentAt    sql.NullInt64
+	PushedTo  sql.NullString
 }
 
 type Device struct {
@@ -614,6 +615,16 @@ type Notification struct {
 	ReadAt    sql.NullInt64
 }
 
+type PairingVoucher struct {
+	AccountID   int64
+	SessionID   int64
+	VoucherHash string
+	TvKey       string
+	DeviceKind  string
+	CreatedAt   int64
+	ExpiresAt   int64
+}
+
 type Person struct {
 	ID                 int64
 	TmdbID             sql.NullInt64
@@ -1037,6 +1048,7 @@ type Session struct {
 	LastSeenAt int64
 	ExpiresAt  int64
 	RevokedAt  sql.NullInt64
+	Kind       string
 }
 
 type Setting struct {

@@ -43,7 +43,13 @@ class ConnectedViewModelTest {
         }
     }
 
-    private val health = Health(status = Health.Status.OK, version = "1.42.1", uptimeSeconds = 5)
+    private val health = Health(
+        status = Health.Status.OK,
+        version = "1.42.1",
+        uptimeSeconds = 5,
+        contractVersion = "1.42.0",
+        serverKey = "c2VydmVyLWtleQ",
+    )
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)

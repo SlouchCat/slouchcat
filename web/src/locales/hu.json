@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmek, sorozatok, hangoskönyvek és podcastok a háztartása számára."
+    "tagline": "Filmek, sorozatok, hangoskönyvek és podcastok a háztartása számára.",
+    "setup": {
+      "tagline": "Filmjei, sorozatai, hangoskönyvei és podcastjai a saját kiszolgálójáról.",
+      "title": "Csatlakozás a kiszolgálóhoz",
+      "addressLabel": "Kiszolgáló címe",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Ugyanaz a cím, amelyen a Slouchcat a böngészőben megnyílik.",
+      "connect": "Csatlakozás",
+      "connecting": "Csatlakozás…",
+      "found": "Megtalálva",
+      "address": "Cím",
+      "version": "Verzió",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Titkosított kapcsolat",
+      "notEncrypted": "Titkosítatlan kapcsolat",
+      "next": "Tovább",
+      "otherAddress": "Másik cím",
+      "error": {
+        "empty": "Adja meg a kiszolgáló címét.",
+        "invalid": "Ez nem tűnik címnek. Példa: {{example}}",
+        "unreachable": "A kiszolgáló nem válaszol. Ellenőrizze a címet, és hogy az eszköze a megfelelő hálózaton van-e.",
+        "notSlouchcat": "Ezen a címen nem válaszol Slouchcat-kiszolgáló.",
+        "tooOld": "Ez a kiszolgáló (Slouchcat {{server}}) túl régi. Az alkalmazáshoz Slouchcat {{required}} vagy újabb szükséges. Frissítse a kiszolgálót."
+      },
+      "insecure": {
+        "title": "Titkosítatlan kapcsolat",
+        "body": "Ez a kapcsolat nem titkosított. Idegen hálózatokon valaki elolvashatja a jelszavát, és átveheti a hozzáférését.",
+        "cancel": "Mégse",
+        "confirm": "Csatlakozás mindenképp"
+      }
+    },
+    "connected": {
+      "title": "Csatlakozva: {{host}}",
+      "change": "Cím módosítása"
+    },
+    "state": {
+      "loading": "Betöltés…",
+      "offline": "A kiszolgáló nem válaszol. Ellenőrizze a kapcsolatot.",
+      "notFound": "Ez nem létezik, vagy már nem.",
+      "notAllowed": "Ezzel a bejelentkezéssel ez nem lehetséges.",
+      "failed": "Valami hiba történt.",
+      "retry": "Újrapróbálás"
+    },
+    "update": {
+      "title": "Frissítse az alkalmazást",
+      "body": "A kiszolgálóhoz az alkalmazás újabb verziója szükséges.",
+      "close": "Bezárás"
+    },
+    "connectedState": {
+      "empty": "Még nincs beállított kiszolgáló.",
+      "setUp": "Kiszolgáló beállítása"
+    },
+    "tls": {
+      "userCertificate": "Saját telepítésű tanúsítvánnyal titkosítva",
+      "httpsRequired": "A kiszolgáló titkosított kapcsolatot igényel. A cím mostantól {{address}}, csatlakozzon újra."
+    }
   },
   "common": {
     "back": "Vissza",
@@ -13,6 +68,7 @@
     "saving": "Mentés…"
   },
   "nav": {
+    "devices": "Eszközeim",
     "main": "Főmenü",
     "home": "Kezdőlap",
     "logout": "Kijelentkezés",
@@ -2557,6 +2613,7 @@
       "empty": "Még nincsenek eszközök.",
       "columns": {
         "name": "Eszköz",
+        "session": "Munkamenet",
         "owner": "Tulajdonos",
         "lastSeen": "Utolsó kapcsolat",
         "containers": "Konténerek",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Streamek",
         "actions": "Műveletek"
+      },
+      "sessionKinds": {
+        "browser": "Böngésző",
+        "app": "Alkalmazás",
+        "device": "TV-alkalmazás",
+        "none": "Kijelentkezve"
       },
       "unnamed": "Ismeretlen eszköz",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "A könyvtárakat nem sikerült betölteni."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "PIN-kód ajánlott a fő profilhoz",
+      "body": "Ebben a fiókban vannak korhatárral rendelkező profilok. Ha a fő profilon nincs PIN-kód, bárki átválthat rá, és módosíthatja a korhatárokat.",
+      "action": "PIN-kód beállítása"
+    },
     "picker": {
       "title": "Ki nézi?",
       "intro": "Válassza ki a profilját.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "A kívánsága meghiúsult"
   },
   "settings": {
+    "devices": {
+      "title": "Eszközeim",
+      "intro": "Minden eszköz, amelyen ez a fiók be van jelentkezve, vagy amelyen letöltései vannak. Ha kijelentkeztet egy eszközt, az elveszít mindent, ami ennek a fióknak ott van.",
+      "list": "A fiók eszközei",
+      "none": "Egyetlen eszközön sincs bejelentkezés vagy letöltés ebből a fiókból.",
+      "thisDevice": "Ez az eszköz",
+      "unnamed": "Ismeretlen eszköz",
+      "types": {
+        "desktop": "Számítógép",
+        "phone": "Telefon",
+        "tablet": "Táblagép",
+        "tv": "TV",
+        "other": "Egyéb eszköz"
+      },
+      "kinds": {
+        "browser": "Böngésző",
+        "app": "Mobilalkalmazás",
+        "device": "TV-alkalmazás"
+      },
+      "signedIn": "{{kind}}, bejelentkezve: {{date}}",
+      "downloadsOnly": "Kijelentkezve, még vannak rajta letöltések ebből a fiókból",
+      "lastSeen": "Utolsó kapcsolat: {{date}}",
+      "lastSeenWithDownloads_one": "Utolsó kapcsolat: {{date}} · {{count}} letöltés",
+      "lastSeenWithDownloads_other": "Utolsó kapcsolat: {{date}} · {{count}} letöltés",
+      "downloads_one": "{{count}} letöltés",
+      "downloads_other": "{{count}} letöltés",
+      "signOut": {
+        "action": "Kijelentkeztetés",
+        "label": "{{name}} kijelentkeztetése",
+        "title": "Kijelentkezteti a(z) „{{name}}” eszközt?",
+        "body": "Az eszközön megszűnik ennek a fióknak a bejelentkezése, és a folyamatban lévő lejátszások leállnak. A fiók letöltései, értesítései és automatikus letöltései törlődnek az eszközről. Az eszközön lévő többi fiók megmarad.",
+        "current": "Ezt az eszközt használja most: itt azonnal kijelentkezik.",
+        "bodyCurrent": "Az eszközön megszűnik ennek a fióknak a bejelentkezése, és a folyamatban lévő lejátszások leállnak. A fiók letöltései, értesítései és automatikus letöltései törlődnek az eszközről. Az eszközön lévő többi fiók megmarad. Ezt az eszközt használja most: itt azonnal kijelentkezik.",
+        "confirm": "Eszköz kijelentkeztetése"
+      },
+      "signedOut": "„{{name}}” kijelentkeztetve.",
+      "onlyPrimary": {
+        "title": "Kijelentkeztetés csak a fő profilban",
+        "body": "Az eszközöket a fiók fő profiljában jelentkeztetheti ki. Itt a listát látja."
+      }
+    },
     "playback": {
       "title": "Beállítások",
       "intro": "Hang és felirat a(z) {{name}} profilhoz, minden eszközön. Amit a lejátszóban kézzel választ, az élvez elsőbbséget.",

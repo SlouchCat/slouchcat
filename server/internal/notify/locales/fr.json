@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Un souhait a un nouvel état.",
   "wish_review_subject": "Approbation requise : {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} souhaite ce film. Il attend l’approbation dans Seerr.",
-  "wish_review_show_body": "{{account}} · {{profile}} souhaite cette série. Elle attend l’approbation dans Seerr."
+  "wish_review_show_body": "{{account}} · {{profile}} souhaite cette série. Elle attend l’approbation dans Seerr.",
+  "device_linked_subject": "Nouvel appareil connecté",
+  "device_linked_body": "Le {{time}}, un {{kind}} a été connecté à votre compte. L’appareil s’appelle « {{name}} » ({{system}}) ; ces informations proviennent de l’appareil lui-même. Si ce n’était pas vous, déconnectez l’appareil dans « Mes appareils » et changez votre mot de passe.",
+  "device_kind_tv": "téléviseur"
 }

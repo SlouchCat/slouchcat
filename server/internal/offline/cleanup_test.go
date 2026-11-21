@@ -2,6 +2,7 @@ package offline
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,6 +94,48 @@ func TestCleanup(t *testing.T) {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not stop")
+	}
+}
+
+// ADR 0040: the tombstones of a device with a living app or device session outlive the 400 days,
+// so the app still learns what to delete; a revoked or a browser session does not keep them.
+func TestCleanupKeepsTombstonesOfBearerDevices(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := context.Background()
+	old := e.clock.Now().Add(-401 * 24 * time.Hour).UnixMilli()
+	never := time.Date(9999, time.December, 31, 0, 0, 0, 0, time.UTC).UnixMilli()
+	devices := map[string]struct {
+		kind    string
+		revoked bool
+		tomb    string
+	}{
+		"a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": {"app", false, "01J9APPTOMB000000000000000"},
+		"b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": {"device", false, "01J9TVXTOMB000000000000000"},
+		"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": {"app", true, "01J9REVTOMB000000000000000"},
+		"d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4": {"browser", false, "01J9BRWTOMB000000000000000"},
+	}
+	n := 0
+	for id, d := range devices {
+		n++
+		e.exec(`INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, 1, 1)`, id)
+		var revoked any
+		if d.revoked {
+			revoked = old
+		}
+		expires := never
+		if d.kind == "browser" {
+			expires = e.clock.Now().Add(24 * time.Hour).UnixMilli()
+		}
+		e.exec(`INSERT INTO sessions (token_hash, account_id, device_id, created_at, last_seen_at, expires_at, revoked_at, kind)
+		        VALUES (?, ?, ?, 1, 1, ?, ?, ?)`, fmt.Sprintf("tombstone-test-%d", n), e.f.Account.ID, id, expires, revoked, d.kind)
+		e.exec(`INSERT INTO download_tombstones (id, device_id, removed_at) VALUES (?, ?, ?)`, d.tomb, id, old)
+	}
+	if err := e.svc.Cleanup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(e.tombstoneIDs(), ","); got != "01J9APPTOMB000000000000000,01J9TVXTOMB000000000000000" {
+		t.Errorf("tombstones after 401 days = %s, want those of the living app and device sessions", got)
 	}
 }
 
