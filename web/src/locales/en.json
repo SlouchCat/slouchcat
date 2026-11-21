@@ -32,10 +32,6 @@
         "confirm": "Connect anyway"
       }
     },
-    "connected": {
-      "title": "Connected to {{host}}",
-      "change": "Change address"
-    },
     "state": {
       "loading": "Loading …",
       "offline": "The server does not answer. Check the connection.",
@@ -49,13 +45,111 @@
       "body": "Your server needs a newer version of the app.",
       "close": "Close"
     },
-    "connectedState": {
-      "empty": "No server set up yet.",
-      "setUp": "Set up server"
-    },
     "tls": {
       "userCertificate": "Encrypted with a certificate you installed",
       "httpsRequired": "The server requires an encrypted connection. The address is now {{address}}, connect again."
+    },
+    "signIn": {
+      "change": "Change",
+      "serverLabel": "Server {{host}}, change the address",
+      "encrypted": "Encrypted",
+      "notEncrypted": "Not encrypted",
+      "serverLine": "{{state}} · Slouchcat {{version}}",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "deviceHint": "This device then appears as “{{name}}” under “My devices” and stays signed in until you sign it out.",
+      "error": {
+        "emailEmpty": "Enter your email address.",
+        "emailInvalid": "This email address is incomplete.",
+        "passwordEmpty": "Enter your password.",
+        "tooMany": "Too many attempts. Try again in {{seconds}} s.",
+        "storage": "The sign-in could not be stored on this device."
+      }
+    },
+    "serverKey": {
+      "title": "The server has a new key",
+      "body": "This happens when the server was set up anew. It can also be another device pretending to be your server. The app sends it nothing until you confirm the new key.",
+      "confirm": "Sign in again to confirm the server’s new key. Only do this in your own network.",
+      "later": "Later",
+      "signIn": "Sign in again"
+    },
+    "profiles": {
+      "account": "{{email}} · {{host}}",
+      "pinLocked": "Too many wrong attempts. Wait another {{seconds}} s.",
+      "pinAgain": "You can try again.",
+      "pinDelete": "Delete the last digit",
+      "pinEntered_one": "{{count}} digit entered",
+      "pinEntered_other": "{{count}} digits entered"
+    },
+    "shell": {
+      "mediaChoice": "Media",
+      "menuOpen": "Open the media menu",
+      "media": "Media"
+    },
+    "more": {
+      "title": "More",
+      "switchProfile": "Switch profile",
+      "profileLine": "{{role}} · {{email}}",
+      "insecureTitle": "Unencrypted connection.",
+      "insecureBody": "Password and access travel openly over the network. In other networks someone can read along. Set up HTTPS for the server.",
+      "section": {
+        "library": "Library",
+        "devices": "Devices",
+        "settings": "Settings",
+        "server": "Server"
+      },
+      "devicesCount_one": "{{count}} device signed in",
+      "devicesCount_other": "{{count}} devices signed in",
+      "devicesHint": "Where this account is signed in",
+      "serverLine": "Slouchcat {{version}} · {{address}}",
+      "https": "HTTPS",
+      "plain": "HTTP · password and access readable",
+      "footer": "Slouchcat for Android {{version}}",
+      "serverSheet": {
+        "title": "Server",
+        "connection": "Connection",
+        "encrypted": "encrypted (HTTPS)",
+        "notEncrypted": "not encrypted (HTTP)",
+        "hint": "The app connects to exactly one server. For another server, sign out and enter the new address.",
+        "change": "Change server"
+      }
+    },
+    "signOut": {
+      "title": "Sign out?",
+      "body": "The app signs out on this device.",
+      "hint": "To come back you need the server’s address, your email address and your password.",
+      "busy": "Signing out …",
+      "done": "Signed out"
+    },
+    "devices": {
+      "lede": "Phones and TVs stay signed in until someone signs them out here.",
+      "lastSeen": "Last contact: {{date}}"
+    },
+    "account": {
+      "signInSection": "Sign-in",
+      "emailSub": "Email address and sign-in name",
+      "emailTitle": "Change email address",
+      "newEmail": "New email address",
+      "currentPassword": "Current password",
+      "password": "Change password",
+      "passwordSub": "Signs out every other device",
+      "passwordWarning": "When you change the password, every other device is signed out, the TVs too. You connect the TVs again afterwards.",
+      "newPassword": "New password",
+      "repeatPassword": "Repeat new password",
+      "passwordHint": "At least 10 characters.",
+      "save": "Change",
+      "saving": "Changing …",
+      "adminHint": "The administration of the server is only in the browser.",
+      "error": {
+        "currentEmpty": "Enter your current password.",
+        "wrongPassword": "The current password is wrong.",
+        "tooShort": "The new password needs at least 10 characters.",
+        "same": "The new password is the same as the old one.",
+        "mismatch": "The two entries do not match.",
+        "sameEmail": "This already is your email address."
+      },
+      "emailChanged": "Email address changed",
+      "passwordChanged": "Password changed. Every other device is signed out."
     }
   },
   "common": {

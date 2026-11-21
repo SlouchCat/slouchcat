@@ -126,6 +126,42 @@ class ComponentsTest {
     }
 
     @Test
+    fun aPasswordFieldHidesItsTextAndItsEyeIsAButton() {
+        var shown = false
+        compose.setContent {
+            SlouchcatTheme {
+                var visible by remember { mutableStateOf(false) }
+                SlouchcatTextField(
+                    value = "secret",
+                    onValueChange = {},
+                    label = "Password",
+                    visualTransformation = if (visible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailing = { SlouchcatIconButton(SlouchcatIcon.Eye, contentDescription = "Show", onClick = { visible = true; shown = true }) },
+                )
+            }
+        }
+        compose.onNode(hasSetTextAction() and hasText("Password")).assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password))
+        compose.onNodeWithContentDescription("Show").assertHeightIsAtLeast(48.dp).performClick()
+        assertTrue(shown)
+    }
+
+    @Test
+    fun anAvatarShowsTheInitial() {
+        compose.setContent { SlouchcatTheme { Avatar("lea", accent = "sky") } }
+        compose.onNodeWithText("L").assertIsDisplayed()
+        assertEquals(SlouchcatTokens.Color.Accent.Sky.Base, ProfileAccents.of("sky").base)
+        assertEquals(SlouchcatTokens.Color.Accent.Ember.Base, ProfileAccents.of(null).base)
+    }
+
+    /** A text field in a sheet as a dialog from 700 dp: the dialog has a definite width and settles. */
+    @Test
+    @Config(qualifiers = "w1280dp-h800dp-land")
+    fun aSheetWithAFieldSettlesOnAWideScreen() {
+        compose.setContent { SlouchcatTheme { SlouchcatSheet("Sheet", onDismiss = {}) { SlouchcatTextField("", {}, label = "Field") } } }
+        compose.onNode(hasSetTextAction() and hasText("Field")).assertIsDisplayed()
+    }
+
+    @Test
     fun everyIconOfTheMockupBuilds() {
         for (icon in SlouchcatIcon.entries) {
             assertEquals(icon.name, 24f, icon.vector.viewportWidth)

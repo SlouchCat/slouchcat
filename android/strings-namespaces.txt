@@ -4,3 +4,9 @@
 # `app`: texts only the apps use (and the app name the web app shares). Add the namespace of a
 # viewer page here when an app page needs its texts; `admin`, `setup` and `invite` stay out.
 app
+common
+login
+profiles
+settings
+nav
+errors

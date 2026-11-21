@@ -175,7 +175,7 @@ class SetupViewModel(
         if (now.saving) return
         update { it.copy(saving = true) }
         viewModelScope.launch {
-            store.save(SavedServer(info.address, info.version, info.userCertificate))
+            store.save(SavedServer(info.address, info.version, info.userCertificate, info.serverKey))
             Log.i(TAG, "server stored", "version" to info.version, "encrypted" to info.encrypted)
             _done.send(Unit)
         }

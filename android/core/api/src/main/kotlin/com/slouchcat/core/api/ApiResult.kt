@@ -14,6 +14,7 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.io.IOException
 
 /**
@@ -38,8 +39,12 @@ sealed interface ApiResult<out T> {
     /** No answer: no network, server down, timeout. Worth a «try again». */
     data object Offline : ApiResult<Nothing>
 
-    /** Any other answer: 5xx, another 4xx (with the problem `code` when the server sent one), an unreadable body. */
-    data class Failed(val status: Int?, val code: String?) : ApiResult<Nothing>
+    /**
+     * Any other answer: 5xx, another 4xx (with the problem `code` when the server sent one), an
+     * unreadable body; also 401 `invalid_credentials` (a wrong password, not a lost session).
+     * [retryAfterSeconds]: the pause a 429 names (`too_many_attempts`, `pin_locked`).
+     */
+    data class Failed(val status: Int?, val code: String?, val retryAfterSeconds: Long? = null) : ApiResult<Nothing>
 }
 
 /** The value of [ApiResult.Ok] turned into something else; every other case stays as it is. */
@@ -53,8 +58,11 @@ inline fun <T, R> ApiResult<T>.map(transform: (T) -> R): ApiResult<R> = when (th
     is ApiResult.Failed -> this
 }
 
-/** What the whole app reacts to, wherever a call met it. */
-enum class SessionEvent { SignedOut, AppTooOld }
+/**
+ * What the whole app reacts to, wherever a call met it: the session is gone (401), the app is too
+ * old (426), or the server proved a new key ([ServerIdentityGate], concept 27 section 6).
+ */
+enum class SessionEvent { SignedOut, AppTooOld, ServerKeyChanged }
 
 /** One channel per app (held by its AppGraph) for [SessionEvent]s; the app's root collects it. */
 class SessionEvents {
@@ -83,8 +91,13 @@ class ApiCaller(private val events: SessionEvents) {
     } catch (e: CancellationException) {
         throw e
     } catch (e: ClientException) {
-        val result = fromStatus(e.statusCode, problemCode((e.response as? ClientError<*>)?.body))
-        Log.i(tag, "call refused", "status" to e.statusCode)
+        val response = e.response as? ClientError<*>
+        val problem = problem(response?.body)
+        val code = (problem?.get("code") as? JsonPrimitive)?.takeIf { it.isString }?.content
+        val retryAfter = (problem?.get("retryAfterSeconds") as? JsonPrimitive)?.longOrNull
+            ?: response?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }?.value?.firstOrNull()?.trim()?.toLongOrNull()
+        val result = fromStatus(e.statusCode, code, retryAfter)
+        Log.i(tag, "call refused", "status" to e.statusCode, "code" to code)
         result
     } catch (e: ServerException) {
         Log.w(tag, "server error", "status" to e.statusCode, "code" to problemCode((e.response as? ServerError<*>)?.body))
@@ -101,18 +114,25 @@ class ApiCaller(private val events: SessionEvents) {
         ApiResult.Failed(status = null, code = "unexpected")
     }
 
-    private fun fromStatus(status: Int, code: String?): ApiResult<Nothing> = when (status) {
-        401 -> ApiResult.SignedOut.also { events.report(SessionEvent.SignedOut) }
-        426 -> ApiResult.AppTooOld.also { events.report(SessionEvent.AppTooOld) }
-        403 -> ApiResult.NotAllowed(code)
-        404 -> ApiResult.NotFound
-        else -> ApiResult.Failed(status, code)
+    private fun fromStatus(status: Int, code: String?, retryAfter: Long?): ApiResult<Nothing> = when {
+        // A wrong password (`appLogin`, `updateAccount`) is no lost session.
+        status == 401 && code == INVALID_CREDENTIALS -> ApiResult.Failed(status, code)
+        status == 401 -> ApiResult.SignedOut.also { events.report(SessionEvent.SignedOut) }
+        status == 426 -> ApiResult.AppTooOld.also { events.report(SessionEvent.AppTooOld) }
+        status == 403 -> ApiResult.NotAllowed(code)
+        status == 404 -> ApiResult.NotFound
+        else -> ApiResult.Failed(status, code, retryAfter)
     }
 
     /** The stable `code` of an RFC 9457 problem body (`Problem.code`), if the body is one. */
-    private fun problemCode(body: Any?): String? {
+    private fun problemCode(body: Any?): String? = (problem(body)?.get("code") as? JsonPrimitive)?.takeIf { it.isString }?.content
+
+    private fun problem(body: Any?): JsonObject? {
         val text = body as? String ?: return null
-        val obj = runCatching { SlouchcatApi.json.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return null
-        return (obj["code"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        return runCatching { SlouchcatApi.json.parseToJsonElement(text) as? JsonObject }.getOrNull()
+    }
+
+    companion object {
+        const val INVALID_CREDENTIALS = "invalid_credentials"
     }
 }

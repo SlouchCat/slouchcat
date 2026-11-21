@@ -48,5 +48,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.serialization.json)
     implementation(libs.coroutines.android)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     testImplementation(libs.coroutines.test)
 }

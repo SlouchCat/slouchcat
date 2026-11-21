@@ -14,8 +14,8 @@ data class ClientIdentity(val kind: Kind, val version: String) {
 }
 
 /**
- * What the shared client sends along for the one server the app is set up with. Part 2 of stage 3
- * fills it from the token store after the sign-in; until then [None] sends nothing.
+ * What the shared client sends along for the one server the app is set up with, filled from the
+ * token store after the sign-in (core/session, `SessionManager`); [None] sends nothing.
  *
  * The values go only to [server] (same scheme, host and port): a redirect or an address of another
  * host never sees the token or the device id.
@@ -43,6 +43,8 @@ interface SessionCredentials {
  *   a network interceptor decides per hop, so a redirect to another host, port or scheme never
  *   carries them, and redirects from https to http are not followed at all.
  * - Plain HTTP is allowed (E-18); on Android the network security config of the app permits it.
+ * - [gate] first: «Server weist sich aus» holds every request to a server over HTTP back until the
+ *   server proved itself in this network ([ServerIdentityGate], F-38).
  * - No logging interceptor: headers and addresses carry the token and stream tokens (rule 10).
  */
 object SlouchcatHttp {
@@ -59,11 +61,13 @@ object SlouchcatHttp {
         identity: ClientIdentity,
         credentials: SessionCredentials = SessionCredentials.None,
         builder: OkHttpClient.Builder = OkHttpClient.Builder(),
+        gate: Interceptor? = null,
     ): OkHttpClient = builder
         .connectTimeout(CONNECT_TIMEOUT)
         .readTimeout(READ_TIMEOUT)
         .writeTimeout(WRITE_TIMEOUT)
         .followSslRedirects(false)
+        .apply { if (gate != null) addInterceptor(gate) }
         .addInterceptor(Headers(identity))
         .addNetworkInterceptor(Credentials(credentials))
         .build()

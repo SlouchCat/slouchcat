@@ -41,6 +41,12 @@ class SetupViewModelTest {
             saves++
             flow.value = server
         }
+        override suspend fun confirmKey(serverKey: String) {
+            flow.value = flow.value?.copy(serverKey = serverKey)
+        }
+        override suspend fun updateVersion(version: String) {
+            flow.value = flow.value?.copy(version = version)
+        }
         override suspend fun clear() {
             flow.value = null
         }
@@ -54,7 +60,7 @@ class SetupViewModelTest {
         }
     }
 
-    private val found = { url: HttpUrl -> ProbeResult.Found(ServerInfo(url, "1.42.0", "1.42.0")) }
+    private val found = { url: HttpUrl -> ProbeResult.Found(ServerInfo(url, "1.42.0", "1.42.0", serverKey = "server-key")) }
     private val addresses = mapOf(
         "nas.example.test" to listOf(InetAddress.getByName("192.168.77.20")),
         "media.example.test" to listOf(InetAddress.getByName("198.51.100.7")),
@@ -117,6 +123,8 @@ class SetupViewModelTest {
         assertEquals(1, store.saves)
         assertEquals("1.42.0", store.flow.value!!.version)
         assertEquals("https://media.example.test/", store.flow.value!!.address.toString())
+        // The key of «Server weist sich aus» is remembered at the setup (F-38).
+        assertEquals("server-key", store.flow.value!!.serverKey)
     }
 
     @Test

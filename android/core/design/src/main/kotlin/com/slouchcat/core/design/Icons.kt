@@ -74,7 +74,10 @@ enum class SlouchcatIcon(private val svg: String) {
     Key("""<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9m-4 4 3 3"/>"""),
     Globe("""<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.300 3 14.700 0 18M12 3c-3 3.300-3 14.700 0 18"/>"""),
     Shield("""<path d="M12 3 5 6v6c0 4.500 3 7.700 7 9 4-1.300 7-4.500 7-9V6z"/>"""),
-    Storage("""<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.700 3.600 3 8 3s8-1.300 8-3V6M4 12c0 1.700 3.600 3 8 3s8-1.300 8-3"/>""");
+    Storage("""<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.700 3.600 3 8 3s8-1.300 8-3V6M4 12c0 1.700 3.600 3 8 3s8-1.300 8-3"/>"""),
+
+    /** The crossed eye of the password field (`eyeOff` in setup.js). */
+    EyeOff("""<path d="M2 12s3.6-7 10-7c2 0 3.7.7 5.1 1.6M22 12s-3.6 7-10 7c-2 0-3.7-.7-5.1-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>""");
 
     /** The icon as an ImageVector, built on first use. */
     val vector: ImageVector by lazy { SvgIcon.build(name, svg) }

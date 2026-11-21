@@ -25,6 +25,8 @@ data class ServerInfo(
      * can install such an authority on the device can read along (ADR 0039).
      */
     val userCertificate: Boolean = false,
+    /** `Health.serverKey`: the Ed25519 key the app remembers at the setup (F-38). */
+    val serverKey: String? = null,
 ) {
     val encrypted: Boolean get() = address.isHttps
 }
@@ -140,7 +142,8 @@ class HealthServerProbe(client: OkHttpClient, private val trust: TrustInspector 
             if (contract == null || !Compatibility.supports(contract)) {
                 return ProbeResult.TooOld(serverVersion = version, required = Compatibility.MIN_CONTRACT)
             }
-            return ProbeResult.Found(ServerInfo(address, version, contract))
+            val key = (health["serverKey"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() }
+            return ProbeResult.Found(ServerInfo(address, version, contract, serverKey = key))
         }
     }
 }

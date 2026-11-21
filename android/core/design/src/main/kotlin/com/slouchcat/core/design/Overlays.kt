@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,7 +39,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 /**
  * `sheet(...)`: a sheet from below on a phone, a centred dialog from 700 dp (the mockup does the
@@ -60,11 +64,15 @@ fun SlouchcatSheet(title: String, onDismiss: () -> Unit, content: @Composable Co
         )
     }
     if (isWideLayout()) {
-        Dialog(onDismissRequest = onDismiss) {
+        // A definite width, measured in the window of the page: a dialog that wraps content which
+        // fills its width (a text field) measures itself again and again.
+        val window = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
+        val width = minOf(640.dp, window - 48.dp)
+        Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             val shape = RoundedCornerShape(28.dp)
             Box(
                 Modifier
-                    .widthIn(max = 640.dp)
+                    .width(width)
                     .clip(shape)
                     .background(c.elev)
                     .border(BorderStroke(1.dp, c.line), shape)

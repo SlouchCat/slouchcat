@@ -85,16 +85,19 @@ fun TopBar(
     }
 }
 
-/** `.sec`: the title of a section, in capitals as the mockup draws it. */
+/**
+ * `.sec`: the title of a section, in capitals as the mockup draws it. [inset]: the page's side
+ * margin; off inside a column that has its margin already.
+ */
 @Composable
-fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+fun SectionTitle(text: String, modifier: Modifier = Modifier, inset: Boolean = true) {
     Text(
         // Capitals of the user's language (Turkish i), as CSS text-transform does.
         text.toUpperCase(Locale.current),
         style = SlouchcatType.section,
         color = SlouchcatTheme.colors.tx3,
         modifier = modifier
-            .padding(start = gutter(), end = gutter(), top = 18.dp, bottom = 6.dp)
+            .padding(start = if (inset) gutter() else 0.dp, end = if (inset) gutter() else 0.dp, top = 18.dp, bottom = 8.dp)
             .semantics { heading() },
     )
 }

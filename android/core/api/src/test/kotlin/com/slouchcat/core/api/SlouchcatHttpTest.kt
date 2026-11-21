@@ -117,7 +117,7 @@ class SlouchcatHttpTest {
 
     @Test
     fun theGeneratedClientRunsOverTheSharedClient() {
-        server.enqueue(MockResponse(body = """{"status":"ok","version":"1.42.0","uptimeSeconds":12}"""))
+        server.enqueue(MockResponse(body = """{"status":"ok","version":"1.42.0","contractVersion":"1.42.0","serverKey":"k","uptimeSeconds":12}"""))
         val api = SlouchcatApi.create(::SystemApi, server.url("/"), SlouchcatHttp.client(identity))
         assertEquals("1.42.0", api.getHealth()?.version)
         assertEquals("/api/v1/healthz", server.takeRequest().url.encodedPath)

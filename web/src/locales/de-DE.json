@@ -2,6 +2,12 @@
   "app": {
     "update": {
       "close": "Schließen"
+    },
+    "signIn": {
+      "deviceHint": "Dieses Gerät erscheint danach als „{{name}}“ unter „Meine Geräte“ und bleibt angemeldet, bis du es abmeldest.",
+      "error": {
+        "storage": "Die Anmeldung ließ sich auf diesem Gerät nicht speichern."
+      }
     }
   },
   "common": {

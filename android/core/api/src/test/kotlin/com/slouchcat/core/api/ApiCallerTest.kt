@@ -35,7 +35,7 @@ class ApiCallerTest {
 
     @Test
     fun anAnswerIsOk() = runTest {
-        val result = answer(MockResponse(body = """{"status":"ok","version":"1.42.0","uptimeSeconds":1}"""))
+        val result = answer(MockResponse(body = """{"status":"ok","version":"1.42.0","contractVersion":"1.42.0","serverKey":"k","uptimeSeconds":1}"""))
         assertEquals("1.42.0", ((result as ApiResult.Ok<*>).value as com.slouchcat.core.api.generated.models.Health).version)
     }
 
@@ -59,6 +59,38 @@ class ApiCallerTest {
         testScheduler.advanceUntilIdle()
         assertEquals(ApiResult.AppTooOld, answer(problem(426, "app_too_old")))
         assertEquals(SessionEvent.AppTooOld, withTimeout(5_000) { second.await() })
+    }
+
+    @Test
+    fun aWrongPasswordIsNoLostSession() = runTest {
+        val reported = mutableListOf<SessionEvent>()
+        val collector = backgroundScope.async { events.events.collect { reported += it } }
+        testScheduler.advanceUntilIdle()
+        assertEquals(ApiResult.Failed(401, "invalid_credentials"), answer(problem(401, "invalid_credentials")))
+        testScheduler.advanceUntilIdle()
+        assertEquals(emptyList<SessionEvent>(), reported)
+        collector.cancel()
+    }
+
+    @Test
+    fun aPauseIsReadFromTheProblemOrTheHeader() = runTest {
+        val locked = MockResponse(
+            code = 429,
+            body = """{"type":"about:blank","title":"x","status":429,"code":"pin_locked","retryAfterSeconds":42}""",
+        )
+        assertEquals(ApiResult.Failed(429, "pin_locked", 42), answer(locked))
+        val header = MockResponse(
+            code = 429,
+            headers = okhttp3.Headers.headersOf("Retry-After", "17"),
+            body = """{"type":"about:blank","title":"x","status":429,"code":"too_many_attempts"}""",
+        )
+        assertEquals(ApiResult.Failed(429, "too_many_attempts", 17), answer(header))
+    }
+
+    @Test
+    fun aServerThatDidNotProveItselfIsOffline() = runTest {
+        val result = caller.call<Unit> { throw ServerKeyChangedException("key") }
+        assertEquals(ApiResult.Offline, result)
     }
 
     @Test

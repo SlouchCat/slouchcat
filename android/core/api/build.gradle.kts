@@ -62,9 +62,17 @@ dependencies {
     api(libs.okhttp)
     api(libs.serialization.json)
     api(libs.coroutines.core)
+    implementation(libs.tink.android)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+}
+
+// The shared test vectors of the repository (testdata/crypto, format slouchcat-crypto-vectors-v1).
+tasks.named<Test>("test") {
+    val vectors = rootProject.layout.projectDirectory.dir("../testdata/crypto")
+    inputs.dir(vectors).withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("slouchcat.vectors", vectors.asFile.absolutePath)
 }
 
 // The contract test (task android:contract): the generated client against a real server the task

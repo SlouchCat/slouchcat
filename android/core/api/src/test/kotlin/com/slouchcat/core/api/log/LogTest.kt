@@ -52,6 +52,7 @@ class LogTest {
         for (key in listOf(
             "token", "Bearer_Token", "X-Slouchcat-Device", "pickupSecret", "newPassword", "fcm_token",
             "accessToken", "appToken", "refreshToken", "push_endpoint", "apiKey", "pairingVoucher", "st", "deviceId",
+            "pickup_hash", "pair_id", "meeting_point_id", "packet", "sealed_token", "slouchcat_device",
         )) {
             assertTrue(key, Redaction.isSecret(key))
         }

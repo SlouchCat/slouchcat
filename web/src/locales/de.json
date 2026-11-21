@@ -32,10 +32,6 @@
         "confirm": "Trotzdem verbinden"
       }
     },
-    "connected": {
-      "title": "Verbunden mit {{host}}",
-      "change": "Adresse ändern"
-    },
     "state": {
       "loading": "Lädt …",
       "offline": "Der Server antwortet nicht. Prüfe die Verbindung.",
@@ -49,13 +45,111 @@
       "body": "Dein Server braucht eine neuere Version der App.",
       "close": "Schliessen"
     },
-    "connectedState": {
-      "empty": "Noch kein Server eingerichtet.",
-      "setUp": "Server einrichten"
-    },
     "tls": {
       "userCertificate": "Verschlüsselt mit einem selbst installierten Zertifikat",
       "httpsRequired": "Der Server verlangt eine verschlüsselte Verbindung. Die Adresse lautet jetzt {{address}}, verbinde dich erneut."
+    },
+    "signIn": {
+      "change": "Ändern",
+      "serverLabel": "Server {{host}}, Adresse ändern",
+      "encrypted": "Verschlüsselt",
+      "notEncrypted": "Nicht verschlüsselt",
+      "serverLine": "{{state}} · Slouchcat {{version}}",
+      "showPassword": "Passwort anzeigen",
+      "hidePassword": "Passwort verbergen",
+      "deviceHint": "Dieses Gerät erscheint danach als «{{name}}» unter «Meine Geräte» und bleibt angemeldet, bis du es abmeldest.",
+      "error": {
+        "emailEmpty": "Gib deine E-Mail-Adresse ein.",
+        "emailInvalid": "Diese E-Mail-Adresse ist unvollständig.",
+        "passwordEmpty": "Gib dein Passwort ein.",
+        "tooMany": "Zu viele Versuche. Versuche es in {{seconds}} s erneut.",
+        "storage": "Die Anmeldung liess sich auf diesem Gerät nicht speichern."
+      }
+    },
+    "serverKey": {
+      "title": "Der Server hat einen neuen Schlüssel",
+      "body": "Das passiert, wenn der Server neu eingerichtet wurde. Es kann aber auch ein fremdes Gerät sein, das sich als dein Server ausgibt. Die App sendet ihm nichts, bis du den neuen Schlüssel bestätigst.",
+      "confirm": "Melde dich neu an, um den neuen Schlüssel des Servers zu bestätigen. Tu das nur in deinem eigenen Netz.",
+      "later": "Später",
+      "signIn": "Neu anmelden"
+    },
+    "profiles": {
+      "account": "{{email}} · {{host}}",
+      "pinLocked": "Zu viele falsche Versuche. Warte noch {{seconds}} s.",
+      "pinAgain": "Du kannst es wieder versuchen.",
+      "pinDelete": "Letzte Ziffer löschen",
+      "pinEntered_one": "{{count}} Ziffer eingegeben",
+      "pinEntered_other": "{{count}} Ziffern eingegeben"
+    },
+    "shell": {
+      "mediaChoice": "Medienauswahl",
+      "menuOpen": "Medienauswahl öffnen",
+      "media": "Medien"
+    },
+    "more": {
+      "title": "Mehr",
+      "switchProfile": "Profil wechseln",
+      "profileLine": "{{role}} · {{email}}",
+      "insecureTitle": "Unverschlüsselte Verbindung.",
+      "insecureBody": "Passwort und Zugang gehen offen über das Netz. In fremden Netzen kann jemand mitlesen. Richte für den Server HTTPS ein.",
+      "section": {
+        "library": "Bibliothek",
+        "devices": "Geräte",
+        "settings": "Einstellungen",
+        "server": "Server"
+      },
+      "devicesCount_one": "{{count}} Gerät angemeldet",
+      "devicesCount_other": "{{count}} Geräte angemeldet",
+      "devicesHint": "Wo dieses Konto angemeldet ist",
+      "serverLine": "Slouchcat {{version}} · {{address}}",
+      "https": "HTTPS",
+      "plain": "HTTP · Passwort und Zugang offen lesbar",
+      "footer": "Slouchcat für Android {{version}}",
+      "serverSheet": {
+        "title": "Server",
+        "connection": "Verbindung",
+        "encrypted": "verschlüsselt (HTTPS)",
+        "notEncrypted": "nicht verschlüsselt (HTTP)",
+        "hint": "Die App verbindet sich mit genau einem Server. Für einen anderen Server meldest du dich ab und gibst die neue Adresse ein.",
+        "change": "Server wechseln"
+      }
+    },
+    "signOut": {
+      "title": "Abmelden?",
+      "body": "Die App meldet sich auf diesem Gerät ab.",
+      "hint": "Zum Wiederkommen brauchst du die Adresse des Servers, deine E-Mail-Adresse und dein Passwort.",
+      "busy": "Melde ab …",
+      "done": "Abgemeldet"
+    },
+    "devices": {
+      "lede": "Handys und Fernseher bleiben angemeldet, bis jemand sie hier abmeldet.",
+      "lastSeen": "Letzter Kontakt: {{date}}"
+    },
+    "account": {
+      "signInSection": "Anmeldung",
+      "emailSub": "E-Mail-Adresse und Anmeldename",
+      "emailTitle": "E-Mail-Adresse ändern",
+      "newEmail": "Neue E-Mail-Adresse",
+      "currentPassword": "Aktuelles Passwort",
+      "password": "Passwort ändern",
+      "passwordSub": "Meldet alle anderen Geräte ab",
+      "passwordWarning": "Wenn du das Passwort änderst, wird jedes andere Gerät abgemeldet, auch die Fernseher. Fernseher verbindest du danach neu.",
+      "newPassword": "Neues Passwort",
+      "repeatPassword": "Neues Passwort wiederholen",
+      "passwordHint": "Mindestens 10 Zeichen.",
+      "save": "Ändern",
+      "saving": "Ändere …",
+      "adminHint": "Die Verwaltung des Servers gibt es nur im Browser.",
+      "error": {
+        "currentEmpty": "Gib dein aktuelles Passwort ein.",
+        "wrongPassword": "Das aktuelle Passwort stimmt nicht.",
+        "tooShort": "Das neue Passwort braucht mindestens 10 Zeichen.",
+        "same": "Das neue Passwort ist gleich wie das alte.",
+        "mismatch": "Die beiden Eingaben stimmen nicht überein.",
+        "sameEmail": "Das ist schon deine E-Mail-Adresse."
+      },
+      "emailChanged": "E-Mail-Adresse geändert",
+      "passwordChanged": "Passwort geändert. Alle anderen Geräte sind abgemeldet."
     }
   },
   "common": {

@@ -146,10 +146,14 @@ private val typography = Typography(
     headlineSmall = SlouchcatType.pageTitle,
 )
 
-/** The theme of the phone app. Wrap every screen (and every screen test) in it. */
+/**
+ * The theme of the phone app. Wrap every screen (and every screen test) in it. [accent]: the
+ * `Accent` of the active profile (`sky` …); the accent colour of the app follows it.
+ */
 @Composable
-fun SlouchcatTheme(content: @Composable () -> Unit) {
-    val colors = SlouchcatColors()
+fun SlouchcatTheme(accent: String? = null, content: @Composable () -> Unit) {
+    val profile = ProfileAccents.of(accent)
+    val colors = SlouchcatColors(accent = profile.base, onAccent = profile.on)
     CompositionLocalProvider(LocalSlouchcatColors provides colors) {
         MaterialTheme(colorScheme = slouchcatColorScheme(colors), typography = typography, content = content)
     }
