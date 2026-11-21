@@ -53,6 +53,25 @@ die Frage nie; im Vertrag erzwingt sie der Schema-Test.
 | Verwaltung | `listDevices` nennt je Gerät `sessionKind`, die Art der lebenden Sitzung mit dem jüngsten Kontakt; die Geräteliste zeigt sie in der Spalte «Anmeldung» |
 | Logs | Die Redaktionsliste kennt `apptoken`, `devicetoken` und `slouchcatdevice` (dazu wie bisher `token`, `authorization`, `deviceid`) |
 
+## Meine Geräte und Aufräumen
+
+Teil 2 von Stufe 1 (K27 4.5 und 15.1, F-15, F-24, F-40; K26 E-9 und F-19). Vertrag 1.42.0, ohne Migration.
+
+| Punkt | Entscheid |
+|---|---|
+| Operationen | `listMyDevices` (`GET /account/devices`) und `signOutMyDevice` (`DELETE /account/devices/{deviceId}`), beide `account` mit `x-clients: [app]`. Eine Gerätesitzung (TV) bekommt 403 `client_not_allowed`, sonst könnte ein gekoppelter Fernseher die echten Geräte abmelden (K26 4.5) |
+| Welche Geräte | Jedes Gerät mit einer lebenden Sitzung **oder** einem Download des Kontos (`ListMyDevices`). Massgeblich ist das Konto der Sitzung oder des Downloads, nie `devices.account_id` (Besitzer des letzten Abspielstarts). Ein Browser mit abgelaufener Sitzung bleibt so in der Liste, solange er Downloads des Kontos hält; dann fehlen `sessionKind` und `signedInAt` |
+| Felder | `MyDevice`: `id`, `name`, `type`, `sessionKind` und `signedInAt` der lebenden Sitzung des Kontos mit dem jüngsten Kontakt, `lastSeenAt` des Geräts, `downloads` (Anzahl des Kontos), `current` (Gerät der aufrufenden Sitzung) |
+| Wer darf | Lesen jedes Profil. Abmelden nur eine Sitzung ohne aktives Profil oder mit dem Hauptprofil (403 `primary_profile_required`, die Regel der Meldekanäle). Ein Gerät ohne Sitzung und ohne Download des Kontos, ein fremdes Gerät und die reservierte Kennung `ffff…` sind 404 |
+| Abmelden | Räumt in einer Transaktion alles weg, was **dieses Konto** auf dem Gerät hat, und nichts eines anderen Kontos: die Sitzungen (ihre Streams und Radio-Sitzungen enden vorher wie bei `logout`), übrige Wiedergaben, die Downloads (der Auslöser `downloads_tombstone` schreibt die Widerrufsliste; die Dateien räumt die Aufräumung von `offline` mit, wie nach `deleteDevice`), die Push-Abos des Kontos auf dem Gerät und die Regeln für Auto-Downloads der Profile des Kontos. Die Gerätezeile bleibt; ganz vergessen bleibt `deleteDevice` der Verwaltung, für alle Konten |
+| Eigenes Gerät | Erlaubt; es beendet die eigene Sitzung. Ein Browser bekommt dabei das Sitzungs-Cookie gelöscht wie bei `logout`, die Web-App meldet sich danach auch hier ab |
+| Push bei `logout` | `logout` einer App- oder Gerätesitzung löscht die Push-Abos des Kontos auf ihrem Gerät (`DeleteSessionPushSubscriptions`); die App trägt ihr Abo bei der nächsten Anmeldung neu ein. Ein Browser behält sein Abo (F-40) |
+| Push bei `deleteDevice` | löscht die Abos des Geräts aller Konten **vor** der Gerätezeile (`DeleteDevicePushSubscriptions`); danach wäre die Kennung im Abo leer (`ON DELETE SET NULL`) und das Abo nicht mehr zu finden |
+| Passwortänderung | `updateAccount` mit neuem Passwort entzieht wie bisher jede andere Sitzung, App- und Gerätesitzungen eingeschlossen (F-24), und löscht dazu die Push-Abos des Kontos auf den Geräten dieser App- und Gerätesitzungen (`DeleteOtherAppDevicePushSubscriptions`), nicht aber auf dem Gerät der aufrufenden Sitzung. Abos von Browsern bleiben, weil ein Browser sich nicht von selbst neu einträgt (F-40) |
+| Bekannte Grenze | Abos ohne Gerätekennung (aus der Zeit vor 1.42.0, oder ihr Gerät hat die Aufräumung nach 400 Tagen gelöscht) räumt niemand auf. Sie fallen wie bisher nur bei 404/410 der Gegenstelle, mit dem Konto, über `deletePushSubscription` oder mit einem neuen VAPID-Schlüssel |
+| Web-App | Seite «Meine Geräte» unter `/settings/devices`, in der Seitenleiste im Band «Konto» für jedes Profil; ein anderes als das Hauptprofil sieht die Liste ohne «Abmelden» und mit Erklärung. Texte unter `settings.devices.*` |
+| PIN-Empfehlung | «Profile verwalten» zeigt einen Hinweis mit «PIN setzen», wenn das Hauptprofil keine PIN hat und ein anderes Profil des Kontos eine Altersgrenze (`maxRating` unter 18). Nur Empfehlung, keine Pflicht; die Angaben liefert `listProfiles` schon. Texte unter `profiles.pinAdvice.*`, damit die Apps denselben Hinweis an derselben Stelle zeigen (F-19) |
+
 ## Kopplung
 
 Folgt mit Teil 3 von Stufe 1: Kopplungsgutschein ausstellen und einlösen, Verschlüsselung des Pakets und
