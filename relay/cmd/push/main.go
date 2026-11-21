@@ -15,6 +15,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -145,16 +146,7 @@ func run(listen string) error {
 	callers.Untrusted = func() {
 		untrusted.Warn("untrusted_forward", "X-Forwarded-For from a peer that is not a trusted proxy; check RELAY_TRUSTED_PROXIES")
 	}
-	// Security review I-3: the bearer token goes to RELAY_FCM_BASE_URL, and an http origin is
-	// fine only for a local rehearsal.
-	if base := serve.Env("RELAY_FCM_BASE_URL", ""); base != "" {
-		log.Warn("RELAY_FCM_BASE_URL is set: messages and the access token go there instead of Google; for tests only")
-	}
-	for _, o := range origins {
-		if !strings.HasPrefix(o, "https://") {
-			log.Warn("an own origin is not https; for a local rehearsal only", "origin", o)
-		}
-	}
+	warnStartup(log, origins)
 	// Missing secrets do not stop the service: it answers 503 and the health check reports it
 	// (D-10). A move without the key file must not turn into deleted subscriptions.
 	if path := serve.Env("RELAY_PUSH_KEYFILE", "/run/secrets/sealing-keys.json"); path != "" {
@@ -199,4 +191,20 @@ func parseOrigins(list string) ([]string, error) {
 		return nil, fmt.Errorf("RELAY_PUSH_ORIGINS is empty")
 	}
 	return out, nil
+}
+
+// warnStartup warns about settings that are meant for tests only (security review I-3): a
+// replaced send endpoint receives messages and the access token, a replaced token endpoint the
+// signed assertion of the service account, and an http origin is fine only for a rehearsal.
+func warnStartup(log *slog.Logger, origins []string) {
+	for _, name := range []string{"RELAY_FCM_BASE_URL", "RELAY_FCM_TOKEN_URL"} {
+		if serve.Env(name, "") != "" {
+			log.Warn(name + " is set: traffic meant for Google goes elsewhere; for tests only")
+		}
+	}
+	for _, o := range origins {
+		if !strings.HasPrefix(o, "https://") {
+			log.Warn("an own origin is not https; for a local rehearsal only", "origin", o)
+		}
+	}
 }

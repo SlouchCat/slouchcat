@@ -42,12 +42,9 @@ func run(listen string) error {
 	if err != nil {
 		return err
 	}
-	ttl, err := serve.EnvDuration("RELAY_PAIR_TTL", 5*time.Minute)
+	ttl, err := pairTTL()
 	if err != nil {
 		return err
-	}
-	if ttl > 5*time.Minute {
-		return fmt.Errorf("RELAY_PAIR_TTL %s: at most 5m (K-1, D-1)", ttl)
 	}
 	maxOpen, err := serve.EnvInt("RELAY_PAIR_MAX_OPEN", 10000)
 	if err != nil {
@@ -95,4 +92,17 @@ func run(listen string) error {
 		Warn: logging.NewThrottle(log, time.Minute), HelpPage: pair.NewHelpPage()}
 	log.Info("pair service starting", "version", version, "trusted_proxies", callers.Count(), "ttl", ttl.String())
 	return serve.Run(log, listen, h.Routes())
+}
+
+// pairTTL reads RELAY_PAIR_TTL: five minutes by default, shorter only for tests, never longer
+// (K-1, D-1).
+func pairTTL() (time.Duration, error) {
+	ttl, err := serve.EnvDuration("RELAY_PAIR_TTL", 5*time.Minute)
+	if err != nil {
+		return 0, err
+	}
+	if ttl > 5*time.Minute {
+		return 0, fmt.Errorf("RELAY_PAIR_TTL %s: at most 5m (K-1, D-1)", ttl)
+	}
+	return ttl, nil
 }
