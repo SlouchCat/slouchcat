@@ -242,7 +242,7 @@ class DetailFlowTest {
     }
 
     /** The administration as a browser uses it, only to add the test library. */
-    private class Admin(private val base: HttpUrl, private val email: String, private val password: String, private val pin: String) {
+    internal class Admin(private val base: HttpUrl, private val email: String, private val password: String, private val pin: String) {
         private val cookies = mutableListOf<Cookie>()
         private val http = OkHttpClient.Builder()
             .cookieJar(object : CookieJar {

@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile
 
 import android.graphics.Bitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -24,6 +26,8 @@ import com.slouchcat.core.api.generated.apis.AuthApi
 import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
 import com.slouchcat.core.api.generated.models.AppLoginRequest
+import com.slouchcat.core.api.generated.infrastructure.ClientError
+import com.slouchcat.core.api.generated.infrastructure.ClientException
 import com.slouchcat.core.api.generated.models.PinRequest
 import com.slouchcat.core.api.generated.models.SelectProfileRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
@@ -78,8 +82,19 @@ class SignInFlowTest {
 
     /** A client of another device (a TV) signed in to the account. */
     private fun signedIn(name: String, secret: String, kind: AppLoginRequest.Kind = AppLoginRequest.Kind.TV): okhttp3.OkHttpClient {
-        val login = SlouchcatApi.create(::AuthApi, server, SlouchcatHttp.client(identity))
-            .appLogin(AppLoginRequest(email, secret, name, kind))!!
+        val auth = SlouchcatApi.create(::AuthApi, server, SlouchcatHttp.client(identity))
+        val request = AppLoginRequest(email, secret, name, kind)
+        val login = try {
+            auth.appLogin(request)!!
+        } catch (e: ClientException) {
+            if (e.statusCode != 429) throw e
+            // The flows of one run share the server's pot of sign-in and PIN attempts (10 per minute and
+            // address): once, the pause the server names in Retry-After, then the same sign-in again.
+            val pause = (e.response as? ClientError<*>)?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }
+                ?.value?.firstOrNull()?.trim()?.toLongOrNull() ?: DEFAULT_PAUSE_S
+            Thread.sleep(pause * 1000)
+            auth.appLogin(request)!!
+        }
         val credentials = object : SessionCredentials {
             override val server = this@SignInFlowTest.server
             override val bearerToken = login.token
@@ -157,16 +172,20 @@ class SignInFlowTest {
         pin.forEach { button(it.toString()).performClick() }
         compose.onAllNodes(hasContentDescription(s(R.string.profiles_pin_submit))).onLast().performClick()
 
-        // «Mehr», the server sheet.
+        // «Mehr», the server sheet. With more targets than «Mehr» (stage 4) the app lands on the first one, and a
+        // row scrolled to the bottom edge lies under the bar: rows of «Mehr» get their own action, not a tap.
+        val more = (hasText(s(R.string.app_more_title)) or hasContentDescription(s(R.string.app_more_title), substring = true)) and hasClickAction()
+        compose.waitUntil(20_000) { compose.onAllNodes(more).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodes(more).onLast().performSemanticsAction(SemanticsActions.OnClick)
         waitFor(hasText(s(R.string.app_more_title)) and isHeading())
         shot("07-more")
-        button(server.host).performScrollTo().performClick()
+        button(server.host).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitForText(s(R.string.app_more_serverSheet_hint))
         shot("08-more-server-sheet")
         button(s(R.string.common_close)).performClick()
 
         // «Meine Geräte»: this device is in the list; the TV of the fixture is signed out.
-        button(s(R.string.nav_devices)).performScrollTo().performClick()
+        button(s(R.string.nav_devices)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitForText(s(R.string.settings_devices_thisDevice))
         waitForText(describeDevice(context).name)
         shot("09-devices")
@@ -181,7 +200,7 @@ class SignInFlowTest {
 
         // «Konto» and its sheets.
         waitFor(hasText(s(R.string.app_more_title)) and isHeading())
-        button(s(R.string.nav_account)).performScrollTo().performClick()
+        button(s(R.string.nav_account)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitForText(s(R.string.app_account_adminHint))
         shot("12-account")
         button(s(R.string.app_account_password)).performClick()
@@ -205,7 +224,7 @@ class SignInFlowTest {
 
         // Sign out: the sign-in comes back, the address stays.
         waitFor(hasText(s(R.string.app_more_title)) and isHeading())
-        button(s(R.string.nav_logout)).performScrollTo().performClick()
+        button(s(R.string.nav_logout)).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitForText(s(R.string.app_signOut_hint))
         shot("15-sign-out-sheet")
         button(s(R.string.nav_logout)).performClick()
@@ -224,5 +243,6 @@ class SignInFlowTest {
     private companion object {
         const val TV_NAME = "E2E living room TV"
         const val FRAME_MS = 500L
+        const val DEFAULT_PAUSE_S = 6L
     }
 }

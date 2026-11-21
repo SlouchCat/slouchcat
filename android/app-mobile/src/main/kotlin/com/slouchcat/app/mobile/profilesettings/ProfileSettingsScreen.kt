@@ -414,16 +414,18 @@ private fun Swatch(accent: Accent, name: String, selected: Boolean, onClick: () 
 private fun Languages(editor: ProfileEditor, events: ProfileSettingsEvents) {
     val c = SlouchcatTheme.colors
     val languages = remember { Language.entries.filter { it != Language.UNKNOWN_DEFAULT_OPEN_API } }
+    val said = stringResource(R.string.app_profiles_manage_languageLabel, languageName(editor.language))
     Framed {
         Row(
             Modifier
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = events::onToggleLanguages)
+                .semantics(mergeDescendants = true) { contentDescription = said }
                 .heightIn(min = 52.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.app_profiles_manage_languageLabel, languageName(editor.language)), style = SlouchcatType.body, color = c.tx, modifier = Modifier.weight(1f))
+            Text(languageName(editor.language), style = SlouchcatType.body, color = c.tx, modifier = Modifier.weight(1f))
             SlouchcatIconImage(if (editor.languagesOpen) SlouchcatIcon.Up else SlouchcatIcon.Down, contentDescription = null, size = 18.dp, tint = c.tx3)
         }
         if (editor.languagesOpen) {

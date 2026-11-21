@@ -248,8 +248,8 @@ class ProfileSettingsViewModel(
     fun onAdd() {
         if (!_state.value.canManage) return
         val list = (_state.value.profiles as? Loadable.Ready)?.value.orEmpty()
-        // The first colour no other profile has (web `firstFreeAccent`); the account's ceiling as rating.
-        val accent = ACCENTS.firstOrNull { a -> list.none { it.accent == a } } ?: ACCENTS.first()
+        // The first colour no other profile has (web `firstFreeAccent`; none is ember); the account's ceiling as rating.
+        val accent = ACCENTS.firstOrNull { a -> list.none { (it.accent ?: Accent.EMBER) == a } } ?: ACCENTS.first()
         val ceiling = _state.value.ratings.filter { it.enabled }.maxOfOrNull { it.age } ?: ProfileSettingsUiState.NO_AGE_LIMIT
         val language = list.firstOrNull { it.isPrimary }?.language ?: Language.DE
         _state.update { it.copy(editor = ProfileEditor(accent = accent, rating = ceiling, language = language)) }
