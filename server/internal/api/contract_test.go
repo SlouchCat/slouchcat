@@ -12,7 +12,9 @@ import (
 )
 
 // Contract rules for api/openapi.yaml (CLAUDE.md rule 7, plan section 3.3):
-//   - every operation carries x-visibility with one of the allowed values;
+//   - every operation carries x-visibility with one of the allowed values, and every account and
+//     scoped operation, and only those, names in x-clients the bearer kinds app and tv that may
+//     call it (ADR 0040);
 //   - every operation whose responses reference the schema ItemRef, directly or through any
 //     chain of $ref, is scoped;
 //   - every operation whose path contains /images/ has the path parameter {id}, so no image is
@@ -47,6 +49,23 @@ func checkContract(doc map[string]any) []string {
 				problems = append(problems, fmt.Sprintf("%s: x-visibility %q not in %v", name, vis, visibilities))
 				continue
 			}
+			// Rule 7 (ADR 0040): every account and scoped operation names the bearer kinds that may call
+			// it, at least one; admin, owner and public operations name none.
+			raw, hasClients := op["x-clients"]
+			clients := clientList(op)
+			switch {
+			case (vis == "account" || vis == "scoped") && !hasClients:
+				problems = append(problems, fmt.Sprintf("%s: x-visibility %s needs x-clients", name, vis))
+			case vis != "account" && vis != "scoped" && hasClients:
+				problems = append(problems, fmt.Sprintf("%s: x-clients is only for account and scoped, x-visibility is %q", name, vis))
+			case hasClients && (len(clients) == 0 || len(clients) != len(asList(raw))):
+				problems = append(problems, fmt.Sprintf("%s: x-clients %v is not a list of names", name, raw))
+			}
+			for _, c := range clients {
+				if !slices.Contains(bearerClients, c) {
+					problems = append(problems, fmt.Sprintf("%s: x-clients names %q, not one of %v", name, c, bearerClients))
+				}
+			}
 			if vis != "scoped" && references(doc, op["responses"], itemRefPointer, map[string]bool{}) {
 				problems = append(problems, fmt.Sprintf("%s: responses contain ItemRef, x-visibility must be scoped, is %q", name, vis))
 			}
@@ -57,6 +76,25 @@ func checkContract(doc map[string]any) []string {
 	}
 	sort.Strings(problems)
 	return problems
+}
+
+// bearerClients are the names x-clients may list (ADR 0040).
+var bearerClients = []string{clientApp, clientTV}
+
+// clientList returns the names of the x-clients list of an operation; nil without one.
+func clientList(op map[string]any) []string {
+	var out []string
+	for _, c := range asList(op["x-clients"]) {
+		if name, ok := c.(string); ok && name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func asList(v any) []any {
+	list, _ := v.([]any)
+	return list
 }
 
 // references reports whether node contains a $ref to target, following local references.
@@ -161,19 +199,51 @@ paths:
   /images/{kind}:
     get:
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200": {description: ok}
   /items/{id}/images/{kind}:
     get:
       x-visibility: scoped
+      x-clients: [app]
       responses:
         "200": {description: ok}
   /fine:
     get:
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           $ref: "#/components/responses/ItemList"
+  /no-clients:
+    get:
+      x-visibility: account
+      responses:
+        "200": {description: ok}
+  /public-clients:
+    post:
+      x-visibility: public
+      x-clients: [app]
+      responses:
+        "204": {description: ok}
+  /admin-clients:
+    post:
+      x-visibility: admin
+      x-clients: [app, tv]
+      responses:
+        "204": {description: ok}
+  /unknown-client:
+    get:
+      x-visibility: scoped
+      x-clients: [app, phone]
+      responses:
+        "200": {description: ok}
+  /empty-clients:
+    get:
+      x-visibility: account
+      x-clients: []
+      responses:
+        "200": {description: ok}
   /health:
     get:
       x-visibility: public
@@ -203,9 +273,14 @@ components:
 	got := checkContract(doc)
 	t.Logf("violations:\n%s", strings.Join(got, "\n"))
 	want := []string{
+		"GET /empty-clients: x-clients [] is not a list of names",
 		"GET /images/{kind}: image path without the item path parameter {id}",
 		`GET /leak: responses contain ItemRef, x-visibility must be scoped, is "public"`,
+		"GET /no-clients: x-visibility account needs x-clients",
 		"GET /no-marker: missing x-visibility",
+		`GET /unknown-client: x-clients names "phone", not one of [app tv]`,
+		`POST /admin-clients: x-clients is only for account and scoped, x-visibility is "admin"`,
+		`POST /public-clients: x-clients is only for account and scoped, x-visibility is "public"`,
 		`POST /typo: x-visibility "private" not in [public account scoped system admin owner]`,
 	}
 	if !slices.Equal(got, want) {
@@ -226,8 +301,11 @@ func TestBinaryRoutesMatchContract(t *testing.T) {
 		method, pattern, _ := strings.Cut(route, " ")
 		item, _ := paths[strings.TrimPrefix(pattern, BasePath)].(map[string]any)
 		op, _ := item[strings.ToLower(method)].(map[string]any)
-		if got, _ := op["x-visibility"].(string); got != want {
-			t.Errorf("%s: contract says %q, binaryRoutes says %q", route, got, want)
+		if got, _ := op["x-visibility"].(string); got != want.vis {
+			t.Errorf("%s: contract says %q, binaryRoutes says %q", route, got, want.vis)
+		}
+		if got := clientList(op); !slices.Equal(got, want.clients) {
+			t.Errorf("%s: contract says x-clients %v, binaryRoutes says %v", route, got, want.clients)
 		}
 	}
 }

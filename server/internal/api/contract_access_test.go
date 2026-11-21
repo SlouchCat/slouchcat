@@ -527,7 +527,10 @@ var publicRegistry = map[string]publicCall{
 	"getSetupStatus": {contract: "GET /setup", path: "/setup", status: http.StatusOK},
 	"runSetup": {contract: "POST /setup", path: "/setup", status: http.StatusConflict,
 		body: `{"email":"setup@example.ch","password":"long-enough-password","library":{"name":"A","kind":"video","roots":[{"path":"/x","content":"movie","providers":["tmdb"]}]}}`},
-	"login":         {contract: "POST /auth/login", path: "/auth/login", body: `{"email":"nobody@example.ch","password":"wrong-password"}`, status: http.StatusUnauthorized},
+	"login": {contract: "POST /auth/login", path: "/auth/login", body: `{"email":"nobody@example.ch","password":"wrong-password"}`, status: http.StatusUnauthorized},
+	// Concept 27 (ADR 0040): the sign-in of the Android apps shares the rules of login.
+	"appLogin": {contract: "POST /auth/app-login", path: "/auth/app-login", status: http.StatusUnauthorized,
+		body: `{"email":"nobody@example.ch","password":"wrong-password","deviceName":"Pixel","kind":"phone"}`},
 	"getInvitation": {contract: "GET /invitations/{token}", path: "/invitations/" + unknownInvitationToken, status: http.StatusNotFound},
 	"acceptInvitation": {contract: "POST /invitations/{token}/accept", path: "/invitations/" + unknownInvitationToken + "/accept", status: http.StatusNotFound,
 		body: `{"email":"guest2@example.ch","password":"long-enough-password","profileName":"G"}`},

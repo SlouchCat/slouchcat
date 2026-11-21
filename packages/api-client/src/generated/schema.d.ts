@@ -71,6 +71,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/app-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign an Android app in with e-mail and password (concept 27, 4.2)
+         * @description The app counterpart of `login` (contract 1.42.0, ADR 0040). It answers a bearer token instead of
+         *     the cookie: `kind` `phone` and `tablet` start an app session, `tv` a device session. Neither
+         *     expires, neither may call `admin` or `owner` operations, and a device session may call only the
+         *     operations whose `x-clients` names `tv`. The token is 256 random bits; the server keeps only its
+         *     hash, and this answer is the only place it appears.
+         *
+         *     The server writes the device right away with `deviceName` and `kind`; a playback start of the
+         *     session keeps them. The server hands out the device id: a `deviceId` the app brings along is kept
+         *     only when no other account holds a living session or a download on that device and it is not the
+         *     reserved id, otherwise the answer carries a fresh one. Attempts count in the same pot as `login`,
+         *     per client address. The answer never sets a cookie.
+         */
+        post: operations["appLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -1366,7 +1396,8 @@ export interface paths {
          *     401. The device then reports the download ids it holds here, identified only by its device cookie
          *     `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
          *     administration, a revoked account or a forgotten device). The answer contains nothing but ids the
-         *     device named; without the cookie the list is empty.
+         *     device named; without the cookie the list is empty. An Android app names its device with the
+         *     header `X-Slouchcat-Device` instead (contract 1.42.0); the cookie wins when both are sent.
          */
         post: operations["checkOfflineRevocations"];
         delete?: never;
@@ -6433,6 +6464,12 @@ export interface components {
              */
             version: string;
             /**
+             * @description `info.version` of the contract the server implements (contract 1.42.0). An app compares it with
+             *     the least version it needs and otherwise asks to update the server.
+             * @example 1.42.0
+             */
+            contractVersion: string;
+            /**
              * Format: int64
              * @description Seconds since the process started.
              */
@@ -6516,6 +6553,39 @@ export interface components {
             /** @description Accent colour of the first profile; absent, none. */
             accent?: components["schemas"]["Accent"];
         };
+        /** @description Sign-in of an Android app (`appLogin`, concept 27 4.2). */
+        AppLoginRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            /** @description The name the device shows under «Meine Geräte» and in the administration, for example «Pixel 9». */
+            deviceName: string;
+            /**
+             * @description `phone` and `tablet` start an app session, `tv` a device session.
+             * @enum {string}
+             */
+            kind: "phone" | "tablet" | "tv";
+            /**
+             * @description The device id the app already holds (a former sign-in). The server keeps it only when no other
+             *     account holds a living session or a download on the device; the answer names the id that counts.
+             */
+            deviceId?: string;
+        };
+        /** @description Answer of `appLogin`. `token` and `deviceId` are secrets of the app; the server shows them nowhere else. */
+        AppLogin: {
+            /** @description Bearer token of the session, 256 random bits as base64url (43 characters). */
+            token: string;
+            /** @description The device id the server keeps for this app; it goes into `X-Slouchcat-Device` where a request has no session. */
+            deviceId: string;
+            session: components["schemas"]["SessionInfo"];
+        };
+        /**
+         * @description Kind of a session (ADR 0040): `browser` (cookie, 30 days sliding), `app` (the phone app, bearer, no
+         *     expiry) or `device` (the TV app, bearer, no expiry, only the operations whose `x-clients` names `tv`).
+         * @enum {string}
+         */
+        SessionKind: "browser" | "app" | "device";
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -8266,6 +8336,8 @@ export interface components {
             /** Format: date-time */
             capabilitiesAt?: string;
             activeStreams: number;
+            /** @description Kind of the device's living session with the latest contact (contract 1.42.0); absent without one. */
+            sessionKind?: components["schemas"]["SessionKind"];
         };
         /** @description A running playback session as the administration sees it (W-6); not an `ItemRef`. */
         AdminStream: {
@@ -14236,6 +14308,76 @@ export interface operations {
             };
         };
     };
+    appLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in; `token` goes into `Authorization: Bearer` of every further request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLogin"];
+                };
+            };
+            /** @description Unknown e-mail or wrong password (`invalid_credentials`). The message is the same for both. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; fields `email`, `password`, `deviceName`, `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The app is older than the server accepts (`app_too_old`). */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     logout: {
         parameters: {
             query?: never;
@@ -14245,7 +14387,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Session revoked and cookie cleared. Also 204 without a session. */
+            /**
+             * @description Session revoked and cookie cleared. Also 204 without a session. With a bearer token (app or
+             *     device session) the session is revoked, and the answer sets no cookie and no `Clear-Site-Data`.
+             */
             204: {
                 headers: {
                     /** @description `"cache"`: the browser drops cached images of the signed-out profile. */

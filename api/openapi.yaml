@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.41.0
+  version: 1.42.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -35,6 +35,20 @@ info:
     `X-Requested-With: Slouchcat`, otherwise the server answers 403 `csrf_header_missing`.
     `account`, `scoped` and `admin` operations without a valid session answer 401 `unauthenticated`.
     The cookie `slouchcat_device` identifies the browser (PIN lock per profile and device, AN-11).
+
+    Android apps (concept 27 and 26, contract 1.42.0, ADR 0040; additive): `appLogin` starts an app
+    session (phone, tablet) or a device session (TV). Both travel as `Authorization: Bearer`, never
+    expire and never set a cookie; the kind is stored with the session and the carrier must match it (a
+    browser token as bearer, an app token in the cookie, and cookie and bearer together all count as no
+    session, the last one answers 401 `unauthenticated` on every route). The header
+    `X-Requested-With: Slouchcat` stays mandatory for state-changing requests. Every `account` and
+    `scoped` operation names in the extension `x-clients` the bearer kinds that may call it (`app`,
+    `tv`); a bearer session calling an operation whose list lacks its kind, or any `admin` or `owner`
+    operation, gets 403 `client_not_allowed`. The media URLs keep their own tokens (`st`, `dt`, `rt`).
+    An app names its device in the header `X-Slouchcat-Device` where a request has no session
+    (`checkOfflineRevocations`), and itself in `X-Slouchcat-Client` (`mobile/1.2.3`, `tv/1.2.3`); an app
+    older than the server accepts gets 426 `app_too_old` on every operation except `getHealth`, whose
+    `contractVersion` tells the app whether the server is new enough.
 
     Errors use RFC 9457 problem details (`application/problem+json`) with the extra member `code`,
     a stable machine-readable identifier such as `not_found` or `validation_failed`.
@@ -340,15 +354,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /auth/app-login:
+    post:
+      operationId: appLogin
+      summary: Sign an Android app in with e-mail and password (concept 27, 4.2)
+      description: |
+        The app counterpart of `login` (contract 1.42.0, ADR 0040). It answers a bearer token instead of
+        the cookie: `kind` `phone` and `tablet` start an app session, `tv` a device session. Neither
+        expires, neither may call `admin` or `owner` operations, and a device session may call only the
+        operations whose `x-clients` names `tv`. The token is 256 random bits; the server keeps only its
+        hash, and this answer is the only place it appears.
+
+        The server writes the device right away with `deviceName` and `kind`; a playback start of the
+        session keeps them. The server hands out the device id: a `deviceId` the app brings along is kept
+        only when no other account holds a living session or a download on that device and it is not the
+        reserved id, otherwise the answer carries a fresh one. Attempts count in the same pot as `login`,
+        per client address. The answer never sets a cookie.
+      tags: [auth]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppLoginRequest"
+      responses:
+        "200":
+          description: "Signed in; `token` goes into `Authorization: Bearer` of every further request."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppLogin"
+        "401":
+          description: Unknown e-mail or wrong password (`invalid_credentials`). The message is the same for both.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; fields `email`, `password`, `deviceName`, `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "426":
+          description: The app is older than the server accepts (`app_too_old`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /auth/logout:
     post:
       operationId: logout
       summary: End the current session
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "204":
-          description: Session revoked and cookie cleared. Also 204 without a session.
+          description: |
+            Session revoked and cookie cleared. Also 204 without a session. With a bearer token (app or
+            device session) the session is revoked, and the answer sets no cookie and no `Clear-Site-Data`.
           headers:
             Clear-Site-Data:
               description: '`"cache"`: the browser drops cached images of the signed-out profile.'
@@ -367,6 +451,7 @@ paths:
       summary: Account and active profile of the current session
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "200":
           description: The current session.
@@ -390,6 +475,7 @@ paths:
         account; the calling session stays. Works without an active profile (`account`).
       tags: [account]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -450,6 +536,7 @@ paths:
         Works before a profile is selected (`account`).
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "200":
           description: Profiles of the account, primary profile first.
@@ -474,6 +561,7 @@ paths:
         carries `Clear-Site-Data: "cache"`.
       tags: [auth]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -535,6 +623,7 @@ paths:
       description: Profile management of the own account (K-2); needs the account's primary profile to be active.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "200":
           description: Profiles, primary profile first.
@@ -553,6 +642,7 @@ paths:
       summary: Create a profile in the signed-in account
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -590,6 +680,7 @@ paths:
       description: Only the fields sent change. Lowering `maxRating` or removing a library right takes effect with the next request of that profile.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -627,6 +718,7 @@ paths:
       description: The primary profile cannot be deleted (409 `primary_profile`). Sessions that had the profile active fall back to the profile picker; their playback sessions are revoked.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
@@ -655,6 +747,7 @@ paths:
       summary: Set or replace the PIN of a profile
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -687,6 +780,7 @@ paths:
       summary: Remove the PIN of a profile
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
@@ -715,6 +809,7 @@ paths:
         PIN keeps guarding the profile. Only the account's primary profile may set it.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       requestBody:
@@ -748,6 +843,7 @@ paths:
       description: Offline the profile is then guarded by its normal PIN again (if it has one).
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
       responses:
@@ -774,6 +870,7 @@ paths:
         primary profile may read it, like every profile setting.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ProfileID"
         - name: days
@@ -811,6 +908,7 @@ paths:
         allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
       tags: [profiles]
       x-visibility: account
+      x-clients: [app, tv]
       responses:
         "200":
           description: Libraries, by name.
@@ -838,6 +936,7 @@ paths:
         this is `scoped`: it describes what the profile sees.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The visible libraries, administration order.
@@ -865,6 +964,7 @@ paths:
         navigation: the titles stay in the search and the rows.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The entries shown in the side navigation, in the stored order.
@@ -909,6 +1009,7 @@ paths:
         404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - name: content
@@ -1036,6 +1137,7 @@ paths:
         library the profile may not see answers 404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - name: genre
@@ -1113,6 +1215,7 @@ paths:
         404 (never 403).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/LibraryID"
         - $ref: "#/components/parameters/AudioSeriesID"
@@ -1282,6 +1385,7 @@ paths:
         values from refetches.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: start
           in: query
@@ -1325,6 +1429,7 @@ paths:
         episodes. Every title passed the visibility layer of the active profile.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: key
           in: path
@@ -1386,6 +1491,7 @@ paths:
         navigation and behind «show all» at the row; `total` is the number of the side navigation.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -1418,6 +1524,7 @@ paths:
       summary: Detail of a title
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -1457,6 +1564,7 @@ paths:
         width. Logos come in `w400` and `w800` (ADR 0018).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: kind
@@ -1529,6 +1637,7 @@ paths:
         older URL is never shown for a new probe.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: idx
@@ -1590,6 +1699,7 @@ paths:
         write.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -1636,6 +1746,7 @@ paths:
         `Cache-Control: private, no-cache`.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: sheet
@@ -1690,6 +1801,7 @@ paths:
         An invisible title answers 404 like every other ID endpoint.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -1724,6 +1836,7 @@ paths:
         roles in an FSK-6 and an FSK-18 film shows only the FSK-6 role to a 6-rated profile).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -1767,6 +1880,7 @@ paths:
         (profile id) serve cache busting only.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -1826,6 +1940,7 @@ paths:
         itself (`canPlayType`).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -1900,6 +2015,7 @@ paths:
         within the watcher latency without restarting the playback. Without `mediaFileId` the primary file.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -1938,6 +2054,7 @@ paths:
         through all of them.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: offset
@@ -1990,6 +2107,7 @@ paths:
         this device for a movie or episode, when there is one.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ItemID"
         - name: mediaFileId
@@ -2035,6 +2153,7 @@ paths:
         may see the title (plan 3.3).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -2091,6 +2210,7 @@ paths:
         closes the connection within a second.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2154,6 +2274,7 @@ paths:
         Positions at or beyond 90 % of the duration mark the title as completed.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -2205,6 +2326,7 @@ paths:
         sessions of the browser session.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
@@ -2251,6 +2373,7 @@ paths:
         401 if the playback ended.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/PlaybackSessionID"
       responses:
@@ -2298,6 +2421,7 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2330,6 +2454,7 @@ paths:
         anywhere at once (plan 3.5).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2358,6 +2483,7 @@ paths:
       description: Implemented as an `http.Handler`, authorised by `st`. `ftyp` and `moov` of the HLS output.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2390,6 +2516,7 @@ paths:
         it; a seek further away restarts the encoder at that segment (plan 3.5).
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2435,6 +2562,7 @@ paths:
         answer and leaves the subtitle request alone.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - streamToken: []
       parameters:
@@ -2474,6 +2602,7 @@ paths:
         Any other download, a download of another account or an unknown id → 404.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
@@ -2510,6 +2639,7 @@ paths:
         `download_evicted` (the next sync prepares it again while the device lacks the file).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/DownloadID"
       responses:
@@ -2556,6 +2686,7 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2605,6 +2736,7 @@ paths:
         Any other track → 404. `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2643,6 +2775,7 @@ paths:
         `Cache-Control: private, no-store`.
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       security:
         - downloadToken: []
       parameters:
@@ -2688,6 +2821,7 @@ paths:
         `allowedProfileIds` (plan principle 1).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -2728,6 +2862,7 @@ paths:
       summary: Auto-download rule of the active profile on this device (O-3)
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       responses:
         "200":
           description: The stored rule, or the default rule (disabled).
@@ -2754,6 +2889,7 @@ paths:
         the profile listened to in the last 60 days (M6, O-3).
       tags: [offline]
       x-visibility: scoped
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -2797,7 +2933,8 @@ paths:
         401. The device then reports the download ids it holds here, identified only by its device cookie
         `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
         administration, a revoked account or a forgotten device). The answer contains nothing but ids the
-        device named; without the cookie the list is empty.
+        device named; without the cookie the list is empty. An Android app names its device with the
+        header `X-Slouchcat-Device` instead (contract 1.42.0); the cookie wins when both are sent.
       tags: [offline]
       x-visibility: public
       requestBody:
@@ -2843,6 +2980,7 @@ paths:
         id and sequence number again is a `duplicate`. Results come in the order of the events.
       tags: [offline]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -5522,6 +5660,7 @@ paths:
         form an object and the walk of the contract test covers POST operations too.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -5557,6 +5696,7 @@ paths:
         at most 20; the search page offers them as filter values and the start page row `genres` shows them.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: Genres with the number of visible titles.
@@ -5586,6 +5726,7 @@ paths:
         collections.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The collections, by name.
@@ -5610,6 +5751,7 @@ paths:
         members, the part to play next (`next`, `nextPart`) and the TMDB description (O-18).
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
         - name: offset
@@ -5656,6 +5798,7 @@ paths:
         whole series). A collection without a visible member answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
       requestBody:
@@ -5692,6 +5835,7 @@ paths:
         `Collection.image` point here; `v` and `p` serve cache busting only.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/CollectionID"
         - name: v
@@ -5734,6 +5878,7 @@ paths:
       description: Newest entry first; entries whose title became invisible are omitted.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -5782,6 +5927,7 @@ paths:
         playbacks only. An invisible or unknown title answers 404.
       tags: [items]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       requestBody:
@@ -5814,6 +5960,7 @@ paths:
         removed or while it is invisible for the profile. Only visible episodes count.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: content
           in: query
@@ -5868,6 +6015,7 @@ paths:
         see the episode (5.5), and its new podcast episodes feed the auto-download rule (O-3).
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -5893,6 +6041,7 @@ paths:
       description: Idempotent; an invisible or unknown title answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -5918,6 +6067,7 @@ paths:
         An invisible or unknown title, a season, an extra and a profile of another account answer 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -5943,6 +6093,7 @@ paths:
         picks unless another profile recommended it. 404 as for `recommendItem`.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ItemID"
       responses:
@@ -5966,6 +6117,7 @@ paths:
         visible to the profile is omitted (5.5). Channels (e-mail, push, Telegram) follow in M8.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: offset
           in: query
@@ -5999,6 +6151,7 @@ paths:
       description: Idempotent; a notification of another profile answers 404.
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -6024,6 +6177,7 @@ paths:
       summary: Mark every notification of the active profile as read
       tags: [discover]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "204":
           description: All read.
@@ -8341,6 +8495,7 @@ paths:
       description: Newest first, at most 20; the client shows them one after the other at the start.
       tags: [announcements]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The open announcements.
@@ -8361,6 +8516,7 @@ paths:
       description: Idempotent.
       tags: [announcements]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/AnnouncementID"
       responses:
@@ -8385,6 +8541,7 @@ paths:
         audio and subtitle track of a start from them (rule 12).
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The preferences of the active profile.
@@ -8406,6 +8563,7 @@ paths:
       description: All three fields are replaced at once.
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -8447,6 +8605,7 @@ paths:
         ("Meine Wiedergabe", concept 13 11.3). Nothing to delete is no error.
       tags: [profiles]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "204":
           description: Forgotten.
@@ -8470,6 +8629,7 @@ paths:
         active profile or with the account's primary profile may change them (ADR 0005).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
         "200":
           description: The three channels.
@@ -8491,6 +8651,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ChannelName"
       requestBody:
@@ -8536,6 +8697,7 @@ paths:
         (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/ChannelName"
       responses:
@@ -8590,6 +8752,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
         "200":
           description: The Telegram channel with the code.
@@ -8616,6 +8779,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
         "204":
           description: Unlinked.
@@ -8631,6 +8795,7 @@ paths:
       description: The browser subscribes with it (`applicationServerKey`).
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       responses:
         "200":
           description: The public key.
@@ -8658,6 +8823,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       requestBody:
         required: true
         content:
@@ -8697,6 +8863,7 @@ paths:
         the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
+      x-clients: [app]
       parameters:
         - $ref: "#/components/parameters/PushSubscriptionID"
       responses:
@@ -9782,6 +9949,7 @@ paths:
         library title the profile may not see and a missing title above its age never appear.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The rows.
@@ -9834,6 +10002,7 @@ paths:
         `popular_movies` and `popular_shows`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: row
           in: path
@@ -9912,6 +10081,7 @@ paths:
         out the titles of the library. At most 500 pages (Seerr's limit).
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -10000,6 +10170,7 @@ paths:
       description: Since contract 1.41.0. TMDB's genres in the profile's language, cached like a list.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -10059,6 +10230,7 @@ paths:
         from the request: a genre without a backdrop or one the row does not list is 404.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: media
           in: path
@@ -10126,6 +10298,7 @@ paths:
         Kept 10 minutes in memory; never `stale`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: q
           in: query
@@ -10204,6 +10377,7 @@ paths:
         are kept 10 minutes. A hit whose details were not fetched has no images and no `minAge`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: q
           in: query
@@ -10273,6 +10447,7 @@ paths:
         `already_available` with its `item`; the client opens `/items/{id}`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ExternalMediaPath"
         - $ref: "#/components/parameters/TmdbIdPath"
@@ -10330,6 +10505,7 @@ paths:
         content hash: the answer has an `ETag` and `Cache-Control: private, max-age=86400`.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/ExternalMediaPath"
         - $ref: "#/components/parameters/TmdbIdPath"
@@ -10406,6 +10582,7 @@ paths:
         (rating), a library series it may not see and an unknown TMDB id.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/TmdbIdPath"
       responses:
@@ -10453,6 +10630,7 @@ paths:
         the profile, whatever the filter.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/WishStateFilter"
         - $ref: "#/components/parameters/WishPageOffset"
@@ -10486,6 +10664,7 @@ paths:
         or the new seasons (`needed`, `quota` with `nextFreeAt`); no wish is made.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -10568,6 +10747,7 @@ paths:
         whatever the filter.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/WishStateFilter"
         - $ref: "#/components/parameters/WishPageOffset"
@@ -10600,6 +10780,7 @@ paths:
         for a profile without the request right.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The limit.
@@ -10625,6 +10806,7 @@ paths:
         approved yet (`queued`, `pending`); Seerr's request goes with it in the background.
       tags: [wishes]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: id
           in: path
@@ -10921,6 +11103,7 @@ paths:
         `radio_catalog_loading`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioQ"
         - $ref: "#/components/parameters/RadioCountry"
@@ -10982,6 +11165,7 @@ paths:
         Before the first sync 503 `radio_catalog_loading`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioQ"
         - $ref: "#/components/parameters/RadioCountry"
@@ -11021,6 +11205,7 @@ paths:
         the offer answers 404.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
@@ -11045,6 +11230,7 @@ paths:
         its favourite marks with it (F-18).
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The favourites, first first.
@@ -11064,6 +11250,7 @@ paths:
         `listRadioFavorites` returns them; another set (a station missing, added or twice) answers 422.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -11089,6 +11276,7 @@ paths:
       description: Since contract 1.17.0. Idempotent; a new favourite goes to the end of the order.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
@@ -11104,6 +11292,7 @@ paths:
       description: Since contract 1.17.0. Idempotent, also for a station that is no longer reachable.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
@@ -11127,6 +11316,7 @@ paths:
         limits (F-19). A broken station may be started; a success clears its broken mark.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
       responses:
@@ -11178,6 +11368,7 @@ paths:
         remaining watch time.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioListenID"
       requestBody:
@@ -11223,6 +11414,7 @@ paths:
         `RadioConfig.graceSeconds` after its last listener left.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioListenID"
       responses:
@@ -11250,6 +11442,7 @@ paths:
         runs; `entries` is then empty.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioStationID"
         - name: since
@@ -11281,6 +11474,7 @@ paths:
         the country of the server's time zone (fallback: the rating country of the metadata settings).
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       responses:
         "200":
           description: The preferences.
@@ -11296,6 +11490,7 @@ paths:
       description: Since contract 1.17.0. Replaces all three; absent `lastFilter` and `lastSort` clear them.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       requestBody:
         required: true
         content:
@@ -11332,6 +11527,7 @@ paths:
         ended or expired session and a missing token answer 401.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11366,6 +11562,7 @@ paths:
         generation behind an `EXT-X-DISCONTINUITY`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11402,6 +11599,7 @@ paths:
         heartbeat said `playing: false`.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       security:
         - radioToken: []
       parameters:
@@ -11441,6 +11639,7 @@ paths:
         the initials. A station outside the offer answers 404.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - $ref: "#/components/parameters/RadioImageStationID"
         - $ref: "#/components/parameters/RadioImageKind"
@@ -11486,6 +11685,7 @@ paths:
         the station logo.
       tags: [radio]
       x-visibility: scoped
+      x-clients: [app, tv]
       parameters:
         - name: trackId
           in: path
@@ -12295,7 +12495,9 @@ components:
     bearerToken:
       type: http
       scheme: bearer
-      description: Bearer token for third-party clients. Added in M2.
+      description: |
+        Token of an app or device session from `appLogin` (contract 1.42.0, ADR 0040). Only for the
+        operations whose `x-clients` names the kind of the session; never together with the session cookie.
     streamToken:
       type: apiKey
       in: query
@@ -12687,7 +12889,7 @@ components:
   schemas:
     Health:
       type: object
-      required: [status, version, uptimeSeconds]
+      required: [status, version, contractVersion, uptimeSeconds]
       properties:
         status:
           type: string
@@ -12697,6 +12899,12 @@ components:
           type: string
           description: Server version as built, for example `0.1.0+abc1234`.
           examples: ["0.1.0+abc1234"]
+        contractVersion:
+          type: string
+          description: |
+            `info.version` of the contract the server implements (contract 1.42.0). An app compares it with
+            the least version it needs and otherwise asks to update the server.
+          examples: ["1.42.0"]
         uptimeSeconds:
           type: integer
           format: int64
@@ -12815,6 +13023,59 @@ components:
         accent:
           $ref: "#/components/schemas/Accent"
           description: Accent colour of the first profile; absent, none.
+
+    AppLoginRequest:
+      type: object
+      description: Sign-in of an Android app (`appLogin`, concept 27 4.2).
+      required: [email, password, deviceName, kind]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          maxLength: 256
+          writeOnly: true
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: The name the device shows under «Meine Geräte» and in the administration, for example «Pixel 9».
+        kind:
+          type: string
+          enum: [phone, tablet, tv]
+          description: '`phone` and `tablet` start an app session, `tv` a device session.'
+        deviceId:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          writeOnly: true
+          description: |
+            The device id the app already holds (a former sign-in). The server keeps it only when no other
+            account holds a living session or a download on the device; the answer names the id that counts.
+
+    AppLogin:
+      type: object
+      description: Answer of `appLogin`. `token` and `deviceId` are secrets of the app; the server shows them nowhere else.
+      required: [token, deviceId, session]
+      properties:
+        token:
+          type: string
+          description: Bearer token of the session, 256 random bits as base64url (43 characters).
+        deviceId:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: The device id the server keeps for this app; it goes into `X-Slouchcat-Device` where a request has no session.
+        session:
+          $ref: "#/components/schemas/SessionInfo"
+
+    SessionKind:
+      type: string
+      enum: [browser, app, device]
+      description: |
+        Kind of a session (ADR 0040): `browser` (cookie, 30 days sliding), `app` (the phone app, bearer, no
+        expiry) or `device` (the TV app, bearer, no expiry, only the operations whose `x-clients` names `tv`).
 
     LoginRequest:
       type: object
@@ -15380,6 +15641,9 @@ components:
         activeStreams:
           type: integer
           minimum: 0
+        sessionKind:
+          $ref: "#/components/schemas/SessionKind"
+          description: Kind of the device's living session with the latest contact (contract 1.42.0); absent without one.
 
     AdminStream:
       type: object

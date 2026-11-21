@@ -28,6 +28,8 @@ var fakeSecrets = []string{
 	"WebhookFAKEshouty-01234567890abcdefgh",
 	// Concept 15 P-8 (ADR 0024): the shared token of the updater companion.
 	"updater-FAKE-token", "updater-FAKE-bearer",
+	// Concept 27 (ADR 0040): the bearer tokens of the Android apps and the device id in the header.
+	"apptoken-FAKE", "devicetoken-FAKE", "Bearer app-FAKE-bearer", "devhdr-FAKE-id", "deviceid-FAKE-app",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -108,6 +110,10 @@ func logAll(t *testing.T, format Format) string {
 	// with the key names still is redacted.
 	log.Info("updater request", "updater_token", "updater-FAKE-token", "Authorization", "Bearer updater-FAKE-bearer",
 		"updater_url", "http://slouchcat-updater:8099/status")
+	// Concept 27: what the Android apps send (a slip with the key names still is redacted).
+	log.Info("app request", "app_token", "apptoken-FAKE", "deviceToken", "devicetoken-FAKE",
+		"authorization", "Bearer app-FAKE-bearer", "X-Slouchcat-Device", "devhdr-FAKE-id", "deviceId", "deviceid-FAKE-app",
+		"X-Slouchcat-Client", "mobile/1.2.3")
 	// A mistyped route still carries a real token: the guard must not care about the spelling.
 	log.Info("webhook 404", "path", "/api/v1/WEBHOOKS/WebhookFAKEshouty-01234567890abcdefgh")
 	return buf.String()

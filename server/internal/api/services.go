@@ -21,6 +21,11 @@ type AuthService interface {
 	// model.ErrInvalidCredentials; a client over the attempt limit (model.ClientIP of ctx) gets
 	// model.ErrTooManyAttempts.
 	Login(ctx context.Context, email, password, userAgent string) (model.Session, string, error)
+	// AppLogin is Login for an Android app (ADR 0040): it starts an app session (deviceKind phone or
+	// tablet) or a device session (tv), writes the device with deviceName and deviceKind and returns
+	// the session (its DeviceID is the device the server kept: deviceID when it may, else a fresh
+	// one) with the plain bearer token.
+	AppLogin(ctx context.Context, email, password, deviceName, deviceKind, deviceID, userAgent string) (model.Session, string, error)
 	// Resolve returns the session of a plain token or model.ErrNotFound. It may extend the
 	// session (sliding expiry) and then reports extended, so the cookie is re-issued.
 	Resolve(ctx context.Context, token string) (session model.Session, extended bool, err error)

@@ -53,12 +53,15 @@ const (
 // adds the key of Seerr (seerr.api_key, SLOUCHCAT_SEERR_API_KEY) and the body field newPassword of
 // Seerr's password route; "apikey" and "password" already cover them, rule 10 wants them listed.
 // Stage 4 of concept 25 adds the keys of Radarr and Sonarr that Slouchcat reads from Seerr
-// (radarrApiKey, sonarrApiKey); they are held in memory only.
+// (radarrApiKey, sonarrApiKey); they are held in memory only. Concept 27 (ADR 0040) adds the
+// bearer tokens of the Android apps (app_token, device_token; "token" covers them too) and the
+// device id an app names in the header X-Slouchcat-Device ("deviceid" covers device_id).
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
 	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
 	"listurl", "deviceid", "clientkey",
-	"seerrapikey", "newpassword", "radarrapikey", "sonarrapikey"}
+	"seerrapikey", "newpassword", "radarrapikey", "sonarrapikey",
+	"apptoken", "devicetoken", "slouchcatdevice"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5), rt (radio listen token, concept 16) and the credentials of private podcast feeds and their

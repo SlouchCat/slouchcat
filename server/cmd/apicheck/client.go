@@ -121,6 +121,56 @@ func (c *client) send(ctx context.Context, method, path string, query url.Values
 	return c.do(req, op)
 }
 
+// sendApp performs one request like the Android app (contract 1.42.0): token as Authorization:
+// Bearer (none for appLogin), the app's name in X-Slouchcat-Client and no cookie jar, so the
+// browser cookies of the other checks never travel along.
+func (c *client) sendApp(ctx context.Context, method, path, token string, body any) (*response, error) {
+	op, err := c.contract.lookup(method, path)
+	if err != nil {
+		return nil, err
+	}
+	if !c.seen[op.id] {
+		c.seen[op.id] = true
+		c.used = append(c.used, op.id)
+	}
+	c.calls++
+	var reader io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("encode body of %s: %w", op.id, err)
+		}
+		reader = bytes.NewReader(encoded)
+	}
+	target := *c.base
+	target.Path = c.contract.basePath + path
+	req, err := http.NewRequestWithContext(ctx, method, target.String(), reader)
+	if err != nil {
+		return nil, fmt.Errorf("build request %s: %w", op.id, err)
+	}
+	req.Header.Set("Accept", "application/json, application/problem+json")
+	req.Header.Set("X-Slouchcat-Client", "mobile/1.0.0")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if method != http.MethodGet && method != http.MethodHead && method != http.MethodOptions {
+		req.Header.Set(csrfHeader, csrfValue)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := (&http.Client{Timeout: c.http.Timeout}).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op.id, err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
+	if err != nil {
+		return nil, fmt.Errorf("read answer of %s: %w", op.id, err)
+	}
+	return &response{status: resp.StatusCode, header: resp.Header, body: data}, nil
+}
+
 // sendRaw performs a request on a URL the server itself handed out (a stream URL with its token,
 // a playlist entry): the path is checked against the contract just like any other call.
 func (c *client) sendRaw(ctx context.Context, method, raw string, header http.Header) (*response, error) {

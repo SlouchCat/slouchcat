@@ -4,6 +4,7 @@ import { restartedSince } from './restart';
 const health = (uptimeSeconds: number) => ({
   status: 'ok' as const,
   version: '0.9.0',
+  contractVersion: '1.42.0',
   uptimeSeconds,
 });
 
