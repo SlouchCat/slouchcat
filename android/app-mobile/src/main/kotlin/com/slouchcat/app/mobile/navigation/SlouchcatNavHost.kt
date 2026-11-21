@@ -142,7 +142,7 @@ private fun NavGraphBuilder.signInDestination(graph: AppGraph, navigator: Naviga
             )
         }
         val state by vm.state.collectAsStateWithLifecycle()
-        LaunchedEffect(vm) { vm.done.collect { navigator.toProfilesFirst() } }
+        LaunchedEffect(vm) { vm.done.collect { chosen -> if (chosen) navigator.toHome() else navigator.toProfilesFirst() } }
         SignInScreen(
             state = state,
             onEmailChange = vm::onEmailChange,

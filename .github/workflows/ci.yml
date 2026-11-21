@@ -336,6 +336,80 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------------------------
+  # Android against a real server (concept 27 section 12, «Vertrag» and «Gerät»): the contract test
+  # of the Kotlin client and the flow of the phone app in an emulator (address, sign-in, profile
+  # with PIN, «Mehr», «Meine Geräte», sign-out), both against bin/slouchcat with fresh data. A job
+  # of its own: it needs Go and an emulator with KVM, and runs beside the job "android". The AVD is
+  # made here from the SDK's system image; no third-party action. Times: docs/perf/K27-android-ci.md.
+  # ---------------------------------------------------------------------------------------------
+  android-e2e:
+    name: android-e2e (contract, emulator)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - name: Check the Gradle wrapper
+        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
+      # KVM for the emulator: the runner has /dev/kvm, the runner user needs the rights to it.
+      - name: JDK 21, the Android SDK packages, KVM and the AVD
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          log=$(mktemp)
+          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+          image="system-images;android-36;google_apis;x86_64"
+          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" "emulator" "$image" >"$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n ci_phone -k "$image" >"$log" 2>&1 || { cat "$log"; exit 1; }
+          # A phone of the mockup's size (412 dp wide), as sc_phone on the development machine.
+          printf '%s\n' hw.lcd.width=1080 hw.lcd.height=2424 hw.lcd.density=420 hw.ramSize=4096 hw.keyboard=yes \
+            >> "$HOME/.android/avd/ci_phone.avd/config.ini"
+
+      - name: Gradle caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-e2e-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
+          restore-keys: gradle-e2e-${{ runner.os }}-
+
+      - run: task android:contract
+
+      - run: task android:e2e AVD=ci_phone
+
+      - name: Keep the instrumentation reports on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-e2e-reports
+          path: |
+            android/app-mobile/build/reports/androidTests/
+            android/app-mobile/build/outputs/androidTest-results/
+            android/core/api/build/reports/tests/contractTest/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
   # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
   # checks in another. The two need nothing from each other, and together they were the longest
   # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
@@ -620,7 +694,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [changes, server-lint, server-groups, server-test, relay, android, web, storybook, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, relay, android, android-e2e, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -704,6 +778,7 @@ jobs:
           check server-test   '${{ needs.server-test.result }}'
           check relay         '${{ needs.relay.result }}'
           check android       '${{ needs.android.result }}'
+          check android-e2e   '${{ needs.android-e2e.result }}'
           check web           '${{ needs.web.result }}'
           check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'

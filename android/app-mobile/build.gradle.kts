@@ -13,6 +13,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // The flow in the emulator (task android:e2e, concept 27 12 «Gerät»).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     // Two flavours (F-33): `play` will carry Google's push and code scanner, `foss` builds without
     // Google's libraries. Today both are the same; only `play` is ever published.
@@ -51,4 +53,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     testImplementation(libs.coroutines.test)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.core)
 }

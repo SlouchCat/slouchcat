@@ -72,6 +72,17 @@ tasks:
           "-Pslouchcat.contract.base=http://127.0.0.1:$port" || fail "The contract test failed."
         CONTRACT
 
+  # The flow of the app in an emulator (concept 27 12 «Gerät»): the server of this repository with
+  # fresh data on PORT (8597), the connected device or the AVD sc_phone, the instrumentation test
+  # SignInFlowTest. SHOTS=<dir> photographs every page and sheet instead (visual check).
+  e2e:
+    desc: >-
+      Instrumentation test in the emulator: server address, sign-in, profile with PIN, «Mehr», «Meine Geräte», sign-out
+      against bin/slouchcat on PORT (8597); AVD (sc_phone) when no device is connected; SHOTS=<dir> takes photos
+    cmds:
+      - task: :server:build
+      - PORT={{.PORT | default "8597"}} AVD={{.AVD | default "sc_phone"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} ../scripts/android-e2e.sh
+
   # The quick Android part of `task check:fast`: only when something the apps are built from
   # changed (android/, the contract, the texts, the tokens) against BASE (default HEAD, the
   # working tree with untracked files). Without a JDK it says so and leaves the check to CI.

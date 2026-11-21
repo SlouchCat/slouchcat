@@ -86,10 +86,13 @@ class SignInViewModel(
     )
     val state: StateFlow<SignInUiState> = _state.asStateFlow()
 
-    private val _done = Channel<Unit>(Channel.BUFFERED)
+    private val _done = Channel<Boolean>(Channel.BUFFERED)
 
-    /** One event after a successful sign-in: the profile choice follows. */
-    val done: Flow<Unit> = _done.receiveAsFlow()
+    /**
+     * One event after a successful sign-in: `true` when the server chose the profile itself (an
+     * account with a single profile), so the app opens; `false`: the profile choice follows.
+     */
+    val done: Flow<Boolean> = _done.receiveAsFlow()
 
     init {
         viewModelScope.launch {
@@ -158,7 +161,7 @@ class SignInViewModel(
             if (error != null && key != null) keys.finish(confirmed = false)
             // The password leaves the state after every attempt, whatever the outcome.
             _state.update { it.copy(busy = false, password = "", showPassword = false, error = error) }
-            if (error == null) _done.send(Unit)
+            if (error == null) _done.send(result is ApiResult.Ok && result.value.session.profile != null)
         }
     }
 

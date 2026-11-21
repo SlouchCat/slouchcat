@@ -105,7 +105,7 @@ Texte und Tokens braucht der Bau Node und einmal `pnpm install` im Repo.
 
 **Aufbau:** `app-mobile` (die Handy-App, Bauarten `play` und `foss`, Typ `debug` mit Paket
 `com.slouchcat.app.dev`), `core/api` (erzeugter Client, gemeinsamer OkHttp-Client, Logger),
-`core/session` (Serveradresse, Heimnetz, Verträglichkeit), `core/design` (Tokens, Thema,
+`core/session` (Serveradresse, Heimnetz, Verträglichkeit, Token im Keystore, Sitzung, Netzwechsel), `core/design` (Tokens, Thema,
 Bausteine des Mockups), `core/strings` (Texte), `lint` (eigene Regeln für Regel 9 und 10),
 `build-logic` (Konventionen), `tools` (Generatoren). Versionen: `android/gradle/libs.versions.toml`,
 Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App kommen, steht in
@@ -115,6 +115,8 @@ Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App k
 task android:check        # beide Bauarten in debug und release (R8, unsigniert), Lint, Generatoren (CI-Job «android»)
 task android:test         # alle JVM-Tests: Robolectric-Oberflächentests, ViewModels, Lint-Regeln, Generatoren
 task android:contract     # erzeugter Client gegen einen frisch gestarteten Server (Port 8597, CONTRACT_PORT)
+task android:e2e          # Ablauf im Emulator gegen einen frischen Server (PORT 8597, AVD sc_phone, CI-Job «android-e2e»)
+task android:e2e AVD=sc_tablet SHOTS=<ordner> LOCALE=de-CH   # derselbe Ablauf, fotografiert jede Seite und jedes Blatt
 task android:apk          # Debug-APKs nach android/app-mobile/build/outputs/apk
 task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an android/, Vertrag, Texten, Tokens
 ```

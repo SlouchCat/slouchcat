@@ -81,16 +81,19 @@ class AppGraph(context: Context) {
     /** Pooled connections belong to the network they were opened in. */
     private val network = NetworkMonitor { http.connectionPool.evictAll() }
 
-    /** Only for `proveServer`: no gate, no credentials, a hard limit (concept 27 section 6). */
-    private val proofClient: OkHttpClient = SlouchcatHttp.client(identity, builder = OkHttpClient.Builder().callTimeout(PROOF_TIMEOUT))
+    /**
+     * For what is public and comes before any trust: `getHealth` of the setup and `proveServer`.
+     * No gate, no credentials, a hard limit (concept 27 section 6).
+     */
+    private val publicClient: OkHttpClient = SlouchcatHttp.client(identity, builder = OkHttpClient.Builder().callTimeout(PROOF_TIMEOUT))
 
     /** «Server weist sich aus» in front of every request to a server over HTTP (F-38). */
-    val identityGate = ServerIdentityGate(session, network, ApiServerProver(proofClient), sessionEvents, timeout = PROOF_TIMEOUT)
+    val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), sessionEvents, timeout = PROOF_TIMEOUT)
 
     /** The one HTTP client for API, images and player (concept 27, 5.2). */
     val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate)
 
-    val serverProbe: ServerProbe = HealthServerProbe(http, AndroidTrustInspector())
+    val serverProbe: ServerProbe = HealthServerProbe(publicClient, AndroidTrustInspector())
     val serverRepository: ServerRepository = ApiServerRepository(api, http)
     val auth: AuthRepository = ApiAuthRepository(api, http)
     val devices: DevicesRepository = ApiDevicesRepository(api, http)
