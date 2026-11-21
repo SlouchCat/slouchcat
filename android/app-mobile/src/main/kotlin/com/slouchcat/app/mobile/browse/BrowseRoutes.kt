@@ -64,9 +64,18 @@ data object CollectionsRoute
 @Serializable
 data object ProfilesSettingsRoute
 
-/** The video player of stage 5 (mockup `/play/:i`); «Abspielen» shows only once it is registered. */
+/**
+ * The video player of stage 5 (mockup `/play/:i`); «Abspielen» shows only once it is registered.
+ * [startAtMs]: a position to start at ([NO_POSITION]: where the server resumes); [fromStart]: «Von
+ * vorn» (mockup `?from=0`). Both have defaults, so `PlayerRoute(id)` stays the plain «Abspielen».
+ */
 @Serializable
-data class PlayerRoute(val itemId: String)
+data class PlayerRoute(val itemId: String, val startAtMs: Long = NO_POSITION, val fromStart: Boolean = false) {
+    companion object {
+        /** No position of its own: the server's resume position. */
+        const val NO_POSITION = -1L
+    }
+}
 
 /** «Benachrichtigungen» of stage 8 (mockup `/notifications`); the bell of the start page shows only once it is registered. */
 @Serializable

@@ -43,6 +43,8 @@ dependencies {
     implementation(project(":core:session"))
     implementation(project(":core:design"))
     implementation(project(":core:strings"))
+    implementation(project(":core:player"))
+    implementation(libs.media3.ui)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -45,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * player pauses when a headphone is unplugged and takes the audio focus. Stage 7 lifts [player]
  * into a `MediaSessionService` for sound in the background (then without [withSession]).
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class Media3Engine(
     context: Context,
     http: Call.Factory,
@@ -234,7 +235,7 @@ class Media3Engine(
  * Media3 1.11.1 leaves the input buffer of FLAC at the decoder's default (32 KiB); 5.1 FLAC frames
  * are larger (concept 26 stage 0: «Buffer too small»). This factory raises it for FLAC.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class SlouchcatRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
     override fun buildAudioRenderers(
         context: Context,

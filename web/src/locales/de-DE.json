@@ -1,5 +1,9 @@
 {
   "app": {
+    "player": {
+      "close": "Player schließen",
+      "qualityNote": "Über mobile Daten zählt jede Stunde: „Original“ braucht am meisten."
+    },
     "update": {
       "close": "Schließen"
     },

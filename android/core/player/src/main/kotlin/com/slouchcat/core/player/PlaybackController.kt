@@ -11,6 +11,7 @@ import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.api.generated.models.TrackSelection
 import com.slouchcat.core.api.generated.models.Trickplay
 import com.slouchcat.core.api.log.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -256,8 +257,9 @@ class PlaybackController(
     fun moveToBackground() {
         val id = sessionId ?: return
         resume = engine.positionMs to false
-        sendProgress(if (mutable.value.ended) ProgressEvent.State.ENDED else ProgressEvent.State.PAUSED, final = true)
+        if (!mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED, final = true)
         stopSession(id)
+        sessionId = null
         engine.stop()
         stopLoops()
         mutable.update { it.copy(playing = false) }
@@ -319,7 +321,15 @@ class PlaybackController(
         startJob = scope.launch {
             var attempts = 0
             while (true) {
-                val caps = capabilities(narrowing)
+                val caps = try {
+                    capabilities(narrowing)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: RuntimeException) {
+                    Log.w(TAG, "capabilities unreadable", error = e)
+                    fail(PlayerError.Failed)
+                    return@launch
+                }
                 val request = request(caps, positionMs)
                 when (val result = server.start(id, request)) {
                     is ApiResult.Ok -> {
@@ -726,7 +736,8 @@ class PlaybackController(
 
     /** Leaves the playing title: the last progress and the end of its session. */
     private fun leaveCurrent() {
-        if (!mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED, final = true)
+        // Without a session (ended by the server, or in the background) the last progress went out already.
+        if (sessionId != null && !mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED, final = true)
         sessionId?.let(::stopSession)
         sessionId = null
         stopLoops()

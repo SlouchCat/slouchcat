@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
@@ -59,6 +61,9 @@ class ItemFeature(
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
             val play = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(PlayerRoute(target)) } }
+            val playFromStart = navigator.opener(PlayerRoute(id))?.let { { target: String -> navigator.navigate(PlayerRoute(target, fromStart = true)) } }
+            // Back from the player: the page reads the title again quietly (the new progress, stage 5).
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.onShown() }
             ItemScreen(
                 state = state,
                 images = images,
@@ -69,6 +74,7 @@ class ItemFeature(
                     collection = { navigator.opener(CollectionRoute(it)) },
                     search = navigator.opener(SearchRoute()),
                     play = play,
+                    playFromStart = playFromStart,
                     trailer = { youtube -> uri.openUri(YOUTUBE + youtube) },
                 ),
                 events = vm,

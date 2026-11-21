@@ -5,6 +5,8 @@ import com.slouchcat.app.mobile.item.ItemFeature
 import com.slouchcat.app.mobile.more.MoreFeature
 import com.slouchcat.app.mobile.mylists.MyListsFeature
 import com.slouchcat.app.mobile.person.PersonFeature
+import com.slouchcat.app.mobile.player.PlayerFeature
+import com.slouchcat.app.mobile.playback.PlaybackSettingsFeature
 import com.slouchcat.app.mobile.profilesettings.ProfileSettingsFeature
 import com.slouchcat.app.mobile.search.SearchFeature
 
@@ -23,4 +25,6 @@ val features: List<Feature> = listOf(
     MyListsFeature(),
     CollectionsFeature(),
     ProfileSettingsFeature(),
+    PlayerFeature(),
+    PlaybackSettingsFeature(),
 )

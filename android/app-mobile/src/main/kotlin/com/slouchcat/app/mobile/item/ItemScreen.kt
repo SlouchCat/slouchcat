@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -97,6 +98,8 @@ data class ItemLinks(
     val collection: (String) -> (() -> Unit)? = { null },
     val search: (() -> Unit)? = null,
     val play: ((String) -> Unit)? = null,
+    /** «Von vorn» under the bar of a started title (mockup `from0`): the player from the beginning. */
+    val playFromStart: ((String) -> Unit)? = null,
     /** Opens YouTube outside the app (concept 27 3.3, F-30). */
     val trailer: (String) -> Unit = {},
 )
@@ -418,11 +421,26 @@ private fun PlayArea(item: ItemDetail, links: ItemLinks) {
             ProgressBar(share(p))
             val left = runtimeText(minutesLeft(p))
             val episodeTitle = target.episode?.title
-            Text(
-                if (episodeTitle != null) stringResource(R.string.app_item_leftEpisode, left, episodeTitle) else stringResource(R.string.app_item_left, left),
-                style = SlouchcatType.caption.copy(fontSize = 13.5.sp),
-                color = c.tx3,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    if (episodeTitle != null) stringResource(R.string.app_item_leftEpisode, left, episodeTitle) else stringResource(R.string.app_item_left, left),
+                    style = SlouchcatType.caption.copy(fontSize = 13.5.sp),
+                    color = c.tx3,
+                    modifier = Modifier.weight(1f),
+                )
+                links.playFromStart?.let { fromStart ->
+                    Text(
+                        stringResource(R.string.app_item_fromStart),
+                        style = SlouchcatType.label.copy(fontSize = 13.5.sp),
+                        color = c.tx,
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Button) { fromStart(target.id) }
+                            .wrapContentHeight(Alignment.CenterVertically)
+                            .padding(horizontal = 4.dp),
+                    )
+                }
+            }
         }
     }
 }

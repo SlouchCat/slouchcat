@@ -10,6 +10,7 @@ import android.media.MediaCodecList
 import android.os.Build
 import android.view.Display
 import androidx.media3.common.AudioAttributes
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioCapabilities
 
@@ -19,7 +20,7 @@ import androidx.media3.exoplayer.audio.AudioCapabilities
  * external output, the largest display mode and its HDR formats. Read again before every start: a
  * headphone or an HDMI adapter changes the answer.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class DeviceFactsReader(private val context: Context) {
     fun read(type: DeviceType): DeviceFacts {
         val display = context.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
@@ -42,7 +43,8 @@ class DeviceFactsReader(private val context: Context) {
         }
 
     private fun passthrough(): Set<String> {
-        val capabilities = AudioCapabilities.getCapabilities(context, AudioAttributes.DEFAULT, null)
+        // A device whose audio service does not answer passes nothing through.
+        val capabilities = runCatching { AudioCapabilities.getCapabilities(context, AudioAttributes.DEFAULT, null) }.getOrNull() ?: return emptySet()
         return ENCODINGS.filter { (_, encoding) -> capabilities.supportsEncoding(encoding) }.keys
     }
 
@@ -59,12 +61,15 @@ class DeviceFactsReader(private val context: Context) {
 
     @Suppress("DEPRECATION")
     private fun display(display: Display): DisplayInfo {
-        val mode = display.supportedModes.maxBy { it.physicalWidth * it.physicalHeight }
+        val mode = display.supportedModes.maxByOrNull { it.physicalWidth * it.physicalHeight }
+        val metrics = context.resources.displayMetrics
+        val width = mode?.physicalWidth ?: metrics.widthPixels
+        val height = mode?.physicalHeight ?: metrics.heightPixels
         val types = if (Build.VERSION.SDK_INT >= 34) display.mode.supportedHdrTypes.toList() else display.hdrCapabilities?.supportedHdrTypes?.toList().orEmpty()
         // Landscape: video fills the screen sideways, so the short side is the height that counts.
         return DisplayInfo(
-            maxWidth = maxOf(mode.physicalWidth, mode.physicalHeight),
-            maxHeight = minOf(mode.physicalWidth, mode.physicalHeight),
+            maxWidth = maxOf(width, height),
+            maxHeight = minOf(width, height),
             hdrTypes = types.mapNotNull {
                 when (it) {
                     Display.HdrCapabilities.HDR_TYPE_HDR10 -> HdrType.Hdr10

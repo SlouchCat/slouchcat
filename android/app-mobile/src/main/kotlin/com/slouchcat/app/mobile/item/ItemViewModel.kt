@@ -121,6 +121,16 @@ class ItemViewModel(
 
     override fun retry() = load()
 
+    private var shown = false
+
+    /**
+     * The page is in front again (back from the player, stage 5): read the title again quietly, so
+     * the bar and «Weiterschauen» show the new progress. The first time is the page's own load.
+     */
+    fun onShown() {
+        if (shown) load(quiet = true) else shown = true
+    }
+
     private fun load(quiet: Boolean = false) {
         val server = session.server ?: return
         loading?.cancel()
