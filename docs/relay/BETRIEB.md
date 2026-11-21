@@ -282,7 +282,7 @@ Ausfall.
 | Wer | Sieht | Sieht nicht |
 |---|---|---|
 | Vermittlung | Internet-Adressen von Fernseher und Handy, Zeitpunkt, Geheimtext | Serveradresse, Gutschein, Konto |
-| Push-Weiterleitung | Internet-Adresse des Slouchcat-Servers, Zeitpunkt und Häufigkeit der Meldungen, Google-Token des Handys, Geheimtext | Titel und Text der Meldung, Konto |
+| Push-Weiterleitung | Internet-Adresse des Slouchcat-Servers, Zeitpunkt und Häufigkeit der Meldungen, Google-Token des Handys, Geheimtext; beim Anmelden einer App (`/v1/register`) auch die Internet-Adresse des Handys | Titel und Text der Meldung, Konto |
 | Der Proxy vor einem Dienst | dasselbe wie der Dienst dahinter | dasselbe wie der Dienst dahinter |
 | Google (Push) | Google-Token, Zeitpunkt, Geheimtext | Titel und Text, Serveradresse |
 

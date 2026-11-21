@@ -1,0 +1,241 @@
+<!doctype html>
+<!-- Privacy policy of the Slouchcat Android app (concept 27, F-36), built from docs/store/datenschutz.md
+     and privacy.md without the notes for the commissioner. Static, no scripts, no external requests.
+     Before publishing: replace every &lt;…&gt; placeholder, publish under HTTPS and enter the address in
+     the Play Console (docs/store/VEROEFFENTLICHEN.md, step «Datenschutzerklärung»). Changes go into
+     both Markdown files and this page. -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+<meta name="referrer" content="no-referrer">
+<title>Slouchcat – Datenschutz / Privacy</title>
+<style>
+  :root { color-scheme: light dark; --bg: #ffffff; --fg: #1a1a1a; --muted: #555555; --line: #d0d0d0; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #121212; --fg: #ececec; --muted: #b0b0b0; --line: #3a3a3a; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  nav { border-bottom: 1px solid var(--line); padding-bottom: .75rem; color: var(--muted); }
+  a { color: inherit; }
+  h1 { font-size: 1.6rem; } h2 { font-size: 1.35rem; margin-top: 2.5rem; } h3 { font-size: 1.1rem; margin-top: 1.75rem; }
+  section + section { border-top: 1px solid var(--line); margin-top: 3rem; }
+</style>
+</head>
+<body>
+<main>
+<nav><a href="#de">Deutsch</a> · <a href="#en" hreflang="en">English</a></nav>
+<section id="de" lang="de">
+<h1>Datenschutzerklärung der App Slouchcat</h1>
+<p>Stand: &lt;Datum der Veröffentlichung&gt;</p>
+<h3>1. Worum es geht</h3>
+<p>Diese Erklärung gilt für die App «Slouchcat» für Android (Paket com.slouchcat.app) auf Handys,
+Tablets und Fernsehern und für die zwei Hilfsdienste, die das Projekt für die App betreibt.</p>
+<p>Slouchcat ist ein Medienserver, den jeder selbst betreibt. Die App ist der Abspieler dazu. Sie
+enthält keine Inhalte und verbindet sich mit einem Slouchcat-Server, dessen Adresse du eingibst.
+<strong>Diesen Server betreibt nicht der Entwickler der App</strong>, sondern du selbst oder die Person, die
+dich eingeladen hat. Was dort mit deinen Daten geschieht, verantwortet der Betreiber des Servers.</p>
+<h3>2. Verantwortlich</h3>
+<p>Verantwortlich für die App und die zwei Hilfsdienste:</p>
+<p>&lt;Name des Entwicklers&gt;<br>
+&lt;Postadresse&gt;<br>
+E-Mail: &lt;E-Mail-Adresse für Datenschutz&gt;</p>
+<p>Verantwortlich für die Daten auf einem Slouchcat-Server ist dessen Betreiber.</p>
+<h3>3. Was der Entwickler nicht tut</h3>
+<ul>
+<li>Kein Konto beim Entwickler. Die App legt nirgends ein Konto an ausser auf deinem Server.</li>
+<li>Keine Werbung, keine Werbe-Kennungen.</li>
+<li>Keine Analyse, keine Nutzungsstatistik, keine Absturzberichte an den Entwickler.</li>
+<li>Kein Verkauf und keine Weitergabe von Daten.</li>
+<li>Die zwei Hilfsdienste speichern nichts auf Dauer (Abschnitt 6).</li>
+</ul>
+<h3>4. Was auf dem Gerät bleibt</h3>
+<p>Die App speichert auf deinem Gerät:</p>
+<ul>
+<li>die Adresse deines Servers und, bei unverschlüsselten Verbindungen, den öffentlichen Schlüssel,
+  mit dem sich der Server ausweist;</li>
+<li>das Anmeldetoken deiner Sitzung und eine Gerätekennung, die dein Server vergibt;</li>
+<li>gespeicherte Filme, Folgen und Hörbücher samt Untertiteln und Bildern, die Liste der Downloads,
+  Wiedergabe-Ereignisse ohne Netz, die noch zum Server müssen, und eine Prüfgrösse für die
+  Offline-PIN eines Profils;</li>
+<li>deine Einstellungen.</li>
+</ul>
+<p>In die Sicherung des Geräts und beim Umzug auf ein neues Gerät geht nur die Adresse deines
+Servers; Anmeldung, Downloads und alles andere bleiben auf dem Gerät. Beim Deinstallieren löscht
+Android alles, was die App gespeichert hat. Beim Abmelden fragt die App, ob sie die Downloads
+löschen soll.</p>
+<h3>5. Was an deinen Server geht</h3>
+<p>Die App sendet an den Server, dessen Adresse du eingibst, und an keinen anderen Server des
+Entwicklers:</p>
+<ul>
+<li>beim Anmelden E-Mail-Adresse und Passwort, danach bei jeder Anfrage das Anmeldetoken;</li>
+<li>die Gerätekennung, die Art und den Namen des Geräts (zum Beispiel Hersteller, Modell und
+  Android-Fassung) und die Fassung der App;</li>
+<li>was das Gerät abspielen kann, damit der Server die passende Wiedergabe wählt;</li>
+<li>was du tust: gewählte Profile, Suchen, Merkliste, Wiedergabe-Fortschritt, Downloads und
+  Einstellungen;</li>
+<li>die Internet-Adresse deines Geräts, wie bei jeder Verbindung.</li>
+</ul>
+<p>Verbindet sich die App ohne HTTPS mit dem Server, gehen diese Angaben unverschlüsselt über das
+Netz. Die App warnt davor. Wir empfehlen HTTPS.</p>
+<h3>6. Die zwei Hilfsdienste</h3>
+<p>Das Projekt betreibt zwei kleine Dienste, die nur Verschlüsseltes weiterreichen. Sie haben keine
+Konten, keine Datenbank und schreiben keine Internet-Adressen in ihre Protokolle. Für die
+Begrenzung der Anfragen je Aufrufer halten sie die Adresse kurz im Arbeitsspeicher. Sie laufen
+&lt;Ort der zwei Dienste, zum Beispiel: auf eigener Hardware in der Schweiz&gt;.</p>
+<p><strong>Vermittlung beim Einrichten eines Fernsehers</strong> (pair.slouchcat.com). Wird ein Fernseher per
+Scan eingerichtet, legt die Handy-App dort ein Paket ab, das nur der Fernseher entschlüsseln kann;
+der Fernseher holt es ab. Der Dienst sieht die Internet-Adressen von Fernseher und Handy, den
+Zeitpunkt und das verschlüsselte Paket. Er sieht nicht die Adresse deines Servers, nicht dein
+Konto und nicht den Gutschein im Paket. Ein Paket lebt höchstens fünf Minuten im Arbeitsspeicher.
+Richtest du den Fernseher von Hand ein, ist der Dienst nicht beteiligt.</p>
+<p><strong>Weiterleitung von Benachrichtigungen</strong> (push.slouchcat.com). Damit Meldungen deines Servers
+auch bei geschlossener App ankommen, meldet sich die App mit ihrem Push-Token von Google bei diesem
+Dienst an und gibt deinem Server eine Push-Adresse, in der das Token verschlüsselt steckt. Dein
+Server schickt jede Meldung verschlüsselt an diese Adresse, der Dienst reicht sie an Googles
+Push-Dienst weiter. Der Dienst sieht dabei:</p>
+<ul>
+<li>beim Anmelden die Internet-Adresse deines Geräts und das Push-Token;</li>
+<li>bei jeder Meldung die Internet-Adresse deines Servers, den Zeitpunkt, die Häufigkeit und die
+  verschlüsselte Meldung.</li>
+</ul>
+<p>Er sieht nicht Titel und Text einer Meldung und nicht dein Konto. Er speichert nichts davon.</p>
+<h3>7. Google</h3>
+<ul>
+<li><strong>Push (Firebase Cloud Messaging):</strong> Google stellt die Meldungen zu. Google sieht das Push-Token,
+  den Zeitpunkt und die verschlüsselte Meldung, nicht deren Inhalt und nicht die Adresse deines
+  Servers. Die Bibliothek von Google auf dem Gerät tauscht dafür Daten mit Google aus. Es gilt die
+  Datenschutzerklärung von Google (<a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a>) und die Angaben zu
+  Firebase (<a href="https://firebase.google.com/support/privacy">https://firebase.google.com/support/privacy</a>). Google kann Daten in den USA
+  verarbeiten. Die Bauart ohne Google-Bibliotheken (foss, nicht im Play Store) nutzt diesen Weg
+  nicht.</li>
+<li><strong>QR-Scanner:</strong> Den QR-Code eines Fernsehers liest der «Google code scanner» der
+  Google-Play-Dienste. Die App selbst bekommt kein Kamerabild, nur den gelesenen Code.</li>
+<li><strong>Play Store:</strong> Installation, Updates und Kauf über Google Play verarbeitet Google nach eigener
+  Erklärung. Der Entwickler sieht davon nur zusammengefasste Zahlen der Play Console.</li>
+</ul>
+<h3>8. Rechtsgrundlagen</h3>
+<p>Nach der EU-Datenschutz-Grundverordnung (DSGVO): Die Daten, die die App für ihre Aufgaben braucht
+(Abschnitte 4 bis 7), verarbeiten wir, weil du die App nutzt und die Funktion anforderst
+(Art. 6 Abs. 1 lit. b DSGVO). Die kurze Begrenzung der Anfragen je Internet-Adresse dient dem
+Schutz der Dienste vor Missbrauch (berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO). Nach dem
+Schweizer Datenschutzgesetz (revDSG) bearbeiten wir Personendaten nur für diese Zwecke und nur so
+lange, wie es dafür nötig ist.</p>
+<h3>9. Deine Rechte</h3>
+<p>Du hast nach revDSG und DSGVO das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung,
+Herausgabe deiner Daten und Widerspruch. Weil die zwei Dienste nichts speichern, hat der
+Entwickler in der Regel keine Daten über dich, die er herausgeben oder löschen könnte. Deine
+Daten auf einem Slouchcat-Server verwaltet dessen Betreiber; dort kannst du auch Geräte abmelden
+(«Meine Geräte»). Die Daten auf dem Gerät löschst du, indem du dich abmeldest oder die App
+deinstallierst.</p>
+<p>Anfragen an den Entwickler: &lt;E-Mail-Adresse für Datenschutz&gt;. Du kannst dich auch bei einer
+Aufsichtsbehörde beschweren, in der Schweiz beim Eidgenössischen Datenschutz- und
+Öffentlichkeitsbeauftragten (EDÖB), in der EU bei der Behörde deines Wohnsitzes.</p>
+<h3>10. Kinder</h3>
+<p>Die App richtet sich an Inhaberinnen und Inhaber eines Kontos auf einem Slouchcat-Server, nicht an
+Kinder. Ein Konto kann Kinderprofile mit Altersgrenze haben; diese richtet der Inhaber des Kontos
+ein, und die Grenzen setzt der Server durch. Die App erhebt über Kinder nichts anderes als über
+andere Profile.</p>
+<h3>11. Änderungen</h3>
+<p>Ändert sich, was die App oder die Dienste verarbeiten, passen wir diese Erklärung an und ändern
+das Datum oben. Die jeweils gültige Fassung steht unter &lt;Adresse der Datenschutzerklärung&gt;.</p>
+</section>
+<section id="en" lang="en">
+<h2>Privacy policy of the Slouchcat app</h2>
+<p>Last updated: &lt;Datum der Veröffentlichung&gt;</p>
+<h3>1. Scope</h3>
+<p>This policy covers the app «Slouchcat» for Android (package com.slouchcat.app) on phones,
+tablets and TVs, and the two helper services the project runs for the app.</p>
+<p>Slouchcat is a media server that everyone runs themselves. The app is its player. It contains no
+content and connects to the Slouchcat server whose address you enter. <strong>That server is not run by
+the developer of the app</strong>, but by you or by the person who invited you. Whatever happens to your
+data there is the responsibility of the server's operator.</p>
+<h3>2. Controller</h3>
+<p>For the app and the two helper services:</p>
+<p>&lt;Name des Entwicklers&gt;<br>
+&lt;Postadresse&gt;<br>
+E-mail: &lt;E-Mail-Adresse für Datenschutz&gt;</p>
+<p>The operator of a Slouchcat server is responsible for the data on that server.</p>
+<h3>3. What the developer does not do</h3>
+<ul>
+<li>No account with the developer. The app creates no account anywhere except on your server.</li>
+<li>No advertising, no advertising IDs.</li>
+<li>No analytics, no usage statistics, no crash reports to the developer.</li>
+<li>No sale or transfer of data.</li>
+<li>The two helper services keep nothing permanently (section 6).</li>
+</ul>
+<h3>4. What stays on the device</h3>
+<p>The app stores on your device: the address of your server and, for unencrypted connections, the
+public key your server identifies itself with; the sign-in token and a device ID issued by your
+server; saved films, episodes and audiobooks with their subtitles and images, the list of
+downloads, offline playback events still to be sent, and a check value for an offline PIN; your
+settings.</p>
+<p>Only the server address goes into the device backup and a transfer to a new device; sign-in,
+downloads and everything else stay on the device. Uninstalling the app deletes everything it
+stored. When you sign out, the app asks whether to delete the downloads.</p>
+<h3>5. What goes to your server</h3>
+<p>The app sends to the server whose address you enter, and to no server of the developer: your
+e-mail address and password when you sign in, then the sign-in token with every request; the
+device ID, the kind and name of the device (for example maker, model and Android version) and the
+app version; what the device can play, so the server picks the right playback; what you do:
+chosen profiles, searches, watchlist, playback progress, downloads and settings; and your
+device's internet address, as with any connection.</p>
+<p>If the app connects to the server without HTTPS, this information travels unencrypted. The app
+warns about it. We recommend HTTPS.</p>
+<h3>6. The two helper services</h3>
+<p>The project runs two small services that only pass on encrypted data. They have no accounts and no
+database and write no internet addresses into their logs. To limit requests per caller they keep
+the address briefly in memory. They run &lt;Ort der zwei Dienste&gt;.</p>
+<p><strong>Pairing relay for setting up a TV</strong> (pair.slouchcat.com). When you set up a TV by scanning,
+the phone app leaves a packet there that only the TV can decrypt, and the TV picks it up. The
+service sees the internet addresses of TV and phone, the time and the encrypted packet. It does
+not see your server's address, your account or the voucher inside the packet. A packet lives in
+memory for five minutes at most. Setting up a TV by hand does not involve the service.</p>
+<p><strong>Notification forwarder</strong> (push.slouchcat.com). So that notifications of your server arrive
+while the app is closed, the app registers its Google push token with this service and gives your
+server a push address that holds the token in encrypted form. Your server sends every
+notification encrypted to that address, and the service passes it on to Google's push service.
+The service sees: when registering, your device's internet address and the push token; with every
+notification, your server's internet address, the time, the frequency and the encrypted
+notification. It does not see the title or text of a notification or your account. It stores none
+of it.</p>
+<h3>7. Google</h3>
+<ul>
+<li><strong>Push (Firebase Cloud Messaging):</strong> Google delivers the notifications. Google sees the push
+  token, the time and the encrypted notification, not its content and not your server's address.
+  Google's library on the device exchanges data with Google for this. Google's privacy policy
+  (<a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a>) and the Firebase information
+  (<a href="https://firebase.google.com/support/privacy">https://firebase.google.com/support/privacy</a>) apply. Google may process data in the United
+  States. The build without Google libraries (foss, not in the Play Store) does not use this.</li>
+<li><strong>QR scanner:</strong> The «Google code scanner» of Google Play services reads the QR code of a TV. The
+  app receives no camera image, only the code that was read.</li>
+<li><strong>Play Store:</strong> Google processes installation, updates and purchases through Google Play under
+  its own policy. The developer sees only aggregated figures in the Play Console.</li>
+</ul>
+<h3>8. Legal bases</h3>
+<p>Under the EU General Data Protection Regulation (GDPR): we process the data the app needs for its
+functions (sections 4 to 7) because you use the app and request the function (Art. 6(1)(b) GDPR).
+The brief rate limiting per internet address protects the services against abuse (legitimate
+interest, Art. 6(1)(f) GDPR). Under the Swiss Federal Act on Data Protection (revFADP) we process
+personal data only for these purposes and only as long as needed.</p>
+<h3>9. Your rights</h3>
+<p>Under the revFADP and the GDPR you have the right of access, rectification, erasure, restriction,
+data portability and objection. Because the two services store nothing, the developer usually
+holds no data about you to hand over or erase. Your data on a Slouchcat server is managed by its
+operator; there you can also sign devices out («My devices»). You delete the data on the device by
+signing out or uninstalling the app.</p>
+<p>Requests to the developer: &lt;E-Mail-Adresse für Datenschutz&gt;. You may also complain to a
+supervisory authority: in Switzerland the Federal Data Protection and Information Commissioner
+(FDPIC), in the EU the authority of your place of residence.</p>
+<h3>10. Children</h3>
+<p>The app is meant for holders of an account on a Slouchcat server, not for children. An account
+may have child profiles with an age limit; the account holder sets them up, and the server
+enforces the limits. The app collects nothing about children beyond what it handles for any other
+profile.</p>
+<h3>11. Changes</h3>
+<p>If what the app or the services process changes, we update this policy and the date above. The
+current version is at &lt;Adresse der Datenschutzerklärung&gt;.</p>
+</section>
+</main>
+</body>
+</html>

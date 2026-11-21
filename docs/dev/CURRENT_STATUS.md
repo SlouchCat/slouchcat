@@ -94,6 +94,24 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     Wiedergabe und Durchreichen auf echten Geräten und Tonanlagen (kein Decoder für Dolby im Emulator).
   - **Offen (ADR 0041):** Beginnt eine Dolby-Tonspur erst nach dem ersten Segment, scheitert der Start
     eines Remux mit Tonkopie.
+- **Konzept 27, Stufe 10 «Öffentlich», Vorbereitung** (was sich ohne Google und ohne Marco bauen liess):
+  - `docs/store/`: Store-Eintrag in Deutsch und Englisch (Handy-App und Zusatz für die TV-Geräteart), Liste
+    der Grafiken mit Massen, Datenschutzerklärung als **Entwurf** (Deutsch, Englisch, statische HTML-Seite;
+    ersetzt keine Rechtsberatung), Angaben zur Datensicherheit Frage für Frage, Erklärung der
+    Vordergrunddienste samt Drehbuch für die Videos, Alterseinstufung, Text für den Prüferzugang und
+    `VEROEFFENTLICHEN.md` (neun Schritte von der Play Console bis zur TV-Spur, mit den Befehlen zum Signieren).
+  - `deploy/demo/`: Vorführserver für Googles Prüfer. Lädt vier frei lizenzierte Filme der Blender
+    Foundation mit Prüfsumme (keine Mediendatei im Repo), legt Konto, Bibliothek und Prüfkonto über die API
+    an, HTTPS als Profil. Lokal erprobt.
+  - **Verträglichkeitsregel** (`docs/dev/VERTRAEGLICHKEIT.md`, Absatz in `CLAUDE.md`): Operationen mit
+    `x-clients` brechen nicht mehr von einem Release aufs nächste (Übergangszeit mindestens 90 Tage und
+    30 Tage nach einer App-Version im Store, die das Neue kann). Der Test `TestXClientsCompatibility`
+    vergleicht den Vertrag mit dem eingefrorenen Stand von 1.42.0 (`task server:freeze:x-clients`).
+    Verbindlich mit der öffentlichen Stufe; bis dahin Übung.
+  - **Offen, nur Marco:** Platzhalter in den Unterlagen füllen (Entwickler, Adressen, Kontakt), Upload-Schlüssel
+    erzeugen, App in der Play Console anlegen und hochladen, geschlossener Test mit 12 Testern über 14 Tage,
+    Antrag auf Produktion, Vorführserver aufsetzen, Datenschutzerklärung prüfen und veröffentlichen.
+    Bildschirmfotos, Symbol und Banner entstehen mit den fertigen Apps.
 - **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
   Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
   - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.

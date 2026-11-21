@@ -85,6 +85,26 @@ tasks:
         go vet $packages
         go test -count=1 $packages
 
+  freeze:x-clients:
+    desc: >-
+      Freeze the operations with x-clients of the contract at REF (default: the newest server
+      release tag) into internal/api/testdata/x-clients-frozen.json, the state that
+      TestXClientsCompatibility compares api/openapi.yaml with (docs/dev/VERTRAEGLICHKEIT.md).
+      Run it after every release whose contract changes an operation with x-clients, for example
+      `task server:freeze:x-clients REF=v1.42.0`, and commit the file.
+    vars:
+      REF: '{{.REF | default ""}}'
+    cmds:
+      - |
+        set -euo pipefail
+        ref="{{.REF}}"
+        [ -n "$ref" ] || ref=$(git describe --tags --match 'v[0-9]*' --abbrev=0)
+        tmp=$(mktemp)
+        trap 'rm -f "$tmp"' EXIT
+        git show "$ref:api/openapi.yaml" >"$tmp"
+        SLOUCHCAT_FREEZE_X_CLIENTS="$tmp" SLOUCHCAT_FREEZE_X_CLIENTS_REF="$ref" \
+          go test -count=1 -v -run '^TestXClientsCompatibility$' ./internal/api | grep -E 'froze|^(ok|FAIL)'
+
   check:fast:selftest:
     desc: Check scripts/changedpkgs.sh, which `check:fast` relies on, against a throwaway repository
     cmds:
