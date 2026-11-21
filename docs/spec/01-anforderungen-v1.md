@@ -30,7 +30,7 @@
 | Wiedergabe und Transcoding | active | Direct Play, GPU-Transcoding zu HLS, Tonemapping, Qualitätsregeln, Komfortfunktionen, Geräte-Fähigkeiten | Kriterien W-1 bis W-10 |
 | Entdecken und Kuratierung | active | Startseite mit Karussell „User-Empfehlungen“ (bis Konzept 17 „Cat's Empfehlungen“) und fünf Reihen, Suche mit Filtern, Trakt-Top-Listen aus der eigenen Bibliothek, Favoriten mit Benachrichtigung (seit Konzept 20 Stufe 3: Merkliste mit Benachrichtigung, siehe E-8) | Kriterien E-1 bis E-9; **algorithmische Empfehlungen, Profil-Interaktion sowie Assistent, Zufall, Trailer-Reel und Themenlisten zurückgestellt** (Runden 6 und 18); Ausnahme seit 8. November 2026: anonyme Empfehlungen zwischen Profilen (Frage 25, ADR 0028) |
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
-| Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3) |
+| Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3). Seit 21. November 2026 Ziel: native Android-Handy-App (Frage 35, Konzept 27) und Android-TV-App (Frage 34, Konzept 26) |
 | Server-Administration | active | Einrichtungsassistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Benachrichtigungen, Statistiken, Ankündigungen | Kriterien A-1 bis A-9 |
 | Integrationen | active | Radarr/Sonarr-Webhooks für schnelles Einlesen, Bazarr für Untertitel, Trakt (öffentliche Listen), YouTube-Trailer | Kriterien I-5, I-7, I-8; **Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt** (Runden 12 und 20). *Nachtrag 17. November 2026: Ausnahme Wünsche über Seerr (Frage 33, Konzept 25, ADR 0037).* |
 
@@ -55,7 +55,9 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 ## Non-Goals
 - Musik, Fotos, Live-TV und DVR (spätere Versionen). Ausnahme seit 6. November 2026: Live-Webradio
   (Frage 23 im Entscheidungsprotokoll, Konzept 16, ADR 0025); Musikbibliothek und DVR bleiben Nicht-Ziele.
-- TV-Apps (Android TV, Apple TV, webOS, Tizen) und native iOS-/Android-Apps (spätere Versionen).
+- TV-Apps (Apple TV, webOS, Tizen, Fire TV) und native iOS-Apps (spätere Versionen). Ausnahme seit
+  21. November 2026: die native Android-Handy-App (Frage 35 im Entscheidungsprotokoll, Konzept 27) und die
+  Android-TV-App (Frage 34, Konzept 26) sind Ziel.
 - Plugin-System oder Erweiterungs-Marktplatz.
 - Automatische, algorithmische Empfehlungen („Weil du X gesehen hast") und Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander). Ausnahme seit 8. November 2026: anonyme
   Empfehlungen zwischen Profilen (Frage 25 im Entscheidungsprotokoll, Konzept 18 Teil B, ADR 0028); Bewertungen,
@@ -81,7 +83,10 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
   Download-Fortschritt bei Wünschen, und ändert sie nie. Sonst nichts.
 - Eigene Untertitel-Beschaffung (Bazarr übernimmt).
 - Mandantenfähigkeit (mehrere gleichberechtigte Haushalte auf einem Server).
-- Cloud-Betrieb, natives Installationspaket, Windows- oder macOS-Server.
+- Cloud-Betrieb, natives Installationspaket, Windows- oder macOS-Server. Ausnahme seit 21. November 2026
+  (Frage 35, Konzept 27): zwei kleine Dienste im Internet, die Vermittlung für das Einrichten eines Fernsehers
+  per Scan und die Push-Weiterleitung an die Handy-App. Sie halten keine Konten und keine Inhalte und sehen
+  Pakete und Meldungen nur verschlüsselt. Der Server selbst läuft weiter nur beim Nutzer.
 - Download von YouTube-Inhalten auf den Server.
 
 ## Acceptance Criteria
