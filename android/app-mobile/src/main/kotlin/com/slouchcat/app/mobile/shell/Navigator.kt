@@ -1,5 +1,7 @@
 package com.slouchcat.app.mobile.shell
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
@@ -9,7 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object SetupRoute
 
-/** The sign-in; [confirmKey]: the user signs in again to confirm a new key of the server (section 6). */
+/** The sign-in; [confirmKey]: the user chose to confirm a new key of the server (section 6). */
 @Serializable
 data class SignInRoute(val confirmKey: Boolean = false)
 
@@ -20,10 +22,15 @@ data object ProfilesRoute
 val ENTRY_ROUTES = setOf(SetupRoute::class, SignInRoute::class, ProfilesRoute::class)
 
 /**
- * The navigation of the app for pages and features: forward, back, a target of the bar, and the
- * entry pages. One instance per NavHost.
+ * The navigation of the app for pages and features: forward, back, a target of the bar, a media
+ * entry, an in-app jump, and the entry pages. One instance per NavHost; [selected] is the target
+ * the current page counts to (kept by the NavHost across recreation).
  */
-class Navigator(private val nav: NavHostController, private val registry: ShellRegistry) {
+class Navigator(
+    private val nav: NavHostController,
+    private val registry: ShellRegistry,
+    val selected: MutableState<String?> = mutableStateOf(null),
+) {
     /** A page within the current target. */
     fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = true }
 
@@ -31,8 +38,15 @@ class Navigator(private val nav: NavHostController, private val registry: ShellR
         nav.popBackStack()
     }
 
-    /** A target of the bar or the side column; each keeps its own pages (saved and restored). */
+    /**
+     * A target of the bar or the side column; each keeps its own pages (saved and restored). Tapping
+     * the target shown: on its first page nothing, on a page below it back to its first page.
+     */
     fun openTop(destination: TopDestination) {
+        val here = registry.targetOf(nav.currentBackStackEntry)
+        if (here == destination) return
+        if (selected.value == destination.key && nav.popBackStack(destination.route, inclusive = false)) return
+        selected.value = destination.key
         nav.navigate(destination.route) {
             popUpTo(registry.home.route) { saveState = true }
             launchSingleTop = true
@@ -40,15 +54,34 @@ class Navigator(private val nav: NavHostController, private val registry: ShellR
         }
     }
 
-    /** After the profile choice: the first target, nothing behind it. */
-    fun toHome() = nav.navigate(registry.home.route) { popUpTo(0) { inclusive = true } }
+    /** A media entry: its page opens under its target, «Start» unless it names another (code review M-7). */
+    fun openMedia(entry: MediaEntry) {
+        val target = registry.destination(entry.target) ?: registry.home
+        if (selected.value != target.key || registry.targetOf(nav.currentBackStackEntry) != target) {
+            selected.value = target.key
+            nav.navigate(target.route) {
+                popUpTo(registry.home.route) { saveState = true }
+                launchSingleTop = true
+            }
+        }
+        navigate(entry.route)
+    }
+
+    /** An in-app jump: the target, then each route down from it, so Back walks them back. */
+    fun open(link: AppLink) {
+        val target = registry.destination(link.target) ?: registry.home
+        selected.value = target.key
+        nav.navigate(target.route) {
+            popUpTo(registry.home.route)
+            launchSingleTop = true
+        }
+        link.routes.forEach(::navigate)
+    }
 
     /** «Profil wechseln»: the choice above the current page, back returns. */
     fun toProfiles() = nav.navigate(ProfilesRoute) { launchSingleTop = true }
 
-    /** The profile choice as the first page (after the sign-in). */
-    fun toProfilesFirst() = nav.navigate(ProfilesRoute) { popUpTo(0) { inclusive = true } }
-
+    /** The sign-in without anything behind it; [confirmKey] after the user chose to confirm a new key. */
     fun toSignIn(confirmKey: Boolean = false) = nav.navigate(SignInRoute(confirmKey)) { popUpTo(0) { inclusive = true } }
 
     /** «Ändern» on the sign-in: the address, back returns to the sign-in. */

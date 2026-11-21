@@ -129,13 +129,30 @@ class SessionManager(
     @Volatile
     var credentialsSuppressed: Boolean = false
 
+    /** Called (under the lock) when the server changes: another address or another key (security review H-2). */
+    @Volatile
+    var onServerChanged: () -> Unit = {}
+
+    private val _epoch = MutableStateFlow(0L)
+
+    /**
+     * Counts every change of who uses the app: sign-in, profile choice, sign-out. The navigation
+     * starts afresh with each (code review B-1); a 401 of an older epoch changes nothing (minor 8).
+     */
+    val epoch: StateFlow<Long> = _epoch.asStateFlow()
+
+    /** The server as stored, with its version and key. */
+    val savedServer: SavedServer? get() = saved
+
     override val server: HttpUrl? get() = saved?.address
     override val serverKey: String? get() = saved?.serverKey
     override val bearerToken: String? get() = if (credentialsSuppressed) null else token
-    override val deviceId: String? get() = if (token == null || credentialsSuppressed) device else null
 
-    /** The device id the server handed out, sent along with the next sign-in. */
-    val knownDeviceId: String? get() = device
+    /** Only without a session; never while a new key is being confirmed (security review L-1). */
+    override val deviceId: String? get() = if (token == null && !credentialsSuppressed) device else null
+
+    /** The device id the server handed out, sent along with the next sign-in (not while confirming a key). */
+    val knownDeviceId: String? get() = if (credentialsSuppressed) null else device
 
     /** Reads everything once and then follows the server address (the setup page writes it). */
     fun start(scope: CoroutineScope) {
@@ -156,11 +173,19 @@ class SessionManager(
             }
             servers.server.collect { server ->
                 mutex.withLock {
-                    val changed = saved != null && server != null && saved?.address != server.address
+                    val old = saved
+                    // Another address or another key: another server (H-2). Its session, its device id
+                    // and every proof of the old one are worthless there (code review minor 10).
+                    val changed = old != null && server != null && (old.address != server.address || old.serverKey != server.serverKey)
                     saved = server
-                    // Another server: the session of the old one is worthless there.
-                    if (changed) clearLocked()
-                    publish()
+                    if (changed) {
+                        clearLocked()
+                        device = null
+                        tokens.write(StoredCredentials(null, null))
+                        onServerChanged()
+                        Log.i(TAG, "server changed, session cleared")
+                    }
+                    publish(newEpoch = changed)
                 }
             }
         }
@@ -168,6 +193,15 @@ class SessionManager(
 
     /** Waits until [start] has read the stores. */
     suspend fun ready(): SessionState = state.first { it != SessionState.Loading }
+
+    /**
+     * The user confirmed a new key by signing in (section 6): the key counts at once, before the
+     * store's flow brings it back (code review minor 11). Not a change of server.
+     */
+    suspend fun keyConfirmed(key: String) = mutex.withLock {
+        saved = saved?.copy(serverKey = key)
+        servers.confirmKey(key)
+    }
 
     suspend fun signedIn(newToken: String, newDeviceId: String, accountEmail: String, chosen: ActiveProfile?) = mutex.withLock {
         tokens.write(StoredCredentials(newToken, newDeviceId))
@@ -177,13 +211,13 @@ class SessionManager(
         profile = chosen
         accounts.write(accountEmail, chosen)
         Log.i(TAG, "signed in", "profile" to (chosen != null))
-        publish()
+        publish(newEpoch = true)
     }
 
     suspend fun profileChosen(chosen: ActiveProfile) = mutex.withLock {
         profile = chosen
         accounts.write(email, chosen)
-        publish()
+        publish(newEpoch = true)
     }
 
     suspend fun accountChanged(accountEmail: String) = mutex.withLock {
@@ -196,7 +230,7 @@ class SessionManager(
     suspend fun signedOut() = mutex.withLock {
         clearLocked()
         Log.i(TAG, "signed out")
-        publish()
+        publish(newEpoch = true)
     }
 
     private suspend fun clearLocked() {
@@ -208,7 +242,9 @@ class SessionManager(
         accounts.write(null, null)
     }
 
-    private fun publish() {
+    /** The state after a change; [newEpoch] in the same step, so nobody sees one without the other. */
+    private fun publish(newEpoch: Boolean = false) {
+        if (newEpoch) _epoch.value++
         val server = saved
         val mail = email
         val chosen = profile

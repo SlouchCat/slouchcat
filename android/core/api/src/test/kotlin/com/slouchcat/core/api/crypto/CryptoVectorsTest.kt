@@ -50,5 +50,8 @@ class CryptoVectorsTest {
         assertFalse(ServerProof.valid("not base64!", ByteArray(32), "AAAA"))
         assertEquals(32, ServerProof.nonce().size)
         assertEquals("AQID", Base64Url.encode(byteArrayOf(1, 2, 3)))
+        // SHA-256 of 32 zero bytes starts with 66687aadf862bd776c8fc18b8e9f8e20.
+        assertEquals("6668 7aad f862 bd77 6c8f c18b 8e9f 8e20", ServerProof.fingerprint(Base64Url.encode(ByteArray(32))))
+        assertEquals(null, ServerProof.fingerprint("not base64!"))
     }
 }

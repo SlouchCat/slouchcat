@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.slouchcat.app.mobile.common.KeyConfirmation
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.AppLogin
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.AuthRepository
@@ -13,17 +14,14 @@ import com.slouchcat.core.session.DeviceDescription
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.ServerProbe
-import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.SessionManager
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.security.GeneralSecurityException
 
@@ -38,6 +36,9 @@ sealed interface SignInError {
 
     /** No answer, or the server did not prove itself in this network (section 6). */
     data object Unreachable : SignInError
+
+    /** Another key under the server's address: nothing was sent (ADR 0040). */
+    data object ServerUnconfirmed : SignInError
 
     data object AppTooOld : SignInError
 
@@ -59,17 +60,31 @@ data class SignInUiState(
     val emailError: FieldError? = null,
     val passwordError: FieldError? = null,
     val error: SignInError? = null,
-    /** The user confirms a new key of the server by signing in (section 6). */
+    /** The user chose to confirm the new key [newKey] by signing in (section 6). */
     val confirmKey: Boolean = false,
+    /** The key the server's address presented instead of the remembered one. */
+    val newKey: String? = null,
+    val rememberedKey: String? = null,
+    /** The sheet with both fingerprints is open; [ownNetwork] is its switch. */
+    val keyCheck: Boolean = false,
+    val ownNetwork: Boolean = false,
     /** How the device appears under «Meine Geräte». */
     val deviceName: String = "",
-)
+) {
+    /** Never the password (security review L-2). */
+    override fun toString(): String =
+        "SignInUiState(server=${server?.address}, busy=$busy, error=$error, confirmKey=$confirmKey, password=[redacted])"
+}
 
 /**
  * «Anmelden» (mockup `/setup/login`, concept 27 4.2): `appLogin` with e-mail, password, the
- * device's name and kind and the device id it already holds; the token goes into the Keystore.
- * In [confirmKey] mode the new key of the server is checked for this sign-in only and stored once
- * the server accepted the password (section 6).
+ * device's name and kind and the device id it already holds; the token goes into the Keystore. The
+ * next page follows from the new session epoch.
+ *
+ * A new key of the server (ADR 0040, decision of the build): nothing is sent to it until the user
+ * opened the check, saw both fingerprints and stated «Ich bin in meinem eigenen Netz» (here or under
+ * «Mehr › Server», then [confirmKey]). Only then the sign-in goes to the new key, without token and
+ * device id; the key counts once the server accepted the password.
  */
 class SignInViewModel(
     private val saved: SavedStateHandle,
@@ -77,36 +92,33 @@ class SignInViewModel(
     private val session: SessionManager,
     private val auth: AuthRepository,
     private val probe: ServerProbe,
-    private val servers: ServerStore,
     private val device: DeviceDescription,
     private val keys: KeyConfirmation,
 ) : ViewModel() {
     private val _state = MutableStateFlow(
-        SignInUiState(email = saved[EMAIL] ?: "", confirmKey = confirmKey && keys.presentedKey != null, deviceName = device.name),
+        SignInUiState(
+            email = saved[EMAIL] ?: "",
+            confirmKey = confirmKey && keys.newKey.value != null,
+            rememberedKey = keys.rememberedKey,
+            deviceName = device.name,
+        ),
     )
     val state: StateFlow<SignInUiState> = _state.asStateFlow()
 
-    private val _done = Channel<Boolean>(Channel.BUFFERED)
-
-    /**
-     * One event after a successful sign-in: `true` when the server chose the profile itself (an
-     * account with a single profile), so the app opens; `false`: the profile choice follows.
-     */
-    val done: Flow<Boolean> = _done.receiveAsFlow()
-
     init {
         viewModelScope.launch {
-            val server = servers.server.first() ?: return@launch
+            keys.newKey.collect { key ->
+                _state.update { it.copy(newKey = key, rememberedKey = keys.rememberedKey, confirmKey = it.confirmKey && key != null) }
+            }
+        }
+        viewModelScope.launch {
+            val server = session.savedServer ?: return@launch
             _state.update { it.copy(server = server) }
-            // While a new key waits for confirmation, nothing but the sign-in goes out.
             if (_state.value.confirmKey) return@launch
-            // The version shown is the one the server reports now; a server that went back to an
-            // older release says so before the user types the password.
+            // The version shown is the one the server reports now. Only shown, not stored: the
+            // answer comes before any proof and may come from another device (security review L-4).
             when (val result = probe.probe(server.address)) {
-                is ProbeResult.Found -> {
-                    if (result.info.version != server.version) servers.updateVersion(result.info.version)
-                    _state.update { it.copy(server = server.copy(version = result.info.version)) }
-                }
+                is ProbeResult.Found -> _state.update { it.copy(server = server.copy(version = result.info.version)) }
                 is ProbeResult.TooOld -> _state.update { it.copy(error = SignInError.ServerTooOld(result.serverVersion, result.required)) }
                 else -> Unit
             }
@@ -126,6 +138,18 @@ class SignInViewModel(
 
     fun onTogglePassword() = _state.update { it.copy(showPassword = !it.showPassword) }
 
+    /** Opens the check of the new key; nothing happens without one. */
+    fun onCheckKey() = _state.update { if (it.newKey != null) it.copy(keyCheck = true, ownNetwork = false) else it }
+
+    fun onOwnNetwork(own: Boolean) = _state.update { it.copy(ownNetwork = own) }
+
+    /** The user stated the own network: the next sign-in goes to the new key. */
+    fun onConfirmKey() = _state.update {
+        if (it.ownNetwork && it.newKey != null) it.copy(confirmKey = true, keyCheck = false, error = null) else it
+    }
+
+    fun onDismissKey() = _state.update { it.copy(keyCheck = false, ownNetwork = false) }
+
     fun onSubmit() {
         val now = _state.value
         if (now.busy || now.error is SignInError.ServerTooOld) return
@@ -142,32 +166,39 @@ class SignInViewModel(
         }
         val server = now.server ?: return
         val password = now.password
+        val key = keys.newKey.value.takeIf { now.confirmKey }
+        if (now.confirmKey && key == null) return
         _state.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            val key = keys.presentedKey.takeIf { now.confirmKey }
+            var confirmed = false
             if (key != null) keys.begin(key)
-            val result = auth.appLogin(server.address, email, password, device, session.knownDeviceId)
-            val error = when (result) {
-                is ApiResult.Ok -> store(result.value, key != null)
-                is ApiResult.Failed -> when {
-                    result.code == ApiCaller.INVALID_CREDENTIALS -> SignInError.InvalidCredentials
-                    result.status == 429 -> SignInError.TooManyAttempts(result.retryAfterSeconds ?: DEFAULT_PAUSE)
-                    else -> SignInError.Failed
+            try {
+                // While confirming, the device id stays here (security review L-1).
+                val result = auth.appLogin(server.address, email, password, device, session.knownDeviceId)
+                val error = when (result) {
+                    is ApiResult.Ok -> store(result.value, key).also { confirmed = key != null && it == null }
+                    is ApiResult.Failed -> when {
+                        result.code == ApiCaller.INVALID_CREDENTIALS -> SignInError.InvalidCredentials
+                        result.code == ApiCaller.SERVER_UNCONFIRMED -> SignInError.ServerUnconfirmed
+                        result.status == 429 -> SignInError.TooManyAttempts(result.retryAfterSeconds ?: DEFAULT_PAUSE)
+                        else -> SignInError.Failed
+                    }
+                    ApiResult.Offline -> SignInError.Unreachable
+                    ApiResult.AppTooOld -> SignInError.AppTooOld
+                    ApiResult.NotFound, is ApiResult.NotAllowed, ApiResult.SignedOut -> SignInError.Failed
                 }
-                ApiResult.Offline -> SignInError.Unreachable
-                ApiResult.AppTooOld -> SignInError.AppTooOld
-                ApiResult.NotFound, is ApiResult.NotAllowed, ApiResult.SignedOut -> SignInError.Failed
+                // The password leaves the state after every attempt, whatever the outcome.
+                _state.update { it.copy(busy = false, password = "", showPassword = false, error = error) }
+            } finally {
+                // Also when the page goes away meanwhile (code review M-1): the credentials come back.
+                if (key != null && !confirmed) withContext(NonCancellable) { keys.finish(confirmed = false) }
             }
-            if (error != null && key != null) keys.finish(confirmed = false)
-            // The password leaves the state after every attempt, whatever the outcome.
-            _state.update { it.copy(busy = false, password = "", showPassword = false, error = error) }
-            if (error == null) _done.send(result is ApiResult.Ok && result.value.session.profile != null)
         }
     }
 
     /** Stores the session; `null` when it worked. */
-    private suspend fun store(login: com.slouchcat.core.api.generated.models.AppLogin, confirming: Boolean): SignInError? = try {
-        if (confirming) keys.finish(confirmed = true)
+    private suspend fun store(login: AppLogin, key: String?): SignInError? = try {
+        if (key != null) keys.finish(confirmed = true)
         val profile = login.session.profile?.let { ActiveProfile(it.id, it.name, it.isPrimary, it.accent?.value, it.image) }
         session.signedIn(login.token, login.deviceId, login.session.account.email, profile)
         Log.i(TAG, "signed in", "kind" to device.kind.value)

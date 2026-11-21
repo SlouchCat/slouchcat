@@ -1,6 +1,11 @@
 package com.slouchcat.app.mobile.signin
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.ViewModelProvider
 import com.slouchcat.app.mobile.testing.EMAIL
 import com.slouchcat.app.mobile.testing.FakeAuth
 import com.slouchcat.app.mobile.testing.FakeKeys
@@ -11,15 +16,17 @@ import com.slouchcat.app.mobile.testing.HTTP_SERVER
 import com.slouchcat.app.mobile.testing.PHONE
 import com.slouchcat.app.mobile.testing.session
 import com.slouchcat.app.mobile.testing.settle
+import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.AppLogin
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.ServerInfo
+import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.session.StoredCredentials
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
@@ -49,10 +56,10 @@ class SignInViewModelTest {
     @After
     fun reset() = Dispatchers.resetMain()
 
-    private fun TestScope.model(confirmKey: Boolean = false): Pair<SignInViewModel, com.slouchcat.core.session.SessionManager> {
+    private fun TestScope.model(confirmKey: Boolean = false): Pair<SignInViewModel, SessionManager> {
         val session = session(backgroundScope, token = null, tokens = tokens, servers = servers)
         settle()
-        val vm = SignInViewModel(saved, confirmKey, session, auth, probe, servers, PHONE, keys)
+        val vm = SignInViewModel(saved, confirmKey, session, auth, probe, PHONE, keys)
         settle()
         return vm to session
     }
@@ -78,23 +85,23 @@ class SignInViewModelTest {
     @Test
     fun aSignInStoresTheTokenAndForgetsThePassword() = runTest(dispatcher) {
         val (vm, session) = model()
-        // The server reported a newer version: the page and the store follow.
+        // The version the server reports is shown, not stored: it comes before any proof (L-4).
         assertEquals("1.42.1", vm.state.value.server?.version)
-        assertEquals("1.42.1", servers.flow.value?.version)
-        val done = backgroundScope.launch { vm.done.first() }
+        assertEquals("1.42.0", servers.flow.value?.version)
+        val epoch = session.epoch.value
         vm.typeIn(" $EMAIL ", "secret-password")
         vm.onSubmit()
         assertTrue(vm.state.value.busy)
         settle()
-        assertTrue(done.isCompleted)
         assertEquals(listOf("login:$EMAIL:phone"), auth.calls)
         assertEquals("secret-password", auth.lastPassword)
-        // The device id of the former sign-in goes along.
         assertEquals("device-1", auth.lastDeviceId)
         assertEquals(StoredCredentials("new-token", "device-2"), tokens.stored)
-        assertEquals(SessionState.ChooseProfile(servers.flow.value!!, EMAIL), session.state.value)
+        assertEquals(SessionState.ChooseProfile(HTTP_SERVER, EMAIL), session.state.value)
+        assertEquals("a new session epoch opens the next page", epoch + 1, session.epoch.value)
         assertEquals("", vm.state.value.password)
         assertFalse("the password never reaches the saved state", saved.keys().any { saved.get<Any>(it) == "secret-password" })
+        assertFalse("the password reaches toString", vm.state.value.copy(password = "secret-password").toString().contains("secret-password"))
     }
 
     @Test
@@ -116,7 +123,7 @@ class SignInViewModelTest {
     }
 
     @Test
-    fun noAnswerAndAnOldAppAreSaid() = runTest(dispatcher) {
+    fun noAnswerAnOldAppAndAnUnconfirmedServerAreSaid() = runTest(dispatcher) {
         val (vm, _) = model()
         auth.login = ApiResult.Offline
         vm.typeIn(EMAIL, "secret")
@@ -128,6 +135,11 @@ class SignInViewModelTest {
         vm.onSubmit()
         settle()
         assertEquals(SignInError.AppTooOld, vm.state.value.error)
+        auth.login = ApiResult.Failed(null, ApiCaller.SERVER_UNCONFIRMED)
+        vm.onPasswordChange("secret")
+        vm.onSubmit()
+        settle()
+        assertEquals(SignInError.ServerUnconfirmed, vm.state.value.error)
     }
 
     @Test
@@ -139,14 +151,24 @@ class SignInViewModelTest {
         vm.onSubmit()
         settle()
         assertEquals(emptyList<String>(), auth.calls)
-        assertTrue(vm.state.value.error is SignInError.ServerTooOld)
     }
 
     @Test
-    fun aNewKeyCountsOnlyAfterTheServerAcceptedThePassword() = runTest(dispatcher) {
-        keys.presentedKey = "new-key"
-        val (vm, _) = model(confirmKey = true)
+    fun aNewKeyIsOnlyUsedAfterTheOwnNetworkIsStated() = runTest(dispatcher) {
+        keys.newKey.value = "new-key"
+        val (vm, _) = model()
+        assertEquals("new-key", vm.state.value.newKey)
+        assertFalse(vm.state.value.confirmKey)
+        // Without the statement the sign-in does not go to the new key.
+        vm.onCheckKey()
+        assertTrue(vm.state.value.keyCheck)
+        vm.onConfirmKey()
+        assertFalse(vm.state.value.confirmKey)
+        vm.onOwnNetwork(true)
+        vm.onConfirmKey()
         assertTrue(vm.state.value.confirmKey)
+        assertFalse(vm.state.value.keyCheck)
+
         auth.login = ApiResult.Failed(401, "invalid_credentials")
         vm.typeIn(EMAIL, "wrong")
         vm.onSubmit()
@@ -162,12 +184,37 @@ class SignInViewModelTest {
     }
 
     @Test
-    fun withoutANewKeyTheConfirmationIsAnOrdinarySignIn() = runTest(dispatcher) {
+    fun withoutANewKeyTheRouteToConfirmIsAnOrdinarySignIn() = runTest(dispatcher) {
         val (vm, _) = model(confirmKey = true)
         assertFalse(vm.state.value.confirmKey)
         vm.typeIn(EMAIL, "secret")
         vm.onSubmit()
         settle()
         assertEquals(emptyList<String>(), keys.log)
+    }
+
+    @Test
+    fun aPageThatGoesAwayWhileConfirmingGivesTheCredentialsBack() = runTest(dispatcher) {
+        keys.newKey.value = "new-key"
+        val hanging = CompletableDeferred<ApiResult<AppLogin>>()
+        val slow = object : com.slouchcat.core.session.AuthRepository by auth {
+            override suspend fun appLogin(server: okhttp3.HttpUrl, email: String, password: String, device: com.slouchcat.core.session.DeviceDescription, deviceId: String?) =
+                hanging.await()
+        }
+        val session = session(backgroundScope, token = null, tokens = tokens, servers = servers)
+        settle()
+        val store = ViewModelStore()
+        val owner = object : ViewModelStoreOwner { override val viewModelStore = store }
+        val vm = ViewModelProvider.create(owner, viewModelFactory { initializer { SignInViewModel(saved, true, session, slow, probe, PHONE, keys) } })[SignInViewModel::class]
+        settle()
+        vm.typeIn(EMAIL, "secret")
+        vm.onSubmit()
+        settle()
+        assertTrue(keys.suppressed)
+        // Back on the only page: the ViewModel is cleared while appLogin hangs (code review M-1).
+        store.clear()
+        settle()
+        assertFalse("the credentials stay suppressed", keys.suppressed)
+        assertEquals(listOf("begin:new-key", "finish:false"), keys.log)
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.slouchcat.app.mobile.common.EntryLayout
+import com.slouchcat.app.mobile.common.KeyCheckSheet
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon
@@ -53,6 +54,9 @@ fun SetupScreen(
     onChangeAddress: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    onOwnNetwork: (Boolean) -> Unit = {},
+    onAcceptKey: () -> Unit = {},
+    onDismissKey: () -> Unit = {},
 ) {
     EntryLayout(modifier) { wide ->
         SetupPane(state, onAddressChange, onConnect, onChangeAddress, onNext, wide = wide)
@@ -60,6 +64,18 @@ fun SetupScreen(
     val insecure = state.insecureAddress
     if (insecure != null) {
         InsecureSheet(insecure, onConfirm = onConfirmInsecure, onDismiss = onDismissInsecure)
+    }
+    val change = state.keyChange
+    if (change != null) {
+        KeyCheckSheet(
+            remembered = change.first,
+            presented = change.second,
+            ownNetwork = state.ownNetwork,
+            onOwnNetwork = onOwnNetwork,
+            confirmLabel = stringResource(R.string.app_serverKey_accept),
+            onConfirm = onAcceptKey,
+            onDismiss = onDismissKey,
+        )
     }
 }
 

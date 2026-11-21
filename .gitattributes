@@ -1,0 +1,4 @@
+# Line lists that parallel branches each extend by a line; the order of their lines does not
+# matter, so a merge keeps the lines of both sides (concept 27 stage 3, code review M-5).
+android/app-mobile/src/main/kotlin/com/slouchcat/app/mobile/shell/Features.kt merge=union
+android/strings-namespaces.txt merge=union

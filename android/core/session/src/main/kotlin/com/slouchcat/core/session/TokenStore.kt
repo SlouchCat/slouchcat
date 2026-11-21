@@ -65,6 +65,7 @@ class KeystoreSecretBox(private val alias: String = ALIAS) : SecretBox {
     override fun seal(plain: ByteArray): ByteArray {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key(create = true))
+        cipher.updateAAD(alias.toByteArray(Charsets.UTF_8))
         return cipher.iv + cipher.doFinal(plain)
     }
 
@@ -73,6 +74,8 @@ class KeystoreSecretBox(private val alias: String = ALIAS) : SecretBox {
         if (sealed.size <= IV_BYTES) throw GeneralSecurityException("sealed data too short")
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, sealed, 0, IV_BYTES))
+        // The alias as associated data: a blob sealed for another purpose does not open here.
+        cipher.updateAAD(alias.toByteArray(Charsets.UTF_8))
         return cipher.doFinal(sealed, IV_BYTES, sealed.size - IV_BYTES)
     }
 

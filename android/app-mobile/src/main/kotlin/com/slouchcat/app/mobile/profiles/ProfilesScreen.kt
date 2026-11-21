@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -25,7 +25,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.foundation.focusable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,10 +51,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.design.Avatar
@@ -80,7 +89,7 @@ fun ProfilesScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = maxHeight)
-                .systemBarsPadding()
+                .safeDrawingPadding()
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             // Wordmark at the top, the choice in the middle, the account at the bottom (mockup `.su-who`).
@@ -90,7 +99,7 @@ fun ProfilesScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     stringResource(R.string.profiles_picker_title),
-                    style = SlouchcatType.wordmark.copy(fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold),
+                    style = SlouchcatType.pickerTitle,
                     color = c.tx,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 24.dp, bottom = 32.dp).semantics { heading() },
@@ -203,8 +212,29 @@ private fun Tile(profile: ProfileSummary, current: Boolean, busy: Boolean, onCli
 private fun PinSheet(pin: PinState, onDigit: (Char) -> Unit, onDelete: () -> Unit, onSubmit: () -> Unit, onCancel: () -> Unit) {
     val c = SlouchcatTheme.colors
     val title = stringResource(R.string.profiles_pin_title, pin.profile.name)
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     SlouchcatSheet(title = title, onDismiss = onCancel) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .focusRequester(focus)
+                .focusable()
+                // Digits, delete and Enter from a hardware keyboard, as the mockup takes them (code review minor 17).
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    val digit = event.utf16CodePoint.toChar()
+                    when {
+                        digit in '0'..'9' -> onDigit(digit)
+                        event.key == Key.Backspace -> onDelete()
+                        event.key == Key.Enter || event.key == Key.NumPadEnter -> onSubmit()
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    true
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Avatar(pin.profile.name, pin.profile.accent?.value, size = 56.dp)
                 Text(title, style = SlouchcatType.sheetTitle, color = c.tx, modifier = Modifier.semantics { heading() })
@@ -271,7 +301,7 @@ private fun Key(text: String, enabled: Boolean, onClick: () -> Unit) {
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = SlouchcatType.pageTitle.copy(fontSize = 26.sp), color = if (enabled) c.tx else c.tx3)
+        Text(text, style = SlouchcatType.pinKey, color = if (enabled) c.tx else c.tx3)
     }
 }
 

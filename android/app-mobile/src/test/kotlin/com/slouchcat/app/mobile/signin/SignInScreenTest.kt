@@ -53,6 +53,10 @@ class SignInScreenTest {
                 onTogglePassword = { events += "toggle" },
                 onSubmit = { events += "submit" },
                 onChangeServer = { events += "server" },
+                onCheckKey = { events += "check" },
+                onOwnNetwork = { events += "own:$it" },
+                onConfirmKey = { events += "confirm" },
+                onDismissKey = { events += "dismiss" },
             )
         }
     }
@@ -121,8 +125,9 @@ class SignInScreenTest {
     fun serverTooOldTablet() = tooOld()
 
     private fun confirmKey() {
-        show(SignInUiState(server = HTTP_SERVER, confirmKey = true, busy = true))
-        compose.onNodeWithText(s(R.string.app_serverKey_confirm)).assertIsDisplayed()
+        val key = com.slouchcat.core.api.crypto.Base64Url.encode(ByteArray(32))
+        show(SignInUiState(server = HTTP_SERVER, confirmKey = true, newKey = key, busy = true))
+        compose.onNodeWithText(s(R.string.app_serverKey_confirming, "6668 7aad f862 bd77 6c8f c18b 8e9f 8e20")).assertIsDisplayed()
         compose.onNodeWithText(s(R.string.login_submitting)).performScrollTo().performClick()
         assertTrue("busy takes no second tap", events.isEmpty())
     }

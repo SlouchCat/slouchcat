@@ -49,7 +49,14 @@ import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.strings.R
+import android.icu.text.RelativeDateTimeFormatter
+import android.icu.util.ULocale
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import java.time.Duration
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -69,6 +76,8 @@ fun DevicesScreen(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The moment the relative times count from; tests fix it. */
+    now: Instant = Instant.now(),
 ) {
     val c = SlouchcatTheme.colors
     Box(modifier.fillMaxSize().background(c.bg)) {
@@ -92,7 +101,7 @@ fun DevicesScreen(
                         onRetry = onRetry,
                         empty = { EmptyState(stringResource(R.string.settings_devices_none), icon = SlouchcatIcon.Phone) },
                     ) { devices ->
-                        RowGroup(rows = devices.map { device -> { DeviceRow(device, state.canSignOut, onAsk) } })
+                        RowGroup(rows = devices.map { device -> { DeviceRow(device, state.canSignOut, now, onAsk) } })
                     }
                 }
             }
@@ -112,29 +121,57 @@ private fun iconOf(device: MyDevice): SlouchcatIcon = when (device.type) {
 @Composable
 private fun nameOf(device: MyDevice): String = device.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.settings_devices_unnamed)
 
+/** The app session of a tablet is a «Tablet-App», not a «Handy-App» (code review minor 26). */
 @Composable
-private fun kindOf(kind: SessionKind): String = stringResource(
-    when (kind) {
-        SessionKind.APP -> R.string.settings_devices_kinds_app
-        SessionKind.DEVICE -> R.string.settings_devices_kinds_device
+private fun kindOf(device: MyDevice, kind: SessionKind): String = stringResource(
+    when {
+        kind == SessionKind.APP && device.type == MyDevice.Type.TABLET -> R.string.app_devices_tabletApp
+        kind == SessionKind.APP -> R.string.settings_devices_kinds_app
+        kind == SessionKind.DEVICE -> R.string.settings_devices_kinds_device
         else -> R.string.settings_devices_kinds_browser
     },
 )
 
+/**
+ * «heute», «gestern», «vor 3 Tagen», then «am 12. November» (mockup «angemeldet seit heute»), in
+ * the language of the app through the platform's ICU (no own wording of times).
+ */
 @Composable
-private fun dateText(time: OffsetDateTime, withTime: Boolean): String {
+private fun signedInText(time: OffsetDateTime, now: Instant): String {
     val locale = LocalConfiguration.current.locales[0]
-    val format = if (withTime) {
-        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-    } else {
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)
+    val zone = ZoneId.systemDefault()
+    val days = ChronoUnit.DAYS.between(time.atZoneSameInstant(zone).toLocalDate(), now.atZone(zone).toLocalDate())
+    val relative = RelativeDateTimeFormatter.getInstance(ULocale.forLocale(locale))
+    return when {
+        days <= 0 -> relative.format(RelativeDateTimeFormatter.Direction.THIS, RelativeDateTimeFormatter.AbsoluteUnit.DAY)
+        days == 1L -> relative.format(RelativeDateTimeFormatter.Direction.LAST, RelativeDateTimeFormatter.AbsoluteUnit.DAY)
+        days < WEEK -> relative.format(days.toDouble(), RelativeDateTimeFormatter.Direction.LAST, RelativeDateTimeFormatter.RelativeUnit.DAYS)
+        else -> stringResource(R.string.app_devices_onDate, time.atZoneSameInstant(zone).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale)))
     }
-    return time.atZoneSameInstant(ZoneId.systemDefault()).format(format.withLocale(locale))
 }
 
-/** `.su-dev`: type, name, «dieses Gerät», session and sign-in, last contact and downloads. */
+/** «jetzt», «vor 5 Minuten», «vor 3 Stunden», «vor 2 Tagen», then the date (mockup «Letzter Kontakt: vor 2 Tagen»). */
 @Composable
-private fun DeviceRow(device: MyDevice, canSignOut: Boolean, onAsk: (MyDevice) -> Unit) {
+private fun lastSeenText(time: OffsetDateTime, now: Instant): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val gone = Duration.between(time.toInstant(), now)
+    val relative = RelativeDateTimeFormatter.getInstance(ULocale.forLocale(locale))
+    val last = RelativeDateTimeFormatter.Direction.LAST
+    return when {
+        gone.toMinutes() < 1 -> relative.format(RelativeDateTimeFormatter.Direction.PLAIN, RelativeDateTimeFormatter.AbsoluteUnit.NOW)
+        gone.toHours() < 1 -> relative.format(gone.toMinutes().toDouble(), last, RelativeDateTimeFormatter.RelativeUnit.MINUTES)
+        gone.toDays() < 1 -> relative.format(gone.toHours().toDouble(), last, RelativeDateTimeFormatter.RelativeUnit.HOURS)
+        gone.toDays() < WEEK -> relative.format(gone.toDays().toDouble(), last, RelativeDateTimeFormatter.RelativeUnit.DAYS)
+        else -> time.atZoneSameInstant(ZoneId.systemDefault()).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+    }
+}
+
+private const val WEEK = 7L
+
+/** `.su-dev`: type, name, «dieses Gerät», session and sign-in, last contact and downloads. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DeviceRow(device: MyDevice, canSignOut: Boolean, now: Instant, onAsk: (MyDevice) -> Unit) {
     val c = SlouchcatTheme.colors
     val name = nameOf(device)
     Row(
@@ -150,13 +187,18 @@ private fun DeviceRow(device: MyDevice, canSignOut: Boolean, onAsk: (MyDevice) -
         }
         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(name, style = SlouchcatType.rowTitle, color = c.tx)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Badge and kind in one line that wraps cleanly (mockup `.su-dev small`).
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (device.current) Badge(stringResource(R.string.settings_devices_thisDevice), tone = BadgeTone.Accent)
                 val kind = device.sessionKind
                 val signedIn = device.signedInAt
                 Text(
                     if (kind != null && signedIn != null) {
-                        stringResource(R.string.settings_devices_signedIn, kindOf(kind), dateText(signedIn, withTime = false))
+                        stringResource(R.string.app_devices_signedIn, kindOf(device, kind), signedInText(signedIn, now))
                     } else {
                         stringResource(R.string.settings_devices_downloadsOnly)
                     },
@@ -164,12 +206,12 @@ private fun DeviceRow(device: MyDevice, canSignOut: Boolean, onAsk: (MyDevice) -
                     color = c.tx2,
                 )
             }
-            val lastSeen = dateText(device.lastSeenAt, withTime = true)
+            val lastSeen = stringResource(R.string.app_devices_lastSeen, lastSeenText(device.lastSeenAt, now))
             Text(
                 if (device.downloads > 0) {
-                    pluralStringResource(R.plurals.settings_devices_lastSeenWithDownloads, device.downloads, device.downloads, lastSeen)
+                    lastSeen + " · " + pluralStringResource(R.plurals.settings_devices_downloads, device.downloads, device.downloads)
                 } else {
-                    stringResource(R.string.settings_devices_lastSeen, lastSeen)
+                    lastSeen
                 },
                 style = SlouchcatType.caption,
                 color = c.tx3,

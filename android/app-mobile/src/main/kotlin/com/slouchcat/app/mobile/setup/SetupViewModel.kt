@@ -53,6 +53,12 @@ data class SetupUiState(
     val found: ServerInfo? = null,
     /** «Weiter» is storing the address; a second tap does nothing. */
     val saving: Boolean = false,
+    /**
+     * The same address answers with another key than the remembered one (security review H-2):
+     * the remembered and the new key; storing it ends the session as for another server.
+     */
+    val keyChange: Pair<String, String>? = null,
+    val ownNetwork: Boolean = false,
 )
 
 /**
@@ -168,13 +174,40 @@ class SetupViewModel(
         update { it.copy(found = null, error = null) }
     }
 
-    /** «Weiter»: store the server and move on. */
+    /** «Weiter»: store the server and move on; another key under the stored address asks first. */
     fun onNext() {
         val now = _state.value
         val info = now.found ?: return
-        if (now.saving) return
-        update { it.copy(saving = true) }
+        if (now.saving || now.keyChange != null) return
         viewModelScope.launch {
+            val stored = store.server.first()
+            val remembered = stored?.serverKey
+            val presented = info.serverKey
+            if (stored != null && stored.address == info.address && remembered != null && presented != null && remembered != presented) {
+                update { it.copy(keyChange = remembered to presented, ownNetwork = false) }
+                return@launch
+            }
+            save(info)
+        }
+    }
+
+    fun onOwnNetwork(own: Boolean) = update { it.copy(ownNetwork = own) }
+
+    /** Takes the new key after the statement «Ich bin in meinem eigenen Netz». */
+    fun onAcceptKey() {
+        val now = _state.value
+        val info = now.found ?: return
+        if (now.keyChange == null || !now.ownNetwork || now.saving) return
+        update { it.copy(keyChange = null) }
+        viewModelScope.launch { save(info) }
+    }
+
+    fun onDismissKey() = update { it.copy(keyChange = null, ownNetwork = false) }
+
+    private suspend fun save(info: ServerInfo) {
+        if (_state.value.saving) return
+        update { it.copy(saving = true) }
+        run {
             store.save(SavedServer(info.address, info.version, info.userCertificate, info.serverKey))
             Log.i(TAG, "server stored", "version" to info.version, "encrypted" to info.encrypted)
             _done.send(Unit)

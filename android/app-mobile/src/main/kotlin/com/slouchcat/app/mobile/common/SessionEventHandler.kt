@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.slouchcat.core.api.SessionEvent
 import com.slouchcat.core.api.SessionEvents
-import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon
 import com.slouchcat.core.design.SheetText
@@ -22,23 +21,20 @@ import com.slouchcat.core.design.SlouchcatSheet
 import com.slouchcat.core.strings.R
 
 /**
- * The one place that reacts to [SessionEvents] (concept 27, 11.5 and section 6):
- * - «App zu alt» shows the notice to update the app;
- * - «Sitzung weg» calls [onSignedOut] (forget the session, show the sign-in; the address stays);
- * - «Der Server hat einen neuen Schlüssel» explains it and offers to sign in again
- *   ([onConfirmKey]); «Später» keeps everything as it is, the gate keeps sending nothing.
+ * The one place that reacts to [SessionEvents] (concept 27, 11.5): «App zu alt» shows the notice
+ * to update the app, «Sitzung weg» calls [onSignedOut] with the session epoch of the request that
+ * met the 401. A new key of the server is no event: it shows quietly where the server's data
+ * would be, and only «Mehr › Server» offers to confirm it (ADR 0040).
  */
 @Composable
-fun SessionEventHandler(events: SessionEvents, onSignedOut: () -> Unit, onConfirmKey: () -> Unit) {
+fun SessionEventHandler(events: SessionEvents, onSignedOut: (epoch: Long) -> Unit) {
     var tooOld by rememberSaveable { mutableStateOf(false) }
-    var newKey by rememberSaveable { mutableStateOf(false) }
     val signedOut by rememberUpdatedState(onSignedOut)
     LaunchedEffect(events) {
-        events.events.collect { event ->
-            when (event) {
+        events.events.collect { reported ->
+            when (reported.event) {
                 SessionEvent.AppTooOld -> tooOld = true
-                SessionEvent.SignedOut -> signedOut()
-                SessionEvent.ServerKeyChanged -> newKey = true
+                SessionEvent.SignedOut -> signedOut(reported.epoch)
             }
         }
     }
@@ -51,27 +47,6 @@ fun SessionEventHandler(events: SessionEvents, onSignedOut: () -> Unit, onConfir
             SheetActions {
                 SlouchcatButton(stringResource(R.string.app_update_close), onClick = { tooOld = false }, modifier = Modifier.weight(1f))
             }
-        }
-    }
-    if (newKey && !tooOld) {
-        ServerKeySheet(onLater = { newKey = false }, onSignIn = {
-            newKey = false
-            onConfirmKey()
-        })
-    }
-}
-
-/** «Der Server hat einen neuen Schlüssel» (concept 27 section 6, ADR 0040). */
-@Composable
-fun ServerKeySheet(onLater: () -> Unit, onSignIn: () -> Unit) {
-    val title = stringResource(R.string.app_serverKey_title)
-    SlouchcatSheet(title = title, onDismiss = onLater) {
-        SheetHeadIcon(SlouchcatIcon.Shield, warning = true)
-        SheetTitle(title, centered = true)
-        SheetText(stringResource(R.string.app_serverKey_body), centered = true)
-        SheetActions {
-            SlouchcatButton(stringResource(R.string.app_serverKey_later), onClick = onLater, kind = ButtonKind.Ghost, modifier = Modifier.weight(1f))
-            SlouchcatButton(stringResource(R.string.app_serverKey_signIn), onClick = onSignIn, modifier = Modifier.weight(1f))
         }
     }
 }

@@ -147,7 +147,7 @@ class ShellNavigationTest {
     @Test
     fun afterTheProfileChoiceTheFirstTargetStandsAlone() {
         host(start = ProfilesRoute)
-        compose.runOnUiThread { navigator.toHome() }
+        compose.runOnUiThread { nav.navigate(registry.home.route) { popUpTo(0) { inclusive = true } } }
         compose.waitForIdle()
         compose.onNodeWithText("home page").assertExists()
         back()

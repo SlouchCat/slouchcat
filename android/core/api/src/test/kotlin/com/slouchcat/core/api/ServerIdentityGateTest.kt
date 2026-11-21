@@ -3,10 +3,6 @@ package com.slouchcat.core.api
 import com.google.crypto.tink.subtle.Ed25519Sign
 import com.slouchcat.core.api.crypto.Base64Url
 import com.slouchcat.core.api.crypto.ServerProof
-import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -45,7 +41,6 @@ class ServerIdentityGateTest {
     private val otherKeys = Ed25519Sign.KeyPair.newKeyPair()
     private val otherKey = Base64Url.encode(otherKeys.publicKey)
     private val generation = AtomicLong(1)
-    private val events = SessionEvents()
     private var now = 0L
 
     @Before
@@ -84,7 +79,7 @@ class ServerIdentityGateTest {
     }
 
     private fun gate(prover: ServerProver, trusted: TrustedServer = trusted(), timeout: Duration = Duration.ofSeconds(5)) =
-        ServerIdentityGate(trusted, { generation.get() }, prover, events, timeout = timeout, backoff = Duration.ofSeconds(5), clock = { now })
+        ServerIdentityGate(trusted, { generation.get() }, prover, timeout = timeout, backoff = Duration.ofSeconds(5), maxAge = Duration.ofMinutes(10), clock = { now })
 
     private fun client(gate: ServerIdentityGate): OkHttpClient = SlouchcatHttp.client(identity, credentials, gate = gate)
 
@@ -138,22 +133,55 @@ class ServerIdentityGateTest {
     }
 
     @Test
-    fun aNewKeyIsReportedOnceAndSendsNothingUntilTheUserConfirmsIt() = runTest(UnconfinedTestDispatcher()) {
+    fun anErrorInTheProofLeavesNoRequestWaiting() {
+        val calls = AtomicInteger()
+        val gate = gate({ _, _ -> calls.incrementAndGet(); throw NoClassDefFoundError("r8") }, timeout = Duration.ofSeconds(30))
+        val http = client(gate)
+        repeat(2) {
+            val started = System.nanoTime()
+            try {
+                get(http)
+                fail("an Error passed")
+            } catch (e: NoClassDefFoundError) {
+                // The owner sees the Error; no later request waits for this attempt.
+            }
+            assertTrue("a request waited for a dead proof", System.nanoTime() - started < TimeUnit.SECONDS.toNanos(10))
+        }
+        assertEquals(2, calls.get())
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun aNewKeyIsHeldQuietlyAndSendsNothingUntilTheUserConfirmsIt() {
         val signer = Signer(otherKeys)
         val gate = gate(signer)
         val http = client(gate)
-        val reported = async { events.events.first() }
         val refused = assertRefused { get(http) }
         assertTrue(refused is ServerKeyChangedException)
         assertEquals(otherKey, (refused as ServerKeyChangedException).newKey)
-        assertEquals(otherKey, gate.presentedKey)
-        assertEquals(SessionEvent.ServerKeyChanged, reported.await())
+        assertEquals(otherKey, gate.newKey.value)
         assertEquals(0, server.requestCount)
 
-        // While the user signs in again to confirm it, the gate checks against the new key.
+        // Only the user's explicit confirmation makes the gate check against the new key.
         gate.candidateKey = otherKey
         assertEquals(200, signIn(http))
         assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun theRememberedKeyProvingAgainClearsTheNewKey() {
+        val signer = Signer(otherKeys)
+        val gate = gate(signer)
+        val http = client(gate)
+        assertRefused { get(http) }
+        assertEquals(otherKey, gate.newKey.value)
+        // Back in the own network: the remembered key proves itself.
+        signer.keys = serverKeys
+        generation.incrementAndGet()
+        assertEquals(200, get(http))
+        assertNull(gate.newKey.value)
+        gate.reset()
+        assertNull(gate.newKey.value)
     }
 
     @Test
@@ -168,6 +196,46 @@ class ServerIdentityGateTest {
     }
 
     @Test
+    fun aProofGetsOld() {
+        val signer = Signer()
+        val http = client(gate(signer))
+        assertEquals(200, get(http))
+        now += Duration.ofMinutes(11).toNanos()
+        assertEquals(200, get(http))
+        assertEquals(2, signer.calls.get())
+    }
+
+    @Test
+    fun aBrokenConnectionForgetsTheProof() {
+        val signer = Signer()
+        val gate = gate(signer)
+        val http = client(gate)
+        assertEquals(200, get(http))
+        assertTrue(gate.isProvenNow())
+        server.close()
+        assertRefused { get(http) }
+        assertFalse("the proof survived a broken connection", gate.isProvenNow())
+    }
+
+    @Test
+    fun aHopAfterANetworkChangeFailsBeforeTheCredentialsAreAdded() {
+        // The network changes while the first hop is on the server: OkHttp follows the redirect
+        // (as it would retry) below the application interceptor; the hop check stops it.
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = if (request.url.encodedPath == "/first") {
+                generation.incrementAndGet()
+                MockResponse(code = 302, headers = okhttp3.Headers.headersOf("Location", "/second"))
+            } else {
+                MockResponse(body = "{}")
+            }
+        }
+        val http = client(gate(Signer()))
+        val refused = assertRefused { get(http, "/first") }
+        assertTrue(refused is ServerNotProvenException)
+        assertEquals("the redirect did not leave", 1, server.requestCount)
+    }
+
+    @Test
     fun concurrentRequestsShareOneProof() {
         val release = CountDownLatch(1)
         val calls = AtomicInteger()
@@ -176,7 +244,8 @@ class ServerIdentityGateTest {
             release.await(5, TimeUnit.SECONDS)
             ProofAnswer(sign(serverKeys, nonce), serverKey)
         }
-        val http = client(gate(slow))
+        val gate = gate(slow)
+        val http = client(gate)
         val pool = Executors.newFixedThreadPool(8)
         val results = Collections.synchronizedList(mutableListOf<Int>())
         val done = CountDownLatch(8)
@@ -186,7 +255,10 @@ class ServerIdentityGateTest {
                 done.countDown()
             }
         }
-        // Nothing passes while the proof runs.
+        // Wait until one owns the proof and seven wait for it; nothing has passed meanwhile.
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (gate.waiting.get() < 7 && System.nanoTime() < deadline) Thread.onSpinWait()
+        assertEquals(7, gate.waiting.get())
         assertEquals(0, server.requestCount)
         release.countDown()
         assertTrue(done.await(10, TimeUnit.SECONDS))
@@ -209,13 +281,12 @@ class ServerIdentityGateTest {
         assertEquals(200, get(http))
         assertEquals(2, calls.get())
         assertEquals(listOf(1L, 2L), nonces)
-        // The second proof holds for the new network.
         assertEquals(200, get(http))
         assertEquals(2, calls.get())
     }
 
     @Test
-    fun aRequestWaitingForAProofGivesUpAfterTheTimeout() {
+    fun aWaiterThatGivesUpRecordsNoFailure() {
         val release = CountDownLatch(1)
         val started = CountDownLatch(1)
         val stuck = ServerProver { _, nonce ->
@@ -231,6 +302,8 @@ class ServerIdentityGateTest {
         assertEquals(0, server.requestCount)
         release.countDown()
         assertEquals(200, first.get(5, TimeUnit.SECONDS))
+        // The owner's proof counts: the next request passes at once.
+        assertEquals(200, get(http))
         owner.shutdown()
     }
 
@@ -267,7 +340,6 @@ class ServerIdentityGateTest {
 
     @Test
     fun theProofTravelsWithoutCredentialsAndTheRealServerPasses() {
-        // The real exchange: proveServer over a bare client, then the request with the token.
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 if (request.url.encodedPath != "/api/v1/server/prove") return MockResponse(body = "{}")

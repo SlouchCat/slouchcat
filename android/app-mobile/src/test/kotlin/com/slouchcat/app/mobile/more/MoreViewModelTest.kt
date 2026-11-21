@@ -58,7 +58,8 @@ class MoreViewModelTest {
     fun showsProfileAccountAndServer() = runTest(dispatcher) {
         val session = session(backgroundScope, tokens = tokens)
         settle()
-        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks))
+        val keys = com.slouchcat.app.mobile.testing.FakeKeys()
+        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks), keys)
         settle()
         assertEquals(PRIMARY, vm.state.value.profile)
         assertEquals(EMAIL, vm.state.value.email)
@@ -66,6 +67,32 @@ class MoreViewModelTest {
         vm.onServer()
         assertEquals(MoreSheet.Server, vm.state.value.sheet)
         vm.onDismissSheet()
+        assertNull(vm.state.value.sheet)
+        // No new key: no check to open.
+        vm.onKeyCheck()
+        assertNull(vm.state.value.sheet)
+    }
+
+    @Test
+    fun aNewKeyIsConfirmedOnlyAfterTheOwnNetworkIsStated() = runTest(dispatcher) {
+        val session = session(backgroundScope, tokens = tokens)
+        settle()
+        val keys = com.slouchcat.app.mobile.testing.FakeKeys("new-key")
+        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks), keys)
+        settle()
+        assertEquals("new-key", vm.state.value.newKey)
+        // Nothing opens by itself (ADR 0040).
+        assertNull(vm.state.value.sheet)
+        vm.onKeyCheck()
+        assertEquals(MoreSheet.KeyCheck, vm.state.value.sheet)
+        val confirm = backgroundScope.launch { vm.confirmKey.first() }
+        vm.onConfirmKey()
+        settle()
+        assertTrue("confirmed without the own network", !confirm.isCompleted)
+        vm.onOwnNetwork(true)
+        vm.onConfirmKey()
+        settle()
+        assertTrue(confirm.isCompleted)
         assertNull(vm.state.value.sheet)
     }
 
@@ -77,17 +104,17 @@ class MoreViewModelTest {
         hooks.onProfileOrSessionEnd { cleaned++ }
         val session = session(backgroundScope, tokens = tokens)
         settle()
-        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks))
+        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks), com.slouchcat.app.mobile.testing.FakeKeys())
         settle()
         vm.onSignOutAsk()
         settle()
         assertEquals(MoreSheet.SignOut, vm.state.value.sheet)
         assertEquals(1, vm.state.value.choices.size)
         vm.onChoice(0, false)
-        val out = backgroundScope.launch { vm.signedOut.first() }
+        val epoch = session.epoch.value
         vm.onSignOut()
         settle()
-        assertTrue(out.isCompleted)
+        assertEquals("a new session epoch", epoch + 1, session.epoch.value)
         assertEquals(false, step.ran)
         assertEquals("the step ran before the token went", "token", step.tokenAtRun)
         assertEquals(listOf("logout"), auth.calls)
@@ -101,7 +128,7 @@ class MoreViewModelTest {
         auth.logout = ApiResult.Offline
         val session = session(backgroundScope, tokens = tokens)
         settle()
-        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks))
+        val vm = MoreViewModel(session, hooks, actions(session, auth, hooks), com.slouchcat.app.mobile.testing.FakeKeys())
         vm.onSignOut()
         settle()
         assertTrue(session.state.value is SessionState.SignedOut)

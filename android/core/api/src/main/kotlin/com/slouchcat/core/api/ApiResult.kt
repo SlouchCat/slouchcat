@@ -59,18 +59,22 @@ inline fun <T, R> ApiResult<T>.map(transform: (T) -> R): ApiResult<R> = when (th
 }
 
 /**
- * What the whole app reacts to, wherever a call met it: the session is gone (401), the app is too
- * old (426), or the server proved a new key ([ServerIdentityGate], concept 27 section 6).
+ * What the whole app reacts to, wherever a call met it: the session is gone (401) or the app is
+ * too old (426). A new key of the server is no event: the gate holds it in `newKey` and the app
+ * shows it quietly (ADR 0040).
  */
-enum class SessionEvent { SignedOut, AppTooOld, ServerKeyChanged }
+enum class SessionEvent { SignedOut, AppTooOld }
+
+/** A [SessionEvent] with the session epoch of the call that met it (a late 401 of an old session counts for nothing). */
+data class ReportedEvent(val event: SessionEvent, val epoch: Long)
 
 /** One channel per app (held by its AppGraph) for [SessionEvent]s; the app's root collects it. */
 class SessionEvents {
-    private val flow = MutableSharedFlow<SessionEvent>(extraBufferCapacity = 8)
-    val events: SharedFlow<SessionEvent> = flow.asSharedFlow()
+    private val flow = MutableSharedFlow<ReportedEvent>(extraBufferCapacity = 8)
+    val events: SharedFlow<ReportedEvent> = flow.asSharedFlow()
 
-    fun report(event: SessionEvent) {
-        flow.tryEmit(event)
+    fun report(event: SessionEvent, epoch: Long = 0) {
+        flow.tryEmit(ReportedEvent(event, epoch))
     }
 }
 
@@ -84,8 +88,13 @@ class SessionEvents {
  * The block runs on the IO dispatcher and is interrupted when the coroutine is cancelled (the
  * generated client calls OkHttp blocking). A `null` body of a 2xx answer is [ApiResult.Failed].
  */
-class ApiCaller(private val events: SessionEvents) {
-    suspend fun <T : Any> call(tag: String = "api", block: () -> T?): ApiResult<T> = try {
+class ApiCaller(private val events: SessionEvents, private val epoch: () -> Long = { 0L }) {
+    suspend fun <T : Any> call(tag: String = "api", block: () -> T?): ApiResult<T> {
+        val started = epoch()
+        return run(tag, started, block)
+    }
+
+    private suspend fun <T : Any> run(tag: String, started: Long, block: () -> T?): ApiResult<T> = try {
         val value = runInterruptible(Dispatchers.IO) { block() }
         if (value == null) ApiResult.Failed(status = null, code = "empty") else ApiResult.Ok(value)
     } catch (e: CancellationException) {
@@ -96,12 +105,16 @@ class ApiCaller(private val events: SessionEvents) {
         val code = (problem?.get("code") as? JsonPrimitive)?.takeIf { it.isString }?.content
         val retryAfter = (problem?.get("retryAfterSeconds") as? JsonPrimitive)?.longOrNull
             ?: response?.headers?.entries?.firstOrNull { it.key.equals("Retry-After", ignoreCase = true) }?.value?.firstOrNull()?.trim()?.toLongOrNull()
-        val result = fromStatus(e.statusCode, code, retryAfter)
+        val result = fromStatus(e.statusCode, code, retryAfter, started)
         Log.i(tag, "call refused", "status" to e.statusCode, "code" to code)
         result
     } catch (e: ServerException) {
         Log.w(tag, "server error", "status" to e.statusCode, "code" to problemCode((e.response as? ServerError<*>)?.body))
         ApiResult.Failed(e.statusCode, problemCode((e.response as? ServerError<*>)?.body))
+    } catch (e: ServerKeyChangedException) {
+        // Another key under the server's address: not «offline», the page says «not confirmed».
+        Log.i(tag, "server not confirmed")
+        ApiResult.Failed(status = null, code = SERVER_UNCONFIRMED)
     } catch (e: IOException) {
         Log.i(tag, "no answer", error = e)
         ApiResult.Offline
@@ -114,11 +127,11 @@ class ApiCaller(private val events: SessionEvents) {
         ApiResult.Failed(status = null, code = "unexpected")
     }
 
-    private fun fromStatus(status: Int, code: String?, retryAfter: Long?): ApiResult<Nothing> = when {
+    private fun fromStatus(status: Int, code: String?, retryAfter: Long?, started: Long): ApiResult<Nothing> = when {
         // A wrong password (`appLogin`, `updateAccount`) is no lost session.
         status == 401 && code == INVALID_CREDENTIALS -> ApiResult.Failed(status, code)
-        status == 401 -> ApiResult.SignedOut.also { events.report(SessionEvent.SignedOut) }
-        status == 426 -> ApiResult.AppTooOld.also { events.report(SessionEvent.AppTooOld) }
+        status == 401 -> ApiResult.SignedOut.also { events.report(SessionEvent.SignedOut, started) }
+        status == 426 -> ApiResult.AppTooOld.also { events.report(SessionEvent.AppTooOld, started) }
         status == 403 -> ApiResult.NotAllowed(code)
         status == 404 -> ApiResult.NotFound
         else -> ApiResult.Failed(status, code, retryAfter)
@@ -134,5 +147,8 @@ class ApiCaller(private val events: SessionEvents) {
 
     companion object {
         const val INVALID_CREDENTIALS = "invalid_credentials"
+
+        /** [ApiResult.Failed.code] when the gate met another key ([ServerKeyChangedException]). */
+        const val SERVER_UNCONFIRMED = "server_unconfirmed"
     }
 }

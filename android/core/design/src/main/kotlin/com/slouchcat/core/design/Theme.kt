@@ -97,6 +97,12 @@ object SlouchcatType {
     val badge = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, lineHeight = 16.sp)
     val chip = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, lineHeight = 18.sp)
     val strong = TextStyle(fontSize = 16.5.sp, fontWeight = FontWeight.Bold, lineHeight = 22.sp)
+
+    /** «Wer schaut?» (`.su-who h1`). */
+    val pickerTitle = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold, lineHeight = 38.sp, letterSpacing = (-0.01).em)
+
+    /** A digit of the PIN pad (`.su-key`). */
+    val pinKey = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
 }
 
 private val LocalSlouchcatColors = staticCompositionLocalOf { SlouchcatColors() }

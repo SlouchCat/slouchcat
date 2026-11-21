@@ -38,7 +38,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.autofill.ContentType
 import com.slouchcat.app.mobile.common.EntryLayout
+import com.slouchcat.app.mobile.common.KeyCheckSheet
+import com.slouchcat.app.mobile.common.ServerUnconfirmedNote
+import com.slouchcat.core.api.crypto.ServerProof
 import com.slouchcat.core.design.Note
 import com.slouchcat.core.design.SlouchcatButton
 import com.slouchcat.core.design.SlouchcatDimens
@@ -64,6 +68,10 @@ fun SignInScreen(
     onTogglePassword: () -> Unit,
     onSubmit: () -> Unit,
     onChangeServer: () -> Unit,
+    onCheckKey: () -> Unit,
+    onOwnNetwork: (Boolean) -> Unit,
+    onConfirmKey: () -> Unit,
+    onDismissKey: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     EntryLayout(modifier) { wide ->
@@ -71,8 +79,17 @@ fun SignInScreen(
         Wordmark(stringResource(R.string.app_name), wide = wide)
         Spacer(Modifier.height(22.dp))
         state.server?.let { ServerRow(it, onChangeServer, enabled = !state.busy) }
-        if (state.confirmKey) {
-            Note(stringResource(R.string.app_serverKey_confirm), warning = true, icon = SlouchcatIcon.Shield, modifier = Modifier.padding(top = 14.dp))
+        val newKey = state.newKey
+        if (state.confirmKey && newKey != null) {
+            Note(
+                stringResource(R.string.app_serverKey_confirming, ServerProof.fingerprint(newKey) ?: newKey),
+                warning = true,
+                icon = SlouchcatIcon.Shield,
+                modifier = Modifier.padding(top = 14.dp),
+            )
+        } else if (newKey != null || state.error == SignInError.ServerUnconfirmed) {
+            // Quiet: no request to sign in, the check only on the user's own tap (ADR 0040).
+            ServerUnconfirmedNote(onCheck = if (newKey != null) onCheckKey else null, modifier = Modifier.padding(top = 14.dp))
         }
         Text(
             stringResource(R.string.login_title),
@@ -86,6 +103,7 @@ fun SignInScreen(
             label = stringResource(R.string.login_email),
             error = state.emailError?.let { fieldText(it) },
             enabled = !state.busy,
+            contentType = ContentType.EmailAddress + ContentType.Username,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next,
@@ -102,6 +120,7 @@ fun SignInScreen(
             error = state.passwordError?.let { fieldText(it) },
             enabled = !state.busy,
             visualTransformation = if (state.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            contentType = ContentType.Password,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Go,
@@ -118,7 +137,7 @@ fun SignInScreen(
                 )
             },
         )
-        state.error?.let { Note(errorText(it), warning = true, modifier = Modifier.padding(top = 16.dp)) }
+        state.error?.takeIf { it != SignInError.ServerUnconfirmed }?.let { Note(errorText(it), warning = true, modifier = Modifier.padding(top = 16.dp)) }
         SlouchcatButton(
             text = stringResource(if (state.busy) R.string.login_submitting else R.string.login_submit),
             onClick = onSubmit,
@@ -131,6 +150,18 @@ fun SignInScreen(
             SlouchcatIconImage(SlouchcatIcon.Phone, contentDescription = null, size = 16.dp, tint = c.tx2, modifier = Modifier.padding(top = 2.dp))
             Text(stringResource(R.string.app_signIn_deviceHint, state.deviceName), style = SlouchcatType.caption, color = c.tx2)
         }
+    }
+    val presented = state.newKey
+    if (state.keyCheck && presented != null) {
+        KeyCheckSheet(
+            remembered = state.rememberedKey,
+            presented = presented,
+            ownNetwork = state.ownNetwork,
+            onOwnNetwork = onOwnNetwork,
+            confirmLabel = stringResource(R.string.app_serverKey_signIn),
+            onConfirm = onConfirmKey,
+            onDismiss = onDismissKey,
+        )
     }
 }
 
@@ -197,6 +228,7 @@ private fun errorText(error: SignInError): String = when (error) {
     SignInError.InvalidCredentials -> stringResource(R.string.errors_code_invalid_credentials)
     is SignInError.TooManyAttempts -> stringResource(R.string.app_signIn_error_tooMany, error.seconds.toString())
     SignInError.Unreachable -> stringResource(R.string.app_setup_error_unreachable)
+    SignInError.ServerUnconfirmed -> stringResource(R.string.app_serverKey_unconfirmedBody)
     SignInError.AppTooOld -> stringResource(R.string.app_update_body)
     is SignInError.ServerTooOld -> stringResource(R.string.app_setup_error_tooOld, error.serverVersion, error.required)
     SignInError.Storage -> stringResource(R.string.app_signIn_error_storage)

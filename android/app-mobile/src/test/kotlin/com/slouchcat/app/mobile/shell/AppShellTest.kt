@@ -63,7 +63,7 @@ class AppShellTest {
         show(frame(listOf(more), emptyList()))
         compose.onNodeWithText("Page title").assertIsDisplayed()
         // No bar with a single target and no menu without media entries: no control without effect.
-        compose.onNodeWithText(s(R.string.app_more_title)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(s(R.string.app_more_title)).assertDoesNotExist()
         compose.onNodeWithContentDescription(s(R.string.app_shell_menuOpen)).assertDoesNotExist()
     }
 
@@ -76,8 +76,9 @@ class AppShellTest {
     private fun everythingOnAPhone() {
         show(frame(listOf(start, search, more), listOf(films, watchlist), selected = "more"))
         compose.assertEveryControlLabelledAndTappable()
-        compose.onNodeWithText(s(R.string.app_more_title)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
-        compose.onNodeWithText(s(R.string.nav_search)).performClick()
+        // A tab of the bar is read as one label (with its badge, if any).
+        compose.onNodeWithContentDescription(s(R.string.app_more_title)).assert(SemanticsMatcher.expectValue(SemanticsProperties.Selected, true))
+        compose.onNodeWithContentDescription(s(R.string.nav_search)).performClick()
         // The left edge belongs to the system: the menu opens by its button.
         compose.onNodeWithContentDescription(s(R.string.app_shell_menuOpen)).performClick()
         compose.waitForIdle()
@@ -122,6 +123,6 @@ class AppShellTest {
             }
         }
         compose.onNodeWithText("Alone").assertIsDisplayed()
-        compose.onNodeWithText(s(R.string.nav_home)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(s(R.string.nav_home)).assertDoesNotExist()
     }
 }

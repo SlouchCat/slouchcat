@@ -47,7 +47,7 @@ class ContractTest {
     }
 
     private fun client(session: Session): OkHttpClient {
-        val gate = ServerIdentityGate(session, { 1L }, ApiServerProver(SlouchcatHttp.client(identity)), SessionEvents())
+        val gate = ServerIdentityGate(session, { 1L }, ApiServerProver(SlouchcatHttp.client(identity)))
         return SlouchcatHttp.client(identity, session, gate = gate)
     }
 

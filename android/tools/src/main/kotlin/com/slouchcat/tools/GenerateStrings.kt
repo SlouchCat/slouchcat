@@ -98,19 +98,28 @@ object StringsGenerator {
         return if (parts.size == 1) "values-${parts[0]}" else "values-${parts[0]}-r${parts[1].uppercase()}"
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun exists(tree: Map<String, Any?>, path: String): Boolean {
+        var node: Any? = tree
+        for (part in path.split('.')) node = (node as? Map<String, Any?>)?.get(part) ?: return false
+        return true
+    }
+
     fun resourceName(key: String): String = key.replace(Regex("[^A-Za-z0-9_]"), "_")
 
     fun generate(languages: Map<String, Map<String, Any?>>, namespaces: List<String>): Result {
         val reference = languages[REFERENCE] ?: throw Unsupported("$REFERENCE.json is missing")
         for (ns in namespaces) {
-            if (ns !in reference) throw Unsupported("$REFERENCE: namespace '$ns' does not exist")
+            if (!exists(reference, ns)) throw Unsupported("$REFERENCE: namespace '$ns' does not exist")
         }
-        val refEntries = flatten(reference).filter { it.first.substringBefore('.') in namespaces }.toMap()
+        // An entry is a namespace (`app`) or a part of one (`settings.devices`): only those texts.
+        fun selected(key: String) = namespaces.any { key == it || key.startsWith("$it.") }
+        val refEntries = flatten(reference).filter { selected(it.first) }.toMap()
         val plan = Plan(refEntries)
         val files = sortedMapOf<String, String>()
         var count = 0
         for ((language, tree) in languages.toSortedMap()) {
-            val entries = flatten(tree).filter { it.first.substringBefore('.') in namespaces }
+            val entries = flatten(tree).filter { selected(it.first) }
             val xml = StringBuilder()
             xml.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
             xml.append("<!-- Generated from web/src/locales/$language.json; do not edit. -->\n")

@@ -11,15 +11,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
  * The libraries of the active profile (`listVisibleLibraries`) for the media choice of the shell.
  * Loads only when a feature registered media entries ([ShellRegistry.media]); with none, the app
- * sends no request for them. Reloads at every profile change and forgets them at the end of the
- * session. Pages of stage 4 may read [libraries] too instead of asking again.
+ * sends no request for them. Loads again with every session epoch that has a profile (also when the
+ * same profile is chosen again, code review M-2) and forgets them without one. While the same
+ * profile reloads, its entries stay (no flicker of the menu); another profile starts empty (8.4).
+ * Pages of stage 4 may read [libraries] instead of asking again.
  */
 class LibrariesSource(
     private val session: SessionManager,
@@ -30,14 +32,22 @@ class LibrariesSource(
     private val _libraries = MutableStateFlow<Loadable<List<LibraryNav>>>(Loadable.Empty)
     val libraries: StateFlow<Loadable<List<LibraryNav>>> = _libraries.asStateFlow()
     private var loading: Job? = null
+    private var shownFor: Long? = null
 
     init {
         if (registry.media.isNotEmpty()) {
             scope.launch {
-                session.state
-                    .map { (it as? SessionState.Ready)?.profile?.id }
+                combine(session.epoch, session.state) { epoch, state -> epoch to (state as? SessionState.Ready)?.profile?.id }
                     .distinctUntilChanged()
-                    .collect { profile -> if (profile != null) reload() else clear() }
+                    .collect { (_, profile) ->
+                        if (profile == null) {
+                            clear()
+                        } else {
+                            if (profile != shownFor) clear()
+                            shownFor = profile
+                            reload()
+                        }
+                    }
             }
         }
     }
@@ -46,12 +56,18 @@ class LibrariesSource(
         if (registry.media.isEmpty()) return
         val server = session.server ?: return
         loading?.cancel()
-        _libraries.value = Loadable.Loading
-        loading = scope.launch { _libraries.value = repository.libraries(server).toLoadable { it.isEmpty() } }
+        if (_libraries.value !is Loadable.Ready) _libraries.value = Loadable.Loading
+        loading = scope.launch {
+            val result = repository.libraries(server).toLoadable { it.isEmpty() }
+            // A failed reload keeps the entries the menu shows.
+            if (result is Loadable.Failed && _libraries.value is Loadable.Ready) return@launch
+            _libraries.value = result
+        }
     }
 
     fun clear() {
         loading?.cancel()
+        shownFor = null
         _libraries.value = Loadable.Empty
     }
 }

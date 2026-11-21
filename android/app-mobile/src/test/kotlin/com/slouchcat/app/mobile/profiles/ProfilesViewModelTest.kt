@@ -48,7 +48,8 @@ class ProfilesViewModelTest {
     private fun TestScope.model(): Pair<ProfilesViewModel, SessionManager> {
         val session = session(backgroundScope, profile = null)
         settle()
-        val vm = ProfilesViewModel(session, auth, actions(session, auth, hooks))
+        // The lock runs on the test clock (SystemClock answers 0 on the plain JVM).
+        val vm = ProfilesViewModel(session, auth, actions(session, auth, hooks), clock = { testScheduler.currentTime })
         settle()
         return vm to session
     }
@@ -65,10 +66,10 @@ class ProfilesViewModelTest {
     @Test
     fun aProfileWithoutPinOpensAtOnceAndClearsWhatThePreviousLeft() = runTest(dispatcher) {
         val (vm, session) = model()
-        val done = backgroundScope.launch { vm.done.first() }
+        val epoch = session.epoch.value
         vm.onPick(summary(1, "Primary", primary = true))
         settle()
-        assertTrue(done.isCompleted)
+        assertEquals("a new session epoch opens the first page", epoch + 1, session.epoch.value)
         assertEquals(listOf("profiles", "select:1:-"), auth.calls)
         assertEquals(1, cleaned)
         val ready = session.state.value as SessionState.Ready
@@ -157,10 +158,8 @@ class ProfilesViewModelTest {
     @Test
     fun signingOutFromThePickerEndsTheSession() = runTest(dispatcher) {
         val (vm, session) = model()
-        val out = backgroundScope.launch { vm.signedOut.first() }
         vm.onSignOut()
         settle()
-        assertTrue(out.isCompleted)
         assertTrue(session.state.value is SessionState.SignedOut)
         assertTrue("logout" in auth.calls)
     }

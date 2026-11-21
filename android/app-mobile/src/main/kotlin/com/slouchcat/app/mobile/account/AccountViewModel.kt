@@ -2,6 +2,7 @@ package com.slouchcat.app.mobile.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.slouchcat.app.mobile.common.SessionHooks
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.session.AuthRepository
@@ -40,7 +41,10 @@ data class AccountForm(
     val errors: Map<String, AccountFieldError> = emptyMap(),
     val error: AccountError? = null,
     val busy: Boolean = false,
-)
+) {
+    /** Never a password (security review L-2). */
+    override fun toString(): String = "AccountForm(errors=$errors, error=$error, busy=$busy, passwords=[redacted])"
+}
 
 /** The message after a change. */
 enum class AccountMessage { EmailChanged, PasswordChanged }
@@ -60,6 +64,7 @@ data class AccountUiState(
 class AccountViewModel(
     private val session: SessionManager,
     private val auth: AuthRepository,
+    private val hooks: SessionHooks = SessionHooks(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = _state.asStateFlow()
@@ -132,6 +137,8 @@ class AccountViewModel(
             when (val result = auth.updateAccount(server, form.current, email, password)) {
                 is ApiResult.Ok -> {
                     session.accountChanged(result.value.account.email)
+                    // Stage 8 renews its push subscription here (code review minor 20).
+                    hooks.accountChanged()
                     _state.update { it.copy(sheet = null, form = AccountForm()) }
                     _messages.send(if (sheet == AccountSheet.Email) AccountMessage.EmailChanged else AccountMessage.PasswordChanged)
                 }

@@ -139,6 +139,30 @@ Schlüsselwechsel: Ein neuer `secret.key` wechselt den Schlüssel ohne Übergang
 Server hat einen neuen Schlüssel» und lässt ihn erst nach einer neuen Anmeldung mit dem Passwort bestätigen
 (K27 Abschnitt 6). Ein Wechsel nur des Ed25519-Schlüssels ohne neues Geheimnis ist nicht vorgesehen.
 
+### Nachtrag K27 Stufe 3: die Handy-App (Entscheid des Baus, weicht vom Wortlaut von K27 Abschnitt 6 ab)
+
+Das Sicherheits-Review der App (H-1) hat gezeigt: Ein Blatt «neuer Schlüssel», das sich von selbst öffnet
+und zur neuen Anmeldung führt, gibt dem fremden Gerät im fremden Netz mit einem Tipp das Passwort, also mehr
+als ohne Prüfung. Der Koordinator des Baus hat darum entschieden:
+
+| Punkt | Entscheid |
+|---|---|
+| Anderer Schlüssel | Unterschreibt die Gegenstelle gültig mit einem anderen Schlüssel, sendet die App nichts und zeigt still «Server nicht bestätigt» dort, wo sonst Daten stünden. Kein Dialog, keine Aufforderung zur Anmeldung |
+| Bestätigen | Nur ausdrücklich unter «Mehr › Server» und, abgemeldet, auf der Anmeldeseite über denselben Baustein: Fingerabdruck des gemerkten und des neuen Schlüssels (die ersten 16 Byte von SHA-256 des Schlüssels), die zwei Fälle (Server neu installiert oder aus einer Sicherung ohne Geheimnis wiederhergestellt gegen fremdes Netz mit derselben Adresse), der Hinweis, dass E-Mail und Passwort danach an das Gerät mit dem neuen Schlüssel gehen, und der Schalter «Ich bin in meinem eigenen Netz». Erst dann die neue Anmeldung; währenddessen gehen weder Token noch Gerätekennung mit. Der Schlüssel gilt, sobald der Server das Passwort angenommen hat |
+| Neu einrichten | Ein anderer Schlüssel unter derselben Adresse zählt wie ein anderer Server (H-2): Token, Gerätekennung und jede Prüfung des alten Schlüssels gehen weg. Die Einrichtung fragt dafür mit demselben Baustein nach |
+| Sperre je Sprung | Zusätzlich zur Sperre vor der Anfrage prüft ein Netzwerk-Interceptor jeden Sprung zum Server (Wiederholung, Weiterleitung) gegen das aktuelle Netz (M-2) |
+| Netzwechsel | Neues Standardnetz, Verlust, geänderte Adressen oder Routen, und jedes Netz ausser VPN, das kommt oder geht. Dazu prüft die App spätestens nach 10 min und nach jedem Verbindungsabbruch neu (M-1) |
+
+Bekannte Grenze: Ein Always-on-VPN, das auch das lokale Netz trägt und darunter nichts Sichtbares
+ändert, verdeckt einen Wechsel des WLAN. Die Prüfung nach Zeit und nach Verbindungsabbruch mildert das;
+ganz schliessen kann es nur HTTPS.
+
+Nicht gebaut, der stärkere Weg: ein zweiter Beweis des Servers über den Hash eines gültigen Tokens
+(der Server unterschreibt die Zufallszahl mit `HMAC(sha256(token), nonce)`). Ein Server, der aus einer
+Sicherung ohne Geheimnis kommt, kennt die Hashes noch; ein fremdes Gerät nicht. Damit liesse sich ein neuer
+Schlüssel ohne Passwort bestätigen. Es braucht eine neue Server-Operation und gehört in eine spätere Stufe
+des Servers.
+
 ## Folgen
 
 - Vertrag 1.42.0 ist zusätzlich. Neu sind `appLogin`, `AppLoginRequest`, `AppLogin`, `SessionKind`,

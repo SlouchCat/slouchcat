@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -92,14 +94,21 @@ fun AccountScreen(
     }
     when (state.sheet) {
         AccountSheet.Email -> FormSheet(R.string.app_account_emailTitle, state.form, onSave, onDismiss) {
-            AccountField(AccountViewModel.NEW_EMAIL, R.string.app_account_newEmail, state.form, onField, password = false)
-            AccountField(AccountViewModel.CURRENT, R.string.app_account_currentPassword, state.form, onField)
+            AccountField(AccountViewModel.NEW_EMAIL, R.string.app_account_newEmail, state.form, onField, password = false, contentType = ContentType.NewUsername)
+            AccountField(AccountViewModel.CURRENT, R.string.app_account_currentPassword, state.form, onField, contentType = ContentType.Password)
         }
         AccountSheet.Password -> FormSheet(R.string.app_account_password, state.form, onSave, onDismiss) {
             Note(stringResource(R.string.app_account_passwordWarning), warning = true)
-            AccountField(AccountViewModel.CURRENT, R.string.app_account_currentPassword, state.form, onField)
-            AccountField(AccountViewModel.NEW_PASSWORD, R.string.app_account_newPassword, state.form, onField, hint = stringResource(R.string.app_account_passwordHint))
-            AccountField(AccountViewModel.REPEAT, R.string.app_account_repeatPassword, state.form, onField)
+            AccountField(AccountViewModel.CURRENT, R.string.app_account_currentPassword, state.form, onField, contentType = ContentType.Password)
+            AccountField(
+                AccountViewModel.NEW_PASSWORD,
+                R.string.app_account_newPassword,
+                state.form,
+                onField,
+                hint = pluralStringResource(R.plurals.app_account_passwordHint, AccountViewModel.MIN_PASSWORD, AccountViewModel.MIN_PASSWORD),
+                contentType = ContentType.NewPassword,
+            )
+            AccountField(AccountViewModel.REPEAT, R.string.app_account_repeatPassword, state.form, onField, contentType = ContentType.NewPassword)
         }
         null -> Unit
     }
@@ -137,7 +146,15 @@ private fun FormSheet(title: Int, form: AccountForm, onSave: () -> Unit, onDismi
 }
 
 @Composable
-private fun AccountField(key: String, label: Int, form: AccountForm, onField: (String, String) -> Unit, password: Boolean = true, hint: String? = null) {
+private fun AccountField(
+    key: String,
+    label: Int,
+    form: AccountForm,
+    onField: (String, String) -> Unit,
+    password: Boolean = true,
+    hint: String? = null,
+    contentType: ContentType? = null,
+) {
     val value = when (key) {
         AccountViewModel.NEW_EMAIL -> form.newEmail
         AccountViewModel.CURRENT -> form.current
@@ -151,6 +168,7 @@ private fun AccountField(key: String, label: Int, form: AccountForm, onField: (S
         hint = hint,
         error = form.errors[key]?.let { fieldText(it) },
         enabled = !form.busy,
+        contentType = contentType,
         visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (password) KeyboardType.Password else KeyboardType.Email,
@@ -161,16 +179,15 @@ private fun AccountField(key: String, label: Int, form: AccountForm, onField: (S
 }
 
 @Composable
-private fun fieldText(error: AccountFieldError): String = stringResource(
-    when (error) {
-        AccountFieldError.EmailEmpty -> R.string.app_signIn_error_emailEmpty
-        AccountFieldError.EmailInvalid -> R.string.app_signIn_error_emailInvalid
-        AccountFieldError.SameEmail -> R.string.app_account_error_sameEmail
-        AccountFieldError.EmailTaken -> R.string.errors_code_email_taken
-        AccountFieldError.CurrentEmpty -> R.string.app_account_error_currentEmpty
-        AccountFieldError.WrongPassword -> R.string.app_account_error_wrongPassword
-        AccountFieldError.TooShort -> R.string.app_account_error_tooShort
-        AccountFieldError.SamePassword -> R.string.app_account_error_same
-        AccountFieldError.Mismatch -> R.string.app_account_error_mismatch
-    },
-)
+private fun fieldText(error: AccountFieldError): String = when (error) {
+    AccountFieldError.EmailEmpty -> stringResource(R.string.app_signIn_error_emailEmpty)
+    AccountFieldError.EmailInvalid -> stringResource(R.string.app_signIn_error_emailInvalid)
+    AccountFieldError.SameEmail -> stringResource(R.string.app_account_error_sameEmail)
+    AccountFieldError.EmailTaken -> stringResource(R.string.errors_code_email_taken)
+    AccountFieldError.CurrentEmpty -> stringResource(R.string.app_account_error_currentEmpty)
+    AccountFieldError.WrongPassword -> stringResource(R.string.app_account_error_wrongPassword)
+    // The length comes from the contract's minLength, in one place (code review minor 25).
+    AccountFieldError.TooShort -> pluralStringResource(R.plurals.app_account_error_tooShort, AccountViewModel.MIN_PASSWORD, AccountViewModel.MIN_PASSWORD)
+    AccountFieldError.SamePassword -> stringResource(R.string.app_account_error_same)
+    AccountFieldError.Mismatch -> stringResource(R.string.app_account_error_mismatch)
+}

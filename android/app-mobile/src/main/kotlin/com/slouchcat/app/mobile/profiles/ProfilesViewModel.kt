@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.profiles
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slouchcat.app.mobile.common.Loadable
@@ -13,13 +14,10 @@ import com.slouchcat.core.session.AuthRepository
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -37,6 +35,9 @@ data class PinState(
 ) {
     val locked: Boolean get() = lockedSeconds > 0
     val canSubmit: Boolean get() = digits.length >= MIN_DIGITS && !checking && !locked
+
+    /** Never the digits (security review L-2). */
+    override fun toString(): String = "PinState(profile=${profile.id}, digits=${digits.length}, message=$message, locked=$lockedSeconds)"
 
     companion object {
         const val MIN_DIGITS = 4
@@ -70,22 +71,17 @@ class ProfilesViewModel(
     private val session: SessionManager,
     private val auth: AuthRepository,
     private val actions: SessionActions,
+    /** Time since boot in ms; the lock runs on it, also while the device sleeps (code review minor 15). */
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ProfilesUiState())
     val state: StateFlow<ProfilesUiState> = _state.asStateFlow()
 
-    private val _done = Channel<Unit>(Channel.BUFFERED)
-
-    /** One event when a profile is active: the app opens its first page. */
-    val done: Flow<Unit> = _done.receiveAsFlow()
-
-    private val _signedOut = Channel<Unit>(Channel.BUFFERED)
-
-    /** One event after «Abmelden» on this page. */
-    val signedOut: Flow<Unit> = _signedOut.receiveAsFlow()
-
     private var loading: Job? = null
     private var countdown: Job? = null
+
+    /** Until when the server locks a profile (per profile; closing the pad does not forget it). */
+    private val lockedUntil = mutableMapOf<Long, Long>()
 
     init {
         when (val now = session.state.value) {
@@ -113,11 +109,12 @@ class ProfilesViewModel(
         if (now.selecting != null || now.pin != null || now.signingOut) return
         if (profile.hasPin) {
             _state.update { it.copy(pin = PinState(profile), error = null) }
+            resumeLock(profile.id)
             return
         }
         _state.update { it.copy(selecting = profile.id, error = null) }
         viewModelScope.launch {
-            val server = session.server ?: return@launch
+            val server = session.server ?: return@launch _state.update { it.copy(selecting = null, error = ProfilesError.Failed) }
             when (val result = auth.selectProfile(server, profile.id, null)) {
                 is ApiResult.Ok -> chosen(profile, result.value)
                 is ApiResult.NotAllowed -> _state.update {
@@ -153,7 +150,7 @@ class ProfilesViewModel(
         if (!pin.canSubmit) return
         _state.update { it.copy(pin = pin.copy(checking = true)) }
         viewModelScope.launch {
-            val server = session.server ?: return@launch
+            val server = session.server ?: return@launch updatePin { it.copy(checking = false, message = PinMessage.Failed) }
             val result = auth.selectProfile(server, pin.profile.id, pin.digits)
             when {
                 result is ApiResult.Ok -> chosen(pin.profile, result.value)
@@ -167,17 +164,31 @@ class ProfilesViewModel(
 
     private fun updatePin(change: (PinState) -> PinState) = _state.update { s -> s.copy(pin = s.pin?.let(change)) }
 
-    /** The server locks the profile for [seconds]; the pad counts down and then invites again. */
+    /** The server locks the profile for [seconds]; the pad counts down from the clock and then invites again. */
     private fun lock(seconds: Long) {
-        updatePin { it.copy(checking = false, digits = "", message = PinMessage.Locked, lockedSeconds = seconds.coerceAtLeast(1)) }
+        val pin = _state.value.pin ?: return
+        lockedUntil[pin.profile.id] = clock() + seconds.coerceAtLeast(1) * SECOND
+        updatePin { it.copy(checking = false, digits = "") }
+        resumeLock(pin.profile.id)
+    }
+
+    /** Shows the rest of a lock of [profile] that is still running, counting down to the clock. */
+    private fun resumeLock(profile: Long) {
         countdown?.cancel()
+        fun left(): Long = ((lockedUntil[profile] ?: 0) - clock() + SECOND - 1).coerceAtLeast(0) / SECOND
+        if (left() == 0L) return
         countdown = viewModelScope.launch {
-            while ((_state.value.pin?.lockedSeconds ?: 0) > 0) {
-                delay(SECOND)
+            while (true) {
+                val seconds = left()
                 updatePin { pin ->
-                    val left = (pin.lockedSeconds - 1).coerceAtLeast(0)
-                    pin.copy(lockedSeconds = left, message = if (left == 0L) PinMessage.Again else PinMessage.Locked)
+                    if (pin.profile.id != profile) pin else pin.copy(lockedSeconds = seconds, message = if (seconds == 0L) PinMessage.Again else PinMessage.Locked)
                 }
+                if (seconds == 0L) {
+                    lockedUntil.remove(profile)
+                    break
+                }
+                // The rest comes from the clock at each step, so a late tick does not add up.
+                delay(SECOND)
             }
         }
     }
@@ -189,20 +200,17 @@ class ProfilesViewModel(
         } else {
             ActiveProfile(summary.id, summary.name, summary.isPrimary, summary.accent?.value, summary.image)
         }
-        actions.profileChosen(profile)
         countdown?.cancel()
         _state.update { it.copy(selecting = null, pin = null, current = profile.id) }
-        _done.send(Unit)
+        // A new session epoch: SlouchcatNavHost opens the first page.
+        actions.profileChosen(profile)
     }
 
     /** «Abmelden» on the picker (a way out when no profile can be opened). */
     fun onSignOut() {
         if (_state.value.signingOut) return
         _state.update { it.copy(signingOut = true) }
-        viewModelScope.launch {
-            actions.signOut()
-            _signedOut.send(Unit)
-        }
+        viewModelScope.launch { actions.signOut() }
     }
 
     private companion object {

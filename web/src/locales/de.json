@@ -67,11 +67,19 @@
       }
     },
     "serverKey": {
-      "title": "Der Server hat einen neuen Schlüssel",
-      "body": "Das passiert, wenn der Server neu eingerichtet wurde. Es kann aber auch ein fremdes Gerät sein, das sich als dein Server ausgibt. Die App sendet ihm nichts, bis du den neuen Schlüssel bestätigst.",
-      "confirm": "Melde dich neu an, um den neuen Schlüssel des Servers zu bestätigen. Tu das nur in deinem eigenen Netz.",
-      "later": "Später",
-      "signIn": "Neu anmelden"
+      "unconfirmed": "Server nicht bestätigt",
+      "unconfirmedBody": "Unter der Adresse des Servers antwortet ein Gerät mit einem anderen Schlüssel als beim Einrichten. Die App sendet ihm nichts.",
+      "check": "Schlüssel prüfen",
+      "title": "Anderer Schlüssel",
+      "cases": "Das ist in Ordnung, wenn der Server neu installiert oder aus einer Sicherung ohne Geheimnis wiederhergestellt wurde. Es ist ein Angriff, wenn du in einem fremden Netz bist und dort ein anderes Gerät dieselbe Adresse hat.",
+      "remembered": "Gemerkter Schlüssel",
+      "presented": "Neuer Schlüssel",
+      "passwordGoes": "Bestätigst du, meldest du dich neu an. E-Mail-Adresse und Passwort gehen dann an das Gerät mit dem neuen Schlüssel.",
+      "ownNetwork": "Ich bin in meinem eigenen Netz",
+      "ownNetworkHint": "Zu Hause oder in einem Netz, dem du vertraust; nicht im Hotel, im Zug oder im Café.",
+      "signIn": "Neu anmelden",
+      "accept": "Neuen Schlüssel übernehmen",
+      "confirming": "Du bestätigst den neuen Schlüssel {{fingerprint}}. E-Mail-Adresse und Passwort gehen an dieses Gerät."
     },
     "profiles": {
       "account": "{{email}} · {{host}}",
@@ -84,7 +92,11 @@
     "shell": {
       "mediaChoice": "Medienauswahl",
       "menuOpen": "Medienauswahl öffnen",
-      "media": "Medien"
+      "media": "Medien",
+      "myMedia": "Meine Medien",
+      "badge_one": "{{count}} neu",
+      "badge_other": "{{count}} neu",
+      "badgeDot": "Neues"
     },
     "more": {
       "title": "Mehr",
@@ -119,11 +131,15 @@
       "body": "Die App meldet sich auf diesem Gerät ab.",
       "hint": "Zum Wiederkommen brauchst du die Adresse des Servers, deine E-Mail-Adresse und dein Passwort.",
       "busy": "Melde ab …",
-      "done": "Abgemeldet"
+      "done": "Abgemeldet",
+      "doneOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde dieses Gerät unter «Meine Geräte» ab, sobald du wieder verbunden bist."
     },
     "devices": {
       "lede": "Handys und Fernseher bleiben angemeldet, bis jemand sie hier abmeldet.",
-      "lastSeen": "Letzter Kontakt: {{date}}"
+      "lastSeen": "Letzter Kontakt: {{when}}",
+      "signedIn": "{{kind}} · angemeldet {{when}}",
+      "onDate": "am {{date}}",
+      "tabletApp": "Tablet-App"
     },
     "account": {
       "signInSection": "Anmeldung",
@@ -136,21 +152,33 @@
       "passwordWarning": "Wenn du das Passwort änderst, wird jedes andere Gerät abgemeldet, auch die Fernseher. Fernseher verbindest du danach neu.",
       "newPassword": "Neues Passwort",
       "repeatPassword": "Neues Passwort wiederholen",
-      "passwordHint": "Mindestens 10 Zeichen.",
       "save": "Ändern",
       "saving": "Ändere …",
       "adminHint": "Die Verwaltung des Servers gibt es nur im Browser.",
       "error": {
         "currentEmpty": "Gib dein aktuelles Passwort ein.",
         "wrongPassword": "Das aktuelle Passwort stimmt nicht.",
-        "tooShort": "Das neue Passwort braucht mindestens 10 Zeichen.",
         "same": "Das neue Passwort ist gleich wie das alte.",
         "mismatch": "Die beiden Eingaben stimmen nicht überein.",
-        "sameEmail": "Das ist schon deine E-Mail-Adresse."
+        "sameEmail": "Das ist schon deine E-Mail-Adresse.",
+        "tooShort_one": "Das neue Passwort braucht mindestens {{count}} Zeichen.",
+        "tooShort_other": "Das neue Passwort braucht mindestens {{count}} Zeichen."
       },
       "emailChanged": "E-Mail-Adresse geändert",
-      "passwordChanged": "Passwort geändert. Alle anderen Geräte sind abgemeldet."
-    }
+      "passwordChanged": "Passwort geändert. Alle anderen Geräte sind abgemeldet.",
+      "passwordHint_one": "Mindestens {{count}} Zeichen.",
+      "passwordHint_other": "Mindestens {{count}} Zeichen."
+    },
+    "home": {},
+    "browse": {},
+    "search": {},
+    "player": {},
+    "downloads": {},
+    "audio": {},
+    "radio": {},
+    "wishes": {},
+    "notifications": {},
+    "tv": {}
   },
   "common": {
     "back": "Zurück",
@@ -6889,7 +6917,7 @@
         "bodyCurrent": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben. Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
         "confirm": "Gerät abmelden"
       },
-      "signedOut": "„{{name}}“ abgemeldet.",
+      "signedOut": "«{{name}}» abgemeldet.",
       "onlyPrimary": {
         "title": "Abmelden nur im Hauptprofil",
         "body": "Geräte abmelden kannst du im Hauptprofil dieses Kontos. Hier siehst du die Liste."

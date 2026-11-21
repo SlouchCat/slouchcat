@@ -84,6 +84,14 @@ enum class SlouchcatIcon(private val svg: String) {
 }
 
 /** Reads the small SVG subset of the mockup's icons: path, rect, circle, ellipse. */
+/**
+ * An icon of a page that the mockup draws inline (not in `ICONS` of core.js): the same SVG subset,
+ * built once. Keep a page's icons in a file of its area (`object PlayerIcons { val Cast by lazy {
+ * slouchcatIcon("cast", "<path …/>") } }`), not in [SlouchcatIcon]: parallel branches then never
+ * touch the same enum. Draw it with `SlouchcatIconImage(vector, …)`.
+ */
+fun slouchcatIcon(name: String, svg: String): ImageVector = SvgIcon.build(name, svg)
+
 internal object SvgIcon {
     private val element = Regex("""<(path|rect|circle|ellipse)\b([^>]*)/>""")
     private val attribute = Regex("""([a-zA-Z-]+)="([^"]*)"""")

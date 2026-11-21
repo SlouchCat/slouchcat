@@ -56,9 +56,10 @@ object MoreFeature : Feature {
         val graph = app.graph
         val navigator = app.navigator
         composable<MoreRoute> {
-            val vm = viewModel { MoreViewModel(graph.session, graph.hooks, graph.sessionActions) }
+            val vm = viewModel { MoreViewModel(graph.session, graph.hooks, graph.sessionActions, graph.keyConfirmation) }
             val state by vm.state.collectAsStateWithLifecycle()
-            LaunchedEffect(vm) { vm.signedOut.collect { navigator.toSignIn() } }
+            // The sign-out starts a new session epoch: SlouchcatNavHost opens the sign-in (or the address).
+            LaunchedEffect(vm) { vm.confirmKey.collect { navigator.toSignIn(confirmKey = true) } }
             val rows = graph.registry.more.map { entry ->
                 MoreRow(
                     key = entry.key,
@@ -75,10 +76,14 @@ object MoreFeature : Feature {
                 appVersion = BuildConfig.VERSION_NAME,
                 onSwitchProfile = navigator::toProfiles,
                 onServer = vm::onServer,
-                onSignOutAsk = vm::onSignOutAsk,
+                onSignOutAsk = { vm.onSignOutAsk() },
                 onChoice = vm::onChoice,
                 onSignOut = vm::onSignOut,
                 onDismissSheet = vm::onDismissSheet,
+                onChangeServer = { vm.onSignOutAsk(changeServer = true) },
+                onKeyCheck = vm::onKeyCheck,
+                onOwnNetwork = vm::onOwnNetwork,
+                onConfirmKey = vm::onConfirmKey,
             )
         }
         composable<DevicesRoute> {
@@ -100,7 +105,7 @@ object MoreFeature : Feature {
             )
         }
         composable<AccountRoute> {
-            val vm = viewModel { AccountViewModel(graph.session, graph.auth) }
+            val vm = viewModel { AccountViewModel(graph.session, graph.auth, graph.hooks) }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
             val resources = LocalResources.current

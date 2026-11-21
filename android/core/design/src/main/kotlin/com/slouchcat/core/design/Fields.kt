@@ -25,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,8 @@ fun SlouchcatTextField(
     fieldModifier: Modifier = Modifier,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailing: (@Composable () -> Unit)? = null,
+    /** What a password manager fills in (`ContentType.Password`, `EmailAddress` …; security review L-3). */
+    contentType: ContentType? = null,
 ) {
     val c = SlouchcatTheme.colors
     val interaction = remember { MutableInteractionSource() }
@@ -76,7 +80,10 @@ fun SlouchcatTextField(
             interactionSource = interaction,
             modifier = fieldModifier
                 .fillMaxWidth()
-                .semantics { if (error != null) error(error) },
+                .semantics {
+                    if (error != null) error(error)
+                    if (contentType != null) this.contentType = contentType
+                },
             // The label sits in the decoration, so it belongs to the field's node: a screen reader
             // says label and content together, and reads the content, not a description over it.
             decorationBox = { inner ->

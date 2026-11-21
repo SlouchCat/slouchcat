@@ -115,6 +115,18 @@ fun SlouchcatIconImage(
     Icon(icon.vector, contentDescription = contentDescription, modifier = modifier.size(size), tint = tint)
 }
 
+/** An icon of a page's own set ([slouchcatIcon]); the same as the [SlouchcatIcon] variant. */
+@Composable
+fun SlouchcatIconImage(
+    vector: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+    tint: Color = androidx.compose.material3.LocalContentColor.current,
+) {
+    Icon(vector, contentDescription = contentDescription, modifier = modifier.size(size), tint = tint)
+}
+
 /** `.chip`: a filter or choice, 36 dp high with a 48 dp tap target; [selected] fills it. */
 @Composable
 fun SlouchcatChip(

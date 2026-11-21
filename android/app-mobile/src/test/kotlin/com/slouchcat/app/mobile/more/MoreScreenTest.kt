@@ -54,6 +54,7 @@ class MoreScreenTest {
                 onSwitchProfile = { events += "switch" },
                 onServer = { events += "server" },
                 onSignOutAsk = { events += "ask" },
+                onChangeServer = { events += "change" },
                 onChoice = { i, v -> events += "choice:$i:$v" },
                 onSignOut = { events += "signout" },
                 onDismissSheet = { events += "dismiss" },
@@ -111,7 +112,7 @@ class MoreScreenTest {
         compose.onNodeWithText(s(R.string.app_more_serverSheet_hint)).assertIsDisplayed()
         compose.onNodeWithText(s(R.string.app_more_serverSheet_change)).performScrollTo().performClick()
         compose.onNodeWithText(s(R.string.common_close)).performScrollTo().performClick()
-        assertEquals(listOf("ask", "dismiss"), events)
+        assertEquals(listOf("change", "dismiss"), events)
     }
 
     @Test @Config(qualifiers = PHONE)

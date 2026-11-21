@@ -44,7 +44,8 @@ interface SessionCredentials {
  *   carries them, and redirects from https to http are not followed at all.
  * - Plain HTTP is allowed (E-18); on Android the network security config of the app permits it.
  * - [gate] first: «Server weist sich aus» holds every request to a server over HTTP back until the
- *   server proved itself in this network ([ServerIdentityGate], F-38).
+ *   server proved itself in this network ([ServerIdentityGate], F-38); its `hop` checks every
+ *   network hop again (retries, redirects), before the credentials are added.
  * - No logging interceptor: headers and addresses carry the token and stream tokens (rule 10).
  */
 object SlouchcatHttp {
@@ -61,7 +62,7 @@ object SlouchcatHttp {
         identity: ClientIdentity,
         credentials: SessionCredentials = SessionCredentials.None,
         builder: OkHttpClient.Builder = OkHttpClient.Builder(),
-        gate: Interceptor? = null,
+        gate: ServerIdentityGate? = null,
     ): OkHttpClient = builder
         .connectTimeout(CONNECT_TIMEOUT)
         .readTimeout(READ_TIMEOUT)
@@ -69,6 +70,7 @@ object SlouchcatHttp {
         .followSslRedirects(false)
         .apply { if (gate != null) addInterceptor(gate) }
         .addInterceptor(Headers(identity))
+        .apply { if (gate != null) addNetworkInterceptor(gate.hop) }
         .addNetworkInterceptor(Credentials(credentials))
         .build()
 

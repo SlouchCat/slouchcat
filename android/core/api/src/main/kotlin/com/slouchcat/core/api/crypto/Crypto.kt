@@ -57,6 +57,18 @@ object ServerProof {
 
     fun message(nonce: ByteArray): ByteArray = PREFIX.toByteArray(Charsets.UTF_8) + nonce
 
+    /**
+     * What a person compares: the first 16 bytes of SHA-256 over the key, in groups of four hex
+     * digits (`3f2a 91c0 …`); `null` for a key that is not base64url.
+     */
+    fun fingerprint(serverKey: String): String? {
+        val key = Base64Url.decode(serverKey) ?: return null
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(key).copyOf(FINGERPRINT_BYTES)
+        return digest.joinToString("") { "%02x".format(it) }.chunked(4).joinToString(" ")
+    }
+
+    private const val FINGERPRINT_BYTES = 16
+
     /** Whether [signature] (base64url) signs [nonce] under [serverKey] (base64url). */
     fun valid(serverKey: String, nonce: ByteArray, signature: String): Boolean {
         val key = Base64Url.decode(serverKey) ?: return false

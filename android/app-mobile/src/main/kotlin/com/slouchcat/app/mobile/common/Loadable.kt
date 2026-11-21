@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.EmptyState
@@ -48,6 +49,9 @@ enum class LoadError {
     /** 403: not with this session. */
     NotAllowed,
 
+    /** The server's address answers with another key (ADR 0040): nothing was sent; see «Mehr › Server». */
+    ServerUnconfirmed,
+
     /** Anything else, also a session the app is already handling (signed out, app too old). */
     Failed,
 }
@@ -59,7 +63,8 @@ fun <T> ApiResult<T>.toLoadable(isEmpty: (T) -> Boolean = { false }): Loadable<T
     is ApiResult.NotAllowed -> Loadable.Failed(LoadError.NotAllowed)
     ApiResult.Offline -> Loadable.Failed(LoadError.Offline)
     // The app shows the sign-in or the update notice itself (SessionEvents); the page only stops.
-    ApiResult.SignedOut, ApiResult.AppTooOld, is ApiResult.Failed -> Loadable.Failed(LoadError.Failed)
+    is ApiResult.Failed -> Loadable.Failed(if (code == ApiCaller.SERVER_UNCONFIRMED) LoadError.ServerUnconfirmed else LoadError.Failed)
+    ApiResult.SignedOut, ApiResult.AppTooOld -> Loadable.Failed(LoadError.Failed)
 }
 
 @Composable
@@ -68,6 +73,7 @@ fun LoadError.text(): String = stringResource(
         LoadError.Offline -> R.string.app_state_offline
         LoadError.NotFound -> R.string.app_state_notFound
         LoadError.NotAllowed -> R.string.app_state_notAllowed
+        LoadError.ServerUnconfirmed -> R.string.app_serverKey_unconfirmedBody
         LoadError.Failed -> R.string.app_state_failed
     },
 )

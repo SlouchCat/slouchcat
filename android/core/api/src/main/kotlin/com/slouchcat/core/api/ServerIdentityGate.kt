@@ -7,6 +7,9 @@ import com.slouchcat.core.api.generated.infrastructure.ClientException
 import com.slouchcat.core.api.generated.infrastructure.ServerException
 import com.slouchcat.core.api.generated.models.ServerProofRequest
 import com.slouchcat.core.api.log.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -18,6 +21,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 /** The one server the app is set up with, and the key it remembered at the setup (F-38). */
 interface TrustedServer {
@@ -27,7 +31,7 @@ interface TrustedServer {
     val serverKey: String?
 }
 
-/** The network the device uses; [generation] changes with every change of the default network. */
+/** The network the device uses; [generation] changes with every change of the networks the device uses. */
 fun interface NetworkState {
     fun generation(): Long
 }
@@ -74,24 +78,27 @@ class ServerKeyChangedException(val newKey: String) : ServerNotProvenException("
 /**
  * «Server weist sich aus» (concept 27 section 6, F-38, ADR 0040): for a server over plain HTTP,
  * every request of the shared client to it (API, images, later player and background fetch) waits
- * until the server has signed a fresh nonce with the key remembered at the setup, once per
- * network ([NetworkState]). Until then nothing leaves the device: no token, no device id, no
- * password. A wrong signature or no answer fails the request as «not reachable» (an [IOException]);
- * a valid signature under another key reports [SessionEvent.ServerKeyChanged] once per network.
+ * until the server has signed a fresh nonce with the key remembered at the setup, once per network
+ * ([NetworkState]) and at most [maxAge] long. Until then nothing leaves the device: no token, no
+ * device id, no password. A wrong signature or no answer fails the request as «not reachable» (an
+ * [IOException]). A valid signature under another key fails it as well and sets [newKey]; the app
+ * shows that quietly and never offers to sign in by itself (ADR 0040, decision of the build).
  * Over HTTPS the gate does nothing.
  *
- * Install it as the first application interceptor; the credentials are added later, per network
- * hop. Concurrent requests share one proof; a proof that finishes after the network changed counts
- * for nothing and is made again. After a failure the gate answers at once for [backoff] instead of
- * asking again (the server allows 30 proofs a minute per address).
+ * Two places in the shared client: as the first application interceptor it waits for the proof;
+ * [hop], a network interceptor before the credentials, fails every hop to the server (a retry of
+ * OkHttp, a redirect) when the network changed after the proof. A request that loses its
+ * connection forgets the proof. Concurrent requests share one proof; a proof that finishes after
+ * the network changed counts for nothing. After a failure the gate answers at once for [backoff]
+ * (the server allows 30 proofs a minute per address).
  */
 class ServerIdentityGate(
     private val trusted: TrustedServer,
     private val network: NetworkState,
     private val prover: ServerProver,
-    private val events: SessionEvents,
     private val timeout: Duration = Duration.ofSeconds(15),
     private val backoff: Duration = Duration.ofSeconds(5),
+    private val maxAge: Duration = Duration.ofMinutes(10),
     private val clock: () -> Long = System::nanoTime,
 ) : Interceptor {
     private sealed interface Outcome {
@@ -106,41 +113,74 @@ class ServerIdentityGate(
         val result = CompletableFuture<Outcome>()
     }
 
+    private data class Proof(val generation: Long, val key: String, val at: Long)
+
     private val lock = Any()
-    private var proven: Pair<Long, String>? = null
+    private var proven: Proof? = null
     private var inFlight: Attempt? = null
     private var failure: Triple<Long, String, Outcome>? = null
     private var failedAt = 0L
-    private var reportedChange: Pair<Long, String>? = null
+
+    /** Requests waiting for another request's proof (tests wait for them). */
+    internal val waiting = AtomicInteger()
 
     /**
-     * A new key the user is confirming by signing in again (concept 27 section 6): while set, the
-     * gate checks the proof against it instead of the remembered key. The caller suppresses the
-     * credentials meanwhile; only the new sign-in travels.
+     * A new key the user is confirming by signing in again (section 6): while set, the gate checks
+     * the proof against it instead of the remembered key. The caller suppresses the credentials meanwhile.
      */
     @Volatile
     var candidateKey: String? = null
 
-    /** The key the server presented when it last failed with a new key. */
-    @Volatile
-    var presentedKey: String? = null
-        private set
+    private val _newKey = MutableStateFlow<String?>(null)
 
-    /** Forget every proof (a new server, a confirmed key). */
-    fun reset() = synchronized(lock) {
-        proven = null
-        failure = null
-        reportedChange = null
+    /**
+     * The key another key-holder under the server's address proved, while the remembered one did
+     * not; `null` once the remembered key proves itself again. The app shows «Server nicht
+     * bestätigt» and offers the confirmation only on the user's own way (Mehr › Server).
+     */
+    val newKey: StateFlow<String?> = _newKey.asStateFlow()
+
+    /** Forget every proof and the new key (a new server, a confirmed key). */
+    fun reset() {
+        synchronized(lock) {
+            proven = null
+            failure = null
+        }
+        _newKey.value = null
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val server = trusted.server
-        if (server != null && !server.isHttps && SlouchcatHttp.sameOrigin(server, request.url)) {
-            awaitProof(server)
+        if (server == null || server.isHttps || !SlouchcatHttp.sameOrigin(server, request.url)) return chain.proceed(request)
+        awaitProof(server)
+        return try {
+            chain.proceed(request)
+        } catch (e: IOException) {
+            // The connection broke: maybe the network went with it. The next request proves again.
+            if (e !is ServerNotProvenException) forget()
+            throw e
         }
-        return chain.proceed(request)
     }
+
+    /** The network half: every hop to the server over HTTP needs a proof of the current network. */
+    val hop: Interceptor = Interceptor { chain ->
+        val request = chain.request()
+        val server = trusted.server
+        if (server != null && !server.isHttps && SlouchcatHttp.sameOrigin(server, request.url) && !isProvenNow()) {
+            throw ServerNotProvenException("the network changed before the request left")
+        }
+        chain.proceed(request)
+    }
+
+    /** Whether the current network has a valid proof of the key in use. */
+    fun isProvenNow(): Boolean = synchronized(lock) {
+        val key = candidateKey ?: trusted.serverKey ?: return false
+        val proof = proven ?: return false
+        proof.generation == network.generation() && proof.key == key && clock() - proof.at < maxAge.toNanos()
+    }
+
+    private fun forget() = synchronized(lock) { proven = null }
 
     private fun awaitProof(server: HttpUrl) {
         // A proof that finished in a network that is gone by now counts for nothing; a few rounds
@@ -150,7 +190,7 @@ class ServerIdentityGate(
             val key = candidateKey ?: trusted.serverKey ?: throw ServerNotProvenException("no key remembered")
             var mine = false
             val attempt = synchronized(lock) {
-                if (proven == Pair(generation, key)) return
+                if (isProvenNow()) return
                 val failed = failure
                 if (failed != null && failed.first == generation && failed.second == key && clock() - failedAt < backoff.toNanos()) {
                     throw failureOf(failed.third)
@@ -160,33 +200,43 @@ class ServerIdentityGate(
                     mine = true
                 }
             }
-            val outcome = if (mine) run(server, attempt) else wait(attempt)
+            val outcome = try {
+                if (mine) run(server, attempt) else wait(attempt) ?: throw ServerNotProvenException("the proof took too long")
+            } finally {
+                // Also when the proof threw an Error: the next request starts a new one.
+                if (mine) synchronized(lock) { if (inFlight === attempt) inFlight = null }
+            }
             synchronized(lock) {
-                if (inFlight === attempt) inFlight = null
                 if (network.generation() != generation) return@repeat
-                when (outcome) {
-                    Outcome.Proven -> {
-                        proven = Pair(generation, key)
+                if (mine) {
+                    if (outcome == Outcome.Proven) {
+                        proven = Proof(generation, key, clock())
                         failure = null
-                        return
-                    }
-                    else -> {
+                    } else {
                         failure = Triple(generation, key, outcome)
                         failedAt = clock()
                     }
                 }
             }
-            if (outcome is Outcome.KeyChanged) report(generation, outcome.key)
+            when (outcome) {
+                Outcome.Proven -> {
+                    if (key == trusted.serverKey) _newKey.value = null
+                    return
+                }
+                is Outcome.KeyChanged -> _newKey.value = outcome.key
+                Outcome.Failed -> Unit
+            }
             throw failureOf(outcome)
         }
         throw ServerNotProvenException("the network kept changing")
     }
 
     private fun run(server: HttpUrl, attempt: Attempt): Outcome {
-        val outcome = try {
+        var outcome: Outcome = Outcome.Failed
+        try {
             val nonce = ServerProof.nonce()
             val answer = prover.prove(server, nonce)
-            when {
+            outcome = when {
                 answer == null -> Outcome.Failed
                 ServerProof.valid(attempt.key, nonce, answer.signature) -> Outcome.Proven
                 answer.serverKey != attempt.key && ServerProof.valid(answer.serverKey, nonce, answer.signature) -> Outcome.KeyChanged(answer.serverKey)
@@ -194,33 +244,31 @@ class ServerIdentityGate(
             }
         } catch (e: IOException) {
             Log.i(TAG, "no proof", error = e)
-            Outcome.Failed
         } catch (e: RuntimeException) {
             Log.w(TAG, "proof broke", error = e)
-            Outcome.Failed
+        } finally {
+            // Also after an Error: nobody may wait for a proof that never ends (security review L-5).
+            attempt.result.complete(outcome)
         }
         if (outcome != Outcome.Proven) Log.w(TAG, "server not proven", "outcome" to outcome::class.simpleName)
-        attempt.result.complete(outcome)
         return outcome
     }
 
-    private fun wait(attempt: Attempt): Outcome = try {
-        attempt.result.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
-    } catch (e: TimeoutException) {
-        Outcome.Failed
-    } catch (e: ExecutionException) {
-        Outcome.Failed
-    } catch (e: InterruptedException) {
-        Thread.currentThread().interrupt()
-        throw IOException("interrupted while the server proved itself")
-    }
-
-    private fun report(generation: Long, key: String) {
-        presentedKey = key
-        val first = synchronized(lock) {
-            (reportedChange != Pair(generation, key)).also { reportedChange = Pair(generation, key) }
+    /** The owner's outcome, or `null` after [timeout]; a waiter records no failure, only the owner does. */
+    private fun wait(attempt: Attempt): Outcome? {
+        waiting.incrementAndGet()
+        return try {
+            attempt.result.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: TimeoutException) {
+            null
+        } catch (e: ExecutionException) {
+            Outcome.Failed
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IOException("interrupted while the server proved itself")
+        } finally {
+            waiting.decrementAndGet()
         }
-        if (first) events.report(SessionEvent.ServerKeyChanged)
     }
 
     private fun failureOf(outcome: Outcome): IOException = when (outcome) {

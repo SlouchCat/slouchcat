@@ -8,6 +8,9 @@
       "error": {
         "storage": "Die Anmeldung ließ sich auf diesem Gerät nicht speichern."
       }
+    },
+    "signOut": {
+      "doneOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde dieses Gerät unter „Meine Geräte“ ab, sobald du wieder verbunden bist."
     }
   },
   "common": {
@@ -690,6 +693,9 @@
     }
   },
   "settings": {
+    "devices": {
+      "signedOut": "„{{name}}“ abgemeldet."
+    },
     "playback": {
       "subtitleMode": {
         "foreignHint": "Wie „Nur erzwungene“. Ist der Ton in keiner deiner Tonsprachen, kommen volle Untertitel in der ersten Untertitelsprache.",

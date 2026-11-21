@@ -67,11 +67,19 @@
       }
     },
     "serverKey": {
-      "title": "The server has a new key",
-      "body": "This happens when the server was set up anew. It can also be another device pretending to be your server. The app sends it nothing until you confirm the new key.",
-      "confirm": "Sign in again to confirm the server’s new key. Only do this in your own network.",
-      "later": "Later",
-      "signIn": "Sign in again"
+      "unconfirmed": "Server not confirmed",
+      "unconfirmedBody": "At the server's address a device answers with a key other than the one from the setup. The app sends it nothing.",
+      "check": "Check the key",
+      "title": "Another key",
+      "cases": "This is fine if the server was installed anew or restored from a backup without its secret. It is an attack if you are in someone else's network where another device has the same address.",
+      "remembered": "Remembered key",
+      "presented": "New key",
+      "passwordGoes": "If you confirm, you sign in again. Your email address and password then go to the device with the new key.",
+      "ownNetwork": "I am in my own network",
+      "ownNetworkHint": "At home or in a network you trust; not in a hotel, on a train or in a café.",
+      "signIn": "Sign in again",
+      "accept": "Accept the new key",
+      "confirming": "You confirm the new key {{fingerprint}}. Your email address and password go to this device."
     },
     "profiles": {
       "account": "{{email}} · {{host}}",
@@ -84,7 +92,11 @@
     "shell": {
       "mediaChoice": "Media",
       "menuOpen": "Open the media menu",
-      "media": "Media"
+      "media": "Media",
+      "myMedia": "My media",
+      "badge_one": "{{count}} new",
+      "badge_other": "{{count}} new",
+      "badgeDot": "New"
     },
     "more": {
       "title": "More",
@@ -119,11 +131,15 @@
       "body": "The app signs out on this device.",
       "hint": "To come back you need the server’s address, your email address and your password.",
       "busy": "Signing out …",
-      "done": "Signed out"
+      "done": "Signed out",
+      "doneOffline": "Signed out. The server did not confirm it: sign this device out under “My devices” once you are connected again."
     },
     "devices": {
       "lede": "Phones and TVs stay signed in until someone signs them out here.",
-      "lastSeen": "Last contact: {{date}}"
+      "lastSeen": "Last contact: {{when}}",
+      "signedIn": "{{kind}} · signed in {{when}}",
+      "onDate": "on {{date}}",
+      "tabletApp": "Tablet app"
     },
     "account": {
       "signInSection": "Sign-in",
@@ -136,21 +152,33 @@
       "passwordWarning": "When you change the password, every other device is signed out, the TVs too. You connect the TVs again afterwards.",
       "newPassword": "New password",
       "repeatPassword": "Repeat new password",
-      "passwordHint": "At least 10 characters.",
       "save": "Change",
       "saving": "Changing …",
       "adminHint": "The administration of the server is only in the browser.",
       "error": {
         "currentEmpty": "Enter your current password.",
         "wrongPassword": "The current password is wrong.",
-        "tooShort": "The new password needs at least 10 characters.",
         "same": "The new password is the same as the old one.",
         "mismatch": "The two entries do not match.",
-        "sameEmail": "This already is your email address."
+        "sameEmail": "This already is your email address.",
+        "tooShort_one": "The new password needs at least {{count}} character.",
+        "tooShort_other": "The new password needs at least {{count}} characters."
       },
       "emailChanged": "Email address changed",
-      "passwordChanged": "Password changed. Every other device is signed out."
-    }
+      "passwordChanged": "Password changed. Every other device is signed out.",
+      "passwordHint_one": "At least {{count}} character.",
+      "passwordHint_other": "At least {{count}} characters."
+    },
+    "home": {},
+    "browse": {},
+    "search": {},
+    "player": {},
+    "downloads": {},
+    "audio": {},
+    "radio": {},
+    "wishes": {},
+    "notifications": {},
+    "tv": {}
   },
   "common": {
     "back": "Back",

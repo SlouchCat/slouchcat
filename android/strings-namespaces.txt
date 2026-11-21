@@ -1,12 +1,15 @@
 # Namespaces of web/src/locales/*.json that the Android apps get as string resources (concept 27,
-# 5.4; module core/strings). One per line. A text `ns.a.b` becomes R.string.ns_a_b.
+# 5.4; module core/strings). One per line, the order does not matter. A text `ns.a.b` becomes
+# R.string.ns_a_b. An entry may name a part of a namespace (`settings.devices`): then only its texts.
 #
-# `app`: texts only the apps use (and the app name the web app shares). Add the namespace of a
-# viewer page here when an app page needs its texts; `admin`, `setup` and `invite` stay out.
+# `app`: texts only the apps use (and the app name the web app shares). Add the namespace, or the
+# part of it, of a viewer page here when an app page needs its texts; `admin`, `setup` and
+# `invite` stay out. Parallel branches each add their own lines (merge=union in .gitattributes).
 app
 common
 login
-profiles
-settings
 nav
-errors
+errors.code
+profiles.picker
+profiles.pin
+settings.devices

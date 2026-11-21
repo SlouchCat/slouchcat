@@ -11,9 +11,12 @@ import com.slouchcat.app.mobile.common.GateKeyConfirmation
 import com.slouchcat.app.mobile.common.KeyConfirmation
 import com.slouchcat.app.mobile.common.SessionActions
 import com.slouchcat.app.mobile.common.SessionHooks
+import com.slouchcat.app.mobile.common.EntryPlan
+import com.slouchcat.app.mobile.common.ShellNotices
+import com.slouchcat.app.mobile.shell.AppLinks
+import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.LibrariesSource
 import com.slouchcat.app.mobile.shell.ShellRegistry
-import com.slouchcat.app.mobile.shell.features
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiServerProver
 import com.slouchcat.core.api.ClientIdentity
@@ -28,6 +31,7 @@ import com.slouchcat.core.session.ApiAuthRepository
 import com.slouchcat.core.session.ApiDevicesRepository
 import com.slouchcat.core.session.ApiLibrariesRepository
 import com.slouchcat.core.session.ApiServerRepository
+import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AuthRepository
 import com.slouchcat.core.session.DataStoreAccountStore
 import com.slouchcat.core.session.DataStoreServerStore
@@ -43,9 +47,11 @@ import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerRepository
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.SessionManager
+import com.slouchcat.core.session.TokenStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.File
 import java.time.Duration
@@ -55,7 +61,17 @@ import java.time.Duration
  * Android architecture). A page gets what it needs from here through its ViewModel factory
  * (`viewModel { XViewModel(app.graph.…) }`).
  */
-class AppGraph(context: Context) {
+class AppGraph(
+    context: Context,
+    /** The features of the app (`shell/Features.kt`); tests bring their own. */
+    features: List<Feature> = com.slouchcat.app.mobile.shell.features,
+    /** The stores of the session; tests bring stores in memory (no Keystore, no DataStore). */
+    val serverStore: ServerStore = DataStoreServerStore(context.applicationContext),
+    tokenStore: TokenStore = EncryptedFileTokenStore(File(context.applicationContext.noBackupFilesDir, "session.bin"), KeystoreSecretBox()),
+    accountStore: AccountStore = DataStoreAccountStore(context.applicationContext),
+    /** The libraries of the media choice; tests bring their own. `null`: from the server. */
+    librariesRepository: LibrariesRepository? = null,
+) {
     private val appContext = context.applicationContext
 
     /** Lives as long as the process; for work that outlasts a page (the session follows the server address). */
@@ -63,20 +79,14 @@ class AppGraph(context: Context) {
 
     val identity = ClientIdentity(ClientIdentity.Kind.MOBILE, BuildConfig.VERSION_NAME)
 
-    /** «Sitzung weg», «App zu alt», «neuer Schlüssel» from any call; SessionEventHandler reacts. */
+    /** Token and device id in the Keystore, account and profile; the credentials of [http]. */
+    val session = SessionManager(serverStore, tokenStore, accountStore)
+
+    /** «Sitzung weg» and «App zu alt» from any call, with the epoch of the call; SessionEventHandler reacts. */
     val sessionEvents = SessionEvents()
 
     /** Every call of the generated client goes through it: `graph.api.call { … }`. */
-    val api = ApiCaller(sessionEvents)
-
-    val serverStore: ServerStore = DataStoreServerStore(appContext)
-
-    /** Token and device id in the Keystore, account and profile; the credentials of [http]. */
-    val session = SessionManager(
-        serverStore,
-        EncryptedFileTokenStore(File(appContext.noBackupFilesDir, "session.bin"), KeystoreSecretBox()),
-        DataStoreAccountStore(appContext),
-    )
+    val api = ApiCaller(sessionEvents) { session.epoch.value }
 
     /** Pooled connections belong to the network they were opened in. */
     private val network = NetworkMonitor { http.connectionPool.evictAll() }
@@ -88,7 +98,7 @@ class AppGraph(context: Context) {
     private val publicClient: OkHttpClient = SlouchcatHttp.client(identity, builder = OkHttpClient.Builder().callTimeout(PROOF_TIMEOUT))
 
     /** «Server weist sich aus» in front of every request to a server over HTTP (F-38). */
-    val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), sessionEvents, timeout = PROOF_TIMEOUT)
+    val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT)
 
     /** The one HTTP client for API, images and player (concept 27, 5.2). */
     val http: OkHttpClient = SlouchcatHttp.client(identity, session, gate = identityGate)
@@ -97,7 +107,7 @@ class AppGraph(context: Context) {
     val serverRepository: ServerRepository = ApiServerRepository(api, http)
     val auth: AuthRepository = ApiAuthRepository(api, http)
     val devices: DevicesRepository = ApiDevicesRepository(api, http)
-    val libraries: LibrariesRepository = ApiLibrariesRepository(api, http)
+    val libraries: LibrariesRepository = librariesRepository ?: ApiLibrariesRepository(api, http)
     val hostResolver: HostResolver = HostResolver.System
 
     /** How this device names itself at the sign-in (concept 27, 4.2). */
@@ -105,27 +115,38 @@ class AppGraph(context: Context) {
 
     /** Profile changes and the end of a session clear what pages remembered (8.4). */
     val hooks = SessionHooks()
-    val sessionActions = SessionActions(session, auth, hooks)
-    val keyConfirmation: KeyConfirmation = GateKeyConfirmation(identityGate, session, serverStore)
+
+    /** Short messages across a new session epoch («Abgemeldet»). */
+    val notices = ShellNotices()
+
+    /** Where the next epoch without session starts (the address after «Server wechseln»). */
+    val entry = EntryPlan()
+    val sessionActions = SessionActions(session, auth, hooks, notices, entry)
+    val keyConfirmation: KeyConfirmation = GateKeyConfirmation(identityGate, session)
 
     /** Images over [http]: the same headers, the same gate (build log, Android architecture). */
     val imageLoader: ImageLoader = ImageLoader.Builder(appContext)
         .components { add(OkHttpNetworkFetcherFactory(callFactory = { http })) }
         .build()
 
-    /** The pages and shell entries of every stage (`shell/Features.kt`). */
+    /** The pages and shell entries of every stage. */
     val registry = ShellRegistry(features)
+
+    /** In-app jumps to a page (stage 8: a notification opens a title). */
+    val links = AppLinks(registry)
 
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
     val librariesSource = LibrariesSource(session, libraries, registry, scope)
 
     init {
         network.start(appContext)
+        // Another server (address or key): no proof of the old one counts (security review H-2).
+        session.onServerChanged = { identityGate.reset() }
         session.start(scope)
         hooks.onProfileOrSessionEnd {
             imageLoader.memoryCache?.clear()
-            imageLoader.diskCache?.clear()
-            librariesSource.clear()
+            // Files: off the main thread (code review minor 9).
+            withContext(Dispatchers.IO) { imageLoader.diskCache?.clear() }
         }
     }
 

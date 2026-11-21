@@ -61,8 +61,9 @@ class DevicesViewModel(
         loading?.cancel()
         if (!quiet) _state.update { it.copy(devices = Loadable.Loading) }
         loading = viewModelScope.launch {
-            val result = repository.devices(server)
-            _state.update { it.copy(devices = result.toLoadable { list -> list.isEmpty() }) }
+            val loaded = repository.devices(server).toLoadable { list -> list.isEmpty() }
+            // A quiet reload that fails keeps the list on the page (code review minor 18).
+            _state.update { if (quiet && loaded is Loadable.Failed && it.devices is Loadable.Ready) it else it.copy(devices = loaded) }
         }
     }
 
@@ -89,7 +90,15 @@ class DevicesViewModel(
                 ApiResult.Offline -> DeviceSignOutError.Unreachable
                 else -> DeviceSignOutError.Failed
             }
-            _state.update { it.copy(signingOut = false, asking = if (error == null) null else it.asking, error = error) }
+            _state.update { s ->
+                val left = (s.devices as? Loadable.Ready)?.value?.filterNot { it.id == device.id }
+                s.copy(
+                    signingOut = false,
+                    asking = if (error == null) null else s.asking,
+                    error = error,
+                    devices = if (error == null && left != null) (if (left.isEmpty()) Loadable.Empty else Loadable.Ready(left)) else s.devices,
+                )
+            }
             if (error == null) {
                 _signedOut.send(device.name?.takeIf { it.isNotBlank() } ?: unnamed)
                 load(quiet = true)

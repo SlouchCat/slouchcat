@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -42,7 +43,7 @@ fun EntryLayout(modifier: Modifier = Modifier, pane: @Composable (wide: Boolean)
                             .fillMaxWidth()
                             .heightIn(min = maxHeight)
                             .verticalScroll(rememberScrollState())
-                            .systemBarsPadding()
+                            .systemBarsPadding().displayCutoutPadding()
                             .imePadding()
                             .padding(start = 24.dp, end = 48.dp, top = 48.dp, bottom = 48.dp),
                         verticalArrangement = Arrangement.Center,
@@ -61,7 +62,7 @@ fun EntryLayout(modifier: Modifier = Modifier, pane: @Composable (wide: Boolean)
                 Box {
                     EntryBackdrop(Modifier.fillMaxWidth().height(270.dp))
                     // The pane overlaps the faded lower part of the backdrop (`.su-pane`, −110 px).
-                    Box(Modifier.padding(start = 24.dp, end = 24.dp, top = 160.dp, bottom = 32.dp).systemBarsPadding()) {
+                    Box(Modifier.padding(start = 24.dp, end = 24.dp, top = 160.dp, bottom = 32.dp).systemBarsPadding().displayCutoutPadding()) {
                         Column(Modifier.widthIn(max = SlouchcatDimens.formMax).fillMaxWidth()) { pane(false) }
                     }
                 }

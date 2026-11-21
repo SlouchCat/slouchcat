@@ -98,8 +98,53 @@ class SessionManagerTest {
         session.ready()
         session.credentialsSuppressed = true
         assertNull(session.bearerToken)
-        assertEquals("device-1", session.deviceId)
+        // Nor the device id: the server with the unconfirmed key may be another device (L-1).
+        assertNull(session.deviceId)
+        assertNull(session.knownDeviceId)
         assertEquals("key", session.serverKey)
+    }
+
+    @Test
+    fun anotherKeyUnderTheSameAddressIsAnotherServer() = runTest(StandardTestDispatcher()) {
+        val servers = Servers(http)
+        val tokens = Tokens(StoredCredentials("token-1", "device-1"))
+        val session = manager(servers, tokens, Accounts("a@example.test", primary))
+        var resets = 0
+        session.onServerChanged = { resets++ }
+        session.ready()
+        // The setup ran again for the same address and got another key (security review H-2).
+        servers.flow.value = http.copy(serverKey = "other-key")
+        testScheduler.runCurrent()
+        assertEquals(SessionState.SignedOut(http.copy(serverKey = "other-key")), session.state.value)
+        assertNull("token and device id stayed with a new key", tokens.stored)
+        assertNull(session.bearerToken)
+        assertNull(session.knownDeviceId)
+        assertEquals(1, resets)
+    }
+
+    @Test
+    fun aConfirmedKeyCountsAtOnceAndKeepsTheSession() = runTest(StandardTestDispatcher()) {
+        val servers = Servers(http)
+        val session = manager(servers, Tokens(StoredCredentials("token-1", "device-1")), Accounts("a@example.test", primary))
+        var resets = 0
+        session.onServerChanged = { resets++ }
+        session.ready()
+        session.keyConfirmed("new-key")
+        assertEquals("new-key", session.serverKey)
+        testScheduler.runCurrent()
+        assertEquals(0, resets)
+        assertEquals("token-1", session.bearerToken)
+    }
+
+    @Test
+    fun everyChangeOfUserCountsAnEpoch() = runTest(StandardTestDispatcher()) {
+        val session = manager(Servers(http))
+        session.ready()
+        val start = session.epoch.value
+        session.signedIn("t", "d", "a@example.test", null)
+        session.profileChosen(primary)
+        session.signedOut()
+        assertEquals(start + 3, session.epoch.value)
     }
 
     @Test
@@ -112,6 +157,7 @@ class SessionManagerTest {
         servers.flow.value = other
         testScheduler.runCurrent()
         assertEquals(SessionState.SignedOut(other), session.state.value)
-        assertEquals(StoredCredentials(null, "device-1"), tokens.stored)
+        // The device id of the old server goes as well (code review minor 10).
+        assertNull(tokens.stored)
     }
 }

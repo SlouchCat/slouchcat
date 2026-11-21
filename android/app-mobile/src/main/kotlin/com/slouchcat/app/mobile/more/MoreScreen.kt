@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.slouchcat.app.mobile.common.DetailRows
+import com.slouchcat.app.mobile.common.KeyCheckSheet
+import com.slouchcat.app.mobile.common.ServerUnconfirmedNote
 import com.slouchcat.app.mobile.common.RowGroup
 import com.slouchcat.app.mobile.common.StaticRow
 import com.slouchcat.app.mobile.shell.MoreSection
@@ -78,6 +80,10 @@ fun MoreScreen(
     onSignOut: () -> Unit,
     onDismissSheet: () -> Unit,
     modifier: Modifier = Modifier,
+    onChangeServer: () -> Unit = {},
+    onKeyCheck: () -> Unit = {},
+    onOwnNetwork: (Boolean) -> Unit = {},
+    onConfirmKey: () -> Unit = {},
 ) {
     val c = SlouchcatTheme.colors
     val wide = isWideLayout()
@@ -90,6 +96,7 @@ fun MoreScreen(
                 .padding(horizontal = gutter(), vertical = 8.dp),
         ) {
             ProfileCard(state, onSwitchProfile)
+            if (state.newKey != null) ServerUnconfirmedNote(onCheck = onKeyCheck, modifier = Modifier.padding(top = 14.dp))
             if (state.server?.encrypted == false) InsecureNote(Modifier.padding(top = 14.dp))
             val library = rowsOf(rows, MoreSection.Library)
             val devices = rowsOf(rows, MoreSection.Devices)
@@ -114,8 +121,19 @@ fun MoreScreen(
         }
     }
     when (state.sheet) {
-        MoreSheet.Server -> ServerSheet(state, onDismissSheet, onChange = onSignOutAsk)
+        MoreSheet.Server -> ServerSheet(state, onDismissSheet, onChange = onChangeServer)
         MoreSheet.SignOut -> SignOutSheet(state, onChoice, onSignOut, onDismissSheet)
+        MoreSheet.KeyCheck -> state.newKey?.let { presented ->
+            KeyCheckSheet(
+                remembered = state.rememberedKey,
+                presented = presented,
+                ownNetwork = state.ownNetwork,
+                onOwnNetwork = onOwnNetwork,
+                confirmLabel = stringResource(R.string.app_serverKey_signIn),
+                onConfirm = onConfirmKey,
+                onDismiss = onDismissSheet,
+            )
+        }
         null -> Unit
     }
 }

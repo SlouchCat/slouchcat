@@ -157,13 +157,17 @@ class FakeProbe(var result: ProbeResult) : ServerProbe {
     override suspend fun probe(address: HttpUrl) = result
 }
 
-class FakeKeys(override var presentedKey: String? = null) : KeyConfirmation {
+class FakeKeys(presented: String? = null, override val rememberedKey: String? = "server-key") : KeyConfirmation {
     val log = mutableListOf<String>()
+    override val newKey = MutableStateFlow(presented)
+    var suppressed = false
     override fun begin(key: String) {
         log += "begin:$key"
+        suppressed = true
     }
     override suspend fun finish(confirmed: Boolean) {
         log += "finish:$confirmed"
+        suppressed = false
     }
 }
 
