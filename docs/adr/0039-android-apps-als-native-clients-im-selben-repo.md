@@ -51,10 +51,25 @@ JDK braucht.
    Stream-Token entfernt; nur ein `LogSink` schreibt nach logcat. Erzeugter Code ist ausgenommen.
 4. **Ein HTTP-Client** (`SlouchcatHttp` in `core/api`) für API, Bilder und Player: `X-Slouchcat-Client`
    (`mobile/<Version>`) an jeder Anfrage, `X-Requested-With: Slouchcat` an jeder schreibenden,
-   Bearer und `X-Slouchcat-Device` nur an den eigenen Server. Unverschlüsseltes HTTP ist für alles
-   freigegeben (E-18, Netzwerk-Sicherheitskonfiguration); die Seite «Serveradresse» warnt vor HTTP
-   ausserhalb des Heimnetzes, entschieden an der aufgelösten Adresse (Bereiche aus K27 2.7, dazu
-   Loopback und die IPv6-Gegenstücke).
+   Bearer und `X-Slouchcat-Device` nur an den eigenen Server, je Netzsprung geprüft: eine
+   Weiterleitung an einen anderen Host trägt sie nie, Weiterleitungen von https auf http folgt der
+   Client nicht. Unverschlüsseltes HTTP ist für alles freigegeben (E-18,
+   Netzwerk-Sicherheitskonfiguration); die Seite «Serveradresse» warnt vor HTTP ausserhalb des
+   Heimnetzes, entschieden an der aufgelösten Adresse: die Bereiche aus K27 2.7 (10/8, 172.16/12,
+   192.168/16, 169.254/16, 100.64/10), dazu Loopback, `fe80::/10` und `fc00::/7`. Globale
+   IPv6-Adressen gelten als fremd, auch wenn sie im eigenen Netz liegen; die Warnung erscheint dann
+   auch zu Hause (sicher, aber lästig). `100.64/10` zählt mit, weil VPNs wie Tailscale es nutzen;
+   die Kehrseite: eine Adresse aus dem CGNAT eines Anbieters warnt nicht.
+   **Zertifikate:** Die App vertraut den Zertifizierungsstellen des Systems und denen, die der
+   Nutzer auf dem Gerät installiert hat. Ein Haushalt mit eigener Zertifizierungsstelle erreicht
+   seinen Server so wie im Browser. Die Angaben zur Verbindung sagen dann nicht einfach
+   «Verbindung verschlüsselt», sondern «Verschlüsselt mit einem selbst installierten Zertifikat»
+   (die App prüft, ob die Kette in einer vom Nutzer installierten Stelle endet).
+   **Fehler eines Aufrufs** kommen als `ApiResult` (`Ok`, `NotFound`, `NotAllowed`, `SignedOut`,
+   `AppTooOld`, `Offline`, `Failed`) aus `ApiCaller`; 401 und 426 meldet er zusätzlich an
+   `SessionEvents`, auf die die App an einer Stelle reagiert (Anmeldung, «Bitte die App
+   aktualisieren»). Seiten halten, was sie laden, als `Loadable` (laden, leer, fehlgeschlagen,
+   bereit). Der Logger entfernt Werte nach denselben Schlüsselendungen wie der Server.
 5. **Verträglichkeit** (K27 11.5): die App braucht mindestens Vertrag 1.42.0 und liest ihn aus
    `getHealth.contractVersion`; fehlt das Feld, gilt der Server als zu alt.
 6. **Oberfläche:** eine Activity, Compose mit Material 3, ein dunkles Thema aus den Tokens, keine
@@ -73,9 +88,21 @@ JDK braucht.
 
 ## Folgen
 
-- Wer nur Server oder Web-App ändert, braucht kein JDK; `task check:fast` prüft die Apps nur bei
-  Änderungen an `android/`, am Vertrag, an den Texten oder an den Tokens, und überlässt es ohne JDK
-  der CI.
+- Wer nur Server oder Web-App ändert, braucht für `task check:fast` kein JDK: Es prüft die Apps nur
+  bei Änderungen an `android/`, am Vertrag, an den Texten oder an den Tokens, bei reinen
+  Textänderungen nur mit dem Textgenerator, und überlässt es ohne JDK der CI. `task ci` dagegen
+  baut die Apps immer (`ci:android`) und braucht JDK und Android-SDK.
+- **Bekannte Grenze der Zertifikate:** Wer auf dem Gerät eine Zertifizierungsstelle installieren
+  kann (Firmenverwaltung des Geräts, Prüfung des Datenverkehrs im Firmennetz), kann die Verbindung
+  der App zu einem HTTPS-Server mitlesen: Passwort, Token und die Medienadressen mit `dt`, `st`
+  und `rt`. Die App nennt diesen Fall in den Angaben zur Verbindung, verhindert ihn aber nicht.
+  «Server weist sich aus» (F-38) schützt nur Server über HTTP.
+- Die öffentlichen Operationen des Einrichtungsassistenten (`getSetupStatus`, `runSetup`) bleiben
+  im Client, weil `public`-Operationen keine `x-clients`-Liste tragen; die App ruft sie nicht, der
+  Vertragstest richtet damit seinen Server ein.
+- Sicherung und Gerätewechsel nehmen nur die Serveradresse mit (`data_extraction_rules.xml`);
+  Token, Datenbanken und Zwischenspeicher bleiben auf dem Gerät.
+- Release-Bauten laufen mit R8; `task android:check` baut sie unsigniert mit.
 - Eine Vertragsänderung, die die App bricht, zeigt der Job `android`; ab Stufe 10 gilt dazu die
   Übergangszeit aus K27 11.5.
 - Jede neue Seite der Apps braucht ihre Texte in `de` und `en` (Namensraum `app` oder einen der

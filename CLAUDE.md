@@ -64,7 +64,9 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test (seit Konzept 25 auch `seerrapikey`,
-    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin).
+    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin). In `android/` nur über
+    `com.slouchcat.core.api.log.Log` (gleiche Schlüsselendungen wie der Server, Werte als Felder);
+    `android.util.Log`, `println` und `printStackTrace` meldet die Lint-Regel `SlouchcatDirectLog`.
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
     und Konzept 27 und die Android-TV-App nach Frage 34 und Konzept 26; Apple TV, webOS, Tizen, Fire TV und
     native iOS-Apps bleiben Nicht-Ziele), Plugins,

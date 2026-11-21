@@ -89,7 +89,8 @@ Images, Compose-Dateien und Betrieb: `deploy/relay/`, `docs/relay/BETRIEB.md`. R
 
 Ein Gradle-Projekt neben Server und Web-App (Konzept 27 Abschnitt 5, ADR 0039). Vertrag, Texte und
 Tokens liest es aus diesem Repo; Kotlin-Client, Texte (`strings.xml`) und Farben entstehen beim Bau
-im Bauordner und werden nie eingecheckt. Wer nur Server oder Web-App ändert, braucht kein JDK.
+im Bauordner und werden nie eingecheckt. Wer nur Server oder Web-App ändert, braucht für
+`task check:fast` kein JDK; `task ci` baut die Apps immer und braucht JDK und Android-SDK.
 
 **Installation** (ohne sudo, alles unter `~/.local/share`):
 
@@ -111,7 +112,7 @@ Gradle über den Wrapper. Welche Namensräume aus `web/src/locales` in die App k
 `android/strings-namespaces.txt`.
 
 ```bash
-task android:check        # beide Bauarten in debug, Lint mit eigenen Regeln, Generatoren (CI-Job «android»)
+task android:check        # beide Bauarten in debug und release (R8, unsigniert), Lint, Generatoren (CI-Job «android»)
 task android:test         # alle JVM-Tests: Robolectric-Oberflächentests, ViewModels, Lint-Regeln, Generatoren
 task android:contract     # erzeugter Client gegen einen frisch gestarteten Server (Port 8597, CONTRACT_PORT)
 task android:apk          # Debug-APKs nach android/app-mobile/build/outputs/apk
@@ -119,7 +120,8 @@ task android:check:fast   # Teil von `task check:fast`: nur bei Änderungen an a
 ```
 
 **Speicher:** Die Maschine teilen sich mehrere Läufe. `android/gradle.properties` begrenzt den
-Gradle-Daemon auf 3 GB, den Kotlin-Daemon auf 2 GB und Gradle auf sechs Worker; jeder Gradle-Lauf
+Gradle-Daemon auf 3 GB, den Kotlin-Daemon auf 2 GB und Gradle auf drei Worker, Tests laufen in einer
+JVM zugleich (1,5 GB): zusammen unter 8 GB. Jeder Gradle-Lauf
 der Task-Ziele wartet auf einen Platz (`scripts/heavy-slot.sh`). Nach einem grösseren Lauf die
 Daemons stoppen: `cd android && ./gradlew --stop`. Höchstens **ein** Emulator zugleich; vor dem Start
 `pgrep -fa qemu-system` und `free -g` ansehen (unter 6 GB verfügbar: warten).
