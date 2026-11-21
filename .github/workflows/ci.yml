@@ -266,11 +266,13 @@ jobs:
           cache-to: type=gha,mode=max,scope=relay-push
 
   # ---------------------------------------------------------------------------------------------
-  # Android: the phone app and its modules (concept 27 section 5.7). Debug builds of both flavours,
-  # lint with the own rules, the generators (client from the contract, texts from the locales,
-  # tokens through Node) and the JVM tests with Robolectric; `task ci:android` is the same locally.
-  # JDK 21 is the runner's own (JAVA_HOME_21_X64), the SDK the runner's with the packages the build
-  # needs added; no third-party action. The debug APKs stay with the run. Emulator tests: part 2.
+  # Android: the phone app, the TV app and their modules (concept 27 section 5.7, concept 26 stage
+  # 2a). Debug and release builds, lint with the own rules, the generators (client from the contract,
+  # texts from the locales, tokens through Node) and the JVM tests with Robolectric (the TV's D-pad
+  # tests included); `task ci:android` is the same locally. JDK 21 is the runner's own
+  # (JAVA_HOME_21_X64), the SDK the runner's with the packages the build needs added; no third-party
+  # action. The debug APKs of both apps stay with the run. The TV's emulator flow runs only locally
+  # (task android:e2e:tv; docs/perf/K27-android-ci.md).
   # ---------------------------------------------------------------------------------------------
   android:
     name: android (builds, lint, generators, tests)
@@ -322,7 +324,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-debug-apks
-          path: android/app-mobile/build/outputs/apk/**/*.apk
+          path: |
+            android/app-mobile/build/outputs/apk/**/*.apk
+            android/app-tv/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Keep the lint and test reports on failure
