@@ -1,6 +1,8 @@
 package com.slouchcat.app.mobile.shell
 
+import com.slouchcat.app.mobile.item.ItemFeature
 import com.slouchcat.app.mobile.more.MoreFeature
+import com.slouchcat.app.mobile.person.PersonFeature
 
 /**
  * Every feature of the phone app, one line each (concept 27, section 13: one or more per stage).
@@ -11,4 +13,6 @@ import com.slouchcat.app.mobile.more.MoreFeature
  */
 val features: List<Feature> = listOf(
     MoreFeature,
+    ItemFeature(),
+    PersonFeature(),
 )
