@@ -3,13 +3,7 @@ import { anonymousApi } from './accounts';
 import { CSRF } from './catalog';
 import { OWNER } from './env';
 import { expect, test } from './fixtures';
-import {
-  expectFocusOn,
-  expectNoFocusTrap,
-  expectVisibleFocus,
-  resetFocus,
-  tabTo,
-} from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
 // «Meine Geräte» (concept 27 4.5) by keyboard (rule 8): the sidebar link with Enter, the list with
 // «Dieses Gerät», Tab to «Abmelden» of a phone, Escape and Enter in the confirmation, the status
@@ -83,8 +77,8 @@ test('«Meine Geräte» by keyboard: list, sign out a phone with confirmation, B
     expect((await deleted).status()).toBe(204);
     await expect(page.getByText(`„${name}“ abgemeldet.`)).toBeVisible();
     await expect(phone).toHaveCount(0);
+    // The h1 takes the focus programmatically (no ring, like the other pages after a delete).
     await expect(page.getByRole('heading', { level: 1, name: 'Meine Geräte' })).toBeFocused();
-    await expectVisibleFocus(page);
     await expectNoFocusTrap(page, 200);
 
     // The phone's token is no longer valid.
