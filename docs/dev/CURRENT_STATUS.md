@@ -70,6 +70,30 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
   - **Bekannte Grenzen** (ADR 0040): Ein Token ohne Ablauf über unverschlüsseltes HTTP gilt, bis das Gerät
     abgemeldet oder das Passwort geändert wird; hinter einem Reverse-Proxy ohne eingetragene vertraute
     Proxys teilen sich alle Clients die Grenzen je Adresse; Push-Abos ohne Gerätekennung räumt niemand auf.
+- **Konzept 26, Stufe 0 «Messung» (PR #196):** Bericht `docs/perf/K26-android-tv.md`. **Gemessen im
+  Emulator (Google TV, API 34), nicht auf den drei Fernsehern;** die Liste zum Nachmessen steht am Ende des
+  Berichts. Entscheide: HLS trägt AAC, AC-3 und E-AC-3 (kopiert und neu kodiert), DTS, FLAC und Opus nur
+  kopiert, TrueHD nie; Ziel beim Neu-Kodieren AC-3, sonst AAC 5.1; PGS und ASS zeichnet der Player selbst;
+  Compose for TV trägt; Tests mit dem Steuerkreuz laufen als JVM-Tests; `minSdk` 28.
+- **Konzept 26, Stufe 1 «Server: Ton und Fähigkeiten» (Release 1.43.0, Vertrag 1.43.0, ADR 0041):**
+  - Drei neue Felder im Fähigkeitsprofil (`PlaybackCapabilities`): `maxAudioChannels` (2, 6, 8),
+    `selectsTracks` (der Player wählt Spuren in der Originaldatei selbst) und `subtitles` (Formate, die der
+    Player selbst zeichnet). Fehlt ein Feld, entscheidet der Server wie bisher.
+  - Mit den Feldern: Eine andere Tonspur erzwingt bei Direktwiedergabe keinen Remux mehr; gemeldete
+    Untertitelformate werden bei Direktwiedergabe nicht eingebrannt; beim Transcode wird gemeldetes AC-3
+    und E-AC-3 kopiert; neu kodierter Ton ist bei 6 oder 8 gemeldeten Kanälen Mehrkanal (AC-3 640 kbit/s,
+    sonst AAC 5.1 mit 384 und 7.1 mit 512 kbit/s), nie mehr Kanäle als die Quelle.
+  - **Behobener Fehler für alle Clients:** Ein Remux mit kopiertem AC-3 oder E-AC-3 brach in fMP4 ab (traf
+    Safari und Edge bei Dateien mit Dolby-Ton). Die Codec-Angabe in der HLS-Liste stimmt jetzt je Format.
+  - **Für Browser sonst unverändert:** 75 feste Vergleichszeilen gegen den Stand vor der Stufe
+    (`TestBrowsersAsBefore`). Bewusste Änderungen: MP3, TrueHD, PCM und unbekannte Tonformate werden in HLS
+    neu kodiert statt mit falscher Angabe kopiert; unter einer Bandbreitengrenze gilt eine Untergrenze von
+    40 kbit/s für das Video.
+  - **Geprüft:** Entscheid-Tests, Pipeline-Tests mit echtem ffmpeg, getrenntes Code-Review mit
+    Korrekturrunde (3 Major), e2e der Wiedergabe, `apicheck` mit einem Fernseher-Profil. **Nicht geprüft:**
+    Wiedergabe und Durchreichen auf echten Geräten und Tonanlagen (kein Decoder für Dolby im Emulator).
+  - **Offen (ADR 0041):** Beginnt eine Dolby-Tonspur erst nach dem ersten Segment, scheitert der Start
+    eines Remux mit Tonkopie.
 - **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
   Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
   - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.
