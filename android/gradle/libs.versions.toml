@@ -31,6 +31,11 @@ tink = "1.24.0"
 coil = "3.6.3"
 # The player of both apps (stage 0 point 4, module :core:player).
 media3 = "1.11.1"
+# Compose for TV (concept 26, 3.1; K26 stage 0 report, point 6).
+tvMaterial = "1.1.0"
+# The QR code of the TV setup (concept 26, 4.3): only the encoder of ZXing core, Apache-2.0
+# (compatible with the AGPL-3.0 of the project), pure Java, no Android parts.
+zxing = "3.5.3"
 
 [libraries]
 # Build logic (compile-only in build-logic; the plugins themselves come in through the root build).
@@ -82,6 +87,8 @@ media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", versio
 media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+tv-material = { module = "androidx.tv:tv-material", version.ref = "tvMaterial" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

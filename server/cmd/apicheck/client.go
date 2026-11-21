@@ -265,6 +265,21 @@ func (r *response) expect(method, path string, want ...int) error {
 	return fmt.Errorf("%s %s answered %d: %s", method, path, r.status, snippet(r.body))
 }
 
+// expectSecret is expect for answers that may carry a token or voucher: on an unexpected status
+// it names the problem code at most, never a piece of the body.
+func (r *response) expectSecret(method, path string, want ...int) error {
+	for _, status := range want {
+		if r.status == status {
+			return nil
+		}
+	}
+	var p problem
+	if err := json.Unmarshal(r.body, &p); err == nil && p.Code != "" {
+		return fmt.Errorf("%s %s answered %d %s", method, path, r.status, p.Code)
+	}
+	return fmt.Errorf("%s %s answered %d", method, path, r.status)
+}
+
 // snippet shortens a body for an error message.
 func snippet(body []byte) string {
 	const limit = 200

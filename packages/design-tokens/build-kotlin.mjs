@@ -11,6 +11,8 @@
 // - `rem` -> dp (1 rem = 16), `px` -> dp (1:1); font sizes as sp; `em` -> Compose em;
 // - duration `120ms` -> Int (milliseconds); cubicBezier -> CubicBezierEasing;
 // - fontWeight -> FontWeight; number -> Float.
+// tokens-tv/*.json (group `tv`, the TV app of concept 26) come only into this output, not into the
+// CSS of the web app.
 // Left out, listed at the end of the file: font families (the apps use the system font) and
 // container units such as `9cqi`, which Compose does not have.
 import { mkdirSync } from 'node:fs';
@@ -43,8 +45,9 @@ function kotlinValue(token) {
   const type = token.$type;
   // A font size is sp, also when another token refers to one ({font.size.md}) or is named so.
   const original = String(token.original?.$value ?? '');
+  const font = token.path.indexOf('font');
   const isFontSize =
-    (token.path[0] === 'font' && token.path[1] === 'size') ||
+    (font >= 0 && token.path[font + 1] === 'size') ||
     original.startsWith('{font.size.') ||
     /font-?size$/i.test(token.path.at(-1));
   switch (type) {
@@ -141,7 +144,8 @@ StyleDictionary.registerFormat({
 const dir = path.join(path.resolve(out), 'com/slouchcat/core/design');
 mkdirSync(dir, { recursive: true });
 const sd = new StyleDictionary({
-  source: [path.join(pkg, 'tokens/**/*.json')],
+  // tokens-tv/: the ten-foot sizes of the TV app (concept 26, 3.4), only in this output.
+  source: [path.join(pkg, 'tokens/**/*.json'), path.join(pkg, 'tokens-tv/**/*.json')],
   usesDtcg: true,
   log: { verbosity: 'default', warnings: 'error' },
   platforms: {

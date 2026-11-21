@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon (TV-BN: at least 160 x 160 px): the paths of web/public/icon.svg with the colours
+     color.bg.base and color.accent.ember.base of packages/design-tokens. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="160dp" android:height="160dp" android:viewportWidth="512" android:viewportHeight="512">
+    <path android:fillColor="#0b0c10" android:pathData="M112 0h288a112 112 0 0 1 112 112v288a112 112 0 0 1-112 112H112A112 112 0 0 1 0 400V112A112 112 0 0 1 112 0z" />
+    <path android:fillColor="#e8794a" android:pathData="M136 400V136l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z" />
+    <path android:fillColor="#0b0c10" android:pathData="M228 268v96l84-48z" />
+</vector>

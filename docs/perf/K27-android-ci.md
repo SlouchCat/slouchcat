@@ -77,3 +77,26 @@ ihn auf `main` füllen; bei einem Treffer kostet der Job unter einer Minute mehr
 Fehltreffer (neue ffmpeg-Fassung, geänderter Generator) knapp drei Minuten. Der Ablauf mit
 eingespielten Daten (`BrowseShowcaseTest`, ohne Server) läuft in jedem Emulator-Lauf zusätzlich mit
 und deckt Bühne, «Weiterschauen» und Bilder ab, die der Testserver ohne TMDB nicht hat.
+
+## TV-App (K26 Stufe 2a): Emulator in der CI?
+
+Gemessen am 21.11.2026 lokal mit `task android:e2e:tv` (Emulator `sc_tv`, Systemabbild Google TV API 34
+x86_64, KVM, Server und Vermittlung schon gebaut, Gradle warm): Emulator bereit nach rund 14 s, ganzer
+Lauf beider Abläufe (von Hand bis Abmelden, per Scan über die lokale Vermittlung) 29 s, davon 15 s am
+Gerät.
+
+In der CI kämen dazu: ein zweites Systemabbild (Google TV API 34, rund 1,5 GB, ohne Cache 2 bis 4 min),
+der Kaltstart ohne gespeicherten Zustand (1 bis 2 min), Test-APK der TV-App (1 bis 2 min) und die
+Vermittlung (unter 1 min). Zusammen 5 bis 9 min zusätzlich zu den geschätzten 8 bis 13 min von
+`android-e2e`, also fast die doppelte Laufzeit des Jobs.
+
+**Entscheid: kein TV-Emulator in der CI.** Die Vorgabe lautet «nur, wenn er die Laufzeit von
+`android-e2e` nicht verdoppelt»; das ist nicht gesichert. Die CI prüft die TV-App stattdessen so:
+
+- Job `android`: `ciCheck`/`ciTest` enthalten `:app-tv` und `:core:pairing` (Lint, R8-Release-Bau,
+  JVM-Tests mit dem Steuerkreuz unter Robolectric für jede Seite, Kopplung gegen
+  `testdata/crypto/`), das TV-APK liegt als Artefakt bei.
+- Job `relay`: der Dienst, gegen den die Kopplung läuft.
+
+Der Emulatorlauf bleibt lokal vor jedem PR, der die TV-App anfasst (`docs/dev/SETUP.md`). Neu
+entscheiden, wenn `android-e2e` gemessen unter 8 min liegt oder ein Fehler nur im Emulator auffiel.

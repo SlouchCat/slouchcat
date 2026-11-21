@@ -75,3 +75,4 @@ player.settings
 player.option
 settings.playback
 format
+tv
