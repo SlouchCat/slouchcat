@@ -23,7 +23,7 @@ services:
       - ${DEMO_MEDIA_DIR:-./media}:/media
 
   slouchcat:
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.41.3}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.42.0}
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     depends_on:

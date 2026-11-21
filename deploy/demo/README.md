@@ -111,6 +111,10 @@ Der Server ist dann unter `http://127.0.0.1:8797` erreichbar, der Emulator errei
 `http://10.0.2.2:8797`. Wegräumen: `docker compose --profile https down -v`, dann
 `rm -rf config cache media`.
 
+**Fassung des Servers:** Die Apps brauchen Vertrag 1.42.0 (App-Anmeldung, Konzept 27 Stufe 1);
+ab Werk steht darum `SLOUCHCAT_VERSION=1.42.0`. Am 21. November 2026 ist 1.42.0 noch nicht
+veröffentlicht; bis dahin startet der Stack mit `1.41.3`, aber keine App kann sich anmelden.
+
 Belegt am 21. November 2026 auf dem Entwicklungsrechner mit `SLOUCHCAT_VERSION=1.41.3`: Download
 und Prüfung der sechs Dateien, Server gesund nach 45 s, `seed` in 3 s, das Prüfkonto sieht vier
 Filme, Tears of Steel hat zwei Untertitel aus Begleitdateien (`de`, `en`), ein Aufruf der
