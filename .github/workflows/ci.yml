@@ -396,6 +396,15 @@ jobs:
 
       - run: task android:contract
 
+      # The test media (cached under the same key as the server tests, generated on a miss): with
+      # them the emulator flow browses a real library (docs/perf/K27-android-ci.md). ffmpeg also
+      # probes them when the server scans.
+      - uses: ./.github/actions/system-packages
+        with:
+          group: android-e2e
+
+      - uses: ./.github/actions/test-media
+
       - run: task android:e2e AVD=ci_phone
 
       - name: Keep the instrumentation reports on failure
