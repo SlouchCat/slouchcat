@@ -102,7 +102,7 @@ func hlsTarget(req HLSRequest, host transcode.Capabilities) transcode.Target {
 		return target
 	}
 	if d.Mode == ModeTranscode {
-		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
+		target.Quality, target.MaxBitrate, target.AudioRate = d.Quality, d.Bitrate, d.AudioBitrate
 		target.Backend, target.HWTonemap = host.Backend, host.HWTonemap
 		if d.SubtitleDelivery == model.SubtitleBurn {
 			if req.BurnInPath != "" {

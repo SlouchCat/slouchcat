@@ -1,7 +1,9 @@
 package playback
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,6 +149,25 @@ func TestDecideTVCapabilities(t *testing.T) {
 			want{mode: ModeTranscode, reason: ReasonHDR, copyAudio: true, audioBitrate: 640_000, videoBitrate: 1_000_000,
 				codecs: "avc1.640029,ac-3", audioStream: 2, burnStream: -1}},
 
+		// A copy that leaves less than 40 kbit/s of video under the limit is encoded: stereo AAC at
+		// 160 kbit/s (a multichannel encode would not fit either); the video never drops below
+		// 40 kbit/s.
+		{"aac 256 under 200", mkv, tvProbe(hdr, "aac", 2, 256_000), tvCaps(), 2, nil, "", limit(200),
+			want{mode: ModeTranscode, reason: ReasonHDR, videoBitrate: 40_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
+		{"aac 256 under 200, before", mkv, tvProbe(hdr, "aac", 2, 256_000), tvOld(), 2, nil, "", limit(200),
+			want{mode: ModeTranscode, reason: ReasonHDR, copyAudio: true, videoBitrate: 40_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
+		{"ac3 640 under 600", mkv, tvProbe(hdr, "ac3", 6, 640_000), tvCaps(), 2, nil, "", limit(600),
+			want{mode: ModeTranscode, reason: ReasonHDR, videoBitrate: 440_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
+		// E-AC-3 (bound 1024) does not fit 1000, the AC-3 5.1 encode (640) does.
+		{"eac3 unprobed under 1000", mkv, tvProbe(hdr, "eac3", 6, 0), tvCaps(), 2, nil, "", limit(1000),
+			want{mode: ModeTranscode, reason: ReasonHDR, codec: transcode.AudioAC3, channels: 6, audioBitrate: 640_000, videoBitrate: 360_000,
+				codecs: "avc1.640029,ac-3", audioStream: 2, burnStream: -1}},
+		{"eac3 unprobed under 600", mkv, tvProbe(hdr, "eac3", 6, 0), tvCaps(), 2, nil, "", limit(600),
+			want{mode: ModeTranscode, reason: ReasonHDR, videoBitrate: 440_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
+		{"ac3 640 under 1000", mkv, tvProbe(hdr, "ac3", 6, 640_000), tvCaps(), 2, nil, "", limit(1000),
+			want{mode: ModeTranscode, reason: ReasonHDR, copyAudio: true, audioBitrate: 640_000, videoBitrate: 360_000,
+				codecs: "avc1.640029,ac-3", audioStream: 2, burnStream: -1}},
+
 		// Multichannel encode of what cannot be copied (a remux of DTS the TV does not report): AC-3
 		// 5.1 where the TV reports ac3, else AAC 5.1; AAC 7.1 for 8 channels and a 7.1 source;
 		// never more channels than the source; before, stereo AAC.
@@ -169,6 +190,14 @@ func TestDecideTVCapabilities(t *testing.T) {
 		{"quad remux, never more channels", avi, tvProbe("bt709", "pcm_s16le", 4, 0), tvCaps(), 2, nil, "", model.PlaybackLimits{},
 			want{mode: ModeRemux, reason: ReasonContainer, codec: transcode.AudioAC3, channels: 4, audioBitrate: 640_000,
 				codecs: "avc1.640029,ac-3", audioStream: 2, burnStream: -1}},
+		{"5.0 source keeps 5 channels", avi, tvProbe("bt709", "pcm_s16le", 5, 0), with(tvCaps(), func(c *model.PlaybackCapabilities) {
+			c.Audio = []string{"aac"}
+		}), 2, nil, "", model.PlaybackLimits{},
+			want{mode: ModeRemux, reason: ReasonContainer, channels: 5, audioBitrate: 320_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
+		{"6.1 source on 8 channels keeps 7", avi, tvProbe("bt709", "dts", 7, 0), with(tvCaps(), func(c *model.PlaybackCapabilities) {
+			c.MaxAudioChannels = 8
+		}), 2, nil, "", model.PlaybackLimits{},
+			want{mode: ModeRemux, reason: ReasonContainer, channels: 7, audioBitrate: 448_000, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
 		{"stereo source stays stereo", avi, tvProbe("bt709", "mp3", 2, 0), tvCaps(), 2, nil, "", model.PlaybackLimits{},
 			want{mode: ModeRemux, reason: ReasonContainer, codecs: "avc1.640029,mp4a.40.2", audioStream: 2, burnStream: -1}},
 		{"2 channels reported", avi, tvProbe("bt709", "dts", 6, 0), with(tvCaps(), func(c *model.PlaybackCapabilities) {
@@ -244,6 +273,14 @@ func TestNormalizeTVCapabilities(t *testing.T) {
 		if got := normalizeCapabilities(&model.PlaybackCapabilities{HLS: "mse", MaxAudioChannels: n}); got.MaxAudioChannels != 0 {
 			t.Errorf("maxAudioChannels %d normalized to %d, want 0 (not reported)", n, got.MaxAudioChannels)
 		}
+	}
+	var many []string
+	for i := range 40 {
+		many = append(many, fmt.Sprintf("f%d", i))
+	}
+	many = append([]string{strings.Repeat("x", 33)}, many...)
+	if got := normalizeCapabilities(&model.PlaybackCapabilities{HLS: "mse", Subtitles: many}); len(got.Subtitles) != 16 || got.Subtitles[0] != "f0" {
+		t.Errorf("subtitles normalized to %v, want 16 names from f0", got.Subtitles)
 	}
 	if got := normalizeCapabilities(nil); got.MaxAudioChannels != 0 || got.SelectsTracks || got.Subtitles != nil {
 		t.Errorf("absent report = %+v", got)

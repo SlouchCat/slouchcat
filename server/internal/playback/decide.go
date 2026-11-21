@@ -122,6 +122,13 @@ const maxDeviceName = 80
 
 var deviceTypes = []string{"desktop", "phone", "tablet", "tv", "other"}
 
+// maxSubtitleFormats and maxSubtitleName are the bounds of PlaybackCapabilities.subtitles in the
+// contract (maxItems, the length of a name); the server keeps to them for stored reports too.
+const (
+	maxSubtitleFormats = 16
+	maxSubtitleName    = 32
+)
+
 // subtitleAliases maps the short names a client may report in PlaybackCapabilities.subtitles to
 // the ffprobe names of the tracks.
 var subtitleAliases = map[string]string{
@@ -157,7 +164,10 @@ func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabili
 		if alias, ok := subtitleAliases[f]; ok {
 			f = alias
 		}
-		if !slices.Contains(out.Subtitles, f) {
+		if len(out.Subtitles) == maxSubtitleFormats {
+			break
+		}
+		if len(f) <= maxSubtitleName && !slices.Contains(out.Subtitles, f) {
 			out.Subtitles = append(out.Subtitles, f)
 		}
 	}
@@ -424,7 +434,7 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	srcAudio := audioStream(probe, d.AudioStream)
 	if reason == "" {
 		d.Mode, d.VideoCopy, d.Quality = ModeRemux, true, model.QualityAuto
-		hlsAudio(audio, srcAudio, caps, false).apply(&d)
+		hlsAudio(audio, srcAudio, caps, limits, false).apply(&d)
 		if video == "hevc" {
 			d.VideoTag = "hvc1"
 		}
@@ -447,7 +457,7 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 		from = max(wanted, top)
 	}
 	devCap := heightCap(caps, uhdAllowed(req.Host, v, limits, caps))
-	out := hlsAudio(audio, srcAudio, caps, true)
+	out := hlsAudio(audio, srcAudio, caps, limits, true)
 	return transcodeOn(d, pickRung(from, limits, devCap, out.rate()), reason, hdr, out, srcW, srcH, limits)
 }
 
@@ -477,14 +487,17 @@ func audioOf(d Decision) audioOut {
 //
 //   - Copy: a remux copies a codec the client reports and fMP4 HLS carries
 //     (transcode.CopyableAudio: AAC, AC-3, E-AC-3, DTS, FLAC, Opus; never TrueHD or MP3); a transcode
-//     copies reported AAC, and AC-3 and E-AC-3 when the client reports maxAudioChannels. A track
-//     copied next to encoded video counts with its own bit rate (transcode.CopyAudioBitrate). An output without audio
+//     copies reported AAC, and AC-3 and E-AC-3 when the client reports maxAudioChannels. For such a
+//     client a track copied next to encoded video counts with its own bit rate
+//     (transcode.CopyAudioBitrate), else with 160 kbit/s as before. A copy that would leave less
+//     than minVideoBitrate of video under the bandwidth limit is encoded instead. An output without audio
 //     keeps the flag of before (copy in a remux, encode in a transcode).
 //   - Encode, with maxAudioChannels 6 or 8 and a source above stereo: AC-3 at 640 kbit/s with up to
 //     6 channels when the client reports ac3, else AAC with up to 6 channels (5.1: 384 kbit/s);
 //     with 8 and a source above 6 channels AAC with up to 8 (7.1: 512 kbit/s). Never more channels
-//     than the source. Otherwise stereo AAC at 160 kbit/s, as before.
-func hlsAudio(codec string, a *transcode.Stream, caps model.PlaybackCapabilities, transcoding bool) audioOut {
+//     than the source (3, 4, 5 or 7 channels stay so). An encode that does not fit the limit with
+//     minVideoBitrate of video, and every other case, is stereo AAC at 160 kbit/s, as before.
+func hlsAudio(codec string, a *transcode.Stream, caps model.PlaybackCapabilities, limits model.PlaybackLimits, transcoding bool) audioOut {
 	reported := codec == "" || slices.Contains(caps.Audio, codec)
 	var copyOK bool
 	if transcoding {
@@ -500,16 +513,22 @@ func hlsAudio(codec string, a *transcode.Stream, caps model.PlaybackCapabilities
 	}
 	if copyOK {
 		out := audioOut{Copy: true}
-		// The bandwidth of a remux is the file's, of a transcode the rung's plus this.
-		if r := transcode.CopyAudioBitrate(st); transcoding && r != audioBitrate {
+		// The bandwidth of a remux is the file's, of a transcode the rung's plus this: the track's
+		// own rate for a client that reports the new fields, else 160 kbit/s as before.
+		if r := transcode.CopyAudioBitrate(st); transcoding && caps.MaxAudioChannels > 0 && r != audioBitrate {
 			out.Bitrate = r
 		}
-		return out
+		if !transcoding || audioFits(out.rate(), limits) {
+			return out
+		}
+		// The copy would leave less than minVideoBitrate of video under the limit: encode.
 	}
 	src, most := st.Channels, caps.MaxAudioChannels
 	if most < 6 || src <= 2 {
 		return audioOut{}
 	}
+	// Up to 6 (or 8) channels, never more than the source: a 3-, 4-, 5- or 7-channel source keeps
+	// its count (ffmpeg's default layout of the count: 3.0, quad, 5.0, 6.1).
 	out := audioOut{Channels: min(src, 6)}
 	switch {
 	case most >= 8 && src > 6:
@@ -518,7 +537,16 @@ func hlsAudio(codec string, a *transcode.Stream, caps model.PlaybackCapabilities
 		out.Codec = transcode.AudioAC3
 	}
 	out.Bitrate = transcode.EncodeAudioBitrate(out.Codec, out.Channels)
+	if transcoding && !audioFits(out.rate(), limits) {
+		return audioOut{} // stereo AAC at 160 kbit/s fits every limit of the contract
+	}
 	return out
+}
+
+// audioFits reports whether audio bit/s of audio leave at least minVideoBitrate of video under the
+// bandwidth limit (none: always).
+func audioFits(audio int, limits model.PlaybackLimits) bool {
+	return limits.MaxBitrateKbps == 0 || audio+minVideoBitrate <= limits.MaxBitrateKbps*1000
 }
 
 // audioOnlyKbps is the AAC bit rate of an audio-only output that encodes (M6 design 3.3).

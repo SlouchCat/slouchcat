@@ -115,7 +115,8 @@ func TestFFmpegArgsAudio(t *testing.T) {
 		{"dts copy", "dts", Target{Mode: ModeRemux, VideoCopy: true, AudioCopy: true}, "-c:a copy", movFlags},
 		{"ac3 5.1 encode", "dts", Target{Mode: ModeTranscode, AudioCodec: AudioAC3, AudioChannels: 6}, "-c:a ac3 -b:a 640k -ac 6", delay},
 		{"aac 5.1 encode", "dts", Target{Mode: ModeRemux, VideoCopy: true, AudioChannels: 6}, "-c:a aac -b:a 384k -ac 6", movFlags},
-		{"aac 7.1 encode", "truehd", Target{Mode: ModeRemux, VideoCopy: true, AudioChannels: 8}, "-c:a aac -b:a 512k -ac 8", movFlags},
+		// The source has 6 channels: 8 asked are capped to them (never more than the source).
+		{"aac 8 of a 5.1 source", "truehd", Target{Mode: ModeRemux, VideoCopy: true, AudioChannels: 8}, "-c:a aac -b:a 384k -ac 6", movFlags},
 		{"stereo as before", "dts", Target{Mode: ModeTranscode}, "-c:a aac -b:a 160k -ac 2", movFlags},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -153,6 +153,9 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 			encoder, channels := "aac", outputChannels(a, hasVideo)
 			if hasVideo && p.Target.AudioChannels > 0 {
 				channels = p.Target.AudioChannels
+				if a.Channels > 0 {
+					channels = min(channels, max(a.Channels, 2)) // never more than the source
+				}
 			}
 			if p.Target.AudioCodec == AudioAC3 {
 				encoder = "ac3"

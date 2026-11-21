@@ -52,6 +52,10 @@ type Target struct {
 	// AudioBitrate gets EncodeAudioBitrate (concept 26 5.3).
 	AudioCodec    string
 	AudioChannels int
+	// AudioRate is the bit rate in bit/s the output audio counts with in the bandwidth, when the
+	// playback decision knows it (a copied track's own rate for a client that reports
+	// maxAudioChannels); 0 = OutputAudioBitrate's rule.
+	AudioRate int
 	MaxHeight     int    // output height limit of a transcode; 0 = 1080 (auto never goes above 1080p)
 	Tonemap       bool   // HDR10/HLG/Dolby Vision → SDR, with MaxHeight <= 1080 unless HWTonemap
 	VideoTag      string // "hvc1" when remuxing HEVC for Safari
@@ -582,12 +586,15 @@ func EncodeAudioBitrate(codec string, channels int) int {
 }
 
 // OutputAudioBitrate is the bit rate in bit/s of the audio a session with target t outputs for the
-// source p: the copied track's (CopyAudioBitrate), the encoder's (AudioBitrate, else
-// EncodeAudioBitrate); without audio the 160 kbit/s of stereo AAC, as the bandwidth always had.
+// source p: AudioRate when set; a copied track's upper bound (CopyAudioBitrate), AAC with 160
+// kbit/s as before; the encoder's (AudioBitrate, else EncodeAudioBitrate); without audio the 160
+// kbit/s of stereo AAC, as the bandwidth always had.
 func OutputAudioBitrate(p Probe, t Target) int {
 	a, ok := selectedAudio(p, t)
 	switch {
-	case !ok:
+	case t.AudioRate > 0:
+		return t.AudioRate
+	case !ok, t.AudioCopy && a.Codec == "aac":
 		return audioBitrate
 	case t.AudioCopy:
 		return CopyAudioBitrate(a)

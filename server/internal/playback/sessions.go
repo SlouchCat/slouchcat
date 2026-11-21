@@ -639,7 +639,7 @@ func (src source) transcode(d Decision, reason string) Decision {
 	if i := rungIndex(d.Quality); i >= 0 {
 		from = i
 	}
-	out := hlsAudio(audio, audioStream(src.probe, d.AudioStream), src.caps, true)
+	out := hlsAudio(audio, audioStream(src.probe, d.AudioStream), src.caps, src.limits, true)
 	return transcodeOn(d, pickRung(from, src.limits, heightCap(src.caps, src.uhd), out.rate()), reason, isHDR(mainVideo(src.probe)), out, src.w, src.h, src.limits)
 }
 

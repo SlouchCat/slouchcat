@@ -106,6 +106,10 @@ func heightCap(c model.PlaybackCapabilities, uhd bool) int {
 // the audio of a decision whose AudioBitrate is 0; the bandwidth limit covers video and audio.
 const audioBitrate = 160_000
 
+// minVideoBitrate is the least video bit rate of a transcode under a bandwidth limit: what the
+// smallest limit of the contract (200 kbit/s) leaves next to stereo AAC.
+const minVideoBitrate = 40_000
+
 // rungAllowed reports whether rung i fits the limits: the profile's maximum height, the height
 // cap of the device (heightCap) and the bandwidth limit (video bit rate of the rung plus the
 // audio of audio bit/s). The lowest rung is always allowed by bandwidth (the limit then caps its
@@ -147,10 +151,10 @@ func outputSize(srcW, srcH int, r transcode.Rung) (w, h int) {
 
 // rungBitrate is the peak video bit rate of a transcode on rung r under the bandwidth limit: the
 // limit minus the audio of audio bit/s (the smallest limit, 200 kbit/s, leaves 40 kbit/s of video
-// next to stereo AAC; at least 1).
+// next to stereo AAC), at least minVideoBitrate (hlsAudio keeps the audio within that).
 func rungBitrate(r transcode.Rung, limits model.PlaybackLimits, audio int) int {
 	if limits.MaxBitrateKbps > 0 {
-		return max(min(r.Bitrate, limits.MaxBitrateKbps*1000-audio), 1)
+		return max(min(r.Bitrate, limits.MaxBitrateKbps*1000-audio), minVideoBitrate)
 	}
 	return r.Bitrate
 }
