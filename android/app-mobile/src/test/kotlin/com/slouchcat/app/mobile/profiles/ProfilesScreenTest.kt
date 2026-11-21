@@ -54,6 +54,7 @@ class ProfilesScreenTest {
                 onCancelPin = { events += "cancel" },
                 onRetry = { events += "retry" },
                 onSignOut = { events += "signout" },
+                onManage = { events += "manage" },
             )
         }
     }
@@ -66,8 +67,9 @@ class ProfilesScreenTest {
         compose.onNodeWithContentDescription(primaryLabel).performClick()
         compose.onNodeWithContentDescription(listOf("Child", s(R.string.profiles_picker_locked)).joinToString(", ")).performClick()
         compose.onNodeWithText(s(R.string.app_profiles_account, EMAIL, "192.0.2.10")).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_profiles_manage_title)).performScrollTo().performClick()
         compose.onNodeWithText(s(R.string.nav_logout)).performScrollTo().performClick()
-        assertEquals(listOf("pick:1", "pick:2", "signout"), events)
+        assertEquals(listOf("pick:1", "pick:2", "manage", "signout"), events)
     }
 
     @Test @Config(qualifiers = PHONE)

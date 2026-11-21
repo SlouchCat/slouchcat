@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.slouchcat.app.mobile.AppGraph
+import com.slouchcat.app.mobile.browse.ProfilesSettingsRoute
 import com.slouchcat.app.mobile.common.SessionEventHandler
 import com.slouchcat.app.mobile.profiles.ProfilesScreen
 import com.slouchcat.app.mobile.profiles.ProfilesViewModel
@@ -125,7 +126,7 @@ fun SlouchcatNavHost(graph: AppGraph) {
                 NavHost(navController = nav, startDestination = start, modifier = Modifier.fillMaxSize().background(SlouchcatTheme.colors.bg)) {
                     setupDestination(graph, navigator)
                     signInDestination(graph, navigator)
-                    profilesDestination(graph)
+                    profilesDestination(graph, navigator)
                     for (feature in graph.registry.features) {
                         with(feature) { register(app) }
                     }
@@ -196,7 +197,7 @@ private fun NavGraphBuilder.signInDestination(graph: AppGraph, navigator: Naviga
     }
 }
 
-private fun NavGraphBuilder.profilesDestination(graph: AppGraph) {
+private fun NavGraphBuilder.profilesDestination(graph: AppGraph, navigator: Navigator) {
     composable<ProfilesRoute> {
         val vm = viewModel { ProfilesViewModel(graph.session, graph.auth, graph.sessionActions) }
         val state by vm.state.collectAsStateWithLifecycle()
@@ -210,6 +211,7 @@ private fun NavGraphBuilder.profilesDestination(graph: AppGraph) {
             onCancelPin = vm::onCancelPin,
             onRetry = vm::retry,
             onSignOut = vm::onSignOut,
+            onManage = navigator.opener(ProfilesSettingsRoute),
         )
     }
 }

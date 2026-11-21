@@ -81,6 +81,8 @@ fun ProfilesScreen(
     onRetry: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    /** «Profile verwalten» (mockup `su-manage`); `null` while no feature registered the page. */
+    onManage: (() -> Unit)? = null,
 ) {
     val c = SlouchcatTheme.colors
     BoxWithConstraints(modifier.fillMaxSize().background(c.bg)) {
@@ -114,13 +116,22 @@ fun ProfilesScreen(
                         modifier = Modifier.padding(top = 16.dp).widthIn(max = 460.dp),
                     )
                 }
+                onManage?.let {
+                    SlouchcatButton(
+                        stringResource(R.string.app_profiles_manage_title),
+                        onClick = it,
+                        kind = ButtonKind.Secondary,
+                        leadingIcon = SlouchcatIcon.Settings,
+                        modifier = Modifier.padding(top = 36.dp),
+                    )
+                }
                 SlouchcatButton(
                     stringResource(R.string.nav_logout),
                     onClick = onSignOut,
                     kind = ButtonKind.Ghost,
                     busy = state.signingOut,
                     leadingIcon = SlouchcatIcon.Logout,
-                    modifier = Modifier.padding(top = 28.dp),
+                    modifier = Modifier.padding(top = if (onManage != null) 8.dp else 28.dp),
                 )
             }
             Row(
