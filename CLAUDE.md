@@ -43,7 +43,9 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    alle JSON-Endpunkte über den generierten strict server.
 7. **Jede OpenAPI-Operation trägt `x-visibility`** (`public`, `account`, `scoped`, `system`, `admin`, `owner`;
    `account` = gültige Sitzung ohne gewähltes Profil, ADR 0005; `owner` = nur der Eigentümer mit Hauptprofil,
-   ADR 0014). Antworten mit `ItemRef` sind `scoped`. Der Schema-Test
+   ADR 0014). Antworten mit `ItemRef` sind `scoped`. Dazu nennt jede `account`- und `scoped`-Operation in
+   `x-clients`, welche Bearer-Arten sie aufrufen dürfen (`app`, `tv`; ADR 0040); die anderen tragen keine
+   Liste. Der Schema-Test
    schlägt sonst fehl; jede Operation braucht einen Eintrag im Vertragstest (`TestContractCoversEveryOperation`).
 8. **Jede neue Seite hat einen Playwright-Tastaturtest** (Pfeiltasten, Tab, Enter, Zurück, sichtbarer
    Fokus, keine Fokusfalle). Gilt ab M1a.
@@ -54,7 +56,8 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    `server/internal/model/ratings.go` sind Daten (ADR 0033, ADR 0034). Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test (seit Konzept 25 auch `seerrapikey`,
-    `newpassword`, `radarrapikey`, `sonarrapikey`; `password` steht schon drin).
+    `newpassword`, `radarrapikey`, `sonarrapikey`, seit Konzept 27 `apptoken`, `devicetoken` und
+    `slouchcatdevice` für App- und Gerätetoken und die Gerätekennung; `password` steht schon drin).
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
     und Konzept 27 und die Android-TV-App nach Frage 34 und Konzept 26; Apple TV, webOS, Tizen, Fire TV und
     native iOS-Apps bleiben Nicht-Ziele), Plugins,
