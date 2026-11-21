@@ -14,6 +14,22 @@
     },
     "signOut": {
       "doneOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde dieses Gerät unter „Meine Geräte“ ab, sobald du wieder verbunden bist."
+    },
+    "search": {
+      "emptyBody": "Für „{{query}}“ gibt es keinen Titel und keine Person. Prüfe die Schreibweise oder versuche einen kürzeren Begriff.",
+      "emptyGenre": "Im Genre „{{genre}}“ gibt es für dieses Profil keinen Titel."
+    },
+    "lists": {
+      "removed": "„{{title}}“ von der Merkliste entfernt",
+      "unwatched": "Haken bei „{{title}}“ entfernt"
+    },
+    "profiles": {
+      "manage": {
+        "deleteWarning": "„{{name}}“ wird gelöscht, mit Merkliste, Gesehen und Fortschritt. Das lässt sich nicht rückgängig machen.",
+        "added": "Profil „{{name}}“ hinzugefügt",
+        "deleted": "Profil „{{name}}“ gelöscht",
+        "partly": "Das Profil ist gespeichert, aber die PIN ließ sich nicht ändern. Versuche es erneut."
+      }
     }
   },
   "common": {

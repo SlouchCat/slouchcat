@@ -1,8 +1,12 @@
 package com.slouchcat.app.mobile.shell
 
+import com.slouchcat.app.mobile.collections.CollectionsFeature
 import com.slouchcat.app.mobile.item.ItemFeature
 import com.slouchcat.app.mobile.more.MoreFeature
+import com.slouchcat.app.mobile.mylists.MyListsFeature
 import com.slouchcat.app.mobile.person.PersonFeature
+import com.slouchcat.app.mobile.profilesettings.ProfileSettingsFeature
+import com.slouchcat.app.mobile.search.SearchFeature
 
 /**
  * Every feature of the phone app, one line each (concept 27, section 13: one or more per stage).
@@ -15,4 +19,8 @@ val features: List<Feature> = listOf(
     MoreFeature,
     ItemFeature(),
     PersonFeature(),
+    SearchFeature(),
+    MyListsFeature(),
+    CollectionsFeature(),
+    ProfileSettingsFeature(),
 )

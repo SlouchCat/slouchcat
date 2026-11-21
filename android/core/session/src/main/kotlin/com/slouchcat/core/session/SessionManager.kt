@@ -220,6 +220,17 @@ class SessionManager(
         publish(newEpoch = true)
     }
 
+    /**
+     * The active profile was edited («Profile verwalten»: name, accent): the session shows the new
+     * values without a new epoch, so the pages and their back stacks stay. Another id changes nothing.
+     */
+    suspend fun profileUpdated(updated: ActiveProfile) = mutex.withLock {
+        if (profile?.id != updated.id) return@withLock
+        profile = updated
+        accounts.write(email, updated)
+        publish()
+    }
+
     suspend fun accountChanged(accountEmail: String) = mutex.withLock {
         email = accountEmail
         accounts.write(accountEmail, profile)

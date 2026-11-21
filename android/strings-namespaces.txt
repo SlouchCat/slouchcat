@@ -43,3 +43,15 @@ item.recommend
 watched
 person
 item.episodes
+search.label
+search.tooShort
+search.sections
+search.empty
+watchlist
+collection
+profiles.settings
+profiles.pinAdvice
+accent
+limits
+offline.pin
+errors.field
