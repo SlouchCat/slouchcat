@@ -1,6 +1,6 @@
 # Konzept: Native Android-Handy-App – stöbern, abspielen, Downloads, Fernseher verbinden
 
-- **Status: Entwurf, Fassung 6 (20. November 2026). Nicht freigegeben.** Fassung 2 hat das
+- **Status: freigegeben am 21. November 2026 (Frage 35), Fassung 6 (20. November 2026).** Marco hat an diesem Tag den Bau beider Konzepte bestellt («Starte mit der Umsetzung von Konzept 26 + 27. Mach alles 100% selbständig»); für offene Fragen gilt die Empfehlung. Fassung 2 hat das
   Kritiker-Review der Fassung 1 eingearbeitet (REVISE, 0 Blocker, 8 Major, 17 Minor), Fassung 3
   die zweite Lesung (REVISE nahe an der Annahme, 0 Blocker, 1 Major, 13 Minor); beides in
   Abschnitt 19. Der Kritiker hat dabei erstmals Abschnitt 4 von Konzept 26 gelesen (2 Major,

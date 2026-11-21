@@ -1,6 +1,6 @@
 # Konzept: Android-TV-App – native App für den Fernseher mit eigenem Player, Einrichten per Scan und Mehrkanalton
 
-- **Status: Entwurf, Fassung 5 (19. November 2026). Nicht freigegeben.** Fassung 2 und 3 haben
+- **Status: freigegeben am 21. November 2026 (Frage 34), Fassung 5 (19. November 2026).** Marco hat an diesem Tag den Bau beider Konzepte bestellt («Starte mit der Umsetzung von Konzept 26 + 27. Mach alles 100% selbständig»); für offene Fragen gilt die Empfehlung. Fassung 2 und 3 haben
   zwei Kritiker-Lesungen eingearbeitet (Abschnitt 14). Danach hat Marco mit E-10 bis E-12 die
   Anmeldung und die Reihenfolge neu festgelegt: Einrichten per Scan mit einer nativen Handy-App
   über einen Dienst im Internet, die Handy-App wird zuerst gebaut. **Fassung 4 gleicht dieses
