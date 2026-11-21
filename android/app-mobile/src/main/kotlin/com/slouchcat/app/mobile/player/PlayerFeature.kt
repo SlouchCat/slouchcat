@@ -75,7 +75,7 @@ import kotlinx.coroutines.withContext
 @OptIn(UnstableApi::class)
 class PlayerFeature(
     private val engine: (Context, AppGraph) -> PlayerEngine = { context, graph -> Media3Engine(context, graph.http) },
-    private val server: (AppGraph) -> PlaybackServer = { graph -> ApiPlaybackServer(graph.api, graph.http) { requireNotNull(graph.session.server) } },
+    private val server: (AppGraph) -> PlaybackServer = { graph -> ApiPlaybackServer(graph.api, graph.http) { graph.session.server } },
     private val settings: (Context) -> DeviceSettingsStore = { DataStoreDeviceSettingsStore(it) },
 ) : Feature {
     override val fullScreen = setOf(PlayerRoute::class)

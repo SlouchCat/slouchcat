@@ -68,4 +68,12 @@ class PlayerHardeningTest {
         assertTrue(lines.none { "secret-token" in it })
         assertTrue(lines.first().startsWith("media3/HlsPlaylistParser"))
     }
+
+    /** A last stop after the sign-out (no server any more) ends quietly instead of crashing the app. */
+    @Test
+    fun withoutAServerTheCallsEndQuietly() = kotlinx.coroutines.runBlocking {
+        val server = ApiPlaybackServer(com.slouchcat.core.api.ApiCaller(com.slouchcat.core.api.SessionEvents()), okhttp3.OkHttpClient()) { null }
+        assertEquals(com.slouchcat.core.api.ApiResult.SignedOut, server.stop("session"))
+        assertNull(server.absolute("/api/v1/items/a/stream?st=x"))
+    }
 }

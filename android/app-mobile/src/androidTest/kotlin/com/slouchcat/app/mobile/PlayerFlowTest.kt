@@ -164,7 +164,12 @@ class PlayerFlowTest {
     private fun ready(): Boolean = (graph.session.state.value as? SessionState.Ready)?.profile != null
 
     /** The position the server holds for [id] (`getItem`). */
-    private fun serverPosition(id: String): Long = items().getItem(id)!!.progress?.positionMs ?: 0
+    private fun serverPosition(id: String): Long = try {
+        items().getItem(id)!!.progress?.positionMs ?: 0
+    } catch (e: java.io.IOException) {
+        // The emulator's network may blink under load (the gate then refuses one request): ask again.
+        -1
+    }
 
     private val close get() = hasContentDescription(s(R.string.app_player_close)) and hasClickAction()
 
