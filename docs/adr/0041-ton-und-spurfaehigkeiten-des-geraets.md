@@ -46,13 +46,25 @@ bringt ExoPlayer zum Abbruch.
    - **Neu kodiert** wird bei `maxAudioChannels` 6 oder 8 und einer Quelle über Stereo in
      Mehrkanal: AC-3 mit 640 kbit/s, wenn der Client `ac3` meldet, sonst AAC 5.1 mit 384 kbit/s;
      bei 8 und einer Quelle über 6 Kanälen AAC 7.1 mit 512 kbit/s. Nie mehr Kanäle als die Quelle
-     (`-ac`, ffmpeg wählt die Standard-Anordnung der Kanalzahl und mischt herunter). Sonst
-     Stereo-AAC mit 160 kbit/s wie vorher.
-4. **Bandbreite** (`playback/quality.go`, `transcode/plan.go`): Stufenwahl, Videobitrate unter einer
-   Grenze und `BANDWIDTH` der Master-Liste rechnen mit der Bitrate des Tons, der wirklich
-   herausgeht: kopiert die Bitrate der Spur (ffprobe `bit_rate`, sonst das Matroska-Tag `BPS`),
-   ohne gemessenen Wert die Obergrenze des Formats (AC-3 640, E-AC-3 1024, DTS 1536, Opus 510,
-   FLAC 750 je Kanal, AAC wie vorher 160 kbit/s); neu kodiert die Bitrate des Encoders.
+     (`-ac`, im Paket `transcode` nochmals gegen die Quelle begrenzt; ffmpeg wählt die
+     Standard-Anordnung der Kanalzahl und mischt herunter). Eine Quelle mit 3, 4, 5 oder 7 Kanälen
+     behält ihre Zahl (3.0, Quad, 5.0, 6.1; AAC 64 kbit/s je Kanal, AC-3 640 kbit/s): Hochmischen
+     auf 5.1 oder 7.1 brächte nur leere Kanäle. Sonst Stereo-AAC mit 160 kbit/s wie vorher.
+4. **Bandbreite** (`playback/quality.go`, `transcode/plan.go`): Für Clients mit
+   `maxAudioChannels` rechnen Stufenwahl, Videobitrate unter einer Grenze und `BANDWIDTH` der
+   Master-Liste mit der Bitrate des Tons, der wirklich herausgeht: kopiert die Bitrate der Spur
+   (ffprobe `bit_rate`, sonst das Matroska-Tag `BPS`), ohne gemessenen Wert die Obergrenze des
+   Formats (AC-3 640, E-AC-3 1024, DTS 1536, Opus 510, FLAC 750 je Kanal, AAC 160 kbit/s); neu
+   kodiert die Bitrate des Encoders. Für Clients ohne das Feld zählt kopiertes AAC wie bisher mit
+   160 kbit/s (Abschnitt 7 des Konzepts: Verhalten ändert sich nur für Clients, die melden).
+   **Untergrenze für das Video, für alle:** Ein Transcode kopiert den Ton nicht und kodiert nicht
+   in Mehrkanal, wenn der Ton zusammen mit 40 kbit/s Video über der Bandbreitengrenze läge; dann
+   Stereo-AAC mit 160 kbit/s, das neben 40 kbit/s Video in jede Grenze des Vertrags passt (ab 200).
+   Die Videobitrate fällt nie unter 40 kbit/s.
+   **Abweichung von der Messung:** `entscheide-frueh.md` nennt für E-AC-3 640 kbit/s, der Bau nimmt
+   1024 kbit/s als Obergrenze ohne Messwert (Perf-Bericht der Stufe 0). DD+ aus dem Streaming liegt
+   bei 640 bis 768, mit Atmos bis 1024; mit 640 würde eine solche Spur die Grenze eines Profils
+   unbemerkt überschreiten, mit 1024 schlimmstenfalls eine Stufe zu tief gewählt.
 5. **Codec-Angabe** der Master-Liste je Format: `mp4a.40.2` (HE-AAC wie vorher), `ac-3`, `ec-3`,
    `mp4a.a9` (DTS), `fLaC`, `Opus`. Kein Rückfall auf `mp4a.40.2`: Ein Codec ohne Angabe wird nicht
    kopiert (`NewPlan` setzt `AudioCopy` zurück).
@@ -102,17 +114,33 @@ bringt ExoPlayer zum Abbruch.
 - **Auf den Geräten nachzumessen** (Chromecast, Shield, Fernseher): ob AC-3 5.1 oder AAC 5.1 als
   Ziel beim Neu-Kodieren sauber über HDMI und ARC läuft, ob das Durchreichen von AC-3 und E-AC-3 aus
   HLS so klappt wie aus MKV, und ob 640 kbit/s AC-3 über ARC ankommen.
+- **Bekannt, belegt, nicht behoben: Tonspur, die erst nach dem ersten Segment beginnt.** Hat ein
+  Lauf bis zur ersten Segmentgrenze kein AC-3- oder E-AC-3-Paket (Tonspur ab 5 s, oder ein
+  Neustart in einer Lücke der Tonspur), schreibt ffmpeg trotz `delay_moov` ein unvollständiges
+  `moov` («Cannot write moov atom before AC3 packets», Ende mit 0). Gegenprobe mit einer Tonspur ab
+  5 s: Segment 0 scheitert («segment file 0 ends in a partial box»), ein Neustart ab Segment 2
+  läuft. Solche Dateien sind selten; beheben liesse es sich, indem die Probe den Beginn der Spur
+  (`start_time`) speichert und eine Dolby-Spur, die nach der ersten Segmentgrenze beginnt, als AAC
+  kodiert wird.
 - **Bekannt, nicht Teil dieser Stufe:** Beim Neustart eines Transcodes fehlt an der Naht Ton, den
   der vorige Lauf noch nicht geschrieben hatte, bis etwa drei Tonrahmen (Stereo-AAC vorher 53 ms
   gemessen, E-AC-3 kopiert bis 96 ms). Der Remux ist davon nicht betroffen.
 
 ## Folgen
 
-- Browser senden die neuen Felder nicht und bekommen dieselben Entscheide wie vorher. Für sie ändert
-  sich: Ein Remux mit kopiertem AC-3 oder E-AC-3 (Safari, Edge) bricht nicht mehr ab, die
-  Codec-Angabe stimmt für jedes kopierte Format, TrueHD und MP3 werden im Remux neu kodiert statt mit
-  falscher Angabe kopiert, und die Bandbreite eines Transcodes rechnet mit der gemessenen Bitrate
-  einer kopierten AAC-Spur.
+- Browser senden die neuen Felder nicht und bekommen dieselben Entscheide wie vorher
+  (`TestBrowsersAsBefore` hält Chrome, Firefox, Safari auf Mac und iPhone und Edge gegen die Werte
+  von `origin/main` fest). Für sie ändert sich bewusst:
+  - Ein Remux mit kopiertem AC-3 oder E-AC-3 (Safari, Edge) bricht nicht mehr ab, und die
+    Codec-Angabe stimmt für jedes kopierte Format.
+  - **MP3** wird im Remux neu kodiert (AAC) statt mit der Angabe `mp4a.40.2` kopiert: Die Angabe
+    war falsch, Chromium prüft den Objekttyp gegen sie, und für MP3 in fMP4 gibt es keine Angabe,
+    die hls.js und Media3 gleich lesen.
+  - **TrueHD** wird nie kopiert: ffmpeg schreibt es in MP4 nur mit `strict` (sonst Abbruch), Media3
+    kennt keinen Codec dafür. Kein Browser meldet es.
+  - **PCM** (`pcm_*`) und unbekannte Codecs werden neu kodiert statt mit falscher AAC-Angabe kopiert.
+  - Unter einer engen Bandbreitengrenze gilt die Untergrenze von 40 kbit/s Video (Entscheid 4);
+    mit Stereo-AAC zu 160 kbit/s und Grenzen ab 200 kbit/s ändert das für Browser nichts.
 - `transcode.Stream` trägt neu `bitRate` je Tonspur; Proben von früher haben sie nicht, dort gilt
   die Obergrenze des Formats.
 - Die Apps leiten aus der Antwort ab, was sie tun (Übergabe an Stufe 3): `mode: direct` mit
