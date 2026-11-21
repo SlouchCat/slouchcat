@@ -4,7 +4,10 @@ version: "3"
 
 vars:
   VERSION:
-    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+    # Only the server's own release tags (`v1.2.3`) count: the tags of the relay services and of the
+    # apps (`relay-v…`, `app-v…`, `tv-v…`) are no server version, and the update check would read a
+    # build described from them as a development build.
+    sh: git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev
 
 tasks:
   gen:

@@ -1,0 +1,100 @@
+# Tasks of the Android apps (concept 27, 5.7), included from the root Taskfile with dir ./android
+# (`task android:<name>`). Every Gradle run waits for a heavy slot (scripts/heavy-slot.sh); CI
+# never waits. JDK and SDK: JAVA_HOME and ANDROID_HOME, else the places of
+# scripts/install-android-tools.sh under ~/.local/share.
+version: "3"
+
+env:
+  JAVA_HOME:
+    sh: echo "${JAVA_HOME:-$HOME/.local/share/jdk/current}"
+  ANDROID_HOME:
+    sh: echo "${ANDROID_HOME:-$HOME/.local/share/android-sdk}"
+
+tasks:
+  check:
+    desc: >-
+      Debug and unsigned release builds (R8) of both flavours (play, foss), lint of every module with the own rules, the
+      generators of client, texts and tokens (CI job "android")
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheck {{.CLI_ARGS}}
+
+  test:
+    desc: All JVM tests of the apps, the lint rules and the generators (Robolectric, no emulator)
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciTest {{.CLI_ARGS}}
+
+  apk:
+    desc: Debug APKs and unsigned release APKs (R8) of both flavours into app-mobile/build/outputs/apk
+    cmds:
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease
+      - find app-mobile/build/outputs/apk -name '*.apk' -print
+
+  # The generated client against a real server: the server of this repository with empty data on
+  # its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
+  contract:
+    desc: >-
+      Contract test of the Kotlin client: starts bin/slouchcat with fresh data on CONTRACT_PORT
+      (8597) and runs core/api's contractTest against it
+    vars:
+      CONTRACT_PORT: '{{.CONTRACT_PORT | default "8597"}}'
+    cmds:
+      - task: :server:build
+      - |
+        bash -s -- "{{.CONTRACT_PORT}}" <<'CONTRACT'
+        set -eu
+        port=$1
+        root=$(mktemp -d -t slouchcat-contract-XXXXXX)
+        pid=""
+        cleanup() {
+          if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+          rm -rf "$root"
+        }
+        trap cleanup EXIT
+        fail() {
+          echo "$1" >&2
+          echo "--- server log, last 40 lines ---" >&2
+          tail -n 40 "$root/server.log" >&2
+          exit 1
+        }
+        # The same throw-away setup as task apicheck: own config and cache, no TMDB key.
+        SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+          --listen "127.0.0.1:$port" \
+          --config-dir "$root/config" --cache-dir "$root/cache" \
+          --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
+        pid=$!
+        for _ in $(seq 1 120); do
+          kill -0 "$pid" 2>/dev/null || fail "The server stopped while starting (port $port taken?)."
+          if grep -q 'msg=listening' "$root/server.log"; then break; fi
+          sleep 0.5
+        done
+        grep -q 'msg=listening' "$root/server.log" || fail "The server reported no address within 60 s."
+        ../scripts/heavy-slot.sh ./gradlew --console=plain :core:api:contractTest \
+          "-Pslouchcat.contract.base=http://127.0.0.1:$port" || fail "The contract test failed."
+        CONTRACT
+
+  # The quick Android part of `task check:fast`: only when something the apps are built from
+  # changed (android/, the contract, the texts, the tokens) against BASE (default HEAD, the
+  # working tree with untracked files). Without a JDK it says so and leaves the check to CI.
+  check:fast:
+    desc: Compile the play debug build and run its JVM tests when android/, the contract, texts or tokens changed
+    vars:
+      BASE: '{{.BASE | default "HEAD"}}'
+    cmds:
+      - |
+        set -eu
+        cd ..
+        changed=$( { git diff --name-only '{{.BASE}}' -- android api/openapi.yaml web/src/locales packages/design-tokens ;
+          git ls-files --others --exclude-standard -- android api/openapi.yaml web/src/locales packages/design-tokens ; } | sort -u )
+        if [ -z "$changed" ]; then echo "android: nothing changed"; exit 0; fi
+        if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -d "$ANDROID_HOME/platforms" ]; then
+          echo "android: $(printf '%s\n' "$changed" | grep -c .) files changed, but no JDK or Android SDK here (scripts/install-android-tools.sh); CI checks them"
+          exit 0
+        fi
+        cd android
+        if ! printf '%s\n' "$changed" | grep -qvE '^web/src/locales/'; then
+          # Only texts changed: the text generator over all languages is the whole check (seconds).
+          echo "android: only web/src/locales changed, generating the texts"
+          ../scripts/heavy-slot.sh ./gradlew --console=plain -q :core:strings:generateStrings
+          exit 0
+        fi
+        ../scripts/heavy-slot.sh ./gradlew --console=plain -q fastCheck

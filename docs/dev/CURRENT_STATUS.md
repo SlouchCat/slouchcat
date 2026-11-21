@@ -1,5 +1,59 @@
 # Aktueller Stand
 
+## Bau der Android-Apps (Konzept 27 und 26): Stand je Stufe (seit 21. November 2026)
+
+Marco hat am 21. November 2026 den Bau beider Konzepte bestellt (Frage 34 und 35). Dieser Abschnitt wächst
+mit jeder Stufe. Was nur im Emulator oder gegen Nachbauten geprüft ist und was Marco selbst einrichten muss,
+steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETRIEBNAHME.md`.
+
+- **Regeln (PR #192):** `CLAUDE.md` Regel 11, Spec «Non-Goals» und Plan Abschnitt 1 nennen die
+  Android-Handy-App, die Android-TV-App und die zwei Dienste aus `relay/` als Ausnahmen.
+- **Konzept 27, Stufe 0 «Messung» (PR #194):** Bericht `docs/perf/K27-android-handy.md` mit einem Entscheid
+  je Punkt: Tink für HPKE und Ed25519, Push-Satzgrösse 2700, openapi-generator mit Vorlauf für den
+  Kotlin-Client, Download-Wiedergabe über eine lokale HLS-Liste, Übertragungsauftrag des Systems ab API 34,
+  WorkManager für Auto-Downloads, eigene Lint-Regel für Regel 9, Robolectric für Oberflächentests.
+  **Nur im Emulator gemessen** (API 36 und API 28). Offen für ein echtes Gerät: HEVC 10 Bit, HDR, 20 GB über
+  Nacht, WorkManager über einen Tag. Offen bis zum Firebase-Projekt: echte Zustellung von Push.
+  Abweichungen vom Papier: `compileSdk` 37.2 statt 36 (die heutigen Bibliotheken verlangen es, `targetSdk`
+  bleibt 36 und 34) und JDK 21 statt 17 (Robolectric auf SDK 36).
+- **Konzept 27, Stufe 2 «Dienste»:** neues Go-Modul `relay/` mit zwei Programmen und zwei Images:
+  - **Vermittlung** (`relay/cmd/pair`): Treffpunkt für das Einrichten eines Fernsehers per Scan, nur im
+    Arbeitsspeicher, Abholen nur mit Abholgeheimnis, Hilfeseite `/tv` für den QR-Code.
+  - **Push-Weiterleitung** (`relay/cmd/push`): nimmt Web-Push von Slouchcat-Servern an, prüft die
+    VAPID-Unterschrift und reicht den Geheimtext an Googles Push-Dienst weiter. 410 nur, wenn Google das
+    Token nicht mehr kennt; jeder eigene Fehler ist 503.
+  - Dazu die Prüfprogramme `paircheck` und `pushcheck`, der Nachbau `fcmfake` (nur für Tests), die
+    Überwachung `watch`, Compose-Dateien unter `deploy/relay/`, `docs/relay/BETRIEB.md`, ADR 0042 und 0044,
+    `task relay:check` und `relay:test`, CI-Job `relay`, Release-Workflow für Tags `relay-v*` (legt kein
+    GitHub-Release an, damit die Update-Prüfung des Servers unberührt bleibt).
+  - Gemeinsame Testvektoren für Go und Kotlin in `testdata/crypto/`.
+  - **Geprüft:** Tests des Moduls, getrenntes Code- und Sicherheits-Review mit Korrekturrunde, Verifier;
+    beide Dienste lokal in Containern gegen den Nachbau von Googles Push-Dienst, Umzugsprobe im Kleinen
+    (zweite Instanz mit TLS-Profil unter einem Probenamen, lokale Prüf-CA).
+  - **Offen, braucht Marcos Infrastruktur** (`docs/relay/BETRIEB.md` Abschnitt 9): zwei Container hinter
+    dem vorhandenen Reverse-Proxy, DNS-Einträge, Firebase-Projekt und echte Push-Probe, Meldung der
+    Überwachung, Umzugsprobe auf einer zweiten Maschine. Die Stufe gilt erst mit diesen Belegen als
+    abgeschlossen.
+- **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
+  Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
+  - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.
+  - **Erzeugt beim Bau, nie eingecheckt:** der Kotlin-Client (Vorlauf `TrimOpenApi` schneidet den Vertrag
+    nach `x-clients` zu, dann openapi-generator), die Texte (`strings.xml` je Sprache aus
+    `web/src/locales` nach `android/strings-namespaces.txt`; App-Texte im Namensraum `app`), Farben und
+    Masse (drittes Ausgabeformat von `packages/design-tokens`).
+  - **Wächter:** drei eigene Lint-Regeln (fester Text, feste Farbe, direkter Log-Aufruf), in allen Modulen.
+  - Gemeinsamer Netz-Client (Köpfe, HTTP nach E-18, Bearer und Gerätekennung nur an den eigenen Server),
+    Logger mit Redaktion, Ergebnis-Muster `ApiResult` für alle Seiten.
+  - Thema und Bausteine nach dem Mockup; erste Seite **«Serveradresse»** mit Warnung bei unverschlüsselter
+    Verbindung ausserhalb des Heimnetzes, in zwei Breiten.
+  - `task android:check`, `android:test` (162 JVM-Tests mit Robolectric), `android:contract` (Client gegen
+    einen echten Server), `android:apk`; CI-Job `android` im Gate; `scripts/install-android-tools.sh`;
+    ADR 0039; `CLAUDE.md` Regeln 8, 9 und Werkzeuge.
+  - **Geprüft:** Tests, getrenntes Code-Review mit Korrekturrunde (5 Major, 34 Minor), Seite im Emulator
+    an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» folgen mit
+    Teil 2 (braucht den Serverteil aus Stufe 1). Die Texte des Namensraums `app` gibt es erst in Deutsch
+    und Englisch.
+
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 
 Marcos Auftrag vom 19. November 2026 mit dem klickbaren Mockup `Slouchcat_Variante_1_Explorer.html` (Variante 01):

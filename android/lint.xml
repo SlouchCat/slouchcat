@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lint settings of every module (build-logic, configureLint). The own rules of :lint are errors
+     by themselves; here only what Android's checks report about generated code. -->
+<lint>
+    <!-- Twenty languages may lack a new text until the next release (docs/i18n/README.md); the app
+         then shows English, as the web app does. -->
+    <issue id="MissingTranslation" severity="ignore" />
+    <!-- The generated texts carry every namespace listed in strings-namespaces.txt, used or not, and
+         the plural forms the web app has. -->
+    <issue id="UnusedResources">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="ImpliedQuantity">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="UnusedQuantity">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="Typos">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <issue id="TypographyEllipsis">
+        <ignore path="**/build/generated/**" />
+    </issue>
+    <!-- The client from openapi-generator is Kotlin as the generator writes it. -->
+    <issue id="all">
+        <ignore path="**/build/generated/openapi/**" />
+    </issue>
+</lint>

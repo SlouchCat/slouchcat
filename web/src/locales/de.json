@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt."
+    "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt.",
+    "setup": {
+      "tagline": "Deine Filme, Serien, Hörbücher und Podcasts vom eigenen Server.",
+      "title": "Mit deinem Server verbinden",
+      "addressLabel": "Adresse des Servers",
+      "addressExample": "https://medien.example.org",
+      "addressHint": "Dieselbe Adresse, unter der du Slouchcat im Browser öffnest.",
+      "connect": "Verbinden",
+      "connecting": "Verbinde …",
+      "found": "Gefunden",
+      "address": "Adresse",
+      "version": "Version",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Verbindung verschlüsselt",
+      "notEncrypted": "Verbindung nicht verschlüsselt",
+      "next": "Weiter",
+      "otherAddress": "Andere Adresse",
+      "error": {
+        "empty": "Gib die Adresse deines Servers ein.",
+        "invalid": "Das sieht nicht nach einer Adresse aus. Beispiel: {{example}}",
+        "unreachable": "Der Server antwortet nicht. Prüfe die Adresse und ob dein Gerät im richtigen Netz ist.",
+        "notSlouchcat": "Unter dieser Adresse antwortet kein Slouchcat-Server.",
+        "tooOld": "Dieser Server (Slouchcat {{server}}) ist zu alt. Die App braucht Slouchcat {{required}} oder neuer. Bitte aktualisiere den Server."
+      },
+      "insecure": {
+        "title": "Unverschlüsselte Verbindung",
+        "body": "Diese Verbindung ist nicht verschlüsselt. In fremden Netzen kann jemand dein Passwort mitlesen und deinen Zugang übernehmen.",
+        "cancel": "Abbrechen",
+        "confirm": "Trotzdem verbinden"
+      }
+    },
+    "connected": {
+      "title": "Verbunden mit {{host}}",
+      "change": "Adresse ändern"
+    },
+    "state": {
+      "loading": "Lädt …",
+      "offline": "Der Server antwortet nicht. Prüfe die Verbindung.",
+      "notFound": "Das gibt es hier nicht oder nicht mehr.",
+      "notAllowed": "Das geht mit dieser Anmeldung nicht.",
+      "failed": "Etwas ist schiefgegangen.",
+      "retry": "Erneut versuchen"
+    },
+    "update": {
+      "title": "Bitte die App aktualisieren",
+      "body": "Dein Server braucht eine neuere Version der App.",
+      "close": "Schliessen"
+    },
+    "connectedState": {
+      "empty": "Noch kein Server eingerichtet.",
+      "setUp": "Server einrichten"
+    },
+    "tls": {
+      "userCertificate": "Verschlüsselt mit einem selbst installierten Zertifikat",
+      "httpsRequired": "Der Server verlangt eine verschlüsselte Verbindung. Die Adresse lautet jetzt {{address}}, verbinde dich erneut."
+    }
   },
   "common": {
     "back": "Zurück",
