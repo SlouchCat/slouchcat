@@ -158,6 +158,10 @@ type playbackCapabilities struct {
 	MaxHeight  int      `json:"maxHeight,omitempty"`
 	Name       string   `json:"name,omitempty"`
 	Type       string   `json:"type,omitempty"`
+	// Since contract 1.43.0 (concept 26): the TV app's audio and track capabilities.
+	MaxAudioChannels int      `json:"maxAudioChannels,omitempty"`
+	SelectsTracks    bool     `json:"selectsTracks,omitempty"`
+	Subtitles        []string `json:"subtitles,omitempty"`
 }
 
 type playbackRequest struct {
