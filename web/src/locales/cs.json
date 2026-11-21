@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmy, seriály, audioknihy a podcasty pro vaši domácnost."
+    "tagline": "Filmy, seriály, audioknihy a podcasty pro vaši domácnost.",
+    "setup": {
+      "tagline": "Vaše filmy, seriály, audioknihy a podcasty z vlastního serveru.",
+      "title": "Připojte se ke svému serveru",
+      "addressLabel": "Adresa serveru",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Stejná adresa, na které otevíráte Slouchcat v prohlížeči.",
+      "connect": "Připojit",
+      "connecting": "Připojování…",
+      "found": "Nalezeno",
+      "address": "Adresa",
+      "version": "Verze",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Šifrované připojení",
+      "notEncrypted": "Nešifrované připojení",
+      "next": "Další",
+      "otherAddress": "Jiná adresa",
+      "error": {
+        "empty": "Zadejte adresu svého serveru.",
+        "invalid": "Tohle nevypadá jako adresa. Příklad: {{example}}",
+        "unreachable": "Server neodpovídá. Zkontrolujte adresu a to, zda je zařízení ve správné síti.",
+        "notSlouchcat": "Na této adrese neodpovídá žádný server Slouchcat.",
+        "tooOld": "Tento server (Slouchcat {{server}}) je příliš starý. Aplikace potřebuje Slouchcat {{required}} nebo novější. Aktualizujte prosím server."
+      },
+      "insecure": {
+        "title": "Nešifrované připojení",
+        "body": "Toto připojení není šifrované. V cizích sítích může někdo přečíst vaše heslo a převzít váš přístup.",
+        "cancel": "Zrušit",
+        "confirm": "Přesto připojit"
+      }
+    },
+    "connected": {
+      "title": "Připojeno k {{host}}",
+      "change": "Změnit adresu"
+    },
+    "state": {
+      "loading": "Načítání…",
+      "offline": "Server neodpovídá. Zkontrolujte připojení.",
+      "notFound": "Tohle neexistuje, nebo už ne.",
+      "notAllowed": "S tímto přihlášením to nejde.",
+      "failed": "Něco se nepovedlo.",
+      "retry": "Zkusit znovu"
+    },
+    "update": {
+      "title": "Aktualizujte prosím aplikaci",
+      "body": "Váš server potřebuje novější verzi aplikace.",
+      "close": "Zavřít"
+    },
+    "connectedState": {
+      "empty": "Zatím není nastaven žádný server.",
+      "setUp": "Nastavit server"
+    },
+    "tls": {
+      "userCertificate": "Šifrováno certifikátem, který jste sami nainstalovali",
+      "httpsRequired": "Server vyžaduje šifrované připojení. Adresa je nyní {{address}}, připojte se znovu."
+    }
   },
   "common": {
     "back": "Zpět",
@@ -13,6 +68,7 @@
     "saving": "Ukládání…"
   },
   "nav": {
+    "devices": "Moje zařízení",
     "main": "Hlavní navigace",
     "home": "Domů",
     "logout": "Odhlásit se",
@@ -2769,6 +2825,7 @@
       "empty": "Zatím žádná zařízení.",
       "columns": {
         "name": "Zařízení",
+        "session": "Relace",
         "owner": "Vlastník",
         "lastSeen": "Poslední kontakt",
         "containers": "Kontejnery",
@@ -2778,6 +2835,12 @@
         "hdr": "HDR",
         "streams": "Streamy",
         "actions": "Akce"
+      },
+      "sessionKinds": {
+        "browser": "Prohlížeč",
+        "app": "Aplikace",
+        "device": "TV aplikace",
+        "none": "Odhlášeno"
       },
       "unnamed": "Neznámé zařízení",
       "owner": "{{email}} · {{profile}}",
@@ -6658,6 +6721,11 @@
     "loadFailed": "Knihovny se nepodařilo načíst."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Doporučujeme PIN pro hlavní profil",
+      "body": "Tento účet má profily s věkovým omezením. Bez kódu PIN v hlavním profilu může kdokoli přepnout do hlavního profilu a změnit věková omezení.",
+      "action": "Nastavit PIN"
+    },
     "picker": {
       "title": "Kdo se dívá?",
       "intro": "Vyberte svůj profil.",
@@ -7192,6 +7260,51 @@
     "wish_failed": "Vaše přání selhalo"
   },
   "settings": {
+    "devices": {
+      "title": "Moje zařízení",
+      "intro": "Všechna zařízení, na kterých je tento účet přihlášen nebo má stažené položky. Odhlášené zařízení přijde o vše, co na něm tento účet má.",
+      "list": "Zařízení tohoto účtu",
+      "none": "Žádné zařízení nemá přihlášení ani stažené položky tohoto účtu.",
+      "thisDevice": "Toto zařízení",
+      "unnamed": "Neznámé zařízení",
+      "types": {
+        "desktop": "Počítač",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "Televize",
+        "other": "Jiné zařízení"
+      },
+      "kinds": {
+        "browser": "Prohlížeč",
+        "app": "Mobilní aplikace",
+        "device": "TV aplikace"
+      },
+      "signedIn": "{{kind}}, přihlášeno {{date}}",
+      "downloadsOnly": "Odhlášeno, stále obsahuje stažené položky tohoto účtu",
+      "lastSeen": "Poslední kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Poslední kontakt: {{date}} · {{count}} stažení",
+      "lastSeenWithDownloads_few": "Poslední kontakt: {{date}} · {{count}} stažení",
+      "lastSeenWithDownloads_many": "Poslední kontakt: {{date}} · {{count}} stažení",
+      "lastSeenWithDownloads_other": "Poslední kontakt: {{date}} · {{count}} stažení",
+      "downloads_one": "{{count}} stažení",
+      "downloads_few": "{{count}} stažení",
+      "downloads_many": "{{count}} stažení",
+      "downloads_other": "{{count}} stažení",
+      "signOut": {
+        "action": "Odhlásit",
+        "label": "Odhlásit {{name}}",
+        "title": "Odhlásit zařízení „{{name}}“?",
+        "body": "Zařízení přijde o přihlášení tohoto účtu a probíhající přehrávání skončí. Stažené položky, upozornění a automatická stahování tohoto účtu v zařízení budou smazány. Ostatní účty v zařízení zůstanou.",
+        "current": "Toto je zařízení, které právě používáte: budete zde okamžitě odhlášeni.",
+        "bodyCurrent": "Zařízení přijde o přihlášení tohoto účtu a probíhající přehrávání skončí. Stažené položky, upozornění a automatická stahování tohoto účtu v zařízení budou smazány. Ostatní účty v zařízení zůstanou. Toto je zařízení, které právě používáte: budete zde okamžitě odhlášeni.",
+        "confirm": "Odhlásit zařízení"
+      },
+      "signedOut": "Zařízení „{{name}}“ odhlášeno.",
+      "onlyPrimary": {
+        "title": "Odhlášení jen v hlavním profilu",
+        "body": "Zařízení odhlásíte v hlavním profilu tohoto účtu. Zde vidíte seznam."
+      }
+    },
     "playback": {
       "title": "Nastavení",
       "intro": "Zvuk a titulky pro profil {{name}}, na každém zařízení. Co ručně zvolíte v přehrávači, má přednost.",

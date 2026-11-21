@@ -166,9 +166,11 @@ des Servers.
 ## Folgen
 
 - Vertrag 1.42.0 ist zusätzlich. Neu sind `appLogin`, `AppLoginRequest`, `AppLogin`, `SessionKind`,
-  `Health.contractVersion`, `AdminDevice.sessionKind` und `x-clients` an 116 Operationen; mit Teil 3
-  `createPairingVoucher`, `redeemPairingVoucher`, `proveServer`, `Health.serverKey` und die Fehlercodes
-  `app_session_required` und `voucher_invalid`.
+  `Health.contractVersion`, `AdminDevice.sessionKind` und `x-clients`; mit Teil 2 `listMyDevices`,
+  `signOutMyDevice` und `MyDevice`, mit Teil 3 `createPairingVoucher`, `redeemPairingVoucher`, `proveServer`,
+  `Health.serverKey`, die gemeinsame Antwort `AppTooOld` und die Fehlercodes `app_session_required` und
+  `voucher_invalid`. `x-clients` steht damit an 119 Operationen: den 116 des Nutzerbereichs von Teil 1 und
+  den drei neuen `account`-Operationen (`listMyDevices`, `signOutMyDevice`, `createPairingVoucher`, je `[app]`).
 - **Neue Regel neben «Vertrag = Tag» (K27 11.5, Frage F-9):** Operationen mit `x-clients` brechen nicht mehr
   von einem Release aufs nächste; eine brechende Änderung braucht eine Übergangszeit. Frei ändern lässt
   sich nur noch die Verwaltung.
