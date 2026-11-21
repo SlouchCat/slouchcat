@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Film, serier, lydbøger og podcasts til hele husstanden."
+    "tagline": "Film, serier, lydbøger og podcasts til hele husstanden.",
+    "setup": {
+      "tagline": "Dine film, serier, lydbøger og podcasts fra din egen server.",
+      "title": "Forbind til din server",
+      "addressLabel": "Serveradresse",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Den samme adresse, som du åbner Slouchcat med i browseren.",
+      "connect": "Forbind",
+      "connecting": "Forbinder…",
+      "found": "Fundet",
+      "address": "Adresse",
+      "version": "Version",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Krypteret forbindelse",
+      "notEncrypted": "Ukrypteret forbindelse",
+      "next": "Fortsæt",
+      "otherAddress": "Anden adresse",
+      "error": {
+        "empty": "Angiv adressen på din server.",
+        "invalid": "Det ligner ikke en adresse. Eksempel: {{example}}",
+        "unreachable": "Serveren svarer ikke. Kontrollér adressen, og om din enhed er på det rigtige netværk.",
+        "notSlouchcat": "Ingen Slouchcat-server svarer på denne adresse.",
+        "tooOld": "Denne server (Slouchcat {{server}}) er for gammel. Appen kræver Slouchcat {{required}} eller nyere. Opdatér serveren."
+      },
+      "insecure": {
+        "title": "Ukrypteret forbindelse",
+        "body": "Denne forbindelse er ikke krypteret. På andre netværk kan nogen læse din adgangskode og overtage din adgang.",
+        "cancel": "Annuller",
+        "confirm": "Forbind alligevel"
+      }
+    },
+    "connected": {
+      "title": "Forbundet til {{host}}",
+      "change": "Skift adresse"
+    },
+    "state": {
+      "loading": "Indlæser…",
+      "offline": "Serveren svarer ikke. Kontrollér forbindelsen.",
+      "notFound": "Det findes ikke her, eller ikke længere.",
+      "notAllowed": "Det er ikke muligt med dette login.",
+      "failed": "Noget gik galt.",
+      "retry": "Prøv igen"
+    },
+    "update": {
+      "title": "Opdatér appen",
+      "body": "Din server kræver en nyere version af appen.",
+      "close": "Luk"
+    },
+    "connectedState": {
+      "empty": "Der er ikke sat nogen server op endnu.",
+      "setUp": "Sæt server op"
+    },
+    "tls": {
+      "userCertificate": "Krypteret med et certifikat, du selv har installeret",
+      "httpsRequired": "Serveren kræver en krypteret forbindelse. Adressen er nu {{address}}, forbind igen."
+    }
   },
   "common": {
     "back": "Tilbage",
@@ -13,6 +68,7 @@
     "saving": "Gemmer…"
   },
   "nav": {
+    "devices": "Mine enheder",
     "main": "Hovednavigation",
     "home": "Hjem",
     "logout": "Log ud",
@@ -2557,6 +2613,7 @@
       "empty": "Endnu ingen enheder.",
       "columns": {
         "name": "Enhed",
+        "session": "Session",
         "owner": "Ejer",
         "lastSeen": "Seneste kontakt",
         "containers": "Containere",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Streams",
         "actions": "Handlinger"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "TV-app",
+        "none": "Logget ud"
       },
       "unnamed": "Ukendt enhed",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "Bibliotekerne kunne ikke indlæses."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "En pinkode til hovedprofilen anbefales",
+      "body": "Denne konto har profiler med aldersgrænse. Uden pinkode på hovedprofilen kan alle skifte til den og ændre aldersgrænserne.",
+      "action": "Sæt pinkode"
+    },
     "picker": {
       "title": "Hvem ser med?",
       "intro": "Vælg din profil.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "Dit ønske mislykkedes"
   },
   "settings": {
+    "devices": {
+      "title": "Mine enheder",
+      "intro": "Alle enheder, hvor denne konto er logget ind eller har downloads. Logger du en enhed ud, mister den alt, hvad denne konto har der.",
+      "list": "Enheder for denne konto",
+      "none": "Ingen enhed har et login eller downloads fra denne konto.",
+      "thisDevice": "Denne enhed",
+      "unnamed": "Ukendt enhed",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Anden enhed"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Mobilapp",
+        "device": "TV-app"
+      },
+      "signedIn": "{{kind}}, logget ind {{date}}",
+      "downloadsOnly": "Logget ud, har stadig downloads fra denne konto",
+      "lastSeen": "Seneste kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Seneste kontakt: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_other": "Seneste kontakt: {{date}} · {{count}} downloads",
+      "downloads_one": "{{count}} download",
+      "downloads_other": "{{count}} downloads",
+      "signOut": {
+        "action": "Log ud",
+        "label": "Log {{name}} ud",
+        "title": "Log »{{name}}« ud?",
+        "body": "Enheden mister denne kontos login, og igangværende afspilninger stopper. Denne kontos downloads, notifikationer og automatiske downloads på enheden slettes. Andre konti på enheden bliver.",
+        "current": "Det er den enhed, du bruger nu: du bliver logget ud her med det samme.",
+        "bodyCurrent": "Enheden mister denne kontos login, og igangværende afspilninger stopper. Denne kontos downloads, notifikationer og automatiske downloads på enheden slettes. Andre konti på enheden bliver. Det er den enhed, du bruger nu: du bliver logget ud her med det samme.",
+        "confirm": "Log enhed ud"
+      },
+      "signedOut": "»{{name}}« er logget ud.",
+      "onlyPrimary": {
+        "title": "Log kun ud i hovedprofilen",
+        "body": "Du logger enheder ud i denne kontos hovedprofil. Her ser du listen."
+      }
+    },
     "playback": {
       "title": "Indstillinger",
       "intro": "Lyd og undertekster for profilen {{name}}, på alle enheder. Det, du vælger manuelt i afspilleren, går forud.",
