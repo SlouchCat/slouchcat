@@ -28,6 +28,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/notify/push"
 	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -68,6 +69,7 @@ type Service struct {
 	pusher   Pusher
 	telegram TelegramAPI
 	devPush  bool                        // development: http push endpoints and private addresses
+	relay    string                      // origin of the push relay (WithPushRelay), push.DefaultRelayOrigin by default
 	linkPoll time.Duration               // interval of the Telegram link poller
 	attempt  func(context.Context) error // counts a test message against the client's limit; nil = none
 
@@ -105,7 +107,7 @@ func WithClock(now func() time.Time) Option {
 // New returns the service. Without WithQueue and SetConfig it keeps the inbox only.
 func New(db *store.DB, vis *visibility.Reader, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{db: db.Write, write: systemq.New(db.Write), read: systemq.New(db.Read), vis: vis, log: log, now: time.Now,
-		linkPoll: linkPollInterval}
+		linkPoll: linkPollInterval, relay: push.DefaultRelayOrigin}
 	s.dispatch = s
 	for _, o := range opts {
 		o(s)
@@ -114,7 +116,7 @@ func New(db *store.DB, vis *visibility.Reader, log *slog.Logger, opts ...Option)
 		s.mailer = smtpMailer{}
 	}
 	if s.pusher == nil {
-		s.pusher = webPusher{allowPrivate: s.devPush}
+		s.pusher = webPusher{allowPrivate: s.devPush, relay: s.relay}
 	}
 	if s.telegram == nil {
 		s.telegram = &telegram.Client{}

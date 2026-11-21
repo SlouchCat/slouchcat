@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "有一個心願的狀態已更新。",
   "wish_review_subject": "需要核准：{{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} 許願想看這部電影。它正在 Seerr 中等待核准。",
-  "wish_review_show_body": "{{account}} · {{profile}} 許願想看這部影集。它正在 Seerr 中等待核准。"
+  "wish_review_show_body": "{{account}} · {{profile}} 許願想看這部影集。它正在 Seerr 中等待核准。",
+  "device_linked_subject": "新裝置已連線",
+  "device_linked_body": "{{time}}，有一台{{kind}}連線到你的帳戶。這部裝置自稱「{{name}}」（{{system}}）；這些資訊來自裝置本身。如果這不是你本人的操作，請在「我的裝置」中登出這部裝置，並變更密碼。",
+  "device_kind_tv": "電視"
 }

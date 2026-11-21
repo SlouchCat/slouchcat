@@ -641,6 +641,12 @@ const playbackSettingsRoute = createRoute({
   ),
 });
 
+const myDevicesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/settings/devices',
+  component: lazyRouteComponent(() => import('@/features/devices/MyDevicesPage'), 'MyDevicesPage'),
+});
+
 const notificationSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/settings/notifications',
@@ -872,6 +878,7 @@ export const routeTree = rootRoute.addChildren([
         ]),
         profileSettingsRoute,
         playbackSettingsRoute,
+        myDevicesRoute,
         notificationSettingsRoute,
         downloadsRoute,
         // discover M7

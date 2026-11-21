@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Film, serie TV, audiolibri e podcast per il tuo nucleo domestico."
+    "tagline": "Film, serie TV, audiolibri e podcast per il tuo nucleo domestico.",
+    "setup": {
+      "tagline": "I tuoi film, serie TV, audiolibri e podcast dal tuo server.",
+      "title": "Connettiti al tuo server",
+      "addressLabel": "Indirizzo del server",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Lo stesso indirizzo con cui apri Slouchcat nel browser.",
+      "connect": "Connetti",
+      "connecting": "Connessione in corso…",
+      "found": "Trovato",
+      "address": "Indirizzo",
+      "version": "Versione",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Connessione cifrata",
+      "notEncrypted": "Connessione non cifrata",
+      "next": "Avanti",
+      "otherAddress": "Altro indirizzo",
+      "error": {
+        "empty": "Inserisci l’indirizzo del tuo server.",
+        "invalid": "Non sembra un indirizzo. Esempio: {{example}}",
+        "unreachable": "Il server non risponde. Controlla l’indirizzo e che il tuo dispositivo sia sulla rete giusta.",
+        "notSlouchcat": "A questo indirizzo non risponde nessun server Slouchcat.",
+        "tooOld": "Questo server (Slouchcat {{server}}) è troppo vecchio. L’app richiede Slouchcat {{required}} o una versione successiva. Aggiorna il server."
+      },
+      "insecure": {
+        "title": "Connessione non cifrata",
+        "body": "Questa connessione non è cifrata. Su altre reti qualcuno può leggere la tua password e prendere il controllo del tuo accesso.",
+        "cancel": "Annulla",
+        "confirm": "Connetti comunque"
+      }
+    },
+    "connected": {
+      "title": "Connesso a {{host}}",
+      "change": "Cambia indirizzo"
+    },
+    "state": {
+      "loading": "Caricamento…",
+      "offline": "Il server non risponde. Controlla la connessione.",
+      "notFound": "Questo contenuto non c’è, o non c’è più.",
+      "notAllowed": "Non è possibile con questo accesso.",
+      "failed": "Qualcosa è andato storto.",
+      "retry": "Riprova"
+    },
+    "update": {
+      "title": "Aggiorna l’app",
+      "body": "Il tuo server richiede una versione più recente dell’app.",
+      "close": "Chiudi"
+    },
+    "connectedState": {
+      "empty": "Nessun server ancora configurato.",
+      "setUp": "Configura server"
+    },
+    "tls": {
+      "userCertificate": "Cifrata con un certificato installato da te",
+      "httpsRequired": "Il server richiede una connessione cifrata. Ora l’indirizzo è {{address}}: connettiti di nuovo."
+    }
   },
   "common": {
     "back": "Indietro",
@@ -13,6 +68,7 @@
     "saving": "Salvataggio…"
   },
   "nav": {
+    "devices": "I miei dispositivi",
     "main": "Navigazione principale",
     "home": "Home",
     "logout": "Esci",
@@ -2663,6 +2719,7 @@
       "empty": "Ancora nessun dispositivo.",
       "columns": {
         "name": "Dispositivo",
+        "session": "Sessione",
         "owner": "Proprietario",
         "lastSeen": "Ultimo contatto",
         "containers": "Contenitori",
@@ -2672,6 +2729,12 @@
         "hdr": "HDR",
         "streams": "Stream",
         "actions": "Azioni"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "App TV",
+        "none": "Disconnesso"
       },
       "unnamed": "Dispositivo sconosciuto",
       "owner": "{{email}} · {{profile}}",
@@ -6434,6 +6497,11 @@
     "loadFailed": "Non è stato possibile caricare le librerie."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "PIN consigliato per il profilo principale",
+      "body": "Questo account ha profili con una classificazione per età. Senza un PIN sul profilo principale, chiunque può passare a quel profilo e modificare le classificazioni.",
+      "action": "Imposta PIN"
+    },
     "picker": {
       "title": "Chi guarda?",
       "intro": "Scegli il tuo profilo.",
@@ -6953,6 +7021,49 @@
     "wish_failed": "Il tuo desiderio non è riuscito"
   },
   "settings": {
+    "devices": {
+      "title": "I miei dispositivi",
+      "intro": "Tutti i dispositivi su cui questo account ha effettuato l’accesso o ha dei download. Se disconnetti un dispositivo, perde tutto ciò che questo account ha lì.",
+      "list": "Dispositivi di questo account",
+      "none": "Nessun dispositivo ha un accesso né download di questo account.",
+      "thisDevice": "Questo dispositivo",
+      "unnamed": "Dispositivo sconosciuto",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefono",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Altro dispositivo"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "App per telefono",
+        "device": "App TV"
+      },
+      "signedIn": "{{kind}}, accesso effettuato il {{date}}",
+      "downloadsOnly": "Disconnesso, ha ancora download di questo account",
+      "lastSeen": "Ultimo contatto: {{date}}",
+      "lastSeenWithDownloads_one": "Ultimo contatto: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_many": "Ultimo contatto: {{date}} · {{count}} di download",
+      "lastSeenWithDownloads_other": "Ultimo contatto: {{date}} · {{count}} download",
+      "downloads_one": "{{count}} download",
+      "downloads_many": "{{count}} di download",
+      "downloads_other": "{{count}} download",
+      "signOut": {
+        "action": "Disconnetti",
+        "label": "Disconnetti {{name}}",
+        "title": "Disconnettere «{{name}}»?",
+        "body": "Il dispositivo perde l’accesso di questo account e le riproduzioni in corso si interrompono. I download, le notifiche e i download automatici di questo account sul dispositivo vengono eliminati. Gli altri account sul dispositivo restano.",
+        "current": "È il dispositivo che stai usando: qui verrai disconnesso subito.",
+        "bodyCurrent": "Il dispositivo perde l’accesso di questo account e le riproduzioni in corso si interrompono. I download, le notifiche e i download automatici di questo account sul dispositivo vengono eliminati. Gli altri account sul dispositivo restano. È il dispositivo che stai usando: qui verrai disconnesso subito.",
+        "confirm": "Disconnetti dispositivo"
+      },
+      "signedOut": "«{{name}}» disconnesso.",
+      "onlyPrimary": {
+        "title": "Disconnessione solo nel profilo principale",
+        "body": "Puoi disconnettere i dispositivi dal profilo principale di questo account. Qui vedi l’elenco."
+      }
+    },
     "playback": {
       "title": "Impostazioni",
       "intro": "Audio e sottotitoli per il profilo {{name}}, su ogni dispositivo. Ciò che scegli a mano nel lettore ha la precedenza.",

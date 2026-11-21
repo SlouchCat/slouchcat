@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -111,10 +112,15 @@ func (s *Service) pushSubscriptions(ctx context.Context, session model.Session) 
 // one per endpoint (the same endpoint again takes the new keys, device and account).
 // model.ErrPrimaryProfileRequired (requireManager); model.ErrPushUnavailable without Config;
 // *model.ValidationError for an endpoint that is not an https URL (http too in development) or
-// keys that are no P-256 point and 16-byte secret.
+// keys that are no P-256 point and 16-byte secret. An app session (concept 27 7.3) registers its
+// own subscription with any profile active, and its new subscription replaces every other one of
+// its device: one subscription per device (a new Google token gives a new endpoint).
 func (s *Service) CreatePushSubscription(ctx context.Context, session model.Session, in model.PushSubscriptionInput) (model.PushSubscription, error) {
-	if err := requireManager(session); err != nil {
-		return model.PushSubscription{}, err
+	app := session.Kind == model.SessionApp
+	if !app {
+		if err := requireManager(session); err != nil {
+			return model.PushSubscription{}, err
+		}
 	}
 	if s.cfg == nil {
 		return model.PushSubscription{}, model.ErrPushUnavailable
@@ -138,8 +144,35 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 		return model.PushSubscription{}, verr
 	}
 	device := deviceOf(ctx, session)
-	row, err := s.write.PushSubscriptionUpsert(ctx, systemq.PushSubscriptionUpsertParams{
-		AccountID: session.Account.ID, DeviceID: sql.NullString{String: device, Valid: device != ""},
+	if app {
+		// The subscription of an app session always carries the session's device, so that logout,
+		// «Meine Geräte» and a password change remove it with the session (concept 27 4.5).
+		device = session.DeviceID
+		if device == "" {
+			return model.PushSubscription{}, errors.New("app session without device")
+		}
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return model.PushSubscription{}, fmt.Errorf("begin push subscription: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.write.WithTx(tx)
+	if session.ID != 0 {
+		// The session may have ended since the request resolved it (logout, «Meine Geräte», a new
+		// password): no subscription outlives it (security review L-4 of concept 27 stage 1). The
+		// write pool serialises this transaction against the one that ends the session.
+		alive, err := q.SessionAlive(ctx, systemq.SessionAliveParams{ID: session.ID, Now: s.now().UnixMilli()})
+		if err != nil {
+			return model.PushSubscription{}, fmt.Errorf("session of the push subscription: %w", err)
+		}
+		if !alive {
+			return model.PushSubscription{}, model.ErrUnauthenticated
+		}
+	}
+	dev := sql.NullString{String: device, Valid: device != ""}
+	row, err := q.PushSubscriptionUpsert(ctx, systemq.PushSubscriptionUpsertParams{
+		AccountID: session.Account.ID, DeviceID: dev,
 		Endpoint: in.Endpoint, P256dh: in.P256dh, Auth: in.Auth,
 		UserAgent:  sql.NullString{String: truncate(in.UserAgent, maxUserAgent), Valid: in.UserAgent != ""},
 		DeviceName: sql.NullString{String: name, Valid: name != ""}, Now: s.now().UnixMilli(),
@@ -147,7 +180,21 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 	if err != nil {
 		return model.PushSubscription{}, fmt.Errorf("store push subscription: %w", err)
 	}
-	s.log.InfoContext(ctx, "push subscription stored", "account_id", session.Account.ID, "subscription_id", row.ID)
+	if app && row.DeviceID.String != device {
+		return model.PushSubscription{}, errors.New("push subscription of an app session without its device")
+	}
+	var replaced int64
+	if app {
+		if replaced, err = q.PushSubscriptionsDropOlderOfDevice(ctx, systemq.PushSubscriptionsDropOlderOfDeviceParams{
+			AccountID: session.Account.ID, DeviceID: row.DeviceID, KeepID: row.ID,
+		}); err != nil {
+			return model.PushSubscription{}, fmt.Errorf("replace push subscriptions of the device: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return model.PushSubscription{}, fmt.Errorf("commit push subscription: %w", err)
+	}
+	s.log.InfoContext(ctx, "push subscription stored", "account_id", session.Account.ID, "subscription_id", row.ID, "replaced", replaced)
 	return model.PushSubscription{
 		ID: row.ID, DeviceName: row.DeviceName.String, CreatedAt: time.UnixMilli(row.CreatedAt).UTC(),
 		ThisDevice: device != "" && row.DeviceID.String == device,
@@ -155,10 +202,23 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 }
 
 // DeletePushSubscription removes a subscription of the session's account (model.ErrNotFound for an
-// unknown one or one of another account; model.ErrPrimaryProfileRequired, see requireManager).
+// unknown one or one of another account; model.ErrPrimaryProfileRequired, see requireManager). An
+// app session may always remove the subscription of its own device (concept 27 7.3).
 func (s *Service) DeletePushSubscription(ctx context.Context, session model.Session, id int64) error {
 	if err := requireManager(session); err != nil {
-		return err
+		if session.Kind != model.SessionApp || session.DeviceID == "" {
+			return err
+		}
+		n, derr := s.write.PushSubscriptionDeleteOfDevice(ctx, systemq.PushSubscriptionDeleteOfDeviceParams{
+			ID: id, AccountID: session.Account.ID, DeviceID: sql.NullString{String: session.DeviceID, Valid: true},
+		})
+		if derr != nil {
+			return fmt.Errorf("delete push subscription: %w", derr)
+		}
+		if n == 0 {
+			return err
+		}
+		return nil
 	}
 	n, err := s.write.PushSubscriptionDelete(ctx, systemq.PushSubscriptionDeleteParams{ID: id, AccountID: session.Account.ID})
 	if err != nil {

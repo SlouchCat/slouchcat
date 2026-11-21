@@ -388,6 +388,14 @@ export function AppLayout() {
       icon: 'sliders',
       current: pathname.startsWith(paths.playbackSettings),
     },
+    // Every profile sees the account's devices; only the primary profile signs them out
+    // (concept 27 4.5).
+    {
+      href: paths.myDevices,
+      label: t('nav.devices'),
+      icon: 'monitor',
+      current: pathname.startsWith(paths.myDevices),
+    },
   ];
   if (isPrimary) {
     account.push({

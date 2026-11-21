@@ -8,6 +8,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -152,7 +154,12 @@ func (k *checker) run() error {
 	}
 
 	// The phone: it read id and key from the QR code and seals the packet for them.
-	want := pairing.Packet{V: pairing.Version, Server: "https://media.example.test", Voucher: pairing.NewSecret(32), ServerKey: pairing.NewSecret(32)}
+	serverPub, serverKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return err
+	}
+	want := pairing.Packet{V: pairing.Version, Server: "https://media.example.test", Voucher: pairing.NewSecret(32),
+		ServerKey: pairing.B64.EncodeToString(serverPub)}
 	sealed, err := pairing.SealPacket(tv.PublicKey().Bytes(), id, want)
 	if err != nil {
 		return err
@@ -187,6 +194,24 @@ func (k *checker) run() error {
 	}
 	k.n++
 	fmt.Fprintf(k.out, "ok   %-46s\n", "TV decrypts the packet")
+	// The user's server answers the redeem (played here, the relay never sees it): the token sealed
+	// for the TV with the account's e-mail, signed with the server key the packet named.
+	answer := pairing.RedeemAnswer{Token: pairing.NewSecret(32), DeviceID: "0123456789abcdef0123456789abcdef", AccountEmail: "owner@example.test"}
+	sealedToken, err := pairing.SealRedeem(tv.PublicKey().Bytes(), answer)
+	if err != nil {
+		return err
+	}
+	signature := pairing.SignRedeem(serverKey, sealedToken)
+	packetKey, err := pairing.B64.DecodeString(p.ServerKey)
+	if err != nil || !pairing.VerifyRedeem(packetKey, sealedToken, signature) {
+		return errors.New("TV checks the redeem answer: the signature does not verify with the packet's serverKey")
+	}
+	opened, err := pairing.OpenRedeem(tv, sealedToken)
+	if err != nil || opened != answer {
+		return fmt.Errorf("TV opens the redeem answer: %w", errors.Join(err, errors.New("another answer")))
+	}
+	k.n++
+	fmt.Fprintf(k.out, "ok   %-46s\n", "TV checks and opens the redeem answer")
 	if _, _, err := k.expect("second pick-up (consumed)", http.MethodGet, path, secret, nil, http.StatusGone); err != nil {
 		return err
 	}

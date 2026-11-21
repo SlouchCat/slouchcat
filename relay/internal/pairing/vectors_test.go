@@ -3,7 +3,9 @@ package pairing
 import (
 	"bytes"
 	"crypto/ecdh"
+	"crypto/ed25519"
 	"crypto/hpke"
+	"crypto/rand"
 	"encoding/json"
 	"os"
 	"strings"
@@ -124,7 +126,7 @@ func TestHPKEVectors(t *testing.T) {
 			case info == RedeemInfo && len(plain) > 0:
 				protocol++
 				a, err := OpenRedeem(tv, sealed)
-				if err != nil || a.Token == "" || a.DeviceID == "" {
+				if err != nil || a.Token == "" || a.DeviceID == "" || a.AccountEmail == "" {
 					t.Fatalf("OpenRedeem = %+v, %v", a, err)
 				}
 			case strings.HasPrefix(c.Name, "RFC 9180"):
@@ -171,5 +173,43 @@ func TestRoundTripAndTamper(t *testing.T) {
 	}
 	if _, err := PickupHash("short"); err == nil {
 		t.Fatal("a short pickup secret was accepted")
+	}
+}
+
+// The redeem answer of today's server: the token, the device id and the account's e-mail sealed
+// for the TV, signed with the server's key, which the TV checks with the serverKey of the packet.
+func TestRedeemAnswerSignedAndSealed(t *testing.T) {
+	tv, err := NewTVKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverPub, server, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := RedeemAnswer{Token: NewSecret(32), DeviceID: "0123456789abcdef0123456789abcdef", AccountEmail: "owner@example.test"}
+	sealed, err := SealRedeem(tv.PublicKey().Bytes(), want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig := SignRedeem(server, sealed)
+	if !VerifyRedeem(serverPub, sealed, sig) {
+		t.Fatal("the signature does not verify")
+	}
+	got, err := OpenRedeem(tv, sealed)
+	if err != nil || got != want {
+		t.Fatalf("OpenRedeem = %+v, %v; want %+v", got, err, want)
+	}
+	otherPub, _, _ := ed25519.GenerateKey(rand.Reader)
+	swapped := bytes.Clone(sealed)
+	swapped[40] ^= 1
+	for name, ok := range map[string]bool{
+		"another server key": VerifyRedeem(otherPub, sealed, sig),
+		"a swapped token":    VerifyRedeem(serverPub, swapped, sig),
+		"a short key":        VerifyRedeem(serverPub[:31], sealed, sig),
+	} {
+		if ok {
+			t.Errorf("%s verifies", name)
+		}
 	}
 }

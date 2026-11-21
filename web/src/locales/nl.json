@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Films, series, luisterboeken en podcasts voor je huishouden."
+    "tagline": "Films, series, luisterboeken en podcasts voor je huishouden.",
+    "setup": {
+      "tagline": "Je films, series, luisterboeken en podcasts van je eigen server.",
+      "title": "Verbinden met je server",
+      "addressLabel": "Serveradres",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Hetzelfde adres waarmee je Slouchcat in de browser opent.",
+      "connect": "Verbinden",
+      "connecting": "Verbinden…",
+      "found": "Gevonden",
+      "address": "Adres",
+      "version": "Versie",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Verbinding versleuteld",
+      "notEncrypted": "Verbinding niet versleuteld",
+      "next": "Volgende",
+      "otherAddress": "Ander adres",
+      "error": {
+        "empty": "Voer het adres van je server in.",
+        "invalid": "Dat lijkt geen adres. Voorbeeld: {{example}}",
+        "unreachable": "De server reageert niet. Controleer het adres en of je apparaat op het juiste netwerk zit.",
+        "notSlouchcat": "Op dit adres reageert geen Slouchcat-server.",
+        "tooOld": "Deze server (Slouchcat {{server}}) is te oud. De app heeft Slouchcat {{required}} of nieuwer nodig. Werk de server bij."
+      },
+      "insecure": {
+        "title": "Onversleutelde verbinding",
+        "body": "Deze verbinding is niet versleuteld. Op andere netwerken kan iemand je wachtwoord meelezen en je toegang overnemen.",
+        "cancel": "Annuleren",
+        "confirm": "Toch verbinden"
+      }
+    },
+    "connected": {
+      "title": "Verbonden met {{host}}",
+      "change": "Adres wijzigen"
+    },
+    "state": {
+      "loading": "Laden…",
+      "offline": "De server reageert niet. Controleer de verbinding.",
+      "notFound": "Dit bestaat niet (meer).",
+      "notAllowed": "Dit kan niet met dit account.",
+      "failed": "Er ging iets mis.",
+      "retry": "Opnieuw proberen"
+    },
+    "update": {
+      "title": "Werk de app bij",
+      "body": "Je server heeft een nieuwere versie van de app nodig.",
+      "close": "Sluiten"
+    },
+    "connectedState": {
+      "empty": "Nog geen server ingesteld.",
+      "setUp": "Server instellen"
+    },
+    "tls": {
+      "userCertificate": "Versleuteld met een certificaat dat je zelf hebt geïnstalleerd",
+      "httpsRequired": "De server vereist een versleutelde verbinding. Het adres is nu {{address}}, maak opnieuw verbinding."
+    }
   },
   "common": {
     "back": "Terug",
@@ -13,6 +68,7 @@
     "saving": "Opslaan…"
   },
   "nav": {
+    "devices": "Mijn apparaten",
     "main": "Hoofdnavigatie",
     "home": "Home",
     "logout": "Uitloggen",
@@ -2557,6 +2613,7 @@
       "empty": "Nog geen apparaten.",
       "columns": {
         "name": "Apparaat",
+        "session": "Sessie",
         "owner": "Eigenaar",
         "lastSeen": "Laatste contact",
         "containers": "Containers",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Streams",
         "actions": "Acties"
+      },
+      "sessionKinds": {
+        "browser": "Browser",
+        "app": "App",
+        "device": "Tv-app",
+        "none": "Uitgelogd"
       },
       "unnamed": "Onbekend apparaat",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "De bibliotheken konden niet worden geladen."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Een pincode voor het hoofdprofiel is aanbevolen",
+      "body": "Dit account heeft profielen met een leeftijdsclassificatie. Zonder pincode op het hoofdprofiel kan iedereen naar het hoofdprofiel wisselen en de classificaties wijzigen.",
+      "action": "Pincode instellen"
+    },
     "picker": {
       "title": "Wie kijkt er?",
       "intro": "Kies je profiel.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "Je wens is mislukt"
   },
   "settings": {
+    "devices": {
+      "title": "Mijn apparaten",
+      "intro": "Alle apparaten waarop dit account is ingelogd of downloads heeft. Log je een apparaat uit, dan verliest het alles wat dit account daar heeft.",
+      "list": "Apparaten van dit account",
+      "none": "Geen enkel apparaat is met dit account ingelogd of heeft er downloads van.",
+      "thisDevice": "Dit apparaat",
+      "unnamed": "Onbekend apparaat",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefoon",
+        "tablet": "Tablet",
+        "tv": "Tv",
+        "other": "Ander apparaat"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Telefoon-app",
+        "device": "Tv-app"
+      },
+      "signedIn": "{{kind}}, ingelogd op {{date}}",
+      "downloadsOnly": "Uitgelogd, heeft nog downloads van dit account",
+      "lastSeen": "Laatste contact: {{date}}",
+      "lastSeenWithDownloads_one": "Laatste contact: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_other": "Laatste contact: {{date}} · {{count}} downloads",
+      "downloads_one": "{{count}} download",
+      "downloads_other": "{{count}} downloads",
+      "signOut": {
+        "action": "Uitloggen",
+        "label": "{{name}} uitloggen",
+        "title": "“{{name}}” uitloggen?",
+        "body": "Het apparaat is dan niet meer ingelogd met dit account en lopende weergaven stoppen. De downloads, meldingen en automatische downloads van dit account op het apparaat worden verwijderd. Andere accounts op het apparaat blijven.",
+        "current": "Dit is het apparaat dat je nu gebruikt: je wordt hier meteen uitgelogd.",
+        "bodyCurrent": "Het apparaat is dan niet meer ingelogd met dit account en lopende weergaven stoppen. De downloads, meldingen en automatische downloads van dit account op het apparaat worden verwijderd. Andere accounts op het apparaat blijven. Dit is het apparaat dat je nu gebruikt: je wordt hier meteen uitgelogd.",
+        "confirm": "Apparaat uitloggen"
+      },
+      "signedOut": "“{{name}}” uitgelogd.",
+      "onlyPrimary": {
+        "title": "Uitloggen alleen in het hoofdprofiel",
+        "body": "Apparaten uitloggen doe je in het hoofdprofiel van dit account. Hier zie je de lijst."
+      }
+    },
     "playback": {
       "title": "Instellingen",
       "intro": "Geluid en ondertiteling voor het profiel {{name}}, op elk apparaat. Wat je handmatig in de speler kiest, gaat voor.",

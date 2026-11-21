@@ -1,6 +1,6 @@
 // Package pairing is the encryption of the TV set-up (concept 27 section 7.2, "Protokolle" of the
 // build log): the phone seals the packet for the TV's one-time X25519 key with HPKE (RFC 9180),
-// and the user's server seals the device token of the redeem answer for the same key.
+// and the user's server seals the device token of the redeem answer for the same key and signs it.
 //
 // Suite: DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, base mode, one message, empty aad.
 // The sealed form is enc (32 bytes) followed by the ciphertext. The info of the packet is
@@ -14,6 +14,7 @@ package pairing
 
 import (
 	"crypto/ecdh"
+	"crypto/ed25519"
 	"crypto/hpke"
 	"crypto/rand"
 	"crypto/sha256"
@@ -28,6 +29,10 @@ const (
 	PacketInfoPrefix = "slouchcat-pair-v1:"
 	RedeemInfo       = "slouchcat-redeem-v1"
 	Version          = 1
+	// RedeemSignaturePrefix precedes the bytes of sealedToken in what the server signs with its
+	// Ed25519 key (the serverKey of the packet); the TV checks the signature before it opens the
+	// token, so nobody on the way can swap in a token sealed for the TV's public key.
+	RedeemSignaturePrefix = "slouchcat-redeem-signature-v1:"
 )
 
 // Packet is the plaintext the phone hands to the TV.
@@ -38,10 +43,25 @@ type Packet struct {
 	ServerKey string `json:"serverKey,omitempty"`
 }
 
-// RedeemAnswer is the plaintext of sealedToken in the server's redeem answer.
+// RedeemAnswer is the plaintext of sealedToken in the server's redeem answer: the device token, its
+// device id and the account the TV shows next to the server address (K-9).
 type RedeemAnswer struct {
-	Token    string `json:"token"`
-	DeviceID string `json:"deviceId"`
+	Token        string `json:"token"`
+	DeviceID     string `json:"deviceId"`
+	AccountEmail string `json:"accountEmail"`
+}
+
+// SignRedeem is the server's signature over sealedToken (what the server does).
+func SignRedeem(server ed25519.PrivateKey, sealed []byte) []byte {
+	return ed25519.Sign(server, append([]byte(RedeemSignaturePrefix), sealed...))
+}
+
+// VerifyRedeem checks the signature of the redeem answer with the serverKey of the packet (32 bytes).
+func VerifyRedeem(serverKey, sealed, signature []byte) bool {
+	if len(serverKey) != ed25519.PublicKeySize {
+		return false
+	}
+	return ed25519.Verify(serverKey, append([]byte(RedeemSignaturePrefix), sealed...), signature)
 }
 
 var (

@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "У одной из заявок новое состояние.",
   "wish_review_subject": "Нужно одобрение: {{title}}",
   "wish_review_movie_body": "Заявка на фильм от {{account}} · {{profile}}. В Seerr она ждет одобрения.",
-  "wish_review_show_body": "Заявка на сериал от {{account}} · {{profile}}. В Seerr она ждет одобрения."
+  "wish_review_show_body": "Заявка на сериал от {{account}} · {{profile}}. В Seerr она ждет одобрения.",
+  "device_linked_subject": "Подключено новое устройство",
+  "device_linked_body": "{{time}} к вашему аккаунту подключен {{kind}}. Устройство называет себя «{{name}}» ({{system}}); эти данные сообщило само устройство. Если это были не вы, отключите устройство в разделе «Мои устройства» и смените пароль.",
+  "device_kind_tv": "телевизор"
 }
