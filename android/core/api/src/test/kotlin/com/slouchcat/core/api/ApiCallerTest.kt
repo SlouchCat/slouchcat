@@ -35,7 +35,7 @@ class ApiCallerTest {
 
     @Test
     fun anAnswerIsOk() = runTest {
-        val result = answer(MockResponse(body = """{"status":"ok","version":"1.42.0","uptimeSeconds":1}"""))
+        val result = answer(MockResponse(body = """{"status":"ok","version":"1.42.0","contractVersion":"1.42.0","serverKey":"k","uptimeSeconds":1}"""))
         assertEquals("1.42.0", ((result as ApiResult.Ok<*>).value as com.slouchcat.core.api.generated.models.Health).version)
     }
 

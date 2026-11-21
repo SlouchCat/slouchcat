@@ -20,7 +20,7 @@ class ClientToleranceTest {
     fun unknownFieldsAreIgnored() {
         val health = json.decodeFromString(
             Health.serializer(),
-            """{"status":"ok","version":"9.9.9","uptimeSeconds":3,"brandNew":{"x":[1,2]},"contractVersion":"9.9.0"}""",
+            """{"status":"ok","version":"9.9.9","uptimeSeconds":3,"brandNew":{"x":[1,2]},"contractVersion":"9.9.0","serverKey":"k"}""",
         )
         assertEquals("9.9.9", health.version)
         assertEquals(Health.Status.OK, health.status)
@@ -30,7 +30,7 @@ class ClientToleranceTest {
     fun unknownEnumValuesBecomeTheUnknownCase() {
         val health = json.decodeFromString(
             Health.serializer(),
-            """{"status":"degraded-in-future","version":"1.0.0","uptimeSeconds":3}""",
+            """{"status":"degraded-in-future","version":"1.0.0","contractVersion":"1.42.0","serverKey":"k","uptimeSeconds":3}""",
         )
         assertEquals(Health.Status.UNKNOWN_DEFAULT_OPEN_API, health.status)
 
