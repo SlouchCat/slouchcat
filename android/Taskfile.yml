@@ -16,12 +16,12 @@ tasks:
       Debug and unsigned release builds (R8) of both flavours (play, foss), lint of every module with the own rules, the
       generators of client, texts and tokens (CI job "android")
     cmds:
-      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheck
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciCheck {{.CLI_ARGS}}
 
   test:
     desc: All JVM tests of the apps, the lint rules and the generators (Robolectric, no emulator)
     cmds:
-      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciTest
+      - ../scripts/heavy-slot.sh ./gradlew --console=plain ciTest {{.CLI_ARGS}}
 
   apk:
     desc: Debug APKs and unsigned release APKs (R8) of both flavours into app-mobile/build/outputs/apk

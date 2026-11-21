@@ -34,8 +34,9 @@ internal fun Project.configureLint(lint: Lint) {
     lint.checkReleaseBuilds = false
     lint.lintConfig = rootProject.file("lint.xml")
     lint.htmlReport = true
+    // No fixed textOutput: AGP then writes one report per variant (lint-results-playDebug.txt …).
+    // A shared path made the copy tasks of two variants write the same file at once.
     lint.textReport = true
-    lint.textOutput = file("build/reports/lint-results.txt")
     dependencies.add("lintChecks", project(":lint"))
 }
 
