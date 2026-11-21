@@ -52,10 +52,42 @@ task dev         # Server und Vite-Dev-Server
 task --list      # alle Ziele
 ```
 
+## Die zwei Dienste: Modul `relay/`
+
+`relay/` ist ein zweites Go-Modul (eigenes `go.mod`, dieselbe Go-Version wie `server/`, kein
+`go.work`) mit den zwei Diensten aus Konzept 27 Abschnitt 7: Vermittlung (`cmd/pair`) und
+Push-Weiterleitung (`cmd/push`), dazu die Prüfprogramme `paircheck` und `pushcheck`, die
+Überwachung `watch` und `fcmfake`, ein Nachbau von Googles Push-Dienst für Tests. golangci-lint
+kommt aus `server/go.mod` (dieselbe Fassung), die Regeln stehen in `relay/.golangci.yml`.
+
+```bash
+task relay:check        # Bau, go vet, golangci-lint (CI-Job «relay», mit relay:test)
+task relay:test         # alle Tests unter -race (wartet lokal auf einen Platz)
+task relay:check:fast   # go vet und go test ohne -race, Teil von `task check:fast`
+task relay:build        # alle Programme nach relay/bin
+task relay:vectors      # testdata/crypto/pairing-v1.json neu schreiben (gleicher Inhalt)
+```
+
+Lokal starten, ohne Container:
+
+```bash
+relay/bin/pair                                               # :8080, RELAY_LISTEN ändert es
+relay/bin/fcmfake -listen 127.0.0.1:8190 -credentials /tmp/firebase.json
+relay/bin/push -add-key 1 -keyfile /tmp/keys.json
+RELAY_LISTEN=127.0.0.1:8181 RELAY_PUSH_ORIGINS=http://127.0.0.1:8181 \
+  RELAY_PUSH_KEYFILE=/tmp/keys.json RELAY_FCM_CREDENTIALS=/tmp/firebase.json \
+  RELAY_FCM_BASE_URL=http://127.0.0.1:8190 relay/bin/push
+relay/bin/paircheck -url http://127.0.0.1:8080
+relay/bin/pushcheck -url http://127.0.0.1:8181 -fcmfake http://127.0.0.1:8190
+```
+
+Images, Compose-Dateien und Betrieb: `deploy/relay/`, `docs/relay/BETRIEB.md`. Releases mit dem Tag
+`relay-vX.Y.Z` (Workflow `release-relay.yml`, ohne GitHub-Release).
+
 ## Schnelle Läufe beim Arbeiten
 
 ```bash
-task check:fast                          # Web und Server nebeneinander, nur was sich geändert hat
+task check:fast                          # Web, Server und relay nebeneinander, nur was sich geändert hat
 task web:check:fast                      # ESLint (Cache) und Prettier auf geänderten Dateien,
                                          # tsc, `vitest related` für die geänderten Quellen
 task web:check:fast BASE=main            # dasselbe gegen main statt gegen den letzten Commit
