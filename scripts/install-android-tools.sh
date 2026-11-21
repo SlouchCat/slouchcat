@@ -7,19 +7,27 @@
 # Run it again any time; what is there stays. PACKAGES="…" installs other packages instead.
 set -euo pipefail
 
-JDK_FEATURE=21
 JDK_ROOT="$HOME/.local/share/jdk"
 SDK_ROOT="$HOME/.local/share/android-sdk"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# The JDK pinned in .tool-versions (`java temurin-21.0.13.1+2`), not whatever is newest.
+here="$(cd "$(dirname "$0")/.." && pwd)"
+pinned="$(sed -n 's/^java temurin-//p' "$here/.tool-versions")"
+[ -n "$pinned" ] || { echo "no java line in .tool-versions" >&2; exit 1; }
+
 if [ ! -x "$JDK_ROOT/current/bin/java" ]; then
-  meta="$(curl -fsSL "https://api.adoptium.net/v3/assets/latest/${JDK_FEATURE}/hotspot?os=linux&architecture=x64&image_type=jdk")"
-  url="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["binary"]["package"]["link"])')"
-  sum="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["binary"]["package"]["checksum"])')"
-  name="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["release_name"])')"
+  release="jdk-$pinned"
+  meta="$(curl -fsSL "https://api.adoptium.net/v3/assets/release_name/eclipse/${release//+/%2B}?os=linux&architecture=x64&image_type=jdk&heap_size=normal&project=jdk")"
+  url="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)["binaries"][0]["package"]["link"])')"
+  sum="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)["binaries"][0]["package"]["checksum"])')"
+  name="$(printf '%s' "$meta" | python3 -c 'import json,sys; print(json.load(sys.stdin)["release_name"])')"
   echo "JDK: $name"
   curl -fsSL -o "$TMP/jdk.tar.gz" "$url"
+  # Two sources: the checksum of the API and the one published next to the archive on GitHub.
+  published="$(curl -fsSL "$url.sha256.txt" | cut -d' ' -f1)"
+  [ "$sum" = "$published" ] || { echo "JDK checksums differ: API $sum, release $published" >&2; exit 1; }
   echo "$sum  $TMP/jdk.tar.gz" | sha256sum -c -
   mkdir -p "$JDK_ROOT"
   tar -xzf "$TMP/jdk.tar.gz" -C "$JDK_ROOT"

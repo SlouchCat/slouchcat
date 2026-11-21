@@ -91,4 +91,10 @@ tasks:
           exit 0
         fi
         cd android
+        if ! printf '%s\n' "$changed" | grep -qvE '^web/src/locales/'; then
+          # Only texts changed: the text generator over all languages is the whole check (seconds).
+          echo "android: only web/src/locales changed, generating the texts"
+          ../scripts/heavy-slot.sh ./gradlew --console=plain -q :core:strings:generateStrings
+          exit 0
+        fi
         ../scripts/heavy-slot.sh ./gradlew --console=plain -q fastCheck

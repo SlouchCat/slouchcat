@@ -286,21 +286,33 @@ jobs:
 
       - uses: ./.github/actions/task
 
+      # The wrapper jar is a binary in the repository: it must be the one Gradle publishes for the
+      # version in gradle-wrapper.properties (sha256 of gradle-9.9.2-wrapper.jar).
+      - name: Check the Gradle wrapper
+        run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
+
       - name: JDK 21 and the Android SDK packages
         run: |
           set -euo pipefail
           echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
           echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-            "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" > /dev/null
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          # `yes` ends with SIGPIPE once sdkmanager stops reading; only sdkmanager's status counts.
+          log=$(mktemp)
+          if ! (yes || true) | "$sdkmanager" --licenses >"$log" 2>&1; then cat "$log"; exit 1; fi
+          if ! "$sdkmanager" --install "platforms;android-37.2" "build-tools;37.0.0" "platform-tools" >"$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
 
       - name: Gradle caches
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
+          # Robolectric keeps the Android framework jars it downloads (about 150 MB) under ~/.m2.
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
           key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle.kts') }}
           restore-keys: gradle-${{ runner.os }}-
 
