@@ -34,6 +34,25 @@ steht je Stufe dabei; die gesammelte Anleitung folgt in `docs/dev/ANDROID-INBETR
     dem vorhandenen Reverse-Proxy, DNS-Einträge, Firebase-Projekt und echte Push-Probe, Meldung der
     Überwachung, Umzugsprobe auf einer zweiten Maschine. Die Stufe gilt erst mit diesen Belegen als
     abgeschlossen.
+- **Konzept 27, Stufe 3 «Gerüst», Teil 1:** das Android-Projekt `android/` (Gradle mit Wrapper,
+  Versionskatalog, `build-logic`, `tools`), JDK 21, `compileSdk` 37.2.
+  - Module `:app-mobile`, `:core:api`, `:core:session`, `:core:design`, `:core:strings`, `:lint`.
+  - **Erzeugt beim Bau, nie eingecheckt:** der Kotlin-Client (Vorlauf `TrimOpenApi` schneidet den Vertrag
+    nach `x-clients` zu, dann openapi-generator), die Texte (`strings.xml` je Sprache aus
+    `web/src/locales` nach `android/strings-namespaces.txt`; App-Texte im Namensraum `app`), Farben und
+    Masse (drittes Ausgabeformat von `packages/design-tokens`).
+  - **Wächter:** drei eigene Lint-Regeln (fester Text, feste Farbe, direkter Log-Aufruf), in allen Modulen.
+  - Gemeinsamer Netz-Client (Köpfe, HTTP nach E-18, Bearer und Gerätekennung nur an den eigenen Server),
+    Logger mit Redaktion, Ergebnis-Muster `ApiResult` für alle Seiten.
+  - Thema und Bausteine nach dem Mockup; erste Seite **«Serveradresse»** mit Warnung bei unverschlüsselter
+    Verbindung ausserhalb des Heimnetzes, in zwei Breiten.
+  - `task android:check`, `android:test` (162 JVM-Tests mit Robolectric), `android:contract` (Client gegen
+    einen echten Server), `android:apk`; CI-Job `android` im Gate; `scripts/install-android-tools.sh`;
+    ADR 0039; `CLAUDE.md` Regeln 8, 9 und Werkzeuge.
+  - **Geprüft:** Tests, getrenntes Code-Review mit Korrekturrunde (5 Major, 34 Minor), Seite im Emulator
+    an Handy und Tablet gegen das Mockup angesehen. Anmeldung, Profilwahl und «Meine Geräte» folgen mit
+    Teil 2 (braucht den Serverteil aus Stufe 1). Die Texte des Namensraums `app` gibt es erst in Deutsch
+    und Englisch.
 
 ## Patch 1.41.3: Verwaltung, Seitenleiste als aufklappbarer Baum «Explorer» (19. November 2026, veröffentlicht: PR #189 `879d1a7f`, Tag `v1.41.3`, Lauf 44548350057)
 
