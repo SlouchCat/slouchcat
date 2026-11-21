@@ -14,6 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.slouchcat.app.mobile.AppGraph
+import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.MoreEntry
@@ -46,6 +47,10 @@ class PlaybackSettingsFeature(
     override val more = listOf(
         MoreEntry("playback", MoreSection.Settings, 20, R.string.app_playback_title, SlouchcatIcon.Play, PlaybackSettingsRoute, subtitle = { summary() }),
     )
+
+    /** `settings/playback`: the page under «Mehr» (as the web app's address). */
+    override fun link(address: String): AppLink? =
+        if (address.removePrefix("/") == ADDRESS) AppLink(MORE, listOf(PlaybackSettingsRoute)) else null
 
     @Composable
     private fun summary(): String {
@@ -80,6 +85,11 @@ class PlaybackSettingsFeature(
             val events = remember(vm) { events(vm, app.navigator::back) }
             PlaybackSettingsScreen(state, events, snackbar, profileName = (session as? SessionState.Ready)?.profile?.name)
         }
+    }
+
+    private companion object {
+        const val ADDRESS = "settings/playback"
+        const val MORE = "more"
     }
 }
 

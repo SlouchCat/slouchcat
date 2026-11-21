@@ -11,6 +11,7 @@
 # SHOTS=DIR   or --shots DIR: run through adb instead of Gradle, photograph every page and sheet
 #             (the test's uiAutomation screenshots) and copy them to DIR
 # LOCALE      language of the app for the photos (de-CH, en …; default: the device's)
+# CLASS       only this test class (com.slouchcat.app.mobile.PlayerFlowTest), else all
 # WAIT_MAX    seconds to wait while another emulator runs (default 600; 0 fails at once)
 #
 # The script only ever touches the emulator it started itself (adb -s emulator-EMU_PORT): never
@@ -24,6 +25,7 @@ port=${PORT:-8597}
 avd=${AVD:-sc_phone}
 emu_port=${EMU_PORT:-5580}
 shots=${SHOTS:-}
+only=${CLASS:-}
 wait_max=${WAIT_MAX:-600}
 if [ "${1:-}" = "--shots" ]; then shots=$2; fi
 
@@ -116,6 +118,8 @@ fi
 for setting in window_animation_scale transition_animation_scale animator_duration_scale; do
   adb shell settings put global "$setting" 0
 done
+# The player hides the system bars: no system hint «Viewing full screen» over the photos.
+adb shell settings put secure immersive_mode_confirmations confirmed
 export ANDROID_SERIAL=$serial
 booted=$(date +%s)
 echo "android-e2e: $serial ready after $((booted - started)) s"
@@ -141,17 +145,18 @@ server_url="http://10.0.2.2:$port"
 if [ -z "$shots" ]; then
   ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:connectedPlayDebugAndroidTest \
     "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" \
-    "-Pandroid.testInstrumentationRunnerArguments.slouchcatMedia=$root/media" || fail "the flow failed"
+    "-Pandroid.testInstrumentationRunnerArguments.slouchcatMedia=$root/media" \
+    ${only:+"-Pandroid.testInstrumentationRunnerArguments.class=$only"} || fail "the flow failed"
 else
   ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-mobile:assemblePlayDebug :app-mobile:assemblePlayDebugAndroidTest
   adb install -r -t app-mobile/build/outputs/apk/play/debug/app-mobile-play-debug.apk >/dev/null
   adb install -r -t app-mobile/build/outputs/apk/androidTest/play/debug/app-mobile-play-debug-androidTest.apk >/dev/null
   if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
-  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatMedia "$root/media" -e slouchcatShots 1 \
+  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatMedia "$root/media" -e slouchcatShots 1 ${only:+-e class "$only"} \
     "$app.test/androidx.test.runner.AndroidJUnitRunner")
   echo "$out" | grep -E "^(OK|FAILURES|Tests run)|Exception|Error" | head -n 12
   echo "$out" | grep -q '^OK (' || fail "the flow failed"
-  rm -f "$shots"/*.png
+  rm -f "$shots"/*.png "$shots"/*.txt
   mkdir -p "$shots"
   adb pull "/sdcard/Android/data/$app/files/shots/." "$shots" >/dev/null 2>&1
   echo "android-e2e: photos in $shots"

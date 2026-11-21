@@ -208,7 +208,7 @@ fun PlayerScreen(
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(end = 24.dp, bottom = bottomGap)
-                .widthIn(max = 420.dp),
+                .widthIn(max = 460.dp),
             horizontalAlignment = Alignment.End,
         ) {
             state.countdown?.let { countdown -> NextCard(countdown, images, events) }
@@ -511,6 +511,7 @@ private fun NextCard(countdown: com.slouchcat.core.player.Countdown, images: Ser
     val next = countdown.next
     Row(
         Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(c.elev)
             .border(BorderStroke(1.dp, c.frame), RoundedCornerShape(18.dp))
@@ -528,7 +529,7 @@ private fun NextCard(countdown: com.slouchcat.core.player.Countdown, images: Ser
                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth(share).height(4.dp).background(c.accent))
             }
         }
-        Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 countdown.secondsLeft?.let { pluralStringResource(R.plurals.app_player_nextIn, it, it) } ?: stringResource(R.string.player_next_title),
                 style = SlouchcatType.label,

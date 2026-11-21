@@ -86,7 +86,7 @@ tasks:
       against bin/slouchcat on PORT (8597), only in its own emulator AVD (sc_phone) on EMU_PORT (5580); SHOTS=<dir> takes photos
     cmds:
       - task: :server:build
-      - PORT={{.PORT | default "8597"}} AVD={{.AVD | default "sc_phone"}} EMU_PORT={{.EMU_PORT | default "5580"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} ../scripts/android-e2e.sh
+      - PORT={{.PORT | default "8597"}} AVD={{.AVD | default "sc_phone"}} EMU_PORT={{.EMU_PORT | default "5580"}} SHOTS={{.SHOTS}} LOCALE={{.LOCALE}} CLASS={{.CLASS}} ../scripts/android-e2e.sh
 
   # The quick Android part of `task check:fast`: only when something the apps are built from
   # changed (android/, the contract, the texts, the tokens) against BASE (default HEAD, the

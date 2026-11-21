@@ -5,7 +5,7 @@
 #
 #   scripts/android-test-video.sh DIR     # writes DIR/Playback/Movies and DIR/Playback/TV
 #
-# - «Two Voices» (MKV, 60 s): H.264 640×360, two AAC tracks (deu, eng), two SRT tracks (deu, eng)
+# - «Two Voices» (MKV, 60 s): H.264 1280×720, two AAC tracks (deu, eng), two SRT tracks (deu, eng)
 #   and chapters: plays directly for the app's profile, as an HLS remux without `mkv`.
 # - «Clip Show» S01E01 and S01E02 (MKV, 70 s each): chapters «Intro» (5–22 s) and «Credits»
 #   (45–70 s), from which the server takes the intro and the end credits.
@@ -53,7 +53,7 @@ srt "$work/de.srt" "Untertitel"
 srt "$work/en.srt" "Subtitle"
 chapters "$work/film.txt" "0:20:Anfang" "20:40:Mitte" "40:60:Ende"
 "$ff" -nostdin -loglevel error -y \
-  -f lavfi -i "testsrc2=size=640x360:rate=25:duration=60" \
+  -f lavfi -i "testsrc2=size=1280x720:rate=25:duration=60" \
   -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=60" \
   -f lavfi -i "sine=frequency=880:sample_rate=48000:duration=60" \
   -i "$work/de.srt" -i "$work/en.srt" -i "$work/film.txt" \

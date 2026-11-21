@@ -268,21 +268,24 @@ class DetailFlowTest {
             }
         }
 
-        private fun library(): JsonObject? =
-            call("GET", "admin/libraries")!!.jsonArray.map { it.jsonObject }.firstOrNull { it["name"]?.jsonPrimitive?.content == LIBRARY }
+        private var current = LIBRARY
 
-        fun ensureLibrary(media: String) {
+        private fun library(): JsonObject? =
+            call("GET", "admin/libraries")!!.jsonArray.map { it.jsonObject }.firstOrNull { it["name"]?.jsonPrimitive?.content == current }
+
+        fun ensureLibrary(media: String, name: String = LIBRARY, folder: String = "") {
             call("POST", "auth/login", """{"email":${Json.encodeToString(email)},"password":${Json.encodeToString(password)}}""")
             val primary = call("GET", "auth/profiles")!!.jsonArray.map { it.jsonObject }.single { it["isPrimary"]!!.jsonPrimitive.boolean }
             val withPin = primary["hasPin"]?.jsonPrimitive?.boolean == true
             call("POST", "auth/profiles/${primary["id"]!!.jsonPrimitive.long}/select", if (withPin) """{"pin":"$pin"}""" else null)
+            current = name
             if (library() == null) {
-                val movies = Json.encodeToString("$media/Movies")
-                val tv = Json.encodeToString("$media/TV")
+                val movies = Json.encodeToString("$media$folder/Movies")
+                val tv = Json.encodeToString("$media$folder/TV")
                 call(
                     "POST",
                     "admin/libraries",
-                    """{"name":"$LIBRARY","kind":"video","roots":[{"path":$movies,"content":"movie","providers":["tmdb"]},{"path":$tv,"content":"series","providers":["tmdb"]}]}""",
+                    """{"name":"$name","kind":"video","roots":[{"path":$movies,"content":"movie","providers":["tmdb"]},{"path":$tv,"content":"series","providers":["tmdb"]}]}""",
                 )
             }
             val deadline = System.nanoTime() + SCAN_TIMEOUT_NS

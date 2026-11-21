@@ -313,7 +313,7 @@ class PlaybackController(
         started = false
         mutable.update {
             if (switching) {
-                it.copy(switching = true, error = null)
+                it.copy(switching = true, error = null, firstFrameMs = null)
             } else {
                 PlayerState(loading = true, speed = it.speed, item = it.item?.takeIf { item -> item.id == id })
             }
@@ -440,7 +440,12 @@ class PlaybackController(
     private fun onEvent(event: EngineEvent) {
         when (event) {
             is EngineEvent.Tracks -> onTracks(event)
-            EngineEvent.FirstFrame -> mutable.update { if (it.firstFrameMs == null) it.copy(firstFrameMs = clock() - startedAt) else it }
+            EngineEvent.FirstFrame -> if (mutable.value.firstFrameMs == null) {
+                val ms = clock() - startedAt
+                mutable.update { it.copy(firstFrameMs = ms) }
+                // The measure of stage 5 (docs/perf/K27-android-handy.md): from the start to the first picture.
+                Log.i(TAG, "first picture", "ms" to ms, "mode" to info?.mode?.value, "transcoding" to info?.transcoding?.mode?.value)
+            }
             is EngineEvent.Playing -> onPlaying(event.playing)
             is EngineEvent.WantsToPlay -> {
                 val was = wantsToPlay
