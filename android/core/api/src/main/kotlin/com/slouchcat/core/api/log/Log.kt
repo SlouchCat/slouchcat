@@ -53,25 +53,49 @@ object Redaction {
     const val REDACTED = "[redacted]"
 
     /**
-     * Field names whose values never appear (compared without case, `-` and `_`). The same list as
-     * the server's redaction handler for the values an app holds (CLAUDE.md rule 10).
+     * Key suffixes whose values never appear, compared after lower-casing and dropping `-` and `_`:
+     * the list of the server's redaction handler (`server/internal/logging`, `sensitiveKeys`, rule
+     * 10) plus what only an app holds. `accessToken`, `push_endpoint`, `pairingVoucher` all end in
+     * one of them.
      */
-    val SECRET_KEYS = setOf(
-        "token", "bearer", "bearertoken", "authorization", "cookie", "setcookie", "password",
-        "newpassword", "pin", "voucher", "pairingvoucher", "deviceid", "device", "xslouchcatdevice",
-        "pickup", "pickupsecret", "sealedtoken", "fcmtoken", "googletoken", "secret", "dt", "st", "rt",
+    val SECRET_SUFFIXES = listOf(
+        // server/internal/logging/logging.go, sensitiveKeys
+        "password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
+        "youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
+        "smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
+        "listurl", "deviceid", "clientkey",
+        "seerrapikey", "newpassword", "radarrapikey", "sonarrapikey",
+        // the apps: voucher, pickup secret of the meeting point, cookie, Bearer header, device header
+        "voucher", "pickup", "cookie", "bearer", "xslouchcatdevice",
     )
+
+    /** Short names that are secret only as the whole name (`st`, but not `host` or `list`). */
+    val SECRET_NAMES = setOf("dt", "st", "rt", "device", "key", "sig", "signature")
+
+    fun isSecret(key: String): Boolean {
+        val k = key.lowercase().replace("-", "").replace("_", "")
+        return k in SECRET_NAMES || SECRET_SUFFIXES.any { k.endsWith(it) }
+    }
 
     private val patterns = listOf(
         Regex("""(?i)(Bearer\s+)[^\s,;"']+""") to "$1$REDACTED",
         Regex("""(?i)(Pickup\s+)[^\s,;"']+""") to "$1$REDACTED",
         Regex("""(?i)(X-Slouchcat-Device\s*[:=]\s*)[^\s,;"']+""") to "$1$REDACTED",
-        Regex("""(?i)([?&](?:dt|st|rt|token|voucher)=)[^&\s#"']+""") to "$1$REDACTED",
+        // The query parameters of the server's list (logging.go, sensitiveQuery), and `voucher`.
+        Regex(
+            """(?i)((?:^|[?&;])(?:api_key|apikey|key|client_key|st|dt|rt|auth|token|access_token|secret|sig|signature|voucher)=)[^&;#\s"']*""",
+        ) to "$1$REDACTED",
     )
 
-    fun isSecret(key: String): Boolean = key.lowercase().replace("-", "").replace("_", "") in SECRET_KEYS
+    /** `"name":"value"` in JSON quoted by an error text; the value goes when the name is secret. */
+    private val jsonPair = Regex(""""([A-Za-z0-9_-]+)"\s*:\s*"((?:[^"\\]|\\.)*)"?""")
 
-    fun scrub(text: String): String = patterns.fold(text) { acc, (regex, replacement) -> regex.replace(acc, replacement) }
+    fun scrub(text: String): String {
+        val plain = patterns.fold(text) { acc, (regex, replacement) -> regex.replace(acc, replacement) }
+        return jsonPair.replace(plain) { m ->
+            if (isSecret(m.groupValues[1])) "\"${m.groupValues[1]}\":\"$REDACTED\"" else m.value
+        }
+    }
 
     fun line(message: String, fields: List<Pair<String, Any?>>, error: Throwable?): String = buildString {
         append(scrub(message))
@@ -81,14 +105,18 @@ object Redaction {
         }
         // The class and the scrubbed message of the error, no stack trace: the messages of OkHttp
         // and of the generated client carry addresses, and a stack adds nothing a user could act on.
+        // A serialization error quotes the body it could not read («JSON input: …»): only its class.
         var cause = error
         var depth = 0
         while (cause != null && depth < 4) {
             append(if (depth == 0) " error=" else " cause=")
             append(cause.javaClass.name)
-            cause.message?.let { append(": ").append(scrub(it)) }
+            if (!cause.isSerializationError()) cause.message?.let { append(": ").append(scrub(it)) }
             cause = cause.cause
             depth++
         }
     }
+
+    private fun Throwable.isSerializationError(): Boolean =
+        generateSequence<Class<*>>(javaClass) { it.superclass }.any { it.name == "kotlinx.serialization.SerializationException" }
 }

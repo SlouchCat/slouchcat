@@ -48,10 +48,33 @@ class LogTest {
     }
 
     @Test
-    fun secretKeysIgnoreCaseAndSeparators() {
-        for (key in listOf("token", "Bearer_Token", "X-Slouchcat-Device", "pickupSecret", "newPassword", "fcm_token")) {
+    fun secretKeysIgnoreCaseAndSeparatorsAndMatchAsSuffix() {
+        for (key in listOf(
+            "token", "Bearer_Token", "X-Slouchcat-Device", "pickupSecret", "newPassword", "fcm_token",
+            "accessToken", "appToken", "refreshToken", "push_endpoint", "apiKey", "pairingVoucher", "st", "deviceId",
+        )) {
             assertTrue(key, Redaction.isSecret(key))
         }
-        assertFalse(Redaction.isSecret("version"))
+        for (key in listOf("version", "host", "list", "status", "encrypted")) {
+            assertFalse(key, Redaction.isSecret(key))
+        }
+    }
+
+    @Test
+    fun jsonInAnErrorTextLosesItsSecrets() {
+        val out = Redaction.scrub("""bad answer {"token":"abc","deviceId":"dev-1","voucher":"v\"x","name":"Wohnzimmer"}""")
+        for (secret in listOf("abc", "dev-1", "v\\\"x")) assertFalse("$secret in $out", secret in out)
+        assertTrue(out, "\"name\":\"Wohnzimmer\"" in out)
+    }
+
+    @Test
+    fun aSerializationErrorShowsOnlyItsClass() {
+        val error = runCatching {
+            kotlinx.serialization.json.Json.parseToJsonElement("""{"token":"abc123","deviceId":"dev-9"""")
+        }.exceptionOrNull()!!
+        val out = capture { Log.w("auth", "answer unreadable", error = error) }
+        assertTrue(out, "kotlinx.serialization" in out)
+        assertFalse(out, "abc123" in out)
+        assertFalse(out, "dev-9" in out)
     }
 }
