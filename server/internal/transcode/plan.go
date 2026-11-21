@@ -45,8 +45,17 @@ type Source struct {
 // Target describes the output of an HLS session.
 type Target struct {
 	Mode      Mode
-	VideoCopy bool   // remux keeps video; transcode encodes H.264
-	AudioCopy bool   // keep the chosen audio track or encode it to AAC stereo
+	VideoCopy bool // remux keeps video; transcode encodes H.264
+	AudioCopy bool // keep the chosen audio track or encode it (AAC stereo unless AudioCodec, AudioChannels)
+	// AudioCodec is the encoder of an audio encode: "" (AAC) or AudioAC3. AudioChannels is its
+	// channel count; 0 = stereo next to video (outputChannels). A multichannel encode without
+	// AudioBitrate gets EncodeAudioBitrate (concept 26 5.3).
+	AudioCodec    string
+	AudioChannels int
+	// AudioRate is the bit rate in bit/s the output audio counts with in the bandwidth, when the
+	// playback decision knows it (a copied track's own rate for a client that reports
+	// maxAudioChannels); 0 = OutputAudioBitrate's rule.
+	AudioRate int
 	MaxHeight int    // output height limit of a transcode; 0 = 1080 (auto never goes above 1080p)
 	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR, with MaxHeight <= 1080 unless HWTonemap
 	VideoTag  string // "hvc1" when remuxing HEVC for Safari
@@ -300,6 +309,9 @@ func NewPlan(src Source, t Target) (Plan, error) {
 	if src.Probe.Mixed() {
 		t.AudioCopy = false // the concat filter decodes the parts
 	}
+	if a, ok := selectedAudio(src.Probe, t); ok && t.AudioCopy && !CopyableAudio(a.Codec) {
+		t.AudioCopy = false // fMP4 HLS cannot carry it (TrueHD, PCM, unknown): encode
+	}
 	v, hasVideo := videoStream(src.Probe)
 	_, hasAudio := audioStream(src.Probe)
 	if !hasVideo && !hasAudio {
@@ -516,7 +528,81 @@ func bandwidth(p Probe, t Target, videoBitrate int) int {
 		}
 		return br * 6 / 5
 	}
-	return videoBitrate + audioBitrate
+	return videoBitrate + OutputAudioBitrate(p, t)
+}
+
+// AudioAC3 is the Target.AudioCodec of an AC-3 encode (Dolby Digital).
+const AudioAC3 = "ac3"
+
+// CopyableAudio reports whether fMP4 HLS carries a copied audio codec (ffprobe name) with a codec
+// string players know (audioCodecString, concept 26 stage 0): AAC, AC-3, E-AC-3, DTS, FLAC and Opus
+// (stage 0's list). TrueHD never (ffmpeg writes it only as experimental, ExoPlayer does not know
+// it); MP3 (no codec string both hls.js and ExoPlayer read the same way), PCM and everything
+// unknown neither: they are encoded.
+func CopyableAudio(codec string) bool {
+	switch codec {
+	case "aac", "ac3", "eac3", "dts", "flac", "opus":
+		return true
+	}
+	return false
+}
+
+// copyBitrateBound is the bit rate a copied track counts with when the probe has none (probes
+// stored before contract 1.43.0, files without the tag): the format's practical upper bound in
+// bit/s, FLAC per channel. AAC counts as the 160 kbit/s of stereo AAC, as before.
+var copyBitrateBound = map[string]int{
+	"aac": audioBitrate, "ac3": 640_000, "eac3": 1_024_000, "dts": 1_536_000, "opus": 510_000,
+}
+
+// flacChannelBound is copyBitrateBound of FLAC per channel (24 bit, 48 kHz, compressed).
+const flacChannelBound = 750_000
+
+// CopyAudioBitrate is the bit rate in bit/s of the copied audio stream a: the probed rate, else
+// the upper bound of its format (copyBitrateBound); 160 kbit/s for an unknown format.
+func CopyAudioBitrate(a Stream) int {
+	if a.BitRate > 0 {
+		return int(a.BitRate)
+	}
+	if a.Codec == "flac" {
+		return flacChannelBound * max(a.Channels, 2)
+	}
+	if r, ok := copyBitrateBound[a.Codec]; ok {
+		return r
+	}
+	return audioBitrate
+}
+
+// EncodeAudioBitrate is the bit rate in bit/s of an audio encode next to video with the encoder
+// codec ("" AAC, AudioAC3) and channels (0 = stereo): AC-3 640 kbit/s (its maximum, fits ARC);
+// AAC 160 kbit/s up to stereo, else 64 kbit/s per channel (5.1: 384, 7.1: 512).
+func EncodeAudioBitrate(codec string, channels int) int {
+	if codec == AudioAC3 {
+		return 640_000
+	}
+	if channels <= 2 {
+		return audioBitrate
+	}
+	return 64_000 * channels
+}
+
+// OutputAudioBitrate is the bit rate in bit/s of the audio a session with target t outputs for the
+// source p: AudioRate when set; a copied track's upper bound (CopyAudioBitrate), AAC with 160
+// kbit/s as before; the encoder's (AudioBitrate, else EncodeAudioBitrate); without audio the 160
+// kbit/s of stereo AAC, as the bandwidth always had.
+func OutputAudioBitrate(p Probe, t Target) int {
+	a, ok := selectedAudio(p, t)
+	switch {
+	case t.AudioRate > 0:
+		return t.AudioRate
+	case !ok, t.AudioCopy && a.Codec == "aac":
+		return audioBitrate
+	case t.AudioCopy:
+		return CopyAudioBitrate(a)
+	case t.AudioBitrate > 0:
+		return t.AudioBitrate * 1000
+	default:
+		return EncodeAudioBitrate(t.AudioCodec, t.AudioChannels)
+	}
 }
 
 // CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High at the
@@ -534,7 +620,9 @@ func CodecsString(plan Plan, src Source) string {
 		}
 	}
 	if a, ok := selectedAudio(src.Probe, plan.Target); ok {
-		codecs = append(codecs, audioCodecString(a, plan.Target.AudioCopy))
+		if c := audioCodecString(a, plan.Target); c != "" {
+			codecs = append(codecs, c)
+		}
 	}
 	return strings.Join(codecs, ",")
 }
@@ -575,8 +663,16 @@ func videoCodecString(v Stream, tag string) string {
 	}
 }
 
-func audioCodecString(a Stream, copyAudio bool) string {
-	if !copyAudio {
+// audioCodecString is the RFC 6381 codec of the audio of target t from the stream a: of the encoder
+// (AAC LC, AC-3), else of the copied codec (concept 26 stage 0): AAC by its profile, AC-3 ac-3,
+// E-AC-3 ec-3, DTS mp4a.a9 (the mp4a entry with object type 0xA9 that ffmpeg writes), FLAC fLaC,
+// Opus Opus. A codec without a string (NewPlan never copies one) gets none rather
+// than a wrong one: a wrong AAC string stops ExoPlayer, a missing one does not.
+func audioCodecString(a Stream, t Target) string {
+	if !t.AudioCopy {
+		if t.AudioCodec == AudioAC3 {
+			return "ac-3"
+		}
 		return "mp4a.40.2"
 	}
 	switch a.Codec {
@@ -584,6 +680,12 @@ func audioCodecString(a Stream, copyAudio bool) string {
 		return "ac-3"
 	case "eac3":
 		return "ec-3"
+	case "dts":
+		return "mp4a.a9"
+	case "flac":
+		return "fLaC"
+	case "opus":
+		return "Opus"
 	case "aac":
 		if strings.HasPrefix(a.Profile, "HE-AACv2") {
 			return "mp4a.40.29"
@@ -591,6 +693,7 @@ func audioCodecString(a Stream, copyAudio bool) string {
 		if strings.HasPrefix(a.Profile, "HE-AAC") {
 			return "mp4a.40.5"
 		}
+		return "mp4a.40.2"
 	}
-	return "mp4a.40.2"
+	return ""
 }

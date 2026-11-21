@@ -629,7 +629,7 @@ func newSource(file model.MediaFile, probe *transcode.Probe, limits model.Playba
 
 // transcode turns d into a transcode on its rung (a transcode) or on the highest rung the source
 // and the limits allow up to 1080p (a remux, also of original: it then plays as auto, concept 13
-// 11.5 (a)), tonemapped for HDR sources; AAC audio stays copied.
+// 11.5 (a)), tonemapped for HDR sources; the audio as hlsAudio decides it for a transcode.
 func (src source) transcode(d Decision, reason string) Decision {
 	audio := strings.ToLower(src.file.AudioCodec)
 	if a := audioStream(src.probe, d.AudioStream); a != nil {
@@ -639,8 +639,8 @@ func (src source) transcode(d Decision, reason string) Decision {
 	if i := rungIndex(d.Quality); i >= 0 {
 		from = i
 	}
-	audioCopy := audio == "aac" && slices.Contains(src.caps.Audio, audio)
-	return transcodeOn(d, pickRung(from, src.limits, heightCap(src.caps, src.uhd)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
+	out := hlsAudio(audio, audioStream(src.probe, d.AudioStream), src.caps, src.limits, true)
+	return transcodeOn(d, pickRung(from, src.limits, heightCap(src.caps, src.uhd), out.rate()), reason, isHDR(mainVideo(src.probe)), out, src.w, src.h, src.limits)
 }
 
 // startHLS starts the output of req. A remux the transcoder rejects for a missing keyframe index
