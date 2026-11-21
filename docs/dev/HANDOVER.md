@@ -106,14 +106,14 @@ geprüft (Entscheid vom 21. Oktober).
 - **Image nach jedem Merge neu bauen** (aus sauberem Worktree, nie aus dem Arbeitsbaum):
 
 ```bash
-cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile --build-arg VERSION=\$(git describe --tags --always) -t ghcr.io/slouchcat/slouchcat:1.41.3 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
+cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile --build-arg VERSION=\$(git describe --tags --match 'v[0-9]*' --always) -t ghcr.io/slouchcat/slouchcat:1.41.3 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.
 - **Bauen ohne lokales Docker** (Stand für CT 190, auf dem Image `hintergrundjobs-19ee05c` so
   entstanden): den Stand als Archiv auf den CT streamen, nicht den Arbeitsbaum:
   `git archive <sha> | ssh root@192.168.1.43 'mkdir -p /root/build-<sha> && tar -x -C /root/build-<sha>'`.
-  Dort `docker build --build-arg VERSION=$(git describe --tags --always <sha>) -t ghcr.io/slouchcat/slouchcat:<tag> -f deploy/Dockerfile .`
+  Dort `docker build --build-arg VERSION=$(git describe --tags --match 'v[0-9]*' --always <sha>) -t ghcr.io/slouchcat/slouchcat:<tag> -f deploy/Dockerfile .`
   (`git describe` auf dem Rechner ausführen und das Ergebnis einsetzen, im Archiv gibt es keine
   Historie). Voraussetzung ist `docker-buildx-plugin` auf dem CT; ohne das bricht der alte Builder
   mit `failed to parse platform : ""` ab. Schreibend per SSH geht nur über das Terminal-Panel.

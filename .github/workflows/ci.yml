@@ -535,7 +535,8 @@ jobs:
       # version at all, and the server then reports a development build instead of an update.
       - name: Describe the commit relative to the newest tag
         id: version
-        run: echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
+        # `--match`: the tags of the relay services and of the apps are no server version.
+        run: echo "version=$(git describe --tags --match 'v[0-9]*' --always --dirty)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
