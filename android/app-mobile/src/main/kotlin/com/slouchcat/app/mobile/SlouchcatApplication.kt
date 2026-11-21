@@ -8,6 +8,7 @@ import com.slouchcat.core.api.SessionEvents
 import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
+import com.slouchcat.core.session.AndroidTrustInspector
 import com.slouchcat.core.session.ApiServerRepository
 import com.slouchcat.core.session.DataStoreServerStore
 import com.slouchcat.core.session.ServerRepository
@@ -34,7 +35,7 @@ class AppGraph(context: Context) {
     val api = ApiCaller(sessionEvents)
 
     val serverStore: ServerStore = DataStoreServerStore(context)
-    val serverProbe: ServerProbe = HealthServerProbe(http)
+    val serverProbe: ServerProbe = HealthServerProbe(http, AndroidTrustInspector())
     val serverRepository: ServerRepository = ApiServerRepository(api, http)
     val hostResolver: HostResolver = HostResolver.System
 }

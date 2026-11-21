@@ -66,6 +66,13 @@ class ConnectedScreenTest {
     }
 
     @Test @Config(qualifiers = "w412dp-h915dp")
+    fun aUserInstalledCertificateIsNamed() {
+        show(ConnectedUiState(Loadable.Ready(ConnectedServer("https://media.example.test/".toHttpUrl(), "1.42.0", userCertificate = true))))
+        compose.onNodeWithText(s(R.string.app_tls_userCertificate), substring = true).assertIsDisplayed()
+        compose.onNodeWithText(s(R.string.app_setup_encrypted)).assertDoesNotExist()
+    }
+
+    @Test @Config(qualifiers = "w412dp-h915dp")
     fun readyPhone() = states()
 
     @Test @Config(qualifiers = "w1280dp-h800dp-land")

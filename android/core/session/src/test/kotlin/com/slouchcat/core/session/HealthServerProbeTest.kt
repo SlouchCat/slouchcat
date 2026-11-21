@@ -55,6 +55,13 @@ class HealthServerProbeTest {
     }
 
     @Test
+    fun aRedirectToHttpsOfTheSameHostIsOffered() = runTest {
+        val https = "https://${server.hostName}:9443/api/v1/healthz"
+        val result = answer(MockResponse(code = 308, headers = okhttp3.Headers.headersOf("Location", https)))
+        assertEquals(ProbeResult.RequiresHttps(server.url("/").newBuilder().scheme("https").port(9443).build()), result)
+    }
+
+    @Test
     fun noAnswerIsUnreachable() = runTest {
         val gone = server.url("/")
         server.close()

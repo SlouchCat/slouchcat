@@ -52,6 +52,10 @@
     "connectedState": {
       "empty": "Noch kein Server eingerichtet.",
       "setUp": "Server einrichten"
+    },
+    "tls": {
+      "userCertificate": "Verschlüsselt mit einem selbst installierten Zertifikat",
+      "httpsRequired": "Der Server verlangt eine verschlüsselte Verbindung. Die Adresse lautet jetzt {{address}}, verbinde dich erneut."
     }
   },
   "common": {

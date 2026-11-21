@@ -52,6 +52,10 @@
     "connectedState": {
       "empty": "No server set up yet.",
       "setUp": "Set up server"
+    },
+    "tls": {
+      "userCertificate": "Encrypted with a certificate you installed",
+      "httpsRequired": "The server requires an encrypted connection. The address is now {{address}}, connect again."
     }
   },
   "common": {

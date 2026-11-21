@@ -36,6 +36,9 @@ sealed interface SetupError {
     data object NotSlouchcat : SetupError
 
     data class TooOld(val serverVersion: String, val required: String) : SetupError
+
+    /** The http address leads to https; the field now holds [address]. */
+    data class HttpsRequired(val address: String) : SetupError
 }
 
 data class SetupUiState(
@@ -151,6 +154,11 @@ class SetupViewModel(
             ProbeResult.Unreachable -> SetupError.Unreachable
             ProbeResult.NotSlouchcat -> SetupError.NotSlouchcat
             is ProbeResult.TooOld -> SetupError.TooOld(result.serverVersion, result.required)
+            is ProbeResult.RequiresHttps -> {
+                val https = ServerAddress.display(result.address)
+                update { it.copy(busy = false, address = https, error = SetupError.HttpsRequired(https)) }
+                return
+            }
         }
         update { it.copy(busy = false, error = error) }
     }
@@ -167,7 +175,7 @@ class SetupViewModel(
         if (now.saving) return
         update { it.copy(saving = true) }
         viewModelScope.launch {
-            store.save(SavedServer(info.address, info.version))
+            store.save(SavedServer(info.address, info.version, info.userCertificate))
             Log.i(TAG, "server stored", "version" to info.version, "encrypted" to info.encrypted)
             _done.send(Unit)
         }

@@ -19,6 +19,12 @@ data class ServerInfo(
     val version: String,
     /** The contract the server speaks, `Health.contractVersion`. */
     val contractVersion: String,
+    /**
+     * The certificate of an https server is trusted only through an authority the user installed
+     * on the device (a household's own CA). The page says so instead of plain «encrypted»: whoever
+     * can install such an authority on the device can read along (ADR 0039).
+     */
+    val userCertificate: Boolean = false,
 ) {
     val encrypted: Boolean get() = address.isHttps
 }
@@ -34,6 +40,18 @@ sealed interface ProbeResult {
 
     /** A Slouchcat server whose contract is older than the app needs (11.5). */
     data class TooOld(val serverVersion: String, val required: String) : ProbeResult
+
+    /** The http address redirects to https of the same host: offer that address. */
+    data class RequiresHttps(val address: HttpUrl) : ProbeResult
+}
+
+/** Whether a server's certificate chain is trusted only through a CA the user installed; a seam for tests. */
+fun interface TrustInspector {
+    fun usesUserCertificate(chain: List<java.security.cert.Certificate>, host: String): Boolean
+
+    companion object {
+        val None = TrustInspector { _, _ -> false }
+    }
 }
 
 fun interface ServerProbe {
@@ -68,7 +86,7 @@ object Compatibility {
  * report as «server too old» and not as an answer it cannot read. Redirects are not followed, so
  * the address the user confirms is the one that answered.
  */
-class HealthServerProbe(client: OkHttpClient) : ServerProbe {
+class HealthServerProbe(client: OkHttpClient, private val trust: TrustInspector = TrustInspector.None) : ServerProbe {
     private val http = client.newBuilder()
         .followRedirects(false)
         .followSslRedirects(false)
@@ -77,23 +95,36 @@ class HealthServerProbe(client: OkHttpClient) : ServerProbe {
 
     override suspend fun probe(address: HttpUrl): ProbeResult = withContext(Dispatchers.IO) {
         val url = "${SlouchcatApi.basePath(address)}/healthz"
+        var userCertificate = false
         val body = try {
             http.newCall(Request.Builder().url(url).build()).execute().use { response ->
+                if (response.code in REDIRECTS) {
+                    val target = response.header("Location")?.let { response.request.url.resolve(it) }
+                    if (target != null && target.isHttps && target.host == address.host) {
+                        return@withContext ProbeResult.RequiresHttps(address.newBuilder().scheme("https").port(target.port).build())
+                    }
+                }
                 if (response.code != 200) {
                     Log.i(TAG, "health answered", "status" to response.code)
                     return@withContext ProbeResult.NotSlouchcat
                 }
+                val chain = response.handshake?.peerCertificates.orEmpty()
+                userCertificate = chain.isNotEmpty() && trust.usesUserCertificate(chain, address.host)
                 response.body.string()
             }
         } catch (e: IOException) {
             Log.i(TAG, "server unreachable", error = e)
             return@withContext ProbeResult.Unreachable
         }
-        read(address, body)
+        when (val result = read(address, body)) {
+            is ProbeResult.Found -> result.copy(info = result.info.copy(userCertificate = userCertificate))
+            else -> result
+        }
     }
 
     companion object {
         private const val TAG = "probe"
+        private val REDIRECTS = setOf(301, 302, 303, 307, 308)
 
         /** The decision on a 200 answer of `getHealth`; separate for tests. */
         fun read(address: HttpUrl, body: String): ProbeResult {

@@ -3,6 +3,7 @@ package com.slouchcat.core.session
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -12,7 +13,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /** The server the app is set up with. */
-data class SavedServer(val address: HttpUrl, val version: String) {
+data class SavedServer(val address: HttpUrl, val version: String, val userCertificate: Boolean = false) {
     val encrypted: Boolean get() = address.isHttps
 }
 
@@ -34,13 +35,14 @@ class DataStoreServerStore(context: Context) : ServerStore {
 
     override val server: Flow<SavedServer?> = store.data.map { prefs ->
         val address = prefs[ADDRESS]?.toHttpUrlOrNull() ?: return@map null
-        SavedServer(address, prefs[VERSION].orEmpty())
+        SavedServer(address, prefs[VERSION].orEmpty(), prefs[USER_CERTIFICATE] ?: false)
     }
 
     override suspend fun save(server: SavedServer) {
         store.edit {
             it[ADDRESS] = server.address.toString()
             it[VERSION] = server.version
+            it[USER_CERTIFICATE] = server.userCertificate
         }
     }
 
@@ -51,5 +53,6 @@ class DataStoreServerStore(context: Context) : ServerStore {
     private companion object {
         val ADDRESS = stringPreferencesKey("address")
         val VERSION = stringPreferencesKey("version")
+        val USER_CERTIFICATE = booleanPreferencesKey("userCertificate")
     }
 }

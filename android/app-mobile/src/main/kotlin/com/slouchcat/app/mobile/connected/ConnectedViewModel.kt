@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
 
 /** What the page shows of the stored server: its address and the version it reports now. */
-data class ConnectedServer(val address: HttpUrl, val version: String) {
+data class ConnectedServer(val address: HttpUrl, val version: String, val userCertificate: Boolean = false) {
     val encrypted: Boolean get() = address.isHttps
 }
 
@@ -51,7 +51,7 @@ class ConnectedViewModel(
                 _state.update { it.copy(server = Loadable.Empty) }
                 return@launch
             }
-            val result = repository.health(saved.address).map { ConnectedServer(saved.address, it.version) }
+            val result = repository.health(saved.address).map { ConnectedServer(saved.address, it.version, saved.userCertificate) }
             _state.update { it.copy(server = result.toLoadable()) }
         }
     }

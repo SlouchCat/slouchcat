@@ -167,6 +167,7 @@ private fun SetupPane(
                 version = found.version,
                 encrypted = found.encrypted,
                 found = true,
+                userCertificate = found.userCertificate,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
             )
             SlouchcatButton(stringResource(R.string.app_setup_next), onClick = onNext, block = true, trailingIcon = SlouchcatIcon.Right)
@@ -188,6 +189,7 @@ private fun errorText(error: SetupError, example: String): String = when (error)
     SetupError.Unreachable -> stringResource(R.string.app_setup_error_unreachable)
     SetupError.NotSlouchcat -> stringResource(R.string.app_setup_error_notSlouchcat)
     is SetupError.TooOld -> stringResource(R.string.app_setup_error_tooOld, error.serverVersion, error.required)
+    is SetupError.HttpsRequired -> stringResource(R.string.app_tls_httpsRequired, error.address)
 }
 
 /** The warning before plain HTTP outside the home network (concept 27, 6; E-18). */

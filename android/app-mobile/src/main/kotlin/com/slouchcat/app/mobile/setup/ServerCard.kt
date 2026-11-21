@@ -40,7 +40,14 @@ import okhttp3.HttpUrl
  * the version again as a row, and whether the connection is encrypted. [found] adds the badge.
  */
 @Composable
-fun ServerCard(address: HttpUrl, version: String, encrypted: Boolean, found: Boolean, modifier: Modifier = Modifier) {
+fun ServerCard(
+    address: HttpUrl,
+    version: String,
+    encrypted: Boolean,
+    found: Boolean,
+    modifier: Modifier = Modifier,
+    userCertificate: Boolean = false,
+) {
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(SlouchcatDimens.radius)
     val versionText = stringResource(R.string.app_setup_versionValue, version)
@@ -72,10 +79,19 @@ fun ServerCard(address: HttpUrl, version: String, encrypted: Boolean, found: Boo
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val tint = if (encrypted) c.ok else c.warn
+            // A certificate trusted only through a CA the user installed is encrypted, but not
+            // «Verbindung verschlüsselt» without a word: the page says where the trust comes from.
+            val plain = encrypted && !userCertificate
+            val tint = if (plain) c.ok else c.warn
             SlouchcatIconImage(if (encrypted) SlouchcatIcon.Lock else SlouchcatIcon.Alert, contentDescription = null, size = 18.dp, tint = tint)
             Text(
-                stringResource(if (encrypted) R.string.app_setup_encrypted else R.string.app_setup_notEncrypted),
+                stringResource(
+                    when {
+                        !encrypted -> R.string.app_setup_notEncrypted
+                        userCertificate -> R.string.app_tls_userCertificate
+                        else -> R.string.app_setup_encrypted
+                    },
+                ),
                 style = SlouchcatType.bodySmall.copy(fontWeight = SlouchcatType.strong.fontWeight),
                 color = tint,
             )

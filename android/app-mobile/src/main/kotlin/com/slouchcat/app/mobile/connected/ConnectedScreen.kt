@@ -73,7 +73,7 @@ fun ConnectedScreen(
                         color = c.tx,
                         modifier = Modifier.padding(top = 10.dp).semantics { heading() },
                     )
-                    ServerCard(server.address, server.version, server.encrypted, found = false)
+                    ServerCard(server.address, server.version, server.encrypted, found = false, userCertificate = server.userCertificate)
                 }
             }
             if (state.server !is Loadable.Empty) {

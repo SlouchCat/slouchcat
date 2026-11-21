@@ -203,6 +203,19 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun aServerThatRequiresHttpsPutsTheHttpsAddressIntoTheField() = runTest(dispatcher) {
+        val probe = FakeProbe { ProbeResult.RequiresHttps("https://192.0.2.10:8443/".toHttpUrl()) }
+        val model = vm(probe)
+        model.onAddressChange("http://192.0.2.10:8096")
+        model.onConnect()
+        advanceUntilIdle()
+        model.onConfirmInsecure()
+        advanceUntilIdle()
+        assertEquals("https://192.0.2.10:8443", model.state.value.address)
+        assertEquals(SetupError.HttpsRequired("https://192.0.2.10:8443"), model.state.value.error)
+    }
+
+    @Test
     fun anUnknownHostIsUnreachable() = runTest(dispatcher) {
         val probe = FakeProbe(found)
         val model = vm(probe)
