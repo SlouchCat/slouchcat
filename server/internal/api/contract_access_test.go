@@ -149,6 +149,11 @@ var accountRegistry = map[string]accountCall{
 	"createPushSubscription": {contract: "POST /me/push-subscriptions", path: "/me/push-subscriptions",
 		body: pushSubscriptionBody("https://push.example.test/send/abc"), want: allWant(http.StatusCreated)},
 	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
+	// Concept 27, 4.5: «Meine Geräte» (TestMyDevices checks the sign-out's rules); an unknown device
+	// is 404 for every session that may sign out.
+	"listMyDevices": {contract: "GET /account/devices", path: "/account/devices", want: allWant(http.StatusOK)},
+	"signOutMyDevice": {contract: "DELETE /account/devices/{deviceId}", path: "/account/devices/0123456789abcdef0123456789abcdef",
+		want: allWant(http.StatusNotFound)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with

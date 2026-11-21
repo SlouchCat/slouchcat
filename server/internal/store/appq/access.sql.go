@@ -91,6 +91,62 @@ func (q *Queries) DeleteAccount(ctx context.Context, id int64) (int64, error) {
 	return result.RowsAffected()
 }
 
+const deleteAccountDeviceDownloads = `-- name: DeleteAccountDeviceDownloads :execrows
+DELETE FROM downloads WHERE device_id = ?1 AND account_id = ?2
+`
+
+type DeleteAccountDeviceDownloadsParams struct {
+	DeviceID  string
+	AccountID int64
+}
+
+// The account's downloads on the device; the trigger downloads_tombstone writes their tombstones,
+// which the device reads from the revocation list. Their files go with the next cleanup of package
+// offline (directories without a download row, every 10 minutes), as after deleteDevice.
+func (q *Queries) DeleteAccountDeviceDownloads(ctx context.Context, arg DeleteAccountDeviceDownloadsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAccountDeviceDownloads, arg.DeviceID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteAccountDevicePushSubscriptions = `-- name: DeleteAccountDevicePushSubscriptions :execrows
+DELETE FROM push_subscriptions WHERE device_id = ?1 AND account_id = ?2
+`
+
+type DeleteAccountDevicePushSubscriptionsParams struct {
+	DeviceID  sql.NullString
+	AccountID int64
+}
+
+func (q *Queries) DeleteAccountDevicePushSubscriptions(ctx context.Context, arg DeleteAccountDevicePushSubscriptionsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAccountDevicePushSubscriptions, arg.DeviceID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteAccountDeviceRules = `-- name: DeleteAccountDeviceRules :execrows
+DELETE FROM download_rules
+WHERE download_rules.device_id = ?1 AND download_rules.profile_id IN (SELECT p.id FROM profiles AS p WHERE p.account_id = ?2)
+`
+
+type DeleteAccountDeviceRulesParams struct {
+	DeviceID  string
+	AccountID int64
+}
+
+// The auto-download rules of the account's profiles on the device.
+func (q *Queries) DeleteAccountDeviceRules(ctx context.Context, arg DeleteAccountDeviceRulesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAccountDeviceRules, arg.DeviceID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteAccountLibraries = `-- name: DeleteAccountLibraries :exec
 DELETE FROM account_libraries WHERE account_id = ?1
 `
@@ -106,6 +162,45 @@ DELETE FROM devices WHERE id = ?1
 
 func (q *Queries) DeleteDevice(ctx context.Context, id string) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteDevice, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteDevicePushSubscriptions = `-- name: DeleteDevicePushSubscriptions :execrows
+DELETE FROM push_subscriptions WHERE device_id = ?1
+`
+
+// The push subscriptions of a device, of every account: deleteDevice removes them before the device
+// row, whose deletion would only clear their device_id (concept 27, 4.5).
+func (q *Queries) DeleteDevicePushSubscriptions(ctx context.Context, deviceID sql.NullString) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDevicePushSubscriptions, deviceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteOtherAppDevicePushSubscriptions = `-- name: DeleteOtherAppDevicePushSubscriptions :execrows
+DELETE FROM push_subscriptions
+WHERE push_subscriptions.account_id = ?1
+  AND push_subscriptions.device_id IN (SELECT s.device_id FROM sessions AS s
+                    WHERE s.account_id = ?1 AND s.id <> ?2 AND s.kind <> 'browser'
+                      AND s.revoked_at IS NULL AND s.expires_at > ?3 AND s.device_id IS NOT NULL)
+  AND push_subscriptions.device_id NOT IN (SELECT s.device_id FROM sessions AS s WHERE s.id = ?2 AND s.device_id IS NOT NULL)
+`
+
+type DeleteOtherAppDevicePushSubscriptionsParams struct {
+	AccountID int64
+	KeepID    int64
+	Now       int64
+}
+
+// A new password: the account's push subscriptions of the devices whose app or device session it
+// revokes (every living one but the calling session's device). Browsers keep theirs (F-40).
+func (q *Queries) DeleteOtherAppDevicePushSubscriptions(ctx context.Context, arg DeleteOtherAppDevicePushSubscriptionsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOtherAppDevicePushSubscriptions, arg.AccountID, arg.KeepID, arg.Now)
 	if err != nil {
 		return 0, err
 	}
@@ -162,6 +257,23 @@ func (q *Queries) DeleteProfileLibraries(ctx context.Context, profileID int64) e
 	return err
 }
 
+const deleteSessionPushSubscriptions = `-- name: DeleteSessionPushSubscriptions :execrows
+DELETE FROM push_subscriptions
+WHERE push_subscriptions.device_id = (SELECT s.device_id FROM sessions AS s WHERE s.id = ?1 AND s.kind <> 'browser')
+  AND push_subscriptions.account_id = (SELECT s.account_id FROM sessions AS s WHERE s.id = ?1)
+`
+
+// logout of an app or device session: the account's push subscriptions of the session's device go
+// with it (concept 27, 4.5). A browser session keeps them (a browser does not subscribe again by
+// itself, F-40).
+func (q *Queries) DeleteSessionPushSubscriptions(ctx context.Context, sessionID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSessionPushSubscriptions, sessionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteStaleDevices = `-- name: DeleteStaleDevices :execrows
 DELETE FROM devices
 WHERE devices.last_seen_at < ?1
@@ -194,6 +306,26 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deviceHeldByAccount = `-- name: DeviceHeldByAccount :one
+SELECT EXISTS (SELECT 1 FROM sessions AS s
+               WHERE s.device_id = ?1 AND s.account_id = ?2 AND s.revoked_at IS NULL AND s.expires_at > ?3)
+    OR EXISTS (SELECT 1 FROM downloads AS d WHERE d.device_id = ?1 AND d.account_id = ?2)
+`
+
+type DeviceHeldByAccountParams struct {
+	ID        sql.NullString
+	AccountID int64
+	Now       int64
+}
+
+// Whether the account holds a living session or a download on the device (signOutMyDevice: 404 otherwise).
+func (q *Queries) DeviceHeldByAccount(ctx context.Context, arg DeviceHeldByAccountParams) (sql.NullBool, error) {
+	row := q.db.QueryRowContext(ctx, deviceHeldByAccount, arg.ID, arg.AccountID, arg.Now)
+	var column_1 sql.NullBool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const deviceHeldByOtherAccount = `-- name: DeviceHeldByOtherAccount :one
@@ -492,6 +624,39 @@ func (q *Queries) InsertProfileLibrary(ctx context.Context, arg InsertProfileLib
 	return err
 }
 
+const listAccountDeviceSessions = `-- name: ListAccountDeviceSessions :many
+SELECT id FROM sessions WHERE device_id = ?1 AND account_id = ?2 AND revoked_at IS NULL ORDER BY id
+`
+
+type ListAccountDeviceSessionsParams struct {
+	DeviceID  sql.NullString
+	AccountID int64
+}
+
+// The unrevoked sessions of the account on the device: their streams end before the sign-out.
+func (q *Queries) ListAccountDeviceSessions(ctx context.Context, arg ListAccountDeviceSessionsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listAccountDeviceSessions, arg.DeviceID, arg.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAccountLibraries = `-- name: ListAccountLibraries :many
 SELECT library_id FROM account_libraries WHERE account_id = ?1 ORDER BY library_id
 `
@@ -720,6 +885,75 @@ func (q *Queries) ListInvitations(ctx context.Context) ([]ListInvitationsRow, er
 	return items, nil
 }
 
+const listMyDevices = `-- name: ListMyDevices :many
+
+SELECT d.id, d.name, d.type, d.last_seen_at,
+       CAST(COALESCE((SELECT s.kind FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.account_id = ?1 AND s.revoked_at IS NULL AND s.expires_at > ?2
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
+       CAST(COALESCE((SELECT s.created_at FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.account_id = ?1 AND s.revoked_at IS NULL AND s.expires_at > ?2
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), 0) AS INTEGER) AS signed_in_at,
+       (SELECT count(*) FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = ?1) AS downloads
+FROM devices AS d
+WHERE EXISTS (SELECT 1 FROM sessions AS s
+              WHERE s.device_id = d.id AND s.account_id = ?1 AND s.revoked_at IS NULL AND s.expires_at > ?2)
+   OR EXISTS (SELECT 1 FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = ?1)
+ORDER BY d.last_seen_at DESC, d.id
+`
+
+type ListMyDevicesParams struct {
+	AccountID int64
+	Now       int64
+}
+
+type ListMyDevicesRow struct {
+	ID          string
+	Name        sql.NullString
+	Type        sql.NullString
+	LastSeenAt  int64
+	SessionKind string
+	SignedInAt  int64
+	Downloads   int64
+}
+
+// My devices (concept 27, 4.5, ADR 0040): the devices of an account and its sign-out. The
+// account of a session or a download decides, never devices.account_id (the owner of the last
+// playback start).
+// The devices that hold a living session or a download of the account, last contact first, with the
+// kind and start of the account's living session with the latest contact (” and 0 without one) and
+// the account's downloads on the device.
+func (q *Queries) ListMyDevices(ctx context.Context, arg ListMyDevicesParams) ([]ListMyDevicesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMyDevices, arg.AccountID, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMyDevicesRow{}
+	for rows.Next() {
+		var i ListMyDevicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Type,
+			&i.LastSeenAt,
+			&i.SessionKind,
+			&i.SignedInAt,
+			&i.Downloads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProfileLibraries = `-- name: ListProfileLibraries :many
 SELECT library_id FROM profile_libraries WHERE profile_id = ?1 ORDER BY library_id
 `
@@ -848,6 +1082,24 @@ func (q *Queries) MarkInvitationUsed(ctx context.Context, arg MarkInvitationUsed
 	return result.RowsAffected()
 }
 
+const revokeAccountDeviceSessions = `-- name: RevokeAccountDeviceSessions :execrows
+UPDATE sessions SET revoked_at = ?1 WHERE device_id = ?2 AND account_id = ?3 AND revoked_at IS NULL
+`
+
+type RevokeAccountDeviceSessionsParams struct {
+	Now       sql.NullInt64
+	DeviceID  sql.NullString
+	AccountID int64
+}
+
+func (q *Queries) RevokeAccountDeviceSessions(ctx context.Context, arg RevokeAccountDeviceSessionsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeAccountDeviceSessions, arg.Now, arg.DeviceID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const revokeDeviceSessions = `-- name: RevokeDeviceSessions :many
 UPDATE sessions SET revoked_at = ?1 WHERE device_id = ?2 AND revoked_at IS NULL
 RETURNING id
@@ -931,6 +1183,30 @@ func (q *Queries) RevokePlaybackSessionsByAccount(ctx context.Context, arg Revok
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokePlaybackSessionsByAccountDevice = `-- name: RevokePlaybackSessionsByAccountDevice :exec
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE revoked_at IS NULL
+  AND session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = ?3 AND s.account_id = ?4)
+`
+
+type RevokePlaybackSessionsByAccountDeviceParams struct {
+	Now       sql.NullInt64
+	StoppedBy sql.NullString
+	DeviceID  sql.NullString
+	AccountID int64
+}
+
+// Any playback left of the account's sessions on the device, in the transaction of the sign-out.
+func (q *Queries) RevokePlaybackSessionsByAccountDevice(ctx context.Context, arg RevokePlaybackSessionsByAccountDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, revokePlaybackSessionsByAccountDevice,
+		arg.Now,
+		arg.StoppedBy,
+		arg.DeviceID,
+		arg.AccountID,
+	)
+	return err
 }
 
 const revokePlaybackSessionsByProfile = `-- name: RevokePlaybackSessionsByProfile :many

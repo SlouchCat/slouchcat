@@ -2370,6 +2370,19 @@ type AdminDevice struct {
 	SessionKind    string // kind of the living session with the latest contact; empty without one (ADR 0040)
 }
 
+// MyDevice is a device of the own account in «Meine Geräte» (concept 27, 4.5): it holds a living
+// session or a download of the account.
+type MyDevice struct {
+	ID          string
+	Name        string
+	Type        string
+	SessionKind string     // kind of the account's living session with the latest contact; empty when only downloads hold the device
+	SignedInAt  *time.Time // start of that session; nil without one
+	LastSeenAt  time.Time
+	Downloads   int  // downloads of the account on the device
+	Current     bool // the device of the calling session
+}
+
 // AdminStream is a running playback session as the administration sees it (W-6).
 type AdminStream struct {
 	ID             string
