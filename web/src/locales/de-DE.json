@@ -727,9 +727,6 @@
     }
   },
   "settings": {
-    "devices": {
-      "signedOut": "„{{name}}“ abgemeldet."
-    },
     "playback": {
       "subtitleMode": {
         "foreignHint": "Wie „Nur erzwungene“. Ist der Ton in keiner deiner Tonsprachen, kommen volle Untertitel in der ersten Untertitelsprache.",
