@@ -87,6 +87,30 @@ var (
 	ErrInvitationGone         = errors.New("invitation gone")          // 410 invitation_gone
 )
 
+// Pairing errors (concept 27 section 10, ADR 0040).
+var (
+	// ErrAppSessionRequired: only the phone app's session may issue a pairing voucher (403
+	// app_session_required); a device session is refused before by x-clients.
+	ErrAppSessionRequired = errors.New("app session required")
+	// ErrVoucherInvalid: the voucher is unknown, expired, used or bound to another key (410
+	// voucher_invalid); the answer does not tell which.
+	ErrVoucherInvalid = errors.New("voucher invalid")
+)
+
+// PairingVoucher is an issued pairing voucher; Voucher exists only in the answer of the issue.
+type PairingVoucher struct {
+	Voucher   string
+	ExpiresAt time.Time
+}
+
+// PairingRedeemed is the result of a redeemed voucher: the device session with its plain token,
+// sealed for the TV's key (SealedToken, HPKE, ADR 0040), and the account's e-mail the TV shows.
+type PairingRedeemed struct {
+	Session      Session
+	SealedToken  []byte
+	AccountEmail string
+}
+
 // Role errors (ADR 0014). They are conflicts, not permission questions: the caller has the right,
 // the state forbids the step. Who may call at all is the visibility level owner, enforced in the
 // middleware (403 owner_required).

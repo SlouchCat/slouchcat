@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
+	"github.com/slouchcat/slouchcat/server/internal/notify/push"
 	"github.com/slouchcat/slouchcat/server/internal/updater"
 )
 
@@ -25,7 +26,7 @@ func TestDefaults(t *testing.T) {
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", RadioDir: DefaultRadioDir, LogLevel: slog.LevelInfo,
 		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off", AniList: true,
 		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL,
-		BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: -1}
+		BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: -1, PushRelay: push.DefaultRelayOrigin}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -84,6 +85,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_UPDATER_URL":         "http://slouchcat-updater:8099/",
 		"SLOUCHCAT_TEST_UPDATER_DIR":    "/tmp/updater/",
 		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
+		"SLOUCHCAT_PUSH_RELAY":          "https://push.example.test/",
 		"SLOUCHCAT_HERO_START":          "2",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--radio-dir", "/dev/shm/radio", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
@@ -101,7 +103,8 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		SMTPFrom: "Slouchcat <media@example.test>", SMTPTLS: "tls", TelegramBotToken: "123456:bot-FAKE-token",
 		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
 		UpdaterURL: "http://slouchcat-updater:8099", TestUpdaterDir: "/tmp/updater",
-		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: 0}
+		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: 0,
+		PushRelay: "https://push.example.test"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
@@ -159,6 +162,8 @@ func TestValidation(t *testing.T) {
 		"relative updater dir": {env: map[string]string{"SLOUCHCAT_TEST_UPDATER_DIR": "updater"}},
 		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
+		"push relay path":      {env: map[string]string{"SLOUCHCAT_PUSH_RELAY": "https://push.example.test/v1"}},
+		"push relay no url":    {env: map[string]string{"SLOUCHCAT_PUSH_RELAY": "push.example.test"}},
 		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
 		"negative hero start":  {args: []string{"--hero-start", "-2"}},
 		"unknown flag":         {args: []string{"--nope"}},

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -52,13 +51,8 @@ func SessionKindOfDevice(deviceKind string) (string, bool) {
 func (s *Service) AppLogin(ctx context.Context, email, password, deviceName, deviceKind, deviceID, userAgent string) (model.Session, string, error) {
 	name := strings.TrimSpace(deviceName)
 	var verr *model.ValidationError
-	switch {
-	case name == "":
-		verr = verr.Add("deviceName", "required")
-	case utf8.RuneCountInString(name) > maxDeviceName:
-		verr = verr.Add("deviceName", "too_long")
-	case strings.IndexFunc(name, unicode.IsControl) >= 0:
-		verr = verr.Add("deviceName", "invalid_value")
+	if code := deviceNameProblem(name, maxDeviceName); code != "" {
+		verr = verr.Add("deviceName", code)
 	}
 	_, ok := SessionKindOfDevice(deviceKind)
 	if !ok {

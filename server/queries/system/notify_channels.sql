@@ -99,6 +99,15 @@ WHERE c.account_id = @account_id AND c.enabled = 1
   AND instr(c.events, '"' || CAST(@event AS TEXT) || '"') > 0
 ORDER BY c.channel;
 
+-- name: ChannelTargetsByAccount :many
+-- Every switched-on channel of one account, whatever events it chose: the message device_linked
+-- (concept 27, K-7) is no event an account picks, it reports a new way into the account.
+SELECT c.account_id, c.channel, c.config, a.email, a.role
+FROM account_channels AS c
+JOIN accounts AS a ON a.id = c.account_id
+WHERE c.account_id = @account_id AND c.enabled = 1
+ORDER BY c.channel;
+
 -- name: ChannelTargetsAdmins :many
 -- Switched-on channels of every administrator that chose the event. The event errors is the one
 -- that goes to the administration and not to the whole house (ADR 0009); since ADR 0014 the
@@ -156,6 +165,17 @@ ORDER BY created_at, id;
 -- name: PushSubscriptionDelete :execrows
 -- Removes a subscription of the account (0 rows for an unknown one or one of another account).
 DELETE FROM push_subscriptions WHERE id = @id AND account_id = @account_id;
+
+-- name: PushSubscriptionsDropOlderOfDevice :execrows
+-- An app session keeps one subscription per device (concept 27 7.3): after its new one (keep_id) is
+-- stored, every other subscription of the account on the same device goes.
+DELETE FROM push_subscriptions
+WHERE account_id = @account_id AND device_id = @device_id AND id <> @keep_id;
+
+-- name: PushSubscriptionDeleteOfDevice :execrows
+-- Removes a subscription of the account on one device: an app session may always remove its own
+-- (0 rows for one of another device).
+DELETE FROM push_subscriptions WHERE id = @id AND account_id = @account_id AND device_id = @device_id;
 
 -- name: PushSubscriptionDeleteByID :exec
 -- Removes a subscription the push service answered 404 or 410 for.

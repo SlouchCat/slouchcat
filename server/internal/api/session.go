@@ -297,7 +297,7 @@ func (p problems) authorize(auth AuthService, visibility map[string]string, clie
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
-			ra := resolveRequest(ctx, auth, r, route == appLoginRoute)
+			ra := resolveRequest(ctx, auth, r, appRoutes[route])
 			session, hasSession := ra.session, ra.ok
 			if ra.app {
 				w = &noCookies{ResponseWriter: w}
@@ -413,8 +413,13 @@ func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (ses
 	return s, c.Value, extended, true
 }
 
-// appLoginRoute is appLogin: its answer never sets a cookie, also without an app header.
-const appLoginRoute = http.MethodPost + " " + BasePath + "/auth/app-login"
+// appRoutes are the public operations only the Android apps call (appLogin, redeemPairingVoucher,
+// proveServer): their answers never set a cookie, also without an app header.
+var appRoutes = map[string]bool{
+	http.MethodPost + " " + BasePath + "/auth/app-login":      true,
+	http.MethodPost + " " + BasePath + "/auth/pairing/redeem": true,
+	http.MethodPost + " " + BasePath + "/server/prove":        true,
+}
 
 // clientIP is the address the attempt limits count. Without trusted proxies it is the host of
 // RemoteAddr and X-Forwarded-For is ignored (anyone could set it). When RemoteAddr is a trusted
@@ -621,6 +626,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrAdminLimitsFixed):
 		p.write(w, r, http.StatusConflict, "admin_limits_fixed",
 			"An administrator always sees every library up to FSK 18; take the role away first.")
+	case errors.Is(err, model.ErrAppSessionRequired):
+		p.write(w, r, http.StatusForbidden, "app_session_required", "Only the phone app may pair a TV.")
+	case errors.Is(err, model.ErrVoucherInvalid):
+		p.write(w, r, http.StatusGone, "voucher_invalid", "The pairing code is unknown, expired or already used; show a new code.")
 	case errors.Is(err, model.ErrInvitationGone):
 		p.write(w, r, http.StatusGone, "invitation_gone", "The invitation link was used, has expired or was revoked.")
 	case errors.Is(err, model.ErrSetupDone):

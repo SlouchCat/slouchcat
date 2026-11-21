@@ -9,6 +9,7 @@ package auth
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -86,17 +87,24 @@ type Service struct {
 	// metadataLanguages names the metadata languages a profile may choose (package metadata,
 	// ADR 0018, ADR 0036: the union of the server's and every folder's own list); nil = de and en.
 	metadataLanguages func(ctx context.Context) ([]string, error)
+
+	// identity is the server's Ed25519 key of proveServer (F-38, pairing.go); nil = none.
+	identity ed25519.PrivateKey
+	// deviceLinked runs after a TV was paired (notify.DeviceLinked, K-7); nil = none.
+	deviceLinked func(ctx context.Context, accountID int64, kind, name, system string, at time.Time) error
+	pairing      pairingLimits
 }
 
 // New returns the service on db.
 func New(db *store.DB, log *slog.Logger) *Service {
 	return &Service{
-		db:     db.Write,
-		write:  appq.New(db.Write),
-		read:   appq.New(db.Read),
-		log:    log,
-		now:    time.Now,
-		params: defaultParams,
+		db:      db.Write,
+		write:   appq.New(db.Write),
+		read:    appq.New(db.Read),
+		log:     log,
+		now:     time.Now,
+		params:  defaultParams,
+		pairing: newPairingLimits(),
 	}
 }
 
@@ -644,6 +652,9 @@ func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	}
 	if _, err := s.write.DeleteStaleDevices(ctx, appq.DeleteStaleDevicesParams{Before: cutoff, Now: now.UnixMilli()}); err != nil {
 		return n, fmt.Errorf("delete stale devices: %w", err)
+	}
+	if _, err := s.write.DeleteExpiredPairingVouchers(ctx, now.UnixMilli()); err != nil {
+		return n, fmt.Errorf("delete expired pairing vouchers: %w", err)
 	}
 	return n, nil
 }

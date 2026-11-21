@@ -614,6 +614,15 @@ type Notification struct {
 	ReadAt    sql.NullInt64
 }
 
+type PairingVoucher struct {
+	AccountID   int64
+	VoucherHash string
+	TvKey       string
+	DeviceKind  string
+	CreatedAt   int64
+	ExpiresAt   int64
+}
+
 type Person struct {
 	ID                 int64
 	TmdbID             sql.NullInt64

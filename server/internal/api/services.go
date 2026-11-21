@@ -33,6 +33,23 @@ type AuthService interface {
 	Logout(ctx context.Context, sessionID int64) error
 }
 
+// PairingService is the pairing of a TV and the proof of the server's identity (package auth,
+// concept 27 sections 6 and 10, ADR 0040).
+type PairingService interface {
+	// ServerKey is the server's Ed25519 public key in base64url (getHealth.serverKey).
+	ServerKey() string
+	// ProveServer signs auth.ServerProofPrefix followed by the nonce; model.ErrTooManyAttempts per
+	// client address (model.ClientIP), *model.ValidationError for a nonce of another length.
+	ProveServer(ctx context.Context, nonce []byte) ([]byte, error)
+	// CreatePairingVoucher issues a voucher bound to tvKey for the session's account. Errors:
+	// model.ErrAppSessionRequired, model.ErrPrimaryProfileRequired, *model.ValidationError,
+	// model.ErrTooManyAttempts.
+	CreatePairingVoucher(ctx context.Context, session model.Session, tvKey string) (model.PairingVoucher, error)
+	// RedeemPairingVoucher starts the device session of a voucher and seals its token for tvKey.
+	// Errors: *model.ValidationError, model.ErrVoucherInvalid, model.ErrTooManyAttempts.
+	RedeemPairingVoucher(ctx context.Context, voucher, tvKey, deviceName, systemVersion string) (model.PairingRedeemed, error)
+}
+
 // ProfileService is the profile picker, the PIN check and the profile management of the signed-in
 // account (package auth). Methods that take the session act for its account and require the
 // primary profile to be active (model.ErrPrimaryProfileRequired otherwise).

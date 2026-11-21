@@ -130,6 +130,9 @@ type Options struct {
 	Auth     AuthService
 	Profiles ProfileService // Profile picker, PIN and profile management (account operations).
 	Access   AccessService  // Invitations and guest accounts.
+	// Pairing is the pairing of a TV and proveServer (ADR 0040); nil answers 501 on them and an
+	// empty getHealth.serverKey.
+	Pairing  PairingService
 	Admin    AdminService
 	Catalog  CatalogService
 	Playback PlaybackService
@@ -253,10 +256,15 @@ var _ gen.StrictServerInterface = (*server)(nil)
 // GetHealth reports liveness. The server only listens after the database is open and
 // migrated, so a response always means ready.
 func (s *server) GetHealth(context.Context, gen.GetHealthRequestObject) (gen.GetHealthResponseObject, error) {
+	key := ""
+	if s.opts.Pairing != nil {
+		key = s.opts.Pairing.ServerKey()
+	}
 	return gen.GetHealth200JSONResponse{
 		Status:          gen.HealthStatusOk,
 		Version:         s.opts.Version,
 		ContractVersion: s.contractVersion,
+		ServerKey:       key,
 		UptimeSeconds:   max(int64(s.opts.now().Sub(s.opts.Started).Seconds()), 0),
 	}, nil
 }

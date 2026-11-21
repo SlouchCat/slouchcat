@@ -149,6 +149,10 @@ var accountRegistry = map[string]accountCall{
 	"createPushSubscription": {contract: "POST /me/push-subscriptions", path: "/me/push-subscriptions",
 		body: pushSubscriptionBody("https://push.example.test/send/abc"), want: allWant(http.StatusCreated)},
 	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
+	// Concept 27 (ADR 0040): only an app session issues a pairing voucher, every browser session gets
+	// 403 app_session_required (TestPairingVoucherRules checks the app side).
+	"createPairingVoucher": {contract: "POST /account/pairing-vouchers", path: "/account/pairing-vouchers",
+		body: `{"tvKey":"` + contractTVKey + `"}`, want: allWant(http.StatusForbidden)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with
@@ -540,7 +544,15 @@ var publicRegistry = map[string]publicCall{
 	// M9: an unknown webhook token is 401, whatever the body says (I-8).
 	"receiveWebhook": {contract: "POST /webhooks/{token}", path: "/webhooks/" + unknownWebhookToken,
 		body: `{"eventType":"Test"}`, status: http.StatusUnauthorized},
+	// Concept 27 (ADR 0040): an unknown voucher is 410 voucher_invalid, the proof signs any nonce.
+	"redeemPairingVoucher": {contract: "POST /auth/pairing/redeem", path: "/auth/pairing/redeem", status: http.StatusGone,
+		body: `{"voucher":"` + unknownInvitationToken + `","tvKey":"` + contractTVKey + `","deviceName":"TV","systemVersion":"Android TV 14"}`},
+	"proveServer": {contract: "POST /server/prove", path: "/server/prove", status: http.StatusOK,
+		body: `{"nonce":"` + unknownWebhookToken + `"}`},
 }
+
+// contractTVKey is an X25519 public key of a TV (RFC 7748 6.1, Bob's key), base64url.
+const contractTVKey = "3p7bfXt9wbTTW2HC7OQ1Nz-DQ8hbeGdNrfx-FG-IK08"
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the
 // registry of its x-visibility, with the same method and path.
@@ -681,7 +693,9 @@ func TestContractAccountOperations(t *testing.T) {
 				if rec.Code >= 400 && problemCode(t, rec) == "profile_required" {
 					t.Errorf("an account operation answered profile_required: %s", rec.Body.String())
 				}
-				if a.name == "none" && rec.Code == http.StatusForbidden && problemCode(t, rec) != "primary_profile_required" {
+				// createPairingVoucher refuses every browser session before it looks at the profile.
+				appOnly := id == "createPairingVoucher" && problemCode(t, rec) == "app_session_required"
+				if a.name == "none" && rec.Code == http.StatusForbidden && problemCode(t, rec) != "primary_profile_required" && !appOnly {
 					t.Errorf("session without profile on profile management: code %s, want primary_profile_required", problemCode(t, rec))
 				}
 				if found := itemIDsIn(t, rec, titles); len(found) != 0 {

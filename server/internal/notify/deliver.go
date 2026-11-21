@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -168,15 +170,19 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 	if link == "" {
 		link = "/"
 	}
-	payload, _ := json.Marshal(struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
-		URL   string `json:"url"`
-	}{m.Subject, m.Body, link})
+	payload := pushPayload(m.Subject, m.Body, link)
+	var relayed []byte // the shorter payload of the push relay, made once when needed
 	sent := 0
 	var errs []error
 	for _, sub := range subs {
-		err := s.pusher.Push(ctx, vapid, push.Subscription{Endpoint: sub.Endpoint, P256dh: sub.P256dh, Auth: sub.Auth}, payload, ttl)
+		body := payload
+		if push.IsRelay(sub.Endpoint, s.relay) {
+			if relayed == nil {
+				relayed = relayPayload(m.Subject, m.Body, link)
+			}
+			body = relayed
+		}
+		err := s.pusher.Push(ctx, vapid, push.Subscription{Endpoint: sub.Endpoint, P256dh: sub.P256dh, Auth: sub.Auth}, body, ttl)
 		switch {
 		case err == nil:
 			sent++
@@ -203,6 +209,51 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 	default:
 		return errNoRecipient // every subscription was gone
 	}
+}
+
+// Limits of a message to the push relay (concept 27 7.3, stage 0): at most relayMaxBody characters
+// of body, a link of at most relayMaxURL bytes, and the JSON at most push.RelayMaxPayload bytes.
+const (
+	relayMaxBody = 350
+	relayMaxURL  = 256
+)
+
+// pushPayload is the JSON a browser's service worker and the app read: {title, body, url}.
+func pushPayload(title, body, link string) []byte {
+	payload, _ := json.Marshal(struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+		URL   string `json:"url"`
+	}{title, body, link})
+	return payload
+}
+
+// relayPayload is pushPayload cut for the push relay: the body to relayMaxBody characters, a link
+// longer than relayMaxURL bytes to its path (to "/" when the path is longer too), then body and, if
+// that is not enough, title shortened character by character (with "…" like truncate) until the
+// JSON has at most push.RelayMaxPayload bytes. The bytes count, not the characters: json.Marshal
+// writes <, >, & and some others as six-byte escapes.
+func relayPayload(title, body, link string) []byte {
+	if len(link) > relayMaxURL {
+		short := "/"
+		if u, err := url.Parse(link); err == nil && u.Path != "" && len(u.Path) <= relayMaxURL {
+			short = u.Path
+		}
+		link = short
+	}
+	body = truncate(body, relayMaxBody)
+	payload := pushPayload(title, body, link)
+	for _, field := range []*string{&body, &title} {
+		for len(payload) > push.RelayMaxPayload && *field != "" {
+			if n := utf8.RuneCountInString(*field); n > 1 {
+				*field = truncate(*field, n-1)
+			} else {
+				*field = ""
+			}
+			payload = pushPayload(title, body, link)
+		}
+	}
+	return payload
 }
 
 // TestChannel sends a test message on a channel of the session's account, right away and not

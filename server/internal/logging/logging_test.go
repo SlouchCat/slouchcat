@@ -255,3 +255,36 @@ func TestRedactArrKeys(t *testing.T) {
 		t.Errorf("output lost the address: %s", out)
 	}
 }
+
+// Concept 27 stage 1 (K26 4.6 K-8, rule 10): the secrets of the pairing never reach the log under
+// their own names: the voucher, the pickup secret and its hash, the meeting point id, the packet,
+// the sealed token and the app's Google token.
+func TestRedactPairingKeys(t *testing.T) {
+	for _, key := range []string{"voucher", "pairing_voucher", "pairingVoucher", "pickup", "pickup_secret", "pickupHash",
+		"pair_id", "pairId", "meeting_point", "meetingPointId", "packet", "sealedToken", "fcm_token", "fcmToken"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"account_id", "session_id", "reason", "kind"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("pairing", "pairing_voucher", "voucher-FAKE", "pickup_secret", "pickup-FAKE", "pair_id", "pair-FAKE",
+		"fcm_token", "fcm-FAKE", "account_id", 42)
+	out := buf.String()
+	for _, secret := range []string{"voucher-FAKE", "pickup-FAKE", "pair-FAKE", "fcm-FAKE"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, `"account_id":42`) {
+		t.Errorf("output lost the account: %s", out)
+	}
+}

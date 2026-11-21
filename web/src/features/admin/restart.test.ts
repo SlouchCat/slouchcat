@@ -5,6 +5,7 @@ const health = (uptimeSeconds: number) => ({
   status: 'ok' as const,
   version: '0.9.0',
   contractVersion: '1.42.0',
+  serverKey: 'mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4',
   uptimeSeconds,
 });
 

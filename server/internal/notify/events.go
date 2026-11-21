@@ -34,6 +34,28 @@ func (s *Service) InvitationAccepted(ctx context.Context, inviterAccountID int64
 	})
 }
 
+// DeviceLinked tells the account that a device was paired with it (event device_linked, concept 27
+// K-7; auth.WithDeviceLinked): on every switched-on channel of the account, in the language of its
+// primary profile. The text names what the server knows itself (the time and the kind of the
+// device) and marks name and system version as the device's own claim, since whoever pairs chooses
+// them.
+func (s *Service) DeviceLinked(ctx context.Context, accountID int64, kind, name, system string, at time.Time) error {
+	acc, err := s.write.NotifyAccount(ctx, accountID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // the account is gone
+	}
+	if err != nil {
+		return fmt.Errorf("paired account: %w", err)
+	}
+	return s.Emit(ctx, model.Event{
+		Type: model.EventDeviceLinked, AccountID: acc.ID, Subject: text(acc.Language, "device_linked_subject"),
+		Body: text(acc.Language, "device_linked_body", vars{
+			"time": at.Format("2006-01-02 15:04 MST"), "kind": text(acc.Language, "device_kind_"+kind),
+			"name": name, "system": system,
+		}),
+	})
+}
+
 // JobFailed tells the main account that a job failed for good (event errors, once per job type and
 // hour; jobs.Worker.OnFinalFailure). A failed notify.deliver raises nothing: the channel that failed
 // would carry the message about itself.

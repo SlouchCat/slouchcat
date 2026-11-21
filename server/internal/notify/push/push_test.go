@@ -170,6 +170,7 @@ type pushService struct {
 	status   int
 	mu       sync.Mutex
 	payloads [][]byte
+	sizes    []int // length of every body that passed the checks
 	errs     []error
 	ttl      string
 }
@@ -200,6 +201,7 @@ func newPushService(t *testing.T, b browser, status int) *pushService {
 			return
 		}
 		p.payloads = append(p.payloads, plain)
+		p.sizes = append(p.sizes, len(body))
 		w.WriteHeader(p.status)
 	}))
 	t.Cleanup(p.srv.Close)

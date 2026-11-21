@@ -51,6 +51,9 @@ const (
 	EventWishStatus = "wish_status"
 	// EventWishReview: a wish waits for approval in Seerr (administrators only, like errors).
 	EventWishReview = "wish_review"
+	// EventDeviceLinked: a TV was paired with the account (concept 27, K-7). No account chooses it:
+	// it goes to every switched-on channel of the account and is not an EventType of the contract.
+	EventDeviceLinked = "device_linked"
 )
 
 // ChannelSummary is a channel in the account overview.

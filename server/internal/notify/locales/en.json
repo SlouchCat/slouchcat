@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "A wish has a new state.",
   "wish_review_subject": "Approval needed: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} wishes for the film. It waits for approval in Seerr.",
-  "wish_review_show_body": "{{account}} · {{profile}} wishes for the series. It waits for approval in Seerr."
+  "wish_review_show_body": "{{account}} · {{profile}} wishes for the series. It waits for approval in Seerr.",
+  "device_linked_subject": "New device connected",
+  "device_linked_body": "On {{time}} a {{kind}} was connected to your account. The device calls itself “{{name}}” ({{system}}); the device itself reported these details. If this was not you, sign the device out under “My devices” and change your password.",
+  "device_kind_tv": "TV"
 }

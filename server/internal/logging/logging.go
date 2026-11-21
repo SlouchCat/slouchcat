@@ -55,13 +55,19 @@ const (
 // Stage 4 of concept 25 adds the keys of Radarr and Sonarr that Slouchcat reads from Seerr
 // (radarrApiKey, sonarrApiKey); they are held in memory only. Concept 27 (ADR 0040) adds the
 // bearer tokens of the Android apps (app_token, device_token; "token" covers them too) and the
-// device id an app names in the header X-Slouchcat-Device ("deviceid" covers device_id).
+// device id an app names in the header X-Slouchcat-Device ("deviceid" covers device_id). Stage 1 of
+// concept 27 (K26 4.6 K-8) adds the pairing: the voucher (pairing_voucher), the pickup secret of
+// the pairing relay and its hash (pickup_secret, pickup_hash; "secret" covers the first), the
+// meeting point id (pair_id, meeting_point_id), the sealed packet and token (packet,
+// sealed_token) and the Google token of the app (fcm_token; "token" covers it too).
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
 	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
 	"listurl", "deviceid", "clientkey",
 	"seerrapikey", "newpassword", "radarrapikey", "sonarrapikey",
-	"apptoken", "devicetoken", "slouchcatdevice"}
+	"apptoken", "devicetoken", "slouchcatdevice",
+	"voucher", "pickup", "pickupsecret", "pickuphash", "pairid", "meetingpoint", "meetingpointid", "packet",
+	"sealedtoken", "fcmtoken"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5), rt (radio listen token, concept 16) and the credentials of private podcast feeds and their

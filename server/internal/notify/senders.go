@@ -98,11 +98,21 @@ func (smtpMailer) Mail(ctx context.Context, cfg model.SMTPConfig, to, subject, t
 		Send(ctx, to, subject, text, html)
 }
 
+// WithPushRelay sets the origin of the push relay (config SLOUCHCAT_PUSH_RELAY, concept 27 7.3):
+// its endpoints get the smaller record and the shorter text, and only 410 deletes them. Empty
+// treats every endpoint as a browser's. Without the option it is push.DefaultRelayOrigin.
+func WithPushRelay(origin string) Option {
+	return func(s *Service) { s.relay = origin }
+}
+
 // webPusher sends through notify/push.
-type webPusher struct{ allowPrivate bool }
+type webPusher struct {
+	allowPrivate bool
+	relay        string
+}
 
 func (p webPusher) Push(ctx context.Context, vapid push.VAPID, sub push.Subscription, payload []byte, ttl time.Duration) error {
-	return push.Sender{VAPID: vapid, AllowPrivate: p.allowPrivate}.Send(ctx, sub, payload, ttl)
+	return push.Sender{VAPID: vapid, AllowPrivate: p.allowPrivate, RelayOrigin: p.relay}.Send(ctx, sub, payload, ttl)
 }
 
 // server is the state of the channels on the server for one request or delivery.

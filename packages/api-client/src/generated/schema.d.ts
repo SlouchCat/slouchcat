@@ -25,6 +25,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/server/prove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prove the server's identity by signing a nonce (concept 27 section 6, F-38)
+         * @description Contract 1.42.0 (ADR 0040, «Server weist sich aus»). The server signs the UTF-8 prefix
+         *     `slouchcat-server-proof-v1:` followed by the 32 bytes of `nonce` with its Ed25519 key, whose
+         *     public half `getHealth.serverKey` names. An app remembers the key on first contact and checks a
+         *     fresh nonce in every new network before it sends anything else. The key is derived from the
+         *     server's secret (`secret.key`): it stays the same across restarts and changes with a new secret.
+         *     Calls count per client address (`too_many_attempts`).
+         */
+        post: operations["proveServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/setup": {
         parameters: {
             query?: never;
@@ -95,6 +120,63 @@ export interface paths {
          *     per client address. The answer never sets a cookie.
          */
         post: operations["appLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/pairing-vouchers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue the voucher that pairs a TV with the account (concept 27 section 10, K-3)
+         * @description Contract 1.42.0 (ADR 0040, «Kopplung»). Only an app session (the phone app) may issue a voucher:
+         *     a browser session gets 403 `app_session_required`, a device session 403 `client_not_allowed`.
+         *     Only without an active profile or with the account's primary profile (`primary_profile_required`,
+         *     F-23). The voucher is 256 random bits, valid for 2 minutes and once, bound to the TV's one-time
+         *     X25519 key `tvKey`, and pairs a device of kind `tv`; the server keeps only its hash. An account
+         *     has at most one open voucher: a new one replaces the older. Vouchers count per account
+         *     (`too_many_attempts`). The phone seals the voucher with the server address for `tvKey` and hands
+         *     it to the TV through the pairing relay; the TV redeems it (`redeemPairingVoucher`).
+         */
+        post: operations["createPairingVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/pairing/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem a pairing voucher and receive the device token sealed for the TV (concept 27 section 7.2)
+         * @description Contract 1.42.0 (ADR 0040, «Kopplung»). The TV sends the voucher it took from the packet, its
+         *     one-time X25519 key, its name and its system version. The server checks that the voucher is open,
+         *     unexpired and bound to exactly this key, uses it up (also against concurrent requests), starts a
+         *     device session with the device row named right away, tells the account through its channels (event
+         *     `device_linked`, K-7) and answers the token sealed for the key: `sealedToken` is HPKE (RFC 9180,
+         *     base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info `slouchcat-redeem-v1`, empty
+         *     aad) as `enc` followed by the ciphertext, in base64url; its plaintext is
+         *     `{"token":"…","deviceId":"…"}`. Only the holder of the private key can read it. `accountEmail` is
+         *     what the TV shows next to the server address (K-9). An unknown, expired, used or differently bound
+         *     voucher answers the same 410 `voucher_invalid`; the TV then shows a new code. Every attempt counts
+         *     per client address (`too_many_attempts`). The answer never sets a cookie.
+         */
+        post: operations["redeemPairingVoucher"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4685,6 +4767,11 @@ export interface paths {
          *     and its keys are capability secrets; they are never returned and never logged.
          *     Only a session without an active profile or with the account's primary profile may change
          *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         *     An app session (contract 1.42.0, concept 27 7.3) always registers its own subscription, also with
+         *     another profile active, and its new subscription replaces every older one of its device (one per
+         *     device); whether the account gets push stays the primary profile's choice (`updateMyChannel`). An
+         *     endpoint of the push relay (`https://push.slouchcat.com`, `SLOUCHCAT_PUSH_RELAY`) gets messages of
+         *     at most 2700 bytes (record size 2700, body cut to 350 characters).
          */
         post: operations["createPushSubscription"];
         delete?: never;
@@ -4706,7 +4793,8 @@ export interface paths {
         /**
          * Remove a push subscription of the account
          * @description Only a session without an active profile or with the account's primary profile may change
-         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them. An app
+         *     session may always remove the subscription of its own device (contract 1.42.0).
          */
         delete: operations["deletePushSubscription"];
         options?: never;
@@ -6470,6 +6558,12 @@ export interface components {
              */
             contractVersion: string;
             /**
+             * @description The server's Ed25519 public key in base64url (32 bytes, contract 1.42.0, F-38). An app remembers
+             *     it on first contact and checks it with `proveServer`; it changes only with the server's secret.
+             * @example mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4
+             */
+            serverKey: string;
+            /**
              * Format: int64
              * @description Seconds since the process started.
              */
@@ -6579,6 +6673,51 @@ export interface components {
             /** @description The device id the server keeps for this app; it goes into `X-Slouchcat-Device` where a request has no session. */
             deviceId: string;
             session: components["schemas"]["SessionInfo"];
+        };
+        ServerProofRequest: {
+            /** @description 32 random bytes of the app in base64url without padding. */
+            nonce: string;
+        };
+        ServerProof: {
+            /** @description Ed25519 signature (64 bytes, base64url) over `slouchcat-server-proof-v1:` followed by the nonce bytes. */
+            signature: string;
+            /** @description The public key that made the signature (base64url), the same as `getHealth.serverKey`. */
+            serverKey: string;
+        };
+        PairingVoucherRequest: {
+            /** @description The TV's one-time X25519 public key from the QR code (32 bytes, base64url). */
+            tvKey: string;
+        };
+        /** @description A pairing voucher (`createPairingVoucher`); a secret of the phone until it is sealed for the TV. */
+        PairingVoucher: {
+            /** @description 256 random bits in base64url (43 characters). */
+            voucher: string;
+            /**
+             * Format: date-time
+             * @description Two minutes after the issue.
+             */
+            expiresAt: string;
+        };
+        PairingRedeemRequest: {
+            voucher: string;
+            /** @description The same X25519 public key the QR code carried (32 bytes, base64url). */
+            tvKey: string;
+            /** @description The name the TV gives itself; «Meine Geräte» and the message `device_linked` show it as the device's claim. */
+            deviceName: string;
+            /** @description The system version of the TV, for example `Android TV 14`. */
+            systemVersion: string;
+        };
+        PairingRedeemed: {
+            /**
+             * @description HPKE `enc` followed by the ciphertext (base64url) for `tvKey`, info `slouchcat-redeem-v1`;
+             *     plaintext `{"token":"…","deviceId":"…"}`: the bearer token of the device session and its device id.
+             */
+            sealedToken: string;
+            /**
+             * Format: email
+             * @description The account the TV is now paired with; the TV shows it with the server address (K-9).
+             */
+            accountEmail: string;
         };
         /**
          * @description Kind of a session (ADR 0040): `browser` (cookie, 30 days sliding), `app` (the phone app, bearer, no
@@ -14155,6 +14294,58 @@ export interface operations {
             };
         };
     };
+    proveServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerProofRequest"];
+            };
+        };
+        responses: {
+            /** @description The signature over prefix and nonce, with the key that made it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerProof"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; field `nonce`, not 32 bytes in base64url). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many proofs from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getSetupStatus: {
         parameters: {
             query?: never;
@@ -14349,6 +14540,132 @@ export interface operations {
                 };
             };
             /** @description Validation failed (`validation_failed`; fields `email`, `password`, `deviceName`, `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The app is older than the server accepts (`app_too_old`). */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createPairingVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingVoucherRequest"];
+            };
+        };
+        responses: {
+            /** @description The voucher; it appears only in this answer. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingVoucher"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description Not an app session (`app_session_required`), a device session (`client_not_allowed`), another
+             *     profile than the primary one is active (`primary_profile_required`) or the CSRF header is missing.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; field `tvKey`, not an X25519 key of 32 bytes in base64url). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many vouchers for this account (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    redeemPairingVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingRedeemRequest"];
+            };
+        };
+        responses: {
+            /** @description Paired; the token is sealed for `tvKey`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRedeemed"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The voucher is unknown, expired, used or bound to another key (`voucher_invalid`). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; fields `voucher`, `tvKey`, `deviceName`, `systemVersion`). */
             422: {
                 headers: {
                     [name: string]: unknown;
