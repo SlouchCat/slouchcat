@@ -28,5 +28,6 @@ include(
     ":core:session",
     ":core:design",
     ":core:strings",
+    ":core:pairing",
     ":lint",
 )
