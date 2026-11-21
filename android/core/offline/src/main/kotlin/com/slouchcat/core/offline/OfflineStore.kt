@@ -96,6 +96,9 @@ class OfflineStore(private val dao: OfflineDao) {
         /** The database of the device in `noBackupFilesDir` ([com.slouchcat.core.offline.db.OfflineDatabase.file]). */
         fun open(context: android.content.Context) = OfflineStore(com.slouchcat.core.offline.db.OfflineDatabase.open(context).dao())
 
+        /** For tests of the apps: a database in memory. */
+        fun inMemory(context: android.content.Context) = OfflineStore(com.slouchcat.core.offline.db.OfflineDatabase.inMemory(context).dao())
+
         /** SQLite's limit of bound variables per statement is 999 on old versions. */
         private const val CHUNK = 500
     }

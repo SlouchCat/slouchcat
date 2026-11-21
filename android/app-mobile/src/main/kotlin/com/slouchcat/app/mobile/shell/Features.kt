@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile.shell
 
 import com.slouchcat.app.mobile.collections.CollectionsFeature
+import com.slouchcat.app.mobile.downloads.DownloadsFeature
 import com.slouchcat.app.mobile.item.ItemFeature
 import com.slouchcat.app.mobile.home.HomeFeature
 import com.slouchcat.app.mobile.more.MoreFeature
@@ -29,4 +30,5 @@ val features: List<Feature> = listOf(
     ProfileSettingsFeature(),
     PlayerFeature(),
     PlaybackSettingsFeature(),
+    DownloadsFeature,
 )

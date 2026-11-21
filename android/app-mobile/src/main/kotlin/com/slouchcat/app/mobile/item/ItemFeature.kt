@@ -18,6 +18,8 @@ import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.media
+import com.slouchcat.app.mobile.downloads.DownloadAction
+import com.slouchcat.app.mobile.downloads.DownloadsRoute
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
@@ -77,6 +79,8 @@ class ItemFeature(
                 ),
                 events = vm,
                 snackbar = snackbar,
+                // Stage 6: the round action «Herunterladen» with its dialog, when the app has the downloads.
+                download = if (navigator.canOpen(DownloadsRoute::class)) ({ item -> DownloadAction(graph, item, snackbar) }) else null,
             )
         }
     }

@@ -13,6 +13,8 @@ import com.slouchcat.app.mobile.common.KeyConfirmation
 import com.slouchcat.app.mobile.common.SessionActions
 import com.slouchcat.app.mobile.common.SessionHooks
 import com.slouchcat.app.mobile.common.ShellNotices
+import com.slouchcat.app.mobile.downloads.OfflineStarter
+import com.slouchcat.app.mobile.downloads.offline
 import com.slouchcat.app.mobile.shell.AppLinks
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.ShellRegistry
@@ -26,6 +28,7 @@ import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.media.LibrariesSource
+import com.slouchcat.core.offline.background.OfflineHost
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AndroidTrustInspector
 import com.slouchcat.core.session.ApiAuthRepository
@@ -172,7 +175,7 @@ fun describeDevice(context: Context): DeviceDescription {
 
 private const val TABLET_DP = 600
 
-class SlouchcatApplication : Application(), SingletonImageLoader.Factory {
+class SlouchcatApplication : Application(), SingletonImageLoader.Factory, OfflineHost {
     lateinit var graph: AppGraph
         private set
 
@@ -180,7 +183,12 @@ class SlouchcatApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         Log.sink = AndroidLogSink(BuildConfig.DEBUG)
         graph = AppGraph(this)
+        // Downloads and offline (stage 6): the sign-out step, the hooks, the triggers of the sync.
+        OfflineStarter.start(this, graph)
     }
+
+    /** The one offline engine for the background fetch and the sync (core/offline). */
+    override val offlineEngine get() = graph.offline.engine
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = graph.imageLoader
 }

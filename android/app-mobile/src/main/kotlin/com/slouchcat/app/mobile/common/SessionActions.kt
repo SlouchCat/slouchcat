@@ -39,6 +39,7 @@ class SessionHooks {
     private val steps = CopyOnWriteArrayList<SignOutStep>()
     private val cleaners = CopyOnWriteArrayList<suspend () -> Unit>()
     private val accountChanged = CopyOnWriteArrayList<suspend () -> Unit>()
+    private val pinAccepted = CopyOnWriteArrayList<suspend (Long, CharArray) -> Unit>()
 
     fun addSignOutStep(step: SignOutStep) {
         steps += step
@@ -52,6 +53,21 @@ class SessionHooks {
     /** Runs after the e-mail address or the password changed (the session stays). */
     fun onAccountChanged(hook: suspend () -> Unit) {
         accountChanged += hook
+    }
+
+    /**
+     * Runs after the server accepted the PIN of a profile online (stage 6, concept 27 9.5: the device
+     * derives its own verifier of the normal PIN for the offline library). The hook must not keep
+     * the digits; the caller clears them afterwards.
+     */
+    fun onPinAccepted(hook: suspend (profileId: Long, pin: CharArray) -> Unit) {
+        pinAccepted += hook
+    }
+
+    suspend fun pinAccepted(profileId: Long, pin: CharArray) {
+        for (hook in pinAccepted) {
+            runCatching { hook(profileId, pin) }.onFailure { Log.w(TAG, "pin hook failed", error = it) }
+        }
     }
 
     val signOutSteps: List<SignOutStep> get() = steps.toList()
@@ -147,8 +163,15 @@ class SessionActions(
     private val notices: ShellNotices = ShellNotices(),
     private val entry: EntryPlan = EntryPlan(),
 ) {
-    /** The profile is active in the server: clear what the previous one left, then remember it. */
-    suspend fun profileChosen(profile: ActiveProfile) {
+    /**
+     * The profile is active in the server: clear what the previous one left, then remember it.
+     * [pin]: the PIN the server just accepted (the offline verifier, stage 6); cleared afterwards.
+     */
+    suspend fun profileChosen(profile: ActiveProfile, pin: CharArray? = null) {
+        if (pin != null) {
+            hooks.pinAccepted(profile.id, pin)
+            pin.fill('0')
+        }
         hooks.clean()
         session.profileChosen(profile)
     }

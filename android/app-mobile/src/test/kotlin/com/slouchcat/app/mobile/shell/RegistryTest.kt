@@ -37,6 +37,8 @@ import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import com.slouchcat.app.mobile.downloads.DownloadsRoute
+import com.slouchcat.app.mobile.downloads.OfflinePlayerRoute
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,7 +50,7 @@ import kotlin.reflect.KClass
 /**
  * The register of the real phone app: `features` from `Features.kt` as the app starts with them.
  * Two stages that take the same key, place or route clash here, in the CI, not at the app's start;
- * every page of stages 3 to 5 has exactly one destination, every target, row of «Mehr» and media
+ * every page of stages 3 to 6 has exactly one destination, every target, row of «Mehr» and media
  * entry leads to a registered page, and every text the app uses comes from a namespace of
  * `android/strings-namespaces.txt`.
  */
@@ -68,13 +70,14 @@ class RegistryTest {
         HomeRoute::class, LibraryRoute::class, ListRoute::class, ItemRoute::class, PersonRoute::class, SearchRoute::class,
         WatchlistRoute::class, WatchedRoute::class, CollectionsRoute::class, CollectionRoute::class, ProfilesSettingsRoute::class,
         PlayerRoute::class, PlaybackSettingsRoute::class, MoreRoute::class, DevicesRoute::class, AccountRoute::class,
+        DownloadsRoute::class, OfflinePlayerRoute::class,
     )
 
     @Test
     fun theRealFeaturesMakeARegisterWithoutClashes() {
         // The checks of ShellRegistry.init: keys, places and routes of the targets, rows of «Mehr».
         val registry = ShellRegistry(features)
-        assertEquals(listOf("start", "search", "more"), registry.destinations.map { it.key })
+        assertEquals(listOf("start", "search", "downloads", "more"), registry.destinations.map { it.key })
         assertEquals(registry.more.size, registry.more.map { it.route::class }.toSet().size)
         // Media entries of every feature, for a few libraries, also pass their checks.
         val entries = registry.mediaEntries(libraries)

@@ -524,7 +524,7 @@ private fun Actions(
 
 /** One round action (`.dt-act`): the icon in its pill, filled with the accent when on, the label. */
 @Composable
-private fun ActionButton(
+internal fun ActionButton(
     icon: SlouchcatIcon,
     label: String,
     toggle: ToggleableState?,

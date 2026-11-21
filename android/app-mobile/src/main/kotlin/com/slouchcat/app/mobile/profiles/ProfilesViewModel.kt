@@ -153,7 +153,7 @@ class ProfilesViewModel(
             val server = session.server ?: return@launch updatePin { it.copy(checking = false, message = PinMessage.Failed) }
             val result = auth.selectProfile(server, pin.profile.id, pin.digits)
             when {
-                result is ApiResult.Ok -> chosen(pin.profile, result.value)
+                result is ApiResult.Ok -> chosen(pin.profile, result.value, pin.digits.toCharArray())
                 result is ApiResult.NotAllowed && result.code == PIN_INVALID -> updatePin { it.copy(checking = false, digits = "", message = PinMessage.Invalid) }
                 result is ApiResult.Failed && result.status == 429 -> lock(result.retryAfterSeconds ?: DEFAULT_LOCK)
                 result is ApiResult.Offline -> updatePin { it.copy(checking = false, message = PinMessage.Unreachable) }
@@ -193,7 +193,7 @@ class ProfilesViewModel(
         }
     }
 
-    private suspend fun chosen(summary: ProfileSummary, info: SessionInfo) {
+    private suspend fun chosen(summary: ProfileSummary, info: SessionInfo, pin: CharArray? = null) {
         val active = info.profile
         val profile = if (active != null) {
             ActiveProfile(active.id, active.name, active.isPrimary, active.accent?.value, active.image)
@@ -203,7 +203,7 @@ class ProfilesViewModel(
         countdown?.cancel()
         _state.update { it.copy(selecting = null, pin = null, current = profile.id) }
         // A new session epoch: SlouchcatNavHost opens the first page.
-        actions.profileChosen(profile)
+        actions.profileChosen(profile, pin)
     }
 
     /** «Abmelden» on the picker (a way out when no profile can be opened). */

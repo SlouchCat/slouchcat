@@ -90,44 +90,54 @@ class PlayerFeature(
         val graph = app.graph
         composable<PlayerRoute> { entry ->
             val route = entry.toRoute<PlayerRoute>()
-            val context = LocalContext.current.applicationContext
-            val tablet = LocalConfiguration.current.smallestScreenWidthDp >= TABLET_DP
-            val vm = viewModel {
-                val store = settings(context)
-                PlayerViewModel(
-                    itemId = route.itemId,
-                    startAtMs = route.startAtMs.takeIf { it >= 0 },
-                    fromStart = route.fromStart,
-                    engine = engine(context, graph),
-                    server = server(graph),
-                    capabilities = { narrowing ->
-                        withContext(background) {
-                            CapabilityRules.build(facts(context, if (tablet) DeviceType.Tablet else DeviceType.Phone), store.settings.first().audio, narrowing)
-                        }
-                    },
-                    settings = store.settings,
-                    metered = MeteredNetwork.of(context),
-                    finalScope = graph.scope,
-                    clock = SystemClock::elapsedRealtime,
-                    saved = createSavedStateHandle(),
-                )
-            }
-            vm.leave = app.navigator::back
-            val state by vm.state.collectAsStateWithLifecycle()
-            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.onBackground() }
-            LifecycleEventEffect(Lifecycle.Event.ON_START) { vm.onForeground() }
-            PlayerWindow(phone = !tablet, playing = state.playing)
-            val address = graph.session.server
-            val images = remember(address) { address?.let(::ServerImages) }
-            val media3 = vm.engine as? Media3Engine
-            PlayerScreen(
-                state = state,
-                events = vm,
-                images = images,
-                surface = { if (media3 != null) VideoSurface(media3) },
-                thumbnail = { tile, modifier -> TrickplayThumbnail(tile, graph.imageLoader, modifier) },
+            PlayerPage(app, route.itemId, route.startAtMs.takeIf { it >= 0 }, route.fromStart) { server(graph) }
+        }
+    }
+
+    /**
+     * The page of a playback, shared with the offline player of stage 6 (another [PlaybackServer]
+     * over the same controller and screen). [key] keeps the ViewModels of two players apart.
+     */
+    @Composable
+    fun PlayerPage(app: AppScope, itemId: String, startAtMs: Long?, fromStart: Boolean, key: String? = null, playbackServer: () -> PlaybackServer) {
+        val graph = app.graph
+        val context = LocalContext.current.applicationContext
+        val tablet = LocalConfiguration.current.smallestScreenWidthDp >= TABLET_DP
+        val vm = viewModel(key = key) {
+            val store = settings(context)
+            PlayerViewModel(
+                itemId = itemId,
+                startAtMs = startAtMs,
+                fromStart = fromStart,
+                engine = engine(context, graph),
+                server = playbackServer(),
+                capabilities = { narrowing ->
+                    withContext(background) {
+                        CapabilityRules.build(facts(context, if (tablet) DeviceType.Tablet else DeviceType.Phone), store.settings.first().audio, narrowing)
+                    }
+                },
+                settings = store.settings,
+                metered = MeteredNetwork.of(context),
+                finalScope = graph.scope,
+                clock = SystemClock::elapsedRealtime,
+                saved = createSavedStateHandle(),
             )
         }
+        vm.leave = app.navigator::back
+        val state by vm.state.collectAsStateWithLifecycle()
+        LifecycleEventEffect(Lifecycle.Event.ON_STOP) { vm.onBackground() }
+        LifecycleEventEffect(Lifecycle.Event.ON_START) { vm.onForeground() }
+        PlayerWindow(phone = !tablet, playing = state.playing)
+        val address = graph.session.server
+        val images = remember(address) { address?.let(::ServerImages) }
+        val media3 = vm.engine as? Media3Engine
+        PlayerScreen(
+            state = state,
+            events = vm,
+            images = images,
+            surface = { if (media3 != null) VideoSurface(media3) },
+            thumbnail = { tile, modifier -> TrickplayThumbnail(tile, graph.imageLoader, modifier) },
+        )
     }
 
     private companion object {
