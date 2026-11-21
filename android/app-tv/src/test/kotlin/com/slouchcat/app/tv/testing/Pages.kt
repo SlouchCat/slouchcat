@@ -21,6 +21,8 @@ import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.session.StoredCredentials
+import org.robolectric.shadows.ShadowLooper
+import java.util.concurrent.TimeUnit
 
 /** A stand-in for the player of stage 3: registers [PlayerRoute] and remembers what it was asked to play. */
 class TestPlayerFeature : TvFeature {
@@ -83,10 +85,17 @@ class Pages(private val compose: TvRule) {
 
     /** Waits until something with [text] (shown or said) is on the screen. */
     fun waitFor(text: String) {
-        compose.waitUntil(5_000) {
-            compose.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        val matcher = hasText(text, substring = true) or hasContentDescription(text, substring = true)
+        // A ViewModel's delay (the search waits 200 ms after a key) runs on the main looper's clock.
+        repeat(WAIT_STEPS) {
+            if (compose.onAllNodes(matcher, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
+                remote.settle()
+                return
+            }
+            ShadowLooper.idleMainLooper(STEP_MS, TimeUnit.MILLISECONDS)
+            remote.settle()
         }
-        remote.settle()
+        error("«$text» did not come")
     }
 
     /** The rail entry [label] from anywhere: Left into the rail, down to it, OK. */
@@ -105,5 +114,7 @@ class Pages(private val compose: TvRule) {
 
     private companion object {
         const val MAX_RAIL = 14
+        const val WAIT_STEPS = 50
+        const val STEP_MS = 100L
     }
 }
