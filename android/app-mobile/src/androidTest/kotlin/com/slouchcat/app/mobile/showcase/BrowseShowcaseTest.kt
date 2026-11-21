@@ -36,7 +36,7 @@ class BrowseShowcaseTest {
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     private val showcase = Showcase(compose, features, BrowseShowcaseData.libraries, BrowseShowcaseData.images()) { graph ->
-        MediaData.install(graph, BrowseShowcaseData.data(MediaData.api(graph.api, graph.http)))
+        BrowseShowcaseData.data(MediaData.api(graph.api, graph.http))
     }
 
     @After

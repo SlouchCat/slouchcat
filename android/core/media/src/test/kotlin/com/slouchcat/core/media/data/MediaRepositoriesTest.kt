@@ -14,7 +14,7 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -83,15 +83,20 @@ class MediaRepositoriesTest {
         assertEquals("DELETE" to "/api/v1/items/01J00000000000000000000001/watchlist", remove.method to remove.url.encodedPath)
     }
 
+    /** A copy with other repositories keeps the counts; clearing forgets them all (another profile). */
     @Test
-    fun aGraphReadsWhatATestInstalled() {
-        val graph = Any()
-        val other = Any()
+    fun theCountsGoWithTheDataAndClearTogether() {
         val fake = data.copy(home = data.home)
-        MediaData.install(graph, fake)
-        assertSame(fake, MediaData.of(graph) { error("not asked") })
-        assertNotSame(fake, MediaData.of(other) { data })
-        // Created once per graph.
-        assertSame(MediaData.of(other) { error("not asked") }, MediaData.of(other) { error("not asked") })
+        assertSame(data.watchlistCount, fake.watchlistCount)
+        fake.watchlistCount.set(4)
+        fake.collectionsCount.set(2)
+        fake.watchlistCount.adjust(-5)
+        assertSame(0, fake.watchlistCount.count.value)
+        fake.clearCounts()
+        assertNull(fake.watchlistCount.count.value)
+        assertNull(fake.collectionsCount.count.value)
+        // Unknown stays unknown.
+        fake.watchlistCount.adjust(1)
+        assertNull(fake.watchlistCount.count.value)
     }
 }

@@ -10,7 +10,6 @@ import androidx.navigation.toRoute
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
-import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature

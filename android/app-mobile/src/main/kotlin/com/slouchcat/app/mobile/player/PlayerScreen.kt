@@ -55,14 +55,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -73,7 +73,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.api.generated.models.Quality
 import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.design.ButtonKind
@@ -83,6 +82,7 @@ import com.slouchcat.core.design.SlouchcatIconButton
 import com.slouchcat.core.design.SlouchcatIconImage
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.player.PlayerError
 import com.slouchcat.core.player.PlayerState
 import com.slouchcat.core.player.TrickplayTile

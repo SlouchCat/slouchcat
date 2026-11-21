@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.os.SystemClock
 import androidx.activity.compose.LocalActivity
+import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -30,7 +31,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
@@ -45,10 +45,10 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.PlayerRoute
-import com.slouchcat.core.media.ServerImages
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.player.ApiPlaybackServer
 import com.slouchcat.core.player.CapabilityRules
 import com.slouchcat.core.player.DataStoreDeviceSettingsStore

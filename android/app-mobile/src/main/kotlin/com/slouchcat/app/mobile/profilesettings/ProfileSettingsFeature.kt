@@ -11,7 +11,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ProfilesSettingsRoute
-import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -57,7 +56,7 @@ class ProfileSettingsFeature(
         val navigator = app.navigator
         composable<ProfilesSettingsRoute> {
             val vm = viewModel {
-                ProfileSettingsViewModel(graph.session, repository(graph), graph.media.profilesCount) { before, saved -> activeChanged(graph, before, saved) }
+                ProfileSettingsViewModel(graph.session, repository(graph), graph.media.profilesCount) { before, saved, partly -> activeChanged(graph, before, saved, partly) }
             }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
@@ -79,14 +78,26 @@ class ProfileSettingsFeature(
      * choice. When what it may see changed (rating, libraries, language), a new epoch: every page
      * reads again (code review m-2); the notice outlives it.
      */
-    private suspend fun activeChanged(graph: AppGraph, before: Profile?, saved: Profile) {
+    private suspend fun activeChanged(graph: AppGraph, before: Profile?, saved: Profile, partly: Boolean) {
         val now = (graph.session.state.value as? SessionState.Ready)?.profile ?: return
-        val content = before == null || before.maxRating != saved.maxRating || before.allLibraries != saved.allLibraries ||
-            before.libraryIds.toSet() != saved.libraryIds.toSet() || before.language != saved.language
-        if (content) graph.notices.show(R.string.app_profiles_manage_saved)
+        val content = contentChanged(before, saved)
+        // A PIN that did not take must not read as «Gespeichert» (code review m-2 of part a).
+        if (content) graph.notices.show(if (partly) R.string.app_profiles_manage_partly else R.string.app_profiles_manage_saved)
         graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image), contentChanged = content)
         if (!content) graph.librariesSource.reload()
     }
+}
+
+/**
+ * Whether saving the profile in use changed what it may see: rating, libraries or language of the
+ * metadata. Then a new session epoch, so no page keeps titles of the old state; name and colour
+ * alone change in place (code review m-3 of part a). Without the earlier state: a new epoch.
+ * The libraries count only without «alle Bibliotheken» (the server ignores the list then).
+ */
+internal fun contentChanged(before: Profile?, saved: Profile): Boolean {
+    if (before == null) return true
+    if (before.maxRating != saved.maxRating || before.language != saved.language || before.allLibraries != saved.allLibraries) return true
+    return !saved.allLibraries && before.libraryIds.toSet() != saved.libraryIds.toSet()
 }
 
 /** The events of the page, bound to its ViewModel and the navigation. */

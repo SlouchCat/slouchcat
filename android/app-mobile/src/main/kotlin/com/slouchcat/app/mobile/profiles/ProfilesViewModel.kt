@@ -73,12 +73,17 @@ class ProfilesViewModel(
     private val actions: SessionActions,
     /** Time since boot in ms; the lock runs on it, also while the device sleeps (code review minor 15). */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Opens «Profile verwalten» once the primary profile is active (an in-app jump); `null` without the page. */
+    private val manage: (() -> Unit)? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ProfilesUiState())
     val state: StateFlow<ProfilesUiState> = _state.asStateFlow()
 
     private var loading: Job? = null
     private var countdown: Job? = null
+
+    /** «Profile verwalten» was tapped: after the choice of the primary profile the page opens. */
+    private var thenManage = false
 
     /** Until when the server locks a profile (per profile; closing the pad does not forget it). */
     private val lockedUntil = mutableMapOf<Long, Long>()
@@ -104,9 +109,26 @@ class ProfilesViewModel(
         }
     }
 
-    fun onPick(profile: ProfileSummary) {
+    /**
+     * «Profile verwalten»: only the primary profile may (`primary_profile_required`). Active already:
+     * the page opens. Otherwise the picker chooses the primary profile first, with its PIN, and the
+     * page opens in the new session (rule 12: the server checks the PIN and the right).
+     */
+    fun onManage() {
+        val open = manage ?: return
+        val now = session.state.value
+        if (now is SessionState.Ready && now.profile.isPrimary) return open()
+        val primary = (_state.value.profiles as? Loadable.Ready)?.value?.firstOrNull { it.isPrimary } ?: return
+        thenManage = true
+        onPick(primary, manage = true)
+    }
+
+    fun onPick(profile: ProfileSummary) = onPick(profile, manage = false)
+
+    private fun onPick(profile: ProfileSummary, manage: Boolean) {
         val now = _state.value
         if (now.selecting != null || now.pin != null || now.signingOut) return
+        thenManage = manage
         if (profile.hasPin) {
             _state.update { it.copy(pin = PinState(profile), error = null) }
             resumeLock(profile.id)
@@ -141,6 +163,7 @@ class ProfilesViewModel(
 
     fun onCancelPin() {
         if (_state.value.pin?.checking == true) return
+        thenManage = false
         countdown?.cancel()
         _state.update { it.copy(pin = null) }
     }
@@ -202,6 +225,9 @@ class ProfilesViewModel(
         }
         countdown?.cancel()
         _state.update { it.copy(selecting = null, pin = null, current = profile.id) }
+        // «Profile verwalten» waits as a jump for the new epoch.
+        if (thenManage && profile.isPrimary) manage?.invoke()
+        thenManage = false
         // A new session epoch: SlouchcatNavHost opens the first page.
         actions.profileChosen(profile)
     }

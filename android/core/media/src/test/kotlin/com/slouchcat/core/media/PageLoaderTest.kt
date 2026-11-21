@@ -50,6 +50,60 @@ class PageLoaderTest {
         assertEquals(listOf(0, 50, 100), asked)
     }
 
+    /**
+     * A title added on the server between two pages shifts the list: the second page starts with
+     * the last title of the first. It stays once, the next page starts after it (code review M-1).
+     */
+    @Test
+    fun aListThatShiftsBetweenTwoPagesKeepsEveryTitleOnce() = runTest(dispatcher) {
+        val shifted = listOf(0) + all
+        val pager = loader()
+        pager.refresh()
+        advanceUntilIdle()
+        answer = { offset, limit -> ApiResult.Ok(Page(shifted.drop(offset).take(limit), shifted.size)) }
+        pager.loadMore()
+        advanceUntilIdle()
+        val loaded = pager.state.value.loaded
+        assertEquals(loaded.size, loaded.toSet().size)
+        assertEquals((1..99).map { "#$it" }, loaded)
+        pager.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf(0, 50, 100), asked)
+        assertEquals((1..120).map { "#$it" }, pager.state.value.loaded)
+        assertFalse(pager.state.value.hasMore)
+    }
+
+    /** A page with nothing new (the server repeats itself) ends the list instead of asking forever. */
+    @Test
+    fun aPageWithNothingNewEndsTheList() = runTest(dispatcher) {
+        val pager = loader()
+        pager.refresh()
+        advanceUntilIdle()
+        answer = { _, limit -> ApiResult.Ok(Page(all.take(limit), all.size)) }
+        pager.loadMore()
+        advanceUntilIdle()
+        assertEquals(50, pager.state.value.loaded.size)
+        assertFalse(pager.state.value.hasMore)
+    }
+
+    /** A refresh that cancels a page under way and then fails leaves no spinner at the end (code review L-2). */
+    @Test
+    fun aFailedRefreshDuringAPageLeavesTheEndIdle() = runTest(dispatcher) {
+        val pager = loader()
+        pager.refresh()
+        advanceUntilIdle()
+        gate = CompletableDeferred()
+        pager.loadMore()
+        advanceUntilIdle()
+        assertEquals(MoreState.Loading, pager.state.value.more)
+        gate = null
+        answer = { _, _ -> ApiResult.Offline }
+        pager.refresh(keep = true)
+        advanceUntilIdle()
+        assertEquals(MoreState.Idle, pager.state.value.more)
+        assertEquals(50, pager.state.value.loaded.size)
+    }
+
     @Test
     fun nothingThereIsEmpty() = runTest(dispatcher) {
         answer = { _, _ -> ApiResult.Ok(Page(emptyList(), 0)) }

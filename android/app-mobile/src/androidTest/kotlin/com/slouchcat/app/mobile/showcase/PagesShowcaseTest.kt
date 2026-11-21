@@ -54,7 +54,7 @@ class PagesShowcaseTest {
     private val images = ShowcaseImages(BrowseShowcaseData.names + PagesShowcaseData.names).also { it.squareIds = BrowseShowcaseData.squareIds }
 
     private val showcase = Showcase(compose, pages, BrowseShowcaseData.libraries, images, PagesShowcaseData.auth, PagesShowcaseData.devices) { graph ->
-        MediaData.install(graph, PagesShowcaseData.data(MediaData.api(graph.api, graph.http)))
+        PagesShowcaseData.data(MediaData.api(graph.api, graph.http))
     }
 
     @After
