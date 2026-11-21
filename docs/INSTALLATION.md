@@ -306,6 +306,24 @@ nicht auf das Ende warten.
 
 Eine Installation, die schon vor Version 1.35 eingerichtet war, sieht den Assistenten nicht.
 
+### Meldungen an die Android-App: die Push-Weiterleitung
+
+Die Android-App bekommt Push-Meldungen nicht direkt vom Server, sondern über die Push-Weiterleitung des
+Projekts unter `https://push.slouchcat.com`. Sie reicht die verschlüsselten Meldungen an Google weiter
+und liest sie nicht. Der Server erkennt ihre Push-Adressen am Ursprung und schickt dorthin kürzere
+Meldungen (höchstens 350 Zeichen Text); nur wenn die Weiterleitung meldet, dass das Handy die App nicht
+mehr hat, löscht er das Abo, jeden anderen Fehler versucht er erneut. Dafür steht in `.env`:
+
+```bash
+# Ursprung der Push-Weiterleitung; leer = https://push.slouchcat.com.
+SLOUCHCAT_PUSH_RELAY=
+```
+
+Ändern musst du den Wert nur, wenn du eine eigene Push-Weiterleitung betreibst oder das Projekt sie
+umzieht; dann für die Zeit des Umzugs alte und neue Adresse durch Komma getrennt. Der Server muss die
+Weiterleitung über deren **öffentliche Adresse** im Internet erreichen, auch wenn die Handys im Heimnetz
+sind: Ein Server ohne Zugang nach draussen kann der App keine Meldungen schicken.
+
 ## 6. Von aussen erreichbar machen (HTTPS)
 
 Im Heimnetz reicht `http://…:8096`. Von unterwegs brauchst du HTTPS: Browser verlangen es für die
