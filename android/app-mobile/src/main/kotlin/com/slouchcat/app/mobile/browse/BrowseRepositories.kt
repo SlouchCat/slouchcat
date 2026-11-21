@@ -14,6 +14,7 @@ import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.LibraryFacets
 import com.slouchcat.core.api.generated.models.LibraryItemStatus
 import com.slouchcat.core.api.generated.models.LibrarySort
+import com.slouchcat.core.api.generated.models.RootContent
 import com.slouchcat.core.api.map
 import okhttp3.Call
 import okhttp3.HttpUrl
@@ -45,6 +46,8 @@ data class LibraryQuery(
     val yearFrom: Int? = null,
     val yearTo: Int? = null,
     val status: List<LibraryItemStatus> = emptyList(),
+    /** One content kind of a library with several (the chips «Filme», «Serien»). */
+    val content: RootContent? = null,
 )
 
 /** One page of a library with what it may filter by. */
@@ -84,6 +87,7 @@ class ApiLibraryRepository(private val api: ApiCaller, private val http: Call.Fa
     override suspend fun items(server: HttpUrl, library: Long, query: LibraryQuery, offset: Int, limit: Int) = api.call("library") {
         SlouchcatApi.create(::ItemsApi, server, http).listLibraryItems(
             id = library,
+            content = query.content,
             sort = query.sort,
             order = query.descending?.let { if (it) ItemsApi.OrderListLibraryItems.DESC else ItemsApi.OrderListLibraryItems.ASC },
             genre = query.genre,

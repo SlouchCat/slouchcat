@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -21,9 +22,12 @@ import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.generated.apis.AccountApi
 import com.slouchcat.core.api.generated.apis.AuthApi
+import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.ProfilesApi
 import com.slouchcat.core.api.generated.apis.SetupApi
 import com.slouchcat.core.api.generated.models.AppLoginRequest
+import com.slouchcat.core.api.generated.models.LibraryKind
+import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.PinRequest
 import com.slouchcat.core.api.generated.models.SelectProfileRequest
 import com.slouchcat.core.api.generated.models.SetupRequest
@@ -39,7 +43,8 @@ import java.io.File
 /**
  * The way of a new phone through the app against a real server (task android:e2e, concept 27 12
  * «Gerät»): server address, sign-in (a wrong password first), profile choice with PIN (a wrong PIN
- * first), «Mehr», «Meine Geräte» with this device and signing out another one, «Konto», sign-out.
+ * first), the start page and a library with filter and order (stage 4), «Mehr», «Meine Geräte» with
+ * this device and signing out another one, «Konto», sign-out.
  *
  * Arguments (`-Pandroid.testInstrumentationRunnerArguments.<name>=…`): `slouchcatServer` (default
  * `http://10.0.2.2:8597`), `slouchcatEmail`, `slouchcatPassword`, `slouchcatPin`; `slouchcatShots`
@@ -74,7 +79,14 @@ class SignInFlowTest {
         val primary = auth.listMyProfiles()!!.single { it.isPrimary }
         auth.selectProfile(primary.id, if (primary.hasPin) SelectProfileRequest(pin) else null)
         SlouchcatApi.create(::ProfilesApi, server, http).setProfilePin(primary.id, PinRequest(pin))
+        // What stage 4 browses, read before the wrong PIN of the flow (it slows the profile down).
+        val items = SlouchcatApi.create(::ItemsApi, server, http)
+        libraries = items.listVisibleLibraries()!!
+        filmGenre = libraries.firstOrNull { it.kind == LibraryKind.VIDEO }?.let { items.listLibraryItems(it.id, limit = 1)!!.facets.genres.firstOrNull()?.name }
     }
+
+    private var libraries: List<LibraryNav> = emptyList()
+    private var filmGenre: String? = null
 
     /** A client of another device (a TV) signed in to the account. */
     private fun signedIn(name: String, secret: String, kind: AppLoginRequest.Kind = AppLoginRequest.Kind.TV): okhttp3.OkHttpClient {
@@ -117,6 +129,94 @@ class SignInFlowTest {
 
     private var resumed: MainActivity? = null
 
+    /** A media entry: through the menu on the phone, in the side column from 700 dp. */
+    private fun openMedia(name: String) {
+        val menu = compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen)) and hasClickAction()).fetchSemanticsNodes()
+        if (menu.isNotEmpty()) {
+            compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen)) and hasClickAction()).onFirst().performClick()
+            compose.waitForIdle()
+        }
+        compose.onAllNodes(hasText(name) and hasClickAction()).onLast().performClick()
+        waitFor(hasText(name) and isHeading())
+        waitFor(hasContentDescription(s(R.string.app_browse_sortLabel, "").trim(), substring = true))
+    }
+
+    private fun waitForStart() = waitFor(hasText(s(R.string.home_rows_recent)) or hasText(s(R.string.home_empty_title)), 30_000)
+
+    /**
+     * Stage 4 (concept 27, 13): the start page; with the test media of `task testdata:media` (the
+     * server seeded by apicheck) the menu, a library filtered by a genre and a decade and sorted, the
+     * square covers of audiobooks and podcasts, and the list behind «Neu hinzugefügt». A server without
+     * media shows the empty start page.
+     */
+    private fun browse() {
+        waitForStart()
+        shot("b01-start")
+        if (libraries.isEmpty()) {
+            waitForText(s(R.string.home_empty_title))
+            return
+        }
+        if (compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen))).fetchSemanticsNodes().isNotEmpty()) {
+            compose.onAllNodes(hasContentDescription(s(R.string.app_shell_menuOpen)) and hasClickAction()).onFirst().performClick()
+            waitForText(libraries.first().name)
+            shot("b02-media-choice")
+            back()
+        }
+        val films = libraries.first { it.kind == LibraryKind.VIDEO }
+        openMedia(films.name)
+        shot("b03-library")
+
+        // Genre: the facets of the server name what the sheet offers.
+        val genre = filmGenre
+        if (genre != null) {
+            button(s(R.string.library_filters_genre)).performClick()
+            waitForText(s(R.string.library_filters_allGenres))
+            shot("b04-sheet-genre")
+            button(genre).performClick()
+            compose.waitUntil(20_000) { compose.onAllNodes(hasText(s(R.string.library_filters_allGenres))).fetchSemanticsNodes().isEmpty() }
+            waitFor(hasText(genre) and hasClickAction())
+            shot("b05-library-genre")
+        }
+        button(s(R.string.library_filters_year)).performClick()
+        waitForText(s(R.string.app_browse_allYears))
+        shot("b06-sheet-year")
+        button(s(R.string.common_close)).performScrollTo().performClick()
+
+        compose.onNode(hasContentDescription(s(R.string.app_browse_sortLabel, s(R.string.library_sort_added))) and hasClickAction()).performClick()
+        waitForText(s(R.string.app_browse_sortTitle))
+        shot("b07-sheet-sort")
+        button(s(R.string.app_browse_sortTitleAz)).performClick()
+        waitFor(hasContentDescription(s(R.string.app_browse_sortLabel, s(R.string.app_browse_sortTitleAz))))
+        if (genre != null) {
+            button(s(R.string.app_browse_all)).performClick()
+            waitFor(hasText(s(R.string.library_filters_genre)) and hasClickAction())
+        }
+        shot("b08-library-sorted")
+        back()
+        waitForStart()
+
+        // Square covers.
+        libraries.firstOrNull { it.kind == LibraryKind.AUDIOBOOKS }?.let {
+            openMedia(it.name)
+            shot("b09-library-books")
+            back()
+            waitForStart()
+        }
+        libraries.firstOrNull { it.kind == LibraryKind.PODCASTS }?.let {
+            openMedia(it.name)
+            shot("b10-library-podcasts")
+            back()
+            waitForStart()
+        }
+
+        // «Alle» of a row: the whole list.
+        compose.onNode(hasContentDescription(s(R.string.app_browse_showAllLabel, s(R.string.home_rows_recent))) and hasClickAction()).performScrollTo().performClick()
+        waitFor(hasText(s(R.string.home_rows_recent)) and isHeading())
+        shot("b11-list-recent")
+        back()
+        waitForStart()
+    }
+
     @Test
     fun fromTheAddressToSigningOut() {
         prepareServer()
@@ -157,7 +257,11 @@ class SignInFlowTest {
         pin.forEach { button(it.toString()).performClick() }
         compose.onAllNodes(hasContentDescription(s(R.string.profiles_pin_submit))).onLast().performClick()
 
-        // «Mehr», the server sheet.
+        // Stage 4: the start page, a library with filter and order, the list behind a row.
+        browse()
+
+        // «Mehr» through the bar (or the side column), the server sheet.
+        compose.onAllNodes((hasContentDescription(s(R.string.app_more_title)) or hasText(s(R.string.app_more_title))) and hasClickAction()).onFirst().performClick()
         waitFor(hasText(s(R.string.app_more_title)) and isHeading())
         shot("07-more")
         button(server.host).performScrollTo().performClick()

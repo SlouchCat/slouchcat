@@ -135,6 +135,8 @@ fun SlouchcatChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: SlouchcatIcon? = null,
+    /** After the label, for a chip that opens a choice (`.bx-drop`: «Genre ⌄»). */
+    trailingIcon: SlouchcatIcon? = null,
 ) {
     val c = SlouchcatTheme.colors
     androidx.compose.material3.FilterChip(
@@ -143,6 +145,7 @@ fun SlouchcatChip(
         label = { Text(text, style = SlouchcatType.chip) },
         modifier = modifier.defaultMinSize(minHeight = 36.dp),
         leadingIcon = icon?.let { { SlouchcatIconImage(it, contentDescription = null, size = 18.dp) } },
+        trailingIcon = trailingIcon?.let { { SlouchcatIconImage(it, contentDescription = null, size = 16.dp) } },
         shape = RoundedCornerShape(10.dp),
         colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
             containerColor = Color.Transparent,
@@ -151,6 +154,7 @@ fun SlouchcatChip(
             selectedContainerColor = c.tx,
             selectedLabelColor = c.bg,
             selectedLeadingIconColor = c.bg,
+            selectedTrailingIconColor = c.bg,
         ),
         border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
             enabled = true,

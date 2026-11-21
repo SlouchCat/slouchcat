@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.shell
 
+import com.slouchcat.app.mobile.home.HomeFeature
 import com.slouchcat.app.mobile.more.MoreFeature
 
 /**
@@ -10,5 +11,6 @@ import com.slouchcat.app.mobile.more.MoreFeature
  * each with its trailing comma, and its import on a line of its own.
  */
 val features: List<Feature> = listOf(
+    HomeFeature,
     MoreFeature,
 )

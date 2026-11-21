@@ -72,7 +72,8 @@ const val IMAGE_LOADED_TAG = "media-image-loaded"
  * An image of the server in the size its box needs ([ImageSet.pick] by the measured width), on
  * the surface colour while it loads. Without an image, or when it fails, a field with [name]
  * stands in its place (mockup `pic()`: «zeigt bei einem fehlenden Bild ein Feld mit dem Namen»).
- * Decorative: the card around it carries the name for the screen reader.
+ * Decorative: the card around it carries the name for the screen reader. [surface] `false`: no
+ * surface behind it (a logo with transparency); [placeholder] `false`: nothing in place of a missing one.
  */
 @Composable
 fun MediaImage(
@@ -81,14 +82,16 @@ fun MediaImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     placeholder: Boolean = true,
+    surface: Boolean = true,
 ) {
     val c = SlouchcatTheme.colors
-    BoxWithConstraints(modifier.background(c.s2)) {
+    BoxWithConstraints(if (surface) modifier.background(c.s2) else modifier) {
         val px = with(LocalDensity.current) { maxWidth.roundToPx() }
         val url = remember(images, px) { images.pick(px) }
         var state by remember(url) { mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty) }
         val loaded = state is AsyncImagePainter.State.Success
-        if (!loaded && placeholder && (url == null || state is AsyncImagePainter.State.Error)) {
+        // The name stands until the image is there: also while it loads and when it never comes.
+        if (!loaded && placeholder) {
             Box(
                 Modifier
                     .fillMaxSize()

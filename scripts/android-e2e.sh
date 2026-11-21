@@ -66,8 +66,11 @@ fail() {
 
 started=$(date +%s)
 
-# The server: fresh data, no TMDB key, on the loopback only (code review minor 30).
-SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# The server: fresh data, no TMDB key, on the loopback only (code review minor 30). With the
+# synthetic media of `task testdata:media` it may read them (stage 4 browses a library).
+media=""
+if [ -d ../testdata/media/Movies ]; then media=$(cd ../testdata/media && pwd); fi
+env ${media:+SLOUCHCAT_BROWSE_ROOTS=$media} SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -78,6 +81,18 @@ for _ in $(seq 1 120); do
   sleep 0.5
 done
 grep -q 'msg=listening' "$root/server.log" || fail "the server reported no address within 60 s"
+
+# With media: apicheck sets the server up as its fixture (account, primary profile with PIN,
+# films, audiobooks, podcasts, scanned); the flow signs in with that account. Without media
+# (CI) the flow sets up its own account and sees the empty start page.
+flow_args=()
+if [ -n "$media" ]; then
+  (cd ../server && go build -o bin/apicheck ./cmd/apicheck)
+  ../server/bin/apicheck -base "http://127.0.0.1:$port" -spec ../api/openapi.yaml -testdata ../testdata -devices \
+    >"$root/apicheck.log" 2>&1 || { cat "$root/apicheck.log" >&2; fail "apicheck could not seed the server"; }
+  flow_args=(slouchcatEmail apicheck-owner@slouchcat.test slouchcatPassword apicheck-password-0123)
+  echo "android-e2e: server seeded with the test media"
+fi
 
 # One emulator at a time: wait while another one runs (another agent's).
 waited=0
@@ -123,6 +138,8 @@ for _ in $(seq 1 60); do
 done
 adb uninstall "$app" >/dev/null 2>&1 || true
 adb uninstall "$app.test" >/dev/null 2>&1 || true
+# Photos of an earlier run belong to the uid of the old install: the new one could not write there.
+adb shell rm -rf "/sdcard/Android/data/$app" >/dev/null 2>&1 || true
 # The network of the emulator comes up after the boot: without it the first request fails
 # with ENETUNREACH.
 for _ in $(seq 1 60); do
@@ -132,14 +149,20 @@ done
 
 server_url="http://10.0.2.2:$port"
 if [ -z "$shots" ]; then
+  gradle_args=()
+  for ((i = 0; i < ${#flow_args[@]}; i += 2)); do
+    gradle_args+=("-Pandroid.testInstrumentationRunnerArguments.${flow_args[i]}=${flow_args[i + 1]}")
+  done
   ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:connectedPlayDebugAndroidTest \
-    "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" || fail "the flow failed"
+    "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" "${gradle_args[@]}" || fail "the flow failed"
 else
   ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-mobile:assemblePlayDebug :app-mobile:assemblePlayDebugAndroidTest
   adb install -r -t app-mobile/build/outputs/apk/play/debug/app-mobile-play-debug.apk >/dev/null
   adb install -r -t app-mobile/build/outputs/apk/androidTest/play/debug/app-mobile-play-debug-androidTest.apk >/dev/null
   if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
-  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatShots 1 \
+  am_args=()
+  for ((i = 0; i < ${#flow_args[@]}; i += 2)); do am_args+=(-e "${flow_args[i]}" "${flow_args[i + 1]}"); done
+  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatShots 1 "${am_args[@]}" \
     "$app.test/androidx.test.runner.AndroidJUnitRunner")
   echo "$out" | grep -E "^(OK|FAILURES|Tests run)|Exception|Error" | head -n 12
   echo "$out" | grep -q '^OK (' || fail "the flow failed"
