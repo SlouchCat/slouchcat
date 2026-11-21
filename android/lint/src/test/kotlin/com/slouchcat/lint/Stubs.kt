@@ -21,6 +21,7 @@ object Stubs {
                 val Red = Color(0xFFFF0000UL)
                 val Transparent = Color(0UL)
                 val Unspecified = Color(16UL)
+                fun hsl(hue: Float, saturation: Float, lightness: Float): Color = Color(0UL)
             }
         }
         fun Color(color: Long): Color = Color(color.toULong())
@@ -66,6 +67,51 @@ object Stubs {
         }
         """,
     ).indented()
+
+    /** Modifier with clickable and semantics, the snackbar host, @Preview and toColorInt. */
+    val modifier: TestFile = kotlin(
+        """
+        package androidx.compose.ui
+        interface Modifier { companion object : Modifier }
+        """,
+    ).indented()
+
+    val more: List<TestFile> by lazy { listOf(
+        modifier,
+        kotlin(
+            """
+            package androidx.compose.foundation
+            import androidx.compose.ui.Modifier
+            fun Modifier.clickable(onClickLabel: String? = null, onClick: () -> Unit): Modifier = this
+            """,
+        ).indented(),
+        kotlin(
+            """
+            package androidx.compose.ui.semantics
+            import androidx.compose.ui.Modifier
+            interface SemanticsPropertyReceiver { var contentDescription: String }
+            fun Modifier.semantics(properties: SemanticsPropertyReceiver.() -> Unit): Modifier = this
+            """,
+        ).indented(),
+        kotlin(
+            """
+            package androidx.compose.material3
+            class SnackbarHostState { suspend fun showSnackbar(message: String, actionLabel: String? = null): Unit = Unit }
+            """,
+        ).indented(),
+        kotlin(
+            """
+            package androidx.compose.ui.tooling.preview
+            annotation class Preview
+            """,
+        ).indented(),
+        kotlin(
+            """
+            package androidx.core.graphics
+            fun String.toColorInt(): Int = 0
+            """,
+        ).indented(),
+    ) }
 
     val logSink: TestFile = kotlin(
         """

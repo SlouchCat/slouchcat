@@ -15,7 +15,7 @@ class RulesTest : LintDetectorTest() {
         lint()
             .files(
                 Stubs.composable, Stubs.color, Stubs.text, Stubs.stringResource, Stubs.tokens,
-                Stubs.androidLog, Stubs.logSink, *files,
+                Stubs.androidLog, Stubs.logSink, *Stubs.more.toTypedArray(), *files,
             )
             .issues(*getIssues().toTypedArray())
             .testModes(TestMode.DEFAULT)
@@ -109,16 +109,80 @@ class RulesTest : LintDetectorTest() {
                     error.printStackTrace()
                 }
 
-                class AndroidSink : LogSink {
+                class SecondSink : LogSink {
                     override fun write(priority: Int, tag: String, message: String) {
                         Log.println(priority, tag, message)
                     }
                 }
                 """,
             ).indented(),
-        ).expectErrorCount(3)
+            kotlin(
+                """
+                package com.slouchcat.app.mobile
+                import android.util.Log
+                import com.slouchcat.core.api.log.LogSink
+
+                class AndroidLogSink : LogSink {
+                    override fun write(priority: Int, tag: String, message: String) {
+                        Log.println(priority, tag, message)
+                    }
+                }
+                """,
+            ).indented(),
+        ).expectErrorCount(4)
             .expectContains("android.util.Log.d umgeht den Logger")
+            .expectContains("android.util.Log.println umgeht den Logger")
             .expectContains("println umgeht den Logger")
             .expectContains("printStackTrace umgeht den Logger")
+    }
+
+    fun testTextInLabelsSemanticsAndBranches() {
+        check(
+            kotlin(
+                """
+                package com.slouchcat.app
+                import androidx.compose.material3.SnackbarHostState
+                import androidx.compose.material3.Text
+                import androidx.compose.runtime.Composable
+                import androidx.compose.ui.Modifier
+                import androidx.compose.ui.semantics.semantics
+                import androidx.compose.foundation.clickable
+                import androidx.compose.ui.tooling.preview.Preview
+
+                @Composable
+                fun Page(on: Boolean, host: SnackbarHostState) {
+                    Text(if (on) "An" else "Aus")
+                    Text(when { on -> "Ja"; else -> "Nein" })
+                    val m = Modifier.clickable(onClickLabel = "Öffnen") {}.semantics { contentDescription = "Bild" }
+                    suspend fun tell() = host.showSnackbar("Gespeichert")
+                }
+
+                @Preview
+                @Composable
+                fun PagePreview() { Text("Vorschau") }
+                """,
+            ).indented(),
+        ).expectErrorCount(5)
+            .expectContains("Fester Text an onClickLabel von clickable")
+            .expectContains("Fester Text in contentDescription")
+            .expectContains("Fester Text an message von showSnackbar")
+    }
+
+    fun testColourConstantsAndOtherForms() {
+        check(
+            kotlin(
+                """
+                package com.slouchcat.app
+                import androidx.compose.ui.graphics.Color
+                import androidx.core.graphics.toColorInt
+
+                const val ACCENT = 0xFFE8794A
+                val a = Color(ACCENT)
+                val b = Color(-1L)
+                val c = Color.hsl(20f, 0.5f, 0.5f)
+                val d = "#112233".toColorInt()
+                """,
+            ).indented(),
+        ).expectErrorCount(4)
     }
 }

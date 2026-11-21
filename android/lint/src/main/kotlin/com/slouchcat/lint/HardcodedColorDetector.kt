@@ -2,6 +2,7 @@ package com.slouchcat.lint
 
 import com.android.tools.lint.client.api.UElementHandler
 import com.android.tools.lint.detector.api.Category
+import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Implementation
 import com.android.tools.lint.detector.api.Issue
@@ -17,7 +18,8 @@ import org.jetbrains.uast.USimpleNameReferenceExpression
 
 /**
  * Rule 9, colours: a colour comes from the generated tokens (`SlouchcatTokens`) or the theme. Reports
- * `Color(<number>)` and the named constants `Color.Red` … of Compose, and `android.graphics.Color`
+ * `Color(<constant>)`, `Color.hsl/hsv(…)`, the named constants `Color.Red` … of Compose,
+ * `"#…".toColorInt()` and `android.graphics.Color`
  * built from literals (`parseColor("#…")`, `rgb(…)`, `argb(…)`). `Color.Transparent` and
  * `Color.Unspecified` are not colours and stay allowed.
  */
@@ -30,10 +32,14 @@ class HardcodedColorDetector : Detector(), Detector.UastScanner {
             if (context.isExempt()) return
             val name = node.methodName ?: return
             val owner = node.resolve()?.containingClass?.qualifiedName.orEmpty()
-            val literalArgs = node.valueArguments.isNotEmpty() && node.valueArguments.all { it is ULiteralExpression }
-            val compose = name == "Color" && owner.startsWith(COMPOSE_GRAPHICS)
+            // Literals and anything the compiler knows (`Color(ACCENT)`, `Color(-1)`).
+            val constantArgs = node.valueArguments.isNotEmpty() &&
+                node.valueArguments.all { it is ULiteralExpression || ConstantEvaluator.evaluate(context, it) != null }
+            val compose = name in setOf("Color", "hsl", "hsv") && owner.startsWith(COMPOSE_GRAPHICS)
             val platform = owner == "android.graphics.Color" && name in setOf("parseColor", "rgb", "argb", "valueOf")
-            if ((compose || platform) && literalArgs) {
+            // "#112233".toColorInt() (androidx.core.graphics)
+            val colorInt = name == "toColorInt" && node.receiver?.let { ConstantEvaluator.evaluate(context, it) is String } == true
+            if (((compose || platform) && constantArgs) || colorInt) {
                 context.report(ISSUE, node, context.getLocation(node), MESSAGE)
             }
         }

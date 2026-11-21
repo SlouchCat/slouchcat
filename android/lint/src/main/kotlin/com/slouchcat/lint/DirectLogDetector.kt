@@ -16,8 +16,8 @@ import org.jetbrains.uast.getParentOfType
  * Rule 10 for the apps (concept 27, 5.6): token, voucher and device id never reach a log. Every log
  * line goes through the redacting logger `com.slouchcat.core.api.log.Log`; this rule reports the
  * ways around it: `android.util.Log`, `println`/`print` (System.out lands in logcat) and
- * `printStackTrace`. The one place that may call `android.util.Log` is a `LogSink`: it receives
- * lines the logger has already redacted.
+ * `printStackTrace`. The one place that may call `android.util.Log` is the named `LogSink` of each app
+ * ([ALLOWED_SINKS]): it receives lines the logger has already redacted.
  */
 class DirectLogDetector : Detector(), Detector.UastScanner {
     override fun getApplicableMethodNames() =
@@ -35,7 +35,7 @@ class DirectLogDetector : Detector(), Detector.UastScanner {
             else -> return
         }
         val owner = node.getParentOfType<UClass>(UClass::class.java)
-        if (owner != null && evaluator.inheritsFrom(owner.javaPsi, LOG_SINK, false)) return
+        if (owner != null && owner.qualifiedName in ALLOWED_SINKS && evaluator.inheritsFrom(owner.javaPsi, LOG_SINK, false)) return
         context.report(
             ISSUE,
             node,
@@ -46,6 +46,9 @@ class DirectLogDetector : Detector(), Detector.UastScanner {
 
     companion object {
         private const val LOG_SINK = "com.slouchcat.core.api.log.LogSink"
+
+        /** The named sinks that may write to logcat: one per app. A new one belongs here, reviewed. */
+        val ALLOWED_SINKS = setOf("com.slouchcat.app.mobile.AndroidLogSink", "com.slouchcat.app.tv.AndroidLogSink")
 
         val ISSUE: Issue = Issue.create(
             id = "SlouchcatDirectLog",
