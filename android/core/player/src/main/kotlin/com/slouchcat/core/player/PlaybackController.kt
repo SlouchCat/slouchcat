@@ -103,6 +103,7 @@ class PlaybackController(
 
     /** The number of the engine's current load; events of other loads are dropped. */
     private var loadId = NO_LOAD
+    private var loads = 0L
 
     /** The position the running start asked for (the place to come back to from the background). */
     private var pendingPositionMs: Long? = null
@@ -493,7 +494,8 @@ class PlaybackController(
         seq = 1
         playedMs = 0
         playingSince = null
-        loadId = engine.load(next, started.resumePositionMs, play)
+        loadId = ++loads
+        engine.load(next, started.resumePositionMs, play, loadId)
         startLoops(started)
     }
 
@@ -681,7 +683,8 @@ class PlaybackController(
                 }
                 val again = media ?: return@launch
                 mutable.update { it.copy(error = null) }
-                loadId = engine.load(again, position, play)
+                loadId = ++loads
+                engine.load(again, position, play, loadId)
                 return@launch
             }
         }
@@ -892,6 +895,7 @@ class PlaybackController(
         const val TRANSCODE_BUSY = "transcode_busy"
         const val PROFILE_REQUIRED = "profile_required"
         const val HTTP_NOT_FOUND = 404
+        /** Matches no event, not even those of [PlayerEngine.stop]. */
         private const val NO_LOAD = -1L
     }
 }

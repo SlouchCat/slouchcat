@@ -58,9 +58,8 @@ class Media3Engine(
     private val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
     override val events: Flow<EngineSignal> = signals.asSharedFlow()
 
-    /** The number of the current load; [stop] moves it on, so its own events belong to no load. */
-    private var current = 0L
-    private var counter = 0L
+    /** The number of the current load; [stop] sets [PlayerEngine.NO_LOAD], so its own events belong to no load. */
+    private var current = PlayerEngine.NO_LOAD
 
     private fun emit(event: EngineEvent) {
         signals.tryEmit(EngineSignal(current, event))
@@ -132,8 +131,8 @@ class Media3Engine(
     override val durationMs: Long get() = player.duration.takeIf { it != C.TIME_UNSET } ?: 0
     override val bufferedMs: Long get() = player.bufferedPosition
 
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean): Long {
-        current = ++counter
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long) {
+        current = load
         val item = MediaItem.Builder()
             .setUri(media.url)
             .setMimeType(if (media.hls) MimeTypes.APPLICATION_M3U8 else null)
@@ -158,7 +157,6 @@ class Media3Engine(
         player.setMediaItem(item, startMs.coerceAtLeast(0))
         player.playWhenReady = play
         player.prepare()
-        return current
     }
 
     override fun play() {
@@ -193,7 +191,7 @@ class Media3Engine(
     }
 
     override fun stop() {
-        current = ++counter
+        current = PlayerEngine.NO_LOAD
         player.stop()
         player.clearMediaItems()
         lastTracks = Tracks.EMPTY

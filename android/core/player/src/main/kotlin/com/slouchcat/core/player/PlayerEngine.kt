@@ -11,7 +11,7 @@ interface PlayerEngine {
     /**
      * What happens in the player, each with the number of the load it belongs to; a hot flow,
      * collected by the controller. What [stop] causes (the empty tracks, the end of playing)
-     * carries a number no load has, so a late event of an old load never reaches a new one.
+     * carries [NO_LOAD], so a late event of an old load never reaches a new one.
      */
     val events: Flow<EngineSignal>
 
@@ -19,8 +19,16 @@ interface PlayerEngine {
     val durationMs: Long
     val bufferedMs: Long
 
-    /** Loads [media] at [startMs]; [play]: start at once. Answers the number its events carry. */
-    fun load(media: EngineMedia, startMs: Long, play: Boolean): Long
+    /**
+     * Loads [media] at [startMs]; [play]: start at once. Its events carry [load] (the caller's
+     * number, known before the first event, which may arrive while this call still runs).
+     */
+    fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long)
+
+    companion object {
+        /** The number of the events of [stop] and of no load at all. */
+        const val NO_LOAD = 0L
+    }
 
     fun play()
 
@@ -56,7 +64,7 @@ data class EngineMedia(
     override fun toString() = "EngineMedia(hls=$hls, subtitles=${subtitleUrl != null}, title=$title)"
 }
 
-/** One [EngineEvent] of the load numbered [load] (the answer of [PlayerEngine.load]). */
+/** One [EngineEvent] of the load numbered [load] (the number given to [PlayerEngine.load]). */
 data class EngineSignal(val load: Long, val event: EngineEvent)
 
 /** One audio or text group of the player, in the order of the file. */

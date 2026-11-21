@@ -30,8 +30,10 @@ import java.time.OffsetDateTime
 class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
     override val events = signals
-    private var current = 0L
-    private var counter = 0L
+    private var current = PlayerEngine.NO_LOAD
+
+    /** Whether the player wants to play (play/pause of the page). */
+    val wantsPlay: Boolean get() = wants
 
     /** The number of the current load (to send a late event of an old one in a test). */
     val load: Long get() = current
@@ -55,13 +57,14 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     override val durationMs: Long get() = duration
     override val bufferedMs: Long get() = positionMs
 
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean): Long {
-        current = ++counter
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long) {
+        current = load
         loads += Triple(media, startMs, play)
         running = false
         wants = play
         base = startMs
-        return current
+        // Media3 says what it wants while load() still runs.
+        emit(EngineEvent.WantsToPlay(play))
     }
 
     /** Media3 has buffered: it plays if it was asked to, the first picture is there. */
@@ -109,7 +112,7 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     }
 
     override fun stop() {
-        current = ++counter
+        current = PlayerEngine.NO_LOAD
         stops++
         base = positionMs
         val was = running

@@ -35,15 +35,13 @@ import java.time.OffsetDateTime
 class FakePlayerEngine : PlayerEngine {
     val flow = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 16)
     override val events = flow
-    private var counter = 0L
     val loads = mutableListOf<EngineMedia>()
     var released = false
     override val positionMs: Long = 0
     override val durationMs: Long = 0
     override val bufferedMs: Long = 0
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean): Long {
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long) {
         loads += media
-        return ++counter
     }
     override fun play() = Unit
     override fun pause() = Unit

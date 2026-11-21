@@ -9,7 +9,9 @@ import com.slouchcat.core.api.generated.models.QualityCap
 import com.slouchcat.core.api.generated.models.Segment
 import com.slouchcat.core.api.generated.models.TrackSelection
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -809,5 +811,23 @@ class PlaybackControllerTest {
         assertFalse(state.toString(), state.toString().contains("st="))
         assertFalse(EngineMedia("http://server.test/a?st=secret", hls = false).toString().contains("secret"))
         assertFalse(TrickplayTile("http://server.test/t?st=secret", 0, 0, 1, 1, 0).toString().contains("secret"))
+    }
+
+    /**
+     * Media3 tells what it wants while load() runs; with the immediate main dispatcher of a page the
+     * controller hears it at once. The number of the load must be known before (else pause played).
+     */
+    @Test
+    fun theWishToPlayDuringTheLoadCounts() = runTest {
+        val clock = { testScheduler.currentTime }
+        val engine = FakeEngine(clock)
+        val server = FakeServer()
+        val immediate = CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))
+        val controller = PlaybackController(immediate, backgroundScope, server, engine, { CapabilityRules.build(emulator, narrowing = it) }, MemoryDeviceSettingsStore().settings, { false }, clock)
+        controller.start("film")
+        runCurrent()
+        assertTrue(engine.wantsPlay)
+        controller.togglePlay()
+        assertFalse("the toggle paused", engine.wantsPlay)
     }
 }
