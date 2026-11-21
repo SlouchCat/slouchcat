@@ -6,8 +6,8 @@
 - Quelle: Konzept `docs/planning/27-android-handy-app.md` (K27), Abschnitte 2.3, 4, 11.5 und 15.1;
   Konzept `docs/planning/26-android-tv.md` (K26), Abschnitte 4.2, 4.5 und Anhang B; Marcos Entscheide
   E-7, E-8, E-14, E-15, E-16 und F-4; Frage 34 und Frage 35 in `docs/planning/04-entscheidungen.md`
-- Vertrag: 1.42.0 (zusätzlich); Migrationen `00082_session_kind.sql`, `00084_pairing_vouchers.sql`,
-  `00085_device_linked_deliveries.sql`
+- Vertrag: 1.42.0 (zusätzlich); Migrationen `00082_session_kind.sql`, `00083_pairing_vouchers.sql`,
+  `00084_device_linked_deliveries.sql`
 - Harte Regeln: 5 (Migration nach Vorlage), 7 (`x-visibility` und neu `x-clients`, Vertragstest),
   9 (Texte), 10 (Token und Gerätekennung redigiert), 12 (Entscheid im Server)
 
@@ -54,6 +54,25 @@ die Frage nie; im Vertrag erzwingt sie der Schema-Test.
 | Verwaltung | `listDevices` nennt je Gerät `sessionKind`, die Art der lebenden Sitzung mit dem jüngsten Kontakt; die Geräteliste zeigt sie in der Spalte «Anmeldung» |
 | Logs | Die Redaktionsliste kennt `apptoken`, `devicetoken` und `slouchcatdevice` (dazu wie bisher `token`, `authorization`, `deviceid`) |
 
+## Meine Geräte und Aufräumen
+
+Teil 2 von Stufe 1 (K27 4.5 und 15.1, F-15, F-24, F-40; K26 E-9 und F-19). Vertrag 1.42.0, ohne Migration.
+
+| Punkt | Entscheid |
+|---|---|
+| Operationen | `listMyDevices` (`GET /account/devices`) und `signOutMyDevice` (`DELETE /account/devices/{deviceId}`), beide `account` mit `x-clients: [app]`. Eine Gerätesitzung (TV) bekommt 403 `client_not_allowed`, sonst könnte ein gekoppelter Fernseher die echten Geräte abmelden (K26 4.5) |
+| Welche Geräte | Jedes Gerät mit einer lebenden Sitzung **oder** einem Download des Kontos (`ListMyDevices`). Massgeblich ist das Konto der Sitzung oder des Downloads, nie `devices.account_id` (Besitzer des letzten Abspielstarts). Ein Browser mit abgelaufener Sitzung bleibt so in der Liste, solange er Downloads des Kontos hält; dann fehlen `sessionKind` und `signedInAt` |
+| Felder | `MyDevice`: `id`, `name`, `type`, `sessionKind` und `signedInAt` der lebenden Sitzung des Kontos mit dem jüngsten Kontakt, `lastSeenAt` des Geräts, `downloads` (Anzahl des Kontos), `current` (Gerät der aufrufenden Sitzung) |
+| Wer darf | Lesen jedes Profil. Abmelden nur eine Sitzung ohne aktives Profil oder mit dem Hauptprofil (403 `primary_profile_required`, die Regel der Meldekanäle). Ein Gerät ohne Sitzung und ohne Download des Kontos, ein fremdes Gerät und die reservierte Kennung `ffff…` sind 404 |
+| Abmelden | Räumt in einer Transaktion alles weg, was **dieses Konto** auf dem Gerät hat, und nichts eines anderen Kontos: die Sitzungen (ihre Streams und Radio-Sitzungen enden vorher wie bei `logout`), übrige Wiedergaben, die Downloads (der Auslöser `downloads_tombstone` schreibt die Widerrufsliste; die Dateien räumt die Aufräumung von `offline` mit, wie nach `deleteDevice`), die Push-Abos des Kontos auf dem Gerät und die Regeln für Auto-Downloads der Profile des Kontos. Die Gerätezeile bleibt; ganz vergessen bleibt `deleteDevice` der Verwaltung, für alle Konten |
+| Eigenes Gerät | Erlaubt; es beendet die eigene Sitzung. Ein Browser bekommt dabei das Sitzungs-Cookie gelöscht wie bei `logout`, die Web-App meldet sich danach auch hier ab |
+| Push bei `logout` | `logout` einer App- oder Gerätesitzung löscht die Push-Abos des Kontos auf ihrem Gerät (`DeleteSessionPushSubscriptions`); die App trägt ihr Abo bei der nächsten Anmeldung neu ein. Ein Browser behält sein Abo (F-40) |
+| Push bei `deleteDevice` | löscht die Abos des Geräts aller Konten **vor** der Gerätezeile (`DeleteDevicePushSubscriptions`); danach wäre die Kennung im Abo leer (`ON DELETE SET NULL`) und das Abo nicht mehr zu finden |
+| Passwortänderung | `updateAccount` mit neuem Passwort entzieht wie bisher jede andere Sitzung, App- und Gerätesitzungen eingeschlossen (F-24), und löscht dazu die Push-Abos des Kontos auf den Geräten dieser App- und Gerätesitzungen (`DeleteOtherAppDevicePushSubscriptions`), nicht aber auf dem Gerät der aufrufenden Sitzung. Abos von Browsern bleiben, weil ein Browser sich nicht von selbst neu einträgt (F-40) |
+| Bekannte Grenze | Abos ohne Gerätekennung (aus der Zeit vor 1.42.0, oder ihr Gerät hat die Aufräumung nach 400 Tagen gelöscht) räumt niemand auf. Sie fallen wie bisher nur bei 404/410 der Gegenstelle, mit dem Konto, über `deletePushSubscription` oder mit einem neuen VAPID-Schlüssel |
+| Web-App | Seite «Meine Geräte» unter `/settings/devices`, in der Seitenleiste im Band «Konto» für jedes Profil; ein anderes als das Hauptprofil sieht die Liste ohne «Abmelden» und mit Erklärung. Texte unter `settings.devices.*` |
+| PIN-Empfehlung | «Profile verwalten» zeigt einen Hinweis mit «PIN setzen», wenn das Hauptprofil keine PIN hat und ein anderes Profil des Kontos eine Altersgrenze (`maxRating` unter 18). Nur Empfehlung, keine Pflicht; die Angaben liefert `listProfiles` schon. Texte unter `profiles.pinAdvice.*`, damit die Apps denselben Hinweis an derselben Stelle zeigen (F-19) |
+
 ## Kopplung
 
 Teil 3 von Stufe 1 (K27 Abschnitte 7.2 und 10, K26 4.3 und 4.6). Formate und `info`-Werte stehen im
@@ -62,12 +81,12 @@ Logbuch unter «Protokolle»; die Testvektoren in `testdata/crypto/` halten sie 
 | Punkt | Entscheid |
 |---|---|
 | Gutschein ausstellen | `createPairingVoucher` (`POST /account/pairing-vouchers`, `account`, `x-clients: [app]`). Nur eine App-Sitzung: eine Browser-Sitzung bekommt 403 `app_session_required`, eine Gerätesitzung schon in der Middleware 403 `client_not_allowed`. Nur ohne aktives Profil oder mit dem Hauptprofil (F-23, `primary_profile_required`). Eingabe: der X25519-Schlüssel des Fernsehers aus dem QR-Code (`tvKey`, 32 Byte base64url, ein gültiger Punkt) |
-| Gutschein | 256 Bit Zufall in base64url, gültig 2 Minuten, einmal verwendbar, an `tvKey` gebunden, trägt die Art `tv`. Der Server speichert nur den SHA-256 (Tabelle `pairing_vouchers`, Migration 00084), höchstens einen offenen je Konto: ein neuer ersetzt den alten. Höchstens 6 Gutscheine je Minute und Konto. Die Aufräumung der Sitzungen löscht abgelaufene |
+| Gutschein | 256 Bit Zufall in base64url, gültig 2 Minuten, einmal verwendbar, an `tvKey` gebunden, trägt die Art `tv`. Der Server speichert nur den SHA-256 (Tabelle `pairing_vouchers`, Migration 00083), höchstens einen offenen je Konto: ein neuer ersetzt den alten. Höchstens 6 Gutscheine je Minute und Konto. Die Aufräumung der Sitzungen löscht abgelaufene |
 | Einlösen | `redeemPairingVoucher` (`POST /auth/pairing/redeem`, `public`): Gutschein, `tvKey`, Gerätename, Systemfassung. Der Server liest und löscht den Gutschein in einer Anweisung (`DELETE … RETURNING`); von gleichzeitigen Anfragen bekommt ihn nur eine. Danach prüft er Ablauf und Schlüssel. Ein Gutschein mit fremdem Schlüssel ist damit auch verbraucht: wer ihn kennt, aber den Schlüssel nicht hat, ist schon ein Zeichen eines Angriffs |
 | Antwort | Gerätesitzung über `StartAppSession` mit der Art `tv` (Gerätezeile sofort mit Name und Art, die Systemfassung als `user_agent`, neue Gerätekennung). Profil wie bei `appLogin`: ein einziges Profil ohne PIN ist gleich aktiv, sonst zeigt der Fernseher die Profilwahl. `sealedToken` = HPKE (RFC 9180, Base-Modus, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, `info` `slouchcat-redeem-v1`, `aad` leer) an `tvKey`, Klartext `{"token","deviceId"}`, aus der Standardbibliothek `crypto/hpke`. Dazu `accountEmail` für die Anzeige am Fernseher (K-9). `Cache-Control: no-store`, nie ein Cookie (auch kein Gerätecookie) |
 | Fehler | Unbekannt, abgelaufen, verbraucht und fremder Schlüssel ergeben dieselbe Antwort 410 `voucher_invalid`; der Fernseher zeigt in jedem Fall einen neuen Code. Nur das Log nennt den Grund (ohne den Gutschein). Jeder Versuch zählt in einem eigenen Topf je Adresse des Aufrufers (10 je Minute), nicht im Topf von `login` |
 | Meldung | Nach jeder Kopplung geht `device_linked` über **alle eingeschalteten Kanäle des Kontos** (E-Mail, Telegram, Push), unabhängig von den gewählten Ereignissen: sie meldet einen neuen Zugang zum Konto und ist darum nichts, was man abwählt. Sie nennt, was der Server selbst weiss (Zeitpunkt, Art des Geräts), und gibt Name und Systemfassung als Angabe des Geräts wieder (K-7). Texte des Servers in `de`, `en` und `de-DE`; die übrigen Sprachen fallen bis zur Übersetzungsrunde auf Englisch zurück |
-| Kleinster Weg für die Meldung | Die Liste in der App (`notifications`) hängt an einem Profil, und jede Art dort braucht einen Titel oder einen Wunsch (Migration 00070). Die Meldung gehört aber zum Konto. Darum bekommt nur `deliveries` das Ereignis `device_linked` (Migration 00085, Umbau nach Vorlage); die Liste in der App und die Ereignisse der Kanäle (`EventType`, `account_channels.events`) bleiben, wie sie sind. «Meine Geräte» zeigt das neue Gerät ohnehin |
+| Kleinster Weg für die Meldung | Die Liste in der App (`notifications`) hängt an einem Profil, und jede Art dort braucht einen Titel oder einen Wunsch (Migration 00070). Die Meldung gehört aber zum Konto. Darum bekommt nur `deliveries` das Ereignis `device_linked` (Migration 00084, Umbau nach Vorlage); die Liste in der App und die Ereignisse der Kanäle (`EventType`, `account_channels.events`) bleiben, wie sie sind. «Meine Geräte» zeigt das neue Gerät ohnehin |
 | Logs | Die Redaktionsliste kennt `voucher`, `pickup`, `pickupsecret`, `pickuphash`, `pairid`, `meetingpoint`, `meetingpointid`, `packet`, `sealedtoken` und `fcmtoken` (K-8) |
 
 Bekannte Grenzen (K27 7.2, K26 4.6), unverändert:

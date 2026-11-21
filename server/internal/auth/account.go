@@ -103,6 +103,13 @@ func (s *Service) UpdateAccount(ctx context.Context, session model.Session, upd 
 		if _, err := q.UpdateAccountPassword(ctx, appq.UpdateAccountPasswordParams{PasswordHash: hash, Now: now, ID: acc.ID}); err != nil {
 			return model.Session{}, fmt.Errorf("update password: %w", err)
 		}
+		// The push subscriptions of the phones and TVs whose sessions go (concept 27, 4.5): an app
+		// subscribes again at its next sign-in; browsers keep theirs, they do not by themselves (F-40).
+		if _, err := q.DeleteOtherAppDevicePushSubscriptions(ctx, appq.DeleteOtherAppDevicePushSubscriptionsParams{
+			AccountID: acc.ID, KeepID: session.ID, Now: now,
+		}); err != nil {
+			return model.Session{}, fmt.Errorf("delete push subscriptions: %w", err)
+		}
 		if revoked, err = q.RevokeOtherAccountSessions(ctx, appq.RevokeOtherAccountSessionsParams{
 			Now: nullInt(now), AccountID: acc.ID, KeepID: session.ID,
 		}); err != nil {

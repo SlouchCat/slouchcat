@@ -228,7 +228,10 @@ export interface paths {
         /**
          * Change the e-mail or the password of the signed-in account (A-2)
          * @description Every change needs the current password. A new password revokes every other session of the
-         *     account; the calling session stays. Works without an active profile (`account`).
+         *     account, app and device sessions included; the calling session stays. Since contract 1.42.0 it
+         *     also removes the account's push subscriptions of the devices whose app or device session it
+         *     revokes (an app subscribes again at its next sign-in); those of browsers stay. Works without an
+         *     active profile (`account`).
          */
         put: operations["updateAccount"];
         post?: never;
@@ -2843,7 +2846,8 @@ export interface paths {
         post?: never;
         /**
          * Forget a device
-         * @description Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+         * @description Revokes the sessions of the device, ends its running streams, deletes its push subscriptions (of
+         *     every account, since contract 1.42.0), its PIN counters and its row.
          *     The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
          *     name, capabilities and owner until its next playback start). The reserved device of the per-profile
          *     PIN ceiling is not listed and answers 404.
@@ -5621,6 +5625,57 @@ export interface paths {
          */
         post: operations["createWish"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The devices of the own account («Meine Geräte», concept 27 4.5)
+         * @description Since contract 1.42.0. Every device that holds a living session or a download of the session's
+         *     account, last contact first. The account of the session or the download decides, not the owner of
+         *     the device's last playback start: a browser whose session expired stays in the list while it holds
+         *     downloads of the account (`sessionKind` and `signedInAt` are then absent). Every profile of the
+         *     account may read the list. A device session (TV) gets 403 `client_not_allowed`.
+         */
+        get: operations["listMyDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/devices/{deviceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign the own account out of a device
+         * @description Since contract 1.42.0. Removes everything the session's account has on the device and nothing of
+         *     another account: its sessions (their running streams end), its downloads (the device learns it from
+         *     the revocation list of `syncOffline` and `checkOfflineRevocations`), the push subscriptions of the
+         *     device and the auto-download rules of the account's profiles on the device. The device itself stays
+         *     (the administration forgets it with `deleteDevice`, for every account). Signing out the own device
+         *     ends the calling session; a browser then gets its session cookie cleared. Only a session without an
+         *     active profile or with the account's primary profile may sign out (`primary_profile_required`
+         *     otherwise, like the notification channels). A device session (TV) gets 403 `client_not_allowed`.
+         */
+        delete: operations["signOutMyDevice"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8477,6 +8532,30 @@ export interface components {
             activeStreams: number;
             /** @description Kind of the device's living session with the latest contact (contract 1.42.0); absent without one. */
             sessionKind?: components["schemas"]["SessionKind"];
+        };
+        /** @description A device of the own account in «Meine Geräte» (contract 1.42.0, concept 27 4.5); not an `ItemRef`. */
+        MyDevice: {
+            id: string;
+            /** @description The name the app reported at its sign-in or the client with its last playback start. */
+            name?: string;
+            /** @enum {string} */
+            type?: "desktop" | "phone" | "tablet" | "tv" | "other";
+            /** @description Kind of the account's living session on the device with the latest contact; absent when only downloads hold the device. */
+            sessionKind?: components["schemas"]["SessionKind"];
+            /**
+             * Format: date-time
+             * @description Start of that session; absent with `sessionKind`.
+             */
+            signedInAt?: string;
+            /**
+             * Format: date-time
+             * @description Last request of any session of the device (±1 min).
+             */
+            lastSeenAt: string;
+            /** @description Downloads of the account on the device. */
+            downloads: number;
+            /** @description The device of the calling session. */
+            current: boolean;
         };
         /** @description A running playback session as the administration sees it (W-6); not an `ItemRef`. */
         AdminStream: {
@@ -14208,6 +14287,8 @@ export interface components {
         CollectionID: components["schemas"]["CollectionID"];
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
+        /** @description Device id (32 characters) from `listMyDevices`. */
+        MyDeviceID: string;
         /** @description Device id (32 characters, the device cookie value). */
         DeviceID: string;
         /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
@@ -14706,7 +14787,8 @@ export interface operations {
         responses: {
             /**
              * @description Session revoked and cookie cleared. Also 204 without a session. With a bearer token (app or
-             *     device session) the session is revoked, and the answer sets no cookie and no `Clear-Site-Data`.
+             *     device session) the session is revoked, the account's push subscriptions of its device are
+             *     removed, and the answer sets no cookie and no `Clear-Site-Data`.
              */
             204: {
                 headers: {
@@ -25004,6 +25086,59 @@ export interface operations {
             };
             /** @description The title is not stored yet and TMDB did not answer (`tmdb_unreachable`). */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The devices, last contact first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDevice"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    signOutMyDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Device id (32 characters) from `listMyDevices`. */
+                deviceId: components["parameters"]["MyDeviceID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description The device holds no session and no download of the account (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

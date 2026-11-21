@@ -91,6 +91,13 @@ type ProfileService interface {
 	// revokes every other session of the account. Errors: model.ErrInvalidCredentials,
 	// model.ErrEmailTaken, *model.ValidationError, model.ErrTooManyAttempts.
 	UpdateAccount(ctx context.Context, session model.Session, upd model.AccountUpdate) (model.Session, error)
+	// ListMyDevices returns the devices that hold a living session or a download of the session's
+	// account («Meine Geräte», concept 27 4.5); every profile may read them.
+	ListMyDevices(ctx context.Context, session model.Session) ([]model.MyDevice, error)
+	// SignOutMyDevice removes the account's sessions, downloads, push subscriptions and
+	// auto-download rules on a device; end runs with the session ids before they are revoked.
+	// Errors: model.ErrPrimaryProfileRequired, model.ErrNotFound.
+	SignOutMyDevice(ctx context.Context, session model.Session, deviceID string, end func(ctx context.Context, sessionIDs []int64) error) error
 }
 
 // AccessService is the invitation and account management of the administration plus the public

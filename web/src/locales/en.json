@@ -13,6 +13,7 @@
     "saving": "Saving …"
   },
   "nav": {
+    "devices": "My devices",
     "main": "Main navigation",
     "home": "Home",
     "logout": "Sign out",
@@ -6195,6 +6196,11 @@
     "loadFailed": "The libraries could not be loaded."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "A PIN for the primary profile is recommended",
+      "body": "This account has profiles with an age rating. Without a PIN on the primary profile, anyone can switch to it and change the ratings.",
+      "action": "Set PIN"
+    },
     "picker": {
       "title": "Who's watching?",
       "intro": "Choose your profile.",
@@ -6699,6 +6705,44 @@
     "wish_failed": "Your wish failed"
   },
   "settings": {
+    "devices": {
+      "title": "My devices",
+      "intro": "Every device this account is signed in on or has downloads on. Signing a device out removes everything this account has there.",
+      "list": "Devices of this account",
+      "none": "No device holds a sign-in or downloads of this account.",
+      "thisDevice": "This device",
+      "unnamed": "Unknown device",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Phone",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Other device"
+      },
+      "kinds": {
+        "browser": "Browser",
+        "app": "Phone app",
+        "device": "TV app"
+      },
+      "signedIn": "{{kind}}, signed in on {{date}}",
+      "downloadsOnly": "Signed out, still holds downloads of this account",
+      "lastSeen": "Last contact: {{date}}",
+      "downloads_one": "{{count}} download",
+      "downloads_other": "{{count}} downloads",
+      "signOut": {
+        "action": "Sign out",
+        "label": "Sign out {{name}}",
+        "title": "Sign out \"{{name}}\"?",
+        "body": "The device loses this account's sign-in, and playback there stops. This account's downloads, notifications and automatic downloads on the device are deleted. Other accounts on the device stay.",
+        "current": "This is the device you are using: you are signed out here right away.",
+        "confirm": "Sign out device"
+      },
+      "signedOut": "\"{{name}}\" signed out.",
+      "onlyPrimary": {
+        "title": "Signing out in the primary profile only",
+        "body": "You sign devices out in this account's primary profile. Here you see the list."
+      }
+    },
     "playback": {
       "title": "Settings",
       "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",

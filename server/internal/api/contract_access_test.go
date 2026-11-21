@@ -153,6 +153,11 @@ var accountRegistry = map[string]accountCall{
 	// 403 app_session_required (TestPairingVoucherRules checks the app side).
 	"createPairingVoucher": {contract: "POST /account/pairing-vouchers", path: "/account/pairing-vouchers",
 		body: `{"tvKey":"` + contractTVKey + `"}`, want: allWant(http.StatusForbidden)},
+	// Concept 27, 4.5: «Meine Geräte» (TestMyDevices checks the sign-out's rules); an unknown device
+	// is 404 for every session that may sign out.
+	"listMyDevices": {contract: "GET /account/devices", path: "/account/devices", want: allWant(http.StatusOK)},
+	"signOutMyDevice": {contract: "DELETE /account/devices/{deviceId}", path: "/account/devices/0123456789abcdef0123456789abcdef",
+		want: allWant(http.StatusNotFound)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with

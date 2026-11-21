@@ -74,7 +74,8 @@ func (s *Service) ListDevices(ctx context.Context) ([]model.AdminDevice, error) 
 }
 
 // DeleteDevice forgets a device (W-7): its browser sessions are revoked first (no new stream can
-// start), then its playback ends, its PIN counters and its row are deleted. The browser keeps its
+// start), then its playback ends, its push subscriptions (of every account), its PIN counters and
+// its row are deleted. The browser keeps its
 // device cookie: its next sign-in recreates the row under the same id, without name, capabilities
 // and owner until its next playback start. An unknown device and the reserved device of the PIN
 // ceiling (auth.ReservedDeviceID, whose counters must not be reset) are model.ErrNotFound.
@@ -97,6 +98,11 @@ func (s *Service) DeleteDevice(ctx context.Context, id string) error {
 		if err := s.streams.EndDevice(ctx, id); err != nil {
 			return err
 		}
+	}
+	// The push subscriptions of every account go before the row: its deletion would only clear their
+	// device id, and nothing could find them afterwards (concept 27, 4.5).
+	if _, err := s.write.DeleteDevicePushSubscriptions(ctx, device); err != nil {
+		return fmt.Errorf("delete push subscriptions: %w", err)
 	}
 	if err := s.write.DeletePinAttemptsByDevice(ctx, id); err != nil {
 		return fmt.Errorf("delete pin attempts: %w", err)

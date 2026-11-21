@@ -26,6 +26,9 @@ import { ratingLabel } from '../shared/choices';
 
 type Editing = Profile | 'new' | null;
 
+/** The highest rating: a profile below it has an age limit. */
+const NO_AGE_LIMIT = 18;
+
 interface Confirmation {
   title: string;
   body: string;
@@ -153,6 +156,13 @@ export function ProfileList({
   };
 
   const list = profiles.data ?? [];
+  // E-9, F-19: a recommendation, no requirement. Without a PIN on the primary profile anyone can
+  // switch to it and lift the ratings of the profiles with an age limit.
+  const primary = list.find((profile) => profile.isPrimary);
+  const advisePin =
+    primary !== undefined &&
+    !primary.hasPin &&
+    list.some((profile) => !profile.isPrimary && profile.maxRating < NO_AGE_LIMIT);
   const closeForm = () => setEditing(null);
   const add = (
     <AriaButton
@@ -192,6 +202,19 @@ export function ProfileList({
             </AriaButton>
           }
         />
+      )}
+
+      {advisePin && (
+        <Notice
+          title={t('profiles.pinAdvice.title')}
+          actions={
+            <AriaButton icon="lock" onPress={() => setPinFor(primary)}>
+              {t('profiles.pinAdvice.action')}
+            </AriaButton>
+          }
+        >
+          {t('profiles.pinAdvice.body')}
+        </Notice>
       )}
 
       <ul className={styles.list} aria-label={t('profiles.settings.list')}>

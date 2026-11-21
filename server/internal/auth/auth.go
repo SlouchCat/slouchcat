@@ -620,6 +620,11 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 	if _, err := q.RevokeSession(ctx, appq.RevokeSessionParams{ID: sessionID, Now: now}); err != nil {
 		return fmt.Errorf("revoke session: %w", err)
 	}
+	// An app or device session takes the account's push subscriptions of its device along (concept
+	// 27, 4.5): the app subscribes again at its next sign-in. A browser keeps its own (F-40).
+	if _, err := q.DeleteSessionPushSubscriptions(ctx, sessionID); err != nil {
+		return fmt.Errorf("delete push subscriptions: %w", err)
+	}
 	if _, err := q.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{
 		SessionID: sessionID, Now: now, StoppedBy: sql.NullString{String: model.StoppedByLogout, Valid: true},
 	}); err != nil {
