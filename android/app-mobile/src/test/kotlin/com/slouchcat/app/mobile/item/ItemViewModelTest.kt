@@ -225,8 +225,8 @@ class ItemViewModelTest {
 
     @Test
     fun aSeasonIsMarkedWatchedAndGoesBackOnARefusal() = runTest(dispatcher) {
-        val repository = FakeDetails(series(), seasonDetail(1, watched = 0), seasonDetail(2))
-        // The series lists season 1 with two of three watched: the season's mark is half.
+        val repository = FakeDetails(series(), seasonDetail(1, watched = 2), seasonDetail(2))
+        // Season 1 with two of three watched: its mark is half (the season's own page counts).
         val vm = model(repository, SERIES_ID)
         vm.onSeasonWatched()
         assertEquals(true, (vm.state.value.ask as ItemAsk.Watched).season)
@@ -239,9 +239,11 @@ class ItemViewModelTest {
 
         repository.watched = ApiResult.Offline
         repository.details[SERIES_ID] = ApiResult.Ok(series().copy(seasons = listOf(com.slouchcat.app.mobile.testing.seasonRef(1, watched = 3), com.slouchcat.app.mobile.testing.seasonRef(2))))
+        repository.details[SEASON_1] = ApiResult.Ok(seasonDetail(1, watched = 3))
         vm.retry()
         settle()
         vm.onSeasonWatched()
+        assertEquals(false, (vm.state.value.ask as ItemAsk.Watched).half)
         // Full: clearing asks first.
         vm.onAskChoice(watched = false)
         settle()
