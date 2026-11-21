@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The flow of the phone app in an emulator against a real server (task android:e2e, concept 27 12
 # «Gerät»): starts bin/slouchcat with fresh data on PORT, starts its own emulator AVD on EMU_PORT
-# and runs the instrumentation test SignInFlowTest of app-mobile there.
+# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest).
 #
 #   scripts/android-e2e.sh [--shots DIR]
 #
@@ -66,8 +66,11 @@ fail() {
 
 started=$(date +%s)
 
-# The server: fresh data, no TMDB key, on the loopback only (code review minor 30).
-SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+# The server: fresh data, no TMDB key, on the loopback only (code review minor 30); the small
+# media tree of scripts/android-test-media.sh as its only browsable root (DetailFlowTest).
+mkdir -p "$root/media"
+../scripts/android-test-media.sh "$root/media"
+SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \
   --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -133,13 +136,14 @@ done
 server_url="http://10.0.2.2:$port"
 if [ -z "$shots" ]; then
   ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:connectedPlayDebugAndroidTest \
-    "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" || fail "the flow failed"
+    "-Pandroid.testInstrumentationRunnerArguments.slouchcatServer=$server_url" \
+    "-Pandroid.testInstrumentationRunnerArguments.slouchcatMedia=$root/media" || fail "the flow failed"
 else
   ../scripts/heavy-slot.sh ./gradlew --console=plain -q :app-mobile:assemblePlayDebug :app-mobile:assemblePlayDebugAndroidTest
   adb install -r -t app-mobile/build/outputs/apk/play/debug/app-mobile-play-debug.apk >/dev/null
   adb install -r -t app-mobile/build/outputs/apk/androidTest/play/debug/app-mobile-play-debug-androidTest.apk >/dev/null
   if [ -n "${LOCALE:-}" ]; then adb shell cmd locale set-app-locales "$app" --locales "$LOCALE"; fi
-  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatShots 1 \
+  out=$(adb shell am instrument -w -e slouchcatServer "$server_url" -e slouchcatMedia "$root/media" -e slouchcatShots 1 \
     "$app.test/androidx.test.runner.AndroidJUnitRunner")
   echo "$out" | grep -E "^(OK|FAILURES|Tests run)|Exception|Error" | head -n 12
   echo "$out" | grep -q '^OK (' || fail "the flow failed"

@@ -89,6 +89,10 @@ testing {
                     val base = providers.gradleProperty("slouchcat.contract.base")
                     inputs.property("base", base.orElse(""))
                     systemProperty("slouchcat.contract.base", base.getOrElse(""))
+                    // The media tree of scripts/android-test-media.sh below the server's browsable root.
+                    val media = providers.gradleProperty("slouchcat.contract.media")
+                    inputs.property("media", media.orElse(""))
+                    systemProperty("slouchcat.contract.media", media.getOrElse(""))
                     outputs.upToDateWhen { false }
                     testLogging { events("passed", "failed"); showStandardStreams = true }
                 }

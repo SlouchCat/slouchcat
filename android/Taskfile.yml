@@ -29,8 +29,8 @@ tasks:
       - ../scripts/heavy-slot.sh ./gradlew --console=plain :app-mobile:assemblePlayDebug :app-mobile:assembleFossDebug :app-mobile:assemblePlayRelease :app-mobile:assembleFossRelease
       - find app-mobile/build/outputs/apk -name '*.apk' -print
 
-  # The generated client against a real server: the server of this repository with empty data on
-  # its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
+  # The generated client against a real server: the server of this repository with fresh data and
+  # the media tree of scripts/android-test-media.sh on its own port (CONTRACT_PORT, from 8597; the emulator reaches it as http://10.0.2.2:<port>).
   contract:
     desc: >-
       Contract test of the Kotlin client: starts bin/slouchcat with fresh data on CONTRACT_PORT
@@ -56,8 +56,11 @@ tasks:
           tail -n 40 "$root/server.log" >&2
           exit 1
         }
-        # The same throw-away setup as task apicheck: own config and cache, no TMDB key.
-        SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
+        # The same throw-away setup as task apicheck: own config and cache, no TMDB key; a small
+        # media tree as the only browsable root (the detail pages' contract test adds it).
+        mkdir -p "$root/media"
+        ../scripts/android-test-media.sh "$root/media"
+        SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
           --listen "127.0.0.1:$port" \
           --config-dir "$root/config" --cache-dir "$root/cache" \
           --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
@@ -69,7 +72,7 @@ tasks:
         done
         grep -q 'msg=listening' "$root/server.log" || fail "The server reported no address within 60 s."
         ../scripts/heavy-slot.sh ./gradlew --console=plain :core:api:contractTest \
-          "-Pslouchcat.contract.base=http://127.0.0.1:$port" || fail "The contract test failed."
+          "-Pslouchcat.contract.base=http://127.0.0.1:$port" "-Pslouchcat.contract.media=$root/media" || fail "The contract test failed."
         CONTRACT
 
   # The flow of the app in an emulator (concept 27 12 «Gerät»): the server of this repository with
