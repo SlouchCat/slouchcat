@@ -262,6 +262,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "426":
+          description: The app is older than the server accepts (`app_too_old`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "429":
           description: Too many proofs from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
           headers:
@@ -541,14 +547,16 @@ paths:
       description: |
         Contract 1.42.0 (ADR 0040, «Kopplung»). The TV sends the voucher it took from the packet, its
         one-time X25519 key, its name and its system version. The server checks that the voucher is open,
-        unexpired and bound to exactly this key, uses it up (also against concurrent requests), starts a
+        unexpired, bound to exactly this key and issued by an app session that still lives, uses it up
+        (also against concurrent requests), starts a
         device session with the device row named right away, tells the account through its channels (event
         `device_linked`, K-7) and answers the token sealed for the key: `sealedToken` is HPKE (RFC 9180,
         base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info `slouchcat-redeem-v1`, empty
         aad) as `enc` followed by the ciphertext, in base64url; its plaintext is
-        `{"token":"…","deviceId":"…"}`. Only the holder of the private key can read it. `accountEmail` is
-        what the TV shows next to the server address (K-9). An unknown, expired, used or differently bound
-        voucher answers the same 410 `voucher_invalid`; the TV then shows a new code. Every attempt counts
+        `{"token":"…","deviceId":"…","accountEmail":"…"}`. Only the holder of the private key can read it;
+        the e-mail is what the TV shows next to the server address (K-9). `signature` signs the sealed answer
+        with the server's key. An unknown, expired, used or differently bound voucher, and one whose issuing
+        session ended, answers the same 410 `voucher_invalid`; the TV then shows a new code. Every attempt counts
         per client address (`too_many_attempts`). The answer never sets a cookie.
       tags: [auth]
       x-visibility: public
@@ -13643,17 +13651,22 @@ components:
 
     PairingRedeemed:
       type: object
-      required: [sealedToken, accountEmail]
+      required: [sealedToken, signature]
       properties:
         sealedToken:
           type: string
           description: |
             HPKE `enc` followed by the ciphertext (base64url) for `tvKey`, info `slouchcat-redeem-v1`;
-            plaintext `{"token":"…","deviceId":"…"}`: the bearer token of the device session and its device id.
-        accountEmail:
+            plaintext `{"token":"…","deviceId":"…","accountEmail":"…"}`: the bearer token of the device
+            session, its device id and the account the TV is now paired with, which the TV shows with the
+            server address (K-9). Only the TV reads the e-mail.
+        signature:
           type: string
-          format: email
-          description: The account the TV is now paired with; the TV shows it with the server address (K-9).
+          description: |
+            Ed25519 signature (base64url) of the server's key (`getHealth.serverKey`, the `serverKey` of the
+            packet) over UTF-8 `slouchcat-redeem-signature-v1:` followed by the bytes of `sealedToken`. The TV
+            checks it before it opens the token, so nobody on the way can swap in a token sealed for its
+            public key.
 
     SessionKind:
       type: string

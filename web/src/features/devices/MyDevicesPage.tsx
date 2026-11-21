@@ -71,6 +71,8 @@ export function MyDevicesPage() {
       await afterDialogsClosed();
       focusTitleIfLost(titleRef);
     },
+    // A device that is gone already (404) must not stay in the list with its button (code review m-4).
+    onError: () => queryClient.invalidateQueries({ queryKey: myDevicesQuery.queryKey }),
   });
 
   const ask = (device: MyDevice) => {
@@ -133,9 +135,12 @@ export function MyDevicesPage() {
                         : t('settings.devices.downloadsOnly')}
                     </Text>
                     <Text tone="muted" variant="caption">
-                      {t('settings.devices.lastSeen', { date: date(device.lastSeenAt) })}
-                      {device.downloads > 0 &&
-                        ` · ${t('settings.devices.downloads', { count: device.downloads })}`}
+                      {device.downloads > 0
+                        ? t('settings.devices.lastSeenWithDownloads', {
+                            date: date(device.lastSeenAt),
+                            count: device.downloads,
+                          })
+                        : t('settings.devices.lastSeen', { date: date(device.lastSeenAt) })}
                     </Text>
                   </div>
                   {device.current && <Chip tone="info">{t('settings.devices.thisDevice')}</Chip>}
@@ -164,7 +169,7 @@ export function MyDevicesPage() {
           title={t('settings.devices.signOut.title', { name: name(confirming) })}
           body={
             confirming.current
-              ? `${t('settings.devices.signOut.body')} ${t('settings.devices.signOut.current')}`
+              ? t('settings.devices.signOut.bodyCurrent')
               : t('settings.devices.signOut.body')
           }
           confirmLabel={t('settings.devices.signOut.confirm')}

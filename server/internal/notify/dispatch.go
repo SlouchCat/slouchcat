@@ -97,7 +97,7 @@ func (s *Service) Emit(ctx context.Context, ev model.Event) error {
 		}
 	}
 	targets, err := s.targets(ctx, ev)
-	if err != nil || len(targets) == 0 {
+	if err != nil || (len(targets) == 0 && ev.Type != model.EventDeviceLinked) {
 		return err
 	}
 	subject := ev.Subject
@@ -110,13 +110,21 @@ func (s *Service) Emit(ctx context.Context, ev model.Event) error {
 	}
 	srv := s.serverState(ctx)
 	var errs []error
+	queued := 0
 	for _, t := range targets {
 		if !srv.available(t.channel) || (t.channel == model.ChannelTelegram && parseConfig(t.config).ChatID == 0) {
 			continue
 		}
 		if err := s.queueDelivery(ctx, t, ev, subject); err != nil {
 			errs = append(errs, err)
+			continue
 		}
+		queued++
+	}
+	if ev.Type == model.EventDeviceLinked && queued == 0 {
+		// Nothing can carry the message (no e-mail server, no Telegram bot or chat, no Web Push):
+		// only «Meine Geräte» shows the new device (ADR 0040, known limit).
+		s.log.ErrorContext(ctx, "device linked message has no channel", "account_id", ev.AccountID)
 	}
 	return errors.Join(errs...)
 }
@@ -134,7 +142,12 @@ func (s *Service) targets(ctx context.Context, ev model.Event) ([]target, error)
 			out = append(out, target{r.AccountID, r.Channel, r.Config})
 		}
 	case model.EventDeviceLinked:
-		rows, err := s.write.ChannelTargetsByAccount(ctx, ev.AccountID)
+		// A security message: every channel the account set up, switched on or not (security
+		// review M-1 of concept 27 stage 1); the channel rows exist for every account.
+		if err := s.EnsureDefaults(ctx, ev.AccountID); err != nil {
+			return nil, err
+		}
+		rows, err := s.write.ChannelTargetsByAccountAll(ctx, ev.AccountID)
 		if err != nil {
 			return nil, fmt.Errorf("recipients of %s: %w", ev.Type, err)
 		}

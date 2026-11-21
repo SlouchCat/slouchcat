@@ -192,6 +192,53 @@ func (q *Queries) ChannelTargetsByAccount(ctx context.Context, accountID int64) 
 	return items, nil
 }
 
+const channelTargetsByAccountAll = `-- name: ChannelTargetsByAccountAll :many
+SELECT c.account_id, c.channel, c.config, a.email, a.role
+FROM account_channels AS c
+JOIN accounts AS a ON a.id = c.account_id
+WHERE c.account_id = ?1
+ORDER BY c.channel
+`
+
+type ChannelTargetsByAccountAllRow struct {
+	AccountID int64
+	Channel   string
+	Config    string
+	Email     string
+	Role      string
+}
+
+// Every channel row of one account, switched on or not: the security message device_linked
+// (concept 27, K-7) goes to every channel the account set up (security review M-1 of stage 1).
+func (q *Queries) ChannelTargetsByAccountAll(ctx context.Context, accountID int64) ([]ChannelTargetsByAccountAllRow, error) {
+	rows, err := q.db.QueryContext(ctx, channelTargetsByAccountAll, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ChannelTargetsByAccountAllRow{}
+	for rows.Next() {
+		var i ChannelTargetsByAccountAllRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Channel,
+			&i.Config,
+			&i.Email,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const channelTargetsByAccountEvent = `-- name: ChannelTargetsByAccountEvent :many
 SELECT c.account_id, c.channel, c.config, a.email, a.role
 FROM account_channels AS c
@@ -400,7 +447,7 @@ func (q *Queries) DeliveryFailed(ctx context.Context, arg DeliveryFailedParams) 
 }
 
 const deliveryGet = `-- name: DeliveryGet :one
-SELECT id, account_id, profile_id, channel, event, source, subject, body, link, state, attempts, last_error, created_at, sent_at FROM deliveries WHERE id = ?1
+SELECT id, account_id, profile_id, channel, event, source, subject, body, link, state, attempts, last_error, created_at, sent_at, pushed_to FROM deliveries WHERE id = ?1
 `
 
 func (q *Queries) DeliveryGet(ctx context.Context, id int64) (Delivery, error) {
@@ -421,6 +468,7 @@ func (q *Queries) DeliveryGet(ctx context.Context, id int64) (Delivery, error) {
 		&i.LastError,
 		&i.CreatedAt,
 		&i.SentAt,
+		&i.PushedTo,
 	)
 	return i, err
 }
@@ -475,6 +523,21 @@ func (q *Queries) DeliveryLanguage(ctx context.Context, id int64) (string, error
 	var language string
 	err := row.Scan(&language)
 	return language, err
+}
+
+const deliveryPushed = `-- name: DeliveryPushed :exec
+UPDATE deliveries SET pushed_to = ?1 WHERE id = ?2
+`
+
+type DeliveryPushedParams struct {
+	PushedTo sql.NullString
+	ID       int64
+}
+
+// The push subscriptions a delivery reached so far (JSON array of ids); a retry skips them.
+func (q *Queries) DeliveryPushed(ctx context.Context, arg DeliveryPushedParams) error {
+	_, err := q.db.ExecContext(ctx, deliveryPushed, arg.PushedTo, arg.ID)
+	return err
 }
 
 const deliveryRecentExists = `-- name: DeliveryRecentExists :one
@@ -806,6 +869,24 @@ func (q *Queries) PushSubscriptionsDropOlderOfDevice(ctx context.Context, arg Pu
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const sessionAlive = `-- name: SessionAlive :one
+SELECT EXISTS (SELECT 1 FROM sessions WHERE id = ?1 AND revoked_at IS NULL AND expires_at > ?2)
+`
+
+type SessionAliveParams struct {
+	ID  int64
+	Now int64
+}
+
+// Whether a session still lives (not revoked, not expired): an app subscribes for push only while
+// its session lives (security review L-4 of stage 1).
+func (q *Queries) SessionAlive(ctx context.Context, arg SessionAliveParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, sessionAlive, arg.ID, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const telegramLinkByCode = `-- name: TelegramLinkByCode :one

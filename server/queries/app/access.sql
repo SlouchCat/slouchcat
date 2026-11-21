@@ -209,8 +209,13 @@ DELETE FROM push_subscriptions WHERE device_id = @device_id;
 -- name: ListMyDevices :many
 -- The devices that hold a living session or a download of the account, last contact first, with the
 -- kind and start of the account's living session with the latest contact ('' and 0 without one) and
--- the account's downloads on the device.
-SELECT d.id, d.name, d.type, d.last_seen_at,
+-- the account's downloads on the device. last_seen_at is the account's own last contact on the
+-- device (its sessions, else its newest download), not the device's: on a shared device an account
+-- does not learn when another one used it (code review m-3 of stage 1).
+SELECT d.id, d.name, d.type,
+       CAST(COALESCE((SELECT max(s.last_seen_at) FROM sessions AS s WHERE s.device_id = d.id AND s.account_id = @account_id),
+                     (SELECT max(dl.created_at) FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = @account_id),
+                     d.created_at) AS INTEGER) AS last_seen_at,
        CAST(COALESCE((SELECT s.kind FROM sessions AS s
                       WHERE s.device_id = d.id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now
                       ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
@@ -222,7 +227,7 @@ FROM devices AS d
 WHERE EXISTS (SELECT 1 FROM sessions AS s
               WHERE s.device_id = d.id AND s.account_id = @account_id AND s.revoked_at IS NULL AND s.expires_at > @now)
    OR EXISTS (SELECT 1 FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = @account_id)
-ORDER BY d.last_seen_at DESC, d.id;
+ORDER BY last_seen_at DESC, d.id;
 
 -- name: DeviceHeldByAccount :one
 -- Whether the account holds a living session or a download on the device (signOutMyDevice: 404 otherwise).

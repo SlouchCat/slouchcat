@@ -103,6 +103,13 @@ func (s *Service) SignOutMyDevice(ctx context.Context, session model.Session, de
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit sign-out: %w", err)
 	}
+	// A playback the device started between the first end and the commit has its row revoked, but
+	// its HLS output runs on: end the sessions' streams once more (idempotent; code review m-2).
+	if end != nil && len(ids) > 0 {
+		if err := end(context.WithoutCancel(ctx), ids); err != nil {
+			s.log.WarnContext(ctx, "end streams after the sign-out", "account_id", account, "err", err)
+		}
+	}
 	s.log.InfoContext(ctx, "account signed out of a device", "account_id", account, "own_device", deviceID == session.DeviceID,
 		"sessions_revoked", sessions, "push_subscriptions", pushes, "download_rules", rules, "downloads", downloads)
 	return nil

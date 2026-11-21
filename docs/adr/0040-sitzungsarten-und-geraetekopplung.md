@@ -7,7 +7,7 @@
   Konzept `docs/planning/26-android-tv.md` (K26), Abschnitte 4.2, 4.5 und Anhang B; Marcos Entscheide
   E-7, E-8, E-14, E-15, E-16 und F-4; Frage 34 und Frage 35 in `docs/planning/04-entscheidungen.md`
 - Vertrag: 1.42.0 (zusätzlich); Migrationen `00082_session_kind.sql`, `00083_pairing_vouchers.sql`,
-  `00084_device_linked_deliveries.sql`
+  `00084_device_linked_deliveries.sql`, `00085_pairing_issuer_push_progress.sql`
 - Harte Regeln: 5 (Migration nach Vorlage), 7 (`x-visibility` und neu `x-clients`, Vertragstest),
   9 (Texte), 10 (Token und Gerätekennung redigiert), 12 (Entscheid im Server)
 
@@ -81,11 +81,11 @@ Logbuch unter «Protokolle»; die Testvektoren in `testdata/crypto/` halten sie 
 | Punkt | Entscheid |
 |---|---|
 | Gutschein ausstellen | `createPairingVoucher` (`POST /account/pairing-vouchers`, `account`, `x-clients: [app]`). Nur eine App-Sitzung: eine Browser-Sitzung bekommt 403 `app_session_required`, eine Gerätesitzung schon in der Middleware 403 `client_not_allowed`. Nur ohne aktives Profil oder mit dem Hauptprofil (F-23, `primary_profile_required`). Eingabe: der X25519-Schlüssel des Fernsehers aus dem QR-Code (`tvKey`, 32 Byte base64url, ein gültiger Punkt) |
-| Gutschein | 256 Bit Zufall in base64url, gültig 2 Minuten, einmal verwendbar, an `tvKey` gebunden, trägt die Art `tv`. Der Server speichert nur den SHA-256 (Tabelle `pairing_vouchers`, Migration 00083), höchstens einen offenen je Konto: ein neuer ersetzt den alten. Höchstens 6 Gutscheine je Minute und Konto. Die Aufräumung der Sitzungen löscht abgelaufene |
-| Einlösen | `redeemPairingVoucher` (`POST /auth/pairing/redeem`, `public`): Gutschein, `tvKey`, Gerätename, Systemfassung. Der Server liest und löscht den Gutschein in einer Anweisung (`DELETE … RETURNING`); von gleichzeitigen Anfragen bekommt ihn nur eine. Danach prüft er Ablauf und Schlüssel. Ein Gutschein mit fremdem Schlüssel ist damit auch verbraucht: wer ihn kennt, aber den Schlüssel nicht hat, ist schon ein Zeichen eines Angriffs |
-| Antwort | Gerätesitzung über `StartAppSession` mit der Art `tv` (Gerätezeile sofort mit Name und Art, die Systemfassung als `user_agent`, neue Gerätekennung). Profil wie bei `appLogin`: ein einziges Profil ohne PIN ist gleich aktiv, sonst zeigt der Fernseher die Profilwahl. `sealedToken` = HPKE (RFC 9180, Base-Modus, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, `info` `slouchcat-redeem-v1`, `aad` leer) an `tvKey`, Klartext `{"token","deviceId"}`, aus der Standardbibliothek `crypto/hpke`. Dazu `accountEmail` für die Anzeige am Fernseher (K-9). `Cache-Control: no-store`, nie ein Cookie (auch kein Gerätecookie) |
+| Gutschein | 256 Bit Zufall in base64url, gültig 2 Minuten, einmal verwendbar, an `tvKey` gebunden, trägt die Art `tv` und hängt an der App-Sitzung, die ihn ausgestellt hat (Migration 00085). Der Server speichert nur den SHA-256 (Tabelle `pairing_vouchers`, Migrationen 00083 und 00085), höchstens einen offenen je Konto: ein neuer ersetzt den alten. Höchstens 6 Gutscheine je Minute und Konto. Die Aufräumung der Sitzungen löscht abgelaufene |
+| Einlösen | `redeemPairingVoucher` (`POST /auth/pairing/redeem`, `public`): Gutschein, `tvKey`, Gerätename, Systemfassung. Der Server liest und löscht den Gutschein in einer Anweisung (`DELETE … RETURNING`); von gleichzeitigen Anfragen bekommt ihn nur eine. Danach prüft er Ablauf, Schlüssel und dass die ausstellende Sitzung noch lebt: `logout`, «Meine Geräte» und ein neues Passwort beenden einen offenen Gutschein mit dem Handy (das neue Passwort löscht ihn zusätzlich). Den Schlüssel prüft er beim Ausstellen und beim Einlösen streng: genau 43 Zeichen kanonisches base64url, 32 Byte, kein Punkt niedriger Ordnung (Probe-ECDH). Ein Gutschein mit fremdem Schlüssel ist damit auch verbraucht: wer ihn kennt, aber den Schlüssel nicht hat, ist schon ein Zeichen eines Angriffs |
+| Antwort | Gerätesitzung über `StartAppSession` mit der Art `tv` (Gerätezeile sofort mit Name und Art, die Systemfassung als `user_agent`, neue Gerätekennung). Profil wie bei `appLogin`: ein einziges Profil ohne PIN ist gleich aktiv, sonst zeigt der Fernseher die Profilwahl. `sealedToken` = HPKE (RFC 9180, Base-Modus, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, `info` `slouchcat-redeem-v1`, `aad` leer) an `tvKey`, Klartext `{"token","deviceId","accountEmail"}` (die E-Mail für die Anzeige am Fernseher, K-9, liest nur er), aus der Standardbibliothek `crypto/hpke`. Dazu `signature`: Ed25519 des Servers über UTF-8 `slouchcat-redeem-signature-v1:` und die Bytes von `sealedToken`; der Fernseher prüft sie mit dem `serverKey` des Pakets, so kann niemand auf dem Weg ein eigenes, für den öffentlichen Schlüssel versiegeltes Token unterschieben. `Cache-Control: no-store`, nie ein Cookie (auch kein Gerätecookie) |
 | Fehler | Unbekannt, abgelaufen, verbraucht und fremder Schlüssel ergeben dieselbe Antwort 410 `voucher_invalid`; der Fernseher zeigt in jedem Fall einen neuen Code. Nur das Log nennt den Grund (ohne den Gutschein). Jeder Versuch zählt in einem eigenen Topf je Adresse des Aufrufers (10 je Minute), nicht im Topf von `login` |
-| Meldung | Nach jeder Kopplung geht `device_linked` über **alle eingeschalteten Kanäle des Kontos** (E-Mail, Telegram, Push), unabhängig von den gewählten Ereignissen: sie meldet einen neuen Zugang zum Konto und ist darum nichts, was man abwählt. Sie nennt, was der Server selbst weiss (Zeitpunkt, Art des Geräts), und gibt Name und Systemfassung als Angabe des Geräts wieder (K-7). Texte des Servers in `de`, `en` und `de-DE`; die übrigen Sprachen fallen bis zur Übersetzungsrunde auf Englisch zurück |
+| Meldung | Nach jeder Kopplung geht `device_linked` als **Sicherheitsmeldung** hinaus, unabhängig von den gewählten Ereignissen und vom Schalter der Kanäle: per E-Mail an die Adresse des Kontos (nicht an eine im Kanal eingetragene, die eine gestohlene Sitzung geändert haben könnte), sobald der Server SMTP hat, dazu an jeden eingerichteten Kanal (verknüpftes Telegram, jedes Push-Abo), auch wenn er ausgeschaltet ist. Die Zustellung hängt nicht an der Anfrage des Fernsehers (`context.WithoutCancel`) und nutzt die fünf Versuche der Zustellung; Push wird je Abo wiederholt. Link `/settings/devices`. Sie nennt, was der Server selbst weiss (Zeitpunkt, Art des Geräts), und gibt Name und Systemfassung als Angabe des Geräts wieder (K-7). Texte des Servers in `de`, `en` und `de-DE`; die übrigen Sprachen fallen bis zur Übersetzungsrunde auf Englisch zurück |
 | Kleinster Weg für die Meldung | Die Liste in der App (`notifications`) hängt an einem Profil, und jede Art dort braucht einen Titel oder einen Wunsch (Migration 00070). Die Meldung gehört aber zum Konto. Darum bekommt nur `deliveries` das Ereignis `device_linked` (Migration 00084, Umbau nach Vorlage); die Liste in der App und die Ereignisse der Kanäle (`EventType`, `account_channels.events`) bleiben, wie sie sind. «Meine Geräte» zeigt das neue Gerät ohnehin |
 | Logs | Die Redaktionsliste kennt `voucher`, `pickup`, `pickupsecret`, `pickuphash`, `pairid`, `meetingpoint`, `meetingpointid`, `packet`, `sealedtoken` und `fcmtoken` (K-8) |
 
@@ -99,8 +99,23 @@ Bekannte Grenzen (K27 7.2, K26 4.6), unverändert:
 - **HTTP:** Läuft der Server ohne TLS, schützt die Versiegelung nur diese eine Antwort. Jede spätere
   Anfrage trägt das Gerätetoken offen, und es gilt, bis jemand den Fernseher abmeldet oder das Passwort
   ändert; die Meldung schlägt dabei nicht an.
-- Der Gutschein selbst reist nur im versiegelten Paket. Die Bindung an den Schlüssel schützt vor einem
-  Gutschein, der doch abgefangen wird (K-3): einlösen kann ihn nur, wer den privaten Schlüssel hat.
+- Der Gutschein selbst reist nur im versiegelten Paket. Die Bindung an den Schlüssel schützt nicht vor dem
+  Einlösen, nur vor dem Nutzen: Wer Gutschein und öffentlichen Schlüssel kennt (der steht im QR-Code), kann
+  einlösen, ohne den privaten Schlüssel zu haben. Er bekommt dann ein Token, das er nicht lesen kann, und die
+  Konto-Adresse steht nur im versiegelten Klartext. Folge: eine Gerätesitzung, die niemand benutzen kann und
+  die unter «Meine Geräte» steht, die Meldung `device_linked` geht hinaus, und der echte Fernseher bekommt 410
+  und zeigt einen neuen Code. Ein Besitznachweis des privaten Schlüssels (zweite Anfrage mit Unterschrift)
+  hätte das verhindert; er kostet einen Durchgang mehr, und der Gutschein reist ohnehin nur versiegelt.
+  Darum bleibt es bei der Bindung (Sicherheits-Review L-2).
+- **Keine Meldung ohne Kanal:** Hat der Server weder SMTP noch einen eingerichteten Kanal des Kontos (Telegram
+  verknüpft, ein Push-Abo), geht die Meldung nirgends hin; der Server schreibt das als Fehler ins Log, und nur
+  «Meine Geräte» zeigt das neue Gerät.
+- **Hinter einem Reverse-Proxy** ohne `SLOUCHCAT_TRUSTED_PROXIES` sieht der Server jede Anfrage von der
+  Adresse des Proxys. Dann teilen sich alle Clients die Töpfe von `proveServer` (30 je Minute) und
+  `redeemPairingVoucher` (10 je Minute): wer sie leert, lässt die Apps in einem neuen Netz «Server nicht
+  erreichbar» melden (ein Ausfall, kein Einbruch; der Topf von `login` hat dasselbe Problem). Darum gehört
+  `SLOUCHCAT_TRUSTED_PROXIES` zu jedem Betrieb hinter einem Proxy (`docs/INSTALLATION.md`). Ein höherer oder
+  zweiter, globaler Topf schützt nicht: er läuft genauso leer.
 
 ## Server weist sich aus
 

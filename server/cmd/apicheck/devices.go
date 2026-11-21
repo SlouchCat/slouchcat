@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,8 @@ const (
 	packetInfoPrefix  = "slouchcat-pair-v1:"
 	redeemInfo        = "slouchcat-redeem-v1"
 	serverProofPrefix = "slouchcat-server-proof-v1:"
+	// redeemSignaturePrefix precedes sealedToken in what the server signs for the TV.
+	redeemSignaturePrefix = "slouchcat-redeem-signature-v1:"
 )
 
 // deviceCheckName is the row of the device check (-devices runs it alone).
@@ -44,7 +47,14 @@ type pairingVoucher struct {
 }
 
 type pairingRedeemed struct {
-	SealedToken  string `json:"sealedToken"`
+	SealedToken string `json:"sealedToken"`
+	Signature   string `json:"signature"`
+}
+
+// sealedAnswer is the plaintext of sealedToken.
+type sealedAnswer struct {
+	Token        string `json:"token"`
+	DeviceID     string `json:"deviceId"`
 	AccountEmail string `json:"accountEmail"`
 }
 
@@ -111,7 +121,7 @@ func checkDevices(ctx context.Context, s *state) (string, error) {
 	}
 	var v pairingVoucher
 	if err := json.Unmarshal(resp.body, &v); err != nil || len(v.Voucher) != 43 {
-		return "", fmt.Errorf("createPairingVoucher answered %s", snippet(resp.body))
+		return "", fmt.Errorf("createPairingVoucher answered no voucher of 43 characters (%d bytes)", len(resp.body))
 	}
 	plain, _ := json.Marshal(pairingPacket{V: 1, Server: s.c.base.String(), Voucher: v.Voucher, ServerKey: h.ServerKey})
 	pk, err := pairKEM.NewPublicKey(tv.PublicKey().Bytes())
@@ -138,7 +148,8 @@ func checkDevices(ctx context.Context, s *state) (string, error) {
 	}
 	var packet pairingPacket
 	if err := json.Unmarshal(opened, &packet); err != nil || packet.V != 1 || packet.Voucher != v.Voucher {
-		return "", fmt.Errorf("TV: packet %s", opened)
+		// Never the packet itself: it carries the voucher (security review L-7).
+		return "", fmt.Errorf("TV: packet v=%d, voucher matches %t, server %q", packet.V, packet.Voucher == v.Voucher, packet.Server)
 	}
 	if err := s.proveServer(ctx, packet.ServerKey); err != nil {
 		return "", err
@@ -154,20 +165,29 @@ func checkDevices(ctx context.Context, s *state) (string, error) {
 		return "", errors.New("redeemPairingVoucher set a cookie")
 	}
 	var redeemed pairingRedeemed
-	if err := json.Unmarshal(resp.body, &redeemed); err != nil || redeemed.AccountEmail != ownerEmail {
-		return "", fmt.Errorf("redeemPairingVoucher answered %s", snippet(resp.body))
+	if err := json.Unmarshal(resp.body, &redeemed); err != nil || strings.Contains(string(resp.body), "@") {
+		return "", errors.New("redeemPairingVoucher answered no sealed token, or the e-mail in the clear")
 	}
 	raw, err := b64url.DecodeString(redeemed.SealedToken)
 	if err != nil {
 		return "", fmt.Errorf("sealedToken: %w", err)
 	}
+	// The TV checks the server's signature over the sealed answer with the key of the packet.
+	keyBytes, _ := b64url.DecodeString(packet.ServerKey)
+	sig, _ := b64url.DecodeString(redeemed.Signature)
+	if len(keyBytes) != ed25519.PublicKeySize || !ed25519.Verify(keyBytes, append([]byte(redeemSignaturePrefix), raw...), sig) {
+		return "", errors.New("TV: the redeem answer's signature does not verify with the packet's serverKey")
+	}
 	tokenPlain, err := hpke.Open(sk, pairKDF, pairAEAD, []byte(redeemInfo), raw)
 	if err != nil {
 		return "", fmt.Errorf("TV: open the sealed token: %w", err)
 	}
-	var device appLogin
+	var device sealedAnswer
 	if err := json.Unmarshal(tokenPlain, &device); err != nil || device.Token == "" || len(device.DeviceID) != 32 {
 		return "", fmt.Errorf("TV: sealed token without token or device")
+	}
+	if device.AccountEmail != ownerEmail {
+		return "", fmt.Errorf("TV: the sealed answer names another account (%d characters)", len(device.AccountEmail))
 	}
 	if resp, err = s.c.sendTV(ctx, http.MethodPost, "/auth/pairing/redeem", "", redeem); err != nil {
 		return "", err
@@ -229,7 +249,7 @@ func checkDevices(ctx context.Context, s *state) (string, error) {
 		via = "Vermittlung " + s.relay
 	}
 	return fmt.Sprintf("Handy und Fernseher für %s gekoppelt (%s), Server geprüft, Fernseher nur mit seiner Erlaubnisliste, unter «Meine Geräte» abgemeldet (401)",
-		redeemed.AccountEmail, via), nil
+		device.AccountEmail, via), nil
 }
 
 // appSignIn signs in with appLogin.
@@ -244,7 +264,7 @@ func appSignIn(ctx context.Context, s *state, name, kind string) (appLogin, erro
 	}
 	var login appLogin
 	if err := json.Unmarshal(resp.body, &login); err != nil || login.Token == "" {
-		return appLogin{}, fmt.Errorf("decode appLogin: %s", snippet(resp.body))
+		return appLogin{}, fmt.Errorf("decode appLogin: no token in %d bytes", len(resp.body))
 	}
 	return login, nil
 }
@@ -435,7 +455,11 @@ func relayCall(ctx context.Context, method, target, authorization string, body a
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	if resp.StatusCode != want {
-		return fmt.Errorf("%s answered %d %s, want %d", method, resp.StatusCode, snippet(data), want)
+		var problem struct {
+			Error string `json:"error"`
+		}
+		_ = json.Unmarshal(data, &problem) // the code only: a body may carry the packet
+		return fmt.Errorf("%s answered %d %q, want %d", method, resp.StatusCode, problem.Error, want)
 	}
 	if out != nil {
 		return json.Unmarshal(data, out)

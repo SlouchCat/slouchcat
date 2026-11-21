@@ -158,6 +158,18 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
+	if session.ID != 0 {
+		// The session may have ended since the request resolved it (logout, «Meine Geräte», a new
+		// password): no subscription outlives it (security review L-4 of concept 27 stage 1). The
+		// write pool serialises this transaction against the one that ends the session.
+		alive, err := q.SessionAlive(ctx, systemq.SessionAliveParams{ID: session.ID, Now: s.now().UnixMilli()})
+		if err != nil {
+			return model.PushSubscription{}, fmt.Errorf("session of the push subscription: %w", err)
+		}
+		if !alive {
+			return model.PushSubscription{}, model.ErrUnauthenticated
+		}
+	}
 	dev := sql.NullString{String: device, Valid: device != ""}
 	row, err := q.PushSubscriptionUpsert(ctx, systemq.PushSubscriptionUpsertParams{
 		AccountID: session.Account.ID, DeviceID: dev,

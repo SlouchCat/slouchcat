@@ -1,18 +1,21 @@
 package api
 
 import (
+	"context"
 	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/hpke"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Concept 27 sections 6 and 10 (ADR 0040) over HTTP: the voucher, its redeem with the sealed
@@ -75,12 +78,21 @@ func TestPairingOverHTTP(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if string(out.AccountEmail) != pf.f.Account.Email {
-		t.Errorf("accountEmail %q, want %q", out.AccountEmail, pf.f.Account.Email)
-	}
 	sealed, err := base64.RawURLEncoding.DecodeString(out.SealedToken)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The TV checks the signature of the server over the sealed answer (security review I-1).
+	health := sendBearer(t, h, http.MethodGet, BasePath+"/healthz", "", "", nil)
+	var hk gen.Health
+	decode(t, health, &hk)
+	serverKey, _ := base64.RawURLEncoding.DecodeString(hk.ServerKey)
+	sig, _ := base64.RawURLEncoding.DecodeString(out.Signature)
+	if !ed25519.Verify(serverKey, append([]byte(auth.RedeemSignaturePrefix), sealed...), sig) {
+		t.Error("the redeem answer's signature does not verify with getHealth.serverKey")
+	}
+	if strings.Contains(rec.Body.String(), "@") {
+		t.Errorf("the answer carries the account's e-mail in the clear: %s", rec.Body.String())
 	}
 	sk, _ := hpke.NewDHKEMPrivateKey(tv)
 	plain, err := hpke.Open(sk, hpke.HKDFSHA256(), hpke.AES256GCM(), []byte(auth.RedeemInfo), sealed)
@@ -88,11 +100,15 @@ func TestPairingOverHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	var answer struct {
-		Token    string `json:"token"`
-		DeviceID string `json:"deviceId"`
+		Token        string `json:"token"`
+		DeviceID     string `json:"deviceId"`
+		AccountEmail string `json:"accountEmail"`
 	}
 	if err := json.Unmarshal(plain, &answer); err != nil {
 		t.Fatal(err)
+	}
+	if answer.AccountEmail != pf.f.Account.Email {
+		t.Errorf("sealed accountEmail %q, want %q", answer.AccountEmail, pf.f.Account.Email)
 	}
 	pf.pa.tokens["paired"] = answer.Token
 	rec = sendBearer(t, h, http.MethodGet, BasePath+"/auth/session", "paired", "", nil)
@@ -199,5 +215,29 @@ func TestAppPushSubscriptionEndsWithTheDevice(t *testing.T) {
 		if rec = sendBearer(t, h, http.MethodGet, BasePath+"/auth/session", name, "", nil); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s: the app token still works: %d", way, rec.Code)
 		}
+	}
+}
+
+// A subscription request whose session ended after the middleware resolved it stores nothing
+// (security review L-4 of stage 1): the race between signing out and subscribing.
+func TestPushSubscriptionNeedsALivingSession(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	app := pf.newBearerSession(t, "late", pf.f.P18, auth.AppDevicePhone)
+	if err := pf.a.Logout(context.Background(), app.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err := pf.notifySvc.CreatePushSubscription(context.Background(), app, model.PushSubscriptionInput{
+		Endpoint: "https://push.slouchcat.com/v1/push/1.late", P256dh: testP256dh, Auth: testPushAuth,
+	})
+	if !errors.Is(err, model.ErrUnauthenticated) {
+		t.Fatalf("subscribe with an ended session: %v, want unauthenticated", err)
+	}
+	var n int
+	if err := pf.f.DB.Read.QueryRow(`SELECT count(*) FROM push_subscriptions WHERE device_id = ?`, app.DeviceID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("%d subscriptions stored for an ended session", n)
 	}
 }

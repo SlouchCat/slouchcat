@@ -472,10 +472,16 @@ func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
 			return fmt.Errorf("%sPUBLIC_URL: want an http or https URL without query, fragment or credentials", EnvPrefix)
 		}
 	}
-	cfg.PushRelay = strings.TrimRight(strings.TrimSpace(env("PUSH_RELAY", push.DefaultRelayOrigin)), "/")
-	if u, err := url.Parse(cfg.PushRelay); err != nil || !httpURL(cfg.PushRelay) || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
-		return fmt.Errorf("%sPUSH_RELAY: want the origin of the push relay, for example %s", EnvPrefix, push.DefaultRelayOrigin)
+	// One origin or several, comma-separated (the old and the new while the relay moves, ADR 0044).
+	var origins []string
+	for o := range strings.SplitSeq(env("PUSH_RELAY", push.DefaultRelayOrigin), ",") {
+		o = strings.TrimRight(strings.TrimSpace(o), "/")
+		if u, err := url.Parse(o); err != nil || !httpURL(o) || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return fmt.Errorf("%sPUSH_RELAY: want origins of the push relay, comma-separated, for example %s", EnvPrefix, push.DefaultRelayOrigin)
+		}
+		origins = append(origins, o)
 	}
+	cfg.PushRelay = strings.Join(origins, ",")
 	return nil
 }
 

@@ -110,6 +110,11 @@ func (s *Service) UpdateAccount(ctx context.Context, session model.Session, upd 
 		}); err != nil {
 			return model.Session{}, fmt.Errorf("delete push subscriptions: %w", err)
 		}
+		// An open pairing voucher goes with the sessions (code review M-1): a TV must not pair on a
+		// voucher of the time before the new password.
+		if _, err := q.DeleteAccountPairingVouchers(ctx, acc.ID); err != nil {
+			return model.Session{}, fmt.Errorf("delete pairing vouchers: %w", err)
+		}
 		if revoked, err = q.RevokeOtherAccountSessions(ctx, appq.RevokeOtherAccountSessionsParams{
 			Now: nullInt(now), AccountID: acc.ID, KeepID: session.ID,
 		}); err != nil {

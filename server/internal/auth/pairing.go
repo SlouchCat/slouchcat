@@ -36,6 +36,10 @@ const (
 	RedeemInfo = "slouchcat-redeem-v1"
 	// ServerProofPrefix precedes the nonce in what proveServer signs.
 	ServerProofPrefix = "slouchcat-server-proof-v1:"
+	// RedeemSignaturePrefix precedes sealedToken (its bytes) in what the server signs for the TV
+	// (security review I-1): the TV checks the answer against the serverKey of the packet, so nobody
+	// on the way can swap in a token sealed for the TV's public key.
+	RedeemSignaturePrefix = "slouchcat-redeem-signature-v1:"
 	// VoucherLifetime is how long a pairing voucher can be redeemed (K-3).
 	VoucherLifetime = 2 * time.Minute
 	// NonceBytes is the length of the nonce of proveServer.
@@ -128,6 +132,9 @@ func (s *Service) CreatePairingVoucher(ctx context.Context, session model.Sessio
 	if session.HasProfile() && !session.IsPrimary() {
 		return model.PairingVoucher{}, model.ErrPrimaryProfileRequired
 	}
+	if session.ID == 0 {
+		return model.PairingVoucher{}, errors.New("pairing voucher without an issuing session")
+	}
 	if _, err := parseTVKey(tvKey); err != nil {
 		return model.PairingVoucher{}, (&model.ValidationError{}).Add("tvKey", "invalid_value")
 	}
@@ -142,7 +149,7 @@ func (s *Service) CreatePairingVoucher(ctx context.Context, session model.Sessio
 	voucher := b64.EncodeToString(raw)
 	expires := now.Add(VoucherLifetime)
 	if err := s.write.UpsertPairingVoucher(ctx, appq.UpsertPairingVoucherParams{
-		AccountID: session.Account.ID, VoucherHash: hashToken(voucher), TvKey: tvKey, DeviceKind: AppDeviceTV,
+		AccountID: session.Account.ID, SessionID: session.ID, VoucherHash: hashToken(voucher), TvKey: tvKey, DeviceKind: AppDeviceTV,
 		Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(),
 	}); err != nil {
 		return model.PairingVoucher{}, fmt.Errorf("store pairing voucher: %w", err)
@@ -152,10 +159,11 @@ func (s *Service) CreatePairingVoucher(ctx context.Context, session model.Sessio
 }
 
 // RedeemPairingVoucher redeems a voucher for the TV that holds tvKey: the voucher must be open,
-// unexpired and bound to exactly this key; it is used up in any case it was found, also when the key
+// unexpired, bound to exactly this key and issued by a session that still lives; it is used up in any case it was found, also when the key
 // or the expiry does not fit. It starts a device session for the voucher's account, with the device
-// row named deviceName and systemVersion as its user agent, seals the token and the device id for
-// tvKey (RedeemInfo) and reports the pairing (WithDeviceLinked). Every call counts against the
+// row named deviceName and systemVersion as its user agent, seals the token, the device id and the
+// account's e-mail for tvKey (RedeemInfo), signs the sealed answer with the server's key
+// (RedeemSignaturePrefix) and reports the pairing (WithDeviceLinked). Every call counts against the
 // client address in ctx (model.ErrTooManyAttempts). Errors: *model.ValidationError (voucher,
 // tvKey, deviceName, systemVersion), model.ErrVoucherInvalid for every voucher that does not
 // redeem, whatever the reason.
@@ -183,6 +191,14 @@ func (s *Service) RedeemPairingVoucher(ctx context.Context, voucher, tvKey, devi
 		return model.PairingRedeemed{}, verr
 	}
 	row, err := s.write.TakePairingVoucher(ctx, hashToken(voucher))
+	alive := false
+	if err == nil {
+		// The issuing app session must still live: logout, «Meine Geräte» and a new password end an
+		// open voucher with the phone (code review M-1, security review L-3).
+		if alive, err = s.write.PairingIssuerAlive(ctx, appq.PairingIssuerAliveParams{ID: row.SessionID, Now: now.UnixMilli()}); err != nil {
+			return model.PairingRedeemed{}, fmt.Errorf("issuer of the voucher: %w", err)
+		}
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		s.log.InfoContext(ctx, "pairing voucher refused", "reason", "unknown")
 		return model.PairingRedeemed{}, model.ErrVoucherInvalid
@@ -194,6 +210,8 @@ func (s *Service) RedeemPairingVoucher(ctx context.Context, voucher, tvKey, devi
 	switch {
 	case row.ExpiresAt <= now.UnixMilli():
 		reason = "expired"
+	case !alive:
+		reason = "issuer_gone"
 	case subtle.ConstantTimeCompare([]byte(row.TvKey), []byte(tvKey)) != 1:
 		reason = "other_key"
 	}
@@ -216,7 +234,7 @@ func (s *Service) RedeemPairingVoucher(ctx context.Context, voucher, tvKey, devi
 	if err != nil {
 		return model.PairingRedeemed{}, err
 	}
-	sealed, err := sealRedeem(pub, token, session.DeviceID)
+	sealed, err := sealRedeem(pub, token, session.DeviceID, account.Email)
 	if err != nil {
 		// Without the answer the TV cannot use the session; it must not live on.
 		if lerr := s.Logout(context.WithoutCancel(ctx), session.ID); lerr != nil {
@@ -226,32 +244,53 @@ func (s *Service) RedeemPairingVoucher(ctx context.Context, voucher, tvKey, devi
 	}
 	s.log.InfoContext(ctx, "tv paired", "account_id", account.ID, "session_id", session.ID)
 	if s.deviceLinked != nil {
-		if err := s.deviceLinked(ctx, account.ID, row.DeviceKind, name, system, now); err != nil {
-			s.log.WarnContext(ctx, "device linked hook failed", "account_id", account.ID, "err", err)
+		// The message must not die with the TV's request (security review M-1).
+		if err := s.deviceLinked(context.WithoutCancel(ctx), account.ID, row.DeviceKind, name, system, now); err != nil {
+			s.log.ErrorContext(ctx, "device linked message not queued", "account_id", account.ID, "err", err)
 		}
 	}
-	return model.PairingRedeemed{Session: session, SealedToken: sealed, AccountEmail: account.Email}, nil
+	out := model.PairingRedeemed{Session: session, SealedToken: sealed}
+	if s.identity != nil {
+		out.Signature = ed25519.Sign(s.identity, append([]byte(RedeemSignaturePrefix), sealed...))
+	}
+	return out, nil
 }
 
-// parseTVKey decodes and checks the TV's X25519 public key (32 bytes, base64url).
+// parseTVKey decodes and checks the TV's X25519 public key (security review L-1, code review
+// m-7): exactly 43 characters of strict base64url (canonical, no line breaks), 32 bytes, and no
+// point of low order, which a trial ECDH with a fresh key refuses (crypto/ecdh rejects the all-zero
+// shared secret).
 func parseTVKey(tvKey string) ([]byte, error) {
-	raw, err := b64.DecodeString(tvKey)
+	if len(tvKey) != 43 {
+		return nil, errors.New("tv key: want 43 characters")
+	}
+	raw, err := b64.Strict().DecodeString(tvKey)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := ecdh.X25519().NewPublicKey(raw); err != nil {
+	pub, err := ecdh.X25519().NewPublicKey(raw)
+	if err != nil {
 		return nil, err
+	}
+	probe, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := probe.ECDH(pub); err != nil {
+		return nil, fmt.Errorf("tv key: %w", err)
 	}
 	return raw, nil
 }
 
-// sealRedeem seals {"token","deviceId"} for the TV's key: HPKE base mode, DHKEM(X25519,
-// HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info RedeemInfo, empty aad; enc followed by ciphertext.
-func sealRedeem(tvPublic []byte, token, deviceID string) ([]byte, error) {
+// sealRedeem seals {"token","deviceId","accountEmail"} for the TV's key: HPKE base mode,
+// DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info RedeemInfo, empty aad; enc followed by
+// ciphertext. The account's e-mail travels sealed, so only the TV learns it (security review L-2).
+func sealRedeem(tvPublic []byte, token, deviceID, accountEmail string) ([]byte, error) {
 	plain, err := json.Marshal(struct {
-		Token    string `json:"token"`
-		DeviceID string `json:"deviceId"`
-	}{token, deviceID})
+		Token        string `json:"token"`
+		DeviceID     string `json:"deviceId"`
+		AccountEmail string `json:"accountEmail"`
+	}{token, deviceID, accountEmail})
 	if err != nil {
 		return nil, err
 	}

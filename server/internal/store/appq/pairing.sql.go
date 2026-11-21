@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const deleteAccountPairingVouchers = `-- name: DeleteAccountPairingVouchers :execrows
+DELETE FROM pairing_vouchers WHERE account_id = ?1
+`
+
+// A new password ends the open voucher of the account (code review M-1).
+func (q *Queries) DeleteAccountPairingVouchers(ctx context.Context, accountID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAccountPairingVouchers, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteExpiredPairingVouchers = `-- name: DeleteExpiredPairingVouchers :execrows
 DELETE FROM pairing_vouchers WHERE expires_at <= ?1
 `
@@ -21,26 +34,45 @@ func (q *Queries) DeleteExpiredPairingVouchers(ctx context.Context, now int64) (
 	return result.RowsAffected()
 }
 
+const pairingIssuerAlive = `-- name: PairingIssuerAlive :one
+SELECT EXISTS (SELECT 1 FROM sessions WHERE id = ?1 AND revoked_at IS NULL AND expires_at > ?2)
+`
+
+type PairingIssuerAliveParams struct {
+	ID  int64
+	Now int64
+}
+
+// Whether the session that issued a voucher still lives (not revoked, not expired).
+func (q *Queries) PairingIssuerAlive(ctx context.Context, arg PairingIssuerAliveParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, pairingIssuerAlive, arg.ID, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const takePairingVoucher = `-- name: TakePairingVoucher :one
 DELETE FROM pairing_vouchers WHERE voucher_hash = ?1
-RETURNING account_id, tv_key, device_kind, expires_at
+RETURNING account_id, session_id, tv_key, device_kind, expires_at
 `
 
 type TakePairingVoucherRow struct {
 	AccountID  int64
+	SessionID  int64
 	TvKey      string
 	DeviceKind string
 	ExpiresAt  int64
 }
 
 // Uses the voucher up: the row is read and deleted in one statement, so of two concurrent redeems
-// only one gets it. Expiry and key are checked by the caller on the returned row (a voucher shown
-// with another key is used up too).
+// only one gets it. Expiry, key and the issuing session (PairingIssuerAlive) are checked by the
+// caller on the returned row (a voucher shown with another key is used up too).
 func (q *Queries) TakePairingVoucher(ctx context.Context, voucherHash string) (TakePairingVoucherRow, error) {
 	row := q.db.QueryRowContext(ctx, takePairingVoucher, voucherHash)
 	var i TakePairingVoucherRow
 	err := row.Scan(
 		&i.AccountID,
+		&i.SessionID,
 		&i.TvKey,
 		&i.DeviceKind,
 		&i.ExpiresAt,
@@ -50,15 +82,16 @@ func (q *Queries) TakePairingVoucher(ctx context.Context, voucherHash string) (T
 
 const upsertPairingVoucher = `-- name: UpsertPairingVoucher :exec
 
-INSERT INTO pairing_vouchers (account_id, voucher_hash, tv_key, device_kind, created_at, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+INSERT INTO pairing_vouchers (account_id, session_id, voucher_hash, tv_key, device_kind, created_at, expires_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 ON CONFLICT (account_id) DO UPDATE
-SET voucher_hash = excluded.voucher_hash, tv_key = excluded.tv_key, device_kind = excluded.device_kind,
-    created_at = excluded.created_at, expires_at = excluded.expires_at
+SET session_id = excluded.session_id, voucher_hash = excluded.voucher_hash, tv_key = excluded.tv_key,
+    device_kind = excluded.device_kind, created_at = excluded.created_at, expires_at = excluded.expires_at
 `
 
 type UpsertPairingVoucherParams struct {
 	AccountID   int64
+	SessionID   int64
 	VoucherHash string
 	TvKey       string
 	DeviceKind  string
@@ -68,10 +101,12 @@ type UpsertPairingVoucherParams struct {
 
 // Pairing vouchers of the TV set-up (package store/appq, concept 27 section 10, ADR 0040). Owner:
 // auth. Times are Unix milliseconds; voucher_hash is the hex SHA-256 of the voucher.
-// The one open voucher of an account: a new one replaces the older.
+// The one open voucher of an account: a new one replaces the older. session_id is the app session
+// that issued it.
 func (q *Queries) UpsertPairingVoucher(ctx context.Context, arg UpsertPairingVoucherParams) error {
 	_, err := q.db.ExecContext(ctx, upsertPairingVoucher,
 		arg.AccountID,
+		arg.SessionID,
 		arg.VoucherHash,
 		arg.TvKey,
 		arg.DeviceKind,

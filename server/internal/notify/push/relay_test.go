@@ -27,6 +27,11 @@ func TestIsRelay(t *testing.T) {
 		{"https://fcm.googleapis.com/fcm/send/abc", DefaultRelayOrigin, false},
 		{"https://push.slouchcat.com/v1/push/1.abc", "", false},
 		{"http://127.0.0.1:8181/v1/push/1.abc", "http://127.0.0.1:8181", true},
+		// The default port is the same origin (code review m-10); a list holds old and new while moving.
+		{"https://push.slouchcat.com:443/v1/push/1.abc", DefaultRelayOrigin, true},
+		{"https://push.example.test/v1/push/1.abc", DefaultRelayOrigin + ",https://push.example.test", true},
+		{"https://push.slouchcat.com/v1/push/1.abc", "https://push.example.test, " + DefaultRelayOrigin, true},
+		{"https://other.example.test/v1/push/1.abc", DefaultRelayOrigin + ",https://push.example.test", false},
 	} {
 		if got := IsRelay(c.endpoint, c.origin); got != c.want {
 			t.Errorf("IsRelay(%q, %q) = %v, want %v", c.endpoint, c.origin, got, c.want)

@@ -108,6 +108,20 @@ JOIN accounts AS a ON a.id = c.account_id
 WHERE c.account_id = @account_id AND c.enabled = 1
 ORDER BY c.channel;
 
+-- name: ChannelTargetsByAccountAll :many
+-- Every channel row of one account, switched on or not: the security message device_linked
+-- (concept 27, K-7) goes to every channel the account set up (security review M-1 of stage 1).
+SELECT c.account_id, c.channel, c.config, a.email, a.role
+FROM account_channels AS c
+JOIN accounts AS a ON a.id = c.account_id
+WHERE c.account_id = @account_id
+ORDER BY c.channel;
+
+-- name: SessionAlive :one
+-- Whether a session still lives (not revoked, not expired): an app subscribes for push only while
+-- its session lives (security review L-4 of stage 1).
+SELECT EXISTS (SELECT 1 FROM sessions WHERE id = @id AND revoked_at IS NULL AND expires_at > @now);
+
 -- name: ChannelTargetsAdmins :many
 -- Switched-on channels of every administrator that chose the event. The event errors is the one
 -- that goes to the administration and not to the whole house (ADR 0009); since ADR 0014 the
@@ -187,6 +201,10 @@ DELETE FROM push_subscriptions;
 
 -- name: PushSubscriptionUsed :exec
 UPDATE push_subscriptions SET last_used_at = @now WHERE id = @id;
+
+-- name: DeliveryPushed :exec
+-- The push subscriptions a delivery reached so far (JSON array of ids); a retry skips them.
+UPDATE deliveries SET pushed_to = @pushed_to WHERE id = @id;
 
 -- name: DeliveryInsert :one
 INSERT INTO deliveries (account_id, profile_id, channel, event, source, subject, body, link, created_at)

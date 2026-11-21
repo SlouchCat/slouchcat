@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"net/http"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
@@ -78,7 +76,7 @@ func (s *server) RedeemPairingVoucher(ctx context.Context, req gen.RedeemPairing
 		return s.problem(ctx, err), nil
 	}
 	return voucherRedeemed{gen.PairingRedeemed{
-		SealedToken: base64.RawURLEncoding.EncodeToString(out.SealedToken), AccountEmail: openapi_types.Email(out.AccountEmail),
+		SealedToken: base64.RawURLEncoding.EncodeToString(out.SealedToken), Signature: base64.RawURLEncoding.EncodeToString(out.Signature),
 	}}, nil
 }
 

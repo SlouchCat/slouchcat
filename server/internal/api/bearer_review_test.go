@@ -118,6 +118,33 @@ func TestRevocationsOfABearerSessionUseItsDevice(t *testing.T) {
 	}
 }
 
+// Signing a device out under «Meine Geräte» ends its streams: the stream URL of a running playback
+// stops working (code review m-1 of stage 1 part 2).
+func TestSignOutMyDeviceEndsTheStreams(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	app := pf.newBearerSession(t, "phone", pf.f.P18, auth.AppDevicePhone)
+	rec := sendBearer(t, h, http.MethodPost, BasePath+"/items/"+pf.f.Rated(0).ID+"/play", "phone",
+		`{"capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`, nil)
+	var play struct {
+		StreamURL string `json:"streamUrl"`
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &play) != nil {
+		t.Fatalf("startPlayback: %d %s", rec.Code, rec.Body.String())
+	}
+	if s := sendBearer(t, h, http.MethodGet, play.StreamURL, "", "", map[string]string{"Range": "bytes=0-9"}); s.Code != http.StatusPartialContent {
+		t.Fatalf("stream before the sign-out: %d", s.Code)
+	}
+	if rec := send(t, h, http.MethodDelete, BasePath+"/account/devices/"+app.DeviceID, "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("signOutMyDevice: %d %s", rec.Code, rec.Body.String())
+	}
+	s := sendBearer(t, h, http.MethodGet, play.StreamURL, "", "", map[string]string{"Range": "bytes=0-9"})
+	if s.Code != http.StatusUnauthorized && s.Code != http.StatusNotFound {
+		t.Errorf("stream after the sign-out: %d, want 401 or 404", s.Code)
+	}
+}
+
 // selectProfile and startPlayback with a bearer token, up to the stream with st (code review m-3).
 func TestBearerSelectProfileAndPlay(t *testing.T) {
 	t.Parallel()

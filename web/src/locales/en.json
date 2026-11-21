@@ -6727,6 +6727,8 @@
       "signedIn": "{{kind}}, signed in on {{date}}",
       "downloadsOnly": "Signed out, still holds downloads of this account",
       "lastSeen": "Last contact: {{date}}",
+      "lastSeenWithDownloads_one": "Last contact: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_other": "Last contact: {{date}} · {{count}} downloads",
       "downloads_one": "{{count}} download",
       "downloads_other": "{{count}} downloads",
       "signOut": {
@@ -6735,6 +6737,7 @@
         "title": "Sign out \"{{name}}\"?",
         "body": "The device loses this account's sign-in, and playback there stops. This account's downloads, notifications and automatic downloads on the device are deleted. Other accounts on the device stay.",
         "current": "This is the device you are using: you are signed out here right away.",
+        "bodyCurrent": "The device loses this account's sign-in, and playback there stops. This account's downloads, notifications and automatic downloads on the device are deleted. Other accounts on the device stay. This is the device you are using: you are signed out here right away.",
         "confirm": "Sign out device"
       },
       "signedOut": "\"{{name}}\" signed out.",

@@ -43,21 +43,39 @@ const (
 	RelayMaxPayload    = RelayRecordSize - 103
 )
 
-// IsRelay reports whether endpoint lies on origin (the push relay): same scheme, host and port.
-// An empty origin matches nothing.
-func IsRelay(endpoint, origin string) bool {
-	if origin == "" {
-		return false
-	}
+// IsRelay reports whether endpoint lies on one of origins, a comma-separated list of origins of the
+// push relay (several while the relay moves, ADR 0044): same scheme, host name and port, the port
+// defaulting to the scheme's (https://push.slouchcat.com:443 is https://push.slouchcat.com). An
+// empty list matches nothing.
+func IsRelay(endpoint, origins string) bool {
 	e, err := url.Parse(endpoint)
-	if err != nil {
+	if err != nil || e.Host == "" {
 		return false
 	}
-	o, err := url.Parse(origin)
-	if err != nil || o.Host == "" {
-		return false
+	for origin := range strings.SplitSeq(origins, ",") {
+		o, err := url.Parse(strings.TrimSpace(origin))
+		if err != nil || o.Host == "" {
+			continue
+		}
+		if strings.EqualFold(e.Scheme, o.Scheme) && strings.EqualFold(e.Hostname(), o.Hostname()) && port(e) == port(o) {
+			return true
+		}
 	}
-	return strings.EqualFold(e.Scheme, o.Scheme) && strings.EqualFold(e.Host, o.Host)
+	return false
+}
+
+// port is the port of u, or the default port of its scheme.
+func port(u *url.URL) string {
+	if p := u.Port(); p != "" {
+		return p
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	}
+	return ""
 }
 
 // Timeout bounds one request to a push service.

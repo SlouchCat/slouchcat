@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -80,17 +81,29 @@ func (s *Service) deliver(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return err
 	}
-	m := message{Subject: d.Subject, Body: d.Body, Link: d.Link.String}
+	m := message{Subject: d.Subject, Body: d.Body, Link: d.Link.String, Security: d.Event == model.EventDeviceLinked}
+	if d.Channel == model.ChannelPush {
+		m.pushed = &pushProgress{done: parsePushed(d.PushedTo.String)}
+	}
 	if d.Channel == model.ChannelEmail {
 		// Best effort: a mail without lang is still a mail.
 		if lang, err := s.write.DeliveryLanguage(ctx, d.ID); err == nil {
 			m.Lang = lang
 		}
 	}
-	if row.Enabled != 1 {
+	if row.Enabled != 1 && !m.Security {
+		// A switched-off channel stays quiet, except for the security message device_linked, which
+		// goes to every channel the account set up (security review M-1 of concept 27 stage 1).
 		err = errChannelOff
 	} else {
 		err = s.sendOn(ctx, d.AccountID, row, m, pushTTL)
+	}
+	if m.pushed != nil && m.pushed.changed {
+		if perr := s.write.DeliveryPushed(context.WithoutCancel(ctx), systemq.DeliveryPushedParams{
+			PushedTo: sql.NullString{String: m.pushed.json(), Valid: true}, ID: d.ID,
+		}); perr != nil {
+			err = errors.Join(err, fmt.Errorf("store push progress: %w", perr))
+		}
 	}
 	switch {
 	case err == nil:
@@ -120,8 +133,9 @@ func errorText(err error) string {
 // sendOn sends m on one channel of an account: errNotConfigured when the server lacks the channel,
 // errNoRecipient without a linked chat or a subscription, else the sender's error. Push goes to
 // every subscription of the account; a subscription the push service no longer knows is deleted.
-// It succeeds when at least one subscription took the message (a retry after a partial failure may
-// reach a browser twice).
+// m.pushed (deliveries) remembers the subscriptions that took the message, so a retry goes to the
+// others only. A security message (device_linked) goes by e-mail to the account's own address,
+// not to an address set for the channel, which a stolen session could have changed.
 func (s *Service) sendOn(ctx context.Context, accountID int64, row systemq.AccountChannel, m message, ttl time.Duration) error {
 	srv := s.serverState(ctx)
 	if !srv.available(row.Channel) {
@@ -131,7 +145,7 @@ func (s *Service) sendOn(ctx context.Context, accountID int64, row systemq.Accou
 	switch row.Channel {
 	case model.ChannelEmail:
 		to := cfg.Address
-		if to == "" {
+		if to == "" || m.Security {
 			acc, err := s.write.NotifyAccount(ctx, accountID)
 			if err != nil {
 				return fmt.Errorf("account of the delivery: %w", err)
@@ -172,11 +186,19 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 	}
 	payload := pushPayload(m.Subject, m.Body, link)
 	var relayed []byte // the shorter payload of the push relay, made once when needed
-	sent := 0
-	var errs []error
+	progress := m.pushed
+	if progress == nil {
+		progress = &pushProgress{}
+	}
+	sent, earlier := 0, len(progress.done)
+	var errs, relayErrs []error
 	for _, sub := range subs {
+		if progress.done[sub.ID] {
+			continue // took the message on an earlier attempt
+		}
+		relay := push.IsRelay(sub.Endpoint, s.relay)
 		body := payload
-		if push.IsRelay(sub.Endpoint, s.relay) {
+		if relay {
 			if relayed == nil {
 				relayed = relayPayload(m.Subject, m.Body, link)
 			}
@@ -186,6 +208,7 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 		switch {
 		case err == nil:
 			sent++
+			progress.add(sub.ID)
 			if err := s.write.PushSubscriptionUsed(ctx, systemq.PushSubscriptionUsedParams{Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: sub.ID}); err != nil {
 				s.log.WarnContext(ctx, "mark push subscription used", "subscription_id", sub.ID, "err", err)
 			}
@@ -194,12 +217,18 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 			if err := s.write.PushSubscriptionDeleteByID(ctx, sub.ID); err != nil {
 				errs = append(errs, fmt.Errorf("delete push subscription: %w", err))
 			}
+		case relay:
+			// The push relay answers 503 for every failure of its own (D-10): try this subscription
+			// again, also when another one took the message (code review M-2 of stage 1).
+			relayErrs = append(relayErrs, err)
 		default:
 			errs = append(errs, err)
 		}
 	}
 	switch {
-	case sent > 0:
+	case len(relayErrs) > 0:
+		return errors.Join(append(relayErrs, errs...)...)
+	case sent > 0 || earlier > 0:
 		if len(errs) > 0 {
 			s.log.WarnContext(ctx, "push reached only some subscriptions", "account_id", accountID, "sent", sent, "err", errors.Join(errs...))
 		}
@@ -209,6 +238,40 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 	default:
 		return errNoRecipient // every subscription was gone
 	}
+}
+
+// pushProgress is the set of push subscriptions a delivery reached (deliveries.pushed_to).
+type pushProgress struct {
+	done    map[int64]bool
+	changed bool
+}
+
+func (p *pushProgress) add(id int64) {
+	if p.done == nil {
+		p.done = map[int64]bool{}
+	}
+	p.done[id], p.changed = true, true
+}
+
+func (p *pushProgress) json() string {
+	ids := make([]int64, 0, len(p.done))
+	for id := range p.done {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	raw, _ := json.Marshal(ids)
+	return string(raw)
+}
+
+// parsePushed reads deliveries.pushed_to; empty or unreadable is none.
+func parsePushed(raw string) map[int64]bool {
+	var ids []int64
+	_ = json.Unmarshal([]byte(raw), &ids)
+	out := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out
 }
 
 // Limits of a message to the push relay (concept 27 7.3, stage 0): at most relayMaxBody characters
@@ -236,8 +299,8 @@ func pushPayload(title, body, link string) []byte {
 func relayPayload(title, body, link string) []byte {
 	if len(link) > relayMaxURL {
 		short := "/"
-		if u, err := url.Parse(link); err == nil && u.Path != "" && len(u.Path) <= relayMaxURL {
-			short = u.Path
+		if u, err := url.Parse(link); err == nil && u.EscapedPath() != "" && len(u.EscapedPath()) <= relayMaxURL {
+			short = u.EscapedPath() // still a valid URL path (code review m-11)
 		}
 		link = short
 	}

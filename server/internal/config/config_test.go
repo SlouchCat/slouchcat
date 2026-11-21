@@ -85,7 +85,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_UPDATER_URL":         "http://slouchcat-updater:8099/",
 		"SLOUCHCAT_TEST_UPDATER_DIR":    "/tmp/updater/",
 		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
-		"SLOUCHCAT_PUSH_RELAY":          "https://push.example.test/",
+		"SLOUCHCAT_PUSH_RELAY":          "https://push.example.test/, https://push2.example.test",
 		"SLOUCHCAT_HERO_START":          "2",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--radio-dir", "/dev/shm/radio", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
@@ -104,7 +104,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
 		UpdaterURL: "http://slouchcat-updater:8099", TestUpdaterDir: "/tmp/updater",
 		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: 0,
-		PushRelay: "https://push.example.test"}
+		PushRelay: "https://push.example.test,https://push2.example.test"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
@@ -164,6 +164,7 @@ func TestValidation(t *testing.T) {
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
 		"push relay path":      {env: map[string]string{"SLOUCHCAT_PUSH_RELAY": "https://push.example.test/v1"}},
 		"push relay no url":    {env: map[string]string{"SLOUCHCAT_PUSH_RELAY": "push.example.test"}},
+		"push relay bad entry": {env: map[string]string{"SLOUCHCAT_PUSH_RELAY": "https://push.example.test,https://b.example.test/x"}},
 		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
 		"negative hero start":  {args: []string{"--hero-start", "-2"}},
 		"unknown flag":         {args: []string{"--nope"}},

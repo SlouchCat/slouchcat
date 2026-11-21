@@ -887,7 +887,10 @@ func (q *Queries) ListInvitations(ctx context.Context) ([]ListInvitationsRow, er
 
 const listMyDevices = `-- name: ListMyDevices :many
 
-SELECT d.id, d.name, d.type, d.last_seen_at,
+SELECT d.id, d.name, d.type,
+       CAST(COALESCE((SELECT max(s.last_seen_at) FROM sessions AS s WHERE s.device_id = d.id AND s.account_id = ?1),
+                     (SELECT max(dl.created_at) FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = ?1),
+                     d.created_at) AS INTEGER) AS last_seen_at,
        CAST(COALESCE((SELECT s.kind FROM sessions AS s
                       WHERE s.device_id = d.id AND s.account_id = ?1 AND s.revoked_at IS NULL AND s.expires_at > ?2
                       ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
@@ -899,7 +902,7 @@ FROM devices AS d
 WHERE EXISTS (SELECT 1 FROM sessions AS s
               WHERE s.device_id = d.id AND s.account_id = ?1 AND s.revoked_at IS NULL AND s.expires_at > ?2)
    OR EXISTS (SELECT 1 FROM downloads AS dl WHERE dl.device_id = d.id AND dl.account_id = ?1)
-ORDER BY d.last_seen_at DESC, d.id
+ORDER BY last_seen_at DESC, d.id
 `
 
 type ListMyDevicesParams struct {
@@ -922,7 +925,9 @@ type ListMyDevicesRow struct {
 // playback start).
 // The devices that hold a living session or a download of the account, last contact first, with the
 // kind and start of the account's living session with the latest contact (” and 0 without one) and
-// the account's downloads on the device.
+// the account's downloads on the device. last_seen_at is the account's own last contact on the
+// device (its sessions, else its newest download), not the device's: on a shared device an account
+// does not learn when another one used it (code review m-3 of stage 1).
 func (q *Queries) ListMyDevices(ctx context.Context, arg ListMyDevicesParams) ([]ListMyDevicesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMyDevices, arg.AccountID, arg.Now)
 	if err != nil {

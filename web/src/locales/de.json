@@ -6727,6 +6727,8 @@
       "signedIn": "{{kind}}, angemeldet am {{date}}",
       "downloadsOnly": "Abgemeldet, hält noch Downloads dieses Kontos",
       "lastSeen": "Letzter Kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Letzter Kontakt: {{date}} · {{count}} Download",
+      "lastSeenWithDownloads_other": "Letzter Kontakt: {{date}} · {{count}} Downloads",
       "downloads_one": "{{count}} Download",
       "downloads_other": "{{count}} Downloads",
       "signOut": {
@@ -6735,6 +6737,7 @@
         "title": "„{{name}}“ abmelden?",
         "body": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben.",
         "current": "Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
+        "bodyCurrent": "Das Gerät verliert die Anmeldung dieses Kontos, laufende Wiedergaben enden. Die Downloads, die Benachrichtigungen und die automatischen Downloads dieses Kontos auf dem Gerät werden gelöscht. Andere Konten auf dem Gerät bleiben. Das ist das Gerät, das du gerade benutzt: Du wirst hier sofort abgemeldet.",
         "confirm": "Gerät abmelden"
       },
       "signedOut": "„{{name}}“ abgemeldet.",

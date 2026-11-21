@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -63,7 +64,7 @@ func newTVKey(t *testing.T) (*ecdh.PrivateKey, string) {
 }
 
 // openRedeem opens sealedToken with the TV's key like the TV app does.
-func openRedeem(t *testing.T, tv *ecdh.PrivateKey, sealed []byte) (token, deviceID string) {
+func openRedeem(t *testing.T, tv *ecdh.PrivateKey, sealed []byte) (token, deviceID, email string) {
 	t.Helper()
 	sk, err := hpke.NewDHKEMPrivateKey(tv)
 	if err != nil {
@@ -74,13 +75,14 @@ func openRedeem(t *testing.T, tv *ecdh.PrivateKey, sealed []byte) (token, device
 		t.Fatalf("open sealed token: %v", err)
 	}
 	var answer struct {
-		Token    string `json:"token"`
-		DeviceID string `json:"deviceId"`
+		Token        string `json:"token"`
+		DeviceID     string `json:"deviceId"`
+		AccountEmail string `json:"accountEmail"`
 	}
 	if err := json.Unmarshal(plain, &answer); err != nil {
 		t.Fatal(err)
 	}
-	return answer.Token, answer.DeviceID
+	return answer.Token, answer.DeviceID, answer.AccountEmail
 }
 
 func TestPairingRoundTrip(t *testing.T) {
@@ -107,10 +109,13 @@ func TestPairingRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.AccountEmail != NormalizeEmail(testEmail) || out.Session.Kind != model.SessionDevice || !out.Session.ExpiresAt.Equal(NeverExpires) {
+	if out.Session.Kind != model.SessionDevice || !out.Session.ExpiresAt.Equal(NeverExpires) {
 		t.Fatalf("redeemed %+v", out)
 	}
-	token, deviceID := openRedeem(t, tv, out.SealedToken)
+	token, deviceID, email := openRedeem(t, tv, out.SealedToken)
+	if email != NormalizeEmail(testEmail) {
+		t.Errorf("sealed e-mail %q", email)
+	}
 	if deviceID != out.Session.DeviceID || deviceID == phone.DeviceID || !devicePattern.MatchString(deviceID) {
 		t.Fatalf("sealed device %q, session device %q, phone %q", deviceID, out.Session.DeviceID, phone.DeviceID)
 	}
@@ -417,20 +422,21 @@ func TestRedeemVector(t *testing.T) {
 		if len(plain) == 0 {
 			continue // the case of the empty plaintext checks the suite only
 		}
-		sealed, err := sealRedeem(priv.PublicKey().Bytes(), "example-device-token-0123456789", "dev_example")
-		if err != nil {
-			t.Fatal(err)
-		}
-		token, device := openRedeem(t, priv, sealed)
 		var want struct {
-			Token    string `json:"token"`
-			DeviceID string `json:"deviceId"`
+			Token        string `json:"token"`
+			DeviceID     string `json:"deviceId"`
+			AccountEmail string `json:"accountEmail"`
 		}
 		if err := json.Unmarshal(plain, &want); err != nil {
 			t.Fatal(err)
 		}
-		if token != want.Token || device != want.DeviceID {
-			t.Errorf("round trip %q %q, vector %q %q", token, device, want.Token, want.DeviceID)
+		sealed, err := sealRedeem(priv.PublicKey().Bytes(), want.Token, want.DeviceID, want.AccountEmail)
+		if err != nil {
+			t.Fatal(err)
+		}
+		token, device, email := openRedeem(t, priv, sealed)
+		if token != want.Token || device != want.DeviceID || email != want.AccountEmail || want.AccountEmail == "" {
+			t.Errorf("round trip %q %q %q, vector %+v", token, device, email, want)
 		}
 	}
 	if !found {
@@ -569,5 +575,122 @@ func TestPBKDF2Vectors(t *testing.T) {
 				t.Errorf("hash %s, vector %s", v.Hash, want)
 			}
 		})
+	}
+}
+
+// A voucher dies with the session that issued it: logout, «Meine Geräte» and a new password end it
+// (code review M-1, security review L-3 of stage 1).
+func TestPairingVoucherDiesWithItsIssuer(t *testing.T) {
+	t.Parallel()
+	for _, way := range []string{"logout", "my devices", "password"} {
+		t.Run(way, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			s, _, phone, calls := pairingOwner(t)
+			_, tvKey := newTVKey(t)
+			v, err := s.CreatePairingVoucher(ctx, phone, tvKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch way {
+			case "logout":
+				err = s.Logout(ctx, phone.ID)
+			case "my devices":
+				browser, _, serr := s.StartSession(ctx, phone.Account, phone.Profile, "Firefox")
+				if serr != nil {
+					t.Fatal(serr)
+				}
+				err = s.SignOutMyDevice(ctx, browser, phone.DeviceID, nil)
+			case "password":
+				browser, _, serr := s.StartSession(ctx, phone.Account, phone.Profile, "Firefox")
+				if serr != nil {
+					t.Fatal(serr)
+				}
+				fresh := "a whole new password"
+				_, err = s.UpdateAccount(ctx, browser, model.AccountUpdate{CurrentPassword: testPassword, NewPassword: &fresh})
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.RedeemPairingVoucher(ctx, v.Voucher, tvKey, "TV", "Android TV 14"); !errors.Is(err, model.ErrVoucherInvalid) {
+				t.Errorf("redeem after %s: %v, want voucher_invalid", way, err)
+			}
+			if len(*calls) != 0 {
+				t.Errorf("device linked %d times", len(*calls))
+			}
+		})
+	}
+}
+
+// The TV's key is checked strictly when the voucher is issued and when it is redeemed: canonical
+// base64url of exactly 32 bytes, no point of low order (security review L-1, code review m-7).
+// Nothing is stored for a refused key, and no device row is left behind.
+func TestPairingRefusesWeakKeys(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, phone, _ := pairingOwner(t)
+	_, good := newTVKey(t)
+	v, err := s.CreatePairingVoucher(ctx, phone, good)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one := make([]byte, 32)
+	one[0] = 1
+	// The last of 43 characters carries two spare bits, zero in canonical base64url; set one.
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	lastBits := good[:42] + string(alphabet[strings.IndexByte(alphabet, good[42])^1])
+	for name, key := range map[string]string{
+		"zero point":        b64.EncodeToString(make([]byte, 32)),
+		"point one":         b64.EncodeToString(one),
+		"line break":        good[:20] + "\n" + good[20:],
+		"non-canonical end": lastBits,
+		"padding":           b64.EncodeToString(make([]byte, 31)) + "=",
+	} {
+		var verr *model.ValidationError
+		if _, err := s.CreatePairingVoucher(ctx, phone, key); !errors.As(err, &verr) {
+			t.Errorf("%s: issue %v, want a validation error", name, err)
+		}
+		if _, err := s.RedeemPairingVoucher(ctx, v.Voucher, key, "TV", "Android TV 14"); !errors.As(err, &verr) {
+			t.Errorf("%s: redeem %v, want a validation error", name, err)
+		}
+	}
+	// The good voucher is still open: a refused key never took it.
+	if _, err := s.RedeemPairingVoucher(ctx, v.Voucher, good, "TV", "Android TV 14"); err != nil {
+		t.Errorf("the voucher after refused keys: %v", err)
+	}
+	var devices int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM devices WHERE type = 'tv'`).Scan(&devices); err != nil {
+		t.Fatal(err)
+	}
+	if devices != 1 {
+		t.Errorf("%d TV devices, want the one paired", devices)
+	}
+}
+
+// The redeem answer carries the server's signature over the sealed token (security review I-1).
+func TestRedeemAnswerIsSigned(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, phone, _ := pairingOwner(t)
+	seed := make([]byte, ed25519.SeedSize)
+	_, _ = rand.Read(seed)
+	s.WithServerIdentity(seed)
+	_, tvKey := newTVKey(t)
+	v, err := s.CreatePairingVoucher(ctx, phone, tvKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.RedeemPairingVoucher(ctx, v.Voucher, tvKey, "TV", "Android TV 14")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := ed25519.PublicKey(vectorBytes(t, s.ServerKey()))
+	if !ed25519.Verify(pub, append([]byte(RedeemSignaturePrefix), out.SealedToken...), out.Signature) {
+		t.Fatal("signature does not verify")
+	}
+	swapped := bytes.Clone(out.SealedToken)
+	swapped[40] ^= 1
+	if ed25519.Verify(pub, append([]byte(RedeemSignaturePrefix), swapped...), out.Signature) {
+		t.Error("signature verifies for another sealed token")
 	}
 }

@@ -103,12 +103,13 @@ type PairingVoucher struct {
 	ExpiresAt time.Time
 }
 
-// PairingRedeemed is the result of a redeemed voucher: the device session with its plain token,
-// sealed for the TV's key (SealedToken, HPKE, ADR 0040), and the account's e-mail the TV shows.
+// PairingRedeemed is the result of a redeemed voucher: the device session, its token sealed for the
+// TV's key together with the device id and the account's e-mail the TV shows (SealedToken, HPKE,
+// ADR 0040), and the server's Ed25519 signature over the sealed answer (empty without identity).
 type PairingRedeemed struct {
-	Session      Session
-	SealedToken  []byte
-	AccountEmail string
+	Session     Session
+	SealedToken []byte
+	Signature   []byte
 }
 
 // Role errors (ADR 0014). They are conflicts, not permission questions: the caller has the right,

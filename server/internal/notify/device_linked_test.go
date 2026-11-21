@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -55,16 +56,113 @@ func TestDeviceLinkedGoesToEveryChannel(t *testing.T) {
 	if len(pushes) != 1 || !strings.Contains(pushes[0].payload, subject) {
 		t.Errorf("pushes = %+v", pushes)
 	}
-	// A switched-off channel stays quiet.
-	if _, err := e.svc.UpdateChannel(ctx, e.owner(), model.ChannelPush, model.ChannelSettingUpdate{Enabled: false}); err != nil {
-		t.Fatal(err)
+	if !strings.Contains(pushes[0].payload, "/settings/devices") {
+		t.Errorf("push without the link to «Meine Geräte»: %s", pushes[0].payload)
 	}
-	if err := e.svc.DeviceLinked(ctx, e.f.Account.ID, "tv", "Küche", "Android TV 12", at); err != nil {
+}
+
+// device_linked is a security message (security review M-1 of stage 1): it reaches every channel
+// the account set up although all are switched off, and the e-mail goes to the account's own
+// address, not to one set for the channel (which a stolen session could have changed).
+func TestDeviceLinkedIgnoresSwitchedOffChannels(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	e.cfg.set(func(c *fakeConfig) { c.token = testBotToken })
+	e.subscribe(t, e.owner(), "https://push.example.test/owner")
+	e.linkChat(t, e.f.Account.ID, 4242)
+	other := "elsewhere@example.test"
+	for _, channel := range []string{model.ChannelEmail, model.ChannelPush, model.ChannelTelegram} {
+		upd := model.ChannelSettingUpdate{Enabled: false}
+		if channel == model.ChannelEmail {
+			upd.EmailAddress = &other
+		}
+		if _, err := e.svc.UpdateChannel(ctx, e.owner(), channel, upd); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.svc.DeviceLinked(ctx, e.f.Account.ID, "tv", "Stube", "Android TV 14", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	e.drain(t)
-	if d := e.deliveries(t); len(d) != 3 || d[2].channel != model.ChannelEmail {
-		t.Errorf("deliveries after switching push off = %+v", d)
+	got := map[string]string{}
+	for _, d := range e.deliveries(t) {
+		got[d.channel] = d.state
+	}
+	want := map[string]string{model.ChannelEmail: "sent", model.ChannelPush: "sent", model.ChannelTelegram: "sent"}
+	if !maps.Equal(got, want) {
+		t.Fatalf("deliveries %v, want %v", got, want)
+	}
+	if mails := e.mailer.sent(); len(mails) != 1 || !strings.EqualFold(mails[0].to, e.f.Account.Email) {
+		t.Errorf("mails %+v, want one to the account's own address", mails)
+	}
+	if len(e.pusher.sent()) != 1 || len(e.tg.sent()) != 1 {
+		t.Errorf("pushes %d, Telegram %d; want 1 each", len(e.pusher.sent()), len(e.tg.sent()))
+	}
+	// An ordinary event stays off on the switched-off channels.
+	if err := e.svc.InvitationAccepted(ctx, e.f.Account.ID, "gast@example.test"); err != nil {
+		t.Fatal(err)
+	}
+	e.drain(t)
+	if n := len(e.deliveries(t)); n != 3 {
+		t.Errorf("%d deliveries after an ordinary event on switched-off channels, want still 3", n)
+	}
+}
+
+// Without any channel the server can carry (no e-mail server, no Telegram bot, no subscription),
+// the pairing still counts and only «Meine Geräte» shows it (ADR 0040, known limit); the server
+// logs the gap as an error.
+func TestDeviceLinkedWithoutAnyChannel(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	e.cfg.set(func(c *fakeConfig) { c.smtpOK = false })
+	if err := e.svc.DeviceLinked(ctx, e.f.Account.ID, "tv", "Stube", "Android TV 14", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	e.drain(t)
+	for _, d := range e.deliveries(t) {
+		if d.state == "sent" {
+			t.Errorf("delivery %+v sent without a channel", d)
+		}
+	}
+	if len(e.mailer.sent()) != 0 || len(e.tg.sent()) != 0 {
+		t.Error("a message went out without a channel")
+	}
+}
+
+// Push is retried per subscription (code review M-2 of stage 1): the push relay answers 503 once,
+// the browser takes the message at once; the retry goes to the relay only, so the browser gets the
+// message once and the phone gets it too.
+func TestPushRetriesOnlyTheFailedSubscription(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	e.enable(t, e.owner(), model.ChannelPush, model.EventInvitations)
+	browser := "https://push.example.test/browser"
+	phone := push.DefaultRelayOrigin + "/v1/push/1.phone"
+	e.subscribe(t, e.owner(), browser)
+	e.subscribe(t, e.owner(), phone)
+	e.pusher.errs[phone] = errors.New("push service answered 503 Service Unavailable")
+	if err := e.svc.InvitationAccepted(ctx, e.f.Account.ID, "gast@example.test"); err != nil {
+		t.Fatal(err)
+	}
+	e.drain(t)
+	if d := e.deliveries(t); len(d) != 1 || d[0].state != "queued" {
+		t.Fatalf("after the 503: %+v, want the delivery queued for a retry", d)
+	}
+	delete(e.pusher.errs, phone)
+	e.exec(t, `UPDATE jobs SET run_after = 0`) // the retry is due now
+	e.drain(t)
+	count := map[string]int{}
+	for _, p := range e.pusher.sent() {
+		count[p.endpoint]++
+	}
+	if count[browser] != 1 || count[phone] != 1 {
+		t.Errorf("pushes %v, want one each", count)
+	}
+	if d := e.deliveries(t); len(d) != 1 || d[0].state != "sent" {
+		t.Errorf("after the retry: %+v", d)
 	}
 }
 
