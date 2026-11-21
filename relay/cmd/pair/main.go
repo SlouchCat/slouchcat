@@ -46,11 +46,18 @@ func run(listen string) error {
 	if err != nil {
 		return err
 	}
+	if ttl > 5*time.Minute {
+		return fmt.Errorf("RELAY_PAIR_TTL %s: at most 5m (K-1, D-1)", ttl)
+	}
 	maxOpen, err := serve.EnvInt("RELAY_PAIR_MAX_OPEN", 10000)
 	if err != nil {
 		return err
 	}
 	perCaller, err := serve.EnvInt("RELAY_PAIR_MAX_OPEN_PER_CALLER", 10)
+	if err != nil {
+		return err
+	}
+	perNet, err := serve.EnvInt("RELAY_PAIR_MAX_OPEN_PER_NET", 50)
 	if err != nil {
 		return err
 	}
@@ -62,15 +69,30 @@ func run(listen string) error {
 	if err != nil {
 		return err
 	}
-	store := pair.NewStore(ttl, maxOpen, perCaller)
+	netRate, err := serve.EnvFloat("RELAY_NET_RATE", 20)
+	if err != nil {
+		return err
+	}
+	netBurst, err := serve.EnvInt("RELAY_NET_BURST", 300)
+	if err != nil {
+		return err
+	}
+	store := pair.NewStore(ttl, pair.Limits{MaxOpen: maxOpen, MaxPerCaller: perCaller, MaxPerNet: perNet})
 	lim := limit.New(rate, burst, 100000)
+	netLim := limit.New(netRate, netBurst, 100000)
+	untrusted := logging.NewThrottle(log, time.Hour)
+	callers.Untrusted = func() {
+		untrusted.Warn("untrusted_forward", "X-Forwarded-For from a peer that is not a trusted proxy; check RELAY_TRUSTED_PROXIES")
+	}
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			store.Expire()
 			lim.Sweep()
+			netLim.Sweep()
 		}
 	}()
-	h := &pair.Handler{Store: store, Callers: callers, Limit: lim, Log: log, HelpPage: pair.NewHelpPage()}
+	h := &pair.Handler{Store: store, Callers: callers, Limit: lim, NetLimit: netLim, Log: log,
+		Warn: logging.NewThrottle(log, time.Minute), HelpPage: pair.NewHelpPage()}
 	log.Info("pair service starting", "version", version, "trusted_proxies", callers.Count(), "ttl", ttl.String())
 	return serve.Run(log, listen, h.Routes())
 }

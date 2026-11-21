@@ -17,7 +17,7 @@ import (
 // The check program against the real handler: every check of a move rehearsal passes.
 func TestPaircheckAgainstTheService(t *testing.T) {
 	callers, _ := clientip.ParseTrusted("")
-	h := &pair.Handler{Store: pair.NewStore(5*time.Minute, 100, 10), Callers: callers,
+	h := &pair.Handler{Store: pair.NewStore(5*time.Minute, pair.Limits{MaxOpen: 100, MaxPerCaller: 10, MaxPerNet: 50}), Callers: callers,
 		Limit: limit.New(100, 100, 100), Log: slog.New(slog.DiscardHandler), HelpPage: pair.NewHelpPage()}
 	srv := httptest.NewServer(h.Routes())
 	defer srv.Close()

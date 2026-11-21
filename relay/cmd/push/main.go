@@ -76,7 +76,9 @@ func run(listen string) error {
 	if err != nil {
 		return err
 	}
-	maxBody, err := serve.EnvInt("RELAY_PUSH_MAX_BODY", 3000)
+	// 2700: the record size a server uses for this forwarder (stage 0); its body in base64 is
+	// 3602 bytes and fits Google's 4096 with room to spare.
+	maxBody, err := serve.EnvInt("RELAY_PUSH_MAX_BODY", 2700)
 	if err != nil {
 		return err
 	}
@@ -104,12 +106,54 @@ func run(listen string) error {
 	if err != nil {
 		return err
 	}
+	netRate, err := serve.EnvFloat("RELAY_NET_RATE", 200)
+	if err != nil {
+		return err
+	}
+	netBurst, err := serve.EnvInt("RELAY_NET_BURST", 2000)
+	if err != nil {
+		return err
+	}
+	regNetRate, err := serve.EnvFloat("RELAY_PUSH_REGISTER_NET_RATE", 2)
+	if err != nil {
+		return err
+	}
+	regNetBurst, err := serve.EnvInt("RELAY_PUSH_REGISTER_NET_BURST", 100)
+	if err != nil {
+		return err
+	}
+	globalRate, err := serve.EnvFloat("RELAY_PUSH_GLOBAL_RATE", 2000)
+	if err != nil {
+		return err
+	}
+	globalBurst, err := serve.EnvInt("RELAY_PUSH_GLOBAL_BURST", 4000)
+	if err != nil {
+		return err
+	}
 
 	h := &push.Handler{
 		Origins: origins, MaxBody: maxBody, Callers: callers, Log: log,
-		RegisterLimit: limit.New(regRate, regBurst, 100000),
-		CallerLimit:   limit.New(callerRate, callerBurst, 100000),
-		AddressLimit:  limit.New(addrRate, addrBurst, 200000),
+		RegisterLimit:    limit.New(regRate, regBurst, 100000),
+		RegisterNetLimit: limit.New(regNetRate, regNetBurst, 100000),
+		CallerLimit:      limit.New(callerRate, callerBurst, 100000),
+		NetLimit:         limit.New(netRate, netBurst, 100000),
+		AddressLimit:     limit.New(addrRate, addrBurst, 200000),
+		GlobalLimit:      limit.New(globalRate, globalBurst, 1),
+		Warn:             logging.NewThrottle(log, time.Minute),
+	}
+	untrusted := logging.NewThrottle(log, time.Hour)
+	callers.Untrusted = func() {
+		untrusted.Warn("untrusted_forward", "X-Forwarded-For from a peer that is not a trusted proxy; check RELAY_TRUSTED_PROXIES")
+	}
+	// Security review I-3: the bearer token goes to RELAY_FCM_BASE_URL, and an http origin is
+	// fine only for a local rehearsal.
+	if base := serve.Env("RELAY_FCM_BASE_URL", ""); base != "" {
+		log.Warn("RELAY_FCM_BASE_URL is set: messages and the access token go there instead of Google; for tests only")
+	}
+	for _, o := range origins {
+		if !strings.HasPrefix(o, "https://") {
+			log.Warn("an own origin is not https; for a local rehearsal only", "origin", o)
+		}
 	}
 	// Missing secrets do not stop the service: it answers 503 and the health check reports it
 	// (D-10). A move without the key file must not turn into deleted subscriptions.
@@ -131,9 +175,9 @@ func run(listen string) error {
 	}
 	go func() {
 		for range time.Tick(time.Minute) {
-			h.RegisterLimit.Sweep()
-			h.CallerLimit.Sweep()
-			h.AddressLimit.Sweep()
+			for _, l := range []*limit.Limiter{h.RegisterLimit, h.RegisterNetLimit, h.CallerLimit, h.NetLimit, h.AddressLimit} {
+				l.Sweep()
+			}
 		}
 	}()
 	log.Info("push forwarder starting", "version", version, "origins", strings.Join(origins, " "),

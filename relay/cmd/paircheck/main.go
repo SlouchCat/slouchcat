@@ -193,6 +193,12 @@ func (k *checker) run() error {
 	if _, _, err := k.expect("packet after the pick-up (consumed)", http.MethodPut, path, "", packet, http.StatusGone); err != nil {
 		return err
 	}
+	if _, _, err := k.expect("TV tidies up after the pick-up", http.MethodDelete, path, secret, nil, http.StatusNoContent); err != nil {
+		return err
+	}
+	if _, _, err := k.expect("packet after pick-up and tidy-up (consumed)", http.MethodPut, path, "", packet, http.StatusGone); err != nil {
+		return err
+	}
 	unknown := "/v1/pair/" + pairing.NewSecret(16)
 	if _, _, err := k.expect("packet for an unknown id", http.MethodPut, unknown, "", packet, http.StatusNotFound); err != nil {
 		return err

@@ -78,10 +78,22 @@ type Client struct {
 	http     *http.Client
 	now      func() time.Time
 
-	mu      sync.Mutex
-	token   string
-	expires time.Time
+	// TokenTimeout bounds one request to the token endpoint, SendTimeout one send. Together they
+	// stay below the WriteTimeout of the HTTP server (30 s).
+	TokenTimeout time.Duration
+	SendTimeout  time.Duration
+
+	mu        sync.Mutex
+	token     string
+	expires   time.Time
+	inflight  chan struct{} // closed when the running token request is done
+	failUntil time.Time     // a failed token request is remembered until then
+	failErr   error
 }
+
+// FailureMemo is how long a failed token request is remembered: every send in that time fails at
+// once with the same error instead of queueing another request to a token endpoint that is down.
+const FailureMemo = 5 * time.Second
 
 // Load reads the service account file. baseURL and tokenURL may be empty for Google's own.
 func Load(path, baseURL, tokenURL string, hc *http.Client) (*Client, error) {
@@ -128,6 +140,7 @@ func New(sa ServiceAccount, baseURL, tokenURL string, hc *http.Client) (*Client,
 	return &Client{
 		project: sa.ProjectID, email: sa.ClientEmail, key: key, tokenURL: tokenURL,
 		baseURL: strings.TrimRight(baseURL, "/"), http: hc, now: time.Now,
+		TokenTimeout: 10 * time.Second, SendTimeout: 10 * time.Second,
 	}, nil
 }
 
@@ -171,6 +184,8 @@ func (c *Client) Send(ctx context.Context, m Message) error {
 	if err != nil {
 		return err
 	}
+	ctx, cancel := context.WithTimeout(ctx, c.SendTimeout)
+	defer cancel()
 	body := sendBody{Message: sendMessage{Token: m.Token, Data: m.Data, Android: sendAndroid{Priority: "NORMAL"}}}
 	if m.High {
 		body.Message.Android.Priority = "HIGH"
@@ -222,26 +237,72 @@ func (c *Client) dropToken() {
 	c.mu.Unlock()
 }
 
-// accessToken returns a cached token or fetches a new one.
+// accessToken returns the cached token, or waits for the one request that fetches a new one
+// (code review major 1). The request runs outside the lock with its own time limit, so a caller
+// that gives up does not cancel it for the others, and every waiting caller leaves as soon as its
+// own context ends. A failure is remembered for FailureMemo.
 func (c *Client) accessToken(ctx context.Context) (string, error) {
+	for {
+		c.mu.Lock()
+		now := c.now()
+		if c.token != "" && now.Before(c.expires) {
+			t := c.token
+			c.mu.Unlock()
+			return t, nil
+		}
+		if now.Before(c.failUntil) {
+			err := c.failErr
+			c.mu.Unlock()
+			return "", err
+		}
+		ch := c.inflight
+		if ch == nil {
+			ch = make(chan struct{})
+			c.inflight = ch
+			go c.fetchToken(ch) //nolint:gosec // deliberately detached: one caller giving up must not cancel the token request of the others (code review major 1)
+		}
+		c.mu.Unlock()
+		select {
+		case <-ch:
+		case <-ctx.Done():
+			return "", &Error{Err: errors.New("gave up waiting for the access token")}
+		}
+	}
+}
+
+// fetchToken runs one request to the token endpoint and publishes its outcome.
+func (c *Client) fetchToken(done chan struct{}) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.TokenTimeout)
+	defer cancel()
+	token, lifetime, err := c.requestToken(ctx)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.token != "" && c.now().Before(c.expires) {
-		return c.token, nil
+	now := c.now()
+	if err != nil {
+		c.failErr, c.failUntil = err, now.Add(FailureMemo)
+	} else {
+		// Renew five minutes early, or at half the lifetime for a very short one.
+		c.token, c.expires = token, now.Add(lifetime-min(5*time.Minute, lifetime/2))
+		c.failErr, c.failUntil = nil, time.Time{}
 	}
+	c.inflight = nil
+	close(done)
+}
+
+func (c *Client) requestToken(ctx context.Context) (string, time.Duration, error) {
 	assertion, err := c.assertion()
 	if err != nil {
-		return "", &Error{Err: err}
+		return "", 0, &Error{Err: err}
 	}
 	form := url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {assertion}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		return "", &Error{Err: err}
+		return "", 0, &Error{Err: err}
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", &Error{Err: errors.New("token request failed")}
+		return "", 0, &Error{Err: errors.New("token request failed")}
 	}
 	defer resp.Body.Close()
 	var t struct {
@@ -249,19 +310,15 @@ func (c *Client) accessToken(ctx context.Context) (string, error) {
 		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", &Error{Status: resp.StatusCode, Code: "TOKEN_ENDPOINT", Err: fmt.Errorf("token endpoint answered %d", resp.StatusCode)}
+		return "", 0, &Error{Status: resp.StatusCode, Code: "TOKEN_ENDPOINT", Err: fmt.Errorf("token endpoint answered %d", resp.StatusCode)}
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&t); err != nil || t.AccessToken == "" {
-		return "", &Error{Err: errors.New("token endpoint sent no access token")}
+		return "", 0, &Error{Err: errors.New("token endpoint sent no access token")}
 	}
-	if t.ExpiresIn <= 0 {
+	if t.ExpiresIn <= 0 || t.ExpiresIn > 24*3600 {
 		t.ExpiresIn = 3600
 	}
-	c.token = t.AccessToken
-	// Renew five minutes early, or at half the lifetime for a very short one.
-	margin := min(5*time.Minute, time.Duration(t.ExpiresIn)*time.Second/2)
-	c.expires = c.now().Add(time.Duration(t.ExpiresIn)*time.Second - margin)
-	return c.token, nil
+	return t.AccessToken, time.Duration(t.ExpiresIn) * time.Second, nil
 }
 
 // assertion is the RS256 JWT of the JWT bearer grant.

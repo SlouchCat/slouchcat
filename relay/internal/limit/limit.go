@@ -2,8 +2,11 @@
 // (concept 27, rules D-1, D-2 and D-5).
 //
 // The number of keys is bounded. When the table is full, buckets that have refilled completely are
-// dropped first (they carry no state worth keeping); if none can go, a new key is refused. A flood
-// of new addresses therefore costs the flooder, not the memory of the service.
+// dropped first (they carry no state worth keeping), at most once a second, because a sweep walks
+// the whole table. If the table is still full, an arbitrary bucket gives way to the new key. A
+// newcomer is therefore never refused because strangers filled the table (security review M-2);
+// what a flood of new keys gains is that some of its own buckets start fresh, which the limit per
+// larger network and the service-wide limit still bound.
 package limit
 
 import (
@@ -18,8 +21,9 @@ type Limiter struct {
 	maxKeys int
 	now     func() time.Time
 
-	mu      sync.Mutex
-	buckets map[string]*bucket
+	mu        sync.Mutex
+	buckets   map[string]*bucket
+	lastSweep time.Time
 }
 
 type bucket struct {
@@ -43,11 +47,14 @@ func (l *Limiter) Allow(key string) bool {
 	now := l.now()
 	b, ok := l.buckets[key]
 	if !ok {
-		if len(l.buckets) >= l.maxKeys {
+		if len(l.buckets) >= l.maxKeys && now.Sub(l.lastSweep) >= time.Second {
 			l.sweepLocked(now)
-			if len(l.buckets) >= l.maxKeys {
-				return false
+		}
+		for k := range l.buckets {
+			if len(l.buckets) < l.maxKeys {
+				break
 			}
+			delete(l.buckets, k) // map order is arbitrary: an arbitrary bucket gives way
 		}
 		b = &bucket{tokens: l.burst, last: now}
 		l.buckets[key] = b
@@ -76,6 +83,7 @@ func (l *Limiter) Sweep() {
 }
 
 func (l *Limiter) sweepLocked(now time.Time) {
+	l.lastSweep = now
 	for k, b := range l.buckets {
 		if b.tokens+now.Sub(b.last).Seconds()*l.rate >= l.burst {
 			delete(l.buckets, k)

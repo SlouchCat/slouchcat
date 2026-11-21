@@ -2,6 +2,8 @@ package serve
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -89,5 +91,52 @@ func TestHealthcheck(t *testing.T) {
 	_, port, _ := net.SplitHostPort(strings.TrimPrefix(ok.URL, "http://"))
 	if code := Healthcheck(":" + port); code != 0 {
 		t.Fatalf(":port form: exit %d", code)
+	}
+}
+
+// A stop lets a running request finish with its answer instead of cancelling it (minor 1).
+func TestServeFinishesRunningRequests(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(entered)
+		<-release
+		if r.Context().Err() != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = io.WriteString(w, "done")
+	})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, stop := context.WithCancel(context.Background())
+	served := make(chan error, 1)
+	go func() { served <- Serve(ctx, slog.New(slog.DiscardHandler), ln, h) }()
+	type result struct {
+		status int
+		body   string
+		err    error
+	}
+	got := make(chan result, 1)
+	go func() {
+		resp, err := http.Get("http://" + ln.Addr().String() + "/")
+		if err != nil {
+			got <- result{err: err}
+			return
+		}
+		b, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		got <- result{status: resp.StatusCode, body: string(b)}
+	}()
+	<-entered
+	stop() // SIGTERM while the request runs
+	close(release)
+	r := <-got
+	if r.err != nil || r.status != http.StatusOK || r.body != "done" {
+		t.Fatalf("running request: %+v", r)
+	}
+	if err := <-served; err != nil {
+		t.Fatalf("Serve = %v", err)
 	}
 }

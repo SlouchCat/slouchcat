@@ -39,15 +39,17 @@ func TestMaxKeys(t *testing.T) {
 	l.SetClock(c.now)
 	l.Allow("a")
 	l.Allow("b")
-	if l.Allow("c") {
-		t.Fatal("a third key was admitted to a full table of busy buckets")
-	}
-	c.t = c.t.Add(time.Minute) // a and b are full again and can go
+	// Strangers filled the table with busy buckets: a newcomer still gets through (M-2), and the
+	// table stays at its bound.
 	if !l.Allow("c") {
-		t.Fatal("a new key was refused although the table held only idle buckets")
+		t.Fatal("a new key was refused because strangers filled the table")
 	}
+	if n := l.Len(); n != 2 {
+		t.Fatalf("Len = %d, want the bound 2", n)
+	}
+	c.t = c.t.Add(time.Minute) // everything is full again and can go
 	l.Sweep()
-	if n := l.Len(); n != 1 {
-		t.Fatalf("Len after sweep = %d, want 1", n)
+	if n := l.Len(); n != 0 {
+		t.Fatalf("Len after sweep = %d, want 0", n)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -210,7 +211,12 @@ func TestVAPIDAndInput(t *testing.T) {
 			req.Header.Set("Authorization", auth)
 		}
 		req.Header.Set("Content-Encoding", "aes128gcm")
+		req.Header.Set("TTL", "60")
 		for k, v := range hdr {
+			if v == "" {
+				req.Header.Del(k)
+				continue
+			}
 			req.Header.Set(k, v)
 		}
 		resp, err := http.DefaultClient.Do(req)
@@ -231,9 +237,12 @@ func TestVAPIDAndInput(t *testing.T) {
 		body []byte
 		want int
 	}{
-		"no signature":       {"", nil, []byte("x"), http.StatusForbidden},
-		"another server":     {sign(other, e.srv.URL, time.Hour), nil, []byte("x"), http.StatusForbidden},
-		"foreign aud":        {sign(e.vapid, "https://elsewhere.example.test", time.Hour), nil, []byte("x"), http.StatusForbidden},
+		"no signature":   {"", nil, []byte("x"), http.StatusForbidden},
+		"another server": {sign(other, e.srv.URL, time.Hour), nil, []byte("x"), http.StatusForbidden},
+		"foreign aud (own misconfiguration, 503)": {sign(e.vapid, "https://elsewhere.example.test", time.Hour), nil, []byte("x"), http.StatusServiceUnavailable},
+		"no TTL":             {sign(e.vapid, e.srv.URL, time.Hour), map[string]string{"TTL": ""}, []byte("x"), http.StatusBadRequest},
+		"negative TTL":       {sign(e.vapid, e.srv.URL, time.Hour), map[string]string{"TTL": "-1"}, []byte("x"), http.StatusBadRequest},
+		"overflowing TTL":    {sign(e.vapid, e.srv.URL, time.Hour), map[string]string{"TTL": "99999999999999999"}, []byte("x"), http.StatusCreated},
 		"expired":            {sign(e.vapid, e.srv.URL, -time.Minute), nil, []byte("x"), http.StatusForbidden},
 		"fixed name as aud":  {sign(e.vapid, "https://push.example.test", time.Hour), nil, []byte("x"), http.StatusCreated},
 		"too large":          {sign(e.vapid, e.srv.URL, time.Hour), nil, make([]byte, 3001), http.StatusRequestEntityTooLarge},
@@ -280,5 +289,78 @@ func TestRateLimits(t *testing.T) {
 	e.register("dev-7")
 	if s, _ := e.register("dev-8"); s != http.StatusTooManyRequests {
 		t.Fatalf("second registration: %d, want 429", s)
+	}
+}
+
+// A huge TTL is cut to four weeks, not overflowed into Google's default (code review minor 6).
+func TestTTLClamp(t *testing.T) {
+	e := newEnv(t, newKeys(t, "1", map[string]string{"1": seal.NewKey()}), true)
+	_, ep := e.register("dev-ttl")
+	if s := e.push(ep, []byte("x"), map[string]string{"TTL": "9223372036854775807"}); s != http.StatusCreated {
+		t.Fatalf("push: %d", s)
+	}
+	if s := e.push(ep, []byte("x"), map[string]string{"TTL": "0"}); s != http.StatusCreated {
+		t.Fatalf("push: %d", s)
+	}
+	msgs := e.fake.Messages("dev-ttl")
+	if len(msgs) != 2 || msgs[0].TTL != "2419200s" || msgs[1].TTL != "1s" {
+		t.Fatalf("TTLs = %+v", msgs)
+	}
+}
+
+// Security review M-2: one bucket for the whole service in front of Google, 503 when empty; and
+// L-1: requests without a valid signature do not use up an address's budget.
+func TestGlobalAndAddressLimit(t *testing.T) {
+	e := newEnv(t, newKeys(t, "1", map[string]string{"1": seal.NewKey()}), true)
+	e.h.GlobalLimit = limit.New(0.001, 2, 1)
+	e.h.AddressLimit = limit.New(0.001, 3, 100)
+	_, ep := e.register("dev-g")
+	other, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	good := e.vapid
+	e.vapid = other
+	for range 10 {
+		if s := e.push(ep, []byte("x"), nil); s != http.StatusForbidden {
+			t.Fatalf("forged push: %d", s)
+		}
+	}
+	e.vapid = good
+	for range 2 {
+		if s := e.push(ep, []byte("x"), nil); s != http.StatusCreated {
+			t.Fatalf("push after forged ones: %d (the address budget was used up by them)", s)
+		}
+	}
+	if s := e.push(ep, []byte("x"), nil); s != http.StatusServiceUnavailable {
+		t.Fatalf("over the service-wide limit: %d, want 503", s)
+	}
+	if n := len(e.fake.Messages("dev-g")); n != 2 {
+		t.Fatalf("%d messages reached Google, want 2", n)
+	}
+}
+
+// Security review M-1, M-2: many /64 of one /48 share the limit of that /48.
+func TestNetLimit(t *testing.T) {
+	e := newEnv(t, newKeys(t, "1", map[string]string{"1": seal.NewKey()}), true)
+	e.h.RegisterLimit = limit.New(100, 100, 100)
+	e.h.RegisterNetLimit = limit.New(0.001, 3, 100)
+	reg := func(xff string) int {
+		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/v1/register", strings.NewReader(`{"fcmToken":"x","vapidKey":"`+mustPub(e.vapid)+`"}`))
+		req.Header.Set("X-Forwarded-For", xff)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode
+	}
+	for i := range 3 {
+		if s := reg(fmt.Sprintf("2001:db8:7:%x::1", i)); s != http.StatusOK {
+			t.Fatalf("register %d: %d", i, s)
+		}
+	}
+	if s := reg("2001:db8:7:ff::1"); s != http.StatusTooManyRequests {
+		t.Fatalf("fourth /64 of one /48: %d, want 429", s)
+	}
+	if s := reg("2001:db8:8::1"); s != http.StatusOK {
+		t.Fatalf("another /48: %d", s)
 	}
 }

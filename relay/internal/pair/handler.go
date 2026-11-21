@@ -11,6 +11,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/relay/internal/clientip"
 	"github.com/slouchcat/slouchcat/relay/internal/limit"
+	"github.com/slouchcat/slouchcat/relay/internal/logging"
 	"github.com/slouchcat/slouchcat/relay/internal/serve"
 )
 
@@ -25,12 +26,20 @@ type Handler struct {
 	Store    *Store
 	Callers  *clientip.Resolver
 	Limit    *limit.Limiter // per caller key, every request but the health check
+	NetLimit *limit.Limiter // per /48 or /24 around the caller (security review M-1)
 	Log      *slog.Logger
+	Warn     *logging.Throttle
 	HelpPage *HelpPage
 }
 
 // Routes returns the mux of the service.
 func (h *Handler) Routes() http.Handler {
+	if h.NetLimit == nil {
+		h.NetLimit = limit.New(1e9, 1<<30, 1)
+	}
+	if h.Warn == nil {
+		h.Warn = logging.NewThrottle(h.Log, time.Minute)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		serve.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -48,7 +57,8 @@ func (h *Handler) Routes() http.Handler {
 
 func (h *Handler) limited(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !h.Limit.Allow(h.Callers.Key(r)) {
+		caller, network := h.Callers.Keys(r)
+		if !h.Limit.Allow(caller) || !h.NetLimit.Allow(network) {
 			w.Header().Set("Retry-After", "2")
 			serve.Error(w, http.StatusTooManyRequests, "rate_limited")
 			return
@@ -76,7 +86,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		serve.Error(w, http.StatusBadRequest, "bad_pickup_hash")
 		return
 	}
-	id, exp, err := h.Store.Create(h.Callers.Key(r), [sha256.Size]byte(raw))
+	caller, network := h.Callers.Keys(r)
+	id, exp, err := h.Store.Create(caller, network, [sha256.Size]byte(raw))
 	switch {
 	case errors.Is(err, ErrCallerFull):
 		w.Header().Set("Retry-After", "60")
@@ -85,7 +96,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrFull):
 		w.Header().Set("Retry-After", "60")
 		serve.Error(w, http.StatusServiceUnavailable, "full")
-		h.Log.Warn("meeting points full", "open", h.Store.Len())
+		h.Warn.Warn("full", "meeting points full", "open", h.Store.Len())
 		return
 	case err != nil:
 		serve.Error(w, http.StatusInternalServerError, "internal")

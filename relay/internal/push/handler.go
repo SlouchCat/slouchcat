@@ -26,10 +26,14 @@ import (
 	"github.com/slouchcat/slouchcat/relay/internal/clientip"
 	"github.com/slouchcat/slouchcat/relay/internal/fcm"
 	"github.com/slouchcat/slouchcat/relay/internal/limit"
+	"github.com/slouchcat/slouchcat/relay/internal/logging"
 	"github.com/slouchcat/slouchcat/relay/internal/seal"
 	"github.com/slouchcat/slouchcat/relay/internal/serve"
 	"github.com/slouchcat/slouchcat/relay/internal/vapid"
 )
+
+// maxTTLSeconds is the longest Google keeps a message: four weeks.
+const maxTTLSeconds = 28 * 24 * 3600
 
 // Sender is what the handler needs of Google's push service (the fcm client, or a fake in tests).
 type Sender interface {
@@ -43,18 +47,30 @@ type Handler struct {
 	Origins []string   // own origins ("https://push.example.test"), first is the default
 	MaxBody int        // largest Web Push body in bytes
 	Callers *clientip.Resolver
-	// Rate limits: register and push per caller key, push per push address.
-	RegisterLimit *limit.Limiter
-	CallerLimit   *limit.Limiter
-	AddressLimit  *limit.Limiter
-	Log           *slog.Logger
-	Now           func() time.Time
+	// Rate limits: register and push per caller key and per larger network (/48, /24; security
+	// review M-1, M-2), push per push address after the VAPID check, and one bucket for the whole
+	// service in front of Google (GlobalLimit, M-2): empty, it answers 503 like any own failure.
+	// A nil limiter does not limit (tests).
+	RegisterLimit    *limit.Limiter
+	RegisterNetLimit *limit.Limiter
+	CallerLimit      *limit.Limiter
+	NetLimit         *limit.Limiter
+	AddressLimit     *limit.Limiter
+	GlobalLimit      *limit.Limiter
+	Log              *slog.Logger
+	Warn             *logging.Throttle
+	Now              func() time.Time
 }
+
+func allow(l *limit.Limiter, key string) bool { return l == nil || l.Allow(key) }
 
 // Routes returns the mux of the service.
 func (h *Handler) Routes() http.Handler {
 	if h.Now == nil {
 		h.Now = time.Now
+	}
+	if h.Warn == nil {
+		h.Warn = logging.NewThrottle(h.Log, time.Minute)
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/healthz", h.health)
@@ -105,7 +121,7 @@ type registerRequest struct {
 }
 
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
-	if !h.RegisterLimit.Allow(h.Callers.Key(r)) {
+	if caller, network := h.Callers.Keys(r); !allow(h.RegisterLimit, caller) || !allow(h.RegisterNetLimit, network) {
 		w.Header().Set("Retry-After", "10")
 		serve.Error(w, http.StatusTooManyRequests, "rate_limited")
 		return
@@ -143,7 +159,7 @@ func (h *Handler) originFor(r *http.Request) string {
 }
 
 func (h *Handler) push(w http.ResponseWriter, r *http.Request) {
-	if !h.CallerLimit.Allow(h.Callers.Key(r)) {
+	if caller, network := h.Callers.Keys(r); !allow(h.CallerLimit, caller) || !allow(h.NetLimit, network) {
 		w.Header().Set("Retry-After", "10")
 		serve.Error(w, http.StatusTooManyRequests, "rate_limited")
 		return
@@ -152,19 +168,28 @@ func (h *Handler) push(w http.ResponseWriter, r *http.Request) {
 	content, err := h.Keys.Open(address)
 	if err != nil {
 		// D-10: never 404 or 410 here. The log names the kind, never the address.
-		h.Log.Warn("push: cannot open the push address", "reason", err.Error())
+		h.Warn.Warn(err.Error(), "push: cannot open the push address")
 		w.Header().Set("Retry-After", "60")
 		serve.Error(w, http.StatusServiceUnavailable, "unavailable")
 		return
 	}
-	sum := sha256.Sum256([]byte(address))
-	if !h.AddressLimit.Allow(base64.RawURLEncoding.EncodeToString(sum[:])) {
-		w.Header().Set("Retry-After", "10")
-		serve.Error(w, http.StatusTooManyRequests, "rate_limited")
+	switch err := vapid.Verify(r.Header.Get("Authorization"), content.VAPIDKey, h.Origins, h.Now()); {
+	case errors.Is(err, vapid.ErrAudience):
+		// Signed by the right server but for another name: RELAY_PUSH_ORIGINS here lacks the name
+		// the server sends to. That is our own fault and a 503 (D-10, code review minor 5).
+		h.Warn.Warn("audience", "push: VAPID aud is none of RELAY_PUSH_ORIGINS; check the setting")
+		w.Header().Set("Retry-After", "60")
+		serve.Error(w, http.StatusServiceUnavailable, "unavailable")
+		return
+	case err != nil:
+		serve.Error(w, http.StatusForbidden, "vapid_rejected")
 		return
 	}
-	if err := vapid.Verify(r.Header.Get("Authorization"), content.VAPIDKey, h.Origins, h.Now()); err != nil {
-		serve.Error(w, http.StatusForbidden, "vapid_rejected")
+	// Charged only now: without a valid signature nobody can use up an address's budget (L-1).
+	sum := sha256.Sum256([]byte(address))
+	if !allow(h.AddressLimit, base64.RawURLEncoding.EncodeToString(sum[:])) {
+		w.Header().Set("Retry-After", "10")
+		serve.Error(w, http.StatusTooManyRequests, "rate_limited")
 		return
 	}
 	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("Content-Encoding")), "aes128gcm") {
@@ -183,8 +208,23 @@ func (h *Handler) push(w http.ResponseWriter, r *http.Request) {
 		serve.Error(w, http.StatusBadRequest, "empty")
 		return
 	}
+	// TTL is required (RFC 8030 section 5); every Slouchcat server sends it. Google keeps a message
+	// at most four weeks, so larger values are cut before they can overflow; 0 means "now or
+	// never" and becomes one second.
+	ttl, err := strconv.ParseInt(strings.TrimSpace(r.Header.Get("TTL")), 10, 64)
+	if err != nil || ttl < 0 {
+		serve.Error(w, http.StatusBadRequest, "ttl_required")
+		return
+	}
+	ttl = max(1, min(ttl, maxTTLSeconds))
 	if h.FCM == nil {
 		w.Header().Set("Retry-After", "60")
+		serve.Error(w, http.StatusServiceUnavailable, "unavailable")
+		return
+	}
+	if !allow(h.GlobalLimit, "all") {
+		h.Warn.Warn("global_limit", "push: service-wide limit reached; messages are refused with 503")
+		w.Header().Set("Retry-After", "10")
 		serve.Error(w, http.StatusServiceUnavailable, "unavailable")
 		return
 	}
@@ -192,13 +232,7 @@ func (h *Handler) push(w http.ResponseWriter, r *http.Request) {
 		Token: content.Token,
 		Data:  map[string]string{"wp": base64.StdEncoding.EncodeToString(body)},
 		High:  strings.EqualFold(strings.TrimSpace(r.Header.Get("Urgency")), "high"),
-	}
-	if ttl, err := strconv.Atoi(strings.TrimSpace(r.Header.Get("TTL"))); err == nil && ttl >= 0 {
-		// Google keeps a message at most four weeks; TTL 0 means "now or never".
-		msg.TTL = min(time.Duration(ttl)*time.Second, 28*24*time.Hour)
-		if ttl == 0 {
-			msg.TTL = time.Second
-		}
+		TTL:   time.Duration(ttl) * time.Second,
 	}
 	switch err := h.FCM.Send(r.Context(), msg); {
 	case errors.Is(err, fcm.ErrUnregistered):
@@ -209,7 +243,7 @@ func (h *Handler) push(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &fe) && fe.RetryAfter != "" {
 			retry = fe.RetryAfter
 		}
-		h.Log.Warn("push: Google did not take the message", "err", err)
+		h.Warn.Warn("google", "push: Google did not take the message", "err", err)
 		w.Header().Set("Retry-After", retry)
 		serve.Error(w, http.StatusServiceUnavailable, "unavailable")
 	default:

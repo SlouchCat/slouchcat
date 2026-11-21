@@ -38,6 +38,7 @@ type entry struct {
 	state      state
 	expires    time.Time
 	caller     string // the limit key of the TV that opened it, in memory only (D-5)
+	network    string // the /48 or /24 around it (security review M-1)
 }
 
 // Store holds the meeting points.
@@ -45,27 +46,35 @@ type Store struct {
 	ttl          time.Duration
 	maxOpen      int
 	maxPerCaller int
+	maxPerNet    int
 	now          func() time.Time
 
 	mu       sync.Mutex
 	entries  map[string]*entry
 	byCaller map[string]int
+	byNet    map[string]int
+}
+
+// Limits of a store: in total, per caller key (/64 or address) and per larger network (/48 or
+// /24). Without the last, one cheap /48 fills every place with 1000 of its /64 (M-1).
+type Limits struct {
+	MaxOpen, MaxPerCaller, MaxPerNet int
 }
 
 // NewStore returns an empty store.
-func NewStore(ttl time.Duration, maxOpen, maxPerCaller int) *Store {
+func NewStore(ttl time.Duration, l Limits) *Store {
 	return &Store{
-		ttl: ttl, maxOpen: maxOpen, maxPerCaller: maxPerCaller, now: time.Now,
-		entries: map[string]*entry{}, byCaller: map[string]int{},
+		ttl: ttl, maxOpen: l.MaxOpen, maxPerCaller: l.MaxPerCaller, maxPerNet: l.MaxPerNet, now: time.Now,
+		entries: map[string]*entry{}, byCaller: map[string]int{}, byNet: map[string]int{},
 	}
 }
 
 // SetClock replaces the clock (tests).
 func (s *Store) SetClock(now func() time.Time) { s.now = now }
 
-// Create opens a meeting point for caller with the SHA-256 of the pickup secret. It returns the
-// id (16 random bytes, base64url without padding) and the time it expires.
-func (s *Store) Create(caller string, pickupHash [sha256.Size]byte) (string, time.Time, error) {
+// Create opens a meeting point for caller (in network) with the SHA-256 of the pickup secret. It
+// returns the id (16 random bytes, base64url without padding) and the time it expires.
+func (s *Store) Create(caller, network string, pickupHash [sha256.Size]byte) (string, time.Time, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := s.now()
@@ -73,15 +82,16 @@ func (s *Store) Create(caller string, pickupHash [sha256.Size]byte) (string, tim
 	if len(s.entries) >= s.maxOpen {
 		return "", time.Time{}, ErrFull
 	}
-	if s.byCaller[caller] >= s.maxPerCaller {
+	if s.byCaller[caller] >= s.maxPerCaller || s.byNet[network] >= s.maxPerNet {
 		return "", time.Time{}, ErrCallerFull
 	}
 	var raw [16]byte
 	_, _ = rand.Read(raw[:]) // never fails (crypto/rand)
 	id := base64.RawURLEncoding.EncodeToString(raw[:])
-	e := &entry{pickupHash: pickupHash, expires: now.Add(s.ttl), caller: caller}
+	e := &entry{pickupHash: pickupHash, expires: now.Add(s.ttl), caller: caller, network: network}
 	s.entries[id] = e
 	s.byCaller[caller]++
+	s.byNet[network]++
 	return id, e.expires, nil
 }
 
@@ -128,7 +138,9 @@ func (s *Store) Get(id string, secret []byte) ([]byte, error) {
 	return p, nil
 }
 
-// Delete cancels the meeting point id with the pickup secret.
+// Delete cancels the meeting point id with the pickup secret. A consumed one stays until it
+// expires, so a phone that drops a packet afterwards still hears "already picked up" (410), not
+// "unknown" (code review minor 4): a TV that tidies up after the pick-up must not hide that.
 func (s *Store) Delete(id string, secret []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -139,7 +151,9 @@ func (s *Store) Delete(id string, secret []byte) error {
 	if !matches(e, secret) {
 		return ErrForbidden
 	}
-	s.removeLocked(id, e)
+	if e.state != stateConsumed {
+		s.removeLocked(id, e)
+	}
 	return nil
 }
 
@@ -182,6 +196,9 @@ func (s *Store) removeLocked(id string, e *entry) {
 	delete(s.entries, id)
 	if s.byCaller[e.caller]--; s.byCaller[e.caller] <= 0 {
 		delete(s.byCaller, e.caller)
+	}
+	if s.byNet[e.network]--; s.byNet[e.network] <= 0 {
+		delete(s.byNet, e.network)
 	}
 }
 

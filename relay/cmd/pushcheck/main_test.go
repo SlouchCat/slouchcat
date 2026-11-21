@@ -20,7 +20,7 @@ import (
 func forwarder(t *testing.T, keys *seal.Keys, fakeURL string, f *fcmfake.Fake) *httptest.Server {
 	t.Helper()
 	callers, _ := clientip.ParseTrusted("")
-	h := &push.Handler{Keys: keys, MaxBody: 3000, Callers: callers, Log: slog.New(slog.DiscardHandler),
+	h := &push.Handler{Keys: keys, MaxBody: 2700, Callers: callers, Log: slog.New(slog.DiscardHandler),
 		RegisterLimit: limit.New(100, 100, 100), CallerLimit: limit.New(100, 100, 100), AddressLimit: limit.New(100, 100, 100)}
 	sa, _ := f.ServiceAccount(fakeURL + "/token")
 	var parsed fcm.ServiceAccount
@@ -50,7 +50,7 @@ func TestPushcheck(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	var out bytes.Buffer
-	n, err := Run(client, client, client, Options{URL: old.URL, FCMFake: fake.URL, MaxBody: 3000}, &out)
+	n, err := Run(client, client, client, Options{URL: old.URL, FCMFake: fake.URL, MaxBody: 2700}, &out)
 	if err != nil || n < 10 {
 		t.Fatalf("%d checks, %v\n%s", n, err, out.String())
 	}
@@ -58,7 +58,7 @@ func TestPushcheck(t *testing.T) {
 	copied, _ := seal.Parse(seal.File{Current: "1", Keys: map[string]string{"1": key}})
 	moved := forwarder(t, copied, fake.URL, f)
 	out.Reset()
-	if n, err := Run(client, client, client, Options{URL: moved.URL, RegisterURL: old.URL, FCMFake: fake.URL, MaxBody: 3000}, &out); err != nil {
+	if n, err := Run(client, client, client, Options{URL: moved.URL, RegisterURL: old.URL, FCMFake: fake.URL, MaxBody: 2700}, &out); err != nil {
 		t.Fatalf("with the copied key, after %d checks: %v\n%s", n, err, out.String())
 	}
 

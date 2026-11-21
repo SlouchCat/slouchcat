@@ -48,8 +48,8 @@ func main() {
 	flag.StringVar(&o.URL, "url", "http://127.0.0.1:8181", "push forwarder that receives the push")
 	flag.StringVar(&o.RegisterURL, "register-url", "", "push forwarder that seals the address (default -url)")
 	flag.StringVar(&o.FCMFake, "fcmfake", "", "read address of fcmfake, to check arrival and decryption")
-	flag.StringVar(&o.Token, "token", "", "device token to register (default check-<random>)")
-	flag.IntVar(&o.MaxBody, "max-body", 3000, "the forwarder's RELAY_PUSH_MAX_BODY")
+	flag.StringVar(&o.Token, "token", os.Getenv("PUSHCHECK_TOKEN"), "device token to register (default $PUSHCHECK_TOKEN, else check-<random>); prefer the variable, it stays out of the shell history")
+	flag.IntVar(&o.MaxBody, "max-body", 2700, "the forwarder's RELAY_PUSH_MAX_BODY")
 	flag.BoolVar(&o.ExpectUnavailable, "expect-unavailable", false, "expect 503 from -url (an instance without the sealing key)")
 	ca := flag.String("ca", "", "PEM file of an extra CA to trust (a local test CA)")
 	connect := flag.String("connect", "", "dial this host:port for -url instead of resolving its name")
@@ -143,7 +143,9 @@ func (k *checker) run() error {
 	if err := k.send("push signed by another VAPID key", endpoint, other, aud, time.Hour, body, http.StatusForbidden); err != nil {
 		return err
 	}
-	if err := k.send("push with a foreign aud", endpoint, k.vapidKey, "https://elsewhere.example.test", time.Hour, body, http.StatusForbidden); err != nil {
+	// A valid signature for another name means RELAY_PUSH_ORIGINS misses a name: the forwarder's
+	// own fault, 503 (D-10).
+	if err := k.send("push with a foreign aud (503)", endpoint, k.vapidKey, "https://elsewhere.example.test", time.Hour, body, http.StatusServiceUnavailable); err != nil {
 		return err
 	}
 	if err := k.send("push with an expired VAPID token", endpoint, k.vapidKey, aud, -time.Minute, body, http.StatusForbidden); err != nil {

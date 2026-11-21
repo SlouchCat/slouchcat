@@ -20,6 +20,11 @@ import (
 // Resolver knows the trusted proxies.
 type Resolver struct {
 	trusted []netip.Prefix
+	// Untrusted is called when a request carries X-Forwarded-For but comes from a peer that is
+	// not a trusted proxy: either a caller forging the header, or a reverse proxy missing from
+	// RELAY_TRUSTED_PROXIES, which makes every caller count as one (L-5). The service logs it
+	// rate-limited and without the address. May be nil.
+	Untrusted func()
 }
 
 // ParseTrusted reads a comma- or space-separated list of addresses and prefixes
@@ -60,6 +65,9 @@ func (r *Resolver) Addr(req *http.Request) (netip.Addr, bool) {
 	}
 	remote = remote.WithZone("").Unmap()
 	if !r.isTrusted(remote) {
+		if r.Untrusted != nil && req.Header.Get("X-Forwarded-For") != "" {
+			r.Untrusted()
+		}
 		return remote, true
 	}
 	hops := strings.Split(strings.Join(req.Header.Values("X-Forwarded-For"), ","), ",")
@@ -83,11 +91,29 @@ func (r *Resolver) Addr(req *http.Request) (netip.Addr, bool) {
 // Key is what the limits count by: an IPv4 address as itself, an IPv6 address by its /64 network
 // (D-2), because one household or one host usually owns a whole /64.
 func (r *Resolver) Key(req *http.Request) string {
+	k, _ := r.Keys(req)
+	return k
+}
+
+// Keys returns the caller key (Key) and the key of the larger network around it (NetOf). The
+// services limit by both: one /48 holds 65 536 /64 networks and costs an attacker little, so a
+// limit per /64 alone does not bound him (security review M-1, M-2).
+func (r *Resolver) Keys(req *http.Request) (caller, network string) {
 	a, ok := r.Addr(req)
 	if !ok {
-		return "unknown"
+		return "unknown", "unknown"
 	}
-	return KeyOf(a)
+	return KeyOf(a), NetOf(a)
+}
+
+// NetOf is the larger network of a: the /24 of an IPv4 address, the /48 of an IPv6 address.
+func NetOf(a netip.Addr) string {
+	bits := 48
+	if a.Is4() {
+		bits = 24
+	}
+	p, _ := a.Prefix(bits)
+	return p.String()
 }
 
 // KeyOf is Key for an address already known.

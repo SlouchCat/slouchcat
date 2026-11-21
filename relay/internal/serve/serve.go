@@ -75,12 +75,26 @@ func LogLevel() slog.Level {
 	return l
 }
 
-// Run serves h on addr until SIGINT or SIGTERM, then stops within ten seconds.
+// ShutdownGrace is how long a stop waits for running requests: a push forwards to Google within
+// at most 20 s (token and send). The compose files give the container 30 s (stop_grace_period).
+const ShutdownGrace = 25 * time.Second
+
+// Run serves h on addr until SIGINT or SIGTERM, then lets running requests finish.
 func Run(log *slog.Logger, addr string, h http.Handler) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
+	if err != nil {
+		return err
+	}
+	return Serve(ctx, log, ln, h)
+}
+
+// Serve serves h on ln until ctx ends. The requests do not inherit ctx: a stop must not cancel
+// a push that is on its way to Google (code review minor 1). Shutdown closes the listener and
+// waits up to ShutdownGrace for the running requests.
+func Serve(ctx context.Context, log *slog.Logger, ln net.Listener, h http.Handler) error {
 	srv := &http.Server{
-		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -89,20 +103,17 @@ func Run(log *slog.Logger, addr string, h http.Handler) error {
 		MaxHeaderBytes:    16 << 10,
 		// The standard library logs TLS and protocol errors with the caller's address (D-5).
 		ErrorLog: slog.NewLogLogger(slog.DiscardHandler, slog.LevelError),
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
 	}
 	errc := make(chan error, 1)
-	go func() { errc <- srv.ListenAndServe() }()
-	log.Info("listening", "listen", addr)
+	go func() { errc <- srv.Serve(ln) }()
+	log.Info("listening", "listen", ln.Addr().String())
 	select {
 	case err := <-errc:
 		return err
 	case <-ctx.Done():
 	}
-	log.Info("stopping")
-	sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	log.Info("stopping, letting running requests finish")
+	sctx, cancel := context.WithTimeout(context.Background(), ShutdownGrace)
 	defer cancel()
 	return srv.Shutdown(sctx)
 }

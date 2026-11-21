@@ -74,6 +74,38 @@ func TestKeyGroupsIPv6By64(t *testing.T) {
 	}
 }
 
+// NetOf is the /48 or /24 the second limit counts by (security review M-1).
+func TestNetOf(t *testing.T) {
+	r, _ := ParseTrusted("")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "[2001:db8:1:2::5]:1"
+	if k, n := r.Keys(req); k != "2001:db8:1:2::/64" || n != "2001:db8:1::/48" {
+		t.Fatalf("Keys = %q, %q", k, n)
+	}
+	req.RemoteAddr = "192.0.2.77:1"
+	if k, n := r.Keys(req); k != "192.0.2.77" || n != "192.0.2.0/24" {
+		t.Fatalf("Keys = %q, %q", k, n)
+	}
+}
+
+// L-5: a forwarding header from a peer that is not a trusted proxy is reported (the service logs
+// it rate-limited), a plain request is not.
+func TestUntrustedForwardIsReported(t *testing.T) {
+	r, _ := ParseTrusted("192.0.2.10")
+	n := 0
+	r.Untrusted = func() { n++ }
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.11:1"
+	r.Key(req)
+	req.Header.Set("X-Forwarded-For", "203.0.113.7")
+	r.Key(req)
+	req.RemoteAddr = "192.0.2.10:1"
+	r.Key(req)
+	if n != 1 {
+		t.Fatalf("reported %d times, want 1", n)
+	}
+}
+
 func TestParseTrustedRejectsGarbage(t *testing.T) {
 	for _, s := range []string{"proxy.example.test", "192.0.2.0/33"} {
 		if _, err := ParseTrusted(s); err == nil {

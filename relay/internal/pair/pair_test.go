@@ -6,12 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,10 +30,10 @@ func hashOf(secret []byte) [sha256.Size]byte { return sha256.Sum256(secret) }
 
 func TestStoreLifecycle(t *testing.T) {
 	c := &clock{t: time.Unix(1_000_000, 0)}
-	s := NewStore(5*time.Minute, 10, 10)
+	s := NewStore(5*time.Minute, Limits{MaxOpen: 10, MaxPerCaller: 10, MaxPerNet: 100})
 	s.SetClock(c.now)
 	secret := bytes.Repeat([]byte{7}, 32)
-	id, exp, err := s.Create("tv", hashOf(secret))
+	id, exp, err := s.Create("tv", "net-tv", hashOf(secret))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,10 +80,10 @@ func TestStoreLifecycle(t *testing.T) {
 
 func TestStoreExpiresUnpickedPacket(t *testing.T) {
 	c := &clock{t: time.Unix(1_000_000, 0)}
-	s := NewStore(5*time.Minute, 10, 10)
+	s := NewStore(5*time.Minute, Limits{MaxOpen: 10, MaxPerCaller: 10, MaxPerNet: 100})
 	s.SetClock(c.now)
 	secret := bytes.Repeat([]byte{1}, 32)
-	id, _, _ := s.Create("tv", hashOf(secret))
+	id, _, _ := s.Create("tv", "net-tv", hashOf(secret))
 	_ = s.Put(id, []byte("p"))
 	c.t = c.t.Add(5 * time.Minute)
 	s.Expire()
@@ -93,9 +96,9 @@ func TestStoreExpiresUnpickedPacket(t *testing.T) {
 }
 
 func TestStoreCancel(t *testing.T) {
-	s := NewStore(time.Minute, 10, 10)
+	s := NewStore(time.Minute, Limits{MaxOpen: 10, MaxPerCaller: 10, MaxPerNet: 100})
 	secret := bytes.Repeat([]byte{3}, 32)
-	id, _, _ := s.Create("tv", hashOf(secret))
+	id, _, _ := s.Create("tv", "net-tv", hashOf(secret))
 	if err := s.Delete(id, bytes.Repeat([]byte{4}, 32)); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("Delete with a wrong secret: %v", err)
 	}
@@ -105,23 +108,99 @@ func TestStoreCancel(t *testing.T) {
 	if err := s.Put(id, []byte("p")); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Put after cancel: %v", err)
 	}
+	// A TV that tidies up after the pick-up: the meeting point stays consumed (410, minor 4).
+	id2, _, _ := s.Create("tv", "net-tv", hashOf(secret))
+	_ = s.Put(id2, []byte("p"))
+	if _, err := s.Get(id2, secret); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Delete(id2, secret); err != nil {
+		t.Fatalf("Delete after pick-up: %v", err)
+	}
+	if err := s.Put(id2, []byte("again")); !errors.Is(err, ErrConsumed) {
+		t.Fatalf("Put after pick-up and cancel: %v, want consumed", err)
+	}
 }
 
-func TestStoreLimits(t *testing.T) {
-	s := NewStore(time.Minute, 3, 2)
+// One /48 cannot take every place with many /64 (security review M-1).
+func TestStoreLimitPerNetwork(t *testing.T) {
+	s := NewStore(time.Minute, Limits{MaxOpen: 100, MaxPerCaller: 2, MaxPerNet: 5})
 	h := hashOf([]byte("x"))
-	for range 2 {
-		if _, _, err := s.Create("a", h); err != nil {
+	for i := range 5 {
+		if _, _, err := s.Create(fmt.Sprintf("2001:db8:1:%x::/64", i), "2001:db8:1::/48", h); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := s.Create("a", h); !errors.Is(err, ErrCallerFull) {
+	if _, _, err := s.Create("2001:db8:1:ff::/64", "2001:db8:1::/48", h); !errors.Is(err, ErrCallerFull) {
+		t.Fatalf("sixth /64 of one /48: %v", err)
+	}
+	if _, _, err := s.Create("2001:db8:2::/64", "2001:db8:2::/48", h); err != nil {
+		t.Fatalf("another /48: %v", err)
+	}
+}
+
+// Put, Get, Delete and Expire at once on one meeting point: one Get gets the packet, no Put wins
+// after the pick-up, -race stays quiet (code review minor 8).
+func TestStoreConcurrent(t *testing.T) {
+	for round := range 50 {
+		s := NewStore(time.Minute, Limits{MaxOpen: 10, MaxPerCaller: 10, MaxPerNet: 10})
+		secret := bytes.Repeat([]byte{byte(round)}, 32)
+		id, _, _ := s.Create("tv", "net", hashOf(secret))
+		var wg sync.WaitGroup
+		var got, putsOK atomic.Int32
+		for i := range 8 {
+			wg.Add(3)
+			go func() {
+				defer wg.Done()
+				if s.Put(id, []byte{byte(i)}) == nil {
+					putsOK.Add(1)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				if p, err := s.Get(id, secret); err == nil && p != nil {
+					got.Add(1)
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				s.Expire()
+				_ = s.Len()
+			}()
+		}
+		wg.Wait()
+		if putsOK.Load() != 1 {
+			t.Fatalf("round %d: %d puts succeeded, want 1", round, putsOK.Load())
+		}
+		if got.Load() > 1 {
+			t.Fatalf("round %d: the packet was handed out %d times", round, got.Load())
+		}
+		if got.Load() == 0 {
+			if p, err := s.Get(id, secret); err != nil || p == nil {
+				t.Fatalf("round %d: packet lost: %v", round, err)
+			}
+		}
+		if err := s.Put(id, []byte("late")); !errors.Is(err, ErrConsumed) {
+			t.Fatalf("round %d: Put after the pick-up: %v", round, err)
+		}
+	}
+}
+
+func TestStoreLimits(t *testing.T) {
+	s := NewStore(time.Minute, Limits{MaxOpen: 3, MaxPerCaller: 2, MaxPerNet: 100})
+	h := hashOf([]byte("x"))
+	for range 2 {
+		if _, _, err := s.Create("a", "net-a", h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := s.Create("a", "net-a", h); !errors.Is(err, ErrCallerFull) {
 		t.Fatalf("third for one caller: %v", err)
 	}
-	if _, _, err := s.Create("b", h); err != nil {
+	if _, _, err := s.Create("b", "net-b", h); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Create("c", h); !errors.Is(err, ErrFull) {
+	if _, _, err := s.Create("c", "net-c", h); !errors.Is(err, ErrFull) {
 		t.Fatalf("over the total: %v", err)
 	}
 }
@@ -132,7 +211,7 @@ func newServer(t *testing.T, rate float64, burst int, trusted string) (*httptest
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := NewStore(5*time.Minute, 100, 3)
+	store := NewStore(5*time.Minute, Limits{MaxOpen: 100, MaxPerCaller: 3, MaxPerNet: 100})
 	h := &Handler{Store: store, Callers: callers, Limit: limit.New(rate, burst, 1000),
 		Log: slog.New(slog.DiscardHandler), HelpPage: NewHelpPage()}
 	srv := httptest.NewServer(h.Routes())
