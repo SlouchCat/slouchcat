@@ -54,7 +54,7 @@ func (s *Service) ListDevices(ctx context.Context) ([]model.AdminDevice, error) 
 		d := model.AdminDevice{
 			ID: r.ID, Name: r.Name.String, Type: r.Type.String, UserAgent: r.UserAgent.String, OwnerEmail: r.OwnerEmail.String,
 			OwnerProfile: r.OwnerProfile.String, CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), LastSeenAt: time.UnixMilli(r.LastSeenAt).UTC(),
-			ActiveStreams: int(r.ActiveStreams),
+			ActiveStreams: int(r.ActiveStreams), SessionKind: r.SessionKind,
 		}
 		if r.Capabilities.Valid {
 			var c model.PlaybackCapabilities

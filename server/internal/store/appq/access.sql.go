@@ -163,11 +163,21 @@ func (q *Queries) DeleteProfileLibraries(ctx context.Context, profileID int64) e
 }
 
 const deleteStaleDevices = `-- name: DeleteStaleDevices :execrows
-DELETE FROM devices WHERE last_seen_at < ?1
+DELETE FROM devices
+WHERE devices.last_seen_at < ?1
+  AND NOT EXISTS (SELECT 1 FROM sessions AS s
+                  WHERE s.device_id = devices.id AND s.kind <> 'browser' AND s.revoked_at IS NULL AND s.expires_at > ?2)
 `
 
-func (q *Queries) DeleteStaleDevices(ctx context.Context, before int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteStaleDevices, before)
+type DeleteStaleDevicesParams struct {
+	Before int64
+	Now    int64
+}
+
+// A device with a living app or device session stays however long it was silent: those sessions
+// never expire, and losing the device would drop its downloads and give it a new id (ADR 0040).
+func (q *Queries) DeleteStaleDevices(ctx context.Context, arg DeleteStaleDevicesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteStaleDevices, arg.Before, arg.Now)
 	if err != nil {
 		return 0, err
 	}
@@ -184,6 +194,27 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deviceHeldByOtherAccount = `-- name: DeviceHeldByOtherAccount :one
+SELECT EXISTS (SELECT 1 FROM sessions AS s
+               WHERE s.device_id = ?1 AND s.account_id <> ?2 AND s.revoked_at IS NULL AND s.expires_at > ?3)
+    OR EXISTS (SELECT 1 FROM downloads AS d WHERE d.device_id = ?1 AND d.account_id <> ?2)
+`
+
+type DeviceHeldByOtherAccountParams struct {
+	ID        sql.NullString
+	AccountID int64
+	Now       int64
+}
+
+// Whether another account than @account_id holds a living session or a download on the device:
+// then a device id a client brings along to appLogin is not taken (concept 27, 4.2).
+func (q *Queries) DeviceHeldByOtherAccount(ctx context.Context, arg DeviceHeldByOtherAccountParams) (sql.NullBool, error) {
+	row := q.db.QueryRowContext(ctx, deviceHeldByOtherAccount, arg.ID, arg.AccountID, arg.Now)
+	var column_1 sql.NullBool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getInvitation = `-- name: GetInvitation :one
@@ -492,6 +523,9 @@ const listDevicesAdmin = `-- name: ListDevicesAdmin :many
 
 SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
        a.email AS owner_email, p.name AS owner_profile,
+       CAST(COALESCE((SELECT s.kind FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > ?1
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
        (SELECT count(*) FROM playback_sessions AS ps
         JOIN sessions AS s ON s.id = ps.session_id
         WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > ?1
@@ -518,12 +552,15 @@ type ListDevicesAdminRow struct {
 	CapabilitiesAt sql.NullInt64
 	OwnerEmail     sql.NullString
 	OwnerProfile   sql.NullString
+	SessionKind    string
 	ActiveStreams  int64
 }
 
 // Device overview of the administration (W-7, M4).
 // Devices, last contact first, with the owner of the last playback start and the number of running
 // streams (the activity window of CountActivePlaybackSessions).
+// session_kind is the kind of the device's living session with the latest contact, ” without one
+// (ADR 0040).
 func (q *Queries) ListDevicesAdmin(ctx context.Context, arg ListDevicesAdminParams) ([]ListDevicesAdminRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDevicesAdmin, arg.Now, arg.ActiveAfter)
 	if err != nil {
@@ -544,6 +581,7 @@ func (q *Queries) ListDevicesAdmin(ctx context.Context, arg ListDevicesAdminPara
 			&i.CapabilitiesAt,
 			&i.OwnerEmail,
 			&i.OwnerProfile,
+			&i.SessionKind,
 			&i.ActiveStreams,
 		); err != nil {
 			return nil, err
@@ -1174,6 +1212,33 @@ type UpsertDeviceParams struct {
 // milliseconds.
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error {
 	_, err := q.db.ExecContext(ctx, upsertDevice, arg.ID, arg.UserAgent, arg.Now)
+	return err
+}
+
+const upsertNamedDevice = `-- name: UpsertNamedDevice :exec
+INSERT INTO devices (id, user_agent, created_at, last_seen_at, name, type)
+VALUES (?1, ?2, ?3, ?3, ?4, ?5)
+ON CONFLICT (id) DO UPDATE SET last_seen_at = excluded.last_seen_at, name = excluded.name, type = excluded.type
+`
+
+type UpsertNamedDeviceParams struct {
+	ID        string
+	UserAgent sql.NullString
+	Now       int64
+	Name      sql.NullString
+	Type      sql.NullString
+}
+
+// The device of an appLogin with the name and type the app reported; a later playback start of an
+// app or device session keeps them (RecordDeviceProfile is called without name and type).
+func (q *Queries) UpsertNamedDevice(ctx context.Context, arg UpsertNamedDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, upsertNamedDevice,
+		arg.ID,
+		arg.UserAgent,
+		arg.Now,
+		arg.Name,
+		arg.Type,
+	)
 	return err
 }
 

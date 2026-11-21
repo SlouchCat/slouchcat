@@ -180,7 +180,7 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
+SELECT id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at, kind FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
 `
 
 type GetSessionByTokenHashParams struct {
@@ -202,6 +202,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, arg GetSessionByTok
 		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }
@@ -343,9 +344,9 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 }
 
 const insertSession = `-- name: InsertSession :one
-INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
-RETURNING id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at
+INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, kind)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, ?8)
+RETURNING id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at, kind
 `
 
 type InsertSessionParams struct {
@@ -356,8 +357,11 @@ type InsertSessionParams struct {
 	UserAgent sql.NullString
 	Now       int64
 	ExpiresAt int64
+	Kind      string
 }
 
+// kind: browser (cookie, sliding expiry), app or device (bearer, an expiry far in the future that
+// TouchSession never moves; ADR 0040).
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (Session, error) {
 	row := q.db.QueryRowContext(ctx, insertSession,
 		arg.TokenHash,
@@ -367,6 +371,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		arg.UserAgent,
 		arg.Now,
 		arg.ExpiresAt,
+		arg.Kind,
 	)
 	var i Session
 	err := row.Scan(
@@ -380,6 +385,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		&i.LastSeenAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Kind,
 	)
 	return i, err
 }

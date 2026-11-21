@@ -263,15 +263,32 @@ func (l PlaybackLimits) Cap(other PlaybackLimits) PlaybackLimits {
 	}
 }
 
-// Session is a resolved browser session. A session without an active profile (signed in, profile
-// not chosen yet) has the zero Profile; HasProfile tells them apart.
+// Kinds of session (ADR 0040, concept 27 4.1): the kind is stored with the session, and the carrier
+// of the token must match it.
+const (
+	// SessionBrowser is a browser session: the cookie slouchcat_session, 30 days sliding.
+	SessionBrowser = "browser"
+	// SessionApp is a session of the phone app: Authorization: Bearer, never expires, never admin
+	// or owner.
+	SessionApp = "app"
+	// SessionDevice is a session of the TV app: Authorization: Bearer, never expires, only the
+	// operations whose x-clients names tv.
+	SessionDevice = "device"
+)
+
+// Session is a resolved session. A session without an active profile (signed in, profile not
+// chosen yet) has the zero Profile; HasProfile tells them apart.
 type Session struct {
 	ID        int64
 	Account   Account
 	Profile   Profile
 	DeviceID  string // device the session started on (PIN locks count per profile and device)
 	ExpiresAt time.Time
+	Kind      string // SessionBrowser, SessionApp or SessionDevice; empty counts as SessionBrowser
 }
+
+// IsBearer reports whether the session travels as Authorization: Bearer (app or device session).
+func (s Session) IsBearer() bool { return s.Kind == SessionApp || s.Kind == SessionDevice }
 
 // IsAdmin reports whether the session's account administers the server (ADR 0014). Together with
 // IsPrimary it is what the middleware checks for x-visibility admin.
@@ -2350,6 +2367,7 @@ type AdminDevice struct {
 	Capabilities   *PlaybackCapabilities
 	CapabilitiesAt *time.Time
 	ActiveStreams  int
+	SessionKind    string // kind of the living session with the latest contact; empty without one (ADR 0040)
 }
 
 // AdminStream is a running playback session as the administration sees it (W-6).

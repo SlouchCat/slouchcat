@@ -52,7 +52,11 @@ func (s *Service) recordDevice(ctx context.Context, session model.Session, req m
 			p.Capabilities = sql.NullString{String: string(raw), Valid: true}
 			p.CapabilitiesAt = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
 		}
-		p.Name, p.Type = nullString(caps.Name), nullString(caps.Type)
+		if !session.IsBearer() {
+			// An app or device session named its device at appLogin; a playback start keeps that name
+			// and type (concept 27, 4.2).
+			p.Name, p.Type = nullString(caps.Name), nullString(caps.Type)
+		}
 	}
 	if err := s.write.RecordDeviceProfile(ctx, p); err != nil {
 		s.log.WarnContext(ctx, "record device profile", "device_id", id, "err", err)

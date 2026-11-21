@@ -36,8 +36,10 @@ SELECT * FROM profiles WHERE id = @id;
 SELECT * FROM profiles WHERE account_id = @account_id ORDER BY is_default DESC, id LIMIT 1;
 
 -- name: InsertSession :one
-INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at)
-VALUES (@token_hash, @account_id, sqlc.narg('profile_id'), sqlc.narg('device_id'), @user_agent, @now, @now, @expires_at)
+-- kind: browser (cookie, sliding expiry), app or device (bearer, an expiry far in the future that
+-- TouchSession never moves; ADR 0040).
+INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, kind)
+VALUES (@token_hash, @account_id, sqlc.narg('profile_id'), sqlc.narg('device_id'), @user_agent, @now, @now, @expires_at, @kind)
 RETURNING *;
 
 -- name: GetSessionByTokenHash :one

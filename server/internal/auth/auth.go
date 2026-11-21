@@ -1,9 +1,10 @@
-// Package auth owns accounts, passwords and browser sessions (plan 3.1 auth, 3.8 points 2 and 7).
+// Package auth owns accounts, passwords and sessions (plan 3.1 auth, 3.8 points 2 and 7, ADR 0040).
 //
 // Passwords are stored as argon2id PHC strings. A session token is 256 random bits, handed to the
-// client exactly once (cookie); the database keeps only its SHA-256. Sessions expire 30 days after
-// the last use; Resolve extends them at most once per touchInterval so a busy client does not write
-// on every request.
+// client exactly once (the cookie, or the answer of appLogin); the database keeps only its SHA-256.
+// Browser sessions expire 30 days after the last use; Resolve extends them at most once per
+// touchInterval so a busy client does not write on every request. App and device sessions (the
+// Android apps, Authorization: Bearer) never expire.
 package auth
 
 import (
@@ -44,6 +45,10 @@ const (
 	maxUserAgentLen  = 512
 	defaultMaxRating = 18
 )
+
+// NeverExpires is the expiry of app and device sessions, which do not expire (ADR 0040): a date far
+// in the future rather than NULL, so every query that checks expires_at > @now keeps working.
+var NeverExpires = time.Date(9999, time.December, 31, 0, 0, 0, 0, time.UTC)
 
 // Service implements api.AuthService and creates the owner account for the setup wizard.
 type Service struct {
@@ -344,66 +349,13 @@ func profileName(email string) string {
 // same time and both return model.ErrInvalidCredentials. Over-long input is refused before any
 // hashing; a client over the attempt limit gets model.ErrTooManyAttempts.
 func (s *Service) Login(ctx context.Context, email, password, userAgent string) (model.Session, string, error) {
-	email = NormalizeEmail(email)
-	var verr *model.ValidationError
-	switch {
-	case email == "":
-		verr = verr.Add("email", "required")
-	case utf8.RuneCountInString(email) > maxEmailLen:
-		verr = verr.Add("email", "too_long")
-	}
-	switch {
-	case password == "":
-		verr = verr.Add("password", "required")
-	case utf8.RuneCountInString(password) > maxPasswordLen:
-		verr = verr.Add("password", "too_long")
-	}
-	if verr != nil {
-		return model.Session{}, "", verr
-	}
-	if err := s.AllowAttempt(ctx); err != nil {
-		return model.Session{}, "", err
-	}
-	acc, err := s.read.GetAccountByEmail(ctx, email)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Spend the same time as a real verification so the answer does not reveal whether the
-		// account exists.
-		if _, err := s.verify(ctx, password, ""); err != nil && ctx.Err() != nil {
-			return model.Session{}, "", err
-		}
-		return model.Session{}, "", model.ErrInvalidCredentials
-	}
-	if err != nil {
-		return model.Session{}, "", fmt.Errorf("get account: %w", err)
-	}
-	ok, err := s.verify(ctx, password, acc.PasswordHash)
-	if err != nil {
-		return model.Session{}, "", fmt.Errorf("account %d: %w", acc.ID, err)
-	}
-	if !ok {
-		return model.Session{}, "", model.ErrInvalidCredentials
-	}
-	if _, err := s.DeleteExpiredSessions(ctx); err != nil {
-		s.log.WarnContext(ctx, "delete expired sessions", "err", err)
-	}
-	profiles, err := s.read.ListProfilesByAccount(ctx, acc.ID)
-	if err != nil {
-		return model.Session{}, "", fmt.Errorf("profiles of account %d: %w", acc.ID, err)
-	}
-	// Exactly one profile without PIN is chosen right away; otherwise the client shows the picker.
-	var active appq.Profile
-	if len(profiles) == 1 && !profiles[0].PinHash.Valid {
-		active = profiles[0]
-	}
-	account, err := s.accountModel(ctx, s.read, acc)
+	acc, err := s.checkCredentials(ctx, email, password)
 	if err != nil {
 		return model.Session{}, "", err
 	}
-	var profile model.Profile
-	if active.ID != 0 {
-		if profile, err = s.profileModel(ctx, s.read, active, account); err != nil {
-			return model.Session{}, "", err
-		}
+	account, profile, err := s.signInProfile(ctx, acc)
+	if err != nil {
+		return model.Session{}, "", err
 	}
 	sess, token, err := s.StartSession(ctx, account, profile, userAgent)
 	if err != nil {
@@ -411,6 +363,66 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 	}
 	s.seen(ctx, acc.ID, acc.Email, password, PasswordMomentLogin)
 	return sess, token, nil
+}
+
+// checkCredentials validates e-mail and password, counts the attempt (the pot of every sign-in,
+// AllowAttempt) and returns the account. Unknown e-mail and wrong password take the same time and
+// both return model.ErrInvalidCredentials. After a match it cleans up expired sessions.
+func (s *Service) checkCredentials(ctx context.Context, email, password string) (appq.Account, error) {
+	email, verr := s.checkCredentialsShape(email, password)
+	if verr != nil {
+		return appq.Account{}, verr
+	}
+	if err := s.AllowAttempt(ctx); err != nil {
+		return appq.Account{}, err
+	}
+	acc, err := s.read.GetAccountByEmail(ctx, email)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Spend the same time as a real verification so the answer does not reveal whether the
+		// account exists.
+		if _, err := s.verify(ctx, password, ""); err != nil && ctx.Err() != nil {
+			return appq.Account{}, err
+		}
+		return appq.Account{}, model.ErrInvalidCredentials
+	}
+	if err != nil {
+		return appq.Account{}, fmt.Errorf("get account: %w", err)
+	}
+	ok, err := s.verify(ctx, password, acc.PasswordHash)
+	if err != nil {
+		return appq.Account{}, fmt.Errorf("account %d: %w", acc.ID, err)
+	}
+	if !ok {
+		return appq.Account{}, model.ErrInvalidCredentials
+	}
+	if _, err := s.DeleteExpiredSessions(ctx); err != nil {
+		s.log.WarnContext(ctx, "delete expired sessions", "err", err)
+	}
+	return acc, nil
+}
+
+// signInProfile returns the account of a sign-in with the profile its session starts with: exactly
+// one profile without PIN is chosen right away; otherwise none, and the client shows the picker.
+func (s *Service) signInProfile(ctx context.Context, acc appq.Account) (model.Account, model.Profile, error) {
+	profiles, err := s.read.ListProfilesByAccount(ctx, acc.ID)
+	if err != nil {
+		return model.Account{}, model.Profile{}, fmt.Errorf("profiles of account %d: %w", acc.ID, err)
+	}
+	var active appq.Profile
+	if len(profiles) == 1 && !profiles[0].PinHash.Valid {
+		active = profiles[0]
+	}
+	account, err := s.accountModel(ctx, s.read, acc)
+	if err != nil {
+		return model.Account{}, model.Profile{}, err
+	}
+	var profile model.Profile
+	if active.ID != 0 {
+		if profile, err = s.profileModel(ctx, s.read, active, account); err != nil {
+			return model.Account{}, model.Profile{}, err
+		}
+	}
+	return account, profile, nil
 }
 
 // verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id
@@ -439,10 +451,21 @@ func (s *Service) dummy() string {
 	return s.dummyHash
 }
 
-// StartSession creates a session for account and returns it with the plain token. A zero profile
-// starts the session without an active profile (the client shows the picker). The device of the
-// request (model.DeviceID) is remembered with the session.
+// StartSession creates a browser session for account and returns it with the plain token. A zero
+// profile starts the session without an active profile (the client shows the picker). The device of
+// the request (model.DeviceID) is remembered with the session.
 func (s *Service) StartSession(ctx context.Context, account model.Account, profile model.Profile, userAgent string) (model.Session, string, error) {
+	device, err := s.sessionDevice(ctx, userAgent)
+	if err != nil {
+		return model.Session{}, "", err
+	}
+	return s.insertSession(ctx, account, profile, userAgent, device, model.SessionBrowser)
+}
+
+// insertSession stores a session of kind on device and returns it with its plain token: 256 random
+// bits, of which the store keeps only the hash. A browser session expires after SessionLifetime; an
+// app or device session gets NeverExpires.
+func (s *Service) insertSession(ctx context.Context, account model.Account, profile model.Profile, userAgent, device, kind string) (model.Session, string, error) {
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return model.Session{}, "", fmt.Errorf("session token: %w", err)
@@ -450,26 +473,27 @@ func (s *Service) StartSession(ctx context.Context, account model.Account, profi
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	now := s.now()
 	expires := now.Add(SessionLifetime)
-	ua := sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""}
-	device, err := s.sessionDevice(ctx, userAgent)
-	if err != nil {
-		return model.Session{}, "", err
+	if kind != model.SessionBrowser {
+		expires = NeverExpires
 	}
+	ua := sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""}
 	row, err := s.write.InsertSession(ctx, appq.InsertSessionParams{
 		TokenHash: hashToken(token), AccountID: account.ID,
 		ProfileID: sql.NullInt64{Int64: profile.ID, Valid: profile.ID != 0},
 		DeviceID:  sql.NullString{String: device, Valid: true},
-		UserAgent: ua, Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(),
+		UserAgent: ua, Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(), Kind: kind,
 	})
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("insert session: %w", err)
 	}
-	return model.Session{ID: row.ID, Account: account, Profile: profile, DeviceID: device, ExpiresAt: time.UnixMilli(row.ExpiresAt)}, token, nil
+	return model.Session{ID: row.ID, Account: account, Profile: profile, DeviceID: device,
+		ExpiresAt: time.UnixMilli(row.ExpiresAt), Kind: row.Kind}, token, nil
 }
 
 // Resolve returns the session of a plain token, extending it when it was last touched more than
 // touchInterval ago; extended reports whether the expiry moved, so the caller can re-issue the
-// cookie. Unknown, expired and revoked tokens return model.ErrNotFound.
+// cookie (only ever for a browser session). Unknown, expired and revoked tokens return
+// model.ErrNotFound. The caller checks that the carrier of the token fits Session.Kind.
 func (s *Service) Resolve(ctx context.Context, token string) (session model.Session, extended bool, err error) {
 	if token == "" || len(token) > 2*tokenBytes {
 		return model.Session{}, false, model.ErrNotFound
@@ -487,12 +511,17 @@ func (s *Service) Resolve(ctx context.Context, token string) (session model.Sess
 		return model.Session{}, false, err
 	}
 	if now.Sub(time.UnixMilli(row.LastSeenAt)) >= touchInterval {
-		next := now.Add(SessionLifetime)
+		// Only a browser session slides; an app or device session keeps its expiry far in the future
+		// and records the contact only (ADR 0040).
+		next, browser := now.Add(SessionLifetime), row.Kind == model.SessionBrowser
+		if !browser {
+			next = time.UnixMilli(row.ExpiresAt)
+		}
 		if err := s.write.TouchSession(ctx, appq.TouchSessionParams{ID: row.ID, Now: now.UnixMilli(), ExpiresAt: next.UnixMilli()}); err != nil {
 			// The session stays valid until its old expiry; a failed touch must not log the user out.
 			s.log.WarnContext(ctx, "touch session", "session_id", row.ID, "err", err)
 		} else {
-			session.ExpiresAt, extended = next, true
+			session.ExpiresAt, extended = next, browser
 			if err := s.write.TouchAccount(ctx, appq.TouchAccountParams{ID: row.AccountID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}); err != nil {
 				s.log.WarnContext(ctx, "touch account", "account_id", row.AccountID, "err", err)
 			}
@@ -515,7 +544,17 @@ func (s *Service) loadSession(ctx context.Context, q *appq.Queries, row appq.Ses
 	if err != nil {
 		return model.Session{}, err
 	}
-	session := model.Session{ID: row.ID, Account: account, DeviceID: row.DeviceID.String, ExpiresAt: time.UnixMilli(row.ExpiresAt)}
+	session := model.Session{ID: row.ID, Account: account, DeviceID: row.DeviceID.String, ExpiresAt: time.UnixMilli(row.ExpiresAt), Kind: row.Kind}
+	if !row.DeviceID.Valid && session.IsBearer() {
+		// The device of an app or device session is gone (forgotten or cleaned up). A fresh id would
+		// hide the revocation list of the old one from the app (ADR 0040), so the session ends and
+		// the app signs in again.
+		if _, err := s.write.RevokeSession(ctx, appq.RevokeSessionParams{ID: row.ID, Now: nullInt(s.now().UnixMilli())}); err != nil {
+			return model.Session{}, fmt.Errorf("revoke session without device: %w", err)
+		}
+		s.log.InfoContext(ctx, "session revoked: its device is gone", "session_id", row.ID, "kind", row.Kind)
+		return model.Session{}, model.ErrNotFound
+	}
 	if !row.DeviceID.Valid {
 		// A session from before migration 00007 gets its device now, fixed for its lifetime.
 		var err error
@@ -589,7 +628,8 @@ const deviceRetention = 400 * 24 * time.Hour
 
 // DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, except
 // those a playback session still refers to (package playback keeps them for the statistics), and
-// devices and PIN counters unused for 400 days (the lifetime of the device cookie).
+// devices and PIN counters unused for 400 days (the lifetime of the device cookie). A device with a
+// living app or device session stays (ADR 0040).
 func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	now := s.now()
 	n, err := s.write.DeleteExpiredSessions(ctx, appq.DeleteExpiredSessionsParams{
@@ -602,7 +642,7 @@ func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	if _, err := s.write.DeleteStalePinAttempts(ctx, cutoff); err != nil {
 		return n, fmt.Errorf("delete stale pin attempts: %w", err)
 	}
-	if _, err := s.write.DeleteStaleDevices(ctx, cutoff); err != nil {
+	if _, err := s.write.DeleteStaleDevices(ctx, appq.DeleteStaleDevicesParams{Before: cutoff, Now: now.UnixMilli()}); err != nil {
 		return n, fmt.Errorf("delete stale devices: %w", err)
 	}
 	return n, nil

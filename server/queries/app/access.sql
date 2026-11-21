@@ -86,7 +86,26 @@ UPDATE sessions SET device_id = @device_id WHERE id = @id AND device_id IS NULL;
 UPDATE profiles SET max_rating = @max_rating, updated_at = @now WHERE account_id = @account_id AND max_rating > @max_rating;
 
 -- name: DeleteStaleDevices :execrows
-DELETE FROM devices WHERE last_seen_at < @before;
+-- A device with a living app or device session stays however long it was silent: those sessions
+-- never expire, and losing the device would drop its downloads and give it a new id (ADR 0040).
+DELETE FROM devices
+WHERE devices.last_seen_at < @before
+  AND NOT EXISTS (SELECT 1 FROM sessions AS s
+                  WHERE s.device_id = devices.id AND s.kind <> 'browser' AND s.revoked_at IS NULL AND s.expires_at > @now);
+
+-- name: DeviceHeldByOtherAccount :one
+-- Whether another account than @account_id holds a living session or a download on the device:
+-- then a device id a client brings along to appLogin is not taken (concept 27, 4.2).
+SELECT EXISTS (SELECT 1 FROM sessions AS s
+               WHERE s.device_id = @id AND s.account_id <> @account_id AND s.revoked_at IS NULL AND s.expires_at > @now)
+    OR EXISTS (SELECT 1 FROM downloads AS d WHERE d.device_id = @id AND d.account_id <> @account_id);
+
+-- name: UpsertNamedDevice :exec
+-- The device of an appLogin with the name and type the app reported; a later playback start of an
+-- app or device session keeps them (RecordDeviceProfile is called without name and type).
+INSERT INTO devices (id, user_agent, created_at, last_seen_at, name, type)
+VALUES (@id, sqlc.narg('user_agent'), @now, @now, @name, @type)
+ON CONFLICT (id) DO UPDATE SET last_seen_at = excluded.last_seen_at, name = excluded.name, type = excluded.type;
 
 -- name: DeleteStalePinAttempts :execrows
 DELETE FROM pin_attempts WHERE updated_at < @before;
@@ -152,8 +171,13 @@ RETURNING id;
 -- name: ListDevicesAdmin :many
 -- Devices, last contact first, with the owner of the last playback start and the number of running
 -- streams (the activity window of CountActivePlaybackSessions).
+-- session_kind is the kind of the device's living session with the latest contact, '' without one
+-- (ADR 0040).
 SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
        a.email AS owner_email, p.name AS owner_profile,
+       CAST(COALESCE((SELECT s.kind FROM sessions AS s
+                      WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > @now
+                      ORDER BY s.last_seen_at DESC, s.id DESC LIMIT 1), '') AS TEXT) AS session_kind,
        (SELECT count(*) FROM playback_sessions AS ps
         JOIN sessions AS s ON s.id = ps.session_id
         WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > @now

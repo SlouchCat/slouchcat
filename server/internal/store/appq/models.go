@@ -1037,6 +1037,7 @@ type Session struct {
 	LastSeenAt int64
 	ExpiresAt  int64
 	RevokedAt  sql.NullInt64
+	Kind       string
 }
 
 type Setting struct {
