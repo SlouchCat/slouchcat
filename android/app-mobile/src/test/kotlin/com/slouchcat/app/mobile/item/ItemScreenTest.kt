@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -27,6 +28,8 @@ import com.slouchcat.app.mobile.testing.SEASON_1
 import com.slouchcat.app.mobile.testing.SEASON_2
 import com.slouchcat.app.mobile.testing.SERVER_IMAGES
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
+import com.slouchcat.app.mobile.testing.SERIES_ID
+import com.slouchcat.app.mobile.testing.episodeDetail
 import com.slouchcat.app.mobile.testing.film
 import com.slouchcat.app.mobile.testing.progress
 import com.slouchcat.app.mobile.testing.reveal
@@ -214,14 +217,50 @@ class ItemScreenTest {
     @Test @Config(qualifiers = TABLET, fontScale = 2f)
     fun seriesTabletLargeFont() = aSeries()
 
-    private fun aSeasonLoading() {
+    /** An episode as its own page (code review m-5): code and series, resume, «Nächste Folge», «Zur Serie». */
+    private fun anEpisode() {
+        show(ItemUiState(Loadable.Ready(episodeDetail())))
+        compose.onNodeWithText(s(R.string.item_episodeOf, s(R.string.item_episodeCode, "01", "02"), "Quiet Ring"), substring = true).assertExists()
+        compose.assertEveryControlLabelledAndTappableWhenScrolled()
+        compose.reveal(control(s(R.string.app_item_resume))).performClick()
+        compose.reveal(compose.onNode(hasText(s(R.string.item_nextEpisode), substring = true) and hasClickAction())).performClick()
+        compose.reveal(control(s(R.string.item_seriesLink))).performClick()
+        assertEquals(listOf("play:${ulid(1102)}", "item:${ulid(1103)}", "item:$SERIES_ID"), events)
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun episodePhone() = anEpisode()
+
+    @Test @Config(qualifiers = TABLET)
+    fun episodeTablet() = anEpisode()
+
+    /** A season as its own page (code review m-5): its episodes without chips, «Zur Serie». */
+    private fun aSeason() {
+        show(ItemUiState(Loadable.Ready(seasonDetail(1, watched = 1))))
+        // In the facts under the title and as the heading of the list.
+        assertTrue(compose.onAllNodesWithText(p(R.plurals.app_item_episodes, 3)).fetchSemanticsNodes().isNotEmpty())
+        control("Season 2").assertDoesNotExist()
+        compose.assertEveryControlLabelledAndTappableWhenScrolled()
+        val second = s(R.string.app_item_episodeTitle, "2", "Episode 1-2")
+        compose.reveal(compose.onNode(hasText(second) and hasClickAction())).performClick()
+        compose.reveal(control(s(R.string.item_seriesLink))).performClick()
+        assertEquals(listOf("item:${ulid(1102)}", "item:$SERIES_ID"), events)
+    }
+
+    @Test @Config(qualifiers = PHONE)
+    fun seasonPhone() = aSeason()
+
+    @Test @Config(qualifiers = TABLET)
+    fun seasonTablet() = aSeason()
+
+    private fun aSeasonFailed() {
         show(ItemUiState(Loadable.Ready(series()), seasonId = SEASON_2, seasons = mapOf(SEASON_2 to Loadable.Failed(LoadError.Offline))))
         compose.reveal(control(s(R.string.app_state_retry))).performClick()
         assertEquals(listOf("season:$SEASON_2"), events)
     }
 
     @Test @Config(qualifiers = PHONE)
-    fun seasonFailedPhone() = aSeasonLoading()
+    fun seasonFailedPhone() = aSeasonFailed()
 
     private fun notFound() {
         show(ItemUiState(Loadable.Failed(LoadError.NotFound)))

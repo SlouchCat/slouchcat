@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,12 +40,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slouchcat.app.mobile.common.LoadableContent
+import com.slouchcat.app.mobile.media.ClampedText
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaImage
 import com.slouchcat.app.mobile.media.MediaRow
@@ -137,24 +136,15 @@ private fun Overview(item: ItemDetail, open: Boolean, onToggle: () -> Unit, modi
             )
             return@Column
         }
-        var clamped by remember(text) { mutableStateOf(false) }
-        Text(
+        ClampedText(
             text,
+            open = open,
+            onToggle = onToggle,
+            more = stringResource(R.string.app_item_more),
+            less = stringResource(R.string.app_item_less),
             style = SlouchcatType.body.copy(fontSize = if (isWideLayout()) 16.5.sp else 15.5.sp, lineHeight = if (isWideLayout()) 25.sp else 24.sp),
-            color = c.tx2,
-            maxLines = if (open) Int.MAX_VALUE else 4,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { if (!open) clamped = it.hasVisualOverflow },
+            lines = 4,
         )
-        if (clamped || open) {
-            Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onToggle).heightIn(min = 48.dp).padding(end = 8.dp), contentAlignment = Alignment.CenterStart) {
-                Text(
-                    stringResource(if (open) R.string.app_item_less else R.string.app_item_more),
-                    style = SlouchcatType.bodySmall.copy(fontSize = 14.5.sp, textDecoration = TextDecoration.Underline),
-                    color = c.tx,
-                )
-            }
-        }
     }
 }
 

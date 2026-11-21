@@ -5,6 +5,7 @@ import com.slouchcat.core.api.generated.models.Collection
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.media.data.CollectionsRepository
+import kotlinx.coroutines.CompletableDeferred
 import okhttp3.HttpUrl
 
 /** Collections in memory; [parts] per collection id. */
@@ -16,6 +17,9 @@ class FakeCollections(
     var failure: ApiResult<Nothing>? = null
     var changeFailure: ApiResult<Nothing>? = null
     val calls = mutableListOf<String>()
+
+    /** Holds every watchlist change until a test completes it. */
+    var watchlistGate: CompletableDeferred<Unit>? = null
 
     override suspend fun collections(server: HttpUrl): ApiResult<List<CollectionRef>> {
         calls += "list"
@@ -46,6 +50,7 @@ class FakeCollections(
 
     override suspend fun setWatchlist(server: HttpUrl, itemId: String, on: Boolean): ApiResult<Unit> {
         calls += "watchlist:$itemId:$on"
+        watchlistGate?.await()
         (changeFailure ?: failure)?.let { return it }
         parts.values.forEach { list -> list.replaceAll { if (it.id == itemId) it.copy(inWatchlist = on) else it } }
         return ApiResult.Ok(Unit)

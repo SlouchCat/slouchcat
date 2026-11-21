@@ -12,6 +12,7 @@ import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.LibraryKind
+import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.media.MoreState
@@ -95,6 +96,8 @@ class HomeViewModel(
     private val session: SessionManager,
     private val home: HomeRepository,
     private val items: ItemRepository,
+    /** «Merkliste» of the shell: «Merken» on the stage changes it (code review m-1). */
+    private val watchlistCount: LiveCount? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -177,7 +180,10 @@ class HomeViewModel(
         mark(item.id, on)
         viewModelScope.launch {
             when (items.setWatchlist(server, item.id, on)) {
-                is ApiResult.Ok -> _messages.send(HomeMessage.Watchlist(item.title, on))
+                is ApiResult.Ok -> {
+                    watchlistCount?.adjust(if (on) 1 else -1)
+                    _messages.send(HomeMessage.Watchlist(item.title, on))
+                }
                 else -> {
                     mark(item.id, !on)
                     _messages.send(HomeMessage.WatchlistFailed)

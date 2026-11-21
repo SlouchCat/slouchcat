@@ -9,6 +9,7 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -47,10 +48,10 @@ class CollectionsViewModelTest {
         return CollectionsViewModel(s, repository, count).also { settle() }
     }
 
-    private fun TestScope.page(repository: FakeCollections, id: String = "c1"): CollectionViewModel {
+    private fun TestScope.page(repository: FakeCollections, id: String = "c1", count: LiveCount? = null): CollectionViewModel {
         val s = session(backgroundScope)
         settle()
-        return CollectionViewModel(s, repository, id).also { settle() }
+        return CollectionViewModel(s, repository, id, count).also { settle() }
     }
 
     private fun CollectionViewModel.page() = (state.value.page as Loadable.Ready).value
@@ -100,6 +101,29 @@ class CollectionsViewModelTest {
         assertFalse(vm.page().allListed)
         assertTrue(vm.page().parts.none { it.inWatchlist })
         assertEquals(CollectionMessage.Unlisted, messages.last())
+    }
+
+    /**
+     * «Alle merken» applies its result to the state as it is then (code review m-6): «Gesehen» and its
+     * quiet reload while the requests run keep their marks; the number of the watchlist follows (m-1).
+     */
+    @Test
+    fun listingAllKeepsAReloadOnTheWayAndCountsTheWatchlist() = runTest(dispatcher) {
+        val repository = fake()
+        val count = LiveCount().apply { set(5) }
+        val vm = page(repository, count = count)
+        val gate = CompletableDeferred<Unit>()
+        repository.watchlistGate = gate
+        vm.onListAll()
+        settle()
+        vm.onWatched()
+        settle()
+        assertEquals(CollectionWatched.Full, vm.page().watched)
+        gate.complete(Unit)
+        settle()
+        assertTrue(vm.page().allListed)
+        assertEquals(CollectionWatched.Full, vm.page().watched)
+        assertEquals(7, count.count.value)
     }
 
     @Test

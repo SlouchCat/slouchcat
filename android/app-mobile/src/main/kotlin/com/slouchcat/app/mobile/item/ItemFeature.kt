@@ -1,10 +1,8 @@
 package com.slouchcat.app.mobile.item
 
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -18,8 +16,9 @@ import com.slouchcat.app.mobile.browse.CollectionRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
-import com.slouchcat.app.mobile.browse.SearchRoute
+import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.media
+import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -45,19 +44,15 @@ class ItemFeature(
         val navigator = app.navigator
         composable<ItemRoute> { entry ->
             val id = entry.toRoute<ItemRoute>().id
-            val vm = viewModel { ItemViewModel(graph.session, repository(graph), id) }
+            val vm = viewModel { ItemViewModel(graph.session, repository(graph), id, watchlistCount = graph.media.watchlistCount) }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
-            val resources = LocalResources.current
             val uri = LocalUriHandler.current
-            LaunchedEffect(vm) {
-                vm.messages.collect { message ->
-                    val text = when (message) {
-                        ItemMessage.Failed -> resources.getString(R.string.app_item_failed)
-                        is ItemMessage.Recommended -> resources.getQuantityString(R.plurals.item_recommend_added, message.days, message.days)
-                        ItemMessage.Unrecommended -> resources.getString(R.string.item_recommend_removed)
-                    }
-                    snackbar.showSnackbar(text)
+            ShowMessages(vm.messages, snackbar) { message ->
+                when (message) {
+                    ItemMessage.Failed -> getString(R.string.app_item_failed)
+                    is ItemMessage.Recommended -> getQuantityString(R.plurals.item_recommend_added, message.days, message.days)
+                    ItemMessage.Unrecommended -> getString(R.string.item_recommend_removed)
                 }
             }
             val server = graph.session.server ?: return@composable
@@ -74,10 +69,11 @@ class ItemFeature(
                     item = { navigator.opener(ItemRoute(it)) },
                     person = { navigator.opener(PersonRoute(it)) },
                     collection = { navigator.opener(CollectionRoute(it)) },
-                    search = navigator.opener(SearchRoute()),
+                    search = navigator.openerOf(SEARCH_TARGET),
                     play = play,
                     playFromStart = playFromStart,
-                    trailer = { youtube -> uri.openUri(YOUTUBE + youtube) },
+                    // No app for the address (no browser, a kiosk profile): a notice, not a crash (code review m-4).
+                    trailer = { youtube -> runCatching { uri.openUri(YOUTUBE + youtube) }.onFailure { graph.notices.show(R.string.app_item_trailerFailed) } },
                 ),
                 events = vm,
                 snackbar = snackbar,

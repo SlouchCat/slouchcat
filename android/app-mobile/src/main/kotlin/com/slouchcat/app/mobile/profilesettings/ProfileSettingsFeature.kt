@@ -4,9 +4,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalResources
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
@@ -14,14 +12,15 @@ import androidx.navigation.compose.composable
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ProfilesSettingsRoute
 import com.slouchcat.app.mobile.browse.media
+import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.MoreEntry
 import com.slouchcat.app.mobile.shell.MoreSection
-import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
+import com.slouchcat.core.api.map
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.session.ActiveProfile
@@ -44,10 +43,12 @@ class ProfileSettingsFeature(
     private fun subtitle(graph: AppGraph): String {
         val session by graph.session.state.collectAsStateWithLifecycle()
         val canManage = (session as? SessionState.Ready)?.profile?.isPrimary == true
-        val count by produceState<Int?>(null, graph) {
-            val server = graph.session.server ?: return@produceState
-            value = (graph.auth.profiles(server) as? ApiResult.Ok)?.value?.size
+        // One request per session, not per drawing; the page sets it again after its changes (code review L-5).
+        val profiles = graph.media.profilesCount
+        LaunchedEffect(graph) {
+            if (profiles.count.value == null) graph.session.server?.let { server -> profiles.refresh { graph.auth.profiles(server).map { it.size } } }
         }
+        val count by profiles.count.collectAsStateWithLifecycle()
         return profilesSubtitle(count, canManage)
     }
 
@@ -56,21 +57,16 @@ class ProfileSettingsFeature(
         val navigator = app.navigator
         composable<ProfilesSettingsRoute> {
             val vm = viewModel {
-                ProfileSettingsViewModel(graph.session, repository(graph)) { saved -> activeChanged(graph, saved) }
+                ProfileSettingsViewModel(graph.session, repository(graph), graph.media.profilesCount) { before, saved -> activeChanged(graph, before, saved) }
             }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
-            val resources = LocalResources.current
-            LaunchedEffect(vm) {
-                vm.messages.collect { message ->
-                    snackbar.showSnackbar(
-                        when (message) {
-                            is ProfileMessage.Added -> resources.getString(R.string.app_profiles_manage_added, message.name)
-                            ProfileMessage.Saved -> resources.getString(R.string.app_profiles_manage_saved)
-                            is ProfileMessage.Deleted -> resources.getString(R.string.app_profiles_manage_deleted, message.name)
-                            ProfileMessage.Partly -> resources.getString(R.string.app_profiles_manage_partly)
-                        },
-                    )
+            ShowMessages(vm.messages, snackbar) { message ->
+                when (message) {
+                    is ProfileMessage.Added -> getString(R.string.app_profiles_manage_added, message.name)
+                    ProfileMessage.Saved -> getString(R.string.app_profiles_manage_saved)
+                    is ProfileMessage.Deleted -> getString(R.string.app_profiles_manage_deleted, message.name)
+                    ProfileMessage.Partly -> getString(R.string.app_profiles_manage_partly)
                 }
             }
             val events = remember(vm) { events(vm, onBack = navigator::back, onSwitchProfile = navigator::toProfiles) }
@@ -78,11 +74,18 @@ class ProfileSettingsFeature(
         }
     }
 
-    /** The profile in use was saved: its name and colour in the session, its libraries in the media choice. */
-    private suspend fun activeChanged(graph: AppGraph, saved: Profile) {
+    /**
+     * The profile in use was saved: its name and colour in the session, its libraries in the media
+     * choice. When what it may see changed (rating, libraries, language), a new epoch: every page
+     * reads again (code review m-2); the notice outlives it.
+     */
+    private suspend fun activeChanged(graph: AppGraph, before: Profile?, saved: Profile) {
         val now = (graph.session.state.value as? SessionState.Ready)?.profile ?: return
-        graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image))
-        graph.librariesSource.reload()
+        val content = before == null || before.maxRating != saved.maxRating || before.allLibraries != saved.allLibraries ||
+            before.libraryIds.toSet() != saved.libraryIds.toSet() || before.language != saved.language
+        if (content) graph.notices.show(R.string.app_profiles_manage_saved)
+        graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image), contentChanged = content)
+        if (!content) graph.librariesSource.reload()
     }
 }
 

@@ -9,6 +9,8 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
+import com.slouchcat.core.api.log.Log
+import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +47,7 @@ class ProfileSettingsViewModelTest {
     private fun TestScope.model(repository: FakeProfileSettings, primary: Boolean = true): ProfileSettingsViewModel {
         val s = if (primary) session(backgroundScope) else session(backgroundScope, profile = CHILD)
         settle()
-        return ProfileSettingsViewModel(s, repository) { saved += it }.also { settle() }
+        return ProfileSettingsViewModel(s, repository) { _, it -> saved += it }.also { settle() }
     }
 
     private fun ProfileSettingsViewModel.list() = (state.value.profiles as Loadable.Ready).value
@@ -247,6 +249,41 @@ class ProfileSettingsViewModelTest {
         vm.onPinForm(null)
         assertNull(vm.editor().pinForm)
         assertFalse(vm.editor().toString().contains("1111"))
+    }
+
+    /**
+     * The digits of a PIN never leave the ViewModel's state (code review L-1): not in `toString` of
+     * the editor or the page state, not in any line of the log while they are typed and saved, and
+     * the ViewModel keeps no saved state (no `SavedStateHandle`) that could outlive the process.
+     */
+    @Test
+    fun theDigitsOfAPinAreNeverPrintedLoggedOrSaved() = runTest(dispatcher) {
+        val lines = mutableListOf<String>()
+        val before = Log.sink
+        Log.sink = object : LogSink {
+            override fun write(priority: Int, tag: String, message: String) { lines += "$tag $message" }
+        }
+        try {
+            val vm = model(fake())
+            vm.onEdit(vm.list()[0])
+            vm.onPinForm(PinKind.Pin)
+            vm.onPinFirst("5678")
+            vm.onPinSecond("5678")
+            vm.onPinApply()
+            vm.onPinForm(PinKind.Offline)
+            vm.onPinFirst("424242")
+            vm.onPinSecond("424242")
+            val shown = listOf(vm.editor().toString(), vm.state.value.toString(), PinChange.Set("5678").toString())
+            vm.onSave()
+            settle()
+            for (text in shown + lines) {
+                assertFalse(text, "5678" in text)
+                assertFalse(text, "424242" in text)
+            }
+            assertTrue(ProfileSettingsViewModel::class.java.constructors.all { c -> c.parameterTypes.none { it.name == "androidx.lifecycle.SavedStateHandle" } })
+        } finally {
+            Log.sink = before
+        }
     }
 
     @Test

@@ -88,7 +88,7 @@ fun SlouchcatNavHost(graph: AppGraph) {
             val navigator = remember(nav) { Navigator(nav, graph.registry, selected) }
             val app = remember(navigator) { AppScope(graph, navigator) }
             val current by nav.currentBackStackEntryAsState()
-            val here = graph.registry.targetOf(current)?.key
+            val here = graph.registry.targetOf(current, nav.previousBackStackEntry)?.key
             LaunchedEffect(here) { if (here != null) selected.value = here }
             // An in-app jump waits for a chosen profile, then builds its stack.
             val link by graph.links.pending.collectAsStateWithLifecycle()
@@ -109,7 +109,7 @@ fun SlouchcatNavHost(graph: AppGraph) {
                 }
             }
             AppShell(
-                frame = graph.registry.frame(current, selected.value, media).copy(badges = if (profile == null) emptyMap() else badges),
+                frame = graph.registry.frame(current, selected.value, media, nav.previousBackStackEntry).copy(badges = if (profile == null) emptyMap() else badges),
                 profile = profile,
                 onTarget = navigator::openTop,
                 onMedia = navigator::openMedia,

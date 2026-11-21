@@ -11,6 +11,7 @@ import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileRequest
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.api.generated.models.ProfileUpdate
+import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.media.toLoadable
@@ -157,8 +158,12 @@ sealed interface ProfileMessage {
 class ProfileSettingsViewModel(
     private val session: SessionManager,
     private val repository: ProfileSettingsRepository,
-    private val onActiveChanged: suspend (Profile) -> Unit = {},
+    /** «Profile verwalten» in «Mehr»: the number of profiles, set again after every load. */
+    private val profilesCount: LiveCount? = null,
+    private val onActiveChanged: suspend (before: Profile?, saved: Profile) -> Unit = { _, _ -> },
 ) : ViewModel() {
+    // A mirror of the server's rule, not a decision: the server answers `primary_profile_required`
+    // for any other profile and stays the authority (rule 12, code review L-11).
     private val _state = MutableStateFlow(ProfileSettingsUiState(canManage = activeIsPrimary()))
     val state: StateFlow<ProfileSettingsUiState> = _state.asStateFlow()
 
@@ -186,6 +191,7 @@ class ProfileSettingsViewModel(
             when (val result = repository.profiles(server)) {
                 is ApiResult.Ok -> {
                     _state.update { it.copy(profiles = Loadable.Ready(result.value)) }
+                    profilesCount?.set(result.value.size)
                     if (_state.value.libraries.isEmpty() || !quiet) loadChoices(server)
                 }
                 is ApiResult.NotAllowed -> {
@@ -211,6 +217,8 @@ class ProfileSettingsViewModel(
             val ceiling = info.account.maxRating
             val steps = info.ratingSystem?.steps?.map { it.age to it.label } ?: ProfileSettingsUiState.FALLBACK_AGES.map { it to null }
             val ages = (steps.map { it.first } + ceiling).distinct().sorted()
+            // Steps above the account's ceiling are only shown as not available; the server refuses them
+            // itself (`validation_failed`, rule 12, code review L-11).
             _state.update { s -> s.copy(ratings = ages.map { age -> RatingChoice(age, steps.firstOrNull { it.first == age }?.second, age <= ceiling) }) }
         }
     }
@@ -334,8 +342,9 @@ class ProfileSettingsViewModel(
         val editor = _state.value.editor ?: return
         if (editor.busy) return
         val server = session.server ?: return
-        // An open PIN form counts as «Übernehmen» first (mockup `suSave`).
-        if (editor.pinForm != null && !onPinApply()) return
+        // An open PIN form counts as «Übernehmen» first (mockup `suSave`); an empty one as «Abbrechen» (code review L-10).
+        if (editor.pinForm != null && editor.first.isEmpty() && editor.second.isEmpty()) onPinForm(null)
+        if (_state.value.editor?.pinForm != null && !onPinApply()) return
         val now = _state.value.editor ?: return
         val name = now.name.trim()
         val minutes = now.watchLimit.takeIf { it.isNotEmpty() }?.toIntOrNull()
@@ -398,7 +407,8 @@ class ProfileSettingsViewModel(
                 }
             }
             _state.update { it.copy(editor = null) }
-            if (profile.id == active()?.id) onActiveChanged(profile)
+            val before = (_state.value.profiles as? Loadable.Ready)?.value?.firstOrNull { it.id == profile.id }
+            if (profile.id == active()?.id) onActiveChanged(before, profile)
             _messages.send(
                 when {
                     pins.any { it !is ApiResult.Ok } -> ProfileMessage.Partly

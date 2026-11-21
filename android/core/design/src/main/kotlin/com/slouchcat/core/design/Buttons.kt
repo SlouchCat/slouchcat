@@ -127,7 +127,10 @@ fun SlouchcatIconImage(
     Icon(vector, contentDescription = contentDescription, modifier = modifier.size(size), tint = tint)
 }
 
-/** `.chip`: a filter or choice, 36 dp high with a 48 dp tap target; [selected] fills it. */
+/**
+ * `.chip`: a filter or choice, 36 dp high with a 48 dp tap target; [selected] fills it. Not
+ * [enabled]: dimmed, no control, the screen reader says «deaktiviert».
+ */
 @Composable
 fun SlouchcatChip(
     text: String,
@@ -137,11 +140,13 @@ fun SlouchcatChip(
     icon: SlouchcatIcon? = null,
     /** After the label, for a chip that opens a choice (`.bx-drop`: «Genre ⌄»). */
     trailingIcon: SlouchcatIcon? = null,
+    enabled: Boolean = true,
 ) {
     val c = SlouchcatTheme.colors
     androidx.compose.material3.FilterChip(
         selected = selected,
         onClick = onClick,
+        enabled = enabled,
         label = { Text(text, style = SlouchcatType.chip) },
         modifier = modifier.defaultMinSize(minHeight = 36.dp),
         leadingIcon = icon?.let { { SlouchcatIconImage(it, contentDescription = null, size = 18.dp) } },
@@ -155,9 +160,13 @@ fun SlouchcatChip(
             selectedLabelColor = c.bg,
             selectedLeadingIconColor = c.bg,
             selectedTrailingIconColor = c.bg,
+            disabledLabelColor = c.tx2.copy(alpha = DISABLED),
+            disabledLeadingIconColor = c.tx2.copy(alpha = DISABLED),
+            disabledSelectedContainerColor = c.tx.copy(alpha = DISABLED),
         ),
         border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
-            enabled = true,
+            enabled = enabled,
+            disabledBorderColor = c.frame.copy(alpha = DISABLED),
             selected = selected,
             borderColor = c.frame,
             selectedBorderColor = c.tx,

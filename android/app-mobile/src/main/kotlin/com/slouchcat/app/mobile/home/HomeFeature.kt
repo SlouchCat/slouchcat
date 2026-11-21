@@ -1,11 +1,9 @@
 package com.slouchcat.app.mobile.home
 
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -19,6 +17,7 @@ import com.slouchcat.app.mobile.browse.LibraryRoute
 import com.slouchcat.app.mobile.browse.ListRoute
 import com.slouchcat.app.mobile.browse.NotificationsRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
+import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.browse.WatchlistRoute
 import com.slouchcat.app.mobile.browse.media
@@ -27,6 +26,7 @@ import com.slouchcat.app.mobile.library.LibraryScreen
 import com.slouchcat.app.mobile.library.LibraryViewModel
 import com.slouchcat.app.mobile.lists.ListScreen
 import com.slouchcat.app.mobile.lists.ListViewModel
+import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.Label
@@ -75,17 +75,13 @@ object HomeFeature : Feature {
         val graph = app.graph
         val navigator = app.navigator
         composable<HomeRoute> {
-            val vm = viewModel { HomeViewModel(graph.session, graph.media.home, graph.media.items) }
+            val vm = viewModel { HomeViewModel(graph.session, graph.media.home, graph.media.items, graph.media.watchlistCount) }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
-            val resources = LocalResources.current
-            LaunchedEffect(vm) {
-                vm.messages.collect { message ->
-                    val text = when (message) {
-                        is HomeMessage.Watchlist -> resources.getString(if (message.added) R.string.app_home_watchlistAdded else R.string.app_home_watchlistRemoved, message.title)
-                        HomeMessage.WatchlistFailed -> resources.getString(R.string.app_home_watchlistFailed)
-                    }
-                    snackbar.showSnackbar(text)
+            ShowMessages(vm.messages, snackbar) { message ->
+                when (message) {
+                    is HomeMessage.Watchlist -> getString(if (message.added) R.string.app_home_watchlistAdded else R.string.app_home_watchlistRemoved, message.title)
+                    HomeMessage.WatchlistFailed -> getString(R.string.app_home_watchlistFailed)
                 }
             }
             val links = remember(navigator) {
@@ -147,7 +143,7 @@ object HomeFeature : Feature {
                     rating = vm::onRating,
                     view = vm::onView,
                     item = if (navigator.canOpen(ItemRoute::class)) ({ navigator.navigate(ItemRoute(it.id)) }) else null,
-                    search = navigator.opener(SearchRoute()),
+                    search = navigator.openerOf(SEARCH_TARGET),
                 )
             }
             LibraryScreen(state, actions)

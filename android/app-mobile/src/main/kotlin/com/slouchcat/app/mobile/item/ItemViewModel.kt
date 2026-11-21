@@ -6,6 +6,7 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.media.LiveCount
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.WatchedMark
 import com.slouchcat.core.media.data.DetailRepository
@@ -111,6 +112,8 @@ class ItemViewModel(
     private val session: SessionManager,
     private val repository: DetailRepository,
     private val id: String,
+    /** «Merkliste» of the shell: «Merken» here changes it (code review m-1). */
+    private val watchlistCount: LiveCount? = null,
     private val now: () -> OffsetDateTime = OffsetDateTime::now,
 ) : ViewModel(), ItemEvents {
     private val _state = MutableStateFlow(ItemUiState())
@@ -230,6 +233,7 @@ class ItemViewModel(
             undo = { s -> mapDetail(s) { it.copy(inWatchlist = !on) } },
             call = { repository.setWatchlist(it, detail.id, on) },
             reload = false,
+            done = { watchlistCount?.adjust(if (on) 1 else -1) },
         )
     }
 
@@ -246,10 +250,13 @@ class ItemViewModel(
     override fun onSeasonWatched() {
         val season = currentSeason() ?: return
         if (ItemAction.SeasonWatched in _state.value.busy) return
+        // The number from the same source as the mark: the loaded season, else its reference (code review L-9).
+        val loaded = (_state.value.seasons[season.id] as? Loadable.Ready)?.value
+        val count = loaded?.watchedCount ?: season.watchedCount ?: 0
         when (_state.value.seasonMark(season)) {
             WatchedMark.None -> setSeasonWatched(true)
-            WatchedMark.Full -> ask(season.title, season.kind, season.watchedCount ?: 0, half = false, season = true)
-            WatchedMark.Half -> ask(season.title, season.kind, season.watchedCount ?: 0, half = true, season = true)
+            WatchedMark.Full -> ask(season.title, season.kind, count, half = false, season = true)
+            WatchedMark.Half -> ask(season.title, season.kind, count, half = true, season = true)
         }
     }
 
@@ -269,7 +276,8 @@ class ItemViewModel(
         change(
             ItemAction.Watched,
             patch = { s -> mapDetail(s) { it.withWatched(on, time) } },
-            undo = { s -> mapDetail(s) { before } },
+            // Only what «gesehen» changed: a change of the watchlist meanwhile stays (code review L-8).
+            undo = { s -> mapDetail(s) { it.copy(progress = before.progress, watched = before.watched, watchedCount = before.watchedCount, episodes = before.episodes) } },
             call = { repository.setWatched(it, detail.id, on) },
             reload = true,
         )

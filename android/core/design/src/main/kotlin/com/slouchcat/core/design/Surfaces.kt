@@ -31,10 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 
 /** How the leading icon of a bar is used. */
@@ -117,9 +118,12 @@ fun SlouchcatCard(modifier: Modifier = Modifier, content: @Composable ColumnScop
     )
 }
 
-/** `.note` (and `.note.warn`): a framed notice with an icon; [warning] draws it in the warning colour. */
+/**
+ * `.note` (and `.note.warn`): a framed notice with an icon; [warning] draws it in the warning
+ * colour. [title]: a first line in the text colour above [text] (`<b>…</b><br>…` of the mockup).
+ */
 @Composable
-fun Note(text: String, modifier: Modifier = Modifier, warning: Boolean = false, icon: SlouchcatIcon = if (warning) SlouchcatIcon.Alert else SlouchcatIcon.Info) {
+fun Note(text: String, modifier: Modifier = Modifier, warning: Boolean = false, icon: SlouchcatIcon = if (warning) SlouchcatIcon.Alert else SlouchcatIcon.Info, title: String? = null) {
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(SlouchcatDimens.radius)
     Row(
@@ -132,7 +136,15 @@ fun Note(text: String, modifier: Modifier = Modifier, warning: Boolean = false, 
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         SlouchcatIconImage(icon, contentDescription = null, size = 20.dp, tint = if (warning) c.warn else c.tx2, modifier = Modifier.padding(top = 1.dp))
-        Text(text, style = SlouchcatType.bodySmall.copy(fontSize = SlouchcatType.chip.fontSize), color = c.tx2)
+        val style = SlouchcatType.bodySmall.copy(fontSize = SlouchcatType.chip.fontSize)
+        if (title == null) {
+            Text(text, style = style, color = c.tx2)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = style.copy(fontWeight = FontWeight.SemiBold), color = c.tx)
+                Text(text, style = style, color = c.tx2)
+            }
+        }
     }
 }
 

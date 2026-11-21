@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -18,6 +17,7 @@ import com.slouchcat.app.mobile.browse.CollectionsRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.media
+import com.slouchcat.app.mobile.media.ShowMessages
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -93,23 +93,18 @@ class CollectionsFeature(
         }
         composable<CollectionRoute> { entry ->
             val id = entry.toRoute<CollectionRoute>().id
-            val vm = viewModel { CollectionViewModel(graph.session, repository(graph), id) }
+            val vm = viewModel { CollectionViewModel(graph.session, repository(graph), id, graph.media.watchlistCount) }
             val state by vm.state.collectAsStateWithLifecycle()
             val server = graph.session.server ?: return@composable
             val images = remember(server) { ServerImages(server) }
             val snackbar = remember { SnackbarHostState() }
-            val resources = LocalResources.current
-            LaunchedEffect(vm) {
-                vm.messages.collect { message ->
-                    snackbar.showSnackbar(
-                        when (message) {
-                            is CollectionMessage.Listed -> resources.getQuantityString(R.plurals.app_collections_listed, message.count, message.count)
-                            CollectionMessage.Unlisted -> resources.getString(R.string.app_collections_unlisted)
-                            CollectionMessage.Watched -> resources.getString(R.string.app_collections_watchedDone)
-                            CollectionMessage.Unwatched -> resources.getString(R.string.app_collections_unwatchedDone)
-                            CollectionMessage.Failed -> resources.getString(R.string.app_collections_failed)
-                        },
-                    )
+            ShowMessages(vm.messages, snackbar) { message ->
+                when (message) {
+                    is CollectionMessage.Listed -> getQuantityString(R.plurals.app_collections_listed, message.count, message.count)
+                    CollectionMessage.Unlisted -> getString(R.string.app_collections_unlisted)
+                    CollectionMessage.Watched -> getString(R.string.app_collections_watchedDone)
+                    CollectionMessage.Unwatched -> getString(R.string.app_collections_unwatchedDone)
+                    CollectionMessage.Failed -> getString(R.string.app_collections_failed)
                 }
             }
             CollectionScreen(

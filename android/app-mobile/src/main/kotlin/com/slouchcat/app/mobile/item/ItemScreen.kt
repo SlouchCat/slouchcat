@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.triStateToggleable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
@@ -56,23 +55,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
-import com.slouchcat.app.mobile.common.LoadableContent
+import com.slouchcat.app.mobile.media.DetailState
 import com.slouchcat.app.mobile.media.FskBadge
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
 import com.slouchcat.app.mobile.media.MediaImage
+import com.slouchcat.app.mobile.media.RoundIcon
 import com.slouchcat.app.mobile.media.kindName
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.design.ButtonKind
-import com.slouchcat.core.design.EmptyState
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon
 import com.slouchcat.core.design.SheetText
 import com.slouchcat.core.design.SheetTitle
 import com.slouchcat.core.design.SlouchcatButton
 import com.slouchcat.core.design.SlouchcatIcon
-import com.slouchcat.core.design.SlouchcatIconButton
 import com.slouchcat.core.design.SlouchcatIconImage
 import com.slouchcat.core.design.SlouchcatSheet
 import com.slouchcat.core.design.SlouchcatSnackbarHost
@@ -81,7 +79,6 @@ import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
 import com.slouchcat.core.media.ImageSet
-import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.media.PlayTarget
@@ -95,6 +92,7 @@ import com.slouchcat.core.media.playTarget
 import com.slouchcat.core.media.share
 import com.slouchcat.core.media.watchedMark
 import com.slouchcat.core.strings.R
+import java.util.Locale
 
 /**
  * Where the detail page leads. Each link is `null` while no feature registered its page
@@ -134,14 +132,7 @@ fun ItemScreen(
     Box(modifier.fillMaxSize().background(c.bg)) {
         when (val item = state.item) {
             is Loadable.Ready -> Page(item.value, state, images, links, events, download)
-            is Loadable.Failed -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = gutter(), end = gutter(), top = 88.dp)) {
-                if (item.error == LoadError.NotFound) {
-                    EmptyState(stringResource(R.string.item_notFound_title), body = stringResource(R.string.item_notFound_body), icon = SlouchcatIcon.Film)
-                } else {
-                    LoadableContent(item, onRetry = events::retry) {}
-                }
-            }
-            else -> LoadableContent(item, onRetry = events::retry, modifier = Modifier.padding(top = 72.dp)) {}
+            else -> DetailState(item, stringResource(R.string.item_notFound_title), stringResource(R.string.item_notFound_body), SlouchcatIcon.Film, events::retry)
         }
         TopActions(links)
         SlouchcatSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
@@ -167,13 +158,6 @@ private fun TopActions(links: ItemLinks) {
         RoundIcon(SlouchcatIcon.Back, stringResource(R.string.common_back), links.back)
         Spacer(Modifier.weight(1f))
         links.search?.let { RoundIcon(SlouchcatIcon.Search, stringResource(R.string.app_item_search), it) }
-    }
-}
-
-@Composable
-private fun RoundIcon(icon: SlouchcatIcon, label: String, onClick: () -> Unit) {
-    Box(Modifier.padding(2.dp).clip(CircleShape).background(SlouchcatTheme.colors.scrim)) {
-        SlouchcatIconButton(icon, contentDescription = label, onClick = onClick)
     }
 }
 
@@ -322,9 +306,10 @@ private fun kicker(item: ItemDetail): String? {
 @Composable
 fun episodeCode(season: Int?, episode: Int?, end: Int?): String? {
     if (season == null || episode == null) return null
-    val s = "%02d".format(season)
-    val e = "%02d".format(episode)
-    return if (end != null && end > episode) stringResource(R.string.item_episodeCodeRange, s, e, "%02d".format(end)) else stringResource(R.string.item_episodeCode, s, e)
+    // Latin digits as in the web app, also in Arabic or Persian (code review L-7).
+    val s = String.format(Locale.ROOT, "%02d", season)
+    val e = String.format(Locale.ROOT, "%02d", episode)
+    return if (end != null && end > episode) stringResource(R.string.item_episodeCodeRange, s, e, String.format(Locale.ROOT, "%02d", end)) else stringResource(R.string.item_episodeCode, s, e)
 }
 
 /** Logo or title, the facts and the tagline (`.dt-head`). */

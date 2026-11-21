@@ -68,7 +68,10 @@ class WatchlistViewModel(
     private val count: LiveCount,
 ) : ViewModel() {
     private val local = MutableStateFlow(MyListUiState<MediaItem>())
-    private val pager = PageLoader(viewModelScope, map = { it: com.slouchcat.core.api.generated.models.ItemRef -> MediaItem.from(it, ServerImages(session.server!!)) }) { offset, limit ->
+    // The server once (code review m-3): signed out while a page loads, the answer still maps.
+    private val images = session.server?.let(::ServerImages)
+    private val pager = PageLoader(viewModelScope, map = { it: com.slouchcat.core.api.generated.models.ItemRef -> MediaItem.from(it, images!!) }) { offset, limit ->
+        if (images == null) return@PageLoader ApiResult.Offline
         val server = session.server ?: return@PageLoader ApiResult.Offline
         repository.watchlist(server, offset, limit).also { result -> if (offset == 0 && result is ApiResult.Ok) count.set(result.value.total) }
     }
@@ -153,7 +156,9 @@ class WatchedViewModel(
     private val repository: MyListsRepository,
 ) : ViewModel() {
     private val local = MutableStateFlow(MyListUiState<WatchedCard>())
-    private val pager = PageLoader(viewModelScope, map = { it: WatchedEntry -> WatchedCard.from(it, ServerImages(session.server!!)) }) { offset, limit ->
+    private val images = session.server?.let(::ServerImages)
+    private val pager = PageLoader(viewModelScope, map = { it: WatchedEntry -> WatchedCard.from(it, images!!) }) { offset, limit ->
+        if (images == null) return@PageLoader ApiResult.Offline
         val server = session.server ?: return@PageLoader ApiResult.Offline
         repository.watched(server, offset, limit)
     }

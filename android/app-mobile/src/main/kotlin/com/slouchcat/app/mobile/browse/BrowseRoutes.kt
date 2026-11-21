@@ -48,6 +48,9 @@ data class CollectionRoute(val id: String)
 @Serializable
 data class SearchRoute(val genre: String? = null)
 
+/** The key of the target «Suche» of the bar: the search of a title or a library opens the target, not a page of it. */
+const val SEARCH_TARGET = "search"
+
 /** «Merkliste» (mockup `/watchlist`). */
 @Serializable
 data object WatchlistRoute

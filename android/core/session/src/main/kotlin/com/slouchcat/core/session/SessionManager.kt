@@ -221,14 +221,16 @@ class SessionManager(
     }
 
     /**
-     * The active profile was edited («Profile verwalten»: name, accent): the session shows the new
-     * values without a new epoch, so the pages and their back stacks stay. Another id changes nothing.
+     * The active profile was edited («Profile verwalten»). Only name or accent ([contentChanged]
+     * `false`): the session shows the new values without a new epoch, so the pages and their back
+     * stacks stay. Rating, libraries or language changed: a new epoch, as after a profile choice,
+     * so no page keeps titles of the old state (code review m-2). Another id changes nothing.
      */
-    suspend fun profileUpdated(updated: ActiveProfile) = mutex.withLock {
+    suspend fun profileUpdated(updated: ActiveProfile, contentChanged: Boolean = false) = mutex.withLock {
         if (profile?.id != updated.id) return@withLock
         profile = updated
         accounts.write(email, updated)
-        publish()
+        publish(newEpoch = contentChanged)
     }
 
     suspend fun accountChanged(accountEmail: String) = mutex.withLock {

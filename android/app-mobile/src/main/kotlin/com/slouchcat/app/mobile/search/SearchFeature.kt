@@ -12,6 +12,7 @@ import com.slouchcat.app.mobile.browse.CollectionRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.LibraryRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
+import com.slouchcat.app.mobile.browse.SEARCH_TARGET
 import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppScope
@@ -31,7 +32,7 @@ import com.slouchcat.core.strings.R
 class SearchFeature(
     private val repository: (AppGraph) -> SearchRepository = { it.media.search },
 ) : Feature {
-    override val destinations = listOf(TopDestination("search", 20, SearchRoute(), R.string.nav_search, SlouchcatIcon.Search))
+    override val destinations = listOf(TopDestination(SEARCH_TARGET, 20, SearchRoute(), R.string.nav_search, SlouchcatIcon.Search))
 
     override fun NavGraphBuilder.register(app: AppScope) {
         val graph = app.graph

@@ -38,7 +38,9 @@
       "notFound": "Das gibt es hier nicht oder nicht mehr.",
       "notAllowed": "Das geht mit dieser Anmeldung nicht.",
       "failed": "Etwas ist schiefgegangen.",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "expanded": "Aufgeklappt",
+      "collapsed": "Zugeklappt"
     },
     "update": {
       "title": "Bitte die App aktualisieren",
@@ -244,7 +246,8 @@
       "recommendConfirm": "Empfehlen",
       "unrecommend": "Empfehlung zurücknehmen",
       "failed": "Das hat nicht geklappt. Versuche es noch einmal.",
-      "fromStart": "Von vorn"
+      "fromStart": "Von vorn",
+      "trailerFailed": "Auf diesem Gerät öffnet keine App den Trailer."
     },
     "person": {
       "knownFrom": "Bekannt aus",

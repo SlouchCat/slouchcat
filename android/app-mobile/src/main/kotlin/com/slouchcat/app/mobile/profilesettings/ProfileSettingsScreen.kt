@@ -150,7 +150,7 @@ private fun Manage(state: ProfileSettingsUiState, events: ProfileSettingsEvents)
 
 @Composable
 private fun ReadOnly(state: ProfileSettingsUiState, events: ProfileSettingsEvents) {
-    Note(stringResource(R.string.profiles_settings_onlyPrimary_title) + "\n" + stringResource(R.string.profiles_settings_onlyPrimary_body), icon = SlouchcatIcon.Lock)
+    Note(stringResource(R.string.profiles_settings_onlyPrimary_body), icon = SlouchcatIcon.Lock, title = stringResource(R.string.profiles_settings_onlyPrimary_title))
     LoadableContent(state.summaries, onRetry = events::onRetry) { list: List<ProfileSummary> ->
         RowGroup(
             rows = list.map { profile ->
@@ -274,7 +274,7 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
     SlouchcatSheet(title, onDismiss = events::onDismiss) {
         Column(Modifier.padding(horizontal = gutter()).imePadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Avatar(editor.name.trim().ifEmpty { "?" }, editor.accent.value, size = 56.dp)
+                Avatar(editor.name.trim(), editor.accent.value, size = 56.dp)
                 Text(title, style = SlouchcatType.sheetTitle, color = c.tx, modifier = Modifier.semantics { heading() })
             }
             SlouchcatTextField(
@@ -295,11 +295,14 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
                     val label = choice?.label ?: age.toString()
                     val enabled = choice?.enabled ?: true
                     val above = label + stringResource(R.string.format_listSeparator) + stringResource(R.string.app_profiles_manage_aboveAccount)
+                    // Above the account's ceiling: no control (disabled, code review m-7). Only a mirror of
+                    // what the server enforces (`validation_failed`); the server stays the authority (L-11).
                     SlouchcatChip(
                         label,
                         selected = editor.rating == age,
-                        onClick = { if (enabled) events.onRating(age) },
+                        onClick = { events.onRating(age) },
                         icon = if (editor.rating == age) SlouchcatIcon.Check else null,
+                        enabled = enabled,
                         modifier = Modifier
                             .heightIn(min = 48.dp)
                             .then(if (!enabled) Modifier.semantics { contentDescription = above } else Modifier),

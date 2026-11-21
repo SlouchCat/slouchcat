@@ -3,7 +3,6 @@ package com.slouchcat.app.mobile.person
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,18 +10,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,32 +27,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.item.creditCaption
+import com.slouchcat.app.mobile.media.ClampedText
+import com.slouchcat.app.mobile.media.DetailState
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaGrid
 import com.slouchcat.app.mobile.media.MediaImage
+import com.slouchcat.app.mobile.media.RoundIcon
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.core.api.generated.models.Person
 import com.slouchcat.core.design.Badge
-import com.slouchcat.core.design.EmptyState
 import com.slouchcat.core.design.SlouchcatIcon
-import com.slouchcat.core.design.SlouchcatIconButton
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
-import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
-import com.slouchcat.core.media.LoadError
 import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.media.ServerImages
@@ -111,18 +100,9 @@ fun PersonScreen(
                     MediaCard(card, onClick = onOpen(card.id), caption = roles.takeIf { it.isNotEmpty() }?.joinToString(stringResource(R.string.format_listSeparator)) ?: defaultCaption(card), width = null)
                 }
             }
-            is Loadable.Failed -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = gutter(), end = gutter(), top = 88.dp)) {
-                if (loaded.error == LoadError.NotFound) {
-                    EmptyState(stringResource(R.string.person_notFound_title), body = stringResource(R.string.person_notFound_body), icon = SlouchcatIcon.User)
-                } else {
-                    LoadableContent(loaded, onRetry = onRetry) {}
-                }
-            }
-            else -> LoadableContent(loaded, onRetry = onRetry, modifier = Modifier.padding(top = 72.dp)) {}
+            else -> DetailState(loaded, stringResource(R.string.person_notFound_title), stringResource(R.string.person_notFound_body), SlouchcatIcon.User, onRetry)
         }
-        Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp).clip(CircleShape).background(c.scrim)) {
-            SlouchcatIconButton(SlouchcatIcon.Back, contentDescription = stringResource(R.string.common_back), onClick = onBack)
-        }
+        RoundIcon(SlouchcatIcon.Back, stringResource(R.string.common_back), onBack, Modifier.padding(horizontal = 6.dp, vertical = 4.dp))
     }
 }
 
@@ -227,25 +207,16 @@ private fun Portrait(images: com.slouchcat.core.media.ImageSet, name: String, mo
 @Composable
 private fun Biography(text: String, fallback: Boolean, open: Boolean, onToggle: () -> Unit) {
     val c = SlouchcatTheme.colors
-    var clamped by remember(text) { mutableStateOf(false) }
     Column(Modifier.padding(top = 14.dp).widthIn(max = 720.dp)) {
-        Text(
+        ClampedText(
             text,
+            open = open,
+            onToggle = onToggle,
+            more = stringResource(R.string.person_biography_more),
+            less = stringResource(R.string.person_biography_less),
             style = SlouchcatType.body.copy(fontSize = 15.5.sp, lineHeight = 24.sp),
-            color = c.tx2,
-            maxLines = if (open) Int.MAX_VALUE else 3,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { if (!open) clamped = it.hasVisualOverflow },
+            lines = 3,
         )
-        if (clamped || open) {
-            Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onToggle).heightIn(min = 48.dp).padding(end = 8.dp), contentAlignment = Alignment.CenterStart) {
-                Text(
-                    stringResource(if (open) R.string.person_biography_less else R.string.person_biography_more),
-                    style = SlouchcatType.bodySmall.copy(fontSize = 14.5.sp, textDecoration = TextDecoration.Underline),
-                    color = c.tx,
-                )
-            }
-        }
         if (fallback) Text(stringResource(R.string.person_biography_fallback), style = SlouchcatType.caption, color = c.tx3)
     }
 }

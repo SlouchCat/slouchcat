@@ -5,14 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.Text
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.test.core.app.ApplicationProvider
@@ -134,6 +134,23 @@ class BrowsePagesBackTest {
         waitFor(hasText("start page"))
         graph.links.request(AppLink("start", listOf(ProfilesSettingsRoute)))
         waitFor(heading(s(R.string.app_profiles_manage_title)))
+        back()
+        waitFor(hasText("start page"))
+        back()
+        assertTrue(finishing())
+    }
+
+    /** The same media entry of the side column tapped twice: one page, one Back to «Start» (code review M-1). */
+    @Test @Config(qualifiers = "w1280dp-h800dp-land")
+    fun aMediaEntryTappedTwiceOpensOnePage() {
+        compose.setContent { SlouchcatNavHost(graph) }
+        waitFor(hasText("start page"))
+        val entry = (hasText(s(R.string.nav_watchlist)) or hasContentDescription(s(R.string.nav_watchlist), substring = true)) and hasClickAction()
+        waitFor(entry)
+        compose.onAllNodes(entry).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        waitFor(heading(s(R.string.nav_watchlist)))
+        compose.onAllNodes(entry).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
         back()
         waitFor(hasText("start page"))
         back()

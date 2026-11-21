@@ -206,7 +206,7 @@ fun CollectionScreen(
 private fun playLabel(collection: Collection): String? {
     val next = collection.next ?: return null
     val part = collection.nextPart ?: return null
-    val group = CollectionViewModel.isGroup(next)
+    val group = CollectionViewModel.playsFromOwnPage(next)
     val again = if (group) next.watched == true else next.progress?.completed == true
     val running = !again && if (group) (next.watchedCount ?: 0) > 0 else (next.progress?.positionMs ?: 0) > 0
     return stringResource(
@@ -235,7 +235,7 @@ private fun Head(
     val collection = page.collection
     val poster = remember(collection.image, page.parts, images) { collectionPoster(images, collection.image, page.parts.firstOrNull()) }
     val next = collection.next
-    val play = next?.let { if (CollectionViewModel.isGroup(it)) onOpen(it.id) else onPlay(it.id) }
+    val play = next?.let { if (CollectionViewModel.playsFromOwnPage(it)) onOpen(it.id) else onPlay(it.id) }
     val label = playLabel(collection)
     val text: @Composable (Alignment.Horizontal, TextAlign) -> Unit = { align, textAlign ->
         Column(horizontalAlignment = align, verticalArrangement = Arrangement.spacedBy(6.dp)) {

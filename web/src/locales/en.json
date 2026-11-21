@@ -38,7 +38,9 @@
       "notFound": "This is not here, or not any more.",
       "notAllowed": "This is not possible with this sign-in.",
       "failed": "Something went wrong.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "expanded": "Expanded",
+      "collapsed": "Collapsed"
     },
     "update": {
       "title": "Please update the app",
@@ -244,7 +246,8 @@
       "recommendConfirm": "Recommend",
       "unrecommend": "Take the recommendation back",
       "failed": "That did not work. Please try again.",
-      "fromStart": "From the start"
+      "fromStart": "From the start",
+      "trailerFailed": "No app on this device opens the trailer."
     },
     "person": {
       "knownFrom": "Known for",

@@ -145,6 +145,18 @@ fun seasonDetail(n: Int, watched: Int = 0, resumeAt: Int? = null): ItemDetail {
     )
 }
 
+/** Episode 2 of season 1 as its own page: the still, the series, the next episode. */
+fun episodeDetail(): ItemDetail {
+    val ref = episode(1, 2, SERIES_ID, SEASON_1, progress(40, minutes = 33))
+    return ItemDetail(
+        id = ref.id, kind = ItemKind.EPISODE, title = ref.title, inWatchlist = false, images = ref.images,
+        recommendedByMe = false, canRecommend = false, collections = emptyList(), genres = emptyList(), mediaFiles = listOf(mediaFile(ref.id)),
+        overview = ref.overview, runtimeMinutes = 33, progress = ref.progress, parentId = SEASON_1, seasonNumber = 1, episodeNumber = 2,
+        seriesRef = ref.seriesRef, series = ItemRef(SERIES_ID, ItemKind.SERIES, "Quiet Ring", false, posters(SERIES_ID)),
+        nextEpisode = episode(1, 3, SERIES_ID, SEASON_1),
+    )
+}
+
 fun series(watched: Boolean = false, watchedCount: Int = 0, resume: Boolean = true) = ItemDetail(
     id = SERIES_ID,
     kind = ItemKind.SERIES,

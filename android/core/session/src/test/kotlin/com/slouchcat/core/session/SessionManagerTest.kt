@@ -91,6 +91,18 @@ class SessionManagerTest {
         assertEquals(renamed, accounts.profile)
     }
 
+    /** A new rating, other libraries or language of the profile in use: a new epoch, every page reads again. */
+    @Test
+    fun anEditedProfileInUseWithOtherContentStartsANewEpoch() = runTest(StandardTestDispatcher()) {
+        val accounts = Accounts("a@example.test", primary)
+        val session = manager(Servers(http), Tokens(StoredCredentials("token-1", "device-1")), accounts)
+        session.ready()
+        val epoch = session.epoch.value
+        session.profileUpdated(primary.copy(name = "Main"), contentChanged = true)
+        assertEquals(epoch + 1, session.epoch.value)
+        assertEquals(SessionState.Ready(http, "a@example.test", primary.copy(name = "Main")), session.state.value)
+    }
+
     @Test
     fun aLostTokenForgetsAccountAndProfile() = runTest(StandardTestDispatcher()) {
         val accounts = Accounts("a@example.test", primary)

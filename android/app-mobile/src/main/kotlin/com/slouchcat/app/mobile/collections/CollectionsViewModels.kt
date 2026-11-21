@@ -106,6 +106,8 @@ class CollectionViewModel(
     private val session: SessionManager,
     private val repository: CollectionsRepository,
     private val id: String,
+    /** «Merkliste» of the shell: «Alle merken» changes it (code review m-1). */
+    private val watchlistCount: LiveCount? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
     val state: StateFlow<CollectionUiState> = _state.asStateFlow()
@@ -163,9 +165,14 @@ class CollectionViewModel(
             for (part in changing) {
                 if (repository.setWatchlist(server, part.id, on) is ApiResult.Ok) done += part.id
             }
-            val parts = page.parts.map { if (it.id in done) it.copy(inWatchlist = on) else it }
+            watchlistCount?.adjust(if (on) done.size else -done.size)
             val images = ServerImages(server)
-            _state.update { it.copy(listing = false, page = Loadable.Ready(page.copy(parts = parts, items = parts.map { p -> MediaItem.from(p, images) }))) }
+            // On the state as it is now: a quiet reload meanwhile («Gesehen») keeps its marks (code review m-6).
+            _state.update { s ->
+                val current = (s.page as? Loadable.Ready)?.value ?: return@update s.copy(listing = false)
+                val parts = current.parts.map { if (it.id in done) it.copy(inWatchlist = on) else it }
+                s.copy(listing = false, page = Loadable.Ready(current.copy(parts = parts, items = parts.map { p -> MediaItem.from(p, images) })))
+            }
             _messages.send(
                 when {
                     done.size < changing.size -> CollectionMessage.Failed
@@ -213,7 +220,10 @@ class CollectionViewModel(
         /** The most the server sends per page (`getCollection` `limit`). */
         const val PAGE_SIZE = 200
 
-        /** A series or podcast plays from its own page (its next episode). */
-        fun isGroup(item: ItemRef): Boolean = item.kind == ItemKind.SERIES || item.kind == ItemKind.PODCAST
+        /**
+         * A series or podcast plays from its own page (its next episode). Not `isGroup` of
+         * `:core:media`, which also counts seasons (code review m-9).
+         */
+        fun playsFromOwnPage(item: ItemRef): Boolean = item.kind == ItemKind.SERIES || item.kind == ItemKind.PODCAST
     }
 }

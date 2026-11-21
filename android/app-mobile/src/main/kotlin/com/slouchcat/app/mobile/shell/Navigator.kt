@@ -2,12 +2,12 @@ package com.slouchcat.app.mobile.shell
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
-import java.lang.reflect.Modifier
 import kotlin.reflect.KClass
 
 /** The pages of the entry, drawn without the shell. */
@@ -35,15 +35,29 @@ class Navigator(
     val selected: MutableState<String?> = mutableStateOf(null),
 ) {
     /**
-     * A page within the current target. Only a route without arguments is single top: with
-     * `launchSingleTop` the NavController would reuse the page of `ItemRoute(a)` for `ItemRoute(b)`
-     * (same destination) and keep its ViewModel, so a title opened from another title showed the
-     * first one and Back skipped it.
+     * A page within the current target, opened by a tap. Not again when it is the page shown (the
+     * same route with the same arguments: a double tap, the same media entry, a repeated jump), and
+     * not while the shown page is still coming in (a tap during the transition, code review M-1).
+     * Another title from a title is a new page: `ItemRoute(b)` above `ItemRoute(a)`, with its own
+     * ViewModel, so Back returns to the first one.
      */
-    fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = withoutArguments(route) }
+    fun navigate(route: Any) {
+        val top = nav.currentBackStackEntry
+        if (top != null && !top.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        push(route)
+    }
 
-    /** A `data object` route: only static fields (its instance); without kotlin-reflect. */
-    private fun withoutArguments(route: Any): Boolean = route.javaClass.declaredFields.all { Modifier.isStatic(it.modifiers) }
+    /** [route] above the current page unless it is the page shown; for the steps of a jump, no lifecycle check. */
+    private fun push(route: Any) {
+        if (shows(nav.currentBackStackEntry, route)) return
+        nav.navigate(route)
+    }
+
+    /** Whether [entry] is the page of [route]: same destination, equal arguments. */
+    private fun shows(entry: NavBackStackEntry?, route: Any): Boolean {
+        if (entry == null || !entry.destination.hasRoute(route::class)) return false
+        return runCatching { entry.toRoute<Any>(route::class) == route }.getOrDefault(false)
+    }
 
     /**
      * Whether a feature registered a page for routes of [route]'s class. Pages of a later feature
@@ -61,6 +75,12 @@ class Navigator(
      */
     fun opener(route: Any): (() -> Unit)? = if (canOpen(route::class)) ({ navigate(route) }) else null
 
+    /**
+     * The click of a target of the bar from a page (the search of a title or a library): the target
+     * itself, not a page of the current one (code review M-2); `null` while no feature has it.
+     */
+    fun openerOf(key: String): (() -> Unit)? = registry.destination(key)?.let { destination -> { openTop(destination) } }
+
     fun back() {
         nav.popBackStack()
     }
@@ -70,7 +90,7 @@ class Navigator(
      * the target shown: on its first page nothing, on a page below it back to its first page.
      */
     fun openTop(destination: TopDestination) {
-        val here = registry.targetOf(nav.currentBackStackEntry)
+        val here = registry.targetOf(nav.currentBackStackEntry, nav.previousBackStackEntry)
         if (here == destination) return
         if (selected.value == destination.key && nav.popBackStack(destination.route, inclusive = false)) return
         selected.value = destination.key
@@ -84,14 +104,18 @@ class Navigator(
     /** A media entry: its page opens under its target, «Start» unless it names another (code review M-7). */
     fun openMedia(entry: MediaEntry) {
         val target = registry.destination(entry.target) ?: registry.home
-        if (selected.value != target.key || registry.targetOf(nav.currentBackStackEntry) != target) {
+        val top = nav.currentBackStackEntry
+        // A tap while a page comes in, or on the entry shown: nothing (code review M-1).
+        if (top != null && !top.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
+        if (selected.value == target.key && shows(top, entry.route)) return
+        if (selected.value != target.key || registry.targetOf(top, nav.previousBackStackEntry) != target) {
             selected.value = target.key
             nav.navigate(target.route) {
                 popUpTo(registry.home.route) { saveState = true }
                 launchSingleTop = true
             }
         }
-        navigate(entry.route)
+        push(entry.route)
     }
 
     /** An in-app jump: the target, then each route down from it, so Back walks them back. */
@@ -102,7 +126,7 @@ class Navigator(
             popUpTo(registry.home.route)
             launchSingleTop = true
         }
-        link.routes.forEach(::navigate)
+        link.routes.forEach(::push)
     }
 
     /** «Profil wechseln»: the choice above the current page, back returns. */
