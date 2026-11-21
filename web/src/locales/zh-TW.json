@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "為你的家庭準備的電影、影集、有聲書和 Podcast。"
+    "tagline": "為你的家庭準備的電影、影集、有聲書和 Podcast。",
+    "setup": {
+      "tagline": "來自你自己伺服器的電影、影集、有聲書和 Podcast。",
+      "title": "連線到你的伺服器",
+      "addressLabel": "伺服器網址",
+      "addressExample": "https://media.example.org",
+      "addressHint": "與你在瀏覽器中開啟 Slouchcat 時使用的網址相同。",
+      "connect": "連線",
+      "connecting": "連線中…",
+      "found": "已找到",
+      "address": "網址",
+      "version": "版本",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "連線已加密",
+      "notEncrypted": "連線未加密",
+      "next": "下一步",
+      "otherAddress": "其他網址",
+      "error": {
+        "empty": "請輸入你的伺服器網址。",
+        "invalid": "這看起來不像網址。範例：{{example}}",
+        "unreachable": "伺服器沒有回應。請檢查網址，以及你的裝置是否連上正確的網路。",
+        "notSlouchcat": "這個網址上沒有 Slouchcat 伺服器回應。",
+        "tooOld": "這部伺服器（Slouchcat {{server}}）版本太舊。應用程式需要 Slouchcat {{required}} 或更新版本。請更新伺服器。"
+      },
+      "insecure": {
+        "title": "未加密的連線",
+        "body": "這個連線未加密。在其他網路中，他人可能讀取你的密碼並接管你的存取權。",
+        "cancel": "取消",
+        "confirm": "仍要連線"
+      }
+    },
+    "connected": {
+      "title": "已連線到 {{host}}",
+      "change": "變更網址"
+    },
+    "state": {
+      "loading": "載入中…",
+      "offline": "伺服器沒有回應。請檢查連線。",
+      "notFound": "這裡沒有這項內容，或已被移除。",
+      "notAllowed": "目前的登入無法執行此操作。",
+      "failed": "發生錯誤。",
+      "retry": "重試"
+    },
+    "update": {
+      "title": "請更新應用程式",
+      "body": "你的伺服器需要較新版本的應用程式。",
+      "close": "關閉"
+    },
+    "connectedState": {
+      "empty": "尚未設定伺服器。",
+      "setUp": "設定伺服器"
+    },
+    "tls": {
+      "userCertificate": "以你自行安裝的憑證加密",
+      "httpsRequired": "伺服器要求加密連線。網址已改為 {{address}}，請重新連線。"
+    }
   },
   "common": {
     "back": "返回",
@@ -13,6 +68,7 @@
     "saving": "儲存中…"
   },
   "nav": {
+    "devices": "我的裝置",
     "main": "主導覽",
     "home": "首頁",
     "logout": "登出",
@@ -2451,6 +2507,7 @@
       "empty": "尚無裝置。",
       "columns": {
         "name": "裝置",
+        "session": "工作階段",
         "owner": "擁有者",
         "lastSeen": "上次連線",
         "containers": "容器格式",
@@ -2460,6 +2517,12 @@
         "hdr": "HDR",
         "streams": "串流",
         "actions": "動作"
+      },
+      "sessionKinds": {
+        "browser": "瀏覽器",
+        "app": "應用程式",
+        "device": "電視應用程式",
+        "none": "已登出"
       },
       "unnamed": "未知裝置",
       "owner": "{{email}} · {{profile}}",
@@ -5986,6 +6049,11 @@
     "loadFailed": "無法載入媒體庫。"
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "建議為主個人資料設定 PIN",
+      "body": "這個帳戶中有設定年齡分級的個人資料。如果主個人資料沒有 PIN，任何人都能切換到主個人資料並變更分級。",
+      "action": "設定 PIN"
+    },
     "picker": {
       "title": "誰在觀看？",
       "intro": "選擇你的個人資料。",
@@ -6475,6 +6543,45 @@
     "wish_failed": "你的心願處理失敗"
   },
   "settings": {
+    "devices": {
+      "title": "我的裝置",
+      "intro": "這個帳戶已登入或存有下載內容的所有裝置。將裝置登出後，該裝置上屬於這個帳戶的所有內容都會移除。",
+      "list": "這個帳戶的裝置",
+      "none": "沒有裝置登入這個帳戶或存有這個帳戶的下載內容。",
+      "thisDevice": "此裝置",
+      "unnamed": "未知裝置",
+      "types": {
+        "desktop": "電腦",
+        "phone": "手機",
+        "tablet": "平板",
+        "tv": "電視",
+        "other": "其他裝置"
+      },
+      "kinds": {
+        "browser": "瀏覽器",
+        "app": "手機應用程式",
+        "device": "電視應用程式"
+      },
+      "signedIn": "{{kind}}，登入於 {{date}}",
+      "downloadsOnly": "已登出，仍存有這個帳戶的下載內容",
+      "lastSeen": "上次連線：{{date}}",
+      "lastSeenWithDownloads_other": "上次連線：{{date}} · {{count}} 個下載",
+      "downloads_other": "{{count}} 個下載",
+      "signOut": {
+        "action": "登出",
+        "label": "登出 {{name}}",
+        "title": "要登出「{{name}}」嗎？",
+        "body": "該裝置會失去這個帳戶的登入狀態，進行中的播放會停止。這個帳戶在該裝置上的下載、通知和自動下載都會刪除。裝置上的其他帳戶不受影響。",
+        "current": "這就是你目前使用的裝置：你會立即在這裡登出。",
+        "bodyCurrent": "該裝置會失去這個帳戶的登入狀態，進行中的播放會停止。這個帳戶在該裝置上的下載、通知和自動下載都會刪除。裝置上的其他帳戶不受影響。這就是你目前使用的裝置：你會立即在這裡登出。",
+        "confirm": "登出裝置"
+      },
+      "signedOut": "已登出「{{name}}」。",
+      "onlyPrimary": {
+        "title": "僅能在主個人資料中登出",
+        "body": "只能在這個帳戶的主個人資料中將裝置登出。這裡可以查看清單。"
+      }
+    },
     "playback": {
       "title": "設定",
       "intro": "個人資料 {{name}} 在所有裝置上的聲音和字幕設定。你在播放器中手動選擇的設定優先。",
