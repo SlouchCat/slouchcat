@@ -35,6 +35,23 @@
     "connected": {
       "title": "Verbunden mit {{host}}",
       "change": "Adresse ändern"
+    },
+    "state": {
+      "loading": "Lädt …",
+      "offline": "Der Server antwortet nicht. Prüfe die Verbindung.",
+      "notFound": "Das gibt es hier nicht oder nicht mehr.",
+      "notAllowed": "Das geht mit dieser Anmeldung nicht.",
+      "failed": "Etwas ist schiefgegangen.",
+      "retry": "Erneut versuchen"
+    },
+    "update": {
+      "title": "Bitte die App aktualisieren",
+      "body": "Dein Server braucht eine neuere Version der App.",
+      "close": "Schliessen"
+    },
+    "connectedState": {
+      "empty": "Noch kein Server eingerichtet.",
+      "setUp": "Server einrichten"
     }
   },
   "common": {

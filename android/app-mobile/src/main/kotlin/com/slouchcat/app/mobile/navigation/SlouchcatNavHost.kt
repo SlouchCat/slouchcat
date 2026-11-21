@@ -10,10 +10,13 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.createSavedStateHandle
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.slouchcat.app.mobile.AppGraph
+import com.slouchcat.app.mobile.common.SessionEventHandler
 import com.slouchcat.app.mobile.connected.ConnectedScreen
 import com.slouchcat.app.mobile.connected.ConnectedViewModel
 import com.slouchcat.app.mobile.setup.SetupScreen
@@ -44,29 +47,39 @@ fun SlouchcatNavHost(graph: AppGraph) {
         return
     }
     val nav = rememberNavController()
+    // «Sitzung weg» and «App zu alt» from any call (concept 27, 11.5). Until the sign-in of stage 3
+    // part 2 exists, a lost session leads back to the server address, the start of the sign-in.
+    SessionEventHandler(graph.sessionEvents, onSignedOut = {
+        nav.navigate(SetupRoute) { popUpTo(nav.graph.id) { inclusive = true } }
+    })
     NavHost(navController = nav, startDestination = first) {
-        composable<SetupRoute> {
-            val vm = viewModel { SetupViewModel(graph.serverProbe, graph.hostResolver, graph.serverStore) }
-            val state by vm.state.collectAsStateWithLifecycle()
-            LaunchedEffect(state.saved) {
-                if (state.saved) {
-                    nav.navigate(ConnectedRoute) { popUpTo(nav.graph.id) { inclusive = true } }
-                }
-            }
-            SetupScreen(
-                state = state,
-                onAddressChange = vm::onAddressChange,
-                onConnect = vm::onConnect,
-                onConfirmInsecure = vm::onConfirmInsecure,
-                onDismissInsecure = vm::onDismissInsecure,
-                onChangeAddress = vm::onChangeAddress,
-                onNext = vm::onNext,
-            )
-        }
-        composable<ConnectedRoute> {
-            val vm = viewModel { ConnectedViewModel(graph.serverStore) }
-            val server by vm.server.collectAsStateWithLifecycle()
-            ConnectedScreen(server = server, onChangeAddress = { nav.navigate(SetupRoute) })
-        }
+        setupDestination(graph, onDone = { nav.navigate(ConnectedRoute) { popUpTo(nav.graph.id) { inclusive = true } } })
+        connectedDestination(graph, onChangeAddress = { nav.navigate(SetupRoute) })
+    }
+}
+
+/** One destination per page: the ViewModel from [AppGraph], the state, the screen. */
+private fun NavGraphBuilder.setupDestination(graph: AppGraph, onDone: () -> Unit) {
+    composable<SetupRoute> {
+        val vm = viewModel { SetupViewModel(createSavedStateHandle(), graph.serverProbe, graph.hostResolver, graph.serverStore) }
+        val state by vm.state.collectAsStateWithLifecycle()
+        LaunchedEffect(vm) { vm.done.collect { onDone() } }
+        SetupScreen(
+            state = state,
+            onAddressChange = vm::onAddressChange,
+            onConnect = vm::onConnect,
+            onConfirmInsecure = vm::onConfirmInsecure,
+            onDismissInsecure = vm::onDismissInsecure,
+            onChangeAddress = vm::onChangeAddress,
+            onNext = vm::onNext,
+        )
+    }
+}
+
+private fun NavGraphBuilder.connectedDestination(graph: AppGraph, onChangeAddress: () -> Unit) {
+    composable<ConnectedRoute> {
+        val vm = viewModel { ConnectedViewModel(graph.serverStore, graph.serverRepository) }
+        val state by vm.state.collectAsStateWithLifecycle()
+        ConnectedScreen(state = state, onRetry = vm::retry, onChangeAddress = onChangeAddress)
     }
 }

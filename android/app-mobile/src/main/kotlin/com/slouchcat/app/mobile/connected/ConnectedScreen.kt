@@ -19,34 +19,32 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.slouchcat.app.mobile.common.Loadable
+import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.setup.ServerCard
 import com.slouchcat.core.design.ButtonKind
+import com.slouchcat.core.design.EmptyState
 import com.slouchcat.core.design.SlouchcatButton
 import com.slouchcat.core.design.SlouchcatDimens
+import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.Wordmark
 import com.slouchcat.core.design.isWideLayout
-import com.slouchcat.core.session.SavedServer
-import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.strings.R
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-
-/** The stored server, `null` while it loads. */
-class ConnectedViewModel(store: ServerStore) : ViewModel() {
-    val server: StateFlow<SavedServer?> = store.server.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-}
 
 /**
  * «Verbunden mit …»: the plain page after the setup until the sign-in of stage 3 part 2 takes its
- * place. Shows the stored server and leads back to the address.
+ * place. Shows the stored server with the version it reports now, and leads back to the address.
+ * The example of a page that loads: [LoadableContent] draws loading, empty, failed and ready.
  */
 @Composable
-fun ConnectedScreen(server: SavedServer?, onChangeAddress: () -> Unit, modifier: Modifier = Modifier) {
+fun ConnectedScreen(
+    state: ConnectedUiState,
+    onRetry: () -> Unit,
+    onChangeAddress: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val c = SlouchcatTheme.colors
     val wide = isWideLayout()
     Box(
@@ -60,14 +58,25 @@ fun ConnectedScreen(server: SavedServer?, onChangeAddress: () -> Unit, modifier:
     ) {
         Column(Modifier.widthIn(max = SlouchcatDimens.formMax).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Wordmark(stringResource(R.string.app_name), wide = wide)
-            if (server != null) {
-                Text(
-                    stringResource(R.string.app_connected_title, server.address.host),
-                    style = SlouchcatType.pageTitle,
-                    color = c.tx,
-                    modifier = Modifier.padding(top = 10.dp).semantics { heading() },
-                )
-                ServerCard(server.address, server.version, server.encrypted, found = false)
+            LoadableContent(
+                state = state.server,
+                onRetry = onRetry,
+                empty = {
+                    EmptyState(stringResource(R.string.app_connectedState_empty), icon = SlouchcatIcon.Server)
+                    SlouchcatButton(stringResource(R.string.app_connectedState_setUp), onClick = onChangeAddress, block = true)
+                },
+            ) { server ->
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        stringResource(R.string.app_connected_title, server.address.host),
+                        style = SlouchcatType.pageTitle,
+                        color = c.tx,
+                        modifier = Modifier.padding(top = 10.dp).semantics { heading() },
+                    )
+                    ServerCard(server.address, server.version, server.encrypted, found = false)
+                }
+            }
+            if (state.server !is Loadable.Empty) {
                 SlouchcatButton(stringResource(R.string.app_connected_change), onClick = onChangeAddress, kind = ButtonKind.Ghost, block = true)
             }
         }

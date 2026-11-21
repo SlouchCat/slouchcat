@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.setup
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slouchcat.core.api.log.Log
@@ -12,10 +13,13 @@ import com.slouchcat.core.session.ServerAddress
 import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerStore
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
@@ -44,8 +48,8 @@ data class SetupUiState(
     val insecureAddress: String? = null,
     /** The server answered; the page shows it and «Weiter». */
     val found: ServerInfo? = null,
-    /** The address is stored; the app moves on. */
-    val saved: Boolean = false,
+    /** «Weiter» is storing the address; a second tap does nothing. */
+    val saving: Boolean = false,
 )
 
 /**
@@ -53,36 +57,52 @@ data class SetupUiState(
  * outside the home network (decided on the resolved address), ask `getHealth`, store the address.
  */
 class SetupViewModel(
+    private val saved: SavedStateHandle,
     private val probe: ServerProbe,
     private val resolver: HostResolver,
     private val store: ServerStore,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SetupUiState())
+    // What the user typed and an open warning survive the end of the process (SavedStateHandle);
+    // a running check or a found server are asked again.
+    private val _state = MutableStateFlow(
+        SetupUiState(address = saved[ADDRESS] ?: "", insecureAddress = saved[INSECURE]),
+    )
     val state: StateFlow<SetupUiState> = _state.asStateFlow()
 
-    private var pending: HttpUrl? = null
+    private val _done = Channel<Unit>(Channel.BUFFERED)
+
+    /** One event when the address is stored: the page moves on. An event, not a state. */
+    val done: Flow<Unit> = _done.receiveAsFlow()
 
     init {
         // Changing the address starts from the stored one (mockup: `U.addr = S.server`).
-        viewModelScope.launch {
-            val saved = store.server.first() ?: return@launch
-            _state.update { if (it.address.isEmpty()) it.copy(address = ServerAddress.display(saved.address)) else it }
+        if (saved.get<String>(ADDRESS) == null) {
+            viewModelScope.launch {
+                val stored = store.server.first() ?: return@launch
+                update { if (it.address.isEmpty()) it.copy(address = ServerAddress.display(stored.address)) else it }
+            }
         }
+    }
+
+    private fun update(change: (SetupUiState) -> SetupUiState) {
+        _state.update(change)
+        saved[ADDRESS] = _state.value.address
+        saved[INSECURE] = _state.value.insecureAddress
     }
 
     fun onAddressChange(text: String) {
         if (_state.value.found != null || _state.value.busy) return
-        _state.update { it.copy(address = text, error = null) }
+        update { it.copy(address = text, error = null) }
     }
 
     fun onConnect() {
         val now = _state.value
         if (now.busy || now.found != null) return
         when (val parsed = ServerAddress.parse(now.address)) {
-            ParsedAddress.Empty -> _state.update { it.copy(error = SetupError.Empty) }
-            ParsedAddress.Invalid -> _state.update { it.copy(error = SetupError.Invalid) }
+            ParsedAddress.Empty -> update { it.copy(error = SetupError.Empty) }
+            ParsedAddress.Invalid -> update { it.copy(error = SetupError.Invalid) }
             is ParsedAddress.Valid -> {
-                _state.update { it.copy(address = ServerAddress.display(parsed.url), error = null) }
+                update { it.copy(address = ServerAddress.display(parsed.url), error = null) }
                 if (parsed.encrypted) check(parsed.url) else checkPlain(parsed.url)
             }
         }
@@ -90,70 +110,72 @@ class SetupViewModel(
 
     /** Plain HTTP: no warning in the home network, a warning with confirmation outside it. */
     private fun checkPlain(url: HttpUrl) {
-        _state.update { it.copy(busy = true) }
+        update { it.copy(busy = true) }
         viewModelScope.launch {
             val home = try {
                 resolver.resolve(url.host).let { all -> all.isNotEmpty() && all.all(HomeNetwork::isHome) }
             } catch (e: UnknownHostException) {
                 Log.i(TAG, "host not resolved", error = e)
-                _state.update { it.copy(busy = false, error = SetupError.Unreachable) }
+                update { it.copy(busy = false, error = SetupError.Unreachable) }
                 return@launch
             }
             if (home) {
                 runCheck(url)
             } else {
-                pending = url
-                _state.update { it.copy(busy = false, insecureAddress = ServerAddress.display(url)) }
+                update { it.copy(busy = false, insecureAddress = ServerAddress.display(url)) }
             }
         }
     }
 
     fun onConfirmInsecure() {
-        val url = pending ?: return
-        pending = null
-        _state.update { it.copy(insecureAddress = null) }
+        val url = (ServerAddress.parse(_state.value.insecureAddress ?: return) as? ParsedAddress.Valid)?.url ?: return
+        update { it.copy(insecureAddress = null) }
         check(url)
     }
 
     fun onDismissInsecure() {
-        pending = null
-        _state.update { it.copy(insecureAddress = null) }
+        update { it.copy(insecureAddress = null) }
     }
 
     private fun check(url: HttpUrl) {
-        _state.update { it.copy(busy = true) }
+        update { it.copy(busy = true) }
         viewModelScope.launch { runCheck(url) }
     }
 
     private suspend fun runCheck(url: HttpUrl) {
         val error = when (val result = probe.probe(url)) {
             is ProbeResult.Found -> {
-                _state.update { it.copy(busy = false, found = result.info) }
+                update { it.copy(busy = false, found = result.info) }
                 return
             }
             ProbeResult.Unreachable -> SetupError.Unreachable
             ProbeResult.NotSlouchcat -> SetupError.NotSlouchcat
             is ProbeResult.TooOld -> SetupError.TooOld(result.serverVersion, result.required)
         }
-        _state.update { it.copy(busy = false, error = error) }
+        update { it.copy(busy = false, error = error) }
     }
 
     /** «Andere Adresse»: back to the field, the address stays to be edited. */
     fun onChangeAddress() {
-        _state.update { it.copy(found = null, error = null) }
+        update { it.copy(found = null, error = null) }
     }
 
     /** «Weiter»: store the server and move on. */
     fun onNext() {
-        val info = _state.value.found ?: return
+        val now = _state.value
+        val info = now.found ?: return
+        if (now.saving) return
+        update { it.copy(saving = true) }
         viewModelScope.launch {
             store.save(SavedServer(info.address, info.version))
             Log.i(TAG, "server stored", "version" to info.version, "encrypted" to info.encrypted)
-            _state.update { it.copy(saved = true) }
+            _done.send(Unit)
         }
     }
 
     private companion object {
         const val TAG = "setup"
+        const val ADDRESS = "address"
+        const val INSECURE = "insecureAddress"
     }
 }

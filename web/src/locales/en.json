@@ -35,6 +35,23 @@
     "connected": {
       "title": "Connected to {{host}}",
       "change": "Change address"
+    },
+    "state": {
+      "loading": "Loading …",
+      "offline": "The server does not answer. Check the connection.",
+      "notFound": "This is not here, or not any more.",
+      "notAllowed": "This is not possible with this sign-in.",
+      "failed": "Something went wrong.",
+      "retry": "Try again"
+    },
+    "update": {
+      "title": "Please update the app",
+      "body": "Your server needs a newer version of the app.",
+      "close": "Close"
+    },
+    "connectedState": {
+      "empty": "No server set up yet.",
+      "setUp": "Set up server"
     }
   },
   "common": {

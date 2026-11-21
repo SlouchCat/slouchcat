@@ -2,11 +2,15 @@ package com.slouchcat.app.mobile
 
 import android.app.Application
 import android.content.Context
+import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ClientIdentity
+import com.slouchcat.core.api.SessionEvents
 import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
+import com.slouchcat.core.session.ApiServerRepository
 import com.slouchcat.core.session.DataStoreServerStore
+import com.slouchcat.core.session.ServerRepository
 import com.slouchcat.core.session.HealthServerProbe
 import com.slouchcat.core.session.HostResolver
 import com.slouchcat.core.session.ServerProbe
@@ -23,8 +27,15 @@ class AppGraph(context: Context) {
     /** The one HTTP client for API, images and player (concept 27, 5.2). */
     val http: OkHttpClient = SlouchcatHttp.client(identity)
 
+    /** «Sitzung weg» and «App zu alt» from any call; SlouchcatNavHost reacts to them. */
+    val sessionEvents = SessionEvents()
+
+    /** Every call of the generated client goes through it: `graph.api.call { … }`. */
+    val api = ApiCaller(sessionEvents)
+
     val serverStore: ServerStore = DataStoreServerStore(context)
     val serverProbe: ServerProbe = HealthServerProbe(http)
+    val serverRepository: ServerRepository = ApiServerRepository(api, http)
     val hostResolver: HostResolver = HostResolver.System
 }
 

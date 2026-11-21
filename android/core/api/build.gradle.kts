@@ -61,7 +61,9 @@ tasks.named("compileKotlin") { dependsOn("openApiGenerate") }
 dependencies {
     api(libs.okhttp)
     api(libs.serialization.json)
+    api(libs.coroutines.core)
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
 }
 

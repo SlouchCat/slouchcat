@@ -6,7 +6,10 @@ import com.slouchcat.core.session.SavedServer
 import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerStore
+import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -33,7 +36,9 @@ class SetupViewModelTest {
     private class FakeStore(initial: SavedServer? = null) : ServerStore {
         val flow = MutableStateFlow(initial)
         override val server = flow
+        var saves = 0
         override suspend fun save(server: SavedServer) {
+            saves++
             flow.value = server
         }
         override suspend fun clear() {
@@ -66,7 +71,11 @@ class SetupViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun vm(probe: ServerProbe = FakeProbe(found), store: ServerStore = FakeStore()) = SetupViewModel(probe, resolver, store)
+    private fun vm(
+        probe: ServerProbe = FakeProbe(found),
+        store: ServerStore = FakeStore(),
+        saved: SavedStateHandle = SavedStateHandle(),
+    ) = SetupViewModel(saved, probe, resolver, store)
 
     @Test
     fun emptyAndBrokenAddressesAreToldWithoutAsking() = runTest(dispatcher) {
@@ -98,9 +107,14 @@ class SetupViewModelTest {
 
         model.onAddressChange("ignored while found")
         assertEquals("https://media.example.test", model.state.value.address)
+        val done = mutableListOf<Unit>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.done.collect { done += it } }
+        model.onNext()
         model.onNext()
         advanceUntilIdle()
-        assertTrue(model.state.value.saved)
+        assertEquals("one move on, however often «Weiter» is tapped", 1, done.size)
+        assertTrue(model.state.value.saving)
+        assertEquals(1, store.saves)
         assertEquals("1.42.0", store.flow.value!!.version)
         assertEquals("https://media.example.test/", store.flow.value!!.address.toString())
     }
@@ -167,6 +181,25 @@ class SetupViewModelTest {
         advanceUntilIdle()
         assertEquals(SetupError.TooOld("1.41.3", "1.42.0"), model.state.value.error)
         assertNull(model.state.value.found)
+    }
+
+    @Test
+    fun theAddressAndAnOpenWarningSurviveTheProcess() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        val first = vm(saved = saved)
+        first.onAddressChange("http://media.example.test")
+        first.onConnect()
+        advanceUntilIdle()
+        assertEquals("http://media.example.test", first.state.value.insecureAddress)
+
+        // The process ends; the system hands the saved state to a new ViewModel.
+        val probe = FakeProbe(found)
+        val second = vm(probe = probe, saved = saved)
+        assertEquals("http://media.example.test", second.state.value.address)
+        assertEquals("http://media.example.test", second.state.value.insecureAddress)
+        second.onConfirmInsecure()
+        advanceUntilIdle()
+        assertEquals(1, probe.asked.size)
     }
 
     @Test
