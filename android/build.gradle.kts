@@ -19,14 +19,14 @@ tasks.register("ciCheck") {
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:assembleFossDebug")
     dependsOn(":app-mobile:assemblePlayRelease", ":app-mobile:assembleFossRelease")
     dependsOn(":app-mobile:lintPlayDebug", ":app-mobile:lintFossDebug")
-    dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug")
+    dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug", ":core:player:lintDebug")
 }
 
 tasks.register("ciTest") {
     group = "verification"
     description = "All JVM tests: modules, lint rules and generators (task android:test)"
     dependsOn(":app-mobile:testPlayDebugUnitTest", ":app-mobile:testFossDebugUnitTest")
-    dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest")
+    dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest", ":core:player:testDebugUnitTest")
     dependsOn(":lint:test")
     dependsOn(gradle.includedBuild("tools").task(":test"))
 }
@@ -35,5 +35,5 @@ tasks.register("fastCheck") {
     group = "verification"
     description = "The quick part of task check:fast: compile the play debug build and run its JVM tests"
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:testPlayDebugUnitTest")
-    dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest")
+    dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest", ":core:player:testDebugUnitTest")
 }

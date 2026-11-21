@@ -27,6 +27,7 @@ include(
     ":core:api",
     ":core:session",
     ":core:design",
+    ":core:player",
     ":core:strings",
     ":lint",
 )
