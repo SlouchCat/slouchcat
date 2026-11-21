@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,7 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -54,7 +57,7 @@ fun TopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(SlouchcatDimens.barHeight)
+            .heightIn(min = SlouchcatDimens.barHeight)
             .background(c.bg)
             .padding(start = 4.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -71,7 +74,7 @@ fun TopBar(
             title,
             style = SlouchcatType.barTitle,
             color = c.tx,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
@@ -86,7 +89,8 @@ fun TopBar(
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     Text(
-        text.uppercase(),
+        // Capitals of the user's language (Turkish i), as CSS text-transform does.
+        text.toUpperCase(Locale.current),
         style = SlouchcatType.section,
         color = SlouchcatTheme.colors.tx3,
         modifier = modifier
@@ -144,7 +148,7 @@ fun Badge(text: String, modifier: Modifier = Modifier, tone: BadgeTone = BadgeTo
     val shape = RoundedCornerShape(6.dp)
     Row(
         modifier = modifier
-            .height(22.dp)
+            .heightIn(min = 22.dp)
             .border(BorderStroke(1.dp, if (tone == BadgeTone.Neutral) c.frame else color), shape)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -212,9 +216,9 @@ fun ListRow(
             }
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = SlouchcatType.rowTitle, color = c.tx, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = SlouchcatType.rowTitle, color = c.tx, maxLines = 3, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
-                Text(subtitle, style = SlouchcatType.caption, color = c.tx3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = SlouchcatType.caption, color = c.tx3, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
         }
         if (end != null) {

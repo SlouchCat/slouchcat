@@ -16,6 +16,8 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -78,8 +80,10 @@ class ComponentsTest {
             }
         }
         compose.onNodeWithText("The hint").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Address").assertHeightIsAtLeast(48.dp)
-        compose.onNodeWithContentDescription("Broken").assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, "Wrong"))
+        // The label belongs to the field's node: no description over the content.
+        compose.onNode(hasSetTextAction() and hasText("Address")).assertHeightIsAtLeast(48.dp)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+        compose.onNode(hasSetTextAction() and hasText("Broken")).assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, "Wrong"))
         compose.onNodeWithText("Wrong").assertIsDisplayed()
     }
 

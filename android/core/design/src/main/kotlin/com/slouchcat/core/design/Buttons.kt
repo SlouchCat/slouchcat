@@ -20,7 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -76,7 +76,8 @@ fun SlouchcatButton(
             } else if (leadingIcon != null) {
                 SlouchcatIconImage(leadingIcon, contentDescription = null, size = 18.dp)
             }
-            Text(text, style = if (small) SlouchcatType.buttonSmall else SlouchcatType.button, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // No line limit: with the system's font at 200 % a label wraps instead of being cut.
+            Text(text, style = if (small) SlouchcatType.buttonSmall else SlouchcatType.button, textAlign = TextAlign.Center)
             if (trailingIcon != null && !busy) SlouchcatIconImage(trailingIcon, contentDescription = null, size = 18.dp)
         }
     }

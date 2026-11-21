@@ -11,7 +11,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -70,8 +72,9 @@ class SetupScreenTest {
         compose.onNodeWithText(s(R.string.app_setup_title)).assertIsDisplayed()
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
         compose.onNodeWithText(s(R.string.app_setup_tagline)).assertIsDisplayed()
+        compose.assertEveryControlLabelledAndTappable()
         compose.onNodeWithText(s(R.string.app_setup_addressHint)).assertIsDisplayed()
-        compose.onNodeWithContentDescription(s(R.string.app_setup_addressLabel))
+        compose.onNode(hasSetTextAction() and hasText(s(R.string.app_setup_addressLabel)))
             .assertHeightIsAtLeast(48.dp)
             .performTextInput("medien.example.test")
         compose.onNodeWithText(s(R.string.app_setup_connect))
@@ -98,11 +101,43 @@ class SetupScreenTest {
             ),
         )
         compose.onNodeWithText(s(R.string.app_setup_found)).assertIsDisplayed()
+        compose.assertEveryControlLabelledAndTappable()
         compose.onNodeWithText(s(R.string.app_setup_notEncrypted)).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(s(R.string.app_setup_next)).performScrollTo().assertHeightIsAtLeast(48.dp).performClick()
         compose.onNodeWithText(s(R.string.app_setup_otherAddress)).performScrollTo().assertHeightIsAtLeast(48.dp).performClick()
         assertEquals(listOf("next", "change"), events)
     }
+
+    @Test
+    @Config(qualifiers = PHONE, fontScale = 2f)
+    fun emptyPagePhoneLargeFont() = emptyPage()
+
+    @Test
+    @Config(qualifiers = TABLET, fontScale = 2f)
+    fun emptyPageTabletLargeFont() = emptyPage()
+
+    @Test
+    @Config(qualifiers = PHONE, fontScale = 2f)
+    fun foundPhoneLargeFont() = foundPage()
+
+    @Test
+    @Config(qualifiers = TABLET, fontScale = 2f)
+    fun foundTabletLargeFont() = foundPage()
+
+    private fun busy() {
+        show(SetupUiState(address = "https://media.example.test", busy = true))
+        compose.onNodeWithText(s(R.string.app_setup_connecting)).assertIsDisplayed().performClick()
+        compose.assertEveryControlLabelledAndTappable()
+        assertEquals(emptyList<String>(), events)
+    }
+
+    @Test
+    @Config(qualifiers = PHONE)
+    fun busyPhone() = busy()
+
+    @Test
+    @Config(qualifiers = TABLET)
+    fun busyTablet() = busy()
 
     @Test
     @Config(qualifiers = PHONE)
@@ -116,7 +151,7 @@ class SetupScreenTest {
         show(SetupUiState(address = "http://192.0.2.10", error = SetupError.TooOld("1.41.3", "1.42.0")))
         val text = s(R.string.app_setup_error_tooOld, "1.41.3", "1.42.0")
         compose.onNodeWithText(text).assertIsDisplayed()
-        compose.onNodeWithContentDescription(s(R.string.app_setup_addressLabel))
+        compose.onNode(hasSetTextAction() and hasText(s(R.string.app_setup_addressLabel)))
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, text))
     }
 

@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -59,7 +58,6 @@ fun SlouchcatTextField(
         else -> c.ctl
     }
     Column(modifier.fillMaxWidth()) {
-        Text(label, style = SlouchcatType.label, color = c.tx2, modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -73,24 +71,27 @@ fun SlouchcatTextField(
             interactionSource = interaction,
             modifier = fieldModifier
                 .fillMaxWidth()
-                .height(SlouchcatDimens.fieldHeight)
-                .semantics {
-                    contentDescription = label
-                    if (error != null) error(error)
-                },
+                .semantics { if (error != null) error(error) },
+            // The label sits in the decoration, so it belongs to the field's node: a screen reader
+            // says label and content together, and reads the content, not a description over it.
             decorationBox = { inner ->
+                Column {
+                Text(label, style = SlouchcatType.label, color = c.tx2, modifier = Modifier.padding(start = 2.dp, bottom = 6.dp))
                 Box(
                     modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = SlouchcatDimens.fieldHeight)
                         .clip(shape)
                         .background(if (readOnly) c.bg else c.s1)
                         .border(BorderStroke(if (focused && !readOnly) 2.dp else 1.dp, borderColor), shape)
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (value.isEmpty() && placeholder != null) {
                         Text(placeholder, style = SlouchcatType.body, color = c.tx3)
                     }
                     inner()
+                }
                 }
             },
         )
