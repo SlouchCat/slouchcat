@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmes, séries, audiolivros e podcasts para a sua casa."
+    "tagline": "Filmes, séries, audiolivros e podcasts para a sua casa.",
+    "setup": {
+      "tagline": "Seus filmes, séries, audiolivros e podcasts do seu próprio servidor.",
+      "title": "Conecte-se ao seu servidor",
+      "addressLabel": "Endereço do servidor",
+      "addressExample": "https://media.example.org",
+      "addressHint": "O mesmo endereço com que você abre o Slouchcat no navegador.",
+      "connect": "Conectar",
+      "connecting": "Conectando…",
+      "found": "Encontrado",
+      "address": "Endereço",
+      "version": "Versão",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Conexão criptografada",
+      "notEncrypted": "Conexão não criptografada",
+      "next": "Continuar",
+      "otherAddress": "Outro endereço",
+      "error": {
+        "empty": "Informe o endereço do seu servidor.",
+        "invalid": "Isso não parece um endereço. Exemplo: {{example}}",
+        "unreachable": "O servidor não responde. Verifique o endereço e se o seu dispositivo está na rede certa.",
+        "notSlouchcat": "Nenhum servidor Slouchcat responde neste endereço.",
+        "tooOld": "Este servidor (Slouchcat {{server}}) é antigo demais. O app precisa do Slouchcat {{required}} ou mais recente. Atualize o servidor."
+      },
+      "insecure": {
+        "title": "Conexão não criptografada",
+        "body": "Esta conexão não é criptografada. Em outras redes, alguém pode ler sua senha e assumir o seu acesso.",
+        "cancel": "Cancelar",
+        "confirm": "Conectar mesmo assim"
+      }
+    },
+    "connected": {
+      "title": "Conectado a {{host}}",
+      "change": "Alterar endereço"
+    },
+    "state": {
+      "loading": "Carregando…",
+      "offline": "O servidor não responde. Verifique a conexão.",
+      "notFound": "Isto não está aqui, ou não está mais.",
+      "notAllowed": "Isso não é possível com este login.",
+      "failed": "Algo deu errado.",
+      "retry": "Tentar novamente"
+    },
+    "update": {
+      "title": "Atualize o app",
+      "body": "Seu servidor precisa de uma versão mais recente do app.",
+      "close": "Fechar"
+    },
+    "connectedState": {
+      "empty": "Nenhum servidor configurado ainda.",
+      "setUp": "Configurar servidor"
+    },
+    "tls": {
+      "userCertificate": "Criptografada com um certificado instalado por você",
+      "httpsRequired": "O servidor exige uma conexão criptografada. O endereço agora é {{address}}; conecte-se novamente."
+    }
   },
   "common": {
     "back": "Voltar",
@@ -13,6 +68,7 @@
     "saving": "Salvando…"
   },
   "nav": {
+    "devices": "Meus dispositivos",
     "main": "Navegação principal",
     "home": "Início",
     "logout": "Sair",
@@ -2663,6 +2719,7 @@
       "empty": "Nenhum dispositivo ainda.",
       "columns": {
         "name": "Dispositivo",
+        "session": "Sessão",
         "owner": "Proprietário",
         "lastSeen": "Último contato",
         "containers": "Contêineres",
@@ -2672,6 +2729,12 @@
         "hdr": "HDR",
         "streams": "Transmissões",
         "actions": "Ações"
+      },
+      "sessionKinds": {
+        "browser": "Navegador",
+        "app": "App",
+        "device": "App de TV",
+        "none": "Desconectado"
       },
       "unnamed": "Dispositivo desconhecido",
       "owner": "{{email}} · {{profile}}",
@@ -6434,6 +6497,11 @@
     "loadFailed": "Não foi possível carregar as bibliotecas."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Recomendamos um PIN para o perfil principal",
+      "body": "Esta conta tem perfis com classificação indicativa. Sem um PIN no perfil principal, qualquer pessoa pode trocar para ele e alterar as classificações.",
+      "action": "Definir PIN"
+    },
     "picker": {
       "title": "Quem está assistindo?",
       "intro": "Escolha seu perfil.",
@@ -6953,6 +7021,49 @@
     "wish_failed": "Seu pedido falhou"
   },
   "settings": {
+    "devices": {
+      "title": "Meus dispositivos",
+      "intro": "Todos os dispositivos em que esta conta está conectada ou tem downloads. Ao desconectar um dispositivo, ele perde tudo o que esta conta tem nele.",
+      "list": "Dispositivos desta conta",
+      "none": "Nenhum dispositivo tem login ou downloads desta conta.",
+      "thisDevice": "Este dispositivo",
+      "unnamed": "Dispositivo desconhecido",
+      "types": {
+        "desktop": "Computador",
+        "phone": "Celular",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Outro dispositivo"
+      },
+      "kinds": {
+        "browser": "Navegador",
+        "app": "App de celular",
+        "device": "App de TV"
+      },
+      "signedIn": "{{kind}}, conectado em {{date}}",
+      "downloadsOnly": "Desconectado, ainda tem downloads desta conta",
+      "lastSeen": "Último contato: {{date}}",
+      "lastSeenWithDownloads_one": "Último contato: {{date}} · {{count}} download",
+      "lastSeenWithDownloads_many": "Último contato: {{date}} · {{count}} de downloads",
+      "lastSeenWithDownloads_other": "Último contato: {{date}} · {{count}} downloads",
+      "downloads_one": "{{count}} download",
+      "downloads_many": "{{count}} de downloads",
+      "downloads_other": "{{count}} downloads",
+      "signOut": {
+        "action": "Desconectar",
+        "label": "Desconectar {{name}}",
+        "title": "Desconectar “{{name}}”?",
+        "body": "O dispositivo perde o login desta conta, e as reproduções em andamento terminam. Os downloads, as notificações e os downloads automáticos desta conta no dispositivo são excluídos. As outras contas no dispositivo continuam.",
+        "current": "Este é o dispositivo que você está usando: você sai daqui imediatamente.",
+        "bodyCurrent": "O dispositivo perde o login desta conta, e as reproduções em andamento terminam. Os downloads, as notificações e os downloads automáticos desta conta no dispositivo são excluídos. As outras contas no dispositivo continuam. Este é o dispositivo que você está usando: você sai daqui imediatamente.",
+        "confirm": "Desconectar dispositivo"
+      },
+      "signedOut": "“{{name}}” desconectado.",
+      "onlyPrimary": {
+        "title": "Desconectar só no perfil principal",
+        "body": "Você desconecta dispositivos no perfil principal desta conta. Aqui você vê a lista."
+      }
+    },
     "playback": {
       "title": "Configurações",
       "intro": "Som e legendas do perfil {{name}}, em todos os dispositivos. O que você escolhe manualmente no player tem prioridade.",

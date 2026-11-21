@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmes, séries, audiolivros e podcasts para o seu agregado familiar."
+    "tagline": "Filmes, séries, audiolivros e podcasts para o seu agregado familiar.",
+    "setup": {
+      "tagline": "Os seus filmes, séries, audiolivros e podcasts a partir do seu próprio servidor.",
+      "title": "Ligar ao seu servidor",
+      "addressLabel": "Endereço do servidor",
+      "addressExample": "https://media.example.org",
+      "addressHint": "O mesmo endereço com que abre o Slouchcat no navegador.",
+      "connect": "Ligar",
+      "connecting": "A ligar…",
+      "found": "Encontrado",
+      "address": "Endereço",
+      "version": "Versão",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Ligação cifrada",
+      "notEncrypted": "Ligação não cifrada",
+      "next": "Continuar",
+      "otherAddress": "Outro endereço",
+      "error": {
+        "empty": "Introduza o endereço do seu servidor.",
+        "invalid": "Isto não parece um endereço. Exemplo: {{example}}",
+        "unreachable": "O servidor não responde. Verifique o endereço e se o seu dispositivo está na rede certa.",
+        "notSlouchcat": "Nenhum servidor Slouchcat responde neste endereço.",
+        "tooOld": "Este servidor (Slouchcat {{server}}) é demasiado antigo. A aplicação precisa do Slouchcat {{required}} ou mais recente. Atualize o servidor."
+      },
+      "insecure": {
+        "title": "Ligação não cifrada",
+        "body": "Esta ligação não está cifrada. Noutras redes, alguém pode ler a sua palavra-passe e apoderar-se do seu acesso.",
+        "cancel": "Cancelar",
+        "confirm": "Ligar mesmo assim"
+      }
+    },
+    "connected": {
+      "title": "Ligado a {{host}}",
+      "change": "Alterar endereço"
+    },
+    "state": {
+      "loading": "A carregar…",
+      "offline": "O servidor não responde. Verifique a ligação.",
+      "notFound": "Isto não existe aqui, ou já não existe.",
+      "notAllowed": "Isto não é possível com esta sessão.",
+      "failed": "Algo correu mal.",
+      "retry": "Tentar novamente"
+    },
+    "update": {
+      "title": "Atualize a aplicação",
+      "body": "O seu servidor precisa de uma versão mais recente da aplicação.",
+      "close": "Fechar"
+    },
+    "connectedState": {
+      "empty": "Ainda não há nenhum servidor configurado.",
+      "setUp": "Configurar servidor"
+    },
+    "tls": {
+      "userCertificate": "Cifrada com um certificado instalado por si",
+      "httpsRequired": "O servidor exige uma ligação cifrada. O endereço passa a ser {{address}}; ligue-se novamente."
+    }
   },
   "common": {
     "back": "Voltar",
@@ -13,6 +68,7 @@
     "saving": "A guardar…"
   },
   "nav": {
+    "devices": "Os meus dispositivos",
     "main": "Navegação principal",
     "home": "Início",
     "logout": "Terminar sessão",
@@ -2663,6 +2719,7 @@
       "empty": "Ainda sem dispositivos.",
       "columns": {
         "name": "Dispositivo",
+        "session": "Sessão",
         "owner": "Proprietário",
         "lastSeen": "Último contacto",
         "containers": "Contentores",
@@ -2672,6 +2729,12 @@
         "hdr": "HDR",
         "streams": "Transmissões",
         "actions": "Ações"
+      },
+      "sessionKinds": {
+        "browser": "Navegador",
+        "app": "Aplicação",
+        "device": "Aplicação de TV",
+        "none": "Sessão terminada"
       },
       "unnamed": "Dispositivo desconhecido",
       "owner": "{{email}} · {{profile}}",
@@ -6434,6 +6497,11 @@
     "loadFailed": "Não foi possível carregar as bibliotecas."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Recomenda-se um PIN para o perfil principal",
+      "body": "Esta conta tem perfis com classificação etária. Sem PIN no perfil principal, qualquer pessoa pode mudar para esse perfil e alterar as classificações.",
+      "action": "Definir PIN"
+    },
     "picker": {
       "title": "Quem está a ver?",
       "intro": "Escolha o seu perfil.",
@@ -6953,6 +7021,49 @@
     "wish_failed": "O seu pedido falhou"
   },
   "settings": {
+    "devices": {
+      "title": "Os meus dispositivos",
+      "intro": "Todos os dispositivos em que esta conta tem sessão iniciada ou tem transferências. Se terminar a sessão de um dispositivo, este perde tudo o que esta conta lá tem.",
+      "list": "Dispositivos desta conta",
+      "none": "Nenhum dispositivo tem sessão iniciada ou transferências desta conta.",
+      "thisDevice": "Este dispositivo",
+      "unnamed": "Dispositivo desconhecido",
+      "types": {
+        "desktop": "Computador",
+        "phone": "Telemóvel",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Outro dispositivo"
+      },
+      "kinds": {
+        "browser": "Navegador",
+        "app": "Aplicação móvel",
+        "device": "Aplicação de TV"
+      },
+      "signedIn": "{{kind}}, sessão iniciada a {{date}}",
+      "downloadsOnly": "Sessão terminada, ainda tem transferências desta conta",
+      "lastSeen": "Último contacto: {{date}}",
+      "lastSeenWithDownloads_one": "Último contacto: {{date}} · {{count}} transferência",
+      "lastSeenWithDownloads_many": "Último contacto: {{date}} · {{count}} de transferências",
+      "lastSeenWithDownloads_other": "Último contacto: {{date}} · {{count}} transferências",
+      "downloads_one": "{{count}} transferência",
+      "downloads_many": "{{count}} de transferências",
+      "downloads_other": "{{count}} transferências",
+      "signOut": {
+        "action": "Terminar sessão",
+        "label": "Terminar a sessão de {{name}}",
+        "title": "Terminar a sessão de «{{name}}»?",
+        "body": "O dispositivo perde a sessão desta conta e as reproduções em curso terminam. As transferências, as notificações e as transferências automáticas desta conta no dispositivo são eliminadas. As outras contas no dispositivo mantêm-se.",
+        "current": "Este é o dispositivo que está a usar: a sua sessão aqui termina de imediato.",
+        "bodyCurrent": "O dispositivo perde a sessão desta conta e as reproduções em curso terminam. As transferências, as notificações e as transferências automáticas desta conta no dispositivo são eliminadas. As outras contas no dispositivo mantêm-se. Este é o dispositivo que está a usar: a sua sessão aqui termina de imediato.",
+        "confirm": "Terminar sessão do dispositivo"
+      },
+      "signedOut": "Sessão de «{{name}}» terminada.",
+      "onlyPrimary": {
+        "title": "Terminar sessão só no perfil principal",
+        "body": "A sessão dos dispositivos termina-se no perfil principal desta conta. Aqui vê a lista."
+      }
+    },
     "playback": {
       "title": "Definições",
       "intro": "Som e legendas do perfil {{name}}, em todos os dispositivos. O que escolher manualmente no leitor tem prioridade.",
