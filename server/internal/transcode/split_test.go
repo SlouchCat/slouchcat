@@ -27,7 +27,7 @@ func mp4Box(typ string, large bool, payload ...[]byte) []byte {
 		return append(b, body...)
 	}
 	b := make([]byte, 8, 8+len(body))
-	binary.BigEndian.PutUint32(b, uint32(8+len(body))) //nolint:gosec // G115: small test boxes
+	binary.BigEndian.PutUint32(b, uint32(8+len(body)))
 	copy(b[4:], typ)
 	return append(b, body...)
 }
@@ -51,9 +51,9 @@ func testMoov(large bool) []byte {
 // large).
 func testFragment(ms int, v1, large bool, n int) []byte {
 	traf := func(id uint32, t int) []byte {
-		tfdt := slices.Concat(u32(0), u32(uint32(t))) //nolint:gosec // G115: test times
+		tfdt := slices.Concat(u32(0), u32(uint32(t)))
 		if v1 {
-			tfdt = slices.Concat(u32(1<<24), binary.BigEndian.AppendUint64(nil, uint64(t))) //nolint:gosec // G115: test times
+			tfdt = slices.Concat(u32(1<<24), binary.BigEndian.AppendUint64(nil, uint64(t)))
 		}
 		return mp4Box("traf", false, mp4Box("tfhd", false, u32(0), u32(id)), mp4Box("tfdt", false, tfdt),
 			mp4Box("trun", false, u32(0), u32(1)))
