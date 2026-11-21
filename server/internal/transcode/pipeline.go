@@ -147,11 +147,21 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		if p.Target.AudioCopy {
 			args = append(args, "-c:a", "copy")
 		} else {
-			kbps := audioBitrate / 1000
+			// Stereo AAC, or the multichannel encode of a device that reports 6 or 8 channels (AAC
+			// 5.1/7.1, AC-3 5.1, concept 26 5.3): -ac sets the count, ffmpeg the default layout of
+			// that count (5.1, 7.1) and the downmix of a larger source.
+			encoder, channels := "aac", outputChannels(a, hasVideo)
+			if hasVideo && p.Target.AudioChannels > 0 {
+				channels = p.Target.AudioChannels
+			}
+			if p.Target.AudioCodec == AudioAC3 {
+				encoder = "ac3"
+			}
+			kbps := EncodeAudioBitrate(p.Target.AudioCodec, channels) / 1000
 			if p.Target.AudioBitrate > 0 {
 				kbps = p.Target.AudioBitrate
 			}
-			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", strconv.Itoa(outputChannels(a, hasVideo)))
+			args = append(args, "-c:a", encoder, "-b:a", strconv.Itoa(kbps)+"k", "-ac", strconv.Itoa(channels))
 			if mixed {
 				// A restart may read from a later part with another rate: every run of the
 				// session must match the init segment of the first.
@@ -197,7 +207,7 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		"-avoid_negative_ts", "disabled",
 		"-f", "segment",
 		"-segment_format", "mp4",
-		"-segment_format_options", movFlags,
+		"-segment_format_options", segmentFormatOptions(src.Probe, p.Target),
 		"-segment_times", times,
 		"-segment_time_delta", seconds6(delta),
 		"-segment_start_number", strconv.Itoa(start),
@@ -208,6 +218,33 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		filepath.Join(outDir, segmentPattern),
 	)
 	return args, nil
+}
+
+// delayedInit reports whether the output of target t for the source p is written with a delayed
+// moov (+delay_moov+frag_keyframe): the mp4 muxer writes AC-3 and E-AC-3 (copied or encoded next
+// to video) only after their first packet ("Cannot write moov atom before AC3 packets"). The
+// first file of every run is then ftyp+moov alone when its segment has one keyframe, and that
+// segment's fragment opens the next file; the session assigns fragments to segments by time
+// (collectSplit).
+func delayedInit(p Probe, t Target) bool {
+	_, hasVideo := videoStream(p)
+	a, hasAudio := selectedAudio(p, t)
+	if !hasVideo || !hasAudio {
+		return false
+	}
+	if t.AudioCopy {
+		return a.Codec == "ac3" || a.Codec == "eac3"
+	}
+	return t.AudioCodec == AudioAC3
+}
+
+// segmentFormatOptions are the mp4 options of the segment muxer: movFlags, with the delayed moov
+// for AC-3 and E-AC-3 (delayedInit).
+func segmentFormatOptions(p Probe, t Target) string {
+	if delayedInit(p, t) {
+		return strings.Replace(movFlags, "+skip_trailer", "+skip_trailer+delay_moov+frag_keyframe", 1)
+	}
+	return movFlags
 }
 
 // outputChannels is the channel count of encoded AAC: stereo next to video; for audio-only
