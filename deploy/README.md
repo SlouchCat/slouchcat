@@ -119,7 +119,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.41.3`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.42.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -189,6 +189,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_SMTP_TLS` | `starttls` | Verschlüsselung zum E-Mail-Server: `starttls`, `tls` (implizit) oder `none` |
 | `SLOUCHCAT_TELEGRAM_BOT_TOKEN` | leer | Token des Telegram-Bots von @BotFather (optional, M8); übersteuert das in der Verwaltung hinterlegte Token |
 | `SLOUCHCAT_PUBLIC_URL` | leer | Öffentliche Adresse des Servers für Links in E-Mails und Nachrichten (optional, M8); übersteuert die Einstellung in der Verwaltung |
+| `SLOUCHCAT_PUSH_RELAY` | `https://push.slouchcat.com` | Ursprung der Push-Weiterleitung der Android-App (Konzept 27, ADR 0044): nur Schema und Name, beim Umzug mehrere durch Komma getrennt. Push-Adressen dieses Ursprungs bekommen Meldungen mit Satzgrösse 2700 Byte und höchstens 350 Zeichen Text; nur 410 löscht sie, jede andere Antwort wird wiederholt |
 | `SLOUCHCAT_UPDATE_MANIFEST_URL` | Release-Manifest auf GitHub | Quelle der Update-Prüfung (M8); ein anderer Wert gilt nur mit `--dev` (Tests mit Mock) |
 | `SLOUCHCAT_UPDATER_URL` | leer | Adresse des Updater-Begleiters im internen Docker-Netz, z. B. `http://slouchcat-updater:8099` (optional, Konzept 15, ADR 0024); setzt `compose.updater.yaml`. Leer: kein Begleiter, die Karte «Server» zeigt die Schritte für das Update von Hand |
 | `SLOUCHCAT_TEST_UPDATER_DIR` | leer (`/run/slouchcat-updater`) | Anderer geteilter Ordner des Updaters (`token`, `state.json`, `server.json`); gilt nur mit `--dev` (Tests), sonst Warnung im Log |

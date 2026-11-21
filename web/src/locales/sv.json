@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Filmer, serier, ljudböcker och poddar för hela hushållet."
+    "tagline": "Filmer, serier, ljudböcker och poddar för hela hushållet.",
+    "setup": {
+      "tagline": "Dina filmer, serier, ljudböcker och poddar från din egen server.",
+      "title": "Anslut till din server",
+      "addressLabel": "Serveradress",
+      "addressExample": "https://media.example.org",
+      "addressHint": "Samma adress som du öppnar Slouchcat med i webbläsaren.",
+      "connect": "Anslut",
+      "connecting": "Ansluter…",
+      "found": "Hittad",
+      "address": "Adress",
+      "version": "Version",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Krypterad anslutning",
+      "notEncrypted": "Okrypterad anslutning",
+      "next": "Nästa",
+      "otherAddress": "Annan adress",
+      "error": {
+        "empty": "Ange adressen till din server.",
+        "invalid": "Det ser inte ut som en adress. Exempel: {{example}}",
+        "unreachable": "Servern svarar inte. Kontrollera adressen och att din enhet är ansluten till rätt nätverk.",
+        "notSlouchcat": "Ingen Slouchcat-server svarar på den här adressen.",
+        "tooOld": "Den här servern (Slouchcat {{server}}) är för gammal. Appen behöver Slouchcat {{required}} eller senare. Uppdatera servern."
+      },
+      "insecure": {
+        "title": "Okrypterad anslutning",
+        "body": "Den här anslutningen är inte krypterad. På andra nätverk kan någon läsa ditt lösenord och ta över din åtkomst.",
+        "cancel": "Avbryt",
+        "confirm": "Anslut ändå"
+      }
+    },
+    "connected": {
+      "title": "Ansluten till {{host}}",
+      "change": "Ändra adress"
+    },
+    "state": {
+      "loading": "Läser in…",
+      "offline": "Servern svarar inte. Kontrollera anslutningen.",
+      "notFound": "Det här finns inte, eller inte längre.",
+      "notAllowed": "Det går inte med den här inloggningen.",
+      "failed": "Något gick fel.",
+      "retry": "Försök igen"
+    },
+    "update": {
+      "title": "Uppdatera appen",
+      "body": "Din server behöver en nyare version av appen.",
+      "close": "Stäng"
+    },
+    "connectedState": {
+      "empty": "Ingen server har konfigurerats än.",
+      "setUp": "Konfigurera server"
+    },
+    "tls": {
+      "userCertificate": "Krypterad med ett certifikat som du har installerat",
+      "httpsRequired": "Servern kräver en krypterad anslutning. Adressen är nu {{address}}, anslut igen."
+    }
   },
   "common": {
     "back": "Tillbaka",
@@ -13,6 +68,7 @@
     "saving": "Sparar…"
   },
   "nav": {
+    "devices": "Mina enheter",
     "main": "Huvudmeny",
     "home": "Hem",
     "logout": "Logga ut",
@@ -2557,6 +2613,7 @@
       "empty": "Inga enheter än.",
       "columns": {
         "name": "Enhet",
+        "session": "Session",
         "owner": "Ägare",
         "lastSeen": "Senaste kontakt",
         "containers": "Containrar",
@@ -2566,6 +2623,12 @@
         "hdr": "HDR",
         "streams": "Strömmar",
         "actions": "Åtgärder"
+      },
+      "sessionKinds": {
+        "browser": "Webbläsare",
+        "app": "App",
+        "device": "TV-app",
+        "none": "Utloggad"
       },
       "unnamed": "Okänd enhet",
       "owner": "{{email}} · {{profile}}",
@@ -6210,6 +6273,11 @@
     "loadFailed": "Biblioteken kunde inte läsas in."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "En pinkod för huvudprofilen rekommenderas",
+      "body": "Det här kontot har profiler med åldersgräns. Utan pinkod på huvudprofilen kan vem som helst byta till den och ändra åldersgränserna.",
+      "action": "Ange pinkod"
+    },
     "picker": {
       "title": "Vem tittar?",
       "intro": "Välj din profil.",
@@ -6714,6 +6782,47 @@
     "wish_failed": "Ditt önskemål misslyckades"
   },
   "settings": {
+    "devices": {
+      "title": "Mina enheter",
+      "intro": "Alla enheter där det här kontot är inloggat eller har nedladdningar. Loggar du ut en enhet förlorar den allt som det här kontot har där.",
+      "list": "Enheter för det här kontot",
+      "none": "Ingen enhet har en inloggning eller nedladdningar från det här kontot.",
+      "thisDevice": "Den här enheten",
+      "unnamed": "Okänd enhet",
+      "types": {
+        "desktop": "Dator",
+        "phone": "Telefon",
+        "tablet": "Surfplatta",
+        "tv": "TV",
+        "other": "Annan enhet"
+      },
+      "kinds": {
+        "browser": "Webbläsare",
+        "app": "Mobilapp",
+        "device": "TV-app"
+      },
+      "signedIn": "{{kind}}, inloggad {{date}}",
+      "downloadsOnly": "Utloggad, har fortfarande nedladdningar från det här kontot",
+      "lastSeen": "Senaste kontakt: {{date}}",
+      "lastSeenWithDownloads_one": "Senaste kontakt: {{date}} · {{count}} nedladdning",
+      "lastSeenWithDownloads_other": "Senaste kontakt: {{date}} · {{count}} nedladdningar",
+      "downloads_one": "{{count}} nedladdning",
+      "downloads_other": "{{count}} nedladdningar",
+      "signOut": {
+        "action": "Logga ut",
+        "label": "Logga ut {{name}}",
+        "title": "Logga ut ”{{name}}”?",
+        "body": "Enheten förlorar det här kontots inloggning och pågående uppspelningar avbryts. Det här kontots nedladdningar, aviseringar och automatiska nedladdningar på enheten raderas. Andra konton på enheten finns kvar.",
+        "current": "Det här är enheten du använder: du loggas ut här direkt.",
+        "bodyCurrent": "Enheten förlorar det här kontots inloggning och pågående uppspelningar avbryts. Det här kontots nedladdningar, aviseringar och automatiska nedladdningar på enheten raderas. Andra konton på enheten finns kvar. Det här är enheten du använder: du loggas ut här direkt.",
+        "confirm": "Logga ut enheten"
+      },
+      "signedOut": "”{{name}}” har loggats ut.",
+      "onlyPrimary": {
+        "title": "Utloggning bara i huvudprofilen",
+        "body": "Du loggar ut enheter i det här kontots huvudprofil. Här ser du listan."
+      }
+    },
     "playback": {
       "title": "Inställningar",
       "intro": "Ljud och undertexter för profilen {{name}}, på alla enheter. Det du väljer manuellt i spelaren går före.",

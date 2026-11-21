@@ -21,11 +21,33 @@ type AuthService interface {
 	// model.ErrInvalidCredentials; a client over the attempt limit (model.ClientIP of ctx) gets
 	// model.ErrTooManyAttempts.
 	Login(ctx context.Context, email, password, userAgent string) (model.Session, string, error)
+	// AppLogin is Login for an Android app (ADR 0040): it starts an app session (deviceKind phone or
+	// tablet) or a device session (tv), writes the device with deviceName and deviceKind and returns
+	// the session (its DeviceID is the device the server kept: deviceID when it may, else a fresh
+	// one) with the plain bearer token.
+	AppLogin(ctx context.Context, email, password, deviceName, deviceKind, deviceID, userAgent string) (model.Session, string, error)
 	// Resolve returns the session of a plain token or model.ErrNotFound. It may extend the
 	// session (sliding expiry) and then reports extended, so the cookie is re-issued.
 	Resolve(ctx context.Context, token string) (session model.Session, extended bool, err error)
 	// Logout revokes the session.
 	Logout(ctx context.Context, sessionID int64) error
+}
+
+// PairingService is the pairing of a TV and the proof of the server's identity (package auth,
+// concept 27 sections 6 and 10, ADR 0040).
+type PairingService interface {
+	// ServerKey is the server's Ed25519 public key in base64url (getHealth.serverKey).
+	ServerKey() string
+	// ProveServer signs auth.ServerProofPrefix followed by the nonce; model.ErrTooManyAttempts per
+	// client address (model.ClientIP), *model.ValidationError for a nonce of another length.
+	ProveServer(ctx context.Context, nonce []byte) ([]byte, error)
+	// CreatePairingVoucher issues a voucher bound to tvKey for the session's account. Errors:
+	// model.ErrAppSessionRequired, model.ErrPrimaryProfileRequired, *model.ValidationError,
+	// model.ErrTooManyAttempts.
+	CreatePairingVoucher(ctx context.Context, session model.Session, tvKey string) (model.PairingVoucher, error)
+	// RedeemPairingVoucher starts the device session of a voucher and seals its token for tvKey.
+	// Errors: *model.ValidationError, model.ErrVoucherInvalid, model.ErrTooManyAttempts.
+	RedeemPairingVoucher(ctx context.Context, voucher, tvKey, deviceName, systemVersion string) (model.PairingRedeemed, error)
 }
 
 // ProfileService is the profile picker, the PIN check and the profile management of the signed-in
@@ -69,6 +91,13 @@ type ProfileService interface {
 	// revokes every other session of the account. Errors: model.ErrInvalidCredentials,
 	// model.ErrEmailTaken, *model.ValidationError, model.ErrTooManyAttempts.
 	UpdateAccount(ctx context.Context, session model.Session, upd model.AccountUpdate) (model.Session, error)
+	// ListMyDevices returns the devices that hold a living session or a download of the session's
+	// account («Meine Geräte», concept 27 4.5); every profile may read them.
+	ListMyDevices(ctx context.Context, session model.Session) ([]model.MyDevice, error)
+	// SignOutMyDevice removes the account's sessions, downloads, push subscriptions and
+	// auto-download rules on a device; end runs with the session ids before they are revoked.
+	// Errors: model.ErrPrimaryProfileRequired, model.ErrNotFound.
+	SignOutMyDevice(ctx context.Context, session model.Session, deviceID string, end func(ctx context.Context, sessionIDs []int64) error) error
 }
 
 // AccessService is the invitation and account management of the administration plus the public

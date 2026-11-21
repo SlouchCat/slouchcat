@@ -28,6 +28,8 @@ var fakeSecrets = []string{
 	"WebhookFAKEshouty-01234567890abcdefgh",
 	// Concept 15 P-8 (ADR 0024): the shared token of the updater companion.
 	"updater-FAKE-token", "updater-FAKE-bearer",
+	// Concept 27 (ADR 0040): the bearer tokens of the Android apps and the device id in the header.
+	"apptoken-FAKE", "devicetoken-FAKE", "Bearer app-FAKE-bearer", "devhdr-FAKE-id", "deviceid-FAKE-app",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -108,6 +110,10 @@ func logAll(t *testing.T, format Format) string {
 	// with the key names still is redacted.
 	log.Info("updater request", "updater_token", "updater-FAKE-token", "Authorization", "Bearer updater-FAKE-bearer",
 		"updater_url", "http://slouchcat-updater:8099/status")
+	// Concept 27: what the Android apps send (a slip with the key names still is redacted).
+	log.Info("app request", "app_token", "apptoken-FAKE", "deviceToken", "devicetoken-FAKE",
+		"authorization", "Bearer app-FAKE-bearer", "X-Slouchcat-Device", "devhdr-FAKE-id", "deviceId", "deviceid-FAKE-app",
+		"X-Slouchcat-Client", "mobile/1.2.3")
 	// A mistyped route still carries a real token: the guard must not care about the spelling.
 	log.Info("webhook 404", "path", "/api/v1/WEBHOOKS/WebhookFAKEshouty-01234567890abcdefgh")
 	return buf.String()
@@ -247,5 +253,38 @@ func TestRedactArrKeys(t *testing.T) {
 	}
 	if !strings.Contains(out, "192.0.2.7") {
 		t.Errorf("output lost the address: %s", out)
+	}
+}
+
+// Concept 27 stage 1 (K26 4.6 K-8, rule 10): the secrets of the pairing never reach the log under
+// their own names: the voucher, the pickup secret and its hash, the meeting point id, the packet,
+// the sealed token and the app's Google token.
+func TestRedactPairingKeys(t *testing.T) {
+	for _, key := range []string{"voucher", "pairing_voucher", "pairingVoucher", "pickup", "pickup_secret", "pickupHash",
+		"pair_id", "pairId", "meeting_point", "meetingPointId", "packet", "sealedToken", "fcm_token", "fcmToken"} {
+		if !isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = false, want true", key)
+		}
+	}
+	for _, key := range []string{"account_id", "session_id", "reason", "kind"} {
+		if isSensitiveKey(key) {
+			t.Errorf("isSensitiveKey(%q) = true, want false", key)
+		}
+	}
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatJSON, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("pairing", "pairing_voucher", "voucher-FAKE", "pickup_secret", "pickup-FAKE", "pair_id", "pair-FAKE",
+		"fcm_token", "fcm-FAKE", "account_id", 42)
+	out := buf.String()
+	for _, secret := range []string{"voucher-FAKE", "pickup-FAKE", "pair-FAKE", "fcm-FAKE"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	if !strings.Contains(out, `"account_id":42`) {
+		t.Errorf("output lost the account: %s", out)
 	}
 }

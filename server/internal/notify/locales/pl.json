@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Prośba ma nowy stan.",
   "wish_review_subject": "Wymagane zatwierdzenie: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} prosi o film. W Seerr czeka na zatwierdzenie.",
-  "wish_review_show_body": "{{account}} · {{profile}} prosi o serial. W Seerr czeka na zatwierdzenie."
+  "wish_review_show_body": "{{account}} · {{profile}} prosi o serial. W Seerr czeka na zatwierdzenie.",
+  "device_linked_subject": "Połączono nowe urządzenie",
+  "device_linked_body": "Dnia {{time}} z Twoim kontem połączono {{kind}}. Urządzenie przedstawia się jako „{{name}}” ({{system}}); te dane pochodzą od samego urządzenia. Jeśli to nie Ty, wyloguj urządzenie w sekcji „Moje urządzenia” i zmień hasło.",
+  "device_kind_tv": "telewizor"
 }

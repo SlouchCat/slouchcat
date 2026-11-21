@@ -1,7 +1,62 @@
 {
   "app": {
     "name": "Slouchcat",
-    "tagline": "Películas, series, audiolibros y pódcast para todo tu hogar."
+    "tagline": "Películas, series, audiolibros y pódcast para todo tu hogar.",
+    "setup": {
+      "tagline": "Tus películas, series, audiolibros y pódcasts desde tu propio servidor.",
+      "title": "Conéctate a tu servidor",
+      "addressLabel": "Dirección del servidor",
+      "addressExample": "https://media.example.org",
+      "addressHint": "La misma dirección con la que abres Slouchcat en el navegador.",
+      "connect": "Conectar",
+      "connecting": "Conectando…",
+      "found": "Encontrado",
+      "address": "Dirección",
+      "version": "Versión",
+      "versionValue": "Slouchcat {{version}}",
+      "encrypted": "Conexión cifrada",
+      "notEncrypted": "Conexión sin cifrar",
+      "next": "Siguiente",
+      "otherAddress": "Otra dirección",
+      "error": {
+        "empty": "Introduce la dirección de tu servidor.",
+        "invalid": "Eso no parece una dirección. Ejemplo: {{example}}",
+        "unreachable": "El servidor no responde. Comprueba la dirección y que tu dispositivo esté en la red correcta.",
+        "notSlouchcat": "Ningún servidor Slouchcat responde en esta dirección.",
+        "tooOld": "Este servidor (Slouchcat {{server}}) es demasiado antiguo. La app necesita Slouchcat {{required}} o posterior. Actualiza el servidor."
+      },
+      "insecure": {
+        "title": "Conexión sin cifrar",
+        "body": "Esta conexión no está cifrada. En otras redes, alguien podría leer tu contraseña y hacerse con tu acceso.",
+        "cancel": "Cancelar",
+        "confirm": "Conectar de todos modos"
+      }
+    },
+    "connected": {
+      "title": "Conectado a {{host}}",
+      "change": "Cambiar dirección"
+    },
+    "state": {
+      "loading": "Cargando…",
+      "offline": "El servidor no responde. Comprueba la conexión.",
+      "notFound": "Esto no existe o ya no está disponible.",
+      "notAllowed": "Esto no es posible con esta sesión.",
+      "failed": "Algo ha salido mal.",
+      "retry": "Reintentar"
+    },
+    "update": {
+      "title": "Actualiza la app",
+      "body": "Tu servidor necesita una versión más reciente de la app.",
+      "close": "Cerrar"
+    },
+    "connectedState": {
+      "empty": "Todavía no hay ningún servidor configurado.",
+      "setUp": "Configurar servidor"
+    },
+    "tls": {
+      "userCertificate": "Cifrada con un certificado que has instalado tú",
+      "httpsRequired": "El servidor exige una conexión cifrada. Ahora la dirección es {{address}}; vuelve a conectarte."
+    }
   },
   "common": {
     "back": "Atrás",
@@ -13,6 +68,7 @@
     "saving": "Guardando…"
   },
   "nav": {
+    "devices": "Mis dispositivos",
     "main": "Navegación principal",
     "home": "Inicio",
     "logout": "Cerrar sesión",
@@ -2663,6 +2719,7 @@
       "empty": "Todavía no hay dispositivos.",
       "columns": {
         "name": "Dispositivo",
+        "session": "Sesión",
         "owner": "Propietario",
         "lastSeen": "Último contacto",
         "containers": "Contenedores",
@@ -2672,6 +2729,12 @@
         "hdr": "HDR",
         "streams": "Transmisiones",
         "actions": "Acciones"
+      },
+      "sessionKinds": {
+        "browser": "Navegador",
+        "app": "App",
+        "device": "App de TV",
+        "none": "Sesión cerrada"
       },
       "unnamed": "Dispositivo desconocido",
       "owner": "{{email}} · {{profile}}",
@@ -6434,6 +6497,11 @@
     "loadFailed": "No se han podido cargar las bibliotecas."
   },
   "profiles": {
+    "pinAdvice": {
+      "title": "Se recomienda un PIN para el perfil principal",
+      "body": "Esta cuenta tiene perfiles con clasificación por edades. Sin un PIN en el perfil principal, cualquiera puede cambiar a ese perfil y modificar las clasificaciones.",
+      "action": "Establecer PIN"
+    },
     "picker": {
       "title": "¿Quién está viendo?",
       "intro": "Elige tu perfil.",
@@ -6953,6 +7021,49 @@
     "wish_failed": "Tu petición ha fallado"
   },
   "settings": {
+    "devices": {
+      "title": "Mis dispositivos",
+      "intro": "Todos los dispositivos en los que esta cuenta tiene la sesión iniciada o tiene descargas. Si cierras la sesión de un dispositivo, pierde todo lo que esta cuenta tiene en él.",
+      "list": "Dispositivos de esta cuenta",
+      "none": "Ningún dispositivo tiene una sesión ni descargas de esta cuenta.",
+      "thisDevice": "Este dispositivo",
+      "unnamed": "Dispositivo desconocido",
+      "types": {
+        "desktop": "Ordenador",
+        "phone": "Móvil",
+        "tablet": "Tableta",
+        "tv": "TV",
+        "other": "Otro dispositivo"
+      },
+      "kinds": {
+        "browser": "Navegador",
+        "app": "App móvil",
+        "device": "App de TV"
+      },
+      "signedIn": "{{kind}}, sesión iniciada el {{date}}",
+      "downloadsOnly": "Sesión cerrada, aún tiene descargas de esta cuenta",
+      "lastSeen": "Último contacto: {{date}}",
+      "lastSeenWithDownloads_one": "Último contacto: {{date}} · {{count}} descarga",
+      "lastSeenWithDownloads_many": "Último contacto: {{date}} · {{count}} de descargas",
+      "lastSeenWithDownloads_other": "Último contacto: {{date}} · {{count}} descargas",
+      "downloads_one": "{{count}} descarga",
+      "downloads_many": "{{count}} de descargas",
+      "downloads_other": "{{count}} descargas",
+      "signOut": {
+        "action": "Cerrar sesión",
+        "label": "Cerrar la sesión de {{name}}",
+        "title": "¿Cerrar la sesión de «{{name}}»?",
+        "body": "El dispositivo pierde la sesión de esta cuenta y se detienen las reproducciones en curso. Se eliminan las descargas, las notificaciones y las descargas automáticas de esta cuenta en el dispositivo. Las demás cuentas del dispositivo se mantienen.",
+        "current": "Es el dispositivo que estás usando: aquí se cerrará tu sesión al instante.",
+        "bodyCurrent": "El dispositivo pierde la sesión de esta cuenta y se detienen las reproducciones en curso. Se eliminan las descargas, las notificaciones y las descargas automáticas de esta cuenta en el dispositivo. Las demás cuentas del dispositivo se mantienen. Es el dispositivo que estás usando: aquí se cerrará tu sesión al instante.",
+        "confirm": "Cerrar la sesión del dispositivo"
+      },
+      "signedOut": "Sesión de «{{name}}» cerrada.",
+      "onlyPrimary": {
+        "title": "Cierre de sesión solo desde el perfil principal",
+        "body": "Las sesiones de los dispositivos se cierran en el perfil principal de esta cuenta. Aquí ves la lista."
+      }
+    },
     "playback": {
       "title": "Ajustes",
       "intro": "Sonido y subtítulos del perfil {{name}}, en todos los dispositivos. Lo que elijas a mano en el reproductor tiene prioridad.",

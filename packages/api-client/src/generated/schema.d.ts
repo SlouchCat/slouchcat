@@ -25,6 +25,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/server/prove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prove the server's identity by signing a nonce (concept 27 section 6, F-38)
+         * @description Contract 1.42.0 (ADR 0040, «Server weist sich aus»). The server signs the UTF-8 prefix
+         *     `slouchcat-server-proof-v1:` followed by the 32 bytes of `nonce` with its Ed25519 key, whose
+         *     public half `getHealth.serverKey` names. An app remembers the key on first contact and checks a
+         *     fresh nonce in every new network before it sends anything else. The key is derived from the
+         *     server's secret (`secret.key`): it stays the same across restarts and changes with a new secret.
+         *     Calls count per client address (`too_many_attempts`).
+         */
+        post: operations["proveServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/setup": {
         parameters: {
             query?: never;
@@ -65,6 +90,95 @@ export interface paths {
         put?: never;
         /** Log in with e-mail and password */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/app-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign an Android app in with e-mail and password (concept 27, 4.2)
+         * @description The app counterpart of `login` (contract 1.42.0, ADR 0040). It answers a bearer token instead of
+         *     the cookie: `kind` `phone` and `tablet` start an app session, `tv` a device session. Neither
+         *     expires, neither may call `admin` or `owner` operations, and a device session may call only the
+         *     operations whose `x-clients` names `tv`. The token is 256 random bits; the server keeps only its
+         *     hash, and this answer is the only place it appears.
+         *
+         *     The server writes the device right away with `deviceName` and `kind`; a playback start of the
+         *     session keeps them. The server hands out the device id: a `deviceId` the app brings along is kept
+         *     only when no other account holds a living session or a download on that device and it is not the
+         *     reserved id, otherwise the answer carries a fresh one. Attempts count in the same pot as `login`,
+         *     per client address. The answer never sets a cookie.
+         */
+        post: operations["appLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/pairing-vouchers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Issue the voucher that pairs a TV with the account (concept 27 section 10, K-3)
+         * @description Contract 1.42.0 (ADR 0040, «Kopplung»). Only an app session (the phone app) may issue a voucher:
+         *     a browser session gets 403 `app_session_required`, a device session 403 `client_not_allowed`.
+         *     Only without an active profile or with the account's primary profile (`primary_profile_required`,
+         *     F-23). The voucher is 256 random bits, valid for 2 minutes and once, bound to the TV's one-time
+         *     X25519 key `tvKey`, and pairs a device of kind `tv`; the server keeps only its hash. An account
+         *     has at most one open voucher: a new one replaces the older. Vouchers count per account
+         *     (`too_many_attempts`). The phone seals the voucher with the server address for `tvKey` and hands
+         *     it to the TV through the pairing relay; the TV redeems it (`redeemPairingVoucher`).
+         */
+        post: operations["createPairingVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/pairing/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem a pairing voucher and receive the device token sealed for the TV (concept 27 section 7.2)
+         * @description Contract 1.42.0 (ADR 0040, «Kopplung»). The TV sends the voucher it took from the packet, its
+         *     one-time X25519 key, its name and its system version. The server checks that the voucher is open,
+         *     unexpired, bound to exactly this key and issued by an app session that still lives, uses it up
+         *     (also against concurrent requests), starts a
+         *     device session with the device row named right away, tells the account through its channels (event
+         *     `device_linked`, K-7) and answers the token sealed for the key: `sealedToken` is HPKE (RFC 9180,
+         *     base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, info `slouchcat-redeem-v1`, empty
+         *     aad) as `enc` followed by the ciphertext, in base64url; its plaintext is
+         *     `{"token":"…","deviceId":"…","accountEmail":"…"}`. Only the holder of the private key can read it;
+         *     the e-mail is what the TV shows next to the server address (K-9). `signature` signs the sealed answer
+         *     with the server's key. An unknown, expired, used or differently bound voucher, and one whose issuing
+         *     session ended, answers the same 410 `voucher_invalid`; the TV then shows a new code. Every attempt counts
+         *     per client address (`too_many_attempts`). The answer never sets a cookie.
+         */
+        post: operations["redeemPairingVoucher"];
         delete?: never;
         options?: never;
         head?: never;
@@ -116,7 +230,10 @@ export interface paths {
         /**
          * Change the e-mail or the password of the signed-in account (A-2)
          * @description Every change needs the current password. A new password revokes every other session of the
-         *     account; the calling session stays. Works without an active profile (`account`).
+         *     account, app and device sessions included; the calling session stays. Since contract 1.42.0 it
+         *     also removes the account's push subscriptions of the devices whose app or device session it
+         *     revokes (an app subscribes again at its next sign-in); those of browsers stay. Works without an
+         *     active profile (`account`).
          */
         put: operations["updateAccount"];
         post?: never;
@@ -1366,7 +1483,8 @@ export interface paths {
          *     401. The device then reports the download ids it holds here, identified only by its device cookie
          *     `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
          *     administration, a revoked account or a forgotten device). The answer contains nothing but ids the
-         *     device named; without the cookie the list is empty.
+         *     device named; without the cookie the list is empty. An Android app names its device with the
+         *     header `X-Slouchcat-Device` instead (contract 1.42.0); the cookie wins when both are sent.
          */
         post: operations["checkOfflineRevocations"];
         delete?: never;
@@ -2730,7 +2848,8 @@ export interface paths {
         post?: never;
         /**
          * Forget a device
-         * @description Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+         * @description Revokes the sessions of the device, ends its running streams, deletes its push subscriptions (of
+         *     every account, since contract 1.42.0), its PIN counters and its row.
          *     The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
          *     name, capabilities and owner until its next playback start). The reserved device of the per-profile
          *     PIN ceiling is not listed and answers 404.
@@ -4654,6 +4773,11 @@ export interface paths {
          *     and its keys are capability secrets; they are never returned and never logged.
          *     Only a session without an active profile or with the account's primary profile may change
          *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         *     An app session (contract 1.42.0, concept 27 7.3) always registers its own subscription, also with
+         *     another profile active, and its new subscription replaces every older one of its device (one per
+         *     device); whether the account gets push stays the primary profile's choice (`updateMyChannel`). An
+         *     endpoint of the push relay (`https://push.slouchcat.com`, `SLOUCHCAT_PUSH_RELAY`) gets messages of
+         *     at most 2700 bytes (record size 2700, body cut to 350 characters).
          */
         post: operations["createPushSubscription"];
         delete?: never;
@@ -4675,7 +4799,8 @@ export interface paths {
         /**
          * Remove a push subscription of the account
          * @description Only a session without an active profile or with the account's primary profile may change
-         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them. An app
+         *     session may always remove the subscription of its own device (contract 1.42.0).
          */
         delete: operations["deletePushSubscription"];
         options?: never;
@@ -5502,6 +5627,57 @@ export interface paths {
          */
         post: operations["createWish"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The devices of the own account («Meine Geräte», concept 27 4.5)
+         * @description Since contract 1.42.0. Every device that holds a living session or a download of the session's
+         *     account, last contact first. The account of the session or the download decides, not the owner of
+         *     the device's last playback start: a browser whose session expired stays in the list while it holds
+         *     downloads of the account (`sessionKind` and `signedInAt` are then absent). Every profile of the
+         *     account may read the list. A device session (TV) gets 403 `client_not_allowed`.
+         */
+        get: operations["listMyDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account/devices/{deviceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign the own account out of a device
+         * @description Since contract 1.42.0. Removes everything the session's account has on the device and nothing of
+         *     another account: its sessions (their running streams end), its downloads (the device learns it from
+         *     the revocation list of `syncOffline` and `checkOfflineRevocations`), the push subscriptions of the
+         *     device and the auto-download rules of the account's profiles on the device. The device itself stays
+         *     (the administration forgets it with `deleteDevice`, for every account). Signing out the own device
+         *     ends the calling session; a browser then gets its session cookie cleared. Only a session without an
+         *     active profile or with the account's primary profile may sign out (`primary_profile_required`
+         *     otherwise, like the notification channels). A device session (TV) gets 403 `client_not_allowed`.
+         */
+        delete: operations["signOutMyDevice"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6433,6 +6609,18 @@ export interface components {
              */
             version: string;
             /**
+             * @description `info.version` of the contract the server implements (contract 1.42.0). An app compares it with
+             *     the least version it needs and otherwise asks to update the server.
+             * @example 1.42.0
+             */
+            contractVersion: string;
+            /**
+             * @description The server's Ed25519 public key in base64url (32 bytes, contract 1.42.0, F-38). An app remembers
+             *     it on first contact and checks it with `proveServer`; it changes only with the server's secret.
+             * @example mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4
+             */
+            serverKey: string;
+            /**
              * Format: int64
              * @description Seconds since the process started.
              */
@@ -6516,6 +6704,88 @@ export interface components {
             /** @description Accent colour of the first profile; absent, none. */
             accent?: components["schemas"]["Accent"];
         };
+        /** @description Sign-in of an Android app (`appLogin`, concept 27 4.2). */
+        AppLoginRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            /** @description The name the device shows under «Meine Geräte» and in the administration, for example «Pixel 9». */
+            deviceName: string;
+            /**
+             * @description `phone` and `tablet` start an app session, `tv` a device session.
+             * @enum {string}
+             */
+            kind: "phone" | "tablet" | "tv";
+            /**
+             * @description The device id the app already holds (a former sign-in). The server keeps it only when no other
+             *     account holds a living session or a download on the device; the answer names the id that counts.
+             */
+            deviceId?: string;
+        };
+        /** @description Answer of `appLogin`. `token` and `deviceId` are secrets of the app; the server shows them nowhere else. */
+        AppLogin: {
+            /** @description Bearer token of the session, 256 random bits as base64url (43 characters). */
+            token: string;
+            /** @description The device id the server keeps for this app; it goes into `X-Slouchcat-Device` where a request has no session. */
+            deviceId: string;
+            session: components["schemas"]["SessionInfo"];
+        };
+        ServerProofRequest: {
+            /** @description 32 random bytes of the app in base64url without padding. */
+            nonce: string;
+        };
+        ServerProof: {
+            /** @description Ed25519 signature (64 bytes, base64url) over `slouchcat-server-proof-v1:` followed by the nonce bytes. */
+            signature: string;
+            /** @description The public key that made the signature (base64url), the same as `getHealth.serverKey`. */
+            serverKey: string;
+        };
+        PairingVoucherRequest: {
+            /** @description The TV's one-time X25519 public key from the QR code (32 bytes, base64url). */
+            tvKey: string;
+        };
+        /** @description A pairing voucher (`createPairingVoucher`); a secret of the phone until it is sealed for the TV. */
+        PairingVoucher: {
+            /** @description 256 random bits in base64url (43 characters). */
+            voucher: string;
+            /**
+             * Format: date-time
+             * @description Two minutes after the issue.
+             */
+            expiresAt: string;
+        };
+        PairingRedeemRequest: {
+            voucher: string;
+            /** @description The same X25519 public key the QR code carried (32 bytes, base64url). */
+            tvKey: string;
+            /** @description The name the TV gives itself; «Meine Geräte» and the message `device_linked` show it as the device's claim. */
+            deviceName: string;
+            /** @description The system version of the TV, for example `Android TV 14`. */
+            systemVersion: string;
+        };
+        PairingRedeemed: {
+            /**
+             * @description HPKE `enc` followed by the ciphertext (base64url) for `tvKey`, info `slouchcat-redeem-v1`;
+             *     plaintext `{"token":"…","deviceId":"…","accountEmail":"…"}`: the bearer token of the device
+             *     session, its device id and the account the TV is now paired with, which the TV shows with the
+             *     server address (K-9). Only the TV reads the e-mail.
+             */
+            sealedToken: string;
+            /**
+             * @description Ed25519 signature (base64url) of the server's key (`getHealth.serverKey`, the `serverKey` of the
+             *     packet) over UTF-8 `slouchcat-redeem-signature-v1:` followed by the bytes of `sealedToken`. The TV
+             *     checks it before it opens the token, so nobody on the way can swap in a token sealed for its
+             *     public key.
+             */
+            signature: string;
+        };
+        /**
+         * @description Kind of a session (ADR 0040): `browser` (cookie, 30 days sliding), `app` (the phone app, bearer, no
+         *     expiry) or `device` (the TV app, bearer, no expiry, only the operations whose `x-clients` names `tv`).
+         * @enum {string}
+         */
+        SessionKind: "browser" | "app" | "device";
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -8266,6 +8536,32 @@ export interface components {
             /** Format: date-time */
             capabilitiesAt?: string;
             activeStreams: number;
+            /** @description Kind of the device's living session with the latest contact (contract 1.42.0); absent without one. */
+            sessionKind?: components["schemas"]["SessionKind"];
+        };
+        /** @description A device of the own account in «Meine Geräte» (contract 1.42.0, concept 27 4.5); not an `ItemRef`. */
+        MyDevice: {
+            id: string;
+            /** @description The name the app reported at its sign-in or the client with its last playback start. */
+            name?: string;
+            /** @enum {string} */
+            type?: "desktop" | "phone" | "tablet" | "tv" | "other";
+            /** @description Kind of the account's living session on the device with the latest contact; absent when only downloads hold the device. */
+            sessionKind?: components["schemas"]["SessionKind"];
+            /**
+             * Format: date-time
+             * @description Start of that session; absent with `sessionKind`.
+             */
+            signedInAt?: string;
+            /**
+             * Format: date-time
+             * @description Last request of any session of the device (±1 min).
+             */
+            lastSeenAt: string;
+            /** @description Downloads of the account on the device. */
+            downloads: number;
+            /** @description The device of the calling session. */
+            current: boolean;
         };
         /** @description A running playback session as the administration sees it (W-6); not an `ItemRef`. */
         AdminStream: {
@@ -13810,6 +14106,20 @@ export interface components {
         };
     };
     responses: {
+        /**
+         * @description The app is older than the server accepts (`app_too_old`, header `X-Slouchcat-Client`, contract 1.42.0).
+         *     Every operation an app may call can answer it, except `getHealth`, `checkOfflineRevocations` and
+         *     `logout`; the app then asks to update itself. No `Upgrade` header: the remedy is a newer app, not
+         *     another protocol.
+         */
+        AppTooOld: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description No valid session (`unauthenticated`). */
         Unauthenticated: {
             headers: {
@@ -13997,6 +14307,8 @@ export interface components {
         CollectionID: components["schemas"]["CollectionID"];
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
+        /** @description Device id (32 characters) from `listMyDevices`. */
+        MyDeviceID: string;
         /** @description Device id (32 characters, the device cookie value). */
         DeviceID: string;
         /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
@@ -14075,6 +14387,67 @@ export interface operations {
             /** @description The server is starting or a dependency is not ready. */
             503: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    proveServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerProofRequest"];
+            };
+        };
+        responses: {
+            /** @description The signature over prefix and nonce, with the key that made it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerProof"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; field `nonce`, not 32 bytes in base64url). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The app is older than the server accepts (`app_too_old`). */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many proofs from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14236,6 +14609,203 @@ export interface operations {
             };
         };
     };
+    appLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in; `token` goes into `Authorization: Bearer` of every further request. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppLogin"];
+                };
+            };
+            /** @description Unknown e-mail or wrong password (`invalid_credentials`). The message is the same for both. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; fields `email`, `password`, `deviceName`, `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The app is older than the server accepts (`app_too_old`). */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createPairingVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingVoucherRequest"];
+            };
+        };
+        responses: {
+            /** @description The voucher; it appears only in this answer. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingVoucher"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description Not an app session (`app_session_required`), a device session (`client_not_allowed`), another
+             *     profile than the primary one is active (`primary_profile_required`) or the CSRF header is missing.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; field `tvKey`, not an X25519 key of 32 bytes in base64url). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            426: components["responses"]["AppTooOld"];
+            /** @description Too many vouchers for this account (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    redeemPairingVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingRedeemRequest"];
+            };
+        };
+        responses: {
+            /** @description Paired; the token is sealed for `tvKey`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRedeemed"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The voucher is unknown, expired, used or bound to another key (`voucher_invalid`). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; fields `voucher`, `tvKey`, `deviceName`, `systemVersion`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The app is older than the server accepts (`app_too_old`). */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     logout: {
         parameters: {
             query?: never;
@@ -14245,7 +14815,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Session revoked and cookie cleared. Also 204 without a session. */
+            /**
+             * @description Session revoked and cookie cleared. Also 204 without a session. With a bearer token (app or
+             *     device session) the session is revoked, the account's push subscriptions of its device are
+             *     removed, and the answer sets no cookie and no `Clear-Site-Data`.
+             */
             204: {
                 headers: {
                     /** @description `"cache"`: the browser drops cached images of the signed-out profile. */
@@ -14292,6 +14866,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateAccount: {
@@ -14355,6 +14930,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -14386,6 +14962,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     selectProfile: {
@@ -14442,6 +15019,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description `pin_locked`: too many wrong PINs for this profile on this device; `Retry-After` and the
              *     problem member `retryAfterSeconds` name the remaining lock in seconds. Also
@@ -14478,6 +15056,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["PrimaryProfileRequired"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     createProfile: {
@@ -14520,6 +15099,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteProfile: {
@@ -14560,6 +15140,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateProfile: {
@@ -14606,6 +15187,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setProfilePin: {
@@ -14650,6 +15232,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeProfilePin: {
@@ -14681,6 +15264,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setOfflinePin: {
@@ -14725,6 +15309,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeOfflinePin: {
@@ -14756,6 +15341,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getWatchReport: {
@@ -14791,6 +15377,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAccountLibraries: {
@@ -14812,6 +15399,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listVisibleLibraries: {
@@ -14833,6 +15421,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listMyMedia: {
@@ -14854,6 +15443,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listLibraryItems: {
@@ -14922,6 +15512,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAudioGroups: {
@@ -14975,6 +15566,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getAudioSeries: {
@@ -15009,6 +15601,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getInvitation: {
@@ -15168,6 +15761,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listHomeRow: {
@@ -15214,6 +15808,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listPicks: {
@@ -15238,6 +15833,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItem: {
@@ -15279,6 +15875,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemImage: {
@@ -15327,6 +15924,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getChapterImage: {
@@ -15378,6 +15976,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getTrickplay: {
@@ -15422,6 +16021,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getTrickplaySheet: {
@@ -15470,6 +16070,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemTrailers: {
@@ -15511,6 +16112,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPerson: {
@@ -15551,6 +16153,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPersonImage: {
@@ -15597,6 +16200,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     startPlayback: {
@@ -15681,6 +16285,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later.
              *     For SDR sources the server first retries one rung lower (`budget_lowered`, plan 3.5); only an
@@ -15737,6 +16342,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listPodcastEpisodes: {
@@ -15782,6 +16388,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadOptions: {
@@ -15826,6 +16433,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createDownloads: {
@@ -15890,6 +16498,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getItemStream: {
@@ -15955,6 +16564,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     reportProgress: {
@@ -16018,6 +16628,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     stopPlayback: {
@@ -16066,6 +16677,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPlaybackSessionState: {
@@ -16125,6 +16737,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPlaybackMaster: {
@@ -16154,6 +16767,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16184,6 +16798,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16214,6 +16829,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16246,6 +16862,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -16278,6 +16895,7 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             409: components["responses"]["StreamSourceChanged"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteDownload: {
@@ -16318,6 +16936,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadManifest: {
@@ -16369,6 +16988,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadFile: {
@@ -16417,6 +17037,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadSubtitle: {
@@ -16448,6 +17069,7 @@ export interface operations {
             401: components["responses"]["DownloadUnauthenticated"];
             404: components["responses"]["DownloadNotFound"];
             410: components["responses"]["DownloadEvicted"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadTrickplaySheet: {
@@ -16479,6 +17101,7 @@ export interface operations {
             401: components["responses"]["DownloadUnauthenticated"];
             404: components["responses"]["DownloadNotFound"];
             410: components["responses"]["DownloadEvicted"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     syncOffline: {
@@ -16531,6 +17154,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getDownloadRules: {
@@ -16561,6 +17185,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setDownloadRules: {
@@ -16613,6 +17238,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     checkOfflineRevocations: {
@@ -16698,6 +17324,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listLibraries: {
@@ -19283,6 +19910,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listGenres: {
@@ -19304,6 +19932,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listVisibleCollections: {
@@ -19325,6 +19954,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getCollection: {
@@ -19361,6 +19991,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     setCollectionWatched: {
@@ -19396,6 +20027,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getCollectionImage: {
@@ -19435,6 +20067,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listWatchlist: {
@@ -19459,6 +20092,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setItemWatched: {
@@ -19494,6 +20128,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listWatched: {
@@ -19530,6 +20165,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     addToWatchlist: {
@@ -19570,6 +20206,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeFromWatchlist: {
@@ -19601,6 +20238,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     recommendItem: {
@@ -19634,6 +20272,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     unrecommendItem: {
@@ -19665,6 +20304,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listNotifications: {
@@ -19689,6 +20329,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     markNotificationRead: {
@@ -19719,6 +20360,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     markAllNotificationsRead: {
@@ -19738,6 +20380,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAdminUserPicks: {
@@ -22154,6 +22797,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     ackAnnouncement: {
@@ -22184,6 +22828,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getMyPlaybackPrefs: {
@@ -22214,6 +22859,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     putMyPlaybackPrefs: {
@@ -22261,6 +22907,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     resetMySeriesTracks: {
@@ -22289,6 +22936,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getMyChannels: {
@@ -22310,6 +22958,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     updateMyChannel: {
@@ -22360,6 +23009,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     testMyChannel: {
@@ -22403,6 +23053,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -22456,6 +23107,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deleteTelegramLink: {
@@ -22476,6 +23128,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["PrimaryProfileRequired"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getPushPublicKey: {
@@ -22506,6 +23159,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createPushSubscription: {
@@ -22550,6 +23204,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     deletePushSubscription: {
@@ -22581,6 +23236,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getSeerrSettings: {
@@ -23770,6 +24426,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -23848,6 +24505,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -23928,6 +24586,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -23994,6 +24653,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 120 a minute (60 at once, shared with the other pages) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24068,6 +24728,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 600 a minute (300 at once, shared with `getExternalTitleImage`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24144,6 +24805,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 30 a minute of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24201,6 +24863,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description More than 30 searches of the profile within a minute (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -24263,6 +24926,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["WishProblem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 60 a minute (30 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24335,6 +24999,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 600 a minute (300 at once) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24389,6 +25054,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /**
              * @description More than 60 a minute (30 at once, shared with `getExternalTitle`) of these calls of the profile (`too_many_attempts`); `Retry-After` names the pause
              *     in seconds. A person browsing never reaches it.
@@ -24449,6 +25115,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     createWish: {
@@ -24530,6 +25197,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description More than 20 wishes made or joined by the profile within the last hour (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
@@ -24549,6 +25217,61 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listMyDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The devices, last contact first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyDevice"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
+        };
+    };
+    signOutMyDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Device id (32 characters) from `listMyDevices`. */
+                deviceId: components["parameters"]["MyDeviceID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description The device holds no session and no download of the account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listAccountWishes: {
@@ -24588,6 +25311,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getWishQuota: {
@@ -24618,6 +25342,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     withdrawWish: {
@@ -24666,6 +25391,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     listIntegrations: {
@@ -24978,6 +25704,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["RadioCatalogLoading"];
         };
     };
@@ -25030,6 +25757,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             503: components["responses"]["RadioCatalogLoading"];
         };
     };
@@ -25056,6 +25784,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     listRadioFavorites: {
@@ -25077,6 +25806,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setRadioFavoriteOrder: {
@@ -25109,6 +25839,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     addRadioFavorite: {
@@ -25132,6 +25863,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     removeRadioFavorite: {
@@ -25154,6 +25886,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     startRadioListen: {
@@ -25209,6 +25942,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
             /** @description No stream of the station answered (`radio_unreachable`). */
             502: {
                 headers: {
@@ -25273,6 +26007,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     endRadioListen: {
@@ -25304,6 +26039,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioNow: {
@@ -25332,6 +26068,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["RadioStationNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioPreferences: {
@@ -25353,6 +26090,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     setRadioPreferences: {
@@ -25387,6 +26125,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLivePlaylist: {
@@ -25417,6 +26156,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLiveInit: {
@@ -25447,6 +26187,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioLiveSegment: {
@@ -25477,6 +26218,7 @@ export interface operations {
             };
             401: components["responses"]["RadioLiveUnauthenticated"];
             404: components["responses"]["RadioLiveNotFound"];
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioImage: {
@@ -25517,6 +26259,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioCover: {
@@ -25555,6 +26298,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            426: components["responses"]["AppTooOld"];
         };
     };
     getRadioConfig: {

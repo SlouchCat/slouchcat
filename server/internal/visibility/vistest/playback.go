@@ -75,12 +75,12 @@ func (f *Fixture) Session(t testing.TB, p model.Profile) model.Session {
 	expires := time.Now().Add(30 * 24 * time.Hour)
 	row, err := appq.New(f.DB.Write).InsertSession(context.Background(), appq.InsertSessionParams{
 		TokenHash: hex.EncodeToString(raw), AccountID: account.ID, ProfileID: sql.NullInt64{Int64: p.ID, Valid: true},
-		Now: time.Now().UnixMilli(), ExpiresAt: expires.UnixMilli(),
+		Now: time.Now().UnixMilli(), ExpiresAt: expires.UnixMilli(), Kind: model.SessionBrowser,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return model.Session{ID: row.ID, Account: account, Profile: p, ExpiresAt: expires}
+	return model.Session{ID: row.ID, Account: account, Profile: p, ExpiresAt: expires, Kind: model.SessionBrowser}
 }
 
 // ItemFlags returns the locked_fields JSON and the rating_source of a title, which tests of the

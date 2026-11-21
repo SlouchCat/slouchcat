@@ -1,0 +1,33 @@
+{
+  "format": "slouchcat-crypto-vectors-v1",
+  "kind": "ed25519-verify",
+  "generator": "go go1.27.2",
+  "cases": [
+    {
+      "name": "server proof",
+      "input": {
+        "message": "c2xvdWNoY2F0LXNlcnZlci1wcm9vZi12MTp1feBFSqs_VlDUuIWW9l6_640_-N5vvCR_IXVBtKRw7Q",
+        "nonce": "dX3gRUqrP1ZQ1LiFlvZev-uNP_jeb7wkfyF1QbSkcO0",
+        "privateSeed": "m1cNmbuIATR3oFWuzDx_ajEKjo6mLUmYHPLGWQSniPo",
+        "publicKey": "mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4",
+        "signature": "UNF04nghZCeS38M88J4l-2Cw6BbLIYrwNXPAReCBhDtQZUZYcTGJ92r3tFibMKsc-rFNTSmD-Xa25CZhNnk8CQ"
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "server proof, one bit flipped",
+      "input": {
+        "message": "c2xvdWNoY2F0LXNlcnZlci1wcm9vZi12MTp1feBFSqs_VlDUuIWW9l6_640_-N5vvCR_IXVBtKRw7Q",
+        "nonce": "dX3gRUqrP1ZQ1LiFlvZev-uNP_jeb7wkfyF1QbSkcO0",
+        "privateSeed": "m1cNmbuIATR3oFWuzDx_ajEKjo6mLUmYHPLGWQSniPo",
+        "publicKey": "mQ5YKpcxgnLxrP3PcQ48kjQEuGa521-PYab4aQTP1H4",
+        "signature": "UdF04nghZCeS38M88J4l-2Cw6BbLIYrwNXPAReCBhDtQZUZYcTGJ92r3tFibMKsc-rFNTSmD-Xa25CZhNnk8CQ"
+      },
+      "expected": {
+        "valid": false
+      }
+    }
+  ]
+}

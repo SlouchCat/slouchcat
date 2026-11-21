@@ -60,5 +60,8 @@
   "wish_status_hidden_subject": "Ein Wunsch hat einen neuen Stand.",
   "wish_review_subject": "Freigabe nötig: {{title}}",
   "wish_review_movie_body": "{{account}} · {{profile}} wünscht den Film. In Seerr wartet er auf Freigabe.",
-  "wish_review_show_body": "{{account}} · {{profile}} wünscht die Serie. In Seerr wartet sie auf Freigabe."
+  "wish_review_show_body": "{{account}} · {{profile}} wünscht die Serie. In Seerr wartet sie auf Freigabe.",
+  "device_linked_subject": "Neues Gerät verbunden",
+  "device_linked_body": "Am {{time}} wurde ein {{kind}} mit deinem Konto verbunden. Das Gerät nennt sich «{{name}}» ({{system}}); diese Angaben stammen vom Gerät selbst. Warst du das nicht, melde das Gerät unter «Meine Geräte» ab und ändere dein Passwort.",
+  "device_kind_tv": "Fernseher"
 }

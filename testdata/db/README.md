@@ -483,3 +483,10 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   17. November 2026, 12:00 UTC, in der Zählung der früheren Stände). Dann `store.Dump`, kein neuer Pfad
   im Stand. `TestFrozenWuenscheStateCoversTheConcept` prüft, dass jede dieser Datenarten nach den
   späteren Migrationen vorhanden ist, und zählt die Zeilen der Wunschtabellen.
+- `android.sql`: Stand nach Stufe 1 von Konzept 27 (Migrationen 00082 bis 00085): `wuensche.sql` bis 00085
+  migriert, dazu erfundene Zeilen der Android-Apps: ein Handy (`Pixel 9`, App-Sitzung) und ein Fernseher
+  (`Wohnzimmer`, Gerätesitzung), beide ohne Ablauf und mit benannter Gerätezeile, neben den Browser-Sitzungen
+  von vorher; ein offener Kopplungsgutschein der App-Sitzung (nur der Hash); das Push-Abo des Handys über die
+  Push-Weiterleitung und die Meldung `device_linked` per E-Mail und per Push mit `pushed_to` (Stichtag
+  21. November 2026, 12:00 UTC). Dann `store.Dump`. `TestFrozenStatesMigrate` prüft mit `frozenAndroidCoversTheStage`, dass jede
+  dieser Datenarten nach den späteren Migrationen vorhanden ist.

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -60,7 +61,17 @@ func TestGetHealth(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if want := (gen.Health{Status: gen.HealthStatusOk, Version: "0.1.0+test", UptimeSeconds: 90}); got != want {
+	// contractVersion is info.version of api/openapi.yaml (concept 27 11.5).
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, _ := parseYAML(t, data)["info"].(map[string]any)
+	contract, _ := info["version"].(string)
+	if contract == "" {
+		t.Fatal("api/openapi.yaml has no info.version")
+	}
+	if want := (gen.Health{Status: gen.HealthStatusOk, Version: "0.1.0+test", ContractVersion: contract, UptimeSeconds: 90}); got != want {
 		t.Fatalf("health = %+v, want %+v", got, want)
 	}
 	if rec.Header().Get(HeaderRequestID) == "" {

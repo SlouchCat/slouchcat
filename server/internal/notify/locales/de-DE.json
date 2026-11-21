@@ -1,1 +1,3 @@
-{}
+{
+  "device_linked_body": "Am {{time}} wurde ein {{kind}} mit deinem Konto verbunden. Das Gerät nennt sich „{{name}}“ ({{system}}); diese Angaben stammen vom Gerät selbst. Warst du das nicht, melde das Gerät unter „Meine Geräte“ ab und ändere dein Passwort."
+}

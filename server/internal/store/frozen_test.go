@@ -94,6 +94,11 @@ func TestFrozenStatesMigrate(t *testing.T) {
 			if media != libraries+3 || mediaLibraries != libraries {
 				t.Errorf("my_media holds %d entries for %d libraries, want one per library and radio, collections, picks", media, mediaLibraries)
 			}
+			// What a state of its own must hold, checked on the database this subtest migrated
+			// anyway instead of replaying and migrating it a second time.
+			if check := frozenCoverage[name]; check != nil {
+				check(t, db)
+			}
 		})
 	}
 }
