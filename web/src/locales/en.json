@@ -169,8 +169,38 @@
       "passwordHint_one": "At least {{count}} character.",
       "passwordHint_other": "At least {{count}} characters."
     },
-    "home": {},
-    "browse": {},
+    "home": {
+      "slide": "Title {{index}} of {{count}}",
+      "details": "Details on {{title}}",
+      "watchlistAdded": "{{title}} added to the watchlist",
+      "watchlistRemoved": "{{title}} removed from the watchlist",
+      "watchlistFailed": "The watchlist could not be changed."
+    },
+    "browse": {
+      "showAll": "All",
+      "showAllLabel": "Show all: {{title}}",
+      "tip": "Tip",
+      "matches_one": "{{count}} match",
+      "matches_other": "{{count}} matches",
+      "all": "All",
+      "allYears": "All years",
+      "decade": "{{decade}}s",
+      "before": "Before {{year}}",
+      "yearTitle": "Release year",
+      "sortTitle": "Sort by",
+      "sortLabel": "Sort: {{sort}}",
+      "sortTitleAz": "Title A–Z",
+      "order": {
+        "newest": "Newest first",
+        "best": "Best first",
+        "longest": "Longest first",
+        "lastSeen": "Last watched first",
+        "aToZ": "A to Z",
+        "youngest": "Lowest age first"
+      },
+      "noMatch": "No titles",
+      "reset": "Reset filters"
+    },
     "search": {},
     "player": {},
     "downloads": {},

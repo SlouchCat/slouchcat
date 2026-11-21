@@ -13,3 +13,17 @@ errors.code
 profiles.picker
 profiles.pin
 settings.devices
+home
+kind
+format
+rating
+picks.page
+library.page
+library.sort
+library.status
+library.filters
+library.content
+library.notFound
+item.play
+item.watchlist
+item.details

@@ -169,8 +169,38 @@
       "passwordHint_one": "Mindestens {{count}} Zeichen.",
       "passwordHint_other": "Mindestens {{count}} Zeichen."
     },
-    "home": {},
-    "browse": {},
+    "home": {
+      "slide": "Titel {{index}} von {{count}}",
+      "details": "Details zu {{title}}",
+      "watchlistAdded": "{{title}} gemerkt",
+      "watchlistRemoved": "{{title}} nicht mehr gemerkt",
+      "watchlistFailed": "Die Merkliste liess sich nicht ändern."
+    },
+    "browse": {
+      "showAll": "Alle",
+      "showAllLabel": "Alle anzeigen: {{title}}",
+      "tip": "Tipp",
+      "matches_one": "{{count}} Treffer",
+      "matches_other": "{{count}} Treffer",
+      "all": "Alle",
+      "allYears": "Alle Jahre",
+      "decade": "{{decade}}er",
+      "before": "Vor {{year}}",
+      "yearTitle": "Erscheinungsjahr",
+      "sortTitle": "Sortieren nach",
+      "sortLabel": "Sortieren: {{sort}}",
+      "sortTitleAz": "Titel A–Z",
+      "order": {
+        "newest": "Neueste zuerst",
+        "best": "Beste zuerst",
+        "longest": "Längste zuerst",
+        "lastSeen": "Zuletzt gesehen zuerst",
+        "aToZ": "A bis Z",
+        "youngest": "Ab 0 zuerst"
+      },
+      "noMatch": "Keine Titel",
+      "reset": "Filter zurücksetzen"
+    },
     "search": {},
     "player": {},
     "downloads": {},

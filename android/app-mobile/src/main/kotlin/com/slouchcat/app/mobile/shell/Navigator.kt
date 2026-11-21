@@ -3,9 +3,11 @@ package com.slouchcat.app.mobile.shell
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import kotlin.reflect.KClass
 
 /** The pages of the entry, drawn without the shell. */
 @Serializable
@@ -33,6 +35,22 @@ class Navigator(
 ) {
     /** A page within the current target. */
     fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = true }
+
+    /**
+     * Whether a feature registered a page for routes of [route]'s class. Pages of a later feature
+     * (the player, the detail page) appear by themselves once their feature is in `Features.kt`.
+     */
+    fun canOpen(route: KClass<*>): Boolean {
+        @Suppress("UNCHECKED_CAST")
+        val type = route as KClass<Any>
+        return nav.graph.any { it.hasRoute(type) }
+    }
+
+    /**
+     * The click of a link to [route]: `null` while no feature registered its page, so the card or
+     * button that would open it is no control (no button that leads nowhere).
+     */
+    fun opener(route: Any): (() -> Unit)? = if (canOpen(route::class)) ({ navigate(route) }) else null
 
     fun back() {
         nav.popBackStack()

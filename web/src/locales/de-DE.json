@@ -3,6 +3,9 @@
     "update": {
       "close": "Schließen"
     },
+    "home": {
+      "watchlistFailed": "Die Merkliste ließ sich nicht ändern."
+    },
     "signIn": {
       "deviceHint": "Dieses Gerät erscheint danach als „{{name}}“ unter „Meine Geräte“ und bleibt angemeldet, bis du es abmeldest.",
       "error": {
