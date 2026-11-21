@@ -221,7 +221,7 @@ jobs:
   # under -race; `task ci:relay` is the same locally. No ffmpeg, no test media.
   # ---------------------------------------------------------------------------------------------
   relay:
-    name: relay (build, linters, tests)
+    name: relay (build, linters, tests, images)
     needs: changes
     if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.tested != 'true'
     runs-on: ubuntu-24.04
@@ -239,6 +239,31 @@ jobs:
       - uses: ./.github/actions/task
 
       - run: task ci:relay
+
+      # Both images, linux/amd64 only and without a push: a broken Dockerfile or .dockerignore
+      # shows here and not first in the release run after the tag (code review minor 11). The
+      # release builds arm64 as well; the binary is cross-compiled, so arm64 adds nothing to check.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the meeting point image (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/relay/pair/Dockerfile
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=relay-pair
+          cache-to: type=gha,mode=max,scope=relay-pair
+
+      - name: Build the push forwarder image (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/relay/push/Dockerfile
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=relay-push
+          cache-to: type=gha,mode=max,scope=relay-push
 
   # ---------------------------------------------------------------------------------------------
   # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot

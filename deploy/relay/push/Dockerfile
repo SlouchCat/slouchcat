@@ -8,7 +8,9 @@
 # The binary is cross-compiled for TARGETARCH on the build platform, so amd64 and arm64 build
 # without emulation.
 
-ARG GO_IMAGE=golang:1.27-trixie
+# golang:1.27-trixie, pinned by the digest of its image index. Raise tag and digest together:
+#   docker buildx imagetools inspect golang:<version>-trixie
+ARG GO_IMAGE=golang:1.27-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
 # No defaults: BuildKit fills them from --platform.
