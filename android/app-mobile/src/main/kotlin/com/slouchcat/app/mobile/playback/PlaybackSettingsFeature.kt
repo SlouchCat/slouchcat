@@ -42,7 +42,7 @@ data object PlaybackSettingsRoute
  */
 class PlaybackSettingsFeature(
     private val settings: (Context) -> DeviceSettingsStore = { DataStoreDeviceSettingsStore(it) },
-    private val repository: (AppGraph) -> PlaybackPrefsRepository = { graph -> ApiPlaybackPrefsRepository(graph.api, graph.http) { requireNotNull(graph.session.server) } },
+    private val repository: (AppGraph) -> PlaybackPrefsRepository = { graph -> ApiPlaybackPrefsRepository(graph.api, graph.http) { graph.session.server } },
 ) : Feature {
     override val more = listOf(
         MoreEntry("playback", MoreSection.Settings, 20, R.string.app_playback_title, SlouchcatIcon.Play, PlaybackSettingsRoute, subtitle = { summary() }),

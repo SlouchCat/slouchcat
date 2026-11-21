@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -48,7 +49,7 @@ class PlaybackController(
     private val server: PlaybackServer,
     private val engine: PlayerEngine,
     private val capabilities: suspend (Narrowing) -> PlaybackCapabilities,
-    settings: Flow<DeviceSettings>,
+    private val settings: Flow<DeviceSettings>,
     private val metered: MeteredNetwork = MeteredNetwork { false },
     private val clock: () -> Long,
     private val now: () -> OffsetDateTime = OffsetDateTime::now,
@@ -71,6 +72,7 @@ class PlaybackController(
     private var narrowing = Narrowing()
     private var videoRetried = false
     private var audioDecoderRetried = false
+    private var containerRetried = false
 
     // What the user chose; a start after a change sends both explicitly (contract 1.11.0).
     private var audioWish: Int? = null
@@ -88,15 +90,32 @@ class PlaybackController(
     private var playedMs = 0L
     private var playingSince: Long? = null
     private var countdownEnd: Long? = null
+
+    /** The rest of the countdown while the player is paused (it stands with the picture). */
+    private var countdownLeftMs: Long? = null
     private var countdownCancelled = false
-    private var resume: Pair<Long, Boolean>? = null
+
+    /** Where the next start after the background begins (`null`: where the server resumes). */
+    private class Resume(val positionMs: Long?)
+
+    private var resume: Resume? = null
+    private var inBackground = false
+
+    /** The number of the engine's current load; events of other loads are dropped. */
+    private var loadId = NO_LOAD
+    private var loads = 0L
+
+    /** The position the running start asked for (the place to come back to from the background). */
+    private var pendingPositionMs: Long? = null
 
     private var startJob: Job? = null
     private var sessionJobs: List<Job> = emptyList()
     private var reconnectJob: Job? = null
 
     init {
-        scope.launch { engine.events.collect(::onEvent) }
+        scope.launch {
+            engine.events.collect { signal -> if (signal.load == loadId) onEvent(signal.event) }
+        }
         scope.launch { settings.collect { device = it } }
         scope.launch {
             while (isActive) {
@@ -123,7 +142,7 @@ class PlaybackController(
         if (mutable.value.ended) {
             engine.seekTo(0)
             mutable.update { it.copy(ended = false, countdown = null) }
-            countdownEnd = null
+            clearCountdown()
         }
         engine.play()
     }
@@ -138,7 +157,7 @@ class PlaybackController(
         engine.seekTo(target)
         val outro = mutable.value.outro
         if (outro == null || target < outro.startMs) {
-            countdownEnd = null
+            clearCountdown()
             mutable.update { it.copy(countdown = null) }
         }
         mutable.update { it.copy(positionMs = target, ended = if (target < duration) false else it.ended) }
@@ -154,6 +173,7 @@ class PlaybackController(
     /** Another audio track: inside the player when the file plays directly and the groups match, else a new start. */
     fun selectAudio(track: Track) {
         val playing = info ?: return
+        if (mutable.value.selectedAudio?.id == track.id) return
         manualChoice = true
         audioWish = track.index
         val group = if (playing.mode == PlaybackInfo.Mode.DIRECT && !narrowing.noTrackChoice) TrackMatching.group(playing.tracks.audio, engineAudio, track) else null
@@ -168,6 +188,7 @@ class PlaybackController(
     /** Subtitles of [track], or none with `null`. */
     fun selectSubtitle(track: Track?) {
         val playing = info ?: return
+        if (mutable.value.selectedSubtitle?.id == track?.id) return
         manualChoice = true
         if (track == null) {
             subtitleWish = SubtitleWish.Off
@@ -197,6 +218,8 @@ class PlaybackController(
     /** A quality of the sheet: `auto` leaves the cap of the device's settings. */
     fun selectQuality(quality: Quality) {
         if (info == null) return
+        val current = qualityWish ?: mutable.value.qualities.firstOrNull { it.current }?.quality ?: Quality.AUTO
+        if (quality == current) return
         qualityWish = quality
         restart()
     }
@@ -211,7 +234,7 @@ class PlaybackController(
 
     fun cancelCountdown() {
         countdownCancelled = true
-        countdownEnd = null
+        clearCountdown()
         mutable.update { it.copy(countdown = null) }
     }
 
@@ -255,28 +278,44 @@ class PlaybackController(
      * player at `pagehide`). [resumeFromBackground] starts again where it stood, paused.
      */
     fun moveToBackground() {
-        val id = sessionId ?: return
-        resume = engine.positionMs to false
-        if (!mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED, final = true)
-        stopSession(id)
-        sessionId = null
-        engine.stop()
+        if (inBackground) return
+        inBackground = true
+        // Nothing goes on in the background: no countdown, no start, no reconnection.
+        clearCountdown()
+        val starting = startJob?.isActive == true
+        startJob?.cancel()
+        reconnectJob?.cancel()
         stopLoops()
-        mutable.update { it.copy(playing = false) }
+        val session = sessionId
+        resume = when {
+            itemId == null -> null
+            session != null -> Resume(engine.positionMs.coerceAtLeast(0))
+            starting -> Resume(pendingPositionMs)
+            else -> null
+        }
+        if (session != null) {
+            endSession(session, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null)
+            sessionId = null
+        }
+        engine.stop()
+        loadId = NO_LOAD
+        mutable.update { it.copy(playing = false, countdown = null) }
     }
 
     fun resumeFromBackground() {
-        val (position, play) = resume ?: return
+        if (!inBackground) return
+        inBackground = false
+        val back = resume ?: return
         resume = null
         val id = itemId ?: return
-        begin(id, position, play = play, switching = true)
+        begin(id, back.positionMs, play = false, switching = true)
     }
 
     /** The page is left: the last progress and the end of the session, even after the page is gone. */
     fun close() {
-        leaveCurrent()
         startJob?.cancel()
         reconnectJob?.cancel()
+        leaveCurrent()
         itemId = null
         engine.release()
     }
@@ -289,9 +328,16 @@ class PlaybackController(
         qualityWish = null
         manualChoice = false
         countdownCancelled = false
-        countdownEnd = null
+        clearCountdown()
         videoRetried = false
         audioDecoderRetried = false
+        containerRetried = false
+        narrowing = narrowing.forNextTitle()
+    }
+
+    private fun clearCountdown() {
+        countdownEnd = null
+        countdownLeftMs = null
     }
 
     /** A new start of the same title where it stands now (another track, quality, a fallback). */
@@ -305,9 +351,19 @@ class PlaybackController(
         startJob?.cancel()
         reconnectJob?.cancel()
         stopLoops()
-        sessionId?.let(::stopSession)
+        sessionId?.let { old ->
+            // The time played since the last report goes with the end of the old session.
+            val last = if (switching && !mutable.value.ended) {
+                progressEvent(if (wantsToPlay) ProgressEvent.State.PLAYING else ProgressEvent.State.PAUSED)
+            } else {
+                null
+            }
+            endSession(old, last)
+        }
         sessionId = null
         engine.stop()
+        loadId = NO_LOAD
+        pendingPositionMs = positionMs
         startedAt = clock()
         tracksApplied = false
         started = false
@@ -319,6 +375,8 @@ class PlaybackController(
             }
         }
         startJob = scope.launch {
+            // The device's settings as stored, not the defaults before the store answered.
+            device = settings.first()
             var attempts = 0
             while (true) {
                 val caps = try {
@@ -338,7 +396,7 @@ class PlaybackController(
                     }
                     is ApiResult.Failed -> if (result.code == TRANSCODE_BUSY && attempts < BUSY_ATTEMPTS) {
                         attempts++
-                        mutable.update { it.copy(error = PlayerError.Busy) }
+                        mutable.update { it.copy(error = PlayerError.Busy(retrying = true)) }
                         delay(BUSY_RETRY_MS)
                         continue
                     } else {
@@ -377,13 +435,18 @@ class PlaybackController(
         is ApiResult.Failed -> when (result.code) {
             STREAM_LIMIT -> PlayerError.StreamLimit
             DELETING -> PlayerError.NotFound
-            TRANSCODE_BUSY -> PlayerError.Busy
+            TRANSCODE_BUSY -> PlayerError.Busy(retrying = false)
             else -> PlayerError.Failed
         }
         else -> PlayerError.Failed
     }
 
     private fun onStarted(started: PlaybackInfo, caps: PlaybackCapabilities, play: Boolean) {
+        if (inBackground) {
+            // A start that answered after the app left: its session ends at once, it never plays.
+            endSession(started.playbackSessionId, null)
+            return
+        }
         info = started
         sessionId = started.playbackSessionId
         val selection = started.selection
@@ -431,7 +494,8 @@ class PlaybackController(
         seq = 1
         playedMs = 0
         playingSince = null
-        engine.load(next, started.resumePositionMs, play)
+        loadId = ++loads
+        engine.load(next, started.resumePositionMs, play, loadId)
         startLoops(started)
     }
 
@@ -450,6 +514,17 @@ class PlaybackController(
             is EngineEvent.WantsToPlay -> {
                 val was = wantsToPlay
                 wantsToPlay = event.play
+                // The countdown stands while the picture stands (the web player's countdown runs
+                // with the media time).
+                val end = countdownEnd
+                val left = countdownLeftMs
+                if (!event.play && end != null) {
+                    countdownLeftMs = (end - clock()).coerceAtLeast(0)
+                    countdownEnd = null
+                } else if (event.play && left != null) {
+                    countdownEnd = clock() + left
+                    countdownLeftMs = null
+                }
                 // The web player reports `paused` at the pause event; the end reports `ended` itself.
                 if (was && !event.play && !mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED)
             }
@@ -547,7 +622,12 @@ class PlaybackController(
         stopClock()
         when (event.failure) {
             EngineFailure.Network -> reconnect()
-            EngineFailure.Refused -> if (event.httpStatus == HTTP_NOT_FOUND) fail(PlayerError.NotFound) else checkStopped(afterRefusal = true)
+            EngineFailure.Refused -> if (event.httpStatus == HTTP_NOT_FOUND) {
+                fail(PlayerError.NotFound)
+            } else {
+                val session = sessionId
+                if (session == null) fail(PlayerError.StoppedElsewhere) else sessionJobs = sessionJobs + scope.launch { checkStopped(session, afterRefusal = true) }
+            }
             EngineFailure.VideoDecoder -> if (!videoRetried && playing != null) {
                 videoRetried = true
                 val codec = playing.mediaFile.videoCodec
@@ -560,6 +640,15 @@ class PlaybackController(
                 if (!audioDecoderRetried && codec != null) {
                     audioDecoderRetried = true
                     restart(Narrowing(audio = setOf(codec)))
+                } else {
+                    fail(PlayerError.Unplayable)
+                }
+            }
+            EngineFailure.Container -> {
+                val container = playing?.mediaFile?.container
+                if (!containerRetried && playing?.mode == PlaybackInfo.Mode.DIRECT && container != null) {
+                    containerRetried = true
+                    restart(Narrowing(containers = setOf(container)))
                 } else {
                     fail(PlayerError.Unplayable)
                 }
@@ -578,10 +667,12 @@ class PlaybackController(
         reconnectJob = scope.launch {
             while (isActive) {
                 delay(RECONNECT_MS)
-                when (val answer = server.state(session)) {
+                val answer = server.state(session)
+                if (sessionId != session) return@launch
+                when (answer) {
                     ApiResult.Offline -> continue
                     is ApiResult.Ok -> if (answer.value.state == PlaybackSessionState.State.PlaybackStateStopped) {
-                        stopped(answer.value.stoppedBy)
+                        stopped(session, answer.value.stoppedBy)
                         return@launch
                     }
                     ApiResult.SignedOut -> {
@@ -592,7 +683,8 @@ class PlaybackController(
                 }
                 val again = media ?: return@launch
                 mutable.update { it.copy(error = null) }
-                engine.load(again, position, play)
+                loadId = ++loads
+                engine.load(again, position, play, loadId)
                 return@launch
             }
         }
@@ -613,7 +705,7 @@ class PlaybackController(
         jobs += scope.launch {
             while (isActive) {
                 delay(STATE_INTERVAL_MS)
-                if (mutable.value.playing && sessionId == session) checkStopped(afterRefusal = false)
+                if (mutable.value.playing && sessionId == session) checkStopped(session, afterRefusal = false)
             }
         }
         val trickplay = playing.trickplay
@@ -635,23 +727,27 @@ class PlaybackController(
         sessionJobs = emptyList()
     }
 
-    /** `getPlaybackSessionState`: `stopped`, 401 and 403 `profile_required` end the playback; 404 and no answer mean nothing. */
-    private fun checkStopped(afterRefusal: Boolean) {
-        val session = sessionId ?: return
-        scope.launch {
-            when (val answer = server.state(session)) {
-                is ApiResult.Ok -> when {
-                    answer.value.state == PlaybackSessionState.State.PlaybackStateStopped -> stopped(answer.value.stoppedBy)
-                    afterRefusal -> fail(PlayerError.StoppedElsewhere)
-                }
-                ApiResult.SignedOut -> fail(PlayerError.SignedOut)
-                is ApiResult.NotAllowed -> if (answer.code == PROFILE_REQUIRED) fail(PlayerError.SignedOut)
-                else -> if (afterRefusal) fail(PlayerError.StoppedElsewhere)
+    /**
+     * `getPlaybackSessionState` of [session]: `stopped`, 401 and 403 `profile_required` end the
+     * playback; 404 and no answer mean nothing. An answer for a session that is no longer the
+     * current one (a new start came in between) means nothing either.
+     */
+    private suspend fun checkStopped(session: String, afterRefusal: Boolean) {
+        val answer = server.state(session)
+        if (sessionId != session) return
+        when (answer) {
+            is ApiResult.Ok -> when {
+                answer.value.state == PlaybackSessionState.State.PlaybackStateStopped -> stopped(session, answer.value.stoppedBy)
+                afterRefusal -> fail(PlayerError.StoppedElsewhere)
             }
+            ApiResult.SignedOut -> fail(PlayerError.SignedOut)
+            is ApiResult.NotAllowed -> if (answer.code == PROFILE_REQUIRED) fail(PlayerError.SignedOut)
+            else -> if (afterRefusal) fail(PlayerError.StoppedElsewhere)
         }
     }
 
-    private fun stopped(by: PlaybackSessionState.StoppedBy?) {
+    private fun stopped(session: String, by: PlaybackSessionState.StoppedBy?) {
+        if (sessionId != session) return
         // The server ended the session itself: no stop of ours, no last progress.
         sessionId = null
         fail(if (by == PlaybackSessionState.StoppedBy.PlaybackStoppedByLimit) PlayerError.WatchLimit else PlayerError.StoppedElsewhere)
@@ -660,14 +756,16 @@ class PlaybackController(
     private fun fail(error: PlayerError) {
         stopLoops()
         reconnectJob?.cancel()
-        if (error != PlayerError.Busy) engine.stop()
+        engine.stop()
+        loadId = NO_LOAD
         mutable.update { it.copy(error = error, loading = false, switching = false, playing = false, countdown = null) }
-        countdownEnd = null
+        clearCountdown()
     }
 
     private fun tick() {
         val playing = info ?: return
-        if (mutable.value.error != null || mutable.value.loading) return
+        // In the background nothing counts; during a new start the engine has no position yet.
+        if (inBackground || mutable.value.error != null || mutable.value.loading || mutable.value.switching) return
         val position = engine.positionMs.coerceAtLeast(0)
         val duration = duration()
         val intro = playing.segments.intro
@@ -682,6 +780,9 @@ class PlaybackController(
             )
         }
         maybeCountdown(atEnd = false)
+        countdownLeftMs?.let { left ->
+            mutable.update { s -> s.countdown?.let { s.copy(countdown = it.copy(secondsLeft = ceil(left / 1000.0).toInt())) } ?: s }
+        }
         val end = countdownEnd ?: return
         val left = ceil((end - clock()) / 1000.0).toInt()
         if (left <= 0) {
@@ -696,10 +797,11 @@ class PlaybackController(
     private fun maybeCountdown(atEnd: Boolean) {
         val s = mutable.value
         val next = s.next ?: return
-        if (countdownCancelled || s.countdown != null || s.error != null) return
+        if (inBackground || countdownCancelled || s.countdown != null || s.error != null) return
         val outro = s.outro
         if (!atEnd && (outro == null || s.positionMs < outro.startMs)) return
-        countdownEnd = if (device.autoplayNext) clock() + AUTO_NEXT_MS else null
+        countdownEnd = if (device.autoplayNext && wantsToPlay) clock() + AUTO_NEXT_MS else null
+        countdownLeftMs = if (device.autoplayNext && !wantsToPlay) AUTO_NEXT_MS else null
         mutable.update { it.copy(countdown = Countdown(next, if (device.autoplayNext) (AUTO_NEXT_MS / 1000).toInt() else null)) }
     }
 
@@ -712,10 +814,17 @@ class PlaybackController(
         playingSince = null
     }
 
-    private fun sendProgress(state: ProgressEvent.State, final: Boolean = false) {
+    private fun sendProgress(state: ProgressEvent.State) {
         val id = itemId ?: return
-        val playing = info ?: return
-        if (!started) return
+        val event = progressEvent(state) ?: return
+        // Progress is best effort: a lost event is repaired by the next one.
+        scope.launch { server.progress(id, event) }
+    }
+
+    /** The next progress event (and the played time it takes along); `null` before the first picture ran. */
+    private fun progressEvent(state: ProgressEvent.State): ProgressEvent? {
+        val playing = info ?: return null
+        if (!started) return null
         val running = playingSince != null
         stopClock()
         val event = ProgressEvent(
@@ -731,22 +840,29 @@ class PlaybackController(
         )
         playedMs = 0
         if (running) playingSince = clock()
-        // Progress is best effort: a lost event is repaired by the next one.
-        (if (final) finalScope else scope).launch { server.progress(id, event) }
+        return event
     }
 
-    private fun stopSession(id: String) {
-        finalScope.launch { server.stop(id) }
+    /**
+     * Ends [session] after the page or the title is gone: first the [last] progress, then the stop,
+     * one after the other (the server records the event before the session closes).
+     */
+    private fun endSession(session: String, last: ProgressEvent?) {
+        val id = itemId
+        finalScope.launch {
+            if (last != null && id != null) server.progress(id, last)
+            server.stop(session)
+        }
     }
 
     /** Leaves the playing title: the last progress and the end of its session. */
     private fun leaveCurrent() {
         // Without a session (ended by the server, or in the background) the last progress went out already.
-        if (sessionId != null && !mutable.value.ended) sendProgress(ProgressEvent.State.PAUSED, final = true)
-        sessionId?.let(::stopSession)
+        sessionId?.let { endSession(it, if (!mutable.value.ended) progressEvent(ProgressEvent.State.PAUSED) else null) }
         sessionId = null
         stopLoops()
         engine.stop()
+        loadId = NO_LOAD
         info = null
     }
 
@@ -779,5 +895,7 @@ class PlaybackController(
         const val TRANSCODE_BUSY = "transcode_busy"
         const val PROFILE_REQUIRED = "profile_required"
         const val HTTP_NOT_FOUND = 404
+        /** Matches no event, not even those of [PlayerEngine.stop]. */
+        private const val NO_LOAD = -1L
     }
 }

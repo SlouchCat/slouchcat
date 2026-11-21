@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** The choice sheets of the page (mockup `suChoice`) and the question before forgetting the series. */
 enum class PlaybackSheet { QualityMobile, QualityWifi, AudioLanguage, SubtitleMode, SubtitleLanguage, ResetSeries }
@@ -97,6 +99,7 @@ class PlaybackSettingsViewModel(
         _state.update { it.copy(prefs = Loadable.Loading) }
         viewModelScope.launch {
             val loaded = repository.prefs().map(LanguagePrefs::of).toLoadable()
+            confirmed = (loaded as? Loadable.Ready)?.value
             _state.update { it.copy(prefs = loaded) }
         }
     }
@@ -121,20 +124,35 @@ class PlaybackSettingsViewModel(
     fun onSubtitleLanguage(code: String?) = prefs { p -> p.copy(subtitles = if (code == null) emptyList() else withFirst(p.subtitles, code)) }
 
     /** Saves [change] of the profile's preferences; the page shows it at once and goes back on a refusal. */
+    /** The last preferences the server confirmed; a refusal goes back to them. */
+    private var confirmed: LanguagePrefs? = null
+
+    /** One save at a time, in the order of the choices: a later choice never loses to an earlier answer. */
+    private val saving = Mutex()
+
     private fun prefs(change: (LanguagePrefs) -> LanguagePrefs) {
         val before = (_state.value.prefs as? Loadable.Ready)?.value ?: return
         val after = change(before)
+        if (confirmed == null) confirmed = before
         _state.update { it.copy(sheet = null, prefs = Loadable.Ready(after)) }
         if (after == before) return
         viewModelScope.launch {
-            when (val saved = repository.save(after.toContract())) {
-                is ApiResult.Ok -> {
-                    _state.update { it.copy(prefs = Loadable.Ready(LanguagePrefs.of(saved.value))) }
-                    _messages.send(PlaybackMessage.Saved)
-                }
-                else -> {
-                    _state.update { it.copy(prefs = Loadable.Ready(before)) }
-                    _messages.send(PlaybackMessage.Failed)
+            saving.withLock {
+                // A newer choice is shown by now: only the latest one goes to the server.
+                val wanted = (_state.value.prefs as? Loadable.Ready)?.value ?: return@withLock
+                if (wanted == confirmed) return@withLock
+                when (val saved = repository.save(wanted.toContract())) {
+                    is ApiResult.Ok -> {
+                        val stored = LanguagePrefs.of(saved.value)
+                        confirmed = stored
+                        _state.update { s -> if ((s.prefs as? Loadable.Ready)?.value == wanted) s.copy(prefs = Loadable.Ready(stored)) else s }
+                        _messages.send(PlaybackMessage.Saved)
+                    }
+                    else -> {
+                        // Back to what the server holds, unless the user chose again meanwhile.
+                        _state.update { s -> if ((s.prefs as? Loadable.Ready)?.value == wanted) s.copy(prefs = Loadable.Ready(confirmed ?: before)) else s }
+                        _messages.send(PlaybackMessage.Failed)
+                    }
                 }
             }
         }

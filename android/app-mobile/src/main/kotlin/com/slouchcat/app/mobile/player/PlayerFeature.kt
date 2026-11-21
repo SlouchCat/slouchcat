@@ -28,6 +28,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -74,7 +75,7 @@ import kotlinx.coroutines.withContext
 @OptIn(UnstableApi::class)
 class PlayerFeature(
     private val engine: (Context, AppGraph) -> PlayerEngine = { context, graph -> Media3Engine(context, graph.http) },
-    private val server: (AppGraph) -> PlaybackServer = { graph -> ApiPlaybackServer(graph.api, graph.http) { requireNotNull(graph.session.server) } },
+    private val server: (AppGraph) -> PlaybackServer = { graph -> ApiPlaybackServer(graph.api, graph.http) { graph.session.server } },
     private val settings: (Context) -> DeviceSettingsStore = { DataStoreDeviceSettingsStore(it) },
 ) : Feature {
     override val fullScreen = setOf(PlayerRoute::class)
@@ -103,6 +104,7 @@ class PlayerFeature(
                     metered = MeteredNetwork.of(context),
                     finalScope = graph.scope,
                     clock = SystemClock::elapsedRealtime,
+                    saved = createSavedStateHandle(),
                 )
             }
             vm.leave = app.navigator::back

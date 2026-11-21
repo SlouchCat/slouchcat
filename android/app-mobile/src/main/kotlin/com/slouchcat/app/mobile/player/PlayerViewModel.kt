@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.player
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slouchcat.core.api.generated.models.PlaybackCapabilities
@@ -32,6 +33,8 @@ class PlayerViewModel(
     metered: MeteredNetwork,
     finalScope: CoroutineScope,
     clock: () -> Long,
+    /** The page's saved state (survives the death of the process); `null` in tests. */
+    private val saved: SavedStateHandle? = null,
 ) : ViewModel(), PlayerEvents {
     private val controller = PlaybackController(viewModelScope, finalScope, server, engine, capabilities, settings, metered, clock)
     val state: StateFlow<PlayerState> = controller.state
@@ -40,7 +43,11 @@ class PlayerViewModel(
     var leave: () -> Unit = {}
 
     init {
-        controller.start(itemId, startAtMs, fromStart)
+        // After the process died the route still names its first position (`Von vorn` = 0); the
+        // server has the progress since then, so a restored page starts where the server resumes.
+        val restored = saved?.get<Boolean>(STARTED) == true
+        saved?.set(STARTED, true)
+        if (restored) controller.start(itemId) else controller.start(itemId, startAtMs, fromStart)
     }
 
     /** The app went to the background (ON_STOP) and came back (ON_START). */
@@ -66,4 +73,8 @@ class PlayerViewModel(
     override fun onCancelCountdown() = controller.cancelCountdown()
     override fun onRetry() = controller.retry()
     override fun onEpisodesOpened() = controller.loadEpisodes()
+
+    private companion object {
+        const val STARTED = "started"
+    }
 }

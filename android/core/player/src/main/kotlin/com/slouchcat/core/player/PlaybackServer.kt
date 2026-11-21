@@ -49,38 +49,48 @@ interface PlaybackServer {
 class ApiPlaybackServer(
     private val api: ApiCaller,
     private val http: Call.Factory,
-    private val server: () -> HttpUrl,
+    /** The server of the session; `null` once signed out (a last stop after the sign-out ends quietly). */
+    private val server: () -> HttpUrl?,
 ) : PlaybackServer {
-    private fun items() = SlouchcatApi.create(::ItemsApi, server(), http)
+    private suspend fun <T : Any> items(block: (ItemsApi) -> T?): ApiResult<T> {
+        val base = server() ?: return ApiResult.SignedOut
+        return api.call("player") { block(SlouchcatApi.create(::ItemsApi, base, http)) }
+    }
 
-    override suspend fun start(itemId: String, request: PlaybackRequest) = api.call("player") { items().startPlayback(itemId, request) }
+    override suspend fun start(itemId: String, request: PlaybackRequest) = items { it.startPlayback(itemId, request) }
 
-    override suspend fun progress(itemId: String, event: ProgressEvent) = api.call("player") { items().reportProgress(itemId, event) }
+    override suspend fun progress(itemId: String, event: ProgressEvent) = items { it.reportProgress(itemId, event) }
 
-    override suspend fun state(sessionId: String) = api.call("player") { items().getPlaybackSessionState(sessionId) }
+    override suspend fun state(sessionId: String) = items { it.getPlaybackSessionState(sessionId) }
 
-    override suspend fun stop(sessionId: String) = api.call("player") { items().stopPlayback(sessionId) }
+    override suspend fun stop(sessionId: String) = items { it.stopPlayback(sessionId) }
 
-    override suspend fun trickplay(itemId: String, mediaFileId: String) = api.call("player") { items().getTrickplay(itemId, mediaFileId) }
+    override suspend fun trickplay(itemId: String, mediaFileId: String) = items { it.getTrickplay(itemId, mediaFileId) }
 
-    override suspend fun episodes(seasonId: String) = api.call("player") { items().getItem(seasonId) }.map { it.episodes.orEmpty() }
+    override suspend fun episodes(seasonId: String) = items { it.getItem(seasonId) }.map { it.episodes.orEmpty() }
 
-    override fun absolute(path: String): String? = ServerPaths.absolute(server(), path)
+    override fun absolute(path: String): String? = server()?.let { ServerPaths.absolute(it, path) }
 }
 
 /** Paths of the server under its address, a sub path included (as `ServerImages` of the app). */
 object ServerPaths {
     private const val API_PREFIX = "/api/v1/"
 
+    /**
+     * [path] under [server]; an absolute address only of the server's own origin (scheme, host,
+     * port), so a token in it never travels to another host or unencrypted when the server is not.
+     * Only `http` and `https` (OkHttp parses no other scheme).
+     */
     fun absolute(server: HttpUrl, path: String): String? {
         if (path.isBlank()) return null
         val base = SlouchcatApi.basePath(server)
         val url = when {
-            path.contains("://") -> path.toHttpUrlOrNull()?.takeIf { it.host == server.host && it.port == server.port }
+            path.contains("://") -> path.toHttpUrlOrNull()?.takeIf { it.scheme == server.scheme && it.host == server.host && it.port == server.port }
+            path.startsWith("//") -> null
             path.startsWith(API_PREFIX) -> (base + "/" + path.removePrefix(API_PREFIX)).toHttpUrlOrNull()
             else -> (base + "/" + path.trimStart('/')).toHttpUrlOrNull()
         }
-        return url?.toString()
+        return url?.takeIf { it.scheme == "http" || it.scheme == "https" }?.toString()
     }
 }
 
@@ -97,13 +107,16 @@ interface PlaybackPrefsRepository {
 class ApiPlaybackPrefsRepository(
     private val api: ApiCaller,
     private val http: Call.Factory,
-    private val server: () -> HttpUrl,
+    private val server: () -> HttpUrl?,
 ) : PlaybackPrefsRepository {
-    private fun profiles() = SlouchcatApi.create(::ProfilesApi, server(), http)
+    private suspend fun <T : Any> profiles(block: (ProfilesApi) -> T?): ApiResult<T> {
+        val base = server() ?: return ApiResult.SignedOut
+        return api.call("playback-prefs") { block(SlouchcatApi.create(::ProfilesApi, base, http)) }
+    }
 
-    override suspend fun prefs() = api.call("playback-prefs") { profiles().getMyPlaybackPrefs() }
+    override suspend fun prefs() = profiles { it.getMyPlaybackPrefs() }
 
-    override suspend fun save(prefs: PlaybackPrefs) = api.call("playback-prefs") { profiles().putMyPlaybackPrefs(prefs) }
+    override suspend fun save(prefs: PlaybackPrefs) = profiles { it.putMyPlaybackPrefs(prefs) }
 
-    override suspend fun resetSeries() = api.call("playback-prefs") { profiles().resetMySeriesTracks() }
+    override suspend fun resetSeries() = profiles { it.resetMySeriesTracks() }
 }

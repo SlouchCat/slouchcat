@@ -67,7 +67,25 @@ class PlaybackSettingsViewModelTest {
         settle()
         assertEquals(LanguagePrefs(emptyList(), SubtitleMode.OFF, listOf("fr", "de")), LanguagePrefs.of(prefs.stored))
         assertEquals(LanguagePrefs.of(prefs.stored), ready(vm))
-        assertEquals(4, messages.count { it == PlaybackMessage.Saved })
+        // The three quick choices went to the server as one, the last state.
+        assertEquals(2, prefs.saved.size)
+        assertEquals(2, messages.count { it == PlaybackMessage.Saved })
+    }
+
+    @Test
+    fun quickChoicesGoOutOneAfterTheOtherAndTheLastOneWins() = runTest(dispatcher) {
+        val vm = PlaybackSettingsViewModel(store, prefs)
+        settle()
+        vm.onSubtitleMode(SubtitleMode.ALWAYS)
+        vm.onSubtitleMode(SubtitleMode.FOREIGN)
+        settle()
+        assertEquals(listOf(SubtitleMode.FOREIGN), prefs.saved.map { it.subtitleMode })
+        assertEquals(SubtitleMode.FOREIGN, ready(vm).mode)
+        // A refusal goes back to what the server holds.
+        prefs.refuse = true
+        vm.onSubtitleMode(SubtitleMode.OFF)
+        settle()
+        assertEquals(SubtitleMode.FOREIGN, ready(vm).mode)
     }
 
     @Test

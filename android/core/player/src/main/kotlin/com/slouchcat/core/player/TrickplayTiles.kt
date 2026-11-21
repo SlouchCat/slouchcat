@@ -3,7 +3,10 @@ package com.slouchcat.core.player
 import com.slouchcat.core.api.generated.models.Trickplay
 
 /** One preview tile: the sheet to load (absolute address) and the tile's rectangle in it. */
-data class TrickplayTile(val sheetUrl: String, val x: Int, val y: Int, val width: Int, val height: Int, val timeMs: Long)
+data class TrickplayTile(val sheetUrl: String, val x: Int, val y: Int, val width: Int, val height: Int, val timeMs: Long) {
+    /** Without the address: a sheet's address may carry a token (rule 10). */
+    override fun toString() = "TrickplayTile(x=$x, y=$y, width=$width, height=$height, timeMs=$timeMs)"
+}
 
 /**
  * The preview tiles of the seek bar (concept 18 part A, `getTrickplay`): tile `k` shows

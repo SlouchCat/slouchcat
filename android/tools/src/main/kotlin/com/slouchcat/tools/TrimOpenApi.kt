@@ -60,19 +60,37 @@ abstract class TrimOpenApi : DefaultTask() {
 
 /**
  * Writes YAML 1.2 that a YAML 1.1 reader (the parser of openapi-generator) reads the same: a string
- * such as `off`, `on`, `yes` or `no` stays quoted. Unquoted, the generator read the enumeration value
- * `off` of `SubtitleMode` as the boolean `false` and the client sent "false" (stage 5).
+ * that YAML 1.1 would resolve to a boolean, a number, a timestamp or null stays quoted. Unquoted,
+ * the generator read the enumeration value `off` of `SubtitleMode` as the boolean `false` and the
+ * client sent "false" (stage 5); likewise `1:30` would become 90, `1_000` 1000, `2026-11-21` a date.
  */
 internal class Yaml11SafeRepresenter(settings: DumpSettings) : StandardRepresenter(settings) {
     init {
         val plain = representers.getValue(String::class.java)
         representers[String::class.java] = RepresentToNode { data ->
-            if ((data as String).lowercase() in YAML11_BOOLEANS) representScalar(Tag.STR, data, ScalarStyle.DOUBLE_QUOTED) else plain.representData(data)
+            if (isYaml11Special(data as String)) representScalar(Tag.STR, data, ScalarStyle.DOUBLE_QUOTED) else plain.representData(data)
         }
     }
 
-    private companion object {
-        val YAML11_BOOLEANS = setOf("y", "n", "yes", "no", "on", "off", "true", "false")
+    companion object {
+        /** The implicit resolvers of YAML 1.1 (yaml.org/type: bool, int, float, null, timestamp). */
+        private val YAML11 = listOf(
+            Regex("""y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF"""),
+            Regex("""~|null|Null|NULL|"""),
+            Regex("""[-+]?0b[0-1_]+"""),
+            Regex("""[-+]?0[0-7_]+"""),
+            Regex("""[-+]?(0|[1-9][0-9_]*)"""),
+            Regex("""[-+]?0x[0-9a-fA-F_]+"""),
+            Regex("""[-+]?[1-9][0-9_]*(:[0-5]?[0-9])+"""),
+            Regex("""[-+]?([0-9][0-9_]*)?\.[0-9.]*([eE][-+][0-9]+)?"""),
+            Regex("""[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+\.[0-9_]*"""),
+            Regex("""[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN)"""),
+            Regex("""[0-9][0-9][0-9][0-9]-[0-9][0-9]?-[0-9][0-9]?([Tt]|[ \t]+)[0-9][0-9]?:[0-9][0-9]:[0-9][0-9](\.[0-9]*)?(([ \t]*)Z|[-+][0-9][0-9]?(:[0-9][0-9])?)?"""),
+            Regex("""[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"""),
+        )
+
+        /** Whether a YAML 1.1 reader takes [value] for anything but a string. */
+        fun isYaml11Special(value: String): Boolean = YAML11.any { it.matches(value) }
     }
 }
 

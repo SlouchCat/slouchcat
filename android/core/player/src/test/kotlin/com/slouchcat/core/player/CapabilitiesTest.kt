@@ -65,9 +65,15 @@ class CapabilitiesTest {
     }
 
     @Test
-    fun hdrNeedsTheDisplayAndMain10() {
+    fun hdrNeedsTheDisplayAndTheDecodersProfile() {
         val hdrDisplay = phoneDisplay.copy(hdrTypes = setOf(HdrType.Hdr10))
-        assertEquals(true, CapabilityRules.build(facts(phoneWithMain10, display = hdrDisplay)).hdr)
+        val withHdr10 = phoneWithMain10.map {
+            if (it.mime == "video/hevc") it.copy(profiles = it.profiles + CodecProfileLevel.HEVCProfileMain10HDR10) else it
+        }
+        assertEquals(true, CapabilityRules.build(facts(withHdr10, display = hdrDisplay)).hdr)
+        // Main 10 alone decodes the picture, not the HDR10 metadata; HLG needs only Main 10.
+        assertEquals(false, CapabilityRules.build(facts(phoneWithMain10, display = hdrDisplay)).hdr)
+        assertEquals(true, CapabilityRules.build(facts(phoneWithMain10, display = phoneDisplay.copy(hdrTypes = setOf(HdrType.Hlg)))).hdr)
         assertEquals(false, CapabilityRules.build(facts(emulator, display = hdrDisplay)).hdr)
         // Dolby Vision alone counts not (concept 26 stage 0 point 5).
         assertEquals(false, CapabilityRules.build(facts(phoneWithMain10, display = phoneDisplay.copy(hdrTypes = setOf(HdrType.DolbyVision)))).hdr)

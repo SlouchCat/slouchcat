@@ -17,14 +17,30 @@ import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.api.generated.models.TrackList
 import com.slouchcat.core.api.generated.models.TrackSelection
 import com.slouchcat.core.api.generated.models.Trickplay
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 
-/** A player without Media3: the position runs with the test clock while it plays. */
+/**
+ * A player without Media3: the position runs with the test clock while it plays. Like Media3 it
+ * numbers its loads and answers [stop] with empty tracks and the end of playing, under a number no
+ * load has. [emit] sends an event of the current load (as Media3 does for the player's own events).
+ */
 class FakeEngine(private val clock: () -> Long) : PlayerEngine {
-    val flow = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 64)
-    override val events = flow
+    val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
+    override val events = signals
+    private var current = PlayerEngine.NO_LOAD
+
+    /** Whether the player wants to play (play/pause of the page). */
+    val wantsPlay: Boolean get() = wants
+
+    /** The number of the current load (to send a late event of an old one in a test). */
+    val load: Long get() = current
+
+    fun emit(event: EngineEvent, load: Long = current) {
+        signals.tryEmit(EngineSignal(load, event))
+    }
 
     val loads = mutableListOf<Triple<EngineMedia, Long, Boolean>>()
     val audioSelections = mutableListOf<Int>()
@@ -41,31 +57,34 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     override val durationMs: Long get() = duration
     override val bufferedMs: Long get() = positionMs
 
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean) {
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean, load: Long) {
+        current = load
         loads += Triple(media, startMs, play)
         running = false
         wants = play
         base = startMs
+        // Media3 says what it wants while load() still runs.
+        emit(EngineEvent.WantsToPlay(play))
     }
 
     /** Media3 has buffered: it plays if it was asked to, the first picture is there. */
     fun ready(audio: List<EngineTrack> = emptyList(), text: List<EngineTrack> = emptyList()) {
-        flow.tryEmit(EngineEvent.Tracks(audio, text))
-        flow.tryEmit(EngineEvent.WantsToPlay(wants))
+        emit(EngineEvent.Tracks(audio, text))
+        emit(EngineEvent.WantsToPlay(wants))
         if (wants) start()
-        flow.tryEmit(EngineEvent.FirstFrame)
+        emit(EngineEvent.FirstFrame)
     }
 
     private fun start() {
         base = positionMs
         since = clock()
         running = true
-        flow.tryEmit(EngineEvent.Playing(true))
+        emit(EngineEvent.Playing(true))
     }
 
     override fun play() {
         wants = true
-        flow.tryEmit(EngineEvent.WantsToPlay(true))
+        emit(EngineEvent.WantsToPlay(true))
         if (!running) start()
     }
 
@@ -73,8 +92,8 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
         base = positionMs
         running = false
         wants = false
-        flow.tryEmit(EngineEvent.WantsToPlay(false))
-        flow.tryEmit(EngineEvent.Playing(false))
+        emit(EngineEvent.WantsToPlay(false))
+        emit(EngineEvent.Playing(false))
     }
 
     override fun seekTo(positionMs: Long) {
@@ -93,9 +112,15 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     }
 
     override fun stop() {
+        current = PlayerEngine.NO_LOAD
         stops++
         base = positionMs
+        val was = running
         running = false
+        wants = false
+        // What Media3 says after stop() and clearMediaItems().
+        emit(EngineEvent.Tracks(emptyList(), emptyList()))
+        if (was) emit(EngineEvent.Playing(false))
     }
 
     override fun release() {
@@ -105,8 +130,8 @@ class FakeEngine(private val clock: () -> Long) : PlayerEngine {
     fun end() {
         base = duration
         running = false
-        flow.tryEmit(EngineEvent.Playing(false))
-        flow.tryEmit(EngineEvent.Ended)
+        emit(EngineEvent.Playing(false))
+        emit(EngineEvent.Ended)
     }
 }
 
@@ -120,23 +145,36 @@ class FakeServer : PlaybackServer {
     var answer: (String, PlaybackRequest) -> ApiResult<PlaybackInfo> = { id, request -> ApiResult.Ok(info(id, resumeMs = request.positionMs ?: 0)) }
     var seasonEpisodes: List<ItemRef> = emptyList()
 
+    /** When set, a start waits for it (the server still deciding). */
+    var startGate: CompletableDeferred<Unit>? = null
+
+    /** When set, a state request waits for it (an answer under way). */
+    var stateGate: CompletableDeferred<Unit>? = null
+
+    /** Progress and stops in the order they reached the server. */
+    val calls = mutableListOf<String>()
+
     override suspend fun start(itemId: String, request: PlaybackRequest): ApiResult<PlaybackInfo> {
         starts += itemId to request
+        startGate?.await()
         return answer(itemId, request)
     }
 
     override suspend fun progress(itemId: String, event: ProgressEvent): ApiResult<Progress> {
         progress += itemId to event
+        calls += "progress:${event.playbackSessionId}"
         return ApiResult.Ok(Progress(event.positionMs, event.durationMs, BigDecimal.ZERO, false, OffsetDateTime.now()))
     }
 
     override suspend fun state(sessionId: String): ApiResult<PlaybackSessionState> {
         stateCalls++
+        stateGate?.await()
         return state
     }
 
     override suspend fun stop(sessionId: String): ApiResult<Unit> {
         stops += sessionId
+        calls += "stop:$sessionId"
         return ApiResult.Ok(Unit)
     }
 
