@@ -30,6 +30,9 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import com.slouchcat.core.api.log.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -52,8 +55,16 @@ class Media3Engine(
     http: Call.Factory,
     withSession: Boolean = true,
 ) : PlayerEngine {
-    private val flow = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 64)
-    override val events: Flow<EngineEvent> = flow.asSharedFlow()
+    private val signals = MutableSharedFlow<EngineSignal>(extraBufferCapacity = 64)
+    override val events: Flow<EngineSignal> = signals.asSharedFlow()
+
+    /** The number of the current load; [stop] moves it on, so its own events belong to no load. */
+    private var current = 0L
+    private var counter = 0L
+
+    private fun emit(event: EngineEvent) {
+        signals.tryEmit(EngineSignal(current, event))
+    }
 
     /** The Media3 player: for the surface of a page and the media session of stage 7. */
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext, SlouchcatRenderersFactory(context.applicationContext))
@@ -66,7 +77,10 @@ class Media3Engine(
         .build()
 
     private val session: MediaSession? = if (withSession) {
-        MediaSession.Builder(context.applicationContext, player).setId("slouchcat-video-${SESSIONS.incrementAndGet()}").build()
+        MediaSession.Builder(context.applicationContext, player)
+            .setId("slouchcat-video-${SESSIONS.incrementAndGet()}")
+            .setCallback(TrustedControllers(context.applicationContext.packageName))
+            .build()
     } else {
         null
     }
@@ -74,40 +88,41 @@ class Media3Engine(
     private var lastTracks: Tracks = Tracks.EMPTY
 
     init {
+        Media3Logs.install()
         player.addListener(
             object : Player.Listener {
                 override fun onTracksChanged(tracks: Tracks) {
                     lastTracks = tracks
-                    flow.tryEmit(EngineEvent.Tracks(groups(tracks, C.TRACK_TYPE_AUDIO), groups(tracks, C.TRACK_TYPE_TEXT)))
+                    emit(EngineEvent.Tracks(groups(tracks, C.TRACK_TYPE_AUDIO), groups(tracks, C.TRACK_TYPE_TEXT)))
                 }
 
                 override fun onRenderedFirstFrame() {
-                    flow.tryEmit(EngineEvent.FirstFrame)
+                    emit(EngineEvent.FirstFrame)
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    flow.tryEmit(EngineEvent.Playing(isPlaying))
+                    emit(EngineEvent.Playing(isPlaying))
                 }
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    flow.tryEmit(EngineEvent.WantsToPlay(playWhenReady))
+                    emit(EngineEvent.WantsToPlay(playWhenReady))
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     when (playbackState) {
-                        Player.STATE_BUFFERING -> flow.tryEmit(EngineEvent.Buffering(true))
-                        Player.STATE_READY -> flow.tryEmit(EngineEvent.Buffering(false))
-                        Player.STATE_ENDED -> flow.tryEmit(EngineEvent.Ended)
+                        Player.STATE_BUFFERING -> emit(EngineEvent.Buffering(true))
+                        Player.STATE_READY -> emit(EngineEvent.Buffering(false))
+                        Player.STATE_ENDED -> emit(EngineEvent.Ended)
                         else -> Unit
                     }
                 }
 
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
-                    if (videoSize.width > 0) flow.tryEmit(EngineEvent.VideoSize(videoSize.width, videoSize.height))
+                    if (videoSize.width > 0) emit(EngineEvent.VideoSize(videoSize.width, videoSize.height))
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    flow.tryEmit(failure(error))
+                    emit(failure(error))
                 }
             },
         )
@@ -117,7 +132,8 @@ class Media3Engine(
     override val durationMs: Long get() = player.duration.takeIf { it != C.TIME_UNSET } ?: 0
     override val bufferedMs: Long get() = player.bufferedPosition
 
-    override fun load(media: EngineMedia, startMs: Long, play: Boolean) {
+    override fun load(media: EngineMedia, startMs: Long, play: Boolean): Long {
+        current = ++counter
         val item = MediaItem.Builder()
             .setUri(media.url)
             .setMimeType(if (media.hls) MimeTypes.APPLICATION_M3U8 else null)
@@ -142,6 +158,7 @@ class Media3Engine(
         player.setMediaItem(item, startMs.coerceAtLeast(0))
         player.playWhenReady = play
         player.prepare()
+        return current
     }
 
     override fun play() {
@@ -176,6 +193,7 @@ class Media3Engine(
     }
 
     override fun stop() {
+        current = ++counter
         player.stop()
         player.clearMediaItems()
         lastTracks = Tracks.EMPTY
@@ -220,6 +238,9 @@ class Media3Engine(
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
             -> EngineFailure.AudioDecoder
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+            -> EngineFailure.Container
             else -> EngineFailure.Other
         }
         return EngineEvent.Failed(failure, status)
@@ -229,6 +250,64 @@ class Media3Engine(
         const val SIDELOADED = "slouchcat-subtitle"
         val SESSIONS = AtomicInteger()
     }
+}
+
+/**
+ * Who may control the player's [MediaSession]: this app, the system's media notification and the
+ * trusted controllers of the system (headphone and Bluetooth buttons, the system UI). Another app
+ * with access to notifications is turned away. Accepted controllers get the player commands without
+ * setting or changing the media: the stream addresses come only from the controller of the app.
+ */
+@OptIn(UnstableApi::class)
+internal class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
+    override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+        if (!accepts(ownPackage, controller.packageName, session.isMediaNotificationController(controller), controller.isTrusted)) {
+            return MediaSession.ConnectionResult.reject()
+        }
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).setAvailablePlayerCommands(COMMANDS).build()
+    }
+
+    override fun onAddMediaItems(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaItems: MutableList<MediaItem>,
+    ): ListenableFuture<MutableList<MediaItem>> = Futures.immediateFailedFuture(UnsupportedOperationException("no media from controllers"))
+
+    companion object {
+        fun accepts(ownPackage: String, packageName: String, notification: Boolean, trusted: Boolean): Boolean =
+            packageName == ownPackage || notification || trusted
+
+        /** Play, pause, seek and the like; no command that sets or changes the media items. */
+        val COMMANDS: Player.Commands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+            .remove(Player.COMMAND_SET_MEDIA_ITEM)
+            .remove(Player.COMMAND_CHANGE_MEDIA_ITEMS)
+            .build()
+    }
+}
+
+/**
+ * Media3 writes its own messages straight to logcat; a parser error may quote a line of a playlist
+ * with the stream token `st`. They go through the app's [Log] instead, which scrubs it (rule 10);
+ * debug and info lines are dropped.
+ */
+@OptIn(UnstableApi::class)
+object Media3Logs : androidx.media3.common.util.Log.Logger {
+    @Volatile
+    private var installed = false
+
+    fun install() {
+        if (installed) return
+        installed = true
+        androidx.media3.common.util.Log.setLogger(this)
+    }
+
+    override fun d(tag: String, message: String, throwable: Throwable?) = Unit
+
+    override fun i(tag: String, message: String, throwable: Throwable?) = Unit
+
+    override fun w(tag: String, message: String, throwable: Throwable?) = Log.w("media3/$tag", message, error = throwable)
+
+    override fun e(tag: String, message: String, throwable: Throwable?) = Log.e("media3/$tag", message, error = throwable)
 }
 
 /**

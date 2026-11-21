@@ -8,15 +8,19 @@ import kotlinx.coroutines.flow.Flow
  * player into a `MediaSessionService`. Every call comes from the main thread.
  */
 interface PlayerEngine {
-    /** What happens in the player; a hot flow, collected by the controller. */
-    val events: Flow<EngineEvent>
+    /**
+     * What happens in the player, each with the number of the load it belongs to; a hot flow,
+     * collected by the controller. What [stop] causes (the empty tracks, the end of playing)
+     * carries a number no load has, so a late event of an old load never reaches a new one.
+     */
+    val events: Flow<EngineSignal>
 
     val positionMs: Long
     val durationMs: Long
     val bufferedMs: Long
 
-    /** Loads [media] at [startMs]; [play]: start at once. */
-    fun load(media: EngineMedia, startMs: Long, play: Boolean)
+    /** Loads [media] at [startMs]; [play]: start at once. Answers the number its events carry. */
+    fun load(media: EngineMedia, startMs: Long, play: Boolean): Long
 
     fun play()
 
@@ -47,7 +51,13 @@ data class EngineMedia(
     /** The title for the media session (headphone controls, lock screen in stage 7). */
     val title: String? = null,
     val subtitle: String? = null,
-)
+) {
+    /** Without the addresses: they carry the stream token `st` (rule 10). */
+    override fun toString() = "EngineMedia(hls=$hls, subtitles=${subtitleUrl != null}, title=$title)"
+}
+
+/** One [EngineEvent] of the load numbered [load] (the answer of [PlayerEngine.load]). */
+data class EngineSignal(val load: Long, val event: EngineEvent)
 
 /** One audio or text group of the player, in the order of the file. */
 data class EngineTrack(
@@ -77,6 +87,9 @@ enum class EngineFailure {
 
     /** The audio decoder or output failed. */
     AudioDecoder,
+
+    /** Media3 could not read the container of a file it plays directly. */
+    Container,
 
     /** Anything else (an unreadable file). */
     Other,

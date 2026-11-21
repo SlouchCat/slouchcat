@@ -61,7 +61,9 @@ sealed interface AudioSetting {
 
 /**
  * What one playback rules out after a failure: an audio codec Media3 played silently, a video
- * codec whose decoder failed (and with it HDR). It narrows the next start of the same playback.
+ * codec whose decoder failed (and with it HDR), a container Media3 could not read. Codecs and HDR
+ * are facts of the device and stay for the controller's later titles; [noTrackChoice] and
+ * [containers] belong to one file and go with the next title.
  */
 data class Narrowing(
     val audio: Set<String> = emptySet(),
@@ -69,9 +71,19 @@ data class Narrowing(
     val noHdr: Boolean = false,
     /** The groups of the file did not match the server's tracks: the server picks the tracks (no `selectsTracks`). */
     val noTrackChoice: Boolean = false,
+    /** Containers Media3 could not parse: the server remuxes. */
+    val containers: Set<String> = emptySet(),
 ) {
-    operator fun plus(other: Narrowing) =
-        Narrowing(audio + other.audio, video + other.video, noHdr || other.noHdr, noTrackChoice || other.noTrackChoice)
+    operator fun plus(other: Narrowing) = Narrowing(
+        audio + other.audio,
+        video + other.video,
+        noHdr || other.noHdr,
+        noTrackChoice || other.noTrackChoice,
+        containers + other.containers,
+    )
+
+    /** What stays for the next title: the facts of the device, not those of the file. */
+    fun forNextTitle() = copy(noTrackChoice = false, containers = emptySet())
 }
 
 object CapabilityRules {
@@ -144,12 +156,16 @@ object CapabilityRules {
             }
         }
         audio = audio - narrowing.audio
-        val hdrDisplay = HdrType.Hdr10 in facts.display.hdrTypes || HdrType.Hlg in facts.display.hdrTypes
+        // HDR10 needs the HDR10 profile of the decoder (Main 10 alone decodes the picture, not its
+        // metadata); HLG needs only Main 10.
+        val hevc = facts.decoders.filter { it.mime.equals(VIDEO_MIMES.getValue("hevc"), ignoreCase = true) }
+        val hdr10 = HdrType.Hdr10 in facts.display.hdrTypes && hevc.any { CodecProfileLevel.HEVCProfileMain10HDR10 in it.profiles }
+        val hlg = HdrType.Hlg in facts.display.hdrTypes && hevc.any { CodecProfileLevel.HEVCProfileMain10 in it.profiles }
         return PlaybackCapabilities(
             video = video,
             audio = audio,
             hls = PlaybackCapabilities.Hls.MSE,
-            containers = CONTAINERS,
+            containers = CONTAINERS - narrowing.containers,
             maxAudioChannels = when (channels) {
                 8 -> PlaybackCapabilities.MaxAudioChannels._8
                 6 -> PlaybackCapabilities.MaxAudioChannels._6
@@ -159,8 +175,8 @@ object CapabilityRules {
             subtitles = SUBTITLES.takeUnless { narrowing.noTrackChoice },
             maxWidth = facts.display.maxWidth,
             maxHeight = facts.display.maxHeight,
-            // HDR only when the display shows HDR10 or HLG and a Main 10 HEVC decoder exists.
-            hdr = hdrDisplay && "hevc" in video && !narrowing.noHdr,
+            // HDR only when the display and an HEVC decoder both take it.
+            hdr = (hdr10 || hlg) && "hevc" in video && !narrowing.noHdr,
             name = facts.name,
             type = facts.type.value,
         )

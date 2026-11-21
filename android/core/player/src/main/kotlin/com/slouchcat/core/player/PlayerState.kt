@@ -28,8 +28,8 @@ sealed interface PlayerError {
     /** No connection; [retrying]: the controller tries again by itself. */
     data class Network(val retrying: Boolean) : PlayerError
 
-    /** 503 `transcode_busy`: the server tries again in a moment. */
-    data object Busy : PlayerError
+    /** 503 `transcode_busy`; [retrying]: the controller asks again by itself, else «Erneut versuchen». */
+    data class Busy(val retrying: Boolean) : PlayerError
 
     /** The device cannot decode the picture even after the narrower start. */
     data object Unplayable : PlayerError
@@ -93,5 +93,12 @@ data class PlayerState(
     val selectedAudio: Track? get() = audio.firstOrNull { it.selected }?.track
     val selectedSubtitle: Track? get() = if (subtitlesOff) null else subtitles.firstOrNull { it.selected }?.track
     val remainingMs: Long get() = (durationMs - positionMs).coerceAtLeast(0)
+
+    /**
+     * Without [info] and [trickplay]: the playback description carries the stream and subtitle
+     * addresses with the token `st` (rule 10).
+     */
+    override fun toString() = "PlayerState(item=${item?.id}, loading=$loading, switching=$switching, playing=$playing, " +
+        "ended=$ended, positionMs=$positionMs, durationMs=$durationMs, mode=${info?.mode}, error=$error, countdown=${countdown?.secondsLeft})"
     val isEpisode: Boolean get() = item?.seasonNumber != null || item?.episodeNumber != null
 }

@@ -8,7 +8,9 @@ import com.slouchcat.core.api.generated.models.Quality
 import com.slouchcat.core.api.generated.models.QualityCap
 import com.slouchcat.core.api.generated.models.Segment
 import com.slouchcat.core.api.generated.models.TrackSelection
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -203,7 +205,7 @@ class PlaybackControllerTest {
         val s = setup(server)
         s.controller.start("film")
         runCurrent()
-        assertEquals(PlayerError.Busy, s.controller.state.value.error)
+        assertEquals(PlayerError.Busy(retrying = true), s.controller.state.value.error)
         advanceTimeBy(5_001)
         assertEquals(2, server.starts.size)
         assertNull(s.controller.state.value.error)
@@ -287,13 +289,13 @@ class PlaybackControllerTest {
         runCurrent()
         s.engine.ready()
         runCurrent()
-        s.engine.flow.tryEmit(EngineEvent.Failed(EngineFailure.VideoDecoder))
+        s.engine.emit(EngineEvent.Failed(EngineFailure.VideoDecoder))
         runCurrent()
         assertEquals(2, s.server.starts.size)
         val narrowed = s.server.starts.last().second.capabilities!!
         assertFalse("hevc" in narrowed.video)
         assertEquals(false, narrowed.hdr)
-        s.engine.flow.tryEmit(EngineEvent.Failed(EngineFailure.VideoDecoder))
+        s.engine.emit(EngineEvent.Failed(EngineFailure.VideoDecoder))
         runCurrent()
         assertEquals(2, s.server.starts.size)
         assertEquals(PlayerError.Unplayable, s.controller.state.value.error)
@@ -308,7 +310,7 @@ class PlaybackControllerTest {
         runCurrent()
         advanceTimeBy(5_000)
         s.server.state = ApiResult.Offline
-        s.engine.flow.tryEmit(EngineEvent.Failed(EngineFailure.Network))
+        s.engine.emit(EngineEvent.Failed(EngineFailure.Network))
         runCurrent()
         assertEquals(PlayerError.Network(retrying = true), s.controller.state.value.error)
         advanceTimeBy(3_001)
@@ -500,5 +502,312 @@ class PlaybackControllerTest {
         runCurrent()
         assertEquals("b", server.starts.last().first)
         assertNull(server.starts.last().second.positionMs)
+    }
+
+    // ---- the background (B-1, B-2) ------------------------------------------------------------
+
+    @Test
+    fun theCountdownStopsInTheBackgroundAndNothingStartsThere() = runTest {
+        val next = ref("e2", kind = ItemKind.EPISODE, season = 1, episode = 2)
+        val server = FakeServer().apply { answer = { id, r -> ApiResult.Ok(info(id, next = next.takeIf { id == "e1" }, outro = Segment(40_000, 60_000, Segment.Source.CHAPTER), resumeMs = r.positionMs ?: 0)) } }
+        val s = setup(server)
+        s.controller.start("e1")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(41_000)
+        assertEquals(10, s.controller.state.value.countdown?.secondsLeft)
+        s.controller.moveToBackground()
+        advanceTimeBy(PlaybackController.AUTO_NEXT_MS + 5_000)
+        assertEquals(listOf("e1"), server.starts.map { it.first })
+        assertNull(s.controller.state.value.countdown)
+        // Back: the same episode where it stood, paused.
+        s.controller.resumeFromBackground()
+        runCurrent()
+        assertEquals("e1", server.starts.last().first)
+        assertTrue(server.starts.last().second.positionMs!! in 40_000L..42_000L)
+        assertFalse(s.engine.loads.last().third)
+    }
+
+    @Test
+    fun aFirstStartThatAnswersInTheBackgroundNeverPlays() = runTest {
+        val server = FakeServer().apply { startGate = CompletableDeferred() }
+        val s = setup(server)
+        s.controller.start("film", startAtMs = 7_000)
+        runCurrent()
+        s.controller.moveToBackground()
+        server.startGate!!.complete(Unit)
+        advanceTimeBy(30_000)
+        assertTrue("nothing loaded in the background", s.engine.loads.isEmpty())
+        server.startGate = null
+        s.controller.resumeFromBackground()
+        runCurrent()
+        assertEquals(7_000L, server.starts.last().second.positionMs)
+        assertFalse(s.engine.loads.single().third)
+    }
+
+    @Test
+    fun aRestartForAnotherQualityThatAnswersInTheBackgroundNeverPlays() = runTest {
+        val s = setup()
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(6_000)
+        s.server.startGate = CompletableDeferred()
+        s.controller.selectQuality(Quality._720P)
+        runCurrent()
+        s.controller.moveToBackground()
+        s.server.startGate!!.complete(Unit)
+        advanceTimeBy(30_000)
+        assertEquals(1, s.engine.loads.size)
+        s.server.startGate = null
+        s.controller.resumeFromBackground()
+        runCurrent()
+        assertEquals(Quality._720P, s.server.starts.last().second.quality)
+        assertEquals(6_000L, s.server.starts.last().second.positionMs)
+        assertFalse(s.engine.loads.last().third)
+    }
+
+    @Test
+    fun theBusyRetriesStopInTheBackground() = runTest {
+        val server = FakeServer().apply { answer = { _, _ -> ApiResult.Failed(503, "transcode_busy") } }
+        val s = setup(server)
+        s.controller.start("film")
+        runCurrent()
+        s.controller.moveToBackground()
+        advanceTimeBy(60_000)
+        assertEquals(1, server.starts.size)
+        assertTrue(s.engine.loads.isEmpty())
+    }
+
+    @Test
+    fun aReconnectionDoesNotLoadInTheBackground() = runTest {
+        val s = setup()
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        s.engine.emit(EngineEvent.Failed(EngineFailure.Network))
+        runCurrent()
+        s.controller.moveToBackground()
+        advanceTimeBy(30_000)
+        assertEquals(1, s.engine.loads.size)
+        assertEquals(listOf("session-film"), s.server.stops)
+    }
+
+    // ---- old answers and old events (M-1, M-2) ---------------------------------------------------
+
+    @Test
+    fun aLateAnswerOfTheOldSessionDoesNotEndTheNewOne() = runTest {
+        val server = FakeServer().apply { answer = { id, r -> ApiResult.Ok(info(id, session = "s-${r.quality?.value ?: "auto"}")) } }
+        val s = setup(server)
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        server.stateGate = CompletableDeferred()
+        advanceTimeBy(4_001)
+        assertEquals(1, server.stateCalls)
+        s.controller.selectQuality(Quality._720P)
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        // The old session was stopped by the restart; its answer arrives now.
+        server.state = ApiResult.Ok(PlaybackSessionState(PlaybackSessionState.State.PlaybackStateStopped, PlaybackSessionState.StoppedBy.PlaybackStoppedByClient))
+        server.stateGate!!.complete(Unit)
+        runCurrent()
+        assertNull(s.controller.state.value.error)
+        server.stateGate = null
+        server.state = ApiResult.Ok(PlaybackSessionState(PlaybackSessionState.State.PlaybackStateActive))
+        s.controller.close()
+        runCurrent()
+        assertEquals(listOf("s-auto", "s-720p"), server.stops)
+    }
+
+    @Test
+    fun theEmptyTracksOfStopDoNotTakeTheNewLoad() = runTest {
+        val tracks = listOf(audio(10, 1, "deu"), audio(11, 2, "eng"))
+        val subs = listOf(subtitle(20, 3, "deu"))
+        val server = FakeServer().apply {
+            answer = { id, r -> ApiResult.Ok(info(id, audio = tracks, subtitles = subs, selection = TrackSelection(audioTrack = 2, subtitleTrack = 20), session = "s-${r.quality?.value ?: "auto"}")) }
+        }
+        val s = setup(server)
+        s.controller.start("film")
+        runCurrent()
+        val groups = listOf(group("de"), group("en", selected = true))
+        val text = listOf(EngineTrack("de", null, "application/x-subrip"))
+        s.engine.ready(groups, text)
+        runCurrent()
+        assertEquals(listOf(1), s.engine.audioSelections)
+        assertEquals(listOf<Int?>(0), s.engine.textSelections)
+        // A new quality: stop() sends empty tracks first; they must not count as the new file's.
+        s.controller.selectQuality(Quality._720P)
+        runCurrent()
+        assertEquals(2, server.starts.size)
+        s.engine.ready(groups, text)
+        runCurrent()
+        assertEquals("no third start from empty groups", 2, server.starts.size)
+        assertEquals(listOf(1, 1), s.engine.audioSelections)
+        assertEquals(listOf<Int?>(0, 0), s.engine.textSelections)
+        // A late failure of the first load means nothing for the second.
+        s.engine.emit(EngineEvent.Failed(EngineFailure.VideoDecoder), load = 1)
+        runCurrent()
+        assertEquals(2, server.starts.size)
+        assertNull(s.controller.state.value.error)
+    }
+
+    // ---- busy, settings, played time, countdown, choices (M-4, m-1 to m-6, L-5, L-7) ----------
+
+    @Test
+    fun aBusyServerAfterTheLastAttemptOffersRetry() = runTest {
+        val server = FakeServer().apply { answer = { _, _ -> ApiResult.Failed(503, "transcode_busy") } }
+        val s = setup(server)
+        s.controller.start("film")
+        runCurrent()
+        assertEquals(PlayerError.Busy(retrying = true), s.controller.state.value.error)
+        advanceTimeBy(PlaybackController.BUSY_RETRY_MS * (PlaybackController.BUSY_ATTEMPTS + 2))
+        assertEquals(PlaybackController.BUSY_ATTEMPTS + 1, server.starts.size)
+        assertEquals(PlayerError.Busy(retrying = false), s.controller.state.value.error)
+        server.answer = { id, _ -> ApiResult.Ok(info(id)) }
+        s.controller.retry()
+        runCurrent()
+        assertNull(s.controller.state.value.error)
+    }
+
+    @Test
+    fun theFirstStartWaitsForTheStoredSettings() = runTest {
+        val stored = MutableSharedFlow<DeviceSettings>(replay = 1)
+        val clock = { testScheduler.currentTime }
+        val engine = FakeEngine(clock)
+        val server = FakeServer()
+        val controller = PlaybackController(backgroundScope, backgroundScope, server, engine, { CapabilityRules.build(emulator, narrowing = it) }, stored, { false }, clock)
+        runCurrent()
+        controller.start("film")
+        runCurrent()
+        assertTrue("no start before the settings are known", server.starts.isEmpty())
+        stored.emit(DeviceSettings(qualityWifi = QualityChoice.Low))
+        runCurrent()
+        assertEquals(QualityCap._480P, server.starts.single().second.qualityCap)
+    }
+
+    @Test
+    fun aRestartReportsThePlayedTimeBeforeItStopsTheSession() = runTest {
+        val s = setup()
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(7_000)
+        s.controller.selectQuality(Quality._720P)
+        runCurrent()
+        val last = s.server.progress.single().second
+        assertEquals(7_000L, last.playedMs)
+        assertEquals(listOf("progress:session-film", "stop:session-film"), s.server.calls)
+    }
+
+    @Test
+    fun leavingSendsTheProgressBeforeTheStop() = runTest {
+        val s = setup()
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(3_000)
+        s.controller.close()
+        runCurrent()
+        assertEquals(listOf("progress:session-film", "stop:session-film"), s.server.calls)
+    }
+
+    @Test
+    fun thePausedCountdownStands() = runTest {
+        val next = ref("e2", kind = ItemKind.EPISODE, season = 1, episode = 2)
+        val server = FakeServer().apply { answer = { id, _ -> ApiResult.Ok(info(id, next = next.takeIf { id == "e1" }, outro = Segment(40_000, 60_000, Segment.Source.CHAPTER))) } }
+        val s = setup(server)
+        s.controller.start("e1")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(43_000)
+        s.controller.pause()
+        runCurrent()
+        val left = s.controller.state.value.countdown?.secondsLeft
+        advanceTimeBy(30_000)
+        assertEquals(1, server.starts.size)
+        assertEquals(left, s.controller.state.value.countdown?.secondsLeft)
+        s.controller.play()
+        runCurrent()
+        advanceTimeBy(8_000)
+        assertEquals("e2", server.starts.last().first)
+    }
+
+    @Test
+    fun whatIsChosenAlreadyStartsNothing() = runTest {
+        val tracks = listOf(audio(10, 1, "deu"), audio(11, 2, "eng"))
+        val server = FakeServer().apply { answer = { id, _ -> ApiResult.Ok(info(id, direct = false, audio = tracks)) } }
+        val s = setup(server)
+        s.controller.start("film")
+        runCurrent()
+        s.engine.ready(audio = listOf(group("de", selected = true)))
+        runCurrent()
+        s.controller.selectAudio(tracks[0])
+        s.controller.selectSubtitle(null)
+        s.controller.selectQuality(Quality.AUTO)
+        runCurrent()
+        assertEquals(1, server.starts.size)
+    }
+
+    @Test
+    fun theTrackChoiceOfOneFileDoesNotNarrowTheNextEpisode() = runTest {
+        val tracks = listOf(audio(10, 1, "deu"), audio(11, 2, "eng"))
+        val server = FakeServer().apply { answer = { id, _ -> ApiResult.Ok(info(id, audio = tracks, selection = TrackSelection(audioTrack = 2))) } }
+        val s = setup(server)
+        s.controller.start("e1")
+        runCurrent()
+        s.engine.ready(audio = listOf(group("fr"), group("it", selected = true)))
+        runCurrent()
+        assertEquals(false, server.starts.last().second.capabilities!!.selectsTracks)
+        s.controller.playEpisode("e2")
+        runCurrent()
+        assertEquals(true, server.starts.last().second.capabilities!!.selectsTracks)
+    }
+
+    @Test
+    fun anUnreadableContainerStartsOnceWithoutIt() = runTest {
+        val s = setup()
+        s.controller.start("film")
+        runCurrent()
+        s.engine.emit(EngineEvent.Failed(EngineFailure.Container))
+        runCurrent()
+        assertFalse("mkv" in s.server.starts.last().second.capabilities!!.containers!!)
+        s.engine.emit(EngineEvent.Failed(EngineFailure.Container))
+        runCurrent()
+        assertEquals(2, s.server.starts.size)
+        assertEquals(PlayerError.Unplayable, s.controller.state.value.error)
+    }
+
+    @Test
+    fun twoQuickEpisodeChangesEndEachSessionInOrder() = runTest {
+        val s = setup()
+        s.controller.start("e1")
+        runCurrent()
+        s.engine.ready()
+        runCurrent()
+        advanceTimeBy(2_000)
+        s.controller.playEpisode("e2")
+        s.controller.playEpisode("e3")
+        runCurrent()
+        // The start of e2 never went out: e3 took its place before the server was asked.
+        assertEquals(listOf("e1", "e3"), s.server.starts.map { it.first })
+        assertEquals(listOf("progress:session-e1", "stop:session-e1"), s.server.calls)
+        assertEquals(1, s.engine.loads.count { it.first.title == "Title e3" })
+    }
+
+    @Test
+    fun theStateLeavesTheStreamAddressesOut() {
+        val state = PlayerState(info = info("film"))
+        assertFalse(state.toString(), state.toString().contains("st="))
+        assertFalse(EngineMedia("http://server.test/a?st=secret", hls = false).toString().contains("secret"))
+        assertFalse(TrickplayTile("http://server.test/t?st=secret", 0, 0, 1, 1, 0).toString().contains("secret"))
     }
 }

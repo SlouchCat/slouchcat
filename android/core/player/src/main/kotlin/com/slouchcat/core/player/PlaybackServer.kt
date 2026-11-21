@@ -72,15 +72,21 @@ class ApiPlaybackServer(
 object ServerPaths {
     private const val API_PREFIX = "/api/v1/"
 
+    /**
+     * [path] under [server]; an absolute address only of the server's own origin (scheme, host,
+     * port), so a token in it never travels to another host or unencrypted when the server is not.
+     * Only `http` and `https` (OkHttp parses no other scheme).
+     */
     fun absolute(server: HttpUrl, path: String): String? {
         if (path.isBlank()) return null
         val base = SlouchcatApi.basePath(server)
         val url = when {
-            path.contains("://") -> path.toHttpUrlOrNull()?.takeIf { it.host == server.host && it.port == server.port }
+            path.contains("://") -> path.toHttpUrlOrNull()?.takeIf { it.scheme == server.scheme && it.host == server.host && it.port == server.port }
+            path.startsWith("//") -> null
             path.startsWith(API_PREFIX) -> (base + "/" + path.removePrefix(API_PREFIX)).toHttpUrlOrNull()
             else -> (base + "/" + path.trimStart('/')).toHttpUrlOrNull()
         }
-        return url?.toString()
+        return url?.takeIf { it.scheme == "http" || it.scheme == "https" }?.toString()
     }
 }
 
