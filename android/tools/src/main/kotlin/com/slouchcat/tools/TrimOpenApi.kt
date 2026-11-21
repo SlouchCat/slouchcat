@@ -98,7 +98,11 @@ object OpenApiTrimmer {
         fun scan(node: Any?) {
             when (node) {
                 is Map<*, *> -> node.forEach { (k, v) ->
-                    if (k == "\$ref" && v is String && v.startsWith("#/components/")) {
+                    if (k == "mapping" && v is Map<*, *>) {
+                        // discriminator.mapping: references without a $ref key.
+                        v.values.filterIsInstance<String>().filter { it.startsWith("#/components/") }
+                            .forEach { if (reached.add(it)) queue.add(it) }
+                    } else if (k == "\$ref" && v is String && v.startsWith("#/components/")) {
                         if (reached.add(v)) queue.add(v)
                     } else {
                         scan(v)

@@ -61,8 +61,12 @@ abstract class GenerateStrings : DefaultTask() {
  * - Key `ns.a.b-c` becomes the resource `ns_a_b_c`; two keys that end up with the same name stop
  *   the run.
  * - Plural forms `x_one`, `x_two`, `x_few`, `x_many`, `x_other` become `<plurals name="x">`.
+ *   A bare `x` next to `x_other` is the singular (as i18next reads it) when `x_one` is missing.
+ *   Every group needs `x_other`. A regional overlay (`de-DE`) gets the forms it lacks from its
+ *   base language (`de`): Android takes a <plurals> of one folder as a whole.
  * - `x_zero` becomes a string of its own, `x_zero`: Android never picks the quantity `zero` for
  *   German or English (stage 0, point 8), so a page that shows «none» asks for that text itself.
+ *   It needs the same key in English, the default of every string.
  * - Placeholders become positional arguments, the same positions in every language: `{{count}}`
  *   first (`%1$d`), then the other names in the order English uses them (`%2$s` …).
  *   `{{x, number}}` becomes `%N$s`; the page formats the number for the language first.
@@ -112,11 +116,21 @@ object StringsGenerator {
             xml.append("<!-- Generated from web/src/locales/$language.json; do not edit. -->\n")
             xml.append("<resources>\n")
             val groups = linkedMapOf<String, MutableMap<String, String>>()
+            val bare = mutableMapOf<String, String>()
             for ((key, value) in entries) {
                 // A plural form English lacks (`_few` in Russian) belongs to a group English has.
                 val base = plan.pluralBase(key)
                 if (base == null && key !in refEntries) throw Unsupported("$language: $key: not in $REFERENCE.json")
                 if (value !is String) throw Unsupported("$language: $key: not a text")
+                if (key.endsWith("_zero") && base != null && key !in refEntries) {
+                    // Android needs a default for every string; `values` would lack this one.
+                    throw Unsupported("$language: $key: _zero without the same text in $REFERENCE.json")
+                }
+                if (plan.isPluralBase(key)) {
+                    // i18next reads a bare `x` next to `x_other` as the singular.
+                    bare[key] = value
+                    continue
+                }
                 if (base != null && !key.endsWith("_zero")) {
                     groups.getOrPut(base) { linkedMapOf() }[key.substringAfterLast('_')] = value
                     continue
@@ -127,7 +141,24 @@ object StringsGenerator {
                 xml.append("    <string name=\"${resourceName(key)}\"$attr>$text</string>\n")
                 count++
             }
+            for ((base, value) in bare) {
+                groups.getOrPut(base) { linkedMapOf() }.putIfAbsent("one", value)
+            }
+            // Android resolves a <plurals> per configuration as a whole, not per item: a regional
+            // overlay (de-DE) with only `x_one` would hide `other` of values-de. Its groups are
+            // completed from the base language. pt-BR or zh-TW have no base file: they are whole.
+            val baseTree = languages[language.substringBefore('-')].takeIf { '-' in language }
+            if (baseTree != null) {
+                val baseEntries = flatten(baseTree).toMap()
+                for ((base, forms) in groups) {
+                    for (form in pluralForms - "zero") {
+                        val fallback = baseEntries["${base}_$form"] as? String ?: continue
+                        forms.putIfAbsent(form, fallback)
+                    }
+                }
+            }
             for ((base, forms) in groups) {
+                if ("other" !in forms) throw Unsupported("$language: $base: plural group without _other")
                 xml.append("    <plurals name=\"${resourceName(base)}\">\n")
                 for (form in pluralForms) {
                     val value = forms[form] ?: continue
@@ -182,6 +213,8 @@ object StringsGenerator {
         }
 
         fun pluralBase(key: String) = pluralBaseOf(key)
+
+        fun isPluralBase(key: String) = key in pluralBases
 
         fun arguments(group: String): List<String> = arguments[group].orEmpty()
     }

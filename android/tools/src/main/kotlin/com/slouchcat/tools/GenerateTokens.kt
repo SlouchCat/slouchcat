@@ -39,6 +39,11 @@ abstract class GenerateTokens : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val tokens: ConfigurableFileCollection
 
+    /** pnpm-lock.yaml: a new style-dictionary must not give the result of the old one from the cache. */
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val lockfile: RegularFileProperty
+
     /** The package folder, for the check that its dependencies are installed. */
     @get:Internal
     abstract val packageDir: DirectoryProperty

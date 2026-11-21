@@ -59,6 +59,28 @@ class OpenApiTrimmerTest {
         assertEquals(mapOf("type" to "string", "nullable" to true), sub)
     }
 
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun schemasReachedOnlyThroughADiscriminatorMappingStay() {
+        val root = load(
+            """
+            openapi: 3.1.0
+            info: {title: t, version: 1.0.0}
+            paths:
+              /x:
+                get: {x-visibility: public, responses: {'200': {content: {application/json: {schema: {${'$'}ref: '#/components/schemas/Event'}}}}}}
+            components:
+              schemas:
+                Event: {type: object, discriminator: {propertyName: kind, mapping: {a: '#/components/schemas/EventA'}}}
+                EventA: {type: object}
+                Unused: {type: object}
+            """,
+        )
+        OpenApiTrimmer.trim(root, "app", setOf("public"))
+        val schemas = (root["components"] as Map<String, Any?>)["schemas"] as Map<String, Any?>
+        assertEquals(setOf("Event", "EventA"), schemas.keys)
+    }
+
     @Test
     fun onceTheContractNamesClientsTheListDecides() {
         val op = { visibility: String, clients: List<String>? ->

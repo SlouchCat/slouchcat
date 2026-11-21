@@ -71,6 +71,48 @@ class StringsGeneratorTest {
     }
 
     @Test
+    fun aRegionalOverlayGetsTheMissingPluralFormsOfItsBaseLanguage() {
+        val result = gen(
+            "en" to """{"app":{"n_one":"{{count}} title","n_other":"{{count}} titles"}}""",
+            "de" to """{"app":{"n_one":"{{count}} Titel gross","n_other":"{{count}} Titel gross"}}""",
+            "de-DE" to """{"app":{"n_one":"{{count}} Titel groß"}}""",
+        )
+        val deDe = result.files.getValue("values-de-rDE")
+        assertTrue(deDe, "<item quantity=\"one\">%1\$d Titel groß</item>" in deDe)
+        assertTrue(deDe, "<item quantity=\"other\">%1\$d Titel gross</item>" in deDe)
+    }
+
+    @Test
+    fun aGroupWithoutOtherStops() {
+        val e = assertThrows(StringsGenerator.Unsupported::class.java) {
+            gen(
+                "en" to """{"app":{"n_one":"{{count}} title","n_other":"{{count}} titles"}}""",
+                "fr" to """{"app":{"n_one":"{{count}} titre"}}""",
+            )
+        }
+        assertTrue(e.message, "fr: app.n: plural group without _other" in e.message!!)
+    }
+
+    @Test
+    fun aBareKeyIsTheSingular() {
+        val result = gen("en" to """{"app":{"n":"one title","n_other":"{{count}} titles"}}""")
+        val en = result.files.getValue("values")
+        assertTrue(en, "<item quantity=\"one\">one title</item>" in en)
+        assertFalse(en, "<string name=\"app_n\">" in en)
+    }
+
+    @Test
+    fun zeroOnlyInATranslationStops() {
+        val e = assertThrows(StringsGenerator.Unsupported::class.java) {
+            gen(
+                "en" to """{"app":{"n_one":"{{count}} title","n_other":"{{count}} titles"}}""",
+                "de" to """{"app":{"n_zero":"Keine","n_one":"{{count}} Titel","n_other":"{{count}} Titel"}}""",
+            )
+        }
+        assertTrue(e.message, "de: app.n_zero: _zero without the same text in en.json" in e.message!!)
+    }
+
+    @Test
     fun escapesWhatAapt2Reads() {
         val result = gen(
             "en" to """{"app":{"q":"It's \"done\" & a < b > c 100%","sep":" · ","at":"@home","lines":"a\nb","p":"{{n}} at 100%"}}""",
