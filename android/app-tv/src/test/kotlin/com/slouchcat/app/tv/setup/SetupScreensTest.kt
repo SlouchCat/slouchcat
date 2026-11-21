@@ -161,7 +161,10 @@ class SetupScreensTest {
                 onConsent = { calls += "consent:$it" },
                 onNext = { calls += "next" },
                 onEmail = { calls += "email:$it" },
-                onPassword = { calls += "password" },
+                onPassword = {
+                    calls += "password"
+                    state = state.copy(password = it, error = null)
+                },
                 onTogglePassword = { calls += "show" },
                 onSignIn = { calls += "signin" },
                 onBack = { calls += "back" },
@@ -195,6 +198,17 @@ class SetupScreensTest {
         compose.onNodeWithText(s(R.string.tv_hand_wrong)).assertExists()
         remote.assertFocused(s(R.string.tv_hand_passwordLabel))
         remote.assertEveryControlReachable()
+        // After a wrong password: the field again, «Fertig» goes on to «Anmelden».
+        state = state.copy(password = "", error = HandError.InvalidCredentials)
+        remote.settle()
+        remote.assertFocused(s(R.string.tv_hand_passwordLabel))
+        remote.ok()
+        val passwordEditor = compose.onNode(hasSetTextAction() and hasContentDescription(s(R.string.tv_hand_passwordLabel)))
+        passwordEditor.performTextInput("right-password")
+        passwordEditor.performImeAction()
+        remote.settle()
+        assertEquals("password", calls.last())
+        remote.assertFocused(s(R.string.tv_hand_signIn))
         remote.back()
         assertEquals("back", calls.last())
     }

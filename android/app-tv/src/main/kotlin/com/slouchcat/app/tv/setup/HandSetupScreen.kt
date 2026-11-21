@@ -92,6 +92,11 @@ fun HandSetupScreen(
         HandStep.Password -> if (state.password.isNotEmpty()) "signin" else "password"
     }
     focus.StartFocus(start, state.step)
+    // A password typed: on to «Anmelden» (mockup: `focusTo('su-login')`), also when the field's own
+    // «Fertig» came before the new state (a second attempt after a wrong password).
+    LaunchedEffect(state.step == HandStep.Password && state.password.isNotEmpty()) {
+        if (state.step == HandStep.Password && state.password.isNotEmpty()) focus.focus("signin")
+    }
     // A failed sign-in goes back to the password (mockup: `focusTo('su-pw')`).
     LaunchedEffect(state.error) {
         if (state.error != null && state.step == HandStep.Password) focus.focus("password")

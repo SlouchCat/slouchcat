@@ -33,7 +33,7 @@ import java.net.UnknownHostException
 @OptIn(ExperimentalCoroutinesApi::class)
 class HandSetupViewModelTest {
     private val dispatcher = StandardTestDispatcher()
-    private val home = "http://192.168.1.20:8096/".toHttpUrl()
+    private val home = "http://172.16.5.20:8096/".toHttpUrl()
     private val remote = "http://media.example.test/".toHttpUrl()
     private val https = "https://media.example.test/".toHttpUrl()
 
@@ -45,7 +45,7 @@ class HandSetupViewModelTest {
 
     private val resolver = HostResolver { host ->
         when (host) {
-            "192.168.1.20" -> listOf(InetAddress.getByAddress(host, byteArrayOf(192.toByte(), 168.toByte(), 1, 20)))
+            "172.16.5.20" -> listOf(InetAddress.getByAddress(host, byteArrayOf(172.toByte(), 16, 5, 20)))
             "media.example.test" -> listOf(InetAddress.getByAddress(host, byteArrayOf(203.toByte(), 0, 113, 5)))
             else -> throw UnknownHostException(host)
         }
@@ -67,12 +67,12 @@ class HandSetupViewModelTest {
     @Test
     fun aServerInTheHomeNetworkNeedsNoWarningAndTheSignInIsOfKindTv() = runTest(dispatcher) {
         val s = setup(FakeProbe(found(home)))
-        s.vm.onAddress("http://192.168.1.20:8096/")
+        s.vm.onAddress("http://172.16.5.20:8096/")
         settle()
         val check = s.vm.state.value.check as AddressCheck.Found
         assertFalse(check.needsConsent)
         assertTrue(s.vm.state.value.serverReady)
-        assertEquals("http://192.168.1.20:8096", s.vm.state.value.address)
+        assertEquals("http://172.16.5.20:8096", s.vm.state.value.address)
         s.vm.onNext()
         assertEquals(HandStep.Email, s.vm.state.value.step)
         s.vm.onEmail("not-an-address")
@@ -91,7 +91,7 @@ class HandSetupViewModelTest {
         assertEquals(home, s.servers.flow.value?.address)
         assertEquals("key", s.servers.flow.value?.serverKey)
         assertTrue(s.session.state.value is SessionState.ChooseProfile)
-        assertEquals(listOf("192.168.1.20"), s.signedIn)
+        assertEquals(listOf("172.16.5.20"), s.signedIn)
     }
 
     @Test
@@ -137,7 +137,7 @@ class HandSetupViewModelTest {
         settle()
         assertEquals(AddressCheck.TooOld("1.41.0", "1.42.0"), s.vm.state.value.check)
         probe.result = ProbeResult.RequiresHttps(https)
-        s.vm.onAddress("http://192.168.1.20:8096")
+        s.vm.onAddress("http://172.16.5.20:8096")
         settle()
         assertEquals(AddressCheck.HttpsRequired("https://media.example.test"), s.vm.state.value.check)
         assertEquals("https://media.example.test", s.vm.state.value.address)
