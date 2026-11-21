@@ -1,0 +1,50 @@
+# Tasks of the relay module (concept 27 section 7: the meeting point service and the push
+# forwarder), included from the root Taskfile with dir ./relay (`task relay:<name>`). A Go module of
+# its own; golangci-lint is the one server/go.mod pins, run with relay/.golangci.yml.
+version: "3"
+
+vars:
+  VERSION:
+    sh: git describe --tags --match 'relay-v*' --always --dirty 2>/dev/null || echo dev
+
+tasks:
+  check:
+    desc: Build, go vet, gofmt and golangci-lint of the relay module (CI job "relay")
+    cmds:
+      - go build ./...
+      - go vet ./...
+      - task: lint
+
+  lint:
+    desc: golangci-lint with the server's version and relay/.golangci.yml
+    cmds:
+      # `go tool -n` prints the path of the server's pinned golangci-lint (building it once);
+      # the relay module does not carry the linter's dependencies itself.
+      - |
+        set -eu
+        lint=$(go -C ../server tool -n golangci-lint)
+        "$lint" run ./...
+
+  test:
+    desc: All relay tests under the race detector (waits for a heavy slot locally, scripts/heavy-slot.sh)
+    cmds:
+      - ../scripts/heavy-slot.sh go test -race -count=1 ./...
+
+  check:fast:
+    desc: Quick relay check while working, go vet and go test without the race detector (2 s)
+    cmds:
+      - go vet ./...
+      - go test -count=1 ./...
+
+  build:
+    desc: Static binaries of both services, the check programs, the watch and the fake into relay/bin
+    env:
+      CGO_ENABLED: "0"
+    cmds:
+      - for: [pair, push, paircheck, pushcheck, watch, fcmfake]
+        cmd: go build -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o bin/{{.ITEM}} ./cmd/{{.ITEM}}
+
+  vectors:
+    desc: Write testdata/crypto/pairing-v1.json anew (deterministic; a rerun changes nothing)
+    cmds:
+      - go test ./internal/pairing -run '^TestVectors$' -count=1 -update

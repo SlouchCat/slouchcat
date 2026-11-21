@@ -19,6 +19,10 @@ includes:
     taskfile: ./testdata/Taskfile.yml
     dir: ./testdata
     optional: true
+  relay:
+    taskfile: ./relay/Taskfile.yml
+    dir: ./relay
+    optional: true
 
 tasks:
   default:
@@ -109,8 +113,8 @@ tasks:
   # The fast checks of a change before a commit: the web half here, the server half in
   # server/Taskfile.yml (`server:check:fast`). Not a replacement for `task ci`.
   check:fast:
-    desc: Fast checks of what changed, web and server side by side (web:check:fast, server:check:fast)
-    deps: [web:check:fast, server:check:fast]
+    desc: Fast checks of what changed, web, server and relay side by side (web:check:fast, server:check:fast, relay:check:fast)
+    deps: [web:check:fast, server:check:fast, relay:check:fast]
 
   apicheck:
     desc: >-
@@ -127,6 +131,7 @@ tasks:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
       - task: ci:server
+      - task: ci:relay
       - task: ci:web
       - task: ci:storybook
       - task: build
@@ -141,6 +146,14 @@ tasks:
       - task: server:gen:check
       - task: server:lint
       - task: server:test
+
+  # The second Go module (concept 27 section 5.7): both relay services, their check programs and
+  # the fake of Google's push service. A job of its own in CI, "relay".
+  ci:relay:
+    desc: The relay half of `task ci` (CI job "relay"); build, vet, golangci-lint, tests under -race
+    cmds:
+      - task: relay:check
+      - task: relay:test
 
   ci:web:
     desc: The web linters and unit tests of `task ci` (CI job "web")
