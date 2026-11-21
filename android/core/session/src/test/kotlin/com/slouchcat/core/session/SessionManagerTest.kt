@@ -76,6 +76,22 @@ class SessionManagerTest {
     }
 
     @Test
+    fun anEditedProfileInUseChangesWithoutANewEpoch() = runTest(StandardTestDispatcher()) {
+        val accounts = Accounts("a@example.test", primary)
+        val session = manager(Servers(http), Tokens(StoredCredentials("token-1", "device-1")), accounts)
+        session.ready()
+        val epoch = session.epoch.value
+        val renamed = primary.copy(name = "Main", accent = "sky")
+        session.profileUpdated(renamed)
+        assertEquals(SessionState.Ready(http, "a@example.test", renamed), session.state.value)
+        assertEquals(renamed, accounts.profile)
+        assertEquals(epoch, session.epoch.value)
+        // Another profile than the one in use changes nothing.
+        session.profileUpdated(ActiveProfile(2, "Child", isPrimary = false))
+        assertEquals(renamed, accounts.profile)
+    }
+
+    @Test
     fun aLostTokenForgetsAccountAndProfile() = runTest(StandardTestDispatcher()) {
         val accounts = Accounts("a@example.test", primary)
         val session = manager(Servers(http), Tokens(null), accounts)

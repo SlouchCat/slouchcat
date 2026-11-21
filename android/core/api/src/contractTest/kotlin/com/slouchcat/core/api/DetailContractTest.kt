@@ -149,7 +149,7 @@ class DetailContractTest {
      * The administration as a browser uses it: a cookie session of the owner with the primary
      * profile. Only for preparing the server; the generated client of the app has no admin calls.
      */
-    private class Admin(private val base: HttpUrl) {
+    internal class Admin(private val base: HttpUrl) {
         private val cookies = mutableListOf<Cookie>()
         private val http = OkHttpClient.Builder()
             .cookieJar(object : CookieJar {

@@ -115,7 +115,7 @@ fun SearchScreen(
     val wide = isWideLayout()
     val list = rememberLazyListState()
     val hits = (state.hits as? Loadable.Ready)?.value
-    if (hits != null) {
+    if (hits != null && hits.hasMore) {
         val nearEnd by remember(list) {
             derivedStateOf {
                 val info = list.layoutInfo
