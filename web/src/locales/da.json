@@ -32,10 +32,6 @@
         "confirm": "Forbind alligevel"
       }
     },
-    "connected": {
-      "title": "Forbundet til {{host}}",
-      "change": "Skift adresse"
-    },
     "state": {
       "loading": "Indlæser…",
       "offline": "Serveren svarer ikke. Kontrollér forbindelsen.",
@@ -48,10 +44,6 @@
       "title": "Opdatér appen",
       "body": "Din server kræver en nyere version af appen.",
       "close": "Luk"
-    },
-    "connectedState": {
-      "empty": "Der er ikke sat nogen server op endnu.",
-      "setUp": "Sæt server op"
     },
     "tls": {
       "userCertificate": "Krypteret med et certifikat, du selv har installeret",

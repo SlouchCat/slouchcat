@@ -32,10 +32,6 @@
         "confirm": "Přesto připojit"
       }
     },
-    "connected": {
-      "title": "Připojeno k {{host}}",
-      "change": "Změnit adresu"
-    },
     "state": {
       "loading": "Načítání…",
       "offline": "Server neodpovídá. Zkontrolujte připojení.",
@@ -48,10 +44,6 @@
       "title": "Aktualizujte prosím aplikaci",
       "body": "Váš server potřebuje novější verzi aplikace.",
       "close": "Zavřít"
-    },
-    "connectedState": {
-      "empty": "Zatím není nastaven žádný server.",
-      "setUp": "Nastavit server"
     },
     "tls": {
       "userCertificate": "Šifrováno certifikátem, který jste sami nainstalovali",

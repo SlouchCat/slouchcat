@@ -32,10 +32,6 @@
         "confirm": "Koble til likevel"
       }
     },
-    "connected": {
-      "title": "Koblet til {{host}}",
-      "change": "Endre adresse"
-    },
     "state": {
       "loading": "Laster inn…",
       "offline": "Serveren svarer ikke. Sjekk tilkoblingen.",
@@ -48,10 +44,6 @@
       "title": "Oppdater appen",
       "body": "Serveren din trenger en nyere versjon av appen.",
       "close": "Lukk"
-    },
-    "connectedState": {
-      "empty": "Ingen server er satt opp ennå.",
-      "setUp": "Sett opp server"
     },
     "tls": {
       "userCertificate": "Kryptert med et sertifikat du har installert selv",

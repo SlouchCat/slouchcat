@@ -32,10 +32,6 @@
         "confirm": "Toch verbinden"
       }
     },
-    "connected": {
-      "title": "Verbonden met {{host}}",
-      "change": "Adres wijzigen"
-    },
     "state": {
       "loading": "Laden…",
       "offline": "De server reageert niet. Controleer de verbinding.",
@@ -48,10 +44,6 @@
       "title": "Werk de app bij",
       "body": "Je server heeft een nieuwere versie van de app nodig.",
       "close": "Sluiten"
-    },
-    "connectedState": {
-      "empty": "Nog geen server ingesteld.",
-      "setUp": "Server instellen"
     },
     "tls": {
       "userCertificate": "Versleuteld met een certificaat dat je zelf hebt geïnstalleerd",

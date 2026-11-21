@@ -32,10 +32,6 @@
         "confirm": "仍然连接"
       }
     },
-    "connected": {
-      "title": "已连接到 {{host}}",
-      "change": "更改地址"
-    },
     "state": {
       "loading": "正在加载…",
       "offline": "服务器没有响应。请检查连接。",
@@ -48,10 +44,6 @@
       "title": "请更新应用",
       "body": "你的服务器需要更新版本的应用。",
       "close": "关闭"
-    },
-    "connectedState": {
-      "empty": "尚未设置服务器。",
-      "setUp": "设置服务器"
     },
     "tls": {
       "userCertificate": "使用你自行安装的证书加密",
