@@ -1,0 +1,62 @@
+{
+  "format": "slouchcat-x-clients-v1",
+  "source": "v1.41.3",
+  "contractVersion": "1.41.0",
+  "operations": {
+    "checkOfflineRevocations": {
+      "method": "POST",
+      "path": "/offline/revocations",
+      "clients": [
+        "app"
+      ],
+      "requestFields": {
+        "body.$": "object",
+        "body.$.ids": "array",
+        "body.$.ids[]": "string"
+      },
+      "requestRequired": [
+        "body.$",
+        "body.$.ids"
+      ],
+      "requestEnums": {},
+      "responses": {
+        "200": {
+          "fields": {
+            "$": "object",
+            "$.revoked": "array",
+            "$.revoked[]": "string"
+          },
+          "required": [
+            "$.revoked"
+          ]
+        }
+      }
+    },
+    "getHealth": {
+      "method": "GET",
+      "path": "/healthz",
+      "clients": [
+        "app",
+        "tv"
+      ],
+      "requestFields": {},
+      "requestRequired": [],
+      "requestEnums": {},
+      "responses": {
+        "200": {
+          "fields": {
+            "$": "object",
+            "$.status": "string",
+            "$.uptimeSeconds": "integer",
+            "$.version": "string"
+          },
+          "required": [
+            "$.status",
+            "$.uptimeSeconds",
+            "$.version"
+          ]
+        }
+      }
+    }
+  }
+}

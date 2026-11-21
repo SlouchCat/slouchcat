@@ -100,6 +100,13 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
      main, dessen Inhalt ein grüner PR-Lauf schon vollständig geprüft hat, übernimmt dieses Ergebnis
      (ADR 0013, Nachtrag 15. November 2026); sonst und einmal pro Woche prüft die CI main vollständig.
 - Messwerte nach `docs/perf/<Mx>.md`; neue Architekturentscheide als ADR in `docs/adr/`.
+- **Verträglichkeit für die Apps:** Neben der Regel «Vertrag = Tag» (jede veröffentlichte
+  Vertragsfassung hat ihren Tag) gilt für Operationen mit `x-clients` und die öffentlichen
+  Operationen der Apps `docs/dev/VERTRAEGLICHKEIT.md`: kein Bruch von einem Release aufs nächste,
+  sondern alt und neu nebeneinander, mindestens 90 Tage und mindestens 30 Tage nach einer
+  App-Version im Store, die das Neue kann. `TestXClientsCompatibility` prüft es gegen den Stand aus
+  `task server:freeze:x-clients`. Verbindlich ab der ersten öffentlichen App-Version (K27 Stufe 10);
+  bis dahin Übung.
 - Platzhalter wie TODO ohne Umsetzung, übersprungene Tests oder Stub-Tests gelten als Blocker, nicht als
   Fortschritt.
 
