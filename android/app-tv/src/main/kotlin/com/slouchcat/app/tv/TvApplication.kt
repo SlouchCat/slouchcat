@@ -105,8 +105,12 @@ class TvGraph(
 
     private val network = NetworkMonitor { http.connectionPool.evictAll() }
 
-    /** For what is public and comes before any trust: `getHealth`, `proveServer`, the relay. */
-    val publicClient: OkHttpClient = SlouchcatHttp.client(identity, builder = OkHttpClient.Builder().callTimeout(PROOF_TIMEOUT))
+    /**
+     * For what is public and comes before any trust: `getHealth`, `proveServer`, the relay. Follows no
+     * redirect: a 307 would carry key or pickup secret to another host (review N-5); the relay never
+     * redirects.
+     */
+    val publicClient: OkHttpClient = SlouchcatHttp.client(identity, builder = OkHttpClient.Builder().callTimeout(PROOF_TIMEOUT).followRedirects(false))
 
     /** «Server weist sich aus» in front of every request to a server over HTTP (F-38); the TV's key comes with the packet. */
     val identityGate = ServerIdentityGate(session, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT)
@@ -121,14 +125,22 @@ class TvGraph(
 
     /**
      * The redeem of a pairing: a client of its own for the server of the packet, without the
-     * session's credentials, with «Server weist sich aus» against the packet's key.
+     * session's credentials, with «Server weist sich aus» against the packet's key, following no
+     * redirect (the voucher goes only to the address the phone sent).
      */
-    val redeemer: Redeemer = redeemer ?: ApiRedeemer(api) { server, key ->
+    val redeemer: Redeemer = redeemer ?: ApiRedeemer(api, ::redeemClient)
+
+    /** The client of one redeem: no session, «Server weist sich aus» against [key], no redirect. */
+    fun redeemClient(server: HttpUrl, key: String): OkHttpClient {
         val trusted = object : TrustedServer {
             override val server: HttpUrl = server
             override val serverKey: String = key
         }
-        SlouchcatHttp.client(identity, gate = ServerIdentityGate(trusted, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT))
+        return SlouchcatHttp.client(
+            identity,
+            builder = OkHttpClient.Builder().followRedirects(false),
+            gate = ServerIdentityGate(trusted, network, ApiServerProver(publicClient), timeout = PROOF_TIMEOUT),
+        )
     }
 
     /** A pairing against the relay in use (read when the QR code page opens). */
@@ -145,6 +157,9 @@ class TvGraph(
 
     /** Short messages of the app (`toast()`), also across a new session epoch. */
     val toasts = TvToasts()
+
+    /** Play/pause, next, previous … of the remote, for the page that is seen (`OnRemoteKey`). */
+    val remoteKeys = com.slouchcat.app.tv.ui.TvRemoteKeys()
 
     /** Images over [http]: the same headers, the same gate. */
     val imageLoader: ImageLoader = ImageLoader.Builder(appContext)

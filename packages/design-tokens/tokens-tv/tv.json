@@ -420,6 +420,10 @@
         "step": {
           "$value": "30px"
         },
+        "step-text": {
+          "$value": "460px",
+          "$description": ".su-steps li max-width 920px"
+        },
         "wait-top": {
           "$value": "28px"
         },
@@ -528,6 +532,52 @@
         },
         "top": {
           "$value": "20px"
+        }
+      },
+      "card": {
+        "$description": "Title cards, rows and grids (.tc, .trow, .rinfo of the mockup)",
+        "width": {
+          "$value": "110px",
+          "$description": "--card-w, poster 2:3"
+        },
+        "square": {
+          "$value": "140px",
+          "$description": "--card-sq"
+        },
+        "wide": {
+          "$value": "210px",
+          "$description": "--card-wide, 16:9"
+        },
+        "row-top": {
+          "$value": "13px",
+          "$description": ".trow padding-top: room for the focus scale"
+        },
+        "row-bottom": {
+          "$value": "11px"
+        },
+        "ring": {
+          "$value": "3px",
+          "$description": "the light ring of a focused card"
+        },
+        "ring-gap": {
+          "$value": "2px",
+          "$description": "the dark gap between card and ring"
+        },
+        "info": {
+          "$value": "22px",
+          "$description": ".rinfo min-height"
+        },
+        "info-gap": {
+          "$value": "10px"
+        },
+        "caption-x": {
+          "$value": "11px"
+        },
+        "caption-y": {
+          "$value": "12px"
+        },
+        "progress": {
+          "$value": "4px"
         }
       }
     },

@@ -86,6 +86,7 @@ object ShellTags {
     const val CONTENT = "tv-content"
     fun entry(key: String) = "tv-rail-$key"
     const val PROFILE = "tv-rail-profile"
+    const val CLOCK = "tv-clock"
 }
 
 /**
@@ -130,7 +131,7 @@ fun TvShell(
         if (showRail) {
             val scrim by animateFloatAsState(if (open) TvMotion.railScrim else 0f, tween(TvMotion.RAIL_MS))
             Box(Modifier.fillMaxSize().zIndex(1f).alpha(scrim).background(SlouchcatTheme.colors.scrim))
-            Clock(Modifier.align(Alignment.TopEnd).padding(top = TvDimens.safeY, end = TvDimens.safeX).zIndex(1f))
+            Clock(Modifier.align(Alignment.TopEnd).padding(top = TvDimens.safeY, end = TvDimens.safeX).zIndex(1f).testTag(ShellTags.CLOCK))
             Rail(
                 rail = rail,
                 media = media,
