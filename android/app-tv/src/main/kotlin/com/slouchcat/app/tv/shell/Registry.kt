@@ -48,11 +48,19 @@ data class RailEntry(
     val label: Label,
     val icon: ImageVector,
     val route: Any,
-    /** Whether [entry] is this entry's page (marks it); the default compares the route class. */
+    /**
+     * Whether [entry] is this entry's page or a page below it (marks it); the default compares the
+     * route class. Media entries must bring it: all libraries share one route class.
+     */
     val isCurrent: ((NavBackStackEntry) -> Boolean)? = null,
 )
 
-/** Makes media entries of the rail from the libraries the active profile sees (stage 2b, 4). */
+/**
+ * Makes media entries of the rail from the libraries the active profile sees (stage 2b, 4): one
+ * entry per library, section [RailSection.Media], each with its own `isCurrent` (for example
+ * `{ it.isRoute(LibraryRoute::class) && it.toRoute<LibraryRoute>().id == library.id }` plus the pages
+ * of that library), so a library opened from Start or Suche is marked as well.
+ */
 fun interface RailMedia {
     fun entries(libraries: List<LibraryNav>): List<RailEntry>
 }
@@ -62,7 +70,8 @@ fun interface RailMedia {
  * wechseln», «Server und Konto», «Über» and «Erweitert»; later stages add theirs (Profile
  * verwalten 2b, Wiedergabe 3, Webradio 4, Benachrichtigungen 5). [order]: Profil wechseln 10,
  * Profile verwalten 20, Wiedergabe 30, Benachrichtigungen 40, Webradio 50, Server 60, Über 70,
- * Erweitert 80. [pane] draws the right half while the row has the focus.
+ * Erweitert 80 ([SettingsOrder], [BUILT_IN_SETTINGS]). [pane] draws the right half while the row
+ * has the focus.
  */
 data class SettingsEntry(
     val key: String,
@@ -72,6 +81,22 @@ data class SettingsEntry(
     val route: Any,
     val subtitle: (@Composable (TvGraph) -> String?)? = null,
     val pane: (@Composable (TvGraph) -> Unit)? = null,
+)
+
+/** The places of the rows the shell brings itself on «Einstellungen». */
+object SettingsOrder {
+    const val SWITCH_PROFILE = 10
+    const val SERVER = 60
+    const val ABOUT = 70
+    const val ADVANCED = 80
+}
+
+/** Keys and places of the shell's own settings rows: a feature takes neither (review M-2). */
+val BUILT_IN_SETTINGS: Map<String, Int> = mapOf(
+    "profile" to SettingsOrder.SWITCH_PROFILE,
+    "server" to SettingsOrder.SERVER,
+    "about" to SettingsOrder.ABOUT,
+    "advanced" to SettingsOrder.ADVANCED,
 )
 
 /**
@@ -96,7 +121,11 @@ interface TvFeature {
 /** What a feature's destinations get: the dependencies and the navigation of the app. */
 class TvScope(val graph: TvGraph, val navigator: TvNavigator)
 
-/** Everything the features add, collected once and checked. */
+/**
+ * Everything the features add, collected once and checked: no key or place twice (also against
+ * the shell's own settings rows). `RegistryTest` builds it from the real list `features`, so a
+ * clash of two stages fails in the CI and not at the start of the app.
+ */
 class TvRegistry(val features: List<TvFeature>) {
     val rail: List<RailEntry> = features.flatMap { it.rail }.sortedWith(compareBy({ it.section }, { it.order }))
     val media: List<RailMedia> = features.flatMap { it.media }
@@ -112,8 +141,9 @@ class TvRegistry(val features: List<TvFeature>) {
         requireUnique("rail entry key", rail.map { it.key })
         requireUnique("rail entry order", rail.map { it.section to it.order })
         requireUnique("rail entry route", rail.map { it.route::class })
-        requireUnique("settings row", settings.map { it.key })
-        requireUnique("settings order", settings.map { it.order })
+        requireUnique("settings row", settings.map { it.key } + BUILT_IN_SETTINGS.keys)
+        requireUnique("settings order", settings.map { it.order } + BUILT_IN_SETTINGS.values)
+        require(rail.none { it.section == RailSection.Media }) { "media entries come from RailMedia, not from rail" }
     }
 
     /** Where the app lands after the profile choice: Start once it exists, else the first entry. */
@@ -123,7 +153,10 @@ class TvRegistry(val features: List<TvFeature>) {
 
     fun mediaEntries(libraries: List<LibraryNav>): List<RailEntry> {
         val entries = media.flatMap { it.entries(libraries) }.sortedBy { it.order }
-        requireUnique("media entry", entries.map { it.key })
+        requireUnique("media entry", entries.map { it.key } + rail.map { it.key })
+        require(entries.all { it.section == RailSection.Media && it.isCurrent != null }) {
+            "a media entry needs section Media and its own isCurrent: ${entries.filter { it.isCurrent == null }.map { it.key }}"
+        }
         return entries
     }
 

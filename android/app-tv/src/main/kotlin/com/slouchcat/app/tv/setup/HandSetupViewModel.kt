@@ -3,6 +3,7 @@ package com.slouchcat.app.tv.setup
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.slouchcat.app.tv.common.takeServer
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.AppLogin
@@ -20,15 +21,12 @@ import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.SessionManager
-import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.net.UnknownHostException
 import java.security.GeneralSecurityException
@@ -118,7 +116,7 @@ class HandSetupViewModel(
     private val session: SessionManager,
     private val auth: AuthRepository,
     private val device: DeviceDescription,
-    /** After the sign-in, with the server's host (the message «Verbunden mit …»). */
+    /** After the sign-in, with the whole server address (the message «Verbunden mit …», K-9). */
     private val onSignedIn: (host: String) -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow(
@@ -244,13 +242,10 @@ class HandSetupViewModel(
     private suspend fun signIn(info: ServerInfo, email: String, password: String): HandError? {
         val server = SavedServer(info.address, info.version, info.userCertificate, info.serverKey)
         if (server.needsSetup) return HandError.Failed
-        servers.save(server)
         // The session takes the server first (it forgets the session of any other one).
-        withTimeoutOrNull(STORE_WAIT_MS) {
-            session.state.first { s -> s is SessionState.SignedOut && s.server.address == server.address && s.server.serverKey == server.serverKey }
-        } ?: return HandError.Failed
+        if (!session.takeServer(servers, server)) return HandError.Failed
         return when (val result = auth.appLogin(server.address, email, password, device, session.knownDeviceId)) {
-            is ApiResult.Ok -> store(result.value).also { if (it == null) onSignedIn(server.address.host) }
+            is ApiResult.Ok -> store(result.value).also { if (it == null) onSignedIn(ServerAddress.display(server.address)) }
             is ApiResult.Failed -> when {
                 result.code == ApiCaller.INVALID_CREDENTIALS -> HandError.InvalidCredentials
                 result.code == ApiCaller.SERVER_UNCONFIRMED -> HandError.ServerUnconfirmed
@@ -283,6 +278,5 @@ class HandSetupViewModel(
         const val EMAIL = "email"
         const val HTTP_TOO_MANY = 429
         const val DEFAULT_PAUSE = 60L
-        const val STORE_WAIT_MS = 5_000L
     }
 }

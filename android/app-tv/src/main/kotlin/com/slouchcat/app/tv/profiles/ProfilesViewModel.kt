@@ -11,6 +11,7 @@ import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.api.generated.models.SessionInfo
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.AuthRepository
+import com.slouchcat.core.session.ServerAddress
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Job
@@ -53,7 +54,8 @@ data class ProfilesUiState(
     /** The profile the session ran as last (the ring in the mockup). */
     val current: Long? = null,
     val email: String = "",
-    val host: String = "",
+    /** The whole server address with scheme and port (K-9, review N-2). */
+    val server: String = "",
     val pin: PinState? = null,
     /** A profile without PIN is being activated. */
     val selecting: Long? = null,
@@ -85,8 +87,8 @@ class ProfilesViewModel(
 
     init {
         when (val now = session.state.value) {
-            is SessionState.ChooseProfile -> _state.update { it.copy(email = now.email, host = now.server.address.host) }
-            is SessionState.Ready -> _state.update { it.copy(email = now.email, host = now.server.address.host, current = now.profile.id) }
+            is SessionState.ChooseProfile -> _state.update { it.copy(email = now.email, server = ServerAddress.display(now.server.address)) }
+            is SessionState.Ready -> _state.update { it.copy(email = now.email, server = ServerAddress.display(now.server.address), current = now.profile.id) }
             else -> Unit
         }
         load()

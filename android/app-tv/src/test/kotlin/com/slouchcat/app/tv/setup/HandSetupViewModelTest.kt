@@ -91,7 +91,7 @@ class HandSetupViewModelTest {
         assertEquals(home, s.servers.flow.value?.address)
         assertEquals("key", s.servers.flow.value?.serverKey)
         assertTrue(s.session.state.value is SessionState.ChooseProfile)
-        assertEquals(listOf("172.16.5.20"), s.signedIn)
+        assertEquals(listOf("http://172.16.5.20:8096"), s.signedIn)
     }
 
     @Test

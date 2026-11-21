@@ -145,7 +145,8 @@ class RelayClient(private val http: Call.Factory, val base: HttpUrl) {
     private suspend fun send(request: Request): Answer? = try {
         runInterruptible(Dispatchers.IO) {
             http.newCall(request).execute().use { response ->
-                Answer(response.code, response.body.string().take(MAX_ANSWER))
+                // At most MAX_ANSWER bytes are read: the relay is set by the user (review N-6).
+                Answer(response.code, response.peekBody(MAX_ANSWER.toLong()).string())
             }
         }
     } catch (e: IOException) {

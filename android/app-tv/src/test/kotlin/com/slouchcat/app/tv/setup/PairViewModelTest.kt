@@ -15,6 +15,10 @@ import com.slouchcat.core.pairing.TvPairing
 import com.slouchcat.core.session.ProbeResult
 import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.SessionState
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +35,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.Instant
+import kotlin.reflect.KClass
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PairViewModelTest {
@@ -54,6 +59,9 @@ class PairViewModelTest {
         var startAnswer: TvPairing.Started? = null
         var waited = CompletableDeferred<TvPairing.Waited>()
         var redeem: TvPairing.Redeem = TvPairing.Redeem.Ok(answer)
+        /** When set, the redeem waits for it (a slow server). */
+        var redeemGate: CompletableDeferred<Unit>? = null
+        val polls = mutableListOf<TvPairing.Meeting>()
         val redeemed = mutableListOf<HttpUrl>()
         val discarded = mutableListOf<String>()
         var lastUntil: Instant? = null
@@ -69,10 +77,12 @@ class PairViewModelTest {
 
         override suspend fun awaitPacket(meeting: TvPairing.Meeting, until: Instant): TvPairing.Waited {
             lastUntil = until
+            polls += meeting
             return waited.await().also { waited = CompletableDeferred() }
         }
 
         override suspend fun redeem(meeting: TvPairing.Meeting, packet: PairingPacket, server: HttpUrl, deviceName: String, systemVersion: String): TvPairing.Redeem {
+            redeemGate?.await()
             redeemed += server
             return redeem
         }
@@ -107,6 +117,7 @@ class PairViewModelTest {
             now = { START.plusMillis(testScheduler.currentTime) },
             renewals = renewals,
         )
+        vm.onVisible()
         return Triple(vm, servers, session)
     }
 
@@ -127,7 +138,8 @@ class PairViewModelTest {
         flow.waited.complete(TvPairing.Waited.Packet(packet))
         step()
         val linked = vm.state.value.phase as PairPhase.Linked
-        assertEquals(PairPhase.Linked("192.0.2.10", false, "owner@example.test", TV_DEVICE.name, 10), linked)
+        // K-9: the whole address with scheme and port.
+        assertEquals(PairPhase.Linked("http://192.0.2.10:8096", false, "owner@example.test", TV_DEVICE.name, 10), linked)
         assertEquals(listOf(server), flow.redeemed)
         // Nothing is stored before «Weiter»; the meeting point is given up.
         assertEquals(null, servers.flow.value)
@@ -253,6 +265,103 @@ class PairViewModelTest {
         step()
         assertTrue(vm.state.value.phase is PairPhase.Waiting)
         assertEquals(2, flow.started.size)
+    }
+
+    @Test
+    fun aHiddenPageStopsPollingGivesTheMeetingUpAndRedeemsNothing() = runTest(dispatcher) {
+        val (vm, servers, _) = model()
+        step()
+        assertTrue(vm.state.value.phase is PairPhase.Waiting)
+        val first = flow.started.single()
+        vm.onHidden()
+        step()
+        assertEquals(listOf(first), flow.closed)
+        assertEquals(PairPhase.Starting, vm.state.value.phase)
+        // A packet laid down now comes to nobody: no poll is waiting, nothing is redeemed.
+        flow.waited.complete(TvPairing.Waited.Packet(packet))
+        testScheduler.advanceTimeBy(15 * 60_000L)
+        step()
+        assertEquals(1, flow.started.size)
+        assertEquals(1, flow.polls.size)
+        assertTrue(flow.redeemed.isEmpty())
+        assertEquals(null, servers.flow.value)
+        // Back on the page: a new code with a new meeting point.
+        flow.waited = CompletableDeferred()
+        vm.onVisible()
+        step()
+        assertEquals(2, flow.started.size)
+        assertEquals(flow.started[1].code.text, (vm.state.value.phase as PairPhase.Waiting).code)
+    }
+
+    @Test
+    fun aHiddenPageEndsALinkedSessionAndNeverGoesOnByItself() = runTest(dispatcher) {
+        val (vm, servers, session) = model()
+        step()
+        flow.waited.complete(TvPairing.Waited.Packet(packet))
+        step()
+        assertTrue(vm.state.value.phase is PairPhase.Linked)
+        vm.onHidden()
+        testScheduler.advanceTimeBy(30_000)
+        step()
+        assertEquals(listOf("device-token"), flow.discarded)
+        assertEquals(null, servers.flow.value)
+        assertEquals(null, session.bearerToken)
+        vm.onContinue()
+        step()
+        assertEquals(null, servers.flow.value)
+    }
+
+    @Test
+    fun aPageHiddenWhileRedeemingKeepsNoSession() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        flow.redeemGate = gate
+        val (vm, servers, _) = model()
+        step()
+        flow.waited.complete(TvPairing.Waited.Packet(packet))
+        step()
+        assertEquals(PairPhase.Connecting, vm.state.value.phase)
+        vm.onHidden()
+        gate.complete(Unit)
+        testScheduler.advanceTimeBy(30_000)
+        step()
+        assertTrue(vm.state.value.phase !is PairPhase.Linked)
+        assertEquals(null, servers.flow.value)
+    }
+
+    @Test
+    fun aClearedViewModelGivesUpTheMeetingAndAnUnconfirmedSession() = runTest(dispatcher) {
+        val (vm, _, _) = model()
+        val store = ViewModelStore()
+        ViewModelProvider.create(store, object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T = vm as T
+        })[PairViewModel::class]
+        step()
+        flow.waited.complete(TvPairing.Waited.Packet(packet))
+        step()
+        assertTrue(vm.state.value.phase is PairPhase.Linked)
+        store.clear()
+        step()
+        assertEquals(listOf("device-token"), flow.discarded)
+    }
+
+    @Test
+    fun aServerThatAlwaysRefusesTheVoucherDoesNotKeepTheTvPolling() = runTest(dispatcher) {
+        flow.redeem = TvPairing.Redeem.VoucherInvalid
+        val (vm, _, _) = model(renewals = 2)
+        step()
+        repeat(3) {
+            flow.waited.complete(TvPairing.Waited.Packet(packet))
+            step()
+        }
+        assertEquals(PairPhase.Expired, vm.state.value.phase)
+        assertEquals(3, flow.started.size)
+    }
+
+    @Test
+    fun theWaitingStateKeepsTheCodeOutOfItsText() {
+        val waiting = PairPhase.Waiting("https://pair.example.test/tv#v=1&i=AAAA&k=BBBB", 12)
+        assertEquals("Waiting(secondsLeft=12)", waiting.toString())
     }
 
     @Test

@@ -12,6 +12,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.tv.material3.Text
+import com.slouchcat.app.tv.BuildConfig
 import com.slouchcat.app.tv.common.RelaySettings
 import com.slouchcat.app.tv.ui.NoteTone
 import com.slouchcat.app.tv.ui.TvActions
@@ -29,8 +30,15 @@ import com.slouchcat.core.session.ServerAddress
 import com.slouchcat.core.strings.R
 import okhttp3.HttpUrl
 
-/** A relay address as the user typed it; `null` when it is none (http or https with a host). */
-fun parseRelay(text: String): HttpUrl? = (ServerAddress.parse(text) as? ParsedAddress.Valid)?.url
+/**
+ * A relay address as the user typed it; `null` when it is none. Only `https`: over plain HTTP the
+ * pickup secret travels in the open and whoever reads along takes the packet first (review N-7).
+ * Plain HTTP only in the debug build (a local relay in development) or [allowPlainHttp].
+ */
+fun parseRelay(text: String, allowPlainHttp: Boolean = BuildConfig.DEBUG): HttpUrl? {
+    val url = (ServerAddress.parse(text) as? ParsedAddress.Valid)?.url ?: return null
+    return url.takeIf { it.isHttps || allowPlainHttp }
+}
 
 /**
  * «Adresse der Vermittlung» (advanced, F-21): the relay the QR code names. Only for whoever runs a

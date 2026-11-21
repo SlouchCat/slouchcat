@@ -142,7 +142,7 @@ fun ProfilesScreen(
                 }
             }
         }
-        Connected(state.host, state.email, Modifier.align(Alignment.BottomCenter))
+        Connected(state.server, state.email, Modifier.align(Alignment.BottomCenter))
     }
     state.pin?.let { pin -> PinDialog(pin, onDigit, onDelete, onSubmitPin, onCancelPin) }
     val start = when {

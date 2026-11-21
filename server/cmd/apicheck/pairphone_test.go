@@ -1,6 +1,21 @@
 package main
 
-import "testing"
+import (
+	"net/http"
+	"strings"
+	"testing"
+)
+
+func TestExpectSecretNamesNoPartOfTheBody(t *testing.T) {
+	r := &response{status: http.StatusCreated, body: []byte(`{"token":"secret-device-token"}`)}
+	err := r.expectSecret(http.MethodPost, "/auth/app-login", http.StatusOK)
+	if err == nil || strings.Contains(err.Error(), "secret-device-token") {
+		t.Fatalf("error %v", err)
+	}
+	if err := r.expectSecret(http.MethodPost, "/auth/app-login", http.StatusCreated); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestParsePairCode(t *testing.T) {
 	id := "AAECAwQFBgcICQoLDA0ODw"

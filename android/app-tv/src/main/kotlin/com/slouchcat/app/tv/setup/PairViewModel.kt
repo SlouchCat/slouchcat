@@ -2,6 +2,8 @@ package com.slouchcat.app.tv.setup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.slouchcat.app.tv.common.RelaySettings
+import com.slouchcat.app.tv.common.takeServer
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.pairing.PairingFlow
 import com.slouchcat.core.pairing.PairingPacket
@@ -16,7 +18,6 @@ import com.slouchcat.core.session.ServerInfo
 import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.SessionManager
-import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -24,11 +25,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl
 import java.time.Duration
 import java.time.Instant
@@ -60,7 +59,10 @@ sealed interface PairPhase {
     data object Starting : PairPhase
 
     /** The QR code is shown; [secondsLeft] until it runs out. */
-    data class Waiting(val code: String, val secondsLeft: Long) : PairPhase
+    data class Waiting(val code: String, val secondsLeft: Long) : PairPhase {
+        /** The code carries the meeting's id and the TV's key (K-8): never in a log. */
+        override fun toString() = "Waiting(secondsLeft=$secondsLeft)"
+    }
 
     /** The code ran out (also after the automatic renewals). */
     data object Expired : PairPhase
@@ -69,10 +71,11 @@ sealed interface PairPhase {
     data object Connecting : PairPhase
 
     /**
-     * Paired (K-9): server, encryption, account and the TV's name, before anything is stored. «Weiter»
-     * stores the session, «Nicht mein Konto» ends it at once. [autoSeconds]: until it goes on by itself.
+     * Paired (K-9): the whole server address (scheme, host, port), encryption, account and the TV's
+     * name, before anything is stored. «Weiter» stores the session, «Nicht mein Konto» ends it at
+     * once. [autoSeconds]: until it goes on by itself.
      */
-    data class Linked(val host: String, val encrypted: Boolean, val account: String, val tvName: String, val autoSeconds: Long?) : PairPhase
+    data class Linked(val server: String, val encrypted: Boolean, val account: String, val tvName: String, val autoSeconds: Long?) : PairPhase
 
     data class Problem(
         val kind: PairProblem,
@@ -90,6 +93,8 @@ data class PairUiState(
     val relay: String = "",
     /** «Weiter» is storing the session. */
     val storing: Boolean = false,
+    /** Another relay than the built-in one is set (advanced settings): the page says so. */
+    val ownRelay: Boolean = false,
 )
 
 /**
@@ -99,6 +104,11 @@ data class PairUiState(
  * is checked (`getHealth`, «Server weist sich aus» with the packet's key over HTTP), the voucher
  * redeemed, the answer's signature checked, the token opened. Key, secret and token live only in
  * this ViewModel; the session is stored with «Weiter».
+ *
+ * The pairing lives only while its page is seen (review M-1): [onVisible] makes a new code,
+ * [onHidden] (way by hand, Back, Home, the app in the background) stops polling, clock and the
+ * automatic «Weiter», gives the meeting point up, forgets key and secret and ends a redeemed but
+ * unconfirmed device session. Nothing is redeemed or stored unless the page shows it.
  */
 class PairViewModel(
     private val relay: suspend () -> HttpUrl,
@@ -121,6 +131,10 @@ class PairViewModel(
     private var running: Job? = null
     private var ticker: Job? = null
     private var auto: Job? = null
+    private var visible = false
+
+    /** New codes made since the last [start]; kept across a voucher that ran out (no endless polling). */
+    private var renewed = 0
 
     /** What «Weiter» stores; only in memory. */
     private class Pending(val info: ServerInfo, val serverKey: String, val answer: RedeemAnswer) {
@@ -129,28 +143,51 @@ class PairViewModel(
 
     private var pending: Pending? = null
 
-    init {
+    /** The page is seen (lifecycle started): a new code, unless one is already running. */
+    fun onVisible() {
+        if (visible) return
+        visible = true
+        if (_state.value.storing) return
         start()
+    }
+
+    /** The page is gone or the app is in the background: everything of this pairing ends. */
+    fun onHidden() {
+        if (!visible) return
+        visible = false
+        if (_state.value.storing) return
+        running?.cancel()
+        ticker?.cancel()
+        auto?.cancel()
+        val open = meeting
+        meeting = null
+        val unconfirmed = pending
+        pending = null
+        val pairing = flow
+        _state.update { it.copy(phase = PairPhase.Starting) }
+        // The ViewModel's scope may be cancelled next: give up in the app's scope.
+        cleanup.launch { pairing.giveUp(open, unconfirmed) }
     }
 
     /** «Neuen Code anzeigen», «Nochmals versuchen». */
     fun onNewCode() = start()
 
     private fun start() {
+        if (!visible) return
         running?.cancel()
         auto?.cancel()
         pending = null
+        renewed = 0
         running = viewModelScope.launch {
             releaseMeeting()
             val address = relay()
-            _state.update { PairUiState(relay = address.host) }
+            _state.update { PairUiState(relay = address.host, ownRelay = address != RelaySettings.DEFAULT) }
             val pairing = flowFor(address).also { flow = it }
             run(pairing)
         }
     }
 
     private suspend fun run(pairing: PairingFlow) {
-        var renewed = 0
         while (true) {
             _state.update { it.copy(phase = PairPhase.Starting) }
             val opened = when (val started = pairing.start()) {
@@ -225,12 +262,24 @@ class PairViewModel(
         releaseMeeting()
         when (redeemed) {
             is TvPairing.Redeem.Ok -> {
-                pending = Pending(info, key, redeemed.answer)
+                val done = Pending(info, key, redeemed.answer)
+                if (!visible) {
+                    // Hidden while redeeming: the session is not kept.
+                    cleanup.launch { pairing.giveUp(null, done) }
+                    return
+                }
+                pending = done
                 linked(info, redeemed.answer)
             }
             TvPairing.Redeem.VoucherInvalid -> {
-                // The phone's voucher ran out or was used: a new code (concept 26 4.3).
+                // The phone's voucher ran out or was used: a new code (concept 26 4.3), counted
+                // with the renewals, so a server that always says 410 does not keep the TV polling.
                 Log.i(TAG, "voucher invalid, new code")
+                if (renewed >= renewals) {
+                    _state.update { it.copy(phase = PairPhase.Expired) }
+                    return
+                }
+                renewed++
                 run(pairing)
             }
             TvPairing.Redeem.ServerUnreachable -> problem(PairProblem.ServerUnreachable, address = shown)
@@ -242,7 +291,7 @@ class PairViewModel(
     }
 
     private fun linked(info: ServerInfo, answer: RedeemAnswer) {
-        val base = PairPhase.Linked(info.address.host, info.encrypted, answer.accountEmail, device.name, AUTO_SECONDS)
+        val base = PairPhase.Linked(ServerAddress.display(info.address), info.encrypted, answer.accountEmail, device.name, AUTO_SECONDS)
         _state.update { it.copy(phase = base) }
         auto = viewModelScope.launch {
             var left = AUTO_SECONDS
@@ -265,17 +314,13 @@ class PairViewModel(
     /** «Weiter zu den Profilen»: stores server and session; the new session epoch opens the profile choice. */
     fun onContinue() {
         val done = pending ?: return
-        if (_state.value.storing) return
+        if (_state.value.storing || !visible) return
         auto?.cancel()
         _state.update { it.copy(storing = true) }
         viewModelScope.launch {
             val server = SavedServer(done.info.address, done.info.version, done.info.userCertificate, done.serverKey)
-            servers.save(server)
             // The session must see this server first: it forgets the session of any other one.
-            val seen = withTimeoutOrNull(STORE_WAIT_MS) {
-                session.state.first { s -> s is SessionState.SignedOut && s.server.address == server.address && s.server.serverKey == server.serverKey }
-            }
-            if (seen == null) {
+            if (!session.takeServer(servers, server)) {
                 Log.e(TAG, "the session did not take the server")
                 _state.update { it.copy(storing = false, phase = PairPhase.Problem(PairProblem.Failed)) }
                 return@launch
@@ -291,6 +336,7 @@ class PairViewModel(
 
     /** «Nicht mein Konto, trennen» (K-9): the device session ends at once, a new code follows. */
     fun onUndo(onDone: (confirmed: Boolean) -> Unit = {}) {
+        if (_state.value.storing) return
         val done = pending ?: return
         pending = null
         auto?.cancel()
@@ -298,6 +344,7 @@ class PairViewModel(
         running = viewModelScope.launch {
             val confirmed = flow?.discard(done.info.address, done.serverKey, done.answer.token) ?: false
             onDone(confirmed)
+            renewed = 0
             flow?.let { run(it) }
         }
     }
@@ -313,11 +360,20 @@ class PairViewModel(
     }
 
     override fun onCleared() {
-        val open = meeting ?: return
+        val open = meeting
         meeting = null
+        val unconfirmed = pending
+        pending = null
         val pairing = flow
-        // The ViewModel's scope is gone: give the meeting point up in the app's scope.
-        cleanup.launch { pairing?.close(open) }
+        // The ViewModel's scope is gone: give up in the app's scope.
+        if (open != null || unconfirmed != null) cleanup.launch { pairing.giveUp(open, unconfirmed) }
+    }
+
+    /** Closes the meeting point and ends a device session nobody confirmed (review N-3). */
+    private suspend fun PairingFlow?.giveUp(open: TvPairing.Meeting?, unconfirmed: Pending?) {
+        val pairing = this ?: return
+        open?.let { pairing.close(it) }
+        unconfirmed?.let { pairing.discard(it.info.address, it.serverKey, it.answer.token) }
     }
 
     private companion object {
@@ -327,6 +383,5 @@ class PairViewModel(
         const val SECOND = 1_000L
         const val AUTO_SECONDS = 10L
         const val DEFAULT_PAUSE = 60L
-        const val STORE_WAIT_MS = 5_000L
     }
 }

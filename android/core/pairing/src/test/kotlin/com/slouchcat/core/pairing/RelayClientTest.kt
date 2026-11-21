@@ -99,6 +99,12 @@ class RelayClientTest {
     }
 
     @Test
+    fun aHugeAnswerOfAnotherRelayIsNotReadWhole() = runTest {
+        server.enqueue(MockResponse(code = 200, body = """{"packet":"${"A".repeat(4 * 1024 * 1024)}"}"""))
+        assertEquals(RelayClient.Poll.Failed(200), relay.poll(id, PickupSecret.generate()))
+    }
+
+    @Test
     fun thePhoneLaysThePacketDownAndTheTvCancels() = runTest {
         server.enqueue(MockResponse(code = 204))
         server.enqueue(MockResponse(code = 409, body = """{"error":"occupied"}"""))

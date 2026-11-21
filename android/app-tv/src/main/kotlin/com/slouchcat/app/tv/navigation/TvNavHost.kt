@@ -14,12 +14,14 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -105,16 +107,18 @@ fun TvNavHost(graph: TvGraph, onExit: () -> Unit, clock: () -> Long = SystemCloc
                 val nav = rememberNavController()
                 val start = remember { startOf(state, graph) }
                 val selected = rememberSaveable { mutableStateOf<String?>(null) }
-                val navigator = remember(nav) { TvNavigator(nav, graph.registry, selected) }
+                val libraries by graph.librariesSource.libraries.collectAsStateWithLifecycle()
+                val media = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
+                val currentMedia by rememberUpdatedState(media)
+                val navigator = remember(nav) { TvNavigator(nav, graph.registry, selected) { currentMedia } }
                 val app = remember(navigator) { TvScope(graph, navigator) }
                 val current by nav.currentBackStackEntryAsState()
-                val here = graph.registry.entryOf(current)?.key
+                // Libraries count as well (review M-3): a library opened from Start is marked.
+                val here = graph.registry.entryOf(current, media)?.key
                 LaunchedEffect(here) { if (here != null) selected.value = here }
                 val page = current
                 val fullScreen = page == null || (ENTRY_ROUTES + graph.registry.fullScreen).any { page.isRoute(it) }
                 val showRail = !fullScreen && profile != null
-                val libraries by graph.librariesSource.libraries.collectAsStateWithLifecycle()
-                val media = if (profile == null) emptyList() else (libraries as? Loadable.Ready)?.value.orEmpty().let(graph.registry::mediaEntries)
                 val railFocus = remember { FocusRequester() }
                 var railOpen by remember { mutableStateOf(false) }
                 var armed by remember { mutableStateOf<Long?>(null) }
@@ -192,6 +196,12 @@ private fun NavGraphBuilder.setupDestinations(graph: TvGraph, navigator: TvNavig
                 cleanup = graph.scope,
             )
         }
+        // The pairing lives only while the page is seen (review M-1): the entry stops when another
+        // page comes on top (way by hand), on Back, on Home and with the app in the background.
+        LifecycleStartEffect(vm) {
+            vm.onVisible()
+            onStopOrDispose { vm.onHidden() }
+        }
         val state by vm.state.collectAsStateWithLifecycle()
         val relay by graph.relaySettings.relay.collectAsStateWithLifecycle(com.slouchcat.app.tv.common.RelaySettings.DEFAULT)
         var relayMenu by rememberSaveable { mutableStateOf(false) }
@@ -229,7 +239,8 @@ private fun NavGraphBuilder.setupDestinations(graph: TvGraph, navigator: TvNavig
                 session = graph.session,
                 auth = graph.auth,
                 device = graph.device,
-                onSignedIn = { host -> graph.toasts.show(R.string.tv_hand_connected, host) },
+                // No message «Verbunden mit …»: the profile choice says it at its foot (K-9), and a
+                // message would cover exactly that line.
             )
         }
         val state by vm.state.collectAsStateWithLifecycle()

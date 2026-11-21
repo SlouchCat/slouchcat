@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.tv.material3.Text
 import com.slouchcat.app.tv.setup.RelayMenu
+import com.slouchcat.app.tv.shell.SettingsOrder
 import com.slouchcat.app.tv.shell.tvPage
 import com.slouchcat.app.tv.ui.ConnectionBadge
 import com.slouchcat.app.tv.ui.DetailValue
@@ -68,13 +69,6 @@ data class SettingsRow(
     val pane: (@Composable ColumnScope.() -> Unit)? = null,
 )
 
-/** The built-in rows, by their place among the features' rows (Registry: SettingsEntry.order). */
-object SettingsOrder {
-    const val SWITCH_PROFILE = 10
-    const val SERVER = 60
-    const val ABOUT = 70
-    const val ADVANCED = 80
-}
 
 /** Which menu of the page is open. */
 private enum class SettingsMenu { None, Server, SignOut, About, Relay }
@@ -99,7 +93,7 @@ fun SettingsScreen(
     var menu by rememberSaveable { mutableStateOf(SettingsMenu.None) }
     var paneKey by rememberSaveable { mutableStateOf("profile") }
     val server = state.server
-    val host = server?.address?.host.orEmpty()
+    val host = server?.address?.let(ServerAddress::display).orEmpty()
     val plain = stringResource(R.string.tv_hand_notEncrypted)
 
     val builtIn = listOf(
@@ -206,7 +200,7 @@ private fun ServerDetails(state: SettingsUiState) {
     val server = state.server
     TvDetailRows(
         listOfNotNull(
-            stringResource(R.string.tv_pair_server) to { DetailValue(server?.address?.host.orEmpty()) },
+            stringResource(R.string.tv_pair_server) to { DetailValue(server?.address?.let(ServerAddress::display).orEmpty()) },
             stringResource(R.string.tv_settings_connection) to {
                 ConnectionBadge(server?.encrypted != false, stringResource(R.string.tv_hand_encrypted), stringResource(R.string.tv_hand_notEncrypted))
             },

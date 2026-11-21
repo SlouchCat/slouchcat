@@ -84,7 +84,7 @@ func runPairPhone(ctx context.Context, s *state, text, relay, packetServer strin
 	if resp, err = s.c.sendApp(ctx, http.MethodPost, "/account/pairing-vouchers", phone.Token, map[string]string{"tvKey": code.tvKey}); err != nil {
 		return err
 	}
-	if err := resp.expect(http.MethodPost, "/account/pairing-vouchers", http.StatusCreated); err != nil {
+	if err := resp.expectSecret(http.MethodPost, "/account/pairing-vouchers", http.StatusCreated); err != nil {
 		return err
 	}
 	var v pairingVoucher
@@ -161,7 +161,7 @@ func phoneSignIn(ctx context.Context, s *state, account phoneAccount) (appLogin,
 	if err != nil {
 		return appLogin{}, err
 	}
-	if err := resp.expect(http.MethodPost, "/auth/app-login", http.StatusOK); err != nil {
+	if err := resp.expectSecret(http.MethodPost, "/auth/app-login", http.StatusOK); err != nil {
 		return appLogin{}, err
 	}
 	var login appLogin
@@ -187,7 +187,7 @@ func phoneSignIn(ctx context.Context, s *state, account phoneAccount) (appLogin,
 		if resp, err = s.c.sendApp(ctx, http.MethodPost, path, login.Token, body); err != nil {
 			return appLogin{}, err
 		}
-		return login, resp.expect(http.MethodPost, path, http.StatusOK)
+		return login, resp.expectSecret(http.MethodPost, path, http.StatusOK)
 	}
 	return appLogin{}, errors.New("the account has no primary profile")
 }

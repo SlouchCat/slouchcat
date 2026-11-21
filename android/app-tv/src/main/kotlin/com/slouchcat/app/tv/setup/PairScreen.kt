@@ -57,7 +57,9 @@ import com.slouchcat.core.strings.R
 /**
  * «Mit dem Handy einrichten» (mockup `/setup/phone`, photo 03): steps, the QR code and its time
  * on the right; the page «Verbunden» with server and account (K-9); the problems with the way
- * by hand. [onRelay] opens the address of the relay (advanced, F-21).
+ * by hand. The relay is changed under Einstellungen › Erweitert (F-21, review N-8): the page only
+ * names another relay, and [onRelay] is offered only when the relay does not answer (before the
+ * setup there are no settings yet).
  */
 @Composable
 fun PairScreen(
@@ -73,29 +75,33 @@ fun PairScreen(
     val focus = rememberFocusMemory()
     val phase = state.phase
     BackHandler(enabled = phase is PairPhase.Linked || phase is PairPhase.Problem) {
-        if (phase is PairPhase.Linked) onContinue() else onNewCode()
+        // On «Verbunden» Back confirms nothing (review N-1, unlike the mockup): it stops the
+        // automatic «Weiter»; server and account are confirmed only with the button.
+        if (phase is PairPhase.Linked) onInput() else onNewCode()
     }
     Box(modifier.fillMaxSize().tvPage().onPreviewKeyEvent { onInput(); false }) {
         when (phase) {
-            is PairPhase.Linked -> Linked(phase, state.storing, focus, onContinue, onUndo)
+            is PairPhase.Linked -> Linked(phase, focus, onContinue, onUndo)
             is PairPhase.Problem -> Problem(phase, state.relay, focus, onHand, onNewCode, onRelay)
-            else -> Waiting(phase, focus, onNewCode, onHand, onRelay)
+            else -> Waiting(phase, state.relay.takeIf { state.ownRelay }, focus, onNewCode, onHand)
         }
     }
     val start = when (phase) {
         is PairPhase.Linked -> "continue"
-        is PairPhase.Problem -> "hand"
+        // «Neuen Code anzeigen» is off while connecting: the focus must not get lost (review N-14).
+        is PairPhase.Problem, PairPhase.Connecting -> "hand"
         else -> "new"
     }
     focus.StartFocus(start, phase::class)
 }
 
 @Composable
-private fun Waiting(phase: PairPhase, focus: FocusMemory, onNewCode: () -> Unit, onHand: () -> Unit, onRelay: () -> Unit) {
+private fun Waiting(phase: PairPhase, ownRelay: String?, focus: FocusMemory, onNewCode: () -> Unit, onHand: () -> Unit) {
     val c = SlouchcatTheme.colors
     val s = TvDimens.Setup
     val expired = phase == PairPhase.Expired
-    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(s.ColsGap), verticalAlignment = Alignment.CenterVertically) {
+    // Mockup photo 03: title and QR code flush at the top, one safe margin below the page's own.
+    Row(Modifier.fillMaxSize().padding(top = TvDimens.safeY), horizontalArrangement = Arrangement.spacedBy(s.ColsGap), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.tv_pair_title), style = TvType.h1, modifier = Modifier.semantics { heading() })
             Column(Modifier.padding(top = s.StepsTop), verticalArrangement = Arrangement.spacedBy(s.StepsGap)) {
@@ -132,16 +138,11 @@ private fun Waiting(phase: PairPhase, focus: FocusMemory, onNewCode: () -> Unit,
                 )
                 TvButton(stringResource(R.string.tv_pair_byHand), onClick = onHand, icon = TvIcons.Keyboard, kind = TvButtonKind.Ghost, modifier = Modifier.focusKey(focus, "hand"))
             }
-            TvButton(
-                stringResource(R.string.tv_pair_relay),
-                onClick = onRelay,
-                icon = SlouchcatIcon.Settings.vector,
-                kind = TvButtonKind.Ghost,
-                small = true,
-                modifier = Modifier.padding(top = TvDimens.l).focusKey(focus, "relay"),
-            )
+            if (ownRelay != null) {
+                Text(stringResource(R.string.tv_pair_ownRelay, ownRelay), style = TvType.small, color = c.tx3, modifier = Modifier.padding(top = TvDimens.l))
+            }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(TvDimens.m)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(TvDimens.l)) {
             QrBox(phase)
             val time = when (phase) {
                 is PairPhase.Waiting -> stringResource(R.string.tv_pair_validFor, minutesSeconds(phase.secondsLeft))
@@ -180,7 +181,7 @@ private fun Step(number: Int, text: String) {
         Box(Modifier.size(TvDimens.Setup.Step).clip(CircleShape).background(c.s3), contentAlignment = Alignment.Center) {
             Text(number.toString(), style = TvType.bodyStrong)
         }
-        Text(text, style = TvType.large, color = c.tx, modifier = Modifier.widthIn(max = TvDimens.Setup.ListWidth / 2))
+        Text(text, style = TvType.large, color = c.tx, modifier = Modifier.widthIn(max = TvDimens.Setup.StepText))
     }
 }
 
@@ -194,7 +195,7 @@ private fun Pulse() {
 }
 
 @Composable
-private fun Linked(phase: PairPhase.Linked, storing: Boolean, focus: FocusMemory, onContinue: () -> Unit, onUndo: () -> Unit) {
+private fun Linked(phase: PairPhase.Linked, focus: FocusMemory, onContinue: () -> Unit, onUndo: () -> Unit) {
     val c = SlouchcatTheme.colors
     val s = TvDimens.Setup
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -206,7 +207,7 @@ private fun Linked(phase: PairPhase.Linked, storing: Boolean, focus: FocusMemory
         TvDetailRows(
             listOf(
                 stringResource(R.string.tv_pair_server) to {
-                    DetailValue(phase.host)
+                    DetailValue(phase.server)
                     ConnectionBadge(phase.encrypted, stringResource(R.string.tv_hand_encrypted), stringResource(R.string.tv_hand_notEncrypted))
                 },
                 stringResource(R.string.tv_pair_account) to { DetailValue(phase.account) },
@@ -224,8 +225,9 @@ private fun Linked(phase: PairPhase.Linked, storing: Boolean, focus: FocusMemory
         Text(stringResource(R.string.tv_pair_notMine), style = TvType.body, color = c.tx3, textAlign = TextAlign.Center, modifier = Modifier.padding(top = TvDimens.m).widthIn(max = TvDimens.Note.Max))
         Row(Modifier.padding(top = s.ActionsTop), horizontalArrangement = Arrangement.spacedBy(TvDimens.l)) {
             val label = phase.autoSeconds?.let { stringResource(R.string.tv_pair_continueIn, it) } ?: stringResource(R.string.tv_pair_continue)
-            TvButton(label, onClick = onContinue, icon = SlouchcatIcon.Users.vector, kind = TvButtonKind.Primary, enabled = !storing, modifier = Modifier.focusKey(focus, "continue"))
-            TvButton(stringResource(R.string.tv_pair_undo), onClick = onUndo, icon = SlouchcatIcon.Close.vector, kind = TvButtonKind.Ghost, enabled = !storing, modifier = Modifier.focusKey(focus, "undo"))
+            // While storing both stay focusable; the ViewModel ignores them (review N-14).
+            TvButton(label, onClick = onContinue, icon = SlouchcatIcon.Users.vector, kind = TvButtonKind.Primary, modifier = Modifier.focusKey(focus, "continue"))
+            TvButton(stringResource(R.string.tv_pair_undo), onClick = onUndo, icon = SlouchcatIcon.Close.vector, kind = TvButtonKind.Ghost, modifier = Modifier.focusKey(focus, "undo"))
         }
     }
 }

@@ -59,8 +59,8 @@ class ProfilesScreenTest {
 
     @Test
     fun theTilesTheConnectionAndThePickedProfile() {
-        show({ ProfilesUiState(Loadable.Ready(profiles), current = 2, email = "owner@example.test", host = "media.example.test") })
-        compose.onNodeWithText(s(R.string.tv_profiles_connected, "media.example.test", "owner@example.test")).assertExists()
+        show({ ProfilesUiState(Loadable.Ready(profiles), current = 2, email = "owner@example.test", server = "https://media.example.test") })
+        compose.onNodeWithText(s(R.string.tv_profiles_connected, "https://media.example.test", "owner@example.test")).assertExists()
         // The profile the TV ran as last has the focus; the lock is said.
         remote.assertFocused("Lea")
         compose.onNode(hasContentDescription("Lea, ${s(R.string.profiles_picker_locked)}")).assertExists()
@@ -76,7 +76,7 @@ class ProfilesScreenTest {
 
     @Test
     fun theManagementAppearsOnceItsPageIsThere() {
-        show({ ProfilesUiState(Loadable.Ready(profiles), email = "owner@example.test", host = "media.example.test") }, manage = true)
+        show({ ProfilesUiState(Loadable.Ready(profiles), email = "owner@example.test", server = "https://media.example.test") }, manage = true)
         remote.down()
         remote.assertFocused(s(R.string.profiles_picker_manage))
         remote.ok()
@@ -85,7 +85,7 @@ class ProfilesScreenTest {
 
     @Test
     fun thePinPadTakesArrowsAndDigitKeysAndCatchesTheFocus() {
-        var state by mutableStateOf(ProfilesUiState(Loadable.Ready(profiles), email = "owner@example.test", host = "media.example.test", pin = PinState(profiles[1])))
+        var state by mutableStateOf(ProfilesUiState(Loadable.Ready(profiles), email = "owner@example.test", server = "https://media.example.test", pin = PinState(profiles[1])))
         show({ state })
         compose.onNodeWithText(s(R.string.profiles_pin_title, "Lea")).assertExists()
         remote.assertFocused("1")
@@ -127,7 +127,7 @@ class ProfilesScreenTest {
 
     @Test
     fun withoutProfilesTheTvOffersRetryAndSigningOut() {
-        show({ ProfilesUiState(Loadable.Failed(LoadError.Offline), email = "owner@example.test", host = "media.example.test") })
+        show({ ProfilesUiState(Loadable.Failed(LoadError.Offline), email = "owner@example.test", server = "https://media.example.test") })
         remote.assertFocused(s(R.string.app_state_retry))
         remote.assertEveryControlReachable()
         remote.ok()

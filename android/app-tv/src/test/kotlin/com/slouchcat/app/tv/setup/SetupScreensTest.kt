@@ -9,7 +9,9 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
@@ -63,7 +65,7 @@ class SetupScreensTest {
         val pressed = mutableListOf<String>()
         remote.show {
             PairScreen(
-                state = PairUiState(PairPhase.Waiting(code, 299), relay = "pair.slouchcat.com"),
+                state = PairUiState(PairPhase.Waiting(code, 299), relay = "pair.example.test", ownRelay = true),
                 onNewCode = { pressed += "new" },
                 onHand = { pressed += "hand" },
                 onRelay = { pressed += "relay" },
@@ -77,20 +79,35 @@ class SetupScreensTest {
         compose.onNodeWithText(s(R.string.tv_pair_step1)).assertExists()
         remote.assertFocused(s(R.string.tv_pair_newCode))
         remote.assertEveryControlReachable()
+        // The relay is changed in the advanced settings (F-21); the page only names another one.
+        compose.onNodeWithText(s(R.string.tv_pair_ownRelay, "pair.example.test")).assertExists()
+        assertEquals(0, compose.onAllNodes(hasClickAction() and hasText(s(R.string.tv_pair_relay), substring = true)).fetchSemanticsNodes().size)
         remote.ok()
         remote.right()
         remote.ok()
         remote.down()
-        remote.ok()
-        assertEquals(listOf("new", "hand", "relay"), pressed)
+        remote.assertFocused(s(R.string.tv_pair_byHand))
+        assertEquals(listOf("new", "hand"), pressed)
     }
 
     @Test
-    fun linkedShowsServerAndAccountAndBackGoesOn() {
+    fun whileConnectingTheFocusStaysOnAButtonThatWorks() {
+        remote.show {
+            PairScreen(
+                state = PairUiState(PairPhase.Connecting),
+                onNewCode = {}, onHand = {}, onRelay = {}, onContinue = {}, onUndo = {}, onInput = {},
+            )
+        }
+        remote.assertFocused(s(R.string.tv_pair_byHand))
+        compose.onAllNodesWithText(s(R.string.tv_pair_ownRelay, "pair.slouchcat.com")).assertCountEquals(0)
+    }
+
+    @Test
+    fun linkedShowsServerAndAccountAndBackConfirmsNothing() {
         val pressed = mutableListOf<String>()
         remote.show {
             PairScreen(
-                state = PairUiState(PairPhase.Linked("media.example.test", true, "owner@example.test", "Shield · Android TV 11", 7)),
+                state = PairUiState(PairPhase.Linked("https://media.example.test", true, "owner@example.test", "Shield · Android TV 11", 7)),
                 onNewCode = {},
                 onHand = {},
                 onRelay = {},
@@ -99,7 +116,7 @@ class SetupScreensTest {
                 onInput = { pressed += "input" },
             )
         }
-        for (text in listOf("media.example.test", "owner@example.test", "Shield · Android TV 11", s(R.string.tv_hand_encrypted))) {
+        for (text in listOf("https://media.example.test", "owner@example.test", "Shield · Android TV 11", s(R.string.tv_hand_encrypted))) {
             compose.onNodeWithText(text).assertExists()
         }
         remote.assertFocused(s(R.string.tv_pair_continueIn, 7))
@@ -110,8 +127,10 @@ class SetupScreensTest {
         remote.ok()
         assertTrue("a key stops the countdown", "input" in pressed)
         assertTrue("undo" in pressed)
+        pressed.clear()
         remote.back()
-        assertEquals("continue", pressed.last())
+        assertTrue("Back confirms nothing", "continue" !in pressed)
+        assertTrue("input" in pressed)
     }
 
     @Test

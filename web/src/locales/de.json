@@ -7709,6 +7709,7 @@
       "newCode": "Neuen Code anzeigen",
       "byHand": "Von Hand einrichten",
       "relay": "Vermittlung ändern",
+      "ownRelay": "Eigene Vermittlung: {{relay}}",
       "retry": "Nochmals versuchen",
       "qrLabel": "QR-Code zum Verbinden",
       "linked": "Verbunden",
@@ -7738,7 +7739,7 @@
       "label": "Adresse der Vermittlung",
       "save": "Speichern",
       "reset": "Eingebaute Adresse verwenden",
-      "invalid": "Das ist keine gültige Adresse."
+      "invalid": "Das ist keine gültige Adresse. Die Vermittlung braucht eine Adresse mit https://."
     },
     "hand": {
       "subtitle": "Von Hand einrichten",
@@ -7793,7 +7794,7 @@
       "thisTv": "Dieser Fernseher",
       "tvHint": "So heisst dieser Fernseher am Handy unter «Meine Geräte». Dort kannst du ihn auch abmelden.",
       "insecure": "Diese Verbindung ist nicht verschlüsselt. Wer im selben Netz mitliest, kann den Zugang dieses Fernsehers übernehmen. Richte für den Server HTTPS ein.",
-      "unconfirmedBody": "Unter der Adresse des Servers antwortet ein Gerät mit einem anderen Schlüssel als beim Einrichten. Der Fernseher sendet ihm nichts. Wurde der Server neu installiert, melde den Fernseher ab und richte ihn neu ein.",
+      "unconfirmedBody": "Unter der Adresse des Servers antwortet ein Gerät mit einem anderen Schlüssel als beim Einrichten. Der Fernseher sendet ihm nichts. Wurde der Server neu installiert, melde den Fernseher ab und richte ihn mit dem Handy neu ein: Das Handy kennt den richtigen Schlüssel.",
       "signOut": "Diesen Fernseher abmelden",
       "signOutTitle": "Diesen Fernseher abmelden?",
       "signOutBody": "Der Fernseher vergisst Server und Konto. Danach richtest du ihn neu ein, mit dem Handy oder von Hand.",

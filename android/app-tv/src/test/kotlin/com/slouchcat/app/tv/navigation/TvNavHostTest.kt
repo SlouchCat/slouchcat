@@ -2,13 +2,24 @@ package com.slouchcat.app.tv.navigation
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import android.view.KeyEvent
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.slouchcat.app.tv.ui.OnRemoteKey
+import com.slouchcat.app.tv.ui.RemoteKey
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
+import com.slouchcat.app.tv.shell.isRoute
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.slouchcat.app.tv.TvGraph
@@ -66,23 +77,59 @@ internal data object TestStartRoute
 @Serializable
 internal data class TestLibraryRoute(val id: Long)
 
+/** A page without rail and clock (the player of stage 3). */
+@Serializable
+internal data object TestPlayerRoute
+
+/** A page of a library opened from the start page (a title of stage 2b): it counts to its library. */
+@Serializable
+internal data class TestDetailRoute(val library: Long)
+
 /** A start page of a later stage: three buttons, the middle one keeps the focus over Back. */
 internal object TestStartFeature : TvFeature {
     override val rail = listOf(RailEntry("start", RailSection.Top, 10, Label.Res(R.string.nav_home), SlouchcatIcon.Home.vector, TestStartRoute))
     override val media = listOf(
-        RailMedia { libraries -> libraries.map { RailEntry("lib-${it.id}", RailSection.Media, it.id.toInt(), Label.Plain(it.name), SlouchcatIcon.Film.vector, TestLibraryRoute(it.id)) } },
+        RailMedia { libraries ->
+            libraries.map { library ->
+                RailEntry(
+                    "lib-${library.id}", RailSection.Media, library.id.toInt(), Label.Plain(library.name), SlouchcatIcon.Film.vector, TestLibraryRoute(library.id),
+                    isCurrent = { entry ->
+                        (entry.isRoute(TestLibraryRoute::class) && entry.toRoute<TestLibraryRoute>().id == library.id) ||
+                            (entry.isRoute(TestDetailRoute::class) && entry.toRoute<TestDetailRoute>().library == library.id)
+                    },
+                )
+            }
+        },
     )
+
+    override val fullScreen = setOf(TestPlayerRoute::class)
 
     override fun NavGraphBuilder.register(app: TvScope) {
         composable<TestStartRoute> {
             val focus = rememberFocusMemory()
             Column(Modifier.tvPage()) {
                 for (name in listOf("Eins", "Zwei", "Drei")) TvButton(name, onClick = {}, modifier = Modifier.focusKey(focus, name))
+                TvButton("Titel", onClick = { app.navigator.navigate(TestDetailRoute(7)) }, modifier = Modifier.focusKey(focus, "Titel"))
+                TvButton("Spielen", onClick = { app.navigator.navigate(TestPlayerRoute) }, modifier = Modifier.focusKey(focus, "Spielen"))
             }
             focus.StartFocus("Eins")
         }
-        composable<TestLibraryRoute> { TvButton("Bibliothek", onClick = {}, modifier = Modifier.tvPage()) }
+        composable<TestLibraryRoute> { entry -> OnePage("Bibliothek ${entry.toRoute<TestLibraryRoute>().id}") }
+        composable<TestDetailRoute> { OnePage("Detail") }
+        composable<TestPlayerRoute> {
+            var keys by remember { mutableStateOf(listOf<RemoteKey>()) }
+            OnRemoteKey(app.graph.remoteKeys) { keys = keys + it }
+            OnePage("Player ${keys.joinToString()}")
+        }
     }
+}
+
+/** A page with one button that takes the start focus. */
+@Composable
+private fun OnePage(name: String) {
+    val focus = rememberFocusMemory()
+    Column(Modifier.tvPage()) { TvButton(name, onClick = {}, modifier = Modifier.focusKey(focus, name)) }
+    focus.StartFocus(name)
 }
 
 /**
@@ -172,9 +219,43 @@ class TvNavHostTest {
         remote.left()
         remote.down()
         remote.ok()
-        compose.onNodeWithText("Bibliothek").assertExists()
+        compose.onNodeWithText("Bibliothek 7").assertExists()
         remote.back()
         remote.assertFocused("Zwei")
+    }
+
+    @Test
+    fun theRailIsReachableEverywhereAndItsFocusIsVisible() {
+        show(graph(signedIn = true, libraries = listOf(LibraryNav(7, "Filme", LibraryKind.VIDEO, emptyList(), 12))))
+        remote.left()
+        remote.assertEveryControlReachable(hasAnyAncestor(hasTestTag(ShellTags.RAIL)))
+        remote.assertFocusVisible(compose.onNode(hasTestTag(ShellTags.entry("start"))), compose.onNode(hasTestTag(ShellTags.entry("lib-7"))))
+    }
+
+    @Test
+    fun aLibraryOpenedFromAnotherPageIsMarkedAndItsEntryLeadsToItsFirstPage() {
+        val graph = graph(signedIn = true, libraries = listOf(LibraryNav(7, "Filme", LibraryKind.VIDEO, emptyList(), 12), LibraryNav(8, "Serien", LibraryKind.VIDEO, emptyList(), 3)))
+        show(graph)
+        // A title of library 7 from the start page: the rail marks «Filme», not «Serien».
+        remote.down(3)
+        remote.assertFocused("Titel")
+        remote.ok()
+        compose.onNodeWithText("Detail").assertExists()
+        remote.left()
+        remote.assertFocused("Filme")
+        // The entry of the marked library goes to its first page; there it does nothing more.
+        remote.ok()
+        compose.onNodeWithText("Bibliothek 7").assertExists()
+        remote.left()
+        remote.assertFocused("Filme")
+        remote.ok()
+        compose.onNodeWithText("Bibliothek 7").assertExists()
+        // The other library is a page of its own.
+        remote.left()
+        remote.down()
+        remote.assertFocused("Serien")
+        remote.ok()
+        compose.onNodeWithText("Bibliothek 8").assertExists()
     }
 
     @Test
@@ -217,10 +298,44 @@ class TvNavHostTest {
     }
 
     @Test
+    fun aFullScreenPageHasNoRailNoClockAndTakesTheMediaKeys() {
+        val graph = graph(signedIn = true)
+        show(graph)
+        compose.onNode(hasTestTag(ShellTags.RAIL)).assertExists()
+        remote.down(4)
+        remote.assertFocused("Spielen")
+        remote.ok()
+        compose.onNodeWithText("Player ", substring = true).assertExists()
+        assertTrue(compose.onAllNodes(hasTestTag(ShellTags.RAIL)).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodes(hasTestTag(ShellTags.CLOCK)).fetchSemanticsNodes().isEmpty())
+        // Play/pause of the remote reaches the page that is seen, whatever has the focus.
+        assertTrue(graph.remoteKeys.dispatch(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)))
+        assertTrue(graph.remoteKeys.dispatch(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)))
+        assertTrue(graph.remoteKeys.dispatch(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT)))
+        remote.settle()
+        compose.onNodeWithText("Player PlayPause, Next").assertExists()
+        // Back: the start page takes no media key, so they go on to the system.
+        remote.back()
+        remote.settle()
+        assertFalse(graph.remoteKeys.dispatch(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)))
+        assertFalse(graph.remoteKeys.dispatch(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER)))
+    }
+
+    @Test
+    fun theClientsBeforeAnyTrustFollowNoRedirect() {
+        val graph = graph(signedIn = false)
+        assertFalse(graph.publicClient.followRedirects)
+        assertFalse(graph.publicClient.followSslRedirects)
+        val redeem = graph.redeemClient(HTTPS_SERVER.address, "server-key")
+        assertFalse(redeem.followRedirects)
+        assertFalse(redeem.followSslRedirects)
+    }
+
+    @Test
     fun withoutAProfileTheChoiceComesFirst() {
         show(graph(signedIn = true, profile = false))
         compose.onNodeWithText(s(R.string.profiles_picker_title)).assertExists()
-        compose.onNodeWithText(s(R.string.tv_profiles_connected, "media.example.test", "owner@example.test")).assertExists()
+        compose.onNodeWithText(s(R.string.tv_profiles_connected, "https://media.example.test", "owner@example.test")).assertExists()
     }
 
     @Test

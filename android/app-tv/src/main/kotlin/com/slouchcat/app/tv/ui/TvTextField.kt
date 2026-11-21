@@ -86,6 +86,8 @@ fun TvTextField(
         editorFocused = false
         keyboard?.hide()
         if (take && draft != value) onValueChange(draft)
+        // A password stays only where its owner keeps it (review N-10).
+        if (password) draft = ""
         refocus = !(take && onDone())
     }
 

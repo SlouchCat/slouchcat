@@ -7709,6 +7709,7 @@
       "newCode": "Show new code",
       "byHand": "Set up manually",
       "relay": "Change relay",
+      "ownRelay": "Own relay: {{relay}}",
       "retry": "Try again",
       "qrLabel": "QR code to connect",
       "linked": "Connected",
@@ -7738,7 +7739,7 @@
       "label": "Address of the relay",
       "save": "Save",
       "reset": "Use the built-in address",
-      "invalid": "That is not a valid address."
+      "invalid": "That is not a valid address. The relay needs an address with https://."
     },
     "hand": {
       "subtitle": "Set up manually",
@@ -7793,7 +7794,7 @@
       "thisTv": "This TV",
       "tvHint": "This is the name of this TV under “My devices” on your phone. You can also sign it out there.",
       "insecure": "This connection is not encrypted. Anyone reading along on the same network can take over this TV’s access. Set up HTTPS for the server.",
-      "unconfirmedBody": "A device with a different key than at setup answers at the server’s address. The TV sends it nothing. If the server was reinstalled, sign the TV out and set it up again.",
+      "unconfirmedBody": "A device with a different key than at setup answers at the server’s address. The TV sends it nothing. If the server was reinstalled, sign the TV out and set it up again with the phone: the phone knows the right key.",
       "signOut": "Sign out this TV",
       "signOutTitle": "Sign out this TV?",
       "signOutBody": "The TV forgets the server and the account. Afterwards you set it up again, with your phone or manually.",

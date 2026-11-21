@@ -62,7 +62,7 @@ class ProfilesViewModelTest {
         val ready = vm.state.value.profiles as Loadable.Ready
         assertEquals(listOf("Primary", "Child"), ready.value.map { it.name })
         assertEquals(EMAIL, vm.state.value.email)
-        assertEquals("192.0.2.10", vm.state.value.host)
+        assertEquals("http://192.0.2.10:8096", vm.state.value.server)
     }
 
     @Test
