@@ -363,6 +363,12 @@ jobs:
       - name: Check the Gradle wrapper
         run: echo "621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8  android/gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict -
 
+      # ffmpeg: the player's contract test and flow need real video (scripts/android-test-video.sh)
+      # and a server that probes it (K27 stage 5).
+      - uses: ./.github/actions/system-packages
+        with:
+          group: server
+
       # KVM for the emulator: the runner has /dev/kvm, the runner user needs the rights to it.
       - name: JDK 21, the Android SDK packages, KVM and the AVD
         run: |

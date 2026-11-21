@@ -60,6 +60,8 @@ tasks:
         # media tree as the only browsable root (the detail pages' contract test adds it).
         mkdir -p "$root/media"
         ../scripts/android-test-media.sh "$root/media"
+        # Real video for the player's contract test (needs ffmpeg).
+        ../scripts/android-test-video.sh "$root/media"
         SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
           --listen "127.0.0.1:$port" \
           --config-dir "$root/config" --cache-dir "$root/cache" \

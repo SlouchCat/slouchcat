@@ -85,8 +85,9 @@ class ContractTest {
         // As the setup does: the key comes from getHealth over a client without gate and credentials.
         session.serverKey = SlouchcatApi.create(::SystemApi, base, SlouchcatHttp.client(identity)).getHealth()!!.serverKey
 
-        val login = SlouchcatApi.create(::AuthApi, base, http)
-            .appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        val login = withinTheSignInLimit {
+            SlouchcatApi.create(::AuthApi, base, http).appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        }
         assertEquals(EMAIL, login.session.account.email)
         // An account with a single profile starts with it (ADR 0040, as at `login`).
         login.session.profile?.let { assertTrue(it.isPrimary) }
@@ -122,8 +123,10 @@ class ContractTest {
     fun aWrongPasswordIsInvalidCredentials() {
         ensureSetUp()
         try {
-            SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity))
-                .appLogin(AppLoginRequest(EMAIL, "wrong-password-0123", DEVICE_NAME, AppLoginRequest.Kind.PHONE))
+            withinTheSignInLimit {
+                SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity))
+                    .appLogin(AppLoginRequest(EMAIL, "wrong-password-0123", DEVICE_NAME, AppLoginRequest.Kind.PHONE))
+            }
             fail("a wrong password signed in")
         } catch (e: ClientException) {
             assertEquals(401, e.statusCode)

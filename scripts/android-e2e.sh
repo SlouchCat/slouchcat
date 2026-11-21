@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The flow of the phone app in an emulator against a real server (task android:e2e, concept 27 12
 # «Gerät»): starts bin/slouchcat with fresh data on PORT, starts its own emulator AVD on EMU_PORT
-# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest).
+# and runs the instrumentation tests of app-mobile there (SignInFlowTest, DetailFlowTest, PlayerFlowTest).
 #
 #   scripts/android-e2e.sh [--shots DIR]
 #
@@ -70,6 +70,8 @@ started=$(date +%s)
 # media tree of scripts/android-test-media.sh as its only browsable root (DetailFlowTest).
 mkdir -p "$root/media"
 ../scripts/android-test-media.sh "$root/media"
+# Real video for the player's flow (PlayerFlowTest, needs ffmpeg).
+../scripts/android-test-video.sh "$root/media"
 SLOUCHCAT_BROWSE_ROOTS="$root/media" SLOUCHCAT_TMDB_API_KEY= ../server/bin/slouchcat serve \
   --listen "127.0.0.1:$port" \
   --config-dir "$root/config" --cache-dir "$root/cache" \

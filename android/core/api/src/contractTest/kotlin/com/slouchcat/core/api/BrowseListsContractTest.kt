@@ -52,8 +52,9 @@ class BrowseListsContractTest {
 
     /** The app's session of the owner's primary profile (Bearer, no gate: the server is local). */
     private fun appClient(): OkHttpClient {
-        val login = SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity))
-            .appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        val login = withinTheSignInLimit {
+            SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity)).appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        }
         val credentials = object : SessionCredentials {
             override val server = base
             override val bearerToken = login.token

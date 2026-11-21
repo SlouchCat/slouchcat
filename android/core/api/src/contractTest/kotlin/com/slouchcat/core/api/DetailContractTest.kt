@@ -58,8 +58,9 @@ class DetailContractTest {
 
     /** The app's session of the owner's primary profile (Bearer, no gate: the server is local). */
     private fun appClient(): OkHttpClient {
-        val login = SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity))
-            .appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        val login = withinTheSignInLimit {
+            SlouchcatApi.create(::AuthApi, base, SlouchcatHttp.client(identity)).appLogin(AppLoginRequest(EMAIL, PASSWORD, DEVICE_NAME, AppLoginRequest.Kind.PHONE))!!
+        }
         val credentials = object : SessionCredentials {
             override val server = base
             override val bearerToken = login.token
@@ -177,23 +178,23 @@ class DetailContractTest {
 
         private fun libraries(): JsonArray = call("GET", "admin/libraries")!!.jsonArray
 
-        /** The library [LIBRARY] with the film and series folders of [media], scanned. */
-        fun ensureLibrary(media: File) {
-            call("POST", "auth/login", """{"email":"$EMAIL","password":"$PASSWORD"}""")
+        /** The library [name] with the film and series folders of [media] ([folder] below it), scanned. */
+        fun ensureLibrary(media: File, name: String = LIBRARY, folder: String = "") {
+            withinTheSignInLimit { call("POST", "auth/login", """{"email":"$EMAIL","password":"$PASSWORD"}""") }
             val primary = call("GET", "auth/profiles")!!.jsonArray.map { it.jsonObject }.single { it["isPrimary"]!!.jsonPrimitive.boolean }
             call("POST", "auth/profiles/${primary["id"]!!.jsonPrimitive.long}/select")
-            if (libraries().none { it.jsonObject["name"]?.jsonPrimitive?.content == LIBRARY }) {
-                val movies = Json.encodeToString(File(media, "Movies").absolutePath)
-                val tv = Json.encodeToString(File(media, "TV").absolutePath)
+            if (libraries().none { it.jsonObject["name"]?.jsonPrimitive?.content == name }) {
+                val movies = Json.encodeToString(File(media, "$folder/Movies").absolutePath)
+                val tv = Json.encodeToString(File(media, "$folder/TV").absolutePath)
                 call(
                     "POST",
                     "admin/libraries",
-                    """{"name":"$LIBRARY","kind":"video","roots":[{"path":$movies,"content":"movie","providers":["tmdb"]},{"path":$tv,"content":"series","providers":["tmdb"]}]}""",
+                    """{"name":"$name","kind":"video","roots":[{"path":$movies,"content":"movie","providers":["tmdb"]},{"path":$tv,"content":"series","providers":["tmdb"]}]}""",
                 )
             }
             val deadline = System.nanoTime() + SCAN_TIMEOUT_NS
             while (true) {
-                val library = libraries().map { it.jsonObject }.single { it["name"]?.jsonPrimitive?.content == LIBRARY }
+                val library = libraries().map { it.jsonObject }.single { it["name"]?.jsonPrimitive?.content == name }
                 val state = (library["scan"] as JsonObject)["state"]!!.jsonPrimitive.content
                 check(state != "failed" && state != "aborted") { "the scan of the test library $state" }
                 if (state == "done") return

@@ -93,6 +93,10 @@ testing {
                     val media = providers.gradleProperty("slouchcat.contract.media")
                     inputs.property("media", media.orElse(""))
                     systemProperty("slouchcat.contract.media", media.getOrElse(""))
+                    // The capability profile of the phone app (core/player's rules for the emulator).
+                    val fixtures = rootProject.layout.projectDirectory.dir("../testdata/android")
+                    inputs.dir(fixtures).withPathSensitivity(PathSensitivity.RELATIVE)
+                    systemProperty("slouchcat.contract.fixtures", fixtures.asFile.absolutePath)
                     outputs.upToDateWhen { false }
                     testLogging { events("passed", "failed"); showStandardStreams = true }
                 }
