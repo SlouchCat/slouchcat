@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Kryptert tilkobling",
       "notEncrypted": "Ukryptert tilkobling",
-      "next": "Fortsett",
+      "next": "Neste",
       "otherAddress": "Annen adresse",
       "error": {
         "empty": "Skriv inn adressen til serveren din.",

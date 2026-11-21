@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Salattu yhteys",
       "notEncrypted": "Salaamaton yhteys",
-      "next": "Jatka",
+      "next": "Seuraava",
       "otherAddress": "Muu osoite",
       "error": {
         "empty": "Anna palvelimen osoite.",

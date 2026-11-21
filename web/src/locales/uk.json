@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "З’єднання зашифроване",
       "notEncrypted": "З’єднання не зашифроване",
-      "next": "Продовжити",
+      "next": "Далі",
       "otherAddress": "Інша адреса",
       "error": {
         "empty": "Введіть адресу свого сервера.",

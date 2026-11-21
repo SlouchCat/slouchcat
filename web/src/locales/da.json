@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Krypteret forbindelse",
       "notEncrypted": "Ukrypteret forbindelse",
-      "next": "Fortsæt",
+      "next": "Næste",
       "otherAddress": "Anden adresse",
       "error": {
         "empty": "Angiv adressen på din server.",

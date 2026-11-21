@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Ligação cifrada",
       "notEncrypted": "Ligação não cifrada",
-      "next": "Continuar",
+      "next": "Seguinte",
       "otherAddress": "Outro endereço",
       "error": {
         "empty": "Introduza o endereço do seu servidor.",

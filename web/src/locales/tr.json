@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Bağlantı şifreli",
       "notEncrypted": "Bağlantı şifresiz",
-      "next": "Devam",
+      "next": "İleri",
       "otherAddress": "Başka adres",
       "error": {
         "empty": "Sunucunuzun adresini girin.",

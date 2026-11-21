@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Krypterad anslutning",
       "notEncrypted": "Okrypterad anslutning",
-      "next": "Fortsätt",
+      "next": "Nästa",
       "otherAddress": "Annan adress",
       "error": {
         "empty": "Ange adressen till din server.",

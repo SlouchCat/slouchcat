@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Šifrované připojení",
       "notEncrypted": "Nešifrované připojení",
-      "next": "Pokračovat",
+      "next": "Další",
       "otherAddress": "Jiná adresa",
       "error": {
         "empty": "Zadejte adresu svého serveru.",

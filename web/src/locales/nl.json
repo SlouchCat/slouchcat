@@ -16,7 +16,7 @@
       "versionValue": "Slouchcat {{version}}",
       "encrypted": "Verbinding versleuteld",
       "notEncrypted": "Verbinding niet versleuteld",
-      "next": "Doorgaan",
+      "next": "Volgende",
       "otherAddress": "Ander adres",
       "error": {
         "empty": "Voer het adres van je server in.",
