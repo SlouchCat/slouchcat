@@ -90,7 +90,7 @@ func hlsSource(req HLSRequest) transcode.Source {
 func hlsTarget(req HLSRequest, host transcode.Capabilities) transcode.Target {
 	d := req.Decision
 	target := transcode.Target{
-		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
+		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
 		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
 	}
 	if d.Audio {

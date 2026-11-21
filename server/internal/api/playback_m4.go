@@ -260,6 +260,18 @@ func toCapabilities(c model.PlaybackCapabilities) gen.PlaybackCapabilities {
 		typ := gen.PlaybackCapabilitiesType(c.Type)
 		out.Type = &typ
 	}
+	if c.MaxAudioChannels > 0 {
+		ch := gen.PlaybackCapabilitiesMaxAudioChannels(c.MaxAudioChannels)
+		out.MaxAudioChannels = &ch
+	}
+	if c.SelectsTracks {
+		selects := true
+		out.SelectsTracks = &selects
+	}
+	if len(c.Subtitles) > 0 {
+		subtitles := c.Subtitles
+		out.Subtitles = &subtitles
+	}
 	return out
 }
 
@@ -274,6 +286,13 @@ func fromCapabilities(c *gen.PlaybackCapabilities) *model.PlaybackCapabilities {
 	}
 	if c.Type != nil {
 		out.Type = string(*c.Type)
+	}
+	if c.MaxAudioChannels != nil {
+		out.MaxAudioChannels = int(*c.MaxAudioChannels)
+	}
+	out.SelectsTracks = deref(c.SelectsTracks)
+	if c.Subtitles != nil {
+		out.Subtitles = *c.Subtitles
 	}
 	return out
 }
@@ -316,8 +335,13 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 	}
 	if sel.SubtitleTrack > 0 {
 		id := sel.SubtitleTrack
-		d := gen.TrackSelectionSubtitleDelivery(sel.SubtitleDelivery)
-		out.Selection.SubtitleTrack, out.Selection.SubtitleDelivery = &id, &d
+		out.Selection.SubtitleTrack = &id
+		// Without a delivery the player draws the track from the file itself (direct play,
+		// PlaybackCapabilities.subtitles).
+		if sel.SubtitleDelivery != "" {
+			d := gen.TrackSelectionSubtitleDelivery(sel.SubtitleDelivery)
+			out.Selection.SubtitleDelivery = &d
+		}
 	}
 	if sel.AudioReason != "" {
 		r := gen.TrackSelectionAudioReason(sel.AudioReason)

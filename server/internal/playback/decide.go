@@ -1,6 +1,7 @@
 package playback
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -51,11 +52,20 @@ const (
 type Decision struct {
 	Mode      string // ModeDirect, ModeRemux, ModeTranscode
 	VideoCopy bool   // remux: keep the video stream
-	AudioCopy bool   // keep the audio stream (else encode AAC)
-	MaxHeight int    // transcode output height cap (the rung), 0 = keep
-	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR
-	VideoTag  string // "hvc1" when remuxing HEVC (Safari)
-	Reason    string // empty for direct play
+	AudioCopy bool   // keep the audio stream (else encode it: AudioCodec, AudioChannels)
+	// AudioCodec and AudioChannels are the encode of the audio when it is not copied: "" (AAC) or
+	// transcode.AudioAC3, 0 channels (stereo, or the source up to stereo for audio-only outputs) or
+	// the multichannel count (hlsAudio). AudioBitrate is the bit rate of the output audio in bit/s
+	// when it is not the 160 kbit/s of stereo AAC (a copied track's own rate, a multichannel
+	// encode); 0 = 160 kbit/s. A client without maxAudioChannels gets AudioCodec and AudioChannels
+	// zero, as before.
+	AudioCodec    string
+	AudioChannels int
+	AudioBitrate  int
+	MaxHeight     int    // transcode output height cap (the rung), 0 = keep
+	Tonemap       bool   // HDR10/HLG/Dolby Vision → SDR
+	VideoTag      string // "hvc1" when remuxing HEVC (Safari)
+	Reason        string // empty for direct play
 
 	// Quality is the rung of a transcode, model.QualityAuto for a remux and empty for direct play
 	// (playback_sessions.quality). Width, Height and Bitrate describe the output: the rung's size
@@ -112,6 +122,12 @@ const maxDeviceName = 80
 
 var deviceTypes = []string{"desktop", "phone", "tablet", "tv", "other"}
 
+// subtitleAliases maps the short names a client may report in PlaybackCapabilities.subtitles to
+// the ffprobe names of the tracks.
+var subtitleAliases = map[string]string{
+	"srt": "subrip", "vtt": "webvtt", "pgs": "hdmv_pgs_subtitle", "vobsub": "dvd_subtitle", "dvdsub": "dvd_subtitle",
+}
+
 // normalizeCapabilities lower-cases the codec and container names, fills in the defaults of an
 // absent report and drops what the store would reject (an over-long name, an unknown type).
 func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabilities {
@@ -132,6 +148,19 @@ func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabili
 		return r
 	}
 	out.Containers, out.Video, out.Audio = lower(c.Containers), lower(c.Video), lower(c.Audio)
+	switch c.MaxAudioChannels {
+	case 2, 6, 8:
+		out.MaxAudioChannels = c.MaxAudioChannels
+	}
+	out.SelectsTracks = c.SelectsTracks
+	for _, f := range lower(c.Subtitles) {
+		if alias, ok := subtitleAliases[f]; ok {
+			f = alias
+		}
+		if !slices.Contains(out.Subtitles, f) {
+			out.Subtitles = append(out.Subtitles, f)
+		}
+	}
 	switch out.HLS {
 	case "native", "mse", "none":
 	default:
@@ -328,6 +357,10 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 		}
 	}
 	burn := d.SubtitleDelivery == model.SubtitleBurn
+	// The player draws an embedded track of a format it reports itself (direct play only, concept
+	// 26 5.4): no burn-in and no WebVTT file, unless the request asks for a delivery.
+	drawn := req.Subtitle != nil && req.Subtitle.Source != "sidecar" && slices.Contains(caps.Subtitles, req.Subtitle.Codec) &&
+		req.Delivery != model.SubtitleText && req.Delivery != model.SubtitleBurn
 
 	if v == nil && video == "" && audio != "" {
 		return decideAudio(d, file, req, audio, isDefaultAudio, probe != nil && probe.Mixed())
@@ -355,10 +388,15 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	manual := wanted > top
 
 	containerOK := containerPlayable(file.Container, caps)
-	direct := containerOK && videoOK && directVideo(video, caps) && pixelsOK && isDefaultAudio && audioOK &&
-		!burn && hdrDirect && heightOK && bitrateOK && !manual && !req.ForceTranscode
+	// A player that selects tracks itself plays another audio track of the file directly.
+	trackOK := isDefaultAudio || caps.SelectsTracks
+	direct := containerOK && videoOK && directVideo(video, caps) && pixelsOK && trackOK && audioOK &&
+		(!burn || drawn) && hdrDirect && heightOK && bitrateOK && !manual && !req.ForceTranscode
 	if direct {
 		d.Mode = ModeDirect
+		if drawn {
+			d.SubtitleDelivery, d.BurnStream, d.BurnSidecar = "", -1, ""
+		}
 		return d
 	}
 
@@ -383,8 +421,10 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	case req.ForceTranscode:
 		reason = ReasonQuality
 	}
+	srcAudio := audioStream(probe, d.AudioStream)
 	if reason == "" {
-		d.Mode, d.VideoCopy, d.AudioCopy, d.Quality = ModeRemux, true, audioOK, model.QualityAuto
+		d.Mode, d.VideoCopy, d.Quality = ModeRemux, true, model.QualityAuto
+		hlsAudio(audio, srcAudio, caps, false).apply(&d)
 		if video == "hevc" {
 			d.VideoTag = "hvc1"
 		}
@@ -407,7 +447,78 @@ func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 		from = max(wanted, top)
 	}
 	devCap := heightCap(caps, uhdAllowed(req.Host, v, limits, caps))
-	return transcodeOn(d, pickRung(from, limits, devCap), reason, hdr, audio == "aac" && audioOK, srcW, srcH, limits)
+	out := hlsAudio(audio, srcAudio, caps, true)
+	return transcodeOn(d, pickRung(from, limits, devCap, out.rate()), reason, hdr, out, srcW, srcH, limits)
+}
+
+// audioOut is the audio of an HLS output with video (Decision.AudioCopy, AudioCodec,
+// AudioChannels, AudioBitrate).
+type audioOut struct {
+	Copy     bool
+	Codec    string // encode: "" (AAC) or transcode.AudioAC3
+	Channels int    // encode: 0 = stereo, else the multichannel count
+	Bitrate  int    // bit/s when not the 160 kbit/s of stereo AAC, 0 = 160 kbit/s
+}
+
+func (a audioOut) apply(d *Decision) {
+	d.AudioCopy, d.AudioCodec, d.AudioChannels, d.AudioBitrate = a.Copy, a.Codec, a.Channels, a.Bitrate
+}
+
+// rate is the bit rate of the output audio in bit/s (the bandwidth of a transcode).
+func (a audioOut) rate() int { return cmp.Or(a.Bitrate, audioBitrate) }
+
+// audioOf returns the audio of the decision d.
+func audioOf(d Decision) audioOut {
+	return audioOut{Copy: d.AudioCopy, Codec: d.AudioCodec, Channels: d.AudioChannels, Bitrate: d.AudioBitrate}
+}
+
+// hlsAudio decides the audio of an HLS output with video for the track with codec (a is its
+// stream, nil without a probe; concept 26 5.3, ADR 0041):
+//
+//   - Copy: a remux copies a codec the client reports and fMP4 HLS carries
+//     (transcode.CopyableAudio: AAC, AC-3, E-AC-3, DTS, FLAC, Opus; never TrueHD or MP3); a transcode
+//     copies reported AAC, and AC-3 and E-AC-3 when the client reports maxAudioChannels. A track
+//     copied next to encoded video counts with its own bit rate (transcode.CopyAudioBitrate). An output without audio
+//     keeps the flag of before (copy in a remux, encode in a transcode).
+//   - Encode, with maxAudioChannels 6 or 8 and a source above stereo: AC-3 at 640 kbit/s with up to
+//     6 channels when the client reports ac3, else AAC with up to 6 channels (5.1: 384 kbit/s);
+//     with 8 and a source above 6 channels AAC with up to 8 (7.1: 512 kbit/s). Never more channels
+//     than the source. Otherwise stereo AAC at 160 kbit/s, as before.
+func hlsAudio(codec string, a *transcode.Stream, caps model.PlaybackCapabilities, transcoding bool) audioOut {
+	reported := codec == "" || slices.Contains(caps.Audio, codec)
+	var copyOK bool
+	if transcoding {
+		dolby := caps.MaxAudioChannels > 0 && (codec == "ac3" || codec == "eac3")
+		copyOK = codec != "" && reported && (codec == "aac" || dolby)
+	} else {
+		copyOK = reported && (codec == "" || transcode.CopyableAudio(codec))
+	}
+	st := transcode.Stream{Type: "audio", Codec: codec}
+	if a != nil {
+		st = *a
+		st.Codec = codec
+	}
+	if copyOK {
+		out := audioOut{Copy: true}
+		// The bandwidth of a remux is the file's, of a transcode the rung's plus this.
+		if r := transcode.CopyAudioBitrate(st); transcoding && r != audioBitrate {
+			out.Bitrate = r
+		}
+		return out
+	}
+	src, most := st.Channels, caps.MaxAudioChannels
+	if most < 6 || src <= 2 {
+		return audioOut{}
+	}
+	out := audioOut{Channels: min(src, 6)}
+	switch {
+	case most >= 8 && src > 6:
+		out.Channels = min(src, 8)
+	case slices.Contains(caps.Audio, "ac3"):
+		out.Codec = transcode.AudioAC3
+	}
+	out.Bitrate = transcode.EncodeAudioBitrate(out.Codec, out.Channels)
+	return out
 }
 
 // audioOnlyKbps is the AAC bit rate of an audio-only output that encodes (M6 design 3.3).
@@ -457,14 +568,15 @@ func decideAudio(d Decision, file model.MediaFile, req Request, audio string, is
 	return d
 }
 
-// transcodeOn turns d into a transcode on ladder rung i.
-func transcodeOn(d Decision, i int, reason string, hdr, audioCopy bool, srcW, srcH int, limits model.PlaybackLimits) Decision {
+// transcodeOn turns d into a transcode on ladder rung i with the audio a.
+func transcodeOn(d Decision, i int, reason string, hdr bool, a audioOut, srcW, srcH int, limits model.PlaybackLimits) Decision {
 	r := ladder[i]
 	d.Mode, d.VideoCopy, d.VideoTag, d.Reason = ModeTranscode, false, "", reason
-	d.AudioCopy, d.Tonemap = audioCopy, hdr
+	a.apply(&d)
+	d.Tonemap = hdr
 	d.Quality, d.MaxHeight = r.Quality, r.Height
 	d.Width, d.Height = outputSize(srcW, srcH, r)
-	d.Bitrate = rungBitrate(r, limits)
+	d.Bitrate = rungBitrate(r, limits, a.rate())
 	return d
 }
 
@@ -478,11 +590,11 @@ func lowered(d Decision, srcW, srcH int, limits model.PlaybackLimits) (Decision,
 		return d, false
 	}
 	if d.MaxHeight > ladder[autoTop].Height {
-		return transcodeOn(d, autoTop, ReasonBudgetLowered, d.Tonemap, d.AudioCopy, srcW, srcH, limits), true
+		return transcodeOn(d, autoTop, ReasonBudgetLowered, d.Tonemap, audioOf(d), srcW, srcH, limits), true
 	}
 	i := rungIndex(model.Quality720)
 	if d.Tonemap || d.MaxHeight <= ladder[i].Height {
 		return d, false
 	}
-	return transcodeOn(d, i, ReasonBudgetLowered, false, d.AudioCopy, srcW, srcH, limits), true
+	return transcodeOn(d, i, ReasonBudgetLowered, false, audioOf(d), srcW, srcH, limits), true
 }

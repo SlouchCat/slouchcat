@@ -102,14 +102,15 @@ func heightCap(c model.PlaybackCapabilities, uhd bool) int {
 	return devCap
 }
 
-// audioBitrate is the bit rate of the AAC audio of a transcode (transcode's 160 kbit/s); the
-// bandwidth limit covers video and audio.
+// audioBitrate is the bit rate of the stereo AAC audio of a transcode (transcode's 160 kbit/s),
+// the audio of a decision whose AudioBitrate is 0; the bandwidth limit covers video and audio.
 const audioBitrate = 160_000
 
 // rungAllowed reports whether rung i fits the limits: the profile's maximum height, the height
 // cap of the device (heightCap) and the bandwidth limit (video bit rate of the rung plus the
-// audio). The lowest rung is always allowed by bandwidth (the limit then caps its bit rate).
-func rungAllowed(i int, limits model.PlaybackLimits, devCap int) bool {
+// audio of audio bit/s). The lowest rung is always allowed by bandwidth (the limit then caps its
+// bit rate).
+func rungAllowed(i int, limits model.PlaybackLimits, devCap, audio int) bool {
 	r := ladder[i]
 	if limits.MaxHeight > 0 && r.Height > limits.MaxHeight {
 		return false
@@ -117,17 +118,17 @@ func rungAllowed(i int, limits model.PlaybackLimits, devCap int) bool {
 	if devCap > 0 && r.Height > devCap {
 		return false
 	}
-	if limits.MaxBitrateKbps > 0 && r.Bitrate+audioBitrate > limits.MaxBitrateKbps*1000 && i < len(ladder)-1 {
+	if limits.MaxBitrateKbps > 0 && r.Bitrate+audio > limits.MaxBitrateKbps*1000 && i < len(ladder)-1 {
 		return false
 	}
 	return true
 }
 
-// pickRung returns the highest rung at or below rung from that the limits allow; the lowest rung
-// when none does (a height limit below 360 lines does not exist).
-func pickRung(from int, limits model.PlaybackLimits, devCap int) int {
+// pickRung returns the highest rung at or below rung from that the limits allow with audio bit/s
+// of audio; the lowest rung when none does (a height limit below 360 lines does not exist).
+func pickRung(from int, limits model.PlaybackLimits, devCap, audio int) int {
 	for i := max(from, 0); i < len(ladder); i++ {
-		if rungAllowed(i, limits, devCap) {
+		if rungAllowed(i, limits, devCap, audio) {
 			return i
 		}
 	}
@@ -145,10 +146,11 @@ func outputSize(srcW, srcH int, r transcode.Rung) (w, h int) {
 }
 
 // rungBitrate is the peak video bit rate of a transcode on rung r under the bandwidth limit: the
-// limit minus the audio (the smallest limit, 200 kbit/s, leaves 40 kbit/s of video).
-func rungBitrate(r transcode.Rung, limits model.PlaybackLimits) int {
+// limit minus the audio of audio bit/s (the smallest limit, 200 kbit/s, leaves 40 kbit/s of video
+// next to stereo AAC; at least 1).
+func rungBitrate(r transcode.Rung, limits model.PlaybackLimits, audio int) int {
 	if limits.MaxBitrateKbps > 0 {
-		return max(min(r.Bitrate, limits.MaxBitrateKbps*1000-audioBitrate), 1)
+		return max(min(r.Bitrate, limits.MaxBitrateKbps*1000-audio), 1)
 	}
 	return r.Bitrate
 }
@@ -205,6 +207,11 @@ func QualityOptions(d Decision, src source, originalOK bool, requested string) [
 		requested = d.Quality
 	}
 	autoCodec, autoDirect := codec, d.Mode != ModeTranscode
+	// The rungs count with the audio of the running transcode, else with stereo AAC.
+	audio := audioBitrate
+	if d.Mode == ModeTranscode {
+		audio = audioOf(d).rate()
+	}
 	if !autoDirect {
 		autoCodec = transcodeCodec
 	}
@@ -221,8 +228,8 @@ func QualityOptions(d Decision, src source, originalOK bool, requested string) [
 	rungCurrent := false
 	for i, r := range ladder {
 		o := model.QualityOption{
-			Quality: r.Quality, Codec: transcodeCodec, Bitrate: rungBitrate(r, src.limits),
-			Available: i >= top && rungAllowed(i, src.limits, devCap),
+			Quality: r.Quality, Codec: transcodeCodec, Bitrate: rungBitrate(r, src.limits, audio),
+			Available: i >= top && rungAllowed(i, src.limits, devCap, audio),
 		}
 		o.Current = manual && requested == r.Quality && o.Available && (d.Mode == ModeTranscode || i == top)
 		rungCurrent = rungCurrent || o.Current

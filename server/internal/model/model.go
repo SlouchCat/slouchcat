@@ -2254,6 +2254,13 @@ type PlaybackCapabilities struct {
 	HDR        bool     `json:"hdr"` // the display shows HDR (false is stored and shown as such)
 	Name       string   `json:"name,omitempty"`
 	Type       string   `json:"type,omitempty"` // desktop, phone, tablet, tv, other
+	// MaxAudioChannels is the highest channel count of the audio output (2, 6 or 8; 0 = not
+	// reported: stereo encodes, only AAC copied next to encoded video). SelectsTracks: the player
+	// picks audio and subtitle tracks in the original file (direct play only). Subtitles are the
+	// subtitle formats (ffprobe names) the player draws itself from the file (direct play only).
+	MaxAudioChannels int      `json:"maxAudioChannels,omitempty"`
+	SelectsTracks    bool     `json:"selectsTracks,omitempty"`
+	Subtitles        []string `json:"subtitles,omitempty"`
 }
 
 // PlaybackRequest is the body of startPlayback.
