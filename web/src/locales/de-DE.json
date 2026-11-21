@@ -1,5 +1,16 @@
 {
   "app": {
+    "downloads": {
+      "ruleFailed": "Die Regel ließ sich nicht speichern.",
+      "deleteBody": "„{{title}}“ wird von diesem Gerät gelöscht. Du kannst den Titel jederzeit neu herunterladen.",
+      "deleteBodyMany_one": "{{count}} Folge von „{{title}}“ wird von diesem Gerät gelöscht. Du kannst sie jederzeit neu herunterladen.",
+      "deleteBodyMany_other": "{{count}} Folgen von „{{title}}“ werden von diesem Gerät gelöscht. Du kannst sie jederzeit neu herunterladen.",
+      "already": "Schon auf dem Gerät. Du findest es unter „Downloads“.",
+      "started": "„{{title}}“ wird heruntergeladen",
+      "failed": "Der Download ließ sich nicht starten.",
+      "optionsFailed": "Die Angaben zum Download ließen sich nicht laden.",
+      "pinWeak": "Offline schützt eine PIN aus wenigen Ziffern nur vor neugierigen Blicken: Wer das Gerät in der Hand hat, kann sie durchprobieren. Eine eigene, längere Offline-PIN legst du unter „Profile verwalten“ fest."
+    },
     "player": {
       "close": "Player schließen",
       "qualityNote": "Über mobile Daten zählt jede Stunde: „Original“ braucht am meisten."

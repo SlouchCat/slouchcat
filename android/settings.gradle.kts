@@ -30,6 +30,7 @@ include(
     ":core:design",
     ":core:player",
     ":core:media",
+    ":core:offline",
     ":core:strings",
     ":core:pairing",
     ":lint",

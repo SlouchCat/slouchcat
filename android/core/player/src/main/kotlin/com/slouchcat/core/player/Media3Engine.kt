@@ -17,6 +17,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -67,7 +68,9 @@ class Media3Engine(
 
     /** The Media3 player: for the surface of a page and the media session of stage 7. */
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext, SlouchcatRenderersFactory(context.applicationContext))
-        .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(http)))
+        // Files of the device (the offline player's local playlist, stage 6) through the default
+        // source; everything over the network through the shared OkHttp client.
+        .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context.applicationContext, OkHttpDataSource.Factory(http))))
         .setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
             /* handleAudioFocus = */ true,
