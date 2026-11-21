@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -176,6 +177,12 @@ fun ProfileSettingsScreen(state: ProfileSettingsUiState, events: ProfileSettings
     }
     focus.StartFocus(start, state.profiles::class, state.canManage)
     state.editor?.let { Editor(it, state, events, focus) }
+    // Saved or deleted: the menu is gone, the focus goes back to the row it came from.
+    var hadEditor by remember { mutableStateOf(false) }
+    LaunchedEffect(state.editor == null) {
+        if (state.editor == null && hadEditor) focus.restore()
+        hadEditor = state.editor != null
+    }
 }
 
 /** «Hauptprofil · Freigabe 12 · mit PIN». */
@@ -231,7 +238,8 @@ private fun Editor(editor: ProfileEditor, state: ProfileSettingsUiState, events:
         events.onDismiss()
         page.restore()
     }
-    TvSideMenu(
+    // A question or the PIN pad comes instead of the menu (a menu keeps the focus inside), then the menu again.
+    if (!editor.confirmDelete && editor.pinForm == null) TvSideMenu(
         stringResource(if (editor.isNew) R.string.profiles_settings_form_createTitle else R.string.profiles_settings_form_editTitle),
         onDismiss = close,
         initialFocus = name,
