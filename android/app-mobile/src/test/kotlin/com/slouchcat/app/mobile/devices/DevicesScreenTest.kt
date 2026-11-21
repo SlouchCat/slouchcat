@@ -9,12 +9,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
 import com.slouchcat.app.mobile.testing.device
 import com.slouchcat.core.api.generated.models.MyDevice
 import com.slouchcat.core.api.generated.models.SessionKind
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
 import org.junit.Rule

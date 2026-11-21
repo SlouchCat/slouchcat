@@ -1,14 +1,6 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.browse.HomeRepository
-import com.slouchcat.app.mobile.browse.ItemRepository
-import com.slouchcat.app.mobile.browse.LibraryPage
-import com.slouchcat.app.mobile.browse.LibraryQuery
-import com.slouchcat.app.mobile.browse.LibraryRepository
-import com.slouchcat.app.mobile.media.Page
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.core.api.ApiResult
-import com.slouchcat.core.api.map
 import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.HomeListKey
 import com.slouchcat.core.api.generated.models.HomePage
@@ -24,6 +16,14 @@ import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.Progress
 import com.slouchcat.core.api.generated.models.RootContent
+import com.slouchcat.core.api.map
+import com.slouchcat.core.media.Page
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.HomeRepository
+import com.slouchcat.core.media.data.ItemRepository
+import com.slouchcat.core.media.data.LibraryPage
+import com.slouchcat.core.media.data.LibraryQuery
+import com.slouchcat.core.media.data.LibraryRepository
 import kotlinx.coroutines.CompletableDeferred
 import okhttp3.HttpUrl
 import java.math.BigDecimal

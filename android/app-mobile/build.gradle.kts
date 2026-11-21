@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":core:design"))
     implementation(project(":core:strings"))
     implementation(project(":core:player"))
+    implementation(project(":core:media"))
     implementation(libs.media3.ui)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -29,6 +29,7 @@ include(
     ":core:session",
     ":core:design",
     ":core:player",
+    ":core:media",
     ":core:strings",
     ":core:pairing",
     ":lint",

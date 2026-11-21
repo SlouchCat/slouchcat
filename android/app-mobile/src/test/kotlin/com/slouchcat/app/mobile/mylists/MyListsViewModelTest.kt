@@ -1,7 +1,5 @@
 package com.slouchcat.app.mobile.mylists
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakeMyLists
 import com.slouchcat.app.mobile.testing.itemRef
 import com.slouchcat.app.mobile.testing.session
@@ -9,6 +7,9 @@ import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.app.mobile.testing.ulid
 import com.slouchcat.app.mobile.testing.watchedEntry
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -36,7 +37,7 @@ class MyListsViewModelTest {
     @After
     fun reset() = Dispatchers.resetMain()
 
-    private fun TestScope.watchlist(repository: FakeMyLists, count: WatchlistCount = WatchlistCount()): WatchlistViewModel {
+    private fun TestScope.watchlist(repository: FakeMyLists, count: LiveCount = LiveCount()): WatchlistViewModel {
         val s = session(backgroundScope)
         settle()
         val vm = WatchlistViewModel(s, repository, count)
@@ -56,7 +57,7 @@ class MyListsViewModelTest {
 
     @Test
     fun theWatchlistLoadsAndCountsForTheMenu() = runTest(dispatcher) {
-        val count = WatchlistCount()
+        val count = LiveCount()
         val vm = watchlist(FakeMyLists(mutableListOf(itemRef(1), itemRef(2))), count)
         assertEquals(listOf(ulid(1), ulid(2)), vm.state.value.ids { it.id })
         assertEquals(2, vm.state.value.total)
@@ -82,7 +83,7 @@ class MyListsViewModelTest {
     @Test
     fun removingTakesTheTitleOffAndUndoPutsItBack() = runTest(dispatcher) {
         val repository = FakeMyLists(mutableListOf(itemRef(1, "Silo"), itemRef(2)))
-        val count = WatchlistCount()
+        val count = LiveCount()
         val vm = watchlist(repository, count)
         val messages = mutableListOf<ListMessage>()
         backgroundScope.launch { vm.messages.toList(messages) }

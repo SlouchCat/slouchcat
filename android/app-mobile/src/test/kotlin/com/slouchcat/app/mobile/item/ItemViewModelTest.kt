@@ -1,7 +1,5 @@
 package com.slouchcat.app.mobile.item
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakeDetails
 import com.slouchcat.app.mobile.testing.SEASON_1
 import com.slouchcat.app.mobile.testing.SEASON_2
@@ -14,6 +12,10 @@ import com.slouchcat.app.mobile.testing.session
 import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.app.mobile.testing.ulid
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.WatchedMark
+import com.slouchcat.core.media.watchedMark
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

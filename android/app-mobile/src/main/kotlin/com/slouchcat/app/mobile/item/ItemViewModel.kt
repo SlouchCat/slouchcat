@@ -2,12 +2,18 @@ package com.slouchcat.app.mobile.item
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.WatchedMark
+import com.slouchcat.core.media.data.DetailRepository
+import com.slouchcat.core.media.isAudio
+import com.slouchcat.core.media.isGroup
+import com.slouchcat.core.media.toLoadable
+import com.slouchcat.core.media.watchedMark
+import com.slouchcat.core.media.withWatched
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel

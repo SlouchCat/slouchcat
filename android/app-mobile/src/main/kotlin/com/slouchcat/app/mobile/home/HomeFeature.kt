@@ -13,7 +13,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.slouchcat.app.mobile.browse.CollectionRoute
-import com.slouchcat.app.mobile.browse.browse
 import com.slouchcat.app.mobile.browse.CollectionsRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.LibraryRoute
@@ -22,6 +21,7 @@ import com.slouchcat.app.mobile.browse.NotificationsRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.SearchRoute
 import com.slouchcat.app.mobile.browse.WatchlistRoute
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.library.LibraryActions
 import com.slouchcat.app.mobile.library.LibraryScreen
 import com.slouchcat.app.mobile.library.LibraryViewModel
@@ -75,7 +75,7 @@ object HomeFeature : Feature {
         val graph = app.graph
         val navigator = app.navigator
         composable<HomeRoute> {
-            val vm = viewModel { HomeViewModel(graph.session, graph.browse.home, graph.browse.items) }
+            val vm = viewModel { HomeViewModel(graph.session, graph.media.home, graph.media.items) }
             val state by vm.state.collectAsStateWithLifecycle()
             val snackbar = remember { SnackbarHostState() }
             val resources = LocalResources.current
@@ -125,7 +125,7 @@ object HomeFeature : Feature {
             val vm = viewModel {
                 LibraryViewModel(
                     graph.session,
-                    graph.browse.library,
+                    graph.media.library,
                     route.id,
                     graph.librariesSource.libraries,
                     initialSort = LibrarySort.entries.firstOrNull { it.value == route.sort },
@@ -154,7 +154,7 @@ object HomeFeature : Feature {
         }
         composable<ListRoute> { entry ->
             val key = entry.toRoute<ListRoute>().key
-            val vm = viewModel { ListViewModel(graph.session, graph.browse.home, key) }
+            val vm = viewModel { ListViewModel(graph.session, graph.media.home, key) }
             val state by vm.state.collectAsStateWithLifecycle()
             ListScreen(
                 kind = vm.kind,

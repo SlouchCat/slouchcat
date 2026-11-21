@@ -1,5 +1,6 @@
 package com.slouchcat.app.mobile.media
 
+import androidx.annotation.PluralsRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,15 +34,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
-import androidx.annotation.PluralsRes
 import androidx.compose.ui.platform.LocalResources
-import java.text.NumberFormat
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -56,7 +54,11 @@ import com.slouchcat.core.design.SlouchcatIconImage
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.CardShape
+import com.slouchcat.core.media.ImageSet
+import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.strings.R
+import java.text.NumberFormat
 
 /**
  * The image loader of the media building blocks; `null` takes the app's (`graph.imageLoader`, the

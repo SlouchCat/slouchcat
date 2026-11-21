@@ -2,14 +2,6 @@ package com.slouchcat.app.mobile.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.browse.LibraryQuery
-import com.slouchcat.app.mobile.browse.LibraryRepository
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.Page
-import com.slouchcat.app.mobile.media.PageLoader
-import com.slouchcat.app.mobile.media.Paged
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.ItemRef
@@ -19,6 +11,14 @@ import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.RootContent
 import com.slouchcat.core.api.map
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.Page
+import com.slouchcat.core.media.PageLoader
+import com.slouchcat.core.media.Paged
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.LibraryQuery
+import com.slouchcat.core.media.data.LibraryRepository
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

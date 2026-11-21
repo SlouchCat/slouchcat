@@ -1,13 +1,14 @@
 package com.slouchcat.app.mobile.collections
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakeCollections
 import com.slouchcat.app.mobile.testing.collectionRef
 import com.slouchcat.app.mobile.testing.itemRef
 import com.slouchcat.app.mobile.testing.session
 import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -40,7 +41,7 @@ class CollectionsViewModelTest {
         parts = mutableMapOf("c1" to mutableListOf(itemRef(1), itemRef(2, inWatchlist = true), itemRef(3))),
     )
 
-    private fun TestScope.overview(repository: FakeCollections, count: CollectionsCount = CollectionsCount()): CollectionsViewModel {
+    private fun TestScope.overview(repository: FakeCollections, count: LiveCount = LiveCount()): CollectionsViewModel {
         val s = session(backgroundScope)
         settle()
         return CollectionsViewModel(s, repository, count).also { settle() }
@@ -57,7 +58,7 @@ class CollectionsViewModelTest {
     @Test
     fun theOverviewLoadsCountsAndHandlesEmptyAndFailure() = runTest(dispatcher) {
         val repository = fake()
-        val count = CollectionsCount()
+        val count = LiveCount()
         val vm = overview(repository, count)
         assertEquals(listOf("c1", "c2"), (vm.state.value.collections as Loadable.Ready).value.map { it.id })
         assertEquals(2, count.count.value)

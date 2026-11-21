@@ -1,7 +1,5 @@
-package com.slouchcat.app.mobile.item
+package com.slouchcat.core.media.data
 
-import com.slouchcat.app.mobile.browse.ApiItemRepository
-import com.slouchcat.app.mobile.browse.ItemRepository
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.SlouchcatApi

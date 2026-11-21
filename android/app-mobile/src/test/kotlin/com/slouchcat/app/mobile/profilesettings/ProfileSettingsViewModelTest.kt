@@ -1,7 +1,5 @@
 package com.slouchcat.app.mobile.profilesettings
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.CHILD
 import com.slouchcat.app.mobile.testing.FakeProfileSettings
 import com.slouchcat.app.mobile.testing.profile
@@ -11,6 +9,8 @@ import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList

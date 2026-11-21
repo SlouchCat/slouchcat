@@ -2,13 +2,13 @@ package com.slouchcat.app.mobile.collections
 
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,16 +36,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
-import com.slouchcat.app.mobile.media.ImageSet
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaGrid
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.core.api.generated.models.Collection
 import com.slouchcat.core.api.generated.models.CollectionRef
@@ -66,6 +61,11 @@ import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.ImageSet
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.strings.R
 
 /** The poster of a collection: its own image, else the poster of its cover title. */

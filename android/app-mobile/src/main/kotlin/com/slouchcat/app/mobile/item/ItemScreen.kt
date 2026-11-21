@@ -18,10 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -56,15 +56,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.media.FskBadge
-import com.slouchcat.app.mobile.media.ImageSet
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.app.mobile.media.kindName
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.core.api.generated.models.ItemDetail
@@ -85,6 +80,20 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.ImageSet
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.PlayTarget
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.WatchedMark
+import com.slouchcat.core.media.hasCheck
+import com.slouchcat.core.media.isAudio
+import com.slouchcat.core.media.listable
+import com.slouchcat.core.media.minutesLeft
+import com.slouchcat.core.media.playTarget
+import com.slouchcat.core.media.share
+import com.slouchcat.core.media.watchedMark
 import com.slouchcat.core.strings.R
 
 /**

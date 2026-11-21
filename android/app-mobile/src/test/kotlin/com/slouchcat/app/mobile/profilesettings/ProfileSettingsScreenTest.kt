@@ -14,8 +14,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
 import com.slouchcat.app.mobile.testing.profile
@@ -27,6 +25,8 @@ import com.slouchcat.core.api.generated.models.LibrarySummary
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -1,6 +1,5 @@
-package com.slouchcat.app.mobile.browse
+package com.slouchcat.core.media.data
 
-import com.slouchcat.app.mobile.media.Page
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.SlouchcatApi
@@ -16,6 +15,7 @@ import com.slouchcat.core.api.generated.models.LibraryItemStatus
 import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.RootContent
 import com.slouchcat.core.api.map
+import com.slouchcat.core.media.Page
 import okhttp3.Call
 import okhttp3.HttpUrl
 

@@ -7,15 +7,14 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import com.slouchcat.app.mobile.common.EntryPlan
 import com.slouchcat.app.mobile.common.GateKeyConfirmation
 import com.slouchcat.app.mobile.common.KeyConfirmation
 import com.slouchcat.app.mobile.common.SessionActions
 import com.slouchcat.app.mobile.common.SessionHooks
-import com.slouchcat.app.mobile.common.EntryPlan
 import com.slouchcat.app.mobile.common.ShellNotices
 import com.slouchcat.app.mobile.shell.AppLinks
 import com.slouchcat.app.mobile.shell.Feature
-import com.slouchcat.app.mobile.shell.LibrariesSource
 import com.slouchcat.app.mobile.shell.ShellRegistry
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiServerProver
@@ -26,12 +25,13 @@ import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
+import com.slouchcat.core.media.LibrariesSource
+import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AndroidTrustInspector
 import com.slouchcat.core.session.ApiAuthRepository
 import com.slouchcat.core.session.ApiDevicesRepository
 import com.slouchcat.core.session.ApiLibrariesRepository
 import com.slouchcat.core.session.ApiServerRepository
-import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.AuthRepository
 import com.slouchcat.core.session.DataStoreAccountStore
 import com.slouchcat.core.session.DataStoreServerStore
@@ -136,7 +136,7 @@ class AppGraph(
     val links = AppLinks(registry)
 
     /** The libraries of the active profile for the media choice (loaded only when an entry needs them). */
-    val librariesSource = LibrariesSource(session, libraries, registry, scope)
+    val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
     init {
         network.start(appContext)

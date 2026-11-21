@@ -17,6 +17,7 @@ import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.WatchedRoute
 import com.slouchcat.app.mobile.browse.WatchlistRoute
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.media.titleCount
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -26,11 +27,13 @@ import com.slouchcat.app.mobile.shell.MediaEntry
 import com.slouchcat.app.mobile.shell.MediaSection
 import com.slouchcat.app.mobile.shell.MoreEntry
 import com.slouchcat.app.mobile.shell.MoreSection
+import com.slouchcat.core.api.map
 import com.slouchcat.core.design.SlouchcatIcon
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.data.MyListsRepository
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import java.util.WeakHashMap
 
 /**
  * «Merkliste» and «Gesehen» of stage 4 (mockup `/watchlist`, `/watched`): two entries of «Meine
@@ -38,18 +41,14 @@ import java.util.WeakHashMap
  * [repository]: tests bring a fake.
  */
 class MyListsFeature(
-    private val repository: (AppGraph) -> MyListsRepository = { ApiMyListsRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> MyListsRepository = { it.media.myLists },
 ) : Feature {
-    /** The number of the watchlist per app graph (one per process; tests build several). */
-    private val counts = WeakHashMap<AppGraph, WatchlistCount>()
-
-    private fun count(graph: AppGraph): WatchlistCount = synchronized(counts) {
-        counts.getOrPut(graph) { WatchlistCount().also { count -> graph.hooks.onProfileOrSessionEnd { count.set(null) } } }
-    }
+    /** The number of the watchlist of the graph (`:core:media`, one per graph; tests build several). */
+    private fun count(graph: AppGraph): LiveCount = graph.media.watchlistCount
 
     private fun countFlow(graph: AppGraph) = flow {
         val count = count(graph)
-        graph.session.server?.let { count.refresh(repository(graph), it) }
+        graph.session.server?.let { server -> count.refresh { repository(graph).watchlist(server, 0, 1).map { it.total } } }
         emitAll(count.count)
     }
 
@@ -70,7 +69,7 @@ class MyListsFeature(
     @Composable
     private fun watchlistSubtitle(graph: AppGraph): String? {
         val count = remember(graph) { count(graph) }
-        LaunchedEffect(graph) { graph.session.server?.let { count.refresh(repository(graph), it) } }
+        LaunchedEffect(graph) { graph.session.server?.let { server -> count.refresh { repository(graph).watchlist(server, 0, 1).map { it.total } } } }
         val n by count.count.collectAsStateWithLifecycle()
         return n?.let { if (it == 0) stringResource(R.string.app_lists_watchlistEmpty) else titleCount(it) }
     }

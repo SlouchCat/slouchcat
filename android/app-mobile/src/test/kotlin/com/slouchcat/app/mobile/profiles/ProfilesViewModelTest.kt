@@ -1,6 +1,5 @@
 package com.slouchcat.app.mobile.profiles
 
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.SessionHooks
 import com.slouchcat.app.mobile.testing.EMAIL
 import com.slouchcat.app.mobile.testing.FakeAuth
@@ -10,12 +9,12 @@ import com.slouchcat.app.mobile.testing.sessionInfo
 import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.app.mobile.testing.summary
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy

@@ -1,9 +1,5 @@
-package com.slouchcat.app.mobile.media
+package com.slouchcat.core.media
 
-import com.slouchcat.app.mobile.testing.image
-import com.slouchcat.app.mobile.testing.itemRef
-import com.slouchcat.app.mobile.testing.posters
-import com.slouchcat.app.mobile.testing.progress
 import com.slouchcat.core.api.generated.models.ImageRef
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.SeriesRef

@@ -13,8 +13,8 @@ import com.slouchcat.app.mobile.MainActivity
 import com.slouchcat.app.mobile.media.LocalMediaImageLoader
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
 import com.slouchcat.app.mobile.shell.Feature
-import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.session.AccountStore
 import com.slouchcat.core.session.ActiveProfile
@@ -34,7 +34,7 @@ import java.io.File
  * with made-up data and pictures drawn in the test instead of a server, to photograph them against
  * the mockup (the test server has no covers, no spotlight, nothing started). Nothing of this goes
  * into the app. Every area brings its data in a file of its own (`BrowseShowcaseData.kt` for
- * stage 4) and installs it on the graph (`BrowseData.install`); [Showcase] does the rest.
+ * stage 4) and installs it on the graph (`MediaData.install`); [Showcase] does the rest.
  */
 
 /** The made-up server: an address of the documentation range, never asked (the pictures come from [ShowcaseImages]). */

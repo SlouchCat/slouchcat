@@ -29,6 +29,9 @@ import com.slouchcat.app.mobile.testing.progress
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.CardShape
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -13,6 +13,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ProfilesSettingsRoute
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.MoreEntry
@@ -22,6 +23,7 @@ import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
 import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.design.SlouchcatIcon
+import com.slouchcat.core.media.data.ProfileSettingsRepository
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
@@ -32,7 +34,7 @@ import com.slouchcat.core.strings.R
  * [repository]: tests bring a fake.
  */
 class ProfileSettingsFeature(
-    private val repository: (AppGraph) -> ProfileSettingsRepository = { ApiProfileSettingsRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> ProfileSettingsRepository = { it.media.profiles },
 ) : Feature {
     override val more = listOf(
         MoreEntry("profiles", MoreSection.Settings, 10, R.string.app_profiles_manage_title, SlouchcatIcon.Users, ProfilesSettingsRoute, subtitle = { subtitle(it) }),

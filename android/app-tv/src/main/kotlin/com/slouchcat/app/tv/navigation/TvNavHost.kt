@@ -31,7 +31,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.slouchcat.app.tv.TvGraph
-import com.slouchcat.app.tv.common.Loadable
 import com.slouchcat.app.tv.profiles.ProfilesScreen
 import com.slouchcat.app.tv.profiles.ProfilesViewModel
 import com.slouchcat.app.tv.setup.HandSetupScreen
@@ -61,6 +60,7 @@ import com.slouchcat.app.tv.ui.TvToastHost
 import com.slouchcat.app.tv.ui.TvType
 import com.slouchcat.core.api.SessionEvent
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.flow.first

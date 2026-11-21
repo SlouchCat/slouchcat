@@ -29,12 +29,10 @@ import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaGrid
-import com.slouchcat.app.mobile.media.MediaItem
 import com.slouchcat.app.mobile.media.PagingFooter
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.app.mobile.media.titleCount
-import com.slouchcat.core.design.BarNavigation
 import com.slouchcat.core.design.ButtonKind
 import com.slouchcat.core.design.SheetActions
 import com.slouchcat.core.design.SheetHeadIcon
@@ -48,6 +46,7 @@ import com.slouchcat.core.design.SlouchcatSnackbarHost
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
+import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.strings.R
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -214,7 +213,7 @@ private fun <T> ListPage(
                 navigationLabel = stringResource(R.string.common_back),
                 onNavigation = onBack,
                 actions = {
-                    if (shown is com.slouchcat.app.mobile.common.Loadable.Ready) {
+                    if (shown is com.slouchcat.core.media.Loadable.Ready) {
                         SlouchcatButton(
                             stringResource(if (state.editing) R.string.app_lists_done else R.string.app_lists_edit),
                             onClick = onToggleEdit,

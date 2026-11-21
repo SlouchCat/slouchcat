@@ -1,7 +1,5 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.item.DetailRepository
-import com.slouchcat.app.mobile.person.PersonRepository
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.CastMember
 import com.slouchcat.core.api.generated.models.CollectionRef
@@ -18,6 +16,8 @@ import com.slouchcat.core.api.generated.models.Progress
 import com.slouchcat.core.api.generated.models.SeriesRef
 import com.slouchcat.core.api.generated.models.Trailer
 import com.slouchcat.core.api.generated.models.UserPickResult
+import com.slouchcat.core.media.data.DetailRepository
+import com.slouchcat.core.media.data.PersonRepository
 import kotlinx.coroutines.CompletableDeferred
 import okhttp3.HttpUrl
 import java.net.URI

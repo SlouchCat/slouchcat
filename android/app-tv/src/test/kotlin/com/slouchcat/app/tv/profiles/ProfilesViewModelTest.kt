@@ -1,6 +1,5 @@
 package com.slouchcat.app.tv.profiles
 
-import com.slouchcat.app.tv.common.Loadable
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.app.tv.common.TvSessionHooks
 import com.slouchcat.app.tv.testing.EMAIL
@@ -10,12 +9,12 @@ import com.slouchcat.app.tv.testing.sessionInfo
 import com.slouchcat.app.tv.testing.settle
 import com.slouchcat.app.tv.testing.summary
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy

@@ -42,15 +42,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.item.creditCaption
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaGrid
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.fullWidth
 import com.slouchcat.core.api.generated.models.Person
@@ -62,6 +58,10 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.strings.R
 import java.time.LocalDate
 import java.time.Period
@@ -215,7 +215,7 @@ private fun Head(page: PersonPage, images: ServerImages, biographyOpen: Boolean,
 }
 
 @Composable
-private fun Portrait(images: com.slouchcat.app.mobile.media.ImageSet, name: String, modifier: Modifier) {
+private fun Portrait(images: com.slouchcat.core.media.ImageSet, name: String, modifier: Modifier) {
     val c = SlouchcatTheme.colors
     val shape = RoundedCornerShape(18.dp)
     Box(modifier.aspectRatio(2f / 3f).clip(shape).border(BorderStroke(1.dp, c.line), shape)) {

@@ -12,6 +12,8 @@ import com.slouchcat.app.tv.ui.TvButton
 import com.slouchcat.app.tv.ui.TvDimens
 import com.slouchcat.app.tv.ui.TvNote
 import com.slouchcat.core.design.SlouchcatIcon
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
 
 @Composable

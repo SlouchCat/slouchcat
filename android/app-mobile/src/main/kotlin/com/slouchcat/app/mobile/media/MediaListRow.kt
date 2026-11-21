@@ -30,6 +30,7 @@ import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatIconImage
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
+import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.strings.R
 
 /** The line under a title in a list (mockup `lrow`): «2004 · Film · 2 h 5 min», «Autorin · Hörbuch». */

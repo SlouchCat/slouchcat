@@ -1,6 +1,5 @@
-package com.slouchcat.app.mobile.mylists
+package com.slouchcat.core.media.data
 
-import com.slouchcat.app.mobile.media.Page
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.SlouchcatApi
@@ -10,9 +9,7 @@ import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.ItemWatchedRequest
 import com.slouchcat.core.api.generated.models.WatchedEntry
 import com.slouchcat.core.api.map
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.slouchcat.core.media.Page
 import okhttp3.Call
 import okhttp3.HttpUrl
 
@@ -47,23 +44,5 @@ class ApiMyListsRepository(private val api: ApiCaller, private val http: Call.Fa
 
     override suspend fun setWatched(server: HttpUrl, id: String, watched: Boolean) = api.call("watched") {
         SlouchcatApi.create(::ItemsApi, server, http).setItemWatched(id, ItemWatchedRequest(watched))
-    }
-}
-
-/**
- * The number of «Merkliste» for the media choice and «Mehr», one per app: read when the choice is
- * drawn for a session, set again by the pages that change the list (no request per drawing).
- */
-class WatchlistCount {
-    private val _count = MutableStateFlow<Int?>(null)
-    val count: StateFlow<Int?> = _count.asStateFlow()
-
-    fun set(value: Int?) {
-        _count.value = value
-    }
-
-    /** Reads the number from the server (one entry is enough: `total` counts them all). */
-    suspend fun refresh(repository: MyListsRepository, server: HttpUrl) {
-        (repository.watchlist(server, 0, 1) as? ApiResult.Ok)?.let { _count.value = it.value.total }
     }
 }

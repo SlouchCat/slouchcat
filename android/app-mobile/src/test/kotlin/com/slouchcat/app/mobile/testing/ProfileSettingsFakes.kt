@@ -1,6 +1,5 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.profilesettings.ProfileSettingsRepository
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.EffectiveLimits
@@ -16,6 +15,7 @@ import com.slouchcat.core.api.generated.models.RatingStep
 import com.slouchcat.core.api.generated.models.RatingSystem
 import com.slouchcat.core.api.generated.models.SessionInfo
 import com.slouchcat.core.api.generated.models.SubtitleMode
+import com.slouchcat.core.media.data.ProfileSettingsRepository
 import okhttp3.HttpUrl
 
 fun profile(

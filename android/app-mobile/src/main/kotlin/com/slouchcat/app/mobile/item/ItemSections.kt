@@ -46,13 +46,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
 import com.slouchcat.app.mobile.media.MediaRow
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.core.api.generated.models.CastMember
 import com.slouchcat.core.api.generated.models.ItemDetail
@@ -70,6 +67,15 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.WatchedMark
+import com.slouchcat.core.media.isAudio
+import com.slouchcat.core.media.minutesLeft
+import com.slouchcat.core.media.share
+import com.slouchcat.core.media.started
+import com.slouchcat.core.media.watchedMark
 import com.slouchcat.core.strings.R
 
 /**

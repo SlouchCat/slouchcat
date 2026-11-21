@@ -1,4 +1,4 @@
-package com.slouchcat.app.mobile.item
+package com.slouchcat.core.media
 
 import com.slouchcat.core.api.generated.models.ItemDetail
 import com.slouchcat.core.api.generated.models.ItemKind

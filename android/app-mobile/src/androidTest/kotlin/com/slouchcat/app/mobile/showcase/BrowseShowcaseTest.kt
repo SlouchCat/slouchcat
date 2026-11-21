@@ -13,8 +13,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.slouchcat.app.mobile.browse.BrowseData
 import com.slouchcat.app.mobile.shell.features
+import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.strings.R
 import org.junit.After
 import org.junit.Rule
@@ -36,7 +36,7 @@ class BrowseShowcaseTest {
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
     private val showcase = Showcase(compose, features, BrowseShowcaseData.libraries, BrowseShowcaseData.images()) { graph ->
-        BrowseData.install(graph, BrowseShowcaseData.data())
+        MediaData.install(graph, BrowseShowcaseData.data(MediaData.api(graph.api, graph.http)))
     }
 
     @After

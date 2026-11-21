@@ -8,11 +8,9 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.slouchcat.app.tv.common.DataStoreRelaySettings
-import com.slouchcat.app.tv.common.Loadable
 import com.slouchcat.app.tv.common.RelaySettings
 import com.slouchcat.app.tv.common.TvSessionActions
 import com.slouchcat.app.tv.common.TvSessionHooks
-import com.slouchcat.app.tv.common.toLoadable
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvRegistry
 import com.slouchcat.app.tv.ui.TvToasts
@@ -24,9 +22,9 @@ import com.slouchcat.core.api.SessionEvents
 import com.slouchcat.core.api.SlouchcatHttp
 import com.slouchcat.core.api.TrustedServer
 import com.slouchcat.core.api.generated.models.AppLoginRequest
-import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
+import com.slouchcat.core.media.LibrariesSource
 import com.slouchcat.core.pairing.ApiRedeemer
 import com.slouchcat.core.pairing.Redeemer
 import com.slouchcat.core.pairing.RelayClient
@@ -48,18 +46,10 @@ import com.slouchcat.core.session.NetworkMonitor
 import com.slouchcat.core.session.ServerProbe
 import com.slouchcat.core.session.ServerStore
 import com.slouchcat.core.session.SessionManager
-import com.slouchcat.core.session.SessionState
 import com.slouchcat.core.session.TokenStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -170,7 +160,7 @@ class TvGraph(
     val registry = TvRegistry(features)
 
     /** The libraries of the active profile for the rail (loaded only when a feature brings media entries). */
-    val librariesSource = TvLibrariesSource(session, libraries, registry, scope)
+    val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
     init {
         network.start(appContext)
@@ -194,48 +184,6 @@ fun describeTv(): DeviceDescription {
 }
 
 private const val DEVICE_NAME_MAX = 80
-
-/**
- * The libraries of the active profile (`listVisibleLibraries`) for the rail's media entries, the
- * same rules as on the phone: only when a feature brings media entries, again with every epoch
- * that has a profile, empty without one.
- */
-class TvLibrariesSource(
-    private val session: SessionManager,
-    private val repository: LibrariesRepository,
-    private val registry: TvRegistry,
-    private val scope: CoroutineScope,
-) {
-    private val _libraries = MutableStateFlow<Loadable<List<LibraryNav>>>(Loadable.Empty)
-    val libraries: StateFlow<Loadable<List<LibraryNav>>> = _libraries.asStateFlow()
-    private var loading: Job? = null
-
-    init {
-        if (registry.media.isNotEmpty()) {
-            scope.launch {
-                combine(session.epoch, session.state) { epoch, state -> epoch to (state as? SessionState.Ready)?.profile?.id }
-                    .distinctUntilChanged()
-                    .collect { (_, profile) -> if (profile == null) clear() else reload() }
-            }
-        }
-    }
-
-    fun reload() {
-        val server = session.server ?: return
-        loading?.cancel()
-        if (_libraries.value !is Loadable.Ready) _libraries.value = Loadable.Loading
-        loading = scope.launch {
-            val result = repository.libraries(server).toLoadable { it.isEmpty() }
-            if (result is Loadable.Failed && _libraries.value is Loadable.Ready) return@launch
-            _libraries.value = result
-        }
-    }
-
-    fun clear() {
-        loading?.cancel()
-        _libraries.value = Loadable.Empty
-    }
-}
 
 class TvApplication : Application(), SingletonImageLoader.Factory {
     lateinit var graph: TvGraph

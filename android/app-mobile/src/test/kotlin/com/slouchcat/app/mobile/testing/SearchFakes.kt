@@ -1,13 +1,13 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.search.SearchQuery
-import com.slouchcat.app.mobile.search.SearchRepository
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.PersonRef
 import com.slouchcat.core.api.generated.models.SearchResult
+import com.slouchcat.core.media.data.SearchQuery
+import com.slouchcat.core.media.data.SearchRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import okhttp3.HttpUrl

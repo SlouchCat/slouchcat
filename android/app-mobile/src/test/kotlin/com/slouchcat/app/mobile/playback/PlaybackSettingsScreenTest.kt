@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
@@ -19,7 +18,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import com.slouchcat.app.mobile.AppGraph
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.more.MoreFeature
 import com.slouchcat.app.mobile.navigation.SlouchcatNavHost
 import com.slouchcat.app.mobile.testing.EMAIL
@@ -29,11 +27,11 @@ import com.slouchcat.app.mobile.testing.FakeServers
 import com.slouchcat.app.mobile.testing.FakeTokens
 import com.slouchcat.app.mobile.testing.HTTPS_SERVER
 import com.slouchcat.app.mobile.testing.PRIMARY
-import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappableWhenScrolled
 import com.slouchcat.app.mobile.testing.reveal
 import com.slouchcat.core.api.generated.models.SubtitleMode
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.player.DeviceSettings
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
 import com.slouchcat.core.player.QualityChoice
@@ -116,7 +114,7 @@ class PlaybackSettingsScreenTest {
 
     @Test @Config(qualifiers = PHONE)
     fun theLanguagesFailToLoad() {
-        show(PlaybackSettingsUiState(prefs = Loadable.Failed(com.slouchcat.app.mobile.common.LoadError.Offline)))
+        show(PlaybackSettingsUiState(prefs = Loadable.Failed(com.slouchcat.core.media.LoadError.Offline)))
         compose.onNode(hasText(s(R.string.app_state_retry)) and hasClickAction()).performScrollTo().performClick()
         assertEquals(listOf("retry"), events)
     }

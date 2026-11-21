@@ -9,15 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.media.CardTag
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaGrid
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.Paged
 import com.slouchcat.app.mobile.media.PagingFooter
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.fullWidth
@@ -28,7 +24,10 @@ import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.TopBar
-import com.slouchcat.core.design.gutter
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.Paged
 import com.slouchcat.core.strings.R
 
 /** The title of a list: the name of its row (`home.rows.*`) or «User-Empfehlungen». */

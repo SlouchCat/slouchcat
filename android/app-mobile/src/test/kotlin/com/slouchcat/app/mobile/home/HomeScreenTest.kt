@@ -8,15 +8,12 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.media.MediaItem
 import com.slouchcat.app.mobile.testing.PRIMARY
 import com.slouchcat.app.mobile.testing.SERVER_IMAGES
 import com.slouchcat.app.mobile.testing.assertEveryControlLabelledAndTappable
@@ -27,6 +24,9 @@ import com.slouchcat.core.api.generated.models.HomeListKey
 import com.slouchcat.core.api.generated.models.HomeRowKey
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

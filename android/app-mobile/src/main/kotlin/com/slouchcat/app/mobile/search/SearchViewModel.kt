@@ -2,16 +2,18 @@ package com.slouchcat.app.mobile.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.MoreState
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.PersonRef
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.SearchQuery
+import com.slouchcat.core.media.data.SearchRepository
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

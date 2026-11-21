@@ -55,14 +55,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.LoadableContent
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.MoreState
 import com.slouchcat.app.mobile.media.PagingFooter
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.app.mobile.media.defaultCaption
 import com.slouchcat.app.mobile.media.runtimeText
 import com.slouchcat.app.mobile.media.titleCount
@@ -80,6 +76,10 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -388,7 +388,7 @@ private fun highlight(text: String, query: String): AnnotatedString {
 private fun ResultRow(
     title: AnnotatedString,
     caption: String?,
-    image: com.slouchcat.app.mobile.media.ImageSet,
+    image: com.slouchcat.core.media.ImageSet,
     name: String,
     onClick: (() -> Unit)?,
     square: Boolean = false,

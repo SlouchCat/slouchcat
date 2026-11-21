@@ -2,12 +2,13 @@ package com.slouchcat.app.mobile.person
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.Person
 import com.slouchcat.core.api.generated.models.PersonCreditsInner
 import com.slouchcat.core.api.map
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.data.PersonRepository
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow

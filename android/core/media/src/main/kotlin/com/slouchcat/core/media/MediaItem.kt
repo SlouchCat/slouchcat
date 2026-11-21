@@ -1,4 +1,4 @@
-package com.slouchcat.app.mobile.media
+package com.slouchcat.core.media
 
 import androidx.compose.runtime.Immutable
 import com.slouchcat.core.api.generated.models.ItemDetail
@@ -76,7 +76,7 @@ data class MediaItem(
                 backdrop = images.backdrops(item.images).or(images.backdrops(series?.images)),
                 logo = images.logo(item.images),
                 progress = started?.let(::share),
-                remainingMinutes = started?.let(::remaining),
+                remainingMinutes = started?.let(::minutesLeft),
                 watched = finished(item.kind, item.watched, item.progress),
                 inWatchlist = item.inWatchlist,
                 seriesTitle = series?.title ?: item.seriesTitle,
@@ -102,7 +102,7 @@ data class MediaItem(
                 backdrop = images.backdrops(item.images).or(images.backdrops(item.seriesRef?.images)),
                 logo = images.logo(item.images),
                 progress = started?.let(::share),
-                remainingMinutes = started?.let(::remaining),
+                remainingMinutes = started?.let(::minutesLeft),
                 watched = finished(item.kind, item.watched, item.progress),
                 inWatchlist = item.inWatchlist,
                 seriesTitle = item.seriesRef?.title ?: item.seriesTitle,
@@ -112,11 +112,6 @@ data class MediaItem(
                 note = item.note,
             )
         }
-
-        private fun share(p: Progress): Float =
-            if (p.durationMs > 0) (p.positionMs.toFloat() / p.durationMs).coerceIn(0f, 1f) else (p.percent.toFloat() / 100f).coerceIn(0f, 1f)
-
-        private fun remaining(p: Progress): Int = maxOf(1, ((p.durationMs - p.positionMs) / 60_000.0).let(Math::round).toInt())
 
         /** The check mark of the web app (`isFinished`): series and podcasts by `watched`, others by `watchedAt`. */
         private fun finished(kind: ItemKind, watched: Boolean?, progress: Progress?): Boolean =

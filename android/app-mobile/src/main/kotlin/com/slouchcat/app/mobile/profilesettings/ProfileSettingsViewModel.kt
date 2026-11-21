@@ -2,8 +2,6 @@ package com.slouchcat.app.mobile.profilesettings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Accent
 import com.slouchcat.core.api.generated.models.Language
@@ -13,6 +11,9 @@ import com.slouchcat.core.api.generated.models.Profile
 import com.slouchcat.core.api.generated.models.ProfileRequest
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.api.generated.models.ProfileUpdate
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.data.ProfileSettingsRepository
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.SessionManager
 import com.slouchcat.core.session.SessionState

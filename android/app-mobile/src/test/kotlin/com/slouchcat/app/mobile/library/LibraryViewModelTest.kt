@@ -1,7 +1,5 @@
 package com.slouchcat.app.mobile.library
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakeLibrary
 import com.slouchcat.app.mobile.testing.itemRef
 import com.slouchcat.app.mobile.testing.library
@@ -12,6 +10,8 @@ import com.slouchcat.core.api.generated.models.LibraryItemStatus
 import com.slouchcat.core.api.generated.models.LibraryKind
 import com.slouchcat.core.api.generated.models.LibraryNav
 import com.slouchcat.core.api.generated.models.LibrarySort
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow

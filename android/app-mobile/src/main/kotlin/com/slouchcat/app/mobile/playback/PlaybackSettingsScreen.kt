@@ -196,7 +196,7 @@ private fun Pick(icon: SlouchcatIcon, title: String, value: String, onClick: () 
 @Composable
 private fun ChoiceSheet(sheet: PlaybackSheet, state: PlaybackSettingsUiState, events: PlaybackSettingsEvents) {
     val close = { events.onSheet(null) }
-    val prefs = (state.prefs as? com.slouchcat.app.mobile.common.Loadable.Ready)?.value
+    val prefs = (state.prefs as? com.slouchcat.core.media.Loadable.Ready)?.value
     when (sheet) {
         PlaybackSheet.ResetSeries -> SlouchcatSheet(stringResource(R.string.settings_playback_series_confirmTitle), onDismiss = close) {
             SheetHeadIcon(SlouchcatIcon.Refresh, warning = true)

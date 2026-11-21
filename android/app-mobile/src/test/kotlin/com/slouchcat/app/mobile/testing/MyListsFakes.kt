@@ -1,11 +1,11 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.media.Page
-import com.slouchcat.app.mobile.mylists.MyListsRepository
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
 import com.slouchcat.core.api.generated.models.WatchedEntry
+import com.slouchcat.core.media.Page
+import com.slouchcat.core.media.data.MyListsRepository
 import okhttp3.HttpUrl
 import java.time.OffsetDateTime
 

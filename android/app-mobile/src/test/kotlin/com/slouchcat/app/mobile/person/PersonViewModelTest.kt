@@ -1,13 +1,13 @@
 package com.slouchcat.app.mobile.person
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakePeople
 import com.slouchcat.app.mobile.testing.person
 import com.slouchcat.app.mobile.testing.session
 import com.slouchcat.app.mobile.testing.settle
 import com.slouchcat.app.mobile.testing.ulid
 import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher

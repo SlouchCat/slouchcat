@@ -1,12 +1,5 @@
 package com.slouchcat.app.mobile.showcase
 
-import com.slouchcat.app.mobile.browse.BrowseData
-import com.slouchcat.app.mobile.browse.HomeRepository
-import com.slouchcat.app.mobile.browse.ItemRepository
-import com.slouchcat.app.mobile.browse.LibraryPage
-import com.slouchcat.app.mobile.browse.LibraryQuery
-import com.slouchcat.app.mobile.browse.LibraryRepository
-import com.slouchcat.app.mobile.media.Page
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.GenreRef
 import com.slouchcat.core.api.generated.models.HomeListKey
@@ -25,6 +18,13 @@ import com.slouchcat.core.api.generated.models.LibraryTile
 import com.slouchcat.core.api.generated.models.Progress
 import com.slouchcat.core.api.generated.models.RootContent
 import com.slouchcat.core.api.generated.models.SeriesRef
+import com.slouchcat.core.media.MediaData
+import com.slouchcat.core.media.Page
+import com.slouchcat.core.media.data.HomeRepository
+import com.slouchcat.core.media.data.ItemRepository
+import com.slouchcat.core.media.data.LibraryPage
+import com.slouchcat.core.media.data.LibraryQuery
+import com.slouchcat.core.media.data.LibraryRepository
 import okhttp3.HttpUrl
 import java.math.BigDecimal
 import java.time.OffsetDateTime
@@ -159,8 +159,8 @@ object BrowseShowcaseData {
 
     private fun <T> page(list: List<T>, offset: Int, limit: Int) = ApiResult.Ok(Page(list.drop(offset).take(limit), list.size))
 
-    /** The repositories of stage 4 over this data. */
-    fun data(): BrowseData = BrowseData(
+    /** The repositories of stage 4 over this data, the rest from [base]. */
+    fun data(base: MediaData): MediaData = base.copy(
         home = object : HomeRepository {
             override suspend fun home(server: HttpUrl) = ApiResult.Ok(home)
             override suspend fun homeRow(server: HttpUrl, key: HomeListKey, offset: Int, limit: Int) =

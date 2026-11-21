@@ -1,10 +1,10 @@
 package com.slouchcat.app.mobile.testing
 
-import com.slouchcat.app.mobile.collections.CollectionsRepository
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Collection
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.media.data.CollectionsRepository
 import okhttp3.HttpUrl
 
 /** Collections in memory; [parts] per collection id. */

@@ -39,6 +39,7 @@ dependencies {
     implementation(project(":core:design"))
     implementation(project(":core:strings"))
     implementation(project(":core:pairing"))
+    implementation(project(":core:media"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

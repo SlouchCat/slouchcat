@@ -10,14 +10,16 @@ import androidx.navigation.toRoute
 import com.slouchcat.app.mobile.AppGraph
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
-import com.slouchcat.app.mobile.media.ServerImages
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.PersonRepository
 
 /** The person page of stage 4 (mockup `/person/:id`); in-app address `person/<id>`. [repository]: tests bring a fake. */
 class PersonFeature(
-    private val repository: (AppGraph) -> PersonRepository = { ApiPersonRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> PersonRepository = { it.media.person },
 ) : Feature {
     override fun link(address: String): AppLink? =
         address.removePrefix("/").takeIf { it.startsWith("person/") }?.removePrefix("person/")?.toLongOrNull()?.takeIf { it > 0 }

@@ -1,4 +1,4 @@
-package com.slouchcat.app.mobile.media
+package com.slouchcat.core.media
 
 import com.slouchcat.core.api.SlouchcatApi
 import com.slouchcat.core.api.generated.models.ImageRef

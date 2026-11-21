@@ -44,14 +44,11 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.slouchcat.app.tv.common.LoadableContent
-import com.slouchcat.app.tv.common.Loadable
 import com.slouchcat.app.tv.shell.tvPage
-import com.slouchcat.app.tv.ui.FocusMemory
 import com.slouchcat.app.tv.ui.NoteTone
 import com.slouchcat.app.tv.ui.StartFocus
 import com.slouchcat.app.tv.ui.TvButton
@@ -69,6 +66,7 @@ import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.design.Avatar
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.strings.R
 
 /**

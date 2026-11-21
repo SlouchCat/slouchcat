@@ -2,16 +2,18 @@ package com.slouchcat.app.mobile.collections
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.Collection
 import com.slouchcat.core.api.generated.models.CollectionRef
 import com.slouchcat.core.api.generated.models.ItemKind
 import com.slouchcat.core.api.generated.models.ItemRef
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.LoadError
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.CollectionsRepository
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -22,24 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import okhttp3.HttpUrl
-
-/**
- * The number of «Sammlungen» for the media choice and «Mehr», one per app: read once per session
- * when the choice is drawn, set again by the overview.
- */
-class CollectionsCount {
-    private val _count = MutableStateFlow<Int?>(null)
-    val count: StateFlow<Int?> = _count.asStateFlow()
-
-    fun set(value: Int?) {
-        _count.value = value
-    }
-
-    suspend fun refresh(repository: CollectionsRepository, server: HttpUrl) {
-        (repository.collections(server) as? ApiResult.Ok)?.let { _count.value = it.value.size }
-    }
-}
 
 data class CollectionsUiState(val collections: Loadable<List<CollectionRef>> = Loadable.Loading)
 
@@ -47,7 +31,7 @@ data class CollectionsUiState(val collections: Loadable<List<CollectionRef>> = L
 class CollectionsViewModel(
     private val session: SessionManager,
     private val repository: CollectionsRepository,
-    private val count: CollectionsCount,
+    private val count: LiveCount,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionsUiState())
     val state: StateFlow<CollectionsUiState> = _state.asStateFlow()

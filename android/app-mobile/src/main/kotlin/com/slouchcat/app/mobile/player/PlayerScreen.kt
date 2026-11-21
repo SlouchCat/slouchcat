@@ -67,7 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.slouchcat.app.mobile.media.ServerImages
+import com.slouchcat.core.media.ServerImages
 import com.slouchcat.core.api.generated.models.Quality
 import com.slouchcat.core.api.generated.models.Track
 import com.slouchcat.core.design.ButtonKind

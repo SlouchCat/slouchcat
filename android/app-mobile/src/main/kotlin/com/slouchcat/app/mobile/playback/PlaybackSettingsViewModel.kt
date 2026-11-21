@@ -2,12 +2,12 @@ package com.slouchcat.app.mobile.playback
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.ApiResult
-import com.slouchcat.core.api.map
 import com.slouchcat.core.api.generated.models.PlaybackPrefs
 import com.slouchcat.core.api.generated.models.SubtitleMode
+import com.slouchcat.core.api.map
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.player.DeviceSettings
 import com.slouchcat.core.player.DeviceSettingsStore
 import com.slouchcat.core.player.PlaybackPrefsRepository

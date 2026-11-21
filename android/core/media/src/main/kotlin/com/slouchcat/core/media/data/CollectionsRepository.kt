@@ -1,4 +1,4 @@
-package com.slouchcat.app.mobile.collections
+package com.slouchcat.core.media.data
 
 import com.slouchcat.core.api.ApiCaller
 import com.slouchcat.core.api.ApiResult

@@ -1,8 +1,5 @@
-package com.slouchcat.app.mobile.media
+package com.slouchcat.core.media
 
-import com.slouchcat.app.mobile.common.LoadError
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.ApiResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

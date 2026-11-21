@@ -2,14 +2,16 @@ package com.slouchcat.app.mobile.mylists
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.MoreState
-import com.slouchcat.app.mobile.media.PageLoader
-import com.slouchcat.app.mobile.media.Paged
-import com.slouchcat.app.mobile.media.ServerImages
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.WatchedEntry
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
+import com.slouchcat.core.media.PageLoader
+import com.slouchcat.core.media.Paged
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.MyListsRepository
 import com.slouchcat.core.session.SessionManager
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -63,7 +65,7 @@ data class MyListUiState<T>(
 class WatchlistViewModel(
     private val session: SessionManager,
     private val repository: MyListsRepository,
-    private val count: WatchlistCount,
+    private val count: LiveCount,
 ) : ViewModel() {
     private val local = MutableStateFlow(MyListUiState<MediaItem>())
     private val pager = PageLoader(viewModelScope, map = { it: com.slouchcat.core.api.generated.models.ItemRef -> MediaItem.from(it, ServerImages(session.server!!)) }) { offset, limit ->

@@ -3,12 +3,12 @@ package com.slouchcat.app.mobile.profiles
 import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.SessionActions
-import com.slouchcat.app.mobile.common.toLoadable
 import com.slouchcat.core.api.ApiResult
 import com.slouchcat.core.api.generated.models.ProfileSummary
 import com.slouchcat.core.api.generated.models.SessionInfo
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.toLoadable
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.session.AuthRepository
 import com.slouchcat.core.session.SessionManager

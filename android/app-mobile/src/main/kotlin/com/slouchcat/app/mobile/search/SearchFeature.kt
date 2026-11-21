@@ -13,12 +13,14 @@ import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.LibraryRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.SearchRoute
-import com.slouchcat.app.mobile.common.Loadable
-import com.slouchcat.app.mobile.media.ServerImages
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
 import com.slouchcat.app.mobile.shell.TopDestination
 import com.slouchcat.core.design.SlouchcatIcon
+import com.slouchcat.core.media.Loadable
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.SearchRepository
 import com.slouchcat.core.strings.R
 
 /**
@@ -27,7 +29,7 @@ import com.slouchcat.core.strings.R
  * bring a fake.
  */
 class SearchFeature(
-    private val repository: (AppGraph) -> SearchRepository = { ApiSearchRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> SearchRepository = { it.media.search },
 ) : Feature {
     override val destinations = listOf(TopDestination("search", 20, SearchRoute(), R.string.nav_search, SlouchcatIcon.Search))
 

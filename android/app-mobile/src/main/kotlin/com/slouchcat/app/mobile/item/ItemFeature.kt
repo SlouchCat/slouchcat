@@ -19,10 +19,12 @@ import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PersonRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
 import com.slouchcat.app.mobile.browse.SearchRoute
-import com.slouchcat.app.mobile.media.ServerImages
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.DetailRepository
 import com.slouchcat.core.strings.R
 
 /**
@@ -32,7 +34,7 @@ import com.slouchcat.core.strings.R
  * [repository]: the data of the page; tests bring a fake.
  */
 class ItemFeature(
-    private val repository: (AppGraph) -> DetailRepository = { ApiDetailRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> DetailRepository = { it.media.detail },
 ) : Feature {
     override fun link(address: String): AppLink? =
         address.removePrefix("/").takeIf { it.startsWith("item/") }?.removePrefix("item/")?.takeIf { it.isNotBlank() && '/' !in it }

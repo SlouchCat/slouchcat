@@ -1,10 +1,9 @@
 package com.slouchcat.app.mobile.playback
 
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.testing.FakePrefs
 import com.slouchcat.app.mobile.testing.settle
-import com.slouchcat.core.api.generated.models.PlaybackPrefs
 import com.slouchcat.core.api.generated.models.SubtitleMode
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.player.DeviceSettings
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
 import com.slouchcat.core.player.QualityChoice

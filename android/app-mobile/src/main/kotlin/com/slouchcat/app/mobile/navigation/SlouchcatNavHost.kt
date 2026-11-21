@@ -23,7 +23,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.slouchcat.app.mobile.AppGraph
-import com.slouchcat.app.mobile.common.Loadable
 import com.slouchcat.app.mobile.common.SessionEventHandler
 import com.slouchcat.app.mobile.profiles.ProfilesScreen
 import com.slouchcat.app.mobile.profiles.ProfilesViewModel
@@ -41,6 +40,7 @@ import com.slouchcat.app.mobile.shell.targetOf
 import com.slouchcat.app.mobile.signin.SignInScreen
 import com.slouchcat.app.mobile.signin.SignInViewModel
 import com.slouchcat.core.design.SlouchcatTheme
+import com.slouchcat.core.media.Loadable
 import com.slouchcat.core.session.SessionState
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch

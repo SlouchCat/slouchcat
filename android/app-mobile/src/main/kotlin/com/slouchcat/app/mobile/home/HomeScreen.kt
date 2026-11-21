@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -57,14 +56,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.slouchcat.app.mobile.common.LoadableContent
-import com.slouchcat.app.mobile.media.CardShape
 import com.slouchcat.app.mobile.media.CardTag
 import com.slouchcat.app.mobile.media.FskBadge
 import com.slouchcat.app.mobile.media.MediaCard
 import com.slouchcat.app.mobile.media.MediaEmpty
 import com.slouchcat.app.mobile.media.MediaImage
-import com.slouchcat.app.mobile.media.MediaItem
-import com.slouchcat.app.mobile.media.MoreState
 import com.slouchcat.app.mobile.media.RowHeader
 import com.slouchcat.app.mobile.media.kindName
 import com.slouchcat.app.mobile.media.remainingText
@@ -85,6 +81,9 @@ import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatType
 import com.slouchcat.core.design.gutter
 import com.slouchcat.core.design.isWideLayout
+import com.slouchcat.core.media.CardShape
+import com.slouchcat.core.media.MediaItem
+import com.slouchcat.core.media.MoreState
 import com.slouchcat.core.session.ActiveProfile
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.delay
@@ -130,18 +129,18 @@ fun HomeScreen(
     Box(modifier.fillMaxSize().background(SlouchcatTheme.colors.bg)) {
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             val rows = state.rows
-            val stageLeads = (rows as? com.slouchcat.app.mobile.common.Loadable.Ready)?.value?.firstOrNull() is HomeSection.Spotlight
+            val stageLeads = (rows as? com.slouchcat.core.media.Loadable.Ready)?.value?.firstOrNull() is HomeSection.Spotlight
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (!stageLeads) item(key = "bar") { HomeBar(state.profile, links, overlay = false) }
                 when (rows) {
-                    is com.slouchcat.app.mobile.common.Loadable.Ready -> rows.value.forEachIndexed { index, section ->
+                    is com.slouchcat.core.media.Loadable.Ready -> rows.value.forEachIndexed { index, section ->
                         item(key = section.id) {
                             HomeRow(section, links, onRowEnd, onWatchlist, rotate, bar = if (index == 0 && stageLeads) ({ HomeBar(state.profile, links, overlay = true) }) else null)
                         }
                     }
                     else -> item(key = "state") {
                         LoadableContent(rows, onRetry = onRetry, modifier = Modifier.padding(horizontal = gutter())) {}
-                        if (rows is com.slouchcat.app.mobile.common.Loadable.Empty) {
+                        if (rows is com.slouchcat.core.media.Loadable.Empty) {
                             MediaEmpty(stringResource(R.string.home_empty_title), body = stringResource(R.string.home_empty_body), icon = SlouchcatIcon.Film)
                         }
                     }
@@ -271,12 +270,14 @@ fun rowTitle(section: HomeSection.Cards): String = when (section.key) {
 @Composable
 private fun continueCaption(item: MediaItem): String? {
     val separator = stringResource(R.string.format_separator)
-    val code = if (item.kind == ItemKind.EPISODE && item.seasonNumber != null && item.episodeNumber != null) {
+    val season = item.seasonNumber
+    val number = item.episodeNumber
+    val code = if (item.kind == ItemKind.EPISODE && season != null && number != null) {
         val end = item.episodeEnd
-        if (end != null && end > item.episodeNumber) {
-            stringResource(R.string.home_continue_episodeRange, item.seasonNumber.toString(), item.episodeNumber.toString(), end.toString())
+        if (end != null && end > number) {
+            stringResource(R.string.home_continue_episodeRange, season.toString(), number.toString(), end.toString())
         } else {
-            stringResource(R.string.home_continue_episode, item.seasonNumber.toString(), item.episodeNumber.toString())
+            stringResource(R.string.home_continue_episode, season.toString(), number.toString())
         }
     } else {
         null

@@ -17,7 +17,7 @@ import com.slouchcat.app.mobile.browse.CollectionRoute
 import com.slouchcat.app.mobile.browse.CollectionsRoute
 import com.slouchcat.app.mobile.browse.ItemRoute
 import com.slouchcat.app.mobile.browse.PlayerRoute
-import com.slouchcat.app.mobile.media.ServerImages
+import com.slouchcat.app.mobile.browse.media
 import com.slouchcat.app.mobile.shell.AppLink
 import com.slouchcat.app.mobile.shell.AppScope
 import com.slouchcat.app.mobile.shell.Feature
@@ -27,11 +27,14 @@ import com.slouchcat.app.mobile.shell.MediaEntry
 import com.slouchcat.app.mobile.shell.MediaSection
 import com.slouchcat.app.mobile.shell.MoreEntry
 import com.slouchcat.app.mobile.shell.MoreSection
+import com.slouchcat.core.api.map
 import com.slouchcat.core.design.SlouchcatIcon
+import com.slouchcat.core.media.LiveCount
+import com.slouchcat.core.media.ServerImages
+import com.slouchcat.core.media.data.CollectionsRepository
 import com.slouchcat.core.strings.R
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import java.util.WeakHashMap
 
 /**
  * «Sammlungen» of stage 4 (mockup `/collections`, `/collection/:id`): the entry of «Meine Medien»
@@ -39,17 +42,14 @@ import java.util.WeakHashMap
  * [repository]: tests bring a fake.
  */
 class CollectionsFeature(
-    private val repository: (AppGraph) -> CollectionsRepository = { ApiCollectionsRepository(it.api, it.http) },
+    private val repository: (AppGraph) -> CollectionsRepository = { it.media.collections },
 ) : Feature {
-    private val counts = WeakHashMap<AppGraph, CollectionsCount>()
-
-    private fun count(graph: AppGraph): CollectionsCount = synchronized(counts) {
-        counts.getOrPut(graph) { CollectionsCount().also { count -> graph.hooks.onProfileOrSessionEnd { count.set(null) } } }
-    }
+    /** The number of collections of the graph (`:core:media`). */
+    private fun count(graph: AppGraph): LiveCount = graph.media.collectionsCount
 
     private fun countFlow(graph: AppGraph) = flow {
         val count = count(graph)
-        graph.session.server?.let { count.refresh(repository(graph), it) }
+        graph.session.server?.let { server -> count.refresh { repository(graph).collections(server).map { it.size } } }
         emitAll(count.count)
     }
 
@@ -70,7 +70,7 @@ class CollectionsFeature(
     @Composable
     private fun subtitle(graph: AppGraph): String? {
         val count = remember(graph) { count(graph) }
-        LaunchedEffect(graph) { graph.session.server?.let { count.refresh(repository(graph), it) } }
+        LaunchedEffect(graph) { graph.session.server?.let { server -> count.refresh { repository(graph).collections(server).map { it.size } } } }
         val n by count.count.collectAsStateWithLifecycle()
         return n?.let { pluralStringResource(R.plurals.collection_all_count, it, it) }
     }
