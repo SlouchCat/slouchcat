@@ -57,7 +57,9 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test (seit Konzept 25 auch `seerrapikey`,
     `newpassword`, `radarrapikey`, `sonarrapikey`, seit Konzept 27 `apptoken`, `devicetoken` und
-    `slouchcatdevice` für App- und Gerätetoken und die Gerätekennung; `password` steht schon drin).
+    `slouchcatdevice` für App- und Gerätetoken und die Gerätekennung, `voucher` für den Kopplungsgutschein,
+    `pickup`, `pickuphash` für das Abholgeheimnis, `pairid`, `meetingpointid` für die Treffpunkt-Kennung,
+    `packet`, `sealedtoken` und `fcmtoken` für das Google-Token; `password` steht schon drin).
 11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps und native Apps (zwei benannte Ausnahmen: die Android-Handy-App nach Frage 35
     und Konzept 27 und die Android-TV-App nach Frage 34 und Konzept 26; Apple TV, webOS, Tizen, Fire TV und
     native iOS-Apps bleiben Nicht-Ziele), Plugins,

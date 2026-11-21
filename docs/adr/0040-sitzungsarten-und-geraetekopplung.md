@@ -1,12 +1,13 @@
 # ADR 0040: Sitzungsarten für native Apps und Gerätekopplung
 
-- Status: angenommen (21. November 2026, Stufe 1 von Konzept 27, Teil 1); der Abschnitt «Kopplung»
-  folgt mit Teil 3 derselben Stufe. **Nachtrag zu ADR 0005** (drei Sitzungsarten, Ablauf, Aufräumung
+- Status: angenommen (21. November 2026, Stufe 1 von Konzept 27, Teil 1; die Abschnitte «Kopplung» und
+  «Server weist sich aus» mit Teil 3 derselben Stufe). **Nachtrag zu ADR 0005** (drei Sitzungsarten, Ablauf, Aufräumung
   der Geräte).
 - Quelle: Konzept `docs/planning/27-android-handy-app.md` (K27), Abschnitte 2.3, 4, 11.5 und 15.1;
   Konzept `docs/planning/26-android-tv.md` (K26), Abschnitte 4.2, 4.5 und Anhang B; Marcos Entscheide
   E-7, E-8, E-14, E-15, E-16 und F-4; Frage 34 und Frage 35 in `docs/planning/04-entscheidungen.md`
-- Vertrag: 1.42.0 (zusätzlich); Migration `00082_session_kind.sql`
+- Vertrag: 1.42.0 (zusätzlich); Migrationen `00082_session_kind.sql`, `00084_pairing_vouchers.sql`,
+  `00085_device_linked_deliveries.sql`
 - Harte Regeln: 5 (Migration nach Vorlage), 7 (`x-visibility` und neu `x-clients`, Vertragstest),
   9 (Texte), 10 (Token und Gerätekennung redigiert), 12 (Entscheid im Server)
 
@@ -55,13 +56,61 @@ die Frage nie; im Vertrag erzwingt sie der Schema-Test.
 
 ## Kopplung
 
-Folgt mit Teil 3 von Stufe 1: Kopplungsgutschein ausstellen und einlösen, Verschlüsselung des Pakets und
-«Server weist sich aus».
+Teil 3 von Stufe 1 (K27 Abschnitte 7.2 und 10, K26 4.3 und 4.6). Formate und `info`-Werte stehen im
+Logbuch unter «Protokolle»; die Testvektoren in `testdata/crypto/` halten sie fest.
+
+| Punkt | Entscheid |
+|---|---|
+| Gutschein ausstellen | `createPairingVoucher` (`POST /account/pairing-vouchers`, `account`, `x-clients: [app]`). Nur eine App-Sitzung: eine Browser-Sitzung bekommt 403 `app_session_required`, eine Gerätesitzung schon in der Middleware 403 `client_not_allowed`. Nur ohne aktives Profil oder mit dem Hauptprofil (F-23, `primary_profile_required`). Eingabe: der X25519-Schlüssel des Fernsehers aus dem QR-Code (`tvKey`, 32 Byte base64url, ein gültiger Punkt) |
+| Gutschein | 256 Bit Zufall in base64url, gültig 2 Minuten, einmal verwendbar, an `tvKey` gebunden, trägt die Art `tv`. Der Server speichert nur den SHA-256 (Tabelle `pairing_vouchers`, Migration 00084), höchstens einen offenen je Konto: ein neuer ersetzt den alten. Höchstens 6 Gutscheine je Minute und Konto. Die Aufräumung der Sitzungen löscht abgelaufene |
+| Einlösen | `redeemPairingVoucher` (`POST /auth/pairing/redeem`, `public`): Gutschein, `tvKey`, Gerätename, Systemfassung. Der Server liest und löscht den Gutschein in einer Anweisung (`DELETE … RETURNING`); von gleichzeitigen Anfragen bekommt ihn nur eine. Danach prüft er Ablauf und Schlüssel. Ein Gutschein mit fremdem Schlüssel ist damit auch verbraucht: wer ihn kennt, aber den Schlüssel nicht hat, ist schon ein Zeichen eines Angriffs |
+| Antwort | Gerätesitzung über `StartAppSession` mit der Art `tv` (Gerätezeile sofort mit Name und Art, die Systemfassung als `user_agent`, neue Gerätekennung). Profil wie bei `appLogin`: ein einziges Profil ohne PIN ist gleich aktiv, sonst zeigt der Fernseher die Profilwahl. `sealedToken` = HPKE (RFC 9180, Base-Modus, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-256-GCM, `info` `slouchcat-redeem-v1`, `aad` leer) an `tvKey`, Klartext `{"token","deviceId"}`, aus der Standardbibliothek `crypto/hpke`. Dazu `accountEmail` für die Anzeige am Fernseher (K-9). `Cache-Control: no-store`, nie ein Cookie (auch kein Gerätecookie) |
+| Fehler | Unbekannt, abgelaufen, verbraucht und fremder Schlüssel ergeben dieselbe Antwort 410 `voucher_invalid`; der Fernseher zeigt in jedem Fall einen neuen Code. Nur das Log nennt den Grund (ohne den Gutschein). Jeder Versuch zählt in einem eigenen Topf je Adresse des Aufrufers (10 je Minute), nicht im Topf von `login` |
+| Meldung | Nach jeder Kopplung geht `device_linked` über **alle eingeschalteten Kanäle des Kontos** (E-Mail, Telegram, Push), unabhängig von den gewählten Ereignissen: sie meldet einen neuen Zugang zum Konto und ist darum nichts, was man abwählt. Sie nennt, was der Server selbst weiss (Zeitpunkt, Art des Geräts), und gibt Name und Systemfassung als Angabe des Geräts wieder (K-7). Texte des Servers in `de`, `en` und `de-DE`; die übrigen Sprachen fallen bis zur Übersetzungsrunde auf Englisch zurück |
+| Kleinster Weg für die Meldung | Die Liste in der App (`notifications`) hängt an einem Profil, und jede Art dort braucht einen Titel oder einen Wunsch (Migration 00070). Die Meldung gehört aber zum Konto. Darum bekommt nur `deliveries` das Ereignis `device_linked` (Migration 00085, Umbau nach Vorlage); die Liste in der App und die Ereignisse der Kanäle (`EventType`, `account_channels.events`) bleiben, wie sie sind. «Meine Geräte» zeigt das neue Gerät ohnehin |
+| Logs | Die Redaktionsliste kennt `voucher`, `pickup`, `pickupsecret`, `pickuphash`, `pairid`, `meetingpoint`, `meetingpointid`, `packet`, `sealedtoken` und `fcmtoken` (K-8) |
+
+Bekannte Grenzen (K27 7.2, K26 4.6), unverändert:
+
+- **Untergeschobener QR-Code:** Wer einem Kontoinhaber das Bild eines eigenen Codes schickt und ihn zum
+  Scannen bringt, koppelt seinen Fernseher. Die Warnung in der Handy-App (K-5), die Erlaubnisliste (K-6)
+  und die Meldung (K-7) machen es sichtbar und begrenzen den Schaden; verhindern lässt es sich nicht.
+- **Untergeschobenes Paket:** Wer die Treffpunkt-Kennung kennt, kann dem Fernseher ein Paket für einen
+  fremden Server ablegen. Lesen kann er nichts; der Fernseher zeigt Server und Konto (K-9).
+- **HTTP:** Läuft der Server ohne TLS, schützt die Versiegelung nur diese eine Antwort. Jede spätere
+  Anfrage trägt das Gerätetoken offen, und es gilt, bis jemand den Fernseher abmeldet oder das Passwort
+  ändert; die Meldung schlägt dabei nicht an.
+- Der Gutschein selbst reist nur im versiegelten Paket. Die Bindung an den Schlüssel schützt vor einem
+  Gutschein, der doch abgefangen wird (K-3): einlösen kann ihn nur, wer den privaten Schlüssel hat.
+
+## Server weist sich aus
+
+F-38 nach der Empfehlung (K27 Abschnitt 6).
+
+| Punkt | Entscheid |
+|---|---|
+| Schlüssel | Ed25519, abgeleitet aus dem Geheimnis des Servers: `secrets.Keyring.Derive("server-identity")` (HKDF-SHA256 über `secret.key`) ist der Seed. Kein zweites Schlüsselfile: derselbe `secret.key` ergibt nach jedem Neustart denselben Schlüssel, ein neuer `secret.key` (Neuinstallation, Wiederherstellung ohne Geheimnisse) einen neuen |
+| Vertrag | `getHealth.serverKey` (öffentlicher Schlüssel, base64url) und `proveServer` (`POST /server/prove`, `public`): Anfrage `{"nonce"}` mit 32 Byte, Antwort `{"signature","serverKey"}`; unterschrieben wird UTF-8 `slouchcat-server-proof-v1:` gefolgt von den Bytes der Zufallszahl. 30 Beweise je Minute und Adresse des Aufrufers, sonst 429. Nie ein Cookie |
+| Kopplung | Das Paket der Handy-App trägt `serverKey`; der Fernseher prüft den Server so schon vor dem Einlösen |
+
+Was es leistet: Eine App, die sich den Schlüssel beim Einrichten gemerkt hat, erkennt in einem fremden
+Netz einen anderen Rechner unter derselben Adresse und sendet ihm weder Token noch Passwort.
+
+Was es nicht leistet: Es schützt nicht vor jemandem, der im richtigen Netz mitliest (E-18). Ist der echte
+Server auch aus dem Internet erreichbar, kann ein fremdes Gerät die Prüfung an ihn weiterreichen und danach
+mitlesen; dagegen hilft nur HTTPS. Wer eine Sicherung mit `secret.key` erbeutet, kann sich als der Server
+ausgeben.
+
+Schlüsselwechsel: Ein neuer `secret.key` wechselt den Schlüssel ohne Übergang. Die App meldet dann «Der
+Server hat einen neuen Schlüssel» und lässt ihn erst nach einer neuen Anmeldung mit dem Passwort bestätigen
+(K27 Abschnitt 6). Ein Wechsel nur des Ed25519-Schlüssels ohne neues Geheimnis ist nicht vorgesehen.
 
 ## Folgen
 
 - Vertrag 1.42.0 ist zusätzlich. Neu sind `appLogin`, `AppLoginRequest`, `AppLogin`, `SessionKind`,
-  `Health.contractVersion`, `AdminDevice.sessionKind` und `x-clients` an 116 Operationen.
+  `Health.contractVersion`, `AdminDevice.sessionKind` und `x-clients` an 116 Operationen; mit Teil 3
+  `createPairingVoucher`, `redeemPairingVoucher`, `proveServer`, `Health.serverKey` und die Fehlercodes
+  `app_session_required` und `voucher_invalid`.
 - **Neue Regel neben «Vertrag = Tag» (K27 11.5, Frage F-9):** Operationen mit `x-clients` brechen nicht mehr
   von einem Release aufs nächste; eine brechende Änderung braucht eine Übergangszeit. Frei ändern lässt
   sich nur noch die Verwaltung.
