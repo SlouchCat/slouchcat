@@ -236,7 +236,9 @@ fun <T> TvCardRow(
                 state = state,
                 contentPadding = PaddingValues(start = LocalContentStart.current, end = TvDimens.safeX, top = TvDimens.Card.RowTop, bottom = TvDimens.Card.RowBottom),
                 horizontalArrangement = Arrangement.spacedBy(TvDimens.gap),
-                modifier = Modifier.fillMaxWidth().focusRestorer(first),
+                // Into the row: the card it had (also after Back, when the row is new: a request of
+                // the page's focus memory enters the row and lands here), else the first one.
+                modifier = Modifier.fillMaxWidth().focusRestorer(focusedKey?.let(focus::requester) ?: first),
             ) {
                 itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
                     val name = "$rowKey-${key(item)}"
@@ -274,16 +276,24 @@ fun <T> TvCardGrid(
     card: @Composable (item: T, modifier: Modifier) -> Unit,
 ) {
     val first = remember { FocusRequester() }
+    var focusedKey by rememberSaveable { mutableStateOf<String?>(null) }
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
         contentPadding = PaddingValues(start = LocalContentStart.current, end = TvDimens.safeX, top = TvDimens.Card.RowTop, bottom = TvDimens.safeY),
         horizontalArrangement = Arrangement.spacedBy(TvDimens.gap),
         verticalArrangement = Arrangement.spacedBy(TvDimens.gap),
-        modifier = modifier.focusRestorer(first),
+        modifier = modifier.focusRestorer(focusedKey?.let(focus::requester) ?: first),
     ) {
         itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
-            card(item, Modifier.focusKey(focus, "$gridKey-${key(item)}").then(if (index == 0) Modifier.focusRequester(first) else Modifier))
+            val name = "$gridKey-${key(item)}"
+            card(
+                item,
+                Modifier
+                    .focusKey(focus, name)
+                    .then(if (index == 0) Modifier.focusRequester(first) else Modifier)
+                    .onFocusChanged { if (it.isFocused) focusedKey = name },
+            )
         }
     }
 }

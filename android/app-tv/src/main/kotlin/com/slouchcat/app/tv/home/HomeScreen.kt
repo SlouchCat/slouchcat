@@ -392,7 +392,7 @@ private fun Stage(
                     Thumb(
                         other,
                         current = k == index,
-                        label = stringResource(R.string.app_home_slide, (k + 1).toString(), row.items.size.toString()) + ", " + other.title,
+                        label = stringResource(R.string.app_home_slide, row.items.size, (k + 1).toString()) + ", " + other.title,
                         onFocus = { at = k },
                         onClick = { links.item?.invoke(other) },
                         modifier = Modifier.focusKey(focus, "$HERO-$k"),

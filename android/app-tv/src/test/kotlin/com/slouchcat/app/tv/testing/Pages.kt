@@ -1,0 +1,103 @@
+package com.slouchcat.app.tv.testing
+
+import android.content.Context
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import com.slouchcat.app.tv.TvGraph
+import com.slouchcat.app.tv.browse.PlayerRoute
+import com.slouchcat.app.tv.common.MemoryRelaySettings
+import com.slouchcat.app.tv.navigation.TvNavHost
+import com.slouchcat.app.tv.shell.TvFeature
+import com.slouchcat.app.tv.shell.TvScope
+import com.slouchcat.core.api.ApiResult
+import com.slouchcat.core.api.generated.models.LibraryNav
+import com.slouchcat.core.media.MediaData
+import com.slouchcat.core.session.ActiveProfile
+import com.slouchcat.core.session.ProbeResult
+import com.slouchcat.core.session.SessionState
+import com.slouchcat.core.session.StoredCredentials
+
+/** A stand-in for the player of stage 3: registers [PlayerRoute] and remembers what it was asked to play. */
+class TestPlayerFeature : TvFeature {
+    val played = mutableListOf<PlayerRoute>()
+    override val fullScreen = setOf(PlayerRoute::class)
+
+    override fun NavGraphBuilder.register(app: TvScope) {
+        composable<PlayerRoute> { entry ->
+            val route = entry.toRoute<PlayerRoute>()
+            androidx.compose.runtime.LaunchedEffect(route) { played += route }
+        }
+    }
+}
+
+/**
+ * The pages of stage 2b in the real shell and NavHost, signed in with [profile], the data of
+ * [data] instead of a server (`MediaData.install`, as the showcase does), the [libraries] in the
+ * rail. The app starts on «Start».
+ */
+class Pages(private val compose: TvRule) {
+    val remote = Dpad(compose)
+    val context: Context = ApplicationProvider.getApplicationContext()
+    var exited = 0
+    lateinit var graph: TvGraph
+        private set
+
+    fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
+
+    fun show(
+        data: (MediaData) -> MediaData,
+        libraries: List<LibraryNav> = listOf(library(7, "Filme"), library(8, "Serien", contents = listOf(com.slouchcat.core.api.generated.models.RootContent.SERIES))),
+        profile: ActiveProfile = PRIMARY,
+        features: List<TvFeature> = com.slouchcat.app.tv.shell.features,
+    ): TvGraph {
+        graph = TvGraph(
+            context,
+            features = features,
+            serverStore = FakeServers(HTTPS_SERVER),
+            tokenStore = FakeTokens(StoredCredentials("token", "device-1")),
+            accountStore = FakeAccounts(EMAIL, profile),
+            relaySettings = MemoryRelaySettings(),
+            serverProbe = FakeProbe(ProbeResult.Unreachable),
+            auth = FakeAuth(),
+            librariesRepository = FakeLibraries(ApiResult.Ok(libraries)),
+        )
+        MediaData.install(graph, data(MediaData.api(graph.api, graph.http)))
+        InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
+        compose.setContent { TvNavHost(graph, onExit = { exited++ }) }
+        compose.waitUntil(5_000) { graph.session.state.value is SessionState.Ready }
+        remote.settle()
+        remote.settle()
+        return graph
+    }
+
+    /** Waits until something with [text] (shown or said) is on the screen. */
+    fun waitFor(text: String) {
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        remote.settle()
+    }
+
+    /** The rail entry [label] from anywhere: Left into the rail, down to it, OK. */
+    fun openRail(label: String) {
+        remote.left()
+        remote.up(MAX_RAIL)
+        repeat(MAX_RAIL) {
+            if (remote.focusedLabel().contains(label)) {
+                remote.ok()
+                return
+            }
+            remote.down()
+        }
+        error("no rail entry «$label»")
+    }
+
+    private companion object {
+        const val MAX_RAIL = 14
+    }
+}

@@ -1,10 +1,9 @@
 package com.slouchcat.app.tv.browse
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.slouchcat.app.tv.TvGraph
 import com.slouchcat.core.media.ImageSet
 import com.slouchcat.core.media.MediaData
@@ -31,4 +30,4 @@ fun ImageSet.forWidth(width: Dp): String? {
 
 /** The width of the screen: the backdrop of a page spans it. */
 @Composable
-fun screenWidth(): Dp = LocalConfiguration.current.screenWidthDp.dp
+fun screenWidth(): Dp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }

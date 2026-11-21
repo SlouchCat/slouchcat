@@ -267,7 +267,7 @@ private fun Results(state: SearchUiState, images: ServerImages, links: SearchLin
                             rowKey = "sr-${kind.value}",
                             info = { infos[it.id] },
                         ) { item, m ->
-                            MediaCard(item, links.item?.let { open -> { open(item.id) } }, m.then(nearEnd(item, found.items, events)))
+                            MediaCard(item, links.item?.let { open -> { open(item.id) } }, m.nearEnd(item, found.items, events))
                         }
                     }
                 }
@@ -307,8 +307,8 @@ private fun Results(state: SearchUiState, images: ServerImages, links: SearchLin
 }
 
 /** The titles come in pages: near the last loaded card the next page is asked for. */
-private fun nearEnd(item: MediaItem, all: List<MediaItem>, events: SearchEvents): Modifier =
-    Modifier.onFocusChanged { if (it.isFocused && all.indexOf(item) >= all.size - NEAR_END) events.onMore() }
+private fun Modifier.nearEnd(item: MediaItem, all: List<MediaItem>, events: SearchEvents): Modifier =
+    onFocusChanged { if (it.isFocused && all.indexOf(item) >= all.size - NEAR_END) events.onMore() }
 
 private const val NEAR_END = 6
 private const val DELETE = 0x7f

@@ -112,7 +112,7 @@ object ListsFeature : TvFeature {
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
                     when (message) {
-                        is CollectionMessage.Listed -> graph.toasts.show(R.string.tv_lists_listed, message.count.toString())
+                        is CollectionMessage.Listed -> graph.toasts.show(R.string.tv_lists_listed, message.count)
                         CollectionMessage.Unlisted -> graph.toasts.show(R.string.app_collections_unlisted)
                         CollectionMessage.Watched -> graph.toasts.show(R.string.app_collections_watchedDone)
                         CollectionMessage.Unwatched -> graph.toasts.show(R.string.app_collections_unwatchedDone)
