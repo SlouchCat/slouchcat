@@ -281,7 +281,9 @@
         "youngest": "Lowest age first"
       },
       "noMatch": "No titles",
-      "reset": "Reset filters"
+      "reset": "Reset filters",
+      "showList": "Show as list",
+      "showGrid": "Show as grid"
     },
     "search": {
       "placeholder": "Titles, people, authors …",

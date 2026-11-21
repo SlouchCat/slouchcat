@@ -4,12 +4,16 @@ import com.slouchcat.core.api.crypto.Base64Url
 import com.slouchcat.core.api.crypto.ServerProof
 import com.slouchcat.core.api.generated.apis.AccountApi
 import com.slouchcat.core.api.generated.apis.AuthApi
+import com.slouchcat.core.api.generated.apis.DiscoverApi
 import com.slouchcat.core.api.generated.apis.ItemsApi
 import com.slouchcat.core.api.generated.apis.SetupApi
 import com.slouchcat.core.api.generated.apis.SystemApi
 import com.slouchcat.core.api.generated.infrastructure.ClientException
 import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.generated.models.Health
+import com.slouchcat.core.api.generated.models.HomeListKey
+import com.slouchcat.core.api.generated.models.LibraryItemStatus
+import com.slouchcat.core.api.generated.models.LibrarySort
 import com.slouchcat.core.api.generated.models.ServerProofRequest
 import com.slouchcat.core.api.generated.models.SessionKind
 import com.slouchcat.core.api.generated.models.SetupRequest
@@ -101,8 +105,22 @@ class ContractTest {
 
         val items = SlouchcatApi.create(::ItemsApi, base, http)
         // The library of DetailContractTest may be there already: the order of the classes is open.
-        assertNotNull(items.listVisibleLibraries())
+        val libraries = items.listVisibleLibraries()!!
+        // Stage 4 «Stöbern»: the start page, the lists behind its rows, a library, the genres.
         assertNotNull(items.getHome()!!.rows)
+        val recent = items.listHomeRow(HomeListKey.RECENT, offset = 0, limit = 50)!!
+        assertEquals(50, recent.limit)
+        assertTrue(recent.total >= recent.items.size)
+        assertNotNull(items.listPicks(0, 50))
+        assertNotNull(SlouchcatApi.create(::DiscoverApi, base, http).listGenres())
+        val hidden = (libraries.maxOfOrNull { it.id } ?: 0) + 1000
+        try {
+            items.listLibraryItems(hidden, sort = LibrarySort.ADDED, status = listOf(LibraryItemStatus.UNWATCHED), yearFrom = 2010, yearTo = 2019)
+            fail("a library the profile does not see is listed")
+        } catch (e: ClientException) {
+            // Not visible is 404, never 403 (rules 2 and 12).
+            assertEquals(404, e.statusCode)
+        }
 
         val devices = SlouchcatApi.create(::AccountApi, base, http).listMyDevices()!!
         val mine = devices.single { it.current }

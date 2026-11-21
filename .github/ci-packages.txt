@@ -20,3 +20,6 @@ server ffmpeg
 e2e ffmpeg
 e2e pulseaudio
 e2e pulseaudio-utils
+
+# The Android emulator flow lets the server scan the same test media (task android:e2e).
+android-e2e ffmpeg

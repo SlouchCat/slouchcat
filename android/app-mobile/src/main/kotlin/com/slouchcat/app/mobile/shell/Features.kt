@@ -2,6 +2,7 @@ package com.slouchcat.app.mobile.shell
 
 import com.slouchcat.app.mobile.collections.CollectionsFeature
 import com.slouchcat.app.mobile.item.ItemFeature
+import com.slouchcat.app.mobile.home.HomeFeature
 import com.slouchcat.app.mobile.more.MoreFeature
 import com.slouchcat.app.mobile.mylists.MyListsFeature
 import com.slouchcat.app.mobile.person.PersonFeature
@@ -18,6 +19,7 @@ import com.slouchcat.app.mobile.search.SearchFeature
  * each with its trailing comma, and its import on a line of its own.
  */
 val features: List<Feature> = listOf(
+    HomeFeature,
     MoreFeature,
     ItemFeature(),
     PersonFeature(),

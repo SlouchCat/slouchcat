@@ -132,6 +132,8 @@ fun <T> MediaGrid(
     modifier: Modifier = Modifier,
     state: LazyGridState = rememberLazyGridState(),
     onNearEnd: (() -> Unit)? = null,
+    /** One column without gaps: the entries are list rows ([MediaListRow]), not cards. */
+    list: Boolean = false,
     header: LazyGridScope.() -> Unit = {},
     footer: LazyGridScope.() -> Unit = {},
     card: @Composable (T) -> Unit,
@@ -151,12 +153,12 @@ fun <T> MediaGrid(
         }
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(gridMinCell()),
+        columns = if (list) GridCells.Fixed(1) else GridCells.Adaptive(gridMinCell()),
         state = state,
         modifier = modifier,
         contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(if (wide) 16.dp else 12.dp),
-        verticalArrangement = Arrangement.spacedBy(if (wide) 22.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (list) 0.dp else if (wide) 22.dp else 16.dp),
     ) {
         header()
         items(items, key = key) { card(it) }

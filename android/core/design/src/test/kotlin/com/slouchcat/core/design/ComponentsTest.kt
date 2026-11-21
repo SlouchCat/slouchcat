@@ -161,6 +161,15 @@ class ComponentsTest {
         compose.onNode(hasSetTextAction() and hasText("Field")).assertIsDisplayed()
     }
 
+    /** A chip that opens a choice («Genre ⌄»): the symbol after the label, one control, 48 dp. */
+    @Test
+    fun aChipWithATrailingSymbolIsOneControl() {
+        var clicks = 0
+        compose.setContent { SlouchcatTheme { SlouchcatChip("Genre", selected = true, onClick = { clicks++ }, trailingIcon = SlouchcatIcon.Down) } }
+        compose.onNodeWithText("Genre").assertTouchHeightIsEqualTo(48.dp).assertHasClickAction().performClick()
+        assertEquals(1, clicks)
+    }
+
     @Test
     fun everyIconOfTheMockupBuilds() {
         for (icon in SlouchcatIcon.entries) {

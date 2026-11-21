@@ -367,7 +367,7 @@ jobs:
       # and a server that probes it (K27 stage 5).
       - uses: ./.github/actions/system-packages
         with:
-          group: server
+          group: android-e2e
 
       # KVM for the emulator: the runner has /dev/kvm, the runner user needs the rights to it.
       - name: JDK 21, the Android SDK packages, KVM and the AVD
@@ -401,6 +401,11 @@ jobs:
           restore-keys: gradle-e2e-${{ runner.os }}-
 
       - run: task android:contract
+
+      # The test media (cached under the same key as the server tests, generated on a miss): with
+      # them the emulator flow browses a real library (docs/perf/K27-android-ci.md). The ffmpeg of
+      # the step above also probes them when the server scans.
+      - uses: ./.github/actions/test-media
 
       - run: task android:e2e AVD=ci_phone
 
