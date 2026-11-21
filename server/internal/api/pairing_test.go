@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
@@ -152,5 +153,51 @@ func TestProveServerOverHTTP(t *testing.T) {
 	}
 	if last != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" || problemCode(t, rec) != "too_many_attempts" {
 		t.Errorf("after many proofs: %d %s", last, rec.Body.String())
+	}
+}
+
+// The whole way of a push subscription of the phone app (security review M-1 of part 1): the app
+// registers it with a child profile active, it carries the session's device, and signing the device
+// out under «Meine Geräte» or logging out removes it with the session.
+func TestAppPushSubscriptionEndsWithTheDevice(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	count := func(device string) int {
+		t.Helper()
+		var n int
+		if err := pf.f.DB.Read.QueryRow(`SELECT count(*) FROM push_subscriptions WHERE device_id = ?`, device).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	for _, way := range []string{"my devices", "logout"} {
+		name := "push-" + strings.ReplaceAll(way, " ", "-")
+		app := pf.newBearerSession(t, name, pf.f.P12, auth.AppDevicePhone)
+		rec := sendBearer(t, h, http.MethodPost, BasePath+"/me/push-subscriptions", name,
+			pushSubscriptionBody("https://push.slouchcat.com/v1/push/1."+name), nil)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("%s: subscribe with a child profile: %d %s", way, rec.Code, rec.Body.String())
+		}
+		if count(app.DeviceID) != 1 {
+			t.Fatalf("%s: the subscription does not carry the app's device", way)
+		}
+		switch way {
+		case "my devices":
+			rec = send(t, h, http.MethodDelete, BasePath+"/account/devices/"+app.DeviceID, "p18", "", nil)
+			if rec.Code != http.StatusNoContent {
+				t.Fatalf("signOutMyDevice: %d %s", rec.Code, rec.Body.String())
+			}
+		case "logout":
+			if rec = sendBearer(t, h, http.MethodPost, BasePath+"/auth/logout", name, "", nil); rec.Code != http.StatusNoContent {
+				t.Fatalf("logout: %d %s", rec.Code, rec.Body.String())
+			}
+		}
+		if n := count(app.DeviceID); n != 0 {
+			t.Errorf("%s: %d subscriptions of the device left", way, n)
+		}
+		if rec = sendBearer(t, h, http.MethodGet, BasePath+"/auth/session", name, "", nil); rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s: the app token still works: %d", way, rec.Code)
+		}
 	}
 }

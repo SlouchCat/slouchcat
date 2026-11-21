@@ -53,6 +53,7 @@ func (s *Service) DeviceLinked(ctx context.Context, accountID int64, kind, name,
 			"time": at.Format("2006-01-02 15:04 MST"), "kind": text(acc.Language, "device_kind_"+kind),
 			"name": name, "system": system,
 		}),
+		Link: "/settings/devices", // «Meine Geräte» of the web app
 	})
 }
 

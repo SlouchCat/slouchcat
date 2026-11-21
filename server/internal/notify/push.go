@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -143,6 +144,14 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 		return model.PushSubscription{}, verr
 	}
 	device := deviceOf(ctx, session)
+	if app {
+		// The subscription of an app session always carries the session's device, so that logout,
+		// «Meine Geräte» and a password change remove it with the session (concept 27 4.5).
+		device = session.DeviceID
+		if device == "" {
+			return model.PushSubscription{}, errors.New("app session without device")
+		}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return model.PushSubscription{}, fmt.Errorf("begin push subscription: %w", err)
@@ -159,8 +168,11 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 	if err != nil {
 		return model.PushSubscription{}, fmt.Errorf("store push subscription: %w", err)
 	}
+	if app && row.DeviceID.String != device {
+		return model.PushSubscription{}, errors.New("push subscription of an app session without its device")
+	}
 	var replaced int64
-	if app && row.DeviceID.Valid {
+	if app {
 		if replaced, err = q.PushSubscriptionsDropOlderOfDevice(ctx, systemq.PushSubscriptionsDropOlderOfDeviceParams{
 			AccountID: session.Account.ID, DeviceID: row.DeviceID, KeepID: row.ID,
 		}); err != nil {

@@ -204,19 +204,31 @@ func checkDevices(ctx context.Context, s *state) (string, error) {
 		return "", fmt.Errorf("the phone's account: %w", err)
 	}
 
-	for _, token := range []string{device.Token, phone.Token} {
-		if resp, err = s.c.sendApp(ctx, http.MethodPost, "/auth/logout", token, nil); err != nil {
-			return "", err
-		}
-		if err := resp.expect(http.MethodPost, "/auth/logout", http.StatusNoContent); err != nil {
-			return "", err
-		}
+	// The phone signs the TV out under «Meine Geräte»; its token stops working at once.
+	tvPath := "/account/devices/" + device.DeviceID
+	if resp, err = s.c.sendApp(ctx, http.MethodDelete, tvPath, phone.Token, nil); err != nil {
+		return "", err
+	}
+	if err := resp.expect(http.MethodDelete, tvPath, http.StatusNoContent); err != nil {
+		return "", err
+	}
+	if resp, err = s.c.sendTV(ctx, http.MethodGet, "/auth/session", device.Token, nil); err != nil {
+		return "", err
+	}
+	if err := resp.expect(http.MethodGet, "/auth/session", http.StatusUnauthorized); err != nil {
+		return "", fmt.Errorf("the TV token after signOutMyDevice: %w", err)
+	}
+	if resp, err = s.c.sendApp(ctx, http.MethodPost, "/auth/logout", phone.Token, nil); err != nil {
+		return "", err
+	}
+	if err := resp.expect(http.MethodPost, "/auth/logout", http.StatusNoContent); err != nil {
+		return "", err
 	}
 	via := "Übergabe im Speicher"
 	if s.relay != "" {
 		via = "Vermittlung " + s.relay
 	}
-	return fmt.Sprintf("Handy und Fernseher für %s gekoppelt (%s), Server geprüft, Fernseher nur mit seiner Erlaubnisliste, abgemeldet",
+	return fmt.Sprintf("Handy und Fernseher für %s gekoppelt (%s), Server geprüft, Fernseher nur mit seiner Erlaubnisliste, unter «Meine Geräte» abgemeldet (401)",
 		redeemed.AccountEmail, via), nil
 }
 
@@ -267,30 +279,19 @@ func (s *state) chooseProfile(ctx context.Context, send func(context.Context, st
 	return errors.New("the account has no primary profile")
 }
 
-// seeDevices checks that the account lists the devices (id → type): with «Meine Geräte»
-// (listMyDevices) when the contract has it, else in the administration's list through the owner's
-// browser session, which signs in only when it is not signed in already: sign-ins and PINs share
-// the attempt pot of the client address, and the run before used most of it.
+// seeDevices checks that «Meine Geräte» (listMyDevices) of the phone's account lists the devices
+// (id to type).
 func (s *state) seeDevices(ctx context.Context, appToken string, want map[string]string) error {
+	resp, err := s.c.sendApp(ctx, http.MethodGet, "/account/devices", appToken, nil)
+	if err != nil {
+		return err
+	}
+	if err := resp.expect(http.MethodGet, "/account/devices", http.StatusOK); err != nil {
+		return err
+	}
 	var rows []deviceRow
-	if _, err := s.c.contract.lookup(http.MethodGet, "/account/devices"); err == nil {
-		resp, err := s.c.sendApp(ctx, http.MethodGet, "/account/devices", appToken, nil)
-		if err != nil {
-			return err
-		}
-		if err := resp.expect(http.MethodGet, "/account/devices", http.StatusOK); err != nil {
-			return err
-		}
-		if err := json.Unmarshal(resp.body, &rows); err != nil {
-			return fmt.Errorf("decode listMyDevices: %w", err)
-		}
-	} else if err := s.c.get(ctx, "/admin/devices", nil, &rows); err != nil {
-		if err := s.login(ctx); err != nil {
-			return err
-		}
-		if err := s.c.get(ctx, "/admin/devices", nil, &rows); err != nil {
-			return err
-		}
+	if err := json.Unmarshal(resp.body, &rows); err != nil {
+		return fmt.Errorf("decode listMyDevices: %w", err)
 	}
 	for id, kind := range want {
 		found := false
@@ -303,7 +304,7 @@ func (s *state) seeDevices(ctx context.Context, appToken string, want map[string
 			}
 		}
 		if !found {
-			return fmt.Errorf("the device list lacks the %s device", kind)
+			return fmt.Errorf("«Meine Geräte» lacks the %s device", kind)
 		}
 	}
 	return nil
