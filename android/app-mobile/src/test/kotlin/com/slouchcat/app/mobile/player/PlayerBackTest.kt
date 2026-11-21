@@ -26,7 +26,10 @@ import com.slouchcat.app.mobile.testing.film
 import com.slouchcat.app.mobile.testing.progress
 import com.slouchcat.app.mobile.testing.reveal
 import com.slouchcat.app.mobile.testing.ulid
+import com.slouchcat.core.player.DeviceFacts
+import com.slouchcat.core.player.DisplayInfo
 import com.slouchcat.core.player.MemoryDeviceSettingsStore
+import kotlin.coroutines.EmptyCoroutineContext
 import com.slouchcat.core.session.StoredCredentials
 import com.slouchcat.core.strings.R
 import org.junit.Assert.assertEquals
@@ -58,15 +61,25 @@ class PlayerBackTest {
         features = listOf(
             DetailStartFeature,
             ItemFeature { details },
-            PlayerFeature(engine = { _, _ -> FakePlayerEngine().also { engines += it } }, server = { server }, settings = { MemoryDeviceSettingsStore() }),
+            // Everything on the main thread: the test waits for the idle main looper, not for a clock.
+            PlayerFeature(
+                engine = { _, _ -> FakePlayerEngine().also { engines += it } },
+                server = { server },
+                settings = { MemoryDeviceSettingsStore() },
+                facts = { _, type -> DeviceFacts(emptyList(), emptySet(), 2, DisplayInfo(2424, 1080), type, "Test phone") },
+                background = EmptyCoroutineContext,
+            ),
         ),
         serverStore = FakeServers(HTTPS_SERVER),
         tokenStore = FakeTokens(StoredCredentials("token", "device-1")),
         accountStore = FakeAccounts(EMAIL, PRIMARY),
     )
 
-    private fun waitFor(matcher: SemanticsMatcher) =
-        compose.waitUntil(5_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+    /** The state after the main looper is idle (no fetch, no thread of its own in this test): no clock. */
+    private fun waitFor(matcher: SemanticsMatcher) {
+        compose.waitForIdle()
+        compose.onAllNodes(matcher).fetchSemanticsNodes().also { assertTrue("not shown: $matcher", it.isNotEmpty()) }
+    }
 
     private fun back() = compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 
@@ -86,20 +99,21 @@ class PlayerBackTest {
         val loads = details.asked.size
         compose.reveal(compose.onNode(hasText(context.getString(R.string.app_item_resume)) and hasClickAction())).performClick()
         waitFor(closePlayer)
-        compose.waitUntil(5_000) { server.starts.isNotEmpty() }
         assertEquals(listOf(ulid(1)), server.starts)
         assertEquals(null, server.requests.single().positionMs)
         back()
         waitFor(hasText("A new day begins."))
-        compose.waitUntil(5_000) { server.stops.isNotEmpty() && engines.single().released }
+        compose.waitForIdle()
+        assertTrue(engines.single().released)
         assertEquals(listOf("session-${ulid(1)}"), server.stops)
         // The detail page read the title again for its new progress.
-        compose.waitUntil(5_000) { details.asked.size > loads }
+        compose.waitForIdle()
+        assertTrue(details.asked.size > loads)
 
         // «Von vorn»: the player from the beginning; its own arrow leads back.
         compose.reveal(compose.onNode(hasText(context.getString(R.string.app_item_fromStart)) and hasClickAction())).performClick()
         waitFor(closePlayer)
-        compose.waitUntil(5_000) { server.requests.size == 2 }
+        assertEquals(2, server.requests.size)
         assertEquals(0L, server.requests.last().positionMs)
         compose.onNode(closePlayer).performClick()
         waitFor(hasText("A new day begins."))
