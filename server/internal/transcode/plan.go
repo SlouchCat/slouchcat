@@ -56,9 +56,9 @@ type Target struct {
 	// playback decision knows it (a copied track's own rate for a client that reports
 	// maxAudioChannels); 0 = OutputAudioBitrate's rule.
 	AudioRate int
-	MaxHeight     int    // output height limit of a transcode; 0 = 1080 (auto never goes above 1080p)
-	Tonemap       bool   // HDR10/HLG/Dolby Vision → SDR, with MaxHeight <= 1080 unless HWTonemap
-	VideoTag      string // "hvc1" when remuxing HEVC for Safari
+	MaxHeight int    // output height limit of a transcode; 0 = 1080 (auto never goes above 1080p)
+	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR, with MaxHeight <= 1080 unless HWTonemap
+	VideoTag  string // "hvc1" when remuxing HEVC for Safari
 	// Backend and HWTonemap describe the host of a transcode (ADR 0021, Capabilities.Backend and
 	// HWTonemap): the output goes above 1080 lines only on a hardware backend, and with Tonemap
 	// only when the GPU tonemaps. The zero value (no backend) keeps the 1080 limit of AN-17.

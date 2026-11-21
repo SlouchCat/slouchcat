@@ -79,7 +79,7 @@ func (st *splitState) next(dir string, p Plan, cut time.Duration, final, exitOK 
 		if err != nil {
 			return splitEvent{segment: -1}, err
 		}
-		ev, err := st.step(f, dir, p, cut, final)
+		ev, err := st.step(f, dir, p, cut, final && exitOK)
 		_ = f.Close()
 		if err != nil || ev.init != nil || ev.segment >= 0 {
 			return ev, err
@@ -88,15 +88,19 @@ func (st *splitState) next(dir string, p Plan, cut time.Duration, final, exitOK 
 }
 
 // step reads the next box of the open file f (file st.file); a zero event with a nil error means
-// the reader moved on and the caller loops.
-func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, final bool) (splitEvent, error) {
+// the reader moved on and the caller loops. done means ffmpeg exited without an error: the last
+// file is complete too. After an error exit the last file stays open, so its pending segment is
+// never published half.
+func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, done bool) (splitEvent, error) {
 	none := splitEvent{segment: -1}
+	// Whether the file is closed, before its size: the segment muxer closes file k before it
+	// creates k+1, so a size read after k+1 exists is final.
+	closed := done || exists(filepath.Join(dir, fmt.Sprintf(segmentPattern, st.file+1)))
 	fi, err := f.Stat()
 	if err != nil {
 		return none, err
 	}
 	size := fi.Size()
-	closed := final || exists(filepath.Join(dir, fmt.Sprintf(segmentPattern, st.file+1)))
 	if st.off >= size {
 		if !closed {
 			return none, errSplitWait
@@ -108,7 +112,7 @@ func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, fi
 		st.file, st.off = st.file+1, 0
 		return ev, nil
 	}
-	typ, bsize, err := boxAt(f, st.off, size)
+	typ, hdr, bsize, err := boxAt(f, st.off, size)
 	if errors.Is(err, errSplitWait) && closed {
 		return none, fmt.Errorf("segment file %d ends in a partial box at %d", st.file, st.off)
 	}
@@ -117,7 +121,7 @@ func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, fi
 	}
 	switch typ {
 	case "moov":
-		moov, err := readAt(f, st.off+8, bsize-8)
+		moov, err := readAt(f, st.off+hdr, bsize-hdr)
 		if err != nil {
 			return none, err
 		}
@@ -134,7 +138,7 @@ func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, fi
 		if st.scales == nil {
 			return none, fmt.Errorf("segment file %d: moof before moov", st.file)
 		}
-		mtyp, msize, err := boxAt(f, st.off+bsize, size)
+		mtyp, _, msize, err := boxAt(f, st.off+bsize, size)
 		if errors.Is(err, errSplitWait) && closed {
 			return none, fmt.Errorf("segment file %d ends in a partial fragment at %d", st.file, st.off)
 		}
@@ -144,7 +148,7 @@ func (st *splitState) step(f *os.File, dir string, p Plan, cut time.Duration, fi
 		if mtyp != "mdat" {
 			return none, fmt.Errorf("segment file %d: moof followed by %q", st.file, mtyp)
 		}
-		moof, err := readAt(f, st.off+8, bsize-8)
+		moof, err := readAt(f, st.off+hdr, bsize-hdr)
 		if err != nil {
 			return none, err
 		}
@@ -230,35 +234,36 @@ func segmentOf(p Plan, t, cut time.Duration) int {
 	return j
 }
 
-// boxAt reads the header of the top-level box at off of a file of size bytes: its type and size;
-// errSplitWait when the header or the box is not completely on disk yet.
-func boxAt(f *os.File, off, size int64) (string, int64, error) {
+// boxAt reads the header of the top-level box at off of a file of size bytes: its type, the length
+// of its header (8, or 16 with a 64-bit size) and its size; errSplitWait when the header or the
+// box is not completely on disk yet.
+func boxAt(f *os.File, off, size int64) (string, int64, int64, error) {
 	if size-off < 8 {
-		return "", 0, errSplitWait
+		return "", 0, 0, errSplitWait
 	}
-	hdr := make([]byte, 16)
+	buf := make([]byte, 16)
 	n := min(size-off, 16)
-	if _, err := f.ReadAt(hdr[:n], off); err != nil {
-		return "", 0, err
+	if _, err := f.ReadAt(buf[:n], off); err != nil {
+		return "", 0, 0, err
 	}
-	bsize := int64(binary.BigEndian.Uint32(hdr))
-	typ := string(hdr[4:8])
+	bsize, hdr := int64(binary.BigEndian.Uint32(buf)), int64(8)
+	typ := string(buf[4:8])
 	switch bsize {
 	case 0: // to the end of the file: the size is not patched yet
-		return "", 0, errSplitWait
+		return "", 0, 0, errSplitWait
 	case 1:
 		if n < 16 {
-			return "", 0, errSplitWait
+			return "", 0, 0, errSplitWait
 		}
-		bsize = int64(binary.BigEndian.Uint64(hdr[8:])) //nolint:gosec // G115: compared with the file size below
+		bsize, hdr = int64(binary.BigEndian.Uint64(buf[8:])), 16 //nolint:gosec // G115: compared with the file size below
 	}
-	if bsize < 8 {
-		return "", 0, fmt.Errorf("box %q at %d has invalid size %d", typ, off, bsize)
+	if bsize < hdr {
+		return "", 0, 0, fmt.Errorf("box %q at %d has invalid size %d", typ, off, bsize)
 	}
 	if bsize > size-off {
-		return "", 0, errSplitWait
+		return "", 0, 0, errSplitWait
 	}
-	return typ, bsize, nil
+	return typ, hdr, bsize, nil
 }
 
 func readAt(f *os.File, off, n int64) ([]byte, error) {
@@ -284,10 +289,22 @@ func childBoxes(b []byte) (map[string][]byte, []box, error) {
 	m := map[string][]byte{}
 	for _, bx := range boxes {
 		if _, ok := m[bx.Type]; !ok {
-			m[bx.Type] = b[bx.Offset+8 : bx.Offset+bx.Size]
+			m[bx.Type] = payloadOf(b, bx)
 		}
 	}
 	return m, boxes, nil
+}
+
+// payloadOf is the payload of the box bx of b, after its 8- or 16-byte header (walkBoxes
+// checked both against the size).
+func payloadOf(b []byte, bx box) []byte {
+	if binary.BigEndian.Uint32(b[bx.Offset:]) == 1 {
+		if bx.Size < 16 {
+			return nil
+		}
+		return b[bx.Offset+16 : bx.Offset+bx.Size]
+	}
+	return b[bx.Offset+8 : bx.Offset+bx.Size]
 }
 
 // parseMoov reads the timescale of every track of a moov payload (tkhd track id, mdhd timescale)
@@ -303,7 +320,7 @@ func parseMoov(moov []byte) (map[uint32]uint32, uint32, error) {
 		if bx.Type != "trak" {
 			continue
 		}
-		trak, _, err := childBoxes(moov[bx.Offset+8 : bx.Offset+bx.Size])
+		trak, _, err := childBoxes(payloadOf(moov, bx))
 		if err != nil {
 			return nil, 0, err
 		}
@@ -355,7 +372,7 @@ func moofTime(moof []byte, scales map[uint32]uint32, video uint32) (time.Duratio
 		if bx.Type != "traf" {
 			continue
 		}
-		id, t, err := trafTime(moof[bx.Offset+8:bx.Offset+bx.Size], scales)
+		id, t, err := trafTime(payloadOf(moof, bx), scales)
 		if err != nil {
 			return 0, err
 		}
