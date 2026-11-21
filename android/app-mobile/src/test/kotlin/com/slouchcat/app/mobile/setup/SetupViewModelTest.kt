@@ -51,9 +51,9 @@ class SetupViewModelTest {
 
     private val found = { url: HttpUrl -> ProbeResult.Found(ServerInfo(url, "1.42.0", "1.42.0")) }
     private val addresses = mapOf(
-        "nas.example.test" to listOf(InetAddress.getByName("192.168.1.20")),
+        "nas.example.test" to listOf(InetAddress.getByName("192.168.77.20")),
         "media.example.test" to listOf(InetAddress.getByName("198.51.100.7")),
-        "split.example.test" to listOf(InetAddress.getByName("192.168.1.20"), InetAddress.getByName("198.51.100.7")),
+        "split.example.test" to listOf(InetAddress.getByName("192.168.77.20"), InetAddress.getByName("198.51.100.7")),
     )
     private val resolver = HostResolver { host ->
         // Literal addresses resolve without DNS; every other unknown name does not exist.

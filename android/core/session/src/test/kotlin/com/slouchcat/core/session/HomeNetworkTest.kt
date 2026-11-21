@@ -11,9 +11,9 @@ class HomeNetworkTest {
     @Test
     fun theRangesOfConcept27AreHome() {
         for (address in listOf(
-            "10.0.0.1", "10.0.2.2", "10.255.255.255",
+            "10.20.30.40", "10.0.2.2", "10.255.255.255",
             "172.16.0.1", "172.31.255.254",
-            "192.168.0.1", "192.168.178.20",
+            "192.168.0.255", "192.168.77.20",
             "169.254.1.1",
             "100.64.0.1", "100.127.255.254",
             "127.0.0.1",
@@ -44,7 +44,7 @@ class HomeNetworkTest {
 
     @Test
     fun ipv6OfAHomeNetworkIs() {
-        for (address in listOf("::1", "fe80::1", "febf::1", "fd12:3456::1", "fc00::1", "::ffff:192.168.1.5")) {
+        for (address in listOf("::1", "fe80::1", "febf::1", "fd12:3456::1", "fc00::1", "::ffff:192.168.77.5")) {
             assertTrue(address, home(address))
         }
         assertFalse("fec0::1", home("fec0::1"))
