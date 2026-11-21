@@ -4,6 +4,10 @@ Einzige Quelle für Farben, Typografie, Abstände, Radien, Bewegung und Ebenen d
 
 - Quelle: `tokens/*.json` im DTCG-Format (`$type`, `$value`, `$description`).
 - Build: `node build.mjs` (Style Dictionary 5), aufgerufen von `task gen` und `task web:build`.
+- Dritte Ausgabe für die Android-Apps: `node build-kotlin.mjs <ordner>` schreibt `SlouchcatTokens.kt`
+  (aufgerufen vom Android-Bau, `android/core/design`). Sie liest zusätzlich `tokens-tv/*.json`: Schrift,
+  Abstände und Masse der TV-App für Sofa-Abstand (Konzept 26, 3.4), halbe Werte der Mockup-Fläche
+  1920 × 1080 (also dp auf 960 × 540). Diese Tokens kommen nicht ins CSS der Web-App.
 - Ausgabe in `dist/` (nicht eingecheckt, nie von Hand ändern):
   - `tokens.css` – CSS Custom Properties auf `:root` mit Präfix `--sc-`, z. B. `--sc-color-bg-base`.
   - `index.js` und `index.d.ts` – `tokens` (Werte als verschachteltes Objekt, Pfade in camelCase,

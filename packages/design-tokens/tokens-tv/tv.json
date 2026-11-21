@@ -1,0 +1,593 @@
+{
+  "tv": {
+    "$description": "Ten-foot tokens of the TV app (concept 26, 3.4 and 3.5). Values from css/app.css of the TV mockup (docs/planning/mockups/26-android-tv) on its canvas of 1920 x 1080 px; each token is half of it, on the TV's 960 x 540 dp. Only the Kotlin output reads them.",
+    "color": {
+      "$type": "color",
+      "glass": {
+        "$value": "#ffffff24",
+        "$description": "--glass: a button at rest"
+      },
+      "glass-strong": {
+        "$value": "#ffffff47",
+        "$description": "--glass2: tracks, progress"
+      },
+      "rail": {
+        "$value": "#0b0c10e0",
+        "$description": "--rail-bg: the closed rail"
+      },
+      "toast": {
+        "$value": "#e9e9ee",
+        "$description": "--toast-bg"
+      },
+      "on-toast": {
+        "$value": "#14161c",
+        "$description": "--toast-tx"
+      },
+      "shadow": {
+        "$value": "#000000b3",
+        "$description": "--shadow"
+      }
+    },
+    "font": {
+      "size": {
+        "$type": "dimension",
+        "s": {
+          "$value": "13px"
+        },
+        "body": {
+          "$value": "14px"
+        },
+        "l": {
+          "$value": "17px"
+        },
+        "h2": {
+          "$value": "20px"
+        },
+        "h1": {
+          "$value": "30px"
+        },
+        "xl": {
+          "$value": "42px"
+        },
+        "button": {
+          "$value": "15px"
+        },
+        "field": {
+          "$value": "18px"
+        },
+        "wordmark": {
+          "$value": "20px"
+        },
+        "rail-wordmark": {
+          "$value": "18px"
+        },
+        "logo": {
+          "$value": "16px"
+        },
+        "section": {
+          "$value": "10px"
+        },
+        "pin": {
+          "$value": "23px"
+        },
+        "badge": {
+          "$value": "13px"
+        },
+        "avatar-large": {
+          "$value": "44px"
+        }
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "safe-x": {
+        "$value": "48px"
+      },
+      "safe-y": {
+        "$value": "27px"
+      },
+      "gap": {
+        "$value": "14px"
+      },
+      "content-start": {
+        "$value": "120px"
+      },
+      "xs": {
+        "$value": "4px"
+      },
+      "s": {
+        "$value": "6px"
+      },
+      "m": {
+        "$value": "9px"
+      },
+      "l": {
+        "$value": "12px"
+      },
+      "xl": {
+        "$value": "20px"
+      },
+      "xxl": {
+        "$value": "28px"
+      },
+      "xxxl": {
+        "$value": "40px"
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "card": {
+        "$value": "7px"
+      },
+      "field": {
+        "$value": "10px"
+      },
+      "menu-item": {
+        "$value": "12px"
+      },
+      "icon-box": {
+        "$value": "9px"
+      },
+      "panel": {
+        "$value": "16px"
+      },
+      "dialog": {
+        "$value": "18px"
+      },
+      "pill": {
+        "$value": "4999.5px"
+      },
+      "badge": {
+        "$value": "5px"
+      },
+      "toast": {
+        "$value": "9px"
+      },
+      "rail-item": {
+        "$value": "20px"
+      },
+      "logo": {
+        "$value": "8px"
+      }
+    },
+    "border": {
+      "$type": "dimension",
+      "thin": {
+        "$value": "1px"
+      },
+      "thick": {
+        "$value": "1.5px"
+      },
+      "focus": {
+        "$value": "3px"
+      }
+    },
+    "size": {
+      "$type": "dimension",
+      "rail": {
+        "width": {
+          "$value": "100px"
+        },
+        "open": {
+          "$value": "230px"
+        },
+        "item": {
+          "$value": "34px"
+        },
+        "media": {
+          "$value": "29px"
+        },
+        "gap": {
+          "$value": "3px"
+        },
+        "start": {
+          "$value": "37px"
+        },
+        "end": {
+          "$value": "13px"
+        },
+        "pad": {
+          "$value": "10.5px"
+        },
+        "icon": {
+          "$value": "19px"
+        },
+        "media-icon": {
+          "$value": "16px"
+        },
+        "logo": {
+          "$value": "28px"
+        },
+        "brand": {
+          "$value": "36px"
+        },
+        "profile": {
+          "$value": "46px"
+        },
+        "avatar": {
+          "$value": "27px"
+        },
+        "current": {
+          "$value": "3px"
+        },
+        "current-inset": {
+          "$value": "9px"
+        },
+        "section": {
+          "$value": "15px"
+        }
+      },
+      "button": {
+        "height": {
+          "$value": "40px"
+        },
+        "pad": {
+          "$value": "21px"
+        },
+        "small-height": {
+          "$value": "32px"
+        },
+        "small-pad": {
+          "$value": "15px"
+        },
+        "icon": {
+          "$value": "16px"
+        },
+        "gap": {
+          "$value": "8px"
+        }
+      },
+      "field": {
+        "height": {
+          "$value": "50px"
+        },
+        "pad": {
+          "$value": "16px"
+        },
+        "icon": {
+          "$value": "17px"
+        },
+        "label-gap": {
+          "$value": "6px"
+        },
+        "top": {
+          "$value": "22px"
+        },
+        "max": {
+          "$value": "500px"
+        }
+      },
+      "switch": {
+        "height": {
+          "$value": "45px"
+        },
+        "pad": {
+          "$value": "15px"
+        },
+        "track-width": {
+          "$value": "42px"
+        },
+        "track-height": {
+          "$value": "24px"
+        },
+        "thumb": {
+          "$value": "13px"
+        },
+        "thumb-inset": {
+          "$value": "4px"
+        },
+        "top": {
+          "$value": "11px"
+        }
+      },
+      "note": {
+        "pad-x": {
+          "$value": "15px"
+        },
+        "pad-y": {
+          "$value": "13px"
+        },
+        "icon": {
+          "$value": "18px"
+        },
+        "top": {
+          "$value": "14px"
+        },
+        "max": {
+          "$value": "500px"
+        }
+      },
+      "badge": {
+        "height": {
+          "$value": "22px"
+        },
+        "pad": {
+          "$value": "8px"
+        },
+        "dot": {
+          "$value": "5px"
+        },
+        "icon": {
+          "$value": "13px"
+        }
+      },
+      "menu": {
+        "width": {
+          "$value": "380px"
+        },
+        "pad-start": {
+          "$value": "32px"
+        },
+        "item": {
+          "$value": "52px"
+        },
+        "item-pad": {
+          "$value": "15px"
+        },
+        "icon-box": {
+          "$value": "32px"
+        },
+        "icon": {
+          "$value": "20px"
+        },
+        "list-gap": {
+          "$value": "5px"
+        },
+        "title-gap": {
+          "$value": "14px"
+        },
+        "actions-top": {
+          "$value": "20px"
+        }
+      },
+      "dialog": {
+        "width": {
+          "$value": "520px"
+        },
+        "pad-x": {
+          "$value": "32px"
+        },
+        "pad-y": {
+          "$value": "28px"
+        },
+        "max-height": {
+          "$value": "480px"
+        }
+      },
+      "toast": {
+        "pad-x": {
+          "$value": "20px"
+        },
+        "pad-y": {
+          "$value": "11px"
+        },
+        "max": {
+          "$value": "600px"
+        },
+        "bottom": {
+          "$value": "37px"
+        }
+      },
+      "setup": {
+        "choice-width": {
+          "$value": "310px"
+        },
+        "choice-height": {
+          "$value": "230px"
+        },
+        "choice-pad-x": {
+          "$value": "24px"
+        },
+        "choice-pad-y": {
+          "$value": "26px"
+        },
+        "choice-icon-box": {
+          "$value": "66px"
+        },
+        "choice-icon": {
+          "$value": "36px"
+        },
+        "choices-top": {
+          "$value": "40px"
+        },
+        "choices-gap": {
+          "$value": "28px"
+        },
+        "lead-top": {
+          "$value": "9px"
+        },
+        "lead-max": {
+          "$value": "550px"
+        },
+        "actions-top": {
+          "$value": "24px"
+        },
+        "qr": {
+          "$value": "280px"
+        },
+        "qr-pad": {
+          "$value": "13px"
+        },
+        "cols-gap": {
+          "$value": "55px"
+        },
+        "steps-top": {
+          "$value": "26px"
+        },
+        "steps-gap": {
+          "$value": "15px"
+        },
+        "step": {
+          "$value": "30px"
+        },
+        "wait-top": {
+          "$value": "28px"
+        },
+        "pulse": {
+          "$value": "11px"
+        },
+        "progress-width": {
+          "$value": "220px"
+        },
+        "progress-item": {
+          "$value": "52px"
+        },
+        "progress-number": {
+          "$value": "30px"
+        },
+        "hand-top": {
+          "$value": "35px"
+        },
+        "result-pad": {
+          "$value": "16px"
+        },
+        "check": {
+          "$value": "90px"
+        },
+        "check-icon": {
+          "$value": "52px"
+        },
+        "list-width": {
+          "$value": "450px"
+        },
+        "list-row": {
+          "$value": "34px"
+        },
+        "list-key": {
+          "$value": "170px"
+        }
+      },
+      "profiles": {
+        "avatar": {
+          "$value": "100px"
+        },
+        "tile": {
+          "$value": "130px"
+        },
+        "gap": {
+          "$value": "40px"
+        },
+        "lock": {
+          "$value": "32px"
+        },
+        "lock-icon": {
+          "$value": "16px"
+        },
+        "row-top": {
+          "$value": "45px"
+        },
+        "actions-top": {
+          "$value": "40px"
+        },
+        "pin-avatar": {
+          "$value": "60px"
+        },
+        "pin-dot": {
+          "$value": "15px"
+        },
+        "pin-dots-gap": {
+          "$value": "13px"
+        },
+        "pin-key-width": {
+          "$value": "75px"
+        },
+        "pin-key-height": {
+          "$value": "52px"
+        },
+        "pin-gap": {
+          "$value": "9px"
+        },
+        "pin-message": {
+          "$value": "24px"
+        }
+      },
+      "settings": {
+        "list": {
+          "$value": "410px"
+        },
+        "gap": {
+          "$value": "40px"
+        },
+        "pane": {
+          "$value": "300px"
+        },
+        "pane-pad-x": {
+          "$value": "28px"
+        },
+        "pane-pad-y": {
+          "$value": "26px"
+        },
+        "row": {
+          "$value": "35px"
+        },
+        "key": {
+          "$value": "110px"
+        },
+        "avatar": {
+          "$value": "90px"
+        },
+        "top": {
+          "$value": "20px"
+        }
+      }
+    },
+    "opacity": {
+      "$type": "number",
+      "scrim-rail": {
+        "$value": 0.7,
+        "$description": "the page behind the open rail"
+      },
+      "dim": {
+        "$value": 0.74,
+        "$description": "the art layer in the mode «dim»"
+      },
+      "disabled": {
+        "$value": 0.4
+      },
+      "profile-rest": {
+        "$value": 0.72,
+        "$description": "an avatar without focus"
+      },
+      "row-rest": {
+        "$value": 0.82,
+        "$description": "the cards of a row without focus"
+      }
+    },
+    "scale": {
+      "$type": "number",
+      "focus": {
+        "$value": 1.06,
+        "$description": "--focus-scale"
+      },
+      "focus-small": {
+        "$value": 1.02,
+        "$description": "menu items"
+      },
+      "focus-rail": {
+        "$value": 1.03
+      },
+      "focus-card": {
+        "$value": 1.04,
+        "$description": "the large cards of the setup"
+      }
+    },
+    "motion": {
+      "$type": "duration",
+      "focus": {
+        "$value": "160ms",
+        "$description": "--t"
+      },
+      "rail": {
+        "$value": "220ms"
+      },
+      "toast": {
+        "$value": "2600ms",
+        "$description": "how long a message stays"
+      },
+      "exit": {
+        "$value": "3000ms",
+        "$description": "a second Back within this time leaves the app"
+      }
+    }
+  }
+}
