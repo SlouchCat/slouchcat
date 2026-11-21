@@ -56,10 +56,14 @@ type Stream struct {
 	Channels       int    `json:"channels,omitempty"`
 	ChannelLayout  string `json:"channelLayout,omitempty"`
 	SampleRate     int    `json:"sampleRate,omitempty"` // audio; 0 in probes stored before M6
-	Language       string `json:"language,omitempty"`
-	Title          string `json:"title,omitempty"`
-	Default        bool   `json:"default,omitempty"`
-	Forced         bool   `json:"forced,omitempty"`
+	// BitRate is the bit rate of an audio stream in bit/s (ffprobe bit_rate, else the Matroska
+	// statistics tag BPS); 0 when unknown, for video streams and in probes stored before contract
+	// 1.43.0 (CopyAudioBitrate then takes the format's upper bound).
+	BitRate  int64  `json:"bitRate,omitempty"`
+	Language string `json:"language,omitempty"`
+	Title    string `json:"title,omitempty"`
+	Default  bool   `json:"default,omitempty"`
+	Forced   bool   `json:"forced,omitempty"`
 	// HearingImpaired is the disposition flag of subtitles for the deaf and hard of hearing.
 	HearingImpaired bool `json:"hearingImpaired,omitempty"`
 	AttachedPic     bool `json:"attachedPic,omitempty"` // cover art stored as a video stream
@@ -188,9 +192,12 @@ type rawProbe struct {
 		Channels       int    `json:"channels"`
 		ChannelLayout  string `json:"channel_layout"`
 		SampleRate     string `json:"sample_rate"`
+		BitRate        string `json:"bit_rate"`
 		Tags           struct {
 			Language string `json:"language"`
 			Title    string `json:"title"`
+			BPS      string `json:"BPS"`     // mkvmerge statistics tag of Matroska streams
+			BPSEng   string `json:"BPS-eng"` // the same tag in older mkvmerge files
 		} `json:"tags"`
 		Disposition struct {
 			Default         int `json:"default"`
@@ -336,6 +343,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Channels:            s.Channels,
 			ChannelLayout:       s.ChannelLayout,
 			SampleRate:          int(integer(s.SampleRate)),
+			BitRate:             audioBitRate(s.CodecType, s.BitRate, s.Tags.BPS, s.Tags.BPSEng),
 			Language:            s.Tags.Language,
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,
@@ -351,6 +359,20 @@ func ParseProbe(data []byte) (Probe, error) {
 		return Probe{}, errors.New("ffprobe found no format and no streams")
 	}
 	return p, nil
+}
+
+// audioBitRate is the bit rate of an audio stream from ffprobe's bit_rate or the Matroska tag BPS
+// (BPS-eng); 0 for other stream types and when neither is a positive number.
+func audioBitRate(codecType string, values ...string) int64 {
+	if codecType != "audio" {
+		return 0
+	}
+	for _, v := range values {
+		if n := integer(v); n > 0 {
+			return n
+		}
+	}
+	return 0
 }
 
 // CopyableVideo reports whether a video codec (the ffprobe codec_name, lower case) can be copied
