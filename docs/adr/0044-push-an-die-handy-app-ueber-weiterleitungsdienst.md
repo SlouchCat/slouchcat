@@ -86,5 +86,6 @@ löscht ein Abo, wenn der Push-Dienst mit 404 oder 410 antwortet.
   er liegt nur auf der Maschine der Push-Weiterleitung.
 - Wer die Schlüsseldatei verliert, macht alle Push-Adressen unbrauchbar, bis sich jede App neu
   angemeldet hat. Sie gehört gesichert und zieht beim Umzug mit (ADR 0042, BETRIEB.md).
-- Der Dienst sieht die Adresse jedes sendenden Servers, Zeitpunkt und Häufigkeit; gespeichert
+- Der Dienst sieht die Adresse jedes sendenden Servers, Zeitpunkt und Häufigkeit und, wenn sich eine App
+  anmeldet (`/v1/register`), deren Internet-Adresse (Konzept 27 Abschnitt 7.6 nennt nur den Server); gespeichert
   wird davon nichts (K27 7.6).
