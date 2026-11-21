@@ -8038,6 +8038,10 @@
     },
     "library": {
       "show": "Show"
+    },
+    "item": {
+      "more": "More info",
+      "recommended": "Recommended. The title is now among the user picks."
     }
   }
 }
