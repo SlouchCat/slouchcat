@@ -193,7 +193,8 @@ fun LibraryScreen(state: LibraryUiState, actions: LibraryActions) {
         Loadable.Empty -> if (filters.active) EMPTY else SHOW
         Loadable.Loading -> SHOW
     }
-    focus.StartFocus(start, state.items.items::class, state.filters)
+    // Not while the first page loads: the chips would take the start focus the grid is due.
+    if (state.items.items != Loadable.Loading || focus.last != null) focus.StartFocus(start, state.items.items::class, state.filters)
     state.sheet?.let { sheet -> LibraryMenu(sheet, state, actions, focus) }
 }
 

@@ -49,6 +49,12 @@ class Pages(private val compose: TvRule) {
 
     fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
 
+    /**
+     * The controls of the page, not of the rail: entering the rail always lands on its marked entry
+     * (2a), so a walk that jumps into it cannot reach the others; `TvNavHostTest` checks the rail.
+     */
+    val page = androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasTestTag(com.slouchcat.app.tv.shell.ShellTags.CONTENT))
+
     fun show(
         data: (MediaData) -> MediaData,
         libraries: List<LibraryNav> = listOf(library(7, "Filme"), library(8, "Serien", contents = listOf(com.slouchcat.core.api.generated.models.RootContent.SERIES))),
