@@ -4,19 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
-import com.slouchcat.app.tv.TvGraph
 import com.slouchcat.core.media.ImageSet
-import com.slouchcat.core.media.MediaData
-
-/**
- * The repositories and counts of this graph (`:core:media`): the server's unless a test or the
- * showcase put others in place (`MediaData.install(graph, …)`). The counts forget themselves with
- * the profile; the images of a profile go with it as well (`TvGraph` clears Coil's caches).
- */
-val TvGraph.media: MediaData
-    get() = MediaData.of(this) {
-        MediaData.api(api, http).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
-    }
 
 /**
  * The size of [this] for a view [width] wide on this screen: a TV of 1080p draws 960 dp at xhdpi,

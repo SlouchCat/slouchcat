@@ -162,7 +162,7 @@ class ProfileSettingsViewModel(
     private val repository: ProfileSettingsRepository,
     /** «Profile verwalten» in «Mehr»: the number of profiles, set again after every load. */
     private val profilesCount: LiveCount? = null,
-    private val onActiveChanged: suspend (before: Profile?, saved: Profile) -> Unit = { _, _ -> },
+    private val onActiveChanged: suspend (before: Profile?, saved: Profile, partly: Boolean) -> Unit = { _, _, _ -> },
 ) : ViewModel() {
     // A mirror of the server's rule, not a decision: the server answers `primary_profile_required`
     // for any other profile and stays the authority (rule 12, code review L-11).
@@ -389,10 +389,12 @@ class ProfileSettingsViewModel(
             }
             _state.update { it.copy(editor = null) }
             val before = (_state.value.profiles as? Loadable.Ready)?.value?.firstOrNull { it.id == profile.id }
-            if (profile.id == active()?.id) onActiveChanged(before, profile)
+            val partly = pins.any { it !is ApiResult.Ok }
+            // With a new epoch the page goes: the result travels with the change (code review m-2 of part a).
+            if (profile.id == active()?.id) onActiveChanged(before, profile, partly)
             _messages.send(
                 when {
-                    pins.any { it !is ApiResult.Ok } -> ProfileMessage.Partly
+                    partly -> ProfileMessage.Partly
                     now.id == null -> ProfileMessage.Added(profile.name)
                     else -> ProfileMessage.Saved
                 },

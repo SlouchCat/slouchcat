@@ -39,7 +39,7 @@ class TestPlayerFeature : TvFeature {
 
 /**
  * The pages of stage 2b in the real shell and NavHost, signed in with [profile], the data of
- * [data] instead of a server (`MediaData.install`, as the showcase does), the [libraries] in the
+ * [data] instead of a server (the graph's `mediaData`, as the showcase does), the [libraries] in the
  * rail. The app starts on «Start».
  */
 class Pages(private val compose: TvRule) {
@@ -73,8 +73,8 @@ class Pages(private val compose: TvRule) {
             serverProbe = FakeProbe(ProbeResult.Unreachable),
             auth = FakeAuth(),
             librariesRepository = FakeLibraries(ApiResult.Ok(libraries)),
+            mediaData = { g -> data(MediaData.api(g.api, g.http)) },
         )
-        MediaData.install(graph, data(MediaData.api(graph.api, graph.http)))
         InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
         compose.setContent { TvNavHost(graph, onExit = { exited++ }) }
         compose.waitUntil(5_000) { graph.session.state.value is SessionState.Ready }

@@ -9,7 +9,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.slouchcat.app.tv.browse.ItemRoute
 import com.slouchcat.app.tv.browse.PersonRoute
-import com.slouchcat.app.tv.browse.media
 import com.slouchcat.app.tv.shell.TvFeature
 import com.slouchcat.app.tv.shell.TvScope
 import com.slouchcat.core.media.ServerImages

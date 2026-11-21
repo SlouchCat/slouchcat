@@ -119,9 +119,13 @@ class SearchViewModel(
         setHits(hits.copy(more = MoreState.Loading))
         job = viewModelScope.launch {
             when (val result = repository.search(server, query, hits.items.size, PAGE_SIZE)) {
-                is ApiResult.Ok -> setHits(
-                    hits.copy(items = hits.items + result.value.items.map { MediaItem.from(it, ServerImages(server)) }, total = result.value.total, more = MoreState.Idle),
-                )
+                is ApiResult.Ok -> {
+                    // A list that shifted between two pages sends a title twice: once is enough (code review M-1).
+                    val known = hits.items.mapTo(HashSet()) { it.id }
+                    val fresh = result.value.items.filter { known.add(it.id) }.map { MediaItem.from(it, ServerImages(server)) }
+                    val total = if (fresh.isEmpty()) hits.items.size else result.value.total - (result.value.items.size - fresh.size)
+                    setHits(hits.copy(items = hits.items + fresh, total = total, more = MoreState.Idle))
+                }
                 else -> setHits(hits.copy(more = MoreState.Failed))
             }
         }

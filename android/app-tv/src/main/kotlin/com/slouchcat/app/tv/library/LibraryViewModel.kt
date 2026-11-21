@@ -117,8 +117,12 @@ class LibraryViewModel(
     private val _state = MutableStateFlow(LibraryUiState(filters = LibraryFilters(sort = initialSort ?: LibrarySort.ADDED)))
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
 
-    private val pager = PageLoader<ItemRef, MediaItem>(viewModelScope, map = { MediaItem.from(it, images()) }) { offset, limit ->
+    // The server of the request (code review m-1): signed out while a page loads, the answer still maps.
+    private var images: ServerImages? = null
+
+    private val pager = PageLoader<ItemRef, MediaItem>(viewModelScope, map = { MediaItem.from(it, checkNotNull(images)) }, key = { it.id }) { offset, limit ->
         val server = session.server ?: return@PageLoader ApiResult.Offline
+        images = ServerImages(server)
         repository.items(server, libraryId, _state.value.filters.query(), offset, limit).map { page ->
             if (offset == 0) _state.update { it.copy(genres = page.facets.genres, ratings = page.facets.ratings) }
             Page(page.items, page.total)
@@ -134,8 +138,6 @@ class LibraryViewModel(
         }
         pager.refresh()
     }
-
-    private fun images() = ServerImages(requireNotNull(session.server))
 
     fun retry() = pager.refresh()
 

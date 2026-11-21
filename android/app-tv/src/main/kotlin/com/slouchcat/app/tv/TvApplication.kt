@@ -25,6 +25,7 @@ import com.slouchcat.core.api.generated.models.AppLoginRequest
 import com.slouchcat.core.api.log.Log
 import com.slouchcat.core.api.log.LogSink
 import com.slouchcat.core.media.LibrariesSource
+import com.slouchcat.core.media.MediaData
 import com.slouchcat.core.pairing.ApiRedeemer
 import com.slouchcat.core.pairing.Redeemer
 import com.slouchcat.core.pairing.RelayClient
@@ -76,6 +77,8 @@ class TvGraph(
     auth: AuthRepository? = null,
     redeemer: Redeemer? = null,
     librariesRepository: LibrariesRepository? = null,
+    /** The data of the pages (`:core:media`); tests and the showcase bring their own (`MediaData.api(…).copy(…)`). */
+    private val mediaData: ((TvGraph) -> MediaData)? = null,
 ) {
     private val appContext = context.applicationContext
 
@@ -160,6 +163,14 @@ class TvGraph(
     val registry = TvRegistry(features)
 
     /** The libraries of the active profile for the rail (loaded only when a feature brings media entries). */
+    /**
+     * The repositories and counts of the pages (`:core:media`), as in the phone app's `AppGraph`:
+     * built once, the counts forget themselves with the profile.
+     */
+    val media: MediaData by lazy {
+        (mediaData?.invoke(this) ?: MediaData.api(api, http)).also { data -> hooks.onProfileOrSessionEnd { data.clearCounts() } }
+    }
+
     val librariesSource = LibrariesSource(session, libraries, scope, enabled = registry.media.isNotEmpty())
 
     init {

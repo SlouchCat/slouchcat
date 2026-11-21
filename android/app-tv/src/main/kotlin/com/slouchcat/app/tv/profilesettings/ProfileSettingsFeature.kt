@@ -14,7 +14,6 @@ import androidx.navigation.compose.composable
 import androidx.tv.material3.Text
 import com.slouchcat.app.tv.TvGraph
 import com.slouchcat.app.tv.browse.ProfilesManageRoute
-import com.slouchcat.app.tv.browse.media
 import com.slouchcat.app.tv.browse.pluralCount
 import com.slouchcat.app.tv.shell.SettingsEntry
 import com.slouchcat.app.tv.shell.TvFeature
@@ -53,7 +52,7 @@ object ProfileSettingsFeature : TvFeature {
         val graph = app.graph
         val navigator = app.navigator
         composable<ProfilesManageRoute> {
-            val vm = viewModel { ProfileSettingsViewModel(graph.session, graph.media.profiles, graph.media.profilesCount) { before, saved -> activeChanged(graph, before, saved) } }
+            val vm = viewModel { ProfileSettingsViewModel(graph.session, graph.media.profiles, graph.media.profilesCount) { before, saved, partly -> activeChanged(graph, before, saved, partly) } }
             val state by vm.state.collectAsStateWithLifecycle()
             LaunchedEffect(vm) {
                 vm.messages.collect { message ->
@@ -118,13 +117,24 @@ object ProfileSettingsFeature : TvFeature {
 
     /**
      * The profile in use was saved: its name and colour in the session. When what it may see
-     * changed (rating, libraries, language), a new epoch: every page reads again.
+     * changed (rating, libraries, language), a new epoch: every page reads again, the message
+     * outlives it (a PIN that did not take must not read as «Gespeichert»).
      */
-    private suspend fun activeChanged(graph: TvGraph, before: Profile?, saved: Profile) {
+    private suspend fun activeChanged(graph: TvGraph, before: Profile?, saved: Profile, partly: Boolean) {
         val now = (graph.session.state.value as? SessionState.Ready)?.profile ?: return
-        val content = before == null || before.maxRating != saved.maxRating || before.allLibraries != saved.allLibraries ||
-            before.libraryIds.toSet() != saved.libraryIds.toSet() || before.language != saved.language
+        val content = contentChanged(before, saved)
+        if (content) graph.toasts.show(if (partly) R.string.app_profiles_manage_partly else R.string.app_profiles_manage_saved)
         graph.session.profileUpdated(ActiveProfile(saved.id, saved.name, saved.isPrimary, saved.accent?.value, saved.image ?: now.image), contentChanged = content)
         if (!content) graph.librariesSource.reload()
     }
+}
+
+/**
+ * Whether saving the profile in use changed what it may see (the phone app's rule): rating,
+ * language, libraries (only without «alle Bibliotheken»). Without the earlier state: yes.
+ */
+internal fun contentChanged(before: Profile?, saved: Profile): Boolean {
+    if (before == null) return true
+    if (before.maxRating != saved.maxRating || before.language != saved.language || before.allLibraries != saved.allLibraries) return true
+    return !saved.allLibraries && before.libraryIds.toSet() != saved.libraryIds.toSet()
 }
