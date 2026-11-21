@@ -2,7 +2,11 @@ package com.slouchcat.app.tv
 
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.KeyEvent
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -65,6 +69,9 @@ class TvFlowTest {
     private val pin = args.getString("slouchcatPin") ?: "246810"
     private val shots = args.getString("slouchcatShots") != null
     private val context = instrumentation.targetContext
+
+    /** The server as the TV shows it (K-9): scheme, host and port. */
+    private val shown = server.toString().trimEnd('/')
     private val identity = ClientIdentity(ClientIdentity.Kind.TV, BuildConfig.VERSION_NAME)
 
     private fun s(id: Int, vararg args: Any): String = context.getString(id, *args)
@@ -101,8 +108,17 @@ class TvFlowTest {
     }
 
     /** The element with [text] has the focus (merged: the text sits on a child of the focused button). */
-    private fun focused(text: String) =
-        waitFor(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true)), unmerged = false)
+    private fun focused(text: String) {
+        try {
+            waitFor(isFocused() and (hasText(text, substring = true) or hasContentDescription(text, substring = true)), unmerged = false)
+        } catch (timeout: ComposeTimeoutException) {
+            // Say what has the focus instead (the reason in the report of the run).
+            val now = compose.onAllNodes(isFocused()).fetchSemanticsNodes().map { node ->
+                (node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() + node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text }).joinToString(" ")
+            }
+            throw AssertionError("«$text» should have the focus, it is on $now", timeout)
+        }
+    }
 
     /** A field: OK opens the input of the system, the text goes in, «Fertig» takes it. */
     private fun type(label: String, text: String) {
@@ -129,6 +145,8 @@ class TvFlowTest {
         instrumentation.waitForIdleSync()
         compose.mainClock.advanceTimeBy(FRAME_MS)
         compose.waitForIdle()
+        // The display shows a new page a few frames after Compose drew it.
+        SystemClock.sleep(FRAME_MS)
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         // The app's own files: the TV image refuses its external files to the test (EACCES on API 34).
         val dir = File(context.filesDir, "shots").apply { mkdirs() }
@@ -155,6 +173,7 @@ class TvFlowTest {
 
         // Address, e-mail, password with the D-pad and the input of the system.
         waitForText(s(R.string.tv_hand_serverLead))
+        focused(s(R.string.tv_hand_serverLabel))
         shot("02-hand-server")
         type(s(R.string.tv_hand_serverLabel), server.toString().trimEnd('/'))
         waitForText(server.host)
@@ -178,7 +197,7 @@ class TvFlowTest {
 
         // The profile choice says where the TV is connected (K-9); a wrong PIN first.
         waitForText(s(R.string.profiles_picker_title))
-        waitForText(s(R.string.tv_profiles_connected, server.host, email))
+        waitForText(s(R.string.tv_profiles_connected, shown, email))
         shot("06-profiles")
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         waitForText(s(R.string.tv_pin_prompt))
@@ -198,7 +217,15 @@ class TvFlowTest {
         shot("11-rail-open")
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
         focused(s(R.string.tv_shell_switchProfile))
-        key(KeyEvent.KEYCODE_DPAD_DOWN)
+        // «Erweitert»: the relay is changed here (F-21), not on the page with the code.
+        key(KeyEvent.KEYCODE_DPAD_DOWN, 3)
+        focused(s(R.string.tv_settings_advanced))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        focused(s(R.string.tv_relay_label))
+        shot("16-advanced-relay")
+        key(KeyEvent.KEYCODE_BACK)
+        focused(s(R.string.tv_settings_advanced))
+        key(KeyEvent.KEYCODE_DPAD_UP, 2)
         focused(s(R.string.tv_settings_server))
         shot("12-settings-server")
         key(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -232,20 +259,33 @@ class TvFlowTest {
         // The QR code: its content goes out to the script, which plays the phone.
         val withCode = SemanticsMatcher.keyIsDefined(QrContent)
         waitFor(withCode)
+        fun code() = compose.onNode(withCode, useUnmergedTree = true).fetchSemanticsNode().config[QrContent]
+        // The pairing lives only while its page is seen (review M-1): the way by hand and back
+        // gives a new code.
+        val first = code()
+        focused(s(R.string.tv_pair_newCode))
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        focused(s(R.string.tv_pair_byHand))
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        waitForText(s(R.string.tv_hand_serverLead))
+        key(KeyEvent.KEYCODE_BACK)
+        waitFor(withCode and SemanticsMatcher("another code") { it.config[QrContent] != first })
+        // Back returns to the button that had the focus.
+        focused(s(R.string.tv_pair_byHand))
         shot("20-scan-code")
-        val code = compose.onNode(withCode, useUnmergedTree = true).fetchSemanticsNode().config[QrContent]
+        val code = code()
         instrumentation.sendStatus(0, Bundle().apply { putString("pairCode", code) })
 
         // The phone laid the packet down; the TV redeemed it and shows server and account.
         waitForText(s(R.string.tv_pair_linkedLead), timeout = 150_000)
         waitForText(email)
-        waitForText(server.host)
+        waitForText(shown)
         shot("21-scan-linked")
         focused(s(R.string.tv_pair_continue))
         key(KeyEvent.KEYCODE_DPAD_CENTER)
 
         waitForText(s(R.string.profiles_picker_title))
-        waitForText(s(R.string.tv_profiles_connected, server.host, email))
+        waitForText(s(R.string.tv_profiles_connected, shown, email))
         shot("22-scan-profiles")
         scenario.close()
     }
