@@ -40,8 +40,12 @@ class ListViewModel(
 ) : ViewModel() {
     val kind: ListKind? = ListKind.of(key)
 
-    private val pager = PageLoader<ItemRef, MediaItem>(viewModelScope, map = { MediaItem.from(it, ServerImages(requireNotNull(session.server))) }) { offset, limit ->
+    // The server of the request (code review m-1): signed out while a page loads, the answer still maps.
+    private var images: ServerImages? = null
+
+    private val pager = PageLoader<ItemRef, MediaItem>(viewModelScope, map = { MediaItem.from(it, checkNotNull(images)) }, key = { it.id }) { offset, limit ->
         val server = session.server ?: return@PageLoader ApiResult.Offline
+        images = ServerImages(server)
         when (val k = kind) {
             is ListKind.Row -> repository.homeRow(server, k.key, offset, limit)
             ListKind.Picks -> repository.picks(server, offset, limit)

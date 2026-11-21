@@ -57,11 +57,20 @@ class PageLoader<S, T>(
     private val scope: CoroutineScope,
     private val pageSize: Int = PAGE_SIZE,
     private val map: (S) -> T,
+    /**
+     * What makes two entries the same title (the id): a list that shifts between two pages on the
+     * server (a title added, sorted by «zuletzt gesehen») sends one twice; the second goes, else a
+     * grid with keys would crash (code review M-1). The default compares the entries themselves.
+     */
+    private val key: (T) -> Any? = { it },
     private val load: suspend (offset: Int, limit: Int) -> ApiResult<Page<S>>,
 ) {
     private val _state = MutableStateFlow(Paged<T>())
     val state: StateFlow<Paged<T>> = _state.asStateFlow()
     private var job: Job? = null
+
+    /** Entries of the server left out as doubles: the next page starts after them. */
+    private var dropped = 0
 
     /** Loads the first page again; [keep]: leave the shown entries while it loads (pull to refresh). */
     fun refresh(keep: Boolean = false) {
@@ -71,10 +80,15 @@ class PageLoader<S, T>(
             val result = load(0, pageSize)
             val page = (result as? ApiResult.Ok)?.value
             if (page != null) {
-                val items = page.items.map(map)
-                _state.value = Paged(if (items.isEmpty()) Loadable.Empty else Loadable.Ready(items), page.total)
+                val mapped = page.items.map(map)
+                val items = mapped.distinctBy(key)
+                dropped = mapped.size - items.size
+                _state.value = Paged(if (items.isEmpty()) Loadable.Empty else Loadable.Ready(items), page.total - dropped)
             } else if (!(keep && _state.value.items is Loadable.Ready)) {
                 _state.value = Paged(result.toLoadable().let { it as? Loadable.Failed ?: Loadable.Failed(LoadError.Failed) })
+            } else {
+                // The shown list stays; a page that was loading when the refresh cancelled it is not (code review L-2).
+                _state.update { it.copy(more = MoreState.Idle) }
             }
         }
     }
@@ -84,12 +98,18 @@ class PageLoader<S, T>(
         val now = _state.value
         if (!now.hasMore || now.more == MoreState.Loading || job?.isActive == true) return
         _state.update { it.copy(more = MoreState.Loading) }
-        val offset = now.loaded.size
+        val offset = now.loaded.size + dropped
         job = scope.launch {
             when (val result = load(offset, pageSize)) {
                 is ApiResult.Ok -> _state.update {
-                    val items = it.loaded + result.value.items.map(map)
-                    Paged(Loadable.Ready(items), result.value.total, MoreState.Idle)
+                    val known = it.loaded.mapTo(HashSet(), key)
+                    val mapped = result.value.items.map(map)
+                    val fresh = mapped.filter { item -> known.add(key(item)) }
+                    dropped += mapped.size - fresh.size
+                    val items = it.loaded + fresh
+                    // A page with nothing new ends the list, else it would ask again and again.
+                    val total = if (fresh.isEmpty()) items.size else result.value.total - dropped
+                    Paged(Loadable.Ready(items), total, MoreState.Idle)
                 }
                 else -> _state.update { it.copy(more = MoreState.Failed) }
             }
