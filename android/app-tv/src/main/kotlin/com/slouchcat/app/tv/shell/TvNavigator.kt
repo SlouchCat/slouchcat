@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
+import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KClass
 
@@ -51,7 +52,35 @@ class TvNavigator(
     fun current(): RailEntry? = registry.entryOf(nav.currentBackStackEntry, media())
 
     /** A page below the current one; Back returns, and the page before keeps focus and scroll. */
-    fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = true }
+    fun navigate(route: Any) {
+        // Not again when it is the page shown (a double OK); another title from a title is a new
+        // page above it (`ItemRoute(b)` over `ItemRoute(a)`), so Back returns to the first one.
+        val top = nav.currentBackStackEntry
+        if (top != null && top.isRoute(route::class) && runCatching { top.toRoute<Any>(route::class) == route }.getOrDefault(false)) return
+        nav.navigate(route)
+    }
+
+    /**
+     * Whether a feature registered a page for routes of [route]'s class. Pages of a later stage
+     * (the player of stage 3) appear by themselves once their feature is in `Features.kt`.
+     */
+    fun canOpen(route: KClass<*>): Boolean {
+        @Suppress("UNCHECKED_CAST")
+        val type = route as KClass<Any>
+        return nav.graph.any { it.hasRoute(type) }
+    }
+
+    /**
+     * The click of a link to [route]: `null` while no feature registered its page, so the button
+     * that would open it is not drawn (no button that leads nowhere, no stand-in player).
+     */
+    fun opener(route: Any): (() -> Unit)? = if (canOpen(route::class)) ({ navigate(route) }) else null
+
+    /**
+     * An entry of the rail by its key from a page (the search of a title, a library of the start
+     * page); `null` while no feature brings it.
+     */
+    fun openerOf(key: String): (() -> Unit)? = (registry.entry(key) ?: media().firstOrNull { it.key == key })?.let { entry -> { openRail(entry) } }
 
     /** Back one page; `false` on the first page (the shell then counts towards leaving the app). */
     fun back(): Boolean = nav.popBackStack()

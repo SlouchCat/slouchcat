@@ -42,7 +42,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -54,7 +53,6 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import coil3.compose.AsyncImage
 import com.slouchcat.app.tv.shell.LocalContentStart
 import com.slouchcat.core.design.SlouchcatTheme
 import com.slouchcat.core.design.SlouchcatTokens
@@ -122,7 +120,7 @@ fun TvCard(
     ) {
         Box(Modifier.fillMaxSize().clip(corner)) {
             if (image != null) {
-                AsyncImage(model = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                TvImage(image, Modifier.fillMaxSize())
             } else if (caption == null) {
                 Text(
                     title,

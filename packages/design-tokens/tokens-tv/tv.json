@@ -579,6 +579,177 @@
         "progress": {
           "$value": "4px"
         }
+      },
+      "browse": {
+        "$description": "The browsing pages of stage 2b (browse.css and the hero of app.css), half the mockup canvas",
+        "hero-height": {
+          "$value": "400px",
+          "$description": ".hero height: the stage of the start page"
+        },
+        "hero-top": {
+          "$value": "70px",
+          "$description": ".hero padding-top"
+        },
+        "hero-info": {
+          "$value": "520px",
+          "$description": ".sp-info max-width"
+        },
+        "hero-info-min": {
+          "$value": "180px",
+          "$description": ".sp-info min-height"
+        },
+        "kind-gap": {
+          "$value": "9px",
+          "$description": ".sp-kind margin-bottom"
+        },
+        "logo-height": {
+          "$value": "85px",
+          "$description": ".sp-logo max-height"
+        },
+        "logo-width": {
+          "$value": "320px",
+          "$description": ".sp-logo max-width"
+        },
+        "meta-top": {
+          "$value": "12px",
+          "$description": ".sp-meta margin-top"
+        },
+        "meta-gap": {
+          "$value": "9px",
+          "$description": ".sp-meta gap"
+        },
+        "overview": {
+          "$value": "490px",
+          "$description": ".sp-ov max-width"
+        },
+        "actions-top": {
+          "$value": "18px",
+          "$description": ".sp-acts margin-top"
+        },
+        "strip-top": {
+          "$value": "17px",
+          "$description": ".sp-strip margin-top"
+        },
+        "thumb-width": {
+          "$value": "88px",
+          "$description": ".sp-th width"
+        },
+        "thumb-height": {
+          "$value": "50px",
+          "$description": ".sp-th height"
+        },
+        "detail-top": {
+          "$value": "80px",
+          "$description": ".br-hero padding-top"
+        },
+        "detail-bottom": {
+          "$value": "33px",
+          "$description": ".br-hero padding-bottom"
+        },
+        "detail-logo-height": {
+          "$value": "95px",
+          "$description": ".br-logo max-height"
+        },
+        "detail-logo-width": {
+          "$value": "360px",
+          "$description": ".br-logo max-width"
+        },
+        "detail-overview": {
+          "$value": "530px",
+          "$description": ".br-ov max-width"
+        },
+        "detail-actions-top": {
+          "$value": "20px",
+          "$description": ".br-acts margin-top"
+        },
+        "icon-button": {
+          "$value": "40px",
+          "$description": ".br-ib: round icon button"
+        },
+        "icon": {
+          "$value": "18px",
+          "$description": "icon in .br-ib and .br-cb"
+        },
+        "progress-width": {
+          "$value": "140px",
+          "$description": ".br-pbar width"
+        },
+        "head-icon": {
+          "$value": "38px",
+          "$description": ".br-hic: the icon box of a page head"
+        },
+        "head-height": {
+          "$value": "42px",
+          "$description": ".br-head min-height"
+        },
+        "controls-top": {
+          "$value": "15px",
+          "$description": ".br-ctrls margin-top"
+        },
+        "control-height": {
+          "$value": "34px",
+          "$description": ".br-cb height"
+        },
+        "control-pad": {
+          "$value": "15px",
+          "$description": ".br-cb padding"
+        },
+        "grid-gap": {
+          "$value": "22px",
+          "$description": ".br-grid row gap"
+        },
+        "chip-height": {
+          "$value": "44px",
+          "$description": ".br-chip height (season)"
+        },
+        "chip-pad": {
+          "$value": "16px",
+          "$description": ".br-chip padding"
+        },
+        "episode-info": {
+          "$value": "68px",
+          "$description": ".br-epov min-height"
+        },
+        "cast-width": {
+          "$value": "100px",
+          "$description": ".br-cp width: a portrait of the cast"
+        },
+        "person-image": {
+          "$value": "200px",
+          "$description": ".br-pim width (person, collection)"
+        },
+        "person-gap": {
+          "$value": "42px",
+          "$description": ".br-person gap"
+        },
+        "person-top": {
+          "$value": "60px",
+          "$description": ".br-person padding-top"
+        },
+        "search-keys": {
+          "$value": "470px",
+          "$description": ".br-sl width: the keyboard of the search"
+        },
+        "search-key": {
+          "$value": "38px",
+          "$description": ".kb-k: a key of the search keyboard"
+        },
+        "profile-row": {
+          "$value": "64px",
+          "$description": ".md-prow height (Profile verwalten)"
+        },
+        "profile-avatar": {
+          "$value": "48px",
+          "$description": ".md-prow avatar"
+        },
+        "profile-list": {
+          "$value": "620px",
+          "$description": ".md-plist max-width"
+        },
+        "swatch": {
+          "$value": "36px",
+          "$description": ".md-sw: a colour of a profile"
+        }
       }
     },
     "opacity": {
