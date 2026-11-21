@@ -108,3 +108,23 @@ JDK braucht.
 - Jede neue Seite der Apps braucht ihre Texte in `de` und `en` (Namensraum `app` oder einen der
   Zuschauerseiten in `strings-namespaces.txt`) und einen Oberflächentest in beiden Breiten.
 - Ein Lauf der CI dauert länger: der Job `android` kommt neben die bestehenden Jobs.
+
+## Nachtrag 21. November 2026: das zweite App-Modul (Konzept 26 Stufe 2a)
+
+- **`:app-tv`** ist das zweite App-Modul neben `:app-mobile`: Paket `com.slouchcat.app.tv`, App-Kennung
+  `com.slouchcat.app` wie die Handy-App (E-20), Entwicklungsbau `.dev`, `targetSdk` 34, `minSdk` 28, keine
+  Bauarten, eigene Versionsdatei (`app-tv/version.properties`, Tags `tv-v…`), R8 für `release`. Im
+  Store ist sie das zweite Artefakt desselben Eintrags; erkannt wird sie am `LEANBACK_LAUNCHER` und am Banner.
+- **Geteilt** werden `:core:api` (Client, Netz, «Server weist sich aus»), `:core:session` (Server,
+  Token im Keystore, Sitzung), `:core:design` (Tokens, Farben; die TV-Masse kommen als
+  `SlouchcatTokens.Tv` aus `packages/design-tokens/tokens-tv`), `:core:strings` (Texte, für den Fernseher
+  im Namensraum `tv`) und neu `:core:pairing` (Schlüssel, QR-Code, Vermittlung, HPKE, Einlösen; der
+  Fernseher empfängt, die Handy-App versiegelt in Stufe 9). **Nicht geteilt** wird die Oberfläche:
+  Thema, Bausteine, Hülle und Seiten des Fernsehers liegen in `:app-tv` und nutzen «Compose for TV»
+  (`androidx.tv:tv-material`). Der QR-Code entsteht mit dem Encoder von ZXing core (Apache-2.0).
+- Die Hülle des Fernsehers ist ein Register wie die des Handys (`shell/Features.kt`, `merge=union`):
+  Einträge der linken Leiste, Medien aus den Bibliotheken, Zeilen der Einstellungen.
+- Steuerkreuz-Tests laufen als JVM-Tests mit Robolectric (TV-Qualifier, K26 Stufe 0 Punkt 7) in
+  `task android:test`; der Ablauf im TV-Emulator samt Einrichten per Scan gegen eine lokale
+  Vermittlung ist `task android:e2e:tv` und läuft nur lokal (`docs/perf/K27-android-ci.md`).
+
