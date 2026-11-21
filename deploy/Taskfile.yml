@@ -114,7 +114,7 @@ tasks:
       - "{{.COMPOSE}} down"
 
   config:
-    desc: Validate compose.yaml, all GPU overrides, the podcast and the updater override
+    desc: Validate compose.yaml, all GPU overrides, the podcast and the updater override, the demo server
     env:
       RENDER_GID: '{{.RENDER_GID | default "992"}}'
     cmds:
@@ -131,6 +131,9 @@ tasks:
       - >-
         SLOUCHCAT_DEPLOY_DIR="$PWD" docker compose -f compose.yaml -f compose.https-only.yaml
         -f compose.intel.yaml -f compose.updater.yaml --profile https config --quiet
+      # Demo server for Google's review (demo/README.md), with and without its https profile.
+      - docker compose -f demo/compose.yaml --env-file demo/.env.example config --quiet
+      - docker compose -f demo/compose.yaml --env-file demo/.env.example --profile https config --quiet
 
   healthy-time:
     desc: Measure time to "healthy" (< 5 s) and idle RSS (< 60 MB) of {{.IMAGE}}

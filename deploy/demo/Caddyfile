@@ -1,0 +1,15 @@
+# HTTPS front end of the demo server (profile "https"), like deploy/Caddyfile.
+# DEMO_DOMAIN=localhost -> certificate of Caddy's internal CA (local probe only).
+# DEMO_DOMAIN=demo.example.org -> Let's Encrypt (ports 80 and 443 must be reachable).
+{
+	email "{$ACME_EMAIL}"
+}
+
+{$DEMO_DOMAIN} {
+	header -Server
+	header Strict-Transport-Security "max-age=31536000"
+	# No read timeout and immediate flushing for Range and HLS responses.
+	reverse_proxy slouchcat:8096 {
+		flush_interval -1
+	}
+}

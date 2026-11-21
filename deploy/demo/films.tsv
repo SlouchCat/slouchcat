@@ -1,0 +1,12 @@
+# Films of the demo server (concept 27, F-10): open movies of the Blender Foundation.
+# Columns, separated by one tab:
+#   folder below /media/Movies | file suffix | download URL | SHA-256 of the download | member of the zip, or -
+# The SHA-256 values were taken from downloads on 21 November 2026. A file whose download has
+# another hash is rejected; the film is then skipped and the script fails at the end.
+# Licences and sources: deploy/demo/README.md, section «Filme».
+Elephants Dream (2006)	mov	https://download.blender.org/ED/elephantsdream-720-h264-st-aac.mov	6fc295e0e92835316ec95929ccfc664b05ed2434f673e6f5e684f98f7558a547	-
+Big Buck Bunny (2008)	mov	https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_720p_h264.mov.zip	b0c9ade80b086179feee41514929de583966eec87c703575d97f051f88b33b67	big_buck_bunny_720p_h264.mov
+Sintel (2010)	mkv	https://download.blender.org/durian/movies/Sintel.2010.720p.mkv.zip	d252f898641b20f51c64206f31063e659c28b152a9d988936736d1b56e6e4db3	Sintel.2010.720p.mkv
+Tears of Steel (2012)	mov	https://download.blender.org/demo/movies/ToS/tears_of_steel_720p.mov	efa9062d9cdb7a338e40ad530dfdf234806743f29ae6a1a136b97ece4e588e8f	-
+Tears of Steel (2012)	en.srt	https://download.blender.org/demo/movies/ToS/subtitles/TOS-en.srt	ce9578f6fe098a5821045a38884b229160f9e7ba27890448a92f5be330c6e6fe	-
+Tears of Steel (2012)	de.srt	https://download.blender.org/demo/movies/ToS/subtitles/TOS-de.srt	666685daa9064a5a59144e47bddd2d570bbdda199df6e4e39f3273e479ab1f4b	-
