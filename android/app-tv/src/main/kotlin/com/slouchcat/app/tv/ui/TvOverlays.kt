@@ -91,26 +91,47 @@ class FocusMemory internal constructor(initial: String?) {
 
     internal var tick by mutableIntStateOf(0)
 
+    /**
+     * Where [restore] or [focus] is taking the focus. Until it arrives, other elements of the page
+     * that get the focus are not remembered: on a device, a menu that closes hands the focus to the
+     * first element of the page for a frame, and that must not replace the element to return to.
+     */
+    private var target: String? = null
+
     internal fun requester(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
+
+    internal fun focused(key: String) {
+        if (target == null || target == key) last = key
+    }
 
     /** Moves the focus back to the remembered element (after a menu closed or a step changed). */
     fun restore() {
+        target = last
         tick++
     }
 
     /** Moves the focus to [key] now and remembers it. */
     fun focus(key: String) {
         last = key
+        target = key
         tick++
     }
 
     internal fun tryFocus(fallback: String?): Boolean {
-        for (candidate in listOfNotNull(last, fallback).distinct()) {
+        for (candidate in listOfNotNull(target, last, fallback).distinct()) {
             val requester = requesters[candidate] ?: continue
             // `false` (or an exception, by version) when nothing with this key is on the page now.
-            if (runCatching { requester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)) return true
+            if (runCatching { requester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)) {
+                target = null
+                last = candidate
+                return true
+            }
         }
         return false
+    }
+
+    internal fun giveUp() {
+        target = null
     }
 }
 
@@ -124,7 +145,7 @@ fun rememberFocusMemory(): FocusMemory =
  * focus goes to its first focusable child, and the key counts while anything in it has the focus.
  */
 fun Modifier.focusKey(memory: FocusMemory, key: String): Modifier =
-    focusRequester(memory.requester(key)).onFocusChanged { if (it.hasFocus) memory.last = key }
+    focusRequester(memory.requester(key)).onFocusChanged { if (it.hasFocus) memory.focused(key) }
 
 /**
  * The start focus of a page after its first frame (K26 stage 0: earlier, nothing is placed yet):
@@ -138,6 +159,7 @@ fun FocusMemory.StartFocus(fallback: String, vararg keys: Any?) {
             withFrameNanos { }
             if (tryFocus(fallback)) return@LaunchedEffect
         }
+        giveUp()
     }
 }
 

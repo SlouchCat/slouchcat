@@ -135,6 +135,11 @@ class SettingsTest {
         remote.down()
         remote.ok()
         remote.assertFocused(s(R.string.tv_relay_label))
+        // Back closes the menu and returns to its row.
+        remote.back()
+        remote.assertFocused(s(R.string.tv_settings_advanced))
+        remote.ok()
+        remote.assertFocused(s(R.string.tv_relay_label))
         remote.ok()
         compose.onNode(hasSetTextAction()).performTextReplacement("http://10.0.2.2:8180")
         compose.onNode(hasSetTextAction()).performImeAction()

@@ -206,8 +206,9 @@ private fun Linked(phase: PairPhase.Linked, focus: FocusMemory, onContinue: () -
         Text(stringResource(R.string.tv_pair_linkedLead), style = TvType.large, color = c.tx2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = s.LeadTop))
         TvDetailRows(
             listOf(
-                stringResource(R.string.tv_pair_server) to {
-                    DetailValue(phase.server)
+                // The whole address takes the row; the badge has a row of its own (as in the settings).
+                stringResource(R.string.tv_pair_server) to { DetailValue(phase.server) },
+                stringResource(R.string.tv_settings_connection) to {
                     ConnectionBadge(phase.encrypted, stringResource(R.string.tv_hand_encrypted), stringResource(R.string.tv_hand_notEncrypted))
                 },
                 stringResource(R.string.tv_pair_account) to { DetailValue(phase.account) },

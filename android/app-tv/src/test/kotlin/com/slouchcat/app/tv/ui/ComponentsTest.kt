@@ -197,6 +197,34 @@ class ComponentsTest {
     }
 
     @Test
+    fun aClosedMenuReturnsToItsRowEvenWhenTheSystemFocusesTheFirstElement() {
+        var open by mutableStateOf(false)
+        var jump by mutableStateOf(false)
+        remote.show {
+            val focus = rememberFocusMemory()
+            val top = remember { FocusRequester() }
+            Column {
+                TvButton("Oben", onClick = {}, modifier = Modifier.focusKey(focus, "top").focusRequester(top))
+                TvButton("Erweitert", onClick = { open = true }, modifier = Modifier.focusKey(focus, "advanced"))
+            }
+            focus.StartFocus("top")
+            // On a device, the view hands the focus to the first element when the menu goes.
+            androidx.compose.runtime.LaunchedEffect(jump) { if (jump) runCatching { top.requestFocus() } }
+            if (open) {
+                val first = remember { FocusRequester() }
+                TvSideMenu("Erweitert", onDismiss = { open = false; jump = true; focus.restore() }, initialFocus = first) {
+                    TvButton("Speichern", onClick = {}, modifier = Modifier.focusRequester(first))
+                }
+            }
+        }
+        remote.down()
+        remote.ok()
+        remote.assertFocused("Speichern")
+        remote.back()
+        remote.assertFocused("Erweitert")
+    }
+
+    @Test
     fun aDialogCatchesTheFocusOnItsDefault() {
         var open by mutableStateOf(true)
         var confirmed by mutableStateOf(false)
