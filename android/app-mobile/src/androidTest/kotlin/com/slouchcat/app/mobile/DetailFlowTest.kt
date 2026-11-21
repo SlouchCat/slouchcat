@@ -1,6 +1,7 @@
 package com.slouchcat.app.mobile
 
 import android.graphics.Bitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
@@ -215,7 +217,8 @@ class DetailFlowTest {
         val returned = s(R.string.app_item_episodeTitle, "1", "Return")
         waitForText(returned)
         shot("b06-series-season-2")
-        compose.onAllNodes(hasText(returned) and hasClickAction()).onLast().performScrollTo().performClick()
+        // The row's own action: a tap at its centre may land on the back arrow over the page's top.
+        compose.onAllNodes(hasText(returned) and hasClickAction()).onLast().performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         waitFor(hasText("Return") and isHeading())
         shot("b07-episode")
         back()

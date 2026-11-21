@@ -9,7 +9,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.test.core.app.ApplicationProvider
@@ -28,6 +27,7 @@ import com.slouchcat.app.mobile.testing.FakeTokens
 import com.slouchcat.app.mobile.testing.HTTPS_SERVER
 import com.slouchcat.app.mobile.testing.PRIMARY
 import com.slouchcat.app.mobile.testing.film
+import com.slouchcat.app.mobile.testing.reveal
 import com.slouchcat.app.mobile.testing.ulid
 import com.slouchcat.core.design.SlouchcatIcon
 import com.slouchcat.core.session.StoredCredentials
@@ -66,7 +66,7 @@ class DetailBackTest {
 
     private val graph = AppGraph(
         context,
-        features = listOf(DetailStartFeature, ItemFeature { FakeDetails(film()) }, PersonFeature { FakePeople() }),
+        features = listOf(DetailStartFeature, ItemFeature { FakeDetails(film(), film(2, title = "Night Train 2")) }, PersonFeature { FakePeople() }),
         serverStore = FakeServers(HTTPS_SERVER),
         tokenStore = FakeTokens(StoredCredentials("token", "device-1")),
         accountStore = FakeAccounts(EMAIL, PRIMARY),
@@ -74,6 +74,9 @@ class DetailBackTest {
 
     private fun waitFor(matcher: androidx.compose.ui.test.SemanticsMatcher) =
         compose.waitUntil(5_000) { compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
+
+    /** The title of a page: the logo (said as the title) or the text, as its heading. */
+    private fun title(name: String) = (hasText(name) or hasContentDescription(name)) and isHeading()
 
     private fun back() = compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 
@@ -89,10 +92,15 @@ class DetailBackTest {
         assertTrue(graph.links.request("item/${ulid(1)}"))
         assertFalse("an unknown address is no jump", graph.links.request("item/"))
         waitFor(hasText("A new day begins."))
-        compose.onNode(hasContentDescription("Ann Actor", substring = true) and hasClickAction()).performScrollTo().performClick()
+        compose.reveal(compose.onNode(hasContentDescription("Ann Actor", substring = true) and hasClickAction())).performClick()
         waitFor(hasText("Ann Actor") and isHeading())
         back()
         waitFor(hasText("A new day begins."))
+        // Another title from this one (a member of its collection): a page of its own, Back returns.
+        compose.reveal(compose.onNode(hasContentDescription("Night Train 2", substring = true) and hasClickAction())).performClick()
+        waitFor(title("Night Train 2"))
+        back()
+        waitFor(title("Night Train"))
         // The page's own arrow does the same.
         compose.onNode(hasContentDescription(context.getString(R.string.common_back)) and hasClickAction()).performClick()
         waitFor(hasText("start page"))

@@ -92,7 +92,7 @@ fun Main(item: ItemDetail, state: ItemUiState, images: ServerImages, links: Item
 @Composable
 fun Rows(item: ItemDetail, images: ServerImages, links: ItemLinks) {
     item.collections.filter { !it.members.isNullOrEmpty() || it.cover != null }.forEach { collection ->
-        val members = collection.members ?: listOfNotNull(collection.cover)
+        val members = (collection.members ?: listOfNotNull(collection.cover)).distinctBy { it.id }
         Column(Modifier.padding(top = 12.dp)) {
             MediaRow(collection.name, onShowAll = links.collection(collection.id)) {
                 items(members, key = { it.id }) { member ->
@@ -202,7 +202,6 @@ private fun CastCard(member: CastMember, images: ServerImages, onClick: (() -> U
     Column(
         Modifier
             .width(width)
-            .clip(RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .clearAndSetSemantics { contentDescription = said },
     ) {

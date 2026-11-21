@@ -7,6 +7,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
+import java.lang.reflect.Modifier
 import kotlin.reflect.KClass
 
 /** The pages of the entry, drawn without the shell. */
@@ -33,8 +34,16 @@ class Navigator(
     private val registry: ShellRegistry,
     val selected: MutableState<String?> = mutableStateOf(null),
 ) {
-    /** A page within the current target. */
-    fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = true }
+    /**
+     * A page within the current target. Only a route without arguments is single top: with
+     * `launchSingleTop` the NavController would reuse the page of `ItemRoute(a)` for `ItemRoute(b)`
+     * (same destination) and keep its ViewModel, so a title opened from another title showed the
+     * first one and Back skipped it.
+     */
+    fun navigate(route: Any) = nav.navigate(route) { launchSingleTop = withoutArguments(route) }
+
+    /** A `data object` route: only static fields (its instance); without kotlin-reflect. */
+    private fun withoutArguments(route: Any): Boolean = route.javaClass.declaredFields.all { Modifier.isStatic(it.modifiers) }
 
     /**
      * Whether a feature registered a page for routes of [route]'s class. Pages of a later feature

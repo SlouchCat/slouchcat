@@ -126,6 +126,8 @@ for _ in $(seq 1 60); do
 done
 adb uninstall "$app" >/dev/null 2>&1 || true
 adb uninstall "$app.test" >/dev/null 2>&1 || true
+# Files of an earlier install may stay with another owner; the photos could not be written then.
+adb shell rm -rf "/sdcard/Android/data/$app" >/dev/null 2>&1 || true
 # The network of the emulator comes up after the boot: without it the first request fails
 # with ENETUNREACH.
 for _ in $(seq 1 60); do
