@@ -216,6 +216,9 @@ func TestHLSTranscodeMultichannel(t *testing.T) {
 		{"eac3 copied", []string{"-c:a", "eac3", "-b:a", "640k", "-ac", "6"}, Target{AudioCopy: true}, "eac3", 6, "ec-3", ac3Frame},
 		{"ac3 encoded", []string{"-c:a", "aac", "-b:a", "384k", "-ac", "6"}, Target{AudioCodec: AudioAC3, AudioChannels: 6}, "ac3", 6, "ac-3", ac3Frame},
 		{"aac 5.1", []string{"-c:a", "ac3", "-b:a", "448k", "-ac", "6"}, Target{AudioChannels: 6}, "aac", 6, "mp4a.40.2", aacFrame},
+		// Odd counts keep their number (ADR 0041): quad as AC-3, 6.1 as AAC.
+		{"ac3 quad", []string{"-c:a", "pcm_s16le", "-ac", "4"}, Target{AudioCodec: AudioAC3, AudioChannels: 4}, "ac3", 4, "ac-3", ac3Frame},
+		{"aac 6.1", []string{"-c:a", "pcm_s16le", "-ac", "7"}, Target{AudioChannels: 7}, "aac", 7, "mp4a.40.2", aacFrame},
 		{"aac 7.1", []string{"-c:a", "flac", "-ac", "8"}, Target{AudioChannels: 8}, "aac", 8, "mp4a.40.2", aacFrame},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
