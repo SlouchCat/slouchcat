@@ -478,7 +478,7 @@ route('/radio', () => {
       <span class="md-rbar-tx"><small><span class="md-onair" aria-hidden="true"></span>Live · ${esc(st[1])}</small><b id="md-rsong">${esc(mdSong(p))}</b></span>
       <button type="button" class="tb" data-f="rd-stop" data-act="mdRadioStop">${icon('pause', 32)}<span>Stopp</span></button></div>` : '';
   return {
-    html: `<div class="page md-radio">
+    html: `<div class="page md-radiopage">
       <h1 class="md-h1">Webradio</h1>
       <p class="md-lead">${DATA.radio.length} Sender live. OK startet einen Sender, nochmals OK hält ihn an.</p>
       <div class="md-rrow">${tiles}</div>${bar}</div>`,
