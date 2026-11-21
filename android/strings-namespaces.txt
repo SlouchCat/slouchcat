@@ -13,3 +13,4 @@ errors.code
 profiles.picker
 profiles.pin
 settings.devices
+tv

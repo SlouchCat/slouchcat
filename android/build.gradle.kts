@@ -15,13 +15,13 @@ plugins {
 // module's own build file.
 tasks.register("ciCheck") {
     group = "verification"
-    description = "Debug and unsigned release builds (R8) of both flavours, lint of every module, the generators (task android:check)"
+    description = "Debug and unsigned release builds (R8) of both flavours and of the TV app, lint of every module, the generators (task android:check)"
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:assembleFossDebug")
     dependsOn(":app-mobile:assemblePlayRelease", ":app-mobile:assembleFossRelease")
     dependsOn(":app-mobile:lintPlayDebug", ":app-mobile:lintFossDebug")
     dependsOn(":core:api:lint", ":core:session:lintDebug", ":core:design:lintDebug", ":core:strings:lintDebug")
-    // The pairing module (concept 26 4.3, concept 27 7.2).
-    dependsOn(":core:pairing:lint")
+    // The TV app (concept 26): debug and unsigned release (R8), lint; the pairing module.
+    dependsOn(":app-tv:assembleDebug", ":app-tv:assembleRelease", ":app-tv:lintDebug", ":core:pairing:lint")
 }
 
 tasks.register("ciTest") {
@@ -29,15 +29,15 @@ tasks.register("ciTest") {
     description = "All JVM tests: modules, lint rules and generators (task android:test)"
     dependsOn(":app-mobile:testPlayDebugUnitTest", ":app-mobile:testFossDebugUnitTest")
     dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest")
-    dependsOn(":core:pairing:test")
+    dependsOn(":app-tv:testDebugUnitTest", ":core:pairing:test")
     dependsOn(":lint:test")
     dependsOn(gradle.includedBuild("tools").task(":test"))
 }
 
 tasks.register("fastCheck") {
     group = "verification"
-    description = "The quick part of task check:fast: compile the play debug build and run its JVM tests"
+    description = "The quick part of task check:fast: compile the play debug build and the TV debug build and run their JVM tests"
     dependsOn(":app-mobile:assemblePlayDebug", ":app-mobile:testPlayDebugUnitTest")
     dependsOn(":core:api:test", ":core:session:testDebugUnitTest", ":core:design:testDebugUnitTest")
-    dependsOn(":core:pairing:test")
+    dependsOn(":app-tv:assembleDebug", ":app-tv:testDebugUnitTest", ":core:pairing:test")
 }

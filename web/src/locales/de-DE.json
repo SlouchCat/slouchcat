@@ -778,5 +778,14 @@
         "title": "Nichts gefunden für „{{q}}“"
       }
     }
+  },
+  "tv": {
+    "pair": {
+      "step1": "Öffne die Slouchcat-App am Handy und wähle „Fernseher verbinden“."
+    },
+    "settings": {
+      "tvHint": "So heißt dieser Fernseher am Handy unter „Meine Geräte“. Dort kannst du ihn auch abmelden.",
+      "signedOutOffline": "Abgemeldet. Der Server hat es nicht bestätigt: Melde den Fernseher unter „Meine Geräte“ ab."
+    }
   }
 }
