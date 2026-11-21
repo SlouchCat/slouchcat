@@ -15,7 +15,11 @@ import org.snakeyaml.engine.v2.api.Dump
 import org.snakeyaml.engine.v2.api.DumpSettings
 import org.snakeyaml.engine.v2.api.Load
 import org.snakeyaml.engine.v2.api.LoadSettings
+import org.snakeyaml.engine.v2.api.RepresentToNode
 import org.snakeyaml.engine.v2.common.FlowStyle
+import org.snakeyaml.engine.v2.common.ScalarStyle
+import org.snakeyaml.engine.v2.nodes.Tag
+import org.snakeyaml.engine.v2.representer.StandardRepresenter
 
 /**
  * The pre-pass of concept 27 (5.3): cuts api/openapi.yaml down to the operations one app may call
@@ -44,12 +48,31 @@ abstract class TrimOpenApi : DefaultTask() {
         @Suppress("UNCHECKED_CAST")
         val root = Load(settings).loadFromString(contract.get().asFile.readText()) as MutableMap<String, Any?>
         val stats = OpenApiTrimmer.trim(root, client.get(), visibilities.get().toSet())
-        val dump = Dump(DumpSettings.builder().setDefaultFlowStyle(FlowStyle.BLOCK).setWidth(4096).build())
+        val dumpSettings = DumpSettings.builder().setDefaultFlowStyle(FlowStyle.BLOCK).setWidth(4096).build()
+        val dump = Dump(dumpSettings, Yaml11SafeRepresenter(dumpSettings))
         output.get().asFile.apply { parentFile.mkdirs() }.writeText(dump.dumpToString(root))
         logger.lifecycle(
             "TrimOpenApi: ${stats.kept} operations kept, ${stats.dropped} dropped, " +
                 "${stats.components} components reached",
         )
+    }
+}
+
+/**
+ * Writes YAML 1.2 that a YAML 1.1 reader (the parser of openapi-generator) reads the same: a string
+ * such as `off`, `on`, `yes` or `no` stays quoted. Unquoted, the generator read the enumeration value
+ * `off` of `SubtitleMode` as the boolean `false` and the client sent "false" (stage 5).
+ */
+internal class Yaml11SafeRepresenter(settings: DumpSettings) : StandardRepresenter(settings) {
+    init {
+        val plain = representers.getValue(String::class.java)
+        representers[String::class.java] = RepresentToNode { data ->
+            if ((data as String).lowercase() in YAML11_BOOLEANS) representScalar(Tag.STR, data, ScalarStyle.DOUBLE_QUOTED) else plain.representData(data)
+        }
+    }
+
+    private companion object {
+        val YAML11_BOOLEANS = setOf("y", "n", "yes", "no", "on", "off", "true", "false")
     }
 }
 

@@ -97,4 +97,17 @@ class OpenApiTrimmerTest {
         assertTrue("public carries no list", OpenApiTrimmer.keeps(op("public", null), "app", kept))
         assertFalse(OpenApiTrimmer.keeps(op("admin", null), "app", kept))
     }
+
+    /** `off` of `SubtitleMode` must stay a string for the YAML 1.1 reader of openapi-generator. */
+    @Test
+    fun yaml11BooleanWordsStayQuoted() {
+        val settings = org.snakeyaml.engine.v2.api.DumpSettings.builder().build()
+        val yaml = org.snakeyaml.engine.v2.api.Dump(settings, Yaml11SafeRepresenter(settings))
+            .dumpToString(mapOf("enum" to listOf("off", "forced", "On", "yes"), "minimum" to 0))
+        assertTrue(yaml, yaml.contains("\"off\""))
+        assertTrue(yaml, yaml.contains("\"On\""))
+        assertTrue(yaml, yaml.contains("\"yes\""))
+        assertTrue(yaml, yaml.contains("forced") && !yaml.contains("\"forced\""))
+        assertTrue(yaml, yaml.contains("minimum: 0"))
+    }
 }
